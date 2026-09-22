@@ -325,7 +325,7 @@
     ['Çeviri oluştur', 'Translate subtitles'],
     ['Altyazı oluştur', 'Generate subtitles'],
     ['Çeviriyi dışa aktar', 'Export translation'],
-    ['Tamamını yeni modelle çevir', 'Retranslate all with a new model'],
+    ['Tamamını yeni modelle çevir', 'Retranslate all'],
     ['Açıkla', 'Explain'],
     ['Kopyala', 'Copy'],
     ['Kaydet', 'Save'],
@@ -867,6 +867,114 @@
     ['Oynatıcıdan çık', 'Leave player'],
     ['Tarayıcı sekme alanı', 'Browser tabs area'],
     ['Tarayıcı sekmeleri', 'Browser tabs'],
+    // Tarayıcı kabuğunda EN arayüzde Türkçe kalan metinler (2026-09-22 denetimi).
+    ['WHISPER TARAYICI', 'WHISPER BROWSER'],
+    ["Adres yaz veya web'de ara", 'Type an address or search the web'],
+    ['Tarayıcı alanı açılamadı.', 'The browser area could not be opened.'],
+    // Satır içi işaretlemeyle bölünen cümle parçaları (tam düğüm eşleşmesi).
+    ['Mevcut bir', 'From an existing'],
+    ['ve', 'and'],
+    ['Sayfa', 'Page'],
+    ['http ile aç', 'Open with http'],
+    ['Bu site güvenli (https) bağlantı sunmuyor olabilir; şifrelenmemiş http ile dener.', 'This site may not offer a secure (https) connection; tries unencrypted http.'],
+    ['Şifrelenmemiş bağlantıyla aç', 'Open over an unencrypted connection'],
+    ['Çevrilmemiş satırları göster', 'Show untranslated lines'],
+    ['Çevrilmemiş satır yok.', 'No untranslated lines.'],
+    ['Eksikleri çevir', 'Translate missing'],
+    ['Yalnız eksik satırlar gönderilir; tamamlanan satırlar önbellekten korunur.', 'Only missing lines are sent; completed lines are kept from the cache.'],
+    // Adres önerisi etiketleri (panel tarama dışında, UiLocale.t ile çevrilir).
+    ['Açık sekme', 'Open tab'],
+    ['Yer imi', 'Bookmark'],
+    ['Yer imleri', 'Bookmarks'],
+    ['Web', 'Web'],
+    ['Otomatik tamamlama', 'Autocomplete'],
+    ['Adresse doğrudan açılır; değilse web araması yapılır.', 'Opens directly if it is an address; otherwise searches the web.'],
+    ['Seçip Enter: sonucu panoya kopyala', 'Select and press Enter: copy result'],
+    // Tarayıcı durum sinyalleri (setBrowserSignal sabit metinleri).
+    ["Çeviri hata bildirimi temizlendi.", "Translation error notice cleared."],
+    ["Workflow kaydı başladı. Komut paletinden çalıştırdığınız uygun eylemler kaydedilecek.", "Workflow recording started. Eligible actions you run from the command palette will be recorded."],
+    ["Kaydedilecek workflow adımı bulunamadı.", "No workflow step to save."],
+    ["Sekme veya medya değişti; komut yeniden seçilmeli.", "The tab or media changed; choose the command again."],
+    ["Son kapatılan sekme yeniden açıldı.", "Reopened the last closed tab."],
+    ["Manga çevirmek için önce bir okuma sayfası açın.", "Open a reading page before translating manga."],
+    ["Uyumluluk modunda sayfa enjeksiyonları kapalıdır; manga çevirisi kullanılamaz.", "Page injections are disabled in compatibility mode; manga translation is unavailable."],
+    ["Ağ bağlantısı yok; yeni altyazı ve sayfa çevirileri çevrimdışı kuyrukta bekleyecek.", "No network connection; new subtitle and page translations will wait in the offline queue."],
+    ["Bu sayfada altyazı izi bulunamadı. Ses üzerinden altyazı üretmek için Canlı Whisper’ı deneyin.", "No subtitle track found on this page. Try Live Whisper to generate subtitles from the audio."],
+    ["Çevrilecek kaynak altyazı izi seçilemedi. Listeden bir iz seçin.", "Could not pick a source subtitle track to translate. Choose a track from the list."],
+    ["Kaynak altyazı hazır; çeviri başlatılıyor…", "Source subtitles ready; starting translation…"],
+    ["Tam altyazı yakalandı ancak tamamlanan kaynak izi bulunamadı.", "Full subtitles were captured but no completed source track was found."],
+    ["Başka bir iş çalışıyor; bu iş bitince altyazı otomatik yüklenecek.", "Another job is running; subtitles will load automatically when it finishes."],
+    ["Önce bölümün tam kaynak altyazısı getiriliyor; tamamlanınca toplu çeviri başlayacak.", "Fetching the episode's full source subtitles first; batch translation will start when done."],
+    ["Altyazı parçaları tamamlanıyor; son sürüm bekleniyor…", "Completing subtitle segments; waiting for the final version…"],
+    ["Bu izin çevirisi zaten açık; hazır cümleler ve çeviri kuyruğu korundu.", "Translation of this track is already open; ready sentences and the translation queue were kept."],
+    ["İki altyazı için ikinci iz seçin.", "Choose a second track for dual subtitles."],
+    ["Birinci ve ikinci altyazı izi farklı olmalı.", "The first and second subtitle tracks must be different."],
+    ["Kaynak ve ikinci altyazı birlikte yüklendi.", "Source and second subtitles loaded together."],
+    ["Dosyadaki altyazı web videosunun üzerine yüklendi.", "Subtitle file loaded over the web video."],
+    ["Dışa aktarılacak canlı çeviri henüz hazır değil.", "The live translation is not ready to export yet."],
+    ["Kuyruğa eklemek için önce bir video sayfası açın.", "Open a video page before adding to the queue."],
+    ["Bu DRM korumalı servis indirme/transkripsiyon kuyruğuna eklenemez; yakalanan altyazıyı dışa aktarabilirsiniz.", "This DRM-protected service cannot be added to the download/transcription queue; you can export the captured subtitles."],
+    ["Açık sayfa mevcut ayarlarla transkripsiyon kuyruğuna eklendi.", "The open page was added to the transcription queue with the current settings."],
+    ["Whisper işlemi için browser içinde bir YouTube video sayfası açın.", "Open a YouTube video page in the browser for Whisper processing."],
+    ["Bu video için hazırlanmış Whisper çevirisi bulundu ve yeniden işlem yapılmadan yüklendi.", "A prepared Whisper translation for this video was found and loaded without reprocessing."],
+    ["Bu video için hazırlanmış Whisper altyazısı bulundu ve yeniden işlem yapılmadan yüklendi.", "Prepared Whisper subtitles for this video were found and loaded without reprocessing."],
+    ["Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.", "Whisper subtitles are already ready; only translation was started, without reprocessing audio."],
+    ["Klip için önce A-B aralığı belirleyin.", "Set an A-B range before creating a clip."],
+    ["A-B klibi dışa aktarıldı.", "A-B clip exported."],
+    ["Canlı Whisper kuyruğu doldu; ses parçası atlandı. Daha küçük bir model seçin.", "The Live Whisper queue is full; an audio segment was skipped. Choose a smaller model."],
+    ["Bu sponsor bölümü video boyunca atlanmayacak.", "This sponsor segment will not be skipped for this video."],
+    ["Sponsor bölümüne geri sardınız.", "Rewound to the sponsor segment."],
+    ["Sayfa açılıyor; altyazı izi bekleniyor…", "Opening the page; waiting for a subtitle track…"],
+    ["Tarayıcı geçmişi temizlendi.", "Browser history cleared."],
+    ["Önce bir site açın; temizlenecek site yok.", "Open a site first; there is no site to clear."],
+    ["Tarayıcı ayarları açıkken gezinme komutları sayfaya gönderilmez.", "Navigation commands are not sent to the page while browser settings are open."],
+    ["Bu sekmede geri dönülecek bir sayfa yok.", "There is no page to go back to in this tab."],
+    ["Altyazı yakalama durumu değiştirilemedi.", "Could not change subtitle capture state."],
+    ["Sayfanın çevrimdışı MHTML kopyası kaydedildi.", "Saved an offline MHTML copy of the page."],
+    ["Bildirim kapatıldı; altyazı izleme arka planda sürüyor.", "Notification dismissed; subtitle tracking continues in the background."],
+    ["Oturum geri yükleme tercihi kaydedilemedi.", "Could not save the session restore preference."],
+    ["Boşaltılabilecek etkin olmayan sekme bulunamadı.", "No inactive tab could be unloaded."],
+    ["Sekme güvenli biçimde bellekten boşaltıldı; açıldığında sayfa geri getirilecek.", "The tab was safely unloaded from memory; the page will come back when you open it."],
+    ["Manga düzenlemesi reddedildi: sayfadaki metin kayıtlı değerle uyuşmadı; özgün değere geri alındı.", "Manga edit rejected: the text on the page did not match the saved value; reverted to the original."],
+    ["Bu yanıt başka bir video veya sekmeye ait.", "This response belongs to another video or tab."],
+    ["Bu transkript kanıtı artık bulunamıyor.", "This transcript evidence is no longer available."],
+    ["Bu kaynak sayfa artık açık değil.", "This source page is no longer open."],
+    ["Kurtarma kaydı artık bu sekme veya kaynakla eşleşmiyor; yeniden tarayın.", "The recovery record no longer matches this tab or source; scan again."],
+    ["Kaynak altyazı izi henüz bulunamadı. Sayfa yüklendikten sonra yeniden deneyin.", "No source subtitle track found yet. Try again after the page loads."],
+    ["Terim kilitlendi; sonraki çeviride korunacak.", "Term locked; it will be kept in the next translation."],
+    ["Sayfa çevirisi için önce bir web sayfası açın.", "Open a web page before translating a page."],
+    ["Yeni çeviri bu kapsamla başlatılacak.", "The new translation will start with this scope."],
+    ["Hedef dil sonraki çeviride kullanılacak.", "The target language will be used for the next translation."],
+    ["Çeviri arşivi klasörü bulunamadı.", "Translation archive folder not found."],
+    ["Çeviri arşivi açıldı.", "Translation archive opened."],
+    ["Whisper işlemi yalnız browser içinde açık bir YouTube video sayfasında kullanılabilir.", "Whisper processing is only available on a YouTube video page open in the browser."],
+    ['Adres gir', 'Enter address'],
+    ['Web adresi veya arama', 'Web address or search'],
+    ['Bu siteyi yer imlerine ekle', 'Bookmark this site'],
+    ['Bu kez engelle', 'Block this time'],
+    ['Bu kez izin ver', 'Allow this time'],
+    ['Bu site', 'This site'],
+    ['Bu sayfa yolu', 'This page path'],
+    ['Kapat (Esc)', 'Close (Esc)'],
+    ['Bu bildirimi kapat', 'Dismiss this notification'],
+    ['Bildirimi kapat', 'Dismiss notification'],
+    ['Ayarlar sekmesini kapat', 'Close settings tab'],
+    ['Komut paletini kapat', 'Close command palette'],
+    ['PDF okuyucuyu kapat', 'Close PDF reader'],
+    ['YouTube oturumunu kapat', 'Sign out of YouTube'],
+    ['Videoyu oynat veya duraklat', 'Play or pause the video'],
+    ['Kelime incelemeyi kapat', 'Close word inspector'],
+    ['URL, strateji veya hata…', 'URL, strategy or error…'],
+    ['Gezilen sayfa metnini yerel aramaya ekle', 'Add visited page text to local search'],
+    ['Yerel sayfa indeksini temizle', 'Clear local page index'],
+    ['Kaynak ve gizlilik', 'Source and privacy'],
+    ['Sayfa durumu', 'Page status'],
+    ['Bu pencere', 'This window'],
+    ['Bu video', 'This video'],
+    ['Ayarlar / Kaynak ve oynatma', 'Settings / Source and playback'],
+    ['Dinle ve tekrar et (shadowing)', 'Listen and repeat (shadowing)'],
+    ['0/0 sayfa', '0/0 pages'],
+    ['A/B: yok', 'A/B: none'],
     ['İzleme modu', 'Viewing mode'],
     ['Aktif işleri aç', 'Open active jobs'],
     ['PDF kitap aç', 'Open PDF book'],
@@ -1128,6 +1236,8 @@
     ['Sonraki videoyu aç', 'Open next video'],
     ['Altyazı görünümünü seç (V)', 'Select subtitle display (V)'],
     ['Altyazı görünümünü seç', 'Select subtitle display'],
+    // Öznitelik değeri tarayıcıda çözülmüş gelir; &lt; biçimindeki anahtar hiç eşleşmiyordu.
+    ['Oynatma hızı (Shift+< / Shift+>)', 'Playback speed (Shift+< / Shift+>)'],
     ['Oynatma hızı (Shift+&lt; / Shift+&gt;)', 'Playback speed (Shift+&lt; / Shift+&gt;)'],
     ['Sesi aç veya kapat', 'Toggle sound'],
     ['Ses düzeyi', 'Volume'],
@@ -1472,6 +1582,7 @@
   const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,.browser-place-title,.browser-quick-place-title,.history-title,[data-ui-untranslated]';
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
+  const uiListContainers = '#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,#cueList,#log,#aiChatLog';
 
   function translate(value, target = locale) {
     if (typeof value !== 'string') return value;
@@ -1483,7 +1594,14 @@
   }
 
   function localizeElement(element) {
-    if (!(element instanceof Element) || element.closest(ignored)) return;
+    // Liste kapsayıcılarının KENDİ arayüz öznitelikleri (ör. sekme şeridinin
+    // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
+    // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
+    if (!(element instanceof Element)) return;
+    const blocked = element.matches(uiListContainers)
+      ? element.parentElement?.closest(ignored)
+      : element.closest(ignored);
+    if (blocked) return;
     let originals = originalAttributes.get(element);
     if (!originals) { originals = new Map(); originalAttributes.set(element, originals); }
     for (const name of ['title', 'aria-label', 'placeholder']) {

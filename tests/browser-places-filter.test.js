@@ -27,6 +27,8 @@ const context = {
   browserCloseIcon: () => new Node(),
 };
 vm.createContext(context);
+// Arama katlaması renderer'ın ortak yardımcısıdır (I/İ/ı → i).
+vm.runInContext(source.slice(source.indexOf('function foldSearch(value)'), source.indexOf('// Dil kodunu dosya adindan cikar')), context);
 vm.runInContext(source.slice(source.indexOf('function browserPlaceTitle('), source.indexOf('function browserPlaceKey(')), context);
 vm.runInContext(source.slice(source.indexOf('function browserPlaceList('), source.indexOf('let browserAddressSearchTimer')), context);
 context.renderBrowserQuickPlaces = () => {};

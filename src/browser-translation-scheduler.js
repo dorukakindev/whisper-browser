@@ -313,11 +313,7 @@ class BrowserTranslationScheduler {
     const farSeek = Math.abs(next - this.playhead) >= this.farSeekThreshold;
     this.playhead = next;
     if (this.providerFailure) {
-      for (const sentence of this.sentences) {
-        if (!this.results.has(sentence.id)) this.failures.set(sentence.id, {
-          attempts: 0, terminal: true, retryAt: Infinity, error: this.providerFailure,
-        });
-      }
+      this.markUntriedAsProviderFailure(new Set());
       this.queue = [];
       this.emitState();
       this.resolveIdleIfNeeded();
@@ -396,14 +392,19 @@ class BrowserTranslationScheduler {
       .filter(([, failure]) => failure.terminal)
       .map(([sentenceId]) => sentenceId);
     if (!failedIds.length) return 0;
+    const wasTripped = Boolean(this.providerFailure);
     this.providerFailure = '';
-    // A deliberate retry begins a new failure streak; a stale tripped count
-    // would reopen the breaker after one transient 5xx response.
+    // Yeniden deneme temiz bir sayfa açar: sayaç sıfırlanmazsa tek bir geçici
+    // 503 devre kesiciyi hemen yeniden tetikleyip her şeyi tekrar düşürüyordu.
     this.consecutiveProviderFailures = 0;
+    // Devre kesici, hiç denenmemiş cümleleri de "başarısız" işaretler
+    // (deferred). Onları kuyruğa itmek fiilen "tüm izi çevir" olurdu (200 cümlelik
+    // izde 200 istek); onlar yalnız yeniden oynatma penceresine göre planlanır.
+    const failedSet = new Set(failedIds.filter((id) => !this.failures.get(id)?.deferred));
     for (const sentenceId of failedIds) this.failures.delete(sentenceId);
-    // Hata kullanicinin mevcut pencere kapsami disinda olsa bile yeniden
-    // denenebilmeli; ancak bu eylem acik bir "tum izi cevir" talebi degildir.
-    const failedSet = new Set(failedIds);
+    if (wasTripped) this.updatePlayhead(this.playhead);
+    // Gerçekten denenmiş ve düşmüş cümleler pencere dışında olsa bile yeniden
+    // denenebilmeli; ancak bu eylem açık bir "tüm izi çevir" talebi değildir.
     const unavailable = new Set([
       ...this.results.keys(),
       ...this.pending.keys(),
@@ -412,9 +413,25 @@ class BrowserTranslationScheduler {
     const retries = this.sentences.filter((sentence) =>
       failedSet.has(sentence.id) && !unavailable.has(sentence.id));
     this.queue = [...retries, ...this.queue];
+    const scheduled = new Set([...this.queue.map((sentence) => sentence.id), ...this.pending.keys()]);
     this.emitState();
     this.pump();
-    return retries.length;
+    return failedIds.filter((id) => scheduled.has(id)).length;
+  }
+
+  markUntriedAsProviderFailure(attemptedIds) {
+    for (const sentence of this.sentences) {
+      if (this.results.has(sentence.id)) continue;
+      const existing = this.failures.get(sentence.id);
+      const attempted = attemptedIds.has(sentence.id) || (existing && !existing.deferred);
+      this.failures.set(sentence.id, {
+        attempts: existing?.attempts || 0,
+        terminal: true,
+        retryAt: Infinity,
+        error: this.providerFailure,
+        ...(attempted ? {} : { deferred: true }),
+      });
+    }
   }
 
   async readCache(key) {
@@ -621,6 +638,10 @@ class BrowserTranslationScheduler {
 
   tripProviderFailure(error) {
     this.providerFailure = String(error?.message || error || 'Çeviri sağlayıcısı modeli sunmuyor.');
+    const attemptedIds = new Set([
+      ...this.pending.keys(),
+      ...this.queue.map((sentence) => sentence.id),
+    ]);
     for (const job of this.pending.values()) job.controller.abort('Sağlayıcı modeli sunmuyor.');
     this.pending.clear();
     for (const shared of this.inFlightByCacheKey.values()) shared.controller.abort('Sağlayıcı modeli sunmuyor.');
@@ -628,11 +649,7 @@ class BrowserTranslationScheduler {
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
     this.queue = [];
-    for (const sentence of this.sentences) {
-      if (!this.results.has(sentence.id)) this.failures.set(sentence.id, {
-        attempts: 0, terminal: true, retryAt: Infinity, error: this.providerFailure,
-      });
-    }
+    this.markUntriedAsProviderFailure(attemptedIds);
     this.emitState();
     this.resolveIdleIfNeeded();
   }

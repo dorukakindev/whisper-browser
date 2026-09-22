@@ -3225,7 +3225,8 @@ function nextBrowserTabId() {
 }
 
 function createBrowserTabRecord(initial = {}) {
-  const restored = normalizeSessionTab(initial) || {};
+  // Geri açma/geri yükleme: düz #çapa korunur (yalnız yerel oturum; bkz. sessionTabUrl).
+  const restored = normalizeSessionTab(initial, { keepAnchor: true }) || {};
   const requestedId = normalizeBrowserTabId(restored.id);
   const tab = {
     id: requestedId && !browserTabs.has(requestedId) ? requestedId : nextBrowserTabId(),
@@ -3736,6 +3737,8 @@ function normalizeBrowserPlaces(places) {
     title: String(item && item.title || '').trim().slice(0, 240),
     folder: String(item && item.folder || '').trim().slice(0, 64),
     visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    // Ziyaret sayısı adres çubuğu sıklık × yakınlık sıralaması için tutulur.
+    visits: Math.max(1, Math.min(100000, Math.floor(Number(item && item.visits) || 1))),
   })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
@@ -3983,7 +3986,7 @@ function rememberBrowserVisit(url, title = '') {
   const first = places.history[0];
   if (first && first.url === safeUrl && first.title === nextTitle) return;
   places.history = [
-    { url: safeUrl, title: nextTitle, visitedAt: now },
+    { url: safeUrl, title: nextTitle, visitedAt: now, visits: Math.min(100000, (Number(previous && previous.visits) || 0) + 1) },
     ...places.history.filter((item) => item.url !== safeUrl),
   ].slice(0, BROWSER_PLACE_LIMIT);
   setBrowserPlaces(places);
@@ -4435,10 +4438,15 @@ function normalizeBrowserUrl(raw) {
   const isLikelyDomain = /^(?:[\p{L}\p{N}-]+\.)+[\p{L}]{2,}(?::\d+)?(?:[/?#].*)?$/iu.test(value)
     || /^localhost(?::\d+)?(?:[/?#].*)?$/i.test(value)
     || /^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:[/?#].*)?$/.test(value)
-    || /^\[[0-9a-f:.]+\](?::\d+)?(?:[/?#].*)?$/i.test(value);
+    || /^\[[0-9a-f:.]+\](?::\d+)?(?:[/?#].*)?$/i.test(value)
+    // Tek etiketli intranet adı + port ("nas:5000", "myhost:8080").
+    || /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?:\d{1,5}(?:[/?#].*)?$/i.test(value);
   if (isLikelyDomain) {
     try {
-      const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[^/?#]+\.local)(?::\d+)?(?:[/?#]|$)/i.test(value);
+      // Yerel ağ adresleri (modem/NAS yönetim sayfaları) çoğunlukla yalnız http
+      // sunar; https'e zorlamak "192.168.1.1" yazan kullanıcıya bağlantı hatası
+      // gösteriyordu ve http'ye geri dönüş yolu yoktu.
+      const localHost = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[^/?#]+\.local|[^/?#.:]+:\d{1,5}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|169\.254(?:\.\d{1,3}){2}|\[(?:f[cd][0-9a-f]{0,2}|fe[89ab][0-9a-f]?):[0-9a-f:.]*\])(?::\d+)?(?:[/?#]|$)/i.test(value);
       const parsed = new URL(`${localHost ? 'http' : 'https'}://${value}`);
       if (parsed.username || parsed.password) return null;
       return parsed.href;
@@ -4446,7 +4454,12 @@ function normalizeBrowserUrl(raw) {
   }
   // Adres çubuğundaki metin aramaya gidebilir; çalıştırılabilir/dosya
   // şemalarını ise arama sağlayıcısına dahi gönderme.
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null;
+  // Yalnız gerçekten adres gibi görünen şema:… metni engellenir. "Not: süt al",
+  // "Re: toplantı", "python: list comprehension" gibi aramalar eskiden "Geçerli bir
+  // http veya https adresi girin" hatasına düşüyordu.
+  if (/^(?:javascript|vbscript|data|file|about|blob|filesystem|view-source|chrome|chrome-extension|devtools|ftp|mailto|tel|sms|ws|wss|intent|ms-[a-z-]+):/i.test(value)
+    || /^[a-z]:[\\/]/i.test(value)
+    || /^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return null;
   return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
 }
 
@@ -4727,15 +4740,27 @@ async function openBrowserLinkInNewTab(rawUrl) {
 }
 
 function browserImageFileName(rawUrl, contentType = '') {
+  const BROWSER_IMAGE_TYPE_EXTENSIONS = [
+    [/^image\/png\b/i, '.png'], [/^image\/(?:jpeg|jpg|pjpeg)\b/i, '.jpg'], [/^image\/webp\b/i, '.webp'],
+    [/^image\/gif\b/i, '.gif'], [/^image\/svg\+xml\b/i, '.svg'], [/^image\/avif\b/i, '.avif'],
+    [/^image\/(?:x-icon|vnd\.microsoft\.icon)\b/i, '.ico'], [/^image\/(?:bmp|x-ms-bmp)\b/i, '.bmp'],
+  ];
+  const BROWSER_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.avif', '.ico', '.bmp'];
   let name = 'gorsel';
   try { name = path.basename(decodeURIComponent(new URL(rawUrl).pathname)) || name; } catch (_) {}
   name = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 120) || 'gorsel';
   const currentExt = path.extname(name).toLowerCase();
-  if (!['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'].includes(currentExt)) {
-    if (currentExt) name = path.basename(name, currentExt);
-    const ext = /png/i.test(contentType) ? '.png' : /webp/i.test(contentType) ? '.webp'
-      : /gif/i.test(contentType) ? '.gif' : /svg/i.test(contentType) ? '.svg' : '.jpg';
-    name += ext;
+  // Sunucunun bildirdiği tür URL'deki uzantıdan önce gelir: CDN'ler "photo.jpg"
+  // adresinden WebP/AVIF döndürür; eski kod yanlış uzantıyla kaydediyor, bilinmeyen
+  // türleri (avif/ico) ise ".jpg" yapıyordu.
+  const typed = BROWSER_IMAGE_TYPE_EXTENSIONS.find(([pattern]) => pattern.test(String(contentType || '').trim()))?.[1] || '';
+  const sameFamily = typed === '.jpg' && currentExt === '.jpeg';
+  if (typed && currentExt !== typed && !sameFamily) {
+    if (currentExt) name = path.basename(name, path.extname(name));
+    name += typed;
+  } else if (!typed && !BROWSER_IMAGE_EXTENSIONS.includes(currentExt)) {
+    if (currentExt) name = path.basename(name, path.extname(name));
+    name += '.jpg';
   }
   return name;
 }
@@ -4755,13 +4780,65 @@ async function saveBrowserContextImage(tab, rawUrl) {
   if (declared > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
+  const defaultName = browserImageFileName(parsed.href, type);
+  const originalExt = path.extname(defaultName).slice(1).toLowerCase();
+  // WebP/AVIF/ICO/BMP'yi Windows'taki birçok uygulama açamıyor: kaydetme penceresi
+  // "PNG olarak kaydet" seçeneği de sunar; .png seçilirse görsel dönüştürülür.
+  const convertible = BROWSER_IMAGE_PNG_CONVERTIBLE.has(originalExt);
   const choice = await dialog.showSaveDialog(mainWindow, {
-    title: 'Görseli kaydet', defaultPath: browserImageFileName(parsed.href, type),
-    filters: [{ name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }],
+    title: 'Görseli kaydet', defaultPath: defaultName,
+    filters: [
+      { name: `Özgün biçim (${originalExt.toUpperCase() || 'görsel'})`, extensions: [originalExt || 'jpg'] },
+      ...(convertible ? [{ name: 'PNG olarak kaydet (dönüştür)', extensions: ['png'] }] : []),
+      { name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'ico', 'bmp'] },
+    ],
   });
   if (choice.canceled || !choice.filePath) return;
-  await fs.promises.writeFile(choice.filePath, bytes);
-  sendBrowserEvent(tab, { type: 'notice', message: 'Görsel kaydedildi.', success: true });
+  const wantsPng = convertible && path.extname(choice.filePath).toLowerCase() === '.png';
+  const output = wantsPng ? await convertImageBytesToPng(bytes, type || `image/${originalExt}`) : bytes;
+  await fs.promises.writeFile(choice.filePath, output);
+  sendBrowserEvent(tab, { type: 'notice', message: wantsPng ? 'Görsel PNG olarak kaydedildi.' : 'Görsel kaydedildi.', success: true });
+}
+
+const BROWSER_IMAGE_PNG_CONVERTIBLE = new Set(['webp', 'avif', 'ico', 'bmp', 'gif', 'jpg', 'jpeg']);
+
+// Görseli ağ erişimi, betik izni olmayan, gizli ve kısa ömürlü bir pencerede
+// Chromium'un kendi çözücüsüyle PNG'ye çevirir (nativeImage WebP/AVIF çözemez).
+// Sayfa CSP'sinden bağımsızdır; yalnız kendi veri URL'mizi işler.
+async function convertImageBytesToPng(bytes, mime) {
+  const safeMime = /^image\/[a-z0-9.+-]{1,40}$/i.test(String(mime).split(';')[0].trim())
+    ? String(mime).split(';')[0].trim().toLowerCase() : 'image/webp';
+  const worker = new BrowserWindow({
+    show: false, width: 64, height: 64,
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true,
+      offscreen: true, partition: 'whisper-image-convert', spellcheck: false },
+  });
+  try {
+    worker.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+      callback({ cancel: !/^(?:about:blank|data:)/i.test(details.url) });
+    });
+    await worker.loadURL('about:blank');
+    const base64 = await withTimeout(worker.webContents.executeJavaScript(`(async () => {
+      const bytes = Uint8Array.from(atob(${JSON.stringify(bytes.toString('base64'))}), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: ${JSON.stringify(safeMime)} }));
+      if (bitmap.width * bitmap.height > 80000000) throw new Error('too-large');
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      const buffer = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < buffer.length; i += 0x8000) binary += String.fromCharCode(...buffer.subarray(i, i + 0x8000));
+      return btoa(binary);
+    })()`), 20000, 'Görsel PNG\'ye dönüştürülemedi (zaman aşımı).');
+    const png = Buffer.from(String(base64 || ''), 'base64');
+    if (png.length < 8 || png.readUInt32BE(0) !== 0x89504e47) throw new Error('Görsel PNG\'ye dönüştürülemedi.');
+    return png;
+  } catch (error) {
+    throw new Error(/too-large/.test(String(error?.message)) ? 'Görsel dönüştürmek için çok büyük.'
+      : (String(error?.message || '').startsWith('Görsel') ? error.message : 'Görsel PNG\'ye dönüştürülemedi; özgün biçimde kaydedin.'));
+  } finally {
+    if (!worker.isDestroyed()) worker.destroy();
+  }
 }
 
 async function saveBrowserSelectionNote(tab, fallbackSelection = '') {
@@ -14700,7 +14777,9 @@ ipcMain.handle('browser:profile:update', (event, request = {}) => {
     : (scope === 'path' ? withBrowserPathProfileField(places.pathProfiles, url, request.field, request.value)
       : withBrowserSiteProfileField(places.siteProfiles, url, request.field, request.value));
   if (!updated.ok) return { ok: false, error: updated.reason === 'limit'
-    ? `Site ayarı sınırına ulaşıldı (${MAX_BROWSER_SITE_PROFILES}). Bu sitenin profilini kaydetmek için kullanılmayan bir site profilini sıfırlayın.`
+    ? (scope === 'path'
+      ? `Sayfa ayarı sınırına ulaşıldı (${MAX_BROWSER_SITE_PROFILES}). Bu sayfayı kaydetmek için kullanılmayan bir sayfa ayarını sıfırlayın.`
+      : `Site ayarı sınırına ulaşıldı (${MAX_BROWSER_SITE_PROFILES}). Bu sitenin profilini kaydetmek için kullanılmayan bir site profilini sıfırlayın.`)
     : 'Geçersiz site ayarı.' };
   if (scope === 'path') places.pathProfiles = updated.profiles; else places.siteProfiles = updated.profiles;
   setBrowserPlaces(places, { broadcast: false });

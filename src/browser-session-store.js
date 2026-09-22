@@ -173,9 +173,23 @@ function migrateBrowserSession(raw) {
   return source;
 }
 
-function normalizeSessionTab(raw) {
+// Düz sayfa içi çapa (#re.sub, #L42, #kurulum) yalnız YEREL oturum dosyasında
+// korunur: geri açılan/geri yüklenen sekme sayfa başına dönmesin. Yedek, çalışma
+// alanı ve taşınabilir oturum paketi safePlaceUrl ile çapasız kalır (gizlilik
+// sözleşmesi). "=" / "&" taşıyan OAuth benzeri fragmentler hiçbir zaman tutulmaz.
+const PLAIN_ANCHOR = /^[\p{L}\p{N}_.:~%-][\p{L}\p{N}_.:~%/-]{0,199}$/u;
+function sessionTabUrl(rawUrl, keepAnchor) {
+  const safe = safePlaceUrl(rawUrl);
+  if (!safe || !keepAnchor || safe.includes('#')) return safe;
+  try {
+    const hash = new URL(String(rawUrl || '')).hash.slice(1);
+    return hash && PLAIN_ANCHOR.test(hash) && `${safe}#${hash}`.length <= 8192 ? `${safe}#${hash}` : safe;
+  } catch (_) { return safe; }
+}
+
+function normalizeSessionTab(raw, options = {}) {
   if (!raw || typeof raw !== 'object') return null;
-  const url = safePlaceUrl(raw.url);
+  const url = sessionTabUrl(raw.url, options?.keepAnchor === true);
   if (!url) return null;
   const persistedMediaId = cleanString(raw.mediaId, 240);
   const persistedParts = persistedMediaId && !persistedMediaId.includes(':url:')
@@ -240,10 +254,11 @@ function normalizeSessionTab(raw) {
   };
 }
 
-function normalizeBrowserSession(raw) {
+function normalizeBrowserSession(raw, options = {}) {
   const source = migrateBrowserSession(raw);
+  const keepAnchor = options?.keepAnchor === true;
   const normalized = (Array.isArray(source.tabs) ? source.tabs : [])
-    .map(normalizeSessionTab).filter(Boolean);
+    .map((tab) => normalizeSessionTab(tab, { keepAnchor })).filter(Boolean);
   const tabs = normalized.slice(0, MAX_SESSION_TABS);
   const activeTabId = cleanString(source.activeTabId, 128);
   const active = normalized.find((tab) => tab.id === activeTabId);
@@ -284,7 +299,7 @@ function readBrowserSessionWithStatus(filePath, fsModule = fs) {
         damaged = true;
         continue;
       }
-      const session = normalizeBrowserSession(parsed);
+      const session = normalizeBrowserSession(parsed, { keepAnchor: true });
       const droppedTabs = Math.max(0, parsed.tabs.length - session.tabs.length);
       return {
         session,
@@ -311,7 +326,7 @@ function readBrowserSession(filePath, fsModule = fs) {
 }
 
 function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options = {}) {
-  const session = normalizeBrowserSession({ ...rawSession, savedAt: Date.now() });
+  const session = normalizeBrowserSession({ ...rawSession, savedAt: Date.now() }, { keepAnchor: true });
   const dir = path.dirname(filePath);
   const temp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
   fsModule.mkdirSync(dir, { recursive: true });

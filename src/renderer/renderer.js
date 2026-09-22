@@ -39,6 +39,7 @@ const state = {
   source: 'file',
   forceTranslate: false,   // kontrol cubugundaki tek-tik "altyazi + ceviri"
   forceRetranslate: false, // acik kullanici eylemi: mevcut basarili satirlari da yenile
+  retranslateSnapshot: null, // yeniden çeviri öncesi eski çeviri (fark incelemesi için)
   aiJob: false,            // calisan is bir AI sorusu mu (sohbet / acikla)
 
   inputFile: null,
@@ -1264,7 +1265,7 @@ function srtTime(seconds) {
 $('copyPreview').addEventListener('click', async () => {
   // Arama filtresi aktifse yalnızca görünen segmentleri kopyala
   const segs = state.previewSegs.filter(
-    (s) => !previewFilter || (s.text || '').toLocaleLowerCase('tr').includes(previewFilter)
+    (s) => !previewFilter || foldSearch(s.text).includes(previewFilter)
   );
   if (segs.length === 0) {
     logLine('Kopyalanacak segment yok', 'warn');
@@ -1407,7 +1408,7 @@ $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   $('previewSearchClear')?.classList.toggle('hidden', !$('previewSearch').value);
   _searchTimer = setTimeout(() => {
-    previewFilter = $('previewSearch').value.trim().toLocaleLowerCase('tr');
+    previewFilter = foldSearch($('previewSearch').value.trim());
     $$('#preview .segment').forEach(applySegmentFilter);
   }, 120);
 });
@@ -1426,7 +1427,7 @@ $('previewSearchClear')?.addEventListener('click', () => {
 function createSegmentEl(seg, idx) {
   const el = document.createElement('div');
   el.className = 'segment';
-  el.dataset.text = (seg.text || '').toLocaleLowerCase('tr');
+  el.dataset.text = foldSearch(seg.text);
   if (idx !== undefined) el.dataset.idx = String(idx);
   const start = formatTime(seg.start);
   const end = formatTime(seg.end);
@@ -1462,7 +1463,7 @@ function commitSegmentEdit(textEl) {
   if (newText === entry.text) return;
   entry.text = newText;
   entry.previewEdited = true;
-  segEl.dataset.text = newText.toLocaleLowerCase('tr');
+  segEl.dataset.text = foldSearch(newText);
   syncPreviewSegmentState(segEl, entry);
 }
 
@@ -2937,7 +2938,9 @@ $('mangaModel')?.addEventListener('change', saveAppSettings);
 $('translateModel')?.addEventListener('input', () => {
   renderProviderModelChoices();
   resetTranslationProviderProbe();
+  renderTranslationModelScore();
 });
+queueMicrotask(() => { try { renderTranslationModelScore(); } catch (_) {} });
 $('translateApiKey')?.addEventListener('input', resetTranslationProviderProbe);
 $('translateSavedModel')?.addEventListener('change', (event) => {
   const model = String(event.target.value || '').trim();
@@ -3962,6 +3965,11 @@ function playerJobEvent(event) {
       if (isTranslateJob) {
         player.translationRetryAvailable = translationFailed;
         updateMakeTransState();
+        const snapshot = state.retranslateSnapshot;
+        state.retranslateSnapshot = null;
+        if (result.loaded && snapshot && snapshot.mediaKey === player.mediaKey) {
+          void openRetranslationReview(snapshot.cues);
+        }
       }
       const successText = translationPartial
         ? `Kısmi çeviri yüklendi: ${translationCompleted}/${translationTotal || translationCompleted + translationFailed} cue hazır, ${translationFailed} cue eksik. Eksikleri tamamlayabilirsiniz.`
@@ -4315,6 +4323,10 @@ window.api.onEvent((event) => {
       applyPreviewTranslations(event.segments || [], true);
       break;
 
+    case 'translation_quality': {
+      recordTranslationModelScore(event);
+      break;
+    }
     case 'llm_progress': {
       const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
       setProgress(percent);
@@ -4978,6 +4990,7 @@ const player = {
   savedCues: [],         // bu video icin kaydedilen cümle imzalari
   savedOnly: false,      // transcript filtresi: yalnizca kaydedilenler
   qualityOnly: false,    // transcript filtresi: yalnizca dusuk guvenli satirlar
+  untranslatedOnly: false, // transcript filtresi: çeviri yüklüyken çevrilemeyen satırlar
   cueListPageStart: 0,
   cueListQueryKey: '',
   savedWords: [],        // kelime koleksiyonu: kelime + cümle baglami
@@ -6991,16 +7004,16 @@ function renderBrowserQuickPlaces() {
 }
 
 function browserPlaceList() {
-  const query = String($('browserPlacesSearch')?.value || '').trim().toLocaleLowerCase('tr');
+  const query = foldSearch(String($('browserPlacesSearch')?.value || '').trim());
   if (player.browserPlaceTab === 'offline') {
     return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
-      !query || `${item.title || ''} ${item.url || ''}`.toLocaleLowerCase('tr').includes(query));
+      !query || foldSearch(`${item.title || ''} ${item.url || ''}`).includes(query));
   }
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
-    return !query || `${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`.toLocaleLowerCase('tr').includes(query);
+    return !query || foldSearch(`${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`).includes(query);
   });
 }
 
@@ -7140,7 +7153,8 @@ function closeBrowserAddressResults() {
 function selectBrowserAddressResult(index, { scroll = true } = {}) {
   const panel = $('browserAddressResults');
   const input = $('browserAddress');
-  const items = panel ? [...panel.children] : [];
+  // Bölüm başlıkları seçilemez; yalnız sonuç satırları sayılır.
+  const items = panel ? [...panel.querySelectorAll('[data-address-result]')] : [];
   if (!items.length) {
     player.browserAddressSelected = -1;
     input?.removeAttribute('aria-activedescendant');
@@ -7158,6 +7172,53 @@ function selectBrowserAddressResult(index, { scroll = true } = {}) {
   if (scroll) activeItem.scrollIntoView({ block: 'nearest' });
 }
 
+// Site simgesi yalnız güvenli veri URL'sinden (CSP img-src: 'self' data:); yoksa harf işareti.
+function browserAddressResultMark(result) {
+  const mark = document.createElement('span');
+  mark.className = 'browser-address-result-mark';
+  if (typeof result.icon === 'string' && /^data:image\//i.test(result.icon)) {
+    const icon = document.createElement('img');
+    icon.alt = ''; icon.src = result.icon; icon.width = 16; icon.height = 16;
+    mark.classList.add('has-icon');
+    mark.appendChild(icon);
+  } else {
+    mark.textContent = result.mark || '•';
+  }
+  return mark;
+}
+
+function browserAddressResultTitle(result) {
+  return result.section === 'input' && result.action === 'navigate' && result.value
+    && globalThis.UiLocale?.get?.() === 'en' ? `Go to or search “${String(result.value).slice(0, 120)}”` : result.title;
+}
+
+// Seçenek kimliği kararlıdır (aria-activedescendant bunu gösterir).
+function browserAddressOption(result, index) {
+  const option = document.createElement('div');
+  option.id = `browser-address-result-${index}`;
+  option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
+  option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
+  option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+  const mark = browserAddressResultMark(result);
+  const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
+  const title = document.createElement('strong'); title.textContent = browserAddressResultTitle(result);
+  const detail = document.createElement('small'); detail.textContent = result.section === 'input' && !result.url ? uiText(result.detail || '') : (result.detail || '');
+  copy.append(title, detail);
+  const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = uiText(result.kindLabel || '');
+  option.append(mark, copy, kind);
+  return option;
+}
+
+function browserAddressSectionHeading(label) {
+  const heading = document.createElement('div');
+  heading.className = 'browser-address-section';
+  heading.setAttribute('role', 'presentation');
+  // Panel yerelleştirme taramasının dışında (site başlıkları taşır); arayüz
+  // etiketleri burada açıkça çevrilir.
+  heading.textContent = uiText(label);
+  return heading;
+}
+
 function renderBrowserAddressResults(results) {
   const panel = $('browserAddressResults');
   const input = $('browserAddress');
@@ -7165,19 +7226,13 @@ function renderBrowserAddressResults(results) {
   player.browserAddressResults = results;
   player.browserAddressSelected = results.length ? 0 : -1;
   panel.replaceChildren();
+  const sectionLabels = globalThis.BrowserAddressModel?.SECTION_LABELS || {};
+  let lastSection = 'input';
   for (const [index, result] of results.entries()) {
-    const option = document.createElement('div');
-    option.id = `browser-address-result-${index}`;
-    option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
-    option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
-    option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-    const mark = document.createElement('span'); mark.className = 'browser-address-result-mark'; mark.textContent = result.mark || '•';
-    const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
-    const title = document.createElement('strong'); title.textContent = result.title;
-    const detail = document.createElement('small'); detail.textContent = result.detail || '';
-    copy.append(title, detail);
-    const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = result.kindLabel || '';
-    option.append(mark, copy, kind); panel.appendChild(option);
+    // Bölüm başlıkları ("Açık sekmeler", "Geçmiş"…) listeyi bir bakışta okunur yapar.
+    if (result.section && result.section !== lastSection && sectionLabels[result.section]) panel.appendChild(browserAddressSectionHeading(sectionLabels[result.section]));
+    lastSection = result.section || lastSection;
+    panel.appendChild(browserAddressOption(result, index));
   }
   panel.classList.toggle('hidden', !results.length);
   input.setAttribute('aria-expanded', results.length ? 'true' : 'false');
@@ -7186,45 +7241,181 @@ function renderBrowserAddressResults(results) {
   syncBrowserOcclusion();
 }
 
-async function refreshBrowserAddressResults() {
-  const query = String($('browserAddress')?.value || '').trim();
-  if (!$('browserAddress')?.matches(':focus') || !query) { closeBrowserAddressResults(); return; }
-  const folded = query.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
-  const results = [];
-  const seen = new Set();
-  const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
-  // Hesap satırı en üste girer: Enter ile sonuç panoya kopyalanır, gezinme için
-  // aşağıdaki Web satırına inilir (Chrome adres çubuğu hesaplayıcı davranışı).
-  const calc = globalThis.BrowserOmnibox?.evaluateArithmetic(query);
-  if (calc !== null && calc !== undefined) {
-    const display = `${query} = ${globalThis.BrowserOmnibox.formatCalcResult(calc)}`;
-    add({ action: 'calc', value: globalThis.BrowserOmnibox.formatCalcResult(calc),
-      title: display, detail: 'Enter: sonucu panoya kopyala', kindLabel: 'Hesap', mark: '=' });
+// Çeviri modeli uyum karnesi (src/translation-model-score.js). Yalnız bu makinede,
+// model başına son 10 işin toplu yanıt geçerliliği saklanır.
+const TRANSLATION_MODEL_SCORE_KEY = 'whisper.translationModelScores';
+function readTranslationModelScores() {
+  try { return JSON.parse(localStorage.getItem(TRANSLATION_MODEL_SCORE_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+function recordTranslationModelScore(event) {
+  const score = globalThis.TranslationModelScore;
+  if (!score) return;
+  const next = score.recordRun(readTranslationModelScores(), event);
+  try { localStorage.setItem(TRANSLATION_MODEL_SCORE_KEY, JSON.stringify(next)); } catch (_) {}
+  renderTranslationModelScore();
+  const summary = score.describe(next, event.model);
+  if (summary.level === 'poor') logLine(`Model uyumu (${event.model}): ${summary.text}`, 'warn');
+}
+function renderTranslationModelScore() {
+  const hint = $('translateModelScore');
+  const score = globalThis.TranslationModelScore;
+  if (!hint || !score) return;
+  const summary = score.describe(readTranslationModelScores(), $('translateModel')?.value || '', globalThis.UiLocale?.get?.() === 'en' ? 'en' : 'tr');
+  hint.textContent = summary.text;
+  hint.dataset.level = summary.level;
+  hint.classList.toggle('hidden', !summary.text);
+}
+
+// Yeniden çeviri farkı: eski/yeni satırlar yan yana; seçilenler eski hâline döner.
+// Yalnız .srt çeviri dosyasında geri alma yazılır (VTT/ASS biçimi SRT ile ezilmesin).
+function translationChannel() {
+  if (player.sub2Role === 'translation' && player.sub2Path && player.cues2.length) {
+    return { path: player.sub2Path, cues: player.cues2, secondary: true };
   }
-  // "!kod sorgu" biçimindeki bang kısayolu doğrudan hedef sitenin aramasına gider.
-  const bang = globalThis.BrowserOmnibox?.resolveBang(query);
-  for (const tab of player.browserTabs) {
-    if (`${tab.title} ${tab.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'tab', id: tab.id,
-      title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
+  if (player.subRole === 'translation' && player.subPath && player.cues.length) {
+    return { path: player.subPath, cues: player.cues, secondary: false };
   }
-  const places = player.browserPlaces || { bookmarks: [], history: [] };
-  for (const [kind, label, mark] of [['bookmarks', 'Yer imi', 'Y'], ['history', 'Geçmiş', 'G']]) {
-    for (const item of places[kind] || []) {
-      if (`${item.title} ${item.url}`.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)) add({ action: 'url', url: item.url,
-        title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
+  return null;
+}
+
+async function openRetranslationReview(previousCues) {
+  const diff = globalThis.TranslationDiff;
+  const channel = translationChannel();
+  if (!diff || !channel) return;
+  const changes = diff.diffTranslationCues(previousCues, channel.cues);
+  if (!changes.length) { logLine('Yeniden çeviri tamamlandı; önceki çeviriyle fark yok.', 'info'); return; }
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const canRevert = /\.srt$/i.test(channel.path);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'retranslate-review';
+  dialog.setAttribute('aria-labelledby', 'retranslateReviewTitle');
+  const head = document.createElement('div'); head.className = 'retranslate-review-head';
+  const title = document.createElement('h2'); title.id = 'retranslateReviewTitle';
+  title.textContent = en ? `Retranslation changed ${changes.length} lines` : `Yeniden çeviri ${changes.length} satırı değiştirdi`;
+  const hint = document.createElement('p');
+  hint.textContent = canRevert
+    ? (en ? 'Tick the lines you want to keep in their previous form.' : 'Önceki hâlinde kalmasını istediğiniz satırları işaretleyin.')
+    : (en ? 'Reverting is only available for .srt translations; this list is for review.' : 'Geri alma yalnız .srt çevirilerde yazılabilir; bu liste inceleme içindir.');
+  head.append(title, hint);
+  const list = document.createElement('div'); list.className = 'retranslate-review-list';
+  for (const change of changes.slice(0, 500)) {
+    const row = document.createElement('label'); row.className = 'retranslate-review-row';
+    const check = document.createElement('input'); check.type = 'checkbox'; check.value = String(change.index); check.disabled = !canRevert;
+    const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(change.start);
+    const before = document.createElement('span'); before.className = 'retranslate-review-before'; before.dir = 'auto'; before.textContent = change.before;
+    const after = document.createElement('span'); after.className = 'retranslate-review-after'; after.dir = 'auto'; after.textContent = change.after;
+    row.append(check, time, before, after); list.appendChild(row);
+  }
+  const actions = document.createElement('div'); actions.className = 'retranslate-review-actions';
+  const keep = document.createElement('button'); keep.type = 'button'; keep.className = 'btn btn-secondary';
+  keep.textContent = en ? 'Keep new translation' : 'Yeni çeviriyi koru';
+  const revert = document.createElement('button'); revert.type = 'button'; revert.className = 'btn btn-primary';
+  revert.textContent = en ? 'Restore selected lines' : 'Seçilenleri eski hâline getir';
+  revert.disabled = true;
+  if (canRevert) actions.append(keep, revert); else actions.append(keep);
+  list.addEventListener('change', () => { revert.disabled = !list.querySelector('input:checked'); });
+  dialog.append(head, list, actions);
+  document.body.appendChild(dialog);
+  const close = () => { dialog.close(); dialog.remove(); };
+  keep.addEventListener('click', close);
+  dialog.addEventListener('cancel', () => dialog.remove());
+  revert.addEventListener('click', async () => {
+    const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
+    const current = translationChannel();
+    if (!current || current.path !== channel.path) { close(); logLine('Çeviri izi değişti; geri alma yapılmadı.', 'warn'); return; }
+    if (!diff.selectedChangesStillMatch(current.cues, changes, selected)) {
+      close();
+      logLine(en ? 'The translation changed during review; no lines were overwritten.'
+        : 'İnceleme sırasında çeviri değişti; hiçbir satırın üzerine yazılmadı.', 'warn');
+      return;
     }
+    const next = diff.revertChanges(current.cues, changes, selected);
+    const written = await window.api.writeSubtitle(current.path, cuesToSrt(next), null, subtitleStatFor(current.path)).catch((error) => ({ ok: false, error: error?.message }));
+    if (!written?.ok) { logLine(`Geri alma yazılamadı: ${written?.error || 'bilinmeyen hata'}`, 'error'); return; }
+    noteSubtitleStat(current.path, written);
+    await loadSubtitle(current.path, current.secondary, { silent: true, role: 'translation' });
+    logLine(`${selected.length} satır önceki çeviriye döndürüldü.`, 'success');
+    close();
+  });
+  dialog.showModal();
+  (canRevert ? list.querySelector('input') : keep)?.focus();
+}
+
+function uiText(value) {
+  return globalThis.UiLocale?.t ? globalThis.UiLocale.t(value) : value;
+}
+
+// Bu oturumda görülen site simgeleri (köken → veri URL'si). Geçmiş ve yer imi
+// kayıtları simge saklamaz; açık/açılmış sekmelerden öğrenilir.
+const browserFaviconByOrigin = new Map();
+function rememberBrowserFavicon(url, favicon) {
+  const origin = globalThis.BrowserAddressModel?.originOf(url);
+  if (origin && typeof favicon === 'string' && /^data:image\//i.test(favicon)) {
+    browserFaviconByOrigin.delete(origin);
+    browserFaviconByOrigin.set(origin, favicon);
+    if (browserFaviconByOrigin.size > 200) browserFaviconByOrigin.delete(browserFaviconByOrigin.keys().next().value);
   }
-  if (bang) add({ action: 'navigate', url: bang.url,
-    title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,
-    detail: bang.url, kindLabel: 'Kısayol', mark: '!' });
-  add({ action: 'navigate', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
-    detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
+}
+function browserFaviconFor(url) {
+  const origin = globalThis.BrowserAddressModel?.originOf(url);
+  if (!origin) return '';
+  const tab = (player.browserTabs || []).find((item) => item.favicon && globalThis.BrowserAddressModel.originOf(item.url) === origin);
+  return tab?.favicon || browserFaviconByOrigin.get(origin) || '';
+}
+
+// Satır içi tamamlama açıkken kutudaki seçili (gri) kısım kullanıcının yazdığı
+// değildir; sorgu yalnız imlecin solundaki metindir.
+function typedBrowserAddressQuery() {
+  const input = $('browserAddress');
+  const value = String(input?.value || '');
+  if (input && player.browserAddressCompletion && input.selectionEnd === value.length
+    && input.selectionStart < value.length && value === player.browserAddressCompletion.text) {
+    return value.slice(0, input.selectionStart).trim();
+  }
+  return value.trim();
+}
+
+function applyBrowserAddressInlineCompletion(event) {
+  const input = $('browserAddress');
+  player.browserAddressCompletion = null;
+  if (!input || !globalThis.BrowserAddressModel) return;
+  // Silme/yapıştırma/IME sırasında tamamlama yapılmaz (Chrome davranışı).
+  if (event?.inputType !== 'insertText' || event.isComposing) return;
+  const value = input.value;
+  if (input.selectionStart !== value.length) return;
+  const places = player.browserPlaces || {};
+  const completion = globalThis.BrowserAddressModel.inlineCompletion(value,
+    [...(places.bookmarks || []), ...(places.history || [])]);
+  if (!completion || !completion.text.toLowerCase().startsWith(value.toLowerCase())) return;
+  input.value = value + completion.text.slice(value.length);
+  input.setSelectionRange(value.length, input.value.length, 'forward');
+  player.browserAddressCompletion = { ...completion, text: input.value };
+}
+
+async function refreshBrowserAddressResults() {
+  const query = typedBrowserAddressQuery();
+  if (!$('browserAddress')?.matches(':focus') || !query) { closeBrowserAddressResults(); return; }
+  const model = globalThis.BrowserAddressModel;
+  // Satır sırası ve sıralama saf modülde (src/browser-address-model.js): yazılan
+  // metin her zaman ilk satırdır; geçmiş sıklık × yakınlık puanıyla sıralanır.
+  const results = model.buildAddressResults({
+    query,
+    omnibox: globalThis.BrowserOmnibox,
+    tabs: player.browserTabs,
+    places: player.browserPlaces,
+    completion: player.browserAddressCompletion?.text?.toLowerCase().startsWith(query.toLowerCase()) ? player.browserAddressCompletion : null,
+    faviconFor: browserFaviconFor,
+    tabLabel: browserTabLabel,
+    placeTitle: browserPlaceTitle,
+  });
+  const add = (row) => { if (results.length < 14 && !results.some((item) => item.action === row.action && item.id === row.id)) results.push(row); };
+  player.browserAddressQuery = query;
   const seq = ++browserAddressSearchSeq;
   renderBrowserAddressResults(results);
   if (query.length < 2 || !window.api.searchUnifiedLibrary) return;
   const response = await window.api.searchUnifiedLibrary(query, 'all', 8).catch(() => null);
-  if (seq !== browserAddressSearchSeq || String($('browserAddress')?.value || '').trim() !== query) return;
-  for (const item of response?.results || []) add({ action: 'unified', id: item.id, result: item,
+  if (seq !== browserAddressSearchSeq || typedBrowserAddressQuery() !== query) return;
+  for (const item of response?.results || []) add({ action: 'unified', section: 'library', id: item.id, result: item,
     title: item.title || 'Kütüphane sonucu', detail: item.snippet || item.url || '',
     kindLabel: libraryResultKindLabel(item), mark: 'K' });
   renderBrowserAddressResults(results);
@@ -7442,9 +7633,9 @@ function setBrowserPlacesOpen(open) {
 const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map(), pending: new Set(), errors: new Map() };
 
 function browserDownloadMatches(item) {
-  const query = String($('browserDownloadsSearch')?.value || '').trim().toLocaleLowerCase('tr');
+  const query = foldSearch(String($('browserDownloadsSearch')?.value || '').trim());
   const filter = $('browserDownloadsFilter')?.value || 'all';
-  if (query && !`${item.filename} ${item.path || ''}`.toLocaleLowerCase('tr').includes(query)) return false;
+  if (query && !foldSearch(`${item.filename} ${item.path || ''}`).includes(query)) return false;
   return filter === 'all' || (filter === 'active' ? item.active
     : filter === 'completed' ? item.state === 'completed' : !item.active && item.state !== 'completed');
 }
@@ -7707,10 +7898,10 @@ function renderBrowserDiagnostics(diagnostics) {
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
-  const filter = String(browserDiagnosticsFilter || '').trim().toLocaleLowerCase('tr');
+  const filter = foldSearch(String(browserDiagnosticsFilter || '').trim());
   const entries = (Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 100) : [])
-    .filter((entry) => !filter || [entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
-      .filter(Boolean).join(' ').toLocaleLowerCase('tr').includes(filter));
+    .filter((entry) => !filter || foldSearch([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
+      .filter(Boolean).join(' ')).includes(filter));
   if (!entries.length) {
     recent.textContent = filter ? 'Bu filtreyle eşleşen tanı kaydı yok.'
       : 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
@@ -11098,8 +11289,18 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
     selectBrowserAddressResult(selected);
   } else if (event.key === 'Enter' && !event.isComposing) {
     event.preventDefault();
-    if (!$('browserAddressResults')?.classList.contains('hidden') && player.browserAddressSelected >= 0) useBrowserAddressResult(player.browserAddressSelected);
-    else navigateBrowserFromAddress();
+    // Sonuçlar 130 ms gecikmeyle yenilenir; Enter o aralıkta basılırsa panel
+    // ÖNCEKİ metnin sonuçlarını gösterir. Yazılan metin değiştiyse seçili satıra
+    // değil doğrudan yazılana git.
+    const fresh = typedBrowserAddressQuery() === player.browserAddressQuery;
+    if (fresh && !$('browserAddressResults')?.classList.contains('hidden') && player.browserAddressSelected >= 0) useBrowserAddressResult(player.browserAddressSelected);
+    else if (player.browserAddressCompletion?.url && $('browserAddress').value === player.browserAddressCompletion.text) {
+      // Satır içi tamamlanmış adres: tam kayıtlı URL'ye git (şema ve www korunur).
+      const url = player.browserAddressCompletion.url;
+      closeBrowserAddressResults();
+      $('browserAddress').value = url;
+      navigateBrowserFromAddress();
+    } else { closeBrowserAddressResults(); navigateBrowserFromAddress(); }
   }
   else if (event.key === 'Escape') {
     event.preventDefault();
@@ -11111,8 +11312,12 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   else if (event.key === 'Tab') closeBrowserAddressResults();
 });
 for (const eventName of ['input', 'focus', 'blur']) $('browserAddress')?.addEventListener(eventName, syncBrowserAddressAction);
-$('browserAddress')?.addEventListener('input', () => { clearTimeout(browserAddressSearchTimer); browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130); });
-$('browserAddress')?.addEventListener('focus', refreshBrowserAddressResults);
+$('browserAddress')?.addEventListener('input', (event) => {
+  applyBrowserAddressInlineCompletion(event);
+  clearTimeout(browserAddressSearchTimer);
+  browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130);
+});
+$('browserAddress')?.addEventListener('focus', () => { player.browserAddressCompletion = null; refreshBrowserAddressResults(); });
 $('browserAddress')?.addEventListener('blur', () => setTimeout(() => {
   if (!$('browserAddressResults')?.contains(document.activeElement)) closeBrowserAddressResults();
 }, 120));
@@ -11603,6 +11808,20 @@ if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () 
     navigateBrowserFromAddress();
   }
 });
+$('browserErrorHttp')?.addEventListener('click', async () => {
+  const url = $('browserErrorHttp').dataset.url || '';
+  if (!url) return;
+  const accepted = await openAppDialog({
+    title: 'Şifrelenmemiş bağlantıyla aç',
+    description: globalThis.UiLocale?.get?.() === 'en'
+      ? `${url} will open over http. Anything you send on this connection (including passwords) can be read on the network.`
+      : `${url} http ile açılacak. Bu bağlantıda gönderdiğiniz veriler (parolalar dahil) ağda okunabilir.`,
+    confirmLabel: uiText('http ile aç'), intent: 'danger',
+  });
+  if (!accepted || !$('browserAddress')) return;
+  $('browserAddress').value = url;
+  navigateBrowserFromAddress();
+});
 if ($('browserErrorBack')) $('browserErrorBack').addEventListener('click', () => {
   if (!browserTabState()?.canGoBack) {
     setBrowserSignal('Bu sekmede geri dönülecek bir sayfa yok.', false);
@@ -11898,6 +12117,14 @@ $('browserPermissionPrompt')?.addEventListener('click', (event) => {
   if (button) void respondToBrowserPermission(button.dataset.permissionDecision);
 });
 
+// Ctrl+Tab / Ctrl+1..9 ekranda GÖRÜNEN sırayı izler. Gruplar ilk üyelerinin
+// konumunda toplu çizildiği için ham player.browserTabs sırası ekrandan farklıdır;
+// daraltılmış gruptaki gizli sekmelere de atlanmamalı.
+function visibleBrowserTabsInDisplayOrder() {
+  const rows = typeof browserTabDisplayRows === 'function' ? browserTabDisplayRows() : [];
+  return globalThis.BrowserAddressModel.visibleTabsInDisplayOrder(rows, player.browserTabs || []);
+}
+
 function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
   if (['subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle'].includes(normalized)) {
@@ -11933,7 +12160,7 @@ function runBrowserShortcut(key, shift = false) {
   if (normalized === 'w') { closeBrowserTab(player.browserActiveTabId); return true; }
   if (normalized === 'r') { void runBrowserChromeCommand('reload'); return true; }
   if (normalized === 'tab') {
-    const tabs = player.browserTabs || [];
+    const tabs = visibleBrowserTabsInDisplayOrder();
     if (tabs.length > 1) {
       const current = Math.max(0, tabs.findIndex((tab) => tab.id === player.browserActiveTabId));
       const direction = shift ? -1 : 1;
@@ -11942,7 +12169,7 @@ function runBrowserShortcut(key, shift = false) {
     return true;
   }
   if (/^[1-9]$/.test(normalized)) {
-    const tabs = player.browserTabs || [];
+    const tabs = visibleBrowserTabsInDisplayOrder();
     const index = normalized === '9' ? tabs.length - 1 : Number(normalized) - 1;
     if (tabs[index]) void activateBrowserTab(tabs[index].id);
     return true;
@@ -12039,6 +12266,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.title = event.title || '';
       } else if (event.type === 'favicon') {
         tab.favicon = event.favicon || '';
+        rememberBrowserFavicon(tab.url, tab.favicon);
       } else if (event.type === 'subtitle-found' && event.track) {
         const index = tab.browserTracks.findIndex((track) => track.id === event.track.id);
         if (index >= 0) tab.browserTracks[index] = event.track; else tab.browserTracks.push(event.track);
@@ -12151,7 +12379,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     loadBrowserPlaces();
   } else if (event.type === 'favicon') {
     const tab = browserTabState();
-    if (tab) tab.favicon = event.favicon || '';
+    if (tab) { tab.favicon = event.favicon || ''; rememberBrowserFavicon(tab.url, tab.favicon); }
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
@@ -12265,7 +12493,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       const mt = (s) => window.UiLocale?.t(s) || s;
       $('playerMeta').textContent = event.type === 'tab-crashed' ? mt('Sekme çöktü') : mt('Sayfa yüklenemedi');
     }
-    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, message: event.message || `hata ${event.code}` });
+    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, url: event.url || tab?.errorUrl, message: event.message || `hata ${event.code}` });
     setBrowserSignal(`${event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi'}: ${event.message || `hata ${event.code}`}`, false,
       { priority: 100, holdMs: 7000 });
   } else if (event.type === 'notice') {
@@ -12592,6 +12820,18 @@ function updateCueMeta() {
       ? 'Tüm cümleleri göster'
       : `Düşük güvenli cümleleri göster (${lowCount})`;
     qualityFilter.setAttribute('aria-pressed', player.qualityOnly ? 'true' : 'false');
+  }
+  const untranslatedFilter = $('untranslatedOnlyBtn');
+  if (untranslatedFilter) {
+    const hasTranslation = player.cues2.length > 0;
+    if (!hasTranslation && player.untranslatedOnly) player.untranslatedOnly = false;
+    untranslatedFilter.classList.toggle('hidden', !hasTranslation);
+    untranslatedFilter.classList.toggle('active', player.untranslatedOnly);
+    const counterparts = hasTranslation ? translationsForCues(player.cues, player.cues2) : [];
+    const missing = hasTranslation ? player.cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+    untranslatedFilter.title = player.untranslatedOnly ? 'Tüm cümleleri göster' : `Çevrilmemiş satırları göster (${missing})`;
+    untranslatedFilter.setAttribute('aria-label', untranslatedFilter.title);
+    untranslatedFilter.setAttribute('aria-pressed', player.untranslatedOnly ? 'true' : 'false');
   }
   const clear = $('clearCueSearch');
   if (clear) clear.classList.toggle('hidden', !$('cueSearch')?.value);
@@ -13349,7 +13589,7 @@ function translationsForCues(cues, translations) {
 function appendHighlighted(el, text, q) {
   const flat = text.replace(/\n/g, ' ');
   if (!q) { el.textContent = flat; return; }
-  const low = flat.toLocaleLowerCase('tr');
+  const low = foldSearch(flat);
   let from = 0;
   let at = low.indexOf(q);
   if (at < 0) { el.textContent = flat; return; }
@@ -13372,7 +13612,7 @@ function cueHasLowConfidence(cue) {
 function renderCueList(filter = '') {
   const box = $('cueList');
   if (!box) return;
-  const q = filter.trim().toLocaleLowerCase('tr');
+  const q = foldSearch(filter.trim());
   box.innerHTML = '';
   updateCueMeta();
   if (!player.cues.length) {
@@ -13384,24 +13624,27 @@ function renderCueList(filter = '') {
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !c.text.toLocaleLowerCase('tr').includes(q)
-        && !counterpart.toLocaleLowerCase('tr').includes(q)) return;
+    if (q && !foldSearch(c.text).includes(q)
+        && !foldSearch(counterpart).includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
+    if (player.untranslatedOnly && !cueLooksUntranslated(c.text, counterpart)) return;
     indexes.push(i);
   });
   if (!indexes.length) {
-    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
+    box.innerHTML = player.untranslatedOnly
+      ? `<div class="cue-list-empty">${uiText('Çevrilmemiş satır yok.')}</div>`
+      : '<div class="cue-list-empty">Eşleşen satır yok.</div>';
     return;
   }
   const pageSize = 500;
-  const queryKey = `${q}|${player.savedOnly ? 1 : 0}|${player.qualityOnly ? 1 : 0}|${player.cues.length}|${player.cues2.length}`;
+  const queryKey = `${q}|${player.savedOnly ? 1 : 0}|${player.qualityOnly ? 1 : 0}|${player.untranslatedOnly ? 1 : 0}|${player.cues.length}|${player.cues2.length}`;
   if (queryKey !== player.cueListQueryKey) {
     player.cueListQueryKey = queryKey;
     player.cueListPageStart = 0;
   }
-  if (!q && !player.savedOnly && !player.qualityOnly && player.activeIdx >= 0
+  if (!q && !player.savedOnly && !player.qualityOnly && !player.untranslatedOnly && player.activeIdx >= 0
       && (player.activeIdx < player.cueListPageStart
         || player.activeIdx >= player.cueListPageStart + pageSize)) {
     player.cueListPageStart = Math.floor(player.activeIdx / pageSize) * pageSize;
@@ -13410,6 +13653,7 @@ function renderCueList(filter = '') {
   player.cueListPageStart = Math.max(0, Math.min(maxStart, player.cueListPageStart));
   const visibleIndexes = indexes.slice(player.cueListPageStart, player.cueListPageStart + pageSize);
   const frag = document.createDocumentFragment();
+  if (player.untranslatedOnly) frag.appendChild(untranslatedCueBanner(indexes.length));
   visibleIndexes.forEach((i) => {
     const c = player.cues[i];
     const counterpart = counterparts[i];
@@ -13496,7 +13740,7 @@ function highlightCueRow() {
   }
   const row = box.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`);
   if (!row && player.autoFollow && !player.userScrolled
-      && !($('cueSearch')?.value || '').trim() && !player.savedOnly && !player.qualityOnly) {
+      && !($('cueSearch')?.value || '').trim() && !player.savedOnly && !player.qualityOnly && !player.untranslatedOnly) {
     player.cueListPageStart = Math.floor(player.activeIdx / 500) * 500;
     renderCueList('');
     return;
@@ -13858,6 +14102,43 @@ function toggleSavedOnly() {
 
 function toggleQualityOnly() {
   player.qualityOnly = !player.qualityOnly;
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  updateCueMeta();
+}
+
+// Çeviri yüklüyken karşılığı olmayan ya da kaynakla AYNI kalan satır (çevrilemeyip
+// kaynak metinle bırakılan blok) çevrilmemiş sayılır.
+function cueLooksUntranslated(text, counterpart) {
+  if (!player.cues2.length) return false;
+  const norm = (value) => foldSearch(String(value || '')).replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const a = norm(text);
+  const b = norm(counterpart);
+  return !b || (a.length > 3 && a === b);
+}
+
+function untranslatedCueBanner(count) {
+  const banner = document.createElement('div');
+  banner.className = 'cue-untranslated-banner';
+  banner.setAttribute('role', 'status');
+  const label = document.createElement('span');
+  // #cueList yerelleştirme taramasının dışında; metin burada seçilir.
+  label.textContent = globalThis.UiLocale?.get?.() === 'en'
+    ? `${count} lines look untranslated.` : `${count} satır çevrilmemiş görünüyor.`;
+  banner.appendChild(label);
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'btn btn-secondary btn-sm';
+  action.textContent = uiText('Eksikleri çevir');
+  action.title = uiText('Yalnız eksik satırlar gönderilir; tamamlanan satırlar önbellekten korunur.');
+  const translate = $('makeTransBtn');
+  action.disabled = !translate || translate.disabled;
+  action.addEventListener('click', () => translate?.click());
+  banner.appendChild(action);
+  return banner;
+}
+
+function toggleUntranslatedOnly() {
+  player.untranslatedOnly = !player.untranslatedOnly;
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   updateCueMeta();
 }
@@ -14345,9 +14626,9 @@ function renderHistory() {
   const card = $('historyCard');
   const list = $('historyList');
   if (!card || !list) return;
-  const q = ($('historySearch')?.value || '').toLocaleLowerCase('tr');
+  const q = foldSearch($('historySearch')?.value);
   const items = q
-    ? historyCache.filter((h) => (h.title || '').toLocaleLowerCase('tr').includes(q))
+    ? historyCache.filter((h) => foldSearch(h.title).includes(q))
     : historyCache;
   $('historyCount').textContent = String(historyCache.length);
   $('jobsHistoryBadge').textContent = String(historyCache.length);
@@ -15891,6 +16172,14 @@ function showBrowserErrorSurface(error) {
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
   if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
+  // https açılamadıysa (sertifika hatası DEĞİL) açık onayla http denemesi.
+  const fallback = !secure && !crashed
+    ? globalThis.BrowserAddressModel?.httpFallbackUrl(error.url || browserTabState()?.errorUrl, error.code) : '';
+  const httpButton = $('browserErrorHttp');
+  if (httpButton) {
+    httpButton.classList.toggle('hidden', !fallback);
+    httpButton.dataset.url = fallback || '';
+  }
 }
 
 async function askExplain(kind, index, word) {
@@ -16611,6 +16900,7 @@ function resetMediaBoundState(options = {}) {
   player.savedCues = [];
   player.savedOnly = false;
   player.qualityOnly = false;
+  player.untranslatedOnly = false;
   player.savedWords = [];
   player.cueQualitySource = [];
   player.selectedWord = null;
@@ -17345,10 +17635,19 @@ function subtitleOrigin(path, label) {
   return 'Dosya';
 }
 
-// Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR
+// Arama katlaması: I/İ/ı tek "i" olur, gerisi dil bağımsız küçültülür. Uzunluk
+// korunur (vurgu konumları için). toLocaleLowerCase('tr') ASCII "I"yı "ı"
+// yaptığı için "i think" araması "I think" cümlesini bulamıyordu.
+function foldSearch(value) {
+  const text = String(value == null ? '' : value);
+  const fold = globalThis.BrowserAddressModel?.foldSearchText || globalThis.BrowserOmnibox?.foldSearchText;
+  return fold ? fold(text) : text.replace(/[Iİı]/g, 'i').toLowerCase();
+}
+
+// Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR (yalnız bilinen dil kodları;
+// mantık src/browser-address-model.js'te, backend SUBTITLE_LANGUAGE_CODES ile aynı küme).
 function langFromPath(path) {
-  const m = String(path || '').match(/\.([a-z]{2,3})\.(?:srt|vtt|ass|ssa)$/i);
-  return m ? m[1].toUpperCase() : '';
+  return globalThis.BrowserAddressModel?.langFromPath(path) || '';
 }
 
 function updateSubtitleChips() {
@@ -20291,6 +20590,7 @@ if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
 if ($('cueNoteBtn')) $('cueNoteBtn').addEventListener('click', saveCueNote);
 if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
 if ($('qualityOnlyBtn')) $('qualityOnlyBtn').addEventListener('click', toggleQualityOnly);
+$('untranslatedOnlyBtn')?.addEventListener('click', toggleUntranslatedOnly);
 if ($('subtitleFindReplaceToggle')) {
   $('subtitleFindReplaceToggle').addEventListener('click', () => {
     const panel = $('subtitleFindReplacePanel');
@@ -20614,6 +20914,10 @@ if ($('makeTransBtn')) {
       logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
       return;
     }
+    // Fark incelemesi yalnız "Tamamını yeni modelle çevir" işine aittir; normal
+    // çeviri/eksik tamamlama önceki (belki başarısız) yeniden çevirinin anlık
+    // görüntüsünü devralmasın.
+    if (!state.forceRetranslate) state.retranslateSnapshot = null;
     const sourcePrimary = player.subRole === 'source' && player.subPath && player.cues.length;
     const sourcePath = sourcePrimary ? player.subPath
       : (player.sub2Role === 'source' && player.sub2Path && player.cues2.length ? player.sub2Path : '');
@@ -20699,9 +21003,15 @@ if ($('retranslateAllBtn')) {
       confirmLabel: 'Tamamını yeniden çevir', intent: 'primary',
     });
     if (!accepted) return;
+    // Eski çeviriyi bellekte sakla: iş bitince satır satır fark gösterilir ve
+    // istenen satırlar eski hâline döndürülebilir (pahalı yeniden çeviri geri alınabilir).
+    const previous = browserSubtitleRoleCues().translation;
+    state.retranslateSnapshot = previous.length
+      ? { mediaKey: player.mediaKey, cues: previous.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })) }
+      : null;
     state.forceRetranslate = true;
     $('makeTransBtn').click();
-    if (!state.running) state.forceRetranslate = false;
+    if (!state.running) { state.forceRetranslate = false; state.retranslateSnapshot = null; }
   });
 }
 
@@ -20964,10 +21274,10 @@ async function runPlayerLibrarySearch() {
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
   if (playerLibraryView === 'collections') {
-    const folded = q.normalize('NFKC').toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
+    const folded = foldSearch(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => String(value || '').normalize('NFKC').toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')).includes(folded)));
+        .some((value) => foldSearch(String(value || '').normalize('NFKC')).includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
@@ -22374,9 +22684,9 @@ function renderBrowserRemapCues() {
   const select=$('browserRemapCue');select.replaceChildren();
   browserRemapTargets=new Map();
   const descriptor=subtitleFindDescriptors().find(row=>row.channel===$('browserRemapChannel').value);
-  const query=$('browserRemapSearch').value.trim().toLocaleLowerCase('tr');
+  const query=foldSearch($('browserRemapSearch').value.trim());
   for(const [index,cue] of (descriptor?.cues||[]).entries()){
-    if(query&&!String(cue.text).toLocaleLowerCase('tr').includes(query))continue;
+    if(query&&!foldSearch(cue.text).includes(query))continue;
     select.add(new Option(`${pSecToTime(cue.start)} · ${cue.text.slice(0,140)}`,String(index)));
     browserRemapTargets.set(index,{...cue});
     if(select.options.length>=100)break;
@@ -23047,13 +23357,13 @@ if ($('cueSearch')) {
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
   $('cueSearch').addEventListener('input', (e) => {
     if (e.isComposing) return;
-    const q = e.target.value.trim().toLocaleLowerCase('tr');
+    const q = foldSearch(e.target.value.trim());
     renderCueList(e.target.value);
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);
       renderSeekMarkers(player.cues.filter((c, index) =>
-        c.text.toLocaleLowerCase('tr').includes(q)
-          || translations[index].toLocaleLowerCase('tr').includes(q))
+        foldSearch(c.text).includes(q)
+          || foldSearch(translations[index]).includes(q))
         .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });

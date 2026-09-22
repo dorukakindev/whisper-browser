@@ -19,7 +19,8 @@
     "compare:subtitle-translations": "node tools/compare-subtitle-translations.js",
     "audit:subtitle-corpus": "node tools/audit-subtitle-corpus.js",
     "audit:subtitle-golden": "node tools/audit-subtitle-golden.js",
-    "audit:subtitle-external-sdh": "node tools/audit-subtitle-external-sdh.js"
+    "audit:subtitle-external-sdh": "node tools/audit-subtitle-external-sdh.js",
+    "audit:ui": "node tools/audit-ui.mjs"
   },
   "author": "dorukakindev and Whisper Browser contributors",
   "license": "MIT",
@@ -32,6 +33,7 @@
     "jassub": "2.5.16",
     "jsdom": "30.0.1",
     "mp4box": "2.4.1",
+    "qrcode": "^1.5.4",
     "vtt.js": "0.13.0"
   },
   "dependencies": {
@@ -39,8 +41,7 @@
     "darkreader": "4.9.130",
     "hls.js": "^1.7.1",
     "mux.js": "6.3.0",
-    "pdfjs-dist": "6.3.289",
-    "qrcode": "^1.5.4"
+    "pdfjs-dist": "6.3.289"
   },
   "keywords": [
     "whisper",

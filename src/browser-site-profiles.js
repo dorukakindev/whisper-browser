@@ -156,6 +156,12 @@ function withBrowserPathProfileField(rawProfiles, rawUrl, field, rawValue) {
   const current = { ...(profiles[key] || {}) };
   if (rawValue === undefined || rawValue === null) delete current[field];
   else { const value = normalizeProfileValue(field, rawValue); if (value === undefined) return { ok: false, reason: 'invalid', key, profiles }; current[field] = value; }
+  // Site düzeyiyle aynı sınır: 200 sayfa ayarı doluyken yeni sayfa "kaydedildi"
+  // (ok:true) dönüp kalıcılaştırmada normalize ile sessizce atılıyordu.
+  if (!profiles[key] && Object.keys(current).length
+    && Object.keys(profiles).length >= MAX_BROWSER_SITE_PROFILES) {
+    return { ok: false, reason: 'limit', key, profiles };
+  }
   if (Object.keys(current).length) profiles[key] = current; else delete profiles[key];
   return { ok: true, key, profile: current, profiles };
 }
