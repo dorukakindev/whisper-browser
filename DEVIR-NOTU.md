@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 12:55 — R105 ekli denetimlerden doğrulanan sayı/çeviri, YouTube, izin kökeni ve ASS düzeltmeleri; PR #24 ile yerel bütünleştirme](docs/devir/2026-09-22-1255.md).
+Güncel çalışma: [2026-09-22 13:31 — PR #24 ile R105 düzeltmelerinin yerel bütünleştirmesi; çift R104 adı ayrıldı, birleşik testler geçti](docs/devir/2026-09-22-1331.md).
+
+Önceki çalışma: [2026-09-22 12:55 — R105 ekli denetimlerden doğrulanan sayı/çeviri, YouTube, izin kökeni ve ASS düzeltmeleri](docs/devir/2026-09-22-1255.md).
 
 Önceki çalışma: [2026-09-22 05:13 — Gece denetim turu (A–G kuyruğu): dört gerçek bug — SmartTube arama/sekme hata görünürlüğü (F-104-1/2/3), player katmanında dialog Escape (F-104-4); gerçek-Electron kullanım matrisi smoke'u; BROWSER_BUG_REPORT_104](docs/devir/2026-09-22-0513.md).
 
