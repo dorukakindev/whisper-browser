@@ -69,8 +69,8 @@ desktop.ini
 # Kişisel denetim ve rapor çıktıları
 .audit-files/
 .audit-tests/
-BROWSER_BUG_REPORT*.md
-BUG_REPORT.md
+/BROWSER_BUG_REPORT*.md
+/BUG_REPORT.md
 DEEP_ANALYSIS_REPORT.md
 YOUTUBE_REKLAM_ENGELLEME_DEVIR_RAPORU.md
 tests/_audit_2026-09-07/
