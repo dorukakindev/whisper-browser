@@ -3432,6 +3432,12 @@ html {
      --bg-elev hover/aktif plaka → --surface-control. */
   --bg-card: var(--bg-2);
   --bg-elev: var(--bg-3);
+  /* Browser-workspace tarafında da fallback'siz artıklar (F-106-6): amber
+     uyarı/status rengi, green başarı rengi, text-primary/secondary mürekkep. */
+  --amber: var(--warning);
+  --green: var(--success);
+  --text-primary: var(--ink-primary);
+  --text-secondary: var(--ink-secondary);
 }
 
 html[data-theme="light"] {

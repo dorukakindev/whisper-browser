@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
+Güncel çalışma: [2026-09-22 15:35 — F-106-5: --bg-card/--bg-elev tanımsız yüzey token'ları (şeffaf sağ-tık menüsü/plakalar) köprüye eklendi; .st-upnext açık temada dark-on-dark'tı, yerel sabit token körlemesiyle düzeltildi; tema QA kanıtlı; BROWSER_BUG_REPORT_107](docs/devir/2026-09-22-1535.md).
+
+Önceki çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
 
 Önceki çalışma: [2026-09-22 13:27 — SmartTube ana ekran thumbnail görünmezliği (flex×aspect-ratio çöküşü + Invidious /vi/ proxy bozuk) düzeltildi, sıfır-kurulum YouTube TV cihaz-kodu girişi eklendi; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1327.md).
 
