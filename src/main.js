@@ -962,6 +962,9 @@ const youtubeSession = {
   clientId: '', clientSecret: '',
   refreshToken: '', accessToken: '', expiresAt: 0,
   userName: '', userEmail: '',
+  // Kayıtlı refresh_token'ı hangi istemcinin ürettiği — 'tv' gömülü YouTube TV
+  // (TVHTML5) istemcisi demek; refresh/poll doğru client_id+secret'ı kullanır.
+  authMode: 'custom',
 };
 let _ytDevice = null;   // {deviceCode, interval, expiresAt} — poll devam ederken
 
@@ -971,7 +974,7 @@ function getYoutubeSessionStore() {
     youtubeSessionStore = new SafeSecretStore({
       safeStorage,
       filePath: path.join(app.getPath('userData'), 'youtube-session.safe.json'),
-      fields: ['client_id', 'client_secret', 'refresh_token', 'user_name', 'user_email'],
+      fields: ['client_id', 'client_secret', 'refresh_token', 'user_name', 'user_email', 'auth_mode'],
     });
   }
   return youtubeSessionStore;
@@ -985,6 +988,7 @@ function persistYoutubeSession() {
       refresh_token: youtubeSession.refreshToken || '',
       user_name: youtubeSession.userName || '',
       user_email: youtubeSession.userEmail || '',
+      auth_mode: youtubeSession.authMode || 'custom',
     });
   } catch (_) {}
 }
@@ -999,6 +1003,7 @@ function restoreYoutubeSession() {
     youtubeSession.refreshToken = String(s.refresh_token || '').slice(0, 2000);
     youtubeSession.userName = String(s.user_name || '').slice(0, 200);
     youtubeSession.userEmail = String(s.user_email || '').slice(0, 200);
+    youtubeSession.authMode = String(s.auth_mode || '') === 'tv' ? 'tv' : 'custom';
   } catch (_) {}
 }
 
@@ -1095,16 +1100,17 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
 let _ytRefreshInFlight = null;
 async function ensureYoutubeAccessToken() {
   if (!youtubeSession.refreshToken) return null;
-  // Önceki sürümün gömülü üçüncü taraf istemcisiyle alınmış token'ı,
-  // kullanıcı kendi istemcisini kaydedene kadar hiçbir ağ isteğinde kullanma.
-  if (!youtubeSession.clientId || !youtubeSession.clientSecret) return null;
+  // 'tv' modu: token'ı gömülü YouTube TV istemcisi üretti — kendi istemci
+  // bilgisi gerekmez. 'custom' modda kendi istemcisi şart.
+  const tvMode = youtubeSession.authMode === 'tv';
+  if (!tvMode && (!youtubeSession.clientId || !youtubeSession.clientSecret)) return null;
   if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
     return youtubeSession.accessToken;
   }
   if (_ytRefreshInFlight) return _ytRefreshInFlight;
   _ytRefreshInFlight = (async () => {
     const res = await runYoutubeCommand(
-      ['refresh', '--client-id', youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
+      ['refresh', '--client-id', tvMode ? 'tv' : youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
     if (res && res.ok && res.data && res.data.access_token) {
       youtubeSession.accessToken = res.data.access_token;
       youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
@@ -1798,6 +1804,7 @@ ipcMain.handle('youtube:authCode', async (_e) => {
     youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
     youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
     youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
+    youtubeSession.authMode = 'custom';
     persistYoutubeSession();
     return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
                                userEmail: youtubeSession.userEmail } };
@@ -1811,7 +1818,8 @@ ipcMain.handle('youtube:authCode', async (_e) => {
 ipcMain.handle('youtube:session', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   return { ok: true, data: {
-    loggedIn: !!(youtubeSession.refreshToken && youtubeSession.clientId && youtubeSession.clientSecret),
+    loggedIn: !!(youtubeSession.refreshToken &&
+      (youtubeSession.authMode === 'tv' || (youtubeSession.clientId && youtubeSession.clientSecret))),
     userName: youtubeSession.userName,
     userEmail: youtubeSession.userEmail,
     hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
@@ -1839,6 +1847,7 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
     youtubeSession.expiresAt = 0;
     youtubeSession.userName = '';
     youtubeSession.userEmail = '';
+    youtubeSession.authMode = 'custom';
   }
   youtubeSession.clientId = id;
   youtubeSession.clientSecret = secret;
@@ -1848,16 +1857,17 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
 
 ipcMain.handle('youtube:deviceCode', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (!youtubeSession.clientId || !youtubeSession.clientSecret) {
-    return { ok: false, error: 'Önce kendi OAuth Client ID + Secret bilgilerinizi kaydedin.' };
-  }
+  // Kendi istemcisi yoksa gömülü YouTube TV (TVHTML5) istemcisiyle devam et —
+  // kullanıcıdan Google Cloud kaydı istemeden cihaz-kodu akışı açılır.
+  const useTv = !(youtubeSession.clientId && youtubeSession.clientSecret);
   const res = await runYoutubeCommand(
-    ['device_code', '--client-id', youtubeSession.clientId], null, 30_000);
+    ['device_code', '--client-id', useTv ? 'tv' : youtubeSession.clientId], null, 30_000);
   if (!res || !res.ok || !res.data) return res || { ok: false, error: 'Cihaz kodu alınamadı.' };
   _ytDevice = {
     deviceCode: res.data.device_code,
     interval: Number(res.data.interval) || 5,
     expiresAt: Date.now() + (Number(res.data.expires_in) || 1800) * 1000,
+    tv: useTv,
   };
   // device_code ana süreçte kalır — renderer'a yalnız kullanıcıya gösterilen bilgiler
   // verification_url https'e indirgenir (javascript:/data: şeması taşınmaz)
@@ -1881,7 +1891,7 @@ ipcMain.handle('youtube:poll', async (_e) => {
   }
   const remaining = Math.max(60, Math.floor((_ytDevice.expiresAt - Date.now()) / 1000));
   const res = await runYoutubeCommand(
-    ['poll', '--client-id', youtubeSession.clientId,
+    ['poll', '--client-id', _ytDevice.tv ? 'tv' : youtubeSession.clientId,
      '--expires-in', String(remaining), '--interval', String(_ytDevice.interval)],
     (ev) => {
       // Sızıntı koruması: 'login'/'token' emit'leri access/refresh token taşır;
@@ -1897,6 +1907,7 @@ ipcMain.handle('youtube:poll', async (_e) => {
     youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
     youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
     youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
+    youtubeSession.authMode = _ytDevice.tv ? 'tv' : 'custom';
     _ytDevice = null;
     persistYoutubeSession();
     // Token'lar renderer'a gitmez — yalnız gösterim bilgisi

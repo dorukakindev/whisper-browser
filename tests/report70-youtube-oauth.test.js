@@ -204,8 +204,12 @@ test('R70-12c: device-code modalı CSS\'i mevcut', () => {
 
 // ---------- R70-13: backend sabitleri ----------
 test('R70-13: backend yalnız HTTPS Google/YouTube endpoint\'leri kullanır', () => {
+  // OAuth SCOPE kimlikleri (gdata.youtube.com gibi) endpoint değildir — ağ
+  // isteği yapılmaz, yalnız Google'ın sabit scope URI'si olarak gönderilir.
+  const SCOPE_URIS = new Set(['http://gdata.youtube.com']);
   const urls = YT_PY.match(/https?:\/\/[^"'\s]+/g) || [];
   for (const u of urls) {
+    if (SCOPE_URIS.has(u)) continue;
     assert.ok(u.startsWith('https://'), `düz http endpoint: ${u}`);
     assert.ok(/googleapis\.com|youtube\.com|ytimg\.com|google\.com/.test(u),
       `beklenmeyen endpoint: ${u}`);
@@ -221,7 +225,10 @@ test('R70-14: istemci değişimi eski tokenları kullanmaz', () => {
   assert.match(setClient[0], /youtubeSession\.accessToken = ''/);
   const ensure = MAIN.match(/async function ensureYoutubeAccessToken\(\)[\s\S]*?\n\}/);
   assert.ok(ensure, 'ensureYoutubeAccessToken yok');
-  assert.match(ensure[0], /if \(!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret\) return null/);
+  // Kendi istemcisi olmayan 'custom' oturumlar ağ isteği yapmaz — 'tv' modunda
+  // ise gömülü istemci kullanıldığı için client bilgisi şart değil.
+  assert.match(ensure[0], /const tvMode = youtubeSession\.authMode === 'tv'/);
+  assert.match(ensure[0], /if \(!tvMode && \(!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret\)\) return null/);
 });
 
 // ---------- R70-15: loopback (tarayıcı) akışı — masaüstü için önerilen yol ----------

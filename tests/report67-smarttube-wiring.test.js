@@ -518,11 +518,12 @@ test('renderer: devam rayı kimliği eşler, sıralar, tekilleştirir (davranı�
   // kanonik olmayan anahtarıyla düşer; 'done'/'zero'/yerel kayıtlar elenir.
   assert.strictEqual(out.map((v) => v.videoId).join(','), 'a,b');
   assert.strictEqual(out[0].title, 'A2', 'en taze kayıt aynı kimlik için tutulmalı');
-  assert.ok(out[0].videoThumbnails[0].url.startsWith('https://inv.example/vi/a/'),
-    'küçük resim Invidious vekili üzerinden değil');
-  // Instance yoksa küçük resim basılmaz
+  // F-106-1b: Invidious /vi/ vekâleti bozuk (200+HTML) — thumb'lar artık
+  // i.ytimg.com doğrudan ve instance bağımsız
+  assert.ok(out[0].videoThumbnails[0].url.startsWith('https://i.ytimg.com/vi/a/'),
+    'küçük resim i.ytimg.com doğrudan olmalı');
   ctx.lastInvidiousInstance = '';
-  assert.strictEqual(fn()[0].videoThumbnails.length, 0, 'instancesız doğrudan thumb isteği');
+  assert.strictEqual(fn()[0].videoThumbnails.length, 1, "thumb instance'a bağımlı olmamalı");
 });
 
 test('renderer: kuyruk ekle/çıkar/kalıcılık/güvenli-thumb (davranış)', () => {
@@ -653,16 +654,21 @@ test('F5c: ana sayfa akışı boşta boş grid bırakmaz — raylar + giriş CTA
 });
 
 // ---------- Hesap yetkisi: uygulama başka bir ürünün OAuth kimliğini kullanmaz ----------
-test('main: cihaz kodu yalnız kayıtlı kullanıcı istemcisiyle başlar', () => {
+test('main: cihaz kodu kayıtlı client ile, yoksa YouTube TV istemcisiyle başlar', () => {
+  // Üçüncü-taraf bir uygulamanın OAuth kimliği hâlâ gömülmemeli; kullanılan
+  // TVHTML5 istemcisi YouTube'un KENDİ birinci-taraf TV istemcisi (TV cihaz
+  // akışının standart yolu — yt-dlp/SmartTube da aynısını yapar) ve main.js
+  // değil backend/youtube.py'de tutulur.
   assert.doesNotMatch(MAIN, /YT_BUILTIN_CLIENT_(?:ID|SECRET)/,
     'başka uygulamanın OAuth kimliği gömülmemeli');
   const dc = (MAIN.match(/ipcMain\.handle\('youtube:deviceCode'[\s\S]*?\n\}\);/) || [])[0];
   assert.ok(dc, 'youtube:deviceCode handler yok');
-  assert.match(dc, /!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret/);
-  assert.match(dc, /\['device_code', '--client-id', youtubeSession\.clientId\]/);
+  assert.match(dc, /useTv = !\(youtubeSession\.clientId && youtubeSession\.clientSecret\)/,
+    'clientsız durumda TV istemcisine düşülmeli');
+  assert.match(dc, /\['device_code', '--client-id', useTv \? 'tv' : youtubeSession\.clientId\]/);
   assert.match(MAIN, /hasClient: !!\(youtubeSession\.clientId && youtubeSession\.clientSecret\)/);
-  assert.match(MAIN, /\['poll', '--client-id', youtubeSession\.clientId/);
-  assert.match(MAIN, /\['refresh', '--client-id', youtubeSession\.clientId\]/);
+  assert.match(MAIN, /\['poll', '--client-id', _ytDevice\.tv \? 'tv' : youtubeSession\.clientId/);
+  assert.match(MAIN, /\['refresh', '--client-id', tvMode \? 'tv' : youtubeSession\.clientId\]/);
 });
 
 test('backend: YouTube salt-okuma kapsamı ve cihaz akışı', () => {
@@ -677,9 +683,11 @@ test('renderer: giriş modalı istemciyi doğrulayıp QR çiziyor', () => {
   assert.ok(open, 'openYoutubeLogin bulunamadı');
   assert.match(open, /window\.api\.youtubeSession\(\)/);
   assert.match(open, /res\.data\.hasClient/);
-  // İstemci varsa artık otomatik cihaz akışı değil, yöntem seçimi gelir
+  // İstemci varsa yöntem seçimi, yoksa sıfır-kurulum TV cihaz akışı otomatik
+  // başlar (F-106-3 — eski davranış kullanıcıyı Google Cloud formuna atıyordu)
   assert.match(open, /_ytShowAuthChoice\(\)/);
-  assert.ok(!/startYoutubeDeviceFlow\(\)/.test(open), 'modal açılışında cihaz akışı otomatik başlamamalı');
+  assert.match(open, /res\.data\.hasClient[\s\S]{0,600}?startYoutubeDeviceFlow\(\)/,
+    'hasClient=false dalında cihaz akışı otomatik başlamalı');
   // QR canvas markup + çizim
   assert.ok(HTML.includes('id="ytQrCanvas"'), 'QR canvas yok');
   const flow = (RENDERER.match(/async function startYoutubeDeviceFlow[\s\S]*?youtubePoll\(\)/) || [])[0];
