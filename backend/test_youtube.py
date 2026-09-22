@@ -314,6 +314,36 @@ class Browse(unittest.TestCase):
         self.assertEqual(vids[0]["videoThumbnails"][0]["url"], "https://i/320.jpg")
 
 
+class TestEndpointOverride(unittest.TestCase):
+    """T4: WHISPER_YT_TEST_BASE yalnız loopback'e yönlendirme kabul eder."""
+
+    def test_loopback_redirects(self):
+        with patch.dict(os.environ,
+                        {"WHISPER_YT_TEST_BASE": "http://127.0.0.1:8123"},
+                        clear=False):
+            self.assertEqual(youtube._endpoint(youtube.OAUTH_TOKEN),
+                             "http://127.0.0.1:8123/token")
+            self.assertEqual(youtube._endpoint(youtube.OAUTH_DEVICE),
+                             "http://127.0.0.1:8123/device/code")
+            self.assertEqual(youtube._endpoint(youtube.YTI_BROWSE),
+                             "http://127.0.0.1:8123/youtubei/v1/browse")
+
+    def test_remote_host_rejected(self):
+        """Keyfi host'a OAuth/token trafiği yönlendirilemez (kimlik avı koruması)."""
+        for bad in ("https://evil.example.com", "http://0.0.0.0:80",
+                    "ftp://127.0.0.1", "http://127.0.0.1.evil.com"):
+            with patch.dict(os.environ, {"WHISPER_YT_TEST_BASE": bad}, clear=False):
+                self.assertEqual(youtube._endpoint(youtube.OAUTH_TOKEN),
+                                 youtube.OAUTH_TOKEN, bad)
+
+    def test_unset_keeps_prod(self):
+        env = os.environ.copy()
+        env.pop("WHISPER_YT_TEST_BASE", None)
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(youtube._endpoint(youtube.OAUTH_TOKEN),
+                             youtube.OAUTH_TOKEN)
+
+
 class MainDispatch(unittest.TestCase):
     def test_invalid_browse_id_rejected(self):
         argv = ["youtube.py", "browse", "--browse-id", "FEevil"]

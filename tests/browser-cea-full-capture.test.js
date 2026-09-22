@@ -19,7 +19,7 @@ const {
     url: `https://cdn.test/${sequence}.ts?sig=${index}`, sequence, discontinuity: 0, start: sequence * 6,
   }));
   assert.deepEqual(normalizeCeaCaptureSegments(segments).map((item) => item.sequence), [1, 2, 3]);
-  assert.equal(ceaCaptureSegmentIdentity(segments[0]), '0:3');
+  assert.equal(ceaCaptureSegmentIdentity(segments[0]), 'seq:3');
 
   const refreshed = [1, 2, 3].map((sequence) => ({
     url: `https://cdn.test/${sequence}.ts?sig=fresh`, sequence, discontinuity: 0,
@@ -88,18 +88,18 @@ const {
   assert.deepEqual(paused.failed.map((item) => item.segment.sequence), [2]);
   assert.deepEqual(paused.remaining.map((item) => item.sequence), [3]);
 
-  const partial = summarizeCeaCaptureCompleteness(refreshed, new Set(['0:1', '0:3']), { cueCount: 14 });
+  const partial = summarizeCeaCaptureCompleteness(refreshed, new Set(['seq:1', 'seq:3']), { cueCount: 14 });
   assert.equal(partial.complete, false, 'cue bulunması eksik segmenti gizlememeli');
   assert.equal(partial.missing, 1);
   assert.equal(partial.percent, 66);
   assert.deepEqual(partial.missingSegments.map((item) => item.sequence), [2]);
   assert.equal(shouldAutoRetryCeaCapture(partial, 0, 2), true);
   assert.equal(shouldAutoRetryCeaCapture(partial, 2, 2), false);
-  const complete = summarizeCeaCaptureCompleteness(refreshed, new Set(['0:1', '0:2', '0:3']), { cueCount: 20 });
+  const complete = summarizeCeaCaptureCompleteness(refreshed, new Set(['seq:1', 'seq:2', 'seq:3']), { cueCount: 20 });
   assert.equal(complete.complete, true);
   assert.equal(complete.missing, 0);
   const openPlaylist = summarizeCeaCaptureCompleteness(refreshed,
-    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: false });
+    new Set(['seq:1', 'seq:2', 'seq:3']), { cueCount: 20, planComplete: false });
   assert.equal(openPlaylist.complete, false, 'ENDLIST olmayan pencere tam video sayılamaz');
   assert.equal(openPlaylist.missing, 0);
   assert.equal(shouldAutoRetryCeaCapture(openPlaylist, 0, 2), true);
@@ -114,7 +114,7 @@ const {
   assert.equal(retainCeaExpectedDuration(0, { duration: Infinity, adPlaying: false }), 0);
 
   const unknownDuration = summarizeCeaCaptureCompleteness(refreshed,
-    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, requireExpectedDuration: true });
+    new Set(['seq:1', 'seq:2', 'seq:3']), { cueCount: 20, planComplete: true, requireExpectedDuration: true });
   assert.equal(unknownDuration.complete, false, 'bilinmeyen süre tam video kanıtı değildir');
   assert.equal(unknownDuration.planReason, 'duration-unknown');
   assert.equal(unknownDuration.durationKnown, false);
@@ -124,7 +124,7 @@ const {
     ...segment, start: index * 10, duration: 10,
   }));
   const shortWindow = summarizeCeaCaptureCompleteness(timedSegments,
-    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, expectedDuration: 120 });
+    new Set(['seq:1', 'seq:2', 'seq:3']), { cueCount: 20, planComplete: true, expectedDuration: 120 });
   assert.equal(shortWindow.complete, false, 'ENDLIST kısa kayan pencereyi tam video yapmamalı');
   assert.equal(shortWindow.manifestComplete, true);
   assert.equal(shortWindow.durationComplete, false);
@@ -133,7 +133,7 @@ const {
   assert.equal(shortWindow.durationPercent, 25);
   assert.equal(shouldAutoRetryCeaCapture(shortWindow, 0, 2), true);
   const durationComplete = summarizeCeaCaptureCompleteness(timedSegments,
-    new Set(['0:1', '0:2', '0:3']), { cueCount: 20, planComplete: true, expectedDuration: 30.5 });
+    new Set(['seq:1', 'seq:2', 'seq:3']), { cueCount: 20, planComplete: true, expectedDuration: 30.5 });
   assert.equal(durationComplete.complete, true, 'küçük EXTINF yuvarlama farkı kabul edilmeli');
 
   const root = path.join(__dirname, '..');
@@ -218,7 +218,7 @@ const {
   assert.deepEqual(gapFetched, [1, 3], 'EXT-X-GAP parçası indirilmeye çalışılmamalı');
   assert.equal(gapOrdered.total, 2);
   const gapSummary = summarizeCeaCaptureCompleteness(gapped,
-    new Set(['0:1', '0:3']), { cueCount: 10, planComplete: true });
+    new Set(['seq:1', 'seq:3']), { cueCount: 10, planComplete: true });
   assert.equal(gapSummary.gapCount, 1);
   assert.equal(gapSummary.total, 2, 'gap parçası zorunlu iş sayılmamalı');
   assert.equal(gapSummary.missing, 0, 'gap parçası eksik sayılıp sonsuz retry üretmemeli');

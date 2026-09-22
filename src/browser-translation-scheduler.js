@@ -247,6 +247,10 @@ class BrowserTranslationScheduler {
     this.idleWaiters = [];
     this.lastReconcile = { unchanged: 0, added: 0, changed: 0, removed: 0 };
     this.providerFailure = '';
+    // Maliyet teşhisi: kaç sağlayıcı isteği gerçekten yapıldı, kaç cümle
+    // önbellekten geldi. UI/tanı paneli bu sayaçlarla "aynı metin ikinci kez
+    // ücretlendirildi mi" sorusunu cevaplayabilir.
+    this.stats = { providerRequests: 0, cacheHits: 0, cacheMisses: 0 };
   }
 
   setContext(context = {}) {
@@ -370,6 +374,7 @@ class BrowserTranslationScheduler {
       failed: [...this.failures.values()].filter((failure) => failure.terminal).length,
       retrying: [...this.failures.values()].filter((failure) => !failure.terminal).length,
       paused: this.paused,
+      stats: { ...this.stats },
     });
   }
 
@@ -434,6 +439,7 @@ class BrowserTranslationScheduler {
     if (!shared) {
       const controller = new AbortController();
       shared = { controller, consumers: new Set(), settled: false, promise: null };
+      this.stats.providerRequests += 1;
       const requestContext = { ...context };
       shared.promise = Promise.resolve().then(() => {
         if (controller.signal.aborted) throw new Error('Çeviri isteği iptal edildi.');
@@ -484,10 +490,12 @@ class BrowserTranslationScheduler {
         try {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
           if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
+          this.stats.cacheHits += 1;
           return { ...decoded, cached: true };
         }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
       }
+      this.stats.cacheMisses += 1;
       return this.translateShared(sentence, cacheKey, controller, context)
         .then((value) => {
           const decoded = decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts);
@@ -664,6 +672,7 @@ class BrowserTranslationScheduler {
       failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),
       results: [...this.results.values()].map((value) => ({ ...value, cues: value.cues.map((cue) => ({ ...cue })) })),
       reconcile: { ...this.lastReconcile },
+      stats: { ...this.stats },
     };
   }
 }

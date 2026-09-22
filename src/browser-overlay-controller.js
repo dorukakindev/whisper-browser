@@ -24,8 +24,16 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     let mediaDirty = true;
     let frameToken = 0;
     let frameKind = '';
+    let frameFallbackTimer = 0;
     let boundaryTimer = 0;
     let boundaryCallbacks = 0;
+    let fallbackRenders = 0;
+    let lastRenderVideoTime = NaN;
+    let lastArmedBoundary = NaN;
+    let lastArmedDelayMs = NaN;
+    let lastArmedAt = NaN;
+    let timerProbeDelay = NaN;
+    let timerProbePending = false;
     let renderCount = 0;
     let renderTotalMs = 0;
     let renderMaxMs = 0;
@@ -196,6 +204,10 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         clearTimeout(boundaryTimer);
         boundaryTimer = 0;
       }
+      if (frameFallbackTimer) {
+        clearTimeout(frameFallbackTimer);
+        frameFallbackTimer = 0;
+      }
       if (frameToken) {
         if (frameKind === 'video' && media && typeof media.cancelVideoFrameCallback === 'function') {
           try { media.cancelVideoFrameCallback(frameToken); } catch (_) {}
@@ -333,14 +345,24 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     };
 
     const queueFrame = () => {
-      if (frameToken || boundaryTimer || document.hidden || state.mode === 'off' || !media || media.paused) return;
+      if (frameToken || document.hidden || state.mode === 'off' || !media || media.paused) return;
+      // Bekleyen sınır zamanlayıcısı kurulduğu andaki video çizgisine bağlıdır.
+      // Seek/ratechange sonrası gelen render'lar onu güncel konuma göre
+      // yeniden hesaplamazsa eski çizginin sınırına dek bayat cue kalır.
+      if (boundaryTimer) {
+        clearTimeout(boundaryTimer);
+        boundaryTimer = 0;
+      }
       const videoTime = finite(media.currentTime);
       const boundaries = [];
       const collectBoundaries = (cues, transform) => {
         for (const cue of Array.isArray(cues) ? cues : []) {
           for (const raw of [cue && cue.start, cue && cue.end]) {
             const value = sourceToVideo(raw, transform);
-            if (Number.isFinite(value) && value > videoTime + .003) boundaries.push(value);
+            // Sınır epsilon'suz, katı gelecekte kalmalı: çizim sınırdan birkaç
+            // ms erken düştüğünde sınır "geçmiş" sayılırsa bir sonraki cue
+            // aralığı boyunca (saniyelerce) bayat metin ekranda kalır.
+            if (Number.isFinite(value) && value > videoTime) boundaries.push(value);
           }
         }
       };
@@ -349,7 +371,13 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const nextCueBoundary = boundaries.length ? Math.min(...boundaries) : NaN;
       if (!Number.isFinite(nextCueBoundary)) return;
       const playbackRate = Math.max(.05, finite(media.playbackRate, 1));
-      const delayMs = Math.max(0, (nextCueBoundary - videoTime) * 1000 / playbackRate - 12);
+      // Sınırdan önce ateşleme (erken -ms payı) çizimi yanlış cue tarafına
+      // düşürebilir; zamanında planlanır, erken düşen nadir bir çizim bir
+      // sonraki queueFrame'de aynı sınırı yeniden kurar.
+      const delayMs = Math.max(0, (nextCueBoundary - videoTime) * 1000 / playbackRate);
+      lastArmedBoundary = nextCueBoundary;
+      lastArmedDelayMs = delayMs;
+      lastArmedAt = videoTime;
       const callback = () => {
         frameToken = 0;
         frameKind = '';
@@ -366,6 +394,23 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           frameKind = 'raf';
           frameToken = requestAnimationFrame(callback);
         }
+        // rVFC/rAF yalnızca sayfa kare üretirken düşer; boyanmayan ya da
+        // karesi durmuş sayfada frameToken bekleyerek sınır planlamasını
+        // kilitler ve katman bayat cue'da kalır. Emniyet zamanlayıcısı
+        // kare gelmezse doğrudan çizime düşer.
+        frameFallbackTimer = setTimeout(() => {
+          frameFallbackTimer = 0;
+          if (!frameToken) return;
+          if (frameKind === 'video' && media && typeof media.cancelVideoFrameCallback === 'function') {
+            try { media.cancelVideoFrameCallback(frameToken); } catch (_) {}
+          } else {
+            try { cancelAnimationFrame(frameToken); } catch (_) {}
+          }
+          frameToken = 0;
+          frameKind = 'fallback';
+          fallbackRenders += 1;
+          render();
+        }, 400);
       }, Math.min(60000, delayMs));
     };
 
@@ -516,6 +561,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       box.style.top = Math.max(rect.top,
         rect.bottom - baseMargin - rect.height * (bottomOffset / 100)) + 'px';
       const videoTime = finite(activeMedia.currentTime);
+      lastRenderVideoTime = videoTime;
       const sourceCues = findCues(state.source || [], videoToSource(videoTime, state.sourceTransform));
       const translationCues = findCues(state.translation || [], videoToSource(videoTime, state.translationTransform));
       const source = box.querySelector('[data-kind="source"]');
@@ -594,6 +640,14 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         // subtree querySelectorAll kullanmak, her tanı yenilemesinde gereksiz
         // DOM taraması üretir.
         const overlayNodes = root?.isConnected ? 1 + root.childElementCount : 0;
+        if (!timerProbePending && typeof setTimeout === 'function') {
+          timerProbePending = true;
+          const probeArmedAt = monotonicNow();
+          setTimeout(() => {
+            timerProbeDelay = monotonicNow() - probeArmedAt;
+            timerProbePending = false;
+          }, 100);
+        }
         return { hasMedia: !!media, running: !!frameToken, hidden: document.hidden,
           mode: state.mode || 'off', observer: mutationObservers.length > 0,
           mutationObservers: mutationObservers.length,
@@ -606,7 +660,15 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           renderMaxMs,
           boundaryCallbacks,
           pendingFrames: (frameToken ? 1 : 0) + (boundaryTimer ? 1 : 0)
-            + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0) };
+            + (frameFallbackTimer ? 1 : 0) + (mutationFrame ? 1 : 0) + (dragFrame ? 1 : 0),
+          fallbackRenders,
+          lastRenderVideoTime,
+          armedBoundary: lastArmedBoundary,
+          armedDelayMs: lastArmedDelayMs,
+          armedAt: lastArmedAt,
+          frameKind,
+          mediaTime: media ? finite(media.currentTime) : null,
+          timerProbeDelayMs: timerProbeDelay };
       },
     };
     if (state.mode !== 'off') startObserving();

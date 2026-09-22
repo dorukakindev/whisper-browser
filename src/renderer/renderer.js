@@ -8287,6 +8287,7 @@ function normalizeBrowserCeaCaptureState(event) {
     retryRound: Math.max(0, Number(event.retryRound) || 0),
     planComplete: event.planComplete !== false,
     planReason: String(event.planReason || ''),
+    complete: event.complete === true,
     plannedDuration: Math.max(0, Number(event.plannedDuration) || 0),
     expectedDuration: Math.max(0, Number(event.expectedDuration) || 0),
     durationPercent: Math.max(0, Math.min(100, Number(event.durationPercent) || 0)),
@@ -12349,8 +12350,13 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const estimate = progress.remaining
       ? ` · ~${Number(progress.remaining)} istek / ~${Number(progress.estimatedTokens || 0).toLocaleString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))} token`
       : '';
+    const costStats = progress.stats || {};
+    const costLookups = Number(costStats.cacheHits || 0) + Number(costStats.cacheMisses || 0);
+    const costText = costLookups
+      ? ` · ${globalThis.UiLocale?.get?.() === 'en' ? 'cache' : 'önbellek'} ${Number(costStats.cacheHits || 0)}/${costLookups} · ${Number(costStats.providerRequests || 0)} ${globalThis.UiLocale?.get?.() === 'en' ? 'API calls' : 'API çağrısı'}`
+      : '';
     if (progress.pending || progress.queued) {
-      setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}`, true,
+      setBrowserSignal(`Canlı çeviri: ${Number(progress.completed || 0)}/${Number(progress.total || 0)} cümle hazır · ${Number(progress.pending || 0)} çalışıyor${estimate}${costText}`, true,
         { priority: 60 });
     } else if (progress.total && Number(progress.completed) >= Number(progress.total)) {
       if (translationTab?.browserAutomationOperationKey) browserSubtitleAutomationGate?.complete(translationTab.browserAutomationOperationKey);

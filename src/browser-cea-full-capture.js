@@ -1,9 +1,14 @@
 "use strict";
 
 function ceaCaptureSegmentIdentity(segment = {}) {
-  const discontinuity = Math.max(0, Number(segment.discontinuity) || 0);
   const sequence = Number(segment.sequence);
-  if (Number.isFinite(sequence)) return `${discontinuity}:${sequence}`;
+  // MEDYA-SEQUENCE + satır artışı tek playlist'te satır başına tekildir ve
+  // kayan pencerede bir parçanın kararlı kimliğidir. disc:seq kimliği, liste
+  // yenilemesinde araya EXT-X-DISCONTINUITY eklenince aynı fiziksel parçayı
+  // yeni kimlikle sayıyor; tamamlanmış girdiler sahipsiz kalıp kalıcı
+  // 'partial' + çift indirme/çözme üretiyordu.
+  if (Number.isFinite(sequence)) return `seq:${sequence}`;
+  const discontinuity = Math.max(0, Number(segment.discontinuity) || 0);
   return `${discontinuity}:url:${String(segment.urlKey || segment.url || "").split(/[?#]/)[0]}`;
 }
 

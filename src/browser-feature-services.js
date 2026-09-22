@@ -12,12 +12,15 @@ function registerBrowserFeatureServices(deps) {
   const { app, ipcMain, dialog, BrowserWindow, owner, getTab, activeTab, context, authorized,
     frames, probeScript, rankCandidates, commandScript, captureFrame, restoreLayout, grantSubtitle,
     pythonPath, ffmpegPath, ffprobePath } = deps;
+  // Skip-segments/dizi-baglami/altyazi depo yazimlari icin enjekte edilebilir
+  // fs — testlerde deterministik hata enjeksiyonu (crash-integrity).
+  const fsx = deps.fsImpl || fs;
   const jobs = new Map(), captures = new Map();
   const references = new Map();
   const encodingPreviews = new Map();
   let seriesStore = null;
   const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
-    filePath: path.join(app.getPath('userData'), 'browser-series-context.json') });
+    filePath: path.join(app.getPath('userData'), 'browser-series-context.json'), fsImpl: fsx });
   const mediaKey = tab => {
     const url = tab.view.webContents.getURL();
     let origin = ''; try { origin = new URL(url).origin; } catch {}
@@ -27,7 +30,7 @@ function registerBrowserFeatureServices(deps) {
   const dataPath = () => path.join(app.getPath('userData'), 'browser-skip-segments.json');
   function data() {
     if (!skipData) {
-      try { skipData = JSON.parse(fs.readFileSync(dataPath(), 'utf8')); } catch { skipData = {}; }
+      try { skipData = JSON.parse(fsx.readFileSync(dataPath(), 'utf8')); } catch { skipData = {}; }
       skipData = { records: skips.normalizeRecords(skipData?.records), series: Object.fromEntries(
         Object.entries(skipData?.series || {}).filter(([key, value]) => key.length <= 2048 && typeof value === 'string' && value.length <= 512).slice(-500)) };
     }
@@ -35,19 +38,19 @@ function registerBrowserFeatureServices(deps) {
   }
   function save() {
     const target = dataPath();
-    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fsx.mkdirSync(path.dirname(target), { recursive: true });
     const temp = `${target}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-      fs.renameSync(temp, target);
-    } finally { try { fs.unlinkSync(temp); } catch {} }
+      fsx.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      fsx.renameSync(temp, target);
+    } finally { try { fsx.unlinkSync(temp); } catch {} }
   }
   function writeOwnedSubtitle(filePath, text) {
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(temp, '\uFEFF' + text, 'utf8');
-      fs.renameSync(temp, filePath);
-    } finally { try { fs.unlinkSync(temp); } catch {} }
+      fsx.writeFileSync(temp, '\uFEFF' + text, 'utf8');
+      fsx.renameSync(temp, filePath);
+    } finally { try { fsx.unlinkSync(temp); } catch {} }
     grantSubtitle(filePath);
   }
   function keys(tab, seriesName) {
