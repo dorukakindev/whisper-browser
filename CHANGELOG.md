@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Address bar: frecency ranking (history keeps visit counts), inline autocomplete ("git" → "github.com"), section headings and site icons; pure logic moved to `src/browser-address-model.js`.
+- Translation model scorecard: the backend emits `translation_quality`; settings show each model's invalid-batch rate over its last 10 jobs (TR/EN).
+- "Untranslated lines" cue filter with a one-click "Translate missing" banner; retranslate-all now opens an old/new diff where selected lines can be restored (.srt).
+- ASS alignment (`\anN`), position (`\pos`) and whole-line italics survive translation into SRT/ASS/VTT output.
+- "Open with http" on https connection failures (explicit warning; never for certificate errors); plain `#anchors` kept in the local session; "Save as PNG" converts WebP/AVIF/ICO/BMP in an isolated, network-less window.
+- `npm run audit:ui` (headless Chromium contrast audit across theme × locale × width; runs `--strict` in CI) plus ratchet tests for hard-coded CSS colors and EN locale coverage.
+
 - Translation quality corpus (`backend/golden-corpus-tr.json`, 60 cues) with per-category defect metrics and deterministic mock-provider pipeline tests.
 - Provider cost counters (`providerRequests`/`cacheHits`/`cacheMisses`) in browser translation telemetry, `browser:translation:snapshot`, diagnostics, and the live-translation signal line.
 - Crash-integrity gauntlet: deterministic fs fault injection across every critical store write path (asset store, session store, translation cache/archive, notes, reading list, element rules, series context, CEA checkpoint, secret store) plus a real-Electron damaged-profile restart smoke and a 10k-cue / multi-tab / concurrent-translation performance measurement smoke.
@@ -21,6 +28,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Current-documentation index and isolated-profile screenshot of separate subtitle and manga provider settings.
 
 ### Changed
+
+- Audit/report markdown files moved from the repository root to `docs/raporlar/`.
+- `qrcode` is now a devDependency; its CLI dependencies (`yargs@15`, `yargs-parser@18`) no longer ship in the packaged app.
+- 57 browser status messages and several split sentences gained English translations; 73 near-token hard-coded colors now use design tokens; 28 further light-theme contrast failures fixed.
 
 - Reorganized public documentation in English.
 - Anonymized machine-specific path examples in tracked audit documentation.
