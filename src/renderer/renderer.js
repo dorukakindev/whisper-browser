@@ -11781,6 +11781,20 @@ if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () 
     navigateBrowserFromAddress();
   }
 });
+$('browserErrorHttp')?.addEventListener('click', async () => {
+  const url = $('browserErrorHttp').dataset.url || '';
+  if (!url) return;
+  const accepted = await openAppDialog({
+    title: 'Şifrelenmemiş bağlantıyla aç',
+    description: globalThis.UiLocale?.get?.() === 'en'
+      ? `${url} will open over http. Anything you send on this connection (including passwords) can be read on the network.`
+      : `${url} http ile açılacak. Bu bağlantıda gönderdiğiniz veriler (parolalar dahil) ağda okunabilir.`,
+    confirmLabel: uiText('http ile aç'), intent: 'danger',
+  });
+  if (!accepted || !$('browserAddress')) return;
+  $('browserAddress').value = url;
+  navigateBrowserFromAddress();
+});
 if ($('browserErrorBack')) $('browserErrorBack').addEventListener('click', () => {
   if (!browserTabState()?.canGoBack) {
     setBrowserSignal('Bu sekmede geri dönülecek bir sayfa yok.', false);
@@ -12452,7 +12466,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       const mt = (s) => window.UiLocale?.t(s) || s;
       $('playerMeta').textContent = event.type === 'tab-crashed' ? mt('Sekme çöktü') : mt('Sayfa yüklenemedi');
     }
-    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, message: event.message || `hata ${event.code}` });
+    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, url: event.url || tab?.errorUrl, message: event.message || `hata ${event.code}` });
     setBrowserSignal(`${event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi'}: ${event.message || `hata ${event.code}`}`, false,
       { priority: 100, holdMs: 7000 });
   } else if (event.type === 'notice') {
@@ -16131,6 +16145,14 @@ function showBrowserErrorSurface(error) {
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
   if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
+  // https açılamadıysa (sertifika hatası DEĞİL) açık onayla http denemesi.
+  const fallback = !secure && !crashed
+    ? globalThis.BrowserAddressModel?.httpFallbackUrl(error.url || browserTabState()?.errorUrl, error.code) : '';
+  const httpButton = $('browserErrorHttp');
+  if (httpButton) {
+    httpButton.classList.toggle('hidden', !fallback);
+    httpButton.dataset.url = fallback || '';
+  }
 }
 
 async function askExplain(kind, index, word) {

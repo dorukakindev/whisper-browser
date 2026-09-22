@@ -130,11 +130,26 @@
     return m && SUBTITLE_PATH_LANGUAGE_CODES.has(m[1].toLowerCase()) ? m[1].toUpperCase() : '';
   }
 
+  // https bağlantısı kurulamadığında (bağlantı reddi/sıfırlama/zaman aşımı/TLS
+  // protokol hatası) kullanıcıya açık onayla http denemesi önerilir. Sertifika
+  // doğrulama hataları bilerek HARİÇ: orada http'ye düşmek saldırganın istediği
+  // şifresiz bağlantıyı onaylatmak olur.
+  const HTTP_FALLBACK_CODES = new Set([-100, -101, -102, -104, -105, -106, -107, -109, -113, -118, -130, -324]);
+  function httpFallbackUrl(url, code) {
+    if (!HTTP_FALLBACK_CODES.has(Number(code))) return '';
+    try {
+      const parsed = new URL(String(url || ''));
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return '';
+      parsed.protocol = 'http:';
+      return parsed.href;
+    } catch (_) { return ''; }
+  }
+
   const RTL_LANGUAGE = /^(?:ar|fa|he|iw|ur|ps|yi|dv|ckb|sd|ug)(?:[-_]|$)/i;
   function isRtlLanguage(code) { return RTL_LANGUAGE.test(String(code || '')); }
 
   return {
     foldSearchText, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
-    visibleTabsInDisplayOrder, langFromPath, isRtlLanguage, originOf,
+    visibleTabsInDisplayOrder, langFromPath, isRtlLanguage, originOf, httpFallbackUrl,
   };
 });

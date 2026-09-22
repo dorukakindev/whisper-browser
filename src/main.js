@@ -3225,7 +3225,8 @@ function nextBrowserTabId() {
 }
 
 function createBrowserTabRecord(initial = {}) {
-  const restored = normalizeSessionTab(initial) || {};
+  // Geri açma/geri yükleme: düz #çapa korunur (yalnız yerel oturum; bkz. sessionTabUrl).
+  const restored = normalizeSessionTab(initial, { keepAnchor: true }) || {};
   const requestedId = normalizeBrowserTabId(restored.id);
   const tab = {
     id: requestedId && !browserTabs.has(requestedId) ? requestedId : nextBrowserTabId(),
@@ -4779,13 +4780,65 @@ async function saveBrowserContextImage(tab, rawUrl) {
   if (declared > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
+  const defaultName = browserImageFileName(parsed.href, type);
+  const originalExt = path.extname(defaultName).slice(1).toLowerCase();
+  // WebP/AVIF/ICO/BMP'yi Windows'taki birçok uygulama açamıyor: kaydetme penceresi
+  // "PNG olarak kaydet" seçeneği de sunar; .png seçilirse görsel dönüştürülür.
+  const convertible = BROWSER_IMAGE_PNG_CONVERTIBLE.has(originalExt);
   const choice = await dialog.showSaveDialog(mainWindow, {
-    title: 'Görseli kaydet', defaultPath: browserImageFileName(parsed.href, type),
-    filters: [{ name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'ico', 'bmp'] }],
+    title: 'Görseli kaydet', defaultPath: defaultName,
+    filters: [
+      { name: `Özgün biçim (${originalExt.toUpperCase() || 'görsel'})`, extensions: [originalExt || 'jpg'] },
+      ...(convertible ? [{ name: 'PNG olarak kaydet (dönüştür)', extensions: ['png'] }] : []),
+      { name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'ico', 'bmp'] },
+    ],
   });
   if (choice.canceled || !choice.filePath) return;
-  await fs.promises.writeFile(choice.filePath, bytes);
-  sendBrowserEvent(tab, { type: 'notice', message: 'Görsel kaydedildi.', success: true });
+  const wantsPng = convertible && path.extname(choice.filePath).toLowerCase() === '.png';
+  const output = wantsPng ? await convertImageBytesToPng(bytes, type || `image/${originalExt}`) : bytes;
+  await fs.promises.writeFile(choice.filePath, output);
+  sendBrowserEvent(tab, { type: 'notice', message: wantsPng ? 'Görsel PNG olarak kaydedildi.' : 'Görsel kaydedildi.', success: true });
+}
+
+const BROWSER_IMAGE_PNG_CONVERTIBLE = new Set(['webp', 'avif', 'ico', 'bmp', 'gif', 'jpg', 'jpeg']);
+
+// Görseli ağ erişimi, betik izni olmayan, gizli ve kısa ömürlü bir pencerede
+// Chromium'un kendi çözücüsüyle PNG'ye çevirir (nativeImage WebP/AVIF çözemez).
+// Sayfa CSP'sinden bağımsızdır; yalnız kendi veri URL'mizi işler.
+async function convertImageBytesToPng(bytes, mime) {
+  const safeMime = /^image\/[a-z0-9.+-]{1,40}$/i.test(String(mime).split(';')[0].trim())
+    ? String(mime).split(';')[0].trim().toLowerCase() : 'image/webp';
+  const worker = new BrowserWindow({
+    show: false, width: 64, height: 64,
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true,
+      offscreen: true, partition: 'whisper-image-convert', spellcheck: false },
+  });
+  try {
+    worker.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+      callback({ cancel: !/^(?:about:blank|data:)/i.test(details.url) });
+    });
+    await worker.loadURL('about:blank');
+    const base64 = await withTimeout(worker.webContents.executeJavaScript(`(async () => {
+      const bytes = Uint8Array.from(atob(${JSON.stringify(bytes.toString('base64'))}), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: ${JSON.stringify(safeMime)} }));
+      if (bitmap.width * bitmap.height > 80000000) throw new Error('too-large');
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      const buffer = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < buffer.length; i += 0x8000) binary += String.fromCharCode(...buffer.subarray(i, i + 0x8000));
+      return btoa(binary);
+    })()`), 20000, 'Görsel PNG\'ye dönüştürülemedi (zaman aşımı).');
+    const png = Buffer.from(String(base64 || ''), 'base64');
+    if (png.length < 8 || png.readUInt32BE(0) !== 0x89504e47) throw new Error('Görsel PNG\'ye dönüştürülemedi.');
+    return png;
+  } catch (error) {
+    throw new Error(/too-large/.test(String(error?.message)) ? 'Görsel dönüştürmek için çok büyük.'
+      : (String(error?.message || '').startsWith('Görsel') ? error.message : 'Görsel PNG\'ye dönüştürülemedi; özgün biçimde kaydedin.'));
+  } finally {
+    if (!worker.isDestroyed()) worker.destroy();
+  }
 }
 
 async function saveBrowserSelectionNote(tab, fallbackSelection = '') {
