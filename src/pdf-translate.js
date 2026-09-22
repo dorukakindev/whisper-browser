@@ -59,6 +59,7 @@ function itemGeometry(item, index) {
     width: Math.max(0, finiteNumber(item?.width)),
     height,
     hasEOL: item?.hasEOL === true,
+    rtl: item?.dir === 'rtl',
   };
 }
 
@@ -73,9 +74,16 @@ function shouldInsertItemSpace(previous, current) {
 }
 
 function joinLineItems(items) {
+  // Sağdan sola satırda (Arapça/İbranice) okuma sırası azalan X'tir. Öğeleri
+  // aynalayıp soldan sağa mantığını aynen kullan; eskiden sözcükler ters
+  // sırada birleştirilip modele "جميعا بكم مرحبا" gibi gidiyordu.
+  const rtl = items.filter((item) => item.rtl).length * 2 > items.length;
+  const ordered = rtl
+    ? items.map((item) => ({ ...item, x: -(item.x + item.width) })).sort((a, b) => a.x - b.x || a.index - b.index)
+    : items;
   let text = '';
   let previous = null;
-  for (const item of items) {
+  for (const item of ordered) {
     if (!item.text) continue;
     if (text && shouldInsertItemSpace(previous, item)) text += ' ';
     text += item.text;

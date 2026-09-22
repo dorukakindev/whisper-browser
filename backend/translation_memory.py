@@ -105,6 +105,13 @@ def _near_typographic_tokens(left, right):
         if (changed > 1 or min(len(first), len(second)) < 5
                 or SequenceMatcher(None, first, second).ratio() < .88):
             return False
+        # Sözcüğün başına/sonuna tam harf eklenmesi yazım varyantı değil, türetmedir:
+        # possible→impossible, comfortable→uncomfortable, legal→illegal anlamı
+        # tersine çevirir; eskiden benzerlik oranı yüksek olduğu için eski çeviri
+        # ("mümkün") düzeltilmiş kaynağa ("imkânsız") sessizce yeniden uygulanıyordu.
+        shorter, longer = sorted((first, second), key=len)
+        if len(longer) > len(shorter) and (longer.startswith(shorter) or longer.endswith(shorter)):
+            return False
     return changed <= 1
 
 

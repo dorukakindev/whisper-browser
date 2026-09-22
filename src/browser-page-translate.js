@@ -555,8 +555,13 @@ function pageBlockScanScript(options = {}) {
               const node = mutation.target;
               const value = String(node?.nodeValue || '');
               if (ownAddedNode(node)) continue;
-              if (state.ownWrites?.get(node) === value) {
-                state.ownWrites.delete(node);
+              // MutationObserver kayıtları toplu gelir ve nodeValue kayıt anındaki
+              // değil GÜNCEL değerdir. Çeviri uygularken aynı düğüme iki kez yazılır
+              // (önce orijinal, sonra çeviri) → iki kayıt, ikisi de son değeri görür.
+              // Eşleşmede girdiyi silmek ikinci kaydı "sayfa değiştirdi" sanıp
+              // originalValues'u çeviriyle eziyor ve bloğu pasif yapıyordu.
+              // Son kendi yazdığımız değer hâlâ düğümdeyse kayıt bizimdir.
+              if (state.ownWrites?.has(node) && state.ownWrites.get(node) === value) {
                 continue;
               }
               // SPA metin düğümünü yerinde değiştirdi. Eski kaynak metni yerine
@@ -933,6 +938,9 @@ function pageApplyScript(payload = {}) {
       span.setAttribute('data-whisper-tr', ref.id);
       span.setAttribute('translate', 'no');
       if (input?.targetLanguage) span.lang = String(input.targetLanguage).slice(0, 35);
+      // Arapça/Farsça/İbranice/Urduca hedefte soldan sağa sayfada noktalama ve
+      // sayılar yanlış kenara düşmesin.
+      span.dir = /^(?:ar|fa|he|iw|ur|ps|yi|dv|ckb|sd|ug)(?:[-_]|$)/i.test(String(input?.targetLanguage || '')) ? 'rtl' : 'auto';
       span.textContent = ref.translation;
       insertAfterRoot(ref, span);
       ref.overlay = span;

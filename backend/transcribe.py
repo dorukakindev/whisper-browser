@@ -45,6 +45,7 @@ from ndjson_utils import finite_json_value, json_dumps_finite
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   sentence_reply_issue, sentence_part_boundary_issue,
+                                  reply_id_range_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues)
@@ -110,6 +111,39 @@ def subtitle_source_id(args, source_hash):
     raw = json.dumps({"kind": kind, "source": source, "hash": source_hash},
                      ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+# Dosya adındaki dil ekini tanımak için yalnızca GERÇEK dil kodları kullanılır.
+# Eskiden "^(.*)\.[a-z]{2,3}$" her 2-3 harfli son parçayı dil sanıyordu:
+# "Dune.Part.Two.srt" -> "Dune.Part.tr.srt" (başlık kırpılıyor, Part One ile
+# Part Two aynı dosyaya yazılıp birbirini eziyordu).
+SUBTITLE_LANGUAGE_CODES = frozenset("""
+    tr en de fr es it ru ar ja ko zh pt nl el fa az pl sv no nb nn da fi cs sk hu ro
+    bg hr sr sl uk he hi id ms th vi ca eu gl et lv lt is ga ka hy kk uz ur bn ta te
+    tur eng ger deu fre fra spa ita rus ara jpn kor chi zho por dut nld gre ell per fas
+    aze pol swe nor dan fin cze ces slo slk hun rum ron bul hrv srp slv ukr heb hin ind
+    may msa tha vie cat baq eus glg est lav lit ice isl gle geo kat arm hye kaz uzb urd
+""".split())
+SUBTITLE_QUALIFIERS = frozenset({"forced", "sdh", "cc", "hi", "full", "signs"})
+_LANG_TAG_RE = re.compile(r"^([a-z]{2,3})(?:[-_](?:[a-z]{2}|\d{3}|[a-z]{4}))?$", re.I)
+
+
+def is_subtitle_language_tag(part):
+    match = _LANG_TAG_RE.match(str(part or ""))
+    return bool(match and match.group(1).lower() in SUBTITLE_LANGUAGE_CODES)
+
+
+def split_subtitle_language_suffix(stem):
+    """"film.en.forced" -> ("film", ["forced"]); "Dune.Part.Two" -> ("Dune.Part.Two", [])."""
+    parts = str(stem or "").split(".")
+    qualifiers = []
+    while len(parts) > 1 and parts[-1].lower() in SUBTITLE_QUALIFIERS:
+        qualifiers.insert(0, parts.pop().lower())
+    if len(parts) > 1 and is_subtitle_language_tag(parts[-1]):
+        parts.pop()
+        return ".".join(parts), qualifiers
+    # Dil eki yoksa niteleyiciler başlığın parçası sayılır, olduğu gibi kalır.
+    return str(stem or ""), []
 
 
 def translation_artifact_path(output_dir, stem, target, fmt, *, partial=False,
@@ -3533,6 +3567,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
         content = (resp.choices[0].message.content or "").strip()
         data = parse_llm_json_object(content, "Ceviri yaniti JSON nesnesi degil")
+        range_issue = reply_id_range_issue(data, len(chunk_idx))
+        if range_issue:
+            # Kaymış numaralandırmada hiçbir grup güvenilir değildir; paket
+            # bütünüyle reddedilir ve küçük paketlerle yeniden denenir.
+            raise RuntimeError("Yanitta istenen aralik disinda blok kimligi var ({})".format(range_issue))
 
         filled = 0
         rejected = {}
@@ -3849,6 +3888,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             n_changed = 0
             confirmed = []
             rejected = {}
+            range_issue = reply_id_range_issue(data, len(chunk_idx))
+            if range_issue:
+                rejected[range_issue] = len(chunk_idx)
+                return n_changed, confirmed, rejected
             for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
                 record = accept_sentence_reply(data, row['ids'])
                 if not record:
@@ -6994,11 +7037,10 @@ def translate_existing_subtitle(args):
                           or ("untranslated_source" if quality_failed_indices else ""))
 
     out_dir = preflight_output_dir(resolve_output_dir(args))
-    # "film.en.srt" -> "film.tr.srt"; "film.srt" -> "film.tr.srt"
-    stem = src_path.stem
-    m = re.match(r"^(.*)\.[a-z]{2,3}$", stem, re.I)
-    if m:
-        stem = m.group(1)
+    # "film.en.srt" -> "film.tr.srt"; "film.srt" -> "film.tr.srt";
+    # "film.en.forced.srt" -> "film.tr.forced.srt"; "Dune.Part.Two.srt" -> "Dune.Part.Two.tr.srt"
+    stem, qualifiers = split_subtitle_language_suffix(src_path.stem)
+    target_label = ".".join([target, *qualifiers])
     requested = []
     for fmt in str(getattr(args, "formats", "srt") or "srt").split(","):
         fmt = fmt.strip().lower()
@@ -7028,10 +7070,10 @@ def translate_existing_subtitle(args):
     partial_result = failed_count > 0
     for fmt in requested:
         out_path = translation_artifact_path(
-            out_dir, stem, target, fmt, partial=partial_result)
+            out_dir, stem, target_label, fmt, partial=partial_result)
         if out_path.resolve() == src_path.resolve():      # kaynagin uzerine yazma
             out_path = translation_artifact_path(
-                out_dir, stem, target, fmt, partial=partial_result,
+                out_dir, stem, target_label, fmt, partial=partial_result,
                 qualifier="ceviri")
         if (existing_snapshot and existing_path and existing_path.exists()
                 and out_path.resolve() == existing_path.resolve()):
@@ -7044,7 +7086,7 @@ def translate_existing_subtitle(args):
                 # Yeni sonuç ayrı bir dosyaya yazılır ve renderer bunu yeni
                 # çeviri çıktısı olarak açıkça yükler.
                 out_path = translation_artifact_path(
-                    out_dir, stem, target, fmt, partial=partial_result,
+                    out_dir, stem, target_label, fmt, partial=partial_result,
                     qualifier="yeni")
                 log("Mevcut çeviri işlem sırasında değişti; kullanıcı düzenlemesini "
                     f"korumak için yeni sonuç ayrı yazılıyor: {out_path.name}", "warn")
@@ -7144,7 +7186,7 @@ def translate_existing_subtitle(args):
     output_tx.commit()
     if not partial_result:
         removed_partial = cleanup_owned_partial_translation_artifacts(
-            out_dir, stem, target, source_hash, source_id)
+            out_dir, stem, target_label, source_hash, source_id)
         if removed_partial:
             log(f"Tamamlanan işe ait {len(removed_partial)} eski kısmi çıktı temizlendi.",
                 "success")
@@ -7489,6 +7531,9 @@ def parse_ass(text):
         except (KeyError, ValueError):
             continue
         body = row.get("text", "").replace("\\N", "\n").replace("\\n", "\n")
+        # \h ASS'nin bölünmez boşluğudur; olduğu gibi kalırsa modele ve ekrana
+        # "Mr.\hSmith" diye düz metin gidiyordu.
+        body = body.replace("\\h", "\u00a0")
         body = re.sub(r"\{[^}]*\}", "", body).strip()
         entries.append((start, end, body))
     return entries

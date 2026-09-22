@@ -390,6 +390,25 @@ def sentence_reply_issue(data, ids):
     return ""
 
 
+def reply_id_range_issue(data, count):
+    """Yanıttaki sayısal kimlikler istenen 0..count-1 aralığının DIŞINA taşıyorsa
+    tüm paketi reddet.
+
+    Model bazen blokları 1'den numaralandırıyor ("1".."n"). Gruplar tek tek
+    doğrulandığında yalnız eksik "0" reddediliyor, 1..n-1 ise bir önceki bloğun
+    çevirisini sessizce alıp önbelleğe yazılıyordu (tüm çeviri bir satır kayar).
+    """
+    if not isinstance(data, dict):
+        return ""
+    seen = []
+    for container in (data.get('items', data), data.get('sentences', {})):
+        if isinstance(container, dict):
+            seen.extend(key for key in container if isinstance(key, str) and key.isdigit())
+    if any(int(key) >= count for key in seen):
+        return "kimlik_araligi_disinda"
+    return ""
+
+
 def accept_sentence_reply(data, ids):
     """Çok bloklu grup ya bütünüyle kabul edilir ya hiç uygulanmaz.
 
