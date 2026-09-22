@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 01:10 — PR #16'nın CI ve fast-forward doğrulamasıyla `master` dalına birleştirilmesi](docs/devir/2026-09-22-0110.md).
+Güncel çalışma: [2026-09-22 04:15 — T6 temiz-makine kurulum gauntlet'i: install.sh/start.sh, venv console-script onarımı (F-103-1), requirements-ci py3.10 marker'ları, CI'da gerçek Electron bridge; BROWSER_BUG_REPORT_103](docs/devir/2026-09-22-0415.md).
+
+Önceki çalışma: [2026-09-22 01:10 — PR #16'nın CI ve fast-forward doğrulamasıyla `master` dalına birleştirilmesi](docs/devir/2026-09-22-0110.md).
 
 Önceki çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
 
