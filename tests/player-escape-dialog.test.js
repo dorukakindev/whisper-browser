@@ -32,10 +32,12 @@ const player = {
   workspaceMode: 'browser', editing: false, selectedWord: null,
   suppressClick: false, browserPaused: true, subsHidden: false,
 };
+let openDialog = null; // querySelector('dialog[open]') sonucu — senaryo başına ayarlanır
 const ctx = vm.createContext({
   document: {
     addEventListener: (type, fn) => { ctx.__keyHandler = type === 'keydown' ? fn : ctx.__keyHandler; },
     fullscreenElement: null, activeElement: null, hidden: false,
+    querySelector: (sel) => sel === 'dialog[open]' ? openDialog : null,
     querySelectorAll: () => [],
   },
   window: { api: { browserCommand: rec('browserCommand') }, BrowserCommandPalette: { browserShortcutForInput: () => null } },
@@ -62,28 +64,26 @@ vm.runInContext(js.slice(keyStart, keyEnd), ctx);
 const handler = ctx.__keyHandler;
 assert(typeof handler === 'function', 'keydown işleyicisi yakalanamadı');
 
-// --- 1) Escape, açık <dialog> içindeki hedefte → preventDefault YOK,
-//        katman kapanış mantığına düşme YOK (native dialog cancel çalışsın).
-const dialogEl = { open: true };
-const dialogTarget = {
-  tagName: 'BUTTON', isContentEditable: false,
-  closest: (sel) => sel === 'dialog[open]' ? dialogEl : null,
-};
+// --- 1) Açık <dialog> varken Escape → preventDefault YOK, katman mantığı YOK.
+//        Hedef dialog DIŞINDA bile olsa (odak reload ile BODY'ye düşmüş olabilir —
+//        media-catalog render() odağı öldürüyor) native cancel çalışmalı.
+openDialog = { open: true };
 let prevented = false;
 calls.length = 0;
 handler({
   key: 'Escape',
   preventDefault: () => { prevented = true; },
-  target: dialogTarget,
+  target: { tagName: 'BODY', isContentEditable: false, closest: () => null },
 });
 assert.equal(prevented, false,
-  'dialog içi Escape preventDefault edildi — native <dialog> kapanışı ölüyor');
+  'açık dialog varken Escape preventDefault edildi — native <dialog> kapanışı ölüyor');
 assert(!calls.some(([n]) => n === 'closePlayer' || n === 'setSettingsDrawer'
   || n === 'closeYoutubeLogin' || n === 'setBrowserDownloadsOpen'),
-  'dialog içi Escape katman kapanış mantığına düştü — dialog açıkken çift kapanma riski');
+  'açık dialog varken Escape katman kapanış mantığına düştü — çift kapanma riski');
 
-// --- 2) Escape, dialog DIŞI hedefte → mevcut sözleşme korunur:
+// --- 2) Açık dialog YOKKEN Escape → mevcut sözleşme korunur:
 //        preventDefault + açık katman (settingsDrawer) kapanır.
+openDialog = null;
 prevented = false;
 calls.length = 0;
 handler({
@@ -91,11 +91,12 @@ handler({
   preventDefault: () => { prevented = true; },
   target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
 });
-assert.equal(prevented, true, 'dialog dışı Escape preventDefault çağırmadı');
+assert.equal(prevented, true, 'dialog yokken Escape preventDefault çağırmadı');
 assert(calls.some(([n, v]) => n === 'setSettingsDrawer' && v === false),
-  'dialog dışı Escape açık katmanı kapatmadı');
+  'dialog yokken Escape açık katmanı kapatmadı');
 
-// --- 3) Kapalı dialog (open=false) target'ı → dialog koruması devreye girmemeli.
+// --- 3) Dialog kapalıysa (querySelector → null) bekçi devreye girmemeli.
+openDialog = null;
 prevented = false;
 calls.length = 0;
 handler({
@@ -103,6 +104,6 @@ handler({
   preventDefault: () => { prevented = true; },
   target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
 });
-assert.equal(prevented, true, 'kapalı dialog yakını preventDefault davranışını bozdu');
+assert.equal(prevented, true, 'kapalı dialog durumu preventDefault davranışını bozdu');
 
 console.log('player-escape-dialog: dialog içi Escape native cancel serbest, dışı sözleşme korunuyor — PASS');

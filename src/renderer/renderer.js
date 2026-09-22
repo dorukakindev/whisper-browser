@@ -21755,9 +21755,9 @@ document.addEventListener('keydown', (e) => {
   const modifier = e.ctrlKey || e.metaKey;
   const video = $('playerVideo');
   if (e.key === 'Escape') {
-    // Hedef açık bir <dialog> içindeyse native cancel davranışına bırak —
-    // preventDefault() dialog'un Escape ile kapanmasını öldürüyordu.
-    if (e.target?.closest?.('dialog[open]')) return;
+    // Açık bir modal <dialog> varken Escape ona ait — hedef nerede olursa
+    // olsun preventDefault() native cancel'i öldürüyordu.
+    if (document.querySelector('dialog[open]')) return;
     e.preventDefault();
     if (player.editing) { closeCueEditor(); return; }
     const subMenu = $('subtitleModeMenu');
