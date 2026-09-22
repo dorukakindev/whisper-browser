@@ -7172,6 +7172,53 @@ function selectBrowserAddressResult(index, { scroll = true } = {}) {
   if (scroll) activeItem.scrollIntoView({ block: 'nearest' });
 }
 
+// Site simgesi yalnız güvenli veri URL'sinden (CSP img-src: 'self' data:); yoksa harf işareti.
+function browserAddressResultMark(result) {
+  const mark = document.createElement('span');
+  mark.className = 'browser-address-result-mark';
+  if (typeof result.icon === 'string' && /^data:image\//i.test(result.icon)) {
+    const icon = document.createElement('img');
+    icon.alt = ''; icon.src = result.icon; icon.width = 16; icon.height = 16;
+    mark.classList.add('has-icon');
+    mark.appendChild(icon);
+  } else {
+    mark.textContent = result.mark || '•';
+  }
+  return mark;
+}
+
+function browserAddressResultTitle(result) {
+  return result.section === 'input' && result.action === 'navigate' && result.value
+    && globalThis.UiLocale?.get?.() === 'en' ? `Go to or search “${String(result.value).slice(0, 120)}”` : result.title;
+}
+
+// Seçenek kimliği kararlıdır (aria-activedescendant bunu gösterir).
+function browserAddressOption(result, index) {
+  const option = document.createElement('div');
+  option.id = `browser-address-result-${index}`;
+  option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
+  option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
+  option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+  const mark = browserAddressResultMark(result);
+  const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
+  const title = document.createElement('strong'); title.textContent = browserAddressResultTitle(result);
+  const detail = document.createElement('small'); detail.textContent = result.section === 'input' && !result.url ? uiText(result.detail || '') : (result.detail || '');
+  copy.append(title, detail);
+  const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = uiText(result.kindLabel || '');
+  option.append(mark, copy, kind);
+  return option;
+}
+
+function browserAddressSectionHeading(label) {
+  const heading = document.createElement('div');
+  heading.className = 'browser-address-section';
+  heading.setAttribute('role', 'presentation');
+  // Panel yerelleştirme taramasının dışında (site başlıkları taşır); arayüz
+  // etiketleri burada açıkça çevrilir.
+  heading.textContent = uiText(label);
+  return heading;
+}
+
 function renderBrowserAddressResults(results) {
   const panel = $('browserAddressResults');
   const input = $('browserAddress');
@@ -7183,35 +7230,9 @@ function renderBrowserAddressResults(results) {
   let lastSection = 'input';
   for (const [index, result] of results.entries()) {
     // Bölüm başlıkları ("Açık sekmeler", "Geçmiş"…) listeyi bir bakışta okunur yapar.
-    if (result.section && result.section !== lastSection && sectionLabels[result.section]) {
-      const heading = document.createElement('div');
-      heading.className = 'browser-address-section';
-      heading.setAttribute('role', 'presentation');
-      // Panel yerelleştirme taramasının dışında (site başlıkları taşır); arayüz
-      // etiketleri burada açıkça çevrilir.
-      heading.textContent = uiText(sectionLabels[result.section]);
-      panel.appendChild(heading);
-    }
+    if (result.section && result.section !== lastSection && sectionLabels[result.section]) panel.appendChild(browserAddressSectionHeading(sectionLabels[result.section]));
     lastSection = result.section || lastSection;
-    const option = document.createElement('div');
-    option.id = `browser-address-result-${index}`;
-    option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
-    option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
-    option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-    const mark = document.createElement('span'); mark.className = 'browser-address-result-mark';
-    // Site simgesi yalnız güvenli veri URL'sinden (CSP img-src: 'self' data:); yoksa harf işareti.
-    if (typeof result.icon === 'string' && /^data:image\//i.test(result.icon)) {
-      const icon = document.createElement('img'); icon.alt = ''; icon.src = result.icon; icon.width = 16; icon.height = 16;
-      mark.classList.add('has-icon'); mark.appendChild(icon);
-    } else mark.textContent = result.mark || '•';
-    const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
-    const title = document.createElement('strong');
-    title.textContent = result.section === 'input' && result.action === 'navigate' && result.value
-      && globalThis.UiLocale?.get?.() === 'en' ? `Go to or search “${String(result.value).slice(0, 120)}”` : result.title;
-    const detail = document.createElement('small'); detail.textContent = result.section === 'input' && !result.url ? uiText(result.detail || '') : (result.detail || '');
-    copy.append(title, detail);
-    const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = uiText(result.kindLabel || '');
-    option.append(mark, copy, kind); panel.appendChild(option);
+    panel.appendChild(browserAddressOption(result, index));
   }
   panel.classList.toggle('hidden', !results.length);
   input.setAttribute('aria-expanded', results.length ? 'true' : 'false');
