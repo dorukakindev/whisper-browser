@@ -26161,6 +26161,29 @@ function closeYoutubeLogin() {
   if (csec) csec.value = '';
 }
 
+// SmartTube'daki gibi kodun geçerlilik süresi geri sayılır; süre dolunca kullanıcı
+// yeni kod üretmesi gerektiğini görür (eskiden kod sessizce geçersizleşiyordu).
+let _ytCodeTimer = 0;
+function startYoutubeCodeCountdown(seconds, gen) {
+  clearInterval(_ytCodeTimer);
+  const line = $('ytCodeExpiry');
+  if (!line) return;
+  const endsAt = Date.now() + Math.max(0, seconds) * 1000;
+  const tick = () => {
+    if (gen !== _ytFlowGen) { clearInterval(_ytCodeTimer); line.textContent = ''; return; }
+    const left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+    const en = globalThis.UiLocale?.get?.() === 'en';
+    const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    line.textContent = left > 0
+      ? (en ? `Code expires in ${mmss}` : `Kodun süresi ${mmss} içinde doluyor`)
+      : (en ? 'The code expired — generate a new one.' : 'Kodun süresi doldu — yeni kod üretin.');
+    if (!left) clearInterval(_ytCodeTimer);
+  };
+  if (!seconds) { line.textContent = ''; return; }
+  tick();
+  _ytCodeTimer = setInterval(tick, 1000);
+}
+
 async function startYoutubeDeviceFlow() {
   if (_ytPolling) return;
   if (_ytBrowserFlow) {                           // süren tarayıcı akışını durdur
@@ -26195,12 +26218,13 @@ async function startYoutubeDeviceFlow() {
     link.onclick = (e) => { e.preventDefault(); window.api.openExternal(vurl); };
   }
   if (status) status.textContent = window.UiLocale?.t('Onay bekleniyor…') || 'Onay bekleniyor…';
+  startYoutubeCodeCountdown(Number(res.data.expires_in) || 0, gen);
   // SmartTube gibi telefona okutulabilir QR — kod linki zaten taşıyor.
   const qrCanvas = $('ytQrCanvas');
   if (qrCanvas) {
     if (typeof globalThis.QRCode?.toCanvas === 'function' && res.data.verification_url) {
       qrCanvas.classList.remove('hidden');
-      globalThis.QRCode.toCanvas(qrCanvas, vurl, { errorCorrectionLevel: 'M', margin: 1, width: 150 })
+      globalThis.QRCode.toCanvas(qrCanvas, vurl, { errorCorrectionLevel: 'M', margin: 1, width: 200 })
         .catch(() => { qrCanvas.classList.add('hidden'); });
     } else {
       qrCanvas.classList.add('hidden');
