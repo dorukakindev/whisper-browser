@@ -27,12 +27,18 @@ jobs:
           python-version: '3.11'
       - name: Install locked Node dependencies
         run: npm ci --ignore-scripts
+      - name: Install Castlabs Electron binary
+        # --ignore-scripts atlar; install-orchestrator.js ile ayni acik adim.
+        run: node node_modules/electron/install.js --no
       - name: Install FFmpeg (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install FFmpeg (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg --no-progress -y
+      - name: Install Electron runtime libraries (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y xvfb libnss3 libgtk-3-0t64 libasound2t64 libgbm1 libxss1
       - name: Install Python test dependencies
         run: python -m pip install --disable-pip-version-check -r backend/requirements-ci.txt
       - name: Run test suite
@@ -41,6 +47,12 @@ jobs:
           WHISPER_TEST_FFMPEG: ffmpeg
           WHISPER_TEST_FFPROBE: ffprobe
         run: npm test
+      - name: Run Electron bridge smoke (Ubuntu)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node_modules/.bin/electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu
+      - name: Run Electron bridge smoke (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:electron-bridge
       - name: Check syntax
         run: |
           node --check src/main.js

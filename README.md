@@ -46,14 +46,16 @@ Click the image to open a 26-second MP4 showing an English subtitle track and a 
 The application captures use isolated test profiles and synthetic fixtures. The real-video demo uses a credited excerpt from *Tears of Steel* (CC BY 3.0) with a manually reviewed Turkish translation; audio is intentionally omitted. No user account, private subtitle, API key, or browsing-history data is included.
 ## Setup
 
-Requirements: Windows 10/11, Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg. An NVIDIA CUDA GPU is recommended.
+Requirements: Windows 10/11 (supported production target), Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg. An NVIDIA CUDA GPU is recommended.
 
     git clone https://github.com/dorukakindev/whisper-browser.git
     cd whisper-browser
-    install.bat
-    start.bat
+    install.bat        # Linux/Ubuntu: ./install.sh
+    start.bat          # Linux/Ubuntu: ./start.sh
 
-Use start.bat so CUDA DLL paths are configured. Default input/output folders are %USERPROFILE%\Downloads\Whisper\GİRDİ and %USERPROFILE%\Downloads\Whisper\ÇIKTI; both are configurable.
+Use start.bat (or start.sh) so CUDA library paths are configured. Default input/output folders are %USERPROFILE%\Downloads\Whisper\GİRDİ and %USERPROFILE%\Downloads\Whisper\ÇIKTI; both are configurable.
+
+Platform notes: the GUI, tests, and the pinned Castlabs Electron runtime run on Ubuntu 22.04+ for development and CI. The DRM/VMP signature repair (`drm-kur.bat`), the optional WhisperX/diarize installers, and CUDA-tuned transcription are verified on Windows only; macOS is not a supported target.
 
 ## Documentation
 
@@ -74,11 +76,17 @@ Historical audit and handoff records under docs/ are evidence, not current produ
 ## Development
 
     npm ci --ignore-scripts
+    node node_modules/electron/install.js --no   # Electron ikilisi (smoke'lar icin)
+    python3.11 -m venv backend/venv               # veya sistem python ile test bagimliliklari
+    backend/venv/bin/pip install -r backend/requirements-ci.txt
     npm test
+    npm run test:electron-bridge                  # gercek Electron kopru smoke'i
     node --check src/main.js
     node --check src/preload.js
     node --check src/renderer/renderer.js
     python -m py_compile backend/transcribe.py backend/media.py
+
+`npm test` hem Node hem Python testlerini kosar; Python yanina `backend/venv` (veya `WHISPER_TEST_PYTHON`) gerekir. `requirements-ci.txt` pinleri Python 3.11 gerektirir (CI ile ayni); uretim kurulumu 3.10-3.11 destekler. Windows'ta `venv\Scripts\pip.exe` kullanin.
 
 Transcription is local. Optional online data flows are documented in [Privacy](docs/PRIVACY.md). Secrets are not passed in command-line arguments and supported credentials use Electron safeStorage when OS protection is available.
 
