@@ -875,6 +875,10 @@
     ['Mevcut bir', 'From an existing'],
     ['ve', 'and'],
     ['Sayfa', 'Page'],
+    ['Çevrilmemiş satırları göster', 'Show untranslated lines'],
+    ['Çevrilmemiş satır yok.', 'No untranslated lines.'],
+    ['Eksikleri çevir', 'Translate missing'],
+    ['Yalnız eksik satırlar gönderilir; tamamlanan satırlar önbellekten korunur.', 'Only missing lines are sent; completed lines are kept from the cache.'],
     // Adres önerisi etiketleri (panel tarama dışında, UiLocale.t ile çevrilir).
     ['Açık sekme', 'Open tab'],
     ['Yer imi', 'Bookmark'],

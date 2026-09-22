@@ -772,7 +772,8 @@
               </label>
               <label class="field">
                 <span class="field-label">Model</span>
-                <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" />
+                <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" aria-describedby="translateModelScore" />
+                <small id="translateModelScore" class="model-score hidden" role="status" data-ui-untranslated></small>
               </label>
               <div class="field field-full provider-model-manager">
                 <span class="field-label">Bu sağlayıcıdaki modeller</span>
@@ -2341,6 +2342,9 @@
               <button class="btn-icon side-tool" id="qualityOnlyBtn" title="Düşük güvenli cümleleri göster" aria-label="Düşük güvenli cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 16H3L12 3Z"/><path d="M12 9v4m0 3h.01" stroke-linecap="round"/></svg>
               </button>
+              <button class="btn-icon side-tool hidden" id="untranslatedOnlyBtn" title="Çevrilmemiş satırları göster" aria-label="Çevrilmemiş satırları göster" aria-pressed="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h9M8.5 3v2m3.2 0c-.7 3.6-3.1 6.6-6.7 8.5m2.3-4.9c1 1.8 2.7 3.3 4.7 4.2" stroke-linecap="round"/><path d="m14 21 3.5-8 3.5 8m-6-2.5h5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 21 21 3" stroke-linecap="round" opacity=".55"/></svg>
+              </button>
               <button class="btn-icon side-tool" id="subtitleFindReplaceToggle" title="Altyazıda ara ve değiştir" aria-label="Altyazıda ara ve değiştir" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="5"/><path d="m13 13 4 4m0-5v5h-5M5 19h6"/></svg>
               </button>
@@ -3051,6 +3055,8 @@
   <script src="../browser-workflow-recorder.js"></script>
   <script src="../browser-omnibox.js"></script>
   <script src="../browser-address-model.js"></script>
+  <script src="../translation-model-score.js"></script>
+  <script src="../translation-diff.js"></script>
   <script src="../subscriptions-io.js"></script>
   <script src="vendor/qrcode.js"></script>
   <script src="../browser-command-palette.js"></script>

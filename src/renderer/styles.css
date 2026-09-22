@@ -7767,3 +7767,42 @@ body.modal-open { overflow: hidden; }
   border-radius: 4px;
 }
 .inv-pass-toggle:hover { color: var(--accent); background: var(--bg-sunken); }
+
+/* Çeviri modeli uyum karnesi (ayarlar > çeviri > model). */
+.model-score { display: block; margin-top: 4px; font-size: 11px; line-height: 1.35; color: var(--text-muted); }
+.model-score[data-level="good"] { color: var(--success); }
+.model-score[data-level="fair"] { color: var(--warning); }
+.model-score[data-level="poor"] { color: var(--danger); }
+
+/* Çevrilmemiş satır filtresi başlığı. */
+.cue-untranslated-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--border);
+  border-left: 3px solid var(--warning); border-radius: var(--radius-sm);
+  background: var(--bg-2); color: var(--text); font-size: 12px;
+}
+.cue-untranslated-banner .btn { flex: none; width: auto; }
+
+/* Yeniden çeviri farkı. */
+.retranslate-review {
+  position: fixed; inset: 0; margin: auto; height: fit-content;
+  width: min(880px, calc(100vw - 48px)); max-height: min(720px, calc(100vh - 64px));
+  padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius);
+  color: var(--text); background: var(--bg-1); box-shadow: 0 24px 60px rgba(0,0,0,.35);
+}
+.retranslate-review::backdrop { background: rgba(0,0,0,.45); }
+.retranslate-review-head { padding: 16px 18px 8px; }
+.retranslate-review-head h2 { margin: 0 0 4px; font-size: 16px; }
+.retranslate-review-head p { margin: 0; color: var(--text-dim); font-size: 12px; }
+.retranslate-review-list { max-height: 52vh; overflow: auto; padding: 4px 12px; }
+.retranslate-review-row {
+  display: grid; grid-template-columns: auto 64px minmax(0,1fr) minmax(0,1fr); gap: 10px; align-items: start;
+  padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.4; cursor: pointer;
+}
+.retranslate-review-time { color: var(--text-muted); font: 11px/1.6 var(--font-mono, Consolas, monospace); }
+.retranslate-review-before { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.retranslate-review-after { color: var(--text); }
+.retranslate-review-row:has(input:checked) .retranslate-review-before { text-decoration: none; color: var(--text); }
+.retranslate-review-row:has(input:checked) .retranslate-review-after { color: var(--text-muted); text-decoration: line-through; }
+.retranslate-review-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
+.retranslate-review-actions .btn { flex: none; width: auto; }

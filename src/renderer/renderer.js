@@ -39,6 +39,7 @@ const state = {
   source: 'file',
   forceTranslate: false,   // kontrol cubugundaki tek-tik "altyazi + ceviri"
   forceRetranslate: false, // acik kullanici eylemi: mevcut basarili satirlari da yenile
+  retranslateSnapshot: null, // yeniden çeviri öncesi eski çeviri (fark incelemesi için)
   aiJob: false,            // calisan is bir AI sorusu mu (sohbet / acikla)
 
   inputFile: null,
@@ -2937,7 +2938,9 @@ $('mangaModel')?.addEventListener('change', saveAppSettings);
 $('translateModel')?.addEventListener('input', () => {
   renderProviderModelChoices();
   resetTranslationProviderProbe();
+  renderTranslationModelScore();
 });
+queueMicrotask(() => { try { renderTranslationModelScore(); } catch (_) {} });
 $('translateApiKey')?.addEventListener('input', resetTranslationProviderProbe);
 $('translateSavedModel')?.addEventListener('change', (event) => {
   const model = String(event.target.value || '').trim();
@@ -3962,6 +3965,11 @@ function playerJobEvent(event) {
       if (isTranslateJob) {
         player.translationRetryAvailable = translationFailed;
         updateMakeTransState();
+        const snapshot = state.retranslateSnapshot;
+        state.retranslateSnapshot = null;
+        if (result.loaded && snapshot && snapshot.mediaKey === player.mediaKey) {
+          void openRetranslationReview(snapshot.cues);
+        }
       }
       const successText = translationPartial
         ? `Kısmi çeviri yüklendi: ${translationCompleted}/${translationTotal || translationCompleted + translationFailed} cue hazır, ${translationFailed} cue eksik. Eksikleri tamamlayabilirsiniz.`
@@ -4315,6 +4323,10 @@ window.api.onEvent((event) => {
       applyPreviewTranslations(event.segments || [], true);
       break;
 
+    case 'translation_quality': {
+      recordTranslationModelScore(event);
+      break;
+    }
     case 'llm_progress': {
       const percent = Number.isFinite(Number(event.percent)) ? Number(event.percent) : 0;
       setProgress(percent);
@@ -4978,6 +4990,7 @@ const player = {
   savedCues: [],         // bu video icin kaydedilen cümle imzalari
   savedOnly: false,      // transcript filtresi: yalnizca kaydedilenler
   qualityOnly: false,    // transcript filtresi: yalnizca dusuk guvenli satirlar
+  untranslatedOnly: false, // transcript filtresi: çeviri yüklüyken çevrilemeyen satırlar
   cueListPageStart: 0,
   cueListQueryKey: '',
   savedWords: [],        // kelime koleksiyonu: kelime + cümle baglami
@@ -7205,6 +7218,100 @@ function renderBrowserAddressResults(results) {
   if (results.length) selectBrowserAddressResult(0, { scroll: false });
   else input.removeAttribute('aria-activedescendant');
   syncBrowserOcclusion();
+}
+
+// Çeviri modeli uyum karnesi (src/translation-model-score.js). Yalnız bu makinede,
+// model başına son 10 işin toplu yanıt geçerliliği saklanır.
+const TRANSLATION_MODEL_SCORE_KEY = 'whisper.translationModelScores';
+function readTranslationModelScores() {
+  try { return JSON.parse(localStorage.getItem(TRANSLATION_MODEL_SCORE_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+function recordTranslationModelScore(event) {
+  const score = globalThis.TranslationModelScore;
+  if (!score) return;
+  const next = score.recordRun(readTranslationModelScores(), event);
+  try { localStorage.setItem(TRANSLATION_MODEL_SCORE_KEY, JSON.stringify(next)); } catch (_) {}
+  renderTranslationModelScore();
+  const summary = score.describe(next, event.model);
+  if (summary.level === 'poor') logLine(`Model uyumu (${event.model}): ${summary.text}`, 'warn');
+}
+function renderTranslationModelScore() {
+  const hint = $('translateModelScore');
+  const score = globalThis.TranslationModelScore;
+  if (!hint || !score) return;
+  const summary = score.describe(readTranslationModelScores(), $('translateModel')?.value || '', globalThis.UiLocale?.get?.() === 'en' ? 'en' : 'tr');
+  hint.textContent = summary.text;
+  hint.dataset.level = summary.level;
+  hint.classList.toggle('hidden', !summary.text);
+}
+
+// Yeniden çeviri farkı: eski/yeni satırlar yan yana; seçilenler eski hâline döner.
+// Yalnız .srt çeviri dosyasında geri alma yazılır (VTT/ASS biçimi SRT ile ezilmesin).
+function translationChannel() {
+  if (player.sub2Role === 'translation' && player.sub2Path && player.cues2.length) {
+    return { path: player.sub2Path, cues: player.cues2, secondary: true };
+  }
+  if (player.subRole === 'translation' && player.subPath && player.cues.length) {
+    return { path: player.subPath, cues: player.cues, secondary: false };
+  }
+  return null;
+}
+
+async function openRetranslationReview(previousCues) {
+  const diff = globalThis.TranslationDiff;
+  const channel = translationChannel();
+  if (!diff || !channel) return;
+  const changes = diff.diffTranslationCues(previousCues, channel.cues);
+  if (!changes.length) { logLine('Yeniden çeviri tamamlandı; önceki çeviriyle fark yok.', 'info'); return; }
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const canRevert = /\.srt$/i.test(channel.path);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'retranslate-review';
+  dialog.setAttribute('aria-labelledby', 'retranslateReviewTitle');
+  const head = document.createElement('div'); head.className = 'retranslate-review-head';
+  const title = document.createElement('h2'); title.id = 'retranslateReviewTitle';
+  title.textContent = en ? `Retranslation changed ${changes.length} lines` : `Yeniden çeviri ${changes.length} satırı değiştirdi`;
+  const hint = document.createElement('p');
+  hint.textContent = canRevert
+    ? (en ? 'Tick the lines you want to keep in their previous form.' : 'Önceki hâlinde kalmasını istediğiniz satırları işaretleyin.')
+    : (en ? 'Reverting is only available for .srt translations; this list is for review.' : 'Geri alma yalnız .srt çevirilerde yazılabilir; bu liste inceleme içindir.');
+  head.append(title, hint);
+  const list = document.createElement('div'); list.className = 'retranslate-review-list';
+  for (const change of changes.slice(0, 500)) {
+    const row = document.createElement('label'); row.className = 'retranslate-review-row';
+    const check = document.createElement('input'); check.type = 'checkbox'; check.value = String(change.index); check.disabled = !canRevert;
+    const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(change.start);
+    const before = document.createElement('span'); before.className = 'retranslate-review-before'; before.dir = 'auto'; before.textContent = change.before;
+    const after = document.createElement('span'); after.className = 'retranslate-review-after'; after.dir = 'auto'; after.textContent = change.after;
+    row.append(check, time, before, after); list.appendChild(row);
+  }
+  const actions = document.createElement('div'); actions.className = 'retranslate-review-actions';
+  const keep = document.createElement('button'); keep.type = 'button'; keep.className = 'btn btn-secondary';
+  keep.textContent = en ? 'Keep new translation' : 'Yeni çeviriyi koru';
+  const revert = document.createElement('button'); revert.type = 'button'; revert.className = 'btn btn-primary';
+  revert.textContent = en ? 'Restore selected lines' : 'Seçilenleri eski hâline getir';
+  revert.disabled = true;
+  if (canRevert) actions.append(keep, revert); else actions.append(keep);
+  list.addEventListener('change', () => { revert.disabled = !list.querySelector('input:checked'); });
+  dialog.append(head, list, actions);
+  document.body.appendChild(dialog);
+  const close = () => { dialog.close(); dialog.remove(); };
+  keep.addEventListener('click', close);
+  dialog.addEventListener('cancel', () => dialog.remove());
+  revert.addEventListener('click', async () => {
+    const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
+    const current = translationChannel();
+    if (!current || current.path !== channel.path) { close(); logLine('Çeviri izi değişti; geri alma yapılmadı.', 'warn'); return; }
+    const next = diff.revertChanges(current.cues, changes, selected);
+    const written = await window.api.writeSubtitle(current.path, cuesToSrt(next), null, subtitleStatFor(current.path)).catch((error) => ({ ok: false, error: error?.message }));
+    if (!written?.ok) { logLine(`Geri alma yazılamadı: ${written?.error || 'bilinmeyen hata'}`, 'error'); return; }
+    noteSubtitleStat(current.path, written);
+    await loadSubtitle(current.path, current.secondary, { silent: true, role: 'translation' });
+    logLine(`${selected.length} satır önceki çeviriye döndürüldü.`, 'success');
+    close();
+  });
+  dialog.showModal();
+  (canRevert ? list.querySelector('input') : keep)?.focus();
 }
 
 function uiText(value) {
@@ -12673,6 +12780,18 @@ function updateCueMeta() {
       : `Düşük güvenli cümleleri göster (${lowCount})`;
     qualityFilter.setAttribute('aria-pressed', player.qualityOnly ? 'true' : 'false');
   }
+  const untranslatedFilter = $('untranslatedOnlyBtn');
+  if (untranslatedFilter) {
+    const hasTranslation = player.cues2.length > 0;
+    if (!hasTranslation && player.untranslatedOnly) player.untranslatedOnly = false;
+    untranslatedFilter.classList.toggle('hidden', !hasTranslation);
+    untranslatedFilter.classList.toggle('active', player.untranslatedOnly);
+    const counterparts = hasTranslation ? translationsForCues(player.cues, player.cues2) : [];
+    const missing = hasTranslation ? player.cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+    untranslatedFilter.title = player.untranslatedOnly ? 'Tüm cümleleri göster' : `Çevrilmemiş satırları göster (${missing})`;
+    untranslatedFilter.setAttribute('aria-label', untranslatedFilter.title);
+    untranslatedFilter.setAttribute('aria-pressed', player.untranslatedOnly ? 'true' : 'false');
+  }
   const clear = $('clearCueSearch');
   if (clear) clear.classList.toggle('hidden', !$('cueSearch')?.value);
   const cueActions = $('selectedCueActions');
@@ -13469,19 +13588,22 @@ function renderCueList(filter = '') {
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
+    if (player.untranslatedOnly && !cueLooksUntranslated(c.text, counterpart)) return;
     indexes.push(i);
   });
   if (!indexes.length) {
-    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
+    box.innerHTML = player.untranslatedOnly
+      ? `<div class="cue-list-empty">${uiText('Çevrilmemiş satır yok.')}</div>`
+      : '<div class="cue-list-empty">Eşleşen satır yok.</div>';
     return;
   }
   const pageSize = 500;
-  const queryKey = `${q}|${player.savedOnly ? 1 : 0}|${player.qualityOnly ? 1 : 0}|${player.cues.length}|${player.cues2.length}`;
+  const queryKey = `${q}|${player.savedOnly ? 1 : 0}|${player.qualityOnly ? 1 : 0}|${player.untranslatedOnly ? 1 : 0}|${player.cues.length}|${player.cues2.length}`;
   if (queryKey !== player.cueListQueryKey) {
     player.cueListQueryKey = queryKey;
     player.cueListPageStart = 0;
   }
-  if (!q && !player.savedOnly && !player.qualityOnly && player.activeIdx >= 0
+  if (!q && !player.savedOnly && !player.qualityOnly && !player.untranslatedOnly && player.activeIdx >= 0
       && (player.activeIdx < player.cueListPageStart
         || player.activeIdx >= player.cueListPageStart + pageSize)) {
     player.cueListPageStart = Math.floor(player.activeIdx / pageSize) * pageSize;
@@ -13490,6 +13612,7 @@ function renderCueList(filter = '') {
   player.cueListPageStart = Math.max(0, Math.min(maxStart, player.cueListPageStart));
   const visibleIndexes = indexes.slice(player.cueListPageStart, player.cueListPageStart + pageSize);
   const frag = document.createDocumentFragment();
+  if (player.untranslatedOnly) frag.appendChild(untranslatedCueBanner(indexes.length));
   visibleIndexes.forEach((i) => {
     const c = player.cues[i];
     const counterpart = counterparts[i];
@@ -13576,7 +13699,7 @@ function highlightCueRow() {
   }
   const row = box.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`);
   if (!row && player.autoFollow && !player.userScrolled
-      && !($('cueSearch')?.value || '').trim() && !player.savedOnly && !player.qualityOnly) {
+      && !($('cueSearch')?.value || '').trim() && !player.savedOnly && !player.qualityOnly && !player.untranslatedOnly) {
     player.cueListPageStart = Math.floor(player.activeIdx / 500) * 500;
     renderCueList('');
     return;
@@ -13938,6 +14061,43 @@ function toggleSavedOnly() {
 
 function toggleQualityOnly() {
   player.qualityOnly = !player.qualityOnly;
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  updateCueMeta();
+}
+
+// Çeviri yüklüyken karşılığı olmayan ya da kaynakla AYNI kalan satır (çevrilemeyip
+// kaynak metinle bırakılan blok) çevrilmemiş sayılır.
+function cueLooksUntranslated(text, counterpart) {
+  if (!player.cues2.length) return false;
+  const norm = (value) => foldSearch(String(value || '')).replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const a = norm(text);
+  const b = norm(counterpart);
+  return !b || (a.length > 3 && a === b);
+}
+
+function untranslatedCueBanner(count) {
+  const banner = document.createElement('div');
+  banner.className = 'cue-untranslated-banner';
+  banner.setAttribute('role', 'status');
+  const label = document.createElement('span');
+  // #cueList yerelleştirme taramasının dışında; metin burada seçilir.
+  label.textContent = globalThis.UiLocale?.get?.() === 'en'
+    ? `${count} lines look untranslated.` : `${count} satır çevrilmemiş görünüyor.`;
+  banner.appendChild(label);
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'btn btn-secondary btn-sm';
+  action.textContent = uiText('Eksikleri çevir');
+  action.title = uiText('Yalnız eksik satırlar gönderilir; tamamlanan satırlar önbellekten korunur.');
+  const translate = $('makeTransBtn');
+  action.disabled = !translate || translate.disabled;
+  action.addEventListener('click', () => translate?.click());
+  banner.appendChild(action);
+  return banner;
+}
+
+function toggleUntranslatedOnly() {
+  player.untranslatedOnly = !player.untranslatedOnly;
   renderCueList($('cueSearch') ? $('cueSearch').value : '');
   updateCueMeta();
 }
@@ -16691,6 +16851,7 @@ function resetMediaBoundState(options = {}) {
   player.savedCues = [];
   player.savedOnly = false;
   player.qualityOnly = false;
+  player.untranslatedOnly = false;
   player.savedWords = [];
   player.cueQualitySource = [];
   player.selectedWord = null;
@@ -20380,6 +20541,7 @@ if ($('cueSaveBtn')) $('cueSaveBtn').addEventListener('click', toggleCueSaved);
 if ($('cueNoteBtn')) $('cueNoteBtn').addEventListener('click', saveCueNote);
 if ($('savedOnlyBtn')) $('savedOnlyBtn').addEventListener('click', toggleSavedOnly);
 if ($('qualityOnlyBtn')) $('qualityOnlyBtn').addEventListener('click', toggleQualityOnly);
+$('untranslatedOnlyBtn')?.addEventListener('click', toggleUntranslatedOnly);
 if ($('subtitleFindReplaceToggle')) {
   $('subtitleFindReplaceToggle').addEventListener('click', () => {
     const panel = $('subtitleFindReplacePanel');
@@ -20703,6 +20865,10 @@ if ($('makeTransBtn')) {
       logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
       return;
     }
+    // Fark incelemesi yalnız "Tamamını yeni modelle çevir" işine aittir; normal
+    // çeviri/eksik tamamlama önceki (belki başarısız) yeniden çevirinin anlık
+    // görüntüsünü devralmasın.
+    if (!state.forceRetranslate) state.retranslateSnapshot = null;
     const sourcePrimary = player.subRole === 'source' && player.subPath && player.cues.length;
     const sourcePath = sourcePrimary ? player.subPath
       : (player.sub2Role === 'source' && player.sub2Path && player.cues2.length ? player.sub2Path : '');
@@ -20788,9 +20954,15 @@ if ($('retranslateAllBtn')) {
       confirmLabel: 'Tamamını yeniden çevir', intent: 'primary',
     });
     if (!accepted) return;
+    // Eski çeviriyi bellekte sakla: iş bitince satır satır fark gösterilir ve
+    // istenen satırlar eski hâline döndürülebilir (pahalı yeniden çeviri geri alınabilir).
+    const previous = browserSubtitleRoleCues().translation;
+    state.retranslateSnapshot = previous.length
+      ? { mediaKey: player.mediaKey, cues: previous.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })) }
+      : null;
     state.forceRetranslate = true;
     $('makeTransBtn').click();
-    if (!state.running) state.forceRetranslate = false;
+    if (!state.running) { state.forceRetranslate = false; state.retranslateSnapshot = null; }
   });
 }
 
