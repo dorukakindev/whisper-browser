@@ -46,11 +46,30 @@ def sentence_parts_match(whole, parts):
 _END_RUN = re.compile(r'[.!?…]+[\"\'”’)}\]]*')
 
 
+def _numeric_separator(text, match):
+    """'3.000' / '2.4' / 'v1.2' — iki rakam arasındaki nokta cümle sonu değildir.
+
+    Türkçe binlik ayraç ve ondalık nokta ('Kasada 3.000 sikke vardı.') satır
+    sonu ekleme ve cümle-sonu kotasını kandırıyordu: '3.' gerçek bitiş sanılıp
+    sayının ortasına `\n` konuyordu.
+    """
+    i = match.start() - 1
+    while i >= 0 and text[i] in "\"'”’)}] ":
+        i -= 1
+    prev = text[i] if i >= 0 else ""
+    j = match.end()
+    while j < len(text) and text[j] in "\"'”’)}] ":
+        j += 1
+    nxt = text[j] if j < len(text) else ""
+    return prev.isdigit() and nxt.isdigit()
+
+
 def sentence_end_count(text):
     """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz)."""
     text = normalized_text(text)
     return sum(1 for match in _END_RUN.finditer(text)
-               if sentence_ended(text[:match.end()]))
+               if not _numeric_separator(text, match)
+               and sentence_ended(text[:match.end()]))
 
 
 def internal_sentence_end_count(text):
@@ -62,7 +81,8 @@ def internal_sentence_end_count(text):
     """
     text = normalized_text(text)
     return sum(1 for match in _END_RUN.finditer(text)
-               if sentence_ended(text[:match.end()])
+               if not _numeric_separator(text, match)
+               and sentence_ended(text[:match.end()])
                and normalized_text(text[match.end():]))
 
 
@@ -86,11 +106,15 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
 
 # Parça SONUNDA duramayan Türkçe sözcükler: bunlarla biten parça ya ek/bağlaç
 # ortasından kesilmiştir ("...değil" + "mi", "...zorunda" + "kaldı") ya da doğal
-# bir durak değildir. Son parça (grubun cümle sonu) denetlenmez.
+# bir durak değildir. Son parça (grubun cümle sonu) denetlenmez. Edatlar
+# (için/gibi/kadar/ile/beri/göre/dolayı/yüzünden), soru eki (mi/mı/mu/mü) ve
+# 'de/da/ya/ki' sonda DOĞAL cümlecik kapanışıdır ("X için,", "Doğru mu?",
+# "gördüm ki.") — sarkık listesine konmazlar; aksi halde doğru altcümle
+# kesimini yanlış-pozitifle bloklarlar.
 _DANGLING_TAIL = frozenset(
-    "ve veya yahut ile ki ne ya hem diye gibi kadar için beri göre dolayı yüzünden "
-    "mi mı mu mü de da değil degil emin zorunda hâlâ hala ama fakat ancak çünkü "
-    "cunku eğer eger madem hatta bile ise sanki adeta her bir bu şu su o".split())
+    "ve veya yahut ne hem diye değil degil emin zorunda hâlâ hala ama fakat "
+    "ancak çünkü cunku eğer eger madem hatta bile ise sanki adeta her bir bu "
+    "şu su o".split())
 
 
 def part_tail_issue(translated_parts, target_lang="tr"):
@@ -118,25 +142,120 @@ def part_repetition_issue(source_parts, translated_parts):
 
 
 _NAME_TOKEN = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüΑ-Ωα-ωА-Яа-я][\w'’.\-]*", re.UNICODE)
-_SDH_MARK = re.compile(r"\[[^\[\]]{1,60}\]|♪+|♫+")
+
+# Gün/ay adları özel ad sayılmaz: meşru yerelleştirme (Tuesday→Salı) tarih
+# denetimi katmanında zaten korunur; burada zorlamak yerelleştirmeyi bloklar.
+_WEEKDAY_MONTH = frozenset(
+    "monday tuesday wednesday thursday friday saturday sunday "
+    "january february march april may june july august september october "
+    "november december".split())
+# Satır başındaki SDH/konuşmacı işaretleri taranıp ad-sayacı kandırılmaz:
+# "[distorted] Run!" ve "MAN: Hold your fire!" örneklerinde ilk gerçek kelime
+# cümle-ilk sayılmalı, özel ad değil.
+_LEADING_MARKERS = re.compile(
+    r"^(?:\s*(?:\[[^\[\]]{0,60}\]|\([^\(\)]{0,60}\)|[♪♫]+|[A-ZÇĞİÖŞÜ]{2,}:))+\s*")
+# Hedef parçada SDH "tür" araması: içerik yerelleşebilir ([GUNFIRE]→[SİLAH
+# SESLERİ]) ama işaret türü aynı cue'da kalmalı; işaretin bütünüyle düşmesi
+# (köşeli parantezsiz düz metin) kusurdur.
+_SDH_KIND = (
+    ('bracket', re.compile(r"\[[^\[\]]+\]")),
+    ('paren', re.compile(r"\([^\(\)]+\)")),
+    ('music', re.compile(r"[♪♫]")),
+    ('speaker', re.compile(r"^\s*[A-ZÇĞİÖŞÜ]{2,}\s*:")),
+)
+_SPEAKER_TARGET = re.compile(r"^\s*\S{1,20}:")
+
+
+def _sdh_issue(source, translated):
+    """Kaynak parçadaki SDH işaret türlerinin hedef parçada olup olmadığını denetle."""
+    source = str(source or '')
+    translated = str(translated or '')
+    for kind, pattern in _SDH_KIND:
+        if not pattern.search(source):
+            continue
+        if kind == 'speaker':
+            if not _SPEAKER_TARGET.match(translated):
+                return 'speaker'
+        elif not pattern.search(translated):
+            return kind
+    return ""
+
+
+def _edit_distance(a, b):
+    """Kısa adlar için Levenshtein (özel-ad transliterasyonu kabulünde)."""
+    if len(a) < len(b):
+        a, b = b, a
+    previous = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, 1):
+        current = [i]
+        for j, char_b in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[-1] + 1,
+                               previous[j - 1] + (char_a != char_b)))
+        previous = current
+    return previous[-1]
+
+
+_NAME_INFLECTED = re.compile(r"([A-Za-zÇĞİÖŞÜçğıöşüΑ-Ωα-ωА-Яа-я][\w\-]*)['’]([a-zçğıöşü]{1,6})\b")
+
+
+def _common_prefix_len(a, b):
+    limit = min(len(a), len(b))
+    index = 0
+    while index < limit and a[index].lower() == b[index].lower():
+        index += 1
+    return index
+
+
+_NAME_CAPITALIZED = re.compile(r"\b[A-ZÇĞİÖŞÜ][\wçğıöşü\-]+")
+
+
+def _name_preserved(name, translated):
+    """Özel adın hedef parçada yazımıyla veya çekimli yerel biçimiyle bulunması.
+
+    Tam eşleşme en hızlı yoldur; 'Lizbon'dan' gibi Türkçe ekli yerelleştirmede
+    kök + 'ek biçiminde aranır (ilk iki harf + ≤2 edit mesafesi). Unvan çekimi
+    gibi apostrofsuz biçimler ('Majesty'→'Majesteleri') büyük harfli hedef
+    tokenında ≥%70 ortak önekle kabul edilir. Çıplak bulanık eşleşme kasıtlı
+    yok: 'Larson' gibi ad-bozması kusurlar yakalansın diye.
+    """
+    translated = str(translated or '')
+    if name in translated:
+        return True
+    head = name[:2].lower()
+    for match in _NAME_INFLECTED.finditer(translated):
+        stem = match.group(1)
+        if len(stem) >= 3 and stem[:2].lower() == head \
+                and _edit_distance(stem.lower(), name.lower()) <= 2:
+            return True
+    threshold = math.ceil(len(name) * 0.7)
+    for match in _NAME_CAPITALIZED.finditer(translated):
+        token = match.group(0)
+        if len(token) >= len(name) \
+                and _common_prefix_len(token, name) >= threshold:
+            return True
+    return False
 
 
 def _proper_names(text):
     """Cümle başında OLMAYAN büyük harfli tokenlar — özel ad adayı.
 
-    Cümle-ilk tokenı ve kısaltma listesindekiler (Dr., Mr.) atlanır; isimler
-    cümle içinde büyük harfle gelir ve çeviride yazımı korunmalıdır.
+    Cümle-ilk tokenı, kısaltmalar (Dr., Mr.), gün/ay adları ve satır başı
+    SDH/konuşmacı işaretinden hemen sonra gelen ilk gerçek kelime atlanır.
     """
-    words = normalized_text(text).split()
+    text = normalized_text(text)
+    prefix = _LEADING_MARKERS.match(text)
+    body = text[prefix.end():] if prefix else text
+    words = body.split()
     names = []
     for index, word in enumerate(words):
         candidate = word.strip("\"'“”‘’([{«")
         if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
             continue
-        if candidate.lower().rstrip(".") in ABBREVIATIONS:
+        lowered = candidate.lower().rstrip(".")
+        if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH:
             continue
         sentence_initial = index == 0 or sentence_ended(" ".join(words[:index]))
-        if not sentence_initial:
+        if not sentence_initial and len(candidate.rstrip(".")) >= 2:
             names.append(candidate.rstrip("."))
     return names
 
@@ -146,7 +265,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
 
     Model gruba bütün cümle kurarken bilgiyi doğal yerleşim için başka ID'ye
     taşıyabilir; altyazıda bu, bilginin konuşma anından kopması demektir.
-    Yalnızca yapısal işaretler denetlenir — anlam serbest kalmalı.
+    Yalnızca yapısal işaretler denetlenir — anlam serbest kalmalı; SDH içeriği
+    ve özel ad yerelleşebilir, işaret türü ve ad kökü korunur.
     """
     for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
         for token in _number_tokens(str(source)):
@@ -159,11 +279,11 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
             if not _semantic_markers(source, patterns).issubset(
                     _semantic_markers(translated, patterns)):
                 return f"{issue}_kaydi:{index}"
-        for marker in _SDH_MARK.findall(str(source)):
-            if marker not in str(translated):
-                return f"sdh_kaydi:{index}"
+        sdh_kind = _sdh_issue(source, translated)
+        if sdh_kind:
+            return f"sdh_kaydi:{index}:{sdh_kind}"
         for name in _proper_names(str(source)):
-            if name not in str(translated):
+            if not _name_preserved(name, str(translated)):
                 return f"ozel_ad_kaydi:{index}"
     return ""
 
@@ -181,6 +301,8 @@ def insert_sentence_breaks(text):
     cursor = 0
     for match in _END_RUN.finditer(text):
         end = match.end()
+        if _numeric_separator(text, match):
+            continue
         if not normalized_text(text[end:]):
             continue
         if sentence_ended(text[:end]):

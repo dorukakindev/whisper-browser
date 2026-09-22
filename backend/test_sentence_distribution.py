@@ -147,6 +147,18 @@ def test_insert_sentence_breaks_respects_abbreviations():
     assert insert_sentence_breaks("Tek cümle.") == "Tek cümle."
 
 
+def test_numeric_separator_not_sentence_end():
+    # Türkçe binlik/ondalık noktası cümle sonu değildir — sayı ortasına \n
+    # koymak parça demirleme kapısını da kandırıyordu (num-05 regresyonu).
+    assert insert_sentence_breaks("Kasada 3.000 sikke vardı.") == \
+        "Kasada 3.000 sikke vardı."
+    assert insert_sentence_breaks("Oran 2.4 milyon dolardı.") == \
+        "Oran 2.4 milyon dolardı."
+    assert sentence_end_count("Kasada 3.000 sikke vardı.") == 1
+    assert sentence_end_count("Toplantı 5.30'da. Hazır ol.") == 2
+    assert not sentence_ended("Kasada 3.000 sikke vardı")
+
+
 # ---------- 3. Üç cue'ya yayılan uzun soru ----------
 
 def test_three_cue_question_no_early_close():
@@ -253,8 +265,35 @@ def test_dangling_tail_rejected():
     assert part_tail_issue(["Emin", "misin?"], "tr") == "acik_baglanti:0"
     assert part_tail_issue(["Gelmeyecek", "mi?"], "tr") == ""
     assert part_tail_issue(["Gitmeyeceğim ve", "görmeyeceğim."], "tr") == "acik_baglanti:0"
+    # Edat/soru eki sonda doğal cümlecik kapanışıdır — bloklanmamalı (sb-02).
+    assert part_tail_issue(
+        ["Fırtına elektrikleri kestiği için,", "içeride kaldık."], "tr") == ""
+    assert part_tail_issue(["Doğru mu", "sanıyorsun?"], "tr") == ""
     # TR dışı hedefte devre dışı
     assert part_tail_issue(["I will not", "go."], "en") == ""
+
+
+def test_name_anchor_accepts_inflection_and_rejects_substitution():
+    # Yerel ad çekimi kabul: apostroflu kök ve unvan biçimi (pn-03 / ctx-a4).
+    assert part_anchor_issue(
+        ["Maria left Lisbon on Tuesday."],
+        ["Maria Salı günü Lizbon'dan ayrıldı."], "tr") == ""
+    assert part_anchor_issue(
+        ["Your Majesty already spoke."],
+        ["Majesteleri çoktan konuştu."], "tr") == ""
+    # Zamir 'I' özel ad değildir.
+    assert part_anchor_issue(
+        ["tell him I called."], ["aradığımı söyle."], "tr") == ""
+    # Ad bozması / düşmesi hâlâ bloklanır.
+    assert part_anchor_issue(
+        ["Detective Lawson entered the precinct."],
+        ["Dedektif Larson karakola girdi."], "tr").startswith("ozel_ad_kaydi")
+    assert part_anchor_issue(
+        ["Meet me at Winterfell before dawn."],
+        ["Şafaktan önce Winterhaven'da buluşalım."], "tr").startswith("ozel_ad_kaydi")
+    assert part_anchor_issue(
+        ["He quoted the Theogony carefully."],
+        ["Dikkatle alıntı yaptı."], "tr").startswith("ozel_ad_kaydi")
 
 
 def test_repeated_part_rejected():

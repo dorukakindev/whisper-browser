@@ -22,6 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import transcribe as T  # noqa: E402
 from sentence_translation import (  # noqa: E402
     sentence_part_boundary_issue,
+    part_anchor_issue,
+    part_repetition_issue,
+    part_tail_issue,
     sentence_groups,
     pack_sentence_groups,
     translation_meaning_issues,
@@ -303,7 +306,12 @@ class GoldenCorpusTests(unittest.TestCase):
                          'sağlayıcıya tam chunk sayısı kadar istek gitmeli')
 
     def test_defect_pass_blocking_and_boundary_only(self):
-        """Bozuk çevirilerde yalnız sert kapılar bloke eder; diğerleri geçer (dürüst)."""
+        """Bozuk çevirilerde yalnız sert kapılar bloke eder; diğerleri geçer (dürüst).
+
+        Sert katman: bütün-seviyesi 'blocking' denetimi + parça-seviyesi kapılar
+        (cue sınırı kotası, tekrar, açık bağlantı, sayı/SDH/özel ad demirleme).
+        Danışman katman (meaning/register/context/pronoun/name-map-olmayan
+        ad denetimi) kusuru çıktıya geçirir — ürün raporu bunları sayar."""
         out, warns, status, calls = run_translate(DEFECT)
         self.assertIsNotNone(out)
         golden_calls = len(pack_sentence_groups(sentence_groups(CUES), 20))
@@ -322,20 +330,37 @@ class GoldenCorpusTests(unittest.TestCase):
                 blocked_ids.add(entry['id'])
             else:
                 self.fail(f'{entry["id"]}: beklenmeyen çıktı {out[i][2]!r}')
+        def part_gates(entry):
+            """Bozuk parçalara uygulanan üründeki sert parça kapıları (sıra ürünle aynı)."""
+            parts = entry.get('parts')
+            source_parts = [p['source'] for p in parts] if parts else [entry['source']]
+            if entry.get('defect_parts'):
+                defect_parts = [p if isinstance(p, str) else p['target']
+                                for p in entry['defect_parts']]
+            elif 'defect' in entry:
+                defect_parts = [entry['defect']]
+            else:
+                return ''
+            return (sentence_part_boundary_issue(source_parts, defect_parts)
+                    or part_repetition_issue(source_parts, defect_parts)
+                    or part_tail_issue(defect_parts, 'tr')
+                    or part_anchor_issue(source_parts, defect_parts, 'tr'))
+
         expected_blocked = {e['id'] for e in ENTRIES_SPEC
-                            if e.get('detection') in ('blocking', 'boundary')
-                            and (e.get('defect') or e.get('defect_parts'))}
-        expected_pass = {e['id'] for e in ENTRIES_SPEC
-                         if e.get('detection') not in ('blocking', 'boundary')
-                         and e.get('defect')}
+                            if (e.get('defect') or e.get('defect_parts'))
+                            and (e.get('detection') == 'blocking' or part_gates(e))}
+        expected_pass = ({e['id'] for e in ENTRIES_SPEC
+                          if e.get('defect') or e.get('defect_parts')}
+                         - expected_blocked)
         self.assertEqual(blocked_ids, expected_blocked,
                          f'sert kapı dışında bloklananlar: {blocked_ids - expected_blocked}; '
                          f'bloklanması beklenen ama geçenler: {expected_blocked - blocked_ids}')
         self.assertEqual(passed_defects, expected_pass,
                          'danışman katman kusurları çıktıya geçer (belgelenen davranış)')
         groups_blocked = len(expected_blocked)
-        self.assertEqual(len(calls), golden_calls + groups_blocked,
-                         'bloklanan her grup tek seferlik kurtarma isteği üretmeli')
+        # Bloklanan grup: normal tekil kurtarma + sertleştirilmiş son deneme = 2 istek.
+        self.assertEqual(len(calls), golden_calls + 2 * groups_blocked,
+                         'bloklanan her grup tekil kurtarma + son-deneme isteği üretmeli')
 
 
 if __name__ == '__main__':

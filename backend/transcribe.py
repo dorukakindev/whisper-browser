@@ -3665,56 +3665,63 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             text=f"Çeviri kurtarılıyor: 0/{len(groups_to_retry)} cümle grubu",
         )
         def rescue_group(group):
-            """Tek grup: önce normal kurtarma, hâlâ eksikse sertleştirilmiş son deneme."""
+            """Tek grup: normal kurtarma → yanıt kalite kapısında kalırsa
+            dağıtım kuralları açıkça eklenmiş ikinci (son) deneme."""
             nonlocal recovered
+            first_reason = ""
             try:
                 recovered += task_once(group, phase="fallback")
-            except Exception as single_error:
-                single_reason = classify_translation_error(single_error)
-                with lock:
-                    for index in group:
-                        if index not in done_idx:
-                            failure_by_index.setdefault(index, single_reason)
-                return
+            except Exception as first_error:
+                first_reason = classify_translation_error(first_error)
             if all(index in done_idx for index in group):
                 return
-            # İlk kurtarma kalite kapılarında kaldıysa aynı promptu tekrarlamak
-            # aynı dağıtımı üretir; son denemede dağıtım kuralları açıkça eklenir.
-            try:
-                recovered += task_once(group, phase="fallback",
-                                       prompt_suffix=RESCUE_SUFFIX)
-            except Exception as single_error:
-                single_reason = classify_translation_error(single_error)
-                with lock:
-                    for index in group:
-                        if index not in done_idx:
-                            failure_by_index.setdefault(index, single_reason)
+            # Aynı promptu tekrarlamak aynı dağıtımı üretir; yanıt yapısal/kalite
+            # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
+            # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
+            if first_reason in {"", "invalid_response", "empty_response"}:
+                try:
+                    recovered += task_once(group, phase="fallback",
+                                           prompt_suffix=RESCUE_SUFFIX)
+                except Exception as second_error:
+                    reason = classify_translation_error(second_error)
+                    with lock:
+                        for index in group:
+                            if index not in done_idx:
+                                failure_by_index.setdefault(index, reason)
+                    return
+            with lock:
+                for index in group:
+                    if index not in done_idx:
+                        failure_by_index.setdefault(index, first_reason or "invalid_response")
 
         completed_groups = 0
         for bundle_groups, bundle in bundles:
-            try:
-                recovered += task_once(bundle, phase="fallback")
-                missing_after_bundle = [
-                    group for group in bundle_groups
-                    if not all(index in done_idx for index in group)
-                ]
-                for group in missing_after_bundle:
-                    rescue_group(group)
-            except Exception as retry_error:
-                reason = classify_translation_error(retry_error)
-                if reason in {"invalid_response", "empty_response"} and len(bundle_groups) > 1:
-                    log(
-                        f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
-                        f"({retry_error}); tek gruplara ayrılıyor.",
-                        "warn",
-                    )
-                    for group in bundle_groups:
+            if len(bundle_groups) == 1:
+                rescue_group(bundle_groups[0])
+            else:
+                try:
+                    recovered += task_once(bundle, phase="fallback")
+                    missing_after_bundle = [
+                        group for group in bundle_groups
+                        if not all(index in done_idx for index in group)
+                    ]
+                    for group in missing_after_bundle:
                         rescue_group(group)
-                else:
-                    with lock:
-                        for index in bundle:
-                            if index not in done_idx:
-                                failure_by_index.setdefault(index, reason)
+                except Exception as retry_error:
+                    reason = classify_translation_error(retry_error)
+                    if reason in {"invalid_response", "empty_response"}:
+                        log(
+                            f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
+                            f"({retry_error}); tek gruplara ayrılıyor.",
+                            "warn",
+                        )
+                        for group in bundle_groups:
+                            rescue_group(group)
+                    else:
+                        with lock:
+                            for index in bundle:
+                                if index not in done_idx:
+                                    failure_by_index.setdefault(index, reason)
             completed_groups += len(bundle_groups)
             log(
                 f"Çeviri kurtarma ilerlemesi: {completed_groups}/{len(groups_to_retry)} "
