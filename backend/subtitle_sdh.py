@@ -131,23 +131,46 @@ def sdh_markers_removed(text):
     return [value[s:e] for s, e in _sdh_spans(value)]
 
 
-_MARKER_GROUP = re.compile(r"\[[^\]\n]{1,160}\]|\([^\)\n]{1,160}\)|[♪♫♬♩]+")
+_SDH_EQUIVALENTS = {
+    "music": "music", "muzik": "music",
+    "applause": "applause", "applauding": "applause", "alkis": "applause", "alkıs": "applause",
+}
+
+
+def _marker_identity(marker):
+    key = _key(marker[1:-1])
+    return marker[0], _SDH_EQUIVALENTS.get(key, key)
 
 
 def restore_sdh_markers(source_text, translated_text):
     """Çıkarılan SDH işaretlerini çevrilmiş cue'ya geri koy.
 
-    Model girdisinden güvenle çıkarılan betimlemeler çeviri çıktısında
-    eksikse sayıca cue başına eklenir — konum birebir korunamaz ama işaret
-    varlığı ve sırası korunur. Modelin kendisi işaret çevirdiyse ([alkış])
-    o varlık sayısına katılır; tekrar eklenmez.
+    Model girdisinden çıkarılan işaretleri kimlik ve parantez türüyle eşleştir.
+    Sayı eşitliği farklı iki işaretin aynı olduğu anlamına gelmez. Belirsiz
+    eşleşmede çevrilmiş etiketi değil kaynak etiketlerini koru.
     """
     removed = sdh_markers_removed(source_text)
     text = str(translated_text or "").strip()
     if not removed or not text:
         return text
-    present = len(_MARKER_GROUP.findall(text))
-    missing = removed[:max(0, len(removed) - present)]
-    if not missing:
+    target_spans = _sdh_spans(text)
+    target = [text[start:end] for start, end in target_spans]
+    matched = {}
+    used = set()
+    for source_index, marker in enumerate(removed):
+        identity = _marker_identity(marker)
+        for target_index, candidate in enumerate(target):
+            if target_index not in used and _marker_identity(candidate) == identity:
+                matched[source_index] = target_index
+                used.add(target_index)
+                break
+    if len(matched) == len(removed):
         return text
-    return (" ".join(missing) + " " + text).strip()
+    # Belirsiz tanınan hedef etiketleri kaldırıp tüm kaynak anlamlarını koru.
+    body = text
+    for start, end in reversed(target_spans):
+        body = body[:start] + body[end:]
+    body = re.sub(r"[ \t]+", " ", body).strip()
+    ordered = [target[matched[i]] if i in matched else marker
+               for i, marker in enumerate(removed)]
+    return (" ".join(ordered) + " " + body).strip()
