@@ -41,5 +41,19 @@
     return (Array.isArray(afterCues) ? afterCues : []).map((cue, index) => (byIndex.has(index) ? { ...cue, text: byIndex.get(index) } : cue));
   }
 
-  return { diffTranslationCues, revertChanges };
+  // İnceleme penceresi açıkken altyazı yeniden yüklenmiş veya düzenlenmiş olabilir.
+  // Yalnız yolun aynı kalması, satırın hâlâ incelenen sürüm olduğunu kanıtlamaz.
+  function selectedChangesStillMatch(currentCues, changes, selectedIndexes) {
+    const cues = Array.isArray(currentCues) ? currentCues : [];
+    const byIndex = new Map((Array.isArray(changes) ? changes : []).map((change) => [change.index, change]));
+    return Array.isArray(selectedIndexes) && selectedIndexes.length > 0
+      && selectedIndexes.every((index) => {
+        const cue = cues[index];
+        const change = byIndex.get(index);
+        return Boolean(cue && change && cue.start === change.start && cue.end === change.end
+          && cue.text === change.after);
+      });
+  }
+
+  return { diffTranslationCues, revertChanges, selectedChangesStillMatch };
 });

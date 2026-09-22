@@ -49,6 +49,16 @@ test('fark zaman örtüşmesiyle eşler, etiket/boşluk farkını değişiklik s
   assert.deepEqual(diff.revertChanges(after, changes, []).map((cue) => cue.text), after.map((cue) => cue.text));
 });
 
+test('fark penceresi açıldıktan sonra değişen satır geri alma sırasında ezilmez', () => {
+  const before = [{ start: 0, end: 2, text: 'Eski çeviri' }];
+  const after = [{ start: 0, end: 2, text: 'Yeni çeviri' }];
+  const changes = diff.diffTranslationCues(before, after);
+  assert.equal(diff.selectedChangesStillMatch(after, changes, [0]), true);
+  assert.equal(diff.selectedChangesStillMatch([{ ...after[0], text: 'Kullanıcının son düzenlemesi' }], changes, [0]), false);
+  assert.equal(diff.selectedChangesStillMatch([{ ...after[0], start: 1 }], changes, [0]), false);
+  assert.match(renderer, /if \(!diff\.selectedChangesStillMatch\(current\.cues, changes, selected\)\)/);
+});
+
 test('yeniden çeviri anlık görüntüsü yalnız "tamamını yenile" işine ait', () => {
   assert.match(renderer, /if \(!state\.forceRetranslate\) state\.retranslateSnapshot = null;/);
   assert.match(renderer, /void openRetranslationReview\(snapshot\.cues\)/);

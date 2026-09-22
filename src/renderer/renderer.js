@@ -7323,6 +7323,12 @@ async function openRetranslationReview(previousCues) {
     const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
     const current = translationChannel();
     if (!current || current.path !== channel.path) { close(); logLine('Çeviri izi değişti; geri alma yapılmadı.', 'warn'); return; }
+    if (!diff.selectedChangesStillMatch(current.cues, changes, selected)) {
+      close();
+      logLine(en ? 'The translation changed during review; no lines were overwritten.'
+        : 'İnceleme sırasında çeviri değişti; hiçbir satırın üzerine yazılmadı.', 'warn');
+      return;
+    }
     const next = diff.revertChanges(current.cues, changes, selected);
     const written = await window.api.writeSubtitle(current.path, cuesToSrt(next), null, subtitleStatFor(current.path)).catch((error) => ({ ok: false, error: error?.message }));
     if (!written?.ok) { logLine(`Geri alma yazılamadı: ${written?.error || 'bilinmeyen hata'}`, 'error'); return; }
