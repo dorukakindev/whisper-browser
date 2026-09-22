@@ -1685,6 +1685,149 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   }, 'download', 'invidious-stream');
 });
 
+// ======================= YouTube TV modu =======================
+// YouTube'un kendi TV web uygulaması (youtube.com/tv) ayrı, yalıtılmış bir
+// pencerede TV tarayıcı kimliğiyle açılır. Giriş YouTube'un KENDİ kod akışıyla
+// (telefonda yt.be/activate) yapılır; bu süreç hiçbir OAuth istemci kimliği
+// gömmez, token görmez veya saklamaz — oturum yalnız 'persist:youtube-tv'
+// bölümündeki çerezlerde durur (BROWSER_BUG_REPORT_94 sınırı korunur).
+const youtubeTvMode = require('./youtube-tv-mode');
+let youtubeTvWindow = null;
+let youtubeTvState = { open: false, videoId: '', title: '', refused: false, userAgent: 'cobalt', error: '', handoff: 0 };
+
+function sendYoutubeTvState(patch = {}) {
+  youtubeTvState = { ...youtubeTvState, ...patch };
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('youtube-tv:event', { ...youtubeTvState });
+  return youtubeTvState;
+}
+
+function configureYoutubeTvSession(tvSession, userAgent) {
+  tvSession.setUserAgent(userAgent);
+  // TV uygulaması yalnız tam ekran ister; kamera/mikrofon/konum/bildirim reddedilir.
+  tvSession.setPermissionRequestHandler((_wc, permission, callback) => callback(permission === 'fullscreen'));
+  tvSession.setPermissionCheckHandler((_wc, permission) => permission === 'fullscreen');
+  if (!tvSession.__whisperTvDownloadGuard) {
+    tvSession.__whisperTvDownloadGuard = true;
+    tvSession.on('will-download', (event) => event.preventDefault());
+  }
+}
+
+function openYoutubeTvWindow(userAgentId) {
+  const agent = youtubeTvMode.tvUserAgent(userAgentId);
+  const tvSession = session.fromPartition(youtubeTvMode.TV_PARTITION);
+  if (youtubeTvWindow && !youtubeTvWindow.isDestroyed()) {
+    if (youtubeTvState.userAgent !== agent.id) {
+      configureYoutubeTvSession(tvSession, agent.value);
+      youtubeTvWindow.webContents.setUserAgent(agent.value);
+      sendYoutubeTvState({ userAgent: agent.id, refused: false, error: '' });
+      youtubeTvWindow.loadURL(youtubeTvMode.TV_START_URL).catch(() => {});
+    }
+    youtubeTvWindow.show();
+    youtubeTvWindow.focus();
+    return { ok: true, state: youtubeTvState };
+  }
+  configureYoutubeTvSession(tvSession, agent.value);
+  const win = new BrowserWindow({
+    width: 1280, height: 760, minWidth: 640, minHeight: 400,
+    backgroundColor: '#000000', title: 'YouTube TV', autoHideMenuBar: true, show: false,
+    webPreferences: {
+      session: tvSession, sandbox: true, contextIsolation: true, nodeIntegration: false,
+      webviewTag: false, spellcheck: false, backgroundThrottling: false,
+    },
+  });
+  win.setMenuBarVisibility(false);
+  const tvContents = win.webContents;
+  tvContents.setUserAgent(agent.value);
+  tvContents.setWindowOpenHandler(({ url }) => {
+    void openExternalByPolicy(url);
+    return { action: 'deny' };
+  });
+  const guard = (event, url) => {
+    if (youtubeTvMode.isAllowedTvNavigation(url)) return;
+    event.preventDefault();
+    void openExternalByPolicy(url);
+  };
+  tvContents.on('will-navigate', guard);
+  tvContents.on('will-redirect', guard);
+  const onTvNavigate = (_event, url) => {
+    const onTvApp = youtubeTvMode.isTvAppUrl(url);
+    // youtube.com/tv masaüstü sitesine yönlendirildiyse bu TV kimliği reddedildi.
+    const refused = !onTvApp && /^https:\/\/(?:www\.)?youtube\.com\//i.test(String(url || ''));
+    sendYoutubeTvState({ open: true, videoId: youtubeTvMode.videoIdFromTvUrl(url), refused, error: '' });
+  };
+  tvContents.on('did-navigate', onTvNavigate);
+  tvContents.on('did-navigate-in-page', onTvNavigate);
+  tvContents.on('page-title-updated', (_event, title) => sendYoutubeTvState({ title: String(title || '').slice(0, 200) }));
+  tvContents.on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
+    if (isMainFrame && code !== -3) sendYoutubeTvState({ error: browserLoadErrorMessage(code, description) });
+  });
+  tvContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    } else if ((input.control || input.meta) && input.shift && String(input.key).toLowerCase() === 's') {
+      // Ctrl+Shift+S: oynatılan videoyu altyazı/çeviri araçlarına devret.
+      event.preventDefault();
+      sendYoutubeTvState({ handoff: Date.now() });
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+    }
+  });
+  win.once('ready-to-show', () => { if (!win.isDestroyed()) win.show(); });
+  win.on('closed', () => {
+    if (youtubeTvWindow === win) youtubeTvWindow = null;
+    sendYoutubeTvState({ open: false, videoId: '', title: '', handoff: 0 });
+  });
+  youtubeTvWindow = win;
+  sendYoutubeTvState({ open: true, userAgent: agent.id, refused: false, error: '', videoId: '', title: '' });
+  win.loadURL(youtubeTvMode.TV_START_URL).catch((error) => {
+    sendYoutubeTvState({ error: String(error?.message || error || 'YouTube TV açılamadı.').slice(0, 200) });
+  });
+  return { ok: true, state: youtubeTvState };
+}
+
+function closeYoutubeTvWindow() {
+  if (youtubeTvWindow && !youtubeTvWindow.isDestroyed()) youtubeTvWindow.destroy();
+  youtubeTvWindow = null;
+}
+
+ipcMain.handle('youtube-tv:open', (event, userAgentId) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try { return openYoutubeTvWindow(String(userAgentId || '')); }
+  catch (error) { return { ok: false, error: String(error?.message || error).slice(0, 200) }; }
+});
+ipcMain.handle('youtube-tv:close', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  closeYoutubeTvWindow();
+  return { ok: true };
+});
+ipcMain.handle('youtube-tv:state', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, state: { ...youtubeTvState, open: !!(youtubeTvWindow && !youtubeTvWindow.isDestroyed()) },
+    userAgents: youtubeTvMode.TV_USER_AGENTS.map(({ id, label }) => ({ id, label })) };
+});
+ipcMain.handle('youtube-tv:fullscreen', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (!youtubeTvWindow || youtubeTvWindow.isDestroyed()) return { ok: false, error: 'TV modu açık değil.' };
+  youtubeTvWindow.setFullScreen(!youtubeTvWindow.isFullScreen());
+  youtubeTvWindow.focus();
+  return { ok: true };
+});
+// TV oturumunu kapat: yalnız TV bölümünün çerez/depolaması silinir; tarayıcı
+// sekmeleri ve uygulamanın kendi YouTube OAuth kaydı etkilenmez.
+ipcMain.handle('youtube-tv:signout', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    await session.fromPartition(youtubeTvMode.TV_PARTITION).clearStorageData();
+    if (youtubeTvWindow && !youtubeTvWindow.isDestroyed()) youtubeTvWindow.loadURL(youtubeTvMode.TV_START_URL).catch(() => {});
+    sendYoutubeTvState({ videoId: '', title: '' });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error).slice(0, 200) };
+  }
+});
+app.on('will-quit', closeYoutubeTvWindow);
+
 // ======================= YouTube OAuth (SmartTube cihaz-akışı) =======================
 // Akış: setClient → deviceCode (kod gösterilir) → poll (arka planda yoklar)
 // → login: refresh_token safeStorage'a, access_token belleğe.
@@ -13142,6 +13285,8 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
     mainWindowClosing = false;
+    // Ana pencere kapanınca TV penceresi uygulamayı açık tutmasın.
+    closeYoutubeTvWindow();
   });
   // İş bitince yanıp sönen taskbar vurgusunu odaklanınca temizle
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
