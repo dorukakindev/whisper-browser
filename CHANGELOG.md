@@ -9,6 +9,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Translation quality corpus (`backend/golden-corpus-tr.json`, 60 cues) with per-category defect metrics and deterministic mock-provider pipeline tests.
 - Provider cost counters (`providerRequests`/`cacheHits`/`cacheMisses`) in browser translation telemetry, `browser:translation:snapshot`, diagnostics, and the live-translation signal line.
 - Crash-integrity gauntlet: deterministic fs fault injection across every critical store write path (asset store, session store, translation cache/archive, notes, reading list, element rules, series context, CEA checkpoint, secret store) plus a real-Electron damaged-profile restart smoke and a 10k-cue / multi-tab / concurrent-translation performance measurement smoke.
+- Linux development install/launch scripts (`install.sh`/`start.sh`) wrapping the same lock-verified orchestrator; honest platform notes in README and INSTALLATION.
+- CI now explicitly installs the pinned Castlabs Electron binary and runs the real Electron bridge smoke on Ubuntu (xvfb) and Windows.
 - Desktop YouTube sign-in via Google's recommended installed-app flow: "Authorize in browser" opens system browser with PKCE + loopback redirect; device code remains only for "TVs and Limited Input" clients.
 - SmartTube section: QR-assisted device-code sign-in using a user-configured OAuth client; account setup and real personalized feeds require live acceptance (#9).
 - SmartTube queue rail on the home grid with local continue/most-played rails (#9).
@@ -32,6 +34,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Concurrent YouTube feed loads (e.g. the post-sign-in home refresh racing a section click) no longer fail the second request with "already running"; `youtube:browse` calls are serialized with a bounded wait for the in-flight job.
 - Reading-list and element-rules index writes no longer leave orphaned `.tmp` files on write/rename failure (F-102-1).
 - Restored browser tab loading no longer throws an unhandled rejection when its webContents is destroyed mid-flight (F-102-2).
+- `install.bat`/`install.sh` installs no longer leave broken console scripts (`pip`, `yt-dlp`, `evs-vmp`, ct2-*): entry points are regenerated after the venv swap (F-103-1).
+- `requirements-ci.txt` resolves on stock Ubuntu 22.04 Python 3.10 via version markers; CI pins on 3.11 unchanged.
 - Browser subtitle capture no longer merges separate text tracks into one published stream when players materialize tracks via `data:` `<track>` elements (hls.js); each track now keeps its own stream identity, ending cross-track cue contamination and silent cue loss.
 - Browser media tools (intro detection, OCR, semantic search, scene strips) no longer report "not found" on Linux when ffmpeg/python resolve via PATH.
 - Startup environment check no longer shows a false "Python venv not found" warning on Linux; backend/bin ffmpeg detection is platform-aware.

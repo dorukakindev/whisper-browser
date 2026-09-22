@@ -62,6 +62,12 @@ class FakeDriver {
     fs.writeFileSync(path.join(target, 'installed.json'), JSON.stringify(profiles));
   }
 
+  repairVenvScripts(target) {
+    this.scriptRepairCount = (this.scriptRepairCount || 0) + 1;
+    this.scriptRepairTarget = target;
+    if (this.options.failScriptRepair) throw new InstallError('SCRIPT_REPAIR', 'enjekte edilen script onarim hatasi');
+  }
+
   verifyVenv(target, expectedPins) {
     this.verifyCount += 1;
     if (!fs.existsSync(path.join(target, 'Scripts', 'python.exe')) || this.options.failVerifyVenv) {
@@ -216,6 +222,18 @@ test('artik staging dizini korumali hata', (root) => {
   fs.mkdirSync(stage, { recursive: true });
   expectCode(root, new FakeDriver(root), 'STAGE_EXISTS');
   assert.equal(fs.existsSync(stage), true, 'baska denemeden kalan dizin silinmedi');
+});
+test('basarili kurulum sahne takasi sonrasi console script onarimi yapar', (root) => {
+  const driver = new FakeDriver(root);
+  new InstallOrchestrator(root, driver).run('core');
+  assert.equal(driver.scriptRepairCount, 1, 'script onarimi tam bir kez calismali');
+  assert.equal(driver.scriptRepairTarget, path.join(root, 'backend', 'venv'), 'onarim sahne degil son venv uzerinde olmali');
+});
+test('script onarim hatasi eski venvi geri getirir', (root) => {
+  fs.mkdirSync(path.join(root, 'backend', 'venv', 'Scripts'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'backend', 'venv', 'Scripts', 'python.exe'), 'eski');
+  expectCode(root, new FakeDriver(root, { failScriptRepair: true }), 'SCRIPT_REPAIR');
+  assert.equal(fs.readFileSync(path.join(root, 'backend', 'venv', 'Scripts', 'python.exe'), 'utf8'), 'eski');
 });
 test('venv atomik swap hatasi', (root) => {
   const facade = { ...fs, renameSync(source, target) {

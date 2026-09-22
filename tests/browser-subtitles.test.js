@@ -1192,6 +1192,12 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
     /tools[\\/]install-orchestrator\.js"? core/,
     'install.bat çekirdek kurulum orkestratörünü çağırmıyor',
   );
+  const installSh = fs.readFileSync(path.join(__dirname, '..', 'install.sh'), 'utf8');
+  assert.match(
+    installSh,
+    /tools\/install-orchestrator\.js/,
+    'install.sh çekirdek kurulum orkestratörünü çağırmıyor',
+  );
   const coreLock = fs.readFileSync(
     path.join(__dirname, '..', 'backend', 'requirements-core.lock'),
     'utf8',

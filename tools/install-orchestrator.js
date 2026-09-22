@@ -230,6 +230,25 @@ class RealDriver {
       if (!fs.existsSync(file)) throw new InstallError('NODE_VERIFY', `Node kurulumu eksik: ${file}`);
     }
   }
+
+  repairVenvScripts(venv) {
+    // Venv tasinamaz: console script'leri yorumlayici yolunu shebang/exe icine
+    // sahne dizini adiyla gomer. Takas sonrasi girdi noktalarini mevcut yola
+    // gore yeniden uret (pip, yt-dlp, evs-vmp vb.).
+    const helper = [
+      'import importlib.metadata, sysconfig',
+      'from pip._vendor.distlib.scripts import ScriptMaker',
+      "maker = ScriptMaker(None, sysconfig.get_path('scripts'))",
+      'maker.clobber = True',
+      'specs = []',
+      'for dist in importlib.metadata.distributions():',
+      '    for ep in dist.entry_points:',
+      "        if ep.group in ('console_scripts', 'gui_scripts'):",
+      "            specs.append(f'{ep.name} = {ep.value}')",
+      'maker.make_multiple(specs)',
+    ].join('\n');
+    this.run(this.venvPython(venv), ['-c', helper], { code: 'SCRIPT_REPAIR' });
+  }
 }
 
 class InstallOrchestrator {
@@ -511,6 +530,7 @@ class InstallOrchestrator {
       const packages = this.driver.verifyVenv(this.stagePath, this.expectedPins(profiles));
       this.swapVenvIn();
       swapped = true;
+      this.driver.repairVenvScripts(this.venvPath);
       if (requested === 'core') {
         this.installNodeTransaction();
         nodeChanged = true;
