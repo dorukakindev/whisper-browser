@@ -35,6 +35,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Corrected SmartTube compact view counts and channel identity extraction for lockup cards.
 - SmartTube home no longer renders blank on feed errors; a local-rails fallback with sign-in and retry actions is shown instead (#11).
 - Queue auto-advance and the Next button now resume a partially watched video from its saved position instead of restarting it (#8).
+- HLS CEA full-capture ledger now keys segments by media sequence, so a mid-playlist `EXT-X-DISCONTINUITY` inserted on manifest refresh no longer orphans completed segments — the capture used to refetch and re-decode them, report stale missing counts, and could stay `partial` forever.
+- Browser CEA capture progress events keep the `complete` flag in the renderer state (it was dropped by the state normalizer), so UI/diagnostics can distinguish verified-complete captures from honest partials.
 - SmartTube overlay re-opens after a failed card probe instead of leaving a black stage (#7).
 - Refined translation revisions now reach the preview for blocks sharing the same timestamp (#5).
 - The player Next button refreshes correctly on queue toggles and media transitions (#2).
