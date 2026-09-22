@@ -256,11 +256,21 @@ def exchange_code(client_id):
 
 
 def revoke():
-    token = os.environ.get("WHISPER_YT_ACCESS_TOKEN", "") \
-        or os.environ.get("WHISPER_YT_REFRESH_TOKEN", "")
+    # Either token revokes the grant, but the refresh token remains useful if
+    # the access token has expired. Do not report remote success on HTTP errors.
+    token = os.environ.get("WHISPER_YT_REFRESH_TOKEN", "") \
+        or os.environ.get("WHISPER_YT_ACCESS_TOKEN", "")
+    remote_ok = False
     if token:
-        _post_form(_endpoint(OAUTH_REVOKE), {"token": token}, timeout=10)
-    emit("revoked")
+        req = Request(_endpoint(OAUTH_REVOKE),
+                      data=urlencode({"token": token}).encode("utf-8"),
+                      headers={"Content-Type": "application/x-www-form-urlencoded"})
+        try:
+            with urlopen(req, timeout=10) as response:
+                remote_ok = response.status == 200
+        except (HTTPError, URLError, OSError):
+            remote_ok = False
+    emit("revoked", remote_ok=remote_ok)
 
 
 def _fetch_me(access_token):
@@ -344,11 +354,16 @@ def _length_seconds(text):
 
 
 def _view_count(text):
-    compact = re.search(r"(\d+(?:[.,]\d+)?)\s*([KkMm])\b", text or "")
+    value = str(text or "").replace("\u00a0", " ").replace("\u202f", " ")
+    compact = re.search(r"(?<!\d)(\d+(?:[.,]\d+)?)\s*(Mn|Mio|[KMB])(?=\s|$|[.,;])",
+                        value, re.I)
     if compact:
-        multiplier = 1000 if compact.group(2).lower() == "k" else 1000000
+        suffix = compact.group(2).lower()
+        turkish = bool(re.search(r"izlenme|görüntüleme", value, re.I))
+        multiplier = {"k": 1000, "m": 1000000, "mn": 1000000,
+                      "mio": 1000000, "b": 1000 if turkish else 1000000000}[suffix]
         return round(float(compact.group(1).replace(",", ".")) * multiplier)
-    digits = re.sub(r"[^\d]", "", text or "")
+    digits = re.sub(r"[^\d]", "", value)
     return int(digits) if digits else 0
 
 
@@ -421,7 +436,7 @@ def _lockup_to_card(lv):
     if texts:
         author = texts[0]
         for t in texts[1:]:
-            if re.search(r"izlenme|views?", t, re.I):
+            if re.search(r"izlenme|görüntüleme|views?", t, re.I):
                 views = _view_count(t)
             elif re.search(r"(önce|ago)", t, re.I):
                 published = t

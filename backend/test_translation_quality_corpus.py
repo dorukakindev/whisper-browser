@@ -6,6 +6,30 @@ import transcribe as T
 
 
 class TranslationQualityCorpusTests(unittest.TestCase):
+    def test_turkish_number_forms_preserve_exact_value(self):
+        good = [
+            ('At 5:30 we found it.', 'Onu 5.30’da bulduk.'),
+            ('At 5:30 we found it.', 'Onu saat beş buçukta bulduk.'),
+            ('There were 10000 witnesses.', '10 bin tanık vardı.'),
+            ('We sold 2,000,000 copies.', '2 milyon kopya sattık.'),
+            ('The amount was 1,234.56.', 'Tutar 1.234,56 idi.'),
+            ('It took 3.5 hours.', 'Üç buçuk saat sürdü.'),
+            ('3 of them returned.', 'Üçünü geri getirdiler.'),
+            ('5 people came.', 'Beşte buluştuk, beş kişi geldi.'),
+        ]
+        bad = [
+            ('At 5:30 we found it.', 'Onu 5.40’ta bulduk.'),
+            ('There were 10000 witnesses.', '11 bin tanık vardı.'),
+            ('We sold 2,000,000 copies.', '3 milyon kopya sattık.'),
+            ('The amount was 1,234.56.', 'Tutar 1.234,57 idi.'),
+            ('It took 3.5 hours.', 'Dört buçuk saat sürdü.'),
+            ('3 of them returned.', 'Dördünü geri getirdiler.'),
+        ]
+        for source, target in good:
+            self.assertNotIn('number_mismatch', T.translation_meaning_issues(source, target))
+        for source, target in bad:
+            self.assertIn('number_mismatch', T.translation_meaning_issues(source, target))
+
     def test_whole_sentence_cannot_collapse_into_first_cue(self):
         payload = {
             'items': {'0': 'Bütün çeviri tek cue içinde.', '1': '', '2': ''},

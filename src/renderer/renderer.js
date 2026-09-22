@@ -25936,14 +25936,22 @@ async function startYoutubeBrowserFlow() {
 }
 
 async function doYoutubeLogout() {
-  try { await window.api.youtubeLogout(); } catch (_) {}
+  let result;
+  try { result = await window.api.youtubeLogout(); } catch (_) {}
+  if (!result?.ok) {
+    osd(window.UiLocale?.t(result?.error || 'YouTube oturumu kapatılamadı.')
+      || result?.error || 'YouTube oturumu kapatılamadı.', 6000);
+    return;
+  }
   _ytFlowGen++;            // sürüyor olabilecek akışın sonucunu düşür
   _ytPolling = false;
   youtubeLoggedIn = false;
   youtubeUserName = '';
   refreshYoutubeAuthUI();
   closeYoutubeLogin();
-  osd('YouTube oturumu kapatıldı');
+  const message = result.remoteOk ? 'YouTube oturumu kapatıldı'
+    : 'Yerel YouTube oturumu kapatıldı; Google erişimi kaldırılamadı. Google hesap izinlerinden erişimi kaldırın.';
+  osd(window.UiLocale?.t(message) || message, result.remoteOk ? 1800 : 8000);
   if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
 }
 

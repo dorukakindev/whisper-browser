@@ -189,7 +189,37 @@ class Parsers(unittest.TestCase):
 
     def test_view_count(self):
         self.assertEqual(youtube._view_count("1,234,567 görüntüleme"), 1234567)
+        self.assertEqual(youtube._view_count("1.2B views"), 1200000000)
+        self.assertEqual(youtube._view_count("1,2 B görüntüleme"), 1200)
+        self.assertEqual(youtube._view_count("3,4 Mn görüntüleme"), 3400000)
+        self.assertEqual(youtube._view_count("987K views"), 987000)
         self.assertEqual(youtube._view_count(""), 0)
+
+    def test_revoke_reports_remote_result_without_exposing_token(self):
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+        with patch.dict(os.environ, {"WHISPER_YT_REFRESH_TOKEN": "RT-SECRET",
+                                  "WHISPER_YT_ACCESS_TOKEN": "AT-SECRET"}), \
+             patch.object(youtube, "urlopen", return_value=Response()) as opened:
+            events = _capture_emit(youtube.revoke)
+        self.assertEqual(events, [{"type": "revoked", "remote_ok": True}])
+        self.assertIn(b"RT-SECRET", opened.call_args.args[0].data)
+        self.assertNotIn("RT-SECRET", repr(events))
+        with patch.dict(os.environ, {"WHISPER_YT_REFRESH_TOKEN": "RT-SECRET"}), \
+             patch.object(youtube, "urlopen", side_effect=OSError("offline")):
+            events = _capture_emit(youtube.revoke)
+        self.assertEqual(events, [{"type": "revoked", "remote_ok": False}])
+        with patch.dict(os.environ, {"WHISPER_YT_REFRESH_TOKEN": "", "WHISPER_YT_ACCESS_TOKEN": ""}):
+            events = _capture_emit(youtube.revoke)
+        self.assertEqual(events, [{"type": "revoked", "remote_ok": False}])
+        from urllib.error import HTTPError
+        with patch.dict(os.environ, {"WHISPER_YT_REFRESH_TOKEN": "RT-SECRET"}), \
+             patch.object(youtube, "urlopen", side_effect=HTTPError(
+                 "https://oauth2.googleapis.com/revoke", 400, "invalid_token", {}, None)):
+            events = _capture_emit(youtube.revoke)
+        self.assertEqual(events, [{"type": "revoked", "remote_ok": False}])
 
     def test_vr_to_card_schema(self):
         vr = {
