@@ -1724,13 +1724,16 @@ def serialize_srt_strict(entries):
     return payload
 
 
-def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
+def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence",
+              decorations=None):
     # utf-8-sig (BOM): Windows oynatıcıları (WMP, bazı TV'ler) BOM'suz SRT'de
     # Türkçe karakterleri yanlış kodlamayla açabiliyor
+    # decorations: sarmadan SONRA eklenen (ön ek, son ek) — ör. ASS kaynağından
+    # gelen {\an8} ve <i>…</i>; satır genişliği hesabına girmez.
     rendered = [
-        (start, end, wrap_text(text, max_line_width, max_lines,
-                               language=language, wrap_mode=wrap_mode))
-        for start, end, text in entries
+        (start, end, _decorate(wrap_text(text, max_line_width, max_lines,
+                                         language=language, wrap_mode=wrap_mode), decorations, index))
+        for index, (start, end, text) in enumerate(entries)
     ]
     payload = serialize_srt_strict(rendered)
     with atomic_text_writer(output_path, encoding="utf-8-sig") as f:
@@ -1775,11 +1778,13 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
     return output_path
 
 
-def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence"):
+def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence",
+              decorations=None):
     with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
-            wrapped = wrap_text(text, max_line_width, max_lines, language=language, wrap_mode=wrap_mode)
+            wrapped = _decorate(wrap_text(text, max_line_width, max_lines, language=language,
+                                          wrap_mode=wrap_mode), decorations, i - 1)
             f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")
             f.write(f"{wrapped}\n\n")
 
@@ -1818,7 +1823,7 @@ SPEAKER_COLORS = [
 
 
 def write_ass(entries, output_path, max_line_width=80, language="tr",
-              wrap_mode="sentence", speakers=None):
+              wrap_mode="sentence", speakers=None, overrides=None):
     """
     Aegisub ASS formatı. Konuşmacı varsa renk verir.
     `speakers`: entry index → konuşmacı etiketi haritası.
@@ -1876,6 +1881,10 @@ def write_ass(entries, output_path, max_line_width=80, language="tr",
             wrapped = re.sub(r"\\(?=[NnhH])", lambda _m: "\\⁠", wrapped)
             wrapped = wrapped.replace("{", "｛").replace("}", "｝")
             wrapped = wrapped.replace("\n", "\\N")
+            # Kaynak ASS'den doğrulanarak türetilmiş override bloğu (\an/\pos/\i1);
+            # metin kaçışından SONRA eklenir, çeviri metni asla komut olamaz.
+            if overrides and i < len(overrides) and overrides[i][0]:
+                wrapped = overrides[i][0] + wrapped
             style = speaker_styles.get(sp, "Default") if sp else "Default"
             # Name alanı virgülle ayrılmış ASS kolonudur; kontrol karakterleri
             # ve virgül satırı/alan sayısını bozamaz.
@@ -3511,8 +3520,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     last_emit_ts = [time.time()]
     translation_metrics = {
         "started": time.time(), "requests": 0, "batch_requests": 0,
-        "fallback_requests": 0, "invalid_batches": 0,
+        "fallback_requests": 0, "invalid_batches": 0, "rejections": {},
     }
+
+    def note_rejections(counts):
+        # Model uyum karnesi için ret nedenleri iş boyunca toplanır.
+        with lock:
+            bucket = translation_metrics["rejections"]
+            for key, value in (counts or {}).items():
+                bucket[key] = bucket.get(key, 0) + int(value)
 
     def call_api_with(prompt_text, payload):
         """Tercih edilen rotadan baslar; baglanti/5xx hatasinda siradaki rotaya gecer."""
@@ -3571,6 +3587,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if range_issue:
             # Kaymış numaralandırmada hiçbir grup güvenilir değildir; paket
             # bütünüyle reddedilir ve küçük paketlerle yeniden denenir.
+            note_rejections({range_issue: 1})
             raise RuntimeError("Yanitta istenen aralik disinda blok kimligi var ({})".format(range_issue))
 
         filled = 0
@@ -3618,6 +3635,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         data.get("memory"), row['source'], record['text'])
                     series_memory.merge(candidates, series_key[1], series_key[2])
             filled += len(group)
+        note_rejections(rejected)
         if filled == 0:
             details = ", ".join(f"{key}={count}" for key, count in sorted(rejected.items()))
             raise RuntimeError(
@@ -3834,6 +3852,18 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             time.time() - translation_metrics["started"],
         )
     )
+    # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
+    # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
+    batch_count = translation_metrics["batch_requests"]
+    invalid_count = translation_metrics["invalid_batches"]
+    emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
+         batches=batch_count, invalid_batches=invalid_count,
+         fallback_requests=translation_metrics["fallback_requests"],
+         rejections=dict(sorted(translation_metrics["rejections"].items())))
+    if batch_count >= 2 and invalid_count / batch_count >= 0.25:
+        log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
+            f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+            "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
 
     if counters["done"] == 0 and not cached_idx:
         # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
@@ -6865,10 +6895,18 @@ def translate_existing_subtitle(args):
             "Altyazi okunamadi veya bos. Desteklenen bicimler: SRT, VTT, ASS/SSA."
         )
     log(f"{len(entries)} blok okundu: {src_path.name}")
+    cue_formats = (parse_ass_cue_formats(text)
+                   if src_path.suffix.lower() in {".ass", ".ssa"} else [])
     if getattr(args, "dedupe_cues", False):
         entries, deduped = canonicalize_subtitle_entries(entries)
         if deduped:
             log(f"Guvenli cue tekillestirme: {deduped} yinelenen blok elendi.", "warn")
+            cue_formats = []   # indeks eşlemesi bozuldu; biçim güvenle taşınamaz
+    if len(cue_formats) != len(entries):
+        cue_formats = []
+    elif any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
+        kept = sum(1 for item in cue_formats if item["align"] not in (None, 2) or item["pos"] or item["italic"])
+        log(f"ASS biçimi korunuyor: {kept} blokta konum/hizalama/italik çeviriye taşınacak.")
 
     # Hazır altyazıda cue kimliği/zamanı ve kaynak dosya AYNEN kalır. Yalnız
     # diyalogla aynı cue içindeki güvenli SDH betimlemesi model girdisinden
@@ -7093,17 +7131,20 @@ def translate_existing_subtitle(args):
         if fmt == "srt":
             stage_required_output(out_path, lambda staged: write_srt(
                 translated, staged, args.max_line_width, args.max_lines,
-                language=target, wrap_mode=args.wrap_mode))
+                language=target, wrap_mode=args.wrap_mode,
+                decorations=cue_format_decorations(cue_formats, "srt")))
         elif fmt == "vtt":
             stage_required_output(out_path, lambda staged: write_vtt(
                 translated, staged, args.max_line_width, args.max_lines,
-                language=target, wrap_mode=args.wrap_mode))
+                language=target, wrap_mode=args.wrap_mode,
+                decorations=cue_format_decorations(cue_formats, "vtt")))
         elif fmt == "txt":
             stage_required_output(out_path, lambda staged: write_txt(translated, staged))
         elif fmt == "ass":
             stage_required_output(out_path, lambda staged: write_ass(
                 translated, staged, max_line_width=args.max_line_width,
-                language=target, wrap_mode=args.wrap_mode))
+                language=target, wrap_mode=args.wrap_mode,
+                overrides=cue_format_decorations(cue_formats, "ass")))
         else:
             stage_required_output(out_path, lambda staged: write_json(translated, staged))
         files.append(str(out_path))
@@ -7537,6 +7578,93 @@ def parse_ass(text):
         body = re.sub(r"\{[^}]*\}", "", body).strip()
         entries.append((start, end, body))
     return entries
+
+
+_ASS_LEADING_OVERRIDES = re.compile(r"^(?:\s*\{[^}]*\})+")
+_ASS_ALIGN = re.compile(r"\\an([1-9])(?![0-9])")
+_ASS_POS = re.compile(r"\\pos\(\s*(-?\d{1,5}(?:\.\d+)?)\s*,\s*(-?\d{1,5}(?:\.\d+)?)\s*\)")
+
+
+def parse_ass_cue_formats(text):
+    """ASS Dialogue satırlarının KORUNACAK biçimini çıkar (parse_ass ile aynı sıra).
+
+    Çeviri metni etiketsiz gider; yalnız güvenli ve anlamı olan üç bilgi geri
+    eklenir: hizalama (\\anN — tabelalar üstte kalsın), konum (\\pos) ve
+    satırın tamamını kapsayan italik. Eskiden hepsi atılıyor, üst tabelalar alta
+    düşüyor ve iç ses/şarkı italikleri kayboluyordu.
+    """
+    formats = []
+    in_events = False
+    fields = ["layer", "start", "end", "style", "name", "marginl", "marginr",
+              "marginv", "effect", "text"]
+    for raw in str(text).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            in_events = line.lower() == "[events]"
+            continue
+        if not in_events:
+            continue
+        if line.lower().startswith("format:"):
+            fields = [part.strip().lower() for part in line.split(":", 1)[1].split(",")]
+            continue
+        if not line.lower().startswith("dialogue:"):
+            continue
+        values = line.split(":", 1)[1].lstrip().split(",", max(0, len(fields) - 1))
+        if len(values) < len(fields):
+            continue
+        row = dict(zip(fields, values))
+        try:
+            srt_time_to_seconds(row["start"])
+            srt_time_to_seconds(row["end"])
+        except (KeyError, ValueError):
+            continue
+        body = row.get("text", "")
+        leading = _ASS_LEADING_OVERRIDES.match(body)
+        head = leading.group(0) if leading else ""
+        align = _ASS_ALIGN.search(head)
+        pos = _ASS_POS.search(head)
+        rest = body[len(head):]
+        italic = bool(re.search(r"\\i1(?![0-9])", head)) and not re.search(r"\\i0(?![0-9])", re.sub(r"\{[^}]*\}\s*$", "", rest))
+        formats.append({
+            "align": int(align.group(1)) if align else None,
+            "pos": (pos.group(1), pos.group(2)) if pos else None,
+            "italic": italic,
+        })
+    return formats
+
+
+def cue_format_decorations(formats, fmt):
+    """Biçim bilgisini çıktı biçimine uygun ön/son eke çevir (yalnız doğrulanmış değerler)."""
+    decorations = []
+    for item in formats or []:
+        item = item or {}
+        prefix, suffix = "", ""
+        align = item.get("align")
+        if fmt == "ass":
+            tags = ""
+            if isinstance(align, int) and 1 <= align <= 9 and align != 2:
+                tags += f"\\an{align}"
+            pos = item.get("pos")
+            if pos and all(re.fullmatch(r"-?\d{1,5}(?:\.\d+)?", str(v)) for v in pos):
+                tags += f"\\pos({pos[0]},{pos[1]})"
+            if item.get("italic"):
+                tags += "\\i1"
+            prefix = "{" + tags + "}" if tags else ""
+        elif fmt in {"srt", "vtt"}:
+            # {\\an8} SRT'de yaygın destekli (VLC, mpv, Plex, MPC); VTT'de konum cue ayarıdır.
+            if fmt == "srt" and isinstance(align, int) and 7 <= align <= 9:
+                prefix = f"{{\\an{align}}}"
+            if item.get("italic"):
+                prefix, suffix = prefix + "<i>", "</i>"
+        decorations.append((prefix, suffix))
+    return decorations
+
+
+def _decorate(text, decorations, index):
+    if not decorations or index >= len(decorations):
+        return text
+    prefix, suffix = decorations[index]
+    return f"{prefix}{text}{suffix}" if (prefix or suffix) else text
 
 
 def parse_subtitle_entries(text, suffix=""):

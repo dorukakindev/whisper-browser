@@ -133,5 +133,70 @@ class AssParsingTests(unittest.TestCase):
         self.assertEqual(T.parse_ass(text), [(4.0, 5.0, "Mr. Smith\nis here")])
 
 
+class AssFormatPreservationTests(unittest.TestCase):
+    ASS = ("[Script Info]\nScriptType: v4.00+\n\n[Events]\n"
+           "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+           "Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}Sign on the wall.\n"
+           "Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\\i1}I hear music.{\\i0}\n"
+           "Dialogue: 0,0:00:07.00,0:00:09.00,Default,,0,0,0,,Normal line.\n"
+           "Dialogue: 0,0:00:10.00,0:00:12.00,Default,,0,0,0,,{\\pos(960,120)\\fs40}Title.\n"
+           "Dialogue: 0,0:00:13.00,0:00:15.00,Default,,0,0,0,,{\\i1}Half{\\i0} italic.\n")
+    TR = {"Sign on the wall.": "Duvardaki tabela.", "I hear music.": "Müzik duyuyorum.",
+          "Normal line.": "Normal satır.", "Title.": "Başlık.", "Half italic.": "Yarı italik."}
+
+    def test_formats_are_parsed_in_dialogue_order(self):
+        formats = T.parse_ass_cue_formats(self.ASS)
+        self.assertEqual([f["align"] for f in formats], [8, None, None, None, None])
+        self.assertEqual([f["italic"] for f in formats], [False, True, False, False, False])
+        self.assertEqual(formats[3]["pos"], ("960", "120"))
+        self.assertEqual(len(formats), len(T.parse_ass(self.ASS)))
+
+    def test_translation_keeps_alignment_position_and_italics(self):
+        install_provider(lambda payload: {str(i["i"]): self.TR[i["t"]] for i in payload["items"]})
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "film.en.ass"
+            src.write_text(self.ASS, encoding="utf-8")
+            quiet(T.translate_existing_subtitle, Args(input=str(src), output_dir=tmp, formats="srt,ass"))
+            srt = (Path(tmp) / "film.tr.srt").read_text(encoding="utf-8-sig")
+            ass = (Path(tmp) / "film.tr.ass").read_text(encoding="utf-8-sig")
+        self.assertIn("{\\an8}Duvardaki tabela.", srt)
+        self.assertIn("<i>Müzik duyuyorum.</i>", srt)
+        self.assertIn("\nNormal satır.\n", srt)
+        self.assertIn(",,{\\an8}Duvardaki tabela.", ass)
+        self.assertIn(",,{\\i1}Müzik duyuyorum.", ass)
+        self.assertIn(",,{\\pos(960,120)}Başlık.", ass)
+        self.assertIn(",,Yarı italik.", ass)   # kısmi italik taşınmaz (metin bölünür)
+
+    def test_untrusted_translation_text_still_cannot_inject_tags(self):
+        install_provider(lambda payload: {str(i["i"]): "{\\an1}Kötü." for i in payload["items"]})
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "film.en.srt"
+            src.write_text("1\n00:00:01,000 --> 00:00:02,000\nBad.\n", encoding="utf-8")
+            quiet(T.translate_existing_subtitle, Args(input=str(src), output_dir=tmp, formats="ass"))
+            ass = (Path(tmp) / "film.tr.ass").read_text(encoding="utf-8-sig")
+        self.assertNotIn(",,{\\an1}", ass)
+
+
+class TranslationQualityEventTests(unittest.TestCase):
+    def test_quality_event_reports_batches_and_rejections(self):
+        calls = []
+
+        def handler(payload):
+            calls.append(1)
+            base = 1 if len(calls) == 1 else 0
+            return {str(item["i"] + base): "Çeviri " + str(item["i"]) + "." for item in payload["items"]}
+
+        install_provider(handler)
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            T.llm_translate([(0, 2, "One."), (3, 5, "Two."), (6, 8, "Three.")], Args(), [], source_lang="en")
+        events = [json.loads(line) for line in buffer.getvalue().splitlines() if line.startswith("{")]
+        quality = [event for event in events if event.get("type") == "translation_quality"]
+        self.assertEqual(len(quality), 1)
+        self.assertEqual(quality[0]["model"], "m")
+        self.assertEqual(quality[0]["invalid_batches"], 1)
+        self.assertEqual(quality[0]["rejections"].get("kimlik_araligi_disinda"), 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
