@@ -49,7 +49,7 @@ jobs:
         run: npm test
       - name: Run Electron bridge smoke (Ubuntu)
         if: runner.os == 'Linux'
-        run: xvfb-run -a node_modules/.bin/electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu
+        run: xvfb-run -a node_modules/.bin/electron tests/electron-browser-trusted-bridge.smoke.js --disable-gpu --no-sandbox
       - name: Run Electron bridge smoke (Windows)
         if: runner.os == 'Windows'
         run: npm run test:electron-bridge
