@@ -185,32 +185,27 @@ test('renderer arama filtreleri Türkçe yerel küçültme yerine foldSearch kul
 });
 
 test('adres çubuğu: ilk satır yazılanın kendisidir; Enter bayat sonuçları kullanmaz', () => {
+  const model = require('../src/browser-address-model.js');
+  const omnibox = require('../src/browser-omnibox.js');
+  const rows = model.buildAddressResults({
+    query: 'news', omnibox,
+    tabs: [{ id: 't1', title: 'Hacker News', url: 'https://news.ycombinator.com/' }],
+    places: { bookmarks: [], history: [{ url: 'https://www.google.com/search?q=news+today', title: 'news today', visitedAt: Date.now() }] },
+  });
+  assert.equal(rows[0].action, 'navigate');
+  assert.equal(rows[0].value, 'news');
+  assert.deepEqual(model.buildAddressResults({ query: '2020-2021', omnibox }).map((row) => row.action), ['navigate', 'calc']);
   const renderer = read('src/renderer/renderer.js');
-  const fn = sliceBetween(renderer, 'async function refreshBrowserAddressResults()', 'async function useBrowserAddressResult(');
-  const navigateAt = fn.indexOf("add({ action: 'navigate', value: query");
-  for (const other of ["add({ action: 'calc'", "add({ action: 'tab'", "add({ action: 'url'"]) {
-    assert.ok(navigateAt >= 0 && navigateAt < fn.indexOf(other), `${other} yazılan satırdan önce geliyor`);
-  }
-  assert.match(fn, /player\.browserAddressQuery = query/);
-  assert.match(renderer, /const fresh = String\(\$\('browserAddress'\)\.value \|\| ''\)\.trim\(\) === player\.browserAddressQuery/);
+  assert.match(renderer, /player\.browserAddressQuery = query/);
+  assert.match(renderer, /const fresh = typedBrowserAddressQuery\(\) === player\.browserAddressQuery/);
 });
 
 test('sekme kısayolları ekrandaki (grup) sırasını izler', () => {
+  const { visibleTabsInDisplayOrder } = require('../src/browser-address-model.js');
+  const tabs = [{ id: 'A' }, { id: 'B' }, { id: 'C' }];
+  const rows = [{ kind: 'group' }, { kind: 'tab', tab: tabs[0] }, { kind: 'tab', tab: tabs[2] }, { kind: 'tab', tab: tabs[1] }];
+  assert.deepEqual(visibleTabsInDisplayOrder(rows, tabs).map((tab) => tab.id), ['A', 'C', 'B']);
   const renderer = read('src/renderer/renderer.js');
-  const fnSource = sliceBetween(renderer, 'function visibleBrowserTabsInDisplayOrder()', '\n}\n') + '\n}';
-  const player = {
-    browserTabs: [
-      { id: 'A', group: { name: 'Work', color: 'blue' } },
-      { id: 'B' },
-      { id: 'C', group: { name: 'Work', color: 'blue' } },
-    ],
-  };
-  const browserTabDisplayRows = () => [
-    { kind: 'group' }, { kind: 'tab', tab: player.browserTabs[0] }, { kind: 'tab', tab: player.browserTabs[2] },
-    { kind: 'tab', tab: player.browserTabs[1] },
-  ];
-  const visible = new Function('player', 'browserTabDisplayRows', `${fnSource}; return visibleBrowserTabsInDisplayOrder;`)(player, browserTabDisplayRows);
-  assert.deepEqual(visible().map((tab) => tab.id), ['A', 'C', 'B']);
   const shortcut = sliceBetween(renderer, 'function runBrowserShortcut(', 'if (window.api.onBrowserEvent)');
   assert.equal((shortcut.match(/visibleBrowserTabsInDisplayOrder\(\)/g) || []).length, 2);
 });
@@ -294,9 +289,7 @@ test('EN arayüz: tarayıcı kabuğu metinleri çevrilir; sekme şeridi etiketi 
 });
 
 test('dil rozeti yalnız bilinen dil kodlarını gösterir', () => {
-  const renderer = read('src/renderer/renderer.js');
-  const source = sliceBetween(renderer, 'const SUBTITLE_PATH_LANGUAGE_CODES', 'function updateSubtitleChips()');
-  const langFromPath = new Function(`${source}; return langFromPath;`)();
+  const { langFromPath } = require('../src/browser-address-model.js');
   assert.equal(langFromPath('C:/x/film.tr.srt'), 'TR');
   assert.equal(langFromPath('C:/x/film.en.forced.srt'), 'EN');
   assert.equal(langFromPath('C:/x/film.pt-BR.srt'), 'PT');

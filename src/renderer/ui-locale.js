@@ -875,6 +875,14 @@
     ['Mevcut bir', 'From an existing'],
     ['ve', 'and'],
     ['Sayfa', 'Page'],
+    // Adres önerisi etiketleri (panel tarama dışında, UiLocale.t ile çevrilir).
+    ['Açık sekme', 'Open tab'],
+    ['Yer imi', 'Bookmark'],
+    ['Yer imleri', 'Bookmarks'],
+    ['Web', 'Web'],
+    ['Otomatik tamamlama', 'Autocomplete'],
+    ['Adresse doğrudan açılır; değilse web araması yapılır.', 'Opens directly if it is an address; otherwise searches the web.'],
+    ['Seçip Enter: sonucu panoya kopyala', 'Select and press Enter: copy result'],
     // Tarayıcı durum sinyalleri (setBrowserSignal sabit metinleri).
     ["Çeviri hata bildirimi temizlendi.", "Translation error notice cleared."],
     ["Workflow kaydı başladı. Komut paletinden çalıştırdığınız uygun eylemler kaydedilecek.", "Workflow recording started. Eligible actions you run from the command palette will be recorded."],

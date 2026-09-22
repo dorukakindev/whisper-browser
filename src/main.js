@@ -3736,6 +3736,8 @@ function normalizeBrowserPlaces(places) {
     title: String(item && item.title || '').trim().slice(0, 240),
     folder: String(item && item.folder || '').trim().slice(0, 64),
     visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    // Ziyaret sayısı adres çubuğu sıklık × yakınlık sıralaması için tutulur.
+    visits: Math.max(1, Math.min(100000, Math.floor(Number(item && item.visits) || 1))),
   })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
@@ -3983,7 +3985,7 @@ function rememberBrowserVisit(url, title = '') {
   const first = places.history[0];
   if (first && first.url === safeUrl && first.title === nextTitle) return;
   places.history = [
-    { url: safeUrl, title: nextTitle, visitedAt: now },
+    { url: safeUrl, title: nextTitle, visitedAt: now, visits: Math.min(100000, (Number(previous && previous.visits) || 0) + 1) },
     ...places.history.filter((item) => item.url !== safeUrl),
   ].slice(0, BROWSER_PLACE_LIMIT);
   setBrowserPlaces(places);

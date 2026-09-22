@@ -7140,7 +7140,8 @@ function closeBrowserAddressResults() {
 function selectBrowserAddressResult(index, { scroll = true } = {}) {
   const panel = $('browserAddressResults');
   const input = $('browserAddress');
-  const items = panel ? [...panel.children] : [];
+  // Bölüm başlıkları seçilemez; yalnız sonuç satırları sayılır.
+  const items = panel ? [...panel.querySelectorAll('[data-address-result]')] : [];
   if (!items.length) {
     player.browserAddressSelected = -1;
     input?.removeAttribute('aria-activedescendant');
@@ -7165,18 +7166,38 @@ function renderBrowserAddressResults(results) {
   player.browserAddressResults = results;
   player.browserAddressSelected = results.length ? 0 : -1;
   panel.replaceChildren();
+  const sectionLabels = globalThis.BrowserAddressModel?.SECTION_LABELS || {};
+  let lastSection = 'input';
   for (const [index, result] of results.entries()) {
+    // Bölüm başlıkları ("Açık sekmeler", "Geçmiş"…) listeyi bir bakışta okunur yapar.
+    if (result.section && result.section !== lastSection && sectionLabels[result.section]) {
+      const heading = document.createElement('div');
+      heading.className = 'browser-address-section';
+      heading.setAttribute('role', 'presentation');
+      // Panel yerelleştirme taramasının dışında (site başlıkları taşır); arayüz
+      // etiketleri burada açıkça çevrilir.
+      heading.textContent = uiText(sectionLabels[result.section]);
+      panel.appendChild(heading);
+    }
+    lastSection = result.section || lastSection;
     const option = document.createElement('div');
     option.id = `browser-address-result-${index}`;
     option.className = `browser-address-result${index === 0 ? ' is-selected' : ''}`;
     option.dataset.addressResult = String(index); option.setAttribute('role', 'option');
     option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-    const mark = document.createElement('span'); mark.className = 'browser-address-result-mark'; mark.textContent = result.mark || '•';
+    const mark = document.createElement('span'); mark.className = 'browser-address-result-mark';
+    // Site simgesi yalnız güvenli veri URL'sinden (CSP img-src: 'self' data:); yoksa harf işareti.
+    if (typeof result.icon === 'string' && /^data:image\//i.test(result.icon)) {
+      const icon = document.createElement('img'); icon.alt = ''; icon.src = result.icon; icon.width = 16; icon.height = 16;
+      mark.classList.add('has-icon'); mark.appendChild(icon);
+    } else mark.textContent = result.mark || '•';
     const copy = document.createElement('span'); copy.className = 'browser-address-result-copy';
-    const title = document.createElement('strong'); title.textContent = result.title;
-    const detail = document.createElement('small'); detail.textContent = result.detail || '';
+    const title = document.createElement('strong');
+    title.textContent = result.section === 'input' && result.action === 'navigate' && result.value
+      && globalThis.UiLocale?.get?.() === 'en' ? `Go to or search “${String(result.value).slice(0, 120)}”` : result.title;
+    const detail = document.createElement('small'); detail.textContent = result.section === 'input' && !result.url ? uiText(result.detail || '') : (result.detail || '');
     copy.append(title, detail);
-    const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = result.kindLabel || '';
+    const kind = document.createElement('span'); kind.className = 'browser-address-result-kind'; kind.textContent = uiText(result.kindLabel || '');
     option.append(mark, copy, kind); panel.appendChild(option);
   }
   panel.classList.toggle('hidden', !results.length);
@@ -7186,48 +7207,81 @@ function renderBrowserAddressResults(results) {
   syncBrowserOcclusion();
 }
 
+function uiText(value) {
+  return globalThis.UiLocale?.t ? globalThis.UiLocale.t(value) : value;
+}
+
+// Bu oturumda görülen site simgeleri (köken → veri URL'si). Geçmiş ve yer imi
+// kayıtları simge saklamaz; açık/açılmış sekmelerden öğrenilir.
+const browserFaviconByOrigin = new Map();
+function rememberBrowserFavicon(url, favicon) {
+  const origin = globalThis.BrowserAddressModel?.originOf(url);
+  if (origin && typeof favicon === 'string' && /^data:image\//i.test(favicon)) {
+    browserFaviconByOrigin.delete(origin);
+    browserFaviconByOrigin.set(origin, favicon);
+    if (browserFaviconByOrigin.size > 200) browserFaviconByOrigin.delete(browserFaviconByOrigin.keys().next().value);
+  }
+}
+function browserFaviconFor(url) {
+  const origin = globalThis.BrowserAddressModel?.originOf(url);
+  if (!origin) return '';
+  const tab = (player.browserTabs || []).find((item) => item.favicon && globalThis.BrowserAddressModel.originOf(item.url) === origin);
+  return tab?.favicon || browserFaviconByOrigin.get(origin) || '';
+}
+
+// Satır içi tamamlama açıkken kutudaki seçili (gri) kısım kullanıcının yazdığı
+// değildir; sorgu yalnız imlecin solundaki metindir.
+function typedBrowserAddressQuery() {
+  const input = $('browserAddress');
+  const value = String(input?.value || '');
+  if (input && player.browserAddressCompletion && input.selectionEnd === value.length
+    && input.selectionStart < value.length && value === player.browserAddressCompletion.text) {
+    return value.slice(0, input.selectionStart).trim();
+  }
+  return value.trim();
+}
+
+function applyBrowserAddressInlineCompletion(event) {
+  const input = $('browserAddress');
+  player.browserAddressCompletion = null;
+  if (!input || !globalThis.BrowserAddressModel) return;
+  // Silme/yapıştırma/IME sırasında tamamlama yapılmaz (Chrome davranışı).
+  if (event?.inputType !== 'insertText' || event.isComposing) return;
+  const value = input.value;
+  if (input.selectionStart !== value.length) return;
+  const places = player.browserPlaces || {};
+  const completion = globalThis.BrowserAddressModel.inlineCompletion(value,
+    [...(places.bookmarks || []), ...(places.history || [])]);
+  if (!completion || !completion.text.toLowerCase().startsWith(value.toLowerCase())) return;
+  input.value = value + completion.text.slice(value.length);
+  input.setSelectionRange(value.length, input.value.length, 'forward');
+  player.browserAddressCompletion = { ...completion, text: input.value };
+}
+
 async function refreshBrowserAddressResults() {
-  const query = String($('browserAddress')?.value || '').trim();
+  const query = typedBrowserAddressQuery();
   if (!$('browserAddress')?.matches(':focus') || !query) { closeBrowserAddressResults(); return; }
-  const folded = foldSearch(query);
-  const results = [];
-  const seen = new Set();
-  const add = (row) => { const key = `${row.action}:${row.id || row.url || row.title}`; if (!seen.has(key) && results.length < 14) { seen.add(key); results.push(row); } };
-  // Varsayılan (ilk) satır HER ZAMAN kullanıcının yazdığıdır: Enter yazılanı açar
-  // veya arar (Chrome davranışı). Eskiden hesap/açık sekme/geçmiş satırları üstte
-  // olduğu için "weather" + Enter eski bir geçmiş kaydına, "2020-2021" + Enter
-  // panoya "-1" kopyalamaya gidiyordu. Diğer satırlara ok tuşlarıyla inilir.
-  // "!kod sorgu" biçimindeki bang kısayolu yazılanın kendisidir; o varsa ilk satırdır.
-  const bang = globalThis.BrowserOmnibox?.resolveBang(query);
-  if (bang) add({ action: 'navigate', url: bang.url,
-    title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,
-    detail: bang.url, kindLabel: 'Kısayol', mark: '!' });
-  add({ action: 'navigate', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
-    detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
-  const calc = globalThis.BrowserOmnibox?.evaluateArithmetic(query);
-  if (calc !== null && calc !== undefined) {
-    const display = `${query} = ${globalThis.BrowserOmnibox.formatCalcResult(calc)}`;
-    add({ action: 'calc', value: globalThis.BrowserOmnibox.formatCalcResult(calc),
-      title: display, detail: 'Seçip Enter: sonucu panoya kopyala', kindLabel: 'Hesap', mark: '=' });
-  }
-  for (const tab of player.browserTabs) {
-    if (foldSearch(`${tab.title} ${tab.url}`).includes(folded)) add({ action: 'tab', id: tab.id,
-      title: browserTabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S' });
-  }
-  const places = player.browserPlaces || { bookmarks: [], history: [] };
-  for (const [kind, label, mark] of [['bookmarks', 'Yer imi', 'Y'], ['history', 'Geçmiş', 'G']]) {
-    for (const item of places[kind] || []) {
-      if (foldSearch(`${item.title} ${item.url}`).includes(folded)) add({ action: 'url', url: item.url,
-        title: browserPlaceTitle(item), detail: item.url, kindLabel: label, mark });
-    }
-  }
+  const model = globalThis.BrowserAddressModel;
+  // Satır sırası ve sıralama saf modülde (src/browser-address-model.js): yazılan
+  // metin her zaman ilk satırdır; geçmiş sıklık × yakınlık puanıyla sıralanır.
+  const results = model.buildAddressResults({
+    query,
+    omnibox: globalThis.BrowserOmnibox,
+    tabs: player.browserTabs,
+    places: player.browserPlaces,
+    completion: player.browserAddressCompletion?.text?.toLowerCase().startsWith(query.toLowerCase()) ? player.browserAddressCompletion : null,
+    faviconFor: browserFaviconFor,
+    tabLabel: browserTabLabel,
+    placeTitle: browserPlaceTitle,
+  });
+  const add = (row) => { if (results.length < 14 && !results.some((item) => item.action === row.action && item.id === row.id)) results.push(row); };
   player.browserAddressQuery = query;
   const seq = ++browserAddressSearchSeq;
   renderBrowserAddressResults(results);
   if (query.length < 2 || !window.api.searchUnifiedLibrary) return;
   const response = await window.api.searchUnifiedLibrary(query, 'all', 8).catch(() => null);
-  if (seq !== browserAddressSearchSeq || String($('browserAddress')?.value || '').trim() !== query) return;
-  for (const item of response?.results || []) add({ action: 'unified', id: item.id, result: item,
+  if (seq !== browserAddressSearchSeq || typedBrowserAddressQuery() !== query) return;
+  for (const item of response?.results || []) add({ action: 'unified', section: 'library', id: item.id, result: item,
     title: item.title || 'Kütüphane sonucu', detail: item.snippet || item.url || '',
     kindLabel: libraryResultKindLabel(item), mark: 'K' });
   renderBrowserAddressResults(results);
@@ -11104,9 +11158,15 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
     // Sonuçlar 130 ms gecikmeyle yenilenir; Enter o aralıkta basılırsa panel
     // ÖNCEKİ metnin sonuçlarını gösterir. Yazılan metin değiştiyse seçili satıra
     // değil doğrudan yazılana git.
-    const fresh = String($('browserAddress').value || '').trim() === player.browserAddressQuery;
+    const fresh = typedBrowserAddressQuery() === player.browserAddressQuery;
     if (fresh && !$('browserAddressResults')?.classList.contains('hidden') && player.browserAddressSelected >= 0) useBrowserAddressResult(player.browserAddressSelected);
-    else { closeBrowserAddressResults(); navigateBrowserFromAddress(); }
+    else if (player.browserAddressCompletion?.url && $('browserAddress').value === player.browserAddressCompletion.text) {
+      // Satır içi tamamlanmış adres: tam kayıtlı URL'ye git (şema ve www korunur).
+      const url = player.browserAddressCompletion.url;
+      closeBrowserAddressResults();
+      $('browserAddress').value = url;
+      navigateBrowserFromAddress();
+    } else { closeBrowserAddressResults(); navigateBrowserFromAddress(); }
   }
   else if (event.key === 'Escape') {
     event.preventDefault();
@@ -11118,8 +11178,12 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   else if (event.key === 'Tab') closeBrowserAddressResults();
 });
 for (const eventName of ['input', 'focus', 'blur']) $('browserAddress')?.addEventListener(eventName, syncBrowserAddressAction);
-$('browserAddress')?.addEventListener('input', () => { clearTimeout(browserAddressSearchTimer); browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130); });
-$('browserAddress')?.addEventListener('focus', refreshBrowserAddressResults);
+$('browserAddress')?.addEventListener('input', (event) => {
+  applyBrowserAddressInlineCompletion(event);
+  clearTimeout(browserAddressSearchTimer);
+  browserAddressSearchTimer = setTimeout(refreshBrowserAddressResults, 130);
+});
+$('browserAddress')?.addEventListener('focus', () => { player.browserAddressCompletion = null; refreshBrowserAddressResults(); });
 $('browserAddress')?.addEventListener('blur', () => setTimeout(() => {
   if (!$('browserAddressResults')?.contains(document.activeElement)) closeBrowserAddressResults();
 }, 120));
@@ -11910,8 +11974,7 @@ $('browserPermissionPrompt')?.addEventListener('click', (event) => {
 // daraltılmış gruptaki gizli sekmelere de atlanmamalı.
 function visibleBrowserTabsInDisplayOrder() {
   const rows = typeof browserTabDisplayRows === 'function' ? browserTabDisplayRows() : [];
-  const tabs = rows.filter((row) => row.kind === 'tab').map((row) => row.tab);
-  return tabs.length ? tabs : (player.browserTabs || []);
+  return globalThis.BrowserAddressModel.visibleTabsInDisplayOrder(rows, player.browserTabs || []);
 }
 
 function runBrowserShortcut(key, shift = false) {
@@ -12055,6 +12118,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.title = event.title || '';
       } else if (event.type === 'favicon') {
         tab.favicon = event.favicon || '';
+        rememberBrowserFavicon(tab.url, tab.favicon);
       } else if (event.type === 'subtitle-found' && event.track) {
         const index = tab.browserTracks.findIndex((track) => track.id === event.track.id);
         if (index >= 0) tab.browserTracks[index] = event.track; else tab.browserTracks.push(event.track);
@@ -12167,7 +12231,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     loadBrowserPlaces();
   } else if (event.type === 'favicon') {
     const tab = browserTabState();
-    if (tab) tab.favicon = event.favicon || '';
+    if (tab) { tab.favicon = event.favicon || ''; rememberBrowserFavicon(tab.url, tab.favicon); }
   } else if (event.type === 'places' && event.places) {
     player.browserPlaces = event.places;
     renderBrowserPlaces();
@@ -17366,24 +17430,14 @@ function subtitleOrigin(path, label) {
 // yaptığı için "i think" araması "I think" cümlesini bulamıyordu.
 function foldSearch(value) {
   const text = String(value == null ? '' : value);
-  return globalThis.BrowserOmnibox?.foldSearchText
-    ? globalThis.BrowserOmnibox.foldSearchText(text)
-    : text.replace(/[Iİı]/g, 'i').toLowerCase();
+  const fold = globalThis.BrowserAddressModel?.foldSearchText || globalThis.BrowserOmnibox?.foldSearchText;
+  return fold ? fold(text) : text.replace(/[Iİı]/g, 'i').toLowerCase();
 }
 
-// Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR, "film.en.forced.srt" -> EN.
-// Yalnız bilinen dil kodları kabul edilir; "Dune.Part.Two.srt" rozeti "TWO",
-// "Movie.HDR.srt" rozeti "HDR" göstermesin (backend SUBTITLE_LANGUAGE_CODES ile aynı küme).
-const SUBTITLE_PATH_LANGUAGE_CODES = new Set(`
-  tr en de fr es it ru ar ja ko zh pt nl el fa az pl sv no nb nn da fi cs sk hu ro
-  bg hr sr sl uk he hi id ms th vi ca eu gl et lv lt is ga ka hy kk uz ur bn ta te
-  tur eng ger deu fre fra spa ita rus ara jpn kor chi zho por dut nld gre ell per fas
-  aze pol swe nor dan fin cze ces slo slk hun rum ron bul hrv srp slv ukr heb hin ind
-  may msa tha vie cat baq eus glg est lav lit ice isl gle geo kat arm hye kaz uzb urd
-`.trim().split(/\s+/));
+// Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR (yalnız bilinen dil kodları;
+// mantık src/browser-address-model.js'te, backend SUBTITLE_LANGUAGE_CODES ile aynı küme).
 function langFromPath(path) {
-  const m = String(path || '').match(/\.([a-z]{2,3})(?:[-_][a-z0-9]{2,4})?(?:\.(?:forced|sdh|cc|hi))*\.(?:srt|vtt|ass|ssa)$/i);
-  return m && SUBTITLE_PATH_LANGUAGE_CODES.has(m[1].toLowerCase()) ? m[1].toUpperCase() : '';
+  return globalThis.BrowserAddressModel?.langFromPath(path) || '';
 }
 
 function updateSubtitleChips() {
