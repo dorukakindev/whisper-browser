@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 01:10 — PR #16'nın CI ve fast-forward doğrulamasıyla `master` dalına birleştirilmesi](docs/devir/2026-09-22-0110.md).
+Güncel çalışma: [2026-09-22 03:20 — T4 SmartTube/YouTube OAuth uçtan uca dayanıklılık: sahte OAuth+YouTube sunucusu + gerçek Electron; F-101-1 eşzamanlı browse reddi düzeltildi; BROWSER_BUG_REPORT_101](docs/devir/2026-09-22-0320.md).
+
+Önceki çalışma: [2026-09-22 01:10 — PR #16'nın CI ve fast-forward doğrulamasıyla `master` dalına birleştirilmesi](docs/devir/2026-09-22-0110.md).
 
 Önceki çalışma: [2026-09-22 00:48 — PR #16 gauntlet kabul testi yanlış-pozitif kapılarının kapatılması ve gerçek Windows Electron doğrulaması; BROWSER_BUG_REPORT_97](docs/devir/2026-09-22-0048.md).
 
