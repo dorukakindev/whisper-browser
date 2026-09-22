@@ -113,6 +113,12 @@ const SURFACES = [
   ['find-bar', '#browserFindBar', `document.getElementById('browserAddressResults')?.classList.add('hidden'); document.getElementById('browserFindBar')?.classList.remove('hidden')`],
   ['places', '#browserPlacesPanel', `document.getElementById('browserFindBar')?.classList.add('hidden'); document.getElementById('browserPlacesPanel')?.classList.remove('hidden')`],
   ['downloads', '#browserDownloadsPanel', `document.getElementById('browserPlacesPanel')?.classList.add('hidden'); document.getElementById('browserDownloadsPanel')?.classList.remove('hidden')`],
+  ['more-menu', '.browser-more-popover', `document.getElementById('browserDownloadsPanel')?.classList.add('hidden'); document.querySelector('.browser-more-popover')?.closest('details')?.setAttribute('open', '')`],
+  ['translate-menu', '#browserTranslateMenu', `document.querySelectorAll('details[open]').forEach((d) => d.removeAttribute('open')); document.getElementById('browserTranslateMenu')?.setAttribute('open', '')`],
+  ['command-palette', '#browserCommandPalette', `document.querySelectorAll('details[open]').forEach((d) => d.removeAttribute('open')); document.getElementById('browserCommandPalette')?.classList.remove('hidden')`],
+  ['settings-drawer', '#settingsDrawer', `document.getElementById('browserCommandPalette')?.classList.add('hidden'); try { setSettingsDrawer(true); } catch (_) { document.getElementById('settingsDrawer')?.classList.remove('hidden'); } document.querySelectorAll('#settingsDrawer details').forEach((d) => d.setAttribute('open', ''))`],
+  ['player-mode', '#playerLayer', `try { setSettingsDrawer(false); } catch (_) {} document.getElementById('workspacePlayerMode')?.click()`],
+  ['main-screen', 'body', `document.getElementById('playerLayer')?.classList.add('hidden')`],
 ];
 
 async function main() {
@@ -161,6 +167,10 @@ async function main() {
         await send('Page.navigate', { url }); await sleep(2200);
         await evaluate(`document.getElementById('openPlayer')?.click()`); await sleep(1000);
         for (const theme of ['dark', 'light']) {
+          if (theme === 'light') {
+            await send('Page.navigate', { url }); await sleep(2200);
+            await evaluate(`document.getElementById('openPlayer')?.click()`); await sleep(1000);
+          }
           await evaluate(`document.documentElement.dataset.theme = '${theme}'`); await sleep(250);
           for (const [name, scope, prepare] of SURFACES) {
             if (width !== 1400 && name !== 'browser-home') continue;
