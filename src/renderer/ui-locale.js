@@ -325,7 +325,7 @@
     ['Çeviri oluştur', 'Translate subtitles'],
     ['Altyazı oluştur', 'Generate subtitles'],
     ['Çeviriyi dışa aktar', 'Export translation'],
-    ['Tamamını yeni modelle çevir', 'Retranslate all with a new model'],
+    ['Tamamını yeni modelle çevir', 'Retranslate all'],
     ['Açıkla', 'Explain'],
     ['Kopyala', 'Copy'],
     ['Kaydet', 'Save'],
@@ -867,6 +867,37 @@
     ['Oynatıcıdan çık', 'Leave player'],
     ['Tarayıcı sekme alanı', 'Browser tabs area'],
     ['Tarayıcı sekmeleri', 'Browser tabs'],
+    // Tarayıcı kabuğunda EN arayüzde Türkçe kalan metinler (2026-09-22 denetimi).
+    ['WHISPER TARAYICI', 'WHISPER BROWSER'],
+    ["Adres yaz veya web'de ara", 'Type an address or search the web'],
+    ['Tarayıcı alanı açılamadı.', 'The browser area could not be opened.'],
+    ['Adres gir', 'Enter address'],
+    ['Web adresi veya arama', 'Web address or search'],
+    ['Bu siteyi yer imlerine ekle', 'Bookmark this site'],
+    ['Bu kez engelle', 'Block this time'],
+    ['Bu kez izin ver', 'Allow this time'],
+    ['Bu site', 'This site'],
+    ['Bu sayfa yolu', 'This page path'],
+    ['Kapat (Esc)', 'Close (Esc)'],
+    ['Bu bildirimi kapat', 'Dismiss this notification'],
+    ['Bildirimi kapat', 'Dismiss notification'],
+    ['Ayarlar sekmesini kapat', 'Close settings tab'],
+    ['Komut paletini kapat', 'Close command palette'],
+    ['PDF okuyucuyu kapat', 'Close PDF reader'],
+    ['YouTube oturumunu kapat', 'Sign out of YouTube'],
+    ['Videoyu oynat veya duraklat', 'Play or pause the video'],
+    ['Kelime incelemeyi kapat', 'Close word inspector'],
+    ['URL, strateji veya hata…', 'URL, strategy or error…'],
+    ['Gezilen sayfa metnini yerel aramaya ekle', 'Add visited page text to local search'],
+    ['Yerel sayfa indeksini temizle', 'Clear local page index'],
+    ['Kaynak ve gizlilik', 'Source and privacy'],
+    ['Sayfa durumu', 'Page status'],
+    ['Bu pencere', 'This window'],
+    ['Bu video', 'This video'],
+    ['Ayarlar / Kaynak ve oynatma', 'Settings / Source and playback'],
+    ['Dinle ve tekrar et (shadowing)', 'Listen and repeat (shadowing)'],
+    ['0/0 sayfa', '0/0 pages'],
+    ['A/B: yok', 'A/B: none'],
     ['İzleme modu', 'Viewing mode'],
     ['Aktif işleri aç', 'Open active jobs'],
     ['PDF kitap aç', 'Open PDF book'],
@@ -1472,6 +1503,7 @@
   const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,.browser-place-title,.browser-quick-place-title,.history-title,[data-ui-untranslated]';
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
+  const uiListContainers = '#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,#cueList,#log,#aiChatLog';
 
   function translate(value, target = locale) {
     if (typeof value !== 'string') return value;
@@ -1483,7 +1515,14 @@
   }
 
   function localizeElement(element) {
-    if (!(element instanceof Element) || element.closest(ignored)) return;
+    // Liste kapsayıcılarının KENDİ arayüz öznitelikleri (ör. sekme şeridinin
+    // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
+    // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
+    if (!(element instanceof Element)) return;
+    const blocked = element.matches(uiListContainers)
+      ? element.parentElement?.closest(ignored)
+      : element.closest(ignored);
+    if (blocked) return;
     let originals = originalAttributes.get(element);
     if (!originals) { originals = new Map(); originalAttributes.set(element, originals); }
     for (const name of ['title', 'aria-label', 'placeholder']) {

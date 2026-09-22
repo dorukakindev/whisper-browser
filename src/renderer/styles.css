@@ -2377,6 +2377,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   border: 1px solid #33434f;
 }
 .action-button-outline:hover:not(:disabled) { color: #fff; background: #1b2732; border-color: var(--border-strong); }
+/* ".btn { border: none }" aynı özgüllükte ve daha sonra geldiği için outline
+   düğmelerin kenarı hiç çizilmiyor, açık temada #cbd5df metin 1.35:1 kalıyordu. */
+.btn.action-button-outline { color: var(--text); border: 1px solid var(--border-strong); }
+.btn.action-button-outline:hover:not(:disabled) { color: var(--text); background: var(--bg-3); border-color: var(--accent-dim); }
 
 .tool-spacer { flex: 1; }
 
@@ -2392,6 +2396,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   white-space: nowrap;
 }
 #makeSubsBtn { box-shadow: 0 5px 16px rgba(228, 168, 93, .16); }
+#makeSubsBtn:disabled { box-shadow: none; }
 .settings-drawer { padding: 18px; background: var(--bg-1); }
 .drawer-head { margin: -18px -18px 0; padding: 17px 18px 12px; background: var(--bg-1); border-color: #263440; }
 .player-panel { background: var(--bg-2); border-color: var(--border); border-radius: 10px; }
@@ -3411,6 +3416,20 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   --scrollbar-thumb: #34414c;
   --scrollbar-thumb-hover: #4b5a66;
   --scrollbar-thumb-active: #61717d;
+  /* Eski bileşenlerin kullandığı ama hiç tanımlanmamış token adları. Geri dönüş
+     değeri olmadığı için 88 başvuru geçersiz kalıyor, SmartTube yüzeyi/sekme
+     önizlemesi saydam çiziliyor, sol vurgu kenarları kayboluyordu. Kanonik
+     token'lara bağlanır; tema değişince otomatik izler. */
+  --bg: var(--bg-0);
+  --bg-sunken: var(--bg-1);
+  --bg-card: var(--bg-2);
+  --bg-elev: var(--bg-3);
+  --fg: var(--text);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-dim);
+  --muted: var(--text-muted);
+  --amber: var(--warning);
+  --green: var(--success);
   --z-sticky: 120;
   --z-backdrop: 500;
   --z-dialog: 600;
@@ -3429,14 +3448,17 @@ html[data-theme="light"] {
   --text-dim: #514a43;
   --text-muted: #625b54;
   --accent: #7f4c15;
-  --accent-hover: #7f4c15;
+  /* Hover tonu vurgudan AYRI olmalı; eşit olduğunda açık temada 21 hover kuralı
+     hiçbir görsel değişiklik üretmiyordu. */
+  --accent-hover: #6a3e0f;
   --accent-soft: rgba(169,104,32,.13);
   --accent-dim: #6f5638;
   --accent-contrast: #fffaf0;
   --success: #2f7652;
   --danger: #a23f3b;
   --warning: #87591f;
-  --info: #356d7d;
+  /* #356d7d, .cue-card-tr opaklığıyla 4.09:1'e düşüp AA altında kalıyordu. */
+  --info: #2b5d6b;
   --scrollbar-track: #e9e3d9;
   --scrollbar-thumb: #b9afa1;
   --scrollbar-thumb-hover: #978c7f;
@@ -4505,6 +4527,27 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
 .browser-adblock-quick.has-error { color: #d89082; border-color: #684038; }
 .browser-adblock-quick:disabled { opacity: .46; cursor: wait; }
 html[data-theme="light"] .browser-tab-new { color: var(--text-dim); }
+/* Açık tema: yer/indirme panellerindeki sabit koyu-tema gri tonları 2.4–3.0:1
+   kalıyordu; hover'da da koyu bir çip beliriyordu. */
+html[data-theme="light"] .browser-dismiss { color: var(--text-dim); }
+html[data-theme="light"] .browser-cookie-action { color: var(--warning); }
+html[data-theme="light"] .browser-session-reset { color: var(--text-muted); }
+html[data-theme="light"] .browser-session-reset:hover,
+html[data-theme="light"] .browser-cookie-action:hover { color: var(--text); background: var(--bg-3); border-color: var(--border-strong); }
+html[data-theme="light"] .browser-session-memory { color: var(--text-muted); }
+html[data-theme="light"] .lang-chip,
+html[data-theme="light"] .mini-toggle { color: var(--text-dim); border-color: var(--border); }
+html[data-theme="light"] .cue-card-src { color: var(--text-dim); }
+/* Oynatıcı katmanının --player-* renkleri yalnız .workspace-browser için temaya
+   bağlanmıştı; açık temada oynatıcı/SmartTube/çift dilli liste açık zemin üstünde
+   neredeyse beyaz (1.03–1.43:1) metinle çiziliyordu. */
+html[data-theme="light"] .player-layer {
+  --player-text: var(--text);
+  --player-muted: var(--text-muted);
+  --player-amber: var(--accent);
+  --player-cyan: var(--info);
+}
+html[data-theme="light"] .browser-address-results { box-shadow: 0 14px 38px rgba(40,35,31,.18); }
 html[data-theme="light"] .browser-tab-new:not(:disabled):hover {
   color: var(--accent-hover);
   border-color: var(--accent-dim);
@@ -4543,7 +4586,12 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   color: #e4e7ec;
   -webkit-app-region: no-drag;
 }
-.browser-find input { flex: 1; min-width: 70px; width: 100%; font: inherit; font-size: 13px; }
+.browser-find input {
+  flex: 1; min-width: 70px; width: 100%; height: 30px; padding: 0 9px;
+  font: inherit; font-size: 13px; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+}
+.browser-find input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .browser-find [role="status"] { flex: 0 1 auto; max-width: 155px; color: var(--accent-hover); font-size: 12px; }
 .browser-find .btn-icon { flex: 0 0 30px; width: 30px; height: 30px; }
 .browser-find :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -5802,15 +5850,15 @@ textarea { resize: none; }
 .browser-address-results {
   position: absolute; z-index: 80; top: calc(100% + 6px); left: 0; right: 0;
   max-height: min(420px, 55vh); overflow: auto; padding: 5px;
-  border: 1px solid var(--border); border-radius: 9px; background: #11161b;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--bg-2);
   box-shadow: 0 14px 38px rgba(0,0,0,.42);
 }
 .browser-address-result { width: 100%; display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-.browser-address-result:hover, .browser-address-result.is-selected { background: rgba(213,163,92,.12); }
+.browser-address-result:hover, .browser-address-result.is-selected { background: var(--accent-soft); }
 .browser-address-result-mark { color: var(--accent); font: 700 10px/1 var(--font-mono, Consolas, monospace); }
 .browser-address-result-copy { min-width: 0; display: grid; gap: 2px; }
 .browser-address-result-copy strong, .browser-address-result-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.browser-address-result-copy small, .browser-address-result-kind { color: var(--text-muted); font-size: 10px; }
+.browser-address-result-copy small, .browser-address-result-kind { color: var(--text-dim); font-size: 10px; }
 .browser-split-popover { right: 0; left: auto; width: min(310px, 80vw); padding: 12px; display: grid; gap: 11px; }
 .browser-split-popover label { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; }
 .browser-split-popover select, .browser-split-popover input { width: 100%; }
@@ -5947,6 +5995,14 @@ body.modal-open { overflow: hidden; }
   .gpu-badge .dot,
   .progress-fill.running::after,
   .queue-item.running .queue-icon { animation: none !important; }
+  /* Animasyon kısaltılınca yükleniyor çizgisi tam genişlikte duruyor ve etkin
+     sekmenin alt çizgisiyle aynı görünüyordu; durağan kesikli çizgi kullan. */
+  .browser-tab.loading::after {
+    animation: none !important;
+    transform: none;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 12px);
+    opacity: .6;
+  }
 }
 
 /* Browser çalışma alanının son biçim ve içerik ayrıntıları. */
@@ -7067,12 +7123,13 @@ body.modal-open { overflow: hidden; }
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg-card);
+  color: var(--text);
+  background: var(--bg-2);
   box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
   pointer-events: none;
 }
-.browser-tab-preview-title { font-size: 12px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.browser-tab-preview-url { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
+.browser-tab-preview-title { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-tab-preview-url { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
 .browser-tab-preview-chips { margin-top: 4px; font-size: 11px; color: var(--accent); }
 .browser-tab-menu { min-width: 210px; }
 .st-brand {
