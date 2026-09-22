@@ -27,7 +27,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- Browser/translation/cosmetic audit (2026-09-22, see `BROWSER-CEVIRI-KOZMETIK-DENETIM-2026-09-22.md`):
+- Browser/translation/cosmetic audit (2026-09-22, see `docs/raporlar/BROWSER-CEVIRI-KOZMETIK-DENETIM-2026-09-22.md`):
   - Subtitle translation rejects a whole batch when the model returns block ids outside `0..n-1` (1-based replies silently shifted every cue by one line and were cached).
   - Fuzzy translation memory no longer reuses a translation across a negating affix (possible → impossible, legal → illegal).
   - Translate-only output names strip only real language codes and keep qualifiers (`Dune.Part.Two.srt → Dune.Part.Two.tr.srt`, `film.en.forced.srt → film.tr.forced.srt`); two parts no longer overwrite each other. The language chip ignores non-language suffixes.
