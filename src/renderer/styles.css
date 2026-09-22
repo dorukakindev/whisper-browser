@@ -7266,8 +7266,10 @@ body.modal-open { overflow: hidden; }
 
 /* SmartTube kart (büyük, dikey) */
 .st-card {
-  display: flex;
-  flex-direction: column;
+  /* flex-column 子に aspect-ratio を使うと Chromium の flex 解決で高さ 0 に
+     潰れる（cross サイズ未確定時に main が 0 計算される）。grid なら
+     カラム幅が即定義済みで 16:9 が正しく解決する。 */
+  display: grid;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;

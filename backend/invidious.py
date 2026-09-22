@@ -37,11 +37,14 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Varsayılan Invidious instance'ları (sırasıyla deneniyor)
 DEFAULT_INSTANCES = [
+    # 2026-09 ölçümü: diğerleri feed uçlarında 401/403 dönüyor; f5.si
+    # popular/trending veriyor. Hız için çalışanı öne aldık — liste yalnız
+    # deneme sırasıdır, sağlık kontrolü geçeni zaten yakalar.
+    "https://invidious.f5.si",
     "https://inv.nadeko.net",
     "https://invidious.nerdvpn.de",
     "https://yt.chocolatemoo53.com",
     "https://invidious.tiekoetter.com",
-    "https://invidious.f5.si",
 ]
 
 # Çalışan instance'ı önbelleğe al (modül seviyesinde)
@@ -332,7 +335,8 @@ def probe(url, instance=None):
         subtitleLangs=sub_langs,
         audioLangs=audio_langs,
         duration=float(data.get("lengthSeconds") or 0),
-        thumbnail=_pick_thumbnail(inst, data.get("videoThumbnails") or []),
+        thumbnail=(f"https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" if vid
+                   else _pick_thumbnail(inst, data.get("videoThumbnails") or [])),
         storyboards=storyboards,
         videoStreams=video_streams,
         audioStreams=audio_streams,
@@ -621,10 +625,28 @@ def logout():
 _TREND_TABS = ("music", "gaming", "news", "movies")
 
 
+def _ytimg_thumbs(vid):
+    """i.ytimg.com doğrudan URL'leri — instance'ın /vi/ vekâleti kimi
+    sunucularda bozuk (200 ile HTML dönüyor) ve feed'i veren instance ile
+    resmi veren instance aynı olmayabiliyor. YouTube'un kendi CDN'i
+    her zaman tutarlı."""
+    if not vid or not re.match(r'^[a-zA-Z0-9_-]{11}$', vid):
+        return []
+    return [
+        {"quality": "medium", "url": f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg",
+         "width": 320, "height": 180},
+        {"quality": "high", "url": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+         "width": 480, "height": 360},
+        {"quality": "maxres", "url": f"https://i.ytimg.com/vi/{vid}/maxresdefault.jpg",
+         "width": 1280, "height": 720},
+    ]
+
+
 def _parse_video_item(v):
     """Invidious video objesini ortak şemaya çevirir."""
+    vid = v.get("videoId", "")
     return {
-        "videoId": v.get("videoId", ""),
+        "videoId": vid,
         "title": v.get("title", ""),
         "author": v.get("author", ""),
         "authorId": v.get("authorId", ""),
@@ -634,7 +656,7 @@ def _parse_video_item(v):
         "publishedText": v.get("publishedText", ""),
         "published": _to_int(v.get("published"), 0),
         "liveNow": bool(v.get("liveNow")),
-        "videoThumbnails": v.get("videoThumbnails", []),
+        "videoThumbnails": _ytimg_thumbs(vid) or v.get("videoThumbnails", []),
     }
 
 
