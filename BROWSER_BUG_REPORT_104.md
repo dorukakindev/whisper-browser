@@ -26,7 +26,7 @@ This report verifies a bounded set of claims from the supplied September 21 DOCX
 
 ## Verification
 
-- `npm test`: full JS + Python suite passed before the final no-token revoke clarification; backend transcribe 192 tests, translation corpus 4, YouTube 26 among the Python suites. The targeted YouTube revoke test passed after that clarification; the full suite was not rerun after those two lines.
+- `npm test`: full JS + Python suite passed again after the final no-token revoke clarification (`Tüm testler geçti`); backend transcribe 192 tests, translation corpus 4, YouTube 26 among the Python suites. The targeted YouTube revoke test passed as well.
 - `npm run test:electron-bridge`: passed with actual Electron browser trusted bridge.
 - `node --check` for changed main and renderer files, `py_compile` for backend files, `git diff --check`: passed.
 - Focused JS and Python regressions: passed. The default `node --test` worker-isolated invocation received sandbox `spawn EPERM`; `--test-isolation=none` and the escalated full suite passed. This was an execution-environment limit, not an assertion failure.
