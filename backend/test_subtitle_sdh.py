@@ -1,6 +1,6 @@
 import unittest
 
-from subtitle_sdh import is_structural_sdh_cue, strip_sdh_descriptors
+from subtitle_sdh import is_structural_sdh_cue, restore_sdh_markers, strip_sdh_descriptors
 
 
 class SubtitleSdhTests(unittest.TestCase):
@@ -63,6 +63,29 @@ class SubtitleSdhTests(unittest.TestCase):
         self.assertEqual(strip_sdh_descriptors("(He said [whispering])"), "(He said [whispering])")
         self.assertEqual(strip_sdh_descriptors("♪ Sing to me ♪"), "♪ Sing to me ♪")
         self.assertEqual(strip_sdh_descriptors("[wind howling] Keep moving."), "Keep moving.")
+
+    def test_restore_distinguishes_translated_sdh_markers(self):
+        source = "[music] [applause] Thank you."
+        self.assertEqual(restore_sdh_markers(source, "[müzik] Teşekkürler."),
+                         "[müzik] [applause] Teşekkürler.")
+        self.assertEqual(restore_sdh_markers(source, "[alkış] Teşekkürler."),
+                         "[music] [alkış] Teşekkürler.")
+        self.assertEqual(restore_sdh_markers(source, "[müzik] [alkış] Teşekkürler."),
+                         "[müzik] [alkış] Teşekkürler.")
+        self.assertEqual(restore_sdh_markers("[music] (applause) Thank you.",
+                                              "(alkış) Teşekkürler."),
+                         "[music] (alkış) Teşekkürler.")
+
+    def test_restore_does_not_count_dialogue_or_other_effect_as_source_marker(self):
+        self.assertEqual(restore_sdh_markers("[music] [applause] Thank you.",
+                                              "[The music is wonderful] Teşekkürler."),
+                         "[music] [applause] [The music is wonderful] Teşekkürler.")
+        self.assertEqual(restore_sdh_markers("[music] Thank you.",
+                                              "[alkış] Teşekkürler."),
+                         "[music] Teşekkürler.")
+        self.assertEqual(restore_sdh_markers("[wind] Keep moving.",
+                                              "[siren] İlerleyin."),
+                         "[wind] İlerleyin.")
 
     def test_asr_filter_preserves_bracketed_dialogue(self):
         import transcribe
