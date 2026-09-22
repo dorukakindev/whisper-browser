@@ -3397,6 +3397,12 @@ $('cancelBtn').addEventListener('click', async () => {
     // kaydedildi → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
     state.cancelled = false;
     if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
+    // Backend canlı süreç bilmiyorken ölü bir oynatıcı işi kartı "çalışıyor"
+    // kalmasın: normal iptal-temizlik yolunu yerel olarak uygula.
+    if (player.job && player.job.running && !player.job.cancelled) {
+      player.job.cancelled = true;
+      playerJobEvent({ type: 'exit' });
+    }
     finishRun(false);
   }
 });
@@ -3776,6 +3782,27 @@ function playerJobEvent(event) {
     if (player.job === job) player.job = null;
     aiChatCtxLabel();
     updateMakeTransState();
+    return true;
+  }
+
+  if (event.type === 'exit') {
+    // 'done' görmeden gelen exit (iptal, öldürme veya çökme): kartı ölü uçta
+    // bırakma — süreç artık yok, kartın "çalışıyor" kalması yeni iş başlatmayı
+    // ve arayüz durumunu kilitler.
+    job.running = false;
+    job.awaitingExit = false;
+    job.exitSeen = true;
+    state.running = false;
+    state.aiJob = false;
+    state.cancelled = false;
+    state.forceTranslate = false;
+    if (player.job === job) player.job = null;
+    txt.textContent = 'Altyazı işi tamamlanmadan kapandı.';
+    setTimeout(() => bar.classList.add('hidden'), 4000);
+    logLine('Altyazı işi tamamlanmadan kapandı; çıktı üretilmedi.', 'warn');
+    aiChatCtxLabel();
+    updateMakeTransState();
+    updateBrowserWhisperActions();
     return true;
   }
 

@@ -1438,6 +1438,30 @@ test('oynatıcı işi olayları ana transkripsiyon ekranına sızmıyor', () => 
   assert(/job\.cancelled/.test(body), 'iptal sonrası geç olay koruması yok');
 });
 
+test('done görmeden gelen exit oynatıcı işini terminal duruma indiriyor', () => {
+  const i = js.indexOf('function playerJobEvent');
+  const body = js.slice(i, js.indexOf('window.api.onEvent', i));
+  // awaitingExit sonrası ayrı bir yakalama dalı olmalı: iptal/çökme/öldürmede
+  // 'exit' tek olaydır; eskiden `return event.type !== 'log'` onu yutuyordu ve
+  // kart sonsuza kadar "çalışıyor" kalıyordu.
+  const m = body.match(/event\.type === 'exit' && job\.awaitingExit[\s\S]*?return true;\s*\}\s*\n(\s*)if \(event\.type === 'exit'\) \{/);
+  assert(m, 'done görmemiş iş için exit yakalama dalı yok');
+  const block = body.slice(m.index, m.index + 1500);
+  assert(/job\.running = false/.test(block), 'pre-done exit job.running sıfırlamıyor');
+  assert(/player\.job = null/.test(block), 'pre-done exit player.job bırakmıyor');
+  assert(/state\.running = false/.test(block), 'pre-done exit state.running sıfırlamıyor');
+  assert(/return true/.test(block), 'pre-done exit ana akışa sızıyor');
+});
+
+test('backend iş bilmezken ölü oynatıcı kartı iptal yolunda temizleniyor', () => {
+  const i = js.indexOf("$('cancelBtn').addEventListener('click'");
+  assert(i > 0, 'cancelBtn dinleyicisi yok');
+  const body = js.slice(i, i + 5000);
+  assert(/player\.job\.cancelled = true/.test(body)
+    && /playerJobEvent\(\{ type: 'exit' \}\)/.test(body),
+    'canlı süreç yokken stale player.job kartı temizlenmiyor');
+});
+
 test('kısa video başlangıçta tamamlanmış sayılmıyor', () => {
   const start = js.indexOf('function watchCompletionReached');
   const end = js.indexOf('function watchItemByKey', start);
