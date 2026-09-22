@@ -3417,6 +3417,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   --z-toast: 900;
 }
 
+/* Eski palet takma adları: SmartTube/Invidious katmanları hâlâ --fg/--muted/
+   --bg/--bg-sunken adlarını kullanıyor. Tanımsız var() inherit'e düşüyordu ve
+   açık temada başlıklar zeminde kayboluyordu (F-106-4). Kullanım yerinde
+   çözüldükleri için açık tema değerleri kendiliğinden doğru gelir. `html`
+   seçici burada kasıtlı: kontrast sözleşme testi son `:root` bloğunu okuyor. */
+html {
+  --fg: var(--text);
+  --muted: var(--text-muted);
+  --bg: var(--bg-1);
+  --bg-sunken: var(--bg-3);
+}
+
 html[data-theme="light"] {
   color-scheme: light;
   --bg-0: #f1ede5;
