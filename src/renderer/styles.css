@@ -3427,6 +3427,11 @@ html {
   --muted: var(--text-muted);
   --bg: var(--bg-1);
   --bg-sunken: var(--bg-3);
+  /* Eski yüzey adları da aynı refaktörde atlanmıştı (F-106-5): --bg-card
+     yükseltilmiş panel/üst çubuk/menü zemini → --surface-panel;
+     --bg-elev hover/aktif plaka → --surface-control. */
+  --bg-card: var(--bg-2);
+  --bg-elev: var(--bg-3);
 }
 
 html[data-theme="light"] {
@@ -7512,6 +7517,12 @@ body.modal-open { overflow: hidden; }
   z-index: 4;                /* video(1) ve kontrollerin(2) üstü, tarayıcının(5) altı */
   display: flex;
   flex-direction: column;
+  /* Sabit koyu video-üstü panel: tema token'larını yerel olarak sabit açık
+     değerlere körle, yoksa açık temada koyu metin koyu zemine düşer (F-106-5). */
+  --fg: #edf1f3;
+  --muted: #a1adb7;
+  --bg-sunken: #1c242c;
+  --border: #3a4652;
   background: rgba(16, 18, 22, .92);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
