@@ -424,9 +424,21 @@
     state.listScroll ||= new Map();
     if (changedView && state.renderedView?.startsWith('list:')) state.listScroll.set(state.renderedView, dialog.scrollTop);
     state.renderedView = viewKey;
+    // Yeniden çizim odaklı düğümü öldürmesin: sırasını kaydet, sonra aynı
+    // konumdaki elemana geri ver (modal içinde odak BODY'ye düşüyordu).
+    const FOCUSABLES = 'button, input, select, textarea, a[href], [tabindex]';
+    const focusIdx = [...root.querySelectorAll(FOCUSABLES)].indexOf(document.activeElement);
     root.replaceChildren(renderHeader(), renderNav());
     if (state.message) { const message = $('p', state.error ? 'mc-feedback mc-error' : 'mc-feedback', state.message); message.setAttribute('role', state.error ? 'alert' : 'status'); root.append(message); }
     root.append(state.mode === 'metadata' ? renderMetadata() : state.mode === 'package' ? renderPackage() : state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : renderList());
+    if (focusIdx >= 0) {
+      const next = root.querySelectorAll(FOCUSABLES)[focusIdx] || root.querySelector('.mc-close');
+      next?.focus();
+    } else if (!root.contains(document.activeElement)) {
+      // Modal açıkken odak diyalog dışına kaçtıysa (BODY vb.) ilk odaklanabilir
+      // elemana geri al — klavye kullanıcısı modal içinde kalmalı.
+      root.querySelector('.mc-close')?.focus();
+    }
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
