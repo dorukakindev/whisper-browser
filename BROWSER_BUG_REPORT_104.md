@@ -48,9 +48,13 @@ YouTube logout/revocation + browse kuyruğu, izin-isteği gerçek frame kökeni,
 - **Ulaşılabilir yol:** Player açık → medya kataloğu dialog'u → Escape bas → global handler önce `preventDefault()` → `<dialog>` native cancel ölür → dialog açık kalır. Ana görünümden açılan dialog doğru kapanıyordu (katman hidden'da handler return ediyor).
 - **Etki:** Klavye kullanıcısı player katmanındaki modalı Esc ile kapatamaz; odak tuzağına yakın erişilebilirlik kusuru.
 - **Kök neden:** Escape kolunda koşulsuz `preventDefault()` — `<dialog>`'ün platform iptal davranışını baskılıyor.
-- **Kırmızı test:** `tests/player-escape-dialog.test.js` — hedef `dialog[open]` içindeyken `preventDefault` çağrılmamalı; öncesi çağrılıyordu (AssertionError).
-- **Düzeltme:** `if (e.target?.closest?.('dialog[open]')) return;` `preventDefault` öncesi — native cancel serbest; dialog dışı Escape sözleşmesi (katman kapanış önceliği) aynen korunur (test hücreleri 2-3).
-- **Yeşil kanıt:** Node test PASS + gerçek Electron'da `webContents.sendInputEvent(keyDown:Escape)` → dialog `open:false` (öncesi ajanın xdotool/CDP kanıtıyla `true` kalıyordu). `player-ui` 145 test sıfır regresyon.
+- **Kırmızı test:** `tests/player-escape-dialog.test.js` — açık dialog varken `preventDefault` çağrılmamalı; öncesi çağrılıyordu (AssertionError).
+- **Düzeltme (iki katman):** (a) `if (document.querySelector('dialog[open]')) return;` `preventDefault` öncesi — açık modal varken Escape native cancel'e bırakılır, hedef nerede olursa olsun. İlk denemede `e.target.closest('dialog[open]')` bekçisi eksikti: `media-catalog.js` `render()`'ın koşulsuz `replaceChildren`'ı odaklı `.mc-close` düğmesini öldürüp `activeElement`'i BODY'ye düşürüyordu → hedef bekçisi eşleşmiyordu (re-verify'de trusted Escape yine `open:true` bıraktı). (b) Kök neden onarımı: `render()` artık odak sırasını korur (FOCUSABLES indeksi) ve modal açıkken odak dialog dışına kaçmışsa `.mc-close`'a geri alır.
+- **Yeşil kanıt:** Node test PASS + gerçek Electron'da gerçek açılış yolu (buton → showModal → reload busy-render): `ae=BUTTON/mc-close` (odak korunuyor), trusted `sendInputEvent(Escape)` → `open:false`. Programatik kenar durumu da doğrulandı (odak BODY'deyken Escape → `open:false`). `player-ui` 145 test sıfır regresyon.
+
+### G-104-1 (FAIL-OPEN, kozmetik) — `settings-open` sınıfı katman gizliyken stale kalabiliyor
+
+Re-verify koşusunda bir kez gözlendi: ayar çekmecesi kapandıktan sonra `settings-open` class'ı `playerLayer` hidden iken DOM'da kalabiliyor; bir sonraki Escape'in drawer'a düştüğü görüldü. Görünür etki yok (hidden katman) — kozmetik/edge; düzeltme bu turda yapılmadı, kanıt kayıtlı (`/tmp/e-matrix` koşusu).
 
 ## Kuyruk bazında sonuçlar
 
