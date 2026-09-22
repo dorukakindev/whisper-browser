@@ -41,12 +41,13 @@ function validStore(raw) {
       Array.isArray(raw.media) || Array.isArray(raw.series)) fail('Dizi bağlamı dosyası geçersiz; veri korunuyor.');
   return raw;
 }
-function createBrowserSeriesContext({ filePath }) {
+function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
   if (typeof filePath !== 'string' || !filePath) fail('Dizi bağlamı dosya yolu gerekli.');
+  const io = fsImpl;
   let state;
   function read() {
     if (state) return state;
-    try { state = validStore(JSON.parse(fs.readFileSync(filePath, 'utf8'))); }
+    try { state = validStore(JSON.parse(io.readFileSync(filePath, 'utf8'))); }
     catch (error) {
       if (error.code === 'ENOENT') state = blank();
       else if (error instanceof SyntaxError) fail('Dizi bağlamı dosyası okunamadı; veri korunuyor.');
@@ -56,13 +57,13 @@ function createBrowserSeriesContext({ filePath }) {
   }
   function commit(next) {
     const target = path.resolve(filePath);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
+    io.mkdirSync(path.dirname(target), { recursive: true });
     const temp = `${target}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-      fs.renameSync(temp, target);
+      io.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      io.renameSync(temp, target);
       state = next;
-    } finally { try { fs.unlinkSync(temp); } catch {} }
+    } finally { try { io.unlinkSync(temp); } catch {} }
   }
   function mediaKeyOf(value) {
     const key = clean(value, 1024);

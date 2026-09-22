@@ -53,8 +53,12 @@ class BrowserReadingList {
     const trimmed = entries.slice(0, INDEX_LIMIT);
     const target = this.indexPath;
     const temp = `${target}.tmp`;
-    this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, entries: trimmed }, null, 2)}\n`);
-    this.fs.renameSync(temp, target);
+    try {
+      this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, entries: trimmed }, null, 2)}\n`);
+      this.fs.renameSync(temp, target);
+    } finally {
+      try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {}
+    }
     return trimmed;
   }
 

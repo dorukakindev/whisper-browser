@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 03:20 — T4 SmartTube/YouTube OAuth uçtan uca dayanıklılık: sahte OAuth+YouTube sunucusu + gerçek Electron; F-101-1 eşzamanlı browse reddi düzeltildi; BROWSER_BUG_REPORT_101](docs/devir/2026-09-22-0320.md).
+Güncel çalışma: [2026-09-22 03:42 — T5 çökme/bütünlük/perf gauntlet'i: fs enjeksiyon dikiği, yetim .tmp temizliği (F-102-1), destroyed-webContents guard (F-102-2), hasarlı-profil Electron smoke + 10k-cue perf ölçümü; BROWSER_BUG_REPORT_102](docs/devir/2026-09-22-0342.md).
+
+Önceki çalışma: [2026-09-22 03:20 — T4 SmartTube/YouTube OAuth uçtan uca dayanıklılık: sahte OAuth+YouTube sunucusu + gerçek Electron; F-101-1 eşzamanlı browse reddi düzeltildi; BROWSER_BUG_REPORT_101](docs/devir/2026-09-22-0320.md).
 
 Önceki çalışma: [2026-09-22 03:00 — T3 çeviri kalite/maliyet: altın korpus + sağlayıcı sayaçları; TR birleşik sayı kapısı düzeltmesi (F-100-1); BROWSER_BUG_REPORT_100](docs/devir/2026-09-22-0300.md).
 

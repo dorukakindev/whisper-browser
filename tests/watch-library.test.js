@@ -11,7 +11,7 @@ const start = main.indexOf('const WATCH_LIBRARY_LIMIT');
 const end = main.indexOf('// ---- Pencere boyutu hatırlama', start);
 if (start < 0 || end < 0) throw new Error('İzleme kütüphanesi kaynak bloğu bulunamadı');
 const source = main.slice(start, end);
-const jsonStart = main.indexOf('function writeJsonAtomic(filePath, value)');
+const jsonStart = main.indexOf('function writeJsonAtomic(');
 const jsonEnd = main.indexOf("ipcMain.handle('media:writeSubtitle'", jsonStart);
 if (jsonStart < 0 || jsonEnd < 0) throw new Error('Atomik JSON yazıcı kaynak bloğu bulunamadı');
 const jsonSource = main.slice(jsonStart, jsonEnd);

@@ -2203,42 +2203,42 @@ function backupOnce(filePath) {
   return bak;
 }
 
-function writeSubtitleAtomic(filePath, text, validateTemporary = null) {
+function writeSubtitleAtomic(filePath, text, validateTemporary = null, io = fs) {
   // Yalnız Windows oynatıcılarında gerekli SRT/ASS dosyaları BOM'lu. WebVTT ve
   // başka metin biçimlerine koşulsuz BOM ekleme (JSON.parse bunu kabul etmez).
   const plain = String(text).replace(/^\uFEFF/, '');
   const data = /\.(srt|ass|ssa)$/i.test(filePath) ? '\uFEFF' + plain : plain;
   const tmp = filePath + '.tmp';
   try {
-    fs.writeFileSync(tmp, data, 'utf-8');
+    io.writeFileSync(tmp, data, 'utf-8');
     if (typeof validateTemporary === 'function') validateTemporary(tmp);
-    fs.renameSync(tmp, filePath);
+    io.renameSync(tmp, filePath);
   } catch (error) {
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
   }
 }
 
-function writeJsonAtomic(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+function writeJsonAtomic(filePath, value, io = fs) {
+  io.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = filePath + '.tmp';
   try {
-    fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
-    fs.renameSync(tmp, filePath);
+    io.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
+    io.renameSync(tmp, filePath);
   } catch (error) {
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
   }
 }
 
-function writeBufferAtomic(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+function writeBufferAtomic(filePath, value, io = fs) {
+  io.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(tmp, value, { flush: true });
-    fs.renameSync(tmp, filePath);
+    io.writeFileSync(tmp, value, { flush: true });
+    io.renameSync(tmp, filePath);
   } catch (error) {
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+    try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
   }
 }
@@ -12114,7 +12114,7 @@ function resumeRestoredBrowserPage(tab) {
   tab.restoringPage = true;
   const requestSeq = tab.navigationRequestSeq = (Number(tab.navigationRequestSeq) || 0) + 1;
   const requestIsCurrent = () => browserTabById(tab.id) === tab && tab.view === view
-    && !view.webContents.isDestroyed() && tab.navigationRequestSeq === requestSeq
+    && view.webContents && !view.webContents.isDestroyed() && tab.navigationRequestSeq === requestSeq
     && tab.restoredUrl === url && ['', 'about:blank'].includes(view.webContents.getURL());
   // Yalnız seçilen sekmeyi aç; ağ yüklemesini sekme geçiş kuyruğuna kilitleme.
   void (async () => {
