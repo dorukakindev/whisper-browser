@@ -1,5 +1,7 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-23 01:57 — Devin R109 değişikliklerinin yerel birleşimi ve hedefli kabulü; SDH işareti kaybı R110-01 olarak açık](docs/devir/2026-09-23-0157.md).
+Güncel çalışma: [2026-09-23 02:17 — R110-01 SDH işaret kaybı düzeltmesi ve hedefli regresyon](docs/devir/2026-09-23-0217.md).
+
+Önceki çalışma: [2026-09-23 01:57 — Devin R109 değişikliklerinin yerel birleşimi ve hedefli kabulü; SDH işareti kaybı R110-01 olarak açık](docs/devir/2026-09-23-0157.md).
 
 Önceki çalışma: [2026-09-22 20:10 — BROWSER_BUG_REPORT_109 A–N gauntlet'i: gerçek Electron + fixture sunucu + CDP; BUG-109-08 ölü-iş kartı ve BUG-109-09 SmartTube arama çöküşü bulundu+düzeltildi (kırmızı→yeşil); H10 browser-iz çevirisi uçtan uca canlı kanıtlı](docs/devir/2026-09-22-2010.md).
 
