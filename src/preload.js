@@ -92,6 +92,16 @@ contextBridge.exposeInMainWorld('api', {
   youtubeBrowse: (browseId, opts) => ipcRenderer.invoke('youtube:browse', browseId, opts || {}),
   youtubeLogout: () => ipcRenderer.invoke('youtube:logout'),
   youtubeCancel: () => ipcRenderer.invoke('youtube:cancel'),
+  // YouTube TV modu — youtube.com/tv ayrı, yalıtılmış pencerede (resmi kodla giriş)
+  youtubeTvOpen: (userAgentId) => ipcRenderer.invoke('youtube-tv:open', String(userAgentId || '')),
+  youtubeTvClose: () => ipcRenderer.invoke('youtube-tv:close'),
+  youtubeTvState: () => ipcRenderer.invoke('youtube-tv:state'),
+  youtubeTvFullscreen: () => ipcRenderer.invoke('youtube-tv:fullscreen'),
+  youtubeTvSignOut: () => ipcRenderer.invoke('youtube-tv:signout'),
+  onYoutubeTvEvent: (listener) => {
+    ipcRenderer.on('youtube-tv:event', listener);
+    return () => ipcRenderer.removeListener('youtube-tv:event', listener);
+  },
   onYoutubeEvent: (listener) => {
     ipcRenderer.on('youtube:event', listener);
     return () => ipcRenderer.removeListener('youtube:event', listener);
