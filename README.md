@@ -1,93 +1,103 @@
-# Whisper Browser
+<div align="center">
 
-[![CI](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![Windows](https://img.shields.io/badge/platform-Windows-lightgrey) ![Beta](https://img.shields.io/badge/status-beta-orange)
+![Whisper Browser](docs/media/hero-banner.png)
 
-Whisper Browser is a Windows desktop application for local GPU-accelerated subtitle transcription, subtitle-aware video browsing, and context-sensitive translation. The main interface opens in English by default, with an EN/TR switch in the header. Some older diagnostic and backend messages are still Turkish while localization continues.
+**Local GPU-accelerated subtitles, a subtitle-aware video browser, and context-sensitive translation — all in one desktop workstation.**
 
-> This project is in beta. Back up important subtitle files and review generated text before publishing it.
+[![CI](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Windows](https://img.shields.io/badge/platform-Windows-lightgrey)
+![Ubuntu dev](https://img.shields.io/badge/dev-Ubuntu%2022.04%2B-lightgrey)
+![Beta](https://img.shields.io/badge/status-beta-orange)
 
-## Highlights
+[Installation](docs/INSTALLATION.md) · [Usage guide](docs/USAGE_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Privacy](docs/PRIVACY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
-- Local media and YouTube transcription with faster-whisper or optional WhisperX
-- SRT, VTT, ASS, TXT, and JSON output
-- Context-aware translation that preserves cue timing
-- Local and embedded-browser playback with dual subtitles
-- HLS/DASH, WebVTT, TTML/IMSC, and browser text-track capture
-- Editing, synchronization, search, queues, watch folders, and diagnostics
-- Optional Widevine-capable Castlabs Electron for authorized playback
+</div>
 
-Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only when a site exposes an authorized, accessible subtitle track.
+---
+
+Whisper Browser is a desktop application for turning media into working subtitles — entirely on your machine. Transcribe local files and YouTube with faster-whisper, watch video with source and translation tracks side by side, capture accessible subtitle tracks from websites in the embedded browser, and translate with timing preserved. The interface opens in English with an EN/TR switch; some older diagnostic messages are still Turkish while localization continues.
+
+> **Beta** — back up important subtitle files and review generated text before publishing.
+
+## Feature tour
+
+| | |
+| --- | --- |
+| 🎬 **Player** | Watch local media with dual subtitles — cue search, click-to-seek transcript, editing, loops, notes, per-scene AI questions. |
+| 🌐 **SmartTube home** | YouTube browsing built in: home/trending/popular feeds with thumbnails, subscriptions, playlists — sign in with a device code, no Google Cloud setup needed. |
+| 🗣️ **Local transcription** | faster-whisper (or optional WhisperX) on CUDA, with automatic CPU fallback. SRT, VTT, ASS, TXT, JSON export. |
+| 🧭 **Browser capture** | HLS/DASH, WebVTT, TTML/IMSC and text-track capture on sites that expose accessible subtitles — then translate or fall back to Live Whisper. |
+| 🌍 **Context translation** | Cue timing never moves: context-aware translation writes a separate target file, source untouched. |
+| 📄 **Page & PDF** | Articles, manga regions and bounded PDF batches translated via configured providers. |
+
+Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only where a site exposes an authorized, accessible subtitle track.
+
+## Screens
+
+![SmartTube home — YouTube feeds with thumbnails, subscriptions and playlists](docs/media/smarttube-home.png)
+
+| Browser workspace | Context-aware AI | Player transcript |
+| --- | --- | --- |
+| ![Embedded browser workspace with media tools](docs/media/browser-workspace.png) | ![AI panel using subtitle and timestamp context](docs/media/ai-context-panel.png) | ![Generated subtitle cues in the transcript panel](docs/media/player-transcript.png) |
+| Capture and inspect accessible web subtitle tracks. | Ask questions grounded in the current scene. | Transcription lands here — search, edit, correct. |
+
+[![Watch a real-video dual-subtitle translation demo](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
+
+*26-second MP4: English source track + context-aware Turkish translation over [*Tears of Steel*](https://www.youtube.com/watch?v=OHOpb2fS-cM) (Blender Foundation, CC BY 3.0). Audio omitted on purpose; no account, key or history data included.*
 
 ## Ways to use it
 
 | Workflow | Use it for |
 | --- | --- |
-| **Local file or folder** | GPU transcription, batch queues, subtitle repair, translation, and SRT/VTT/ASS/TXT/JSON export. |
-| **YouTube source mode** | Create a complete local subtitle file from a permitted YouTube video or selected time range. |
-| **Player mode** | Watch local media with source/translation tracks, cue search, editing, loops, notes, and timing tools. |
-| **Browser mode** | Watch websites, capture accessible subtitle tracks, retrieve complete tracks where supported, translate them, or fall back to Live Whisper. |
-| **Page, manga, and PDF translation** | Translate articles/selections, supported image regions, and bounded PDF page batches with configured providers. |
+| **Local file or folder** | GPU transcription, batch queues, subtitle repair, translation, SRT/VTT/ASS/TXT/JSON export. |
+| **YouTube source mode** | A complete local subtitle file from a permitted YouTube video or selected time range. |
+| **Player mode** | Source/translation tracks, cue search, editing, loops, notes, timing tools. |
+| **Browser mode** | Watch websites, capture accessible tracks, retrieve full tracks where supported, translate — or Live Whisper. |
+| **Page, manga & PDF** | Translate articles/selections, supported image regions, bounded PDF batches. |
 
-See the screenshot-led [usage guide](docs/USAGE_GUIDE.md) for the difference between YouTube source mode and browser mode, complete web-caption capture, translation profiles, and review steps.
+## Quick start
 
-## Product tour
+Requirements: **Windows 10/11** (production target), Node.js 22.13+, Python 3.10–3.11, FFmpeg. NVIDIA CUDA recommended (CPU fallback is automatic).
 
-[![Watch a real-video dual-subtitle translation demo](docs/media/demo-poster.png)](docs/media/whisper-browser-tour.mp4)
+```bat
+git clone https://github.com/dorukakindev/whisper-browser.git
+cd whisper-browser
+install.bat        :: Linux/Ubuntu: ./install.sh
+start.bat          :: Linux/Ubuntu: ./start.sh
+```
 
-Click the image to open a 26-second MP4 showing an English subtitle track and a context-aware Turkish translation over real video. The public example uses [*Tears of Steel* on YouTube](https://www.youtube.com/watch?v=OHOpb2fS-cM), an open movie by Blender Foundation.
+Always launch via `start.bat`/`start.sh` — they configure the CUDA library paths. Default folders: `Downloads\Whisper\GİRDİ` → `Downloads\Whisper\ÇIKTI` (configurable).
 
-![English source subtitles and natural Turkish translation over a real Tears of Steel scene](docs/media/youtube-dual-subtitles.png)
-
-| Browser workspace | Context-aware AI | Subtitle editor |
-| --- | --- | --- |
-| ![Embedded browser workspace with media tools](docs/media/browser-workspace.png) | ![AI panel using subtitle and timestamp context](docs/media/ai-context-panel.png) | ![Subtitle cue editor preserving timing](docs/media/subtitle-editor.png) |
-| Capture and inspect accessible web subtitle tracks. | Ask questions grounded in the current scene. | Correct text without losing cue identity or timing. |
-
-The application captures use isolated test profiles and synthetic fixtures. The real-video demo uses a credited excerpt from *Tears of Steel* (CC BY 3.0) with a manually reviewed Turkish translation; audio is intentionally omitted. No user account, private subtitle, API key, or browsing-history data is included.
-## Setup
-
-Requirements: Windows 10/11 (supported production target), Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg. An NVIDIA CUDA GPU is recommended.
-
-    git clone https://github.com/dorukakindev/whisper-browser.git
-    cd whisper-browser
-    install.bat        # Linux/Ubuntu: ./install.sh
-    start.bat          # Linux/Ubuntu: ./start.sh
-
-Use start.bat (or start.sh) so CUDA library paths are configured. Default input/output folders are %USERPROFILE%\Downloads\Whisper\GİRDİ and %USERPROFILE%\Downloads\Whisper\ÇIKTI; both are configurable.
-
-Platform notes: the GUI, tests, and the pinned Castlabs Electron runtime run on Ubuntu 22.04+ for development and CI. The DRM/VMP signature repair (`drm-kur.bat`), the optional WhisperX/diarize installers, and CUDA-tuned transcription are verified on Windows only; macOS is not a supported target.
-
-## Documentation
-
-- [Installation](docs/INSTALLATION.md)
-- [Usage guide](docs/USAGE_GUIDE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Privacy](docs/PRIVACY.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Contributing](CONTRIBUTING.md)
-- [Support](SUPPORT.md)
-- [Security](SECURITY.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Changelog](CHANGELOG.md)
-- [Third-party notices](THIRD_PARTY_NOTICES.md)
-
-Historical audit and handoff records under docs/ are evidence, not current product documentation.
+**Platform notes:** the GUI, tests and the pinned Castlabs Electron runtime also run on Ubuntu 22.04+ for development/CI. DRM/VMP signature repair (`drm-kur.bat`), optional WhisperX/diarize installers and CUDA-tuned transcription are verified on Windows only; macOS is not a target.
 
 ## Development
 
-    npm ci --ignore-scripts
-    node node_modules/electron/install.js --no   # Electron ikilisi (smoke'lar icin)
-    python3.11 -m venv backend/venv               # veya sistem python ile test bagimliliklari
-    backend/venv/bin/pip install -r backend/requirements-ci.txt
-    npm test
-    npm run test:electron-bridge                  # gercek Electron kopru smoke'i
-    node --check src/main.js
-    node --check src/preload.js
-    node --check src/renderer/renderer.js
-    python -m py_compile backend/transcribe.py backend/media.py
+```powershell
+npm ci --ignore-scripts
+node node_modules/electron/install.js --no   # Electron binary for smokes
+python3.11 -m venv backend/venv
+backend/venv/bin/pip install -r backend/requirements-ci.txt
+npm test
+npm run test:electron-bridge                  # real Electron bridge smoke
+node --check src/main.js; node --check src/preload.js; node --check src/renderer/renderer.js
+python -m py_compile backend/transcribe.py backend/media.py
+```
 
-`npm test` hem Node hem Python testlerini kosar; Python yanina `backend/venv` (veya `WHISPER_TEST_PYTHON`) gerekir. `requirements-ci.txt` pinleri Python 3.11 gerektirir (CI ile ayni); uretim kurulumu 3.10-3.11 destekler. Windows'ta `venv\Scripts\pip.exe` kullanin.
+`npm test` runs Node and Python suites; Python side needs `backend/venv` (or `WHISPER_TEST_PYTHON`). `requirements-ci.txt` pins need Python 3.11 (same as CI); production supports 3.10–3.11. On Windows use `venv\Scripts\pip.exe`.
 
-Transcription is local. Optional online data flows are documented in [Privacy](docs/PRIVACY.md). Secrets are not passed in command-line arguments and supported credentials use Electron safeStorage when OS protection is available.
+Transcription is local. Optional online flows are documented in [Privacy](docs/PRIVACY.md); secrets never travel in command-line args and supported credentials use Electron safeStorage.
 
-Original project code is [MIT licensed](LICENSE). Dependencies retain their own licenses. Users are responsible for applicable law, service terms, and content rights.
+## Docs
+
+- [Installation](docs/INSTALLATION.md) · [Usage guide](docs/USAGE_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md)
+- [Privacy](docs/PRIVACY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+
+Historical audit/handoff records under `docs/` are evidence, not current product documentation.
+
+---
+
+<div align="center">
+<sub>MIT licensed · dependencies keep their own licenses · you're responsible for applicable law, service terms and content rights.</sub>
+</div>
