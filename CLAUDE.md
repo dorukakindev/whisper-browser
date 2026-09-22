@@ -121,6 +121,8 @@ Sıra: girdi (yerel dosya / yt-dlp ile YouTube) → ffmpeg ile 16kHz mono WAV ç
 - **ASS biçimi çeviride korunur:** `parse_ass_cue_formats` → `cue_format_decorations` (\anN, \pos, tam satır italik). Metin kaçışından SONRA eklenir; çeviri metni asla override komutu olamaz.
 - **Arayüz denetimi:** `npm run audit:ui` başsız Chromium'da tema×dil×genişlik kontrastını ölçer (CI'da `--strict`). `tests/css-hardcoded-colors.test.js` sabit renk sayısını, `tests/i18n-coverage.test.js` EN kapsamını sınırlar — sınırlar yalnız azalabilir.
 - **Raporlar `docs/raporlar/` altındadır;** köke yeni rapor koyma.
+- **YouTube TV modu (`src/youtube-tv-mode.js` + main.js `youtube-tv:*` + `src/renderer/smarttube-tv.js`):** youtube.com/tv ayrı, sandbox'lı pencerede, `persist:youtube-tv` bölümünde açılır. Giriş YouTube'un KENDİ kod ekranıyla yapılır; bu yola OAuth istemci kimliği/secret EKLEME (BROWSER_BUG_REPORT_94, test ediliyor). Gezinme `isAllowedTvNavigation` beyaz listesinde kalır. TV penceresinin webContents değişkeni `tvContents` — `wc.on('did-navigate…'` kalıbını kullanma, testler tarayıcı sekmesinin işleyicisini bu metinle buluyor.
+- **SmartTube TV görünümü (`.smarttube-browser.st-tv`):** renkler yalnız `:root` içindeki `--st-tv-*` token'larından gelir (temadan bağımsız koyu). Kanonik amber hex'i burada tekrar yazma; TV vurgusu `--st-tv-accent`.
 
 ### Kaynak sızıntısı
 

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- YouTube TV mode: YouTube's own TV web app (`youtube.com/tv`) in an isolated, sandboxed window with a TV user agent; sign-in uses YouTube's own on-screen code (yt.be/activate) — no OAuth client is embedded. Ctrl+Shift+S hands the playing video to the subtitle/translation tools.
+- SmartTube TV layout (default on): dark 10-foot palette, icon rail that expands on focus, scaled focus ring, remote/arrow navigation between rail and grid, F for full screen; larger device code/QR with expiry countdown.
+
 - Address bar: frecency ranking (history keeps visit counts), inline autocomplete ("git" → "github.com"), section headings and site icons; pure logic moved to `src/browser-address-model.js`.
 - Translation model scorecard: the backend emits `translation_quality`; settings show each model's invalid-batch rate over its last 10 jobs (TR/EN).
 - "Untranslated lines" cue filter with a one-click "Translate missing" banner; retranslate-all now opens an old/new diff where selected lines can be restored (.srt).
