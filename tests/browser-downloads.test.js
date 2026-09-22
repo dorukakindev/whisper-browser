@@ -115,7 +115,9 @@ class Item extends EventEmitter {
   const re = renderer.indexOf('function renderBrowserDiagnostics(', rs);
   const ctx = { $: id => nodes[id], document: { createElement: () => new Node(), activeElement: null },
     setBrowserPlacesOpen() {}, syncBrowserOcclusion() {}, window: { api: { browserDownloads: async () => ({ ok: true, downloads: manager.snapshot() }) } } };
-  vm.createContext(ctx); vm.runInContext(renderer.slice(rs, re), ctx);
+  vm.createContext(ctx);
+  vm.runInContext(renderer.slice(renderer.indexOf('function foldSearch(value)'), renderer.indexOf('// Dil kodunu dosya adindan cikar')), ctx);
+  vm.runInContext(renderer.slice(rs, re), ctx);
   const data = { revision: 10, active: 1, message: '', items: [{ id: 'a', filename: '<script>alert(1)</script>',
     state: 'progressing', received: 5, total: 0, active: true, path: '' }] };
   ctx.receiveBrowserDownloads(data);

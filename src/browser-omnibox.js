@@ -77,7 +77,9 @@
     return tokens.length ? tokens : null;
   }
 
-  const PRECEDENCE = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '^': 3, 'u-': 4 };
+  // Tekli eksi üs alma işlecinden ZAYIF bağlanır: -2^2 = -(2^2) = -4 (matematik ve
+  // Google hesaplayıcı davranışı). Eskiden 4 önceliğiyle (-2)^2 = 4 dönüyordu.
+  const PRECEDENCE = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '^': 3, 'u-': 2.5 };
   const RIGHT_ASSOC = { '^': true, 'u-': true };
 
   function toRpn(tokens) {
@@ -90,7 +92,8 @@
         // İşleç başta, parantez sonrası veya başka işleçten sonra tekli eksi.
         const unary = token.value === '-' && (!prev || prev === 'op' || prev === '(');
         const op = unary ? 'u-' : token.value;
-        while (stack.length) {
+        // Önek işleç yığından hiçbir şey çıkarmaz (2^-1 = 0.5 kalsın).
+        while (!unary && stack.length) {
           const top = stack[stack.length - 1];
           if (top.type !== 'op') break;
           const topOp = top.value;
@@ -156,11 +159,21 @@
   function markdownLink(title, url) {
     const target = String(url || '').trim();
     if (!target) return '';
-    const safeUrl = target.replace(/[()\s\\]/g, (ch) => enc(ch));
+    // encodeURIComponent "(" ve ")" karakterlerini KODLAMAZ; açık eşleme şart,
+    // yoksa "https://x/a)b" bağlantıyı erken kapatıyordu.
+    const MD_URL_ESCAPES = { '(': '%28', ')': '%29', '\\': '%5C' };
+    const safeUrl = target.replace(/[()\s\\]/g, (ch) => MD_URL_ESCAPES[ch] || enc(ch));
     const text = String(title || '').trim() || target;
     const safeTitle = text.replace(/([\\[\]])/g, '\\$1').replace(/\s+/g, ' ');
     return `[${safeTitle}](${safeUrl})`;
   }
 
-  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink };
+  // Arama eşleştirmesi için dil bağımsız katlama. toLocaleLowerCase('tr') ASCII
+  // "I"yı "ı" yapıyor, kullanıcının yazdığı "i" İngilizce "Interstellar"ı
+  // bulamıyordu; 'en' yerelinde de "İstanbul" "istanbul" ile eşleşmiyordu.
+  function foldSearchText(value) {
+    return String(value == null ? '' : value).replace(/[Iİı]/g, 'i').toLowerCase();
+  }
+
+  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText };
 });

@@ -159,7 +159,8 @@ test('tarayıcı tanısı sınırlı geçmiş, filtre ve güvenli dışa aktarma
   assert.match(html, /id="browserDiagnosticsFilter"/);
   assert.match(html, /id="browserDiagnosticsCopy"/);
   assert.match(html, /id="browserDiagnosticsExport"/);
-  assert.match(renderer, /toLocaleLowerCase\('tr'\).*includes\(filter\)/s);
+  assert.match(renderer, /const filter = foldSearch\(String\(browserDiagnosticsFilter/);
+  assert.match(renderer, /foldSearch\(\[entry\.strategy[\s\S]*?\)\.includes\(filter\)/);
 });
 
 test('edinme kimlikleri tekrar etmez', () => {
