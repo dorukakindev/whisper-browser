@@ -16,6 +16,12 @@ Kaynak: tema tutarlılığı QA turu (2026-09-22, F-106-4 doğrulaması sırası
 
 **Düzeltme:** `.st-upnext` içine yerel token körlemesi — `--fg: #edf1f3`, `--muted: #a1adb7`, `--bg-sunken: #1c242c`, `--border: #3a4652`. `.st-card-live`'ın "sabit renk" kalıbıyla aynı yaklaşım; tüm çocuk elemanlar (başlık, yazar, thumb zemini, kenarlık) iki temada da sabit açık değerler alıyor. Canlı doğrulama: upnext metni `rgb(237,241,243)` on `rgba(16,18,22,.92)` ≈ 15:1.
 
+### F-106-6 — Browser-workspace tarafında dört token daha tanımsız (sweep bulgusu)
+
+Tüm dosyayı `var(--x)` kullanımı↔tanım kümesi üzerinden taradık: fallback'siz tanımsız kalanlar `--amber` (5 kullanım: adblock durum rengi, uyumluluk uyarısı, layout-warning kenarlığı, completion notu, failure kenarlığı), `--green` (adblock açık durumu), `--text-primary` (terim textarea + sync özeti strong), `--text-secondary` (sync özeti metinleri). Etkisi: `border-left: 2px solid var(--amber)` şeffaf → uyarı/failure kenarlığı görünmezdi; status metinleri inherit'e düşüyordu.
+
+**Düzeltme:** köprüye ekleme — `--amber: var(--warning)`, `--green: var(--success)`, `--text-primary: var(--ink-primary)`, `--text-secondary: var(--ink-secondary)`. Son sweep: fallback'siz tanımsız **0** kaldı (kalanlar JS-set `--st-card-*`/`--vol`/`--sub-user-bottom`/`--font-mono`/`--bg-alt`/`--wl-font-sans` — hepsinin inline fallback'i var, kasıtlı).
+
 ## Doğrulama
 
 - Canlı CDP: `--bg-card` → `#fffdf8` (light) / çözülüyor, `--bg-elev` → `#e9e3d9`; `.st-upnext` sentetik render'da metin `rgb(237,241,243)` (açık temada ölçüldü — koyuda da aynı sabit değerler).
