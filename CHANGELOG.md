@@ -27,6 +27,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Browser/translation/cosmetic audit (2026-09-22, see `BROWSER-CEVIRI-KOZMETIK-DENETIM-2026-09-22.md`):
+  - Subtitle translation rejects a whole batch when the model returns block ids outside `0..n-1` (1-based replies silently shifted every cue by one line and were cached).
+  - Fuzzy translation memory no longer reuses a translation across a negating affix (possible → impossible, legal → illegal).
+  - Translate-only output names strip only real language codes and keep qualifiers (`Dune.Part.Two.srt → Dune.Part.Two.tr.srt`, `film.en.forced.srt → film.tr.forced.srt`); two parts no longer overwrite each other. The language chip ignores non-language suffixes.
+  - ASS input converts `\h` to a no-break space instead of leaking it into the text.
+  - Page translation keeps the original text and the block's active state after its own restore+apply writes; RTL target overlays get `dir`.
+  - Browser translation "Retry failed" after a provider circuit trip re-plans the playback window instead of translating the entire track, and resets the consecutive-failure counter.
+  - PDF text extraction orders right-to-left lines correctly.
+  - Address bar: the typed input is always the default row (Enter no longer opens an old history match or copies a calculator result), stale results are ignored when Enter arrives within the debounce, `word: text` queries search instead of erroring, and LAN/intranet addresses open over http.
+  - Search filters (places, omnibox, downloads, cue list, history, diagnostics) fold I/İ/ı consistently.
+  - Ctrl+Tab / Ctrl+1..9 follow the on-screen tab order with groups; saved images take their extension from Content-Type (webp/avif/ico); Markdown links escape parentheses; `-2^2` evaluates to -4; per-page settings report the 200-entry limit instead of being silently dropped.
+  - Cosmetics: 10 undefined CSS tokens aliased to canonical ones (transparent tab preview/SmartTube surfaces), light-theme omnibox dropdown, player/SmartTube/bilingual list and panel controls fixed for contrast, outline action buttons get their border, find-in-page input styled, reduced-motion loading tab no longer mimics the active tab, missing EN strings in the browser chrome.
 - Browser overlay cue scheduling: after seek or playback-rate changes the pending cue-boundary timer is now re-planned on the current timeline, so the overlay can no longer display a stale caption for seconds.
 - Browser overlay recovers when `requestVideoFrameCallback` never fires (pages that produce no compositor frames): a 400 ms fallback timer renders the boundary cue directly.
 - Browser overlay no longer skips an entire cue interval when a boundary render lands a few milliseconds early — the boundary epsilon and the −12 ms early-fire margin were removed; a render landing before a boundary re-arms it immediately instead of jumping to the next cue.
