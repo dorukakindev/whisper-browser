@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
+Güncel çalışma: [2026-09-22 20:10 — BROWSER_BUG_REPORT_109 A–N gauntlet'i: gerçek Electron + fixture sunucu + CDP; BUG-109-08 ölü-iş kartı ve BUG-109-09 SmartTube arama çöküşü bulundu+düzeltildi (kırmızı→yeşil); H10 browser-iz çevirisi uçtan uca canlı kanıtlı](docs/devir/2026-09-22-2010.md).
+
+Önceki çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
 
 Önceki çalışma: [2026-09-22 16:44 — TR çeviri sentence-group dağıtım kapıları: erken-sonu kapısı iç-cümle kotalı hale geldi ("Bekle." artık kabul), parça başına sayı/özel-ad/SDH demirleme + açık bağlantı + tekrar kapıları, sertleştirilmiş son kurtarma promptu, cue içi ikinci cümleye gerçek \n; 24 yeni test, canlı koşu kanıtlı; BROWSER_BUG_REPORT_108](docs/devir/2026-09-22-1644.md).
 
