@@ -77,7 +77,10 @@
     return tokens.length ? tokens : null;
   }
 
-  const PRECEDENCE = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '^': 3, 'u-': 4 };
+  // Tekli eksi, üs alma işleminden DÜŞÜK önceliklidir (matematik kuralı ve
+  // hesap makineleriyle aynı): -2^2 = -(2^2) = -4. Çarpma/bölmeden yüksek
+  // olduğu için -3*2 = (-3)*2 davranışı değişmez. BUG-117-03.
+  const PRECEDENCE = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, 'u-': 2.5, '^': 3 };
   const RIGHT_ASSOC = { '^': true, 'u-': true };
 
   function toRpn(tokens) {
@@ -90,7 +93,9 @@
         // İşleç başta, parantez sonrası veya başka işleçten sonra tekli eksi.
         const unary = token.value === '-' && (!prev || prev === 'op' || prev === '(');
         const op = unary ? 'u-' : token.value;
-        while (stack.length) {
+        // Önek işleci sol işlenen almaz; yığından hiçbir şey çıkarmamalıdır
+        // (aksi halde 2^-2 gibi girdilerde ^ erken boşaltılır).
+        while (!unary && stack.length) {
           const top = stack[stack.length - 1];
           if (top.type !== 'op') break;
           const topOp = top.value;

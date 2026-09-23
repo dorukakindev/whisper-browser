@@ -2060,7 +2060,7 @@ function addGlossaryTerm() {
   saveAppSettings();
   renderGlossary();
 }
-glossaryAdd.addEventListener('click', addGlossaryTerm);
+$('glossaryAdd').addEventListener('click', addGlossaryTerm);
 glossaryInputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); addGlossaryTerm(); }
 });
@@ -3165,15 +3165,15 @@ if ($('modelCacheDelete')?.addEventListener) $('modelCacheDelete').addEventListe
   try {
     const result = await window.api.deleteModel(model);
     if (result?.ok) {
-      addLog(interfaceChoice(
+      logLine(interfaceChoice(
         `Model önbelleği silindi: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB boşaldı`,
         `Model cache removed: ${model} · ${Math.round((result.freedBytes || 0) / 1048576)} MB freed`), 'info');
       modelStatusSnapshot = null;
       await refreshModelStatus();
     } else if (result?.canceled) {
-      addLog(interfaceChoice('Önbellek silme vazgeçildi.', 'Cache removal cancelled.'), 'info');
+      logLine(interfaceChoice('Önbellek silme vazgeçildi.', 'Cache removal cancelled.'), 'info');
     } else if (result?.error) {
-      addLog(interfaceChoice(`Önbellek silme başarısız: ${result.error}`, `Cache removal failed: ${result.error}`), 'error');
+      logLine(interfaceChoice(`Önbellek silme başarısız: ${result.error}`, `Cache removal failed: ${result.error}`), 'error');
     }
   } finally {
     renderSelectedModelStatus();
@@ -13505,7 +13505,7 @@ function renderCueList(filter = '') {
     indexes.push(i);
   });
   if (!indexes.length) {
-    box.innerHTML = '<div class="cue-list-empty">Eşleşen satır yok.</div>';
+    box.innerHTML = `<div class="cue-list-empty" data-empty-kind="search">${escapeHtml(interfaceChoice('Eşleşen satır yok.', 'No matching cues.'))}</div>`;
     return;
   }
   const pageSize = 500;
@@ -21725,6 +21725,29 @@ if ($('playerVideo')) {
       : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
     button.setAttribute('aria-label', video.paused ? 'Videoyu oynat' : 'Videoyu duraklat');
   });
+  // BROWSER_BUG_REPORT_117 / P-01: kare kare gezinme sabit 25 fps varsayıyordu;
+  // 24/30/60 fps videolarda "." bir kareyi atlıyor ya da hiç ilerlemiyordu.
+  // Oynatma sırasında ardışık karelerin mediaTime farkının medyanı ölçülür.
+  if (typeof video.requestVideoFrameCallback === 'function') {
+    const samples = [];
+    let lastMediaTime = -1;
+    const onFrame = (_now, meta) => {
+      const delta = Number(meta?.mediaTime) - lastMediaTime;
+      lastMediaTime = Number(meta?.mediaTime);
+      // Sekme/atlama sonrası büyük sıçramalar ölçüme girmesin.
+      if (delta > 1 / 125 && delta < 1 / 10) {
+        samples.push(delta);
+        if (samples.length > 24) samples.shift();
+        if (samples.length >= 6) {
+          const sorted = samples.slice().sort((a, b) => a - b);
+          player.frameDuration = sorted[Math.floor(sorted.length / 2)];
+        }
+      }
+      if (!video.paused) video.requestVideoFrameCallback(onFrame);
+    };
+    video.addEventListener('play', () => { lastMediaTime = -1; video.requestVideoFrameCallback(onFrame); });
+    video.addEventListener('emptied', () => { samples.length = 0; player.frameDuration = 0; lastMediaTime = -1; });
+  }
   $('playerVolume').addEventListener('input', (e) => {
     video.volume = e.target.value / 100;
     syncVolumeFill();
@@ -22122,6 +22145,14 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === '<' || e.key === ',') { e.preventDefault(); nudgeSpeed(-1); return; }
     if (e.key === '>' || e.key === '.') { e.preventDefault(); nudgeSpeed(1); return; }
+    if (/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey
+        && Number(player.browserDuration) > 0 && Number.isFinite(Number(player.browserDuration))) {
+      e.preventDefault();
+      const target = Number(player.browserDuration) * Number(e.key) / 10;
+      browserCommand('seek-relative', target - (Number(player.browserTime) || 0)).catch(() => {});
+      osd(`%${Number(e.key) * 10}`);
+      return;
+    }
     let command = '', value;
     if (e.key === ' ') command = 'play-pause';
     else if (e.key === 'ArrowRight') { command = 'seek-relative'; value = 5; }
@@ -22151,8 +22182,20 @@ document.addEventListener('keydown', (e) => {
   // Kare kare gezinme (duraklatilmisken) - altyazi sinirini ayarlarken ise yarar
   if ((e.key === ',' || e.key === '.') && video.paused) {
     e.preventDefault();
-    video.currentTime += (e.key === '.' ? 1 : -1) / 25;      // ~1 kare (25 fps varsayimi)
+    // Ölçülmüş kare süresi (yoksa 25 fps). Hedef, karenin ortasına oturtulur;
+    // kayan nokta sınırında aynı kareye geri dönülmez.
+    const frame = player.frameDuration > 0 ? player.frameDuration : 1 / 25;
+    const index = Math.floor((video.currentTime + frame * 0.01) / frame) + (e.key === '.' ? 1 : -1);
+    video.currentTime = Math.max(0, Math.min(Number(video.duration) || Infinity, index * frame + frame / 2));
     osd(e.key === '.' ? 'Kare ileri' : 'Kare geri', 600);
+    return;
+  }
+  // P-02: YouTube paritesi — 0…9 videonun %0…%90 noktasına atlar.
+  if (/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey
+      && Number.isFinite(video.duration) && video.duration > 0) {
+    e.preventDefault();
+    video.currentTime = video.duration * Number(e.key) / 10;
+    updateSeekVisuals(); showControls(); osd(`%${Number(e.key) * 10}`);
     return;
   }
   if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; updateSeekVisuals(); showControls(); osd('-10 sn'); return; }
