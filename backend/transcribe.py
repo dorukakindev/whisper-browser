@@ -3525,6 +3525,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     counters = {"done": 0, "failed": 0}
     failure_by_index = {}
     last_emit_ts = [time.time()]
+    # Prob sonrası kalıcı sağlayıcı hatası (kota/kimlik/model) çıkarsa kalan
+    # parçalar yeni API isteği açmadan aynı hatayla düşer; uçuştaki işçiler de
+    # rota başına yeniden denemek yerine ilk kontrol noktasında durur.
+    fatal_stop = {"error": None}
     translation_metrics = {
         "started": time.time(), "requests": 0, "batch_requests": 0,
         "fallback_requests": 0, "invalid_batches": 0,
@@ -3536,6 +3540,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             order = [route_state["preferred"]] + [r for r in routes if r != route_state["preferred"]]
         last_err = None
         for url in order:
+            if fatal_stop["error"] is not None:
+                raise fatal_stop["error"]
             try:
                 return call_api_with_retry(lambda: client_for(url).chat.completions.create(
                     model=args.translate_model,
@@ -3893,7 +3899,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 try:
                     record_chunk_result(ch, got=fut.result())
                 except Exception as error:
-                    record_chunk_result(ch, error=error)
+                    reason = record_chunk_result(ch, error=error)
+                    if reason in FATAL_TRANSLATION_ERRORS and fatal_stop["error"] is None:
+                        fatal_stop["error"] = error
+                        log("Kalıcı sağlayıcı hatası [{}]; sıradaki parçalar yeni istek "
+                            "açmadan durduruluyor.".format(reason), "warn")
     finally:
         rescue_pool.shutdown()
 

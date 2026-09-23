@@ -3007,6 +3007,205 @@ def test_translate_rescue_bundles_run_in_parallel():
     assert len(seen) >= 4, len(seen)
 
 
+def test_translate_rescue_scales_across_chunks_parallel():
+    """R118-T3: paylaşımlı kurtarma havuzu parça sınırını aşan ölçekte de
+    paralel ve eksiksiz kalmalı.
+
+    Her toplu parçada son cümle grubu düşürülünce 20 parça × 1 eksik grup =
+    20 tekil kurtarma paketi, ayrı parça işçilerinden aynı rescue_pool'a
+    gönderilir. Beklenen: tüm bloklar çevrilir, en az 2 istek aynı anda
+    havada olur ve istek sayısı deterministik (20 toplu + 20 tekil)."""
+    import time as _time, threading as _threading
+    chunk_size = 20
+    n_chunks = 20
+    source = [(float(i * 2), float(i * 2 + 1), f"Sentence number {i}.")
+              for i in range(chunk_size * n_chunks)]
+    inflight = {"now": 0, "max": 0}
+    inflight_lock = _threading.Lock()
+
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if len(payload["sentence_groups"]) > 1:
+            # Toplu yanıtta SON cümle grubunu düşür — parça başına 1 eksik
+            # grup kurtarma paketine düşsün.
+            last_ids = {str(i) for i in payload["sentence_groups"][-1]["ids"]}
+            reply["items"] = {k: v for k, v in reply["items"].items()
+                              if k not in last_ids}
+            last_gid = str(payload["sentence_groups"][-1]["ids"][0])
+            reply["sentences"].pop(last_gid, None)
+        return reply
+
+    seen = []
+
+    class SlowClient:
+        def __init__(self, **_kw):
+            self.chat = types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            with inflight_lock:
+                inflight["now"] += 1
+                inflight["max"] = max(inflight["max"], inflight["now"])
+            try:
+                _time.sleep(0.025)
+                payload = json.loads(kw["messages"][-1]["content"])
+                seen.append(len(payload["sentence_groups"]))
+                return types.SimpleNamespace(choices=[types.SimpleNamespace(
+                    message=types.SimpleNamespace(
+                        content=json.dumps(answer(payload), ensure_ascii=False)))])
+            finally:
+                with inflight_lock:
+                    inflight["now"] -= 1
+
+    warnings = []
+    started = _time.time()
+    with _fake_openai(SlowClient), mock.patch.object(T, "log"), \
+            mock.patch.object(T, "emit"):
+        result = T.llm_translate(source,
+                                 _TrArgs(translate_cache=False, translate_workers=4),
+                                 warnings, source_lang="en")
+    elapsed = _time.time() - started
+    assert result is not None
+    assert len(result) == len(source), f"{len(result)}/{len(source)} blok döndü"
+    assert all("[TR]" in e[2] for e in result), "kaynak metin kalan blok var"
+    assert inflight["max"] >= 2, f"kurtarma seri kaldi (max={inflight['max']})"
+    # 20 toplu parça + 20 tekil kurtarma = 40 istek, deterministik.
+    assert len(seen) == 40, len(seen)
+    # Seri akış ≥ 40×0.025=1.0s; paralel beklenen çok altı. Üst sınırı gevşek
+    # tut (CI makinesi yavaş olabilir) — asıl kanıt inflight ölçümü.
+    assert elapsed < 2.5, f"kurtarma fazla uzun sürdü ({elapsed:.2f}s)"
+
+
+def test_translate_rescue_bundle_server_error_marks_only_missing():
+    """R118-T4: kurtarma paketi sunucu hatasıyla düşerse yalnız o paketin
+    blokları başarısız sayılır; diğer bloklar ve sınıflandırma korunur."""
+    import types as _types
+    source = [(float(i * 2), float(i * 2 + 1), f"Sentence number {i}.")
+              for i in range(60)]
+    status = {}
+
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if len(payload["sentence_groups"]) > 1:
+            # Her toplu parçada son grup düşsün → 3 parça × 1 tekil kurtarma.
+            last_ids = {str(i) for i in payload["sentence_groups"][-1]["ids"]}
+            reply["items"] = {k: v for k, v in reply["items"].items()
+                              if k not in last_ids}
+            last_gid = str(payload["sentence_groups"][-1]["ids"][0])
+            reply["sentences"].pop(last_gid, None)
+        return reply
+
+    failing_groups = set()
+
+    class Client:
+        def __init__(self, **_kw):
+            self.chat = types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            payload = json.loads(kw["messages"][-1]["content"])
+            if len(payload["sentence_groups"]) == 1:
+                # Tekil kurtarma isteği grubu yerel id 0 olarak serileştirir;
+                # hangi bloğa ait olduğunu kaynak metinden ayır.
+                key = payload["items"][0].get("t", "")
+                if key not in failing_groups:
+                    failing_groups.add(key)
+                    err = RuntimeError("backend unavailable")
+                    err.status_code = 503
+                    raise err
+            return _types.SimpleNamespace(choices=[_types.SimpleNamespace(
+                message=_types.SimpleNamespace(
+                    content=json.dumps(answer(payload), ensure_ascii=False)))])
+
+    warnings = []
+    with _fake_openai(Client), mock.patch.object(T, "log"), \
+            mock.patch.object(T, "emit"):
+        result = T.llm_translate(source,
+                                 _TrArgs(translate_cache=False, translate_workers=3),
+                                 warnings, source_lang="en",
+                                 status_out=status)
+    assert result is not None
+    # Tekil paket önce server_error ile düşer, sonra dağıtım-kurallı ikinci
+    # denemede kurtulur → tüm bloklar yine çevrilmiş olmalı.
+    assert len(result) == len(source)
+    assert all("[TR]" in e[2] for e in result), (
+        "kaynak metin kalan blok var; kurtarma sonrası eksik beklenmezdi")
+    assert status.get("failed") in (None, []), status
+    assert len(failing_groups) >= 2, "kurtarma paketleri gerçekten koşmadı"
+
+
+def test_translate_midrun_fatal_error_stops_queued_chunks():
+    """R118-T4: prob sonrası kalıcı sağlayıcı hatası (kota) kalan parçaların
+    yeni API isteği açmasını durdurur.
+
+    Önceki davranış: prob yalnızca BAŞLANGIÇTA denetleniyordu; kota hatası
+    ortada çıkınca kalan her parça sırayla tüm rotaları dolaşıp başarısız
+    oluyor, her biri boşa istek yakıyordu. Artık ilk kalıcı hata fatal_stop
+    bayrağını kurar; sonraki parçalar ve kurtarma istekleri API'ye gitmeden
+    aynı nedenle düşer."""
+    import types as _types
+    source = [(float(i * 2), float(i * 2 + 1), f"Sentence number {i}.")
+              for i in range(200)]  # 10 parça x 20 blok
+    calls = []
+
+    class Client:
+        def __init__(self, **_kw):
+            self.chat = _types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            calls.append(1)
+            if len(calls) == 2:  # ikinci parçanın toplu isteği kota döndürür
+                raise RuntimeError("insufficient_quota: monthly limit reached")
+            payload = json.loads(kw["messages"][-1]["content"])
+            return _types.SimpleNamespace(choices=[_types.SimpleNamespace(
+                message=_types.SimpleNamespace(
+                    content=json.dumps(_sentence_reply(payload), ensure_ascii=False)))])
+
+    warnings = []
+    status = {}
+    with _fake_openai(Client), mock.patch.object(T, "log"), \
+            mock.patch.object(T, "emit"):
+        result = T.llm_translate(source,
+                                 _TrArgs(translate_cache=False, translate_workers=1),
+                                 warnings, source_lang="en", status_out=status)
+    # Prob + ilk kalıcı hata = 2 gerçek istek; kalan 8 parça API'ye gitmedi.
+    assert len(calls) == 2, f"{len(calls)} istek gitti; kuyruk durmadı"
+    assert result is not None and len(result) == 200
+    assert status["failed"] == list(range(20, 200))
+    assert set(status["failedReasons"].values()) == {"quota"}, status["failedReasons"]
+
+
+def test_translate_thousand_cues_invariance_order_and_count():
+    """R118-T3: 1000 blokluk korpusta çeviri sırası, blok sayısı ve zaman
+    damgaları korunur; istek sayısı parça sayısına eşittir (50 toplu)."""
+    import types as _types
+    n = 1000
+    source = [(float(i * 2), float(i * 2 + 1), f"Sentence number {i}.")
+              for i in range(n)]
+    calls = []
+
+    class Client:
+        def __init__(self, **_kw):
+            self.chat = _types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            calls.append(1)
+            payload = json.loads(kw["messages"][-1]["content"])
+            return _types.SimpleNamespace(choices=[_types.SimpleNamespace(
+                message=_types.SimpleNamespace(
+                    content=json.dumps(_sentence_reply(payload), ensure_ascii=False)))])
+
+    warnings = []
+    with _fake_openai(Client), mock.patch.object(T, "log"), \
+            mock.patch.object(T, "emit"):
+        result = T.llm_translate(source,
+                                 _TrArgs(translate_cache=False, translate_workers=4),
+                                 warnings, source_lang="en")
+    assert result is not None and len(result) == n, len(result or [])
+    assert [e[:2] for e in result] == [e[:2] for e in source], "zaman damgası değişti"
+    assert all(e[2].startswith("[TR]") for e in result), "çevrilmemiş blok var"
+    assert not warnings
+    assert len(calls) == 50, f"{len(calls)} istek; 50 toplu parça bekleniyordu"
+
+
 def test_translate_existing_without_metadata_retries_source_echo_only():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
