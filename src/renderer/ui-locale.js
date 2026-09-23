@@ -1569,6 +1569,34 @@
     ['Yerel abonelik listesi boş — kart menüsünden "Kanala abone ol" veya dosyadan içe aktar.', 'Local subscription list is empty — subscribe from a card menu or import from file.'],
     ['Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.', 'The list stays on this device; it is not uploaded to a YouTube/Invidious account.'],
     ['Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi istemci tarayıcı akışını, "TVs and Limited Input" tipi cihaz kodu akışını kullanır. Uygulama yalnız salt-okuma izni ister. Kişisel InnerTube akışı bu istemciyi kabul etmeyebilir; girişin başarılı olması akışın çalıştığını kanıtlamaz.', 'Save your own Google Cloud OAuth client: a "Desktop app" client uses the browser flow, a "TVs and Limited Input" client uses the device-code flow. The app requests read-only access. The personal InnerTube feed may reject this client; successful sign-in does not prove the feed works.'],
+    // BROWSER_BUG_REPORT_117: İngilizce arayüzde görünür kalan oynatıcı/browser metinleri.
+    ["Notlar", "Notes"],
+    ["Tekrar", "Review"],
+    ["Tamamlananlar", "Completed"],
+    ["Koleksiyonlar", "Collections"],
+    ["Güvenli HTTPS bağlantısı", "Secure HTTPS connection"],
+    ["Altyazı panelini gizle", "Hide subtitle panel"],
+    ["Ses kapalı — aç", "Muted — unmute"],
+    ["Kaynak ve çeviri gösteriliyor", "Showing source and translation"],
+    ["Kaynak ve çeviri gösteriliyor — seçenekler için tıkla (V: aç/kapat)", "Showing source and translation — click for options (V: toggle)"],
+    ["Oynatma hızı (Shift+< / Shift+>)", "Playback speed (Shift+< / Shift+>)"],
+    ["Kaynak altyazı henüz hazır değil.", "Source subtitles are not ready yet."],
+    ["Çeviri altyazısı henüz hazır değil.", "Translated subtitles are not ready yet."],
+    ["Kaynak ve çeviri birlikte hazır olduğunda kullanılabilir.", "Available when both source and translation are ready."],
+    ["Henüz terim yok. İlk terimini ekle.", "No terms yet. Add your first term."],
+    ["Sayfa hazır; altyazı yakalama kullanılabilir.", "Page ready; subtitle capture is available."],
+    ["Sayfada altyazı aranıyor…", "Looking for subtitles on the page…"],
+    ["Birinci kanal: Seçilmedi", "Primary channel: not selected"],
+    ["İkinci kanal: Seçilmedi", "Secondary channel: not selected"],
+    ["Yeni API isteklerini geçici olarak duraklat", "Temporarily pause new API requests"],
+    ["Etkin sekmeyi yanlışlıkla kapatmaya karşı koru", "Protect the active tab from accidental closing"],
+    ["Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç", "No subtitle track yet; open subtitle and translation settings"],
+    ["Whisper için bir YouTube videosu açın; diğer sitelerde Canlı Whisper kullanılabilir", "Open a YouTube video for Whisper; Live Whisper works on other sites"],
+    ["Önce bir altyazı yükleyin (soldaki listeden veya dosyadan)", "Load a subtitle first (from the list or a file)"],
+    ["Videoyu oynat", "Play video"],
+    ["Sonraki blok", "Next cue"],
+    ["Kuyruk boş. Bir kaynak seçip “Kuyruğa” ile ekleyin.", "Queue is empty. Choose a source and add it with “Queue”."],
+    ["Videonun %0–90 noktası", "Jump to 0–90% of the video"],
   ];
 
   const toEnglish = new Map(entries);
@@ -1652,9 +1680,10 @@
     const cueEmpty = document.querySelector('#cueList .cue-list-empty');
     const plainEmpty = cueEmpty && !cueEmpty.classList.contains('cue-empty-rich')
       && !cueEmpty.querySelector('button');
-    if (plainEmpty) cueEmpty.textContent = locale === 'en'
-      ? 'Subtitle cues appear here after loading.'
-      : 'Altyazı yüklenince satırlar burada akar.';
+    // BUG-117-05: arama boş durumu dil değişince "yüklenince akar" metnine dönmesin.
+    if (plainEmpty) cueEmpty.textContent = cueEmpty.dataset.emptyKind === 'search'
+      ? (locale === 'en' ? 'No matching cues.' : 'Eşleşen satır yok.')
+      : (locale === 'en' ? 'Subtitle cues appear here after loading.' : 'Altyazı yüklenince satırlar burada akar.');
     const playerTitle = document.getElementById('playerTitle');
     if (playerTitle && ['Oynatıcı', 'Player'].includes(playerTitle.textContent.trim())) {
       playerTitle.textContent = locale === 'en' ? 'Player' : 'Oynatıcı';

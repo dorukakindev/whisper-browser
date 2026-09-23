@@ -7922,3 +7922,109 @@ body.modal-open { overflow: hidden; }
   border-radius: 4px;
 }
 .inv-pass-toggle:hover { color: var(--accent); background: var(--bg-sunken); }
+
+/* ===== BROWSER_BUG_REPORT_117 — tema eşitliği ve kontrast (WCAG AA) =====
+   Oynatıcı katmanı ("Trancy çalışma alanı") koyu tema için sabit açık gri
+   metin renkleriyle yazılmıştı; açık temada yüzey token'ları açılırken bu
+   metinler aynı kaldı. Gerçek Electron ölçümünde kontrol çubuğu 1.05:1,
+   aktif replik 1.03:1, "Altyazı oluştur" 1.27:1 çıktı (eşik 4.5:1).
+   Bu blok dosyanın sonunda durur; yeni oynatıcı kuralı eklerken sabit hex
+   yerine --player-* / --text* token'larını kullanın. */
+
+/* 1) Koyu tema: küçük meta metinler 3.5:1'den AA'ya çıkarıldı. */
+.cue-card-time,
+.cue-position { color: #8a8a90; }
+.sub-origin { color: #8593a3; }
+
+/* 2) Açık tema: oynatıcı katmanının kendi token'ları temaya bağlanır. */
+html[data-theme="light"] .player-layer {
+  --player-text: var(--text);
+  --player-muted: var(--text-muted);
+  --player-amber: var(--accent);
+  --player-cyan: #2d6572;
+}
+
+/* 3) Kontrol çubuğu her temada video üstündeki koyu karartmada durur
+   (YouTube/VLC ile aynı). Açık temada da koyu yüzey token'larını korur;
+   aksi halde krem daire üstünde beyaz ikon görünmez olur. */
+html[data-theme="light"] .player-controls {
+  color-scheme: dark;
+  --bg-2: rgba(30, 30, 33, .82);
+  --bg-3: rgba(30, 30, 33, .82);
+  --border: rgba(255, 255, 255, .16);
+  --border-strong: rgba(255, 255, 255, .32);
+  --text: #f0f0f2;
+  --text-dim: #d4d4d8;
+  --text-muted: #b0b0b6;
+  --accent: #f3bd4f;
+  --accent-contrast: #201a0e;
+  --player-text: #f0f0f2;
+  --player-muted: #b0b0b6;
+  --player-amber: #f3bd4f;
+  --player-cyan: #9bd7d0;
+}
+
+/* 4) Açık tema: transkript, yan sekmeler, araç satırı ve kütüphane. */
+html[data-theme="light"] .player-layer .cue-card-src { color: var(--text-dim); }
+html[data-theme="light"] .player-layer .cue-card.active .cue-card-src { color: var(--text); }
+html[data-theme="light"] .player-layer .cue-card-tr { color: var(--player-cyan); }
+html[data-theme="light"] .player-layer .cue-card-time,
+html[data-theme="light"] .player-layer .cue-position,
+html[data-theme="light"] .player-layer .sub-origin { color: var(--text-muted); }
+html[data-theme="light"] .player-layer .cue-card.active .cue-card-time { color: var(--accent); }
+html[data-theme="light"] .player-layer .cue-card.active .cue-word:hover,
+html[data-theme="light"] .player-layer .cue-card.active .cue-word.is-picked { color: var(--accent); }
+html[data-theme="light"] .player-layer .cue-card.active {
+  background: linear-gradient(90deg, rgba(127, 76, 21, .12), rgba(127, 76, 21, .03));
+  border-color: rgba(127, 76, 21, .32);
+  border-left-color: var(--accent);
+}
+html[data-theme="light"] .player-layer .side-heading-title { color: var(--text); }
+html[data-theme="light"] .player-layer .lang-chip { color: var(--text-dim); }
+html[data-theme="light"] .player-layer .side-tab.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(127, 76, 21, .32);
+}
+html[data-theme="light"] .player-layer .tool-button,
+html[data-theme="light"] .player-layer .tool-button-quiet,
+html[data-theme="light"] .player-layer .mini-toggle { color: var(--text-dim); }
+html[data-theme="light"] .player-layer .tool-button:hover:not(:disabled) { color: var(--text); background: var(--bg-3); }
+html[data-theme="light"] .player-layer .tool-button-primary,
+html[data-theme="light"] .player-layer .tool-button-primary:hover {
+  color: var(--accent-contrast); background: var(--accent); border-color: var(--accent);
+}
+html[data-theme="light"] .player-layer .action-button-outline {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+html[data-theme="light"] .player-layer .action-button-outline:hover:not(:disabled) {
+  color: var(--text); background: var(--bg-3); border-color: var(--accent);
+}
+html[data-theme="light"] .player-layer .player-library-controls input,
+html[data-theme="light"] .player-layer .player-library-controls select,
+html[data-theme="light"] .player-layer .side-source-quick input { color: var(--text); }
+html[data-theme="light"] .player-layer .player-library-item-head strong { color: var(--text); }
+html[data-theme="light"] .player-layer .player-library-meta,
+html[data-theme="light"] .player-layer .player-library-item-head span,
+html[data-theme="light"] .player-layer .player-library-empty,
+html[data-theme="light"] .player-layer .player-library-status,
+html[data-theme="light"] .player-layer .library-view-tab:not(.active) { color: var(--text-muted); }
+html[data-theme="light"] .player-layer .library-view-tab:not(.active):hover { color: var(--text); }
+html[data-theme="light"] .player-layer .player-library-actions .link-btn,
+html[data-theme="light"] .player-layer .library-collection-tools .link-btn { color: var(--accent); }
+html[data-theme="light"] .player-layer .player-library-undo { color: var(--text-dim); }
+html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-dim); }
+
+/* 5) Açık tema: browser araç çubuğundaki ikincil ikonlar. */
+html[data-theme="light"] #browserSignalClose,
+html[data-theme="light"] #browserBookmarkToggle { color: var(--text-dim); }
+html[data-theme="light"] #browserSignalClose:hover,
+html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
+
+/* 6) Sekme şeridi: "Yeni sekme" düğmesi son sekmenin hemen yanında durur
+   (Chrome/Edge/Firefox düzeni). Önceden şerit flex:1 ile tüm boşluğu
+   kaplıyor, "+" tek sekmede bile ~750 px sağa itiliyordu. Şerit içeriği
+   kadar genişler, taşınca kendi içinde kayar; reklam kalkanı sağa yaslanır. */
+.player-layer.workspace-browser .browser-tab-strip { flex: 0 1 auto; }
+.player-layer.workspace-browser .browser-tabbar > .browser-adblock-quick { margin-left: auto; }

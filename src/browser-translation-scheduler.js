@@ -175,6 +175,22 @@ function planTranslationWindow(sentences, playhead, options = {}) {
   });
 }
 
+const graphemeSegmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+  ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+
+function graphemes(text) {
+  const value = String(text || '');
+  if (graphemeSegmenter) return Array.from(graphemeSegmenter.segment(value), (part) => part.segment);
+  // Segmenter yoksa en azından birleştirici işaretleri ve ZWJ dizilerini önceki
+  // karaktere bağla.
+  const out = [];
+  for (const ch of value) {
+    if (out.length && (/^[\p{M}\u200d\ufe0f]$/u.test(ch) || out[out.length - 1].endsWith('\u200d'))) out[out.length - 1] += ch;
+    else out.push(ch);
+  }
+  return out;
+}
+
 function distributeTranslation(sentence, translatedText) {
   const pieces = Array.isArray(sentence && sentence.pieces) ? sentence.pieces : [];
   if (!pieces.length) return [];
@@ -189,7 +205,9 @@ function distributeTranslation(sentence, translatedText) {
   // sessizce düşürüyordu. Grapheme dizisiyle kayıpsız dağıtım yap.
   const spaceless = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0e00-\u0e7f]/u.test(normalized)
     && !/\s/u.test(normalized);
-  const words = spaceless ? Array.from(normalized) : normalized.split(/\s+/).filter(Boolean);
+  // BUG-117-07: Array.from kod noktasına böler; ZWJ emoji (👨‍👩‍👧) veya
+  // ayrık aksanlı hece yalnız görünmez birleştiriciden oluşan bir cue üretirdi.
+  const words = spaceless ? graphemes(normalized) : normalized.split(/\s+/).filter(Boolean);
   const separator = spaceless ? '' : ' ';
   if (pieces.length === 1) return [{ ...pieces[0], text: words.join(separator) }];
   // Çeviri kaynak parçadan daha az kelimeye düştüğünde her kaynak cue için

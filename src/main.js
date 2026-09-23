@@ -2242,6 +2242,21 @@ function writeSubtitleAtomic(filePath, text, validateTemporary = null, io = fs) 
   }
 }
 
+// Düz metin (Markdown, TXT) için atomik yazıcı: BOM eklemez, klasörü oluşturur,
+// .tmp → rename ile yarım dosya bırakmaz. BUG-117-01: araştırma defteri dışa aktarımı
+// tanımsız `writeTextAtomic` çağırıyordu ve her seferinde ReferenceError ile düşüyordu.
+function writeTextAtomic(filePath, text, io = fs) {
+  io.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = filePath + '.tmp';
+  try {
+    io.writeFileSync(tmp, String(text).replace(/^\uFEFF/, ''), { encoding: 'utf8', flush: true });
+    io.renameSync(tmp, filePath);
+  } catch (error) {
+    try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
+    throw error;
+  }
+}
+
 function writeJsonAtomic(filePath, value, io = fs) {
   io.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = filePath + '.tmp';
