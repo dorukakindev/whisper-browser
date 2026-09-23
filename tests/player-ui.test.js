@@ -522,7 +522,7 @@ test('sinema modunda yan panel CSS ile gizleniyor (varsayımın dayanağı)', ()
 test('yan panel düğmesi görünürlüğü mod ile birlikte değerlendiriyor', () => {
   const i = js.indexOf("$('playerSidebarToggle').addEventListener('click'");
   assert(i > 0, 'playerSidebarToggle dinleyicisi yok');
-  const body = js.slice(i, js.indexOf("if ($('playerHeadFullscreen'))", i));
+  const body = js.slice(i, js.indexOf("if ($('playerBookmark'))", i));
   assert(/sidebarIsVisible\(\)/.test(body),
     'dugme yalnizca sinifa bakiyor — sinema modunda ekranda hicbir sey degismez');
   assert(/setViewMode\(/.test(body),
@@ -875,9 +875,12 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
   assert(duplicates.length === 0, `yinelenen id: ${duplicates.join(', ')}`);
   const address = layer.slice(layer.indexOf('class="browser-address-wrap"'), layer.indexOf('class="browser-toolbar-actions"'));
   assert(address.includes('id="browserBookmarkToggle"'), 'site yer imi adres alanının sağ iç kenarında değil');
-  for (const target of ['browserSubtitleSettingsToggle', 'browserPageTranslate', 'browserMangaTranslate']) {
+  for (const target of ['browserSubtitleSettingsToggle', 'browserMangaTranslate']) {
     assert(new RegExp(`data-browser-proxy="${target}"`).test(layer), `${target} Çeviri menüsüne bağlı değil`);
   }
+  assert(!/data-browser-proxy="browserPageTranslate"/.test(layer),
+    'Sayfayı çevir hem ayrı buton hem menü öğesi olarak çift tanımlanıyor');
+  assert(/id="browserPageTranslate"/.test(layer), 'Sayfayı çevir araç çubuğu butonu eksik');
   for (const label of ['Gezinme', 'İçerik', 'Kayıtlar', 'Görünüm ve yardım']) {
     assert(layer.includes(`class="browser-menu-group-label">${label}</div>`), `${label} Diğer menüsünde yok`);
   }
@@ -1967,6 +1970,7 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
     setSubtitlesVisible: rec('setSubtitlesVisible'), closePlayer: rec('closePlayer'),
     showControls: rec('showControls'), osd: rec('osd'), logLine: rec('logLine'),
     setSubtitleMode: rec('setSubtitleMode'),
+    closePlayerDetailsMenus: rec('closePlayerDetailsMenus'),
     console,
   });
   vm.runInContext(js.slice(keyStart, keyEnd), ctx);
