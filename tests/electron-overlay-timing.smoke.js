@@ -225,6 +225,88 @@ app.whenReady().then(async () => {
   assert.equal(mismatches.length, 0,
     `Seek sonrası bayat cue örnekleri: ${JSON.stringify(mismatches.slice(0, 8))}`);
 
+  // --- T2 genişleme: oynatma hızı, duraklat/devam, pencere görünürlüğü ---
+  // Her senaryo aynı orakla yargılanır: görünen metin, örneğin kendi
+  // kaydettiği video zamanındaki cue olmalı.
+  report.expanded = {};
+  async function sampleWhile(durationMs) {
+    const out = [];
+    const t0 = Date.now();
+    while (Date.now() - t0 < durationMs) {
+      const s = await videoPage.executeJavaScript(readOverlay);
+      if (s && s.t >= 0) out.push({ t: s.t, text: s.text });
+      await wait(200);
+    }
+    const bad = out.filter((s) => s.text !== expectedAt(s.t)).map((s) => ({ ...s, expected: expectedAt(s.t) }));
+    return { samples: out.length, tStart: out[0]?.t, tEnd: out[out.length - 1]?.t,
+      mismatchCount: bad.length, mismatches: bad.slice(0, 6) };
+  }
+
+  // Hız: 2x ve 0.5x altında aktif cue doğruluğu (cue-yoğun 0-16s bölgesinde kal)
+  await videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');v.currentTime=6.0;v.playbackRate=2;return v.currentTime})()`);
+  report.expanded.rate2 = await sampleWhile(3000);
+  await videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');v.currentTime=4.0;v.playbackRate=0.5;return v.currentTime})()`);
+  report.expanded.rate05 = await sampleWhile(3000);
+  await videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');v.playbackRate=1;return v.playbackRate})()`);
+
+  // Duraklat/devam: pause'da görünen metin o andaki cue'da sabit kalmalı,
+  // resume'da doğru cue ile ilerlemeli.
+  await videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');v.currentTime=8.0;return v.currentTime})()`);
+  await until(() => videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');return Math.abs(v.currentTime-8)<0.4?v.currentTime:null})()`),
+    'Pause öncesi seek 8.0');
+  await wait(500);
+  await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');v.pause();return v.paused})()`);
+  await wait(600);
+  const paused1 = await videoPage.executeJavaScript(readOverlay);
+  await wait(500);
+  const paused2 = await videoPage.executeJavaScript(readOverlay);
+  report.expanded.paused = { paused1, paused2,
+    stable: paused1.text === paused2.text && paused1.text === expectedAt(paused1.t) };
+  await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.play()})()`);
+  report.expanded.resume = await sampleWhile(2000);
+
+  // Görünürlük: pencereyi gizle → document.hidden değişimini ölç → geri getir
+  // → toparlanmayı ölç. document.hidden iken controller bilinçli olarak render
+  // ve sınır planlamasını atlar (kaynak tasarrufu: overlay zaten görünmez);
+  // bayat metnin gizli dönemde kalması hata değildir. Kabul kriteri: sayfanın
+  // gerçekten 'hidden' olduğu ve reshow sonrası ilk örnekte doğru cue.
+  await videoPage.executeJavaScript(
+    `(()=>{const v=document.querySelector('video');v.currentTime=6.0;return v.currentTime})()`);
+  win.hide();
+  await wait(700);
+  const visState = await videoPage.executeJavaScript('(()=>document.visibilityState)()');
+  const hiddenSample = await sampleWhile(2500);
+  hiddenSample.visibilityState = visState;
+  hiddenSample.staleSamples = hiddenSample.mismatchCount;
+  hiddenSample.note = 'document.hidden iken donma bilinçli tasarım — visibilitychange→render reshow toparlanmasını sağlar.';
+  report.expanded.hidden = hiddenSample;
+  assert.equal(visState, 'hidden',
+    'win.hide() fixture sayfasına visibilitychange olarak ulaşmadı — senaryo gizliliği ölçmedi');
+  win.show(); win.focus();
+  await wait(400);
+  report.expanded.reshow = await sampleWhile(1500);
+
+  const expandedBad = [];
+  for (const key of ['rate2', 'rate05', 'resume', 'reshow']) {
+    const e = report.expanded[key];
+    if (e?.mismatchCount) expandedBad.push({ key, count: e.mismatchCount, sample: e.mismatches });
+  }
+  if (!report.expanded.paused?.stable) {
+    expandedBad.push({ key: 'paused', got: report.expanded.paused });
+  }
+  console.log('[overlay-timing] genişleme:', JSON.stringify(
+    Object.fromEntries(Object.entries(report.expanded).map(([k, v]) => [k, {
+      n: v.samples, bad: v.mismatchCount, t: [v.tStart, v.tEnd], vis: v.visibilityState,
+      stable: v.stable,
+    }]))));
+  assert.equal(expandedBad.length, 0,
+    `Hız/duraklat/görünürlük senaryolarında bayat cue: ${JSON.stringify(expandedBad)}`);
+
   report.ok = true;
   fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2));
   console.log('[overlay-timing] PASS');
