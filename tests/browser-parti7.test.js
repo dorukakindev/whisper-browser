@@ -241,4 +241,68 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(statusCopy, /clock\(event\.total\)/, 'burn-in süre göstergesi');
 }
 
+// R117 — "Altyazı işlemleri ▾": 4 üretim eylemi tek details menüsünde
+{
+  assert.ok(indexHtml.includes('id="subtitleActionsMenu"'), 'altyazı işlemleri menüsü yok');
+  assert.ok(indexHtml.includes('Altyazı işlemleri'), 'menü etiketi yok');
+  assert.match(indexHtml, /class="subtitle-actions-pop" role="menu"/, 'popover rolü eksik');
+  for (const id of ['makeSubsBtn', 'makeTransBtn', 'retranslateAllBtn', 'exportTranslationBtn']) {
+    const re = new RegExp(`id="${id}"[^>]*role="menuitem"|role="menuitem"[^>]*id="${id}"`);
+    assert.match(indexHtml, re, `${id} menuitem rolü eksik`);
+  }
+  assert.match(renderer, /playerDetailsMenuIds = \[[^\]]*'subtitleActionsMenu'/, 'menü details-menu listesinde değil');
+  assert.match(renderer, /#subtitleActionsMenu/, 'dış tık ile kapanış seçicisinde değil');
+  assert.match(renderer, /\.subtitle-actions-pop button/, 'öğe tıklaması menüyü kapatmıyor');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.match(css, /\.subtitle-actions-pop\s*\{/, 'popover stili yok');
+  assert.match(css, /bottom:\s*calc\(100% \+ 8px\)/, 'menü yukarı açılmıyor');
+  assert.match(locale, /\['Altyazı işlemleri', /, 'locale çifti eksik');
+}
+
+// R117 — otomatik sıradaki: 5 sn geri sayım kartı + iptal/şimdi oynat
+{
+  assert.ok(indexHtml.includes('id="stUpNextCount"'), 'geri sayım kartı yok');
+  assert.ok(indexHtml.includes('id="stUpNextCountSecs"'), 'saniye göstergesi yok');
+  assert.ok(indexHtml.includes('id="stUpNextCountPlay"'), 'şimdi oynat düğmesi yok');
+  assert.ok(indexHtml.includes('id="stUpNextCountCancel"'), 'iptal düğmesi yok');
+  assert.match(renderer, /function stUpNextCountdownStart\(/, 'geri sayım başlatıcı yok');
+  assert.match(renderer, /function cancelStUpNextCountdown\(\)/, 'iptal işleyicisi yok');
+  assert.match(renderer, /secs -= 1;/, 'saniye azaltımı yok');
+  assert.match(renderer, /stAutoRelatedPlay\(v\)/, 'sayım sonu geçişi bağlı değil');
+  assert.match(renderer, /stUpNextCountdownStart\(next\)/, 'otomatik sıradaki sayıma bağlı değil');
+  assert.match(renderer, /cancelStUpNextCountdown\(\);\s*\n\s*showControls\(\)/, 'oynatma iptal noktası eksik');
+  assert.match(renderer, /cancelStUpNextCountdown\(\);\s*\n\s*closeBrowserFind/, 'closePlayer iptal noktası eksik');
+  assert.match(locale, /\['Şimdi oynat', /, 'locale çifti eksik');
+}
+
+
+// R117 — adres aynası (domain-bold) + hız popup'ı
+{
+  const css2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  assert.ok(indexHtml.includes('id="browserAddressMirror"'), 'adres aynası DOM eksik');
+  assert.ok(indexHtml.includes('browser-address-field'), 'adres alanı sarmalayıcı eksik');
+  assert.match(renderer, /function updateBrowserAddressMirror\(\)/, 'ayna senkron fonksiyonu yok');
+  assert.match(renderer, /new URL\(input\.value\)/, 'URL ayrıştırma yok');
+  assert.match(renderer, /browserAddressMirrorHost/, 'host span yazılmıyor');
+  assert.match(renderer, /document\.activeElement === input/, 'odak kontrolü yok');
+  assert.match(css2, /\.browser-address-mirror/, 'ayna stili yok');
+  assert.match(css2, /input\.mir-mode[^\n]*color:\s*transparent/, 'gizli metin kuralı yok');
+  assert.ok(indexHtml.includes('id="playerSpeedMenu"'), 'hız menüsü eksik');
+  assert.ok(indexHtml.includes('player-speed-pop'), 'hız popup kabı eksik');
+  assert.match(indexHtml, /id="playerSpeed"[^>]*aria-hidden="true"/, 'select gizli işaretlenmedi');
+  assert.match(renderer, /function playerSpeedPopupSync\(\)/, 'hız popup senkronu yok');
+  assert.match(renderer, /data-speed-value/, 'hız öğesi value taşımıyor');
+  assert.match(renderer, /dispatchEvent\(new Event\('change'/, 'hız seçimi select change fırlatmıyor');
+  assert.match(renderer, /'playerSpeedMenu'/, 'menü kayıtlarında playerSpeedMenu yok');
+  assert.match(css2, /\.player-speed-pop/, 'hız popup stili yok');
+  assert.match(css2, /\.player-speed-wrap > \.player-speed[^\n]*opacity:\s*0/, 'gizli select kuralı yok');
+  // R117 test-turu bulguları: F1 — mir-mode kuralı .workspace-browser...input (0,2,1)
+  // ile tie'a girip kaybediyordu; kural artık daha spesifik (workspace-browser zinciri).
+  assert.match(css2, /\.workspace-browser\s+\.browser-address-wrap\s+input\.mir-mode[^\n]*color:\s*transparent/, 'mir-mode spesifitesi yetersiz (F1)');
+  // F2 — .action-button-outline sabit koyu-palet renkleri; açık temada ~1.6:1 idi.
+  assert.match(css2, /html\[data-theme="light"\]\s+\.action-button-outline/, 'açık tema outline geçersiz kılma yok (F2)');
+  // F3 — .tool-row-main .btn-primary { order:-1 } görsel sırayı DOM'dan ayırıyordu.
+  assert.ok(!/\.tool-row-main\s+\.btn-primary\s*\{[^}]*order:\s*-1/.test(css2), 'tool-row order:-1 hâlâ var (F3)');
+}
+
 console.log('browser-parti7.test.js OK');
