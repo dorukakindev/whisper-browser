@@ -1998,7 +1998,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   padding: 22px 10px 10px;
 }
 .cue-empty-cta button { min-height: 34px; padding: 7px 14px; border-radius: 9px; font-size: 12.5px; }
-.cue-empty-cta .cue-empty-primary { background: var(--accent); color: #1d1407; border-color: transparent; }
+.cue-empty-cta .cue-empty-primary { background: var(--accent); color: var(--accent-contrast); border-color: transparent; }
 .cue-empty-icon { display: block; margin-bottom: 10px; color: var(--text-dim); font-size: 22px; text-align: center; }
 
 .cue-list-empty {
