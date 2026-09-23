@@ -1,0 +1,22 @@
+{
+  "note": "R114-B clean run — continuous-PTS rolling live HLS, endlist-at=30. Sample fields: i=wall-second index after setPlayerHls, t=video.currentTime, buf=buffered end, cues=textTrack cue count, active=activeCues[0].text. All 16 segs + 16 subs fetched once each (seg-012 x2 = temp-404 retry).",
+  "join": {"i": 1, "t": 2.57, "buf": 8.01, "activeCue": "Wait, are you sure you want to come with me? It costs 2.4 mi"},
+  "milestones": [
+    {"i": 4, "t": 5.58, "buf": 12.04, "cues": 2},
+    {"i": 6, "t": 7.6, "buf": 14.02, "cues": 3, "active": "I told her not to open the door, but she did anyway."},
+    {"i": 10, "t": 11.62, "buf": 18.19, "cues": 4, "active": "The meeting starts at 9.30 on Tuesday morning."},
+    {"i": 14, "t": 15.71, "buf": 22.15, "cues": 5, "active": "And I was like, no way, that can't be true."},
+    {"i": 18, "t": 19.74, "buf": 24.14, "cues": 6, "active": "So he left the building before anyone noticed."},
+    {"i": 22, "t": 23.77, "buf": 30.15, "cues": 7, "active": "Did you really think I wouldn't find out?"},
+    {"i": 26, "t": 27.87, "buf": 31.2, "cues": 7, "active": "300 people showed up to the event last night."},
+    {"i": 30, "t": 31.24, "buf": 31.24, "ended": true, "paused": true}
+  ],
+  "stalls": [],
+  "discontinuity": "seg-008 boundary (~content 15.5s, samples i=14-15): crossed with zero stall (continuous-PTS segments)",
+  "temp404": "seg-012 requested twice (404 then 200): hls.js retried and recovered, no user-visible error",
+  "delayed": "seg-010 served with +250ms delay: no observable effect",
+  "endlist": "EXT-X-ENDLIST appended at wall ~30s mid-playback; playback continued to true content end (31.24s) then ended cleanly",
+  "playlistsPolled": {"video.m3u8": 16, "subs.m3u8": 16},
+  "segmentsFetched": {"seg-000..015.ts": "1 each", "seg-012.ts": 2, "sub-000..015.vtt": "1 each"},
+  "overlaySurface": "video.textTracks[0].mode='showing', native cue render on video surface (screenshot live-a.png). player.cues=0 and #subtitleOverlay empty: live HLS subs flow through native TextTrack, not the app's side-file overlay path — by design."
+}

@@ -1,0 +1,11 @@
+﻿# Düşük güvenli kelimeler (skor < 0.60) — 3 kelime
+# Whisper bu kelimelerden emin değil; özellikle ÖZEL İSİMLERİ kontrol edin.
+# Sık tekrar edenleri Ayarlar > Sözlük'e ekleyip yeniden çevirirseniz düzelir.
+
+## Geçtiği yerler
+[00:00:00] Wait, are you sure you want to come with me? It costs 2.4 million dollars, Marcus.
+    Wait, (0.39)
+[00:00:12] The meeting starts at 9.30 on Tuesday morning.
+    meeting (0.47)
+[00:00:16] And I was like, no way, that can't be true.
+    true. (0.55)

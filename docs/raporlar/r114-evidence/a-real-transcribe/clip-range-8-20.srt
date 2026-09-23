@@ -1,0 +1,12 @@
+﻿1
+00:00:08,416 --> 00:00:11,630
+I told her not to open the door, but she did anyway.
+
+2
+00:00:12,470 --> 00:00:15,290
+The meeting starts at 9.30 on Tuesday morning.
+
+3
+00:00:16,650 --> 00:00:19,570
+And I was like, no way, that can't be through you.
+
