@@ -54,6 +54,19 @@ assert.ok(indexHtml.includes('id="browserPlayMpv"'), 'tarayıcı menüsü mpv');
 assert.ok(indexHtml.includes('id="browserPlayVlc"'), 'tarayıcı menüsü vlc');
 assert.match(renderer, /youtube\.com\/watch\?v=/, 'watch URL gönderilir (imzalı akış değil)');
 
+// R116 — ⋯ menüsünden oynatıcıya devir (seek sürdürme + tarayıcıda duraklatma)
+assert.ok(indexHtml.includes('id="browserWatchInPlayer"'), 'tarayıcı menüsü oynatıcıda izle');
+assert.match(renderer, /function watchBrowserVideoInPlayer\(\)/, 'devir işleyicisi');
+assert.match(renderer, /if \(\$\('browserWatchInPlayer'\)\)/, 'devir düğmesi sorgusu');
+assert.match(renderer, /browserWatchInPlayer'\)\.addEventListener\('click', watchBrowserVideoInPlayer\)/, 'tıklama bağlandı');
+assert.match(renderer, /mediaKeyFor\('youtube', url\)/, 'kararlı medya anahtarı');
+assert.match(renderer, /pendingLibrarySeek = \{ key: ytKey, generation: null, seconds \}/, 'konum sürdürme');
+assert.match(renderer, /pendingAutoOpen = \{ key: ytKey, intent \}/, 'otomatik açma niyeti');
+assert.match(renderer, /openYoutubePanelAndProbe\(url\)/, 'probe + panel akışı');
+assert.match(renderer, /browserCommand\('pause'\)/, 'tarayıcıda duraklatma');
+assert.match(locale, /\['Oynatıcıda izle', 'Watch in player'\]/, 'locale çifti');
+assert.match(locale, /\['Video oynatıcıda açılıyor…', 'Opening the video in the player…'\]/, 'durum locale çifti');
+
 // --- A28 — playlist detay sayfası + arama sonucu rayı ---
 assert.ok(backend.includes('"video", "playlist", "all"'), 'playlist arama tipi whitelist');
 assert.match(backend, /type=\{st\}/, 'arama tipi URL parametresi');

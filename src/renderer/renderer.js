@@ -9448,6 +9448,14 @@ function updateBrowserWhisperActions() {
       menuButton.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
     }
   }
+  const watchBtn = $('browserWatchInPlayer');
+  if (watchBtn) {
+    watchBtn.disabled = !url;
+    watchBtn.setAttribute?.('aria-disabled', watchBtn.disabled ? 'true' : 'false');
+    watchBtn.title = url
+      ? 'Açık YouTube videosunu uygulama oynatıcısında izle'
+      : 'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir';
+  }
   updateBrowserSubtitleSummary();
   syncSubtitlePrimaryAction();
 }
@@ -19514,6 +19522,35 @@ for (const [btnId, playerName] of [['browserPlayMpv', 'mpv'], ['browserPlayVlc',
     await stPlayExternal(playerName, { url });
   });
 }
+// "Oynatıcıda izle" — açık YouTube sayfasındaki videoyu uygulama oynatıcısında
+// aç. Sayfadaki konum pendingLibrarySeek ile devredilir; konum yoksa izleme
+// kütüphanesi kaydı ikincil kaynak olur (kart açılışıyla aynı davranış).
+// Probe bitince pendingAutoOpen akışı kendiliğinden başlatır.
+function watchBrowserVideoInPlayer() {
+  closeBrowserToolbarMenus();
+  const url = currentBrowserYoutubeUrl();
+  if (!url) {
+    setBrowserSignal('Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir.', false, { priority: 60, holdMs: 3500 });
+    return;
+  }
+  const ytKey = mediaKeyFor('youtube', url);
+  const seconds = Number(player.browserTime) || 0;
+  const intent = ++player.openIntent;
+  if (seconds > 2) {
+    player.pendingLibrarySeek = { key: ytKey, generation: null, seconds };
+  } else {
+    const watch = watchItemByKey(ytKey);
+    if (watch && !watch.completed && Number(watch.position) > 0) {
+      player.pendingLibrarySeek = { key: ytKey, generation: null, seconds: Number(watch.position) || 0 };
+    }
+  }
+  player.pendingAutoOpen = { key: ytKey, intent };
+  $('playerLayer').classList.remove('hidden');
+  openYoutubePanelAndProbe(url);
+  setBrowserSignal('Video oynatıcıda açılıyor…', true, { priority: 60, holdMs: 3000 });
+  if (player.browserActiveTabId) browserCommand('pause').catch(() => {});
+}
+if ($('browserWatchInPlayer')) $('browserWatchInPlayer').addEventListener('click', watchBrowserVideoInPlayer);
 if ($('browserExportPdf')) $('browserExportPdf').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const button = $('browserExportPdf');
