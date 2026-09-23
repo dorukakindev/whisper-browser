@@ -12,6 +12,7 @@ const { pathToFileURL } = require('node:url');
 let fixtureDir = '';
 let userDataDir = '';
 let electronProcess = null;
+const openSockets = new Set();
 
 function cleanupFixtures() {
   if (!fixtureDir) return;
@@ -31,6 +32,42 @@ function withTimeout(promise, ms, label) {
       timer = setTimeout(() => reject(new Error(`${label} zaman aşımına uğradı.`)), ms);
     }),
   ]).finally(() => clearTimeout(timer));
+}
+
+// Spawn edilen Electron'u kapatır: önce isteğe bağlı zarif çıkış (DevTools
+// soketi hâlâ açıkken), sonra platforma göre zorla sonlandırma. taskkill.exe
+// yalnız Windows'ta vardır; POSIX'te SIGKILL gerekir — yoksa canlı child
+// handle'ı test sürecini çıkışta sonsuz bekletir. Açık DevTools soketleri
+// de kapatılır (aynı sebep).
+async function stopElectron(gracefulQuit) {
+  if (electronProcess && electronProcess.exitCode == null
+    && typeof gracefulQuit === 'function') {
+    try { await withTimeout(Promise.resolve().then(gracefulQuit), 5000, 'Zarif kapanış'); } catch (_) {}
+    for (let attempt = 0; attempt < 40 && electronProcess.exitCode == null; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  for (const socket of openSockets) {
+    try { socket.close(); } catch (_) {}
+  }
+  openSockets.clear();
+  if (!electronProcess) return;
+  if (electronProcess.exitCode == null) {
+    if (process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
+        windowsHide: true, stdio: ['ignore', 'inherit', 'inherit'], timeout: 10000,
+      });
+    } else {
+      try { electronProcess.kill('SIGKILL'); } catch (_) {}
+    }
+    if (electronProcess.exitCode == null) {
+      await new Promise((resolve) => {
+        electronProcess.once('exit', resolve);
+        setTimeout(resolve, 3000);
+      });
+    }
+  }
+  electronProcess = null;
 }
 
 async function run() {
@@ -104,6 +141,7 @@ async function run() {
   assert.ok(mainTarget?.webSocketDebuggerUrl, 'Electron ana süreç denetim hedefi bulunamadı.');
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
+  openSockets.add(socket);
   await withTimeout(new Promise((resolve, reject) => {
     socket.addEventListener('open', resolve, { once: true });
     socket.addEventListener('error', reject, { once: true });
@@ -133,6 +171,7 @@ async function run() {
     socket.send(JSON.stringify({ id, method, params }));
   });
   const mainSocket = new WebSocket(mainTarget.webSocketDebuggerUrl);
+  openSockets.add(mainSocket);
   await withTimeout(new Promise((resolve, reject) => {
     mainSocket.addEventListener('open', resolve, { once: true });
     mainSocket.addEventListener('error', reject, { once: true });
@@ -564,24 +603,15 @@ async function run() {
   }
   assert.match(diagnosticsText, /\[altyazı metni gizlendi\]/u);
   console.log('electron-subtitle-output-smoke:', JSON.stringify(result));
-  socket.close();
-  mainSocket.close();
-  if (electronProcess && electronProcess.exitCode == null) {
-    spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
-      windowsHide: true, stdio: ['ignore','inherit','inherit'], timeout: 10000,
-    });
-  }
-  electronProcess = null;
+  await stopElectron(() => mainCall('Runtime.evaluate', {
+    expression: "process.getBuiltinModule('module').createRequire(process.execPath)('electron').app.quit()",
+    returnByValue: true,
+  }));
   cleanupFixtures();
 }
 
-run().catch((error) => {
-  if (electronProcess && electronProcess.exitCode == null) {
-    spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
-      windowsHide: true, stdio: ['ignore','inherit','inherit'], timeout: 10000,
-    });
-  }
-  electronProcess = null;
+run().catch(async (error) => {
+  await stopElectron();
   cleanupFixtures();
   console.error(error.stack || error.message);
   process.exit(1);
