@@ -1,0 +1,4000 @@
+1
+00:00:00,400 --> 00:00:02,000
+Engine room reported that valve 0 failed twice before the alarm.
+
+2
+00:00:02,400 --> 00:00:04,000
+Wait. Are you sure Persephone signed the form?
+
+3
+00:00:04,400 --> 00:00:06,000
+[music playing]
+
+4
+00:00:06,400 --> 00:00:08,000
+She counted 16.4 thousand units in sector 3.
+
+5
+00:00:08,400 --> 00:00:10,000
+- Where did you go? - Nowhere special.
+
+6
+00:00:10,400 --> 00:00:12,000
+The reading stayed at 5% for 7 minutes.
+
+7
+00:00:12,400 --> 00:00:14,000
+[applause] [music fades] Then Lawson left.
+
+8
+00:00:14,400 --> 00:00:16,000
+Nobody believed Persephone when the sensor failed.
+
+9
+00:00:16,400 --> 00:00:18,000
+Pressure climbed to 18.8 bars before dawn.
+
+10
+00:00:18,400 --> 00:00:20,000
+He said the route passes near Cairo after midnight.
+
+11
+00:00:20,400 --> 00:00:22,000
+Section 10: the crew rotated every 4 hours without incident.
+
+12
+00:00:22,400 --> 00:00:24,000
+Engine room reported that valve 11 failed twice before the alarm.
+
+13
+00:00:24,400 --> 00:00:26,000
+Wait. Are you sure Lawson signed the form?
+
+14
+00:00:26,400 --> 00:00:28,000
+[music playing]
+
+15
+00:00:28,400 --> 00:00:30,000
+She counted 49.4 thousand units in sector 5.
+
+16
+00:00:30,400 --> 00:00:32,000
+- Where did you go? - Nowhere special.
+
+17
+00:00:32,400 --> 00:00:34,000
+The reading stayed at 16% for 5 minutes.
+
+18
+00:00:34,400 --> 00:00:36,000
+[applause] [music fades] Then Serra left.
+
+19
+00:00:36,400 --> 00:00:38,000
+Nobody believed Lawson when the sensor failed.
+
+20
+00:00:38,400 --> 00:00:40,000
+Pressure climbed to 29.1 bars before dawn.
+
+21
+00:00:40,400 --> 00:00:42,000
+He said the route passes near Athens after midnight.
+
+22
+00:00:42,400 --> 00:00:44,000
+Section 21: the crew rotated every 7 hours without incident.
+
+23
+00:00:44,400 --> 00:00:46,000
+Engine room reported that valve 22 failed twice before the alarm.
+
+24
+00:00:46,400 --> 00:00:48,000
+Wait. Are you sure Serra signed the form?
+
+25
+00:00:48,400 --> 00:00:50,000
+[music playing]
+
+26
+00:00:50,400 --> 00:00:52,000
+She counted 82.4 thousand units in sector 7.
+
+27
+00:00:52,400 --> 00:00:54,000
+- Where did you go? - Nowhere special.
+
+28
+00:00:54,400 --> 00:00:56,000
+The reading stayed at 27% for 3 minutes.
+
+29
+00:00:56,400 --> 00:00:58,000
+[applause] [music fades] Then Miko left.
+
+30
+00:00:58,400 --> 00:01:00,000
+Nobody believed Serra when the sensor failed.
+
+31
+00:01:00,400 --> 00:01:02,000
+Pressure climbed to 40.3 bars before dawn.
+
+32
+00:01:02,400 --> 00:01:04,000
+He said the route passes near Persephone after midnight.
+
+33
+00:01:04,400 --> 00:01:06,000
+Section 32: the crew rotated every 2 hours without incident.
+
+34
+00:01:06,400 --> 00:01:08,000
+Engine room reported that valve 33 failed twice before the alarm.
+
+35
+00:01:08,400 --> 00:01:10,000
+Wait. Are you sure Miko signed the form?
+
+36
+00:01:10,400 --> 00:01:12,000
+[music playing]
+
+37
+00:01:12,400 --> 00:01:14,000
+She counted 115.4 thousand units in sector 0.
+
+38
+00:01:14,400 --> 00:01:16,000
+- Where did you go? - Nowhere special.
+
+39
+00:01:16,400 --> 00:01:18,000
+The reading stayed at 38% for 14 minutes.
+
+40
+00:01:18,400 --> 00:01:20,000
+[applause] [music fades] Then Cairo left.
+
+41
+00:01:20,400 --> 00:01:22,000
+Nobody believed Miko when the sensor failed.
+
+42
+00:01:22,400 --> 00:01:24,000
+Pressure climbed to 11.5 bars before dawn.
+
+43
+00:01:24,400 --> 00:01:26,000
+He said the route passes near Lawson after midnight.
+
+44
+00:01:26,400 --> 00:01:28,000
+Section 43: the crew rotated every 5 hours without incident.
+
+45
+00:01:28,400 --> 00:01:30,000
+Engine room reported that valve 44 failed twice before the alarm.
+
+46
+00:01:30,400 --> 00:01:32,000
+Wait. Are you sure Cairo signed the form?
+
+47
+00:01:32,400 --> 00:01:34,000
+[music playing]
+
+48
+00:01:34,400 --> 00:01:36,000
+She counted 148.4 thousand units in sector 2.
+
+49
+00:01:36,400 --> 00:01:38,000
+- Where did you go? - Nowhere special.
+
+50
+00:01:38,400 --> 00:01:40,000
+The reading stayed at 49% for 12 minutes.
+
+51
+00:01:40,400 --> 00:01:42,000
+[applause] [music fades] Then Athens left.
+
+52
+00:01:42,400 --> 00:01:44,000
+Nobody believed Cairo when the sensor failed.
+
+53
+00:01:44,400 --> 00:01:46,000
+Pressure climbed to 22.7 bars before dawn.
+
+54
+00:01:46,400 --> 00:01:48,000
+He said the route passes near Serra after midnight.
+
+55
+00:01:48,400 --> 00:01:50,000
+Section 54: the crew rotated every 8 hours without incident.
+
+56
+00:01:50,400 --> 00:01:52,000
+Engine room reported that valve 55 failed twice before the alarm.
+
+57
+00:01:52,400 --> 00:01:54,000
+Wait. Are you sure Athens signed the form?
+
+58
+00:01:54,400 --> 00:01:56,000
+[music playing]
+
+59
+00:01:56,400 --> 00:01:58,000
+She counted 181.4 thousand units in sector 4.
+
+60
+00:01:58,400 --> 00:02:00,000
+- Where did you go? - Nowhere special.
+
+61
+00:02:00,400 --> 00:02:02,000
+The reading stayed at 60% for 10 minutes.
+
+62
+00:02:02,400 --> 00:02:04,000
+[applause] [music fades] Then Persephone left.
+
+63
+00:02:04,400 --> 00:02:06,000
+Nobody believed Athens when the sensor failed.
+
+64
+00:02:06,400 --> 00:02:08,000
+Pressure climbed to 33.0 bars before dawn.
+
+65
+00:02:08,400 --> 00:02:10,000
+He said the route passes near Miko after midnight.
+
+66
+00:02:10,400 --> 00:02:12,000
+Section 65: the crew rotated every 3 hours without incident.
+
+67
+00:02:12,400 --> 00:02:14,000
+Engine room reported that valve 66 failed twice before the alarm.
+
+68
+00:02:14,400 --> 00:02:16,000
+Wait. Are you sure Persephone signed the form?
+
+69
+00:02:16,400 --> 00:02:18,000
+[music playing]
+
+70
+00:02:18,400 --> 00:02:20,000
+She counted 214.4 thousand units in sector 6.
+
+71
+00:02:20,400 --> 00:02:22,000
+- Where did you go? - Nowhere special.
+
+72
+00:02:22,400 --> 00:02:24,000
+The reading stayed at 71% for 8 minutes.
+
+73
+00:02:24,400 --> 00:02:26,000
+[applause] [music fades] Then Lawson left.
+
+74
+00:02:26,400 --> 00:02:28,000
+Nobody believed Persephone when the sensor failed.
+
+75
+00:02:28,400 --> 00:02:30,000
+Pressure climbed to 44.2 bars before dawn.
+
+76
+00:02:30,400 --> 00:02:32,000
+He said the route passes near Cairo after midnight.
+
+77
+00:02:32,400 --> 00:02:34,000
+Section 76: the crew rotated every 6 hours without incident.
+
+78
+00:02:34,400 --> 00:02:36,000
+Engine room reported that valve 77 failed twice before the alarm.
+
+79
+00:02:36,400 --> 00:02:38,000
+Wait. Are you sure Lawson signed the form?
+
+80
+00:02:38,400 --> 00:02:40,000
+[music playing]
+
+81
+00:02:40,400 --> 00:02:42,000
+She counted 247.4 thousand units in sector 8.
+
+82
+00:02:42,400 --> 00:02:44,000
+- Where did you go? - Nowhere special.
+
+83
+00:02:44,400 --> 00:02:46,000
+The reading stayed at 82% for 6 minutes.
+
+84
+00:02:46,400 --> 00:02:48,000
+[applause] [music fades] Then Serra left.
+
+85
+00:02:48,400 --> 00:02:50,000
+Nobody believed Lawson when the sensor failed.
+
+86
+00:02:50,400 --> 00:02:52,000
+Pressure climbed to 15.4 bars before dawn.
+
+87
+00:02:52,400 --> 00:02:54,000
+He said the route passes near Athens after midnight.
+
+88
+00:02:54,400 --> 00:02:56,000
+Section 87: the crew rotated every 9 hours without incident.
+
+89
+00:02:56,400 --> 00:02:58,000
+Engine room reported that valve 88 failed twice before the alarm.
+
+90
+00:02:58,400 --> 00:03:00,000
+Wait. Are you sure Serra signed the form?
+
+91
+00:03:00,400 --> 00:03:02,000
+[music playing]
+
+92
+00:03:02,400 --> 00:03:04,000
+She counted 280.4 thousand units in sector 1.
+
+93
+00:03:04,400 --> 00:03:06,000
+- Where did you go? - Nowhere special.
+
+94
+00:03:06,400 --> 00:03:08,000
+The reading stayed at 93% for 4 minutes.
+
+95
+00:03:08,400 --> 00:03:10,000
+[applause] [music fades] Then Miko left.
+
+96
+00:03:10,400 --> 00:03:12,000
+Nobody believed Serra when the sensor failed.
+
+97
+00:03:12,400 --> 00:03:14,000
+Pressure climbed to 26.6 bars before dawn.
+
+98
+00:03:14,400 --> 00:03:16,000
+He said the route passes near Persephone after midnight.
+
+99
+00:03:16,400 --> 00:03:18,000
+Section 98: the crew rotated every 4 hours without incident.
+
+100
+00:03:18,400 --> 00:03:20,000
+Engine room reported that valve 99 failed twice before the alarm.
+
+101
+00:03:20,400 --> 00:03:22,000
+Wait. Are you sure Miko signed the form?
+
+102
+00:03:22,400 --> 00:03:24,000
+[music playing]
+
+103
+00:03:24,400 --> 00:03:26,000
+She counted 313.4 thousand units in sector 3.
+
+104
+00:03:26,400 --> 00:03:28,000
+- Where did you go? - Nowhere special.
+
+105
+00:03:28,400 --> 00:03:30,000
+The reading stayed at 7% for 2 minutes.
+
+106
+00:03:30,400 --> 00:03:32,000
+[applause] [music fades] Then Cairo left.
+
+107
+00:03:32,400 --> 00:03:34,000
+Nobody believed Miko when the sensor failed.
+
+108
+00:03:34,400 --> 00:03:36,000
+Pressure climbed to 37.8 bars before dawn.
+
+109
+00:03:36,400 --> 00:03:38,000
+He said the route passes near Lawson after midnight.
+
+110
+00:03:38,400 --> 00:03:40,000
+Section 109: the crew rotated every 7 hours without incident.
+
+111
+00:03:40,400 --> 00:03:42,000
+Engine room reported that valve 110 failed twice before the alarm.
+
+112
+00:03:42,400 --> 00:03:44,000
+Wait. Are you sure Cairo signed the form?
+
+113
+00:03:44,400 --> 00:03:46,000
+[music playing]
+
+114
+00:03:46,400 --> 00:03:48,000
+She counted 346.4 thousand units in sector 5.
+
+115
+00:03:48,400 --> 00:03:50,000
+- Where did you go? - Nowhere special.
+
+116
+00:03:50,400 --> 00:03:52,000
+The reading stayed at 18% for 13 minutes.
+
+117
+00:03:52,400 --> 00:03:54,000
+[applause] [music fades] Then Athens left.
+
+118
+00:03:54,400 --> 00:03:56,000
+Nobody believed Cairo when the sensor failed.
+
+119
+00:03:56,400 --> 00:03:58,000
+Pressure climbed to 48.1 bars before dawn.
+
+120
+00:03:58,400 --> 00:04:00,000
+He said the route passes near Serra after midnight.
+
+121
+00:04:00,400 --> 00:04:02,000
+Section 120: the crew rotated every 2 hours without incident.
+
+122
+00:04:02,400 --> 00:04:04,000
+Engine room reported that valve 121 failed twice before the alarm.
+
+123
+00:04:04,400 --> 00:04:06,000
+Wait. Are you sure Athens signed the form?
+
+124
+00:04:06,400 --> 00:04:08,000
+[music playing]
+
+125
+00:04:08,400 --> 00:04:10,000
+She counted 379.4 thousand units in sector 7.
+
+126
+00:04:10,400 --> 00:04:12,000
+- Where did you go? - Nowhere special.
+
+127
+00:04:12,400 --> 00:04:14,000
+The reading stayed at 29% for 11 minutes.
+
+128
+00:04:14,400 --> 00:04:16,000
+[applause] [music fades] Then Persephone left.
+
+129
+00:04:16,400 --> 00:04:18,000
+Nobody believed Athens when the sensor failed.
+
+130
+00:04:18,400 --> 00:04:20,000
+Pressure climbed to 19.3 bars before dawn.
+
+131
+00:04:20,400 --> 00:04:22,000
+He said the route passes near Miko after midnight.
+
+132
+00:04:22,400 --> 00:04:24,000
+Section 131: the crew rotated every 5 hours without incident.
+
+133
+00:04:24,400 --> 00:04:26,000
+Engine room reported that valve 132 failed twice before the alarm.
+
+134
+00:04:26,400 --> 00:04:28,000
+Wait. Are you sure Persephone signed the form?
+
+135
+00:04:28,400 --> 00:04:30,000
+[music playing]
+
+136
+00:04:30,400 --> 00:04:32,000
+She counted 412.4 thousand units in sector 0.
+
+137
+00:04:32,400 --> 00:04:34,000
+- Where did you go? - Nowhere special.
+
+138
+00:04:34,400 --> 00:04:36,000
+The reading stayed at 40% for 9 minutes.
+
+139
+00:04:36,400 --> 00:04:38,000
+[applause] [music fades] Then Lawson left.
+
+140
+00:04:38,400 --> 00:04:40,000
+Nobody believed Persephone when the sensor failed.
+
+141
+00:04:40,400 --> 00:04:42,000
+Pressure climbed to 30.5 bars before dawn.
+
+142
+00:04:42,400 --> 00:04:44,000
+He said the route passes near Cairo after midnight.
+
+143
+00:04:44,400 --> 00:04:46,000
+Section 142: the crew rotated every 8 hours without incident.
+
+144
+00:04:46,400 --> 00:04:48,000
+Engine room reported that valve 143 failed twice before the alarm.
+
+145
+00:04:48,400 --> 00:04:50,000
+Wait. Are you sure Lawson signed the form?
+
+146
+00:04:50,400 --> 00:04:52,000
+[music playing]
+
+147
+00:04:52,400 --> 00:04:54,000
+She counted 445.4 thousand units in sector 2.
+
+148
+00:04:54,400 --> 00:04:56,000
+- Where did you go? - Nowhere special.
+
+149
+00:04:56,400 --> 00:04:58,000
+The reading stayed at 51% for 7 minutes.
+
+150
+00:04:58,400 --> 00:05:00,000
+[applause] [music fades] Then Serra left.
+
+151
+00:05:00,400 --> 00:05:02,000
+Nobody believed Lawson when the sensor failed.
+
+152
+00:05:02,400 --> 00:05:04,000
+Pressure climbed to 41.7 bars before dawn.
+
+153
+00:05:04,400 --> 00:05:06,000
+He said the route passes near Athens after midnight.
+
+154
+00:05:06,400 --> 00:05:08,000
+Section 153: the crew rotated every 3 hours without incident.
+
+155
+00:05:08,400 --> 00:05:10,000
+Engine room reported that valve 154 failed twice before the alarm.
+
+156
+00:05:10,400 --> 00:05:12,000
+Wait. Are you sure Serra signed the form?
+
+157
+00:05:12,400 --> 00:05:14,000
+[music playing]
+
+158
+00:05:14,400 --> 00:05:16,000
+She counted 478.4 thousand units in sector 4.
+
+159
+00:05:16,400 --> 00:05:18,000
+- Where did you go? - Nowhere special.
+
+160
+00:05:18,400 --> 00:05:20,000
+The reading stayed at 62% for 5 minutes.
+
+161
+00:05:20,400 --> 00:05:22,000
+[applause] [music fades] Then Miko left.
+
+162
+00:05:22,400 --> 00:05:24,000
+Nobody believed Serra when the sensor failed.
+
+163
+00:05:24,400 --> 00:05:26,000
+Pressure climbed to 12.0 bars before dawn.
+
+164
+00:05:26,400 --> 00:05:28,000
+He said the route passes near Persephone after midnight.
+
+165
+00:05:28,400 --> 00:05:30,000
+Section 164: the crew rotated every 6 hours without incident.
+
+166
+00:05:30,400 --> 00:05:32,000
+Engine room reported that valve 165 failed twice before the alarm.
+
+167
+00:05:32,400 --> 00:05:34,000
+Wait. Are you sure Miko signed the form?
+
+168
+00:05:34,400 --> 00:05:36,000
+[music playing]
+
+169
+00:05:36,400 --> 00:05:38,000
+She counted 511.4 thousand units in sector 6.
+
+170
+00:05:38,400 --> 00:05:40,000
+- Where did you go? - Nowhere special.
+
+171
+00:05:40,400 --> 00:05:42,000
+The reading stayed at 73% for 3 minutes.
+
+172
+00:05:42,400 --> 00:05:44,000
+[applause] [music fades] Then Cairo left.
+
+173
+00:05:44,400 --> 00:05:46,000
+Nobody believed Miko when the sensor failed.
+
+174
+00:05:46,400 --> 00:05:48,000
+Pressure climbed to 23.2 bars before dawn.
+
+175
+00:05:48,400 --> 00:05:50,000
+He said the route passes near Lawson after midnight.
+
+176
+00:05:50,400 --> 00:05:52,000
+Section 175: the crew rotated every 9 hours without incident.
+
+177
+00:05:52,400 --> 00:05:54,000
+Engine room reported that valve 176 failed twice before the alarm.
+
+178
+00:05:54,400 --> 00:05:56,000
+Wait. Are you sure Cairo signed the form?
+
+179
+00:05:56,400 --> 00:05:58,000
+[music playing]
+
+180
+00:05:58,400 --> 00:06:00,000
+She counted 544.4 thousand units in sector 8.
+
+181
+00:06:00,400 --> 00:06:02,000
+- Where did you go? - Nowhere special.
+
+182
+00:06:02,400 --> 00:06:04,000
+The reading stayed at 84% for 14 minutes.
+
+183
+00:06:04,400 --> 00:06:06,000
+[applause] [music fades] Then Athens left.
+
+184
+00:06:06,400 --> 00:06:08,000
+Nobody believed Cairo when the sensor failed.
+
+185
+00:06:08,400 --> 00:06:10,000
+Pressure climbed to 34.4 bars before dawn.
+
+186
+00:06:10,400 --> 00:06:12,000
+He said the route passes near Serra after midnight.
+
+187
+00:06:12,400 --> 00:06:14,000
+Section 186: the crew rotated every 4 hours without incident.
+
+188
+00:06:14,400 --> 00:06:16,000
+Engine room reported that valve 187 failed twice before the alarm.
+
+189
+00:06:16,400 --> 00:06:18,000
+Wait. Are you sure Athens signed the form?
+
+190
+00:06:18,400 --> 00:06:20,000
+[music playing]
+
+191
+00:06:20,400 --> 00:06:22,000
+She counted 577.4 thousand units in sector 1.
+
+192
+00:06:22,400 --> 00:06:24,000
+- Where did you go? - Nowhere special.
+
+193
+00:06:24,400 --> 00:06:26,000
+The reading stayed at 95% for 12 minutes.
+
+194
+00:06:26,400 --> 00:06:28,000
+[applause] [music fades] Then Persephone left.
+
+195
+00:06:28,400 --> 00:06:30,000
+Nobody believed Athens when the sensor failed.
+
+196
+00:06:30,400 --> 00:06:32,000
+Pressure climbed to 45.6 bars before dawn.
+
+197
+00:06:32,400 --> 00:06:34,000
+He said the route passes near Miko after midnight.
+
+198
+00:06:34,400 --> 00:06:36,000
+Section 197: the crew rotated every 7 hours without incident.
+
+199
+00:06:36,400 --> 00:06:38,000
+Engine room reported that valve 198 failed twice before the alarm.
+
+200
+00:06:38,400 --> 00:06:40,000
+Wait. Are you sure Persephone signed the form?
+
+201
+00:06:40,400 --> 00:06:42,000
+[music playing]
+
+202
+00:06:42,400 --> 00:06:44,000
+She counted 610.4 thousand units in sector 3.
+
+203
+00:06:44,400 --> 00:06:46,000
+- Where did you go? - Nowhere special.
+
+204
+00:06:46,400 --> 00:06:48,000
+The reading stayed at 9% for 10 minutes.
+
+205
+00:06:48,400 --> 00:06:50,000
+[applause] [music fades] Then Lawson left.
+
+206
+00:06:50,400 --> 00:06:52,000
+Nobody believed Persephone when the sensor failed.
+
+207
+00:06:52,400 --> 00:06:54,000
+Pressure climbed to 16.8 bars before dawn.
+
+208
+00:06:54,400 --> 00:06:56,000
+He said the route passes near Cairo after midnight.
+
+209
+00:06:56,400 --> 00:06:58,000
+Section 208: the crew rotated every 2 hours without incident.
+
+210
+00:06:58,400 --> 00:07:00,000
+Engine room reported that valve 209 failed twice before the alarm.
+
+211
+00:07:00,400 --> 00:07:02,000
+Wait. Are you sure Lawson signed the form?
+
+212
+00:07:02,400 --> 00:07:04,000
+[music playing]
+
+213
+00:07:04,400 --> 00:07:06,000
+She counted 643.4 thousand units in sector 5.
+
+214
+00:07:06,400 --> 00:07:08,000
+- Where did you go? - Nowhere special.
+
+215
+00:07:08,400 --> 00:07:10,000
+The reading stayed at 20% for 8 minutes.
+
+216
+00:07:10,400 --> 00:07:12,000
+[applause] [music fades] Then Serra left.
+
+217
+00:07:12,400 --> 00:07:14,000
+Nobody believed Lawson when the sensor failed.
+
+218
+00:07:14,400 --> 00:07:16,000
+Pressure climbed to 27.1 bars before dawn.
+
+219
+00:07:16,400 --> 00:07:18,000
+He said the route passes near Athens after midnight.
+
+220
+00:07:18,400 --> 00:07:20,000
+Section 219: the crew rotated every 5 hours without incident.
+
+221
+00:07:20,400 --> 00:07:22,000
+Engine room reported that valve 220 failed twice before the alarm.
+
+222
+00:07:22,400 --> 00:07:24,000
+Wait. Are you sure Serra signed the form?
+
+223
+00:07:24,400 --> 00:07:26,000
+[music playing]
+
+224
+00:07:26,400 --> 00:07:28,000
+She counted 676.4 thousand units in sector 7.
+
+225
+00:07:28,400 --> 00:07:30,000
+- Where did you go? - Nowhere special.
+
+226
+00:07:30,400 --> 00:07:32,000
+The reading stayed at 31% for 6 minutes.
+
+227
+00:07:32,400 --> 00:07:34,000
+[applause] [music fades] Then Miko left.
+
+228
+00:07:34,400 --> 00:07:36,000
+Nobody believed Serra when the sensor failed.
+
+229
+00:07:36,400 --> 00:07:38,000
+Pressure climbed to 38.3 bars before dawn.
+
+230
+00:07:38,400 --> 00:07:40,000
+He said the route passes near Persephone after midnight.
+
+231
+00:07:40,400 --> 00:07:42,000
+Section 230: the crew rotated every 8 hours without incident.
+
+232
+00:07:42,400 --> 00:07:44,000
+Engine room reported that valve 231 failed twice before the alarm.
+
+233
+00:07:44,400 --> 00:07:46,000
+Wait. Are you sure Miko signed the form?
+
+234
+00:07:46,400 --> 00:07:48,000
+[music playing]
+
+235
+00:07:48,400 --> 00:07:50,000
+She counted 709.4 thousand units in sector 0.
+
+236
+00:07:50,400 --> 00:07:52,000
+- Where did you go? - Nowhere special.
+
+237
+00:07:52,400 --> 00:07:54,000
+The reading stayed at 42% for 4 minutes.
+
+238
+00:07:54,400 --> 00:07:56,000
+[applause] [music fades] Then Cairo left.
+
+239
+00:07:56,400 --> 00:07:58,000
+Nobody believed Miko when the sensor failed.
+
+240
+00:07:58,400 --> 00:08:00,000
+Pressure climbed to 49.5 bars before dawn.
+
+241
+00:08:00,400 --> 00:08:02,000
+He said the route passes near Lawson after midnight.
+
+242
+00:08:02,400 --> 00:08:04,000
+Section 241: the crew rotated every 3 hours without incident.
+
+243
+00:08:04,400 --> 00:08:06,000
+Engine room reported that valve 242 failed twice before the alarm.
+
+244
+00:08:06,400 --> 00:08:08,000
+Wait. Are you sure Cairo signed the form?
+
+245
+00:08:08,400 --> 00:08:10,000
+[music playing]
+
+246
+00:08:10,400 --> 00:08:12,000
+She counted 742.4 thousand units in sector 2.
+
+247
+00:08:12,400 --> 00:08:14,000
+- Where did you go? - Nowhere special.
+
+248
+00:08:14,400 --> 00:08:16,000
+The reading stayed at 53% for 2 minutes.
+
+249
+00:08:16,400 --> 00:08:18,000
+[applause] [music fades] Then Athens left.
+
+250
+00:08:18,400 --> 00:08:20,000
+Nobody believed Cairo when the sensor failed.
+
+251
+00:08:20,400 --> 00:08:22,000
+Pressure climbed to 20.7 bars before dawn.
+
+252
+00:08:22,400 --> 00:08:24,000
+He said the route passes near Serra after midnight.
+
+253
+00:08:24,400 --> 00:08:26,000
+Section 252: the crew rotated every 6 hours without incident.
+
+254
+00:08:26,400 --> 00:08:28,000
+Engine room reported that valve 253 failed twice before the alarm.
+
+255
+00:08:28,400 --> 00:08:30,000
+Wait. Are you sure Athens signed the form?
+
+256
+00:08:30,400 --> 00:08:32,000
+[music playing]
+
+257
+00:08:32,400 --> 00:08:34,000
+She counted 775.4 thousand units in sector 4.
+
+258
+00:08:34,400 --> 00:08:36,000
+- Where did you go? - Nowhere special.
+
+259
+00:08:36,400 --> 00:08:38,000
+The reading stayed at 64% for 13 minutes.
+
+260
+00:08:38,400 --> 00:08:40,000
+[applause] [music fades] Then Persephone left.
+
+261
+00:08:40,400 --> 00:08:42,000
+Nobody believed Athens when the sensor failed.
+
+262
+00:08:42,400 --> 00:08:44,000
+Pressure climbed to 31.0 bars before dawn.
+
+263
+00:08:44,400 --> 00:08:46,000
+He said the route passes near Miko after midnight.
+
+264
+00:08:46,400 --> 00:08:48,000
+Section 263: the crew rotated every 9 hours without incident.
+
+265
+00:08:48,400 --> 00:08:50,000
+Engine room reported that valve 264 failed twice before the alarm.
+
+266
+00:08:50,400 --> 00:08:52,000
+Wait. Are you sure Persephone signed the form?
+
+267
+00:08:52,400 --> 00:08:54,000
+[music playing]
+
+268
+00:08:54,400 --> 00:08:56,000
+She counted 808.4 thousand units in sector 6.
+
+269
+00:08:56,400 --> 00:08:58,000
+- Where did you go? - Nowhere special.
+
+270
+00:08:58,400 --> 00:09:00,000
+The reading stayed at 75% for 11 minutes.
+
+271
+00:09:00,400 --> 00:09:02,000
+[applause] [music fades] Then Lawson left.
+
+272
+00:09:02,400 --> 00:09:04,000
+Nobody believed Persephone when the sensor failed.
+
+273
+00:09:04,400 --> 00:09:06,000
+Pressure climbed to 42.2 bars before dawn.
+
+274
+00:09:06,400 --> 00:09:08,000
+He said the route passes near Cairo after midnight.
+
+275
+00:09:08,400 --> 00:09:10,000
+Section 274: the crew rotated every 4 hours without incident.
+
+276
+00:09:10,400 --> 00:09:12,000
+Engine room reported that valve 275 failed twice before the alarm.
+
+277
+00:09:12,400 --> 00:09:14,000
+Wait. Are you sure Lawson signed the form?
+
+278
+00:09:14,400 --> 00:09:16,000
+[music playing]
+
+279
+00:09:16,400 --> 00:09:18,000
+She counted 841.4 thousand units in sector 8.
+
+280
+00:09:18,400 --> 00:09:20,000
+- Where did you go? - Nowhere special.
+
+281
+00:09:20,400 --> 00:09:22,000
+The reading stayed at 86% for 9 minutes.
+
+282
+00:09:22,400 --> 00:09:24,000
+[applause] [music fades] Then Serra left.
+
+283
+00:09:24,400 --> 00:09:26,000
+Nobody believed Lawson when the sensor failed.
+
+284
+00:09:26,400 --> 00:09:28,000
+Pressure climbed to 13.4 bars before dawn.
+
+285
+00:09:28,400 --> 00:09:30,000
+He said the route passes near Athens after midnight.
+
+286
+00:09:30,400 --> 00:09:32,000
+Section 285: the crew rotated every 7 hours without incident.
+
+287
+00:09:32,400 --> 00:09:34,000
+Engine room reported that valve 286 failed twice before the alarm.
+
+288
+00:09:34,400 --> 00:09:36,000
+Wait. Are you sure Serra signed the form?
+
+289
+00:09:36,400 --> 00:09:38,000
+[music playing]
+
+290
+00:09:38,400 --> 00:09:40,000
+She counted 874.4 thousand units in sector 1.
+
+291
+00:09:40,400 --> 00:09:42,000
+- Where did you go? - Nowhere special.
+
+292
+00:09:42,400 --> 00:09:44,000
+The reading stayed at 0% for 7 minutes.
+
+293
+00:09:44,400 --> 00:09:46,000
+[applause] [music fades] Then Miko left.
+
+294
+00:09:46,400 --> 00:09:48,000
+Nobody believed Serra when the sensor failed.
+
+295
+00:09:48,400 --> 00:09:50,000
+Pressure climbed to 24.6 bars before dawn.
+
+296
+00:09:50,400 --> 00:09:52,000
+He said the route passes near Persephone after midnight.
+
+297
+00:09:52,400 --> 00:09:54,000
+Section 296: the crew rotated every 2 hours without incident.
+
+298
+00:09:54,400 --> 00:09:56,000
+Engine room reported that valve 297 failed twice before the alarm.
+
+299
+00:09:56,400 --> 00:09:58,000
+Wait. Are you sure Miko signed the form?
+
+300
+00:09:58,400 --> 00:10:00,000
+[music playing]
+
+301
+00:10:00,400 --> 00:10:02,000
+She counted 907.4 thousand units in sector 3.
+
+302
+00:10:02,400 --> 00:10:04,000
+- Where did you go? - Nowhere special.
+
+303
+00:10:04,400 --> 00:10:06,000
+The reading stayed at 11% for 5 minutes.
+
+304
+00:10:06,400 --> 00:10:08,000
+[applause] [music fades] Then Cairo left.
+
+305
+00:10:08,400 --> 00:10:10,000
+Nobody believed Miko when the sensor failed.
+
+306
+00:10:10,400 --> 00:10:12,000
+Pressure climbed to 35.8 bars before dawn.
+
+307
+00:10:12,400 --> 00:10:14,000
+He said the route passes near Lawson after midnight.
+
+308
+00:10:14,400 --> 00:10:16,000
+Section 307: the crew rotated every 5 hours without incident.
+
+309
+00:10:16,400 --> 00:10:18,000
+Engine room reported that valve 308 failed twice before the alarm.
+
+310
+00:10:18,400 --> 00:10:20,000
+Wait. Are you sure Cairo signed the form?
+
+311
+00:10:20,400 --> 00:10:22,000
+[music playing]
+
+312
+00:10:22,400 --> 00:10:24,000
+She counted 940.4 thousand units in sector 5.
+
+313
+00:10:24,400 --> 00:10:26,000
+- Where did you go? - Nowhere special.
+
+314
+00:10:26,400 --> 00:10:28,000
+The reading stayed at 22% for 3 minutes.
+
+315
+00:10:28,400 --> 00:10:30,000
+[applause] [music fades] Then Athens left.
+
+316
+00:10:30,400 --> 00:10:32,000
+Nobody believed Cairo when the sensor failed.
+
+317
+00:10:32,400 --> 00:10:34,000
+Pressure climbed to 46.1 bars before dawn.
+
+318
+00:10:34,400 --> 00:10:36,000
+He said the route passes near Serra after midnight.
+
+319
+00:10:36,400 --> 00:10:38,000
+Section 318: the crew rotated every 8 hours without incident.
+
+320
+00:10:38,400 --> 00:10:40,000
+Engine room reported that valve 319 failed twice before the alarm.
+
+321
+00:10:40,400 --> 00:10:42,000
+Wait. Are you sure Athens signed the form?
+
+322
+00:10:42,400 --> 00:10:44,000
+[music playing]
+
+323
+00:10:44,400 --> 00:10:46,000
+She counted 973.4 thousand units in sector 7.
+
+324
+00:10:46,400 --> 00:10:48,000
+- Where did you go? - Nowhere special.
+
+325
+00:10:48,400 --> 00:10:50,000
+The reading stayed at 33% for 14 minutes.
+
+326
+00:10:50,400 --> 00:10:52,000
+[applause] [music fades] Then Persephone left.
+
+327
+00:10:52,400 --> 00:10:54,000
+Nobody believed Athens when the sensor failed.
+
+328
+00:10:54,400 --> 00:10:56,000
+Pressure climbed to 17.3 bars before dawn.
+
+329
+00:10:56,400 --> 00:10:58,000
+He said the route passes near Miko after midnight.
+
+330
+00:10:58,400 --> 00:11:00,000
+Section 329: the crew rotated every 3 hours without incident.
+
+331
+00:11:00,400 --> 00:11:02,000
+Engine room reported that valve 330 failed twice before the alarm.
+
+332
+00:11:02,400 --> 00:11:04,000
+Wait. Are you sure Persephone signed the form?
+
+333
+00:11:04,400 --> 00:11:06,000
+[music playing]
+
+334
+00:11:06,400 --> 00:11:08,000
+She counted 1006.4 thousand units in sector 0.
+
+335
+00:11:08,400 --> 00:11:10,000
+- Where did you go? - Nowhere special.
+
+336
+00:11:10,400 --> 00:11:12,000
+The reading stayed at 44% for 12 minutes.
+
+337
+00:11:12,400 --> 00:11:14,000
+[applause] [music fades] Then Lawson left.
+
+338
+00:11:14,400 --> 00:11:16,000
+Nobody believed Persephone when the sensor failed.
+
+339
+00:11:16,400 --> 00:11:18,000
+Pressure climbed to 28.5 bars before dawn.
+
+340
+00:11:18,400 --> 00:11:20,000
+He said the route passes near Cairo after midnight.
+
+341
+00:11:20,400 --> 00:11:22,000
+Section 340: the crew rotated every 6 hours without incident.
+
+342
+00:11:22,400 --> 00:11:24,000
+Engine room reported that valve 341 failed twice before the alarm.
+
+343
+00:11:24,400 --> 00:11:26,000
+Wait. Are you sure Lawson signed the form?
+
+344
+00:11:26,400 --> 00:11:28,000
+[music playing]
+
+345
+00:11:28,400 --> 00:11:30,000
+She counted 1039.4 thousand units in sector 2.
+
+346
+00:11:30,400 --> 00:11:32,000
+- Where did you go? - Nowhere special.
+
+347
+00:11:32,400 --> 00:11:34,000
+The reading stayed at 55% for 10 minutes.
+
+348
+00:11:34,400 --> 00:11:36,000
+[applause] [music fades] Then Serra left.
+
+349
+00:11:36,400 --> 00:11:38,000
+Nobody believed Lawson when the sensor failed.
+
+350
+00:11:38,400 --> 00:11:40,000
+Pressure climbed to 39.7 bars before dawn.
+
+351
+00:11:40,400 --> 00:11:42,000
+He said the route passes near Athens after midnight.
+
+352
+00:11:42,400 --> 00:11:44,000
+Section 351: the crew rotated every 9 hours without incident.
+
+353
+00:11:44,400 --> 00:11:46,000
+Engine room reported that valve 352 failed twice before the alarm.
+
+354
+00:11:46,400 --> 00:11:48,000
+Wait. Are you sure Serra signed the form?
+
+355
+00:11:48,400 --> 00:11:50,000
+[music playing]
+
+356
+00:11:50,400 --> 00:11:52,000
+She counted 1072.4 thousand units in sector 4.
+
+357
+00:11:52,400 --> 00:11:54,000
+- Where did you go? - Nowhere special.
+
+358
+00:11:54,400 --> 00:11:56,000
+The reading stayed at 66% for 8 minutes.
+
+359
+00:11:56,400 --> 00:11:58,000
+[applause] [music fades] Then Miko left.
+
+360
+00:11:58,400 --> 00:12:00,000
+Nobody believed Serra when the sensor failed.
+
+361
+00:12:00,400 --> 00:12:02,000
+Pressure climbed to 10.0 bars before dawn.
+
+362
+00:12:02,400 --> 00:12:04,000
+He said the route passes near Persephone after midnight.
+
+363
+00:12:04,400 --> 00:12:06,000
+Section 362: the crew rotated every 4 hours without incident.
+
+364
+00:12:06,400 --> 00:12:08,000
+Engine room reported that valve 363 failed twice before the alarm.
+
+365
+00:12:08,400 --> 00:12:10,000
+Wait. Are you sure Miko signed the form?
+
+366
+00:12:10,400 --> 00:12:12,000
+[music playing]
+
+367
+00:12:12,400 --> 00:12:14,000
+She counted 1105.4 thousand units in sector 6.
+
+368
+00:12:14,400 --> 00:12:16,000
+- Where did you go? - Nowhere special.
+
+369
+00:12:16,400 --> 00:12:18,000
+The reading stayed at 77% for 6 minutes.
+
+370
+00:12:18,400 --> 00:12:20,000
+[applause] [music fades] Then Cairo left.
+
+371
+00:12:20,400 --> 00:12:22,000
+Nobody believed Miko when the sensor failed.
+
+372
+00:12:22,400 --> 00:12:24,000
+Pressure climbed to 21.2 bars before dawn.
+
+373
+00:12:24,400 --> 00:12:26,000
+He said the route passes near Lawson after midnight.
+
+374
+00:12:26,400 --> 00:12:28,000
+Section 373: the crew rotated every 7 hours without incident.
+
+375
+00:12:28,400 --> 00:12:30,000
+Engine room reported that valve 374 failed twice before the alarm.
+
+376
+00:12:30,400 --> 00:12:32,000
+Wait. Are you sure Cairo signed the form?
+
+377
+00:12:32,400 --> 00:12:34,000
+[music playing]
+
+378
+00:12:34,400 --> 00:12:36,000
+She counted 1138.4 thousand units in sector 8.
+
+379
+00:12:36,400 --> 00:12:38,000
+- Where did you go? - Nowhere special.
+
+380
+00:12:38,400 --> 00:12:40,000
+The reading stayed at 88% for 4 minutes.
+
+381
+00:12:40,400 --> 00:12:42,000
+[applause] [music fades] Then Athens left.
+
+382
+00:12:42,400 --> 00:12:44,000
+Nobody believed Cairo when the sensor failed.
+
+383
+00:12:44,400 --> 00:12:46,000
+Pressure climbed to 32.4 bars before dawn.
+
+384
+00:12:46,400 --> 00:12:48,000
+He said the route passes near Serra after midnight.
+
+385
+00:12:48,400 --> 00:12:50,000
+Section 384: the crew rotated every 2 hours without incident.
+
+386
+00:12:50,400 --> 00:12:52,000
+Engine room reported that valve 385 failed twice before the alarm.
+
+387
+00:12:52,400 --> 00:12:54,000
+Wait. Are you sure Athens signed the form?
+
+388
+00:12:54,400 --> 00:12:56,000
+[music playing]
+
+389
+00:12:56,400 --> 00:12:58,000
+She counted 1171.4 thousand units in sector 1.
+
+390
+00:12:58,400 --> 00:13:00,000
+- Where did you go? - Nowhere special.
+
+391
+00:13:00,400 --> 00:13:02,000
+The reading stayed at 2% for 2 minutes.
+
+392
+00:13:02,400 --> 00:13:04,000
+[applause] [music fades] Then Persephone left.
+
+393
+00:13:04,400 --> 00:13:06,000
+Nobody believed Athens when the sensor failed.
+
+394
+00:13:06,400 --> 00:13:08,000
+Pressure climbed to 43.6 bars before dawn.
+
+395
+00:13:08,400 --> 00:13:10,000
+He said the route passes near Miko after midnight.
+
+396
+00:13:10,400 --> 00:13:12,000
+Section 395: the crew rotated every 5 hours without incident.
+
+397
+00:13:12,400 --> 00:13:14,000
+Engine room reported that valve 396 failed twice before the alarm.
+
+398
+00:13:14,400 --> 00:13:16,000
+Wait. Are you sure Persephone signed the form?
+
+399
+00:13:16,400 --> 00:13:18,000
+[music playing]
+
+400
+00:13:18,400 --> 00:13:20,000
+She counted 1204.4 thousand units in sector 3.
+
+401
+00:13:20,400 --> 00:13:22,000
+- Where did you go? - Nowhere special.
+
+402
+00:13:22,400 --> 00:13:24,000
+The reading stayed at 13% for 13 minutes.
+
+403
+00:13:24,400 --> 00:13:26,000
+[applause] [music fades] Then Lawson left.
+
+404
+00:13:26,400 --> 00:13:28,000
+Nobody believed Persephone when the sensor failed.
+
+405
+00:13:28,400 --> 00:13:30,000
+Pressure climbed to 14.8 bars before dawn.
+
+406
+00:13:30,400 --> 00:13:32,000
+He said the route passes near Cairo after midnight.
+
+407
+00:13:32,400 --> 00:13:34,000
+Section 406: the crew rotated every 8 hours without incident.
+
+408
+00:13:34,400 --> 00:13:36,000
+Engine room reported that valve 407 failed twice before the alarm.
+
+409
+00:13:36,400 --> 00:13:38,000
+Wait. Are you sure Lawson signed the form?
+
+410
+00:13:38,400 --> 00:13:40,000
+[music playing]
+
+411
+00:13:40,400 --> 00:13:42,000
+She counted 1237.4 thousand units in sector 5.
+
+412
+00:13:42,400 --> 00:13:44,000
+- Where did you go? - Nowhere special.
+
+413
+00:13:44,400 --> 00:13:46,000
+The reading stayed at 24% for 11 minutes.
+
+414
+00:13:46,400 --> 00:13:48,000
+[applause] [music fades] Then Serra left.
+
+415
+00:13:48,400 --> 00:13:50,000
+Nobody believed Lawson when the sensor failed.
+
+416
+00:13:50,400 --> 00:13:52,000
+Pressure climbed to 25.1 bars before dawn.
+
+417
+00:13:52,400 --> 00:13:54,000
+He said the route passes near Athens after midnight.
+
+418
+00:13:54,400 --> 00:13:56,000
+Section 417: the crew rotated every 3 hours without incident.
+
+419
+00:13:56,400 --> 00:13:58,000
+Engine room reported that valve 418 failed twice before the alarm.
+
+420
+00:13:58,400 --> 00:14:00,000
+Wait. Are you sure Serra signed the form?
+
+421
+00:14:00,400 --> 00:14:02,000
+[music playing]
+
+422
+00:14:02,400 --> 00:14:04,000
+She counted 1270.4 thousand units in sector 7.
+
+423
+00:14:04,400 --> 00:14:06,000
+- Where did you go? - Nowhere special.
+
+424
+00:14:06,400 --> 00:14:08,000
+The reading stayed at 35% for 9 minutes.
+
+425
+00:14:08,400 --> 00:14:10,000
+[applause] [music fades] Then Miko left.
+
+426
+00:14:10,400 --> 00:14:12,000
+Nobody believed Serra when the sensor failed.
+
+427
+00:14:12,400 --> 00:14:14,000
+Pressure climbed to 36.3 bars before dawn.
+
+428
+00:14:14,400 --> 00:14:16,000
+He said the route passes near Persephone after midnight.
+
+429
+00:14:16,400 --> 00:14:18,000
+Section 428: the crew rotated every 6 hours without incident.
+
+430
+00:14:18,400 --> 00:14:20,000
+Engine room reported that valve 429 failed twice before the alarm.
+
+431
+00:14:20,400 --> 00:14:22,000
+Wait. Are you sure Miko signed the form?
+
+432
+00:14:22,400 --> 00:14:24,000
+[music playing]
+
+433
+00:14:24,400 --> 00:14:26,000
+She counted 1303.4 thousand units in sector 0.
+
+434
+00:14:26,400 --> 00:14:28,000
+- Where did you go? - Nowhere special.
+
+435
+00:14:28,400 --> 00:14:30,000
+The reading stayed at 46% for 7 minutes.
+
+436
+00:14:30,400 --> 00:14:32,000
+[applause] [music fades] Then Cairo left.
+
+437
+00:14:32,400 --> 00:14:34,000
+Nobody believed Miko when the sensor failed.
+
+438
+00:14:34,400 --> 00:14:36,000
+Pressure climbed to 47.5 bars before dawn.
+
+439
+00:14:36,400 --> 00:14:38,000
+He said the route passes near Lawson after midnight.
+
+440
+00:14:38,400 --> 00:14:40,000
+Section 439: the crew rotated every 9 hours without incident.
+
+441
+00:14:40,400 --> 00:14:42,000
+Engine room reported that valve 440 failed twice before the alarm.
+
+442
+00:14:42,400 --> 00:14:44,000
+Wait. Are you sure Cairo signed the form?
+
+443
+00:14:44,400 --> 00:14:46,000
+[music playing]
+
+444
+00:14:46,400 --> 00:14:48,000
+She counted 1336.4 thousand units in sector 2.
+
+445
+00:14:48,400 --> 00:14:50,000
+- Where did you go? - Nowhere special.
+
+446
+00:14:50,400 --> 00:14:52,000
+The reading stayed at 57% for 5 minutes.
+
+447
+00:14:52,400 --> 00:14:54,000
+[applause] [music fades] Then Athens left.
+
+448
+00:14:54,400 --> 00:14:56,000
+Nobody believed Cairo when the sensor failed.
+
+449
+00:14:56,400 --> 00:14:58,000
+Pressure climbed to 18.7 bars before dawn.
+
+450
+00:14:58,400 --> 00:15:00,000
+He said the route passes near Serra after midnight.
+
+451
+00:15:00,400 --> 00:15:02,000
+Section 450: the crew rotated every 4 hours without incident.
+
+452
+00:15:02,400 --> 00:15:04,000
+Engine room reported that valve 451 failed twice before the alarm.
+
+453
+00:15:04,400 --> 00:15:06,000
+Wait. Are you sure Athens signed the form?
+
+454
+00:15:06,400 --> 00:15:08,000
+[music playing]
+
+455
+00:15:08,400 --> 00:15:10,000
+She counted 1369.4 thousand units in sector 4.
+
+456
+00:15:10,400 --> 00:15:12,000
+- Where did you go? - Nowhere special.
+
+457
+00:15:12,400 --> 00:15:14,000
+The reading stayed at 68% for 3 minutes.
+
+458
+00:15:14,400 --> 00:15:16,000
+[applause] [music fades] Then Persephone left.
+
+459
+00:15:16,400 --> 00:15:18,000
+Nobody believed Athens when the sensor failed.
+
+460
+00:15:18,400 --> 00:15:20,000
+Pressure climbed to 29.0 bars before dawn.
+
+461
+00:15:20,400 --> 00:15:22,000
+He said the route passes near Miko after midnight.
+
+462
+00:15:22,400 --> 00:15:24,000
+Section 461: the crew rotated every 7 hours without incident.
+
+463
+00:15:24,400 --> 00:15:26,000
+Engine room reported that valve 462 failed twice before the alarm.
+
+464
+00:15:26,400 --> 00:15:28,000
+Wait. Are you sure Persephone signed the form?
+
+465
+00:15:28,400 --> 00:15:30,000
+[music playing]
+
+466
+00:15:30,400 --> 00:15:32,000
+She counted 1402.4 thousand units in sector 6.
+
+467
+00:15:32,400 --> 00:15:34,000
+- Where did you go? - Nowhere special.
+
+468
+00:15:34,400 --> 00:15:36,000
+The reading stayed at 79% for 14 minutes.
+
+469
+00:15:36,400 --> 00:15:38,000
+[applause] [music fades] Then Lawson left.
+
+470
+00:15:38,400 --> 00:15:40,000
+Nobody believed Persephone when the sensor failed.
+
+471
+00:15:40,400 --> 00:15:42,000
+Pressure climbed to 40.2 bars before dawn.
+
+472
+00:15:42,400 --> 00:15:44,000
+He said the route passes near Cairo after midnight.
+
+473
+00:15:44,400 --> 00:15:46,000
+Section 472: the crew rotated every 2 hours without incident.
+
+474
+00:15:46,400 --> 00:15:48,000
+Engine room reported that valve 473 failed twice before the alarm.
+
+475
+00:15:48,400 --> 00:15:50,000
+Wait. Are you sure Lawson signed the form?
+
+476
+00:15:50,400 --> 00:15:52,000
+[music playing]
+
+477
+00:15:52,400 --> 00:15:54,000
+She counted 1435.4 thousand units in sector 8.
+
+478
+00:15:54,400 --> 00:15:56,000
+- Where did you go? - Nowhere special.
+
+479
+00:15:56,400 --> 00:15:58,000
+The reading stayed at 90% for 12 minutes.
+
+480
+00:15:58,400 --> 00:16:00,000
+[applause] [music fades] Then Serra left.
+
+481
+00:16:00,400 --> 00:16:02,000
+Nobody believed Lawson when the sensor failed.
+
+482
+00:16:02,400 --> 00:16:04,000
+Pressure climbed to 11.4 bars before dawn.
+
+483
+00:16:04,400 --> 00:16:06,000
+He said the route passes near Athens after midnight.
+
+484
+00:16:06,400 --> 00:16:08,000
+Section 483: the crew rotated every 5 hours without incident.
+
+485
+00:16:08,400 --> 00:16:10,000
+Engine room reported that valve 484 failed twice before the alarm.
+
+486
+00:16:10,400 --> 00:16:12,000
+Wait. Are you sure Serra signed the form?
+
+487
+00:16:12,400 --> 00:16:14,000
+[music playing]
+
+488
+00:16:14,400 --> 00:16:16,000
+She counted 1468.4 thousand units in sector 1.
+
+489
+00:16:16,400 --> 00:16:18,000
+- Where did you go? - Nowhere special.
+
+490
+00:16:18,400 --> 00:16:20,000
+The reading stayed at 4% for 10 minutes.
+
+491
+00:16:20,400 --> 00:16:22,000
+[applause] [music fades] Then Miko left.
+
+492
+00:16:22,400 --> 00:16:24,000
+Nobody believed Serra when the sensor failed.
+
+493
+00:16:24,400 --> 00:16:26,000
+Pressure climbed to 22.6 bars before dawn.
+
+494
+00:16:26,400 --> 00:16:28,000
+He said the route passes near Persephone after midnight.
+
+495
+00:16:28,400 --> 00:16:30,000
+Section 494: the crew rotated every 8 hours without incident.
+
+496
+00:16:30,400 --> 00:16:32,000
+Engine room reported that valve 495 failed twice before the alarm.
+
+497
+00:16:32,400 --> 00:16:34,000
+Wait. Are you sure Miko signed the form?
+
+498
+00:16:34,400 --> 00:16:36,000
+[music playing]
+
+499
+00:16:36,400 --> 00:16:38,000
+She counted 1501.4 thousand units in sector 3.
+
+500
+00:16:38,400 --> 00:16:40,000
+- Where did you go? - Nowhere special.
+
+501
+00:16:40,400 --> 00:16:42,000
+The reading stayed at 15% for 8 minutes.
+
+502
+00:16:42,400 --> 00:16:44,000
+[applause] [music fades] Then Cairo left.
+
+503
+00:16:44,400 --> 00:16:46,000
+Nobody believed Miko when the sensor failed.
+
+504
+00:16:46,400 --> 00:16:48,000
+Pressure climbed to 33.8 bars before dawn.
+
+505
+00:16:48,400 --> 00:16:50,000
+He said the route passes near Lawson after midnight.
+
+506
+00:16:50,400 --> 00:16:52,000
+Section 505: the crew rotated every 3 hours without incident.
+
+507
+00:16:52,400 --> 00:16:54,000
+Engine room reported that valve 506 failed twice before the alarm.
+
+508
+00:16:54,400 --> 00:16:56,000
+Wait. Are you sure Cairo signed the form?
+
+509
+00:16:56,400 --> 00:16:58,000
+[music playing]
+
+510
+00:16:58,400 --> 00:17:00,000
+She counted 1534.4 thousand units in sector 5.
+
+511
+00:17:00,400 --> 00:17:02,000
+- Where did you go? - Nowhere special.
+
+512
+00:17:02,400 --> 00:17:04,000
+The reading stayed at 26% for 6 minutes.
+
+513
+00:17:04,400 --> 00:17:06,000
+[applause] [music fades] Then Athens left.
+
+514
+00:17:06,400 --> 00:17:08,000
+Nobody believed Cairo when the sensor failed.
+
+515
+00:17:08,400 --> 00:17:10,000
+Pressure climbed to 44.1 bars before dawn.
+
+516
+00:17:10,400 --> 00:17:12,000
+He said the route passes near Serra after midnight.
+
+517
+00:17:12,400 --> 00:17:14,000
+Section 516: the crew rotated every 6 hours without incident.
+
+518
+00:17:14,400 --> 00:17:16,000
+Engine room reported that valve 517 failed twice before the alarm.
+
+519
+00:17:16,400 --> 00:17:18,000
+Wait. Are you sure Athens signed the form?
+
+520
+00:17:18,400 --> 00:17:20,000
+[music playing]
+
+521
+00:17:20,400 --> 00:17:22,000
+She counted 1567.4 thousand units in sector 7.
+
+522
+00:17:22,400 --> 00:17:24,000
+- Where did you go? - Nowhere special.
+
+523
+00:17:24,400 --> 00:17:26,000
+The reading stayed at 37% for 4 minutes.
+
+524
+00:17:26,400 --> 00:17:28,000
+[applause] [music fades] Then Persephone left.
+
+525
+00:17:28,400 --> 00:17:30,000
+Nobody believed Athens when the sensor failed.
+
+526
+00:17:30,400 --> 00:17:32,000
+Pressure climbed to 15.3 bars before dawn.
+
+527
+00:17:32,400 --> 00:17:34,000
+He said the route passes near Miko after midnight.
+
+528
+00:17:34,400 --> 00:17:36,000
+Section 527: the crew rotated every 9 hours without incident.
+
+529
+00:17:36,400 --> 00:17:38,000
+Engine room reported that valve 528 failed twice before the alarm.
+
+530
+00:17:38,400 --> 00:17:40,000
+Wait. Are you sure Persephone signed the form?
+
+531
+00:17:40,400 --> 00:17:42,000
+[music playing]
+
+532
+00:17:42,400 --> 00:17:44,000
+She counted 1600.4 thousand units in sector 0.
+
+533
+00:17:44,400 --> 00:17:46,000
+- Where did you go? - Nowhere special.
+
+534
+00:17:46,400 --> 00:17:48,000
+The reading stayed at 48% for 2 minutes.
+
+535
+00:17:48,400 --> 00:17:50,000
+[applause] [music fades] Then Lawson left.
+
+536
+00:17:50,400 --> 00:17:52,000
+Nobody believed Persephone when the sensor failed.
+
+537
+00:17:52,400 --> 00:17:54,000
+Pressure climbed to 26.5 bars before dawn.
+
+538
+00:17:54,400 --> 00:17:56,000
+He said the route passes near Cairo after midnight.
+
+539
+00:17:56,400 --> 00:17:58,000
+Section 538: the crew rotated every 4 hours without incident.
+
+540
+00:17:58,400 --> 00:18:00,000
+Engine room reported that valve 539 failed twice before the alarm.
+
+541
+00:18:00,400 --> 00:18:02,000
+Wait. Are you sure Lawson signed the form?
+
+542
+00:18:02,400 --> 00:18:04,000
+[music playing]
+
+543
+00:18:04,400 --> 00:18:06,000
+She counted 1633.4 thousand units in sector 2.
+
+544
+00:18:06,400 --> 00:18:08,000
+- Where did you go? - Nowhere special.
+
+545
+00:18:08,400 --> 00:18:10,000
+The reading stayed at 59% for 13 minutes.
+
+546
+00:18:10,400 --> 00:18:12,000
+[applause] [music fades] Then Serra left.
+
+547
+00:18:12,400 --> 00:18:14,000
+Nobody believed Lawson when the sensor failed.
+
+548
+00:18:14,400 --> 00:18:16,000
+Pressure climbed to 37.7 bars before dawn.
+
+549
+00:18:16,400 --> 00:18:18,000
+He said the route passes near Athens after midnight.
+
+550
+00:18:18,400 --> 00:18:20,000
+Section 549: the crew rotated every 7 hours without incident.
+
+551
+00:18:20,400 --> 00:18:22,000
+Engine room reported that valve 550 failed twice before the alarm.
+
+552
+00:18:22,400 --> 00:18:24,000
+Wait. Are you sure Serra signed the form?
+
+553
+00:18:24,400 --> 00:18:26,000
+[music playing]
+
+554
+00:18:26,400 --> 00:18:28,000
+She counted 1666.4 thousand units in sector 4.
+
+555
+00:18:28,400 --> 00:18:30,000
+- Where did you go? - Nowhere special.
+
+556
+00:18:30,400 --> 00:18:32,000
+The reading stayed at 70% for 11 minutes.
+
+557
+00:18:32,400 --> 00:18:34,000
+[applause] [music fades] Then Miko left.
+
+558
+00:18:34,400 --> 00:18:36,000
+Nobody believed Serra when the sensor failed.
+
+559
+00:18:36,400 --> 00:18:38,000
+Pressure climbed to 48.0 bars before dawn.
+
+560
+00:18:38,400 --> 00:18:40,000
+He said the route passes near Persephone after midnight.
+
+561
+00:18:40,400 --> 00:18:42,000
+Section 560: the crew rotated every 2 hours without incident.
+
+562
+00:18:42,400 --> 00:18:44,000
+Engine room reported that valve 561 failed twice before the alarm.
+
+563
+00:18:44,400 --> 00:18:46,000
+Wait. Are you sure Miko signed the form?
+
+564
+00:18:46,400 --> 00:18:48,000
+[music playing]
+
+565
+00:18:48,400 --> 00:18:50,000
+She counted 1699.4 thousand units in sector 6.
+
+566
+00:18:50,400 --> 00:18:52,000
+- Where did you go? - Nowhere special.
+
+567
+00:18:52,400 --> 00:18:54,000
+The reading stayed at 81% for 9 minutes.
+
+568
+00:18:54,400 --> 00:18:56,000
+[applause] [music fades] Then Cairo left.
+
+569
+00:18:56,400 --> 00:18:58,000
+Nobody believed Miko when the sensor failed.
+
+570
+00:18:58,400 --> 00:19:00,000
+Pressure climbed to 19.2 bars before dawn.
+
+571
+00:19:00,400 --> 00:19:02,000
+He said the route passes near Lawson after midnight.
+
+572
+00:19:02,400 --> 00:19:04,000
+Section 571: the crew rotated every 5 hours without incident.
+
+573
+00:19:04,400 --> 00:19:06,000
+Engine room reported that valve 572 failed twice before the alarm.
+
+574
+00:19:06,400 --> 00:19:08,000
+Wait. Are you sure Cairo signed the form?
+
+575
+00:19:08,400 --> 00:19:10,000
+[music playing]
+
+576
+00:19:10,400 --> 00:19:12,000
+She counted 1732.4 thousand units in sector 8.
+
+577
+00:19:12,400 --> 00:19:14,000
+- Where did you go? - Nowhere special.
+
+578
+00:19:14,400 --> 00:19:16,000
+The reading stayed at 92% for 7 minutes.
+
+579
+00:19:16,400 --> 00:19:18,000
+[applause] [music fades] Then Athens left.
+
+580
+00:19:18,400 --> 00:19:20,000
+Nobody believed Cairo when the sensor failed.
+
+581
+00:19:20,400 --> 00:19:22,000
+Pressure climbed to 30.4 bars before dawn.
+
+582
+00:19:22,400 --> 00:19:24,000
+He said the route passes near Serra after midnight.
+
+583
+00:19:24,400 --> 00:19:26,000
+Section 582: the crew rotated every 8 hours without incident.
+
+584
+00:19:26,400 --> 00:19:28,000
+Engine room reported that valve 583 failed twice before the alarm.
+
+585
+00:19:28,400 --> 00:19:30,000
+Wait. Are you sure Athens signed the form?
+
+586
+00:19:30,400 --> 00:19:32,000
+[music playing]
+
+587
+00:19:32,400 --> 00:19:34,000
+She counted 1765.4 thousand units in sector 1.
+
+588
+00:19:34,400 --> 00:19:36,000
+- Where did you go? - Nowhere special.
+
+589
+00:19:36,400 --> 00:19:38,000
+The reading stayed at 6% for 5 minutes.
+
+590
+00:19:38,400 --> 00:19:40,000
+[applause] [music fades] Then Persephone left.
+
+591
+00:19:40,400 --> 00:19:42,000
+Nobody believed Athens when the sensor failed.
+
+592
+00:19:42,400 --> 00:19:44,000
+Pressure climbed to 41.6 bars before dawn.
+
+593
+00:19:44,400 --> 00:19:46,000
+He said the route passes near Miko after midnight.
+
+594
+00:19:46,400 --> 00:19:48,000
+Section 593: the crew rotated every 3 hours without incident.
+
+595
+00:19:48,400 --> 00:19:50,000
+Engine room reported that valve 594 failed twice before the alarm.
+
+596
+00:19:50,400 --> 00:19:52,000
+Wait. Are you sure Persephone signed the form?
+
+597
+00:19:52,400 --> 00:19:54,000
+[music playing]
+
+598
+00:19:54,400 --> 00:19:56,000
+She counted 1798.4 thousand units in sector 3.
+
+599
+00:19:56,400 --> 00:19:58,000
+- Where did you go? - Nowhere special.
+
+600
+00:19:58,400 --> 00:20:00,000
+The reading stayed at 17% for 3 minutes.
+
+601
+00:20:00,400 --> 00:20:02,000
+[applause] [music fades] Then Lawson left.
+
+602
+00:20:02,400 --> 00:20:04,000
+Nobody believed Persephone when the sensor failed.
+
+603
+00:20:04,400 --> 00:20:06,000
+Pressure climbed to 12.8 bars before dawn.
+
+604
+00:20:06,400 --> 00:20:08,000
+He said the route passes near Cairo after midnight.
+
+605
+00:20:08,400 --> 00:20:10,000
+Section 604: the crew rotated every 6 hours without incident.
+
+606
+00:20:10,400 --> 00:20:12,000
+Engine room reported that valve 605 failed twice before the alarm.
+
+607
+00:20:12,400 --> 00:20:14,000
+Wait. Are you sure Lawson signed the form?
+
+608
+00:20:14,400 --> 00:20:16,000
+[music playing]
+
+609
+00:20:16,400 --> 00:20:18,000
+She counted 1831.4 thousand units in sector 5.
+
+610
+00:20:18,400 --> 00:20:20,000
+- Where did you go? - Nowhere special.
+
+611
+00:20:20,400 --> 00:20:22,000
+The reading stayed at 28% for 14 minutes.
+
+612
+00:20:22,400 --> 00:20:24,000
+[applause] [music fades] Then Serra left.
+
+613
+00:20:24,400 --> 00:20:26,000
+Nobody believed Lawson when the sensor failed.
+
+614
+00:20:26,400 --> 00:20:28,000
+Pressure climbed to 23.1 bars before dawn.
+
+615
+00:20:28,400 --> 00:20:30,000
+He said the route passes near Athens after midnight.
+
+616
+00:20:30,400 --> 00:20:32,000
+Section 615: the crew rotated every 9 hours without incident.
+
+617
+00:20:32,400 --> 00:20:34,000
+Engine room reported that valve 616 failed twice before the alarm.
+
+618
+00:20:34,400 --> 00:20:36,000
+Wait. Are you sure Serra signed the form?
+
+619
+00:20:36,400 --> 00:20:38,000
+[music playing]
+
+620
+00:20:38,400 --> 00:20:40,000
+She counted 1864.4 thousand units in sector 7.
+
+621
+00:20:40,400 --> 00:20:42,000
+- Where did you go? - Nowhere special.
+
+622
+00:20:42,400 --> 00:20:44,000
+The reading stayed at 39% for 12 minutes.
+
+623
+00:20:44,400 --> 00:20:46,000
+[applause] [music fades] Then Miko left.
+
+624
+00:20:46,400 --> 00:20:48,000
+Nobody believed Serra when the sensor failed.
+
+625
+00:20:48,400 --> 00:20:50,000
+Pressure climbed to 34.3 bars before dawn.
+
+626
+00:20:50,400 --> 00:20:52,000
+He said the route passes near Persephone after midnight.
+
+627
+00:20:52,400 --> 00:20:54,000
+Section 626: the crew rotated every 4 hours without incident.
+
+628
+00:20:54,400 --> 00:20:56,000
+Engine room reported that valve 627 failed twice before the alarm.
+
+629
+00:20:56,400 --> 00:20:58,000
+Wait. Are you sure Miko signed the form?
+
+630
+00:20:58,400 --> 00:21:00,000
+[music playing]
+
+631
+00:21:00,400 --> 00:21:02,000
+She counted 1897.4 thousand units in sector 0.
+
+632
+00:21:02,400 --> 00:21:04,000
+- Where did you go? - Nowhere special.
+
+633
+00:21:04,400 --> 00:21:06,000
+The reading stayed at 50% for 10 minutes.
+
+634
+00:21:06,400 --> 00:21:08,000
+[applause] [music fades] Then Cairo left.
+
+635
+00:21:08,400 --> 00:21:10,000
+Nobody believed Miko when the sensor failed.
+
+636
+00:21:10,400 --> 00:21:12,000
+Pressure climbed to 45.5 bars before dawn.
+
+637
+00:21:12,400 --> 00:21:14,000
+He said the route passes near Lawson after midnight.
+
+638
+00:21:14,400 --> 00:21:16,000
+Section 637: the crew rotated every 7 hours without incident.
+
+639
+00:21:16,400 --> 00:21:18,000
+Engine room reported that valve 638 failed twice before the alarm.
+
+640
+00:21:18,400 --> 00:21:20,000
+Wait. Are you sure Cairo signed the form?
+
+641
+00:21:20,400 --> 00:21:22,000
+[music playing]
+
+642
+00:21:22,400 --> 00:21:24,000
+She counted 1930.4 thousand units in sector 2.
+
+643
+00:21:24,400 --> 00:21:26,000
+- Where did you go? - Nowhere special.
+
+644
+00:21:26,400 --> 00:21:28,000
+The reading stayed at 61% for 8 minutes.
+
+645
+00:21:28,400 --> 00:21:30,000
+[applause] [music fades] Then Athens left.
+
+646
+00:21:30,400 --> 00:21:32,000
+Nobody believed Cairo when the sensor failed.
+
+647
+00:21:32,400 --> 00:21:34,000
+Pressure climbed to 16.7 bars before dawn.
+
+648
+00:21:34,400 --> 00:21:36,000
+He said the route passes near Serra after midnight.
+
+649
+00:21:36,400 --> 00:21:38,000
+Section 648: the crew rotated every 2 hours without incident.
+
+650
+00:21:38,400 --> 00:21:40,000
+Engine room reported that valve 649 failed twice before the alarm.
+
+651
+00:21:40,400 --> 00:21:42,000
+Wait. Are you sure Athens signed the form?
+
+652
+00:21:42,400 --> 00:21:44,000
+[music playing]
+
+653
+00:21:44,400 --> 00:21:46,000
+She counted 1963.4 thousand units in sector 4.
+
+654
+00:21:46,400 --> 00:21:48,000
+- Where did you go? - Nowhere special.
+
+655
+00:21:48,400 --> 00:21:50,000
+The reading stayed at 72% for 6 minutes.
+
+656
+00:21:50,400 --> 00:21:52,000
+[applause] [music fades] Then Persephone left.
+
+657
+00:21:52,400 --> 00:21:54,000
+Nobody believed Athens when the sensor failed.
+
+658
+00:21:54,400 --> 00:21:56,000
+Pressure climbed to 27.0 bars before dawn.
+
+659
+00:21:56,400 --> 00:21:58,000
+He said the route passes near Miko after midnight.
+
+660
+00:21:58,400 --> 00:22:00,000
+Section 659: the crew rotated every 5 hours without incident.
+
+661
+00:22:00,400 --> 00:22:02,000
+Engine room reported that valve 660 failed twice before the alarm.
+
+662
+00:22:02,400 --> 00:22:04,000
+Wait. Are you sure Persephone signed the form?
+
+663
+00:22:04,400 --> 00:22:06,000
+[music playing]
+
+664
+00:22:06,400 --> 00:22:08,000
+She counted 1996.4 thousand units in sector 6.
+
+665
+00:22:08,400 --> 00:22:10,000
+- Where did you go? - Nowhere special.
+
+666
+00:22:10,400 --> 00:22:12,000
+The reading stayed at 83% for 4 minutes.
+
+667
+00:22:12,400 --> 00:22:14,000
+[applause] [music fades] Then Lawson left.
+
+668
+00:22:14,400 --> 00:22:16,000
+Nobody believed Persephone when the sensor failed.
+
+669
+00:22:16,400 --> 00:22:18,000
+Pressure climbed to 38.2 bars before dawn.
+
+670
+00:22:18,400 --> 00:22:20,000
+He said the route passes near Cairo after midnight.
+
+671
+00:22:20,400 --> 00:22:22,000
+Section 670: the crew rotated every 8 hours without incident.
+
+672
+00:22:22,400 --> 00:22:24,000
+Engine room reported that valve 671 failed twice before the alarm.
+
+673
+00:22:24,400 --> 00:22:26,000
+Wait. Are you sure Lawson signed the form?
+
+674
+00:22:26,400 --> 00:22:28,000
+[music playing]
+
+675
+00:22:28,400 --> 00:22:30,000
+She counted 2029.4 thousand units in sector 8.
+
+676
+00:22:30,400 --> 00:22:32,000
+- Where did you go? - Nowhere special.
+
+677
+00:22:32,400 --> 00:22:34,000
+The reading stayed at 94% for 2 minutes.
+
+678
+00:22:34,400 --> 00:22:36,000
+[applause] [music fades] Then Serra left.
+
+679
+00:22:36,400 --> 00:22:38,000
+Nobody believed Lawson when the sensor failed.
+
+680
+00:22:38,400 --> 00:22:40,000
+Pressure climbed to 49.4 bars before dawn.
+
+681
+00:22:40,400 --> 00:22:42,000
+He said the route passes near Athens after midnight.
+
+682
+00:22:42,400 --> 00:22:44,000
+Section 681: the crew rotated every 3 hours without incident.
+
+683
+00:22:44,400 --> 00:22:46,000
+Engine room reported that valve 682 failed twice before the alarm.
+
+684
+00:22:46,400 --> 00:22:48,000
+Wait. Are you sure Serra signed the form?
+
+685
+00:22:48,400 --> 00:22:50,000
+[music playing]
+
+686
+00:22:50,400 --> 00:22:52,000
+She counted 2062.4 thousand units in sector 1.
+
+687
+00:22:52,400 --> 00:22:54,000
+- Where did you go? - Nowhere special.
+
+688
+00:22:54,400 --> 00:22:56,000
+The reading stayed at 8% for 13 minutes.
+
+689
+00:22:56,400 --> 00:22:58,000
+[applause] [music fades] Then Miko left.
+
+690
+00:22:58,400 --> 00:23:00,000
+Nobody believed Serra when the sensor failed.
+
+691
+00:23:00,400 --> 00:23:02,000
+Pressure climbed to 20.6 bars before dawn.
+
+692
+00:23:02,400 --> 00:23:04,000
+He said the route passes near Persephone after midnight.
+
+693
+00:23:04,400 --> 00:23:06,000
+Section 692: the crew rotated every 6 hours without incident.
+
+694
+00:23:06,400 --> 00:23:08,000
+Engine room reported that valve 693 failed twice before the alarm.
+
+695
+00:23:08,400 --> 00:23:10,000
+Wait. Are you sure Miko signed the form?
+
+696
+00:23:10,400 --> 00:23:12,000
+[music playing]
+
+697
+00:23:12,400 --> 00:23:14,000
+She counted 2095.4 thousand units in sector 3.
+
+698
+00:23:14,400 --> 00:23:16,000
+- Where did you go? - Nowhere special.
+
+699
+00:23:16,400 --> 00:23:18,000
+The reading stayed at 19% for 11 minutes.
+
+700
+00:23:18,400 --> 00:23:20,000
+[applause] [music fades] Then Cairo left.
+
+701
+00:23:20,400 --> 00:23:22,000
+Nobody believed Miko when the sensor failed.
+
+702
+00:23:22,400 --> 00:23:24,000
+Pressure climbed to 31.8 bars before dawn.
+
+703
+00:23:24,400 --> 00:23:26,000
+He said the route passes near Lawson after midnight.
+
+704
+00:23:26,400 --> 00:23:28,000
+Section 703: the crew rotated every 9 hours without incident.
+
+705
+00:23:28,400 --> 00:23:30,000
+Engine room reported that valve 704 failed twice before the alarm.
+
+706
+00:23:30,400 --> 00:23:32,000
+Wait. Are you sure Cairo signed the form?
+
+707
+00:23:32,400 --> 00:23:34,000
+[music playing]
+
+708
+00:23:34,400 --> 00:23:36,000
+She counted 2128.4 thousand units in sector 5.
+
+709
+00:23:36,400 --> 00:23:38,000
+- Where did you go? - Nowhere special.
+
+710
+00:23:38,400 --> 00:23:40,000
+The reading stayed at 30% for 9 minutes.
+
+711
+00:23:40,400 --> 00:23:42,000
+[applause] [music fades] Then Athens left.
+
+712
+00:23:42,400 --> 00:23:44,000
+Nobody believed Cairo when the sensor failed.
+
+713
+00:23:44,400 --> 00:23:46,000
+Pressure climbed to 42.1 bars before dawn.
+
+714
+00:23:46,400 --> 00:23:48,000
+He said the route passes near Serra after midnight.
+
+715
+00:23:48,400 --> 00:23:50,000
+Section 714: the crew rotated every 4 hours without incident.
+
+716
+00:23:50,400 --> 00:23:52,000
+Engine room reported that valve 715 failed twice before the alarm.
+
+717
+00:23:52,400 --> 00:23:54,000
+Wait. Are you sure Athens signed the form?
+
+718
+00:23:54,400 --> 00:23:56,000
+[music playing]
+
+719
+00:23:56,400 --> 00:23:58,000
+She counted 2161.4 thousand units in sector 7.
+
+720
+00:23:58,400 --> 00:24:00,000
+- Where did you go? - Nowhere special.
+
+721
+00:24:00,400 --> 00:24:02,000
+The reading stayed at 41% for 7 minutes.
+
+722
+00:24:02,400 --> 00:24:04,000
+[applause] [music fades] Then Persephone left.
+
+723
+00:24:04,400 --> 00:24:06,000
+Nobody believed Athens when the sensor failed.
+
+724
+00:24:06,400 --> 00:24:08,000
+Pressure climbed to 13.3 bars before dawn.
+
+725
+00:24:08,400 --> 00:24:10,000
+He said the route passes near Miko after midnight.
+
+726
+00:24:10,400 --> 00:24:12,000
+Section 725: the crew rotated every 7 hours without incident.
+
+727
+00:24:12,400 --> 00:24:14,000
+Engine room reported that valve 726 failed twice before the alarm.
+
+728
+00:24:14,400 --> 00:24:16,000
+Wait. Are you sure Persephone signed the form?
+
+729
+00:24:16,400 --> 00:24:18,000
+[music playing]
+
+730
+00:24:18,400 --> 00:24:20,000
+She counted 2194.4 thousand units in sector 0.
+
+731
+00:24:20,400 --> 00:24:22,000
+- Where did you go? - Nowhere special.
+
+732
+00:24:22,400 --> 00:24:24,000
+The reading stayed at 52% for 5 minutes.
+
+733
+00:24:24,400 --> 00:24:26,000
+[applause] [music fades] Then Lawson left.
+
+734
+00:24:26,400 --> 00:24:28,000
+Nobody believed Persephone when the sensor failed.
+
+735
+00:24:28,400 --> 00:24:30,000
+Pressure climbed to 24.5 bars before dawn.
+
+736
+00:24:30,400 --> 00:24:32,000
+He said the route passes near Cairo after midnight.
+
+737
+00:24:32,400 --> 00:24:34,000
+Section 736: the crew rotated every 2 hours without incident.
+
+738
+00:24:34,400 --> 00:24:36,000
+Engine room reported that valve 737 failed twice before the alarm.
+
+739
+00:24:36,400 --> 00:24:38,000
+Wait. Are you sure Lawson signed the form?
+
+740
+00:24:38,400 --> 00:24:40,000
+[music playing]
+
+741
+00:24:40,400 --> 00:24:42,000
+She counted 2227.4 thousand units in sector 2.
+
+742
+00:24:42,400 --> 00:24:44,000
+- Where did you go? - Nowhere special.
+
+743
+00:24:44,400 --> 00:24:46,000
+The reading stayed at 63% for 3 minutes.
+
+744
+00:24:46,400 --> 00:24:48,000
+[applause] [music fades] Then Serra left.
+
+745
+00:24:48,400 --> 00:24:50,000
+Nobody believed Lawson when the sensor failed.
+
+746
+00:24:50,400 --> 00:24:52,000
+Pressure climbed to 35.7 bars before dawn.
+
+747
+00:24:52,400 --> 00:24:54,000
+He said the route passes near Athens after midnight.
+
+748
+00:24:54,400 --> 00:24:56,000
+Section 747: the crew rotated every 5 hours without incident.
+
+749
+00:24:56,400 --> 00:24:58,000
+Engine room reported that valve 748 failed twice before the alarm.
+
+750
+00:24:58,400 --> 00:25:00,000
+Wait. Are you sure Serra signed the form?
+
+751
+00:25:00,400 --> 00:25:02,000
+[music playing]
+
+752
+00:25:02,400 --> 00:25:04,000
+She counted 2260.4 thousand units in sector 4.
+
+753
+00:25:04,400 --> 00:25:06,000
+- Where did you go? - Nowhere special.
+
+754
+00:25:06,400 --> 00:25:08,000
+The reading stayed at 74% for 14 minutes.
+
+755
+00:25:08,400 --> 00:25:10,000
+[applause] [music fades] Then Miko left.
+
+756
+00:25:10,400 --> 00:25:12,000
+Nobody believed Serra when the sensor failed.
+
+757
+00:25:12,400 --> 00:25:14,000
+Pressure climbed to 46.0 bars before dawn.
+
+758
+00:25:14,400 --> 00:25:16,000
+He said the route passes near Persephone after midnight.
+
+759
+00:25:16,400 --> 00:25:18,000
+Section 758: the crew rotated every 8 hours without incident.
+
+760
+00:25:18,400 --> 00:25:20,000
+Engine room reported that valve 759 failed twice before the alarm.
+
+761
+00:25:20,400 --> 00:25:22,000
+Wait. Are you sure Miko signed the form?
+
+762
+00:25:22,400 --> 00:25:24,000
+[music playing]
+
+763
+00:25:24,400 --> 00:25:26,000
+She counted 2293.4 thousand units in sector 6.
+
+764
+00:25:26,400 --> 00:25:28,000
+- Where did you go? - Nowhere special.
+
+765
+00:25:28,400 --> 00:25:30,000
+The reading stayed at 85% for 12 minutes.
+
+766
+00:25:30,400 --> 00:25:32,000
+[applause] [music fades] Then Cairo left.
+
+767
+00:25:32,400 --> 00:25:34,000
+Nobody believed Miko when the sensor failed.
+
+768
+00:25:34,400 --> 00:25:36,000
+Pressure climbed to 17.2 bars before dawn.
+
+769
+00:25:36,400 --> 00:25:38,000
+He said the route passes near Lawson after midnight.
+
+770
+00:25:38,400 --> 00:25:40,000
+Section 769: the crew rotated every 3 hours without incident.
+
+771
+00:25:40,400 --> 00:25:42,000
+Engine room reported that valve 770 failed twice before the alarm.
+
+772
+00:25:42,400 --> 00:25:44,000
+Wait. Are you sure Cairo signed the form?
+
+773
+00:25:44,400 --> 00:25:46,000
+[music playing]
+
+774
+00:25:46,400 --> 00:25:48,000
+She counted 2326.4 thousand units in sector 8.
+
+775
+00:25:48,400 --> 00:25:50,000
+- Where did you go? - Nowhere special.
+
+776
+00:25:50,400 --> 00:25:52,000
+The reading stayed at 96% for 10 minutes.
+
+777
+00:25:52,400 --> 00:25:54,000
+[applause] [music fades] Then Athens left.
+
+778
+00:25:54,400 --> 00:25:56,000
+Nobody believed Cairo when the sensor failed.
+
+779
+00:25:56,400 --> 00:25:58,000
+Pressure climbed to 28.4 bars before dawn.
+
+780
+00:25:58,400 --> 00:26:00,000
+He said the route passes near Serra after midnight.
+
+781
+00:26:00,400 --> 00:26:02,000
+Section 780: the crew rotated every 6 hours without incident.
+
+782
+00:26:02,400 --> 00:26:04,000
+Engine room reported that valve 781 failed twice before the alarm.
+
+783
+00:26:04,400 --> 00:26:06,000
+Wait. Are you sure Athens signed the form?
+
+784
+00:26:06,400 --> 00:26:08,000
+[music playing]
+
+785
+00:26:08,400 --> 00:26:10,000
+She counted 2359.4 thousand units in sector 1.
+
+786
+00:26:10,400 --> 00:26:12,000
+- Where did you go? - Nowhere special.
+
+787
+00:26:12,400 --> 00:26:14,000
+The reading stayed at 10% for 8 minutes.
+
+788
+00:26:14,400 --> 00:26:16,000
+[applause] [music fades] Then Persephone left.
+
+789
+00:26:16,400 --> 00:26:18,000
+Nobody believed Athens when the sensor failed.
+
+790
+00:26:18,400 --> 00:26:20,000
+Pressure climbed to 39.6 bars before dawn.
+
+791
+00:26:20,400 --> 00:26:22,000
+He said the route passes near Miko after midnight.
+
+792
+00:26:22,400 --> 00:26:24,000
+Section 791: the crew rotated every 9 hours without incident.
+
+793
+00:26:24,400 --> 00:26:26,000
+Engine room reported that valve 792 failed twice before the alarm.
+
+794
+00:26:26,400 --> 00:26:28,000
+Wait. Are you sure Persephone signed the form?
+
+795
+00:26:28,400 --> 00:26:30,000
+[music playing]
+
+796
+00:26:30,400 --> 00:26:32,000
+She counted 2392.4 thousand units in sector 3.
+
+797
+00:26:32,400 --> 00:26:34,000
+- Where did you go? - Nowhere special.
+
+798
+00:26:34,400 --> 00:26:36,000
+The reading stayed at 21% for 6 minutes.
+
+799
+00:26:36,400 --> 00:26:38,000
+[applause] [music fades] Then Lawson left.
+
+800
+00:26:38,400 --> 00:26:40,000
+Nobody believed Persephone when the sensor failed.
+
+801
+00:26:40,400 --> 00:26:42,000
+Pressure climbed to 10.8 bars before dawn.
+
+802
+00:26:42,400 --> 00:26:44,000
+He said the route passes near Cairo after midnight.
+
+803
+00:26:44,400 --> 00:26:46,000
+Section 802: the crew rotated every 4 hours without incident.
+
+804
+00:26:46,400 --> 00:26:48,000
+Engine room reported that valve 803 failed twice before the alarm.
+
+805
+00:26:48,400 --> 00:26:50,000
+Wait. Are you sure Lawson signed the form?
+
+806
+00:26:50,400 --> 00:26:52,000
+[music playing]
+
+807
+00:26:52,400 --> 00:26:54,000
+She counted 2425.4 thousand units in sector 5.
+
+808
+00:26:54,400 --> 00:26:56,000
+- Where did you go? - Nowhere special.
+
+809
+00:26:56,400 --> 00:26:58,000
+The reading stayed at 32% for 4 minutes.
+
+810
+00:26:58,400 --> 00:27:00,000
+[applause] [music fades] Then Serra left.
+
+811
+00:27:00,400 --> 00:27:02,000
+Nobody believed Lawson when the sensor failed.
+
+812
+00:27:02,400 --> 00:27:04,000
+Pressure climbed to 21.1 bars before dawn.
+
+813
+00:27:04,400 --> 00:27:06,000
+He said the route passes near Athens after midnight.
+
+814
+00:27:06,400 --> 00:27:08,000
+Section 813: the crew rotated every 7 hours without incident.
+
+815
+00:27:08,400 --> 00:27:10,000
+Engine room reported that valve 814 failed twice before the alarm.
+
+816
+00:27:10,400 --> 00:27:12,000
+Wait. Are you sure Serra signed the form?
+
+817
+00:27:12,400 --> 00:27:14,000
+[music playing]
+
+818
+00:27:14,400 --> 00:27:16,000
+She counted 2458.4 thousand units in sector 7.
+
+819
+00:27:16,400 --> 00:27:18,000
+- Where did you go? - Nowhere special.
+
+820
+00:27:18,400 --> 00:27:20,000
+The reading stayed at 43% for 2 minutes.
+
+821
+00:27:20,400 --> 00:27:22,000
+[applause] [music fades] Then Miko left.
+
+822
+00:27:22,400 --> 00:27:24,000
+Nobody believed Serra when the sensor failed.
+
+823
+00:27:24,400 --> 00:27:26,000
+Pressure climbed to 32.3 bars before dawn.
+
+824
+00:27:26,400 --> 00:27:28,000
+He said the route passes near Persephone after midnight.
+
+825
+00:27:28,400 --> 00:27:30,000
+Section 824: the crew rotated every 2 hours without incident.
+
+826
+00:27:30,400 --> 00:27:32,000
+Engine room reported that valve 825 failed twice before the alarm.
+
+827
+00:27:32,400 --> 00:27:34,000
+Wait. Are you sure Miko signed the form?
+
+828
+00:27:34,400 --> 00:27:36,000
+[music playing]
+
+829
+00:27:36,400 --> 00:27:38,000
+She counted 2491.4 thousand units in sector 0.
+
+830
+00:27:38,400 --> 00:27:40,000
+- Where did you go? - Nowhere special.
+
+831
+00:27:40,400 --> 00:27:42,000
+The reading stayed at 54% for 13 minutes.
+
+832
+00:27:42,400 --> 00:27:44,000
+[applause] [music fades] Then Cairo left.
+
+833
+00:27:44,400 --> 00:27:46,000
+Nobody believed Miko when the sensor failed.
+
+834
+00:27:46,400 --> 00:27:48,000
+Pressure climbed to 43.5 bars before dawn.
+
+835
+00:27:48,400 --> 00:27:50,000
+He said the route passes near Lawson after midnight.
+
+836
+00:27:50,400 --> 00:27:52,000
+Section 835: the crew rotated every 5 hours without incident.
+
+837
+00:27:52,400 --> 00:27:54,000
+Engine room reported that valve 836 failed twice before the alarm.
+
+838
+00:27:54,400 --> 00:27:56,000
+Wait. Are you sure Cairo signed the form?
+
+839
+00:27:56,400 --> 00:27:58,000
+[music playing]
+
+840
+00:27:58,400 --> 00:28:00,000
+She counted 2524.4 thousand units in sector 2.
+
+841
+00:28:00,400 --> 00:28:02,000
+- Where did you go? - Nowhere special.
+
+842
+00:28:02,400 --> 00:28:04,000
+The reading stayed at 65% for 11 minutes.
+
+843
+00:28:04,400 --> 00:28:06,000
+[applause] [music fades] Then Athens left.
+
+844
+00:28:06,400 --> 00:28:08,000
+Nobody believed Cairo when the sensor failed.
+
+845
+00:28:08,400 --> 00:28:10,000
+Pressure climbed to 14.7 bars before dawn.
+
+846
+00:28:10,400 --> 00:28:12,000
+He said the route passes near Serra after midnight.
+
+847
+00:28:12,400 --> 00:28:14,000
+Section 846: the crew rotated every 8 hours without incident.
+
+848
+00:28:14,400 --> 00:28:16,000
+Engine room reported that valve 847 failed twice before the alarm.
+
+849
+00:28:16,400 --> 00:28:18,000
+Wait. Are you sure Athens signed the form?
+
+850
+00:28:18,400 --> 00:28:20,000
+[music playing]
+
+851
+00:28:20,400 --> 00:28:22,000
+She counted 2557.4 thousand units in sector 4.
+
+852
+00:28:22,400 --> 00:28:24,000
+- Where did you go? - Nowhere special.
+
+853
+00:28:24,400 --> 00:28:26,000
+The reading stayed at 76% for 9 minutes.
+
+854
+00:28:26,400 --> 00:28:28,000
+[applause] [music fades] Then Persephone left.
+
+855
+00:28:28,400 --> 00:28:30,000
+Nobody believed Athens when the sensor failed.
+
+856
+00:28:30,400 --> 00:28:32,000
+Pressure climbed to 25.0 bars before dawn.
+
+857
+00:28:32,400 --> 00:28:34,000
+He said the route passes near Miko after midnight.
+
+858
+00:28:34,400 --> 00:28:36,000
+Section 857: the crew rotated every 3 hours without incident.
+
+859
+00:28:36,400 --> 00:28:38,000
+Engine room reported that valve 858 failed twice before the alarm.
+
+860
+00:28:38,400 --> 00:28:40,000
+Wait. Are you sure Persephone signed the form?
+
+861
+00:28:40,400 --> 00:28:42,000
+[music playing]
+
+862
+00:28:42,400 --> 00:28:44,000
+She counted 2590.4 thousand units in sector 6.
+
+863
+00:28:44,400 --> 00:28:46,000
+- Where did you go? - Nowhere special.
+
+864
+00:28:46,400 --> 00:28:48,000
+The reading stayed at 87% for 7 minutes.
+
+865
+00:28:48,400 --> 00:28:50,000
+[applause] [music fades] Then Lawson left.
+
+866
+00:28:50,400 --> 00:28:52,000
+Nobody believed Persephone when the sensor failed.
+
+867
+00:28:52,400 --> 00:28:54,000
+Pressure climbed to 36.2 bars before dawn.
+
+868
+00:28:54,400 --> 00:28:56,000
+He said the route passes near Cairo after midnight.
+
+869
+00:28:56,400 --> 00:28:58,000
+Section 868: the crew rotated every 6 hours without incident.
+
+870
+00:28:58,400 --> 00:29:00,000
+Engine room reported that valve 869 failed twice before the alarm.
+
+871
+00:29:00,400 --> 00:29:02,000
+Wait. Are you sure Lawson signed the form?
+
+872
+00:29:02,400 --> 00:29:04,000
+[music playing]
+
+873
+00:29:04,400 --> 00:29:06,000
+She counted 2623.4 thousand units in sector 8.
+
+874
+00:29:06,400 --> 00:29:08,000
+- Where did you go? - Nowhere special.
+
+875
+00:29:08,400 --> 00:29:10,000
+The reading stayed at 1% for 5 minutes.
+
+876
+00:29:10,400 --> 00:29:12,000
+[applause] [music fades] Then Serra left.
+
+877
+00:29:12,400 --> 00:29:14,000
+Nobody believed Lawson when the sensor failed.
+
+878
+00:29:14,400 --> 00:29:16,000
+Pressure climbed to 47.4 bars before dawn.
+
+879
+00:29:16,400 --> 00:29:18,000
+He said the route passes near Athens after midnight.
+
+880
+00:29:18,400 --> 00:29:20,000
+Section 879: the crew rotated every 9 hours without incident.
+
+881
+00:29:20,400 --> 00:29:22,000
+Engine room reported that valve 880 failed twice before the alarm.
+
+882
+00:29:22,400 --> 00:29:24,000
+Wait. Are you sure Serra signed the form?
+
+883
+00:29:24,400 --> 00:29:26,000
+[music playing]
+
+884
+00:29:26,400 --> 00:29:28,000
+She counted 2656.4 thousand units in sector 1.
+
+885
+00:29:28,400 --> 00:29:30,000
+- Where did you go? - Nowhere special.
+
+886
+00:29:30,400 --> 00:29:32,000
+The reading stayed at 12% for 3 minutes.
+
+887
+00:29:32,400 --> 00:29:34,000
+[applause] [music fades] Then Miko left.
+
+888
+00:29:34,400 --> 00:29:36,000
+Nobody believed Serra when the sensor failed.
+
+889
+00:29:36,400 --> 00:29:38,000
+Pressure climbed to 18.6 bars before dawn.
+
+890
+00:29:38,400 --> 00:29:40,000
+He said the route passes near Persephone after midnight.
+
+891
+00:29:40,400 --> 00:29:42,000
+Section 890: the crew rotated every 4 hours without incident.
+
+892
+00:29:42,400 --> 00:29:44,000
+Engine room reported that valve 891 failed twice before the alarm.
+
+893
+00:29:44,400 --> 00:29:46,000
+Wait. Are you sure Miko signed the form?
+
+894
+00:29:46,400 --> 00:29:48,000
+[music playing]
+
+895
+00:29:48,400 --> 00:29:50,000
+She counted 2689.4 thousand units in sector 3.
+
+896
+00:29:50,400 --> 00:29:52,000
+- Where did you go? - Nowhere special.
+
+897
+00:29:52,400 --> 00:29:54,000
+The reading stayed at 23% for 14 minutes.
+
+898
+00:29:54,400 --> 00:29:56,000
+[applause] [music fades] Then Cairo left.
+
+899
+00:29:56,400 --> 00:29:58,000
+Nobody believed Miko when the sensor failed.
+
+900
+00:29:58,400 --> 00:30:00,000
+Pressure climbed to 29.8 bars before dawn.
+
+901
+00:30:00,400 --> 00:30:02,000
+He said the route passes near Lawson after midnight.
+
+902
+00:30:02,400 --> 00:30:04,000
+Section 901: the crew rotated every 7 hours without incident.
+
+903
+00:30:04,400 --> 00:30:06,000
+Engine room reported that valve 902 failed twice before the alarm.
+
+904
+00:30:06,400 --> 00:30:08,000
+Wait. Are you sure Cairo signed the form?
+
+905
+00:30:08,400 --> 00:30:10,000
+[music playing]
+
+906
+00:30:10,400 --> 00:30:12,000
+She counted 2722.4 thousand units in sector 5.
+
+907
+00:30:12,400 --> 00:30:14,000
+- Where did you go? - Nowhere special.
+
+908
+00:30:14,400 --> 00:30:16,000
+The reading stayed at 34% for 12 minutes.
+
+909
+00:30:16,400 --> 00:30:18,000
+[applause] [music fades] Then Athens left.
+
+910
+00:30:18,400 --> 00:30:20,000
+Nobody believed Cairo when the sensor failed.
+
+911
+00:30:20,400 --> 00:30:22,000
+Pressure climbed to 40.1 bars before dawn.
+
+912
+00:30:22,400 --> 00:30:24,000
+He said the route passes near Serra after midnight.
+
+913
+00:30:24,400 --> 00:30:26,000
+Section 912: the crew rotated every 2 hours without incident.
+
+914
+00:30:26,400 --> 00:30:28,000
+Engine room reported that valve 913 failed twice before the alarm.
+
+915
+00:30:28,400 --> 00:30:30,000
+Wait. Are you sure Athens signed the form?
+
+916
+00:30:30,400 --> 00:30:32,000
+[music playing]
+
+917
+00:30:32,400 --> 00:30:34,000
+She counted 2755.4 thousand units in sector 7.
+
+918
+00:30:34,400 --> 00:30:36,000
+- Where did you go? - Nowhere special.
+
+919
+00:30:36,400 --> 00:30:38,000
+The reading stayed at 45% for 10 minutes.
+
+920
+00:30:38,400 --> 00:30:40,000
+[applause] [music fades] Then Persephone left.
+
+921
+00:30:40,400 --> 00:30:42,000
+Nobody believed Athens when the sensor failed.
+
+922
+00:30:42,400 --> 00:30:44,000
+Pressure climbed to 11.3 bars before dawn.
+
+923
+00:30:44,400 --> 00:30:46,000
+He said the route passes near Miko after midnight.
+
+924
+00:30:46,400 --> 00:30:48,000
+Section 923: the crew rotated every 5 hours without incident.
+
+925
+00:30:48,400 --> 00:30:50,000
+Engine room reported that valve 924 failed twice before the alarm.
+
+926
+00:30:50,400 --> 00:30:52,000
+Wait. Are you sure Persephone signed the form?
+
+927
+00:30:52,400 --> 00:30:54,000
+[music playing]
+
+928
+00:30:54,400 --> 00:30:56,000
+She counted 2788.4 thousand units in sector 0.
+
+929
+00:30:56,400 --> 00:30:58,000
+- Where did you go? - Nowhere special.
+
+930
+00:30:58,400 --> 00:31:00,000
+The reading stayed at 56% for 8 minutes.
+
+931
+00:31:00,400 --> 00:31:02,000
+[applause] [music fades] Then Lawson left.
+
+932
+00:31:02,400 --> 00:31:04,000
+Nobody believed Persephone when the sensor failed.
+
+933
+00:31:04,400 --> 00:31:06,000
+Pressure climbed to 22.5 bars before dawn.
+
+934
+00:31:06,400 --> 00:31:08,000
+He said the route passes near Cairo after midnight.
+
+935
+00:31:08,400 --> 00:31:10,000
+Section 934: the crew rotated every 8 hours without incident.
+
+936
+00:31:10,400 --> 00:31:12,000
+Engine room reported that valve 935 failed twice before the alarm.
+
+937
+00:31:12,400 --> 00:31:14,000
+Wait. Are you sure Lawson signed the form?
+
+938
+00:31:14,400 --> 00:31:16,000
+[music playing]
+
+939
+00:31:16,400 --> 00:31:18,000
+She counted 2821.4 thousand units in sector 2.
+
+940
+00:31:18,400 --> 00:31:20,000
+- Where did you go? - Nowhere special.
+
+941
+00:31:20,400 --> 00:31:22,000
+The reading stayed at 67% for 6 minutes.
+
+942
+00:31:22,400 --> 00:31:24,000
+[applause] [music fades] Then Serra left.
+
+943
+00:31:24,400 --> 00:31:26,000
+Nobody believed Lawson when the sensor failed.
+
+944
+00:31:26,400 --> 00:31:28,000
+Pressure climbed to 33.7 bars before dawn.
+
+945
+00:31:28,400 --> 00:31:30,000
+He said the route passes near Athens after midnight.
+
+946
+00:31:30,400 --> 00:31:32,000
+Section 945: the crew rotated every 3 hours without incident.
+
+947
+00:31:32,400 --> 00:31:34,000
+Engine room reported that valve 946 failed twice before the alarm.
+
+948
+00:31:34,400 --> 00:31:36,000
+Wait. Are you sure Serra signed the form?
+
+949
+00:31:36,400 --> 00:31:38,000
+[music playing]
+
+950
+00:31:38,400 --> 00:31:40,000
+She counted 2854.4 thousand units in sector 4.
+
+951
+00:31:40,400 --> 00:31:42,000
+- Where did you go? - Nowhere special.
+
+952
+00:31:42,400 --> 00:31:44,000
+The reading stayed at 78% for 4 minutes.
+
+953
+00:31:44,400 --> 00:31:46,000
+[applause] [music fades] Then Miko left.
+
+954
+00:31:46,400 --> 00:31:48,000
+Nobody believed Serra when the sensor failed.
+
+955
+00:31:48,400 --> 00:31:50,000
+Pressure climbed to 44.0 bars before dawn.
+
+956
+00:31:50,400 --> 00:31:52,000
+He said the route passes near Persephone after midnight.
+
+957
+00:31:52,400 --> 00:31:54,000
+Section 956: the crew rotated every 6 hours without incident.
+
+958
+00:31:54,400 --> 00:31:56,000
+Engine room reported that valve 957 failed twice before the alarm.
+
+959
+00:31:56,400 --> 00:31:58,000
+Wait. Are you sure Miko signed the form?
+
+960
+00:31:58,400 --> 00:32:00,000
+[music playing]
+
+961
+00:32:00,400 --> 00:32:02,000
+She counted 2887.4 thousand units in sector 6.
+
+962
+00:32:02,400 --> 00:32:04,000
+- Where did you go? - Nowhere special.
+
+963
+00:32:04,400 --> 00:32:06,000
+The reading stayed at 89% for 2 minutes.
+
+964
+00:32:06,400 --> 00:32:08,000
+[applause] [music fades] Then Cairo left.
+
+965
+00:32:08,400 --> 00:32:10,000
+Nobody believed Miko when the sensor failed.
+
+966
+00:32:10,400 --> 00:32:12,000
+Pressure climbed to 15.2 bars before dawn.
+
+967
+00:32:12,400 --> 00:32:14,000
+He said the route passes near Lawson after midnight.
+
+968
+00:32:14,400 --> 00:32:16,000
+Section 967: the crew rotated every 9 hours without incident.
+
+969
+00:32:16,400 --> 00:32:18,000
+Engine room reported that valve 968 failed twice before the alarm.
+
+970
+00:32:18,400 --> 00:32:20,000
+Wait. Are you sure Cairo signed the form?
+
+971
+00:32:20,400 --> 00:32:22,000
+[music playing]
+
+972
+00:32:22,400 --> 00:32:24,000
+She counted 2920.4 thousand units in sector 8.
+
+973
+00:32:24,400 --> 00:32:26,000
+- Where did you go? - Nowhere special.
+
+974
+00:32:26,400 --> 00:32:28,000
+The reading stayed at 3% for 13 minutes.
+
+975
+00:32:28,400 --> 00:32:30,000
+[applause] [music fades] Then Athens left.
+
+976
+00:32:30,400 --> 00:32:32,000
+Nobody believed Cairo when the sensor failed.
+
+977
+00:32:32,400 --> 00:32:34,000
+Pressure climbed to 26.4 bars before dawn.
+
+978
+00:32:34,400 --> 00:32:36,000
+He said the route passes near Serra after midnight.
+
+979
+00:32:36,400 --> 00:32:38,000
+Section 978: the crew rotated every 4 hours without incident.
+
+980
+00:32:38,400 --> 00:32:40,000
+Engine room reported that valve 979 failed twice before the alarm.
+
+981
+00:32:40,400 --> 00:32:42,000
+Wait. Are you sure Athens signed the form?
+
+982
+00:32:42,400 --> 00:32:44,000
+[music playing]
+
+983
+00:32:44,400 --> 00:32:46,000
+She counted 2953.4 thousand units in sector 1.
+
+984
+00:32:46,400 --> 00:32:48,000
+- Where did you go? - Nowhere special.
+
+985
+00:32:48,400 --> 00:32:50,000
+The reading stayed at 14% for 11 minutes.
+
+986
+00:32:50,400 --> 00:32:52,000
+[applause] [music fades] Then Persephone left.
+
+987
+00:32:52,400 --> 00:32:54,000
+Nobody believed Athens when the sensor failed.
+
+988
+00:32:54,400 --> 00:32:56,000
+Pressure climbed to 37.6 bars before dawn.
+
+989
+00:32:56,400 --> 00:32:58,000
+He said the route passes near Miko after midnight.
+
+990
+00:32:58,400 --> 00:33:00,000
+Section 989: the crew rotated every 7 hours without incident.
+
+991
+00:33:00,400 --> 00:33:02,000
+Engine room reported that valve 990 failed twice before the alarm.
+
+992
+00:33:02,400 --> 00:33:04,000
+Wait. Are you sure Persephone signed the form?
+
+993
+00:33:04,400 --> 00:33:06,000
+[music playing]
+
+994
+00:33:06,400 --> 00:33:08,000
+She counted 2986.4 thousand units in sector 3.
+
+995
+00:33:08,400 --> 00:33:10,000
+- Where did you go? - Nowhere special.
+
+996
+00:33:10,400 --> 00:33:12,000
+The reading stayed at 25% for 9 minutes.
+
+997
+00:33:12,400 --> 00:33:14,000
+[applause] [music fades] Then Lawson left.
+
+998
+00:33:14,400 --> 00:33:16,000
+Nobody believed Persephone when the sensor failed.
+
+999
+00:33:16,400 --> 00:33:18,000
+Pressure climbed to 48.8 bars before dawn.
+
+1000
+00:33:18,400 --> 00:33:20,000
+He said the route passes near Cairo after midnight.
+

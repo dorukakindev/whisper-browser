@@ -1927,10 +1927,18 @@ ipcMain.handle('youtube:poll', async (_e) => {
 // "feed alınamadı" ile kalıyordu. Browse kısa ve idempotent — zincirle ve
 // uçuştaki refresh/poll bitene dek sınırlı bekle.
 let _ytBrowseTail = Promise.resolve();
-let _ytBrowseGeneration = 0;
-function ytBrowseSerialized(fn, supersedable = false) {
-  const generation = supersedable ? ++_ytBrowseGeneration : 0;
-  const job = _ytBrowseTail.then(() => generation && generation !== _ytBrowseGeneration
+const _ytBrowseGenerations = new Map();
+function ytBrowseSerialized(browseId, fn, supersedable = false) {
+  // Kuyruktaki istek yalnız AYNI browse_id'nin daha yeni bir isteği
+  // geldiğinde geçersizdir (giriş sonrası otomatik re-render + kullanıcının
+  // aynı bölümü yeniden açması gibi özdeş tekrarlar tek isteğe iner).
+  // Farklı browse_id'ler birbirini ezmez: abonelikler + ana sayfa gibi iki
+  // ayrı akış seri halde ikisi de çalışır — ilki {ok:false} dönemez.
+  const generation = supersedable
+    ? (_ytBrowseGenerations.get(browseId) || 0) + 1
+    : 0;
+  if (supersedable) _ytBrowseGenerations.set(browseId, generation);
+  const job = _ytBrowseTail.then(() => generation && generation !== _ytBrowseGenerations.get(browseId)
     ? { ok: false, superseded: true } : fn());
   _ytBrowseTail = job.catch(() => {});
   return job;
@@ -1943,7 +1951,7 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
   const bid = String(browseId || '').trim();
   if (!allowed.has(bid)) return { ok: false, error: `Geçersiz browse_id: ${bid}` };
   const cont = String(opts && opts.continuation || '').trim();
-  return ytBrowseSerialized(async () => {
+  return ytBrowseSerialized(bid, async () => {
     const token = await ensureYoutubeAccessToken();
     if (!token) return { ok: false, error: 'YouTube oturumu yok — önce giriş yapın.' };
     const deadline = Date.now() + 10_000;

@@ -1,0 +1,68 @@
+{
+  "checks": [
+    {
+      "name": "multi-tab",
+      "ok": true,
+      "detail": "sekme sayısı=3"
+    },
+    {
+      "name": "render-10k",
+      "ok": true,
+      "detail": "render=12ms p95LT=0ms nodes=500"
+    },
+    {
+      "name": "translation-progresses",
+      "ok": true,
+      "detail": "providerCalls=13 results=0"
+    },
+    {
+      "name": "no-runaway-jank",
+      "ok": true,
+      "detail": "max longtask=0ms"
+    },
+    {
+      "name": "memory-sane",
+      "ok": true,
+      "detail": "Δ=109MB"
+    },
+    {
+      "name": "files-sane",
+      "ok": true,
+      "detail": "Δ=49KB"
+    }
+  ],
+  "ok": true,
+  "metrics": {
+    "render10k": {
+      "renderMs": 12,
+      "longtaskCount": 0,
+      "longtaskP95": 0,
+      "longtaskMax": 0,
+      "renderedNodes": 500,
+      "cueLen": 10000
+    },
+    "translationStart": {
+      "sentenceCount": 10000
+    },
+    "translationUi": {
+      "longtaskCount": 0,
+      "longtaskP95": 0,
+      "longtaskP99": 0,
+      "longtaskMax": 0,
+      "rafP95": 17,
+      "rafP99": 17,
+      "providerCalls": 13,
+      "liveResults": 0
+    },
+    "memory": {
+      "beforeKiB": 632440,
+      "afterKiB": 744472,
+      "deltaKiB": 112032
+    },
+    "files": {
+      "beforeBytes": 51491021,
+      "afterBytes": 51541008,
+      "deltaBytes": 49987
+    }
+  }
+}

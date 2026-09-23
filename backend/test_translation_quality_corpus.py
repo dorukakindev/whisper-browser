@@ -127,6 +127,51 @@ class TranslationQualityCorpusTests(unittest.TestCase):
         self.assertEqual(false_rejections, [])
         self.assertEqual(missed_defects, [])
 
+    def test_truncated_fragments_flagged_and_legitimate_forms_pass(self):
+        truncated = [
+            # Sarkan bağlaç: çeviri gerçekten ortadan kesilmiş.
+            ('We have to go now.', 'Şimdi gitmek zorundayız ve'),
+            ('We have to go now.', 'Şimdi gitmek zorundayız ve.'),
+            ('Come with me.', 'Benimle gel ve'),
+            ('He left but she stayed.', 'O gitti çünkü'),
+            ('She opened the window.', 'Pencereyi açtı ama'),
+            # Çıplak soru eki: uzun kaynak cümle tek eke indirgenmiş.
+            ('Are you absolutely sure about this?', 'misin'),
+            ('Are you absolutely sure about this?', 'misin?'),
+            ('Are you absolutely sure about this?', 'Mısın?'),
+            ('Are you absolutely sure about this?', 'mısınız'),
+            # Kelime-ortası kırık tire: 'gör-' kesin kesim izidir.
+            ('Nobody saw him walking by.', 'Onu kimse gör-'),
+            ('He tried to open the door.', 'Kapıyı açmayı denedi-'),
+        ]
+        legitimate = [
+            # Soru eki cümlenin parçasıysa ya da kaynak da tekil/boşken kusur yok.
+            ('Are you sure?', 'Sen misin?'),
+            ('Really?', 'Mı?'),
+            ('Are you?', 'Misin?'),
+            ('But.', 'Ama.'),
+            ('And.', 'Ve.'),
+            # 'ki'/'de'/'da' bağlaç listesi dışında: doğal cümle sonları.
+            ('He said to him.', 'Ona dedi ki.'),
+            ('You came too.', 'Sen de geldin.'),
+            ('I see.', 'Görüyorum.'),
+            # Kırık tire yalnız ASCII '-' içindir; kesinti em-dashi '—' değildir.
+            ('Wait—', 'Bekle—'),
+            ('The note was mi.', 'Nota mi idi.'),
+            ('Sing mi.', 'Mi söyle.'),
+            ('The note is mi.', 'Nota mi.'),
+        ]
+        for source, target in truncated:
+            issues = T.translation_meaning_issues(source, target)
+            self.assertIn('truncated_fragment', issues, (source, target))
+            self.assertIn('truncated_fragment',
+                          T.translation_blocking_issues(source, target),
+                          (source, target))
+        for source, target in legitimate:
+            self.assertNotIn('truncated_fragment',
+                             T.translation_meaning_issues(source, target),
+                             (source, target))
+
     def test_source_echo_30_positive_and_30_legitimate_pairs(self):
         echo_sources = [
             "Hello.", "Goodbye!", "Thank you.", "Please wait.", "Stop!", "Come on.",

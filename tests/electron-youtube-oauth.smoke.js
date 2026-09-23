@@ -236,19 +236,33 @@ app.whenReady().then(async () => {
   assert.equal(preLogin.loggedInFlag, false);
   report.preLogin = preLogin;
 
+  // Kayıtlı istemci yokken gömülü TVHTML5 istemcisi devrededir: login
+  // tıklaması cihaz görünümünü açar ve cihaz-kodu akışını KENDİLİĞİNDEN
+  // başlatır (sıfır-kurulum UX). ytClientView yalnız "İstemciyi değiştir"
+  // ile açılır. 'stuck' ile akış onayda asılı kalır, modal açık incelenir.
+  fake.devicePollMode = 'stuck';
   await run(`document.getElementById('stYtLoginBtn').click();return true`);
   await until(() => run(`return !document.getElementById('youtubeLoginModal').classList.contains('hidden')
-    && !document.getElementById('ytClientView').classList.contains('hidden')`), 'ytClientView');
+    && !document.getElementById('ytDeviceView').classList.contains('hidden')
+    && !document.getElementById('ytDeviceCodeBlock').classList.contains('hidden')`), 'auto device flow');
+  await until(() => run(`return document.getElementById('ytUserCode').textContent==='ABCD-EFGH'`), 'auto user code');
+  assert.ok(fake.deviceCalls >= 1, 'gömülü istemci cihaz kodu istedi');
+  report.autoDeviceFlow = { deviceCalls: fake.deviceCalls };
   await shot('01-logged-out-modal');
-  // Esc ile kapanış (klavye doğrulaması)
+  // Esc ile kapanış (klavye doğrulaması + süren poll'un iptali)
   await run(`document.getElementById('youtubeLoginModal').dispatchEvent(
     new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true`);
   assert.equal(await run(`return document.getElementById('youtubeLoginModal').classList.contains('hidden')`), true,
     'Esc modalı kapatmalı');
 
-  // Client kaydı — input içinde Enter, 'Kaydet ve devam et'i tetikler
+  // Client kaydı — yeniden açılışta gömülü akış yine kendiliğinden başlar;
+  // "İstemciyi değiştir" akışı iptal edip ytClientView'a iner. Input içinde
+  // Enter 'Kaydet ve devam et'i tetikler.
   await run(`document.getElementById('stYtLoginBtn').click();return true`);
-  await until(() => run(`return !document.getElementById('ytClientView').classList.contains('hidden')`), 'ytClientView-2');
+  await until(() => run(`return !document.getElementById('ytDeviceView').classList.contains('hidden')
+    && document.getElementById('ytUserCode').textContent==='ABCD-EFGH'`), 'auto device flow-2');
+  await run(`document.getElementById('ytChangeClient').click();return true`);
+  await until(() => run(`return !document.getElementById('ytClientView').classList.contains('hidden')`), 'ytClientView');
   await run(`document.getElementById('ytClientId').value='FAKE-CLIENT-12345';
     document.getElementById('ytClientSecret').value='fakesecret123';
     document.getElementById('ytClientId').dispatchEvent(

@@ -5160,6 +5160,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
     currency_mismatch_indices = []
     unit_mismatch_indices = []
     date_mismatch_indices = []
+    truncated_fragment_indices = []
     meaning_shadow_evaluated = 0
     meaning_shadow_rejected_indices = []
     for index in range(total):
@@ -5195,6 +5196,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
             unit_mismatch_indices.append(index)
         if 'date_mismatch' in meaning_issues:
             date_mismatch_indices.append(index)
+        if 'truncated_fragment' in meaning_issues:
+            truncated_fragment_indices.append(index)
         if meaning_issues:
             meaning_shadow_rejected_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
@@ -5202,7 +5205,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
             timing_mismatch_indices.append(index)
     issue_indices = sorted(set(
         untranslated_indices + empty_indices + timing_mismatch_indices
-        + number_mismatch_indices
+        + number_mismatch_indices + truncated_fragment_indices
     ))
     report = {
         "translation_blocks": total,
@@ -5225,9 +5228,12 @@ def compute_translation_quality_report(source_entries, translated_entries,
         "translation_unit_mismatch_indices": unit_mismatch_indices,
         "translation_date_mismatch": len(date_mismatch_indices),
         "translation_date_mismatch_indices": date_mismatch_indices,
+        "translation_truncated_fragment": len(truncated_fragment_indices),
+        "translation_truncated_fragment_indices": truncated_fragment_indices,
         # Gölge ölçüm: olumsuzluk sezgisi otomatik retry tüketmez; yine de
-        # gerçek çıktı korpusundaki oranı görünür olur. Sert kapı yalnız
-        # number_mismatch olduğundan iki oran ayrı tutulur.
+        # gerçek çıktı korpusundaki oranı görünür olur. Sert kapı
+        # number_mismatch ve truncated_fragment olduğundan iki oran ayrı
+        # tutulur.
         "translation_meaning_shadow_evaluated": meaning_shadow_evaluated,
         "translation_meaning_shadow_rejected": len(meaning_shadow_rejected_indices),
         "translation_meaning_shadow_rejected_indices": meaning_shadow_rejected_indices,
@@ -5235,9 +5241,12 @@ def compute_translation_quality_report(source_entries, translated_entries,
             len(meaning_shadow_rejected_indices) / meaning_shadow_evaluated
             if meaning_shadow_evaluated else 0.0
         ),
-        "translation_meaning_hard_rejected": len(number_mismatch_indices),
+        "translation_meaning_hard_rejected": (
+            len(number_mismatch_indices) + len(truncated_fragment_indices)
+        ),
         "translation_meaning_hard_rejected_rate": (
-            len(number_mismatch_indices) / meaning_shadow_evaluated
+            (len(number_mismatch_indices) + len(truncated_fragment_indices))
+            / meaning_shadow_evaluated
             if meaning_shadow_evaluated else 0.0
         ),
         "translation_issue_indices": issue_indices,

@@ -1,0 +1,50 @@
+{
+  "checks": [
+    {
+      "name": "app-booted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stale-tmp-swept",
+      "ok": true,
+      "detail": "bayat .tmp yetimi açılışta temizlenmeli"
+    },
+    {
+      "name": "fresh-tmp-kept",
+      "ok": true,
+      "detail": "taze .tmp başka işlemin canlı yazısı olabilir — korunmalı"
+    },
+    {
+      "name": "settings-intact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stale-settings-tmp-isolated",
+      "ok": true,
+      "detail": "bayat tmp ana dosyayı bozmadan yerinde kalabilir (kaldırılması şart değil)"
+    },
+    {
+      "name": "browser-opened",
+      "ok": true,
+      "detail": "{\"ok\":true,\"hasPage\":false,\"activeTabId\":\"tab-recovered\",\"tabs\":[{\"id\":\"tab-recovered\",\"generation\":0,\"url\":\"\",\"title\":\"Recovered tab\",\"favicon\":\"\",\"loading\":false,\"canGoBack\":false,\"canGoForward\":false,\"captureEnabled\":true,\"compatibilityMode\":false,\"pinned\":false,\"group\":null,\"readerActive\":false,\"readerPreferences\":{\"fontSize\":20,\"lineHeight\":1.7,\"width\":760},\"keepAwake\":false,\"lifecycle\":\"back"
+    },
+    {
+      "name": "session-recovered-from-bak",
+      "ok": true,
+      "detail": "kurtarılan sekme: [{\"id\":\"tab-recovered\",\"generation\":0,\"url\":\"\",\"title\":\"Recovered tab\",\"favicon\":\"\",\"loading\":false,\"canGoBack\":false,\"canGoForward\":false,\"captureEnabled\":true,\"compatibilityMode\":false,\"pinned\":false,\"group\":null,\"readerActive\":false,\"readerPreferences\":{\"fontSize\":20,\"lineHeight\":1.7,\"width\":760}"
+    },
+    {
+      "name": "unclean-exit-warning",
+      "ok": true,
+      "detail": "sessionWarning=Önceki tarayıcı oturumu beklenmedik biçimde sona erdi; sekmeler kurtarıldı. Sorunlu sayfa yeniden çökerse o sekmeyi kapatın."
+    },
+    {
+      "name": "primary-repaired",
+      "ok": true,
+      "detail": "bozuk birincil yerine geçerli oturum yazıldı"
+    }
+  ],
+  "ok": true
+}

@@ -1,0 +1,49 @@
+{
+  "planOpen": {
+    "total": 2,
+    "planComplete": false
+  },
+  "openResult": {
+    "state": "partial",
+    "reason": "open-playlist",
+    "completed": 2,
+    "total": 2,
+    "missing": 0,
+    "complete": false,
+    "message": "Oynatma listesi henüz sonlanmadı; yakalanan 1 satır korundu. Daha sonra yeniden deneyebilirsiniz."
+  },
+  "closed": {
+    "state": "complete",
+    "completed": 4,
+    "total": 4,
+    "missing": 0,
+    "cueCount": 2,
+    "complete": true,
+    "message": "2 altyazı satırı eksiksiz yakalandı ve GİRDİ klasörüne kaydedildi."
+  },
+  "fileConsistency": {
+    "file": "T2 fixture.b31e3aa1.en.CC1.srt",
+    "fileCues": 2,
+    "memoryCues": 2,
+    "uiCueCount": 2,
+    "segFetches": {
+      "seg-0.m4s": 3,
+      "seg-1.m4s": 3,
+      "seg-2.m4s": 8,
+      "seg-3.m4s": 8
+    }
+  },
+  "partial403": {
+    "state": "partial",
+    "missing": 2,
+    "complete": false,
+    "message": "2 segment alınamadı; yakalanan 1 satır korundu. Yeniden deneyebilirsiniz."
+  },
+  "recovered": {
+    "state": "complete",
+    "missing": 0,
+    "completed": 4,
+    "total": 4,
+    "message": "1 altyazı satırı eksiksiz yakalandı ve GİRDİ klasörüne kaydedildi."
+  }
+}

@@ -1,0 +1,1265 @@
+{
+  "providerBaseUrl": "http://127.0.0.1:39177/v1",
+  "earlyTextTracks": [
+    {
+      "kind": "subtitles",
+      "label": "English",
+      "lang": "en",
+      "id": "",
+      "cues": [
+        "0-4:First fixture cue",
+        "0-4:Second fixture cue",
+        "0-4:Third fixture cue"
+      ]
+    },
+    {
+      "kind": "captions",
+      "label": "Embedded",
+      "lang": "en",
+      "id": "",
+      "cues": [
+        "0-119.0000000000002:00:00:00"
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "9a61340e34d3d06a2020",
+      "language": "",
+      "cueCount": 3,
+      "format": "hls-vtt"
+    },
+    {
+      "id": "2c479b69ac3ecd3d9f48",
+      "language": "",
+      "cueCount": 1,
+      "format": "vtt"
+    },
+    {
+      "id": "471a1031447d2cab5cbe",
+      "language": "en",
+      "cueCount": 1,
+      "format": "cea-608"
+    },
+    {
+      "id": "3d880fa105fda3ac4450",
+      "language": "",
+      "cueCount": 1,
+      "format": "vtt"
+    },
+    {
+      "id": "3cb10ad20d4e8222e379",
+      "language": "",
+      "cueCount": 1,
+      "format": "vtt"
+    }
+  ],
+  "diagnostics": {
+    "operationId": "caption-mudf21wl-3",
+    "adapter": {
+      "id": "generic",
+      "label": "Genel web videosu",
+      "help": "Videoyu başlatın ve varsa sitenin kendi altyazısını açın."
+    },
+    "capabilityMatrix": [
+      {
+        "service": "netflix",
+        "label": "Netflix",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "disney",
+        "label": "Disney+",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "max",
+        "label": "Max",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "discovery",
+        "label": "Discovery+",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "hulu",
+        "label": "Hulu",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "youtube",
+        "label": "YouTube",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": true,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "prime-video",
+        "label": "Prime Video",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "crunchyroll",
+        "label": "Crunchyroll",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "bbc-iplayer",
+        "label": "BBC iPlayer",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "arte",
+        "label": "ARTE",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "raiplay",
+        "label": "RaiPlay",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "plex",
+        "label": "Plex",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "stremio",
+        "label": "Stremio Web",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "coursera",
+        "label": "Coursera",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "udemy",
+        "label": "Udemy",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      },
+      {
+        "service": "vimeo",
+        "label": "Vimeo",
+        "signIn": true,
+        "playback": true,
+        "nativeTextTrack": true,
+        "networkCapture": true,
+        "manifestCapture": true,
+        "dualTrack": false,
+        "overlay": true,
+        "fullscreen": false,
+        "translation": true,
+        "captionDetection": true,
+        "verifiedAt": "",
+        "verificationStatus": "unverified",
+        "source": "builtin"
+      }
+    ],
+    "adapterPlugins": {
+      "loaded": [],
+      "errors": []
+    },
+    "pageUrl": "https://gauntlet.test/watch",
+    "captureEnabled": true,
+    "counts": {
+      "cdp": 4,
+      "page": 4,
+      "textTrack": 0,
+      "manifest": 4,
+      "adblock": 0,
+      "parsed": 5,
+      "rejected": 9,
+      "errors": 0
+    },
+    "activity": {
+      "lastCapture": {
+        "at": 1790126430653,
+        "message": "1 gömülü CEA izi · 1 cue"
+      },
+      "lastTranslation": null,
+      "lastError": null
+    },
+    "responsiveness": {
+      "status": "responsive",
+      "at": 1790126430501,
+      "message": "Sayfa yanıt veriyor."
+    },
+    "acquisition": {
+      "mediaId": "web:url:199732bbf52fde5cd6a79a9c",
+      "acquisitionId": "caption-mudf21wl-3",
+      "winner": "network-capture",
+      "complete": true,
+      "needsConsent": [
+        "live-asr"
+      ],
+      "discovery": {
+        "phase": "capture_ready",
+        "message": "Altyazı yakalamaya hazır.",
+        "updatedAt": 1790126430589,
+        "mediaCount": 0,
+        "trackCount": 1,
+        "cueCount": 0
+      },
+      "stages": [
+        {
+          "id": "native-text-track",
+          "label": "Sayfanın hazır altyazısı",
+          "status": "skipped",
+          "reason": "Altyazı daha önceki bir basamakta bulundu.",
+          "attempts": 0
+        },
+        {
+          "id": "network-capture",
+          "label": "Ağ altyazısı yakalama",
+          "status": "success",
+          "reason": "1 altyazı izi",
+          "attempts": 1,
+          "trackCount": 1
+        },
+        {
+          "id": "manifest",
+          "label": "HLS/DASH manifest altyazısı",
+          "status": "skipped",
+          "reason": "Altyazı daha önceki bir basamakta bulundu.",
+          "attempts": 1
+        },
+        {
+          "id": "persisted-track",
+          "label": "Daha önce kaydedilmiş altyazı",
+          "status": "skipped",
+          "reason": "Altyazı daha önceki bir basamakta bulundu.",
+          "attempts": 0
+        },
+        {
+          "id": "manual-track",
+          "label": "Dosyadan veya gömülü altyazı",
+          "status": "skipped",
+          "reason": "Altyazı daha önceki bir basamakta bulundu.",
+          "attempts": 0
+        },
+        {
+          "id": "live-asr",
+          "label": "Canlı ses Whisper",
+          "status": "blocked",
+          "reason": "Kullanıcı onayı gerekiyor.",
+          "attempts": 0
+        }
+      ]
+    },
+    "coverage": [
+      {
+        "streamKey": "https://gauntlet.test/sub.m3u8|en",
+        "ranges": [
+          {
+            "start": 0,
+            "end": 12
+          }
+        ],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 12
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 12
+      },
+      {
+        "streamKey": "https://gauntlet.test/sub-0.vtt|",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 4
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      },
+      {
+        "streamKey": "https://gauntlet.test/sub.m3u8|",
+        "ranges": [
+          {
+            "start": 0,
+            "end": 12
+          }
+        ],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 12
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 12
+      },
+      {
+        "streamKey": "https://gauntlet.test/master.m3u8|en|cea:CC1",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 119
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      },
+      {
+        "streamKey": "https://gauntlet.test/sub-1.vtt|",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 4
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      },
+      {
+        "streamKey": "https://gauntlet.test/sub-2.vtt|",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 4
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      },
+      {
+        "streamKey": "nullen:English:subtitles:|en",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 4
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      },
+      {
+        "streamKey": "nullen:Embedded:captions:|en",
+        "ranges": [],
+        "expectedRanges": [],
+        "missingRanges": [],
+        "gaps": [],
+        "cueRanges": [
+          {
+            "start": 0,
+            "end": 119.0000000000002
+          }
+        ],
+        "cueGaps": [],
+        "failures": [],
+        "coveredSeconds": 0
+      }
+    ],
+    "recent": [
+      {
+        "at": 1790126431180,
+        "strategy": "page",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-2.vtt",
+        "detail": "Aynı altyazı yanıtı bu sayfada daha önce işlendi"
+      },
+      {
+        "at": 1790126431180,
+        "strategy": "page",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-1.vtt",
+        "detail": "Aynı altyazı yanıtı bu sayfada daha önce işlendi"
+      },
+      {
+        "at": 1790126431180,
+        "strategy": "page",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-0.vtt",
+        "detail": "Aynı altyazı yanıtı bu sayfada daha önce işlendi"
+      },
+      {
+        "at": 1790126431179,
+        "strategy": "page",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/sub.m3u8",
+        "detail": "Aynı altyazı yanıtı bu sayfada daha önce işlendi"
+      },
+      {
+        "at": 1790126430686,
+        "strategy": "performance-resource",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/sub.m3u8",
+        "detail": "Aynı altyazı yanıtı bu sayfada daha önce işlendi"
+      },
+      {
+        "at": 1790126430685,
+        "strategy": "cdp",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-2.vtt",
+        "detail": "Aynı altyazı daha önce işlendi"
+      },
+      {
+        "at": 1790126430682,
+        "strategy": "cdp",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-1.vtt",
+        "detail": "Aynı altyazı daha önce işlendi"
+      },
+      {
+        "at": 1790126430653,
+        "strategy": "cea",
+        "outcome": "parsed",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "video/mp4",
+        "url": "https://gauntlet.test/cea-seg.m4s",
+        "detail": "1 gömülü CEA izi · 1 cue"
+      },
+      {
+        "at": 1790126430602,
+        "strategy": "performance-resource",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/v1.m3u8",
+        "detail": "Manifestte kullanılabilir altyazı izi bulunamadı"
+      },
+      {
+        "at": 1790126430601,
+        "strategy": "manifest",
+        "outcome": "aday",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/v1.m3u8",
+        "detail": "performance-resource"
+      },
+      {
+        "at": 1790126430600,
+        "strategy": "performance-resource",
+        "outcome": "parsed",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/master.m3u8",
+        "detail": "1 altyazı izi"
+      },
+      {
+        "at": 1790126430600,
+        "strategy": "manifest",
+        "outcome": "parsed",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/master.m3u8",
+        "detail": "CC1 gömülü CEA izi için 2 video parçası izlendi"
+      },
+      {
+        "at": 1790126430599,
+        "strategy": "cea",
+        "outcome": "parsed",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "video/mp4",
+        "url": "https://gauntlet.test/cea-seg.m4s",
+        "detail": "1 gömülü CEA izi · 1 cue"
+      },
+      {
+        "at": 1790126430589,
+        "strategy": "cdp",
+        "outcome": "parsed",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/sub.m3u8",
+        "detail": "1 altyazı izi"
+      },
+      {
+        "at": 1790126430585,
+        "strategy": "cdp",
+        "outcome": "rejected",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "text/vtt",
+        "url": "https://gauntlet.test/sub-0.vtt",
+        "detail": "Aynı altyazı daha önce işlendi"
+      },
+      {
+        "at": 1790126430568,
+        "strategy": "manifest",
+        "outcome": "aday",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/sub.m3u8",
+        "detail": "cdp"
+      },
+      {
+        "at": 1790126430560,
+        "strategy": "manifest",
+        "outcome": "aday",
+        "operationId": "caption-mudf21wl-3",
+        "service": "Genel web videosu",
+        "mime": "application/vnd.apple.mpegurl",
+        "url": "https://gauntlet.test/master.m3u8",
+        "detail": "performance-resource"
+      }
+    ],
+    "manifest": {
+      "kind": "hls",
+      "bytes": 128,
+      "preview": "#EXTM3U\n#EXT-X-TARGETDURATION:125\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-MAP:URI=\"cea-init.mp4\"\n#EXTINF:125,\ncea-seg.m4s\n#EXT-X-ENDLIST\n"
+    },
+    "manifestRecovery": {
+      "trigger": "oynatma başladı",
+      "candidates": 3,
+      "recovered": 0,
+      "attempted": 3
+    }
+  },
+  "textTracksNow": [
+    {
+      "kind": "subtitles",
+      "label": "English",
+      "lang": "en",
+      "mode": "hidden",
+      "cues": [
+        "0-4:First fixture cue",
+        "0-4:Second fixture cue",
+        "0-4:Third fixture cue"
+      ]
+    },
+    {
+      "kind": "captions",
+      "label": "Embedded",
+      "lang": "en",
+      "mode": "hidden",
+      "cues": [
+        "0-119.0000000000002:00:00:00"
+      ]
+    }
+  ],
+  "ceaPlan": {
+    "state": "ready",
+    "available": true,
+    "completed": 0,
+    "total": 1,
+    "failed": 0,
+    "missing": 1,
+    "percent": 0,
+    "retryRound": 0,
+    "planComplete": true,
+    "planReason": "",
+    "complete": false,
+    "plannedDuration": 125,
+    "expectedDuration": 0,
+    "durationPercent": 0,
+    "cueCount": 0,
+    "tracks": [
+      {
+        "instreamId": "CC1",
+        "language": "en",
+        "name": "Embedded",
+        "standard": "cea-608"
+      }
+    ],
+    "message": "Tam kaynak altyazı planı hazır: 1 video segmenti."
+  },
+  "captureStart": {
+    "ok": true,
+    "jobId": "6607922d-e374-4ff5-93fd-d357d39048e9",
+    "total": 1
+  },
+  "ceaCapture": {
+    "state": "complete",
+    "available": true,
+    "completed": 1,
+    "total": 1,
+    "failed": 0,
+    "missing": 0,
+    "percent": 100,
+    "retryRound": 0,
+    "planComplete": true,
+    "planReason": "",
+    "complete": true,
+    "plannedDuration": 125,
+    "expectedDuration": 125,
+    "durationPercent": 100,
+    "cueCount": 1,
+    "tracks": [
+      {
+        "instreamId": "CC1",
+        "language": "en",
+        "name": "Embedded",
+        "standard": "cea-608"
+      }
+    ],
+    "message": "1 altyazı satırı eksiksiz yakalandı ve GİRDİ klasörüne kaydedildi."
+  },
+  "trackCues": [
+    {
+      "id": "9a61340e34d3d06a2020",
+      "format": "hls-vtt",
+      "role": "source",
+      "cues": []
+    },
+    {
+      "id": "2c479b69ac3ecd3d9f48",
+      "format": "vtt",
+      "role": "source",
+      "cues": []
+    },
+    {
+      "id": "471a1031447d2cab5cbe",
+      "format": "cea-608",
+      "role": "source",
+      "cues": []
+    },
+    {
+      "id": "3d880fa105fda3ac4450",
+      "format": "vtt",
+      "role": "source",
+      "cues": []
+    },
+    {
+      "id": "3cb10ad20d4e8222e379",
+      "format": "vtt",
+      "role": "source",
+      "cues": []
+    }
+  ],
+  "videoState": {
+    "t": 0.945377,
+    "dur": 125,
+    "paused": false,
+    "tracks": [
+      {
+        "kind": "subtitles",
+        "label": "English",
+        "mode": "disabled",
+        "cues": 0
+      },
+      {
+        "kind": "captions",
+        "label": "Embedded",
+        "mode": "hidden",
+        "cues": 1
+      }
+    ]
+  },
+  "source": {
+    "id": "9a61340e34d3d06a2020",
+    "cueCount": 3
+  },
+  "translation": {
+    "state": {
+      "liveTranslations": 3,
+      "translationTrackId": "translation-177a61a8ba2317f525b3f0f2",
+      "failed": 0
+    },
+    "providerRequests": 1,
+    "diagStats": {
+      "providerRequests": 1,
+      "cacheHits": 0,
+      "cacheMisses": 1
+    }
+  },
+  "trCueSample": [
+    "TR:First fixture cue Second fixture cue Third fixture cue·p0",
+    "TR:First fixture cue Second fixture cue Third fixture cue·p1",
+    "TR:First fixture cue Second fixture cue Third fixture cue·p2"
+  ],
+  "translationTrack": {
+    "id": "translation-177a61a8ba2317f525b3f0f2",
+    "cueCount": 3
+  },
+  "paired": {
+    "source": 3,
+    "translation": 3
+  },
+  "views": {
+    "sourceOnly": {
+      "source": {
+        "text": "First fixture cue",
+        "visible": true
+      },
+      "translation": {
+        "text": "",
+        "visible": false
+      }
+    },
+    "both": {
+      "source": {
+        "text": "First fixture cue",
+        "visible": true
+      },
+      "translation": {
+        "text": "TR:First fixture cue Second fixture cue Third fixture cue·p0",
+        "visible": true
+      }
+    }
+  },
+  "seek": {
+    "at5": "TR:First fixture cue Second fixture cue Third fixture cue·p1",
+    "at0_5": "TR:First fixture cue Second fixture cue Third fixture cue·p0"
+  },
+  "localeEn": "Fetch full subtitles",
+  "localeTr": "Tüm altyazıyı getir",
+  "tracksAfterReload": [
+    {
+      "id": "9a61340e34d3d06a2020",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/12242fa1f095ec21cef6638eaf824baf.srt",
+      "language": "",
+      "label": "HLS altyazısı",
+      "format": "hls-vtt",
+      "cueCount": 3,
+      "updatedAt": 1790126433095,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "https://gauntlet.test/sub.m3u8",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:12242fa1f095ec21cef6638eaf824baf",
+      "persisted": true,
+      "sourceHash": "af5a0b14134ce94fc93f4fc97aff01b126b2cc37c90d17ff9263c1742d57d3b6",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        },
+        {
+          "id": "1",
+          "cueId": "",
+          "start": 4,
+          "end": 8,
+          "sourceCueHash": ""
+        },
+        {
+          "id": "2",
+          "cueId": "",
+          "start": 8,
+          "end": 12,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "2c479b69ac3ecd3d9f48",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/12d2d0778389ed0bd8de91f74b790f45.srt",
+      "language": "",
+      "label": "Sayfada bulunan altyazı",
+      "format": "vtt",
+      "cueCount": 1,
+      "updatedAt": 1790126431236,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "https://gauntlet.test/sub-0.vtt",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:12d2d0778389ed0bd8de91f74b790f45",
+      "persisted": true,
+      "sourceHash": "cb3d722e89a1b1386f7c0b914c5fb8da24759e07d792b70c8a8425f5c1bd472e",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "471a1031447d2cab5cbe",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/015e37e9b50ec2f3eefc5c0cd90eb851.srt",
+      "language": "en",
+      "label": "Embedded",
+      "format": "cea-608",
+      "cueCount": 1,
+      "updatedAt": 1790126431402,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "https://gauntlet.test/master.m3u8",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "embedded-cea",
+      "instreamId": "CC1",
+      "captureComplete": true,
+      "captureTotal": 1,
+      "inputPath": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/GİRDİ/Gauntlet fixture.b31e3aa1.en.CC1.srt",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:015e37e9b50ec2f3eefc5c0cd90eb851",
+      "persisted": true,
+      "sourceHash": "6dc4ec79db607d772b86d95c338f1e947a953ab0263b1e5395966957da123540",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 119,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "3d880fa105fda3ac4450",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/fe047c7df0240031b0d58e0c21ba4a3b.srt",
+      "language": "",
+      "label": "Sayfada bulunan altyazı",
+      "format": "vtt",
+      "cueCount": 1,
+      "updatedAt": 1790126431333,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "https://gauntlet.test/sub-1.vtt",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:fe047c7df0240031b0d58e0c21ba4a3b",
+      "persisted": true,
+      "sourceHash": "dad7637ce84a0fe52abf04cdbd1719ee9707fb8ea4a3195eae803f7a51499e63",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "3cb10ad20d4e8222e379",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/3d41692e30da1d81b8b5ecaf2568b1c9.srt",
+      "language": "",
+      "label": "Sayfada bulunan altyazı",
+      "format": "vtt",
+      "cueCount": 1,
+      "updatedAt": 1790126431337,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "https://gauntlet.test/sub-2.vtt",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:3d41692e30da1d81b8b5ecaf2568b1c9",
+      "persisted": true,
+      "sourceHash": "db219d560450e41fc5733bbf34e699df672fe81e6659cdbba9740f9105c4be8a",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "d76a69d83ba5af8b2c46",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/c0e3938d0505692ab46294fd934b6940.srt",
+      "language": "en",
+      "label": "English",
+      "format": "html5-track",
+      "cueCount": 3,
+      "updatedAt": 1790126431660,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "dom:texttrack",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:c0e3938d0505692ab46294fd934b6940",
+      "persisted": true,
+      "sourceHash": "7e0dab14ff7369c6949b71ae338ccba8b723bc7d68222663f531706d37c2d745",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        },
+        {
+          "id": "1",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        },
+        {
+          "id": "2",
+          "cueId": "",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "8f59443918958774d4b0",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/5236b66f4a6d0c247f16626a79cae66e.srt",
+      "language": "en",
+      "label": "Embedded",
+      "format": "html5-track",
+      "cueCount": 1,
+      "updatedAt": 1790126431662,
+      "pageUrl": "https://gauntlet.test/watch",
+      "sourceUrl": "dom:texttrack",
+      "automatic": false,
+      "translatedByService": false,
+      "captureKind": "",
+      "instreamId": "",
+      "captureComplete": false,
+      "captureTotal": 0,
+      "inputPath": "",
+      "outputPath": "",
+      "translationLanguages": [],
+      "role": "source",
+      "assetId": "eaef22d137bbf5e680c580cd:5236b66f4a6d0c247f16626a79cae66e",
+      "persisted": true,
+      "sourceHash": "64c4f4f0a0687f44c32cd831d36a8b1c40d345f2785d4d1ddd889f9a08beb5bf",
+      "sourceTrackId": "",
+      "provider": "",
+      "model": "",
+      "cueIdentities": [
+        {
+          "id": "0",
+          "cueId": "",
+          "start": 0,
+          "end": 119.0000000000002,
+          "sourceCueHash": ""
+        }
+      ]
+    },
+    {
+      "id": "translation-177a61a8ba2317f525b3f0f2",
+      "language": "tr",
+      "label": "TR çeviri",
+      "outputPath": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/ÇIKTI/Gauntlet fixture.b31e3aa1.tr.srt",
+      "role": "translation",
+      "path": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/browser-assets/eaef22d137bbf5e680c580cd/429b693af4d91f88a7df8c53b37db6ba.srt",
+      "assetId": "eaef22d137bbf5e680c580cd:429b693af4d91f88a7df8c53b37db6ba",
+      "persisted": true,
+      "sourceHash": "af5a0b14134ce94fc93f4fc97aff01b126b2cc37c90d17ff9263c1742d57d3b6",
+      "sourceTrackId": "9a61340e34d3d06a2020",
+      "provider": "http://127.0.0.1:39177/v1/chat/completions",
+      "model": "gauntlet-model",
+      "cueIdentities": [
+        {
+          "id": "web-tr-0",
+          "cueId": "0",
+          "start": 0,
+          "end": 4,
+          "sourceCueHash": "b89b679f"
+        },
+        {
+          "id": "web-tr-1",
+          "cueId": "1",
+          "start": 4,
+          "end": 8,
+          "sourceCueHash": "2fa62604"
+        },
+        {
+          "id": "web-tr-2",
+          "cueId": "2",
+          "start": 8,
+          "end": 12,
+          "sourceCueHash": "80619c24"
+        }
+      ],
+      "archivePath": "/home/ubuntu/repos/whisper-browser/.uiprev/subtitle-gauntlet/profile-19561/Çeviri Arşivi/Altyazılar/Gauntlet fixture-tr-99ef01e755-56b309ad59e800d5.srt",
+      "autoLoad": false,
+      "cueCount": 3,
+      "updatedAt": 1790126433100
+    }
+  ],
+  "ok": true
+}

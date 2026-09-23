@@ -62,7 +62,7 @@ async function run() {
   const mainInspectPort = 21000 + Math.floor(Math.random() * 1000);
   const executable = process.execPath;
   electronProcess = spawn(executable, [
-    '--disable-background-media-suspend',
+    '--no-sandbox', '--no-zygote', '--disable-background-media-suspend',
     '--disable-renderer-backgrounding',
     '--disable-background-timer-throttling',
     projectRoot,
@@ -74,7 +74,7 @@ async function run() {
     `--electron-subtitle-fixture=${translationPath}`,
     `--electron-diagnostics-output=${diagnosticsPath}`,
     '--electron-diagnostics-sensitive-smoke',
-  ], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' });
+  ], { cwd: projectRoot, windowsHide: true, stdio: ['ignore','inherit','inherit'] });
 
   let ready = false;
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -165,6 +165,11 @@ async function run() {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   assert.equal(rendererReady, true, 'Renderer altyazı yüzeyi hazır olmadı.');
+  // Arayüz varsayılanı İngilizce — bu smoke Türkçe durum metinlerini
+  // doğruladığı için önce dili TR'ye al (assert'lerdeki 'Tamamlandı · …').
+  await call('Runtime.evaluate', {
+    expression: "window.UiLocale && window.UiLocale.set('tr')", returnByValue: true,
+  });
 
   const expression = `
     (async () => {
@@ -563,7 +568,7 @@ async function run() {
   mainSocket.close();
   if (electronProcess && electronProcess.exitCode == null) {
     spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
-      windowsHide: true, stdio: 'ignore', timeout: 10000,
+      windowsHide: true, stdio: ['ignore','inherit','inherit'], timeout: 10000,
     });
   }
   electronProcess = null;
@@ -573,7 +578,7 @@ async function run() {
 run().catch((error) => {
   if (electronProcess && electronProcess.exitCode == null) {
     spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
-      windowsHide: true, stdio: 'ignore', timeout: 10000,
+      windowsHide: true, stdio: ['ignore','inherit','inherit'], timeout: 10000,
     });
   }
   electronProcess = null;
