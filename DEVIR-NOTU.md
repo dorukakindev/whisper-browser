@@ -1,13 +1,15 @@
 # Devir notları indeksi
-Güncel çalışma: [2026-09-23 02:17 — R110-01 SDH işaret kaybı düzeltmesi ve hedefli regresyon](docs/devir/2026-09-23-0217.md).
+Güncel çalışma: [2026-09-23 19:55 — BROWSER_BUG_REPORT_108 üçüncü tur: önceki düzeltmelerden sonra derin dalış + 4 yeni kesin bulgu, 1 yanlış-pozitif kanıtı](docs/devir/2026-09-23-1955.md).
+
+Önceki çalışma: [2026-09-23 02:17 — R110-01 SDH işaret kaybı düzeltmesi ve hedefli regresyon](docs/devir/2026-09-23-0217.md).
 
 Önceki çalışma: [2026-09-23 01:57 — Devin R109 değişikliklerinin yerel birleşimi ve hedefli kabulü; SDH işareti kaybı R110-01 olarak açık](docs/devir/2026-09-23-0157.md).
 
 Önceki çalışma: [2026-09-22 20:10 — BROWSER_BUG_REPORT_109 A–N gauntlet'i: gerçek Electron + fixture sunucu + CDP; BUG-109-08 ölü-iş kartı ve BUG-109-09 SmartTube arama çöküşü bulundu+düzeltildi (kırmızı→yeşil); H10 browser-iz çevirisi uçtan uca canlı kanıtlı](docs/devir/2026-09-22-2010.md).
 
-Önceki çalışma: [2026-09-22 15:34 — SmartTube TV paketinin güvenlik/yalıtım kabul denetimi ve yerel bütünleştirmesi](docs/devir/2026-09-22-1534.md).
+Önceki çalışma: [2026-09-22 15:34 — SmartTube TV paketinin güvenlik/yalıtım kabul denetimi ve yerel bütünleştirmesi; TV modu 7/7, IPC 207×3, OAuth 25/25, Electron bridge ve UI matrisi temiz](docs/devir/2026-09-22-1534.md).
 
-Önceki çalışma: [2026-09-22 15:13 — browser/çeviri/UI paketinin güvenli yerel bütünleştirmesi](docs/devir/2026-09-22-1513.md).
+Önceki çalışma: [2026-09-22 15:13 — 17 commitlik browser/çeviri/UI paketinin güvenli yerel bütünleştirmesi; R106-01 bayat yeniden-çeviri geri alma koruması; hedefli testler temiz](docs/devir/2026-09-22-1513.md).
 
 Önceki çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
 
@@ -64,6 +66,10 @@ Güncel çalışma: [2026-09-23 02:17 — R110-01 SDH işaret kaybı düzeltmesi
 Önceki çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
 
 Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
+
+Önceki çalışma: [2026-09-20 16:45 — R93 adversarial test paketi: 4 yeni test dosyası ve ilk bulgu sınıflandırması; sonuçların önemli bölümü R89 yeniden doğrulamasında test-sözleşmesi hatası olarak düzeltildi](docs/devir/2026-09-20-1645.md).
+
+Önceki çalışma: [2026-09-20 15:55 — R92 tam kod tabanı derin inceleme ve ilk 11 aday bulgu; adayların nihai kararları R89 yeniden doğrulamasında kaydedildi](docs/devir/2026-09-20-1555.md).
 
 Önceki çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
 
