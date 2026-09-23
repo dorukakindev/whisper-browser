@@ -25,9 +25,11 @@ function test(name, fn) {
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, `${name} tanımı bulunamadı`);
-  const end = source.indexOf('\n}\n', start);
-  assert.ok(end > start, `${name} gövdesi kapanmıyor`);
-  return source.slice(start, end + 2);
+  const close = /\r?\n\}\r?\n/g;
+  close.lastIndex = start;
+  const m = close.exec(source);
+  assert.ok(m, `${name} gövdesi kapanmıyor`);
+  return source.slice(start, m.index + m[0].indexOf('}') + 1);
 }
 
 // ---- BUG-117-01: araştırma defteri dışa aktarımı tanımsız yazıcı çağırıyordu
