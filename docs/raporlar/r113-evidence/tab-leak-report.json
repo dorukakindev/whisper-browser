@@ -1,0 +1,331 @@
+{
+  "checks": [],
+  "splitResult": {
+    "ok": true,
+    "secondary": "tab-mudkfm2d-1"
+  },
+  "visibility": {
+    "a": "visible",
+    "b": "visible"
+  },
+  "diagA0": {
+    "hasMedia": true,
+    "running": false,
+    "hidden": false,
+    "mode": "both",
+    "observer": true,
+    "mutationObservers": 1,
+    "resizeObservers": 1,
+    "mediaListeners": 7,
+    "overlayNodes": 3,
+    "renderCount": 11,
+    "renderTotalMs": 6.699999999720603,
+    "renderAverageMs": 0.6090909090655093,
+    "renderMaxMs": 3.7000000001862645,
+    "boundaryCallbacks": 0,
+    "pendingFrames": 0,
+    "fallbackRenders": 0,
+    "lastRenderVideoTime": 0.201982,
+    "armedBoundary": 2,
+    "armedDelayMs": 1807.4479999999999,
+    "armedAt": 0.192552,
+    "frameKind": "",
+    "mediaTime": 0.201982,
+    "timerProbeDelayMs": null
+  },
+  "diagB0": {
+    "hasMedia": true,
+    "running": false,
+    "hidden": false,
+    "mode": "source",
+    "observer": true,
+    "mutationObservers": 1,
+    "resizeObservers": 1,
+    "mediaListeners": 7,
+    "overlayNodes": 3,
+    "renderCount": 7,
+    "renderTotalMs": 3.2000000001862645,
+    "renderAverageMs": 0.45714285716946634,
+    "renderMaxMs": 1.6000000000931323,
+    "boundaryCallbacks": 0,
+    "pendingFrames": 2,
+    "fallbackRenders": 0,
+    "lastRenderVideoTime": 0.209209,
+    "armedBoundary": 2,
+    "armedDelayMs": 1790.791,
+    "armedAt": 0.209209,
+    "frameKind": "",
+    "mediaTime": 0.217933,
+    "timerProbeDelayMs": null
+  },
+  "both": {
+    "a": [
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "A-KAYNAK-0",
+        "tr": "A-CEVIRI-0",
+        "t": 0.201982,
+        "vis": "visible",
+        "resources": 1
+      }
+    ],
+    "b": [
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 0.219857,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 0.472029,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 0.725145,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 0.977059,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 1.230353,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 1.483112,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 1.734724,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-0",
+        "tr": "",
+        "t": 1.986893,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-2",
+        "tr": "",
+        "t": 2.239293,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-2",
+        "tr": "",
+        "t": 2.492476,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-2",
+        "tr": "",
+        "t": 2.744541,
+        "vis": "visible",
+        "resources": 1
+      },
+      {
+        "src": "B-KAYNAK-2",
+        "tr": "",
+        "t": 2.996474,
+        "vis": "visible",
+        "resources": 1
+      }
+    ]
+  },
+  "s1": {
+    "leaks": [],
+    "visA": 12,
+    "visB": 12,
+    "sampleA": {
+      "src": "A-KAYNAK-0",
+      "tr": "A-CEVIRI-0",
+      "t": 0.201982,
+      "vis": "visible",
+      "resources": 1
+    },
+    "sampleB": {
+      "src": "B-KAYNAK-2",
+      "tr": "",
+      "t": 2.996474,
+      "vis": "visible",
+      "resources": 1
+    }
+  },
+  "close": {
+    "tabA": "tab-mudkfm2d-1",
+    "tabB": "tab-mudkfmie-2",
+    "response": {
+      "ok": true,
+      "activeTabId": "tab-mudkfmie-2",
+      "tabs": [
+        {
+          "id": "tab-mudkfmie-2",
+          "url": "http://127.0.0.1:43691/watch-b"
+        }
+      ]
+    }
+  },
+  "tabsLog": [
+    {
+      "tabs": [
+        "tab-mudkfmie-2"
+      ],
+      "active": "tab-mudkfmie-2",
+      "stack": "    at syncBrowserTabs (<anonymous>:5:16) <-     at <anonymous>:2:74"
+    }
+  ],
+  "afterClose": {
+    "active": "tab-mudkfmie-2",
+    "tabs": [
+      {
+        "id": "tab-mudkfmie-2",
+        "url": "http://127.0.0.1:43691/watch-b",
+        "mediaId": "web:url:f1ace1abb2e294d76ac70228"
+      }
+    ],
+    "liveKeys": [],
+    "splitSecondary": ""
+  },
+  "s3": {
+    "sampleB2": {
+      "src": "",
+      "tr": "",
+      "t": 1.165095,
+      "vis": "visible",
+      "resources": 1
+    },
+    "reoverlay": {
+      "src": "B-KAYNAK-0",
+      "tr": "",
+      "t": 1.971653,
+      "vis": "visible",
+      "resources": 1
+    }
+  },
+  "diagB1": {
+    "hasMedia": true,
+    "running": false,
+    "hidden": false,
+    "mode": "source",
+    "observer": true,
+    "mutationObservers": 1,
+    "resizeObservers": 1,
+    "mediaListeners": 7,
+    "overlayNodes": 3,
+    "renderCount": 7,
+    "renderTotalMs": 2.0999999991618097,
+    "renderAverageMs": 0.29999999988025855,
+    "renderMaxMs": 0.8999999999068677,
+    "boundaryCallbacks": 0,
+    "pendingFrames": 1,
+    "fallbackRenders": 0,
+    "lastRenderVideoTime": 1.169497,
+    "armedBoundary": 2,
+    "armedDelayMs": 830.503,
+    "armedAt": 1.169497,
+    "frameKind": "",
+    "mediaTime": 1.996895,
+    "timerProbeDelayMs": null
+  },
+  "ok": true
+}
