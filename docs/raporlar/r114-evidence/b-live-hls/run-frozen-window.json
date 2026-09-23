@@ -1,0 +1,10 @@
+{
+  "note": "R114-B frozen-window run — same fixture but ENDLIST deliberately late (wall 38-45s) while media supply (16 segs) exhausts ~wall 30. Demonstrates: when a rolling live playlist stops offering new segments (window contains only already-consumed frags, no ENDLIST), hls.js signals EOS early rather than spinning forever.",
+  "playback": {"joinedAt": 2.57, "playedThrough": 25.24, "endedWithoutEndlist": true},
+  "stallBeforeEnd": {"at": 25.1, "durationWallSeconds": "~5", "cause": "buffer exhausted at live edge — no new segments were being produced (fixture content exhausted)"},
+  "variant_b_reset_timestamps": {
+    "note": "An earlier run used segments encoded with -reset_timestamps 1 (each TS restarts at PTS 0) — at the DISCONTINUITY boundary playback stalled ~21s. With continuous-PTS segments (real live encoder behavior) the same boundary crosses with zero stall. Verdict: fixture artifact, not an app/hls.js defect; documented so future fixtures keep -reset_timestamps 0."
+  },
+  "requestCounts": {"video.m3u8": "16-24 polls", "subs.m3u8": "16-24 polls", "seg-012.ts": 2, "other segs": "1 each"},
+  "appErrors": "none — no hlsRecovery restart triggered, quality selector stayed ['auto','0'], no error surfaced to UI log beyond normal lifecycle"
+}

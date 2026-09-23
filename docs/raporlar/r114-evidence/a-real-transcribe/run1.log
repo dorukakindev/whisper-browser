@@ -1,0 +1,32 @@
+{"type": "log", "level": "warn", "message": "İşlemci (CPU) modunda 'float16' desteklenmez. 'int8' kullanılacak."}
+{"type": "status", "stage": "extract", "text": "Ses çıkarılıyor..."}
+{"type": "log", "level": "info", "message": "Ses çıkarılıyor: clip.mp4"}
+{"type": "log", "level": "info", "message": "Ses çıkarma tamamlandı"}
+{"type": "status", "stage": "load_model", "text": "Model yükleniyor: tiny (int8)"}
+{"type": "log", "level": "info", "message": "Model yükleniyor: tiny — ilk kez kullanılıyorsa indirme birkaç dakika sürebilir"}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{"type": "log", "level": "info", "message": "Model yüklendi (1.4s)"}
+{"type": "status", "stage": "transcribe", "text": "Transkripsiyon başladı..."}
+{"type": "log", "level": "info", "message": "Decoding [faster]: beam=5, best_of=5, temp=auto, rep_penalty=1.0, log_prob_thr=-1.0, no_speech_thr=0.6"}
+{"type": "language", "code": "en", "probability": 0.998, "duration": 30.98}
+{"type": "segment", "index": 1, "start": 0.0, "end": 6.76, "text": "Wait, are you sure you want to come with me? It costs 2.4 million dollars, Marcus.", "confidence": 0.871, "lowConfidenceWords": 2, "avgLogprob": -0.13923660245461342, "noSpeechProb": 0.011933171190321445, "compressionRatio": 1.378787878787879}
+{"type": "progress", "percent": 21.8, "current": 6.76, "total": 30.98}
+{"type": "segment", "index": 2, "start": 8.52, "end": 11.52, "text": "I told her not to open the door, but she did anyway.", "confidence": 0.943, "lowConfidenceWords": 0, "avgLogprob": -0.13923660245461342, "noSpeechProb": 0.011933171190321445, "compressionRatio": 1.378787878787879}
+{"type": "segment", "index": 3, "start": 12.42, "end": 15.36, "text": "The meeting starts at 9.30 on Tuesday morning.", "confidence": 0.911, "lowConfidenceWords": 1, "avgLogprob": -0.13923660245461342, "noSpeechProb": 0.011933171190321445, "compressionRatio": 1.378787878787879}
+{"type": "segment", "index": 4, "start": 16.6, "end": 19.22, "text": "And I was like, no way, that can't be true.", "confidence": 0.84, "lowConfidenceWords": 2, "avgLogprob": -0.13923660245461342, "noSpeechProb": 0.011933171190321445, "compressionRatio": 1.378787878787879}
+{"type": "segment", "index": 5, "start": 20.42, "end": 23.24, "text": "So he left the building before anyone noticed.", "confidence": 0.983, "lowConfidenceWords": 0, "avgLogprob": -0.13923660245461342, "noSpeechProb": 0.011933171190321445, "compressionRatio": 1.378787878787879}
+{"type": "segment", "index": 6, "start": 24.36, "end": 27.34, "text": "Did you really think I wouldn't find out?", "confidence": 0.971, "lowConfidenceWords": 0, "avgLogprob": -0.06959457635879517, "noSpeechProb": 0.07319212704896927, "compressionRatio": 1.0235294117647058}
+{"type": "segment", "index": 7, "start": 28.3, "end": 30.92, "text": "300 people showed up to the event last night.", "confidence": 0.982, "lowConfidenceWords": 0, "avgLogprob": -0.06959457635879517, "noSpeechProb": 0.07319212704896927, "compressionRatio": 1.0235294117647058}
+{"type": "progress", "percent": 100.0, "current": 30.98, "total": 30.98}
+{"type": "log", "level": "info", "message": "ℹ LLM düzeltme kapalı"}
+{"type": "log", "level": "info", "message": "Konusma baslangicina yaslandi: 3 blok (ortalama 305 ms ileri alindi)"}
+{"type": "log", "level": "info", "message": "Zamanlama iyileştirildi (hedef en çok 20 CPS, min 0.80s, boşluk 0.08s; konuşma aralığı yetmezse kalan aşımlar kalite raporunda gösterilir)"}
+{"type": "preview_refresh", "segments": [{"index": 1, "start": 0.224, "end": 6.76, "text": "Wait, are you sure you want to come with me? It costs 2.4 million dollars, Marcus."}, {"index": 2, "start": 8.52, "end": 11.52, "text": "I told her not to open the door, but she did anyway."}, {"index": 3, "start": 12.42, "end": 15.36, "text": "The meeting starts at 9.30 on Tuesday morning."}, {"index": 4, "start": 16.6, "end": 19.22, "text": "And I was like, no way, that can't be true."}, {"index": 5, "start": 20.704, "end": 23.24, "text": "So he left the building before anyone noticed."}, {"index": 6, "start": 24.768, "end": 27.34, "text": "Did you really think I wouldn't find out?"}, {"index": 7, "start": 28.3, "end": 30.92, "text": "300 people showed up to the event last night."}]}
+{"type": "quality_report", "blocks": 7, "cps_violations": 0, "overlaps": 0, "too_long": 0, "too_short": 0, "max_cps": 18.1, "longest_dur": 6.54, "longest_at": 0.22, "low_confidence_segments": 0, "high_no_speech_segments": 0}
+{"type": "log", "level": "success", "message": "Kalite: 7 blok · 0 hızlı okuma · 0 çakışma · en uzun blok 6.5s (en yüksek 18 CPS)"}
+{"type": "status", "stage": "write", "text": "Altyazı dosyası yazılıyor..."}
+{"type": "log", "level": "info", "message": "Yazıldı: /home/ubuntu/qa-114/out/clip.srt"}
+{"type": "log", "level": "info", "message": "Yazıldı: /home/ubuntu/qa-114/out/clip.json"}
+{"type": "log", "level": "info", "message": "Düşük güvenli kelime raporu: 3/73 kelime (%4.1) → clip.dusuk-guven.txt"}
+{"type": "log", "level": "info", "message": "Performans: tiny / faster / cpu — 00:00:30 ses, 00:00:02 islem, 12.4x gercek zaman, 7 segment, 5 dusuk guvenli kelime"}
+{"type": "done", "files": ["/home/ubuntu/qa-114/out/clip.srt", "/home/ubuntu/qa-114/out/clip.json", "/home/ubuntu/qa-114/out/clip.dusuk-guven.txt"], "outputs": [{"path": "/home/ubuntu/qa-114/out/clip.srt", "role": "source", "language": "en", "sourceId": "8cc4f6c8d9dac50cba8fd07c2d02e82e249350ecf7dbbba4d59edb6d5a604937", "sourceHash": "fcf1b8b56b045cef97bd1a6221d88631509b1cad5b872d2e2e8136d96e7de040", "status": "complete", "total": 7, "completed": 7, "failed": 0, "lastError": ""}, {"path": "/home/ubuntu/qa-114/out/clip.json", "role": "source", "language": "en", "sourceId": "8cc4f6c8d9dac50cba8fd07c2d02e82e249350ecf7dbbba4d59edb6d5a604937", "sourceHash": "fcf1b8b56b045cef97bd1a6221d88631509b1cad5b872d2e2e8136d96e7de040", "status": "complete", "total": 7, "completed": 7, "failed": 0, "lastError": ""}], "sourceId": "8cc4f6c8d9dac50cba8fd07c2d02e82e249350ecf7dbbba4d59edb6d5a604937", "sourceHash": "fcf1b8b56b045cef97bd1a6221d88631509b1cad5b872d2e2e8136d96e7de040", "segments": 7, "language": "en", "warnings": [], "perf": {"model": "tiny", "engine": "faster", "device": "cpu", "compute": "int8", "language": "en", "mediaSeconds": 31.0, "elapsedSeconds": 2.5, "rtf": 12.4, "segments": 7, "lowConfidenceWords": 5}, "translation": null}
