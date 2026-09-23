@@ -3604,7 +3604,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
             # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
-            if translation_is_source_echo(row['source'], record['text']):
+            # Yalnız-SDH cue'unda ("[music playing]") işaretin aynen dönmesi
+            # yankı değil doğru sonuçtur; ret kurtarma yakıyordu.
+            if (translation_is_source_echo(row['source'], record['text'])
+                    and not is_structural_sdh_cue(row['source'])):
                 rejected["kaynak_yankisi"] = rejected.get("kaynak_yankisi", 0) + 1
                 continue
             meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
@@ -3940,7 +3943,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     key = "part_kapisi:" + gate_issue
                     rejected[key] = rejected.get(key, 0) + len(group)
                     continue
-                if translation_is_source_echo(row['source'], record['text']):
+                if (translation_is_source_echo(row['source'], record['text'])
+                        and not is_structural_sdh_cue(row['source'])):
                     rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
                     continue
                 assessment = evaluate_refinement_candidate(
@@ -5174,7 +5178,9 @@ def compute_translation_quality_report(source_entries, translated_entries,
             meaning_shadow_evaluated += 1
         # Kısa özel adlar, sayılar ve URL'ler aynı kalabilir. Uzun ve harf
         # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
-        if translation_is_source_echo(src_text, dst_text):
+        # Yalnız-SDH cue'unda işaretin korunması eksik çeviri değildir.
+        if (translation_is_source_echo(src_text, dst_text)
+                and not is_structural_sdh_cue(src_text)):
             untranslated_indices.append(index)
         meaning_issues = translation_meaning_issues(src_text, dst_text)
         if 'number_mismatch' in meaning_issues:
@@ -6988,14 +6994,16 @@ def translate_existing_subtitle(args):
                     record = keyed.get(cue_fingerprint(entry, index))
                     if (record and str(record.get("status")) == "completed"
                             and len(old) >= 3 and str(old[2]).strip()
-                            and not translation_is_source_echo(entry[2], old[2])):
+                            and (not translation_is_source_echo(entry[2], old[2])
+                                 or is_structural_sdh_cue(entry[2]))):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]
             elif not metadata_present and timeline_matches:
                 for index, (entry, old) in enumerate(zip(entries, old_entries)):
                     if (len(old) >= 3 and str(old[2]).strip()
-                            and not translation_is_source_echo(entry[2], old[2])):
+                            and (not translation_is_source_echo(entry[2], old[2])
+                                 or is_structural_sdh_cue(entry[2]))):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]

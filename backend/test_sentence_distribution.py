@@ -529,5 +529,31 @@ def test_sdh_markers_restored_after_strip():
     assert restore_sdh_markers("[GUNFIRE] Run!", "Kaç!") == "Kaç!"
 
 
+def test_lone_sdh_marker_echo_is_not_rejected():
+    """R111: yalnız-SDH cue'unda sağlayıcının işareti aynen döndürmesi
+    kaynak-yankısı değil, doğru sonuçtur — kurtarma yakılmamalı.
+
+    '[music playing]' tamamen işaretten oluşur; 'çevirisi' işaretin kendisi
+    olabilir. Eskiden kaynak_yankisi=1 sayılıp tekil kurtarma tetikleniyordu
+    (gereksiz ek istekler).
+    """
+    entries = [(9.0, 10.5, "[music playing]"), (11.0, 12.0, "She stood up.")]
+    out, calls = _run_translate(entries, _reply(
+        {"0": "[music playing]", "1": "Ayağa kalktı."}, {}))
+    assert [t for _, _, t in out] == ["[music playing]", "Ayağa kalktı."]
+    assert len(calls) == 1, f"{len(calls)} istek: kurtarma tetiklendi"
+
+
+def test_dialogue_echo_still_rejected():
+    """Koruma: diyalog cue'unda kaynak-yankısı kapısı hâlâ aktif."""
+    entries = [(0.0, 2.0, "Wait right there.")]
+    out, calls = _run_translate(
+        entries,
+        lambda payload, call: {"items": {"0": "Wait right there."}, "sentences": {}}
+        if call < 3 else {"items": {"0": "Tam orada bekle."}, "sentences": {}})
+    assert [t for _, _, t in out] == ["Tam orada bekle."]
+    assert len(calls) == 3, f"{len(calls)} istek"
+
+
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)
