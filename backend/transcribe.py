@@ -3690,47 +3690,53 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         )
         def rescue_group(group):
             """Tek grup: normal kurtarma → yanıt kalite kapısında kalırsa
-            dağıtım kuralları açıkça eklenmiş ikinci (son) deneme."""
-            nonlocal recovered
+            dağıtım kuralları açıkça eklenmiş ikinci (son) deneme.
+            Kurtarılan blok sayısını DÖNDÜRÜR (paralel işçilerde nonlocal
+            sayaç yarışı olmasın diye)."""
+            rec = 0
             first_reason = ""
             try:
-                recovered += task_once(group, phase="fallback")
+                rec += task_once(group, phase="fallback")
             except Exception as first_error:
                 first_reason = classify_translation_error(first_error)
             if all(index in done_idx for index in group):
-                return
+                return rec
             # Aynı promptu tekrarlamak aynı dağıtımı üretir; yanıt yapısal/kalite
             # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
             # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
             if first_reason in {"", "invalid_response", "empty_response"}:
                 try:
-                    recovered += task_once(group, phase="fallback",
-                                           prompt_suffix=RESCUE_SUFFIX)
+                    rec += task_once(group, phase="fallback",
+                                     prompt_suffix=RESCUE_SUFFIX)
                 except Exception as second_error:
                     reason = classify_translation_error(second_error)
                     with lock:
                         for index in group:
                             if index not in done_idx:
                                 failure_by_index.setdefault(index, reason)
-                    return
+                    return rec
             with lock:
                 for index in group:
                     if index not in done_idx:
                         failure_by_index.setdefault(index, first_reason or "invalid_response")
+            return rec
 
-        completed_groups = 0
-        for bundle_groups, bundle in bundles:
+        def process_bundle(item):
+            """Bir küçük paketi kurtar: önce paket halinde, kalırsa tek grup
+            denemeleriyle. (işlenen grup sayısı, kurtarılan blok sayısı) döner."""
+            bundle_groups, bundle = item
+            rec = 0
             if len(bundle_groups) == 1:
-                rescue_group(bundle_groups[0])
+                rec = rescue_group(bundle_groups[0])
             else:
                 try:
-                    recovered += task_once(bundle, phase="fallback")
+                    rec += task_once(bundle, phase="fallback")
                     missing_after_bundle = [
                         group for group in bundle_groups
                         if not all(index in done_idx for index in group)
                     ]
                     for group in missing_after_bundle:
-                        rescue_group(group)
+                        rec += rescue_group(group)
                 except Exception as retry_error:
                     reason = classify_translation_error(retry_error)
                     if reason in {"invalid_response", "empty_response"}:
@@ -3740,13 +3746,25 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                             "warn",
                         )
                         for group in bundle_groups:
-                            rescue_group(group)
+                            rec += rescue_group(group)
                     else:
                         with lock:
                             for index in bundle:
                                 if index not in done_idx:
                                     failure_by_index.setdefault(index, reason)
-            completed_groups += len(bundle_groups)
+            return len(bundle_groups), rec
+
+        completed_groups = 0
+        # Kurtarma paketleri paylaşımlı rescue_pool'da paralel işlenir —
+        # eskiden her paket parça işçisinin içinde sırayla API bekliyordu
+        # (loglardaki "loop" gibi görünen çok dakikalı seri kurtarmanın sebebi).
+        # Havuz AYRI bir executor: ana havuza iç içe gönderim deadlock riski
+        # taşırdı; burada toplam eşzamanlı kurtarma isteği translate_workers
+        # ile sınırlı kalır. map sonuç sırası gönderim sırasıdır — ilerleme
+        # kayıtları deterministik kalır.
+        for n_done, rec in rescue_pool.map(process_bundle, bundles):
+            completed_groups += n_done
+            recovered += rec
             log(
                 f"Çeviri kurtarma ilerlemesi: {completed_groups}/{len(groups_to_retry)} "
                 f"grup işlendi, {recovered} blok kurtarıldı, "
@@ -3839,36 +3857,45 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # göndermeden durur; başarılı probdan sonra normal paralellik korunur.
     remaining_chunks = list(chunks)
     fatal_reason = ""
-    if remaining_chunks:
-        probe = remaining_chunks.pop(0)
-        try:
-            record_chunk_result(probe, got=task(probe))
-        except Exception as error:
-            fatal_reason = record_chunk_result(probe, error=error)
-
-    if fatal_reason in FATAL_TRANSLATION_ERRORS and remaining_chunks:
-        skipped = sum(len(ch) for ch in remaining_chunks)
-        counters["failed"] += skipped
-        with lock:
-            for ch in remaining_chunks:
-                for index in ch:
-                    if index not in done_idx:
-                        failure_by_index[index] = fatal_reason
-        log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
-            .format(fatal_reason, skipped), "warn")
-        emit("llm_progress", percent=100.0,
-             done=counters["done"] + len(cached_idx), failed=counters["failed"],
-             total=len(entries), stage="translate")
-        remaining_chunks = []
-
-    with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
-        futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
-        for fut in as_completed(futures):
-            ch = futures[fut]
+    # Kurtarma paketleri bu paylaşımlı havuzda paralellenir (ayrı executor —
+    # parça havuzuna iç içe gönderim deadlock olurdu). Boyut translate_workers
+    # ile sınırlı: sağlayıcıya aynı anda giden kurtarma isteği toplu çeviri
+    # düzeyini aşmaz. Senkron prob öncesinde açılır; ilk parça da kurtarma
+    # gerektirebilir.
+    rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
+    try:
+        if remaining_chunks:
+            probe = remaining_chunks.pop(0)
             try:
-                record_chunk_result(ch, got=fut.result())
+                record_chunk_result(probe, got=task(probe))
             except Exception as error:
-                record_chunk_result(ch, error=error)
+                fatal_reason = record_chunk_result(probe, error=error)
+
+        if fatal_reason in FATAL_TRANSLATION_ERRORS and remaining_chunks:
+            skipped = sum(len(ch) for ch in remaining_chunks)
+            counters["failed"] += skipped
+            with lock:
+                for ch in remaining_chunks:
+                    for index in ch:
+                        if index not in done_idx:
+                            failure_by_index[index] = fatal_reason
+            log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
+                .format(fatal_reason, skipped), "warn")
+            emit("llm_progress", percent=100.0,
+                 done=counters["done"] + len(cached_idx), failed=counters["failed"],
+                 total=len(entries), stage="translate")
+            remaining_chunks = []
+
+        with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
+            futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
+            for fut in as_completed(futures):
+                ch = futures[fut]
+                try:
+                    record_chunk_result(ch, got=fut.result())
+                except Exception as error:
+                    record_chunk_result(ch, error=error)
+    finally:
+        rescue_pool.shutdown()
 
     log(
         "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
@@ -6923,6 +6950,20 @@ def translate_existing_subtitle(args):
         if deduped:
             log(f"Guvenli cue tekillestirme: {deduped} yinelenen blok elendi.", "warn")
 
+    # "Cümleleri birleştir" seçeneği çeviride de ayrıca uygulanır (UI ipucunun
+    # vaadi): sonraki satıra taşan cümleler tek blokta toplanır ve çeviri
+    # modeline birleşik gider; çıktı dosyası da birleşik zaman aralıklarıyla
+    # yazılır. Kaynak dosya değişmez. Kısmi devam/metadata eşleşmesi aynı
+    # seçenek durumunda deterministiktir; seçenek değişirse zaman çizelgesi
+    # uyuşmaz ve dosya güvenli şekilde yeniden çevrilir.
+    if getattr(args, "merge_continuation", False):
+        _merge_n0 = len(entries)
+        entries = merge_continuation_lines(
+            entries, max_gap=getattr(args, "continuation_gap", 3.0))
+        if len(entries) != _merge_n0:
+            log(f"Cumle birlestirme (ceviri): {_merge_n0} -> {len(entries)} blok "
+                f"({_merge_n0 - len(entries)} devam satiri onceki bloga katildi)")
+
     # Hazır altyazıda cue kimliği/zamanı ve kaynak dosya AYNEN kalır. Yalnız
     # diyalogla aynı cue içindeki güvenli SDH betimlemesi model girdisinden
     # çıkarılır. Saf [music] gibi cue'lar boşaltılmaz; böylece satır sayısı ve
@@ -7069,8 +7110,9 @@ def translate_existing_subtitle(args):
                        restore_sdh_markers(orig_text, translated_text))
                       for (start, end, orig_text), (_s, _e, translated_text)
                       in zip(entries, translated)]
-    # Var olan altyazı çevirisinde cue sınırları ve zamanları birebir korunur;
-    # metin-birleştirme kaynak/çeviri eşlemesini ve kısmi devamı bozar.
+    # Var olan altyazı çevirisinde cue sınırları ve zamanları varsayılan olarak
+    # birebir korunur; birleştirme yalnızca "Cümleleri birleştir" seçeneği
+    # açıkken, dosya parse edildikten hemen sonra uygulanır.
     if not translated:
         raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
 

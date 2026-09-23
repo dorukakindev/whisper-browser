@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Browser ⋯ menu gains "Watch in player" on open YouTube pages: hands the video off to the app player, carries over the current playback position (or the watch-history resume point), and pauses the browser tab.
 - Translation quality corpus (`backend/golden-corpus-tr.json`, 60 cues) with per-category defect metrics and deterministic mock-provider pipeline tests.
 - Provider cost counters (`providerRequests`/`cacheHits`/`cacheMisses`) in browser translation telemetry, `browser:translation:snapshot`, diagnostics, and the live-translation signal line.
 - Crash-integrity gauntlet: deterministic fs fault injection across every critical store write path (asset store, session store, translation cache/archive, notes, reading list, element rules, series context, CEA checkpoint, secret store) plus a real-Electron damaged-profile restart smoke and a 10k-cue / multi-tab / concurrent-translation performance measurement smoke.
@@ -27,6 +28,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Translate-only jobs now honor the "Merge continuation sentences" option: spilled-over sentences are merged before translation instead of being silently ignored despite the setting's tooltip (the batch transcribe path already applied it).
+- Translation rescue is no longer serialized per chunk: small retry bundles now run on a shared worker-bounded pool, so a chunk with several rejected groups no longer waits minutes for sequential API round-trips (observed: a single chunk's rescue took 233 s).
 - Browser overlay cue scheduling: after seek or playback-rate changes the pending cue-boundary timer is now re-planned on the current timeline, so the overlay can no longer display a stale caption for seconds.
 - Browser overlay recovers when `requestVideoFrameCallback` never fires (pages that produce no compositor frames): a 400 ms fallback timer renders the boundary cue directly.
 - Browser overlay no longer skips an entire cue interval when a boundary render lands a few milliseconds early — the boundary epsilon and the −12 ms early-fire margin were removed; a render landing before a boundary re-arms it immediately instead of jumping to the next cue.

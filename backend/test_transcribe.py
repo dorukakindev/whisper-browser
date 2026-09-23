@@ -1756,6 +1756,78 @@ def test_translate_existing_subtitle_keeps_timings():
     assert "First line." in src.read_text(encoding="utf-8-sig")
 
 
+def test_translate_existing_subtitle_merge_continuation():
+    """'Cümleleri birleştir' açıkken translate-only çıktısı birleşik gitmeli.
+
+    UI ipucu 'Çeviride de ayrıca uygulanır' diyor ama translate_existing_subtitle
+    merge_continuation_lines'i hiç çağırmıyordu — seçenek açık olsa bile çeviri
+    parçalı gidiyordu. Birleşen bloklar kaynağın zaman aralıklarını kapsayan TEK
+    blok olur; seçenek kapalıysa zaman kodları birebir korunur (mevcut davranış).
+    """
+    import tempfile, pathlib, sys, types, importlib.machinery, json
+    d = pathlib.Path(tempfile.mkdtemp())
+    src = d / "film.en.srt"
+    src.write_text("\n".join([
+        "1",
+        "00:00:01,000 --> 00:00:04,000",
+        "Bu kulağa çok…",
+        "",
+        "2",
+        "00:00:04,200 --> 00:00:07,000",
+        "kasıntı gelir ama değil.",
+        "",
+        "3",
+        "00:00:09,000 --> 00:00:10,000",
+        "Tam bir cümle.",
+        "",
+    ]), encoding="utf-8-sig")
+
+    def _create(**kw):
+        p = json.loads(kw["messages"][-1]["content"])
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(
+                content=json.dumps({str(i["i"]): "[TR] " + i["t"] for i in p["items"]})))])
+
+    class _C:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _C
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+
+    def _run(**over):
+        args = _TrArgs(cache_dir=str(d), translate_cache=False)
+        args.input = str(src)
+        args.output_dir = str(d)
+        args.language = "en"
+        args.max_lines = 2
+        args.wrap_mode = "sentence"
+        args.formats = "srt"
+        args.dual_subtitle = False
+        args.dual_translation_first = False
+        args.__dict__.update(over)
+        T.translate_existing_subtitle(args)
+        return (d / "film.tr.srt").read_text(encoding="utf-8-sig")
+
+    try:
+        merged_text = _run(merge_continuation=True, continuation_gap=3.0)
+        assert "00:00:01,000 --> 00:00:07,000" in merged_text, merged_text
+        assert "[TR] Bu kulağa çok kasıntı gelir ama değil." in merged_text, merged_text
+        assert "00:00:04,200 --> 00:00:07,000" not in merged_text, merged_text
+        assert merged_text.count("-->") == 2, merged_text
+        # Tam cümle bloğu birleştirilmez — 3. blok ayrı kalır.
+        assert "00:00:09,000 --> 00:00:10,000" in merged_text, merged_text
+    finally:
+        if real is not None:
+            sys.modules["openai"] = real
+        else:
+            sys.modules.pop("openai", None)
+
+
 def test_build_translate_prompt():
     p = T.build_translate_prompt("tr", "en", ["Sanhuber", "Osterreich"],
                                  register="documentary", profanity="explicit",
@@ -2870,6 +2942,69 @@ def test_sentence_translation_failed_groups_never_reach_refine():
     # toplu + tekil kurtarma + sertleştirilmiş son deneme + refine = 4 istek
     assert len(seen) == 4
     assert [item['src'] for item in seen[3][0]['items']] == ['Goodbye.']
+
+
+def test_translate_rescue_bundles_run_in_parallel():
+    """Kurtarma paketleri paylaşımlı havuzda PARALEL çalışmalı.
+
+    Eskiden retry_groups_once paketleri parça işçisinin içinde sırayla
+    bekliyordu: her paket ≥1 API gecikmesi → eksik grup sayısı kadar seri
+    bekleme (gerçek günlükte tek parçanın kurtarması 233 sn sürebiliyordu).
+    Zamanlama yerine deterministik kanıt: yavaş sağlayıcıda aynı anda en az 2
+    istek havada olmalı."""
+    import time as _time, threading as _threading
+    source = [(0, 1, "One."), (2, 3, "Two."), (4, 5, "Three."), (6, 7, "Four.")]
+    inflight = {"now": 0, "max": 0}
+    inflight_lock = _threading.Lock()
+
+    def answer(payload):
+        reply = _sentence_reply(payload)
+        if len(payload["items"]) > 1:
+            # Toplu yanıtta yalnız ilk cümle grubunu kabul et — kalan 3 grup
+            # kurtarma paketlerine düşsün.
+            first_ids = {str(i) for i in payload["sentence_groups"][0]["ids"]}
+            reply["items"] = {k: v for k, v in reply["items"].items()
+                              if k in first_ids}
+            first_gid = str(payload["sentence_groups"][0]["ids"][0])
+            reply["sentences"] = {first_gid: reply["sentences"][first_gid]}
+        return reply
+
+    seen = []
+
+    class SlowClient:
+        def __init__(self, **_kw):
+            self.chat = types.SimpleNamespace(completions=self)
+
+        def create(self, **kw):
+            with inflight_lock:
+                inflight["now"] += 1
+                inflight["max"] = max(inflight["max"], inflight["now"])
+            try:
+                _time.sleep(0.15)
+                payload = json.loads(kw["messages"][-1]["content"])
+                seen.append(payload)
+                data = answer(payload)
+                return types.SimpleNamespace(choices=[types.SimpleNamespace(
+                    message=types.SimpleNamespace(
+                        content=json.dumps(data, ensure_ascii=False)))])
+            finally:
+                with inflight_lock:
+                    inflight["now"] -= 1
+
+    warnings = []
+    started = _time.time()
+    with _fake_openai(SlowClient), mock.patch.object(T, "log"), \
+            mock.patch.object(T, "emit"):
+        result = T.llm_translate(source,
+                                 _TrArgs(translate_cache=False, translate_workers=3),
+                                 warnings, source_lang="en")
+    elapsed = _time.time() - started
+    assert result is not None
+    assert inflight["max"] >= 2, f"kurtarma seri kaldi (max eşzamanlı={inflight['max']})"
+    # Seri akış: 1 toplu + 3 tekil kurtarma ≈ 4×0.15s = 0.6s; paralel ≈ 0.3s.
+    assert elapsed < 0.55, f"kurtarma hâlâ seri gibi ({elapsed:.2f}s)"
+    # Tüm kurtarma paketleri çalıştı: 1 toplu + 3 tekil.
+    assert len(seen) >= 4, len(seen)
 
 
 def test_translate_existing_without_metadata_retries_source_echo_only():
