@@ -600,6 +600,21 @@ _UNIT_PATTERNS = {
     'second': re.compile(r'(?<!\w)(?:seconds?|secs?|saniye\w*)(?!\w)', re.I),
     'celsius': re.compile(r'(?<!\w)(?:°\s*C|degrees?\s+Celsius|santigrat\w*)(?!\w)', re.I),
 }
+# Kesik parça işaretleri: çeviri metninin gerçekten ortadan kesildiğini
+# kanıtlayan yapısal izler. Sarkan bağlaç, metnin tamamı soru ekinden ibaretse
+# (kaynak uzun cümleyken) ve kelime-ortası kırık tire kesin kusurdur.
+_TR_TRAILING_CONJUNCTION = re.compile(
+    r'(?:^|\s)(?:ve|veya|ya da|ama|fakat|lakin|ancak|çünkü|zira|ile|hem|hatta|üstelik|oysa)\s*[.…!?:;,]*\s*$',
+    re.I,
+)
+# Soru eki tek başına kalamaz; 'Mi.' (nota adı) noktayla bittiği için dışlanır —
+# yalnız '?'/'!'/boşlukla biten çıplak ekler yakalanır.
+_TR_LONE_QUESTION_PARTICLE = re.compile(
+    r'^\s*m[ıiuü](?:s[ıiuü]n(?:[ıiuü]z)?|y[ıiuü]z|d[ıiuü]r)?\s*(?:[?!…]+|\s*)$',
+    re.I,
+)
+_TR_TRUNCATED_HYPHEN = re.compile(r'\w-\s*$')
+
 _MONTH_PATTERNS = {
     'jan': re.compile(r'\b(?:January|Jan\.?|Ocak)\b', re.I),
     'feb': re.compile(r'\b(?:February|Feb\.?|Şubat|Subat)\b', re.I),
@@ -791,6 +806,16 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     for issue, source_markers, translated_markers in marker_checks:
         if source_markers and not source_markers.issubset(translated_markers):
             issues.append(issue)
+    if str(target_lang or '').lower().split('-')[0] == 'tr':
+        words = translated.split()
+        # Cümlenin bağlaçla bitmesi ya da metnin yalnız soru ekinden oluşması
+        # (kaynak gerçekten cümleyken) kesik dağıtımın kesin izidir. Tek
+        # kelimelik 'Ama.'/ 'Ve.' yanıtları bağlaç denetimine girmez.
+        if (len(words) >= 2 and _TR_TRAILING_CONJUNCTION.search(translated)) \
+                or (len(source.split()) >= 3
+                    and _TR_LONE_QUESTION_PARTICLE.match(translated)) \
+                or _TR_TRUNCATED_HYPHEN.search(translated):
+            issues.append('truncated_fragment')
     return issues
 
 
@@ -798,10 +823,13 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
     """Otomatik reddi yalnız kesin yapısal kayıplara uygula.
 
     Olumsuzluk sezgisi tanı amaçlı kalır: Türkçe olumsuzluk çekimleri ve doğal
-    yeniden anlatım regex ile güvenilir biçimde kanıtlanamaz.
+    yeniden anlatım regex ile güvenilir biçimde kanıtlanamaz. Kesik parça ise
+    yapısal olarak kanıtlanabilir — sarkan bağlaç, çıplak soru eki ve
+    kelime-ortası tire ret kapsamındadır.
     """
     return [issue for issue in translation_meaning_issues(
-        source_text, translated_text, target_lang) if issue == 'number_mismatch']
+        source_text, translated_text, target_lang)
+        if issue in ('number_mismatch', 'truncated_fragment')]
 
 
 def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6,
