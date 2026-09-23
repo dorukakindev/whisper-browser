@@ -110,10 +110,21 @@ app.whenReady().then(async () => {
   await wait(250);
   fs.writeFileSync(path.join(out,'tools-light.png'),(await win.webContents.capturePage()).toPNG());
   win.setContentSize(900,700);
+  // 900px'e geçiş resize olayıyla narrow-panel düzenini tetikler; olay asenkron
+  // geldiği için önce player.narrowViewport'un oturmasını bekle. Paneli bundan
+  // önce açmak, geç gelen syncResponsivePlayerLayout'un narrowPanelTakeover'ı
+  // false'a çekip paneli gizlemesine yol açar (batch'te {width:0} flake'i).
+  await until(() => run('return player.narrowViewport === true'), 'Dar görünüm geçişi', 15000);
   await run('setPlayerSidebarCollapsed(false);document.getElementById("sideTabTools").click();applyUiTheme("dark");return true');
-  await wait(400);
-  const narrow=await run('const p=document.querySelector(".bf-workspace");return {width:p.clientWidth,scroll:p.scrollWidth,sidebar:document.getElementById("playerSide").getBoundingClientRect().width};');
-  assert(narrow.width>0,JSON.stringify(narrow));assert(narrow.scroll<=narrow.width+1,JSON.stringify(narrow));
+  let narrow = null;
+  try {
+    narrow = await until(async () => {
+      const n = await run('const p=document.querySelector(".bf-workspace");return {width:p.clientWidth,scroll:p.scrollWidth,sidebar:document.getElementById("playerSide").getBoundingClientRect().width,display:getComputedStyle(document.getElementById("browserFeatures")).display,layer:document.getElementById("playerLayer").className,sideTab:player.sideTab,takeover:document.getElementById("playerLayer").classList.contains("narrow-panel-takeover")};');
+      narrow = n;
+      return n.width > 0 ? n : false;
+    }, 'Dar görünüm yerleşimi', 15000);
+  } catch (_) {}
+  assert(narrow?.width>0,JSON.stringify(narrow));assert(narrow.scroll<=narrow.width+1,JSON.stringify(narrow));
   fs.writeFileSync(path.join(out,'tools-narrow.png'),(await win.webContents.capturePage()).toPNG());
   await run('setWorkspaceMode("player",false);return true');
   assert.equal(await run('return player.sideTab'),'subs');
