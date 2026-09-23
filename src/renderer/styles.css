@@ -6007,7 +6007,7 @@ textarea { resize: none; }
 .browser-address-results {
   position: absolute; z-index: 80; top: calc(100% + 6px); left: 0; right: 0;
   max-height: min(420px, 55vh); overflow: auto; padding: 5px;
-  border: 1px solid var(--border); border-radius: 9px; background: #11161b;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--surface-panel);
   box-shadow: 0 14px 38px rgba(0,0,0,.42);
 }
 .browser-address-result { width: 100%; display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
@@ -6873,6 +6873,9 @@ body.modal-open { overflow: hidden; }
 .workspace-browser .research-library-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .workspace-browser .research-library-controls #researchQuery { grid-column: 1 / -1; }
 .workspace-browser .research-library-controls #researchStatus { grid-column: 1 / -1; }
+.player-side .research-library-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.player-side .research-library-controls #researchQuery { grid-column: 1 / -1; }
+.player-side .research-library-controls #researchStatus { grid-column: 1 / -1; }
 .workspace-browser .research-library-controls input, .workspace-browser .research-library-controls select { width: 100%; min-width: 0; min-height: 36px; padding: 8px 10px; color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
 .workspace-browser .research-library-controls .link-btn, .workspace-browser .library-collection-tools .link-btn { padding: 8px; min-height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-2); font-size: 11px; }
 .workspace-browser .library-collection-tools { display: flex; flex-wrap: wrap; gap: 8px; }
