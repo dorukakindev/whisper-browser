@@ -88,3 +88,9 @@ description: How to launch and drive the whisper-browser Electron app on this Li
 - Ground truth for pipeline stages = job log: `~/.config/whisper-browser/logs/<ts>_<input>.log` — every NDJSON event as a line (AŞAMA stages, DİL detection, KALİTE report, dosyalar list, warnings, exit code). Read it instead of guessing from the UI spinner.
 - Player "Generate subtitles" (`makeSubsBtn`) requires a loaded media — with no `player.mediaKey` it can't run; the YouTube-input variant (`--youtube`) shares the same yt-dlp bot-wall as probe.
 - No speech media on the box? ffmpeg has the `flite` lavfi source built in — generate an intelligible clip offline, e.g. `ffmpeg -f lavfi -i color=c=black:s=640x360:d=30 -f lavfi -i "flite=text='KNOWN SENTENCE':voice=slt" -shortest /tmp/test.mp4`. Known text lets you verify transcription accuracy; flite artifacts produce a few low-confidence words (nice for exercising the `.dusuk-guven.txt` report + the Transcript warning icons).
+
+## R119 E2E gotchas (2026-09-23)
+- **Settings `<details>` accordions must be opened via CDP first** — closed `details` children report zero rects and can't receive clicks (`primarySettingsOpen`, `details.advanced` "Glossary / hotwords" panels). `el.open = true` (or click the `<summary>`) before measuring/clicking inside.
+- **`modelCacheDelete` needs a *cached* model**: create a stub dir named `models--<org>--<id>` under `backend/models/` — `scanModelCache` marks it `cached` by dir-name match. Enables the real delete → native confirm → `logLine` path without a real download.
+- **`browser:research:export` triggers a native GTK save dialog** (active-window title changes) — click it for real; the file lands under `~/Documents/`. Verify via the Log line + file existence.
+- **`player.frameDuration` only populates after playback starts** (rVFC): pause the video, then send `,`/`.` via xdotool for exact frame-step checks. `.player-side` scrolls via `SECTION.panel-left`.
