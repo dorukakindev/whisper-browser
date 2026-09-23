@@ -1168,9 +1168,12 @@
             </div>
             <div class="browser-address-wrap">
               <span class="browser-security-mark" id="browserSecurityMark" role="img" aria-label="Adres bekleniyor" title="Adres bekleniyor"></span>
-              <input type="text" id="browserAddress" autocomplete="off" spellcheck="false"
-                placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama" role="combobox"
-                aria-autocomplete="list" aria-controls="browserAddressResults" aria-expanded="false" />
+              <div class="browser-address-field">
+                <input type="text" id="browserAddress" autocomplete="off" spellcheck="false"
+                  placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama" role="combobox"
+                  aria-autocomplete="list" aria-controls="browserAddressResults" aria-expanded="false" />
+                <div class="browser-address-mirror hidden" id="browserAddressMirror" aria-hidden="true"><span class="mir-dim" id="browserAddressMirrorScheme"></span><b id="browserAddressMirrorHost"></b><span class="mir-dim" id="browserAddressMirrorRest"></span></div>
+              </div>
               <datalist id="browserAddressSuggestions"></datalist>
               <div class="browser-address-results hidden" id="browserAddressResults" role="listbox" aria-label="Adres ve kütüphane önerileri"></div>
               <button class="btn-icon browser-address-bookmark" id="browserBookmarkToggle" type="button"
@@ -1317,6 +1320,10 @@
                   </div>
                   <div class="browser-menu-separator"></div>
                   <div class="browser-menu-group-label">İçerik</div>
+                  <button type="button" role="menuitem" data-browser-proxy="browserReaderToggle">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21V5.5ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21V5.5Z"/></svg></span>
+                    <span class="browser-menu-label">Okuma görünümü</span>
+                  </button>
                   <button type="button" role="menuitem" data-browser-proxy="playerQuickDownload">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg></span>
                     <span class="browser-menu-label">Videoyu indir</span>
@@ -1937,6 +1944,18 @@
           <div class="player-osd" id="playerOsd"></div>
           <div class="player-spinner hidden" id="playerSpinner"></div>
 
+          <!-- Otomatik sıradaki: video bitince önerilen videoya 5 sn geri sayımlı kart (YouTube "up next" deseni) -->
+          <div class="st-upnext-count hidden" id="stUpNextCount" role="status" aria-live="polite">
+            <div class="st-upnext-count-thumb"><img id="stUpNextCountThumb" alt="" aria-hidden="true"></div>
+            <div class="st-upnext-count-body">
+              <span class="st-upnext-count-label">Sıradaki</span>
+              <strong class="st-upnext-count-title" id="stUpNextCountTitle"></strong>
+              <span class="st-upnext-count-timer"><b id="stUpNextCountSecs">5</b> sn içinde oynatılacak</span>
+            </div>
+            <button class="btn btn-sm btn-secondary" id="stUpNextCountPlay" type="button">Şimdi oynat</button>
+            <button class="btn btn-sm btn-ghost" id="stUpNextCountCancel" type="button">İptal</button>
+          </div>
+
           <div class="shortcut-help hidden" id="shortcutHelp" role="dialog" aria-label="Klavye kısayolları" tabindex="-1">
             <button class="tool-button" id="shortcutHelpClose" type="button">Yardımı kapat</button>
             <div class="shortcut-help-box">
@@ -2187,15 +2206,21 @@
                     aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Altyazıları kapat</span></button>
                 </div>
               </div>
-              <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı">
-                <option value="0.5">0.5&times;</option>
-                <option value="0.75">0.75&times;</option>
-                <option value="1" selected>1&times;</option>
-                <option value="1.25">1.25&times;</option>
-                <option value="1.5">1.5&times;</option>
-                <option value="1.75">1.75&times;</option>
-                <option value="2">2&times;</option>
-              </select>
+              <div class="player-speed-wrap">
+                <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı" tabindex="-1" aria-hidden="true">
+                  <option value="0.5">0.5&times;</option>
+                  <option value="0.75">0.75&times;</option>
+                  <option value="1" selected>1&times;</option>
+                  <option value="1.25">1.25&times;</option>
+                  <option value="1.5">1.5&times;</option>
+                  <option value="1.75">1.75&times;</option>
+                  <option value="2">2&times;</option>
+                </select>
+                <details class="player-speed-menu" id="playerSpeedMenu">
+                  <summary class="player-speed-summary" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı" aria-haspopup="menu" aria-expanded="false"><span id="playerSpeedMenuLabel">1×</span><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></summary>
+                  <div class="player-speed-pop" role="menu" aria-label="Oynatma hızı"></div>
+                </details>
+              </div>
               <button class="btn-icon" id="quickSubsBtn"
                 title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
@@ -2611,13 +2636,23 @@
               </div>
             </div>
             <div class="sentence-tools tool-row-main">
-              <button class="btn btn-sm action-button action-button-outline" id="makeSubsBtn" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
-              <button class="btn btn-sm action-button action-button-outline" id="makeTransBtn"
-                title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
-              <button class="btn btn-sm action-button action-button-outline" id="retranslateAllBtn"
-                title="Mevcut çeviriyi kullanmadan bütün satırları seçili modelle yeniden çevir">Tamamını yeni modelle çevir</button>
-              <button class="btn btn-sm action-button action-button-outline" id="exportTranslationBtn" disabled
-                title="Yüklü çeviriyi yeniden işlem yapmadan SRT olarak kaydet">Çeviriyi dışa aktar</button>
+              <details class="subtitle-actions" id="subtitleActionsMenu">
+                <summary class="btn btn-sm action-button action-button-outline subtitle-actions-summary"
+                  title="Altyazı oluşturma, çeviri ve dışa aktarma işlemleri" aria-haspopup="menu" aria-expanded="false">
+                  <span class="subtitle-actions-label">Altyazı işlemleri</span>
+                  <svg class="subtitle-actions-caret" viewBox="0 0 24 24" width="13" height="13" fill="none"
+                    stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </summary>
+                <div class="subtitle-actions-pop" role="menu" aria-label="Altyazı işlemleri">
+                  <button class="btn btn-sm action-button action-button-outline" id="makeSubsBtn" role="menuitem" title="Bu video için altyazı oluştur">Altyazı oluştur</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="makeTransBtn" role="menuitem"
+                    title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="retranslateAllBtn" role="menuitem"
+                    title="Mevcut çeviriyi kullanmadan bütün satırları seçili modelle yeniden çevir">Tamamını yeni modelle çevir</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="exportTranslationBtn" role="menuitem" disabled
+                    title="Yüklü çeviriyi yeniden işlem yapmadan SRT olarak kaydet">Çeviriyi dışa aktar</button>
+                </div>
+              </details>
             </div>
             </div>
           </div>

@@ -7284,6 +7284,7 @@ async function useBrowserAddressResult(index) {
   else if (result.action === 'unified') await openUnifiedLibraryResult(result.result);
   else {
     $('browserAddress').value = result.url || result.value || '';
+    if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
     await navigateBrowserFromAddress();
   }
 }
@@ -10185,7 +10186,7 @@ function updateBrowserNavigation(data, options = {}) {
   }
   if (Number.isFinite(Number(data.zoom))) updateBrowserZoomUi(data.zoom);
   const address = $('browserAddress');
-  if (data.url && document.activeElement !== address) address.value = data.url;
+  if (data.url && document.activeElement !== address) { address.value = data.url; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
   if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
   setBrowserLoadingState(!!data.loading, false);
@@ -10747,7 +10748,7 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
   scheduleBrowserBounds();
   if (!result.hasPage) {
     const last = (() => { try { return localStorage.getItem('playerBrowserLastUrl') || ''; } catch (_) { return ''; } })();
-    if (last && $('browserAddress') && !$('browserAddress').value) $('browserAddress').value = last;
+    if (last && $('browserAddress') && !$('browserAddress').value) { $('browserAddress').value = last; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
     setTimeout(() => {
       if (stillCurrent()) $('browserAddress')?.focus();
     }, 0);
@@ -10846,6 +10847,27 @@ function setWorkspaceMode(mode, persist = true) {
   syncResponsivePlayerLayout();
 }
 
+// Adres aynası: odak dışındayken input metni yerine ayna katmanı çizer —
+// şema+yol soluk, alan adı kalın (Chrome/Firefox omnibox deseni).
+function updateBrowserAddressMirror() {
+  const input = $('browserAddress');
+  const mirror = $('browserAddressMirror');
+  if (!input || !mirror) return;
+  const hide = () => { mirror.classList.add('hidden'); input.classList.remove('mir-mode'); };
+  if (document.activeElement === input || !input.value) { hide(); return; }
+  try {
+    const url = new URL(input.value);
+    const host = url.hostname;
+    if (!host || !/^https?:$/i.test(url.protocol)) { hide(); return; }
+    const hostStart = input.value.indexOf(host);
+    $('browserAddressMirrorScheme').textContent = input.value.slice(0, hostStart);
+    $('browserAddressMirrorHost').textContent = host;
+    $('browserAddressMirrorRest').textContent = input.value.slice(hostStart + host.length);
+    mirror.classList.remove('hidden');
+    input.classList.add('mir-mode');
+  } catch (_) { hide(); }
+}
+
 function syncBrowserAddressAction() {
   const address = $('browserAddress');
   const button = $('browserGo');
@@ -10856,6 +10878,7 @@ function syncBrowserAddressAction() {
   button.hidden = !visible;
   button.tabIndex = visible ? 0 : -1;
   address.closest('.browser-address-wrap')?.classList.toggle('is-editing', editing);
+  if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
 }
 
 async function navigateBrowserFromAddress() {
@@ -11152,6 +11175,7 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
     event.preventDefault();
     closeBrowserAddressResults();
     $('browserAddress').value = player.browserPageUrl || '';
+    if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
     $('browserAddress').select();
     syncBrowserAddressAction();
   }
@@ -11199,6 +11223,7 @@ if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('c
   const url = open.dataset.browserQuickPlace;
   if (!url || !$('browserAddress')) return;
   $('browserAddress').value = url;
+  if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
   await navigateBrowserFromAddress();
 });
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
@@ -11306,7 +11331,7 @@ if ($('browserPlacesList')) $('browserPlacesList').addEventListener('click', asy
   if (open) {
     const url = open.dataset.placeOpen;
     setBrowserPlacesOpen(false);
-    if ($('browserAddress')) $('browserAddress').value = url;
+    if ($('browserAddress')) { $('browserAddress').value = url; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
     await navigateBrowserFromAddress();
     return;
   }
@@ -11653,6 +11678,7 @@ if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () 
   const url = tab?.errorUrl || player.browserPageUrl;
   if (url && $('browserAddress')) {
     $('browserAddress').value = url;
+    if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
     navigateBrowserFromAddress();
   }
 });
@@ -11792,6 +11818,7 @@ if ($('browserSessionReset')) $('browserSessionReset').addEventListener('click',
   syncBrowserTabs(result.tabs || [], result.activeTabId || '', result.split);
   try { localStorage.removeItem('playerBrowserLastUrl'); } catch (_) {}
   if ($('browserAddress')) $('browserAddress').value = '';
+  if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
   $('browserEmpty')?.classList.remove('hidden');
   clearBrowserTracks('Tarayıcı oturumu sıfırlandı; yer imleri ve geçmiş korundu.');
   if (result.places) { player.browserPlaces = result.places; renderBrowserPlaces(); }
@@ -14593,7 +14620,36 @@ function syncPlayerSpeedControl(rawRate) {
     select.appendChild(exact);
   }
   select.value = exact.value;
+  if (typeof playerSpeedPopupSync === 'function') playerSpeedPopupSync();
   return rate;
+}
+
+// Hız kontrolü: #playerSpeed select'i tek doğruluk kaynağı kalır (kalıcılık,
+// tarayıcı 'playbackRate' bağlama ve özel-hız option enjeksiyonu ona bağlı);
+// görünür kontrol ▾ açılır menüsü select'in seçeneklerini yansıtır.
+function playerSpeedPopupSync() {
+  const select = $('playerSpeed');
+  const pop = $('playerSpeedMenu')?.querySelector('.player-speed-pop');
+  const label = $('playerSpeedMenuLabel');
+  if (!select || !pop || !label) return;
+  const selected = select.selectedOptions[0];
+  label.textContent = selected ? selected.textContent : `${select.value}×`;
+  pop.innerHTML = '';
+  for (const option of Array.from(select.options)) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitemradio');
+    item.dataset.speedValue = option.value;
+    item.setAttribute('aria-checked', option.selected ? 'true' : 'false');
+    const check = document.createElement('span');
+    check.className = 'subtitle-mode-check';
+    check.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span');
+    text.textContent = option.textContent;
+    item.appendChild(check);
+    item.appendChild(text);
+    pop.appendChild(item);
+  }
 }
 
 function steppedPlaybackRate(options, currentRate, direction) {
@@ -15297,7 +15353,7 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingLibrarySeek = {
       key: item.key, generation: null, seconds: Number(seconds) || 0,
     };
-    if ($('browserAddress')) $('browserAddress').value = item.sourceRef || '';
+    if ($('browserAddress')) { $('browserAddress').value = item.sourceRef || ''; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
     const result = await navigateBrowserFromAddress();
     if (!result?.ok && player.pendingLibrarySeek?.key === item.key) {
       player.pendingLibrarySeek = null;
@@ -18315,6 +18371,7 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();
   setBrowserDownloadsOpen(false);
@@ -19341,7 +19398,7 @@ document.addEventListener('pointerdown', (event) => {
   closeBrowserToolbarMenus();
 }, true);
 
-const playerDetailsMenuIds = ['playerMore', 'playerHeadMore'];
+const playerDetailsMenuIds = ['playerMore', 'playerHeadMore', 'subtitleActionsMenu', 'playerSpeedMenu'];
 function closePlayerDetailsMenus(restoreFocus = false) {
   let closed = false;
   let focusTarget = null;
@@ -19370,12 +19427,12 @@ for (const id of playerDetailsMenuIds) {
   wireDetailsMenuNav(menu);
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#playerMore, #playerHeadMore')) return;
+  if (event.target.closest?.('#playerMore, #playerHeadMore, #subtitleActionsMenu, #playerSpeedMenu')) return;
   closePlayerDetailsMenus();
 }, true);
 for (const id of playerDetailsMenuIds) {
   $(id)?.addEventListener('click', (event) => {
-    if (event.target.closest?.('.pc-menu-item, .ph-more-row button')) {
+    if (event.target.closest?.('.pc-menu-item, .ph-more-row button, .subtitle-actions-pop button, .player-speed-pop button')) {
       const menu = $(id);
       if (menu) menu.open = false;
     }
@@ -21586,6 +21643,7 @@ if ($('playerVideo')) {
     syncPlayerMediaSession();
   });
   video.addEventListener('play', () => {
+    if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
     showControls();
     if (player.ambientOn) startAmbient();
     if (!player.watchSession) beginWatchSession();
@@ -21729,6 +21787,22 @@ if ($('playerVideo')) {
       if (player.workspaceMode === 'browser') scheduleBrowserMediaPreferenceSync();
       scheduleSave();
     });
+    $('playerSpeed').addEventListener('change', () => { if (typeof playerSpeedPopupSync === 'function') playerSpeedPopupSync(); });
+  }
+  if ($('playerSpeedMenu')) {
+    $('playerSpeedMenu').addEventListener('toggle', () => {
+      if ($('playerSpeedMenu').open && typeof playerSpeedPopupSync === 'function') playerSpeedPopupSync();
+    });
+    $('playerSpeedMenu').querySelector('.player-speed-pop')?.addEventListener('click', (event) => {
+      const item = event.target.closest('button[data-speed-value]');
+      const select = $('playerSpeed');
+      if (!item || !select) return;
+      event.preventDefault();
+      select.value = item.dataset.speedValue;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      $('playerSpeedMenu').open = false;
+    });
+    if (typeof playerSpeedPopupSync === 'function') playerSpeedPopupSync();
   }
 
   // CC: kaynak, ceviri veya kapali secimi. V kisayolu menuyu acmaz; son secilen
@@ -21959,6 +22033,7 @@ document.addEventListener('keydown', (e) => {
     else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
     else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
+    else if (typeof cancelStUpNextCountdown === 'function' && cancelStUpNextCountdown()) { /* sıradaki geri sayım kartı iptal edildi */ }
     else if (closePlayerDetailsMenus(true)) { /* açık ⋯ menüsü kapatıldı, odak summary'ye döndü */ }
     else if (player.selectedWord) hideWordInspector();
     else if (!$('shortcutHelp')?.classList.contains('hidden')) setShortcutHelpOpen(false);
@@ -24537,6 +24612,58 @@ function stMostPlayedVideos() {
 // Radyo zinciri: bitince probe'dan gelen önerilerin ilk gizlenmemişine geçer.
 // Varsayılan kapalı (stAutoRelated onayı); sıra doluyken ya da yerel liste
 // devralacakken devreye girmez.
+function stAutoRelatedPlay(video) {
+  const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
+  const box = $('playerYtUrl');
+  if (box) box.value = url;
+  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: ++player.openIntent };
+  queuePlayerProbeFromCard();
+  osd(`${window.UiLocale?.t('İlgili videoya geçiliyor') || 'İlgili videoya geçiliyor'}: ${video.title || ''}`, 4000);
+}
+
+let stUpNextCountdown = null;
+function cancelStUpNextCountdown() {
+  if (!stUpNextCountdown) return false;
+  clearInterval(stUpNextCountdown.timer);
+  stUpNextCountdown = null;
+  $('stUpNextCount')?.classList.add('hidden');
+  return true;
+}
+
+function stUpNextCountdownStart(video) {
+  if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
+  const card = $('stUpNextCount');
+  if (!card) { stAutoRelatedPlay(video); return; }
+  const titleEl = $('stUpNextCountTitle');
+  if (titleEl) titleEl.textContent = video.title || '';
+  const img = $('stUpNextCountThumb');
+  if (img) {
+    const tn = (video.videoThumbnails || []).find((t) => (t.quality || '').toLowerCase() === 'medium')
+             || video.videoThumbnails?.[0];
+    const src = tn && tn.url ? absThumb(tn.url) : '';
+    if (src) { img.src = src; img.parentElement.style.display = ''; }
+    else { img.removeAttribute('src'); img.parentElement.style.display = 'none'; }
+  }
+  let secs = 5;
+  const secsEl = $('stUpNextCountSecs');
+  if (secsEl) secsEl.textContent = String(secs);
+  card.classList.remove('hidden');
+  stUpNextCountdown = {
+    video,
+    timer: setInterval(() => {
+      if (!stUpNextCountdown) return;
+      secs -= 1;
+      if (secs <= 0) {
+        const v = stUpNextCountdown.video;
+        if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
+        stAutoRelatedPlay(v);
+        return;
+      }
+      if (secsEl) secsEl.textContent = String(secs);
+    }, 1000),
+  };
+}
+
 function stAutoRelatedNext() {
   if (!$('stAutoRelated')?.checked) return false;
   if (stQueue.length) return false;
@@ -24545,12 +24672,7 @@ function stAutoRelatedNext() {
   const recs = (player.ytInfo && Array.isArray(player.ytInfo.recommended)) ? player.ytInfo.recommended : [];
   const next = recs.find((v) => v && v.videoId && !stVideoHidden(v));
   if (!next) return false;
-  const url = `https://www.youtube.com/watch?v=${encodeURIComponent(next.videoId)}`;
-  const box = $('playerYtUrl');
-  if (box) box.value = url;
-  player.pendingAutoOpen = { key: mediaKeyFor('youtube', url), intent: ++player.openIntent };
-  queuePlayerProbeFromCard();
-  osd(`${window.UiLocale?.t('İlgili videoya geçiliyor') || 'İlgili videoya geçiliyor'}: ${next.title || ''}`, 4000);
+  stUpNextCountdownStart(next);
   return true;
 }
 function stQueueShuffle() {
@@ -24884,6 +25006,7 @@ async function stPlayExternal(playerName, source) {
 // bekle (disabled düğmeye click() sessizce no-op olur ve istek kaybolurdu).
 // openYoutubePanelAndProbe ile aynı seq'i paylaşır — son istek kazanır.
 function queuePlayerProbeFromCard() {
+  if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   const requestSeq = ++player.probeRequestSeq;
   const launch = () => {
     if (requestSeq !== player.probeRequestSeq) return;
@@ -26467,6 +26590,12 @@ function initSmartTube() {
   if (upNextBtn) upNextBtn.addEventListener('click', () => stUpNextToggle());
   const upNextClose = $('stUpNextClose');
   if (upNextClose) upNextClose.addEventListener('click', () => stUpNextToggle(false));
+  $('stUpNextCountCancel')?.addEventListener('click', () => { if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown(); });
+  $('stUpNextCountPlay')?.addEventListener('click', () => {
+    const v = stUpNextCountdown?.video;
+    if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
+    if (v) stAutoRelatedPlay(v);
+  });
 
   refreshSmartTubeAuthUI();
   restoreInvidiousSession();
@@ -26490,6 +26619,7 @@ function stUpNextToggle(show) {
 }
 
 function hideUpNextPanel() {
+  if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   $('stUpNext')?.classList.add('hidden');
   $('playerUpNextBtn')?.classList.add('hidden');
   $('playerUpNextBtn')?.classList.remove('is-active');
