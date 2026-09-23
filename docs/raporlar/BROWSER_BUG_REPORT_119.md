@@ -138,3 +138,15 @@ Bu ölçümlere göre performans düzeltmesi gerekmedi.
 - Python testleri, gerçek çeviri sağlayıcısı ve DRM bu ortamda koşulamadı.
 - Browser sayfasının yerel `WebContentsView` yüzeyi yakalanamadı.
 - `fitTranslationParts` boşluksuz dillerde parçayı kelime ortasından bölebiliyor ("いい天 | 気ですね"). Sözcük sınırıyla iyileştirme önerilir.
+
+## Eki — gerçek-Electron uçtan uca doğrulama (2026-09-23, dal `codex/r117-local-patch-1790200226`)
+
+Devin test ajanı 7 yüzeyi gerçek Electron'da doğruladı: 6/7 düzeltme çalışıyor; 3 kusur bulundu:
+
+- **F6 (düzeltildi, `dff919f`):** Omnibox öneri paneli `.browser-address-results` sabit `#11161b` zemin + temalı koyu metin → açık temada ~1.3:1 kontrastla okunamaz. Panel `var(--surface-panel)` oldu; koyu tema davranışı korundu.
+- **F4 (düzeltildi, `dff919f`):** `.research-library-controls` 5-sütun ızgarası 416px varsayılan yan panelde taşıyordu (scrollW 509 > clientW 416) — "Markdown dışa aktar" fareyle ulaşılamıyordu. `.player-side` bağlamında `workspace-browser` deseni uygulandı (2 sütun + tam-satır filtreler).
+- **F5 (kapsam kararı açık):** ui-locale'de EN karşılığı olmayan kalan TR dizgiler ("Ara" sekmesi, "Etiket", "devam eden", "Yerel", "Baştan izle", "Tamamlanmadı", "Koleksiyon" düğmesi, "0 araştırma kaydı" + araştırma boş-durumu, "Çevir ve göster", "Altyazı·1", "Sil" ipucu). Sayaçlı dinamik metinler zaten bu notun "Açık kalanlar" bölümünde `interfaceChoice` gereksinimi olarak işaretli — EN anahtar ekleri ayrı bir i18n turuna ayrıldı.
+
+Doğrulananlar (hepsi yeşil): araştırma dışa aktarımı dosya üretiyor; model-önbelleği silme onay→silme→logLine akışı; sözlük "+" çipi; omnibox `-2^2=-4` dahil 9 ifade; açık+koyu tema kontrastı; EN i18n yüzeyleri; "+" son sekmenin yanında (5px); `,`/`.` kare adımı ±1 kare; `0`–`9` %0–90 atlama.
+
+Kanıt: test ajanı kaydı + ekran görüntüleri PR #42 yorumunda.
