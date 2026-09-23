@@ -28,6 +28,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- A persistent provider error surfacing mid-translation (quota, authentication, or model unavailable) now stops the remaining chunks and rescue bundles from opening new API calls; previously every queued chunk cycled all routes and burned requests before failing.
 - Translate-only jobs now honor the "Merge continuation sentences" option: spilled-over sentences are merged before translation instead of being silently ignored despite the setting's tooltip (the batch transcribe path already applied it).
 - Translation rescue is no longer serialized per chunk: small retry bundles now run on a shared worker-bounded pool, so a chunk with several rejected groups no longer waits minutes for sequential API round-trips (observed: a single chunk's rescue took 233 s).
 - Browser overlay cue scheduling: after seek or playback-rate changes the pending cue-boundary timer is now re-planned on the current timeline, so the overlay can no longer display a stale caption for seconds.
