@@ -296,6 +296,13 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(renderer, /'playerSpeedMenu'/, 'menü kayıtlarında playerSpeedMenu yok');
   assert.match(css2, /\.player-speed-pop/, 'hız popup stili yok');
   assert.match(css2, /\.player-speed-wrap > \.player-speed[^\n]*opacity:\s*0/, 'gizli select kuralı yok');
+  // R117 test-turu bulguları: F1 — mir-mode kuralı .workspace-browser...input (0,2,1)
+  // ile tie'a girip kaybediyordu; kural artık daha spesifik (workspace-browser zinciri).
+  assert.match(css2, /\.workspace-browser\s+\.browser-address-wrap\s+input\.mir-mode[^\n]*color:\s*transparent/, 'mir-mode spesifitesi yetersiz (F1)');
+  // F2 — .action-button-outline sabit koyu-palet renkleri; açık temada ~1.6:1 idi.
+  assert.match(css2, /html\[data-theme="light"\]\s+\.action-button-outline/, 'açık tema outline geçersiz kılma yok (F2)');
+  // F3 — .tool-row-main .btn-primary { order:-1 } görsel sırayı DOM'dan ayırıyordu.
+  assert.ok(!/\.tool-row-main\s+\.btn-primary\s*\{[^}]*order:\s*-1/.test(css2), 'tool-row order:-1 hâlâ var (F3)');
 }
 
 console.log('browser-parti7.test.js OK');

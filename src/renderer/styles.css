@@ -2440,6 +2440,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   border: 1px solid #33434f;
 }
 .action-button-outline:hover:not(:disabled) { color: #fff; background: #1b2732; border-color: var(--border-strong); }
+html[data-theme="light"] .action-button-outline { color: var(--text); border-color: var(--border-strong); }
+html[data-theme="light"] .action-button-outline:hover:not(:disabled) { color: var(--text); background: var(--bg-2); border-color: var(--border-strong); }
 
 .tool-spacer { flex: 1; }
 
@@ -4784,7 +4786,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-address-mirror.hidden { display: none; }
 .browser-address-mirror b { font-weight: 700; }
 .browser-address-mirror .mir-dim { color: #8f9ca7; }
-.browser-address-wrap input.mir-mode { color: transparent; caret-color: transparent; }
+.workspace-browser .browser-address-wrap input.mir-mode { color: transparent; caret-color: transparent; }
 .browser-address-bookmark {
   width: 28px;
   height: 28px;
@@ -6583,7 +6585,6 @@ body.modal-open { overflow: hidden; }
 .ai-msg code { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .side-source-quick.hidden { display: none; }
-.tool-row-main .btn-primary { order: -1; }
 
 @container browser-workspace (max-width: 620px) {
   .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
