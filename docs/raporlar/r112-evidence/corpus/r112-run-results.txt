@@ -1,0 +1,41 @@
+=== sizes ===
+[PASS] size1:timeline+order+id
+[PASS] size1:no-empty
+[PASS] size1:req-band
+[PASS] size1:done
+  size1: 1.7s, 1 istek
+[PASS] size100:timeline+order+id
+[PASS] size100:no-empty
+[PASS] size100:req-band
+[PASS] size100:done
+  size100: 1.9s, 5 istek
+[PASS] size1000:timeline+order+id
+[PASS] size1000:no-empty
+[PASS] size1000:req-band
+[PASS] size1000:done
+  size1000: 4.5s, 50 istek
+=== 10k ===
+[PASS] size10k:timeline+order+id
+[PASS] size10k:no-empty
+[PASS] size10k:req-band
+  size10000: 34.9s, 500 istek
+=== frag ===
+[PASS] frag:no-bad-tail-on-screen
+  frag: 4 istek, metinler=['We hıvi tö gö nöw.', 'Are yöü riıdy för thes?', 'Kapıyı açtı.', 'Nobody sıw hem liıvi.']
+=== wronglang ===
+[PASS] wronglang:not-counted-as-success
+  wronglang: 2 istek, out=size-1.tr.srt
+=== revcost ===
+[PASS] revcost:r1-baseline
+[PASS] revcost:r2-delta-not-full
+[PASS] revcost:r3-edit-bounded
+[PASS] revcost:r4-restart-cache
+  revcost: 5 -> +20cue 2 -> 5edit 3 -> restart 0
+=== dbl ===
+[PASS] dbl:both-consistent
+  dbl: 10 istek (2 x ~5)
+=== err ===
+[PASS] err401:bounded-requests
+[PASS] err401:surface-message
+  err401: 1 istek, tail=r blok cevrilemedi (1 blok denendi) - ceviri dosyasi YAZILMADI. Eksik altyazı blokları çevrilemedi; mevcut çeviri korunarak yeniden deneme için çıktı yazılmadı.
+SONUC: 24/24 PASS

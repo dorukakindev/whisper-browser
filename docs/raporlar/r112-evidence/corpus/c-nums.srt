@@ -1,0 +1,15 @@
+1
+00:00:01,000 --> 00:00:02,500
+Dr. Lawson paid 3.000
+
+2
+00:00:02,500 --> 00:00:04,000
+dollars for the book.
+
+3
+00:00:04,500 --> 00:00:06,000
+Then Persephone sailed 80
+
+4
+00:00:06,000 --> 00:00:07,500
+kilometers to Athens.

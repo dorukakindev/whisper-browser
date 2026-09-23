@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:02,500
+so the reactor core heats
+
+2
+00:00:02,500 --> 00:00:04,000
+up past the safety limit
+
+3
+00:00:04,000 --> 00:00:05,500
+and then the sensors fail

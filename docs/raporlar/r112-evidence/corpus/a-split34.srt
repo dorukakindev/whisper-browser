@@ -1,0 +1,19 @@
+1
+00:00:01,000 --> 00:00:02,000
+The engine room
+
+2
+00:00:02,000 --> 00:00:03,000
+reported that the pressure
+
+3
+00:00:03,000 --> 00:00:04,000
+valve failed twice
+
+4
+00:00:04,000 --> 00:00:05,500
+before the alarm sounded.
+
+5
+00:00:06,000 --> 00:00:07,500
+Nobody believed him.

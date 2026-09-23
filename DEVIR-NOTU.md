@@ -1,4 +1,6 @@
-Güncel çalışma: [2026-09-23 01:01 — R111 uçtan uca çeviri çıktı kalitesi denetimi: BUG-R111-01 yalnız-SDH cue'unda doğru yanıtın "echo" sanılıp 2 kurtarma + partial dosya üretmesi bulundu+düzeltildi (4 echo-kapısına SDH muafiyeti); 65/65 fixture ölçümü + gerçek Electron video-yüzeyi kanıtlı; BROWSER_BUG_REPORT_111](docs/devir/2026-09-23-0101.md).
+Güncel çalışma: [2026-09-23 01:54 — R112 birleşik dayanıklılık gauntlet'i: 12 hat, 2 ürün bug'ı bulundu+düzeltildi (BUG-R112-01 eşzamanlı-browse supersede IPC ihlali; BUG-R112-02 sarkan TR parça kapısı "truncated_fragment"); 10k-cue bütünlük + maliyet matrisi + crash/soak/UI kanıtları PR'da; BROWSER_BUG_REPORT_112](docs/devir/2026-09-23-0154.md).
+
+Önceki çalışma: [2026-09-23 01:01 — R111 uçtan uca çeviri çıktı kalitesi denetimi: BUG-R111-01 yalnız-SDH cue'unda doğru yanıtın "echo" sanılıp 2 kurtarma + partial dosya üretmesi bulundu+düzeltildi (4 echo-kapısına SDH muafiyeti); 65/65 fixture ölçümü + gerçek Electron video-yüzeyi kanıtlı; BROWSER_BUG_REPORT_111](docs/devir/2026-09-23-0101.md).
 
 Önceki çalışma: [2026-09-23 02:50 — R110-01 SDH işaret kaybı düzeltmesinin master'a hedefli aktarımı](docs/devir/2026-09-23-0250.md).
 
