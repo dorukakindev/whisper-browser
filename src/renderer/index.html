@@ -1080,7 +1080,7 @@
     <!-- OYNATICI -->
     <div class="player-layer hidden" id="playerLayer">
       <div class="player-head">
-        <button class="btn-icon player-back-button" id="playerBack" title="Oynatıcıdan çık (Esc)" aria-label="Oynatıcıdan çık">
+        <button class="btn-icon player-back-button" id="playerBack" title="Oynatıcıdan çık (Backspace)" aria-label="Oynatıcıdan çık">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div class="browser-tabbar" aria-label="Tarayıcı sekme alanı">
@@ -1115,30 +1115,38 @@
           <div class="player-parse-status hidden" id="playerParseStatus">
             <span class="parse-spark" aria-hidden="true"></span><span id="playerParseText">Ses işleniyor…</span>
           </div>
-          <button class="btn-icon player-head-button player-task-button" id="playerTaskCenterToggle" title="Aktif işler" aria-label="Aktif işleri aç" aria-expanded="false">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 5h14v14H5zM8 9h8M8 13h5"/></svg>
-            <span class="player-task-badge hidden" id="playerTaskBadge" aria-hidden="true">0</span>
-          </button>
-          <button class="btn-icon player-head-button" id="pdfReaderOpen" title="PDF kitap aç" aria-label="PDF kitap aç">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg>
-          </button>
           <button class="btn-icon player-head-button" id="playerQuickDownload" title="Videoyu indir" aria-label="Videoyu indir">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg>
           </button>
           <button class="btn-icon player-head-button" id="playerBookmark" title="Aktif cümleyi kaydet (K)" aria-label="Aktif cümleyi kaydet">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg>
           </button>
-          <button class="btn-icon player-head-button" id="playerHeadSettings" title="Ayarlar" aria-label="Ayarlar">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 19.65 7.1l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
-          </button>
-          <button class="btn-icon player-head-button" id="playerHeadFullscreen" title="Tam ekran (F)" aria-label="Tam ekran">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 1 2-2v-3"/></svg>
-          </button>
+          <span class="ph-sep" aria-hidden="true"></span>
           <button class="btn-icon player-head-button" id="playerLayoutQuick" title="Görünüm düzeni" aria-label="Görünüm düzeni">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
           </button>
           <button class="btn-icon player-head-button" id="playerSidebarToggle" title="Altyazı panelini aç/kapat" aria-label="Altyazı panelini aç/kapat" aria-pressed="true">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 4v16"/></svg>
+          </button>
+          <span class="ph-sep" aria-hidden="true"></span>
+          <details class="ph-more" id="playerHeadMore">
+            <summary class="btn-icon player-head-button" title="Diğer araçlar" aria-label="Diğer araçlar" aria-haspopup="menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            </summary>
+            <div class="ph-more-menu" role="menu" aria-label="Diğer araçlar">
+              <div class="ph-more-row">
+<button class="btn-icon player-head-button player-task-button" id="playerTaskCenterToggle" role="menuitem" title="Aktif işler" aria-label="Aktif işleri aç" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 5h14v14H5zM8 9h8M8 13h5"/></svg>
+            <span class="player-task-badge hidden" id="playerTaskBadge" aria-hidden="true">0</span>
+          </button>
+<button class="btn-icon player-head-button" id="pdfReaderOpen" role="menuitem" title="PDF kitap aç" aria-label="PDF kitap aç">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg>
+          </button>
+              </div>
+            </div>
+          </details>
+          <button class="btn-icon player-head-button" id="playerHeadSettings" title="Ayarlar" aria-label="Ayarlar">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 19.65 7.1l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
           </button>
         </div>
       </div>
@@ -1189,11 +1197,7 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7M16 14h1"/></svg></span>
                       <span class="browser-menu-label">Altyazı ve çeviri</span>
                     </button>
-                    <button type="button" role="menuitem" data-browser-proxy="browserPageTranslate">
-                      <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h9M8.5 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg></span>
-                      <span class="browser-menu-label">Sayfayı çevir</span>
-                    </button>
-                    <div class="browser-menu-separator" role="separator"></div>
+                        <div class="browser-menu-separator" role="separator"></div>
                     <div class="browser-menu-group-label">Whisper altyazı</div>
                     <button type="button" id="browserWhisperSubtitlesMenu" role="menuitem" data-browser-proxy="browserWhisperSubtitles"
                       title="Açık YouTube videosunun sesini Whisper ile yazıya çevir">
@@ -1228,9 +1232,14 @@
                     <button type="button" data-page-view="translation">Yalnız çeviri</button>
                     <button type="button" data-page-view="both">İkisi</button>
                   </div>
-                  <label class="browser-page-quick-field"><span>Hedef dil</span><select id="browserPageQuickTarget"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select></label>
-                  <label class="browser-page-quick-field"><span>Çeviri alanı</span><select id="browserPageScope"><option value="article">Yazı / makale</option><option value="whole">Tüm sayfa</option><option value="selection">Seçili metin</option></select></label>
-                  <label class="browser-page-quick-field"><span>Karakter sınırı</span><select id="browserPageBudget"><option value="0">Sınırsız</option><option value="50000">50 bin</option><option value="100000">100 bin</option><option value="200000">200 bin</option></select></label>
+                  <details class="browser-page-advanced" id="browserPageAdvanced">
+                    <summary>Gelişmiş ayarlar</summary>
+                    <div class="browser-page-advanced-body">
+                      <label class="browser-page-quick-field"><span>Hedef dil</span><select id="browserPageQuickTarget"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select></label>
+                      <label class="browser-page-quick-field"><span>Çeviri alanı</span><select id="browserPageScope"><option value="article">Yazı / makale</option><option value="whole">Tüm sayfa</option><option value="selection">Seçili metin</option></select></label>
+                      <label class="browser-page-quick-field"><span>Karakter sınırı</span><select id="browserPageBudget"><option value="0">Sınırsız</option><option value="50000">50 bin</option><option value="100000">100 bin</option><option value="200000">200 bin</option></select></label>
+                    </div>
+                  </details>
                   <label class="browser-view-switch"><input type="checkbox" id="browserPageQuickAuto" /><span>Bu sitede otomatik çevir</span></label>
                   <button class="browser-page-auto-continue" id="browserPageAutoContinue" type="button">Otomatik devamı durdur</button>
                   <button class="browser-page-auto-continue" id="browserPagePause" type="button">Çeviriyi duraklat</button>
@@ -1257,7 +1266,7 @@
                 title="Görünüm, sayfa ve manga ayarlarını aç" aria-label="Görünüm, sayfa ve manga ayarlarını aç" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
               </button>
-              <button class="btn-icon browser-place-button browser-action-source" id="browserDiagnosticsToolbar" type="button"
+              <button class="btn-icon browser-place-button browser-action-source hidden" id="browserDiagnosticsToolbar" type="button"
                 title="Yakalama ayrıntılarını aç" aria-label="Yakalama ayrıntılarını aç" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
               </button>
@@ -1270,7 +1279,7 @@
                 title="Yer imleri ve geçmiş" aria-label="Yer imleri ve geçmiş" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v13a.5.5 0 0 1-.8.4L12 14.6l-7.2 5.3a.5.5 0 0 1-.8-.4v-13Z"/><path d="M8 8h8M8 11h6"/></svg>
               </button>
-              <button class="btn-icon browser-place-button browser-action-source" id="browserSignalToggle" type="button"
+              <button class="btn-icon browser-place-button browser-action-source hidden" id="browserSignalToggle" type="button"
                 title="Altyazı sinyalini gizle" aria-label="Altyazı sinyalini gizle" aria-pressed="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h10M4 12h16M4 16h7"/><path d="m17 15 3 3 3-3" transform="translate(-1 -1)"/></svg>
               </button>
@@ -1278,7 +1287,7 @@
                 title="Sade izleme görünümüne geç" aria-label="Sade izleme görünümüne geç" aria-pressed="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 14 5-5 5 5"/></svg>
               </button>
-              <div class="browser-zoom-toolbar browser-action-source" role="group" aria-label="Sayfa yakınlaştırması">
+              <div class="browser-zoom-toolbar browser-action-source hidden" role="group" aria-label="Sayfa yakınlaştırması">
                 <button type="button" id="browserZoomOutToolbar" title="Uzaklaştır (Ctrl+-)" aria-label="Sayfayı uzaklaştır">−</button>
                 <button type="button" id="browserZoomResetToolbar" title="Yakınlaştırmayı sıfırla (Ctrl+0)" aria-label="Yakınlaştırmayı sıfırla">100%</button>
                 <button type="button" id="browserZoomInToolbar" title="Yakınlaştır (Ctrl++)" aria-label="Sayfayı yakınlaştır">+</button>
@@ -1940,7 +1949,8 @@
                 <kbd>B</kbd><span>A-B döngüsü</span><kbd>S</kbd><span>Ekran görüntüsü</span>
                 <kbd>T</kbd><span>Sinema modu</span><kbd>I</kbd><span>Mini oynatıcı</span>
                 <kbd>N</kbd><span>Sıradaki paneli</span><kbd>2× kenar</kbd><span>∓10 sn seek</span>
-                <kbd>?</kbd><span>Bu pencere</span><kbd>Esc</kbd><span>Kapat</span>
+                <kbd>?</kbd><span>Bu pencere</span><kbd>Esc</kbd><span>Açık menü / tam ekran / paneli kapat</span>
+                <kbd>Backspace</kbd><span>Oynatıcıdan çık</span><kbd></kbd><span></span>
               </div>
             </div>
           </div>
@@ -1957,6 +1967,11 @@
           </div>
           <div class="player-empty hidden" id="playerEmpty">
             <p>İzlemek için bir kaynak seç</p>
+            <div class="cue-empty-cta">
+              <button type="button" class="cue-empty-primary" id="emptyPickMedia">Video dosyası seç</button>
+              <button type="button" id="emptyPasteUrl">YouTube bağlantısı yapıştır</button>
+              <button type="button" id="emptyOpenLibrary">Kütüphaneden seç</button>
+            </div>
           </div>
 
           <!-- SmartTube-style Invidious browser — stage kaplar, video açılınca gizlenir -->
@@ -2127,16 +2142,6 @@
 
           <!-- Kontroller sahnenin ICINDE: tam ekranda da gorunur, bosta gizlenir -->
           <div class="player-controls" id="playerControls">
-            <button class="btn-icon" id="playerPrevMedia" title="Önceki video" aria-label="Önceki videoyu aç" disabled>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>
-            </button>
-            <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)" aria-label="Videoyu oynat veya duraklat">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
-            </button>
-            <button class="btn-icon" id="playerNextMedia" title="Sonraki video" aria-label="Sonraki videoyu aç" disabled>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>
-            </button>
-            <span class="player-time" id="playerTime">0:00 / 0:00</span>
             <div class="seek-wrap" id="seekWrap">
               <div class="seek-track"></div>
               <div class="seek-buffered" id="seekBuffered"></div>
@@ -2146,57 +2151,89 @@
               <div class="seek-thumb hidden" id="seekThumb" aria-hidden="true"></div>
               <input type="range" id="playerSeek" min="0" max="1000" value="0" class="player-seek" aria-label="Video konumu"/>
             </div>
-            <div class="subtitle-mode-wrap" id="subtitleModeWrap">
-              <button class="btn-icon" id="subToggle" title="Altyazı görünümünü seç (V)"
-                aria-label="Altyazı görünümünü seç" aria-haspopup="menu" aria-expanded="false">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
+            <div class="pc-group pc-left">
+              <button class="btn-icon" id="playerPrevMedia" title="Önceki video" aria-label="Önceki videoyu aç" disabled>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h2v14H6zM18 5v14l-9-7z"/></svg>
               </button>
-              <div class="subtitle-mode-menu hidden" id="subtitleModeMenu" role="menu"
-                aria-label="Altyazı görünümü">
-                <button type="button" role="menuitemradio" data-subtitle-mode="translation"
-                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca çeviri</span></button>
-                <button type="button" role="menuitemradio" data-subtitle-mode="source"
-                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca kaynak altyazı</span></button>
-                <button type="button" role="menuitemradio" data-subtitle-mode="off"
-                  aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Altyazıları kapat</span></button>
-              </div>
+              <button class="btn-icon" id="playPause" title="Oynat/Duraklat (Boşluk)" aria-label="Videoyu oynat veya duraklat">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+              </button>
+              <button class="btn-icon" id="playerNextMedia" title="Sonraki video" aria-label="Sonraki videoyu aç" disabled>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM6 5v14l9-7z"/></svg>
+              </button>
+              <span class="player-time" id="playerTime">0:00 / 0:00</span>
+              <button class="btn-icon" id="muteBtn" title="Sessize al (M)" aria-label="Sesi aç veya kapat">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+              </button>
+              <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" aria-label="Ses düzeyi"/>
             </div>
-            <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı">
-              <option value="0.5">0.5&times;</option>
-              <option value="0.75">0.75&times;</option>
-              <option value="1" selected>1&times;</option>
-              <option value="1.25">1.25&times;</option>
-              <option value="1.5">1.5&times;</option>
-              <option value="1.75">1.75&times;</option>
-              <option value="2">2&times;</option>
-            </select>
-            <button class="btn-icon" id="muteBtn" title="Sessize al (M)" aria-label="Sesi aç veya kapat">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-            </button>
-            <input type="range" id="playerVolume" min="0" max="100" value="100" class="player-volume" aria-label="Ses düzeyi"/>
-            <button class="btn-icon hidden" id="playerUpNextBtn" title="Sonraki videolar (N)" aria-label="Sonraki videolar panelini aç veya kapat">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="11" rx="2"/><path d="M19 8l2 2-2 2M8 21h8"/></svg>
-            </button>
-            <button class="btn-icon" id="abLoopBtn" title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat (B)" aria-label="A-B döngüsü noktalarını ayarla">A-B</button>
-            <button class="btn-icon" id="shotBtn" title="Ekran görüntüsü al (S)" aria-label="Ekran görüntüsü al">
-              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </button>
-            <button class="btn-icon" id="quickSubsBtn"
-              title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
-            </button>
-            <select id="sleepTimer" class="player-speed sleep-timer" title="Uyku zamanlayıcısı — süre dolunca oynatma duraklar" aria-label="Uyku zamanlayıcısı">
-              <option value="0" selected>Uyku: kapalı</option>
-              <option value="15">15 dk</option>
-              <option value="30">30 dk</option>
-              <option value="45">45 dk</option>
-              <option value="60">60 dk</option>
-              <option value="end">Bölüm sonunda dur</option>
-            </select>
-            <button class="btn-icon" id="helpBtn" title="Klavye kısayolları (?)" aria-label="Klavye kısayollarını göster">?</button>
-            <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)" aria-label="Tam ekranı aç veya kapat">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-            </button>
+            <div class="pc-group pc-right">
+              <div class="subtitle-mode-wrap" id="subtitleModeWrap">
+                <button class="btn-icon" id="subToggle" title="Altyazı görünümünü seç (V)"
+                  aria-label="Altyazı görünümünü seç" aria-haspopup="menu" aria-expanded="false">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
+                </button>
+                <div class="subtitle-mode-menu hidden" id="subtitleModeMenu" role="menu"
+                  aria-label="Altyazı görünümü">
+                  <button type="button" role="menuitemradio" data-subtitle-mode="translation"
+                    aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca çeviri</span></button>
+                  <button type="button" role="menuitemradio" data-subtitle-mode="source"
+                    aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Yalnızca kaynak altyazı</span></button>
+                  <button type="button" role="menuitemradio" data-subtitle-mode="off"
+                    aria-checked="false"><span class="subtitle-mode-check" aria-hidden="true"></span><span>Altyazıları kapat</span></button>
+                </div>
+              </div>
+              <select id="playerSpeed" class="player-speed" title="Oynatma hızı (Shift+&lt; / Shift+&gt;)" aria-label="Oynatma hızı">
+                <option value="0.5">0.5&times;</option>
+                <option value="0.75">0.75&times;</option>
+                <option value="1" selected>1&times;</option>
+                <option value="1.25">1.25&times;</option>
+                <option value="1.5">1.5&times;</option>
+                <option value="1.75">1.75&times;</option>
+                <option value="2">2&times;</option>
+              </select>
+              <button class="btn-icon" id="quickSubsBtn"
+                title="Tek tıkla: altyazıyı çıkar, çevir ve izlemeye hazır hale getir">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+              </button>
+              <button class="btn-icon hidden" id="playerUpNextBtn" title="Sonraki videolar (N)" aria-label="Sonraki videolar panelini aç veya kapat">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="11" rx="2"/><path d="M19 8l2 2-2 2M8 21h8"/></svg>
+              </button>
+              <details class="player-more" id="playerMore">
+                <summary class="btn-icon" title="Diğer oynatma seçenekleri" aria-label="Diğer oynatma seçenekleri"
+                  aria-haspopup="menu" aria-expanded="false">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+                </summary>
+                <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
+                  <button type="button" class="pc-menu-item" id="abLoopBtn" role="menuitem"
+                    title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat" aria-label="A-B döngüsü noktalarını ayarla">
+                    <span class="pc-menu-key" aria-hidden="true">A-B</span><span class="pc-menu-label">A-B döngüsü</span><span class="pc-menu-shortcut">B</span>
+                  </button>
+                  <button type="button" class="pc-menu-item" id="shotBtn" role="menuitem"
+                    title="Ekran görüntüsü al (S)" aria-label="Ekran görüntüsü al">
+                    <span class="pc-menu-key" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="pc-menu-label">Ekran görüntüsü</span><span class="pc-menu-shortcut">S</span>
+                  </button>
+                  <label class="pc-menu-field">
+                    <span>Uyku zamanlayıcısı</span>
+                    <select id="sleepTimer" class="player-speed sleep-timer" title="Uyku zamanlayıcısı — süre dolunca oynatma duraklar" aria-label="Uyku zamanlayıcısı">
+                      <option value="0" selected>Kapalı</option>
+                      <option value="15">15 dk</option>
+                      <option value="30">30 dk</option>
+                      <option value="45">45 dk</option>
+                      <option value="60">60 dk</option>
+                      <option value="end">Bölüm sonunda dur</option>
+                    </select>
+                  </label>
+                  <button type="button" class="pc-menu-item" id="helpBtn" role="menuitem"
+                    title="Klavye kısayolları (?)" aria-label="Klavye kısayollarını göster">
+                    <span class="pc-menu-key" aria-hidden="true">?</span><span class="pc-menu-label">Klavye kısayolları</span><span class="pc-menu-shortcut">?</span>
+                  </button>
+                </div>
+              </details>
+              <button class="btn-icon" id="fullscreenBtn" title="Tam ekran (F)" aria-label="Tam ekranı aç veya kapat">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 

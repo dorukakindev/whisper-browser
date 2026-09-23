@@ -58,6 +58,7 @@ const ctx = vm.createContext({
   setSubtitlesVisible: rec('setSubtitlesVisible'), closePlayer: rec('closePlayer'),
   showControls: rec('showControls'), osd: rec('osd'), logLine: rec('logLine'),
   setSubtitleMode: rec('setSubtitleMode'), closeYoutubeLogin: rec('closeYoutubeLogin'),
+  closePlayerDetailsMenus: rec('closePlayerDetailsMenus'),
   console,
 });
 vm.runInContext(js.slice(keyStart, keyEnd), ctx);

@@ -791,7 +791,7 @@ test('renderer: playerMeta dinamik metinleri locale üzerinden', () => {
   assert.match(RENDERER, /UiLocale\?\.t\(s\)/);
   assert.match(RENDERER, /UiLocale\?\.t\('Çift dilli izleme ve çalışma alanı'\)/);
   assert.match(RENDERER, /mt\('Sayfa yükleniyor'\)/);
-  assert.match(RENDERER, /UiLocale\?\.t\(meta && meta\.isLive/);
+  assert.match(RENDERER, /UiLocale\?\.t\(player\.metaBase\)/);
   // #playerMeta ignored listesinde — kısmi çeviriyle metin bozulmasın
   const ignoredLine = LOCALE.match(/const ignored = '([^']+)'/);
   assert.ok(ignoredLine && ignoredLine[1].includes('#playerMeta'),
