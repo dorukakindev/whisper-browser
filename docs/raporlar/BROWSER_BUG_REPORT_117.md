@@ -47,6 +47,15 @@ R115 raporunda "düşük maliyetli görünen ama ertelenen" beş iş maddesi + h
 2. **Tekrarlanan griler:** aynı hex'in 5+ geçtiği ölçekler mevcut değişken haritasına bağlanır.
 3. **Tek-kullanımlıklar:** dosya sonuna blok tekstür renkleri olarak veya yakın token'a indirgenir.
 
+## Canlı test turu bulguları (test ajanı, gerçek Electron + CDP — hepsi düzeltildi)
+
+- **F1 (gerçek bug, görsel olarak maskeliydi):** `.browser-address-wrap input.mir-mode { color:transparent }` (0,2,1), `.workspace-browser .browser-address-wrap input` (0,2,1) ile tie'a girip geç kaldığı için kaybediyordu → ayna aktifken gerçek input metni saydamlaşmıyordu (computed `rgb(40,35,31)`); overlay aynı glifleri birebir örttüğü için görünürde sorun yoktu. Düzeltme: seçici `.workspace-browser .browser-address-wrap input.mir-mode` (0,3,1) oldu.
+- **F2 (tema kusuru):** `.action-button-outline` sabit koyu-palet renklerdeydi (`#cbd5df`/`#33434f`) → açık temada pill + menü öğeleri ~1.6:1 kontrast. `html[data-theme="light"]` geçersiz kılmaları eklendi (var(--text) + var(--border-strong); hover var(--bg-2)).
+- **F3 (küçük UX):** `.tool-row-main .btn-primary { order:-1 }` popup içinde "Altyazıları çevir"i görsel olarak başa alıyordu ama ok-gezinmesi DOM sırasında yürüyor → ↓ basınca odak görsel olarak YUKARI gidiyordu. Kural kaldırıldı: görsel sıra = DOM sırası = nav sırası.
+- Üçüne de parti7 sözleşme assert'i eklendi (mir-mode spesifite, light outline, order:-1 yokluğu).
+
+**Test turu sonuç özeti (test ajanı):** T1 subtitle-actions (yukarı açılma, 4 menuitem, Esc/dış-tık/ok-nav/disabled atlama) ✅; T2 speed popup (7 menuitemradio, aria-checked, 1.5× → select.value + playbackRate + etiket) ✅; T3 adres aynası (dim scheme/bold host, focus'ta gizleme, non-http'te kapalı) ✅; T4 geri sayım kartı (5→0 tick + stAutoRelatedPlay, İptal/Esc/Şimdi-oynat yolları — gerçek YouTube autoplay ortamda yok, gerçek fonksiyon + spy ile doğrulandı) ✅; T5 EN/TR canlı çeviri ✅; T6 1600px + 940px regresyon ✅.
+
 ## Doğrulama
 
 - `node --check` renderer.js / ui-locale.js temiz.
