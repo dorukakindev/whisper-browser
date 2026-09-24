@@ -92,6 +92,9 @@ contextBridge.exposeInMainWorld('api', {
   youtubeBrowse: (browseId, opts) => ipcRenderer.invoke('youtube:browse', browseId, opts || {}),
   youtubeLogout: () => ipcRenderer.invoke('youtube:logout'),
   youtubeCancel: () => ipcRenderer.invoke('youtube:cancel'),
+  // Çoklu hesap (SmartTube modeli): aktif hesap değiştir / hesabı listeden çıkar.
+  youtubeAccountSwitch: (accountId) => ipcRenderer.invoke('youtube:accountSwitch', String(accountId || '')),
+  youtubeAccountRemove: (accountId) => ipcRenderer.invoke('youtube:accountRemove', String(accountId || '')),
   // YouTube TV modu — youtube.com/tv ayrı, yalıtılmış pencerede (resmi kodla giriş)
   youtubeTvOpen: (userAgentId) => ipcRenderer.invoke('youtube-tv:open', String(userAgentId || '')),
   youtubeTvClose: () => ipcRenderer.invoke('youtube-tv:close'),

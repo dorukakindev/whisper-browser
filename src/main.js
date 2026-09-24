@@ -256,6 +256,7 @@ const {
   secretStorePath,
   splitSettingsSecrets,
 } = require('./secret-store');
+const ytAccounts = require('./youtube-accounts');
 const {
   SettingsValidationError,
   buildSecretEnv,
@@ -804,7 +805,9 @@ function endJobLog() {
 // "altyaziyi indir" denince yeni surec mediaJob'un uzerine yaziliyor, sonra
 // "Indirmeyi iptal et" yanlis sureci olduruyor ya da kisa is bitip mediaJob'u
 // null yaptigi icin "Indirme yok" deniyordu.
-const mediaJobs = { probe: null, download: null, subs: null, invidious: null, youtube: null };
+// youtubeAuth: uzun süren giriş akışları (device poll/loopback) kendi slotunda
+// çalışır — 30 dk'lık bir onay beklemesi browse/refresh isteklerini kilitlemesin.
+const mediaJobs = { probe: null, download: null, subs: null, invidious: null, youtube: null, youtubeAuth: null };
 
 function pythonRuntimeEnv(extra = {}) {
   return pythonEnvWithRuntime(
@@ -958,14 +961,17 @@ function restoreInvidiousSessions() {
 // ---- YouTube OAuth oturumu (SmartTube cihaz-akışı) ----
 // refresh_token + client_secret safeStorage'da kalıcı; access_token yalnız
 // bellekte (kısa ömürlü, refresh ile yenilenir). Renderer'a token gitmez.
+// Çoklu-hesap oturum deposu (SmartTube hesap menüsü modeli) — her hesap
+// kendi token çiftini taşır; aktif hesap activeId ile seçilir. Token'lar
+// renderer'a asla çıkmaz; accountList() yalnız görünüm alanları döner.
 const youtubeSession = {
   clientId: '', clientSecret: '',
-  refreshToken: '', accessToken: '', expiresAt: 0,
-  userName: '', userEmail: '',
-  // Kayıtlı refresh_token'ı hangi istemcinin ürettiği — 'tv' gömülü YouTube TV
-  // (TVHTML5) istemcisi demek; refresh/poll doğru client_id+secret'ı kullanır.
-  authMode: 'custom',
+  accounts: {},     // id -> {refreshToken, accessToken, expiresAt, userName, userEmail, authMode, ephemeral}
+  activeId: '',
 };
+function ytActiveAccount() {
+  return ytAccounts.activeAccount(youtubeSession.accounts, youtubeSession.activeId);
+}
 let _ytDevice = null;   // {deviceCode, interval, expiresAt} — poll devam ederken
 
 let youtubeSessionStore = null;
@@ -974,7 +980,10 @@ function getYoutubeSessionStore() {
     youtubeSessionStore = new SafeSecretStore({
       safeStorage,
       filePath: path.join(app.getPath('userData'), 'youtube-session.safe.json'),
-      fields: ['client_id', 'client_secret', 'refresh_token', 'user_name', 'user_email', 'auth_mode'],
+      // Flat alanlar eski tek-hesap şemasından migrasyon okuması için listede
+      // kalır; save yalnız verilen anahtarları yazar (accounts + active_id).
+      fields: ['client_id', 'client_secret', 'accounts', 'active_id',
+               'refresh_token', 'user_name', 'user_email', 'auth_mode'],
     });
   }
   return youtubeSessionStore;
@@ -985,10 +994,10 @@ function persistYoutubeSession() {
     getYoutubeSessionStore().save({
       client_id: youtubeSession.clientId || '',
       client_secret: youtubeSession.clientSecret || '',
-      refresh_token: youtubeSession.refreshToken || '',
-      user_name: youtubeSession.userName || '',
-      user_email: youtubeSession.userEmail || '',
-      auth_mode: youtubeSession.authMode || 'custom',
+      // persistableAccounts kısa ömürlü token'ları kalıcı yazıdan dışlar;
+      // refreshToken'siz ephemeral hesaplar yeniden okumada düşer.
+      accounts: JSON.stringify(ytAccounts.persistableAccounts(youtubeSession.accounts)),
+      active_id: youtubeSession.activeId || '',
     });
   } catch (_) {}
 }
@@ -1000,25 +1009,30 @@ function restoreYoutubeSession() {
     if (!s) return;
     youtubeSession.clientId = String(s.client_id || '').slice(0, 200);
     youtubeSession.clientSecret = String(s.client_secret || '').slice(0, 200);
-    youtubeSession.refreshToken = String(s.refresh_token || '').slice(0, 2000);
-    youtubeSession.userName = String(s.user_name || '').slice(0, 200);
-    youtubeSession.userEmail = String(s.user_email || '').slice(0, 200);
-    youtubeSession.authMode = String(s.auth_mode || '') === 'tv' ? 'tv' : 'custom';
+    const migrated = ytAccounts.migrateSecrets(s);
+    youtubeSession.accounts = migrated.accounts;
+    youtubeSession.activeId = migrated.activeId;
   } catch (_) {}
 }
 
-function youtubeAuthEnv() {
+function youtubeAuthEnv(overrides = {}) {
   const env = {};
+  const acct = ytActiveAccount();
   if (youtubeSession.clientSecret) env.WHISPER_YT_CLIENT_SECRET = youtubeSession.clientSecret;
-  if (youtubeSession.refreshToken) env.WHISPER_YT_REFRESH_TOKEN = youtubeSession.refreshToken;
-  if (youtubeSession.accessToken) env.WHISPER_YT_ACCESS_TOKEN = youtubeSession.accessToken;
+  // overrides ile aktif-olmayan hesabın token'ı geçilebilir (accountRemove revoke).
+  const rt = overrides.refreshToken !== undefined
+    ? overrides.refreshToken : (acct && acct.refreshToken) || '';
+  const at = overrides.accessToken !== undefined
+    ? overrides.accessToken : (acct && acct.accessToken) || '';
+  if (rt) env.WHISPER_YT_REFRESH_TOKEN = rt;
+  if (at) env.WHISPER_YT_ACCESS_TOKEN = at;
   if (_ytDevice && _ytDevice.deviceCode) env.WHISPER_YT_DEVICE_CODE = _ytDevice.deviceCode;
   return env;
 }
 
-function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) {
+function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, jobSlot = 'youtube') {
   return new Promise((resolve) => {
-    if (mediaJobs.youtube) return resolve({ ok: false, error: 'Bir YouTube işi zaten çalışıyor.' });
+    if (mediaJobs[jobSlot]) return resolve({ ok: false, error: 'Bir YouTube işi zaten çalışıyor.' });
     const appDir = app.getAppPath();
     const script = path.join(appDir, 'backend', 'youtube.py');
     let proc;
@@ -1033,7 +1047,7 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
         ? 'Python bulunamadı.'
         : 'YouTube yardımcı süreci başlatılamadı.' });
     }
-    mediaJobs.youtube = proc;
+    mediaJobs[jobSlot] = proc;
     let result = null;
     let errText = '';
     let stderrTail = '';
@@ -1066,13 +1080,13 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
     });
     proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
     timeoutTimer = setTimeout(() => {
-      if (mediaJobs.youtube !== proc || settled) return;
+      if (mediaJobs[jobSlot] !== proc || settled) return;
       terminateProcessTree(proc, { spawn });
       finish({ ok: false, error: 'YouTube işlemi zaman sınırını aştı.' });
     }, timeoutMs);
     timeoutTimer.unref?.();
     proc.on('close', (code) => {
-      if (mediaJobs.youtube === proc) mediaJobs.youtube = null;
+      if (mediaJobs[jobSlot] === proc) mediaJobs[jobSlot] = null;
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
       if (result) {
@@ -1085,7 +1099,7 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
       }
     });
     proc.on('error', (err) => {
-      if (mediaJobs.youtube === proc) mediaJobs.youtube = null;
+      if (mediaJobs[jobSlot] === proc) mediaJobs[jobSlot] = null;
       writeJobLog({ type: 'log', level: 'warn',
         message: `YouTube süreç hatası: ${sanitizeProcessDetail(String(err))}` });
       finish({ ok: false, error: 'YouTube yardımcı süreci başlatılamadı.' });
@@ -1099,27 +1113,32 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}) 
 // oturum varken "giriş yapın" hatası döndürüyordu.
 let _ytRefreshInFlight = null;
 async function ensureYoutubeAccessToken() {
-  if (!youtubeSession.refreshToken) return null;
+  const acct = ytActiveAccount();
+  if (!acct) return null;
   // 'tv' modu: token'ı gömülü YouTube TV istemcisi üretti — kendi istemci
   // bilgisi gerekmez. 'custom' modda kendi istemcisi şart.
-  const tvMode = youtubeSession.authMode === 'tv';
+  const tvMode = acct.authMode === 'tv';
   if (!tvMode && (!youtubeSession.clientId || !youtubeSession.clientSecret)) return null;
-  if (youtubeSession.accessToken && Date.now() < youtubeSession.expiresAt - 60_000) {
-    return youtubeSession.accessToken;
+  if (acct.accessToken && Date.now() < acct.expiresAt - 60_000) {
+    return acct.accessToken;
   }
+  // Ephemeral (refresh_token'siz) hesap: access token süresi dolduysa oturum
+  // yenilenemez — kullanıcının yeniden giriş yapması gerekir.
+  if (!acct.refreshToken) return null;
   if (_ytRefreshInFlight) return _ytRefreshInFlight;
   _ytRefreshInFlight = (async () => {
     const res = await runYoutubeCommand(
       ['refresh', '--client-id', tvMode ? 'tv' : youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
     if (res && res.ok && res.data && res.data.access_token) {
-      youtubeSession.accessToken = res.data.access_token;
-      youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
-      return youtubeSession.accessToken;
+      acct.accessToken = res.data.access_token;
+      acct.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
+      return acct.accessToken;
     }
     const msg = String(res && res.error || '');
     if (/invalid_grant|oturum düştü|giriş gerekli/i.test(msg)) {
-      youtubeSession.refreshToken = '';
-      youtubeSession.accessToken = '';
+      // Grant geçersiz — hesabı listeden düşür (aktifse sıradaki aktifleşir).
+      youtubeSession.activeId = ytAccounts.removeAccount(
+        youtubeSession.accounts, youtubeSession.activeId, youtubeSession.activeId);
       persistYoutubeSession();
     }
     return null;
@@ -1940,17 +1959,24 @@ ipcMain.handle('youtube:authCode', async (_e) => {
     { ...youtubeAuthEnv(),
       WHISPER_YT_AUTH_CODE: code,
       WHISPER_YT_CODE_VERIFIER: verifier,
-      WHISPER_YT_REDIRECT_URI: redirectUri || '' });
-  if (res && res.ok && res.data && res.data.refresh_token) {
-    youtubeSession.refreshToken = res.data.refresh_token;
-    youtubeSession.accessToken = res.data.access_token || '';
-    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
-    youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
-    youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
-    youtubeSession.authMode = 'custom';
+      WHISPER_YT_REDIRECT_URI: redirectUri || '' }, 'youtubeAuth');
+  if (res && res.ok && res.data && (res.data.refresh_token || res.data.access_token)) {
+    // refresh_token'siz grant (tekrar-onay kenarı) reddedilmez — ephemeral
+    // hesap olarak eklenir; süresi dolunca yeniden giriş gerekir.
+    const up = ytAccounts.upsertAccount(youtubeSession.accounts, youtubeSession.activeId, {
+      refreshToken: res.data.refresh_token || '',
+      accessToken: res.data.access_token || '',
+      expiresIn: res.data.expires_in,
+      userName: String(res.data.user_name || '').slice(0, 200),
+      userEmail: String(res.data.user_email || '').slice(0, 200),
+      authMode: 'custom',
+      ephemeral: !res.data.refresh_token,
+    });
+    youtubeSession.activeId = up.activeId;
     persistYoutubeSession();
-    return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
-                               userEmail: youtubeSession.userEmail } };
+    return { ok: true, data: { loggedIn: true, userName: up.account.userName,
+                               userEmail: up.account.userEmail,
+                               ephemeral: up.account.ephemeral } };
   }
   if (res && res.ok && res.data) {
     return { ok: false, error: 'YouTube refresh token döndürmedi — yeniden deneyin.' };
@@ -1958,17 +1984,52 @@ ipcMain.handle('youtube:authCode', async (_e) => {
   return res || { ok: false, error: 'Token değişimi tamamlanamadı.' };
 });
 
-ipcMain.handle('youtube:session', async (_e) => {
-  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+function youtubeSessionPayload() {
+  const acct = ytActiveAccount();
   return { ok: true, data: {
-    loggedIn: !!(youtubeSession.refreshToken &&
-      (youtubeSession.authMode === 'tv' || (youtubeSession.clientId && youtubeSession.clientSecret))),
-    userName: youtubeSession.userName,
-    userEmail: youtubeSession.userEmail,
+    // 'custom' hesabın token'ı yalnız kendi istemci bilgisi varken geçerli;
+    // 'tv' hesapları gömülü istemciye bağlıdır.
+    loggedIn: !!acct && (acct.authMode === 'tv'
+      || !!(youtubeSession.clientId && youtubeSession.clientSecret)),
+    userName: acct ? acct.userName : '',
+    userEmail: acct ? acct.userEmail : '',
+    ephemeral: !!(acct && acct.ephemeral),
     hasClient: !!(youtubeSession.clientId && youtubeSession.clientSecret),
     clientId: youtubeSession.clientId || '',
     pendingCode: !!(_ytDevice && _ytDevice.deviceCode),
+    accounts: ytAccounts.accountList(youtubeSession.accounts, youtubeSession.activeId),
   } };
+}
+
+ipcMain.handle('youtube:session', async (_e) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  return youtubeSessionPayload();
+});
+
+ipcMain.handle('youtube:accountSwitch', async (_e, accountId) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const id = String(accountId || '').slice(0, 120);
+  if (!youtubeSession.accounts[id]) return { ok: false, error: 'Hesap bulunamadı.' };
+  youtubeSession.activeId = id;
+  persistYoutubeSession();
+  return youtubeSessionPayload();
+});
+
+ipcMain.handle('youtube:accountRemove', async (_e, accountId) => {
+  if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
+  const id = String(accountId || '').slice(0, 120);
+  const acct = youtubeSession.accounts[id];
+  if (!acct) return { ok: false, error: 'Hesap bulunamadı.' };
+  // Revoke en-iyi-çaba — O HESABIN token'ıyla (aktif hesabınki değil).
+  const revokeResult = await runYoutubeCommand(['revoke'], null, 15_000,
+    youtubeAuthEnv({ refreshToken: acct.refreshToken || '', accessToken: acct.accessToken || '' }),
+    'youtubeAuth').catch(() => null);
+  youtubeSession.activeId = ytAccounts.removeAccount(
+    youtubeSession.accounts, youtubeSession.activeId, id);
+  persistYoutubeSession();
+  const payload = youtubeSessionPayload();
+  payload.remoteOk = revokeResult?.ok === true && revokeResult.data?.remote_ok === true;
+  return payload;
 });
 
 ipcMain.handle('youtube:setClient', async (_e, opts) => {
@@ -1983,14 +2044,10 @@ ipcMain.handle('youtube:setClient', async (_e, opts) => {
     return { ok: false, error: 'Geçersiz Client Secret biçimi.' };
   }
   if (id !== youtubeSession.clientId || secret !== youtubeSession.clientSecret) {
-    // OAuth refresh/access token'ları belirli bir istemciye aittir; başka
-    // istemciyle devam etmek hem yanlış oturum hem de geniş kapsam kalıntısıdır.
-    youtubeSession.refreshToken = '';
-    youtubeSession.accessToken = '';
-    youtubeSession.expiresAt = 0;
-    youtubeSession.userName = '';
-    youtubeSession.userEmail = '';
-    youtubeSession.authMode = 'custom';
+    // OAuth grant'leri belirli bir istemciye aittir — istemci değişince TÜM
+    // hesaplar geçersizleşir (eskiden yalnız tek oturum temizleniyordu).
+    youtubeSession.accounts = {};
+    youtubeSession.activeId = '';
   }
   youtubeSession.clientId = id;
   youtubeSession.clientSecret = secret;
@@ -2004,7 +2061,8 @@ ipcMain.handle('youtube:deviceCode', async (_e) => {
   // kullanıcıdan Google Cloud kaydı istemeden cihaz-kodu akışı açılır.
   const useTv = !(youtubeSession.clientId && youtubeSession.clientSecret);
   const res = await runYoutubeCommand(
-    ['device_code', '--client-id', useTv ? 'tv' : youtubeSession.clientId], null, 30_000);
+    ['device_code', '--client-id', useTv ? 'tv' : youtubeSession.clientId], null, 30_000,
+    {}, 'youtubeAuth');
   if (!res || !res.ok || !res.data) return res || { ok: false, error: 'Cihaz kodu alınamadı.' };
   _ytDevice = {
     deviceCode: res.data.device_code,
@@ -2043,23 +2101,24 @@ ipcMain.handle('youtube:poll', async (_e) => {
         mainWindow.webContents.send('youtube:event', ev);
       }
     },
-    remaining * 1000 + 15_000, youtubeAuthEnv());
-  if (res && res.ok && res.data && res.data.refresh_token) {
-    youtubeSession.refreshToken = res.data.refresh_token;
-    youtubeSession.accessToken = res.data.access_token || '';
-    youtubeSession.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
-    youtubeSession.userName = String(res.data.user_name || '').slice(0, 200);
-    youtubeSession.userEmail = String(res.data.user_email || '').slice(0, 200);
-    youtubeSession.authMode = _ytDevice.tv ? 'tv' : 'custom';
+    remaining * 1000 + 15_000, youtubeAuthEnv(), 'youtubeAuth');
+  if (res && res.ok && res.data && (res.data.refresh_token || res.data.access_token)) {
+    const up = ytAccounts.upsertAccount(youtubeSession.accounts, youtubeSession.activeId, {
+      refreshToken: res.data.refresh_token || '',
+      accessToken: res.data.access_token || '',
+      expiresIn: res.data.expires_in,
+      userName: String(res.data.user_name || '').slice(0, 200),
+      userEmail: String(res.data.user_email || '').slice(0, 200),
+      authMode: _ytDevice.tv ? 'tv' : 'custom',
+      ephemeral: !res.data.refresh_token,
+    });
+    youtubeSession.activeId = up.activeId;
     _ytDevice = null;
     persistYoutubeSession();
     // Token'lar renderer'a gitmez — yalnız gösterim bilgisi
-    return { ok: true, data: { loggedIn: true, userName: youtubeSession.userName,
-                               userEmail: youtubeSession.userEmail } };
-  }
-  if (res && res.ok && res.data) {
-    // login emit'i refresh_token'siz geldiyse (nadir) oturum sayılmaz
-    return { ok: false, error: 'YouTube refresh token döndürmedi — yeniden deneyin.' };
+    return { ok: true, data: { loggedIn: true, userName: up.account.userName,
+                               userEmail: up.account.userEmail,
+                               ephemeral: up.account.ephemeral } };
   }
   return res || { ok: false, error: 'Onay tamamlanamadı.' };
 });
@@ -2117,26 +2176,34 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
 ipcMain.handle('youtube:logout', async (_e) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   // Uçuştaki poll'u öldür — yoksa çıkış sonrası gelen başarı sonucu oturumu
-  // diske geri yazıyor ve mediaJobs slot'u revoke'u da kilitliyordu.
-  if (mediaJobs.youtube) terminateProcessTree(mediaJobs.youtube, { spawn });
+  // diske geri yazıyor ve auth slot'u revoke'u da kilitliyordu.
+  if (mediaJobs.youtubeAuth) terminateProcessTree(mediaJobs.youtubeAuth, { spawn });
   _ytAbortAuthFlow('Oturum kapatıldı.');
-  // Revoke en-iyi-çaba — takılmasın diye kısa timeout; başarısızsa da temizleriz.
-  const revokeResult = await runYoutubeCommand(['revoke'], null, 15_000, youtubeAuthEnv()).catch(() => null);
-  youtubeSession.refreshToken = '';
-  youtubeSession.accessToken = '';
-  youtubeSession.expiresAt = 0;
-  youtubeSession.userName = '';
-  youtubeSession.userEmail = '';
+  // "Oturumu kapat" = aktif hesabı çıkar; diğer hesaplar ve aktiflik korunur
+  // (SmartTube'un hesap-silme davranışı). Tek hesap varsa tam çıkış olur.
+  const acct = ytActiveAccount();
+  let revokeResult = null;
+  if (acct && (acct.refreshToken || acct.accessToken)) {
+    revokeResult = await runYoutubeCommand(['revoke'], null, 15_000,
+      youtubeAuthEnv({ refreshToken: acct.refreshToken || '', accessToken: acct.accessToken || '' }),
+      'youtubeAuth').catch(() => null);
+  }
+  if (youtubeSession.activeId) {
+    youtubeSession.activeId = ytAccounts.removeAccount(
+      youtubeSession.accounts, youtubeSession.activeId, youtubeSession.activeId);
+  }
   _ytDevice = null;
   persistYoutubeSession();
-  return { ok: true, remoteOk: revokeResult?.ok === true && revokeResult.data?.remote_ok === true };
+  const payload = youtubeSessionPayload();
+  payload.remoteOk = revokeResult?.ok === true && revokeResult.data?.remote_ok === true;
+  return payload;
 });
 
 ipcMain.handle('youtube:cancel', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   // Tarayıcı-onaylı loopback akışında python süreci henüz yok — önce onu durdur.
   const authAborted = _ytAbortAuthFlow('Giriş akışı iptal edildi.');
-  const proc = mediaJobs.youtube;
+  const proc = mediaJobs.youtubeAuth;
   if (!proc) return authAborted
     ? { ok: true }
     : { ok: false, error: 'Çalışan YouTube işi yok.' };
@@ -2145,7 +2212,7 @@ ipcMain.handle('youtube:cancel', async (event) => {
   // Kapanışı kısa süreyle bekle — dönüp döndüğümüzde slot hâlâ doluysa
   // kullanıcının hemen başlattığı yeni giriş akışı yanlışlıkla
   // "zaten çalışıyor" reddi yiyordu (N4).
-  if (mediaJobs.youtube === proc) {
+  if (mediaJobs.youtubeAuth === proc) {
     await new Promise((resolve) => {
       const t = setTimeout(resolve, 3000);
       proc.once('close', () => { clearTimeout(t); resolve(); });
