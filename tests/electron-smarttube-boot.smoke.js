@@ -390,7 +390,9 @@ async function main() {
   await win.webContents.executeJavaScript("document.getElementById('ytDeviceCodeStart').click()", true);
   await delay(50);    // gen1 yavaş istek uçuşta
   await win.webContents.executeJavaScript('closeYoutubeLogin(); openYoutubeLogin()', true);
-  await delay(150);   // gen1 iptal + yeni modal → seçim ekranı
+  await delay(150);   // kapanış artık iptal ETMEZ; yeni modal → seçim ekranı
+  assert(deviceCancelCount === 0,
+    `modal kapanışı süren cihaz akışını iptal etti (R120 regresyonu): ${deviceCancelCount}`);
   await win.webContents.executeJavaScript("document.getElementById('ytDeviceCodeStart').click()", true);
   await delay(450);
   const raceView = await win.webContents.executeJavaScript(`(() => ({
@@ -400,7 +402,10 @@ async function main() {
   }))()`, true);
   assert(raceView.visible && raceView.code === 'ABCD-EFGH', 'yeni cihaz kodu eski kuşakta kayboldu');
   assert(deviceCancelCount === 1, `bayat cihaz kodu yeni akışı iptal etti: ${deviceCancelCount}`);
-  await win.webContents.executeJavaScript('closeYoutubeLogin()', true);
+  // Yeni sözleşme: akışı öldüren tek yol 'İptal' — kapanışı değil. Geç poll'ün
+  // feed testlerine sızmasını önlemek için açıkça İptal ile kapat.
+  await win.webContents.executeJavaScript("document.getElementById('ytDeviceCancel').click()", true);
+  await delay(50);
 
   // Feed failure must leave a visible, actionable retry rather than a bare
   // "Loading..." surface. Retry must render the recovered feed.

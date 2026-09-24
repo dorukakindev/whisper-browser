@@ -40,7 +40,8 @@ function handlerBody(name) {
 test('R70-01: youtube:* handler\'ları authorizedBrowserSender kontrolünde', () => {
   for (const h of ['youtube:session', 'youtube:setClient', 'youtube:deviceCode',
                    'youtube:authCode', 'youtube:poll', 'youtube:browse',
-                   'youtube:logout', 'youtube:cancel']) {
+                   'youtube:logout', 'youtube:cancel',
+                   'youtube:accountSwitch', 'youtube:accountRemove']) {
     const body = handlerBody(h);
     assert.ok(/authorizedBrowserSender\(/.test(body), `${h} yetki kontrolü eksik`);
   }
@@ -50,7 +51,8 @@ test('R70-01: youtube:* handler\'ları authorizedBrowserSender kontrolünde', ()
 test('R70-02: preload YouTube köprü metotları mevcut', () => {
   for (const m of ['youtubeSession', 'youtubeSetClient', 'youtubeDeviceCode',
                    'youtubeAuthCode', 'youtubePoll', 'youtubeBrowse',
-                   'youtubeLogout', 'youtubeCancel', 'onYoutubeEvent']) {
+                   'youtubeLogout', 'youtubeCancel', 'onYoutubeEvent',
+                   'youtubeAccountSwitch', 'youtubeAccountRemove']) {
     assert.ok(PRELOAD.includes(`${m}:`), `preload eksik: ${m}`);
   }
   assert.match(PRELOAD, /ipcRenderer\.invoke\('youtube:setClient'/);
@@ -59,12 +61,18 @@ test('R70-02: preload YouTube köprü metotları mevcut', () => {
 
 // ---------- R70-03: token'lar renderer'a dönmez ----------
 test('R70-03: youtube:session cevabı token/secret içermez', () => {
-  const body = handlerBody('youtube:session');
-  const ret = body.match(/return \{ ok: true, data: \{([\s\S]*?)\} \};/);
+  // R120: cevap youtubeSessionPayload() yardımcısında üretilir — handler'lar
+  // (session/switch/remove/logout) aynı güvenli payload'u döner.
+  const payloadFn = MAIN.match(/function youtubeSessionPayload\(\) \{[\s\S]*?\n\}/);
+  assert.ok(payloadFn, 'youtubeSessionPayload bulunamadı');
+  const ret = payloadFn[0].match(/data: \{([\s\S]*?)\} \};/);
   assert.ok(ret, 'session cevabı bulunamadı');
   // Dönen ANAHTARLAR güvenli kümede olmalı (değer referansları değil)
   const keys = [...ret[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
-  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode', 'usingBuiltin', 'clientId']);
+  // R120: 'accounts' yalnız accountList() çıktısıdır (id+isim+aktif+ephemeral);
+  // 'ephemeral' oturum tipi bayrağı. İkisi de token/secret taşımaz.
+  const safe = new Set(['loggedIn', 'userName', 'userEmail', 'hasClient', 'pendingCode',
+                        'usingBuiltin', 'clientId', 'accounts', 'ephemeral']);
   for (const k of keys) {
     assert.ok(safe.has(k), `session cevabı beklenmeyen alan dönüyor: ${k}`);
   }
@@ -142,25 +150,28 @@ test('R70-07: YouTube oturumu SafeSecretStore ile kalıcı', () => {
 });
 
 // ---------- R70-08: logout temizliği + revoke ----------
-test('R70-08: logout revoke eder ve yerel oturumu temizler', () => {
+test('R70-08: logout revoke eder ve aktif hesabı çıkarır', () => {
   const body = handlerBody('youtube:logout');
   assert.match(body, /\['revoke'\]/);
-  assert.match(body, /refreshToken = ''/);
+  // R120: tek flat oturum temizliği yerine aktif hesap accounts'tan çıkarılır.
+  assert.match(body, /ytAccounts\.removeAccount/);
   assert.match(body, /persistYoutubeSession\(\)/);
 });
 
 // ---------- R70-09: cancel gerçek süreci öldürür ----------
-test('R70-09: youtube:cancel mediaJobs.youtube sürecini öldürür', () => {
+test('R70-09: youtube:cancel mediaJobs.youtubeAuth sürecini öldürür', () => {
   const body = handlerBody('youtube:cancel');
-  assert.match(body, /mediaJobs\.youtube/);
+  assert.match(body, /mediaJobs\.youtubeAuth/);
   assert.match(body, /terminateProcessTree/);
 });
 
 // ---------- R70-10: tek-iş slotu + sonuç whitelist ----------
-test('R70-10: runYoutubeCommand tek slot ve sonuç whitelist kullanır', () => {
+test('R70-10: runYoutubeCommand slot ve sonuç whitelist kullanır', () => {
   assert.match(MAIN, /youtube: null/);
+  // R120: uzun poll/loopback akışları kendi slotunda — browse kilitlemez.
+  assert.match(MAIN, /youtubeAuth: null/);
   assert.match(MAIN, /YOUTUBE_RESULT_TYPES\s*=\s*new Set/);
-  assert.match(MAIN, /mediaJobs\.youtube\) return resolve/);
+  assert.match(MAIN, /mediaJobs\[jobSlot\]\) return resolve/);
   for (const t of ['device_code', 'login', 'token', 'feed', 'me', 'revoked']) {
     assert.ok(MAIN.includes(`'${t}'`), `YOUTUBE_RESULT_TYPES eksik: ${t}`);
   }
@@ -221,13 +232,13 @@ test('R70-14: istemci değişimi eski tokenları kullanmaz', () => {
   const setClient = MAIN.match(/ipcMain\.handle\('youtube:setClient'[\s\S]*?\n\}\);/);
   assert.ok(setClient, 'youtube:setClient handler yok');
   assert.match(setClient[0], /id !== youtubeSession\.clientId \|\| secret !== youtubeSession\.clientSecret/);
-  assert.match(setClient[0], /youtubeSession\.refreshToken = ''/);
-  assert.match(setClient[0], /youtubeSession\.accessToken = ''/);
+  // R120: istemci değişimi TÜM hesapları sıfırlar (grant'ler istemciye aittir).
+  assert.match(setClient[0], /youtubeSession\.accounts = \{\}/);
   const ensure = MAIN.match(/async function ensureYoutubeAccessToken\(\)[\s\S]*?\n\}/);
   assert.ok(ensure, 'ensureYoutubeAccessToken yok');
   // Kendi istemcisi olmayan 'custom' oturumlar ağ isteği yapmaz — 'tv' modunda
   // ise gömülü istemci kullanıldığı için client bilgisi şart değil.
-  assert.match(ensure[0], /const tvMode = youtubeSession\.authMode === 'tv'/);
+  assert.match(ensure[0], /const tvMode = acct\.authMode === 'tv'/);
   assert.match(ensure[0], /if \(!tvMode && \(!youtubeSession\.clientId \|\| !youtubeSession\.clientSecret\)\) return null/);
 });
 

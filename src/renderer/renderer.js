@@ -26444,6 +26444,11 @@ function refreshYoutubeAuthUI() {
       inBtn.classList.remove('hidden');
       outBtn.classList.add('hidden');
       outBtn.querySelector('.st-side-label').textContent = 'YT çıkış';
+      // Modal kapalı olsa da süren giriş akışı varsa kullanıcı görsün.
+      const inLabel = inBtn.querySelector('.st-side-label');
+      if (inLabel) inLabel.textContent = (_ytPolling || _ytBrowserFlow)
+        ? (window.UiLocale?.t('Onay bekleniyor…') || 'Onay bekleniyor…')
+        : (window.UiLocale?.t('YouTube giriş') || 'YouTube giriş');
     }
   }
   // Oynatıcı panelindeki OAuth düğmesi/durumu da aynı oturumla senkron kalır.
@@ -26465,17 +26470,17 @@ async function restoreYoutubeSession() {
   try {
     const res = await window.api.youtubeSession();
     if (res && res.ok && res.data) {
-      youtubeLoggedIn = !!res.data.loggedIn;
-      youtubeUserName = res.data.userName || '';
+      syncYoutubeSessionFromPayload(res.data);
     }
   } catch (_) { /* bridge yoksa sessiz geç */ }
   refreshYoutubeAuthUI();
 }
 
 let _ytLoginModalBound = false;
-// Akış kuşağı: modal her kapanışta artar; sürüyor olan await'ler döndüğünde
-// kuşak değiştiyse sonuç uygulanmaz. Eskiden İptal/kapat yalnızca gizliyordu —
-// 30 dk'lık poll arka planda sürüp _ytPolling sonsuza takılı kalabiliyordu.
+// Akış kuşağı: yeni akış başlatan/iptal eden yollar artırır; sürüyor olan
+// await'ler döndüğünde kuşak değiştiyse sonuç uygulanmaz. Modal kapanışı
+// (Esc/backdrop/Kapat) kasıtlı olarak kuşağı bozmaz — giriş onayı arka planda
+// tamamlanabilmeli.
 let _ytFlowGen = 0;
 let _ytBrowserFlow = false;   // loopback (tarayıcı) akışı sürüyor
 let _ytSavedClientId = '';    // istemci görünümüne dönüşte ID'yi geri doldurur (secret asla)
@@ -26527,6 +26532,11 @@ function openYoutubeLogin() {
     const as = $('ytLoggedAs');
     if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
     _ytShowView('ytLoggedView');
+    renderYoutubeAccounts();
+  } else if (_ytPolling || _ytBrowserFlow) {
+    // Süren giriş akışı varken modal yeniden açıldı — kod/QR/geri sayım DOM'da
+    // duruyor; yeni akış başlatmadan canlı ekrana geri dön.
+    _ytShowView('ytDeviceView');
   } else {
     const openingGen = ++_ytFlowGen;
     _ytShowView('ytDeviceView');
@@ -26534,6 +26544,16 @@ function openYoutubeLogin() {
     if (pollStatus) pollStatus.textContent = window.UiLocale?.t('İstemci bilgisi kontrol ediliyor…') || 'İstemci bilgisi kontrol ediliyor…';
     window.api.youtubeSession().then((res) => {
       if (openingGen !== _ytFlowGen || dlg.classList.contains('hidden')) return;
+      if (res && res.ok && res.data && res.data.loggedIn) {
+        // Arka planda tamamlanan giriş — renderer bayrağını senkronla,
+        // yeni cihaz kodu başlatma.
+        syncYoutubeSessionFromPayload(res.data);
+        const as = $('ytLoggedAs');
+        if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+        _ytShowView('ytLoggedView');
+        renderYoutubeAccounts(res.data.accounts);
+        return;
+      }
       if (res && res.ok && res.data && res.data.hasClient) {
         _ytSavedClientId = res.data.clientId || '';
         _ytShowAuthChoice();
@@ -26559,17 +26579,117 @@ function openYoutubeLogin() {
 function closeYoutubeLogin() {
   const dlg = $('youtubeLoginModal');
   if (dlg) dlg.classList.add('hidden');
-  _ytFlowGen++;                                     // süren akışı geçersiz kıl
-  if (_ytPolling || _ytBrowserFlow) {               // süren akış varsa main'de de iptal et
-    _ytPolling = false;
-    _ytBrowserFlow = false;
-    window.api.youtubeCancel().catch(() => {});
-  }
+  // Modalı kapatmak giriş akışını ÖLDÜRMEZ — kullanıcı kodu telefonda/başka
+  // ekranda onaylarken pencere arkaya gidebilir; onay tamamlanınca oturum
+  // yine de yazılır ve modal yeniden açıldığında canlı ekran görünür.
+  // Eskiden her kapanış _ytFlowGen artırıp poll'ü kesiyordu: kullanıcı
+  // onayladı ama uygulama çoktan dinlemeyi bırakmış oluyordu.
+  // İptal yalnız 'İptal' düğmesi (ytDeviceCancel) ve akış değiştirme yollarıyla.
   // Secret kapanışta DOM'da kalmasın (Invidious modalıyla aynı sözleşme)
   const cid = $('ytClientId');
   const csec = $('ytClientSecret');
   if (cid) cid.value = '';
   if (csec) csec.value = '';
+}
+
+// youtube:session/payload cevabındaki oturum bilgisini renderer durumuna işle.
+function syncYoutubeSessionFromPayload(d) {
+  youtubeLoggedIn = !!(d && d.loggedIn);
+  youtubeUserName = (d && d.userName) || '';
+  refreshYoutubeAuthUI();
+}
+
+// Girişli görünümdeki hesap listesi — SmartTube'un hesap menüsü gibi:
+// satıra tıkla = aktif hesap yap, 'Çıkar' = o hesabı sil.
+async function renderYoutubeAccounts(accounts) {
+  const ul = $('ytAccountList');
+  if (!ul) return;
+  let list = Array.isArray(accounts) ? accounts : null;
+  if (!list) {
+    const res = await window.api.youtubeSession().catch(() => null);
+    list = (res && res.ok && res.data && res.data.accounts) || [];
+  }
+  ul.textContent = '';
+  const hint = $('ytAccountHint');
+  if (hint) hint.classList.toggle('hidden', list.length < 2);
+  for (const a of list) {
+    const li = document.createElement('li');
+    li.className = 'yt-account' + (a.active ? ' is-active' : '');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'yt-account-name';
+    btn.textContent = a.userName || a.userEmail || 'YouTube';
+    if (a.userEmail && a.userName) btn.title = a.userEmail;
+    btn.disabled = !!a.active;
+    if (!a.active) btn.addEventListener('click', () => switchYoutubeAccount(a.id));
+    li.appendChild(btn);
+    if (a.active) {
+      const b = document.createElement('span');
+      b.className = 'yt-account-badge';
+      b.textContent = window.UiLocale?.t('Aktif') || 'Aktif';
+      li.appendChild(b);
+    }
+    if (a.ephemeral) {
+      const b = document.createElement('span');
+      b.className = 'yt-account-badge yt-account-badge-warn';
+      b.textContent = window.UiLocale?.t('geçici') || 'geçici';
+      b.title = window.UiLocale?.t('Bu oturum yenilenemez — süresi dolunca yeniden giriş gerekir.')
+        || 'Bu oturum yenilenemez — süresi dolunca yeniden giriş gerekir.';
+      li.appendChild(b);
+    }
+    if (a.stale) {
+      const b = document.createElement('span');
+      b.className = 'yt-account-badge yt-account-badge-warn';
+      b.textContent = window.UiLocale?.t('oturum düştü') || 'oturum düştü';
+      li.appendChild(b);
+    }
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'yt-account-remove';
+    rm.textContent = window.UiLocale?.t('Çıkar') || 'Çıkar';
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeYoutubeAccount(a.id); });
+    li.appendChild(rm);
+    ul.appendChild(li);
+  }
+}
+
+async function switchYoutubeAccount(id) {
+  const res = await window.api.youtubeAccountSwitch(id).catch(() => null);
+  if (!res || !res.ok) {
+    osd((res && res.error) || 'Hesap değiştirilemedi.', 4000);
+    return;
+  }
+  syncYoutubeSessionFromPayload(res.data);
+  const as = $('ytLoggedAs');
+  if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+  renderYoutubeAccounts(res.data.accounts);
+  osd(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
+  if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
+    renderSmartTubeSection(stCurrentSection, { force: true });
+  }
+}
+
+async function removeYoutubeAccount(id) {
+  const res = await window.api.youtubeAccountRemove(id).catch(() => null);
+  if (!res || !res.ok) {
+    osd((res && res.error) || 'Hesap çıkarılamadı.', 4000);
+    return;
+  }
+  syncYoutubeSessionFromPayload(res.data);
+  const as = $('ytLoggedAs');
+  if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+  renderYoutubeAccounts(res.data.accounts);
+  if (!youtubeLoggedIn) {
+    // Son hesap da çıkarıldı — giriş ekranına dön.
+    closeYoutubeLogin();
+  }
+  const message = res.remoteOk === false
+    ? 'Hesap çıkarıldı; Google erişimi kaldırılamadı.'
+    : 'Hesap çıkarıldı';
+  osd(window.UiLocale?.t(message) || message, res.remoteOk === false ? 6000 : 2000);
+  if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
+    renderSmartTubeSection(stCurrentSection, { force: true });
+  }
 }
 
 // SmartTube'daki gibi kodun geçerlilik süresi geri sayılır; süre dolunca kullanıcı
@@ -26596,9 +26716,12 @@ function startYoutubeCodeCountdown(seconds, gen) {
 }
 
 async function startYoutubeDeviceFlow() {
-  if (_ytPolling) return;
   if (_ytBrowserFlow) {                           // süren tarayıcı akışını durdur
     _ytBrowserFlow = false;
+    window.api.youtubeCancel().catch(() => {});
+  }
+  if (_ytPolling) {                               // süren cihaz-kodu akışını yenisiyle değiştir
+    _ytPolling = false;
     window.api.youtubeCancel().catch(() => {});
   }
   _ytPolling = true;                                // deviceCode await'i de kapsar
@@ -26647,7 +26770,7 @@ async function startYoutubeDeviceFlow() {
   }
   try {
     const pr = await window.api.youtubePoll();
-    if (gen !== _ytFlowGen) return;                 // modal kapanmış — sonucu uygulama
+    if (gen !== _ytFlowGen) return;                 // akış değiştirildi — sonucu uygulama
     if (pr && pr.ok) {
       youtubeLoggedIn = true;
       youtubeUserName = pr.data.userName || 'YouTube';
@@ -26656,6 +26779,10 @@ async function startYoutubeDeviceFlow() {
       _ytPolling = false;          // poll bitti — close'un iptal yoluna düşmesin
       closeYoutubeLogin();
       osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
+      if (pr.data.ephemeral) {
+        osd(window.UiLocale?.t('Bu oturum geçici — süresi dolunca yeniden giriş gerekir.')
+          || 'Bu oturum geçici — süresi dolunca yeniden giriş gerekir.', 6000);
+      }
       if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
     } else if (status) {
       status.textContent = (pr && pr.error) ? pr.error : 'Onay tamamlanamadı.';
@@ -26683,7 +26810,7 @@ async function startYoutubeBrowserFlow() {
   }
   try {
     const pr = await window.api.youtubeAuthCode();
-    if (gen !== _ytFlowGen) return;               // modal kapanmış — sonucu uygulama
+    if (gen !== _ytFlowGen) return;               // akış değiştirildi — sonucu uygulama
     if (pr && pr.ok) {
       youtubeLoggedIn = true;
       youtubeUserName = pr.data.userName || 'YouTube';
@@ -26691,6 +26818,10 @@ async function startYoutubeBrowserFlow() {
       _ytBrowserFlow = false;
       closeYoutubeLogin();
       osd(`YouTube bağlandı${youtubeUserName ? ` — ${youtubeUserName}` : ''}`);
+      if (pr.data.ephemeral) {
+        osd(window.UiLocale?.t('Bu oturum geçici — süresi dolunca yeniden giriş gerekir.')
+          || 'Bu oturum geçici — süresi dolunca yeniden giriş gerekir.', 6000);
+      }
       if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
     } else if (status) {
       status.textContent = (pr && pr.error) ? pr.error : 'Giriş tamamlanamadı.';
@@ -26710,14 +26841,18 @@ async function doYoutubeLogout() {
   }
   _ytFlowGen++;            // sürüyor olabilecek akışın sonucunu düşür
   _ytPolling = false;
-  youtubeLoggedIn = false;
-  youtubeUserName = '';
+  _ytBrowserFlow = false;
+  // Çoklu hesap: "Oturumu kapat" aktif hesabı çıkarır — başka hesap kaldıysa
+  // sıradaki otomatik aktifleşir (payload'daki loggedIn/accounts ile senkron).
+  syncYoutubeSessionFromPayload(result.data || {});
   refreshYoutubeAuthUI();
   closeYoutubeLogin();
-  const message = result.remoteOk ? 'YouTube oturumu kapatıldı'
-    : 'Yerel YouTube oturumu kapatıldı; Google erişimi kaldırılamadı. Google hesap izinlerinden erişimi kaldırın.';
+  const message = youtubeLoggedIn
+    ? `YouTube: ${youtubeUserName || 'YouTube'}`
+    : (result.remoteOk ? 'YouTube oturumu kapatıldı'
+      : 'Yerel YouTube oturumu kapatıldı; Google erişimi kaldırılamadı. Google hesap izinlerinden erişimi kaldırın.');
   osd(window.UiLocale?.t(message) || message, result.remoteOk ? 1800 : 8000);
-  if (stCurrentSection === 'subscriptions' || stCurrentSection === 'home') renderSmartTubeSection(stCurrentSection, { force: true });
+  if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) renderSmartTubeSection(stCurrentSection, { force: true });
 }
 
 function initSmartTube() {
@@ -26768,6 +26903,7 @@ function initSmartTube() {
   if (ytDeviceCodeStart) ytDeviceCodeStart.addEventListener('click', startYoutubeDeviceFlow);
   const ytDeviceCancel = $('ytDeviceCancel');
   if (ytDeviceCancel) ytDeviceCancel.addEventListener('click', () => {
+    _ytFlowGen++;                              // uçuştaki await'in sonucunu düşür
     window.api.youtubeCancel().catch(() => {});
     _ytPolling = false;
     _ytBrowserFlow = false;
@@ -26795,6 +26931,16 @@ function initSmartTube() {
   if (ytLoggedClose) ytLoggedClose.addEventListener('click', closeYoutubeLogin);
   const ytLogoutConfirm = $('ytLogoutConfirm');
   if (ytLogoutConfirm) ytLogoutConfirm.addEventListener('click', doYoutubeLogout);
+  // "Hesap ekle" — girişliyken yeni bir hesap daha başlatır (SmartTube'un
+  // hesaplar menüsündeki gibi). TV modu sıfır-kurulum kod akışını başlatır;
+  // kendi istemcisi kayıtlıysa akış seçim ekranı açılır.
+  const ytAccountAdd = $('ytAccountAdd');
+  if (ytAccountAdd) ytAccountAdd.addEventListener('click', async () => {
+    if (_ytPolling || _ytBrowserFlow) { _ytShowView('ytDeviceView'); return; }
+    const res = await window.api.youtubeSession().catch(() => null);
+    if (res && res.ok && res.data && res.data.hasClient) _ytShowAuthChoice();
+    else startYoutubeDeviceFlow();
+  });
   // Login modal düğmeleri (eski araç panelinden taşındı)
   const loginSubmit = $('invLoginSubmit');
   if (loginSubmit) loginSubmit.addEventListener('click', doInvidiousLogin);

@@ -3255,12 +3255,15 @@
         <button class="btn btn-secondary" id="ytDeviceCancel">İptal</button>
       </div>
     </div>
-    <!-- Görünüm 3: girişli durum -->
+    <!-- Görünüm 3: girişli durum — SmartTube tarzı çoklu-hesap listesi -->
     <div id="ytLoggedView" class="hidden">
-      <h3>YouTube bağlı</h3>
+      <h3>YouTube hesapları</h3>
       <p class="small-muted" id="ytLoggedAs">Hesap: —</p>
+      <ul id="ytAccountList" class="yt-account-list"></ul>
+      <p class="small-muted hidden" id="ytAccountHint">Başka hesaba geçmek için listeden seç; beslemeler o hesabın akışını gösterir.</p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="ytLoggedClose">Kapat</button>
+        <button class="btn btn-secondary" id="ytAccountAdd" type="button">Hesap ekle</button>
         <button class="btn btn-primary" id="ytLogoutConfirm">Oturumu kapat</button>
       </div>
     </div>

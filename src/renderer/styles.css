@@ -7972,6 +7972,74 @@ body.modal-open { overflow: hidden; }
   background: #fff;
   border-radius: 6px;
 }
+/* Çoklu-hesap listesi (SmartTube hesap menüsü) — satıra tıkla aktif yapar */
+.yt-account-list {
+  list-style: none;
+  margin: 10px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.yt-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 6px;
+  background: var(--bg-alt, rgba(255,255,255,.03));
+}
+.yt-account.is-active {
+  border-color: var(--accent);
+}
+.yt-account-name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.yt-account-name:disabled {
+  cursor: default;
+  font-weight: 600;
+}
+.yt-account-name:not(:disabled):hover {
+  color: var(--accent);
+}
+.yt-account-badge {
+  flex: none;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.yt-account-badge-warn {
+  border-color: var(--warn, #b8864b);
+  color: var(--warn, #b8864b);
+}
+.yt-account-remove {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted, rgba(255,255,255,.6));
+  cursor: pointer;
+}
+.yt-account-remove:hover {
+  color: var(--danger, #d66);
+  border-color: var(--danger, #d66);
+}
 /* Kuyruk rayı grid içinde şeffaf kab — çocukları .st-grid hücresi kalır */
 .st-queue-rail { display: contents; }
 
