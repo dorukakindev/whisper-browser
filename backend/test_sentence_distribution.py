@@ -478,6 +478,13 @@ def test_name_near_miss_swap_rejected():
     assert not ST.part_anchor_issue(["Tuesday came."], ["Salı geldi."], "tr")
 
 
+def test_initial_can_modal_is_not_a_proper_name():
+    assert not part_anchor_issue(
+        ["Can I come too?"], ["Ben de gelebilir miyim?"], "tr")
+    assert part_anchor_issue(
+        ["Can arrived early."], ["Cam erken geldi."], "tr").startswith("ozel_ad_")
+
+
 def test_named_entity_phrase_localization():
     """C13/B16: ≥2 tokenlık adlı-varlık öbeği birleşik yerelleşebilir
     ('French Revolution'→'Fransız Devrimi'); öbeğin tümüyle düşmesi ret."""

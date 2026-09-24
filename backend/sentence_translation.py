@@ -327,6 +327,12 @@ def _initial_name_swap(source, translated):
     if len(first) < 3 or not first[0].isupper():
         return ""
     lowered = first.lower().rstrip(".?!,;:!…")
+    # "Can I/you/we ...?" is an English modal, not the proper name Can.
+    # Keep the name check for "Can arrived ..." and other non-modal uses.
+    if lowered == "can" and len(words) > 1 \
+            and words[1].lower().strip(".?!,;:!…") in {
+                "i", "you", "he", "she", "we", "they", "it"}:
+        return ""
     if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
             or lowered in _INITIAL_STOPWORDS:
         return ""
@@ -937,6 +943,25 @@ def sentence_reply_issue(data, ids):
         return "tam_cumle_cok_uzun"
     if not sentence_parts_match(whole, parts):
         return "partlar_tam_cumleyi_olusturmuyor"
+    return ""
+
+
+def reply_id_range_issue(data, count):
+    """Yanıttaki sayısal kimlikler istenen 0..count-1 aralığının DIŞINA taşıyorsa
+    tüm paketi reddet.
+
+    Model bazen blokları 1'den numaralandırıyor ("1".."n"). Gruplar tek tek
+    doğrulandığında yalnız eksik "0" reddediliyor, 1..n-1 ise bir önceki bloğun
+    çevirisini sessizce alıp önbelleğe yazılıyordu (tüm çeviri bir satır kayar).
+    """
+    if not isinstance(data, dict):
+        return ""
+    seen = []
+    for container in (data.get('items', data), data.get('sentences', {})):
+        if isinstance(container, dict):
+            seen.extend(key for key in container if isinstance(key, str) and key.isdigit())
+    if any(int(key) >= count for key in seen):
+        return "kimlik_araligi_disinda"
     return ""
 
 

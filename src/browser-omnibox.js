@@ -161,11 +161,21 @@
   function markdownLink(title, url) {
     const target = String(url || '').trim();
     if (!target) return '';
-    const safeUrl = target.replace(/[()\s\\]/g, (ch) => enc(ch));
+    // encodeURIComponent "(" ve ")" karakterlerini KODLAMAZ; açık eşleme şart,
+    // yoksa "https://x/a)b" bağlantıyı erken kapatıyordu.
+    const MD_URL_ESCAPES = { '(': '%28', ')': '%29', '\\': '%5C' };
+    const safeUrl = target.replace(/[()\s\\]/g, (ch) => MD_URL_ESCAPES[ch] || enc(ch));
     const text = String(title || '').trim() || target;
     const safeTitle = text.replace(/([\\[\]])/g, '\\$1').replace(/\s+/g, ' ');
     return `[${safeTitle}](${safeUrl})`;
   }
 
-  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink };
+  // Arama eşleştirmesi için dil bağımsız katlama. toLocaleLowerCase('tr') ASCII
+  // "I"yı "ı" yapıyor, kullanıcının yazdığı "i" İngilizce "Interstellar"ı
+  // bulamıyordu; 'en' yerelinde de "İstanbul" "istanbul" ile eşleşmiyordu.
+  function foldSearchText(value) {
+    return String(value == null ? '' : value).replace(/[Iİı]/g, 'i').toLowerCase();
+  }
+
+  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText };
 });

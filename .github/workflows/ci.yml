@@ -53,6 +53,16 @@ jobs:
       - name: Run Electron bridge smoke (Windows)
         if: runner.os == 'Windows'
         run: npm run test:electron-bridge
+      - name: UI contrast audit (Ubuntu, light/dark x TR/EN)
+        if: runner.os == 'Linux'
+        run: npm run audit:ui -- --strict --browser /usr/bin/google-chrome --out tmp/ui-audit
+      - name: Upload UI audit screenshots
+        if: runner.os == 'Linux' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-audit
+          path: tmp/ui-audit
+          if-no-files-found: ignore
       - name: Check syntax
         run: |
           node --check src/main.js

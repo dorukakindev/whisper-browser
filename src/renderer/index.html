@@ -772,7 +772,8 @@
               </label>
               <label class="field">
                 <span class="field-label">Model</span>
-                <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" />
+                <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" aria-describedby="translateModelScore" />
+                <small id="translateModelScore" class="model-score hidden" role="status" data-ui-untranslated></small>
               </label>
               <div class="field field-full provider-model-manager">
                 <span class="field-label">Bu sağlayıcıdaki modeller</span>
@@ -1890,6 +1891,7 @@
               <code id="browserErrorCode"></code>
               <div class="browser-error-actions">
                 <button class="btn btn-primary btn-sm" id="browserErrorRetry" type="button">Tekrar dene</button>
+                <button class="btn btn-secondary btn-sm hidden" id="browserErrorHttp" type="button" title="Bu site güvenli (https) bağlantı sunmuyor olabilir; şifrelenmemiş http ile dener.">http ile aç</button>
                 <button class="btn btn-ghost btn-sm" id="browserErrorBack" type="button">Geri dön</button>
               </div>
             </div>
@@ -2054,6 +2056,10 @@
                 <span class="st-side-icon st-yt-icon" aria-hidden="true">⏻</span>
                 <span class="st-side-label">YT çıkış</span>
               </button>
+              <button class="st-side-item st-tv-launch" data-st-action="tv-mode" id="stTvModeBtn" title="YouTube TV modu — YouTube'un kendi TV arayüzü, kodla giriş">
+                <span class="st-side-icon" aria-hidden="true">▣</span>
+                <span class="st-side-label">TV modu</span>
+              </button>
               <div class="st-side-spacer"></div>
               <button class="st-side-item" data-st-action="login" id="stLoginBtn" title="Oturum aç">
                 <span class="st-side-icon" aria-hidden="true">⚿</span>
@@ -2099,6 +2105,13 @@
                     <div class="st-hidden-head">Gizlenenler <span class="st-hidden-count" id="stHiddenCount"></span></div>
                     <div class="st-hidden-list" id="stHiddenList"></div>
                   </div>
+                  <div class="st-display-sep" role="group" aria-label="YouTube TV modu">
+                    <div class="st-display-group">YouTube TV modu</div>
+                    <label><span>TV tarayıcı kimliği</span>
+                      <select id="stTvAgent" aria-label="TV tarayıcı kimliği"></select></label>
+                    <p class="st-display-hint">YouTube bir kimliği reddederse diğerini deneyin. Giriş YouTube'un kendi kod ekranıyla yapılır.</p>
+                    <button type="button" class="st-mini-btn" id="stTvSignOut">TV oturumunu kapat</button>
+                  </div>
                   <div class="st-display-sep" role="group" aria-label="Oynatma">
                     <div class="st-display-group">Oynatma</div>
                     <label class="st-display-check"><input type="checkbox" id="stAutoRelated" /><span>Bitince ilgili videoya geç (radyo)</span></label>
@@ -2113,6 +2126,12 @@
                     </div>
                   </div>
                 </div>
+                <button class="st-icon-btn" id="stTvLayoutToggle" type="button" title="TV görünümü (SmartTube düzeni)" aria-label="TV görünümü" aria-pressed="false">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                </button>
+                <button class="st-icon-btn" id="stFullscreen" type="button" title="Tam ekran (F)" aria-label="Tam ekran">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+                </button>
                 <button class="st-icon-btn" id="stRefresh" title="Yenile" aria-label="Yenile">
                   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3.5-7.1M21 4v5h-5"/></svg>
                 </button>
@@ -2120,6 +2139,18 @@
                   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
                 </button>
               </header>
+
+              <div class="st-tv-banner hidden" id="stTvBanner" role="status" aria-live="polite">
+                <span class="st-tv-banner-mark" aria-hidden="true">▣</span>
+                <div class="st-tv-banner-copy">
+                  <strong id="stTvBannerTitle">YouTube TV açık</strong>
+                  <small id="stTvBannerDetail">Giriş için TV ekranındaki kodu telefonda yt.be/activate adresine girin.</small>
+                </div>
+                <button type="button" class="st-mini-btn hidden" id="stTvHandoff">Altyazı araçlarında aç</button>
+                <button type="button" class="st-mini-btn hidden" id="stTvNextAgent">Başka TV kimliği dene</button>
+                <button type="button" class="st-mini-btn" id="stTvFocus">TV'ye dön</button>
+                <button type="button" class="st-mini-btn" id="stTvClose">Kapat</button>
+              </div>
 
               <div class="st-section-title" id="stSectionTitle">Ana sayfa</div>
 
@@ -2406,6 +2437,9 @@
               </button>
               <button class="btn-icon side-tool" id="qualityOnlyBtn" title="Düşük güvenli cümleleri göster" aria-label="Düşük güvenli cümleleri göster">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 16H3L12 3Z"/><path d="M12 9v4m0 3h.01" stroke-linecap="round"/></svg>
+              </button>
+              <button class="btn-icon side-tool hidden" id="untranslatedOnlyBtn" title="Çevrilmemiş satırları göster" aria-label="Çevrilmemiş satırları göster" aria-pressed="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h9M8.5 3v2m3.2 0c-.7 3.6-3.1 6.6-6.7 8.5m2.3-4.9c1 1.8 2.7 3.3 4.7 4.2" stroke-linecap="round"/><path d="m14 21 3.5-8 3.5 8m-6-2.5h5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 21 21 3" stroke-linecap="round" opacity=".55"/></svg>
               </button>
               <button class="btn-icon side-tool" id="subtitleFindReplaceToggle" title="Altyazıda ara ve değiştir" aria-label="Altyazıda ara ve değiştir" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="5"/><path d="m13 13 4 4m0-5v5h-5M5 19h6"/></svg>
@@ -3126,6 +3160,9 @@
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>
   <script src="../browser-omnibox.js"></script>
+  <script src="../browser-address-model.js"></script>
+  <script src="../translation-model-score.js"></script>
+  <script src="../translation-diff.js"></script>
   <script src="../subscriptions-io.js"></script>
   <script src="vendor/qrcode.js"></script>
   <script src="../browser-command-palette.js"></script>
@@ -3164,10 +3201,15 @@
 
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
-  <div class="modal-content" style="max-width:460px">
+  <div class="modal-content yt-login-content">
     <!-- Görünüm 1: kullanıcının kendi OAuth istemcisi -->
     <div id="ytClientView">
       <h3 id="ytLoginTitle">YouTube ile giriş</h3>
+      <div class="yt-tv-shortcut">
+        <button class="btn btn-primary" id="ytTvModeLogin" type="button">YouTube TV modunda giriş yap</button>
+        <p class="small-muted">Kurulum gerektirmez: YouTube'un kendi TV arayüzü açılır, ekrandaki kodu telefonda yt.be/activate adresine girersiniz. Altyazı ve çeviri araçları için oynatılan videoyu Ctrl+Shift+S ile uygulamaya devredebilirsiniz.</p>
+      </div>
+      <p class="small-muted yt-own-client-head">Ya da uygulamanın kendi ızgarası için kendi OAuth istemcinizle:</p>
       <p class="small-muted">
         Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi
         istemci tarayıcı akışını, "TVs and Limited Input" tipi cihaz kodu
@@ -3200,11 +3242,12 @@
       <div id="ytDeviceCodeBlock" class="hidden">
         <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
         <div class="yt-device-code-wrap">
-          <canvas id="ytQrCanvas" class="yt-qr-canvas hidden" width="150" height="150" aria-label="QR kod"></canvas>
+          <canvas id="ytQrCanvas" class="yt-qr-canvas hidden" width="200" height="200" aria-label="QR kod"></canvas>
           <a href="#" id="ytVerificationUrl" class="yt-verification-url">google.com/device</a>
           <div class="yt-user-code" id="ytUserCode">----</div>
           <button class="btn btn-secondary btn-sm" id="ytCopyCode" type="button">Kodu kopyala</button>
         </div>
+        <p class="small-muted yt-code-expiry" id="ytCodeExpiry" aria-live="off"></p>
       </div>
       <p class="small-muted" id="ytPollStatus" role="status" aria-live="polite"></p>
       <div class="modal-actions">
@@ -3233,5 +3276,6 @@
 <script src="browser-video-analysis.js"></script>
 <script src="browser-dialogue.js"></script>
 <script src="browser-series-context.js"></script>
+<script src="smarttube-tv.js"></script>
 </body>
 </html>

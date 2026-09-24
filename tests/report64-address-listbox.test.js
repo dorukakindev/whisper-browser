@@ -64,7 +64,11 @@ console.log('  T-04: renderBrowserAddressResults seçeneklere kararlı id atıyo
 {
   const block = RENDERER.match(/function renderBrowserAddressResults[\s\S]{0,1500}?\n\s*\}/);
   assert.ok(block, 'renderBrowserAddressResults fonksiyonu bulunmalı');
-  const hasIdAssignment = /\.id\s*=/.test(block[0]);
+  // Seçenek öğesi ayrı yardımcıda (browserAddressOption) kurulabilir; kimlik
+  // ataması ya render gövdesinde ya da onun çağırdığı yardımcıda olmalı.
+  const helper = RENDERER.match(/function browserAddressOption\([\s\S]{0,1200}?\n\}/);
+  const hasIdAssignment = /\.id\s*=/.test(block[0])
+    || (/browserAddressOption\(/.test(block[0]) && !!helper && /option\.id\s*=\s*`browser-address-result-\$\{index\}`/.test(helper[0]));
   assert.ok(hasIdAssignment, 'T-04: seçenek kimliği eksik');
 }
 
