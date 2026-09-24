@@ -24286,7 +24286,7 @@ async function renderSmartTubeSection(section, opts = {}) {
       return;
     }
     showError(/giriş|login|401|unauthor/i.test(msg)
-      ? 'Bu bölüm için Invidious hesabına giriş gerekli — kenar çubuğundan "Oturum aç".'
+      ? 'Bu bölüm için Invidious hesabına giriş gerekli — kenar çubuğundan "Invidious giriş".'
       : `Hata: ${msg}`);
     logLine(`SmartTube feed hata: ${msg}`, 'error');
     return;
