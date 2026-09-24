@@ -26530,7 +26530,7 @@ function openYoutubeLogin() {
   ytModalError('');
   if (youtubeLoggedIn) {
     const as = $('ytLoggedAs');
-    if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+    if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
     _ytShowView('ytLoggedView');
     renderYoutubeAccounts();
   } else if (_ytPolling || _ytBrowserFlow) {
@@ -26549,7 +26549,7 @@ function openYoutubeLogin() {
         // yeni cihaz kodu başlatma.
         syncYoutubeSessionFromPayload(res.data);
         const as = $('ytLoggedAs');
-        if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+        if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
         _ytShowView('ytLoggedView');
         renderYoutubeAccounts(res.data.accounts);
         return;
@@ -26661,7 +26661,7 @@ async function switchYoutubeAccount(id) {
   }
   syncYoutubeSessionFromPayload(res.data);
   const as = $('ytLoggedAs');
-  if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+  if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
   renderYoutubeAccounts(res.data.accounts);
   osd(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
   if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
@@ -26677,7 +26677,7 @@ async function removeYoutubeAccount(id) {
   }
   syncYoutubeSessionFromPayload(res.data);
   const as = $('ytLoggedAs');
-  if (as) as.textContent = `Hesap: ${youtubeUserName || 'YouTube'}`;
+  if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
   renderYoutubeAccounts(res.data.accounts);
   if (!youtubeLoggedIn) {
     // Son hesap da çıkarıldı — giriş ekranına dön.

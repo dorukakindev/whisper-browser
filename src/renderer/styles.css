@@ -7986,9 +7986,9 @@ body.modal-open { overflow: hidden; }
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg-alt, rgba(255,255,255,.03));
+  background: var(--surface-control);
 }
 .yt-account.is-active {
   border-color: var(--accent);
@@ -8023,22 +8023,22 @@ body.modal-open { overflow: hidden; }
   color: var(--accent);
 }
 .yt-account-badge-warn {
-  border-color: var(--warn, #b8864b);
-  color: var(--warn, #b8864b);
+  border-color: var(--warning);
+  color: var(--warning);
 }
 .yt-account-remove {
   flex: none;
   padding: 2px 8px;
   font-size: 12px;
-  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
-  color: var(--fg-muted, rgba(255,255,255,.6));
+  color: var(--text-dim);
   cursor: pointer;
 }
 .yt-account-remove:hover {
-  color: var(--danger, #d66);
-  border-color: var(--danger, #d66);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 /* Kuyruk rayı grid içinde şeffaf kab — çocukları .st-grid hücresi kalır */
 .st-queue-rail { display: contents; }
