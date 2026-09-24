@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- SmartTube YouTube sign-in now supports multiple Google accounts like SmartTube: the signed-in dialog lists every stored account, lets you switch the active one, remove an account, or add another via device code — personal feeds (home, subscriptions, history) follow the active account.
 - Player sentence-tools row consolidates its four subtitle actions into a single "Subtitle actions" popup menu; SmartTube autoplay now shows a 5-second "Up next" countdown card with Play now/Cancel; the browser address bar dims the scheme and path and bolds the domain when unfocused; the playback-speed control renders as a themed popup menu while the hidden select stays the single source of truth.
 - Browser ⋯ menu gains "Watch in player" on open YouTube pages: hands the video off to the app player, carries over the current playback position (or the watch-history resume point), and pauses the browser tab.
 - YouTube TV mode: YouTube's own TV web app (`youtube.com/tv`) in an isolated, sandboxed window with a TV user agent; sign-in uses YouTube's own on-screen code (yt.be/activate) — no OAuth client is embedded. Ctrl+Shift+S hands the playing video to the subtitle/translation tools.
@@ -41,6 +42,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Anonymized machine-specific path examples in tracked audit documentation.
 
 ### Fixed
+
+- YouTube device-code sign-in could be silently abandoned: closing the login dialog (Esc/backdrop/X) killed the background poll, so approving at google.com/device never completed the sign-in — the dialog now closes passively while the poll keeps running, and reopening it resyncs the live flow; grants without a refresh token are accepted as temporary sessions instead of erroring, and auth commands run on their own job slot so a long poll no longer starves feed browsing.
 
 - SmartTube sidebar: the bottom sign-in button is now "YouTube giriş" (Google/TV device-code flow) instead of the generic Invidious login; Invidious giriş moved into the nav list. When signed in, the History section now also shows the real YouTube account watch history (`FEhistory`) with local-library fallback — joining Home (`FEwhat_to_watch`) and Subscriptions (`FEsubscriptions`) as personalized feeds.
 - Browser/player deep-audit fixes (local patch series landed as R119): the research-notebook export button called an undefined `writeTextAtomic`; the model-cache clear flow called an undefined `addLog` and the glossary add button relied on an undeclared `$()`; the omnibox calculator ranked unary minus above exponentiation (-2^2 evaluated as 4); light-theme player controls and dark-theme metadata lost contrast; several Turkish strings leaked into the English UI and the search empty-state; the new-tab button sat away from the last tab; translation distribution in scripts without spaces now uses `Intl.Segmenter` grapheme segmentation. Player gains frame stepping via `requestVideoFrameCallback` and 0–9 keys seeking to 0–90% of the timeline.
