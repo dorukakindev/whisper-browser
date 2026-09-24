@@ -94,3 +94,8 @@ description: How to launch and drive the whisper-browser Electron app on this Li
 - **`modelCacheDelete` needs a *cached* model**: create a stub dir named `models--<org>--<id>` under `backend/models/` — `scanModelCache` marks it `cached` by dir-name match. Enables the real delete → native confirm → `logLine` path without a real download.
 - **`browser:research:export` triggers a native GTK save dialog** (active-window title changes) — click it for real; the file lands under `~/Documents/`. Verify via the Log line + file existence.
 - **`player.frameDuration` only populates after playback starts** (rVFC): pause the video, then send `,`/`.` via xdotool for exact frame-step checks. `.player-side` scrolls via `SECTION.panel-left`.
+
+## SmartTube sidebar rail + Electron launch (2026-09-24)
+- **Sidebar labels are icon-only until `:focus-within`** — the `.st-tv` rail keeps `.st-side-label` at opacity:0 collapsed. To show labels, focus a sidebar item (Tab or click a nav section — rail expands to ~232px and labels fade in). For order checks read DOM order of `stYtLoginBtn`/`stLoginBtn`/`stLogoutBtn`/`stYtLogoutBtn`/`stTvModeBtn` + `.st-side-label` text; bottom slot = everything after `.st-side-spacer`.
+- **Electron launch must fully detach** — `setsid nohup ... &` or the process dies when the exec shell exits; plain `&` + shell exit kills the app mid-test.
+- invidious.f5.si currently returns real feeds (43 cards/thumbs on Home) — instance health rotates; don't assume all instances are dead like in earlier rounds.
