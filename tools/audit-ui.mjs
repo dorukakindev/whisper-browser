@@ -86,7 +86,10 @@ const CONTRAST = `(() => {
     const node = walker.currentNode; if (!node.nodeValue.trim()) continue;
     const el = node.parentElement; if (!el || seen.has(el)) continue; seen.add(el);
     const rect = el.getBoundingClientRect(); if (rect.width < 1 || rect.height < 1) continue;
-    if (el.closest('[hidden],.hidden,:disabled,[aria-disabled="true"]')) continue;
+    // A closed <details> keeps descendants in the DOM (and some author CSS
+    // gives them a non-zero rect), but its contents are not painted. Measuring
+    // those off-screen menu items produced 49 false 1:1 failures per matrix run.
+    if (el.closest('[hidden],.hidden,:disabled,[aria-disabled="true"],details:not([open])')) continue;
     const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
     let opacity = 1; for (let e = el; e; e = e.parentElement) opacity *= +getComputedStyle(e).opacity;
     const fg = parse(cs.color); const bg = bgOf(el); if (!fg || !bg) continue;
