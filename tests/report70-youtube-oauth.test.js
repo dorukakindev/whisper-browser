@@ -292,6 +292,30 @@ test('R70-13b: backend NDJSON emit kilit altında (thread-güvenli)', () => {
   assert.match(YT_PY, /with _emit_lock:/);
 });
 
+// ---------- R70-16: kenar çubuğu en altta YouTube girişi ----------
+// Kullanıcı raporu: sol menü en alttaki "Oturum aç"/"sign in" Invidious'a
+// gidiyordu; YouTube girişi hesap-butonu olarak en altta durmalı.
+test('R70-16: en alttaki giriş butonu YouTube — Invidious girişi nav listesinde', () => {
+  const iLogin = HTML.indexOf('id="stLoginBtn"');
+  const iSpacer = HTML.indexOf('st-side-spacer');
+  const iYt = HTML.indexOf('id="stYtLoginBtn"');
+  const iYtOut = HTML.indexOf('id="stYtLogoutBtn"');
+  const iInvOut = HTML.indexOf('id="stLogoutBtn"');
+  assert.ok(iLogin > -1 && iSpacer > -1 && iYt > -1 && iYtOut > -1 && iInvOut > -1,
+    'kenar çubuğu giriş/çıkış butonları eksik');
+  assert.ok(iLogin < iSpacer, 'Invidious giriş spacer üstünde (nav içinde) olmalı');
+  assert.ok(iInvOut < iSpacer, 'Invidious çıkış spacer üstünde olmalı');
+  assert.ok(iSpacer < iYt && iYt < iYtOut, 'YouTube giriş/çıkış en altta (spacer altında) olmalı');
+});
+
+// ---------- R70-17: Geçmiş bölümü girişliyken hesap geçmişi ----------
+test('R70-17: history bölümü YouTube FEhistory akışını kullanır', () => {
+  const m = RENDERER.match(/section === 'history'\)[\s\S]{0,900}/);
+  assert.ok(m, 'history bölümü bulunamadı');
+  assert.match(m[0], /youtubeLoggedIn/);
+  assert.match(m[0], /youtubeBrowse\('FEhistory'\)/);
+});
+
 // ---------- çalıştır ----------
 let failed = 0;
 for (const { name, fn } of tests) {
