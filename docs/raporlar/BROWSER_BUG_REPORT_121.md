@@ -1,67 +1,15 @@
-# BROWSER BUG REPORT 121 — YouTube cihaz-kodu onay kaybı + çoklu hesap (SmartTube usulü)
+# BROWSER_BUG_REPORT_121 — Uncommitted worktree triage (no product fix)
 
-Tarih: 2026-09-24 · Dal: `codex/youtube-multi-account-1790264471` · Taban: `master @ 8a5410f`
+Date: 2026-09-24. Current product commit: `8a5410f85c9af0c6d2641b7841321348d6b795ae`. Scope: the 18 registered local Git worktrees and the user's “18 uncommitted files” branch-switch warning. This is a read-only product audit: no worktree content was moved, stashed, cleaned, or reset.
 
-## Kullanıcı raporu
+## Findings
 
-1. **BUG:** Cihaz kodu akışında google.com/device'da onay verildi ama uygulama giriş yapmadı.
-2. **Özellik:** SmartTube'daki gibi birden fazla Google hesabı — hesap ekleme, hesaplar arasında geçiş, hesap çıkarma.
+1. The active `codex/catalog-sync` checkout has **no tracked modifications**. Its 18 top-level untracked paths expand to 70 files, including old program/browser reports, historical handoff notes, `_repro` scripts/screenshots, `tests/r92-deep`, `.freebuff`, and a commit-message draft. `docs/BROWSER_BUG_REPORT_70.md` labels itself an accidentally created draft. None is required to reproduce the current product code. They are user-owned local artifacts, not a ready-made patch for `master`.
+2. The detached September 12 worktree `C:/Users/K/.codex/worktrees/76f7/Whisper Local` has 54 tracked modified files. Content-address comparison against current `master` found 17 identical current blobs and 37 blobs already present somewhere in `master` history; **zero novel tracked file blobs**. Its 47,277 total status entries are overwhelmingly under `scratch/` (over 47,000). Bulk “Bring changes” would reintroduce old versions and potentially stage generated files.
+3. The detached September 8 worktree `C:/Users/K/.codex/worktrees/ac35/Whisper Local` has three tracked modifications. Two whole-file blobs are in `master` history. The third (`src/renderer/renderer.js`) is a different whole-file revision, but its actual two-line change—showing `result.persistenceWarning` from zoom persistence—is already present in current `master` at `changeBrowserZoom`. It is not missing functionality.
+4. One Claude worktree has an untracked `.claude/launch.json`; an older scratch worktree has generated UI-audit screenshots/report. Other registered worktrees had no reported changes. These are not product patches.
+5. Historical [R89](BROWSER_BUG_REPORT_89.md) already re-evaluated the local `PROGRAM_BUG_REPORT_83–85` and four R92/R93 probe files; multiple red probe results were invalid assumptions, while verified fixes were delivered. Later handoff notes explicitly left those local files outside commits. Re-adding them as current tests or bugs would misrepresent their status.
 
-## Kök neden (BUG-121-01)
+## Decision and limits
 
-Modal kapanışı (`closeYoutubeLogin` — Esc, backdrop, X, veya başka bir akışa geçiş) `_ytFlowGen++` yapıp `youtube:cancel` IPC'si çağırıyordu; bu, main sürecindeki `mediaJobs.youtubeAuth` altında çalışan `youtube.py poll` alt sürecini öldürüyordu. Kullanıcı Google'da onayı verdiği anda uygulama çoktan dinlemeyi bırakmış oluyordu — "onayladım ama girmedi" şikayeti tam olarak buydu.
-
-İkincil riskler:
-
-- **BUG-121-02:** Google `refresh_token` döndürmezse (hesap daha önce bu istemciye izin vermişse ilk grant'ten sonra tekrar döndürmez) poll başarı emit'ini hata sayıyordu → geçici (yalnız access-token) oturum hiç kurulamıyordu.
-- **BUG-121-03:** `poll` komutu genel `mediaJobs.youtube` slotunu kullanıyordu; 30 dakikaya kadar sürebilen bir poll, slotu kilitleyip browse/refresh çağrılarını aç bırakıyordu.
-
-## Çözümler
-
-- **Pasif kapanış:** `closeYoutubeLogin` artık yalnız modalı gizler + client-secret alanlarını temizler; gen artışı ve backend iptali yok. Modalı yeniden açmak süren akışı canlı gösterir (cihaz kodu + geri sayım devam eder). Akışı öldüren tek yol "İptal" düğmesi ve akış-değiştirme korumalarıdır.
-- **Yeniden başlatma koruması:** `startYoutubeDeviceFlow` başlangıcında süren aynı-tür akış varsa `youtube:cancel` ile değiştirilir (eski "erken return" korunmuş davranışı bozuyordu: pasif kapanış sonrası ikinci başlatma sessizce yutuluyordu).
-- **Ephemeral oturum:** `refresh_token`'siz grant artık hata değil `ephemeral: true` hesap olarak kabul edilir; UI'da uyarı rozeti + osd gösterilir, diske yazılmaz (yeniden açılışta düşer).
-- **Ayrı auth slotu:** `device_code`/`poll`/`exchange_code`/`revoke` → `mediaJobs.youtubeAuth`; browse/refresh `mediaJobs.youtube` slotunda kaldığından uzun poll artık akışı kilitlemiyor.
-
-## Çoklu hesap (SmartTube usulü)
-
-- **Yeni saf modül** `src/youtube-accounts.js`: `sanitizeAccount`, `accountIdFor` (refresh-token hash'e dayalı stabil kimlik), `migrateSecrets` (tek flat oturum → accounts haritası), `upsertAccount`, `removeAccount` (aktif çıkarılırsa sıradaki aktifleşir), `activeAccount`, `persistableAccounts` (yalnız `{refreshToken,userName,userEmail,authMode}` — kısa ömürlü token asla diske yazılmaz), `accountList` (renderer'a güvenli `{id,userName,userEmail,active,ephemeral}` listesi).
-- **Kalıcılık:** `youtube-session.safe.json` içinde `accounts` (şifreli JSON blob) + `active_id`. SafeSecretStore yalnız string alan şifrelediği için çoklu-hesap durumu tek blob olarak tutulur; eski flat alanlar (`refresh_token`, `user_name`, …) ilk yüklemede migrate edilir.
-- **Yeni IPC:** `youtube:accountSwitch` (aktif hesap değiştirir + persist + güvenli payload döner), `youtube:accountRemove` (hesabın kendi access token'ıyla revoke eder, sonra çıkarır). Mevcut `youtube:logout` artık **yalnız aktif hesabı** çıkarır — başka hesap kaldıysa oturum açık kalır.
-- **`youtubeSessionPayload()`** tek merkezden `{loggedIn, userName, userEmail, ephemeral, hasClient, clientId, pendingCode, accounts}` döner; `session`/`switch`/`remove`/`logout`/`poll`/`exchange` hepsi aynı güvenli payload'u kullanır — token hiçbirinde renderer'a gitmez.
-- **İstemci değişimi:** `youtube:setClient` artık TÜM hesapları sıfırlar (grant'ler istemciye aittir, taşınamaz).
-- **UI:** Girişli modal "YouTube hesapları" görünümüne döndü — hesap listesi (satır tıkla → geçiş, ✕ → çıkar, aktif rozeti, ephemeral uyarı rozeti), "Hesap ekle" (yeni device-code akışı başlatır; başarıda listeye eklenir), "Oturumu kapat" (aktif hesabı çıkarır). TR+EN dizgiler ve `.yt-account-*` stilleri eklendi.
-
-## Değişen dosyalar
-
-| Dosya | Amaç |
-|---|---|
-| `src/youtube-accounts.js` | YENİ — saf hesap deposu modülü |
-| `src/main.js` | accounts deposu, migrate, youtubeAuth slotu, switch/remove IPC, payload yardımcısı |
-| `src/preload.js` | `youtubeAccountSwitch`, `youtubeAccountRemove` |
-| `src/renderer/index.html` | hesap listesi görünümü |
-| `src/renderer/renderer.js` | pasif kapanış + resync, restart koruması, hesap UI, ephemeral uyarı |
-| `src/renderer/ui-locale.js` | TR/EN dizgiler |
-| `src/renderer/styles.css` | `.yt-account-*` stilleri |
-| `tests/youtube-accounts.test.js` | YENİ — 7 birim test |
-| `tests/report70-youtube-oauth.test.js` | güncel içyapı sözleşmesi (payload yardımcısı, removeAccount, youtubeAuth slotu) |
-| `tests/electron-smarttube-boot.smoke.js` | yeni kapanış≠iptal sözleşmesine göre güncellendi + regresyon assert'i |
-
-## Testler
-
-- `tests/youtube-accounts.test.js` — 7/7 geçti
-- `tests/report70-youtube-oauth.test.js` — 25/25 geçti
-- `tests/report104-youtube-browse.test.js`, `browser-youtube-style`, `browser-youtube-whisper`, `youtube-tv-mode`, `ui-locale`, `report67-smarttube-wiring` (84), `player-ui` (148) — geçti
-- `node --check` — tüm değişen js dosyaları temiz
-- Electron smoke: `electron-smarttube-boot` + `electron-smarttube-usage-matrix` — yeşil (login akışı, kişisel feed, logout temizliği, feed retry dahil)
-- Tam `npm test` koşulmadı (kapsam dışı alanlar değişmedi).
-
-## Doğrulanamayan sınırlar
-
-- Gerçek Google hesabıyla uçtan-uca çoklu hesap (ekle→geçiş→revoke) yalnız Windows'ta gerçek girişle doğrulanabilir; burada mock handler'larla doğrulandı.
-- Ephemeral oturum süresi Google'a bağlı (tipik ~1 saat); süre dolunca feed sessizce genel akışa düşer, hesap satırında uyarı rozeti görünür.
-- `accounts` blob'u safeStorage şifreli; Windows'ta DPAPI kullanıcı hesabına bağlıdır — farklı Windows kullanıcısı altında okunamaz (mevcut sözleşmeyle aynı).
-
-## Windows etkisi
-
-- Yeni bağımlılık yok; `install.bat`/`start.bat` akışı değişmedi. SafeSecretStore mevcut Windows yolunu (`app.getPath('userData')` + DPAPI) kullanıyor — Windows'a özgü yeni risk yok. UTF-8/Türkçe dizgiler locale dosyasında iki dilli.
+**Do not bring or stash all files merely to switch branches.** Cancel that dialog; use explicit, per-file selection only if a new need is proven. No product-code change is justified by this inventory, so no product tests were run. This audit does not delete or declare the local artifacts worthless: a historical document can be archived separately after content/privacy review, but that is different from integrating a needed fix. No personal profile, keys, or generated scratch-file contents were read.
