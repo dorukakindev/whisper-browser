@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-24 19:54 — 18 yerel worktree'deki commit edilmemiş dosyaların denetimi; master'a taşınacak eksik ürün kodu bulunmadı; R121](docs/devir/2026-09-24-1954.md).
+Güncel çalışma: [2026-09-24 21:49 — GitHub PR #48 ile master eşitlemesi; YouTube çoklu hesap token-yenileme yarışı R123 ve hedefli testler](docs/devir/2026-09-24-2149.md).
+
+Önceki çalışma: [2026-09-24 19:54 — 18 yerel worktree'deki commit edilmemiş dosyaların denetimi; master'a taşınacak eksik ürün kodu bulunmadı; R121](docs/devir/2026-09-24-1954.md).
 
 Önceki çalışma: [2026-09-24 17:50 — GitHub master (#44–#47) ile yerel Windows kopyasının güvenli fast-forward eşitlemesi; hedefli SmartTube testleri ve Windows/Ubuntu CI doğrulaması](docs/devir/2026-09-24-1750.md).
 
