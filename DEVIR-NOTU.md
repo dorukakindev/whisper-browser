@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-24 13:03 — SmartTube giriş etiketleri: genel "Oturum aç" düğmesi Invidious modalını açıyordu, YouTube OAuth yalnız "YouTube" yazıyordu → "YouTube giriş" (Google/TV cihaz kodu) vs "Invidious giriş" ayrımı + EN anahtarları + hata ipucu güncellendi](docs/devir/2026-09-24-1303.md).
+Güncel çalışma: [2026-09-24 13:16 — SmartTube: en alttaki giriş "YouTube giriş" (cihaz-kodu) — Invidious girişi nav listesine taşındı; girişliyken Geçmiş bölümü gerçek hesap izleme geçmişi (FEhistory) + yerel yedek; R70-16/17 kontrat testleri](docs/devir/2026-09-24-1316.md).
+
+Önceki çalışma: [2026-09-24 13:03 — SmartTube giriş etiketleri: genel "Oturum aç" düğmesi Invidious modalını açıyordu, YouTube OAuth yalnız "YouTube" yazıyordu → "YouTube giriş" (Google/TV cihaz kodu) vs "Invidious giriş" ayrımı + EN anahtarları + hata ipucu güncellendi](docs/devir/2026-09-24-1303.md).
 
 Önceki çalışma: [2026-09-24 04:20 — Güncel GitHub master ile catalog dalının bütünleştirilmesi; hedefli regresyonlar ve Electron bridge temiz; BROWSER_BUG_REPORT_120](docs/devir/2026-09-24-0420.md).
 
