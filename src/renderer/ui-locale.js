@@ -1726,6 +1726,10 @@
     ["Sonraki blok", "Next cue"],
     ["Kuyruk boş. Bir kaynak seçip “Kuyruğa” ile ekleyin.", "Queue is empty. Choose a source and add it with “Queue”."],
     ["Videonun %0–90 noktası", "Jump to 0–90% of the video"],
+    // R120: bağlama duyarlı boş durum ve menü metinleri
+    ['Sayfada altyazı izi bulundu', 'Subtitle tracks found on this page'],
+    ['Altyazı izini seç', 'Choose a subtitle track'],
+    ['Bu sayfada video yok', 'No video on this page'],
   ];
 
   const toEnglish = new Map(entries);

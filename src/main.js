@@ -13811,6 +13811,25 @@ ipcMain.handle('browser:hide', async (event) => {
   return { ok: true };
 });
 
+// R120-P1: HTML menü/panel açılınca yerel sayfa görünümü gizlenir (Electron
+// katman sınırı). Kullanıcı siyah alan yerine sayfanın donmuş karesini görsün
+// diye renderer gizlemeden önce etkin sekmenin görüntüsünü ister.
+ipcMain.handle('browser:snapshotActive', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const tab = activeBrowserTab(false);
+  const wc = tab?.view?.webContents;
+  if (!tab || !wc || wc.isDestroyed() || !browserVisible || browserModalOccluded || tab.loadError) {
+    return { ok: false };
+  }
+  try {
+    const image = await wc.capturePage();
+    if (!image || image.isEmpty()) return { ok: false };
+    return { ok: true, dataUrl: `data:image/jpeg;base64,${image.toJPEG(82).toString('base64')}` };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 ipcMain.handle('browser:setOccluded', (event, occluded) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   browserModalOccluded = !!occluded;

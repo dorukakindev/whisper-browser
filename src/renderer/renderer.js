@@ -919,10 +919,38 @@ function syncBrowserOcclusion() {
     || settingsOverlay || !!$('mediaCatalogDialog')?.open
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
-  if (window.api.setBrowserOccluded) {
-    return window.api.setBrowserOccluded(occluded).catch(() => null);
-  }
+  if (window.api.setBrowserOccluded) return applyBrowserOcclusion(occluded);
   return Promise.resolve(null);
+}
+
+// R120-P1: Gizlemeden önce sayfanın donmuş karesini yuvaya boya; menü açıkken
+// sayfa siyaha dönmesin. Sıra numarası hızlı aç/kapa yarışlarını eler.
+let browserOcclusionApplied = false;
+let browserOcclusionSeq = 0;
+function clearBrowserFreezeFrame() {
+  const slot = $('browserViewSlot');
+  if (!slot) return;
+  slot.classList?.remove?.('browser-frozen');
+  slot.style?.removeProperty?.('--browser-freeze-image');
+}
+async function applyBrowserOcclusion(occluded) {
+  const seq = ++browserOcclusionSeq;
+  const slot = $('browserViewSlot');
+  if (occluded && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
+      && typeof player !== 'undefined' && player.workspaceMode === 'browser') {
+    const shot = await window.api.snapshotBrowserPage().catch(() => null);
+    if (seq !== browserOcclusionSeq) return null;
+    if (shot?.ok && shot.dataUrl) {
+      slot.style.setProperty('--browser-freeze-image', `url("${shot.dataUrl}")`);
+      slot.classList.add('browser-frozen');
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      if (seq !== browserOcclusionSeq) return null;
+    }
+  }
+  browserOcclusionApplied = occluded;
+  const result = await window.api.setBrowserOccluded(occluded).catch(() => null);
+  if (!occluded && seq === browserOcclusionSeq) clearBrowserFreezeFrame();
+  return result;
 }
 
 function openManagedModal(modal, initialFocus, returnFocus = null) {
@@ -5515,6 +5543,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserCeaCapture = tab.browserCeaCapture || null;
   player.browserTime = Number(tab.browserTime) || 0;
   player.browserDuration = Number(tab.browserDuration) || 0;
+  player.browserMediaSeen = !!tab.browserMediaSeen || player.browserDuration > 0;
   player.browserPaused = tab.browserPaused !== false;
   player.browserRate = Number(tab.browserRate) || 1;
   player.browserVolume = Number.isFinite(Number(tab.browserVolume)) ? Number(tab.browserVolume) : 1;
@@ -6099,7 +6128,7 @@ function navigateBrowser(url, tabId = player.browserActiveTabId) {
 function browserTabLabel(tab) {
   let label = '';
   if (tab && tab.title) label = tab.title;
-  else try { label = new URL(tab && tab.url || '').hostname; } catch (_) { label = 'Yeni sekme'; }
+  else try { label = new URL(tab && tab.url || '').hostname; } catch (_) { label = interfaceChoice('Yeni sekme', 'New tab'); }
   return label.length > 80 ? `${label.slice(0, 77)}…` : label;
 }
 
@@ -6224,7 +6253,7 @@ function renderBrowserTabs() {
     label.className = 'browser-tab-label';
     label.textContent = browserTabLabel(tab);
     open.appendChild(label);
-    open.title = [tab.title, tab.url, activity.label].filter(Boolean).join('\n') || 'Yeni sekme';
+    open.title = [tab.title, tab.url, activity.label].filter(Boolean).join('\n') || interfaceChoice('Yeni sekme', 'New tab');
     if (activity.busy) open.dataset.activity = activity.label;
     const audio = document.createElement('button');
     audio.type = 'button'; audio.className = 'browser-tab-audio'; audio.dataset.browserTabMute = tab.id;
@@ -6389,7 +6418,7 @@ function showBrowserTabPreview(tabId, anchor) {
   card.setAttribute('role', 'tooltip');
   const title = document.createElement('div');
   title.className = 'browser-tab-preview-title';
-  title.textContent = tab.title || window.UiLocale?.t('Yeni sekme') || 'Yeni sekme';
+  title.textContent = tab.title || window.UiLocale?.t('Yeni sekme') || interfaceChoice('Yeni sekme', 'New tab');
   const url = document.createElement('div');
   url.className = 'browser-tab-preview-url';
   url.textContent = tab.url || '';
@@ -6515,7 +6544,7 @@ function updateBrowserTabPresentation(tab) {
   }
   const label = browserTabLabel(tab);
   if (open.textContent !== label) open.textContent = label;
-  open.title = [tab.title, tab.url].filter(Boolean).join('\n') || 'Yeni sekme';
+  open.title = [tab.title, tab.url].filter(Boolean).join('\n') || interfaceChoice('Yeni sekme', 'New tab');
   item.classList.toggle('loading', !!tab.loading);
   open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
   const audio = item.querySelector('[data-browser-tab-mute]');
@@ -6744,9 +6773,15 @@ function setBrowserSignal(text, detected = false, options = {}) {
   renderBrowserSubtitleHealth();
   if (blocked) return false;
   player.browserSignalState = {
-    text: message, priority, action: options.action || '',
+    text: message, priority, action: options.action || '', setAt: now,
     until: now + Math.max(0, Number(options.holdMs) || 0),
   };
+  if (priority >= 25) {
+    // Önemli mesaj bir süre şeridi görünür tutar; süre dolunca sessizlik yeniden değerlendirilir.
+    clearTimeout(player.browserSignalQuietTimer);
+    player.browserSignalQuietTimer = setTimeout(() => updateBrowserSignalQuiet(), 20100);
+  }
+  updateBrowserSignalQuiet();
   if ($('browserSignalText')) $('browserSignalText').textContent = message;
   $('browserSignal')?.classList.toggle('detected', detected);
   const action = $('browserSignalTranslateAction');
@@ -8166,8 +8201,8 @@ function browserSubtitleHealth(input) {
       state: 'translation-ready',
       text: cueCount
         ? `${cueCount} satırlık kaynak altyazı hazır. Çeviriyi oluşturup videoda gösterebilirsiniz.`
-        : 'Kaynak altyazı hazır. Çeviriyi oluşturup videoda gösterebilirsiniz.',
-      action: 'translate', label: 'Çevir ve göster',
+        : (globalThis.UiLocale?.get?.() === 'en' ? 'Source subtitles ready. Create the translation to show it on the video.' : 'Kaynak altyazı hazır. Çeviriyi oluşturup videoda gösterebilirsiniz.'),
+      action: 'translate', label: (globalThis.UiLocale?.get?.() === 'en' ? 'Translate and show' : 'Çevir ve göster'),
     };
   }
   if (input.cues && input.mode === 'off') return { state: 'hidden', text: 'Altyazı yüklü, görünüm kapalı.', action: 'show', label: 'Altyazıyı göster' };
@@ -8236,7 +8271,29 @@ $('browserForgetSubtitles')?.addEventListener('click', async () => {
   saveActiveBrowserTabWorkspace(); scheduleBrowserOverlaySync(); renderBrowserVideoSubtitles();
   $('browserPreferenceNotice').textContent = 'Altyazı tercihleri unutuldu. Dosyalarınız korundu.';
 });
+// R120-P2: Video/altyazı izi olmayan sayfalarda (yeni sekme, makale) iki satırlık
+// altyazı şeridi yalnız gürültüdür ve sayfa alanından ~95 px çalar. Hata/uyarı
+// (öncelik ≥ 25) gelirse şerit yine görünür.
+function updateBrowserSignalQuiet() {
+  const workspace = $('browserWorkspace');
+  if (!workspace || typeof player === 'undefined') return;
+  const state = player.browserSignalState;
+  const important = !!state && Number(state.priority) >= 25 && Date.now() - Number(state.setAt || 0) < 20000;
+  const trackCount = player.browserTracks?.length || 0;
+  const quiet = player.workspaceMode === 'browser' && !player.browserMediaSeen && !trackCount
+    && !(player.cues.length + player.cues2.length) && player.browserCeaCapture?.available !== true && !important;
+  const emptyKey = `${player.workspaceMode}|${player.browserMediaSeen ? 1 : 0}|${trackCount}`;
+  if (!player.cues.length && player.browserEmptyStateKey !== emptyKey) {
+    player.browserEmptyStateKey = emptyKey;
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  }
+  if (workspace.classList.contains('signal-quiet') === quiet) return;
+  workspace.classList.toggle('signal-quiet', quiet);
+  scheduleBrowserBounds();
+}
+
 function renderBrowserSubtitleHealth() {
+  updateBrowserSignalQuiet();
   renderBrowserVideoSubtitles();
   const panel = $('browserSubtitleHealth');
   if (!panel) return;
@@ -10410,6 +10467,8 @@ function updateBrowserNavigation(data, options = {}) {
     player.browserPageTitle = data.title || '';
     player.browserTime = 0;
     player.browserDuration = 0;
+    player.browserMediaSeen = false;
+    { const navTab = browserTabState(); if (navTab) navTab.browserMediaSeen = false; }
     player.browserRate = 1;
     player.browserVolume = 1;
     player.browserMuted = false;
@@ -12492,6 +12551,12 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'cea-capture-progress') {
     applyBrowserCeaCaptureProgress(event, browserTabState());
   } else if (event.type === 'media' && event.media) {
+    if (!player.browserMediaSeen) {
+      player.browserMediaSeen = true;
+      const seenTab = browserTabState();
+      if (seenTab) seenTab.browserMediaSeen = true;
+      updateBrowserSignalQuiet();
+    }
     const previousTime = player.browserTime;
     const wasPaused = player.browserPaused;
     const currentTime = Number(event.media.currentTime);
@@ -13714,13 +13779,27 @@ function renderCueList(filter = '') {
   if (!player.cues.length) {
     $('playerSide')?.classList.add('no-cues');
     const lt = (tr) => window.UiLocale?.t?.(tr) || tr;
-    box.innerHTML = '<div class="cue-list-empty cue-empty-rich">'
+    // R120-B1: Browser'da sayfada iz bulunmuşken "Bu video için altyazı yok"
+    // demek yanlıştı; videosuz sayfada da Whisper çağrısı anlamsızdı.
+    const browserMode = player.workspaceMode === 'browser';
+    const trackCount = browserMode ? (player.browserTracks?.length || 0) : 0;
+    const emptyKind = trackCount ? 'tracks' : (browserMode && !player.browserMediaSeen ? 'no-media' : 'none');
+    const emptyText = emptyKind === 'tracks'
+      ? `${lt('Sayfada altyazı izi bulundu')} · ${trackCount}`
+      : emptyKind === 'no-media' ? lt('Bu sayfada video yok') : lt('Bu video için altyazı yok');
+    box.innerHTML = '<div class="cue-list-empty cue-empty-rich" data-empty-kind="' + emptyKind + '">'
       + '<span class="cue-empty-icon" aria-hidden="true">▭</span>'
-      + '<div class="cue-empty-text">' + lt('Bu video için altyazı yok') + '</div>'
-      + '<div class="cue-empty-cta">'
-      + '<button type="button" class="cue-empty-primary" data-empty-action="make">' + lt('Whisper ile oluştur') + '</button>'
-      + '<button type="button" data-empty-action="pick">' + lt('Altyazı dosyası seç') + '</button>'
-      + '</div></div>';
+      + '<div class="cue-empty-text">' + escapeHtml(emptyText) + '</div>'
+      + (emptyKind === 'no-media' ? ''
+        : emptyKind === 'tracks'
+          ? '<div class="cue-empty-cta"><button type="button" class="cue-empty-primary" data-empty-action="tracks">'
+            + escapeHtml(lt('Altyazı izini seç')) + '</button></div>'
+          : '<div class="cue-empty-cta">'
+            + '<button type="button" class="cue-empty-primary" data-empty-action="make">' + lt('Whisper ile oluştur') + '</button>'
+            + '<button type="button" data-empty-action="pick">' + lt('Altyazı dosyası seç') + '</button>'
+            + '</div>')
+      + '</div>';
+    box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsToggle')?.click());
     const make = box.querySelector('[data-empty-action="make"]');
     const pick = box.querySelector('[data-empty-action="pick"]');
     if (make) {

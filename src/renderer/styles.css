@@ -8342,3 +8342,26 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 #youtubeLoginModal .yt-user-code { font-size: 40px; font-weight: 700; letter-spacing: .18em; }
 #youtubeLoginModal .yt-qr-canvas { width: 200px; height: 200px; }
 .yt-code-expiry { margin: 4px 0 0; text-align: center; font-variant-numeric: tabular-nums; }
+
+
+/* ===== R120 — premium tarayıcı hissi: donmuş kare, sessiz şerit, taşan menü =====
+   P1: Menü/panel açıkken yerel sayfa görünümü gizlenir; yerine sayfanın son
+   karesi yuvaya boyanır (renderer.js applyBrowserOcclusion). */
+.browser-view-slot.browser-frozen {
+  background-image: var(--browser-freeze-image);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+/* P2: Videosuz sayfada altyazı şeridi sayfa alanını çalmaz. */
+.browser-workspace.signal-quiet { grid-template-rows: auto 0 minmax(0, 1fr); }
+.browser-workspace.signal-quiet .browser-signal { display: none; }
+/* P3: "Daha fazla" menüsü kısa pencerede taşmaz; kendi içinde kayar. */
+.browser-more-popover {
+  max-height: min(680px, calc(100vh - 150px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* Boş transkript: videosuz sayfada eylem düğmesi yok, sade durum. */
+.cue-list-empty[data-empty-kind="no-media"] .cue-empty-icon { opacity: .45; }
