@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-24 04:20 — Güncel GitHub master ile catalog dalının bütünleştirilmesi; hedefli regresyonlar ve Electron bridge temiz; BROWSER_BUG_REPORT_120](docs/devir/2026-09-24-0420.md).
+Güncel çalışma: [2026-09-24 13:03 — SmartTube giriş etiketleri: genel "Oturum aç" düğmesi Invidious modalını açıyordu, YouTube OAuth yalnız "YouTube" yazıyordu → "YouTube giriş" (Google/TV cihaz kodu) vs "Invidious giriş" ayrımı + EN anahtarları + hata ipucu güncellendi](docs/devir/2026-09-24-1303.md).
+
+Önceki çalışma: [2026-09-24 04:20 — Güncel GitHub master ile catalog dalının bütünleştirilmesi; hedefli regresyonlar ve Electron bridge temiz; BROWSER_BUG_REPORT_120](docs/devir/2026-09-24-0420.md).
 
 Önceki çalışma: [2026-09-23 19:00 — R119 (kullanıcının yerel "R117" denetim patch serisi, `git am` ile taşındı): browser/oynatıcı derin denetimi — 7 bulgu düzeltildi (BUG-117-01 `browser:research:export` tanımsız `writeTextAtomic` → atomik yazıcı; BUG-117-02 model önbelleği silme tanımsız `addLog` + sözlük `$()` bağımlılığı; BUG-117-03 omnibox hesaplayıcı tekli-eksi önceliği; BUG-117-04 açık tema oynatıcı kontrastı + koyu tema meta; BUG-117-05 EN arayüzde TR kalan metinler + arama boş-durumu; BUG-117-06 yeni-sekme düğmesi son sekmenin yanında; BUG-117-07 boşluksuz dillerde çeviri dağıtımı `Intl.Segmenter` grapheme) + 2 oynatıcı iyileştirmesi (P-01 rVFC kare adımı, P-02 0-9 ile %0-90 atlama); 15-test regresyon dosyası; BROWSER_BUG_REPORT_119](docs/devir/2026-09-23-1900.md).
 
