@@ -24161,7 +24161,20 @@ async function renderSmartTubeSection(section, opts = {}) {
     }
     // A04: Geçmiş — watch-library kayıtlarının youtube kimlikli olanları;
     // yeni kayıt üretmez, mevcut kütüphane verisini kart olarak çizer.
+    // YouTube girişi varken önce hesabın gerçek izleme geçmişi (FEhistory);
+    // hata veya boş dönüşte yerel kayda düşer.
     if (section === 'history') {
+      if (youtubeLoggedIn) {
+        const res = await window.api.youtubeBrowse('FEhistory').catch(() => null);
+        if (stale()) return;
+        if (res && res.ok && Array.isArray(res.data?.videos) && res.data.videos.length) {
+          grid.innerHTML = '';
+          stFilterVideos(res.data.videos).slice(0, 60)
+            .forEach((v) => grid.appendChild(buildSmartTubeCard(v)));
+          setSmartTubeStatus(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
+          return;
+        }
+      }
       if (window.api.listWatchLibrary) {
         try { watchLibraryCache = (await window.api.listWatchLibrary()) || []; } catch (_) {}
       }

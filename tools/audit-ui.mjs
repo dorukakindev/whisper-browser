@@ -132,17 +132,29 @@ async function main() {
   }
   fs.mkdirSync(OUT, { recursive: true });
   const { stage, url } = stageRenderer();
-  const port = 9300 + Math.floor(Math.random() * 500);
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ui-audit-profile-'));
-  const child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
-    `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--allow-file-access-from-files',
-    '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  let target;
-  for (let i = 0; i < 75 && !target; i += 1) {
-    try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); }
-    catch (_) { /* tarayıcı henüz hazır değil */ }
-    if (!target) await sleep(200);
+  // CDP adresi sabitlenir: bazı Chrome sürümleri debug port'unu yalnız ::1'e
+  // bağlar; 127.0.0.1 fetch'i o durumda 15 sn hiç cevap alamaz. Tek denemeyle
+  // runner'da flaky oluyor — port/profil tazeleyerek yeniden denenir.
+  const launchBrowser = async () => {
+    const port = 9300 + Math.floor(Math.random() * 500);
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ui-audit-profile-'));
+    const child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
+      '--disable-dev-shm-usage', '--remote-debugging-address=127.0.0.1',
+      `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--allow-file-access-from-files',
+      '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
+    let target;
+    for (let i = 0; i < 150 && !target; i += 1) {
+      try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); }
+      catch (_) { /* tarayıcı henüz hazır değil */ }
+      if (!target) await sleep(200);
+    }
+    return { child, target };
+  };
+  let { child, target } = await launchBrowser();
+  if (!target) {
+    try { child.kill(); } catch (_) {}
+    ({ child, target } = await launchBrowser());
   }
   if (!target) { child.kill(); throw new Error('Tarayıcı hata ayıklama bağlantısı açılmadı.'); }
   const ws = new WebSocket(target.webSocketDebuggerUrl);
