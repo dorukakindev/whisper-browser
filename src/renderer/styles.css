@@ -8365,3 +8365,29 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 }
 /* Boş transkript: videosuz sayfada eylem düğmesi yok, sade durum. */
 .cue-list-empty[data-empty-kind="no-media"] .cue-empty-icon { opacity: .45; }
+
+
+/* ===== R123 — Faz A: sekme ve araç çubuğu cilası =====
+   D1 Favicon yoksa host harfli avatar; D2 uzun başlık sert kesilmek yerine
+   soluklaşır; D3 × yalnız aktif, üzerine gelinen veya odaklı sekmede görünür
+   (yer tutar, düzen kaymaz); D4 adres alanı hap biçimli. */
+.browser-tab-avatar {
+  width: 16px; height: 16px; flex: 0 0 16px;
+  display: inline-grid; place-items: center;
+  border-radius: 5px;
+  color: var(--accent-contrast);
+  background: hsl(var(--avatar-hue, 30) 42% 40%);
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+.browser-tab-avatar.is-blank { color: var(--text-muted); background: var(--bg-3); font-weight: 500; }
+.browser-tab-label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: clip;
+  -webkit-mask-image: linear-gradient(to right, currentColor calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, currentColor calc(100% - 18px), transparent);
+}
+.browser-tab .browser-tab-close { transition: opacity .12s ease; }
+.browser-tab:not(.active):not(:hover):not(:focus-within) .browser-tab-close { opacity: 0; }
+@media (hover: none) { .browser-tab .browser-tab-close { opacity: 1 !important; } }
+.browser-address-wrap { border-radius: 999px; }
+.browser-address-wrap { padding-left: 14px; padding-right: 6px; }

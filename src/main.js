@@ -3604,6 +3604,33 @@ function browserTabById(rawId) {
   return id ? browserTabs.get(id) || null : null;
 }
 
+// R123-B2: Boş gövdeli HTTP ≥ 400 ana belge yanıtı (ör. 502) Chrome'daki
+// "HTTP ERROR" gibi hata ekranı gösterir. Gövdesi olan hata sayfaları (sitenin
+// kendi 404 sayfası) sitenin içeriğidir ve olduğu gibi gösterilir.
+function maybeFlagEmptyHttpErrorPage(tab, view, wc) {
+  const status = Number(tab?.mainHttpStatus) || 0;
+  if (status < 400 || !tab || tab.loadError || tab.closing || !wc || wc.isDestroyed()) return;
+  const generation = tab.generation;
+  wc.executeJavaScript(`(() => { const b = document.body; if (!b) return 0;
+    const text = (b.innerText || '').trim().length;
+    const media = b.querySelectorAll('img,video,iframe,canvas,svg,input,a,object,embed').length;
+    return text + media * 50; })()`, true).then((weight) => {
+    // Yalnız gerçekten boş gövde: "Not Found" gibi kısa bir metin bile sitenin
+    // kendi yanıtıdır ve gösterilmelidir (Chrome davranışı).
+    if (Number(weight) > 0 || tab.closing || tab.loadError || wc.isDestroyed()
+        || tab.generation !== generation || tab.view !== view) return;
+    const url = wc.getURL();
+    const message = status >= 500
+      ? `Site sunucusu HTTP ${status} hatası verdi ve boş yanıt döndürdü. Birazdan yeniden deneyin.`
+      : `Site HTTP ${status} yanıtı verdi ve sayfa boş geldi.`;
+    tab.loadError = { kind: 'http', code: `HTTP ${status}`, message, url, retry: { action: 'none' } };
+    if (tab.id === browserActiveTabId) view.setVisible(false);
+    sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
+    sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
+      code: `HTTP ${status}`, errorKind: 'http', message, url: redactDiagnosticText(url) });
+  }).catch(() => {});
+}
+
 function activeBrowserTab(create = false) {
   let tab = browserTabById(browserActiveTabId);
   if (!tab && create) {
@@ -4921,6 +4948,16 @@ function isAbortedBrowserNavigation(error) {
 
 function browserLoadErrorMessage(code, description) {
   const raw = String(description || 'Sayfa yüklenemedi.');
+  // R123-B3: En sık ana belge hataları ham Chromium kodu yerine anlaşılır mesajla.
+  if (Number(code) === -105 || /ERR_NAME_NOT_RESOLVED/i.test(raw)) {
+    return 'Sitenin adresi bulunamadı. Adresi kontrol edin; doğruysa DNS veya internet bağlantısını denetleyin.';
+  }
+  if (Number(code) === -106 || /ERR_INTERNET_DISCONNECTED/i.test(raw)) {
+    return 'İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.';
+  }
+  if (Number(code) === -118 || /ERR_CONNECTION_TIMED_OUT/i.test(raw)) {
+    return 'Site zamanında yanıt vermedi. Biraz sonra tekrar deneyin.';
+  }
   if (Number(code) === -138 || /ERR_NETWORK_ACCESS_DENIED/i.test(raw)) {
     return 'Ağ erişimi Windows veya VPN tarafından reddedildi. Proton VPN ayrılmış tünellemesinde bu uygulama seçiliyse Proton’a bağlanın ya da electron.exe seçimini kaldırın.';
   }
@@ -11951,7 +11988,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   tab.view = view;
   if (tab.id === browserActiveTabId) browserView = view;
-  view.setBackgroundColor('#08090a');
+  // R123-B1: Görünümün arka planı, kendi arka planını boyamayan sayfaların temel
+  // rengidir. Koyu (#08090a) iken bu sayfalar siyah üstünde varsayılan siyah
+  // metinle çizilip okunamıyordu. Chrome/Edge/Firefox ile aynı: beyaz.
+  view.setBackgroundColor('#ffffff');
   view.setVisible(false);
   mainWindow.contentView.addChildView(view);
   const wc = view.webContents;
@@ -12091,6 +12131,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.lifecycle = tab.id === browserActiveTabId ? 'active' : 'background';
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     scheduleBrowserPageIndex(tab);
+    if (typeof maybeFlagEmptyHttpErrorPage === 'function') maybeFlagEmptyHttpErrorPage(tab, view, wc);
     // Test harness'larında dilimlenen bu dinleyicide işlev tanımı olmayabilir.
     if (typeof applyBrowserElementRules === 'function') void applyBrowserElementRules(tab);
     if (tab.compatibilityMode) return;
@@ -12112,7 +12153,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       scheduleArchivedBrowserPageTranslationRestore(tab);
     }
   });
-  wc.on('did-navigate', () => {
+  wc.on('did-navigate', (_navEvent, _navUrl, httpResponseCode) => {
+    tab.mainHttpStatus = Number(httpResponseCode) || 0;
     tab.restoredUrl = wc.getURL() === 'about:blank' ? '' : wc.getURL();
     syncBrowserTabCompatibilityForUrl(tab, tab.restoredUrl);
     tab.restoredTitle = wc.getTitle() || '';
@@ -12196,7 +12238,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       const diagnostic = recordBrowserPlaybackEvidence(tab, {
         kind: 'network', resourceKind: 'document', error: description || code,
       });
-      const message = diagnostic ? diagnostic.message : browserLoadErrorMessage(code, description);
+      // R123-B3: Teşhis kataloğu oynatma odaklıdır ("Oynatma adresinin alan adı…");
+      // ana belge hatasında kullanıcıya sayfa bağlamındaki mesaj gösterilir.
+      void diagnostic;
+      const message = browserLoadErrorMessage(code, description);
       const retry = navigationRetryPolicy({ code, attempt: tab.loadRetryAttempt, url });
       tab.loadError = { kind: 'connection', code, message, url, retry };
       if (retry.action === 'retry' && !tab.loadRetryTimer) {

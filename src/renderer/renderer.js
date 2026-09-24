@@ -6125,6 +6125,26 @@ function navigateBrowser(url, tabId = player.browserActiveTabId) {
   return window.api.navigateBrowser(tabId, url);
 }
 
+// R123-D1: Favicon'u olmayan/yüklenemeyen sekmede boş alan yerine alan adının
+// ilk harfiyle, host'a göre sabit tonda küçük avatar (Chrome/Arc benzeri).
+function browserTabAvatar(tab) {
+  const avatar = document.createElement('span');
+  avatar.className = 'browser-tab-avatar';
+  avatar.setAttribute('aria-hidden', 'true');
+  let host = '';
+  try { host = new URL(tab?.url || '').hostname.replace(/^www\./, ''); } catch (_) {}
+  if (!host) {
+    avatar.classList.add('is-blank');
+    avatar.textContent = '+';
+    return avatar;
+  }
+  let hash = 0;
+  for (const ch of host) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+  avatar.style.setProperty('--avatar-hue', String(hash % 360));
+  avatar.textContent = (Array.from(host)[0] || '•').toUpperCase();
+  return avatar;
+}
+
 function browserTabLabel(tab) {
   let label = '';
   if (tab && tab.title) label = tab.title;
@@ -6246,8 +6266,10 @@ function renderBrowserTabs() {
       favicon.draggable = false;
       favicon.referrerPolicy = 'no-referrer';
       favicon.setAttribute('aria-hidden', 'true');
-      favicon.addEventListener('error', () => { favicon.hidden = true; }, { once: true });
+      favicon.addEventListener('error', () => { const avatar = browserTabAvatar(tab); avatar.dataset.faviconFailed = tab.favicon; favicon.replaceWith(avatar); }, { once: true });
       open.appendChild(favicon);
+    } else {
+      open.appendChild(browserTabAvatar(tab));
     }
     const label = document.createElement('span');
     label.className = 'browser-tab-label';
@@ -6543,7 +6565,19 @@ function updateBrowserTabPresentation(tab) {
     return;
   }
   const label = browserTabLabel(tab);
-  if (open.textContent !== label) open.textContent = label;
+  // R123-B5: open.textContent ataması favicon/avatar ve etiket öğesini siliyordu;
+  // başlık güncellenen her sayfada favicon kayboluyordu. Yalnız etiketi güncelle;
+  // ikon değiştiyse sekmeyi yeniden çiz.
+  const labelEl = open.querySelector('.browser-tab-label');
+  const iconEl = open.querySelector('.browser-tab-favicon, .browser-tab-avatar');
+  const iconStale = !iconEl || (tab.favicon
+    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon : iconEl.dataset.faviconFailed === tab.favicon)
+    : (iconEl.tagName === 'IMG' || iconEl.textContent !== browserTabAvatar(tab).textContent));
+  if (!labelEl || iconStale) {
+    renderBrowserTabs();
+    return;
+  }
+  if (labelEl.textContent !== label) labelEl.textContent = label;
   open.title = [tab.title, tab.url].filter(Boolean).join('\n') || interfaceChoice('Yeni sekme', 'New tab');
   item.classList.toggle('loading', !!tab.loading);
   open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
@@ -12488,7 +12522,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
           || event.type === 'tab-crashed') {
         tab.error = event.message || 'Tarayıcı hatası';
         tab.errorKind = event.type === 'security-error' ? 'certificate'
-          : (event.type === 'tab-crashed' ? 'crash' : 'connection');
+          : (event.type === 'tab-crashed' ? 'crash' : (event.errorKind === 'http' ? 'http' : 'connection'));
         tab.errorCode = event.code || event.reason || '';
         tab.errorUrl = event.url || tab.url || '';
       }
@@ -12629,7 +12663,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (tab) {
       tab.error = event.message || `hata ${event.code}`;
       tab.errorKind = event.type === 'security-error' ? 'certificate'
-        : (event.type === 'tab-crashed' ? 'crash' : 'connection');
+        : (event.type === 'tab-crashed' ? 'crash' : (event.errorKind === 'http' ? 'http' : 'connection'));
       tab.errorCode = event.code || event.reason || '';
       tab.errorUrl = event.url || tab.url || player.browserPageUrl || '';
     }
@@ -16386,10 +16420,11 @@ function showBrowserErrorSurface(error) {
   if (!visible) return;
   const secure = error.kind === 'certificate';
   const crashed = error.kind === 'crash';
+  const httpEmpty = error.kind === 'http';
   if ($('browserErrorKicker')) $('browserErrorKicker').textContent = secure ? 'Güvenlik bağlantısı engellendi'
-    : (crashed ? 'Web işlemi kapandı' : 'Bağlantı kurulamadı');
+    : (crashed ? 'Web işlemi kapandı' : (httpEmpty ? 'Sunucu yanıtı boş' : 'Bağlantı kurulamadı'));
   if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı'
-    : (crashed ? 'Sekme çöktü' : 'Sayfa açılamadı');
+    : (crashed ? 'Sekme çöktü' : (httpEmpty ? 'Bu sayfa çalışmıyor' : 'Sayfa açılamadı'));
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
   if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
