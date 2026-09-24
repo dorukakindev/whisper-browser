@@ -1109,10 +1109,11 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, 
 
 // access_token taze değilse refresh_token ile yeniler; refresh_token da
 // düştüyse oturumu temizler ve null döner. Eşzamanlı çağrılar TEK uçuştaki
-// yenilemeyi paylaşır — yoksa ikinci çağrı mediaJobs slot'una takılıp mevcut
-// oturum varken "giriş yapın" hatası döndürüyordu.
+// yenilemeyi paylaşır — farklı hesaba geçilirse ilk işlemin bitmesini bekleyip
+// yeni hesabı ayrı yenileriz (mediaJobs slot'u tektir).
 let _ytRefreshInFlight = null;
 async function ensureYoutubeAccessToken() {
+  const accountId = youtubeSession.activeId;
   const acct = ytActiveAccount();
   if (!acct) return null;
   // 'tv' modu: token'ı gömülü YouTube TV istemcisi üretti — kendi istemci
@@ -1125,10 +1126,18 @@ async function ensureYoutubeAccessToken() {
   // Ephemeral (refresh_token'siz) hesap: access token süresi dolduysa oturum
   // yenilenemez — kullanıcının yeniden giriş yapması gerekir.
   if (!acct.refreshToken) return null;
-  if (_ytRefreshInFlight) return _ytRefreshInFlight;
-  _ytRefreshInFlight = (async () => {
+  if (_ytRefreshInFlight) {
+    const flight = _ytRefreshInFlight;
+    const token = await flight.promise;
+    if (youtubeSession.activeId !== accountId || youtubeSession.accounts[accountId] !== acct) return null;
+    return flight.accountId === accountId ? token : ensureYoutubeAccessToken();
+  }
+  const flight = { accountId, promise: null };
+  flight.promise = (async () => {
     const res = await runYoutubeCommand(
       ['refresh', '--client-id', tvMode ? 'tv' : youtubeSession.clientId], null, 45_000, youtubeAuthEnv());
+    // Aynı kimlikle çıkış/yeniden giriş gerçekleştiyse eski sonuç yenisini ezemez.
+    if (youtubeSession.accounts[accountId] !== acct) return null;
     if (res && res.ok && res.data && res.data.access_token) {
       acct.accessToken = res.data.access_token;
       acct.expiresAt = Date.now() + (Number(res.data.expires_in) || 3600) * 1000;
@@ -1138,13 +1147,14 @@ async function ensureYoutubeAccessToken() {
     if (/invalid_grant|oturum düştü|giriş gerekli/i.test(msg)) {
       // Grant geçersiz — hesabı listeden düşür (aktifse sıradaki aktifleşir).
       youtubeSession.activeId = ytAccounts.removeAccount(
-        youtubeSession.accounts, youtubeSession.activeId, youtubeSession.activeId);
+        youtubeSession.accounts, youtubeSession.activeId, accountId);
       persistYoutubeSession();
     }
     return null;
-  })();
-  try { return await _ytRefreshInFlight; }
-  finally { _ytRefreshInFlight = null; }
+  })().finally(() => { if (_ytRefreshInFlight === flight) _ytRefreshInFlight = null; });
+  _ytRefreshInFlight = flight;
+  const token = await flight.promise;
+  return youtubeSession.activeId === accountId ? token : null;
 }
 
 function validateInvidiousInstance(v) {
