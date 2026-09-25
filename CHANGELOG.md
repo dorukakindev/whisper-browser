@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Browser smoke coverage (R124 step 5): five deterministic Electron smokes — find-in-page bar (Ctrl+F, counter, next/previous, Esc), error surfaces (empty 502 → full error page, bodied 404 renders untouched, DNS/connection-refused surfaces), page background (background-less pages capture pure-white pixels), tab icon persistence across title updates, and the frozen-frame bitmap under open menus.
 - Browser chrome Faz C: the side panel now collapses to a 48px icon rail on pages without media (per-site preference kept in localStorage, session fallback for the new-tab page; a rail tab click expands, the collapse button shrinks back), and opens automatically once media is seen unless the user closed it. The new-tab page is now a real NTP — centered search box that navigates the omnibox, up-to-8 quick-access tiles, and a "Continue watching" row fed by media-flagged visits (rememberBrowserVisit now carries a media flag). Slogan/cards only show on first launch.
 - Browser CSS consolidation: ~610 browser-chrome rules moved from styles.css into a dedicated browser-chrome.css (brace-depth verified multiset split); :root chrome tokens (--chrome-radius-*, --chrome-h-*, --elev-1/2/3, --motion-*) defined and repeated literals bound; the hardcoded-color ratchet now counts all src/renderer/*.css and the cap dropped 470→459 (--ink-bright token binds the #fff repeats). Light-theme parity: the WCAG contrast scan now also pins 8 browser-chrome + side-panel token pairs (resolved through the var() chain) at ≥4.5:1.
 - Fixed: switching to a tab without a URL (new tab) left the stale previous address in the omnibox — it now syncs on tab switch (focused or not), keeping the focus guard for in-place navigation.
@@ -49,6 +50,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Find-in-page was permanently stuck on "Searching…" — root cause found: on Electron 43, starting a *fresh* find session with an explicit `findNext: false` makes Chromium silently drop the result (`found-in-page` never fires). New sessions now omit `findNext`; only continuing next/previous calls send `findNext: true`. `refresh()` likewise. The long-standing R123 "verify find-in-page on Windows" boundary is root-caused and fixed, pending real-Windows confirmation.
 - Browser R120/R123 fixes (design plan in `docs/raporlar/BROWSER_DESIGN_PLAN_R120.md`, audit in `docs/raporlar/BROWSER_PLAN_R123.md`):
   - Pages that don't paint their own background (plain text, documents, old sites, minimal HTML) were unreadable — black text on the browser's dark base color. The webview background is now white, matching Chrome/Edge/Firefox.
   - Any menu, omnibox suggestion, or panel opening turned the web page fully black (HTML sits under the native view); the active tab's frame is now snapshotted and painted into the page slot while hidden.
