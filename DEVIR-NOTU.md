@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-26 00:06 — A→Z statik/sözleşme denetimi (kod değişikliği yok): 217 IPC kanalı/876 DOM id/NDJSON/argparse hepsi tutarlı; 1 kesin bulgu — R124-01 `preview_refresh` koşulu `fix_common_errors`/`drop_repeated`/koşulsuz dedupe/`snap_to_speech` mutasyonlarını kapsamıyor → önizleme+çeviri kayması (progressive'de dosyaya sızma); R124-02 düşük `--sync-srt ""` dizin yanılgısı; npm test yeşil; BROWSER_BUG_REPORT_124](docs/devir/2026-09-26-0006.md).
+Güncel çalışma: [2026-09-26 00:42 — Tarihsel bug raporları doğrulama matrisi (kod değişikliği yok): ~172 rapor dosyası envanterlendi; PROGRAM 83–85 hakemliği ve haze R124/R125 güncel kodda bağımsız test edildi; kanonik karar dosyası BUG-RAPORLARI-DOGRULAMA-MATRISI-2026-09-26 — 8 AÇIK gerçek bulgu konsolide edildi (preview_refresh boşluğu, _vtt_to_srt cue kaybı, safePageIndexUrl sorgu kesme, URL redaksiyon eksikleri vb.), büyük FP kümeleri işaretlendi (R68: 34 FP, PROGRAM-85 R95 kümesi: 9 FP, security-audit SSRF önermesi FP)](docs/devir/2026-09-26-0042.md).
+
+Önceki çalışma: [2026-09-26 00:06 — A→Z statik/sözleşme denetimi (kod değişikliği yok): 217 IPC kanalı/876 DOM id/NDJSON/argparse hepsi tutarlı; 1 kesin bulgu — R124-01 `preview_refresh` koşulu `fix_common_errors`/`drop_repeated`/koşulsuz dedupe/`snap_to_speech` mutasyonlarını kapsamıyor → önizleme+çeviri kayması (progressive'de dosyaya sızma); R124-02 düşük `--sync-srt ""` dizin yanılgısı; npm test yeşil; BROWSER_BUG_REPORT_124](docs/devir/2026-09-26-0006.md).
 
 Önceki çalışma: [2026-09-25 18:18 — GitHub repo derin araştırması (kod değişikliği yok): browser'a faydalı entegrasyon adayları — youtubei.js InnerTube katmanı, kanal-RSS abonelik fallback, Stremio anahtarsız altyazı uç noktası (canlı doğrulandı), subliminal sağlayıcı merdiveni, kurulu ffsubsync'in boştaki ses modu; GITHUB_REPO_ONERILERI_2026-09-25](docs/devir/2026-09-25-1818.md).
 
