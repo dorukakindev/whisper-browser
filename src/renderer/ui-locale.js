@@ -1726,6 +1726,21 @@
     ["Sonraki blok", "Next cue"],
     ["Kuyruk boş. Bir kaynak seçip “Kuyruğa” ile ekleyin.", "Queue is empty. Choose a source and add it with “Queue”."],
     ["Videonun %0–90 noktası", "Jump to 0–90% of the video"],
+    // R120: bağlama duyarlı boş durum ve menü metinleri
+    ['Sayfada altyazı izi bulundu', 'Subtitle tracks found on this page'],
+    ['Altyazı izini seç', 'Choose a subtitle track'],
+    ['Bu sayfada video yok', 'No video on this page'],
+    // R123: hata ekranı ve komut paleti
+    ['Sunucu yanıtı boş', 'Empty server response'],
+    ['Bu sayfa çalışmıyor', "This page isn't working"],
+    ['Altyazı hedef dili', 'Subtitle target language'],
+    ['Site uyumluluk modu', 'Site compatibility mode'],
+    ['Sayfa çeviri görünümü', 'Page translation view'],
+    ['Otomatik sayfa çevirisi', 'Automatic page translation'],
+    ['ayarlar', 'settings'],
+    ['Sitenin adresi bulunamadı. Adresi kontrol edin; doğruysa DNS veya internet bağlantısını denetleyin.', "This site's address couldn't be found. Check the address; if it is correct, check DNS or your internet connection."],
+    ['İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.', 'No internet connection. Check your connection and try again.'],
+    ['Site zamanında yanıt vermedi. Biraz sonra tekrar deneyin.', 'The site took too long to respond. Try again shortly.'],
   ];
 
   const toEnglish = new Map(entries);
