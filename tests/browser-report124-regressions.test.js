@@ -91,7 +91,7 @@ test('renderer teşhis metnini locale’e göre seçer', () => {
 });
 
 test('"Altyazı · N" çipi locale’e göre etiket + başlık üretir', () => {
-  assert.match(renderer, /label\.textContent = `\$\{window\.UiLocale\?\.t\?\.\('Altyazı'\) \|\| 'Altyazı'\}\$\{count \? ` · \$\{count\}` : ''\}`;/);
+  assert.match(renderer, /label\.textContent = `\$\{globalThis\.UiLocale\?\.t\?\.\('Altyazı'\) \|\| 'Altyazı'\}\$\{count \? ` · \$\{count\}` : ''\}`;/);
   assert.match(renderer, /en \? 'operation in progress; open details' : 'işlem sürüyor; ayrıntıları aç'/);
   const { translate } = require('../src/renderer/ui-locale');
   assert.equal(translate('Altyazı', 'en'), 'Subtitles');

@@ -8086,7 +8086,7 @@ function renderBrowserPlaybackDiagnostics(diagnostics) {
   const component = capabilities.component || {};
   const eme = capabilities.eme || {};
   const gpu = capabilities.gpu || {};
-  const en = window.UiLocale?.get?.() === 'en';
+  const en = globalThis.UiLocale?.get?.() === 'en';
   const capabilityParts = [];
   if (Object.keys(component).length) {
     capabilityParts.push(`CDM: ${component.ready ? (en ? 'ready' : 'hazır')
@@ -8388,8 +8388,8 @@ function updateBrowserSubtitleSummary() {
     && tab?.browserTranslationComplete === false);
   const busy = !!(player.browserTranslatePreparing || ownedPlayerJob || liveTranslationBusy);
   const stateName = busy ? 'busy' : count ? 'ready' : 'idle';
-  const en = window.UiLocale?.get?.() === 'en';
-  label.textContent = `${window.UiLocale?.t?.('Altyazı') || 'Altyazı'}${count ? ` · ${count}` : ''}`;
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  label.textContent = `${globalThis.UiLocale?.t?.('Altyazı') || 'Altyazı'}${count ? ` · ${count}` : ''}`;
   button.dataset.state = stateName;
   button.setAttribute('aria-busy', busy ? 'true' : 'false');
   button.title = busy
@@ -16459,13 +16459,13 @@ const BROWSER_ERROR_EN = {
 
 function browserErrorText(source) {
   if (!source || typeof source !== 'object') return String(source || '');
-  const template = window.UiLocale?.get?.() === 'en' && BROWSER_ERROR_EN[source.messageKey];
+  const template = globalThis.UiLocale?.get?.() === 'en' && BROWSER_ERROR_EN[source.messageKey];
   return template ? template(source.params || {}) : (source.message || '');
 }
 
 function diagnosticField(entry, field) {
   if (!entry || typeof entry !== 'object') return '';
-  if (window.UiLocale?.get?.() === 'en') return entry[`${field}En`] || entry[field] || '';
+  if (globalThis.UiLocale?.get?.() === 'en') return entry[`${field}En`] || entry[field] || '';
   return entry[field] || '';
 }
 
