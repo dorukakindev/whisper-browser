@@ -667,7 +667,7 @@ test('main: cihaz kodu kayıtlı client ile, yoksa YouTube TV istemcisiyle başl
     'clientsız durumda TV istemcisine düşülmeli');
   assert.match(dc, /\['device_code', '--client-id', useTv \? 'tv' : youtubeSession\.clientId\]/);
   assert.match(MAIN, /hasClient: !!\(youtubeSession\.clientId && youtubeSession\.clientSecret\)/);
-  assert.match(MAIN, /\['poll', '--client-id', _ytDevice\.tv \? 'tv' : youtubeSession\.clientId/);
+  assert.match(MAIN, /\['poll', '--client-id', tvMode \? 'tv' : youtubeSession\.clientId/);
   assert.match(MAIN, /\['refresh', '--client-id', tvMode \? 'tv' : youtubeSession\.clientId\]/);
 });
 

@@ -19,15 +19,20 @@ let passed = 0;
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 
-test('K1: medya zamanı 24 saat üstünü reddeder, 1000 saat tavanı yok', () => {
-  // 200_000 sn (~55 saat) → üst sınır 86400'e kelepçelenir; eski tavan
-  // 3_600_000 sn (1000 saat) aşılmaz değerleri de kabul ediyordu.
+test('K1: medya zamanı 7 gün üstünü reddeder, 1000 saat tavanı yok', () => {
+  // 700_000 sn (~8 gün) → üst sınır 604800'e kelepçelenir; eski tavan
+  // 3_600_000 sn (1000 saat) aşılmaz değerleri de kabul ediyordu. Sınır
+  // saniye biriminde kalmalı ama uzun yayınlar (72 saat) korunmalı.
   const session = normalizeBrowserSession({
-    tabs: [{ url: 'https://x.test/v', position: 200_000, duration: 90_000 }],
+    tabs: [{ url: 'https://x.test/v', position: 700_000, duration: 650_000 }],
   });
   const tab = session.tabs[0];
-  assert.equal(tab.position, 24 * 60 * 60, 'position 24h tavanına kelepçelenmeli');
-  assert.equal(tab.duration, 24 * 60 * 60, 'duration 24h tavanına kelepçelenmeli');
+  assert.equal(tab.position, 7 * 24 * 60 * 60, 'position 7g tavanına kelepçelenmeli');
+  assert.equal(tab.duration, 7 * 24 * 60 * 60, 'duration 7g tavanına kelepçelenmeli');
+  const longStream = normalizeBrowserSession({
+    tabs: [{ url: 'https://x.test/v', position: 24 * 3600, duration: 72 * 3600 }],
+  });
+  assert.equal(longStream.tabs[0].duration, 72 * 3600, '72 saatlik yayın korunur');
   const ok = normalizeBrowserSession({
     tabs: [{ url: 'https://x.test/v', position: 3600, duration: 7200 }],
   });

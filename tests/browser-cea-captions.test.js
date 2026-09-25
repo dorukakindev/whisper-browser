@@ -232,7 +232,7 @@ test('CDP ağ yolu: istek Range bilgisi eşleyiciye taşınır, belirsizlikte pa
   // 1) İstek Range'i saklanır ve Content-Range'siz 206 yanıtını doğru parçaya bağlar.
   handler(null, 'Network.requestWillBeSent', {
     requestId: 'r1', request: { url, headers: { Range: 'bytes=1000-1999' } } });
-  assert.deepEqual(browserRequestRanges.get('root:r1'), { range: { start: 1000, end: 1999 } });
+  assert.deepEqual(browserRequestRanges.get('root:r1'), { range: { start: 1000, end: 1999 }, method: '', postData: '' });
   handler(null, 'Network.responseReceived', {
     requestId: 'r1', type: 'Media',
     response: { url, status: 206, headers: {}, mimeType: 'video/mp2t' } });
