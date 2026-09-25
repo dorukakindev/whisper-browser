@@ -227,6 +227,15 @@ function registerBrowserFeatureServices(deps) {
             .align({ referenceCues: parsed.cues, targetCues: payload.cues }, { signal: controller.signal });
           break;
         }
+        case 'alignment-audio-preview': {
+          // ffsubsync ses kipi: seçili referans videonun ses ritmiyle senkron —
+          // fps/sürüm uyumsuzluğunda doğru zamanlı başka altyazı gerekmez.
+          const ref = reference();
+          result = await require('./browser-alignment').createBrowserAlignment({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath() })
+            .align({ audioPath: ref.path, targetCues: payload.cues }, { signal: controller.signal, timeoutMs: 480000 });
+          assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
+          break;
+        }
         case 'ocr-range': {
           const ref = reference();
           if (!Number.isFinite(payload.start) || !Number.isFinite(payload.end) || payload.start < 0 || payload.end > ref.duration + .1) throw new Error('OCR aralığı referans videonun içinde olmalı.');
@@ -331,7 +340,9 @@ function registerBrowserFeatureServices(deps) {
           result = await subtitles.searchSubtitles(target, payload.config || {}, { signal: controller.signal }); break;
         }
         case 'subtitle-download': {
-          const output = await subtitles.downloadSubtitle({ fileId: payload.fileId }, payload.config || {}, { signal: controller.signal }); assertCurrent();
+          const output = await subtitles.downloadSubtitle(
+            { fileId: payload.fileId, url: payload.url, provider: payload.provider },
+            payload.config || {}, { signal: controller.signal }); assertCurrent();
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
           const filePath = path.join(directory, `${randomUUID()}.${output.format === 'vtt' ? 'vtt' : 'srt'}`);
           writeOwnedSubtitle(filePath, output.text);

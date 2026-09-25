@@ -56,6 +56,8 @@ function normalizeBrowserNetworkRecord(raw = {}, options = {}) {
     method: cleanText(raw.method || 'GET', 16).toUpperCase(),
     resourceType: cleanText(raw.resourceType || raw.type, 48).toLowerCase(),
     status: Math.max(0, Math.trunc(finiteNumber(raw.status, 0))),
+    // POST ile istenen manifestlerde istek gövdesi — yanıt kaydına taşınır.
+    requestPostData: cleanText(raw.requestPostData, 256 * 1024),
     contentType,
     mimeType: contentType,
     responseHeaders: headers,

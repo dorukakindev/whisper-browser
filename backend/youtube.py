@@ -180,7 +180,8 @@ def poll(client_id, expires_in=1800, interval=5):
                  refresh_token=data.get("refresh_token", ""),
                  expires_in=data.get("expires_in", 3600),
                  user_name=user.get("name", ""),
-                 user_email=user.get("email", ""))
+                 user_email=user.get("email", ""),
+                 user_id=user.get("id", ""))
             return
         code = (err or {}).get("error", "")
         if code == "authorization_pending":
@@ -264,7 +265,8 @@ def exchange_code(client_id):
          refresh_token=data.get("refresh_token", ""),
          expires_in=data.get("expires_in", 3600),
          user_name=user.get("name", ""),
-         user_email=user.get("email", ""))
+         user_email=user.get("email", ""),
+         user_id=user.get("id", ""))
 
 
 def revoke():
@@ -296,7 +298,10 @@ def _fetch_me(access_token):
         items = data.get("items") or []
         if items:
             snip = items[0].get("snippet") or {}
-            return {"name": snip.get("title", ""), "email": ""}
+            # Kanal id'si kalıcı kimliktir — kullanıcı adı değişse bile aynı
+            # hesap satırına düşer (hesap listesinde yetim kopya önler).
+            return {"name": snip.get("title", ""), "email": "",
+                    "id": items[0].get("id", "")}
     except Exception:
         pass
     return None

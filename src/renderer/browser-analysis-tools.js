@@ -10,8 +10,9 @@
     <div class="ba-preview-box"><label for="baSeek">Önizlemeli video konumu</label><input id="baSeek" type="range" min="0" max="1000" value="0" aria-describedby="baPreviewHint"/>
       <p id="baPreviewHint">Kare ve replik için çubuğun üzerinde gezinin. Konumu değiştirmek için tıklayın.</p>
       <div id="baThumb" class="hidden" role="status"><img id="baThumbImage" alt="Seçilen zamanın video karesi"/><span id="baThumbTime"></span><span id="baThumbCue"></span></div></div>
-    <div class="ba-actions"><button id="baAlign" type="button">Referans altyazıyla parçalı senkron bul</button></div>
-    <p>Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin. Sonuç önce karşılaştırma olarak gösterilir.</p>
+    <div class="ba-actions"><button id="baAlign" type="button">Referans altyazıyla parçalı senkron bul</button>
+      <button id="baAlignAudio" type="button">Videonun sesiyle senkron bul</button></div>
+    <p>Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin veya referans videonun ses ritmiyle senkronlayın. Sonuç önce karşılaştırma olarak gösterilir.</p>
     <div id="baAlignment" class="ba-results"></div><button id="baApply" type="button" disabled>Senkronu zamanlama taslağına uygula</button></div>`;
   const $ = id => document.getElementById(id);
   let currentKey = '', ref = null, busy = false, activeAction = '', sequence = 0, preview = null, thumbSequence = 0, thumbTimer = null, dragging = false;
@@ -23,7 +24,7 @@
   function message(text, error = false) { $('baStatus').textContent = text; $('baStatus').classList.toggle('ba-error', error); }
   function setBusy(value) {
     busy = value;
-    for (const id of ['baReference', 'baWaveform', 'baAlign']) $(id).disabled = value;
+    for (const id of ['baReference', 'baWaveform', 'baAlign', 'baAlignAudio']) $(id).disabled = value;
     $('baCancel').disabled = !value;
   }
   function reset() {
@@ -76,12 +77,13 @@
   });
   function videoCues() { return player.cues.map(cue => ({ ...cue, start: subtitleVideoTime(cue.start, false), end: subtitleVideoTime(cue.end, false) })); }
   function sourceSignature() { return JSON.stringify(videoCues().map(cue => [cue.start, cue.end, cue.text])); }
-  $('baAlign').addEventListener('click', async () => {
+  async function alignWith(action, missingRef) {
     if (busy) return;
+    if (action === 'alignment-audio-preview' && !ref) { message(missingRef, true); return; }
     if (!player.cues.length) { message('Önce hizalanacak ana altyazıyı yükleyin.', true); return; }
     preview = null; $('baApply').disabled = true; $('baAlignment').replaceChildren();
     const source = sourceSignature(), key = signature();
-    const output = await request('alignment-preview', { cues: videoCues() });
+    const output = await request(action, { cues: videoCues() });
     if (!output) return;
     const box = $('baAlignment'); box.replaceChildren();
     if (source !== sourceSignature() || key !== signature()) { message('Altyazı değişti; yeniden senkron arayın.', true); return; }
@@ -97,7 +99,10 @@
     }
     if (output.changes.length > 30) { const hint = document.createElement('p'); hint.textContent = 'İlk 30 değişiklik gösteriliyor; taslak bütün satırları içerir.'; box.append(hint); }
     $('baApply').disabled = low || !output.changes.length;
-  });
+  }
+  $('baAlign').addEventListener('click', () => alignWith('alignment-preview'));
+  $('baAlignAudio').addEventListener('click', () =>
+    alignWith('alignment-audio-preview', 'Önce referans videoyu seçin.'));
   $('baApply').addEventListener('click', async () => {
     if (!preview || preview.key !== signature() || preview.source !== sourceSignature() || preview.cues.length !== player.cues.length) {
       $('baApply').disabled = true; message('Altyazı veya senkron ayarı değişti; yeniden hesaplayın.', true); return;

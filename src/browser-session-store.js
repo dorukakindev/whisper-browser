@@ -15,7 +15,7 @@ const MAX_SYNC_RECORDS = 24;
 const MAX_SUBTITLE_EDITS = 2000;
 // HTMLMediaElement currentTime/duration değerleri saniyedir. Bu sınır uzun
 // yayınları korurken bozuk veya aşırı kalıcılık girdilerini engeller.
-const MAX_MEDIA_TIME_SECONDS = 60 * 60 * 1000;
+const MAX_MEDIA_TIME_SECONDS = 24 * 60 * 60;
 
 function cleanString(value, max = 300) {
   return String(value == null ? '' : value).trim().slice(0, max);
