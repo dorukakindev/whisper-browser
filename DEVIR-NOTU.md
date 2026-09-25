@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-25 17:15 — R124 Adım 4 (Faz C): yan panel 48px ikon rayı (site başına tercih), yeni sekme sayfası (arama + hızlı erişim + izlemeye devam et), browser-chrome.css ayrımı + token birleştirme (sabit renk 459), açık-tema kontrast taraması CI'da](docs/devir/2026-09-25-1715.md).
+Güncel çalışma: [2026-09-25 17:44 — R124 Adım 5: 5 Electron smoke'u (find/hata-sayfaları/page-bg/sekme-ikonu/donmuş-kare) + sayfada-bul "Aranıyor…" kök neden düzeltmesi (Electron 43 findNext:false sessizliği)](docs/devir/2026-09-25-1744.md).
+
+Önceki çalışma: [2026-09-25 17:15 — R124 Adım 4 (Faz C): yan panel 48px ikon rayı (site başına tercih), yeni sekme sayfası (arama + hızlı erişim + izlemeye devam et), browser-chrome.css ayrımı + token birleştirme (sabit renk 459), açık-tema kontrast taraması CI'da](docs/devir/2026-09-25-1715.md).
 
 Önceki çalışma: [2026-09-25 16:30 — R124 Adım 3 (Faz B): tek-satır üst çerçeve (sekmeler başlıkta), birleşik Whisper düğmesi, 32px durum hapı, gruplu ⋯ menüsü; içerik y=88px ≤90 ölçümü](docs/devir/2026-09-25-1630.md).
 

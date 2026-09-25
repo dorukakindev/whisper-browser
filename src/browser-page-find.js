@@ -58,14 +58,20 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
         // Electron keeps the current find session only when findNext is true.
         // A new query starts a fresh session; repeated next/previous actions
         // must advance the existing session instead of resetting to match one.
-        requestId = wc.findInPage(query, { forward: value.forward !== false, findNext: continuing });
+        // Electron 43 quirk (R124): açık `findNext:false` ile başlatılan YENİ
+        // oturumda Chromium sonucu sessizce düşürüyor — found-in-page hiç
+        // gelmiyor ve sayaç "Aranıyor…"da asılı kalıyordu. Yeni oturumda
+        // findNext'i options'a koymuyoruz; yalnız devam eden oturumda göndeririz.
+        const options = { forward: value.forward !== false };
+        if (continuing) options.findNext = true;
+        requestId = wc.findInPage(query, options);
         return { ok: true, requestId };
       } catch (error) { requestId = null; return { ok: false, error: error.message }; }
     },
     refresh() {
       if (requestId === null || !query) return { ok: true, unchanged: true };
       try {
-        requestId = wc.findInPage(query, { forward: true, findNext: false });
+        requestId = wc.findInPage(query, { forward: true });
         return { ok: true, requestId, refreshed: true };
       } catch (error) { requestId = null; return { ok: false, error: error.message }; }
     },
