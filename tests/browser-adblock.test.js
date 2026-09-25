@@ -232,10 +232,11 @@ class FakeEngine extends EventEmitter {
     assert.match(preload, /getBrowserAdblockState/);
     assert.match(preload, /setBrowserAdblockEnabled/);
     assert.match(html, /id="browserAdblockEnabled"[^>]*checked/);
-    const newTabIndex = html.indexOf('id="browserTabNew"');
+    const siteChipIndex = html.indexOf('id="browserSiteChipDetails"');
+    const permissionsIndex = html.indexOf('id="browserSitePermissionsOpen"');
     const quickToggleIndex = html.indexOf('id="browserAdblockQuick"');
-    assert.ok(newTabIndex >= 0 && quickToggleIndex > newTabIndex && quickToggleIndex - newTabIndex < 900,
-      'üst reklam koruması anahtarı yeni sekme düğmesinin yanında değil');
+    assert.ok(siteChipIndex >= 0 && quickToggleIndex > siteChipIndex && quickToggleIndex < permissionsIndex,
+      'reklam koruması anahtarı site çipi popover içinde (izinler düğmesinden önce) değil');
     assert.ok(html.slice(quickToggleIndex, quickToggleIndex + 220).includes('aria-pressed="true"'),
       'üst reklam koruması anahtarı erişilebilir basılı durumunu taşımıyor');
     assert.ok(renderer.includes("quick.setAttribute('aria-pressed', String(enabled))"),
