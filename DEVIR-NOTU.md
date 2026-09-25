@@ -1,8 +1,6 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-25 04:09 — Derin denetim turu (kod değişmeden): R125-01 sayfa indeksi sorgu-anahtarı çökmesi, R125-02 ayrışmış `probeCommand` kopyası/stderr kilitlenmesi, R125-03 `file:` anahtarlarında case-sensitive birleşme, R125-04 `clock(Infinity)`; tam npm test yeşil; BROWSER_BUG_REPORT_125](docs/devir/2026-09-25-0409.md).
-
-Önceki çalışma: [2026-09-25 03:34 — A'dan Z'ye derin bug denetimi (kod değişmeden): R124-01 `_vtt_to_srt` kompakt-VTT cue kaybı, R124-02 `MAX_MEDIA_TIME_SECONDS` birim hatası, R124-03 zaman-grameri asimetrisi; tam npm test yeşil; BROWSER_BUG_REPORT_124](docs/devir/2026-09-25-0334.md).
+Güncel çalışma: [2026-09-25 03:34 — A'dan Z'ye derin bug denetimi (kod değişmeden): R124-01 `_vtt_to_srt` kompakt-VTT cue kaybı, R124-02 `MAX_MEDIA_TIME_SECONDS` birim hatası, R124-03 zaman-grameri asimetrisi; tam npm test yeşil; BROWSER_BUG_REPORT_124](docs/devir/2026-09-25-0334.md).
 
 Önceki çalışma: [2026-09-24 21:49 — GitHub PR #48 ile master eşitlemesi; YouTube çoklu hesap token-yenileme yarışı R123 ve hedefli testler](docs/devir/2026-09-24-2149.md).
 
