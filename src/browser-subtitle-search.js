@@ -1,6 +1,9 @@
 'use strict';
 
 const API = 'https://api.opensubtitles.com/api/v1';
+// Stremio OpenSubtitles-v3 — anahtarsız ikinci sağlayıcı basamağı (imdb_id
+// ile çalışır; OpenSubtitles hesabı olmayan kurulumda da arama yapar).
+const STREMIO_API = 'https://opensubtitles-v3.strem.io';
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const MAX_JSON_BYTES = 4 * 1024 * 1024;
 const USER_AGENT = 'WhisperBrowser v1.0';
@@ -140,13 +143,27 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
   if (target.filesize != null && (!Number.isSafeInteger(Number(target.filesize)) || Number(target.filesize) < 0)) {
     throw problem('Dosya boyutu geçersiz.', 'INVALID_INPUT');
   }
+  // imdb_id iki sağlayıcıda da kullanılır: OpenSubtitles parametresi ve
+  // Stremio'nun anahtarsız yedeği için ortak kimlik.
+  const imdbId = /^tt\d{5,10}$/i.test(String(target.imdbId || '').trim())
+    ? String(target.imdbId).trim().toLowerCase() : '';
+  if (target.imdbId != null && !imdbId) throw problem('IMDb kimliği geçersiz (tt1234567 biçimi).', 'INVALID_INPUT');
   signal = AbortSignal.any([signal, AbortSignal.timeout(45000)].filter(Boolean));
   const params = new URLSearchParams({ query: target.query.trim() });
   if (moviehash) params.set('moviehash', moviehash);
+  if (imdbId) params.set('imdb_id', imdbId.slice(2));
   if (target.season != null) params.set('season_number', String(target.season));
   if (target.episode != null) params.set('episode_number', String(target.episode));
   if (target.language) params.set('languages', String(target.language));
-  let payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
+  let payload;
+  try {
+    payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
+  } catch (error) {
+    // Anahtar/hesap yokken ve imdb_id bilinirken Stremio OS-v3'e düş —
+    // anahtarsız, dil+fps+sürüm adı döndüren açık liste ucu.
+    if (error.code === 'MISSING_API_KEY' && imdbId) return searchStremioSubtitles(target, config, { signal });
+    throw error;
+  }
   if (!Array.isArray(payload.data)) throw problem('OpenSubtitles arama yanıtı eksik.', 'INVALID_RESPONSE');
   // B03: parmak izi hiç eşleşme vermediyse salt başlık sorgusuna düş
   if (moviehash && payload.data.length === 0) {
@@ -175,8 +192,71 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
       matchScore: scoreCandidate(item, target),
     };
   }).filter((item) => item.fileId != null);
+  // Anahtar var ama sonuç yoksa da Stremio basamağına düş — imdb_id anahtarsız
+  // aramada başlık eşleşmesinden daha güvenilir bir kimliktir.
+  if (!results.length && imdbId) {
+    try { return await searchStremioSubtitles(target, config, { signal }); } catch { /* OS boşluğunu koru */ }
+  }
   results.sort((a, b) => b.matchScore - a.matchScore || b.downloadCount - a.downloadCount);
   return { results, totalCount: Number(payload.total_count) || results.length, page: Number(payload.page) || 1 };
+}
+
+// --- Stremio OpenSubtitles-v3 (anahtarsız yedek) ---------------------------
+// GET /subtitles/movie/<imdb>.json veya /subtitles/series/<imdb>/<s>/<e>.json
+// Yanıt: { subtitles: [{ id, url, lang, m:{release,releaseGroup,fpsMilli}, ... }] }
+async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
+  const imdbId = String(target.imdbId).trim().toLowerCase();
+  const isSeries = target.season != null || target.episode != null;
+  const season = Number.isInteger(Number(target.season)) ? Number(target.season) : 1;
+  const episode = Number.isInteger(Number(target.episode)) ? Number(target.episode) : 1;
+  const path = isSeries
+    ? `/subtitles/series/${imdbId}/${season}/${episode}.json`
+    : `/subtitles/movie/${imdbId}.json`;
+  const fetcher = config.fetch || globalThis.fetch;
+  let response;
+  try {
+    response = await fetcher(`${STREMIO_API}${path}`, {
+      method: 'GET', headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT }, signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error;
+    throw problem('Stremio altyazı hizmetine ulaşılamadı.', 'NETWORK');
+  }
+  if (!response.ok) throw problem(`Stremio altyazı isteği başarısız (HTTP ${response.status}).`, 'PROVIDER_ERROR');
+  const bytes = await boundedBody(response, MAX_JSON_BYTES);
+  let payload;
+  try { payload = JSON.parse(new TextDecoder('utf-8').decode(bytes)); }
+  catch { throw problem('Stremio arama yanıtı okunamadı.', 'INVALID_RESPONSE'); }
+  const rows = Array.isArray(payload?.subtitles) ? payload.subtitles : [];
+  const wantedLang = normalized(target.language);
+  const results = rows.slice(0, 500).map((item, index) => {
+    const meta = (item && typeof item.m === 'object' && item.m) || {};
+    const release = String(meta.release || meta.movieReleaseName || item.releaseName || '').slice(0, 300);
+    const lang = String(item.lang || '').slice(0, 12);
+    const url = String(item.url || '');
+    const pseudo = { attributes: { release, language: lang } };
+    return {
+      id: `stremio-${imdbId}-${index}`,
+      fileId: null,
+      provider: 'stremio',
+      url,
+      title: target.query.trim(),
+      season: isSeries ? season : null,
+      episode: isSeries ? episode : null,
+      language: lang,
+      release,
+      fileName: release.split('/').pop() || '',
+      hearingImpaired: Boolean(item.hearing_impaired),
+      downloadCount: 0,
+      hashMatch: false,
+      matchScore: scoreCandidate(pseudo, target),
+    };
+  }).filter((item) => item.url.startsWith('https://'));
+  if (wantedLang) {
+    const hits = results.filter((item) => normalized(item.language) === wantedLang);
+    if (hits.length) results.length = 0, results.push(...hits);
+  }
+  results.sort((a, b) => b.matchScore - a.matchScore);
+  return { results, totalCount: results.length, page: 1, provider: 'stremio' };
 }
 
 function approvedDownloadUrl(link) {
@@ -190,19 +270,52 @@ function approvedDownloadUrl(link) {
   return url.href;
 }
 
-async function downloadSubtitle({ fileId }, config = {}, { signal } = {}) {
-  if (!Number.isSafeInteger(Number(fileId)) || Number(fileId) <= 0) throw problem('Geçerli altyazı dosya kimliği gerekli.', 'INVALID_INPUT');
+function approvedStremioUrl(link) {
+  let url;
+  try { url = new URL(link); } catch { throw problem('Geçersiz altyazı indirme bağlantısı.', 'UNSAFE_URL'); }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol !== 'https:' || url.username || url.password || url.port ||
+      !(host === 'strem.io' || host.endsWith('.strem.io') ||
+        host === 'opensubtitles.com' || host.endsWith('.opensubtitles.com'))) {
+    throw problem('Güvensiz altyazı indirme bağlantısı engellendi.', 'UNSAFE_URL');
+  }
+  return url.href;
+}
+
+async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
+  const safe = approvedStremioUrl(url);
+  const fetcher = config.fetch || globalThis.fetch;
+  let response;
+  try { response = await fetcher(safe, { method: 'GET', redirect: 'follow', signal }); }
+  catch (error) {
+    if (error?.name === 'AbortError') throw error;
+    throw problem('Altyazı dosyası indirilemedi.', 'NETWORK');
+  }
+  if (!response.ok) throw problem(`Altyazı indirme hatası (HTTP ${response.status}).`, 'PROVIDER_ERROR');
+  const bytes = await boundedBody(response, MAX_TEXT_BYTES);
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+  const fileName = String(url.split('/').pop() || '').replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
+  const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
+  if (!text.trim() || /\0/.test(text)) throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
+  return { text, format, fileName: fileName || `subtitle-stremio.${format}` };
+}
+
+async function downloadSubtitle({ fileId, url, provider }, config = {}, { signal } = {}) {
   signal = AbortSignal.any([signal, AbortSignal.timeout(60000)].filter(Boolean));
+  if (provider === 'stremio' || (!Number.isSafeInteger(Number(fileId)) && url)) {
+    return downloadStremioSubtitle(url, config, { signal });
+  }
+  if (!Number.isSafeInteger(Number(fileId)) || Number(fileId) <= 0) throw problem('Geçerli altyazı dosya kimliği gerekli.', 'INVALID_INPUT');
   const payload = await request('/download', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file_id: Number(fileId), sub_format: 'srt' }),
   }, config, signal);
   if (!payload.link) throw problem('OpenSubtitles indirme bağlantısı döndürmedi.', 'INVALID_RESPONSE');
   const fetcher = config.fetch || globalThis.fetch;
-  let url = approvedDownloadUrl(payload.link);
+  let downloadUrl = approvedDownloadUrl(payload.link);
   let response;
   for (let redirects = 0; redirects <= 3; redirects++) {
-    try { response = await fetcher(url, { method: 'GET', redirect: 'manual', signal }); }
+    try { response = await fetcher(downloadUrl, { method: 'GET', redirect: 'manual', signal }); }
     catch (error) {
       if (error?.name === 'AbortError') throw error;
       throw problem('Altyazı dosyası indirilemedi.', 'NETWORK');
@@ -211,7 +324,7 @@ async function downloadSubtitle({ fileId }, config = {}, { signal } = {}) {
     if (redirects === 3) throw problem('Altyazı indirmesi çok fazla yönlendirildi.', 'UNSAFE_URL');
     const location = response.headers.get('location');
     if (!location) throw problem('Yönlendirme hedefi eksik — indirme bağlantısı geçersiz.', 'INVALID_RESPONSE');
-    url = approvedDownloadUrl(new URL(location, url).href);
+    downloadUrl = approvedDownloadUrl(new URL(location, downloadUrl).href);
   }
   if (!response.ok) throw apiError(response);
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);

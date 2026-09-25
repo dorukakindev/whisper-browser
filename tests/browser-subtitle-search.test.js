@@ -76,6 +76,66 @@ async function main() {
 
   await assert.rejects(searchSubtitles({ query: 'x', moviehash: 'zz' }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
   await assert.rejects(searchSubtitles({ query: 'x', filesize: -5 }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
+
+  // Öneri uygulaması: Stremio OS-v3 anahtarsız basamak — imdb_id varken API
+  // anahtarı gerekmiyor; anahtarlı arama boş döndüğünde de basamak düşer.
+  const stremioRows = { subtitles: [
+    { id: 's1', url: 'https://opensubtitles-v3.strem.io/sub/en/a.srt', lang: 'en',
+      m: { release: 'Example.WEB-DL' }, hearing_impaired: false },
+    { id: 's2', url: 'http://evil.example/sub.srt', lang: 'en', m: {} },
+    { id: 's3', url: 'https://opensubtitles-v3.strem.io/sub/tr/b.srt', lang: 'tr',
+      m: { release: 'Example.TR' } },
+  ] };
+  const stCalls = [];
+  const stFetch = async (url, options) => {
+    stCalls.push(url);
+    return response(stremioRows);
+  };
+  // Anahtarsız + imdb_id → OpenSubtitles'a hiç gidilmeden Stremio sonucu
+  const keyless = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'tr' },
+    { fetch: stFetch });
+  assert.equal(stCalls.length, 1, 'anahtarsız + imdb_id → yalnız Stremio');
+  assert.ok(stCalls[0].includes('/subtitles/movie/tt0133093.json'), stCalls[0]);
+  assert.equal(keyless.provider, 'stremio');
+  assert.equal(keyless.results.length, 1, 'dil filtresi yalnız tr bırakır; http satırı elenir');
+  assert.equal(keyless.results[0].language, 'tr');
+  assert.equal(keyless.results[0].provider, 'stremio');
+
+  // Dizi biçimi: series/<imdb>/<s>/<e>
+  const serCalls = [];
+  await searchSubtitles({ query: 'Dizi', imdbId: 'tt0944947', season: 2, episode: 5 },
+    { fetch: async (url) => { serCalls.push(url); return response({ subtitles: [] }); } });
+  assert.ok(serCalls[0].includes('/subtitles/series/tt0944947/2/5.json'), serCalls[0]);
+
+  // Anahtarlı OS sıfır sonuç + imdb_id → Stremio basamağı
+  const ladderCalls = [];
+  const ladderFetch = async (url) => {
+    ladderCalls.push(url);
+    if (url.startsWith('https://api.opensubtitles.com')) return response({ total_count: 0, data: [] });
+    return response(stremioRows);
+  };
+  const ladder = await searchSubtitles({ query: 'X', imdbId: 'tt0133093' }, { apiKey: 'k', fetch: ladderFetch });
+  assert.equal(ladder.provider, 'stremio');
+  assert.ok(ladderCalls[0].startsWith('https://api.opensubtitles.com'), 'önce OS denenir');
+  assert.equal(ladderCalls.length, 2);
+
+  // İndirme: provider 'stremio' → doğrudan url, config.fetch enjekte edilir,
+  // allowlist dışı alan adı reddedilir.
+  const stDl = await downloadSubtitle({ provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/a.srt' },
+    { fetch: async (url) => {
+      assert.equal(url, 'https://opensubtitles-v3.strem.io/sub/en/a.srt');
+      return response('1\n00:00:00,000 --> 00:00:01,000\nMerhaba\n');
+    } });
+  assert.equal(stDl.format, 'srt');
+  assert.match(stDl.text, /Merhaba/);
+  await assert.rejects(
+    downloadSubtitle({ provider: 'stremio', url: 'https://evil.example/sub.srt' }, { fetch: async () => response('x') }),
+    { code: 'UNSAFE_URL' });
+  await assert.rejects(
+    downloadSubtitle({ provider: 'stremio', url: 'https://attacker.example@opensubtitles.com/fake.srt' },
+      { fetch: async () => response('x') }),
+    { code: 'UNSAFE_URL' });
+  await assert.rejects(searchSubtitles({ query: 'X', imdbId: 'abc' }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
   console.log('browser-subtitle-search: fixture tests passed');
 }
 

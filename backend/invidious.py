@@ -359,6 +359,10 @@ def _vtt_to_srt(content):
     cues, cur = [], []
     for line in lines:
         if "-->" in line and "." in line:
+            # Boş satırsız cue sınırı (kompakt VTT) — önceki cue'yu kurtar,
+            # yoksa üzerine yazılarak sessizce düşüyordu.
+            if len(cur) > 1:
+                cues.append(cur)
             ts = line.split("-->")
             start = ts[0].strip()
             end = ts[1].strip().split(" ")[0]
@@ -369,7 +373,7 @@ def _vtt_to_srt(content):
                     t = "00:" + t
                 return t
             cur = [f"{to_srt(start)} --> {to_srt(end)}"]
-        elif cur is not None:
+        else:
             if line.strip() == "":
                 if len(cur) > 1:
                     cues.append(cur)

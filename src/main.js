@@ -1973,12 +1973,13 @@ ipcMain.handle('youtube:authCode', async (_e) => {
   if (res && res.ok && res.data && (res.data.refresh_token || res.data.access_token)) {
     // refresh_token'siz grant (tekrar-onay kenarı) reddedilmez — ephemeral
     // hesap olarak eklenir; süresi dolunca yeniden giriş gerekir.
-    const up = ytAccounts.upsertAccount(youtubeSession.accounts, youtubeSession.activeId, {
+    const up = ytAccounts.upsertAccount(youtubeSession.accounts, {
       refreshToken: res.data.refresh_token || '',
       accessToken: res.data.access_token || '',
       expiresIn: res.data.expires_in,
       userName: String(res.data.user_name || '').slice(0, 200),
       userEmail: String(res.data.user_email || '').slice(0, 200),
+      userId: String(res.data.user_id || '').slice(0, 120),
       authMode: 'custom',
       ephemeral: !res.data.refresh_token,
     });
@@ -2030,6 +2031,21 @@ ipcMain.handle('youtube:accountRemove', async (_e, accountId) => {
   const id = String(accountId || '').slice(0, 120);
   const acct = youtubeSession.accounts[id];
   if (!acct) return { ok: false, error: 'Hesap bulunamadı.' };
+  // Uçuştaki cihaz-kodu poll'u auth slotunu dolu tutardı — revoke "zaten
+  // çalışıyor" reddiyle atlanıp Google tarafındaki grant canlı kalıyordu.
+  // Çıkışla aynı desen: önce akışı sonlandır, kapanışı bekle, sonra revoke.
+  const authProc = mediaJobs.youtubeAuth;
+  if (authProc) {
+    terminateProcessTree(authProc, { spawn });
+    _ytAbortAuthFlow('Hesap kaldırıldı.');
+    _ytDevice = null;
+    if (mediaJobs.youtubeAuth === authProc) {
+      await new Promise((resolve) => {
+        const t = setTimeout(resolve, 3000);
+        authProc.once('close', () => { clearTimeout(t); resolve(); });
+      });
+    }
+  }
   // Revoke en-iyi-çaba — O HESABIN token'ıyla (aktif hesabınki değil).
   const revokeResult = await runYoutubeCommand(['revoke'], null, 15_000,
     youtubeAuthEnv({ refreshToken: acct.refreshToken || '', accessToken: acct.accessToken || '' }),
@@ -2101,8 +2117,9 @@ ipcMain.handle('youtube:poll', async (_e) => {
     return { ok: false, error: 'Önce cihaz kodu üretin.' };
   }
   const remaining = Math.max(60, Math.floor((_ytDevice.expiresAt - Date.now()) / 1000));
+  const tvMode = !!_ytDevice.tv;
   const res = await runYoutubeCommand(
-    ['poll', '--client-id', _ytDevice.tv ? 'tv' : youtubeSession.clientId,
+    ['poll', '--client-id', tvMode ? 'tv' : youtubeSession.clientId,
      '--expires-in', String(remaining), '--interval', String(_ytDevice.interval)],
     (ev) => {
       // Sızıntı koruması: 'login'/'token' emit'leri access/refresh token taşır;
@@ -2113,13 +2130,19 @@ ipcMain.handle('youtube:poll', async (_e) => {
     },
     remaining * 1000 + 15_000, youtubeAuthEnv(), 'youtubeAuth');
   if (res && res.ok && res.data && (res.data.refresh_token || res.data.access_token)) {
-    const up = ytAccounts.upsertAccount(youtubeSession.accounts, youtubeSession.activeId, {
+    // Poll uçuştayken iptal/çıkış _ytDevice'ı null yapar ve süreci öldürür —
+    // geç resolve olan başarı sonucu silinmiş oturumu "hayalet hesap" olarak
+    // geri yazmasın diye upsert burada tamamen atlanır (ayrıca _ytDevice.tv
+    // TypeError verirdi).
+    if (!_ytDevice) return { ok: false, error: 'Giriş akışı iptal edildi.' };
+    const up = ytAccounts.upsertAccount(youtubeSession.accounts, {
       refreshToken: res.data.refresh_token || '',
       accessToken: res.data.access_token || '',
       expiresIn: res.data.expires_in,
       userName: String(res.data.user_name || '').slice(0, 200),
       userEmail: String(res.data.user_email || '').slice(0, 200),
-      authMode: _ytDevice.tv ? 'tv' : 'custom',
+      userId: String(res.data.user_id || '').slice(0, 120),
+      authMode: tvMode ? 'tv' : 'custom',
       ephemeral: !res.data.refresh_token,
     });
     youtubeSession.activeId = up.activeId;
@@ -2166,12 +2189,17 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
   return ytBrowseSerialized(bid, async () => {
     const token = await ensureYoutubeAccessToken();
     if (!token) return { ok: false, error: 'YouTube oturumu yok — önce giriş yapın.' };
-    const deadline = Date.now() + 10_000;
-    while (mediaJobs.youtube && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 150));
-    }
-    if (mediaJobs.youtube) {
-      return { ok: false, error: 'Bir YouTube işi zaten çalışıyor.' };
+    const held = mediaJobs.youtube;
+    if (held) {
+      // Slot boşalana kadar uyku-poll yerine süreç kapanışını dinle;
+      // 10 sn içinde bitmezse caller'a meşgul dön.
+      await Promise.race([
+        new Promise((r) => held.once('close', r)),
+        new Promise((r) => setTimeout(r, 10_000)),
+      ]);
+      if (mediaJobs.youtube) {
+        return { ok: false, error: 'Bir YouTube işi zaten çalışıyor.' };
+      }
     }
     const args = ['browse', '--browse-id', bid];
     if (cont) args.push('--continuation', cont.slice(0, 2000));
@@ -10610,7 +10638,10 @@ async function attachBrowserDebugger() {
     // zamanlayici birikiyordu. Ortak yardimci tek kez sonuclanir ve
     // zamanlayiciyi her durumda temizler.
     if (browserCaptureEnabled) {
-      await withTimeout(wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }),
+      // maxPostDataSize: protobuf-POST manifest isteyen servislerde istek
+      // gövdesi requestWillBeSent'e gelmiyordu — 1 MB'a kadar taşınsın.
+      await withTimeout(wc.debugger.sendCommand('Network.enable', {
+        maxResourceBufferSize: 12 * 1024 * 1024, maxPostDataSize: 1024 * 1024 }),
         1500, 'CDP frame hazırlığı zaman aşımına uğradı.');
     }
     if (!current()) return;
@@ -12413,7 +12444,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (!browserCaptureEnabled && /^Network\./.test(method)) return;
     if (method === 'Target.attachedToTarget' && params && params.sessionId) {
       if (!browserCaptureEnabled) return;
-      wc.debugger.sendCommand('Network.enable', { maxResourceBufferSize: 12 * 1024 * 1024 }, params.sessionId).catch(() => {});
+      wc.debugger.sendCommand('Network.enable', {
+        maxResourceBufferSize: 12 * 1024 * 1024, maxPostDataSize: 1024 * 1024 }, params.sessionId).catch(() => {});
       return;
     }
     if (method === 'Network.requestWillBeSent') {
@@ -12427,7 +12459,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         if (found) range = { start: Number(found[1]), end: found[2] ? Number(found[2]) : null };
         break;
       }
-      browserRequestRanges.set(`${sessionId || 'root'}:${params.requestId}`, { range });
+      // POST gövdesi (maxPostDataSize üstünden) — manifest'i POST ile isteyen
+      // servislerde isteğin ne taşıdığı kayıt altına alınır (256 KB tavan).
+      const postData = typeof request.postData === 'string'
+        ? request.postData.slice(0, 256 * 1024) : '';
+      browserRequestRanges.set(`${sessionId || 'root'}:${params.requestId}`, {
+        range, method: request.method || '', postData });
       if (browserRequestRanges.size > 4000) {
         browserRequestRanges.delete(browserRequestRanges.keys().next().value);
       }
@@ -12472,6 +12509,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
           encodedDataLength: response.encodedDataLength,
           resourceType: params.type,
           requestId: params.requestId,
+          method: requestInfo?.method || 'GET',
+          requestPostData: requestInfo?.postData || '',
         }, { context, source: 'cdp', bodyAvailable: false });
         if (!browserCaptureBodyAllowed(candidate, BROWSER_CAPTURE_BODY_LIMIT)) {
           noteBrowserCapture('cdp', { ...candidate, context }, 'error',

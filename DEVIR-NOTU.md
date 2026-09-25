@@ -1,6 +1,10 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-25 17:44 — R124 Adım 5: 5 Electron smoke'u (find/hata-sayfaları/page-bg/sekme-ikonu/donmuş-kare) + sayfada-bul "Aranıyor…" kök neden düzeltmesi (Electron 43 findNext:false sessizliği)](docs/devir/2026-09-25-1744.md).
+Güncel çalışma: [2026-09-25 19:28 — R126: GitHub bug dosyaları doğrulaması (10 gerçek bug düzeltildi; K5 kasıtlı tasarım / K6+R124-03 ertelendi / N5 uygulanamaz) + 3 öneri uygulandı (CDP postData, Stremio OS-v3 anahtarsız basamak, ffsubsync ses kipi)](docs/devir/2026-09-25-1928.md).
+
+Önceki çalışma: [2026-09-25 03:34 — Haze: A'dan Z'ye derin bug denetimi (R125 olarak korundu)](docs/devir/2026-09-25-0334.md).
+
+Önceki çalışma: [2026-09-25 17:44 — R124 Adım 5: 5 Electron smoke'u (find/hata-sayfaları/page-bg/sekme-ikonu/donmuş-kare) + sayfada-bul "Aranıyor…" kök neden düzeltmesi (Electron 43 findNext:false sessizliği)](docs/devir/2026-09-25-1744.md).
 
 Önceki çalışma: [2026-09-25 17:15 — R124 Adım 4 (Faz C): yan panel 48px ikon rayı (site başına tercih), yeni sekme sayfası (arama + hızlı erişim + izlemeye devam et), browser-chrome.css ayrımı + token birleştirme (sabit renk 459), açık-tema kontrast taraması CI'da](docs/devir/2026-09-25-1715.md).
 

@@ -19,10 +19,16 @@ function validateCues(cues) {
 function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
   const script = path.resolve(__dirname, '..', 'backend', 'browser_align.py');
   return {
-    align({ referenceCues, targetCues }, { signal, timeoutMs = 120000 } = {}) {
-      const reference = validateCues(referenceCues);
+    align({ referenceCues, targetCues, audioPath }, { signal, timeoutMs = 120000 } = {}) {
       const target = validateCues(targetCues);
-      const payload = JSON.stringify({ referenceCues: reference, targetCues: target });
+      // Ses kipi: ffsubsync altyazıyı referans altyazı yerine doğrudan
+      // medya sesinin VAD ritmiyle eşler (fps/sürüm uyumsuzluğu).
+      const audio = typeof audioPath === 'string' && audioPath ? audioPath : '';
+      if (audio && !fs.statSync(audio, { throwIfNoEntry: false })?.isFile())
+        throw new Error('Ses referansı dosyası bulunamadı.');
+      const reference = audio ? [] : validateCues(referenceCues);
+      const payload = JSON.stringify(audio
+        ? { audio, targetCues: target } : { referenceCues: reference, targetCues: target });
       if (Buffer.byteLength(payload, 'utf8') > 24 * 1024 * 1024) throw new Error('Altyazı verisi çok büyük.');
       if (!pythonPath) throw new Error('Python çalışma ortamı bulunamadı.');
       if (signal?.aborted) return Promise.reject(new Error('İşlem iptal edildi.'));

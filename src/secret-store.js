@@ -52,7 +52,10 @@ function setPath(object, fieldPath, value) {
   let current = object;
   for (let index = 0; index < parts.length - 1; index++) {
     const part = parts[index];
-    if (!current[part] || typeof current[part] !== 'object' || Array.isArray(current[part])) current[part] = {};
+    // Dizi düğümünü nesneyle EZME — alan yolu bir listenin içinden geçiyorsa
+    // yazımı atla; aksi halde var olan dizi sessizce kaybolurdu.
+    if (Array.isArray(current[part])) return object;
+    if (!current[part] || typeof current[part] !== 'object') current[part] = {};
     current = current[part];
   }
   current[parts[parts.length - 1]] = value;

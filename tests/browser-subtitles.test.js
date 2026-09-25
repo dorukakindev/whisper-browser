@@ -1008,7 +1008,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   // R51-17/A2: isteğin Range başlığı requestWillBeSent'te saklanır ve yanıt
   // Content-Range taşımadığında eşleyiciye verilir; belirsizlikte eşleşme reddedilir.
   assert.match(main, /method === 'Network\.requestWillBeSent'/);
-  assert.match(main, /browserRequestRanges\.set\(`\$\{sessionId \|\| 'root'\}:\$\{params\.requestId\}`, \{ range \}\)/);
+  assert.match(main, /browserRequestRanges\.set\(`\$\{sessionId \|\| 'root'\}:\$\{params\.requestId\}`, \{\s*range, method: request\.method \|\| '', postData \}\)/);
   assert.match(main, /captureBrowserHlsCeaSegment\(responseBuffer, candidate, context\)/);
   assert.match(main, /findSubtitleUrls/);
   assert.match(main, /Network\.responseReceived/);

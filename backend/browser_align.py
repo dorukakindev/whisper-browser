@@ -60,8 +60,18 @@ def align(payload):
     import ffsubsync
     from ffsubsync.ffsubsync import make_parser
 
-    reference = valid_cues(payload.get("referenceCues"))
     target = valid_cues(payload.get("targetCues"))
+    # Ses-referansli kip: payload.audio (yerel medya yolu) verildiginde
+    # ffsubsync altyaziyi dogrudan sesin VAD ritmiyle esler — fps/surum
+    # uyumsuzlugunu referans altyazi olmadan duzeltir.
+    audio_path = payload.get("audio") or ""
+    audio_mode = bool(audio_path)
+    if audio_mode:
+        if not isinstance(audio_path, str) or not os.path.isfile(audio_path):
+            raise ValueError("Ses referansı dosyası bulunamadı.")
+        reference = None
+    else:
+        reference = valid_cues(payload.get("referenceCues"))
     def make_srt(cues, raw):
         from datetime import timedelta
         return srt.compose([srt.Subtitle(index=i + 1,
@@ -71,12 +81,16 @@ def align(payload):
 
     with tempfile.TemporaryDirectory(prefix="whisper-browser-align-",
             dir=os.environ.get("WHISPER_ALIGN_TMPDIR")) as directory:
-        ref_file = Path(directory) / "reference.srt"
         input_file = Path(directory) / "target.srt"
         output_file = Path(directory) / "aligned.srt"
-        ref_file.write_text(make_srt(reference, payload["referenceCues"]), encoding="utf-8-sig")
+        if audio_mode:
+            ref_arg = audio_path
+        else:
+            ref_file = Path(directory) / "reference.srt"
+            ref_file.write_text(make_srt(reference, payload["referenceCues"]), encoding="utf-8-sig")
+            ref_arg = str(ref_file)
         input_file.write_text(make_srt(target, payload["targetCues"]), encoding="utf-8-sig")
-        args = make_parser().parse_args([str(ref_file), "-i", str(input_file), "-o", str(output_file),
+        args = make_parser().parse_args([ref_arg, "-i", str(input_file), "-o", str(output_file),
             "--split-penalty", "8"])
         result = ffsubsync.run(args)
         if not result.get("sync_was_successful") or not output_file.exists():
@@ -87,10 +101,16 @@ def align(payload):
     mapped = [(max(0.0, cue.start.total_seconds()), max(0.0, cue.end.total_seconds())) for cue in aligned]
     if any(end <= start or end > 86400 for start, end in mapped):
         raise RuntimeError("Eşleme geçersiz zaman üretti.")
-    before = overlap_score(reference, target)
-    after = overlap_score(reference, mapped)
     changed = sum(abs(start - old[0]) > .05 or abs(end - old[1]) > .05
         for (start, end), old in zip(mapped, target))
+    if audio_mode:
+        mean_drift = sum(abs(start - old[0]) for (start, _), old in zip(mapped, target)) / len(target)
+        return {"times": mapped, "diagnostics": {"referenceCount": None,
+            "targetCount": len(target), "changedCount": changed, "overlapBefore": None,
+            "overlapAfter": None, "confidence": "medium" if mean_drift < 30 else "low",
+            "autoApply": False, "method": "ffsubsync-audio-vad"}}
+    before = overlap_score(reference, target)
+    after = overlap_score(reference, mapped)
     confidence = "medium" if len(reference) >= 8 and len(target) >= 8 and after >= .45 and after > before + .08 else "low"
     return {"times": mapped, "diagnostics": {"referenceCount": len(reference),
         "targetCount": len(target), "changedCount": changed, "overlapBefore": round(before, 3),

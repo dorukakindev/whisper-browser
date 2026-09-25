@@ -25,7 +25,11 @@ function sanitizeAccount(raw) {
 function accountIdFor(userEmail, userName, fallbackSeed) {
   const base = String(userEmail || userName || '').trim().toLowerCase();
   if (base) return base.slice(0, 120);
-  return `acct-${String(fallbackSeed || Date.now())}`;
+  // Kimlik belirsizse (me ucu alan dönmedi) kararlı 'unknown' id'de birleştir —
+  // timestamp türetmek her girişte yeni yetim satır ekliyordu. Kanal id'si
+  // biliniyorsa onu kullan (kullanıcı adı değişse bile kalıcı).
+  const seed = String(fallbackSeed || '').trim();
+  return `acct-${seed || 'unknown'}`;
 }
 
 // SafeSecretStore'dan gelen secrets -> {accounts, activeId}
@@ -62,10 +66,14 @@ function migrateSecrets(s) {
 
 // Giriş/token tazeleme sonrası hesap ekle-güncelle; aktif hesap yapar.
 // patch: {refreshToken?, accessToken?, expiresIn?, userName?, userEmail?,
-//         authMode?, ephemeral?} — refreshToken yoksa ephemeral oturum sayılır.
-function upsertAccount(accounts, activeId, patch) {
-  const id = accountIdFor(patch.userEmail, patch.userName);
+//         userId?, authMode?, ephemeral?} — refreshToken yoksa ephemeral
+// oturum sayılır.
+function upsertAccount(accounts, patch) {
+  const id = accountIdFor(patch.userEmail, patch.userName, patch.userId);
   const prev = accounts[id] || {};
+  // expiresIn ayrımı: sonlu ve >= 0 ise saygı görür (0 = "şimdi doluyor"),
+  // NaN/negatif/belirsiz değer 3600 varsayımına devrilmez — güvenli yedek.
+  const expiresIn = Number(patch.expiresIn);
   const next = {
     refreshToken: patch.refreshToken !== undefined
       ? String(patch.refreshToken || '').slice(0, 2000)
@@ -74,7 +82,7 @@ function upsertAccount(accounts, activeId, patch) {
       ? String(patch.accessToken || '').slice(0, 4000)
       : (prev.accessToken || ''),
     expiresAt: patch.expiresIn !== undefined
-      ? Date.now() + (Number(patch.expiresIn) || 3600) * 1000
+      ? Date.now() + (Number.isFinite(expiresIn) && expiresIn >= 0 ? expiresIn : 3600) * 1000
       : (Number(prev.expiresAt) || 0),
     userName: String(patch.userName !== undefined ? patch.userName : prev.userName || '').slice(0, 200),
     userEmail: String(patch.userEmail !== undefined ? patch.userEmail : prev.userEmail || '').slice(0, 200),

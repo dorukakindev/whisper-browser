@@ -35,6 +35,11 @@ function cuesToAss(cues) {
 function validateBrowserSubtitleDocument(text, format, expectedCues) {
   const expected = normalizeCues(expectedCues).slice(0, 20000);
   const parsed = parseSubtitlePayload(String(text || ''), '', `subtitle.${format}`).cues;
+  // Boşa-boş eşleşme başarı sayılmaz — kayıp ölçüm için anlamlı karşılaştırma
+  // yoktur; sessiz "her şey yolunda" dönüşü kaybolan cue'ları gizlerdi.
+  if (!expected.length) {
+    return { ok: false, error: 'Doğrulanacak altyazı içeriği yok.', cues: parsed };
+  }
   if (parsed.length !== expected.length) {
     return { ok: false, error: `Altyazı blok sayısı uyuşmuyor (${parsed.length}/${expected.length}).`, cues: parsed };
   }

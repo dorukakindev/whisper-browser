@@ -5,7 +5,8 @@
  *
  * Sözleşme:
  * - migrateSecrets: eski flat şema -> accounts map; bozuk JSON güvenli düşer.
- * - upsertAccount: email>name>fallback id; refresh_token'siz grant ephemeral.
+ * - upsertAccount: email>name>userId>'unknown' id; refresh_token'siz grant
+ *   ephemeral; expiresIn 0/NaN/negatifte 3600 varsayılır (N4).
  * - removeAccount: aktif silinince sıradaki hesap aktifleşir.
  * - activeAccount: refresh_token veya geçerli ephemeral access_token şart.
  * - accountList: renderer'a token/secret sızdırmaz.
@@ -48,18 +49,51 @@ test('migrate: accounts JSON + active_id okunur; boşluk güvenli', () => {
 
 test('upsert: id email önce, yoksa name; aynı hesap tekrar girişte birleşir', () => {
   const acc = {};
-  let r = yt.upsertAccount(acc, '', { refreshToken: 'rt', userName: 'Ahmet', userEmail: 'a@b.c' });
+  let r = yt.upsertAccount(acc, { refreshToken: 'rt', userName: 'Ahmet', userEmail: 'a@b.c' });
   assert.strictEqual(r.id, 'a@b.c');
-  r = yt.upsertAccount(acc, '', { refreshToken: 'rt2', userName: 'Ahmet', userEmail: 'a@b.c' });
+  r = yt.upsertAccount(acc, { refreshToken: 'rt2', userName: 'Ahmet', userEmail: 'a@b.c' });
   assert.strictEqual(Object.keys(acc).length, 1, 'tekrar giriş yeni satır üretmez');
   assert.strictEqual(acc['a@b.c'].refreshToken, 'rt2');
-  r = yt.upsertAccount(acc, '', { refreshToken: 'rt3', userName: 'İkinci' });
+  r = yt.upsertAccount(acc, { refreshToken: 'rt3', userName: 'İkinci' });
   assert.strictEqual(r.id, 'İkinci'.toLowerCase());
+});
+
+test('upsert: kimliksiz giriş kararlı acct-unknown id altında birleşir — yetim satır yok (N2)', () => {
+  const acc = {};
+  // _fetch_me başarısız → name/email/id yok; iki giriş aynı satıra yazmalı.
+  let r = yt.upsertAccount(acc, { refreshToken: 'rt1', userName: '', userEmail: '', userId: '' });
+  assert.strictEqual(r.id, 'acct-unknown');
+  r = yt.upsertAccount(acc, { refreshToken: 'rt2', userName: '', userEmail: '', userId: '' });
+  assert.strictEqual(Object.keys(acc).length, 1, 'ikinci kimliksiz giriş ayrı satır üretmemeli');
+  assert.strictEqual(acc['acct-unknown'].refreshToken, 'rt2');
+  // Kanal id'si varsa kalıcı kimlik o olur (isim değişse bile aynı satır).
+  r = yt.upsertAccount(acc, { refreshToken: 'rt3', userName: '', userEmail: '', userId: 'UC-abc' });
+  assert.strictEqual(r.id, 'acct-UC-abc');
+  r = yt.upsertAccount(acc, { refreshToken: 'rt4', userName: '', userEmail: '', userId: 'UC-abc' });
+  assert.strictEqual(r.id, 'acct-UC-abc');
+});
+
+test('upsert: expiresIn=0 şimdi doluyor; NaN/negatif güvenli yedeğe düşer (N4)', () => {
+  const acc = {};
+  const before = Date.now();
+  const r0 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 0, userId: 'u0' });
+  assert.ok(acc[r0.id].expiresAt - before <= 1000,
+    'expiresIn=0 "şimdi doluyor" demek — 3600 varsayımına sessizce düşmemeli');
+  assert.strictEqual(yt.activeAccount(acc, r0.id), null, 'süresi dolmuş ephemeral aktif sayılmaz');
+  const r1 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 'NaN-degil', userId: 'u1' });
+  const e1 = acc[r1.id].expiresAt - before;
+  assert.ok(e1 > 3000 * 1000 && e1 <= 3600 * 1000, `geçersiz expiresIn -> ~3600s yedek, ${e1}ms`);
+  const r2 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: -50, userId: 'u2' });
+  const e2 = acc[r2.id].expiresAt - before;
+  assert.ok(e2 > 3000 * 1000, `negatif expiresIn -> yedek süre, ${e2}ms`);
+  const r3 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 120, userId: 'u3' });
+  const e3 = acc[r3.id].expiresAt - before;
+  assert.ok(e3 <= 120 * 1000 + 5000 && e3 >= 120 * 1000, `expiresIn=120 saygı görmeli, ${e3}ms`);
 });
 
 test('upsert: refresh_token yoksa ephemeral=true, oturum yine açılır', () => {
   const acc = {};
-  const r = yt.upsertAccount(acc, '', {
+  const r = yt.upsertAccount(acc, {
     refreshToken: '', accessToken: 'at-x', expiresIn: 3600,
     userName: 'Geçici', userEmail: 'g@h.i', authMode: 'tv',
   });

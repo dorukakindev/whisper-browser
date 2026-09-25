@@ -19,7 +19,9 @@
     return requested;
   }
   function splitBrowserBounds(rawBounds, rawRatio = 0.5, gap = 6) {
-    if (!rawBounds) return null;
+    // Boş nesne {} 1×1 bölünmeye düşüyordu — genişlik/yükseklik alanları
+    // olmadan girdi geçerli bounds sayılmaz.
+    if (!rawBounds || rawBounds.width == null || rawBounds.height == null) return null;
     const bounds = { x: Math.round(Number(rawBounds.x) || 0), y: Math.round(Number(rawBounds.y) || 0),
       width: Math.max(1, Math.round(Number(rawBounds.width) || 1)), height: Math.max(1, Math.round(Number(rawBounds.height) || 1)) };
     const ratio = Math.max(0.25, Math.min(0.75, Number(rawRatio) || 0.5));

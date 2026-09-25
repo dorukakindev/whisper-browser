@@ -2,9 +2,9 @@ const { MAX_ABS_OFFSET_SECONDS } = require('./browser-subtitle-sync');
 const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 const DEFAULT_CLOSED_TAB_LIMIT = 20;
-// HTMLMediaElement zamanları saniyedir; 1000 saatlik sınır uzun yayınları
+// HTMLMediaElement zamanları saniyedir; 7 günlük sınır uzun yayınları
 // kesmeden bozuk/aşırı kalıcılık girdilerini sınırlar.
-const MAX_MEDIA_TIME_SECONDS = 60 * 60 * 1000;
+const MAX_MEDIA_TIME_SECONDS = 7 * 24 * 60 * 60;
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
   const number = Number(value);

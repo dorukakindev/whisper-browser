@@ -93,6 +93,7 @@
     const result = await call('subtitle-search', {
       query: val('bfTitle'), season: val('bfSeason') || undefined, episode: val('bfEpisode') || undefined,
       language: val('bfLanguage') || undefined, release: val('bfRelease') || undefined,
+      imdbId: val('bfImdb') || undefined,
       mediaPath: player.localPath || undefined,
       config: credentials(),
     });
@@ -116,10 +117,10 @@
     for (const row of rows) {
       const item = node('div', '', 'bf-result');
       item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));
-      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}`, 'bf-meta'));
+      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}${row.provider === 'stremio' ? ' · Stremio/OS' : ''}`, 'bf-meta'));
       const button = node('button', 'İndir ve aç'); button.type = 'button';
       button.addEventListener('click', async () => {
-        const downloaded = await call('subtitle-download', { fileId: row.fileId, config: credentials() });
+        const downloaded = await call('subtitle-download', { fileId: row.fileId, url: row.url, provider: row.provider, config: credentials() });
         if (!downloaded) return;
         if (!downloaded.filePath) { status('İndirme dosya yolu döndürmedi.', true); return; }
         if (!await openSubtitleCopy(downloaded.filePath)) return;
