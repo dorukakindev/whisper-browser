@@ -5275,7 +5275,7 @@ function newBrowserTabState(snapshot = {}) {
     readerPreferences: snapshot.readerPreferences || null,
     diagnostics: snapshot.diagnostics || null,
     error: '',
-    errorKind: '', errorCode: '', errorUrl: '',
+    errorKind: '', errorCode: '', errorUrl: '', errorMessageKey: '', errorParams: null,
     browserTracks: [],
     browserCeaCapture: normalizeBrowserCeaCaptureState(snapshot.ceaCapture),
     browserTime: Number(snapshot.position) || 0,
@@ -5669,7 +5669,8 @@ function restoreActiveBrowserTabWorkspace(tab) {
   updateBrowserMangaButton();
   renderBrowserTabs();
   updateBrowserNavigation(tab, { preserveWorkspace: true });
-  showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
+  showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error,
+    messageKey: tab.errorMessageKey, params: tab.errorParams, url: tab.errorUrl } : null);
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
   void restoreBrowserTranslationSnapshot(tab);
   void restoreBrowserSubtitleSelection(tab);
@@ -8085,46 +8086,59 @@ function renderBrowserPlaybackDiagnostics(diagnostics) {
   const component = capabilities.component || {};
   const eme = capabilities.eme || {};
   const gpu = capabilities.gpu || {};
+  const en = window.UiLocale?.get?.() === 'en';
   const capabilityParts = [];
   if (Object.keys(component).length) {
-    capabilityParts.push(`CDM: ${component.ready ? 'hazır' : component.available ? 'bekliyor/hatalı' : 'yok'}`);
+    capabilityParts.push(`CDM: ${component.ready ? (en ? 'ready' : 'hazır')
+      : component.available ? (en ? 'pending/faulty' : 'bekliyor/hatalı') : (en ? 'absent' : 'yok')}`);
   }
   if (Object.keys(eme).length) {
-    capabilityParts.push(`EME: ${eme.probeFailed ? 'ölçülemedi' : eme.supported ? 'uygun'
-      : eme.apiAvailable === false ? 'API yok' : 'uygun değil'}`);
+    capabilityParts.push(`EME: ${eme.probeFailed ? (en ? 'not measured' : 'ölçülemedi')
+      : eme.supported ? (en ? 'suitable' : 'uygun')
+      : eme.apiAvailable === false ? 'API yok' : (en ? 'unsuitable' : 'uygun değil')}`);
   }
-  if (eme.videoSupported === false || eme.audioSupported === false) capabilityParts.push('codec: uygun değil');
-  else if (eme.videoSupported === true && eme.audioSupported === true) capabilityParts.push('codec: uygun');
+  if (eme.videoSupported === false || eme.audioSupported === false) {
+    capabilityParts.push(en ? 'codec: unsuitable' : 'codec: uygun değil');
+  } else if (eme.videoSupported === true && eme.audioSupported === true) {
+    capabilityParts.push(en ? 'codec: suitable' : 'codec: uygun');
+  }
   if (gpu.videoDecode) {
     const decodeStatus = String(gpu.videoDecode);
     const decodeLabel = /^(?:bilinmiyor|unknown|unavailable)$/i.test(decodeStatus)
-      ? 'bilinmiyor' : decodeStatus.startsWith('enabled') ? 'etkin' : 'sınırlı';
+      ? (en ? 'unknown' : 'bilinmiyor')
+      : decodeStatus.startsWith('enabled') ? (en ? 'enabled' : 'etkin') : (en ? 'limited' : 'sınırlı');
     capabilityParts.push(`GPU video: ${decodeLabel}`);
   }
   const capability = $('browserPlaybackCapability');
   if (capability) capability.textContent = capabilityParts.join(' · ')
-    || 'Yetenek ölçümü korumalı bir sayfa açıldığında yapılır.';
+    || (en ? 'Capability probing runs when a protected page opens.' : 'Yetenek ölçümü korumalı bir sayfa açıldığında yapılır.');
   const summary = $('browserPlaybackSummary');
   if (summary) summary.textContent = recent.length
-    ? `${recent.length} tanı · ${Object.keys(diagnostics.counts || {}).length} sınıf`
-    : 'Oynatma hatası gözlenmedi';
+    ? (en ? `${recent.length} diagnostics · ${Object.keys(diagnostics.counts || {}).length} classes`
+      : `${recent.length} tanı · ${Object.keys(diagnostics.counts || {}).length} sınıf`)
+    : (en ? 'No playback errors observed' : 'Oynatma hatası gözlenmedi');
   const list = $('browserPlaybackRecent');
   if (!list) return;
   list.replaceChildren();
   if (!recent.length) {
-    list.textContent = 'EME, codec, lisans ağı, HTTP ve medya belirtileri burada kanıt düzeyiyle gösterilir.';
+    list.textContent = en
+      ? 'EME, codec, license network, HTTP, and media signals are shown here with evidence level.'
+      : 'EME, codec, lisans ağı, HTTP ve medya belirtileri burada kanıt düzeyiyle gösterilir.';
     return;
   }
   for (const entry of recent) {
     const row = document.createElement('div');
     row.className = `browser-playback-row confidence-${entry.confidence || 'düşük'}`;
     const confidence = document.createElement('span');
-    confidence.textContent = String(entry.confidence || 'düşük').toUpperCase();
+    confidence.textContent = en
+      ? (DIAGNOSTIC_CONFIDENCE_EN[entry.confidence] || String(entry.confidence || 'düşük').toUpperCase())
+      : String(entry.confidence || 'düşük').toUpperCase();
     const label = document.createElement('strong');
-    label.textContent = entry.label || entry.code || 'Oynatma tanısı';
+    label.textContent = diagnosticField(entry, 'label') || entry.code || (en ? 'Playback diagnostic' : 'Oynatma tanısı');
     const message = document.createElement('span');
-    message.textContent = entry.message || '';
-    message.title = [entry.message, entry.evidence].filter(Boolean).join(' · ');
+    const messageText = diagnosticField(entry, 'message');
+    message.textContent = messageText;
+    message.title = [messageText, entry.evidence].filter(Boolean).join(' · ');
     row.append(confidence, label, message);
     list.appendChild(row);
   }
@@ -8374,14 +8388,15 @@ function updateBrowserSubtitleSummary() {
     && tab?.browserTranslationComplete === false);
   const busy = !!(player.browserTranslatePreparing || ownedPlayerJob || liveTranslationBusy);
   const stateName = busy ? 'busy' : count ? 'ready' : 'idle';
-  label.textContent = `Altyazı${count ? ` · ${count}` : ''}`;
+  const en = window.UiLocale?.get?.() === 'en';
+  label.textContent = `${window.UiLocale?.t?.('Altyazı') || 'Altyazı'}${count ? ` · ${count}` : ''}`;
   button.dataset.state = stateName;
   button.setAttribute('aria-busy', busy ? 'true' : 'false');
   button.title = busy
-    ? `${label.textContent} · işlem sürüyor; ayrıntıları aç`
+    ? `${label.textContent} · ${en ? 'operation in progress; open details' : 'işlem sürüyor; ayrıntıları aç'}`
     : count
-      ? `${label.textContent} · izleri ve çeviri seçeneklerini aç`
-      : 'Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç';
+      ? `${label.textContent} · ${en ? 'open tracks and translation options' : 'izleri ve çeviri seçeneklerini aç'}`
+      : (en ? 'No subtitle track yet; open subtitle and translation settings' : 'Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç');
 }
 
 function clearBrowserTracks(message) {
@@ -10548,6 +10563,7 @@ function updateBrowserNavigation(data, options = {}) {
   if (data.loading) {
     if (tab) {
       tab.error = ''; tab.errorKind = ''; tab.errorCode = ''; tab.errorUrl = '';
+      tab.errorMessageKey = ''; tab.errorParams = null;
       tab.cloudflareChallengeActive = false;
       tab.compatibilityMessage = '';
     }
@@ -11836,7 +11852,8 @@ function showBrowserWebSurface() {
   if ($('browserReload')) $('browserReload').disabled = !tab;
   $('browserEmpty')?.classList.toggle('hidden', !!tab?.url || !!tab?.error);
   showBrowserErrorSurface(tab?.error
-    ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error } : null);
+    ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error,
+      messageKey: tab.errorMessageKey, params: tab.errorParams, url: tab.errorUrl } : null);
   renderBrowserTabs();
   return syncResponsivePlayerLayout();
 }
@@ -12521,6 +12538,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'load-error' || event.type === 'security-error'
           || event.type === 'tab-crashed') {
         tab.error = event.message || 'Tarayıcı hatası';
+        tab.errorMessageKey = event.messageKey || '';
+        tab.errorParams = event.params || null;
         tab.errorKind = event.type === 'security-error' ? 'certificate'
           : (event.type === 'tab-crashed' ? 'crash' : (event.errorKind === 'http' ? 'http' : 'connection'));
         tab.errorCode = event.code || event.reason || '';
@@ -12662,6 +12681,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const tab = browserTabState();
     if (tab) {
       tab.error = event.message || `hata ${event.code}`;
+      tab.errorMessageKey = event.messageKey || '';
+      tab.errorParams = event.params || null;
       tab.errorKind = event.type === 'security-error' ? 'certificate'
         : (event.type === 'tab-crashed' ? 'crash' : (event.errorKind === 'http' ? 'http' : 'connection'));
       tab.errorCode = event.code || event.reason || '';
@@ -12672,14 +12693,18 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       const mt = (s) => window.UiLocale?.t(s) || s;
       $('playerMeta').textContent = event.type === 'tab-crashed' ? mt('Sekme çöktü') : mt('Sayfa yüklenemedi');
     }
-    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, url: event.url || tab?.errorUrl, message: event.message || `hata ${event.code}` });
-    setBrowserSignal(`${event.type === 'tab-crashed' ? 'Sekme çöktü' : 'Sayfa yüklenemedi'}: ${event.message || `hata ${event.code}`}`, false,
+    const errorText = browserErrorText(event) || `hata ${event.code}`;
+    showBrowserErrorSurface({ kind: tab?.errorKind, code: event.code, url: event.url || tab?.errorUrl,
+      message: event.message || errorText, messageKey: event.messageKey, params: event.params });
+    const mt2 = (s) => window.UiLocale?.t(s) || s;
+    setBrowserSignal(`${event.type === 'tab-crashed' ? mt2('Sekme çöktü') : mt2('Sayfa yüklenemedi')}: ${errorText}`, false,
       { priority: 100, holdMs: 7000 });
   } else if (event.type === 'notice') {
     setBrowserSignal(event.message || 'İşlem tamamlandı.', !!event.success);
   } else if (event.type === 'load-retry') {
     const attempt = Math.max(1, Number(event.attempt) || 1);
-    const message = event.message || ('Geçici ağ hatası yeniden deneniyor (' + attempt + '/3).');
+    const message = browserErrorText({ ...event, params: { ...(event.params || {}), attempt } })
+      || ('Geçici ağ hatası yeniden deneniyor (' + attempt + '/3).');
     setBrowserSignal(message, false, { priority: 70, holdMs: 5000 });
     logLine(message, 'warn');
   } else if (event.type === 'html-full-screen') {
@@ -12724,7 +12749,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'playback-diagnostics' && event.diagnostics) {
     renderBrowserPlaybackDiagnostics(event.diagnostics);
     if (event.diagnostic) {
-      const message = `${event.diagnostic.label || 'Oynatma tanısı'}: ${event.diagnostic.message || ''}`;
+      const fallbackLabel = window.UiLocale?.t('Oynatma tanısı') || 'Oynatma tanısı';
+      const message = `${diagnosticField(event.diagnostic, 'label') || fallbackLabel}: ${diagnosticField(event.diagnostic, 'message')}`;
       setBrowserSignal(message, false, {
         priority: event.diagnostic.confidence === 'yüksek' ? 90 : event.diagnostic.confidence === 'orta' ? 75 : 45,
         holdMs: event.diagnostic.confidence === 'düşük' ? 4500 : 6500,
@@ -16412,6 +16438,39 @@ async function restorePendingLibraryAnchor(event = {}) {
   }
 }
 
+// R124 Adım 1.2: main'den gelen hata olayları messageKey + params taşır;
+// TR metin fallback'tir, EN locale'de bu şablonlar kullanılır.
+const BROWSER_ERROR_EN = {
+  'address-not-found': () => "The site's address could not be found. Check the address; if it is correct, check DNS or your internet connection.",
+  'internet-offline': () => 'No internet connection. Check your connection and try again.',
+  'site-timeout': () => 'The site did not respond in time. Try again in a moment.',
+  'network-access-denied': () => 'Network access was denied by Windows or a VPN. If this app is selected in Proton VPN split tunneling, connect Proton or deselect electron.exe.',
+  'quic-error': () => 'The VPN connection could not complete the QUIC protocol; restart the app and try again.',
+  'connection-refused': () => 'The site refused the connection. Check the address, VPN/proxy settings, and whether the site is up.',
+  'insecure-response': () => 'The site returned an insecure TLS/certificate response. Check the system clock and VPN/antivirus HTTPS inspection.',
+  'http-empty-server': (p) => `The site server returned an HTTP ${p.status} error with an empty response. Try again shortly.`,
+  'http-empty-client': (p) => `The site returned HTTP ${p.status} and the page came back empty.`,
+  'certificate-error': (p) => `This site's security certificate could not be verified${p.detail ? ` (${p.detail})` : ''}. Connection blocked; check the system clock, VPN/proxy, and antivirus HTTPS inspection.`,
+  'crash-memory': () => "The tab's web process was closed due to memory pressure. URL and session record preserved; the tab will be recreated once.",
+  'crash-recoverable': () => "The tab's web process closed unexpectedly. URL and session record preserved; the tab will be recreated once.",
+  'crash-manual': (p) => `The tab's web process closed (${p.reason}). URL preserved; reload is user-initiated.`,
+  'load-retry': (p) => `Transient network error, retrying (${p.attempt}/${p.max}).`,
+};
+
+function browserErrorText(source) {
+  if (!source || typeof source !== 'object') return String(source || '');
+  const template = window.UiLocale?.get?.() === 'en' && BROWSER_ERROR_EN[source.messageKey];
+  return template ? template(source.params || {}) : (source.message || '');
+}
+
+function diagnosticField(entry, field) {
+  if (!entry || typeof entry !== 'object') return '';
+  if (window.UiLocale?.get?.() === 'en') return entry[`${field}En`] || entry[field] || '';
+  return entry[field] || '';
+}
+
+const DIAGNOSTIC_CONFIDENCE_EN = { 'yüksek': 'HIGH', 'orta': 'MEDIUM', 'düşük': 'LOW' };
+
 function showBrowserErrorSurface(error) {
   const surface = $('browserErrorSurface');
   if (!surface) return;
@@ -16425,7 +16484,7 @@ function showBrowserErrorSurface(error) {
     : (crashed ? 'Web işlemi kapandı' : (httpEmpty ? 'Sunucu yanıtı boş' : 'Bağlantı kurulamadı'));
   if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı'
     : (crashed ? 'Sekme çöktü' : (httpEmpty ? 'Bu sayfa çalışmıyor' : 'Sayfa açılamadı'));
-  if ($('browserErrorMessage')) $('browserErrorMessage').textContent = error.message;
+  if ($('browserErrorMessage')) $('browserErrorMessage').textContent = browserErrorText(error);
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
   if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
   // https açılamadıysa (sertifika hatası DEĞİL) açık onayla http denemesi.

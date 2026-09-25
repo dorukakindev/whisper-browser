@@ -4,7 +4,7 @@ const path = require('path');
 const vm = require('vm');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
-const classifier = main.slice(main.indexOf('function isAbortedBrowserNavigation'), main.indexOf('function browserLoadErrorMessage'));
+const classifier = main.slice(main.indexOf('function isAbortedBrowserNavigation'), main.indexOf('function browserLoadError('));
 const isAborted = vm.runInNewContext(classifier + '\nisAbortedBrowserNavigation');
 for (const error of [{ errno: -3 }, { code: 'ERR_ABORTED' }, { code: 'net::ERR_ABORTED' }]) assert.ok(isAborted(error));
 for (const error of [{ errno: -105 }, { code: 'ERR_CERT_AUTHORITY_INVALID' }, {}, null]) assert.ok(!isAborted(error));
@@ -21,7 +21,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       URL,
       loadedDirectBrowserMedia: vm.runInNewContext(main.slice(main.indexOf('async function loadedDirectBrowserMedia('),main.indexOf('function isAbortedBrowserNavigation('))+'\nloadedDirectBrowserMedia',{URL,setTimeout}),
       isAbortedBrowserNavigation: isAborted, normalizeBrowserUrl: url => url,
-      browserLoadErrorMessage: (_, message) => message, waitForProtectedPlayback: async () => {},
+      browserLoadError: (_, message) => ({ message, messageKey: 'generic' }), waitForProtectedPlayback: async () => {},
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
       browserCompatibilityModeForUrl: () => false,
       suspendBrowserInstrumentationForNavigation() {},
@@ -102,7 +102,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       waitForProtectedPlayback: async () => { markProtectedStarted(); await protectedGate; },
       scheduleBrowserSessionSave() {},
       isAbortedBrowserNavigation: isAborted,
-      browserLoadErrorMessage: (_, message) => message,
+      browserLoadError: (_, message) => ({ message, messageKey: 'generic' }),
     });
     const opening = open('https://protected.test/slow');
     await protectedStarted;
@@ -149,7 +149,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       browserEventContext: () => ({}),
       browserNavigationState: () => ({}),
       isAbortedBrowserNavigation: isAborted,
-      browserLoadErrorMessage: (_, message) => message,
+      browserLoadError: (_, message) => ({ message, messageKey: 'generic' }),
       ipcMain: { handle: (_, fn) => { navigate = fn; } },
     });
     const oldRequest = navigate({}, { url: 'https://protected.test/slow', tabId: tab.id });

@@ -1794,7 +1794,7 @@ function openYoutubeTvWindow(userAgentId) {
   tvContents.on('did-navigate-in-page', onTvNavigate);
   tvContents.on('page-title-updated', (_event, title) => sendYoutubeTvState({ title: String(title || '').slice(0, 200) }));
   tvContents.on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
-    if (isMainFrame && code !== -3) sendYoutubeTvState({ error: browserLoadErrorMessage(code, description) });
+    if (isMainFrame && code !== -3) sendYoutubeTvState({ error: browserLoadError(code, description).message });
   });
   tvContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
@@ -3620,14 +3620,16 @@ function maybeFlagEmptyHttpErrorPage(tab, view, wc) {
     if (Number(weight) > 0 || tab.closing || tab.loadError || wc.isDestroyed()
         || tab.generation !== generation || tab.view !== view) return;
     const url = wc.getURL();
+    const messageKey = status >= 500 ? 'http-empty-server' : 'http-empty-client';
+    const params = { status };
     const message = status >= 500
       ? `Site sunucusu HTTP ${status} hatası verdi ve boş yanıt döndürdü. Birazdan yeniden deneyin.`
       : `Site HTTP ${status} yanıtı verdi ve sayfa boş geldi.`;
-    tab.loadError = { kind: 'http', code: `HTTP ${status}`, message, url, retry: { action: 'none' } };
+    tab.loadError = { kind: 'http', code: `HTTP ${status}`, message, messageKey, params, url, retry: { action: 'none' } };
     if (tab.id === browserActiveTabId) view.setVisible(false);
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
-      code: `HTTP ${status}`, errorKind: 'http', message, url: redactDiagnosticText(url) });
+      code: `HTTP ${status}`, errorKind: 'http', message, messageKey, params, url: redactDiagnosticText(url) });
   }).catch(() => {});
 }
 
@@ -4946,31 +4948,40 @@ function isAbortedBrowserNavigation(error) {
     || ['ERR_ABORTED', 'net::ERR_ABORTED'].includes(error?.code);
 }
 
-function browserLoadErrorMessage(code, description) {
+// R124: Hata metni TR kalıp olarak burada kalır; renderer EN locale'de
+// messageKey'e karşılık gelen İngilizce şablonu kullanır.
+function browserLoadError(code, description) {
   const raw = String(description || 'Sayfa yüklenemedi.');
   // R123-B3: En sık ana belge hataları ham Chromium kodu yerine anlaşılır mesajla.
   if (Number(code) === -105 || /ERR_NAME_NOT_RESOLVED/i.test(raw)) {
-    return 'Sitenin adresi bulunamadı. Adresi kontrol edin; doğruysa DNS veya internet bağlantısını denetleyin.';
+    return { messageKey: 'address-not-found',
+      message: 'Sitenin adresi bulunamadı. Adresi kontrol edin; doğruysa DNS veya internet bağlantısını denetleyin.' };
   }
   if (Number(code) === -106 || /ERR_INTERNET_DISCONNECTED/i.test(raw)) {
-    return 'İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.';
+    return { messageKey: 'internet-offline',
+      message: 'İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.' };
   }
   if (Number(code) === -118 || /ERR_CONNECTION_TIMED_OUT/i.test(raw)) {
-    return 'Site zamanında yanıt vermedi. Biraz sonra tekrar deneyin.';
+    return { messageKey: 'site-timeout',
+      message: 'Site zamanında yanıt vermedi. Biraz sonra tekrar deneyin.' };
   }
   if (Number(code) === -138 || /ERR_NETWORK_ACCESS_DENIED/i.test(raw)) {
-    return 'Ağ erişimi Windows veya VPN tarafından reddedildi. Proton VPN ayrılmış tünellemesinde bu uygulama seçiliyse Proton’a bağlanın ya da electron.exe seçimini kaldırın.';
+    return { messageKey: 'network-access-denied',
+      message: 'Ağ erişimi Windows veya VPN tarafından reddedildi. Proton VPN ayrılmış tünellemesinde bu uygulama seçiliyse Proton’a bağlanın ya da electron.exe seçimini kaldırın.' };
   }
   if (Number(code) === -356 || /ERR_QUIC_PROTOCOL_ERROR/i.test(raw)) {
-    return 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.';
+    return { messageKey: 'quic-error',
+      message: 'VPN bağlantısı QUIC protokolünü tamamlayamadı; uygulamayı yeniden başlatıp tekrar deneyin.' };
   }
   if (Number(code) === -102 || /ERR_CONNECTION_REFUSED/i.test(raw)) {
-    return 'Site bağlantıyı reddetti. Adresi, VPN/proxy ayarını ve sitenin çalışır durumda olduğunu kontrol edin.';
+    return { messageKey: 'connection-refused',
+      message: 'Site bağlantıyı reddetti. Adresi, VPN/proxy ayarını ve sitenin çalışır durumda olduğunu kontrol edin.' };
   }
   if (Number(code) === -501 || /ERR_INSECURE_RESPONSE/i.test(raw)) {
-    return 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.';
+    return { messageKey: 'insecure-response',
+      message: 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.' };
   }
-  return raw;
+  return { messageKey: 'generic', message: raw };
 }
 
 function browserTabForWebContents(webContents) {
@@ -4978,9 +4989,13 @@ function browserTabForWebContents(webContents) {
     && !tab.view.webContents.isDestroyed() && tab.view.webContents === webContents) || null;
 }
 
-function browserCertificateErrorMessage(error) {
+function browserCertificateError(error) {
   const detail = String(error || '').replace(/^net::/i, '').replace(/^ERR_/i, '').replace(/_/g, ' ').toLowerCase();
-  return `Bu sitenin güvenlik sertifikası doğrulanamadı${detail ? ` (${detail})` : ''}. Bağlantı engellendi; sistem saatini, VPN/proxy ve antivirüs HTTPS denetimini kontrol edin.`;
+  return {
+    detail,
+    message: `Bu sitenin güvenlik sertifikası doğrulanamadı${detail ? ` (${detail})` : ''}. Bağlantı engellendi; sistem saatini, VPN/proxy ve antivirüs HTTPS denetimini kontrol edin.`,
+    messageKey: 'certificate-error',
+  };
 }
 
 async function openBrowserLinkInNewTab(rawUrl) {
@@ -5024,8 +5039,9 @@ async function openBrowserLinkInNewTab(rawUrl) {
     // Yönlendirme/yeni gezinme önceki loadURL sözünü reddedebilir. Sonraki
     // did-navigate/did-stop-loading olayları güncel sekme durumunu yayınlar.
     if (isAbortedBrowserNavigation(error)) return true;
+    const loadError = browserLoadError(error.errno, error.code || error.message);
     sendBrowserEvent(tab, { type: 'load-error', loading: false, code: error.errno,
-      message: browserLoadErrorMessage(error.errno, error.code || error.message), url });
+      message: loadError.message, messageKey: loadError.messageKey, url });
     return false;
   }
 }
@@ -12241,9 +12257,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       // R123-B3: Teşhis kataloğu oynatma odaklıdır ("Oynatma adresinin alan adı…");
       // ana belge hatasında kullanıcıya sayfa bağlamındaki mesaj gösterilir.
       void diagnostic;
-      const message = browserLoadErrorMessage(code, description);
+      const { message, messageKey } = browserLoadError(code, description);
       const retry = navigationRetryPolicy({ code, attempt: tab.loadRetryAttempt, url });
-      tab.loadError = { kind: 'connection', code, message, url, retry };
+      tab.loadError = { kind: 'connection', code, message, messageKey, url, retry };
       if (retry.action === 'retry' && !tab.loadRetryTimer) {
         tab.loadRetryAttempt = retry.nextAttempt;
         const retryGeneration = tab.generation;
@@ -12255,6 +12271,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
               || tab.generation !== retryGeneration) return;
           tab.loadError = null;
           sendBrowserEvent(tab, { type: 'load-retry', attempt: tab.loadRetryAttempt,
+            messageKey: 'load-retry', params: { attempt: tab.loadRetryAttempt, max: 3 },
             message: `Geçici ağ hatası yeniden deneniyor (${tab.loadRetryAttempt}/3).` });
           wc.reload();
         }, retry.delayMs);
@@ -12263,7 +12280,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       if (tab.id === browserActiveTabId) view.setVisible(false);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
-        code, message, url: redactDiagnosticText(url) });
+        code, message, messageKey, url: redactDiagnosticText(url) });
     }
   });
   wc.on('render-process-gone', (_event, details = {}) => {
@@ -12289,6 +12306,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.loadError = {
       kind: 'crash', code: reason,
       message: policy.message,
+      messageKey: policy.messageKey,
+      params: policy.params,
       url: tab.restoredUrl,
     };
     try { tab.pageFind?.stop(); } catch (_) {}
@@ -12319,6 +12338,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       type: 'tab-crashed', loading: false, reason,
       url: tab.restoredUrl, title: tab.restoredTitle,
       message: tab.loadError.message,
+      messageKey: tab.loadError.messageKey,
+      params: tab.loadError.params,
     });
     scheduleBrowserSessionSave();
     if (policy.action === 'recreate-once' && tab.crashRecoveryAttempt < 1) {
@@ -12529,8 +12550,9 @@ function resumeRestoredBrowserPage(tab) {
         // yüklemeyi denesin; 'restoring'de takılı kalan sekme unload kararını
         // ve oturum görüntüsünü bozuyordu (B83-30).
         if (requestIsCurrent()) tab.lifecycle = 'restore_failed';
+        const loadError = browserLoadError(error.errno, error.code || error.message);
         sendBrowserEvent(tab, { type: 'load-error', loading: false, url,
-          message: browserLoadErrorMessage(error.errno, error.code || error.message) });
+          message: loadError.message, messageKey: loadError.messageKey });
       }
     } finally { tab.restoringPage = false; }
   })();
@@ -13469,10 +13491,12 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
   callback(false);
   const tab = browserTabForWebContents(webContents);
   if (!tab) return;
-  const message = browserCertificateErrorMessage(error);
-  tab.loadError = { kind: 'certificate', code: error || 'CERTIFICATE_ERROR', message, url };
+  const certError = browserCertificateError(error);
+  tab.loadError = { kind: 'certificate', code: error || 'CERTIFICATE_ERROR',
+    message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url };
   if (tab.id === browserActiveTabId && tab.view) tab.view.setVisible(false);
-  sendBrowserEvent(tab, { type: 'security-error', loading: false, code: error || 'CERTIFICATE_ERROR', message, url });
+  sendBrowserEvent(tab, { type: 'security-error', loading: false, code: error || 'CERTIFICATE_ERROR',
+    message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url });
 });
 
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
@@ -13934,7 +13958,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
       tab.restoredUrl=url;scheduleBrowserSessionSave();
       return {ok:true,mediaDocument:true,...browserEventContext(tab),...browserNavigationState()};
     }
-    return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message), url };
+    return { ok: false, error: browserLoadError(err.errno, err.code || err.message).message, url };
   }
 });
 
@@ -15615,7 +15639,7 @@ ipcMain.handle('browser:readingList:open', async (event, request) => {
     return { ok: true, url: fileUrl, offline: true, title: found.entry.title };
   } catch (err) {
     if (isAbortedBrowserNavigation(err)) return { ok: false, aborted: true };
-    return { ok: false, error: browserLoadErrorMessage(err.errno, err.code || err.message) };
+    return { ok: false, error: browserLoadError(err.errno, err.code || err.message).message };
   }
 });
 
