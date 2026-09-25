@@ -2675,9 +2675,9 @@ html[data-theme="light"] .action-button-outline:hover:not(:disabled) { color: va
   grid-template-columns: 27px 45px 27px;
   height: 34px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--bg-1);
+  background: var(--bg-2);
 }
 .browser-zoom-toolbar button {
   min-width: 0;
@@ -4616,16 +4616,9 @@ html[data-theme="light"] .header-actions #openPlayer:hover {
   border-radius: 6px 6px 0 0;
   background: var(--bg-1);
 }
-.browser-tab.active { border-color: var(--border-strong); background: var(--bg-3); }
-.browser-tab.active::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--accent);
-}
+/* Aktif sekme: alt çizgi yerine araç çubuğu yüzeyiyle birleşen kep —
+   alt kenar sekme zeminiyle aynı renkte kalır, böylece şerit sürekli görünür. */
+.browser-tab.active { border-color: var(--border-strong); border-bottom-color: var(--bg-2); border-radius: 10px 10px 0 0; background: var(--bg-2); }
 .browser-settings-tab {
   min-width: 112px;
   max-width: 132px;
@@ -4831,8 +4824,10 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   border-radius: 6px;
   color: var(--text-dim);
   background: transparent;
+  border-color: transparent;
 }
 .browser-nav-button:hover:not(:disabled) { color: var(--text); background: var(--bg-3); }
+.browser-nav-button:focus-visible { border-color: var(--border-strong); }
 .browser-nav-button:disabled { opacity: .28; cursor: default; }
 .browser-nav-button.loading svg { animation: browser-reload-spin .85s linear infinite; }
 @keyframes browser-reload-spin { to { transform: rotate(360deg); } }
@@ -4850,8 +4845,86 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   transition: border-color .14s ease, background .14s ease;
 }
 .browser-address-wrap:focus-within { border-color: var(--accent); background: var(--bg-1); }
-.browser-security-mark { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #56565a; }
-.browser-security-mark.secure { background: #6fa17b; box-shadow: 0 0 0 3px rgba(111,161,123,.10); }
+/* Site çipi: adres hapının solunda kilit + host; popover'da güvenlik durumu,
+   reklam kalkanı ve site izinleri kısayolu (üst şeritten taşındı). */
+.browser-site-chip-details { position: relative; flex: 0 1 auto; min-width: 0; }
+.browser-site-chip {
+  max-width: 190px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 0 7px;
+  list-style: none;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.browser-site-chip::-webkit-details-marker { display: none; }
+.browser-site-chip:hover { color: var(--text); background: var(--bg-3); }
+.browser-site-chip:focus-visible,
+.browser-site-chip-details[open] > summary { color: var(--text); border-color: var(--border-strong); background: var(--bg-3); }
+.browser-site-chip-icon { flex: 0 0 13px; }
+.browser-site-chip-details[data-security="secure"] .browser-site-chip-icon { color: var(--success); }
+.browser-site-chip-details[data-security="insecure"] .browser-site-chip-icon { color: var(--warning); }
+.browser-site-chip-caret { flex: 0 0 11px; opacity: .7; }
+.browser-site-chip-details[open] .browser-site-chip-caret { transform: rotate(180deg); }
+.browser-site-chip-host { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.browser-site-chip-host:empty { display: none; }
+.browser-site-chip-popover {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 7px);
+  left: 0;
+  width: 252px;
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  box-shadow: 0 14px 40px rgba(0,0,0,.34);
+}
+.browser-site-chip-head { display: grid; gap: 2px; padding: 2px 7px 7px; border-bottom: 1px solid var(--border); }
+.browser-site-chip-head strong { color: var(--text); font-size: 12px; font-weight: 700; }
+.browser-site-chip-head span { color: var(--text-muted); font-size: 11px; overflow-wrap: anywhere; }
+.browser-site-adblock {
+  width: 100%;
+  height: auto;
+  min-height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.browser-site-adblock .browser-adblock-label { flex: 1; min-width: 0; }
+.browser-site-permissions {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.browser-site-permissions:hover,
+.browser-site-permissions:focus-visible { color: var(--text); border-color: var(--border); background: var(--bg-3); }
 .browser-address-wrap input {
   width: 100%;
   min-width: 0;
@@ -4882,6 +4955,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   height: 28px;
   flex: 0 0 28px;
   color: var(--text-muted);
+  border-color: transparent;
   border-radius: 5px;
 }
 .browser-address-bookmark:hover,
@@ -4905,9 +4979,9 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   gap: 6px;
   padding: 0 10px;
   color: #b9aa92;
-  border: 1px solid #3a3226;
+  border: 1px solid transparent;
   border-radius: 9px;
-  background: var(--bg-1);
+  background: var(--bg-2);
   font: inherit;
   font-size: 10px;
   font-weight: 750;
@@ -4933,8 +5007,9 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-page-button { min-width: 108px; }
 .browser-page-button.browser-action-source { display: inline-flex !important; }
 .browser-page-quick-menu { position: relative; flex: 0 0 auto; }
-.browser-page-quick-menu > summary { width: 28px; height: 34px; display: grid; place-items: center; list-style: none; color: var(--text-dim); border: 1px solid var(--border-strong); border-radius: 6px; cursor: pointer; }
+.browser-page-quick-menu > summary { width: 28px; height: 34px; display: grid; place-items: center; list-style: none; color: var(--text-dim); border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
 .browser-page-quick-menu > summary::-webkit-details-marker { display: none; }
+.browser-page-quick-menu > summary:focus-visible { border-color: var(--border-strong); color: var(--text); }
 .browser-page-quick-menu > summary:hover, .browser-page-quick-menu[open] > summary { color: var(--accent); background: var(--accent-soft); }
 .browser-page-quick-popover { width: 248px; padding: 8px; gap: 7px; }
 .browser-page-view-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
@@ -4953,13 +5028,14 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-page-quick-progress { min-height: 15px; color: var(--text-muted); font-size: 10px; }
 @keyframes manga-scan-pulse { 50% { opacity: .25; transform: scaleY(.5); } }
 .browser-place-button {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   color: #9b9ba0;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg-2);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
 }
+.browser-place-button:focus-visible { border-color: var(--border-strong); color: var(--text); }
 .browser-place-button:hover,
 .browser-place-button.active,
 .browser-place-button[aria-pressed="true"] { color: var(--player-amber); border-color: #554321; background: #201b14; }
@@ -5440,7 +5516,26 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-error-kicker { color: var(--accent-hover); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .browser-error-surface strong { font-size: 21px; font-weight: 680; }
 .browser-error-surface p { max-width: 650px; margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+.browser-error-icon { color: var(--accent-hover); margin-bottom: 2px; }
 .browser-error-surface code { color: var(--text-muted); font-size: 11px; }
+.browser-error-details { margin-top: 2px; color: var(--text-muted); font-size: 11px; }
+.browser-error-details > summary { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; list-style: none; border-radius: var(--radius-xs); cursor: pointer; }
+.browser-error-details > summary::-webkit-details-marker { display: none; }
+.browser-error-details > summary::before { content: '▸'; font-size: 9px; }
+.browser-error-details[open] > summary::before { content: '▾'; }
+.browser-error-details > summary:hover,
+.browser-error-details > summary:focus-visible { color: var(--text-dim); background: var(--bg-2); }
+.browser-error-details code {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 5px 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-1);
+  user-select: text;
+}
 .browser-error-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .player-layer.workspace-browser .player-stage { display: none; }
@@ -6554,9 +6649,11 @@ body.modal-open { overflow: hidden; }
 .browser-address-wrap.is-editing .browser-go:not([hidden]) { color: var(--accent); }
 
 .browser-translate-split {
-  border-color: var(--border-strong);
-  background: var(--bg-3);
+  border-color: transparent;
+  background: var(--bg-2);
 }
+.browser-translate-split:focus-within,
+.browser-translate-split:has(.browser-translate-menu[open]) { border-color: var(--border-strong); }
 .browser-subtitle-settings-button {
   position: relative;
   color: var(--text-dim);
@@ -6592,7 +6689,7 @@ body.modal-open { overflow: hidden; }
 }
 .browser-translate-menu > summary {
   color: var(--text-dim);
-  border-left-color: var(--border-strong);
+  border-left-color: var(--border);
 }
 .browser-translate-menu > summary:hover,
 .browser-translate-menu[open] > summary { color: var(--accent); background: var(--accent-soft); }
@@ -6838,7 +6935,7 @@ body.modal-open { overflow: hidden; }
 .workspace-browser .browser-address-wrap input { color: var(--text); font-size: 13px; }
 .workspace-browser .browser-address-wrap input::placeholder { color: var(--text-muted); }
 .workspace-browser .browser-tab { color: var(--text-muted); background: transparent; border-color: transparent; border-radius: 8px 8px 0 0; }
-.workspace-browser .browser-tab.active { color: var(--text); background: var(--bg-3); border-color: var(--border); box-shadow: inset 0 -2px var(--accent); }
+.workspace-browser .browser-tab.active { color: var(--text); background: var(--bg-2); border-color: var(--border-strong); border-bottom-color: var(--bg-2); border-radius: 10px 10px 0 0; }
 .workspace-browser .browser-tab:hover { background: var(--bg-2); }
 .workspace-browser .browser-nav-button, .workspace-browser .browser-place-button { background: transparent; color: var(--text-dim); border-color: transparent; }
 .workspace-browser .browser-nav-button:hover:not(:disabled), .workspace-browser .browser-place-button:hover { background: var(--bg-3); border-color: var(--border); }
@@ -8206,7 +8303,6 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
    kaplıyor, "+" tek sekmede bile ~750 px sağa itiliyordu. Şerit içeriği
    kadar genişler, taşınca kendi içinde kayar; reklam kalkanı sağa yaslanır. */
 .player-layer.workspace-browser .browser-tab-strip { flex: 0 1 auto; }
-.player-layer.workspace-browser .browser-tabbar > .browser-adblock-quick { margin-left: auto; }
 
 /* Çeviri modeli uyum karnesi (ayarlar > çeviri > model). */
 .model-score { display: block; margin-top: 4px; font-size: 11px; line-height: 1.35; color: var(--text-muted); }

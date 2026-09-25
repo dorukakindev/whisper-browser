@@ -640,7 +640,8 @@ async function run() {
         const workspaceSwitch = layer.querySelector('.player-workspace-switch');
         const actions = layer.querySelector('.player-head-actions');
         const newTab = document.getElementById('browserTabNew');
-        const adblockQuick = document.getElementById('browserAdblockQuick');
+        const siteChip = document.getElementById('browserSiteChip');
+        const addressWrap = layer.querySelector('.browser-address-wrap');
         return {
           viewport: { width: innerWidth, height: innerHeight },
           takeover: layer.classList.contains('narrow-panel-takeover'),
@@ -659,7 +660,8 @@ async function run() {
           workspaceSwitch: box(workspaceSwitch),
           actions: box(actions),
           newTab: box(newTab),
-          adblockQuick: box(adblockQuick),
+          siteChip: box(siteChip),
+          addressWrap: box(addressWrap),
         };
       })()`, 10000);
       const narrow = snapshot.viewport.width <= 1020;
@@ -683,11 +685,11 @@ async function run() {
       `${target.name} / ${stateSpec.name}: header groups overlap.`);
       assert.equal(snapshot.newTab.visible, true,
         `${target.name} / ${stateSpec.name}: new-tab control is hidden.`);
-      assert.equal(snapshot.adblockQuick.visible, true,
-        `${target.name} / ${stateSpec.name}: adblock quick control is hidden.`);
-      assert.ok(snapshot.adblockQuick.left >= snapshot.newTab.right
-        && snapshot.adblockQuick.left - snapshot.newTab.right <= 7,
-      `${target.name} / ${stateSpec.name}: adblock quick control left the new-tab group.`);
+      assert.equal(snapshot.siteChip.visible, true,
+        `${target.name} / ${stateSpec.name}: site chip is hidden.`);
+      assert.ok(snapshot.siteChip.left >= snapshot.addressWrap.left
+        && snapshot.siteChip.right <= snapshot.addressWrap.right + 1,
+      `${target.name} / ${stateSpec.name}: site chip escaped the address pill.`);
       if (stateSpec.name === 'transcript' || stateSpec.name === 'settings') {
         assert.equal(snapshot.takeover, narrow,
           `${target.name} / ${stateSpec.name}: unexpected panel takeover state.`);

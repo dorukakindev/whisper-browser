@@ -156,15 +156,16 @@ test('BUG-117-05 transkript boş durum metni etkin dilde yazılır', () => {
   assert.match(read('src/renderer/ui-locale.js'), /cueEmpty\.dataset\.emptyKind === 'search'/);
 });
 
-// ---- BUG-117-06: yeni sekme düğmesi sekmelerin hemen yanında
-test('BUG-117-06 sekme şeridi içeriği kadar genişler, kalkan sağa yaslanır', () => {
+// ---- BUG-117-06: yeni sekme düğmesi sekmelerin hemen yanında (kalkan site çipine taşındı)
+test('BUG-117-06 sekme şeridi içeriği kadar genişler, kalkan site çipinde', () => {
   assert.match(stylesSource, /\.player-layer\.workspace-browser \.browser-tab-strip \{ flex: 0 1 auto; \}/);
-  assert.match(stylesSource, /\.player-layer\.workspace-browser \.browser-tabbar > \.browser-adblock-quick \{ margin-left: auto; \}/);
   const html = read('src/renderer/index.html');
   const strip = html.indexOf('id="browserTabStrip"');
   const newTab = html.indexOf('id="browserTabNew"');
+  const chip = html.indexOf('id="browserSiteChipDetails"');
   const shield = html.indexOf('id="browserAdblockQuick"');
-  assert.ok(strip < newTab && newTab < shield, 'DOM sırası: şerit → yeni sekme → kalkan');
+  assert.ok(strip < newTab && newTab < chip && chip < shield,
+    'DOM sırası: şerit → yeni sekme → site çipi → kalkan (çip popover içinde)');
 });
 
 // ---- BUG-117-07: boşluksuz dillerde çeviri dağıtımı grapheme'i bölmez

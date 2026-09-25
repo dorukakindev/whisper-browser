@@ -1088,16 +1088,6 @@
           <div class="browser-tab-strip" id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"></div>
           <button class="browser-tab-new" id="browserTabNew" type="button" title="Yeni sekme · Ctrl+T"
             aria-label="Yeni sekme · Ctrl+T"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>Yeni sekme</span></button>
-          <button class="browser-adblock-quick" id="browserAdblockQuick" type="button"
-            aria-pressed="true" title="Reklam koruması açık · Kapat"
-            aria-label="Reklam koruması açık; kapat">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M12 3 19 6v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Z"/>
-              <path class="browser-adblock-on-mark" d="m8.5 12 2.2 2.2 4.8-5"/>
-              <path class="browser-adblock-off-mark" d="m8.2 8.2 7.6 7.6"/>
-            </svg>
-          </button>
         </div>
         <div class="player-head-copy">
           <span class="player-eyebrow">WHISPER ALTYAZI <span class="player-eyebrow-dot">/</span> OYNATICI</span>
@@ -1168,7 +1158,35 @@
                 aria-label="Yenile"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 4v7h-7"/></svg></button>
             </div>
             <div class="browser-address-wrap">
-              <span class="browser-security-mark" id="browserSecurityMark" role="img" aria-label="Adres bekleniyor" title="Adres bekleniyor"></span>
+              <details class="browser-site-chip-details" id="browserSiteChipDetails">
+                <summary class="browser-site-chip" id="browserSiteChip" title="Site bilgisi ve izinler"
+                  aria-label="Site bilgisi ve izinler" aria-haspopup="menu">
+                  <svg class="browser-site-chip-icon" viewBox="0 0 24 24" width="13" height="13" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/>
+                  </svg>
+                  <span class="browser-site-chip-host" id="browserSiteChipHost"></span>
+                  <svg class="browser-site-chip-caret" viewBox="0 0 24 24" width="11" height="11" fill="none"
+                    stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg>
+                </summary>
+                <div class="browser-site-chip-popover" role="menu" aria-label="Site bilgisi ve izinler">
+                  <div class="browser-site-chip-head">
+                    <strong id="browserSiteChipTitle">Site bilgisi</strong>
+                    <span id="browserSiteChipSecurity">Adres bekleniyor</span>
+                  </div>
+                  <button class="browser-adblock-quick browser-site-adblock" id="browserAdblockQuick" type="button"
+                    aria-pressed="true" title="Reklam koruması açık · Kapat" aria-label="Reklam koruması açık; kapat">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                      <path d="M12 3 19 6v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Z"/>
+                      <path class="browser-adblock-on-mark" d="m8.5 12 2.2 2.2 4.8-5"/>
+                      <path class="browser-adblock-off-mark" d="m8.2 8.2 7.6 7.6"/>
+                    </svg>
+                    <span class="browser-adblock-label">Reklam koruması</span>
+                  </button>
+                  <button class="browser-site-permissions" id="browserSitePermissionsOpen" type="button">Site izinlerini yönet</button>
+                </div>
+              </details>
               <div class="browser-address-field">
                 <input type="text" id="browserAddress" autocomplete="off" spellcheck="false"
                   placeholder="Web adresi yazın veya arayın" aria-label="Web adresi veya arama" role="combobox"
@@ -1885,15 +1903,22 @@
               </div>
             </div>
             <div class="browser-error-surface hidden" id="browserErrorSurface" role="alert" aria-live="assertive">
+              <svg class="browser-error-icon" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor"
+                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.4v.1"/>
+              </svg>
               <span class="browser-error-kicker" id="browserErrorKicker">Bağlantı kurulamadı</span>
               <strong id="browserErrorTitle">Sayfa açılamadı</strong>
               <p id="browserErrorMessage"></p>
-              <code id="browserErrorCode"></code>
               <div class="browser-error-actions">
                 <button class="btn btn-primary btn-sm" id="browserErrorRetry" type="button">Tekrar dene</button>
                 <button class="btn btn-secondary btn-sm hidden" id="browserErrorHttp" type="button" title="Bu site güvenli (https) bağlantı sunmuyor olabilir; şifrelenmemiş http ile dener.">http ile aç</button>
                 <button class="btn btn-ghost btn-sm" id="browserErrorBack" type="button">Geri dön</button>
               </div>
+              <details class="browser-error-details">
+                <summary>Teknik ayrıntılar</summary>
+                <code id="browserErrorCode"></code>
+              </details>
             </div>
           </div>
           <section class="browser-command-palette hidden" id="browserCommandPalette" role="dialog" aria-modal="false"

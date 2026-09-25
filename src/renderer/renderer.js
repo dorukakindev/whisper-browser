@@ -897,6 +897,7 @@ function syncBrowserOcclusion() {
   const translateMenu = $('browserTranslateMenu');
   const pageQuickMenu = $('browserPageQuickMenu');
   const splitMenu = $('browserSplitMenu');
+  const siteChipDetails = $('browserSiteChipDetails');
   const taskCenter = $('playerTaskCenter');
   const addressResults = $('browserAddressResults');
   const permissionPrompt = $('browserPermissionPrompt');
@@ -912,6 +913,7 @@ function syncBrowserOcclusion() {
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
+    || !!siteChipDetails?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
@@ -10487,14 +10489,26 @@ function updateBrowserNavigation(data, options = {}) {
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
   if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
   setBrowserLoadingState(!!data.loading, false);
-  const securityMark = $('browserSecurityMark');
-  if (securityMark) {
+  const siteChipDetails = $('browserSiteChipDetails');
+  const siteChipHost = $('browserSiteChipHost');
+  const siteChipSecurity = $('browserSiteChipSecurity');
+  if (siteChipDetails || siteChipHost || siteChipSecurity) {
     const secure = /^https:/i.test(data.url || '');
+    let host = '';
+    try { host = new URL(data.url || '').hostname || ''; } catch { host = ''; }
     const securityText = secure ? 'Güvenli HTTPS bağlantısı'
-      : (data.url ? 'Şifrelenmemiş HTTP bağlantısı' : 'Adres bekleniyor');
-    securityMark.classList.toggle('secure', secure);
-    securityMark.title = securityText;
-    securityMark.setAttribute('aria-label', securityText);
+      : (host ? 'Şifrelenmemiş HTTP bağlantısı' : 'Adres bekleniyor');
+    if (siteChipDetails) {
+      if (!siteChipDetails.dataset) siteChipDetails.dataset = {};
+      siteChipDetails.dataset.security = secure ? 'secure' : (host ? 'insecure' : 'none');
+    }
+    if (siteChipHost) siteChipHost.textContent = host;
+    if (siteChipSecurity) siteChipSecurity.textContent = host ? `${host} · ${securityText}` : securityText;
+    const chip = $('browserSiteChip');
+    if (chip) {
+      chip.title = securityText;
+      chip.setAttribute('aria-label', host ? `${host} — ${securityText}` : securityText);
+    }
   }
   $('browserEmpty')?.classList.toggle('hidden', !!data.url);
   if (!options.preserveWorkspace && mediaChanged) {
@@ -11945,6 +11959,10 @@ if ($('browserReload')) $('browserReload').addEventListener('click', () => {
 });
 if ($('browserAdblockEnabled')) $('browserAdblockEnabled').addEventListener('change', (event) => {
   void setBrowserAdblockEnabled(event.target.checked);
+});
+if ($('browserSitePermissionsOpen')) $('browserSitePermissionsOpen').addEventListener('click', () => {
+  $('browserSiteChipDetails')?.removeAttribute('open');
+  openBrowserSettings('site', 'browserPermissionsTitle');
 });
 if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => {
   const control = $('browserAdblockEnabled');
@@ -16485,7 +16503,7 @@ function showBrowserErrorSurface(error) {
   if ($('browserErrorTitle')) $('browserErrorTitle').textContent = secure ? 'Sertifika doğrulanamadı'
     : (crashed ? 'Sekme çöktü' : (httpEmpty ? 'Bu sayfa çalışmıyor' : 'Sayfa açılamadı'));
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = browserErrorText(error);
-  if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `Hata: ${error.code}` : '';
+  if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `${window.UiLocale?.t('Hata') || 'Hata'}: ${error.code}` : '';
   if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
   // https açılamadıysa (sertifika hatası DEĞİL) açık onayla http denemesi.
   const fallback = !secure && !crashed
@@ -19840,7 +19858,7 @@ function wireDetailsMenuNav(details) {
   });
 }
 
-const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu'];
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
   let focusTarget = null;
   for (const id of browserToolbarMenuIds) {
@@ -19866,7 +19884,7 @@ for (const id of browserToolbarMenuIds) {
   wireDetailsMenuNav(menu);
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu')) return;
+  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails')) return;
   closeBrowserToolbarMenus();
 }, true);
 
