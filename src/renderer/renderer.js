@@ -897,6 +897,7 @@ function syncBrowserOcclusion() {
   const translateMenu = $('browserTranslateMenu');
   const pageQuickMenu = $('browserPageQuickMenu');
   const splitMenu = $('browserSplitMenu');
+  const siteChipDetails = $('browserSiteChipDetails');
   const taskCenter = $('playerTaskCenter');
   const addressResults = $('browserAddressResults');
   const permissionPrompt = $('browserPermissionPrompt');
@@ -912,6 +913,7 @@ function syncBrowserOcclusion() {
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
+    || !!siteChipDetails?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
@@ -10496,7 +10498,10 @@ function updateBrowserNavigation(data, options = {}) {
     try { host = new URL(data.url || '').hostname || ''; } catch { host = ''; }
     const securityText = secure ? 'Güvenli HTTPS bağlantısı'
       : (host ? 'Şifrelenmemiş HTTP bağlantısı' : 'Adres bekleniyor');
-    if (siteChipDetails) siteChipDetails.dataset.security = secure ? 'secure' : (host ? 'insecure' : 'none');
+    if (siteChipDetails) {
+      if (!siteChipDetails.dataset) siteChipDetails.dataset = {};
+      siteChipDetails.dataset.security = secure ? 'secure' : (host ? 'insecure' : 'none');
+    }
     if (siteChipHost) siteChipHost.textContent = host;
     if (siteChipSecurity) siteChipSecurity.textContent = host ? `${host} · ${securityText}` : securityText;
     const chip = $('browserSiteChip');

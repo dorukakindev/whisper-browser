@@ -895,11 +895,11 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
 });
 
 test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüsünü kullanır', () => {
-  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu'\]/.test(js),
+  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails'\]/.test(js),
     'toolbar menüleri tek yaşam döngüsü listesinde değil');
-  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!pageQuickMenu\?\.open \|\| !!splitMenu\?\.open/.test(js),
+  assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!pageQuickMenu\?\.open \|\| !!splitMenu\?\.open[\s\S]{0,80}!!siteChipDetails\?\.open/.test(js),
     'native browser okluzyonu açık toolbar menülerini hesaba katmıyor');
-  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu'\)/.test(js),
+  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails'\)/.test(js),
     'dış tıklama menüleri tek noktadan kapatmıyor');
   assert(/event\.key !== 'Escape'[\s\S]{0,260}closeBrowserToolbarMenus\('', true\)/.test(js),
     'Escape en üst toolbar menüsünü kapatıp odağı geri vermiyor');
