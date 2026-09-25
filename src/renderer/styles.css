@@ -6833,7 +6833,7 @@ body.modal-open { overflow: hidden; }
 .workspace-browser .player-head { background: var(--bg-1); border-color: var(--border); }
 .workspace-browser .browser-workspace { background: var(--bg-0); border-color: var(--border); border-radius: 0 0 var(--radius) var(--radius); }
 .workspace-browser .browser-toolbar { background: var(--bg-1); border-color: var(--border); padding-inline: 10px; }
-.workspace-browser .browser-address-wrap { background: var(--bg-2); border-color: var(--border-strong); border-radius: var(--radius-sm); box-shadow: none; }
+.workspace-browser .browser-address-wrap { background: var(--bg-2); border-color: var(--border-strong); border-radius: 999px; box-shadow: none; }
 .workspace-browser .browser-address-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .workspace-browser .browser-address-wrap input { color: var(--text); font-size: 13px; }
 .workspace-browser .browser-address-wrap input::placeholder { color: var(--text-muted); }
@@ -8342,3 +8342,52 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 #youtubeLoginModal .yt-user-code { font-size: 40px; font-weight: 700; letter-spacing: .18em; }
 #youtubeLoginModal .yt-qr-canvas { width: 200px; height: 200px; }
 .yt-code-expiry { margin: 4px 0 0; text-align: center; font-variant-numeric: tabular-nums; }
+
+
+/* ===== R120 — premium tarayıcı hissi: donmuş kare, sessiz şerit, taşan menü =====
+   P1: Menü/panel açıkken yerel sayfa görünümü gizlenir; yerine sayfanın son
+   karesi yuvaya boyanır (renderer.js applyBrowserOcclusion). */
+.browser-view-slot.browser-frozen {
+  background-image: var(--browser-freeze-image);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+/* P2: Videosuz sayfada altyazı şeridi sayfa alanını çalmaz. */
+.browser-workspace.signal-quiet { grid-template-rows: auto 0 minmax(0, 1fr); }
+.browser-workspace.signal-quiet .browser-signal { display: none; }
+/* P3: "Daha fazla" menüsü kısa pencerede taşmaz; kendi içinde kayar. */
+.browser-more-popover {
+  max-height: min(680px, calc(100vh - 150px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* Boş transkript: videosuz sayfada eylem düğmesi yok, sade durum. */
+.cue-list-empty[data-empty-kind="no-media"] .cue-empty-icon { display: none; }
+
+
+/* ===== R123 — Faz A: sekme ve araç çubuğu cilası =====
+   D1 Favicon yoksa host harfli avatar; D2 uzun başlık sert kesilmek yerine
+   soluklaşır; D3 × yalnız aktif, üzerine gelinen veya odaklı sekmede görünür
+   (yer tutar, düzen kaymaz); D4 adres alanı hap biçimli. */
+.browser-tab-avatar {
+  width: 16px; height: 16px; flex: 0 0 16px;
+  display: inline-grid; place-items: center;
+  border-radius: 5px;
+  color: var(--accent-contrast);
+  background: hsl(var(--avatar-hue, 30) 42% 40%);
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+.browser-tab-avatar.is-blank { color: var(--text-muted); background: var(--bg-3); font-weight: 500; }
+.browser-tab-label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: clip;
+  -webkit-mask-image: linear-gradient(to right, currentColor calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, currentColor calc(100% - 18px), transparent);
+}
+.browser-tab .browser-tab-close { transition: opacity .12s ease; }
+.browser-tab:not(.active):not(:hover):not(:focus-within) .browser-tab-close { opacity: 0; }
+@media (hover: none) { .browser-tab .browser-tab-close { opacity: 1 !important; } }
+.browser-address-wrap { border-radius: 999px; }
+.browser-address-wrap { padding-left: 14px; padding-right: 6px; }

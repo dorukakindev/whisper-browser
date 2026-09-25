@@ -132,6 +132,7 @@ contextBridge.exposeInMainWorld('api', {
   getBrowserGpuDiagnostics: () => ipcRenderer.invoke('browser:gpuDiagnostics'),
   hideBrowser: () => ipcRenderer.invoke('browser:hide'),
   setBrowserOccluded: (occluded) => ipcRenderer.invoke('browser:setOccluded', !!occluded),
+  snapshotBrowserPage: () => ipcRenderer.invoke('browser:snapshotActive'),
   setBrowserBounds: (tabId, bounds) => ipcRenderer.invoke('browser:setBounds', { tabId, bounds }),
   navigateBrowser: (tabId, url) => ipcRenderer.invoke('browser:navigate', { tabId, url }),
   browserCommand: (tabId, command, value) => ipcRenderer.invoke('browser:command', { tabId, command, value }),

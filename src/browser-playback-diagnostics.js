@@ -68,6 +68,12 @@ const DIAGNOSTIC_CATALOG = Object.freeze({
     label: 'Oynatma servisi hatası', confidence: 'yüksek',
     message: 'Oynatma veya lisans servisi HTTP 5xx hatası döndürdü. Bu genellikle geçici sunucu hatasıdır.',
   },
+  // R120-B2: Ana sayfa belgesinin 5xx yanıtı bir oynatma veya lisans
+  // sorunu değildir; kullanıcı yanlış yere (DRM/oturum) yönlendirilmesin.
+  'page-server-error': {
+    label: 'Site sunucusu hatası', confidence: 'yüksek',
+    message: 'Site sayfa isteğine sunucu hatasıyla (HTTP 5xx) yanıt verdi. Birazdan yeniden yükleyin; bu bir oynatma veya DRM sorunu değildir.',
+  },
   'dns-error': {
     label: 'DNS hatası', confidence: 'yüksek',
     message: 'Oynatma adresinin alan adı çözümlenemedi. DNS ve ağ bağlantısını denetleyin.',
@@ -290,6 +296,10 @@ function classifyPlaybackEvidence(evidence = {}) {
   if (kind === 'http') {
     const status = Number(evidence.status || evidence.statusCode);
     if (status === 451) return makeDiagnostic('geo-restricted', `HTTP ${status}`, { status, resourceKind });
+    // 401/403 belge sözleşmesi mevcut testlerde tanımlı (authentication-required / http-access-denied).
+    if (resourceKind === 'document' && status >= 500 && status <= 599) {
+      return makeDiagnostic('page-server-error', `HTTP ${status}`, { status, resourceKind });
+    }
     if (status === 401) {
       return makeDiagnostic(resourceKind === 'license' ? 'license-access-denied' : 'authentication-required', `HTTP ${status}`, { status, resourceKind });
     }

@@ -2,8 +2,9 @@
 
 // Native sayfa araması; DOM enjeksiyonu yok. Her WebContents kendi isteğini tutar.
 function createBrowserPageFind(wc, emit, isActive = () => true) {
-  let requestId = null, query = '', token = 0;
+  let requestId = null, query = '', token = 0, observerOn = false;
   function setObserverEnabled(enabled) {
+    observerOn = !!enabled;
     try {
       if (typeof wc.send === 'function' && !wc.isDestroyed()) {
         wc.send('browser:find-state', { active: !!enabled });
@@ -18,6 +19,10 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
   }
   wc.on('found-in-page', (_event, result) => {
     if (requestId === null || result.requestId !== requestId) return;
+    // R123-B4: Sayfa DOM gözlemcisi ilk kesin sonuçtan SONRA açılır. Aramadan
+    // hemen önce sayfaya giden IPC mesajı Chromium'un found-in-page sonucunu
+    // düşürüyordu; bulma çubuğu "Aranıyor…"da takılı kalıyordu.
+    if (result.finalUpdate && !observerOn) setObserverEnabled(true);
     emit({ type: 'find-result', token, matches: result.matches,
       activeMatch: result.activeMatchOrdinal, final: !!result.finalUpdate });
   });
@@ -43,9 +48,12 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
       token = value.token;
       if (!value.text) { stop(); return { ok: true, empty: true }; }
       const continuing = value.next === true && query === value.text;
-      if (!continuing) stop();
+      // R123-B4: Yeni sorgudan hemen önce aynı görevde stopFindInPage çağırmak
+      // Chromium'un yeni aramanın found-in-page sonucunu düşürmesine yol
+      // açıyordu (bulma çubuğu "Aranıyor…"da takılı kalıyordu). findNext:false
+      // zaten yeni oturum başlatır; açık durdurma yalnız kapatmada yapılır.
+      if (!continuing) requestId = null;
       query = value.text;
-      setObserverEnabled(true);
       try {
         // Electron keeps the current find session only when findNext is true.
         // A new query starts a fresh session; repeated next/previous actions
