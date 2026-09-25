@@ -74,23 +74,29 @@ app.whenReady().then(async () => {
 
   await run('setSideTab("subs");setBrowserSignalVisible(true,false);applyUiTheme("dark");updateBrowserSubtitleSummary();return true');
   await wait(250);
-  const measure=()=>run(`const s=document.getElementById('browserSignal');const r=s.getBoundingClientRect();return {height:r.height,width:r.width,scroll:s.scrollWidth,client:s.clientWidth,health:document.getElementById('browserSubtitleHealthText').textContent};`);
+  const measure=()=>run(`const s=document.getElementById('browserSignal');const r=s.getBoundingClientRect();const p=document.querySelector('#browserSignalMenu .browser-signal-popover');const pr=p?p.getBoundingClientRect():null;return {height:r.height,width:r.width,popoverHeight:pr?pr.height:0,popoverWidth:pr?pr.width:0,popoverRight:pr?pr.right:0,health:document.getElementById('browserSubtitleHealthText').textContent};`);
   const normal=await measure();
-  assert.equal(await run('return getComputedStyle(document.getElementById("browserSubtitleHealth")).color'),'rgb(161, 173, 183)');
   fs.writeFileSync(path.join(out,'chrome-dark.png'),(await win.webContents.capturePage()).toPNG());
-  assert(normal.height<125,JSON.stringify(normal));assert(normal.scroll<=normal.client+1);
+  // 3.3: sinyal artık 32px süzülen hap — şerit değil; ikincil eylemler ⋮ popover'ında.
+  assert(normal.height>=30&&normal.height<=36,JSON.stringify(normal));
+  await run('document.getElementById("browserSignalMenu").open=true;return true');await wait(120);
+  const expanded=await measure();
+  assert(expanded.popoverHeight>40,JSON.stringify(expanded));
+  assert(expanded.popoverRight<=1440,JSON.stringify(expanded));
+  assert.equal(await run('return getComputedStyle(document.getElementById("browserSubtitleHealth")).color'),'rgb(161, 173, 183)');
   await run('document.getElementById("browserVideoSubtitles").open=true;return true');await wait(100);
-  const expanded=await measure();assert(expanded.height>normal.height);
   assert(await run('return document.getElementById("browserReplacePrimary").getBoundingClientRect().height>0'));
   await run('document.getElementById("browserVideoSubtitles").open=false;player.browserTranslationFailed=3;renderBrowserSubtitleHealth();return true');
   assert.equal(await run('return document.getElementById("browserSubtitleHealthAction").dataset.action'),'retry');
   assert(await run('const b=document.getElementById("browserSubtitleHealthAction");return !b.classList.contains("hidden")&&b.getBoundingClientRect().height>0'));
-  const error=await measure();assert(error.scroll<=error.client+1);
+  const error=await measure();
   await run('applyUiTheme("light");return true');await wait(150);
   fs.writeFileSync(path.join(out,'chrome-error-light.png'),(await win.webContents.capturePage()).toPNG());
-  // The component follows its actual available width, independently of OS minimum window width.
+  // Popover görünüm alanını aşmıyor; hap kendi genişliğine uyum sağlıyor.
   await run('document.getElementById("browserWorkspace").style.maxWidth="520px";document.getElementById("browserSubtitleHealthText").textContent="Bazı çeviri blokları tamamlanamadı. Hazır repliklerle izlemeye devam edebilir veya hatalı blokları yeniden deneyebilirsiniz.";return true');await wait(150);
-  const narrow=await measure();assert(narrow.scroll<=narrow.client+1,JSON.stringify(narrow));
+  const narrow=await measure();
+  const vw=await run('return innerWidth');
+  assert(narrow.popoverRight<=vw&&narrow.popoverHeight>40,JSON.stringify(narrow));
   fs.writeFileSync(path.join(out,'chrome-narrow.png'),(await win.webContents.capturePage()).toPNG());
   console.log(JSON.stringify({ok:true,normal,expanded,error,narrow}));clearTimeout(watchdog);app.quit();
 }).catch(error=>{console.error(error);app.exit(1)});

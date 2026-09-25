@@ -13314,7 +13314,7 @@ function createWindow() {
         // bir kutu gibi görünmesin.
         color: '#0a0d11',
         symbolColor: '#a6adb6',
-        height: 36,
+        height: 38,
       },
     } : {}),
     minWidth: 940,

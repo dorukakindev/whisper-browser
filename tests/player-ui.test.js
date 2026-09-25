@@ -430,7 +430,7 @@ test('oynatıcıdaki her düğmenin yüklenen renderer modüllerinde karşılı�
   const wired = (m) => {
     const [tag, id] = [m[0], m[1]];
     if (new RegExp(`['"]${id}['"]`).test(loadedScripts)) return true;
-    const hooks = [...tag.matchAll(/\sdata-([a-z-]+)=/g)].map((d) => d[1]);
+    const hooks = [...tag.matchAll(/\sdata-([a-z-]+?)(?:=|\s|>)/g)].map((d) => d[1]);
     return hooks.some((h) => loadedScripts.includes(`data-${h}`) || loadedScripts.includes(camel(h)));
   };
   const camel = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -875,15 +875,20 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
   assert(duplicates.length === 0, `yinelenen id: ${duplicates.join(', ')}`);
   const address = layer.slice(layer.indexOf('class="browser-address-wrap"'), layer.indexOf('class="browser-toolbar-actions"'));
   assert(address.includes('id="browserBookmarkToggle"'), 'site yer imi adres alanının sağ iç kenarında değil');
-  for (const target of ['browserSubtitleSettingsToggle', 'browserMangaTranslate']) {
+  assert(/<details class="browser-translate-split browser-translate-menu" id="browserTranslateMenu">[\s\S]*?<summary[^>]*id="browserSubtitleSettingsToggle"/.test(layer),
+    'Birleşik Whisper düğmesi: summary, ayarlar düğmesi kimliğini taşımalı');
+  assert(/id="browserSubtitleSettingsMenu"/.test(layer), 'Ayarlar öğesi birleşik popover içinde eksik');
+  for (const target of ['browserMangaTranslate']) {
     assert(new RegExp(`data-browser-proxy="${target}"`).test(layer), `${target} Çeviri menüsüne bağlı değil`);
   }
   assert(!/data-browser-proxy="browserPageTranslate"/.test(layer),
     'Sayfayı çevir hem ayrı buton hem menü öğesi olarak çift tanımlanıyor');
   assert(/id="browserPageTranslate"/.test(layer), 'Sayfayı çevir araç çubuğu butonu eksik');
-  for (const label of ['Gezinme', 'İçerik', 'Kayıtlar', 'Görünüm ve yardım']) {
-    assert(layer.includes(`class="browser-menu-group-label">${label}</div>`), `${label} Diğer menüsünde yok`);
+  for (const label of ['Sayfa', 'Video', 'Site', 'Görünüm ve yardım']) {
+    assert(layer.includes(`<summary><span class="browser-menu-label">${label}</span>`), `${label} Diğer menüsü alt menüsü eksik`);
   }
+  assert(/id="browserMoreSearch"/.test(layer), 'Diğer menüsü içi arama eksik');
+  assert(/class="browser-more-quick"/.test(layer), 'Diğer menüsü hızlı eylem satırı eksik');
   for (const target of ['playerQuickDownload', 'pdfReaderOpen', 'playerBookmark', 'browserDownloadsToggle',
     'browserPlacesToggle', 'playerLayoutQuick', 'browserViewSettingsToggle', 'browserDiagnosticsToolbar']) {
     assert(new RegExp(`data-browser-proxy="${target}"`).test(layer), `${target} Diğer menüsüne bağlı değil`);
@@ -895,11 +900,11 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
 });
 
 test('toolbar menüleri ortak okluzyon, dış tıklama ve Escape yaşam döngüsünü kullanır', () => {
-  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails'\]/.test(js),
+  assert(/const browserToolbarMenuIds = \['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails', 'browserSignalMenu', 'appModeMenu', 'appMenu'\]/.test(js),
     'toolbar menüleri tek yaşam döngüsü listesinde değil');
   assert(/\|\| !!moreMenu\?\.open \|\| !!translateMenu\?\.open \|\| !!pageQuickMenu\?\.open \|\| !!splitMenu\?\.open[\s\S]{0,80}!!siteChipDetails\?\.open/.test(js),
     'native browser okluzyonu açık toolbar menülerini hesaba katmıyor');
-  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails'\)/.test(js),
+  assert(/event\.target\.closest\?\.\('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu'\)/.test(js),
     'dış tıklama menüleri tek noktadan kapatmıyor');
   assert(/event\.key !== 'Escape'[\s\S]{0,260}closeBrowserToolbarMenus\('', true\)/.test(js),
     'Escape en üst toolbar menüsünü kapatıp odağı geri vermiyor');
@@ -1028,7 +1033,7 @@ test('altyazı izi bulunamadığında Canlı Whisper önerisi eyleme bağlanır'
 });
 
 test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyor', () => {
-  assert(/\.browser-workspace\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/.test(css),
+  assert(/\.browser-workspace\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/.test(css),
     'araç çubuğu büyüdüğünde tarayıcı görünümü sabit 82px satıra sıkışıyor');
   assert(/@container browser-workspace \(max-width:\s*620px\)[\s\S]*?\.browser-toolbar\s*\{[^}]*grid-template-rows:\s*28px 36px 36px/.test(css),
     'dar panel araç çubuğu container genişliğine göre üç satıra geçmiyor');
@@ -1036,9 +1041,9 @@ test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyo
     'dar panelde ayrıntılar görünür akışa girmiyor veya yüksekliği sınırlanmıyor');
   assert(/@container browser-workspace \(max-width:\s*920px\)[\s\S]*?\.browser-acquisition-stages\s*\{[^}]*repeat\(2/.test(css),
     'edinme adımları panel genişliğine göre iki sütuna düşmüyor');
-  assert(/\.browser-signal-text\s*\{[^}]*overflow-wrap:\s*anywhere/.test(css)
-    && !/\.browser-signal-text\s*\{[^}]*white-space:\s*nowrap/.test(css),
-    'önemli yakalama durumu dar panelde kesiliyor');
+  assert(/\.browser-signal-text\s*\{[^}]*white-space:\s*nowrap[^}]*text-overflow:\s*ellipsis/.test(css)
+    && /browserSignalText'\)\.title = message/.test(js),
+    'durum hapı taşan metni kısaltmıyor veya tamamı üzerine gelince görünmüyor');
 });
 
 test('tarayıcı sekmeleri erişilebilir tab modeli ve SVG kapatma ikonları kullanıyor', () => {
@@ -1323,9 +1328,9 @@ test('ses kilidi ve zamanlama masasi yalniz goruntu degil islev baglantisina sah
 
 test('Windows başlık düğmeleri içerik satırının üzerine binmiyor', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
-  assert(/titleBarOverlay\s*:\s*\{[\s\S]*?height:\s*36/.test(main),
+  assert(/titleBarOverlay\s*:\s*\{[\s\S]*?height:\s*38/.test(main),
     'native başlık şeridi yüksekliği tanımlı değil');
-  assert(/--window-controls-safe-height:\s*36px/.test(css),
+  assert(/--window-controls-safe-height:\s*38px/.test(css),
     'başlık düğmeleri için dikey güvenli alan yok');
   assert(/\.app-header\s*\{[\s\S]*?min-height:\s*calc\(72px \+ var\(--window-controls-safe-height\)\)/.test(css),
     'ana başlık güvenli yüksekliği ayırmıyor');

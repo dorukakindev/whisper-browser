@@ -913,7 +913,8 @@ function syncBrowserOcclusion() {
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
-    || !!siteChipDetails?.open
+    || !!siteChipDetails?.open || !!$('browserSignalMenu')?.open
+    || !!$('appModeMenu')?.open || !!$('appMenu')?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
@@ -6819,7 +6820,10 @@ function setBrowserSignal(text, detected = false, options = {}) {
     player.browserSignalQuietTimer = setTimeout(() => updateBrowserSignalQuiet(), 20100);
   }
   updateBrowserSignalQuiet();
-  if ($('browserSignalText')) $('browserSignalText').textContent = message;
+  if ($('browserSignalText')) {
+    $('browserSignalText').textContent = message;
+    $('browserSignalText').title = message;
+  }
   $('browserSignal')?.classList.toggle('detected', detected);
   const action = $('browserSignalTranslateAction');
   if (action) {
@@ -8390,6 +8394,14 @@ function updateBrowserSubtitleSummary() {
     && tab?.browserTranslationComplete === false);
   const busy = !!(player.browserTranslatePreparing || ownedPlayerJob || liveTranslationBusy);
   const stateName = busy ? 'busy' : count ? 'ready' : 'idle';
+  // Birlesik Whisper dugmesi: sayfada medya yoksa, iz yoksa ve islem surmuyorsa
+  // tamamen gizli kalir; gorunurde dolu halka/etiket bulasmaz.
+  const translateMenu = $('browserTranslateMenu');
+  const shouldHide = !count && !busy && !player.browserMediaSeen;
+  if (translateMenu) {
+    translateMenu.classList.toggle('hidden', shouldHide);
+    if (shouldHide && translateMenu.open) translateMenu.open = false;
+  }
   const en = globalThis.UiLocale?.get?.() === 'en';
   label.textContent = `${globalThis.UiLocale?.t?.('Altyazı') || 'Altyazı'}${count ? ` · ${count}` : ''}`;
   button.dataset.state = stateName;
@@ -11126,6 +11138,15 @@ function setWorkspaceMode(mode, persist = true) {
     browserButton.classList.toggle('active', mode === 'browser');
     browserButton.setAttribute('aria-selected', mode === 'browser' ? 'true' : 'false');
     browserButton.tabIndex = mode === 'browser' ? 0 : -1;
+  }
+  // Logo menüsündeki çalışma alanı seçeneklerini gerçek anahtarların durumuyla senkron tut.
+  const modeMenu = $('appModeMenu');
+  if (modeMenu) {
+    for (const item of modeMenu.querySelectorAll('[data-browser-proxy]')) {
+      const on = item.dataset.browserProxy === (mode === 'browser' ? 'workspaceBrowserMode' : 'workspacePlayerMode');
+      item.classList.toggle('active', on);
+      item.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
   }
   if ($('makeSubsBtn')) {
     $('makeSubsBtn').disabled = mode === 'browser' && !currentBrowserYoutubeUrl();
@@ -13877,7 +13898,7 @@ function renderCueList(filter = '') {
             + '<button type="button" data-empty-action="pick">' + lt('Altyazı dosyası seç') + '</button>'
             + '</div>')
       + '</div>';
-    box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsToggle')?.click());
+    box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsMenu')?.click());
     const make = box.querySelector('[data-empty-action="make"]');
     const pick = box.querySelector('[data-empty-action="pick"]');
     if (make) {
@@ -19828,8 +19849,11 @@ document.addEventListener('keydown', (event) => {
   event.preventDefault();
   closeBrowserSettings();
 });
-if ($('browserSubtitleSettingsToggle')) {
-  $('browserSubtitleSettingsToggle').addEventListener('click', () => toggleSettingsPage('browser-subtitles'));
+if ($('browserSubtitleSettingsMenu')) {
+  $('browserSubtitleSettingsMenu').addEventListener('click', () => {
+    closeBrowserToolbarMenus();
+    toggleSettingsPage('browser-subtitles');
+  });
 }
 function detailsMenuFocusable(menu) {
   return Array.from(menu.querySelectorAll('button, select, summary, [role="menuitem"]'))
@@ -19858,7 +19882,7 @@ function wireDetailsMenuNav(details) {
   });
 }
 
-const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails'];
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails', 'browserSignalMenu', 'appModeMenu', 'appMenu'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
   let focusTarget = null;
   for (const id of browserToolbarMenuIds) {
@@ -19884,7 +19908,7 @@ for (const id of browserToolbarMenuIds) {
   wireDetailsMenuNav(menu);
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails')) return;
+  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu')) return;
   closeBrowserToolbarMenus();
 }, true);
 
@@ -19938,6 +19962,25 @@ if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
   closeBrowserToolbarMenus();
   openBrowserFind();
 });
+// 3.4: Menü içi arama — gruplu alt menülerde öğeleri etikete göre süzer;
+// boşalan grup gizlenir, eşleşme varsa grup kendiliğinden açılır.
+const moreSearch = $('browserMoreSearch');
+if (moreSearch) {
+  const morePopover = moreSearch.closest('.browser-more-popover');
+  moreSearch.addEventListener('input', () => {
+    const q = foldSearch(moreSearch.value.trim());
+    morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
+      let visible = 0;
+      sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
+        const hit = !q || foldSearch(item.textContent || '').includes(q);
+        item.classList.toggle('hidden', !hit);
+        if (hit) visible += 1;
+      });
+      sub.classList.toggle('hidden', visible === 0);
+      if (q && visible) sub.open = true;
+    });
+  });
+}
 function setBrowserQrOpen(open) {
   const panel = $('browserQrPanel');
   if (!panel) return;

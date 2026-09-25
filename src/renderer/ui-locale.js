@@ -1748,6 +1748,18 @@
     ['Sitenin adresi bulunamadı. Adresi kontrol edin; doğruysa DNS veya internet bağlantısını denetleyin.', "This site's address couldn't be found. Check the address; if it is correct, check DNS or your internet connection."],
     ['İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.', 'No internet connection. Check your connection and try again.'],
     ['Site zamanında yanıt vermedi. Biraz sonra tekrar deneyin.', 'The site took too long to respond. Try again shortly.'],
+    ['Hızlı eylemler', 'Quick actions'],
+    ['Kapatılan sekmeyi aç · Ctrl+Shift+T', 'Reopen closed tab · Ctrl+Shift+T'],
+    ['Medya kitaplığı', 'Media library'],
+    ['Menüde ara', 'Search the menu'],
+    ['Uygulama ayarları ve araçlar', 'App settings and tools'],
+    ['Uygulama geçişi', 'App switcher'],
+    ['Uygulama menüsü', 'App menu'],
+    ['Whisper menüsü', 'Whisper menu'],
+    ['Whisper uygulama menüsü', 'Whisper app menu'],
+    ['Çalışma alanı', 'Workspace'],
+    ['Altyazı araçları ve iz ayrıntıları', 'Subtitle tools and track details'],
+    ['Görev merkezi', 'Task center'],
   ];
 
   const toEnglish = new Map(entries);

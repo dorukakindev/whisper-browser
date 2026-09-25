@@ -15,6 +15,6 @@ for (const id of ['browserGo', 'browserSubtitleSettingsToggle', 'browserMoreMenu
 }
 assert.match(html, /<details class="browser-more" id="browserMoreMenu">[\s\S]*?<summary/,
   'Diğer menüsü summary kontrolü kullanıyor');
-assert.match(html, /<details class="browser-translate-menu" id="browserTranslateMenu">[\s\S]*?<summary/,
+assert.match(html, /<details class="browser-translate-split browser-translate-menu" id="browserTranslateMenu">[\s\S]*?<summary/,
   'Altyazı menüsü summary kontrolü kullanıyor');
 console.log('browser-toolbar-clickability: summary no-drag contract passed');
