@@ -12,11 +12,13 @@ function extract(start, end, deps = {}) {
   return context;
 }
 (async () => {
-  const cert = extract('function browserCertificateErrorMessage(', 'async function openBrowserLinkInNewTab');
+  const cert = extract('function browserCertificateError(', 'async function openBrowserLinkInNewTab');
   for (const code of ['ERR_CERT_AUTHORITY_INVALID', 'ERR_CERT_DATE_INVALID', 'ERR_CERT_COMMON_NAME_INVALID']) {
-    const result = cert.browserCertificateErrorMessage(code);
-    assert(result.includes('invalid'));
-    assert(!result.includes('ınvalıd'));
+    const result = cert.browserCertificateError(code);
+    assert(result.message.includes('invalid'));
+    assert(!result.message.includes('ınvalıd'));
+    assert.equal(result.messageKey, 'certificate-error');
+    assert(result.detail.includes('invalid'));
   }
   const names = extract('function browserImageFileName(', 'async function saveBrowserContextImage');
   assert.equal(names.browserImageFileName('https://example.test/photo', 'image/png'), 'photo.png');

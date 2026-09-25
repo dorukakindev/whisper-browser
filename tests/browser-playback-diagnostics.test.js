@@ -284,7 +284,7 @@ test('üretim bağlantısı çok sekmeli resmi ağ/EME kanıt hattını kullanı
   assert.match(media, /getVideoPlaybackQuality/);
   assert.match(media, /spinnerVisible/);
   assert.match(renderer, /event\.type === 'playback-diagnostics'/);
-  assert.match(renderer, /eme\.probeFailed \? 'ölçülemedi'/);
+  assert.match(renderer, /eme\.probeFailed \? \(en \? 'not measured' : 'ölçülemedi'\)/);
   assert.doesNotMatch(renderer, /Korumalı video lisans aşamasında reddedildi/);
   assert.match(html, /id="browserPlaybackRecent"/);
 });

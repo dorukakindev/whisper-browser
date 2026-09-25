@@ -77,6 +77,9 @@ function crashRecoveryPolicy(reasonValue) {
       : recoverable
         ? 'Sekmenin web işlemi beklenmedik biçimde kapandı. URL ve oturum kaydı korundu; sekme bir kez yeniden oluşturulacak.'
         : `Sekmenin web işlemi kapandı (${reason}). URL korundu; yeniden yüklemeyi kullanıcı başlatabilir.`,
+    // R124: renderer EN locale'de bu anahtarla İngilizce metin üretir.
+    messageKey: memory ? 'crash-memory' : recoverable ? 'crash-recoverable' : 'crash-manual',
+    params: { reason },
   };
 }
 

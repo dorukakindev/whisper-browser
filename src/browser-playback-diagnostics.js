@@ -7,116 +7,145 @@ function redactSensitiveAssignment(match, key) {
   return sensitive && !generic ? `${key}=[gizlendi]` : match;
 }
 
+// Katalog iki dilli tutulur: label/message Türkçe, labelEn/messageEn İngilizce.
+// Renderer UiLocale'e göre seçer; ana süreç yalnız alanları kopyalar.
 const DIAGNOSTIC_CATALOG = Object.freeze({
   'cdm-component-unavailable': {
-    label: 'Widevine bileşen API’si yok', confidence: 'yüksek',
+    label: 'Widevine bileşen API’si yok', labelEn: 'Widevine component API missing', confidence: 'yüksek',
     message: 'Bu Electron derlemesinde Widevine bileşen API’si bulunamadı. Korumalı video oynatılamayabilir.',
+    messageEn: 'This Electron build has no Widevine component API. Protected video may not play.',
   },
   'cdm-initialization-failed': {
-    label: 'Widevine hazırlanamadı', confidence: 'yüksek',
+    label: 'Widevine hazırlanamadı', labelEn: 'Widevine could not initialize', confidence: 'yüksek',
     message: 'Widevine bileşeni hazırlanamadı. Ağ erişimini ve uygulamanın DRM kurulumunu denetleyin.',
+    messageEn: 'The Widevine component could not be initialized. Check network access and the app’s DRM setup.',
   },
   'eme-api-unavailable': {
-    label: 'EME API kullanılamıyor', confidence: 'yüksek',
+    label: 'EME API kullanılamıyor', labelEn: 'EME API unavailable', confidence: 'yüksek',
     message: 'Sayfa bağlamında Encrypted Media Extensions API’si yok. Bu, coğrafi engel veya lisans reddi değildir.',
+    messageEn: 'The page context has no Encrypted Media Extensions API. This is not a geo block or license rejection.',
   },
   'capability-probe-failed': {
-    label: 'Oynatma yetenekleri ölçülemedi', confidence: 'düşük',
+    label: 'Oynatma yetenekleri ölçülemedi', labelEn: 'Playback capabilities could not be measured', confidence: 'düşük',
     message: 'Sayfa bağlamı EME ve codec ölçümünü tamamlayamadı. Bu sonuç Widevine, codec, lisans veya bölge hakkında kesin kanıt değildir.',
+    messageEn: 'The page context could not complete the EME and codec probe. This result is not conclusive about Widevine, codec, license, or region.',
   },
   'key-system-unavailable': {
-    label: 'Widevine yapılandırması kullanılamıyor', confidence: 'orta',
+    label: 'Widevine yapılandırması kullanılamıyor', labelEn: 'Widevine configuration unavailable', confidence: 'orta',
     message: 'Tarayıcı istenen Widevine yapılandırmasını sağlayamadı. Codec desteği ayrı ölçüldü; CDM, güvenlik politikası veya yapılandırma etkili olabilir ve bu sonuç coğrafi engel anlamına gelmez.',
+    messageEn: 'The browser could not provide the requested Widevine configuration. Codec support was measured separately; CDM, security policy, or configuration may be involved — this does not mean a geo block.',
   },
   'codec-unsupported': {
-    label: 'Codec desteklenmiyor', confidence: 'yüksek',
+    label: 'Codec desteklenmiyor', labelEn: 'Codec not supported', confidence: 'yüksek',
     message: 'İstenen ses veya video codec’i bu Chromium yapılandırmasında desteklenmiyor. Bu sonuç Widevine ya da bölge engeli değildir.',
+    messageEn: 'The requested audio or video codec is not supported by this Chromium build. This is not a Widevine or region block.',
   },
   'license-dns-error': {
-    label: 'Lisans sunucusu DNS hatası', confidence: 'yüksek',
+    label: 'Lisans sunucusu DNS hatası', labelEn: 'License server DNS error', confidence: 'yüksek',
     message: 'DRM lisans sunucusunun adı çözümlenemedi. Bu bir ağ/DNS hatasıdır; lisansın reddedildiğini göstermez.',
+    messageEn: 'The DRM license server name could not be resolved. This is a network/DNS error; it does not show a license rejection.',
   },
   'license-timeout': {
-    label: 'Lisans sunucusu zaman aşımı', confidence: 'yüksek',
+    label: 'Lisans sunucusu zaman aşımı', labelEn: 'License server timeout', confidence: 'yüksek',
     message: 'DRM lisans isteği zaman aşımına uğradı. Ağ bağlantısını denetleyip tekrar deneyin; bu sonuç lisans reddi değildir.',
+    messageEn: 'The DRM license request timed out. Check the network connection and retry; this is not a license rejection.',
   },
   'license-access-denied': {
-    label: 'Lisans isteğine erişim verilmedi', confidence: 'orta',
+    label: 'Lisans isteğine erişim verilmedi', labelEn: 'License request denied', confidence: 'orta',
     message: 'Lisans isteği HTTP 401/403 ile karşılandı. Oturum, abonelik, cihaz politikası veya bölge etkili olabilir; tek başına Widevine eksikliği ya da coğrafi engel kanıtlanmış değildir.',
+    messageEn: 'The license request was met with HTTP 401/403. Session, subscription, device policy, or region may be involved; a missing Widevine or a geo block is not proven by this alone.',
   },
   'license-rejected': {
-    label: 'Lisans işlemi başarısız', confidence: 'orta',
+    label: 'Lisans işlemi başarısız', labelEn: 'License exchange failed', confidence: 'orta',
     message: 'Site lisans aşamasında bir hata bildirdi. Bilinen DNS/timeout kodu görülmedi; mesaj tek başına diğer ağ sorunlarını, aboneliği, cihaz politikasını ve sunucu reddini ayıramıyor.',
+    messageEn: 'The site reported an error during the license phase. No known DNS/timeout code was seen; the message alone cannot separate other network issues, subscription, device policy, or server rejection.',
   },
   'geo-restricted': {
-    label: 'Coğrafi erişim engeli', confidence: 'yüksek',
+    label: 'Coğrafi erişim engeli', labelEn: 'Geo access block', confidence: 'yüksek',
     message: 'Sunucu HTTP 451 veya açık bir bölge kısıtı kanıtı bildirdi. VPN/DRM atlatma denenmeden servis erişimi doğrulanmalıdır.',
+    messageEn: 'The server reported HTTP 451 or explicit region-restriction evidence. Service access should be verified before any VPN/DRM workaround is tried.',
   },
   'authentication-required': {
-    label: 'Oturum açma gerekiyor', confidence: 'yüksek',
-    message: 'Oynatma isteği HTTP 401 ile karşılandı. Site oturumunu yenileyin; bu Widevine veya coğrafi engel değildir.',
+    label: 'Oturum açma gerekiyor', labelEn: 'Sign-in required', confidence: 'yüksek',
+    message: 'İstek HTTP 401 ile karşılandı. Oturum yenilemek gerekebilir; bu Widevine veya coğrafi engel değildir.',
+    messageEn: 'The request was met with HTTP 401. A session refresh may be needed; this is not a Widevine or geo block.',
   },
   'http-access-denied': {
-    label: 'Oynatma isteği reddedildi', confidence: 'orta',
-    message: 'Oynatma isteği HTTP 403 ile karşılandı. Oturum, bot koruması, abonelik veya bölge olasıdır; yalnız bu kodla kesin neden söylenemez.',
+    label: 'İstek reddedildi', labelEn: 'Request denied', confidence: 'orta',
+    message: 'İstek HTTP 403 ile karşılandı. Oturum, bot koruması, abonelik veya bölge olasıdır; yalnız bu kodla kesin neden söylenemez.',
+    messageEn: 'The request was met with HTTP 403. Session, bot protection, subscription, or region are possible; this code alone cannot prove the cause.',
   },
   'service-throttled': {
-    label: 'Servis istekleri sınırladı', confidence: 'yüksek',
+    label: 'Servis istekleri sınırladı', labelEn: 'Service throttled the requests', confidence: 'yüksek',
     message: 'Oynatma servisi HTTP 429 döndürdü. Kısa süre bekleyip normal oturumla tekrar deneyin.',
+    messageEn: 'The service returned HTTP 429. Wait briefly and retry with a normal session.',
   },
   'service-unavailable': {
-    label: 'Oynatma servisi hatası', confidence: 'yüksek',
+    label: 'Oynatma servisi hatası', labelEn: 'Service error', confidence: 'yüksek',
     message: 'Oynatma veya lisans servisi HTTP 5xx hatası döndürdü. Bu genellikle geçici sunucu hatasıdır.',
+    messageEn: 'The playback or license service returned an HTTP 5xx error. This is usually a temporary server error.',
   },
   // R120-B2: Ana sayfa belgesinin 5xx yanıtı bir oynatma veya lisans
   // sorunu değildir; kullanıcı yanlış yere (DRM/oturum) yönlendirilmesin.
   'page-server-error': {
-    label: 'Site sunucusu hatası', confidence: 'yüksek',
+    label: 'Site sunucusu hatası', labelEn: 'Site server error', confidence: 'yüksek',
     message: 'Site sayfa isteğine sunucu hatasıyla (HTTP 5xx) yanıt verdi. Birazdan yeniden yükleyin; bu bir oynatma veya DRM sorunu değildir.',
+    messageEn: 'The site answered the page request with a server error (HTTP 5xx). Reload in a moment; this is not a playback or DRM problem.',
   },
   'dns-error': {
-    label: 'DNS hatası', confidence: 'yüksek',
+    label: 'DNS hatası', labelEn: 'DNS error', confidence: 'yüksek',
     message: 'Oynatma adresinin alan adı çözümlenemedi. DNS ve ağ bağlantısını denetleyin.',
+    messageEn: 'The playback address hostname could not be resolved. Check DNS and the network connection.',
   },
   'network-timeout': {
-    label: 'Ağ zaman aşımı', confidence: 'yüksek',
+    label: 'Ağ zaman aşımı', labelEn: 'Network timeout', confidence: 'yüksek',
     message: 'Oynatma isteği zaman aşımına uğradı. Ağ bağlantısını denetleyip tekrar deneyin.',
+    messageEn: 'The playback request timed out. Check the network connection and retry.',
   },
   'network-unreachable': {
-    label: 'Ağ bağlantısı kurulamadı', confidence: 'yüksek',
+    label: 'Ağ bağlantısı kurulamadı', labelEn: 'Network connection failed', confidence: 'yüksek',
     message: 'Oynatma sunucusuna ağ bağlantısı kurulamadı. DNS, güvenlik duvarı, proxy ve bağlantı durumunu denetleyin.',
+    messageEn: 'Could not establish a network connection to the playback server. Check DNS, firewall, proxy, and connection state.',
   },
   'tls-error': {
-    label: 'Güvenli bağlantı hatası', confidence: 'yüksek',
+    label: 'Güvenli bağlantı hatası', labelEn: 'Secure connection error', confidence: 'yüksek',
     message: 'Oynatma sunucusunun TLS/sertifika doğrulaması başarısız oldu. Sistem saatini ve güvenli bağlantı zincirini denetleyin.',
+    messageEn: 'TLS/certificate verification failed for the playback server. Check the system clock and the secure connection chain.',
   },
   'media-network-error': {
-    label: 'Medya ağ hatası', confidence: 'yüksek',
+    label: 'Medya ağ hatası', labelEn: 'Media network error', confidence: 'yüksek',
     message: 'HTML medya öğesi veriyi ağdan alamadı. Bu hata DRM, codec ve coğrafi erişimden ayrı değerlendirilmelidir.',
+    messageEn: 'The HTML media element could not fetch data from the network. Evaluate separately from DRM, codec, and geo access.',
   },
   'media-decode-error': {
-    label: 'Medya çözme hatası', confidence: 'yüksek',
+    label: 'Medya çözme hatası', labelEn: 'Media decode error', confidence: 'yüksek',
     message: 'HTML medya öğesi aldığı veriyi çözemedi. Codec ve GPU video çözme durumunu denetleyin.',
+    messageEn: 'The HTML media element could not decode the data it received. Check codec and GPU video decode state.',
   },
   'media-source-unsupported': {
-    label: 'Medya kaynağı desteklenmiyor', confidence: 'yüksek',
+    label: 'Medya kaynağı desteklenmiyor', labelEn: 'Media source unsupported', confidence: 'yüksek',
     message: 'HTML medya öğesi kaynak biçimini desteklemedi. Bu sonuç tek başına Widevine veya bölge engeli değildir.',
+    messageEn: 'The HTML media element did not support the source format. This alone is not a Widevine or region block.',
   },
   'gpu-decode-limited': {
-    label: 'GPU video çözme sınırlı', confidence: 'orta',
+    label: 'GPU video çözme sınırlı', labelEn: 'GPU video decode limited', confidence: 'orta',
     message: 'Chromium GPU video çözme özelliğini etkin göstermiyor. Video yine yazılımla oynayabilir; bu tek başına siyah ekran nedeni değildir.',
+    messageEn: 'Chromium does not report GPU video decode as enabled. Video may still play in software; this alone is not the cause of a black screen.',
   },
   'black-video': {
-    label: 'Video karesi üretilemiyor', confidence: 'orta',
+    label: 'Video karesi üretilemiyor', labelEn: 'Video frames not produced', confidence: 'orta',
     message: 'Video zamanı ilerlerken çözülen kare sayısı artmadı. Sayfayı yenileyin; sürerse codec, GPU ve DRM kanıtlarını birlikte denetleyin.',
+    messageEn: 'The decoded frame count did not increase while video time advanced. Reload the page; if it persists, check codec, GPU, and DRM evidence together.',
   },
   'stalled-player': {
-    label: 'Oynatıcı takıldı', confidence: 'orta',
+    label: 'Oynatıcı takıldı', labelEn: 'Player stalled', confidence: 'orta',
     message: 'Video oynuyor görünmesine rağmen ilerlemedi ve yükleme belirtisi sürdü. Sayfayı yenileyin; gerekirse yalnız bu sitenin çerezlerini temizleyin.',
+    messageEn: 'Video appeared to be playing but did not advance and the loading indicator persisted. Reload the page; if needed, clear cookies for this site only.',
   },
   'protected-playback-failed': {
-    label: 'Korumalı oynatma hatası', confidence: 'düşük',
+    label: 'Korumalı oynatma hatası', labelEn: 'Protected playback error', confidence: 'düşük',
     message: 'Site korumalı oynatma hatası bildirdi. Hata kodu tek başına Widevine, lisans, codec veya bölge nedenini ayırmıyor.',
+    messageEn: 'The site reported a protected playback error. The error code alone cannot separate Widevine, license, codec, or region causes.',
   },
 });
 
@@ -229,8 +258,10 @@ function makeDiagnostic(code, evidence, extra = {}) {
   return {
     code,
     label: base.label,
+    labelEn: base.labelEn,
     confidence: base.confidence,
     message: base.message,
+    messageEn: base.messageEn,
     evidence: redactDiagnosticText(evidence),
     ...extra,
   };

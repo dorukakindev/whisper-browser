@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Browser error surfaces now localize in English: main-process load errors, empty-HTTP pages, certificate errors, tab crashes and load-retry signals carry a `messageKey` (+`params`) with English renderer templates; the playback diagnostic catalog is bilingual (`labelEn`/`messageEn`), the toolbar "Subtitles · N" chip follows the UI locale, and the 401/403 diagnostic text no longer claims the request was a playback request.
 - SmartTube YouTube sign-in now supports multiple Google accounts like SmartTube: the signed-in dialog lists every stored account, lets you switch the active one, remove an account, or add another via device code — personal feeds (home, subscriptions, history) follow the active account.
 - Player sentence-tools row consolidates its four subtitle actions into a single "Subtitle actions" popup menu; SmartTube autoplay now shows a 5-second "Up next" countdown card with Play now/Cancel; the browser address bar dims the scheme and path and bolds the domain when unfocused; the playback-speed control renders as a themed popup menu while the hidden select stays the single source of truth.
 - Browser ⋯ menu gains "Watch in player" on open YouTube pages: hands the video off to the app player, carries over the current playback position (or the watch-history resume point), and pauses the browser tab.

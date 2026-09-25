@@ -28,7 +28,7 @@ test('B2 yalnız TAMAMEN boş gövdeli HTTP ≥ 400 ana belge hata ekranına dö
 });
 
 test('B3 ana belge ağ hatası oynatma teşhis metnini değil sayfa mesajını gösterir', () => {
-  assert.match(main, /const message = browserLoadErrorMessage\(code, description\);/);
+  assert.match(main, /const \{ message, messageKey \} = browserLoadError\(code, description\);/);
   for (const code of ['-105', '-106', '-118']) assert.match(main, new RegExp(`Number\\(code\\) === ${code}`));
   const { translate } = require('../src/renderer/ui-locale');
   for (const key of ['Bu sayfa çalışmıyor', 'Sunucu yanıtı boş', 'Altyazı hedef dili',

@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-24 — R123: browser derin denetimi — arka plansız sayfalar okunamıyordu (kritik), boş HTTP hata sayfası, sayfa bağlamlı ağ mesajları, favicon silinmesi, sekme/adres cilası; baştan sona uygulama planı](docs/devir/2026-09-24-r123.md).
+Güncel çalışma: [2026-09-25 14:55 — R124 Adım 1: main→renderer dinamik mesajlar messageKey+params ile İngilizce; teşhis kataloğu iki dilli; "Altyazı · N" çipi locale; 401/403 metni genelleştirildi](docs/devir/2026-09-25-1455.md).
+
+Önceki çalışma: [2026-09-24 — R123: browser derin denetimi — arka plansız sayfalar okunamıyordu (kritik), boş HTTP hata sayfası, sayfa bağlamlı ağ mesajları, favicon silinmesi, sekme/adres cilası; baştan sona uygulama planı](docs/devir/2026-09-24-r123.md).
 
 Önceki çalışma: [2026-09-24 — R120: browser premium tasarım denetimi — menüde donmuş kare, sessiz altyazı şeridi, taşan menü, bağlamsal boş durum, sayfa 5xx teşhisi; ayrıntılı tasarım planı](docs/devir/2026-09-24-r120.md).
 

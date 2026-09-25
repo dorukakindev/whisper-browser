@@ -65,7 +65,7 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
       browserCompatibilityModeForUrl: () => false,
       suspendBrowserInstrumentationForNavigation() {},
       browserTabById: () => current, sendBrowserEvent() {}, isAbortedBrowserNavigation: () => false,
-      browserLoadErrorMessage: () => 'hata' });
+      browserLoadError: () => ({ message: 'hata', messageKey: 'generic' }) });
     resume(tab); resume(tab);
     assert.equal(loads, 0);
     if (scenario === 'closed') current = null;
