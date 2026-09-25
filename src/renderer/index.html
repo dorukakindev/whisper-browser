@@ -5,6 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' whisper-pdf: https:" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="browser-chrome.css" />
   <link rel="stylesheet" href="browser-features.css" />
   <link rel="stylesheet" href="browser-analysis-tools.css" />
   <link rel="stylesheet" href="browser-video-analysis.css" />
@@ -1939,22 +1940,35 @@
               </div>
             </section>
             <div class="browser-empty" id="browserEmpty">
-              <span class="browser-home-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01M8 13h8M8 16h5"/></svg></span>
-              <span class="browser-section-eyebrow">WHISPER TARAYICI</span>
-              <strong>İzle. Oku. Kendi dilinde keşfet.</strong>
-              <p>Web sayfaları, video altyazıları ve manga çevirileri için çalışma alanın.</p>
-              <div class="browser-home-actions">
-                <button type="button" id="browserStartBrowse"><span class="browser-home-action-icon" aria-hidden="true">↗</span><strong>Bir sayfa aç</strong><span>Adres yaz veya web'de ara</span><kbd>Ctrl+L</kbd></button>
-                <button type="button" id="browserStartLibrary"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h5v16H4zM12 4h5v16h-5zM19 5l3 14"/></svg></span><strong>Kütüphanem</strong><span>Kayıtlarına kaldığın yerden dön</span></button>
-                <button type="button" id="browserStartSettings"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></span><strong>Çeviriyi ayarla</strong><span>Dil ve okuma tercihlerini seç</span></button>
-              </div>
-              <details class="browser-home-about"><summary>Bu tarayıcı hakkında</summary><p>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır. DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</p></details>
-              <div class="browser-quick-places hidden" id="browserQuickPlaces" aria-label="Hızlı erişim">
-                <div class="browser-quick-places-head">
-                  <span>Hızlı erişim</span>
-                  <button class="link-btn" id="browserQuickPlacesMore" type="button">Tümünü göster</button>
+              <div class="browser-ntp-intro" id="browserNtpIntro">
+                <span class="browser-home-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01M8 13h8M8 16h5"/></svg></span>
+                <span class="browser-section-eyebrow">WHISPER TARAYICI</span>
+                <strong>İzle. Oku. Kendi dilinde keşfet.</strong>
+                <p>Web sayfaları, video altyazıları ve manga çevirileri için çalışma alanın.</p>
+                <div class="browser-home-actions">
+                  <button type="button" id="browserStartBrowse"><span class="browser-home-action-icon" aria-hidden="true">↗</span><strong>Bir sayfa aç</strong><span>Adres yaz veya web'de ara</span><kbd>Ctrl+L</kbd></button>
+                  <button type="button" id="browserStartLibrary"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h5v16H4zM12 4h5v16h-5zM19 5l3 14"/></svg></span><strong>Kütüphanem</strong><span>Kayıtlarına kaldığın yerden dön</span></button>
+                  <button type="button" id="browserStartSettings"><span class="browser-home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></span><strong>Çeviriyi ayarla</strong><span>Dil ve okuma tercihlerini seç</span></button>
                 </div>
-                <div class="browser-quick-places-list" id="browserQuickPlacesList"></div>
+                <details class="browser-home-about"><summary>Bu tarayıcı hakkında</summary><p>Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır. DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.</p></details>
+              </div>
+              <div class="browser-ntp-core">
+                <div class="browser-ntp-search">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input type="search" id="browserNtpSearch" autocomplete="off" spellcheck="false"
+                    placeholder="Ara veya adres yaz" aria-label="Ara veya adres yaz" />
+                </div>
+                <div class="browser-ntp-resume hidden" id="browserNtpResume">
+                  <div class="browser-ntp-row-head"><span>İzlemeye devam et</span></div>
+                  <div class="browser-ntp-resume-list" id="browserNtpResumeList"></div>
+                </div>
+                <div class="browser-quick-places hidden" id="browserQuickPlaces" aria-label="Hızlı erişim">
+                  <div class="browser-quick-places-head">
+                    <span>Hızlı erişim</span>
+                    <button class="link-btn" id="browserQuickPlacesMore" type="button">Tümünü göster</button>
+                  </div>
+                  <div class="browser-quick-places-list" id="browserQuickPlacesList"></div>
+                </div>
               </div>
             </div>
             <div class="browser-error-surface hidden" id="browserErrorSurface" role="alert" aria-live="assertive">
@@ -2471,14 +2485,17 @@
               </button>
               <div class="side-tabs" role="tablist" aria-label="Yan panel bölümleri">
                 <button class="side-tab active" id="sideTabSubs" data-stab="subs" role="tab"
-                  aria-selected="true" aria-controls="cueList" tabindex="0"><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
+                  aria-selected="true" aria-controls="cueList" tabindex="0"><span class="side-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 13.5h7M7 16.5h10"/></svg></span><span class="side-tab-icon" aria-hidden="true"></span><span>Altyazılar</span></button>
                 <button class="side-tab" id="sideTabAi" data-stab="ai" role="tab"
-                  aria-selected="false" aria-controls="aiChat" tabindex="-1" title="Video hakkında soru sor (AI)"><span>AI'ye sor</span></button>
+                  aria-selected="false" aria-controls="aiChat" tabindex="-1" title="Video hakkında soru sor (AI)"><span class="side-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H8.5L4 19.5z"/><path d="M9 9h6M9 12h4"/></svg></span><span>AI'ye sor</span></button>
                 <button class="side-tab" id="sideTabLibrary" data-stab="library" role="tab"
-                  aria-selected="false" aria-controls="playerLibraryPanel" tabindex="-1" title="İzleme geçmişi ve koleksiyonlar"><span>Kütüphane</span></button>
-                <button class="side-tab" id="sideTabTools" data-stab="tools" role="tab" aria-selected="false" aria-controls="browserFeatures" tabindex="-1"><span>Araçlar</span></button>
+                  aria-selected="false" aria-controls="playerLibraryPanel" tabindex="-1" title="İzleme geçmişi ve koleksiyonlar"><span class="side-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="m10.5 9.5 5 2.5-5 2.5z" fill="currentColor" stroke="none"/></svg></span><span>Kütüphane</span></button>
+                <button class="side-tab" id="sideTabTools" data-stab="tools" role="tab" aria-selected="false" aria-controls="browserFeatures" tabindex="-1"><span class="side-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h10M19 8h1M4 16h3M12 16h8"/><circle cx="16.5" cy="8" r="2"/><circle cx="9.5" cy="16" r="2"/></svg></span><span>Araçlar</span></button>
               </div>
               <div class="side-tab-actions">
+                <button class="btn-icon side-tool" id="sideRailCollapse" title="Paneli ikon rayına daralt" aria-label="Paneli ikon rayına daralt" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/><path d="M16 5v14"/></svg>
+                </button>
                 <button class="btn-icon side-tool" id="sideSubtitleExport" title="Altyazı dosyasını aç" aria-label="Altyazı dosyasını aç">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h10l4 4v12H5z"/><path d="M15 4v5h4M12 11v7m0 0-3-3m3 3 3-3"/></svg>
                 </button>

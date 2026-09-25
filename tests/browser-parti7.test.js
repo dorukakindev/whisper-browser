@@ -137,7 +137,7 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
 {
   const readRel = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
   const html = readRel('src/renderer/index.html');
-  const css = readRel('src/renderer/styles.css');
+  const css = readRel('src/renderer/styles.css') + readRel('src/renderer/browser-chrome.css');
   assert.ok(backend.includes('storyboards'), 'backend storyboard alanı');
   assert.match(backend, /templateUrl.*url/, 'template fallback');
   assert.match(backend, /intervalMs/, 'interval normalize');
@@ -253,7 +253,8 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
   assert.match(renderer, /playerDetailsMenuIds = \[[^\]]*'subtitleActionsMenu'/, 'menü details-menu listesinde değil');
   assert.match(renderer, /#subtitleActionsMenu/, 'dış tık ile kapanış seçicisinde değil');
   assert.match(renderer, /\.subtitle-actions-pop button/, 'öğe tıklaması menüyü kapatmıyor');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8')
+    + fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'browser-chrome.css'), 'utf8');
   assert.match(css, /\.subtitle-actions-pop\s*\{/, 'popover stili yok');
   assert.match(css, /bottom:\s*calc\(100% \+ 8px\)/, 'menü yukarı açılmıyor');
   assert.match(locale, /\['Altyazı işlemleri', /, 'locale çifti eksik');
@@ -278,7 +279,8 @@ assert.match(locale, /\['Oynatma listeleri', /, 'locale listeleri');
 
 // R117 — adres aynası (domain-bold) + hız popup'ı
 {
-  const css2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  const css2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8')
+    + fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'browser-chrome.css'), 'utf8');
   assert.ok(indexHtml.includes('id="browserAddressMirror"'), 'adres aynası DOM eksik');
   assert.ok(indexHtml.includes('browser-address-field'), 'adres alanı sarmalayıcı eksik');
   assert.match(renderer, /function updateBrowserAddressMirror\(\)/, 'ayna senkron fonksiyonu yok');

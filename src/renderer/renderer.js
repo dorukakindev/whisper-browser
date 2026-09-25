@@ -5227,6 +5227,7 @@ const player = {
   browserSignalState: null,
   browserSignalHistory: [],
   browserChromeCollapsed: false,
+  browserSideRailNoHost: null,
   browserLiveAsrActive: false,
   browserLiveAsrStream: null,
   browserLiveAsrCapture: null,
@@ -5671,12 +5672,13 @@ function restoreActiveBrowserTabWorkspace(tab) {
   setBrowserCaptureEnabled(player.browserCaptureEnabled, false);
   updateBrowserMangaButton();
   renderBrowserTabs();
-  updateBrowserNavigation(tab, { preserveWorkspace: true });
+  updateBrowserNavigation(tab, { preserveWorkspace: true, forceAddressSync: true });
   showBrowserErrorSurface(tab.error ? { kind: tab.errorKind, code: tab.errorCode, message: tab.error,
     messageKey: tab.errorMessageKey, params: tab.errorParams, url: tab.errorUrl } : null);
   if (['cinema', 'reading', 'study'].includes(tab.viewMode)) setViewMode(tab.viewMode);
   void restoreBrowserTranslationSnapshot(tab);
   void restoreBrowserSubtitleSelection(tab);
+  updateBrowserSideRail();
 }
 
 function syncBrowserTabs(snapshots, activeTabId, split) {
@@ -7077,10 +7079,64 @@ function browserPlaceKey(raw) {
   return window.BrowserPlaceUrl.safePlaceUrl(raw);
 }
 
+// Yeni sekme sayfası: slogan ve kartlar yalniz ilk acilista; sonraki
+// acilista ortada arama + hizli erisim kutucuklari + izlemeye devam et satiri.
+function syncBrowserNtpIntro() {
+  const empty = $('browserEmpty');
+  if (!empty || empty.classList.contains('hidden')) return;
+  let seen = false;
+  try { seen = localStorage.getItem('browserNtpSeen') === '1'; } catch (_) {}
+  empty.classList.toggle('browser-ntp-first', !seen);
+  if (!seen) {
+    try { localStorage.setItem('browserNtpSeen', '1'); } catch (_) {}
+  }
+}
+
+function browserNtpNavigate(url) {
+  const box = $('browserAddress');
+  if (!url || !box) return;
+  box.value = url;
+  if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
+  void navigateBrowserFromAddress();
+}
+
+function renderBrowserNtpResume() {
+  const root = $('browserNtpResume');
+  const list = $('browserNtpResumeList');
+  if (!root || !list) return;
+  const places = player.browserPlaces || { history: [], bookmarks: [] };
+  const items = (places.history || []).filter((item) => item?.url && item.media).slice(0, 6);
+  list.replaceChildren();
+  root.classList.toggle('hidden', items.length === 0);
+  for (const item of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'browser-ntp-resume-item';
+    button.dataset.browserNtpResume = item.url;
+    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
+    const icon = document.createElement('span');
+    icon.className = 'browser-ntp-resume-ico';
+    icon.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('span');
+    copy.className = 'browser-ntp-resume-copy';
+    const title = document.createElement('span');
+    title.className = 'browser-ntp-resume-title';
+    title.textContent = browserPlaceTitle(item);
+    const url = document.createElement('span');
+    url.className = 'browser-ntp-resume-url';
+    try { url.textContent = new URL(item.url).host || item.url; } catch (_) { url.textContent = item.url; }
+    copy.append(title, url);
+    button.append(icon, copy);
+    list.appendChild(button);
+  }
+}
+
 function renderBrowserQuickPlaces() {
   const root = $('browserQuickPlaces');
   const list = $('browserQuickPlacesList');
   if (!root || !list) return;
+  syncBrowserNtpIntro();
+  renderBrowserNtpResume();
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const entries = [];
   const seen = new Set();
@@ -8336,6 +8392,7 @@ function updateBrowserSignalQuiet() {
   const trackCount = player.browserTracks?.length || 0;
   const quiet = player.workspaceMode === 'browser' && !player.browserMediaSeen && !trackCount
     && !(player.cues.length + player.cues2.length) && player.browserCeaCapture?.available !== true && !important;
+  updateBrowserSideRail();
   const emptyKey = `${player.workspaceMode}|${player.browserMediaSeen ? 1 : 0}|${trackCount}`;
   if (!player.cues.length && player.browserEmptyStateKey !== emptyKey) {
     player.browserEmptyStateKey = emptyKey;
@@ -8344,6 +8401,42 @@ function updateBrowserSignalQuiet() {
   if (workspace.classList.contains('signal-quiet') === quiet) return;
   workspace.classList.toggle('signal-quiet', quiet);
   scheduleBrowserBounds();
+}
+
+// Yan panel ikon rayı: videosuz sayfada panel 48 px ikon rayına daralir;
+// video gorulunce kullanici kapatmadiysa acilir. Tercih site basina saklanir.
+function browserSideRailHost() {
+  try { return new URL(player.browserPageUrl || '').host || ''; } catch (_) { return ''; }
+}
+function readBrowserSideRailPrefs() {
+  try { return JSON.parse(localStorage.getItem('browserSideRail') || '{}') || {}; } catch (_) { return {}; }
+}
+function setBrowserSideRailPref(mode) {
+  const host = browserSideRailHost();
+  if (!host) {
+    // Adressiz durumda (yeni sekme) tercih yalniz oturum icin tutulur.
+    player.browserSideRailNoHost = mode === 'rail' || mode === 'panel' ? mode : null;
+    updateBrowserSideRail();
+    return;
+  }
+  const map = readBrowserSideRailPrefs();
+  if (mode === 'rail' || mode === 'panel') map[host] = mode;
+  else delete map[host];
+  try { localStorage.setItem('browserSideRail', JSON.stringify(map)); } catch (_) {}
+  updateBrowserSideRail();
+}
+function updateBrowserSideRail() {
+  const layer = $('playerLayer');
+  const side = $('playerSide');
+  if (!layer || !side || typeof player === 'undefined') return;
+  const host = browserSideRailHost();
+  const stored = host ? readBrowserSideRailPrefs()[host] : player.browserSideRailNoHost;
+  const rail = player.workspaceMode === 'browser'
+    && !layer.classList.contains('sidebar-collapsed')
+    && (stored ? stored === 'rail' : !player.browserMediaSeen);
+  layer.classList.toggle('side-rail-mode', rail);
+  side.classList.toggle('side-rail', rail);
+  $('sideRailCollapse')?.setAttribute('aria-pressed', rail ? 'true' : 'false');
 }
 
 function renderBrowserSubtitleHealth() {
@@ -10497,7 +10590,14 @@ function updateBrowserNavigation(data, options = {}) {
   }
   if (Number.isFinite(Number(data.zoom))) updateBrowserZoomUi(data.zoom);
   const address = $('browserAddress');
-  if (data.url && document.activeElement !== address) { address.value = data.url; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
+  // Boş URL'li sekmede (yeni sekme) eski adres kalmasın: odaksızken her zaman,
+  // sekme değişiminde (forceAddressSync) odaklı olsa bile senkronla — Chrome'da
+  // sekme geçişi adres kutusunu yeni sekmenin adresiyle değiştirir.
+  if (document.activeElement !== address || options.forceAddressSync) {
+    const nextUrl = data.url || '';
+    if (address.value !== nextUrl) address.value = nextUrl;
+    if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
+  }
   if ($('browserBack')) $('browserBack').disabled = !data.canGoBack;
   if ($('browserForward')) $('browserForward').disabled = !data.canGoForward;
   setBrowserLoadingState(!!data.loading, false);
@@ -11139,6 +11239,7 @@ function setWorkspaceMode(mode, persist = true) {
     browserButton.setAttribute('aria-selected', mode === 'browser' ? 'true' : 'false');
     browserButton.tabIndex = mode === 'browser' ? 0 : -1;
   }
+  updateBrowserSideRail();
   // Logo menüsündeki çalışma alanı seçeneklerini gerçek anahtarların durumuyla senkron tut.
   const modeMenu = $('appModeMenu');
   if (modeMenu) {
@@ -11575,6 +11676,21 @@ if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('c
   if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
   await navigateBrowserFromAddress();
 });
+if ($('browserNtpResumeList')) $('browserNtpResumeList').addEventListener('click', (event) => {
+  const open = event.target.closest('[data-browser-ntp-resume]');
+  if (open) browserNtpNavigate(open.dataset.browserNtpResume);
+});
+if ($('browserNtpSearch')) {
+  const ntpSearch = $('browserNtpSearch');
+  ntpSearch.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      browserNtpNavigate(ntpSearch.value.trim());
+    } else if (event.key === 'Escape') {
+      ntpSearch.value = '';
+    }
+  });
+}
 if ($('browserPlacesClose')) $('browserPlacesClose').addEventListener('click', () => setBrowserPlacesOpen(false));
 $('browserPlacesPanel')?.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
@@ -20958,6 +21074,7 @@ function setPlayerSidebarCollapsed(collapsed) {
     player.narrowPanelTakeover = false;
   }
   layer.classList.toggle('sidebar-collapsed', next);
+  updateBrowserSideRail();
   snapGridColumns();
   if (button) {
     const shown = sidebarIsVisible();
@@ -22008,12 +22125,14 @@ $$('.tab[data-tab]').forEach((b) => b.addEventListener('keydown', (event) => {
 }));
 $$('.side-tab').forEach((b) => b.addEventListener('click', () => {
   const tablist = b.closest('[role="tablist"]');
+  if ($('playerSide')?.classList.contains('side-rail')) setBrowserSideRailPref('panel');
   if (window.matchMedia('(max-width: 1020px)').matches) {
     player.narrowPanelTakeover = true;
     syncResponsivePlayerLayout();
   }
   setSideTab(b.dataset.stab, { focusContent: tablist?.dataset.rovingActivation !== 'true' });
 }));
+$('sideRailCollapse')?.addEventListener('click', () => setBrowserSideRailPref('rail'));
 $('aiChatCancel')?.addEventListener('click',()=>void cancelAiChat());
 $('aiChatRetry')?.addEventListener('click',()=>{if(aiChatRetryPacket?.scope===aiSourceScope())void aiChatSend(aiChatRetryPacket.question,aiChatRetryPacket.translationTarget);});
 if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));

@@ -10,7 +10,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const css = fs.readFileSync(path.join(__dirname, '../src/renderer/styles.css'), 'utf8')
+// R124 Adim 4: ratchet artik src/renderer/*.css toplamini sayar (browser chrome
+// bolumu browser-chrome.css'e tasindi; sınır 470'ten aşağı çekildi).
+const cssDir = path.join(__dirname, '../src/renderer');
+const css = fs.readdirSync(cssDir)
+  .filter((name) => name.endsWith('.css'))
+  .map((name) => fs.readFileSync(path.join(cssDir, name), 'utf8'))
+  .join('\n')
   .replace(/\/\*[\s\S]*?\*\//g, '');
 const baselinePath = path.join(__dirname, 'fixtures', 'css-hardcoded-color-baseline.txt');
 

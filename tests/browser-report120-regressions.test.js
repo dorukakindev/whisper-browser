@@ -6,7 +6,7 @@ const path = require('node:path');
 const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 const renderer = read('src/renderer/renderer.js');
 const main = read('src/main.js');
-const css = read('src/renderer/styles.css');
+const css = read('src/renderer/styles.css') + read('src/renderer/browser-chrome.css');
 let passed = 0;
 const test = (name, fn) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n${e.stack}`); process.exitCode = 1; } };
 

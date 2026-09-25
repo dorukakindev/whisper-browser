@@ -12,7 +12,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const mainSource = read('src/main.js');
 const rendererSource = read('src/renderer/renderer.js');
-const stylesSource = read('src/renderer/styles.css');
+const stylesSource = read('src/renderer/styles.css') + read('src/renderer/browser-chrome.css');
 
 let passed = 0;
 function test(name, fn) {
@@ -117,7 +117,16 @@ test('BUG-117-04 oynatıcı katmanı token\'ları açık temaya bağlanır', () 
 test('BUG-117-04 parite bloğu dosyanın sonunda (kaskadı kazanır)', () => {
   const index = stylesSource.indexOf('BROWSER_BUG_REPORT_117 — tema eşitliği');
   assert.ok(index > 0);
-  assert.ok(index > stylesSource.length * 0.9, 'Blok önceki kuralların ardından gelmeli');
+  // R124: chrome kuralları browser-chrome.css'e taşındı; dosya sonu oranı artık
+  // ölçülemez. Kaskad semantiğini koruyan karşılık: parity bloğu, geçersiz
+  // kıldığı temel .player-layer paletinden SONRA, ancak birleştirilmiş kaynaktaki
+  // browser-chrome.css içeriğinden ÖNCE kalmalıdır (styles.css içinde kalır).
+  const paletteIndex = stylesSource.indexOf('--player-ink: var(--bg-0)');
+  const chromeIndex = stylesSource.indexOf('browser-chrome.css —');
+  assert.ok(paletteIndex > 0 && index > paletteIndex,
+    'Blok temel .player-layer paletinin ardından gelmeli');
+  assert.ok(chromeIndex === -1 || index < chromeIndex,
+    'Blok browser-chrome.css bölümünden önce kalmalı (styles.css içinde)');
 });
 
 test('BUG-117-04 koyu tema meta metinleri AA eşiğini geçer', () => {

@@ -256,7 +256,7 @@ test('sayfa ayarı sınırı: 201. sayfa "kaydedildi" diye dönüp sessizce atı
 // ---------------------------------------------------------------- kozmetik
 
 test('CSS: geri dönüşsüz her var(--x) başvurusu tanımlı bir token\'a gider', () => {
-  const css = ['src/renderer/styles.css', 'src/renderer/browser-features.css']
+  const css = ['src/renderer/styles.css', 'src/renderer/browser-chrome.css', 'src/renderer/browser-features.css']
     .filter((rel) => fs.existsSync(path.join(ROOT, rel))).map(read).join('\n');
   const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
   const renderer = read('src/renderer/renderer.js') + read('src/renderer/index.html');
@@ -268,7 +268,7 @@ test('CSS: geri dönüşsüz her var(--x) başvurusu tanımlı bir token\'a gide
 });
 
 test('CSS: açık tema kontrast düzeltmeleri yerinde', () => {
-  const css = read('src/renderer/styles.css');
+  const css = read('src/renderer/styles.css') + read('src/renderer/browser-chrome.css');
   assert.doesNotMatch(css, /\.browser-address-results \{[^}]*background: #11161b/);
   assert.match(css, /\.btn\.action-button-outline \{ color: var\(--text\); border: 1px solid var\(--border-strong\); \}/);
   assert.match(css, /html\[data-theme="light"\] \.player-layer \{\s*--player-text: var\(--text\);/);

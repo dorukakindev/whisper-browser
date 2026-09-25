@@ -18,7 +18,8 @@ const path = require('path');
 const SRC = path.join(__dirname, '..', 'src', 'renderer');
 const js = fs.readFileSync(path.join(SRC, 'renderer.js'), 'utf-8');
 const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf-8');
-const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf-8');
+const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf-8')
+  + fs.readFileSync(path.join(SRC, 'browser-chrome.css'), 'utf-8');
 const browserSettingsRegistry = require('../src/browser-settings-registry');
 
 if (!html.includes('id="pickInputFolder"') || !html.includes('id="inputDir"')) {
