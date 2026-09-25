@@ -6833,7 +6833,7 @@ body.modal-open { overflow: hidden; }
 .workspace-browser .player-head { background: var(--bg-1); border-color: var(--border); }
 .workspace-browser .browser-workspace { background: var(--bg-0); border-color: var(--border); border-radius: 0 0 var(--radius) var(--radius); }
 .workspace-browser .browser-toolbar { background: var(--bg-1); border-color: var(--border); padding-inline: 10px; }
-.workspace-browser .browser-address-wrap { background: var(--bg-2); border-color: var(--border-strong); border-radius: var(--radius-sm); box-shadow: none; }
+.workspace-browser .browser-address-wrap { background: var(--bg-2); border-color: var(--border-strong); border-radius: 999px; box-shadow: none; }
 .workspace-browser .browser-address-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .workspace-browser .browser-address-wrap input { color: var(--text); font-size: 13px; }
 .workspace-browser .browser-address-wrap input::placeholder { color: var(--text-muted); }
