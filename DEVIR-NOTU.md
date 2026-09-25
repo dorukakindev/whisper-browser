@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-25 18:18 — GitHub repo derin araştırması (kod değişikliği yok): browser'a faydalı entegrasyon adayları — youtubei.js InnerTube katmanı, kanal-RSS abonelik fallback, Stremio anahtarsız altyazı uç noktası (canlı doğrulandı), subliminal sağlayıcı merdiveni, kurulu ffsubsync'in boştaki ses modu; GITHUB_REPO_ONERILERI_2026-09-25](docs/devir/2026-09-25-1818.md).
+Güncel çalışma: [2026-09-26 00:06 — A→Z statik/sözleşme denetimi (kod değişikliği yok): 217 IPC kanalı/876 DOM id/NDJSON/argparse hepsi tutarlı; 1 kesin bulgu — R124-01 `preview_refresh` koşulu `fix_common_errors`/`drop_repeated`/koşulsuz dedupe/`snap_to_speech` mutasyonlarını kapsamıyor → önizleme+çeviri kayması (progressive'de dosyaya sızma); R124-02 düşük `--sync-srt ""` dizin yanılgısı; npm test yeşil; BROWSER_BUG_REPORT_124](docs/devir/2026-09-26-0006.md).
+
+Önceki çalışma: [2026-09-25 18:18 — GitHub repo derin araştırması (kod değişikliği yok): browser'a faydalı entegrasyon adayları — youtubei.js InnerTube katmanı, kanal-RSS abonelik fallback, Stremio anahtarsız altyazı uç noktası (canlı doğrulandı), subliminal sağlayıcı merdiveni, kurulu ffsubsync'in boştaki ses modu; GITHUB_REPO_ONERILERI_2026-09-25](docs/devir/2026-09-25-1818.md).
 
 Önceki çalışma: [2026-09-24 — R123: browser derin denetimi — arka plansız sayfalar okunamıyordu (kritik), boş HTTP hata sayfası, sayfa bağlamlı ağ mesajları, favicon silinmesi, sekme/adres cilası; baştan sona uygulama planı](docs/devir/2026-09-24-r123.md).
 
