@@ -43,6 +43,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Browser R120/R123 fixes (design plan in `docs/raporlar/BROWSER_DESIGN_PLAN_R120.md`, audit in `docs/raporlar/BROWSER_PLAN_R123.md`):
+  - Pages that don't paint their own background (plain text, documents, old sites, minimal HTML) were unreadable — black text on the browser's dark base color. The webview background is now white, matching Chrome/Edge/Firefox.
+  - Any menu, omnibox suggestion, or panel opening turned the web page fully black (HTML sits under the native view); the active tab's frame is now snapshotted and painted into the page slot while hidden.
+  - The two-line subtitle strip no longer steals ~95 px on pages without media; it stays silent until a media/track/cue exists or a ≥warning-priority message arrives.
+  - The "More" menu no longer overflows past the bottom of a 900 px window (max-height + in-menu scrolling).
+  - Empty-bodies ≥400 responses (e.g. 502) now show a proper "This page isn't working" error screen with Retry instead of a black void; 404 pages with real content still render as the site's own page.
+  - Main-document 5xx no longer reports a playback/DRM fault; DNS/offline/timeout network errors get clear page-context messages (-105/-106/-118) instead of raw Chromium text.
+  - Tab title updates no longer wipe the favicon — only the label element is rewritten; failed favicons are marked to avoid retry loops. Favicon-less tabs show a host-colored letter avatar, long titles fade instead of cutting hard, the × button shows only on active/hover/focus, and the address bar is pill-shaped.
+  - The subtitle panel's empty state now distinguishes "track found on page · N" / "no video on this page" / "video without track", and command-palette + several English-UI strings are translated.
+  - Defensive find-in-page changes: the DOM-observer message is sent only after the first real result and redundant `stopFindInPage` calls are removed (root cause of the intermittent "Searching…" hang remains unconfirmed under Xvfb — Windows manual verification queued).
 - YouTube device-code sign-in could be silently abandoned: closing the login dialog (Esc/backdrop/X) killed the background poll, so approving at google.com/device never completed the sign-in — the dialog now closes passively while the poll keeps running, and reopening it resyncs the live flow; grants without a refresh token are accepted as temporary sessions instead of erroring, and auth commands run on their own job slot so a long poll no longer starves feed browsing.
 
 - SmartTube sidebar: the bottom sign-in button is now "YouTube giriş" (Google/TV device-code flow) instead of the generic Invidious login; Invidious giriş moved into the nav list. When signed in, the History section now also shows the real YouTube account watch history (`FEhistory`) with local-library fallback — joining Home (`FEwhat_to_watch`) and Subscriptions (`FEsubscriptions`) as personalized feeds.
