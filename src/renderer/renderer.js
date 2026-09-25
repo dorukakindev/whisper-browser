@@ -19968,11 +19968,11 @@ const moreSearch = $('browserMoreSearch');
 if (moreSearch) {
   const morePopover = moreSearch.closest('.browser-more-popover');
   moreSearch.addEventListener('input', () => {
-    const q = moreSearch.value.trim().toLocaleLowerCase('tr');
+    const q = foldSearch(moreSearch.value.trim());
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
       let visible = 0;
       sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
-        const hit = !q || (item.textContent || '').toLocaleLowerCase('tr').includes(q);
+        const hit = !q || foldSearch(item.textContent || '').includes(q);
         item.classList.toggle('hidden', !hit);
         if (hit) visible += 1;
       });
