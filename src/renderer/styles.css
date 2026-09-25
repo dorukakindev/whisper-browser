@@ -8364,7 +8364,7 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
   scrollbar-width: thin;
 }
 /* Boş transkript: videosuz sayfada eylem düğmesi yok, sade durum. */
-.cue-list-empty[data-empty-kind="no-media"] .cue-empty-icon { opacity: .45; }
+.cue-list-empty[data-empty-kind="no-media"] .cue-empty-icon { display: none; }
 
 
 /* ===== R123 — Faz A: sekme ve araç çubuğu cilası =====
