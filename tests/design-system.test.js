@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const css = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8');
+const css = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8')
+  + fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'browser-chrome.css'), 'utf8');
 const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
 const renderer = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
 const security = fs.readFileSync(path.join(ROOT, 'src', 'settings-security.js'), 'utf8');

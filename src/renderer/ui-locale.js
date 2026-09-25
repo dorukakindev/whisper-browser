@@ -1758,6 +1758,8 @@
     ['Whisper menüsü', 'Whisper menu'],
     ['Whisper uygulama menüsü', 'Whisper app menu'],
     ['Çalışma alanı', 'Workspace'],
+    ['Ara veya adres yaz', 'Search or type an address'],
+    ['Paneli ikon rayına daralt', 'Collapse panel to icon rail'],
     ['Altyazı araçları ve iz ayrıntıları', 'Subtitle tools and track details'],
     ['Görev merkezi', 'Task center'],
   ];

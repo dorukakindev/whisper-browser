@@ -110,4 +110,83 @@ console.log('  T-05: Dark theme --text on --bg-1 ≥ 4.5:1 (kontrol)');
   console.log('    ✓ Dark tema ana metin kontrastı yeterli (kontrol)');
 }
 
+// ---------------------------------------------------------------------------
+// R124 Adim 4.4 — açık tema eşitliği: browser chrome + yan panel.
+// Tarayıcı chrome paleti light temada `html[data-theme="light"] .player-layer`
+// kapsamlı blokta tanımlanır; yan panel yüzeyleri `--bg-*`/`--text*` ailesini
+// kullanır. Aşağıdaki çiftler bu iki yüzey ailesindeki metin kontrastını
+// CI'a sabitler.
+// ---------------------------------------------------------------------------
+
+// Seçici kapsamlı blok içinden token değeri okur; `var(--x)` zincirlerini
+// kök bloklar üzerinden çözer (light .player-layer var() referanslarıyla
+// temaya bağlıdır — hex kalmaz).
+function blockVars(selector) {
+  // Tam seçici eşleşmesiyle blok(lar) içindeki --token: değer tanımlarını toplar.
+  const map = {};
+  for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const sel = m[1].trim().split('\n').pop().trim();
+    if (sel !== selector) continue;
+    for (const decl of m[2].split(';')) {
+      const d = decl.match(/^\s*(--[\w-]+)\s*:\s*(.+?)\s*$/s);
+      if (d) map[d[1]] = d[2].trim();
+    }
+  }
+  return map;
+}
+const CHROME_SCOPE_VARS = {
+  playerLight: blockVars('html[data-theme="light"] .player-layer'),
+  playerBase: blockVars('.player-layer'),
+  lightRoot: blockVars('html[data-theme="light"]'),
+  darkRoot: blockVars(':root'),
+};
+function resolveChromeVar(name, depth = 0) {
+  if (depth > 6) return null;
+  const raw = CHROME_SCOPE_VARS.playerLight[name]
+    ?? CHROME_SCOPE_VARS.playerBase[name]
+    ?? CHROME_SCOPE_VARS.lightRoot[name]
+    ?? CHROME_SCOPE_VARS.darkRoot[name];
+  if (!raw) return null;
+  const ref = raw.match(/^var\((--[\w-]+)\)$/);
+  if (ref) return resolveChromeVar(ref[1], depth + 1);
+  const hex = raw.match(/^(#[0-9a-fA-F]{3,8})$/);
+  return hex ? hex[1].toLowerCase() : null;
+}
+
+const CHROME_PAIRS = [
+  // [etiket, ön plan token, arka plan token] — light .player-layer kapsamı
+  ['chrome muted on panel', '--player-muted', '--player-panel'],
+  ['chrome muted on panel-2', '--player-muted', '--player-panel-2'],
+  ['chrome text on panel', '--player-text', '--player-panel'],
+  ['chrome amber on panel', '--player-amber', '--player-panel'],
+  ['chrome muted on ink', '--player-muted', '--player-ink'],
+];
+for (const [i, [label, fg, bg]] of CHROME_PAIRS.entries()) {
+  const num = i + 6;
+  console.log(`  T-${String(num).padStart(2, '0')}: Light .player-layer ${fg} on ${bg} >= 4.5:1 (${label})`);
+  const fgVal = resolveChromeVar(fg);
+  const bgVal = resolveChromeVar(bg);
+  assert.ok(fgVal && bgVal, `Light .player-layer ${fg}/${bg} tanımlı olmalı (bulunan: ${fgVal}, ${bgVal})`);
+  const ratio = contrast(fgVal, bgVal);
+  console.log(`    ${fg}=${fgVal} on ${bg}=${bgVal} → ${ratio.toFixed(2)}:1`);
+  assert.ok(ratio >= 4.5, `${label}: light tema kontrastı ${ratio.toFixed(2)}:1 < 4.5:1`);
+}
+
+const SIDE_PAIRS = [
+  // [etiket, ön plan token, arka plan token] — global light token'ları
+  ['yan panel ikincil metin', '--text-muted', '--bg-1'],
+  ['yan panel dim metin', '--text-dim', '--bg-1'],
+  ['yan panel vurgu', '--accent', '--bg-1'],
+];
+for (const [i, [label, fg, bg]] of SIDE_PAIRS.entries()) {
+  const num = CHROME_PAIRS.length + i + 6;
+  console.log(`  T-${String(num).padStart(2, '0')}: Light ${fg} on ${bg} >= 4.5:1 (${label})`);
+  const fgVal = getVar('light', fg);
+  const bgVal = getVar('light', bg);
+  assert.ok(fgVal && bgVal, `Light ${fg}/${bg} tanımlı olmalı`);
+  const ratio = contrast(fgVal, bgVal);
+  console.log(`    ${fg}=${fgVal} on ${bg}=${bgVal} → ${ratio.toFixed(2)}:1`);
+  assert.ok(ratio >= 4.5, `${label}: light tema kontrastı ${ratio.toFixed(2)}:1 < 4.5:1`);
+}
+
 console.log('\nTüm WCAG kontrast regresyon testleri geçti.');

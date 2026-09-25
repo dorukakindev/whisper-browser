@@ -7,7 +7,7 @@ const path = require('node:path');
 const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 const main = read('src/main.js');
 const renderer = read('src/renderer/renderer.js');
-const css = read('src/renderer/styles.css');
+const css = read('src/renderer/styles.css') + read('src/renderer/browser-chrome.css');
 let passed = 0;
 const test = (name, fn) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n${e.stack}`); process.exitCode = 1; } };
 
@@ -63,7 +63,7 @@ test('D1–D4 sekme avatarı, soluklaşan başlık, × davranışı, hap adres a
   assert.match(css, /\.browser-tab-avatar \{/);
   assert.match(css, /mask-image: linear-gradient\(to right, currentColor calc\(100% - 18px\), transparent\);/);
   assert.match(css, /\.browser-tab:not\(\.active\):not\(:hover\):not\(:focus-within\) \.browser-tab-close \{ opacity: 0; \}/);
-  assert.match(css, /\.browser-address-wrap \{ border-radius: 999px; \}/);
+  assert.match(css, /\.workspace-browser \.browser-address-wrap \{[^}]*border-radius: (?:999px|var\(--chrome-radius-pill\))/);
 });
 
 test('B5 başlık güncellemesi favicon/avatarı silmez', () => {

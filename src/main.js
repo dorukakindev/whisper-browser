@@ -4019,6 +4019,7 @@ function normalizeBrowserPlaces(places) {
     url: safeBrowserPlaceUrl(item && item.url),
     title: String(item && item.title || '').trim().slice(0, 240),
     folder: String(item && item.folder || '').trim().slice(0, 64),
+    media: !!(item && item.media),
     visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
     // Ziyaret sayısı adres çubuğu sıklık × yakınlık sıralaması için tutulur.
     visits: Math.max(1, Math.min(100000, Math.floor(Number(item && item.visits) || 1))),
@@ -4259,7 +4260,7 @@ function resetPersistentBrowserSession() {
   return reset;
 }
 
-function rememberBrowserVisit(url, title = '') {
+function rememberBrowserVisit(url, title = '', media = false) {
   const safeUrl = safeBrowserPlaceUrl(url);
   if (!safeUrl) return;
   const places = readBrowserPlaces();
@@ -4267,9 +4268,11 @@ function rememberBrowserVisit(url, title = '') {
   const previous = places.history.find((item) => item.url === safeUrl);
   const nextTitle = String(title || (previous && previous.title) || '').trim().slice(0, 240);
   const first = places.history[0];
-  if (first && first.url === safeUrl && first.title === nextTitle) return;
+  const hasMedia = !!(media || (previous && previous.media));
+  if (first && first.url === safeUrl && first.title === nextTitle && first.media === hasMedia) return;
   places.history = [
-    { url: safeUrl, title: nextTitle, visitedAt: now, visits: Math.min(100000, (Number(previous && previous.visits) || 0) + 1) },
+    { url: safeUrl, title: nextTitle, visitedAt: now, media: hasMedia,
+      visits: Math.min(100000, (Number(previous && previous.visits) || 0) + 1) },
     ...places.history.filter((item) => item.url !== safeUrl),
   ].slice(0, BROWSER_PLACE_LIMIT);
   setBrowserPlaces(places);
@@ -12190,7 +12193,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // bundan önce yayımlanırsa hemen ardından gelen navigation onları siler.
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab) });
     if (tab.id === browserActiveTabId) resetBrowserCaptureState({ cancelTranslation: true });
-    rememberBrowserVisit(wc.getURL(), wc.getTitle());
+    rememberBrowserVisit(wc.getURL(), wc.getTitle(), !!browserWatchMediaId(tab));
     scheduleBrowserSessionSave();
   });
   wc.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
@@ -12218,7 +12221,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
         sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
       }
-      rememberBrowserVisit(nextUrl, wc.getTitle());
+      rememberBrowserVisit(nextUrl, wc.getTitle(), !!identity.key);
       tab.restoredUrl = nextUrl;
       syncBrowserTabCompatibilityForUrl(tab, nextUrl);
       tab.restoredTitle = wc.getTitle() || '';
@@ -12239,7 +12242,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   });
   wc.on('page-title-updated', (_event, title) => {
     tab.restoredTitle = title || '';
-    rememberBrowserVisit(wc.getURL(), title || '');
+    rememberBrowserVisit(wc.getURL(), title || '', !!browserWatchMediaId(tab));
     sendBrowserEvent(tab, { type: 'title', title: title || '' });
     scheduleBrowserSessionSave();
   });

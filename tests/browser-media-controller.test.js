@@ -465,7 +465,8 @@ test('R51-36: renderer OSD browser modunda sayfa içi bildirime yönlendirir', (
   const cmdBody = main.slice(cmdStart, main.indexOf('ipcMain.handle(', cmdStart + 20));
   assert.match(cmdBody, /command === 'osd'/);
   assert.match(cmdBody, /executeBrowserTrustedMain\(tab\.view, buildBrowserOsdScript/);
-  const styles = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'styles.css'), 'utf8')
+    + fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'browser-chrome.css'), 'utf8');
   assert.match(styles, /\.workspace-browser \.player-stage \{ display: none/,
     'browser modunda sahne gizli — sayfa içi OSD tek görünür kanal');
 });
