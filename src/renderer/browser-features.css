@@ -108,7 +108,10 @@
 .player-side.tools-mode #selectedCueActions,
 .player-side.tools-mode #wordInspector,
 .player-side.tools-mode .side-bottom { display: none; }
-.workspace-browser .side-tabs { min-width: 0; overflow-x: auto; }
+/* Dar panelde sekmeler kaydırılabilir kalır ama şeritte 10 px'lik yatay
+   kaydırma çubuğu görünmez (tekerlek/klavye/roving tabindex ile ulaşılır). */
+.workspace-browser .side-tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.workspace-browser .side-tabs::-webkit-scrollbar { display: none; }
 .workspace-browser .side-tab { flex-shrink: 0; }
 #bfEncodingPreview { flex-basis: 100%; min-width: 0; }
 #bfEncodingPreview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }

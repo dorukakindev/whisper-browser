@@ -11,19 +11,13 @@
   --elev-1: 0 1px 2px rgb(0 0 0 / .24);
   --elev-2: 0 8px 24px rgb(0 0 0 / .32);
   --elev-3: 0 18px 44px rgb(0 0 0 / .4);
-  --motion-fast: var(--motion-fast);
-  --motion-base: var(--motion-base);
+  /* Kendine başvuran tanım (var(--motion-fast)) döngüsel = geçersiz; bu token'ları
+     kullanan tüm geçişler sessizce düşüyordu. Değerler docs/design-system.md'den. */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
   --motion-ease: cubic-bezier(.2, .8, .2, 1);
 }
 
-color: #fff;
-font-size: 15px;
-font-weight: 600;
-letter-spacing: .01em;
-pointer-events: none;
-backdrop-filter: blur(6px);
-opacity: 0;
-transition: opacity .18s ease, transform .18s ease;
 /* İzlerken düzeltme kutusu */
 .player-layer:not(.workspace-browser) #browserSubtitleReview { display: none; }
 .browser-translate-split {
@@ -899,7 +893,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .side-top { flex: 0 0 auto; gap: 8px; padding-bottom: 10px; }
 .workspace-browser .side-tabbar { min-height: 54px; gap: 6px; border-color: var(--border); }
 .workspace-browser .side-tabs { gap: 3px; min-width: 0; }
-.workspace-browser .side-tab { padding: 7px 9px; font-size: 11px; color: var(--text-muted); }
+.workspace-browser .side-tab { padding: 7px 8px; font-size: 11px; color: var(--text-muted); }
 .workspace-browser .side-tab.active { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-dim); }
 .workspace-browser .side-heading { padding-top: 4px; }
 .workspace-browser .side-heading-title { color: var(--text-dim); font-size: 12px; }
@@ -1318,6 +1312,11 @@ details.browser-translate-split.hidden { display: none !important; }
   grid-template-columns: minmax(0, 1fr) 0 48px;
 }
 .player-layer.workspace-browser.side-rail-mode .side-resizer { display: none; }
+/* Ray 48 px: genel `.workspace-browser .player-side { padding-inline: 14px }` aynı
+   özgüllükte ve bu dosya styles.css'ten sonra yüklendiği için raydaki 4 px'i
+   eziyordu; içerik 20 px'e düşüyor, 36 px'lik sekmeler kırpılıyordu. */
+.workspace-browser .player-side.side-rail { padding-inline: 4px; }
+.workspace-browser .player-side.side-rail .side-tabs { overflow: visible; }
 /* ===== Adım 4.2 — yeni sekme sayfası ===== */
 /* Slogan ve ilk-eylem kartlari yalniz ilk acilista gorunur; sonra ortada
    arama kutusu + hizli erisim kutucuklari + izlemeye devam et satiri kalir. */
