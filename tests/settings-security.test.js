@@ -275,6 +275,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
     browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', browserAudioProfile: 'night', uiTheme: 'light', uiLocale: 'tr',
+    browserSearchEngine: 'duckduckgo',
   };
   const numericValues = {
     beamSize: '5', bestOf: '5', batchSize: '8', vadThreshold: '0.5', maxLineWidth: '42',

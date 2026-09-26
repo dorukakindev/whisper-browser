@@ -519,7 +519,7 @@ function buildBrowserMediaProbeScript() {
 function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
   const allowedCommands = new Set([
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
-    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'loop',
   ]);
   // Bilinmeyen komutlar sayfa denetleyicisini kurmadan reddedilir. Ayrıca
   // JSON.stringify(Infinity) null ürettiği için sayısal komutlar finite olmalı.
@@ -587,6 +587,8 @@ function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
         const target = container && container !== video ? container : video.parentElement || document.documentElement;
         await target.requestFullscreen();
       }
+    } else if (command === 'loop') {
+      video.loop = !video.loop;
     } else if (command === 'pip') {
       if (!('requestPictureInPicture' in video)) {
         return { handled: false, error: 'Bu video Picture-in-Picture desteklemiyor.' };

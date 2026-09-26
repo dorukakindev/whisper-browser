@@ -174,6 +174,9 @@ function extract(start, end, deps = {}) {
     startBrowserPageTranslation: async (tab, options) => { pageStarts.push({ tab, options }); return { ok: true }; },
     sendBrowserEvent: (tab, event) => browserEvents.push({ tab, event }),
     browserOmnibox: require('../src/browser-omnibox'),
+    buildBrowserContextMenuModel: require('../src/browser-context-menu').buildBrowserContextMenuModel,
+    browserUiLocale: () => 'tr',
+    browserSearchEngine: () => 'google',
   });
   const wc = { on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
@@ -181,13 +184,17 @@ function extract(start, end, deps = {}) {
   handler({}, { isEditable: true, editFlags: { canCut: true, canPaste: true, canSelectAll: true } });
   for (const label of ['Kes', 'Yapıştır', 'Tümünü seç']) {
     const item = menu.find(item => item.label === label);
-    assert(item.visible && item.enabled); item.click();
+    assert(item && item.enabled); item.click();
   }
   assert.deepEqual(actions, ['cut', 'paste', 'all']);
+  // Bağlama göre menü: görünmeyen öğeler şablona hiç girmez.
+  const byLabel = (label) => menu.find(item => item.label === label);
+  const searchItem = () => menu.find(item => /^Google ile ara: /.test(item.label || ''));
   handler({}, { isEditable: false });
-  assert.equal(menu.find(item => item.label === 'Yapıştır').visible, false);
-  assert.equal(menu.find(item => item.label === 'Seçili metni ara').visible, false);
-  assert.equal(menu.find(item => item.label === 'Bu satırı çevir').visible, false);
+  assert.equal(byLabel('Yapıştır'), undefined);
+  assert.equal(searchItem(), undefined);
+  assert.equal(byLabel('Bu satırı çevir'), undefined);
+  assert(byLabel('Geri') && byLabel('Yenile'), 'boş sayfada gezinme öğeleri var');
   const tab = {};
   menuContext.installBrowserContextMenu(tab, wc);
   handler({}, { linkURL: 'https://a.test/?sig=a%2Bb', selectionText: 'İstanbul & İzmir #1' });
@@ -195,10 +202,11 @@ function extract(start, end, deps = {}) {
   assert.equal(actions.at(-1), 'https://a.test/?sig=a%2Bb');
   menu.find(item => item.label === 'Bağlantıyı Markdown olarak kopyala').click();
   assert.equal(actions.at(-1), '[https://a.test/?sig=a%2Bb](https://a.test/?sig=a%2Bb)');
-  menu.find(item => item.label === 'Seçili metni ara').click();
+  assert.equal(byLabel('Geri'), undefined, 'bağlantı/seçimde Geri gizli');
+  searchItem().click();
   assert.equal(new URL(searches[0]).searchParams.get('q'), 'İstanbul & İzmir #1');
   const translate = menu.find(item => item.label === 'Bu satırı çevir');
-  assert.equal(translate.visible, true);
+  assert.ok(translate);
   assert.equal(translate.enabled, true);
   translate.click();
   await Promise.resolve();
@@ -214,7 +222,7 @@ function extract(start, end, deps = {}) {
   assert.equal(browserEvents.at(-1).event.message, 'API anahtarı gerekli.');
   assert.equal(browserEvents.at(-1).event.success, false);
   handler({}, { isEditable: true, selectionText: 'düzenlenen metin' });
-  assert.equal(menu.find(item => item.label === 'Bu satırı çevir').visible, false);
+  assert.equal(menu.find(item => item.label === 'Bu satırı çevir'), undefined);
   tab.pageTranslateJob = {};
   handler({}, { selectionText: 'meşgul' });
   assert.equal(menu.find(item => item.label === 'Bu satırı çevir').enabled, false);

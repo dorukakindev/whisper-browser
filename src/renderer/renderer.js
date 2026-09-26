@@ -2498,6 +2498,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
@@ -12493,6 +12494,15 @@ function runBrowserShortcut(key, shift = false) {
     return true;
   }
   if (normalized === 'subtitle-save') { saveBrowserSync(); return true; }
+  // Sağ tık menüsündeki video öğeleri (main: installBrowserContextMenu).
+  if (normalized === 'media-play-pause' || normalized === 'media-loop' || normalized === 'media-pip') {
+    const command = { 'media-play-pause': 'play-pause', 'media-loop': 'loop', 'media-pip': 'pip' }[normalized];
+    browserCommand(command).then((result) => {
+      if (!result?.ok && result?.error && !result.stale) setBrowserSignal(result.error, false);
+    }).catch(() => {});
+    return true;
+  }
+  if (normalized === 'media-subtitles') { $('browserWhisperSubtitles')?.click(); return true; }
   if (normalized === 'subtitle-earlier' || normalized === 'subtitle-later') {
     nudgeBrowserSync(normalized === 'subtitle-earlier' ? -.1 : .1);
     return true;

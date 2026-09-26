@@ -57,7 +57,8 @@ ok(navSlice.includes('BrowserOmnibox?.resolveBang'), 'bang çözümü renderer g
 ok(navSlice.includes('resolveBang?.(rawValue)?.url || rawValue'), 'bang hedefi value olarak gezinir');
 ok(main.includes("require('./browser-omnibox')"), 'main.js modülü yüklüyor');
 ok(main.includes("ipcMain.handle('browser:exportPagePdf'"), 'PDF dışa aktarma handler var');
-ok(main.includes('Bağlantıyı Markdown olarak kopyala'), 'bağlam menüsü Markdown öğesi var');
+ok(require('../src/browser-context-menu').LABELS.tr.copyLinkMarkdown === 'Bağlantıyı Markdown olarak kopyala', 'bağlam menüsü Markdown öğesi var');
+ok(main.includes("'copy-link-markdown'"), 'main Markdown kopyalama eylemini bağlıyor');
 const preload = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'preload.js'), 'utf8');
 ok(preload.includes('exportBrowserPagePdf'), 'preload PDF köprüsü var');
 const indexHtml = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');

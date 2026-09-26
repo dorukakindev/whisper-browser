@@ -177,5 +177,29 @@
     return String(value == null ? '' : value).replace(/[Iİı]/g, 'i').toLowerCase();
   }
 
-  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText };
+  // Varsayılan arama sağlayıcısı (adres çubuğu, sağ tık "ara"). Eskiden her
+  // yerde Google sabitti. Değer ayarlardaki `browserSearchEngine` enum'udur;
+  // bilinmeyen değer Google'a düşer.
+  const SEARCH_ENGINES = Object.freeze({
+    google: { label: 'Google', url: (q) => `https://www.google.com/search?q=${enc(q)}` },
+    duckduckgo: { label: 'DuckDuckGo', url: (q) => `https://duckduckgo.com/?q=${enc(q)}` },
+    bing: { label: 'Bing', url: (q) => `https://www.bing.com/search?q=${enc(q)}` },
+    brave: { label: 'Brave Search', url: (q) => `https://search.brave.com/search?q=${enc(q)}` },
+    startpage: { label: 'Startpage', url: (q) => `https://www.startpage.com/do/search?q=${enc(q)}` },
+  });
+
+  function normalizeSearchEngine(value) {
+    return Object.prototype.hasOwnProperty.call(SEARCH_ENGINES, value) ? value : 'google';
+  }
+
+  function searchUrl(engine, query) {
+    return SEARCH_ENGINES[normalizeSearchEngine(engine)].url(String(query == null ? '' : query));
+  }
+
+  function searchEngineLabel(engine) {
+    return SEARCH_ENGINES[normalizeSearchEngine(engine)].label;
+  }
+
+  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText,
+    SEARCH_ENGINES, normalizeSearchEngine, searchUrl, searchEngineLabel };
 });

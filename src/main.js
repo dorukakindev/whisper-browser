@@ -23,6 +23,7 @@ const { createBrowserDownloads } = require('./browser-downloads');
 const { createBrowserAdblock } = require('./browser-adblock');
 const { classifyTranslationHttpFailure } = require('./browser-translation-provider-error');
 const browserOmnibox = require('./browser-omnibox');
+const { buildBrowserContextMenuModel } = require('./browser-context-menu');
 const { BrowserReadingList } = require('./browser-reading-list');
 const { probeTranslationProvider } = require('./translation-provider-probe');
 const {
@@ -4774,7 +4775,7 @@ function normalizeBrowserUrl(raw) {
   if (/^(?:javascript|vbscript|data|file|about|blob|filesystem|view-source|chrome|chrome-extension|devtools|ftp|mailto|tel|sms|ws|wss|intent|ms-[a-z-]+):/i.test(value)
     || /^[a-z]:[\\/]/i.test(value)
     || /^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return null;
-  return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+  return browserOmnibox.searchUrl(browserSearchEngine(), value);
 }
 
 function openExternalByPolicy(rawUrl, surface = 'renderer-external') {
@@ -5250,53 +5251,78 @@ function reloadBrowserTab(tab, wc, ignoreCache = false) {
   return true;
 }
 
+function browserUiLocale() {
+  return loadSettings()?.ui?.uiLocale === 'tr' ? 'tr' : 'en';
+}
+
+function browserSearchEngine() {
+  return browserOmnibox.normalizeSearchEngine(loadSettings()?.ui?.browserSearchEngine);
+}
+
+// Menü modeli (hangi öğe hangi bağlamda, hangi dilde) src/browser-context-menu.js'te;
+// burada yalnız `id` → eylem eşlemesi var.
 function installBrowserContextMenu(tab, wc) {
   wc.on('context-menu', (_event, params = {}) => {
     const selection = String(params.selectionText || '').trim();
     const linkUrl = String(params.linkURL || '');
-    const imageUrl = params.mediaType === 'image' ? String(params.srcURL || '') : '';
+    const srcUrl = String(params.srcURL || '');
+    const locale = browserUiLocale();
+    const tr = locale === 'tr';
+    const engine = browserSearchEngine();
     const { canGoBack, canGoForward } = browserNavigationCapabilities(wc);
-    const template = [
-      { label: 'Geri', enabled: canGoBack,
-        click: () => void navigateBrowserHistory(tab, wc, 'back').catch((error) =>
-          sendBrowserEvent(tab, { type: 'notice', message: `Geri gidilemedi: ${error.message}`, success: false })) },
-      { label: 'İleri', enabled: canGoForward,
-        click: () => void navigateBrowserHistory(tab, wc, 'forward').catch((error) =>
-          sendBrowserEvent(tab, { type: 'notice', message: `İleri gidilemedi: ${error.message}`, success: false })) },
-      { label: 'Yenile', click: () => reloadBrowserTab(tab, wc) },
-      { label: 'Sayfada bul', accelerator: 'CmdOrCtrl+F',
-        click: () => { mainWindow.webContents.focus(); sendBrowserEvent(tab, { type: 'find-open' }); } },
-      { type: 'separator' },
-      { label: 'Bağlantıyı yeni sekmede aç', visible: !!linkUrl,
-        click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(linkUrl)).catch((error) =>
-          sendBrowserEvent(tab, { type: 'notice', message: `Yeni sekme açılamadı: ${error.message}`, success: false })) },
-      { label: 'Bağlantı adresini kopyala', visible: !!linkUrl, click: () => clipboard.writeText(linkUrl) },
-      { label: 'Bağlantıyı Markdown olarak kopyala', visible: !!linkUrl,
-        click: () => clipboard.writeText(browserOmnibox.markdownLink(params.linkText || linkUrl, linkUrl)) },
-      { label: 'Seçili metni ara', visible: !!selection,
-        click: () => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(`https://www.google.com/search?q=${encodeURIComponent(selection.slice(0, 2000).toWellFormed())}`))
-          .catch((error) => sendBrowserEvent(tab, { type: 'notice', message: `Arama açılamadı: ${error.message}`, success: false })) },
-      { label: 'Bu satırı çevir', visible: !!selection && !params.isEditable, enabled: !tab.pageTranslateJob,
-        click: () => void startBrowserPageTranslation(tab, { scope: 'selection', autoContinue: false })
-          .then((result) => {
-            if (!result?.ok && result?.error) {
-              sendBrowserEvent(tab, { type: 'notice', message: result.error, success: false });
-            }
-          })
-          .catch((error) => sendBrowserEvent(tab, {
-            type: 'notice', message: `Seçili metin çevrilemedi: ${error.message}`, success: false,
-          })) },
-      { label: 'Metni kopyala', enabled: !!selection, click: () => clipboard.writeText(selection) },
-      { label: 'Alıntıyı notlara ekle', visible: !!selection && !params.isEditable,
-        click: () => void saveBrowserSelectionNote(tab, selection).catch((error) =>
-          sendBrowserEvent(tab, { type: 'notice', message: `Alıntı kaydedilemedi: ${error.message}`, success: false })) },
-      { label: 'Kes', visible: !!params.isEditable, enabled: !!params.editFlags?.canCut, click: () => wc.cut() },
-      { label: 'Yapıştır', visible: !!params.isEditable, enabled: !!params.editFlags?.canPaste, click: () => wc.paste() },
-      { label: 'Tümünü seç', visible: !!params.isEditable, enabled: !!params.editFlags?.canSelectAll, click: () => wc.selectAll() },
-      { label: 'Görseli kaydet…', visible: !!imageUrl,
-        click: () => void saveBrowserContextImage(tab, imageUrl).catch((error) =>
-          sendBrowserEvent(tab, { type: 'notice', message: `Görsel kaydedilemedi: ${error.message}`, success: false })) },
-    ];
+    const notice = (trText, enText) => (error) => sendBrowserEvent(tab, {
+      type: 'notice', message: `${tr ? trText : enText}: ${error.message}`, success: false });
+    const openInNewTab = (url, trText, enText) => void queueBrowserTabTransition(() => openBrowserLinkInNewTab(url))
+      .catch(notice(trText, enText));
+    const shortcut = (key) => sendBrowserEvent(tab, { type: 'browser-shortcut', key });
+    const actions = {
+      back: () => void navigateBrowserHistory(tab, wc, 'back').catch(notice('Geri gidilemedi', 'Could not go back')),
+      forward: () => void navigateBrowserHistory(tab, wc, 'forward').catch(notice('İleri gidilemedi', 'Could not go forward')),
+      reload: () => reloadBrowserTab(tab, wc),
+      find: () => { mainWindow.webContents.focus(); sendBrowserEvent(tab, { type: 'find-open' }); },
+      'open-link-new-tab': () => openInNewTab(linkUrl, 'Yeni sekme açılamadı', 'Could not open new tab'),
+      'copy-link': () => clipboard.writeText(linkUrl),
+      'copy-link-markdown': () => clipboard.writeText(browserOmnibox.markdownLink(params.linkText || linkUrl, linkUrl)),
+      'open-image-new-tab': () => openInNewTab(srcUrl, 'Görsel açılamadı', 'Could not open image'),
+      'save-image': () => void saveBrowserContextImage(tab, srcUrl).catch(notice('Görsel kaydedilemedi', 'Could not save image')),
+      'copy-image': () => wc.copyImageAt(Math.round(Number(params.x) || 0), Math.round(Number(params.y) || 0)),
+      'copy-image-url': () => clipboard.writeText(srcUrl),
+      'copy-media-url': () => clipboard.writeText(srcUrl),
+      // Medya eylemleri renderer'ın mevcut browser:command yolundan geçer (en uygun
+      // kare seçimi, bağlam/kuşak doğrulaması orada).
+      'media-play-pause': () => shortcut('media-play-pause'),
+      'media-loop': () => shortcut('media-loop'),
+      'media-pip': () => shortcut('media-pip'),
+      'media-subtitles': () => shortcut('media-subtitles'),
+      'search-selection': () => openInNewTab(
+        browserOmnibox.searchUrl(engine, selection.slice(0, 2000).toWellFormed()),
+        'Arama açılamadı', 'Could not open search'),
+      'translate-selection': () => void startBrowserPageTranslation(tab, { scope: 'selection', autoContinue: false })
+        .then((result) => {
+          if (!result?.ok && result?.error) sendBrowserEvent(tab, { type: 'notice', message: result.error, success: false });
+        })
+        .catch(notice('Seçili metin çevrilemedi', 'Could not translate selection')),
+      copy: () => (params.isEditable ? wc.copy() : clipboard.writeText(selection)),
+      'save-quote': () => void saveBrowserSelectionNote(tab, selection).catch(notice('Alıntı kaydedilemedi', 'Could not save quote')),
+      cut: () => wc.cut(),
+      paste: () => wc.paste(),
+      'select-all': () => wc.selectAll(),
+      'spell-add': (item) => wc.session.addWordToSpellCheckerDictionary(item.value),
+      'spell-replace': (item) => wc.replaceMisspelling(item.value),
+    };
+    const model = buildBrowserContextMenuModel({
+      params, canGoBack, canGoForward, translateBusy: !!tab.pageTranslateJob, locale,
+      searchEngineLabel: browserOmnibox.searchEngineLabel(engine),
+    });
+    const template = model.map((item) => (item.type === 'separator' ? { type: 'separator' } : {
+      label: item.label,
+      type: item.type === 'checkbox' ? 'checkbox' : 'normal',
+      checked: !!item.checked,
+      enabled: item.enabled !== false,
+      accelerator: item.accelerator,
+      click: () => actions[item.id]?.(item),
+    }));
+    if (!template.length) return;
     Menu.buildFromTemplate(template).popup({ window: mainWindow });
   });
 }
@@ -14382,7 +14408,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
       return osdResult && osdResult.handled
         ? { ok: true, ...browserEventContext(tab) }
         : { ok: false, error: 'Sayfa bildirimi gösterilemedi.' };
-    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'media-preference'].includes(command)) {
+    } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'loop', 'media-preference'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
       // player on services that split their UI across frames.

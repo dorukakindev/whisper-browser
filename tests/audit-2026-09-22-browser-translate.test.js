@@ -212,7 +212,7 @@ test('sekme kısayolları ekrandaki (grup) sırasını izler', () => {
 
 test('adres normalizasyonu: "kelime:" aramaları ve yerel ağ adresleri', () => {
   const main = read('src/main.js');
-  const normalizeBrowserUrl = new Function(`${sliceBetween(main, 'function normalizeBrowserUrl(raw)', '\nfunction openExternalByPolicy')}; return normalizeBrowserUrl;`)();
+  const normalizeBrowserUrl = new Function('browserOmnibox', 'browserSearchEngine', `${sliceBetween(main, 'function normalizeBrowserUrl(raw)', '\nfunction openExternalByPolicy')}; return normalizeBrowserUrl;`)(require('../src/browser-omnibox'), () => 'google');
   const search = (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
   assert.equal(normalizeBrowserUrl('Note: buy milk'), search('Note: buy milk'));
   assert.equal(normalizeBrowserUrl('Re: toplantı'), search('Re: toplantı'));
