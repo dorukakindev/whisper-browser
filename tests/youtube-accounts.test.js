@@ -75,20 +75,32 @@ test('upsert: kimliksiz giriş kararlı acct-unknown id altında birleşir — y
 
 test('upsert: expiresIn=0 şimdi doluyor; NaN/negatif güvenli yedeğe düşer (N4)', () => {
   const acc = {};
-  const before = Date.now();
+  // Zaman sınırları çağrı öncesi VE sonrası anlara göre ölçülür — upsert'in kendi
+  // Date.now()'u ikisi arasındadır; tek 'before' referansı 1ms'lik gecikmede
+  // üst sınırı aşıp (3600001ms) flaky kırılırdı (CI windows'ta gözlendi).
+  const b0 = Date.now();
   const r0 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 0, userId: 'u0' });
-  assert.ok(acc[r0.id].expiresAt - before <= 1000,
-    'expiresIn=0 "şimdi doluyor" demek — 3600 varsayımına sessizce düşmemeli');
+  const a0 = Date.now();
+  assert.ok(acc[r0.id].expiresAt >= b0 && acc[r0.id].expiresAt <= a0,
+    'expiresIn=0 "şimdi doluyor" demek — çağrı anında dolmalı, 3600 varsayımına sessizce düşmemeli');
   assert.strictEqual(yt.activeAccount(acc, r0.id), null, 'süresi dolmuş ephemeral aktif sayılmaz');
+  const b1 = Date.now();
   const r1 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 'NaN-degil', userId: 'u1' });
-  const e1 = acc[r1.id].expiresAt - before;
-  assert.ok(e1 > 3000 * 1000 && e1 <= 3600 * 1000, `geçersiz expiresIn -> ~3600s yedek, ${e1}ms`);
+  const a1 = Date.now();
+  // expiresAt = upsertAnı + 3600000; upsertAnı b1..a1 arasında →
+  // alt sınır b1'e (gecikme yönünde genişler), üst sınır a1'e göre.
+  assert.ok(acc[r1.id].expiresAt - b1 > 3000 * 1000 && acc[r1.id].expiresAt - a1 <= 3600 * 1000,
+    `geçersiz expiresIn -> ~3600s yedek, ${acc[r1.id].expiresAt - b1}ms`);
+  const b2 = Date.now();
   const r2 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: -50, userId: 'u2' });
-  const e2 = acc[r2.id].expiresAt - before;
-  assert.ok(e2 > 3000 * 1000, `negatif expiresIn -> yedek süre, ${e2}ms`);
+  const a2 = Date.now();
+  assert.ok(acc[r2.id].expiresAt - b2 > 3000 * 1000 && acc[r2.id].expiresAt - a2 <= 3600 * 1000,
+    `negatif expiresIn -> ~3600s yedek, ${acc[r2.id].expiresAt - b2}ms`);
+  const b3 = Date.now();
   const r3 = yt.upsertAccount(acc, { accessToken: 'at', expiresIn: 120, userId: 'u3' });
-  const e3 = acc[r3.id].expiresAt - before;
-  assert.ok(e3 <= 120 * 1000 + 5000 && e3 >= 120 * 1000, `expiresIn=120 saygı görmeli, ${e3}ms`);
+  const a3 = Date.now();
+  assert.ok(acc[r3.id].expiresAt - b3 >= 120 * 1000 && acc[r3.id].expiresAt - a3 <= 120 * 1000,
+    `expiresIn=120 saygı görmeli, ${acc[r3.id].expiresAt - b3}ms`);
 });
 
 test('upsert: refresh_token yoksa ephemeral=true, oturum yine açılır', () => {
