@@ -188,6 +188,10 @@ def download(url, height, audio_lang, output_dir, cookie_browser=""):
     outdir.mkdir(parents=True, exist_ok=True)
 
     # Video: istenen yüksekliği AŞMAYAN en iyisi; ses: istenen dil varsa o, yoksa en iyi ses
+    # audio_lang doğrulanmadan format dizgisine gömülmez — `]`/`+` gibi bir
+    # karakter yt-dlp selector sözdizimini bozup tüm formatı değiştirebilir.
+    if audio_lang and not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", audio_lang):
+        raise ValueError(f"Geçersiz ses dili: {audio_lang!r}")
     vsel = f"bestvideo[height<={int(height)}]" if height else "bestvideo"
     asel = f"bestaudio[language={audio_lang}]" if audio_lang else "bestaudio"
     fmt = f"{vsel}+{asel}/{vsel}+bestaudio/best[height<={int(height)}]/best" if height \
@@ -255,6 +259,10 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
         raise ValueError("Klip bitişi başlangıçtan büyük olmalı")
     if end - start > 3600:
         raise ValueError("Tek klip en fazla 60 dakika olabilir")
+    if not str(output_file or "").strip():
+        # Path('').with_suffix('.mp4') anlaşılmaz bir ValueError üretiyordu;
+        # asıl eksik parametre burada açıkça söylenir.
+        raise ValueError("Klip için --output-file gerekli")
     target = Path(output_file)
     target.parent.mkdir(parents=True, exist_ok=True)
     completed_paths = []

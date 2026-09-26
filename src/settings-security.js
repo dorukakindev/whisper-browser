@@ -158,6 +158,8 @@ function boundedString(value, label, maxLength = 4000) {
 function pathSetting(value, label) {
   const text = boundedString(value, label, 4000);
   if (!text) return '';
+  // win32.isAbsolute `/` ile başlayan yolları da mutlak sayar; POSIX
+  // mutlak yolları bu yüzden her platformda geçerlidir.
   if (!path.win32.isAbsolute(text)) {
     throw new SettingsValidationError(`${label} mutlak bir yol olmalıdır.`);
   }

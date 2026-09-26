@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-25 19:28 — R126: GitHub bug dosyaları doğrulaması (10 gerçek bug düzeltildi; K5 kasıtlı tasarım / K6+R124-03 ertelendi / N5 uygulanamaz) + 3 öneri uygulandı (CDP postData, Stremio OS-v3 anahtarsız basamak, ffsubsync ses kipi)](docs/devir/2026-09-25-1928.md).
+Güncel çalışma: [2026-09-26 04:02 — R127: yoğun bug turu — 7 bug/sertleştirme (lastWatched:0 ezme, POSIX yol reddi, POSIX kilit timeout, clip output-file, audio_lang selector, pass= sızıntısı) + listMedia deterministik sıralama](docs/devir/2026-09-26-0402.md).
+
+Önceki çalışma: [2026-09-25 19:28 — R126: GitHub bug dosyaları doğrulaması (10 gerçek bug düzeltildi; K5 kasıtlı tasarım / K6+R124-03 ertelendi / N5 uygulanamaz) + 3 öneri uygulandı (CDP postData, Stremio OS-v3 anahtarsız basamak, ffsubsync ses kipi)](docs/devir/2026-09-25-1928.md).
 
 Önceki çalışma: [2026-09-25 03:34 — Haze: A'dan Z'ye derin bug denetimi (R125 olarak korundu)](docs/devir/2026-09-25-0334.md).
 

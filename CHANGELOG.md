@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- R127 — deep module audit fixes: `lastWatched: 0` ("never watched") was rewritten to `Date.now()` in both `watch-index.upsertMedia` and `watch-library-store.upsert`, pushing never-opened items to the top of the recents list; `series_memory._file_lock` POSIX branch now honours `timeout` (a wedged lock holder could hang a transcribe job forever); `download_clip` rejects a missing `--output-file` with a clear error; `download()` validates `audio_lang` before embedding it in the yt-dlp format selector; diagnostic export no longer leaks `pass=` values. `listMedia` ordering is now deterministic (`last_watched DESC, id ASC`).
+
 ### Added
 
 - R126 — GitHub bug-report verification + suggestion implementations: 10 confirmed bugs fixed (YouTube multi-account: `_ytDevice` null-race ghost accounts, stable channel-ID account ids merging duplicate/unnamed rows, `accountRemove` now kills the in-flight poll before revoking so the Google grant is actually released, `upsertAccount` dead param/`expiresIn` semantics; session store 7-day media-time cap (long streams preserved, ms-unit bug fixed); empty-subtitle validation rejection; `splitBrowserBounds({})`→null; secret-store no longer overwrites an array mid-path; `invidious._vtt_to_srt` no longer drops cues in blank-line-less VTT). Network capture now records `maxPostDataSize` + request `method`/`postData` (protobuf-POST manifest sites). Subtitle search gains the keyless Stremio OpenSubtitles-v3 ladder + `imdb_id` targeting and a direct-URL download path; ffsubsync gains an audio-reference mode ("Videonun sesiyle senkron bul") aligning subtitles to the reference video's VAD rhythm.

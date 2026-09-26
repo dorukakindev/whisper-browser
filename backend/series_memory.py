@@ -290,8 +290,19 @@ class SeriesMemory:
                         time.sleep(0.025)
             else:
                 import fcntl
-                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-                locked = True
+                # LOCK_EX tek başına süresiz bekler — kilitli kalmış bir işlem
+                # transkribe görevini sonsuza dek dondururdu. Windows dalıyla
+                # aynı deadline'ı non-blocking döngüyle uygula.
+                deadline = time.monotonic() + max(0.1, float(timeout))
+                while True:
+                    try:
+                        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        locked = True
+                        break
+                    except OSError:
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError("Dizi hafızası yazma kilidi zaman aşımına uğradı.")
+                        time.sleep(0.025)
             yield
         finally:
             if locked:
