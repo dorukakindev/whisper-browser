@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-26 08:52 — R128: çok daha derin tur — uzak-veri yolları denetimi: Stremio redirect zinciri SSRF kapatıldı, invidious timedtext sayısız/NaN toleransı, sentence_reply_issue boş-ids kapısı](docs/devir/2026-09-26-0852.md).
+Güncel çalışma: [2026-09-26 15:50 — R129: derin denetim — sayfa-çevirisi dinleyici/DOM-tutma sızıntıları (restore 6 eylem dinleyicisini sökmüyordu + kopmuş shadow-root observer'ları)](docs/devir/2026-09-26-1550.md).
+
+Önceki çalışma: [2026-09-26 08:52 — R128: çok daha derin tur — uzak-veri yolları denetimi: Stremio redirect zinciri SSRF kapatıldı, invidious timedtext sayısız/NaN toleransı, sentence_reply_issue boş-ids kapısı](docs/devir/2026-09-26-0852.md).
 
 Önceki çalışma: [2026-09-26 04:02 — R127: yoğun bug turu — 7 bug/sertleştirme (lastWatched:0 ezme, POSIX yol reddi, POSIX kilit timeout, clip output-file, audio_lang selector, pass= sızıntısı) + listMedia deterministik sıralama](docs/devir/2026-09-26-0402.md).
 
