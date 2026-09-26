@@ -283,13 +283,22 @@ function approvedStremioUrl(link) {
 }
 
 async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
-  const safe = approvedStremioUrl(url);
   const fetcher = config.fetch || globalThis.fetch;
+  let downloadUrl = approvedStremioUrl(url);
+  // 'follow' yerine elle yönlendirme: onaylı strem.io bağlantısı keyfi bir
+  // hedefe (iç ağ, http düşüşü) zincirlenebilir; her hop yeniden doğrulanır.
   let response;
-  try { response = await fetcher(safe, { method: 'GET', redirect: 'follow', signal }); }
-  catch (error) {
-    if (error?.name === 'AbortError') throw error;
-    throw problem('Altyazı dosyası indirilemedi.', 'NETWORK');
+  for (let redirects = 0; redirects <= 3; redirects++) {
+    try { response = await fetcher(downloadUrl, { method: 'GET', redirect: 'manual', signal }); }
+    catch (error) {
+      if (error?.name === 'AbortError') throw error;
+      throw problem('Altyazı dosyası indirilemedi.', 'NETWORK');
+    }
+    if (![301, 302, 303, 307, 308].includes(response.status)) break;
+    if (redirects === 3) throw problem('Altyazı indirmesi çok fazla yönlendirildi.', 'UNSAFE_URL');
+    const location = response.headers.get('location');
+    if (!location) throw problem('Yönlendirme hedefi eksik — indirme bağlantısı geçersiz.', 'INVALID_RESPONSE');
+    downloadUrl = approvedStremioUrl(new URL(location, downloadUrl).href);
   }
   if (!response.ok) throw problem(`Altyazı indirme hatası (HTTP ${response.status}).`, 'PROVIDER_ERROR');
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
