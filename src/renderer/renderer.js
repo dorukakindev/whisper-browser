@@ -7720,9 +7720,21 @@ async function refreshBrowserAddressResults() {
   if (query.length < 2 || !window.api.searchUnifiedLibrary) return;
   const response = await window.api.searchUnifiedLibrary(query, 'all', 8).catch(() => null);
   if (seq !== browserAddressSearchSeq || typedBrowserAddressQuery() !== query) return;
-  for (const item of response?.results || []) add({ action: 'unified', section: 'library', id: item.id, result: item,
-    title: item.title || 'Kütüphane sonucu', detail: item.snippet || item.url || '',
-    kindLabel: libraryResultKindLabel(item), mark: 'K' });
+  // Birleşik kütüphane sonuçları aynı sayfayı/sekmeyi ikinci kez listelemesin:
+  // URL düzeyinde (sekme satırı 'detail'ında taşınır) tekilleştir.
+  const omniUrlKey = (u) => String(u || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+  const seenUrls = new Set();
+  for (const row of results) {
+    const u = omniUrlKey(row.url || (row.action === 'tab' ? row.detail : ''));
+    if (u) seenUrls.add(u);
+  }
+  for (const item of response?.results || []) {
+    const u = omniUrlKey(item.url);
+    if (u && seenUrls.has(u)) continue;
+    if (add({ action: 'unified', section: 'library', id: item.id, result: item,
+      title: item.title || uiText('Kütüphane sonucu'), detail: item.snippet || item.url || '',
+      kindLabel: libraryResultKindLabel(item), mark: 'K' }) && u) seenUrls.add(u);
+  }
   renderBrowserAddressResults(results);
 }
 
@@ -15644,12 +15656,12 @@ function makeWatchAction(label, action, key, extra) {
 }
 
 function libraryResultKindLabel(result) {
-  if (result.kind === 'tabs') return 'Açık sekme';
-  if (result.kind === 'bookmarks') return 'Yer imi';
-  if (result.kind === 'notes') return 'Not';
-  if (result.kind === 'pages') return 'Sayfa içeriği';
-  if (result.kind === 'subtitles') return result.role === 'translation' ? 'Çeviri altyazısı' : 'Kaynak altyazı';
-  return 'Kayıtlı içerik';
+  if (result.kind === 'tabs') return uiText('Açık sekme');
+  if (result.kind === 'bookmarks') return uiText('Yer imi');
+  if (result.kind === 'notes') return uiText('Not');
+  if (result.kind === 'pages') return uiText('Sayfa içeriği');
+  if (result.kind === 'subtitles') return uiText(result.role === 'translation' ? 'Çeviri altyazısı' : 'Kaynak altyazı');
+  return uiText('Kayıtlı içerik');
 }
 
 function renderUnifiedLibraryResults(list, results) {
@@ -20366,15 +20378,18 @@ function syncSideLayoutMenu() {
 }
 
 $('playerLayoutQuickMenu')?.addEventListener('toggle', (event) => {
-  if (event.currentTarget.open) {
+  const details = event.currentTarget;
+  if (details.open) {
     syncPlayerLayoutQuickMenu();
-    requestAnimationFrame(() => anchorQuickPop(event.currentTarget));
+    // event.currentTarget rAF içinde null'a döner — önce yakala.
+    requestAnimationFrame(() => anchorQuickPop(details));
   }
 });
 $('sideSubtitleLayoutMenu')?.addEventListener('toggle', (event) => {
-  if (event.currentTarget.open) {
+  const details = event.currentTarget;
+  if (details.open) {
     syncSideLayoutMenu();
-    requestAnimationFrame(() => anchorQuickPop(event.currentTarget));
+    requestAnimationFrame(() => anchorQuickPop(details));
   }
 });
 $$('#sideSubtitleLayoutMenu [data-sub-step]').forEach((button) => {

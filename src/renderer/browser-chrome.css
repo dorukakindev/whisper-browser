@@ -732,6 +732,8 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   overscroll-behavior-inline: contain;
 }
 .player-layer.workspace-browser .browser-tab { min-width: 88px; max-width: 188px; }
+/* Sabit sekme ikon-only kalır — genel min-width'i ezmek için aynı özgüllük. */
+.player-layer.workspace-browser .browser-tab.pinned { min-width: 36px; max-width: 36px; }
 .browser-tab-new {
   width: 32px;
   height: 32px;

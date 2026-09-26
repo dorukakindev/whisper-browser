@@ -549,6 +549,14 @@ test('küçük popoverlar ortak menü yaşam döngüsüne kayıtlı', () => {
   assert(js.includes('#playerLayoutQuickMenu, #sideSubtitleLayoutMenu'),
     'dışarı-tık closest listesinde yok');
 });
+test('quick-pop hizalaması rAF içinde currentTarget null düşmez', () => {
+  // DOM spec: event.currentTarget dinleyici dönüşünde null'a döner; rAF
+  // callback'inde kullanılırsa anchorQuickPop(null) atar ve popover
+  // ekran dışında kalır (E2E bulgusu — ~72% sağdan taşıyordu).
+  const pattern = /addEventListener\('toggle', \(event\) => \{\s*const details = event\.currentTarget;[\s\S]{0,240}?requestAnimationFrame\(\(\) => anchorQuickPop\(details\)\)/g;
+  const quickToggles = js.match(pattern) || [];
+  assert(quickToggles.length === 2, 'iki quick-pop toggle bekleniyor ve event.currentTarget rAF öncesi yakalanmalı');
+});
 
 test('toggleDrawerAt panel zaten hedefteyken kapatıyor', () => {
   const i = js.indexOf('function toggleDrawerAt');
