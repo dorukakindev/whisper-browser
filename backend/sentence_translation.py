@@ -920,6 +920,8 @@ def sentence_reply_issue(data, ids):
     """Bir cümle yanıtının neden reddedildiğini metni sızdırmadan açıkla."""
     if not isinstance(data, dict):
         return "kok_nesne_degil"
+    if not ids:
+        return "bos_kimlik_listesi"
     items = data.get('items', data)
     wholes = data.get('sentences', {})
     if not isinstance(items, dict):

@@ -15,6 +15,7 @@ Altyazılar için iki yol:
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -497,22 +498,36 @@ def _convert_timedtext_to_srt(content):
         srt_lines.append("")
         index += 1
 
+    def _num(value):
+        # Bozuk uzak XML sayısal olmayan nitelik üretebilir; ham ValueError
+        # yerine satırı atla (kalan cue'lar kurtarılır). NaN/inf de reddedilir —
+        # int(NaN) ayrıca çöker.
+        try:
+            v = float(value or 0)
+        except (TypeError, ValueError):
+            return None
+        return v if math.isfinite(v) else None
+
     # srv1: <transcript><text start="saniye" dur="saniye">metin</text></transcript>
     texts = root.findall(".//text")
     if texts:
         for t in texts:
-            start_s = float(t.get("start", 0) or 0)
-            dur_s = float(t.get("dur", 0) or 0)
+            start_s = _num(t.get("start"))
+            dur_s = _num(t.get("dur"))
+            if start_s is None or dur_s is None:
+                continue
             raw = "".join(t.itertext())
             add_cue(int(start_s * 1000), int((start_s + dur_s) * 1000), raw)
     else:
         # srv3: <timedtext><body><p t="ms" d="ms"><s>metin</s></p></body></timedtext>
         for p in root.findall(".//body//p"):
-            start_ms = int(p.get("t", 0) or 0)
-            dur = int(p.get("d", 0) or 0)
+            start_ms = _num(p.get("t"))
+            dur = _num(p.get("d"))
+            if start_ms is None or dur is None:
+                continue
             spans = [s.text or "" for s in p.findall(".//s")]
             text = " ".join(spans) if spans else "".join(p.itertext())
-            add_cue(start_ms, start_ms + dur, text)
+            add_cue(int(start_ms), int(start_ms + dur), text)
 
     if not srt_lines:
         raise RuntimeError("Altyazı içeriği boş — başka bir dil deneyin.")

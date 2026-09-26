@@ -135,6 +135,48 @@ async function main() {
     downloadSubtitle({ provider: 'stremio', url: 'https://attacker.example@opensubtitles.com/fake.srt' },
       { fetch: async () => response('x') }),
     { code: 'UNSAFE_URL' });
+
+  // R128: Stremio indirmesi yönlendirmeyi elle izler — her hop allowlist'ten
+  // geçer. Onaylı strem.io URL'si 302 ile iç ağa/düşük şemaya zincirlenemez.
+  const redirectCalls = [];
+  const redirectFetch = async (url) => {
+    redirectCalls.push(url);
+    if (url === 'https://opensubtitles-v3.strem.io/hop1.srt') {
+      return response('', 302, { location: 'https://dl.opensubtitles.com/final.srt' });
+    }
+    return response('1\n00:00:00,000 --> 00:00:01,000\nTakip edildi\n');
+  };
+  const followed = await downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/hop1.srt' },
+    { fetch: redirectFetch });
+  assert.equal(redirectCalls.length, 2, 'onaylı hop izlenir');
+  assert.equal(redirectCalls[1], 'https://dl.opensubtitles.com/final.srt');
+  assert.match(followed.text, /Takip edildi/);
+
+  // 302 → http:// iç ağ: izlenmez
+  const ssrfCalls = [];
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/hop.srt' },
+    { fetch: async (url) => {
+      ssrfCalls.push(url);
+      return response('', 302, { location: 'http://169.254.169.254/latest/meta-data' });
+    } }), { code: 'UNSAFE_URL' });
+  assert.equal(ssrfCalls.length, 1, 'iç ağ hedefine istek atılmadı');
+
+  // 302 → başka keyfi https alan adı da reddedilir
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/hop.srt' },
+    { fetch: async () => response('', 302, { location: 'https://evil.example/x.srt' }) }),
+    { code: 'UNSAFE_URL' });
+
+  // Location'suz 302 + yönlendirme zinciri sınırı
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/hop.srt' },
+    { fetch: async () => response('', 302) }), { code: 'INVALID_RESPONSE' });
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/hop.srt' },
+    { fetch: async (url) => response('', 302, { location: url }) }), { code: 'UNSAFE_URL' });
+
   await assert.rejects(searchSubtitles({ query: 'X', imdbId: 'abc' }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
   console.log('browser-subtitle-search: fixture tests passed');
 }

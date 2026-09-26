@@ -122,6 +122,27 @@ class InvidiousTimedtextToSrt(unittest.TestCase):
         self.assertIn("00:00:01,500 --> 00:00:03,500", srt)
         self.assertIn("İkinci satır", srt)
 
+    def test_non_numeric_timing_attrs_skipped(self):
+        # R128: bozuk uzak XML ham ValueError yerine satırı atlar; iyi cue'lar
+        # kurtarılır, hepsi bozuksa dostu RuntimeError döner.
+        xml = ('<transcript>'
+               '<text start="abc" dur="1">bozuk</text>'
+               '<text start="1" dur="2">iyi</text>'
+               '<text start="nan" dur="1">nanli</text>'
+               '</transcript>')
+        srt = invidious._convert_timedtext_to_srt(xml)
+        self.assertIn("iyi", srt)
+        self.assertNotIn("bozuk", srt)
+        self.assertNotIn("nanli", srt)
+        with self.assertRaises(RuntimeError):
+            invidious._convert_timedtext_to_srt(
+                '<transcript><text start="x" dur="y">sadece bozuk</text></transcript>')
+        # srv3 tarafı da aynı toleransta
+        srt3 = invidious._convert_timedtext_to_srt(
+            '<timedtext><body><p t="nan" d="5">k</p><p t="100" d="50">m</p></body></timedtext>')
+        self.assertIn("m", srt3)
+        self.assertNotIn("k\n", srt3)
+
     def test_vtt_content_converts(self):
         vtt = ("WEBVTT\n\n00:00:01.500 --> 00:00:03.500\nHello vtt\n\n"
                "00:00:05.000 --> 00:00:06.000\nSatır iki\n")

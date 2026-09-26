@@ -1464,6 +1464,10 @@ def test_sentence_reply_issue_explains_structure_without_source_text():
         {"items": {"0": "Gizli kaynak metni"},
          "sentences": {"0": "Gizli kaynak metni"}}, [0]
     ) == ""
+    # R128: boş kimlik listesi ids[0] IndexError'a değil açıklamalı reta düşer.
+    assert sentence_reply_issue({"items": {}}, []) == "bos_kimlik_listesi"
+    from sentence_translation import accept_sentence_reply
+    assert accept_sentence_reply({"items": {}}, []) is None
 
 def _capture_translate_payloads(entries, args):
     """llm_translate'i taklit API ile kosturur; modele giden istekleri dondurur."""
