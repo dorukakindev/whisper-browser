@@ -1658,6 +1658,45 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .player-stage.sub-moved:not(.idle) .subtitle-overlay {
   bottom: max(var(--sub-user-bottom, 5%), 13%);
 }
+/* Çift dilli yığın (varsayılan): iki altyazı altta, aynı yazı stiliyle; kaynak
+   üstte (.primary-first birincil kanal kaynaksa onu öne alır). Konum kuralları
+   (kontroller görünürken %13, kullanıcı sürüklemesi) tek tek overlay yerine
+   YIĞINA uygulanır, böylece iki satır birbirine yapışık kalır. Eskiden ikinci
+   altyazı videonun tepesinde (%6), %72 boyutta, soluk renkteydi. */
+.player-stage:not(.sub-split) .subtitle-stack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60%;
+  overflow: hidden;
+  pointer-events: none;
+  transition: bottom .18s ease;
+}
+.player-stage:not(.sub-split):not(.idle):not(.sub-moved) .subtitle-stack { bottom: 13%; }
+.player-stage.sub-moved:not(.sub-split) .subtitle-stack { transition: none; bottom: var(--sub-user-bottom, 5%); }
+.player-stage.sub-moved:not(.sub-split):not(.idle) .subtitle-stack { bottom: max(var(--sub-user-bottom, 5%), 13%); }
+.player-stage:not(.sub-split) .subtitle-stack > .subtitle-overlay {
+  position: static;
+  max-height: none;
+  transition: none;
+}
+.player-stage:not(.sub-split) .subtitle-stack > .subtitle-overlay:empty { display: none; }
+.player-stage:not(.sub-split) .subtitle-stack > .subtitle-secondary {
+  font-size: var(--sub-size);
+  font-weight: var(--sub-weight);
+  color: var(--sub-color);
+}
+.player-stage:fullscreen:not(.sub-split) .subtitle-stack > .subtitle-overlay { font-size: 2.2vw; }
+.subtitle-stack.primary-first > #subtitleOverlay { order: -1; }
+/* "Ayrı" düzen: sarmalayıcı kutu üretmez; overlay'ler eskisi gibi sahneye göre
+   konumlanır (ikinci altyazı üstte). */
+.player-stage.sub-split .subtitle-stack { display: contents; }
+.player-stage.browsing .subtitle-stack { display: none; }
 /* Suruklerken hangi hizada oldugu gorunsun */
 .subtitle-overlay.dragging {
   outline: 1px dashed rgba(255, 255, 255, .45);

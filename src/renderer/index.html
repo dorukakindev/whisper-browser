@@ -2043,9 +2043,14 @@
           <canvas class="ambient-glow" id="ambientGlow" width="32" height="18"></canvas>
           <video id="playerVideo" preload="metadata"></video>
           <div class="hold-hint" id="holdHint">2&times; &#9654;&#9654;</div>
-          <div class="subtitle-overlay subtitle-secondary" id="subtitleOverlay2"></div>
-          <div class="subtitle-overlay" id="subtitleOverlay"
-               title="Basılı tutup yukarı/aşağı sürükleyerek konumunu değiştir"></div>
+          <!-- Çift dilli altyazı yığını: varsayılan düzende ikisi altta, aynı yazı
+               stiliyle; kaynak üstte. "Ayrı" düzende sarmalayıcı display:contents
+               olur ve ikinci altyazı eskisi gibi videonun üstüne yerleşir. -->
+          <div class="subtitle-stack" id="subtitleStack">
+            <div class="subtitle-overlay subtitle-secondary" id="subtitleOverlay2"></div>
+            <div class="subtitle-overlay" id="subtitleOverlay"
+                 title="Basılı tutup yukarı/aşağı sürükleyerek konumunu değiştir"></div>
+          </div>
           <div class="sub-hidden-hint hidden" id="subHiddenHint">Altyazı gizli — <b>V</b></div>
           <div class="player-osd" id="playerOsd"></div>
           <div class="player-spinner hidden" id="playerSpinner"></div>
@@ -3051,6 +3056,13 @@
             <label class="field switch-field">
               <input type="checkbox" id="subWeight" />
               <span>Kalın yazı</span>
+            </label>
+            <label class="field subtitle-style-field">
+              <span class="field-label">Çift dilli düzen</span>
+              <select id="subDualLayout">
+                <option value="stacked">İkisi altta, aynı stil</option>
+                <option value="split">İkinci altyazı üstte, ayrı</option>
+              </select>
             </label>
             <label class="field switch-field">
               <input type="checkbox" id="ambientMode" checked />

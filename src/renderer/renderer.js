@@ -13196,9 +13196,10 @@ function updateCueMeta() {
   const position = $('cuePosition');
   const fill = $('cueProgressFill');
   if (position) {
+    // Sıfır dolgusuz ("2 / 4"); genişlik tabular-nums ile sabit kalır.
     position.textContent = total && player.activeIdx >= 0
-      ? `${String(player.activeIdx + 1).padStart(3, '0')} / ${String(total).padStart(3, '0')}`
-      : (total ? `000 / ${String(total).padStart(3, '0')}` : '— / —');
+      ? `${player.activeIdx + 1} / ${total}`
+      : (total ? `– / ${total}` : '— / —');
   }
   if (fill) {
     const pct = total > 1 && player.activeIdx >= 0
@@ -16990,6 +16991,9 @@ const SUB_STYLE_DEFAULTS = {
   font: 'system',
   weight: 600,
   lineHeight: 1.35,
+  // Çift dilli düzen: 'stacked' = ikisi altta, aynı stil (kaynak üstte);
+  // 'split' = ikinci altyazı videonun üstünde, küçük ve soluk (eski görünüm).
+  dualLayout: 'stacked',
 };
 const SUB_FONTS = {
   system: "'Segoe UI', system-ui, sans-serif",
@@ -17011,6 +17015,7 @@ function applySubtitleStyle() {
   stage.style.setProperty('--sub-font', SUB_FONTS[st.font] || SUB_FONTS.system);
   stage.style.setProperty('--sub-weight', String(st.weight));
   stage.style.setProperty('--sub-line', String(st.lineHeight));
+  stage.classList.toggle('sub-split', st.dualLayout === 'split');
   stage.style.setProperty('--sub-shadow', o
     ? `0 0 ${(4 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
       + ` 0 2px ${(6 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
@@ -17036,9 +17041,10 @@ function loadSubtitleStyle() {
   player.subStyle.lineHeight = Math.max(1, Math.min(2, Number(player.subStyle.lineHeight) || SUB_STYLE_DEFAULTS.lineHeight));
   if (!Object.prototype.hasOwnProperty.call(SUB_FONTS, player.subStyle.font)) player.subStyle.font = 'system';
   if (!/^#[0-9a-f]{6}$/i.test(String(player.subStyle.color))) player.subStyle.color = SUB_STYLE_DEFAULTS.color;
+  if (player.subStyle.dualLayout !== 'split') player.subStyle.dualLayout = 'stacked';
   // Kontrolleri duruma esitle
   const map = { subSize: 'size', subColor: 'color', subBgOpacity: 'bg',
-                subOutline: 'outline', subFont: 'font', subWeight: 'weight' };
+                subOutline: 'outline', subFont: 'font', subWeight: 'weight', subDualLayout: 'dualLayout' };
   Object.entries(map).forEach(([id, key]) => {
     const el = $(id);
     if (!el) return;
@@ -17075,6 +17081,7 @@ function bindSubtitleStyleControls() {
   bind('subOutline', 'outline', (v) => parseInt(v, 10));
   bind('subFont', 'font');
   bind('subWeight', 'weight', (v) => parseInt(v, 10));
+  bind('subDualLayout', 'dualLayout', (v) => (v === 'split' ? 'split' : 'stacked'));
   $$('.sub-color-swatch').forEach((b) => {
     b.addEventListener('click', () => {
       player.subStyle.color = b.dataset.color;
@@ -17143,14 +17150,21 @@ function makeSubtitleDraggable(el, edge) {
   let startPct = 0;
   let moved = false;
 
+  // Yığın düzeninde iki altyazı birlikte hareket eder: ikincisini tutup çekmek de
+  // yığının alt konumunu (--sub-user-bottom) değiştirir. "Ayrı" düzende ikinci
+  // altyazı eskisi gibi kendi üst konumunu taşır.
+  let activeEdge = edge;
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || player.editing) return;
     const stage = $('playerStage');
     if (!stage) return;
+    const split = stage.classList.contains('sub-split');
+    activeEdge = edge === 'top' && !split ? 'bottom' : edge;
     const h = stage.getBoundingClientRect().height || 1;
-    const r = el.getBoundingClientRect();
+    const r = (activeEdge === 'bottom' && !split && $('subtitleStack')
+      ? $('subtitleStack') : el).getBoundingClientRect();
     const sr = stage.getBoundingClientRect();
-    startPct = edge === 'bottom'
+    startPct = activeEdge === 'bottom'
       ? (player.subBottom != null ? player.subBottom : ((sr.bottom - r.bottom) / h) * 100)
       : ((r.top - sr.top) / h) * 100;
     startY = e.clientY;
@@ -17168,9 +17182,9 @@ function makeSubtitleDraggable(el, edge) {
     const stage = $('playerStage');
     const h = stage.getBoundingClientRect().height || 1;
     // asagi surukleme: alttan olculen deger AZALIR, ustten olculen ARTAR
-    const delta = (dy / h) * 100 * (edge === 'bottom' ? -1 : 1);
+    const delta = (dy / h) * 100 * (activeEdge === 'bottom' ? -1 : 1);
     const pct = Math.max(1, Math.min(88, startPct + delta));
-    if (edge === 'bottom') {
+    if (activeEdge === 'bottom') {
       player.subBottom = pct;
       stage.style.setProperty('--sub-user-bottom', `${pct}%`);
       stage.classList.add('sub-moved');
@@ -17189,8 +17203,8 @@ function makeSubtitleDraggable(el, edge) {
     if (cancelled) return;
     if (moved) {
       saveSubtitlePos();
-      logLine(`Altyazı konumu kaydedildi (${edge === 'bottom' ? 'alt' : 'üst'}: `
-        + `%${Math.round(edge === 'bottom' ? player.subBottom : player.sub2Top)})`, 'info');
+      logLine(`Altyazı konumu kaydedildi (${activeEdge === 'bottom' ? 'alt' : 'üst'}: `
+        + `%${Math.round(activeEdge === 'bottom' ? player.subBottom : player.sub2Top)})`, 'info');
     } else {
       // Suruklenmedi: sade tiklama -> videoya ilet (tam ekranda oynat/duraklat
       // davranisi kaybolmasin). Cift tiklama duzenleyiciyi acmaya devam eder.
@@ -18184,6 +18198,8 @@ function updateSubtitleChips() {
     tr.classList.toggle('hidden', !player.cues2.length);
   }
   if (org) org.textContent = player.subPath ? (player.subOrigins[player.subPath] || 'Dosya') : '';
+  // Yığında kaynak her zaman üstte: birincil kanal kaynaksa onu öne al.
+  $('subtitleStack')?.classList.toggle('primary-first', !primaryTranslation);
 }
 
 function addSubtitleOption(path, label, metadata = {}) {
