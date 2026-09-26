@@ -158,7 +158,11 @@ function boundedString(value, label, maxLength = 4000) {
 function pathSetting(value, label) {
   const text = boundedString(value, label, 4000);
   if (!text) return '';
-  if (!path.win32.isAbsolute(text)) {
+  // Ürün Windows birincil; fakat Linux/macOS geliştirme/CI ortamında POSIX
+  // mutlak yolları da geçerli sayılmalı — yoksa `path.win32.isAbsolute('/x')`
+  // false döner ve her ayar kaydı ile her iş başlangıcı bu hatayla düşer.
+  // (defaultMediaFolders da aynı çift kontrolü kullanır.)
+  if (!path.isAbsolute(text) && !path.win32.isAbsolute(text)) {
     throw new SettingsValidationError(`${label} mutlak bir yol olmalıdır.`);
   }
   return text;

@@ -562,7 +562,11 @@ function createWatchLibraryStore(options) {
       ...patch,
       key,
       firstWatched: previous.firstWatched || patch.firstWatched || now(),
-      lastWatched: patch.lastWatched || now(),
+      // lastWatched 0 geçerli: "hiç izlenmedi". `|| now()` sıfırı şimdiye
+      // çevirip hiç açılmamış kaydı listenin tepesine taşıyordu (R127).
+      lastWatched: patch.lastWatched === undefined || patch.lastWatched === null
+        ? now()
+        : (Number.isFinite(Number(patch.lastWatched)) ? Math.max(0, Number(patch.lastWatched)) : now()),
       collections: patch.collections === undefined ? uniqueStrings(previous.collections) : uniqueStrings(patch.collections),
       subtitlePaths: uniqueStrings([...(previous.subtitlePaths || []), ...uniqueStrings(patch.subtitlePaths)]),
       prefs: { ...(isObject(previous.prefs) ? previous.prefs : {}), ...(isObject(patch.prefs) ? patch.prefs : {}) },

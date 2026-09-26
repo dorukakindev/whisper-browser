@@ -3,7 +3,9 @@ const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensiti
 function redactSensitiveAssignment(match, key) {
   const sensitive = isSensitiveKey(key) || startsWithSensitivePrefix(key)
     || /^(?:token|sig(?:nature)?|jwt|key|api[-_]?key|client[-_]?secret|secret|session(?:id)?|sid)$/i.test(key);
-  const generic = /^(?:code|state|pass|exp|expires?|policy|auth)$/i.test(key);
+  // `pass` klasik bir parola alan adıdır (SENSITIVE_KEY_NAMES içinde); genel
+  // listede tutulması `pass=...` tanı girdilerini açık sızdırıyordu.
+  const generic = /^(?:code|state|exp|expires?|policy|auth)$/i.test(key);
   return sensitive && !generic ? `${key}=[gizlendi]` : match;
 }
 

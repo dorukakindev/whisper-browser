@@ -123,6 +123,44 @@ class SeriesMemoryTests(unittest.TestCase):
             memory, _ = SeriesMemory.for_input(work, "Show.S01E10.srt", "en", "tr")
             self.assertEqual(set(memory.data["terms"]), {f"Term {index}" for index in range(8)})
 
+    def test_file_lock_honours_timeout_on_all_platforms(self):
+        # POSIX `flock(LOCK_EX)` eskiden `timeout`u yok sayıp sonsuza dek
+        # bekliyordu — kilitli kalan bir işlem transkribe görevini dondururdu.
+        import time as _time
+
+        with tempfile.TemporaryDirectory() as work:
+            memory, _ = SeriesMemory.for_input(work, "Show.S01E11.srt", "en", "tr")
+            lock_path = memory.path.with_suffix(memory.path.suffix + ".lock")
+            holder = open(lock_path, "a+b")
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    holder.write(b"\0")
+                    holder.flush()
+                    holder.seek(0)
+                    msvcrt.locking(holder.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+                started = _time.monotonic()
+                with self.assertRaises(TimeoutError):
+                    with memory._file_lock(timeout=0.3):
+                        pass
+                self.assertLess(_time.monotonic() - started, 5.0,
+                                "kilit zaman aşımı sınırı uygulanmadı")
+            finally:
+                try:
+                    holder.seek(0)
+                    if os.name == "nt":
+                        import msvcrt
+                        msvcrt.locking(holder.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+                holder.close()
+
 
 if __name__ == "__main__":
     unittest.main()

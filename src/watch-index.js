@@ -12,6 +12,15 @@ function json(value, fallback = {}) {
   catch (_) { return JSON.stringify(fallback); }
 }
 
+// lastWatched için 0 geçerli bir değerdir ("hiç izlenmedi"). `|| Date.now()`
+// onu şimdiye çevirip hiç açılmamış kayıtları last_watched DESC sıralamasında
+// listenin tepesine taşıyordu.
+function lastWatchedValue(value) {
+  if (value === undefined || value === null) return Date.now();
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : Date.now();
+}
+
 function ftsQuery(raw) {
   const tokens = String(raw || '').normalize('NFKC').match(/[\p{L}\p{N}_'-]+/gu) || [];
   return tokens.slice(0, 12).map((token) => `"${token.replace(/"/g, '""')}"*`).join(' AND ');
@@ -225,7 +234,7 @@ class WatchIndex {
     `).run(
       String(item.id), String(item.service || ''), String(item.title || ''), String(item.url || ''),
       Math.max(0, Number(item.duration) || 0), Math.max(0, Number(item.position) || 0), item.completed ? 1 : 0,
-      Number(item.lastWatched || item.last_watched) || Date.now(), json(item.prefs),
+      lastWatchedValue(item.lastWatched ?? item.last_watched), json(item.prefs),
     );
     return this.getMedia(item.id);
   }
@@ -240,7 +249,7 @@ class WatchIndex {
   }
 
   listMedia(limit = 100, offset = 0) {
-    return this.db.prepare('SELECT * FROM media ORDER BY last_watched DESC LIMIT ? OFFSET ?')
+    return this.db.prepare('SELECT * FROM media ORDER BY last_watched DESC, id ASC LIMIT ? OFFSET ?')
       .all(Math.max(1, Math.min(1000, Number(limit) || 100)), Math.max(0, Number(offset) || 0));
   }
 
@@ -468,6 +477,7 @@ module.exports = {
   databaseConstructor,
   foldSearchText,
   ftsQuery,
+  lastWatchedValue,
   safePageIndexUrl,
   selectPrunableTracks,
 };
