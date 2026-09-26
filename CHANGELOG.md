@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- R127 — deep module audit fixes: `lastWatched: 0` ("never watched") was rewritten to `Date.now()` in both `watch-index.upsertMedia` and `watch-library-store.upsert`, pushing never-opened items to the top of the recents list; `pathSetting` now accepts POSIX absolute paths (Linux/macOS settings save + job start were broken); `series_memory._file_lock` POSIX branch now honours `timeout` (a wedged lock holder could hang a transcribe job forever); `download_clip` rejects a missing `--output-file` with a clear error; `download()` validates `audio_lang` before embedding it in the yt-dlp format selector; diagnostic export no longer leaks `pass=` values. `listMedia` ordering is now deterministic (`last_watched DESC, id ASC`).
+- R127 — deep module audit fixes: `lastWatched: 0` ("never watched") was rewritten to `Date.now()` in both `watch-index.upsertMedia` and `watch-library-store.upsert`, pushing never-opened items to the top of the recents list; `series_memory._file_lock` POSIX branch now honours `timeout` (a wedged lock holder could hang a transcribe job forever); `download_clip` rejects a missing `--output-file` with a clear error; `download()` validates `audio_lang` before embedding it in the yt-dlp format selector; diagnostic export no longer leaks `pass=` values. `listMedia` ordering is now deterministic (`last_watched DESC, id ASC`).
 
 ### Added
 

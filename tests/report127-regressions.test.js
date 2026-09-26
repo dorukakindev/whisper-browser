@@ -82,16 +82,14 @@ try {
     assert.deepStrictEqual(tied.map((row) => row.id), ['youtube:aaaaaaaaaaa', 'youtube:bbbbbbbbbbb']);
   });
 
-  test('settings-security: POSIX mutlak yolları Windows dışında da kabul edilir', () => {
+  test('settings-security: POSIX ve Windows mutlak yolları her platformda kabul edilir', () => {
+    // win32.isAbsolute `/` ile başlayan yolları da mutlak sayar — POSIX
+    // mutlak yolları (ve `C:\...` biçimi) her platformda geçmeli.
     const posix = '/home/kullanici/videolar';
-    if (process.platform === 'win32') {
-      // Windows'ta POSIX yolu kök-bağlantılıdır; mutlak sayılmaz.
-      assert.throws(() => sanitizeAbsolutePath(posix, 'Klasör'), /mutlak/);
-    } else {
-      assert.strictEqual(sanitizeAbsolutePath(posix, 'Klasör'), posix);
-    }
+    assert.strictEqual(sanitizeAbsolutePath(posix, 'Klasör'), posix);
     assert.strictEqual(sanitizeAbsolutePath('C:\\videolar\\altyazı', 'Klasör'), 'C:\\videolar\\altyazı');
     assert.throws(() => sanitizeAbsolutePath('goreli/yol', 'Klasör'), /mutlak/);
+    assert.throws(() => sanitizeAbsolutePath('videolar\\alt', 'Klasör'), /mutlak/);
   });
 
   test('playback diagnostics: `pass=` artık redakte edilir, genel sözcükler korunur', () => {

@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-26 · **Dal:** `codex/r127-deep-audit-1790393957` · **Taban:** master `98ca826`
 
-Yoğun bug-arama turu: desen süpürmesi (birim/koşul/yarış/parser hata kalıpları) + az denetlenen orta-katman modüllerde derin okuma. Süpürme grepleri temiz çıktı; bulgular derin okumadan geldi.
+Yoğun bug-arama turu: desen süpürmesi (birim/koşul/yarış/parser hata kalıpları) + az denetlenen orta-katman modüllerde derin okuma. Süpürme grepleri temiz çıktı; bulgular derin okumadan geldi. **6 doğrulanmış bug/sertleştirme + 1 iyileştirme + 1 false-positive** (Windows CI'da yakalanıp geri alındı).
 
 ## Doğrulanmış ve düzeltilmiş bug'lar
 
@@ -20,11 +20,13 @@ Gerçek akışlar doğrulandı: `main.js:3266` (`lastWatched: 0`), `main.js:3290
 
 **Düzeltme:** `patch.lastWatched === undefined || null` → `now()`; açık sonlu değer → `Math.max(0, Number(...))`; sayısız → `now()`. `firstWatched` davranışı değişmedi (`|| now()` orada doğru — ilk izleme damgası).
 
-### BUG-127-03 — `settings-security.js` `pathSetting`: POSIX mutlak yolları reddediliyordu (HIGH, taşınabilirlik)
+### ~~BUG-127-03 — `settings-security.js` `pathSetting` POSIX reddi~~ → FALSE POSITIVE (Windows CI'da yakalandı)
 
-`path.win32.isAbsolute(text)` koşulsuzdu → Linux/macOS'ta `/home/...` gibi her POSIX mutlak yolu `SettingsValidationError` ile düşerdi. Etki yüzeyi geniş: `sanitizeSettings` (inputDir/outputDir/watchDir/lastInputDir), `sanitizeAbsolutePath` ve 8 `main.js` çağrı noktası (transcribe:start ~18171, dialog sonuçları vb.). **Linux geliştirme ortamında ayar kaydı ve iş başlangıcı tamamen kırıktı** (Electron testleri transcribe:start IPC'sini hiç sürmeyip doğrudan backend'i spawn ettiği için yakalanmamıştı).
+İlk teşhis "`path.win32.isAbsolute('/x')` false döner → POSIX mutlak yollar reddediliyor" idi. **Yanlış:** Node'un `win32.isAbsolute` implementasyonu `isPathSeparator(code)` — `/` VE `\` — ile başlayan her yolu mutlak sayar; `/home/...` POSIX yolu zaten her platformda kabul ediliyordu. Önerilen `path.isAbsolute || path.win32.isAbsolute` çift kontrolü tam no-op'tur (`posix.isAbsolute` ⊂ `win32.isAbsolute`: `/`-kökü her iki implementasyonda da mutlak).
 
-**Düzeltme:** `path.isAbsolute(text) || path.win32.isAbsolute(text)` — `defaultMediaFolders`'ın kendi çift kontrolüyle aynı semantik. Windows'ta davranış birebir aynı (`path.isAbsolute === path.win32.isAbsolute` win32'de); değişiklik yalnız Windows-dışı platformları açar.
+Kanıt: Windows CI'da `sanitizeAbsolutePath('/home/kullanici/videolar')` throw etmedi; yerelde `path.win32.isAbsolute('/home/x') === true` doğrulandı.
+
+**Sonuç:** kod değişikliği geri alındı; yalnız açıklayıcı yorum bırakıldı (gelecek denetimler aynı yanlış teşhisi tekrarlamasın diye). Regresyon testi doğru davranışı mühürler: POSIX + `C:\...` her platformda kabul, göreli yol her platformda reddedilir.
 
 ### BUG-127-04 — `series_memory.py` `_file_lock`: POSIX dalı `timeout`'u yok sayıyordu (MEDIUM)
 
@@ -65,7 +67,7 @@ Gerçek akışlar doğrulandı: `main.js:3266` (`lastWatched: 0`), `main.js:3290
 
 | Test | Sonuç |
 |---|---|
-| `tests/report127-regressions.test.js` (yeni, 5 test) | 5/5 yeşil |
+| `tests/report127-regressions.test.js` (yeni, 6 test) | 6/6 yeşil |
 | `backend/test_media.py` (yeni, 2 test) | 2/2 yeşil |
 | `backend/test_series_memory.py` (yeni kilit zaman aşımı testi) | 7/7 yeşil |
 | `watch-index-assets`, `watch-library`, `watch-library-migration` (161), `watch-library-subtitle-performance`, `browser-report86-regressions` (44), `settings-security` (23), `adversarial-ipc` (15), `audit-tur5-main`, `audit-tur6`, `codecraft-provider`, `browser-playback-diagnostics` (18), `report63-secret-redaction` (19) | tümü yeşil |
@@ -78,6 +80,7 @@ Gerçek akışlar doğrulandı: `main.js:3266` (`lastWatched: 0`), `main.js:3290
 - Gerçek Windows makinede medya kütüphanesi sıralaması (hiç izlenmeyen kayıt en üstte değil artık) — el kontrolü önerilir; mantık platformdan bağımsız.
 - `series_memory` POSIX kilit zaman aşımı Windows'ta aynı `TimeoutError` semantiğini tutar (msvcrt dalı zaten deadline'a sahipti; test iki dalı da kapsar) — ama gerçek Windows dosya kilitlemesi yalnız Windows CI'da koşar.
 - `media.py` `audio_lang` reddi: UI'dan gelen değerler zaten `[a-z]{2}(-[A-Z]{2})?` biçiminde; şüpheli bir değer geçmişte selector'ü bozuyordu, artık açık hata verir.
+- BUG-127-03 false-positive'i Windows CI yakaladı (POSIX-yol testi win32'de throw etmedi) — otomasyonun değeri: teşhis yerelde POSIX'te doğrulanmış görünüyordu, gerçek Windows sözdizimi farkı CI'da ortaya çıktı.
 
 ## Taranan modüller (derin okuma)
 
