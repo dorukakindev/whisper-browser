@@ -13366,6 +13366,15 @@ async function runResourceSoakSession() {
   app.exit(0);
 }
 
+// Windows titleBarOverlay: çözülmüş tema (dark|light) başına native düğme
+// şeridi rengi. Renderer başlık yüzeyi (--bg-0) ile aynı kalır; tema değişiminde
+// renderer 'app:theme-changed' ile haber verir (aşağıda ipcMain.on).
+function titleBarOverlayForTheme(theme) {
+  return theme === 'light'
+    ? { color: '#f1ede5', symbolColor: '#514a43', height: 38 }
+    : { color: '#0a0d11', symbolColor: '#a6adb6', height: 38 };
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -13384,13 +13393,9 @@ function createWindow() {
     // ve tarayıcı araçlarının üzerine binmez.
     ...(process.platform === 'win32' ? {
       titleBarStyle: 'hidden',
-      titleBarOverlay: {
-        // Renderer başlık yüzeyiyle aynı renk; native düğme alanı ayrı siyah
-        // bir kutu gibi görünmesin.
-        color: '#0a0d11',
-        symbolColor: '#a6adb6',
-        height: 38,
-      },
+      // İlk çizim koyu varsayılanla yapılır; renderer applyUiTheme açılışta
+      // 'app:theme-changed' gönderince overlay gerçek temaya güncellenir.
+      titleBarOverlay: { color: '#0a0d11', symbolColor: '#a6adb6', height: 38 },
     } : {}),
     minWidth: 940,
     minHeight: 680,
@@ -13543,6 +13548,18 @@ function createWindow() {
   });
   // İş bitince yanıp sönen taskbar vurgusunu odaklanınca temizle
   mainWindow.on('focus', () => mainWindow.flashFrame(false));
+
+  // Fare yan tuşları (X1/X2): Windows app-command ile gelir; renderer tarafı
+  // 'browser-shortcut' olayını zaten işliyor (runBrowserShortcut → chrome
+  // command kanalı — durum kontrolleri orada). Yalnız browser çalışma alanı
+  // aktifken sekmeye yönlendirilir.
+  mainWindow.on('app-command', (_event, command) => {
+    const key = command === 'browser-backward' ? 'back'
+      : command === 'browser-forward' ? 'forward' : '';
+    if (!key) return;
+    const tab = browserTabById(browserActiveTabId);
+    if (tab) sendBrowserEvent(tab, { type: 'browser-shortcut', key });
+  });
 
   // Açıkça izinli harici bağlantıları (http, https, mailto) varsayılan uygulamada aç,
   // uygulama içinde yeni pencere açılmasını engelle
@@ -13966,9 +13983,19 @@ ipcMain.handle('browser:snapshotActive', async (event) => {
     return { ok: false };
   }
   try {
-    const image = await wc.capturePage();
+    let image = await wc.capturePage();
     if (!image || image.isEmpty()) return { ok: false };
-    return { ok: true, dataUrl: `data:image/jpeg;base64,${image.toJPEG(82).toString('base64')}` };
+    // Donmuş kare yalnızca menü/popover arkasına serilen bir yer tutucu:
+    // tam çözünürlük JPEG kodlaması hem yavaş hem de IPC'yi yüzlerce KB
+    // şişiriyordu. 768px genişliğe küçültmek kodlamayı ~4-6x ucuzlatır;
+    // CSS ile eski boyuta yayılır, geçiş süresince hafif yumuşaklık fark
+    // edilmez.
+    const { width, height } = image.getSize();
+    const MAX_W = 768;
+    if (width > MAX_W) {
+      image = image.resize({ width: MAX_W, height: Math.max(1, Math.round(height * (MAX_W / width))), quality: 'good' });
+    }
+    return { ok: true, dataUrl: `data:image/jpeg;base64,${image.toJPEG(72).toString('base64')}` };
   } catch (error) {
     return { ok: false, error: error.message };
   }
@@ -17181,6 +17208,14 @@ function releaseQueueTerminalGuards(mergedItems, snapshotItems) {
     }
   }
 }
+
+// Tema değişince Windows başlık şeridi renklerini renderer ile eşitle —
+// yoksa açık temada siyah overlay kutusu kalıyordu.
+ipcMain.on('app:theme-changed', (event, theme) => {
+  if (!authorizedBrowserSender(event) || process.platform !== 'win32') return;
+  if (theme !== 'dark' && theme !== 'light') return;
+  try { mainWindow?.setTitleBarOverlay?.(titleBarOverlayForTheme(theme)); } catch (_) {}
+});
 
 ipcMain.on('queue:saveSync', (event, snapshot) => {
   if (!authorizedBrowserSender(event)) { event.returnValue = { ok: false, error: 'Yetkisiz istek.' }; return; }

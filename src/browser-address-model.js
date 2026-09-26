@@ -72,10 +72,15 @@
     const seen = new Set();
     const add = (row) => {
       const key = `${row.action}:${row.id || row.url || row.value || row.title}`;
-      if (seen.has(key) || results.length >= limit) return;
+      if (seen.has(key) || results.length >= limit) return false;
       seen.add(key);
       results.push(row);
+      return true;
     };
+    // Aynı adresin açık sekme + geçmiş/yer imi satırlarında iki kez görünmesi
+    // "Open tabs" tekrarı yaratıyordu; sekme satırı kazanır, url sahiplenilir.
+    const claimedUrls = new Set();
+    const urlKey = (url) => strippedUrl(url).replace(/\/+$/, '').toLowerCase();
     const bang = omnibox.resolveBang?.(query);
     if (bang) add({ action: 'navigate', section: 'input', url: bang.url,
       title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,
@@ -83,8 +88,12 @@
     const completion = input.completion;
     if (completion?.url) add({ action: 'url', section: 'input', url: completion.url, title: completion.text,
       detail: completion.url, kindLabel: 'Otomatik tamamlama', mark: '↗', icon: faviconFor(completion.url) });
+    // İlk satırın açıklaması yazılanın adres mi arama mı olacağını söyler;
+    // metin render katmanında yerelleştirilir (inputKind'e göre).
+    const looksLikeAddress = /^[\w-]+(?:\.[\w-]+)+(:\d+)?([/?#].*)?$|^localhost(:\d+)?([/?#].*)?$/i.test(query)
+      || /^[a-z][a-z0-9+.-]*:\/\//i.test(query);
     add({ action: 'navigate', section: 'input', value: query, title: `“${query.slice(0, 120)}” için git veya ara`,
-      detail: 'Adresse doğrudan açılır; değilse web araması yapılır.', kindLabel: 'Web', mark: 'A' });
+      detail: '', inputKind: looksLikeAddress ? 'address' : 'search', kindLabel: 'Web', mark: 'A' });
     const calc = omnibox.evaluateArithmetic?.(query);
     if (calc !== null && calc !== undefined) {
       const value = omnibox.formatCalcResult ? omnibox.formatCalcResult(calc) : String(calc);
@@ -92,11 +101,19 @@
         detail: 'Seçip Enter: sonucu panoya kopyala', kindLabel: 'Hesap', mark: '=' });
     }
     for (const tab of Array.isArray(input.tabs) ? input.tabs : []) {
-      if (foldSearchText(`${tab.title} ${tab.url}`).includes(folded)) add({ action: 'tab', section: 'tabs', id: tab.id,
-        title: tabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S', icon: tab.favicon || faviconFor(tab.url) });
+      // Aktif sekme listeden çıkarılır: ona geçiş hiçbir şey değiştirmez.
+      if (input.activeTabId != null && tab.id === input.activeTabId) continue;
+      if (!foldSearchText(`${tab.title} ${tab.url}`).includes(folded)) continue;
+      const key = urlKey(tab.url);
+      if (key && claimedUrls.has(key)) continue;
+      if (add({ action: 'tab', section: 'tabs', id: tab.id,
+        title: tabLabel(tab), detail: tab.url, kindLabel: 'Açık sekme', mark: 'S', icon: tab.favicon || faviconFor(tab.url) }) && key) {
+        claimedUrls.add(key);
+      }
     }
     const places = input.places || {};
-    const match = (item) => foldSearchText(`${item.title} ${item.url}`).includes(folded);
+    const match = (item) => foldSearchText(`${item.title} ${item.url}`).includes(folded)
+      && !claimedUrls.has(urlKey(item.url));
     for (const item of (places.bookmarks || []).filter(match)) add({ action: 'url', section: 'bookmarks', url: item.url,
       title: placeTitle(item), detail: item.url, kindLabel: 'Yer imi', mark: 'Y', icon: faviconFor(item.url) });
     const history = (places.history || []).filter(match)

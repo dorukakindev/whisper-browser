@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('api', {
   finishWatchFlushBeforeClose: (token) => ipcRenderer.send('library:flush-before-close-complete', token),
   searchWatchLibrary: (query) => ipcRenderer.invoke('library:search', query),
   cancelWatchLibrarySearch: () => ipcRenderer.send('library:search-cancel'),
+  // Çözülmüş tema (dark|light) — main Windows titleBarOverlay'i eşitler.
+  notifyThemeChanged: (resolved) => ipcRenderer.send('app:theme-changed', resolved),
   searchUnifiedLibrary: (query, scope = 'all', limit = 160) => ipcRenderer.invoke('library:searchUnified', { query, scope, limit }),
   listLibraryCollections: () => ipcRenderer.invoke('library:collections:list'),
   renameLibraryCollection: (from, to) => ipcRenderer.invoke('library:collections:rename', { from, to }),
