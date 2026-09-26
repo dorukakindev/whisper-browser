@@ -23009,7 +23009,7 @@ async function toggleMiniPlayer() {
     if (document.pictureInPictureElement) await document.exitPictureInPicture();
     else if (document.pictureInPictureEnabled) await video.requestPictureInPicture();
     else { osd('Resim içinde resim bu sürümde kullanılamıyor.'); return; }
-    osd('Mini oynatıcı ' + (document.pictureInPictureElement ? 'açıldı' : 'kapatıldı'));
+    osd(document.pictureInPictureElement ? 'Mini oynatıcı açıldı' : 'Mini oynatıcı kapatıldı');
   } catch (_) {
     osd('Resim içinde resim açılamadı; video oynarken deneyin.');
   }
