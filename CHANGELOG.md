@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Internal
+
+- R132 — deepest audit round: ~200 surfaces re-read (browser capture/subtitle parsers, page-translate, translation scheduler, session/watch stores, media controller, settings-security, transcribe.py translation pipeline, and all backend Python helpers) plus tree-wide pattern sweeps (dynamic RegExp, Math.random, eval/Function, execSync/spawnSync, fs deletion sites, bare `.sort()`, Promise.all, renderer DOM access). **No confirmed new bugs** — every audited surface is hardened with bounds, whitelists, atomicity, staleness/generation guards, abort discipline, and inline fix-round notes (R83/R85/R86/R127/R128/R129/BUG-117-05/P79/RFC 8216/Electron 43). Coverage map and Windows manual-check list recorded in `docs/raporlar/BROWSER_BUG_REPORT_132.md`.
+
 ### Changed
 
 - Paket-v2 uygulama turu — 7 patch (`18e5374`..`abbfb7d`: çeviri kalite kapısı doğal Türkçeyi reddetmesin, JSON-modu reddi tek seferde öğrenilir, adres çubuğu eski-URL/çift-altyazı, OSD/"…" düğmesi ve sağ ray CSS, EN arayüz Türkçe kalıntıları, bağlama göre sağ-tık menüsü, çift-dilli altyazı varsayılanı) + `KURULUM.md` "Kalan işler" listesinin tamamı:
