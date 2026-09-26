@@ -480,4 +480,117 @@ assert.equal(tableParent.children[1].className, 'whisper-page-tr');
 vm.runInNewContext(pageRestoreScript(), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 
+// Geri yükleme, uygulanan çevirinin kurduğu belge/pencere dinleyicilerini de
+// kaldırmalı: anonim closure'lar state'i (refs → sayfa DOM düğümleri) canlı
+// tutar ve ölü dinleyiciler SPA ömrünce her pointerover'da çalışmaya devam eder.
+assert.match(pageApplyScript({}), /pageActionListeners/);
+assert.match(pageRestoreScript(), /pageActionListeners/);
+assert.match(pageRestoreScript(), /ref\.active = false/);
+
+{
+  const listenerRegistry = [];
+  const makeListenerTarget = (label) => ({
+    addEventListener(type, fn, capture) {
+      listenerRegistry.push({ target: label, type, fn, capture: !!capture });
+    },
+    removeEventListener(type, fn, capture) {
+      const index = listenerRegistry.findIndex((entry) =>
+        entry.target === label && entry.type === type && entry.fn === fn && entry.capture === !!capture);
+      if (index >= 0) listenerRegistry.splice(index, 1);
+    },
+  });
+  const restoreNode = { nodeValue: 'Merhaba dünya.', isConnected: true };
+  const restoreState = {
+    refs: new Map([['0:key', {
+      id: '0:key', root: applyRoot, nodes: [restoreNode], originals: ['Merhaba dünya.'],
+      active: true, applied: true,
+    }]]),
+    latestIdByRoot: new WeakMap([[applyRoot, '0:key']]), activeByRoot: new WeakMap(),
+    refByRoot: new WeakMap(), observers: new Map(), visible: true,
+  };
+  const globalTarget = makeListenerTarget('global');
+  const restoreDocument = {
+    ...makeListenerTarget('document'),
+    head: { appendChild() {} },
+    body: { appendChild() {} },
+    documentElement: { appendChild() {} },
+    createElement: makeDomElement,
+    getElementById: () => null,
+    querySelectorAll: () => [],
+  };
+  const restoreContext = {
+    window: { __whisperPageTranslateState: restoreState },
+    document: restoreDocument,
+    Map, Set, WeakMap, String, Array, Math,
+    addEventListener: globalTarget.addEventListener,
+    removeEventListener: globalTarget.removeEventListener,
+  };
+  vm.runInNewContext(pageApplyScript({ mode: 'replace', translations: [] }), restoreContext);
+  assert.equal(listenerRegistry.length, 6, 'uygulama 6 dinleyici kurmalı');
+  assert.deepEqual(
+    listenerRegistry.map((entry) => `${entry.target}:${entry.type}`).sort(),
+    ['document:click', 'document:pointermove', 'document:pointerout', 'document:pointerover',
+      'global:keydown', 'global:keyup'],
+  );
+  assert.equal(restoreState.pageActionListeners.length, 6);
+  assert.equal(restoreState.actionsInstalled, true);
+  vm.runInNewContext(pageRestoreScript(), restoreContext);
+  assert.equal(listenerRegistry.length, 0,
+    'geri yükleme tüm eylem dinleyicilerini kaldırmalı (DOM/state sızıntısı)');
+  assert.equal(restoreState.pageActionListeners.length, 0);
+  assert.equal(restoreState.actionsInstalled, false);
+  assert.equal(restoreState.refs.get('0:key').active, false,
+    'geri yüklenen ref\'ler pasifleşmeli — ölü dinleyici eski araç çubuğunu göstermemeli');
+  assert.equal(restoreNode.nodeValue, 'Merhaba dünya.');
+  assert.equal(restoreContext.window.__whisperPageTranslateState, undefined);
+}
+
+// SPA'da host'u DOM'dan kopan shadow root'un MutationObserver'ı bırakılmalı:
+// state.observers güçlü Map'tir — kopmuş kök tüm alt ağacı canlı tutardı.
+assert.match(pageBlockScanScript(), /root\?\.isConnected === false/);
+{
+  const moInstances = [];
+  class MockObserver {
+    constructor(cb) { this.cb = cb; this.disconnected = false; moInstances.push(this); }
+    observe() {}
+    disconnect() { this.disconnected = true; }
+  }
+  const shadow = { isConnected: true, querySelectorAll: () => [] };
+  const docElements = [];
+  const hostEl = {
+    tagName: 'DIV', display: 'block', shadowRoot: shadow, isConnected: true,
+    parentElement: null, children: [], matches: () => false, getAttribute: () => '',
+    getClientRects: () => [{}], getBoundingClientRect: () => ({ top: 10, bottom: 40 }),
+  };
+  docElements.push(hostEl);
+  const shadowDoc = {
+    hidden: false, isConnected: true, body: hostEl, documentElement: hostEl,
+    querySelectorAll: (sel) => (sel === '*' ? [...docElements] : []),
+    createTreeWalker: () => ({ nextNode: () => null }),
+    addEventListener() {}, removeEventListener() {},
+  };
+  const scanContext = vm.createContext({
+    window: {}, document: shadowDoc, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600,
+    MutationObserver: MockObserver,
+    getComputedStyle: (el) => ({ display: el.display || 'block' }),
+    setTimeout: () => 1, clearTimeout() {},
+    Map, Set, WeakMap, Math, Number, String, Array, Boolean, Object,
+    location: { origin: 'https://x.test', pathname: '/', search: '' },
+  });
+  vm.runInContext(pageBlockScanScript({}), scanContext);
+  const scanState = scanContext.window.__whisperPageTranslateState;
+  assert.equal(scanState.observers.size, 2, 'belge + shadow root gözlenmeli');
+  const shadowObserver = scanState.observers.get(shadow);
+  assert.ok(shadowObserver, 'shadow root observer kaydı olmalı');
+  // SPA host'u kopardı: kök artık belgeye bağlı değil ve keşifte görünmez.
+  shadow.isConnected = false;
+  docElements.length = 0;
+  vm.runInContext(pageBlockScanScript({}), scanContext);
+  assert.equal(scanState.observers.has(shadow), false,
+    'kopmuş shadow root observer listesinden budanmalı');
+  assert.equal(shadowObserver.disconnected, true,
+    'kopmuş kökün MutationObserver\'ı disconnect edilmeli');
+  assert.equal(scanState.observers.size, 1, 'yalnız belge observer\'ı kalmalı');
+}
+
 console.log('browser-page-translate: semantik bağlam, atomik çıktı ve DOM geri yükleme testleri geçti');
