@@ -546,6 +546,14 @@ function pageBlockScanScript(options = {}) {
     state.emitNewBlocks = emitNewBlocks;
     const observeRoots = () => {
       if (state.destroyed || document.hidden || typeof MutationObserver !== 'function') return;
+      // Host'u DOM'dan kopan shadow root'un observer'ı tutulmasın: state.observers
+      // güçlü Map'tir ve kopmuş kökün tüm alt ağacını SPA ömrünce canlı tutardı.
+      for (const [root, observer] of state.observers) {
+        if (root !== document && root?.isConnected === false) {
+          observer.disconnect();
+          state.observers.delete(root);
+        }
+      }
       for (const root of discoverRoots()) {
         if (state.observers.has(root)) continue;
         const observer = new MutationObserver((mutations) => {
@@ -1075,25 +1083,32 @@ function pageApplyScript(payload = {}) {
         });
         input.focus(); input.select();
       };
-      document.addEventListener?.('pointerover', (event) => {
+      // Dinleyiciler state üzerinde isimli tutulur: sayfa geri yüklendiğinde
+      // (pageRestoreScript) kaldırılabilsinler — aksi hâlde anonim closure'lar
+      // state'i ve refs içindeki tüm DOM düğümlerini SPA ömrünce canlı tutar.
+      const listen = (target, type, fn) => {
+        target?.addEventListener?.(type, fn, true);
+        (state.pageActionListeners ||= []).push([target, type, fn]);
+      };
+      listen(document, 'pointerover', (event) => {
         for (const node of event.composedPath?.() || []) {
           const ref = state.refByRoot.get(node);
           if (ref?.active) { showTools(ref); break; }
         }
-      }, true);
-      document.addEventListener?.('pointermove', (event) => {
+      });
+      listen(document, 'pointermove', (event) => {
         if (tools.hidden) return;
         const path = event.composedPath?.() || [];
         if (path.includes(tools) || (state.hoveredRef?.root && path.includes(state.hoveredRef.root))) return;
         hideTools();
-      }, true);
-      document.addEventListener?.('pointerout', (event) => {
+      });
+      listen(document, 'pointerout', (event) => {
         if (tools.hidden) return;
         const next = event.relatedTarget;
         if (next && (tools.contains?.(next) || state.hoveredRef?.root?.contains?.(next))) return;
         hideTools();
-      }, true);
-      document.addEventListener?.('click', (event) => {
+      });
+      listen(document, 'click', (event) => {
         const button = event.target?.closest?.('[data-whisper-action]');
         if (!button) return;
         const trustedKeyboardActivation = state.trustedPageActionButton === button;
@@ -1131,17 +1146,17 @@ function pageApplyScript(payload = {}) {
           }
           hideTools();
         }
-      }, true);
-      globalThis.addEventListener?.('keydown', (event) => {
+      });
+      listen(globalThis, 'keydown', (event) => {
         if (!event.isTrusted) return;
         if (event.key === 'Alt' && !event.repeat && !/^(?:INPUT|TEXTAREA|SELECT)$/u.test(document.activeElement?.tagName || '')) {
           showOriginal(state.hoveredRef);
         }
-      }, true);
-      globalThis.addEventListener?.('keyup', (event) => {
+      });
+      listen(globalThis, 'keyup', (event) => {
         if (!event.isTrusted) return;
         if (event.key === 'Alt') restoreView(state.hoveredRef);
-      }, true);
+      });
       state.actionsInstalled = true;
     }
     state.view = requestedView;
@@ -1341,8 +1356,17 @@ function pageRestoreScript() {
       for (const observer of state.observers?.values?.() || []) observer.disconnect();
       if (state.onVisibilityChange) document.removeEventListener?.('visibilitychange', state.onVisibilityChange);
       if (state.onScroll) globalThis.removeEventListener?.('scroll', state.onScroll, true);
+      // pageApplyScript'in kurduğu eylem dinleyicileri de kalkar: closure'lar
+      // state'i (refs → sayfa DOM düğümleri) canlı tutardı ve ölü dinleyiciler
+      // geri yüklemeden sonra da her pointerover'da çalışmaya devam ederdi.
+      for (const [target, type, fn] of state.pageActionListeners || []) {
+        try { target?.removeEventListener?.(type, fn, true); } catch (_) {}
+      }
+      state.pageActionListeners = [];
+      state.actionsInstalled = false;
       const restored = new Set();
       for (const ref of state.refs?.values?.() || []) {
+        ref.active = false;
         if (!ref.applied) continue;
         ref.nodes.forEach((node, index) => {
           if (!restored.has(node) && node && node.isConnected !== false) {
