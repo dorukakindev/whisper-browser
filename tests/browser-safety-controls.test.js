@@ -20,8 +20,14 @@ test('sabit sekme bilgisi oturum kaydinda korunur', () => {
 
 test('sag tik menusu istenen bes islemi sunar', () => {
   assert.match(main, /wc\.on\('context-menu'/);
-  for (const label of ['Geri', 'İleri', 'Yenile', 'Bağlantıyı yeni sekmede aç', 'Bu satırı çevir', 'Metni kopyala', 'Görseli kaydet…']) {
-    assert(main.includes(`label: '${label}'`), `${label} menüde yok`);
+  // Etiketler src/browser-context-menu.js modelinde; main yalnız id → eylem bağlar.
+  const { LABELS } = require('../src/browser-context-menu');
+  const trLabels = Object.values(LABELS.tr).filter((value) => typeof value === 'string');
+  for (const label of ['Geri', 'İleri', 'Yenile', 'Bağlantıyı yeni sekmede aç', 'Bu satırı çevir', 'Kopyala', 'Görseli kaydet…']) {
+    assert(trLabels.includes(label), `${label} menüde yok`);
+  }
+  for (const id of ['back', 'forward', 'reload', 'open-link-new-tab', 'translate-selection', 'copy', 'save-image']) {
+    assert(main.includes(`'${id}'`) || main.includes(`  ${id}: `), `${id} eylemi main.js'te bağlı değil`);
   }
   assert.match(main, /session\.fetch\(parsed\.href/);
   assert.match(main, /50 \* 1024 \* 1024/);

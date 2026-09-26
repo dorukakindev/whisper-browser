@@ -32,6 +32,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
 ]);
 
@@ -79,6 +80,7 @@ const UI_ENUMS = Object.freeze({
   browserAudioProfile: ['off', 'night', 'dialogue', 'guard'],
   uiTheme: ['system', 'dark', 'light'],
   uiLocale: ['en', 'tr'],
+  browserSearchEngine: ['google', 'duckduckgo', 'bing', 'brave', 'startpage'],
 });
 
 const UI_NUMERIC_RANGES = Object.freeze({

@@ -64,6 +64,32 @@ test('geçmiş kaydı ziyaret sayısını tutar', () => {
   assert.match(main, /visits: Math\.max\(1, Math\.min\(100000, Math\.floor\(Number\(item && item\.visits\) \|\| 1\)\)\)/);
 });
 
+test('açık sekmeler: aktif sekme çıkarılır ve aynı adres iki kez listelenmez', () => {
+  const tabs = [
+    { id: 'active', title: 'docs', url: 'https://a.example/docs' },
+    { id: 'dup1', title: 'docs', url: 'https://b.example/docs' },
+    { id: 'dup2', title: 'docs', url: 'https://b.example/docs' },
+  ];
+  const rows = model.buildAddressResults({ query: 'docs', omnibox, tabs, activeTabId: 'active', now });
+  const tabRows = rows.filter((row) => row.section === 'tabs');
+  assert.deepEqual(tabRows.map((row) => row.id), ['dup1']);
+});
+
+test('açık sekmedeki adres geçmiş satırını düşürür (tekilleştirme)', () => {
+  const tabs = [{ id: 't1', title: 'docs', url: 'https://a.example/docs' }];
+  const history = [{ url: 'https://a.example/docs', title: 'docs geçmiş', visitedAt: now, visits: 9 }];
+  const rows = model.buildAddressResults({ query: 'docs', omnibox, tabs, places: { history }, now });
+  assert.equal(rows.filter((row) => row.section === 'history').length, 0);
+  assert.equal(rows.filter((row) => row.section === 'tabs').length, 1);
+});
+
+test('ilk satır açıklaması adres/arama ayrımı yapar', () => {
+  const address = model.buildAddressResults({ query: 'github.com/x', omnibox, now });
+  const search = model.buildAddressResults({ query: 'kedi videoları', omnibox, now });
+  assert.equal(address.find((row) => row.action === 'navigate' && row.value)?.inputKind, 'address');
+  assert.equal(search.find((row) => row.action === 'navigate' && row.value)?.inputKind, 'search');
+});
+
 test('model index.html\'de renderer.js\'ten önce yüklenir', () => {
   const html = fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8');
   assert.ok(html.indexOf('../browser-address-model.js') > 0);

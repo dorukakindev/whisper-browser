@@ -75,9 +75,88 @@ function turkishIntegerWords(value) {
   }
   return '';
 }
+// Hal ekleri, sıra sayısı ve topluluk/iyelik ekleri (Python
+// sentence_translation._TR_NUMBER_SUFFIX ile aynı): beşte, altıya, ikiyi,
+// ikinci(yi), ikimiz, üçü. Sayı sözcüğü tam yazıldığı için değer değişmez.
+const TR_NUMBER_SUFFIX = "(?:['’]?(?:"
+  + '[ıiuü]?nc[ıiuü]\\p{L}{0,6}'
+  + '|[ıiuü]?m[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea]|[ıiuü])?'
+  + '|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?'
+  + '|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?'
+  + '|y[ıiuü]|y[ae]|y[ıiuü]n'
+  + '|[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n'
+  + '))?';
+function turkishWordsRegexSource(phrase) {
+  const parts = String(phrase || '').split(/\s+/u).filter(Boolean)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (parts.at(-1) === 'dört') parts[parts.length - 1] = 'dör[td]';
+  return parts.join('\\s+');
+}
 function turkishNumberPhrasePattern(phrase) {
-  const suffix = '[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n';
-  return new RegExp(`(?:^|\\s)${phrase.replace(/ /g, '\\s+')}(?:'?(?:${suffix}))?(?=$|[\\s.,!?;:])`, 'giu');
+  return new RegExp(`(?<!\\p{L})${turkishWordsRegexSource(phrase)}${TR_NUMBER_SUFFIX}(?!\\p{L})`, 'giu');
+}
+const TR_MULTIPLIERS = new Map([['yüz', 2], ['bin', 3], ['milyon', 6], ['milyar', 9]]);
+function turkishContinuationChangesValue(previousWord, nextWord) {
+  // "kırk beş" değeri değiştirir; "iki üç gün", "beş on dakika", "yedi yirmi
+  // dört" ise iki ayrı sayıdır. Türkçe bileşik sayılar büyükten küçüğe dizilir.
+  const previous = String(previousWord || '').toLocaleLowerCase('tr');
+  const next = String(nextWord || '').toLocaleLowerCase('tr');
+  if (next === 'buçuk' || next === 'virgül' || TR_MULTIPLIERS.has(next)) return true;
+  const magnitude = (word) => (TR_ONES.includes(word) ? 0
+    : TR_TENS.includes(word) && word ? 1 : TR_MULTIPLIERS.get(word));
+  const a = magnitude(previous);
+  const b = magnitude(next);
+  if (a === undefined || b === undefined) return false;
+  return b < a;
+}
+function turkishNumberPhraseMatch(text, phrase) {
+  const value = String(text || '');
+  const pattern = turkishNumberPhrasePattern(phrase);
+  const lastWord = String(phrase || '').split(/\s+/u).filter(Boolean).at(-1) || '';
+  let match;
+  while ((match = pattern.exec(value)) !== null) {
+    const following = value.slice(pattern.lastIndex).match(/^\s+(\p{L}+)/u);
+    const bare = match[0].toLocaleLowerCase('tr').endsWith(lastWord.toLocaleLowerCase('tr'));
+    if (following && bare && turkishContinuationChangesValue(lastWord, following[1])) continue;
+    return { index: match.index, end: pattern.lastIndex };
+  }
+  return null;
+}
+function turkishClockMatch(text, hour, minute) {
+  // 5:00 → "beşte", 5:15 → "beşi çeyrek geçe", 5:45 → "altıya çeyrek kala",
+  // 5:10 → "beşi on geçe", 12:30 → "yarımda". Değişen saat/dakika eşleşmez.
+  const value = String(text || '');
+  hour = Number(hour); minute = Number(minute);
+  const hourWords = (h) => [...new Set([turkishIntegerWords(h % 24), turkishIntegerWords(h % 12 || 12)])].filter(Boolean);
+  if (minute === 0) {
+    for (const words of hourWords(hour)) {
+      const found = turkishNumberPhraseMatch(value, words);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (minute === 30) {
+    for (const words of hourWords(hour)) {
+      const found = turkishNumberPhraseMatch(value, `${words} buçuk`);
+      if (found) return found;
+    }
+    if (hour % 12 === 0) {
+      const found = /(?<!\p{L})yarım(?:[dt][ae]|[ıiuü])?(?!\p{L})/iu.exec(value);
+      if (found) return { index: found.index, end: found.index + found[0].length };
+    }
+  }
+  const minuteWords = minute === 15 ? 'çeyrek' : turkishIntegerWords(minute);
+  const remaining = 60 - minute;
+  const remainingWords = remaining === 15 ? 'çeyrek' : turkishIntegerWords(remaining);
+  const hourRegex = (h, tail) => new RegExp(`(?<!\\p{L})(?:${hourWords(h).map(turkishWordsRegexSource).join('|')})['’]?${tail}`, 'iu');
+  const patterns = [];
+  if (minuteWords) patterns.push(hourRegex(hour, `y?[ıiuü]\\s+${minuteWords}\\s+geçe(?!\\p{L})`));
+  if (remainingWords && remaining > 0 && remaining < 60) patterns.push(hourRegex(hour + 1, `y?[ae]\\s+${remainingWords}\\s+kala(?!\\p{L})`));
+  for (const pattern of patterns) {
+    const found = pattern.exec(value);
+    if (found) return { index: found.index, end: found.index + found[0].length };
+  }
+  return null;
 }
 function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const issues = [];
@@ -91,13 +170,11 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     for (const clock of clocks) {
       const hour = Number(clock[1]);
       const equivalent = new RegExp(`(?<!\\d)0?${hour}[:.]${clock[2]}(?!\\d)`, 'u');
-      if (equivalent.test(targetForNumbers)) targetForNumbers = targetForNumbers.replace(equivalent, ' ');
-      else if (clock[2] === '30' && turkishIntegerWords(hour)) {
-        const words = `${turkishIntegerWords(hour)} buçuk`;
-        const pattern = turkishNumberPhrasePattern(words);
-        if (pattern.test(targetForNumbers.toLocaleLowerCase('tr'))) targetForNumbers = targetForNumbers.replace(pattern, ' ');
-        else issues.push('number_mismatch');
-      }
+      if (equivalent.test(targetForNumbers)) { targetForNumbers = targetForNumbers.replace(equivalent, ' '); continue; }
+      // toLocaleLowerCase('tr') uzunluğu korur (İ→i, I→ı); eşleşme konumu
+      // özgün metinde de geçerlidir. JS /i bayrağı 'İ'yi 'i' ile eşlemez.
+      const found = turkishClockMatch(targetForNumbers.toLocaleLowerCase('tr'), hour, Number(clock[2]));
+      if (found) targetForNumbers = `${targetForNumbers.slice(0, found.index)} ${targetForNumbers.slice(found.end)}`;
       else issues.push('number_mismatch');
     }
     sourceForNumbers = sourceForNumbers.replace(/(?<!\d)\d{1,2}:[0-5]\d(?!\d)/gu, ' ');
@@ -106,7 +183,9 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const translatedNumbers = numberTokens(targetForNumbers);
   const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
     .map((match) => Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')]) : [];
-  const normalizedTranslation = normalizeText(translated).toLocaleLowerCase('tr');
+  // Saat olarak eşlenen sözcükler ikinci kez başka bir kaynak sayıyı
+  // karşılamasın: Python tarafı gibi kalan (saat çıkarılmış) metinde ara.
+  const normalizedTranslation = normalizeText(targetForNumbers).toLocaleLowerCase('tr');
   if (sourceNumbers.some((token) => {
     if (translatedNumbers.includes(token)) return false;
     const numeric = Number(token.replace(/^-|%$/g, ''));
@@ -115,16 +194,9 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
       : turkishTarget && numeric % 1 === 0.5 ? `${turkishIntegerWords(Math.floor(numeric))} buçuk` : '';
     if (!words) return true;
     const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
-    const pattern = turkishNumberPhrasePattern(phrase);
-    // "kırk beş" gibi birleşik sayı öbeği: 'kırk' tek başına eşleşir ama değer 45'tir;
-    // hemen ardından gelen sayı kelimesi değeri değiştirir.
-    let match;
-    while ((match = pattern.exec(normalizedTranslation)) !== null) {
-      const rest = normalizedTranslation.slice(pattern.lastIndex).replace(/^\s+/u, '');
-      const next = (rest.match(/^[\p{L}]+/u) || [''])[0];
-      if (!TR_NUMBER_WORDS.has(next)) return false;
-    }
-    return true;
+    // "kırk beş" bileşik sayısında 'kırk' tek başına 40 sayılmaz; "iki üç gün"
+    // gibi yaklaşık aralıkta ise iki ayrı sayı vardır (turkishNumberPhraseMatch).
+    return !turkishNumberPhraseMatch(normalizedTranslation, phrase);
   })) issues.push('number_mismatch');
   if (SOURCE_NEGATION.test(normalizeText(source).replace(/[‘’]/g, "'")) && !TARGET_NEGATION.test(normalizeText(translated))) {
     issues.push('negation_missing');

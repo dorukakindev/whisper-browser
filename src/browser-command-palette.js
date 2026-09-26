@@ -28,11 +28,35 @@ function browserCommandContextMatches(opened, current) {
 }
 
 function browserShortcutForInput(input = {}) {
-  if (input.type !== 'keyDown' || !(input.control || input.meta)) return '';
+  if (input.type !== 'keyDown') return '';
+  const rawKey = String(input.key || '');
+  const key = rawKey.toLowerCase();
+  const modifier = !!(input.control || input.meta);
+  // Değiştiricisiz / yalnız Alt'lı standart tarayıcı kısayolları. Eskiden bu
+  // tuşların hiçbiri köprülenmiyordu: Alt+← geri gitmiyor, F5 yenilemiyordu.
+  if (!modifier) {
+    if (input.alt && !input.shift) {
+      if (key === 'arrowleft') return 'back';
+      if (key === 'arrowright') return 'forward';
+      if (key === 'd') return 'l';
+      return '';
+    }
+    if (input.alt) return '';
+    if (rawKey === 'F5') return input.shift ? 'reload-hard' : 'r';
+    if (rawKey === 'F6') return 'l';
+    if (rawKey === 'BrowserBack') return 'back';
+    if (rawKey === 'BrowserForward') return 'forward';
+    return '';
+  }
   if (input.alt) return ({ arrowleft: 'subtitle-earlier', arrowright: 'subtitle-later',
-    arrowup: 'subtitle-larger', arrowdown: 'subtitle-smaller' })[String(input.key || '').toLowerCase()] || '';
-  const key = String(input.key || '').toLowerCase();
-  if (input.shift) return ['p', 't', 'h', 'tab', '+', '='].includes(key) ? key : '';
+    arrowup: 'subtitle-larger', arrowdown: 'subtitle-smaller' })[key] || '';
+  if (rawKey === 'F5') return 'reload-hard';
+  if (key === 'pagedown') return 'tab-next';
+  if (key === 'pageup') return 'tab-previous';
+  if (input.shift) {
+    if (key === 'r') return 'reload-hard';
+    return ['p', 't', 'h', 'tab', '+', '='].includes(key) ? key : '';
+  }
   return ['k', 'p', 'f', 'l', 't', 'w', 'r', 'tab', '0', '+', '=', '-', '_',
     '1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(key) ? key : '';
 }

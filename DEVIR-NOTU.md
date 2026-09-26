@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-26 15:50 — R129: derin denetim — sayfa-çevirisi dinleyici/DOM-tutma sızıntıları (restore 6 eylem dinleyicisini sökmüyordu + kopmuş shadow-root observer'ları)](docs/devir/2026-09-26-1550.md).
+Güncel çalışma: [2026-09-26 17:53 — paket-v2 (7 patch) + KURULUM "Kalan işler" turu: 9 madde uygulandı (ray/başlık düğmeleri küçük popover, token renkler, titleBarOverlay tema senkronu, browserMediaSeen, JPEG küçültme, omnibox tekilleştirme, fare yan tuşları, sekme şeridi)](docs/devir/2026-09-26-1753.md).
+
+Önceki çalışma: [2026-09-26 15:50 — R129: derin denetim — sayfa-çevirisi dinleyici/DOM-tutma sızıntıları (restore 6 eylem dinleyicisini sökmüyordu + kopmuş shadow-root observer'ları)](docs/devir/2026-09-26-1550.md).
 
 Önceki çalışma: [2026-09-26 08:52 — R128: çok daha derin tur — uzak-veri yolları denetimi: Stremio redirect zinciri SSRF kapatıldı, invidious timedtext sayısız/NaN toleransı, sentence_reply_issue boş-ids kapısı](docs/devir/2026-09-26-0852.md).
 

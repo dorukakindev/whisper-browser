@@ -168,7 +168,9 @@ test('HTML5 altyazı probu aynı uzunluktaki orta cue düzeltmelerini kaçırmı
 });
 
 test('tarayıcı sekmesi güncellenirken odak ve yüklenme durumu korunuyor', () => {
-  const render = js.slice(js.indexOf('function renderBrowserTabs()'),
+  // Sekme çizimi buildBrowserTabItem + syncBrowserTabItem'a ayrıldı; dilim
+  // ikisini de kapsayacak şekilde helper'dan başlar.
+  const render = js.slice(js.indexOf('function buildBrowserTabItem'),
     js.indexOf('function updateBrowserTabPresentation'));
   assert(/focusedTabId/.test(render) && /focus\(\{ preventScroll: true \}\)/.test(render),
     'sekme çizimi klavye odağını geri yüklemiyor');
@@ -227,9 +229,10 @@ test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşı
     js.indexOf('function renderBrowserCueAt'));
   assert(/Yüklemeyi durdur/.test(navigation) && /HTTPS bağlantısı/.test(navigation),
     'yenile/durdur veya bağlantı güvenliği kullanıcıya açıklanmıyor');
-  assert(/browser-reload-spin/.test(css) && /browser-tab-loading/.test(css),
-    'yüklenme geri bildiriminin görsel durumu eksik');
-  const tabs = js.slice(js.indexOf('function renderBrowserTabs()'),
+  assert(/\.browser-nav-button\.loading \.browser-stop-icon\s*\{\s*display:\s*block/.test(css)
+    && /browser-tab-loading/.test(css),
+    'yüklenme geri bildiriminin görsel durumu (durdur ikonu) eksik');
+  const tabs = js.slice(js.indexOf('function buildBrowserTabItem'),
     js.indexOf('function updateBrowserPinMenu()'));
   assert(/browser-tab-favicon/.test(tabs) && /referrerPolicy\s*=\s*'no-referrer'/.test(tabs),
     'sekme favicon verisi güvenli biçimde çizilmiyor');
@@ -494,7 +497,7 @@ test('senkron açıklaması değişken kayma seçenekleriyle çelişmiyor', () =
 });
 
 // ---- 2. üst düğmeler anahtar ----
-for (const id of ['playerHeadSettings', 'playerLayoutQuick', 'playerQuickDownload']) {
+for (const id of ['playerHeadSettings', 'playerQuickDownload']) {
   test(`${id} paneli açıp KAPATABİLİYOR (sabit true değil)`, () => {
     const i = js.indexOf(`$('${id}').addEventListener('click'`);
     assert(i > 0, `${id} icin click dinleyicisi bulunamadi`);
@@ -505,6 +508,47 @@ for (const id of ['playerHeadSettings', 'playerLayoutQuick', 'playerQuickDownloa
       `${id} anahtar yardimcisini (toggleDrawerAt) kullanmiyor`);
   });
 }
+
+// playerLayoutQuick ve sideSubtitleLayout artık dev ayar çekmecesi değil,
+// küçük details-popover menüsü açar; tam çekmece yalnız footer bağlantısından.
+test('playerLayoutQuick küçük düzen popoverı açıyor', () => {
+  const i = html.indexOf('id="playerLayoutQuickMenu"');
+  assert(i > 0, 'playerLayoutQuickMenu details eksik');
+  const block = html.slice(i - 60, i + 700);
+  assert(/<details class="player-quick" id="playerLayoutQuickMenu">/.test(block),
+    'playerLayoutQuickMenu details sarıcısı eksik');
+  assert(/<summary[^>]*id="playerLayoutQuick"/.test(block),
+    'playerLayoutQuick artık summary değil — details kendiliğinden açılıp kapanamaz');
+  assert(html.includes('id="playerLayoutQuickPop"'), 'playerLayoutQuickPop eksik');
+  assert(js.includes("function syncPlayerLayoutQuickMenu"), 'syncPlayerLayoutQuickMenu eksik');
+  assert(js.includes('quickPopRadio'), 'quick-pop radyo kurucusu eksik');
+  assert(!/\$\('playerLayoutQuick'\)\.addEventListener\('click'[^)]*toggleDrawerAt/.test(js),
+    'playerLayoutQuick hâlâ doğrudan çekmece açıyor');
+});
+test('sideSubtitleLayout küçük altyazı popoverı açıyor', () => {
+  assert(html.includes('id="sideSubtitleLayoutMenu"'), 'sideSubtitleLayoutMenu details eksik');
+  assert(html.includes('id="sideLayoutTracks"'), 'iz grubu eksik');
+  assert(html.includes('data-sub-step="subSize"'), 'boyut adımlayıcısı eksik');
+  assert(js.includes('function syncSideLayoutMenu'), 'syncSideLayoutMenu eksik');
+  // Popover'daki mod düğmeleri data-subtitle-display ile otomatik bağlanır.
+  const mi = html.indexOf('id="sideSubtitleLayoutMenu"');
+  const body = html.slice(mi, mi + 2200);
+  for (const mode of ['translation', 'source', 'both', 'off']) {
+    assert(body.includes(`data-subtitle-display="${mode}"`), `${mode} modu popoverda eksik`);
+  }
+  assert(!/\$\('sideSubtitleLayout'\)\.addEventListener\('click'[^)]*setSettingsDrawer/.test(js),
+    'sideSubtitleLayout hâlâ doğrudan çekmece açıyor');
+});
+test('küçük popoverlar ortak menü yaşam döngüsüne kayıtlı', () => {
+  const ids = js.indexOf('const playerDetailsMenuIds');
+  assert(ids > 0, 'playerDetailsMenuIds eksik');
+  const block = js.slice(ids, ids + 220);
+  for (const id of ['playerLayoutQuickMenu', 'sideSubtitleLayoutMenu']) {
+    assert(block.includes(`'${id}'`), `${id} playerDetailsMenuIds'te yok — dışarı tık/Esc kapanmaz`);
+  }
+  assert(js.includes('#playerLayoutQuickMenu, #sideSubtitleLayoutMenu'),
+    'dışarı-tık closest listesinde yok');
+});
 
 test('toggleDrawerAt panel zaten hedefteyken kapatıyor', () => {
   const i = js.indexOf('function toggleDrawerAt');

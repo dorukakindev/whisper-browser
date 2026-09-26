@@ -11,26 +11,27 @@
   --elev-1: 0 1px 2px rgb(0 0 0 / .24);
   --elev-2: 0 8px 24px rgb(0 0 0 / .32);
   --elev-3: 0 18px 44px rgb(0 0 0 / .4);
-  --motion-fast: var(--motion-fast);
-  --motion-base: var(--motion-base);
+  /* Kendine başvuran tanım (var(--motion-fast)) döngüsel = geçersiz; bu token'ları
+     kullanan tüm geçişler sessizce düşüyordu. Değerler docs/design-system.md'den. */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
   --motion-ease: cubic-bezier(.2, .8, .2, 1);
+  /* Sekme/krom hover plakaları: tehlike ve vurgu yumuşak zeminleri. Açık tema
+     değerleri aşağıdaki html[data-theme] bloğunda geçersiz kılınır. */
+  --chrome-danger-soft: rgba(208, 107, 99, .16);
 }
 
-color: #fff;
-font-size: 15px;
-font-weight: 600;
-letter-spacing: .01em;
-pointer-events: none;
-backdrop-filter: blur(6px);
-opacity: 0;
-transition: opacity .18s ease, transform .18s ease;
+html[data-theme="light"] {
+  --chrome-danger-soft: rgba(162, 63, 59, .13);
+}
+
 /* İzlerken düzeltme kutusu */
 .player-layer:not(.workspace-browser) #browserSubtitleReview { display: none; }
 .browser-translate-split {
   height: 34px;
   display: inline-grid;
   grid-template-columns: auto 30px;
-  border: 1px solid #b88645;
+  border: 1px solid var(--accent-dim);
   border-radius: var(--chrome-radius-chip);
   background: var(--accent);
 }
@@ -54,7 +55,7 @@ transition: opacity .18s ease, transform .18s ease;
 .browser-action-source { display: none !important; }
 .browser-more { position: relative; flex: 0 0 auto; }
 .browser-more > summary::-webkit-details-marker { display: none; }
-.browser-more[open] > summary { color: var(--accent-hover); border-color: #8f6939; background: var(--bg-3); }
+.browser-more[open] > summary { color: var(--accent-hover); border-color: var(--accent-dim); background: var(--bg-3); }
 .browser-menu-popover, .player-more-menu, .ph-more-menu, .subtitle-mode-menu {
   animation: menuFadeIn var(--motion-fast) ease-out;
 }
@@ -231,7 +232,7 @@ transition: opacity .18s ease, transform .18s ease;
   content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px;
   vertical-align: 1px; border-radius: 50%; background: var(--accent);
 }
-.browser-tab.loading { overflow: hidden; border-bottom-color: #5a4523; }
+.browser-tab.loading { overflow: hidden; border-bottom-color: var(--accent-dim); }
 .browser-tab.loading::after {
   content: '';
   position: absolute;
@@ -280,13 +281,20 @@ transition: opacity .18s ease, transform .18s ease;
   cursor: pointer;
 }
 .browser-tab-close { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 5px; }
-.browser-tab-close:not(:disabled):hover { color: #d89082; background: #2a1d1b; }
+.browser-tab-close:not(:disabled):hover { color: var(--danger); background: var(--chrome-danger-soft); }
 .browser-tab-close:disabled { opacity: .38; cursor: wait; }
 .browser-tab-audio { width: 22px; height: 23px; flex: 0 0 22px; padding: 0; border-radius: 5px; font-size: 12px; }
-.browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
+.browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 .browser-tab-pin { width: 22px; height: 23px; flex: 0 0 22px; display: grid; place-items: center; padding: 0; border-radius: 5px; }
-.browser-tab-pin:hover, .browser-tab-pin[aria-pressed="true"] { color: var(--player-amber); background: #2a241a; }
+.browser-tab-pin:hover, .browser-tab-pin[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 .browser-tab.pinned { border-left-color: var(--player-amber); }
+/* Sabit sekme yalnız simge gösterir (Chrome davranışı): etiket ve kapat
+   düğmesi gizlenir, genişlik ikonu saracak kadar küçülür. Ses göstergesi
+   çalıyorsa korunur — sessize alma tek yoldur. */
+.browser-tab.pinned { min-width: 0; max-width: none; width: 36px; flex: 0 0 auto; }
+.browser-tab.pinned .browser-tab-label,
+.browser-tab.pinned .browser-tab-close { display: none; }
+.browser-tab.pinned .browser-tab-open { justify-content: center; padding: 0 6px; }
 .browser-tab-new {
   width: auto;
   height: 32px;
@@ -304,15 +312,10 @@ transition: opacity .18s ease, transform .18s ease;
   color: #98989e;
   white-space: nowrap;
 }
-.browser-tab-new:not(:disabled):hover { color: var(--player-amber); border-color: #5a4523; background: #211b12; }
+.browser-tab-new:not(:disabled):hover { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-soft); }
 .browser-tab-new:disabled { opacity: .42; cursor: not-allowed; }
 html[data-theme="light"] .browser-tab-new { color: var(--text-dim); }
 html[data-theme="light"] .browser-address-results { box-shadow: 0 14px 38px rgba(40,35,31,.18); }
-html[data-theme="light"] .browser-tab-new:not(:disabled):hover {
-  color: var(--accent-hover);
-  border-color: var(--accent-dim);
-  background: var(--accent-soft);
-}
 html[data-theme="light"] .btn:disabled,
 html[data-theme="light"] .tool-row-quiet .tool-button:disabled,
 html[data-theme="light"] .subtitle-display-segments button:disabled,
@@ -360,7 +363,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-nav-button:hover:not(:disabled) { color: var(--text); background: var(--bg-3); }
 .browser-nav-button:focus-visible { border-color: var(--border-strong); }
 .browser-nav-button:disabled { opacity: .28; cursor: default; }
-.browser-nav-button.loading svg { animation: browser-reload-spin .85s linear infinite; }
+/* Yüklenirken dönen yenile oku yerine Chrome gibi durdur (×) gösterilir;
+   düğme bu durumda zaten 'stop' komutunu çalıştırır. */
+.browser-nav-button .browser-stop-icon { display: none; }
+.browser-nav-button.loading .browser-reload-icon { display: none; }
+.browser-nav-button.loading .browser-stop-icon { display: block; }
 .browser-address-wrap {
   min-width: 0;
   height: 36px;
@@ -662,6 +669,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-address-result-mark { color: var(--accent); font: 700 10px/1 var(--font-mono, Consolas, monospace); }
 .browser-address-result-mark { display: inline-grid; place-items: center; width: 18px; height: 18px; }
 .browser-address-result-mark.has-icon img { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; }
+/* Simge yokken alan adı ilk harfi — sekme avatarıyla aynı renk tonu. */
+.browser-address-result-mark.is-host {
+  color: var(--accent-contrast); background: hsl(var(--avatar-hue, 30) 42% 40%);
+  border-radius: 5px; font-family: inherit;
+}
 .browser-address-section {
   padding: 8px 9px 3px; color: var(--text-dim); font-size: 10px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase; pointer-events: none;
@@ -672,9 +684,9 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-address-result-copy small, .browser-address-result-kind { color: var(--text-dim); font-size: 10px; }
 .browser-tab-group { display: contents; }
 .browser-tab-group-label { flex: 0 0 auto; align-self: stretch; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 0; border-bottom: 2px solid var(--accent); background: var(--bg-1); color: #c9cfd5; font-size: 10px; cursor: pointer; }
-.browser-tab-group-label[data-group-color="cyan"] { border-color: #64bdcc; }
-.browser-tab-group-label[data-group-color="green"] { border-color: #72b888; }
-.browser-tab-group-label[data-group-color="gray"] { border-color: #7c858e; }
+.browser-tab-group-label[data-group-color="cyan"] { border-color: var(--group-cyan); }
+.browser-tab-group-label[data-group-color="green"] { border-color: var(--group-green); }
+.browser-tab-group-label[data-group-color="gray"] { border-color: var(--group-gray); }
 .browser-tab.is-split-secondary { box-shadow: inset 0 -2px 0 #64bdcc; }
 .browser-tab[draggable="true"] { cursor: grab; }
 .browser-tab.is-dragging { opacity: .48; }
@@ -895,7 +907,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .side-top { flex: 0 0 auto; gap: 8px; padding-bottom: 10px; }
 .workspace-browser .side-tabbar { min-height: 54px; gap: 6px; border-color: var(--border); }
 .workspace-browser .side-tabs { gap: 3px; min-width: 0; }
-.workspace-browser .side-tab { padding: 7px 9px; font-size: 11px; color: var(--text-muted); }
+.workspace-browser .side-tab { padding: 7px 8px; font-size: 11px; color: var(--text-muted); }
 .workspace-browser .side-tab.active { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-dim); }
 .workspace-browser .side-heading { padding-top: 4px; }
 .workspace-browser .side-heading-title { color: var(--text-dim); font-size: 12px; }
@@ -1314,6 +1326,11 @@ details.browser-translate-split.hidden { display: none !important; }
   grid-template-columns: minmax(0, 1fr) 0 48px;
 }
 .player-layer.workspace-browser.side-rail-mode .side-resizer { display: none; }
+/* Ray 48 px: genel `.workspace-browser .player-side { padding-inline: 14px }` aynı
+   özgüllükte ve bu dosya styles.css'ten sonra yüklendiği için raydaki 4 px'i
+   eziyordu; içerik 20 px'e düşüyor, 36 px'lik sekmeler kırpılıyordu. */
+.workspace-browser .player-side.side-rail { padding-inline: 4px; }
+.workspace-browser .player-side.side-rail .side-tabs { overflow: visible; }
 /* ===== Adım 4.2 — yeni sekme sayfası ===== */
 /* Slogan ve ilk-eylem kartlari yalniz ilk acilista gorunur; sonra ortada
    arama kutusu + hizli erisim kutucuklari + izlemeye devam et satiri kalir. */

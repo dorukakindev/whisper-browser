@@ -24,7 +24,10 @@ test('B2 sayfa belgesi 5xx oynatma/DRM hatası sayılmaz', () => {
 
 test('P1 menü açılırken sayfa donmuş kareyle kalır', () => {
   assert.match(main, /ipcMain\.handle\('browser:snapshotActive'/);
-  assert.match(main, /image\.toJPEG\(82\)/);
+  // Menü açılış donmasını azaltmak için anlık görüntü 768px'e küçültülüp
+  // daha düşük JPEG kalitesiyle kodlanır (Kalan işler: syncBrowserOcclusion).
+  assert.match(main, /image\.resize\(\{\s*width:\s*MAX_W/);
+  assert.match(main, /image\.toJPEG\(72\)/);
   assert.match(read('src/preload.js'), /snapshotBrowserPage: \(\) => ipcRenderer\.invoke\('browser:snapshotActive'\)/);
   assert.match(renderer, /if \(window\.api\.setBrowserOccluded\) return applyBrowserOcclusion\(occluded\);/);
   // Görüntü, gizlemeden ÖNCE boyanır; açılınca temizlenir.

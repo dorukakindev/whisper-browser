@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- Paket-v2 uygulama turu — 7 patch (`18e5374`..`abbfb7d`: çeviri kalite kapısı doğal Türkçeyi reddetmesin, JSON-modu reddi tek seferde öğrenilir, adres çubuğu eski-URL/çift-altyazı, OSD/"…" düğmesi ve sağ ray CSS, EN arayüz Türkçe kalıntıları, bağlama göre sağ-tık menüsü, çift-dilli altyazı varsayılanı) + `KURULUM.md` "Kalan işler" listesinin tamamı:
+  - `sideSubtitleLayout` ve `playerLayoutQuick` artık dev ayar çekmecesi yerine küçük popover menüler açar (mod/iz/boyut veya görünüm/tema radyoları + "tüm ayarlar" footer'ı); `playerDetailsMenuIds` ortak yaşam döngüsü + ok tuşu gezintisi.
+  - browser-chrome.css sabit renkleri ve sekme grubu renkleri `:root` token'larına (`--group-*`) taşındı (sabit-hex sınırı 447).
+  - Windows `titleBarOverlay` tema değişince `app:theme-changed` → `setTitleBarOverlay` ile canlı güncellenir.
+  - `browser:snapshotActive` encode öncesi 768px'e küçültür + `toJPEG(72)` — popover açılışındaki JPEG donması azaldı.
+  - Omnibox: host-harf avatarları, `claimedUrls` URL tekilleştirmesi (sekme satırı kazanır), aktif sekme hariç, ilk satır "adres olarak açılır / aranır" açıklaması.
+  - Fare yan tuşları (X1/X2 `app-command`) tarayıcı geri/ileri köprüsüne bağlı.
+  - Sekme şeridi anahtarlı düğüm yeniden kullanımı (`replaceChildren` yerine), ♪ sesli-sekme SVG'si, sabit sekmeler ikon-only, grup düzenlemede renk çipleri (`appDialog` `{choices}`).
+  - Navigasyonda `browserTime`/`browserDuration` sıfırlanıyor + medya görülmedikçe makale sekmesinde "No subtitle track" şeridi çıkmıyor.
+
 ### Fixed
 
 - R129 — page-translation listener/DOM-retention leaks: `pageRestoreScript` now detaches the 6 document/window action listeners that `pageApplyScript` installs (anonymous closures previously kept the whole translate state — every translated text node — alive for the life of an SPA document, and kept firing on dead refs); restored refs are also marked `active = false`. `observeRoots` now prunes `MutationObserver`s whose shadow root detached from the document — a strong Map entry used to retain the entire removed subtree.

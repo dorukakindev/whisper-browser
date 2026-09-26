@@ -18,8 +18,10 @@ console.log('Subtitle health: distinct states and actionable recovery passed.');
 const vm=require('node:vm');let callback, notices=0;
 const ctx={player:{workspaceMode:'browser',browserPageUrl:'https://video.test',browserTracks:[],cues:[{text:'Manuel'}],cues2:[]},clearTimeout(){},setTimeout(fn){callback=fn;return 1},browserTabState:()=>({loading:false}),setBrowserSignal(){notices++}};
 vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function scheduleBrowserNoTrackSuggestion('),source.indexOf('async function toggleBrowserTabPinned(')),ctx);
-ctx.scheduleBrowserNoTrackSuggestion('https://video.test');callback();assert.equal(notices,0,'Manuel altyazı açıkken bulunamadı bildirimi çıkmamalı');
-ctx.player.cues=[];callback();assert.equal(notices,1);
+// Medya hiç görülmediyse (makale sekmesi) şerit hiç önerilmez — browserMediaSeen kapısı.
+ctx.player.browserMediaSeen=false;ctx.scheduleBrowserNoTrackSuggestion('https://video.test');callback();assert.equal(notices,0,'medya görülmeden bildirim önerilmemeli');
+ctx.player.browserMediaSeen=true;ctx.player.cues=[{text:'Manuel'}];ctx.scheduleBrowserNoTrackSuggestion('https://video.test');callback();assert.equal(notices,0,'Manuel altyazı açıkken bulunamadı bildirimi çıkmamalı');
+ctx.player.cues=[];callback();assert.equal(notices,1,'medya görüldükten sonra altyazı yoksa bildirim önerilir');
 
 let healthRenders=0;const tabError={browserTranslationLastError:'old'};const clearSignals=[];
 const clearCtx={player:{browserTranslationLastError:'API anahtarı girilmemiş.'},browserTabState:()=>tabError,renderBrowserSubtitleHealth:()=>{healthRenders++;},setBrowserSignal:(...args)=>clearSignals.push(args)};

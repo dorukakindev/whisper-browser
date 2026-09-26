@@ -685,8 +685,6 @@ def _turkish_integer_words(value):
 _TR_NUMBER_WORDS = tuple(
     word for word in _TR_ONES + _TR_TENS + ('yüz', 'bin', 'milyon', 'milyar',
                                             'buçuk', 'virgül') if word)
-_TR_NUMBER_CONT = re.compile(
-    r'^\s+(?:' + '|'.join(sorted(_TR_NUMBER_WORDS, key=len, reverse=True)) + r')\b', re.I)
 
 
 _EN_NUMBER_WORDS = ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
@@ -723,14 +721,125 @@ def _unit_markers(text):
     return markers
 
 
+_TR_ONES_SET = frozenset(_TR_ONES)
+_TR_TENS_SET = frozenset(word for word in _TR_TENS if word)
+_TR_MULTIPLIERS = {'yüz': 2, 'bin': 3, 'milyon': 6, 'milyar': 9}
+_TR_NEXT_WORD = re.compile(r"^\s+([^\W\d_]+)", re.UNICODE)
+# Hal ekleri, sıra sayısı ve topluluk/iyelik ekleri. Sayı sözcüğünün kendisi
+# eşleşmenin başında tam yazıldığı için ek yalnız değeri değiştirmeyen
+# çekimleri kabul eder: beşte, altıya, ikiyi, ikinci(yi), ikimiz, üçü.
+_TR_NUMBER_SUFFIX = (
+    r"(?:['’]?(?:"
+    r"[ıiuü]?nc[ıiuü](?:[^\W\d_]{0,6})"          # sıra: birinci, üçüncü(yü), onuncu
+    r"|[ıiuü]?m[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea]|[ıiuü])?"  # ikimiz(i), üçümüz
+    r"|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?"        # ikiniz
+    r"|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?"        # ikisi(ni/nde)
+    r"|y[ıiuü]|y[ae]|y[ıiuü]n"                                # ikiyi, altıya
+    r"|[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n"
+    r"))?"
+)
+
+
+def _turkish_number_phrase_regex(phrase):
+    """Sayı öbeği regex'i; son sözcük 'dört' ise ünlü önü yumuşamayı (dörd-) tanır."""
+    parts = [re.escape(part) for part in str(phrase or '').split()]
+    if parts and parts[-1] == 'dört':
+        parts[-1] = 'dör[td]'
+    return r'(?<!\w)' + r'\s+'.join(parts) + _TR_NUMBER_SUFFIX + r'(?!\w)'
+
+
+def _turkish_continuation_changes_value(previous_word, next_word):
+    """'kırk beş' değeri değiştirir; 'iki üç' (yaklaşık aralık) değiştirmez.
+
+    Türkçe sayı sözcükleri büyükten küçüğe dizilir. Birler basamağından sonra
+    gelen birler/onlar sözcüğü ('iki üç gün', 'beş on dakika', 'yedi yirmi
+    dört') yeni bir sayı başlatır; yalnız çarpan, kesir ya da daha küçük
+    basamak önceki sayının değerini değiştirir.
+    """
+    previous_word = str(previous_word or '').casefold()
+    next_word = str(next_word or '').casefold()
+    if next_word in ('buçuk', 'virgül') or next_word in _TR_MULTIPLIERS:
+        return True
+
+    def magnitude(word):
+        if word in _TR_ONES_SET:
+            return 0
+        if word in _TR_TENS_SET:
+            return 1
+        return _TR_MULTIPLIERS.get(word)
+
+    previous_magnitude, next_magnitude = magnitude(previous_word), magnitude(next_word)
+    if previous_magnitude is None or next_magnitude is None:
+        return False
+    return next_magnitude < previous_magnitude
+
+
 def _turkish_number_phrase_match(translated, phrase):
-    suffix = r"(?:['’]?(?:[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n))?"
     text = str(translated or '')
-    for match in re.finditer(r'(?<!\w)' + re.escape(phrase).replace(r'\ ', r'\s+')
-                             + suffix + r'(?!\w)', text, re.I):
-        # A following number word may change the value of the matched phrase.
-        if not _TR_NUMBER_CONT.match(text[match.end():]):
-            return match
+    last_word = str(phrase or '').split()[-1:] or ['']
+    for match in re.finditer(_turkish_number_phrase_regex(phrase), text, re.I):
+        following = _TR_NEXT_WORD.match(text[match.end():])
+        # Ek almış sayı ('beşte') sonraki sözcükle birleşmez. Çıplak sayıdan
+        # sonra gelen sayı sözcüğü ancak bileşik sayı kuruyorsa değeri değiştirir.
+        bare = match.group(0).casefold().endswith(last_word[0].casefold())
+        if (following and bare
+                and _turkish_continuation_changes_value(last_word[0], following.group(1))):
+            continue
+        return match
+    return None
+
+
+def _turkish_clock_match(translated, hour, minute):
+    """Saat ifadesinin doğal Türkçe söylenişini tanır.
+
+    5:00 → 'beşte' / 'saat beş', 5:15 → 'beşi çeyrek geçe', 5:45 → 'altıya
+    çeyrek kala', 5:10 → 'beşi on geçe', 5:50 → 'altıya on kala'. Dakika ya da
+    saat değişirse eşleşme olmaz.
+    """
+    text = str(translated or '')
+    hour, minute = int(hour), int(minute)
+
+    def hour_words(value):
+        candidates = {_turkish_integer_words(value % 24)}
+        twelve = value % 12 or 12
+        candidates.add(_turkish_integer_words(twelve))
+        return [word for word in candidates if word]
+
+    def hour_regex(value, case_suffix):
+        options = []
+        for words in hour_words(value):
+            parts = [re.escape(part) for part in words.split()]
+            if parts[-1] == 'dört':
+                parts[-1] = 'dör[td]'
+            options.append(r'\s+'.join(parts))
+        return r'(?<!\w)(?:' + '|'.join(options) + r")['’]?" + case_suffix
+
+    minute_words = {15: 'çeyrek'}.get(minute, _turkish_integer_words(minute))
+    remaining = 60 - minute
+    remaining_words = {15: 'çeyrek'}.get(remaining, _turkish_integer_words(remaining))
+    patterns = []
+    if minute == 0:
+        return _turkish_number_phrase_match(text, _turkish_integer_words(hour % 24)) \
+            or _turkish_number_phrase_match(text, _turkish_integer_words(hour % 12 or 12))
+    if minute == 30:
+        for words in hour_words(hour):
+            found = _turkish_number_phrase_match(text, f'{words} buçuk')
+            if found:
+                return found
+        if hour % 12 == 0:
+            found = re.search(r"(?<!\w)yarım(?:[dt][ae]|[ıiuü])?(?!\w)", text, re.I)
+            if found:
+                return found
+    if minute_words and minute < 60:
+        patterns.append(hour_regex(hour, r'(?:y?[ıiuü])\s+' + re.escape(minute_words)
+                                   + r'\s+geçe(?!\w)'))
+    if remaining_words and 0 < remaining < 60:
+        patterns.append(hour_regex(hour + 1, r'(?:y?[ae])\s+' + re.escape(remaining_words)
+                                   + r'\s+kala(?!\w)'))
+    for pattern in patterns:
+        found = re.search(pattern, text, re.I)
+        if found:
+            return found
     return None
 
 
@@ -783,8 +892,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
                 translated_numbers_text = (
                     translated_numbers_text[:target_clock.start()] + ' '
                     + translated_numbers_text[target_clock.end():])
-            elif minute == '30' and (word_match := _turkish_number_phrase_match(
-                    translated_numbers_text, f'{_turkish_integer_words(hour)} buçuk')):
+            elif (word_match := _turkish_clock_match(
+                    translated_numbers_text, hour, minute)):
                 translated_numbers_text = (
                     translated_numbers_text[:word_match.start()] + ' '
                     + translated_numbers_text[word_match.end():])

@@ -2405,6 +2405,20 @@ def json_mode_unsupported(error):
     ))
 
 
+def route_error_is_fatal(error):
+    """Kimlik/kota hatası bütün yedek rotalarda aynıdır; rota dolaşmak anlamsız.
+
+    HTTP durumu yapısal alandan okunur. Hata gövdesindeki request-id rakamları
+    '401'/'403' içerebilir; eskiden LLM düzeltme ve açıklama yolları metinde
+    '403' arıyordu ve 5xx gibi geçici bir hatayı kalıcı sayıp yedek rotayı hiç
+    denemiyordu (çeviri ve sohbet yolları bunu zaten doğru yapıyordu).
+    """
+    if api_error_status(error) in (401, 403):
+        return True
+    message = str(error).lower()
+    return any(key in message for key in ("insufficient_quota", "invalid_api_key", "quota"))
+
+
 def retryable_api_error(error):
     status = api_error_status(error)
     if status in (408, 409, 425, 429) or (status is not None and status >= 500):
@@ -2599,6 +2613,9 @@ def llm_postprocess(entries, args, warn_list=None):
         log("Hiçbir düzeltme türü seçilmedi — atlandı", "warn")
         return entries
 
+    # JSON modu desteği iş başına bir kez öğrenilir (paralel parçalar paylaşır).
+    json_mode_state = {"on": True, "lock": threading.Lock()}
+
     # Sözlükteki özel isimleri LLM'e de bildir — yanlış duyulmuş yazımları düzeltir
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
     glossary_lines = []
@@ -2678,18 +2695,22 @@ def llm_postprocess(entries, args, warn_list=None):
                     )
                 except Exception as error:
                     last_error = error
-                    message = str(error).lower()
-                    if any(key in message for key in (
-                            "insufficient_quota", "invalid_api_key", "401", "403", "quota")):
+                    # JSON modu reddi rotaya değil modele/sağlayıcıya aittir;
+                    # diğer rotaları aynı istekle denemek boşa istek harcar.
+                    if route_error_is_fatal(error) or (response_format and json_mode_unsupported(error)):
                         raise
             raise last_error if last_error else RuntimeError("LLM düzeltme isteği başarısız")
 
         try:
-            resp = request(response_format=True)
+            resp = request(response_format=json_mode_state["on"])
         except Exception as e:
-            # response_format desteklenmiyorsa (Ollama, LM Studio veya bazı API'lerde 400 hatası) fallback yap
-            if json_mode_unsupported(e):
-                log("⚠ LLM JSON modu desteklenmiyor, normal modda yeniden deneniyor...", "warn")
+            # response_format desteklenmiyorsa (Ollama, LM Studio veya bazı API'lerde 400 hatası) fallback yap.
+            # Karar iş boyunca hatırlanır; her parça yeniden JSON modu denemesin.
+            if json_mode_state["on"] and json_mode_unsupported(e):
+                with json_mode_state["lock"]:
+                    if json_mode_state["on"]:
+                        json_mode_state["on"] = False
+                        log("⚠ LLM JSON modu desteklenmiyor, iş boyunca normal mod kullanılacak.", "warn")
                 resp = request(response_format=False)
             else:
                 raise
@@ -3589,38 +3610,48 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         with lock:
             order = [route_state["preferred"]] + [r for r in routes if r != route_state["preferred"]]
         last_err = None
+
+        def create(url, json_mode):
+            kwargs = {}
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+            return call_api_with_retry(lambda: client_for(url).chat.completions.create(
+                model=args.translate_model,
+                messages=[
+                    {"role": "system", "content": prompt_text},
+                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+                ],
+                temperature=0.2,
+                **kwargs,
+            ), attempts=2)
+
         for url in order:
             if fatal_stop["error"] is not None:
                 raise fatal_stop["error"]
             try:
-                return call_api_with_retry(lambda: client_for(url).chat.completions.create(
-                    model=args.translate_model,
-                    messages=[
-                        {"role": "system", "content": prompt_text},
-                        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                    ],
-                    temperature=0.2,
-                    response_format={"type": "json_object"},
-                ), attempts=2), url
+                return create(url, route_state.get("json_mode", True)), url
             except Exception as e:
                 last_err = e
-                msg = str(e).lower()
-                # JSON modu desteklenmiyorsa ayni rotada duz modda dene
-                if "response_format" in msg or "response_type" in msg:
-                    return call_api_with_retry(lambda: client_for(url).chat.completions.create(
-                        model=args.translate_model,
-                        messages=[
-                            {"role": "system", "content": prompt_text},
-                            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                        ],
-                        temperature=0.2,
-                    ), attempts=2), url
+                # JSON modu desteklenmiyorsa ayni rotada duz modda dene. Karar
+                # iş boyunca hatırlanır: eskiden her parça önce JSON moduyla
+                # gönderilip 400 alıyor, sonra düz modda tekrar gönderiliyordu
+                # (JSON modu olmayan sağlayıcıda istek sayısı iki katına çıkıyordu).
+                # Düz moddaki geçici hata da artık sıradaki rotayı dener.
+                if route_state.get("json_mode", True) and json_mode_unsupported(e):
+                    with lock:
+                        if route_state.get("json_mode", True):
+                            route_state["json_mode"] = False
+                            log("Çeviri sağlayıcısı JSON modunu desteklemiyor; iş boyunca düz "
+                                "yanıt modu kullanılacak.", "warn")
+                    try:
+                        return create(url, False), url
+                    except Exception as plain_error:
+                        last_err = plain_error
+                        if route_error_is_fatal(plain_error):
+                            raise
+                        continue
                 # Kota/anahtar sorunu tum rotalarda ayni olur - rota denemek anlamsiz.
-                # HTTP durumu yapısal alandan okunur; request-id icindeki rakamlar
-                # "401"/"403" substring eslesmesiyle yanlis alarm uretmesin.
-                status = api_error_status(e)
-                if status in (401, 403) or any(k in msg for k in (
-                        "insufficient_quota", "invalid_api_key", "quota")):
+                if route_error_is_fatal(e):
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
@@ -6870,8 +6901,7 @@ def explain_subtitle(args):
             return
         except Exception as e:
             last_err = e
-            msg = str(e).lower()
-            if any(k in msg for k in ("insufficient_quota", "invalid_api_key", "401", "403", "quota")):
+            if route_error_is_fatal(e):
                 break
     raise RuntimeError(f"Aciklama alinamadi: {last_err}")
 
@@ -6991,9 +7021,7 @@ def chat_about_video(args):
             raise
         except Exception as e:
             last_err = e
-            msg = str(e).lower()
-            if api_error_status(e) in (401, 403) or any(k in msg for k in (
-                    "insufficient_quota", "invalid_api_key", "quota")):
+            if route_error_is_fatal(e):
                 break
     kind = classify_translation_error(last_err)
     messages = {

@@ -13,6 +13,10 @@
     ['Kaynağını seç', 'Choose a source'],
     ['Kaynak türü', 'Source type'],
     ['Dosya', 'File'],
+    ['Arama motoru', 'Search engine'],
+    ['Çift dilli düzen', 'Bilingual layout'],
+    ['İkisi altta, aynı stil', 'Both at bottom, same style'],
+    ['İkinci altyazı üstte, ayrı', 'Second subtitle on top, separate'],
     ['Dosya seç', 'Choose files'],
     ['Klasör seç', 'Choose folder'],
     ['Video veya ses dosyanı bırak', 'Drop a video or audio file'],
@@ -816,6 +820,13 @@
     ['Klasörü Aç', 'Open folder'],
     ['İşlemi onayla', 'Confirm action'],
     ['Değer', 'Value'],
+    ['Seçenek', 'Option'],
+    ['İzleme düzeni', 'Viewing layout'],
+    ['Altyazı izi', 'Subtitle track'],
+    ['Tüm ayarlar…', 'All settings…'],
+    ['Tüm altyazı ayarları…', 'All subtitle settings…'],
+    ['Yazıyı küçült', 'Decrease font size'],
+    ['Yazıyı büyüt', 'Increase font size'],
     ['Ses', 'Audio'],
     ['Metin', 'Text'],
     ['Dil', 'Language'],
@@ -1762,6 +1773,150 @@
     ['Paneli ikon rayına daralt', 'Collapse panel to icon rail'],
     ['Altyazı araçları ve iz ayrıntıları', 'Subtitle tools and track details'],
     ['Görev merkezi', 'Task center'],
+    // Oynatıcı EN kalıntıları: düğmeler, rozetler ve OSD bildirimleri.
+    ['Orijinal', 'Original'],
+    ['Dosyadan', 'From file'],
+    ['A-B metni', 'A-B text'],
+    ['A-B klibi', 'A-B clip'],
+    ['Altyazı sonunda durdu', 'Paused at end of cue'],
+    ['Zaman bağlı not güncellendi', 'Timestamped note updated'],
+    ['Zaman bağlı not kaydedildi', 'Timestamped note saved'],
+    ['Cümle kayıtlardan çıkarıldı', 'Sentence removed from saved'],
+    ['Cümle kaydedildi', 'Sentence saved'],
+    ['Kelime koleksiyondan çıkarıldı', 'Word removed from collection'],
+    ['Kelime koleksiyona eklendi', 'Word added to collection'],
+    ['Kelime panoya kopyalandı', 'Word copied to clipboard'],
+    ['Tekrar planı güncellendi', 'Review plan updated'],
+    ['Araştırma notu kaydedildi', 'Research note saved'],
+    ['Alıntı bulundu', 'Quote found'],
+    ['B, A’dan sonra olmalı', 'B must come after A'],
+    ['A-B döngüsü kapalı', 'A-B loop off'],
+    ['Görüntü panoda', 'Frame copied to clipboard'],
+    ['Görüntü kaydedildi', 'Frame saved'],
+    ['Ekran görüntüsü kaydedildi', 'Screenshot saved'],
+    ['Değişecek bir eşleşme yok', 'No matches to replace'],
+    ['Çeviri dışa aktarıldı', 'Translation exported'],
+    ['Bir iş zaten çalışıyor', 'A job is already running'],
+    ['Çeviri API anahtarı yok', 'No translation API key'],
+    ['Mevcut altyazı çevriliyor; Whisper çalıştırılmayacak', 'Translating the existing subtitles; Whisper will not run'],
+    ['Altyazı + çeviri hazırlanıyor…', 'Preparing subtitles + translation…'],
+    ['Not güncellendi', 'Note updated'],
+    ['Not geri alındı', 'Note restored'],
+    ['Cümleler birleştirildi', 'Sentences merged'],
+    ['Cümle birleştirme kapalı', 'Sentence merging off'],
+    ['Web video hızı değiştirilemedi', 'Could not change web video speed'],
+    ['Ses kapalı', 'Muted'],
+    ['Ses açık', 'Unmuted'],
+    ['Duraklatıldı', 'Paused'],
+    ['Oynatılıyor', 'Playing'],
+    ['Video tam ekran', 'Video full screen'],
+    ['Kare ileri', 'Next frame'],
+    ['Kare geri', 'Previous frame'],
+    ['Web altyazısı yüklü değil; gecikme ancak senkron panelinden ayarlanır.', 'No web subtitles loaded; delay can only be set from the sync panel.'],
+    ['Web videoda kare adımı uygulanamadı', 'Frame stepping is not available for this web video'],
+    ['Önce bir video açın.', 'Open a video first.'],
+    ['Mini oynatıcı açıldı', 'Mini player opened'],
+    ['Mini oynatıcı kapatıldı', 'Mini player closed'],
+    ['Toplu değiştirme geri alındı', 'Bulk replace undone'],
+    ['Toplu değiştirme yinelendi', 'Bulk replace redone'],
+    ['Düzeltme geri alındı', 'Correction undone'],
+    ['Düzeltme yinelendi', 'Correction redone'],
+    ['Düzenleme geri alındı', 'Edit undone'],
+    ['Düzenleme yinelendi', 'Edit redone'],
+    ['Model çevirisine dönüldü', 'Reverted to model translation'],
+    ['Eklenecek video yok.', 'No videos to add.'],
+    ['Abonelik listesi dolu.', 'Subscription list is full.'],
+    ['Kanal tanınamadı.', 'Channel not recognized.'],
+    ['Zaten abone.', 'Already subscribed.'],
+    ['İçe aktarma başarısız.', 'Import failed.'],
+    ['Dosyada kanal bulunamadı.', 'No channels found in the file.'],
+    ['Dışa aktarma başarısız.', 'Export failed.'],
+    ['Tüm cümleleri göster', 'Show all sentences'],
+    ['Kaydedilmemiş önizleme var', 'Unsaved preview'],
+    ['Üst kapsamdan al', 'Inherit'],
+    ['Site özelleştirmelerini sıfırla', 'Reset site customizations'],
+    ['Reklam koruması etkin.', 'Ad protection is on.'],
+    ['Ses açık — kapat', 'Sound on — mute'],
+    ['Tarayıcıda video açın.', 'Open a video in the browser.'],
+    ['Altyazılar kapalı', 'Subtitles off'],
+    ['Bir video oynattığında kaldığın yer burada görünecek.', 'Where you left off will appear here once you play a video.'],
+    ['Bu filtrede video yok.', 'No videos in this filter.'],
+    ['Çeviri satırları hazır olduğunda kullanılabilir', 'Available once translated lines are ready'],
+    ['Tarayıcı yazılım fallback kullanıyor', 'Browser is using software fallback'],
+    ['Chromium donanım hızlandırması kapalı.', 'Chromium hardware acceleration is off.'],
+    ['Kurtarılabilir yarım browser işi yok.', 'No recoverable unfinished browser jobs.'],
+    // Site profili alan başlıkları (aria-label'ları "X: üst kapsamdan al" kalıbından geçer).
+    ['Sayfa hedef dili', 'Page target language'],
+    ['Manga hedef dili', 'Manga target language'],
+    ['Manga yazı ölçeği (%)', 'Manga text scale (%)'],
+    ['Altyazı ölçeği (%)', 'Subtitle scale (%)'],
+    ['Altyazı opaklığı (%)', 'Subtitle opacity (%)'],
+    ['Alt boşluk (%)', 'Bottom margin (%)'],
+    ['Altyazı genişliği (%)', 'Subtitle width (%)'],
+    ['Kaynak üstte', 'Source on top'],
+    ['Site altyazısını gizle', 'Hide site subtitles'],
+    ['Site oynatma hızı', 'Site playback speed'],
+    ['Video parlaklığı (%)', 'Video brightness (%)'],
+    ['Video kontrastı (%)', 'Video contrast (%)'],
+    ['Koyu sayfa görünümü', 'Dark page view'],
+    ['Konuşma sesi normalleştirme', 'Speech loudness normalization'],
+    ['Bu sitede reklam koruması', 'Ad protection on this site'],
+    ['Çeviri ve manga', 'Translation and manga'],
+    // Tarayıcı araç paneli (browser-analysis-tools.js / browser-dialogue.js).
+    ['Senkron ve video önizlemesi', 'Sync and video preview'],
+    ['Dalga biçimi ve görüntü analizi için izlenen videoyla aynı sürümdeki yerel dosyayı seçin.', 'For waveform and frame analysis, choose a local file of the same release as the video you are watching.'],
+    ['Referans video seç', 'Choose reference video'],
+    ['Dosya seçilmedi', 'No file selected'],
+    ['Ses dalgasıyla zamanlamayı aç', 'Open timing with audio waveform'],
+    ['Önizlemeli video konumu', 'Video position with preview'],
+    ['Kare ve replik için çubuğun üzerinde gezinin. Konumu değiştirmek için tıklayın.', 'Hover the bar to see the frame and line. Click to change position.'],
+    ['Referans altyazıyla parçalı senkron bul', 'Find piecewise sync from a reference subtitle'],
+    ['Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin veya referans videonun ses ritmiyle senkronlayın. Sonuç önce karşılaştırma olarak gösterilir.', 'Choose another correctly timed subtitle for the loaded primary subtitle, or sync to the audio rhythm of the reference video. The result is shown as a comparison first.'],
+    ['Senkronu zamanlama taslağına uygula', 'Apply sync to the timing draft'],
+    ['Zor replikleri konuşmayı ayırarak çöz', 'Resolve hard lines by separating speech'],
+    ['Önce Senkron ve video önizlemesi alanından referans video seçin. Bu deneysel işlem yalnız siz başlatınca çalışır; ilk kullanımda modeller indirilir. Müzik veya efekt ayrımı her kayıtta iyileşme sağlamayabilir.', 'First choose a reference video under Sync and video preview. This experimental step runs only when you start it; models are downloaded on first use. Separating music or effects may not help every recording.'],
+    ['Başlangıç (saniye)', 'Start (seconds)'],
+    ['Bitiş (en fazla 60 sn)', 'End (up to 60 s)'],
+    ['Tiny · hızlı', 'Tiny · fast'],
+    ['Small · daha yavaş', 'Small · slower'],
+    ['Dil kodu (boş: otomatik)', 'Language code (empty: automatic)'],
+    ['Konuşmayı ayır ve altyazı çıkar', 'Separate speech and generate subtitles'],
+    ['SRT kopyasını kaydet', 'Save SRT copy'],
+    ['Replik metni', 'Line text'],
+    ['Ses ritmini analiz eder; sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir', 'Analyzes the audio rhythm; fixes constant offset and drift that grows over time'],
+    ['Özgün dosyayı değiştirmez; .synced.srt kopyası oluşturup otomatik yükler.', 'Does not change the original file; creates a .synced.srt copy and loads it automatically.'],
+  ];
+
+  // Şablonlu arayüz metinleri (sayaçlar, "X: üst kapsamdan al", OSD değerleri).
+  // Birebir sözlükte bulunamayan TR metin bu kalıplarla EN'e çevrilir; yakalanan
+  // parçalar yeniden sözlükten geçer (ör. "Genel değer: Kapalı" → "Global value: Off").
+  // Yalnız TR→EN: kaynak metni kod her zaman Türkçe üretir, TR'ye dönüşte
+  // gözlemci saklanan özgün metni geri yazar.
+  const patterns = [
+    [/^Genel değer: (.+)$/, (m, t) => `Global value: ${m[1] === 'Açık' ? 'On' : t(m[1])}`],
+    [/^Feed unavailable: yt-dlp mevcut değil$/, () => 'Feed unavailable: yt-dlp is not installed'],
+    [/^(.+): üst kapsamdan al$/, (m, t) => `${t(m[1])}: inherit from parent scope`],
+    [/^(Kaynak|Çeviri) · (.+)$/, (m) => `${m[1] === 'Kaynak' ? 'Source' : 'Translation'} · ${m[2]}`],
+    [/^· (\d+) uyarı · (\d+) kaynak değişikliği$/, (m) => `· ${m[1]} ${m[1] === '1' ? 'warning' : 'warnings'} · ${m[2]} source ${m[2] === '1' ? 'change' : 'changes'}`],
+    [/^(\d+) kayıtlı senkron düzeltmesi( · Kaydedilmemiş önizleme var)?$/, (m) => `${m[1]} saved sync ${m[1] === '1' ? 'fix' : 'fixes'}${m[2] ? ' · Unsaved preview' : ''}`],
+    [/^(Kaydedilen cümleleri göster|Düşük güvenli cümleleri göster|Çevrilmemiş satırları göster) \((\d+)\)$/, (m, t) => `${t(m[1])} (${m[2]})`],
+    [/^Sayfa yakınlaştırma %(\d+)$/, (m) => `Page zoom ${m[1]}%`],
+    [/^Altyazı tekrarı (\d+)\/(\d+)$/, (m) => `Cue repeat ${m[1]}/${m[2]}`],
+    [/^Tekrar et · (\d+) sn$/, (m) => `Repeat · ${m[1]} s`],
+    [/^A: (.+)$/, (m) => `A: ${m[1]}`],
+    [/^A-B döngüsü: (.+) → (.+)$/, (m) => `A-B loop: ${m[1]} → ${m[2]}`],
+    [/^Panoya kopyalanamadı: (.*)$/, (m) => `Could not copy to clipboard: ${m[1]}`],
+    [/^Uyku zamanlayıcısı: (\d+) dakika$/, (m) => `Sleep timer: ${m[1]} min`],
+    [/^([+-]?\d+(?:[.,]\d+)?) sn$/, (m) => `${m[1]} s`],
+    [/^Ses: parça (\d+)$/, (m) => `Audio: track ${m[1]}`],
+    [/^Ses: (.+)$/, (m) => `Audio: ${m[1]}`],
+    [/^Ses %(\d+)$/, (m) => `Volume ${m[1]}%`],
+    [/^Gecikme ([+-]?\d+(?:[.,]\d+)?) sn \(önizleme — senkron panelinden kaydedin\)$/, (m) => `Delay ${m[1]} s (preview — save from the sync panel)`],
+    [/^Gecikme ([+-]?\d+(?:[.,]\d+)?) sn$/, (m) => `Delay ${m[1]} s`],
+    [/^([\d.,]+)× hız$/, (m) => `${m[1]}× speed`],
+    [/^(\d+) kanal içe aktarıldı \((.+)\)\.$/, (m) => `${m[1]} ${m[1] === '1' ? 'channel' : 'channels'} imported (${m[2]}).`],
+    [/^YouTube bağlandı( — .+)?$/, (m) => `YouTube connected${m[1] || ''}`],
+    [/^(\d+) video sıraya eklendi\.$/, (m) => `${m[1]} ${m[1] === '1' ? 'video' : 'videos'} added to the queue.`],
   ];
 
   const toEnglish = new Map(entries);
@@ -1777,16 +1932,32 @@
   // başlıkları ve kullanıcı verisi taşır — sözlükle çakışan bir site başlığı
   // (ör. 'Ayarlar') arayüz metni sanılıp yeniden yazılmamalı (B83-24).
   const ignored = 'script,style,textarea,pre,code,[contenteditable],#log,#cueList,#aiChatLog,#playerTitle,#playerMeta,#playerVideoPath,#fileName,#filePath,.segment,.mc-card-info,.mc-synopsis,.mc-detail h3,.mc-episode-head strong,.mc-calendar-row strong,.mc-import-row span,.ai-msg,.cue-text,.subtitle-text,.transcript-text,#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,.browser-place-title,.browser-quick-place-title,.history-title,[data-ui-untranslated]';
+  // Yok sayılan liste kapsayıcıları içinde kalan, kullanıcı verisi taşımayan
+  // arayüz parçaları. #aiChatLog'un boş durumu ("Video hakkında soru sor", öneri
+  // çipleri) EN arayüzde Türkçe kalıyordu.
+  const uiIslands = '.ai-chat-empty';
+  const ownAttributeHosts = 'textarea,[contenteditable]';
   const originalText = new WeakMap();
   const originalAttributes = new WeakMap();
   const uiListContainers = '#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,#cueList,#log,#aiChatLog';
+
+  function translatePattern(text) {
+    const inner = (part) => toEnglish.get(part) ?? part;
+    for (const [re, build] of patterns) {
+      const m = text.match(re);
+      if (m) return build(m, inner);
+    }
+    return undefined;
+  }
 
   function translate(value, target = locale) {
     if (typeof value !== 'string') return value;
     const match = value.match(/^(\s*)([\s\S]*?)(\s*)$/);
     if (!match) return value;
     const table = normalize(target) === 'en' ? toEnglish : toTurkish;
-    const replacement = table.get(match[2].replace(/\s+/g, ' ').trim());
+    const key = match[2].replace(/\s+/g, ' ').trim();
+    let replacement = table.get(key);
+    if (replacement === undefined && normalize(target) === 'en') replacement = translatePattern(key);
     return replacement === undefined ? value : `${match[1]}${replacement}${match[3]}`;
   }
 
@@ -1795,10 +1966,12 @@
     // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
     // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
     if (!(element instanceof Element)) return;
+    // Yazı alanlarının İÇERİĞİ kullanıcı verisidir ama kendi placeholder/aria-label'ı
+    // arayüz metnidir ("Sorunu yaz…" EN arayüzde Türkçe kalıyordu).
     const blocked = element.matches(uiListContainers)
       ? element.parentElement?.closest(ignored)
-      : element.closest(ignored);
-    if (blocked) return;
+      : (element.matches(ownAttributeHosts) ? element.parentElement?.closest(ignored) : element.closest(ignored));
+    if (blocked && !element.closest(uiIslands)) return;
     let originals = originalAttributes.get(element);
     if (!originals) { originals = new Map(); originalAttributes.set(element, originals); }
     for (const name of ['title', 'aria-label', 'placeholder']) {
@@ -1814,7 +1987,8 @@
   }
 
   function localizeText(node) {
-    if (node?.nodeType !== Node.TEXT_NODE || node.parentElement?.closest(ignored)) return;
+    if (node?.nodeType !== Node.TEXT_NODE) return;
+    if (node.parentElement?.closest(ignored) && !node.parentElement.closest(uiIslands)) return;
     const before = node.nodeValue;
     const previous = originalText.get(node);
     if (previous === undefined || (before !== previous && before !== translate(previous, 'en')
@@ -1829,7 +2003,12 @@
     if (root.nodeType === Node.TEXT_NODE) return localizeText(root);
     if (root.nodeType !== Node.ELEMENT_NODE) return;
     localizeElement(root);
-    if (root.matches(ignored)) return;
+    if (root.matches(ignored)) {
+      // Yok sayılan kapsayıcının içindeki arayüz adaları (ör. sohbetin boş durumu)
+      // yine çevrilir; kapsayıcının kalan içeriği kullanıcı verisidir.
+      for (const island of root.querySelectorAll(uiIslands)) scan(island);
+      return;
+    }
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
@@ -1866,7 +2045,7 @@
     document.dispatchEvent(new CustomEvent('ui-locale-change', { detail: { locale } }));
   }
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = { entries, translate, normalize };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { entries, patterns, translate, normalize };
   if (typeof document === 'undefined') return;
   window.UiLocale = { get: () => locale, set: setLocale, t: translate, scan };
   setLocale(locale, false);

@@ -70,7 +70,8 @@ assert.match(main, /candidate\.dashTrack\?\.streamKey \|\| browserTrackStreamKey
   'DASH parçaları manifestteki ortak iz anahtarıyla birleşmeli');
 const start = main.indexOf('function normalizeBrowserUrl(raw)');
 const end = main.indexOf('function browserPopupWindowOptions()', start);
-const navigate = vm.runInNewContext(main.slice(start, end) + '\nnormalizeBrowserUrl;', { URL, encodeURIComponent });
+const navigate = vm.runInNewContext(main.slice(start, end) + '\nnormalizeBrowserUrl;', {
+  URL, encodeURIComponent, browserOmnibox: require('../src/browser-omnibox'), browserSearchEngine: () => 'google' });
 assert.strictEqual(navigate('youtube.com'), 'https://youtube.com/');
 assert.strictEqual(navigate('iki kelime'), 'https://www.google.com/search?q=iki%20kelime');
 assert.strictEqual(navigate('https://a.test/watch?sig=abc&token=xyz'), 'https://a.test/watch?sig=abc&token=xyz');
