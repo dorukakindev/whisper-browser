@@ -7628,7 +7628,9 @@ function browserProfileControls() {
     ['overlayWidth', 'browserOverlayWidth', 'Altyazı genişliği (%)', 86],
     ['overlayMaxLines', 'browserOverlayMaxLines', 'Azami satır', 3],
     ['overlaySourceFirst', 'browserOverlaySourceFirst', 'Kaynak üstte', true],
-    ['hideSiteCaptions', 'browserHideSiteCaptions', 'Site altyazısını gizle', false],
+    // Uygulama katmanı açıkken sitenin kendi altyazısı aynı metni ikinci kez
+    // çiziyordu (çift altyazı). Katman kapalıyken site altyazısı yine görünür.
+    ['hideSiteCaptions', 'browserHideSiteCaptions', 'Site altyazısını gizle', true],
     ['playbackRate', 'playerSpeed', 'Site oynatma hızı', 1],
     ['enforcePlaybackRate', 'browserRateFightback', 'Site hızı sıfırlarsa geri uygula', false],
     ['preservesPitch', 'browserPreservesPitch', 'Hız değişince ses perdesini koru', true],
@@ -10592,8 +10594,9 @@ function updateBrowserNavigation(data, options = {}) {
   const address = $('browserAddress');
   // Boş URL'li sekmede (yeni sekme) eski adres kalmasın: odaksızken her zaman,
   // sekme değişiminde (forceAddressSync) odaklı olsa bile senkronla — Chrome'da
-  // sekme geçişi adres kutusunu yeni sekmenin adresiyle değiştirir.
-  if (document.activeElement !== address || options.forceAddressSync) {
+  // sekme geçişi adres kutusunu yeni sekmenin adresiyle değiştirir. Odakta ama
+  // kullanıcı henüz yazmadıysa da güncelle: yalnız yazılan metin korunur.
+  if (document.activeElement !== address || !player.browserAddressDirty || options.forceAddressSync) {
     const nextUrl = data.url || '';
     if (address.value !== nextUrl) address.value = nextUrl;
     if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
@@ -10608,13 +10611,17 @@ function updateBrowserNavigation(data, options = {}) {
     const secure = /^https:/i.test(data.url || '');
     let host = '';
     try { host = new URL(data.url || '').hostname || ''; } catch { host = ''; }
-    const securityText = secure ? 'Güvenli HTTPS bağlantısı'
-      : (host ? 'Şifrelenmemiş HTTP bağlantısı' : 'Adres bekleniyor');
+    const pick = (tr, en) => (globalThis.UiLocale?.get?.() === 'tr' ? tr : en);
+    const securityText = secure ? pick('Güvenli HTTPS bağlantısı', 'Secure HTTPS connection')
+      : (host ? pick('Şifrelenmemiş HTTP bağlantısı', 'Unencrypted HTTP connection')
+        : pick('Adres bekleniyor', 'Waiting for an address'));
     if (siteChipDetails) {
       if (!siteChipDetails.dataset) siteChipDetails.dataset = {};
       siteChipDetails.dataset.security = secure ? 'secure' : (host ? 'insecure' : 'none');
     }
-    if (siteChipHost) siteChipHost.textContent = host;
+    // Host zaten adres çubuğunda vurgulu görünüyor; çipte tekrar yazmak yerine
+    // Chrome gibi yalnız güvensiz bağlantıyı adıyla uyar.
+    if (siteChipHost) siteChipHost.textContent = !secure && host ? pick('Güvenli değil', 'Not secure') : '';
     if (siteChipSecurity) siteChipSecurity.textContent = host ? `${host} · ${securityText}` : securityText;
     const chip = $('browserSiteChip');
     if (chip) {
@@ -11324,6 +11331,7 @@ async function navigateBrowserFromAddress() {
     return null;
   }
   $('browserAddress')?.blur?.();
+  player.browserAddressDirty = false;
   closeBrowserAddressResults();
   // "!kod sorgu" kısayolu daha main sürece ulaşmadan hedef URL'ye çevrilir.
   const value = globalThis.BrowserOmnibox?.resolveBang?.(rawValue)?.url || rawValue;
@@ -11620,6 +11628,7 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   else if (event.key === 'Escape') {
     event.preventDefault();
     closeBrowserAddressResults();
+    player.browserAddressDirty = false;
     $('browserAddress').value = player.browserPageUrl || '';
     if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
     $('browserAddress').select();
@@ -11628,6 +11637,12 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   else if (event.key === 'Tab') closeBrowserAddressResults();
 });
 for (const eventName of ['input', 'focus', 'blur']) $('browserAddress')?.addEventListener(eventName, syncBrowserAddressAction);
+// Adres çubuğu yalnız kullanıcı bu odakta gerçekten yazdıysa "düzenleniyor"
+// sayılır. Eskiden odak tek başına yeterliydi: adrese tıklayıp sonra sayfadaki
+// bir bağlantıya tıklayınca odak ayrı webContents'e geçtiği halde DOM'daki
+// input odaklı kalıyor, adres çubuğu eski URL'yi göstermeye devam ediyordu.
+$('browserAddress')?.addEventListener('focus', () => { player.browserAddressDirty = false; });
+$('browserAddress')?.addEventListener('input', () => { player.browserAddressDirty = true; });
 $('browserAddress')?.addEventListener('input', (event) => {
   applyBrowserAddressInlineCompletion(event);
   clearTimeout(browserAddressSearchTimer);
@@ -12076,7 +12091,7 @@ async function closeBrowserSettings() {
 }
 
 function browserChromeCommandBlocked(command, surface = player.browserSurface) {
-  return surface === 'settings' && ['back', 'forward', 'reload', 'stop'].includes(command);
+  return surface === 'settings' && ['back', 'forward', 'reload', 'reload-hard', 'stop'].includes(command);
 }
 
 async function runBrowserChromeCommand(command) {
@@ -12500,6 +12515,9 @@ function runBrowserShortcut(key, shift = false) {
     return true;
   }
   if (normalized === 'l') { $('browserAddress')?.focus(); $('browserAddress')?.select(); return true; }
+  if (normalized === 'back' || normalized === 'forward') { void runBrowserChromeCommand(normalized); return true; }
+  if (normalized === 'reload-hard') { void runBrowserChromeCommand('reload-hard'); return true; }
+  if (normalized === 'tab-next' || normalized === 'tab-previous') return runBrowserShortcut('tab', normalized === 'tab-previous');
   if (normalized === 't' && shift) { reopenClosedBrowserTab(); return true; }
   if (normalized === 't') { createBrowserTab(); return true; }
   if (normalized === 'w') { closeBrowserTab(player.browserActiveTabId); return true; }
@@ -12528,6 +12546,22 @@ function runBrowserShortcut(key, shift = false) {
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'page-focus') {
+    // Sayfa (ayrı webContents) odağı aldı: DOM'daki adres çubuğu hâlâ odaklı
+    // görünür. Chrome gibi omnibox'ı bırak; yazılmamışsa gerçek adresi göster.
+    if (event.tabId !== player.browserActiveTabId) return;
+    const address = $('browserAddress');
+    if (address && document.activeElement === address) {
+      address.blur();
+      closeBrowserAddressResults();
+      if (!player.browserAddressDirty) {
+        address.value = player.browserPageUrl || browserTabState()?.url || '';
+        updateBrowserAddressMirror();
+      }
+      syncBrowserAddressAction();
+    }
+    return;
+  }
   if (event.type === 'permission-request') {
     if (player.workspaceMode === 'browser' && event.tabId === player.browserActiveTabId) showBrowserPermissionPrompt(event);
     else void window.api.respondBrowserPermission?.(event.requestId, 'block-once').catch(() => null);
@@ -22756,13 +22790,13 @@ document.addEventListener('keydown', (e) => {
       || tag === 'a' || tag === 'summary' || e.target.isContentEditable
       || e.target.closest?.('[contenteditable="true"]')) return;
   if (player.editing) return;
-  if (player.workspaceMode === 'browser' && modifier && e.altKey) {
-    const shortcut = window.BrowserCommandPalette?.browserShortcutForInput({ type: 'keyDown', key: e.key, control: e.ctrlKey, meta: e.metaKey, alt: true });
-    if (shortcut && runBrowserShortcut(shortcut)) { e.preventDefault(); return; }
-  }
-  if (player.workspaceMode === 'browser' && modifier && !e.altKey) {
-    const key = e.key.toLowerCase();
-    if (runBrowserShortcut(key, e.shiftKey)) { e.preventDefault(); return; }
+  // Uygulama arayüzü odaktayken de sayfa odaktayken köprülenen kısayol kümesi
+  // aynen geçerli olsun (tek kaynak: browserShortcutForInput).
+  if (player.workspaceMode === 'browser') {
+    const shortcut = window.BrowserCommandPalette?.browserShortcutForInput({
+      type: 'keyDown', key: e.key, control: e.ctrlKey, meta: e.metaKey, alt: e.altKey, shift: e.shiftKey,
+    });
+    if (shortcut && runBrowserShortcut(shortcut, e.shiftKey)) { e.preventDefault(); return; }
   }
   // Eşleşmeyen Ctrl/Meta/Alt kombinasyonu tek-harf oynatıcı eylemine düşmez:
   // Ctrl+C kopyalama, Alt+harf menü kısayolu olarak kalmalı.

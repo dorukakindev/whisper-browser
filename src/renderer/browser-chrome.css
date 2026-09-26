@@ -360,7 +360,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-nav-button:hover:not(:disabled) { color: var(--text); background: var(--bg-3); }
 .browser-nav-button:focus-visible { border-color: var(--border-strong); }
 .browser-nav-button:disabled { opacity: .28; cursor: default; }
-.browser-nav-button.loading svg { animation: browser-reload-spin .85s linear infinite; }
+/* Yüklenirken dönen yenile oku yerine Chrome gibi durdur (×) gösterilir;
+   düğme bu durumda zaten 'stop' komutunu çalıştırır. */
+.browser-nav-button .browser-stop-icon { display: none; }
+.browser-nav-button.loading .browser-reload-icon { display: none; }
+.browser-nav-button.loading .browser-stop-icon { display: block; }
 .browser-address-wrap {
   min-width: 0;
   height: 36px;

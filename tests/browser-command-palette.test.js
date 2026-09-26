@@ -44,6 +44,22 @@ console.log(`browser-command-palette: ${passed} test`);
 
 for (const [key, action] of [['ArrowLeft','subtitle-earlier'],['ArrowRight','subtitle-later'],['ArrowUp','subtitle-larger'],['ArrowDown','subtitle-smaller']]) {
   assert.equal(browserShortcutForInput({type:'keyDown',key,control:true,alt:true}),action);
-  assert.equal(browserShortcutForInput({type:'keyDown',key,alt:true}),'');
   assert.equal(browserShortcutForInput({type:'keyUp',key,control:true,alt:true}),'');
+}
+// Standart tarayıcı gezinme kısayolları sayfa odaktayken de çalışmalı.
+assert.equal(browserShortcutForInput({type:'keyDown',key:'ArrowLeft',alt:true}),'back');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'ArrowRight',alt:true}),'forward');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'ArrowUp',alt:true}),'');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'ArrowLeft',alt:true,shift:true}),'');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'F5'}),'r');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'F5',control:true}),'reload-hard');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'r',control:true,shift:true}),'reload-hard');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'F6'}),'l');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'d',alt:true}),'l');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'PageDown',control:true}),'tab-next');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'PageUp',control:true}),'tab-previous');
+assert.equal(browserShortcutForInput({type:'keyDown',key:'BrowserBack'}),'back');
+// Sayfanın kendi tuşları (yazı, oynatıcı) çalınmamalı.
+for (const key of ['a','k','ArrowLeft',' ','Enter','F11','PageDown']) {
+  assert.equal(browserShortcutForInput({type:'keyDown',key}),'', key);
 }

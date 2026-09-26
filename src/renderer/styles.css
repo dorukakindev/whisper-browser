@@ -3998,9 +3998,6 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
   border-color: var(--accent-dim);
   background: var(--accent-soft);
 }
-@keyframes browser-reload-spin {
-to { transform: rotate(360deg); }
-}
 /* Site çipi: adres hapının solunda kilit + host; popover'da güvenlik durumu,
    reklam kalkanı ve site izinleri kısayolu (üst şeritten taşındı). */
 .browser-site-chip-details { position: relative; flex: 0 1 auto; min-width: 0; }
@@ -4026,6 +4023,13 @@ to { transform: rotate(360deg); }
 .browser-site-chip:focus-visible,
 .browser-site-chip-details[open] > summary { color: var(--text); border-color: var(--border-strong); background: var(--bg-3); }
 .browser-site-chip-icon { flex: 0 0 13px; }
+.browser-site-chip-icon.is-insecure, .browser-site-chip-icon.is-none { display: none; }
+.browser-site-chip-details[data-security="insecure"] .browser-site-chip-icon.is-secure,
+.browser-site-chip-details[data-security="none"] .browser-site-chip-icon.is-secure { display: none; }
+.browser-site-chip-details[data-security="insecure"] .browser-site-chip-icon.is-insecure,
+.browser-site-chip-details[data-security="none"] .browser-site-chip-icon.is-none { display: block; }
+.browser-site-chip-details[data-security="insecure"] .browser-site-chip-host { color: var(--warning); font-weight: 600; }
+.browser-site-chip-details[data-security="none"] .browser-site-chip-caret { display: none; }
 .browser-site-chip-details[data-security="secure"] .browser-site-chip-icon { color: var(--success); }
 .browser-site-chip-details[data-security="insecure"] .browser-site-chip-icon { color: var(--warning); }
 .browser-site-chip-caret { flex: 0 0 11px; opacity: .7; }

@@ -227,8 +227,9 @@ test('tarayıcı geçmiş paneli klavyeyle kapanıyor ve gezinti durumu anlaşı
     js.indexOf('function renderBrowserCueAt'));
   assert(/Yüklemeyi durdur/.test(navigation) && /HTTPS bağlantısı/.test(navigation),
     'yenile/durdur veya bağlantı güvenliği kullanıcıya açıklanmıyor');
-  assert(/browser-reload-spin/.test(css) && /browser-tab-loading/.test(css),
-    'yüklenme geri bildiriminin görsel durumu eksik');
+  assert(/\.browser-nav-button\.loading \.browser-stop-icon\s*\{\s*display:\s*block/.test(css)
+    && /browser-tab-loading/.test(css),
+    'yüklenme geri bildiriminin görsel durumu (durdur ikonu) eksik');
   const tabs = js.slice(js.indexOf('function renderBrowserTabs()'),
     js.indexOf('function updateBrowserPinMenu()'));
   assert(/browser-tab-favicon/.test(tabs) && /referrerPolicy\s*=\s*'no-referrer'/.test(tabs),

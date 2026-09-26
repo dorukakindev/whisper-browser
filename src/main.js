@@ -5240,12 +5240,13 @@ async function navigateBrowserHistory(tab, wc, direction) {
   return true;
 }
 
-function reloadBrowserTab(tab, wc) {
+function reloadBrowserTab(tab, wc, ignoreCache = false) {
   if (!tab || !wc || browserTabById(tab.id) !== tab || tab.id !== browserActiveTabId
       || tab.view !== browserView || tab.view?.webContents !== wc || wc.isDestroyed?.()) return false;
   tab.navigationRequestSeq = (Number(tab.navigationRequestSeq) || 0) + 1;
   suspendBrowserInstrumentationForNavigation(tab, tab.view);
-  wc.reload();
+  if (ignoreCache && typeof wc.reloadIgnoringCache === 'function') wc.reloadIgnoringCache();
+  else wc.reload();
   return true;
 }
 
@@ -12055,6 +12056,12 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     event.preventDefault();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
+  // Sayfa odağı aldığında renderer'daki adres çubuğu hâlâ DOM odağında kalır;
+  // haber verilmezse kullanıcı sayfada gezinirken eski URL gösterilmeye devam eder.
+  wc.on('focus', () => {
+    if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    sendBrowserEvent(tab, { type: 'page-focus' });
+  });
   wc.on('enter-html-full-screen', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
     tab.htmlFullscreen = true;
@@ -14319,8 +14326,8 @@ ipcMain.handle('browser:command', async (event, payload) => {
       if (!await navigateBrowserHistory(tab, wc, 'forward')) {
         return { ok: false, stale: true, error: 'Sekme değişti veya daha yeni gezinme isteği var.' };
       }
-    } else if (command === 'reload') {
-      if (!reloadBrowserTab(tab, wc)) {
+    } else if (command === 'reload' || command === 'reload-hard') {
+      if (!reloadBrowserTab(tab, wc, command === 'reload-hard')) {
         return { ok: false, stale: true, error: 'Sekme değiştiği için sayfa yenilenmedi.' };
       }
     } else if (command === 'stop') {

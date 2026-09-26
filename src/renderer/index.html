@@ -1199,15 +1199,25 @@
               <button class="btn-icon browser-nav-button" id="browserForward" type="button" title="İleri" disabled
                 aria-label="İleri"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7"/></svg></button>
               <button class="btn-icon browser-nav-button" id="browserReload" type="button" title="Yenile"
-                aria-label="Yenile"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 4v7h-7"/></svg></button>
+                aria-label="Yenile"><svg class="browser-reload-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 4v7h-7"/></svg><svg class="browser-stop-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></svg></button>
             </div>
             <div class="browser-address-wrap">
               <details class="browser-site-chip-details" id="browserSiteChipDetails">
                 <summary class="browser-site-chip" id="browserSiteChip" title="Site bilgisi ve izinler"
                   aria-label="Site bilgisi ve izinler" aria-haspopup="menu">
-                  <svg class="browser-site-chip-icon" viewBox="0 0 24 24" width="13" height="13" fill="none"
+                  <!-- Durum ikonu data-security'ye göre seçilir: kilit yalnız HTTPS'te.
+                       Şifrelenmemiş HTTP'de kilit göstermek yanıltıcıydı. -->
+                  <svg class="browser-site-chip-icon is-secure" viewBox="0 0 24 24" width="13" height="13" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/>
+                  </svg>
+                  <svg class="browser-site-chip-icon is-insecure" viewBox="0 0 24 24" width="13" height="13" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4.5M12 17.5h.01"/>
+                  </svg>
+                  <svg class="browser-site-chip-icon is-none" viewBox="0 0 24 24" width="13" height="13" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>
                   </svg>
                   <span class="browser-site-chip-host" id="browserSiteChipHost"></span>
                   <svg class="browser-site-chip-caret" viewBox="0 0 24 24" width="11" height="11" fill="none"
@@ -1749,7 +1759,7 @@
                     <input type="range" id="browserOverlayWidth" min="40" max="98" step="2" value="86" /></label>
                   <label><span>Azami satır</span><input type="number" id="browserOverlayMaxLines" min="1" max="6" value="3" /></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserOverlaySourceFirst" checked /><span>Kaynak üstte, çeviri altta</span></label>
-                  <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" /><span>Sitenin kendi altyazısını gizle</span></label>
+                  <label class="browser-view-switch"><input type="checkbox" id="browserHideSiteCaptions" checked /><span>Sitenin kendi altyazısını gizle</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserRateFightback" /><span>Site hızı sıfırlarsa geri uygula</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserPreservesPitch" checked /><span>Hız değişince ses perdesini koru</span></label>
                   <label class="browser-view-switch"><input type="checkbox" id="browserAutoPip" /><span>Sekme değişince videoyu küçük oynatıcıda sürdür</span></label>
