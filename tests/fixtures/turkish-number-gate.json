@@ -1,0 +1,151 @@
+{
+ "_aciklama": "Sayı kalite kapısı (translation_blocking_issues) parite korpusu. 'accept': doğal Türkçe karşılık, reddedilmemeli. 'reject': değer değişmiş, reddedilmeli. Hem backend/test_translation_number_gate.py hem tests/translation-number-gate.test.js bu dosyayı okur.",
+ "accept": [
+  [
+   "Give me 2 or 3 days.",
+   "Bana iki üç gün ver."
+  ],
+  [
+   "It takes 5 or 10 minutes.",
+   "Beş on dakika sürer."
+  ],
+  [
+   "Chapter 1",
+   "Birinci bölüm"
+  ],
+  [
+   "It is 24/7.",
+   "Yedi yirmi dört açık."
+  ],
+  [
+   "Meet me at 5:15.",
+   "Beşi çeyrek geçe buluşalım."
+  ],
+  [
+   "Meet me at 5:45.",
+   "Altıya çeyrek kala buluşalım."
+  ],
+  [
+   "Meet me at 5:00.",
+   "Saat beşte buluşalım."
+  ],
+  [
+   "Meet me at 4:45.",
+   "Beşe çeyrek kala."
+  ],
+  [
+   "Meet me at 3:45.",
+   "Dörde çeyrek kala."
+  ],
+  [
+   "At 4:10.",
+   "Dördü on geçe."
+  ],
+  [
+   "At 5:50.",
+   "Altıya on kala."
+  ],
+  [
+   "At 12:30.",
+   "Yarımda."
+  ],
+  [
+   "At 17:00.",
+   "Akşam beşte."
+  ],
+  [
+   "The 2 of us.",
+   "İkimiz."
+  ],
+  [
+   "Both of them, the 2 of them.",
+   "İkisi de."
+  ],
+  [
+   "Take 2.",
+   "İkinciyi al."
+  ],
+  [
+   "I came 4th.",
+   "Dördüncü oldum."
+  ],
+  [
+   "We have 45 seconds.",
+   "Kırk beş saniyemiz var."
+  ],
+  [
+   "It costs 1,500 dollars.",
+   "Bin beş yüz dolar."
+  ],
+  [
+   "Meet me at 5:30.",
+   "Beş buçukta buluşalım."
+  ],
+  [
+   "I have 2 kids.",
+   "İki çocuğum var."
+  ],
+  [
+   "Wait 5 minutes.",
+   "Beş dakika bekle."
+  ],
+  [
+   "Call 911!",
+   "911'i ara!"
+  ],
+  [
+   "It costs 1000 dollars.",
+   "Bin dolar tutuyor."
+  ],
+  [
+   "Meet me at 5.",
+   "Beşte buluşalım."
+  ]
+ ],
+ "reject": [
+  [
+   "We have 45 seconds.",
+   "Kırk saniyemiz var."
+  ],
+  [
+   "Give me 2 or 3 days.",
+   "Bana üç dört gün ver."
+  ],
+  [
+   "Meet me at 5:15.",
+   "Altıyı çeyrek geçe buluşalım."
+  ],
+  [
+   "Meet me at 5:45.",
+   "Beşe çeyrek kala buluşalım."
+  ],
+  [
+   "At 5:10.",
+   "Beşi yirmi geçe."
+  ],
+  [
+   "I have 2 kids.",
+   "Üç çocuğum var."
+  ],
+  [
+   "Chapter 1",
+   "İkinci bölüm"
+  ],
+  [
+   "It costs 250 dollars.",
+   "İki yüz dolar."
+  ],
+  [
+   "The 3 of us.",
+   "İkimiz."
+  ],
+  [
+   "Meet me at 5:00.",
+   "Saat altıda buluşalım."
+  ],
+  [
+   "Meet me at 5:30 with 2 friends.",
+   "Beş buçukta buluşalım."
+  ]
+ ]
+}
