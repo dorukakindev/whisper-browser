@@ -3716,6 +3716,22 @@ body::before {
   flex-shrink: 0;
   transition: background .14s ease, color .14s ease, transform .1s ease, border-color .14s ease; border-color: var(--border); border-radius: 8px; }
 .btn-icon:hover { color: #f3c884; background: #2a2319; border-color: #8d693b; }
+/* <summary> defaults to list-item, unlike the neighboring icon buttons. Keep
+   every player/browser icon centered within its actual hit target. */
+.player-layer .btn-icon { display: inline-grid; place-items: center; padding: 0; }
+.player-layer .btn-icon > svg {
+  display: block;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.player-layer .player-head-button,
+.player-layer .side-tool { width: 34px; height: 34px; }
+.player-layer .side-tab-actions .side-tool { flex-basis: 34px; }
+.player-layer .browser-place-button { width: 32px; height: 32px; }
+.player-layer :is(.player-head-button, .side-tool, .browser-place-button) > svg {
+  width: 18px;
+  height: 18px;
+}
 .preset-select {
   background: var(--bg-3);
   border: 1px solid var(--border);
@@ -6950,4 +6966,4 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .player-side.side-rail .side-tab .side-tab-ico { display: inline-flex; }
 .player-side.side-rail .side-tab .side-tab-ico svg { width: 17px; height: 17px; }
 .player-side.side-rail .side-tab-actions { flex-direction: column; gap: 4px; margin-left: 0; }
-.player-side.side-rail .side-tab-actions .side-tool { width: 32px; height: 32px; }
+.player-side.side-rail .side-tab-actions .side-tool { width: 32px; height: 32px; flex-basis: 32px; }
