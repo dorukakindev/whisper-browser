@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-0230.md](docs/devir/2026-09-28-0230.md) — R184 preload↔renderer↔main IPC yüzeyi + dormant TV tam-ekran düğmesi bağlandı
+Güncel çalışma: [docs/devir/2026-09-28-0310.md](docs/devir/2026-09-28-0310.md) — R185 innerHTML XSS + localStorage kota + TODO/FIXME süpürmesi (writeSourceEdits sarmalı)
+Önceki çalışma: [docs/devir/2026-09-28-0230.md](docs/devir/2026-09-28-0230.md) — R184 preload↔renderer↔main IPC yüzeyi + dormant TV tam-ekran düğmesi bağlandı
 Önceki çalışma: [docs/devir/2026-09-28-0210.md](docs/devir/2026-09-28-0210.md) — R183 kaynak envanteri + tam-klasör ölü işlev taraması (6 ölü işlev silindi)
 Önceki çalışma: [docs/devir/2026-09-28-0110.md](docs/devir/2026-09-28-0110.md) — R182 backend yan araçları ikinci geçiş (13 modül temiz) + browser-dialogue Türkçe hata mesajı + yeni test dosyası
 Önceki çalışma: [docs/devir/2026-09-28-0030.md](docs/devir/2026-09-28-0030.md) — R181 araç/test altyapısı denetimi: Windows paketi 22MB+ iç yüzey sızıntısı kapandı + 3 test-altyapı düzeltmesi + ignore ratchet'i
