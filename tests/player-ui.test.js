@@ -2092,6 +2092,97 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
   assert(mainCalls.some(([n]) => n === 'cancelBtn'), 'düz hedefte Escape işi iptal etmedi');
 });
 
+test('R146: O tuşu izleme politikasını çevrimler ve tek vuruşta tek adım atar', () => {
+  const vm = require('vm');
+  // Aynı keydown kesiti: 'o' yalnız düz tuşta çalışmalı (Ctrl/Alt/repeat yok),
+  // değeri change'den ÖNCE yazmalı ki işleyici yeni politikayı görsün.
+  const keyStart = js.indexOf("document.addEventListener('keydown', (e) => {",
+    js.indexOf('// Klavye: oynatıcı açıkken'));
+  const keyEnd = js.indexOf('\n});', js.indexOf('// Gecikme/hiz/ses', keyStart) - 80) + 4;
+  assert(keyStart > 0 && keyEnd > keyStart, 'oynatıcı keydown işleyicisi kesilemedi');
+  const calls = [];
+  const rec = (name) => (...args) => { calls.push([name, ...args]); };
+  const mkEl = (hidden = true) => ({
+    classList: { contains: (c) => c === 'hidden' ? hidden : false, add() {}, remove() {} },
+    click: rec('el-click'),
+  });
+  const changeValues = [];
+  const policySel = {
+    value: 'normal',
+    listeners: {},
+    addEventListener(t, fn) { this.listeners[t] = fn; },
+    dispatchEvent(ev) { changeValues.push(this.value); this.listeners[ev.type]?.({ target: this }); return true; },
+    selectedOptions: [{ textContent: ' Normal ' }],
+  };
+  const elements = {
+    playerLayer: mkEl(false),
+    playerPlaybackPolicy: policySel,
+    playerVideo: { paused: true, play: rec('play'), pause: rec('pause'), currentTime: 0 },
+    subtitleModeMenu: mkEl(), browserPlacesPanel: mkEl(), browserDownloadsPanel: mkEl(),
+    shortcutHelp: mkEl(), settingsDrawer: mkEl(), fullscreenBtn: mkEl(),
+  };
+  const player = {
+    workspaceMode: 'player', editing: false, selectedWord: null,
+    subsHidden: false, cues: [], playbackPolicy: 'normal',
+  };
+  const ctx = vm.createContext({
+    document: {
+      addEventListener: (type, fn) => { ctx.__keyHandler = type === 'keydown' ? fn : ctx.__keyHandler; },
+      fullscreenElement: null, activeElement: null, hidden: false,
+      querySelector: () => null, querySelectorAll: () => [],
+    },
+    window: { api: { browserCommand: rec('browserCommand') },
+      BrowserCommandPalette: { browserShortcutForInput: () => null } },
+    Event: class { constructor(type) { this.type = type; } },
+    $: (id) => elements[id] ?? mkEl(),
+    $$: () => [],
+    player,
+    runBrowserShortcut: () => false,
+    browserCommand: rec('browserCommand'),
+    stepBrowserFrame: rec('stepBrowserFrame'), nudgeSpeed: rec('nudgeSpeed'),
+    nudgeOffset: rec('nudgeOffset'), setPlayerVolume: rec('setPlayerVolume'),
+    openCueEditor: rec('openCueEditor'), closeCueEditor: rec('closeCueEditor'),
+    stepCue: rec('stepCue'), replayCue: rec('replayCue'), copyCue: rec('copyCue'),
+    toggleCueSaved: rec('toggleCueSaved'), toggleWordSaved: rec('toggleWordSaved'),
+    toggleAbLoop: rec('toggleAbLoop'), capturePlayerFrame: rec('capturePlayerFrame'),
+    setShortcutHelpOpen: rec('setShortcutHelpOpen'), setSettingsDrawer: rec('setSettingsDrawer'),
+    setSubtitleModeMenuOpen: rec('setSubtitleModeMenuOpen'), setBrowserPlacesOpen: rec('setBrowserPlacesOpen'),
+    setBrowserDownloadsOpen: rec('setBrowserDownloadsOpen'), hideWordInspector: rec('hideWordInspector'),
+    setSubtitlesVisible: rec('setSubtitlesVisible'), closePlayer: rec('closePlayer'),
+    showControls: rec('showControls'), osd: rec('osd'), logLine: rec('logLine'),
+    setSubtitleMode: rec('setSubtitleMode'), stUpNextToggle: rec('stUpNextToggle'),
+    cancelStUpNextCountdown: () => false,
+    closePlayerDetailsMenus: rec('closePlayerDetailsMenus'),
+    toggleMiniPlayer: rec('toggleMiniPlayer'), setViewMode: rec('setViewMode'),
+    setBrowserModalOpen: rec('setBrowserModalOpen'), closeYoutubeLogin: rec('closeYoutubeLogin'),
+    console,
+  });
+  vm.runInContext(js.slice(keyStart, keyEnd), ctx);
+  const key = (props) => ctx.__keyHandler({
+    preventDefault: rec('preventDefault'),
+    target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
+    ...props,
+  });
+
+  // Beş vuruş tam çevrim: normal → accelerate-gaps → skip-gaps → shadowing
+  // → loop-cue → normal; her seferinde değer change öncesi yazılır.
+  for (const want of ['accelerate-gaps', 'skip-gaps', 'shadowing', 'loop-cue', 'normal']) {
+    key({ key: 'o' });
+    assert(policySel.value === want, `O tuşu '${want}' politikasına geçirmedi (bulunan: ${policySel.value})`);
+  }
+  assert(JSON.stringify(changeValues)
+    === JSON.stringify(['accelerate-gaps', 'skip-gaps', 'shadowing', 'loop-cue', 'normal']),
+    'change olayına eski değerle gidildi — işleyici bayat politika okur');
+
+  // Değiştiriciler ve basılı tutma politikayı değiştirmemeli.
+  for (const props of [{ ctrlKey: true }, { altKey: true }, { repeat: true }]) {
+    key({ key: 'o', ...props });
+    assert(policySel.value === 'normal', `O tuşu ${JSON.stringify(props)} ile politika değiştirdi`);
+  }
+  // OSD geri bildirimi seçilen etiket metniyle verilir.
+  assert(calls.filter(([n]) => n === 'osd').length >= 5, 'O çevrimi OSD bildirimi üretmedi');
+});
+
 test('playlist rayı Invidious thumbnail dizisiyle çöküp tüm sonuç gridini boş bırakmıyor', () => {
   // BUG-109-09: renderStPlaylistRail, absThumb'a pl.videoThumbnails DİZİSİNİ
   // veriyordu (dizide startsWith yok) → TypeError doSmartTubeSearch içinde

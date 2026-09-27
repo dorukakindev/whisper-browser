@@ -717,6 +717,8 @@
     ['Gösterilecek altyazı', 'Subtitle display'],
     ['Konuşulan kelimeyi vurgula', 'Highlight spoken word'],
     ['İzleme politikası', 'Playback policy'],
+    ['İzleme politikası altyazı yüklendiğinde etkinleşir', 'Playback policy applies once subtitles load'],
+    ['Tekrar et', 'Repeat it'],
     ['Altyazısız bölümü 2× hızlandır', 'Speed up caption-free gaps to 2×'],
     ['Altyazısız bölümü atla', 'Skip caption-free gaps'],
     ['Her altyazıyı belirli sayıda tekrarla', 'Repeat each cue a set number of times'],

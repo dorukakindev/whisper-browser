@@ -889,7 +889,25 @@ to { opacity: 1; transform: none; }
   max-width: calc(100% - 28px);
   padding: 4px 9px;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, .78);
+  background: var(--osd-pill-bg);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+/* Öğrenme politikası durum çipi — sahnenin sağ üstünde kalıcı; sub-hidden-hint
+   ile aynı koyu cam hap, konum olarak üst köşede (kontrollerle çakışmaz). */
+.learning-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  max-width: calc(100% - 28px);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--osd-pill-bg);
   color: var(--text);
   font-size: 12px;
   white-space: nowrap;
@@ -3041,6 +3059,8 @@ to { opacity: 1; transform: translateY(0); }
    rengi. Dekor değil, yoğun ayar ekranında yön bulmayı kolaylaştıran katmanlar. */
 :root {
   color-scheme: dark;
+  /* Video üstü hap/rozet zemini (sub-hidden-hint, learning-badge, osd). */
+  --osd-pill-bg: rgba(0, 0, 0, .78);
   --bg-0: #0a0c0f;
   --bg-1: #101419;
   --bg-2: #151b22;

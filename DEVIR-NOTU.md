@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 12:10 — R145 soak ölçüm sertleştirme (faz-ayrık heap eğimi, yazıcı-bazlı disk bütçesi, aynı-durum dinleyici probu; gerçek sızıntı yok; diff3 marker silindi + CI yasağı); rapor 140](docs/devir/2026-09-27-1210.md).
+Güncel çalışma: [2026-09-27 13:20 — R146 öğrenme modları cilası (O tuşu politika çevrimi, sahne rozeti + ↻ N/M ilerleme, altyazısız OSD geri bildirimi)](docs/devir/2026-09-27-1320.md).
+
+Önceki çalışma: [2026-09-27 12:10 — R145 soak ölçüm sertleştirme (faz-ayrık heap eğimi, yazıcı-bazlı disk bütçesi, aynı-durum dinleyici probu; gerçek sızıntı yok; diff3 marker silindi + CI yasağı); rapor 140](docs/devir/2026-09-27-1210.md).
 
 Önceki çalışma: [2026-09-27 10:50 — R144 ölü kod (normalizeAnchorText + resetCueRaw; serialize-scope sınırı belgelendi)](docs/devir/2026-09-27-1050.md).
 
