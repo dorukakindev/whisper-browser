@@ -21,6 +21,16 @@ class Item extends EventEmitter {
   resume() { this.paused = false; this.resumed = true; this.emit('updated', {}, 'progressing'); }
 }
 
+// Sabit uyku yerine koşul yoklaması: debounce flush'ının keyfi pencerede
+// bitmesi CI yükünde kararsızlık üretir.
+async function waitFor(check, label, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error(`waitFor zaman aşımı: ${label}`);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+}
+
 (async () => {
   const ses = new EventEmitter(), events = [], revealed = [];
   let allowed = true, fileExists = true;
@@ -36,7 +46,7 @@ class Item extends EventEmitter {
   one.total = 100; one.received = 20;
   for (let i = 0; i < 100; i++) one.emit('updated', {}, 'progressing');
   assert.equal(events.length, 1, 'progress event flood');
-  await new Promise(resolve => setTimeout(resolve, 15));
+  await waitFor(() => events.length === 2, 'debounce flush ikinci snapshot üretmeli');
   assert.equal(events.length, 2);
   assert.equal(events.at(-1).items[0].received, 20);
   assert.equal(manager.action(id, 'pause').ok, true);
