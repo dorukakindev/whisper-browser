@@ -983,6 +983,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
         // MPD'de timescale bulunmayabilir; 1 varsaymak tfdt değerlerini
         // günler sonrasına şişirir. Çağıran taraf init segmentindeki mdhd'yi okur.
         timescale: Math.max(0, Number(attr(templateTag, 'timescale')) || 0),
+        presentationTimeOffset: Number(attr(templateTag, 'presentationTimeOffset')) || 0,
         initializationUrl,
         duration: Math.max(0, Number(attr(templateTag, 'duration')) || 0),
         startNumber: dashStartNumber(attr(templateTag, 'startNumber')), periodStart,
@@ -1062,7 +1063,14 @@ function dashSegmentOffset(matcher) {
     return periodStart + (matcher.segmentTime - (Number(matcher.presentationTimeOffset) || 0)) / timescale;
   }
   if (!Number.isFinite(value)) return periodStart;
-  if (matcher.variable === 'time') return periodStart + Math.max(0, value / timescale);
+  if (matcher.variable === 'time') {
+    // $Time$ adresinde URL ham SegmentTimeline t değerini taşır; medya zamanı
+    // (t - presentationTimeOffset) / timescale'dir — üstteki segmentTime dalıyla
+    // aynı dönüşüm. Ofset atlanırsa canlı yayınlarda cue'lar saatlerce öteye
+    // yerleşir.
+    const offset = Number(matcher.presentationTimeOffset) || 0;
+    return periodStart + (value - offset) / timescale;
+  }
   if (matcher.variable === 'number' || matcher.variable === 'subnumber') {
     const duration = Math.max(0, Number(matcher.duration) || 0);
     const start = dashStartNumber(matcher.startNumber);

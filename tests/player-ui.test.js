@@ -156,6 +156,18 @@ test('web medya probu üst üste binmiyor ve gezinme sonrası eski sonucu yayın
     'eski medya probu yeni probun busy durumunu temizleyebiliyor');
 });
 
+test('web medya probu gözlenen hızı 4x kontrol sınırına sıkıştırmıyor', () => {
+  // Gözlenen playbackRate sitenin gerçek değeridir; 4x kontrol sınırına
+  // kelepçelemek renderer'daki seek/çevrim eşiğini (naturalStep = rate*1.75)
+  // gerçeklikten koparıp >4x oynatmada A-B döngüsünü kırıyordu.
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
+  const poll = main.slice(main.indexOf('async function probeActiveBrowserMedia'), main.indexOf('function stopBrowserPolling'));
+  assert(/Math\.min\(16,\s*playbackRate\)/.test(poll),
+    'gözlenen hız 16x sağlık sınırına kelepçelenmeli, kontrol sınırına değil');
+  assert(!/Math\.min\(4,\s*playbackRate\)/.test(poll),
+    'gözlenen hız hâlâ 4x kontrol sınırına sıkıştırılıyor');
+});
+
 test('HTML5 altyazı probu aynı uzunluktaki orta cue düzeltmelerini kaçırmıyor', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf-8');
   const probe = main.slice(main.indexOf('function browserTrackProbeScript'),

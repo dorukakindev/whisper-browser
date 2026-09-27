@@ -11816,7 +11816,11 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       ...media,
       currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
-      playbackRate: Number.isFinite(playbackRate) ? Math.max(0.25, Math.min(4, playbackRate)) : 1,
+      // Gözlenen hız sitenin gerçek değeridir: kontrol sınırı 4x ama siteler
+      // daha hızlı oynatabilir; burada sıkıştırmak renderer'daki seek/çevrim
+      // eşiklerini (ör. doğal adım tahmini) gerçeklikten koparır. Sınır yalnız
+      // sayısal sağlık içindir.
+      playbackRate: Number.isFinite(playbackRate) ? Math.max(0.0625, Math.min(16, playbackRate)) : 1,
       volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0,
       readyState: Number.isFinite(readyState) ? Math.max(0, Math.min(4, readyState)) : 0,
       videoWidth: Number.isFinite(videoWidth) ? Math.max(0, videoWidth) : 0,
