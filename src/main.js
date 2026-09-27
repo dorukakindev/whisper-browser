@@ -15564,7 +15564,7 @@ ipcMain.handle('browser:manga:export', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
-  if (request?.format === 'png') return saveBrowserPageCapture(tab, 'Manga katmanını görsel olarak dışa aktar');
+  if (request?.format === 'png') return saveBrowserPageCapture(tab, dt('Manga katmanını görsel olarak dışa aktar', 'Export manga layer as image'));
   const pages = [...(tab.mangaPages || new Map()).entries()].map(([imageId, page]) => ({
     imageId, width: Number(page.candidate?.width) || 0, height: Number(page.candidate?.height) || 0,
     pageTitle: page.pageTitle || '', regions: normalizeMangaRegions(page.regions),
@@ -15920,7 +15920,7 @@ ipcMain.handle('browser:capturePage', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
-  return saveBrowserPageCapture(tab, 'Tarayıcı ekran görüntüsünü kaydet', request?.options || {});
+  return saveBrowserPageCapture(tab, dt('Tarayıcı ekran görüntüsünü kaydet', 'Save browser screenshot'), request?.options || {});
 });
 
 // A17 — Harici oynatıcıya devir (mpv/VLC): beyaz liste çözümleme + yalnız
