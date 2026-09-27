@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 14:10 — R147 gauntlet bakiyesi (T8: 222 IPC işleyicisi yetki denetimi + ratchet; T6: publishBrowserTrackNow atomik yazı); rapor 141](docs/devir/2026-09-27-1410.md).
+Güncel çalışma: [2026-09-27 11:15 — R148 yerel abonelik RSS akışı (oturumsuz feeds/videos.xml son videolar; subs:rssFeed IPC + parser + UI bölümü)](docs/devir/2026-09-27-1115.md).
+
+Önceki çalışma: [2026-09-27 14:10 — R147 gauntlet bakiyesi (T8: 222 IPC işleyicisi yetki denetimi + ratchet; T6: publishBrowserTrackNow atomik yazı); rapor 141](docs/devir/2026-09-27-1410.md).
 
 Önceki çalışma: [2026-09-27 13:20 — R146 öğrenme modları cilası (O tuşu politika çevrimi, sahne rozeti + ↻ N/M ilerleme, altyazısız OSD geri bildirimi)](docs/devir/2026-09-27-1320.md).
 

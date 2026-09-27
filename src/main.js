@@ -17342,6 +17342,56 @@ ipcMain.handle('subscriptions:import', async (event) => {
   }
 });
 
+// Yerel aboneliklerin YouTube RSS beslemeleri — oturum/anahtar gerektirmez.
+// URL yalnızca beyaz-listelenmiş UC kimliğinden kurulur; besleme başına
+// 256 KB / 8 sn / 4 eşzamanlı sınır, kanal başına hata tek tek toplanır.
+ipcMain.handle('subs:rssFeed', async (event, payload) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const raw = Array.isArray(payload && payload.channels) ? payload.channels : [];
+  const channels = [];
+  const seenIds = new Set();
+  for (const item of raw) {
+    const authorId = String(item && item.authorId || '');
+    if (!/^UC[\w-]{15,30}$/.test(authorId) || seenIds.has(authorId)) continue;
+    seenIds.add(authorId);
+    channels.push({ authorId });
+    if (channels.length >= 30) break;
+  }
+  if (!channels.length) return { ok: true, videos: [], skipped: raw.length, errors: 0 };
+  const { parseYouTubeFeed, mergeFeedVideos } = require('./subscription-feed');
+  const perFeed = [];
+  let errors = 0;
+  const pool = Math.min(4, channels.length);
+  const worker = async () => {
+    for (;;) {
+      const next = channels.shift();
+      if (!next) return;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`,
+          { signal: controller.signal, redirect: 'follow',
+            headers: { Accept: 'application/atom+xml, text/xml, */*' } });
+        const len = Number(res.headers.get('content-length')) || 0;
+        if (!res.ok || len > 256 * 1024) { errors += 1; continue; }
+        const text = (await res.text()).slice(0, 256 * 1024);
+        const parsed = parseYouTubeFeed(text);
+        if (!parsed.ok) { errors += 1; continue; }
+        for (const v of parsed.videos) {
+          if (!v.authorId) v.authorId = next.authorId;
+          if (!v.author) v.author = parsed.channel.author;
+        }
+        perFeed.push(parsed.videos);
+      } catch (_) { errors += 1; }
+      finally { clearTimeout(timer); }
+    }
+  };
+  await Promise.all(Array.from({ length: pool }, worker));
+  const videos = mergeFeedVideos(perFeed, 60);
+  return { ok: true, videos, errors, skipped: raw.length - channels.length };
+});
+
 ipcMain.handle('settings:export', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showSaveDialog(mainWindow, {
