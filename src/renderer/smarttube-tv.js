@@ -215,6 +215,7 @@
     $('stTvModeBtn')?.addEventListener('click', () => { void openTvMode(); });
     $('stTvClose')?.addEventListener('click', () => { window.api?.youtubeTvClose?.(); });
     $('stTvFocus')?.addEventListener('click', () => { void openTvMode(); });
+    $('stTvFull')?.addEventListener('click', () => { void window.api?.youtubeTvFullscreen?.().catch(() => null); });
     $('stTvHandoff')?.addEventListener('click', () => openInTools(tvState.videoId));
     $('stTvNextAgent')?.addEventListener('click', () => {
       const id = nextAgentId();
