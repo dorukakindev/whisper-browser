@@ -80,6 +80,40 @@ test('Shift-JIS Japonca (kana+kanji karışımı) doğru çözülür', () => {
   assert.ok(result.text.includes('こんにちは世界'), result.text);
 });
 
+test('seyrek bozuk UTF-8, dil ipucuna karşı UTF-8 kalır (ru dosyası UTF-8 göndermiş)', () => {
+  // Sağlayıcı language='ru' dese bile tampon ≥%99 geçerli UTF-8 ise
+  // gözlemlenen çok-bayt dizileri ipucunu ezer; FFFD dalı legacy'den önce gelir.
+  const body = Buffer.from('Привет мир, как дела? Это нормальный русский субтитр.', 'utf8');
+  const input = Buffer.concat([body, Buffer.from([0xff, 0xfe])]);
+  const result = decodeSubtitleBuffer(input, { language: 'ru' });
+  assert.equal(result.note, 'utf-8 bozuk bayt atlandı');
+  assert.ok(result.text.includes('Привет мир'), result.text);
+});
+
+test('eski kodlama tahmini tampon başına tek geçte çalışır (çift tarama yok)', () => {
+  // pickLegacyEncoding bir kez çağrılmalı; ikinci çağrı ~20 ek TextDecoder
+  // kurar. Sınır, aday listesi büyüse bile tek geçiştir (~45 üstü = çift geçiş).
+  const RealDecoder = globalThis.TextDecoder;
+  let constructions = 0;
+  globalThis.TextDecoder = class extends RealDecoder {
+    constructor(...args) { constructions++; super(...args); }
+  };
+  try {
+    const input = Buffer.from([
+      0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, 0x20, 0xec, 0xe8, 0xf0,
+      0x2c, 0x20, 0xea, 0xe0, 0xea, 0x20, 0xe4, 0xe5, 0xeb, 0xe0, 0x3f,
+      0x20, 0xfd, 0xf2, 0xee, 0x20, 0xef, 0xf0, 0xee, 0xf1, 0xf2, 0xee,
+      0x20, 0xf2, 0xe5, 0xea, 0xf1, 0xf2, 0x20, 0xe4, 0xeb, 0xff, 0x20,
+      0xef, 0xf0, 0xee, 0xe2, 0xe5, 0xf0, 0xea, 0xe8, 0x2e,
+    ]);
+    const result = decodeSubtitleBuffer(input);
+    assert.equal(result.note, 'windows-1251');
+  } finally {
+    globalThis.TextDecoder = RealDecoder;
+  }
+  assert.ok(constructions > 0 && constructions <= 45, `constructions=${constructions}`);
+});
+
 test('dil ipucu belirsiz tek-bayt beraberliğini çözer (el → cp1253)', () => {
   const input = Buffer.from([
     0x31, 0x0a, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x31, 0x2c, 0x30, 0x30, 0x30,

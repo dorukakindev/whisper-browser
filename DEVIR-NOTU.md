@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
+Güncel çalışma: [2026-09-27 08:13 — R134: derin denetim devamı — eski-kodlama tahmininin çift taraması kaldırıldı + seyrek-bozuk UTF-8 sıralaması kasıtlı diye belgelendi; ~25 modül temiz çıktı; rapor BROWSER_BUG_REPORT_134.md](docs/devir/2026-09-27-0813.md).
+
+Önceki çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
 
 Önceki çalışma: [2026-09-26 18:38 — PR60 E2E bulgu düzeltmeleri: quick-pop popover'ları rAF'de `event.currentTarget` null'una takılıp ekran dışında kırpılıyordu (bloklayıcı düzeltildi); sabit sekme genişliği, omnibox URL tekilleştirmesi, kind etiketi i18n](docs/devir/2026-09-26-1838.md).
 
