@@ -687,7 +687,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-tab-group-label[data-group-color="cyan"] { border-color: var(--group-cyan); }
 .browser-tab-group-label[data-group-color="green"] { border-color: var(--group-green); }
 .browser-tab-group-label[data-group-color="gray"] { border-color: var(--group-gray); }
-.browser-tab.is-split-secondary { box-shadow: inset 0 -2px 0 #64bdcc; }
+.browser-tab.is-split-secondary { box-shadow: inset 0 -2px 0 var(--group-cyan); }
 .browser-tab[draggable="true"] { cursor: grab; }
 .browser-tab.is-dragging { opacity: .48; }
 @media (prefers-reduced-motion: reduce) {
