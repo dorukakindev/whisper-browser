@@ -440,6 +440,9 @@ if (process.env.WHISPER_RESOURCE_SOAK_USER_DATA) {
 if (RESOURCE_SOAK_MODE) app.commandLine.appendSwitch('js-flags', '--expose-gc');
 const resourceSoakTracker = RESOURCE_SOAK_MODE ? createResourceTracker() : null;
 let resourceSoakPublicationCount = 0;
+// Mod geçişi öncesi/sonrası renderer dinleyici sayısı — aynı-durum sızıntı
+// ölçümü (evaluateResourceSoak 'renderer-listener-drift' bunu kullanır).
+const resourceSoakToggleProbes = [];
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
@@ -13101,6 +13104,27 @@ function resourceSoakSleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Her döngü sonunda alınan hafif heap noktası. Ağır snapshot'lar yalnız
+// kontrol noktalarında toplanır; bu noktalar faz-etiketli olduğundan
+// (video|page) eğim hesabı aynı-faz serilerinde yapılır — video sayfasının
+// hls.js/ortam tamponları düz sayfa noktalarıyla karışıp sahte sızıntı
+// eğimi üretmez.
+async function collectResourceSoakHeapPoint(cycle, kind) {
+  const browserContents = browserView && !browserView.webContents.isDestroyed()
+    ? browserView.webContents : null;
+  const [browserHeap, rendererHeap] = await Promise.all([
+    resourceCdpHeap(browserContents),
+    resourceCdpHeap(mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null),
+  ]);
+  return {
+    cycle,
+    kind,
+    browserHeapBytes: browserHeap.heapUsedBytes,
+    rendererHeapBytes: rendererHeap.heapUsedBytes,
+    mainHeapBytes: process.memoryUsage().heapUsed,
+  };
+}
+
 async function resourceSoakCycle(cycle, fixtureRoot) {
   const tab = activeBrowserTab(true);
   const view = ensureBrowserView(tab);
@@ -13191,7 +13215,14 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
     lastWatched: Date.now(),
     session: { id: `soak-session-${cycle}`, watchSeconds: 1, endPosition: cycle % 120 },
   });
-  if (cycle % 8 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+  if (cycle % 4 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+    // Mod geçişi ilk seferde SmartTube ızgarasını kurar (tek seferlik +N
+    // dinleyici); ikinci ve sonraki geçişlerde before/after farkı sıfır
+    // olmalıdır — artan fark, yeniden-render'ın bağlı düğümlere dinleyici
+    // eklediği anlamına gelir. Aynı-durum delta ölçümü buradan gelir.
+    const before = await mainWindow.webContents.executeJavaScript(
+      'window.__whisperResourceSoakSnapshot ? window.__whisperResourceSoakSnapshot().listeners : null', true
+    ).catch(() => null);
     await mainWindow.webContents.executeJavaScript(
       "document.getElementById('workspacePlayerMode')?.click(); true", true
     );
@@ -13200,6 +13231,12 @@ async function resourceSoakCycle(cycle, fixtureRoot) {
       "document.getElementById('workspaceBrowserMode')?.click(); true", true
     );
     await resourceSoakSleep(30);
+    const after = await mainWindow.webContents.executeJavaScript(
+      'window.__whisperResourceSoakSnapshot ? window.__whisperResourceSoakSnapshot().listeners : null', true
+    ).catch(() => null);
+    if (Number.isFinite(before) && Number.isFinite(after)) {
+      resourceSoakToggleProbes.push({ cycle, before, after });
+    }
   }
   // Tanı nesnesi sekme/alan geçişlerinde yenilenebilir; yayın haritası ise bu
   // belge için gerçekten yazılmış ve UI'a sunulmuş izi temsil eder.
@@ -13295,6 +13332,16 @@ async function runResourceSoakSession() {
   let captureAttempts = 0;
   let captureSuccesses = 0;
   for (let cycle = 1; cycle <= warmup; cycle++) await resourceSoakCycle(-cycle, fixtureRoot);
+  // İlk oynatıcı↔tarayıcı mod geçişi SmartTube ızgarasını tek seferlik kurar;
+  // ölçülen döngüler "kurulmuş" durumda başlasın diye ısınmada bir kez yapılır.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    await mainWindow.webContents.executeJavaScript(
+      "document.getElementById('workspacePlayerMode')?.click(); true", true).catch(() => {});
+    await resourceSoakSleep(60);
+    await mainWindow.webContents.executeJavaScript(
+      "document.getElementById('workspaceBrowserMode')?.click(); true", true).catch(() => {});
+    await resourceSoakSleep(60);
+  }
   // Dinleyici/memory başlangıcı ile final aynı arayüz durumunu temsil etsin:
   // ilk uyanış site izinleri ve favicon yüzeylerini tembel olarak kurar.
   // Bu hazırlık ölçülen 50 hibernasyon denemesine dahil edilmez.
@@ -13308,9 +13355,13 @@ async function runResourceSoakSession() {
   // yüklenir; renderer-dinleyici/heap ölçümleri yeniden başlar, main-süreç
   // ölçümleri sürekli kalır. Rapor bu sınırı 'postreload' örneğiyle işaretler.
   const reloadAt = Number(process.env.WHISPER_RESOURCE_SOAK_RELOAD_AT) || Math.floor(cycles / 2);
+  const heapTrace = [];
   for (let cycle = 1; cycle <= cycles; cycle++) {
     captureAttempts++;
     if (await resourceSoakCycle(cycle, fixtureRoot)) captureSuccesses++;
+    try {
+      heapTrace.push(await collectResourceSoakHeapPoint(cycle, cycle % 2 === 0 ? 'video' : 'page'));
+    } catch (_) {}
     if (cycle === reloadAt) {
       mainWindow.webContents.reload();
       await resourceSoakSleep(400);
@@ -13355,6 +13406,8 @@ async function runResourceSoakSession() {
     runtime: { unhandledRejections: resourceSoakUnhandledRejectionCount },
     captureDiagnostics,
     peaks,
+    heapTrace,
+    toggleProbes: resourceSoakToggleProbes,
     samples,
   };
   report.verdict = evaluateResourceSoak(report);

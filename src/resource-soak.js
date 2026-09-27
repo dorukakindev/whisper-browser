@@ -18,6 +18,11 @@ const DEFAULT_RESOURCE_SOAK_BUDGETS = Object.freeze({
   rendererHeapSlopeBytesPerCycleMax: 48 * 1024,
   browserHeapSlopeBytesPerCycleMax: 48 * 1024,
   listenerDeltaMax: 0,
+  // Mod-geçiş probu başına dinleyici artışı: tek SmartTube kartı ~9 dinleyici
+  // tutar; yeniden-render'ın bağlı düğümlere dinleyici yığdığı gerçek sızıntı
+  // her geçişte ≥ kart başına dinleyici kadar büyür. +2..+4 gibi artıklar
+  // geçişler arasında kütüphaneye düşen tekil yeni kartların artığıdır.
+  toggleListenerDeltaMax: 8,
   mainTimerDeltaMax: 2,
   mainTimerPeakDeltaMax: 12,
   electronInternalTimerDeltaMax: 32,
@@ -27,7 +32,20 @@ const DEFAULT_RESOURCE_SOAK_BUDGETS = Object.freeze({
   browserSubtitleFileCountMax: 64,
   browserPlacesReadOpsPerCycleMax: 1.1,
   watchLibraryReadOpsPerCycleMax: 1.1,
-  diskWriteOpsPerCycleMax: 10,
+  // Toplu disk yazım bütçesi yazarları birbirine karıştırır ve kısa smoke
+  // koşularında debounce flush zamanlamasından sahte kırmızı üretir; her
+  // yazara ayrı döngü-başına bütçe uygulanır.
+  diskWriteOpsPerCycleMax: 24,
+  writeOpsPerCycle: Object.freeze({
+    watchLibrary: 4,      // tmp + .bak.tmp çifti upsert başına ~2
+    browserPlaces: 3,     // debounce flush'ları
+    browserSession: 3,    // 10 sn'lik leading flush penceresi
+    queueState: 2,
+    settings: 2,
+    subtitleFiles: 6,     // yayınlanan web-*.srt
+    browserAssets: 6,     // asset json+srt çiftleri
+    other: 2,             // tanınmayan yazarlar da sınırlı kalsın
+  }),
   overlayRenderAverageMsMax: 8,
   overlayRenderMaxMsMax: 50,
 });
@@ -64,6 +82,52 @@ function fileCounter(snapshot, suffix) {
   return match ? match[1] : { readOps: 0, writeOps: 0 };
 }
 
+// io.byFile yolunu yazar kategorisine eşler. Dosya adı önekiyle eşleşir —
+// watch-library.json.tmp ve watch-library.json.bak.tmp aynı yazara dahildir.
+const WRITE_CATEGORY_PATTERNS = Object.freeze([
+  ['watchLibrary', /watch-library(-tombstones)?\.json/i],
+  ['browserPlaces', /browser-places\.json/i],
+  ['browserSession', /\.browser-session\.json/i],
+  ['queueState', /queue-state\.json/i],
+  ['settings', /settings\.json/i],
+  ['subtitleFiles', /browser-subtitles[/\\][^/\\]*\.srt/i],
+  ['browserAssets', /browser-assets[/\\]/i],
+]);
+
+function writeCategoryFor(filePath) {
+  const text = String(filePath || '');
+  const base = text.split(/[/\\]/).pop() || text;
+  for (const [name, pattern] of WRITE_CATEGORY_PATTERNS) {
+    if (pattern.test(base) || pattern.test(text)) return name;
+  }
+  return 'other';
+}
+
+function writeOpsByCategoryDelta(startSnapshot, finalSnapshot) {
+  const result = {};
+  const startFiles = (startSnapshot && startSnapshot.io && startSnapshot.io.byFile) || {};
+  const finalFiles = (finalSnapshot && finalSnapshot.io && finalSnapshot.io.byFile) || {};
+  for (const [file, counter] of Object.entries(finalFiles)) {
+    const before = startFiles[file] && startFiles[file].writeOps;
+    const deltaOps = Math.max(0, finite(counter && counter.writeOps) - finite(before));
+    if (!deltaOps) continue;
+    const category = writeCategoryFor(file);
+    result[category] = (result[category] || 0) + deltaOps;
+  }
+  return result;
+}
+
+// Döngü sonrası hafif heap noktaları faz-etiketlidir ('video'/'page'): düz
+// sayfa ile hls.js video sayfası heap'i ~1.5MB ayrışır, karışık regresyon
+// sahte eğim üretir. Aynı-faz alt serilerinde ayrı eğim hesaplanır.
+function heapTraceSlope(trace, kind, field) {
+  const points = (Array.isArray(trace) ? trace : [])
+    .filter(point => point && point.kind === kind)
+    .map(point => ({ cycle: finite(point.cycle, NaN), [field]: finite(point[field], NaN) }));
+  if (points.length < 3) return null;
+  return linearSlope(points, field);
+}
+
 function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
   const samples = Array.isArray(report && report.samples) ? report.samples : [];
   const start = samples.find(sample => sample.label === 'start') || samples[0] || {};
@@ -82,6 +146,44 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     / Math.max(1, hibernationAttempts);
   const stableSamples = samples.filter(sample => sample.label !== 'cleanup');
   const maximum = key => stableSamples.reduce((value, sample) => Math.max(value, finite(readPath(sample, key))), 0);
+  // Heap eğimi: döngü sonrası faz-etiketli hafif noktalar (heapTrace) varsa
+  // video/page alt serilerinde ayrı regreslenir; yoksa eski snapshot
+  // serisine düşülür (geriye dönük rapor uyumluluğu).
+  const heapTrace = Array.isArray(report && report.heapTrace) ? report.heapTrace : [];
+  const traceSlope = (field) => {
+    const slopes = ['video', 'page']
+      .map(kind => heapTraceSlope(heapTrace, kind, field))
+      .filter(value => value !== null);
+    return slopes.length ? Math.max(...slopes) : null;
+  };
+  const browserTraceSlope = traceSlope('browserHeapBytes');
+  const rendererTraceSlope = traceSlope('rendererHeapBytes');
+  const sampleStable = samples.filter(sample => /^stable|^postreload/.test(String(sample.label || '')));
+  // Dinleyici deltası start→final karşılaştırması renderer reload sınırını
+  // aşıyordu ve UI-durum farkını (örn. hibernasyon sonrası çip) sızıntı
+  // sayıyordu. Ana süreç emitter'ları süreç-ömrü boyunca sabittir — onların
+  // deltası kesin sızıntıdır; renderer+fixture sayacı ise aynı-faz stable
+  // noktalarında (hepsi video döngüsü sonrası) ölçülür.
+  const mainEmitterKeys = ['mainWindow', 'mainContents', 'browserContents', 'browserDebugger'];
+  const mainEmitterDelta = mainEmitterKeys
+    .reduce((total, key) => total + delta(`listeners.${key}`), 0);
+  const postReloadIdx = samples.findIndex(sample => /^postreload/.test(String(sample.label || '')));
+  const steadySamples = sampleStable
+    .filter((sample) => postReloadIdx < 0 || samples.indexOf(sample) > postReloadIdx);
+  // En temiz aynı-durum ölçümü: her mod-geçişi probu (toggleProbes) oynatıcı
+  // → tarayıcı turunda before/after dinleyici sayısını kaydeder. Ilk render
+  // ısınmada yapılır; ölçülen problarda after-before ≤0 beklenir.
+  const toggleProbes = Array.isArray(report && report.toggleProbes) ? report.toggleProbes : [];
+  const toggleDeltas = toggleProbes
+    .map(probe => finite(probe.after) - finite(probe.before))
+    .filter(Number.isFinite);
+  const rendererListenerDrift = toggleDeltas.length
+    ? Math.max(0, ...toggleDeltas)
+    : (steadySamples.length >= 2
+      ? finite(readPath(steadySamples[steadySamples.length - 1], 'listeners.total'))
+        - finite(readPath(steadySamples[0], 'listeners.total'))
+      : delta('listeners.total'));
+  const writeByCategory = writeOpsByCategoryDelta(start, final);
   const values = {
     captureSuccessRate: captureRate,
     hibernationSuccessRate: hibernationRate,
@@ -92,9 +194,14 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     browserHeapDeltaBytes: delta('browser.heapUsedBytes'),
     totalWorkingSetDeltaBytes: delta('processes.totalWorkingSetBytes'),
     gpuWorkingSetDeltaBytes: delta('gpu.workingSetBytes'),
-    rendererHeapSlopeBytesPerCycle: linearSlope(samples.filter(sample => sample.label !== 'cleanup'), 'renderer.heapUsedBytes'),
-    browserHeapSlopeBytesPerCycle: linearSlope(samples.filter(sample => sample.label !== 'cleanup'), 'browser.heapUsedBytes'),
-    listenerDelta: delta('listeners.total'),
+    rendererHeapSlopeBytesPerCycle: rendererTraceSlope !== null
+      ? rendererTraceSlope
+      : linearSlope(samples.filter(sample => sample.label !== 'cleanup'), 'renderer.heapUsedBytes'),
+    browserHeapSlopeBytesPerCycle: browserTraceSlope !== null
+      ? browserTraceSlope
+      : linearSlope(samples.filter(sample => sample.label !== 'cleanup'), 'browser.heapUsedBytes'),
+    listenerDelta: mainEmitterDelta,
+    rendererListenerDrift,
     mainTimerDelta: delta('timers.main.projectActive'),
     mainTimerPeakDelta: finite(report && report.peaks && report.peaks.mainProjectTimers)
       - finite(readPath(start, 'timers.main.projectActive')),
@@ -109,6 +216,8 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     watchLibraryReadOpsPerCycle: Math.max(0,
       finite(finalLibrary.readOps) - finite(startLibrary.readOps)) / cycles,
     diskWriteOpsPerCycle: Math.max(0, delta('io.writeOps')) / cycles,
+    writeOpsByCategoryPerCycle: Object.fromEntries(
+      Object.entries(writeByCategory).map(([name, ops]) => [name, ops / cycles])),
     overlayRenderAverageMsMaxObserved: maximum('performance.overlay.renderAverageMs'),
     overlayRenderMaxMsObserved: maximum('performance.overlay.renderMaxMs'),
     overlayBoundaryCallbacksMaxObserved: maximum('performance.overlay.boundaryCallbacks'),
@@ -125,6 +234,7 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     ['renderer-heap-slope', values.rendererHeapSlopeBytesPerCycle, 'max', budgets.rendererHeapSlopeBytesPerCycleMax],
     ['browser-heap-slope', values.browserHeapSlopeBytesPerCycle, 'max', budgets.browserHeapSlopeBytesPerCycleMax],
     ['listener-delta', values.listenerDelta, 'max', budgets.listenerDeltaMax],
+    ['renderer-listener-drift', values.rendererListenerDrift, 'max', budgets.toggleListenerDeltaMax],
     ['main-timer-delta', values.mainTimerDelta, 'max', budgets.mainTimerDeltaMax],
     ['main-timer-peak-delta', values.mainTimerPeakDelta, 'max', budgets.mainTimerPeakDeltaMax],
     ['electron-internal-timer-delta', values.electronInternalTimerDelta, 'max', budgets.electronInternalTimerDeltaMax],
@@ -137,6 +247,11 @@ function evaluateResourceSoak(report, budgets = DEFAULT_RESOURCE_SOAK_BUDGETS) {
     ['watch-library-read-ops-per-cycle', values.watchLibraryReadOpsPerCycle,
       'max', budgets.watchLibraryReadOpsPerCycleMax],
     ['disk-write-ops-per-cycle', values.diskWriteOpsPerCycle, 'max', budgets.diskWriteOpsPerCycleMax],
+    // Yazar-bazlı döngü başına yazım bütçeleri: bir depodaki regresyonu
+    // (örn. debounce'suz session kaydı) doğrudan adıyla yakalar.
+    ...Object.entries(budgets.writeOpsPerCycle || {})
+      .map(([category, budget]) => [`disk-write-${category}-per-cycle`,
+        finite(values.writeOpsByCategoryPerCycle[category]), 'max', budget]),
     ['overlay-render-average-ms', values.overlayRenderAverageMsMaxObserved,
       'max', budgets.overlayRenderAverageMsMax],
     ['overlay-render-max-ms', values.overlayRenderMaxMsObserved,
