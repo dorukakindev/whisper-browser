@@ -232,6 +232,12 @@ test('gerçek ağ yardımcısı yanlış/eksik HTTP bayt aralığını kabul etm
     assertPublicBrowserSubtitleUrl: async () => {},
     withAbortTimeout: fn => fn(undefined),
     browserSubtitleStateError: (code, message) => Object.assign(Error(message), { code }),
+    // Sınır kapısının davranışı: gövde boyutu bellekte sayılır, aşımda reddedilir.
+    readResponseBufferLimited: async (res, maxBytes, label) => {
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (bytes.length > maxBytes) throw Error(`${label} güvenli boyut sınırını aşıyor.`);
+      return bytes;
+    },
   };
   vm.createContext(context); vm.runInContext(code, context);
   const fetch = () => context.fetchBrowserBuffer('https://fixture.example/text', 1024, null, { start: 20, end: 23 });
