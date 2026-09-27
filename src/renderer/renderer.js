@@ -2402,6 +2402,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserAdblockEnabled',
   'browserAutoSkipAds',
   'browserPlayerResponseAdPrune',
+  'browserDeArrowEnabled', 'browserRydDislikes',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
   'browserAutoPip',
 ];
@@ -4866,6 +4867,7 @@ const player = {
   isLive: false,
   downloading: false,
   mediaKey: '',      // konum hatirlamada KARARLI anahtar (bkz. mediaKeyFor)
+  videoExtras: null, // acik YouTube videosunun DeArrow/RYD topluluk verisi
   generation: 0,     // her kaynak degisiminde artar - eski asenkron sonuclari elemek icin
   originalUrl: '',   // kullanicinin girdigi kalici YouTube adresi (gecici HLS DEGIL)
   positions: {},     // { anahtar: {t, d, title, at} } - ayarlarda saklanir
@@ -12721,7 +12723,40 @@ function updatePlayerMeta() {
   else if (video && Number.isFinite(video.duration) && video.duration > 0) parts.push(pSecToTime(video.duration));
   if (player.cues.length) parts.push(`SRT ${player.cues.length}`);
   if (player.cues2.length) parts.push(`TR ${player.cues2.length}`);
+  const votes = player.videoExtras && player.videoExtras.votes;
+  if (votes && Number.isFinite(Number(votes.dislikes))) parts.push(`👎 ${formatCount(votes.dislikes)}`);
   if (parts.length) metaEl.textContent = parts.join(' · ');
+}
+
+// Acik YouTube videosu icin topluluk ekstralari: DeArrow oylanmis baslik ve
+// RYD begenmeme sayisi. Iki kaynak da ayar kutusuna bagli; kapali olan icin
+// istek dahi cikmaz. Yanit gecikirse mediaKey kontroluyle bayat sonuc
+// yeni videonun uzerine yazilmaz.
+async function maybeFetchPlayerVideoExtras() {
+  player.videoExtras = null;
+  const keyMatch = String(player.mediaKey || '').match(/^youtube:([A-Za-z0-9_-]{11})$/);
+  const sourceUrl = player.ytInfo && String(player.ytInfo.sourceUrl || '');
+  const videoId = keyMatch ? keyMatch[1]
+    : (sourceUrl ? youtubeVideoId(sourceUrl) : '') || youtubeVideoId(player.originalUrl);
+  if (!videoId || !window.api.getBrowserVideoExtras) return;
+  const wantDeArrow = $('browserDeArrowEnabled')?.checked === true;
+  const wantRyd = $('browserRydDislikes')?.checked === true;
+  if (!wantDeArrow && !wantRyd) return;
+  try {
+    const res = await window.api.getBrowserVideoExtras(videoId, { dearrow: wantDeArrow, dislikes: wantRyd });
+    if (!res || !res.ok || res.videoId !== videoId) return;
+    const stillCurrent = String(player.mediaKey || '').includes(videoId)
+      || (player.ytInfo && String(player.ytInfo.sourceUrl || '').includes(videoId))
+      || String(player.originalUrl || '').includes(videoId);
+    if (!stillCurrent) return;
+    player.videoExtras = res;
+    const communityTitle = res.dearrow && res.dearrow.title;
+    if (wantDeArrow && communityTitle && $('playerTitle')) {
+      // Ozgun baslik ytInfo'da durur; panel basligi topluluk secimini gosterir.
+      $('playerTitle').textContent = communityTitle;
+    }
+    updatePlayerMeta();
+  } catch (_) {}
 }
 
 function updateCueMeta() {
@@ -17209,6 +17244,10 @@ function setMediaKey(key) {
     player.playlistIndex = -1;
   }
   player.mediaKey = nextKey;
+  // Topluluk ekstrasi (DeArrow/RYD) onceki videonun verisini tasimasin.
+  if (player.videoExtras && !String(nextKey).includes(String(player.videoExtras.videoId || '\0'))) {
+    player.videoExtras = null;
+  }
   // "Sonraki" düğmesi yeni anahtarla hesaplanmalı — eski mediaKey ile çalıştırmak
   // youtube↔file geçişlerinde kuyruğu göremeyip bayat durum bırakıyordu.
   updatePlaylistButtons();
@@ -17438,6 +17477,7 @@ function setPlayerSource(src, title, key, meta) {
   if (title) $('playerTitle').textContent = title;
   player.metaBase = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
   updatePlayerMeta();
+  void maybeFetchPlayerVideoExtras();
   beginWatchSession();
   restoreWatchProfile(player.mediaKey);
 }
@@ -17666,6 +17706,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   if (title) $('playerTitle').textContent = title;
   player.metaBase = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
   updatePlayerMeta();
+  void maybeFetchPlayerVideoExtras();
   if (!preserveMediaState) {
     beginWatchSession();
     restoreWatchProfile(player.mediaKey);

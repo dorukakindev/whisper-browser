@@ -188,6 +188,10 @@ const {
   validateChapters: validateSponsorChapters,
   splitSponsorActions,
   clampSegmentsToDuration: clampSponsorSegmentsToDuration,
+  extractDeArrowBranding,
+  pickDeArrowTitle,
+  pickDeArrowThumbnail,
+  normalizeRydVotes,
   SponsorBlockCache,
 } = require('./browser-sponsorblock');
 const {
@@ -4348,6 +4352,14 @@ const sponsorBlockCache = new SponsorBlockCache();
 const sponsorBlockInFlight = new Map();
 const SPONSORBLOCK_HOST = 'sponsor.ajay.app';
 const MAX_SPONSORBLOCK_BYTES = 2 * 1024 * 1024;
+// DeArrow ayni hizmetin /api/branding ucunu kullanir; RYD dislikes ayrı
+// ana bilgisayardan gelir ve daha agresif negatif onbellek ister (hizmetin
+// kendi oran siniri katıdır — bos sonuclari kisa tutup istemleri kirpalim).
+const dearrowCache = new SponsorBlockCache({ maxEntries: 96 });
+const rydCache = new SponsorBlockCache({ maxEntries: 96, ttlMs: 60 * 60 * 1000, negativeTtlMs: 10 * 60 * 1000 });
+const videoExtrasInFlight = new Map();
+const RYD_HOST = 'returnyoutubedislikeapi.com';
+const MAX_VIDEO_EXTRAS_BYTES = 256 * 1024;
 
 
 function trackBrowserSessionMutation(task) {
@@ -14480,6 +14492,129 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
   return promise;
 }
 
+// SponsorBlock ile ayni hash-oneki gizlilik modelini kullanir: hizmete tam
+// video kimligi degil SHA-256'nin 4 hex karakteri gider, donen kisa listeden
+// dogru kayit istemci tarafinda secilir.
+function fetchDeArrowBranding(videoId) {
+  const cached = dearrowCache.get(videoId, [], 'branding');
+  if (cached) return Promise.resolve({ ok: true, ...cached, cached: true });
+  const key = `dearrow|${videoId}`;
+  if (videoExtrasInFlight.has(key)) return videoExtrasInFlight.get(key);
+  const promise = new Promise((resolve) => {
+    const prefix = sponsorBlockHashPrefix(videoId, 4);
+    const request = net.request({
+      protocol: 'https:',
+      hostname: SPONSORBLOCK_HOST,
+      path: `/api/branding/${encodeURIComponent(prefix)}`,
+      method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
+    });
+    let timeoutTimer = setTimeout(() => {
+      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'DeArrow zaman aşımına uğradı.' });
+    }, 7000);
+    request.on('response', (response) => {
+      clearTimeout(timeoutTimer);
+      let total = 0; const chunks = [];
+      response.on('data', (chunk) => {
+        total += chunk.length;
+        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' }); }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        if (total > MAX_VIDEO_EXTRAS_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' });
+        if (response.statusCode === 404) {
+          dearrowCache.set(videoId, [], {}, { negative: true, actionType: 'branding' });
+          return resolve({ ok: true, videoId });
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `DeArrow HTTP ${response.statusCode}` });
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          const record = extractDeArrowBranding(parsed, videoId);
+          if (!record) {
+            dearrowCache.set(videoId, [], {}, { negative: true, actionType: 'branding' });
+            return resolve({ ok: true, videoId });
+          }
+          const title = pickDeArrowTitle(record.titles);
+          const thumbnail = pickDeArrowThumbnail(record.thumbnails);
+          const result = { title: title || null, thumbnail,
+            videoDuration: record.videoDuration };
+          dearrowCache.set(videoId, [], result,
+            { negative: !result.title && !result.thumbnail, actionType: 'branding' });
+          resolve({ ok: true, videoId, ...result });
+        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'DeArrow yanıtı okunamadı.' }); }
+      });
+    });
+    request.on('error', (error) => {
+      clearTimeout(timeoutTimer);
+      const message = String(error?.message || '');
+      const redirected = error?.code === 'ERR_TOO_MANY_REDIRECTS' || /redirect/i.test(message);
+      resolve({ ok: false, errorKind: redirected ? 'redirect' : 'network',
+        error: redirected ? 'DeArrow yönlendirmesi güvenlik nedeniyle reddedildi.'
+          : `DeArrow bağlantısı kurulamadı: ${message}` });
+    });
+    request.end();
+  }).finally(() => videoExtrasInFlight.delete(key));
+  videoExtrasInFlight.set(key, promise);
+  return promise;
+}
+
+// Return YouTube Dislike — hash-oneki yok; hizmet tasarim geregi videoId'yi
+// acik ister. Ayar kutusu kapaliysa renderer bu uc uzerinden hic istemez.
+function fetchYouTubeDislikes(videoId) {
+  const cached = rydCache.get(videoId, [], 'votes');
+  if (cached) return Promise.resolve({ ok: true, ...cached, cached: true });
+  const key = `ryd|${videoId}`;
+  if (videoExtrasInFlight.has(key)) return videoExtrasInFlight.get(key);
+  const promise = new Promise((resolve) => {
+    const request = net.request({
+      protocol: 'https:',
+      hostname: RYD_HOST,
+      path: `/votes?videoId=${encodeURIComponent(videoId)}`,
+      method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
+    });
+    let timeoutTimer = setTimeout(() => {
+      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'RYD zaman aşımına uğradı.' });
+    }, 7000);
+    request.on('response', (response) => {
+      clearTimeout(timeoutTimer);
+      let total = 0; const chunks = [];
+      response.on('data', (chunk) => {
+        total += chunk.length;
+        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' }); }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        if (total > MAX_VIDEO_EXTRAS_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' });
+        if (response.statusCode === 404) {
+          rydCache.set(videoId, [], {}, { negative: true, actionType: 'votes' });
+          return resolve({ ok: true, videoId });
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `RYD HTTP ${response.statusCode}` });
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          const votes = normalizeRydVotes(parsed, videoId);
+          if (!votes) {
+            rydCache.set(videoId, [], {}, { negative: true, actionType: 'votes' });
+            return resolve({ ok: true, videoId });
+          }
+          rydCache.set(videoId, [], votes, { actionType: 'votes' });
+          resolve({ ok: true, videoId, ...votes });
+        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'RYD yanıtı okunamadı.' }); }
+      });
+    });
+    request.on('error', (error) => {
+      clearTimeout(timeoutTimer);
+      const message = String(error?.message || '');
+      const redirected = error?.code === 'ERR_TOO_MANY_REDIRECTS' || /redirect/i.test(message);
+      resolve({ ok: false, errorKind: redirected ? 'redirect' : 'network',
+        error: redirected ? 'RYD yönlendirmesi güvenlik nedeniyle reddedildi.'
+          : `RYD bağlantısı kurulamadı: ${message}` });
+    });
+    request.end();
+  }).finally(() => videoExtrasInFlight.delete(key));
+  videoExtrasInFlight.set(key, promise);
+  return promise;
+}
+
 async function browserTabRuntimeState(tab) {
   const wc = tab?.view?.webContents;
   if (!browserScriptExecutionReady(wc)) return { stateKnown: false };
@@ -14765,6 +14900,43 @@ ipcMain.handle('browser:sponsorBlock:get', async (event, payload = {}) => {
     ? payload.categories : SPONSORBLOCK_CATEGORIES,
     Number.isFinite(duration) && duration > 0 ? duration : 0);
   return { ...result, videoId, tabId: tab.id, mediaGeneration: tab.generation };
+});
+
+// Oynatıcıdaki YouTube videosunun topluluk ekstraları: DeArrow başlık/kare ve
+// RYD beğenmeme sayısı. Sekme gerektirmez — oynatıcı açık medya URL'siyle çağırır.
+// Her iki kaynak da ayrı ayrı ayar kutusuyla kapalı tutulur; renderer kapalı
+// kaynak için istem dahi göndermez.
+ipcMain.handle('browser:videoExtras:get', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const url = typeof payload === 'object' && payload ? payload.url : '';
+  // Renderer `youtube:<id>` mediaKey veya ham id de yollayabilir.
+  const raw = String(url || '');
+  const keyMatch = raw.match(/^youtube:([A-Za-z0-9_-]{11})$/);
+  const videoId = sponsorBlockVideoId(raw)
+    || (keyMatch ? keyMatch[1] : '')
+    || (raw.match(/^[A-Za-z0-9_-]{11}$/) ? raw : '');
+  if (!videoId) return { ok: false, errorKind: 'unsupported', error: 'Bu adres bir YouTube videosu değil.' };
+  const want = payload && typeof payload.options === 'object' && payload.options ? payload.options : {};
+  const jobs = [];
+  if (want.dearrow) jobs.push(fetchDeArrowBranding(videoId));
+  if (want.dislikes) jobs.push(fetchYouTubeDislikes(videoId));
+  const results = await Promise.allSettled(jobs);
+  let index = 0;
+  const extras = {};
+  if (want.dearrow) {
+    const settled = results[index++];
+    const data = settled.status === 'fulfilled' ? settled.value : null;
+    if (data && data.ok) extras.dearrow = { title: data.title || null, thumbnail: data.thumbnail || null };
+    else extras.dearrowError = String(data && data.error || 'DeArrow isteği başarısız.');
+  }
+  if (want.dislikes) {
+    const settled = results[index++];
+    const data = settled.status === 'fulfilled' ? settled.value : null;
+    if (data && data.ok && (data.likes !== undefined || data.dislikes !== undefined)) {
+      extras.votes = { likes: data.likes ?? null, dislikes: data.dislikes ?? null };
+    } else extras.votesError = String(data && data.error || 'RYD isteği başarısız.');
+  }
+  return { ok: true, videoId, ...extras };
 });
 
 ipcMain.handle('browser:capture:setEnabled', async (event, payload) => {
