@@ -110,12 +110,6 @@ async function persistQueueNow() {
   return !!result?.ok;
 }
 
-function scheduleQueuePersist(delay = 80) {
-  if (!_queuePersistenceReady || !window.api.saveQueueState) return;
-  clearTimeout(_queuePersistTimer);
-  _queuePersistTimer = setTimeout(persistQueueNow, Math.max(0, delay));
-}
-
 function queueSecretsFromCurrentUi(savedOptions = {}) {
   const current = buildOptsFromUI();
   const runtime = {
@@ -557,18 +551,6 @@ function reportWatchQueueResult(item, status) {
   window.api.reportWatchFile(item.input, status).catch(() => {});
 }
 
-function removeFromQueue(id) {
-  // Çalışan item silinemez
-  const item = state.queue.find(x => x.id === id);
-  if (!item || item.status === 'running') return;
-  const buttons = [...document.querySelectorAll('.queue-remove[data-id]')];
-  const removedIndex = buttons.findIndex((button) => Number(button.dataset.id) === id);
-  state.queue = state.queue.filter(x => x.id !== id);
-  renderQueue();
-  const remaining = [...document.querySelectorAll('.queue-remove[data-id]')];
-  remaining[Math.min(Math.max(removedIndex, 0), remaining.length - 1)]?.focus?.();
-}
-
 function clearQueue() {
   // Çalışanlar kalsın
   state.queue = state.queue.filter(x => x.status === 'running');
@@ -583,16 +565,6 @@ const STATUS_TEXT = {
   done: 'Tamamlandı',
   error: 'Hata',
 };
-
-function queueItemMeta(item) {
-  const opts = item?.opts && typeof item.opts === 'object' ? item.opts : {};
-  const source = item?.type === 'youtube' ? 'YouTube' : 'Dosya';
-  const model = String(opts.model || 'varsayılan').trim().slice(0, 40);
-  const engine = String(opts.engine || 'faster').trim().slice(0, 32);
-  const formats = String(opts.formats || 'srt').split(',').map((value) => value.trim().toUpperCase()).filter((value) => /^[A-Z0-9+_-]{1,12}$/.test(value)).join('+') || 'SRT';
-  const language = opts.translate ? 'Çeviri ' + String(opts.translateTo || 'tr').trim().slice(0, 12).toUpperCase() : 'Kaynak ' + String(opts.language || 'otomatik').trim().slice(0, 12);
-  return [source, model, engine, formats, language].filter(Boolean).join(' · ');
-}
 
 function renderQueue() {
   scheduleQueuePersist();
@@ -9579,16 +9551,6 @@ async function exportBrowserAbClip() {
   } else if (!result?.canceled) {
     setBrowserSignal(`Klip oluşturulamadı: ${result?.error || result?.message || 'bilinmeyen hata'}`, false);
   }
-}
-
-
-async function blobToBase64(blob) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = '';
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
 }
 
 
@@ -19564,10 +19526,6 @@ if ($('browserSubtitleSettingsMenu')) {
     toggleSettingsPage('browser-subtitles');
   });
 }
-function detailsMenuFocusable(menu) {
-  return Array.from(menu.querySelectorAll('button, select, summary, [role="menuitem"]'))
-    .filter((el) => !el.disabled && el.offsetParent !== null && !el.closest('summary'));
-}
 
 const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails', 'browserSignalMenu', 'appModeMenu', 'appMenu'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
@@ -26608,45 +26566,6 @@ async function renderYoutubeAccounts(accounts) {
     rm.addEventListener('click', (e) => { e.stopPropagation(); removeYoutubeAccount(a.id); });
     li.appendChild(rm);
     ul.appendChild(li);
-  }
-}
-
-async function switchYoutubeAccount(id) {
-  const res = await window.api.youtubeAccountSwitch(id).catch(() => null);
-  if (!res || !res.ok) {
-    osd((res && res.error) || 'Hesap değiştirilemedi.', 4000);
-    return;
-  }
-  syncYoutubeSessionFromPayload(res.data);
-  const as = $('ytLoggedAs');
-  if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
-  renderYoutubeAccounts(res.data.accounts);
-  osd(`YouTube${youtubeUserName ? `: ${youtubeUserName}` : ''}`);
-  if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
-    renderSmartTubeSection(stCurrentSection, { force: true });
-  }
-}
-
-async function removeYoutubeAccount(id) {
-  const res = await window.api.youtubeAccountRemove(id).catch(() => null);
-  if (!res || !res.ok) {
-    osd((res && res.error) || 'Hesap çıkarılamadı.', 4000);
-    return;
-  }
-  syncYoutubeSessionFromPayload(res.data);
-  const as = $('ytLoggedAs');
-  if (as) as.textContent = (window.UiLocale?.t('Hesap:') || 'Hesap:') + ' ' + (youtubeUserName || 'YouTube');
-  renderYoutubeAccounts(res.data.accounts);
-  if (!youtubeLoggedIn) {
-    // Son hesap da çıkarıldı — giriş ekranına dön.
-    closeYoutubeLogin();
-  }
-  const message = res.remoteOk === false
-    ? 'Hesap çıkarıldı; Google erişimi kaldırılamadı.'
-    : 'Hesap çıkarıldı';
-  osd(window.UiLocale?.t(message) || message, res.remoteOk === false ? 6000 : 2000);
-  if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
-    renderSmartTubeSection(stCurrentSection, { force: true });
   }
 }
 

@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R173 (renderer.js slice 3): 7 more internal helpers (queue persistence/meta, live-ASR blob encode, details-menu focus, YouTube account switch/remove) moved to `renderer-helpers.js`; extraction safety rule hardened — module-body callers and in-slice literal assertions now count as blockers.
 - R172: renderer.js slice 2 — 9 tab-strip helpers (`browserTabLabel`, `syncBrowserTabAudioButton`, `browserTabActivity`, tab-menu/preview lifecycle) moved to `renderer-helpers.js`; same four exclusion classes verified, `npm test` green. Fixed a coverage gap: the i18n `setBrowserSignal` ratchet now scans all `src/renderer/*.js` files, not just `renderer.js` (helpers' literals had escaped it since slice 1).
 - R153: renderer.js modularization, first verified slice — 63 leaf functions (753 lines) moved to a new `src/renderer/renderer-helpers.js`, loaded between `status-copy.js` and `renderer.js`. Safe set computed against the suite's source-slicing conventions (name anchors, body-text asserts, region slices, eval-time callers); behavior unchanged, full `npm test` green.
 - Added opt-in real end-to-end transcription test (WHISPER_E2E=1): synthesizes speech, runs transcribe.py on tiny/CPU, verifies NDJSON contract + SRT/VTT/JSON output.
