@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Media catalog import perf: `planImport` rescanned the whole catalog per incoming record (O(n×m); 5k catalog + 2k import blocked the main process ~14.6s) — it now builds importRef/IMDb/TMDB/title-key indexes once per plan with identical match semantics (~56ms, ~260×); catalog search no longer re-folds every record per keystroke (WeakMap fold cache + 120ms debounce).
 - Electron hardening: every webContents now denies webview attachment app-wide (defense-in-depth over webviewTag:false), and the mini-player window's lock flags are explicit. New static ratchet test scans all window/view creation sites for required webPreferences locks.
 - yt-dlp updater: wheel filenames with path separators are rejected before download (prevents writing outside the staging dir); https artifact/metadata URLs are restricted to globally-routable IPs (SSRF hardening).
 - Manga image URL gate: trailing-dot FQDNs (`localhost.`, `*.local.`) no longer bypass the loopback/private-host checks (SSRF hardening).

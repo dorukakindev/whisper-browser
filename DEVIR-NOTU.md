@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-1645.md](docs/devir/2026-09-27-1645.md) — R154 Electron güvenlik: global webview reddi + statik ratchet
+Güncel çalışma: [docs/devir/2026-09-27-1707.md](docs/devir/2026-09-27-1707.md) — R170 katalog performansı: planImport O(n×m)→indeksli (14.6s→56ms) + arama katlama önbelleği
+Önceki çalışma: [docs/devir/2026-09-27-1645.md](docs/devir/2026-09-27-1645.md) — R154 Electron güvenlik: global webview reddi + statik ratchet
 
 Önceki çalışma: [docs/devir/2026-09-27-1625.md](docs/devir/2026-09-27-1625.md) — R168 yt-dlp güncelleyici: dosya-adı traversal + IP literal SSRF kapıları
 
