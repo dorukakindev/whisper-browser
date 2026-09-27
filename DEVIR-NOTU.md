@@ -1,6 +1,10 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 09:08 — R136 i18n kapanış turu: 348 yeni EN sözlük girişi (renderer sink'leri + main.js IPC metinleri) + i18n-coverage sink ratchet'i; rapor BROWSER_BUG_REPORT_135.md](docs/devir/2026-09-27-0908.md).
+Güncel çalışma: [2026-09-27 09:45 — R138/R151 IPC parity + guard denetimi (213 handle tam parity, 0 guard-öncesi yan etki; ipc-parity.test.js kalıcı ratchet); rapor BROWSER_BUG_REPORT_137.md](docs/devir/2026-09-27-0945.md).
+
+Önceki çalışma: [2026-09-27 09:30 — R137 parser fuzz turu: 160k vaka temiz + CI ratchet (subtitle-parser-fuzz.test.js, 50k deterministik vaka); rapor BROWSER_BUG_REPORT_136.md](docs/devir/2026-09-27-0930.md).
+
+Önceki çalışma: [2026-09-27 09:08 — R136 i18n kapanış turu: 348 yeni EN sözlük girişi (renderer sink'leri + main.js IPC metinleri) + i18n-coverage sink ratchet'i; rapor BROWSER_BUG_REPORT_135.md](docs/devir/2026-09-27-0908.md).
 
 Önceki çalışma: [2026-09-27 08:48 — R135 dokümantasyon temizliği: AGENTS.md sayaç 134, kök raporlar docs/raporlar'a taşındı, INDEX.md indeksi (98 rapor), README eksik özellik satırları](docs/devir/2026-09-27-0848.md).
 

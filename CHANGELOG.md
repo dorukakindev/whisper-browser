@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R138/R151: IPC contract test — new `tests/ipc-parity.test.js` locks preload↔main channel parity (213 handlers, 11 events, 3 preload bridges), forbids double handler registration, ratchets pre-guard param derefs at 16, and asserts no handler performs side-effects before input validation.
+- R137: subtitle parser fuzz ratchet — new `tests/subtitle-parser-fuzz.test.js` runs 50k deterministic adversarial mutations across all SRT/VTT/ASS/LRC/SAMI/TTML/JSON3/HLS/DASH/MP4 parsers every `npm test`; ~160k total cases audited with zero crashes, hangs, or NaN cues.
 - R136: i18n closure — 348 new TR→EN dictionary entries (74 renderer sink literals + 274 main.js IPC messages) plus 3 concat-prefix patterns; i18n-coverage test now ratchets renderer sinks and main.js error/message/stage/label returns so no Turkish UI string can land untranslated.
 - R135 — docs cleanup: AGENTS.md report counter corrected (122 → 134); two stray root reports moved into `docs/raporlar/` under non-colliding names; new `docs/raporlar/INDEX.md` covers the numbered series; README feature tour gained media-library and subtitle-provider rows; HISTORICAL_RECORDS path references updated.
 
