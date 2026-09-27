@@ -3543,6 +3543,15 @@ let browserPlacesCache = null;
 let browserPlacesLoadWarning = '';
 let browserSessionLoadWarning = '';
 const BROWSER_PLACE_LIMIT = 100;
+// Site simgeleri origin başına data: URL olarak ayrı bir dosyada saklanır
+// (yer deposuna karıştırılırsa setBrowserPlaces'ın stringify karşılaştırması
+// MB mertebesine çıkar). Renderer CSP'si img-src'de yalnız 'self' data:
+// kabul eder; uzak URL yazılmaz. Sınır dosya boyutunu bağlar; LRU ile en
+// eski origin düşer.
+const BROWSER_FAVICON_LIMIT = 120;
+const BROWSER_FAVICON_MAX_CHARS = 96 * 1024;
+let browserFaviconCache = null;
+let browserFaviconSaveTimer = null;
 
 function nextBrowserTabId() {
   browserTabSequence += 1;
@@ -4083,6 +4092,69 @@ function writeBrowserDownloadRecords(items) {
 
 function safeBrowserPlaceUrl(raw) {
   return require('./browser-place-url').safePlaceUrl(raw);
+}
+
+function safeBrowserOrigin(raw) {
+  try {
+    const parsed = new URL(String(raw || ''));
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.origin : '';
+  } catch (_) { return ''; }
+}
+
+function normalizeBrowserFavicons(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, value] of Object.entries(raw)) {
+    if (Object.keys(out).length >= BROWSER_FAVICON_LIMIT) break;
+    const origin = safeBrowserOrigin(key);
+    const icon = String(value || '');
+    if (!origin || icon.length > BROWSER_FAVICON_MAX_CHARS
+      || !/^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+$/i.test(icon)) continue;
+    out[origin] = icon;
+  }
+  return out;
+}
+
+function browserFaviconsPath() {
+  return path.join(app.getPath('userData'), 'browser-favicons.json');
+}
+
+function readBrowserFavicons() {
+  if (browserFaviconCache) return browserFaviconCache;
+  browserFaviconCache = new Map();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(browserFaviconsPath(), 'utf8'));
+    for (const [origin, icon] of Object.entries(normalizeBrowserFavicons(parsed?.items)))
+      browserFaviconCache.set(origin, icon);
+  } catch (_) {}
+  return browserFaviconCache;
+}
+
+function flushBrowserFavicons() {
+  if (browserFaviconSaveTimer) clearTimeout(browserFaviconSaveTimer);
+  browserFaviconSaveTimer = null;
+  try {
+    writeJsonAtomic(browserFaviconsPath(), {
+      version: 1, updatedAt: Date.now(), items: Object.fromEntries(readBrowserFavicons()),
+    });
+  } catch (_) {}
+}
+
+// Sekme simgesi indiğinde origin → data: URL kaydını kalıcı önbelleğe işler.
+// Renderer 'favicon' olayıyla zaten güncellenir; bu depo yalnız yeniden
+// başlatmada geçmiş/yer imi satırlarının simgesi için lazım.
+function rememberBrowserPlaceFavicon(rawUrl, dataUrl) {
+  const origin = safeBrowserOrigin(rawUrl);
+  if (!origin || typeof dataUrl !== 'string' || !/^data:image\//i.test(dataUrl)) return;
+  if (dataUrl.length > BROWSER_FAVICON_MAX_CHARS) return;
+  const cache = readBrowserFavicons();
+  if (cache.get(origin) === dataUrl) return;
+  cache.delete(origin);
+  cache.set(origin, dataUrl);
+  while (cache.size > BROWSER_FAVICON_LIMIT) cache.delete(cache.keys().next().value);
+  if (browserFaviconSaveTimer) clearTimeout(browserFaviconSaveTimer);
+  browserFaviconSaveTimer = setTimeout(flushBrowserFavicons, 400);
+  if (typeof browserFaviconSaveTimer.unref === 'function') browserFaviconSaveTimer.unref();
 }
 
 function normalizeBrowserPlaces(places) {
@@ -12492,6 +12564,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         if (wc.isDestroyed() || tab._faviconSource !== favicon) return;
         const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
         tab.favicon = dataUrl;
+        rememberBrowserPlaceFavicon(browserPageUrl(tab), dataUrl);
         sendBrowserEvent(tab, { type: 'favicon', favicon: dataUrl });
         scheduleBrowserSessionSave();
       } catch (_) {}
@@ -14990,6 +15063,14 @@ ipcMain.handle('browser:places:list', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const places = browserPlacesSnapshot();
   return { ok: true, places, warning: browserPlacesLoadWarning };
+});
+
+// Kalıcı site-simgesi önbelleği: başlatmada bir kez okunur; sonraki değişimler
+// 'favicon' olayıyla taşınır (büyük data: URL bloğu her yer-deposu olayında
+// gönderilmez).
+ipcMain.handle('browser:favicons:list', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return { ok: true, favicons: Object.fromEntries(readBrowserFavicons()) };
 });
 
 ipcMain.handle('browser:tab:mute', (event, tabId) => {
