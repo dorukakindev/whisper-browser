@@ -47,11 +47,16 @@ async function main() {
     electronVersion,
     electronZipDir: path.dirname(electronZip),
     ignore: [
-      /^\/(?:\.git|\.github|\.claude|\.context_cache|\.uiprev|scratch|artifacts|tests)(?:\/|$)/,
-      /^\/docs\/devir(?:\/|$)/,
+      /^\/(?:\.git|\.github|\.claude|\.agents|\.context_cache|\.uiprev|scratch|artifacts|tests|benchmarks|quality|design-system)(?:\/|$)/,
+      /^\/docs\/(?:devir|raporlar)(?:\/|$)/,
       /^\/backend\/(?:venv|\.venv|\.venv-installing-[^/]+|\.venv-backup-[^/]+|separator-venv|separator-models|bin|__pycache__)(?:\/|$)/,
       /^\/(?:BROWSER|PROGRAM|BUG|DEEP_ANALYSIS|YOUTUBE_REKLAM_ENGELLEME)[^/]*\.md$/,
-      /^\/(?:settings|window-state)\.json$/,
+      // Çalışma oturumu notları ve iç tasarım sözleşmeleri kullanıcı paketine
+      // girmez; kullanıcıya açık belgeler (README, KURULUM, PRIVACY, SUPPORT,
+      // lisans bildirimleri) pakette kalır. tools/ hariç tutulur çünkü paket
+      // içi install.bat, tools/install-orchestrator.js'i çağırır.
+      /^\/(?:AGENTS|CLAUDE|DEVIR-NOTU|YENI-BILGISAYAR|DESIGN|UI-DESIGN-SYSTEM|UX-CONTRACT|CODE_OF_CONDUCT|CONTRIBUTING|DRM-KURULUM)\.md$/,
+      /^\/(?:settings|window-state|premium-ui)\.json$/,
     ],
   });
   const target = paths[0];
