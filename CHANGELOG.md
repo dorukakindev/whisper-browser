@@ -22,6 +22,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R134 — player and browser side-panel icon buttons now keep their intended size and center SVGs, including details summaries; the collapse and subtitle-file icons are clearer.
+
 - PR60 E2E bulgu düzeltmeleri — `playerLayoutQuickMenu`/`sideSubtitleLayoutMenu` toggle'ında `event.currentTarget` rAF öncesi yakalanıyor (popover'lar ekran dışında kırpılıyordu); sabit sekme 36px genişlik `workspace-browser` min-width'iyle ezilmiyor; omnibox kütüphane birleştirmesi URL-anahtarlı tekilleştiriyor (açık sekme "Kayıtlı içerik" olarak yankılanmıyor); `libraryResultKindLabel` etiketleri EN locale'de çevriliyor.
 
 - R129 — page-translation listener/DOM-retention leaks: `pageRestoreScript` now detaches the 6 document/window action listeners that `pageApplyScript` installs (anonymous closures previously kept the whole translate state — every translated text node — alive for the life of an SPA document, and kept firing on dead refs); restored refs are also marked `active = false`. `observeRoots` now prunes `MutationObserver`s whose shadow root detached from the document — a strong Map entry used to retain the entire removed subtree.
