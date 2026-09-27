@@ -12,10 +12,14 @@ async function dialogue({ video, start, end, model = 'base', language = '', pyth
     const audio = path.join(folder, 'input.wav');
     await run(ffmpeg, ['-v', 'error', '-nostdin', '-ss', String(start), '-i', video, '-t', String(end - start), '-vn', '-ac', '2', '-ar', '44100', '-y', audio], '', signal, 60000);
     const script = path.join(backend, 'separate_dialogue.py');
-    const separated = JSON.parse(await run(separatorPython, [script], JSON.stringify({ audio, output: folder, toolDirectory: path.dirname(ffmpeg), models: path.join(backend, 'separator-models') }), signal, 900000));
+    const parseReply = (raw) => {
+      try { return JSON.parse(raw); }
+      catch { throw new Error('Konuşma aracından geçersiz yanıt alındı.'); }
+    };
+    const separated = parseReply(await run(separatorPython, [script], JSON.stringify({ audio, output: folder, toolDirectory: path.dirname(ffmpeg), models: path.join(backend, 'separator-models') }), signal, 900000));
     if (!separated.ok) throw new Error(separated.error);
     if (path.dirname(path.resolve(separated.audio)) !== path.resolve(folder)) throw new Error('Konuşma çıktısı geçersiz.');
-    const result = JSON.parse(await run(python, [script], JSON.stringify({ operation: 'transcribe', audio: separated.audio, start, model, language }), signal, 600000));
+    const result = parseReply(await run(python, [script], JSON.stringify({ operation: 'transcribe', audio: separated.audio, start, model, language }), signal, 600000));
     if (!result.ok) throw new Error(result.error);
     return result;
   } finally {
