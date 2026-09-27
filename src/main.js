@@ -8772,7 +8772,9 @@ function publishBrowserTrackNow(entry) {
   const suffix = lang ? `.${lang}` : '';
   const stableId = previousPublication ? previousPublication.id : fingerprint;
   const filePath = previousPublication?.path || path.join(browserSubtitleDir(), `web-${stableId}${suffix}.srt`);
-  fs.writeFileSync(filePath, `\uFEFF${cuesToSrt(normalized)}`, 'utf-8');
+  // Oynatıcı bu dosyayı canlı izler — yarım/yazım-sırası kesik SRT okumaması
+  // için tmp→rename atomikliğiyle yayımla (BOM'u yazıcı ekler).
+  writeSubtitleAtomic(filePath, cuesToSrt(normalized));
   if (typeof RESOURCE_SOAK_MODE !== 'undefined' && RESOURCE_SOAK_MODE) {
     resourceSoakPublicationCount += 1;
   }

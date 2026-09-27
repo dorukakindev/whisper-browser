@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 13:20 — R146 öğrenme modları cilası (O tuşu politika çevrimi, sahne rozeti + ↻ N/M ilerleme, altyazısız OSD geri bildirimi)](docs/devir/2026-09-27-1320.md).
+Güncel çalışma: [2026-09-27 14:10 — R147 gauntlet bakiyesi (T8: 222 IPC işleyicisi yetki denetimi + ratchet; T6: publishBrowserTrackNow atomik yazı); rapor 141](docs/devir/2026-09-27-1410.md).
+
+Önceki çalışma: [2026-09-27 13:20 — R146 öğrenme modları cilası (O tuşu politika çevrimi, sahne rozeti + ↻ N/M ilerleme, altyazısız OSD geri bildirimi)](docs/devir/2026-09-27-1320.md).
 
 Önceki çalışma: [2026-09-27 12:10 — R145 soak ölçüm sertleştirme (faz-ayrık heap eğimi, yazıcı-bazlı disk bütçesi, aynı-durum dinleyici probu; gerçek sızıntı yok; diff3 marker silindi + CI yasağı); rapor 140](docs/devir/2026-09-27-1210.md).
 
