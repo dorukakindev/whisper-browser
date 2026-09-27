@@ -9,6 +9,7 @@ function handler(channel, context) {
   const start = main.indexOf(`ipcMain.handle('${channel}'`);
   const end = main.indexOf('\n});', start) + 4;
   const sandbox = vm.createContext(context);
+  sandbox.dt = sandbox.dt || ((tr) => tr);
   sandbox.ipcMain = { handle: (_, fn) => { sandbox.run = fn; } };
   vm.runInContext(main.slice(start, end), sandbox);
   return sandbox;

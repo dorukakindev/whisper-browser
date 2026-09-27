@@ -2395,9 +2395,9 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
   if (!isDirectory) return { ok: false, error: 'Geçerli bir klasör yolu seçin.' };
   if (!watchFolderAccess.has(target)) {
     const result = await dialog.showMessageBox(mainWindow, {
-      type: 'question', title: 'İzleme klasörüne erişim',
-      message: 'Bu klasördeki medya dosyalarının izlenmesine izin verilsin mi?',
-      detail: target, buttons: ['İptal', 'İzin ver'], defaultId: 0, cancelId: 0, noLink: true,
+      type: 'question', title: dt('İzleme klasörüne erişim', 'Watch folder access'),
+      message: dt('Bu klasördeki medya dosyalarının izlenmesine izin verilsin mi?', 'Allow media files in this folder to be watched?'),
+      detail: target, buttons: [dt('İptal', 'Cancel'), dt('İzin ver', 'Allow')], defaultId: 0, cancelId: 0, noLink: true,
     });
     if (result.response !== 1 || canonicalLocalPath(dir) !== target) {
       return { ok: false, error: 'İzleme klasörüne erişim onaylanmadı.' };
@@ -2675,12 +2675,12 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
   const parsed = path.parse(sourcePath || 'altyazi.srt');
   const sourceExt = /^\.(srt|vtt|ass|ssa)$/i.test(parsed.ext) ? parsed.ext.toLowerCase() : '.srt';
   const format = sourceExt === '.vtt'
-    ? { name: 'WebVTT altyazı', extensions: ['vtt'] }
+    ? { name: dt('WebVTT altyazı', 'WebVTT subtitle'), extensions: ['vtt'] }
     : (/^\.(ass|ssa)$/i.test(sourceExt)
-      ? { name: 'ASS/SSA altyazı', extensions: [sourceExt.slice(1)] }
-      : { name: 'SubRip altyazı', extensions: ['srt'] });
+      ? { name: dt('ASS/SSA altyazı', 'ASS/SSA subtitle'), extensions: [sourceExt.slice(1)] }
+      : { name: dt('SubRip altyazı', 'SubRip subtitle'), extensions: ['srt'] });
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Düzeltilmiş altyazıyı farklı kaydet',
+    title: dt('Düzeltilmiş altyazıyı farklı kaydet', 'Save corrected subtitle as'),
     defaultPath: path.join(parsed.dir || app.getPath('downloads'), `${parsed.name}.duzeltilmis${sourceExt}`),
     filters: [format],
   });
@@ -2688,10 +2688,10 @@ ipcMain.handle('media:saveSubtitleCopy', async (_e, payload) => {
   try {
     if (fs.existsSync(result.filePath)) {
       const confirm = await dialog.showMessageBox(mainWindow, {
-        type: 'warning', title: 'Altyazı dosyasının üzerine yaz',
-        message: 'Seçtiğiniz dosya zaten var.',
-        detail: 'Mevcut dosya değiştirilmeden önce doğrulanmış yeni çıktı hazırlanacak. Üzerine yazılsın mı?',
-        buttons: ['İptal', 'Üzerine yaz'], defaultId: 0, cancelId: 0, noLink: true,
+        type: 'warning', title: dt('Altyazı dosyasının üzerine yaz', 'Overwrite subtitle file'),
+        message: dt('Seçtiğiniz dosya zaten var.', 'The selected file already exists.'),
+        detail: dt('Mevcut dosya değiştirilmeden önce doğrulanmış yeni çıktı hazırlanacak. Üzerine yazılsın mı?', 'A verified new output will be prepared before the existing file is replaced. Overwrite it?'),
+        buttons: [dt('İptal', 'Cancel'), dt('Üzerine yaz', 'Overwrite')], defaultId: 0, cancelId: 0, noLink: true,
       });
       if (confirm.response !== 1) return { ok: false, canceled: true };
     }
@@ -2723,7 +2723,7 @@ ipcMain.handle('media:saveImage', async (_e, payload) => {
     const dir = prev.outputDir && fs.existsSync(prev.outputDir)
       ? prev.outputDir : app.getPath('pictures');
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Ekran görüntüsünü kaydet',
+      title: dt('Ekran görüntüsünü kaydet', 'Save screenshot'),
       defaultPath: path.join(dir, path.basename(String(suggestedName || 'kare.png'))),
       filters: [{ name: 'PNG', extensions: ['png'] }],
     });
@@ -4448,6 +4448,7 @@ const browserDownloads = createBrowserDownloads({
   reveal: filePath => shell.showItemInFolder(filePath),
   loadRecords: readBrowserDownloadRecords,
   saveRecords: writeBrowserDownloadRecords,
+  dialogText: dt,
 });
 
 function sendBrowserEvent(tabOrPayload, maybePayload) {
@@ -5239,11 +5240,11 @@ async function saveBrowserContextImage(tab, rawUrl) {
   // "PNG olarak kaydet" seçeneği de sunar; .png seçilirse görsel dönüştürülür.
   const convertible = BROWSER_IMAGE_PNG_CONVERTIBLE.has(originalExt);
   const choice = await dialog.showSaveDialog(mainWindow, {
-    title: 'Görseli kaydet', defaultPath: defaultName,
+    title: dt('Görseli kaydet', 'Save image'), defaultPath: defaultName,
     filters: [
-      { name: `Özgün biçim (${originalExt.toUpperCase() || 'görsel'})`, extensions: [originalExt || 'jpg'] },
-      ...(convertible ? [{ name: 'PNG olarak kaydet (dönüştür)', extensions: ['png'] }] : []),
-      { name: 'Görsel', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'ico', 'bmp'] },
+      { name: dt(`Özgün biçim (${originalExt.toUpperCase() || 'görsel'})`, `Original format (${originalExt.toUpperCase() || 'image'})`), extensions: [originalExt || 'jpg'] },
+      ...(convertible ? [{ name: dt('PNG olarak kaydet (dönüştür)', 'Save as PNG (convert)'), extensions: ['png'] }] : []),
+      { name: dt('Görsel', 'Image'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'ico', 'bmp'] },
     ],
   });
   if (choice.canceled || !choice.filePath) return;
@@ -5367,6 +5368,12 @@ function reloadBrowserTab(tab, wc, ignoreCache = false) {
 
 function browserUiLocale() {
   return loadSettings()?.ui?.uiLocale === 'tr' ? 'tr' : 'en';
+}
+
+// Yerel diyalog metinleri arayüz dilini izler — EN arayüzde Türkçe kalan
+// başlık/ileti/düğme çiftlerini tek noktadan seçer.
+function dt(tr, en) {
+  return browserUiLocale() === 'en' ? en : tr;
 }
 
 function browserSearchEngine() {
@@ -8288,7 +8295,8 @@ async function captureBrowserVideoFrame(tab, includeCaptions) {
   }
 }
 
-async function saveBrowserPageCapture(tab, title = 'Tarayıcı ekran görüntüsünü kaydet', options = {}) {
+async function saveBrowserPageCapture(tab, title = '', options = {}) {
+  if (!title) title = dt('Tarayıcı ekran görüntüsünü kaydet', 'Save browser screenshot');
   if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
   let image;
   const mode = ['viewport', 'full', 'video', 'video-captions'].includes(options.mode) ? options.mode : 'viewport';
@@ -8324,9 +8332,9 @@ async function saveBrowserPageArchive(tab) {
     return { ok: false, error: 'Arşivlenecek tarayıcı sayfası bulunamadı.' };
   }
   const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'Sayfanın çevrimdışı kopyasını kaydet',
+    title: dt('Sayfanın çevrimdışı kopyasını kaydet', 'Save an offline copy of the page'),
     defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}.mhtml`),
-    filters: [{ name: 'MHTML sayfa arşivi', extensions: ['mhtml', 'mht'] }],
+    filters: [{ name: dt('MHTML sayfa arşivi', 'MHTML page archive'), extensions: ['mhtml', 'mht'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
   const extension = path.extname(selection.filePath).toLowerCase();
@@ -12992,13 +13000,13 @@ async function confirmBrowserCaptureDiscard(pending, subject = 'uygulama', unver
   if (!(Number(pending) > 0) && !unverified) return true;
   if (!mainWindow || mainWindow.isDestroyed()) return true;
   const detail = Number(pending) > 0
-    ? `${pending} yakalanmış altyazı parçası henüz işlenemedi.`
-    : 'Yakalama kuyruğunun tamamen işlendiği doğrulanamadı.';
+    ? dt(`${pending} yakalanmış altyazı parçası henüz işlenemedi.`, `${pending} captured subtitle segment${pending === 1 ? ' has' : 's have'} not been processed yet.`)
+    : dt('Yakalama kuyruğunun tamamen işlendiği doğrulanamadı.', 'Could not verify the capture queue was fully processed.');
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
-    title: 'Altyazı yakalama sürüyor',
-    message: `${detail} ${subject === 'sekme' ? 'Sekme' : 'Uygulama'} şimdi kapatılırsa bu parçalar kaybolabilir.`,
-    buttons: ['Kapatmayı iptal et', 'Yine de kapat'],
+    title: dt('Altyazı yakalama sürüyor', 'Subtitle capture in progress'),
+    message: `${detail} ${dt(subject === 'sekme' ? 'Sekme' : 'Uygulama', subject === 'sekme' ? 'Closing the tab' : 'Quitting the app')} ${dt('şimdi kapatılırsa bu parçalar kaybolabilir.', 'now would lose these segments.')}`,
+    buttons: [dt('Kapatmayı iptal et', 'Cancel close'), dt('Yine de kapat', 'Close anyway')],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
@@ -13601,10 +13609,10 @@ function createWindow() {
     void (async () => {
       const choice = await dialog.showMessageBox(mainWindow, {
         type: 'error',
-        title: 'Arayüz çöktü',
-        message: 'Arayüz işlemi beklenmedik biçimde sona erdi.',
-        detail: `Neden: ${reason}. Devam eden transkripsiyon ve tarayıcı işleri ana süreçte sürüyor; yeniden yükleme onları kesmez.`,
-        buttons: repeated ? ['Uygulamayı kapat'] : ['Arayüzü yeniden yükle', 'Uygulamayı kapat'],
+        title: dt('Arayüz çöktü', 'UI crashed'),
+        message: dt('Arayüz işlemi beklenmedik biçimde sona erdi.', 'The interface process ended unexpectedly.'),
+        detail: dt(`Neden: ${reason}. Devam eden transkripsiyon ve tarayıcı işleri ana süreçte sürüyor; yeniden yükleme onları kesmez.`, `Reason: ${reason}. Running transcriptions and browser jobs continue in the main process; reloading does not interrupt them.`),
+        buttons: repeated ? [dt('Uygulamayı kapat', 'Quit app')] : [dt('Arayüzü yeniden yükle', 'Reload UI'), dt('Uygulamayı kapat', 'Quit app')],
         defaultId: 0, cancelId: 0, noLink: true,
       }).catch(() => ({ response: 0 }));
       if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -13626,9 +13634,9 @@ function createWindow() {
       void (async () => {
         const choice = await dialog.showMessageBox(mainWindow, {
           type: 'warning',
-          title: 'Arayüz yanıt vermiyor',
-          message: 'Arayüz 10 saniyedir yanıt vermiyor. Ağır bir işlem sürüyor olabilir.',
-          buttons: ['Beklemeye devam et', 'Arayüzü yeniden yükle'],
+          title: dt('Arayüz yanıt vermiyor', 'UI not responding'),
+          message: dt('Arayüz 10 saniyedir yanıt vermiyor. Ağır bir işlem sürüyor olabilir.', 'The interface has been unresponsive for 10 seconds. A heavy task may be running.'),
+          buttons: [dt('Beklemeye devam et', 'Keep waiting'), dt('Arayüzü yeniden yükle', 'Reload UI')],
           defaultId: 0, cancelId: 0, noLink: true,
         }).catch(() => ({ response: 0 }));
         if (choice.response === 1 && mainWindow && !mainWindow.isDestroyed()) {
@@ -13659,9 +13667,9 @@ function createWindow() {
     void (async () => {
       if (browserDownloads.activeCount()) {
         const choice = await dialog.showMessageBox(mainWindow, {
-          type: 'warning', title: 'İndirmeler sürüyor',
-          message: `${browserDownloads.activeCount()} indirme henüz bitmedi. Kapatırsanız bu indirmeler iptal edilir.`,
-          buttons: ['Kapatmayı iptal et', 'İndirmeleri iptal et ve kapat'],
+          type: 'warning', title: dt('İndirmeler sürüyor', 'Downloads in progress'),
+          message: dt(`${browserDownloads.activeCount()} indirme henüz bitmedi. Kapatırsanız bu indirmeler iptal edilir.`, `${browserDownloads.activeCount()} downloads have not finished. Quitting will cancel them.`),
+          buttons: [dt('Kapatmayı iptal et', 'Cancel quit'), dt('İndirmeleri iptal et ve kapat', 'Cancel downloads and quit')],
           defaultId: 0, cancelId: 0, noLink: true,
         }).catch(() => ({ response: 0 }));
         if (choice.response !== 1) { mainWindowClosing = false; return; }
@@ -13905,9 +13913,9 @@ async function authorizeSubtitleFile(filePath) {
     // Old history entries and manually entered paths are not blanket authority.
     // Native picker/output events grant exact files; unknown files need consent.
     const result = await dialog.showMessageBox(mainWindow, {
-      type: 'question', title: 'Altyazı dosyasına erişim',
-      message: 'Bu altyazının okunmasına ve düzenlenmesine izin verilsin mi?',
-      detail: target, buttons: ['İptal', 'İzin ver'], defaultId: 0, cancelId: 0, noLink: true,
+      type: 'question', title: dt('Altyazı dosyasına erişim', 'Subtitle file access'),
+      message: dt('Bu altyazının okunmasına ve düzenlenmesine izin verilsin mi?', 'Allow this subtitle file to be read and edited?'),
+      detail: target, buttons: [dt('İptal', 'Cancel'), dt('İzin ver', 'Allow')], defaultId: 0, cancelId: 0, noLink: true,
     });
     if (result.response !== 1 || subtitleFileAccess.inspect(filePath) !== target) {
       throw new Error('Altyazı dosyasına erişim onaylanmadı.');
@@ -15008,9 +15016,9 @@ ipcMain.handle('browser:session:export', async (event) => {
   const bundle = createBrowserSessionPackage({ session: sessionSnapshot,
     places: browserPlacesSnapshot(), variants: collectBrowserSessionVariants(sessionSnapshot) });
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Tarayıcı oturumunu dışa aktar',
+    title: dt('Tarayıcı oturumunu dışa aktar', 'Export browser session'),
     defaultPath: 'whisper-browser-oturumu.json',
-    filters: [{ name: 'Whisper Local tarayıcı oturumu', extensions: ['json'] }],
+    filters: [{ name: dt('Whisper Local tarayıcı oturumu', 'Whisper Local browser session'), extensions: ['json'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
@@ -15024,8 +15032,8 @@ ipcMain.handle('browser:session:import', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   return queueBrowserTabTransition(() => trackBrowserSessionMutation(async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Tarayıcı oturumunu içe aktar', properties: ['openFile'],
-    filters: [{ name: 'Whisper Local tarayıcı oturumu', extensions: ['json'] }],
+    title: dt('Tarayıcı oturumunu içe aktar', 'Import browser session'), properties: ['openFile'],
+    filters: [{ name: dt('Whisper Local tarayıcı oturumu', 'Whisper Local browser session'), extensions: ['json'] }],
   });
   if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
   try {
@@ -15387,9 +15395,9 @@ ipcMain.handle('browser:manga:export', async (event, request) => {
   }));
   if (!pages.length) return { ok: false, error: 'Dışa aktarılacak manga katmanı yok.' };
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Manga katmanını JSON olarak dışa aktar',
+    title: dt('Manga katmanını JSON olarak dışa aktar', 'Export manga layer as JSON'),
     defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab, 'manga-cevirisi')}.manga.json`),
-    filters: [{ name: 'Manga katmanı JSON', extensions: ['json'] }],
+    filters: [{ name: dt('Manga katmanı JSON', 'Manga layer JSON'), extensions: ['json'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
@@ -15716,7 +15724,7 @@ ipcMain.handle('browser:page:export', async (event, request) => {
   };
   const document = buildPageTranslationExport(snapshot);
   const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'Sayfa çevirisini dışa aktar',
+    title: dt('Sayfa çevirisini dışa aktar', 'Export page translation'),
     defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}-ceviri.${format}`),
     filters: [{ name: format.toUpperCase(), extensions: [format] }],
   });
@@ -15942,9 +15950,9 @@ async function saveBrowserPagePdf(tab) {
     return { ok: false, error: 'PDF üretilecek tarayıcı sayfası bulunamadı.' };
   }
   const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'Sayfayı PDF olarak kaydet',
+    title: dt('Sayfayı PDF olarak kaydet', 'Save page as PDF'),
     defaultPath: path.join(app.getPath('downloads'), `${browserExportTitle(tab)}.pdf`),
-    filters: [{ name: 'PDF belgesi', extensions: ['pdf'] }],
+    filters: [{ name: dt('PDF belgesi', 'PDF document'), extensions: ['pdf'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
   const outputPath = selection.filePath.toLowerCase().endsWith('.pdf')
@@ -16148,12 +16156,12 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-altyazi';
   const preferredFormat = ['srt', 'vtt', 'ass'].includes(payload && payload.format) ? payload.format : 'srt';
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Web altyazısını dışa aktar',
+    title: dt('Web altyazısını dışa aktar', 'Export web subtitle'),
     defaultPath: `${safeTitle}.${preferredFormat}`,
     filters: [
-      { name: 'SubRip altyazısı', extensions: ['srt'] },
-      { name: 'WebVTT altyazısı', extensions: ['vtt'] },
-      { name: 'ASS altyazısı', extensions: ['ass'] },
+      { name: dt('SubRip altyazısı', 'SubRip subtitle'), extensions: ['srt'] },
+      { name: dt('WebVTT altyazısı', 'WebVTT subtitle'), extensions: ['vtt'] },
+      { name: dt('ASS altyazısı', 'ASS subtitle'), extensions: ['ass'] },
     ],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
@@ -16207,9 +16215,9 @@ ipcMain.handle('browser:diagnostics:export', async (event) => {
     ? process.argv.find((argument) => argument.startsWith(smokePrefix))?.slice(smokePrefix.length) : '';
   const result = smokePath ? { canceled: false, filePath: smokePath }
     : await dialog.showSaveDialog(mainWindow, {
-      title: 'Tarayıcı tanı paketini dışa aktar',
+      title: dt('Tarayıcı tanı paketini dışa aktar', 'Export browser diagnostics bundle'),
       defaultPath: 'whisper-browser-diagnostics.json',
-      filters: [{ name: 'Tanı JSON paketi', extensions: ['json'] }],
+      filters: [{ name: dt('Tanı JSON paketi', 'Diagnostics JSON bundle'), extensions: ['json'] }],
     });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
@@ -16234,7 +16242,7 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
   const safeTitle = String(payload && payload.title || 'web-klip')
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-klip';
   const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'A-B klibini dışa aktar', defaultPath: `${safeTitle}.mp4`,
+    title: dt('A-B klibini dışa aktar', 'Export A-B clip'), defaultPath: `${safeTitle}.mp4`,
     filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
@@ -16256,8 +16264,8 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
   const pickedByDialog = !filePath;
   if (pickedByDialog) {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'PDF kitap seç', properties: ['openFile'],
-      filters: [{ name: 'PDF kitap', extensions: ['pdf'] }],
+      title: dt('PDF kitap seç', 'Choose a PDF book'), properties: ['openFile'],
+      filters: [{ name: dt('PDF kitap', 'PDF book'), extensions: ['pdf'] }],
     });
     if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
     filePath = result.filePaths[0];
@@ -16267,9 +16275,9 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
     if (pickedByDialog) granted = pdfFileAccess.grant(granted);
     else if (!pdfFileAccess.has(granted)) {
       const consent = await dialog.showMessageBox(mainWindow, {
-        type: 'question', title: 'PDF dosyasına erişim',
-        message: 'Bu PDF dosyasının okunmasına izin verilsin mi?', detail: granted,
-        buttons: ['İptal', 'İzin ver'], defaultId: 0, cancelId: 0, noLink: true,
+        type: 'question', title: dt('PDF dosyasına erişim', 'PDF file access'),
+        message: dt('Bu PDF dosyasının okunmasına izin verilsin mi?', 'Allow this PDF file to be read?'), detail: granted,
+        buttons: [dt('İptal', 'Cancel'), dt('İzin ver', 'Allow')], defaultId: 0, cancelId: 0, noLink: true,
       });
       if (consent.response !== 1 || pdfFileAccess.inspect(filePath) !== granted) {
         throw new Error('PDF dosyasına erişim onaylanmadı.');
@@ -16367,7 +16375,7 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
     ? `<!doctype html><meta charset="utf-8"><title>${escapeHtml(document.title)}</title><main>${pages.map(([page, blocks]) => `<section><h2>Sayfa ${page}</h2>${blocks.map((block) => `<p>${escapeHtml(block.translation || block.source)}</p>`).join('')}</section>`).join('\n')}</main>`
     : pages.map(([page, blocks]) => `${format === 'md' ? '## ' : ''}Sayfa ${page}\n\n${blocks.map((block) => block.translation || block.source).join('\n\n')}`).join('\n\n');
   const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'PDF çevirisini dışa aktar',
+    title: dt('PDF çevirisini dışa aktar', 'Export PDF translation'),
     defaultPath: path.join(app.getPath('downloads'), `${String(document.title || 'PDF')
       .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/[. ]+$/g, '')
       .replace(/\s+/g, ' ').trim().slice(0, 100) || 'PDF'}-ceviri.${format}`),
@@ -16382,11 +16390,11 @@ ipcMain.handle('dialog:openVideo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const prev = loadSettings();
   const opts = {
-    title: 'Video veya ses dosyası seç (çoklu seçim → kuyruk)',
+    title: dt('Video veya ses dosyası seç (çoklu seçim → kuyruk)', 'Choose video or audio files (multi-select → queue)'),
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Video / Ses', extensions: [...MEDIA_EXTS] },
-      { name: 'Tüm Dosyalar', extensions: ['*'] },
+      { name: dt('Video / Ses', 'Video / Audio'), extensions: [...MEDIA_EXTS] },
+      { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] },
     ],
   };
   // Son kullanılan konum varsa onu, yoksa ayarlardaki kalıcı GİRDİ klasörünü aç.
@@ -16411,15 +16419,15 @@ ipcMain.handle('dialog:openVideo', async (event) => {
 ipcMain.handle('dialog:openFile', async (_event, kind) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   const filterMap = {
-    json: { name: 'JSON altyazı verisi', extensions: ['json'] },
-    settings: { name: 'Ayar dosyası', extensions: ['json'] },
-    subtitle: { name: 'Altyazı', extensions: ['srt', 'vtt', 'ass', 'ssa'] },
+    json: { name: dt('JSON altyazı verisi', 'JSON subtitle data'), extensions: ['json'] },
+    settings: { name: dt('Ayar dosyası', 'Settings file'), extensions: ['json'] },
+    subtitle: { name: dt('Altyazı', 'Subtitle'), extensions: ['srt', 'vtt', 'ass', 'ssa'] },
   };
-  const f = filterMap[kind] || { name: 'Tüm Dosyalar', extensions: ['*'] };
+  const f = filterMap[kind] || { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] };
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Dosya seç',
+    title: dt('Dosya seç', 'Choose a file'),
     properties: ['openFile'],
-    filters: [f, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    filters: [f, { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] }],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   subtitleFileAccess.grant(result.filePaths[0]);
@@ -16444,9 +16452,9 @@ async function authorizeMediaFile(filePath) {
   const target = mediaFileAccess.inspect(filePath);
   if (!mediaFileAccess.has(target)) {
     const result = await dialog.showMessageBox(mainWindow, {
-      type: 'question', title: 'Medya dosyasına erişim',
-      message: 'Bu medya dosyasının okunmasına izin verilsin mi?',
-      detail: target, buttons: ['İptal', 'İzin ver'], defaultId: 0, cancelId: 0, noLink: true,
+      type: 'question', title: dt('Medya dosyasına erişim', 'Media file access'),
+      message: dt('Bu medya dosyasının okunmasına izin verilsin mi?', 'Allow this media file to be read?'),
+      detail: target, buttons: [dt('İptal', 'Cancel'), dt('İzin ver', 'Allow')], defaultId: 0, cancelId: 0, noLink: true,
     });
     if (result.response !== 1 || mediaFileAccess.inspect(filePath) !== target
         || !mediaFileAccess.grant(target)) {
@@ -16525,10 +16533,10 @@ async function authorizeMediaScanRoots(inputPaths) {
   const extra = roots.length > 3 ? `\n… ve ${roots.length - 3} öğe daha` : '';
   const result = await dialog.showMessageBox(mainWindow, {
     type: 'question',
-    title: 'Bırakılan medyaları tara',
-    message: 'Bu dosya ve klasörlerde medya taramasına izin verilsin mi?',
+    title: dt('Bırakılan medyaları tara', 'Scan dropped media'),
+    message: dt('Bu dosya ve klasörlerde medya taramasına izin verilsin mi?', 'Allow media scanning of these files and folders?'),
     detail: `${preview}${extra}`,
-    buttons: ['İptal', 'Tara'],
+    buttons: [dt('İptal', 'Cancel'), dt('Tara', 'Scan')],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
@@ -16548,7 +16556,7 @@ ipcMain.handle('dialog:openFolders', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const prev = loadSettings();
   const opts = {
-    title: 'Klasör veya klasörler seç (içlerindeki tüm videolar sıraya eklenir)',
+    title: dt('Klasör veya klasörler seç (içlerindeki tüm videolar sıraya eklenir)', 'Choose folder(s) (all videos inside are queued)'),
     properties: ['openDirectory', 'multiSelections'],
   };
   const preferredInputDir = prev && (prev.lastInputDir || prev.inputDir);
@@ -16586,7 +16594,7 @@ ipcMain.handle('dialog:openFolder', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const settings = loadSettings();
   const options = {
-    title: 'Çıktı klasörü seç',
+    title: dt('Çıktı klasörü seç', 'Choose output folder'),
     properties: ['openDirectory', 'createDirectory'],
   };
   if (settings.outputDir && fs.existsSync(settings.outputDir)) options.defaultPath = settings.outputDir;
@@ -16629,7 +16637,7 @@ ipcMain.handle('dialog:openInputFolder', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const settings = loadSettings();
   const options = {
-    title: 'Girdi klasörü seç',
+    title: dt('Girdi klasörü seç', 'Choose input folder'),
     properties: ['openDirectory', 'createDirectory'],
   };
   if (settings.inputDir && fs.existsSync(settings.inputDir)) options.defaultPath = settings.inputDir;
@@ -16882,7 +16890,7 @@ ipcMain.handle('browser:research:export', async (event, request = {}) => {
     if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
     const annotations = store.filter(request.filters || {}, 5000);
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Araştırma defterini Markdown olarak dışa aktar',
+      title: dt('Araştırma defterini Markdown olarak dışa aktar', 'Export the research notebook as Markdown'),
       defaultPath: path.join(app.getPath('documents'), 'whisper-arastirma-defteri.md'),
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
@@ -16959,7 +16967,7 @@ ipcMain.handle('browser:research:exportAnki', async (event, request = {}) => {
       .filter((annotation) => annotation.type === 'quote');
     if (!annotations.length) return { ok: false, error: 'Dışa aktarılacak alıntı bulunamadı.' };
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Alıntıları Anki paketi olarak dışa aktar',
+      title: dt('Alıntıları Anki paketi olarak dışa aktar', 'Export quotes as an Anki package'),
       defaultPath: path.join(app.getPath('documents'), 'whisper-local-kartlari.apkg'),
       filters: [{ name: 'Anki paketi', extensions: ['apkg'] }],
     });
@@ -17010,9 +17018,9 @@ ipcMain.handle('shell:openPath', async (_event, p) => {
     if (!shellTargetAccess.has(target) && !subtitleFileAccess.has(target) && !mediaFileAccess.has(target)
         && !watchFolderAccess.has(target)) {
       const consent = await dialog.showMessageBox(mainWindow, {
-        type: 'question', title: 'Dosya veya klasör açma izni',
-        message: 'Bu yerel hedef işletim sistemiyle açılsın mı?', detail: target,
-        buttons: ['İptal', 'Aç'], defaultId: 0, cancelId: 0, noLink: true,
+        type: 'question', title: dt('Dosya veya klasör açma izni', 'Open file or folder permission'),
+        message: dt('Bu yerel hedef işletim sistemiyle açılsın mı?', 'Open this local target with the operating system?'), detail: target,
+        buttons: [dt('İptal', 'Cancel'), dt('Aç', 'Open')], defaultId: 0, cancelId: 0, noLink: true,
       });
       if (consent.response !== 1 || canonicalLocalPath(p) !== target) return 'Açma izni verilmedi.';
       shellTargetAccess.add(target);
@@ -17059,9 +17067,9 @@ ipcMain.handle('shell:showInFolder', async (_event, p) => {
     const target = canonicalLocalPath(p);
     if (!shellTargetAccess.has(target) && !subtitleFileAccess.has(target) && !mediaFileAccess.has(target)) {
       const consent = await dialog.showMessageBox(mainWindow, {
-        type: 'question', title: 'Dosyayı klasörde gösterme izni',
-        message: 'Bu yerel dosya Explorer içinde gösterilsin mi?', detail: target,
-        buttons: ['İptal', 'Göster'], defaultId: 0, cancelId: 0, noLink: true,
+        type: 'question', title: dt('Dosyayı klasörde gösterme izni', 'Reveal file in folder permission'),
+        message: dt('Bu yerel dosya Explorer içinde gösterilsin mi?', 'Reveal this local file in Explorer?'), detail: target,
+        buttons: [dt('İptal', 'Cancel'), dt('Göster', 'Show')], defaultId: 0, cancelId: 0, noLink: true,
       });
       if (consent.response !== 1 || canonicalLocalPath(p) !== target) return false;
       shellTargetAccess.add(target);
@@ -17447,9 +17455,9 @@ ipcMain.handle('subscriptions:export', async (event, payload) => {
   const fileName = /^whisper-abonelikler\.(json|opml|csv)$|^newpipe_subscriptions\.json$/.test(rawName)
     ? rawName : 'whisper-abonelikler.json';
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Abonelikleri dışa aktar',
+    title: dt('Abonelikleri dışa aktar', 'Export subscriptions'),
     defaultPath: fileName,
-    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    filters: [{ name: dt('Abonelik dosyası', 'Subscription file'), extensions: ['json', 'opml', 'csv'] }, { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
@@ -17463,9 +17471,9 @@ ipcMain.handle('subscriptions:export', async (event, payload) => {
 ipcMain.handle('subscriptions:import', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Abonelik dosyası içe aktar',
+    title: dt('Abonelik dosyası içe aktar', 'Import subscription file'),
     properties: ['openFile'],
-    filters: [{ name: 'Abonelik dosyası', extensions: ['json', 'opml', 'csv', 'xml', 'txt'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    filters: [{ name: dt('Abonelik dosyası', 'Subscription file'), extensions: ['json', 'opml', 'csv', 'xml', 'txt'] }, { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] }],
   });
   if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
   const filePath = result.filePaths[0];
@@ -17531,9 +17539,9 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
 ipcMain.handle('settings:export', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Uygulama yedeğini dışa aktar',
+    title: dt('Uygulama yedeğini dışa aktar', 'Export app backup'),
     defaultPath: 'whisper-altyazi-yedek.json',
-    filters: [{ name: 'Whisper Altyazı yedeği', extensions: ['json'] }],
+    filters: [{ name: dt('Whisper Altyazı yedeği', 'Whisper Subtitles backup'), extensions: ['json'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false };
   try {
@@ -17563,9 +17571,9 @@ ipcMain.handle('settings:export', async (event) => {
 ipcMain.handle('settings:import', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Ayar dosyası içe aktar',
+    title: dt('Ayar dosyası içe aktar', 'Import settings file'),
     properties: ['openFile'],
-    filters: [{ name: 'Ayar dosyası', extensions: ['json'] }, { name: 'Tüm Dosyalar', extensions: ['*'] }],
+    filters: [{ name: dt('Ayar dosyası', 'Settings file'), extensions: ['json'] }, { name: dt('Tüm Dosyalar', 'All files'), extensions: ['*'] }],
   });
   if (result.canceled || result.filePaths.length === 0) return { ok: false };
   try {
@@ -17597,15 +17605,15 @@ ipcMain.handle('settings:import', async (event) => {
     if (changedPaths.length || endpointWarnings.length) {
       const confirmation = await dialog.showMessageBox(mainWindow, {
         type: 'warning',
-        title: 'İçe aktarım değişikliklerini onayla',
+        title: dt('İçe aktarım değişikliklerini onayla', 'Confirm import changes'),
         message: endpointWarnings.length
-          ? 'İçe aktarılan ayarlar çeviri endpoint adresini değiştiriyor. Güvenlik gereği mevcut API anahtarları yeni endpoint\'e taşınmadı; gerekirse yeniden girin.'
-          : 'İçe aktarılan ayarlar dosya klasörlerini değiştirecek.',
+          ? dt('İçe aktarılan ayarlar çeviri endpoint adresini değiştiriyor. Güvenlik gereği mevcut API anahtarları yeni endpoint\'e taşınmadı; gerekirse yeniden girin.', 'The imported settings change the translation endpoint address. For security, existing API keys were not carried to the new endpoint; re-enter them if needed.')
+          : dt('İçe aktarılan ayarlar dosya klasörlerini değiştirecek.', 'The imported settings will change file folders.'),
         detail: [
           ...changedPaths.map(([key, label]) => `${label}: ${imported.settings[key]}`),
           ...endpointWarnings,
         ].join('\n'),
-        buttons: ['İçe aktar', 'Vazgeç'],
+        buttons: [dt('İçe aktar', 'Import'), dt('Vazgeç', 'Cancel')],
         defaultId: 1,
         cancelId: 1,
         noLink: true,
@@ -19111,6 +19119,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
   authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
+  dialogText: dt,
 });
 
 require('./media-catalog-service').registerMediaCatalogService({
@@ -19120,4 +19129,5 @@ require('./media-catalog-service').registerMediaCatalogService({
   ipcMain, dialog, nativeImage, owner: () => mainWindow, authorized: authorizedBrowserSender,
   userData: () => app.getPath('userData'), pythonPath: resolvePython,
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
+  dialogText: dt,
 });

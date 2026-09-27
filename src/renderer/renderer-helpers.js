@@ -846,10 +846,10 @@ function syncBrowserTabAudioButton(audio, tab) {
 
 function browserTabActivity(tab) {
   const tasks = [];
-  if (tab?.loading) tasks.push('Sayfa yükleniyor');
-  if (tab?.browserMangaBusy) tasks.push('Manga çevirisi');
-  if (tab?.browserPageTranslateBusy) tasks.push('Sayfa çevirisi');
-  if (tab?.browserTranslationTrackId && tab?.browserTranslationComplete === false) tasks.push('Altyazı çevirisi');
+  if (tab?.loading) tasks.push(interfaceChoice('Sayfa yükleniyor', 'Page loading'));
+  if (tab?.browserMangaBusy) tasks.push(interfaceChoice('Manga çevirisi', 'Manga translation'));
+  if (tab?.browserPageTranslateBusy) tasks.push(interfaceChoice('Sayfa çevirisi', 'Page translation'));
+  if (tab?.browserTranslationTrackId && tab?.browserTranslationComplete === false) tasks.push(interfaceChoice('Altyazı çevirisi', 'Subtitle translation'));
   return { busy: tasks.length > 0, label: tasks.join(' · ') };
 }
 
