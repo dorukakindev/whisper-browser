@@ -260,13 +260,16 @@ function decodeSubtitleBuffer(value, options = {}) {
       text = cp1254;
       note = 'cp1254';
     } else if (utf8SequenceCount > 0 && replacementCount <= Math.max(2, Math.floor(text.length * 0.01))) {
+      // Kasıtlı olarak `legacy`'den önce gelir: dosya ≥%99 geçerli UTF-8 ise
+      // tampondaki geçerli çok-bayt dizileri dil ipucundan daha güçlü
+      // kanıttır (sağlayıcı 'ru' deyip UTF-8 gönderebilir). Gerçek bir eski
+      // kodlama dosyası zaten binlerce FFFD üretip bu kapıyı geçemez.
       text = text.replace(/\uFFFD/g, '');
       note = 'utf-8 bozuk bayt atlandı';
     } else {
       // UTF-8 ve Türkçe kanıtı yok: sağlayıcı/arşiv dosyaları sıkça cp1251,
       // GBK, Big5 gibi eski kodlamalardadır — dil ipucu + senaryo
       // tutarlılığıyla en iyi adayı seç; belirgin üstünlük yoksa cp1254.
-      const legacy = pickLegacyEncoding(buffer, options.language);
       if (legacy) {
         text = legacy.text;
         note = legacy.encoding;
