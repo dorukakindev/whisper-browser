@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R156: settings hardening — a corrupt `settings.json` (unparseable, wrong root type, or type-corrupt top-level fields) no longer silently wipes all preferences: bad fields are dropped, good ones kept, the original file preserved as `settings.json.corrupt-<ts>`, and the user warned via the existing load-warning channel.
 - R155: installer UX — `start.bat` now runs `setlocal` so its PATH/env prefixes stop leaking into (and re-prepending in) the calling console; helper installers (`install-browser-align/tools/extras.bat`) pause on every failure path so double-clicked installs show the error instead of closing instantly.
 
 ### Internal
