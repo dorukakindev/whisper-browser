@@ -1,11 +1,10 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 10:18 — R140 npm audit (temiz) + R141 startup perf (12ms, aksiyon yok) + R142 CSS token (447→445); rapor 139](docs/devir/2026-09-27-1018.md).
+Güncel çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
+
+Önceki çalışma: [2026-09-27 10:18 — R140 npm audit (temiz) + R141 startup perf (12ms, aksiyon yok) + R142 CSS token (447→445); rapor 139](docs/devir/2026-09-27-1018.md).
 
 Önceki çalışma: [2026-09-27 10:05 — R139 birim-test kapsamı (browser-mini-player 8 senaryo; kalan testsiz modül yalnız subprocess'li browser-dialogue); rapor 138](docs/devir/2026-09-27-1005.md).
-
-Önceki çalışma: [2026-09-27 09:45 — R138/R151 IPC parity + guard denetimi (213 handle tam parity, 0 guard-öncesi yan etki; ipc-parity.test.js kalıcı ratchet); rapor BROWSER_BUG_REPORT_137.md](docs/devir/2026-09-27-0945.md).
- 03f7067 (docs(r140-142): rapor 139 + changelog + indeks)
 
 Önceki çalışma: [2026-09-27 09:30 — R137 parser fuzz turu: 160k vaka temiz + CI ratchet (subtitle-parser-fuzz.test.js, 50k deterministik vaka); rapor BROWSER_BUG_REPORT_136.md](docs/devir/2026-09-27-0930.md).
 
