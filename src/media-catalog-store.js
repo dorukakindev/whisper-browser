@@ -104,22 +104,60 @@ function sameId(a, b) {
   return !!((imdbIdOf(a.imdbId) && imdbIdOf(a.imdbId) === imdbIdOf(b.imdbId)) ||
     (tmdbIdOf(a.tmdbId, a.kind) && tmdbIdOf(a.tmdbId, a.kind) === tmdbIdOf(b.tmdbId, b.kind)));
 }
-function resolveImport(existing, incoming) {
-  const imported = existing.filter((item) => item.importRef && item.importRef === incoming.importRef);
-  if (imported.length === 1) {
-    const target = imported[0];
-    if (target.kind !== incoming.kind) return { conflict: 'Aynı içe aktarım kimliğinde eser türü değişmiş.' };
-    if ((imdbIdOf(target.imdbId) && imdbIdOf(incoming.imdbId) && imdbIdOf(target.imdbId) !== imdbIdOf(incoming.imdbId)) ||
-        (tmdbIdOf(target.tmdbId, target.kind) && tmdbIdOf(incoming.tmdbId, incoming.kind) &&
-          tmdbIdOf(target.tmdbId, target.kind) !== tmdbIdOf(incoming.tmdbId, incoming.kind)))
-      return { conflict: 'Aynı içe aktarım kaydının IMDb/TMDB kimliği değişmiş.' };
-    return { target, reason: 'importRef' };
+// İçe aktarım eşleşmesi her gelen kayıtta tüm kataloğu tarıyordu (O(n×m);
+// 5k katalog + 2k içe aktarım ana süreci ~15s bloke ediyordu). İndeksler
+// plan başına bir kez kurulur; ekleme/birleştirmeler indexItem/unindexItem
+// ile güncel tutulur. Eşleşme semantiği resolveImport ile birebir aynıdır.
+function buildImportIndexes(existing) {
+  const byImportRef = new Map(), byImdb = new Map(), byTmdb = new Map();
+  const titles = new Set(), indexById = new Map();
+  const add = (map, key, item) => {
+    if (!key) return;
+    let bucket = map.get(key);
+    if (!bucket) map.set(key, (bucket = new Set()));
+    bucket.add(item);
+  };
+  const drop = (map, key, item) => {
+    const bucket = map.get(key);
+    if (bucket && bucket.delete(item) && !bucket.size) map.delete(key);
+  };
+  const indexItem = (item, at) => {
+    indexById.set(item.id, at);
+    add(byImportRef, item.importRef, item);
+    add(byImdb, imdbIdOf(item.imdbId), item);
+    add(byTmdb, tmdbIdOf(item.tmdbId, item.kind), item);
+    titles.add(titleKey(item));
+  };
+  const unindexItem = (item) => {
+    drop(byImportRef, item.importRef, item);
+    drop(byImdb, imdbIdOf(item.imdbId), item);
+    drop(byTmdb, tmdbIdOf(item.tmdbId, item.kind), item);
+  };
+  existing.forEach(indexItem);
+  return { byImportRef, byImdb, byTmdb, titles, indexById, indexItem, unindexItem };
+}
+function resolveImportIndexes(indexes, incoming) {
+  if (incoming.importRef) {
+    const imported = [...(indexes.byImportRef.get(incoming.importRef) || [])];
+    if (imported.length > 1) return { conflict: 'Birden çok kayıt aynı içe aktarım kimliğini taşıyor.' };
+    if (imported.length === 1) {
+      const target = imported[0];
+      if (target.kind !== incoming.kind) return { conflict: 'Aynı içe aktarım kimliğinde eser türü değişmiş.' };
+      if ((imdbIdOf(target.imdbId) && imdbIdOf(incoming.imdbId) && imdbIdOf(target.imdbId) !== imdbIdOf(incoming.imdbId)) ||
+          (tmdbIdOf(target.tmdbId, target.kind) && tmdbIdOf(incoming.tmdbId, incoming.kind) &&
+            tmdbIdOf(target.tmdbId, target.kind) !== tmdbIdOf(incoming.tmdbId, incoming.kind)))
+        return { conflict: 'Aynı içe aktarım kaydının IMDb/TMDB kimliği değişmiş.' };
+      return { target, reason: 'importRef' };
+    }
   }
-  if (imported.length > 1) return { conflict: 'Birden çok kayıt aynı içe aktarım kimliğini taşıyor.' };
-  const identified = existing.filter((item) => sameId(item, incoming));
-  if (identified.length > 1) return { conflict: 'IMDb/TMDB kimliği birden çok eserle eşleşiyor.' };
-  if (identified.length === 1) {
-    const target = identified[0];
+  const identified = new Set();
+  const imdbKey = imdbIdOf(incoming.imdbId);
+  if (imdbKey) for (const item of indexes.byImdb.get(imdbKey) || []) identified.add(item);
+  const tmdbKey = tmdbIdOf(incoming.tmdbId, incoming.kind);
+  if (tmdbKey) for (const item of indexes.byTmdb.get(tmdbKey) || []) identified.add(item);
+  if (identified.size > 1) return { conflict: 'IMDb/TMDB kimliği birden çok eserle eşleşiyor.' };
+  if (identified.size === 1) {
+    const [target] = identified;
     if (target.kind !== incoming.kind) return { conflict: 'Sağlayıcı kimliği film ve dizi arasında çakışıyor.' };
     if ((imdbIdOf(target.imdbId) && imdbIdOf(incoming.imdbId) && imdbIdOf(target.imdbId) !== imdbIdOf(incoming.imdbId)) ||
         (tmdbIdOf(target.tmdbId, target.kind) && tmdbIdOf(incoming.tmdbId, incoming.kind) &&
@@ -127,7 +165,7 @@ function resolveImport(existing, incoming) {
       return { conflict: 'IMDb/TMDB kimlikleri birbiriyle çelişiyor.' };
     return { target, reason: 'providerId' };
   }
-  if (existing.some((item) => titleKey(item) === titleKey(incoming)))
+  if (indexes.titles.has(titleKey(incoming)))
     return { conflict: 'Aynı başlık ve yılda kimliği belirsiz eser var.' };
   return {};
 }
@@ -206,20 +244,24 @@ function createMediaCatalogStore({ filePath }) {
     if (!Array.isArray(rawItems) || rawItems.length > MAX_ITEMS) fail('İçe aktarım listesi geçersiz.');
     const selected = selectedIds == null ? null : new Set(selectedIds);
     const items = list(), report = { added: [], updated: [], conflicts: [], skipped: [] };
+    const indexes = buildImportIndexes(items);
     for (const raw of rawItems) {
       const id = text(raw?.importRef || raw?.id, 120);
       if (selected && !selected.has(id)) { report.skipped.push({ id, reason: 'Seçilmedi.' }); continue; }
       let incoming;
       try { incoming = itemOf(raw); }
       catch (error) { report.skipped.push({ id, reason: error.message }); continue; }
-      const match = resolveImport(items, incoming);
+      const match = resolveImportIndexes(indexes, incoming);
       if (match.conflict) { report.conflicts.push({ id, title: incoming.title, reason: match.conflict }); continue; }
       if (match.target) {
-        const index = items.findIndex((item) => item.id === match.target.id);
-        items[index] = mergeRecord(items[index], incoming);
+        const index = indexes.indexById.get(match.target.id);
+        indexes.unindexItem(match.target);
+        items[index] = mergeRecord(match.target, incoming);
+        indexes.indexItem(items[index], index);
         report.updated.push({ id, catalogId: items[index].id, reason: match.reason });
       } else {
         if (items.length >= MAX_ITEMS) { report.skipped.push({ id, reason: 'Katalog kapasitesi doldu.' }); continue; }
+        indexes.indexItem(incoming, items.length);
         items.push(incoming); report.added.push({ id, catalogId: incoming.id });
       }
     }

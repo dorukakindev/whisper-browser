@@ -106,6 +106,18 @@
       : { type, title: '', year: '', synopsis: '', imdbId: '', tmdbId: '', watchStatus: state.section === 'watchlist' ? 'planned' : 'unspecified', favorite: false, ratings: {}, episodes: [] };
   }
   function edit(item, type) { state.draft = makeDraft(item, type); state.mode = 'form'; render(); }
+  // Arama metni kayıt başına en fazla bir kez katlanır: 10k kayıtta her tuşta
+  // ~40 MB'lık toLocaleLowerCase tekrarını önler. WeakMap, liste yenilenince
+  // eski katlamaları otomatik bırakır ve kayda veri bulaştırmaz.
+  const searchFolds = new WeakMap();
+  function searchFoldOf(item) {
+    let fold = searchFolds.get(item);
+    if (fold === undefined) {
+      fold = `${item.title || ''} ${item.year || ''} ${item.synopsis || ''}`.toLocaleLowerCase('tr-TR');
+      searchFolds.set(item, fold);
+    }
+    return fold;
+  }
   function filtered() {
     const query = state.search.trim().toLocaleLowerCase('tr-TR');
     return state.items.filter(item => {
@@ -115,7 +127,7 @@
       if (state.status !== 'all' && item.watchStatus !== state.status &&
           !(state.section === 'watchlist' && (item.episodes || []).some(episode => episode.watchStatus === state.status))) return false;
       if (state.favorite && !item.favorite) return false;
-      return !query || `${item.title || ''} ${item.year || ''} ${item.synopsis || ''}`.toLocaleLowerCase('tr-TR').includes(query);
+      return !query || searchFoldOf(item).includes(query);
     });
   }
   function poster(item, className) {
@@ -150,7 +162,12 @@
     const body = $('div', 'mc-content');
     const controls = $('div', 'mc-toolbar');
     const search = $('input'); search.type = 'search'; search.placeholder = 'Başlık, yıl veya konu ara'; search.setAttribute('aria-label', 'Katalogda ara'); search.value = state.search;
-    search.addEventListener('input', () => { state.search = search.value; renderCards(); });
+    let searchTimer = null;
+    search.addEventListener('input', () => {
+      state.search = search.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderCards, 120);
+    });
     const status = $('select'); status.setAttribute('aria-label', 'İzleme durumuna göre filtrele');
     for (const [key, label] of [['all', 'Tüm durumlar'], ...Object.entries(statusLabels)]) { const option = $('option', '', label); option.value = key; status.append(option); }
     status.value = state.status; status.addEventListener('change', () => { state.status = status.value; renderCards(); });
