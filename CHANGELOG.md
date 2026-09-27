@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R163: resource-leak inventory — `tests/resource-leak-inventory.test.js` ratchets timer/child-process/observer set/clear pairs, `fs.watch` absence (interval model), `modelProcesses` add→close-delete balance, and `jobLog` stream close.
 - R162: rejection+atomicity sweep — `tests/rejection-atomicity.test.js` ratchets the `unhandledRejection` sweeper, `.then` chain catch coverage, `atomic-json` tmp+rename discipline for state files (direct `fs.writeFileSync` confined to user-output/temp paths), and `jobLog` write try/catch. No bugs found.
 - R161: NaN sweep — `tests/number-normalization.test.js` ratchets non-finite-number dropping across `clonePublicOptions`/snapshot/disk-JSON, src-wide `parseInt` radix completeness (depth-aware scan, vendor excluded), and the truthy-gated numeric opts→argv path in `main.js`.
 - R160: unicode path ratchets — `tests/unicode-paths.test.js` verifies `ffSubtitlesArg` escaping on Turkish/space/quote Windows paths, ASCII staging names for burn-in, queue label derivation from Turkish paths, argv (no-shell) `--input` passing, and BOM'd `write_srt` to a Turkish-named file (real Python call).
