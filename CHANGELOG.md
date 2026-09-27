@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R133 — subtitle provider downloads decoded legacy encodings (cp1251/1250/GB18030/Big5/Shift-JIS/EUC-KR and friends) via a dependency-free `pickLegacyEncoding` in `browser-textutil.js` (language hint + fatal multibyte gate + script-coherence scoring); previously non-UTF-8 provider files threw a raw TypeError. Downloads now also reject content with no subtitle structure (`INVALID_SUBTITLE`), and the manual encoding picker lists all 20 legacy encodings.
+
 - R132 — deepest audit round: ~200 surfaces re-read (browser capture/subtitle parsers, page-translate, translation scheduler, session/watch stores, media controller, settings-security, transcribe.py translation pipeline, and all backend Python helpers) plus tree-wide pattern sweeps (dynamic RegExp, Math.random, eval/Function, execSync/spawnSync, fs deletion sites, bare `.sort()`, Promise.all, renderer DOM access). **No confirmed new bugs** — every audited surface is hardened with bounds, whitelists, atomicity, staleness/generation guards, abort discipline, and inline fix-round notes (R83/R85/R86/R127/R128/R129/BUG-117-05/P79/RFC 8216/Electron 43). Coverage map and Windows manual-check list recorded in `docs/raporlar/BROWSER_BUG_REPORT_132.md`.
 
 ### Changed

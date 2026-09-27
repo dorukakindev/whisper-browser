@@ -1,6 +1,6 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-26 23:38 — R132 derin denetim: ~200 yüzey okundu, doğrulanmış yeni bug bulunmadı; kapsam haritası + Windows el-kontrol listesi BROWSER_BUG_REPORT_132.md'de](docs/devir/2026-09-26-2338.md).
+Güncel çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
 
 Önceki çalışma: [2026-09-26 18:38 — PR60 E2E bulgu düzeltmeleri: quick-pop popover'ları rAF'de `event.currentTarget` null'una takılıp ekran dışında kırpılıyordu (bloklayıcı düzeltildi); sabit sekme genişliği, omnibox URL tekilleştirmesi, kind etiketi i18n](docs/devir/2026-09-26-1838.md).
 

@@ -178,6 +178,38 @@ async function main() {
     { fetch: async (url) => response('', 302, { location: url }) }), { code: 'UNSAFE_URL' });
 
   await assert.rejects(searchSubtitles({ query: 'X', imdbId: 'abc' }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
+
+  // R133: UTF-8 olmayan sağlayıcı dosyaları (cp1251 Kiril, GBK Çince
+  // arşivleri) strict-UTF8 TypeError yerine toleranslı çözülür; altyazı
+  // yapısı (zaman damgası / WEBVTT / ASS başlığı) olmayan içerik yine
+  // INVALID_SUBTITLE ile reddedilir.
+  const cyrillicSrt = new Uint8Array([
+    0x31, 0x0a, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x31, 0x2c, 0x30, 0x30, 0x30,
+    0x20, 0x2d, 0x2d, 0x3e, 0x20, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x32, 0x2c,
+    0x30, 0x30, 0x30, 0x0a, 0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, 0x20, 0xec, 0xe8, 0xf0,
+    0x2c, 0x20, 0xea, 0xe0, 0xea, 0x20, 0xe4, 0xe5, 0xeb, 0xe0, 0x3f, 0x0a,
+  ]);
+  const russianDl = await downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/ru/a.srt', language: 'ru' },
+    { fetch: async () => new Response(cyrillicSrt) });
+  assert.match(russianDl.text, /Привет мир/);
+  assert.equal(russianDl.format, 'srt');
+  // İpucsuz aynı dosya da tutarlı çözülür (cp1251 yaygınlıkla kazanır).
+  const noHintDl = await downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/ru/b.srt' },
+    { fetch: async () => new Response(cyrillicSrt) });
+  assert.match(noHintDl.text, /Привет мир/);
+
+  // Altyazı yapısı taşımayan ikili/garbage içerik reddedilir.
+  const garbage = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xd8, 0xff, 0xe0]);
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/bad.bin' },
+    { fetch: async () => new Response(garbage) }), { code: 'INVALID_SUBTITLE' });
+  // UTF-8 geçerli ama altyazı olmayan metin de reddedilir.
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/plain.txt' },
+    { fetch: async () => response('sadece düz metin, zaman damgası yok') }), { code: 'INVALID_SUBTITLE' });
+
   console.log('browser-subtitle-search: fixture tests passed');
 }
 
