@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 11:15 — R148 yerel abonelik RSS akışı (oturumsuz feeds/videos.xml son videolar; subs:rssFeed IPC + parser + UI bölümü)](docs/devir/2026-09-27-1115.md).
+Güncel çalışma: [2026-09-27 11:45 — R152 timecode kenar-durum kilitleri (33 kontrol: parseTime/parseTimedBlocks/formatSrtTime sözleşmesi; bug yok)](docs/devir/2026-09-27-1145.md).
+
+Önceki çalışma: [2026-09-27 11:15 — R148 yerel abonelik RSS akışı (oturumsuz feeds/videos.xml son videolar; subs:rssFeed IPC + parser + UI bölümü)](docs/devir/2026-09-27-1115.md).
 
 Önceki çalışma: [2026-09-27 14:10 — R147 gauntlet bakiyesi (T8: 222 IPC işleyicisi yetki denetimi + ratchet; T6: publishBrowserTrackNow atomik yazı); rapor 141](docs/devir/2026-09-27-1410.md).
 

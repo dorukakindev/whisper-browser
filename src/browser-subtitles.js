@@ -1974,6 +1974,7 @@ module.exports = {
   cueFingerprint,
   cuesToSrt,
   cuesToVtt,
+  formatSrtTime,
   detectHlsCea608,
   isLikelySubtitleResponse,
   manifestFingerprint,
