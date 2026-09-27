@@ -341,7 +341,7 @@ function registerBrowserFeatureServices(deps) {
         }
         case 'subtitle-download': {
           const output = await subtitles.downloadSubtitle(
-            { fileId: payload.fileId, url: payload.url, provider: payload.provider },
+            { fileId: payload.fileId, url: payload.url, provider: payload.provider, language: payload.language },
             payload.config || {}, { signal: controller.signal }); assertCurrent();
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
           const filePath = path.join(directory, `${randomUUID()}.${output.format === 'vtt' ? 'vtt' : 'srt'}`);

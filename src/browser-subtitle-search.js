@@ -1,5 +1,7 @@
 'use strict';
 
+const { decodeSubtitleBuffer } = require('./browser-textutil');
+
 const API = 'https://api.opensubtitles.com/api/v1';
 // Stremio OpenSubtitles-v3 — anahtarsız ikinci sağlayıcı basamağı (imdb_id
 // ile çalışır; OpenSubtitles hesabı olmayan kurulumda da arama yapar).
@@ -282,7 +284,7 @@ function approvedStremioUrl(link) {
   return url.href;
 }
 
-async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
+async function downloadStremioSubtitle(url, config = {}, { signal, language } = {}) {
   const fetcher = config.fetch || globalThis.fetch;
   let downloadUrl = approvedStremioUrl(url);
   // 'follow' yerine elle yönlendirme: onaylı strem.io bağlantısı keyfi bir
@@ -302,17 +304,31 @@ async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
   }
   if (!response.ok) throw problem(`Altyazı indirme hatası (HTTP ${response.status}).`, 'PROVIDER_ERROR');
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+  const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(url.split('/').pop() || '').replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
   const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
-  if (!text.trim() || /\0/.test(text)) throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
   return { text, format, fileName: fileName || `subtitle-stremio.${format}` };
 }
 
-async function downloadSubtitle({ fileId, url, provider }, config = {}, { signal } = {}) {
+// Sağlayıcı dosyaları UTF-8 garantisi taşımaz (cp1251 Kiril, GBK Çince
+// arşivleri sık görülür) — strict UTF-8 yerine dil-ipuçlu esnek çözüm.
+// Geçerlilik kapısı karakter kümesi değil altyazı yapısıdır: zaman damgası
+// ' --> ' veya WEBVTT/ASS başlığı olmayan içerik reddedilir.
+function decodeDownloadedSubtitle(bytes, language) {
+  const { text } = decodeSubtitleBuffer(bytes, { language });
+  const looksLikeSubtitle = /-->\s*\d{1,2}:\d{2}/.test(text)
+    || /^\s*WEBVTT/.test(text) || /^\s*\[(Script Info|V4\+? Styles)\]/i.test(text)
+    || /^Dialogue:/m.test(text);
+  if (!text.trim() || /\0/.test(text) || !looksLikeSubtitle) {
+    throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
+  }
+  return text;
+}
+
+async function downloadSubtitle({ fileId, url, provider, language }, config = {}, { signal } = {}) {
   signal = AbortSignal.any([signal, AbortSignal.timeout(60000)].filter(Boolean));
   if (provider === 'stremio' || (!Number.isSafeInteger(Number(fileId)) && url)) {
-    return downloadStremioSubtitle(url, config, { signal });
+    return downloadStremioSubtitle(url, config, { signal, language });
   }
   if (!Number.isSafeInteger(Number(fileId)) || Number(fileId) <= 0) throw problem('Geçerli altyazı dosya kimliği gerekli.', 'INVALID_INPUT');
   const payload = await request('/download', {
@@ -337,10 +353,9 @@ async function downloadSubtitle({ fileId, url, provider }, config = {}, { signal
   }
   if (!response.ok) throw apiError(response);
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+  const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(payload.file_name || '').split(/[\\/]/).pop().replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
   const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
-  if (!text.trim() || /\0/.test(text)) throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
   return { text, format, fileName: fileName || `subtitle-${fileId}.${format}` };
 }
 

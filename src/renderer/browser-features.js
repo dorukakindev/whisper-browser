@@ -120,7 +120,7 @@
       item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}${row.provider === 'stremio' ? ' · Stremio/OS' : ''}`, 'bf-meta'));
       const button = node('button', 'İndir ve aç'); button.type = 'button';
       button.addEventListener('click', async () => {
-        const downloaded = await call('subtitle-download', { fileId: row.fileId, url: row.url, provider: row.provider, config: credentials() });
+        const downloaded = await call('subtitle-download', { fileId: row.fileId, url: row.url, provider: row.provider, language: row.language, config: credentials() });
         if (!downloaded) return;
         if (!downloaded.filePath) { status('İndirme dosya yolu döndürmedi.', true); return; }
         if (!await openSubtitleCopy(downloaded.filePath)) return;
