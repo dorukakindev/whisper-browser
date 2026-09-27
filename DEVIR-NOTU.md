@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-2355.md](docs/devir/2026-09-27-2355.md) — R180 54 hiç-raporlanmamış dosya denetimi + sınırsız gövde okuma sınıfı (5 yüzey akış-sınırlı okumaya çevrildi)
+Güncel çalışma: [docs/devir/2026-09-28-0030.md](docs/devir/2026-09-28-0030.md) — R181 araç/test altyapısı denetimi: Windows paketi 22MB+ iç yüzey sızıntısı kapandı + 3 test-altyapı düzeltmesi + ignore ratchet'i
+Önceki çalışma: [docs/devir/2026-09-27-2355.md](docs/devir/2026-09-27-2355.md) — R180 54 hiç-raporlanmamış dosya denetimi + sınırsız gövde okuma sınıfı (5 yüzey akış-sınırlı okumaya çevrildi)
 Önceki çalışma: [docs/devir/2026-09-27-2340.md](docs/devir/2026-09-27-2340.md) — R179 DeArrow topluluk başlıkları + RYD beğenmeme sayısı (opt-in, oynatıcıya açık video)
 Önceki çalışma: [docs/devir/2026-09-27-2200.md](docs/devir/2026-09-27-2200.md) — R178 Windows dosya-adı kuralları (ayrılmış kökler + kuyruk nokta) + preload denetimi temiz
 Önceki çalışma: [docs/devir/2026-09-27-2135.md](docs/devir/2026-09-27-2135.md) — R176 IPC ratchet: 16 unguarded = {} ile güvenli, 0 sabitlendi + .on gönderici ratcheti
