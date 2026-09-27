@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-27-1625.md](docs/devir/2026-09-27-1625.md) — R168 yt-dlp güncelleyici: dosya-adı traversal + IP literal SSRF kapıları
+Güncel çalışma: [docs/devir/2026-09-27-1645.md](docs/devir/2026-09-27-1645.md) — R154 Electron güvenlik: global webview reddi + statik ratchet
+
+Önceki çalışma: [docs/devir/2026-09-27-1625.md](docs/devir/2026-09-27-1625.md) — R168 yt-dlp güncelleyici: dosya-adı traversal + IP literal SSRF kapıları
 
 Önceki çalışma: [docs/devir/2026-09-27-1605.md](docs/devir/2026-09-27-1605.md) — R167 manga/OCR: localhost. FQDN SSRF düzeltmesi + 65 kontrol
 

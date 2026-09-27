@@ -13743,6 +13743,18 @@ function createWindow() {
   }
 }
 
+// Savunma derinliği: her pencere/görünüm webviewTag:false ile doğar ama ileride
+// unutulan bir webPreferences ya da üçüncü-taraf pencere <webview> eklemeye
+// kalkarsa bağlanmayı uygulama genelinde reddet. webContents 'window' gibi
+// iframe'i olmayan türler için de kurulması zararsızdır.
+app.on('web-contents-created', (_event, contents) => {
+  try {
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault();
+    });
+  } catch (_) {}
+});
+
 app.on('certificate-error', (event, webContents, url, error, _certificate, callback) => {
   // Güvenlik hatalarında hiçbir koşulda sessiz geçiş yapma. Kullanıcıya
   // anlaşılır hata yüzeyini gösterirken Chromium bağlantısını kesin reddet.

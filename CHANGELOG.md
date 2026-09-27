@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Electron hardening: every webContents now denies webview attachment app-wide (defense-in-depth over webviewTag:false), and the mini-player window's lock flags are explicit. New static ratchet test scans all window/view creation sites for required webPreferences locks.
 - yt-dlp updater: wheel filenames with path separators are rejected before download (prevents writing outside the staging dir); https artifact/metadata URLs are restricted to globally-routable IPs (SSRF hardening).
 - Manga image URL gate: trailing-dot FQDNs (`localhost.`, `*.local.`) no longer bypass the loopback/private-host checks (SSRF hardening).
 - Kuyruk seçeneklerinde NaN/±Infinity değerler artık diske `null` olarak sızmaz; `queue-persistence.js` `sanitizePublicValue` sonlu-sayı kapısı ekler.
