@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 10:50 — R144 ölü kod (normalizeAnchorText + resetCueRaw; serialize-scope sınırı belgelendi)](docs/devir/2026-09-27-1050.md).
+Güncel çalışma: [2026-09-27 12:10 — R145 soak ölçüm sertleştirme (faz-ayrık heap eğimi, yazıcı-bazlı disk bütçesi, aynı-durum dinleyici probu; gerçek sızıntı yok; diff3 marker silindi + CI yasağı); rapor 140](docs/devir/2026-09-27-1210.md).
+
+Önceki çalışma: [2026-09-27 10:50 — R144 ölü kod (normalizeAnchorText + resetCueRaw; serialize-scope sınırı belgelendi)](docs/devir/2026-09-27-1050.md).
 
 Önceki çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
 
