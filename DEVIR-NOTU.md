@@ -1,5 +1,7 @@
 # Devir notları indeksi
 
+Güncel çalışma: [2026-09-27 04:38 — Devin dalları ve güncel master denetimi; zorunlu cue temizliği sonrası önizleme eşitlemesi, R133](docs/devir/2026-09-27-0438.md).
+
 Güncel çalışma: [2026-09-26 23:38 — R132 derin denetim: ~200 yüzey okundu, doğrulanmış yeni bug bulunmadı; kapsam haritası + Windows el-kontrol listesi BROWSER_BUG_REPORT_132.md'de](docs/devir/2026-09-26-2338.md).
 
 Önceki çalışma: [2026-09-26 18:38 — PR60 E2E bulgu düzeltmeleri: quick-pop popover'ları rAF'de `event.currentTarget` null'una takılıp ekran dışında kırpılıyordu (bloklayıcı düzeltildi); sabit sekme genişliği, omnibox URL tekilleştirmesi, kind etiketi i18n](docs/devir/2026-09-26-1838.md).
