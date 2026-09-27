@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R136: i18n closure — 348 new TR→EN dictionary entries (74 renderer sink literals + 274 main.js IPC messages) plus 3 concat-prefix patterns; i18n-coverage test now ratchets renderer sinks and main.js error/message/stage/label returns so no Turkish UI string can land untranslated.
 - R135 — docs cleanup: AGENTS.md report counter corrected (122 → 134); two stray root reports moved into `docs/raporlar/` under non-colliding names; new `docs/raporlar/INDEX.md` covers the numbered series; README feature tour gained media-library and subtitle-provider rows; HISTORICAL_RECORDS path references updated.
 
 - R134 — deep-audit continuation: `decodeSubtitleBuffer` now runs the legacy-encoding guess in a single pass (was computed twice per non-UTF-8 buffer — ~20 TextDecoder constructions each); the "sparse broken UTF-8 beats a language hint" ordering is documented as intentional and locked by a regression test plus a TextDecoder-construction-count test. ~25 more modules re-read clean (watch/catalog stores, hls-recovery, burnin-output, subscriptions-io, queue-persistence, backend helpers).
