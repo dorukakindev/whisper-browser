@@ -26814,6 +26814,49 @@ function renderStSubsPanel(grid) {
   hint.textContent = window.UiLocale?.t('Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.')
     || 'Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.';
   grid.appendChild(hint);
+  renderStSubsFeed(grid);
+}
+
+// Yerel aboneliklerin YouTube RSS beslemelerinden "son videolar" akışı.
+// YouTube hesabı/Invidious oturumu gerektirmez — feeds/videos.xml herkese açık.
+let stSubsFeedCache = { key: '', at: 0, videos: [], errors: 0 };
+async function renderStSubsFeed(grid) {
+  if (!window.api?.subsRssFeed) return;
+  const channels = stSubs.filter((s) => /^UC[\w-]{15,30}$/.test(s.authorId || ''));
+  if (!channels.length) return;
+  const key = channels.map((s) => s.authorId).sort().join(',');
+  const holder = document.createElement('div');
+  holder.className = 'st-subs-feed';
+  const feedTitle = document.createElement('div');
+  feedTitle.className = 'st-subs-feed-title';
+  feedTitle.textContent = window.UiLocale?.t('Aboneliklerden yeni videolar') || 'Aboneliklerden yeni videolar';
+  const status = document.createElement('div');
+  status.className = 'inv-status';
+  status.textContent = window.UiLocale?.t('Akış yükleniyor…') || 'Akış yükleniyor…';
+  holder.append(feedTitle, status);
+  grid.appendChild(holder);
+  const fresh = Date.now() - stSubsFeedCache.at < 5 * 60 * 1000 && stSubsFeedCache.key === key;
+  if (!fresh) {
+    const res = await window.api.subsRssFeed({ channels }).catch(() => null);
+    if (!grid.isConnected || !holder.isConnected) return;
+    if (!res || !res.ok) {
+      status.textContent = res?.error || (window.UiLocale?.t('Akış alınamadı') || 'Akış alınamadı');
+      return;
+    }
+    stSubsFeedCache = { key, at: Date.now(), videos: res.videos || [], errors: res.errors || 0 };
+  }
+  status.remove();
+  if (!stSubsFeedCache.videos.length) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-status';
+    empty.textContent = window.UiLocale?.t('Akışta video yok.') || 'Akışta video yok.';
+    holder.appendChild(empty);
+    return;
+  }
+  const feedGrid = document.createElement('div');
+  feedGrid.className = 'st-grid';
+  stSubsFeedCache.videos.slice(0, 24).forEach((v) => feedGrid.appendChild(buildSmartTubeCard(v)));
+  holder.appendChild(feedGrid);
 }
 
 async function stSearchLoadMore() {

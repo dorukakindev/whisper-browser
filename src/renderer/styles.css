@@ -6113,6 +6113,8 @@ html, body, * { scrollbar-color: auto; }
   border-radius: 999px; padding: 1px 7px; flex: none;
 }
 .st-subs-hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted); padding: 4px 2px; }
+.st-subs-feed { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.st-subs-feed-title { font-size: 12px; font-weight: 600; color: var(--text); padding: 6px 2px 0; border-top: 1px solid var(--border); margin-top: 4px; }
 /* A28: arama üstü yatay playlist rayı */
 .st-pl-rail {
   grid-column: 1 / -1; display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px;
