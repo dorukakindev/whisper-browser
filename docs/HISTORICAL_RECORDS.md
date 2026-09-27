@@ -1,7 +1,8 @@
 # Historical reports and handoff records
 
-The root `BROWSER_BUG_REPORT_*.md`, `PROGRAM_BUG_REPORT_*.md`, dated audit files,
-and `docs/devir/` notes are retained as engineering history. They show what was
+The `docs/raporlar/BROWSER_BUG_REPORT_*.md` series (see `docs/raporlar/INDEX.md`),
+`PROGRAM_BUG_REPORT_*.md`, dated audit files, and `docs/devir/` notes are
+retained as engineering history. They show what was
 observed at a particular commit; they are **not** a current defect list or a
 support promise.
 

@@ -30,6 +30,8 @@ Whisper Browser is a desktop application for turning media into working subtitle
 | 🧭 **Browser capture** | HLS/DASH, WebVTT, TTML/IMSC and text-track capture on sites that expose accessible subtitles — then translate or fall back to Live Whisper. |
 | 🌍 **Context translation** | Cue timing never moves: context-aware translation writes a separate target file, source untouched. |
 | 📄 **Page & PDF** | Articles, manga regions and bounded PDF batches translated via configured providers. |
+| 📚 **Media library** | Local catalog with watch progress, collections, posters and resume — plus OPML/CSV/NewPipe subscription import/export. |
+| 📝 **Subtitle providers** | Download tracks from OpenSubtitles and Stremio (keyless fallback); legacy encodings (cp1251, GBK, Shift-JIS…) auto-detected. |
 
 Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only where a site exposes an authorized, accessible subtitle track.
 
