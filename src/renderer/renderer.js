@@ -5904,13 +5904,6 @@ function browserTabAvatar(tab) {
   return avatar;
 }
 
-function browserTabLabel(tab) {
-  let label = '';
-  if (tab && tab.title) label = tab.title;
-  else try { label = new URL(tab && tab.url || '').hostname; } catch (_) { label = interfaceChoice('Yeni sekme', 'New tab'); }
-  return label.length > 80 ? `${label.slice(0, 77)}…` : label;
-}
-
 function browserCloseIcon() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -5931,27 +5924,6 @@ function browserCloseIcon() {
 
 // Ses düğmesinin görünür/simge/başlık durumu tek yerde güncellenir (hem tam
 // çizim hem yerinde güncelleme aynı işlevi kullanır).
-function syncBrowserTabAudioButton(audio, tab) {
-  if (!audio) return;
-  audio.hidden = !tab.audible && !tab.tabMuted;
-  const muted = !!tab.tabMuted;
-  if (audio.dataset.muted !== String(muted) || !audio.firstChild) {
-    audio.dataset.muted = String(muted);
-    audio.replaceChildren(browserTabAudioIcon(muted));
-  }
-  audio.title = tab.tabMuted ? 'Sekmenin sesini aç' : 'Sekmeyi sessize al';
-  audio.setAttribute('aria-label', audio.title);
-  audio.setAttribute('aria-pressed', tab.tabMuted ? 'true' : 'false');
-}
-
-function browserTabActivity(tab) {
-  const tasks = [];
-  if (tab?.loading) tasks.push('Sayfa yükleniyor');
-  if (tab?.browserMangaBusy) tasks.push('Manga çevirisi');
-  if (tab?.browserPageTranslateBusy) tasks.push('Sayfa çevirisi');
-  if (tab?.browserTranslationTrackId && tab?.browserTranslationComplete === false) tasks.push('Altyazı çevirisi');
-  return { busy: tasks.length > 0, label: tasks.join(' · ') };
-}
 
 function browserTabDisplayRows() {
   const grouped = new Map();
@@ -6162,37 +6134,6 @@ let browserTabMenuEl = null;
 let browserTabPreviewEl = null;
 let browserTabPreviewTimer = 0;
 
-function closeBrowserTabMenu() {
-  browserTabMenuEl?.remove();
-  browserTabMenuEl = null;
-  document.removeEventListener('mousedown', browserTabMenuOutside, true);
-}
-function browserTabMenuOutside(e) {
-  if (browserTabMenuEl && !browserTabMenuEl.contains(e.target)) closeBrowserTabMenu();
-}
-
-async function duplicateBrowserTab(tab) {
-  if (!tab) return;
-  const created = await createBrowserTab();
-  const url = String(tab.url || '');
-  if (created && url && /^https?:\/\//i.test(url)) {
-    await window.api.navigateBrowser?.(created.id, url).catch(() => null);
-  }
-}
-
-async function closeOtherBrowserTabs(keepId) {
-  for (const t of player.browserTabs.slice()) {
-    if (t.id !== keepId && !t.pinned) await closeBrowserTab(t.id);
-  }
-}
-async function closeRightBrowserTabs(tabId) {
-  const idx = player.browserTabs.findIndex((t) => t.id === tabId);
-  if (idx < 0) return;
-  for (const t of player.browserTabs.slice(idx + 1)) {
-    if (!t.pinned) await closeBrowserTab(t.id);
-  }
-}
-
 function openBrowserTabMenu(tabId, x, y) {
   const tab = browserTabState(tabId);
   if (!tab) return;
@@ -6258,38 +6199,7 @@ function hideBrowserTabPreview() {
   browserTabPreviewEl?.remove();
   browserTabPreviewEl = null;
 }
-function showBrowserTabPreview(tabId, anchor) {
-  const tab = browserTabState(tabId);
-  if (!tab || !anchor) return;
-  hideBrowserTabPreview();
-  const card = document.createElement('div');
-  card.className = 'browser-tab-preview';
-  card.setAttribute('role', 'tooltip');
-  const title = document.createElement('div');
-  title.className = 'browser-tab-preview-title';
-  title.textContent = tab.title || window.UiLocale?.t('Yeni sekme') || interfaceChoice('Yeni sekme', 'New tab');
-  const url = document.createElement('div');
-  url.className = 'browser-tab-preview-url';
-  url.textContent = tab.url || '';
-  card.append(title, url);
-  const chips = [];
-  if (tab.pinned) chips.push(window.UiLocale?.t('Sabit') || 'Sabit');
-  if (tab.loading) chips.push(window.UiLocale?.t('Yükleniyor') || 'Yükleniyor');
-  if (tab.tabMuted) chips.push(window.UiLocale?.t('Sessiz') || 'Sessiz');
-  else if (tab.audible) chips.push('♪');
-  if (chips.length) {
-    const row = document.createElement('div');
-    row.className = 'browser-tab-preview-chips';
-    row.textContent = chips.join(' · ');
-    card.appendChild(row);
-  }
-  document.body.appendChild(card);
-  browserTabPreviewEl = card;
-  const rect = anchor.getBoundingClientRect();
-  const cw = card.offsetWidth, ch = card.offsetHeight;
-  card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;
-  card.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - ch - 4)}px`;
-}
+
 function scheduleBrowserTabPreview(e) {
   const item = e.target.closest?.('[data-browser-tab-id]');
   clearTimeout(browserTabPreviewTimer);

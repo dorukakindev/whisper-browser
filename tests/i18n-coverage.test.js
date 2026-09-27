@@ -14,7 +14,12 @@ const ROOT = path.join(__dirname, '..');
 const { entries } = require('../src/renderer/ui-locale.js');
 const en = new Map(entries);
 const html = fs.readFileSync(path.join(ROOT, 'src/renderer/index.html'), 'utf8');
-const renderer = fs.readFileSync(path.join(ROOT, 'src/renderer/renderer.js'), 'utf8');
+// renderer.js'ten çıkarılan yardımcı dosyalar da aynı UI metinlerini taşır;
+// sinyal taraması src/renderer altındaki tüm script'leri kapsamalı.
+const rendererSources = fs.readdirSync(path.join(ROOT, 'src/renderer'))
+  .filter((f) => f.endsWith('.js'))
+  .map((f) => fs.readFileSync(path.join(ROOT, 'src/renderer', f), 'utf8'));
+const renderer = rendererSources.join('\n');
 
 const TURKISH = /[çğıöşüÇĞİÖŞÜ]|\b(?:ve|veya|ile|için|bir|bu|yok|aç|kapat|sayfa|altyazı|çeviri)\b/i;
 const norm = (value) => value.replace(/\s+/g, ' ').trim();
