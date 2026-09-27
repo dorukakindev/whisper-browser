@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 08:13 — R134: derin denetim devamı — eski-kodlama tahmininin çift taraması kaldırıldı + seyrek-bozuk UTF-8 sıralaması kasıtlı diye belgelendi; ~25 modül temiz çıktı; rapor BROWSER_BUG_REPORT_134.md](docs/devir/2026-09-27-0813.md).
+Güncel çalışma: [2026-09-27 08:48 — R135 dokümantasyon temizliği: AGENTS.md sayaç 134, kök raporlar docs/raporlar'a taşındı, INDEX.md indeksi (98 rapor), README eksik özellik satırları](docs/devir/2026-09-27-0848.md).
+
+Önceki çalışma: [2026-09-27 08:13 — R134: derin denetim devamı — eski-kodlama tahmininin çift taraması kaldırıldı + seyrek-bozuk UTF-8 sıralaması kasıtlı diye belgelendi; ~25 modül temiz çıktı; rapor BROWSER_BUG_REPORT_134.md](docs/devir/2026-09-27-0813.md).
 
 Önceki çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
 

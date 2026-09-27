@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R135 — docs cleanup: AGENTS.md report counter corrected (122 → 134); two stray root reports moved into `docs/raporlar/` under non-colliding names; new `docs/raporlar/INDEX.md` covers the numbered series; README feature tour gained media-library and subtitle-provider rows; HISTORICAL_RECORDS path references updated.
+
 - R134 — deep-audit continuation: `decodeSubtitleBuffer` now runs the legacy-encoding guess in a single pass (was computed twice per non-UTF-8 buffer — ~20 TextDecoder constructions each); the "sparse broken UTF-8 beats a language hint" ordering is documented as intentional and locked by a regression test plus a TextDecoder-construction-count test. ~25 more modules re-read clean (watch/catalog stores, hls-recovery, burnin-output, subscriptions-io, queue-persistence, backend helpers).
 
 - R133 — subtitle provider downloads decoded legacy encodings (cp1251/1250/GB18030/Big5/Shift-JIS/EUC-KR and friends) via a dependency-free `pickLegacyEncoding` in `browser-textutil.js` (language hint + fatal multibyte gate + script-coherence scoring); previously non-UTF-8 provider files threw a raw TypeError. Downloads now also reject content with no subtitle structure (`INVALID_SUBTITLE`), and the manual encoding picker lists all 20 legacy encodings.
