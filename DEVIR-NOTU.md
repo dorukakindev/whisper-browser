@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 12:00 — R155 .bat denetimi (start.bat setlocal + yardımcı kurulum pause'lu hata yolları)](docs/devir/2026-09-27-1200.md).
+Güncel çalışma: [2026-09-27 12:18 — R156 settings.json bozuk-değer doğrulaması (tip kapısı + forenzik yedek + uyarı)](docs/devir/2026-09-27-1218.md).
+
+Önceki çalışma: [2026-09-27 12:00 — R155 .bat denetimi (start.bat setlocal + yardımcı kurulum pause'lu hata yolları)](docs/devir/2026-09-27-1200.md).
 
 Önceki çalışma: [2026-09-27 11:45 — R152 timecode kenar-durum kilitleri (33 kontrol: parseTime/parseTimedBlocks/formatSrtTime sözleşmesi; bug yok)](docs/devir/2026-09-27-1145.md).
 
