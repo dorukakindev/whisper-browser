@@ -5256,10 +5256,7 @@ async function saveBrowserContextImage(tab, rawUrl) {
   if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
   const type = response.headers.get('content-type') || '';
   if (type && !/^image\//i.test(type)) throw new Error('Seçilen kaynak bir görsel değil.');
-  const declared = Number(response.headers.get('content-length')) || 0;
-  if (declared > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > 50 * 1024 * 1024) throw new Error('Görsel 50 MB sınırını aşıyor.');
+  const bytes = await readResponseBufferLimited(response, 50 * 1024 * 1024, 'Görsel (50 MB)');
   const defaultName = browserImageFileName(parsed.href, type);
   const originalExt = path.extname(defaultName).slice(1).toLowerCase();
   // WebP/AVIF/ICO/BMP'yi Windows'taki birçok uygulama açamıyor: kaydetme penceresi
@@ -9131,14 +9128,11 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     }
     if (!response.ok) throw browserSubtitleHttpError(response.status, requestUrl,
       parseRetryAfterMs(response.headers.get('retry-after')));
-    const length = Number(response.headers.get('content-length') || 0);
-    if (length > maxBytes) {
-      throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > maxBytes) {
-      throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', 'Altyazı yanıtı güvenli boyut sınırını aşıyor.');
-    }
+    const buffer = await readResponseBufferLimited(response, maxBytes, 'Altyazı yanıtı')
+      .catch((error) => {
+        if (signal.aborted || error?.name === 'AbortError' || !/sınırını aşıyor/.test(String(error?.message))) throw error;
+        throw browserSubtitleStateError('EBROWSER_UNSAFE_RESPONSE', String(error.message));
+      });
     if (byteRange) {
       const range = /^bytes (\d+)-(\d+)\/(?:\d+|\*)$/i.exec(response.headers.get('content-range') || '');
       if (response.status !== 206 || !range || Number(range[1]) !== byteRange.start
@@ -12597,8 +12591,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         if (!response || !response.ok) return;
         const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
         if (!/^image\//.test(mime)) return;
-        const buf = Buffer.from(await response.arrayBuffer());
-        if (!buf.length || buf.length > 256 * 1024) return;
+        const buf = await readResponseBufferLimited(response, 256 * 1024, 'Favicon');
+        if (!buf.length) return;
         if (wc.isDestroyed() || tab._faviconSource !== favicon) return;
         const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
         tab.favicon = dataUrl;
@@ -17702,7 +17696,10 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
             headers: { Accept: 'application/atom+xml, text/xml, */*' } });
         const len = Number(res.headers.get('content-length')) || 0;
         if (!res.ok || len > 256 * 1024) { errors += 1; continue; }
-        const text = (await res.text()).slice(0, 256 * 1024);
+        // Akış sınırlı okuma: content-length beyanı yalan olabilir; res.text()
+        // gövdenin tamamını belleğe alırdı.
+        const text = (await readResponseBufferLimited(res, 256 * 1024, 'Abonelik beslemesi'))
+          .toString('utf8');
         const parsed = parseYouTubeFeed(text);
         if (!parsed.ok) { errors += 1; continue; }
         for (const v of parsed.videos) {

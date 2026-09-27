@@ -65,6 +65,20 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
   ok(body.includes('256 * 1024') && body.includes('abort'), 'boyut + timeout sınırı');
   const pre = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   ok(pre.includes("ipcRenderer.invoke('subs:rssFeed'"), 'preload köprüsü');
+  // R180: gövde okuma akış-sınırlı olmalı — res.text() tamamını belleğe alırdı.
+  ok(body.includes('readResponseBufferLimited'), 'sınırlı okuyucu kullanılıyor');
+  ok(!/await res\.text\(\)/.test(body), 'sınırsız res.text() kalmadı');
+}
+
+// R180: readResponseBufferLimited — akışta boyut sınırı (yalan content-length).
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const i = src.indexOf('function readResponseBufferLimited');
+  ok(i > 0, 'sınırlı okuyucu tanımlı');
+  const body = src.slice(i, i + 1400);
+  ok(body.includes('getReader'), 'akış okuyucu');
+  ok(body.includes('reader.cancel'), 'aşan akış iptal edilir');
+  ok(body.includes('declared > limit'), 'content-length beyanı kontrol edilir');
 }
 
 console.log(`subscription-feed: ${n} kontrol geçti`);
