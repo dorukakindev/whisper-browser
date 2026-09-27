@@ -26317,12 +26317,6 @@ async function openInvidiousChannelPage(channelId) {
     }
     for (const v of list) { if (!stVideoHidden(v)) tabBody.appendChild(buildSmartTubeCard(v)); }
   };
-  const showTabError = (msg) => {
-    const e = document.createElement('div');
-    e.className = 'inv-status';
-    e.textContent = msg;
-    tabBody.appendChild(e);
-  };
   const selectTab = (tab) => {
     if (tab === activeTab && tabBody.children.length) return;
     activeTab = tab;

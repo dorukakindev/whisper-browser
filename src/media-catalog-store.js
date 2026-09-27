@@ -100,10 +100,6 @@ function itemOf(raw, old = null) {
   };
 }
 function titleKey(item) { return `${item.kind}|${item.title.toLocaleLowerCase('tr').replace(/\s+/g, ' ')}|${item.year || ''}`; }
-function sameId(a, b) {
-  return !!((imdbIdOf(a.imdbId) && imdbIdOf(a.imdbId) === imdbIdOf(b.imdbId)) ||
-    (tmdbIdOf(a.tmdbId, a.kind) && tmdbIdOf(a.tmdbId, a.kind) === tmdbIdOf(b.tmdbId, b.kind)));
-}
 // İçe aktarım eşleşmesi her gelen kayıtta tüm kataloğu tarıyordu (O(n×m);
 // 5k katalog + 2k içe aktarım ana süreci ~15s bloke ediyordu). İndeksler
 // plan başına bir kez kurulur; ekleme/birleştirmeler indexItem/unindexItem

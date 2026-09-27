@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-0110.md](docs/devir/2026-09-28-0110.md) — R182 backend yan araçları ikinci geçiş (13 modül temiz) + browser-dialogue Türkçe hata mesajı + yeni test dosyası
+Güncel çalışma: [docs/devir/2026-09-28-0210.md](docs/devir/2026-09-28-0210.md) — R183 kaynak envanteri + tam-klasör ölü işlev taraması (6 ölü işlev silindi)
+Önceki çalışma: [docs/devir/2026-09-28-0110.md](docs/devir/2026-09-28-0110.md) — R182 backend yan araçları ikinci geçiş (13 modül temiz) + browser-dialogue Türkçe hata mesajı + yeni test dosyası
 Önceki çalışma: [docs/devir/2026-09-28-0030.md](docs/devir/2026-09-28-0030.md) — R181 araç/test altyapısı denetimi: Windows paketi 22MB+ iç yüzey sızıntısı kapandı + 3 test-altyapı düzeltmesi + ignore ratchet'i
 Önceki çalışma: [docs/devir/2026-09-27-2355.md](docs/devir/2026-09-27-2355.md) — R180 54 hiç-raporlanmamış dosya denetimi + sınırsız gövde okuma sınıfı (5 yüzey akış-sınırlı okumaya çevrildi)
 Önceki çalışma: [docs/devir/2026-09-27-2340.md](docs/devir/2026-09-27-2340.md) — R179 DeArrow topluluk başlıkları + RYD beğenmeme sayısı (opt-in, oynatıcıya açık video)
