@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
+Güncel çalışma: [docs/devir/2026-09-27-1605.md](docs/devir/2026-09-27-1605.md) — R167 manga/OCR: localhost. FQDN SSRF düzeltmesi + 65 kontrol
+
+Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 
 Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 
