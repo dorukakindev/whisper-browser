@@ -1,6 +1,6 @@
 faster-whisper>=1.1.0
 yt-dlp[default]>=2026.7.4
-ctranslate2>=4.4.0
+ctranslate2==4.4.0
 torch>=2.0.0
 torchaudio>=2.0.0
 nvidia-cublas-cu12

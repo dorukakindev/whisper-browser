@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Windows install hardening (from the R114-C Windows validation session): `requirements.txt` pins `ctranslate2==4.4.0` (pip resolving 4.8.2 crashed WhisperModel init with 0xC0000005 on a fresh Windows install); core install now runs an `import ctranslate2, faster_whisper` smoke (`IMPORT_SMOKE`) so a broken resolution/missing-DLL fails at install time, and `install-browser-tools.bat` verifies `import onnxruntime` with a vc_redist.x64 pointer when VC++ Redistributable is absent.
+- GPU-less machines no longer show a misleading "CUDA · float16" badge: when `env.gpu` is empty the device select switches to Auto (backend falls back to CPU) with a warning — the saved preference is not overwritten.
 - Media catalog import perf: `planImport` rescanned the whole catalog per incoming record (O(n×m); 5k catalog + 2k import blocked the main process ~14.6s) — it now builds importRef/IMDb/TMDB/title-key indexes once per plan with identical match semantics (~56ms, ~260×); catalog search no longer re-folds every record per keystroke (WeakMap fold cache + 120ms debounce).
 - Electron hardening: every webContents now denies webview attachment app-wide (defense-in-depth over webviewTag:false), and the mini-player window's lock flags are explicit. New static ratchet test scans all window/view creation sites for required webPreferences locks.
 - yt-dlp updater: wheel filenames with path separators are rejected before download (prevents writing outside the staging dir); https artifact/metadata URLs are restricted to globally-routable IPs (SSRF hardening).

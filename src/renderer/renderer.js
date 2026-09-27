@@ -3143,6 +3143,15 @@ const initialSettingsReady = (async () => {
         state.gpuVramMib = env.vramMib || null;
         updateGpuBadge();
         logLine(`GPU: ${env.gpu.trim()}`, 'info');
+      } else if ($('device')?.value === 'cuda') {
+        // nvidia-smi yok (GPU'suz veya sürücüsüz makine): rozetin "CUDA · float16"
+        // gibi durmasını önle. Backend auto'da da cpu'ya düşer; burada seçimi
+        // dürüst gösterip kullanıcıyı uyarırız.
+        $('device').value = 'auto';
+        updateGpuBadge();
+        logLine(interfaceChoice(
+          '⚠ NVIDIA GPU algılanmadı (nvidia-smi yanıtı yok) — cihaz Otomatik\'e alındı; CPU\'ya düşecek.',
+          '⚠ No NVIDIA GPU detected (no nvidia-smi response) — device set to Auto; will fall back to CPU.'), 'warn');
       }
       if (env.gpuDiagnostics) {
         renderBrowserGpuDiagnostics(env.gpuDiagnostics);
