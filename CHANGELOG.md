@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R139: unit-test coverage — new `tests/browser-mini-player.test.js` covers the mini-player factory with fake BrowserWindow/ipcMain (8 scenarios: open guards, layout bounds, owns lifecycle, command routing); the only remaining untested pure module is subprocess-bound (`browser-dialogue.js`).
 - R138/R151: IPC contract test — new `tests/ipc-parity.test.js` locks preload↔main channel parity (213 handlers, 11 events, 3 preload bridges), forbids double handler registration, ratchets pre-guard param derefs at 16, and asserts no handler performs side-effects before input validation.
 - R137: subtitle parser fuzz ratchet — new `tests/subtitle-parser-fuzz.test.js` runs 50k deterministic adversarial mutations across all SRT/VTT/ASS/LRC/SAMI/TTML/JSON3/HLS/DASH/MP4 parsers every `npm test`; ~160k total cases audited with zero crashes, hangs, or NaN cues.
 - R136: i18n closure — 348 new TR→EN dictionary entries (74 renderer sink literals + 274 main.js IPC messages) plus 3 concat-prefix patterns; i18n-coverage test now ratchets renderer sinks and main.js error/message/stage/label returns so no Turkish UI string can land untranslated.
