@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-0345.md](docs/devir/2026-09-28-0345.md) — R186 Windows doğrulama bulguları: TR diyalog başlıkları (dt) + ~80 i18n girişi + Sekme korumalı modal EN
+Güncel çalışma: [docs/devir/2026-09-28-0520.md](docs/devir/2026-09-28-0520.md) — R187 yakalama/indirme dayanıklılık denetimi (bug yok) + 600/80 döngü soak GEÇTİ
+Önceki çalışma: [docs/devir/2026-09-28-0345.md](docs/devir/2026-09-28-0345.md) — R186 Windows doğrulama bulguları: TR diyalog başlıkları (dt) + ~80 i18n girişi + Sekme korumalı modal EN
 Önceki çalışma: [docs/devir/2026-09-28-0310.md](docs/devir/2026-09-28-0310.md) — R185 innerHTML XSS + localStorage kota + TODO/FIXME süpürmesi (writeSourceEdits sarmalı)
 Önceki çalışma: [docs/devir/2026-09-28-0230.md](docs/devir/2026-09-28-0230.md) — R184 preload↔renderer↔main IPC yüzeyi + dormant TV tam-ekran düğmesi bağlandı
 Önceki çalışma: [docs/devir/2026-09-28-0210.md](docs/devir/2026-09-28-0210.md) — R183 kaynak envanteri + tam-klasör ölü işlev taraması (6 ölü işlev silindi)
