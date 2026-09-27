@@ -17,7 +17,8 @@ try {
       blockingFalseRejections: audit.blockingCount,
       blockingFalseRejectionRate: audit.blockingCount / Math.max(1, rows.length),
       advisoryFlags: audit.advisoryCount,
-      pass: audit.blockingCount === 0,
+      // Boş/bozuk altın küme "hiç ihlal yok" diye geçmesin.
+      pass: rows.length > 0 && audit.blockingCount === 0,
     };
   };
   const knownGood = evaluate(golden.knownGood || []);

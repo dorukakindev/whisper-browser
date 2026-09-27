@@ -130,8 +130,8 @@ class RealDriver {
       path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
       path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')]
       .filter(Boolean);
-    const cli = candidates.find(candidate => fs.existsSync(candidate));
-    if (!fs.existsSync(cli)) throw new InstallError('NPM_MISSING', `npm CLI bulunamadi: ${cli}`);
+    const cli = candidates.find(candidate => candidate && fs.existsSync(candidate));
+    if (!cli) throw new InstallError('NPM_MISSING', 'npm CLI bulunamadi (npm_execpath ve standart kurulum yollari bos).');
     return { command: process.execPath, prefix: [cli] };
   }
 

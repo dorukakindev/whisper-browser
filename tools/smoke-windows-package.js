@@ -31,8 +31,15 @@ async function main() {
   if (!result.ok) {
     throw new Error(`Packaged app exited before the smoke window (${result.error?.message || result.code || result.signal || 'unknown'}). ${stderr}`);
   }
-  child.kill();
-  await new Promise((resolve) => child.once('exit', resolve));
+  // Yarış: pencere tamamlandığında süreç kendi kendine çıkmış olabilir; ölü
+  // çocuğa exit beklemek sonsuza dek asılırdı.
+  if (child.exitCode === null && child.signalCode === null) {
+    child.kill();
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      setTimeout(resolve, 5000).unref?.();
+    });
+  }
   fs.rmSync(profile, { recursive: true, force: true });
   console.log('Packaged Windows app remained healthy for the 6 second smoke window.');
 }

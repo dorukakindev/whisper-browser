@@ -12,7 +12,10 @@ async function createBrowserStreamFixtureServer() {
   const server = http.createServer((request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
     requests.set(url.pathname, (requests.get(url.pathname) || 0) + 1);
-    const delayed = (body, type = 'text/vtt') => setTimeout(() => send(response, 200, type, body), 80);
+    const delayed = (body, type = 'text/vtt') => setTimeout(() => {
+      // Sunucu kapanıp soket yıkıldıysa ertelemeli yazma yok sayılır.
+      if (!response.destroyed && !response.writableEnded) send(response, 200, type, body);
+    }, 80);
     if (url.pathname === '/hls/master.m3u8') return send(response, 200, 'application/vnd.apple.mpegurl',
       '#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="cc",LANGUAGE="tr",NAME="Türkçe",URI="live.m3u8"\n');
     if (url.pathname === '/hls/live.m3u8') return send(response, 200, 'application/vnd.apple.mpegurl',
