@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-2115.md](docs/devir/2026-09-27-2115.md) — R153 dilim-3 (7 iç yardımcı → helpers) + dışlama kuralı v2
+Güncel çalışma: [docs/devir/2026-09-27-2125.md](docs/devir/2026-09-27-2125.md) — R175 T9 Windows UI bulguları: klavye köprüsü sıralaması + EN'de kalan TR dizgiler (native diyaloglar + ratchet)
+Önceki çalışma: [docs/devir/2026-09-27-2115.md](docs/devir/2026-09-27-2115.md) — R153 dilim-3 (7 iç yardımcı → helpers) + dışlama kuralı v2
 Önceki çalışma: [docs/devir/2026-09-27-1905.md](docs/devir/2026-09-27-1905.md) — R172 renderer.js dilim-2 (9 sekme işlevi → helpers) + sinyal taraması kapsam düzeltmesi
 Önceki çalışma: [docs/devir/2026-09-27-1855.md](docs/devir/2026-09-27-1855.md) — T12 birleşik regresyon raporu + T9 Windows kabul oturumu başlatıldı
 Önceki çalışma: [docs/devir/2026-09-27-1845.md](docs/devir/2026-09-27-1845.md) — R171 T2 derin zamanlama: canlı DASH $Time$ PTO + 4x üstü hız kelepçeleri (prob/worklet/HLS)
