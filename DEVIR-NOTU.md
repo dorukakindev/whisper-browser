@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
+Güncel çalışma: [2026-09-27 10:50 — R144 ölü kod (normalizeAnchorText + resetCueRaw; serialize-scope sınırı belgelendi)](docs/devir/2026-09-27-1050.md).
+
+Önceki çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
 
 Önceki çalışma: [2026-09-27 10:18 — R140 npm audit (temiz) + R141 startup perf (12ms, aksiyon yok) + R142 CSS token (447→445); rapor 139](docs/devir/2026-09-27-1018.md).
 
