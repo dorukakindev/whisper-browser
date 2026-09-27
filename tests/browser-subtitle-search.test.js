@@ -101,11 +101,35 @@ async function main() {
   assert.equal(keyless.results[0].language, 'tr');
   assert.equal(keyless.results[0].provider, 'stremio');
 
-  // Dizi biçimi: series/<imdb>/<s>/<e>
+  // R150: Stremio 'lang' alanı ISO 639-2/-3 ('tur','rus','pob'), UI 639-1
+  // ('tr','ru','pt') gönderir — kıyaslama alias'lı yapılır, yoksa dil
+  // filtresi sessizce devre dışı kalırdı (canlı doğrulamada 'ru' isteği
+  // 36 karışık satır döndürüyordu).
+  const stremioIso3 = { subtitles: [
+    { id: 't1', url: 'https://opensubtitles-v3.strem.io/sub/tur/a.srt', lang: 'tur', m: {} },
+    { id: 't2', url: 'https://opensubtitles-v3.strem.io/sub/eng/b.srt', lang: 'eng', m: {} },
+    { id: 't3', url: 'https://opensubtitles-v3.strem.io/sub/pob/c.srt', lang: 'pob', m: {} },
+  ] };
+  const iso3 = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'tr' },
+    { fetch: async () => response(stremioIso3) });
+  assert.deepEqual(iso3.results.map((r) => r.language), ['tur'],
+    'tr isteği yalnız tur satırını bırakır');
+  const ptReq = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'pt' },
+    { fetch: async () => response(stremioIso3) });
+  assert.deepEqual(ptReq.results.map((r) => r.language), ['pob'],
+    'pt isteği Brezilya Portekizcesi pob satırını yakalar');
+  // Dil puanı da alias'lı: 'tur' satırı 'tr' hedefinden 10 puan alır;
+  // eşleşmeyen 'eng' satırı 0 kalır (release/title boş → tek sinyal dil).
+  const scored = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'tr' },
+    { fetch: async () => response(stremioIso3) });
+  assert.equal(scored.results[0].language, 'tur');
+  assert.equal(scored.results[0].matchScore, 10, 'tur adayı tr hedefinden dil puanı alır');
+
+  // Dizi biçimi: series/<imdb>:<s>:<e> (Stremio video id — '/s/e' 404 verir)
   const serCalls = [];
   await searchSubtitles({ query: 'Dizi', imdbId: 'tt0944947', season: 2, episode: 5 },
     { fetch: async (url) => { serCalls.push(url); return response({ subtitles: [] }); } });
-  assert.ok(serCalls[0].includes('/subtitles/series/tt0944947/2/5.json'), serCalls[0]);
+  assert.ok(serCalls[0].includes('/subtitles/series/tt0944947:2:5.json'), serCalls[0]);
 
   // Anahtarlı OS sıfır sonuç + imdb_id → Stremio basamağı
   const ladderCalls = [];
