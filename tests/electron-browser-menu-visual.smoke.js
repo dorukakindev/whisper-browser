@@ -119,7 +119,9 @@ app.whenReady().then(async () => {
   await until(() => run('return !document.getElementById("browserTranslateMenu").open && !document.getElementById("browserMoreMenu").open'), 'Menüler kapandı');
   const closed = await captureStableWindow(win, 'closed.png');
 
-  await run('document.querySelector("#browserTranslateMenu summary").click();return true');
+  // R124 Faz B: birleşik Whisper düğmesi medya görülmeden gizlenir; bu fixture
+  // yalnız poster bildiği için menünün görünür olduğu durumu tohumlar.
+  await run('player.browserMediaSeen=true;updateBrowserSubtitleSummary();document.querySelector("#browserTranslateMenu summary").click();return true');
   await until(() => run('return document.getElementById("browserTranslateMenu").open'), 'Translation menu');
   await run('return syncBrowserOcclusion()');
   const translationGeometry = await run('const r=document.querySelector("#browserTranslateMenu .browser-menu-popover").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};');

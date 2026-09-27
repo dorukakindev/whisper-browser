@@ -2911,7 +2911,8 @@ to { opacity: 1; transform: translateY(0); }
    body'nin üstünde bağımsız bir çekmeceye dönüştür; böylece üstteki dişli her
    düzende ulaşılabilir kalır. */
 .player-layer.sidebar-collapsed.settings-open .player-side,
-.player-layer.mode-cinema.settings-open .player-side {
+.player-layer.mode-cinema.settings-open .player-side,
+.player-layer.side-rail-mode.settings-open .player-side {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
@@ -2925,7 +2926,8 @@ to { opacity: 1; transform: translateY(0); }
   border-left: 0;
 }
 .player-layer.sidebar-collapsed.settings-open .settings-drawer,
-.player-layer.mode-cinema.settings-open .settings-drawer { inset: 0; width: 100%; border-radius: 18px 0 0 18px; }
+.player-layer.mode-cinema.settings-open .settings-drawer,
+.player-layer.side-rail-mode.settings-open .settings-drawer { inset: 0; width: 100%; border-radius: 18px 0 0 18px; }
 .player-layer.sidebar-collapsed .player-body { grid-template-columns: minmax(0, 1fr) 0 0; }
 .player-layer.sidebar-collapsed .player-side, .player-layer.sidebar-collapsed .side-resizer { display: none; }
 .player-layer.mode-cinema .player-body { padding: 0; }
@@ -6955,7 +6957,10 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .side-tab .side-tab-ico svg { display: block; }
 #sideRailCollapse { display: none; }
 .player-side.side-rail { padding: 8px 4px; gap: 4px; overflow-y: auto; }
-.player-side.side-rail > *:not(.side-top) { display: none; }
+/* Ayarlar cekmecesi acikken ravin cocuk-gizleme kurali sone bilir: cekmece
+   aynen daraltilmis/sinema duzenindeki gibi bagimsiz bir katman olarak
+   .player-side'i devralir (asagidaki overlay blogu). */
+.player-layer:not(.settings-open) .player-side.side-rail > *:not(.side-top) { display: none; }
 .player-side.side-rail .side-top > *:not(.side-tabbar) { display: none; }
 .player-side.side-rail .side-tabbar {
   min-height: 0; padding: 0; border-bottom: 0;
