@@ -917,6 +917,7 @@
     ['YouTube bağlantısı', 'YouTube link'],
     ['Tarayıcı sekme alanı', 'Browser tabs area'],
     ['Tarayıcı sekmeleri', 'Browser tabs'],
+    ['Oynatıcı ve tarayıcı çalışma alanı', 'Player and browser workspace'],
     // Tarayıcı kabuğunda EN arayüzde Türkçe kalan metinler (2026-09-22 denetimi).
     ['WHISPER TARAYICI', 'WHISPER BROWSER'],
     ["Adres yaz veya web'de ara", 'Type an address or search the web'],
