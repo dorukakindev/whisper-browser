@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-2135.md](docs/devir/2026-09-27-2135.md) — R176 IPC ratchet: 16 unguarded = {} ile güvenli, 0 sabitlendi + .on gönderici ratcheti
+Güncel çalışma: [docs/devir/2026-09-27-2200.md](docs/devir/2026-09-27-2200.md) — R178 Windows dosya-adı kuralları (ayrılmış kökler + kuyruk nokta) + preload denetimi temiz
+Önceki çalışma: [docs/devir/2026-09-27-2135.md](docs/devir/2026-09-27-2135.md) — R176 IPC ratchet: 16 unguarded = {} ile güvenli, 0 sabitlendi + .on gönderici ratcheti
 Önceki çalışma: [docs/devir/2026-09-27-2125.md](docs/devir/2026-09-27-2125.md) — R175 T9 Windows UI bulguları: klavye köprüsü + EN dizgiler
 Önceki çalışma: [docs/devir/2026-09-27-2115.md](docs/devir/2026-09-27-2115.md) — R153 dilim-3 (7 iç yardımcı → helpers) + dışlama kuralı v2
 Önceki çalışma: [docs/devir/2026-09-27-1905.md](docs/devir/2026-09-27-1905.md) — R172 renderer.js dilim-2 (9 sekme işlevi → helpers) + sinyal taraması kapsam düzeltmesi
