@@ -116,6 +116,19 @@ test('uzun event boşluğu ve seek sıçraması kararlılık ölçümüne eklenm
   assert.equal(machine.snapshot().mediaAttempts, 1);
 });
 
+test('4x üstü oynatma doğal ilerlemeyi sıçrama sanmıyor', () => {
+  // playbackRate gözlenen gerçek hızdır; 18x oynatmada medya adımı
+  // 0.25 sn'de 4.5 sn eder. Hızı 4x'e kelepçelemek plausibleJump'ı 4 sn'de
+  // tutar ve her örnek "seek" sayılıp kararlılık penceresi hiç dolmaz.
+  const machine = createHlsRecoveryState();
+  machine.sourceChanged('video-a');
+  const attempt = machine.beginRecovery('media');
+  machine.completeRecovery(attempt.token);
+  assert.equal(progressFor(machine, 10000, 250, 18).reset, true,
+    '18x gerçek ilerleme kararlı pencereyi tamamlamalı');
+  assert.equal(machine.snapshot().mediaAttempts, 0);
+});
+
 test('aynı kare örnekleri kararlılık penceresini silmez', () => {
   const machine = createHlsRecoveryState({ stableMs: 1000 });
   machine.sourceChanged('video-a');

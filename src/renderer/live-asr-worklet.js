@@ -13,7 +13,9 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
       if (!data || typeof data !== 'object') return;
       if (data.type === 'flush') { this.flush(); this.clock = null; this.port.postMessage({ type: 'flushed' }); return; }
       if (data.type !== 'sync' || !Number.isFinite(data.time) || !Number.isFinite(data.contextTime)) return;
-      const next = { ...data, rate: Math.max(.25, Math.min(4, Number(data.rate) || 1)) };
+      // Ana süreç gözlenen hızı 16x'e dek raporlar; saat tahmini aynı aralığı
+      // kabul etmeli yoksa >4x oynatmada tahmin sapması sürekli flush tetikler.
+      const next = { ...data, rate: Math.max(.0625, Math.min(16, Number(data.rate) || 1)) };
       const previous = this.clock;
       const predicted = previous && previous.time + (next.contextTime - previous.contextTime) * previous.rate;
       if (previous && (next.paused !== previous.paused || next.rate !== previous.rate || Math.abs(next.time - predicted) > .75)) {
