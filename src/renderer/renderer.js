@@ -5269,6 +5269,7 @@ const player = {
   embeddedSubtitleTracks: [],
   playbackPolicy: 'normal',
   learningBaseRate: 1,
+  learningBadgeText: null,
   shadowResumeTimer: null,
   shadowPausedCueId: '',
   loopCueId: '',
@@ -14012,6 +14013,7 @@ function findCueAt(cues, t, hint) {
 }
 
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
+  syncLearningBadge();
   if (player.editing || player.holdingSpeed || player.seekDragging || $('playerVideo')?.seeking) return;
   if (Number.isFinite(player.abA) && Number.isFinite(player.abB)) return;
   if ((player.playbackPolicy === 'normal' && !player.autoPause)
@@ -14033,6 +14035,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
       player.loopCueId = action.cueId || '';
       player.loopCueRepeats = Number(action.completedRepeats) || 0;
       osd(`Altyazı tekrarı ${player.loopCueRepeats + 1}/${action.repeatCount}`, 700);
+      syncLearningBadge();
     }
     if (browserMode) {
       if (Date.now() < Number(player.browserLearningSeekUntil || 0)) return;
@@ -14043,6 +14046,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
   } else if (action.type === 'loop-cue-finished') {
     player.loopCueId = '';
     player.loopCueRepeats = 0;
+    syncLearningBadge();
   } else if (action.type === 'set-rate') {
     if (action.cueId) player.shadowPausedCueId = '';
     const current = browserMode ? player.browserRate : Number($('playerVideo')?.playbackRate || 1);
@@ -14075,8 +14079,10 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
       if (generation !== currentGeneration() || player.playbackPolicy !== 'shadowing' || player.editing) return;
       if (browserMode) browserCommand('play').catch(() => {});
       else $('playerVideo')?.play().catch(() => {});
+      syncLearningBadge();
     }, action.durationMs);
     osd(`Tekrar et · ${Math.round(action.durationMs / 1000)} sn`, 1000);
+    syncLearningBadge();
   }
 }
 
@@ -17006,6 +17012,31 @@ function osd(text, ms) {
   if (player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.browserCommand) {
     browserCommand('osd', { text: String(text || ''), ms: ms || 900 }).catch(() => {});
   }
+}
+
+// ---- İzleme politikası rozeti ----
+// Öğrenme politikası (hızlandır/atla/shadowing/cue-tekrarı) aktifken sahnenin
+// sağ üstünde kalıcı durum çipi gösterir: politika adı + canlı ilerleme
+// (döngü sayacı, shadowing bekleme). Politika normale dönünce gizlenir.
+function syncLearningBadge() {
+  const el = $('learningBadge');
+  if (!el) return;
+  let text = '';
+  const policy = player.playbackPolicy;
+  if (policy && policy !== 'normal') {
+    const sel = $('playerPlaybackPolicy');
+    text = (sel?.selectedOptions?.[0]?.textContent || '').trim() || policy;
+    if (policy === 'loop-cue' && player.loopCueId) {
+      const total = Number($('playerCueRepeatCount')?.value) || 5;
+      text += ` · ↻ ${player.loopCueRepeats + 1}/${total}`;
+    } else if (policy === 'shadowing' && player.shadowResumeTimer) {
+      text += ` · ${uiText('Tekrar et')}`;
+    }
+  }
+  if (text === player.learningBadgeText) return;
+  player.learningBadgeText = text;
+  el.textContent = text;
+  el.classList.toggle('hidden', !text);
 }
 
 // ---- A-B döngüsü ----
@@ -23097,9 +23128,9 @@ document.addEventListener('keydown', (e) => {
   // Eşleşmeyen Ctrl/Meta/Alt kombinasyonu tek-harf oynatıcı eylemine düşmez:
   // Ctrl+C kopyalama, Alt+harf menü kısayolu olarak kalmalı.
   if (modifier || e.altKey) return;
-  // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/?) —
+  // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/O/?) —
   // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
-  if (e.repeat && /^( |f|b|m|v|n|\?)$/i.test(e.key)) return;
+  if (e.repeat && /^( |f|b|m|v|n|o|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
@@ -23128,6 +23159,21 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'i' || e.key === 'I') {
     e.preventDefault();
     toggleMiniPlayer().catch(() => {});
+    return;
+  }
+  // O izleme politikası çevrimi — ayar çekmecesine girmeden
+  // normal → hızlandır → atla → shadowing → cue-tekrarı → normal. Seçicinin
+  // change işleyicisi tek kaynak kalır (kalıcılık + sayaç sıfırlama orada).
+  if (e.key === 'o' || e.key === 'O') {
+    const sel = $('playerPlaybackPolicy');
+    if (sel) {
+      e.preventDefault();
+      const order = ['normal', 'accelerate-gaps', 'skip-gaps', 'shadowing', 'loop-cue'];
+      sel.value = order[(order.indexOf(sel.value) + 1) % order.length];
+      sel.dispatchEvent(new Event('change'));
+      const label = sel.selectedOptions?.[0]?.textContent?.trim();
+      if (label) osd(label, 900);
+    }
     return;
   }
   if (player.workspaceMode === 'browser' && window.api.browserCommand) {
@@ -24406,7 +24452,12 @@ if ($('playerPlaybackPolicy')) {
     if (player.playbackPolicy === 'normal') {
       if (player.workspaceMode === 'browser') browserCommand('speed', player.learningBaseRate).catch(() => {});
       else if ($('playerVideo')) $('playerVideo').playbackRate = player.learningBaseRate;
+    } else if (!player.cues.length) {
+      // Politika yalnız altyazı yüklüyken çalışır — seçimin sessizce hiçbir
+      // şey yapmaması yerine kullanıcıya etkinleşme koşulu bildirilir.
+      osd(uiText('İzleme politikası altyazı yüklendiğinde etkinleşir'), 1400);
     }
+    syncLearningBadge();
     scheduleSave();
   });
 }
