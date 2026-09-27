@@ -22823,7 +22823,7 @@ $('browserQuickSyncSave')?.addEventListener('click',()=>{
 });
 $('browserQuickSyncCancel')?.addEventListener('click',()=>{cancelBrowserSyncPreview();updateQuickEditorStatus('Senkron önizlemesi kaldırıldı.');});
 function writeSourceEdits(records) {
-  localStorage.setItem(browserReviewRecordsKey,JSON.stringify(records));
+  try { localStorage.setItem(browserReviewRecordsKey,JSON.stringify(records)); } catch (_) {}
 }
 function reviewSourceScope(track,path) {
   return browserSubtitleSync.hashText(`${player.mediaKey}|${track?.id || path}`);
