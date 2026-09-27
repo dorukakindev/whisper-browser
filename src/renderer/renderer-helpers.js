@@ -271,16 +271,16 @@ function renderBrowserCommandPalette() {
   browserCommandPaletteState.selected = Math.max(0, Math.min(browserCommandPaletteState.selected, browserCommandPaletteState.results.length - 1));
   list.replaceChildren();
   if (!browserCommandPaletteState.results.length) {
-    const empty = document.createElement('div'); empty.className = 'browser-command-item'; empty.textContent = 'Eşleşen komut yok.'; list.appendChild(empty); return;
+    const empty = document.createElement('div'); empty.className = 'browser-command-item'; empty.textContent = window.UiLocale?.t('Eşleşen komut yok.') || 'Eşleşen komut yok.'; list.appendChild(empty); return;
   }
   browserCommandPaletteState.results.forEach((command, index) => {
     const item = document.createElement('button'); item.type = 'button'; item.className = 'browser-command-item';
     item.setAttribute('role', 'option'); item.setAttribute('aria-selected', index === browserCommandPaletteState.selected ? 'true' : 'false');
     item.disabled = command.enabled === false;
-    const title = document.createElement('span'); title.textContent = command.title;
-    const category = document.createElement('small'); category.textContent = command.category || '';
+    const title = document.createElement('span'); title.textContent = window.UiLocale?.t(command.title) || command.title;
+    const category = document.createElement('small'); category.textContent = window.UiLocale?.t(command.category || '') || command.category || '';
     item.append(title, category);
-    if (command.disabledReason) { const reason = document.createElement('em'); reason.textContent = command.disabledReason; item.appendChild(reason); }
+    if (command.disabledReason) { const reason = document.createElement('em'); reason.textContent = window.UiLocale?.t(command.disabledReason) || command.disabledReason; item.appendChild(reason); }
     item.addEventListener('click', () => executeBrowserCommandPalette(index));
     list.appendChild(item);
   });
@@ -535,7 +535,7 @@ function renderBrowserSettingsSearchResults(matches, query) {
   if (!matches.length) {
     const empty = document.createElement('p');
     empty.className = 'browser-settings-results-empty';
-    empty.textContent = 'Eşleşen ayar bulunamadı.';
+    empty.textContent = window.UiLocale?.t('Eşleşen ayar bulunamadı.') || 'Eşleşen ayar bulunamadı.';
     host.appendChild(empty);
     return;
   }
@@ -545,9 +545,9 @@ function renderBrowserSettingsSearchResults(matches, query) {
     button.className = 'browser-settings-result';
     button.dataset.browserSettingOpen = entry.id;
     const title = document.createElement('strong');
-    title.textContent = entry.label;
+    title.textContent = window.UiLocale?.t(entry.label) || entry.label;
     const description = document.createElement('span');
-    description.textContent = entry.description;
+    description.textContent = window.UiLocale?.t(entry.description) || entry.description;
     const scope = document.createElement('small');
     scope.textContent = registry.browserSettingScopeStatus(
       entry.scope, browserSettingsScopeContext(entry));

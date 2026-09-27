@@ -4634,7 +4634,7 @@ $('importSettings').addEventListener('click', async () => {
   state.watchDir = s.watchDir || null;
   $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
   $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
-  if ($('watchDirPath')) $('watchDirPath').textContent = state.watchDir || 'Klasör seçilmedi';
+  if ($('watchDirPath')) $('watchDirPath').textContent = state.watchDir || uiText('Klasör seçilmedi');
   if (s.llm) {
     if (s.llm.apiKey !== undefined && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey || '';
     if (s.llm.endpointPreset && $('llmEndpointPreset')) $('llmEndpointPreset').value = s.llm.endpointPreset;
@@ -6385,12 +6385,12 @@ async function closeBrowserTab(tabId) {
     }
     let result = await window.api.closeBrowserTab(tabId, false).catch(() => null);
     if (result?.requiresConfirmation) {
-      const reasons = [result.pinned ? 'Sekme sabitlenmiş.' : '', result.activeWork ? 'Sekmede devam eden çeviri veya manga işi var.' : '']
+      const reasons = [result.pinned ? interfaceChoice('Sekme sabitlenmiş.', 'The tab is pinned.') : '', result.activeWork ? interfaceChoice('Sekmede devam eden çeviri veya manga işi var.', 'The tab has a translation or manga job in progress.') : '']
         .filter(Boolean).join(' ');
       const confirmed = await openAppDialog({
-        title: 'Sekme korumalı',
-        description: `${reasons} Kapatırsanız devam eden iş ve sayfadaki geçici durum kaybolabilir.`,
-        confirmLabel: 'Yine de kapat',
+        title: interfaceChoice('Sekme korumalı', 'Protected tab'),
+        description: interfaceChoice(`${reasons} Kapatırsanız devam eden iş ve sayfadaki geçici durum kaybolabilir.`, `${reasons} Closing it can lose in-progress work and temporary page state.`),
+        confirmLabel: interfaceChoice('Yine de kapat', 'Close anyway'),
       });
       if (!confirmed) return;
       result = await window.api.closeBrowserTab(tabId, true).catch(() => null);
@@ -7982,7 +7982,7 @@ function renderBrowserVideoSubtitles() {
     const trackId = secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId;
     const track = player.browserTracks.find(row => row.id === trackId);
     const label = track ? (track.label || track.language || 'Site altyazısı') : (file || selection[slot] || '').split(/[\\/]/).pop();
-    $(id).textContent = `${secondary ? 'İkinci' : 'Birinci'} kanal: ${label || 'Seçilmedi'}${tab?.missingSubtitleFiles?.includes(slot) ? ' · Dosya bulunamadı' : ''}`;
+    $(id).textContent = `${uiText(secondary ? 'İkinci kanal' : 'Birinci kanal')}: ${label || uiText('Seçilmedi')}${tab?.missingSubtitleFiles?.includes(slot) ? ` · ${uiText('Dosya bulunamadı')}` : ''}`;
   }
   $('browserVideoSyncInfo').textContent = `${tab?.subtitleSyncRecords?.length || 0} kayıtlı senkron düzeltmesi${player.browserSyncPreview?.dirty ? ' · Kaydedilmemiş önizleme var' : ''}`;
 }
@@ -11507,7 +11507,7 @@ function renderBrowserSettingsCategories() {
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.browserSettingsCategory = category.id;
-    button.textContent = category.label;
+    button.textContent = uiText(category.label);
     host.appendChild(button);
   }
   if (focusedCategory) {
@@ -11534,9 +11534,9 @@ function renderBrowserSettingsSurface(focusId = '') {
     system: 'Tarayıcının performans ve donanım tercihlerini düzenle.',
   };
   if ($('browserSettingsCategoryTitle')) $('browserSettingsCategoryTitle').textContent = query
-    ? 'Arama sonuçları' : (registry.categories().find((item) => item.id === category)?.label || 'Ayarlar');
+    ? uiText('Arama sonuçları') : uiText(registry.categories().find((item) => item.id === category)?.label || 'Ayarlar');
   if ($('browserSettingsCategoryDescription')) $('browserSettingsCategoryDescription').textContent = query
-    ? `${matches.length} ayar bulundu. Bir sonuca tıklayarak ilgili ayara git.` : (categoryDescriptions[category] || '');
+    ? interfaceChoice(`${matches.length} ayar bulundu. Bir sonuca tıklayarak ilgili ayara git.`, `${matches.length} setting${matches.length === 1 ? '' : 's'} found. Click a result to jump to it.`) : uiText(categoryDescriptions[category] || '');
   surface.querySelectorAll('[data-browser-settings-category]').forEach((button) => {
     const active = button.dataset.browserSettingsCategory === category;
     button.classList.toggle('active', active);
@@ -11967,23 +11967,23 @@ async function renderBrowserPermissions() {
     list.replaceChildren();
     return;
   }
-  originLabel.textContent = 'Site izinleri yükleniyor…';
+  originLabel.textContent = uiText('Site izinleri yükleniyor…');
   const result = await window.api.getBrowserPermissions(tab.id, tab.url)
     .catch((error) => ({ ok: false, error: error.message }));
   if (seq !== browserPermissionRenderSeq || player.browserActiveTabId !== tab.id) return;
   list.replaceChildren();
   if (!result?.ok) {
-    originLabel.textContent = result?.error || 'Site izinleri okunamadı.';
+    originLabel.textContent = result?.error || uiText('Site izinleri okunamadı.');
     return;
   }
   originLabel.textContent = result.origin;
   for (const [permission, state] of Object.entries(result.permissions || {})) {
     const row = document.createElement('div'); row.className = 'browser-permission-row';
     const label = document.createElement('label');
-    label.textContent = BROWSER_PERMISSION_LABELS[permission] || permission;
+    label.textContent = uiText(BROWSER_PERMISSION_LABELS[permission] || permission);
     const select = document.createElement('select');
-    select.setAttribute('aria-label', `${label.textContent} izni`);
-    select.append(new Option('Her seferinde sor', 'ask'), new Option('İzin ver', 'allow'), new Option('Engelle', 'block'));
+    select.setAttribute('aria-label', `${label.textContent} ${interfaceChoice('izni', 'permission')}`);
+    select.append(new Option(uiText('Her seferinde sor'), 'ask'), new Option(uiText('İzin ver'), 'allow'), new Option(uiText('Engelle'), 'block'));
     select.value = ['allow', 'block'].includes(state?.stored) ? state.stored : 'ask';
     select.addEventListener('change', async () => {
       const previous = ['allow', 'block'].includes(state?.stored) ? state.stored : 'ask';
@@ -11994,10 +11994,10 @@ async function renderBrowserPermissions() {
       select.disabled = false;
       if (!updated?.ok) {
         select.value = previous;
-        setBrowserSignal(updated?.error || 'Site izni kaydedilemedi.', false);
+        setBrowserSignal(updated?.error || uiText('Site izni kaydedilemedi.'), false);
       } else {
         state.stored = decision;
-        setBrowserSignal(`${label.textContent} tercihi kaydedildi.`, true, { priority: 25 });
+        setBrowserSignal(interfaceChoice(`${BROWSER_PERMISSION_LABELS[permission] || permission} tercihi kaydedildi.`, `${label.textContent} preference saved.`), true, { priority: 25 });
       }
     });
     row.append(label, select); list.appendChild(row);
@@ -20904,7 +20904,7 @@ async function startProgressivePlayerTranscription(config = {}) {
       ? (player.playbackAudioLang || (lock && lock.lang) || '') : '';
   } else {
     const path = player.localPath || ($('playerVideoPath') ? $('playerVideoPath').textContent : '');
-    if (!path || path === 'Seçilmedi') { logLine('Önce bir video aç.', 'error'); return; }
+    if (!path || path === 'Seçilmedi' || path === 'Not selected') { logLine('Önce bir video aç.', 'error'); return; }
     opts.input = path;
     delete opts.youtube;
   }
@@ -21069,11 +21069,11 @@ function updatePlayerAutoSyncState() {
   const ready = !!player.localPath && !!player.subPath && player.cues.length > 0;
   btn.disabled = !ready || state.running;
   btn.title = ready
-    ? 'Ses ritmini analiz eder; sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir'
-    : 'Otomatik senkron için yerel video ve kaynak altyazı gerekli';
+    ? uiText('Ses ritmini analiz eder; sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir')
+    : uiText('Otomatik senkron için yerel video ve kaynak altyazı gerekli');
   if (hint) hint.textContent = ready
-    ? 'Özgün dosyayı değiştirmez; .synced.srt kopyası oluşturup otomatik yükler.'
-    : 'YouTube akışında önce videoyu indir; yerel video ve altyazı hazır olunca kullanılabilir.';
+    ? uiText('Özgün dosyayı değiştirmez; .synced.srt kopyası oluşturup otomatik yükler.')
+    : uiText('YouTube akışında önce videoyu indir; yerel video ve altyazı hazır olunca kullanılabilir.');
 }
 
 if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () => {
