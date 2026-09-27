@@ -419,8 +419,6 @@ function pageBlockScanScript(options = {}) {
         ? incoming.autoContinue !== false : state.config?.autoContinue !== false,
     };
     state.destroyed = false;
-    const pageMemoryKey = () => String(location.origin || '') + String(location.pathname || '')
-      + String(location.search || '');
     // Ziyaret edilen sayfa sessionStorage'a yazabildiği için buradaki veri
     // güvenilir çeviri belleği sayılmaz. Kalıcı bellek ana süreçte tutulur.
     const pageMemory = [];

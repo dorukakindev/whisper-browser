@@ -3544,10 +3544,6 @@ function startBrowserAdblock() {
   return browserAdblockReadyPromise;
 }
 
-async function waitForBrowserAdblockReady() {
-  await startBrowserAdblock();
-  return ensureBrowserAdblockController().waitUntilReady();
-}
 // Electron'ın contextIsolation preload dünyası 999'dur. Preload köprüsü ile
 // executeJavaScriptInIsolatedWorld aynı güvenilir dünyada buluşur; uzak sayfanın
 // ana dünyası bu globali göremez.
