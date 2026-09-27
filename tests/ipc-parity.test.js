@@ -87,11 +87,16 @@ for (const m of mainSrc.matchAll(pat)) {
   const hasGuard = head.includes(`typeof ${obj}`) || head.includes(`${obj}?.`)
     || head.includes('Array.isArray') || head.includes(`${obj} &&`)
     || head.includes(`if (!${obj}`);
-  if (!hasGuard && new RegExp(`\\b${obj.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`).test(head)) unguarded += 1;
+  // `= {}` varsayılanı undefined/eksik parametreyi nesneye çevirir; yalnız
+  // null/ilkel TypeError'a düşer ve o da yan etkiden ÖNCE atılır (aşağıdaki
+  // GUARDLESS_SIDE_EFFECT bölümü bunu zaten kilitler).
+  const hasDefault = /=\s*\{/.test(ps[0]);
+  if (!hasGuard && !hasDefault && new RegExp(`\\b${obj.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`).test(head)) unguarded += 1;
 }
-// R138 snapshot: 16 unguarded handler (throw→reject güvenli; crash değil).
-// Artarsa yeni handler'a parametre doğrulaması ekle.
-assert.ok(unguarded <= 16, `unguarded handler sayısı arttı: ${unguarded} > 16`);
+// R176: 16 unguarded handler'ın hepsi `= {}` varsayılanı taşıyor — undefined
+// güvenli, null erken atılıyor (throw→reject), ilkeller bozulmadan düşüyor.
+// Yeni handler'da parametre ya guard'lanmalı ya da `= {}` varsayılanı taşımalı.
+assert.equal(unguarded, 0, `guard'suz ve varsayılan'sız parametre kullanan handler: ${unguarded}`);
 
 // 6) throw→reject güvenliği: guard'dan ÖNCE yan etki (spawn/dosya yazımı/send)
 //    olmamalı — aksi halde kısmen uygulanmış iş kalır.
@@ -116,7 +121,25 @@ for (const m of mainSrc.matchAll(pat)) {
 assert.deepStrictEqual(GUARDLESS_SIDE_EFFECT, [],
   `guard öncesi yan etki yapan handler'lar: ${GUARDLESS_SIDE_EFFECT}`);
 
+// 7) ipcMain.on gönderici doğrulaması (R176): her `.on` dinleyicisinin ilk
+//    bölümü göndericiyi doğrulamalı — sender/senderFrame karşılaştırması,
+//    authorized* yardımcısı, veya el sıkışmada yakalanan pending kaydı.
+//    (Yabancı pencereden gelen sahte send() frame/contents karşılaştırmasıyla
+//    elenir; bu olmadan herhangi bir misafir içerik kanalı tetikleyebilir.)
+const ON_UNVERIFIED = [];
+const onPat = /ipcMain\.on\(\s*'([^']+)'/g;
+for (const f of files) {
+  const src = fs.readFileSync(path.join(SRC, f), 'utf8');
+  for (const m of src.matchAll(onPat)) {
+    const head = src.slice(m.index + m[0].length, m.index + m[0].length + 500);
+    if (!/sender|authorized|pending/i.test(head)) ON_UNVERIFIED.push(`${f}:${m[1]}`);
+  }
+}
+assert.deepStrictEqual(ON_UNVERIFIED, [],
+  `gönderici doğrulaması olmayan ipcMain.on kanalları: ${ON_UNVERIFIED}`);
+
 console.log(
   `ipc-parity: ${handledSet.size} handle · ${mainOnSet.size} on · ${sent.length} send — `
-  + `parity tam, ${unguarded} unguarded handler (ratchet ≤16), guard-öncesi yan etki yok`,
+  + `parity tam, ${unguarded} unguarded handler, guard-öncesi yan etki yok, `
+  + `on kanalları gönderici-doğrulamalı`,
 );
