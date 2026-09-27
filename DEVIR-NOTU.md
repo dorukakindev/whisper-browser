@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 12:35 — R157 kuyruk bozulma simülasyonu (25k kontrol, değişmezlik ratchet'i; bug yok)](docs/devir/2026-09-27-1235.md).
+Güncel çalışma: [2026-09-27 12:50 — R158 retry/backoff stres (18 kontrol; toplam-bekleme tavanı, cap, kenarlar)](docs/devir/2026-09-27-1250.md).
+
+Önceki çalışma: [2026-09-27 12:35 — R157 kuyruk bozulma simülasyonu (25k kontrol, değişmezlik ratchet'i; bug yok)](docs/devir/2026-09-27-1235.md).
 
 Önceki çalışma: [2026-09-27 12:18 — R156 settings.json bozuk-değer doğrulaması (tip kapısı + forenzik yedek + uyarı)](docs/devir/2026-09-27-1218.md).
 
