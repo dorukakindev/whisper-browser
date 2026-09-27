@@ -728,6 +728,20 @@ function sanitizeProcessDetail(value) {
     .slice(-500);
 }
 
+// Windows'ta dosya adı kuralları: ayrılmış aygıt kökleri (CON, PRN, AUX, NUL,
+// COM1-9, LPT1-9) uzantı ne olursa olsun geçersizdir ve sondaki nokta/boşluk
+// kabuk tarafından kırpılır — yazma denemesi kafa karıştıran EPERM/ENOENT
+// hatalarıyla düşer.
+function windowsSafeFileName(name, fallback = 'dosya') {
+  let out = String(name || '')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '');
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(out.split('.')[0])) out = `_${out}`;
+  return out || fallback;
+}
+
 function startJobLog(label, args) {
   endJobLog();
   try {
@@ -736,7 +750,7 @@ function startJobLog(label, args) {
     const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
     // Dosya adı yalnızca girdinin adı olsun (tam yol değil); tam yol başlıkta yazılı
     const base = String(label || 'is').split(/[\\/]/).pop() || 'is';
-    const safe = base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+    const safe = windowsSafeFileName(base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60), 'is');
     const file = path.join(logsDir(), `${stamp}_${safe}.log`);
     const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
     // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
@@ -2724,7 +2738,7 @@ ipcMain.handle('media:saveImage', async (_e, payload) => {
       ? prev.outputDir : app.getPath('pictures');
     const result = await dialog.showSaveDialog(mainWindow, {
       title: dt('Ekran görüntüsünü kaydet', 'Save screenshot'),
-      defaultPath: path.join(dir, path.basename(String(suggestedName || 'kare.png'))),
+      defaultPath: path.join(dir, windowsSafeFileName(path.basename(String(suggestedName || '')), 'kare.png')),
       filters: [{ name: 'PNG', extensions: ['png'] }],
     });
     if (result.canceled || !result.filePath) return { ok: false, canceled: true };
@@ -5216,7 +5230,7 @@ function browserImageFileName(rawUrl, contentType = '') {
     if (currentExt) name = path.basename(name, path.extname(name));
     name += '.jpg';
   }
-  return name;
+  return windowsSafeFileName(name, 'gorsel');
 }
 
 async function saveBrowserContextImage(tab, rawUrl) {
@@ -8046,8 +8060,9 @@ function retryFailedBrowserManga(tab) {
 }
 
 function browserExportTitle(tab, fallback = 'web-sayfasi') {
-  return String(tab?.restoredTitle || tab?.view?.webContents?.getTitle?.() || fallback)
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || fallback;
+  return windowsSafeFileName(
+    String(tab?.restoredTitle || tab?.view?.webContents?.getTitle?.() || '').slice(0, 100),
+    fallback);
 }
 
 let darkReaderApiBundle = '';
@@ -9427,8 +9442,7 @@ function browserConfiguredSubtitlePath(tab, track = {}, role = 'source') {
   const rawTitle = String(tab?.restoredTitle
     || (tab?.view && !tab.view.webContents.isDestroyed() ? tab.view.webContents.getTitle() : '')
     || 'web-altyazi');
-  const title = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ')
-    .replace(/\s+/g, ' ').trim().slice(0, 90) || 'web-altyazi';
+  const title = windowsSafeFileName(rawTitle.slice(0, 90), 'web-altyazi');
   const mediaSuffix = createHash('sha1').update(browserWatchMediaId(tab) || tab?.restoredUrl || title)
     .digest('hex').slice(0, 8);
   const language = String(track.language || (role === 'translation' ? 'tr' : 'source'))
@@ -16152,8 +16166,7 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const cues = normalizeCues(payload && payload.cues).slice(0, 20000);
   if (!cues.length) return { ok: false, error: 'Dışa aktarılacak altyazı yok.' };
-  const safeTitle = String(payload && payload.title || 'web-altyazi')
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-altyazi';
+  const safeTitle = windowsSafeFileName(String(payload && payload.title || '').slice(0, 100), 'web-altyazi');
   const preferredFormat = ['srt', 'vtt', 'ass'].includes(payload && payload.format) ? payload.format : 'srt';
   const result = await dialog.showSaveDialog(mainWindow, {
     title: dt('Web altyazısını dışa aktar', 'Export web subtitle'),
@@ -16239,8 +16252,7 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
   if (isProtectedBrowserHost(url)) {
     return { ok: false, protected: true, error: 'DRM korumalı servis akışı indirilemez veya klibe dönüştürülemez.' };
   }
-  const safeTitle = String(payload && payload.title || 'web-klip')
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'web-klip';
+  const safeTitle = windowsSafeFileName(String(payload && payload.title || '').slice(0, 100), 'web-klip');
   const selection = await dialog.showSaveDialog(mainWindow, {
     title: dt('A-B klibini dışa aktar', 'Export A-B clip'), defaultPath: `${safeTitle}.mp4`,
     filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
@@ -16376,9 +16388,8 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
     : pages.map(([page, blocks]) => `${format === 'md' ? '## ' : ''}Sayfa ${page}\n\n${blocks.map((block) => block.translation || block.source).join('\n\n')}`).join('\n\n');
   const selection = await dialog.showSaveDialog(mainWindow, {
     title: dt('PDF çevirisini dışa aktar', 'Export PDF translation'),
-    defaultPath: path.join(app.getPath('downloads'), `${String(document.title || 'PDF')
-      .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ').replace(/[. ]+$/g, '')
-      .replace(/\s+/g, ' ').trim().slice(0, 100) || 'PDF'}-ceviri.${format}`),
+    defaultPath: path.join(app.getPath('downloads'),
+      `${windowsSafeFileName(String(document.title || '').slice(0, 100), 'PDF')}-ceviri.${format}`),
     filters: [{ name: format.toUpperCase(), extensions: [format] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };

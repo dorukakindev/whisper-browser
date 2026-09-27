@@ -81,8 +81,9 @@ async function main() {
   assert.match(translation, /<think\\b\[\^>\]\*>\[\\s\\S\]\*\?<\\\/think>/);
 
   const pdfExport = section("ipcMain.handle('pdf:export'", "ipcMain.handle('dialog:openVideo'");
-  assert.match(pdfExport, /document\.title \|\| 'PDF'/);
-  assert.match(pdfExport, /\\x00-\\x1F/);
+  assert.match(pdfExport, /windowsSafeFileName\(String\(document\.title/);
+  // R178: geçersiz-karakter ayıklama windowsSafeFileName yardımcısına taşındı.
+  assert.match(section('function windowsSafeFileName(', 'function startJobLog('), /x00-\\x1F/);
 
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
   assert.match(renderer, /job\.generation !== player\.generation/);

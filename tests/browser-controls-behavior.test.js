@@ -20,7 +20,8 @@ function extract(start, end, deps = {}) {
     assert.equal(result.messageKey, 'certificate-error');
     assert(result.detail.includes('invalid'));
   }
-  const names = extract('function browserImageFileName(', 'async function saveBrowserContextImage');
+  const safeName = vm.runInNewContext(`(${source.slice(source.indexOf('function windowsSafeFileName('), source.indexOf('function startJobLog('))})`);
+  const names = extract('function browserImageFileName(', 'async function saveBrowserContextImage', { windowsSafeFileName: safeName });
   assert.equal(names.browserImageFileName('https://example.test/photo', 'image/png'), 'photo.png');
   assert.equal(names.browserImageFileName('https://example.test/photo.exe', 'image/webp'), 'photo.webp');
   assert.equal(names.browserImageFileName('https://example.test/a%3Fb.png'), 'a_b.png');
