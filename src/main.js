@@ -2783,12 +2783,34 @@ function getSettingsSecretStore() {
   return settingsSecretStore;
 }
 
+// `var` bilinçli: modül gövdesindeki erken okuyucular (donanım hızlandırma
+// kararları ~L422) `let`'lerin TDZ'sinden önce koşar; `var` hoisting'i sayesinde
+// bayrak her çağrıda güvenli.
+var settingsFileCorrupt = false;
 function readPublicSettings() {
   try {
     const parsed = JSON.parse(fs.readFileSync(settingsPath(), 'utf-8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed : { glossary: [] };
-  } catch (_) {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      settingsFileCorrupt = true;
+      return { glossary: [] };
+    }
+    // Şema-geçerli fakat tipi bozuk üst düzey alanlar renderer'a ulaşmadan
+    // düşer — tek kötü alan diğer tercihleri silmez.
+    let dropped = false;
+    for (const [key, kind] of [['glossary', 'array'], ['clearedSecretFields', 'array'],
+        ['ui', 'object'], ['translate', 'object'], ['playerPositions', 'object'],
+        ['browser', 'object'], ['catalog', 'object']]) {
+      const v = parsed[key];
+      if (v === undefined) continue;
+      const bad = kind === 'array' ? !Array.isArray(v)
+        : (!v || typeof v !== 'object' || Array.isArray(v));
+      if (bad) { delete parsed[key]; dropped = true; }
+    }
+    if (dropped) settingsFileCorrupt = true;
+    return parsed;
+  } catch (err) {
+    // Eksik dosya ilk açılış demektir; bozukluk değil.
+    if (err && err.code !== 'ENOENT') settingsFileCorrupt = true;
     return { glossary: [] };
   }
 }
@@ -2820,8 +2842,23 @@ function loadSettings() {
     return withDefaultMediaFolders(
       { settingsVersion: 3, glossary: [], hfToken: '' }, app.getPath('downloads'));
   }
+  const raw = readPublicSettings();
+  if (settingsFileCorrupt) {
+    // Bozuk dosyayı silmeden forenzik için koru; kullanıcıya uyarı gösterilir.
+    // Alan-düşümünde dosya hâlâ geçerli JSON'dur — mesaj iki durumu da kapsar.
+    const wholeFileLost = Object.keys(raw).every((k) => k === 'glossary' || k === 'settingsVersion');
+    try {
+      fs.renameSync(settingsPath(),
+        `${settingsPath()}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+      settingsLoadWarning = wholeFileLost
+        ? 'Ayar dosyası bozuk bulundu; dosya yedeklendi ve güvenli varsayılanlar yüklendi.'
+        : 'Ayar dosyasındaki bozuk alanlar atıldı; dosya yedeklendi, kalan tercihler korundu.';
+    } catch (_) {
+      settingsLoadWarning = 'Ayar dosyasında bozuk içerik var; kalan tercihler korundu.';
+    }
+  }
   const settings = withDefaultMediaFolders(
-    migrateSubtitleModelDefault(readPublicSettings()), app.getPath('downloads'));
+    migrateSubtitleModelDefault(raw), app.getPath('downloads'));
   const split = splitSettingsSecrets(settings);
   const legacySecretFields = Object.keys(split.secrets);
 
