@@ -18,6 +18,7 @@ function handler(name, ctx, kind = 'handle') {
   const end = ['\n});', '\n}));'].map(s => ({ p: source.indexOf(s, start), s }))
     .filter(x => x.p >= 0).sort((a, b) => a.p - b.p)[0];
   const sandbox = vm.createContext(ctx);
+  sandbox.dt = sandbox.dt || ((tr) => tr);
   sandbox.ipcMain = { [kind]: (_, callback) => { sandbox.run = callback; } };
   vm.runInContext(source.slice(start, end.p + end.s.length), sandbox);
   return sandbox;

@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
 
 function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userData, pythonPath,
-  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore }) {
+  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText }) {
   let catalog;
   const previews = new Map();
   const posterCache = new Map();
@@ -30,8 +30,16 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!item) throw new Error('Katalog kaydı bulunamadı.');
     return item;
   }
+  // Yerel dosya seçici başlıkları arayüz dilini izler (EN'de TR kalıyordu).
+  const chooseTitles = new Map([
+    ['Oynatılacak video dosyasını seç', 'Choose the video file to play'],
+    ['Afiş seç', 'Choose a poster image'],
+    ['İçe aktarılan kayıt için video dosyasını doğrulayın', 'Verify a video file for the imported record'],
+    ['nMDB arşiv veritabanını seç', 'Choose the nMDB archive database'],
+  ]);
   async function choose(title, extensions) {
-    const result = await dialog.showOpenDialog(owner(), { title, properties: ['openFile'], filters: [{ name: title, extensions }] });
+    const label = dialogText ? dialogText(title, chooseTitles.get(title) || title) : title;
+    const result = await dialog.showOpenDialog(owner(), { title: label, properties: ['openFile'], filters: [{ name: label, extensions }] });
     return result.canceled ? null : result.filePaths?.[0] || null;
   }
   function imageFor(filePath) {
@@ -65,7 +73,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!item.episodes.some(ep => ep.id === episodeId)) throw new Error('Bölüm bulunamadı.');
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
-  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster });
+  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText });
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};

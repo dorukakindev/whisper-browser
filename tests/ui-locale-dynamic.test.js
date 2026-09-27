@@ -101,7 +101,9 @@ assert.equal(new Set(keys).size, keys.length);
 
 // 6) Yok sayılan kapsayıcıdaki arayüz adası ve yazı alanlarının kendi öznitelikleri.
 const locale = fs.readFileSync(path.join(__dirname, '../src/renderer/ui-locale.js'), 'utf8');
-assert.match(locale, /uiIslands = '\.ai-chat-empty'/);
+// Ada listesi zamanla büyüyebilir; sözleşme yalnız listenin varlığını ve
+// ilk üyenin (.ai-chat-empty) korunmasını kilitler.
+assert.match(locale, /uiIslands = '\.ai-chat-empty(?:,|')/);
 assert.match(locale, /ownAttributeHosts = 'textarea,\[contenteditable\]'/);
 
 console.log(`ui-locale-dynamic: ${cases.length} örnek + OSD kapsamı + ${patterns.length} kalıp`);

@@ -3152,6 +3152,9 @@ updateGpuBadge();
 document.addEventListener('ui-locale-change', () => {
   updatePlayerMeta();
   if (!player.cues.length) renderCueList('');
+  // Sekme şeridi observer'ın yok sayılan bölgesinde: 'New tab' etiketi ve
+  // sekme rozetleri yalnız burada yeniden çizilince yeni dile döner.
+  renderBrowserTabs();
 });
 
 // ===== Clear buttons =====
@@ -22284,18 +22287,21 @@ document.addEventListener('keydown', (e) => {
     setSubtitleModeMenuOpen(false);
     return;
   }
-  if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
-      || tag === 'a' || tag === 'summary' || e.target.isContentEditable
-      || e.target.closest?.('[contenteditable="true"]')) return;
-  if (player.editing) return;
-  // Uygulama arayüzü odaktayken de sayfa odaktayken köprülenen kısayol kümesi
-  // aynen geçerli olsun (tek kaynak: browserShortcutForInput).
+  // Pencere düzeyi tarayıcı kısayolları (Ctrl+T/W/L/F, Alt+←, F5…) input/button
+  // odağında da çalışmalı: tag koruması köprüden ÖNCE gelirse Ctrl+T sonrası
+  // odaklı adres çubuğunda Ctrl+W ölü kalıyordu. browserShortcutForInput
+  // tablosu metin düzenleme tuşlarını (a/c/v/x/z) eşlemediği için yazıya zarar yok;
+  // eşleşmeyen tuşlar boş dönüp alttaki tag korumasına düşer.
   if (player.workspaceMode === 'browser') {
     const shortcut = window.BrowserCommandPalette?.browserShortcutForInput({
       type: 'keyDown', key: e.key, control: e.ctrlKey, meta: e.metaKey, alt: e.altKey, shift: e.shiftKey,
     });
     if (shortcut && runBrowserShortcut(shortcut, e.shiftKey)) { e.preventDefault(); return; }
   }
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
+      || tag === 'a' || tag === 'summary' || e.target.isContentEditable
+      || e.target.closest?.('[contenteditable="true"]')) return;
+  if (player.editing) return;
   // Eşleşmeyen Ctrl/Meta/Alt kombinasyonu tek-harf oynatıcı eylemine düşmez:
   // Ctrl+C kopyalama, Alt+harf menü kısayolu olarak kalmalı.
   if (modifier || e.altKey) return;

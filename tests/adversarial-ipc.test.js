@@ -25,7 +25,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -76,6 +76,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const authorizeFile = vm.runInNewContext(`${authorizeSrc}; authorizeSubtitleFile`, {
         subtitleFileAccess: access, mainWindow: {},
         dialog: { showMessageBox: async () => { prompts++; return { response }; } },
+        dt: (tr) => tr,
       });
       await authorizeFile(file); assert.equal(prompts, 0);
       await assert.rejects(authorizeFile(other), /onaylanmadı/);
