@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- yt-dlp updater: wheel filenames with path separators are rejected before download (prevents writing outside the staging dir); https artifact/metadata URLs are restricted to globally-routable IPs (SSRF hardening).
 - Manga image URL gate: trailing-dot FQDNs (`localhost.`, `*.local.`) no longer bypass the loopback/private-host checks (SSRF hardening).
 - Kuyruk seçeneklerinde NaN/±Infinity değerler artık diske `null` olarak sızmaz; `queue-persistence.js` `sanitizePublicValue` sonlu-sayı kapısı ekler.
 - R156: settings hardening — a corrupt `settings.json` (unparseable, wrong root type, or type-corrupt top-level fields) no longer silently wipes all preferences: bad fields are dropped, good ones kept, the original file preserved as `settings.json.corrupt-<ts>`, and the user warned via the existing load-warning channel.

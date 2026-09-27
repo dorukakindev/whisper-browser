@@ -208,6 +208,56 @@ class YtdlpUpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(U.UpdateError, "doğrulanabilir"):
             U.select_artifact(metadata)
 
+    def test_wheel_filename_rejects_path_separators(self):
+        # R168: `yt_dlp-[^-]+-py3-none-any.whl` içinde `[^-]+` '/' ve '\'
+        # kabul ediyordu → 'yt_dlp-../../../tmp/evil-py3-none-any.whl' seçici
+        # kapıyı geçip staging dizini dışına yazabilirdi.
+        for bad in [
+            "yt_dlp-../../escape-py3-none-any.whl",
+            "yt_dlp-../../../tmp/evil-py3-none-any.whl",
+            "yt_dlp-a/b-py3-none-any.whl",
+            "yt_dlp-a\\b-py3-none-any.whl",
+        ]:
+            metadata = {
+                "info": {"version": "9999.1.0"},
+                "urls": [{
+                    "packagetype": "bdist_wheel",
+                    "filename": bad,
+                    "url": "https://files.pythonhosted.org/x.whl",
+                    "digests": {"sha256": "a" * 64},
+                }],
+            }
+            with self.assertRaisesRegex(U.UpdateError, "doğrulanabilir"):
+                U.select_artifact(metadata)
+
+    def test_https_url_rejects_private_and_link_local_ips(self):
+        # R168: _url_is_allowed daha önce her https:// host'unu kabul ediyordu;
+        # zehirlenmiş metaveri indirmeyi 169.254.169.254 gibi iç adrese
+        # yönlendirebilirdi. Genel-olmayan literal IP'ler artık reddedilir.
+        for bad in [
+            "https://169.254.169.254/latest/meta-data",
+            "https://10.0.0.1/x",
+            "https://192.168.1.1/x",
+            "https://172.16.0.1/x",
+            "https://127.0.0.1/x",
+            "https://[::1]/x",
+            "https://[fe80::1]/x",
+            "https://[fd00::1]/x",
+            "https://100.64.0.1/x",
+            "https://0.0.0.0/x",
+            "https://203.0.113.1/x",
+        ]:
+            self.assertFalse(U._url_is_allowed(bad), bad)
+        for good in [
+            "https://pypi.org/pypi/yt-dlp/json",
+            "https://files.pythonhosted.org/wheel.whl",
+            "https://8.8.8.8/x",
+            "https://pypi.org./x",
+        ]:
+            self.assertTrue(U._url_is_allowed(good), good)
+        self.assertFalse(U._url_is_allowed("http://example.com/x"))
+        self.assertTrue(U._url_is_allowed("http://127.0.0.1/x", allow_http_localhost=True))
+
     def test_runtime_rejects_non_https_metadata_before_network(self):
         called = False
 

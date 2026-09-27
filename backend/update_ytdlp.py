@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -83,13 +84,23 @@ def fetch_metadata(url=DEFAULT_METADATA_URL, opener=urlopen, timeout=30):
 
 
 def _url_is_allowed(url, allow_http_localhost=False):
-    parsed = urlparse(str(url))
-    if parsed.scheme == "https" and parsed.hostname:
-        return True
+    parsed = urlparse(str(url).strip())
+    hostname = (parsed.hostname or "").rstrip(".")
+    if not hostname:
+        return False
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        address = None
+    if parsed.scheme == "https":
+        # HTTPS artefakt/metadata adresleri genele açık IP olmalı: kötü niyetli
+        # veya zehirlenmiş metaveri, indirmeyi link-local bulut metaverisi
+        # (169.254.169.254) ya da iç ağa yönlendiremez (SSRF derinlemesine).
+        return address is None or address.is_global
     return bool(
         allow_http_localhost
         and parsed.scheme == "http"
-        and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+        and hostname in {"127.0.0.1", "localhost", "::1"}
     )
 
 
@@ -106,6 +117,11 @@ def select_artifact(metadata, allow_http_localhost=False):
         if item.get("packagetype") != "bdist_wheel":
             continue
         if not re.fullmatch(r"yt_dlp-[^-]+-py3-none-any\.whl", filename, re.I):
+            continue
+        # `[^-]+` yol ayracı taşıyan dosya adına izin verir:
+        # 'yt_dlp-../../../tmp/evil-py3-none-any.whl' regex'i geçer ama
+        # staging dizininin dışına yazar. Dosya adı tek segment olmalı.
+        if "/" in filename or "\\" in filename or Path(filename).name != filename:
             continue
         if not re.fullmatch(r"[0-9a-f]{64}", digest):
             continue

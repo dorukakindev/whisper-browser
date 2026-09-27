@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-27-1605.md](docs/devir/2026-09-27-1605.md) — R167 manga/OCR: localhost. FQDN SSRF düzeltmesi + 65 kontrol
+Güncel çalışma: [docs/devir/2026-09-27-1625.md](docs/devir/2026-09-27-1625.md) — R168 yt-dlp güncelleyici: dosya-adı traversal + IP literal SSRF kapıları
+
+Önceki çalışma: [docs/devir/2026-09-27-1605.md](docs/devir/2026-09-27-1605.md) — R167 manga/OCR: localhost. FQDN SSRF düzeltmesi + 65 kontrol
 
 Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 
