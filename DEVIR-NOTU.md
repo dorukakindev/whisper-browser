@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 12:50 — R158 retry/backoff stres (18 kontrol; toplam-bekleme tavanı, cap, kenarlar)](docs/devir/2026-09-27-1250.md).
+Güncel çalışma: [2026-09-27 13:05 — R159 NDJSON dayanıklılığı (sınır/edge ratchet + fuzz; bug yok)](docs/devir/2026-09-27-1305.md).
+
+Önceki çalışma: [2026-09-27 12:50 — R158 retry/backoff stres (18 kontrol; toplam-bekleme tavanı, cap, kenarlar)](docs/devir/2026-09-27-1250.md).
 
 Önceki çalışma: [2026-09-27 12:35 — R157 kuyruk bozulma simülasyonu (25k kontrol, değişmezlik ratchet'i; bug yok)](docs/devir/2026-09-27-1235.md).
 
