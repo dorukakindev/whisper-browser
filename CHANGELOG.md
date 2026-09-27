@@ -6,8 +6,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R143: accessibility — `#playerLayer` gained `role="region"` + `aria-label`, zeroing the axe `region` landmark debt (33→0); `REGION_BASELINE` ratcheted to 0 so no unlandmarked content node can land again.
 - R140–R142: dependency audit clean (0 vulnerabilities; two <7-day-old updates deferred per supply-chain rule); startup require-chain profiled at 12ms (no lazy-load win); CSS token baseline ratcheted 447→445 via root-scoped `var(--group-cyan)` substitutions.
 - R139: unit-test coverage — new `tests/browser-mini-player.test.js` covers the mini-player factory with fake BrowserWindow/ipcMain (8 scenarios: open guards, layout bounds, owns lifecycle, command routing); the only remaining untested pure module is subprocess-bound (`browser-dialogue.js`).
+||||||| parent of 6aa9233 (docs(r143): changelog + indeks)
 - R138/R151: IPC contract test — new `tests/ipc-parity.test.js` locks preload↔main channel parity (213 handlers, 11 events, 3 preload bridges), forbids double handler registration, ratchets pre-guard param derefs at 16, and asserts no handler performs side-effects before input validation.
 - R137: subtitle parser fuzz ratchet — new `tests/subtitle-parser-fuzz.test.js` runs 50k deterministic adversarial mutations across all SRT/VTT/ASS/LRC/SAMI/TTML/JSON3/HLS/DASH/MP4 parsers every `npm test`; ~160k total cases audited with zero crashes, hangs, or NaN cues.
 - R136: i18n closure — 348 new TR→EN dictionary entries (74 renderer sink literals + 274 main.js IPC messages) plus 3 concat-prefix patterns; i18n-coverage test now ratchets renderer sinks and main.js error/message/stage/label returns so no Turkish UI string can land untranslated.
