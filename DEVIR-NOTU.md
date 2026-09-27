@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-1855.md](docs/devir/2026-09-27-1855.md) — T12 birleşik regresyon raporu + T9 Windows kabul oturumu başlatıldı
+Güncel çalışma: [docs/devir/2026-09-27-1905.md](docs/devir/2026-09-27-1905.md) — R172 renderer.js dilim-2 (9 sekme işlevi → helpers) + sinyal taraması kapsam düzeltmesi
+Önceki çalışma: [docs/devir/2026-09-27-1855.md](docs/devir/2026-09-27-1855.md) — T12 birleşik regresyon raporu + T9 Windows kabul oturumu başlatıldı
 Önceki çalışma: [docs/devir/2026-09-27-1845.md](docs/devir/2026-09-27-1845.md) — R171 T2 derin zamanlama: canlı DASH $Time$ PTO + 4x üstü hız kelepçeleri (prob/worklet/HLS)
 Önceki çalışma: [docs/devir/2026-09-27-1840.md](docs/devir/2026-09-27-1840.md) — R153 renderer.js modülleştirme: ilk doğrulanmış dilim (63 işlev → renderer-helpers.js)
 Önceki çalışma: [docs/devir/2026-09-27-1835.md](docs/devir/2026-09-27-1835.md) — R169 flaky determinizm: sabit uykular → koşul yoklaması
