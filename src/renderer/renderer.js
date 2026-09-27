@@ -16250,12 +16250,6 @@ function mergeCueContinuation(cues, maxGap = 3.0) {
   return out;
 }
 
-function resetCueRaw() {
-  player.cuesRaw = null;
-  player.cues2Raw = null;
-  player.cueQualitySource = [];
-}
-
 function applyCueMerge() {
   const on = !!player.mergeCont;
   if (!player.cuesRaw) player.cuesRaw = player.cues;

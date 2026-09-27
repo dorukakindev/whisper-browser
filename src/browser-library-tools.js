@@ -10,10 +10,6 @@ function boundedText(value, limit) {
   return String(value || '').trim().slice(0, limit);
 }
 
-function normalizeAnchorText(value) {
-  return String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
-}
-
 function approximateAnchorMatch(rawText, rawPattern, cellBudget = 600000) {
   const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
   const text = normalize(rawText);

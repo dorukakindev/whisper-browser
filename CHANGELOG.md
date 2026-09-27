@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R144: dead-code sweep — removed never-called `normalizeAnchorText` (its inline `normalize` lives inside the page-serialized `approximateAnchorMatch`) and `resetCueRaw` (superseded by direct `player.cuesRaw` assignment).
 - R143: accessibility — `#playerLayer` gained `role="region"` + `aria-label`, zeroing the axe `region` landmark debt (33→0); `REGION_BASELINE` ratcheted to 0 so no unlandmarked content node can land again.
 - R140–R142: dependency audit clean (0 vulnerabilities; two <7-day-old updates deferred per supply-chain rule); startup require-chain profiled at 12ms (no lazy-load win); CSS token baseline ratcheted 447→445 via root-scoped `var(--group-cyan)` substitutions.
 - R139: unit-test coverage — new `tests/browser-mini-player.test.js` covers the mini-player factory with fake BrowserWindow/ipcMain (8 scenarios: open guards, layout bounds, owns lifecycle, command routing); the only remaining untested pure module is subprocess-bound (`browser-dialogue.js`).
