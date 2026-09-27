@@ -2787,11 +2787,13 @@ function getSettingsSecretStore() {
 // kararları ~L422) `let`'lerin TDZ'sinden önce koşar; `var` hoisting'i sayesinde
 // bayrak her çağrıda güvenli.
 var settingsFileCorrupt = false;
+var settingsFileFullyLost = false;
 function readPublicSettings() {
   try {
     const parsed = JSON.parse(fs.readFileSync(settingsPath(), 'utf-8'));
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       settingsFileCorrupt = true;
+      settingsFileFullyLost = true;
       return { glossary: [] };
     }
     // Şema-geçerli fakat tipi bozuk üst düzey alanlar renderer'a ulaşmadan
@@ -2810,7 +2812,10 @@ function readPublicSettings() {
     return parsed;
   } catch (err) {
     // Eksik dosya ilk açılış demektir; bozukluk değil.
-    if (err && err.code !== 'ENOENT') settingsFileCorrupt = true;
+    if (err && err.code !== 'ENOENT') {
+      settingsFileCorrupt = true;
+      settingsFileFullyLost = true;
+    }
     return { glossary: [] };
   }
 }
@@ -2842,23 +2847,20 @@ function loadSettings() {
     return withDefaultMediaFolders(
       { settingsVersion: 3, glossary: [], hfToken: '' }, app.getPath('downloads'));
   }
-  const raw = readPublicSettings();
+  const settings = withDefaultMediaFolders(
+    migrateSubtitleModelDefault(readPublicSettings()), app.getPath('downloads'));
   if (settingsFileCorrupt) {
     // Bozuk dosyayı silmeden forenzik için koru; kullanıcıya uyarı gösterilir.
-    // Alan-düşümünde dosya hâlâ geçerli JSON'dur — mesaj iki durumu da kapsar.
-    const wholeFileLost = Object.keys(raw).every((k) => k === 'glossary' || k === 'settingsVersion');
     try {
       fs.renameSync(settingsPath(),
         `${settingsPath()}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-      settingsLoadWarning = wholeFileLost
+      settingsLoadWarning = settingsFileFullyLost
         ? 'Ayar dosyası bozuk bulundu; dosya yedeklendi ve güvenli varsayılanlar yüklendi.'
         : 'Ayar dosyasındaki bozuk alanlar atıldı; dosya yedeklendi, kalan tercihler korundu.';
     } catch (_) {
       settingsLoadWarning = 'Ayar dosyasında bozuk içerik var; kalan tercihler korundu.';
     }
   }
-  const settings = withDefaultMediaFolders(
-    migrateSubtitleModelDefault(raw), app.getPath('downloads'));
   const split = splitSettingsSecrets(settings);
   const legacySecretFields = Object.keys(split.secrets);
 
