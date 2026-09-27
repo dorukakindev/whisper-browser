@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- Added opt-in real end-to-end transcription test (WHISPER_E2E=1): synthesizes speech, runs transcribe.py on tiny/CPU, verifies NDJSON contract + SRT/VTT/JSON output.
 - R166: `.wbp` video extraction now bounds the actual decompressed bytes to the declared zip `file_size` and deletes partial targets on failure — tampered archives can no longer leave truncated files behind.
 - R165: persistent favicon cache — favicons now survive restarts via a separate `browser-favicons.json` store (LRU 120 origins, ≤96KB each, `data:image/*` only), loaded once into the renderer via a new guarded `browser:favicons:list` IPC; history/bookmark/omnibox rows keep their icons without re-visiting sites.
 - R164: subtitle find/replace perf — `literalRanges` no longer re-folds a growing window per start point (O(L²) per cue, ~21s for a 4k-cue search); a single-fold + `indexOf` fast path (with a fold-length-changing codepoint regex fallback to the slow path) brings it to ~34ms, proven equivalent by a 2000-round fuzz against the old algorithm.
