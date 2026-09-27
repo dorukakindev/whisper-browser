@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R160: unicode path ratchets — `tests/unicode-paths.test.js` verifies `ffSubtitlesArg` escaping on Turkish/space/quote Windows paths, ASCII staging names for burn-in, queue label derivation from Turkish paths, argv (no-shell) `--input` passing, and BOM'd `write_srt` to a Turkish-named file (real Python call).
 - R159: NDJSON protocol durability — `tests/ndjson-durability.test.js` adds boundary ratchets (1024-char minimum cap, flush-while-dropping, lone-CR, per-line overflow reporting) plus a 2000-round random chunking fuzz verifying lossless ordered event reconstruction; `main.js` `handleLine` corrupt-line→log and terminal-latch paths reviewed, no bugs.
 - R158: retry/backoff stress — `backend/test_retry_backoff.py` ratchets `call_api_with_retry` boundaries (attempts coercion, 120s total-wait cap incl. exact-boundary, 30s exponential cap, 429 backoff, Retry-After past-date clamp, status-less "429" non-retryable guard, `api_error_status` edges).
 - R157: queue-state corruption simulation — `tests/queue-state-corruption.test.js` runs ~25k adversarial/fuzz assertions on `queue-persistence.js` (id/type/input rejection, dedupe, running→pending recovery, terminal-state protection, circular/prototype-pollution safety, 5k random snapshots); no bugs found, invariants now ratcheted.
