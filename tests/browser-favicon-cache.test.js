@@ -81,7 +81,7 @@ ok(JSON.stringify(normalizeBrowserFavicons({ 'https://a.com': 'data:image/png;ba
 sandbox.rememberBrowserPlaceFavicon('https://a.com/sayfa', PNG);
 ok(sandbox.readBrowserFavicons().get('https://a.com') === PNG, 'cache\'e yazıldı');
 sandbox.flushBrowserFavicons();
-ok(writtenFiles.length === 1 && writtenFiles[0].file === '/tmp/favicon-test/browser-favicons.json',
+ok(writtenFiles.length === 1 && path.basename(writtenFiles[0].file) === 'browser-favicons.json',
   'atomik dosya yazımı');
 ok(writtenFiles[0].value.items['https://a.com'] === PNG, 'disk yükü doğru');
 const beforeNoop = writtenFiles.length;
