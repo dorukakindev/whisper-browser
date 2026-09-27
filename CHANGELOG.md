@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- R155: installer UX — `start.bat` now runs `setlocal` so its PATH/env prefixes stop leaking into (and re-prepending in) the calling console; helper installers (`install-browser-align/tools/extras.bat`) pause on every failure path so double-clicked installs show the error instead of closing instantly.
+
 ### Internal
 
 - R152: timecode edge-case ratchet — `tests/subtitle-timecode.test.js` locks `parseTime`/`parseTimedBlocks`/`formatSrtTime`/`cuesToVtt` contracts (unit-suffixed times, comma/dot fractions, BOM+CRLF, separator-less SRT numbering, 3-digit hours, X-TIMESTAMP-MAP offset, NOTE-block separation, negative clamp); `formatSrtTime` exported for test visibility.
