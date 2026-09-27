@@ -865,7 +865,8 @@ function syncBrowserOcclusion() {
   // Yalnizca panel gizliyken veya sinema modundayken videonun ustune biner;
   // WebContentsView DOM katmanlarinin ustunde oldugu icin o durumda gizlenmeli.
   const settingsOverlay = !!(settings && !settings.classList.contains('hidden') && playerLayer
-    && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')));
+    && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')
+      || playerLayer.classList.contains('side-rail-mode')));
   const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
@@ -5625,9 +5626,9 @@ async function runBrowserFind(next = false, forward = true) {
   try {
     const result = await browserCommand('find', { text, token, next, forward }, tabId);
     if (token !== browserPageFind.token || tabId !== browserPageFind.tabId) return;
-    if (!result?.ok) $('browserFindCount').textContent = result?.error || 'Arama yapılamadı';
+    if (!result?.ok) $('browserFindCount').textContent = result?.error || (window.UiLocale?.t?.('Arama yapılamadı') || 'Arama yapılamadı');
   } catch (_) {
-    if (token === browserPageFind.token && tabId === browserPageFind.tabId) $('browserFindCount').textContent = 'Arama yapılamadı';
+    if (token === browserPageFind.token && tabId === browserPageFind.tabId) $('browserFindCount').textContent = window.UiLocale?.t?.('Arama yapılamadı') || 'Arama yapılamadı';
   }
 }
 function receiveBrowserFindEvent(event) {
@@ -5636,7 +5637,7 @@ function receiveBrowserFindEvent(event) {
   if (event.type === 'find-reset') { closeBrowserFind(false); return; }
   if (event.token !== browserPageFind.token || event.tabId !== browserPageFind.tabId) return;
   const matches = Math.max(0, Number(event.matches) || 0);
-  $('browserFindCount').textContent = matches ? `${Math.max(0, Number(event.activeMatch) || 0)} / ${matches}` : 'Eşleşme yok';
+  $('browserFindCount').textContent = matches ? `${Math.max(0, Number(event.activeMatch) || 0)} / ${matches}` : (window.UiLocale?.t?.('Eşleşme yok') || 'Eşleşme yok');
 }
 if ($('browserFindInput')) {
   $('browserFindInput').addEventListener('input', event => {
@@ -14583,11 +14584,12 @@ if (typeof window !== 'undefined') window.addEventListener('resize', scheduleTim
 function historyWhen(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
+  const t = (s) => globalThis.UiLocale?.t?.(s) || s;
   const gun = Math.floor((Date.now() - d.getTime()) / 86400000);
   const saat = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  if (gun === 0) return `bugün ${saat}`;
-  if (gun === 1) return `dün ${saat}`;
-  if (gun < 7) return `${gun} gün önce`;
+  if (gun === 0) return t(`bugün ${saat}`);
+  if (gun === 1) return t(`dün ${saat}`);
+  if (gun < 7) return t(`${gun} gün önce`);
   return d.toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'));
 }
 
@@ -14595,7 +14597,8 @@ function historyDur(sec) {
   const s = Math.round(sec || 0);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return h ? `${h} sa ${m} dk` : `${m || 1} dk`;
+  return (globalThis.UiLocale?.t?.(h ? `${h} sa ${m} dk` : `${m || 1} dk`))
+    || (h ? `${h} sa ${m} dk` : `${m || 1} dk`);
 }
 
 function historyLine(h) {
@@ -16015,6 +16018,9 @@ function autoGrowChatBox() {
 }
 
 function setSideTab(tab, { focusContent = false } = {}) {
+  // İkon rayındayken (veya kod yoluyla) bir sekme istemek içeriği görmek
+  // demektir: panel moduna dönmezse sekme içeriği 48px rayın içinde gizli kalır.
+  if ($('playerSide')?.classList.contains('side-rail')) setBrowserSideRailPref('panel');
   const ai = tab === 'ai';
   const library = tab === 'library';
   const tools = tab === 'tools' && player.workspaceMode === 'browser';

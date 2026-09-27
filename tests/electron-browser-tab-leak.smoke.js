@@ -136,8 +136,16 @@ app.whenReady().then(async () => {
     'Video A decode', 30000);
   await pageA.executeJavaScript(`(()=>{const v=document.querySelector('video');v.muted=true;return v.play()})()`);
 
-  // A overlay: kaynak + çeviri katmanı.
-  const overlayA = await run(`return await window.api.setBrowserOverlay(${JSON.stringify(tabA)}, {
+  // A overlay: kaynak + çeviri katmanı. Cue'lar hem renderer modeline
+  // (player.cues/cues2 + roller) tohumlanır hem doğrudan itilir —
+  // scheduleBrowserOverlaySync sekme/split senkronlarında modeli yeniden
+  // ittiğinden (120ms debounce), yalnız IPC enjeksiyonu ilk resync'te
+  // boş payload ile ezilirdi. Üründe model tek doğruluk kaynağıdır.
+  const overlayA = await run(`player.cues=${JSON.stringify(cuesA)};
+    player.cues2=${JSON.stringify(trA)};
+    player.subRole='source';player.sub2Role='translation';
+    scheduleBrowserOverlaySync();
+    return await window.api.setBrowserOverlay(${JSON.stringify(tabA)}, {
     mode:'both', offset:0,
     source:${JSON.stringify(cuesA)}, translation:${JSON.stringify(trA)},
     sourceTransform:{scale:1,offsetSeconds:0}, translationTransform:{scale:1,offsetSeconds:0},
@@ -161,7 +169,12 @@ app.whenReady().then(async () => {
     'Video B decode', 30000);
   await pageB.executeJavaScript(`(()=>{const v=document.querySelector('video');v.muted=true;return v.play()})()`);
 
-  const overlayB = await run(`return await window.api.setBrowserOverlay(${JSON.stringify(tabB)}, {
+  // Sekme B aktifken aynı sözleşme: model tohumu + doğrudan itme.
+  const overlayB = await run(`player.cues=${JSON.stringify(cuesB)};
+    player.cues2=[];
+    player.subRole='source';
+    scheduleBrowserOverlaySync();
+    return await window.api.setBrowserOverlay(${JSON.stringify(tabB)}, {
     mode:'source', offset:0,
     source:${JSON.stringify(cuesB)}, translation:[],
     sourceTransform:{scale:1,offsetSeconds:0}, translationTransform:{scale:1,offsetSeconds:0},
@@ -237,7 +250,7 @@ app.whenReady().then(async () => {
     assert.ok(visA.every((s) => s.src), 'A overlay metni görünürken hiç render edilmedi');
     assert.ok(visA.every((s) => s.tr), 'A çeviri katmanı hiç görünmedi');
   }
-  assert.ok(visB.every((s) => s.src), 'B overlay metni görünürken hiç render edilmedi');
+  assert.ok(visB.every((s) => s.src), 'B overlay metni görünürken hiç render edilmedi: ' + JSON.stringify(visB.slice(-4)));
   await shot('01-two-tabs');
 
   // S2: A'yı kapat — B etkilenmemeli, uygulama durumu A verisini tutmamalı.
@@ -304,7 +317,10 @@ app.whenReady().then(async () => {
   assert.equal(sampleB2.src.includes('B-KAYNAK'), false,
     `Eski medyanın B cue\'ları yeni sayfaya taşındı: ${JSON.stringify(sampleB2)}`);
   // Overlay'i B kümesiyle yeniden kur — sekme kimliği aynı kaydı takip etmeli.
-  const overlayB2 = await run(`return await window.api.setBrowserOverlay(${JSON.stringify(tabB)}, {
+  const overlayB2 = await run(`player.cues=${JSON.stringify(cuesB)};
+    player.cues2=[];player.subRole='source';
+    scheduleBrowserOverlaySync();
+    return await window.api.setBrowserOverlay(${JSON.stringify(tabB)}, {
     mode:'source', offset:0,
     source:${JSON.stringify(cuesB)}, translation:[],
     sourceTransform:{scale:1,offsetSeconds:0}, translationTransform:{scale:1,offsetSeconds:0},

@@ -10,6 +10,10 @@ const out = path.join(root, '.uiprev', 'browser-cea-full-ui-smoke');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}-${Date.now()}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
+// Arayüz dili varsayılanı EN oldu (R186): bu smoke TR metin sözleşmesini
+// doğrular, bu yüzden profili TR tohumlar.
+fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'settings.json'),
+  JSON.stringify({ settingsVersion: 3, ui: { uiLocale: 'tr' } }));
 app.setAppPath(root);
 app.setPath('userData', process.env.WHISPER_RESOURCE_SOAK_USER_DATA);
 app.commandLine.appendSwitch('disable-gpu');

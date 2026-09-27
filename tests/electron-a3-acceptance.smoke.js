@@ -238,7 +238,7 @@ async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.writeFileSync(path.join(userDataDir, 'settings.json'), JSON.stringify({
     settingsVersion: 3, glossary: [],
-    ui: { browserHardwareAcceleration: false },
+    ui: { browserHardwareAcceleration: false, uiLocale: 'tr' },
     manga: { endpointPreset: 'custom', customBaseUrl: `http://127.0.0.1:${server.address().port}` },
   }));
 

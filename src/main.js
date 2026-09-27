@@ -12205,6 +12205,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       webSecurity: true,
       spellcheck: false,
       autoplayPolicy: 'user-gesture-required',
+      // Bölmeli görünümde ikincil WebContentsView görünürken Chromium sayfa
+      // zamanlayıcılarını boğup altyazı katmanını dondurabiliyordu; ana
+      // penceredeki gibi devre dışı bırak.
+      backgroundThrottling: false,
     },
   });
   tab.view = view;

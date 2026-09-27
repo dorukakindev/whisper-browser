@@ -2538,6 +2538,7 @@
     ['Tarayıcı ve uygulama arayüzünde GPU hızlandırmasını aç veya kapat.', 'Turn GPU acceleration on or off for the browser and app UI.'],
     ['Otomatik senkron için yerel video ve kaynak altyazı gerekli', 'Auto-sync needs a local video and a source subtitle'],
     ['YouTube akışında önce videoyu indir; yerel video ve altyazı hazır olunca kullanılabilir.', 'On YouTube streams download the video first; usable once a local video and subtitles are ready.'],
+    ['Eşleşme yok', 'No matches'],
   ];
 
   // Şablonlu arayüz metinleri (sayaçlar, "X: üst kapsamdan al", OSD değerleri).
@@ -2577,6 +2578,8 @@
     [/^bugün (\d{2}:\d{2})$/, (m) => `today ${m[1]}`],
     [/^dün (\d{2}:\d{2})$/, (m) => `yesterday ${m[1]}`],
     [/^(\d+) gün önce$/, (m) => `${m[1]} ${m[1] === '1' ? 'day' : 'days'} ago`],
+    [/^(\d+) sa (\d+) dk$/, (m) => `${m[1]} h ${m[2]} min`],
+    [/^(\d+) dk$/, (m) => `${m[1]} min`],
     [/^(\d+) video · (\d+) devam eden$/, (m) => `${m[1]} ${m[1] === '1' ? 'video' : 'videos'} · ${m[2]} in progress`],
     [/^(\d+) blok hazır · (\d+) site izi\.$/, (m) => `${m[1]} ${m[1] === '1' ? 'cue' : 'cues'} ready · ${m[2]} site ${m[2] === '1' ? 'track' : 'tracks'}.`],
     [/^(\d+) blok hazır$/, (m) => `${m[1]} ${m[1] === '1' ? 'block' : 'blocks'} ready`],
