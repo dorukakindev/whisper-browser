@@ -17,5 +17,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem Import smoke: onnxruntime tekerlegi VC++ Redistribuable (vcruntime140_1.dll)
+rem olmadan import edilemez; OCR ilk kullanimda sessizce devre disi kalirdi.
+"%PYTHON_EXE%" -c "import onnxruntime" 2>nul
+if errorlevel 1 (
+    echo HATA: onnxruntime import edilemedi. Visual C++ Redistribuable (vc_redist.x64)
+    echo kurulu degilse once onu kurun: https://aka.ms/vs/17/release/vc_redist.x64.exe
+    pause
+    exit /b 1
+)
+
 echo Browser OCR ve anlamsal arama bagimliliklari kuruldu.
 exit /b 0

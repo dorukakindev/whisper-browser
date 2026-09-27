@@ -180,6 +180,11 @@ class RealDriver {
     this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', 'pip==25.1.1'], { code: 'PIP_BOOTSTRAP' });
     this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', '--index-url', TORCH_INDEX, ...TORCH_PINS], { code: 'TORCH_INSTALL' });
     this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', '--constraint', constraints, '--requirement', path.join(this.root, 'backend', 'requirements-core.lock')], { code: 'CORE_INSTALL' });
+    // Paket çözümü pin dışına kayarsa (veya tekerlek eksik DLL getirirse) kurulum
+    // WhisperModel init'te şifreli çöküşle ölürdü (Windows'da ctranslate2 4.8.2
+    // 0xC0000005 verdi; onnxruntime vcruntime140_1 eksikliği de burada yakalanır).
+    // Import smoke'u kurulum anında anlaşılır hata verir.
+    this.run(python, ['-c', 'import ctranslate2, faster_whisper'], { code: 'IMPORT_SMOKE' });
     if (profiles.includes('whisperx')) {
       this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', '--constraint', constraints, '--requirement', path.join(this.root, 'backend', 'requirements-whisperx.lock')], { code: 'WHISPERX_INSTALL' });
     }
