@@ -245,7 +245,8 @@ test('adres normalizasyonu: "kelime:" aramaları ve yerel ağ adresleri', () => 
 test('görsel kaydetme: uzantı sunucunun bildirdiği türden gelir', () => {
   const main = read('src/main.js');
   const fnSource = sliceBetween(main, "function browserImageFileName(rawUrl, contentType = '') {", 'async function saveBrowserContextImage(');
-  const browserImageFileName = new Function('path', `${fnSource}; return browserImageFileName;`)(path);
+  const safeName = new Function(`${sliceBetween(main, 'function windowsSafeFileName(', 'function startJobLog(')}; return windowsSafeFileName;`)();
+  const browserImageFileName = new Function('path', 'windowsSafeFileName', `${fnSource}; return browserImageFileName;`)(path, safeName);
   assert.equal(browserImageFileName('https://x/photo.jpg', 'image/webp'), 'photo.webp');
   assert.equal(browserImageFileName('https://x/i/abc', 'image/avif'), 'abc.avif');
   assert.equal(browserImageFileName('https://x/favicon', 'image/x-icon'), 'favicon.ico');
