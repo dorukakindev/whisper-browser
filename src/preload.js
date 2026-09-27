@@ -167,6 +167,7 @@ contextBridge.exposeInMainWorld('api', {
   updateBrowserSessionTab: (tab) => ipcRenderer.invoke('browser:session:updateTab', tab),
   browserSubtitlePreference: (request) => ipcRenderer.invoke('browser:subtitle-preference', request),
   listBrowserPlaces: () => ipcRenderer.invoke('browser:places:list'),
+  listBrowserFavicons: () => ipcRenderer.invoke('browser:favicons:list'),
   updateBrowserSiteProfile: (request) => ipcRenderer.invoke('browser:profile:update', request),
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),
   removeBrowserPlace: (kind, url) => ipcRenderer.invoke('browser:places:remove', kind, url),

@@ -7668,6 +7668,20 @@ function browserFaviconFor(url) {
   return tab?.favicon || browserFaviconByOrigin.get(origin) || '';
 }
 
+// Kalıcı site-simgesi önbelleğini (userData/browser-favicons.json) oturum
+// içi Map'e bir kez besler; var olan taze kayıtlar korunur.
+let browserFaviconsSeeded = false;
+async function loadBrowserFavicons() {
+  if (browserFaviconsSeeded || !window.api.listBrowserFavicons) return;
+  browserFaviconsSeeded = true;
+  const result = await window.api.listBrowserFavicons().catch(() => null);
+  if (!result?.ok || !result.favicons || typeof result.favicons !== 'object') return;
+  for (const [origin, icon] of Object.entries(result.favicons)) {
+    if (typeof icon === 'string' && /^data:image\//i.test(icon) && !browserFaviconByOrigin.has(origin))
+      browserFaviconByOrigin.set(origin, icon);
+  }
+}
+
 // Satır içi tamamlama açıkken kutudaki seçili (gri) kısım kullanıcının yazdığı
 // değildir; sorgu yalnız imlecin solundaki metindir.
 function typedBrowserAddressQuery() {
@@ -7921,6 +7935,7 @@ async function loadBrowserPlaces() {
     renderBrowserSiteProfile();
     scheduleBrowserOverlaySync();
   }
+  void loadBrowserFavicons();
 }
 
 // B22 — çevrimdışı okuma listesi (MHTML deposu; yer imlerinden ayrı tutulur)

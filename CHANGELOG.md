@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R165: persistent favicon cache — favicons now survive restarts via a separate `browser-favicons.json` store (LRU 120 origins, ≤96KB each, `data:image/*` only), loaded once into the renderer via a new guarded `browser:favicons:list` IPC; history/bookmark/omnibox rows keep their icons without re-visiting sites.
 - R164: subtitle find/replace perf — `literalRanges` no longer re-folds a growing window per start point (O(L²) per cue, ~21s for a 4k-cue search); a single-fold + `indexOf` fast path (with a fold-length-changing codepoint regex fallback to the slow path) brings it to ~34ms, proven equivalent by a 2000-round fuzz against the old algorithm.
 - R163: resource-leak inventory — `tests/resource-leak-inventory.test.js` ratchets timer/child-process/observer set/clear pairs, `fs.watch` absence (interval model), `modelProcesses` add→close-delete balance, and `jobLog` stream close.
 - R162: rejection+atomicity sweep — `tests/rejection-atomicity.test.js` ratchets the `unhandledRejection` sweeper, `.then` chain catch coverage, `atomic-json` tmp+rename discipline for state files (direct `fs.writeFileSync` confined to user-output/temp paths), and `jobLog` write try/catch. No bugs found.
