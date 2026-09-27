@@ -140,6 +140,7 @@ contextBridge.exposeInMainWorld('api', {
   browserCommand: (tabId, command, value) => ipcRenderer.invoke('browser:command', { tabId, command, value }),
   browserExtras: (payload) => ipcRenderer.invoke('browser:extras', payload),
   getBrowserSponsorSegments: (tabId, url, categories, duration) => ipcRenderer.invoke('browser:sponsorBlock:get', { tabId, url, categories, duration }),
+  getBrowserVideoExtras: (url, options) => ipcRenderer.invoke('browser:videoExtras:get', { url, options }),
   getBrowserAdblockState: () => ipcRenderer.invoke('browser:adblock:getState'),
   setBrowserAdblockEnabled: (enabled) => ipcRenderer.invoke('browser:adblock:setEnabled', { enabled: enabled !== false }),
   getBrowserPlayerAdPruneState: () => ipcRenderer.invoke('browser:playerAdPrune:getState'),

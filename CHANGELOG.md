@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- R179: opt-in community extras for the YouTube video open in the player — DeArrow crowdsourced titles (same hash-prefix privacy model as SponsorBlock; the community title replaces the player title while the original is kept) and Return YouTube Dislike vote counts (a `👎 N` badge in the meta row). Both behind persistent checkboxes in the SponsorBlock settings section, fetched only for the opened video (no per-card calls), with the same network posture as the SponsorBlock fetcher (credentials-free, no redirects, 7s timeout, 256KB cap, LRU+TTL cache, in-flight dedupe).
+
 ### Fixed
 
 - R178: file names derived from page titles/labels (auto-saved web subtitles via `browserConfiguredSubtitlePath`, export defaultPaths, image/screenshot names, job-log names) now pass a shared `windowsSafeFileName` sanitizer that also handles Windows reserved device stems (`CON`/`PRN`/`AUX`/`NUL`/`COM1-9`/`LPT1-9` — invalid regardless of extension) and trailing dot/space trimming; previously a page literally titled e.g. `CON` made the silent subtitle write fail on Windows.

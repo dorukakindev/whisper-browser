@@ -49,7 +49,7 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'browserHideSiteCaptions', 'browserRateFightback', 'browserPreservesPitch', 'browserDarkMode', 'browserReaderAuto',
   'browserYoutubeAppearance', 'browserYoutubeHideShorts',
   'browserNormalizeAudio', 'browserSilenceSpeedEnabled', 'browserPageAuto', 'browserPageIndexEnabled', 'browserHardwareAcceleration', 'browserAdblockEnabled',
-  'browserAutoSkipAds', 'browserPlayerResponseAdPrune',
+  'browserAutoSkipAds', 'browserPlayerResponseAdPrune', 'browserDeArrowEnabled', 'browserRydDislikes',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
   'browserAutoPip',
 ]);

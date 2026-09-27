@@ -1828,6 +1828,16 @@
                   <p id="browserSponsorStatus" class="browser-session-status" role="status" aria-live="polite">Sponsor bilgisi alınmadı.</p>
                   <p class="browser-manga-hint">Video kimliğinin SHA-256 hash öneki SponsorBlock hizmetine gönderilir. IP adresiniz hizmet tarafından görülebilir. Veriler CC BY-NC-SA 4.0 lisanslıdır.</p>
                   <ol id="browserSponsorSegments" class="browser-sponsor-segments" aria-label="Sponsor bölümleri"></ol>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserDeArrowEnabled" role="switch" aria-describedby="browserDeArrowHint" />
+                    <span>DeArrow topluluk başlığı</span>
+                  </label>
+                  <p id="browserDeArrowHint" class="browser-manga-hint">Açık YouTube videosunun başlığını topluluk tarafından oylanmış DeArrow başlığıyla değiştirir. SponsorBlock ile aynı hash-öneki gizlilik modeli kullanılır.</p>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserRydDislikes" role="switch" aria-describedby="browserRydDislikesHint" />
+                    <span>Beğenmeme sayısını göster (RYD)</span>
+                  </label>
+                  <p id="browserRydDislikesHint" class="browser-manga-hint">Return YouTube Dislike hizmetinden video kimliğiyle beğenme/beğenmeme sayıları alınır ve oynatıcı başlık bilgisinde gösterilir.</p>
                 </section>
                 <section class="browser-session-portability" aria-labelledby="browserSessionPortabilityTitle"
                   data-browser-settings-kind="persistent" data-browser-settings-category="session">
