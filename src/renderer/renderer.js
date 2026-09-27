@@ -15794,6 +15794,14 @@ function aiChatCtxLabel() {
   renderAiChatContext(frozenJob ? frozenJob.chatContext : aiChatContext(), !!frozenJob);
 }
 
+function aiTimeToSeconds(value) {
+  const parts = String(value || '').split(':').map(Number);
+  if (parts.some((n) => !isFinite(n))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
 function renderAiText(el, text) {
   if (!el) return;
   el.textContent = '';
@@ -22604,6 +22612,12 @@ function clearPlayerMediaSession() {
 
 // Uyku zamanlayıcısı (A38 alt maddesi): süre dolunca oynatma duraklar;
 // 'Bölüm sonunda' seçeneği autoNext'i bir kereye mahsus engeller.
+function sleepTimerLabel() {
+  if (player.sleepTimerMode === 'end') return 'bölüm sonunda';
+  if (!player.sleepTimerAt) return '';
+  const mins = Math.max(0, Math.ceil((player.sleepTimerAt - Date.now()) / 60000));
+  return `${mins} dk`;
+}
 function checkPlayerSleepTimer() {
   if (!player.sleepTimerAt || Date.now() < player.sleepTimerAt) return;
   player.sleepTimerAt = 0;
@@ -24703,6 +24717,16 @@ function stPlaylistAdd(listId, video) {
   saveStPlaylists();
   renderStPlaylistPanel();
   return 'added';
+}
+function stPlaylistRemoveItem(listId, videoId) {
+  const list = stPlaylistById(listId);
+  if (!list) return false;
+  const i = list.items.findIndex((v) => v.videoId === videoId);
+  if (i < 0) return false;
+  list.items.splice(i, 1);
+  saveStPlaylists();
+  renderStPlaylistPanel();
+  return true;
 }
 // "Sıraya ekle": kuyruğun oturum sözleşmesini bozmadan eksik videoları sona ekler.
 function stPlaylistEnqueue(listId) {

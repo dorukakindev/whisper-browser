@@ -6,14 +6,11 @@ Kapsam: `fs.watch`/`setInterval`/`eval` desen envanteri + tüm `src/`
 modüllerinde tam-klasör ölü işlev taraması (fonksiyon bildirimleri ve oklar
 çapraz-dosya referans sayımıyla).
 
-## Ölü kod temizliği (6 işlev — hepsi tek bildirimli, çağıransız)
+## Ölü kod temizliği (4 işlev — hepsi tek bildirimli, çağıransız)
 
 | İşlev | Dosya | Kanıt |
 |---|---|---|
 | `waitForBrowserAdblockReady` | `src/main.js` | Hiç çağrılmıyor; `browser-adblock.test.js` ratchet'i tam tersine ilk gezinmenin adblock hazırlığını bekle**me**diğini mühürlüyor (non-blocking tasarım). |
-| `aiTimeToSeconds` | `src/renderer/renderer.js` | Tek bildirim, sıfır çağrı. |
-| `sleepTimerLabel` | `src/renderer/renderer.js` | "N dk / bölüm sonunda" etiketi üretiyordu ama hiçbir UI çağırmıyor; sleep-timer select'i düz opsiyon metni gösteriyor. |
-| `stPlaylistRemoveItem` | `src/renderer/renderer.js` | Tek-öğe liste silme hiç bağlanmadı; liste UI'ı yalnız bütün-liste `stPlaylistRemove` + tıkla-aç çipleri sunuyor. |
 | `showTabError` | `src/renderer/renderer.js` | Kanal-sekmesi kapsamında bildirilmiş ama hiç çağrılmayan ok işlevi. |
 | `pageMemoryKey` | `src/browser-page-translate.js` | Sayfaya enjekte edilen fonksiyonun içinde hiç çağrılmayan yardımcı; kalıcı çeviri belleği ana süreçte tutuluyor (sayfa içi sessionStorage güvenilir sayılmıyor — yorum korundu). |
 | `sameId` | `src/media-catalog-store.js` | R170 indeksli içe-aktarım eşleşmesiyle çağıransız kaldı. |
@@ -23,6 +20,13 @@ modüllerinde tam-klasör ölü işlev taraması (fonksiyon bildirimleri ve okla
 - `initialSettingsReady` — Electron smoke'ları sayfada `eval` ile bekliyor.
 - `cuesToVtt` (renderer kopyası) — `subtitle-format.test.js` `new Function`
   rekonstrüksiyonuyla sözleşme yüzeyinin parçası.
+- `aiTimeToSeconds` — `browser-reading-design.test.js` kaynak-metonu
+  sözleşmesiyle mühürlü (ilk süpürme `| head` kesmesiyle gözden kaçtı;
+  testler test edilmeden silinemez kuralı doğrulandı).
+- `sleepTimerLabel` — `player-extras-parti3.test.js` metin-slice ile
+  işlevi çıkarıp çalıştırıyor (sözleşme sabiti).
+- `stPlaylistRemoveItem` — `smarttube-playlists-parti5b.test.js` vm-harness
+  `__api`'sinde referanslı; liste-öğe silme API yüzeyi sabitlenmiş.
 - `initPlayerLayout` — isimli IIFE, kendi kendine çalışıyor.
 - `exposeBrowser*` / `init*` / `tracked*` aileleri — UMD/window-köprüsü
   fabrikaları; kendi dosyasında tek bildirimli ama çapraz-script canlı.
@@ -43,7 +47,8 @@ modüllerinde tam-klasör ölü işlev taraması (fonksiyon bildirimleri ve okla
 
 `node --check` 4 dosya ✓ · `browser-adblock` ✓ · `subtitle-format` 27 ✓ ·
 `subtitle-timecode` 33 ✓ · `player-ui` 153 ✓ · `media-catalog-store` ✓ ·
-`browser-page-translate` ✓
+`browser-page-translate` ✓ · `player-extras-parti3` ✓ ·
+`smarttube-playlists-parti5b` ✓ · `browser-reading-design` ✓
 
 ## Windows etkisi
 
