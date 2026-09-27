@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Internal
 
+- R153: renderer.js modularization, first verified slice — 63 leaf functions (753 lines) moved to a new `src/renderer/renderer-helpers.js`, loaded between `status-copy.js` and `renderer.js`. Safe set computed against the suite's source-slicing conventions (name anchors, body-text asserts, region slices, eval-time callers); behavior unchanged, full `npm test` green.
 - Added opt-in real end-to-end transcription test (WHISPER_E2E=1): synthesizes speech, runs transcribe.py on tiny/CPU, verifies NDJSON contract + SRT/VTT/JSON output.
 - R166: `.wbp` video extraction now bounds the actual decompressed bytes to the declared zip `file_size` and deletes partial targets on failure — tampered archives can no longer leave truncated files behind.
 - R165: persistent favicon cache — favicons now survive restarts via a separate `browser-favicons.json` store (LRU 120 origins, ≤96KB each, `data:image/*` only), loaded once into the renderer via a new guarded `browser:favicons:list` IPC; history/bookmark/omnibox rows keep their icons without re-visiting sites.

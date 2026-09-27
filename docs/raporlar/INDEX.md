@@ -105,3 +105,20 @@ tarih sırasıyla dosya adından okunur.
 | 132 | [BROWSER_BUG_REPORT_132.md](BROWSER_BUG_REPORT_132.md) | BROWSER_BUG_REPORT_132 — R132 derin denetim turu: temiz sonuç + kapsam haritası |
 | 133 | [BROWSER_BUG_REPORT_133.md](BROWSER_BUG_REPORT_133.md) | BROWSER_BUG_REPORT_133 — R133 derin denetim: sağlayıcı indirme kodlama hatası + eski kodlama desteği |
 | 134 | [BROWSER_BUG_REPORT_134.md](BROWSER_BUG_REPORT_134.md) | BROWSER_BUG_REPORT_134 — R134 derin denetim turu |
+| 135 | [BROWSER_BUG_REPORT_135.md](BROWSER_BUG_REPORT_135.md) | BROWSER_BUG_REPORT_135 — i18n kapanış turu (R136) |
+| 136 | [BROWSER_BUG_REPORT_136.md](BROWSER_BUG_REPORT_136.md) | BROWSER_BUG_REPORT_136 — altyazı parser fuzz turu (R137) |
+| 137 | [BROWSER_BUG_REPORT_137.md](BROWSER_BUG_REPORT_137.md) | BROWSER_BUG_REPORT_137 — IPC fuzz / parity denetimi (R138 + R151) |
+| 138 | [BROWSER_BUG_REPORT_138.md](BROWSER_BUG_REPORT_138.md) | BROWSER_BUG_REPORT_138 — birim-test kapsamı denetimi (R139) |
+| 139 | [BROWSER_BUG_REPORT_139.md](BROWSER_BUG_REPORT_139.md) | BROWSER_BUG_REPORT_139 — R140 npm audit + R141 startup perf + R142 CSS token |
+| 140 | [BROWSER_BUG_REPORT_140.md](BROWSER_BUG_REPORT_140.md) | BROWSER_BUG_REPORT_140 — R145 kaynak-soak ölçüm tasarımı sertleştirme |
+| 141 | [BROWSER_BUG_REPORT_141.md](BROWSER_BUG_REPORT_141.md) | BROWSER_BUG_REPORT_141 — R147 gauntlet bakiyesi (T6 + T8) |
+| 142 | [BROWSER_BUG_REPORT_142.md](BROWSER_BUG_REPORT_142.md) | BROWSER_BUG_REPORT_142 — .wbp paket güvenliği turu (R166) |
+| 143 | [BROWSER_BUG_REPORT_143.md](BROWSER_BUG_REPORT_143.md) | BROWSER_BUG_REPORT_143 — manga/OCR hattı sertleştirme (R167) |
+| 144 | [BROWSER_BUG_REPORT_144.md](BROWSER_BUG_REPORT_144.md) | BROWSER_BUG_REPORT_144 — yt-dlp güncelleyici güvenliği (R168) |
+| 145 | [BROWSER_BUG_REPORT_145.md](BROWSER_BUG_REPORT_145.md) | BROWSER_BUG_REPORT_145 — Electron güvenlik sertleştirme (R154) |
+| 146 | [BROWSER_BUG_REPORT_146.md](BROWSER_BUG_REPORT_146.md) | BROWSER_BUG_REPORT_146 — Gerçek E2E transkripsiyon doğrulaması (R149) |
+| 147 | [BROWSER_BUG_REPORT_147.md](BROWSER_BUG_REPORT_147.md) | BROWSER_BUG_REPORT_147 — R170 büyük katalog render/işlem performansı |
+| 148 | [BROWSER_BUG_REPORT_148.md](BROWSER_BUG_REPORT_148.md) | BROWSER_BUG_REPORT_148 — R171 Windows doğrulama oturumu bulgularının düzeltilmesi |
+| 149 | [BROWSER_BUG_REPORT_149.md](BROWSER_BUG_REPORT_149.md) | BROWSER_BUG_REPORT_149 — R150 canlı sağlayıcı doğrulaması |
+| 150 | [BROWSER_BUG_REPORT_150.md](BROWSER_BUG_REPORT_150.md) | BROWSER_BUG_REPORT_150 — R169 flaky test determinizmi |
+| 151 | [BROWSER_BUG_REPORT_151.md](BROWSER_BUG_REPORT_151.md) | BROWSER_BUG_REPORT_151 — R153: renderer.js modül çıkarımı (ilk dilim) |

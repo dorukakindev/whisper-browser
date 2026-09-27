@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-27-1835.md](docs/devir/2026-09-27-1835.md) — R169 flaky determinizm: sabit uykular → koşul yoklaması
+Güncel çalışma: [docs/devir/2026-09-27-1840.md](docs/devir/2026-09-27-1840.md) — R153 renderer.js modülleştirme: ilk doğrulanmış dilim (63 işlev → renderer-helpers.js)
+Önceki çalışma: [docs/devir/2026-09-27-1835.md](docs/devir/2026-09-27-1835.md) — R169 flaky determinizm: sabit uykular → koşul yoklaması
 Önceki çalışma: [docs/devir/2026-09-27-1812.md](docs/devir/2026-09-27-1812.md) — R150 canlı sağlayıcı: Stremio seri URL bug + ISO 639 alias bug (ikisi de canlıda yakalandı)
 Önceki çalışma: [docs/devir/2026-09-27-1740.md](docs/devir/2026-09-27-1740.md) — R171 Windows bulguları: ctranslate2 pin + import smoke + GPU rozeti
 Önceki çalışma: [docs/devir/2026-09-27-1707.md](docs/devir/2026-09-27-1707.md) — R170 katalog performansı: planImport O(n×m)→indeksli (14.6s→56ms) + arama katlama önbelleği
