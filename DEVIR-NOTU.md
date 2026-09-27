@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
+Güncel çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
+
+Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 
 Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
 

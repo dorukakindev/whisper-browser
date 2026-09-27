@@ -1,9 +1,36 @@
 """Stream optional videos into ZIP; never extract arbitrary archive paths."""
 import json
 import os
-import shutil
 import sys
 import zipfile
+
+
+def _copy_bounded(source, target, limit):
+    # zipfile metaverisindeki file_size beyan edilen değerdir; sahte bir arşivde
+    # gerçek deflate çıktısı bundan büyük olabilir (CRC ancak akış sonunda
+    # doğrulanır). Gerçek bayt sayısını sınırla — yasal girdi tam olarak
+    # file_size kadar üretir, aşım = kurcalanmış metaveri.
+    written = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            break
+        written += len(chunk)
+        if written > limit:
+            raise ValueError('Paket girdisi beyan edilen boyutu aşıyor.')
+        target.write(chunk)
+
+
+def _extract_entry(bundle, info, destination):
+    try:
+        with bundle.open(info) as source, open(destination, 'xb') as target:
+            _copy_bounded(source, target, info.file_size)
+    except Exception:
+        try:
+            os.remove(destination)
+        except OSError:
+            pass
+        raise
 
 
 def main(req):
@@ -20,8 +47,7 @@ def main(req):
         if info.file_size > 256 * 1024 * 1024:
             raise ValueError('Paket açıklaması çok büyük.')
         if req['action'] == 'read':
-            with bundle.open(info) as source, open(req['manifest'], 'xb') as target:
-                shutil.copyfileobj(source, target, 1024 * 1024)
+            _extract_entry(bundle, info, req['manifest'])
             return {}
         total = 0
         missing = []
@@ -37,8 +63,7 @@ def main(req):
             if total > 100 * 1024 ** 3:
                 raise ValueError('Video paketi 100 GB sınırını aşıyor.')
             os.makedirs(os.path.dirname(entry['target']), exist_ok=True)
-            with bundle.open(info) as source, open(entry['target'], 'xb') as target:
-                shutil.copyfileobj(source, target, 1024 * 1024)
+            _extract_entry(bundle, info, entry['target'])
         return {'missing': missing}
 
 
