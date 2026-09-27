@@ -6,11 +6,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Kuyruk seçeneklerinde NaN/±Infinity değerler artık diske `null` olarak sızmaz; `queue-persistence.js` `sanitizePublicValue` sonlu-sayı kapısı ekler.
 - R156: settings hardening — a corrupt `settings.json` (unparseable, wrong root type, or type-corrupt top-level fields) no longer silently wipes all preferences: bad fields are dropped, good ones kept, the original file preserved as `settings.json.corrupt-<ts>`, and the user warned via the existing load-warning channel.
 - R155: installer UX — `start.bat` now runs `setlocal` so its PATH/env prefixes stop leaking into (and re-prepending in) the calling console; helper installers (`install-browser-align/tools/extras.bat`) pause on every failure path so double-clicked installs show the error instead of closing instantly.
 
 ### Internal
 
+- R161: NaN sweep — `tests/number-normalization.test.js` ratchets non-finite-number dropping across `clonePublicOptions`/snapshot/disk-JSON, src-wide `parseInt` radix completeness (depth-aware scan, vendor excluded), and the truthy-gated numeric opts→argv path in `main.js`.
 - R160: unicode path ratchets — `tests/unicode-paths.test.js` verifies `ffSubtitlesArg` escaping on Turkish/space/quote Windows paths, ASCII staging names for burn-in, queue label derivation from Turkish paths, argv (no-shell) `--input` passing, and BOM'd `write_srt` to a Turkish-named file (real Python call).
 - R159: NDJSON protocol durability — `tests/ndjson-durability.test.js` adds boundary ratchets (1024-char minimum cap, flush-while-dropping, lone-CR, per-line overflow reporting) plus a 2000-round random chunking fuzz verifying lossless ordered event reconstruction; `main.js` `handleLine` corrupt-line→log and terminal-latch paths reviewed, no bugs.
 - R158: retry/backoff stress — `backend/test_retry_backoff.py` ratchets `call_api_with_retry` boundaries (attempts coercion, 120s total-wait cap incl. exact-boundary, 30s exponential cap, 429 backoff, Retry-After past-date clamp, status-less "429" non-retryable guard, `api_error_status` edges).

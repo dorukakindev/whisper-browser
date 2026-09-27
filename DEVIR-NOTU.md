@@ -1,6 +1,8 @@
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 13:20 — R160 UTF-8/Türkçe yol E2E ratchet (burnin/kuyruk/BOM; bug yok)](docs/devir/2026-09-27-1320.md).
+Güncel çalışma: [2026-09-27 13:35 — R161 NaN/Infinity kuyruk sızması düzeltmesi + süpürme ratchet'ları](docs/devir/2026-09-27-1335.md).
+
+Önceki çalışma: [2026-09-27 13:20 — R160 UTF-8/Türkçe yol E2E ratchet (burnin/kuyruk/BOM; bug yok)](docs/devir/2026-09-27-1320.md).
 
 Önceki çalışma: [2026-09-27 13:05 — R159 NDJSON dayanıklılığı (sınır/edge ratchet + fuzz; bug yok)](docs/devir/2026-09-27-1305.md).
 
