@@ -62,6 +62,71 @@ const src = fs.readFileSync(require('path').join(__dirname, '../src/main.js'), '
   ok(/stdio:\s*\['pipe'/.test(src) || /spawn\(/.test(src), 'spawn argv kullanılır (shell: false)');
 }
 
+// R216: windowsSafeFileName invariant fuzz — Windows dosya-adı sözleşmesi.
+// Gerçek işlev gövdesini vm dilimiyle çalıştır; rastgele bozucu girdilerde
+// 4 değişmez kilitli: geçersiz karakter yok, sonda nokta/boşluk yok,
+// ayrılmış kök (NFKC katlaması sonrası) kaçışlı, deterministik+idempotent.
+{
+  const start = src.indexOf('function windowsSafeFileName(');
+  const end = src.indexOf('function startJobLog(');
+  ok(start > 0 && end > start, 'windowsSafeFileName dilimi bulunur');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(src.slice(start, end), sandbox);
+  const safe = sandbox.windowsSafeFileName;
+
+  const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9]|conin\$|conout\$)$/i;
+  let rng = 0x216fed; // deterministik LCG — flake riski yok
+  const next = () => (rng = (rng * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const POOL = [
+    'D:\\Videolar\\', 'C:/Users/Ahmet/OneDrive/', '\\\\sunucu\\paylas\\',
+    'CON', 'nul', 'AUX', 'prn', 'COM1', 'LPT9', 'CONIN$', 'conout$',
+    'ＣＯＮ', 'ＮＵＬ', 'com４', 'COM¹', 'ｌｐｔ７', // tam-genişlik + üst simge
+    '<>:"/\\|?*', '\x00', '\x1f', '...', '   ', ' dosya . ', 'ad.srt',
+    'Şiir', 'İstanbul', 'ğüşıöçı', '媒体', '映画', '🎬', 'a\u0301', 'é',
+    'e\u0301', ' ', ' ', '２０２６', ' -_', 'C:', 'a:b', '..',
+    'çok'.repeat(80), // >260 karakter
+  ];
+  const cases = [];
+  for (let i = 0; i < 400; i += 1) {
+    let s = '';
+    const parts = 1 + Math.floor(next() * 4);
+    for (let j = 0; j < parts; j += 1) s += POOL[Math.floor(next() * POOL.length)];
+    cases.push(s);
+  }
+  for (const input of cases) {
+    const a = safe(input);
+    const b = safe(input);
+    ok(a === b, `deterministik: ${JSON.stringify(input)}`);
+    ok(a === safe(a), `idempotent: ${JSON.stringify(a)}`);
+    ok(typeof a === 'string' && a.length > 0, `boş değil: ${JSON.stringify(input)}`);
+    ok(!/[<>:"/\\|?*\x00-\x1F]/.test(a), `geçersiz karakter yok: ${JSON.stringify(a)}`);
+    ok(!/[. ]$/.test(a), `sonda nokta/boşluk yok: ${JSON.stringify(a)}`);
+    ok(!RESERVED.test(a.split('.')[0].normalize('NFKC')),
+      `ayrılmış kök kaçışlı: ${JSON.stringify(a)}`);
+  }
+  // Nokta-yol kenarları ayrıca sabit kilit
+  ok(safe('...') === 'dosya', 'saf nokta → yedek');
+  ok(safe('. . .') === 'dosya', 'nokta+boşluk → yedek');
+  ok(safe('COM¹') === '_COM¹', 'üst simge kök yakalanır');
+  ok(safe('ＣＯＮ.srt') === '_ＣＯＮ.srt', 'tam-genişlik CON yakalanır');
+  ok(!safe('x'.repeat(400) + '.').endsWith('.'), 'uzun ad sonda nokta taşımaz');
+}
+
+// R216: canonicalLocalPath POSIX'de doğrulanabilir kapıları (UNC/\\?\ denetimi
+// Windows'a özgü; burada sözleşmenin platformdan bağımsız kısmı kilitlenir).
+{
+  const { canonicalLocalPath } = require('../src/local-file-access');
+  assert.throws(() => canonicalLocalPath('goreli\\yol.srt'), /yerel dosya yolu/);
+  assert.throws(() => canonicalLocalPath('\\\\sunucu\\paylas\\a.srt'), null, 'UNC POSIX reddi');
+  assert.throws(() => canonicalLocalPath('\\\\?\\C:\\a.srt'), null, '\\\\?\\ reddi');
+  assert.throws(() => canonicalLocalPath('/tmp/a\x07b.srt'), /yerel dosya yolu/, 'kontrol karakteri');
+  assert.throws(() => canonicalLocalPath(`/tmp/${'a'.repeat(32761)}`), /yerel dosya yolu/, '32760 sınırı');
+  assert.throws(() => canonicalLocalPath(''), /yerel dosya yolu/);
+  assert.throws(() => canonicalLocalPath(null), /yerel dosya yolu/);
+  n += 7;
+}
+
 // Backend: write_srt BOM'lu UTF-8 — python tarafında doğrula
 {
   const py = `import sys; sys.path.insert(0,'backend')

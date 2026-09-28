@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-29-0130.md](docs/devir/2026-09-29-0130.md) — R215: 1000-döngü soak sayısal rapor (GEÇTİ)
+Güncel çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
+
+Önceki çalışma: [docs/devir/2026-09-29-0130.md](docs/devir/2026-09-29-0130.md) — R215: 1000-döngü soak sayısal rapor (GEÇTİ)
 Önceki çalışma: [docs/devir/2026-09-29-0115.md](docs/devir/2026-09-29-0115.md) — R214: mimari diyagram + CONTRIBUTING yenileme
 Önceki çalışma: [docs/devir/2026-09-29-0100.md](docs/devir/2026-09-29-0100.md) — R213: sonuç modalı zaman kaydırma E2E smoke'u
 Önceki çalışma: [docs/devir/2026-09-29-0045.md](docs/devir/2026-09-29-0045.md) — R212: teknik hata mesajları dostu dile çevrilir (systemError)
