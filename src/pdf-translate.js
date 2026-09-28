@@ -457,7 +457,12 @@ function loadPdfTranslationState(directory, identity) {
       if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
       const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
       if (!isPdfTranslationStateCompatible(raw, normalized)) continue;
-      return normalizePdfTranslationState(raw, normalized);
+      const normalizedState = normalizePdfTranslationState(raw, normalized);
+      // Sayfa kaydı taşıyıp tamamı normalize'da düşen dosya bozuk sayılır —
+      // aksi halde sağlam .bak/legacy yedeği gizlerdi (birincil dosyanın
+      // pageKey/array kalıbı bozuksa yedeğe düş).
+      if (Object.keys(raw.pages).length > 0 && !Object.keys(normalizedState.pages).length) continue;
+      return normalizedState;
     } catch (_) {}
   }
   return createPdfTranslationState(normalized);
