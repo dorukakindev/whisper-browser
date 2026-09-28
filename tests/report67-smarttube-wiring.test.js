@@ -1081,6 +1081,10 @@ function buildMediaKeyHarness() {
     queuePlayerProbeFromCard() {},
     updatePlaylistButtons() {},
     watchItemByKey: () => null, logLine() {},
+    // setMediaKey artık topluluk başlığı tabanını da bağımsız temizliyor
+    // (R190) — dilimlenmiş kaynak modül-kapsamlı `let`i serbest değişken
+    // olarak okur; harness'te global binding gerekir.
+    playerCommunityTitleBase: null,
     document: { createElement: (t) => makeFakeEl(t), querySelector: () => null },
     window: { UiLocale: { t: (s) => s } },
     setTimeout, Date,
