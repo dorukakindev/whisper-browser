@@ -79,3 +79,4 @@ scratch/
 whisper-audit-2026/
 /nul
 tmp/
+!backend/golden-writers/

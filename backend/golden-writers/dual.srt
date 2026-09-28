@@ -1,0 +1,20 @@
+﻿1
+00:00:00,000 --> 00:00:01,500
+MERHABA DÜNYA.
+Merhaba dünya.
+
+2
+00:00:02,000 --> 00:00:04,250
+BU, VIRGÜLLÜ VE ÜNLEMLI! BIR CÜMLE; IÇINDE ÇŞĞİÖÜ DE VAR.
+Bu, virgüllü ve ünlemli! Bir cümle; içinde ÇŞĞİÖÜ de var.
+
+3
+00:00:05,000 --> 00:00:09,000
+UZUN SATIR ÖRNEĞI: KELIME KELIME KELIME KELIME KELIME KELIME KELIME KELIME KELIME.
+Uzun satır örneği: kelime kelime kelime kelime kelime kelime kelime kelime kelime.
+
+4
+00:00:10,000 --> 00:00:11,000
+C:\NOTLAR\ALTIN.TXT YOLU VE {ITALIK} KAÇIŞ TESTI.
+C:\Notlar\altın.txt yolu ve {italik} kaçış testi.
+
