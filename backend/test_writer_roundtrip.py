@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import transcribe as T  # noqa: E402
-from test_golden_writers import ENTRIES, SPEAKERS  # noqa: E402
+from test_golden_writers import DUAL_TRANSLATED, ENTRIES, GOLDEN_DIR, SPEAKERS  # noqa: E402
 
 
 def read_back(path, suffix):
@@ -61,10 +61,15 @@ class WriterRoundtripTests(unittest.TestCase):
         T.write_ass(ENTRIES, path, speakers=SPEAKERS)
         got = read_back(path, "ass")
         self.assertEqual(len(got), len(ENTRIES))
-        for (gs, ge, _gt), (s, e, _t) in zip(got, ENTRIES):
+        for (gs, ge, gtext), (s, e, text) in zip(got, ENTRIES):
             # ASS santisaniye çözünürlüğü: ms kenarı ±10ms
             self.assertAlmostEqual(gs, s, delta=0.01)
             self.assertAlmostEqual(ge, e, delta=0.01)
+        # Kaçışsız ilk 3 cue'nun metni de roundtrip'ten geçmeli (ASS writer
+        # cümle sınırında \N kırar; parse tarafı bunu metin olarak korur)
+        for (gs, ge, gtext), (s, e, text) in zip(got[:3], ENTRIES[:3]):
+            self.assertEqual(" ".join(gtext.replace("\\N", " ").split()),
+                             " ".join(text.split()))
 
     def test_ass_escape_transforms_survive_parse_untouched(self):
         path = self.dir / "esc.ass"
@@ -80,14 +85,33 @@ class WriterRoundtripTests(unittest.TestCase):
 
     def test_dual_srt_roundtrip_keeps_both_languages_per_cue(self):
         path = self.dir / "dual.srt"
-        T.write_dual_srt(ENTRIES, ENTRIES, path, wrap_mode="none")
+        # Kaynak ve çeviri FARKLI metinler — taraf sırası tersine dönerse
+        # veya aynı liste iki kez yazılırsa test yakalar.
+        T.write_dual_srt(ENTRIES, DUAL_TRANSLATED, path, wrap_mode="none")
         got = read_back(path, "srt")
         self.assertEqual(len(got), len(ENTRIES))
-        for (gs, ge, gtext), (s, e, text) in zip(got, ENTRIES):
+        for (gs, ge, gtext), (s, e, text), (_ts, _te, tr) in zip(got, ENTRIES, DUAL_TRANSLATED):
             self.assertEqual((gs, ge), (s, e))
             lines = [ln for ln in gtext.split("\n") if ln.strip()]
             self.assertEqual(len(lines), 2, "dual cue üst=çeviri alt=kaynak 2 satır taşımalı")
-            self.assertTrue(all(ln.strip() == text for ln in lines))
+            self.assertEqual(lines[0].strip(), tr, "üst satır çeviri")
+            self.assertEqual(lines[1].strip(), text, "alt satır kaynak")
+
+    def test_recorded_golden_fixtures_parse_lossless(self):
+        # Kayıtlı fixture'ların kendisi de gerçek okuma yolundan ayrıştırılır —
+        # golden kümesi ile roundtrip testi birbirini karşıt kılıyor.
+        for name, suffix in (("basic.srt", "srt"), ("basic.vtt", "vtt"), ("basic.ass", "ass")):
+            text, _enc, _rep = T.read_subtitle_text(GOLDEN_DIR / name)
+            got = T.parse_subtitle_entries(text, suffix=suffix)
+            self.assertEqual(
+                len(got), len(ENTRIES),
+                f"{name} kayıtlı fixture {len(ENTRIES)} cue'ya ayrıştırılamadı")
+            for (gs, ge, _t), (s, e, _src) in zip(got, ENTRIES):
+                self.assertAlmostEqual(gs, s, delta=0.01)
+                self.assertAlmostEqual(ge, e, delta=0.01)
+        dual_got = T.parse_subtitle_entries(
+            T.read_subtitle_text(GOLDEN_DIR / "dual.srt")[0], suffix="srt")
+        self.assertEqual(len(dual_got), len(ENTRIES))
 
     def test_json_output_reloads_as_identical_segment_list(self):
         path = self.dir / "film.json"

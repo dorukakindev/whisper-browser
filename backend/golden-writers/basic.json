@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "language": null,
-  "language_probability": 0,
-  "duration": 0,
+  "language": "tr",
+  "language_probability": 0.98,
+  "duration": 11.0,
   "segments": [
     {
       "id": 1,

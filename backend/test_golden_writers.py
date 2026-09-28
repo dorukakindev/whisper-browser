@@ -15,6 +15,7 @@ import json
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
@@ -40,7 +41,10 @@ def _write_all(target_dir: Path) -> dict:
     T.write_txt(ENTRIES, target_dir / 'basic.txt')
     T.write_ass(ENTRIES, target_dir / 'basic.ass', speakers=SPEAKERS)
     T.write_dual_srt(ENTRIES, DUAL_TRANSLATED, target_dir / 'dual.srt')
-    T.write_json(ENTRIES, target_dir / 'basic.json', info={'language': 'tr'})
+    # write_json dil/durak bilgisini ÖZNITELIK üzerinden okur (getattr) — düz
+    # dict vermek language=null üretir; gerçek transkripsiyon nesne gönderir.
+    info = types.SimpleNamespace(language='tr', language_probability=0.98, duration=11.0)
+    T.write_json(ENTRIES, target_dir / 'basic.json', info=info)
     return {p.name: p.read_bytes() for p in sorted(target_dir.iterdir())}
 
 
@@ -54,9 +58,12 @@ class TestGoldenWriters(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             produced = _write_all(Path(td))
             for name, actual in produced.items():
-                expected = (GOLDEN_DIR / name).read_bytes()
+                # Fixture'lar .gitattributes ile LF'e sabitli; metin-yazımı
+                # Windows'ta CRLF'e çevrilir — satır sonunu normalize et ki
+                # bayt kilidi checkout ayarından bağımsız kalsın.
+                expected = (GOLDEN_DIR / name).read_bytes().replace(b'\r\n', b'\n')
                 self.assertEqual(
-                    expected, actual,
+                    expected, actual.replace(b'\r\n', b'\n'),
                     f'{name} golden ile ayrıştı. Kasıtlı değişiklikse '
                     '`--regen` ile fixture yenile.')
 
@@ -92,6 +99,23 @@ class TestGoldenWriters(unittest.TestCase):
             produced = _write_all(Path(td))
             leftover_tmp = [p.name for p in Path(td).iterdir() if '.tmp' in p.name or p.suffix == '.part']
             self.assertEqual(leftover_tmp, [])
+
+    def test_failed_write_preserves_existing_target(self):
+        # Doğrulama hatası (sonlu olmayan zaman damgası) dosya açılmadan önce
+        # fırlatılır — mevcut çıktı ve dizin temiz kalmalı.
+        bad = [(0.0, float('inf'), 'bozuk')]
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td) / 'out.srt'
+            target.write_bytes(b'mevcut icerik')
+            with self.assertRaises((ValueError, TypeError)):
+                T.write_srt(bad, target)
+            self.assertEqual(target.read_bytes(), b'mevcut icerik')
+            leftover = [p.name for p in Path(td).iterdir() if p.name != 'out.srt']
+            self.assertEqual(leftover, [], 'hata yolu geçici dosya bırakmamalı')
+            new_target = Path(td) / 'yeni.json'
+            with self.assertRaises((ValueError, TypeError)):
+                T.write_json(bad, new_target)
+            self.assertFalse(new_target.exists())
 
 
 if __name__ == '__main__':
