@@ -58,9 +58,9 @@ notları kalıcı kayıt olarak bırakıldı.
 `async-timeout`, `atomic-json`, `browser-ai-context`, `browser-asset-gc`,
 `browser-audio-policy`, `browser-context-menu`, `browser-dark-mode`, `browser-link-intent`,
 `browser-live-audio`, `browser-mini-preload`, `browser-translation-provider-error`,
-`browser-youtube-style`, `gpu-diagnostics`, `media-subtitle-tracks`, `ndjson-lines`,
-`browser-cue-timeline-calibration` — 842 satır tam okundu; sınır kapıları ve hata yolları
-yerinde.
+`browser-youtube-style`, `gpu-diagnostics`, `media-subtitle-tracks`, `ndjson-lines` —
+15 modül, 842 satır tam okundu; sınır kapıları ve hata yolları yerinde.
+`browser-cue-timeline-calibration` (96 satır) ayrıca incelendi — aynı sonuç.
 
 ## Dinamik kanıt — genişletilmiş soak
 
