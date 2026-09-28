@@ -13613,18 +13613,28 @@ function translationsForCues(cues, translations) {
   const matches = new Array(cues.length).fill('');
   if (!translations.length) return matches;
   let cursor = 0;
+  // Aynı aralığı paylaşan cue'larda ilk satır her cue'ya eşleşirdi; eş
+  // örtüşmede henüz kullanılmamış satırı tercih et. Birleşik (merged)
+  // balonda tek çeviri satırı iki cue'yu da kaplar — başka aday yoksa
+  // kullanılmış satır yine geçerlidir.
+  const used = new Set();
   cues.forEach((cue, cueIndex) => {
     while (cursor < translations.length && translations[cursor].end <= cue.start) cursor++;
-    let best = null;
     let bestOverlap = 0;
+    let pickAny = -1;
+    let pickUnused = -1;
     for (let index = cursor; index < translations.length; index++) {
       const translated = translations[index];
       if (translated.start >= cue.end) break;
       const overlap = Math.min(cue.end, translated.end) - Math.max(cue.start, translated.start);
-      if (overlap > bestOverlap) { bestOverlap = overlap; best = translated; }
+      if (overlap <= 0) continue;
+      if (overlap > bestOverlap) { bestOverlap = overlap; pickAny = index; pickUnused = -1; }
+      if (overlap === bestOverlap && pickUnused < 0 && !used.has(index)) pickUnused = index;
     }
-    if (best && bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25)) {
-      matches[cueIndex] = best.text;
+    const chosen = pickUnused >= 0 ? pickUnused : pickAny;
+    if (chosen >= 0 && bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25)) {
+      used.add(chosen);
+      matches[cueIndex] = translations[chosen].text;
     }
   });
   return matches;

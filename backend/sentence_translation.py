@@ -47,11 +47,12 @@ _END_RUN = re.compile(r'[.!?…]+[\"\'”’)}\]]*')
 
 
 def _numeric_separator(text, match):
-    """'3.000' / '2.4' / 'v1.2' — iki rakam arasındaki nokta cümle sonu değildir.
+    """'3.000' / '2.4' / 'v1.2' / '21. yüzyıl' — rakamla kapanmayan nokta cümle sonu değildir.
 
     Türkçe binlik ayraç ve ondalık nokta ('Kasada 3.000 sikke vardı.') satır
     sonu ekleme ve cümle-sonu kotasını kandırıyordu: '3.' gerçek bitiş sanılıp
-    sayının ortasına `\n` konuyordu.
+    sayının ortasına `\n` konuyordu. Sıra sayıları da aynı sınıftadır:
+    '21. yüzyıldayız.' içindeki '21.' parça cümlesini bitirmez.
     """
     i = match.start() - 1
     while i >= 0 and text[i] in "\"'”’)}] ":
@@ -61,7 +62,18 @@ def _numeric_separator(text, match):
     while j < len(text) and text[j] in "\"'”’)}] ":
         j += 1
     nxt = text[j] if j < len(text) else ""
-    return prev.isdigit() and nxt.isdigit()
+    if not prev.isdigit():
+        return False
+    if nxt.isdigit():
+        return True
+    # Sıra sayısı: rakam+nokta parça/ifade başındaysa ('21. yüzyıldayız.') ya
+    # da küçük harfle devam ediyorsa ('3. sınıf') cümle sonu değildir.
+    k = i
+    while k >= 0 and text[k].isdigit():
+        k -= 1
+    if not normalized_text(text[:k + 1]):
+        return True
+    return nxt.islower()
 
 
 def sentence_end_count(text):
@@ -101,6 +113,18 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
     for index in range(max(0, len(source_parts) - 1)):
         if sentence_end_count(translated_parts[index]) > sentence_end_count(source_parts[index]):
             return f"erken_cumle_sonu:{index}"
+    # Son parça: kaynak cümle kapalı bitiyorsa hedef fazladan cümle sonu
+    # üretemez; kaynak açık bitiyorsa (kesinti/devam) hedefin doğal kapanışına
+    # tek ek son bağışlanır. Bağlam satırını ilk parçaya yapıştıran
+    # context-leak ("<bağlam cümlesi>. <asıl çeviri>.") bu kapıdan yakalanır —
+    # tek-parçalı gruplar yukarıdaki döngüye hiç girmediği için ayrı kontrol
+    # gereklidir.
+    last = len(source_parts) - 1
+    quota = sentence_end_count(source_parts[last])
+    if not sentence_ended(source_parts[last]):
+        quota += 1
+    if sentence_end_count(translated_parts[last]) > quota:
+        return f"fazla_cumle_sonu:{last}"
     return ""
 
 
@@ -569,6 +593,23 @@ _CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)")
 _CONVERTIBLE_UNITS = re.compile(
     r"(?<!\w)(?:feet|foot|ft|inches?|inch|yards?|yds?|miles?|mph|pounds?|lbs?|"
     r"ounces?|oz|gallons?|pints?|fahrenheit|°\s*f)(?!\w)", re.I)
+_UNIT_GAP = r"[\s,;:/()\[\]\-–—'\"]*"
+_CONVERTIBLE_UNIT_BEFORE = re.compile(_CONVERTIBLE_UNITS.pattern + _UNIT_GAP + r"$", re.I)
+
+
+def _bound_to_convertible_unit(source_text, match):
+    """Kayıp sayının dönüştürülebilir birime BİTİŞİK olması koşulu.
+
+    '6 feet' -> '1,83 m' gibi değer-değiştiren çeviri bağışlanır; fakat
+    'in 5 miles they moved 10 boxes' gibi 20 karakter ötedeki ilgisiz birim
+    sözcüğü '10' kaybını örtemez. Birim ya belirtecin hemen sonrasında ya
+    hemen öncesinde olmalı.
+    """
+    after = source_text[match.end():]
+    gap_end = re.match(_UNIT_GAP, after).end()
+    if _CONVERTIBLE_UNITS.match(after, pos=gap_end):
+        return True
+    return bool(_CONVERTIBLE_UNIT_BEFORE.search(source_text[:match.start()]))
 
 
 def _canonical_number(token):
@@ -642,9 +683,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
                 if words and words[0].startswith(match.group(0)):
                     continue
             if not _number_preserved(token, target_numbers_text, target_lang):
-                near = source_numbers_text[
-                    max(0, match.start() - 20):match.end() + 20]
-                if target_has_digit and _CONVERTIBLE_UNITS.search(near):
+                if target_has_digit and _bound_to_convertible_unit(
+                        source_numbers_text, match):
                     continue
                 return f"sayi_kaydi:{index}"
         for issue, patterns in (
@@ -1060,10 +1100,9 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         if _number_preserved(token, translated_numbers_text, target_lang):
             continue
         # '6 feet' -> '1,83' gibi birim çevirimi değeri değiştirir; hedefte
-        # bir rakam varsa kayıp sayılmaz (metrik dönüşüm kanıtlanamaz).
-        near = source_numbers_text[max(0, match.start() - 20):match.end() + 20]
+        # bir rakam varsa ve sayı birime bitişikse kayıp sayılmaz.
         if re.search(r'\d', translated_numbers_text) \
-                and _CONVERTIBLE_UNITS.search(near):
+                and _bound_to_convertible_unit(source_numbers_text, match):
             continue
         missing.append(token)
     if missing and 'number_mismatch' not in issues:

@@ -151,10 +151,14 @@ const normalizedTokens = decodePageTranslation({ translations: [
 ] });
 assert.deepEqual(normalizedTokens.parts,
   ['Ana sayfa', 'Ayrıntılar https://example.test/docs için & bilgi.']);
-assert.throws(() => decodePageTranslation({ translations: [
+// Blok-bazlı kabul: korumalı işaret kapısına takılan blok kaynak metniyle
+// bırakılır ve failedIds'te raporlanır; yanındaki doğru blok atılmaz.
+const guarded = decodePageTranslation({ translations: [
   { id: 'heading', translation: 'Ana sayfa' },
   { id: 'body', translation: 'Merhaba ad' },
-] }, pageSentence), /korumalı işaretleri/);
+] }, pageSentence);
+assert.deepEqual(guarded.parts, ['Ana sayfa', 'Hello {{name}} &amp;']);
+assert.deepEqual(guarded.failedIds, ['body']);
 assert.throws(() => decodePageTranslation({ translations: [
   { id: 'heading', translation: 'Ana sayfa' },
 ] }, pageSentence), /blok sayısıyla/);

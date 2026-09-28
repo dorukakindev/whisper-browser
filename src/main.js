@@ -5976,24 +5976,40 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       }
       throw error;
     }
-    data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
+    try {
+      data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
+    } catch (parseError) {
+      // 200 gövdesi geldi ama okunamadı: aynı isteği tekrarlamak aynı gövdeyi
+      // üretir; transportError sayılırsa ağ hatası sanılıp kuyruk sonsuz
+      // yeniden dener.
+      parseError.definitive = true;
+      throw parseError;
+    }
   } catch (requestError) {
     // fetch'in kendisinin düşmesi (DNS/bağlantı) httpStatus taşımaz; devre
     // kesicinin ağ kesintisi fırtınasını da sayması için işaretle.
     if (requestError && requestError.httpStatus === undefined
-        && requestError.name !== 'AbortError') requestError.transportError = true;
+        && requestError.name !== 'AbortError'
+        && requestError.definitive !== true) requestError.transportError = true;
     throw requestError;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);
   }
+  // Aynı girdiyle tekrar denenince değişmeyecek yanıtlar kesin hatadır:
+  // scheduler bunları tek seferde sonlandırır, yedek uç fırtınası yapılmaz.
+  const definitiveTranslationError = (message) => {
+    const error = new Error(message);
+    error.retryable = false;
+    return error;
+  };
   const finishReason = data?.choices?.[0]?.finish_reason;
   if (finishReason === 'length' || data?.status === 'incomplete') {
-    throw new Error('Çeviri yanıtı tamamlanmadan kesildi; kısmi metin uygulanmadı.');
+    throw definitiveTranslationError('Çeviri yanıtı tamamlanmadan kesildi; kısmi metin uygulanmadı.');
   }
   if (['content_filter', 'tool_calls', 'function_call'].includes(finishReason)
       || data?.choices?.[0]?.message?.refusal || data?.error) {
-    throw new Error('Çeviri sağlayıcısı geçerli bir çeviri üretmedi; yanıt uygulanmadı.');
+    throw definitiveTranslationError('Çeviri sağlayıcısı geçerli bir çeviri üretmedi; yanıt uygulanmadı.');
   }
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
@@ -6001,10 +6017,10 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   // yeni çok-blok protokolü sanarak reddetme.
   const withoutThinking = text.trim().replace(/<think\b[^>]*>[\s\S]*?<\/think>\s*/gi, '').trim();
   if (/^<think\b/i.test(withoutThinking)) {
-    throw new Error('Çeviri servisi tamamlanmamış düşünme bloğu döndürdü.');
+    throw definitiveTranslationError('Çeviri servisi tamamlanmamış düşünme bloğu döndürdü.');
   }
   const cleaned = withoutThinking.replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
-  if (!cleaned) throw new Error('Çeviri servisi yalnız düşünme metni döndürdü.');
+  if (!cleaned) throw definitiveTranslationError('Çeviri servisi yalnız düşünme metni döndürdü.');
   if (pageMode) return decodePageTranslation(cleaned, sentence);
   if (!grouped) {
     // Bazi OpenAI-uyumlu saglayicilar tek cue icin bile bir JSON zarfi
@@ -6033,8 +6049,12 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   } catch (error) {
     if (!['PARTS_MISSING', 'PARTS_MISMATCH'].includes(error?.code)) throw error;
     const loose = decodeSentenceTranslation(cleaned, sentence.pieces.length, false);
-    const parts = fitTranslationParts(loose.text, sentence.pieces);
-    if (!parts) throw error;
+    let parts = null;
+    try { parts = fitTranslationParts(loose.text, sentence.pieces); } catch (_) { parts = null; }
+    // Kısa çeviri kaynak parçalara yerleşemiyorsa ("I don't"+"know." →
+    // "Bilmiyorum.") cümleyi merged işaretiyle döndür; scheduler tek
+    // birleşik balon üretir ve tüm cue kimliklerini kapsandı sayar.
+    if (!parts) return { text: loose.text, merged: true };
     return { text: loose.text, parts };
   }
 }
@@ -6053,6 +6073,8 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
         if (signal?.aborted) throw error;
         const status = Number(error?.httpStatus) || 0;
         if (status && !shouldFailoverTranslationStatus(status)) throw error;
+        // Kesin hata başka uçta da aynı girdiyi reddeder — rotaları tüketme.
+        if (error?.retryable === false) throw error;
         lastError = error;
         if (attempt + 1 < attempts) await waitForMangaRetry(signal, 800);
       }
@@ -6609,9 +6631,20 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
           session.apiCharacters = (Number(session.apiCharacters) || 0)
             + (sentence.pieces || []).reduce((sum, piece) => sum + String(piece.text || '').length, 0);
         }
+        // Blok-bazlı kabulde kapıya takılan bloklar kaynak metinle döner —
+        // bunları başarılı saymak yerine hata kümesine al ki oturum
+        // "kısmi" kalsın ve bloklar yeniden denenebilsin.
+        const failedIds = new Set((result.failedIds || []).map(String));
         for (const cue of result.cues || []) {
           const blockId = String(cue.cueId);
           if (!acceptsResult(blockId)) continue;
+          if (failedIds.has(blockId)) {
+            const failure = { block: session.blocks.get(blockId),
+              error: 'Çeviri kalite kapısından geçmedi (korumalı işaret veya bağlam sızıntısı).' };
+            if (job.retryIds.has(blockId) && session.translations.has(blockId)) job.retryFailures.set(blockId, failure);
+            else session.failures.set(blockId, failure);
+            continue;
+          }
           const translation = String(cue.text || '').trim();
           if (!translation) continue;
           const source = session.blocks.get(blockId);
@@ -8557,6 +8590,10 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
     start: Number(cue.start) || 0,
     end: Number(cue.end) || Number(cue.start) || 0,
     text: String(cue.text || '').trim(),
+    // Birleşik balonda kapsanan ek kaynak kimliklerini taşı — yoksa kalıcı
+    // bütünlük ikinci cue'yu hep "eksik" sayar.
+    ...(Array.isArray(cue.coveredCueIds) && cue.coveredCueIds.length
+      ? { coveredCueIds: cue.coveredCueIds } : {}),
   })).map((cue) => ({ ...cue,
     sourceCueHash: browserSubtitleIdentityHash(`${context.sourceHash || ''}|${cue.cueId}|${cue.start}|${cue.end}`),
   })).filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
@@ -16551,6 +16588,7 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
       pdfHash: document.pdfHash,
       targetLanguage: config.targetLanguage,
       model: config.model,
+      endpoint: config.endpoint,
     });
     return {
       ok: true,
@@ -16575,6 +16613,7 @@ ipcMain.handle('pdf:state', async (event, request = {}) => {
     pdfHash: document.pdfHash,
     targetLanguage: config.targetLanguage,
     model: config.model,
+    endpoint: config.endpoint,
   }) };
 });
 
@@ -16588,7 +16627,10 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
   catch (error) { return { ok: false, error: error.message }; }
   const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
   if (!config.apiKey) return { ok: false, error: 'PDF çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
-  const identity = { pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model };
+  const identity = {
+    pdfHash: document.pdfHash, targetLanguage: config.targetLanguage,
+    model: config.model, endpoint: config.endpoint,
+  };
   let state = readPdfTranslationState(identity);
   const job = { controller: new AbortController(), schedulers: new Set() };
   pdfTranslationJobs.set(document.pdfHash, job);
@@ -16624,7 +16666,8 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
   if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
   const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
   if (request.model && request.model !== config.model) config.model = String(request.model).slice(0, 120);
-  const state = readPdfTranslationState({ pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model });
+  const state = readPdfTranslationState({ pdfHash: document.pdfHash, targetLanguage: config.targetLanguage,
+    model: config.model, endpoint: config.endpoint });
   const pages = Object.entries(state.pages).sort(([a], [b]) => Number(a) - Number(b));
   if (!pages.length) return { ok: false, error: 'Dışa aktarılacak PDF çevirisi yok.' };
   const format = ['txt', 'md', 'html'].includes(request.format) ? request.format : 'txt';

@@ -1,4 +1,7 @@
-Güncel çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
+Güncel çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
+Önceki çalışma: [docs/devir/2026-09-29-0010.md](docs/devir/2026-09-29-0010.md) — R222 devam: context-leak kotası + önbellek dayanıklılığı
+Önceki çalışma: [docs/devir/2026-09-29-0005.md](docs/devir/2026-09-29-0005.md) — R222: Electron çeviri hattı paketi (blok/eşleşme/kesici/journal)
+Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
 Önceki çalışma: [docs/devir/2026-09-28-1806.md](docs/devir/2026-09-28-1806.md) — R219: Devin Review toplu triage (PR #139–147, 21 bulgu)
 Önceki çalışma: [docs/devir/2026-09-29-0230.md](docs/devir/2026-09-29-0230.md) — R218: PR #146 review triage (smoke sağlamlaştırma)
 Önceki çalışma: [docs/devir/2026-09-29-0200.md](docs/devir/2026-09-29-0200.md) — R217: kuyruk eşzamanlılık stresi + disk queueRunning bayat-true düzeltmesi

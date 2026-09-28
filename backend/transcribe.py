@@ -3231,18 +3231,18 @@ def load_translate_cache(path):
 def save_translate_cache(path, cache, limit=200000):
     if not path:
         return
-    try:
-        disk_cache = load_translate_cache(path)
-        if isinstance(disk_cache, dict):
-            merged = dict(disk_cache)
-            merged.update(cache)
-            cache = merged
-        if len(cache) > limit:
-            cache = dict(list(cache.items())[-limit:])
-        with atomic_text_writer(path, encoding="utf-8", newline="") as f:
-            json.dump(cache, f, ensure_ascii=False)
-    except Exception as e:
-        log(f"Çeviri önbelleği yazılamadı: {e}", "warn")
+    # Yazma hatasını yutmak çağıranın dirty-im temizlemesini kör yapardı —
+    # hata artık çağrıyı yapana yayılır; imler korunup sonraki flush'ta
+    # yeniden denenir.
+    disk_cache = load_translate_cache(path)
+    if isinstance(disk_cache, dict):
+        merged = dict(disk_cache)
+        merged.update(cache)
+        cache = merged
+    if len(cache) > limit:
+        cache = dict(list(cache.items())[-limit:])
+    with atomic_text_writer(path, encoding="utf-8", newline="") as f:
+        json.dump(cache, f, ensure_ascii=False)
 
 def classify_translation_error(error):
     """Sağlayıcı hatasını kullanıcıya ve devam metadata'sına kararlı kodla taşır."""
@@ -3403,10 +3403,16 @@ def line_keeps_source(source_text, target, source_lang=None):
         return True
     if words and all(w.isupper() or w[:1].isupper() or _is_camel_word(w)
                      for w in words) and (
-                         any(_is_camel_word(w) or any(c.isdigit() for c in w)
-                             for w in words) or len(words) >= 3):
+                         any((not w.isupper()
+                              and any(char.isupper() for char in w[1:]))
+                             or any(c.isdigit() for c in w)
+                             for w in words)
+                         or sum(1 for w in words if w.isupper()) >= 2):
         # 'iPhone 15 Pro.', 'PlayStation 5', 'NASA FAA EASA' gibi ad/kod
-        # dizgileri korunur; tek büyük-harfli sıradan cümle korunmaz.
+        # dizgileri korunur — en az bir camelCase/PascalCase/rakamlı token
+        # veya birden çok tam-BÜYÜK token şart. 'Good Morning Everyone' gibi
+        # Title-Case cümleler ile '[GUNFIRE]' gibi tek tam-büyük SDH
+        # etiketleri (kaynağı bağırmayı betimler, çevrilir) korunmaz.
         return True
     tgt = str(target or "").split("-")[0].lower()
     src = str(source_lang or "").split("-")[0].lower()
@@ -3868,6 +3874,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         ])
         if status_out is not None:
             status_out["completed"] = list(range(len(entries)))
+            status_out["unchanged"] = sorted(unchanged_idx)
+            status_out["precompleted"] = sorted(precompleted_idx)
         flush_cache_and_tm(force=True)
         close_translation_memory()
         return ready
@@ -4102,9 +4110,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         "- Dagitim emin degilse TAM ceviriyi kur ve parcalari dogal duraklardan bol."
     )
 
-    # Ardışık yapısal ayrıştırma hatası bu eşiği aşınca uç protokol-bozuk
+    # Yapısal ayrıştırma hatası iş boyunca bu eşiği aşınca uç protokol-bozuk
     # sayılır (kırık JSON, kaymış kimlik, zorunlu alan eksik): aynı paketi
     # küçük parçalara ayırıp defalarca denemek ücret dışında bir şey üretmez.
+    # Sayaç kümülatiftir — dönüşümlü bozuk/geçerli yanıt veren uç ardışık
+    # sayaçla asla kesici açmazdı ve kurtarma döngüsü sınırsız ücret yakardı.
     # Kalan parçalar doğrudan başarısız işaretlenir; kurtarma yalnız geçici
     # olabilecek ilk hatalarda çalışır.
     MAX_STRUCTURAL_FAILURES = 6
@@ -4137,6 +4147,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             "status", stage="translate",
             text=f"Çeviri kurtarılıyor: 0/{len(groups_to_retry)} cümle grubu",
         )
+        def accept_unchanged_echo(group):
+            """Model iki turda da kaynağı aynen döndürdü — bu satır(lar)
+            değişmeden kalmalıdır ('Ha ha ha.', 'Hasta la vista, baby.',
+            'Rock and roll!'). Eskiden kaynak-yankısı ret zinciri işi
+            öldürüyor ve bu satırlar önbelleğe hiç yazılmadığı için her
+            yeniden çalıştırmada aynı maliyetli döngü tekrarlanıyordu.
+            Kabul edilen (precompleted dahil değil) blok sayısını döndürür."""
+            with lock:
+                for index in group:
+                    if index not in precompleted_idx:
+                        out_texts[index] = entries[index][2]
+                unchanged_idx.update(group)
+                records[group[0]] = {
+                    "text": " ".join(entries[i][2] for i in group),
+                    "parts": [entries[i][2] for i in group],
+                }
+                done_idx.update(group)
+                stage_group_cache(group)
+                stage_tm_rows(group)
+            log(f"{len(group)} cue'luk grup iki turda da kaynağı yankıladı; "
+                "satırlar değişmeden kabul edildi ve önbelleğe yazıldı.")
+            return sum(1 for index in group if index not in precompleted_idx)
+
         def rescue_group(group):
             """Tek grup: normal kurtarma → yanıt kalite kapısında kalırsa
             dağıtım kuralları açıkça eklenmiş ikinci (son) deneme.
@@ -4150,6 +4183,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 first_reason = classify_translation_error(first_error)
             if all(index in done_idx for index in group):
                 return rec
+            # Toplu tur + kurtarma turu ikisi de yankı döndürdüyse üçüncü
+            # isteği ödemeden değişmeden kabul et.
+            if echo_seen.get(group[0], 0) >= 2:
+                return rec + accept_unchanged_echo(group)
             # Aynı promptu tekrarlamak aynı dağıtımı üretir; yanıt yapısal/kalite
             # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
             # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
@@ -4159,7 +4196,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     rec += task_once(group, phase="fallback",
                                      prompt_suffix=RESCUE_SUFFIX)
                 except Exception as second_error:
+                    # İkinci deneme de raise etti — yankı iki turda
+                    # kanıtlanmışsa yine değişmeden kabul edilir (eskiden
+                    # except'in erken return'ü kabul kontrolünü atlıyordu).
                     reason = classify_translation_error(second_error)
+                    if echo_seen.get(group[0], 0) >= 2:
+                        return rec + accept_unchanged_echo(group)
                     with lock:
                         for index in group:
                             if index not in done_idx:
@@ -4167,26 +4209,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     return rec
             if not all(index in done_idx for index in group) \
                     and echo_seen.get(group[0], 0) >= 2:
-                # Model iki turda da kaynağı aynen döndürdü — bu satır(lar)
-                # değişmeden kalmalıdır ('Ha ha ha.', 'Hasta la vista, baby.').
-                # Eskiden kaynak-yankısı ret zinciri işi öldürüyor ve bu
-                # satırlar önbelleğe hiç yazılmadığı için her yeniden
-                # çalıştırmada aynı maliyetli döngü tekrarlanıyordu.
-                with lock:
-                    for index in group:
-                        if index not in precompleted_idx:
-                            out_texts[index] = entries[index][2]
-                    records[group[0]] = {
-                        "text": " ".join(entries[i][2] for i in group),
-                        "parts": [entries[i][2] for i in group],
-                    }
-                    done_idx.update(group)
-                    stage_group_cache(group)
-                    stage_tm_rows(group)
-                log(f"{len(group)} cue'luk grup iki turda da kaynağı yankıladı; "
-                    "satırlar değişmeden kabul edildi ve önbelleğe yazıldı.")
-                rec += sum(1 for index in group if index not in precompleted_idx)
-                return rec
+                return rec + accept_unchanged_echo(group)
             with lock:
                 for index in group:
                     if index not in done_idx:
@@ -4594,6 +4617,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     ])
     if status_out is not None:
         status_out["completed"] = sorted(set(cached_idx).union(done_idx))
+        status_out["unchanged"] = sorted(unchanged_idx)
+        status_out["precompleted"] = sorted(precompleted_idx)
         status_out["failed"] = [i for i in range(len(entries))
                                  if i not in set(status_out["completed"])]
         status_out["failedReasons"] = {
@@ -6846,7 +6871,13 @@ def transcribe(args):
                 entries, translated,
                 failed_count=max(0, len(entries) - len(provisional_completed)),
             )
-            quality_failed = set(translation_report["translation_issue_indices"])
+            # Bilinçli değişmeden bırakılan satırlar (zaten hedef dilde,
+            # yankı-kabul, önceden çevrilmiş) kalite kapısında 'çevrilmedi'
+            # sayılmasın — yoksa tamamlanan işler .partial dosya adıyla çıkıyordu.
+            quality_failed = (
+                set(translation_report["translation_issue_indices"])
+                - set(translation_status.get("unchanged") or ())
+                - set(translation_status.get("precompleted") or ()))
             completed_indices = provisional_completed - quality_failed
             translation_completed_count = len(completed_indices)
             translation_failed_count = max(0, len(entries) - translation_completed_count)
@@ -7698,7 +7729,14 @@ def translate_existing_subtitle(args):
     untranslated_indices = set(translation_report["translation_untranslated_indices"])
     empty_translation_indices = set(translation_report["translation_empty_indices"])
     timing_mismatch_indices = set(translation_report["translation_timing_mismatch_indices"])
-    quality_failed_indices = set(translation_report["translation_issue_indices"])
+    # Bilinçli değişmeden kalan satırlar kalite 'başarısız' sayılmaz
+    # (yankı-kabul / zaten hedef dilde / önceden çevrilmiş satırları
+    # .partial'a düşürüyordu).
+    quality_failed_indices = (
+        set(translation_report["translation_issue_indices"])
+        - set(translation_status.get("unchanged") or ())
+        - set(translation_status.get("precompleted") or ())
+        - set(precompleted))
     completed_source_indices = provisional_completed - quality_failed_indices
     completed_count = len(completed_source_indices)
     failed_count = max(0, len(entries) - completed_count)

@@ -13,7 +13,21 @@ class PersistentTranslationCache {
     this.lastFlushAt = 0;
     this.minFlushIntervalMs = Math.max(500, Number(options.minFlushIntervalMs) || 3000);
     this.version = 0;
+    // Aktif çeviri sırasında her ~3 sn'de 13 MB'lık dosyanın tamamı ana
+    // süreçte yeniden yazılıyordu (~60 ms donma). Artımlı yazımlar
+    // yalnız değişen kayıtları .journal dosyasının sonuna ekler; eşiğe
+    // ulaşınca tek tam sıkıştırma yapılır.
+    this.journalPath = `${this.filePath}.journal`;
+    this.pendingJournal = [];
+    this.journalBytes = 0;
+    this.journalFlushes = 0;
+    this.lastCompactAt = Date.now();
+    this.journalMaxBytes = Math.max(1024, Number(options.journalMaxBytes) || 1024 * 1024);
+    this.journalMaxFlushes = Math.max(1, Number(options.journalMaxFlushes) || 40);
+    this.journalMaxAgeMs = Math.max(60_000, Number(options.journalMaxAgeMs) || 10 * 60 * 1000);
+    this.baseFileWritten = false;
     this.load();
+    try { this.baseFileWritten = this.fs.existsSync(this.filePath); } catch (_) {}
   }
 
   load() {
@@ -72,6 +86,46 @@ class PersistentTranslationCache {
         .filter(([, record]) => record.value && now - record.updatedAt <= this.ttlMs)
         .slice(-this.limit));
     } catch (_) { this.map = new Map(); }
+    // Sona-eklenen artımlı kayıtları temel dosyanın üstüne tekrar uygula.
+    try {
+      if (this.fs.existsSync(this.journalPath)) {
+        const stat = this.fs.statSync(this.journalPath);
+        this.journalBytes = Number(stat?.size) || 0;
+        const raw = String(this.fs.readFileSync(this.journalPath, 'utf8'));
+        // Sıkıştırma temel dosyayı yazıp sonra journal'ı siler; silme
+        // başarısızsa kalan eski journal bir sonraki açılışta aynı
+        // kayıtların bayat değerlerini yeni temelin üstüne uygular
+        // (bayat dirilişi). Değer için satırı yalnız temeldeki kayıttan
+        // yeni ise uygula; konum için her satır dokunma sayılır — get()
+        // dokunuşları da journal'a bindiği için LRU sırası yeniden
+        // açılışta da korunur. .bak'a düşülen yolda son sıkıştırmanın
+        // satırları temelde olmadığı için korunur.
+        let applied = 0;
+        for (const line of raw.split('\n')) {
+          if (!line) continue;
+          try {
+            const row = JSON.parse(line);
+            const key = String(row?.k || '');
+            const value = String(row?.v || '');
+            const updatedAt = Number(row?.t) || Date.now();
+            if (!key || !value) continue;
+            const existing = this.map.get(key);
+            const record = existing && Number(existing.updatedAt) >= updatedAt
+              ? existing
+              : { value, updatedAt };
+            this.map.delete(key);
+            this.map.set(key, record);
+            applied += 1;
+          } catch (_) { /* Bozuk journal satırı atlanır; tam sıkıştırma kurtarır. */ }
+        }
+        this.map = new Map([...this.map].slice(-this.limit));
+        // Tek geçerli satır bile uygulanmadıysa journal okunamaz/boş —
+        // sonraki yüklemeler boşuna denemesin diye kaldırmayı dene.
+        if (!applied) {
+          try { this.fs.unlinkSync(this.journalPath); this.journalBytes = 0; } catch (_) {}
+        }
+      }
+    } catch (_) { /* Journal okunamadıysa temel dosya yeterlidir. */ }
   }
 
   get(key) {
@@ -88,18 +142,23 @@ class PersistentTranslationCache {
     }
     this.map.delete(normalized);
     this.map.set(normalized, record);
-    // Okuma LRU'yu bellekte günceller; salt bir get() disk yazımı başlatmaz.
-    // Bir sonraki gerçek set/silme veya uygulama kapanışındaki flush güncel
-    // sırayı da kalıcılaştırır.
+    // Okumayla güncellenen LRU sırasını bir sonraki journal turuna yedekle:
+    // yoksa yeniden açılışta yakın kullanılan kayıt eski sırayla kesilirken
+    // daha yaşlısı kalır. get() yine disk yazımı planlamaz — satır sonraki
+    // flush'a biner; aynı anahtarın önceki bekleyen satırı elenir.
+    this.pendingJournal = this.pendingJournal.filter((row) => row.k !== normalized);
+    this.pendingJournal.push({ k: normalized, v: record.value, t: record.updatedAt });
     return record.value;
   }
 
   set(key, value) {
     const normalized = String(key || '');
     if (!normalized || !String(value || '').trim()) return false;
+    const record = { value: String(value), updatedAt: Date.now() };
     this.map.delete(normalized);
-    this.map.set(normalized, { value: String(value), updatedAt: Date.now() });
+    this.map.set(normalized, record);
     this.version += 1;
+    this.pendingJournal.push({ k: normalized, v: record.value, t: record.updatedAt });
     while (this.map.size > this.limit) this.map.delete(this.map.keys().next().value);
     this.scheduleFlush();
     return true;
@@ -111,35 +170,67 @@ class PersistentTranslationCache {
     this.timer = setTimeout(() => { void this.flush(); }, Math.max(0, dueIn));
   }
 
+  needsCompaction() {
+    return !this.baseFileWritten
+      || this.journalBytes >= this.journalMaxBytes
+      || this.journalFlushes >= this.journalMaxFlushes
+      || Date.now() - this.lastCompactAt >= this.journalMaxAgeMs;
+  }
+
   async flush() {
     clearTimeout(this.timer);
     this.timer = null;
     if (this.flushPromise) return this.flushPromise;
     const dir = path.dirname(this.filePath);
-    const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     const promises = this.fs.promises;
     this.flushPromise = (async () => {
       const flushedVersion = this.version;
       try {
-        const payload = `${JSON.stringify({ version: 2, entries: [...this.map] })}\n`;
-        if (promises) {
-          await promises.mkdir(dir, { recursive: true });
-          await promises.writeFile(temp, payload, 'utf8');
-          try { await promises.copyFile(this.filePath, `${this.filePath}.bak`); } catch (_) {}
-          await promises.rename(temp, this.filePath);
-        } else {
-          this.fs.mkdirSync(dir, { recursive: true });
-          this.fs.writeFileSync(temp, payload, 'utf8');
-          try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
-          this.fs.renameSync(temp, this.filePath);
+        // 1) Artımlı kayıtlar: yalnız değişen satırlar journal'ın sonuna.
+        // Temel dosya henüz yoksa journal'ı atlayıp doğrudan sıkıştır —
+        // .bak zinciri ilk tam yazımla kurulur.
+        if (this.pendingJournal.length && this.baseFileWritten) {
+          // Await sırasında gelen set()'ler yeni diziye düşsün diye diziyi
+          // önce atomik olarak değiştir.
+          const rows = this.pendingJournal;
+          this.pendingJournal = [];
+          const lines = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
+          try {
+            if (promises) {
+              await promises.mkdir(dir, { recursive: true });
+              await promises.appendFile(this.journalPath, lines, 'utf8');
+            } else {
+              this.fs.mkdirSync(dir, { recursive: true });
+              this.fs.appendFileSync(this.journalPath, lines, 'utf8');
+            }
+          } catch (error) {
+            // Append başarısızsa satırları yeniden kuyrukla — kayıpları
+            // sonraki flush'ta yeniden denenir; yoksa kayıtlar sessizce düşer.
+            this.pendingJournal = rows.concat(this.pendingJournal);
+            throw error;
+          }
+          this.journalBytes += Buffer.byteLength(lines, 'utf8');
+          this.journalFlushes += 1;
+          // .bak zinciri sıkıştırmalarda kurulur; ilk journal turunda yedek
+          // henüz yoksa bozuk temel dosyadan geri dönüş imkânsız kalır — bir
+          // kez ucuz kopyayla kur.
+          try {
+            const bak = `${this.filePath}.bak`;
+            if (promises) {
+              if (!this.fs.existsSync(bak)) await promises.copyFile(this.filePath, bak);
+            } else if (!this.fs.existsSync(bak)) this.fs.copyFileSync(this.filePath, bak);
+          } catch (_) {}
+        }
+        // 2) Journal eşiği aşınca temel dosyayı tek seferde sıkıştır.
+        if (this.needsCompaction()) {
+          const compacted = await this.compact();
+          // Sıkıştırma hatası flush başarısına yazılmaz: çağıran {ok:false}
+          // görmezse kayıtların diske ulaştığı sanılır.
+          if (!compacted.ok) return compacted;
         }
         this.lastFlushAt = Date.now();
         return { ok: true, count: this.map.size };
       } catch (error) {
-        try {
-          if (promises) await promises.unlink(temp);
-          else if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp);
-        } catch (_) {}
         return { ok: false, error: error.message };
       } finally {
         this.flushPromise = null;
@@ -149,6 +240,43 @@ class PersistentTranslationCache {
       }
     })();
     return this.flushPromise;
+  }
+
+  async compact() {
+    const dir = path.dirname(this.filePath);
+    const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
+    const promises = this.fs.promises;
+    const pendingCount = this.pendingJournal.length;
+    const payload = `${JSON.stringify({ version: 2, entries: [...this.map] })}\n`;
+    try {
+      if (promises) {
+        await promises.mkdir(dir, { recursive: true });
+        await promises.writeFile(temp, payload, 'utf8');
+        try { await promises.copyFile(this.filePath, `${this.filePath}.bak`); } catch (_) {}
+        await promises.rename(temp, this.filePath);
+        try { await promises.unlink(this.journalPath); } catch (_) {}
+      } else {
+        this.fs.mkdirSync(dir, { recursive: true });
+        this.fs.writeFileSync(temp, payload, 'utf8');
+        try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
+        this.fs.renameSync(temp, this.filePath);
+        try { this.fs.unlinkSync(this.journalPath); } catch (_) {}
+      }
+      this.journalBytes = 0;
+      this.journalFlushes = 0;
+      this.lastCompactAt = Date.now();
+      this.baseFileWritten = true;
+      // Sıkıştırma başlangıcındaki bekleyen satırlar temel dosyaya yazıldı;
+      // yazma sürerken eklenenler dizide kalsın (bir sonraki journal turuna).
+      this.pendingJournal.splice(0, pendingCount);
+      return { ok: true };
+    } catch (error) {
+      try {
+        if (promises) await promises.unlink(temp);
+        else if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp);
+      } catch (_) {}
+      return { ok: false, error: error.message };
+    }
   }
 }
 

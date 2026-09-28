@@ -965,6 +965,7 @@
     ['Seçip Enter: sonucu panoya kopyala', 'Select and press Enter: copy result'],
     // Tarayıcı durum sinyalleri (setBrowserSignal sabit metinleri).
     ["Çeviri hata bildirimi temizlendi.", "Translation error notice cleared."],
+    ['Çeviri kalite kapısından geçmedi (korumalı işaret veya bağlam sızıntısı).', 'Translation did not pass the quality gate (protected marker or context leak).'],
     ["Workflow kaydı başladı. Komut paletinden çalıştırdığınız uygun eylemler kaydedilecek.", "Workflow recording started. Eligible actions you run from the command palette will be recorded."],
     ["Kaydedilecek workflow adımı bulunamadı.", "No workflow step to save."],
     ["Sekme veya medya değişti; komut yeniden seçilmeli.", "The tab or media changed; choose the command again."],
