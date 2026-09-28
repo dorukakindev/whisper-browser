@@ -3393,6 +3393,34 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
             'SQLite çeviri hafızası bağlantısı açık kaldı'
 
 
+def test_sentence_boundary_last_part_quota_catches_context_glued_part():
+    B = T.sentence_part_boundary_issue
+    # Kapalı kaynak parçada bağlam cümlesinin yapıştırılması fazladan son üretir.
+    assert B(['The real line.'], ['Bağlam cümlesi. Gerçek çeviri.']) == 'fazla_cumle_sonu:0'
+    # Açık kaynak parçada hedefin doğal kapanışına tek ek son bağışlanır.
+    assert not B(['I was going to'], ['Gidecektim.'])
+    # Çok parçalı grupta da son parça aynı kotaya tabidir.
+    assert B(['Text one.', 'two three.'], ['Bir metin.', 'iki üç. Kesinlikle.']) == 'fazla_cumle_sonu:1'
+    assert not B(['Text one.', 'two three.'], ['Bir metin.', 'iki üç.'])
+
+
+def test_sentence_translation_rejects_context_glued_last_part():
+    """Bağlam satırının ilk parçaya yapışması (context-leak) kabul edilemez —
+    sızdıran parça reddedilip kurtarma temiz yanıtı alır."""
+    calls = []
+
+    def answer(_payload):
+        calls.append(1)
+        leaked = len(calls) == 1
+        text = 'Önceki sahne cümlesi. Gerçek çeviri.' if leaked else 'Gerçek çeviri.'
+        return {'items': {'0': text}, 'sentences': {'0': text}}
+
+    result, _seen, _events, _warnings = _sentence_translate(
+        [(0, 1, 'The real line.')], answer=answer)
+    assert [e[2] for e in result] == ['Gerçek çeviri.']
+    assert len(calls) >= 2, 'sızdıran parça ilk denemede kabul edilmemeli'
+
+
 def test_sentence_reply_nfc_and_dialogue_line_breaks():
     assert T.validate_sentence_parts('İyi günler.', ['I\u0307yi', 'günler.'], 2)
     assert T.validate_sentence_parts('こんにちは世界', ['こんにちは', '世界'], 2)

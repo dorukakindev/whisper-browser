@@ -101,6 +101,18 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
     for index in range(max(0, len(source_parts) - 1)):
         if sentence_end_count(translated_parts[index]) > sentence_end_count(source_parts[index]):
             return f"erken_cumle_sonu:{index}"
+    # Son parça: kaynak cümle kapalı bitiyorsa hedef fazladan cümle sonu
+    # üretemez; kaynak açık bitiyorsa (kesinti/devam) hedefin doğal kapanışına
+    # tek ek son bağışlanır. Bağlam satırını ilk parçaya yapıştıran
+    # context-leak ("<bağlam cümlesi>. <asıl çeviri>.") bu kapıdan yakalanır —
+    # tek-parçalı gruplar yukarıdaki döngüye hiç girmediği için ayrı kontrol
+    # gereklidir.
+    last = len(source_parts) - 1
+    quota = sentence_end_count(source_parts[last])
+    if not sentence_ended(source_parts[last]):
+        quota += 1
+    if sentence_end_count(translated_parts[last]) > quota:
+        return f"fazla_cumle_sonu:{last}"
     return ""
 
 
