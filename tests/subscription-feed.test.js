@@ -44,6 +44,18 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
   const huge = `<feed>${entry.repeat(400)}</feed>`;
   const r = parseYouTubeFeed(huge); ok(r.ok && r.videos.length === 200, 'FEED_ENTRY_MAX tavanı'); }
 
+// R197: bozuk <published> dizesi NaN üretmemeli — saklanan değer sayısal 0'a düşer.
+{
+  const bad = `<feed><entry><yt:videoId>badvid000</yt:videoId><title>t</title>
+    <published>gecersiz-tarih</published></entry></feed>`;
+  const r = parseYouTubeFeed(bad);
+  ok(r.ok === true && r.videos.length === 1, 'bozuk tarihli entry kabul edilir');
+  ok(r.videos[0].published === 0, `NaN yerine 0: ${r.videos[0].published}`);
+  ok(Number.isFinite(r.videos[0].published), 'published her zaman sonlu sayı');
+  // NaN hiçbir koşulda kaydedilmesin — JSON dönüşümünde null zehirlemesi yok.
+  ok(JSON.stringify(r.videos[0]).includes('"published":0'), 'JSON güvenli');
+}
+
 {
   const a = [{ videoId: 'a1', published: 100 }, { videoId: 'a2', published: 300 }];
   const b = [{ videoId: 'b1', published: 200 }, { videoId: 'a1', published: 999 }];
