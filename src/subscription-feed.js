@@ -42,12 +42,15 @@ function parseYouTubeFeed(xml) {
     const author = entryField(entry, /<name[^>]*>([\s\S]*?)<\/name>/i) || channelName;
     const published = entryField(entry, /<published[^>]*>([\s\S]*?)<\/published>/i);
     const views = entryField(entry, /media:statistics[^>]*views="(\d+)"/i);
+    // Bozuk tarih dizesi Date.parse → NaN üretir; IPC'de null'a düşüp sıralama
+    // karşılaştırmasını kirletir — sayısal olmayan hiçbir değer saklanmasın.
+    const parsedDate = Date.parse(published);
     videos.push({
       videoId,
       title,
       author,
       authorId: channelId,
-      published: published ? Date.parse(published) / 1000 : 0,
+      published: Number.isFinite(parsedDate) ? parsedDate / 1000 : 0,
       viewCount: Number(views) || 0,
       lengthSeconds: 0,
       videoThumbnails: [{ url: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`, quality: 'medium' }],
