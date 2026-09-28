@@ -8777,6 +8777,11 @@ function startBrowserLiveAsr(tab, options = {}) {
         catch (error) {
           browserLiveAsr = null;
           dropRetainedChunks();
+          // Senkron launch hatası 'close' üretmez — yakalama aşaması
+          // 'running' kalmasın, teşhis paneli hatayı göstersin.
+          tab.acquisitionPlan?.finish('live-asr', { success: false, reason: `Canlı Whisper başlatılamadı: ${error.message}` });
+          if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
+          publishBrowserDiagnostics();
           sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
             message: `Canlı Whisper başlatılamadı: ${error.message}` });
         }
