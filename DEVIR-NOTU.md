@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
+Güncel çalışma: [docs/devir/2026-09-28-2330.md](docs/devir/2026-09-28-2330.md) — R207: #135 flag takibi (belge turu)
+Önceki çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2300.md](docs/devir/2026-09-28-2300.md) — R205: #133 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2245.md](docs/devir/2026-09-28-2245.md) — R204: #132 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2230.md](docs/devir/2026-09-28-2230.md) — R203: #131 flag düzeltmeleri (belge turu)
