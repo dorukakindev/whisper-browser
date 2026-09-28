@@ -4352,8 +4352,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # ile sınırlı: sağlayıcıya aynı anda giden kurtarma isteği toplu çeviri
     # düzeyini aşmaz. Senkron prob öncesinde açılır; ilk parça da kurtarma
     # gerektirebilir.
-    rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
+    rescue_pool = None
     try:
+        rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
         if remaining_chunks:
             probe = remaining_chunks.pop(0)
             try:
@@ -4388,75 +4389,63 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         fatal_stop["error"] = error
                         log("Kalıcı sağlayıcı hatası [{}]; sıradaki parçalar yeni istek "
                             "açmadan durduruluyor.".format(reason), "warn")
-    finally:
-        rescue_pool.shutdown()
-        # İptal (PipelineCancelled) üst katmana giderken de sıralanmış
-        # önbellek/hafıza kayıtları korunur — ödenen çeviriler kaybolmaz.
-        # Hafıza bağlantısı da hemen kapanır; Windows'ta açık kalan SQLite
-        # dosyası sonraki işi kilitleyebilir.
-        flush_cache_and_tm(force=True)
-        # Hafıza bağlantısı refine ve son kayıt yazımına dek açık tutulur —
-        # erken kapama, 2. geçişin düzelttiği metni bulanık hafızaya
-        # yazamazdı. Kapama her yolda en dış finally'de yapılır.
-
-    log(
-        "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
-        "{} geçersiz toplu yanıt; {:.1f} sn.".format(
-            translation_metrics["batch_requests"],
-            translation_metrics["fallback_requests"],
-            translation_metrics["requests"],
-            translation_metrics["invalid_batches"],
-            time.time() - translation_metrics["started"],
+        log(
+            "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
+            "{} geçersiz toplu yanıt; {:.1f} sn.".format(
+                translation_metrics["batch_requests"],
+                translation_metrics["fallback_requests"],
+                translation_metrics["requests"],
+                translation_metrics["invalid_batches"],
+                time.time() - translation_metrics["started"],
+            )
         )
-    )
-    # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
-    # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
-    batch_count = translation_metrics["batch_requests"]
-    invalid_count = translation_metrics["invalid_batches"]
-    emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
-         batches=batch_count, invalid_batches=invalid_count,
-         fallback_requests=translation_metrics["fallback_requests"],
-         rejections=dict(sorted(translation_metrics["rejections"].items())))
-    if batch_count >= 2 and invalid_count / batch_count >= 0.25:
-        log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
-            f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
-            "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
+        # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
+        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
+        batch_count = translation_metrics["batch_requests"]
+        invalid_count = translation_metrics["invalid_batches"]
+        emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
+             batches=batch_count, invalid_batches=invalid_count,
+             fallback_requests=translation_metrics["fallback_requests"],
+             rejections=dict(sorted(translation_metrics["rejections"].items())))
+        if batch_count >= 2 and invalid_count / batch_count >= 0.25:
+            log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
+                f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+                "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
 
-    if counters["done"] == 0 and not cached_idx:
-        # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
-        # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
-        # kullaniciyi yanıltir - basarisiz say.
-        msg = "Hicbir blok cevrilemedi ({} blok denendi) - ceviri dosyasi YAZILMADI.".format(
-            len(entries))
-        log("! " + msg, "error")
-        if warn_list is not None:
-            warn_list.append(msg)
-        if status_out is not None:
-            status_out["failed"] = list(range(len(entries)))
-            status_out["failedReasons"] = {
-                str(index): failure_by_index.get(index, "api_failure")
-                for index in range(len(entries))
-            }
-            if failure_by_index:
-                status_out["lastError"] = next(iter(failure_by_index.values()))
-        close_translation_memory()
-        return None
+        if counters["done"] == 0 and not cached_idx:
+            # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
+            # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
+            # kullaniciyi yanıltir - basarisiz say.
+            msg = "Hicbir blok cevrilemedi ({} blok denendi) - ceviri dosyasi YAZILMADI.".format(
+                len(entries))
+            log("! " + msg, "error")
+            if warn_list is not None:
+                warn_list.append(msg)
+            if status_out is not None:
+                status_out["failed"] = list(range(len(entries)))
+                status_out["failedReasons"] = {
+                    str(index): failure_by_index.get(index, "api_failure")
+                    for index in range(len(entries))
+                }
+                if failure_by_index:
+                    status_out["lastError"] = next(iter(failure_by_index.values()))
+            close_translation_memory()
+            return None
 
-    if counters["failed"]:
-        msg = "{}/{} blok cevrilemedi - o bloklarda ORIJINAL metin kaldi.".format(
-            counters["failed"], len(entries))
-        log("! Ceviri tamamlandi ama " + msg, "warn")
-        if warn_list is not None:
-            warn_list.append(msg)
-    else:
-        log("Ceviri tamamlandi - {} blok {} diline cevrildi.".format(len(entries), target_name),
-            "success")
+        if counters["failed"]:
+            msg = "{}/{} blok cevrilemedi - o bloklarda ORIJINAL metin kaldi.".format(
+                counters["failed"], len(entries))
+            log("! Ceviri tamamlandi ama " + msg, "warn")
+            if warn_list is not None:
+                warn_list.append(msg)
+        else:
+            log("Ceviri tamamlandi - {} blok {} diline cevrildi.".format(len(entries), target_name),
+                "success")
 
-    # ---- İKİNCİ GEÇİŞ: gözden geçir ve iyileştir ----
-    # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
-    # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
-    # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
-    try:
+        # ---- İKİNCİ GEÇİŞ: gözden geçir ve iyileştir ----
+        # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
+        # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
+        # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
         refined_idx = set()
         if getattr(args, "translate_refine", False):
             emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
@@ -4587,10 +4576,18 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if tm_staged_total[0]:
             log(f"Bulanık çeviri hafızasına {tm_staged_total[0]} güvenli cümle eklendi.")
     finally:
-        # İptal tam önbellek yazım sınırında gelirse SQLite bağlantısını açık
-        # bırakma. Windows'ta bu, sonraki işin hafıza dosyasını kilitleyebilir.
+        # İptal/çıkış her yolda: sıralanmış önbellek/hafıza kayıtları
+        # korunur ve SQLite bağlantısı kapanır — Windows'ta açık kalan
+        # dosya sonraki işi kilitler. Havuz kapatması da burada: refine
+        # aşaması bitmeden havuzu erken kapatmak kurtarma gönderimlerini
+        # RuntimeError ile düşürürdü.
+        if rescue_pool is not None:
+            rescue_pool.shutdown()
+        try:
+            flush_cache_and_tm(force=True)
+        except Exception as exc:
+            log(f"Çeviri hafızasının son yazımı başarısız: {exc}", "warn")
         close_translation_memory()
-
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
         {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(result)

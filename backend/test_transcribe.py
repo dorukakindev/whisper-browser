@@ -3358,7 +3358,18 @@ def test_sentence_translation_retries_only_missing_groups_at_scale():
 
 
 def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
-    with tempfile.TemporaryDirectory() as tmp:
+    # Dosya-silme probu Windows'ta sqlite3_close_v2'nin zombie davranışı ve
+    # AV/dizinleyici kilitleri yüzünden yanıltıcı olur; sözleşme "bağlantı
+    # kapandı" olduğundan bağlantı durumunu anlamsal olarak izle.
+    instances = []
+    RealTM = T.TranslationMemory
+
+    class _ProbeTM(RealTM):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            instances.append(self)
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         args = _TrArgs(cache_dir=tmp, translate_cache=True)
         checkpoints = []
 
@@ -3366,7 +3377,8 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
             checkpoints.append((stage, point))
             raise T.PipelineCancelled(stage, point)
 
-        with mock.patch.object(T, 'cancellation_checkpoint', side_effect=cancel_before_cache):
+        with mock.patch.object(T, 'TranslationMemory', _ProbeTM), \
+                mock.patch.object(T, 'cancellation_checkpoint', side_effect=cancel_before_cache):
             try:
                 _sentence_translate([(0, 1, 'Cache boundary sentence.')], args=args)
                 raise AssertionError('Önbellek yazımı öncesindeki iptal yutuldu')
@@ -3376,16 +3388,9 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
         assert checkpoints == [('llm', 'during')]
         cache_path = T.translate_cache_path(args)
         assert not Path(cache_path).exists(), 'İptal edilen çeviri tam önbelleğe yazıldı'
-        memory_path = Path(tmp) / 'translation-memory.sqlite3'
-        # Windows'ta AV/dizinleyici yeni oluşan dosyayı kısa süre kilitleyebilir;
-        # bağlantı gerçekten açıksa tüm denemeler düşer, geçici kilit geçer.
-        for _ in range(50):
-            try:
-                memory_path.unlink()
-                break
-            except PermissionError:
-                time.sleep(0.1)
-        assert not memory_path.exists(), 'SQLite çeviri hafızası bağlantısı açık kaldı'
+        assert instances, 'Çeviri hafızası hiç açılmadı — test kurulumu yanlış'
+        assert all(instance._conn is None for instance in instances), \
+            'SQLite çeviri hafızası bağlantısı açık kaldı'
 
 
 def test_sentence_reply_nfc_and_dialogue_line_breaks():
