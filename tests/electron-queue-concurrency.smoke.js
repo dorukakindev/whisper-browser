@@ -22,6 +22,17 @@ if (!fs.existsSync(venvPy)) {
   console.log('SKIP: backend/venv yok (pip kurulumu gerekli)');
   process.exit(0);
 }
+// --all kovası ağ gerektirmemeli: tiny modelinin HF hub önbelleğinde
+// hazır olmasını ön koşul yap, ardından offline kipini zorla ki eksik
+// önbellekte indirme yerine hızlı hata alınsın.
+const home = process.env.HOME || process.env.USERPROFILE || '';
+const hfHub = process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE
+  || path.join(home, '.cache', 'huggingface', 'hub');
+if (!fs.existsSync(path.join(hfHub, 'models--Systran--faster-whisper-tiny'))) {
+  console.log('SKIP: HF önbelleğinde faster-whisper-tiny yok');
+  process.exit(0);
+}
+process.env.HF_HUB_OFFLINE = '1';
 const clips = [];
 fs.mkdirSync(out, { recursive: true });
 const userData = path.join(out, `profile-${process.pid}-${Date.now()}`);
@@ -33,16 +44,23 @@ fs.mkdirSync(inputDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(userData, 'settings.json'),
   JSON.stringify({ settingsVersion: 3, ui: { uiLocale: 'tr' }, inputDir, outputDir }));
-for (const [i, sentence] of [
-  'The queue is running now.',
-  'Second job overlaps with events.',
-  'Final item finishes cleanly.',
-].entries()) {
-  const file = path.join(inputDir, `clip-${i}.wav`);
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error',
-    '-f', 'lavfi', '-i', `flite=text='${sentence}':voice=slt`,
-    '-ar', '16000', '-ac', '1', '-y', file], { timeout: 30000 });
-  clips.push(file);
+try {
+  for (const [i, sentence] of [
+    'The queue is running now.',
+    'Second job overlaps with events.',
+    'Final item finishes cleanly.',
+  ].entries()) {
+    const file = path.join(inputDir, `clip-${i}.wav`);
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error',
+      '-f', 'lavfi', '-i', `flite=text='${sentence}':voice=slt`,
+      '-ar', '16000', '-ac', '1', '-y', file], { timeout: 30000 });
+    clips.push(file);
+  }
+} catch (err) {
+  const detail = String(err && err.stderr || err && err.message || err)
+    .split('\n').find(Boolean) || '?';
+  console.log(`SKIP: ffmpeg/flite üretimi başarısız (${detail})`);
+  process.exit(0);
 }
 
 let unhandledRejections = 0;
@@ -133,6 +151,9 @@ app.whenReady().then(async () => {
     const written = fs.readdirSync(outputDir).filter((f) => f.endsWith('.srt'));
     assert(written.length >= 3, `Çıktı eksik: ${written}`);
 
+    // Fırtına döngüsü son turunun in-flight Promise.all'ı queue
+    // bayrağı düştükten sonra da çözülebilir — okumadan önce join et.
+    assert(await run('return await window.__stormDone'), 'Fırtına tamamlanmadı');
     const stormErrors = await run('return window.__stormErrors || []');
     assert.deepEqual(stormErrors, [], `IPC fırtınası hata verdi: ${stormErrors.slice(0, 3)}`);
     const rendererRejections = await run('return window.__unhandledCount || 0');
