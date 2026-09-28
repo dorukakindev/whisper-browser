@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R178 local acceptance: retain the full final 64 KiB when moviehash blocks overlap; close layout-only CDP sockets and exit the successful Electron experience test cleanly. The current Devin master package was checked on Windows and advanced locally without reverting history.
+
 - **live-asr CUDA→CPU geri dönüşünde ses kaybı** — GPU yüklemesi çökünce
   kuyruğa alınmış ses parçaları diskten siliniyordu; artık yeni sürece
   yeniden beslenir (`pendingChunks`).

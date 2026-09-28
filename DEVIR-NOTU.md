@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-29-0230.md](docs/devir/2026-09-29-0230.md) — R218: PR #146 review triage (smoke sağlamlaştırma)
+Güncel çalışma: [2026-09-28 21:01 — Devin yenilikleri yerel kabulü: 84 commit ileri, eksik hash onarımı ve Windows smoke kapanışı](docs/devir/2026-09-28-2101.md).
+
+Önceki çalışma: [docs/devir/2026-09-29-0230.md](docs/devir/2026-09-29-0230.md) — R218: PR #146 review triage (smoke sağlamlaştırma)
 Önceki çalışma: [docs/devir/2026-09-29-0200.md](docs/devir/2026-09-29-0200.md) — R217: kuyruk eşzamanlılık stresi + disk queueRunning bayat-true düzeltmesi
 Önceki çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
 
