@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Temizlenmiş PDF sayfasının eski çevirileri dirilmez** — meşru boş
+  sayfa kaydı (`{n: []}`) bozuk sayılmaz; yalnız yapısal olarak bozuk
+  dosyalar `.bak`/legacy yedeğine düşer.
+
 - **Tamamen bozuk PDF sayfa kayıtları da yedeği gizleyemez** — `pages`
   nesnesi taşıyıp içeriği normalize'da düşen dosya artık adaydan
   atlanır; `.bak`/legacy çevirileri yüklenir.
