@@ -192,6 +192,26 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   assert.equal(ttlLoaded.get('stale'), undefined, 'süresi dolmuş journal satırı yüklenmemeli');
   assert.equal(ttlLoaded.get('fresh'), 'taze');
 
+  // Bayat mezar taşı daha yeni temel kaydı silmez: sıkıştırma sonrası kalan
+  // eski journal'daki v:'' satırı, temel dosyadaki güncel kaydı ezmeyi değil
+  // atlanmayı hak eder (değer satırlarındaki dedup kuralının aynası).
+  const staleTombFile = path.join(dir, 'staletomb.json');
+  const freshStamp = Date.now();
+  fs.writeFileSync(staleTombFile, JSON.stringify({ version: 2,
+    entries: [['keep', { value: 'yeni', updatedAt: freshStamp }]] }));
+  fs.writeFileSync(`${staleTombFile}.journal`,
+    JSON.stringify({ k: 'keep', v: '', t: freshStamp - 60_000 }) + '\n');
+  const staleTombLoaded = new PersistentTranslationCache(staleTombFile);
+  assert.equal(staleTombLoaded.get('keep'), 'yeni', 'bayat mezar taşı yeni kaydı silmemeli');
+
+  // `v` alanı olmayan bozuk satır mezar taşı sayılmaz.
+  const noVFile = path.join(dir, 'nov.json');
+  fs.writeFileSync(noVFile, JSON.stringify({ version: 2,
+    entries: [['victim', { value: 'sağlam', updatedAt: Date.now() }]] }));
+  fs.writeFileSync(`${noVFile}.journal`, JSON.stringify({ k: 'victim', t: Date.now() }) + '\n');
+  const noVLoaded = new PersistentTranslationCache(noVFile);
+  assert.equal(noVLoaded.get('victim'), 'sağlam', 'v-siz satır kaydı silmemeli');
+
   // .bak sıkıştırma SONRASI içeriği tutar: birincil bozulunca geri dönüşte
   // journal'dan katlanan son kayıtlar kaybolmaz.
   const bakCompFile = path.join(dir, 'bakcomp.json');
@@ -205,7 +225,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   assert.equal(bakCompLoaded.get('x1'), 'v1', '.bak sıkıştırılmış içeriği korumalı');
   assert.equal(bakCompLoaded.get('x2'), 'v2', 'journal-katlı kayıt .bak ile kurtarılmalı');
 
-  console.log('browser-translation-cache: 10 test');
+  console.log('browser-translation-cache: 12 test');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 } })().catch((error) => { console.error(error); process.exitCode = 1; });

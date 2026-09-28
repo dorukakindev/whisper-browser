@@ -106,12 +106,24 @@ class PersistentTranslationCache {
           try {
             const row = JSON.parse(line);
             const key = String(row?.k || '');
-            const value = String(row?.v || '');
             const updatedAt = Number(row?.t) || Date.now();
-            if (!key) continue;
+            // `v` alanı olmayan/dizge olmayan bozuk satır mezar taşı sayılmaz —
+            // aksi halde yarım satır sağlam bir temel kaydı siler.
+            if (!key || typeof row.v !== 'string') continue;
+            const value = String(row.v);
             // Mezar taşı (v:'') — kapasitede kesilen kayıt yeniden açılışta
             // eski journal satırlarıyla dirilmesin diye silme olarak uygulanır.
-            if (!value) { this.map.delete(key); applied += 1; continue; }
+            // Bayat mezar taşı daha yeni bir temel kaydı silmemeli: temel
+            // dosyanın updatedAt'i sonraki ise satır atlanır (değerli
+            // satırlardaki dedup kuralının aynası).
+            if (!value) {
+              const alive = this.map.get(key);
+              if (!alive || Number(alive.updatedAt) <= updatedAt) {
+                this.map.delete(key);
+                applied += 1;
+              }
+              continue;
+            }
             // TTL'i aşmış satır yüklemede elenmezse haritayı geçerli
             // çevirilerin yerine doldurur ve bir sonraki sıkıştırmada
             // kalıcılaşır (temel dosya filtreler, journal da filtrelemeli).

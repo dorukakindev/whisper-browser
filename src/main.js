@@ -7003,7 +7003,15 @@ function readPdfTranslationState(identity) {
   for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
     try {
       if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
-      return normalizePdfTranslationState(JSON.parse(fs.readFileSync(candidate, 'utf8')), identity);
+      const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      // Kimlik alanları uyuşmayan dosya taze duruma düşer — döngüyü burada
+      // kapatma: aynı pdfHash'in başka kimliğini taşıyan legacy/bak dosyası
+      // hâlâ uyumlu olabilir (ör. model geri değiştirilince).
+      const identityMismatch = ['pdfHash', 'endpoint', 'model', 'targetLanguage']
+        .some((field) => raw?.[field] !== undefined
+          && String(raw[field] ?? '').trim() !== String(identity[field] ?? '').trim());
+      if (identityMismatch) continue;
+      return normalizePdfTranslationState(raw, identity);
     } catch (_) {}
   }
   return createPdfTranslationState(identity);

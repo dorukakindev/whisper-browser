@@ -623,5 +623,43 @@ def test_echo_accepted_never_seeds_translation_memory(tmp_path):
         assert not any("wait right there" in s.casefold() for s, _ in rows), rows
 
 
+def test_poisoned_tm_row_is_not_served(tmp_path):
+    """Eski sürümden kalan zehirli TM satırı (noktalama-benzek eko) lookup'ta
+    'çeviri' diye dönmez — kullanımda da elenip API yoluna düşer."""
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "Wait right there, now!")]
+
+    class _PoisonedTM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def lookup(self, *args, **kwargs):
+            return {"target": "Wait right there, now.", "ratio": 0.99}
+
+        def store(self, *args, **kwargs):
+            return False
+
+        def close(self):
+            pass
+
+    def _create(**kw):
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "Wait right there, now!"}, "sentences": {}})))])
+
+    real_tm = T.TranslationMemory
+    T.TranslationMemory = _PoisonedTM
+    try:
+        with _fake_openai(_create):
+            out = T.llm_translate(
+                entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+                [], source_lang="en")
+    finally:
+        T.TranslationMemory = real_tm
+    # Zehirli satır elendi → API yankı yolu 'değişmeden kabul' ile kaynağı korur;
+    # düzeltmesiz kod fuzzy isabeti 'Wait right there, now.' diye dönerdi.
+    assert [t for _, _, t in out] == ["Wait right there, now!"], out
+
+
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)
