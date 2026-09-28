@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0243.md](docs/devir/2026-09-29-0243.md) — R226: #155 review triage (tamamen bozuk PDF sayfaları yedeği gizleyemez)
+Güncel çalışma: [docs/devir/2026-09-29-0253.md](docs/devir/2026-09-29-0253.md) — R227: #156 review triage (meşru boş sayfa dirilmesi düzeltildi)
+Önceki çalışma: [docs/devir/2026-09-29-0243.md](docs/devir/2026-09-29-0243.md) — R226: #155 review triage (tamamen bozuk PDF sayfaları yedeği gizleyemez)
 Önceki çalışma: [docs/devir/2026-09-29-0229.md](docs/devir/2026-09-29-0229.md) — R225: #154 review triage (TM kaynak-drifti, PDF yedek gizlenmesi, aday-sırası testleri)
 Önceki çalışma: [docs/devir/2026-09-29-0210.md](docs/devir/2026-09-29-0210.md) — R224: #153 review triage (mezar taşı dedup, PDF okuma, TM lookup bekçisi)
 Önceki çalışma: [docs/devir/2026-09-29-0147.md](docs/devir/2026-09-29-0147.md) — R223: #152 review triage + TM zehirlenmesi/journal/PDF-endpoint düzeltmeleri

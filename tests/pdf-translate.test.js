@@ -240,6 +240,21 @@ loaded = loadPdfTranslationState(tmpDir, identity);
 assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
   'tüm sayfa kayıtları geçersiz birincil dosya atlanıp .bak okunmalı');
 
+// 3b. Meşru boş sayfa ({2: []}) yedeğe düşmez — temizlenen sayfanın eski
+// çevirileri .bak'tan dirilmez.
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { 2: [] } });
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.deepEqual(loaded.pages, { '2': [] },
+  'boş sayfa kaydı meşru durumdur — .bak çevirisi dirilmez');
+
+// 3c. Kısmen bozuk blok içeren dosya da yedeğe düşer.
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { 2: [{ id: 'a', source: 'Valid.' }, null] } });
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
+  'null blok taşıyan dosya atlanıp .bak okunmalı');
+
 // 4. Hiçbir aday uyumlu değilse taze durum döner.
 fs.rmSync(path.join(tmpDir, `${primaryStem}.json.bak`));
 loaded = loadPdfTranslationState(tmpDir, identity);
