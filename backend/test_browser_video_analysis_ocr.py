@@ -128,9 +128,12 @@ class OcrRangeE2ETests(unittest.TestCase):
                       "boyut sınırı açık mesajla bildirilmedi: %r" % r.get("error"))
 
     def test_stdin_exactly_at_cap_parses(self):
-        # Sınırın tam ucundaki istek reddedilmemeli — ayrıştırma
-        # 1MB'a kadar giden girdide çalışmalı (bilinmeyen alanlarla).
-        r = _run({"operation": "__bilinmeyen__", "ok": True})
+        # Sınırın TAM ucundaki istek (1,048,576 bayt) reddedilmemeli —
+        # minik gövde sınır-inkrement reddini yakalayamaz.
+        pad = 1024 * 1024 - len(json.dumps({"operation": "__bilinmeyen__", "pad": ""}))
+        body = {"operation": "__bilinmeyen__", "pad": "x" * pad}
+        self.assertEqual(len(json.dumps(body).encode("utf-8")), 1024 * 1024)
+        r = _run(body)
         self.assertFalse(r.get("ok"))
         self.assertIn("Bilinmeyen", r.get("error", ""))
 
