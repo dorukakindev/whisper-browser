@@ -372,6 +372,8 @@ function normalizedIdentity(identity = {}) {
     pdfHash: String(identity.pdfHash ?? '').trim(),
     targetLanguage: String(identity.targetLanguage ?? '').trim(),
     model: String(identity.model ?? '').trim(),
+    // Aynı model adıyla farklı sağlayıcı kullanılırsa önbellek karışmasın.
+    endpoint: String(identity.endpoint ?? '').trim(),
   };
 }
 
@@ -408,6 +410,7 @@ function normalizePdfTranslationState(raw, identity) {
     || String(raw.pdfHash ?? '').trim() !== fresh.pdfHash
     || String(raw.targetLanguage ?? '').trim() !== fresh.targetLanguage
     || String(raw.model ?? '').trim() !== fresh.model
+    || String(raw.endpoint ?? '').trim() !== fresh.endpoint
     || !raw.pages || typeof raw.pages !== 'object' || Array.isArray(raw.pages)) return fresh;
 
   for (const [pageKey, blocks] of Object.entries(raw.pages)) {
@@ -445,6 +448,7 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
     pdfHash: state.pdfHash,
     targetLanguage: state.targetLanguage,
     model: state.model,
+    endpoint: state.endpoint,
   });
   const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
   if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');

@@ -54,7 +54,9 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   lru.set('recent', 'İki');
   await lru.flush();
   assert.equal(lru.get('once'), 'Bir');
-  await lru.flush();
+  // Sıralama yalnız sıkıştırmada kalıcılaşır; journal yolu base dosyayı
+  // her flush'ta yeniden yazmaz.
+  await lru.compact();
   assert.deepEqual(JSON.parse(fs.readFileSync(lruFile, 'utf8')).entries.map(([key]) => key), ['recent', 'once']);
   const quietFile = path.join(dir, 'quiet.json');
   const quiet = new PersistentTranslationCache(quietFile, { limit: 100 });
@@ -79,13 +81,34 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
       return fs.promises.writeFile(...args);
     },
   }) });
-  racing = new PersistentTranslationCache(racingFile, { fsModule: delayedFs, minFlushIntervalMs: 500 });
+  racing = new PersistentTranslationCache(racingFile,
+    { fsModule: delayedFs, minFlushIntervalMs: 500, journalMaxFlushes: 1 });
   racing.set('first', 'Önce');
   const raced = await racing.flush();
   assert(raced.ok, 'eşzamanlı set flush işlemini kilitlememeli');
   await racing.flush();
   const racedKeys = JSON.parse(fs.readFileSync(racingFile, 'utf8')).entries.map(([key]) => key);
   assert.deepEqual(racedKeys, ['first', 'late']);
+
+  const journalFile = path.join(dir, 'journal.json');
+  const journaled = new PersistentTranslationCache(journalFile, { limit: 100, journalMaxFlushes: 100 });
+  journaled.set('k1', 'ilk');
+  await journaled.flush();
+  assert(fs.existsSync(journalFile), 'ilk flush temel dosyayı kurmalı');
+  journaled.set('k2', 'ikinci');
+  await journaled.flush();
+  const journalPath = `${journalFile}.journal`;
+  assert(fs.existsSync(journalPath), 'artımlı yazımlar .journal dosyasına eklenmeli');
+  const baseBefore = fs.readFileSync(journalFile, 'utf8');
+  assert(!baseBefore.includes('ikinci'), 'journal turunda temel dosya yeniden yazılmamalı');
+  const replayed = new PersistentTranslationCache(journalFile);
+  assert.equal(replayed.get('k1'), 'ilk');
+  assert.equal(replayed.get('k2'), 'ikinci', 'yeni oturum journal satırlarını tekrar uygulamalı');
+  const compacted = new PersistentTranslationCache(journalFile, { limit: 100, journalMaxFlushes: 1 });
+  compacted.set('k3', 'üçüncü');
+  await compacted.flush();
+  assert(!fs.existsSync(journalPath), 'sıkıştırma journal dosyasını temizlemeli');
+  assert(JSON.parse(fs.readFileSync(journalFile, 'utf8')).entries.some(([key]) => key === 'k3'));
 
   const churnFile = path.join(dir, 'churn.json');
   for (let i = 0; i < 7; i++) {
@@ -95,7 +118,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   const corruptArchives = fs.readdirSync(dir).filter((name) => name.startsWith('churn.json.corrupt-'));
   assert(corruptArchives.length >= 1 && corruptArchives.length <= 5,
     `.corrupt arşivleri sınırda kalmalı, bulundu: ${corruptArchives.length}`);
-  console.log('browser-translation-cache: 6 test');
+  console.log('browser-translation-cache: 7 test');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 } })().catch((error) => { console.error(error); process.exitCode = 1; });

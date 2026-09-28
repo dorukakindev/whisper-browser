@@ -114,7 +114,7 @@ const itemPages = rawPages.map((page) => ({ ...page, items: page.lines.map((line
 assert.deepEqual(buildPdfParagraphPages(itemPages).map((page) => page.paragraphs[0].text),
   ['Bölüm 1', 'Bölüm 2', 'Bölüm 3'], 'getTextContent öğeleri doğrudan işlenebilmeli');
 
-const identity = { pdfHash: '123:abc', targetLanguage: 'tr', model: 'gpt-test' };
+const identity = { pdfHash: '123:abc', targetLanguage: 'tr', model: 'gpt-test', endpoint: 'https://api.test/v1' };
 assert.deepEqual(createPdfTranslationState(identity), {
   version: PDF_TRANSLATION_STATE_VERSION,
   ...identity,
@@ -127,6 +127,12 @@ const stale = { version: PDF_TRANSLATION_STATE_VERSION - 1, ...identity,
 assert.deepEqual(normalizePdfTranslationState(stale, identity).pages, {});
 assert.deepEqual(normalizePdfTranslationState({ ...stale, version: PDF_TRANSLATION_STATE_VERSION,
   targetLanguage: 'de' }, identity).pages, {});
+// Endpoint değişimi de kimliği değiştirir — aynı model adıyla farklı sağlayıcı
+// önbelleği karıştırmaz.
+assert.deepEqual(normalizePdfTranslationState({ ...stale, version: PDF_TRANSLATION_STATE_VERSION,
+  endpoint: 'https://baska.api/v2' }, identity).pages, {});
+assert.equal(createPdfTranslationState({ pdfHash: 'x:1' }).endpoint, '',
+  'endpoint taşımayan eski kimlikler boş dizeye normalize edilir');
 
 // Geçerli kısmi durum korunur; tamamlanmış sayfa atlanır, başarısız sayfa sürdürülür.
 const partial = normalizePdfTranslationState({

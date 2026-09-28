@@ -18,6 +18,16 @@ function cueIdsForStage(values, source) {
   const ids = new Set();
   for (const [index, cue] of rows.entries()) {
     if (typeof cue?.text !== 'string' || !cue.text.trim()) continue;
+    // Kısa çeviri birkaç cue'yu tek balona birleştirdiğinde kapsanan kaynak
+    // kimlikleri coveredCueIds'te gelir — hepsi tamamlandı sayılır.
+    if (Array.isArray(cue?.coveredCueIds) && cue.coveredCueIds.length) {
+      let covered = false;
+      for (const value of cue.coveredCueIds) {
+        const coveredId = normalizedId(value);
+        if (coveredId && sourceIds.has(coveredId)) { ids.add(coveredId); covered = true; }
+      }
+      if (covered) continue;
+    }
     const explicit = cue?.cueId ?? cue?.id;
     const explicitId = normalizedId(explicit);
     if (explicitId && sourceIds.has(explicitId)) { ids.add(explicitId); continue; }

@@ -198,6 +198,14 @@ function distributeTranslation(sentence, translatedText) {
   let translation;
   try { translation = decodeSentenceTranslation(translatedText, pieces.length); }
   catch (_) { return []; }
+  const coveredIds = (list) => list.map((piece) => piece.cueId).filter((id) => id !== undefined && id !== null && id !== '');
+  // Birleşen çıktı tek balon döndüğünde diğer cue kimlikleri "eksik"
+  // sayılmasın: kapsanan kaynak cue kimlikleri coveredCueIds'te taşınır.
+  const mergedCue = (text) => [{
+    ...pieces[0], end: pieces[pieces.length - 1].end, text,
+    coveredCueIds: coveredIds(pieces),
+  }];
+  if (translation.merged) return mergedCue(String(translation.text || '').trim());
   if (translation.parts) return pieces.map((piece, index) => ({ ...piece, text: translation.parts[index] }));
   const normalized = String(translation.text || '').trim();
   if (!normalized) return [];
@@ -218,11 +226,32 @@ function distributeTranslation(sentence, translatedText) {
       const firstIndex = Math.floor((index * pieces.length) / words.length);
       const lastIndex = Math.max(firstIndex,
         Math.floor(((index + 1) * pieces.length) / words.length) - 1);
-      return { ...pieces[firstIndex], end: pieces[lastIndex].end, text: word };
+      return {
+        ...pieces[firstIndex], end: pieces[lastIndex].end, text: word,
+        coveredCueIds: coveredIds(pieces.slice(firstIndex, lastIndex + 1)),
+      };
     });
   }
-  const parts = fitTranslationParts(normalized, pieces);
+  let parts = null;
+  try { parts = fitTranslationParts(normalized, pieces); } catch (_) { parts = null; }
+  // Yerleştirme başarısızsa cue'ları sessizce düşürmek yerine cümleyi tek
+  // birleşik balona indir; tüm kaynak kimlikleri kapsandı sayılır.
+  if (!parts) return mergedCue(normalized);
   return pieces.map((piece, index) => ({ ...piece, text: parts[index] }));
+}
+
+// Aynı girdiyle tekrar denenince sonucu değişmeyecek hatalar (içerik
+// filtresi, bozuk JSON, parça uyuşmazlığı, düşünme-bloğu kırılması) cümle
+// başına maxAttempts istek yaktırır; üstelik her cümle aynı şekilde düşüyorsa
+// sağlayıcı/protokol kırıktır — paylaşılan kesici kuyruğu durdurur.
+const DEFINITIVE_ERROR_PATTERN = /content[ _-]?filter|moderation|geçerli bir çeviri üretmedi|json yanıtı okunamadı|tamamlanmamış düşünme|yalnız düşünme metni|boş veya geçersiz|metin nesnesi yerine json dizisi/i;
+
+function isDefinitiveTranslateError(error) {
+  if (!error || error.transportError) return false;
+  if (error.definitive === true || error.retryable === false) return true;
+  const code = String(error.code || '');
+  if (code === 'PARTS_MISSING' || code === 'PARTS_MISMATCH') return true;
+  return DEFINITIVE_ERROR_PATTERN.test(String(error.message || error || ''));
 }
 
 class BrowserTranslationScheduler {
@@ -243,6 +272,7 @@ class BrowserTranslationScheduler {
     // fırtınası ve kota tüketimi üretir — devre kesici kapatır.
     this.providerFailureThreshold = Math.max(2, Math.trunc(finiteNumber(options.providerFailureThreshold, 8)));
     this.consecutiveProviderFailures = 0;
+    this.consecutiveDefinitiveFailures = 0;
     this.onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     this.onState = typeof options.onState === 'function' ? options.onState : () => {};
     // UI callback'inin hatası iş sonucunu bozmasın / ikinci throw unhandled
@@ -546,10 +576,18 @@ class BrowserTranslationScheduler {
       if (controller.signal.aborted || generation !== this.generation) return;
       if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');
       const cues = distributeTranslation(sentence, result);
-      if (!result.cached) {
+      // Blok-bazlı kabulde başarısız bloklar kaynak metniyle gelir —
+      // bunları önbelleğe yazmak kaynak-echo'sunu kalıcılaştırır;
+      // başarılı bloklar ekrana düşer, eksikler sonraki turda tekrarlanır.
+      if (!result.cached && !(result.failedIds && result.failedIds.length)) {
         // Önbellek bir hızlandırmadır; disk/kasa yazımı başarısız olduğunda
         // sağlayıcıdan başarıyla gelen çeviriyi kullanıcıdan saklama.
-        try { await this.writeCache(cacheKey, JSON.stringify({ text: result.text, parts: result.parts })); }
+        try {
+          await this.writeCache(cacheKey, JSON.stringify({
+            text: result.text, parts: result.parts,
+            ...(result.merged ? { merged: true } : {}),
+          }));
+        }
         catch (_) { /* Sonuç kullanılabilir; yalnız bu tur kalıcılaştırılamadı. */ }
       }
       if (controller.signal.aborted || generation !== this.generation) return;
@@ -562,6 +600,7 @@ class BrowserTranslationScheduler {
       this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);
       this.consecutiveProviderFailures = 0;
+      this.consecutiveDefinitiveFailures = 0;
       this.emitResult(value, sentence);
     }).catch((error) => {
       if (!controller.signal.aborted && generation === this.generation) {
@@ -591,9 +630,26 @@ class BrowserTranslationScheduler {
         } else if (httpStatus > 0 && httpStatus < 500) {
           this.consecutiveProviderFailures = 0;
         }
+        // Kesin hatalar tekrar denemeyle düzelmez; arka arkaya her cümle aynı
+        // kesin hatayla düşüyorsa kuyruğu sürdürmek cümle başına boş istek
+        // fırtınasıdır — sağlayıcı kesicisi gibi paylaşılan kesici kapatır.
+        const definitive = isDefinitiveTranslateError(error);
+        if (definitive) {
+          this.consecutiveDefinitiveFailures += 1;
+          if (this.consecutiveDefinitiveFailures >= this.providerFailureThreshold) {
+            const tripError = new Error(
+              `Çeviri sağlayıcısı arka arkaya ${this.consecutiveDefinitiveFailures} cümleyi kesin hata ile reddetti (${String(error?.message || error || '').slice(0, 120)}); kalan cümleler durduruldu.`);
+            this.tripProviderFailure(tripError);
+            this.emitResult({
+              sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
+              retryable: false, retrying: false, nextRetryMs: 0, cues: [],
+            }, sentence);
+            return;
+          }
+        } else this.consecutiveDefinitiveFailures = 0;
         const previous = this.failures.get(sentence.id);
         const attempts = (previous?.attempts || 0) + 1;
-        const terminal = error?.retryable === false || attempts >= this.maxAttempts;
+        const terminal = definitive || error?.retryable === false || attempts >= this.maxAttempts;
         const delay = Math.max(
           Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1))),
           Number(error?.retryAfterMs) || 0);
@@ -639,6 +695,7 @@ class BrowserTranslationScheduler {
   cancelAll(reason = 'İptal edildi.') {
     this.providerFailure = '';
     this.consecutiveProviderFailures = 0;
+    this.consecutiveDefinitiveFailures = 0;
     this.queue = [];
     for (const job of this.pending.values()) job.controller.abort(reason);
     this.pending.clear();
@@ -720,6 +777,7 @@ module.exports = {
   BrowserTranslationScheduler,
   assembleCueSentences,
   distributeTranslation,
+  isDefinitiveTranslateError,
   normalizeCues,
   planTranslationWindow,
   translationCacheKey,

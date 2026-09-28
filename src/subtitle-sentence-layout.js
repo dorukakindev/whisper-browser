@@ -273,6 +273,12 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
     }
     raw = { ...raw, parts: null };
   }
+  // Çevirisi kaynak parçalardan daha kısa gelen cümleler (2 cue → "Bilmiyorum.")
+  // merged işaretiyle tek balon olarak dağıtılır; parts zorunluluğu bu yolu
+  // kalıcı hataya düşürmez.
+  if (raw.merged === true) {
+    return { text: normalizeText(raw.text), parts: null, merged: true };
+  }
   if (requireParts && count > 1 && !raw.parts) {
     const error = new Error('Çeviri servisi cümlenin zaman bloklarına ayrılmış halini göndermedi.');
     error.code = 'PARTS_MISSING';
@@ -356,7 +362,7 @@ function fitTranslationParts(text, pieces) {
   const separator = spaceless ? '' : ' ';
   const count = pieces.length;
   if (!count || words.length < count) return null;
-  if (count === 1) return [normalizeText(text)];
+  if (count === 1) return normalized ? [normalized] : null;
   const durations = pieces.map((piece) => Math.max(0.1, Number(piece.end) - Number(piece.start) || 0.1));
   const total = durations.reduce((a, b) => a + b, 0);
   const prefix = [0];
