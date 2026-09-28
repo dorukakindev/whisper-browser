@@ -113,18 +113,37 @@ const src = fs.readFileSync(require('path').join(__dirname, '../src/main.js'), '
   ok(!safe('x'.repeat(400) + '.').endsWith('.'), 'uzun ad sonda nokta taşımaz');
 }
 
-// R216: canonicalLocalPath POSIX'de doğrulanabilir kapıları (UNC/\\?\ denetimi
-// Windows'a özgü; burada sözleşmenin platformdan bağımsız kısmı kilitlenir).
+// R216: canonicalLocalPath kapıları — platformdan bağımsız kısım kilitli.
+// UNC sözleşmesi platforma bağlıdır: `\\sunucu\paylas\a.srt` POSIX'te
+// mutlak olmadığı için göreli-yol kapısına takılır (burada doğrulanır);
+// Windows'ta path.isAbsolute onu mutlak sayar ve NAS altyazıları
+// BİLİNÇLİ kabul edilir (ağ paylaşımı yasal yerel kaynak). Her
+// platformda koşulsuz reddedilen yalnız `\\?\` ve `\\.\` önekleridir
+// (NT aygıt ad-uzamı — gerçek dosya yolu değil).
 {
   const { canonicalLocalPath } = require('../src/local-file-access');
   assert.throws(() => canonicalLocalPath('goreli\\yol.srt'), /yerel dosya yolu/);
-  assert.throws(() => canonicalLocalPath('\\\\sunucu\\paylas\\a.srt'), null, 'UNC POSIX reddi');
   assert.throws(() => canonicalLocalPath('\\\\?\\C:\\a.srt'), null, '\\\\?\\ reddi');
+  assert.throws(() => canonicalLocalPath('\\\\.\\C:\\a.srt'), null, '\\\\.\\ reddi');
+  if (process.platform !== 'win32') {
+    assert.throws(() => canonicalLocalPath('\\\\sunucu\\paylas\\a.srt'), /yerel dosya yolu/,
+      'UNC POSIX göreli-yol reddi');
+  } else {
+    // Windows sözleşmesi: UNC mutlak kabul — kapı reddi olmamalı. Sonraki
+    // realpath çözümü paylaşımın erişilebilirliğine bağlı (ağa dokunur);
+    // kilitlenen tek şey "yerel dosya yolu" kapı reddinin GELMEMESİ.
+    try {
+      canonicalLocalPath('\\\\sunucu\\paylas\\a.srt');
+    } catch (err) {
+      assert(!/yerel dosya yolu/.test(String(err && err.message || err)),
+        'UNC Windows kapı reddi olmamalı');
+    }
+  }
   assert.throws(() => canonicalLocalPath('/tmp/a\x07b.srt'), /yerel dosya yolu/, 'kontrol karakteri');
   assert.throws(() => canonicalLocalPath(`/tmp/${'a'.repeat(32761)}`), /yerel dosya yolu/, '32760 sınırı');
   assert.throws(() => canonicalLocalPath(''), /yerel dosya yolu/);
   assert.throws(() => canonicalLocalPath(null), /yerel dosya yolu/);
-  n += 7;
+  n += 8;
 }
 
 // Backend: write_srt BOM'lu UTF-8 — python tarafında doğrula

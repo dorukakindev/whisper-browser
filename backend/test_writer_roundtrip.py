@@ -106,12 +106,30 @@ class WriterRoundtripTests(unittest.TestCase):
             self.assertEqual(
                 len(got), len(ENTRIES),
                 f"{name} kayıtlı fixture {len(ENTRIES)} cue'ya ayrıştırılamadı")
-            for (gs, ge, _t), (s, e, _src) in zip(got, ENTRIES):
+            for (gs, ge, gtext), (s, e, src_text) in zip(got, ENTRIES):
                 self.assertAlmostEqual(gs, s, delta=0.01)
                 self.assertAlmostEqual(ge, e, delta=0.01)
+                # Metin de korunmalı: ayrıştırılmış metin çok-satırlı cue'da
+                # gerçek satır sonu taşır; boşluk-normalize karşılaştırma
+                # iki tarafı da katlar. ASS bilinçli atlanır: writer'ın
+                # kaçış dönüşümü (⁠/｛｝) tek yönlü — ayrıştırıcı geri
+                # açmak zorunda değil (test_ass_escape_* ile belgeli).
+                if suffix == "ass":
+                    continue
+                self.assertEqual(
+                    " ".join(gtext.split()),
+                    " ".join(src_text.split()),
+                    f"{name} cue metni kayıtlı fixture'dan geri okunamadı")
         dual_got = T.parse_subtitle_entries(
             T.read_subtitle_text(GOLDEN_DIR / "dual.srt")[0], suffix="srt")
         self.assertEqual(len(dual_got), len(ENTRIES))
+        # dual.srt her cue'da üstte çeviri (büyük harf), altta kaynak taşır —
+        # satır içerikleri de kilitlenir, yalnız cue sayısı değil.
+        for (_gs, _ge, gtext), (_s, _e, src_text) in zip(dual_got, ENTRIES):
+            lines = [ln.strip() for ln in gtext.split("\n") if ln.strip()]
+            self.assertEqual(len(lines), 2, "dual cue iki satır taşımalı")
+            self.assertEqual(lines[0], src_text.upper(), "üst satır çeviri değil")
+            self.assertEqual(lines[1], src_text, "alt satır kaynak değil")
 
     def test_json_output_reloads_as_identical_segment_list(self):
         path = self.dir / "film.json"

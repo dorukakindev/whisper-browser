@@ -13,7 +13,10 @@ Before a pull request, run focused tests plus:
 For UI behavior that unit tests cannot reach, add or extend a real-Electron smoke
 (`tests/electron-*.smoke.js`, auto-discovered by `node tests/run-electron-smokes.js --all`;
 keep it deterministic — no external network or live providers). For resource/regression
-work use `node tests/run-resource-soak.js --cycles=<n> --output=<report.json>`.
+work use `node tests/run-resource-soak.js --smoke --output=<report.json>` for a quick
+execution-path check, or `--cycles=<n>` (minimum 200 + 50 hibernation) for a
+meaningful resource-budget verdict — smaller runs are marked non-meaningful in
+the report.
 See docs/ARCHITECTURE.md for the process map and shared contracts.
 
 For user-visible changes, add an entry under the `Unreleased` section of CHANGELOG.md (Keep a Changelog format: Added / Changed / Deprecated / Removed / Fixed / Security).

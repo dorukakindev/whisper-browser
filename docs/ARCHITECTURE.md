@@ -86,16 +86,18 @@ can never reach privileged IPC; renderer-sent subtitles are written atomically
 ## Queue
 
 The transcription queue lives in the renderer (`state.queue`); each item freezes its
-options at add-time. `queue-lifecycle.js` is the shared contract module
-(`beginQueueRun`, `applyQueueRunEvent`, `assertQueueInvariants`, single-flight
-scheduler) used by both `main.js` and `renderer.js` so job state transitions are
-validated identically on both sides.
+options at add-time. `renderer/queue-lifecycle.js` is the shared helper module:
+`renderer.js` uses its job-id helpers (`createJobId`, `eventMatchesActiveJob`,
+`queueOutputNameSuffix`, `snapshotOptions`) and `main.js` uses
+`createProcessTerminalLatch` + `isValidOutputNameSuffix` for the terminal-state
+latch. Queue item transitions (`processNextQueueItem`, `finalizeQueue`) live in
+the renderer; the process terminal latch lives in main.
 
 ## Testing surfaces
 
 - `npm test` — `tests/run-all.js`: unit + contract + fuzz tests (Node, no Electron).
-- `npm run test:electron` — `tests/run-electron-smokes.js`: real-Electron smokes
-  (`electron-*.smoke.js`); `--all` skips network/live-provider cases.
+- `node tests/run-electron-smokes.js --all` — real-Electron smokes
+  (`electron-*.smoke.js`); running without `--all` only lists discovered smokes.
 - `tests/run-resource-soak.js` — memory/resource soak harness with JSON report.
 - Backend: `backend/test_*.py` (auto-discovered by `run-all.js`); golden writer
   fixtures under `backend/golden-writers/` (LF-pinned via `.gitattributes`).
