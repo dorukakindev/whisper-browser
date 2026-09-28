@@ -144,3 +144,4 @@ tarih sırasıyla dosya adından okunur.
 | 171 | [BROWSER_BUG_REPORT_171.md](BROWSER_BUG_REPORT_171.md) | BROWSER_BUG_REPORT_171 — R192: transcribe.py kuyruk denetimi + renderer dev fonksiyonlar (temiz) |
 | 172 | [BROWSER_BUG_REPORT_172.md](BROWSER_BUG_REPORT_172.md) | BROWSER_BUG_REPORT_172 — PR64: son altyazı önizlemesi zorunlu temizlikten sonra bayat kalıyordu |
 | 173 | [BROWSER_BUG_REPORT_173.md](BROWSER_BUG_REPORT_173.md) | BROWSER_BUG_REPORT_173 — PR65: oynatıcı/tarayıcı simge hizalama + boyut + yan panel çizimi |
+| 174 | [BROWSER_BUG_REPORT_174.md](BROWSER_BUG_REPORT_174.md) | BROWSER_BUG_REPORT_174 — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma |
