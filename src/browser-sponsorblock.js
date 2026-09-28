@@ -132,11 +132,22 @@ function clampSegmentsToDuration(segments, duration) {
 }
 
 // DeArrow aynı hizmetin `/api/branding/<hashPrefix>` ucunu kullanır; yanıt
-// skipSegments ile aynı "hash öneki → kayıt listesi" zarfındadır.
+// sunucuya göre iki zarf biçiminde gelebilir: skipSegments'teki gibi kayıt
+// dizisi, ya da videoID / tam sha256(videoID) anahtarlı kayıt haritası.
 function extractDeArrowBranding(payload, videoId) {
-  if (!Array.isArray(payload)) return null;
-  const record = payload.find((item) => String(item?.videoID || item?.videoId || '') === videoId);
-  if (!record) return null;
+  const wanted = String(videoId || '');
+  const recordId = (item) => String(item?.videoID || item?.videoId || '');
+  let record = null;
+  if (Array.isArray(payload)) {
+    record = payload.find((item) => recordId(item) === wanted) || null;
+  } else if (payload && typeof payload === 'object') {
+    record = payload[wanted] || payload[hashPrefix(wanted, 64)] || null;
+    if (!record) {
+      record = Object.values(payload).find(
+        (item) => item && typeof item === 'object' && recordId(item) === wanted) || null;
+    }
+  }
+  if (!record || typeof record !== 'object') return null;
   const titles = Array.isArray(record.titles) ? record.titles : [];
   const thumbnails = Array.isArray(record.thumbnails) ? record.thumbnails : [];
   const videoDuration = Number(record.videoDuration);

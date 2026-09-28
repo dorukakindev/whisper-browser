@@ -54,8 +54,26 @@ function harness(options = {}) {
     assert.equal(rec.videoDuration, 612);
     assert.equal(rec.titles.length, 4);
     assert.equal(extractDeArrowBranding(brandingPayload, 'missing0000'), null);
-    assert.equal(extractDeArrowBranding({ not: 'array' }, VID), null);
+    assert.equal(extractDeArrowBranding('ne dizi ne nesne', VID), null);
     assert.equal(extractDeArrowBranding([], VID), null);
+  });
+
+  await test('R195: DeArrow harita zarfı — videoID ve sha256(videoID) anahtarlı', async () => {
+    const record = { videoDuration: 300, titles: [{ title: 'Gerçek başlık', votes: 9, original: false }] };
+    // videoID anahtarlı harita (belgelenen gerçek yanıt biçimi)
+    const byId = { otherid12345: { titles: [{ title: 'Başka', votes: 5 }] }, [VID]: record };
+    assert.equal(extractDeArrowBranding(byId, VID).videoDuration, 300);
+    // Tam sha256(videoID) anahtarlı harita + içte videoID alanı
+    const crypto = require('node:crypto');
+    const fullHash = crypto.createHash('sha256').update(VID).digest('hex');
+    const byHash = { deadbeef: { videoID: 'x', titles: [] }, [fullHash]: { ...record, videoID: VID } };
+    assert.equal(extractDeArrowBranding(byHash, VID).titles.length, 1);
+    // Anahtar eşleşmez ama kayıt içi videoID eşleşir
+    const byValue = { somekey: { videoID: VID, titles: [{ title: 't', votes: 1 }] } };
+    assert.equal(extractDeArrowBranding(byValue, VID).titles.length, 1);
+    // Yanlış video hiçbir yolla eşleşmez
+    assert.equal(extractDeArrowBranding(byId, 'nope0000000'), null);
+    assert.equal(extractDeArrowBranding({ [VID]: 'dizi-değil' }, VID), null);
   });
 
   await test('En çok oylanan özgün-olmayan başlık seçilir; boş adaylar atılır', async () => {
