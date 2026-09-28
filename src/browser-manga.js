@@ -312,7 +312,10 @@ function isSafeMangaImageUrl(raw) {
   try {
     const url = new URL(String(raw || ''));
     if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return false;
-    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    // Sondaki nokta FQDN köküdür: 'localhost.' çoğu çözümleyicide yine
+    // localhost'a gider; atılmazsa aşağıdaki tam-eşitlik/sonek kapıları
+    // atlatılır (SSRF). Genel girdi 'example.com.' için çözüm aynıdır.
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '');
     if (!host || host === 'localhost' || host.endsWith('.local') || host === '::1') return false;
     if (isIP(host) && !isPublicMangaIpAddress(host)) return false;
     return true;

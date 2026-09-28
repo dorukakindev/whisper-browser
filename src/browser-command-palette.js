@@ -6,13 +6,25 @@ function normalizeTurkishSearch(value) {
 
 function rankBrowserCommands(commands, query, context = {}) {
   const needle = normalizeTurkishSearch(query);
+  // Komut başlıkları TR anahtarları olarak kayıtlı; EN arayüzde kullanıcı
+  // İngilizce isimle arar. Her iki dilde de eşleşmesi için UiLocale
+  // çevirisini haystack'e kat (UiLocale yoksa TR metin zaten kendisi).
+  const t = (s) => globalThis.UiLocale?.t?.(s) || s;
   return (Array.isArray(commands) ? commands : []).map((command, index) => {
     const availability = typeof command.available === 'function' ? command.available(context) : { enabled: true };
     const enabled = availability !== false && availability?.enabled !== false;
     const disabledReason = enabled ? '' : String(availability?.reason || command.disabledReason || 'Bu bağlamda kullanılamıyor.');
-    const title = normalizeTurkishSearch(command.title);
-    const haystack = normalizeTurkishSearch([command.title, ...(command.keywords || []), command.category].join(' '));
-    let score = needle ? (title === needle ? 1000 : title.startsWith(needle) ? 800 : title.includes(needle) ? 500
+    const titleTr = normalizeTurkishSearch(command.title);
+    const titleEn = normalizeTurkishSearch(t(command.title));
+    const titles = titleEn !== titleTr ? [titleTr, titleEn] : [titleTr];
+    const haystack = normalizeTurkishSearch([
+      command.title, t(command.title),
+      ...(command.keywords || []), ...(command.keywords || []).map((k) => t(k)),
+      command.category, t(command.category || ''),
+    ].join(' '));
+    let score = needle ? (titles.some((ti) => ti === needle) ? 1000
+      : titles.some((ti) => ti.startsWith(needle)) ? 800
+      : titles.some((ti) => ti.includes(needle)) ? 500
       : haystack.includes(needle) ? 250 : -1) : 100;
     if (!enabled) score -= 5;
     return { ...command, enabled, disabledReason, score, index };

@@ -42,7 +42,10 @@ function sanitizeOptionUrl(value, key) {
 function sanitizePublicValue(value, key = '', depth = 0) {
   if (depth > 8 || typeof value === 'function' || typeof value === 'symbol' || value === undefined) return undefined;
   if (secretOptionKey(key)) return undefined;
-  if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (value === null || typeof value === 'boolean') return value;
+  // NaN/±Infinity kalıcı kuyruğa JSON.stringify üzerinden `null` olarak sızardı;
+  // anahtarı tamamen düşürmek aritmetikte NaN bulaşmasını da önler.
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (typeof value === 'string') return sanitizeOptionUrl(value, key);
   if (Array.isArray(value)) {
     // Kuyruk geri yüklenirken listenin kuyruğunu sessizce kaybetmek yerine

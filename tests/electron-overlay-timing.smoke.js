@@ -270,11 +270,16 @@ app.whenReady().then(async () => {
   await videoPage.executeJavaScript(`(()=>{const v=document.querySelector('video');return v.play()})()`);
   report.expanded.resume = await sampleWhile(2000);
 
-  // Görünürlük: pencereyi gizle → document.hidden değişimini ölç → geri getir
-  // → toparlanmayı ölç. document.hidden iken controller bilinçli olarak render
-  // ve sınır planlamasını atlar (kaynak tasarrufu: overlay zaten görünmez);
-  // bayat metnin gizli dönemde kalması hata değildir. Kabul kriteri: sayfanın
-  // gerçekten 'hidden' olduğu ve reshow sonrası ilk örnekte doğru cue.
+  // Görünürlük: pencereyi gizle → visibilityState ölç → geri getir →
+  // toparlanmayı ölç. ÜRÜN SÖZLEŞMESİ: sekme WebContentsView'ları
+  // `backgroundThrottling:false` ile açılır (main.js ~12208 — bölmeli
+  // görünümde ikincil sekmenin altyazı katmanının donmasını önlemek için).
+  // Bu tercih Chromium'da sayfanın ASLA 'hidden' sayılmaması demektir:
+  // win.hide() ve üretim setBrowserOccluded(true) yolu dahil hiçbir yolda
+  // document.visibilityState 'hidden' olmaz (bu dosyanın probe-visibility
+  // koşusuyla doğrulandı). Dolayısıyla controller gizli dönemde de render'a
+  // devam eder; beklenti 'visible' + gizli fazda dahi orak cue doğruluğu —
+  // reshow'da bayat metin görünmemesinin garantisi budur.
   await videoPage.executeJavaScript(
     `(()=>{const v=document.querySelector('video');v.currentTime=6.0;return v.currentTime})()`);
   win.hide();
@@ -283,16 +288,16 @@ app.whenReady().then(async () => {
   const hiddenSample = await sampleWhile(2500);
   hiddenSample.visibilityState = visState;
   hiddenSample.staleSamples = hiddenSample.mismatchCount;
-  hiddenSample.note = 'document.hidden iken donma bilinçli tasarım — visibilitychange→render reshow toparlanmasını sağlar.';
+  hiddenSample.note = 'backgroundThrottling:false: sayfa gizli pencerede de visible kalır; controller render etmeyi sürdürür.';
   report.expanded.hidden = hiddenSample;
-  assert.equal(visState, 'hidden',
-    'win.hide() fixture sayfasına visibilitychange olarak ulaşmadı — senaryo gizliliği ölçmedi');
+  assert.equal(visState, 'visible',
+    'backgroundThrottling:false sözleşmesi kırıldı — sekme sayfası pencere gizlenince hidden oldu');
   win.show(); win.focus();
   await wait(400);
   report.expanded.reshow = await sampleWhile(1500);
 
   const expandedBad = [];
-  for (const key of ['rate2', 'rate05', 'resume', 'reshow']) {
+  for (const key of ['rate2', 'rate05', 'hidden', 'resume', 'reshow']) {
     const e = report.expanded[key];
     if (e?.mismatchCount) expandedBad.push({ key, count: e.mismatchCount, sample: e.mismatches });
   }

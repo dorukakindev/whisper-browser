@@ -20,6 +20,18 @@
     if (target === document) return 'document';
     const id = typeof target?.id === 'string' && target.id ? `#${target.id}` : '';
     const nodeName = String(target?.nodeName || target?.constructor?.name || 'EventTarget').toLowerCase();
+    // Kimliği belirsiz düğümlerde (id'siz button gibi) metin/aria/kısa sınıf
+    // parçası eklenir — soak raporundaki "button|click +1" artık hangi düğme
+    // olduğunu gösterir.
+    if (!id && nodeName === 'button') {
+      const hint = String(
+        target.getAttribute?.('aria-label')
+        || target.textContent
+        || target.className
+        || ''
+      ).replace(/\s+/g, ' ').trim().slice(0, 40);
+      return hint ? `button["${hint}"]` : 'button';
+    }
     return `${nodeName}${id}`;
   };
   const activeListenerSnapshot = () => {

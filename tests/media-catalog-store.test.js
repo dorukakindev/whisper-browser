@@ -86,8 +86,47 @@ try {
   const malformed = path.join(dir, 'malformed.json');
   fs.writeFileSync(malformed, JSON.stringify({ version: 1, items: [{ kind: 'bad' }] }), 'utf8');
   assert.throws(() => createMediaCatalogStore({ filePath: malformed }).list(), /korunuyor/);
+  // planImport indeksleri: eşleşme semantiği ve büyük-iş sınırı
+  {
+    const big = path.join(dir, 'big.json');
+    const bulk = createMediaCatalogStore({ filePath: big });
+    const seed = [];
+    for (let i = 0; i < 3000; i++) seed.push({ id: `seed-${i}`, kind: 'film', title: `Türkçe Film ${i}`,
+      year: 1990 + (i % 30), importRef: `seed-ref-${i}`, imdbId: `tt${1000000 + i}`, episodes: [] });
+    fs.writeFileSync(big, JSON.stringify({ version: 1, items: seed }), 'utf8');
+    const incoming = [];
+    for (let i = 0; i < 1500; i++) incoming.push({ id: `new-${i}`, kind: 'film', title: `Yeni ${i}`,
+      year: 2000 + (i % 20), importRef: `new-ref-${i}`, episodes: [] });
+    // İlk 100: var olan importRef ile güncelleme; sonraki 50: imdb eşleşmesi
+    for (let i = 0; i < 100; i++) incoming.push({ kind: 'film', title: `Güncel ${i}`, importRef: `seed-ref-${i}`, episodes: [] });
+    for (let i = 500; i < 550; i++) incoming.push({ kind: 'film', title: 'X', imdbId: `tt${1000000 + i}`, episodes: [] });
+    // Çakışmalar: aynı importRef'li iki kayıt tek seferde, aynı başlık+yıl ikilisi
+    incoming.push({ kind: 'film', title: 'DupA', importRef: 'dup', episodes: [] }, { kind: 'film', title: 'DupB', importRef: 'dup', episodes: [] });
+    incoming.push({ kind: 'film', title: 'SameTitle', year: 2010, episodes: [] }, { kind: 'film', title: 'SameTitle', year: 2010, episodes: [] });
+    const t0 = Date.now();
+    const report = bulk.previewImport(incoming);
+    const ms = Date.now() - t0;
+    assert.equal(report.added.length, 1500 + 1 + 1); // yeni + dup-batch ilk kayıt + titleKey-batch ilk kayıt
+    assert.equal(report.updated.length, 100 + 50 + 1); // importRef merge + imdb merge + dup-batch ikinci kayıt
+    assert.equal(report.conflicts.length, 1); // titleKey-batch ikinci kayıt
+    assert(ms < 3000, `planImport 3000+1654 kayıtta ${ms} ms sürdü (O(n×m) regresyonu)`);
+  }
   assert.equal(createMediaCatalogStore({ filePath: path.join(dir, 'unc.json') }).upsert({
     kind: 'film', title: 'UNC', source: { type: 'local', value: '\\\\evil.test\\share\\movie.mkv' },
   }).source, null);
+  // R190: içe aktarımda gelen kayıt hiçbir kimlikle eşleşmezken 'id' alanı
+  // mevcut öğeyle çakışırsa yeniden anahtarlanır — öncesi indexById'da eski
+  // öğe eziliyor, iki kayıt aynı kimliği paylaşıyordu.
+  {
+    const clashStore = createMediaCatalogStore({ filePath: path.join(dir, 'clash.json') });
+    const firstItem = clashStore.upsert({ kind: 'film', title: 'Birinci', year: 2001 });
+    const report = clashStore.mergeImport([{ id: firstItem.id, importRef: 'ext:zzz',
+      kind: 'film', title: 'Tamamen Farklı', year: 1999, episodes: [] }]);
+    assert.equal(report.added.length, 1);
+    const added = clashStore.list().find((item) => item.title === 'Tamamen Farklı');
+    assert.notEqual(added.id, firstItem.id, 'kimlik çakışması yeniden anahtarlanmadı');
+    assert.equal(clashStore.get(firstItem.id).title, 'Birinci');
+    assert.equal(clashStore.get(added.id).title, 'Tamamen Farklı');
+  }
   console.log('media-catalog-store: CRUD, preview, identity and user-state preservation passed');
 } finally { fs.rmSync(dir, { recursive: true, force: true }); }

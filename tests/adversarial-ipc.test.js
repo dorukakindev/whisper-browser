@@ -25,7 +25,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -76,6 +76,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const authorizeFile = vm.runInNewContext(`${authorizeSrc}; authorizeSubtitleFile`, {
         subtitleFileAccess: access, mainWindow: {},
         dialog: { showMessageBox: async () => { prompts++; return { response }; } },
+        dt: (tr) => tr,
       });
       await authorizeFile(file); assert.equal(prompts, 0);
       await assert.rejects(authorizeFile(other), /onaylanmadı/);
@@ -403,5 +404,38 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     assert.deepEqual(calls, ['prepare', 'window']);
     finishDrm();
   });
+
+  // R147-T8 ratchet: her ipcMain.handle/on kaydının gövdesinde bir kimlik/
+  // yetki kontrolü bulunmalı — yeni handler'ın korumasız kayması CI'da
+  // yakalanır. Sarmalayıcılar (queueBrowserTabTransition) guard'u
+  // callback'in ilk satırlarında taşır; 2000 karakterlik pencere yeterli.
+  const GUARD_TOKENS = [
+    'authorizedBrowserSender',
+    'browserTabForWebContents',
+    'browserDiscoveryFrameAllowed',
+    'pending.sender',
+    'webContents === event.sender',
+    'mainWindow.webContents',
+  ];
+  const unguarded = [];
+  for (const match of main.matchAll(/ipcMain\.(?:handle|on)\('([^']+)'/g)) {
+    const window_ = main.slice(match.index, match.index + 2000);
+    if (!GUARD_TOKENS.some((token) => window_.includes(token))) unguarded.push(match[1]);
+  }
+  assert.deepEqual(unguarded, [], `korumasız IPC işleyicisi: ${unguarded.join(', ')}`);
+  passed++;
+  console.log('  PASS  ipcMain işleyici envanteri yetki kontrolü içeriyor');
+
+  // R147-T6: canlı yayınlanan altyazı izi tmp→rename atomikliğiyle yazılır;
+  // oynatıcı dosyayı sürekli okur, düz writeFileSync yarım SRT gösterebilir.
+  const publishBody = main.slice(main.indexOf('function publishBrowserTrackNow('),
+    main.indexOf('function flushBrowserTrackPublication('));
+  assert(!/fs\.writeFileSync/.test(publishBody),
+    'publishBrowserTrackNow altyazıyı atomik olmayan writeFileSync ile yazıyor');
+  assert(/writeSubtitleAtomic\(filePath/.test(publishBody),
+    'publishBrowserTrackNow atomik altyazı yazıcısını kullanmıyor');
+  passed++;
+  console.log('  PASS  canlı altyazı yayını tmp→rename atomikliğiyle yazılır');
+
   console.log(`adversarial-ipc: ${passed} test`);
 })().catch((error) => { console.error(error); process.exitCode = 1; });

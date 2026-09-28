@@ -18,6 +18,10 @@ function handler(name, ctx, kind = 'handle') {
   const end = ['\n});', '\n}));'].map(s => ({ p: source.indexOf(s, start), s }))
     .filter(x => x.p >= 0).sort((a, b) => a.p - b.p)[0];
   const sandbox = vm.createContext(ctx);
+  sandbox.dt = sandbox.dt || ((tr) => tr);
+  // R178: windowsSafeFileName dilim dışındaki yardımcı; gerçek davranışı koruyan
+  // sade yedek (ayrılmış kök yolunu ayrıca test ediyoruz).
+  sandbox.windowsSafeFileName = sandbox.windowsSafeFileName || ((name, fallback = 'dosya') => String(name || '') || fallback);
   sandbox.ipcMain = { [kind]: (_, callback) => { sandbox.run = callback; } };
   vm.runInContext(source.slice(start, end.p + end.s.length), sandbox);
   return sandbox;

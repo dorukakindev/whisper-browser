@@ -184,6 +184,31 @@ function liveWindowManifest() {
     + '<S t="100" d="2"/><S t="102" d="2"/><S t="104" d="2"/>'
     + '</SegmentTimeline></SegmentTemplate></Representation></AdaptationSet></Period></MPD>';
 }
+test('canlı $Time$ kalıp-eşleştirici: URL ham t değeri PTO düşülerek ofsetlenir', () => {
+  // Sonu açık SegmentTimeline (r=-1, sonraki t yok) URL tahmini üretmez;
+  // istek hattında görülen parça kalıp üzerinden eşleşir ve ham t URL'den
+  // çıkarılır. Medya zamanı (t - presentationTimeOffset) / timescale'dir —
+  // PTO düşülmezse canlı yayın altyazıları saatlerce öteye kayar.
+  const xml = '<MPD type="dynamic"><Period start="PT0S"><AdaptationSet mimeType="text/vtt"><Representation>'
+    + '<SegmentTemplate timescale="10" presentationTimeOffset="1000" media="text/$Time$.vtt" duration="20">'
+    + '<SegmentTimeline><S t="1000" d="20" r="-1"/></SegmentTimeline></SegmentTemplate>'
+    + '</Representation></AdaptationSet></Period></MPD>';
+  const matchers = parseDashSubtitleMatchers(xml, base);
+  assert.equal(matchers.length, 1);
+  assert.equal(matchers[0].segmentUrl, undefined, 'sınırsız canlı şablon URL tahmin etmemeli');
+  const matched = matchDashSubtitleUrl('https://fixture.example/episode/text/1040.vtt', matchers);
+  assert.ok(matched);
+  assert.equal(matched.presentationTimeOffset, 1000, 'kalıp-eşleştirici PTO taşımalı');
+  assert.equal(dashSegmentOffset(matched), 4);
+  // PTO=0 regresyonu: ham değer korunur.
+  const plain = parseDashSubtitleMatchers(
+    '<MPD type="dynamic"><Period><AdaptationSet mimeType="text/vtt"><Representation>'
+    + '<SegmentTemplate timescale="10" media="text/$Time$.vtt" duration="20">'
+    + '<SegmentTimeline><S t="0" d="20" r="-1"/></SegmentTimeline></SegmentTemplate>'
+    + '</Representation></AdaptationSet></Period></MPD>', base);
+  assert.equal(dashSegmentOffset(matchDashSubtitleUrl('https://fixture.example/episode/text/1040.vtt', plain)), 104);
+});
+
 test('aynı altyazı izinin birden fazla dönemi aynı yayında korunur', async () => {
   const period = start => `<Period start="PT${start}S"><AdaptationSet mimeType="text/vtt" lang="en"><Representation id="en"><SegmentList duration="10"><SegmentURL media="text/0.vtt"/></SegmentList></Representation></AdaptationSet></Period>`;
   const list = parseDashSubtitleMatchers(`<MPD>${period(0)}${period(1200)}</MPD>`, base);
@@ -207,6 +232,12 @@ test('gerçek ağ yardımcısı yanlış/eksik HTTP bayt aralığını kabul etm
     assertPublicBrowserSubtitleUrl: async () => {},
     withAbortTimeout: fn => fn(undefined),
     browserSubtitleStateError: (code, message) => Object.assign(Error(message), { code }),
+    // Sınır kapısının davranışı: gövde boyutu bellekte sayılır, aşımda reddedilir.
+    readResponseBufferLimited: async (res, maxBytes, label) => {
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (bytes.length > maxBytes) throw Error(`${label} güvenli boyut sınırını aşıyor.`);
+      return bytes;
+    },
   };
   vm.createContext(context); vm.runInContext(code, context);
   const fetch = () => context.fetchBrowserBuffer('https://fixture.example/text', 1024, null, { start: 20, end: 23 });

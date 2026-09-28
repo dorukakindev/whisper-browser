@@ -1,5 +1,7 @@
 'use strict';
 
+const { decodeSubtitleBuffer } = require('./browser-textutil');
+
 const API = 'https://api.opensubtitles.com/api/v1';
 // Stremio OpenSubtitles-v3 — anahtarsız ikinci sağlayıcı basamağı (imdb_id
 // ile çalışır; OpenSubtitles hesabı olmayan kurulumda da arama yapar).
@@ -111,6 +113,45 @@ function normalized(value) {
     .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
+// Sağlayıcılar dil kodunu karışık verir: UI/OpenSubtitles ISO 639-1 ('tr',
+// 'en'), Stremio 639-2/-3 ('tur', 'eng', 'pob'). Kıyaslama öncesi ikisi de
+// 639-1'e indirilir — yoksa 'ru' isteği 'rus' satırını bulamaz ve dil
+// filtresi sessizce devre dışı kalırdı.
+const ISO_639_2_TO_1 = {
+  aar: 'aa', abk: 'ab', afr: 'af', alb: 'sq', sqi: 'sq', amh: 'am', ara: 'ar',
+  arm: 'hy', hye: 'hy', asm: 'as', aze: 'az', bak: 'ba', baq: 'eu', eus: 'eu',
+  bel: 'be', ben: 'bn', bos: 'bs', bre: 'br', bul: 'bg', bur: 'my', mya: 'my',
+  cat: 'ca', chi: 'zh', zho: 'zh', cze: 'cs', ces: 'cs', dan: 'da', dut: 'nl',
+  nld: 'nl', eng: 'en', epo: 'eo', est: 'et', fao: 'fo', fas: 'fa', per: 'fa',
+  fin: 'fi', fre: 'fr', fra: 'fr', geo: 'ka', kat: 'ka', ger: 'de', deu: 'de',
+  gla: 'gd', gle: 'ga', glg: 'gl', gre: 'el', ell: 'el', guj: 'gu', heb: 'he',
+  hin: 'hi', hrv: 'hr', hun: 'hu', ice: 'is', isl: 'is', ind: 'id', ita: 'it',
+  jpn: 'ja', kan: 'kn', kaz: 'kk', khm: 'km', kir: 'ky', kor: 'ko', kur: 'ku',
+  lav: 'lv', lit: 'lt', mac: 'mk', mkd: 'mk', mal: 'ml', mar: 'mr', may: 'ms',
+  msa: 'ms', mlt: 'mt', mon: 'mn', mri: 'mi', nep: 'ne', nor: 'no', nob: 'no',
+  nno: 'no', oci: 'oc', pol: 'pl', pob: 'pt', por: 'pt', rum: 'ro', ron: 'ro',
+  rus: 'ru', slk: 'sk', slo: 'sk', slv: 'sl', som: 'so', spa: 'es', srp: 'sr',
+  sun: 'su', swa: 'sw', swe: 'sv', tam: 'ta', tel: 'te', tgk: 'tg', tgl: 'tl',
+  tha: 'th', tib: 'bo', bod: 'bo', tur: 'tr', ukr: 'uk', urd: 'ur', uzb: 'uz',
+  vie: 'vi', wel: 'cy', cym: 'cy', yid: 'yi', zul: 'zu',
+};
+
+// Birincil alt etiket + bölge/yazı varyantı: 'pt-BR' ile 'pt-PT' aynı dil
+// sayılmamalı — sağlayıcılar varyantı ayrı altyazı olarak listeler.
+function langTag(value) {
+  const parts = String(value || '').toLowerCase().trim().split(/[-_]/).filter(Boolean);
+  return { primary: ISO_639_2_TO_1[parts[0]] || parts[0] || '', variant: parts.slice(1).join('-') };
+}
+
+function sameLanguage(a, b) {
+  const ta = langTag(a), tb = langTag(b);
+  if (!ta.primary || ta.primary !== tb.primary) return false;
+  // Varyant iki tarafta da verilmişse uyuşmalı; bir taraf varyantsızsa
+  // (sağlayıcı 'pt' yazıp dosyayı 'pt-BR' sunabilir) birincil eşleşme yeterli.
+  if (ta.variant && tb.variant) return ta.variant === tb.variant;
+  return true;
+}
+
 function scoreCandidate(candidate, target) {
   const a = candidate.attributes || {};
   const feature = a.feature_details || {};
@@ -123,7 +164,7 @@ function scoreCandidate(candidate, target) {
   else if (query && title && (title.includes(query) || query.includes(title))) score += 30;
   if (target.season != null && Number(feature.season_number) === Number(target.season)) score += 15;
   if (target.episode != null && Number(feature.episode_number) === Number(target.episode)) score += 15;
-  if (target.language && normalized(a.language) === normalized(target.language)) score += 10;
+  if (target.language && sameLanguage(a.language, target.language)) score += 10;
   const targetRelease = normalized(target.release);
   const candidateRelease = normalized(a.release);
   if (targetRelease && candidateRelease === targetRelease) score += 25;
@@ -202,7 +243,9 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
 }
 
 // --- Stremio OpenSubtitles-v3 (anahtarsız yedek) ---------------------------
-// GET /subtitles/movie/<imdb>.json veya /subtitles/series/<imdb>/<s>/<e>.json
+// GET /subtitles/movie/<imdb>.json veya /subtitles/series/<imdb>:<s>:<e>.json
+// (Stremio video id'si 'imdb:sezon:bölüm' — '/s/e' ayrı segmentleri 404 verir;
+// R150 canlı doğrulamasında yakalandı).
 // Yanıt: { subtitles: [{ id, url, lang, m:{release,releaseGroup,fpsMilli}, ... }] }
 async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   const imdbId = String(target.imdbId).trim().toLowerCase();
@@ -210,7 +253,7 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   const season = Number.isInteger(Number(target.season)) ? Number(target.season) : 1;
   const episode = Number.isInteger(Number(target.episode)) ? Number(target.episode) : 1;
   const path = isSeries
-    ? `/subtitles/series/${imdbId}/${season}/${episode}.json`
+    ? `/subtitles/series/${imdbId}:${season}:${episode}.json`
     : `/subtitles/movie/${imdbId}.json`;
   const fetcher = config.fetch || globalThis.fetch;
   let response;
@@ -227,7 +270,7 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   try { payload = JSON.parse(new TextDecoder('utf-8').decode(bytes)); }
   catch { throw problem('Stremio arama yanıtı okunamadı.', 'INVALID_RESPONSE'); }
   const rows = Array.isArray(payload?.subtitles) ? payload.subtitles : [];
-  const wantedLang = normalized(target.language);
+  const wantedLang = langTag(target.language);
   const results = rows.slice(0, 500).map((item, index) => {
     const meta = (item && typeof item.m === 'object' && item.m) || {};
     const release = String(meta.release || meta.movieReleaseName || item.releaseName || '').slice(0, 300);
@@ -251,9 +294,16 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
       matchScore: scoreCandidate(pseudo, target),
     };
   }).filter((item) => item.url.startsWith('https://'));
-  if (wantedLang) {
-    const hits = results.filter((item) => normalized(item.language) === wantedLang);
-    if (hits.length) results.length = 0, results.push(...hits);
+  if (wantedLang.primary) {
+    const hits = results.filter((item) => sameLanguage(item.language, target.language));
+    // Hiçbir sonuç dil etiketi taşımıyorsa filtre uygulanamaz (eski davranış);
+    // etiketli sonuçlar varken varyant eşleşmeyenler (örn. istenen pt-BR'e
+    // karşı pt-PT) yanlış bölge altyazısı olarak sunulmamalı.
+    const anyTagged = results.some((item) => item.language);
+    if (hits.length || anyTagged) {
+      results.length = 0;
+      results.push(...hits);
+    }
   }
   results.sort((a, b) => b.matchScore - a.matchScore);
   return { results, totalCount: results.length, page: 1, provider: 'stremio' };
@@ -282,7 +332,7 @@ function approvedStremioUrl(link) {
   return url.href;
 }
 
-async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
+async function downloadStremioSubtitle(url, config = {}, { signal, language } = {}) {
   const fetcher = config.fetch || globalThis.fetch;
   let downloadUrl = approvedStremioUrl(url);
   // 'follow' yerine elle yönlendirme: onaylı strem.io bağlantısı keyfi bir
@@ -302,17 +352,31 @@ async function downloadStremioSubtitle(url, config = {}, { signal } = {}) {
   }
   if (!response.ok) throw problem(`Altyazı indirme hatası (HTTP ${response.status}).`, 'PROVIDER_ERROR');
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+  const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(url.split('/').pop() || '').replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
   const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
-  if (!text.trim() || /\0/.test(text)) throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
   return { text, format, fileName: fileName || `subtitle-stremio.${format}` };
 }
 
-async function downloadSubtitle({ fileId, url, provider }, config = {}, { signal } = {}) {
+// Sağlayıcı dosyaları UTF-8 garantisi taşımaz (cp1251 Kiril, GBK Çince
+// arşivleri sık görülür) — strict UTF-8 yerine dil-ipuçlu esnek çözüm.
+// Geçerlilik kapısı karakter kümesi değil altyazı yapısıdır: zaman damgası
+// ' --> ' veya WEBVTT/ASS başlığı olmayan içerik reddedilir.
+function decodeDownloadedSubtitle(bytes, language) {
+  const { text } = decodeSubtitleBuffer(bytes, { language });
+  const looksLikeSubtitle = /-->\s*\d{1,2}:\d{2}/.test(text)
+    || /^\s*WEBVTT/.test(text) || /^\s*\[(Script Info|V4\+? Styles)\]/i.test(text)
+    || /^Dialogue:/m.test(text);
+  if (!text.trim() || /\0/.test(text) || !looksLikeSubtitle) {
+    throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
+  }
+  return text;
+}
+
+async function downloadSubtitle({ fileId, url, provider, language }, config = {}, { signal } = {}) {
   signal = AbortSignal.any([signal, AbortSignal.timeout(60000)].filter(Boolean));
   if (provider === 'stremio' || (!Number.isSafeInteger(Number(fileId)) && url)) {
-    return downloadStremioSubtitle(url, config, { signal });
+    return downloadStremioSubtitle(url, config, { signal, language });
   }
   if (!Number.isSafeInteger(Number(fileId)) || Number(fileId) <= 0) throw problem('Geçerli altyazı dosya kimliği gerekli.', 'INVALID_INPUT');
   const payload = await request('/download', {
@@ -337,10 +401,9 @@ async function downloadSubtitle({ fileId, url, provider }, config = {}, { signal
   }
   if (!response.ok) throw apiError(response);
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+  const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(payload.file_name || '').split(/[\\/]/).pop().replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
   const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
-  if (!text.trim() || /\0/.test(text)) throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
   return { text, format, fileName: fileName || `subtitle-${fileId}.${format}` };
 }
 

@@ -56,6 +56,7 @@ const policyContext = vm.createContext({
   },
   currentGeneration: () => 1,
   osd() {},
+  syncLearningBadge() {},
   setTimeout,
 });
 vm.runInContext(renderer.slice(policyStart, policyEnd)

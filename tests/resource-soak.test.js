@@ -132,6 +132,106 @@ test('normal tarayıcı yoklama aralıkları değişmeden kalır', () => {
   assert.match(main, /\? \{ track: 75, capture: 35, media: 45 \}/);
   assert.match(main, /: \{ track: 6500, capture: 900, media: 1000 \}/);
 });
+test('heap eğimi faz-etiketli iz noktalarında ayrık regreslenir', () => {
+  // Video döngüsü heap'i (~2.6MB) düz sayfadan (~1.1MB) yüksektir; karışık
+  // regresyon sayfa-fazı noktaları tek yüksek çıkıntıyla sahte eğim üretirdi.
+  const heapTrace = [];
+  for (let cycle = 1; cycle <= 8; cycle++) {
+    const video = cycle % 2 === 0;
+    heapTrace.push({
+      cycle, kind: video ? 'video' : 'page',
+      browserHeapBytes: video ? 2600000 : 1100000,
+      rendererHeapBytes: 100,
+      mainHeapBytes: 100,
+    });
+  }
+  const verdict = evaluateResourceSoak({
+    cycles: 8, capture: { attempts: 8, successes: 8 },
+    peaks: { mainProjectTimers: 1, mainInternalTimers: 2 },
+    heapTrace,
+    samples: [sample('start', 0), sample('stable-4', 4, { browser: { heapUsedBytes: 2600000 } }),
+      sample('final', 8)],
+  });
+  assert.equal(verdict.checks.find(c => c.name === 'browser-heap-slope').pass, true);
+});
+
+test('heap izi aynı faza ait gerçek büyümeyi yakalar', () => {
+  const heapTrace = [];
+  for (let cycle = 1; cycle <= 8; cycle++) {
+    const video = cycle % 2 === 0;
+    heapTrace.push({
+      cycle, kind: video ? 'video' : 'page',
+      // video serisinde döngü başına +200KB sızıntı; page serisi düz
+      browserHeapBytes: video ? 2000000 + cycle * 200000 : 1100000,
+      rendererHeapBytes: 100,
+      mainHeapBytes: 100,
+    });
+  }
+  const verdict = evaluateResourceSoak({
+    cycles: 8, capture: { attempts: 8, successes: 8 },
+    peaks: { mainProjectTimers: 1, mainInternalTimers: 2 },
+    heapTrace,
+    samples: [sample('start', 0), sample('final', 8)],
+  });
+  assert.equal(verdict.checks.find(c => c.name === 'browser-heap-slope').pass, false);
+});
+
+test('disk yazımı yazar kategorisine ayrılır ve yazar başına bütçelenir', () => {
+  const start = sample('start', 0, { io: { writeOps: 0, byFile: {} } });
+  const final = sample('final', 100, {
+    io: {
+      writeOps: 600,
+      byFile: {
+        'C:\\p\\watch-library.json.tmp': { writeOps: 100 },
+        'C:\\p\\watch-library.json.bak.tmp': { writeOps: 100 },
+        'C:\\p\\browser-places.json.1.tmp': { writeOps: 400 }, // flood: 4/döngü > 3
+      },
+    },
+  });
+  const verdict = evaluateResourceSoak({
+    cycles: 100, capture: { attempts: 100, successes: 100 },
+    peaks: { mainProjectTimers: 1, mainInternalTimers: 2 },
+    samples: [start, final],
+  });
+  assert.equal(verdict.checks.find(c => c.name === 'disk-write-watchLibrary-per-cycle').pass, true);
+  assert.equal(verdict.checks.find(c => c.name === 'disk-write-browserPlaces-per-cycle').pass, false);
+  assert.equal(verdict.pass, false);
+});
+
+test('dinleyici deltası ana süreç emitterlarında sıfır toleranslıdır', () => {
+  const start = sample('start', 0);
+  const final = sample('final', 200, {
+    listeners: { total: 11, mainWindow: 11, renderer: 0 },
+  });
+  const s0 = sample('start', 0, { listeners: { total: 10, mainWindow: 10, renderer: 0 } });
+  const verdict = evaluateResourceSoak({
+    cycles: 200, capture: { attempts: 200, successes: 200 },
+    peaks: { mainProjectTimers: 1, mainInternalTimers: 2 },
+    samples: [s0, final],
+  });
+  assert.equal(verdict.checks.find(c => c.name === 'listener-delta').pass, false);
+});
+
+test('renderer dinleyici kayması reload sınırındaki UI farkını sızıntı saymaz', () => {
+  // postreload sonrası stable noktaları sabit kalırken final örneği hibernasyon
+  // sonrası farklı sayfa durumunu yansıtır — drift yalnız stable serisine bakar.
+  const mk = (label, cycle, total) => sample(label, cycle, { listeners: { total } });
+  const verdict = evaluateResourceSoak({
+    cycles: 8, capture: { attempts: 8, successes: 8 },
+    peaks: { mainProjectTimers: 1, mainInternalTimers: 2 },
+    samples: [
+      mk('start', 0, 100),
+      mk('stable-2', 2, 100),
+      mk('postreload-4', 4, 90),
+      mk('stable-4', 4, 90),
+      mk('stable-6', 6, 90),
+      mk('stable-8', 8, 90),
+      mk('final', 8, 105),
+    ],
+  });
+  assert.equal(verdict.checks.find(c => c.name === 'renderer-listener-drift').pass, true);
+});
+
 test('renderer dinleyici ölçümü DOMdan çıkarılmış sekme düğümlerini sızıntı saymaz', () => {
   const probe = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'resource-soak-probe.js'), 'utf8');
   assert.match(probe, /target instanceof Node && !target\.isConnected/);

@@ -28,12 +28,30 @@ async function main() {
     child.once('exit', (code, signal) => finish({ ok: false, code, signal }));
     setTimeout(() => finish({ ok: true }), 6000).unref?.();
   });
-  if (!result.ok) {
-    throw new Error(`Packaged app exited before the smoke window (${result.error?.message || result.code || result.signal || 'unknown'}). ${stderr}`);
+  try {
+    if (!result.ok) {
+      throw new Error(`Packaged app exited before the smoke window (${result.error?.message || result.code || result.signal || 'unknown'}). ${stderr}`);
+    }
+    // Süreç 6 saniye yaşasa da main içinde fırlayan bir hata diyaloğu donuk
+    // bir pencere bırakır; Electron'un bilinen ölümcül stderr kalıplarını
+    // başarısızlık say.
+    const fatal = stderr.match(/FATAL|Uncaught (?:Exception|Error)|Cannot find module|A JavaScript error occurred|error getting talents/i);
+    if (fatal) {
+      throw new Error(`Packaged app stayed alive but printed a fatal marker (${fatal[0]}). ${stderr}`);
+    }
+  } finally {
+    // Başarısızlık yolları da temizlenir: yaşayan çocuk ve geçici profil
+    // throw'un ötesine sızmasın. Ölü çocuğa exit beklemek sonsuza dek
+    // asılırdı — exitCode/signalCode kontrolü yarışı kapatır.
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill();
+      await new Promise((resolve) => {
+        child.once('exit', resolve);
+        setTimeout(resolve, 5000).unref?.();
+      });
+    }
+    fs.rmSync(profile, { recursive: true, force: true });
   }
-  child.kill();
-  await new Promise((resolve) => child.once('exit', resolve));
-  fs.rmSync(profile, { recursive: true, force: true });
   console.log('Packaged Windows app remained healthy for the 6 second smoke window.');
 }
 

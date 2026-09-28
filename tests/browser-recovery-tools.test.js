@@ -42,7 +42,7 @@ test('düz #çapa yalnız yerel oturumda korunur; OAuth fragmenti hiçbir zaman'
 
 test('görsel kaydetme PNG dönüştürme seçeneği sunar ve dönüşüm yalıtılmış pencerede', () => {
   const main = read('src/main.js');
-  assert.match(main, /name: 'PNG olarak kaydet \(dönüştür\)', extensions: \['png'\]/);
+  assert.match(main, /name: dt\('PNG olarak kaydet \(dönüştür\)', 'Save as PNG \(convert\)'\), extensions: \['png'\]/);
   const convert = main.slice(main.indexOf('async function convertImageBytesToPng('), main.indexOf('async function saveBrowserSelectionNote('));
   assert.match(convert, /sandbox: true/);
   assert.match(convert, /nodeIntegration: false/);

@@ -1,6 +1,6 @@
 const path = require('node:path');
 
-function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, command }) {
+function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, command, dialogText }) {
   let window = null, tab = null;
   function layout() {
     if (!window || window.isDestroyed() || !tab?.view || tab.view.webContents.isDestroyed()) return false;
@@ -28,9 +28,11 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
       close();
       tab = target;
       window = new BrowserWindow({ width: 720, height: 480, minWidth: 360, minHeight: 260,
-        title: 'Küçük oynatıcı · Whisper', alwaysOnTop: true, autoHideMenuBar: true,
+        title: (dialogText || ((tr) => tr))('Küçük oynatıcı · Whisper', 'Mini player · Whisper'), alwaysOnTop: true, autoHideMenuBar: true,
         backgroundColor: '#181a1d', webPreferences: { preload: path.join(__dirname, 'browser-mini-preload.js'),
-          contextIsolation: true, nodeIntegration: false, sandbox: true } });
+          contextIsolation: true, nodeIntegration: false, sandbox: true,
+          webSecurity: true, webviewTag: false, allowRunningInsecureContent: false,
+          navigateOnDragDrop: false, spellcheck: false } });
       const currentWindow = window, currentTab = tab;
       try { main.contentView.removeChildView(currentTab.view); }
       catch (_) { currentWindow.close(); return { ok: false, error: 'Video görünümü taşınamadı.' }; }

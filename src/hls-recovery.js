@@ -118,7 +118,10 @@
       }
       const wallDelta = now - stability.lastClockMs;
       const mediaDelta = media - stability.lastMediaTime;
-      const rate = Math.min(4, Math.max(0.1, Math.abs(Number(playbackRate) || 1)));
+      // playbackRate oynatıcının gerçek değeridir; kontrol sınırı (4x) altında
+      // kelepçelemek >4x oynatmada doğal ilerlemeyi "sıçrama" sanıp kararlılık
+      // penceresini sürekli sıfırlardı.
+      const rate = Math.min(16, Math.max(0.0625, Math.abs(Number(playbackRate) || 1)));
       const plausibleJump = Math.max(maxSeekJumpSeconds, (wallDelta / 1000) * rate * 4);
 
       // Saatin geri gitmesi ve oynatma konumunun geriye/ileri sıçraması yeni bir

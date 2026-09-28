@@ -106,7 +106,7 @@ function registerBrowserFeatureServices(deps) {
     if (!best) throw new Error('Sayfada görünür video bulunamadı.');
     return best;
   }
-  const mini = createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore: restoreLayout,
+  const mini = createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore: restoreLayout, dialogText: deps.dialogText,
     command: async (tab, command, value) => {
       try {
         if (tab !== activeTab()) throw new Error('Etkin sekme değişti.');
@@ -125,8 +125,20 @@ function registerBrowserFeatureServices(deps) {
       try { void frame.executeJavaScript(require('./browser-ass-renderer').buildAssClearScript(), true).catch(() => {}); } catch {}
     }
   }
+  // Yerel dosya seçici başlıkları arayüz dilini izler (EN'de TR kalıyordu).
+  const chooseTitles = new Map([
+    ['Karakter kodlaması düzeltilecek altyazıyı seç', 'Choose the subtitle whose encoding to fix'],
+    ['İzlenen videoyla aynı sürümdeki yerel dosyayı seç', 'Choose the local file matching the watched release'],
+    ['Doğru zamanlı referans altyazıyı seç', 'Choose the correctly timed reference subtitle'],
+    ['Aynı dizinin karşılaştırılacak başka bölümünü seç', 'Choose another episode of the same series to compare'],
+    ['Özgün ASS / SSA altyazısını seç', 'Choose the original ASS / SSA subtitle'],
+    ['Fontları içeren MKV dosyasını seç', 'Choose the MKV file containing the fonts'],
+    ['Sahne şeridi için izlediğiniz videonun yerel dosyasını seç', 'Choose the local file of the video you are watching for the scene strip'],
+  ]);
   async function choose(title, extensions) {
-    const result = await dialog.showOpenDialog(owner(), { title, properties: ['openFile'], filters: [{ name: title, extensions }] });
+    const dl = deps.dialogText || ((tr) => tr);
+    const label = dl(title, chooseTitles.get(title) || title);
+    const result = await dialog.showOpenDialog(owner(), { title: label, properties: ['openFile'], filters: [{ name: label, extensions }] });
     if (result.canceled || !result.filePaths?.[0]) throw new Error('Dosya seçimi iptal edildi.');
     return result.filePaths[0];
   }
@@ -203,7 +215,8 @@ function registerBrowserFeatureServices(deps) {
           const ref = reference();
           if (!Number.isFinite(payload.end) || payload.end > ref.duration + .1) throw new Error('Aralık videonun içinde olmalı.');
           result = await require('./browser-dialogue').dialogue({ video: ref.path, start: payload.start, end: payload.end,
-            model: payload.model, language: payload.language, python: pythonPath(), ffmpeg: ffmpegPath(), signal: controller.signal });
+            model: payload.model, language: payload.language, python: pythonPath(), ffmpeg: ffmpegPath(), signal: controller.signal,
+            localize: deps.dialogText });
           assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
           break;
         }
@@ -271,7 +284,8 @@ function registerBrowserFeatureServices(deps) {
           if (!/\[Script Info\]/i.test(text) || !/\[Events\]/i.test(text)) throw new Error('Geçerli ASS / SSA dosyası seçin.');
           let fonts = [];
           if (payload.action === 'ass-load-fonts') {
-            const choice = await dialog.showOpenDialog(owner(), { title: 'ASS fontlarını seç', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Fontlar', extensions: ['ttf', 'otf', 'woff', 'woff2'] }] }); assertCurrent();
+            const dl = deps.dialogText || ((tr) => tr);
+            const choice = await dialog.showOpenDialog(owner(), { title: dl('ASS fontlarını seç', 'Choose ASS fonts'), properties: ['openFile', 'multiSelections'], filters: [{ name: dl('Fontlar', 'Fonts'), extensions: ['ttf', 'otf', 'woff', 'woff2'] }] }); assertCurrent();
             if (choice.canceled) throw new Error('Font seçimi iptal edildi.');
             fonts = require('./browser-fonts').readFonts(choice.filePaths || []);
           } else if (payload.action === 'ass-load-mkv-fonts') {
@@ -341,7 +355,7 @@ function registerBrowserFeatureServices(deps) {
         }
         case 'subtitle-download': {
           const output = await subtitles.downloadSubtitle(
-            { fileId: payload.fileId, url: payload.url, provider: payload.provider },
+            { fileId: payload.fileId, url: payload.url, provider: payload.provider, language: payload.language },
             payload.config || {}, { signal: controller.signal }); assertCurrent();
           const directory = path.join(app.getPath('userData'), 'browser-subtitles'); fs.mkdirSync(directory, { recursive: true });
           const filePath = path.join(directory, `${randomUUID()}.${output.format === 'vtt' ? 'vtt' : 'srt'}`);

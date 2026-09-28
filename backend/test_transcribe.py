@@ -117,7 +117,12 @@ def test_live_asr_chunk_offset_is_validated_without_killing_worker():
             pass
     assert L.parse_chunk_rate({}) == 1
     assert L.parse_chunk_rate({"rate": "1.5"}) == 1.5
-    for bad in (0, 4.1, "nan"):
+    # R190: canlı yakalama worklet'i 0.0625-16 gözlenen aralığı kelepçeler;
+    # kapı aynı aralığı kabul etmeli yoksa >4x oynatmada canlı transkript durur.
+    assert L.parse_chunk_rate({"rate": 8}) == 8
+    assert L.parse_chunk_rate({"rate": 16}) == 16
+    assert L.parse_chunk_rate({"rate": 0.0625}) == 0.0625
+    for bad in (0, 0.02, 16.1, "nan"):
         try:
             L.parse_chunk_rate({"rate": bad})
             assert False, f"bozuk hız kabul edildi: {bad}"

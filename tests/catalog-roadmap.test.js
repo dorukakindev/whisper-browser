@@ -7,7 +7,7 @@ const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const packages = require('../src/workspace-package');
 const videoPackages = require('../src/workspace-video-package');
 const { createMetadataClient, scanFolder } = require('../src/catalog-discovery');
-const { decode, preview } = require('../src/subtitle-encoding-preview');
+const { decode, preview, ENCODINGS } = require('../src/subtitle-encoding-preview');
 const { readFonts, extractFonts } = require('../src/browser-fonts');
 const { spawnSync } = require('node:child_process');
 const { findTestPython } = require('./python-runtime');
@@ -58,7 +58,7 @@ async function main() {
   assert.equal(createMediaCatalogStore({ filePath: path.join(target, 'media-catalog.json') }).list()[0].ratings.personal, '9');
   assert.throws(() => packages.validate({ ...data, files: [{ name: '../escape.json', data: 'e30=' }] }));
   assert.throws(() => packages.validate({ ...data, files: [...data.files, data.files[0]] }));
-  const cp = Buffer.from([0xDE, 0xFD, 0xF0]); assert.equal(decode(cp, 'windows-1254'), 'Şığ'); assert.equal(preview(cp).length, 6); assert.throws(() => decode(cp, 'invalid'));
+  const cp = Buffer.from([0xDE, 0xFD, 0xF0]); assert.equal(decode(cp, 'windows-1254'), 'Şığ'); assert.equal(preview(cp).length, ENCODINGS.length); assert.throws(() => decode(cp, 'invalid'));
   // Exceed the shared 5 MB subprocess-output limit without losing the package manifest.
   fs.mkdirSync(path.join(source, 'workspace-assets')); fs.writeFileSync(path.join(source, 'workspace-assets/random.srt'), randomBytes(6e6));
   const videoBundle = path.join(root, 'with-video.wbp'); await videoPackages.exportWithVideos(source, videoBundle, {}, python);

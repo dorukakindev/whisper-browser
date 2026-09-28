@@ -14,7 +14,12 @@ const ROOT = path.join(__dirname, '..');
 const { entries } = require('../src/renderer/ui-locale.js');
 const en = new Map(entries);
 const html = fs.readFileSync(path.join(ROOT, 'src/renderer/index.html'), 'utf8');
-const renderer = fs.readFileSync(path.join(ROOT, 'src/renderer/renderer.js'), 'utf8');
+// renderer.js'ten çıkarılan yardımcı dosyalar da aynı UI metinlerini taşır;
+// sinyal taraması src/renderer altındaki tüm script'leri kapsamalı.
+const rendererSources = fs.readdirSync(path.join(ROOT, 'src/renderer'))
+  .filter((f) => f.endsWith('.js'))
+  .map((f) => fs.readFileSync(path.join(ROOT, 'src/renderer', f), 'utf8'));
+const renderer = rendererSources.join('\n');
 
 const TURKISH = /[çğıöşüÇĞİÖŞÜ]|\b(?:ve|veya|ile|için|bir|bu|yok|aç|kapat|sayfa|altyazı|çeviri)\b/i;
 const norm = (value) => value.replace(/\s+/g, ' ').trim();
@@ -59,8 +64,64 @@ function signalMissing() {
   return [...new Set(missing)];
 }
 
+// R136: renderer'daki sabit Türkçe string literal'leri UI sink'lerine
+// (textContent/innerHTML/title/aria-label/placeholder/setStatus/notify/announce/
+// uiText) akıyorsa EN sözlüğünde olmalı. HTML içeren değerler metin düğümlerine
+// ayrıştırılır; şablon literal'ler (${}) sözlüğe giremeyeceği için kapsam dışı —
+// onlar patterns tablosuna aittir.
+const { translate } = require('../src/renderer/ui-locale.js');
+const SINK_RE = [
+  /\.textContent\s*=\s*'((?:[^'\\]|\\.)*)'/g,
+  /\.innerHTML\s*=\s*'((?:[^'\\]|\\.)*)'/g,
+  /\.title\s*=\s*'((?:[^'\\]|\\.)*)'/g,
+  /setAttribute\('(?:title|aria-label|placeholder)',\s*'((?:[^'\\]|\\.)*)'/g,
+  /\.placeholder\s*=\s*'((?:[^'\\]|\\.)*)'/g,
+  /setStatus\('((?:[^'\\]|\\.)*)'/g,
+  /notify\('((?:[^'\\]|\\.)*)'/g,
+  /announce\('((?:[^'\\]|\\.)*)'/g,
+  /uiText\('((?:[^'\\]|\\.)*)'/g,
+];
+const SINK_TR = /[çğıöşüÇĞİÖŞÜ]/;
+
+function sinkMissing() {
+  const missing = new Set();
+  for (const name of fs.readdirSync(path.join(ROOT, 'src/renderer')).filter((f) => f.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(ROOT, 'src/renderer', name), 'utf8');
+    for (const re of SINK_RE) {
+      for (const match of src.matchAll(re)) {
+        const raw = match[1].replace(/\\\\/g, '\\').replace(/\\'/g, "'").trim();
+        if (!SINK_TR.test(raw)) continue;
+        const parts = /<[a-zA-Z]/.test(raw)
+          ? raw.split(/<[^>]+>/).map((s) => s.replace(/\s+/g, ' ').trim()).filter((s) => s && SINK_TR.test(s))
+          : [raw];
+        for (const part of parts) {
+          if (ALLOW.has(part)) continue;
+          if (translate(part, 'en') === part) missing.add(`${name}: "${part}"`);
+        }
+      }
+    }
+  }
+  // main.js: IPC ile renderer'a dönen sabit hata/durum metinleri (error/message/
+  // stage/label alanları) UI'da aynen gösterilir — sözlükte olmalı.
+  const MAIN_MSG_RE = /(?:error|message|stage|label)\s*:\s*'((?:[^'\\]|\\.){4,140})'/g;
+  const mainSrc = fs.readFileSync(path.join(ROOT, 'src/main.js'), 'utf8');
+  for (const match of mainSrc.matchAll(MAIN_MSG_RE)) {
+    const unescaped = match[1].replace(/\\\\/g, '\\').replace(/\\'/g, "'");
+    const raw = unescaped.trim();
+    if (!SINK_TR.test(raw) || ALLOW.has(raw)) continue;
+    // Birleştirme önekleri ('Hata: ' + x) kalıp tablosundan çevrilir;
+    // sondaki boşluk düşürüldüğünde eşleşmez — önce kırpılmamışı dene.
+    if (translate(unescaped, 'en') !== unescaped) continue;
+    if (translate(raw, 'en') === raw) missing.add(`main.js: "${raw}"`);
+  }
+  return [...missing].sort();
+}
+
 const htmlGaps = htmlMissing();
 assert.deepEqual(htmlGaps, [], `index.html içinde EN karşılığı olmayan ${htmlGaps.length} metin:\n  ${htmlGaps.join('\n  ')}`);
+
+const sinkGaps = sinkMissing();
+assert.deepEqual(sinkGaps, [], `renderer sink'lerinde EN karşılığı olmayan ${sinkGaps.length} metin:\n  ${sinkGaps.join('\n  ')}`);
 
 // Sabit sinyal metinleri için kademeli sınır: sayı yalnız AZALABİLİR.
 const SIGNAL_BASELINE = Number(fs.readFileSync(path.join(__dirname, 'fixtures', 'i18n-signal-baseline.txt'), 'utf8').trim());

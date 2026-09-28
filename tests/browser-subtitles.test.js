@@ -1205,6 +1205,28 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(coreLock, /^castlabs-evs==1\.3\.2$/m, 'DRM EVS bağımlılığı kilit dosyasında eksik');
 });
 
+test('R178: türetilen dosya adları Windows ayrılmış kökleri ve geçersiz kuyrukları ayıklar', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const helper = new Function(
+    `${main.slice(main.indexOf('function windowsSafeFileName('),
+      main.indexOf('function startJobLog('))}; return windowsSafeFileName;`,
+  )();
+  // Ayrılmış aygıt kökleri uzantıdan bağımsız geçersizdir.
+  for (const reserved of ['CON', 'nul', 'Aux', 'prn', 'COM3', 'lpt9']) {
+    assert.equal(helper(`${reserved}.srt`), `_${reserved}.srt`, `${reserved} kökü korunmalı değil`);
+    assert.equal(helper(reserved), `_${reserved}`);
+  }
+  // Sondaki nokta ve boşluk kabuk tarafından kırpılır; salt-nokta girdi yedeğe düşer.
+  assert.equal(helper('bölüm.'), 'bölüm');
+  assert.equal(helper('...'), 'dosya');
+  assert.equal(helper('  '), 'dosya');
+  // Geçerli adlar olduğu gibi geçer (Türkçe ve iç nokta bozulmaz).
+  assert.equal(helper('Dizi Adı.S01E03'), 'Dizi Adı.S01E03');
+  assert.equal(helper('çğışöü i'), 'çğışöü i');
+  // Otomatik web-altyazı kayıt yolu da aynı korumayı kullanır.
+  assert.match(main, /const title = windowsSafeFileName\(rawTitle\.slice\(0, 90\), 'web-altyazi'\)/);
+});
+
 (async () => {
   for (const { name, fn } of tests) {
     try {

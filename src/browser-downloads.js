@@ -3,7 +3,7 @@ const path = require('node:path');
 
 // Only the dedicated browser partition is attached. No URLs/cookies are kept.
 // Terminal records retain plain metadata, never DownloadItem/WebContents objects.
-function createBrowserDownloads({ publish, canStart = () => true, exists, reveal,
+function createBrowserDownloads({ publish, canStart = () => true, exists, reveal, dialogText,
   loadRecords, saveRecords, maxActive = 8, maxRecords = 100, delay = 250 } = {}) {
   const sessions = new WeakSet();
   const records = new Map();
@@ -55,7 +55,8 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
       return;
     }
     // Do not setSavePath: keep Electron's native save dialog and overwrite consent.
-    item.setSaveDialogOptions({ title: 'İndirilen dosyayı kaydet', buttonLabel: 'Kaydet' });
+    const dl = dialogText || ((tr) => tr);
+    item.setSaveDialogOptions({ title: dl('İndirilen dosyayı kaydet', 'Save downloaded file'), buttonLabel: dl('Kaydet', 'Save') });
     const id = randomUUID();
     const row = { id, filename: String(item.getFilename() || 'Dosya').slice(0, 300),
       state: 'progressing', received: 0, total: 0, path: '', active: true,

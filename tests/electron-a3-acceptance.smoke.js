@@ -90,9 +90,20 @@ async function closeCdpClient(client) {
   });
 }
 
+// "Promise was collected" flake koruması: awaitPromise'li Runtime.evaluate'te
+// V8, beklenen promise'i heap'te referanssız görüp GC ile toplayabiliyor
+// (sıralı smoke koşusunda bellek baskısı büyüyünce). Promise'i çözülene dek
+// global kayda sabitle — yan etkili ifade tekrar koşmasın diye retry değil,
+// tutma kullanılır.
+function anchorEvalExpression(expression) {
+  return `(function(){var p=Promise.resolve((${expression}));`
+    + `var a=(globalThis.__cdpAnchor=globalThis.__cdpAnchor||[]);a.push(p);`
+    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);}).catch(function(){});return p;})()`;
+}
+
 async function evaluate(client, expression, timeout = 15000, extra = {}) {
   const result = await withTimeout(client.call('Runtime.evaluate', {
-    expression,
+    expression: anchorEvalExpression(expression),
     awaitPromise: true,
     returnByValue: true,
     ...extra,
@@ -238,7 +249,7 @@ async function run() {
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.writeFileSync(path.join(userDataDir, 'settings.json'), JSON.stringify({
     settingsVersion: 3, glossary: [],
-    ui: { browserHardwareAcceleration: false },
+    ui: { browserHardwareAcceleration: false, uiLocale: 'tr' },
     manga: { endpointPreset: 'custom', customBaseUrl: `http://127.0.0.1:${server.address().port}` },
   }));
 
@@ -586,11 +597,23 @@ async function run() {
 
 async function cleanup() {
   if (electronProcess && electronProcess.exitCode == null) {
-    spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
-      windowsHide: true,
-      stdio: 'ignore',
-      timeout: 10000,
-    });
+    if (process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/pid', String(electronProcess.pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+        timeout: 10000,
+      });
+    } else {
+      // POSIX'te taskkill yok — SIGKILL göndermezsek süreç süitten sonra
+      // öksüz kalıp sonraki smoke'larla kaynak çekişmesine girer.
+      try { electronProcess.kill('SIGKILL'); } catch (_) {}
+      try {
+        await Promise.race([
+          new Promise((resolve) => electronProcess.once('exit', resolve)),
+          new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
+      } catch (_) {}
+    }
   }
   electronProcess = null;
   if (server) {

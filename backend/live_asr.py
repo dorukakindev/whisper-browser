@@ -44,7 +44,7 @@ def parse_chunk_offset(command):
 
 def parse_chunk_rate(command):
     rate = float(command.get("rate", 1))
-    if not math.isfinite(rate) or not 0.25 <= rate <= 4:
+    if not math.isfinite(rate) or not 0.0625 <= rate <= 16:
         raise ValueError("Oynatma hızı geçersiz")
     return rate
 

@@ -1,8 +1,94 @@
+Güncel çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.md) — R192 derin denetim: transcribe.py tam kapsam kapandı + renderer dev fonksiyonlar (temiz, ürün kodu değişmedi)
+Önceki çalışma: [docs/devir/2026-09-28-1400.md](docs/devir/2026-09-28-1400.md) — R191 Devin Review needs_human artıkları: rapor 167 modül sayımı + rapor 168 başlık iddiası düzeltildi
+Önceki çalışma: [docs/devir/2026-09-28-1200.md](docs/devir/2026-09-28-1200.md) — R190 Devin Review toplu triage: PR 84–117 aralığındaki 91 bulgudan 31 bug/security'nin tamamı doğrulanıp düzeltildi
+Önceki çalışma: [docs/devir/2026-09-28-0900.md](docs/devir/2026-09-28-0900.md) — R189 tam smoke doğrulama: çeviri menüsü anchor fix + CDP/POSIX/nested-spawn test altyapısı sertleştirme
+Önceki çalışma: [docs/devir/2026-09-28-0700.md](docs/devir/2026-09-28-0700.md) — R188 Electron smoke seti triage: 7/7 yeşil (4 ürün düzeltmesi + 6 smoke sözleşme uyarlaması)
+Önceki çalışma: [docs/devir/2026-09-28-0520.md](docs/devir/2026-09-28-0520.md) — R187 yakalama/indirme dayanıklılık denetimi (bug yok) + 600/80 döngü soak GEÇTİ
+Önceki çalışma: [docs/devir/2026-09-28-0345.md](docs/devir/2026-09-28-0345.md) — R186 Windows doğrulama bulguları: TR diyalog başlıkları (dt) + ~80 i18n girişi + Sekme korumalı modal EN
+Önceki çalışma: [docs/devir/2026-09-28-0310.md](docs/devir/2026-09-28-0310.md) — R185 innerHTML XSS + localStorage kota + TODO/FIXME süpürmesi (writeSourceEdits sarmalı)
+Önceki çalışma: [docs/devir/2026-09-28-0230.md](docs/devir/2026-09-28-0230.md) — R184 preload↔renderer↔main IPC yüzeyi + dormant TV tam-ekran düğmesi bağlandı
+Önceki çalışma: [docs/devir/2026-09-28-0210.md](docs/devir/2026-09-28-0210.md) — R183 kaynak envanteri + tam-klasör ölü işlev taraması (6 ölü işlev silindi)
+Önceki çalışma: [docs/devir/2026-09-28-0110.md](docs/devir/2026-09-28-0110.md) — R182 backend yan araçları ikinci geçiş (13 modül temiz) + browser-dialogue Türkçe hata mesajı + yeni test dosyası
+Önceki çalışma: [docs/devir/2026-09-28-0030.md](docs/devir/2026-09-28-0030.md) — R181 araç/test altyapısı denetimi: Windows paketi 22MB+ iç yüzey sızıntısı kapandı + 3 test-altyapı düzeltmesi + ignore ratchet'i
+Önceki çalışma: [docs/devir/2026-09-27-2355.md](docs/devir/2026-09-27-2355.md) — R180 54 hiç-raporlanmamış dosya denetimi + sınırsız gövde okuma sınıfı (5 yüzey akış-sınırlı okumaya çevrildi)
+Önceki çalışma: [docs/devir/2026-09-27-2340.md](docs/devir/2026-09-27-2340.md) — R179 DeArrow topluluk başlıkları + RYD beğenmeme sayısı (opt-in, oynatıcıya açık video)
+Önceki çalışma: [docs/devir/2026-09-27-2200.md](docs/devir/2026-09-27-2200.md) — R178 Windows dosya-adı kuralları (ayrılmış kökler + kuyruk nokta) + preload denetimi temiz
+Önceki çalışma: [docs/devir/2026-09-27-2135.md](docs/devir/2026-09-27-2135.md) — R176 IPC ratchet: 16 unguarded = {} ile güvenli, 0 sabitlendi + .on gönderici ratcheti
+Önceki çalışma: [docs/devir/2026-09-27-2125.md](docs/devir/2026-09-27-2125.md) — R175 T9 Windows UI bulguları: klavye köprüsü + EN dizgiler
+Önceki çalışma: [docs/devir/2026-09-27-2115.md](docs/devir/2026-09-27-2115.md) — R153 dilim-3 (7 iç yardımcı → helpers) + dışlama kuralı v2
+Önceki çalışma: [docs/devir/2026-09-27-1905.md](docs/devir/2026-09-27-1905.md) — R172 renderer.js dilim-2 (9 sekme işlevi → helpers) + sinyal taraması kapsam düzeltmesi
+Önceki çalışma: [docs/devir/2026-09-27-1855.md](docs/devir/2026-09-27-1855.md) — T12 birleşik regresyon raporu + T9 Windows kabul oturumu başlatıldı
+Önceki çalışma: [docs/devir/2026-09-27-1845.md](docs/devir/2026-09-27-1845.md) — R171 T2 derin zamanlama: canlı DASH $Time$ PTO + 4x üstü hız kelepçeleri (prob/worklet/HLS)
+Önceki çalışma: [docs/devir/2026-09-27-1840.md](docs/devir/2026-09-27-1840.md) — R153 renderer.js modülleştirme: ilk doğrulanmış dilim (63 işlev → renderer-helpers.js)
+Önceki çalışma: [docs/devir/2026-09-27-1835.md](docs/devir/2026-09-27-1835.md) — R169 flaky determinizm: sabit uykular → koşul yoklaması
+Önceki çalışma: [docs/devir/2026-09-27-1812.md](docs/devir/2026-09-27-1812.md) — R150 canlı sağlayıcı: Stremio seri URL bug + ISO 639 alias bug (ikisi de canlıda yakalandı)
+Önceki çalışma: [docs/devir/2026-09-27-1740.md](docs/devir/2026-09-27-1740.md) — R171 Windows bulguları: ctranslate2 pin + import smoke + GPU rozeti
+Önceki çalışma: [docs/devir/2026-09-27-1707.md](docs/devir/2026-09-27-1707.md) — R170 katalog performansı: planImport O(n×m)→indeksli (14.6s→56ms) + arama katlama önbelleği
+Önceki çalışma: [docs/devir/2026-09-27-1705.md](docs/devir/2026-09-27-1705.md) — R149 gerçek E2E transkripsiyon (tiny/CPU doğrulandı + opt-in test)
+
+Önceki çalışma: [docs/devir/2026-09-27-1645.md](docs/devir/2026-09-27-1645.md) — R154 Electron güvenlik: global webview reddi + statik ratchet
+
+Önceki çalışma: [docs/devir/2026-09-27-1625.md](docs/devir/2026-09-27-1625.md) — R168 yt-dlp güncelleyici: dosya-adı traversal + IP literal SSRF kapıları
+
+Önceki çalışma: [docs/devir/2026-09-27-1605.md](docs/devir/2026-09-27-1605.md) — R167 manga/OCR: localhost. FQDN SSRF düzeltmesi + 65 kontrol
+
+Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
+
+Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
+
+Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
+
 # Devir notları indeksi
 
-Güncel çalışma: [2026-09-27 04:38 — Devin dalları ve güncel master denetimi; zorunlu cue temizliği sonrası önizleme eşitlemesi, R133](docs/devir/2026-09-27-0438.md).
+Önceki çalışma: [2026-09-27 14:05 — R163 kaynak sızıntı envanteri + ratchet (bug yok)](docs/devir/2026-09-27-1405.md).
 
-Güncel çalışma: [2026-09-26 23:38 — R132 derin denetim: ~200 yüzey okundu, doğrulanmış yeni bug bulunmadı; kapsam haritası + Windows el-kontrol listesi BROWSER_BUG_REPORT_132.md'de](docs/devir/2026-09-26-2338.md).
+Önceki çalışma: [2026-09-27 13:50 — R162 unhandled-rejection + atomik-yazma kalan süpürme ratchet'ları (bug yok)](docs/devir/2026-09-27-1350.md).
+
+Önceki çalışma: [2026-09-27 13:35 — R161 NaN/Infinity kuyruk sızması düzeltmesi + süpürme ratchet'ları](docs/devir/2026-09-27-1335.md).
+
+Önceki çalışma: [2026-09-27 13:20 — R160 UTF-8/Türkçe yol E2E ratchet (burnin/kuyruk/BOM; bug yok)](docs/devir/2026-09-27-1320.md).
+
+Önceki çalışma: [2026-09-27 13:05 — R159 NDJSON dayanıklılığı (sınır/edge ratchet + fuzz; bug yok)](docs/devir/2026-09-27-1305.md).
+
+Önceki çalışma: [2026-09-27 12:50 — R158 retry/backoff stres (18 kontrol; toplam-bekleme tavanı, cap, kenarlar)](docs/devir/2026-09-27-1250.md).
+
+Önceki çalışma: [2026-09-27 12:35 — R157 kuyruk bozulma simülasyonu (25k kontrol, değişmezlik ratchet'i; bug yok)](docs/devir/2026-09-27-1235.md).
+
+Önceki çalışma: [2026-09-27 12:18 — R156 settings.json bozuk-değer doğrulaması (tip kapısı + forenzik yedek + uyarı)](docs/devir/2026-09-27-1218.md).
+
+Önceki çalışma: [2026-09-27 12:00 — R155 .bat denetimi (start.bat setlocal + yardımcı kurulum pause'lu hata yolları)](docs/devir/2026-09-27-1200.md).
+
+Önceki çalışma: [2026-09-27 11:45 — R152 timecode kenar-durum kilitleri (33 kontrol: parseTime/parseTimedBlocks/formatSrtTime sözleşmesi; bug yok)](docs/devir/2026-09-27-1145.md).
+
+Önceki çalışma: [2026-09-27 11:15 — R148 yerel abonelik RSS akışı (oturumsuz feeds/videos.xml son videolar; subs:rssFeed IPC + parser + UI bölümü)](docs/devir/2026-09-27-1115.md).
+
+Önceki çalışma: [2026-09-27 14:10 — R147 gauntlet bakiyesi (T8: 222 IPC işleyicisi yetki denetimi + ratchet; T6: publishBrowserTrackNow atomik yazı); rapor 141](docs/devir/2026-09-27-1410.md).
+
+Önceki çalışma: [2026-09-27 13:20 — R146 öğrenme modları cilası (O tuşu politika çevrimi, sahne rozeti + ↻ N/M ilerleme, altyazısız OSD geri bildirimi)](docs/devir/2026-09-27-1320.md).
+
+Önceki çalışma: [2026-09-27 12:10 — R145 soak ölçüm sertleştirme (faz-ayrık heap eğimi, yazıcı-bazlı disk bütçesi, aynı-durum dinleyici probu; gerçek sızıntı yok; diff3 marker silindi + CI yasağı); rapor 140](docs/devir/2026-09-27-1210.md).
+
+Önceki çalışma: [2026-09-27 10:50 — R144 ölü kod (normalizeAnchorText + resetCueRaw; serialize-scope sınırı belgelendi)](docs/devir/2026-09-27-1050.md).
+
+Önceki çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
+
+Önceki çalışma: [2026-09-27 10:18 — R140 npm audit (temiz) + R141 startup perf (12ms, aksiyon yok) + R142 CSS token (447→445); rapor 139](docs/devir/2026-09-27-1018.md).
+
+Önceki çalışma: [2026-09-27 10:05 — R139 birim-test kapsamı (browser-mini-player 8 senaryo; kalan testsiz modül yalnız subprocess'li browser-dialogue); rapor 138](docs/devir/2026-09-27-1005.md).
+
+Önceki çalışma: [2026-09-27 09:30 — R137 parser fuzz turu: 160k vaka temiz + CI ratchet (subtitle-parser-fuzz.test.js, 50k deterministik vaka); rapor BROWSER_BUG_REPORT_136.md](docs/devir/2026-09-27-0930.md).
+
+Önceki çalışma: [2026-09-27 09:08 — R136 i18n kapanış turu: 348 yeni EN sözlük girişi (renderer sink'leri + main.js IPC metinleri) + i18n-coverage sink ratchet'i; rapor BROWSER_BUG_REPORT_135.md](docs/devir/2026-09-27-0908.md).
+
+Önceki çalışma: [2026-09-27 08:48 — R135 dokümantasyon temizliği: AGENTS.md sayaç 134, kök raporlar docs/raporlar'a taşındı, INDEX.md indeksi (98 rapor), README eksik özellik satırları](docs/devir/2026-09-27-0848.md).
+
+Önceki çalışma: [2026-09-27 08:13 — R134: derin denetim devamı — eski-kodlama tahmininin çift taraması kaldırıldı + seyrek-bozuk UTF-8 sıralaması kasıtlı diye belgelendi; ~25 modül temiz çıktı; rapor BROWSER_BUG_REPORT_134.md](docs/devir/2026-09-27-0813.md).
+
+Önceki çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
+
+Önceki çalışma: [2026-09-27 04:38 — Devin dalları ve güncel master denetimi; zorunlu cue temizliği sonrası önizleme eşitlemesi, R133](docs/devir/2026-09-27-0438.md).
+
+Önceki çalışma: [2026-09-26 23:38 — R132 derin denetim: ~200 yüzey okundu, doğrulanmış yeni bug bulunmadı; kapsam haritası + Windows el-kontrol listesi BROWSER_BUG_REPORT_132.md'de](docs/devir/2026-09-26-2338.md).
 
 Önceki çalışma: [2026-09-26 18:38 — PR60 E2E bulgu düzeltmeleri: quick-pop popover'ları rAF'de `event.currentTarget` null'una takılıp ekran dışında kırpılıyordu (bloklayıcı düzeltildi); sabit sekme genişliği, omnibox URL tekilleştirmesi, kind etiketi i18n](docs/devir/2026-09-26-1838.md).
 

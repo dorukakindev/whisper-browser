@@ -13,6 +13,16 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 
+// Sabit uyku yerine koşul yoklaması — CI yükü altında keyfi pencere dar
+// gelip kararsızlık üretir. Koşul doğana dek 5ms adımlarla bekler.
+async function waitFor(check, label, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error(`waitFor zaman aşımı: ${label}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 function sliceBetween(source, start, end) {
   const a = source.indexOf(start);
   const b = source.indexOf(end, a + start.length);
@@ -98,7 +108,9 @@ test('çeviri zamanlayıcısı: devre kesici sonrası "yeniden dene" tüm izi de
   });
   scheduler.setSentences(sentences);
   scheduler.updatePlayhead(0);
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  // Sabit uyku yerine koşul yoklaması: devre kesicinin açılması için 3
+  // ardışık 503 yeter — CI yükü altında 250ms dar gelebilir.
+  await waitFor(() => scheduler.providerFailure, 'devre kesici açılmalıydı');
   assert.ok(scheduler.providerFailure, 'devre kesici açılmalıydı');
   fail = false; calls = 0;
   const queued = scheduler.retryFailed();
@@ -128,7 +140,7 @@ test('çeviri zamanlayıcısı: yeniden denemeden sonra tek geçici 503 devreyi 
   });
   scheduler.setSentences(sentences);
   scheduler.completeAll();
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await waitFor(() => scheduler.providerFailure, 'devre kesici açılmalıydı');
   assert.ok(scheduler.providerFailure);
   mode = 'flaky';
   scheduler.retryFailed();
@@ -233,7 +245,8 @@ test('adres normalizasyonu: "kelime:" aramaları ve yerel ağ adresleri', () => 
 test('görsel kaydetme: uzantı sunucunun bildirdiği türden gelir', () => {
   const main = read('src/main.js');
   const fnSource = sliceBetween(main, "function browserImageFileName(rawUrl, contentType = '') {", 'async function saveBrowserContextImage(');
-  const browserImageFileName = new Function('path', `${fnSource}; return browserImageFileName;`)(path);
+  const safeName = new Function(`${sliceBetween(main, 'function windowsSafeFileName(', 'function startJobLog(')}; return windowsSafeFileName;`)();
+  const browserImageFileName = new Function('path', 'windowsSafeFileName', `${fnSource}; return browserImageFileName;`)(path, safeName);
   assert.equal(browserImageFileName('https://x/photo.jpg', 'image/webp'), 'photo.webp');
   assert.equal(browserImageFileName('https://x/i/abc', 'image/avif'), 'abc.avif');
   assert.equal(browserImageFileName('https://x/favicon', 'image/x-icon'), 'favicon.ico');

@@ -326,7 +326,9 @@ app.whenReady().then(async () => {
   openedUrls.length = 0;
   await run(`startYoutubeBrowserFlow();return true`);
   await until(async () => openedUrls.length > 0, 'openExternal URL 2');
-  await run(`closeYoutubeLogin();return true`);   // kullanıcı iptali
+  // R122: modalı kapatmak loopback akışını iptal ETMEZ (arka planda bekler);
+  // gerçek kullanıcı iptali "Vazgeç" düğmesidir — ytDeviceCancel click.
+  await run(`document.getElementById('ytDeviceCancel').click();return true`);   // kullanıcı iptali
   await delay(300);
   // Loopback dinleyicisi kapatılmış olmalı — doğru state ile bile cevap düşer.
   const cbUrl2 = new URL(new URL(openedUrls[0]).searchParams.get('redirect_uri'));

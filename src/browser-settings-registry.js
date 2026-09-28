@@ -184,6 +184,22 @@ const entries = Object.freeze([
     scope: 'global',
   },
   {
+    id: 'browserDeArrowEnabled',
+    label: 'DeArrow topluluk başlığı',
+    description: 'Açık YouTube videosunun başlığını topluluk oylamasıyla seçilmiş DeArrow başlığıyla göster.',
+    category: 'privacy',
+    keywords: ['dearrow', 'başlık', 'clickbait', 'youtube', 'topluluk'],
+    scope: 'global',
+  },
+  {
+    id: 'browserRydDislikes',
+    label: 'Beğenmeme sayısını göster (RYD)',
+    description: 'Açık YouTube videosu için Return YouTube Dislike beğenme/beğenmeme sayılarını oynatıcı başlığında göster.',
+    category: 'privacy',
+    keywords: ['ryd', 'dislike', 'beğenmeme', 'youtube', 'oy'],
+    scope: 'global',
+  },
+  {
     id: 'browserSponsorCategories',
     label: 'SponsorBlock kategorileri',
     description: 'Atlanacak sponsor, tanıtım, giriş ve diğer bölüm türlerini seç.',
