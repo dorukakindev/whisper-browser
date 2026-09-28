@@ -3726,11 +3726,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return payload
 
     # --- ONBELLEK: daha once cevrilmis bloklar tekrar GONDERILMEZ ---
+    refine_enabled = bool(getattr(args, "translate_refine", False))
     cache_on = getattr(args, "translate_cache", True)
     cache_file = translate_cache_path(args) if cache_on else None
     cache = load_translate_cache(cache_file) if cache_on else {}
     cached_idx = set()
     pending_groups = []
+    refine_pending_groups = []
     group_keys = {group[0]: group_key(group) for group in groups}
     for group in groups:
         if all(i in done_idx for i in group):
@@ -3758,6 +3760,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             cached_idx.update(i for i in group if i not in precompleted_idx)
             done_idx.update(group)
             records[group[0]] = record
+            # 'refined: false' isabetler: 1. geçiş metni hazır ama 2. geçiş
+            # henüz onaylamamış — çeviriyi ödemeden yalnız refine tekrarlanır.
+            if refine_enabled and isinstance(hit, dict) \
+                    and hit.get('refined') is False:
+                refine_pending_groups.append(group)
         else:
             pending_groups.append(group)
 
@@ -3766,11 +3773,18 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # iş sonunda yazılıyordu; iptal/çökmede ödenen tüm çeviriler kayboluyordu.
     tm_pending = []
 
-    def stage_group_cache(group):
+    def stage_group_cache(group, refined=None):
         if not (cache_on and cache_file):
             return
         key = group_keys[group[0]]
-        value = out_texts[group[0]] if len(group) == 1 else records[group[0]]
+        if len(group) == 1:
+            value = {"text": out_texts[group[0]], "parts": [out_texts[group[0]]]}
+        else:
+            value = dict(records[group[0]])
+        # 2. geçiş açıkken 'refined: false' = 1. geçiş metni, henüz onaysız.
+        # Sonraki koşu çevirisini önbellekten alıp yalnız refine'ı tekrarlar;
+        # geçici refine hatası artık kalıcı 'kaba çeviri' demek değildir.
+        value["refined"] = (not refine_enabled) if refined is None else bool(refined)
         if cache.get(key) != value:
             cache[key] = value
             cache_dirty.add(group[0])
@@ -3830,7 +3844,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         records[index] = {"text": entries[index][2], "parts": [entries[index][2]]}
         unchanged_idx.add(index)
         done_idx.add(index)
-        stage_group_cache(group)
+        stage_group_cache(group, refined=True)
     if unchanged_idx:
         pending_groups = [g for g in pending_groups if g[0] not in unchanged_idx]
         log(f"{len(unchanged_idx)} satır çevrilmeden korundu "
@@ -3841,7 +3855,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         log(f"Ceviri onbellegi: {len(cached_idx)}/{len(entries)} blok hazir, "
             f"{len(precompleted_idx)} blok onceki ceviriyle korundu, "
             f"{len(pending)} blok cevrilecek")
-    if not pending:
+    if not pending and not refine_pending_groups:
         log("Tum bloklar onbellekten geldi - API'ye hic istek gonderilmedi.", "success")
         emit("llm_progress", percent=100.0, done=len(entries), failed=0,
              total=len(entries), stage="translate")
@@ -4459,6 +4473,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
     # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
     # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
+    refined_idx = set()
     if getattr(args, "translate_refine", False):
         emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
         log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
@@ -4466,7 +4481,6 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if glossary_terms:
             refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
         refined = list(out_texts)
-        refined_idx = set()
         r_counters = {"changed": 0, "failed": 0}
         r_rejections = {}
 
@@ -4514,7 +4528,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             return n_changed, confirmed, rejected
 
         refine_chunks = pack_sentence_groups(
-            [group for group in pending_groups if all(i in done_idx for i in group)], CHUNK_SIZE)
+            [group for group in pending_groups if all(i in done_idx for i in group)]
+            + refine_pending_groups, CHUNK_SIZE)
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             futs = {ex.submit(refine_task, ch): ch for ch in refine_chunks}
             for fut in as_completed(futs):
@@ -4549,10 +4564,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # artık kaydedilir (eskiden cacheable_idx'in dışında kalıp her yeniden
     # çalıştırmada tekrar ücretlendiriliyorlardı).
     try:
-        for group in pending_groups:
+        for group in pending_groups + refine_pending_groups:
             if not all(i in done_idx for i in group):
                 continue
-            stage_group_cache(group)
+            stage_group_cache(
+                group,
+                refined=not refine_enabled or all(i in refined_idx for i in group))
             stage_tm_rows(group)
         flush_cache_and_tm(force=True)
         if cache_added_total[0]:
