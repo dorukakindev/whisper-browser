@@ -31,6 +31,13 @@ async function main() {
   if (!result.ok) {
     throw new Error(`Packaged app exited before the smoke window (${result.error?.message || result.code || result.signal || 'unknown'}). ${stderr}`);
   }
+  // Süreç 6 saniye yaşasa da main içinde fırlayan bir hata diyaloğu donuk
+  // bir pencere bırakır; Electron'un bilinen ölümcül stderr kalıplarını
+  // başarısızlık say.
+  const fatal = stderr.match(/FATAL|Uncaught (?:Exception|Error)|Cannot find module|A JavaScript error occurred|error getting talents/i);
+  if (fatal) {
+    throw new Error(`Packaged app stayed alive but printed a fatal marker (${fatal[0]}). ${stderr}`);
+  }
   // Yarış: pencere tamamlandığında süreç kendi kendine çıkmış olabilir; ölü
   // çocuğa exit beklemek sonsuza dek asılırdı.
   if (child.exitCode === null && child.signalCode === null) {

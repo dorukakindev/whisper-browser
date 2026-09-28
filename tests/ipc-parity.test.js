@@ -121,18 +121,21 @@ for (const m of mainSrc.matchAll(pat)) {
 assert.deepStrictEqual(GUARDLESS_SIDE_EFFECT, [],
   `guard öncesi yan etki yapan handler'lar: ${GUARDLESS_SIDE_EFFECT}`);
 
-// 7) ipcMain.on gönderici doğrulaması (R176): her `.on` dinleyicisinin ilk
-//    bölümü göndericiyi doğrulamalı — sender/senderFrame karşılaştırması,
-//    authorized* yardımcısı, veya el sıkışmada yakalanan pending kaydı.
-//    (Yabancı pencereden gelen sahte send() frame/contents karşılaştırmasıyla
-//    elenir; bu olmadan herhangi bir misafir içerik kanalı tetikleyebilir.)
+// 7) ipcMain.on gönderici doğrulaması (R176/R190): her `.on` dinleyicisinin ilk
+//    bölümü göndericiyi doğrulamalı. Eski ratchet 'sender'/'pending' kelimesinin
+//    geçmesini yeterli sayıyordu — bir yorum satırındaki "sender" bile bunu
+//    atlatabilirdi. Şimdi gerçek doğrulama biçimleri aranır:
+//    sender/senderFrame karşılaştırması (!== / ===), bilinen doğrulayıcı
+//    yardımcılar (authorizedBrowserSender, browserDiscoveryFrameAllowed), veya
+//    el sıkışmada bekleyen kayda karşı denetim (pending.<alan> / .get(...)).
 const ON_UNVERIFIED = [];
 const onPat = /ipcMain\.on\(\s*'([^']+)'/g;
+const ON_VERIFY = /\bsenderFrame\b|\bsender\b\s*(?:!==|===)|\bauthorized\w*\(|\bbrowserDiscoveryFrameAllowed\b|\bpending\w*\s*(?:\.|=\s*[\w.]+\.get\(|!==|===)/;
 for (const f of files) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');
   for (const m of src.matchAll(onPat)) {
     const head = src.slice(m.index + m[0].length, m.index + m[0].length + 500);
-    if (!/sender|authorized|pending/i.test(head)) ON_UNVERIFIED.push(`${f}:${m[1]}`);
+    if (!ON_VERIFY.test(head)) ON_UNVERIFIED.push(`${f}:${m[1]}`);
   }
 }
 assert.deepStrictEqual(ON_UNVERIFIED, [],

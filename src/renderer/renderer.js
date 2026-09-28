@@ -60,6 +60,7 @@ const state = {
   stopAfterCurrent: false, // kuyruk: mevcut iş bitince dur
   previewSegs: [],      // önizlemedeki segmentler ({start, end, text}) — pano kopyası için
   gpuVramMib: null,     // toplam GPU VRAM (MiB) — yetersizlik uyarısı için
+  gpuMissing: false,    // nvidia-smi yanıtsız: seçim 'cuda' kalsa da GPU yok (rozet dürüstlüğü)
   lastJobVideo: null,   // son işin yerel video yolu (burn-in için; YouTube ise null)
   lastQualityReport: null, // son işin kalite raporu (sonuç modalında gösterilir)
   activeOutputJob: null, // done çıktısını doğru medya/rol ile bağlamak için iş anlık görüntüsü
@@ -2475,12 +2476,23 @@ function scheduleSave() {
 });
 $('primarySettingsOpen')?.addEventListener('toggle', scheduleSave);
 
+// DeArrow/RYD anahtarları kalıcı listede ama etkileri oynatıcıdaki açık
+// videoya anında yansımalı: açılınca ekstra çek, kapanınca rozeti/topculuk
+// başlığını kaldır (yeniden yükleme beklenmez).
+for (const id of ['browserDeArrowEnabled', 'browserRydDislikes']) {
+  $(id)?.addEventListener('change', () => { void maybeFetchPlayerVideoExtras(); });
+}
+
 for (const id of ['uiLocale', 'playerUiLocale']) {
   const control = $(id);
   if (!control) continue;
   control.value = globalThis.UiLocale?.get() || 'en';
   control.addEventListener('change', () => {
     window.UiLocale?.set(control.value);
+    // Debounce'lu scheduleSave ana süreçteki ayar dosyasına geç yazar; bu
+    // arada açılan yerel diyalogların eski dille gelmesini önlemek için dili
+    // ayrıca anında bildiriyoruz.
+    if (id === 'uiLocale') window.api?.notifyUiLocale?.(control.value);
     if (id === 'playerUiLocale') scheduleSave();
   });
 }
@@ -2961,15 +2973,18 @@ const initialSettingsReady = (async () => {
         state.gpuVramMib = env.vramMib || null;
         updateGpuBadge();
         logLine(`GPU: ${env.gpu.trim()}`, 'info');
-      } else if ($('device')?.value === 'cuda') {
-        // nvidia-smi yok (GPU'suz veya sürücüsüz makine): rozetin "CUDA · float16"
-        // gibi durmasını önle. Backend auto'da da cpu'ya düşer; burada seçimi
-        // dürüst gösterip kullanıcıyı uyarırız.
-        $('device').value = 'auto';
+      } else {
+        // nvidia-smi yok (GPU'suz veya sürücüsüz makine): seçimi kullanıcının
+        // tercihinde bırakıp rozette durumu dürüst işaretle — tercihi 'auto'ya
+        // ezmek kaydedilmiş ayarı silerdi. Backend 'cuda' seçiminde zaten CPU'ya
+        // düşer.
+        state.gpuMissing = true;
         updateGpuBadge();
-        logLine(interfaceChoice(
-          '⚠ NVIDIA GPU algılanmadı (nvidia-smi yanıtı yok) — cihaz Otomatik\'e alındı; CPU\'ya düşecek.',
-          '⚠ No NVIDIA GPU detected (no nvidia-smi response) — device set to Auto; will fall back to CPU.'), 'warn');
+        if ($('device')?.value !== 'cpu') {
+          logLine(interfaceChoice(
+            '⚠ NVIDIA GPU algılanmadı (nvidia-smi yanıtı yok) — işlem CPU\'ya düşecek.',
+            '⚠ No NVIDIA GPU detected (no nvidia-smi response) — jobs will fall back to CPU.'), 'warn');
+        }
       }
       if (env.gpuDiagnostics) {
         renderBrowserGpuDiagnostics(env.gpuDiagnostics);
@@ -3126,9 +3141,13 @@ function updateGpuBadge() {
   if (!el) return;
   const dev = $('device') ? $('device').value : 'cuda';
   const ct = $('computeType') ? $('computeType').value : 'float16';
-  // CPU seçiliyken GPU adı göstermek yanıltıcı olur
-  const devLabel = dev === 'cpu' ? 'CPU' : (state.gpuName || (dev === 'cuda' ? 'CUDA' : 'Otomatik'));
-  el.textContent = `${devLabel} · ${ct}`;
+  // CPU seçiliyken GPU adı ve hesap tipi göstermek yanıltıcı olur; CUDA
+  // seçiliyken ama nvidia-smi yanıt vermemişse algılanmadığını açık yaz.
+  const devLabel = dev === 'cpu' ? 'CPU'
+    : dev === 'cuda' && state.gpuMissing
+      ? interfaceChoice('CUDA · algılanmadı', 'CUDA · not detected')
+      : (state.gpuName || (dev === 'cuda' ? 'CUDA' : 'Otomatik'));
+  el.textContent = dev === 'cpu' ? devLabel : `${devLabel} · ${ct}`;
   // VRAM uyarısı: tahmin toplam VRAM'in %85'ini aşıyorsa rozeti vurgula
   const badge = $('gpuBadge');
   if (badge && dev !== 'cpu' && state.gpuVramMib) {
@@ -3157,6 +3176,8 @@ document.addEventListener('ui-locale-change', () => {
   // Sekme şeridi observer'ın yok sayılan bölgesinde: 'New tab' etiketi ve
   // sekme rozetleri yalnız burada yeniden çizilince yeni dile döner.
   renderBrowserTabs();
+  // Geçmiş satırlarındaki 'bugün/dün/N gün önce' göreli damgaları locale'i izler.
+  renderHistory();
 });
 
 // ===== Clear buttons =====
@@ -5908,7 +5929,7 @@ function browserTabDisplayRows() {
   for (const tab of player.browserTabs) {
     const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
     if (group) {
-      const key = `${group.name.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}|${group.color}`;
+      const key = `${group.name.toLowerCase()}|${group.color}`;
       if (!grouped.has(key)) grouped.set(key, { group, tabs: [] });
       grouped.get(key).tabs.push(tab);
     }
@@ -5918,7 +5939,7 @@ function browserTabDisplayRows() {
   for (const tab of player.browserTabs) {
     const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
     if (!group) { rows.push({ kind: 'tab', tab }); continue; }
-    const key = `${group.name.toLocaleLowerCase((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR'))}|${group.color}`;
+    const key = `${group.name.toLowerCase()}|${group.color}`;
     if (emitted.has(key)) continue;
     emitted.add(key);
     rows.push({ kind: 'group', key, group, count: grouped.get(key).tabs.length });
@@ -12062,7 +12083,12 @@ function runBrowserShortcut(key, shift = false) {
   if (normalized === 'tab-next' || normalized === 'tab-previous') return runBrowserShortcut('tab', normalized === 'tab-previous');
   if (normalized === 't' && shift) { reopenClosedBrowserTab(); return true; }
   if (normalized === 't') { createBrowserTab(); return true; }
-  if (normalized === 'w') { closeBrowserTab(player.browserActiveTabId); return true; }
+  // Açık bir uygulama diyaloğu varken Ctrl+W sekme kapatmasın.
+  if (normalized === 'w') {
+    if (document.querySelector('dialog[open]')) return true;
+    closeBrowserTab(player.browserActiveTabId);
+    return true;
+  }
   if (normalized === 'r') { void runBrowserChromeCommand('reload'); return true; }
   if (normalized === 'tab') {
     const tabs = visibleBrowserTabsInDisplayOrder();
@@ -12733,28 +12759,50 @@ function updatePlayerMeta() {
 // RYD begenmeme sayisi. Iki kaynak da ayar kutusuna bagli; kapali olan icin
 // istek dahi cikmaz. Yanit gecikirse mediaKey kontroluyle bayat sonuc
 // yeni videonun uzerine yazilmaz.
+// Topluluk başlığı uygulanmadan önceki panel başlığı (özellik kapatılınca
+// geri yüklenebilmesi için) videoId anahtarıyla burada tutulur; başka videoya
+// geçildiğinde kayıt artık geçerli sayılmaz.
+let playerCommunityTitleBase = null;
+
+function restorePlayerCommunityTitle() {
+  if (playerCommunityTitleBase && $('playerTitle')) {
+    $('playerTitle').textContent = playerCommunityTitleBase.base;
+  }
+  playerCommunityTitleBase = null;
+}
+
 async function maybeFetchPlayerVideoExtras() {
   player.videoExtras = null;
+  updatePlayerMeta();
   const keyMatch = String(player.mediaKey || '').match(/^youtube:([A-Za-z0-9_-]{11})$/);
   const sourceUrl = player.ytInfo && String(player.ytInfo.sourceUrl || '');
   const videoId = keyMatch ? keyMatch[1]
     : (sourceUrl ? youtubeVideoId(sourceUrl) : '') || youtubeVideoId(player.originalUrl);
-  if (!videoId || !window.api.getBrowserVideoExtras) return;
   const wantDeArrow = $('browserDeArrowEnabled')?.checked === true;
   const wantRyd = $('browserRydDislikes')?.checked === true;
+  if (!wantDeArrow) restorePlayerCommunityTitle();
+  if (!videoId || !window.api.getBrowserVideoExtras) return;
   if (!wantDeArrow && !wantRyd) return;
   try {
     const res = await window.api.getBrowserVideoExtras(videoId, { dearrow: wantDeArrow, dislikes: wantRyd });
     if (!res || !res.ok || res.videoId !== videoId) return;
-    const stillCurrent = String(player.mediaKey || '').includes(videoId)
-      || (player.ytInfo && String(player.ytInfo.sourceUrl || '').includes(videoId))
-      || String(player.originalUrl || '').includes(videoId);
+    // İstenek gelene dek medya değişmiş olabilir; eşit URL/ID karşılaştırması
+    // `includes` yerine tam kimlik demek: önceki videonun kimliği yeni
+    // medyaKey içinde tesadüfen geçerse bayat veri yazılmaz.
+    const stillCurrent = player.mediaKey === `youtube:${videoId}`
+      || youtubeVideoId(String(player.ytInfo && player.ytInfo.sourceUrl || '')) === videoId
+      || youtubeVideoId(String(player.originalUrl || '')) === videoId;
     if (!stillCurrent) return;
     player.videoExtras = res;
     const communityTitle = res.dearrow && res.dearrow.title;
     if (wantDeArrow && communityTitle && $('playerTitle')) {
       // Ozgun baslik ytInfo'da durur; panel basligi topluluk secimini gosterir.
+      if (!playerCommunityTitleBase || playerCommunityTitleBase.videoId !== videoId) {
+        playerCommunityTitleBase = { videoId, base: $('playerTitle').textContent };
+      }
       $('playerTitle').textContent = communityTitle;
+    } else {
+      restorePlayerCommunityTitle();
     }
     updatePlayerMeta();
   } catch (_) {}
@@ -17253,6 +17301,9 @@ function setMediaKey(key) {
   // Topluluk ekstrasi (DeArrow/RYD) onceki videonun verisini tasimasin.
   if (player.videoExtras && !String(nextKey).includes(String(player.videoExtras.videoId || '\0'))) {
     player.videoExtras = null;
+    // Yeni medya için yeni başlık zaten atanıyor; bayat taban kaydını geri
+    // yükleme — sadece sil ki yeni video adı üzerine eski başlık yazılmasın.
+    playerCommunityTitleBase = null;
   }
   // "Sonraki" düğmesi yeni anahtarla hesaplanmalı — eski mediaKey ile çalıştırmak
   // youtube↔file geçişlerinde kuyruğu göremeyip bayat durum bırakıyordu.
@@ -17481,6 +17532,9 @@ function setPlayerSource(src, title, key, meta) {
   $('playerEmpty').classList.add('hidden');
   if (typeof hideHomeOnVideoLoad === 'function') hideHomeOnVideoLoad();
   if (title) $('playerTitle').textContent = title;
+  // Aynı videoda HLS kurtarma/yeniden bağlanma başlığı orijinal değere
+  // sıfırlar; topluluk başlığı uygulanmışsa üzerine yeniden yaz.
+  if (player.videoExtras?.dearrow?.title) $('playerTitle').textContent = player.videoExtras.dearrow.title;
   player.metaBase = meta && meta.isLive ? 'Canlı yayın · yerel oynatma' : 'Yerel video · çift dilli çalışma';
   updatePlayerMeta();
   void maybeFetchPlayerVideoExtras();
@@ -17710,6 +17764,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
   $('playerEmpty').classList.add('hidden');
   if (typeof hideHomeOnVideoLoad === 'function') hideHomeOnVideoLoad();
   if (title) $('playerTitle').textContent = title;
+  if (player.videoExtras?.dearrow?.title) $('playerTitle').textContent = player.videoExtras.dearrow.title;
   player.metaBase = meta && meta.isLive ? 'Canlı yayın · HLS akışı' : 'YouTube · indirmeden oynatma';
   updatePlayerMeta();
   void maybeFetchPlayerVideoExtras();
@@ -22829,7 +22884,7 @@ $('browserQuickSyncSave')?.addEventListener('click',()=>{
 });
 $('browserQuickSyncCancel')?.addEventListener('click',()=>{cancelBrowserSyncPreview();updateQuickEditorStatus('Senkron önizlemesi kaldırıldı.');});
 function writeSourceEdits(records) {
-  try { localStorage.setItem(browserReviewRecordsKey,JSON.stringify(records)); } catch (_) {}
+  try { localStorage.setItem(browserReviewRecordsKey,JSON.stringify(records)); return true; } catch (_) { return false; }
 }
 function reviewSourceScope(track,path) {
   return browserSubtitleSync.hashText(`${player.mediaKey}|${track?.id || path}`);
@@ -22875,7 +22930,12 @@ function applySourceSnapshot(snapshot,side) {
   for(const [key,value] of Object.entries(snapshot[side])){
     if(value.length)stored[key]=value;else delete stored[key];
   }
-  writeSourceEdits(stored);
+  // Kota taşmasında yazım düşer: düzeltme geri alınmış gibi kalır. Sessiz
+  // geçmek yerine kullanıcıya bildir.
+  if (!writeSourceEdits(stored)) {
+    logLine(interfaceChoice('Kaynak düzeltmesi kaydedilemedi — tarayıcı depolaması dolu olabilir.',
+      'Could not save the source correction — browser storage may be full.'), 'warn');
+  }
 }
 function reviewDisplayChannels() {
   const roles=browserSubtitleRoleCues();
@@ -22924,7 +22984,7 @@ function renderBrowserSubtitleReview() {
         const records=readSourceEdits(),rows=records[conflict.scope]||[];
         const index=rows.findIndex(row=>JSON.stringify(row)===JSON.stringify(conflict.record));if(index<0)return;
         if(keep)rows[index]={...rows[index],base:conflict.incoming};else rows.splice(index,1);
-        try{writeSourceEdits(records);}catch(_){text.textContent='Tercih kaydedilemedi; düzeltmeniz korunuyor.';return;}
+        if(!writeSourceEdits(records)){text.textContent='Tercih kaydedilemedi; düzeltmeniz korunuyor.';return;}
         const descriptor=subtitleFindDescriptors().find(row=>row.path===conflict.path);
         if(descriptor)await loadSubtitle(conflict.path,descriptor.secondary,{silent:true,preserveInspector:true});
         renderBrowserSubtitleReview();

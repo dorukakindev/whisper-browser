@@ -742,7 +742,11 @@ function windowsSafeFileName(name, fallback = 'dosya') {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/[. ]+$/g, '');
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(out.split('.')[0])) out = `_${out}`;
+  // Windows ayrılmış kökleri genişletilmiş ASCII/uyumluluk yazımlarıyla da
+  // çakışır: üst simgeler (COM¹ → COM1) ve NT konsol adları (CONIN$/CONOUT$).
+  // Kontrol NFKC katlamasıyla yapılır; dosya adının kendisi korunur.
+  const root = out.split('.')[0].normalize('NFKC');
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9]|conin\$|conout\$)$/i.test(root)) out = `_${out}`;
   return out || fallback;
 }
 
@@ -4144,14 +4148,21 @@ function readBrowserFavicons() {
   return browserFaviconCache;
 }
 
-function flushBrowserFavicons() {
+function flushBrowserFavicons(allowRetry = true) {
   if (browserFaviconSaveTimer) clearTimeout(browserFaviconSaveTimer);
   browserFaviconSaveTimer = null;
   try {
     writeJsonAtomic(browserFaviconsPath(), {
       version: 1, updatedAt: Date.now(), items: Object.fromEntries(readBrowserFavicons()),
     });
-  } catch (_) {}
+  } catch (_) {
+    // Geçici yazım hatası (disk dolu/antivirüs kilidi) simge kayıtlarını sessizce
+    // kaybettirmesin: bellekteki eşleme korunur, tek seferlik gecikmeli yineleme.
+    if (allowRetry) {
+      browserFaviconSaveTimer = setTimeout(() => flushBrowserFavicons(false), 5000);
+      browserFaviconSaveTimer.unref?.();
+    }
+  }
 }
 
 // Sekme simgesi indiğinde origin → data: URL kaydını kalıcı önbelleğe işler.
@@ -5385,7 +5396,13 @@ function reloadBrowserTab(tab, wc, ignoreCache = false) {
   return true;
 }
 
+// Renderer'ın debounce'lu scheduleSave'i settings.json'a geç yazar; dil
+// değişiminde hemen gönderilen 'app:ui-locale' bildirimiyle güncellenen bu
+// bellek-içi kopya, o pencerede açılan diyalogların eski dille gelmesini önler.
+let lastRendererUiLocale = '';
+
 function browserUiLocale() {
+  if (lastRendererUiLocale) return lastRendererUiLocale;
   return loadSettings()?.ui?.uiLocale === 'tr' ? 'tr' : 'en';
 }
 
@@ -8276,12 +8293,13 @@ async function captureBrowserVideoFrame(tab, includeCaptions) {
   const wc = tab.view.webContents;
   const candidates = await Promise.all(browserFrames().map(async (frame) => ({
     frame, media: await withTimeout(frame.executeJavaScript(buildBrowserMediaProbeScript(), true), 4000,
-      'Çerçeve medya denetimi zaman aşımına uğradı.').catch(() => null),
+      dt('Çerçeve medya denetimi zaman aşımına uğradı.', 'Frame media check timed out.')).catch(() => null),
   })));
   const candidate = rankBrowserMediaCandidates(candidates)[0];
-  if (!candidate?.media?.bounds) throw new Error('Yakalanabilecek görünür video bulunamadı.');
+  if (!candidate?.media?.bounds) throw new Error(dt('Yakalanabilecek görünür video bulunamadı.', 'No visible video was found to capture.'));
   if (candidate.frame !== wc.mainFrame) {
-    throw new Error('Video iç içe bir çerçevede. Güvenli kırpma konumu doğrulanamadığı için tam sayfa görüntüsü kullanın.');
+    throw new Error(dt('Video iç içe bir çerçevede. Güvenli kırpma konumu doğrulanamadığı için tam sayfa görüntüsü kullanın.',
+      'The video sits inside a nested frame; use a full-page capture because the safe crop position cannot be verified.'));
   }
   const bounds = candidate.media.bounds;
   const zoom = Math.max(.25, Math.min(5, Number(wc.getZoomFactor?.()) || 1));
@@ -8307,17 +8325,17 @@ async function captureBrowserVideoFrame(tab, includeCaptions) {
     if (element?.isConnected) element.style.visibility = visibility;
   } delete window.__whisperCaptureHidden; })()`;
   await withTimeout(candidate.frame.executeJavaScript(hideScript, true), 3000,
-    'Yakalama hazırlığı zaman aşımına uğradı.').catch(() => null);
+    dt('Yakalama hazırlığı zaman aşımına uğradı.', 'Capture preparation timed out.')).catch(() => null);
   try { return await wc.capturePage(rect); }
   finally {
     await withTimeout(candidate.frame.executeJavaScript(restoreScript, true), 3000,
-      'Yakalama geri yükleme zaman aşımına uğradı.').catch(() => null);
+      dt('Yakalama geri yükleme zaman aşımına uğradı.', 'Capture restore timed out.')).catch(() => null);
   }
 }
 
 async function saveBrowserPageCapture(tab, title = '', options = {}) {
   if (!title) title = dt('Tarayıcı ekran görüntüsünü kaydet', 'Save browser screenshot');
-  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: dt('Tarayıcı sayfası bulunamadı.', 'Browser page not found.') };
   let image;
   const mode = ['viewport', 'full', 'video', 'video-captions'].includes(options.mode) ? options.mode : 'viewport';
   try {
@@ -8327,7 +8345,7 @@ async function saveBrowserPageCapture(tab, title = '', options = {}) {
       : mode === 'video' || mode === 'video-captions'
         ? await captureBrowserVideoFrame(tab, mode === 'video-captions')
         : await tab.view.webContents.capturePage();
-    if (image.isEmpty()) throw new Error('Sayfa görüntüsü boş döndü. DRM korumalı videolar görüntü yakalamayı engelleyebilir.');
+    if (image.isEmpty()) throw new Error(dt('Sayfa görüntüsü boş döndü. DRM korumalı videolar görüntü yakalamayı engelleyebilir.', 'The page capture came back empty. DRM-protected video can block page captures.'));
   } catch (error) {
     return { ok: false, error: error.message };
   }
@@ -12579,6 +12597,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     const favicon = favicons.map(safeBrowserPlaceUrl).find(Boolean) || '';
     if (favicon === tab._faviconSource) return;
     tab._faviconSource = favicon;
+    // Asenkron indirme sırasında sekme başka sayfaya gidebilir; simge ancak
+    // olay anındaki sayfayla eşleşmeye devam ediyorsa önbelleğe yazılır.
+    const faviconPageUrl = browserPageUrl(tab);
     // Renderer CSP'si img-src'de yalnız 'self' data: kabul eder; uzak simgeyi
     // tarayıcı oturumuyla indirip veri URL'sine çeviriyoruz (CSP gevşetmek
     // yerine).
@@ -12593,10 +12614,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         if (!/^image\//.test(mime)) return;
         const buf = await readResponseBufferLimited(response, 256 * 1024, 'Favicon');
         if (!buf.length) return;
-        if (wc.isDestroyed() || tab._faviconSource !== favicon) return;
+        if (wc.isDestroyed() || tab._faviconSource !== favicon || browserPageUrl(tab) !== faviconPageUrl) return;
         const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
         tab.favicon = dataUrl;
-        rememberBrowserPlaceFavicon(browserPageUrl(tab), dataUrl);
+        rememberBrowserPlaceFavicon(faviconPageUrl, dataUrl);
         sendBrowserEvent(tab, { type: 'favicon', favicon: dataUrl });
         scheduleBrowserSessionSave();
       } catch (_) {}
@@ -13863,6 +13884,9 @@ app.on('before-quit', (event) => {
   watchTimer = null;
   flushBrowserTrackPublications(true);
   flushBrowserPlaces();
+  // Simge önbelleği debounce'unun unref'li zamanlayıcısı kapanışı bekleyemez;
+  // bekleyen kayıtlar burada senkron yazılır.
+  flushBrowserFavicons();
   // Calisan is oldurulmeden ONCE duzgun iptal edilir: aksi halde yarim cikti
   // islemi diskte kalir. Yer imi/gecmis flush'indan sonra gelir ki kapanis
   // sirasi bozulmasin.
@@ -14503,29 +14527,34 @@ function fetchDeArrowBranding(videoId) {
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
     let timeoutTimer = setTimeout(() => {
-      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'DeArrow zaman aşımına uğradı.' });
+      request.abort(); done({ ok: false, errorKind: 'timeout', error: 'DeArrow zaman aşımına uğradı.' });
     }, 7000);
+    const done = (value) => { clearTimeout(timeoutTimer); resolve(value); };
     request.on('response', (response) => {
-      clearTimeout(timeoutTimer);
+      // Zamanlayıcı gövde bitene kadar canlı kalır: 'response' başlıkları geldikten
+      // sonra akışı durduran sunucu aksi halde promise'i ve uçuş içi kilidi sonsuza
+      // dek açık bırakırdı.
       let total = 0; const chunks = [];
       response.on('data', (chunk) => {
         total += chunk.length;
-        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' }); }
+        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'DeArrow yanıtı okunurken bağlantı koptu.' }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'DeArrow yanıtı yarıda kesildi.' }));
       response.on('end', () => {
-        if (total > MAX_VIDEO_EXTRAS_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' });
+        if (total > MAX_VIDEO_EXTRAS_BYTES) return done({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' });
         if (response.statusCode === 404) {
           dearrowCache.set(videoId, [], {}, { negative: true, actionType: 'branding' });
-          return resolve({ ok: true, videoId });
+          return done({ ok: true, videoId });
         }
-        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `DeArrow HTTP ${response.statusCode}` });
+        if (response.statusCode < 200 || response.statusCode >= 300) return done({ ok: false, errorKind: 'http', status: response.statusCode, error: `DeArrow HTTP ${response.statusCode}` });
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
           const record = extractDeArrowBranding(parsed, videoId);
           if (!record) {
             dearrowCache.set(videoId, [], {}, { negative: true, actionType: 'branding' });
-            return resolve({ ok: true, videoId });
+            return done({ ok: true, videoId });
           }
           const title = pickDeArrowTitle(record.titles);
           const thumbnail = pickDeArrowThumbnail(record.thumbnails);
@@ -14533,8 +14562,8 @@ function fetchDeArrowBranding(videoId) {
             videoDuration: record.videoDuration };
           dearrowCache.set(videoId, [], result,
             { negative: !result.title && !result.thumbnail, actionType: 'branding' });
-          resolve({ ok: true, videoId, ...result });
-        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'DeArrow yanıtı okunamadı.' }); }
+          done({ ok: true, videoId, ...result });
+        } catch (_) { done({ ok: false, errorKind: 'json', error: 'DeArrow yanıtı okunamadı.' }); }
       });
     });
     request.on('error', (error) => {
@@ -14566,33 +14595,35 @@ function fetchYouTubeDislikes(videoId) {
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
     let timeoutTimer = setTimeout(() => {
-      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'RYD zaman aşımına uğradı.' });
+      request.abort(); done({ ok: false, errorKind: 'timeout', error: 'RYD zaman aşımına uğradı.' });
     }, 7000);
+    const done = (value) => { clearTimeout(timeoutTimer); resolve(value); };
     request.on('response', (response) => {
-      clearTimeout(timeoutTimer);
       let total = 0; const chunks = [];
       response.on('data', (chunk) => {
         total += chunk.length;
-        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' }); }
+        if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'RYD yanıtı okunurken bağlantı koptu.' }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'RYD yanıtı yarıda kesildi.' }));
       response.on('end', () => {
-        if (total > MAX_VIDEO_EXTRAS_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' });
+        if (total > MAX_VIDEO_EXTRAS_BYTES) return done({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' });
         if (response.statusCode === 404) {
           rydCache.set(videoId, [], {}, { negative: true, actionType: 'votes' });
-          return resolve({ ok: true, videoId });
+          return done({ ok: true, videoId });
         }
-        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `RYD HTTP ${response.statusCode}` });
+        if (response.statusCode < 200 || response.statusCode >= 300) return done({ ok: false, errorKind: 'http', status: response.statusCode, error: `RYD HTTP ${response.statusCode}` });
         try {
-          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          const votes = normalizeRydVotes(parsed, videoId);
+          const parsed = Buffer.concat(chunks).toString('utf8');
+          const votes = normalizeRydVotes(JSON.parse(parsed), videoId);
           if (!votes) {
             rydCache.set(videoId, [], {}, { negative: true, actionType: 'votes' });
-            return resolve({ ok: true, videoId });
+            return done({ ok: true, videoId });
           }
           rydCache.set(videoId, [], votes, { actionType: 'votes' });
-          resolve({ ok: true, videoId, ...votes });
-        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'RYD yanıtı okunamadı.' }); }
+          done({ ok: true, videoId, ...votes });
+        } catch (_) { done({ ok: false, errorKind: 'json', error: 'RYD yanıtı okunamadı.' }); }
       });
     });
     request.on('error', (error) => {
@@ -17591,6 +17622,13 @@ ipcMain.on('app:theme-changed', (event, theme) => {
   if (!authorizedBrowserSender(event) || process.platform !== 'win32') return;
   if (theme !== 'dark' && theme !== 'light') return;
   try { mainWindow?.setTitleBarOverlay?.(titleBarOverlayForTheme(theme)); } catch (_) {}
+});
+
+// Renderer'daki dil anahtarı kalıcı yazıyı debounce ile yapar; diyalog metni
+// (dt) diskteki değeri okuduğu için aynı anda eski dile düşerdi.
+ipcMain.on('app:ui-locale', (event, locale) => {
+  if (!authorizedBrowserSender(event)) return;
+  lastRendererUiLocale = locale === 'tr' ? 'tr' : 'en';
 });
 
 ipcMain.on('queue:saveSync', (event, snapshot) => {

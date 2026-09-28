@@ -18,7 +18,8 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+import socket
 
 
 DEFAULT_METADATA_URL = "https://pypi.org/pypi/yt-dlp/json"
@@ -85,13 +86,22 @@ def fetch_metadata(url=DEFAULT_METADATA_URL, opener=urlopen, timeout=30):
 
 def _url_is_allowed(url, allow_http_localhost=False):
     parsed = urlparse(str(url).strip())
-    hostname = (parsed.hostname or "").rstrip(".")
+    hostname = (parsed.hostname or "").rstrip(".").lower()
     if not hostname:
         return False
     try:
         address = ipaddress.ip_address(hostname)
     except ValueError:
+        # ipaddress yalnız kanonik yazımı kabul eder; libc/inet_aton ise
+        # "127.1", "0x7f000001", onluk/oktal kısaltmaları da IP sayar —
+        # bu alternatif yazımlar özel-adres kapısını atlatmasın.
         address = None
+        try:
+            packed = socket.inet_aton(hostname)
+        except OSError:
+            packed = None
+        if packed is not None:
+            address = ipaddress.ip_address(packed)
     if parsed.scheme == "https":
         # HTTPS artefakt/metadata adresleri genele açık IP olmalı: kötü niyetli
         # veya zehirlenmiş metaveri, indirmeyi link-local bulut metaverisi
@@ -100,8 +110,25 @@ def _url_is_allowed(url, allow_http_localhost=False):
     return bool(
         allow_http_localhost
         and parsed.scheme == "http"
-        and hostname in {"127.0.0.1", "localhost", "::1"}
+        and (hostname in {"localhost"} or (address is not None and address.is_loopback))
     )
+
+
+class _CheckedRedirectHandler(HTTPRedirectHandler):
+    """urllib yönlendirmeleri açık adresten kapalı adrese atlayabilir; her
+    hop'un hedefini aynı SSRF kapısından geçir."""
+
+    def __init__(self, allow_http_localhost=False):
+        self._allow_http_localhost = allow_http_localhost
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _url_is_allowed(newurl, allow_http_localhost=self._allow_http_localhost):
+            raise UpdateError("Güncelleme yönlendirmesi izin verilmeyen bir adrese gidiyor.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _checked_opener(allow_http_localhost=False):
+    return build_opener(_CheckedRedirectHandler(allow_http_localhost)).open
 
 
 def select_artifact(metadata, allow_http_localhost=False):
@@ -430,6 +457,8 @@ def update_runtime(
     validator=validate_runtime,
     allow_http_localhost=False,
 ):
+    if opener is urlopen:
+        opener = _checked_opener(allow_http_localhost)
     with update_lock(runtime_root):
         return _update_runtime_unlocked(
             runtime_root,

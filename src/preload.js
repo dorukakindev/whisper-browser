@@ -262,6 +262,7 @@ contextBridge.exposeInMainWorld('api', {
   testTranslationProvider: (payload) => ipcRenderer.invoke('translation:probe', payload),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
+  notifyUiLocale: (locale) => ipcRenderer.send('app:ui-locale', locale),
   loadQueueState: () => ipcRenderer.invoke('queue:load'),
   saveQueueState: (snapshot) => ipcRenderer.invoke('queue:save', snapshot),
   saveQueueStateSync: (snapshot) => ipcRenderer.sendSync('queue:saveSync', snapshot),

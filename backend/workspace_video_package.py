@@ -22,14 +22,19 @@ def _copy_bounded(source, target, limit):
 
 
 def _extract_entry(bundle, info, destination):
+    # Temizlik yalnız bu çağrının oluşturduğu dosyayı siler: bundle.open daha
+    # hedef açılmadan düşerse mevcut bir dosya silinmemeli.
+    created = False
     try:
         with bundle.open(info) as source, open(destination, 'xb') as target:
+            created = True
             _copy_bounded(source, target, info.file_size)
     except Exception:
-        try:
-            os.remove(destination)
-        except OSError:
-            pass
+        if created:
+            try:
+                os.remove(destination)
+            except OSError:
+                pass
         raise
 
 

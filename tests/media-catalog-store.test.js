@@ -114,5 +114,19 @@ try {
   assert.equal(createMediaCatalogStore({ filePath: path.join(dir, 'unc.json') }).upsert({
     kind: 'film', title: 'UNC', source: { type: 'local', value: '\\\\evil.test\\share\\movie.mkv' },
   }).source, null);
+  // R190: içe aktarımda gelen kayıt hiçbir kimlikle eşleşmezken 'id' alanı
+  // mevcut öğeyle çakışırsa yeniden anahtarlanır — öncesi indexById'da eski
+  // öğe eziliyor, iki kayıt aynı kimliği paylaşıyordu.
+  {
+    const clashStore = createMediaCatalogStore({ filePath: path.join(dir, 'clash.json') });
+    const firstItem = clashStore.upsert({ kind: 'film', title: 'Birinci', year: 2001 });
+    const report = clashStore.mergeImport([{ id: firstItem.id, importRef: 'ext:zzz',
+      kind: 'film', title: 'Tamamen Farklı', year: 1999, episodes: [] }]);
+    assert.equal(report.added.length, 1);
+    const added = clashStore.list().find((item) => item.title === 'Tamamen Farklı');
+    assert.notEqual(added.id, firstItem.id, 'kimlik çakışması yeniden anahtarlanmadı');
+    assert.equal(clashStore.get(firstItem.id).title, 'Birinci');
+    assert.equal(clashStore.get(added.id).title, 'Tamamen Farklı');
+  }
   console.log('media-catalog-store: CRUD, preview, identity and user-state preservation passed');
 } finally { fs.rmSync(dir, { recursive: true, force: true }); }

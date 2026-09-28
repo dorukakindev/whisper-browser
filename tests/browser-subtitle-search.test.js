@@ -234,6 +234,23 @@ async function main() {
     { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/plain.txt' },
     { fetch: async () => response('sadece düz metin, zaman damgası yok') }), { code: 'INVALID_SUBTITLE' });
 
+  // R190: dil varyantı bilinci — 'pt-BR' hedefi 'pt-PT' satırını eler;
+  // sağlayıcının varyantsız kaydı ('pob') birincil kodla eşleşir.
+  const stremioVariants = { subtitles: [
+    { id: 'v1', url: 'https://opensubtitles-v3.strem.io/sub/x/a.srt', lang: 'pt-BR', m: {} },
+    { id: 'v2', url: 'https://opensubtitles-v3.strem.io/sub/x/b.srt', lang: 'pt-PT', m: {} },
+    { id: 'v3', url: 'https://opensubtitles-v3.strem.io/sub/x/c.srt', lang: 'pob', m: {} },
+    { id: 'v4', url: 'https://opensubtitles-v3.strem.io/sub/x/d.srt', lang: 'zh-CN', m: {} },
+  ] };
+  const variantFetch = async () => response(stremioVariants);
+  const br = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt-BR' }, { fetch: variantFetch });
+  assert.deepEqual(br.results.map((r) => r.language).sort(), ['pob', 'pt-BR'],
+    'pt-BR hedefi pt-PT ve zh-CN satırını eler, varyantsız pob kalır');
+  const zh = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'zh-CN' }, { fetch: variantFetch });
+  assert.deepEqual(zh.results.map((r) => r.language), ['zh-CN']);
+  const barePt = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt' }, { fetch: variantFetch });
+  assert.equal(barePt.results.length, 3, 'yalın pt hedefi tüm Portekizce varyantlarını tutar');
+
   console.log('browser-subtitle-search: fixture tests passed');
 }
 

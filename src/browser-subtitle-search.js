@@ -136,14 +136,20 @@ const ISO_639_2_TO_1 = {
   vie: 'vi', wel: 'cy', cym: 'cy', yid: 'yi', zul: 'zu',
 };
 
-function langCode(value) {
-  const raw = String(value || '').toLowerCase().trim().split(/[-_]/)[0];
-  return ISO_639_2_TO_1[raw] || raw;
+// Birincil alt etiket + bölge/yazı varyantı: 'pt-BR' ile 'pt-PT' aynı dil
+// sayılmamalı — sağlayıcılar varyantı ayrı altyazı olarak listeler.
+function langTag(value) {
+  const parts = String(value || '').toLowerCase().trim().split(/[-_]/).filter(Boolean);
+  return { primary: ISO_639_2_TO_1[parts[0]] || parts[0] || '', variant: parts.slice(1).join('-') };
 }
 
 function sameLanguage(a, b) {
-  const la = langCode(a), lb = langCode(b);
-  return !!la && la === lb;
+  const ta = langTag(a), tb = langTag(b);
+  if (!ta.primary || ta.primary !== tb.primary) return false;
+  // Varyant iki tarafta da verilmişse uyuşmalı; bir taraf varyantsızsa
+  // (sağlayıcı 'pt' yazıp dosyayı 'pt-BR' sunabilir) birincil eşleşme yeterli.
+  if (ta.variant && tb.variant) return ta.variant === tb.variant;
+  return true;
 }
 
 function scoreCandidate(candidate, target) {
@@ -264,7 +270,7 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   try { payload = JSON.parse(new TextDecoder('utf-8').decode(bytes)); }
   catch { throw problem('Stremio arama yanıtı okunamadı.', 'INVALID_RESPONSE'); }
   const rows = Array.isArray(payload?.subtitles) ? payload.subtitles : [];
-  const wantedLang = langCode(target.language);
+  const wantedLang = langTag(target.language);
   const results = rows.slice(0, 500).map((item, index) => {
     const meta = (item && typeof item.m === 'object' && item.m) || {};
     const release = String(meta.release || meta.movieReleaseName || item.releaseName || '').slice(0, 300);
@@ -288,8 +294,8 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
       matchScore: scoreCandidate(pseudo, target),
     };
   }).filter((item) => item.url.startsWith('https://'));
-  if (wantedLang) {
-    const hits = results.filter((item) => langCode(item.language) === wantedLang);
+  if (wantedLang.primary) {
+    const hits = results.filter((item) => sameLanguage(item.language, target.language));
     if (hits.length) results.length = 0, results.push(...hits);
   }
   results.sort((a, b) => b.matchScore - a.matchScore);

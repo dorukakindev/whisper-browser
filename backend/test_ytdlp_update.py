@@ -258,6 +258,57 @@ class YtdlpUpdateTests(unittest.TestCase):
         self.assertFalse(U._url_is_allowed("http://example.com/x"))
         self.assertTrue(U._url_is_allowed("http://127.0.0.1/x", allow_http_localhost=True))
 
+    def test_shorthand_ipv4_forms_are_not_global(self):
+        # R190: "127.1", onluk/oktal/hex kısaltmalar ipaddress kapısını
+        # atlatıyordu; libc inet_aton yedeğiyle genel-olmayan sayılırlar.
+        for bad in [
+            "https://127.1/x",
+            "https://127.0.1/x",
+            "https://0x7f000001/x",
+            "https://2130706433/x",   # 127.0.0.1 onluk
+            "https://0177.0.0.1/x",   # oktal
+            "https://10.1/x",
+            "https://0xffffffff/x",
+            "https://169.254.0.1/x",
+        ]:
+            self.assertFalse(U._url_is_allowed(bad), bad)
+        for good in ["https://8.8.8.8/x", "https://0x08080808/x"]:
+            self.assertTrue(U._url_is_allowed(good), good)
+        # http + localhost bayrağı kısaltmalı loopback'i de tanır
+        self.assertTrue(U._url_is_allowed("http://127.1/x", allow_http_localhost=True))
+        self.assertFalse(U._url_is_allowed("http://127.1/x"))
+
+    def test_redirect_to_disallowed_host_is_rejected(self):
+        # R190: urllib varsayılan yönlendiricisi hop'ları kör izliyordu —
+        # onaylı https metaveri adresi 302 ile iç ağa zincirlenebilirdi.
+        with UpdateServer() as server:
+            FixtureHandler.routes["/redir-bad"] = (
+                302, b"", {"Location": "http://169.254.169.254/latest/meta-data"}, False)
+            opener = U._checked_opener(allow_http_localhost=True)
+            with self.assertRaisesRegex(U.UpdateError, "izin verilmeyen"):
+                U.fetch_metadata(f"{server.base}/redir-bad", opener=opener)
+
+    def test_redirect_within_allowed_hosts_still_works(self):
+        with UpdateServer() as server:
+            real = server.route("real.json", b'{"ok": true}', content_type="application/json")
+            FixtureHandler.routes["/redir-good"] = (302, b"", {"Location": real}, False)
+            opener = U._checked_opener(allow_http_localhost=True)
+            self.assertEqual(U.fetch_metadata(f"{server.base}/redir-good", opener=opener), {"ok": True})
+
+    def test_update_runtime_redirect_chain_is_checked(self):
+        # Uçtan uca: update_runtime varsayılan opener'ı checked opener'a
+        # sarar; metaveri 302'si iç ağa gidemez.
+        with UpdateServer() as server:
+            FixtureHandler.routes["/meta-redirect"] = (
+                302, b"", {"Location": "http://169.254.169.254/meta"}, False)
+            with self.assertRaisesRegex(U.UpdateError, "izin verilmeyen"):
+                U.update_runtime(
+                    self.temp,
+                    metadata_url=f"{server.base}/meta-redirect",
+                    allow_http_localhost=True,
+                )
+        self.assertFalse((self.temp / "active.json").exists())
+
     def test_runtime_rejects_non_https_metadata_before_network(self):
         called = False
 
