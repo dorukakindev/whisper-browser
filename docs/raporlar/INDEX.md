@@ -147,3 +147,4 @@ tarih sırasıyla dosya adından okunur.
 | 174 | [BROWSER_BUG_REPORT_174.md](BROWSER_BUG_REPORT_174.md) | BROWSER_BUG_REPORT_174 — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma |
 | 175 | [BROWSER_BUG_REPORT_175.md](BROWSER_BUG_REPORT_175.md) | BROWSER_BUG_REPORT_175 — R195: R191 Windows bulguları (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu) |
 | 176 | [BROWSER_BUG_REPORT_176.md](BROWSER_BUG_REPORT_176.md) | BROWSER_BUG_REPORT_176 — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz; geriye dönük rapor) |
+| 177 | [BROWSER_BUG_REPORT_177.md](BROWSER_BUG_REPORT_177.md) | BROWSER_BUG_REPORT_177 — R197: kalan denetlenmemiş yüzey kapanışı + RSS published NaN düzeltmesi |
