@@ -141,3 +141,4 @@ tarih sırasıyla dosya adından okunur.
 | 168 | [BROWSER_BUG_REPORT_168.md](BROWSER_BUG_REPORT_168.md) | BROWSER_BUG_REPORT_168 — R188: Electron smoke seti uçtan uca triage |
 | 169 | [BROWSER_BUG_REPORT_169.md](BROWSER_BUG_REPORT_169.md) | BROWSER_BUG_REPORT_169 — R189: tam Electron smoke doğrulaması + çeviri menüsü taşması |
 | 170 | [BROWSER_BUG_REPORT_170.md](BROWSER_BUG_REPORT_170.md) | BROWSER_BUG_REPORT_170 — R190: Devin Review toplu triage + doğrulanmış düzeltmeler |
+| 171 | [BROWSER_BUG_REPORT_171.md](BROWSER_BUG_REPORT_171.md) | BROWSER_BUG_REPORT_171 — R192: transcribe.py kuyruk denetimi + renderer dev fonksiyonlar (temiz) |
