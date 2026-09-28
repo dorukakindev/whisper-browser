@@ -588,5 +588,35 @@ def test_dialogue_echo_accepted_after_two_rounds():
     assert len(calls) == 2, f"{len(calls)} istek"
 
 
+def test_echo_accepted_never_seeds_translation_memory(tmp_path):
+    """Yankı-kabul satırı bulanık hafızaya yazılmaz — noktalama-benzek eko
+    ('Wait!'→'Wait.') store() eşitlik kapısını geçer, sonraki dosyalarda
+    fuzzy eşleşmeyle kaynağı 'çeviri' diye döndürürdü."""
+    import sqlite3
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "Wait right there, now!")]
+    calls = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(payload)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "Wait right there, now."}, "sentences": {}})))])
+
+    with _fake_openai(_create):
+        out = T.llm_translate(
+            entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+            [], source_lang="en")
+    assert [t for _, _, t in out] == ["Wait right there, now!"]
+    assert len(calls) == 2  # toplu yankı + kurtarma yankısı → kabul
+    tm_file = cache_dir / "translation-memory.sqlite3"
+    if tm_file.exists():
+        with sqlite3.connect(tm_file) as conn:
+            rows = conn.execute("SELECT source, target FROM tm").fetchall()
+        assert all(s.casefold() != t.casefold() for s, t in rows), rows
+        assert not any("wait right there" in s.casefold() for s, _ in rows), rows
+
+
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)

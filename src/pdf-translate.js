@@ -421,6 +421,18 @@ function normalizePdfTranslationState(raw, identity) {
   return fresh;
 }
 
+/** State dosya adı: sağlayıcı kimliğini de kapsar — sağlayıcı değişimi
+ *  ayrı durum dosyası üretir; öncekinin sayfa çevirileri korunur. */
+function pdfTranslationStateFileStem(pdfHash, endpoint) {
+  return createHash('sha256')
+    .update(`${String(pdfHash || '')}|${String(endpoint || '')}`, 'utf8').digest('hex');
+}
+
+/** Endpoint alanı eklenmeden önceki dosya adı — geriye dönük okuma yolu. */
+function pdfTranslationStateLegacyFileStem(pdfHash) {
+  return createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
+}
+
 function isPdfPageComplete(blocks) {
   return Array.isArray(blocks) && blocks.every((block) => block.status === 'translated' || block.status === 'skipped');
 }
@@ -506,4 +518,6 @@ module.exports = {
   recordPdfPageTranslation,
   pdfHashPlan,
   pdfHashFromFirstChunk,
+  pdfTranslationStateFileStem,
+  pdfTranslationStateLegacyFileStem,
 };

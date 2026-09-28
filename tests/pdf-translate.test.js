@@ -17,6 +17,8 @@ const {
   recordPdfPageTranslation,
   pdfHashPlan,
   pdfHashFromFirstChunk,
+  pdfTranslationStateFileStem,
+  pdfTranslationStateLegacyFileStem,
 } = require('../src/pdf-translate');
 
 const rotatedItems = mapPdfItemsThroughViewport([
@@ -182,5 +184,19 @@ const chunk = Buffer.alloc(1024 * 1024 + 10, 7);
 const expectedDigest = createHash('sha256').update(chunk.subarray(0, 1024 * 1024)).digest('hex');
 assert.equal(pdfHashFromFirstChunk(2 * 1024 * 1024, chunk), `${2 * 1024 * 1024}:${expectedDigest}`);
 assert.throws(() => pdfHashFromFirstChunk(100, Buffer.alloc(99)), /eksik/u);
+
+// Durum dosya adı sağlayıcı kimliğini de kapsar: sağlayıcı değişimi aynı
+// pdfHash'te ayrı dosya üretir; eski pdfHash-only dosyalar legacy stem ile
+// okunmaya devam eder.
+const stemA = pdfTranslationStateFileStem('hash1', 'https://api.a/v1');
+const stemB = pdfTranslationStateFileStem('hash1', 'https://api.b/v1');
+assert.notEqual(stemA, stemB, 'sağlayıcı değişimi dosya adını ayırmalı');
+assert.equal(pdfTranslationStateFileStem('hash1', 'https://api.a/v1'), stemA);
+assert.notEqual(pdfTranslationStateFileStem('hash1', ''),
+  pdfTranslationStateLegacyFileStem('hash1'),
+  'ayıraclı yeni stem boş endpointte bile legacy stemden farklı olmalı');
+assert.equal(pdfTranslationStateLegacyFileStem('hash1'),
+  createHash('sha256').update('hash1', 'utf8').digest('hex'),
+  'legacy stem yalnız pdfHash üzerinden hesaplanmalı');
 
 console.log('pdf-translate: satır/paragraf, kenar eleme, devam durumu ve hızlı karma testleri geçti');
