@@ -167,7 +167,11 @@ function tab() {
       if (calls === 2) throw new Error('spawn failed');
       const p = fakeProc(); h.spawns.push({ args, proc: p }); return p;
     });
-    h.sandbox.startBrowserLiveAsr(tab(), {});
+    const finishes = [];
+    const t = tab();
+    t.acquisitionPlan.finish = (stage, result) => finishes.push({ stage, result });
+    t.acquisitionPlan.stage = () => ({ status: 'running' });
+    h.sandbox.startBrowserLiveAsr(t, {});
     const job = h.sandbox.browserLiveAsr;
     job.chunkFiles.add(c1);
     job.pendingChunks.set(c1, { offset: 0, rate: 16000 });
@@ -177,6 +181,8 @@ function tab() {
     assert.equal(job.pendingChunks.size, 0, 'bekleyen parça haritası boşaltılmadı');
     assert.equal(fs.existsSync(c1), false, 'temp dosyası silinmedi');
     assert.ok(h.events.some((e) => e.type === 'live-asr-state' && e.active === false && /başlatılamadı/.test(e.message)));
+    assert.ok(finishes.some((f) => f.stage === 'live-asr' && f.result.success === false),
+      'yakalama aşaması hata ile kapatılmadı');
   });
 
   await test('Hazır olduktan sonraki ölüm geri dönüş yapmaz', async () => {
