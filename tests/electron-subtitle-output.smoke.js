@@ -43,14 +43,19 @@ async function stopElectron(gracefulQuit) {
   if (electronProcess && electronProcess.exitCode == null
     && typeof gracefulQuit === 'function') {
     try { await withTimeout(Promise.resolve().then(gracefulQuit), 5000, 'Zarif kapanış'); } catch (_) {}
-    for (let attempt = 0; attempt < 40 && electronProcess.exitCode == null; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
   }
+  // Soketler bekleme döngüsünden ÖNCE kapatılır: Node inspector 'Waiting for
+  // the debugger to disconnect' diye bağlı DevTools soketini bekler — açık
+  // kalırlarsa app.quit() çıkışı tamamlayamaz ve bekleme hep tükenirdi.
   for (const socket of openSockets) {
     try { socket.close(); } catch (_) {}
   }
   openSockets.clear();
+  if (electronProcess && electronProcess.exitCode == null) {
+    for (let attempt = 0; attempt < 40 && electronProcess.exitCode == null; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
   if (!electronProcess) return;
   if (electronProcess.exitCode == null) {
     if (process.platform === 'win32') {
@@ -165,7 +170,19 @@ async function run() {
     }
   });
 
-  const call = (method, params = {}) => new Promise((resolve, reject) => {
+  
+// "Promise was collected" flake koruması: awaitPromise'li Runtime.evaluate'te
+// V8, beklenen promise'i heap'te referanssız görüp GC ile toplayabiliyor
+// (sıralı smoke koşusunda bellek baskısı büyüyünce). Promise'i çözülene dek
+// global kayda sabitle — yan etkili ifade tekrar koşmasın diye retry değil,
+// tutma kullanılır.
+function anchorEvalExpression(expression) {
+  return `(function(){var p=Promise.resolve((${expression}));`
+    + `var a=(globalThis.__cdpAnchor=globalThis.__cdpAnchor||[]);a.push(p);`
+    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);});return p;})()`;
+}
+
+const call = (method, params = {}) => new Promise((resolve, reject) => {
     const id = ++sequence;
     pending.set(id, { resolve, reject });
     socket.send(JSON.stringify({ id, method, params }));
@@ -307,7 +324,7 @@ async function run() {
   `;
 
   const evaluation = await withTimeout(call('Runtime.evaluate', {
-    expression,
+    expression: anchorEvalExpression(expression),
     awaitPromise: true,
     returnByValue: true,
   }), 90000, 'Electron altyazı bağlama değerlendirmesi');
@@ -342,7 +359,7 @@ async function run() {
   });
 
   const generationRace = await call('Runtime.evaluate', {
-    expression: `(async () => {
+    expression: anchorEvalExpression(`(async () => {
       const sourcePath = ${JSON.stringify(sourcePath)};
       player.generation += 1;
       player.workspaceMode = 'local';
@@ -358,7 +375,7 @@ async function run() {
       player.mediaKey = 'race:new';
       const result = await pending;
       return { result, mediaKey: player.mediaKey, pending: !!state.pendingPlayerLoad };
-    })()`,
+    })()`),
     awaitPromise: true,
     returnByValue: true,
   });
@@ -367,7 +384,7 @@ async function run() {
   assert.equal(generationRace.result?.value?.mediaKey, 'race:new');
 
   const pairedGenerationRace = await call('Runtime.evaluate', {
-    expression: `(async () => {
+    expression: anchorEvalExpression(`(async () => {
       const sourcePath = ${JSON.stringify(sourcePath)};
       const translationPath = ${JSON.stringify(translationPath)};
       player.generation += 1;
@@ -388,7 +405,7 @@ async function run() {
       const result = await pending;
       return { result, mediaKey: player.mediaKey, primary: player.subPath,
         secondary: player.sub2Path, pending: !!state.pendingPlayerLoad };
-    })()`,
+    })()`),
     awaitPromise: true,
     returnByValue: true,
   });
@@ -443,7 +460,7 @@ async function run() {
     'accelerate-gaps üretim rendererı gerçek HTMLMediaElement hızını değiştirmedi.');
 
   const decodedMediaClock = await call('Runtime.evaluate', {
-    expression: `(async () => {
+    expression: anchorEvalExpression(`(async () => {
       const video = document.getElementById('playerVideo');
       const layer = document.getElementById('playerLayer');
       player.workspaceMode = 'local';
@@ -482,7 +499,7 @@ async function run() {
       player.cues = [];
       layer.classList.add('hidden');
       return observed;
-    })()`,
+    })()`),
     awaitPromise: true,
     returnByValue: true,
     userGesture: true,
@@ -497,7 +514,7 @@ async function run() {
     'Sentetik WebM beklenen gerçek süreyi sağlamadı.');
 
   const doubleStart = await call('Runtime.evaluate', {
-    expression: `(async () => {
+    expression: anchorEvalExpression(`(async () => {
       const originalStart = startTranscribeSafe;
       let calls = 0;
       let release;
@@ -523,7 +540,7 @@ async function run() {
       finishRun(false);
       state.activeOutputJob = null;
       return during;
-    })()`,
+    })()`),
     awaitPromise: true,
     returnByValue: true,
   });
@@ -592,7 +609,7 @@ async function run() {
   }, 'done/done/exit sırası kuyruk işini tek terminal duruma getirmedi.');
 
   const exported = await call('Runtime.evaluate', {
-    expression: 'window.api.exportBrowserDiagnostics()', awaitPromise: true, returnByValue: true,
+    expression: anchorEvalExpression('window.api.exportBrowserDiagnostics()'), awaitPromise: true, returnByValue: true,
   });
   assert.equal(exported.result?.value?.ok, true, exported.result?.value?.error || 'Tanı IPC dışa aktarımı başarısız.');
   assert.equal(fs.existsSync(diagnosticsPath), true, 'Tanı IPC dosyayı yazmadı.');
@@ -608,6 +625,10 @@ async function run() {
     returnByValue: true,
   }));
   cleanupFixtures();
+  // Başarılı yolda açık kalan handle'lar (undici keep-alive, WebSocket
+  // kapanış el sıkışması) süreci sonsuza dek canlı tutabiliyor — paket
+  // koşucusunun spawnSync ETIMEDOUT'u buydu. Deterministik çık.
+  process.exit(0);
 }
 
 run().catch(async (error) => {

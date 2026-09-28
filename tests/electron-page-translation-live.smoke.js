@@ -59,9 +59,21 @@ function client(url) {
   };
 }
 
+
+// "Promise was collected" flake koruması: awaitPromise'li Runtime.evaluate'te
+// V8, beklenen promise'i heap'te referanssız görüp GC ile toplayabiliyor
+// (sıralı smoke koşusunda bellek baskısı büyüyünce). Promise'i çözülene dek
+// global kayda sabitle — yan etkili ifade tekrar koşmasın diye retry değil,
+// tutma kullanılır.
+function anchorEvalExpression(expression) {
+  return `(function(){var p=Promise.resolve((${expression}));`
+    + `var a=(globalThis.__cdpAnchor=globalThis.__cdpAnchor||[]);a.push(p);`
+    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);});return p;})()`;
+}
+
 async function evaluate(target, expression) {
   const result = await target.call('Runtime.evaluate', {
-    expression, awaitPromise: true, returnByValue: true,
+    expression: anchorEvalExpression(expression), awaitPromise: true, returnByValue: true,
   });
   if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
   return result.result?.value;
