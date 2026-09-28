@@ -6086,6 +6086,9 @@ def transcribe(args):
                 last_ckpt = now
 
         emit("progress", percent=100.0, current=round(total_duration, 2), total=round(total_duration, 2))
+        # Akışta yayımlanan satırların anlık görüntüsü. Sonraki zorunlu temizlik
+        # adımları kullanıcı seçenekleri kapalıyken de satır/zaman değiştirebilir.
+        preview_entries = list(entries)
 
         # Noktalama çöküşü onarımı — model HÂLÂ yüklüyken (VRAM boşaltmadan önce).
         # Whisper uzun videolarda noktalamayı bırakabiliyor; "önceki bağlamı kullan"
@@ -6105,6 +6108,7 @@ def transcribe(args):
                         {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
                         for i, (s, e, t) in enumerate(entries)
                     ])
+                    preview_entries = list(entries)
             except Exception as e:
                 log(f"Noktalama onarımı atlandı: {e}", "warn")
 
@@ -6312,11 +6316,9 @@ def transcribe(args):
             unique = sorted(set(speakers_map.values()))
             log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
 
-        # Önizlemeyi nihai metinle tazele (birleştirme/LLM/diarization/zamanlama/devam değişmiş olabilir)
-        if (args.merge_short or args.merge_incomplete or args.merge_continuation
-                or args.llm_postprocess
-                or args.diarize or args.fix_timings or args.drop_trailing_hallucination
-                or args.fix_punctuation_collapse or args.dedupe or resumed_entries):
+        # Seçeneklere değil gerçek sonuca bak: zorunlu dedupe, yaygın hata
+        # temizliği ve konuşmaya yaslama da önizlemeyi değiştirebilir.
+        if entries != preview_entries:
             emit("preview_refresh", segments=[
                 {"index": i + 1, "start": round(s, 3), "end": round(e, 3), "text": t}
                 for i, (s, e, t) in enumerate(entries)

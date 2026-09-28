@@ -142,4 +142,5 @@ tarih sırasıyla dosya adından okunur.
 | 169 | [BROWSER_BUG_REPORT_169.md](BROWSER_BUG_REPORT_169.md) | BROWSER_BUG_REPORT_169 — R189: tam Electron smoke doğrulaması + çeviri menüsü taşması |
 | 170 | [BROWSER_BUG_REPORT_170.md](BROWSER_BUG_REPORT_170.md) | BROWSER_BUG_REPORT_170 — R190: Devin Review toplu triage + doğrulanmış düzeltmeler |
 | 171 | [BROWSER_BUG_REPORT_171.md](BROWSER_BUG_REPORT_171.md) | BROWSER_BUG_REPORT_171 — R192: transcribe.py kuyruk denetimi + renderer dev fonksiyonlar (temiz) |
+| 172 | [BROWSER_BUG_REPORT_172.md](BROWSER_BUG_REPORT_172.md) | BROWSER_BUG_REPORT_172 — PR64: son altyazı önizlemesi zorunlu temizlikten sonra bayat kalıyordu |
 | 173 | [BROWSER_BUG_REPORT_173.md](BROWSER_BUG_REPORT_173.md) | BROWSER_BUG_REPORT_173 — PR65: oynatıcı/tarayıcı simge hizalama + boyut + yan panel çizimi |
