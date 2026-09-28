@@ -24,6 +24,14 @@ async function main() {
     fs.writeFileSync(smallPath, small);
     assert.equal(await movieHash(smallPath), 'feb1681acd80358f');
 
+    // 64 KiB < boyut < 128 KiB: ilk/son blok örtüşse bile son 64 KiB
+    // bütünüyle toplanır. Eski dalın bağımsız Python referans vektörü.
+    const mid = Buffer.alloc(100000);
+    for (let i = 0; i < mid.length; i++) mid[i] = (i * 13 + 5) & 255;
+    const midPath = path.join(dir, 'mid.bin');
+    fs.writeFileSync(midPath, mid);
+    assert.equal(await movieHash(midPath), 'e09f6020dfa1c6a0');
+
     // sıfır dosya → hash = dosya boyutu (belgelenmiş dejenere vektör)
     const zeros = path.join(dir, 'zeros.bin');
     fs.writeFileSync(zeros, Buffer.alloc(200000));

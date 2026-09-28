@@ -33,9 +33,9 @@ async function movieHash(filePath) {
     await handle.read(head, 0, headSize, 0);
     hash = (hash + sumWords(head)) & MASK64;
     if (size > CHUNK) {
-      const tailSize = Math.min(CHUNK, size - CHUNK);
-      const tail = Buffer.alloc(tailSize);
-      await handle.read(tail, 0, tailSize, size - tailSize);
+      // İlk/son 64 KiB örtüşebilir; son blok yine bütünüyle toplanır.
+      const tail = Buffer.alloc(CHUNK);
+      await handle.read(tail, 0, CHUNK, size - CHUNK);
       hash = (hash + sumWords(tail)) & MASK64;
     }
     return hash.toString(16).padStart(16, '0');

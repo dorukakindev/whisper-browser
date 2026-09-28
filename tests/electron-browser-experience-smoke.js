@@ -773,6 +773,11 @@ async function run() {
   }
   if (process.env.WHISPER_SMOKE_LAYOUT_ONLY === '1') {
     console.log('electron-browser-layout-smoke: ' + JSON.stringify(responsiveMatrix));
+    // Erken dönüş de tam akış gibi CDP bağlantılarını kapatmalı; yoksa
+    // kontroller geçse bile smoke süreci açık soketlerle çıkamaz.
+    page.socket.close();
+    renderer.socket.close();
+    main.socket.close();
     return;
   }
   assert.ok(await resizeAppWindow(main, renderer, 1280, 820),
@@ -1100,6 +1105,9 @@ async function cleanup() {
 run().then(async () => {
   await cleanup();
   console.log('electron-browser-experience-smoke: passed');
+  // Bu betik Electron ile çalışır; dış test sürecinin app yaşam döngüsü
+  // yalnız açık pencere kalmamasıyla sonlanmaz. Hata yolu gibi açıkça çık.
+  process.exit(0);
 }).catch(async (error) => {
   await cleanup();
   console.error(error.stack || error.message);
