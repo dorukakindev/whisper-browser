@@ -68,6 +68,10 @@ function harness(options = {}) {
     const fullHash = crypto.createHash('sha256').update(VID).digest('hex');
     const byHash = { deadbeef: { videoID: 'x', titles: [] }, [fullHash]: { ...record, videoID: VID } };
     assert.equal(extractDeArrowBranding(byHash, VID).titles.length, 1);
+    // R196: tam sha256 anahtarlı kayıt içte videoID taşımaz — anahtarın kendisi
+    // kimliği verir (SponsorBlock /api/branding/<prefix> gerçek yanıt biçimi)
+    const byHashBare = { [fullHash]: record };
+    assert.equal(extractDeArrowBranding(byHashBare, VID).videoDuration, 300);
     // Anahtar eşleşmez ama kayıt içi videoID eşleşir
     const byValue = { somekey: { videoID: VID, titles: [{ title: 't', votes: 1 }] } };
     assert.equal(extractDeArrowBranding(byValue, VID).titles.length, 1);

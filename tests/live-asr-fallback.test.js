@@ -20,7 +20,8 @@ function fakeProc() {
   proc.stderr = new EventEmitter();
   proc.stderr.setEncoding = () => {};
   proc.stdin = new EventEmitter();
-  proc.stdin.write = () => true;
+  proc.stdin.writes = [];
+  proc.stdin.write = (line) => { proc.stdin.writes.push(line); return true; };
   proc.kill = () => {};
   return proc;
 }
@@ -130,6 +131,27 @@ function tab() {
     h.spawns[0].proc.emit('close');
     assert.equal(h.spawns.length, 1, 'CPU işinde yeniden deneme olmamalı');
     assert.ok(h.events.some((e) => e.type === 'live-asr-state' && e.active === false));
+  });
+
+  await test('R196: CPU geri dönüşünde kuyruktaki ses parçaları korunur', async () => {
+    // CUDA yüklemesi sürerken beslenen chunk'lar close'da siliniyordu; artık
+    // pendingChunks saklanır ve yeni sürecin stdin'ine yeniden beslenir.
+    const h = harness('cuda');
+    h.sandbox.startBrowserLiveAsr(tab(), {});
+    const job = h.sandbox.browserLiveAsr;
+    const first = h.spawns[0];
+    job.chunkFiles.add('/tmp/c1.wav');
+    job.chunkFiles.add('/tmp/c2.wav');
+    job.pendingChunks.set('/tmp/c1.wav', { offset: 0, rate: 16000 });
+    job.pendingChunks.set('/tmp/c2.wav', { offset: 4, rate: 16000 });
+    first.proc.emit('close');
+    assert.equal(h.spawns.length, 2);
+    const second = h.spawns[1];
+    assert.equal(second.proc.stdin.writes.length, 2, 'bekleyen parçalar yeniden beslenmedi');
+    assert.ok(second.proc.stdin.writes.some((l) => l.includes('/tmp/c1.wav') && l.includes('"offset":0')));
+    // İşlenen parça (chunk_done) pending'den düşer — tekrar beslenmez.
+    second.proc.stdout.emit('data', '{"type":"chunk_done","path":"/tmp/c1.wav"}\n');
+    assert.equal(job.pendingChunks.size, 1);
   });
 
   await test('Hazır olduktan sonraki ölüm geri dönüş yapmaz', async () => {
