@@ -1,7 +1,6 @@
 Güncel çalışma: [docs/devir/2026-09-29-0045.md](docs/devir/2026-09-29-0045.md) — R212: teknik hata mesajları dostu dile çevrilir (systemError)
 Önceki çalışma: [docs/devir/2026-09-29-0030.md](docs/devir/2026-09-29-0030.md) — R211: kuyruk persist yarışında "Sırada dur" kapanışı
 Önceki çalışma: [docs/devir/2026-09-29-0015.md](docs/devir/2026-09-29-0015.md) — R210: #137+#138 Devin Review triage (satır-sonu, JSON info, atomiklik, ASS/dual sadakat, fixture-parse, preload ratchet)
->>>>>>> origin/master
 Önceki çalışma: [docs/devir/2026-09-29-0000.md](docs/devir/2026-09-29-0000.md) — R209: yazıcı→ayrıştırıcı roundtrip kilidi
 Önceki çalışma: [docs/devir/2026-09-28-2330.md](docs/devir/2026-09-28-2330.md) — R207: #135 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
