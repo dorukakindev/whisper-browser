@@ -141,7 +141,9 @@ function extractDeArrowBranding(payload, videoId) {
   if (Array.isArray(payload)) {
     record = payload.find((item) => recordId(item) === wanted) || null;
   } else if (payload && typeof payload === 'object') {
-    record = payload[wanted] || payload[hashPrefix(wanted, 64)] || null;
+    record = payload[wanted]
+      || payload[crypto.createHash('sha256').update(wanted).digest('hex')]
+      || null;
     if (!record) {
       record = Object.values(payload).find(
         (item) => item && typeof item === 'object' && recordId(item) === wanted) || null;

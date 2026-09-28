@@ -11,6 +11,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **live-asr CUDA→CPU geri dönüşünde ses kaybı** — GPU yüklemesi çökünce
+  kuyruğa alınmış ses parçaları diskten siliniyordu; artık yeni sürece
+  yeniden beslenir (`pendingChunks`).
+- **DeArrow topluluk başlıkları hiç yüklenmiyordu** — SponsorBlock yanıtı
+  tam sha256 anahtarlıysa 8 karakter kelepçeli önek lookup'u tutmuyordu;
+  tam karma doğrudan hesaplanır.
+- **yt-dlp bakım sürüm eşleşmesi** — yamalı `DD.MM.YY.N` sürümleri
+  `YYYY.M.M` beklentisiyle güncellenebiliyordu; karşılaştırma normalize
+  edildi.
+
 - R190 (Devin Review batch triage, PRs 84–117 — all 31 confirmed bug/security findings fixed): subtitle find/replace now respects grapheme-cluster boundaries (ZWJ emoji, regional-indicator pairs like flags, combining marks — whole-word and literal searches no longer split or skip them); favicons no longer get saved to the wrong site after a fast navigation, survive a transient write failure (5s one-shot retry), and flush on quit; the UI-locale change now reaches the main process immediately (`app:ui-locale` IPC) so a dialog opened right after switching shows the new language instead of the 400ms-debounced stale one; tab-group collapse state no longer resets on locale switch (locale-independent `toLowerCase` group key); Ctrl+W can't close a tab while a confirm dialog is open; a temporary GPU detection failure no longer erases the user's CUDA preference and the badge reports 'CUDA · algılanmadı/not detected' instead of advertising float16; community extras (DeArrow/RYD) re-fetch when their checkbox toggles, no longer apply stale responses to a video you navigated away from, and the community title survives HLS recovery; live-ASR chunk gates widened to the worklet's [0.0625,16] range so >4× playback no longer stalls the live transcript; the yt-dlp updater's URL gate now also covers shorthand IPv4 spellings (127.1/hex/octal/decimal) and every redirect hop; `.wbp` extraction no longer deletes a pre-existing file when the exclusive create fails; duplicate catalog ids on import get rekeyed instead of silently erasing an existing record; BOM-prefixed TMDB metadata loads; subtitle-language variant filters distinguish pt-BR from pt-PT; dialog error messages and the command palette follow the UI locale; the Windows smoke checks stderr for fatal markers instead of passing a live-but-crashed process; `writeSourceEdits` reports quota failure instead of pretending the save landed. Full per-finding table: `docs/raporlar/BROWSER_BUG_REPORT_170.md`.
 - R189: the browser translate-menu popover no longer overflows the window's right edge at 1.5x scale/narrow layouts — it is now anchored to its button via CSS anchor positioning with a flip fallback, and the Electron smoke suite was hardened end-to-end (CDP promise anchoring for "Promise was collected" flakes, POSIX-safe process cleanup, nested-Electron spawn flags, subtitle-output exit hang).
 

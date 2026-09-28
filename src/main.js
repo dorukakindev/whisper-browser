@@ -8663,7 +8663,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
   const script = path.join(app.getAppPath(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
-  const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
+  const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
     let event;
     try { event = JSON.parse(line); } catch (_) { return; }
@@ -8695,6 +8695,7 @@ function startBrowserLiveAsr(tab, options = {}) {
       const filePath = String(event.path || '');
       // Yalnız bu iş için oluşturulmuş temp chunk dosyası silinir; kirlenmiş
       // bir stdout satırı keyfi-yol silme ilkeli üretmesin.
+      job.pendingChunks.delete(filePath);
       if (filePath && job.chunkFiles.delete(filePath)) {
         try { fs.unlinkSync(filePath); } catch (_) {}
       }
@@ -8743,15 +8744,28 @@ function startBrowserLiveAsr(tab, options = {}) {
     proc.on('error', (error) => {
       if (browserLiveAsr === job) stopBrowserLiveAsr(`Canlı Whisper başlatılamadı: ${error.message}`);
     });
+    // Geri dönüş sonrası açılan sürece bekleyen parça yollarını yeniden
+    // besle: işlenmeyen (chunk_done görmemiş) wav'lar hâlâ diskte durur.
+    for (const [filePath, meta] of job.pendingChunks) {
+      try { proc.stdin.write(`${JSON.stringify({ type: 'chunk', path: filePath, offset: meta.offset, rate: meta.rate })}\n`); }
+      catch (_) {}
+    }
     proc.on('close', () => {
       modelProcesses.delete(proc);
       for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
-      for (const filePath of job.chunkFiles) {
-        try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+      // Geri dönüşte kuyruktaki parçalar saklanır — CPU süreci açılınca
+      // yol satırları launch() içinde yeniden beslenir; aksi halde canlı
+      // altyazının ilk saniyeleri kaybolur.
+      const fallBack = browserLiveAsr === job && canFallBackToCpu();
+      if (!fallBack) {
+        for (const filePath of job.chunkFiles) {
+          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+        }
+        job.chunkFiles.clear();
+        job.pendingChunks.clear();
       }
-      job.chunkFiles.clear();
       if (browserLiveAsr !== job) return;
-      if (canFallBackToCpu()) {
+      if (fallBack) {
         job.fellBackToCpu = true;
         job.errorTail = '';
         sendBrowserEvent(tab, { type: 'live-asr-warning',
@@ -16362,11 +16376,13 @@ ipcMain.handle('browser:liveAsr:chunk', async (event, request) => {
     fs.writeFileSync(filePath, require('./browser-live-audio').pcm16Wav(data));
     if (browserLiveAsr !== job || job.stopping) throw new Error('Ses oturumu durduruldu.');
     job.chunkFiles.add(filePath);
+    job.pendingChunks.set(filePath, { offset, rate });
     job.proc.stdin.write(`${JSON.stringify({ type: 'chunk', path: filePath,
       offset, rate })}\n`);
     return { ok: true };
   } catch (error) {
     job.chunkFiles.delete(filePath);
+    job.pendingChunks.delete(filePath);
     try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
     return { ok: false, error: error.message };
   }
