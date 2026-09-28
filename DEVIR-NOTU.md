@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
+Güncel çalışma: [docs/devir/2026-09-28-2030.md](docs/devir/2026-09-28-2030.md) — R196: Devin Review toplu triage (PR #120–124: 2 kod düzeltmesi + doküman tamamlamaları)
+Önceki çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
 Önceki çalışma: [docs/devir/2026-09-28-1700.md](docs/devir/2026-09-28-1700.md) — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz) + tam smoke doğrulaması
 Önceki çalışma: [docs/devir/2026-09-28-1600.md](docs/devir/2026-09-28-1600.md) — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma (preview_refresh + ikon hizalama)
 Önceki çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.md) — R192 derin denetim: transcribe.py tam kapsam kapandı + renderer dev fonksiyonlar (temiz, ürün kodu değişmedi)

@@ -1,4 +1,4 @@
-# BROWSER_BUG_REPORT_168 — R188: Electron smoke seti uçtan uca triage (7 düzeltme yeşil; subtitle-output flake belgeli)
+# BROWSER_BUG_REPORT_168 — R188: Electron smoke seti uçtan uca triage (7 düzeltme yeşil; subtitle-output flake'i bu turda gözlendi — R189'da timeout sertleştirmesiyle giderildi, tam set sonrası yeşil)
 
 Tarih: 2026-09-28 · Dal: `codex/r188-deferred-findings-1790543822` · Başlangıç: `c38176c` (master)
 
