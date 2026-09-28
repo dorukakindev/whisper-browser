@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Tamamen bozuk PDF sayfa kayıtları da yedeği gizleyemez** — `pages`
+  nesnesi taşıyıp içeriği normalize'da düşen dosya artık adaydan
+  atlanır; `.bak`/legacy çevirileri yüklenir.
+
 - **Bozuk PDF çeviri durumu sağlam yedeği gizliyordu** — kimliği uyumlu
   ama sürümü/sayfaları geçersiz dosya taze duruma düşüp `.bak`/legacy
   adaylarını atlıyordu; okuma döngüsü artık uyumsuz adayı atlar.
