@@ -11,6 +11,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **"Sırada dur" sonrası kuyruk başlat düğmesi kilitli kalıyordu** —
+  `persistQueueNow` beklerken durdurulan kuyrukta `renderQueue` bayraklar
+  hâlâ yüksekken çiziliyor ve `finalizeQueue` düğmeleri yeniden
+  senkronlamıyordu; kuyruk bir daha başlatılamaz durumda kalıyordu.
+  Artık `finalizeQueue` `syncJobsCenter` çağırır (davranışsal regresyon
+  testi R219-01 düzeltmesiz kırmızı doğrulandı).
+- **Kuyruk durumu diske bayat `queueRunning:true` yazabiliyordu** —
+  80ms debounce'lu persist, bayraklar düşmeden önceki anlık görüntüyü
+  yazıyordu; `queueSnapshotForDisk` artık bayrağı normalize öğelerden
+  türetir (terminal olmayan öğe yoksa `false`).
+- **Video analiz köprüsü 1MB üstü stdin'i kesik JSON hatasıyla
+  reddediyordu** — artık açık boyut-sınırı mesajı döner.
+
 - **live-asr CUDA→CPU geri dönüşünde ses kaybı** — GPU yüklemesi çökünce
   kuyruğa alınmış ses parçaları diskten siliniyordu; artık yeni sürece
   yeniden beslenir (`pendingChunks`).

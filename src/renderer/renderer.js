@@ -637,6 +637,10 @@ function finalizeQueue() {
   state.currentQueueId = null;
   state.running = false;
   updateStopAfterBtn();
+  // Kuyruk bayrakları düştükten sonra başlat/durdur düğmelerini yeniden
+  // hesapla: persist beklemesindeki "Sırada dur" dalı renderQueue'yu bayraklar
+  // hâlâ yüksekken çalıştırdığı için düğme kilitli kalıyordu.
+  syncJobsCenter();
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   setStatus('Hazır');

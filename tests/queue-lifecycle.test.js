@@ -511,5 +511,71 @@ function shuffle(items, random) {
       'durdurma dalı süreç başlatmaya devam etmemeli');
   });
 
+  await test('R219-01: persist sırası "Sırada dur" sonrası başlat düğmesi yeniden etkinleşir', async () => {
+    // Davranışsal sürüş: processNextQueueItem + finalizeQueue + syncJobsCenter
+    // gerçek gövdeleriyle vm'de koşar. persistQueueNow beklentisi sırasında
+    // stopAfterCurrent yükselir → öğe bekleyene döner → düğme yeniden
+    // etkinleşmeli (eskiden renderQueue, queueRunning hâlâ true iken çizdiği
+    // için düğme kilitli kalıyordu).
+    const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8')
+      .replace(/\r\n/g, '\n');
+    const helpers = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer-helpers.js'), 'utf8')
+      .replace(/\r\n/g, '\n');
+    const slice = (src, start) => {
+      const i = src.indexOf(start);
+      const j = src.indexOf('\n}\n', i);
+      assert(i > -1 && j > i, `dilim bulunamadı: ${start}`);
+      return src.slice(i, j + 3);
+    };
+    const el = () => ({ disabled: false, textContent: '', classList: { add() {}, remove() {} } });
+    const els = { jobsQueueBadge: el(), jobsHistoryBadge: el(), startQueueBtn: el(),
+      clearQueue: el(), startBtn: el(), cancelBtn: el() };
+    let persistCalls = 0;
+    const sandbox = {
+      state: { queueRunning: true, stopAfterCurrent: false, currentQueueId: null,
+        running: false, queue: [{ id: 1, status: 'pending', input: 'D:\\a.mp4', opts: {} }] },
+      historyCache: [],
+      logLine() {}, setStatus() {}, resetStages() {}, clearPreview() {},
+      setProgress() {}, updateStopAfterBtn() {}, offerOpenLastOutput() {},
+      renderReviewCenter() {}, setJobsTab() {}, notifyDone() {},
+      _jobsTab: 'queue',
+      $: (id) => els[id] || el(),
+      persistQueueNow: async () => {
+        persistCalls += 1;
+        if (persistCalls === 1) sandbox.state.stopAfterCurrent = true;
+        return true;
+      },
+      renderQueue() { sandbox.syncJobsCenter(); },
+      startTranscribeSafe() { sandbox.__spawned = true; return Promise.resolve({ ok: true }); },
+      computeQueueCollisionSuffix: () => '',
+      queueSecretsFromCurrentUi: () => ({}),
+      optsProblemInfo: () => null,
+      mediaKeyFor: () => 'mk', currentGeneration: () => 1,
+      friendlySystemError: (s) => String(s),
+      reportWatchQueueResult() {}, showJobValidation() {},
+      setTimeout: () => 0,
+      player: { subPath: '', sub2Path: '' },
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(
+      slice(helpers, 'function syncJobsCenter')
+      + '\n' + slice(renderer, 'function finalizeQueue')
+      + '\n' + renderer.slice(renderer.indexOf('async function processNextQueueItem'),
+        renderer.indexOf('// ===== Helpers =====')), sandbox);
+    await sandbox.processNextQueueItem();
+    assert.equal(sandbox.state.queue[0].status, 'pending', 'öğe bekleyene dönmedi');
+    assert.equal(sandbox.state.queueRunning, false, 'kuyruk kapatılmadı');
+    assert.equal(sandbox.__spawned, undefined, 'durdurma dalı süreç başlattı');
+    assert.equal(els.startQueueBtn.disabled, false,
+      'başlat düğmesi kilitli kaldı — kuyruk yeniden başlatılamaz');
+    // İkinci sürüş: düğme etkin → kullanıcı kuyruğu yeniden başlatır; öğe bu
+    // kez durma kapısını geçip gerçekten spawn'a ulaşmalı.
+    sandbox.state.queueRunning = true;
+    await sandbox.processNextQueueItem();
+    assert.equal(sandbox.__spawned, true,
+      'yeniden başlatılan kuyruk durma kapısını geçip işi başlatamadı');
+    assert.equal(sandbox.state.queue[0].status, 'running', 'öğe çalışır işaretlenmedi');
+  });
+
   if (!process.exitCode) console.log(`\n${passed} kuyruk lifecycle testi geçti.`);
 })();

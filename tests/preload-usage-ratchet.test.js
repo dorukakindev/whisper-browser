@@ -60,11 +60,30 @@ const dormantNames = new Set(DORMANT.map((d) => d.name));
 const exports_ = preloadExports();
 assert(exports_.size > 200, `preload export sayısı beklenmedik düşük: ${exports_.size}`);
 
+// Yorum/dizgi içinde geçen `api.ad` sözlerini kullanım sanmamak için
+// tek geçişli sözcük tarayıcı: yorumlar ve dizgi sabitleri sırayla
+// tanınır (bir `//` dizginin içindeyse yorum sayılmaz). Nokta erişimi
+// yorum+dizgi soyulmuş metinde; `api['ad']` köşeli erişimi ad dizgi
+// sabitinin içinde olduğundan yalnız yorum soyulmuş metinde aranır.
+// Bilinen sınır: `//` içeren regex sabitleri (ör. /\/\//) satır
+// sonuna dek yorum sayılır — satır içi api çağrısını yiyebilir;
+// böyle bir satır varsa açık DORMANT gerekçesiyle işaretlenir.
+const TOKEN = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g;
+function stripTokens(src, stripStrings) {
+  return src.replace(TOKEN, (m) => {
+    if (m[0] === '/') return ' ';
+    return stripStrings ? m[0] + m[0] : m;
+  });
+}
+const noComments = srcFiles.map((f) => stripTokens(fs.readFileSync(f, 'utf8'), false));
+const noStrings = noComments.map((s) => stripTokens(s, true));
+
 const unused = [];
 for (const name of exports_) {
   if (dormantNames.has(name)) continue;
-  const re = new RegExp(`api\\??\\.${name}\\b`);
-  const used = srcFiles.some((f) => re.test(fs.readFileSync(f, 'utf8')));
+  const dot = new RegExp(`api\\??\\.${name}\\b`);
+  const bracket = new RegExp(`api\\??\\[\\s*['"\`]${name}['"\`]\\s*\\]`);
+  const used = noStrings.some((s) => dot.test(s)) || noComments.some((s) => bracket.test(s));
   if (!used) unused.push(name);
 }
 
