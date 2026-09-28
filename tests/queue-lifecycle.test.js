@@ -483,7 +483,7 @@ function shuffle(items, random) {
       renderer.indexOf('// ===== Helpers ====='));
     assert(/computeQueueCollisionSuffix\(next\.input, opts, next\.id\)/.test(processSlice),
       'processNextQueueItem soneki yeniden üretmiyor — kalıcı kuyruk geçersiz sonekle takılır');
-    assert(/next\.error = String\(r\.error/.test(processSlice),
+    assert(/next\.error = (friendlySystemError\(String\(r\.error|String\(r\.error)/.test(processSlice),
       'next.status=error yolunda hata nedeni öğeye yazılmıyor — kuyruk satırı sebepsiz görünür');
   });
 

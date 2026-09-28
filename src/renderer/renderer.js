@@ -761,7 +761,7 @@ async function processNextQueueItem() {
       renderQueue();
       return;
     }
-    logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${r.error}`, 'error');
+    logLine(`✗ Kuyruk: "${next.label}" başlatılamadı — ${friendlySystemError(r.error)}`, 'error');
     state.currentQueueId = null;
     if (r.busy || /hâlâ kapanıyor|hâlâ çalışıyor|zaten bir iş çalışıyor|çalışırken|başka bir model işi/i.test(String(r.error || ''))) {
       next.status = 'pending';
@@ -772,7 +772,7 @@ async function processNextQueueItem() {
       return;
     }
     next.status = 'error';
-    next.error = String(r.error || 'İş başlatılamadı.').slice(0, 500);
+    next.error = friendlySystemError(String(r.error || 'İş başlatılamadı.')).slice(0, 500);
     reportWatchQueueResult(next, 'error');
     renderQueue();
     state.running = false;
@@ -4733,7 +4733,7 @@ $('reexportJson').addEventListener('click', async () => {
   $('cancelBtn').classList.remove('hidden');
   logLine(`JSON'dan yeniden üretiliyor: ${jsonPath.split(/[\\/]/).pop()}`, 'info');
   const r = await startTranscribeSafe(opts);
-  if (!r.ok) { logLine('Hata: ' + r.error, 'error'); finishRun(false); }
+  if (!r.ok) { logLine('Hata: ' + friendlySystemError(r.error), 'error'); finishRun(false); }
 });
 
 // ===== Altyazı senkronlama aracı =====
@@ -4784,7 +4784,7 @@ $('syncBtn').addEventListener('click', async () => {
   $('cancelBtn').classList.remove('hidden');
   logLine(`Senkronlanıyor: ${state.syncSrt.split(/[\\/]/).pop()} ↔ ${state.syncVideo.split(/[\\/]/).pop()}`, 'info');
   const r = await startTranscribeSafe(opts);
-  if (!r.ok) { logLine('Hata: ' + r.error, 'error'); finishRun(false); }
+  if (!r.ok) { logLine('Hata: ' + friendlySystemError(r.error), 'error'); finishRun(false); }
 });
 
 // ===== Sonuç modalı araçları: zaman kaydır + videoya göm =====
@@ -4799,7 +4799,7 @@ $('applyShift').addEventListener('click', async () => {
   if (!isFinite(off) || off === 0) { logLine('Geçerli bir kaydırma değeri girin (sn).', 'warn'); return; }
   const r = await window.api.shiftSubs(target, off);
   if (r && r.ok) logLine(`Zaman kaydırıldı (${off > 0 ? '+' : ''}${off}s): ${target.split(/[\\/]/).pop()}`, 'success');
-  else logLine('Kaydırma başarısız: ' + ((r && r.error) || ''), 'error');
+  else logLine('Kaydırma başarısız: ' + friendlySystemError((r && r.error) || ''), 'error');
 });
 
 function setBurninRunningUi() {
@@ -4815,7 +4815,7 @@ $('burnInBtn').addEventListener('click', async () => {
   if (!state.resultModalVideo) { logLine('Gömme yalnızca yerel video girdisinde mümkün (YouTube değil).', 'warn'); return; }
   if (!sub) { logLine('Gömülecek SRT/ASS çıktısı yok.', 'warn'); return; }
   const r = await window.api.burnInStart(state.resultModalVideo, sub);
-  if (!r || !r.ok) { logLine('Gömme başlatılamadı: ' + ((r && r.error) || ''), 'error'); return; }
+  if (!r || !r.ok) { logLine('Gömme başlatılamadı: ' + friendlySystemError((r && r.error) || ''), 'error'); return; }
   setBurninRunningUi();
 });
 
@@ -7219,6 +7219,14 @@ async function openRetranslationReview(previousCues) {
 
 function uiText(value) {
   return globalThis.UiLocale?.t ? globalThis.UiLocale.t(value) : value;
+}
+
+// Teknik hata metinlerini (ENOENT, ETIMEDOUT, net::ERR_* vb.) kullanıcı
+// dostu dile çevirir; tanınmayanlar olduğu gibi geçer, ham ayrıntı korunur.
+function friendlySystemError(raw) {
+  return window.StatusCopy?.systemError
+    ? window.StatusCopy.systemError(window.UiLocale?.get?.(), raw)
+    : String(raw || '');
 }
 
 // Bu oturumda görülen site simgeleri (köken → veri URL'si). Geçmiş ve yer imi
