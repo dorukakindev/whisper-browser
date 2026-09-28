@@ -11,6 +11,37 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Sayfa çevirisinde paragraf içi bağlantılar metni çiftliyordu** —
+  `<p>` içindeki `<a>/<button>/<label>` ayrı blok taranıyordu; üst blok ve
+  iç blok çevirileri üst üste yazılarak "Dosyayı buradaindirmek için…"
+  gibi bozuk çıktı üretiyordu. Taranan bloklar artık üst metin bloğuna
+  katılır; bağlantı öğesi korunur, nav içi gibi üst blok yoksa kendi
+  bloğu kalır.
+- **Sayfa çevirisinde tek hatalı blok komşu doğru çevirileri de
+  düşürüyordu** — korumalı-işaret/bağlam-sızıntısı kapısı artık blok
+  bazlı: hatalı blok kaynak metniyle bırakılıp `failedIds` ile
+  raporlanır; kaynak-echo'su içeren sonuçlar önbelleğe yazılmaz.
+- **Kısa tarayıcı çevirileri kalıcı hataya düşüyordu** — iki cue'luk
+  "I don't / know." → "Bilmiyorum." gibi tek-kelime çıktılar parça
+  zorunluluğuna takılıyordu; dağıtım artık birleşik balona düşer ve
+  `coveredCueIds` ile kapsanan cue'lar bütünlükte tamam sayılır.
+- **Kesin çeviri hataları istek fırtınası üretiyordu** — içerik
+  filtresi, yarıda kesilen yanıt, bozuk JSON ve düşünme-bloğu
+  kırılmaları HTTP kodu taşımadığı için tüm rotalar + scheduler
+  tekrarlarıyla cümle başına 6–12 istek yakıyordu. Bu hatalar artık
+  kesin sayılır (tekrarlanmaz) ve ardışık kesin hatalar kuyruğu
+  sağlayıcı-kesici gibi durdurur.
+- **Aynı zaman aralığındaki cue'lar aynı çeviriyle eşleşiyordu** —
+  `translationsForCues` eş örtüşmede hep ilk çeviri satırını
+  seçiyordu; artık kullanılmamış eş-değer satır tercih edilir,
+  birleşik (merged) satırın yeniden kullanımı korunur.
+- **Çeviri önbelleği ana süreci kısa aralıklarla donduruyordu** —
+  50k kayıtlı ~13MB dosya her yazımda baştan serileştirilip `.bak`
+  kopyalanıyordu (~60ms). Artımlı yazımlar `.journal` sonuna ekler;
+  bayt/tur/yaş eşiğinde tek tam sıkıştırma yapılır.
+- **PDF çeviri önbelleği sağlayıcı değişiminde karışıyordu** — önbellek
+  kimliğine `endpoint` eklendi; aynı model adıyla farklı sağlayıcıya
+  geçişte eski sonuçlar kullanılmaz.
 - **"Sırada dur" sonrası kuyruk başlat düğmesi kilitli kalıyordu** —
   `persistQueueNow` beklerken durdurulan kuyrukta `renderQueue` bayraklar
   hâlâ yüksekken çiziliyor ve `finalizeQueue` düğmeleri yeniden
