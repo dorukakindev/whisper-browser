@@ -75,15 +75,31 @@ function stripTokens(src, stripStrings) {
     return stripStrings ? m[0] + m[0] : m;
   });
 }
-const noComments = srcFiles.map((f) => stripTokens(fs.readFileSync(f, 'utf8'), false));
+const rawSrc = srcFiles.map((f) => fs.readFileSync(f, 'utf8'));
+const noComments = rawSrc.map((s) => stripTokens(s, false));
 const noStrings = noComments.map((s) => stripTokens(s, true));
+
+// `api['ad']` köşeli erişimi dizgi SABİTİNİN içinde geçiyorsa kullanım
+// sayılmaz: ham kaynaktaki yorum+dizgi aralıkları maskelenir, köşeli
+// eşleşmenin başlangıcı maske dışında olmalı. (Soyulmuş metinde
+// `api['ad']` adı silindiği için arama ham metinde yapılır.)
+const maskSpans = rawSrc.map((s) => {
+  const spans = [];
+  for (const m of s.matchAll(new RegExp(TOKEN.source, 'g'))) {
+    spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+});
+const inSpan = (spans, i) => spans.some(([a, b]) => i >= a && i < b);
 
 const unused = [];
 for (const name of exports_) {
   if (dormantNames.has(name)) continue;
   const dot = new RegExp(`api\\??\\.${name}\\b`);
-  const bracket = new RegExp(`api\\??\\[\\s*['"\`]${name}['"\`]\\s*\\]`);
-  const used = noStrings.some((s) => dot.test(s)) || noComments.some((s) => bracket.test(s));
+  const bracket = new RegExp(`api\\??\\[\\s*['"\`]${name}['"\`]\\s*\\]`, 'g');
+  const used = noStrings.some((s) => dot.test(s))
+    || rawSrc.some((s, fi) => [...s.matchAll(bracket)]
+      .some((m) => !inSpan(maskSpans[fi], m.index)));
   if (!used) unused.push(name);
 }
 

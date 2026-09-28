@@ -190,58 +190,89 @@ class SeriesMemory:
     def merge(self, raw, season: int, episode_number: int) -> bool:
         if self.load_warning or not isinstance(raw, dict):
             return False
-        origin = [int(season), int(episode_number)]
-        changed = False
         with self._lock:
-            terms = raw.get("terms") if isinstance(raw.get("terms"), dict) else {}
-            known_terms = {_identity(key): key for key in self.data["terms"]}
-            for source, target in list(terms.items())[:20]:
-                source = self._safe_text(source, 80); target = self._safe_text(target, 100)
-                if not source or not target or source.casefold() == target.casefold():
-                    continue
-                identity = _identity(source); existing_key = known_terms.get(identity)
-                existing = self.data["terms"].get(existing_key, {}) if existing_key else None
-                if existing is None or _episode(origin) < _episode(existing.get("episode")):
-                    if existing_key and existing_key != source:
-                        del self.data["terms"][existing_key]
-                    self.data["terms"][source] = {"target": target, "episode": origin}
-                    known_terms[identity] = source; changed = True
-            characters = raw.get("characters") if isinstance(raw.get("characters"), list) else []
-            known_characters = {_identity(key): key for key in self.data["characters"]}
-            for item in characters[:12]:
-                if not isinstance(item, dict):
-                    continue
-                name = self._safe_text(item.get("name"), 60)
-                style = self._safe_style(item.get("style"))
-                if not name or is_generic_character_name(name):
-                    continue
-                identity = _identity(name); existing_key = known_characters.get(identity)
-                existing = self.data["characters"].get(existing_key, {}) if existing_key else None
-                if existing is None or _episode(origin) < _episode(existing.get("episode")):
-                    if existing_key and existing_key != name:
-                        del self.data["characters"][existing_key]
-                    self.data["characters"][name] = {"style": style, "episode": origin}
-                    known_characters[identity] = name; changed = True
-            addresses = raw.get("addresses") if isinstance(raw.get("addresses"), list) else []
-            known_addresses = {(_identity(row.get("a")), _identity(row.get("b"))): row
-                               for row in self.data["addresses"] if isinstance(row, dict)}
-            for item in addresses[:12]:
-                if not isinstance(item, dict):
-                    continue
-                a = self._safe_text(item.get("a"), 60); b = self._safe_text(item.get("b"), 60)
-                register = self._safe_text(item.get("register"), 20).casefold()
-                if not a or not b or register not in {"sen", "siz"} or is_generic_character_name(a) or is_generic_character_name(b):
-                    continue
-                key = (_identity(a), _identity(b)); existing = known_addresses.get(key)
-                if existing is None or _episode(origin) < _episode(existing.get("episode")):
-                    row = {"a": a, "b": b, "register": register, "episode": origin}
-                    if existing in self.data["addresses"]:
-                        self.data["addresses"].remove(existing)
-                    self.data["addresses"].append(row); known_addresses[key] = row; changed = True
+            changed = self._merge_into_data(raw, [int(season), int(episode_number)])
             if changed:
                 self._prune()
                 if not self._save():
                     return False
+        return changed
+
+    def merge_many(self, raws, season: int, episode_number: int) -> int:
+        """Bir işin topladığı tüm karar kümelerini tek disk yazımıyla birleştir.
+
+        merge()'i paket başına çağırmak her seferinde kilit + disk okuma +
+        fsync demekti; paylaşılan işçi kilidinin içinde çağrılınca bütün
+        paralel çeviri işçileri sıraya diziliyordu. merged_rows sayısı döner.
+        """
+        if self.load_warning:
+            return 0
+        rows = [raw for raw in (raws or []) if isinstance(raw, dict)]
+        if not rows:
+            return 0
+        origin = [int(season), int(episode_number)]
+        changed = False
+        with self._lock:
+            merged = 0
+            for raw in rows:
+                if self._merge_into_data(raw, origin):
+                    merged += 1
+                    changed = True
+            if changed:
+                self._prune()
+                if not self._save():
+                    return 0
+        return merged
+
+    def _merge_into_data(self, raw, origin) -> bool:
+        """Tek karar kümesini bellekteki veriye uygula; diske dokunmaz.
+        self._lock çağıran tarafından tutulmuş olmalı."""
+        changed = False
+        terms = raw.get("terms") if isinstance(raw.get("terms"), dict) else {}
+        known_terms = {_identity(key): key for key in self.data["terms"]}
+        for source, target in list(terms.items())[:20]:
+            source = self._safe_text(source, 80); target = self._safe_text(target, 100)
+            if not source or not target or source.casefold() == target.casefold():
+                continue
+            identity = _identity(source); existing_key = known_terms.get(identity)
+            existing = self.data["terms"].get(existing_key, {}) if existing_key else None
+            if existing is None or _episode(origin) < _episode(existing.get("episode")):
+                if existing_key and existing_key != source:
+                    del self.data["terms"][existing_key]
+                self.data["terms"][source] = {"target": target, "episode": origin}
+                known_terms[identity] = source; changed = True
+        characters = raw.get("characters") if isinstance(raw.get("characters"), list) else []
+        known_characters = {_identity(key): key for key in self.data["characters"]}
+        for item in characters[:12]:
+            if not isinstance(item, dict):
+                continue
+            name = self._safe_text(item.get("name"), 60)
+            style = self._safe_style(item.get("style"))
+            if not name or is_generic_character_name(name):
+                continue
+            identity = _identity(name); existing_key = known_characters.get(identity)
+            existing = self.data["characters"].get(existing_key, {}) if existing_key else None
+            if existing is None or _episode(origin) < _episode(existing.get("episode")):
+                if existing_key and existing_key != name:
+                    del self.data["characters"][existing_key]
+                self.data["characters"][name] = {"style": style, "episode": origin}
+                known_characters[identity] = name; changed = True
+        addresses = raw.get("addresses") if isinstance(raw.get("addresses"), list) else []
+        known_addresses = {(_identity(row.get("a")), _identity(row.get("b"))): row
+                           for row in self.data["addresses"] if isinstance(row, dict)}
+        for item in addresses[:12]:
+            if not isinstance(item, dict):
+                continue
+            a = self._safe_text(item.get("a"), 60); b = self._safe_text(item.get("b"), 60)
+            register = self._safe_text(item.get("register"), 20).casefold()
+            if not a or not b or register not in {"sen", "siz"} or is_generic_character_name(a) or is_generic_character_name(b):
+                continue
+            key = (_identity(a), _identity(b)); existing = known_addresses.get(key)
+            if existing is None or _episode(origin) < _episode(existing.get("episode")):
+                row = {"a": a, "b": b, "register": register, "episode": origin}
+                if existing in self.data["addresses"]:
+                    self.data["addresses"].remove(existing)
+                self.data["addresses"].append(row); known_addresses[key] = row; changed = True
         return changed
 
     def _prune(self):
