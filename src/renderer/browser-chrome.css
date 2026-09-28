@@ -35,7 +35,7 @@ html[data-theme="light"] {
   border-radius: var(--chrome-radius-chip);
   background: var(--accent);
 }
-.browser-translate-menu { position: relative; }
+.browser-translate-menu { position: relative; anchor-name: --wb-translate-menu; }
 .browser-translate-menu > summary {
   width: 30px;
   height: 32px;
@@ -59,8 +59,21 @@ html[data-theme="light"] {
 .browser-menu-popover, .player-more-menu, .ph-more-menu, .subtitle-mode-menu {
   animation: menuFadeIn var(--motion-fast) ease-out;
 }
-/* En soldaki menü soldan taşar — kenara hizala */
-.browser-translate-menu .browser-menu-popover { right: auto; left: 0; }
+/* Sol kenara demirlenir; sağdan taşarsa workspace kenarına yaslanır.
+   `position: fixed` şart: absolute'da sınırlayıcı blok details kutusu (30px)
+   olduğundan taşma denetimi anlamsızlaşır; fixed ile sınırlayıcı blok
+   `.browser-workspace` (container-type) olur ve position-try taşmayı görür. */
+.browser-translate-menu .browser-menu-popover {
+  position: fixed;
+  top: calc(anchor(--wb-translate-menu bottom) + 6px);
+  right: auto;
+  left: anchor(--wb-translate-menu left);
+  position-try-fallbacks: --wb-translate-menu-flip;
+}
+@position-try --wb-translate-menu-flip {
+  left: auto;
+  right: 8px;
+}
 @media (prefers-reduced-motion: reduce) {
 .browser-menu-popover, .player-more-menu, .ph-more-menu, .subtitle-mode-menu { animation: none; }
 }
