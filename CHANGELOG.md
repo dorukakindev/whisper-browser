@@ -11,6 +11,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **"Değişmeden kabul" hiç devreye girmiyordu** — iki turda da kaynağı
+  yankılayan satırın kabul kontrolü, ikinci kurtarma denemesi de hata
+  fırlatınca `except`'in erken dönüşüyle atlanıyordu; 'Rock and roll!',
+  'Ha ha ha.' gibi doğal olarak değişmez satırlar yine `.partial` dosyaya
+  ve başarısız sayıma düşüyordu. Kabul artık kurtarmanın her çıkış
+  noktasında çalışır ve üçüncü istek ödenmez.
+- **Değişmeden kalan satırlar işi `.partial` yapıyordu** — kalite
+  raporu kaynakla aynı görünen metni "çevrilmedi" sayıyordu; bilinçli
+  korunan satırlar (zaten hedef dilde / yankı-kabul / önceden çevrilmiş)
+  artık `status_out.unchanged`/`precompleted` üzerinden muaf tutulur.
+- **Türkçe sıra sayıları cümle sonu sanılıyordu** — `'21. yüzyıldayız.'`
+  içindeki `21.` ikinci cümle sonu sayılıp parça kapısı doğru çeviriyi
+  reddediyordu; ifade başındaki ve küçük harfle devam eden `rakam+nokta`
+  artık cümle sonu sayılmaz.
 - **Sayfa çevirisinde paragraf içi bağlantılar metni çiftliyordu** —
   `<p>` içindeki `<a>/<button>/<label>` ayrı blok taranıyordu; üst blok ve
   iç blok çevirileri üst üste yazılarak "Dosyayı buradaindirmek için…"
