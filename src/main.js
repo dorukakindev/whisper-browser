@@ -385,14 +385,12 @@ const {
 } = require('./browser-page-translate');
 const {
   buildPdfParagraphPages,
-  createPdfTranslationState,
-  normalizePdfTranslationState,
   recordPdfPageTranslation,
   pdfHashFromFirstChunk,
   pdfHashPlan,
   mapPdfItemsThroughViewport,
+  loadPdfTranslationState,
   pdfTranslationStateFileStem,
-  pdfTranslationStateLegacyFileStem,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -6995,26 +6993,9 @@ function pdfTranslationStatePath(pdfHash, endpoint) {
 }
 
 function readPdfTranslationState(identity) {
-  const primary = pdfTranslationStatePath(identity.pdfHash, identity.endpoint);
-  // Endpoint alanı eklenmeden önce yazılmış dosyalar pdfHash-only anahtardaydı;
-  // endpoint eşleşenler normalize adımında geçer, kalanlar taze başlangıca düşer.
-  const legacy = path.join(pdfTranslationDirectory(),
-    `${pdfTranslationStateLegacyFileStem(identity.pdfHash)}.json`);
-  for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
-    try {
-      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
-      const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-      // Kimlik alanları uyuşmayan dosya taze duruma düşer — döngüyü burada
-      // kapatma: aynı pdfHash'in başka kimliğini taşıyan legacy/bak dosyası
-      // hâlâ uyumlu olabilir (ör. model geri değiştirilince).
-      const identityMismatch = ['pdfHash', 'endpoint', 'model', 'targetLanguage']
-        .some((field) => raw?.[field] !== undefined
-          && String(raw[field] ?? '').trim() !== String(identity[field] ?? '').trim());
-      if (identityMismatch) continue;
-      return normalizePdfTranslationState(raw, identity);
-    } catch (_) {}
-  }
-  return createPdfTranslationState(identity);
+  // Aday sırası ve kimlik/sürüm uyumluluğu pdf-translate.js'te — bozuk
+  // birincil dosya sağlam .bak/legacy yedeğini gizleyemez.
+  return loadPdfTranslationState(pdfTranslationDirectory(), identity);
 }
 
 function writePdfTranslationState(state) {

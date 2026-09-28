@@ -3753,9 +3753,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if not record and tm and len(group) == 1:
             source = entries[group[0]][2]
             fuzzy = tm.lookup(source, tm_scope, tm_context(group))
-            # Eski sürümlerden kalan yankı satırı "çeviri" diye dönmez:
-            # kaynağın noktalama-benzek kopyası kullanımda da elenir.
-            if fuzzy and translation_is_source_echo(source, fuzzy["target"]):
+            # Eski sürümlerden kalan yankı satırı "çeviri" diye dönmez.
+            # Depodaki kaynak güncel kaynaktan farklı olabilir (bulanık
+            # eşleşme bir yazım hatasıyla bulur); zehir testi bu yüzden
+            # depodaki kaynağa karşı da yapılır — aksi halde İngilizce
+            # hedef fark yaratıp çeviri diye uygulanırdı.
+            if fuzzy and (translation_is_source_echo(fuzzy.get("source") or source, fuzzy["target"])
+                          or translation_is_source_echo(source, fuzzy["target"])):
                 fuzzy = None
             if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target):
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)

@@ -661,5 +661,47 @@ def test_poisoned_tm_row_is_not_served(tmp_path):
     assert [t for _, _, t in out] == ["Wait right there, now!"], out
 
 
+def test_poisoned_tm_row_with_source_drift_is_not_served(tmp_path):
+    """Depodaki kaynak güncel kaynaktan farklıysa (bulanık eşleşme yazım
+    hatasıyla bulur) zehir testi depodaki kaynağa karşı da yapılır —
+    aksi halde yankı hedef 'çeviri' diye uygulanırdı."""
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "The quik fox jumps over it.")]
+
+    class _DriftedTM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def lookup(self, *args, **kwargs):
+            # Depodaki kaynak güncelden 'quik→quick' ile ayrılıyor; hedef
+            # depodaki kaynağın kopyası (zehirli satır).
+            return {"source": "The quick fox jumps over it.",
+                    "target": "The quick fox jumps over it.", "ratio": 0.9}
+
+        def store(self, *args, **kwargs):
+            return False
+
+        def close(self):
+            pass
+
+    def _create(**kw):
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "The quik fox jumps over it."}, "sentences": {}})))])
+
+    real_tm = T.TranslationMemory
+    T.TranslationMemory = _DriftedTM
+    try:
+        with _fake_openai(_create):
+            out = T.llm_translate(
+                entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+                [], source_lang="en")
+    finally:
+        T.TranslationMemory = real_tm
+    # Kaynak-driftli zehirli satır elendi → echo-kabul kaynağı korur;
+    # depodaki-kaynak testi olmasaydı 'The quick fox jumps over it.' dönerdi.
+    assert [t for _, _, t in out] == ["The quik fox jumps over it."], out
+
+
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)
