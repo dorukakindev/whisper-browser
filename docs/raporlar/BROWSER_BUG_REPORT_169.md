@@ -29,5 +29,6 @@
 
 ## Koşulan testler
 
+- Not: tam `--all` suite'i düzeltmeler sonrası uçtan uca yeniden koşulmadı — aşağıdaki doğrulama standalone koşulardır; birleşik koşucu sonucu CI/Windows'a bırakıldı.
 - `electron-a3-acceptance`, `electron-subtitle-output`, `electron-overlay-timing`, `electron-ui-scale-matrix`, `electron-browser-subtitle-smoke`: standalone PASS (yetim süreç sıfır).
 - `electron-browser-experience-smoke`: fullscreen ayağına kadar GEÇTİ; fullscreen ayağı yukarıdaki açık madde.

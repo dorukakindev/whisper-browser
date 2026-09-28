@@ -91,7 +91,7 @@ function createCdpClient(webSocketDebuggerUrl) {
 function anchorEvalExpression(expression) {
   return `(function(){var p=Promise.resolve((${expression}));`
     + `var a=(globalThis.__cdpAnchor=globalThis.__cdpAnchor||[]);a.push(p);`
-    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);});return p;})()`;
+    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);}).catch(function(){});return p;})()`;
 }
 
 async function evaluate(client, expression, timeout = 15000, extra = {}) {
