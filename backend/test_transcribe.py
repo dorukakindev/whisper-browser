@@ -14,6 +14,7 @@ import hashlib
 import os
 import sys
 import tempfile
+import time
 import types
 import wave
 from pathlib import Path
@@ -3376,7 +3377,14 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
         cache_path = T.translate_cache_path(args)
         assert not Path(cache_path).exists(), 'İptal edilen çeviri tam önbelleğe yazıldı'
         memory_path = Path(tmp) / 'translation-memory.sqlite3'
-        memory_path.unlink()
+        # Windows'ta AV/dizinleyici yeni oluşan dosyayı kısa süre kilitleyebilir;
+        # bağlantı gerçekten açıksa tüm denemeler düşer, geçici kilit geçer.
+        for _ in range(50):
+            try:
+                memory_path.unlink()
+                break
+            except PermissionError:
+                time.sleep(0.1)
         assert not memory_path.exists(), 'SQLite çeviri hafızası bağlantısı açık kaldı'
 
 
