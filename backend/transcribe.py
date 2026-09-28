@@ -3753,6 +3753,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if not record and tm and len(group) == 1:
             source = entries[group[0]][2]
             fuzzy = tm.lookup(source, tm_scope, tm_context(group))
+            # Eski sürümlerden kalan yankı satırı "çeviri" diye dönmez:
+            # kaynağın noktalama-benzek kopyası kullanımda da elenir.
+            if fuzzy and translation_is_source_echo(source, fuzzy["target"]):
+                fuzzy = None
             if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target):
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
                 if record:
