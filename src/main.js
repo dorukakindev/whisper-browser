@@ -8717,6 +8717,13 @@ function startBrowserLiveAsr(tab, options = {}) {
   // modeli yükleyemeyip süreci sessizce öldürüyordu; ilk yükleme hatasında
   // tek seferlik CPU/int8'e düş.
   const canFallBackToCpu = () => !job.stopping && !job.ready && job.device === 'cuda' && !job.fellBackToCpu;
+  const dropRetainedChunks = () => {
+    for (const filePath of job.chunkFiles) {
+      try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+    }
+    job.chunkFiles.clear();
+    job.pendingChunks.clear();
+  };
   const launch = (nextDevice, nextComputeType) => {
     const proc = spawn(resolvePython(), [script, '--model', model, '--device', nextDevice,
       '--compute-type', nextComputeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
@@ -8757,13 +8764,7 @@ function startBrowserLiveAsr(tab, options = {}) {
       // yol satırları launch() içinde yeniden beslenir; aksi halde canlı
       // altyazının ilk saniyeleri kaybolur.
       const fallBack = browserLiveAsr === job && canFallBackToCpu();
-      if (!fallBack) {
-        for (const filePath of job.chunkFiles) {
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-        }
-        job.chunkFiles.clear();
-        job.pendingChunks.clear();
-      }
+      if (!fallBack) dropRetainedChunks();
       if (browserLiveAsr !== job) return;
       if (fallBack) {
         job.fellBackToCpu = true;
@@ -8775,6 +8776,7 @@ function startBrowserLiveAsr(tab, options = {}) {
         try { launch('cpu', 'int8'); }
         catch (error) {
           browserLiveAsr = null;
+          dropRetainedChunks();
           sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
             message: `Canlı Whisper başlatılamadı: ${error.message}` });
         }
