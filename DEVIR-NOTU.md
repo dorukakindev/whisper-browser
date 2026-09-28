@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0115.md](docs/devir/2026-09-29-0115.md) — R214: mimari diyagram + CONTRIBUTING yenileme
+Güncel çalışma: [docs/devir/2026-09-29-0130.md](docs/devir/2026-09-29-0130.md) — R215: 1000-döngü soak sayısal rapor (GEÇTİ)
+Önceki çalışma: [docs/devir/2026-09-29-0115.md](docs/devir/2026-09-29-0115.md) — R214: mimari diyagram + CONTRIBUTING yenileme
 Önceki çalışma: [docs/devir/2026-09-29-0100.md](docs/devir/2026-09-29-0100.md) — R213: sonuç modalı zaman kaydırma E2E smoke'u
 Önceki çalışma: [docs/devir/2026-09-29-0045.md](docs/devir/2026-09-29-0045.md) — R212: teknik hata mesajları dostu dile çevrilir (systemError)
 Önceki çalışma: [docs/devir/2026-09-29-0030.md](docs/devir/2026-09-29-0030.md) — R211: kuyruk persist yarışında "Sırada dur" kapanışı
