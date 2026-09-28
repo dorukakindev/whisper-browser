@@ -3807,9 +3807,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if cache_dirty:
             with lock:
                 snapshot = dict(cache)
+                dirty = cache_dirty.copy()
             try:
                 save_translate_cache(cache_file, snapshot)
-                cache_dirty.clear()
+                # Yalnız yazılan imler silinir — snapshot sonrası kilit altında
+                # eklenen yeni kayıtlar kirli kalır, sonraki flush'ta yazılır.
+                cache_dirty.difference_update(dirty)
             except Exception as exc:
                 log(f"Çeviri önbelleğinin artımlı yazımı başarısız: {exc}", "warn")
         if tm and tm_pending:
@@ -4392,29 +4395,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # Hafıza bağlantısı da hemen kapanır; Windows'ta açık kalan SQLite
         # dosyası sonraki işi kilitleyebilir.
         flush_cache_and_tm(force=True)
-        close_translation_memory()
-
-    # Dizi hafızası: paket başına disk okuma+fsync'i kilit altında yapmak
-    # işçileri bekletiyordu ve 1. geçiş kararları 2. geçişte değişince
-    # bayatlıyordu. Kararlar bellekte toplandı; SON metinlere karşı
-    # süzülüp iş sonunda tek dosya yazımıyla kalıcılaştırılır.
-    if series_memory and series_key and memory_candidates:
-        merged_rows = []
-        for group_index, source, candidates in memory_candidates:
-            record = records.get(group_index)
-            final_text = record.get("text") if isinstance(record, dict) \
-                else out_texts[group_index]
-            filtered = filter_series_memory_candidates(
-                candidates, source, str(final_text or ""))
-            if filtered:
-                merged_rows.append(filtered)
-        if merged_rows:
-            try:
-                series_memory.merge_many(merged_rows, series_key[1], series_key[2])
-                log(f"Dizi hafızasına {len(merged_rows)} paketin kararları "
-                    "tek kayıtta yazıldı.")
-            except Exception as exc:
-                log(f"Dizi hafızasının son kaydı başarısız: {exc}", "warn")
+        # Hafıza bağlantısı refine ve son kayıt yazımına dek açık tutulur —
+        # erken kapama, 2. geçişin düzelttiği metni bulanık hafızaya
+        # yazamazdı. Kapama her yolda en dış finally'de yapılır.
 
     log(
         "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
@@ -4473,97 +4456,124 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
     # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
     # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
-    refined_idx = set()
-    if getattr(args, "translate_refine", False):
-        emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
-        log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
-        refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)
-        if glossary_terms:
-            refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
-        refined = list(out_texts)
-        r_counters = {"changed": 0, "failed": 0}
-        r_rejections = {}
-
-        def refine_task(chunk_idx):
-            payload = translation_payload(chunk_idx, refine=True)
-            resp, used_url = call_api_with(refine_prompt, payload)
-            content = (resp.choices[0].message.content or "").strip()
-            data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
-            n_changed = 0
-            confirmed = []
-            rejected = {}
-            range_issue = reply_id_range_issue(data, len(chunk_idx))
-            if range_issue:
-                rejected[range_issue] = len(chunk_idx)
-                return n_changed, confirmed, rejected
-            for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
-                record = accept_sentence_reply(data, row['ids'])
-                if not record:
-                    continue
-                gate_issue = part_gate_issue(group, record['parts'])
-                if gate_issue:
-                    key = "part_kapisi:" + gate_issue
-                    rejected[key] = rejected.get(key, 0) + len(group)
-                    continue
-                if (translation_is_source_echo(row['source'], record['text'])
-                        and not is_structural_sdh_cue(row['source'])):
-                    rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
-                    continue
-                assessment = evaluate_refinement_candidate(
-                    row['source'], row['translation'], record['text'], target,
-                    sum(translation_char_budget(entries[i], args) for i in group))
-                if not assessment["accepted"]:
-                    for reason in assessment["reasons"]:
-                        rejected[reason] = rejected.get(reason, 0) + len(group)
-                    continue
-                with lock:
-                    for source_index, new_text in zip(group, record['parts']):
-                        if source_index in precompleted_idx:
-                            continue  # elle/eski çeviri asla ezilmez
-                        if new_text != out_texts[source_index]:
-                            n_changed += 1
-                        refined[source_index] = new_text
-                    records[group[0]] = record
-                confirmed.extend(group)
-            return n_changed, confirmed, rejected
-
-        refine_chunks = pack_sentence_groups(
-            [group for group in pending_groups if all(i in done_idx for i in group)]
-            + refine_pending_groups, CHUNK_SIZE)
-        with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
-            futs = {ex.submit(refine_task, ch): ch for ch in refine_chunks}
-            for fut in as_completed(futs):
-                ch = futs[fut]
-                try:
-                    changed, confirmed, rejected = fut.result()
-                    r_counters["changed"] += changed
-                    r_counters["failed"] += len(ch) - len(confirmed)
-                    refined_idx.update(confirmed)
-                    for reason, count in rejected.items():
-                        r_rejections[reason] = r_rejections.get(reason, 0) + count
-                except Exception as e:
-                    r_counters["failed"] += len(ch)
-                    log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
-                        ch[0], ch[-1], e), "warn")
-        out_texts = refined
-        if r_counters["failed"]:
-            log("2. geçiş: {} blok düzeltildi, {} blokta hata (1. geçiş korundu)".format(
-                r_counters["changed"], r_counters["failed"]), "warn")
-            if warn_list is not None:
-                warn_list.append(f"2. geçişte {r_counters['failed']} blok doğrulanamadı; ilgili cümlelerin 1. geçişi korundu.")
-        else:
-            log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
-                "success")
-        if r_rejections:
-            details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
-            log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
-
-    # Başarılı çevirilerin son metinleri önbelleğe yazılır. Artımlı yazım
-    # zaten yapıldı; burada 2. geçişle değişen grupların güncel hâlleri
-    # sıralanır. 2. geçişte doğrulanamayan grupların 1. geçiş çevirileri de
-    # artık kaydedilir (eskiden cacheable_idx'in dışında kalıp her yeniden
-    # çalıştırmada tekrar ücretlendiriliyorlardı).
     try:
+        refined_idx = set()
+        if getattr(args, "translate_refine", False):
+            emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
+            log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
+            refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)
+            if glossary_terms:
+                refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
+            refined = list(out_texts)
+            r_counters = {"changed": 0, "failed": 0}
+            r_rejections = {}
+
+            def refine_task(chunk_idx):
+                payload = translation_payload(chunk_idx, refine=True)
+                resp, used_url = call_api_with(refine_prompt, payload)
+                content = (resp.choices[0].message.content or "").strip()
+                data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
+                n_changed = 0
+                confirmed = []
+                rejected = {}
+                # 1. geçişteki kimlik-kayması normalizasyonu 2. geçişte de zorunlu —
+                # 1'den numaralayan sağlayıcıda refine yanıtları sürekli
+                # aralık-dışı sayılıyor ve 'refined: false' sonsuz tekrar üretiyordu.
+                data = normalize_reply_ids(data, (
+                    index for row in payload['sentence_groups'] for index in row['ids']))
+                range_issue = reply_id_range_issue(data, len(chunk_idx))
+                if range_issue:
+                    rejected[range_issue] = len(chunk_idx)
+                    return n_changed, confirmed, rejected
+                for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
+                    record = accept_sentence_reply(data, row['ids'])
+                    if not record:
+                        continue
+                    gate_issue = part_gate_issue(group, record['parts'])
+                    if gate_issue:
+                        key = "part_kapisi:" + gate_issue
+                        rejected[key] = rejected.get(key, 0) + len(group)
+                        continue
+                    if (translation_is_source_echo(row['source'], record['text'])
+                            and not is_structural_sdh_cue(row['source'])):
+                        rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
+                        continue
+                    assessment = evaluate_refinement_candidate(
+                        row['source'], row['translation'], record['text'], target,
+                        sum(translation_char_budget(entries[i], args) for i in group))
+                    if not assessment["accepted"]:
+                        for reason in assessment["reasons"]:
+                            rejected[reason] = rejected.get(reason, 0) + len(group)
+                        continue
+                    with lock:
+                        for source_index, new_text in zip(group, record['parts']):
+                            if source_index in precompleted_idx:
+                                continue  # elle/eski çeviri asla ezilmez
+                            if new_text != out_texts[source_index]:
+                                n_changed += 1
+                            refined[source_index] = new_text
+                        records[group[0]] = record
+                    confirmed.extend(group)
+                return n_changed, confirmed, rejected
+
+            refine_chunks = pack_sentence_groups(
+                [group for group in pending_groups if all(i in done_idx for i in group)]
+                + refine_pending_groups, CHUNK_SIZE)
+            with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
+                futs = {ex.submit(refine_task, ch): ch for ch in refine_chunks}
+                for fut in as_completed(futs):
+                    ch = futs[fut]
+                    try:
+                        changed, confirmed, rejected = fut.result()
+                        r_counters["changed"] += changed
+                        r_counters["failed"] += len(ch) - len(confirmed)
+                        refined_idx.update(confirmed)
+                        for reason, count in rejected.items():
+                            r_rejections[reason] = r_rejections.get(reason, 0) + count
+                    except Exception as e:
+                        r_counters["failed"] += len(ch)
+                        log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
+                            ch[0], ch[-1], e), "warn")
+            out_texts = refined
+            if r_counters["failed"]:
+                log("2. geçiş: {} blok düzeltildi, {} blokta hata (1. geçiş korundu)".format(
+                    r_counters["changed"], r_counters["failed"]), "warn")
+                if warn_list is not None:
+                    warn_list.append(f"2. geçişte {r_counters['failed']} blok doğrulanamadı; ilgili cümlelerin 1. geçişi korundu.")
+            else:
+                log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
+                    "success")
+            if r_rejections:
+                details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
+                log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
+
+        # Başarılı çevirilerin son metinleri önbelleğe yazılır. Artımlı yazım
+        # zaten yapıldı; burada 2. geçişle değişen grupların güncel hâlleri
+        # sıralanır. 2. geçişte doğrulanamayan grupların 1. geçiş çevirileri de
+        # artık kaydedilir (eskiden cacheable_idx'in dışında kalıp her yeniden
+        # çalıştırmada tekrar ücretlendiriliyorlardı).
+        # Dizi hafızası: kararlar 2. geçişin SON metinlerine karşı süzülüp
+        # iş sonunda tek dosya yazımıyla kalıcılaştırılır (eskiden 1. geçiş
+        # metniyle refine'dan önce yazılıp eski terimi kanon yapıyordu;
+        # paket başına kilit altında fsync de işçileri bekletiyordu).
+        if series_memory and series_key and memory_candidates:
+            merged_rows = []
+            for group_index, source, candidates in memory_candidates:
+                record = records.get(group_index)
+                final_text = record.get("text") if isinstance(record, dict) \
+                    else out_texts[group_index]
+                filtered = filter_series_memory_candidates(
+                    candidates, source, str(final_text or ""))
+                if filtered:
+                    merged_rows.append(filtered)
+            if merged_rows:
+                try:
+                    series_memory.merge_many(merged_rows, series_key[1], series_key[2])
+                    log(f"Dizi hafızasına {len(merged_rows)} paketin kararları "
+                        "tek kayıtta yazıldı.")
+                except Exception as exc:
+                    log(f"Dizi hafızasının son kaydı başarısız: {exc}", "warn")
+
         for group in pending_groups + refine_pending_groups:
             if not all(i in done_idx for i in group):
                 continue
@@ -7605,10 +7615,14 @@ def translate_existing_subtitle(args):
     # (:6738) ama var-olan-altyazı modunda yoktu: Türkçe bir .tr.srt'i
     # Türkçeye 'çevirmek' kurtarma turlarıyla binlerce boş istek üretirdi
     # (ölçüm: 3 satır için 8 istek; 1500 satır için ~3000 istek tahmini).
-    # Kaynak 'auto' kalınca dosya gövdesinin çoğunluğu hedef dildeyse de aynı
-    # kapı düşer.
-    same_language = same_translation_language(getattr(args, "language", "auto"), target)
-    if not same_language and target == "tr" \
+    # Gövde-sezgiselliği YALNIZ kaynak 'auto' iken düşer: açıkça 'en' seçilmiş
+    # karma dosyada ilk 40 satır Türkçe olsa bile sonraki İngilizce satırlar
+    # atlanmamalı (satır bazlı koruma zaten hedef-dil satırlarını eler).
+    source_declared = getattr(args, "language", "auto")
+    source_is_auto = str(source_declared or "").strip().lower().replace("_", "-") \
+        in {"", "auto", "unknown", "und"}
+    same_language = same_translation_language(source_declared, target)
+    if not same_language and target == "tr" and source_is_auto \
             and file_looks_turkish(translation_source_entries):
         same_language = True
 
