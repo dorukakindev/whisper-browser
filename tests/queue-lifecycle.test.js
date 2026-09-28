@@ -487,5 +487,29 @@ function shuffle(items, random) {
       'next.status=error yolunda hata nedeni öğeye yazılmıyor — kuyruk satırı sebepsiz görünür');
   });
 
+  await test('R211-01: persist beklemesi sırasında "Sırada dur" işi spawn etmeden kapatır', () => {
+    const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8')
+      .replace(/\r\n/g, '\n');
+    const processSlice = renderer.slice(renderer.indexOf('async function processNextQueueItem'),
+      renderer.indexOf('// ===== Helpers ====='));
+    const afterPersist = processSlice.slice(processSlice.indexOf('await persistQueueNow()'));
+    // persistQueueNow await'i sırasında basılan "Sırada dur" eskiden ikinci
+    // canlılık kontrolünü geçip işi yine spawn ediyordu — durdurma isteği
+    // bekleyen öğeyi spawn etmeden kuyruğu kapatmalı.
+    const liveness = afterPersist.indexOf("next.status !== 'running'");
+    const stopRecheck = afterPersist.indexOf('if (state.stopAfterCurrent)');
+    assert(liveness > -1 && stopRecheck > -1 && liveness < stopRecheck,
+      'persist sonrası stopAfterCurrent yeniden denetlenmiyor');
+    const stopBranch = afterPersist.slice(stopRecheck, stopRecheck + 900);
+    assert(/next\.status = 'pending'/.test(stopBranch),
+      'durdurulan öğe bekleyen durumuna dönmüyor');
+    assert(/state\.currentQueueId = null/.test(stopBranch),
+      'durdurulan öğede aktif kimlik temizlenmiyor');
+    assert(/finalizeQueue\(\)/.test(stopBranch),
+      'durdurulan kuyruk finalize edilmiyor — UI "çalışıyor" kalırdı');
+    assert(stopBranch.indexOf('startTranscribeSafe') === -1,
+      'durdurma dalı süreç başlatmaya devam etmemeli');
+  });
+
   if (!process.exitCode) console.log(`\n${passed} kuyruk lifecycle testi geçti.`);
 })();
