@@ -10,6 +10,12 @@ Before a pull request, run focused tests plus:
     node --check src/renderer/renderer.js
     python -m py_compile backend/transcribe.py backend/media.py
 
+For UI behavior that unit tests cannot reach, add or extend a real-Electron smoke
+(`tests/electron-*.smoke.js`, auto-discovered by `node tests/run-electron-smokes.js --all`;
+keep it deterministic — no external network or live providers). For resource/regression
+work use `node tests/run-resource-soak.js --cycles=<n> --output=<report.json>`.
+See docs/ARCHITECTURE.md for the process map and shared contracts.
+
 For user-visible changes, add an entry under the `Unreleased` section of CHANGELOG.md (Keep a Changelog format: Added / Changed / Deprecated / Removed / Fixed / Security).
 
 Use npm run test:electron-bridge for IPC/browser changes. Document checks not run. Provide English and Turkish for new user-facing copy without translating user content; preserve context isolation, validate privileged IPC, synchronize backend option contracts, keep secrets out of argv/logs, preserve cue identity/timing, use atomic subtitle writes, and add regression tests.
