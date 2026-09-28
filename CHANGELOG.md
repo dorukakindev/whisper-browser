@@ -11,6 +11,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Bozuk PDF çeviri durumu sağlam yedeği gizliyordu** — kimliği uyumlu
+  ama sürümü/sayfaları geçersiz dosya taze duruma düşüp `.bak`/legacy
+  adaylarını atlıyordu; okuma döngüsü artık uyumsuz adayı atlar.
+- **Yazım-farklı hafıza satırı yankıyı çeviri diye döndürebiliyordu** —
+  TM eko bekçi artık depodaki kaynağa karşı da çalışır.
+
 - **Eski hafıza kayıtları yankı "çevirisi" diye dönebiliyordu** — önceki
   sürümlerden kalan noktalama-benzek TM satırları `lookup` isabetiyle
   kaynağı çeviri gibi uyguluyordu; kullanım anında da elenir.

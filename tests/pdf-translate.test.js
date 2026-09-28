@@ -2,6 +2,9 @@
 
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   PDF_TRANSLATION_STATE_VERSION,
   mapPdfItemsThroughViewport,
@@ -19,6 +22,8 @@ const {
   pdfHashFromFirstChunk,
   pdfTranslationStateFileStem,
   pdfTranslationStateLegacyFileStem,
+  isPdfTranslationStateCompatible,
+  loadPdfTranslationState,
 } = require('../src/pdf-translate');
 
 const rotatedItems = mapPdfItemsThroughViewport([
@@ -198,5 +203,44 @@ assert.notEqual(pdfTranslationStateFileStem('hash1', ''),
 assert.equal(pdfTranslationStateLegacyFileStem('hash1'),
   createHash('sha256').update('hash1', 'utf8').digest('hex'),
   'legacy stem yalnız pdfHash üzerinden hesaplanmalı');
+
+// ---- loadPdfTranslationState: aday sırası dosya düzeyinde ----
+
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdf-state-'));
+const writeState = (stem, obj) => fs.writeFileSync(
+  path.join(tmpDir, `${stem}.json`), JSON.stringify(obj));
+const validPage = { 1: [{ id: 'a', source: 'Hello.', translation: 'Merhaba.', status: 'translated' }] };
+const goodState = { version: PDF_TRANSLATION_STATE_VERSION, ...identity, pages: validPage };
+const primaryStem = pdfTranslationStateFileStem(identity.pdfHash, identity.endpoint);
+const legacyStem = pdfTranslationStateLegacyFileStem(identity.pdfHash);
+
+// 1. Bozuk birincil (kimlik uyumlu ama sürüm geçersiz) sağlam .bak'ı gizleyemez.
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION + 9, ...identity, pages: validPage });
+fs.writeFileSync(path.join(tmpDir, `${primaryStem}.json.bak`), JSON.stringify(goodState));
+let loaded = loadPdfTranslationState(tmpDir, identity);
+assert.deepEqual(loaded.pages['1'][0].translation, 'Merhaba.',
+  'bozuk birincil dosya atlanıp sağlam .bak yedeği okunmalı');
+
+// 2. Kimliği uyuşmayan .bak + uyumlu legacy → legacy'ye düşer.
+fs.writeFileSync(path.join(tmpDir, `${primaryStem}.json.bak`), JSON.stringify({
+  version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  model: 'baska-model', pages: { 2: [{ id: 'x', source: 'Wrong', translation: 'Yanlış', status: 'translated' }] } }));
+writeState(legacyStem, goodState);
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
+  'model-uyuşmaz .bak atlanıp uyumlu legacy dosyası okunmalı');
+
+// 3. Hiçbir aday uyumlu değilse taze durum döner.
+fs.rmSync(path.join(tmpDir, `${legacyStem}.json`));
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.deepEqual(loaded.pages, {}, 'uyumlu aday yoksa taze durum dönmeli');
+assert.equal(loaded.endpoint, identity.endpoint);
+
+// 4. isPdfTranslationStateCompatible — sözleşme kilidi.
+assert.equal(isPdfTranslationStateCompatible(goodState, identity), true);
+assert.equal(isPdfTranslationStateCompatible({ ...goodState, version: 99 }, identity), false);
+assert.equal(isPdfTranslationStateCompatible({ ...goodState, pages: 'bozuk' }, identity), false);
+assert.equal(isPdfTranslationStateCompatible({ ...goodState, endpoint: 'https://x.api/v9' }, identity), false);
+fs.rmSync(tmpDir, { recursive: true, force: true });
 
 console.log('pdf-translate: satır/paragraf, kenar eleme, devam durumu ve hızlı karma testleri geçti');

@@ -1,6 +1,8 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { normalizeText } = require('./subtitle-sentence-layout');
 
 const PDF_TRANSLATION_STATE_VERSION = 1;
@@ -402,16 +404,24 @@ function normalizePdfBlock(block, index) {
   return normalized;
 }
 
+/** Persisted dosya normalize'dan veri taşıyabilir mi? Kimlik/sürüm/sayfa
+ *  kalıbını tek yerde tanımlar — okuma döngüsü uyumsuz adayı atlayıp
+ *  .bak/legacy'ye düşebilsin diye. */
+function isPdfTranslationStateCompatible(raw, identity) {
+  const fresh = createPdfTranslationState(identity);
+  return Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw)
+    && raw.version === PDF_TRANSLATION_STATE_VERSION
+    && String(raw.pdfHash ?? '').trim() === fresh.pdfHash
+    && String(raw.targetLanguage ?? '').trim() === fresh.targetLanguage
+    && String(raw.model ?? '').trim() === fresh.model
+    && String(raw.endpoint ?? '').trim() === fresh.endpoint
+    && Boolean(raw.pages) && typeof raw.pages === 'object' && !Array.isArray(raw.pages);
+}
+
 /** Validate persisted state; identity/version drift deliberately starts fresh. */
 function normalizePdfTranslationState(raw, identity) {
   const fresh = createPdfTranslationState(identity);
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)
-    || raw.version !== PDF_TRANSLATION_STATE_VERSION
-    || String(raw.pdfHash ?? '').trim() !== fresh.pdfHash
-    || String(raw.targetLanguage ?? '').trim() !== fresh.targetLanguage
-    || String(raw.model ?? '').trim() !== fresh.model
-    || String(raw.endpoint ?? '').trim() !== fresh.endpoint
-    || !raw.pages || typeof raw.pages !== 'object' || Array.isArray(raw.pages)) return fresh;
+  if (!isPdfTranslationStateCompatible(raw, identity)) return fresh;
 
   for (const [pageKey, blocks] of Object.entries(raw.pages)) {
     if (!/^[1-9]\d*$/u.test(pageKey) || !Array.isArray(blocks)) continue;
@@ -431,6 +441,26 @@ function pdfTranslationStateFileStem(pdfHash, endpoint) {
 /** Endpoint alanı eklenmeden önceki dosya adı — geriye dönük okuma yolu. */
 function pdfTranslationStateLegacyFileStem(pdfHash) {
   return createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
+}
+
+/** `directory` altındaki durum dosyalarından ilk uyumlu olanı döndürür.
+ *  Aday sırası: birincil → .bak → legacy → legacy.bak; kimliği/sürümü
+ *  uyuşmayan ya da bozuk adaylar atlanır (bozuk birincil sağlam yedeği
+ *  gizleyemez). Uyumlu dosya yoksa taze durum döner. */
+function loadPdfTranslationState(directory, identity) {
+  const normalized = normalizedIdentity(identity);
+  const primary = path.join(directory, `${pdfTranslationStateFileStem(normalized.pdfHash, normalized.endpoint)}.json`);
+  // Endpoint alanı eklenmeden önce yazılmış dosyalar pdfHash-only anahtardaydı.
+  const legacy = path.join(directory, `${pdfTranslationStateLegacyFileStem(normalized.pdfHash)}.json`);
+  for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
+    try {
+      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
+      const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (!isPdfTranslationStateCompatible(raw, normalized)) continue;
+      return normalizePdfTranslationState(raw, normalized);
+    } catch (_) {}
+  }
+  return createPdfTranslationState(normalized);
 }
 
 function isPdfPageComplete(blocks) {
@@ -518,6 +548,8 @@ module.exports = {
   recordPdfPageTranslation,
   pdfHashPlan,
   pdfHashFromFirstChunk,
+  isPdfTranslationStateCompatible,
+  loadPdfTranslationState,
   pdfTranslationStateFileStem,
   pdfTranslationStateLegacyFileStem,
 };
