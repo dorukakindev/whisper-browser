@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.md) — R192 derin denetim: transcribe.py tam kapsam kapandı + renderer dev fonksiyonlar (temiz, ürün kodu değişmedi)
+Güncel çalışma: [docs/devir/2026-09-28-1600.md](docs/devir/2026-09-28-1600.md) — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma (preview_refresh + ikon hizalama)
+Önceki çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.md) — R192 derin denetim: transcribe.py tam kapsam kapandı + renderer dev fonksiyonlar (temiz, ürün kodu değişmedi)
 Önceki çalışma: [docs/devir/2026-09-28-1400.md](docs/devir/2026-09-28-1400.md) — R191 Devin Review needs_human artıkları: rapor 167 modül sayımı + rapor 168 başlık iddiası düzeltildi
 Önceki çalışma: [docs/devir/2026-09-28-1200.md](docs/devir/2026-09-28-1200.md) — R190 Devin Review toplu triage: PR 84–117 aralığındaki 91 bulgudan 31 bug/security'nin tamamı doğrulanıp düzeltildi
 Önceki çalışma: [docs/devir/2026-09-28-0900.md](docs/devir/2026-09-28-0900.md) — R189 tam smoke doğrulama: çeviri menüsü anchor fix + CDP/POSIX/nested-spawn test altyapısı sertleştirme
