@@ -26,7 +26,7 @@ function fakeProc() {
   return proc;
 }
 
-function harness(deviceSetting) {
+function harness(deviceSetting, spawnImpl) {
   const start = main.indexOf('function stopBrowserLiveAsr(');
   const end = main.indexOf('function sweepBrowserLiveAsrTemp', start);
   const tail = main.indexOf('function installSystemAudioCaptureHandler', start);
@@ -41,7 +41,7 @@ function harness(deviceSetting) {
     browserActiveTabId: 7,
     loadSettings: () => ({ ui: { device: deviceSetting } }),
     KNOWN_MODELS: ['small', 'tiny'],
-    spawn: (...args) => { const p = fakeProc(); spawns.push({ args, proc: p }); return p; },
+    spawn: spawnImpl || ((...args) => { const p = fakeProc(); spawns.push({ args, proc: p }); return p; }),
     resolvePython: () => 'python',
     app: { getAppPath: () => '/app', getPath: () => '/tmp' },
     path, fs, EventEmitter,
@@ -152,6 +152,31 @@ function tab() {
     // İşlenen parça (chunk_done) pending'den düşer — tekrar beslenmez.
     second.proc.stdout.emit('data', '{"type":"chunk_done","path":"/tmp/c1.wav"}\n');
     assert.equal(job.pendingChunks.size, 1);
+  });
+
+  await test('R198: CPU geri dönüşü spawn hatasında saklanan parçalar temizlenir', async () => {
+    // Senkron launch hatası 'close' üretmez — dosyalar başlangıç
+    // süpürmesine kadar sokakta kalıyordu; artık catch'te silinir.
+    const os = require('node:os');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-asr-fallback-'));
+    const c1 = path.join(dir, 'c1.wav');
+    fs.writeFileSync(c1, 'x');
+    let calls = 0;
+    const h = harness('cuda', (...args) => {
+      calls += 1;
+      if (calls === 2) throw new Error('spawn failed');
+      const p = fakeProc(); h.spawns.push({ args, proc: p }); return p;
+    });
+    h.sandbox.startBrowserLiveAsr(tab(), {});
+    const job = h.sandbox.browserLiveAsr;
+    job.chunkFiles.add(c1);
+    job.pendingChunks.set(c1, { offset: 0, rate: 16000 });
+    h.spawns[0].proc.emit('close');
+    assert.equal(h.sandbox.browserLiveAsr, null);
+    assert.equal(job.chunkFiles.size, 0, 'saklanan parça kümesi boşaltılmadı');
+    assert.equal(job.pendingChunks.size, 0, 'bekleyen parça haritası boşaltılmadı');
+    assert.equal(fs.existsSync(c1), false, 'temp dosyası silinmedi');
+    assert.ok(h.events.some((e) => e.type === 'live-asr-state' && e.active === false && /başlatılamadı/.test(e.message)));
   });
 
   await test('Hazır olduktan sonraki ölüm geri dönüş yapmaz', async () => {
