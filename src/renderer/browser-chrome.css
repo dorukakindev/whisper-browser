@@ -1336,7 +1336,7 @@ details.browser-translate-split.hidden { display: none !important; }
 /* Devre dışı öğeler listede yer kaplamaz. */
 .browser-more-popover [role^="menuitem"][disabled] { display: none; }
 .player-layer.workspace-browser .side-tab .side-tab-ico { display: inline-flex; }
-.player-layer.workspace-browser:not(.side-rail-mode) #sideRailCollapse { display: inline-flex; }
+.player-layer.workspace-browser:not(.side-rail-mode) #sideRailCollapse { display: inline-grid; }
 .player-layer.workspace-browser.side-rail-mode .player-body {
   grid-template-columns: minmax(0, 1fr) 0 48px;
 }

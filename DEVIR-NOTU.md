@@ -86,6 +86,8 @@ Güncel çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.m
 
 Önceki çalışma: [2026-09-27 06:52 — R133: sağlayıcı indirme kodlama hatası düzeltildi + bağımsız eski-kodlama tahmini (cp1251/1250/GBK/Big5/SJIS/KR); rapor BROWSER_BUG_REPORT_133.md](docs/devir/2026-09-27-0652.md).
 
+Önceki çalışma: [2026-09-27 05:01 — R134 oynatıcı/tarayıcı simgeleri: hizalama, boyut ve yan panel çizimi; Windows Electron kanıtı](docs/devir/2026-09-27-0501.md).
+
 Önceki çalışma: [2026-09-27 04:38 — Devin dalları ve güncel master denetimi; zorunlu cue temizliği sonrası önizleme eşitlemesi, R133](docs/devir/2026-09-27-0438.md).
 
 Önceki çalışma: [2026-09-26 23:38 — R132 derin denetim: ~200 yüzey okundu, doğrulanmış yeni bug bulunmadı; kapsam haritası + Windows el-kontrol listesi BROWSER_BUG_REPORT_132.md'de](docs/devir/2026-09-26-2338.md).

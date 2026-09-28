@@ -86,6 +86,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- PR65 — player and browser side-panel icon buttons now keep their intended size and center SVGs, including details summaries; the collapse and subtitle-file icons are clearer.
 - R147 — canlı web-altyazı izi artık atomik yazılıyor: `publishBrowserTrackNow` yerinde `writeFileSync` yerine tmp→rename (`writeSubtitleAtomic`) kullanır — oynatıcının sürekli okuduğu `web-*.srt` çökme/yazım anında yarım görünmez.
 - PR60 E2E bulgu düzeltmeleri — `playerLayoutQuickMenu`/`sideSubtitleLayoutMenu` toggle'ında `event.currentTarget` rAF öncesi yakalanıyor (popover'lar ekran dışında kırpılıyordu); sabit sekme 36px genişlik `workspace-browser` min-width'iyle ezilmiyor; omnibox kütüphane birleştirmesi URL-anahtarlı tekilleştiriyor (açık sekme "Kayıtlı içerik" olarak yankılanmıyor); `libraryResultKindLabel` etiketleri EN locale'de çevriliyor.
 
