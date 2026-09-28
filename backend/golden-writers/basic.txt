@@ -1,0 +1,4 @@
+Merhaba dünya.
+Bu, virgüllü ve ünlemli! Bir cümle; içinde ÇŞĞİÖÜ de var.
+Uzun satır örneği: kelime kelime kelime kelime kelime kelime kelime kelime kelime.
+C:\Notlar\altın.txt yolu ve {italik} kaçış testi.
