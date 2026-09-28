@@ -173,6 +173,21 @@ class YtdlpUpdateTests(unittest.TestCase):
         self.assertEqual(new_dirs, [])
         self.assertTrue((self.temp / old["path"]).exists())
 
+    def test_zero_padded_wheel_version_matches_normalized_metadata(self):
+        # R195: PyPI normalize sürümü '2026.8.19' döndürürken wheel'in
+        # __version__'ı '2026.08.19' yazabiliyor — ham dizge eşitliği her
+        # gerçek güncellemeyi doğrulamada reddediyordu.
+        with UpdateServer() as server:
+            result = self._activate(server, version="9999.1.0", wheel=make_wheel("9999.01.0"))
+        self.assertEqual(result["version"], "9999.1.0")
+        self.assertTrue((self.temp / result["path"]).exists())
+
+    def test_truly_different_wheel_version_still_rejected(self):
+        with UpdateServer() as server:
+            with self.assertRaisesRegex(U.UpdateError, "doğrulama"):
+                self._activate(server, version="9999.1.0", wheel=make_wheel("9999.2.0"))
+        self.assertFalse((self.temp / "active.json").exists())
+
     def test_import_validation_failure_preserves_previous_version(self):
         with UpdateServer() as server:
             old = self._activate(server)

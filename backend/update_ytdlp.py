@@ -263,6 +263,22 @@ def extract_wheel(wheel_path, destination):
     return destination
 
 
+def _version_parts(value):
+    """Sürümü int bileşen demetine indirger ('2026.08.19' → (2026, 8, 19)).
+
+    PyPI normalize edilmiş sürümü yayınlarken wheel'in kendi __version__'ı
+    ay/günü sıfır-dolgulu yazabilir; sayısal karşılaştırma ikisini eşitler.
+    Nümerik-olmayan sürümlerde (dev/rc) None döner ve çağıran yalnızca
+    birebir eşitliğe düşer.
+    """
+    parts = []
+    for piece in str(value or "").strip().split("."):
+        if not piece.isdigit():
+            return None
+        parts.append(int(piece))
+    return tuple(parts) if parts else None
+
+
 def validate_runtime(package_dir, expected_version, python_path=sys.executable, run=subprocess.run):
     package_dir = Path(package_dir)
     if not (package_dir / "yt_dlp" / "__init__.py").is_file():
@@ -281,7 +297,11 @@ def validate_runtime(package_dir, expected_version, python_path=sys.executable, 
     )
     actual = (result.stdout or "").strip().splitlines()
     actual = actual[-1] if actual else ""
-    if result.returncode != 0 or actual != expected_version:
+    expected_parts = _version_parts(expected_version)
+    actual_parts = _version_parts(actual)
+    matches = actual == expected_version or (
+        expected_parts is not None and actual_parts == expected_parts)
+    if result.returncode != 0 or not matches:
         raise UpdateError("Yeni yt-dlp paketi bağımsız import doğrulamasını geçemedi.")
     return actual
 

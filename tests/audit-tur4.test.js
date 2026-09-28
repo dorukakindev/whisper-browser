@@ -82,8 +82,10 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   }).ok, false);
 
   // BUG-181: invalid backend lines cannot pollute the live job or track store.
+  // R195 sonrası consumeLiveAsrLine, launch() içindeki satır tamponunun
+  // üstünde duruyor; dilim canFallBackToCpu işaretçisinde biter.
   const consumeStart = main.indexOf('  const consumeLiveAsrLine =');
-  const consumeCode = main.slice(consumeStart, main.indexOf('  const liveAsrLines =', consumeStart));
+  const consumeCode = main.slice(consumeStart, main.indexOf('  const canFallBackToCpu', consumeStart));
   const job = { nextCueId: 0, cues: [] };
   const stored = [];
   let acquisitionFinished = 0;

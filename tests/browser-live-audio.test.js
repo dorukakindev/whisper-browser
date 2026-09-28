@@ -40,8 +40,10 @@ assert.throws(() => pcm16Wav(Buffer.alloc(16000 * 2 * 10)), /geçersiz/);
   const stopStart = main.indexOf('function stopBrowserLiveAsr(');
   const stopEnd = main.indexOf('\nfunction sweepBrowserLiveAsrTemp(', stopStart);
   assert.ok(stopStart >= 0 && stopEnd > stopStart, 'stopBrowserLiveAsr kaynakta bulunamadı');
+  // R195: satır tamponu artık launch() içinde; consumeLiveAsrLine dilimi
+  // canFallBackToCpu işaretçisinde biter.
   const consumeStart = main.indexOf('  const consumeLiveAsrLine =');
-  const consumeEnd = main.indexOf('  const liveAsrLines =', consumeStart);
+  const consumeEnd = main.indexOf('  const canFallBackToCpu', consumeStart);
   assert.ok(consumeStart >= 0 && consumeEnd > consumeStart, 'consumeLiveAsrLine bulunamadı');
   const written = [];
   const stored = [];

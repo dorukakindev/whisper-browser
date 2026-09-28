@@ -8662,21 +8662,8 @@ function startBrowserLiveAsr(tab, options = {}) {
   const computeType = String(ui.computeType || (device === 'cuda' ? 'float16' : 'int8')).slice(0, 32);
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
   const script = path.join(app.getAppPath(), 'backend', 'live_asr.py');
-  let proc;
-  try {
-    proc = spawn(resolvePython(), [script, '--model', model, '--device', device,
-      '--compute-type', computeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
-    { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-  } catch (error) { return { ok: false, error: error.message }; }
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
-  const job = { id: randomUUID(), proc, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false };
-  browserLiveAsr = job;
-  modelProcesses.add(proc);
-  tab.acquisitionPlan?.updateConsent({ liveAsr: true });
-  tab.acquisitionPlan?.start('live-asr');
-  if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
-  publishBrowserDiagnostics();
-  proc.stdout.setEncoding('utf8');
+  const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
     let event;
     try { event = JSON.parse(line); } catch (_) { return; }
@@ -8713,45 +8700,86 @@ function startBrowserLiveAsr(tab, options = {}) {
       }
       if (event.error) sendBrowserEvent(tab, { type: 'live-asr-warning', message: event.error });
     } else if (event.type === 'error') {
+      // Model yükleme hatası (hazır olmadan gelen error): 'close' olayı
+      // geri dönüş kararını verir — CUDA'sız makinede CPU'ya düşeriz.
+      if (!job.ready && job.device === 'cuda' && !job.fellBackToCpu) {
+        job.errorTail = `${job.errorTail}${event.message || ''}\n`.slice(-4000);
+        return;
+      }
       tab.acquisitionPlan?.finish('live-asr', { success: false, reason: event.message || 'Canlı Whisper hatası' });
       if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
       publishBrowserDiagnostics();
       stopBrowserLiveAsr(event.message || 'Canlı Whisper hatası');
     }
   };
-  const liveAsrLines = createNdjsonLineBuffer({
-    maxLineChars: 8 * 1024 * 1024,
-    onOverflow: () => sendBrowserEvent(tab, { type: 'live-asr-warning',
-      message: 'Canlı Whisper güvenli çıktı satırı sınırını aştı; olay atlandı.' }),
-  });
-  proc.stdout.on('data', (chunk) => {
-    for (const line of liveAsrLines.push(chunk)) consumeLiveAsrLine(line);
-  });
-  proc.stderr.setEncoding('utf8');
-  proc.stderr.on('data', (chunk) => { job.errorTail = `${job.errorTail}${chunk}`.slice(-4000); });
-  // Python erken ölürse kalan chunk yazımları asenkron EPIPE fırlatır; dinleyicisiz
-  // 'error' olayı uncaughtException olup ana süreci çökertir.
-  proc.stdin.on('error', (error) => {
-    job.errorTail = `${job.errorTail}stdin: ${error.message}\n`.slice(-4000);
-  });
-  proc.on('error', (error) => {
-    if (browserLiveAsr === job) stopBrowserLiveAsr(`Canlı Whisper başlatılamadı: ${error.message}`);
-  });
-  proc.on('close', () => {
-    modelProcesses.delete(proc);
-    for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
-    for (const filePath of job.chunkFiles) {
-      try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-    }
-    job.chunkFiles.clear();
-    if (browserLiveAsr !== job) return;
-    browserLiveAsr = null;
-    if (!job.stopping) {
-      const detail = job.errorTail.trim().split(/\r?\n/).filter(Boolean).pop();
-      sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
-        message: detail ? `Canlı Whisper süreci sona erdi: ${detail}` : 'Canlı Whisper süreci sona erdi.' });
-    }
-  });
+  // GPU'suz makinede CUDA seçimi (açık ya da 'auto'/varsayılan üzerinden)
+  // modeli yükleyemeyip süreci sessizce öldürüyordu; ilk yükleme hatasında
+  // tek seferlik CPU/int8'e düş.
+  const canFallBackToCpu = () => !job.stopping && !job.ready && job.device === 'cuda' && !job.fellBackToCpu;
+  const launch = (nextDevice, nextComputeType) => {
+    const proc = spawn(resolvePython(), [script, '--model', model, '--device', nextDevice,
+      '--compute-type', nextComputeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
+    { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    job.proc = proc;
+    job.device = nextDevice;
+    job.computeType = nextComputeType;
+    modelProcesses.add(proc);
+    proc.stdout.setEncoding('utf8');
+    const liveAsrLines = createNdjsonLineBuffer({
+      maxLineChars: 8 * 1024 * 1024,
+      onOverflow: () => sendBrowserEvent(tab, { type: 'live-asr-warning',
+        message: 'Canlı Whisper güvenli çıktı satırı sınırını aştı; olay atlandı.' }),
+    });
+    proc.stdout.on('data', (chunk) => {
+      for (const line of liveAsrLines.push(chunk)) consumeLiveAsrLine(line);
+    });
+    proc.stderr.setEncoding('utf8');
+    proc.stderr.on('data', (chunk) => { job.errorTail = `${job.errorTail}${chunk}`.slice(-4000); });
+    // Python erken ölürse kalan chunk yazımları asenkron EPIPE fırlatır; dinleyicisiz
+    // 'error' olayı uncaughtException olup ana süreci çökertir.
+    proc.stdin.on('error', (error) => {
+      job.errorTail = `${job.errorTail}stdin: ${error.message}\n`.slice(-4000);
+    });
+    proc.on('error', (error) => {
+      if (browserLiveAsr === job) stopBrowserLiveAsr(`Canlı Whisper başlatılamadı: ${error.message}`);
+    });
+    proc.on('close', () => {
+      modelProcesses.delete(proc);
+      for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
+      for (const filePath of job.chunkFiles) {
+        try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+      }
+      job.chunkFiles.clear();
+      if (browserLiveAsr !== job) return;
+      if (canFallBackToCpu()) {
+        job.fellBackToCpu = true;
+        job.errorTail = '';
+        sendBrowserEvent(tab, { type: 'live-asr-warning',
+          message: dt('CUDA bulunamadı; canlı Whisper CPU\'ya düştü (daha yavaş).', 'CUDA unavailable; live Whisper fell back to CPU (slower).') });
+        // CUDA için seçilmiş computeType CPU'da desteklenmeyebilir; CPU
+        // varsayılanıyla yeniden başlat.
+        try { launch('cpu', 'int8'); }
+        catch (error) {
+          browserLiveAsr = null;
+          sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
+            message: `Canlı Whisper başlatılamadı: ${error.message}` });
+        }
+        return;
+      }
+      browserLiveAsr = null;
+      if (!job.stopping) {
+        const detail = job.errorTail.trim().split(/\r?\n/).filter(Boolean).pop();
+        sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
+          message: detail ? `Canlı Whisper süreci sona erdi: ${detail}` : 'Canlı Whisper süreci sona erdi.' });
+      }
+    });
+  };
+  try { launch(device, computeType); } catch (error) { return { ok: false, error: error.message }; }
+  browserLiveAsr = job;
+  tab.acquisitionPlan?.updateConsent({ liveAsr: true });
+  tab.acquisitionPlan?.start('live-asr');
+  if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
+  publishBrowserDiagnostics();
   sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: false, message: `Canlı Whisper modeli yükleniyor · ${model}` });
   return { ok: true, model, device, sessionId: job.id };
 }
