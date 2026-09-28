@@ -11,6 +11,30 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Bulanık çeviri hafızasına tembel yankı satırı sızıyordu** —
+  "değişmeden kabul" edilen satırlar ve noktalama-benzek ekolar
+  (`'Wait!'→'Wait.'`) TM sqlite'a yazılıyordu; `store()` yalnız birebir
+  eşitliği reddettiği için bu satırlar sonraki dosyalarda fuzzy
+  eşleşmeyle kaynağı "çeviri" diye döndürüyordu (tüm kalite kapılarını
+  atlatır). TM artık yankı-kabul yolunda hiç yazılmıyor ve normal
+  yolda da eko-benzeri satırlar eleniyor.
+- **Önbellek kapasite kesimi yeniden açılışta diriliyordu** — sınırı
+  aşan kayıt bellekten silinse de journal satırları kalıyordu; replay
+  kesilen çeviriyi en yeni konuma oturtup yaşayan bir girdiyi dışarı
+  atıyordu. Kesimler artık journal'a mezar taşı (silme işareti) yazar.
+- **Süresi dolmuş journal satırları yüklemede elenmiyordu** — TTL
+  kontrolü yalnız temel dosyada vardı; eski satırlar replay ile
+  geri dönüp bir sonraki sıkıştırmada kalıcılaşıyordu.
+- **`.bak` yedeği sıkıştırma öncesi içeriği tutuyordu** — birincil
+  dosya bozulunca geri dönüş journal'dan katlanan son çevirileri
+  kaybediyordu; yedek artık rename sonrası (sıkıştırılmış tam
+  içerik) alınır.
+- **PDF çeviri durumu sağlayıcı değişiminde siliniyordu** — durum
+  dosyası yalnız `pdfHash` ile adlandırıldığı için endpoint'e göre
+  taze başlayan iş aynı dosyaya yazıp önceki sayfa çevirilerini
+  eziyordu. Dosya adı artık sağlayıcı kimliğini de kapsar; eski
+  dosyalar geriye dönük okunur.
+
 - **"Değişmeden kabul" hiç devreye girmiyordu** — iki turda da kaynağı
   yankılayan satırın kabul kontrolü, ikinci kurtarma denemesi de hata
   fırlatınca `except`'in erken dönüşüyle atlanıyordu; 'Rock and roll!',

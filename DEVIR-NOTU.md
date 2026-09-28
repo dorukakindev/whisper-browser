@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
+Güncel çalışma: [docs/devir/2026-09-29-0147.md](docs/devir/2026-09-29-0147.md) — R223: #152 review triage + TM zehirlenmesi/journal/PDF-endpoint düzeltmeleri
+Önceki çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-29-0010.md](docs/devir/2026-09-29-0010.md) — R222 devam: context-leak kotası + önbellek dayanıklılığı
 Önceki çalışma: [docs/devir/2026-09-29-0005.md](docs/devir/2026-09-29-0005.md) — R222: Electron çeviri hattı paketi (blok/eşleşme/kesici/journal)
 Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)

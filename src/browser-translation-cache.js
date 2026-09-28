@@ -108,7 +108,14 @@ class PersistentTranslationCache {
             const key = String(row?.k || '');
             const value = String(row?.v || '');
             const updatedAt = Number(row?.t) || Date.now();
-            if (!key || !value) continue;
+            if (!key) continue;
+            // Mezar taşı (v:'') — kapasitede kesilen kayıt yeniden açılışta
+            // eski journal satırlarıyla dirilmesin diye silme olarak uygulanır.
+            if (!value) { this.map.delete(key); applied += 1; continue; }
+            // TTL'i aşmış satır yüklemede elenmezse haritayı geçerli
+            // çevirilerin yerine doldurur ve bir sonraki sıkıştırmada
+            // kalıcılaşır (temel dosya filtreler, journal da filtrelemeli).
+            if (Date.now() - updatedAt > this.ttlMs) continue;
             const existing = this.map.get(key);
             const record = existing && Number(existing.updatedAt) >= updatedAt
               ? existing
@@ -159,7 +166,14 @@ class PersistentTranslationCache {
     this.map.set(normalized, record);
     this.version += 1;
     this.pendingJournal.push({ k: normalized, v: record.value, t: record.updatedAt });
-    while (this.map.size > this.limit) this.map.delete(this.map.keys().next().value);
+    while (this.map.size > this.limit) {
+      const evicted = this.map.keys().next().value;
+      this.map.delete(evicted);
+      // Sınır kesimi kalıcı bir silme değil ama journal'a mezar taşı yazılmazsa
+      // bu oturumda kesilen kayıt yeniden açılışta replay ile dirilip en yeni
+      // konuma oturur ve yaşayan bir çeviriyi dışarı atar.
+      this.pendingJournal.push({ k: evicted, v: '', t: Date.now() });
+    }
     this.scheduleFlush();
     return true;
   }
@@ -252,14 +266,17 @@ class PersistentTranslationCache {
       if (promises) {
         await promises.mkdir(dir, { recursive: true });
         await promises.writeFile(temp, payload, 'utf8');
-        try { await promises.copyFile(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         await promises.rename(temp, this.filePath);
+        // .bak yeni temel İÇERİĞİN kopyasıdır — eski dosyayı sıkıştırmadan
+        // önce yedeklemek, journal'dan katlanan son kayıtları kurtarma
+        // noktasının dışında bırakırdı (bozuk temelden geri dönüşte kayıp).
+        try { await promises.copyFile(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         try { await promises.unlink(this.journalPath); } catch (_) {}
       } else {
         this.fs.mkdirSync(dir, { recursive: true });
         this.fs.writeFileSync(temp, payload, 'utf8');
-        try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         this.fs.renameSync(temp, this.filePath);
+        try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         try { this.fs.unlinkSync(this.journalPath); } catch (_) {}
       }
       this.journalBytes = 0;

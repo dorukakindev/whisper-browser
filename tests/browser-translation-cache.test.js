@@ -168,7 +168,44 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   const corruptArchives = fs.readdirSync(dir).filter((name) => name.startsWith('churn.json.corrupt-'));
   assert(corruptArchives.length >= 1 && corruptArchives.length <= 5,
     `.corrupt arşivleri sınırda kalmalı, bulundu: ${corruptArchives.length}`);
-  console.log('browser-translation-cache: 7 test');
+
+  // Kapasite kesimi mezar taşı: journal'daki eski satır kesilen kaydı
+  // yeniden açılışta diriltmemeli (eskiden replay onu en yeni yapardı).
+  const evictFile = path.join(dir, 'evict.json');
+  const evict = new PersistentTranslationCache(evictFile, { journalMaxFlushes: 100 });
+  evict.limit = 3;
+  evict.set('old', 'eski');
+  await evict.flush();
+  evict.set('n1', 'v1'); evict.set('n2', 'v2'); evict.set('n3', 'v3');
+  await evict.flush();
+  const evictReload = new PersistentTranslationCache(evictFile);
+  assert.equal(evictReload.get('old'), undefined, 'kesilen kayıt dirilmemeli');
+  assert.equal(evictReload.get('n3'), 'v3', 'yaşayan kayıt kalmalı');
+
+  // TTL'i aşmış journal satırları yüklemede elenir — temel dosyayla aynı kural.
+  const ttlFile = path.join(dir, 'ttlj.json');
+  fs.writeFileSync(ttlFile, JSON.stringify({ version: 2, entries: [] }));
+  fs.writeFileSync(`${ttlFile}.journal`,
+    JSON.stringify({ k: 'stale', v: 'bayat', t: Date.now() - 120_000 })
+    + '\n' + JSON.stringify({ k: 'fresh', v: 'taze', t: Date.now() }) + '\n');
+  const ttlLoaded = new PersistentTranslationCache(ttlFile, { ttlMs: 5_000 });
+  assert.equal(ttlLoaded.get('stale'), undefined, 'süresi dolmuş journal satırı yüklenmemeli');
+  assert.equal(ttlLoaded.get('fresh'), 'taze');
+
+  // .bak sıkıştırma SONRASI içeriği tutar: birincil bozulunca geri dönüşte
+  // journal'dan katlanan son kayıtlar kaybolmaz.
+  const bakCompFile = path.join(dir, 'bakcomp.json');
+  const bakComp = new PersistentTranslationCache(bakCompFile, { journalMaxFlushes: 1 });
+  bakComp.set('x1', 'v1');
+  await bakComp.flush();
+  bakComp.set('x2', 'v2');
+  await bakComp.flush(); // 2. flush journal eşiğini aşar → compact + .bak
+  fs.writeFileSync(bakCompFile, '{bozuk', 'utf8');
+  const bakCompLoaded = new PersistentTranslationCache(bakCompFile);
+  assert.equal(bakCompLoaded.get('x1'), 'v1', '.bak sıkıştırılmış içeriği korumalı');
+  assert.equal(bakCompLoaded.get('x2'), 'v2', 'journal-katlı kayıt .bak ile kurtarılmalı');
+
+  console.log('browser-translation-cache: 10 test');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 } })().catch((error) => { console.error(error); process.exitCode = 1; });

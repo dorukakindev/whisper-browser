@@ -3800,6 +3800,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if not tm or len(group) != 1:
             return
         index = group[0]
+        # Kimlik/noktalama-benzek eko TM'e girmez: fuzzy eşleşme kaynağı
+        # sonraki dosyalarda 'çeviri' diye döndürür (tüm kapıları atlatır).
+        if translation_is_source_echo(entries[index][2], out_texts[index]):
+            return
         tm_pending.append((index, entries[index][2], out_texts[index],
                            tm_context(group)))
 
@@ -4155,17 +4159,23 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             yeniden çalıştırmada aynı maliyetli döngü tekrarlanıyordu.
             Kabul edilen (precompleted dahil değil) blok sayısını döndürür."""
             with lock:
+                written = []
                 for index in group:
-                    if index not in precompleted_idx:
+                    if index not in precompleted_idx and index not in done_idx:
                         out_texts[index] = entries[index][2]
-                unchanged_idx.update(group)
+                        written.append(index)
+                unchanged_idx.update(written)
                 records[group[0]] = {
                     "text": " ".join(entries[i][2] for i in group),
                     "parts": [entries[i][2] for i in group],
                 }
                 done_idx.update(group)
                 stage_group_cache(group)
-                stage_tm_rows(group)
+                # TM'e yankı-kabul satırı yazılmaz: store() yalnız birebir
+                # eşitliği engeller; noktalama-benzek eko ('Wait!'→'Wait.')
+                # sqlite'a girer ve sonraki dosyalarda fuzzy eşleşmeyle
+                # kaynağı 'çeviri' diye döndürür — tembel yankı kalıcılaşır.
+                # (Ön-uçuç keeps_source bekçileri de bilinçli TM yazmaz.)
             log(f"{len(group)} cue'luk grup iki turda da kaynağı yankıladı; "
                 "satırlar değişmeden kabul edildi ve önbelleğe yazıldı.")
             return sum(1 for index in group if index not in precompleted_idx)

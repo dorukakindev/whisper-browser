@@ -391,6 +391,8 @@ const {
   pdfHashFromFirstChunk,
   pdfHashPlan,
   mapPdfItemsThroughViewport,
+  pdfTranslationStateFileStem,
+  pdfTranslationStateLegacyFileStem,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -6987,14 +6989,18 @@ function pdfTranslationDirectory() {
   return path.join(app.getPath('userData'), 'pdf-translations');
 }
 
-function pdfTranslationStatePath(pdfHash) {
-  const name = createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
-  return path.join(pdfTranslationDirectory(), `${name}.json`);
+function pdfTranslationStatePath(pdfHash, endpoint) {
+  return path.join(pdfTranslationDirectory(),
+    `${pdfTranslationStateFileStem(pdfHash, endpoint)}.json`);
 }
 
 function readPdfTranslationState(identity) {
-  const primary = pdfTranslationStatePath(identity.pdfHash);
-  for (const candidate of [primary, `${primary}.bak`]) {
+  const primary = pdfTranslationStatePath(identity.pdfHash, identity.endpoint);
+  // Endpoint alanı eklenmeden önce yazılmış dosyalar pdfHash-only anahtardaydı;
+  // endpoint eşleşenler normalize adımında geçer, kalanlar taze başlangıca düşer.
+  const legacy = path.join(pdfTranslationDirectory(),
+    `${pdfTranslationStateLegacyFileStem(identity.pdfHash)}.json`);
+  for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
     try {
       if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
       return normalizePdfTranslationState(JSON.parse(fs.readFileSync(candidate, 'utf8')), identity);
@@ -7004,7 +7010,7 @@ function readPdfTranslationState(identity) {
 }
 
 function writePdfTranslationState(state) {
-  const target = pdfTranslationStatePath(state.pdfHash);
+  const target = pdfTranslationStatePath(state.pdfHash, state.endpoint);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   try { if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
   writeJsonAtomic(target, state);
