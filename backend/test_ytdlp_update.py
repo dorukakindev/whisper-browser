@@ -260,7 +260,9 @@ class YtdlpUpdateTests(unittest.TestCase):
 
     def test_shorthand_ipv4_forms_are_not_global(self):
         # R190: "127.1", onluk/oktal/hex kısaltmalar ipaddress kapısını
-        # atlatıyordu; libc inet_aton yedeğiyle genel-olmayan sayılırlar.
+        # atlatıyordu; taşınabilir _ipv4_literal normalizasyonuyla
+        # genel-olmayan sayılırlar (inet_aton Windows'ta kısa biçimleri
+        # kabul etmez — taşınabilir çözüm şart).
         for bad in [
             "https://127.1/x",
             "https://127.0.1/x",

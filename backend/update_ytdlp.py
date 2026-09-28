@@ -19,7 +19,7 @@ from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
-import socket
+
 
 
 DEFAULT_METADATA_URL = "https://pypi.org/pypi/yt-dlp/json"
@@ -84,24 +84,56 @@ def fetch_metadata(url=DEFAULT_METADATA_URL, opener=urlopen, timeout=30):
     return metadata
 
 
+def _ipv4_literal(hostname):
+    """Kanonik ve kısaltılmış IPv4 yazımlarını tek IPv4Address'e indirger.
+
+    inet_aton platforma göre farklı kabul eder (Windows'ta inet_pton yalnız
+    sıkı noktalı onluk okur); "127.1", "0x7f.1", "0300.0250.1.1",
+    "2130706433" gibi kısaltmalar SSRF kapısını atlatmasın diye ayrıştırma
+    burada yapılır. Son parça kalan baytları kaplar (a.b → a + 24-bit b).
+    """
+    try:
+        return ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    parts = hostname.split(".")
+    if not 1 <= len(parts) <= 4:
+        return None
+    total = 0
+    for i, part in enumerate(parts):
+        if not part:
+            return None
+        try:
+            if part[:2].lower() == "0x":
+                n = int(part, 16)
+            elif len(part) > 1 and part.startswith("0"):
+                n = int(part, 8)
+            else:
+                if not part.isdigit():
+                    return None
+                n = int(part, 10)
+        except ValueError:
+            return None
+        if i < len(parts) - 1:
+            if n > 255:
+                return None
+            total = (total << 8) | n
+        else:
+            if n >= 1 << (8 * (5 - len(parts))):
+                return None
+            total = (total << (8 * (5 - len(parts)))) | n
+    try:
+        return ipaddress.ip_address(total)
+    except ValueError:
+        return None
+
+
 def _url_is_allowed(url, allow_http_localhost=False):
     parsed = urlparse(str(url).strip())
     hostname = (parsed.hostname or "").rstrip(".").lower()
     if not hostname:
         return False
-    try:
-        address = ipaddress.ip_address(hostname)
-    except ValueError:
-        # ipaddress yalnız kanonik yazımı kabul eder; libc/inet_aton ise
-        # "127.1", "0x7f000001", onluk/oktal kısaltmaları da IP sayar —
-        # bu alternatif yazımlar özel-adres kapısını atlatmasın.
-        address = None
-        try:
-            packed = socket.inet_aton(hostname)
-        except OSError:
-            packed = None
-        if packed is not None:
-            address = ipaddress.ip_address(packed)
+    address = _ipv4_literal(hostname)
     if parsed.scheme == "https":
         # HTTPS artefakt/metadata adresleri genele açık IP olmalı: kötü niyetli
         # veya zehirlenmiş metaveri, indirmeyi link-local bulut metaverisi
