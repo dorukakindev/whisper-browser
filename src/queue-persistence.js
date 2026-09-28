@@ -186,7 +186,13 @@ function queueSnapshotForDisk(raw) {
   return {
     version: QUEUE_SNAPSHOT_VERSION,
     updatedAt: Date.now(),
-    queueRunning: !!raw?.queueRunning,
+    // "Kuyruk devam niyeti" ancak koşabilecek bir öğe varsa anlamlıdır;
+    // tüm öğeler terminalse bayrak diske yalan yazmamalı (gönderen ham
+    // queueRunning'e güvenmek, terminal olay sonrası gecikmiş renderer
+    // snapshot'ında bayat true bırakıyordu — yükleme tarafı zaten
+    // currentQueueId'den türetiyor).
+    queueRunning: !!raw?.queueRunning
+      && normalized.items.some((item) => !TERMINAL_STATUS.has(item.status)),
     currentQueueId: normalized.currentQueueId,
     items: normalized.items,
   };

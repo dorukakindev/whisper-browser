@@ -149,4 +149,31 @@ test('kısa ve CamelCase oturum sırları iç içe seçeneklerden ayıklanır', 
   const nested = Object.fromEntries(secretKeys.map((key) => [key, 'secret']));
   assert.deepEqual(clonePublicOptions({ safe: 'kalır', nested }), { safe: 'kalır', nested: {} });
 });
+
+test('R217: disk queueRunning bayrağı terminal-sonrası bayat true kalamaz', () => {
+  // Kuyruk son öğesinin 'done' olayı, renderer 80ms'lik persist'i
+  // queueRunning:true gönderdiğinde (finalize henüz koşmadan) diske true
+  // yazıyordu; finalizeQueue persist çağırmaz → bayat bayak kalırdı.
+  const allDone = { queueRunning: true, currentQueueId: null, items: [
+    { id: 1, type: 'file', input: 'D:\\a.mp4', status: 'done' },
+    { id: 2, type: 'file', input: 'D:\\b.mp4', status: 'done' },
+  ] };
+  assert.equal(queueSnapshotForDisk(allDone).queueRunning, false,
+    'Tüm öğeler terminalse bayrak false olmalı');
+  const merged = mergeQueueSnapshotForSave(null, allDone);
+  assert.equal(merged.queueRunning, false, 'Merge de bayat true taşıyamaz');
+  // Devam niyeti korunur: bekleyen öğe varken true kalır (çökme sonrası devam).
+  const withPending = queueSnapshotForDisk({ queueRunning: true, currentQueueId: null, items: [
+    { id: 1, type: 'file', input: 'D:\\a.mp4', status: 'done' },
+    { id: 2, type: 'file', input: 'D:\\b.mp4', status: 'pending' },
+  ] });
+  assert.equal(withPending.queueRunning, true, 'Bekleyen iş varken niyet korunur');
+  const running = queueSnapshotForDisk({ queueRunning: true, currentQueueId: 1, items: [
+    { id: 1, type: 'file', input: 'D:\\a.mp4', status: 'running' },
+  ] });
+  assert.equal(running.queueRunning, true, 'Çalışan işde true korunur');
+  assert.equal(queueSnapshotForDisk({ queueRunning: false, items: [
+    { id: 1, type: 'file', input: 'D:\\a.mp4', status: 'pending' },
+  ] }).queueRunning, false, 'Açık false ezilmez');
+});
 console.log(`queue-persistence: ${passed} test`);
