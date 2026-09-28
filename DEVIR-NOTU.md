@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-1806.md](docs/devir/2026-09-28-1806.md) — R219: Devin Review toplu triage (PR #139–147, 21 bulgu)
+Güncel çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
+Önceki çalışma: [docs/devir/2026-09-28-1806.md](docs/devir/2026-09-28-1806.md) — R219: Devin Review toplu triage (PR #139–147, 21 bulgu)
 Önceki çalışma: [docs/devir/2026-09-29-0230.md](docs/devir/2026-09-29-0230.md) — R218: PR #146 review triage (smoke sağlamlaştırma)
 Önceki çalışma: [docs/devir/2026-09-29-0200.md](docs/devir/2026-09-29-0200.md) — R217: kuyruk eşzamanlılık stresi + disk queueRunning bayat-true düzeltmesi
 Önceki çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
