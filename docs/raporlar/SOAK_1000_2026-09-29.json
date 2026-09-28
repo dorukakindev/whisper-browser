@@ -1,0 +1,314 @@
+{
+ "schemaVersion": 1,
+ "generatedAt": "2026-09-28T08:53:47.674Z",
+ "cycles": 1000,
+ "warmup": 20,
+ "fixtureOrigin": "http://127.0.0.1:33867",
+ "userData": "/tmp/whisper-resource-soak-fwH1n8/profile",
+ "capture": {
+  "attempts": 1000,
+  "successes": 1000
+ },
+ "hibernation": {
+  "attempts": 200,
+  "successes": 200,
+  "primedBeforeBaseline": true
+ },
+ "runtime": {
+  "unhandledRejections": 0
+ },
+ "captureDiagnostics": {
+  "_omitted": "object kayıt — tam veri yerel soak çıktısında"
+ },
+ "peaks": {
+  "mainTimers": 73,
+  "mainProjectTimers": 0,
+  "mainInternalTimers": 73,
+  "mainTimerOwners": {
+   "at node:electron/js2c/browser_init:2:143853": 73
+  }
+ },
+ "heapTrace": {
+  "_omitted": "1000 kayıt — tam veri yerel soak çıktısında"
+ },
+ "toggleProbes": {
+  "_omitted": "255 kayıt — tam veri yerel soak çıktısında"
+ },
+ "samples": {
+  "_omitted": "8 kayıt — tam veri yerel soak çıktısında"
+ },
+ "verdict": {
+  "pass": true,
+  "values": {
+   "captureSuccessRate": 1,
+   "hibernationSuccessRate": 1,
+   "unhandledRejectionCount": 0,
+   "mainRssDeltaBytes": -42151936,
+   "mainHeapDeltaBytes": -55715432,
+   "rendererHeapDeltaBytes": 1371448,
+   "browserHeapDeltaBytes": -20816,
+   "totalWorkingSetDeltaBytes": -45535232,
+   "gpuWorkingSetDeltaBytes": 614400,
+   "rendererHeapSlopeBytesPerCycle": -462.76720070080273,
+   "browserHeapSlopeBytesPerCycle": 8.139718958875838,
+   "listenerDelta": 0,
+   "rendererListenerDrift": 2,
+   "mainTimerDelta": 0,
+   "mainTimerPeakDelta": 0,
+   "electronInternalTimerDelta": -36,
+   "electronInternalTimerPeakDelta": 34,
+   "rendererTimerDelta": -5,
+   "gpuProcessDelta": 0,
+   "browserSubtitleFileCount": 64,
+   "browserPlacesReadOpsPerCycle": 0.022,
+   "watchLibraryReadOpsPerCycle": 1,
+   "diskWriteOpsPerCycle": 7.329,
+   "writeOpsByCategoryPerCycle": {
+    "queueState": 0.002,
+    "watchLibrary": 2,
+    "subtitleFiles": 1.696,
+    "browserPlaces": 0.022,
+    "browserAssets": 3.392,
+    "browserSession": 0.216,
+    "settings": 0.001
+   },
+   "overlayRenderAverageMsMaxObserved": 0.05000000074505806,
+   "overlayRenderMaxMsObserved": 0.10000000149011612,
+   "overlayBoundaryCallbacksMaxObserved": 0
+  },
+  "checks": [
+   {
+    "name": "capture-success-rate",
+    "value": 1,
+    "direction": "min",
+    "budget": 0.98,
+    "pass": true
+   },
+   {
+    "name": "hibernation-success-rate",
+    "value": 1,
+    "direction": "min",
+    "budget": 1,
+    "pass": true
+   },
+   {
+    "name": "unhandled-promise-rejections",
+    "value": 0,
+    "direction": "max",
+    "budget": 0,
+    "pass": true
+   },
+   {
+    "name": "main-rss-delta",
+    "value": -42151936,
+    "direction": "max",
+    "budget": 67108864,
+    "pass": true
+   },
+   {
+    "name": "main-heap-delta",
+    "value": -55715432,
+    "direction": "max",
+    "budget": 25165824,
+    "pass": true
+   },
+   {
+    "name": "renderer-heap-delta",
+    "value": 1371448,
+    "direction": "max",
+    "budget": 16777216,
+    "pass": true
+   },
+   {
+    "name": "browser-heap-delta",
+    "value": -20816,
+    "direction": "max",
+    "budget": 16777216,
+    "pass": true
+   },
+   {
+    "name": "total-working-set-delta",
+    "value": -45535232,
+    "direction": "max",
+    "budget": 167772160,
+    "pass": true
+   },
+   {
+    "name": "gpu-working-set-delta",
+    "value": 614400,
+    "direction": "max",
+    "budget": 100663296,
+    "pass": true
+   },
+   {
+    "name": "renderer-heap-slope",
+    "value": -462.76720070080273,
+    "direction": "max",
+    "budget": 49152,
+    "pass": true
+   },
+   {
+    "name": "browser-heap-slope",
+    "value": 8.139718958875838,
+    "direction": "max",
+    "budget": 49152,
+    "pass": true
+   },
+   {
+    "name": "listener-delta",
+    "value": 0,
+    "direction": "max",
+    "budget": 0,
+    "pass": true
+   },
+   {
+    "name": "renderer-listener-drift",
+    "value": 2,
+    "direction": "max",
+    "budget": 8,
+    "pass": true
+   },
+   {
+    "name": "main-timer-delta",
+    "value": 0,
+    "direction": "max",
+    "budget": 2,
+    "pass": true
+   },
+   {
+    "name": "main-timer-peak-delta",
+    "value": 0,
+    "direction": "max",
+    "budget": 12,
+    "pass": true
+   },
+   {
+    "name": "electron-internal-timer-delta",
+    "value": -36,
+    "direction": "max",
+    "budget": 32,
+    "pass": true
+   },
+   {
+    "name": "electron-internal-timer-peak-delta",
+    "value": 34,
+    "direction": "max",
+    "budget": 64,
+    "pass": true
+   },
+   {
+    "name": "renderer-timer-delta",
+    "value": -5,
+    "direction": "max",
+    "budget": 2,
+    "pass": true
+   },
+   {
+    "name": "gpu-process-delta",
+    "value": 0,
+    "direction": "max",
+    "budget": 0,
+    "pass": true
+   },
+   {
+    "name": "browser-subtitle-file-count",
+    "value": 64,
+    "direction": "max",
+    "budget": 64,
+    "pass": true
+   },
+   {
+    "name": "browser-places-read-ops-per-cycle",
+    "value": 0.022,
+    "direction": "max",
+    "budget": 1.1,
+    "pass": true
+   },
+   {
+    "name": "watch-library-read-ops-per-cycle",
+    "value": 1,
+    "direction": "max",
+    "budget": 1.1,
+    "pass": true
+   },
+   {
+    "name": "disk-write-ops-per-cycle",
+    "value": 7.329,
+    "direction": "max",
+    "budget": 24,
+    "pass": true
+   },
+   {
+    "name": "disk-write-watchLibrary-per-cycle",
+    "value": 2,
+    "direction": "max",
+    "budget": 4,
+    "pass": true
+   },
+   {
+    "name": "disk-write-browserPlaces-per-cycle",
+    "value": 0.022,
+    "direction": "max",
+    "budget": 3,
+    "pass": true
+   },
+   {
+    "name": "disk-write-browserSession-per-cycle",
+    "value": 0.216,
+    "direction": "max",
+    "budget": 3,
+    "pass": true
+   },
+   {
+    "name": "disk-write-queueState-per-cycle",
+    "value": 0.002,
+    "direction": "max",
+    "budget": 2,
+    "pass": true
+   },
+   {
+    "name": "disk-write-settings-per-cycle",
+    "value": 0.001,
+    "direction": "max",
+    "budget": 2,
+    "pass": true
+   },
+   {
+    "name": "disk-write-subtitleFiles-per-cycle",
+    "value": 1.696,
+    "direction": "max",
+    "budget": 6,
+    "pass": true
+   },
+   {
+    "name": "disk-write-browserAssets-per-cycle",
+    "value": 3.392,
+    "direction": "max",
+    "budget": 6,
+    "pass": true
+   },
+   {
+    "name": "disk-write-other-per-cycle",
+    "value": 0,
+    "direction": "max",
+    "budget": 2,
+    "pass": true
+   },
+   {
+    "name": "overlay-render-average-ms",
+    "value": 0.05000000074505806,
+    "direction": "max",
+    "budget": 8,
+    "pass": true
+   },
+   {
+    "name": "overlay-render-max-ms",
+    "value": 0.10000000149011612,
+    "direction": "max",
+    "budget": 50,
+    "pass": true
+   }
+  ]
+ },
+ "meaningful": true
+}
