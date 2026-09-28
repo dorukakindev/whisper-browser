@@ -173,12 +173,19 @@ class PersistentTranslationCache {
           const rows = this.pendingJournal;
           this.pendingJournal = [];
           const lines = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
-          if (promises) {
-            await promises.mkdir(dir, { recursive: true });
-            await promises.appendFile(this.journalPath, lines, 'utf8');
-          } else {
-            this.fs.mkdirSync(dir, { recursive: true });
-            this.fs.appendFileSync(this.journalPath, lines, 'utf8');
+          try {
+            if (promises) {
+              await promises.mkdir(dir, { recursive: true });
+              await promises.appendFile(this.journalPath, lines, 'utf8');
+            } else {
+              this.fs.mkdirSync(dir, { recursive: true });
+              this.fs.appendFileSync(this.journalPath, lines, 'utf8');
+            }
+          } catch (error) {
+            // Append başarısızsa satırları yeniden kuyrukla — kayıpları
+            // sonraki flush'ta yeniden denenir; yoksa kayıtlar sessizce düşer.
+            this.pendingJournal = rows.concat(this.pendingJournal);
+            throw error;
           }
           this.journalBytes += Buffer.byteLength(lines, 'utf8');
           this.journalFlushes += 1;
@@ -193,7 +200,12 @@ class PersistentTranslationCache {
           } catch (_) {}
         }
         // 2) Journal eşiği aşınca temel dosyayı tek seferde sıkıştır.
-        if (this.needsCompaction()) await this.compact();
+        if (this.needsCompaction()) {
+          const compacted = await this.compact();
+          // Sıkıştırma hatası flush başarısına yazılmaz: çağıran {ok:false}
+          // görmezse kayıtların diske ulaştığı sanılır.
+          if (!compacted.ok) return compacted;
+        }
         this.lastFlushAt = Date.now();
         return { ok: true, count: this.map.size };
       } catch (error) {
