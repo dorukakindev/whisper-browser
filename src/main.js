@@ -14540,8 +14540,8 @@ function fetchDeArrowBranding(videoId) {
         if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
-      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'DeArrow yanıtı okunurken bağlantı koptu.' }));
-      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'DeArrow yanıtı yarıda kesildi.' }));
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: dt('DeArrow yanıtı okunurken bağlantı koptu.', 'Connection dropped while reading the DeArrow response.') }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: dt('DeArrow yanıtı yarıda kesildi.', 'The DeArrow response was cut off mid-stream.') }));
       response.on('end', () => {
         if (total > MAX_VIDEO_EXTRAS_BYTES) return done({ ok: false, errorKind: 'size', error: 'DeArrow yanıtı çok büyük.' });
         if (response.statusCode === 404) {
@@ -14605,8 +14605,8 @@ function fetchYouTubeDislikes(videoId) {
         if (total > MAX_VIDEO_EXTRAS_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
-      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'RYD yanıtı okunurken bağlantı koptu.' }));
-      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'RYD yanıtı yarıda kesildi.' }));
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: dt('RYD yanıtı okunurken bağlantı koptu.', 'Connection dropped while reading the RYD response.') }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: dt('RYD yanıtı yarıda kesildi.', 'The RYD response was cut off mid-stream.') }));
       response.on('end', () => {
         if (total > MAX_VIDEO_EXTRAS_BYTES) return done({ ok: false, errorKind: 'size', error: 'RYD yanıtı çok büyük.' });
         if (response.statusCode === 404) {
