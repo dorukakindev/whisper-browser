@@ -134,6 +134,11 @@ def _url_is_allowed(url, allow_http_localhost=False):
     if not hostname:
         return False
     address = _ipv4_literal(hostname)
+    if (address is None and re.fullmatch(r"[0-9a-fx.]+", hostname)
+            and any(ch.isdigit() or ch == "x" for ch in hostname)):
+        # Sayısal/hex görünümlü ama ayrışmayan host (örn. taşan "0x100000000")
+        # ağ yığınınca yine IP sayılabilir — DNS adı sanıp geçme.
+        return False
     if parsed.scheme == "https":
         # HTTPS artefakt/metadata adresleri genele açık IP olmalı: kötü niyetli
         # veya zehirlenmiş metaveri, indirmeyi link-local bulut metaverisi

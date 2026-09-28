@@ -12764,7 +12764,13 @@ function updatePlayerMeta() {
 // geçildiğinde kayıt artık geçerli sayılmaz.
 let playerCommunityTitleBase = null;
 
-function restorePlayerCommunityTitle() {
+function restorePlayerCommunityTitle(expectedVideoId) {
+  // Kayıt başka videoya aitse geri yükleme yok — sadece bayat kaydı sil.
+  if (playerCommunityTitleBase && expectedVideoId !== undefined
+      && playerCommunityTitleBase.videoId !== expectedVideoId) {
+    playerCommunityTitleBase = null;
+    return;
+  }
   if (playerCommunityTitleBase && $('playerTitle')) {
     $('playerTitle').textContent = playerCommunityTitleBase.base;
   }
@@ -12793,16 +12799,26 @@ async function maybeFetchPlayerVideoExtras() {
       || youtubeVideoId(String(player.ytInfo && player.ytInfo.sourceUrl || '')) === videoId
       || youtubeVideoId(String(player.originalUrl || '')) === videoId;
     if (!stillCurrent) return;
-    player.videoExtras = res;
-    const communityTitle = res.dearrow && res.dearrow.title;
-    if (wantDeArrow && communityTitle && $('playerTitle')) {
+    // İstek uçarken kullanıcı özelliği kapatmış olabilir — geç yanıt kapalı
+    // ekstrayı geri getirmesin diye kutu durumu yeniden okunur.
+    const nowDeArrow = $('browserDeArrowEnabled')?.checked === true;
+    const nowRyd = $('browserRydDislikes')?.checked === true;
+    if (!nowDeArrow && !nowRyd) {
+      player.videoExtras = null;
+      restorePlayerCommunityTitle(videoId);
+      updatePlayerMeta();
+      return;
+    }
+    player.videoExtras = { ...res, dearrow: nowDeArrow ? res.dearrow : null, votes: nowRyd ? res.votes : null };
+    const communityTitle = nowDeArrow && res.dearrow && res.dearrow.title;
+    if (communityTitle && $('playerTitle')) {
       // Ozgun baslik ytInfo'da durur; panel basligi topluluk secimini gosterir.
       if (!playerCommunityTitleBase || playerCommunityTitleBase.videoId !== videoId) {
         playerCommunityTitleBase = { videoId, base: $('playerTitle').textContent };
       }
       $('playerTitle').textContent = communityTitle;
     } else {
-      restorePlayerCommunityTitle();
+      restorePlayerCommunityTitle(videoId);
     }
     updatePlayerMeta();
   } catch (_) {}
@@ -17301,8 +17317,10 @@ function setMediaKey(key) {
   // Topluluk ekstrasi (DeArrow/RYD) onceki videonun verisini tasimasin.
   if (player.videoExtras && !String(nextKey).includes(String(player.videoExtras.videoId || '\0'))) {
     player.videoExtras = null;
-    // Yeni medya için yeni başlık zaten atanıyor; bayat taban kaydını geri
-    // yükleme — sadece sil ki yeni video adı üzerine eski başlık yazılmasın.
+  }
+  // Taban kaydı ekstradan bağımsız tutulur: refetch'in videoExtras'i önceden
+  // silmesi durumunda bile eski videonun tabanı yeni videoya yazılmamalı.
+  if (playerCommunityTitleBase && !String(nextKey).includes(String(playerCommunityTitleBase.videoId || '\0'))) {
     playerCommunityTitleBase = null;
   }
   // "Sonraki" düğmesi yeni anahtarla hesaplanmalı — eski mediaKey ile çalıştırmak

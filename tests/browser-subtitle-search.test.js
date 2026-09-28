@@ -250,6 +250,15 @@ async function main() {
   assert.deepEqual(zh.results.map((r) => r.language), ['zh-CN']);
   const barePt = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt' }, { fetch: variantFetch });
   assert.equal(barePt.results.length, 3, 'yalın pt hedefi tüm Portekizce varyantlarını tutar');
+  // Hiçbir satır hedef varyantla eşleşmediğinde etiketli sonuçlar
+  // filtresiz sunulmaz: pt-BR isteğine yalnız pt-PT/zh-CN gelirse boş.
+  const onlyPt = { subtitles: [
+    { id: 'w1', url: 'https://opensubtitles-v3.strem.io/sub/x/a.srt', lang: 'pt-PT', m: {} },
+    { id: 'w2', url: 'https://opensubtitles-v3.strem.io/sub/x/d.srt', lang: 'zh-CN', m: {} },
+  ] };
+  const noBr = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt-BR' },
+    { fetch: async () => response(onlyPt) });
+  assert.equal(noBr.results.length, 0, 'etiketli ama eşleşmeyen sonuçlar yanlış bölge olarak sunulmaz');
 
   console.log('browser-subtitle-search: fixture tests passed');
 }

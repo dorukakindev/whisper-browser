@@ -296,7 +296,14 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   }).filter((item) => item.url.startsWith('https://'));
   if (wantedLang.primary) {
     const hits = results.filter((item) => sameLanguage(item.language, target.language));
-    if (hits.length) results.length = 0, results.push(...hits);
+    // Hiçbir sonuç dil etiketi taşımıyorsa filtre uygulanamaz (eski davranış);
+    // etiketli sonuçlar varken varyant eşleşmeyenler (örn. istenen pt-BR'e
+    // karşı pt-PT) yanlış bölge altyazısı olarak sunulmamalı.
+    const anyTagged = results.some((item) => item.language);
+    if (hits.length || anyTagged) {
+      results.length = 0;
+      results.push(...hits);
+    }
   }
   results.sort((a, b) => b.matchScore - a.matchScore);
   return { results, totalCount: results.length, page: 1, provider: 'stremio' };
