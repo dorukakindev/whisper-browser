@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-28-1600.md](docs/devir/2026-09-28-1600.md) — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma (preview_refresh + ikon hizalama)
+Güncel çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
+Önceki çalışma: [docs/devir/2026-09-28-1700.md](docs/devir/2026-09-28-1700.md) — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz) + tam smoke doğrulaması
+Önceki çalışma: [docs/devir/2026-09-28-1600.md](docs/devir/2026-09-28-1600.md) — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma (preview_refresh + ikon hizalama)
 Önceki çalışma: [docs/devir/2026-09-28-1500.md](docs/devir/2026-09-28-1500.md) — R192 derin denetim: transcribe.py tam kapsam kapandı + renderer dev fonksiyonlar (temiz, ürün kodu değişmedi)
 Önceki çalışma: [docs/devir/2026-09-28-1400.md](docs/devir/2026-09-28-1400.md) — R191 Devin Review needs_human artıkları: rapor 167 modül sayımı + rapor 168 başlık iddiası düzeltildi
 Önceki çalışma: [docs/devir/2026-09-28-1200.md](docs/devir/2026-09-28-1200.md) — R190 Devin Review toplu triage: PR 84–117 aralığındaki 91 bulgudan 31 bug/security'nin tamamı doğrulanıp düzeltildi
