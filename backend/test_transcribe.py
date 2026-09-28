@@ -3694,6 +3694,53 @@ def test_tur5_nonfinite_segments_and_exception_cleanup():
             assert cues[0]['start'] == 1 and cues[0]['end'] == 2
 
 
+def test_preview_refresh_after_mandatory_dedupe_with_optional_processing_off():
+    # Seçenekler kapalıyken de örtüşen rolling cue güvenlik filtresi çalışır.
+    # Nihai dosya ile akış önizlemesi aynı satırları taşımalıdır.
+    class Model:
+        def __init__(self, *_args, **_kwargs): pass
+
+        def transcribe(self, *_args, **_kwargs):
+            segments = [
+                types.SimpleNamespace(start=s, end=e, text='Hello world.', words=[])
+                for s, e in [(0.0, 1.0), (0.5, 1.5)]
+            ]
+            info = types.SimpleNamespace(language='en', language_probability=1.0, duration=2.0)
+            return iter(segments), info
+
+    fake = types.ModuleType('faster_whisper')
+    fake.WhisperModel = Model
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / 'input.mp4'
+        src.write_bytes(b'fixture')
+        disabled = [
+            'resume', 'merge-short', 'merge-incomplete', 'merge-continuation',
+            'fix-common-errors', 'drop-repeated-hallucinations', 'snap-to-speech',
+            'fix-timings', 'dedupe', 'drop-trailing-hallucination',
+            'fix-punctuation-collapse', 'quality-report',
+        ]
+        argv = ['transcribe.py', '--input', str(src), '--output-dir', td,
+                '--engine', 'faster', '--split-mode', 'none']
+        for option in disabled:
+            argv.extend([f'--{option}', 'false'])
+        with mock.patch.object(sys, 'argv', argv), mock.patch.object(T, 'transcribe') as capture:
+            T.main()
+        args = capture.call_args.args[0]
+        with mock.patch.dict(sys.modules, {'faster_whisper': fake}), \
+                mock.patch.object(T, 'find_ffmpeg', return_value='ffmpeg'), \
+                mock.patch.object(T, 'resolve_device_and_compute', return_value=('cpu', 'int8')), \
+                mock.patch.object(T, 'build_prompt_and_hotwords', return_value=('', '', '')), \
+                mock.patch.object(T, 'extract_audio'), mock.patch.object(T, 'log'), \
+                mock.patch.object(T, 'emit') as emitted, mock.patch.object(T, '_wx_free_gpu'):
+            T.transcribe(args)
+        streamed = [call.kwargs for call in emitted.call_args_list if call.args[0] == 'segment']
+        refreshed = [call.kwargs['segments'] for call in emitted.call_args_list
+                     if call.args[0] == 'preview_refresh']
+        assert len(streamed) == 2, streamed
+        assert len(refreshed) == 1 and len(refreshed[0]) == 1, refreshed
+        assert refreshed[0][0]['end'] == 1.5
+
+
 def test_tur5_cps_disabled_and_unicode_dedupe():
     assert T.translation_char_budget((0, 1, 'Hello'), types.SimpleNamespace(max_cps=0)) > 0
     assert T._norm_for_dedupe('“Merhaba!”') == T._norm_for_dedupe('Merhaba!')
