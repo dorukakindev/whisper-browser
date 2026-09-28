@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
+Güncel çalışma: [docs/devir/2026-09-29-0200.md](docs/devir/2026-09-29-0200.md) — R217: kuyruk eşzamanlılık stresi + disk queueRunning bayat-true düzeltmesi
+Önceki çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
 
 Önceki çalışma: [docs/devir/2026-09-29-0130.md](docs/devir/2026-09-29-0130.md) — R215: 1000-döngü soak sayısal rapor (GEÇTİ)
 Önceki çalışma: [docs/devir/2026-09-29-0115.md](docs/devir/2026-09-29-0115.md) — R214: mimari diyagram + CONTRIBUTING yenileme
