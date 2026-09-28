@@ -109,11 +109,27 @@ try {
     ok(!fs.existsSync(manifest), 'yarım manifest temizlendi');
   }
 
-  // 4) Kaynak ratchetleri: sınırlı kopya her iki çıkarım yolunda da kullanılır.
+  // 4) R190: hedef dosya zaten varsa 'xb' FileExistsError fırlatır — temizlik
+  //    kolu var olanı SİLMEMELİ (öncesi os.remove koşulsuz çalışıp kullanıcının
+  //    mevcut dosyasını siliyordu).
+  {
+    const archive = path.join(work, 'normal.wbp');
+    const existing = path.join(work, 'cikti3', 'v3.mp4');
+    fs.mkdirSync(path.dirname(existing), { recursive: true });
+    fs.writeFileSync(existing, 'KULLANICI-DOSYASI');
+    const extracted = runPackage({ action: 'extract', archive,
+      videos: [{ name: videoName, target: existing }] });
+    ok(extracted.ok === false, 'var olan hedefe çıkarım reddedilir');
+    ok(fs.readFileSync(existing, 'utf8') === 'KULLANICI-DOSYASI',
+      'var olan dosya silinmedi/bozulmadı');
+  }
+
+  // 5) Kaynak ratchetleri: sınırlı kopya her iki çıkarım yolunda da kullanılır.
   const src = fs.readFileSync(SCRIPT, 'utf8');
   ok(src.includes('_copy_bounded') && !src.includes('copyfileobj'),
     'sınırsız copyfileobj kalmadı');
   ok(src.includes('os.remove(destination)'), 'başarısız çıkarım hedefi temizlenir');
+  ok(src.includes('created = True') || src.includes('created=True'), 'temizlik yalnız kendi oluşturduğu dosyaya');
   const js = fs.readFileSync(path.join(__dirname, '../src/workspace-package.js'), 'utf8');
   ok(js.includes('maxOutputLength'), 'gzip çıkış sınırı korunuyor');
   ok(js.includes("startsWith(path.resolve(root) + path.sep)"), 'zip-slip kapısı korunuyor');

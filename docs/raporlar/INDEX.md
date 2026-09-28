@@ -122,3 +122,22 @@ tarih sırasıyla dosya adından okunur.
 | 149 | [BROWSER_BUG_REPORT_149.md](BROWSER_BUG_REPORT_149.md) | BROWSER_BUG_REPORT_149 — R150 canlı sağlayıcı doğrulaması |
 | 150 | [BROWSER_BUG_REPORT_150.md](BROWSER_BUG_REPORT_150.md) | BROWSER_BUG_REPORT_150 — R169 flaky test determinizmi |
 | 151 | [BROWSER_BUG_REPORT_151.md](BROWSER_BUG_REPORT_151.md) | BROWSER_BUG_REPORT_151 — R153: renderer.js modül çıkarımı (ilk dilim) |
+| 152 | [BROWSER_BUG_REPORT_152.md](BROWSER_BUG_REPORT_152.md) | BROWSER_BUG_REPORT_152 — R171: T2 derin zamanlama denetimi (DASH/HLS/overlay/ASR) |
+| 153 | [BROWSER_BUG_REPORT_153.md](BROWSER_BUG_REPORT_153.md) | BROWSER_BUG_REPORT_153 — T12: Birleşik regresyon raporu (R106→R171) |
+| 154 | [BROWSER_BUG_REPORT_154.md](BROWSER_BUG_REPORT_154.md) | BROWSER_BUG_REPORT_154 — R172: renderer.js ikinci dilim + sinyal taraması düzeltmesi |
+| 155 | [BROWSER_BUG_REPORT_155.md](BROWSER_BUG_REPORT_155.md) | BROWSER_BUG_REPORT_155 — R153 dilim-3 + dilim güvenlik kuralı sertleşmesi |
+| 156 | [BROWSER_BUG_REPORT_156.md](BROWSER_BUG_REPORT_156.md) | BROWSER_BUG_REPORT_156 — R175: T9 Windows UI kabul bulguları düzeltmesi |
+| 157 | [BROWSER_BUG_REPORT_157.md](BROWSER_BUG_REPORT_157.md) | BROWSER_BUG_REPORT_157 — R176: IPC ratchet denetimi (16 unguarded kapatıldı) |
+| 158 | [BROWSER_BUG_REPORT_158.md](BROWSER_BUG_REPORT_158.md) | BROWSER_BUG_REPORT_158 — R178: Windows dosya adı kuralları |
+| 159 | [BROWSER_BUG_REPORT_159.md](BROWSER_BUG_REPORT_159.md) | BROWSER_BUG_REPORT_159 — R179: DeArrow + Return YouTube Dislike istemcileri |
+| 160 | [BROWSER_BUG_REPORT_160.md](BROWSER_BUG_REPORT_160.md) | BROWSER_BUG_REPORT_160 — R180: 54 dosya derin denetimi + sınırsız gövde okuma |
+| 161 | [BROWSER_BUG_REPORT_161.md](BROWSER_BUG_REPORT_161.md) | BROWSER_BUG_REPORT_161 — R181: araç/test altyapısı derin denetimi |
+| 162 | [BROWSER_BUG_REPORT_162.md](BROWSER_BUG_REPORT_162.md) | BROWSER_BUG_REPORT_162 — R182: backend yan araçları ikinci geçiş |
+| 163 | [BROWSER_BUG_REPORT_163.md](BROWSER_BUG_REPORT_163.md) | BROWSER_BUG_REPORT_163 — R183: kaynak envanteri + ölü işlev taraması |
+| 164 | [BROWSER_BUG_REPORT_164.md](BROWSER_BUG_REPORT_164.md) | BROWSER_BUG_REPORT_164 — R184: preload↔renderer API yüzeyi + dormant kanal |
+| 165 | [BROWSER_BUG_REPORT_165.md](BROWSER_BUG_REPORT_165.md) | BROWSER_BUG_REPORT_165 — R185: innerHTML/localStorage/TODO süpürmesi |
+| 166 | [BROWSER_BUG_REPORT_166.md](BROWSER_BUG_REPORT_166.md) | BROWSER_BUG_REPORT_166 — R186 Windows doğrulama turu bulguları |
+| 167 | [BROWSER_BUG_REPORT_167.md](BROWSER_BUG_REPORT_167.md) | BROWSER_BUG_REPORT_167 — R187 yakalama/indirme dayanıklılık denetimi |
+| 168 | [BROWSER_BUG_REPORT_168.md](BROWSER_BUG_REPORT_168.md) | BROWSER_BUG_REPORT_168 — R188: Electron smoke seti uçtan uca triage |
+| 169 | [BROWSER_BUG_REPORT_169.md](BROWSER_BUG_REPORT_169.md) | BROWSER_BUG_REPORT_169 — R189: tam Electron smoke doğrulaması + çeviri menüsü taşması |
+| 170 | [BROWSER_BUG_REPORT_170.md](BROWSER_BUG_REPORT_170.md) | BROWSER_BUG_REPORT_170 — R190: Devin Review toplu triage + doğrulanmış düzeltmeler |

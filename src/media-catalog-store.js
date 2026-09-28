@@ -257,6 +257,10 @@ function createMediaCatalogStore({ filePath }) {
         report.updated.push({ id, catalogId: items[index].id, reason: match.reason });
       } else {
         if (items.length >= MAX_ITEMS) { report.skipped.push({ id, reason: 'Katalog kapasitesi doldu.' }); continue; }
+        // Gelen kayıt var olan farklı bir öğeyle kimlik çakışırsa (örn.
+        // importRef olmayan aynı dış kimlik) indexById tek kaydı gösterirdi;
+        // eklenmeden önce yeni kimlik ver.
+        if (indexes.indexById.has(incoming.id)) incoming = { ...incoming, id: randomUUID() };
         indexes.indexItem(incoming, items.length);
         items.push(incoming); report.added.push({ id, catalogId: incoming.id });
       }

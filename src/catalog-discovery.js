@@ -47,7 +47,8 @@ async function readLimitedBytes(response, maxBytes, label = 'Yanıt') {
 }
 
 async function readTextLimited(response, maxBytes) {
-  return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8');
+  // UTF-8 BOM bayt olarak geçer; JSON.parse'a giden metinden düşür.
+  return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
 }
 
 function createMetadataClient(fetchImpl = fetch) {

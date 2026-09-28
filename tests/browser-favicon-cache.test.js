@@ -108,7 +108,7 @@ sandbox.rememberBrowserPlaceFavicon('https://big.com', 'data:image/png;base64,' 
 ok(!cache.has('https://big.com'), 'büyük data URL reddedilir');
 
 // --- Kaynak ratchet'ları ---
-ok(/rememberBrowserPlaceFavicon\(browserPageUrl\(tab\), dataUrl\)/.test(src), 'favicon olayı kalıcı depoya bağlı');
+ok(/rememberBrowserPlaceFavicon\(faviconPageUrl, dataUrl\)/.test(src), 'favicon olayı kalıcı depoya bağlı (yakalanan sayfa adresiyle)');
 ok(/ipcMain\.handle\('browser:favicons:list'/.test(src), 'favicons:list IPC kayıtlı');
 ok(/browser:favicons:list/.test(src), 'kanal adı');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.js'), 'utf8');
@@ -118,5 +118,31 @@ ok(/loadBrowserFavicons/.test(renderer), 'renderer yükleyici bağlı');
 // Yer deposu şişmemeli: favicons alanı normalizeBrowserPlaces'ta OLMAMALI.
 const placesBody = src.slice(src.indexOf('function normalizeBrowserPlaces('), src.indexOf('function cloneBrowserPlaces'));
 ok(!/favicons/.test(placesBody), 'favicons yer deposuna gömülmedi (stringify maliyeti yok)');
+
+// R190: flush yazım hatasında (disk kilitli/dolu) bellekteki eşleme korunur
+// ve tek seferlik gecikmeli yineleme planlanır — before-quit'teki son flush
+// kaybolmaz.
+{
+  const originalWrite = sandbox.writeJsonAtomic;
+  const originalSetTimeout = sandbox.setTimeout;
+  const scheduled = [];
+  sandbox.setTimeout = (fn, ms) => { scheduled.push({ fn, ms }); return { fn, id: scheduled.length, unref() {} }; };
+  let failed = false;
+  sandbox.writeJsonAtomic = (file, value) => {
+    if (!failed) { failed = true; throw new Error('disk kilitli'); }
+    return originalWrite(file, value);
+  };
+  try {
+    sandbox.rememberBrowserPlaceFavicon('https://retry.example/x', PNG);
+    sandbox.flushBrowserFavicons();
+    ok(scheduled.some((t) => t.ms === 5000), 'hata sonrası 5 sn yeniden deneme kurulmadı');
+    const beforeRetry = writtenFiles.length;
+    scheduled.forEach((t) => t.fn());
+    ok(writtenFiles.length > beforeRetry, 'yeniden deneme diske yazmadı');
+  } finally {
+    sandbox.writeJsonAtomic = originalWrite;
+    sandbox.setTimeout = originalSetTimeout;
+  }
+}
 
 console.log(`browser-favicon-cache: ${n} kontrol geçti`);

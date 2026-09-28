@@ -18,7 +18,8 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+
 
 
 DEFAULT_METADATA_URL = "https://pypi.org/pypi/yt-dlp/json"
@@ -83,15 +84,61 @@ def fetch_metadata(url=DEFAULT_METADATA_URL, opener=urlopen, timeout=30):
     return metadata
 
 
+def _ipv4_literal(hostname):
+    """Kanonik ve kısaltılmış IPv4 yazımlarını tek IPv4Address'e indirger.
+
+    inet_aton platforma göre farklı kabul eder (Windows'ta inet_pton yalnız
+    sıkı noktalı onluk okur); "127.1", "0x7f.1", "0300.0250.1.1",
+    "2130706433" gibi kısaltmalar SSRF kapısını atlatmasın diye ayrıştırma
+    burada yapılır. Son parça kalan baytları kaplar (a.b → a + 24-bit b).
+    """
+    try:
+        return ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    parts = hostname.split(".")
+    if not 1 <= len(parts) <= 4:
+        return None
+    total = 0
+    for i, part in enumerate(parts):
+        if not part:
+            return None
+        try:
+            if part[:2].lower() == "0x":
+                n = int(part, 16)
+            elif len(part) > 1 and part.startswith("0"):
+                n = int(part, 8)
+            else:
+                if not part.isdigit():
+                    return None
+                n = int(part, 10)
+        except ValueError:
+            return None
+        if i < len(parts) - 1:
+            if n > 255:
+                return None
+            total = (total << 8) | n
+        else:
+            if n >= 1 << (8 * (5 - len(parts))):
+                return None
+            total = (total << (8 * (5 - len(parts)))) | n
+    try:
+        return ipaddress.ip_address(total)
+    except ValueError:
+        return None
+
+
 def _url_is_allowed(url, allow_http_localhost=False):
     parsed = urlparse(str(url).strip())
-    hostname = (parsed.hostname or "").rstrip(".")
+    hostname = (parsed.hostname or "").rstrip(".").lower()
     if not hostname:
         return False
-    try:
-        address = ipaddress.ip_address(hostname)
-    except ValueError:
-        address = None
+    address = _ipv4_literal(hostname)
+    if (address is None and re.fullmatch(r"[0-9a-fx.]+", hostname)
+            and any(ch.isdigit() or ch == "x" for ch in hostname)):
+        # Sayısal/hex görünümlü ama ayrışmayan host (örn. taşan "0x100000000")
+        # ağ yığınınca yine IP sayılabilir — DNS adı sanıp geçme.
+        return False
     if parsed.scheme == "https":
         # HTTPS artefakt/metadata adresleri genele açık IP olmalı: kötü niyetli
         # veya zehirlenmiş metaveri, indirmeyi link-local bulut metaverisi
@@ -100,8 +147,25 @@ def _url_is_allowed(url, allow_http_localhost=False):
     return bool(
         allow_http_localhost
         and parsed.scheme == "http"
-        and hostname in {"127.0.0.1", "localhost", "::1"}
+        and (hostname in {"localhost"} or (address is not None and address.is_loopback))
     )
+
+
+class _CheckedRedirectHandler(HTTPRedirectHandler):
+    """urllib yönlendirmeleri açık adresten kapalı adrese atlayabilir; her
+    hop'un hedefini aynı SSRF kapısından geçir."""
+
+    def __init__(self, allow_http_localhost=False):
+        self._allow_http_localhost = allow_http_localhost
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _url_is_allowed(newurl, allow_http_localhost=self._allow_http_localhost):
+            raise UpdateError("Güncelleme yönlendirmesi izin verilmeyen bir adrese gidiyor.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _checked_opener(allow_http_localhost=False):
+    return build_opener(_CheckedRedirectHandler(allow_http_localhost)).open
 
 
 def select_artifact(metadata, allow_http_localhost=False):
@@ -430,6 +494,8 @@ def update_runtime(
     validator=validate_runtime,
     allow_http_localhost=False,
 ):
+    if opener is urlopen:
+        opener = _checked_opener(allow_http_localhost)
     with update_lock(runtime_root):
         return _update_runtime_unlocked(
             runtime_root,

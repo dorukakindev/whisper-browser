@@ -63,3 +63,17 @@ assert.equal(browserShortcutForInput({type:'keyDown',key:'BrowserBack'}),'back')
 for (const key of ['a','k','ArrowLeft',' ','Enter','F11','PageDown']) {
   assert.equal(browserShortcutForInput({type:'keyDown',key}),'', key);
 }
+
+// R190: komut başlıkları TR anahtarı olarak kayıtlı — EN arayüzde kullanıcı
+// İngilizce adla aradığında da eşleşmeli (UiLocale çevirisi haystack'e katılır).
+{
+  const prev = globalThis.UiLocale;
+  globalThis.UiLocale = { t: (s) => ({ 'Geçmişi aç': 'Open history', 'Ayarlar': 'Settings' }[s] || s) };
+  try {
+    const rows = rankBrowserCommands([{ id: 'h', title: 'Geçmişi aç', keywords: ['geçmiş'] }], 'open');
+    assert.equal(rows.length, 1, 'EN sorgusu TR-başlıklı komutu bulamadı');
+    assert.equal(rows[0].id, 'h');
+    assert.equal(rankBrowserCommands([{ id: 'h', title: 'Geçmişi aç' }], 'geçmiş').length, 1,
+      'TR sorgusu regresyonu');
+  } finally { globalThis.UiLocale = prev; }
+}

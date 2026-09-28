@@ -215,7 +215,8 @@ function registerBrowserFeatureServices(deps) {
           const ref = reference();
           if (!Number.isFinite(payload.end) || payload.end > ref.duration + .1) throw new Error('Aralık videonun içinde olmalı.');
           result = await require('./browser-dialogue').dialogue({ video: ref.path, start: payload.start, end: payload.end,
-            model: payload.model, language: payload.language, python: pythonPath(), ffmpeg: ffmpegPath(), signal: controller.signal });
+            model: payload.model, language: payload.language, python: pythonPath(), ffmpeg: ffmpegPath(), signal: controller.signal,
+            localize: deps.dialogText });
           assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
           break;
         }

@@ -7,6 +7,58 @@
 
   const WORD = /[\p{L}\p{N}_]/u;
 
+  // Grapheme kümesi sınırları: birleşen im (\p{M}), varyasyon seçici
+  // (FE0E/FE0F), emoji ten rengi değiştiricisi, etiket dizisi ve ZWJ önceki
+  // tabanla tek kümeye girer. Bölgesel göstergeler (bayraklar) çift ilerler.
+  const CLUSTER_EXTENDER = /[\p{M}\uFE0E\uFE0F\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]/u;
+  const MARK_EXTEND = /[\p{M}\uFE0E\uFE0F]/u;
+  const REGIONAL = /[\u{1F1E6}-\u{1F1FF}]/u;
+  const ZWJ = '\u200D';
+
+  function codePointBefore(text, offset) {
+    if (offset <= 0) return '';
+    let i = offset - 1;
+    // UTF-16 düşük vekildeysek çiftin başına geri çek.
+    if (text.charCodeAt(i) >= 0xDC00 && text.charCodeAt(i) <= 0xDFFF && i > 0) i -= 1;
+    const cp = text.codePointAt(i);
+    return cp == null ? '' : String.fromCodePoint(cp);
+  }
+  function codePointAt(text, offset) {
+    const cp = offset >= 0 && offset < text.length ? text.codePointAt(offset) : null;
+    return cp == null ? '' : String.fromCodePoint(cp);
+  }
+
+  // Offset bir grapheme kümesinin içine düşüyor mu? Küme ortasında eşleşme
+  // vurgusu/değiştirmesi yarım karakter (tek başına im, kırık emoji) bırakır.
+  function isClusterBoundary(source, offset) {
+    if (offset <= 0 || offset >= source.length) return true;
+    const prev = codePointBefore(source, offset);
+    const next = codePointAt(source, offset);
+    if (prev === ZWJ || next === ZWJ) return false;
+    if (CLUSTER_EXTENDER.test(next)) return false;
+    if (REGIONAL.test(next) && REGIONAL.test(prev)) {
+      let run = 0;
+      for (let p = offset; ;) {
+        const c = codePointBefore(source, p);
+        if (c && REGIONAL.test(c)) { run += 1; p -= c.length; } else break;
+      }
+      if (run % 2 === 1) return false;
+    }
+    return true;
+  }
+
+  // Kelime-sınırı denetiminde komşu: im/değiştirici katmanını atlayıp kümeyi
+  // taşıyan taban karakteri döndürür ('e+◌́' kümesi için 'e' gibi).
+  function neighborBaseChar(source, offset, dir) {
+    let i = offset;
+    for (;;) {
+      const cp = dir < 0 ? codePointBefore(source, i) : codePointAt(source, i);
+      if (!cp) return '';
+      if (!CLUSTER_EXTENDER.test(cp)) return cp;
+      i += dir < 0 ? -cp.length : cp.length;
+    }
+  }
+
   // foldSearchText tek karakterin uzunluğunu değiştirdiğinde (NFKC uyumluluk
   // ayrışması: ﬀ→ff, ²→2, çevrili/üst simgeler vb.) katlanmış-ofsetler kaynak
   // ofsetlerle birebir örtüşmez; bu sınıf o kod noktalarını yakalar. Otomasyon:
@@ -50,11 +102,17 @@
         if (found < 0) break;
         const end = found + needle.length;
         if (foldSearchText(source.slice(found, end), caseSensitive) === needle) {
+          if (!isClusterBoundary(source, found)) { from = found + 1; continue; }
+          // Sona düşen im/seçici katmanı tabanla birlikte yutulur.
+          while (end < source.length && MARK_EXTEND.test(codePointAt(source, end))) {
+            end += codePointAt(source, end).length;
+          }
+          if (!isClusterBoundary(source, end)) { from = found + 1; continue; }
           const matched = { start: found, end };
           let word = true;
           if (options.wholeWord === true) {
-            const before = source.slice(0, matched.start).match(/[\s\S]$/u)?.[0] || '';
-            const after = source.slice(matched.end).match(/^[\s\S]/u)?.[0] || '';
+            const before = neighborBaseChar(source, matched.start, -1);
+            const after = neighborBaseChar(source, matched.end, 1);
             if ((before && WORD.test(before)) || (after && WORD.test(after))) word = false;
           }
           if (word) ranges.push(matched);
@@ -77,9 +135,14 @@
         if (candidate.length > needle.length + 2) break;
       }
       if (!matched) { startPoint++; continue; }
+      if (!isClusterBoundary(source, matched.start)) { startPoint++; continue; }
+      while (matched.end < source.length && MARK_EXTEND.test(codePointAt(source, matched.end))) {
+        matched.end += codePointAt(source, matched.end).length;
+      }
+      if (!isClusterBoundary(source, matched.end)) { startPoint++; continue; }
       if (options.wholeWord === true) {
-        const before = source.slice(0, matched.start).match(/[\s\S]$/u)?.[0] || '';
-        const after = source.slice(matched.end).match(/^[\s\S]/u)?.[0] || '';
+        const before = neighborBaseChar(source, matched.start, -1);
+        const after = neighborBaseChar(source, matched.end, 1);
         if ((before && WORD.test(before)) || (after && WORD.test(after))) {
           startPoint++;
           continue;
