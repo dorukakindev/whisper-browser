@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-2100.md](docs/devir/2026-09-28-2100.md) — R197: kalan denetlenmemiş yüzey kapanışı (subscription-feed NaN düzeltmesi)
+Güncel çalışma: [docs/devir/2026-09-28-2130.md](docs/devir/2026-09-28-2130.md) — R198: Devin Review takip düzeltmeleri (live-asr parça temizliği + devir hash)
+Önceki çalışma: [docs/devir/2026-09-28-2100.md](docs/devir/2026-09-28-2100.md) — R197: kalan denetlenmemiş yüzey kapanışı
 Önceki çalışma: [docs/devir/2026-09-28-2030.md](docs/devir/2026-09-28-2030.md) — R196: Devin Review toplu triage (PR #120–124)
 Önceki çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
 Önceki çalışma: [docs/devir/2026-09-28-1700.md](docs/devir/2026-09-28-1700.md) — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz) + tam smoke doğrulaması
