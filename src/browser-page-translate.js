@@ -506,11 +506,24 @@ function pageBlockScanScript(options = {}) {
           const tag = String(element.tagName || '');
           if (element.matches?.(textBearingSelector)) return element;
           if (element.matches?.(semanticSelector)) {
-            if (interactiveRoot || !interactiveTags.has(tag)) return element;
-            interactiveRoot = element;
+            if (interactiveTags.has(tag)) {
+              // Metin atasını bulana kadar tırman; <a display:inline-block>
+              // gibi stilli bağlantılar <p>'ye katılmadan ayrı blok olmasın.
+              interactiveRoot = interactiveRoot || element;
+              element = parentAcrossShadow(element);
+              continue;
+            }
+            return interactiveRoot || element;
           }
           const display = getComputedStyle(element).display;
-          if (blockedDisplays.has(display)) return interactiveRoot || element;
+          if (blockedDisplays.has(display)) {
+            if (interactiveTags.has(tag)) {
+              interactiveRoot = interactiveRoot || element;
+              element = parentAcrossShadow(element);
+              continue;
+            }
+            return interactiveRoot || element;
+          }
         } catch (_) {}
         element = parentAcrossShadow(element);
       }

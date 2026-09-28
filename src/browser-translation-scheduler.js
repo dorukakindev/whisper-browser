@@ -247,11 +247,16 @@ function distributeTranslation(sentence, translatedText) {
 const DEFINITIVE_ERROR_PATTERN = /content[ _-]?filter|moderation|geçerli bir çeviri üretmedi|json yanıtı okunamadı|tamamlanmamış düşünme|yalnız düşünme metni|boş veya geçersiz|metin nesnesi yerine json dizisi/i;
 
 function isDefinitiveTranslateError(error) {
-  if (!error || error.transportError) return false;
+  if (!error) return false;
+  // Kesin sinyaller (açık bayrak, kod, mesaj deseni) transportError'dan
+  // önce okunur: transportError genel catch işaretidir ve HTTP 200'de bozuk
+  // JSON gibi "ulaşım başarılı ama içerik kesin geçersiz" durumlarla aynı
+  // şekilde işaretlenir — önce bakılırsa gerçek kesin sınıfı ezer.
   if (error.definitive === true || error.retryable === false) return true;
   const code = String(error.code || '');
   if (code === 'PARTS_MISSING' || code === 'PARTS_MISMATCH') return true;
-  return DEFINITIVE_ERROR_PATTERN.test(String(error.message || error || ''));
+  if (DEFINITIVE_ERROR_PATTERN.test(String(error.message || error || ''))) return true;
+  return false;
 }
 
 class BrowserTranslationScheduler {
@@ -567,6 +572,10 @@ class BrowserTranslationScheduler {
       return this.translateShared(sentence, cacheKey, controller, context)
         .then((value) => {
           const decoded = decodeSentenceTranslation(value, sentence.pieces.length, this.requireSentenceParts);
+          // Blok-bazlı çözücü (sayfa çevirisi) kapıya takılan blok kimliklerini
+          // failedIds'te raporlar; bunlar başarısız işaretlenmeli, yoksa kaynak
+          // metin çeviriymiş gibi yayınlanır ve oturum "tamam" sayar.
+          if (Array.isArray(value?.failedIds) && value.failedIds.length) decoded.failedIds = value.failedIds;
           if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) {
             throw new Error('Çeviri sayısal bilgiyi korumadı.');
           }
@@ -596,6 +605,7 @@ class BrowserTranslationScheduler {
         text: result.text,
         cached: result.cached,
         cues,
+        ...(Array.isArray(result.failedIds) && result.failedIds.length ? { failedIds: result.failedIds } : {}),
       };
       this.failures.delete(sentence.id);
       this.results.set(sentence.id, value);

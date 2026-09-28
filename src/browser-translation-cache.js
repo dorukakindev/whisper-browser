@@ -92,6 +92,15 @@ class PersistentTranslationCache {
         const stat = this.fs.statSync(this.journalPath);
         this.journalBytes = Number(stat?.size) || 0;
         const raw = String(this.fs.readFileSync(this.journalPath, 'utf8'));
+        // Sıkıştırma temel dosyayı yazıp sonra journal'ı siler; silme
+        // başarısızsa kalan eski journal bir sonraki açılışta aynı
+        // kayıtların bayat değerlerini yeni temelin üstüne uygular
+        // (bayat dirilişi). Değer için satırı yalnız temeldeki kayıttan
+        // yeni ise uygula; konum için her satır dokunma sayılır — get()
+        // dokunuşları da journal'a bindiği için LRU sırası yeniden
+        // açılışta da korunur. .bak'a düşülen yolda son sıkıştırmanın
+        // satırları temelde olmadığı için korunur.
+        let applied = 0;
         for (const line of raw.split('\n')) {
           if (!line) continue;
           try {
@@ -100,11 +109,21 @@ class PersistentTranslationCache {
             const value = String(row?.v || '');
             const updatedAt = Number(row?.t) || Date.now();
             if (!key || !value) continue;
+            const existing = this.map.get(key);
+            const record = existing && Number(existing.updatedAt) >= updatedAt
+              ? existing
+              : { value, updatedAt };
             this.map.delete(key);
-            this.map.set(key, { value, updatedAt });
+            this.map.set(key, record);
+            applied += 1;
           } catch (_) { /* Bozuk journal satırı atlanır; tam sıkıştırma kurtarır. */ }
         }
         this.map = new Map([...this.map].slice(-this.limit));
+        // Tek geçerli satır bile uygulanmadıysa journal okunamaz/boş —
+        // sonraki yüklemeler boşuna denemesin diye kaldırmayı dene.
+        if (!applied) {
+          try { this.fs.unlinkSync(this.journalPath); this.journalBytes = 0; } catch (_) {}
+        }
       }
     } catch (_) { /* Journal okunamadıysa temel dosya yeterlidir. */ }
   }
@@ -123,9 +142,12 @@ class PersistentTranslationCache {
     }
     this.map.delete(normalized);
     this.map.set(normalized, record);
-    // Okuma LRU'yu bellekte günceller; salt bir get() disk yazımı başlatmaz.
-    // Bir sonraki gerçek set/silme veya uygulama kapanışındaki flush güncel
-    // sırayı da kalıcılaştırır.
+    // Okumayla güncellenen LRU sırasını bir sonraki journal turuna yedekle:
+    // yoksa yeniden açılışta yakın kullanılan kayıt eski sırayla kesilirken
+    // daha yaşlısı kalır. get() yine disk yazımı planlamaz — satır sonraki
+    // flush'a biner; aynı anahtarın önceki bekleyen satırı elenir.
+    this.pendingJournal = this.pendingJournal.filter((row) => row.k !== normalized);
+    this.pendingJournal.push({ k: normalized, v: record.value, t: record.updatedAt });
     return record.value;
   }
 

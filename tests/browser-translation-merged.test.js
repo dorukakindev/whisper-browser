@@ -56,6 +56,12 @@ assert.equal(isDefinitiveTranslateError(Object.assign(new Error('x'), { code: 'P
 assert.equal(isDefinitiveTranslateError(new Error('content_filter triggered')), true);
 assert.equal(isDefinitiveTranslateError(Object.assign(new Error('500'), { httpStatus: 500 })), false);
 assert.equal(isDefinitiveTranslateError(Object.assign(new Error('net'), { transportError: true })), false);
+// Açık bayraklar transportError işaretinden önce okunur: HTTP 200'de bozuk
+// JSON yakalayan kod definitive=true işaretler; catch bunu transportError'a
+// çevirmeden sınıflandırıcı yine kesin der ve fırtına durur.
+assert.equal(isDefinitiveTranslateError(Object.assign(new Error('Unexpected token'), { definitive: true, transportError: true })), true);
+assert.equal(isDefinitiveTranslateError(Object.assign(new Error('yarım yanıt'), { retryable: false, transportError: true })), true);
+assert.equal(isDefinitiveTranslateError(Object.assign(new Error('content_filter'), { transportError: true })), true);
 
 // 5) Ard arda kesin hata → paylaşılan devre kesici; her cümle için
 //    maxAttempts yanmaz, kuyruk eşik sonrası durur.
@@ -113,5 +119,25 @@ assert.equal(isDefinitiveTranslateError(Object.assign(new Error('net'), { transp
   assert.equal(mixed.providerFailure, '', 'Araya giren başarı kesiciyi ateşlememeli');
   assert.equal(mixed.snapshot().results.length, 1);
 
-  console.log('browser-translation-merged: tek-balon birleşimi, coveredCueIds bütünlüğü, definitive-kesici sözleşmeleri geçti');
+  // 6) Blok-bazlı çözücünün failedIds'i yayına taşınır ve önbelleğe
+  //    yazılmaz — kapıya takılan blok kaynak-echo'sunu kalıcılaştırmaz,
+  //    çağıran başarısız bloğu işaretleyebilir.
+  let cacheWrites = 0;
+  const emitted = [];
+  const fails = new BrowserTranslationScheduler({
+    maxAttempts: 1, retryBaseMs: 10, retryMaxMs: 20,
+    lookBehind: 100, lookAhead: 100, maxConcurrent: 1,
+    cache: { get: () => undefined, set: () => { cacheWrites += 1; } },
+    context: { targetLanguage: 'tr', model: 'm', endpoint: 'e' },
+    onResult: (payload) => emitted.push(payload),
+    translate: async () => ({ text: 'Bilmiyorum. Kesinlikle.', parts: ['Bilmiyorum.', 'Kesinlikle.'], failedIds: ['b'] }),
+  });
+  fails.setSentences([sentence]);
+  fails.completeAll();
+  await fails.whenIdle();
+  assert.equal(emitted.length, 1, 'sonuç yayınlanmalı');
+  assert.deepEqual(emitted[0].failedIds, ['b'], 'failedIds çağırana ulaşmalı');
+  assert.equal(cacheWrites, 0, 'failedIds içeren yanıt önbelleğe yazılmaz');
+
+  console.log('browser-translation-merged: tek-balon birleşimi, coveredCueIds bütünlüğü, definitive-kesici, failedIds yayılımı geçti');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

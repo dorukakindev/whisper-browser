@@ -110,6 +110,56 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   assert(!fs.existsSync(journalPath), 'sıkıştırma journal dosyasını temizlemeli');
   assert(JSON.parse(fs.readFileSync(journalFile, 'utf8')).entries.some(([key]) => key === 'k3'));
 
+  // Sıkıştırma unlink'i başarısız kalınca kalan bayat journal, temeldeki
+  // aynı/yeni kaydın üstüne eski değeri uygulamamalı (satır-bazlı dedup).
+  // Temelde olmayan satır kayıp değil kazanım — yine uygulanır.
+  const staleFile = path.join(dir, 'stale.json');
+  fs.writeFileSync(staleFile, JSON.stringify({ version: 2, entries: [['newK', { value: 'yeni', updatedAt: Date.now() }]] }));
+  const staleJournal = `${staleFile}.journal`;
+  fs.writeFileSync(staleJournal,
+    JSON.stringify({ k: 'newK', v: 'ESKİ', t: Date.now() - 5000 }) + '\n');
+  const staleLoaded = new PersistentTranslationCache(staleFile);
+  assert.equal(staleLoaded.get('newK'), 'yeni', 'bayat journal satırı yeni değeri ezmemeli');
+
+  // Hiç geçerli satır taşımayan (okunamaz/boş) journal temizlenir.
+  const emptyJFile = path.join(dir, 'emptyj.json');
+  fs.writeFileSync(emptyJFile, JSON.stringify({ version: 2, entries: [['eK', { value: 'e', updatedAt: Date.now() }]] }));
+  const emptyJournal = `${emptyJFile}.journal`;
+  fs.writeFileSync(emptyJournal, 'bozuk-satır\n{bad\n');
+  new PersistentTranslationCache(emptyJFile);
+  assert(!fs.existsSync(emptyJournal), 'geçerli satırsız journal yüklenirken silinmeli');
+
+  // Birincil bozulup .bak'a düşüldüğünde journal satırları korunur —
+  // son sıkıştırmanın eklediği çeviriler yedekte bulunmaz.
+  const bakFile = path.join(dir, 'bakfall.json');
+  const goodBak = JSON.stringify({ version: 2, entries: [['b1', { value: 'taban', updatedAt: Date.now() }]] });
+  fs.writeFileSync(`${bakFile}.bak`, goodBak);
+  fs.writeFileSync(bakFile, '{bozuk-json', 'utf8');
+  const bakJournal = `${bakFile}.journal`;
+  fs.writeFileSync(bakJournal, JSON.stringify({ k: 'b2', v: 'journal-değeri', t: Date.now() }) + '\n');
+  const bakLoaded = new PersistentTranslationCache(bakFile);
+  assert.equal(bakLoaded.get('b1'), 'taban', '.bak kurtarması çalışmalı');
+  assert.equal(bakLoaded.get('b2'), 'journal-değeri', '.bak yolunda journal satırları korunmalı');
+
+  // get() ile güncellenen LRU sırası journal'a biner: yeniden açılışta
+  // yakın kullanılan kayıt eski sırayla kesilmez.
+  const recencyFile = path.join(dir, 'recency.json');
+  const recency = new PersistentTranslationCache(recencyFile, { journalMaxFlushes: 100 });
+  recency.limit = 3; // kurucu limit'i ≥100'e kelepçeler; kesim yolunu küçük limitle egzersiz et
+  recency.set('a', 'A'); await recency.flush();
+  recency.set('b', 'B'); recency.set('c', 'C');
+  recency.get('a'); // 'a' yeniden kullanıldı — en yeni konuma taşınmalı
+  recency.set('d', 'D');
+  await recency.flush();
+  const recencyReload = new PersistentTranslationCache(recencyFile);
+  recencyReload.limit = 3;
+  // Yeniden açılış limiti load() içindeki slice(-limit) ile uygulanır —
+  // kurucu ≥100'e kelepçelediği için aynı kesimi burada elle üret.
+  recencyReload.map = new Map([...recencyReload.map].slice(-3));
+  assert.equal(recencyReload.get('a'), 'A', 'yakın kullanılan kayıt yeniden açılışta yaşamalı');
+  assert.equal(recencyReload.get('d'), 'D');
+  assert.equal(recencyReload.get('b'), undefined, 'en eski kullanılan kayıt kesilmeli');
+
   const churnFile = path.join(dir, 'churn.json');
   for (let i = 0; i < 7; i++) {
     fs.writeFileSync(churnFile, `{bozuk-${i}`, 'utf8');

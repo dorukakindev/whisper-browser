@@ -159,6 +159,19 @@ def test_numeric_separator_not_sentence_end():
     assert not sentence_ended("Kasada 3.000 sikke vardı")
 
 
+def test_ordinal_not_sentence_end():
+    """TR sıra sayısı '21. yüzyıl' cümle sonu değildir — gate_corpus2
+    'It's the 21st century.' → '21. yüzyıldayız.' yanlış-ret kalıntısı."""
+    assert sentence_end_count("21. yüzyıldayız.") == 1
+    assert sentence_end_count("1. sınıf öğrencisi") == 0
+    assert sentence_part_boundary_issue(
+        ["It's the 21st century."], ["21. yüzyıldayız."]) == ""
+    # İfade başında olmayan ordinal + küçük harf devam da sayılmaz
+    assert sentence_end_count("Onu 3. kez denedi") == 0
+    # Baştaki rakam+nokta her zaman ordinaldir (önünde kapanacak cümle yok)
+    assert sentence_end_count("21. Yüzyılda savaş bitti.") == 1
+
+
 # ---------- 3. Üç cue'ya yayılan uzun soru ----------
 
 def test_three_cue_question_no_early_close():
@@ -552,14 +565,27 @@ def test_lone_sdh_marker_echo_is_not_rejected():
 
 
 def test_dialogue_echo_still_rejected():
-    """Koruma: diyalog cue'unda kaynak-yankısı kapısı hâlâ aktif."""
+    """İlk yankı reddedilir ama gerçek çeviri ikinci turda kabul edilir."""
     entries = [(0.0, 2.0, "Wait right there.")]
     out, calls = _run_translate(
         entries,
         lambda payload, call: {"items": {"0": "Wait right there."}, "sentences": {}}
-        if call < 3 else {"items": {"0": "Tam orada bekle."}, "sentences": {}})
+        if call < 2 else {"items": {"0": "Tam orada bekle."}, "sentences": {}})
     assert [t for _, _, t in out] == ["Tam orada bekle."]
-    assert len(calls) == 3, f"{len(calls)} istek"
+    assert len(calls) == 2, f"{len(calls)} istek"
+
+
+def test_dialogue_echo_accepted_after_two_rounds():
+    """İki turda da kaynağı yankılayan satır 'değişmeden kabul' edilir
+    ('Ha ha ha.', 'Hasta la vista, baby.', 'Rock and roll!' gibi doğru
+    değişmezlerin işi exit 1'e düşürmesi ve .partial üretmesi engellendi)."""
+    entries = [(0.0, 2.0, "Wait right there.")]
+    out, calls = _run_translate(
+        entries,
+        lambda payload, call: {"items": {"0": "Wait right there."},
+                               "sentences": {}})
+    assert [t for _, _, t in out] == ["Wait right there."]
+    assert len(calls) == 2, f"{len(calls)} istek"
 
 
 if __name__ == "__main__":

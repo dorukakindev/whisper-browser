@@ -2672,7 +2672,11 @@ def test_cache_and_checkpoint_failed_replace_preserve_previous_file():
             with open(p, "rb") as f:
                 before[p] = f.read()
         with mock.patch.object(T.os, "replace", side_effect=OSError("disk locked")), mock.patch.object(T, "log"):
-            T.save_translate_cache(cache, {"new": "yeni"})
+            try:
+                T.save_translate_cache(cache, {"new": "yeni"})
+                assert False, "yazma hatası artık yutulmaz, çağrana yayılır"
+            except OSError:
+                pass
             assert not T.write_checkpoint(checkpoint, {}, [(0, 2, "yeni")], 2)
         for p, content in before.items():
             with open(p, "rb") as f:
@@ -2701,7 +2705,10 @@ def test_cache_and_checkpoint_fsync_before_replace():
             with open(p, "rb") as f:
                 before = f.read()
             with mock.patch.object(T.os, "fsync", side_effect=OSError("sync failed")), mock.patch.object(T.os, "replace") as rename, mock.patch.object(T, "log"):
-                writer(p)
+                try:
+                    writer(p)
+                except OSError:
+                    pass  # save artık hatayı yayar; checkpoint zaten False döner
                 rename.assert_not_called()
             with open(p, "rb") as f:
                 assert f.read() == before
@@ -3419,6 +3426,29 @@ def test_sentence_translation_rejects_context_glued_last_part():
         [(0, 1, 'The real line.')], answer=answer)
     assert [e[2] for e in result] == ['Gerçek çeviri.']
     assert len(calls) >= 2, 'sızdıran parça ilk denemede kabul edilmemeli'
+
+
+def test_convertible_unit_forgiveness_requires_bound_operand():
+    """Birim bağışlaması sayının birime BİTİŞİK olmasını ister: '6 feet' →
+    '1,83' bağışlanır; uzaktaki ilgisiz birim sözcüğü kaybı örtemez."""
+    B = T.part_anchor_issue
+    # Bitişik birim: '6 feet' değer değiştiren çeviri → sayı kaybı sayılmaz.
+    assert not B(['the bridge is 6 feet long.'], ['köprü 1,83 metre.'], 'tr')
+    # İlgisiz birim yakınlıkta dururken başka sayı düştü → kayıp raporlanır.
+    assert B(['in 5 miles they moved 10 boxes.'],
+             ['5 mil içinde kutuları taşıdılar.'], 'tr') == 'sayi_kaydi:0'
+
+
+def test_line_keeps_source_title_case_sentences_still_translate():
+    K = T.line_keeps_source
+    # Yalnız Title-Case sıradan cümleler korunmaz (eski len>=3 koşulunun
+    # ürettiği yanlış-pozitif: 'Good Morning Everyone.' çevrilmeden kalırdı).
+    assert not K('Good Morning Everyone.', 'tr')
+    assert not K('Stop The Press.', 'tr')
+    # camelCase / rakam / tam-BÜYÜK belirteçli ad ve kod dizgileri korunur.
+    assert K('iPhone 15 Pro.', 'tr')
+    assert K('PlayStation 5', 'tr')
+    assert K('NASA FAA EASA', 'tr')
 
 
 def test_sentence_reply_nfc_and_dialogue_line_breaks():

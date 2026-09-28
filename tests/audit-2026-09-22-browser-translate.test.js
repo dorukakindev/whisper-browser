@@ -310,6 +310,46 @@ test('dil rozeti yalnız bilinen dil kodlarını gösterir', () => {
   assert.equal(langFromPath('C:/x/Movie.2019.HDR.srt'), '');
 });
 
+test('sayfa çevirisi: <p> içindeki stilli bağlantı metni üst bloğa katılır', () => {
+  // <a display:inline-block> metni paragraf bloğundan ayrı blok olursa
+  // üst blok çevirisi bağlantı içeriğini de içerdiğinden çift yazılırdı.
+  const P = require('../src/browser-page-translate.js');
+  class MO { observe() {} disconnect() {} }
+  function textNode(v, parent) {
+    let val = v;
+    return {
+      nodeType: 3, parentElement: parent, isConnected: true,
+      get nodeValue() { return val; }, set nodeValue(x) { val = String(x); },
+    };
+  }
+  const el = (tag, display) => ({
+    tagName: tag, display, parentElement: null, children: [], style: { setProperty() {} },
+    matches: (s) => new RegExp(`(^|,)${tag.toLowerCase()}(,|$)`).test(String(s)),
+    getAttribute: () => '', getRootNode() { return doc; },
+    getClientRects: () => [{}], getBoundingClientRect: () => ({ top: 10, bottom: 40, left: 0, right: 100, width: 100, height: 30 }),
+    appendChild(c) { this.children.push(c); }, previousElementSibling: null,
+  });
+  const body = el('BODY', 'block');
+  const p = el('P', 'block'); p.parentElement = body;
+  const a = el('A', 'inline-block'); a.parentElement = p;
+  const nodes = [textNode('Dosyayı ', p), textNode('buradan', a), textNode(' indirebilirsiniz.', p)];
+  let doc;
+  doc = {
+    hidden: false, body, documentElement: body, head: { appendChild() {} }, querySelectorAll: () => [], getElementById: () => null,
+    createTreeWalker: () => { let i = -1; return { nextNode: () => nodes[++i] || null }; },
+    addEventListener() {}, removeEventListener() {},
+    createElement: (t) => ({ tag: t, style: { setProperty() {} }, setAttribute() {}, remove() {}, append() {}, addEventListener() {}, dataset: {} }),
+  };
+  const ctx = vm.createContext({
+    window: {}, document: doc, NodeFilter: { SHOW_TEXT: 4 }, innerHeight: 600, MutationObserver: MO,
+    getComputedStyle: (e) => ({ display: e.display }), setTimeout: () => 1, clearTimeout() {},
+    globalThis: { addEventListener() {} }, location: { origin: 'x', pathname: '/', search: '' },
+  });
+  const scan = vm.runInContext(P.pageBlockScanScript({}), ctx);
+  assert.equal(scan.blocks.length, 1, `Bağlantı paragraftan ayrı blok olmamalı (${scan.blocks.length})`);
+  assert.match(scan.blocks[0].text, /buradan/, 'blok metni bağlantı içeriğini de taşımalı');
+});
+
 (async () => {
   let passed = 0;
   for (const { name, fn } of tests) {

@@ -5,7 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('node:assert');
 
-const src = fs.readFileSync(path.resolve(__dirname, '..', 'src/renderer/renderer.js'), 'utf8');
+const src = fs.readFileSync(path.resolve(__dirname, '..', 'src/renderer/renderer.js'), 'utf8')
+  .replace(/\r\n/g, '\n');
 const s = src.indexOf('function translationsForCues');
 const e = src.indexOf('\n}\n', s) + 2;
 assert(s > 0 && e > s, 'translationsForCues bulunamadı');
