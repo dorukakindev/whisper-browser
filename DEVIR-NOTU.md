@@ -1,4 +1,4 @@
-Güncel çalışma: [docs/devir/2026-09-28-2345.md](docs/devir/2026-09-28-2345.md) — R208: yazıcı golden kilidi
+Güncel çalışma: [docs/devir/2026-09-29-0000.md](docs/devir/2026-09-28-2345.md) — R208: yazıcı golden kilidi
 Önceki çalışma: [docs/devir/2026-09-28-2330.md](docs/devir/2026-09-28-2330.md) — R207: #135 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2300.md](docs/devir/2026-09-28-2300.md) — R205: #133 flag takibi (belge turu)
