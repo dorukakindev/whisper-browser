@@ -230,13 +230,23 @@ loaded = loadPdfTranslationState(tmpDir, identity);
 assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
   'model-uyuşmaz .bak atlanıp uyumlu legacy dosyası okunmalı');
 
-// 3. Hiçbir aday uyumlu değilse taze durum döner.
+// 3. Sayfaları tamamen bozuk birincil de yedeği gizleyemez: pageKey/array
+// kalıbı geçersiz kayıtlar normalize'da düşer; boş durum yerine .bak okunur.
 fs.rmSync(path.join(tmpDir, `${legacyStem}.json`));
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { abc: 'bozuk', 0: 'kayit' } });
+fs.writeFileSync(path.join(tmpDir, `${primaryStem}.json.bak`), JSON.stringify(goodState));
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
+  'tüm sayfa kayıtları geçersiz birincil dosya atlanıp .bak okunmalı');
+
+// 4. Hiçbir aday uyumlu değilse taze durum döner.
+fs.rmSync(path.join(tmpDir, `${primaryStem}.json.bak`));
 loaded = loadPdfTranslationState(tmpDir, identity);
 assert.deepEqual(loaded.pages, {}, 'uyumlu aday yoksa taze durum dönmeli');
 assert.equal(loaded.endpoint, identity.endpoint);
 
-// 4. isPdfTranslationStateCompatible — sözleşme kilidi.
+// 5. isPdfTranslationStateCompatible — sözleşme kilidi.
 assert.equal(isPdfTranslationStateCompatible(goodState, identity), true);
 assert.equal(isPdfTranslationStateCompatible({ ...goodState, version: 99 }, identity), false);
 assert.equal(isPdfTranslationStateCompatible({ ...goodState, pages: 'bozuk' }, identity), false);
