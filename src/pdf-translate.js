@@ -458,10 +458,14 @@ function loadPdfTranslationState(directory, identity) {
       const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
       if (!isPdfTranslationStateCompatible(raw, normalized)) continue;
       const normalizedState = normalizePdfTranslationState(raw, normalized);
-      // Sayfa kaydı taşıyıp tamamı normalize'da düşen dosya bozuk sayılır —
-      // aksi halde sağlam .bak/legacy yedeği gizlerdi (birincil dosyanın
-      // pageKey/array kalıbı bozuksa yedeğe düş).
-      if (Object.keys(raw.pages).length > 0 && !Object.keys(normalizedState.pages).length) continue;
+      // Yapısal olarak bozuk kayıt taşıyan dosya (geçersiz sayfa anahtarı,
+      // dizi olmayan değer, normalize'da null dönen blok) bozuk sayılır —
+      // sağlam .bak/legacy yedeğini gizleyemez. Boş sayfa kaydı ({n: []})
+      // meşrudur: temizlenen sayfanın eski çevirilerini yedekten diriltmez.
+      const corrupt = Object.entries(raw.pages).some(([key, blocks]) =>
+        !/^[1-9]\d*$/u.test(key) || !Array.isArray(blocks)
+        || blocks.some((block) => !normalizePdfBlock(block)));
+      if (corrupt) continue;
       return normalizedState;
     } catch (_) {}
   }
