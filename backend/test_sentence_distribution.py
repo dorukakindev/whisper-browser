@@ -612,8 +612,13 @@ def test_echo_accepted_never_seeds_translation_memory(tmp_path):
     assert len(calls) == 2  # toplu yankı + kurtarma yankısı → kabul
     tm_file = cache_dir / "translation-memory.sqlite3"
     if tm_file.exists():
-        with sqlite3.connect(tm_file) as conn:
+        # with-bloku bağlantıyı kapatmaz; Windows tmp_path temizliği açık
+        # dosyayı silemez (WinError 32).
+        conn = sqlite3.connect(tm_file)
+        try:
             rows = conn.execute("SELECT source, target FROM tm").fetchall()
+        finally:
+            conn.close()
         assert all(s.casefold() != t.casefold() for s, t in rows), rows
         assert not any("wait right there" in s.casefold() for s, _ in rows), rows
 
