@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-2145.md](docs/devir/2026-09-28-2145.md) — R199: Devin Review takip turu 2 (acquisition stage kapanışı + changelog + not geri alımı)
+Güncel çalışma: [docs/devir/2026-09-28-2150.md](docs/devir/2026-09-28-2150.md) — R200: #128 review takibi (changelog ezme + hash geri koyma)
+Önceki çalışma: [docs/devir/2026-09-28-2145.md](docs/devir/2026-09-28-2145.md) — R199: Devin Review takip turu 2 (acquisition stage kapanışı + changelog + not geri alımı)
 Önceki çalışma: [docs/devir/2026-09-28-2130.md](docs/devir/2026-09-28-2130.md) — R198: Devin Review takip düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-28-2100.md](docs/devir/2026-09-28-2100.md) — R197: kalan denetlenmemiş yüzey kapanışı
 Önceki çalışma: [docs/devir/2026-09-28-2030.md](docs/devir/2026-09-28-2030.md) — R196: Devin Review toplu triage (PR #120–124)

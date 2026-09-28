@@ -11,6 +11,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **live-asr CUDA→CPU geri dönüşünde ses kaybı** — GPU yüklemesi çökünce
+  kuyruğa alınmış ses parçaları diskten siliniyordu; artık yeni sürece
+  yeniden beslenir (`pendingChunks`).
 - **live-asr CPU geri dönüşü başlatım hatasında parça sızıntısı** —
   CUDA'dan CPU'ya düşerken yeni süreç senkron hata fırlatırsa
   saklanan ses parçaları temp klasöründe kalıyordu; yakalama
