@@ -11,6 +11,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Eski hafıza kayıtları yankı "çevirisi" diye dönebiliyordu** — önceki
+  sürümlerden kalan noktalama-benzek TM satırları `lookup` isabetiyle
+  kaynağı çeviri gibi uyguluyordu; kullanım anında da elenir.
+- **Bayat journal mezar taşı yeni çeviriyi silebiliyordu** — silme
+  satırı artık temel dosyadaki `updatedAt`'ten eskiyse atlanır; `v`
+  alanı taşımayan bozuk satır da mezar taşı sayılmaz.
+- **PDF çevirisinde uyumlu eski dosya bulunamıyordu** — durum okuma
+  döngüsü kimliği uyuşmayan adayları atlayıp aynı pdfHash'in uyumlu
+  legacy/yedek dosyasına ulaşır.
+
 - **Bulanık çeviri hafızasına tembel yankı satırı sızıyordu** —
   "değişmeden kabul" edilen satırlar ve noktalama-benzek ekolar
   (`'Wait!'→'Wait.'`) TM sqlite'a yazılıyordu; `store()` yalnız birebir
