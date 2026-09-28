@@ -685,10 +685,22 @@ async function processNextQueueItem() {
     renderQueue();
     return;
   }
-  // persistQueueNow beklenirken İptal'e basılmış olabilir: kuyruk durduysa
-  // veya öğe artık çalışır değilse start isteği gönderme — aksi halde UI'da
-  // görünmeyen, iptal edilemeyen sahipsiz bir süreç spawn edilir.
+  // persistQueueNow beklenirken İptal'e veya "Sırada dur"a basılmış olabilir:
+  // kuyruk durduysa, öğe artık çalışır değilse ya da durma isteği geldiyse
+  // start isteği gönderme — aksi halde UI'da görünmeyen, iptal edilemeyen
+  // sahipsiz bir süreç spawn edilir.
   if (!state.queueRunning || next.status !== 'running' || state.currentQueueId !== next.id) {
+    return;
+  }
+  if (state.stopAfterCurrent) {
+    // Kayıt beklemesi sırasında gelen durdurma: öğe spawn edilmedi, bekleyene
+    // döndür ve kuyruğu üst daldakiyle aynı şekilde kapat.
+    next.status = 'pending';
+    state.currentQueueId = null;
+    state.running = false;
+    renderQueue();
+    logLine('Kuyruk istek üzerine durduruldu (mevcut iş tamamlandı).', 'warn');
+    finalizeQueue();
     return;
   }
 
