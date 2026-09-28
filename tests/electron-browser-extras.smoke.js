@@ -10,6 +10,10 @@ const out = path.join(root, '.uiprev', 'browser-extras-smoke');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
+// Arayüz dili varsayılanı EN oldu (R186): bu smoke TR metin sözleşmesini
+// doğrular, bu yüzden profili TR tohumlar.
+fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'settings.json'),
+  JSON.stringify({ settingsVersion: 3, ui: { uiLocale: 'tr' } }));
 app.setAppPath(root);
 app.commandLine.appendSwitch('disable-gpu');
 require('../src/main.js');
@@ -63,7 +67,10 @@ app.whenReady().then(async () => {
   await until(() => run('return !!browserTabState()?.mediaId'), 'Video kimliği');
   await run('setSideTab("tools");document.getElementById("browserFeatures").open=true');
   assert.equal(await run('return document.getElementById("bfSkipAuto").checked'), false);
-  assert.equal(await run('return document.getElementById("browserFeatures").getBoundingClientRect().width > 100'), true);
+  // Ray genişlemesi .player-body'deki 220ms grid-template-columns geçişiyle
+  // animasyonlanır; genişlik ölçümü geçiş bitene dek beklenir.
+  await until(() => run('return document.getElementById("browserFeatures").getBoundingClientRect().width > 100'),
+    'Araçlar paneli genişliği');
   const extras = (action, payload = {}) => run(`return window.api.browserExtras({action:${JSON.stringify(action)},tabId:player.browserActiveTabId,generation:browserTabState().generation,mediaId:browserTabState().mediaId,...${JSON.stringify(payload)}})`);
   const first = await extras('skip-list');
   assert.equal(first.ok, true, JSON.stringify(first));

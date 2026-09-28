@@ -889,7 +889,25 @@ to { opacity: 1; transform: none; }
   max-width: calc(100% - 28px);
   padding: 4px 9px;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, .78);
+  background: var(--osd-pill-bg);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+/* Öğrenme politikası durum çipi — sahnenin sağ üstünde kalıcı; sub-hidden-hint
+   ile aynı koyu cam hap, konum olarak üst köşede (kontrollerle çakışmaz). */
+.learning-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  max-width: calc(100% - 28px);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--osd-pill-bg);
   color: var(--text);
   font-size: 12px;
   white-space: nowrap;
@@ -2893,7 +2911,8 @@ to { opacity: 1; transform: translateY(0); }
    body'nin üstünde bağımsız bir çekmeceye dönüştür; böylece üstteki dişli her
    düzende ulaşılabilir kalır. */
 .player-layer.sidebar-collapsed.settings-open .player-side,
-.player-layer.mode-cinema.settings-open .player-side {
+.player-layer.mode-cinema.settings-open .player-side,
+.player-layer.side-rail-mode.settings-open .player-side {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
@@ -2907,7 +2926,8 @@ to { opacity: 1; transform: translateY(0); }
   border-left: 0;
 }
 .player-layer.sidebar-collapsed.settings-open .settings-drawer,
-.player-layer.mode-cinema.settings-open .settings-drawer { inset: 0; width: 100%; border-radius: 18px 0 0 18px; }
+.player-layer.mode-cinema.settings-open .settings-drawer,
+.player-layer.side-rail-mode.settings-open .settings-drawer { inset: 0; width: 100%; border-radius: 18px 0 0 18px; }
 .player-layer.sidebar-collapsed .player-body { grid-template-columns: minmax(0, 1fr) 0 0; }
 .player-layer.sidebar-collapsed .player-side, .player-layer.sidebar-collapsed .side-resizer { display: none; }
 .player-layer.mode-cinema .player-body { padding: 0; }
@@ -3041,6 +3061,8 @@ to { opacity: 1; transform: translateY(0); }
    rengi. Dekor değil, yoğun ayar ekranında yön bulmayı kolaylaştıran katmanlar. */
 :root {
   color-scheme: dark;
+  /* Video üstü hap/rozet zemini (sub-hidden-hint, learning-badge, osd). */
+  --osd-pill-bg: rgba(0, 0, 0, .78);
   --bg-0: #0a0c0f;
   --bg-1: #101419;
   --bg-2: #151b22;
@@ -5186,7 +5208,7 @@ textarea { resize: none; }
 .research-tag { display: inline-block; margin: 0 4px 2px 0; padding: 2px 6px; border-radius: 999px; background: rgba(213,163,92,.12); color: var(--accent); font-size: 10px; }
 .ai-context-scope { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; }
 .ai-context-scope select { width: auto; min-width: 142px; height: 28px; }
-.ai-context-evidence { border-left-color: #64bdcc; }
+.ai-context-evidence { border-left-color: var(--group-cyan); }
 @media (max-width: 820px) {
 .research-library-controls { grid-template-columns: 1fr 1fr; }
 }
@@ -6109,6 +6131,8 @@ html, body, * { scrollbar-color: auto; }
   border-radius: 999px; padding: 1px 7px; flex: none;
 }
 .st-subs-hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted); padding: 4px 2px; }
+.st-subs-feed { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.st-subs-feed-title { font-size: 12px; font-weight: 600; color: var(--text); padding: 6px 2px 0; border-top: 1px solid var(--border); margin-top: 4px; }
 /* A28: arama üstü yatay playlist rayı */
 .st-pl-rail {
   grid-column: 1 / -1; display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px;
@@ -6949,7 +6973,10 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .side-tab .side-tab-ico svg { display: block; }
 #sideRailCollapse { display: none; }
 .player-side.side-rail { padding: 8px 4px; gap: 4px; overflow-y: auto; }
-.player-side.side-rail > *:not(.side-top) { display: none; }
+/* Ayarlar cekmecesi acikken ravin cocuk-gizleme kurali sone bilir: cekmece
+   aynen daraltilmis/sinema duzenindeki gibi bagimsiz bir katman olarak
+   .player-side'i devralir (asagidaki overlay blogu). */
+.player-layer:not(.settings-open) .player-side.side-rail > *:not(.side-top) { display: none; }
 .player-side.side-rail .side-top > *:not(.side-tabbar) { display: none; }
 .player-side.side-rail .side-tabbar {
   min-height: 0; padding: 0; border-bottom: 0;

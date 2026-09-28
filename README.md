@@ -30,6 +30,8 @@ Whisper Browser is a desktop application for turning media into working subtitle
 | 🧭 **Browser capture** | HLS/DASH, WebVTT, TTML/IMSC and text-track capture on sites that expose accessible subtitles — then translate or fall back to Live Whisper. |
 | 🌍 **Context translation** | Cue timing never moves: context-aware translation writes a separate target file, source untouched. |
 | 📄 **Page & PDF** | Articles, manga regions and bounded PDF batches translated via configured providers. |
+| 📚 **Media library** | Local catalog with watch progress, collections, posters and resume — plus OPML/CSV/NewPipe subscription import/export. |
+| 📝 **Subtitle providers** | Download tracks from OpenSubtitles and Stremio (keyless fallback); legacy encodings (cp1251, GBK, Shift-JIS…) auto-detected. |
 
 Whisper Browser does not decrypt protected media, bypass DRM, or extract data from a CDM. Capture works only where a site exposes an authorized, accessible subtitle track.
 
@@ -92,7 +94,9 @@ Transcription is local. Optional online flows are documented in [Privacy](docs/P
 
 - [Installation](docs/INSTALLATION.md) · [Usage guide](docs/USAGE_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md)
 - [Privacy](docs/PRIVACY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Changelog](CHANGELOG.md)
-- [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+<!-- Katkı/davranış belgeleri Windows paketinden dışlanır; göreli bağlantılar
+     paket içinde kırılmasın diye mutlak GitHub adresi kullanılır. -->
+- [Contributing](https://github.com/dorukakindev/whisper-browser/blob/master/CONTRIBUTING.md) · [Support](SUPPORT.md) · [Security](SECURITY.md) · [Code of Conduct](https://github.com/dorukakindev/whisper-browser/blob/master/CODE_OF_CONDUCT.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 Historical audit/handoff records under `docs/` are evidence, not current product documentation.
 

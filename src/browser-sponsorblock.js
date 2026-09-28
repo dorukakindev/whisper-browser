@@ -131,6 +131,77 @@ function clampSegmentsToDuration(segments, duration) {
     .filter((segment) => Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start);
 }
 
+// DeArrow aynı hizmetin `/api/branding/<hashPrefix>` ucunu kullanır; yanıt
+// skipSegments ile aynı "hash öneki → kayıt listesi" zarfındadır.
+function extractDeArrowBranding(payload, videoId) {
+  if (!Array.isArray(payload)) return null;
+  const record = payload.find((item) => String(item?.videoID || item?.videoId || '') === videoId);
+  if (!record) return null;
+  const titles = Array.isArray(record.titles) ? record.titles : [];
+  const thumbnails = Array.isArray(record.thumbnails) ? record.thumbnails : [];
+  const videoDuration = Number(record.videoDuration);
+  return { titles, thumbnails,
+    videoDuration: Number.isFinite(videoDuration) && videoDuration > 0 ? videoDuration : null };
+}
+
+function sanitizeDeArrowTitle(title) {
+  return String(title || '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+// Topluluk başlığı ancak oylanmış bir özgün-olmayan aday varsa uygulanır;
+// locked kayıtlar hizmetin kendi önceliği olduğundan her zaman önce gelir.
+function pickDeArrowTitle(titles) {
+  const candidates = (Array.isArray(titles) ? titles : [])
+    .map((item) => ({
+      title: sanitizeDeArrowTitle(item?.title),
+      votes: Math.max(0, Number(item?.votes) || 0),
+      locked: item?.locked === true,
+      original: item?.original === true,
+    }))
+    .filter((item) => item.title && !item.original);
+  const locked = candidates.find((item) => item.locked);
+  if (locked) return locked.title;
+  const voted = candidates.filter((item) => item.votes > 0)
+    .sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title));
+  return voted.length ? voted[0].title : '';
+}
+
+// Küçük resim: DeArrow ya bir kare zaman damgası (timestamp) ya da orijinali
+// koruma işareti döndürür. Rastgele kare (randomTime) bilinçli kullanılmaz —
+// oynatıcı zaten kendi karesini üretir.
+function pickDeArrowThumbnail(thumbnails) {
+  const candidates = (Array.isArray(thumbnails) ? thumbnails : [])
+    .map((item) => ({
+      timestamp: Number(item?.timestamp),
+      votes: Math.max(0, Number(item?.votes) || 0),
+      locked: item?.locked === true,
+      original: item?.original === true,
+    }))
+    .filter((item) => !item.original && Number.isFinite(item.timestamp) && item.timestamp >= 0);
+  const locked = candidates.find((item) => item.locked);
+  if (locked) return { timestamp: locked.timestamp };
+  const voted = candidates.filter((item) => item.votes > 0)
+    .sort((a, b) => b.votes - a.votes || a.timestamp - b.timestamp);
+  return voted.length ? { timestamp: voted[0].timestamp } : null;
+}
+
+// Return YouTube Dislike `/votes?videoId=` yanıtı — sayaçları sadeleştirir.
+// Oran alanları (rating/viewCount) bilerek taşınmıyor: arayüzde yalnızca
+// beğenme/beğenmeme sayıları gösteriliyor.
+function normalizeRydVotes(payload, videoId) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const id = String(payload.id || '');
+  if (id && videoId && id !== videoId) return null;
+  const likes = Math.trunc(Number(payload.likes));
+  const dislikes = Math.trunc(Number(payload.dislikes));
+  if (!Number.isFinite(likes) || likes < 0 || !Number.isFinite(dislikes) || dislikes < 0) return null;
+  return { likes: Math.min(likes, 1e12), dislikes: Math.min(dislikes, 1e12) };
+}
+
 class SponsorBlockCache {
   constructor({ maxEntries = 64, ttlMs = 30 * 60 * 1000, negativeTtlMs = 2 * 60 * 1000 } = {}) {
     this.maxEntries = maxEntries; this.ttlMs = ttlMs; this.negativeTtlMs = negativeTtlMs; this.entries = new Map();
@@ -149,4 +220,5 @@ class SponsorBlockCache {
 
 module.exports = { SPONSORBLOCK_VERSION, DEFAULT_CATEGORIES, KNOWN_CATEGORIES, youtubeVideoId, hashPrefix,
   normalizeCategories, extractHashSegments, validateSegments, validateChapters, splitSponsorActions,
-  clampSegmentsToDuration, SponsorBlockCache };
+  clampSegmentsToDuration, extractDeArrowBranding, pickDeArrowTitle, pickDeArrowThumbnail,
+  sanitizeDeArrowTitle, normalizeRydVotes, SponsorBlockCache };

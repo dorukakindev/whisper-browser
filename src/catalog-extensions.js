@@ -2,8 +2,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { scanFolder, createMetadataClient } = require('./catalog-discovery');
-function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false }) {
+const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
+function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText }) {
+  const dl = dialogText || ((tr) => tr);
   const client = createMetadataClient(), previews = new Map();
   function remember(event, data) {
     for (const [key, row] of previews) if (Date.now() - row.created > 900000) previews.delete(key);
@@ -19,7 +20,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
       case 'folder-preview': {
-        const choice = await dialog.showOpenDialog(owner(), { title: 'Film ve dizi klasörünü seç', properties: ['openDirectory'] });
+        const choice = await dialog.showOpenDialog(owner(), { title: dl('Film ve dizi klasörünü seç', 'Choose a movies & series folder'), properties: ['openDirectory'] });
         if (choice.canceled || !choice.filePaths?.[0]) return { ok: false, canceled: true };
         const data = await scanFolder(choice.filePaths[0], pythonPath());
         return { ok: true, token: remember(event, { type: 'folder', ...data }), items: data.items.map(i => visible(i)), warnings: data.warnings, summary: store().previewImport(data.items) };
@@ -43,7 +44,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (fields.includes('poster') && data.poster) {
           const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: AbortSignal.timeout(20000), redirect: 'error' });
           if (!response.ok) throw new Error('Afiş indirilemedi; seçimi kaldırıp yeniden deneyin.');
-          const buffer = Buffer.from(await response.arrayBuffer()); if (buffer.length > 8e6) throw new Error('Afiş çok büyük.');
+          const buffer = await readLimitedBytes(response, 8e6, 'Afiş');
           const image = nativeImage.createFromBuffer(buffer); if (image.isEmpty()) throw new Error('Afiş biçimi geçersiz.');
           const folder = path.join(userData(), 'catalog-posters'); fs.mkdirSync(folder, { recursive: true });
           patch.posterPath = path.join(folder, randomUUID() + '.png'); fs.writeFileSync(patch.posterPath, image.resize({ width: 500 }).toPNG());
@@ -72,7 +73,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         store().upsert({ id: current.id, episodes }); previews.delete(input.token); return { ok: true };
       }
       case 'package-export': {
-        const result = await dialog.showSaveDialog(owner(), { title: 'Taşınabilir çalışma paketini kaydet', defaultPath: 'whisper-calismam.wbp', filters: [{ name: 'Whisper çalışma paketi', extensions: ['wbp'] }] });
+        const result = await dialog.showSaveDialog(owner(), { title: dl('Taşınabilir çalışma paketini kaydet', 'Save portable workspace package'), defaultPath: 'whisper-calismam.wbp', filters: [{ name: dl('Whisper çalışma paketi', 'Whisper workspace package'), extensions: ['wbp'] }] });
         if (result.canceled || !result.filePath) return { ok: false, canceled: true };
         const report = input.includeVideos === true
           ? await require('./workspace-video-package').exportWithVideos(userData(), result.filePath, input.rendererValues, pythonPath())
@@ -80,7 +81,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         return { ok: true, ...report };
       }
       case 'package-preview': {
-        const result = await dialog.showOpenDialog(owner(), { title: 'Çalışma paketini seç', properties: ['openFile'], filters: [{ name: 'Whisper çalışma paketi', extensions: ['wbp'] }] });
+        const result = await dialog.showOpenDialog(owner(), { title: dl('Çalışma paketini seç', 'Choose a workspace package'), properties: ['openFile'], filters: [{ name: dl('Whisper çalışma paketi', 'Whisper workspace package'), extensions: ['wbp'] }] });
         if (result.canceled || !result.filePaths?.[0]) return { ok: false, canceled: true };
         const data = await require('./workspace-video-package').read(result.filePaths[0], pythonPath());
         return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created };

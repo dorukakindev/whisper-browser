@@ -1080,7 +1080,7 @@
     </main>
 
     <!-- OYNATICI -->
-    <div class="player-layer hidden" id="playerLayer">
+    <div class="player-layer hidden" id="playerLayer" role="region" aria-label="Oynatıcı ve tarayıcı çalışma alanı">
       <div class="player-head">
         <details class="app-mode-menu" id="appModeMenu">
           <summary class="app-mode-summary" title="Whisper menüsü" aria-label="Whisper uygulama menüsü" aria-haspopup="menu">
@@ -1168,7 +1168,7 @@
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
           </summary>
           <div class="browser-menu-popover app-menu-popover" role="menu" aria-label="Uygulama menüsü">
-            <div class="browser-menu-group-label">Uygulama dili</div>
+            <div class="browser-menu-group-label">Arayüz dili</div>
             <div class="app-menu-locale">
               <label class="ui-locale-control player-locale-control" for="playerUiLocale"><span class="sr-only">Interface language</span><select id="playerUiLocale" aria-label="Interface language"><option value="en">EN</option><option value="tr">TR</option></select></label>
             </div>
@@ -1828,6 +1828,16 @@
                   <p id="browserSponsorStatus" class="browser-session-status" role="status" aria-live="polite">Sponsor bilgisi alınmadı.</p>
                   <p class="browser-manga-hint">Video kimliğinin SHA-256 hash öneki SponsorBlock hizmetine gönderilir. IP adresiniz hizmet tarafından görülebilir. Veriler CC BY-NC-SA 4.0 lisanslıdır.</p>
                   <ol id="browserSponsorSegments" class="browser-sponsor-segments" aria-label="Sponsor bölümleri"></ol>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserDeArrowEnabled" role="switch" aria-describedby="browserDeArrowHint" />
+                    <span>DeArrow topluluk başlığı</span>
+                  </label>
+                  <p id="browserDeArrowHint" class="browser-manga-hint">Açık YouTube videosunun başlığını topluluk tarafından oylanmış DeArrow başlığıyla değiştirir. SponsorBlock ile aynı hash-öneki gizlilik modeli kullanılır.</p>
+                  <label class="browser-view-switch">
+                    <input type="checkbox" id="browserRydDislikes" role="switch" aria-describedby="browserRydDislikesHint" />
+                    <span>Beğenmeme sayısını göster (RYD)</span>
+                  </label>
+                  <p id="browserRydDislikesHint" class="browser-manga-hint">Return YouTube Dislike hizmetinden video kimliğiyle beğenme/beğenmeme sayıları alınır ve oynatıcı başlık bilgisinde gösterilir.</p>
                 </section>
                 <section class="browser-session-portability" aria-labelledby="browserSessionPortabilityTitle"
                   data-browser-settings-kind="persistent" data-browser-settings-category="session">
@@ -2055,6 +2065,7 @@
                  title="Basılı tutup yukarı/aşağı sürükleyerek konumunu değiştir"></div>
           </div>
           <div class="sub-hidden-hint hidden" id="subHiddenHint">Altyazı gizli — <b>V</b></div>
+          <div class="learning-badge hidden" id="learningBadge" role="status" aria-live="polite"></div>
           <div class="player-osd" id="playerOsd"></div>
           <div class="player-spinner hidden" id="playerSpinner"></div>
 
@@ -2085,7 +2096,8 @@
                 <kbd>K</kbd><span>Cümleyi kaydet</span><kbd>W</kbd><span>Seçili kelimeyi kaydet</span>
                 <kbd>B</kbd><span>A-B döngüsü</span><kbd>S</kbd><span>Ekran görüntüsü</span>
                 <kbd>T</kbd><span>Sinema modu</span><kbd>I</kbd><span>Mini oynatıcı</span>
-                <kbd>N</kbd><span>Sıradaki paneli</span><kbd>2× kenar</kbd><span>∓10 sn seek</span>
+                <kbd>N</kbd><span>Sıradaki paneli</span><kbd>O</kbd><span>İzleme politikası</span>
+                <kbd>2× kenar</kbd><span>∓10 sn seek</span>
                 <kbd>?</kbd><span>Bu pencere</span><kbd>Esc</kbd><span>Açık menü / tam ekran / paneli kapat</span>
                 <kbd>Backspace</kbd><span>Oynatıcıdan çık</span><kbd>0–9</kbd><span>Videonun %0–90 noktası</span>
               </div>
@@ -2261,6 +2273,7 @@
                 <button type="button" class="st-mini-btn hidden" id="stTvHandoff">Altyazı araçlarında aç</button>
                 <button type="button" class="st-mini-btn hidden" id="stTvNextAgent">Başka TV kimliği dene</button>
                 <button type="button" class="st-mini-btn" id="stTvFocus">TV'ye dön</button>
+                <button type="button" class="st-mini-btn" id="stTvFull">Tam ekran</button>
                 <button type="button" class="st-mini-btn" id="stTvClose">Kapat</button>
               </div>
 
@@ -3430,6 +3443,7 @@
 
 <script src="ui-locale.js"></script>
 <script src="status-copy.js"></script>
+<script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>

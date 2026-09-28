@@ -19,6 +19,38 @@ async function scanFolder(folder, pythonPath) {
   }
   return { items: [...grouped.values()], warnings: parsed.warnings };
 }
+// Gövdeyi akış okuyarak byte sınırında keser; response.text()/arrayBuffer()
+// tamamını belleğe alır ve content-length beyanı yalan olabilir.
+async function readLimitedBytes(response, maxBytes, label = 'Yanıt') {
+  const declared = Number(response?.headers?.get?.('content-length') || 0);
+  if (declared > maxBytes) throw new Error(`${label} çok büyük.`);
+  if (!response?.body?.getReader) {
+    const bytes = typeof response.arrayBuffer === 'function'
+      ? Buffer.from(await response.arrayBuffer())
+      : Buffer.from(String(await response.text()), 'utf8');
+    if (bytes.length > maxBytes) throw new Error(`${label} çok büyük.`);
+    return bytes;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value ? value.byteLength : 0;
+      if (total > maxBytes) { await reader.cancel().catch(() => {}); throw new Error(`${label} çok büyük.`); }
+      chunks.push(Buffer.from(value));
+    }
+  } finally { reader.releaseLock?.(); }
+  return Buffer.concat(chunks, total);
+}
+
+async function readTextLimited(response, maxBytes) {
+  // UTF-8 BOM bayt olarak geçer; JSON.parse'a giden metinden düşür.
+  return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
+}
+
 function createMetadataClient(fetchImpl = fetch) {
   async function request(route, token, params = {}) {
     if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Yalnız bu oturumda kullanılır.');
@@ -28,7 +60,7 @@ function createMetadataClient(fetchImpl = fetch) {
     try { response = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(20000) }); }
     catch { throw new Error('TMDB bağlantısı kurulamadı; yeniden deneyin.'); }
     if (!response.ok) throw new Error(response.status === 401 ? 'TMDB erişim belirteci geçersiz.' : response.status === 429 ? 'TMDB istek sınırına ulaşıldı; daha sonra deneyin.' : 'TMDB bilgileri alınamadı.');
-    const text = await response.text(); if (text.length > 4e6) throw new Error('TMDB yanıtı çok büyük.');
+    const text = await readTextLimited(response, 4e6);
     return JSON.parse(text);
   }
   return {
@@ -59,4 +91,4 @@ function createMetadataClient(fetchImpl = fetch) {
     },
   };
 }
-module.exports = { scanFolder, createMetadataClient };
+module.exports = { scanFolder, createMetadataClient, readLimitedBytes };

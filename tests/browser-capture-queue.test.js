@@ -237,7 +237,7 @@ test('pencere kapanışı yalnız bekleyen parçayı, sekme kapanışı ölçül
     'ölçüm zaman aşımı gerçek bekleyen parça gibi uyarı açıyor');
   assert.match(main, /pending:\s*0,[\s\S]{0,100}unverified:\s*true/,
     'ölçülemeyen kuyruk gerçek bekleyen parça olarak işaretleniyor');
-  assert.match(main, /buttons: \['Kapatmayı iptal et', 'Yine de kapat'\]/);
+  assert.match(main, /buttons: \[dt\('Kapatmayı iptal et', 'Cancel close'\), dt\('Yine de kapat', 'Close anyway'\)\]/);
   assert.ok(main.indexOf('captureStatus = await withTimeout(drainBrowserCaptureBeforeClose()')
     < main.indexOf('destroyBrowserView();', main.indexOf("mainWindow.on('close'")),
   'browser görünümü drain tamamlanmadan yok ediliyor');

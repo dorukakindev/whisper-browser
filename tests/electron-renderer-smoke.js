@@ -84,7 +84,19 @@ async function run() {
     if (waiters?.length) waiters.splice(0).forEach((resolve) => resolve(payload.params));
   });
 
-  const call = (method, params = {}) => new Promise((resolve, reject) => {
+  
+// "Promise was collected" flake koruması: awaitPromise'li Runtime.evaluate'te
+// V8, beklenen promise'i heap'te referanssız görüp GC ile toplayabiliyor
+// (sıralı smoke koşusunda bellek baskısı büyüyünce). Promise'i çözülene dek
+// global kayda sabitle — yan etkili ifade tekrar koşmasın diye retry değil,
+// tutma kullanılır.
+function anchorEvalExpression(expression) {
+  return `(function(){var p=Promise.resolve((${expression}));`
+    + `var a=(globalThis.__cdpAnchor=globalThis.__cdpAnchor||[]);a.push(p);`
+    + `p.finally(function(){var i=a.indexOf(p);if(i>=0)a.splice(i,1);}).catch(function(){});return p;})()`;
+}
+
+const call = (method, params = {}) => new Promise((resolve, reject) => {
     const id = ++sequence;
     pending.set(id, { resolve, reject });
     socket.send(JSON.stringify({ id, method, params }));
@@ -187,7 +199,7 @@ async function run() {
     })()
   `;
   const evaluation = await withTimeout(call('Runtime.evaluate', {
-    expression,
+    expression: anchorEvalExpression(expression),
     awaitPromise: true,
     returnByValue: true,
   }), 40000, 'Renderer smoke değerlendirmesi');

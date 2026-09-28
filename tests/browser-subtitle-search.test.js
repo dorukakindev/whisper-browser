@@ -101,11 +101,35 @@ async function main() {
   assert.equal(keyless.results[0].language, 'tr');
   assert.equal(keyless.results[0].provider, 'stremio');
 
-  // Dizi biçimi: series/<imdb>/<s>/<e>
+  // R150: Stremio 'lang' alanı ISO 639-2/-3 ('tur','rus','pob'), UI 639-1
+  // ('tr','ru','pt') gönderir — kıyaslama alias'lı yapılır, yoksa dil
+  // filtresi sessizce devre dışı kalırdı (canlı doğrulamada 'ru' isteği
+  // 36 karışık satır döndürüyordu).
+  const stremioIso3 = { subtitles: [
+    { id: 't1', url: 'https://opensubtitles-v3.strem.io/sub/tur/a.srt', lang: 'tur', m: {} },
+    { id: 't2', url: 'https://opensubtitles-v3.strem.io/sub/eng/b.srt', lang: 'eng', m: {} },
+    { id: 't3', url: 'https://opensubtitles-v3.strem.io/sub/pob/c.srt', lang: 'pob', m: {} },
+  ] };
+  const iso3 = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'tr' },
+    { fetch: async () => response(stremioIso3) });
+  assert.deepEqual(iso3.results.map((r) => r.language), ['tur'],
+    'tr isteği yalnız tur satırını bırakır');
+  const ptReq = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'pt' },
+    { fetch: async () => response(stremioIso3) });
+  assert.deepEqual(ptReq.results.map((r) => r.language), ['pob'],
+    'pt isteği Brezilya Portekizcesi pob satırını yakalar');
+  // Dil puanı da alias'lı: 'tur' satırı 'tr' hedefinden 10 puan alır;
+  // eşleşmeyen 'eng' satırı 0 kalır (release/title boş → tek sinyal dil).
+  const scored = await searchSubtitles({ query: 'Example', imdbId: 'tt0133093', language: 'tr' },
+    { fetch: async () => response(stremioIso3) });
+  assert.equal(scored.results[0].language, 'tur');
+  assert.equal(scored.results[0].matchScore, 10, 'tur adayı tr hedefinden dil puanı alır');
+
+  // Dizi biçimi: series/<imdb>:<s>:<e> (Stremio video id — '/s/e' 404 verir)
   const serCalls = [];
   await searchSubtitles({ query: 'Dizi', imdbId: 'tt0944947', season: 2, episode: 5 },
     { fetch: async (url) => { serCalls.push(url); return response({ subtitles: [] }); } });
-  assert.ok(serCalls[0].includes('/subtitles/series/tt0944947/2/5.json'), serCalls[0]);
+  assert.ok(serCalls[0].includes('/subtitles/series/tt0944947:2:5.json'), serCalls[0]);
 
   // Anahtarlı OS sıfır sonuç + imdb_id → Stremio basamağı
   const ladderCalls = [];
@@ -178,6 +202,64 @@ async function main() {
     { fetch: async (url) => response('', 302, { location: url }) }), { code: 'UNSAFE_URL' });
 
   await assert.rejects(searchSubtitles({ query: 'X', imdbId: 'abc' }, { apiKey: 'k', fetch }), { code: 'INVALID_INPUT' });
+
+  // R133: UTF-8 olmayan sağlayıcı dosyaları (cp1251 Kiril, GBK Çince
+  // arşivleri) strict-UTF8 TypeError yerine toleranslı çözülür; altyazı
+  // yapısı (zaman damgası / WEBVTT / ASS başlığı) olmayan içerik yine
+  // INVALID_SUBTITLE ile reddedilir.
+  const cyrillicSrt = new Uint8Array([
+    0x31, 0x0a, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x31, 0x2c, 0x30, 0x30, 0x30,
+    0x20, 0x2d, 0x2d, 0x3e, 0x20, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x32, 0x2c,
+    0x30, 0x30, 0x30, 0x0a, 0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, 0x20, 0xec, 0xe8, 0xf0,
+    0x2c, 0x20, 0xea, 0xe0, 0xea, 0x20, 0xe4, 0xe5, 0xeb, 0xe0, 0x3f, 0x0a,
+  ]);
+  const russianDl = await downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/ru/a.srt', language: 'ru' },
+    { fetch: async () => new Response(cyrillicSrt) });
+  assert.match(russianDl.text, /Привет мир/);
+  assert.equal(russianDl.format, 'srt');
+  // İpucsuz aynı dosya da tutarlı çözülür (cp1251 yaygınlıkla kazanır).
+  const noHintDl = await downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/ru/b.srt' },
+    { fetch: async () => new Response(cyrillicSrt) });
+  assert.match(noHintDl.text, /Привет мир/);
+
+  // Altyazı yapısı taşımayan ikili/garbage içerik reddedilir.
+  const garbage = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xd8, 0xff, 0xe0]);
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/bad.bin' },
+    { fetch: async () => new Response(garbage) }), { code: 'INVALID_SUBTITLE' });
+  // UTF-8 geçerli ama altyazı olmayan metin de reddedilir.
+  await assert.rejects(downloadSubtitle(
+    { provider: 'stremio', url: 'https://opensubtitles-v3.strem.io/sub/en/plain.txt' },
+    { fetch: async () => response('sadece düz metin, zaman damgası yok') }), { code: 'INVALID_SUBTITLE' });
+
+  // R190: dil varyantı bilinci — 'pt-BR' hedefi 'pt-PT' satırını eler;
+  // sağlayıcının varyantsız kaydı ('pob') birincil kodla eşleşir.
+  const stremioVariants = { subtitles: [
+    { id: 'v1', url: 'https://opensubtitles-v3.strem.io/sub/x/a.srt', lang: 'pt-BR', m: {} },
+    { id: 'v2', url: 'https://opensubtitles-v3.strem.io/sub/x/b.srt', lang: 'pt-PT', m: {} },
+    { id: 'v3', url: 'https://opensubtitles-v3.strem.io/sub/x/c.srt', lang: 'pob', m: {} },
+    { id: 'v4', url: 'https://opensubtitles-v3.strem.io/sub/x/d.srt', lang: 'zh-CN', m: {} },
+  ] };
+  const variantFetch = async () => response(stremioVariants);
+  const br = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt-BR' }, { fetch: variantFetch });
+  assert.deepEqual(br.results.map((r) => r.language).sort(), ['pob', 'pt-BR'],
+    'pt-BR hedefi pt-PT ve zh-CN satırını eler, varyantsız pob kalır');
+  const zh = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'zh-CN' }, { fetch: variantFetch });
+  assert.deepEqual(zh.results.map((r) => r.language), ['zh-CN']);
+  const barePt = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt' }, { fetch: variantFetch });
+  assert.equal(barePt.results.length, 3, 'yalın pt hedefi tüm Portekizce varyantlarını tutar');
+  // Hiçbir satır hedef varyantla eşleşmediğinde etiketli sonuçlar
+  // filtresiz sunulmaz: pt-BR isteğine yalnız pt-PT/zh-CN gelirse boş.
+  const onlyPt = { subtitles: [
+    { id: 'w1', url: 'https://opensubtitles-v3.strem.io/sub/x/a.srt', lang: 'pt-PT', m: {} },
+    { id: 'w2', url: 'https://opensubtitles-v3.strem.io/sub/x/d.srt', lang: 'zh-CN', m: {} },
+  ] };
+  const noBr = await searchSubtitles({ query: 'X', imdbId: 'tt0133093', language: 'pt-BR' },
+    { fetch: async () => response(onlyPt) });
+  assert.equal(noBr.results.length, 0, 'etiketli ama eşleşmeyen sonuçlar yanlış bölge olarak sunulmaz');
+
   console.log('browser-subtitle-search: fixture tests passed');
 }
 

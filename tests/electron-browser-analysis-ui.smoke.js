@@ -11,6 +11,10 @@ const out = path.join(root, '.uiprev', 'browser-analysis-ui-smoke');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}-${Date.now()}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
+// Arayüz dili varsayılanı EN oldu (R186): bu smoke TR metin sözleşmesini
+// doğrular, bu yüzden profili TR tohumlar.
+fs.writeFileSync(path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, 'settings.json'),
+  JSON.stringify({ settingsVersion: 3, ui: { uiLocale: 'tr' } }));
 const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
 const video = path.join(out, 'episode.mp4');
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
@@ -76,7 +80,7 @@ app.whenReady().then(async () => {
     await until(() => run('return document.getElementById("baReferenceName").textContent.includes("episode.mp4")'), 'UI referans açma');
     await run('document.getElementById("baWaveform").click();return true');
     const wave = await until(() => run('return player.timeline.waveform.length >= 100 && !document.getElementById("timelineDrawer").classList.contains("hidden") ? {points:player.timeline.waveform.length,status:document.getElementById("timelineStatus").textContent,canvas:document.getElementById("timelineCanvas").width} : null'), 'UI dalga biçimi');
-    assert(wave.canvas > 0 && wave.status.includes('Referans video sesi'));
+    assert(wave.canvas > 0 && wave.status.includes('Referans video sesi'), 'wave=' + JSON.stringify(wave));
     const thumb = await run(`const seek=document.getElementById('baSeek');seek.value='500';seek.dispatchEvent(new Event('input',{bubbles:true}));return true`);
     assert.equal(thumb, true);
     const preview = await until(() => run('return document.getElementById("baThumbImage").src.startsWith("data:image/jpeg;base64,") && !document.getElementById("baThumbImage").hidden ? {time:document.getElementById("baThumbTime").textContent,cue:document.getElementById("baThumbCue").textContent} : null'), 'Kare ve replik önizlemesi');

@@ -112,4 +112,40 @@ test('boş sorgu eşleşme üretmez', () => {
   assert.deepEqual(findLiteralMatches(entries, '', { field: 'both' }), []);
 });
 
+// --- R190: grapheme kümesi sınırları ---
+
+test('eşleşme sonu birleşen im katmanını tabanla birlikte yutar', () => {
+  // Ayrışık 'café' (e + U+0301): 'e' araması tabanı yalnız bırakmaz.
+  assert.deepEqual(literalRanges('café son', 'e'), [{ start: 3, end: 5 }]);
+});
+
+test('grapheme kümesi ortasına eşleşme üretmez', () => {
+  // ZWJ zinciri: '👨‍👩' içinde tek başına '👩' veya '👨' aranamaz.
+  assert.deepEqual(literalRanges('a👨‍👩b', '👩'), []);
+  assert.deepEqual(literalRanges('a👨‍👩b', '👨'), []);
+  // Emoji ten rengi değiştiricisi tabandan koparılamaz.
+  assert.deepEqual(literalRanges('x👍🏽y', '👍'), []);
+});
+
+test('bölgesel gösterge çiftleri bayrağı bölemez', () => {
+  const flags = '🇹🇷🇩🇪';
+  assert.deepEqual(literalRanges(flags, '🇩🇪'), [{ start: 4, end: 8 }]);
+  // Çapraz eşleşme (🇷🇩) iki bayrağın ortasına düşer — reddedilir.
+  assert.deepEqual(literalRanges(flags, '🇷🇩'), []);
+});
+
+test('kelime sınırı im katmanını atlayıp tabana bakar', () => {
+  // 'éx' kümesinden sonra gelen 'x' komşudur — 'e' whole-word değil.
+  assert.deepEqual(literalRanges('éx', 'e', { wholeWord: true }), []);
+  // Boşlukla ayrılmış küme whole-word eşleşir.
+  assert.deepEqual(literalRanges('é dur', 'e', { wholeWord: true }), [{ start: 0, end: 2 }]);
+});
+
+test('grapheme sınırları yavaş (uzunluk-değiştiren) yolda da geçerli', () => {
+  const text = 'xﬀé';
+  const ranges = literalRanges(text, 'e');
+  assert.equal(ranges.length, 1);
+  assert.equal(text.slice(ranges[0].start, ranges[0].end), 'é');
+});
+
 console.log(`subtitle-find-replace: ${passed} test`);
