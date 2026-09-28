@@ -16322,7 +16322,7 @@ ipcMain.handle('browser:liveAsr:chunk', async (event, request) => {
   if (request.sessionId !== job.id || request.format !== 'pcm16') return { ok: false, error: 'Ses oturumu değişti; eski parça reddedildi.' };
   if (job.chunkFiles.size >= 8) return { ok: false, error: 'Ses kuyruğu dolu; daha küçük bir Whisper modeli seçin.' };
   const offset = Number(request.offset), rate = Number(request.rate);
-  if (!Number.isFinite(offset) || offset < 0 || !Number.isFinite(rate) || rate < .25 || rate > 4) return { ok: false, error: 'Ses zamanlaması geçersiz.' };
+  if (!Number.isFinite(offset) || offset < 0 || !Number.isFinite(rate) || rate < .0625 || rate > 16) return { ok: false, error: 'Ses zamanlaması geçersiz.' };
   const encoded = String(request && request.base64 || '');
   if (!encoded || encoded.length > 384000) return { ok: false, error: 'Ses parçası en fazla 9 saniye olabilir.' };
   const data = Buffer.from(encoded, 'base64');
