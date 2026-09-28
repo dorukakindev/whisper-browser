@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-28-0700.md](docs/devir/2026-09-28-0700.md) — R188 Electron smoke seti triage: 7/7 yeşil (4 ürün düzeltmesi + 6 smoke sözleşme uyarlaması)
+Güncel çalışma: [docs/devir/2026-09-28-0900.md](docs/devir/2026-09-28-0900.md) — R189 tam smoke doğrulama: çeviri menüsü anchor fix + CDP/POSIX/nested-spawn test altyapısı sertleştirme
+Önceki çalışma: [docs/devir/2026-09-28-0700.md](docs/devir/2026-09-28-0700.md) — R188 Electron smoke seti triage: 7/7 yeşil (4 ürün düzeltmesi + 6 smoke sözleşme uyarlaması)
 Önceki çalışma: [docs/devir/2026-09-28-0520.md](docs/devir/2026-09-28-0520.md) — R187 yakalama/indirme dayanıklılık denetimi (bug yok) + 600/80 döngü soak GEÇTİ
 Önceki çalışma: [docs/devir/2026-09-28-0345.md](docs/devir/2026-09-28-0345.md) — R186 Windows doğrulama bulguları: TR diyalog başlıkları (dt) + ~80 i18n girişi + Sekme korumalı modal EN
 Önceki çalışma: [docs/devir/2026-09-28-0310.md](docs/devir/2026-09-28-0310.md) — R185 innerHTML XSS + localStorage kota + TODO/FIXME süpürmesi (writeSourceEdits sarmalı)
