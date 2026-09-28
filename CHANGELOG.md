@@ -42,6 +42,39 @@ All notable changes to this project are documented here. The format follows [Kee
 - **PDF çeviri önbelleği sağlayıcı değişiminde karışıyordu** — önbellek
   kimliğine `endpoint` eklendi; aynı model adıyla farklı sağlayıcıya
   geçişte eski sonuçlar kullanılmaz.
+- **R221 (çeviri hattı — backend):** model bir satırı aynen
+  döndürdüğünde işin ölmesine yol açan yankı reddi düzeltildi —
+  "değişmeden kalmalı" satırlar (vokalizasyon, kod/özel-ad dizgileri,
+  zaten hedef dilde olan satırlar) artık API'ye hiç gönderilmez;
+  yankılayan grup iki kurtarma turundan sonra "değişmeden kabul" diye
+  işaretlenip önbelleğe yazılır. DeepSeek-R1/Qwen3 gibi düşünen
+  modellerin `<think>` bloğu artık JSON seçiminden önce silinir
+  (eski kod düşünme bloğu içindeki ilk `{…}` nesnesini gerçek yanıt
+  sanıyordu). `translate_existing_subtitle` aynı-dil kapısı eklendi —
+  `.tr.srt`'yi Türkçeye çevirmek ~3000 boş isteğe mal oluyordu; dosya
+  gövdesi çoğunlukla hedef dildeyse iş sıfır istekte biter. Çeviri
+  istemcisine `max_retries=0` eklendi — SDK varsayılanı + üstteki
+  kendi denemelerimiz birleşip paket başına 6 HTTP isteği üretiyordu.
+  GPT-5/o-serisi modellere `temperature` göndermek 400 hataya
+  düşüyordu — `llm_generation_kwargs` artık reasoning ailelerine
+  `max_completion_tokens` verir ve rol `developer` olur.
+  `finish_reason="length"` kesik yanıtı artık paketi ikiye böler
+  (kurtarma döngüsü yerine). Kesin sonuçlu hatalar (content_filter,
+  moderasyon, 400) rotaları fatal-fast bitirir ve `invalid_batches≥6`
+  yapısal devre kesicisi son-deneme turlarını keser. Çeviri önbelleği
+  ve TM artık her kabul edilen pakette (ve birkaç saniyede bir) diske
+  yazılır + paket aralarına iptal kontrol noktaları eklendi —
+  iptal/çökmede ödenen çeviriler kaybolmuyordu. "Eksikleri tamamla"
+  artık dosyanın tamamını bağlamla birlikte verip yalnız eksikleri
+  ister (önceden eksikler ayrı liste sanılarak yanlış cümleler
+  birleştiriliyordu). `series_memory.merge_many` paket başına fsync'i
+  iş sonu tek yazıma indirir ve final metinlere karşı yeniden süzer.
+  Refine geçişinde doğrulanamayan grup 1. geçiş çevirisi artık
+  önbelleğe yazılır. Almanca kaynaklarda otomatik terim çıkarımı
+  büyük-harf gürültüsünü artık atlar. `test_golden_corpus` sözleşmesi
+  devre-kesicili üst sınıra taşındı; `test_translate_pipeline_r220`
+  (23 test) yeni yardımcıları kilitler.
+
 - **"Sırada dur" sonrası kuyruk başlat düğmesi kilitli kalıyordu** —
   `persistQueueNow` beklerken durdurulan kuyrukta `renderQueue` bayraklar
   hâlâ yüksekken çiziliyor ve `finalizeQueue` düğmeleri yeniden

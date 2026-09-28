@@ -56,9 +56,11 @@ app.whenReady().then(async () => {
     const logText = async () => (await run(lastLog)).join(' | ');
     // IPC ölçümü: reddedilen senaryoların subs:shift'e hiç çıkmadığını
     // kanıtlar (diyalog sayımı yalnız renderer tarafını gösterirdi).
-    // Preload bridge yazılabilir değilse sarım atlanır — assert'ler
-    // buna göre koşullu tutulur.
-    const shiftInstrumented = await run(`if(typeof window.api.shiftSubs==='function'){const o=window.api.shiftSubs;window.__shiftCalls=0;window.api.shiftSubs=(...a)=>{window.__shiftCalls+=1;return o(...a)};return window.api.shiftSubs!==o}return false`);
+    // Preload bridge yazılabilir değilse defineProperty ile yeniden
+    // tanımlanır; o da olmazsa sayım atlanır ve ÇIKTIYA açık uyarı basılır
+    // (sessiz geçiş, sınır kanıtını kaybetmesin diye).
+    const shiftInstrumented = await run(`if(typeof window.api.shiftSubs==='function'){const o=window.api.shiftSubs;window.__shiftCalls=0;const w=(...a)=>{window.__shiftCalls+=1;return o(...a)};try{window.api.shiftSubs=w;if(window.api.shiftSubs===w)return true}catch(e){}try{Object.defineProperty(window.api,'shiftSubs',{value:w,writable:true,configurable:true});return window.api.shiftSubs===w}catch(e){return false}}return false`);
+    if (!shiftInstrumented) console.log('[smoke] UYARI: shiftSubs köprüsü sarılamadı — IPC sayımı atlanıyor (dosya yazımı yine IPC kanıtıdır).');
 
     // 1) Mutlu yol: modal açık + SRT çıktısı + onay diyaloğu auto-onaylı.
     await run(`showResultModal({files:[${JSON.stringify(srt)}],segments:2,language:'en'});`
