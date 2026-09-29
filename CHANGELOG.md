@@ -3,6 +3,7 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+- R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
 - Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 - R273: Devin Review toplu triage — prob `skipped` sayımı artık önceden-çevrilmiş konumları şişirmez; kalıcı prob hatasında 2. geçiş atlanır (1. geçiş korunur); overlay indeks probları bayat mutasyonları yakalar; burn-in eksik-glif sayacı yüzeye taşınır; disk-dolu hatası dosya-kaybından ayrılır. Tur-2: refine kapısı kalıcı-olmayan prob hatasında da açılıyordu; overlay bozuk-end sınırı suffixMin ile O(1); eksik-glif kaydı liste-birleşimi + ara yazım.
