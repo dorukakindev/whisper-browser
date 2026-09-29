@@ -107,7 +107,8 @@ function sliceFunction(source, signature) {
 
 // ---- 3. browserMoreSearch: filtre, boş durum, Enter, kapanışta sıfırlama ----
 (async () => {
-  const dom = new JSDOM(`<!doctype html><details id="browserMoreMenu"><div class="browser-more-popover">
+  const dom = new JSDOM(`<!doctype html><button id="extReader" title="Okuma görünümü"></button>
+    <details id="browserMoreMenu"><div class="browser-more-popover">
     <input id="browserMoreSearch" type="search">
     <div class="browser-more-quick" role="group"><button id="q1" title="Yeni sekme · Ctrl+T" aria-label="Yeni sekme">+</button>
       <button id="q2" title="Kapatılan sekmeyi aç" aria-label="Kapatılan sekmeyi aç">⟲</button></div>
@@ -115,6 +116,7 @@ function sliceFunction(source, signature) {
     <details class="browser-more-sub"><summary>Sayfa</summary>
       <button role="menuitem" id="mQr">Sayfa QR kodunu göster</button>
       <button role="menuitem" id="mHide">Sayfada öğe gizle…</button>
+      <button role="menuitem" id="mReader" data-browser-proxy="extReader">Okuma görünümü</button>
     </details>
     <details class="browser-more-sub"><summary>Video</summary>
       <button role="menuitem" id="mDl" disabled aria-disabled="true">Videoyu indir</button>
@@ -126,10 +128,17 @@ function sliceFunction(source, signature) {
     "const moreSearch = $('browserMoreSearch');",
     "\nif ($('browserReadLater'))");
   const foldSrc = sliceFunction(renderer, 'function foldSearch(value) {');
+  const proxyStateSrc = sliceFunction(renderer, 'function browserProxyTargetState(button) {');
+  // syncBrowserMenuProxies ile sonraki işlev arasında üst-düzey `$$` bağlaması
+  // var; sliceFunction onu da yakalayacağı için açık sınır verilir.
+  const proxySyncSrc = sliceBetween(renderer,
+    'function syncBrowserMenuProxies(root) {',
+    "\n$$('[data-browser-proxy]')");
   // Blok üst-düzey bağlama kodudur: `const moreSearch = $(...)` + dinleyiciler.
-  // foldSearch fonksiyonu blok içinde kullanıldığı için gövdenin başına eklenir.
+  // foldSearch + vekil senkronu blok içinde kullanıldığı için gövdenin başına
+  // eklenir (asıl tanımlar slice sınırının dışındadır).
   new Function('$', 'uiText', 'document', 'MutationObserver',
-    `${foldSrc}\n${block}`)(
+    `${foldSrc}\n${proxyStateSrc}\n${proxySyncSrc}\n${block}`)(
     (id) => doc.getElementById(id),
     (s) => s,
     doc,
@@ -208,11 +217,28 @@ function sliceFunction(source, signature) {
   assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
     'tekrar aktif olunca sonuç geri döner');
 
+  // Devin Review #164-1: vekil öğenin durumu menü dışındaki hedefte yaşar —
+  // hedef devre dışı kalınca vekil sonuç gizlenir, geri açılınca döner.
+  input.value = 'okuma';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
+    'vekil öğe hedefi aktifken eşleşir');
+  doc.getElementById('extReader').setAttribute('disabled', '');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(doc.getElementById('mReader').getAttribute('aria-disabled'), 'true',
+    'hedef devre dışı kalınca vekil öğeye yansıtılır');
+  assert.equal(visibleItems().length, 0, 'devre dışı vekil arama sonucunda gizlenir');
+  assert.ok(!emptyRow.classList.contains('hidden'), 'vekil düşünce boş durum görünür');
+  doc.getElementById('extReader').removeAttribute('disabled');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
+    'hedef geri açılınca vekil sonuç geri döner');
+
   // Menü kapanınca arama sıfırlanır ve tüm öğeler geri gelir.
   menu.open = false;
   menu.dispatchEvent(new dom.window.Event('toggle'));
   assert.equal(input.value, '', 'kapanışta arama kutusu sıfırlanır');
-  assert.equal(visibleItems().length, 4, 'tüm öğeler tekrar görünür (devre dışı dahil)');
+  assert.equal(visibleItems().length, 5, 'tüm öğeler tekrar görünür (devre dışı dahil)');
   assert.equal(visibleQuick().length, 2, 'hızlı eylemler geri döner');
   assert.ok(subs.every((s) => !s.classList.contains('hidden')), 'gruplar geri döner');
   assert.ok(subs.every((s) => s.open === false), 'gruplar kapalı duruma döner');
