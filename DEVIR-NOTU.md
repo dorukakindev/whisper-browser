@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1349.md](docs/devir/2026-09-29-1349.md) — R258: browserSplit state-machine fuzz (240 op, 7 invariant, temiz)
+Güncel çalışma: [docs/devir/2026-09-29-1352.md](docs/devir/2026-09-29-1352.md) — R259: console-error ratchet (yüzey turu, 0 hata)
+Önceki çalışma: [docs/devir/2026-09-29-1349.md](docs/devir/2026-09-29-1349.md) — R258: browserSplit state-machine fuzz (240 op, 7 invariant, temiz)
 Önceki çalışma: [docs/devir/2026-09-29-1343.md](docs/devir/2026-09-29-1343.md) — R257: sekme şeridi churn soak (200 aç/kapat + toplu 8, sızıntı yok)
 Önceki çalışma: [docs/devir/2026-09-29-1320.md](docs/devir/2026-09-29-1320.md) — R256: kuyruk kill-resume E2E (crash→recovered→elle resume, gerçek backend)
 Önceki çalışma: [docs/devir/2026-09-29-1256.md](docs/devir/2026-09-29-1256.md) — R255: uçak-modu çeviri kapısı (ilk-parça probu network_error'da durdurur)
