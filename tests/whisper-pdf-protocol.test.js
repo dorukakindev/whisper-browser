@@ -95,14 +95,14 @@ test('kaynak kimliği oturum nonce\'u ile tahmin edilemez (içerik bilinse bile)
   const end = source.indexOf('function pdfDocumentByHash(');
   assert.ok(start > 0 && end > start, 'pdf kaynak dilimi bulunamadı');
   const slice = source.slice(start, end);
-  const makeInspect = () => {
+  const makeInspect = (nonceBytes) => {
     const context = {
       protocol: { handle: () => {} },
       pdfFileAccess: { has: () => true, inspect: (p) => p },
       fs, path, URL, Response, decodeURIComponent,
       Readable: require('node:stream').Readable,
       Buffer,
-      createHash, randomBytes,
+      createHash, randomBytes: nonceBytes ?? randomBytes,
       pdfHashPlan, pdfHashFromFirstChunk,
       pdfTranslationJobs: null,
     };
@@ -117,6 +117,12 @@ test('kaynak kimliği oturum nonce\'u ile tahmin edilemez (içerik bilinse bile)
     'aynı belge iki oturumda aynı kaynak kimliğini almamalı');
   assert.match(docA.resourceId, /^[a-f0-9]{64}$/);
   assert.equal(docA.pdfHash, docB.pdfHash, 'pdfHash deterministik durum anahtarı olarak kalır');
+  // Kontrollü nonce: türetim formülünü kilitle — içerik karması tek başına
+  // kimliği üretmez (oturum başlangıcından tahmin edilebilir tuz geçemez).
+  const knownNonce = Buffer.alloc(24, 0x42).toString('hex');
+  const docC = makeInspect(() => Buffer.alloc(24, 0x42))(docPath);
+  const expected = createHash('sha256').update(`pdf-resource:${knownNonce}:${docA.pdfHash}`).digest('hex');
+  assert.equal(docC.resourceId, expected, 'kimlik oturum nonce\'u ile karıştırılmalı');
 });
 
 test('geçerli kaynak kimliği okunur (izinli belge)', async () => {
