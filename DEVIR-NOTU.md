@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0658.md](docs/devir/2026-09-29-0658.md) — R240: patch bakiyesi + #176/#178 review triage (avatar/IP/önizleme)
+Güncel çalışma: [docs/devir/2026-09-29-0735.md](docs/devir/2026-09-29-0735.md) — R241: tur-4 paketi uygulaması (backend altyazı + IPC güvenliği + ui-smoke + ui-locale perf)
+Önceki çalışma: [docs/devir/2026-09-29-0658.md](docs/devir/2026-09-29-0658.md) — R240: patch bakiyesi + #176/#178 review triage (avatar/IP/önizleme)
 Önceki çalışma: [docs/devir/2026-09-29-0650.md](docs/devir/2026-09-29-0650.md) — R239 kapanış: kesin master merge kimliği (ae58ad8); tur-3 paketi tamamen kapandı
 Önceki çalışma: [docs/devir/2026-09-29-0644.md](docs/devir/2026-09-29-0644.md) — R239: sekme önizleme kartı native yüzey kırpması
 Önceki çalışma: [docs/devir/2026-09-29-0634.md](docs/devir/2026-09-29-0634.md) — R238 kapanış: kesin master merge kimliği (a09da0b)
