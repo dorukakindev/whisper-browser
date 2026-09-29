@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0345.md](docs/devir/2026-09-30-0345.md) — R276: ASS/SSA override roundtrip kilidi (\an/\pos/\i1; temiz)
+Güncel çalışma: [docs/devir/2026-09-30-0400.md](docs/devir/2026-09-30-0400.md) — R277: pencere durumu saf modül + kelepçe kilidi (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0345.md](docs/devir/2026-09-30-0345.md) — R276: ASS/SSA override roundtrip kilidi (\an/\pos/\i1; temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0330.md](docs/devir/2026-09-30-0330.md) — R275: IPC payload fuzz turu 2 — 213 kanal × 37 hostile payload sanal alanı (temiz)
 Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
 Önceki çalışma: [docs/devir/2026-09-30-0230.md](docs/devir/2026-09-30-0230.md) — R273: Devin Review toplu triage (skipped/refine/overlay/glif/disk-dolu düzeltmeleri)
