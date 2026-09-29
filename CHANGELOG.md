@@ -4,11 +4,6 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-### Changed
-- Ana pencere açılışında V8 kod önbelleği ilk yüklemeden itibaren etkin
-  (v8CacheOptions `bypassHeatCheck`); sekme önizleme kartı krom şeridine
-  sığmadığında tek satırlık kompakt görünüme düşer.
-
 ### Added
 
 - R241 (tur-4 paketi): `npm run smoke:ui`/`audit:ui` arayüz duman ve denetim araçları (menü öğelerini tıklayıp etki ölçer; CI'a bağlandı). Yeni-sekme/özniteliksiz öğelerde ui-locale açılış taramasının `closest()` maliyeti kaldırıldı (~26–42 ms hızlanma).
@@ -18,6 +13,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- R244: ana pencere açılışında V8 kod önbelleği ilk yüklemeden itibaren etkin
+  (v8CacheOptions `bypassHeatCheck`); sekme önizleme kartı krom şeridine
+  sığmadığında tek satırlık kompakt görünüme düşer.
 - R238: sekme/yer-imi/NTP avatar harfi artık kayıtlı alan adından gelir — `tr.wikipedia.org` "T" yerine "W", `sub.bbc.co.uk` "S" yerine "B", `amazon.com.tr` "A" gösterir; renk tonu da alan bazında sabitlendi (aynı sitenin alt alanları aynı tonda).
 
 ### Fixed

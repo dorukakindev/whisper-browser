@@ -964,7 +964,7 @@ function showBrowserTabPreview(tabId, anchor) {
   }
   document.body.appendChild(card);
   browserTabPreviewEl = card;
-  const cw = card.offsetWidth;
+  let cw = card.offsetWidth;
   let ch = card.offsetHeight;
   const rect = anchor.getBoundingClientRect();
   // Native WebContentsView renderer DOM'unun üstünde durur — kartın alt kenarı
@@ -973,9 +973,11 @@ function showBrowserTabPreview(tabId, anchor) {
   const slotTop = $('browserViewSlot')?.getBoundingClientRect?.().top;
   const topLimit = Number.isFinite(slotTop) && slotTop > 0 ? Math.min(window.innerHeight, slotTop) : window.innerHeight;
   // Tam kart krom şeridinden uzunsa içerik sırıtırdı; tek satırlık kompakt
-  // varyanta düşüp yeniden ölç (url/rozet satırları CSS ile gizlenir).
+  // varyanta düşüp yeniden ölç (url/rozet satırları CSS ile gizlenince kart
+  // daralır — genişlik de yeniden ölçülür, yoksa hizalama bayat kalır).
   if (ch > topLimit - 8) {
     card.className += ' is-compact';
+    cw = card.offsetWidth;
     ch = card.offsetHeight;
   }
   card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;

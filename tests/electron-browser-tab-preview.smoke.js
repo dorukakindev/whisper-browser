@@ -61,23 +61,27 @@ app.whenReady().then(async () => {
   assert(preview.bottom <= preview.slotTop, `kart altı native yüzeye taştı: ${JSON.stringify(preview)}`);
   assert(Number.isFinite(preview.maxHeight) && preview.maxHeight <= preview.slotTop - 8, `maxHeight kelepçesi: ${JSON.stringify(preview)}`);
 
-  // Aşırı boy: kartı CSS ile krom alanından uzun yap — kompakt varyanta
-  // düşmeli ve kendi içinde kırpılmalı (is-compact url/rozet satırını gizler).
+  // Aşırı boy: yalnız URL satırını CSS ile şişir — kart doğal ~2000px ölçülür,
+  // kompakta düşünce url satırı gizlenir ve kart GERÇEK kompakt yerleşimiyle
+  // (zorlama yükseklik değil, doğal ~30px) krom alanına sığmalıdır.
   const tall = await run(`const style=document.createElement('style');
-    style.textContent='.browser-tab-preview{height:2000px !important}.browser-tab-preview.is-compact{height:26px !important}';
+    style.textContent='.browser-tab-preview-url{height:1900px !important}';
     document.head.appendChild(style);
     const el=document.querySelector('.browser-tab.active');
     showBrowserTabPreview(player.browserActiveTabId, el);
     const card=document.querySelector('.browser-tab-preview');
     const r=card ? card.getBoundingClientRect() : null;
     const out={ compact: card ? card.classList.contains('is-compact') : false,
-      bottom: r ? r.bottom : -1, slotTop: document.getElementById('browserViewSlot').getBoundingClientRect().top,
+      height: r ? r.height : -1, bottom: r ? r.bottom : -1,
+      slotTop: document.getElementById('browserViewSlot').getBoundingClientRect().top,
       maxHeight: card ? parseFloat(card.style.maxHeight) : NaN,
       urlHidden: card ? getComputedStyle(card.querySelector('.browser-tab-preview-url')).display === 'none' : false };
     hideBrowserTabPreview();
     return out`);
   assert(tall.compact, `aşırı boy kart kompakta düşmedi: ${JSON.stringify(tall)}`);
   assert(tall.urlHidden, `kompakt kart url satırını gizlemedi: ${JSON.stringify(tall)}`);
+  // Zorlanmış 26px değil: doğal kompakt yerleşim (başlık + padding) şeride sığmalı.
+  assert(tall.height > 0 && tall.height < 100, `kompakt kart doğal boyutta değil: ${JSON.stringify(tall)}`);
   assert(tall.bottom <= tall.slotTop, `aşırı boy kart native yüzeye taştı: ${JSON.stringify(tall)}`);
   assert(tall.maxHeight <= tall.slotTop - 8, `aşırı boy maxHeight: ${JSON.stringify(tall)}`);
 
