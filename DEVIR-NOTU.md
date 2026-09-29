@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
+Güncel çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
+Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
 Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)

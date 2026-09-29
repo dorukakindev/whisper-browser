@@ -364,6 +364,15 @@ function classifyError(e) {
         if (payload && (typeof payload === 'object' || typeof payload === 'function')) {
           assert.equal(payload.polluted, undefined);
         }
+        // Vm-realm prototip kirliliği: işleyici içindeki nesneler vm'nin
+        // Object/Array.prototype'ını taşır — oraya yazılan 'polluted' host
+        // tarafındaki denetimden geçmez. Bağlam içinden sondalanır.
+        const vmClean = vm.runInContext(
+          '({}).polluted === undefined && [].polluted === undefined',
+          globalProxy) === true;
+        if (!vmClean) {
+          violations.push({ channel, pos, label, ms, outcome: 'vm-proto-pollution', danger: [] });
+        }
         const dangerHits = calls.filter((c) => DANGER.test(c.path));
         const allowed = SIDE_EFFECT_ALLOWLIST[channel] || [];
         const unexpected = dangerHits.filter((hit) => !allowed.some((re) => re.test(hit.path)));
