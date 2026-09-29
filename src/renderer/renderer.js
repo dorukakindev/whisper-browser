@@ -6813,33 +6813,102 @@ function syncBrowserNtpIntro() {
 }
 
 
+// ---- Yeni sekme sayfası ----
+// Sıralama saf modülde (BrowserAddressModel.ntpQuickTiles / ntpContinueItems).
+// Kullanıcının NTP'den kaldırdığı adresler bu cihazda saklanır (yalnız görünüm
+// tercihi; geçmiş/yer imi silinmez).
+const BROWSER_NTP_HIDDEN_KEY = 'browserNtpHidden';
+let browserNtpWatchLoadRequested = false;
+// Bu işlevler betik başlarken (aşağıdaki let/const bildirimlerinden önce)
+// çağrılabilir; geçici ölü bölge hatası NTP'yi kırmasın.
+function browserNtpWatchItems() {
+  try { return Array.isArray(watchLibraryCache) ? watchLibraryCache : []; } catch (_) { return []; }
+}
+function browserNtpFavicon(origin) {
+  try { return origin ? browserFaviconByOrigin.get(origin) || '' : ''; } catch (_) { return ''; }
+}
+function browserNtpHiddenList() {
+  try {
+    const value = JSON.parse(localStorage.getItem(BROWSER_NTP_HIDDEN_KEY) || '[]');
+    return Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 200) : [];
+  } catch (_) { return []; }
+}
+function setBrowserNtpHiddenList(list) {
+  try { localStorage.setItem(BROWSER_NTP_HIDDEN_KEY, JSON.stringify(list.slice(-200))); } catch (_) {}
+}
+
+function browserNtpSiteIcon(url) {
+  let origin = '';
+  try { origin = new URL(url).origin; } catch (_) {}
+  const favicon = browserNtpFavicon(origin);
+  if (favicon) {
+    const img = document.createElement('img');
+    img.className = 'browser-ntp-tile-favicon';
+    img.alt = '';
+    img.src = favicon;
+    img.setAttribute('aria-hidden', 'true');
+    return img;
+  }
+  const avatar = browserTabAvatar({ url });
+  avatar.classList.add('browser-ntp-tile-avatar');
+  return avatar;
+}
+
 function renderBrowserNtpResume() {
   const root = $('browserNtpResume');
   const list = $('browserNtpResumeList');
   if (!root || !list) return;
+  const model = globalThis.BrowserAddressModel;
+  // İzleme kütüphanesi henüz yüklenmediyse bir kez yükle ve yeniden çiz.
+  if (!browserNtpWatchItems().length && !browserNtpWatchLoadRequested && window.api.listWatchLibrary) {
+    browserNtpWatchLoadRequested = true;
+    window.api.listWatchLibrary().then((items) => {
+      if (Array.isArray(items) && items.length && !browserNtpWatchItems().length) watchLibraryCache = items;
+      renderBrowserNtpResume();
+    }).catch(() => {});
+  }
+  const watchItems = model?.ntpContinueItems ? model.ntpContinueItems(browserNtpWatchItems(), { limit: 6 }) : [];
+  const seen = new Set(watchItems.map((item) => model.ntpPlaceKey(item.url)));
+  // Kütüphanede izi olmayan medya sayfaları (eski davranış) yedek olarak kalır.
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const items = (places.history || []).filter((item) => item?.url && item.media).slice(0, 6);
+  const historyItems = (places.history || [])
+    .filter((item) => item?.url && item.media && !seen.has(model?.ntpPlaceKey?.(item.url) || item.url))
+    .slice(0, Math.max(0, 6 - watchItems.length))
+    .map((item) => ({ url: item.url, title: browserPlaceTitle(item), progress: 0, remaining: 0 }));
+  const items = [...watchItems, ...historyItems];
   list.replaceChildren();
   root.classList.toggle('hidden', items.length === 0);
   for (const item of items) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-ntp-resume-item';
-    button.dataset.browserNtpResume = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
+    if (item.key) button.dataset.browserNtpWatch = item.key;
+    else button.dataset.browserNtpResume = item.url;
+    const title = item.title || item.url;
+    const remaining = item.remaining > 0 ? `${pSecToTime(item.remaining)} ${uiText('kaldı')}` : '';
+    button.title = [title, remaining, item.url].filter(Boolean).join(' — ');
     const icon = document.createElement('span');
     icon.className = 'browser-ntp-resume-ico';
     icon.setAttribute('aria-hidden', 'true');
     const copy = document.createElement('span');
     copy.className = 'browser-ntp-resume-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-ntp-resume-title';
-    title.textContent = browserPlaceTitle(item);
-    const url = document.createElement('span');
-    url.className = 'browser-ntp-resume-url';
-    try { url.textContent = new URL(item.url).host || item.url; } catch (_) { url.textContent = item.url; }
-    copy.append(title, url);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-ntp-resume-title';
+    titleEl.textContent = title;
+    const meta = document.createElement('span');
+    meta.className = 'browser-ntp-resume-url';
+    let host = item.url;
+    try { host = new URL(item.url).host.replace(/^www\./, '') || item.url; } catch (_) {}
+    meta.textContent = remaining ? `${host} · ${remaining}` : host;
+    copy.append(titleEl, meta);
     button.append(icon, copy);
+    if (item.progress > 0) {
+      const bar = document.createElement('span');
+      bar.className = 'browser-ntp-resume-progress';
+      bar.setAttribute('aria-hidden', 'true');
+      bar.style.setProperty('--progress', `${Math.round(item.progress * 100)}%`);
+      button.appendChild(bar);
+    }
     list.appendChild(button);
   }
 }
@@ -6851,39 +6920,53 @@ function renderBrowserQuickPlaces() {
   syncBrowserNtpIntro();
   renderBrowserNtpResume();
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const entries = [];
-  const seen = new Set();
-  for (const item of [...(places.bookmarks || []), ...(places.history || [])]) {
-    if (!item?.url) continue;
-    const key = browserPlaceKey(item.url) || item.url;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push(item);
-    if (entries.length >= 8) break;
-  }
+  const hidden = browserNtpHiddenList();
+  const tiles = globalThis.BrowserAddressModel?.ntpQuickTiles
+    ? globalThis.BrowserAddressModel.ntpQuickTiles(places, { hidden, limit: 8 }) : [];
   list.replaceChildren();
-  root.classList.toggle('hidden', entries.length === 0);
-  for (const item of entries) {
+  root.classList.toggle('hidden', tiles.length === 0 && hidden.length === 0);
+  const restore = $('browserQuickPlacesRestore');
+  if (restore) {
+    restore.classList.toggle('hidden', hidden.length === 0);
+    restore.textContent = `${uiText('Gizlenenleri geri getir')} (${hidden.length})`;
+  }
+  for (const item of tiles) {
+    const tile = document.createElement('div');
+    tile.className = 'browser-ntp-tile';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-quick-place';
     button.dataset.browserQuickPlace = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
-    const mark = document.createElement('span');
-    mark.className = 'browser-quick-place-mark';
-    mark.textContent = (places.bookmarks || []).some(bookmark => browserPlaceKey(bookmark.url) === browserPlaceKey(item.url)) ? 'Y' : 'G';
-    mark.setAttribute('aria-hidden', 'true');
+    const title = item.title || browserPlaceTitle(item);
+    button.title = `${title} — ${item.url}`;
     const copy = document.createElement('span');
     copy.className = 'browser-quick-place-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-quick-place-title';
-    title.textContent = browserPlaceTitle(item);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-quick-place-title';
+    titleEl.textContent = title;
     const url = document.createElement('span');
     url.className = 'browser-quick-place-url';
-    url.textContent = item.url;
-    copy.append(title, url);
+    try { url.textContent = new URL(item.url).host.replace(/^www\./, ''); } catch (_) { url.textContent = item.url; }
+    copy.append(titleEl, url);
+    const mark = document.createElement('span');
+    mark.className = 'browser-quick-place-mark';
+    mark.appendChild(browserNtpSiteIcon(item.url));
+    if (item.bookmark) {
+      const star = document.createElement('span');
+      star.className = 'browser-ntp-tile-bookmark';
+      star.setAttribute('aria-hidden', 'true');
+      mark.appendChild(star);
+    }
     button.append(mark, copy);
-    list.appendChild(button);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'browser-ntp-tile-remove';
+    remove.dataset.browserQuickPlaceHide = item.key;
+    remove.title = `${uiText('Hızlı erişimden kaldır')}: ${title}`;
+    remove.setAttribute('aria-label', remove.title);
+    remove.appendChild(browserCloseIcon());
+    tile.append(button, remove);
+    list.appendChild(tile);
   }
 }
 
@@ -7476,6 +7559,7 @@ function renderBrowserSiteProfile() {
     reset.addEventListener('click', () => updateBrowserProfileField(field, null, false, editContext));
     row.append(label, reset); box.appendChild(row);
   }
+  syncBrowserAdblockQuick();
   void renderBrowserPermissions();
 }
 
@@ -10506,16 +10590,17 @@ function renderBrowserAdblockState(result = {}) {
   if (control) control.disabled = busy;
   if (quick) {
     quick.disabled = busy;
-    quick.setAttribute('aria-pressed', String(enabled));
-    quick.classList.toggle('has-error', result.state === 'error' || result.ok === false);
-    const action = enabled ? 'kapat' : 'aç';
-    const label = busy ? 'Reklam koruması değiştiriliyor'
-      : result.state === 'error' || result.ok === false
-        ? `Reklam koruması kapalı; ayarlarda hata ayrıntısı var`
-        : `Reklam koruması ${enabled ? 'açık' : 'kapalı'}; ${action}`;
-    quick.title = busy ? 'Reklam koruması değiştiriliyor…'
-      : `Reklam koruması ${enabled ? 'açık' : 'kapalı'} · ${enabled ? 'Kapat' : 'Aç'}`;
-    quick.setAttribute('aria-label', label);
+    const failed = result.state === 'error' || result.ok === false;
+    quick.classList.toggle('has-error', failed);
+    if (busy) {
+      quick.setAttribute('aria-pressed', String(enabled));
+      quick.title = 'Reklam koruması değiştiriliyor…';
+      quick.setAttribute('aria-label', 'Reklam koruması değiştiriliyor');
+    } else if (failed) {
+      quick.setAttribute('aria-pressed', 'false');
+      quick.title = 'Reklam koruması kapalı · Ayarlarda hata ayrıntısı var';
+      quick.setAttribute('aria-label', 'Reklam koruması kapalı; ayarlarda hata ayrıntısı var');
+    } else syncBrowserAdblockQuick();
   }
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
@@ -10525,6 +10610,82 @@ function renderBrowserAdblockState(result = {}) {
     status.textContent = `Reklam koruması etkin${blockedNote}${cacheNote}.`;
   } else if (result.requested && result.error) status.textContent = result.error;
   else status.textContent = 'Reklam koruması kapalı.';
+}
+
+// Site çipindeki reklam koruması düğmesi SİTE bazlıdır. Eskiden yalnız genel
+// ayarı gösterip değiştiriyordu: site profili reklam korumasını kapatmış bir
+// sitede "açık" diyor, tıklayınca bütün sitelerin ayarını değiştiriyordu.
+// Etkin durum = genel ayar açık VE site/sekme profili kapatmamış (main
+// isSitePaused ile aynı öncelik).
+function browserAdblockSiteState() {
+  const globalOn = !!$('browserAdblockEnabled')?.checked;
+  let origin = '';
+  let siteOn = true;
+  try {
+    const effective = effectiveBrowserProfile();
+    origin = effective.origin || '';
+    siteOn = effective.values?.adblockEnabled !== false;
+  } catch (_) { /* site profili modülü yüklenmemiş olabilir */ }
+  const host = origin.replace(/^https?:\/\//, '');
+  return { globalOn, origin, host, siteOn, effective: globalOn && siteOn };
+}
+function syncBrowserAdblockQuick() {
+  const quick = $('browserAdblockQuick');
+  if (!quick) return;
+  const { globalOn, origin, host, siteOn, effective } = browserAdblockSiteState();
+  quick.setAttribute('aria-pressed', String(effective));
+  quick.dataset.scope = globalOn && origin ? 'site' : 'global';
+  let title;
+  if (!globalOn) title = uiText('Reklam koruması tüm sitelerde kapalı · Aç');
+  else if (!origin) title = uiText('Reklam koruması açık · Tüm sitelerde kapat');
+  else if (siteOn) title = `${uiText('Bu sitede reklam koruması açık · Kapat')} (${host})`;
+  else title = `${uiText('Bu sitede reklam koruması kapalı · Aç')} (${host})`;
+  quick.title = title;
+  quick.setAttribute('aria-label', title);
+  const label = quick.querySelector('.browser-adblock-label');
+  if (label) label.textContent = uiText(globalOn && origin ? 'Bu sitede reklam koruması' : 'Reklam koruması');
+}
+async function toggleBrowserAdblockForSite() {
+  const quick = $('browserAdblockQuick');
+  const control = $('browserAdblockEnabled');
+  if (!quick || !control || control.disabled || quick.disabled) return;
+  const { globalOn, origin, host, siteOn } = browserAdblockSiteState();
+  // Genel ayar kapalıysa site bazında açmak anlamsız: önce genel ayarı aç.
+  // Site açık değilken (boş sekme) düğme genel anahtardır.
+  if (!globalOn || !origin) {
+    control.checked = !control.checked;
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  const tab = browserTabState();
+  if (!tab || !window.api.updateBrowserSiteProfile) return;
+  // Sekme kapsamlı geçersiz kılma site ayarından önce gelir; varsa o da kalkar.
+  if (tab.siteOverrideOrigin === origin && tab.siteOverrides
+      && Object.prototype.hasOwnProperty.call(tab.siteOverrides, 'adblockEnabled')) {
+    const { adblockEnabled: _removed, ...rest } = tab.siteOverrides;
+    tab.siteOverrides = rest;
+  }
+  quick.disabled = true;
+  // Açarken alan silinir (genel ayarı devralır); kapatırken site profiline false yazılır.
+  const result = await window.api.updateBrowserSiteProfile({
+    tabId: player.browserActiveTabId, generation: tab.generation, origin,
+    field: 'adblockEnabled', value: siteOn ? false : null, reset: false, scope: 'site', url: player.browserPageUrl,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  quick.disabled = false;
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Site ayarı kaydedilemedi.', false, { priority: 80, holdMs: 5000 });
+    syncBrowserAdblockQuick();
+    return;
+  }
+  if (result.places) player.browserPlaces = result.places;
+  renderBrowserSiteProfile();
+  syncBrowserAdblockQuick();
+  $('browserSiteChipDetails')?.removeAttribute('open');
+  syncBrowserOcclusion();
+  setBrowserSignal(`${host}: ${uiText(siteOn ? 'reklam koruması kapatıldı, sayfa yenileniyor.' : 'reklam koruması açıldı, sayfa yenileniyor.')}`,
+    true, { priority: 60, holdMs: 4000 });
+  // Engelleme yeni isteklere uygulanır; sayfadaki mevcut reklamlar için yenile.
+  void runBrowserChromeCommand('reload');
 }
 
 async function refreshBrowserAdblockState() {
@@ -11402,6 +11563,19 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
 });
 if ($('browserQuickPlacesMore')) $('browserQuickPlacesMore').addEventListener('click', () => setBrowserPlacesOpen(true));
 if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('click', async (event) => {
+  const hide = event.target.closest('[data-browser-quick-place-hide]');
+  if (hide) {
+    const list = browserNtpHiddenList();
+    if (!list.includes(hide.dataset.browserQuickPlaceHide)) list.push(hide.dataset.browserQuickPlaceHide);
+    // Kaldırılan kutucuğun yerine odak bir sonrakine geçsin (klavye kullanıcısı).
+    const tiles = [...$('browserQuickPlacesList').querySelectorAll('.browser-quick-place')];
+    const index = tiles.indexOf(hide.parentElement?.querySelector('.browser-quick-place'));
+    setBrowserNtpHiddenList(list);
+    renderBrowserQuickPlaces();
+    const next = $('browserQuickPlacesList').querySelectorAll('.browser-quick-place');
+    (next[Math.min(Math.max(0, index), next.length - 1)] || $('browserNtpSearch'))?.focus({ preventScroll: true });
+    return;
+  }
   const open = event.target.closest('[data-browser-quick-place]');
   if (!open) return;
   const url = open.dataset.browserQuickPlace;
@@ -11411,13 +11585,24 @@ if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('c
   await navigateBrowserFromAddress();
 });
 if ($('browserNtpResumeList')) $('browserNtpResumeList').addEventListener('click', (event) => {
+  const watch = event.target.closest('[data-browser-ntp-watch]');
+  if (watch) {
+    // Kütüphane kaydı: kütüphanedeki "Devam et" ile aynı akış (konumdan sürdürür).
+    const item = watchItemByKey(watch.dataset.browserNtpWatch);
+    if (item) void openWatchLibraryItem(item, item.completed ? 0 : Number(item.position) || 0);
+    return;
+  }
   const open = event.target.closest('[data-browser-ntp-resume]');
   if (open) browserNtpNavigate(open.dataset.browserNtpResume);
+});
+$('browserQuickPlacesRestore')?.addEventListener('click', () => {
+  setBrowserNtpHiddenList([]);
+  renderBrowserQuickPlaces();
 });
 if ($('browserNtpSearch')) {
   const ntpSearch = $('browserNtpSearch');
   ntpSearch.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.isComposing) {
       event.preventDefault();
       browserNtpNavigate(ntpSearch.value.trim());
     } else if (event.key === 'Escape') {
@@ -11777,12 +11962,10 @@ if ($('browserSitePermissionsOpen')) $('browserSitePermissionsOpen').addEventLis
   $('browserSiteChipDetails')?.removeAttribute('open');
   openBrowserSettings('site', 'browserPermissionsTitle');
 });
-if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => {
-  const control = $('browserAdblockEnabled');
-  if (!control || control.disabled) return;
-  control.checked = !control.checked;
-  control.dispatchEvent(new Event('change', { bubbles: true }));
-});
+if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => { void toggleBrowserAdblockForSite(); });
+// Çip her açıldığında o anki sekmenin sitesine göre durum yeniden hesaplanır
+// (sekme değişimi, gezinme, ayarlar panelinden yapılan değişiklik).
+$('browserSiteChipDetails')?.addEventListener('toggle', (event) => { if (event.currentTarget.open) syncBrowserAdblockQuick(); });
 if ($('browserPlayerResponseAdPrune')) $('browserPlayerResponseAdPrune').addEventListener('change', (event) => {
   void setBrowserPlayerAdPruneEnabled(event.target.checked);
 });

@@ -162,11 +162,58 @@
     } catch (_) { return ''; }
   }
 
+  // ---- Yeni sekme sayfası (NTP) ----
+  // Hızlı erişim: önce yer imleri (kullanıcının seçimi), sonra geçmiş sıklık ×
+  // yakınlık puanıyla. Aynı adres (şema/www/sondaki / farkı) tek kutucuk; yalnız
+  // http(s); kullanıcının NTP'den gizlediği adresler çıkarılır.
+  function ntpPlaceKey(url) {
+    return strippedUrl(url).replace(/\/+$/, '').toLowerCase();
+  }
+  function ntpQuickTiles(places, { hidden = [], limit = 8, now = Date.now() } = {}) {
+    const hiddenKeys = new Set((Array.isArray(hidden) ? hidden : []).map(ntpPlaceKey));
+    const seen = new Set();
+    const out = [];
+    const take = (item, bookmark) => {
+      if (out.length >= limit || !item || !/^https?:\/\//i.test(String(item.url || ''))) return;
+      const key = ntpPlaceKey(item.url);
+      if (!key || seen.has(key) || hiddenKeys.has(key)) return;
+      seen.add(key);
+      out.push({ url: item.url, title: item.title || '', bookmark, key });
+    };
+    for (const item of (places && Array.isArray(places.bookmarks) ? places.bookmarks : [])) take(item, true);
+    const history = (places && Array.isArray(places.history) ? places.history : [])
+      .map((item, index) => ({ item, index, score: frecencyScore(item, now) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    for (const { item } of history) take(item, false);
+    return out;
+  }
+
+  // İzlemeye devam et: izleme kütüphanesindeki yarım kalmış web/YouTube kayıtları
+  // (en son izlenen önce), ilerleme ve kalan süreyle. Baştaki birkaç saniye ve
+  // bitmiş kayıtlar "devam" sayılmaz.
+  function ntpContinueItems(watchItems, { limit = 6, minPosition = 30 } = {}) {
+    return (Array.isArray(watchItems) ? watchItems : [])
+      .filter((item) => item && (item.type === 'youtube' || item.type === 'browser') && !item.completed
+        && Number(item.position) >= minPosition && item.sourceRef)
+      .sort((a, b) => (Number(b.lastWatched) || 0) - (Number(a.lastWatched) || 0))
+      .slice(0, limit)
+      .map((item) => {
+        const duration = Number(item.duration) || 0;
+        const position = Number(item.position) || 0;
+        return {
+          key: item.key, url: item.sourceRef, title: item.title || '', type: item.type, position, duration,
+          progress: duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0,
+          remaining: duration > 0 ? Math.max(0, duration - position) : 0,
+        };
+      });
+  }
+
   const RTL_LANGUAGE = /^(?:ar|fa|he|iw|ur|ps|yi|dv|ckb|sd|ug)(?:[-_]|$)/i;
   function isRtlLanguage(code) { return RTL_LANGUAGE.test(String(code || '')); }
 
   return {
     foldSearchText, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
     visibleTabsInDisplayOrder, langFromPath, isRtlLanguage, originOf, httpFallbackUrl,
+    ntpPlaceKey, ntpQuickTiles, ntpContinueItems,
   };
 });
