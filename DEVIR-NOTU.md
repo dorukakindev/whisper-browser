@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
+Güncel çalışma: [docs/devir/2026-09-29-1014.md](docs/devir/2026-09-29-1014.md) — R248 kapanış: kesin master merge kimliği (de41767)
+Önceki çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
 Önceki çalışma: [docs/devir/2026-09-29-1001.md](docs/devir/2026-09-29-1001.md) — R247 kapanış: kesin master merge kimliği (d1dae51)
 Önceki çalışma: [docs/devir/2026-09-29-0952.md](docs/devir/2026-09-29-0952.md) — R247: #189 review triage (whisper-pdf kaynak kimliği oturum nonce'u)
 Önceki çalışma: [docs/devir/2026-09-29-0945.md](docs/devir/2026-09-29-0945.md) — R246 kapanış: kesin master merge kimliği (7fb6a25)
