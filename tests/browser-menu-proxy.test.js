@@ -7,6 +7,7 @@ const path = require('node:path');
 const { JSDOM } = require('jsdom');
 const root = path.join(__dirname, '..');
 const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
+const helpers = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer-helpers.js'), 'utf8');
 
 function sliceBetween(source, start, end) {
   const i = source.indexOf(start);
@@ -242,6 +243,8 @@ function sliceFunction(source, signature) {
     ...subs.flatMap((s) => [s.querySelector('summary'), ...s.querySelectorAll('button')])];
   menu.addEventListener('keydown', (event) => {
     if (!menu.open) return;
+    // wireDetailsMenuNav'daki form-kontrol kapısının eşdeğeri.
+    if (event.target?.closest?.('input, select, textarea')) return;
     const items = navOrder().filter(Boolean);
     const idx = items.indexOf(doc.activeElement);
     if (event.key === 'ArrowDown') items[(idx + 1 + items.length) % items.length]?.focus();
@@ -267,5 +270,17 @@ function sliceFunction(source, signature) {
   assert.ok(subs.every((s) => !s.classList.contains('hidden')), 'gruplar geri döner');
   assert.ok(subs.every((s) => s.open === false), 'gruplar kapalı duruma döner');
 })().then(() => {
-  console.log('browser-menu-proxy: YouTube öndoldurma, vekil tıklama ve menü araması kilitlendi.');
-});
+  // ---- 4. detailsNavSkipsControl: form kontrolleri menü ok gezintisinden muaf ----
+  const skipSrc = sliceFunction(helpers, 'function detailsNavSkipsControl(target) {');
+  const detailsNavSkipsControl = new Function(`${skipSrc}; return detailsNavSkipsControl;`)();
+  const d = new JSDOM(`<details open><summary>S</summary><button id="b1">x</button>
+    <input id="i1"><select id="s1"><option>a</option></select><textarea id="t1"></textarea></details>`);
+  const dd = d.window.document;
+  assert.equal(detailsNavSkipsControl(dd.getElementById('i1')), true, 'input odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('s1')), true, 'select odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('t1')), true, 'textarea odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('b1')), false, 'düğme odaklıyken ok gezintisi çalışır');
+  assert.equal(detailsNavSkipsControl(dd.querySelector('summary')), false, 'summary odaklıyken ok gezintisi çalışır');
+  assert.equal(detailsNavSkipsControl(null), false, 'boş hedef güvenli');
+  console.log('browser-menu-proxy: YouTube öndoldurma, vekil tıklama, menü araması ve kontrol kapısı kilitlendi.');
+}, (error) => { console.error(error); process.exit(1); });
