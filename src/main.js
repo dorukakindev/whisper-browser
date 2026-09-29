@@ -13875,6 +13875,13 @@ function createWindow() {
       webSecurity: true,
       webviewTag: false,
       allowRunningInsecureContent: false,
+      // Kendi renderer paketimiz her açılışta aynı büyük betikleri yükler;
+      // ısı-kontrolü atlanınca V8 kod önbelleği ilk yüklemeden itibaren
+      // deterministik devreye girer (VS Code'un da kullandığı politika).
+      // Üçüncü-taraf sayfalar (sekmeler, popup) varsayılan buluşsal
+      // politikada kalır — rastgele sitelerin betiklerini agresifçe
+      // önbelleğe almanın kazancı yok.
+      v8CacheOptions: 'bypassHeatCheck',
     },
   });
   installSystemAudioCaptureHandler();

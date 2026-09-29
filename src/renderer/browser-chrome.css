@@ -1118,6 +1118,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-tab-preview-title { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-tab-preview-url { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
 .browser-tab-preview-chips { margin-top: 4px; font-size: 11px; color: var(--accent); }
+/* Yerleşim şeridi tam karta yetmeyince tek satırlık varyant: url/rozet satırı
+   gizlenir, yalnız başlık kalır — kart şeridin içine sığar, sırıtmaz. */
+.browser-tab-preview.is-compact { padding: 4px 8px; }
+.browser-tab-preview.is-compact .browser-tab-preview-url,
+.browser-tab-preview.is-compact .browser-tab-preview-chips { display: none; }
 .browser-tab-menu { min-width: 210px; }
 /* 5) Açık tema: browser araç çubuğundaki ikincil ikonlar. */
 html[data-theme="light"] #browserSignalClose,

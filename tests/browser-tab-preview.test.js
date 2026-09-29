@@ -86,3 +86,18 @@ test('kart slot alanından uzunsa maxHeight ile kendi içinde kırpılır', () =
   assert.equal(cap, 92);
   assert.ok(top + cap <= 100, `bottom=${top + cap} slotTop=100 aşıldı`);
 });
+
+// R244: kart doğal haliyle krom şeridine sığmıyorsa tek satırlık kompakt
+// varyanta düşer; sığabildiği durumda normal varyant korunur.
+test('kart şeride sığmayınca is-compact sınıfı eklenir', () => {
+  // slotTop=50 → kullanılabilir 42px; cardH=60 > 42 → kompakt.
+  const { ctx, appended } = makeHarness({ slotTop: 50, cardH: 60 });
+  ctx.__show('t1', anchor);
+  assert.match(appended[0].className, /\bis-compact\b/);
+});
+
+test('kart şeride sığıyorsa normal varyant korunur', () => {
+  const { ctx, appended } = makeHarness({ slotTop: 200, cardH: 60 });
+  ctx.__show('t1', anchor);
+  assert.doesNotMatch(appended[0].className, /is-compact/);
+});
