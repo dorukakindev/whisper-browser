@@ -9235,7 +9235,10 @@ async function requestPinnedSubtitleBuffer(requestUrl, pin, { headers = {}, sign
       response.on('data', (chunk) => {
         size += chunk.length;
         if (size > limit) {
-          request.destroy(new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.'));
+          // İlke hatası kodlanır — çağıran taraf proxy yedeğine düşerken bunu
+          // ağ hatası sanıp ikinci istek yapmasın (yanıt sınırı aşmışken
+          // aynı gövdenin proxy üzerinden de çekilmesi maliyeti iki katlar).
+          request.destroy(Object.assign(new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.'), { code: 'ESUBTITLE_LIMIT' }));
           return;
         }
         chunks.push(chunk);
@@ -9256,7 +9259,7 @@ async function requestPinnedSubtitleBuffer(requestUrl, pin, { headers = {}, sign
       });
       response.on('error', (error) => finish(reject, error));
     });
-    const onAbort = () => request.destroy(signal?.reason || new Error('Altyazı isteği iptal edildi.'));
+    const onAbort = () => request.destroy(signal?.reason || Object.assign(new Error('Altyazı isteği iptal edildi.'), { code: 'ERR_ABORTED' }));
     request.setTimeout(BROWSER_FETCH_TIMEOUT, () => request.destroy(Object.assign(new Error('Altyazı isteği zaman aşımına uğradı.'), { code: 'ETIMEDOUT' })));
     request.on('error', (error) => finish(reject, error));
     if (signal?.aborted) onAbort();
@@ -9335,7 +9338,18 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
         } catch (directError) {
           // 'DIRECT; PROXY …' zinciri: doğrudan bacak düşerse Chromium'un
           // proxy yedeği denenir; tek DIRECT bacakta hata aynen yükselir.
-          if (proxyChain.length < 2) throw directError;
+          // İlke hatası (boyut sınırı, kullanıcı iptali) ağ hatası değildir —
+          // proxy yedeğine de aynı yanıt/iptal geçerli, ikinci istek yapılmaz.
+          if (proxyChain.length < 2
+              || directError?.code === 'ESUBTITLE_LIMIT'
+              || directError?.code === 'ERR_ABORTED'
+              || signal?.aborted) {
+            throw directError;
+          }
+          // Yeniden-doğrulama: pin doğrulaması ile bu istek arasında DNS
+          // değişmiş olabilir (rebinding penceresi) — Chromium bacak kendi
+          // çözümlemesini yapacağı için hedef hâlâ genel olmalı.
+          await assertPublicBrowserSubtitleUrl(requestUrl);
           response = await tab.view.webContents.session.fetch(requestUrl, {
             method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,
             ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),

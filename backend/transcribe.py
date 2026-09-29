@@ -3746,7 +3746,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         """
         source_parts = [entries[index][2] for index in group]
         for check in (
-            lambda: sentence_part_boundary_issue(source_parts, parts),
+            lambda: sentence_part_boundary_issue(source_parts, parts, source_lang),
             lambda: part_repetition_issue(source_parts, parts),
             lambda: part_tail_issue(parts, target),
             lambda: part_anchor_issue(source_parts, parts, target),
@@ -8307,7 +8307,24 @@ def parse_srt(text, vtt=False):
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     entries = []
     lines = text.strip().split("\n")
-    timing_indices = [i for i, line in enumerate(lines) if _SRT_TIMING.search(line)]
+    meta_lines = set()
+    if vtt:
+        # NOTE/STYLE/REGION blokları paragraf düzeyinde ayrışır: içlerindeki
+        # zaman kodu benzeri satırlar cue sınırı sayılmaz (çevirmen notundaki
+        # "00:05 --> 00:10" yazısı sahte cue üretip notu çeviriye sızdırıyordu).
+        idx = 0
+        while idx < len(lines):
+            if not lines[idx].strip():
+                idx += 1
+                continue
+            end = idx
+            while end < len(lines) and lines[end].strip():
+                end += 1
+            if _VTT_META_BLOCK.match(lines[idx].strip()):
+                meta_lines.update(range(idx, end))
+            idx = end
+    timing_indices = [i for i, line in enumerate(lines)
+                      if _SRT_TIMING.search(line) and i not in meta_lines]
     for position, timing_idx in enumerate(timing_indices):
         m = _SRT_TIMING.search(lines[timing_idx])
         if not m:

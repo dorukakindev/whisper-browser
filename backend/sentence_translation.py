@@ -57,11 +57,16 @@ def set_target_language(language):
     """Çeviri hedef dilinin sıra sayısı kuralını ayarla; önceki değeri döndür."""
     global _target_ordinals
     previous = _target_ordinals
-    _target_ordinals = str(language or "").lower().split("-")[0] in _ORDINAL_TARGET_LANGS
+    _target_ordinals = _lang_ordinals(language)
     return previous
 
 
-def _numeric_separator(text, match):
+def _lang_ordinals(language):
+    """Verilen dil noktalı sıra sayısı yazıyor mu ('21. yüzyıl')."""
+    return str(language or "").lower().split("-")[0] in _ORDINAL_TARGET_LANGS
+
+
+def _numeric_separator(text, match, ordinals=None):
     """'3.000' / '2.4' / 'v1.2' / '21. yüzyıl' — rakamla kapanmayan nokta cümle sonu değildir.
 
     Türkçe binlik ayraç ve ondalık nokta ('Kasada 3.000 sikke vardı.') satır
@@ -91,20 +96,26 @@ def _numeric_separator(text, match):
     # Sıra sayısını noktayla yazan hedef dilde kısa sayı + nokta + büyük harf
     # ('2. Dünya Savaşı', '3. Selim') ifade içidir; eskiden '2.' sonrasına satır
     # sonu konuyordu. 4+ basamak (yıl: '1935. Sonra…') gerçek cümle sonu kalır.
-    if _target_ordinals and nxt.isupper() and 0 < i - k <= 3:
+    if (ordinals if ordinals is not None else _target_ordinals) and nxt.isupper() and 0 < i - k <= 3:
         return True
     return nxt.islower()
 
 
-def sentence_end_count(text):
-    """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz)."""
+def sentence_end_count(text, language=None):
+    """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz).
+
+    language verilirse sıra-sayısı kuralı o dile göre uygulanır — kaynak
+    parçalar hedefin değil kendi dilinin kuralıyla sayılmalıdır ('3. Then'
+    İngilizce kaynakta gerçek cümle sonudur; TR kuralı sıra sayısı sanırdı).
+    """
     text = normalized_text(text)
+    ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
-               if not _numeric_separator(text, match)
+               if not _numeric_separator(text, match, ordinals)
                and sentence_ended(text[:match.end()]))
 
 
-def internal_sentence_end_count(text):
+def internal_sentence_end_count(text, language=None):
     """Parça İÇİNDE tamamlanan cümle sayısı (parçanın kendi sonu hariç).
 
     "Wait. Are you sure" gibi gövdesinde tam cümle barındıran parçaların
@@ -112,13 +123,14 @@ def internal_sentence_end_count(text):
     istenen davranış kalite kapısında reddediliyordu.
     """
     text = normalized_text(text)
+    ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
-               if not _numeric_separator(text, match)
+               if not _numeric_separator(text, match, ordinals)
                and sentence_ended(text[:match.end()])
                and normalized_text(text[match.end():]))
 
 
-def sentence_part_boundary_issue(source_parts, translated_parts):
+def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=None):
     """Hedefin cümleyi kaynak cue'da olandan fazla cümleyle kapatmasını engelle.
 
     Kota = kaynak parçanın içerdiği toplam tam cümle sayısı. Böylece gövdesinde
@@ -130,8 +142,12 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
             or not isinstance(translated_parts, (list, tuple))
             or len(source_parts) != len(translated_parts)):
         return "cue_siniri_gecersiz"
+    # Kaynak parçalar kendi dilinin sıra-sayısı kuralıyla sayılır — '3. Then'
+    # İngilizce'de gerçek cümle sonudur; TR kuralı sıra sayısı sanıp doğru
+    # çeviriyi 'fazla cümle' diye reddediyordu.
+    src_count = lambda text: sentence_end_count(text, language=source_lang)
     for index in range(max(0, len(source_parts) - 1)):
-        if sentence_end_count(translated_parts[index]) > sentence_end_count(source_parts[index]):
+        if sentence_end_count(translated_parts[index]) > src_count(source_parts[index]):
             return f"erken_cumle_sonu:{index}"
     # Son parça: kaynak cümle kapalı bitiyorsa hedef fazladan cümle sonu
     # üretemez; kaynak açık bitiyorsa (kesinti/devam) hedefin doğal kapanışına
@@ -140,7 +156,7 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
     # tek-parçalı gruplar yukarıdaki döngüye hiç girmediği için ayrı kontrol
     # gereklidir.
     last = len(source_parts) - 1
-    quota = sentence_end_count(source_parts[last])
+    quota = src_count(source_parts[last])
     if not sentence_ended(source_parts[last]):
         quota += 1
     if sentence_end_count(translated_parts[last]) > quota:

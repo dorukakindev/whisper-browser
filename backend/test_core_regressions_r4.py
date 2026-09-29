@@ -46,6 +46,15 @@ class SubtitleReadWriteTests(unittest.TestCase):
             "00:03.000 --> 00:04.000\nBye.\n", ".vtt")
         self.assertEqual([text for _s, _e, text in entries], ["Hello.", "Bye."])
 
+    def test_vtt_note_block_timing_line_is_not_a_cue_boundary(self):
+        # NOT bloğunun İÇİNDEKİ zaman kodu benzeri satır sahte cue üretmez —
+        # eskiden not içeriği (ör. 'editor note') cue olup çeviriye/çıktıya sızıyordu.
+        entries = T.parse_subtitle_entries(
+            "WEBVTT\n\n00:01.000 --> 00:02.000\nHello.\n\n"
+            "NOTE timing revision\n00:10.000 --> 00:12.000\neditor note text\n\n"
+            "00:03.000 --> 00:04.000\nBye.\n", ".vtt")
+        self.assertEqual([text for _s, _e, text in entries], ["Hello.", "Bye."])
+
     def test_empty_ass_cues_are_dropped_with_their_formats(self):
         entries = [(1.0, 2.0, "Hi."), (3.0, 4.0, ""), (5.0, 6.0, "Bye.")]
         formats = [{"align": 8}, {"align": None}, {"align": 2}]
