@@ -53,8 +53,9 @@ app.whenReady().then(async () => {
   const page2 = await until(() => webContents.getAllWebContents().find(item => item.getURL() === 'https://split-smoke.test/two'), 'Sayfa iki');
   await until(() => page2.executeJavaScript('document.readyState === "complete"'), 'Sayfa iki yükleme');
   await run(`return window.api.activateBrowserTab('${tab1}')`);
-  const split = await run(`return window.api.setBrowserSplit('${tab2}', 50, true)`);
-  assert.equal(split.ok, true, split.error);
+  // Ham IPC yerine renderer yardımcısı: gerçek UI yolu result.split'i
+  // player.browserSplit'e senkronlar (push olayı split taşımaz).
+  await run(`return setBrowserSplit('${tab2}', 50)`);
   await until(() => run(`return player.browserSplit?.active && player.browserSplit.secondaryTabId === '${tab2}'`), 'Bölünmüş görünüm');
   await until(() => run(`return player.browserActiveTabId === '${tab1}'`), 'Aktif sekme birinci');
 

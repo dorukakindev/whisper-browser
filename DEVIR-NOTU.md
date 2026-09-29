@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1014.md](docs/devir/2026-09-29-1014.md) — R248 kapanış: kesin master merge kimliği (de41767)
+Güncel çalışma: [docs/devir/2026-09-29-1042.md](docs/devir/2026-09-29-1042.md) — R249: Electron smoke regresyonu (2 test-tarafı kusur) + #187 ESUBTITLE_LIMIT
+Önceki çalışma: [docs/devir/2026-09-29-1014.md](docs/devir/2026-09-29-1014.md) — R248 kapanış: kesin master merge kimliği (de41767)
 Önceki çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
 Önceki çalışma: [docs/devir/2026-09-29-1001.md](docs/devir/2026-09-29-1001.md) — R247 kapanış: kesin master merge kimliği (d1dae51)
 Önceki çalışma: [docs/devir/2026-09-29-0952.md](docs/devir/2026-09-29-0952.md) — R247: #189 review triage (whisper-pdf kaynak kimliği oturum nonce'u)
