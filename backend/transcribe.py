@@ -5739,6 +5739,10 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
                 continue
             if merged:
                 merged[-1][2] = f"{(merged[-1][2] or '').strip()} {(t or '').strip()}".strip()
+                # Sondaki kısa cue'nun konuşma zamanı da korunur: öncekinin
+                # bitişi kısa cue'nun bitişine uzatılır (metin yalnız erkende
+                # gösterilmez).
+                merged[-1][1] = max(merged[-1][1], e)
                 continue
         merged.append([s, e, t])
 
