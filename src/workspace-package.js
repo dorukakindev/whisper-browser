@@ -137,6 +137,15 @@ function sanitizeImportedCatalog(value) {
   }
   return value;
 }
+function sanitizeImportedHistory(value) {
+  // İçe aktarılan geçmiş kayıtlarındaki dosya yolları bu makinede doğrulanmadı.
+  // İşaretlenmeyen kayıt, history:authorizeFiles yolunda onaysız altyazı erişimi
+  // veriyor ve \\sunucu\paylaşım yollarına dokunarak NTLM özetini sızdırabiliyordu.
+  for (const record of (Array.isArray(value) ? value : [])) {
+    if (record && typeof record === 'object') record.imported = true;
+  }
+  return value;
+}
 function validate(data) {
   storageValues(data?.rendererValues);
   if (data?.format !== 'whisper-workspace' || data.version !== 1 || !Array.isArray(data.files) || data.files.length > 20000 || typeof data.sourceRoot !== 'string' || data.sourceRoot.length < 3) throw new Error('Geçerli bir çalışma paketi seçin.');
@@ -168,6 +177,7 @@ function restorePackage(root, data, videoMappings = []) {
       let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
       if (file.name === 'browser-session.json') parsed = sanitizeImportedSession(parsed);
       if (file.name === 'media-catalog.json') parsed = sanitizeImportedCatalog(parsed);
+      if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);
       bytes = Buffer.from(JSON.stringify(parsed));
     }
     return { destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };

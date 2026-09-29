@@ -1400,6 +1400,16 @@ ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
   }
 });
 
+// Altyazı dil kodu dosya adına girer (invidious.py: "<başlık> [id].<dil>.srt").
+// Doğrulanmazsa kötü niyetli bir Invidious örneğinin ilan ettiği "..\\..\\x"
+// gibi bir kod Windows'ta çıktı klasörü dışına dosya yazdırıyordu. Değerler
+// argparse'ın '-' ile başlayan değeri bayrak sanmaması için --opt=değer biçiminde geçer.
+const SUBTITLE_LANG_CODE = /^[A-Za-z0-9_-]{1,32}$/;
+function subtitleLangArg(value) {
+  const lang = String(value || 'en');
+  return SUBTITLE_LANG_CODE.test(lang) ? lang : null;
+}
+
 ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const o = opts || {};
@@ -1411,9 +1421,11 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   } catch (error) {
     return { ok: false, error: error.message };
   }
+  const subLang = subtitleLangArg(o.lang);
+  if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = [
     'subs', '--url', mediaUrl.url,
-    '--sub-lang', o.lang || 'en',
+    `--sub-lang=${subLang}`,
     '--sub-auto', o.auto ? 'true' : 'false',
     '--output-dir', outDir,
   ];
@@ -1462,7 +1474,9 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
     return { ok: false, error: error.message };
   }
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['subs', '--url', mediaUrl.url, '--lang', o.lang || 'en', '--output-dir', outDir];
+  const subLang = subtitleLangArg(o.lang);
+  if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
+  const args = ['subs', '--url', mediaUrl.url, `--lang=${subLang}`, '--output-dir', outDir];
   if (o.auto) args.push('--auto');
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
@@ -1528,7 +1542,7 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
     return { ok: false, error: 'Arama terimi gerekli.' };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['search', '--query', query.trim().slice(0, 100)];
+  const args = ['search', `--query=${query.trim().slice(0, 100)}`];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
   const searchType = String(opts && opts.searchType || 'video').toLowerCase();
   if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
@@ -1552,7 +1566,7 @@ ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
   const q = String(query || '').trim().slice(0, 100);
   if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['suggest', '--query', q];
+  const args = ['suggest', `--query=${q}`];
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
@@ -1594,7 +1608,7 @@ ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
   }
   const instance = resolveInvidiousInstance(o.instance);
   const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
-  if (query) args.push('--query', query);
+  if (query) args.push(`--query=${query}`);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
   if (instance) args.push('--instance', instance);
@@ -1730,13 +1744,13 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   const args = [
     'download_stream',
     '--video-url', o.videoUrl,
-    '--title', String(o.title || 'invidious-video').slice(0, 120),
+    `--title=${String(o.title || 'invidious-video').slice(0, 120)}`,
     '--output-dir', outDir,
   ];
   if (o.audioUrl) args.push('--audio-url', o.audioUrl);
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
-  if (o.videoId) args.push('--video-id', String(o.videoId).slice(0, 40));
+  if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
   // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
   return runMediaCommand(args, (ev) => {
@@ -4933,11 +4947,23 @@ function openExternalByPolicy(rawUrl, surface = 'renderer-external') {
   catch (_) { return Promise.resolve(false); }
 }
 
+// Web içeriğinin tetiklediği dış uygulama açılışları (mailto: vb.) kısılır:
+// sayfa tıklama olmadan location='mailto:…' döngüsüyle posta istemcisini arka
+// arkaya açabiliyordu. Kaynak webContents başına 3 sn'de en fazla bir açılış.
+const browserExternalOpenAt = new WeakMap();
+function openExternalFromWebContent(contents, rawUrl) {
+  const now = Date.now();
+  const key = contents && typeof contents === 'object' ? contents : null;
+  if (key && now - (browserExternalOpenAt.get(key) || 0) < 3000) return Promise.resolve(false);
+  if (key) browserExternalOpenAt.set(key, now);
+  return openExternalByPolicy(rawUrl);
+}
+
 function browserWindowOpenHandler(sourceContents, tab = null) {
   return ({ url }) => {
     const decision = decideUrlPolicy(url, 'browser-window-open', safeWebContentsUrl(sourceContents));
     if (decision.action === 'external') {
-      void openExternalByPolicy(decision.url);
+      void openExternalFromWebContent(sourceContents, decision.url);
       return { action: 'deny' };
     }
     if (decision.action !== 'allow') return { action: 'deny' };
@@ -4984,7 +5010,7 @@ function configureBrowserPopup(popup, tab, details = {}) {
   const detachNavigationGuard = attachNavigationGuard(contents, {
     surface: 'browser-navigation',
     sourceUrl: () => safeWebContentsUrl(contents),
-    openExternal: (url) => openExternalByPolicy(url),
+    openExternal: (url) => openExternalFromWebContent(contents, url),
   });
   contents.on('did-create-window', (child, childDetails = {}) => configureBrowserPopup(child, tab, childDetails));
   popup.once('closed', detachNavigationGuard);
@@ -6875,6 +6901,8 @@ function pruneReplacedBrowserPageBlocks(session, replacedIds) {
   }
 }
 
+const MAX_AUTO_CONTINUE_SESSION_BLOCKS = 20000;
+const MAX_PENDING_DYNAMIC_BLOCKS = 3000;
 function acceptDynamicBrowserPageBlocks(tab, payload) {
   const session = tab?.pageTranslateSession;
   if (!session || session.generation !== tab.generation || !payload || payload.bridgeToken !== tab.bridgeToken) return;
@@ -6895,10 +6923,22 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
   if (session.autoContinue === false) return;
   const blocks = normalizePageBlocks(payload.blocks);
   if (!blocks.length) return;
+  // Karakter bütçesi "sınırsız" olsa bile otomatik devam kötü niyetli ya da
+  // sonsuz akışlı bir sayfada API harcamasını ve belleği sınırsız büyütmesin:
+  // oturum üst sınıra ulaşınca otomatik devam durur, kullanıcı elle sürdürebilir.
+  if (session.blocks.size >= MAX_AUTO_CONTINUE_SESSION_BLOCKS) {
+    session.autoContinue = false;
+    sendBrowserEvent(tab, { type: 'notice', success: false,
+      message: `Sayfa sürekli yeni metin ekliyor; otomatik çeviri ${MAX_AUTO_CONTINUE_SESSION_BLOCKS} blokta durduruldu.` });
+    return;
+  }
   if (tab.pageTranslateJob) {
     const job = tab.pageTranslateJob;
     job.dynamicBlocks ||= new Map();
-    for (const block of blocks) job.dynamicBlocks.set(block.id, block);
+    for (const block of blocks) {
+      if (job.dynamicBlocks.size >= MAX_PENDING_DYNAMIC_BLOCKS) break;
+      job.dynamicBlocks.set(block.id, block);
+    }
     void job.scheduler.whenIdle().then(() => {
       const pending = [...(job.dynamicBlocks?.values() || [])];
       job.dynamicBlocks?.clear();
@@ -12391,7 +12431,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   attachNavigationGuard(wc, {
     surface: 'browser-navigation',
     sourceUrl: () => safeWebContentsUrl(wc),
-    openExternal: (url) => openExternalByPolicy(url),
+    openExternal: (url) => openExternalFromWebContent(wc, url),
   });
   const prepareNavigationCompatibility = (event, legacyUrl) => {
     const url = typeof event?.url === 'string' ? event.url : legacyUrl;
@@ -12696,10 +12736,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // yerine).
     (async () => {
       try {
-        const response = /^https?:\/\//i.test(favicon)
-          ? await withTimeout(wc.session.fetch(favicon, { credentials: 'include' }), 8000,
-            'Favicon indirme zaman aşımına uğradı.')
-          : null;
+        if (!/^https?:\/\//i.test(favicon)) return;
+        // Sayfa, kendi kökeni dışındaki bir favicon'u özel ağ adresinden
+        // (http://192.168.1.1/cgi?…) ilan ederek ana süreçten çerezli bir GET
+        // yaptırabiliyordu (Chromium'un özel ağ korumasını atlayarak). Farklı
+        // kökenli favicon yalnız genel adrese ve yönlendirmesiz indirilir; yerel ağ
+        // sitesinin kendi favicon'u (aynı köken) etkilenmez.
+        const crossOrigin = browserSiteOrigin(favicon) !== browserSiteOrigin(faviconPageUrl);
+        if (crossOrigin) await assertPublicBrowserSubtitleUrl(favicon);
+        const response = await withTimeout(wc.session.fetch(favicon, {
+          credentials: 'include', ...(crossOrigin ? { redirect: 'manual' } : {}),
+        }), 8000, 'Favicon indirme zaman aşımına uğradı.');
         if (!response || !response.ok) return;
         const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
         if (!/^image\//.test(mime)) return;
@@ -16971,13 +17018,27 @@ ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
   const files = [];
   let video = '';
   const videoCandidate = [record.video, record.input]
-    .find((value) => typeof value === 'string' && value && !/^https?:/i.test(value));
+    .find((value) => typeof value === 'string' && value && !/^https?:/i.test(value)
+      && !(record.imported && /^(?:\\\\|\/\/)/.test(value)));
   if (videoCandidate) {
     try { video = await authorizeMediaFile(videoCandidate); }
     catch (error) { return { ok: false, error: error.message, files: [], video: '' }; }
   }
+  // Paketten içe aktarılan kayıt (workspace-package sanitizeImportedHistory):
+  // ağ paylaşımı yoluna hiç dokunulmaz (NTLM sızıntısı) ve yalnız bu makinenin
+  // çıktı/girdi klasörlerindeki altyazılara onaysız erişim verilir.
+  const importedRoots = record.imported ? [loadSettings().outputDir, loadSettings().inputDir]
+    .filter((dir) => typeof dir === 'string' && dir)
+    .map((dir) => { try { return fs.realpathSync(dir); } catch (_) { return ''; } })
+    .filter(Boolean) : [];
   for (const value of candidates) {
-    if (!value || !fs.existsSync(value)) continue;
+    if (!value) continue;
+    if (record.imported) {
+      if (/^(?:\\\\|\/\/)/.test(value)) continue;
+      let resolved = '';
+      try { resolved = fs.realpathSync(value); } catch (_) { continue; }
+      if (!importedRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep))) continue;
+    } else if (!fs.existsSync(value)) continue;
     const granted = subtitleFileAccess.grant(value);
     if (granted) files.push(granted);
   }
