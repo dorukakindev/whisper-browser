@@ -3,6 +3,7 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+- R277: Çok-ekran pencere durumu — boyut kelepçesi + x/y saklamama kuralı saf `window-state` modülüne çıkarıldı; bozuk/monitör-kopması matrisi 21 kontrolle kilitlendi.
 - R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
 - Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
