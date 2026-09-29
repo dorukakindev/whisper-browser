@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0135.md](docs/devir/2026-09-30-0135.md) — R266: çeviri önbelleği disk-büyüme soak'u (50k ölçek, journal eşiği, diriliş yok — temiz)
+Güncel çalışma: [docs/devir/2026-09-30-0140.md](docs/devir/2026-09-30-0140.md) — R267: diarization hattı birim kilitleri (PCM WAV/hata yolları/auth imzası — temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0135.md](docs/devir/2026-09-30-0135.md) — R266: çeviri önbelleği disk-büyüme soak'u (50k ölçek, journal eşiği, diriliş yok — temiz)
 Önceki çalışma: [docs/devir/2026-09-29-1508.md](docs/devir/2026-09-29-1508.md) — R265: alt kare navigasyon guard'ları (TV/ana pencere/mini boşlukları kapatıldı)
 Önceki çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
 Önceki çalışma: [docs/devir/2026-09-29-1447.md](docs/devir/2026-09-29-1447.md) — R263: 10k-cue overlay sınır perf (O(2n)→O(log n+aktif), ~176×)
