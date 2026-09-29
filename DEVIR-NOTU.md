@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0449.md](docs/devir/2026-09-29-0449.md) — R233: tur-2 kalanı + #165 review (Ctrl+F tek köprü, menü odak, yer-imi kimlik odak, split ikincil kısayol)
+- **Güncel çalışma:** [2026-09-29-0512](docs/devir/2026-09-29-0512.md) — R234: PR #167 review triage (menü ok çift-işlenmesi + split kısayol smoke'u)
+Önceki çalışma: [docs/devir/2026-09-29-0449.md](docs/devir/2026-09-29-0449.md) — R233: tur-2 kalanı + #165 review (Ctrl+F tek köprü, menü odak, yer-imi kimlik odak, split ikincil kısayol)
 Önceki çalışma: [docs/devir/2026-09-29-0428.md](docs/devir/2026-09-29-0428.md) — R232 kapanış: kesin master merge kimliği (bc4ba08)
 Önceki çalışma: [docs/devir/2026-09-29-0417.md](docs/devir/2026-09-29-0417.md) — R232: tur-2 UI düzeltme paketi (palet çalışmıyordu + 17 bulgu) + regresyon kilitleri
 Önceki çalışma: [docs/devir/2026-09-29-0359.md](docs/devir/2026-09-29-0359.md) — R231b: #164 bug (vekil hedef izleme) + #161/#163 belge flag'leri
