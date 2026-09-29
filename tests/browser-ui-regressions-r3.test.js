@@ -280,5 +280,92 @@ async function test(title, fn) {
     assert.match(renderer, /let _cueSaveBusy = false;/, 'K ile kaydetme yeniden girişe açık');
   });
 
+  await test('kütüphane: aynı dalda üst üste iki tıklamada eski yetki bekleyişi yenisini ezmez', async () => {
+    // openWatchLibraryItem else-dalı eskiden openIntent'i artırmadan yakalıyordu:
+    // iki hızlı tıklama aynı intent'i paylaşıyor, önce çözülen değil son çözülen
+    // kazanıyordu. Düzeltme ++ ile her tıklamayı eski bekleyişleri geçersiz kılar.
+    const gates = new Map();
+    const opened = [];
+    const ctx = vm.createContext({
+      player: { openIntent: 0 },
+      window: { api: { authorizeWatchItem: (key) => new Promise((resolve) => gates.set(key, resolve)) } },
+      openLocalMedia: (path) => opened.push(path),
+      logLine: () => {},
+    });
+    vm.runInContext(`${extractFunction(renderer, 'openWatchLibraryItem')} globalThis.openItem = openWatchLibraryItem;`, ctx);
+    const pA = ctx.openItem({ type: 'local', key: 'a', localPath: '/a.mp4', sourceRef: '/a.mp4' }, 0);
+    const pB = ctx.openItem({ type: 'local', key: 'b', localPath: '/b.mp4', sourceRef: '/b.mp4' }, 0);
+    await new Promise((resolve) => setImmediate(resolve));
+    gates.get('b')({ ok: true, path: '/b.mp4' });
+    await pB;
+    gates.get('a')({ ok: true, path: '/a.mp4' });
+    await pA;
+    assert.deepEqual([...opened], ['/b.mp4'], 'eski tıklamanın geç dönen yetkisi yeni seçimi ezmemeli');
+  });
+
+  await test('PDF: çeviri bitince okuyucu değişmişse bile düğmeler geri açılır', async () => {
+    // Eski finally yalnız player.pdfReader === reader iken düğmeleri açıyordu;
+    // eski belgenin çevirisi sürerken yeni PDF açılınca düğmeler kilitli kalıyordu.
+    const controls = {};
+    const $ = (id) => (controls[id] ||= { disabled: false });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const reader = { pdf: {}, translating: false };
+    const ctx = vm.createContext({
+      $, player: { pdfReader: reader },
+      translateVisiblePdfPagesNow: async () => { await gate; },
+    });
+    vm.runInContext(`${extractFunction(renderer, 'translateVisiblePdfPages')} globalThis.translatePages = translateVisiblePdfPages;`, ctx);
+    const pending = ctx.translatePages(false);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(controls.pdfTranslateAll.disabled, true, 'çeviri sürerken düğmeler kilitli');
+    ctx.player.pdfReader = { pdf: {}, translating: false };
+    release();
+    await pending;
+    assert.equal(controls.pdfTranslateVisible.disabled, false, 'okuyucu değişse de düğmeler açık kalmalı');
+    assert.equal(controls.pdfTranslateAll.disabled, false);
+
+    // Yeni okuyucu kendi çevirisini yürütüyorsa eski finally onu ezmese de
+    // kilidi kaldırmaz.
+    const controls2 = {};
+    const $2 = (id) => (controls2[id] ||= { disabled: false });
+    let release2;
+    const gate2 = new Promise((resolve) => { release2 = resolve; });
+    const ctx2 = vm.createContext({
+      $: $2, player: { pdfReader: { pdf: {}, translating: false } },
+      translateVisiblePdfPagesNow: async () => { await gate2; },
+    });
+    vm.runInContext(`${extractFunction(renderer, 'translateVisiblePdfPages')} globalThis.translatePages = translateVisiblePdfPages;`, ctx2);
+    const pending2 = ctx2.translatePages(true);
+    await new Promise((resolve) => setImmediate(resolve));
+    ctx2.player.pdfReader = { pdf: {}, translating: true };
+    release2();
+    await pending2;
+    assert.equal(controls2.pdfTranslateVisible.disabled, true, 'yeni okuyucu çeviri yürütürken kilidi kalmalı');
+  });
+
+  await test('PDF: yerini alan okuyucunun durum satırı eski çeviriyle ezilmez', async () => {
+    // Çeviri döngüsü pdfHash bekçisiyle durur ama son durum yazısı bekçisizdi:
+    // kapatılan/değişen belgenin sonucu yeni belgenin satırına yazılıyordu.
+    const statusLog = [];
+    const buttons = {};
+    const player = { pdfReader: { pdf: { numPages: 4 }, pdfHash: 'h1', pages: new Map(), currentPage: 1 } };
+    const reader = player.pdfReader;
+    const ctx = vm.createContext({
+      $: (id) => (buttons[id] ||= { disabled: false, value: 'tr' }),
+      player,
+      window: { api: { translatePdfPages: async () => { player.pdfReader = { pdf: { numPages: 4 }, pdfHash: 'h2', pages: new Map() }; return { ok: true }; } } },
+      extractPdfReaderPage: async () => {},
+      renderPdfReaderPage: async () => {},
+      renderPdfTranslation: () => {},
+      updatePdfReaderProgress: () => {},
+      pdfReaderSetStatus: (text) => statusLog.push(text),
+    });
+    vm.runInContext(`${extractFunction(renderer, 'translateVisiblePdfPagesNow')} globalThis.translateNow = translateVisiblePdfPagesNow;`, ctx);
+    await ctx.translateNow(reader, true);
+    assert.deepEqual([...statusLog], ['Kitap çevriliyor… (0/4)'],
+      'okuyucu değiştiyse eski çevirinin ilerleme/sonuç satırı yazılmamalı');
+  });
+
   console.log(`browser-ui-regressions-r3: ${passed} test geçti`);
 })();
