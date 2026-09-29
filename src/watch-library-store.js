@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 
 const CURRENT_SCHEMA_VERSION = 3;
 const DEFAULT_ITEM_LIMIT = 1000;
@@ -356,25 +357,6 @@ function readLegacyTombstones(filePath, io) {
     return Array.isArray(value) ? value : [];
   } catch (_) {
     return [];
-  }
-}
-
-function fsyncFile(filePath, io) {
-  // Windows'ta FlushFileBuffers salt-okunur tanıtıcıda EPERM döndürebilir.
-  // Geçici dosyalar bize ait ve yazılabilir; r+ gerçek flush semantiğini korur.
-  const descriptor = io.openSync(filePath, 'r+');
-  try { io.fsyncSync(descriptor); } finally { io.closeSync(descriptor); }
-}
-
-function fsyncDirectory(dirPath, io) {
-  let descriptor;
-  try {
-    descriptor = io.openSync(dirPath, 'r');
-    io.fsyncSync(descriptor);
-  } catch (_) {
-    // Windows ve bazı dosya sistemleri dizin fsync'ini desteklemez.
-  } finally {
-    if (descriptor !== undefined) try { io.closeSync(descriptor); } catch (_) {}
   }
 }
 
