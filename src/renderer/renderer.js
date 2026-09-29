@@ -169,6 +169,8 @@ async function restorePersistedQueue() {
   }
   _queuePersistenceReady = true;
   renderQueue();
+  // Çalışan kuyruğa yeniden bağlanınca "Sırada dur" görünür olmalı.
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
 }
 
 async function offerBurnInRecovery() {
@@ -557,6 +559,8 @@ function clearQueue() {
   state.queue = state.queue.filter(x => x.status === 'running');
   if (_queueNextTimer) { clearTimeout(_queueNextTimer); _queueNextTimer = null; }
   state.queueRunning = false;
+  state.stopAfterCurrent = false;
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
   renderQueue();
 }
 
@@ -783,6 +787,7 @@ async function processNextQueueItem() {
       next.status = 'pending';
       state.queueRunning = false;
       state.running = false;
+      updateStopAfterBtn();
       renderQueue();
       logLine('Kuyruk, önceki işlem tamamen kapanana kadar duraklatıldı.', 'warn');
       return;
@@ -806,7 +811,11 @@ function syncProcessingControlState() {
   const busy = !!(state.running || state.queueRunning);
   const valueControls = typeof PERSIST_VALUE_CONTROLS !== 'undefined' ? PERSIST_VALUE_CONTROLS : [];
   const checkboxControls = typeof PERSIST_CHECKBOX_CONTROLS !== 'undefined' ? PERSIST_CHECKBOX_CONTROLS : [];
-  for (const id of [...valueControls, ...checkboxControls, 'pickVideosBtn', 'pickFolderBtn']) {
+  // Yalnız iş seçenekleri kilitlenir. Oynatıcı (ses, hız, altyazı boyutu),
+  // arayüz dili/teması, tarayıcı ve SmartTube ayarları çalışan transkripsiyon
+  // işini etkilemez; eskiden iş sürerken ses düğmesi bile gri kalıyordu.
+  const isJobOption = (id) => !/^(?:player[A-Z]|sub(?:Size|Offset)$|browser[A-Z]|st[A-Z]|ui(?:Theme|Locale)$|primarySettingsOpen$)/.test(id);
+  for (const id of [...valueControls, ...checkboxControls].filter(isJobOption).concat(['pickVideosBtn', 'pickFolderBtn'])) {
     const el = $(id);
     if (el) {
       el.disabled = busy;
@@ -3327,6 +3336,8 @@ $('cancelBtn').addEventListener('click', async () => {
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
     state.queueRunning = false;
+    state.stopAfterCurrent = false;
+    updateStopAfterBtn();
     // Çalışan item'ı tekrar "pending" yap ki kullanıcı yeniden başlatabilsin
     const cur = state.queue.find(x => x.id === state.currentQueueId);
     if (cur && cur.status === 'running') cur.status = 'pending';
@@ -4615,7 +4626,11 @@ function updateStopAfterBtn() {
   if (!btn) return;
   btn.classList.toggle('hidden', !state.queueRunning);
   btn.classList.toggle('armed', !!state.stopAfterCurrent);
-  btn.textContent = state.stopAfterCurrent ? '⏸ Sırada durulacak' : '⏸ Sırada dur';
+  btn.setAttribute('aria-pressed', state.stopAfterCurrent ? 'true' : 'false');
+  // textContent düğmenin SVG ve <span>'ını siliyor, çeviri eşleşmesini bozuyordu.
+  const label = btn.querySelector('span');
+  const text = uiText(state.stopAfterCurrent ? 'Sırada durulacak' : 'Sırada dur');
+  if (label) label.textContent = text; else btn.textContent = text;
 }
 $('stopAfterCurrent').addEventListener('click', () => {
   if (!state.queueRunning) return;
@@ -6813,33 +6828,102 @@ function syncBrowserNtpIntro() {
 }
 
 
+// ---- Yeni sekme sayfası ----
+// Sıralama saf modülde (BrowserAddressModel.ntpQuickTiles / ntpContinueItems).
+// Kullanıcının NTP'den kaldırdığı adresler bu cihazda saklanır (yalnız görünüm
+// tercihi; geçmiş/yer imi silinmez).
+const BROWSER_NTP_HIDDEN_KEY = 'browserNtpHidden';
+let browserNtpWatchLoadRequested = false;
+// Bu işlevler betik başlarken (aşağıdaki let/const bildirimlerinden önce)
+// çağrılabilir; geçici ölü bölge hatası NTP'yi kırmasın.
+function browserNtpWatchItems() {
+  try { return Array.isArray(watchLibraryCache) ? watchLibraryCache : []; } catch (_) { return []; }
+}
+function browserNtpFavicon(origin) {
+  try { return origin ? browserFaviconByOrigin.get(origin) || '' : ''; } catch (_) { return ''; }
+}
+function browserNtpHiddenList() {
+  try {
+    const value = JSON.parse(localStorage.getItem(BROWSER_NTP_HIDDEN_KEY) || '[]');
+    return Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 200) : [];
+  } catch (_) { return []; }
+}
+function setBrowserNtpHiddenList(list) {
+  try { localStorage.setItem(BROWSER_NTP_HIDDEN_KEY, JSON.stringify(list.slice(-200))); } catch (_) {}
+}
+
+function browserNtpSiteIcon(url) {
+  let origin = '';
+  try { origin = new URL(url).origin; } catch (_) {}
+  const favicon = browserNtpFavicon(origin);
+  if (favicon) {
+    const img = document.createElement('img');
+    img.className = 'browser-ntp-tile-favicon';
+    img.alt = '';
+    img.src = favicon;
+    img.setAttribute('aria-hidden', 'true');
+    return img;
+  }
+  const avatar = browserTabAvatar({ url });
+  avatar.classList.add('browser-ntp-tile-avatar');
+  return avatar;
+}
+
 function renderBrowserNtpResume() {
   const root = $('browserNtpResume');
   const list = $('browserNtpResumeList');
   if (!root || !list) return;
+  const model = globalThis.BrowserAddressModel;
+  // İzleme kütüphanesi henüz yüklenmediyse bir kez yükle ve yeniden çiz.
+  if (!browserNtpWatchItems().length && !browserNtpWatchLoadRequested && window.api.listWatchLibrary) {
+    browserNtpWatchLoadRequested = true;
+    window.api.listWatchLibrary().then((items) => {
+      if (Array.isArray(items) && items.length && !browserNtpWatchItems().length) watchLibraryCache = items;
+      renderBrowserNtpResume();
+    }).catch(() => {});
+  }
+  const watchItems = model?.ntpContinueItems ? model.ntpContinueItems(browserNtpWatchItems(), { limit: 6 }) : [];
+  const seen = new Set(watchItems.map((item) => model.ntpPlaceKey(item.url)));
+  // Kütüphanede izi olmayan medya sayfaları (eski davranış) yedek olarak kalır.
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const items = (places.history || []).filter((item) => item?.url && item.media).slice(0, 6);
+  const historyItems = (places.history || [])
+    .filter((item) => item?.url && item.media && !seen.has(model?.ntpPlaceKey?.(item.url) || item.url))
+    .slice(0, Math.max(0, 6 - watchItems.length))
+    .map((item) => ({ url: item.url, title: browserPlaceTitle(item), progress: 0, remaining: 0 }));
+  const items = [...watchItems, ...historyItems];
   list.replaceChildren();
   root.classList.toggle('hidden', items.length === 0);
   for (const item of items) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-ntp-resume-item';
-    button.dataset.browserNtpResume = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
+    if (item.key) button.dataset.browserNtpWatch = item.key;
+    else button.dataset.browserNtpResume = item.url;
+    const title = item.title || item.url;
+    const remaining = item.remaining > 0 ? `${pSecToTime(item.remaining)} ${uiText('kaldı')}` : '';
+    button.title = [title, remaining, item.url].filter(Boolean).join(' — ');
     const icon = document.createElement('span');
     icon.className = 'browser-ntp-resume-ico';
     icon.setAttribute('aria-hidden', 'true');
     const copy = document.createElement('span');
     copy.className = 'browser-ntp-resume-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-ntp-resume-title';
-    title.textContent = browserPlaceTitle(item);
-    const url = document.createElement('span');
-    url.className = 'browser-ntp-resume-url';
-    try { url.textContent = new URL(item.url).host || item.url; } catch (_) { url.textContent = item.url; }
-    copy.append(title, url);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-ntp-resume-title';
+    titleEl.textContent = title;
+    const meta = document.createElement('span');
+    meta.className = 'browser-ntp-resume-url';
+    let host = item.url;
+    try { host = new URL(item.url).host.replace(/^www\./, '') || item.url; } catch (_) {}
+    meta.textContent = remaining ? `${host} · ${remaining}` : host;
+    copy.append(titleEl, meta);
     button.append(icon, copy);
+    if (item.progress > 0) {
+      const bar = document.createElement('span');
+      bar.className = 'browser-ntp-resume-progress';
+      bar.setAttribute('aria-hidden', 'true');
+      bar.style.setProperty('--progress', `${Math.round(item.progress * 100)}%`);
+      button.appendChild(bar);
+    }
     list.appendChild(button);
   }
 }
@@ -6851,39 +6935,53 @@ function renderBrowserQuickPlaces() {
   syncBrowserNtpIntro();
   renderBrowserNtpResume();
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const entries = [];
-  const seen = new Set();
-  for (const item of [...(places.bookmarks || []), ...(places.history || [])]) {
-    if (!item?.url) continue;
-    const key = browserPlaceKey(item.url) || item.url;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push(item);
-    if (entries.length >= 8) break;
-  }
+  const hidden = browserNtpHiddenList();
+  const tiles = globalThis.BrowserAddressModel?.ntpQuickTiles
+    ? globalThis.BrowserAddressModel.ntpQuickTiles(places, { hidden, limit: 8 }) : [];
   list.replaceChildren();
-  root.classList.toggle('hidden', entries.length === 0);
-  for (const item of entries) {
+  root.classList.toggle('hidden', tiles.length === 0 && hidden.length === 0);
+  const restore = $('browserQuickPlacesRestore');
+  if (restore) {
+    restore.classList.toggle('hidden', hidden.length === 0);
+    restore.textContent = `${uiText('Gizlenenleri geri getir')} (${hidden.length})`;
+  }
+  for (const item of tiles) {
+    const tile = document.createElement('div');
+    tile.className = 'browser-ntp-tile';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-quick-place';
     button.dataset.browserQuickPlace = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
-    const mark = document.createElement('span');
-    mark.className = 'browser-quick-place-mark';
-    mark.textContent = (places.bookmarks || []).some(bookmark => browserPlaceKey(bookmark.url) === browserPlaceKey(item.url)) ? 'Y' : 'G';
-    mark.setAttribute('aria-hidden', 'true');
+    const title = item.title || browserPlaceTitle(item);
+    button.title = `${title} — ${item.url}`;
     const copy = document.createElement('span');
     copy.className = 'browser-quick-place-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-quick-place-title';
-    title.textContent = browserPlaceTitle(item);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-quick-place-title';
+    titleEl.textContent = title;
     const url = document.createElement('span');
     url.className = 'browser-quick-place-url';
-    url.textContent = item.url;
-    copy.append(title, url);
+    try { url.textContent = new URL(item.url).host.replace(/^www\./, ''); } catch (_) { url.textContent = item.url; }
+    copy.append(titleEl, url);
+    const mark = document.createElement('span');
+    mark.className = 'browser-quick-place-mark';
+    mark.appendChild(browserNtpSiteIcon(item.url));
+    if (item.bookmark) {
+      const star = document.createElement('span');
+      star.className = 'browser-ntp-tile-bookmark';
+      star.setAttribute('aria-hidden', 'true');
+      mark.appendChild(star);
+    }
     button.append(mark, copy);
-    list.appendChild(button);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'browser-ntp-tile-remove';
+    remove.dataset.browserQuickPlaceHide = item.key;
+    remove.title = `${uiText('Hızlı erişimden kaldır')}: ${title}`;
+    remove.setAttribute('aria-label', remove.title);
+    remove.appendChild(browserCloseIcon());
+    tile.append(button, remove);
+    list.appendChild(tile);
   }
 }
 
@@ -7476,6 +7574,7 @@ function renderBrowserSiteProfile() {
     reset.addEventListener('click', () => updateBrowserProfileField(field, null, false, editContext));
     row.append(label, reset); box.appendChild(row);
   }
+  syncBrowserAdblockQuick();
   void renderBrowserPermissions();
 }
 
@@ -10506,16 +10605,17 @@ function renderBrowserAdblockState(result = {}) {
   if (control) control.disabled = busy;
   if (quick) {
     quick.disabled = busy;
-    quick.setAttribute('aria-pressed', String(enabled));
-    quick.classList.toggle('has-error', result.state === 'error' || result.ok === false);
-    const action = enabled ? 'kapat' : 'aç';
-    const label = busy ? 'Reklam koruması değiştiriliyor'
-      : result.state === 'error' || result.ok === false
-        ? `Reklam koruması kapalı; ayarlarda hata ayrıntısı var`
-        : `Reklam koruması ${enabled ? 'açık' : 'kapalı'}; ${action}`;
-    quick.title = busy ? 'Reklam koruması değiştiriliyor…'
-      : `Reklam koruması ${enabled ? 'açık' : 'kapalı'} · ${enabled ? 'Kapat' : 'Aç'}`;
-    quick.setAttribute('aria-label', label);
+    const failed = result.state === 'error' || result.ok === false;
+    quick.classList.toggle('has-error', failed);
+    if (busy) {
+      quick.setAttribute('aria-pressed', String(enabled));
+      quick.title = 'Reklam koruması değiştiriliyor…';
+      quick.setAttribute('aria-label', 'Reklam koruması değiştiriliyor');
+    } else if (failed) {
+      quick.setAttribute('aria-pressed', 'false');
+      quick.title = 'Reklam koruması kapalı · Ayarlarda hata ayrıntısı var';
+      quick.setAttribute('aria-label', 'Reklam koruması kapalı; ayarlarda hata ayrıntısı var');
+    } else syncBrowserAdblockQuick();
   }
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
@@ -10525,6 +10625,82 @@ function renderBrowserAdblockState(result = {}) {
     status.textContent = `Reklam koruması etkin${blockedNote}${cacheNote}.`;
   } else if (result.requested && result.error) status.textContent = result.error;
   else status.textContent = 'Reklam koruması kapalı.';
+}
+
+// Site çipindeki reklam koruması düğmesi SİTE bazlıdır. Eskiden yalnız genel
+// ayarı gösterip değiştiriyordu: site profili reklam korumasını kapatmış bir
+// sitede "açık" diyor, tıklayınca bütün sitelerin ayarını değiştiriyordu.
+// Etkin durum = genel ayar açık VE site/sekme profili kapatmamış (main
+// isSitePaused ile aynı öncelik).
+function browserAdblockSiteState() {
+  const globalOn = !!$('browserAdblockEnabled')?.checked;
+  let origin = '';
+  let siteOn = true;
+  try {
+    const effective = effectiveBrowserProfile();
+    origin = effective.origin || '';
+    siteOn = effective.values?.adblockEnabled !== false;
+  } catch (_) { /* site profili modülü yüklenmemiş olabilir */ }
+  const host = origin.replace(/^https?:\/\//, '');
+  return { globalOn, origin, host, siteOn, effective: globalOn && siteOn };
+}
+function syncBrowserAdblockQuick() {
+  const quick = $('browserAdblockQuick');
+  if (!quick) return;
+  const { globalOn, origin, host, siteOn, effective } = browserAdblockSiteState();
+  quick.setAttribute('aria-pressed', String(effective));
+  quick.dataset.scope = globalOn && origin ? 'site' : 'global';
+  let title;
+  if (!globalOn) title = uiText('Reklam koruması tüm sitelerde kapalı · Aç');
+  else if (!origin) title = uiText('Reklam koruması açık · Tüm sitelerde kapat');
+  else if (siteOn) title = `${uiText('Bu sitede reklam koruması açık · Kapat')} (${host})`;
+  else title = `${uiText('Bu sitede reklam koruması kapalı · Aç')} (${host})`;
+  quick.title = title;
+  quick.setAttribute('aria-label', title);
+  const label = quick.querySelector('.browser-adblock-label');
+  if (label) label.textContent = uiText(globalOn && origin ? 'Bu sitede reklam koruması' : 'Reklam koruması');
+}
+async function toggleBrowserAdblockForSite() {
+  const quick = $('browserAdblockQuick');
+  const control = $('browserAdblockEnabled');
+  if (!quick || !control || control.disabled || quick.disabled) return;
+  const { globalOn, origin, host, siteOn } = browserAdblockSiteState();
+  // Genel ayar kapalıysa site bazında açmak anlamsız: önce genel ayarı aç.
+  // Site açık değilken (boş sekme) düğme genel anahtardır.
+  if (!globalOn || !origin) {
+    control.checked = !control.checked;
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  const tab = browserTabState();
+  if (!tab || !window.api.updateBrowserSiteProfile) return;
+  // Sekme kapsamlı geçersiz kılma site ayarından önce gelir; varsa o da kalkar.
+  if (tab.siteOverrideOrigin === origin && tab.siteOverrides
+      && Object.prototype.hasOwnProperty.call(tab.siteOverrides, 'adblockEnabled')) {
+    const { adblockEnabled: _removed, ...rest } = tab.siteOverrides;
+    tab.siteOverrides = rest;
+  }
+  quick.disabled = true;
+  // Açarken alan silinir (genel ayarı devralır); kapatırken site profiline false yazılır.
+  const result = await window.api.updateBrowserSiteProfile({
+    tabId: player.browserActiveTabId, generation: tab.generation, origin,
+    field: 'adblockEnabled', value: siteOn ? false : null, reset: false, scope: 'site', url: player.browserPageUrl,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  quick.disabled = false;
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Site ayarı kaydedilemedi.', false, { priority: 80, holdMs: 5000 });
+    syncBrowserAdblockQuick();
+    return;
+  }
+  if (result.places) player.browserPlaces = result.places;
+  renderBrowserSiteProfile();
+  syncBrowserAdblockQuick();
+  $('browserSiteChipDetails')?.removeAttribute('open');
+  syncBrowserOcclusion();
+  setBrowserSignal(`${host}: ${uiText(siteOn ? 'reklam koruması kapatıldı, sayfa yenileniyor.' : 'reklam koruması açıldı, sayfa yenileniyor.')}`,
+    true, { priority: 60, holdMs: 4000 });
+  // Engelleme yeni isteklere uygulanır; sayfadaki mevcut reklamlar için yenile.
+  void runBrowserChromeCommand('reload');
 }
 
 async function refreshBrowserAdblockState() {
@@ -10911,6 +11087,9 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode !== previousMode) {
     closeBrowserFind(false);
     closeBrowserTransientPanels();
+    // Sıradaki video geri sayımı mod değişince sürerse sıfırda kullanıcıyı
+    // tarayıcıdan seçmediği bir videoya geri çekiyordu.
+    if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -11402,6 +11581,19 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
 });
 if ($('browserQuickPlacesMore')) $('browserQuickPlacesMore').addEventListener('click', () => setBrowserPlacesOpen(true));
 if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('click', async (event) => {
+  const hide = event.target.closest('[data-browser-quick-place-hide]');
+  if (hide) {
+    const list = browserNtpHiddenList();
+    if (!list.includes(hide.dataset.browserQuickPlaceHide)) list.push(hide.dataset.browserQuickPlaceHide);
+    // Kaldırılan kutucuğun yerine odak bir sonrakine geçsin (klavye kullanıcısı).
+    const tiles = [...$('browserQuickPlacesList').querySelectorAll('.browser-quick-place')];
+    const index = tiles.indexOf(hide.parentElement?.querySelector('.browser-quick-place'));
+    setBrowserNtpHiddenList(list);
+    renderBrowserQuickPlaces();
+    const next = $('browserQuickPlacesList').querySelectorAll('.browser-quick-place');
+    (next[Math.min(Math.max(0, index), next.length - 1)] || $('browserNtpSearch'))?.focus({ preventScroll: true });
+    return;
+  }
   const open = event.target.closest('[data-browser-quick-place]');
   if (!open) return;
   const url = open.dataset.browserQuickPlace;
@@ -11411,13 +11603,24 @@ if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('c
   await navigateBrowserFromAddress();
 });
 if ($('browserNtpResumeList')) $('browserNtpResumeList').addEventListener('click', (event) => {
+  const watch = event.target.closest('[data-browser-ntp-watch]');
+  if (watch) {
+    // Kütüphane kaydı: kütüphanedeki "Devam et" ile aynı akış (konumdan sürdürür).
+    const item = watchItemByKey(watch.dataset.browserNtpWatch);
+    if (item) void openWatchLibraryItem(item, item.completed ? 0 : Number(item.position) || 0);
+    return;
+  }
   const open = event.target.closest('[data-browser-ntp-resume]');
   if (open) browserNtpNavigate(open.dataset.browserNtpResume);
+});
+$('browserQuickPlacesRestore')?.addEventListener('click', () => {
+  setBrowserNtpHiddenList([]);
+  renderBrowserQuickPlaces();
 });
 if ($('browserNtpSearch')) {
   const ntpSearch = $('browserNtpSearch');
   ntpSearch.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.isComposing) {
       event.preventDefault();
       browserNtpNavigate(ntpSearch.value.trim());
     } else if (event.key === 'Escape') {
@@ -11718,6 +11921,22 @@ function openBrowserSettings(category = 'site', focusId = '') {
 function openBrowserSetting(settingId) {
   const entry = browserSettingsRegistry()?.list().find((item) => item.id === settingId);
   if (!entry) return false;
+  // Bazı anahtarlar (YouTube görünümü, Shorts gizleme) ayarlar yüzeyinde değil,
+  // çekmecedeki "Altyazı ve çeviri" sayfasındaki canlı araçlara taşınır. Arama
+  // sonucu eskiden "Site" kategorisini açıp gizli çekmecedeki öğeye odaklanıyor,
+  // ekranda hiçbir şey göstermiyordu.
+  const control = $(entry.id);
+  const surface = $('browserSettingsSurfaceContent');
+  if (control && surface && !surface.contains(control) && $('browserLiveViewToolsHost')?.contains(control)) {
+    if (player.browserSettingsOpen) void closeBrowserSettings();
+    setSettingsPage('browser-subtitles');
+    setSettingsDrawer(true);
+    requestAnimationFrame(() => {
+      control.scrollIntoView({ block: 'center' });
+      control.focus({ preventScroll: true });
+    });
+    return true;
+  }
   openBrowserSettings(entry.category, entry.id);
   return true;
 }
@@ -11777,12 +11996,10 @@ if ($('browserSitePermissionsOpen')) $('browserSitePermissionsOpen').addEventLis
   $('browserSiteChipDetails')?.removeAttribute('open');
   openBrowserSettings('site', 'browserPermissionsTitle');
 });
-if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => {
-  const control = $('browserAdblockEnabled');
-  if (!control || control.disabled) return;
-  control.checked = !control.checked;
-  control.dispatchEvent(new Event('change', { bubbles: true }));
-});
+if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => { void toggleBrowserAdblockForSite(); });
+// Çip her açıldığında o anki sekmenin sitesine göre durum yeniden hesaplanır
+// (sekme değişimi, gezinme, ayarlar panelinden yapılan değişiklik).
+$('browserSiteChipDetails')?.addEventListener('toggle', (event) => { if (event.currentTarget.open) syncBrowserAdblockQuick(); });
 if ($('browserPlayerResponseAdPrune')) $('browserPlayerResponseAdPrune').addEventListener('change', (event) => {
   void setBrowserPlayerAdPruneEnabled(event.target.checked);
 });
@@ -14234,7 +14451,15 @@ async function saveCueNote() {
   osd(existing ? 'Zaman bağlı not güncellendi' : 'Zaman bağlı not kaydedildi');
 }
 
+// Kaydetme iki await içerir; hızlı ikinci K aynı imzayı iki kez ekliyordu
+// (sonra "çıkarıldı" dense de kart kayıtlı görünmeye devam ediyordu).
+let _cueSaveBusy = false;
 async function toggleCueSaved() {
+  if (_cueSaveBusy) return;
+  _cueSaveBusy = true;
+  try { await toggleCueSavedNow(); } finally { _cueSaveBusy = false; }
+}
+async function toggleCueSavedNow() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
     // Tarayıcı modunda günlük görünmez; menüden gelen tıklama sessiz kalmasın.
@@ -15013,7 +15238,8 @@ function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
   return {
-    speed: browserMode ? player.browserRate : (video ? video.playbackRate : 1),
+    // Geçici hız (basılı tutma / boşluk hızlandırma) yerine kullanıcının seçtiği hız.
+    speed: browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1)),
     volume: browserMode ? player.browserVolume : (video ? video.volume : 1),
     muted: browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
@@ -15708,7 +15934,10 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingAutoOpen = { key: item.key, intent };
     openYoutubePanelAndProbe(item.sourceRef);
   } else {
+    // Yetki beklenirken kullanıcı başka bir kayda tıkladıysa bu açılış eskidir.
+    const intent = player.openIntent;
     const authorization = await window.api.authorizeWatchItem?.(item.key);
+    if (intent !== player.openIntent) return;
     if (!authorization?.ok) {
       logLine(`Kütüphane medyası açılamadı: ${authorization?.error || 'erişim onaylanmadı'}`, 'warn');
       return;
@@ -18818,6 +19047,9 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  // Tam ekran/PiP'teyken Backspace ile kapatınca pencere siyah tam ekranda kalıyordu.
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
   if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();
@@ -18843,6 +19075,12 @@ function closePlayer() {
   player.cueEditRedo = [];
   player.abA = null;
   player.abB = null;
+  // Durum sıfırlanıyor ama görünüm kalıyordu: geri dönünce düzenleme kutusu açık,
+  // kontroller tıklanamaz, A-B düğmesi etkin görünüyordu.
+  $('playerStage')?.classList.remove('editing');
+  $('subtitleEdit')?.classList.add('hidden');
+  $('abLoopBtn')?.classList.remove('active');
+  if (typeof renderAbMarkers === 'function') renderAbMarkers();
   player.cuesRaw = null;
   player.cues2Raw = null;
   player.wordSegments = [];
@@ -20796,7 +21034,11 @@ async function renderPdfReaderPage(pageNumber) {
     const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; source.appendChild(canvas);
     const translation = document.createElement('div'); translation.className = 'pdf-page-translation';
     const heading = document.createElement('h3'); heading.textContent = `Sayfa ${pageNumber}`; translation.appendChild(heading);
-    article.append(source, translation); $('pdfReaderPages').appendChild(article); reader.rendered.set(pageNumber, article);
+    // Sayfa sırası korunur: 50. sayfaya atlayınca ya da yukarı doğru doldururken
+    // sayfalar eskiden hep sona ekleniyor ve sıra karışıyordu.
+    const pagesRoot = $('pdfReaderPages');
+    const after = [...pagesRoot.children].find((node) => Number(node.dataset.page) > pageNumber) || null;
+    article.append(source, translation); pagesRoot.insertBefore(article, after); reader.rendered.set(pageNumber, article);
     reader.observer?.observe(article);
     reader.renderStage = `rendering:${pageNumber}`;
     article.dataset.state = 'rendering';
@@ -20829,7 +21071,18 @@ async function renderPdfReaderPage(pageNumber) {
 
 async function translateVisiblePdfPages(all = false) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
+  // Çeviri sürerken ikinci başlatma ilkinin sayaçlarını sıfırlıyor, iptal
+  // düğmesini kapatıyor ve ilk işi arayüzden durdurulamaz bırakıyordu.
+  if (reader.translating) return;
   reader.translating = true;
+  for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = true; }
+  try { await translateVisiblePdfPagesNow(reader, all); }
+  finally {
+    reader.translating = false;
+    if (player.pdfReader === reader) for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = false; }
+  }
+}
+async function translateVisiblePdfPagesNow(reader, all) {
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
@@ -20924,6 +21177,10 @@ async function openPdfReader(filePath = '') {
   }
   let viewMode = 'both';
   try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
+  // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
+  // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
+  if (player.pdfReader) $('pdfReaderClose')?.click();
+  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = '%100';
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
@@ -20943,7 +21200,14 @@ async function openPdfReader(filePath = '') {
   };
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
     player.pdfReader.observer = new IntersectionObserver((entries) => entries.filter((entry) => entry.isIntersecting)
-      .forEach((entry) => { const number = Number(entry.target.dataset.page); void renderPdfReaderPage(number + 2); }), { root, rootMargin: '800px' });
+      .forEach((entry) => {
+        // Görünen sayfanın iki yanı da doldurulur: sayfa atlama ve yakınlaştırma
+        // sonrasında önceki sayfalar da kaydırdıkça geri gelir.
+        const number = Number(entry.target.dataset.page);
+        for (const next of [number - 1, number + 1, number + 2]) {
+          if (next >= 1 && next <= (player.pdfReader?.pdf?.numPages || 0)) void renderPdfReaderPage(next);
+        }
+      }), { root, rootMargin: '800px' });
   }
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
   syncBrowserOcclusion();
@@ -20960,8 +21224,11 @@ $('pdfReaderPage')?.addEventListener('change', (event) => {
   if (!reader?.pdf) return;
   const page = Math.max(1, Math.min(reader.pdf.numPages, Number(event.target.value) || 1));
   reader.currentPage = page; event.target.value = String(page);
-  document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  renderPdfReaderPage(page).catch(() => {});
+  // Sayfa henüz çizilmemişse önce çiz, sonra kaydır (eskiden kaydırma boşa gidiyordu).
+  renderPdfReaderPage(page).catch(() => {}).then(() => {
+    if (player.pdfReader !== reader) return;
+    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
 $('pdfReaderClose')?.addEventListener('click', () => {
   const reader = player.pdfReader;
@@ -20973,6 +21240,10 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   if (root) { root.onscroll = null; root.replaceChildren(); }
   player.pdfReader = null;
   $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
+  // Tarayıcı modunda açılırken #browserWorkspace gizleniyordu; kapanışta geri
+  // açılmadığı için sayfa alanı mod değişene kadar boş kalıyordu.
+  $('browserWorkspace')?.classList.toggle('hidden', player.workspaceMode !== 'browser');
+  if (player.workspaceMode === 'browser' && typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds();
   syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
@@ -21201,8 +21472,14 @@ if ($('subtitleFindRedo')) {
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || $('subtitleFindReplacePanel')?.classList.contains('hidden')) return;
   if (!$('subtitleEdit')?.classList.contains('hidden')) return;
+  if (_activeModal || document.querySelector('dialog[open]')) return;
+  // Tek Esc yalnız bu paneli kapatsın: oynatıcı Esc zinciri aynı tuşla geri
+  // sayımı iptal ediyor, menü/çekmece kapatıyordu. Odak gizli girdide kalmasın.
+  event.preventDefault();
+  event.stopImmediatePropagation();
   setSubtitleFindReplaceOpen(false);
-});
+  $('subtitleFindReplaceToggle')?.focus({ preventScroll: true });
+}, true);
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
   const search = $('cueSearch');
   if (!search) return;
@@ -22182,6 +22459,11 @@ if ($('playerVideo')) {
   // değişiklikleri select'i güncellemeden bırakıyordu (sonraki > adımı atlıyordu).
   video.addEventListener('ratechange', () => {
     if (player.workspaceMode === 'browser') return;
+    // Basılı tutunca 2× ve "boşlukları hızlandır" politikasının geçici hızı
+    // kullanıcının seçtiği hız değildir. Select'e yazılırsa 5 sn'de bir kaydedilip
+    // sonraki açılışta video 2× başlıyordu.
+    if (player.holdingSpeed) return;
+    if (player.playbackPolicy !== 'normal' && Math.abs(video.playbackRate - (Number(player.learningBaseRate) || 1)) > 1e-6) return;
     syncPlayerSpeedControl(video.playbackRate);
   });
   // A-B dongusu: B'ye gelince A'ya don. Yalnız B'ye "oynayarak" ulaşınca —
@@ -22655,6 +22937,15 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
+  // Onay/sonuç diyaloğu açıkken (odak "Vazgeç" düğmesinde) Backspace arkadaki
+  // oynatıcıyı kapatıyordu; diyalog klavyesi yalnız Esc/Tab'ı yakalıyor.
+  if (typeof _activeModal !== 'undefined' && _activeModal) return;
+  // PDF okuyucu açıkken tuşlar okuyucuya aittir: Space gizli videoyu oynatıyor,
+  // oklar sesi değiştirip klavyeyle kaydırmayı engelliyordu. Esc okuyucuyu kapatır.
+  if (player.pdfReader) {
+    if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); $('pdfReaderClose')?.click(); }
+    return;
+  }
   const modifier = e.ctrlKey || e.metaKey;
   const video = $('playerVideo');
   if (e.key === 'Escape') {
@@ -22725,7 +23016,7 @@ document.addEventListener('keydown', (e) => {
   if (modifier || e.altKey) return;
   // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/O/?) —
   // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
-  if (e.repeat && /^( |f|b|m|v|n|o|\?)$/i.test(e.key)) return;
+  if (e.repeat && /^( |f|b|m|v|n|o|k|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }

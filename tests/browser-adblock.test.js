@@ -241,7 +241,10 @@ class FakeEngine extends EventEmitter {
       'üst reklam koruması anahtarı erişilebilir basılı durumunu taşımıyor');
     assert.ok(renderer.includes("quick.setAttribute('aria-pressed', String(enabled))"),
       'üst anahtar gerçek reklam koruması durumuyla senkron değil');
-    const quickBinding = renderer.slice(renderer.indexOf("if ($('browserAdblockQuick'))"), renderer.indexOf("if ($('browserPlayerResponseAdPrune'))"));
+    // Site bazlı korumada mantık toggleBrowserAdblockForSite içinde; genel
+    // ayar kapalıysa/boş sekmede kalıcı kontrolün ortak change yolu kullanılır.
+    const toggleStart = renderer.indexOf('async function toggleBrowserAdblockForSite');
+    const quickBinding = renderer.slice(toggleStart, renderer.indexOf('\nfunction ', toggleStart + 10));
     assert.ok(quickBinding.includes('control.checked = !control.checked;')
       && quickBinding.includes("dispatchEvent(new Event('change'"),
       'üst anahtar kalıcı ayar kontrolünün ortak değişiklik yolunu kullanmıyor');
