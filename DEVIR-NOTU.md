@@ -6,7 +6,6 @@ Güncel çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.m
 Önceki çalışma: [docs/devir/2026-09-30-0400.md](docs/devir/2026-09-30-0400.md) — R277: pencere durumu saf modül + kelepçe kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0345.md](docs/devir/2026-09-30-0345.md) — R276: ASS/SSA override roundtrip kilidi (\an/\pos/\i1; temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0330.md](docs/devir/2026-09-30-0330.md) — R275: IPC payload fuzz turu 2 — 213 kanal × 37 hostile payload sanal alanı (temiz)
-Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
 Önceki çalışma: [docs/devir/2026-09-30-0230.md](docs/devir/2026-09-30-0230.md) — R273: Devin Review toplu triage (skipped/refine/overlay/glif/disk-dolu düzeltmeleri)
 Önceki çalışma: [docs/devir/2026-09-30-0205.md](docs/devir/2026-09-30-0205.md) — R272: innerHTML/DOM-sink envanteri + kaçışsız veri düzeltmeleri + statik ratchet
 Önceki çalışma: [docs/devir/2026-09-30-0200.md](docs/devir/2026-09-30-0200.md) — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı düzeltildi
@@ -16,6 +15,7 @@ Güncel çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.m
 Önceki çalışma: [docs/devir/2026-09-30-0140.md](docs/devir/2026-09-30-0140.md) — R267: diarization hattı birim kilitleri (PCM WAV/hata yolları/auth imzası — temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0135.md](docs/devir/2026-09-30-0135.md) — R266: çeviri önbelleği disk-büyüme soak'u (50k ölçek, journal eşiği, diriliş yok — temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
+Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
 Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
 Önceki çalışma: [docs/devir/2026-09-29-1508.md](docs/devir/2026-09-29-1508.md) — R265: alt kare navigasyon guard'ları (TV/ana pencere/mini boşlukları kapatıldı)
 Önceki çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
