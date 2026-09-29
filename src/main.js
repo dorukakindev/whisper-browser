@@ -18817,11 +18817,10 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     job.tempPath = tempPath;
     job.outPath = outPath;
     job.filterSubPath = filterSubPath;
-    job.missingGlyphs = new Set();
-    // Önceki (kesilen) çalıştırmada toplanan eksik-glif sayısı kurtarma kaydından
-    // gelir; bu çalıştırmanın yeni bulguları üzerine eklenir.
-    job.recoveredGlyphCount = resumingPrevious
-      ? Math.max(0, Number(previousRecovery.missingGlyphs) || 0) : 0;
+    // Önceki (kesilen) çalıştırmada toplanan glifler kayıttan listeyle
+    // taşınır — aynı glif yeniden görülse bile iki kez sayılmaz.
+    job.missingGlyphs = new Set(
+      resumingPrevious ? (previousRecovery.missingGlyphList || []) : []);
     job.cancelled = false;
     job.settled = false;
     job.previousRecovery = resumingPrevious ? previousRecovery : null;
@@ -18830,7 +18829,8 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       job.recovery = writeBurninRecoveryState({
         version: 1, id: randomUUID(), videoPath, subPath, tempPath, outPath,
         pid: job.pid, totalSec, startedAt: Date.now(), previousOutSize, previousOutMtimeMs,
-        missingGlyphs: job.recoveredGlyphCount,
+        missingGlyphs: job.missingGlyphs.size,
+        missingGlyphList: [...job.missingGlyphs],
       });
       if (resumingPrevious && previousRecovery.tempPath !== tempPath) {
         try { removeFileQuietly(previousRecovery.tempPath); } catch (_) {}
@@ -18878,8 +18878,16 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       // üzerinde yapılır: stderr parçası "failed to find any fallback with
       // glyph" kalıbını ikiye bölebilir ve parça-bazlı tarama uyarıyı kaçırırdı
       // (Set zaten tekrarları eler).
+      const glyphCountBefore = job.missingGlyphs.size;
       for (const m of errTail.matchAll(/failed to find any fallback with glyph (0x[0-9A-Fa-f]+)/g)) {
         job.missingGlyphs.add(m[1].toLowerCase());
+      }
+      if (job.previousRecovery && job.missingGlyphs.size !== glyphCountBefore) {
+        // Yeni glif bulguları iş sonunu beklemeden kayda işlenir — uygulama
+        // FFmpeg uyarısıyla sona erme arasında kapanırsa uyarı kaybolmazdı.
+        job.previousRecovery.missingGlyphList = [...job.missingGlyphs].slice(0, 512);
+        job.previousRecovery.missingGlyphs = job.missingGlyphs.size;
+        try { writeBurninRecoveryState(job.previousRecovery); } catch (_) {}
       }
     });
   }
@@ -18896,7 +18904,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
         cleanupBurninReplacementBackups(outPath);
         clearBurninRecoveryState(job.recovery?.id, false);
         send({ type: 'done', file: outPath,
-          missingGlyphs: job.missingGlyphs.size + (job.recoveredGlyphCount || 0) });
+          missingGlyphs: job.missingGlyphs.size });
         return;
       } catch (error) {
         message = `Gömme çıktısı tamamlanamadı: ${error.message}`;
@@ -18908,8 +18916,8 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       // seçeneksiz bırakma. Eski geçici dosya silinmiş olsa bile kaynak video
       // ve altyazı yolları bir sonraki güvenli yeniden deneme için yeterlidir.
       try {
-        job.previousRecovery.missingGlyphs =
-          job.missingGlyphs.size + (job.recoveredGlyphCount || 0);
+        job.previousRecovery.missingGlyphList = [...job.missingGlyphs].slice(0, 512);
+        job.previousRecovery.missingGlyphs = job.missingGlyphs.size;
         writeBurninRecoveryState(job.previousRecovery);
       }
       catch (_) { clearBurninRecoveryState(job.recovery?.id, false); }

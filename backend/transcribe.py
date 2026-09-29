@@ -4565,16 +4565,21 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
         refined_idx = set()
         # Prob/orta-koşu kalıcı hata sağlayıcının öldüğünü kanıtladıysa 2. geçiş
-        # de aynı duvara çarpar — her paketi tekrar ücretlendirme.
+        # de aynı duvara çarpar — her paketi tekrar ücretlendirme. Prob hatası
+        # kalıcı sınıf dışındaysa kalan parçalar zaten çalıştı (sağlayıcı yaşıyor)
+        # ve 2. geçiş hak edilir — `fatal_reason` her hata kodunu taşır, kalıcı
+        # küme üyeliği ayrıca sınanır.
+        probe_fatal = fatal_reason in FATAL_TRANSLATION_ERRORS \
+            or fatal_reason == "network_error"
         if getattr(args, "translate_refine", False) \
-                and (fatal_reason or fatal_stop["error"] is not None):
+                and (probe_fatal or fatal_stop["error"] is not None):
             log("Çeviri 2. geçiş atlandı: sağlayıcı bu işte kalıcı hata "
                 "üretti (1. geçiş sonuçları korunur).", "warn")
             if warn_list is not None:
                 warn_list.append("Sağlayıcı kalıcı hata ürettiği için 2. geçiş "
                                  "atlandı; 1. geçiş çevirisi korundu.")
         if getattr(args, "translate_refine", False) \
-                and not fatal_reason and fatal_stop["error"] is None:
+                and not probe_fatal and fatal_stop["error"] is None:
             emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
             log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
             refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)

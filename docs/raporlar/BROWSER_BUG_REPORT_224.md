@@ -33,6 +33,23 @@ R271'in toleranslı `parseNdjsonLine` geçişinde `if (!_parsed)` dalı boş kal
 ### 8) src/renderer/status-copy.js — disk-dolu dosya-kaybı sanılıyordu (#202)
 `err_disk_full` (Electron hata kodu) `err_file_not_found` kuralının içindeydi → "Dosyaya erişilemedi" mesajı. Artık ENOSPC/no-space-left/dis full kodlarıyla aynı "Diskte yer kalmadı" kuralına girdi.
 
+## Tur-2 düzeltmeleri (bu PR'ın kendi Devin Review bulguları)
+
+### 9) backend/transcribe.py — refine kapısı kalıcı-olmayan prob hatasını da yakalıyordu
+`record_chunk_result` her hata kodunu döndürür (server_error, rate_limit…). Kapı `fatal_reason` doluluğuna baktığı için geçici 503 ile düşen prob — kalan parçalar başarıyla çevrilmişken — 2. geçişi komple atlıyordu. Kapı artık `probe_fatal = fatal_reason in FATAL ∪ {network_error}` üyeliğini sınıyor; orta-koşu `fatal_stop` korundu.
+
+### 10) src/browser-overlay-controller.js — bozuk `end<start` sınırı gizliyordu
+İleri taramadaki `start > best` erken-kesmesi, başı geçen cue'nun geçerli end'lerini atlıyordu. Sorgu artık `suffixMin[last+1]` kullanıyor: inşada tek ters geçişle **yalnız geçerli aralıkların** (`end >= start`) kalan-minimum end'i — bozuk cue'lar hiç aktifleşemediği için sınır üretmez, geçmişteki bozuk değer de geçerli end'leri gizleyemez. Sorgu maliyeti O(1) kaldı.
+
+### 11) src/main.js + src/burnin-output.js — eksik-glif kaydı çökme/çift-sayım dayanıklılığı
+- Glif bulguları yalnız bellekteydi: FFmpeg uyarı bastıktan sonra uygulama kapanırsa kurtarma kaydı eski sayıyı döndürür → yeni bulgu ara yazımla kayda işlenir.
+- `recoveredGlyphCount + set.size` aynı glifi iki çalıştırmada iki kez sayıyordu → kurtarma kaydı artık `missingGlyphList` (glif kod listesi, ≤512) taşır; yeni çalıştırma Set'i bu listeyle tohumlar → birleşim, çift-sayım yok.
+
+### 12) docs/devir/2026-09-30-0230.md — rapor referansı 223→224 (belge düzeltmesi)
+
+## Tur-2 needs_human
+- **Orta cue in-place mutasyonu prob kapsamı dışında** (`browser-overlay-controller.js:22-26`): üç-nokta probu head/mid/tail dışındaki mutasyonları yakalayamaz; tam kapsama O(n)/sorgu ister ve indeksin amacını ortadan kaldırır. Üretim yolu her zaman yeni dizi geçirdiği için WeakMap zaten yeniden kurar — bayat yol yalnız dışa-açık `nextCueBoundaryAt` API'sinde erişilebilir. Tasarım ödünleşmesi; thread'e analiz bırakıldı.
+
 ## Belirsizler (needs_human)
 - PR #209: otomatik-ordinal kaynak dili (`.tr.srt` dosya adından `auto`→ kaynak dili türetme) — davranış değişikliği, kullanıcı kararı ister.
 - PR #217: devir-indeks "R234 05:12" kaydı — metin amaçlı kapsam notu.

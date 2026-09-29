@@ -67,14 +67,23 @@ test('burnin: eksik-glif taraması yuvarlanan errTail üzerinde yapılır', () =
 });
 
 test('burnin recovery: missingGlyphs kayıt ve recover sonucuna taşınır', () => {
-  assert.match(mainSource, /missingGlyphs: job\.recoveredGlyphCount/);
+  assert.match(mainSource, /missingGlyphs: job\.missingGlyphs\.size/);
   assert.match(mainSource, /missingGlyphs: recovery\.missingGlyphs \|\| 0/g);
   const rec = normalizeBurninRecovery({
     videoPath: 'v.mp4', subPath: 's.srt', tempPath: 't.mkv', outPath: 'o.mp4',
-    missingGlyphs: 4,
+    missingGlyphs: 4, missingGlyphList: ['0x1f600', '0x20ac'],
   });
   assert.equal(rec.missingGlyphs, 4);
-  assert.equal(normalizeBurninRecovery({ videoPath: 'v', subPath: 's', tempPath: 't', outPath: 'o' }).missingGlyphs, 0);
+  assert.deepEqual(rec.missingGlyphList, ['0x1f600', '0x20ac']);
+  // Liste yoksa sayı yine normalize edilir; çift-sayım yerine birleşim kurulur.
+  const bare = normalizeBurninRecovery({ videoPath: 'v', subPath: 's', tempPath: 't', outPath: 'o' });
+  assert.equal(bare.missingGlyphs, 0);
+  assert.deepEqual(bare.missingGlyphList, []);
+});
+
+test('burnin: yeni glif bulgusu kurtarma kaydına ara yazılır', () => {
+  assert.match(mainSource,
+    /job\.missingGlyphs\.size !== glyphCountBefore[\s\S]{0,500}writeBurninRecoveryState\(job\.previousRecovery\)/);
 });
 
 test('status-copy: disk dolu hatası dosya-kaybı olarak sınıflandırılmaz', () => {

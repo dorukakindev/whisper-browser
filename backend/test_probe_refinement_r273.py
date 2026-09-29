@@ -45,6 +45,23 @@ def _dead_handler(kw, _url, _calls):
     raise RuntimeError("Connection error: dns resolution failed")
 
 
+def _flaky_probe_handler(kw, _url, calls):
+    """İlk (prob) isteği geçici 503 ile düşürür; sonrakiler geçerli yanıt verir."""
+    if len(calls) == 1:
+        raise RuntimeError("HTTP 503 server error on upstream")
+    payload = json.loads(kw["messages"][-1]["content"])
+    reply_items = {str(item["i"]): item["t"].replace("Sentence", "Cümle")
+                   for item in payload["items"]}
+    reply_sentences = {
+        str(row["ids"][0]): " ".join(reply_items[str(i)] for i in row["ids"])
+        for row in payload["sentence_groups"]
+    }
+    body = json.dumps({"items": reply_items, "sentences": reply_sentences},
+                      ensure_ascii=False)
+    return types.SimpleNamespace(choices=[types.SimpleNamespace(
+        message=types.SimpleNamespace(content=body))])
+
+
 def _install(handler):
     calls = []
 
@@ -125,6 +142,28 @@ class RefineGateTests(unittest.TestCase):
             if any("tr" in item for item in payload.get("items", [])):
                 refine_calls += 1
         self.assertEqual(refine_calls, 0)
+
+    def test_refine_runs_when_probe_error_is_not_fatal(self):
+        # Prob geçici (kalıcı-olmayan) hatayla düşerse kalan parçalar çalışır —
+        # sağlayıcı yaşıyor, 2. geçiş hak edilir. `fatal_reason` her hata kodunu
+        # taşıdığı için kapı kalıcı küme üyeliğini ayrıca sınamalı.
+        entries = [(i * 3, i * 3 + 2, f"Sentence number {i + 1}.") for i in range(25)]
+        args = Args(translate_refine=True)
+        calls = _install(_flaky_probe_handler)
+        out, events = _run(T.llm_translate, entries, args, [],
+                           source_lang="en", status_out={})
+        self.assertIsNotNone(out)
+        # Prob parçası (0-19) düştü, kalan parça (20-24) çevrildi.
+        self.assertTrue(any("Cümle" in str(e[2]) for e in out[20:]))
+        refine_calls = 0
+        for call in calls:
+            try:
+                payload = json.loads(call["messages"][-1]["content"])
+            except (ValueError, KeyError, TypeError):
+                continue
+            if any("tr" in item for item in payload.get("items", [])):
+                refine_calls += 1
+        self.assertGreater(refine_calls, 0, "kalıcı-olmayan prob hatası 2. geçişi engellememeli")
 
 
 if __name__ == "__main__":

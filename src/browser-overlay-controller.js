@@ -68,8 +68,8 @@ function nextCueBoundaryAt(cues, sourceTime) {
       || indexData.tailStart !== tailStart
       || indexData.headStart !== headStart || indexData.headEnd !== headEnd
       || indexData.midStart !== midStart || indexData.midEnd !== midEnd) {
-    indexData = { length: list.length, prefixMax: [], tailCue, tailEnd,
-      tailStart, headStart, headEnd, midStart, midEnd, sorted: true };
+    indexData = { length: list.length, prefixMax: [], suffixMin: [], tailCue,
+      tailEnd, tailStart, headStart, headEnd, midStart, midEnd, sorted: true };
     let maximum = -Infinity;
     for (let i = 0; i < list.length; i++) {
       const end = Number(list[i] && list[i].end);
@@ -80,6 +80,18 @@ function nextCueBoundaryAt(cues, sourceTime) {
           || (i > 0 && !(start >= Number(list[i - 1] && list[i - 1].start)))) {
         indexData.sorted = false;
       }
+    }
+    // Kalan-end minimumu: inşa sırasında tek ters geçiş — sorgu başına
+    // gelecekteki tüm geçerli end'lerin en küçüğünü O(1) verir. Bozuk
+    // end<start'lı cue'lar hiç aktif olmadığından sınır üretmezler; burada
+    // tutulsalardı geçmişteki bozuk bir minimum geçerli end'leri gizlerdi.
+    let minEnd = Infinity;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const end = Number(list[i] && list[i].end);
+      const start = Number(list[i] && list[i].start);
+      if (Number.isFinite(end) && Number.isFinite(start) && end >= start
+          && end < minEnd) minEnd = end;
+      indexData.suffixMin[i] = minEnd;
     }
     nextCueBoundaryAt._indexCache.set(list, indexData);
   }
@@ -95,17 +107,11 @@ function nextCueBoundaryAt(cues, sourceTime) {
   const keep = (value) => {
     if (Number.isFinite(value) && value > t && (!Number.isFinite(best) || value < best)) best = value;
   };
-  // İlk gelecek cue: start'ı sınırdır; bozuk end<start verisi için end'i de.
-  // Sıralı start'lar üzerinden ileri taramayla gelecekteki en erken end de
-  // sınırdır — bozuk bir end (ör. NaN veya geçmiş değer) arkadaki geçerli
-  // end'leri gizleyemez. En erken end bulununca daha sonraki cue'lar onu
-  // iyileştiremez, dur.
+  // İlk gelecek cue'nun start'ı sınırdır; kalan end'lerin en küçüğü suffixMin
+  // ile O(1) — bozuk bir end<start değeri bile arkadaki sınırları gizleyemez.
   if (last + 1 < list.length) {
-    for (let i = last + 1; i < list.length; i++) {
-      if (Number.isFinite(best) && Number(list[i] && list[i].start) > best) break;
-      keep(Number(list[i] && list[i].start));
-      keep(Number(list[i] && list[i].end));
-    }
+    keep(Number(list[last + 1] && list[last + 1].start));
+    keep(indexData.suffixMin[last + 1]);
   }
   // Aktif cue'lar: start <= t ama end > t. Önek-maks eşiği geçince dur;
   // uzun cue (şarkı/işaret dili) aradaki kısa cue'ların ötesinde aktif kalır.
