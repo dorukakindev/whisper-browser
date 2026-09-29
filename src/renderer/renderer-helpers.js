@@ -639,9 +639,19 @@ async function completeBrowserRecovery(tab, kind, trackId = '') {
   updatePlayerTaskCenter();
 }
 
+// Form kontrollerinde ok/Home/End tuşları yerleşik anlam taşır (select'te
+// seçenek değişimi, range/number'da değer ayarı, metin/textarea'da imleç):
+// menü ok gezintisi bu davranışı ezmesin — kontrol odaklıyken tuşlar kendisine
+// kalsın. Aksi halde ⋯/sinyal menüsündeki ~50 denetimde her ok basımı odağı
+// başka öğeye kaydırıyordu.
+function detailsNavSkipsControl(target) {
+  return !!target?.closest?.('input, select, textarea');
+}
+
 function wireDetailsMenuNav(details) {
   details.addEventListener('keydown', (event) => {
     if (!details.open) return;
+    if (detailsNavSkipsControl(event.target)) return;
     const items = detailsMenuFocusable(details);
     if (!items.length) return;
     const current = document.activeElement;
