@@ -6981,6 +6981,11 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
 const pdfDocuments = new Map();
 const pdfDocumentsByResourceId = new Map();
 const pdfTranslationJobs = new Map();
+// Kaynak kimliği yalnız içerik karmasından türetilirse tahmin edilebilir:
+// dosya içeriğini bilen bir sayfa kimliği hesaplayıp Origin'siz/referrer'siz
+// istekle belgeyi açabilir. Oturum başına üretilen nonce kimliği
+// tahmin edilemez kılar; pdfHash durum anahtarı olarak deterministik kalır.
+const pdfResourceNonce = randomBytes(24).toString('hex');
 
 function pdfProtocolHeaders(contentLength, extra = {}) {
   return {
@@ -7091,7 +7096,7 @@ function inspectPdfDocument(filePath) {
     const pdfHash = pdfHashFromFirstChunk(stat.size, chunk, tailChunk);
     const document = {
       pdfHash,
-      resourceId: createHash('sha256').update(`pdf-resource:${pdfHash}`, 'utf8').digest('hex'),
+      resourceId: createHash('sha256').update(`pdf-resource:${pdfResourceNonce}:${pdfHash}`, 'utf8').digest('hex'),
       filePath: target,
       title: path.basename(target, path.extname(target)),
       size: stat.size,
