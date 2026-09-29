@@ -255,7 +255,18 @@ loaded = loadPdfTranslationState(tmpDir, identity);
 assert.equal(loaded.pages['1'][0].translation, 'Merhaba.',
   'null blok taşıyan dosya atlanıp .bak okunmalı');
 
+// 3d. Bir sayfa temizlenmiş ({2: []}) başkası bozuksa birincil dosya
+// yine kullanılır: sağlam sayfa kaydı kurtarılır, temizlenen sayfanın
+// .bak'taki eski çevirileri dirilmez.
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { 2: [], 5: [null] } });
+loaded = loadPdfTranslationState(tmpDir, identity);
+assert.deepEqual(loaded.pages, { '2': [] },
+  'kısmen bozuk dosyada sağlam sayfalar kurtarılır — yedeğe düşülmez');
+
 // 4. Hiçbir aday uyumlu değilse taze durum döner.
+writeState(primaryStem, { version: PDF_TRANSLATION_STATE_VERSION, ...identity,
+  pages: { abc: 'bozuk', 0: 'kayit' } });
 fs.rmSync(path.join(tmpDir, `${primaryStem}.json.bak`));
 loaded = loadPdfTranslationState(tmpDir, identity);
 assert.deepEqual(loaded.pages, {}, 'uyumlu aday yoksa taze durum dönmeli');
