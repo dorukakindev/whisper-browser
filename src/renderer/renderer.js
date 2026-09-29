@@ -5934,7 +5934,10 @@ const BROWSER_AVATAR_SECOND_LEVEL_TLDS = new Set([
 // Avatar harfi/tonu kayıtlı alan adından (ör. wikipedia.org) gelsin; tr.wikipedia.org
 // için "t", co.uk biçiminde "c" yerine gerçek sitenin ilk harfi gösterilir.
 function browserAvatarDomainKey(host) {
-  const labels = String(host || '').split('.').filter(Boolean);
+  const raw = String(host || '');
+  // IP adreslerinde alan indirgeme yok — farklı sunucular aynı harf/tona düşmesin.
+  if (/^\d+(?:\.\d+){3}$/.test(raw) || raw.includes(':')) return raw;
+  const labels = raw.split('.').filter(Boolean);
   if (labels.length <= 2) return labels.join('.');
   const second = labels[labels.length - 2];
   const tld = labels[labels.length - 1];
@@ -6071,9 +6074,13 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
   // bayat olduğunda değiştirilir (load olaylarını sıfırlamamak için).
   const iconEl = open.querySelector('.browser-tab-favicon, .browser-tab-avatar');
   const avatarFor = () => browserTabAvatar(tab);
+  const freshAvatar = avatarFor();
+  const avatarSame = (el) => !!el && el.textContent === freshAvatar.textContent
+    && (el.style?.getPropertyValue?.('--avatar-hue') || '') === freshAvatar.style.getPropertyValue('--avatar-hue');
   const iconStale = !iconEl || (tab.favicon
-    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon : iconEl.dataset.faviconFailed === tab.favicon)
-    : (iconEl.tagName === 'IMG' || iconEl.textContent !== avatarFor().textContent));
+    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon
+      : iconEl.dataset.faviconFailed === tab.favicon && avatarSame(iconEl))
+    : (iconEl.tagName === 'IMG' || !avatarSame(iconEl)));
   if (iconStale) {
     const next = tab.favicon ? (() => {
       const favicon = document.createElement('img');
@@ -7076,7 +7083,8 @@ function renderBrowserPlaces() {
   // Silme, klasör değişikliği ve her gezinmede gelen arka plan yenilemesi listeyi
   // yeniden kurar; klavye odağı body'ye düşüyordu. Odaklı satırı ve düğme türünü
   // hatırla, çizimden sonra aynı konuma geri ver.
-  const focusedRow = list.contains(document.activeElement) ? document.activeElement.closest('.browser-place-row') : null;
+  const activeEl = globalThis.document?.activeElement || null;
+  const focusedRow = activeEl && list.contains(activeEl) ? activeEl.closest('.browser-place-row') : null;
   const focusIndex = focusedRow ? [...list.querySelectorAll('.browser-place-row')].indexOf(focusedRow) : -1;
   // Sıra numarası değil kayıt kimliği: odaklı satırın önüne yeni kayıt eklenirse
   // (yeni gezinti/eklenen yer imi) aynı sıra farklı kayda düşerdi.
@@ -7085,7 +7093,7 @@ function renderBrowserPlaces() {
       || focusedRow.querySelector('[data-offline-open]')?.dataset.offlineOpen || '')
     : '';
   const focusClass = focusedRow ? (['browser-place-open', 'browser-place-folder', 'browser-place-remove']
-    .find((name) => document.activeElement.classList.contains(name)) || 'browser-place-open') : '';
+    .find((name) => activeEl.classList?.contains(name)) || 'browser-place-open') : '';
   list.replaceChildren();
   const entries = browserPlaceList();
   const filtered = !!String($('browserPlacesSearch')?.value || '').trim()
@@ -7207,11 +7215,13 @@ function browserAddressResultMark(result) {
   } else {
     const host = browserAddressResultHost(result);
     if (host) {
+      // Sekme avatarıyla aynı kayıtlı-alan anahtarı — tr.wikipedia.org önerisi de 'W' verir.
+      const domainKey = browserAvatarDomainKey(host) || host;
       let hash = 0;
-      for (const ch of host) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+      for (const ch of domainKey) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
       mark.classList.add('is-host');
       mark.style.setProperty('--avatar-hue', String(hash % 360));
-      mark.textContent = (Array.from(host)[0] || '•').toUpperCase();
+      mark.textContent = (Array.from(domainKey)[0] || '•').toUpperCase();
     } else mark.textContent = result.mark || '•';
   }
   return mark;
@@ -19066,8 +19076,9 @@ function openPlayer(jobSnapshot = null) {
 
 function closePlayer() {
   // Tam ekran/PiP'teyken Backspace ile kapatınca pencere siyah tam ekranda kalıyordu.
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+  const doc = globalThis.document;
+  if (doc?.fullscreenElement) doc.exitFullscreen?.().catch(() => {});
+  if (doc?.pictureInPictureElement) doc.exitPictureInPicture?.().catch(() => {});
   if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();

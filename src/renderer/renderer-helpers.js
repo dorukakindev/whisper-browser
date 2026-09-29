@@ -973,6 +973,9 @@ function showBrowserTabPreview(tabId, anchor) {
   const slotTop = $('browserViewSlot')?.getBoundingClientRect?.().top;
   const topLimit = Number.isFinite(slotTop) && slotTop > 0 ? Math.min(window.innerHeight, slotTop) : window.innerHeight;
   card.style.top = `${Math.max(4, Math.min(rect.bottom + 6, topLimit - ch - 4))}px`;
+  // Kart krom alanından uzunsa kendi içinde kırpılır — native yüzeyin altına
+  // taşan kısım hiçbir zaman görünmez; sınırı aşan içerik yerine kartı küçült.
+  card.style.maxHeight = `${Math.max(16, topLimit - 8)}px`;
 }
 
 // --- R153 dilim-3: kuyruk / hesap / menü yardımcıları ---

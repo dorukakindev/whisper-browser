@@ -73,3 +73,16 @@ test('slot yoksa pencere yüksekliğine göre yerleşir (eskisi gibi)', () => {
   const top = parseFloat(appended[0].style.top);
   assert.equal(top, 48);
 });
+
+// #178 review: kart krom alanından uzunsa native yüzeyin altına taşamaz —
+// kendi içinde kırpılmak üzere maxHeight kelepçelenir.
+test('kart slot alanından uzunsa maxHeight ile kendi içinde kırpılır', () => {
+  const { ctx, appended } = makeHarness({ slotTop: 100, cardH: 400 });
+  ctx.__show('t1', anchor);
+  const card = appended[0];
+  const top = parseFloat(card.style.top);
+  const cap = parseFloat(card.style.maxHeight);
+  assert.equal(top, 4);
+  assert.equal(cap, 92);
+  assert.ok(top + cap <= 100, `bottom=${top + cap} slotTop=100 aşıldı`);
+});
