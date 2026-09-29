@@ -108,7 +108,7 @@ function sliceFunction(source, signature) {
 // ---- 3. browserMoreSearch: filtre, boş durum, Enter, kapanışta sıfırlama ----
 (async () => {
   const dom = new JSDOM(`<!doctype html><button id="extReader" title="Okuma görünümü"></button>
-    <details id="browserMoreMenu"><div class="browser-more-popover">
+    <details id="browserMoreMenu"><summary id="moreMenuSummary">Daha fazla</summary><div class="browser-more-popover">
     <input id="browserMoreSearch" type="search">
     <div class="browser-more-quick" role="group"><button id="q1" title="Yeni sekme · Ctrl+T" aria-label="Yeni sekme">+</button>
       <button id="q2" title="Kapatılan sekmeyi aç" aria-label="Kapatılan sekmeyi aç">⟲</button></div>
@@ -234,7 +234,20 @@ function sliceFunction(source, signature) {
   assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
     'hedef geri açılınca vekil sonuç geri döner');
 
+  // Tur-3: menü açılınca odak arama kutusuna düşer; ↓ ilk eyleme, ↑ özet
+  // düğmeye gider (eski davranışta ilk ok aramayı atlıyordu).
+  input.value = '';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  menu.open = true;
+  menu.dispatchEvent(new dom.window.Event('toggle'));
+  assert.equal(doc.activeElement, input, 'menü açılışında odak arama kutusunda');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown' }));
+  assert.equal(doc.activeElement?.id, 'q1', '↓ arama kutusundan ilk eyleme geçer');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp' }));
+  assert.equal(doc.activeElement?.id, 'moreMenuSummary', '↑ özet düğmeye döner');
+
   // Menü kapanınca arama sıfırlanır ve tüm öğeler geri gelir.
+  input.value = 'okuma';
   menu.open = false;
   menu.dispatchEvent(new dom.window.Event('toggle'));
   assert.equal(input.value, '', 'kapanışta arama kutusu sıfırlanır');

@@ -12326,11 +12326,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('before-input-event', (event, input = {}) => {
     const key = browserShortcutForInput(input);
     if (!key) return;
+    // Ctrl+F'i bu köprü atlar: browser-page-find aynı tuşu kendi işleyicisiyle
+    // (aktif-sekme ve oklüzyon kapısıyla) 'find-open' olarak üretir; iki yol
+    // aynı anda hem find-open hem browser-shortcut gönderiyordu. Renderer'ın
+    // kendi DOM odaklı Ctrl+F'i tablonun 'f' girdisiyle çalışmaya devam eder.
+    if (key === 'f') return;
     event.preventDefault();
-    // Adres çubuğuna / komut paletine / bul çubuğuna / yeni sekmeye odak taşıyan
-    // kısayollarda klavye odağı da uygulama penceresine geçmeli; yoksa DOM girdisi
-    // odaklı görünür ama tuşlar hâlâ web sayfasına gider (Ctrl+F için zaten yapılıyordu).
-    if (['l', 'k', 'p', 'f'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
+    // Adres çubuğuna / komut paletine / yeni sekmeye odak taşıyan kısayollarda
+    // klavye odağı da uygulama penceresine geçmeli; yoksa DOM girdisi odaklı
+    // görünür ama tuşlar hâlâ web sayfasına gider. Bul çubuğunun odağı
+    // 'find-open' olayını işleyen yerde taşınır.
+    if (['l', 'k', 'p'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
   // Sayfa odağı aldığında renderer'daki adres çubuğu hâlâ DOM odağında kalır;
