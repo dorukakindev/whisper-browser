@@ -46,6 +46,21 @@ def sentence_parts_match(whole, parts):
 _END_RUN = re.compile(r'[.!?…]+[\"\'”’)}\]]*')
 
 
+# Sıra sayısını noktayla yazan hedef diller ("2. Dünya Savaşı"). transcribe.llm_translate
+# çeviri başında set_target_language ile ayarlar; kaynak dilden bağımsızdır.
+_ORDINAL_TARGET_LANGS = {"tr", "de", "cs", "da", "et", "fi", "hr", "hu", "is", "lv", "nb", "nn",
+                         "no", "pl", "sk", "sl", "sv"}
+_target_ordinals = False
+
+
+def set_target_language(language):
+    """Çeviri hedef dilinin sıra sayısı kuralını ayarla; önceki değeri döndür."""
+    global _target_ordinals
+    previous = _target_ordinals
+    _target_ordinals = str(language or "").lower().split("-")[0] in _ORDINAL_TARGET_LANGS
+    return previous
+
+
 def _numeric_separator(text, match):
     """'3.000' / '2.4' / 'v1.2' / '21. yüzyıl' — rakamla kapanmayan nokta cümle sonu değildir.
 
@@ -72,6 +87,11 @@ def _numeric_separator(text, match):
     while k >= 0 and text[k].isdigit():
         k -= 1
     if not normalized_text(text[:k + 1]):
+        return True
+    # Sıra sayısını noktayla yazan hedef dilde kısa sayı + nokta + büyük harf
+    # ('2. Dünya Savaşı', '3. Selim') ifade içidir; eskiden '2.' sonrasına satır
+    # sonu konuyordu. 4+ basamak (yıl: '1935. Sonra…') gerçek cümle sonu kalır.
+    if _target_ordinals and nxt.isupper() and 0 < i - k <= 3:
         return True
     return nxt.islower()
 

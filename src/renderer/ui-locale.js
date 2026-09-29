@@ -1276,6 +1276,7 @@
     ['Reklam koruması kapalı; ayarlarda hata ayrıntısı var', 'Ad protection off; see settings for error details'],
     ['Reklam koruması değiştiriliyor…', 'Changing ad protection…'],
     ['Reklam koruması değiştiriliyor', 'Changing ad protection'],
+    ['Geçersiz altyazı dil kodu.', 'Invalid subtitle language code.'],
     ['kaldı', 'left'],
     ['Gizlenenleri geri getir', 'Restore hidden'],
     ['Hızlı erişimden kaldır', 'Remove from quick access'],
@@ -2581,6 +2582,7 @@
     [/^(Kaydedilen cümleleri göster|Düşük güvenli cümleleri göster|Çevrilmemiş satırları göster) \((\d+)\)$/, (m, t) => `${t(m[1])} (${m[2]})`],
     [/^Sayfa yakınlaştırma %(\d+)$/, (m) => `Page zoom ${m[1]}%`],
     [/^Kaldığın yer: (.+)$/, (m) => `Resume from: ${m[1]}`],
+    [/^Sayfa sürekli yeni metin ekliyor; otomatik çeviri (\d+) blokta durduruldu\.$/, (m) => `The page keeps adding new text; auto-translation stopped at ${m[1]} blocks.`],
     [/^(\d+)\/(\d+) sayfa$/, (m) => `${m[1]}/${m[2]} pages`],
     [/^Sayfa (\d+)$/, (m) => `Page ${m[1]}`],
     [/^(Kitap|Sayfalar) çevriliyor… \((\d+)\/(\d+)\)$/, (m) => `Translating ${m[1] === 'Kitap' ? 'book' : 'pages'}… (${m[2]}/${m[3]})`],
@@ -2663,6 +2665,10 @@
     // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
     // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
     if (!(element instanceof Element)) return;
+    // Açılış taraması ~3.700 öğeyi dolaşır; çevrilecek özniteliği olmayan öğede
+    // pahalı closest() seçici eşlemesine hiç girme (açılış ölçümü: tur 4).
+    if (!element.hasAttribute('title') && !element.hasAttribute('aria-label')
+      && !element.hasAttribute('placeholder')) return;
     // Yazı alanlarının İÇERİĞİ kullanıcı verisidir ama kendi placeholder/aria-label'ı
     // arayüz metnidir ("Sorunu yaz…" EN arayüzde Türkçe kalıyordu).
     const blocked = element.matches(uiListContainers)
@@ -2685,6 +2691,10 @@
 
   function localizeText(node) {
     if (node?.nodeType !== Node.TEXT_NODE) return;
+    // Etiketler arasındaki boşluk düğümleri metin düğümlerinin çoğunluğudur;
+    // çevrilecek bir şey yok, closest() maliyetine girme.
+    const raw = node.nodeValue;
+    if (!raw || !raw.trim()) return;
     if (node.parentElement?.closest(ignored) && !node.parentElement.closest(uiIslands)) return;
     const before = node.nodeValue;
     const previous = originalText.get(node);

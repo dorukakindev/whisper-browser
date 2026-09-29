@@ -393,6 +393,10 @@ def _vtt_to_srt(content):
 
 def fetch_subs(url, lang, output_dir, instance=None, auto=False):
     """Invidious üzerinden altyazı indirir — instance-proxied captions öncelikli."""
+    # Dil kodu dosya adına girer; yol ayırıcı/".." taşıyan kod çıktı klasörü
+    # dışına yazdırabilirdi (örnek sunucu kötü niyetli olabilir).
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", str(lang or "")):
+        raise RuntimeError("Geçersiz altyazı dil kodu.")
     vid = extract_video_id(url)
     data, inst = _fetch_with_failover(f"/api/v1/videos/{vid}", preferred=instance, timeout=15)
     if not isinstance(data, dict):
@@ -463,6 +467,8 @@ def fetch_subs(url, lang, output_dir, instance=None, auto=False):
     title = re.sub(r'[<>:"/\\|?*]', "_", str(data.get("title") or vid)).strip()[:80] or vid
     suffix = f"{lang}.auto" if want_auto else lang
     out_path = out / f"{title} [{vid}].{suffix}.srt"
+    if out_path.resolve().parent != out.resolve():
+        raise RuntimeError("Altyazı dosya yolu çıktı klasörünün dışına çıkıyor.")
     with open(out_path, "w", encoding="utf-8-sig") as f:
         f.write(srt_content)
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- R241 (tur-4 paketi): `npm run smoke:ui`/`audit:ui` arayüz duman ve denetim araçları (menü öğelerini tıklayıp etki ölçer; CI'a bağlandı). Yeni-sekme/özniteliksiz öğelerde ui-locale açılış taramasının `closest()` maliyeti kaldırıldı (~26–42 ms hızlanma).
 - R236 (tur-3 paketi): site bazlı reklam koruması — site çipindeki düğme artık yalnız o siteyi etkiler (kapat: `adblockEnabled:false`, aç: alan silinip genel devralınır; genel kapalıysa/boş sekmede genel anahtar). Yeni sekme sayfası: frecency sıralı favicon/avatar kutucuk ızgarası, × ile gizle + geri getir, izleme kütüphanesinden ilerleme çubuklu "İzlemeye devam et" kartları.
 - R184: the YouTube TV banner gains a "Tam ekran / Fullscreen" button wired to the existing `youtube-tv:fullscreen` IPC (the main-process handler and preload export existed but nothing called them — lean-back viewing now has a one-click fullscreen toggle).
 - R179: opt-in community extras for the YouTube video open in the player — DeArrow crowdsourced titles (same hash-prefix privacy model as SponsorBlock; the community title replaces the player title while the original is kept) and Return YouTube Dislike vote counts (a `👎 N` badge in the meta row). Both behind persistent checkboxes in the SponsorBlock settings section, fetched only for the opened video (no per-card calls), with the same network posture as the SponsorBlock fetcher (credentials-free, no redirects, 7s timeout, 256KB cap, LRU+TTL cache, in-flight dedupe).
@@ -16,6 +17,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R241 (tur-4 paketi): boş satırlı veya sıfır-süreli altyazı cue'ları tüm işi çökertmiyordu; VTT `NOTE` blokları çevrilip `}`/`-->` dizgileri bozuluyordu; `{\an8}` konum etiketleri birleşen cümlelere sızıyordu; "2. Dünya Savaşı" gibi sıra sayılarından sonra satır kırılıyordu; başarısız işin çıktı işlemi kurtarması aynı adlı kullanıcı dosyasını silebiliyor ve .tmp/journal bırakıyordu; ffmpeg/ffprobe çocuklarına gizli env değişkenleri sızıyordu.
 - R240: Devin Review triage — aynı ilk harfli iki site arasında gezen sekmenin avatar tonu bayat kalıyordu (örn. news.google.com→music.github.com); adres önerisi işaretleri sekme avatarından farklı harf üretiyordu (tr.wikipedia.org önerisi T, sekmesi W); farklı IP adresleri aynı avatar tonunu paylaşıyordu; krom alanına sığmayan sekme önizleme kartı yine native yüzeyin altında kırpılıyordu (artık kart kendi içinde kırpılır).
 - R239: sekme üzerine gelince çıkan önizleme kartı sayfa yüzeyi (native WebContentsView) altına kayıp kırpılıyordu — kartın alt kenarı artık `#browserViewSlot` üst çizgisini aşamaz; sığmadığında sekme şeridinin içine çekilir.
 - R237: tur-3 kalıntıları — kütüphanede iki hızlı tıklamanın ilki geç dönen yetkiyle son seçimi eziyordu (aynı dalda `openIntent` artırılmıyordu); PDF çevirisi sürerken yeni PDF açılırsa çeviri düğmeleri kilitli kalıyordu; eski belgenin çeviri durum/sonuç satırı yerini alan belgenin satırını eziyordu.
@@ -212,6 +214,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Kuyruk seçeneklerinde NaN/±Infinity değerler artık diske `null` olarak sızmaz; `queue-persistence.js` `sanitizePublicValue` sonlu-sayı kapısı ekler.
 - R156: settings hardening — a corrupt `settings.json` (unparseable, wrong root type, or type-corrupt top-level fields) no longer silently wipes all preferences: bad fields are dropped, good ones kept, the original file preserved as `settings.json.corrupt-<ts>`, and the user warned via the existing load-warning channel.
 - R155: installer UX — `start.bat` now runs `setlocal` so its PATH/env prefixes stop leaking into (and re-prepending in) the calling console; helper installers (`install-browser-align/tools/extras.bat`) pause on every failure path so double-clicked installs show the error instead of closing instantly.
+
+### Security
+
+- R241 (tur-4 paketi): Invidious altyazı dil kodu `..\..` yol traversal'ına kapandı; içe aktarılan çalışma paketindeki geçmiş kayıtları koşulsuz altyazı erişimi veriyordu (SMB/NTLM sızıntısı dahil); sayfa çevirisi blok hacmi 20k ile sınırlı; mailto döngüsü 1/3 sn'ye tıklandı; favicon getirme yalnız herkese açık host + yönlendirmesiz; `-` ile başlayan argüman değerleri `--opt=val` ile geçiyor.
 
 ### Internal
 
