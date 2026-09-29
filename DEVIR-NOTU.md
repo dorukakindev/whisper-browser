@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0817.md](docs/devir/2026-09-29-0817.md) — R243: #182 review triage (proxy zincir yedeği + secure çerez + son cue zamanı)
+Güncel çalışma: [docs/devir/2026-09-29-0822.md](docs/devir/2026-09-29-0822.md) — R243 kapanış: kesin master merge kimliği (47ac1a9)
+Önceki çalışma: [docs/devir/2026-09-29-0817.md](docs/devir/2026-09-29-0817.md) — R243: #182 review triage (proxy zincir yedeği + secure çerez + son cue zamanı)
 Önceki çalışma: [docs/devir/2026-09-29-0808.md](docs/devir/2026-09-29-0808.md) — R242 kapanış: kesin master merge kimliği (483872f)
 Önceki çalışma: [docs/devir/2026-09-29-0800.md](docs/devir/2026-09-29-0800.md) — R242: tur-4 açık maddeleri (DNS-pinning, ~10ms cue, whisper-assets nonce)
 Önceki çalışma: [docs/devir/2026-09-29-0735.md](docs/devir/2026-09-29-0735.md) — R241: tur-4 paketi uygulaması (backend altyazı + IPC güvenliği + ui-smoke + ui-locale perf)
