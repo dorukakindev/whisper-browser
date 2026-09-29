@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1248.md](docs/devir/2026-09-29-1248.md) — R254: hata yolları yerelleştirme süpürmesi (12 yüzey + 6 yeni systemError kuralı)
+Güncel çalışma: [docs/devir/2026-09-29-1256.md](docs/devir/2026-09-29-1256.md) — R255: uçak-modu çeviri kapısı (ilk-parça probu network_error'da durdurur)
+Önceki çalışma: [docs/devir/2026-09-29-1248.md](docs/devir/2026-09-29-1248.md) — R254: hata yolları yerelleştirme süpürmesi (12 yüzey + 6 yeni systemError kuralı)
 Önceki çalışma: [docs/devir/2026-09-29-1233.md](docs/devir/2026-09-29-1233.md) — R253: çeviri-denetimi harness doğrulaması (15/15, bug yok)
 Önceki çalışma: [docs/devir/2026-09-29-1201.md](docs/devir/2026-09-29-1201.md) — R252: #199 flag (R251 dosya listesi tamamlaması)
 Önceki çalışma: [docs/devir/2026-09-29-1156.md](docs/devir/2026-09-29-1156.md) — R251: #197+#198 docs flag tamamlaması
