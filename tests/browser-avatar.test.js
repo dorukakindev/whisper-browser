@@ -47,12 +47,42 @@ test('avatar: alt alan adında harf kayıtlı domainden gelir', () => {
   assert.equal(__key('sub.bbc.co.uk'), 'bbc.co.uk');
 });
 
-test('avatar: düz host ve IP davranışı korunur', () => {
+test('avatar: düz host korunur; IP adresleri alan indirgemesine girmez', () => {
   const { __avatar, __key } = makeAvatarHarness();
   assert.equal(__avatar({ url: 'https://wikipedia.org/' }).textContent, 'W');
   assert.equal(__avatar({ url: 'http://localhost:8080/' }).textContent, 'L');
-  assert.equal(__key('192.168.1.1'), '1.1');
+  // IP'de indirgeme yok — farklı sunucular aynı harf+tona düşmesin (#176 review).
+  assert.equal(__key('192.168.1.1'), '192.168.1.1');
+  assert.equal(__key('10.0.1.1'), '10.0.1.1');
+  assert.notEqual(__key('192.168.1.1'), __key('10.0.1.1'));
   assert.equal(__avatar({ url: 'http://192.168.1.1/' }).textContent, '1');
+});
+
+test('avatar: adres önerisi işareti de kayıtlı-alan anahtarını kullanır', () => {
+  const markStart = RENDERER.indexOf('function browserAddressResultMark');
+  const markEnd = RENDERER.indexOf('\nfunction ', markStart);
+  const src = RENDERER.slice(
+    RENDERER.indexOf('const BROWSER_AVATAR_SECOND_LEVEL_TLDS'),
+    RENDERER.indexOf('function browserCloseIcon'),
+  ) + RENDERER.slice(markStart, markEnd) + '\n';
+  const document = {
+    createElement() {
+      const el = {
+        children: [], style: { props: {}, setProperty(k, v) { this.props[k] = v; } },
+        classList: { add() {}, contains: () => false },
+        setAttribute() {}, appendChild(c) { this.children.push(c); }, append(...c) { this.children.push(...c); },
+        textContent: '', width: 0, height: 0, alt: '', src: '',
+      };
+      return el;
+    },
+  };
+  const ctx = vm.createContext({
+    document, URL, Array, String, Set, Math,
+    browserAddressResultHost: (r) => { try { return new URL(r.url || '').hostname.replace(/^www\./, ''); } catch { return ''; } },
+  });
+  vm.runInContext(`${src}; globalThis.__mark = browserAddressResultMark;`, ctx);
+  const mark = ctx.__mark({ url: 'https://tr.wikipedia.org/wiki/X', icon: null });
+  assert.equal(mark.textContent, 'W');
 });
 
 test('avatar: boş/geçersiz URL "+" ve is-blank döndürür; ton alan bazında sabit', () => {
