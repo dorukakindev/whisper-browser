@@ -241,5 +241,40 @@ async function test(title, fn) {
     assert.equal(items[0].progress, 0, 'süre bilinmiyorsa ilerleme 0');
   });
 
+  // ---- 9. Oynatıcı/ayarlar turu
+  await test('özel oynatma hızı (1.3×) yerel kayıtta düşürülmez, aralık dışı reddedilir', () => {
+    const { sanitizeSettings } = require('../src/settings-security.js');
+    // Yerel kayıt yolu (allowSecrets=true) hoşgörülüdür: geçersiz alan atlanır.
+    const local = (ui) => sanitizeSettings({ ui }, { allowSecrets: true }).ui;
+    assert.equal(local({ playerSpeed: '1.3' }).playerSpeed, '1.3', 'özel hız kayıttan düştü');
+    assert.equal(local({ playerSpeed: '1' }).playerSpeed, '1');
+    assert.equal(local({ playerSpeed: '9' }).playerSpeed, undefined, 'aralık dışı hız kaydedildi');
+  });
+
+  await test('iş sürerken yalnız iş seçenekleri kilitlenir', () => {
+    const controls = {};
+    const $ = (id) => (controls[id] ||= { id, disabled: false, setAttribute() {}, classList: { toggle() {} } });
+    const ctx = vm.createContext({
+      $, state: { running: true, queueRunning: false },
+      PERSIST_VALUE_CONTROLS: ['model', 'playerVolume', 'uiLocale', 'subSize', 'browserOverlayScale', 'stCardScale', 'translateTo'],
+      PERSIST_CHECKBOX_CONTROLS: ['diarize', 'playerAutoNext', 'browserAdblockEnabled'],
+    });
+    vm.runInContext(`${extractFunction(renderer, 'syncProcessingControlState')} syncProcessingControlState();`, ctx);
+    for (const id of ['model', 'translateTo', 'diarize', 'pickVideosBtn']) assert.equal(controls[id].disabled, true, `${id} kilitlenmeli`);
+    for (const id of ['playerVolume', 'uiLocale', 'subSize', 'browserOverlayScale', 'stCardScale', 'playerAutoNext', 'browserAdblockEnabled']) {
+      assert.equal(controls[id].disabled, false, `${id} iş sürerken kilitlenmemeli`);
+    }
+  });
+
+  await test('kaynak sözleşmeleri: PDF okuyucu ve oynatıcı klavyesi', () => {
+    assert.match(renderer, /if \(player\.pdfReader\) \{\s*if \(e\.key === 'Escape'/, 'PDF açıkken oynatıcı kısayolları çalışıyor');
+    assert.match(renderer, /pagesRoot\.insertBefore\(article, after\)/, 'PDF sayfaları sıraya göre eklenmiyor');
+    assert.match(renderer, /if \(reader\.translating\) return;/, 'PDF çevirisi iki kez başlatılabiliyor');
+    assert.match(renderer, /\$\('browserWorkspace'\)\?\.classList\.toggle\('hidden', player\.workspaceMode !== 'browser'\)/,
+      'PDF kapanınca tarayıcı alanı geri açılmıyor');
+    assert.match(renderer, /if \(player\.holdingSpeed\) return;/, 'basılı tutma 2× hızı kayda yazılıyor');
+    assert.match(renderer, /let _cueSaveBusy = false;/, 'K ile kaydetme yeniden girişe açık');
+  });
+
   console.log(`browser-ui-regressions-r3: ${passed} test geçti`);
 })();

@@ -169,6 +169,8 @@ async function restorePersistedQueue() {
   }
   _queuePersistenceReady = true;
   renderQueue();
+  // Çalışan kuyruğa yeniden bağlanınca "Sırada dur" görünür olmalı.
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
 }
 
 async function offerBurnInRecovery() {
@@ -557,6 +559,8 @@ function clearQueue() {
   state.queue = state.queue.filter(x => x.status === 'running');
   if (_queueNextTimer) { clearTimeout(_queueNextTimer); _queueNextTimer = null; }
   state.queueRunning = false;
+  state.stopAfterCurrent = false;
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
   renderQueue();
 }
 
@@ -783,6 +787,7 @@ async function processNextQueueItem() {
       next.status = 'pending';
       state.queueRunning = false;
       state.running = false;
+      updateStopAfterBtn();
       renderQueue();
       logLine('Kuyruk, önceki işlem tamamen kapanana kadar duraklatıldı.', 'warn');
       return;
@@ -806,7 +811,11 @@ function syncProcessingControlState() {
   const busy = !!(state.running || state.queueRunning);
   const valueControls = typeof PERSIST_VALUE_CONTROLS !== 'undefined' ? PERSIST_VALUE_CONTROLS : [];
   const checkboxControls = typeof PERSIST_CHECKBOX_CONTROLS !== 'undefined' ? PERSIST_CHECKBOX_CONTROLS : [];
-  for (const id of [...valueControls, ...checkboxControls, 'pickVideosBtn', 'pickFolderBtn']) {
+  // Yalnız iş seçenekleri kilitlenir. Oynatıcı (ses, hız, altyazı boyutu),
+  // arayüz dili/teması, tarayıcı ve SmartTube ayarları çalışan transkripsiyon
+  // işini etkilemez; eskiden iş sürerken ses düğmesi bile gri kalıyordu.
+  const isJobOption = (id) => !/^(?:player[A-Z]|sub(?:Size|Offset)$|browser[A-Z]|st[A-Z]|ui(?:Theme|Locale)$|primarySettingsOpen$)/.test(id);
+  for (const id of [...valueControls, ...checkboxControls].filter(isJobOption).concat(['pickVideosBtn', 'pickFolderBtn'])) {
     const el = $(id);
     if (el) {
       el.disabled = busy;
@@ -3327,6 +3336,8 @@ $('cancelBtn').addEventListener('click', async () => {
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
     state.queueRunning = false;
+    state.stopAfterCurrent = false;
+    updateStopAfterBtn();
     // Çalışan item'ı tekrar "pending" yap ki kullanıcı yeniden başlatabilsin
     const cur = state.queue.find(x => x.id === state.currentQueueId);
     if (cur && cur.status === 'running') cur.status = 'pending';
@@ -4615,7 +4626,11 @@ function updateStopAfterBtn() {
   if (!btn) return;
   btn.classList.toggle('hidden', !state.queueRunning);
   btn.classList.toggle('armed', !!state.stopAfterCurrent);
-  btn.textContent = state.stopAfterCurrent ? '⏸ Sırada durulacak' : '⏸ Sırada dur';
+  btn.setAttribute('aria-pressed', state.stopAfterCurrent ? 'true' : 'false');
+  // textContent düğmenin SVG ve <span>'ını siliyor, çeviri eşleşmesini bozuyordu.
+  const label = btn.querySelector('span');
+  const text = uiText(state.stopAfterCurrent ? 'Sırada durulacak' : 'Sırada dur');
+  if (label) label.textContent = text; else btn.textContent = text;
 }
 $('stopAfterCurrent').addEventListener('click', () => {
   if (!state.queueRunning) return;
@@ -11072,6 +11087,9 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode !== previousMode) {
     closeBrowserFind(false);
     closeBrowserTransientPanels();
+    // Sıradaki video geri sayımı mod değişince sürerse sıfırda kullanıcıyı
+    // tarayıcıdan seçmediği bir videoya geri çekiyordu.
+    if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -11903,6 +11921,22 @@ function openBrowserSettings(category = 'site', focusId = '') {
 function openBrowserSetting(settingId) {
   const entry = browserSettingsRegistry()?.list().find((item) => item.id === settingId);
   if (!entry) return false;
+  // Bazı anahtarlar (YouTube görünümü, Shorts gizleme) ayarlar yüzeyinde değil,
+  // çekmecedeki "Altyazı ve çeviri" sayfasındaki canlı araçlara taşınır. Arama
+  // sonucu eskiden "Site" kategorisini açıp gizli çekmecedeki öğeye odaklanıyor,
+  // ekranda hiçbir şey göstermiyordu.
+  const control = $(entry.id);
+  const surface = $('browserSettingsSurfaceContent');
+  if (control && surface && !surface.contains(control) && $('browserLiveViewToolsHost')?.contains(control)) {
+    if (player.browserSettingsOpen) void closeBrowserSettings();
+    setSettingsPage('browser-subtitles');
+    setSettingsDrawer(true);
+    requestAnimationFrame(() => {
+      control.scrollIntoView({ block: 'center' });
+      control.focus({ preventScroll: true });
+    });
+    return true;
+  }
   openBrowserSettings(entry.category, entry.id);
   return true;
 }
@@ -14417,7 +14451,15 @@ async function saveCueNote() {
   osd(existing ? 'Zaman bağlı not güncellendi' : 'Zaman bağlı not kaydedildi');
 }
 
+// Kaydetme iki await içerir; hızlı ikinci K aynı imzayı iki kez ekliyordu
+// (sonra "çıkarıldı" dense de kart kayıtlı görünmeye devam ediyordu).
+let _cueSaveBusy = false;
 async function toggleCueSaved() {
+  if (_cueSaveBusy) return;
+  _cueSaveBusy = true;
+  try { await toggleCueSavedNow(); } finally { _cueSaveBusy = false; }
+}
+async function toggleCueSavedNow() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
     // Tarayıcı modunda günlük görünmez; menüden gelen tıklama sessiz kalmasın.
@@ -15196,7 +15238,8 @@ function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
   return {
-    speed: browserMode ? player.browserRate : (video ? video.playbackRate : 1),
+    // Geçici hız (basılı tutma / boşluk hızlandırma) yerine kullanıcının seçtiği hız.
+    speed: browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1)),
     volume: browserMode ? player.browserVolume : (video ? video.volume : 1),
     muted: browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
@@ -15891,7 +15934,10 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingAutoOpen = { key: item.key, intent };
     openYoutubePanelAndProbe(item.sourceRef);
   } else {
+    // Yetki beklenirken kullanıcı başka bir kayda tıkladıysa bu açılış eskidir.
+    const intent = player.openIntent;
     const authorization = await window.api.authorizeWatchItem?.(item.key);
+    if (intent !== player.openIntent) return;
     if (!authorization?.ok) {
       logLine(`Kütüphane medyası açılamadı: ${authorization?.error || 'erişim onaylanmadı'}`, 'warn');
       return;
@@ -19001,6 +19047,9 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  // Tam ekran/PiP'teyken Backspace ile kapatınca pencere siyah tam ekranda kalıyordu.
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
   if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();
@@ -19026,6 +19075,12 @@ function closePlayer() {
   player.cueEditRedo = [];
   player.abA = null;
   player.abB = null;
+  // Durum sıfırlanıyor ama görünüm kalıyordu: geri dönünce düzenleme kutusu açık,
+  // kontroller tıklanamaz, A-B düğmesi etkin görünüyordu.
+  $('playerStage')?.classList.remove('editing');
+  $('subtitleEdit')?.classList.add('hidden');
+  $('abLoopBtn')?.classList.remove('active');
+  if (typeof renderAbMarkers === 'function') renderAbMarkers();
   player.cuesRaw = null;
   player.cues2Raw = null;
   player.wordSegments = [];
@@ -20979,7 +21034,11 @@ async function renderPdfReaderPage(pageNumber) {
     const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; source.appendChild(canvas);
     const translation = document.createElement('div'); translation.className = 'pdf-page-translation';
     const heading = document.createElement('h3'); heading.textContent = `Sayfa ${pageNumber}`; translation.appendChild(heading);
-    article.append(source, translation); $('pdfReaderPages').appendChild(article); reader.rendered.set(pageNumber, article);
+    // Sayfa sırası korunur: 50. sayfaya atlayınca ya da yukarı doğru doldururken
+    // sayfalar eskiden hep sona ekleniyor ve sıra karışıyordu.
+    const pagesRoot = $('pdfReaderPages');
+    const after = [...pagesRoot.children].find((node) => Number(node.dataset.page) > pageNumber) || null;
+    article.append(source, translation); pagesRoot.insertBefore(article, after); reader.rendered.set(pageNumber, article);
     reader.observer?.observe(article);
     reader.renderStage = `rendering:${pageNumber}`;
     article.dataset.state = 'rendering';
@@ -21012,7 +21071,18 @@ async function renderPdfReaderPage(pageNumber) {
 
 async function translateVisiblePdfPages(all = false) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
+  // Çeviri sürerken ikinci başlatma ilkinin sayaçlarını sıfırlıyor, iptal
+  // düğmesini kapatıyor ve ilk işi arayüzden durdurulamaz bırakıyordu.
+  if (reader.translating) return;
   reader.translating = true;
+  for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = true; }
+  try { await translateVisiblePdfPagesNow(reader, all); }
+  finally {
+    reader.translating = false;
+    if (player.pdfReader === reader) for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = false; }
+  }
+}
+async function translateVisiblePdfPagesNow(reader, all) {
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
@@ -21107,6 +21177,10 @@ async function openPdfReader(filePath = '') {
   }
   let viewMode = 'both';
   try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
+  // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
+  // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
+  if (player.pdfReader) $('pdfReaderClose')?.click();
+  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = '%100';
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
@@ -21126,7 +21200,14 @@ async function openPdfReader(filePath = '') {
   };
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
     player.pdfReader.observer = new IntersectionObserver((entries) => entries.filter((entry) => entry.isIntersecting)
-      .forEach((entry) => { const number = Number(entry.target.dataset.page); void renderPdfReaderPage(number + 2); }), { root, rootMargin: '800px' });
+      .forEach((entry) => {
+        // Görünen sayfanın iki yanı da doldurulur: sayfa atlama ve yakınlaştırma
+        // sonrasında önceki sayfalar da kaydırdıkça geri gelir.
+        const number = Number(entry.target.dataset.page);
+        for (const next of [number - 1, number + 1, number + 2]) {
+          if (next >= 1 && next <= (player.pdfReader?.pdf?.numPages || 0)) void renderPdfReaderPage(next);
+        }
+      }), { root, rootMargin: '800px' });
   }
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
   syncBrowserOcclusion();
@@ -21143,8 +21224,11 @@ $('pdfReaderPage')?.addEventListener('change', (event) => {
   if (!reader?.pdf) return;
   const page = Math.max(1, Math.min(reader.pdf.numPages, Number(event.target.value) || 1));
   reader.currentPage = page; event.target.value = String(page);
-  document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  renderPdfReaderPage(page).catch(() => {});
+  // Sayfa henüz çizilmemişse önce çiz, sonra kaydır (eskiden kaydırma boşa gidiyordu).
+  renderPdfReaderPage(page).catch(() => {}).then(() => {
+    if (player.pdfReader !== reader) return;
+    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
 $('pdfReaderClose')?.addEventListener('click', () => {
   const reader = player.pdfReader;
@@ -21156,6 +21240,10 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   if (root) { root.onscroll = null; root.replaceChildren(); }
   player.pdfReader = null;
   $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
+  // Tarayıcı modunda açılırken #browserWorkspace gizleniyordu; kapanışta geri
+  // açılmadığı için sayfa alanı mod değişene kadar boş kalıyordu.
+  $('browserWorkspace')?.classList.toggle('hidden', player.workspaceMode !== 'browser');
+  if (player.workspaceMode === 'browser' && typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds();
   syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
@@ -21384,8 +21472,14 @@ if ($('subtitleFindRedo')) {
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || $('subtitleFindReplacePanel')?.classList.contains('hidden')) return;
   if (!$('subtitleEdit')?.classList.contains('hidden')) return;
+  if (_activeModal || document.querySelector('dialog[open]')) return;
+  // Tek Esc yalnız bu paneli kapatsın: oynatıcı Esc zinciri aynı tuşla geri
+  // sayımı iptal ediyor, menü/çekmece kapatıyordu. Odak gizli girdide kalmasın.
+  event.preventDefault();
+  event.stopImmediatePropagation();
   setSubtitleFindReplaceOpen(false);
-});
+  $('subtitleFindReplaceToggle')?.focus({ preventScroll: true });
+}, true);
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
   const search = $('cueSearch');
   if (!search) return;
@@ -22365,6 +22459,11 @@ if ($('playerVideo')) {
   // değişiklikleri select'i güncellemeden bırakıyordu (sonraki > adımı atlıyordu).
   video.addEventListener('ratechange', () => {
     if (player.workspaceMode === 'browser') return;
+    // Basılı tutunca 2× ve "boşlukları hızlandır" politikasının geçici hızı
+    // kullanıcının seçtiği hız değildir. Select'e yazılırsa 5 sn'de bir kaydedilip
+    // sonraki açılışta video 2× başlıyordu.
+    if (player.holdingSpeed) return;
+    if (player.playbackPolicy !== 'normal' && Math.abs(video.playbackRate - (Number(player.learningBaseRate) || 1)) > 1e-6) return;
     syncPlayerSpeedControl(video.playbackRate);
   });
   // A-B dongusu: B'ye gelince A'ya don. Yalnız B'ye "oynayarak" ulaşınca —
@@ -22838,6 +22937,15 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
+  // Onay/sonuç diyaloğu açıkken (odak "Vazgeç" düğmesinde) Backspace arkadaki
+  // oynatıcıyı kapatıyordu; diyalog klavyesi yalnız Esc/Tab'ı yakalıyor.
+  if (typeof _activeModal !== 'undefined' && _activeModal) return;
+  // PDF okuyucu açıkken tuşlar okuyucuya aittir: Space gizli videoyu oynatıyor,
+  // oklar sesi değiştirip klavyeyle kaydırmayı engelliyordu. Esc okuyucuyu kapatır.
+  if (player.pdfReader) {
+    if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); $('pdfReaderClose')?.click(); }
+    return;
+  }
   const modifier = e.ctrlKey || e.metaKey;
   const video = $('playerVideo');
   if (e.key === 'Escape') {
@@ -22908,7 +23016,7 @@ document.addEventListener('keydown', (e) => {
   if (modifier || e.altKey) return;
   // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/O/?) —
   // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
-  if (e.repeat && /^( |f|b|m|v|n|o|\?)$/i.test(e.key)) return;
+  if (e.repeat && /^( |f|b|m|v|n|o|k|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
