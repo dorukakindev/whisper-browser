@@ -36,6 +36,19 @@ assert.match(copy.systemError('en', 'request to https://x failed, reason: connec
   /^Connection refused/);
 assert.match(copy.systemError('tr', 'self signed certificate in certificate chain'),
   /^Güvenlik sertifikası doğrulanamadı\./);
+// Yeni kurallar: DOMException adları, dosya kilidi, EMFILE, kalan net::ERR_*
+assert.match(copy.systemError('en', 'EBUSY: resource busy or locked'),
+  /^The file is in use by another program/);
+assert.match(copy.systemError('tr', 'EMFILE: too many open files'),
+  /^Çok fazla açık dosya var/);
+assert.match(copy.systemError('en', 'NotAllowedError: Permission denied'),
+  /^The OS or browser blocked access/);
+assert.match(copy.systemError('tr', 'AbortError: The operation was aborted'),
+  /^İşlem iptal edildi/);
+assert.match(copy.systemError('en', 'net::ERR_FILE_NOT_FOUND'),
+  /^The file is not accessible/);
+assert.match(copy.systemError('tr', 'EIO: i/o error, read'),
+  /^Disk\/aygıt okuma hatası/);
 // Zaten dost/Türkçe olan veya tanınmayan mesajlar birebir geçer
 assert.strictEqual(copy.systemError('tr', 'Python sanal ortamı bulunamadı.'),
   'Python sanal ortamı bulunamadı.');
