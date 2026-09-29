@@ -457,16 +457,20 @@ function loadPdfTranslationState(directory, identity) {
       if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
       const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
       if (!isPdfTranslationStateCompatible(raw, normalized)) continue;
-      const normalizedState = normalizePdfTranslationState(raw, normalized);
-      // Yapısal olarak bozuk kayıt taşıyan dosya (geçersiz sayfa anahtarı,
-      // dizi olmayan değer, normalize'da null dönen blok) bozuk sayılır —
-      // sağlam .bak/legacy yedeğini gizleyemez. Boş sayfa kaydı ({n: []})
+      // Bozuk sayfa kayıtları (geçersiz anahtar, dizi olmayan değer,
+      // normalize'da null dönen blok) dosyayı tek başına gömmez: sağlam
+      // kayıtlar kurtarılır. Tümüyle bozuk dosya ise sağlam .bak/legacy
+      // yedeğini gizleyemez — aday atlanır. Boş sayfa kaydı ({n: []})
       // meşrudur: temizlenen sayfanın eski çevirilerini yedekten diriltmez.
-      const corrupt = Object.entries(raw.pages).some(([key, blocks]) =>
-        !/^[1-9]\d*$/u.test(key) || !Array.isArray(blocks)
-        || blocks.some((block) => !normalizePdfBlock(block)));
-      if (corrupt) continue;
-      return normalizedState;
+      const entries = Object.entries(raw.pages);
+      const validEntries = entries.filter(([key, blocks]) =>
+        /^[1-9]\d*$/u.test(key) && Array.isArray(blocks)
+        && !blocks.some((block) => !normalizePdfBlock(block)));
+      if (entries.length && !validEntries.length) continue;
+      if (validEntries.length !== entries.length) {
+        raw.pages = Object.fromEntries(validEntries);
+      }
+      return normalizePdfTranslationState(raw, normalized);
     } catch (_) {}
   }
   return createPdfTranslationState(normalized);
