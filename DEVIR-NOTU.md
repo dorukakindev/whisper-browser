@@ -1,4 +1,5 @@
-- **Güncel çalışma:** [2026-09-29-0512](docs/devir/2026-09-29-0512.md) — R234: PR #167 review triage (menü ok çift-işlenmesi + split kısayol smoke'u)
+Güncel çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
+- **Önceki çalışma:** [2026-09-29-0512](docs/devir/2026-09-29-0512.md) — R234: PR #167 review triage (menü ok çift-işlenmesi + split kısayol smoke'u)
 Önceki çalışma: [docs/devir/2026-09-29-0458.md](docs/devir/2026-09-29-0458.md) — R233 kapanış: kesin master merge kimliği (ba45720)
 Önceki çalışma: [docs/devir/2026-09-29-0449.md](docs/devir/2026-09-29-0449.md) — R233: tur-2 kalanı + #165 review (Ctrl+F tek köprü, menü odak, yer-imi kimlik odak, split ikincil kısayol)
 Önceki çalışma: [docs/devir/2026-09-29-0428.md](docs/devir/2026-09-29-0428.md) — R232 kapanış: kesin master merge kimliği (bc4ba08)
