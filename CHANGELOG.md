@@ -3,14 +3,28 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
-- Güvenlik (R279): `getDisplayMedia` artık yalnız ana pencerenin üst dokümanına açık — alt kareler jestle ekran+loopback sesi alamıyor.
+
+### Added
+
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
-- R277: Çok-ekran pencere durumu — boyut kelepçesi + x/y saklamama kuralı saf `window-state` modülüne çıkarıldı; bozuk/monitör-kopması matrisi 21 kontrolle kilitlendi.
 - R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
-- Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
+- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
+
+### Changed
+
+- R277: Çok-ekran pencere durumu — boyut kelepçesi + x/y saklamama kuralı saf `window-state` modülüne çıkarıldı; bozuk/monitör-kopması matrisi 21 kontrolle kilitlendi.
+
+### Fixed
+
+- Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 - R273: Devin Review toplu triage — prob `skipped` sayımı artık önceden-çevrilmiş konumları şişirmez; kalıcı prob hatasında 2. geçiş atlanır (1. geçiş korunur); overlay indeks probları bayat mutasyonları yakalar; burn-in eksik-glif sayacı yüzeye taşınır; disk-dolu hatası dosya-kaybından ayrılır. Tur-2: refine kapısı kalıcı-olmayan prob hatasında da açılıyordu; overlay bozuk-end sınırı suffixMin ile O(1); eksik-glif kaydı liste-birleşimi + ara yazım.
 
+### Security
+
+- Güvenlik (R279): `getDisplayMedia` artık yalnız ana pencerenin üst dokümanına açık — alt kareler jestle ekran+loopback sesi alamıyor.
+
+- Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
 ### Added
 
 - R241 (tur-4 paketi): `npm run smoke:ui`/`audit:ui` arayüz duman ve denetim araçları (menü öğelerini tıklayıp etki ölçer; CI'a bağlandı). Yeni-sekme/özniteliksiz öğelerde ui-locale açılış taramasının `closest()` maliyeti kaldırıldı (~26–42 ms hızlanma).
