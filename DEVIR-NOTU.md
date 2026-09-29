@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0627.md](docs/devir/2026-09-29-0627.md) — R238: avatar harfi/tonu kayıtlı alan adından (tur-3 isteğe bağlı madde)
+Güncel çalışma: [docs/devir/2026-09-29-0634.md](docs/devir/2026-09-29-0634.md) — R238 kapanış: kesin master merge kimliği (a09da0b)
+Önceki çalışma: [docs/devir/2026-09-29-0627.md](docs/devir/2026-09-29-0627.md) — R238: avatar harfi/tonu kayıtlı alan adından
 Önceki çalışma: [docs/devir/2026-09-29-0618.md](docs/devir/2026-09-29-0618.md) — R237 kapanış: kesin master merge kimliği (ffb0ff4)
 Önceki çalışma: [docs/devir/2026-09-29-0610.md](docs/devir/2026-09-29-0610.md) — R237: tur-3 bağımsız denetimi (3 kalıntı düzeltildi)
 Önceki çalışma: [docs/devir/2026-09-29-0554.md](docs/devir/2026-09-29-0554.md) — R236 kapanış: kesin master merge kimliği (44a3767)
