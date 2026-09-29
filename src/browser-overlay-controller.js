@@ -1,5 +1,110 @@
 const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
 
+// Cue listeleri start sıralıdır (parse/kurulum sırasında sıralanır). Büyük
+// izlerde (10k+ cue) her video karesinde bütün start/end sınırlarını
+// taramak ana iş parçacığını boğar; önek-maksimum (aktif cue geri
+// yürüyüşü) + son-ek-minimum (gelecek cue'ların en erken bitişi) dizileri
+// listeyi bir kez O(n) kurup kare başına O(log n + aktif) çalışır.
+// browserActiveCuesAt ile aynı WeakMap/uzantı deseni; dönüş değeri kaynak
+// zamanında `> t` olan en küçük sınır, yoksa NaN'dır.
+function nextCueBoundaryAt(cues, sourceTime) {
+  const list = Array.isArray(cues) ? cues : [];
+  const t = Number(sourceTime);
+  if (!list.length || !Number.isFinite(t)) return NaN;
+  if (!nextCueBoundaryAt._indexCache) nextCueBoundaryAt._indexCache = new WeakMap();
+  let indexData = nextCueBoundaryAt._indexCache.get(list);
+  const tailCue = list[list.length - 1];
+  const tailEnd = Number(tailCue && tailCue.end);
+  // Bozuk/sıralanmamış izlerde (NaN veya azalan start) ikili arama geçersiz;
+  // eski davranışla aynı tam taramaya düş (ürün izleri her zaman sıralı).
+  const bruteForce = () => {
+    let best = NaN;
+    for (const cue of list) {
+      for (const raw of [cue && cue.start, cue && cue.end]) {
+        const v = Number(raw);
+        if (Number.isFinite(v) && v > t && (!Number.isFinite(best) || v < best)) best = v;
+      }
+    }
+    return best;
+  };
+  const extendable = indexData && indexData.sorted && indexData.length > 0
+    && indexData.length < list.length
+    && tailCue === indexData.tailCue && tailEnd === indexData.tailEnd;
+  const rebuildSuffix = (data) => {
+    // Gelecek cue'ların min bitişi: kuyruktan başa doğru birikimli min.
+    let minimum = Infinity;
+    data.suffixMin.length = list.length;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const end = Number(list[i] && list[i].end);
+      minimum = Number.isFinite(end) ? Math.min(minimum, end) : minimum;
+      data.suffixMin[i] = minimum;
+    }
+  };
+  if (extendable) {
+    let maximum = indexData.prefixMax[indexData.length - 1];
+    let sorted = indexData.sorted
+      && Number.isFinite(Number(list[indexData.length] && list[indexData.length].start))
+      && Number(list[indexData.length].start) >= Number(indexData.tailStart);
+    for (let i = indexData.length; i < list.length; i++) {
+      const end = Number(list[i] && list[i].end);
+      maximum = Number.isFinite(end) ? Math.max(maximum, end) : maximum;
+      indexData.prefixMax.push(maximum);
+      if (i > indexData.length && (!(Number(list[i] && list[i].start)
+          >= Number(list[i - 1] && list[i - 1].start)))) sorted = false;
+    }
+    indexData.sorted = sorted;
+    // Yeni eklenen cue'lar daha erken bitirebilir; son-ek-min'i tazele.
+    rebuildSuffix(indexData);
+    indexData.length = list.length;
+    indexData.tailCue = tailCue;
+    indexData.tailEnd = tailEnd;
+    indexData.tailStart = Number(tailCue && tailCue.start);
+  } else if (!indexData || indexData.length !== list.length
+      || indexData.tailCue !== tailCue || indexData.tailEnd !== tailEnd) {
+    indexData = { length: list.length, prefixMax: [], suffixMin: [], tailCue, tailEnd,
+      tailStart: Number(tailCue && tailCue.start), sorted: true };
+    let maximum = -Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const end = Number(list[i] && list[i].end);
+      maximum = Number.isFinite(end) ? Math.max(maximum, end) : maximum;
+      indexData.prefixMax.push(maximum);
+      const start = Number(list[i] && list[i].start);
+      if (!Number.isFinite(start)
+          || (i > 0 && !(start >= Number(list[i - 1] && list[i - 1].start)))) {
+        indexData.sorted = false;
+      }
+    }
+    rebuildSuffix(indexData);
+    nextCueBoundaryAt._indexCache.set(list, indexData);
+  }
+  if (!indexData.sorted) return bruteForce();
+  let lo = 0;
+  let hi = list.length - 1;
+  let last = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (Number(list[mid] && list[mid].start) <= t) { last = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  let best = NaN;
+  const keep = (value) => {
+    if (Number.isFinite(value) && value > t && (!Number.isFinite(best) || value < best)) best = value;
+  };
+  // İlk gelecek cue: start'ı sınırdır; bozuk end<start verisi için end'i de.
+  if (last + 1 < list.length) {
+    const next = list[last + 1];
+    keep(Number(next && next.start));
+    keep(Number(next && next.end));
+    keep(indexData.suffixMin[last + 1]);
+  }
+  // Aktif cue'lar: start <= t ama end > t. Önek-maks eşiği geçince dur;
+  // uzun cue (şarkı/işaret dili) aradaki kısa cue'ların ötesinde aktif kalır.
+  for (let i = last; i >= 0; i--) {
+    if (!(indexData.prefixMax[i] > t)) break;
+    keep(Number(list[i] && list[i].end));
+  }
+  return best;
+}
+
 function buildBrowserOverlayScript(payload, findCuesSource) {
   const encoded = JSON.stringify(payload || {})
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -13,6 +118,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     }
 
     const findCues = ${finder};
+    const nextCueBoundaryAt = ${nextCueBoundaryAt.toString()};
     let state = nextState;
     let root = null;
     let toolbar = null;
@@ -355,16 +461,14 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       }
       const videoTime = finite(media.currentTime);
       const boundaries = [];
+      // Sınır epsilon'suz, katı gelecekte kalmalı: çizim sınırdan birkaç
+      // ms erken düştüğünde sınır "geçmiş" sayılırsa bir sonraki cue
+      // aralığı boyunca (saniyelerce) bayat metin ekranda kalır. Arama
+      // kaynak zamanında yapılır (dönüşüm monoton → sıralama korunur).
       const collectBoundaries = (cues, transform) => {
-        for (const cue of Array.isArray(cues) ? cues : []) {
-          for (const raw of [cue && cue.start, cue && cue.end]) {
-            const value = sourceToVideo(raw, transform);
-            // Sınır epsilon'suz, katı gelecekte kalmalı: çizim sınırdan birkaç
-            // ms erken düştüğünde sınır "geçmiş" sayılırsa bir sonraki cue
-            // aralığı boyunca (saniyelerce) bayat metin ekranda kalır.
-            if (Number.isFinite(value) && value > videoTime) boundaries.push(value);
-          }
-        }
+        const value = sourceToVideo(
+          nextCueBoundaryAt(cues, videoToSource(videoTime, transform)), transform);
+        if (Number.isFinite(value) && value > videoTime) boundaries.push(value);
       };
       collectBoundaries(state.source, state.sourceTransform);
       collectBoundaries(state.translation, state.translationTransform);
@@ -677,4 +781,4 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
   })()`;
 }
 
-module.exports = { buildBrowserOverlayScript };
+module.exports = { buildBrowserOverlayScript, nextCueBoundaryAt };
