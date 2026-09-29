@@ -56,6 +56,17 @@ function nextCueBoundaryAt(cues, sourceTime) {
     }
     indexData.sorted = sorted;
     indexData.length = list.length;
+    // Eklenen cue'ların end'leri kalan-minimuma dahil değil; ters geçişle
+    // yeniden kurulur (uzatma güncelleme başına tek sefer, sorgu O(1) kalır).
+    indexData.suffixMin.length = 0;
+    let minEnd = Infinity;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const end = Number(list[i] && list[i].end);
+      const start = Number(list[i] && list[i].start);
+      if (Number.isFinite(end) && Number.isFinite(start) && end >= start
+          && end < minEnd) minEnd = end;
+      indexData.suffixMin[i] = minEnd;
+    }
     indexData.tailCue = tailCue;
     indexData.tailEnd = tailEnd;
     indexData.tailStart = tailStart;

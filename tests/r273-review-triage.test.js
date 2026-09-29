@@ -56,6 +56,24 @@ test('bozuk geçmiş-end gelecekteki geçerli sınırları gizlemez', () => {
   assert.equal(nextCueBoundaryAt(cues, 7), 10);
 });
 
+test('uzatılan listenin yeni end değerleri sınır olarak döner', () => {
+  const cues = [{ start: 0, end: 2 }, { start: 5, end: 8 }, { start: 10, end: 12 }];
+  nextCueBoundaryAt(cues, 3);
+  cues.push({ start: 15, end: 22 }); // uzatma — suffixMin yeni end'i de içermeli
+  // t=13 için kalan end'ler {22} — bozuk suffixMin undefined döndürür, sınır 15'te kalırdı.
+  assert.equal(nextCueBoundaryAt(cues, 13), 15);
+  assert.equal(nextCueBoundaryAt(cues, 16), 22);
+});
+
+test('uzatma sonrası daha küçük yeni end eski minimumu geçersiz kılar', () => {
+  const cues = [{ start: 0, end: 2 }, { start: 5, end: 30 }];
+  nextCueBoundaryAt(cues, 3);
+  cues.push({ start: 10, end: 12 });
+  // t=11 → kalan end'ler {30,12}: en küçük 12 yeni cue'dan; eski suffixMin 30 tutardı.
+  assert.equal(nextCueBoundaryAt(cues, 4), 5);
+  assert.equal(nextCueBoundaryAt(cues, 11), 12);
+});
+
 // ---------- main.js sözleşme kilitleri ----------
 test('ndjson: JSON olmayan stdout satırı log olarak iletilir', () => {
   const nullBranch = /parseNdjsonLine\(line\);\s*\n\s*if \(!_parsed\) \{\s*\n(?:.*\n)*?\s*writeJobLog\(\{ type: 'log', level: 'info', message: line, jobId \}\);\s*\n\s*sendJobEvent\(\{ type: 'log', level: 'info', message: line \}\);/;
