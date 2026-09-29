@@ -91,6 +91,16 @@ function assertCommitOrder(name, calls, filePath) {
       return calls.some((c) => c.op === 'fsync' && (c.arg === target || c.arg === source));
     });
     ok(`${name}: yedek fsync'lenir`, hasFsync);
+    // Sıra kilidi: yedek fsync'i yedek yazımı ile ana rename ARASINDA olmalı —
+    // önceki bir fsync yanlış sıralamayı gizler, rename'den sonraki ise
+    // yedeğin commit'ten önce kalıcı olmadığı anlamına gelir.
+    const ordered = bakWrites.every((w) => {
+      const target = w.op === 'renameSync' ? w.arg : w.arg2;
+      const source = w.op === 'renameSync' ? w.arg : w.arg;
+      const writeIdx = calls.indexOf(w);
+      return calls.some((c, i) => i > writeIdx && i < mainRename && c.op === 'fsync' && (c.arg === target || c.arg === source));
+    });
+    ok(`${name}: yedek fsync'i yazım-rename arasında`, ordered);
   }
 }
 
@@ -134,7 +144,23 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-durability-'));
     cues: [{ start: 0, end: 1.5, text: 'satır' }],
   });
   ok('asset-store: putTrack başarılı', out.ok === true);
-  assertCommitOrder('asset-store', calls, out.jsonPath);
+  assertCommitOrder('asset-store: json', calls, out.jsonPath);
+  // SRT yan dosyası da aynı törenle yazılır — JSON dayanıklı ama SRT
+  // senkronsuz olsaydı matris bunu görmezden gelirdi.
+  assertCommitOrder('asset-store: srt', calls, out.srtPath);
+}
+
+// --- 4b) asset-store SRT yeniden-kurulum yolu (getTrack) ---
+{
+  const rootDir = path.join(tmpRoot, 'assets-rebuild');
+  const store = new BrowserAssetStore({ rootDir, fsModule: fs });
+  const out = store.putTrack({ mediaId: 'b'.repeat(24), cues: [{ start: 0, end: 1, text: 'x' }] });
+  fs.unlinkSync(out.srtPath);
+  const { calls, io } = recordingFs();
+  const store2 = new BrowserAssetStore({ rootDir, fsModule: io });
+  const got = store2.getTrack(out.assetId);
+  ok('asset-store: eksik SRT yeniden kuruldu', got.ok === true);
+  assertCommitOrder('asset-store: srt-rebuild', calls, out.srtPath);
 }
 
 // --- 5) media-catalog-store ---
@@ -157,6 +183,9 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-durability-'));
 }
 
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});
+
+// Geçici kökü temizle — tekrarlı koşularda matris kalıntısı birikmesin.
+try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch {}
 }
 
 main().then(() => {
