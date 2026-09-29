@@ -14787,8 +14787,8 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
         if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
-      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'SponsorBlock yanıtı okunurken bağlantı koptu.' }));
-      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'SponsorBlock yanıtı yarıda kesildi.' }));
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: dt('SponsorBlock yanıtı okunurken bağlantı koptu.', 'Connection dropped while reading the SponsorBlock response.') }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: dt('SponsorBlock yanıtı yarıda kesildi.', 'The SponsorBlock response was cut off mid-stream.') }));
       response.on('end', () => {
         if (total > MAX_SPONSORBLOCK_BYTES) return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
         if (response.statusCode === 404) {

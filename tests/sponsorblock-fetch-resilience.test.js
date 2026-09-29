@@ -37,6 +37,7 @@ function makeFetchHarness({ timers = {} } = {}) {
     splitSponsorActions, validateSponsorSegments: validateSegments,
     validateSponsorChapters: validateChapters,
     net: { request: (opts) => { const r = fakeRequest(opts); requests.push(r); return r; } },
+    dt: (tr) => tr,
     SPONSORBLOCK_HOST: 'sponsor.ajay.app', MAX_SPONSORBLOCK_BYTES: 2 * 1024 * 1024,
     setTimeout, clearTimeout, Promise, JSON, Buffer, String, Number, setImmediate,
     console,
@@ -92,6 +93,33 @@ const microDrain = () => new Promise((r) => setImmediate(r));
   await microDrain();
   ok('kilit sonrası yeni istek gidebiliyor', h.requests.length === 2);
   fireTimers(h.timers); await microDrain();
+}
+
+// Zaman aşımı sonrası gelen yanıt olayları — abort edilmiş isteğin geç
+// 'data'/'end'/'error' olayları ikinci bir çözümleme veya fırlatma üretmez
+// (done tek çıkış noktasıdır; promise zaten kapanmıştır).
+{
+  const h = makeFetchHarness();
+  let resolutions = 0;
+  const p = h.fetch(VID, ['sponsor'], 120).then((v) => { resolutions += 1; return v; });
+  await microDrain();
+  const res = fakeResponse(200);
+  h.requests[0].emitResponse(res);
+  res.emit('data', Buffer.from('{"a":'));
+  fireTimers(h.timers);
+  await microDrain();
+  ok('zaman aşımında istek abort edilir', h.requests[0].aborted === true);
+  // Abort sonrası geç kalan olaylar
+  res.emit('data', Buffer.from('"b":1}'));
+  res.emit('end');
+  res.emit('error');
+  res.emit('aborted');
+  h.requests[0].handlers.request.error?.(new Error('geç bağlantı hatası'));
+  const v = await p;
+  await microDrain();
+  ok('abort-sonrası geç olaylar çift çözümleme/fırlatma üretmez', resolutions === 1
+    && v.ok === false && v.valueOf !== undefined && v.errorKind === 'timeout');
+  ok('geç olaylar sonrası kilit temiz kalır', h.inFlight.size === 0);
 }
 
 // 'aborted' ve 'error' yanıt olayları — DeArrow/RYD'de var olan kapanış yolları.
