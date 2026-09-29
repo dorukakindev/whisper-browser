@@ -18,7 +18,11 @@ import transcribe as T  # noqa: E402
 
 
 def _roundtrip(ass_text, fmt="ass"):
-    """parse → boş-cue süzgeci → decorations → write_* zincirinin tamamı."""
+    """parse → boş-cue süzgeci → decorations → write_* zincirinin tamamı.
+
+    Kapsam notu: çevirinin kendisi ve metin-değiştiren geçişler (merge_continuation,
+    dedupe_cues, LLM onarımı) bu zincirin DIŞINDAdır — o yolların indeks-kayması
+    sözleşmesi test_merge_and_dedupe_reset_formats ile ayrıca kilitlenir."""
     entries = T.parse_subtitle_entries(ass_text, "ass")
     formats = T.parse_ass_cue_formats(ass_text)
     assert len(formats) == len(entries)
@@ -171,6 +175,38 @@ Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\\pos(50,60)}Sağlam
     formats = T.parse_ass_cue_formats(src)
     assert len(entries) == len(formats) == 1
     assert formats[0]["pos"] == ("50", "60")
+
+
+def test_merge_and_dedupe_reset_formats():
+    # Cümle birleştirme: "…" ile biten cue devam sayılır → iki cue birleşir,
+    # indeks eşlemesi bozulur → çeviri yolundaki sözleşme gereği biçim sıfırlanır.
+    src = """[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}Görünür tabelada yazıyor ki…
+Dialogue: 0,0:00:03.10,0:00:05.00,Default,,0,0,0,,sadece bir isim var.
+"""
+    entries = T.parse_subtitle_entries(src, "ass")
+    formats = T.parse_ass_cue_formats(src)
+    assert len(entries) == len(formats) == 2
+    merged = T.merge_continuation_lines(entries)
+    assert len(merged) == 1  # devam satırı önceki bloğa katıldı
+    # Çeviri yolu sözleşmesi: sayı değiştiyse biçim güvenle eşlenemez → []
+    merged_formats = formats if len(merged) == len(entries) else []
+    assert merged_formats == []
+
+    # Tekilleştirme: aynı metinli örtüşen cue elenir → indeks eşlemesi bozulur → []
+    src2 = """[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\an8}Aynı satır
+Dialogue: 0,0:00:01.05,0:00:03.00,Default,,0,0,0,,Aynı satır
+"""
+    entries2 = T.parse_subtitle_entries(src2, "ass")
+    formats2 = T.parse_ass_cue_formats(src2)
+    assert len(entries2) == len(formats2) == 2
+    deduped_entries, removed = T.canonicalize_subtitle_entries(entries2)
+    assert removed >= 1 and len(deduped_entries) < len(entries2)
+    deduped_formats = formats2 if len(deduped_entries) == len(entries2) else []
+    assert deduped_formats == []
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 const path = require('path');
 const { safePlaceUrl } = require('./browser-place-url');
 
@@ -125,9 +126,12 @@ class BrowserAssetStore {
     try {
       this.fs.mkdirSync(paths.dir, { recursive: true });
       this.fs.writeFileSync(tempJson, `${JSON.stringify(document)}\n`, 'utf8');
+      fsyncFile(tempJson, this.fs);
       this.fs.writeFileSync(tempSrt, `\uFEFF${cuesToSrt(cues)}`, 'utf8');
+      fsyncFile(tempSrt, this.fs);
       this.fs.renameSync(tempJson, paths.jsonPath);
       this.fs.renameSync(tempSrt, paths.srtPath);
+      fsyncDirectory(paths.dir, this.fs);
       return { ok: true, assetId, jsonPath: paths.jsonPath, srtPath: paths.srtPath, document };
     } catch (error) {
       for (const temp of [tempJson, tempSrt]) {
@@ -152,7 +156,9 @@ class BrowserAssetStore {
       if (!this.fs.existsSync(paths.srtPath)) {
         const tempSrt = `${paths.srtPath}.${process.pid}.${Date.now()}.tmp`;
         this.fs.writeFileSync(tempSrt, `\uFEFF${cuesToSrt(cues)}`, 'utf8');
+        fsyncFile(tempSrt, this.fs);
         this.fs.renameSync(tempSrt, paths.srtPath);
+        fsyncDirectory(paths.dir, this.fs);
       }
       return { ok: true, document: { ...parsed, version: ASSET_VERSION, cues }, ...paths };
     } catch (error) {

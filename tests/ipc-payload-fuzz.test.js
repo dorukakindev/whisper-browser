@@ -41,11 +41,29 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
   handlers.set(match[1], main.slice(match.index, oneLine ? lineEnd : end.at + end.length));
 }
 const argCounts = new Map();
+const paramNames = new Map();
 for (const [channel, src] of handlers) {
   const sig = src.match(/^ipcMain\.handle\('[^']+',\s*(?:async\s*)?(?:function\s*\w*\s*)?\(([^)]*)\)/);
   const params = sig ? sig[1].split(',').map((p) => p.trim()).filter(Boolean) : ['event'];
   argCounts.set(channel, Math.max(0, params.length - 1));
+  paramNames.set(channel, params.slice(1));
 }
+
+// Fuzz edilmeyen konumlara ad-bazlı makul değer — yalnız `undefined` bırakmak
+// çok-argümanlı handler'ların ilk truthy kapısında erken-dönmesine ve
+// payload'un derin doğrulamaya hiç ulaşmamasına yol açıyordu.
+const SIBLING_HINT = [
+  [/url|src|href|link/i, 'https://example.invalid/'],
+  [/file|path|dir|folder|target|dest|input|output/i, 'x.tmp'],
+  [/opt|setting|config|pref|param|args?/i, {}],
+  [/items?|list|arr|entries|cues|tracks|segments|ids|names/i, []],
+  [/count|num|limit|index|offset|size|ms\b|sec|time|pos|idx|width|height|volume|rate|amount|len/i, 1],
+  [/enabled|flag|force|bool|allow|skip|visible|open|reload|reset/i, true],
+];
+const siblingValue = (name) => {
+  const hit = SIBLING_HINT.find(([re]) => re.test(name || ''));
+  return hit ? hit[1] : 'x';
+};
 
 // --- modül-düzeyi state: `let` → falsy/literal; `new Set/Map/{}` → gerçek ---
 function statePresets() {
@@ -323,7 +341,8 @@ function classifyError(e) {
       for (const [label, rawPayload] of CORPUS) {
         const payload = structuredClone(rawPayload);
         const args = [authorized];
-        for (let i = 0; i < nArgs; i += 1) args.push(i === pos ? payload : undefined);
+        const pNames = paramNames.get(channel) || [];
+        for (let i = 0; i < nArgs; i += 1) args.push(i === pos ? payload : siblingValue(pNames[i]));
         calls.length = 0;
         const t0 = Date.now();
         let outcome = 'ok';
@@ -340,6 +359,11 @@ function classifyError(e) {
         const ms = Date.now() - t0;
         coverage.calls += 1;
         assertNoPollution();
+        // Vm-realm kalıcı değildir; kalıcı kirlilik vektörü host-realm nesneleridir.
+        // Payload'un kendi prototipi de takas edilmiş olmamalı (nesne türlerinde).
+        if (payload && (typeof payload === 'object' || typeof payload === 'function')) {
+          assert.equal(payload.polluted, undefined);
+        }
         const dangerHits = calls.filter((c) => DANGER.test(c.path));
         const allowed = SIDE_EFFECT_ALLOWLIST[channel] || [];
         const unexpected = dangerHits.filter((hit) => !allowed.some((re) => re.test(hit.path)));
@@ -365,6 +389,8 @@ function classifyError(e) {
     }
   }
   assert.equal(violations.length, 0, `${violations.length} payload ihlali`);
+  assert.deepEqual(coverage.registerFails, [],
+    `sanal-alana kaydedilemeyen ${coverage.registerFails.length} kanal taranmadan kaldı`);
   await test('korpus + invariant özeti tamam', () => {});
 })().catch((err) => { console.error(err); process.exitCode = 1; })
   .finally(() => {
