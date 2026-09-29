@@ -106,6 +106,8 @@ function assertCommitOrder(name, calls, filePath) {
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-durability-'));
 
+try {
+
 // --- 1) watch-library-store ---
 {
   const filePath = path.join(tmpRoot, 'watch', 'watch-library.json');
@@ -182,10 +184,109 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-durability-'));
     fs.readFileSync(filePath).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])));
 }
 
+// --- 3b) note-store: rename sonrası dizin-fsync hatası belleği geri almaz ---
+// Rename geçtiğinde birincil dosya yeni payload'u taşır; dizin fsync'inin
+// hatası yalnız dayanıklılık kanıtını etkiler. Bellek geri alınırsa bir
+// sonraki flush bayat durumu diske yazıp kaydı siler.
+{
+  const filePath = path.join(tmpRoot, 'notes-committed', 'notes.json');
+  // Dizin fd'sine gelen fsyncSync'i bozan sarmalayıcı. Her proxy kendi
+  // kümesini tutar — paylaşılan kümede yeniden kullanılan fd numarası
+  // dosya fsync'ini dizin sanıp erken (uncommitted) hata üretir.
+  const state = { fail: true };
+  const dirFsyncBomber = () => {
+    const dirFds = new Set();
+    return new Proxy({}, {
+      get: (_t, p) => {
+        const fn = fs[p];
+        if (p === 'openSync') return (a, b) => {
+          const fd = fs.openSync(a, b);
+          try { if (fs.fstatSync(fd).isDirectory()) dirFds.add(fd); } catch {}
+          return fd;
+        };
+        if (p === 'fsyncSync') return (fd) => {
+          if (state.fail && dirFds.has(fd)) { const e = new Error('dir fsync'); e.code = 'EIO'; throw e; }
+          return fs.fsyncSync(fd);
+        };
+        return typeof fn === 'function' ? fn.bind(fs) : fn;
+      },
+    });
+  };
+  const io = dirFsyncBomber();
+  const store = new BrowserNoteStore(filePath, { io });
+  let failed = null;
+  try { store.upsert({ mediaId: 'm1', note: 'bir', id: 'n1' }); } catch (e) { failed = e; }
+  ok('note-store: rename sonrası fsync hatası yüzeye çıkar', failed && failed.code === 'EIO');
+  ok('note-store: committed hata belleği geri almadı', store.list('m1').length === 1);
+  // Disk de yeni durumda — temiz okuyucuyla doğrulanır.
+  const fresh = new BrowserNoteStore(filePath, {});
+  ok('note-store: disk dosyası yeni kaydı taşır', fresh.list('m1').length === 1);
+  // io iyileşince sonraki flush aynı durumu korur — kayıp yok.
+  state.fail = false;
+  store.upsert({ mediaId: 'm1', note: 'iki', id: 'n2' });
+  ok('note-store: sonraki flush her iki notu korur', store.list('m1').length === 2);
+  // remove aynı yolu izler: committed hata silmeyi geri almaz.
+  const io2 = dirFsyncBomber();
+  const store3 = new BrowserNoteStore(filePath, { io: io2 });
+  const id = store3.list('m1')[0].id;
+  state.fail = true;
+  let removeErr = null;
+  try { store3.remove(id); } catch (e) { removeErr = e; }
+  ok('note-store: remove committed hata belleği geri almadı',
+    removeErr && removeErr.code === 'EIO' && store3.list('m1').length === 1);
+}
+
+// --- 5b) media-catalog-store: birincil bozulunca .bak yedeği okunur ---
+{
+  const filePath = path.join(tmpRoot, 'catalog-bak', 'media-catalog.json');
+  const store = createMediaCatalogStore({ filePath, fsImpl: fs });
+  store.upsert({ id: 'm1', kind: 'film', title: 'yedek', source: { type: 'local', value: '/tmp/y.mp4' } });
+  // İkinci commit birincil'in geçerli içeriğini .bak'a taşır.
+  store.upsert({ id: 'm2', kind: 'film', title: 'yeni', source: { type: 'local', value: '/tmp/z.mp4' } });
+  fs.writeFileSync(filePath, '{bozuk json');
+  const recovered = createMediaCatalogStore({ filePath, fsImpl: fs });
+  const items = recovered.list();
+  ok('media-catalog: bozuk birincil .bak yedeğine düşer',
+    items.length === 1 && items[0].id === 'm1');
+}
+
+// --- 6b) atomicWriteFileSync: çok düzeyli eksik zincir her düzeyi fsync'ler ---
+{
+  const filePath = path.join(tmpRoot, 'deep', 'a', 'b', 'poster.png');
+  const { calls, io } = recordingFs();
+  atomicWriteFileSync(filePath, Buffer.from([1, 2, 3]), { io });
+  assertCommitOrder('atomic: deep', calls, filePath);
+  const dirFsyncSupported = (() => {
+    let d;
+    try { d = fs.openSync(tmpRoot, 'r'); fs.fsyncSync(d); fs.closeSync(d); return true; }
+    catch { try { if (d !== undefined) fs.closeSync(d); } catch {} return false; }
+  })();
+  const ancestors = [
+    path.join(tmpRoot, 'deep', 'a', 'b'),
+    path.join(tmpRoot, 'deep', 'a'),
+    path.join(tmpRoot, 'deep'),
+    tmpRoot,
+  ];
+  if (dirFsyncSupported) {
+    const fsynced = new Set(calls.filter((c) => c.op === 'fsync').map((c) => c.arg));
+    for (const d of ancestors) {
+      ok(`atomic: zincir fsync ${path.relative(tmpRoot, d) || '.'}`, fsynced.has(d));
+    }
+  } else {
+    // Windows: dizin fsync yok — her düzey için açma denemesi kilitlenir.
+    const opened = new Set(calls.filter((c) => c.op === 'openSync').map((c) => c.arg));
+    for (const d of ancestors) {
+      ok(`atomic: zincir denemesi ${path.relative(tmpRoot, d) || '.'}`, opened.has(d));
+    }
+  }
+}
+
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});
 
-// Geçici kökü temizle — tekrarlı koşularda matris kalıntısı birikmesin.
-try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch {}
+} finally {
+  // Başarısız senaryoda bile kalıntı birikmemesi için temizlik finally'de.
+  try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch {}
+}
 }
 
 main().then(() => {

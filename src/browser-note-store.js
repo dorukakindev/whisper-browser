@@ -104,6 +104,7 @@ class BrowserNoteStore {
     io.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const suffix = `${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
     const temporary = `${this.filePath}.${suffix}.tmp`;
+    let committed = false;
     try {
       if (!options.preserveBackup && !options.mirrorBackup && io.existsSync(this.filePath)) {
         io.copyFileSync(this.filePath, this.backupPath);
@@ -128,10 +129,16 @@ class BrowserNoteStore {
         fsyncFileBestEffort(this.backupPath, io);
       }
       io.renameSync(temporary, this.filePath);
+      committed = true;
       fsyncDirectory(path.dirname(this.filePath), io);
       this.needsLegacyImport = false;
       this.recoveryWriteError = '';
     } catch (error) {
+      // Rename sonrası hata dosya içeriğini etkilemez: birincil dosya yeni
+      // payload'u taşır, yalnız dizin dayanıklılık kanıtı eksik kalır.
+      // Çağıranlar belleği geri almamalı — alınırsa bir sonraki flush
+      // bayat durumu yeniden yazıp diskteki kaydı siler.
+      if (committed && error && typeof error === 'object') error.committed = true;
       try { if (io.existsSync(temporary)) io.unlinkSync(temporary); } catch (_) {}
       throw error;
     }
@@ -170,8 +177,12 @@ class BrowserNoteStore {
     try {
       this.flush();
     } catch (error) {
-      if (previous) this.annotations.set(previous.id, previous);
-      else this.annotations.delete(annotation.id);
+      // committed: rename geçti, disk bellekle aynı durumda — geri alma
+      // bellek/disk ayrışması yaratır.
+      if (!error || error.committed !== true) {
+        if (previous) this.annotations.set(previous.id, previous);
+        else this.annotations.delete(annotation.id);
+      }
       throw error;
     }
     return { ...annotation };
@@ -186,7 +197,7 @@ class BrowserNoteStore {
     try {
       this.flush({ mirrorBackup: true });
     } catch (error) {
-      this.annotations.set(key, previous);
+      if (!error || error.committed !== true) this.annotations.set(key, previous);
       throw error;
     }
     return { ...previous };
