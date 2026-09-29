@@ -111,6 +111,7 @@ function extract(start, end, deps = {}) {
     normalizeBrowserUrl: value => value, browserTabs: tabs, MAX_SESSION_TABS: 2,
     browserTabsSnapshot: () => [...tabs.values()],
     browserActiveTabId: 'old', browserVisible: true, browserModalOccluded: false,
+    setBrowserViewShown: (_tab, view, shown) => view.setVisible(shown),
     createBrowserTabRecord() { const tab = { id: 'new' }; tabs.set('new', tab); return tab; },
     ensureBrowserView: tab => {
       const view = { setVisible: value => visibility.push(value),

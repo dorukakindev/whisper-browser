@@ -26,6 +26,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       browserCompatibilityModeForUrl: () => false,
       suspendBrowserInstrumentationForNavigation() {},
       ensureBrowserView: () => { tab.view = view; return view; }, browserActiveTabId: tab.id, browserVisible: true, browserModalOccluded: false,
+      setBrowserViewShown: (_t, v, shown) => v.setVisible(shown),
       scheduleBrowserSessionSave() {},
     };
     let navigate;
@@ -35,6 +36,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       ...shared, authorizedBrowserSender: () => true, activeRequestedBrowserTab: () => tab,
       browserBounds: null, browserOverlay: {}, resetBrowserCaptureState() {}, startBrowserPolling() {},
       applyBrowserViewBounds() {},
+      setBrowserViewShown(_t, v, shown) { v.setVisible(shown); },
       ipcMain: { handle: (_, fn) => { navigate = fn; } },
     });
     const result = await navigate({}, { url: 'https://example.test/watch', tabId: tab.id });
@@ -94,6 +96,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       browserActiveTabId: 'other',
       browserVisible: true,
       browserModalOccluded: false,
+      setBrowserViewShown(_t, v, shown) { v.setVisible(shown); },
       sendBrowserEvent() {},
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
       browserCompatibilityModeForUrl: () => false,
@@ -144,6 +147,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       browserOverlay: {},
       resetBrowserCaptureState() {},
       applyBrowserViewBounds() {},
+      setBrowserViewShown(_t, v, shown) { v.setVisible(shown); },
       startBrowserPolling() {},
       scheduleBrowserSessionSave() {},
       browserEventContext: () => ({}),

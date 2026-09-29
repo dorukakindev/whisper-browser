@@ -377,6 +377,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
         ensureBrowserView: () => view, browserBounds: null, browserVisible: false,
         browserModalOccluded: occluded, browserOverlay: {}, resetBrowserCaptureState: () => {},
         applyBrowserViewBounds: () => {},
+        setBrowserViewShown: (_tab, v, shown) => v.setVisible(shown),
         startBrowserPolling: () => {}, scheduleBrowserSessionSave: () => {},
         browserEventContext: () => ({}), browserNavigationState: () => ({}) });
       assert((await navigate(authorized, { url: 'https://example.com', tabId: 't' })).ok);
