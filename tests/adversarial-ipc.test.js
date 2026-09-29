@@ -11,6 +11,7 @@ const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle'
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer, parseNdjsonLine } = require('../src/ndjson-lines');
 const { defaultMediaFolders } = require('../src/media-folders');
+const { pushBoundOption } = require('../src/argv-escape');
 const { buildSecretEnv, sanitizeAbsolutePath } = require('../src/settings-security');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
@@ -25,7 +26,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -261,7 +262,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // transcribe:start artik is basina sahipli bir gecici klasor aciyor;
       // harness GERCEK randomUUID'yi verir.
       randomUUID: require('crypto').randomUUID,
-      createIdempotentCancel, recoverOutputTransactions,
+      createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     // Unlike register(), keep one context so assignments remain observable.
     const sandbox = vm.createContext(context);
@@ -316,7 +317,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       createProcessTerminalLatch, randomUUID: require('crypto').randomUUID,
-      createIdempotentCancel, recoverOutputTransactions,
+      createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     const sandbox = vm.createContext(context);
     sandbox.ipcMain = { handle: (_name, fn) => { sandbox.start = fn; } };
@@ -334,7 +335,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
     const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender },
-      loadSettings: () => ({ ui: { uiLocale: 'en' } }) };
+      loadSettings: () => ({ ui: { uiLocale: 'en' } }), pushBoundOption };
     let complete;
     context.dialog = { showOpenDialog: () => new Promise((resolve) => { complete = resolve; }) };
     const sandbox = vm.createContext(context);

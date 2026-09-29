@@ -210,6 +210,7 @@ const {
   restoreNewestBurninReplacementBackup,
   replaceBurninOutput,
 } = require('./burnin-output');
+const { pushBoundOption } = require('./argv-escape');
 const {
   mergeQueueSnapshotForSave,
   clonePublicOptions,
@@ -1342,7 +1343,7 @@ ipcMain.handle('media:probe', async (_e, url) => {
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
   const args = ['probe', '--url', mediaUrl.url];
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(input.cookieBrowser)) {
-    args.push('--cookie-browser', input.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', input.cookieBrowser);
   }
   return runMediaCommand(args, null, 'probe');
 });
@@ -1360,9 +1361,9 @@ ipcMain.handle('media:download', async (_e, opts) => {
   }
   const args = ['download', '--url', mediaUrl.url, '--output-dir', outDir];
   if (o.height) args.push('--height', String(o.height));
-  if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
-    args.push('--cookie-browser', o.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1435,7 +1436,7 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
     '--output-dir', outDir,
   ];
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
-    args.push('--cookie-browser', o.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1461,7 +1462,7 @@ ipcMain.handle('invidious:probe', async (_e, url, opts) => {
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['probe', '--url', mediaUrl.url];
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', null, 60_000, invidiousAuthEnv(instance));
 });
 
@@ -1483,7 +1484,7 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
   if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = ['subs', '--url', mediaUrl.url, `--lang=${subLang}`, '--output-dir', outDir];
   if (o.auto) args.push('--auto');
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1528,9 +1529,9 @@ ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
   // Trend kategori sekmesi — yalnızca bilinen değerler geçer
   const tab = String(opts && opts.tab || '').trim().toLowerCase();
   if (kind === 'trending' && ['music', 'gaming', 'news', 'movies'].includes(tab)) {
-    args.push('--tab', tab);
+    pushBoundOption(args, '--tab', tab);
   }
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   const timeoutMs = kind === 'trending' ? 120_000 : 75_000;
   const requestId = Number.isSafeInteger(opts && opts.requestId) ? opts.requestId : null;
   return runInvidiousCommand(args, 'invidious', (ev) => {
@@ -1550,13 +1551,13 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
   const args = ['search', `--query=${query.trim().slice(0, 100)}`];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
   const searchType = String(opts && opts.searchType || 'video').toLowerCase();
-  if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
+  if (['playlist', 'all'].includes(searchType)) pushBoundOption(args, '--search-type', searchType);
   // A04: yalnız bilinen Invidious özellik süzgeçleri geçer — serbest metin gitmez.
   const features = String(opts && opts.features || '').toLowerCase()
     .split(',').map((t) => t.trim())
     .filter((t) => ['live', 'hd', 'subtitles', 'creative_commons', '3d', '360', 'hdr'].includes(t));
-  if (features.length) args.push('--features', features.join(','));
-  if (instance) args.push('--instance', instance);
+  if (features.length) pushBoundOption(args, '--features', features.join(','));
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1572,7 +1573,7 @@ ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
   if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['suggest', `--query=${q}`];
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
 
@@ -1588,7 +1589,7 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['channel', '--channel-id', channelId];
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1616,7 +1617,7 @@ ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
   if (query) args.push(`--query=${query}`);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1639,8 +1640,8 @@ ipcMain.handle('invidious:comments', async (_e, url, opts) => {
   const instance = resolveInvidiousInstance(o.instance);
   const args = ['comments', '--url', target];
   const cont = String(o.continuation || '').trim();
-  if (cont) args.push('--continuation', cont.slice(0, 500));
-  if (instance) args.push('--instance', instance);
+  if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 500));
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1660,7 +1661,7 @@ ipcMain.handle('invidious:playlist', async (_e, playlistId, opts) => {
   const args = ['playlist', '--playlist-id', pid];
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1679,7 +1680,7 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
   const instance = resolveInvidiousInstance(opts && opts.instance);
   // Şifre argv'de değil env'de — süreç listesinde görünmesin (B82-01).
   const args = ['login', '--username', String(username).slice(0, 100)];
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   const loginEnv = { WHISPER_INVIDIOUS_PASSWORD: String(password).slice(0, 200) };
   let res = await runInvidiousCommand(args, 'invidious', null, 45_000, loginEnv);
   if (res && res.ok && res.data && res.data.username) {
@@ -1752,9 +1753,9 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
     `--title=${String(o.title || 'invidious-video').slice(0, 120)}`,
     '--output-dir', outDir,
   ];
-  if (o.audioUrl) args.push('--audio-url', o.audioUrl);
+  if (o.audioUrl) pushBoundOption(args, '--audio-url', o.audioUrl);
   if (o.height) args.push('--height', String(o.height));
-  if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
   // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
@@ -2250,7 +2251,7 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
       }
     }
     const args = ['browse', '--browse-id', bid];
-    if (cont) args.push('--continuation', cont.slice(0, 2000));
+    if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 2000));
     return runYoutubeCommand(args, (ev) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('youtube:event', ev);
@@ -16780,7 +16781,7 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
     '--output-file', selection.filePath,
   ];
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(payload?.cookieBrowser)) {
-    args.push('--cookie-browser', payload.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', payload.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('media:event', ev);
@@ -17785,13 +17786,13 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
     '--model', model, '--device', device, '--compute-type', computeType,
     '--seconds', String(seconds), '--start', String(start),
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
-  if (language && language !== 'auto') args.push('--language', language);
+  if (language && language !== 'auto') pushBoundOption(args, '--language', language);
   // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
   const compare = options.compare && typeof options.compare === 'object' ? options.compare : {};
   const compareModel = KNOWN_MODELS.includes(compare.model) ? compare.model : '';
   if (compareModel) {
-    args.push('--compare-model', compareModel,
-      '--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
+    pushBoundOption(args, '--compare-model', compareModel);
+    args.push('--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
       '--compare-compute-type', String(compare.computeType || computeType).slice(0, 32));
   }
   const proc = spawn(resolvePython(), args, { cwd: appDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -19155,17 +19156,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   };
 
   if (options.youtube) {
-    args.push('--youtube', options.youtube);
+    pushBoundOption(args, '--youtube', options.youtube);
   } else if (options.input) {
-    args.push('--input', options.input);
+    pushBoundOption(args, '--input', options.input);
   } else if (options.chat) {
     // Sohbet altyazi dosyasi degil, gecici JSON baglami kullanir.
   } else {
     return { ok: false, error: 'Bir dosya ya da YouTube linki gerekli.' };
   }
 
-  args.push('--input-dir', options.inputDir);
-  args.push('--output-dir', options.outputDir);
+  pushBoundOption(args, '--input-dir', options.inputDir);
+  pushBoundOption(args, '--output-dir', options.outputDir);
   if (options.outputNameSuffix) {
     const suffix = String(options.outputNameSuffix);
     if (!isValidOutputNameSuffix(suffix)) {
@@ -19177,19 +19178,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     // --ad=değer biçimi, tireli değeri tek argüman olarak bağlar.
     args.push(`--output-name-suffix=${suffix}`);
   }
-  if (options.model) args.push('--model', options.model);
-  if (options.engine) args.push('--engine', options.engine);
+  if (options.model) pushBoundOption(args, '--model', options.model);
+  if (options.engine) pushBoundOption(args, '--engine', options.engine);
   if (options.batchSize) args.push('--batch-size', String(options.batchSize));
   if (Number.isInteger(options.audioTrack) && options.audioTrack >= 0) {
     args.push('--audio-track', String(options.audioTrack));
   }
-  if (options.youtubeAudioLang) args.push('--youtube-audio-lang', String(options.youtubeAudioLang));
+  if (options.youtubeAudioLang) pushBoundOption(args, '--youtube-audio-lang', String(options.youtubeAudioLang));
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(options.youtubeCookieBrowser)) {
-    args.push('--youtube-cookie-browser', options.youtubeCookieBrowser);
+    pushBoundOption(args, '--youtube-cookie-browser', options.youtubeCookieBrowser);
   }
   args.push('--quality-report', options.qualityReport !== false ? 'true' : 'false');
   args.push('--resume', options.resume !== false ? 'true' : 'false');
-  if (options.device) args.push('--device', options.device);
+  if (options.device) pushBoundOption(args, '--device', options.device);
   args.push('--snap-to-speech', options.snapToSpeech !== false ? 'true' : 'false');
   args.push('--fix-timings', options.fixTimings !== false ? 'true' : 'false');
   if (options.maxCps) args.push('--max-cps', String(options.maxCps));
@@ -19203,23 +19204,23 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--confidence-report', options.confidenceReport !== false ? 'true' : 'false');
   if (options.incompleteGap) args.push('--incomplete-gap', String(options.incompleteGap));
   args.push('--dedupe', options.dedupe !== false ? 'true' : 'false');
-  if (options.computeType) args.push('--compute-type', options.computeType);
-  if (options.language) args.push('--language', options.language);
-  if (options.task) args.push('--task', options.task);
+  if (options.computeType) pushBoundOption(args, '--compute-type', options.computeType);
+  if (options.language) pushBoundOption(args, '--language', options.language);
+  if (options.task) pushBoundOption(args, '--task', options.task);
   if (options.beamSize) args.push('--beam-size', String(options.beamSize));
   if (options.bestOf) args.push('--best-of', String(options.bestOf));
   args.push('--vad-filter', options.vadFilter ? 'true' : 'false');
   if (options.vadThreshold) args.push('--vad-threshold', String(options.vadThreshold));
   args.push('--condition-on-previous', options.conditionOnPrevious ? 'true' : 'false');
-  if (options.initialPrompt) args.push('--initial-prompt', options.initialPrompt);
-  if (options.formats) args.push('--formats', options.formats);
+  if (options.initialPrompt) pushBoundOption(args, '--initial-prompt', options.initialPrompt);
+  if (options.formats) pushBoundOption(args, '--formats', options.formats);
   args.push('--lang-suffix', options.langSuffix ? 'true' : 'false');
   // JSON'dan yeniden dışa aktarma: transkripsiyon yok, --input bir .json çıktısıdır
   if (options.reexport) args.push('--reexport', 'true');
   // Altyazı senkronlama: transkripsiyon yok, --input video + --sync-srt harici SRT
   if (options.syncSubs) {
     args.push('--sync-subs', 'true');
-    if (options.syncSrt) args.push('--sync-srt', options.syncSrt);
+    if (options.syncSrt) pushBoundOption(args, '--sync-srt', options.syncSrt);
     if (options.syncMaxShift) args.push('--sync-max-shift', String(options.syncMaxShift));
     args.push('--sync-fix-framerate', options.syncFixFramerate !== false ? 'true' : 'false');
     args.push('--sync-piecewise', options.syncPiecewise !== false ? 'true' : 'false');
@@ -19227,8 +19228,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.maxLineWidth) args.push('--max-line-width', String(options.maxLineWidth));
   if (options.maxLines) args.push('--max-lines', String(options.maxLines));
   if (options.maxChars) args.push('--max-chars', String(options.maxChars));
-  if (options.splitMode) args.push('--split-mode', options.splitMode);
-  if (options.wrapMode) args.push('--wrap-mode', options.wrapMode);
+  if (options.splitMode) pushBoundOption(args, '--split-mode', options.splitMode);
+  if (options.wrapMode) pushBoundOption(args, '--wrap-mode', options.wrapMode);
   if (options.timingGap) args.push('--timing-gap', String(options.timingGap));
   if (options.hardMaxChars) args.push('--hard-max-chars', String(options.hardMaxChars));
 
@@ -19250,7 +19251,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.vadMaxSpeechS !== undefined) args.push('--vad-max-speech-s', String(options.vadMaxSpeechS));
 
   // Sözlük
-  if (options.glossary) args.push('--glossary', options.glossary);
+  if (options.glossary) pushBoundOption(args, '--glossary', options.glossary);
 
   // Zaman aralığı (kırpma)
   if (options.clipStart) args.push('--clip-start', String(options.clipStart));
@@ -19269,8 +19270,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.llmPostprocess) {
     args.push('--llm-postprocess', 'true');
     // llmApiKey argv yerine ortam değişkeniyle geçer (aşağıda)
-    if (options.llmBaseUrl) args.push('--llm-base-url', options.llmBaseUrl);
-    if (options.llmModel) args.push('--llm-model', options.llmModel);
+    if (options.llmBaseUrl) pushBoundOption(args, '--llm-base-url', options.llmBaseUrl);
+    if (options.llmModel) pushBoundOption(args, '--llm-model', options.llmModel);
     if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
     args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');
     args.push('--llm-fix-hallucination', options.llmFixHallucination !== false ? 'true' : 'false');
@@ -19283,19 +19284,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // çalışıyordu. Bu blok asla o if'in içine taşınmamalı.)
   // API anahtarı argv'de DEĞİL, ortam değişkeninde geçer.
   args.push('--translate', options.translate ? 'true' : 'false');
-  if (options.translateTo) args.push('--translate-to', options.translateTo);
-  if (options.translateBaseUrl) args.push('--translate-base-url', options.translateBaseUrl);
-  if (options.translateModel) args.push('--translate-model', options.translateModel);
+  if (options.translateTo) pushBoundOption(args, '--translate-to', options.translateTo);
+  if (options.translateBaseUrl) pushBoundOption(args, '--translate-base-url', options.translateBaseUrl);
+  if (options.translateModel) pushBoundOption(args, '--translate-model', options.translateModel);
   if (!options.chat && options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
-  if (!options.chat && options.translateRegister) args.push('--translate-register', options.translateRegister);
-  if (!options.chat && options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
+  if (!options.chat && options.translateRegister) pushBoundOption(args, '--translate-register', options.translateRegister);
+  if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
   if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
     args.push('--translate-context', String(options.translateContext));
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
-  if (!options.chat && options.translateExisting) args.push('--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateExisting) pushBoundOption(args, '--translate-existing', options.translateExisting);
   if (!options.chat && options.translateOnly && options.dedupeCues) args.push('--dedupe-cues');
   // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
   // metinlerde sinira takilir ve surec listesinde gorunur.
@@ -19320,15 +19321,15 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.explain) {
     args.push('--explain', 'true');
     args.push('--explain-index', String(options.explainIndex || 0));
-    args.push('--explain-kind', options.explainKind || 'sentence');
-    if (options.explainWord) args.push('--explain-word', options.explainWord);
-    if (options.explainTranslation) args.push('--explain-translation', options.explainTranslation);
+    pushBoundOption(args, '--explain-kind', options.explainKind || 'sentence');
+    if (options.explainWord) pushBoundOption(args, '--explain-word', options.explainWord);
+    if (options.explainTranslation) pushBoundOption(args, '--explain-translation', options.explainTranslation);
   }
   args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
   args.push('--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
-  if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);
+  if (options.audioPreprocess) pushBoundOption(args, '--audio-preprocess', options.audioPreprocess);
 
   // Gizli anahtarları argv yerine ortam değişkeniyle ve yalnız onları kullanan
   // özellikler açıkken geçir (process listesinde ve ilgisiz child env'lerinde görünmesin).
