@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0952.md](docs/devir/2026-09-29-0952.md) — R247: #189 review triage (whisper-pdf kaynak kimliği oturum nonce'u)
+Güncel çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
+Önceki çalışma: [docs/devir/2026-09-29-0952.md](docs/devir/2026-09-29-0952.md) — R247: #189 review triage (whisper-pdf kaynak kimliği oturum nonce'u)
 Önceki çalışma: [docs/devir/2026-09-29-0945.md](docs/devir/2026-09-29-0945.md) — R246 kapanış: kesin master merge kimliği (7fb6a25)
 Önceki çalışma: [docs/devir/2026-09-29-0933.md](docs/devir/2026-09-29-0933.md) — R246: Windows doğrulama bulguları (NTP imleç-ölümü + whisper-pdf 403)
 Önceki çalışma: [docs/devir/2026-09-29-0921.md](docs/devir/2026-09-29-0921.md) — R245 kapanış: kesin master merge kimliği (345128f)
