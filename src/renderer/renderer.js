@@ -19904,14 +19904,30 @@ if (moreSearch) {
   let moreEmpty = null;
   const filterMoreMenu = () => {
     const q = foldSearch(moreSearch.value.trim());
+    // Arama "eylenebilir komut" bulur: devre dışı öğeler eşleşmez — gri ama
+    // tıklanamaz ölü sonuç yerine "eşleşme yok" satırı daha dürüsttür.
+    const usable = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    const matches = (item) => {
+      // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
+      // kısa sorgular simge ağırlıklı öğeleri de bulsun.
+      const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
+      return !q || (usable(item) && foldSearch(haystack).includes(q));
+    };
     let total = 0;
+    // Hızlı eylem satırındaki düğmeler de aranır: "yeni sekme" gibi sorgular
+    // satırı bütünüyle gizleyip yanlışlıkla "eşleşme yok" göstermesin.
+    const quickRow = morePopover?.querySelector('.browser-more-quick');
+    let quickHits = 0;
+    quickRow?.querySelectorAll('button').forEach((item) => {
+      const hit = matches(item);
+      item.classList.toggle('hidden', !hit);
+      if (q && hit) quickHits += 1;
+    });
+    total += quickHits;
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
       let visible = 0;
       sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
-        // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
-        // kısa sorgular simge ağırlıklı öğeleri de bulsun.
-        const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
-        const hit = !q || foldSearch(haystack).includes(q);
+        const hit = matches(item);
         item.classList.toggle('hidden', !hit);
         if (hit) visible += 1;
       });
@@ -19919,9 +19935,11 @@ if (moreSearch) {
       if (q && visible) sub.open = true;
       total += visible;
     });
-    // Arama sürerken hızlı eylem satırı ve ayraç gizlenir; sonuç yoksa bunu söyle.
-    morePopover?.querySelector('.browser-more-quick')?.classList.toggle('hidden', !!q);
-    morePopover?.querySelector('.browser-more-quick + .browser-menu-separator')?.classList.toggle('hidden', !!q);
+    // Arama sırasında yalnız eşleşen hızlı eylemler kalır; eşleşme yoksa satır
+    // ve ayracı da gizlenir.
+    quickRow?.classList.toggle('hidden', !!q && !quickHits);
+    morePopover?.querySelector('.browser-more-quick + .browser-menu-separator')
+      ?.classList.toggle('hidden', !!q && !quickHits);
     if (!moreEmpty && morePopover) {
       moreEmpty = document.createElement('div');
       moreEmpty.className = 'browser-more-empty hidden';
@@ -19937,7 +19955,7 @@ if (moreSearch) {
   moreSearch.addEventListener('keydown', (event) => {
     // Enter ilk eşleşen görünür öğeyi çalıştırır (Chrome menü aramasıyla aynı).
     if (event.key !== 'Enter' || event.isComposing || !moreSearch.value.trim()) return;
-    const first = [...(morePopover?.querySelectorAll('.browser-more-sub [role^="menuitem"]') || [])]
+    const first = [...(morePopover?.querySelectorAll('.browser-more-quick button, .browser-more-sub [role^="menuitem"]') || [])]
       .find((item) => !item.classList.contains('hidden') && !item.disabled && item.getAttribute('aria-disabled') !== 'true');
     if (!first) return;
     event.preventDefault();

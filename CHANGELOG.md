@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R230 (#160 review): menü araması hızlı eylemleri (Yeni sekme, sekmeyi geri aç, sayfada bul, zoom) de bulur ve Enter'la çalıştırır; devre dışı öğeler eşleşme sayılmaz — ölü gri sonuç yerine "eşleşen komut yok" satırı.
 - R229: tarayıcı ⋯ menüsü ve vurgu cilası — yenile/durdur ikonları aynı anda gösterilmez, açık temada koyu çerçeve düzeltildi, "Aktif işler" ve `https://` şeması kontrast eşiğine çıkarıldı, vekil menü öğeleri devre dışı hedeflerde neden belirtir, menü araması kapanışta sıfırlanıp boş durum gösterir ve Enter ilk sonucu çalıştırır, "Bu anı kaydet" ve "Sayfada öğe gizle" sinyal verir, "Videoyu indir" açık YouTube adresini oynatıcı alanına öndoldurur, QR ikonu ve çeviri menüsü checkbox boşluğu düzeltildi.
 
 - **Kısmen bozuk PDF durum dosyası sağlam sayfaları kurtarır** —
