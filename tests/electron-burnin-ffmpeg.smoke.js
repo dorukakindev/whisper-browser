@@ -78,7 +78,8 @@ app.whenReady().then(async () => {
     const subPath = path.join(out, 'altyazi-dosyasi.srt');
     fs.writeFileSync(subPath,
       '1\n00:00:00,000 --> 00:00:01,000\nMerhaba dünya, şğü öç\n\n'
-      + '2\n00:00:01,000 --> 00:00:02,000\nİkinci satır geliyor\n',
+      + '2\n00:00:01,000 --> 00:00:01,500\nEmoji+nonchar 🚀\u{10FFFE} satırı\n\n'
+      + '3\n00:00:01,500 --> 00:00:02,000\nこんにちは CJK\n',
       'utf8');
 
     // Uzantı reddi: .txt gömülemez (IPC seviyesinde, authorize öncesi erken yol).
@@ -103,6 +104,12 @@ app.whenReady().then(async () => {
     const done = await until(() => run(`return window.__burnEvents.find((e) => e.type === 'done' || e.type === 'error') || null`),
       'burnin done/error', 120000);
     assert.equal(done.type, 'done', `gömme hatası: ${JSON.stringify(done)}`);
+    // Glif-kayıp uyarısı: U+10FFFE atanmamış noncharacter'dir — hiçbir sistem
+    // fontunda glifi yoktur, libass her ortamda "failed to find any fallback"
+    // basar. done.missingGlyphs ≥1 (emoji da çoğu kurulumda eksik ekler).
+    assert(Number.isFinite(done.missingGlyphs), `missingGlyphs alanı yok: ${JSON.stringify(done)}`);
+    assert(done.missingGlyphs >= 1, `nonchar glif uyarısı bekleniyordu: ${done.missingGlyphs}`);
+    console.log(`[burnin] eksik glif uyarısı: ${done.missingGlyphs} karakter`);
     const events = await run('return window.__burnEvents;');
     assert(events.some((e) => e.type === 'start'), 'start olayı yok');
     assert(events.some((e) => e.type === 'progress'), 'progress olayı yok');

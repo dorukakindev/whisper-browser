@@ -18805,6 +18805,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     job.tempPath = tempPath;
     job.outPath = outPath;
     job.filterSubPath = filterSubPath;
+    job.missingGlyphs = new Set();
     job.cancelled = false;
     job.settled = false;
     job.previousRecovery = resumingPrevious ? previousRecovery : null;
@@ -18852,7 +18853,15 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   }
   if (job.stderr) {
     job.stderr.setEncoding('utf-8');
-    job.stderr.on('data', (d) => { errTail = (errTail + d).slice(-1500); });
+    job.stderr.on('data', (d) => {
+      errTail = (errTail + d).slice(-1500);
+      // libass, karşılık bulamadığı glifler için "failed to find any fallback"
+      // basar; iş yine de başarıyla biter ve altyazı kutu/boşluk olur — sessiz
+      // bırakmamak için eksik glif kodlarını topla.
+      for (const m of String(d).matchAll(/failed to find any fallback with glyph (0x[0-9A-Fa-f]+)/g)) {
+        job.missingGlyphs.add(m[1].toLowerCase());
+      }
+    });
   }
   const finish = (ok, message) => {
     if (job.settled) return;
@@ -18866,7 +18875,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
         replaceBurninOutput(tempPath, outPath);
         cleanupBurninReplacementBackups(outPath);
         clearBurninRecoveryState(job.recovery?.id, false);
-        send({ type: 'done', file: outPath });
+        send({ type: 'done', file: outPath, missingGlyphs: job.missingGlyphs.size });
         return;
       } catch (error) {
         message = `Gömme çıktısı tamamlanamadı: ${error.message}`;
