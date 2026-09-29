@@ -98,10 +98,12 @@ async function test(title, fn) {
     vm.runInContext(`${extractFunction(helpers, 'browserTabsInScreenOrder')}
       ${extractFunction(helpers, 'browserTabsRightOf')}
       this.order = browserTabsInScreenOrder; this.right = browserTabsRightOf;`, ctx);
-    assert.deepEqual(ctx.order().map((t) => t.id), ['A', 'B', 'D', 'C', 'E']);
-    assert.deepEqual(ctx.right('D').map((t) => t.id), ['C'], 'D\'nin sağında yalnız C var (E sabit)');
-    assert.deepEqual(ctx.right('C').map((t) => t.id), [], 'C\'nin sağında kapatılabilir sekme yok');
-    assert.deepEqual(ctx.right('A').map((t) => t.id), ['B', 'D', 'C']);
+    // vm realm'inden dönen diziler spread ile bu realm'e taşınır; aksi
+    // halde deepStrictEqual, Array.prototype farkı yüzünden reddeder.
+    assert.deepEqual([...ctx.order().map((t) => t.id)], ['A', 'B', 'D', 'C', 'E']);
+    assert.deepEqual([...ctx.right('D').map((t) => t.id)], ['C'], 'D\'nin sağında yalnız C var (E sabit)');
+    assert.deepEqual([...ctx.right('C').map((t) => t.id)], [], 'C\'nin sağında kapatılabilir sekme yok');
+    assert.deepEqual([...ctx.right('A').map((t) => t.id)], ['B', 'D', 'C']);
   });
 
   // ---- 3. Bul çubuğu aynı belge içi gezinmede sıfırlanmaz
@@ -262,7 +264,9 @@ async function test(title, fn) {
     vm.runInContext(`${extractFunction(renderer, 'syncProcessingControlState')} syncProcessingControlState();`, ctx);
     for (const id of ['model', 'translateTo', 'diarize', 'pickVideosBtn']) assert.equal(controls[id].disabled, true, `${id} kilitlenmeli`);
     for (const id of ['playerVolume', 'uiLocale', 'subSize', 'browserOverlayScale', 'stCardScale', 'playerAutoNext', 'browserAdblockEnabled']) {
-      assert.equal(controls[id].disabled, false, `${id} iş sürerken kilitlenmemeli`);
+      // Kilitlenmeyen kontroller $'ye hiç sorgulanmadığından stub oluşmaz;
+      // "dokunulmamış" ile "disabled=false" aynı doğru sonucu verir.
+      assert.ok(!controls[id]?.disabled, `${id} iş sürerken kilitlenmemeli`);
     }
   });
 
