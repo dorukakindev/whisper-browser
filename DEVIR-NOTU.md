@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
+Güncel çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
+Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
 Önceki çalışma: [docs/devir/2026-09-30-0430.md](docs/devir/2026-09-30-0430.md) — R278: oynatıcı zamanlama fuzz'ı (nextCueBoundaryAt ≡ oracle + playbackLearningAction invariant matrisi)
