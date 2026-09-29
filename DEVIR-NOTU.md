@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0933.md](docs/devir/2026-09-29-0933.md) — R246: Windows doğrulama bulguları (NTP imleç-ölümü + whisper-pdf 403)
+Güncel çalışma: [docs/devir/2026-09-29-0945.md](docs/devir/2026-09-29-0945.md) — R246 kapanış: kesin master merge kimliği (7fb6a25)
+Önceki çalışma: [docs/devir/2026-09-29-0933.md](docs/devir/2026-09-29-0933.md) — R246: Windows doğrulama bulguları (NTP imleç-ölümü + whisper-pdf 403)
 Önceki çalışma: [docs/devir/2026-09-29-0921.md](docs/devir/2026-09-29-0921.md) — R245 kapanış: kesin master merge kimliği (345128f)
 Önceki çalışma: [docs/devir/2026-09-29-0907.md](docs/devir/2026-09-29-0907.md) — R245: #181+#184 review triage (kaynak-dili ordinal + VTT meta + ilke-hatası/TOCTOU)
 Önceki çalışma: [docs/devir/2026-09-29-0840.md](docs/devir/2026-09-29-0840.md) — R244: v8CacheOptions bypassHeatCheck + önizleme is-compact
