@@ -62,8 +62,12 @@ function assertCommitOrder(name, calls, filePath) {
   const tempPath = mainRename >= 0 ? calls[mainRename].arg : '';
   const tempFsync = calls.findIndex((c) => c.op === 'fsync' && c.arg === tempPath);
   ok(`${name}: temp fsync rename'den önce`, tempFsync >= 0 && tempFsync < mainRename);
+  // fsyncDirectory ile aynı deneme: aç + fsync. Windows'ta openSync(dir) bazı
+  // Node/sistemde döner ama fsyncSync EPERM fırlatır — kapı ikisine birden bakmalı.
   const dirFsyncSupported = (() => {
-    try { const d = fs.openSync(dir, 'r'); fs.closeSync(d); return true; } catch { return false; }
+    let d;
+    try { d = fs.openSync(dir, 'r'); fs.fsyncSync(d); fs.closeSync(d); return true; }
+    catch { try { if (d !== undefined) fs.closeSync(d); } catch {} return false; }
   })();
   if (dirFsyncSupported) {
     const dirFsync = calls.findIndex((c, i) => i > mainRename && c.op === 'fsync' && c.arg === dir);
