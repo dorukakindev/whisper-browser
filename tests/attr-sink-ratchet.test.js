@@ -14,9 +14,20 @@ let checks = 0;
 const ok = (name, cond) => { checks += 1; assert.ok(cond, name); };
 
 const RENDERER_DIR = path.join(__dirname, '..', 'src', 'renderer');
-const FILES = fs.readdirSync(RENDERER_DIR)
+// Kapsam: index.html'in yüklediği TÜM betikler (yerel + `../` ile src/ altındaki)
+// + renderer/ üst-düzey betik olmayan .js dosyaları (worklet, mini pencere).
+// `../` betikleri taramadan kaçmak envanteri gerçeğin gerisinde bırakırdı.
+const INDEX_HTML = path.join(RENDERER_DIR, 'index.html');
+const scriptFiles = new Set(
+  [...fs.readFileSync(INDEX_HTML, 'utf8').matchAll(/<script\s+src="([^"]+\.js)"/g)]
+    .map((m) => path.normalize(path.join(RENDERER_DIR, m[1])))
+    .filter((abs) => !abs.includes(`${path.sep}vendor${path.sep}`))
+    .map((abs) => path.relative(path.join(__dirname, '..'), abs)));
+const topLevel = fs.readdirSync(RENDERER_DIR)
   .filter((f) => f.endsWith('.js') && !f.startsWith('vendor'))
-  .sort();
+  .map((f) => path.join('src', 'renderer', f));
+const FILES = [...new Set([...scriptFiles, ...topLevel])].sort();
+const fileSrc = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
 // --- Yasak sink kalıpları: hiçbir dosyada görünmemeli -----------------
 const FORBIDDEN = [
@@ -27,7 +38,7 @@ const FORBIDDEN = [
   { name: 'eval çağrısı', re: /(^|[^.\w])eval\s*\(/ },
 ];
 for (const file of FILES) {
-  const src = fs.readFileSync(path.join(RENDERER_DIR, file), 'utf8');
+  const src = fileSrc(file);
   for (const { name, re } of FORBIDDEN) {
     ok(`${file}: ${name} yok`, !re.test(src));
   }
@@ -40,24 +51,26 @@ const HREF_INVENTORY = [
 ];
 const foundHrefs = [];
 for (const file of FILES) {
-  const src = fs.readFileSync(path.join(RENDERER_DIR, file), 'utf8');
-  const re = /\.href\s*=\s*([^;\n]+)/g;
+  const src = fileSrc(file);
+  const re = /([\w$]+)\.href\s*=\s*([^;\n]+)/g;
   let m;
   while ((m = re.exec(src)) !== null) {
-    foundHrefs.push({ file, line: src.slice(0, m.index).split('\n').length, rhs: m[1].trim() });
+    foundHrefs.push({ file, line: src.slice(0, m.index).split('\n').length,
+      obj: m[1], rhs: m[2].trim() });
   }
 }
 ok('href atamaları envanter sınırında', foundHrefs.length === HREF_INVENTORY.length);
 for (const item of HREF_INVENTORY) {
-  const rhsPrefix = item.mark.split('=')[1].trim().slice(0, 8);
+  const [objName, rhsName] = item.mark.split('=').map((s) => s.trim());
+  const obj = objName.replace(/\.href$/, '');
   ok(`${item.file}: "${item.mark}" envanteri korunuyor`,
-    foundHrefs.some((h) => h.file === item.file && h.rhs.startsWith(rhsPrefix)));
+    foundHrefs.some((h) => h.file.endsWith(item.file) && h.obj === obj && h.rhs === rhsName));
 }
 
 // --- window.open envanteri: sıfır beklenir ----------------------------
 const openCalls = [];
 for (const file of FILES) {
-  const src = fs.readFileSync(path.join(RENDERER_DIR, file), 'utf8');
+  const src = fileSrc(file);
   if (/window\.open\s*\(/.test(src)) openCalls.push(file);
 }
 ok('window.open çağrısı yok', openCalls.length === 0);
