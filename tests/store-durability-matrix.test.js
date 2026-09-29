@@ -34,10 +34,12 @@ function recordingFs() {
   const fds = new Map();
   const wrap = (name) => (...a) => {
     const rec = { op: name, arg: String(a[0]), arg2: a[1] === undefined ? '' : String(a[1]) };
+    // Çağrı önce kaydedilir — Windows'ta openSync(dir) fırlatır ve deneme
+    // kanıtı (aşağıdaki platform koşullu dizin-fsync kuralı) ancak böyle görünür.
+    calls.push(rec);
     const out = fs[name](...a);
     if (name === 'openSync') fds.set(out, String(a[0]));
     if (name === 'fsyncSync') calls.push({ op: 'fsync', arg: fds.get(a[0]) || `fd:${a[0]}`, arg2: '' });
-    calls.push(rec);
     return out;
   };
   return {
@@ -60,8 +62,17 @@ function assertCommitOrder(name, calls, filePath) {
   const tempPath = mainRename >= 0 ? calls[mainRename].arg : '';
   const tempFsync = calls.findIndex((c) => c.op === 'fsync' && c.arg === tempPath);
   ok(`${name}: temp fsync rename'den önce`, tempFsync >= 0 && tempFsync < mainRename);
-  const dirFsync = calls.findIndex((c, i) => i > mainRename && c.op === 'fsync' && c.arg === dir);
-  ok(`${name}: dizin fsync rename'den sonra`, dirFsync > mainRename);
+  const dirFsyncSupported = (() => {
+    try { const d = fs.openSync(dir, 'r'); fs.closeSync(d); return true; } catch { return false; }
+  })();
+  if (dirFsyncSupported) {
+    const dirFsync = calls.findIndex((c, i) => i > mainRename && c.op === 'fsync' && c.arg === dir);
+    ok(`${name}: dizin fsync rename'den sonra`, dirFsync > mainRename);
+  } else {
+    // Windows: dizin fsync API'si yok — törenin denemesi rename sonrasına kilitlenir.
+    const dirAttempt = calls.findIndex((c, i) => i > mainRename && c.op === 'openSync' && c.arg === dir);
+    ok(`${name}: dizin fsync denemesi rename'den sonra`, dirAttempt > mainRename);
+  }
 
   // Yedek (.bak) hedefi: copyFileSync dest, writeFileSync arg veya renameSync dest
   // kalıbıyla gelir — hangi biçimde yazıldıysa fsync kanıtı olmalı.
