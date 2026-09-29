@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R232: tarayıcı UI tur-2 düzeltme paketi — komut paleti hiç çalışmıyordu (eşleştiriciye ham sekme nesnesi veriliyordu), diyalog/ayarlar açıkken Ctrl+W/T/Tab/1-9 arkadaki sekmeyi etkiliyordu, Esc başka panelleri de kapatıyordu, omnibox Home/End öneri seçiyordu (Alt+Home/End), QR paneli Esc'siz kalıyordu, paneller üst üste açılıyordu, sağ-tık menüsü native sayfanın arkasında kalıyordu, kapat düğmesine çift tık grup diyaloğu açıyordu, "Sağdakileri kapat" gruplu düzende yanlış tarafı kapıyordu, yer-imleri listesi klavye odağını düşürüyordu, sayfa odaklı kısayollar adres çubuğunu gösterip tuşu sayfaya bırakıyordu, SPA gezisinde bul çubuğu kapanıyordu.
 - R231b (#164 review): vekil menü öğelerinin durumu menü dışındaki hedef düğmede yaşar — menü açıkken hedef devre dışı kalırsa (örn. sekme değişimi) arama sonucu da tazelenir; bayat eşleşme gri kalmaz.
 - R231 (#162 review): ⋯ menüsü açıkken bir öğenin durumu değişirse (örn. sayfa YouTube'dan çıkınca "Oynatıcıda izle" devre dışı kalır) arama sonuçları kendiliğinden tazelenir — bayat gri eşleşme kalmaz.
 - R230 (#160 review): menü araması hızlı eylemleri (Yeni sekme, sekmeyi geri aç, sayfada bul, zoom) de bulur ve Enter'la çalıştırır; devre dışı öğeler eşleşme sayılmaz — ölü gri sonuç yerine "eşleşen komut yok" satırı.
