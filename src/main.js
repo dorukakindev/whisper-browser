@@ -14774,24 +14774,29 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
     let timeoutTimer = setTimeout(() => {
-      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' });
+      request.abort(); done({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' });
     }, 7000);
+    // Zamanlayıcı gövde bitene kadar canlı kalır (DeArrow/RYD kalıbı):
+    // başlıkları gönderip akışı durduran bir sunucu, başlıkta iptal edilen
+    // bir sayaçla promise'i ve uçuş içi kilidi sonsuza dek açık bırakırdı.
+    const done = (value) => { clearTimeout(timeoutTimer); resolve(value); };
     request.on('response', (response) => {
-      clearTimeout(timeoutTimer);
       let total = 0; const chunks = [];
       response.on('data', (chunk) => {
         total += chunk.length;
-        if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
+        if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: 'SponsorBlock yanıtı okunurken bağlantı koptu.' }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: 'SponsorBlock yanıtı yarıda kesildi.' }));
       response.on('end', () => {
-        if (total > MAX_SPONSORBLOCK_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
+        if (total > MAX_SPONSORBLOCK_BYTES) return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
         if (response.statusCode === 404) {
           const empty = { segments: [], chapters: [], invalid: 0, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, empty, { negative: true, actionType: actionTypes });
-          return resolve({ ok: true, ...empty });
+          return done({ ok: true, ...empty });
         }
-        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
+        if (response.statusCode < 200 || response.statusCode >= 300) return done({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
           const extracted = extractSponsorHashSegments(parsed, videoId);
@@ -14806,15 +14811,14 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
             invalid: checked.invalid + chapterCheck.invalid + actions.invalid, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, result,
             { negative: !result.segments.length && !result.chapters.length, actionType: actionTypes });
-          resolve({ ok: true, ...filterForDuration(result) });
-        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
+          done({ ok: true, ...filterForDuration(result) });
+        } catch (_) { done({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
       });
     });
     request.on('error', (error) => {
-      clearTimeout(timeoutTimer);
       const message = String(error?.message || '');
       const redirected = error?.code === 'ERR_TOO_MANY_REDIRECTS' || /redirect/i.test(message);
-      resolve({ ok: false, errorKind: redirected ? 'redirect' : 'network',
+      done({ ok: false, errorKind: redirected ? 'redirect' : 'network',
         error: redirected ? 'SponsorBlock yönlendirmesi güvenlik nedeniyle reddedildi.'
           : `SponsorBlock bağlantısı kurulamadı: ${message}` });
     });
