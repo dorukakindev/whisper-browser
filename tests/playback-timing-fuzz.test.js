@@ -72,7 +72,10 @@ function randCueList(rand, opts = {}) {
     if (opts.corrupt && dice < 0.06) dur = -(rand() * 3);          // end < start
     else if (opts.corrupt && dice < 0.09) dur = NaN;               // bozuk end
     else if (opts.corrupt && dice < 0.11) start = NaN;             // bozuk start
-    const cue = { start, end: start + dur, id: `c${i}` };
+    // `text` olmayan cue'lar normalizeCueList'te elenir — politika matrisinin
+    // boş listeyle çalışmaması için alan zorunlu; arada boş bırakılanlar da
+    // normalize-side eleme çeşitliliği sağlar.
+    const cue = { start, end: start + dur, id: `c${i}`, text: dice > 0.97 ? '' : `satır ${i}` };
     cues.push(cue);
     cursor = Number.isFinite(start) ? start + Math.max(0.01, dur * (rand() < 0.3 ? rand() : 1)) : cursor + 1;
   }
@@ -93,9 +96,9 @@ function assertBoundaryEq(cues, t, ctx) {
     return;
   }
   assert.ok(Number.isFinite(got), `${ctx}: t=${t} beklenen ${expected}, got NaN`);
-  // İki yol aynı "en küçük >t" değerini bulmalı — kayan nokta eşitliği.
-  assert.ok(Math.abs(got - expected) < BOUNDARY_EPS,
-    `${ctx}: t=${t} got ${got} oracle ${expected}`);
+  // Sonuç aynı aday kümesinden (cue sınırları) seçilir — t±1e-12 problarının
+  // çözünürlüğü için EPS toleransı değil, kesin eşitlik gerekir.
+  assert.strictEqual(got, expected, `${ctx}: t=${t} got ${got} oracle ${expected}`);
 }
 
 test('nextCueBoundaryAt ≡ oracle — 4000 rastgele senaryo', () => {

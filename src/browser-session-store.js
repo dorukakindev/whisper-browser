@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
 const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
 const { safePlaceUrl } = require('./browser-place-url');
@@ -332,12 +333,14 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
   fsModule.mkdirSync(dir, { recursive: true });
   try {
     fsModule.writeFileSync(temp, `${JSON.stringify(session, null, 2)}\n`, 'utf8');
+    fsyncFile(temp, fsModule);
     if (!options.mirrorBackup && fsModule.existsSync(filePath)) {
       try {
         const previous = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
         if (previous && !Array.isArray(previous) && Array.isArray(previous.tabs)
           && (!previous.tabs.length || previous.tabs.some((tab) => normalizeSessionTab(tab)))) {
           fsModule.copyFileSync(filePath, `${filePath}.bak`);
+          fsyncFileBestEffort(`${filePath}.bak`, fsModule);
         }
       } catch (_) {} // Bozuk ana kayıt sağlam yedeğin üstüne yazılmasın.
     }
@@ -350,8 +353,10 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
     // ve bir sonraki yükleme birincil dosyadan tutarlı okur (R86-03).
     if (options.mirrorBackup) {
       fsModule.copyFileSync(temp, `${filePath}.bak`);
+      fsyncFileBestEffort(`${filePath}.bak`, fsModule);
     }
     fsModule.renameSync(temp, filePath);
+    fsyncDirectory(dir, fsModule);
     return { ok: true, session };
   } catch (error) {
     try { if (fsModule.existsSync(temp)) fsModule.unlinkSync(temp); } catch (_) {}
