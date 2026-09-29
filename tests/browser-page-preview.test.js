@@ -19,11 +19,13 @@ const FN_SRC = RENDERER.slice(
 );
 // Gerçek tıklama dinleyicisi: $('browserPagePreview')?.addEventListener('click', ...) satırı.
 const CLICK_SRC = (() => {
+  // CRLF çalışma ağacında da dayanıklı: kapanışı 'Önizlemeyi gizle' sonrası
+  // ilk '});' olarak bul (satır sonu bağımsız).
   const start = RENDERER.indexOf("$('browserPagePreview')?.addEventListener('click'");
-  const endMarker = "Önizlemeyi gizle';\n});";
-  const end = RENDERER.indexOf(endMarker, start);
+  const label = RENDERER.indexOf('Önizlemeyi gizle', start);
+  const end = label > 0 ? RENDERER.indexOf('});', label) + 3 : -1;
   assert.ok(start > 0 && end > start, 'önizleme dinleyici kaynağı bulunamadı');
-  return RENDERER.slice(start, end + endMarker.length);
+  return RENDERER.slice(start, end);
 })();
 
 function makeHarness({ apiResult } = {}) {
