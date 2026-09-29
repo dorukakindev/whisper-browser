@@ -3,6 +3,7 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+- Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 
 ### Added

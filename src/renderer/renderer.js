@@ -602,11 +602,11 @@ function renderQueue() {
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
-      <span class="queue-status">${STATUS_TEXT[item.status] || item.status}</span>
+      <span class="queue-status">${escapeHtml(STATUS_TEXT[item.status] || item.status)}</span>
       <span class="queue-actions">
-        ${openable ? `<button class="queue-remove queue-open" data-open="${item.id}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
-        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${item.id}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
-        ${removable ? `<button class="queue-remove" data-id="${item.id}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
+        ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
+        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${escapeHtml(item.id)}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
+        ${removable ? `<button class="queue-remove" data-id="${escapeHtml(item.id)}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
       </span>
     `;
     list.appendChild(div);
@@ -20738,7 +20738,7 @@ function renderBrowserPageReport(event = {}) {
       const eligible = Math.max(0, Number(row.total) - Number(row.excluded || 0));
       const pct = eligible ? Math.round((row.translated / eligible) * 100) : 0;
       const checked = prefs.excludedSections.includes(row.section) ? ' checked' : '';
-      return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + row.translated + '/' + eligible + ' · %' + pct + (row.excluded ? ' · ' + row.excluded + ' dışlandı' : '') + '</output><button type="button" class="btn btn-ghost btn-sm" data-page-retry-section="' + escapeHtml(row.section) + '"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Yenile</button></label>';
+      return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + (Number(row.translated) || 0) + '/' + eligible + ' · %' + pct + (row.excluded ? ' · ' + (Number(row.excluded) || 0) + ' dışlandı' : '') + '</output><button type="button" class="btn btn-ghost btn-sm" data-page-retry-section="' + escapeHtml(row.section) + '"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Yenile</button></label>';
     }).join('') + '<button class="btn btn-ghost btn-sm" id="browserPageApplyExclusions" type="button"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Bölüm dışlamalarını uygula</button>' : '';
     sections.innerHTML = completionHtml + sectionHtml;
     sections.querySelector('#browserPageApplyExclusions')?.addEventListener('click', applyBrowserPageExclusions);
