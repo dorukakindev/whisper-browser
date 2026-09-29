@@ -721,9 +721,13 @@ function redactJobLogArgs(args) {
     '--input', '--output-dir', '--cache-dir', '--initial-prompt', '--glossary', '--translate-context',
   ]);
   const values = Array.isArray(args) ? args.slice(1) : [];
-  return values.map((value, index) => (
-    index > 0 && hiddenValueFlags.has(values[index - 1]) ? '<gizlendi>' : String(value)
-  )).join(' ');
+  return values.map((value, index) => {
+    const token = String(value);
+    // `--ad=değer` bağlı biçimi tek öğedir — ayrı-değer taraması bunu görmez.
+    const eq = token.indexOf('=');
+    if (eq > 0 && hiddenValueFlags.has(token.slice(0, eq))) return `${token.slice(0, eq)}=<gizlendi>`;
+    return index > 0 && hiddenValueFlags.has(values[index - 1]) ? '<gizlendi>' : token;
+  }).join(' ');
 }
 
 function sanitizeProcessDetail(value) {
@@ -1341,7 +1345,8 @@ ipcMain.handle('media:probe', async (_e, url) => {
   const input = typeof url === 'object' && url ? url : { url };
   const mediaUrl = decideUrlPolicy(input.url, 'renderer-external');
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
-  const args = ['probe', '--url', mediaUrl.url];
+  const args = ['probe'];
+  pushBoundOption(args, '--url', mediaUrl.url);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(input.cookieBrowser)) {
     pushBoundOption(args, '--cookie-browser', input.cookieBrowser);
   }
@@ -1359,8 +1364,10 @@ ipcMain.handle('media:download', async (_e, opts) => {
   } catch (error) {
     return { ok: false, error: error.message };
   }
-  const args = ['download', '--url', mediaUrl.url, '--output-dir', outDir];
-  if (o.height) args.push('--height', String(o.height));
+  const args = ['download'];
+  pushBoundOption(args, '--url', mediaUrl.url);
+  pushBoundOption(args, '--output-dir', outDir);
+  if (o.height) pushBoundOption(args, '--height', String(o.height));
   if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
     pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
@@ -1430,11 +1437,12 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   const subLang = subtitleLangArg(o.lang);
   if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = [
-    'subs', '--url', mediaUrl.url,
+    'subs',
     `--sub-lang=${subLang}`,
     '--sub-auto', o.auto ? 'true' : 'false',
-    '--output-dir', outDir,
   ];
+  pushBoundOption(args, '--url', mediaUrl.url);
+  pushBoundOption(args, '--output-dir', outDir);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
     pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
   }
@@ -1461,7 +1469,8 @@ ipcMain.handle('invidious:probe', async (_e, url, opts) => {
     return { ok: false, error: "Yalnızca http/https URL'leri kullanılabilir." };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['probe', '--url', mediaUrl.url];
+  const args = ['probe'];
+  pushBoundOption(args, '--url', mediaUrl.url);
   if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', null, 60_000, invidiousAuthEnv(instance));
 });
@@ -1588,7 +1597,8 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
     return { ok: false, error: 'Geçersiz kanal ID formatı.' };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['channel', '--channel-id', channelId];
+  const args = ['channel'];
+  pushBoundOption(args, '--channel-id', channelId);
   if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1613,7 +1623,9 @@ ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
     return { ok: false, error: 'Geçersiz kanal sekmesi.' };
   }
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
+  const args = ['channel-tab'];
+  pushBoundOption(args, '--channel-id', cid);
+  pushBoundOption(args, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos');
   if (query) args.push(`--query=${query}`);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
@@ -1638,7 +1650,8 @@ ipcMain.handle('invidious:comments', async (_e, url, opts) => {
   const target = isId ? url.trim() : mediaUrl.url;
   const o = opts || {};
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['comments', '--url', target];
+  const args = ['comments'];
+  pushBoundOption(args, '--url', target);
   const cont = String(o.continuation || '').trim();
   if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 500));
   if (instance) pushBoundOption(args, '--instance', instance);
@@ -1658,7 +1671,8 @@ ipcMain.handle('invidious:playlist', async (_e, playlistId, opts) => {
   }
   const o = opts || {};
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['playlist', '--playlist-id', pid];
+  const args = ['playlist'];
+  pushBoundOption(args, '--playlist-id', pid);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
   if (instance) pushBoundOption(args, '--instance', instance);
@@ -1679,7 +1693,8 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
   // Şifre argv'de değil env'de — süreç listesinde görünmesin (B82-01).
-  const args = ['login', '--username', String(username).slice(0, 100)];
+  const args = ['login'];
+  pushBoundOption(args, '--username', String(username).slice(0, 100));
   if (instance) pushBoundOption(args, '--instance', instance);
   const loginEnv = { WHISPER_INVIDIOUS_PASSWORD: String(password).slice(0, 200) };
   let res = await runInvidiousCommand(args, 'invidious', null, 45_000, loginEnv);
@@ -1749,12 +1764,12 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   }
   const args = [
     'download_stream',
-    '--video-url', o.videoUrl,
     `--title=${String(o.title || 'invidious-video').slice(0, 120)}`,
-    '--output-dir', outDir,
   ];
+  pushBoundOption(args, '--video-url', o.videoUrl);
+  pushBoundOption(args, '--output-dir', outDir);
   if (o.audioUrl) pushBoundOption(args, '--audio-url', o.audioUrl);
-  if (o.height) args.push('--height', String(o.height));
+  if (o.height) pushBoundOption(args, '--height', String(o.height));
   if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
@@ -2250,7 +2265,8 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
         return { ok: false, error: 'Bir YouTube işi zaten çalışıyor.' };
       }
     }
-    const args = ['browse', '--browse-id', bid];
+    const args = ['browse'];
+  pushBoundOption(args, '--browse-id', bid);
     if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 2000));
     return runYoutubeCommand(args, (ev) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -16776,10 +16792,9 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
     filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  const args = [
-    'clip', '--url', url, '--clip-start', String(start), '--clip-end', String(end),
-    '--output-file', selection.filePath,
-  ];
+  const args = ['clip', '--clip-start', String(start), '--clip-end', String(end)];
+  pushBoundOption(args, '--url', url);
+  pushBoundOption(args, '--output-file', selection.filePath);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(payload?.cookieBrowser)) {
     pushBoundOption(args, '--cookie-browser', payload.cookieBrowser);
   }
@@ -17782,10 +17797,11 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   const start = Number.isFinite(requestedStart) ? Math.max(0, Math.min(24 * 60 * 60, requestedStart)) : 0;
   const appDir = app.getAppPath();
   const localFfmpeg = path.join(appDir, 'backend', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
-  const args = [path.join(appDir, 'backend', 'model_benchmark.py'), '--input', picked.filePaths[0],
+  const args = [path.join(appDir, 'backend', 'model_benchmark.py'),
     '--model', model, '--device', device, '--compute-type', computeType,
     '--seconds', String(seconds), '--start', String(start),
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
+  pushBoundOption(args, '--input', picked.filePaths[0]);
   if (language && language !== 'auto') pushBoundOption(args, '--language', language);
   // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
   const compare = options.compare && typeof options.compare === 'object' ? options.compare : {};
@@ -19292,7 +19308,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
   if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
-    args.push('--translate-context', String(options.translateContext));
+    pushBoundOption(args, '--translate-context', String(options.translateContext));
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
@@ -19320,13 +19336,13 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Aciklama modu: tek blok/kelime, baglamiyla birlikte
   if (options.explain) {
     args.push('--explain', 'true');
-    args.push('--explain-index', String(options.explainIndex || 0));
+    pushBoundOption(args, '--explain-index', String(options.explainIndex || 0));
     pushBoundOption(args, '--explain-kind', options.explainKind || 'sentence');
     if (options.explainWord) pushBoundOption(args, '--explain-word', options.explainWord);
     if (options.explainTranslation) pushBoundOption(args, '--explain-translation', options.explainTranslation);
   }
   args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
-  args.push('--cache-dir', path.join(app.getPath('userData'), 'cache'));
+  pushBoundOption(args, '--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) pushBoundOption(args, '--audio-preprocess', options.audioPreprocess);

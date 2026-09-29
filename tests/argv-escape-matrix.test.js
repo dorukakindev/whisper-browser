@@ -8,7 +8,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { pushBoundOption, argvHasUnboundOptionValue } = require('../src/argv-escape');
+const { findTestPython } = require('./python-runtime');
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log('  ✓', name); };
@@ -47,6 +49,9 @@ test('kaynak ratchet: duyarlı seçenekler iki-parça itilmiyor', () => {
     '--audio-preprocess', '--youtube-audio-lang', '--youtube-cookie-browser',
     '--instance', '--tab', '--continuation', '--audio-url', '--audio-lang',
     '--cookie-browser', '--search-type', '--features', '--compare-model',
+    '--url', '--output-dir', '--output-file', '--video-url', '--channel-id',
+    '--playlist-id', '--browse-id', '--translate-context', '--cache-dir',
+    '--explain-index', '--height', '--username',
   ];
   const bad = [];
   for (const name of sensitive) {
@@ -68,7 +73,7 @@ test('matris: main.js pushBoundOption adları gerçek argparse ile -li değeri k
     [...src.matchAll(/pushBoundOption\([^,]+,\s*'(--[^']+)'/g)].map((m) => m[1]))];
   assert(names.length >= 30, `beklenmedik az seçenek: ${names.length}`);
   const hostile = ['--help', '-x', '--', '-foo.mp4', '--config=/etc/x', '-9', '-m'];
-  const { spawnSync } = require('child_process');
+
   const py = [
     'import argparse, sys, json',
     'p = argparse.ArgumentParser()',
@@ -80,7 +85,15 @@ test('matris: main.js pushBoundOption adları gerçek argparse ile -li değeri k
   ].join('\n');
   const argv = [];
   for (const n of names) argv.push(`${n}=${hostile[names.indexOf(n) % hostile.length]}`);
-  const res = spawnSync('python3', ['-c', py, JSON.stringify(names), JSON.stringify(argv)],
+  // Yorumlayıcı keşfi ortamdan ortama değişir (venv/py launcher/python3) —
+  // bulunamazsa matrisin argparse ayağı atlanır, kaynak taraması sürer.
+  const python = findTestPython();
+  if (!python) {
+    console.log('  SKIP argparse ayağı: yorumlayıcı bulunamadı');
+    passed += 1;
+    return;
+  }
+  const res = spawnSync(python, ['-c', py, JSON.stringify(names), JSON.stringify(argv)],
     { encoding: 'utf8' });
   assert.equal(res.status, 0, `argparse reddetti: ${res.stderr.slice(0, 300)}`);
   const got = JSON.parse(res.stdout);
