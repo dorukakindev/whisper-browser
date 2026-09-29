@@ -9186,12 +9186,15 @@ function storeBrowserTrack(cues, meta = {}) {
   return null;
 }
 
+// Doğrulanan adresi {address, family} olarak döndürür; indirme aynı IP'ye
+// sabitlenir — DNS doğrulaması ile bağlantı arasında yeniden çözümleme yoktur
+// (rebinding: doğrulanan genel IP yerine ikinci çözümlemede özel adrese düşme).
 async function assertPublicBrowserSubtitleUrl(rawUrl) {
   const parsed = new URL(String(rawUrl || ""));
   const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (isIP(host)) {
     if (!isPublicMangaIpAddress(host)) throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı adresi özel veya ayrılmış bir ağ adresine yöneliyor.");
-    return;
+    return { address: host, family: isIP(host) };
   }
   let addresses;
   try {
@@ -9202,6 +9205,64 @@ async function assertPublicBrowserSubtitleUrl(rawUrl) {
   if (!addresses.length || addresses.some((item) => !isPublicMangaIpAddress(item.address))) {
     throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı alan adı özel veya ayrılmış bir ağ adresine çözümleniyor.");
   }
+  return { address: addresses[0].address, family: Number(addresses[0].family) || isIP(addresses[0].address) };
+}
+
+// DNS-pinli altyazı indirmesi (requestPinnedMangaImage kalıbı): Node isteğinin
+// lookup'u doğrulanmış tek adrese sabitlenir; SNI/Host asıl alan adında kaldığı
+// için TLS doğrulaması etkilenmez. Chromium fetch'e alternatiftir çünkü
+// session.fetch'in iç çözümlemesi doğrulanan adresten sapabilir (rebinding).
+async function requestPinnedSubtitleBuffer(requestUrl, pin, { headers = {}, signal, maxBytes } = {}) {
+  const parsed = new URL(String(requestUrl || ''));
+  const limit = Math.max(1024, Number(maxBytes) || 1024);
+  const transport = parsed.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      callback(value);
+    };
+    const request = transport.request(parsed, {
+      method: 'GET', headers, agent: false,
+      lookup: (_hostname, options, callback) => options?.all
+        ? callback(null, [pin])
+        : callback(null, pin.address, pin.family),
+    }, (response) => {
+      const chunks = [];
+      let size = 0;
+      response.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > limit) {
+          request.destroy(new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        const status = Number(response.statusCode) || 0;
+        const responseHeaders = new Map();
+        for (const [name, value] of Object.entries(response.headers || {})) {
+          responseHeaders.set(name, Array.isArray(value) ? value.join(', ') : String(value));
+        }
+        const buffer = Buffer.concat(chunks);
+        finish(resolve, {
+          status,
+          ok: status >= 200 && status < 300,
+          headers: responseHeaders,
+          arrayBuffer: () => Promise.resolve(buffer),
+        });
+      });
+      response.on('error', (error) => finish(reject, error));
+    });
+    const onAbort = () => request.destroy(signal?.reason || new Error('Altyazı isteği iptal edildi.'));
+    request.setTimeout(BROWSER_FETCH_TIMEOUT, () => request.destroy(Object.assign(new Error('Altyazı isteği zaman aşımına uğradı.'), { code: 'ETIMEDOUT' })));
+    request.on('error', (error) => finish(reject, error));
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    request.end();
+  });
 }
 async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
@@ -9226,7 +9287,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
   if (safe.length > 8192) {
     throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi güvenli uzunluk sınırını aşıyor.');
   }
-  await assertPublicBrowserSubtitleUrl(safe);
+  let pin = await assertPublicBrowserSubtitleUrl(safe);
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
@@ -9234,13 +9295,40 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     let requestUrl = safe;
     let response;
     for (let redirect = 0; redirect <= 5; redirect++) {
-      response = await tab.view.webContents.session.fetch(requestUrl, {
-        method: 'GET', credentials: (() => {
-          try { return new URL(requestUrl).origin === new URL(tab.view.webContents.getURL()).origin ? 'include' : 'omit'; }
-          catch (_) { return 'omit'; }
-        })(), redirect: 'manual', signal,
-        ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
-      });
+      const sameOrigin = (() => {
+        try { return new URL(requestUrl).origin === new URL(tab.view.webContents.getURL()).origin; }
+        catch (_) { return false; }
+      })();
+      // Proxy'siz (DIRECT) ortamda Node pinning'i kullanır: bağlantı doğrulanan
+      // IP'ye sabitlenir, DNS yeniden çözümlenmez (rebinding kapanır). Proxy'li
+      // ortamda Node lookup'u proxy'yi atlayamaz — Chromium yoluna geri düşülür
+      // (rebinge penceresi kalır, DNS kontrolü hâlâ uygulanır). Oturum ilgili
+      // protokolü kendisi işliyorsa (fixture/test interceptor'ü) yine Chromium
+      // yolu kullanılır ki oturumun kendi kuralları geçerli olsun.
+      let proxy = 'DIRECT';
+      let intercepted = false;
+      try {
+        proxy = await tab.view.webContents.session.resolveProxy(requestUrl);
+        intercepted = !!await tab.view.webContents.session.protocol
+          ?.isProtocolHandled?.(new URL(requestUrl).protocol.replace(':', ''));
+      } catch (_) {}
+      if (!intercepted && /^\s*DIRECT\b/i.test(String(proxy || 'DIRECT'))) {
+        const headers = {};
+        if (byteRange) headers.Range = `bytes=${byteRange.start}-${byteRange.end}`;
+        if (sameOrigin) {
+          const cookies = await (tab.view.webContents.session.cookies
+            ?.get?.({ url: requestUrl }) || Promise.resolve([])).catch(() => []);
+          if (cookies.length) headers.Cookie = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+        }
+        const userAgent = sanitizeBrowserUserAgent(tab.view.webContents.session.getUserAgent?.() || '');
+        if (userAgent) headers['User-Agent'] = userAgent;
+        response = await requestPinnedSubtitleBuffer(requestUrl, pin, { headers, signal, maxBytes });
+      } else {
+        response = await tab.view.webContents.session.fetch(requestUrl, {
+          method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,
+          ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
+        });
+      }
       if (![301, 302, 303, 307, 308].includes(response.status)) break;
       if (redirect === 5) {
         throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi çok fazla yönlendirme yaptı.');
@@ -9258,7 +9346,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
         throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi güvenli değil.');
       }
       redirected.hash = '';
-      await assertPublicBrowserSubtitleUrl(redirected.href);
+      pin = await assertPublicBrowserSubtitleUrl(redirected.href);
       requestUrl = redirected.href;
     }
     if (!response.ok) throw browserSubtitleHttpError(response.status, requestUrl,

@@ -5728,7 +5728,21 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
 
         out[i][1] = e
 
-    return [(s, e, t) for (s, e, t) in out]
+    # Bitişik komşular arasına sıkışan ~10 ms cue ekranda okunamaz flaş olur.
+    # Metni kaybetmektense blok sonraki cue'nun başına katlanır (komşusu zaten
+    # ~anında gösterilir); sonda kalırsa öncekinin sonuna eklenir.
+    merged = []
+    for i, (s, e, t) in enumerate(out):
+        if e - s < 0.2:
+            if i + 1 < len(out):
+                out[i + 1][2] = f"{(t or '').strip()} {(out[i + 1][2] or '').strip()}".strip()
+                continue
+            if merged:
+                merged[-1][2] = f"{(merged[-1][2] or '').strip()} {(t or '').strip()}".strip()
+                continue
+        merged.append([s, e, t])
+
+    return [(s, e, t) for (s, e, t) in merged]
 
 
 def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8, segment_metrics=None):
