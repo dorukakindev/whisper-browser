@@ -6075,10 +6075,12 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
   const iconEl = open.querySelector('.browser-tab-favicon, .browser-tab-avatar');
   const avatarFor = () => browserTabAvatar(tab);
   const freshAvatar = avatarFor();
+  const avatarSame = (el) => !!el && el.textContent === freshAvatar.textContent
+    && (el.style?.getPropertyValue?.('--avatar-hue') || '') === freshAvatar.style.getPropertyValue('--avatar-hue');
   const iconStale = !iconEl || (tab.favicon
-    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon : iconEl.dataset.faviconFailed === tab.favicon)
-    : (iconEl.tagName === 'IMG' || iconEl.textContent !== freshAvatar.textContent
-      || iconEl.style?.getPropertyValue?.('--avatar-hue') !== freshAvatar.style.getPropertyValue('--avatar-hue')));
+    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon
+      : iconEl.dataset.faviconFailed === tab.favicon && avatarSame(iconEl))
+    : (iconEl.tagName === 'IMG' || !avatarSame(iconEl)));
   if (iconStale) {
     const next = tab.favicon ? (() => {
       const favicon = document.createElement('img');

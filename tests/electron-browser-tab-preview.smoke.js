@@ -61,14 +61,30 @@ app.whenReady().then(async () => {
   assert(preview.bottom <= preview.slotTop, `kart altı native yüzeye taştı: ${JSON.stringify(preview)}`);
   assert(Number.isFinite(preview.maxHeight) && preview.maxHeight <= preview.slotTop - 8, `maxHeight kelepçesi: ${JSON.stringify(preview)}`);
 
+  // Aşırı boy: kartı CSS ile krom alanından uzun yap — kendi içinde kırpılmalı.
+  const tall = await run(`const style=document.createElement('style');
+    style.textContent='.browser-tab-preview{height:2000px !important}';
+    document.head.appendChild(style);
+    const el=document.querySelector('.browser-tab.active');
+    showBrowserTabPreview(player.browserActiveTabId, el);
+    const card=document.querySelector('.browser-tab-preview');
+    const r=card ? card.getBoundingClientRect() : null;
+    const out={ bottom: r ? r.bottom : -1, slotTop: document.getElementById('browserViewSlot').getBoundingClientRect().top,
+      maxHeight: card ? parseFloat(card.style.maxHeight) : NaN };
+    hideBrowserTabPreview();
+    return out`);
+  assert(tall.bottom <= tall.slotTop, `aşırı boy kart native yüzeye taştı: ${JSON.stringify(tall)}`);
+  assert(tall.maxHeight <= tall.slotTop - 8, `aşırı boy maxHeight: ${JSON.stringify(tall)}`);
+
   // Aynı ilk harfli farklı alan adına geçiş: avatar harfi kalır, tonu yenilenmeli.
   const nav2 = await run('document.getElementById("browserAddress").value="https://apple-two.test/";return navigateBrowserFromAddress()');
   assert.equal(nav2.ok, true, nav2.error);
   await until(() => webContents.getAllWebContents().find(item => item.getURL() === 'https://apple-two.test/'), 'İkinci sayfa');
+  // Yarışsız ölçüm: tonun DEĞİŞMESİNİ bekle — ilk avatar da 'A' okurdu.
   const second = await until(async () => {
     const p = await run(`return (()=>{${avatarProbe}})()`);
-    return p && p.letter === 'A' ? p : false;
-  }, 'İkinci avatar');
+    return p && p.letter === 'A' && p.hue !== first.hue ? p : false;
+  }, 'İkinci avatar tonu');
   assert(second.hue !== first.hue, `aynı harfli sitede avatar tonu bayat kaldı: ${JSON.stringify(first)} → ${JSON.stringify(second)}`);
 
   fs.writeFileSync(path.join(out, 'tab-preview.png'), (await win.webContents.capturePage()).toPNG());
