@@ -219,5 +219,5 @@ ok('16x hızda drift-flush spamı yok (sync aralığı kabul edilir)', () => {
   assert.equal(chunks(messages).length, 0, 'uyumlu saatte gereksiz flush olmamalı');
 });
 
-console.log(`live-asr-worklet: ${passed + 1} test`);
+console.log(`live-asr-worklet: ${passed} test`);
 process.exit(0);
