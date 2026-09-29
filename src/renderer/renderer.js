@@ -20057,7 +20057,10 @@ if (moreSearch) {
     // ↓ arama kutusundan ilk eyleme geçer; ↑ özet düğmeye döner (menü açılışında
     // ilk ok tuşu aramayı atlayıp hızlı eylemlere düşüyordu).
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      // stopPropagation: olay menü details'ine kabarcıklanırsa wireDetailsMenuNav
+      // aynı tuşu tekrar işleyip odağı bir sonraki/son öğeye kaydırıyordu.
       event.preventDefault();
+      event.stopPropagation();
       if (event.key === 'ArrowDown') moreMenuNavigables()[0]?.focus();
       else morePopover?.closest('details')?.querySelector(':scope > summary')?.focus();
       return;

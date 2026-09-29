@@ -235,16 +235,27 @@ function sliceFunction(source, signature) {
     'hedef geri açılınca vekil sonuç geri döner');
 
   // Tur-3: menü açılınca odak arama kutusuna düşer; ↓ ilk eyleme, ↑ özet
-  // düğmeye gider (eski davranışta ilk ok aramayı atlıyordu).
+  // düğmeye gider (eski davranışta ilk ok aramayı atlıyordu). wireDetailsMenuNav
+  // eşdeğeri burada fixture'a da bağlanır: arama kutusu olayı durdurmazsa aynı
+  // tuş details'te ikinci kez işlenip odağı sonraki/son öğeye kaydırır.
+  const navOrder = () => [doc.getElementById('q1'), doc.getElementById('q2'),
+    ...subs.flatMap((s) => [s.querySelector('summary'), ...s.querySelectorAll('button')])];
+  menu.addEventListener('keydown', (event) => {
+    if (!menu.open) return;
+    const items = navOrder().filter(Boolean);
+    const idx = items.indexOf(doc.activeElement);
+    if (event.key === 'ArrowDown') items[(idx + 1 + items.length) % items.length]?.focus();
+    else if (event.key === 'ArrowUp') items[(idx - 1 + items.length) % items.length]?.focus();
+  });
   input.value = '';
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   menu.open = true;
   menu.dispatchEvent(new dom.window.Event('toggle'));
   assert.equal(doc.activeElement, input, 'menü açılışında odak arama kutusunda');
-  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown' }));
-  assert.equal(doc.activeElement?.id, 'q1', '↓ arama kutusundan ilk eyleme geçer');
-  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp' }));
-  assert.equal(doc.activeElement?.id, 'moreMenuSummary', '↑ özet düğmeye döner');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  assert.equal(doc.activeElement?.id, 'q1', '↓ arama kutusundan ilk eyleme geçer (çift işlenmez)');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+  assert.equal(doc.activeElement?.id, 'moreMenuSummary', '↑ özet düğmeye döner (son öğeye atlamaz)');
 
   // Menü kapanınca arama sıfırlanır ve tüm öğeler geri gelir.
   input.value = 'okuma';
