@@ -69,7 +69,9 @@ const TAB_CASES = [
   { url: 'https://a.com', viewMode: 'evil', subtitleMode: 42 },
   { url: 'https://a.com', trackRefs: 'boom', recoveryJobs: 7,
     subtitleSyncRecords: null, subtitleEdits: 'x' },
-  { url: 'https://a.com', __proto__: { polluted: true }, constructor: 'x' },
+  // Nesne literalinde __proto__ kendi veri özelliği değil prototip atamasıdır;
+  // own-key __proto__ yalnız JSON.parse ile üretilir.
+  JSON.parse('{"url":"https://a.com","__proto__":{"polluted":true},"constructor":"x"}'),
   { url: 'https://a.com', mangaPosition: 'corrupt' },
 ];
 TAB_CASES.forEach((tab, i) => {
@@ -115,6 +117,8 @@ ok('proto kirliliği yok', ({}).polluted === undefined);
     activeTabId: 'dup', splitSecondaryTabId: 'dup' });
   checkSessionInvariants(s, 'dup-id');
   ok('dup secondary boş', s.splitSecondaryTabId === '');
+  ok('dup-id tekilleştirildi — ilk kayıt korunur',
+    s.tabs.length === 1 && s.tabs[0].url === 'https://a.com/');
 }
 
 // --- Disk okuma matrisi ------------------------------------------------
