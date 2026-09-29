@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
+Güncel çalışma: [docs/devir/2026-09-30-0330.md](docs/devir/2026-09-30-0330.md) — R275: IPC payload fuzz turu 2 — 213 kanal × 37 hostile payload sanal alanı (temiz)
+Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
 Önceki çalışma: [docs/devir/2026-09-30-0230.md](docs/devir/2026-09-30-0230.md) — R273: Devin Review toplu triage (skipped/refine/overlay/glif/disk-dolu düzeltmeleri)
 Önceki çalışma: [docs/devir/2026-09-30-0205.md](docs/devir/2026-09-30-0205.md) — R272: innerHTML/DOM-sink envanteri + kaçışsız veri düzeltmeleri + statik ratchet
 Önceki çalışma: [docs/devir/2026-09-30-0200.md](docs/devir/2026-09-30-0200.md) — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı düzeltildi
