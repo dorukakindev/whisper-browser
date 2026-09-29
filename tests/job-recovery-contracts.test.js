@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
+const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
 const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
 

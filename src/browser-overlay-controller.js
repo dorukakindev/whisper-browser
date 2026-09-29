@@ -15,6 +15,15 @@ function nextCueBoundaryAt(cues, sourceTime) {
   let indexData = nextCueBoundaryAt._indexCache.get(list);
   const tailCue = list[list.length - 1];
   const tailEnd = Number(tailCue && tailCue.end);
+  const tailStart = Number(tailCue && tailCue.start);
+  const headCue = list[0];
+  const headStart = Number(headCue && headCue.start);
+  const headEnd = Number(headCue && headCue.end);
+  // Orta nokta probu: uzun izlerde head/tail arasında kalan in-place mutasyon
+  // da indeksi bayatlatırdı; üç sabit nokta (0, n>>1, n-1) O(1) yakalar.
+  const midCue = list[list.length >> 1];
+  const midStart = Number(midCue && midCue.start);
+  const midEnd = Number(midCue && midCue.end);
   // Bozuk/sıralanmamış izlerde (NaN veya azalan start) ikili arama geçersiz;
   // eski davranışla aynı tam taramaya düş (ürün izleri her zaman sıralı).
   const bruteForce = () => {
@@ -29,17 +38,10 @@ function nextCueBoundaryAt(cues, sourceTime) {
   };
   const extendable = indexData && indexData.sorted && indexData.length > 0
     && indexData.length < list.length
-    && tailCue === indexData.tailCue && tailEnd === indexData.tailEnd;
-  const rebuildSuffix = (data) => {
-    // Gelecek cue'ların min bitişi: kuyruktan başa doğru birikimli min.
-    let minimum = Infinity;
-    data.suffixMin.length = list.length;
-    for (let i = list.length - 1; i >= 0; i--) {
-      const end = Number(list[i] && list[i].end);
-      minimum = Number.isFinite(end) ? Math.min(minimum, end) : minimum;
-      data.suffixMin[i] = minimum;
-    }
-  };
+    && tailCue === indexData.tailCue && tailEnd === indexData.tailEnd
+    && tailStart === indexData.tailStart
+    && headStart === indexData.headStart && headEnd === indexData.headEnd
+    && midStart === indexData.midStart && midEnd === indexData.midEnd;
   if (extendable) {
     let maximum = indexData.prefixMax[indexData.length - 1];
     let sorted = indexData.sorted
@@ -53,16 +55,32 @@ function nextCueBoundaryAt(cues, sourceTime) {
           >= Number(list[i - 1] && list[i - 1].start)))) sorted = false;
     }
     indexData.sorted = sorted;
-    // Yeni eklenen cue'lar daha erken bitirebilir; son-ek-min'i tazele.
-    rebuildSuffix(indexData);
     indexData.length = list.length;
+    // Eklenen cue'ların end'leri kalan-minimuma dahil değil; ters geçişle
+    // yeniden kurulur (uzatma güncelleme başına tek sefer, sorgu O(1) kalır).
+    indexData.suffixMin.length = 0;
+    let minEnd = Infinity;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const end = Number(list[i] && list[i].end);
+      const start = Number(list[i] && list[i].start);
+      if (Number.isFinite(end) && Number.isFinite(start) && end >= start
+          && end < minEnd) minEnd = end;
+      indexData.suffixMin[i] = minEnd;
+    }
     indexData.tailCue = tailCue;
     indexData.tailEnd = tailEnd;
-    indexData.tailStart = Number(tailCue && tailCue.start);
+    indexData.tailStart = tailStart;
+    indexData.headStart = headStart;
+    indexData.headEnd = headEnd;
+    indexData.midStart = midStart;
+    indexData.midEnd = midEnd;
   } else if (!indexData || indexData.length !== list.length
-      || indexData.tailCue !== tailCue || indexData.tailEnd !== tailEnd) {
-    indexData = { length: list.length, prefixMax: [], suffixMin: [], tailCue, tailEnd,
-      tailStart: Number(tailCue && tailCue.start), sorted: true };
+      || indexData.tailCue !== tailCue || indexData.tailEnd !== tailEnd
+      || indexData.tailStart !== tailStart
+      || indexData.headStart !== headStart || indexData.headEnd !== headEnd
+      || indexData.midStart !== midStart || indexData.midEnd !== midEnd) {
+    indexData = { length: list.length, prefixMax: [], suffixMin: [], tailCue,
+      tailEnd, tailStart, headStart, headEnd, midStart, midEnd, sorted: true };
     let maximum = -Infinity;
     for (let i = 0; i < list.length; i++) {
       const end = Number(list[i] && list[i].end);
@@ -74,7 +92,18 @@ function nextCueBoundaryAt(cues, sourceTime) {
         indexData.sorted = false;
       }
     }
-    rebuildSuffix(indexData);
+    // Kalan-end minimumu: inşa sırasında tek ters geçiş — sorgu başına
+    // gelecekteki tüm geçerli end'lerin en küçüğünü O(1) verir. Bozuk
+    // end<start'lı cue'lar hiç aktif olmadığından sınır üretmezler; burada
+    // tutulsalardı geçmişteki bozuk bir minimum geçerli end'leri gizlerdi.
+    let minEnd = Infinity;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const end = Number(list[i] && list[i].end);
+      const start = Number(list[i] && list[i].start);
+      if (Number.isFinite(end) && Number.isFinite(start) && end >= start
+          && end < minEnd) minEnd = end;
+      indexData.suffixMin[i] = minEnd;
+    }
     nextCueBoundaryAt._indexCache.set(list, indexData);
   }
   if (!indexData.sorted) return bruteForce();
@@ -89,11 +118,10 @@ function nextCueBoundaryAt(cues, sourceTime) {
   const keep = (value) => {
     if (Number.isFinite(value) && value > t && (!Number.isFinite(best) || value < best)) best = value;
   };
-  // İlk gelecek cue: start'ı sınırdır; bozuk end<start verisi için end'i de.
+  // İlk gelecek cue'nun start'ı sınırdır; kalan end'lerin en küçüğü suffixMin
+  // ile O(1) — bozuk bir end<start değeri bile arkadaki sınırları gizleyemez.
   if (last + 1 < list.length) {
-    const next = list[last + 1];
-    keep(Number(next && next.start));
-    keep(Number(next && next.end));
+    keep(Number(list[last + 1] && list[last + 1].start));
     keep(indexData.suffixMin[last + 1]);
   }
   // Aktif cue'lar: start <= t ama end > t. Önek-maks eşiği geçince dur;
@@ -461,14 +489,16 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       }
       const videoTime = finite(media.currentTime);
       const boundaries = [];
-      // Sınır epsilon'suz, katı gelecekte kalmalı: çizim sınırdan birkaç
-      // ms erken düştüğünde sınır "geçmiş" sayılırsa bir sonraki cue
-      // aralığı boyunca (saniyelerce) bayat metin ekranda kalır. Arama
-      // kaynak zamanında yapılır (dönüşüm monoton → sıralama korunur).
+      // Sınır kaynak zamanında aranır ve videoya geri eşlenir; (t-offset)/scale
+      // ile s*scale+offset çifti kayan-nokta düzeyinde asimetriktir ve sınır
+      // ~1e-9 saniye "geçmişe" düşebilir. Katı > süzgeci o sınırı düşürüp
+      // zamanlayıcısız bırakırdı; ~1 ms tolerans "şimdi" sınırlarını korur
+      // (delayMs zaten 0'a kelepçelenir) ve gerçekten geçmişte kalanları eler.
+      const BOUNDARY_EPS = 0.001;
       const collectBoundaries = (cues, transform) => {
         const value = sourceToVideo(
           nextCueBoundaryAt(cues, videoToSource(videoTime, transform)), transform);
-        if (Number.isFinite(value) && value > videoTime) boundaries.push(value);
+        if (Number.isFinite(value) && value > videoTime - BOUNDARY_EPS) boundaries.push(value);
       };
       collectBoundaries(state.source, state.sourceTransform);
       collectBoundaries(state.translation, state.translationTransform);
