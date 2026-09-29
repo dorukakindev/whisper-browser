@@ -20,7 +20,7 @@ const copy = require('../src/renderer/status-copy');
 let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log('  ✓', name); };
 
-const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // ---------- overlay indeks tazeliği ----------
 test('in-place head end mutasyonu bayat indeksle kaçırılmaz', () => {
