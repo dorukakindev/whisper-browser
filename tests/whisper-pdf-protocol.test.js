@@ -22,6 +22,8 @@ function makeContext() {
     URL,
     Response,
     decodeURIComponent,
+    createHash: require('node:crypto').createHash,
+    randomBytes: require('node:crypto').randomBytes,
   };
   vm.createContext(context);
   const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
@@ -82,6 +84,41 @@ test('yöntem/host kısıtları korunur (POST → 405, yanlış host → 405)', 
   assert.equal(wrongHost.status, 405);
 });
 
+// Kaynak kimliği içerik karmasından tek başına türetilirse dosyayı bilen bir
+// sayfa kimliği hesaplayıp Origin'siz istekle belgeyi açabilir — oturum
+// nonce'u kimliği tahmin edilemez kılar.
+test('kaynak kimliği oturum nonce\'u ile tahmin edilemez (içerik bilinse bile)', () => {
+  const { pdfHashPlan, pdfHashFromFirstChunk } = require('../src/pdf-translate');
+  const { createHash, randomBytes } = require('node:crypto');
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const start = source.indexOf('const pdfDocuments = new Map();');
+  const end = source.indexOf('function pdfDocumentByHash(');
+  assert.ok(start > 0 && end > start, 'pdf kaynak dilimi bulunamadı');
+  const slice = source.slice(start, end);
+  const makeInspect = () => {
+    const context = {
+      protocol: { handle: () => {} },
+      pdfFileAccess: { has: () => true, inspect: (p) => p },
+      fs, path, URL, Response, decodeURIComponent,
+      Readable: require('node:stream').Readable,
+      Buffer,
+      createHash, randomBytes,
+      pdfHashPlan, pdfHashFromFirstChunk,
+      pdfTranslationJobs: null,
+    };
+    vm.createContext(context);
+    vm.runInContext(slice, context);
+    return context.inspectPdfDocument;
+  };
+  const docPath = path.join(__dirname, 'whisper-pdf-protocol.test.js');
+  const docA = makeInspect()(docPath);
+  const docB = makeInspect()(docPath);
+  assert.notEqual(docA.resourceId, docB.resourceId,
+    'aynı belge iki oturumda aynı kaynak kimliğini almamalı');
+  assert.match(docA.resourceId, /^[a-f0-9]{64}$/);
+  assert.equal(docA.pdfHash, docB.pdfHash, 'pdfHash deterministik durum anahtarı olarak kalır');
+});
+
 test('geçerli kaynak kimliği okunur (izinli belge)', async () => {
   const handled = {};
   const context = {
@@ -90,6 +127,8 @@ test('geçerli kaynak kimliği okunur (izinli belge)', async () => {
     fs,
     Readable: require('node:stream').Readable,
     URL, Response, decodeURIComponent,
+    createHash: require('node:crypto').createHash,
+    randomBytes: require('node:crypto').randomBytes,
   };
   vm.createContext(context);
   const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
