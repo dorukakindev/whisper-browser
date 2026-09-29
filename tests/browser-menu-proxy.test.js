@@ -106,7 +106,7 @@ function sliceFunction(source, signature) {
 }
 
 // ---- 3. browserMoreSearch: filtre, boş durum, Enter, kapanışta sıfırlama ----
-{
+(async () => {
   const dom = new JSDOM(`<!doctype html><details id="browserMoreMenu"><div class="browser-more-popover">
     <input id="browserMoreSearch" type="search">
     <div class="browser-more-quick" role="group"><button id="q1" title="Yeni sekme · Ctrl+T" aria-label="Yeni sekme">+</button>
@@ -128,11 +128,12 @@ function sliceFunction(source, signature) {
   const foldSrc = sliceFunction(renderer, 'function foldSearch(value) {');
   // Blok üst-düzey bağlama kodudur: `const moreSearch = $(...)` + dinleyiciler.
   // foldSearch fonksiyonu blok içinde kullanıldığı için gövdenin başına eklenir.
-  new Function('$', 'uiText', 'document',
+  new Function('$', 'uiText', 'document', 'MutationObserver',
     `${foldSrc}\n${block}`)(
     (id) => doc.getElementById(id),
     (s) => s,
-    doc);
+    doc,
+    dom.window.MutationObserver);
 
   const input = doc.getElementById('browserMoreSearch');
   const menu = doc.getElementById('browserMoreMenu');
@@ -186,6 +187,27 @@ function sliceFunction(source, signature) {
   assert.equal(visibleItems().length, 0, 'devre dışı öğe sonuç sayılmaz');
   assert.ok(!emptyRow.classList.contains('hidden'), 'yalnız devre dışı eşleşmede boş durum görünür');
 
+  // Devin Review #162-1: menü açıkken öğe devre dışı kalırsa sonuç tazelenir —
+  // 'izle' eşleşmesi aria-disabled alınca gri kalmaz, boş durum devreye girer.
+  input.value = 'izle';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
+    '"izle" hem "gizle" hem "Oynatıcıda izle" öğelerini eşleştirir');
+  assert.ok(emptyRow.classList.contains('hidden'));
+  doc.getElementById('mWatch').setAttribute('aria-disabled', 'true');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide'],
+    'sonradan devre dışı kalan öğe gizlenir, diğer eşleşme kalır');
+  doc.getElementById('mHide').setAttribute('aria-disabled', 'true');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(visibleItems().length, 0, 'tüm eşleşmeler devre dışı kalınca sıfırlanır');
+  assert.ok(!emptyRow.classList.contains('hidden'), 'durum değişince boş durum devreye girer');
+  doc.getElementById('mWatch').removeAttribute('aria-disabled');
+  doc.getElementById('mHide').removeAttribute('aria-disabled');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
+    'tekrar aktif olunca sonuç geri döner');
+
   // Menü kapanınca arama sıfırlanır ve tüm öğeler geri gelir.
   menu.open = false;
   menu.dispatchEvent(new dom.window.Event('toggle'));
@@ -194,6 +216,6 @@ function sliceFunction(source, signature) {
   assert.equal(visibleQuick().length, 2, 'hızlı eylemler geri döner');
   assert.ok(subs.every((s) => !s.classList.contains('hidden')), 'gruplar geri döner');
   assert.ok(subs.every((s) => s.open === false), 'gruplar kapalı duruma döner');
-}
-
-console.log('browser-menu-proxy: YouTube öndoldurma, vekil tıklama ve menü araması kilitlendi.');
+})().then(() => {
+  console.log('browser-menu-proxy: YouTube öndoldurma, vekil tıklama ve menü araması kilitlendi.');
+});

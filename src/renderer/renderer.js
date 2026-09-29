@@ -19969,6 +19969,18 @@ if (moreSearch) {
     filterMoreMenu();
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = false; });
   });
+  // Menü açıkken öğe durumu değişebilir (örn. sayfa YouTube'dan çıkınca
+  // "Oynatıcıda izle" devre dışı kalır): sorgu varken sonuçları tazele ki
+  // bayat eşleşme gri kalmasın.
+  if (morePopover && typeof MutationObserver === 'function') {
+    new MutationObserver(() => {
+      if (moreSearch.value) filterMoreMenu();
+    }).observe(morePopover, {
+      attributes: true,
+      attributeFilter: ['disabled', 'aria-disabled'],
+      subtree: true,
+    });
+  }
 }
 
 
