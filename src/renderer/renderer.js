@@ -15934,8 +15934,9 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingAutoOpen = { key: item.key, intent };
     openYoutubePanelAndProbe(item.sourceRef);
   } else {
-    // Yetki beklenirken kullanıcı başka bir kayda tıkladıysa bu açılış eskidir.
-    const intent = player.openIntent;
+    // Yetki beklenirken kullanıcı başka bir kayda tıkladıysa bu açılış eskidir;
+    // artırılmazsa aynı dalda üst üste iki tıklama yine yarışırdı.
+    const intent = ++player.openIntent;
     const authorization = await window.api.authorizeWatchItem?.(item.key);
     if (intent !== player.openIntent) return;
     if (!authorization?.ok) {
@@ -21079,7 +21080,12 @@ async function translateVisiblePdfPages(all = false) {
   try { await translateVisiblePdfPagesNow(reader, all); }
   finally {
     reader.translating = false;
-    if (player.pdfReader === reader) for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = false; }
+    // Yerini yeni bir okuyucu almışsa bile düğmeleri geri aç; yalnız o okuyucu
+    // da çeviri yürütüyorsa dokunma (kendi finally'si kapayacak).
+    const current = player.pdfReader;
+    if (!current || !current.translating) {
+      for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = false; }
+    }
   }
 }
 async function translateVisiblePdfPagesNow(reader, all) {
@@ -21129,13 +21135,15 @@ async function translateVisiblePdfPagesNow(reader, all) {
     reader.translationCompleted = completed;
     reader.translationFailed = failed;
     if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
-    pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
+    // Okuyucu bu çeviri sürerken değiştiyse durum satırı yeni belgeye aittir.
+    if (player.pdfReader === reader) pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
     if (result?.canceled) { canceled = true; break; }
   }
   $('pdfTranslateCancel').disabled = true;
   reader.translating = false;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
-  pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
+  // Okuyucu değiştiyse eski çevirinin sonuç satırı yeni belgeyi ezmesin.
+  if (player.pdfReader === reader) pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
     : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
 }
 
