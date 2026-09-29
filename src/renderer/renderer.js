@@ -884,7 +884,10 @@ function syncBrowserOcclusion() {
   const settingsOverlay = !!(settings && !settings.classList.contains('hidden') && playerLayer
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')
       || playerLayer.classList.contains('side-rail-mode')));
-  const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
+  // Sekme sağ tık menüsü body'ye eklenir ve sekme şeridinden aşağı, native
+  // sayfanın üstüne açılır; sayılmazsa alt öğeleri sayfanın arkasında kalıyordu.
+  const tabMenuOpen = typeof browserTabMenuEl !== 'undefined' && !!browserTabMenuEl?.isConnected;
+  const occluded = !!_activeModal || tabMenuOpen || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
@@ -5831,6 +5834,13 @@ function browserCommandPaletteCommands() {
 }
 function openBrowserCommandPalette(returnFocus = null) {
   if (player.workspaceMode !== 'browser' || !browserTabState()) return;
+  // Zaten açıkken Ctrl+K: yeniden kurma (eski metin kalıyor, dönüş odağı gizli
+  // palet girdisine kayıyordu) — yalnız girdiye odaklan.
+  if (browserCommandPaletteState.open && !$('browserCommandPalette')?.classList.contains('hidden')) {
+    const input = $('browserCommandPaletteInput'); input?.focus(); input?.select();
+    return;
+  }
+  const staleInput = $('browserCommandPaletteInput'); if (staleInput) staleInput.value = '';
   browserCommandPaletteState.open = true; browserCommandPaletteState.query = ''; browserCommandPaletteState.selected = 0;
   const activeElement = document.activeElement;
   browserCommandPaletteState.returnFocus = returnFocus
@@ -5854,7 +5864,7 @@ if ($('browserCommandPaletteInput')) $('browserCommandPaletteInput').addEventLis
 if ($('browserCommandPalette')) $('browserCommandPalette').addEventListener('keydown', (event) => {
   if (event.isComposing) return;
   const count = browserCommandPaletteState.results.length;
-  if (event.key === 'Escape') { event.preventDefault(); closeBrowserCommandPalette(); }
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeBrowserCommandPalette(); }
   else if (event.key === 'ArrowDown' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected + 1) % count; renderBrowserCommandPalette(); }
   else if (event.key === 'ArrowUp' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected - 1 + count) % count; renderBrowserCommandPalette(); }
   else if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); executeBrowserCommandPalette(); }
@@ -6185,7 +6195,7 @@ function openBrowserTabMenu(tabId, x, y) {
   }
   const closableOthers = player.browserTabs.filter((t) => t.id !== tabId && !t.pinned);
   addItem(window.UiLocale?.t('Diğer sekmeleri kapat') || 'Diğer sekmeleri kapat', () => closeOtherBrowserTabs(tabId), !closableOthers.length);
-  const rightCount = player.browserTabs.slice(player.browserTabs.findIndex((t) => t.id === tabId) + 1).filter((t) => !t.pinned).length;
+  const rightCount = browserTabsRightOf(tabId).length;
   addItem(window.UiLocale?.t('Sağdaki sekmeleri kapat') || 'Sağdaki sekmeleri kapat', () => closeRightBrowserTabs(tabId), !rightCount);
   addItem(window.UiLocale?.t('Grubu düzenle…') || 'Grubu düzenle…', () => editBrowserTabGroup(tabId));
   addItem(window.UiLocale?.t('Sekmeyi kapat') || 'Sekmeyi kapat', () => closeBrowserTab(tabId), !!tab.pinned);
@@ -6200,6 +6210,7 @@ function openBrowserTabMenu(tabId, x, y) {
   });
   document.body.appendChild(menu);
   browserTabMenuEl = menu;
+  syncBrowserOcclusion();
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
   menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
@@ -6771,6 +6782,7 @@ function setBrowserChromeCollapsed(collapsed, persist = true) {
   if (active) {
     setBrowserPlacesOpen(false);
     setBrowserDownloadsOpen(false);
+    setBrowserQrOpen(false);
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserChromeCollapsed', player.browserChromeCollapsed ? 'true' : 'false'); } catch (_) {}
@@ -6946,6 +6958,13 @@ function renderBrowserPlaces() {
       ? 'browserPlaceTabOffline' : 'browserPlaceTabBookmarks');
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
+  // Silme, klasör değişikliği ve her gezinmede gelen arka plan yenilemesi listeyi
+  // yeniden kurar; klavye odağı body'ye düşüyordu. Odaklı satırı ve düğme türünü
+  // hatırla, çizimden sonra aynı konuma geri ver.
+  const focusedRow = list.contains(document.activeElement) ? document.activeElement.closest('.browser-place-row') : null;
+  const focusIndex = focusedRow ? [...list.querySelectorAll('.browser-place-row')].indexOf(focusedRow) : -1;
+  const focusClass = focusedRow ? (['browser-place-open', 'browser-place-folder', 'browser-place-remove']
+    .find((name) => document.activeElement.classList.contains(name)) || 'browser-place-open') : '';
   list.replaceChildren();
   const entries = browserPlaceList();
   const filtered = !!String($('browserPlacesSearch')?.value || '').trim()
@@ -6960,6 +6979,7 @@ function renderBrowserPlaces() {
         : player.browserPlaceTab === 'offline' ? 'Henüz çevrimdışı kopya yok. İçerik menüsünden “Çevrimdışı okuma listesine ekle” ile sayfanın o anki halini saklayabilirsiniz.'
           : 'Henüz ziyaret edilen site yok.';
     list.appendChild(empty);
+    if (focusIndex >= 0) $('browserPlacesSearch')?.focus({ preventScroll: true });
     return;
   }
   entries.forEach((item) => {
@@ -7004,6 +7024,12 @@ function renderBrowserPlaces() {
     remove.setAttribute('aria-label', remove.title);
     list.appendChild(row);
   });
+  if (focusIndex >= 0) {
+    const rows = list.querySelectorAll('.browser-place-row');
+    const row = rows[Math.min(focusIndex, rows.length - 1)];
+    // Silinen satırda "sil" düğmesi yerine aynı konumdaki satırın açma düğmesi.
+    (row?.querySelector(`.${focusClass}`) || row?.querySelector('.browser-place-open'))?.focus({ preventScroll: true });
+  }
 }
 
 let browserAddressSearchTimer = null;
@@ -7315,7 +7341,15 @@ async function refreshBrowserAddressResults() {
       title: item.title || uiText('Kütüphane sonucu'), detail: item.snippet || item.url || '',
       kindLabel: libraryResultKindLabel(item), mark: 'K' }) && u) seenUrls.add(u);
   }
+  // Kütüphane araması dönmeden kullanıcı ↓ ile bir satır seçtiyse ikinci çizim
+  // seçimi 0'a sıfırlıyordu; Enter yazılan metni açıyordu. Seçimi koru.
+  const previous = player.browserAddressSelected > 0 ? player.browserAddressResults[player.browserAddressSelected] : null;
   renderBrowserAddressResults(results);
+  if (previous) {
+    const key = (row) => `${row?.action || ''}|${row?.id || row?.url || row?.value || row?.title || ''}`;
+    const keep = player.browserAddressResults.findIndex((row) => key(row) === key(previous));
+    if (keep > 0) selectBrowserAddressResult(keep, { scroll: false });
+  }
 }
 
 
@@ -7499,7 +7533,8 @@ async function loadBrowserReadingList() {
 function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
-  if (open) setBrowserDownloadsOpen(false);
+  // Places, İndirmeler ve QR aynı sağ üst köşeye açılır; üst üste binmesinler.
+  if (open) { setBrowserDownloadsOpen(false); if (typeof setBrowserQrOpen === 'function') setBrowserQrOpen(false); }
   panel.classList.toggle('hidden', !open);
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
@@ -7611,7 +7646,7 @@ function renderBrowserDownloads() {
 function setBrowserDownloadsOpen(open) {
   const panel = $('browserDownloadsPanel');
   if (!panel) return;
-  if (open) setBrowserPlacesOpen(false);
+  if (open) { setBrowserPlacesOpen(false); if (typeof setBrowserQrOpen === 'function') setBrowserQrOpen(false); }
   panel.classList.toggle('hidden', !open);
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   $('browserDownloadsToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -10866,7 +10901,7 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
   if (mode !== previousMode) {
     closeBrowserFind(false);
-    setBrowserDownloadsOpen(false);
+    closeBrowserTransientPanels();
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -11056,8 +11091,11 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (
   if (open) activateBrowserTabAndFocus(open.dataset.browserTabActivate);
 });
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dblclick', (event) => {
+  // Kapat/sessiz düğmesine hızlı iki tık (birkaç sekmeyi art arda kapatmak)
+  // "Sekme grubunu düzenle" diyaloğunu açmasın.
+  if (event.target.closest('[data-browser-tab-close], [data-browser-tab-mute]')) return;
   const item = event.target.closest('[data-browser-tab-id]');
-  if (item) editBrowserTabGroup(item.dataset.browserTabId);
+  if (item && player.browserTabs.some((tab) => tab.id === item.dataset.browserTabId)) editBrowserTabGroup(item.dataset.browserTabId);
 });
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('contextmenu', (event) => {
   const item = event.target.closest('[data-browser-tab-id]');
@@ -11119,7 +11157,12 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   const tabs = [...$('browserTabStrip').querySelectorAll('[role="tab"]')];
   if (!tabs.length) return;
-  const current = Math.max(0, tabs.indexOf(document.activeElement));
+  // Odak sekmenin kapat/sessiz düğmesindeyse o sekmeden devam et; eskiden -1
+  // → 0'a düşüp ilk ya da son sekmeye atlıyordu.
+  const active = document.activeElement;
+  let owned = tabs.indexOf(active);
+  if (owned < 0) owned = tabs.findIndex((tab) => (tab.closest('[data-browser-tab-id]') || tab.parentElement)?.contains(active));
+  const current = Math.max(0, owned);
   let next = current;
   if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
   if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
@@ -11265,7 +11308,10 @@ $('browserPiP')?.addEventListener('click', () => {
   }).catch(() => {});
 });
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
-  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && player.browserAddressResults.length) {
+  // Home/End metin imlecine aittir (öneri listesi yazarken hep açık olduğundan
+  // eskiden imleç satır başına/sonuna gidemiyordu). Satır atlamak için Alt+Home/End.
+  const rowJump = (event.key === 'Home' || event.key === 'End') && event.altKey;
+  if ((['ArrowDown', 'ArrowUp'].includes(event.key) || rowJump) && player.browserAddressResults.length && !event.isComposing) {
     event.preventDefault();
     const length = player.browserAddressResults.length;
     const selected = event.key === 'Home' ? 0
@@ -11289,6 +11335,8 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   }
   else if (event.key === 'Escape') {
     event.preventDefault();
+    // Adres düzenlemesini geri almak başka paneli/çekmeceyi kapatmasın.
+    event.stopPropagation();
     closeBrowserAddressResults();
     player.browserAddressDirty = false;
     $('browserAddress').value = player.browserPageUrl || '';
@@ -12074,6 +12122,10 @@ function visibleBrowserTabsInDisplayOrder() {
 
 function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
+  // Uygulama diyaloğu (#appDialog gibi div tabanlı yönetilen modal) açıkken
+  // sekme/gezinme kısayolları arkadaki sayfaya işlemesin: "Sekme grubunu
+  // düzenle" içinde yazarken Ctrl+W arkadaki sekmeyi kapatıyordu.
+  if (_activeModal || document.querySelector('dialog[open]')) return true;
   if (['subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle'].includes(normalized)) {
     setSubtitleMode(normalized === 'subtitle-toggle' ? (browserSubtitleMode() === 'off' ? 'both' : 'off') : normalized.slice(9));
     saveActiveBrowserTabWorkspace();
@@ -12119,6 +12171,9 @@ function runBrowserShortcut(key, shift = false) {
   // Açık bir uygulama diyaloğu varken Ctrl+W sekme kapatmasın.
   if (normalized === 'w') {
     if (document.querySelector('dialog[open]')) return true;
+    // Ayarlar sözde sekmesi öndeyken Ctrl+W onu kapatır; arkadaki görünmeyen
+    // web sekmesini kapatmaz.
+    if (browserSettingsSurfaceVisible()) { closeBrowserSettings(); return true; }
     closeBrowserTab(player.browserActiveTabId);
     return true;
   }
@@ -18747,7 +18802,7 @@ function closePlayer() {
   if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();
-  setBrowserDownloadsOpen(false);
+  closeBrowserTransientPanels();
   player.cancelHoldSpeed?.();
   if (typeof stopPlayerVideoFrameLoop === 'function') stopPlayerVideoFrameLoop();
   if (typeof resetActiveWordHighlight === 'function') resetActiveWordHighlight();
@@ -19725,6 +19780,25 @@ for (const id of browserToolbarMenuIds) {
 document.addEventListener('pointerdown', (event) => {
   if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu')) return;
   closeBrowserToolbarMenus();
+}, true);
+// Yer imleri / İndirmeler / QR / komut paleti açıkken sayfa donmuş bir
+// görüntüyle değiştirilir; o görüntüye tıklamak hiçbir şey yapmıyordu. Toolbar
+// menüleri gibi dış tıklamayla kapansınlar. Diyalog, çekmece ve menüler hariç.
+document.addEventListener('pointerdown', (event) => {
+  if (_activeModal || document.querySelector('dialog[open]')) return;
+  const panels = ['browserPlacesPanel', 'browserDownloadsPanel', 'browserQrPanel', 'browserCommandPalette']
+    .map((id) => $(id)).filter((panel) => panel && !panel.classList.contains('hidden'));
+  if (!panels.length) return;
+  const target = event.target;
+  if (!(target instanceof Element) || !target.isConnected) return;
+  if (panels.some((panel) => panel.contains(target))) return;
+  if (target.closest('#browserPlacesToggle, #browserDownloadsToggle, #browserMoreMenu, #browserCommandPaletteToggle, .browser-menu-popover, #settingsDrawer, #appDialog, [aria-modal="true"]')) return;
+  if (typeof browserTabMenuEl !== 'undefined' && browserTabMenuEl?.contains(target)) return;
+  if (!target.closest('#playerLayer')) return;
+  setBrowserPlacesOpen(false);
+  setBrowserDownloadsOpen(false);
+  setBrowserQrOpen(false);
+  if (browserCommandPaletteState.open) closeBrowserCommandPalette();
 }, true);
 
 const playerDetailsMenuIds = ['playerMore', 'playerHeadMore', 'subtitleActionsMenu', 'playerSpeedMenu', 'playerLayoutQuickMenu', 'sideSubtitleLayoutMenu'];
@@ -22556,6 +22630,7 @@ document.addEventListener('keydown', (e) => {
     const ytModal = $('youtubeLoginModal');
     if (ytModal && !ytModal.classList.contains('hidden')) closeYoutubeLogin();
     else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
+    else if (!$('browserQrPanel')?.classList.contains('hidden')) setBrowserQrOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
     else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
     else if (typeof cancelStUpNextCountdown === 'function' && cancelStUpNextCountdown()) { /* sıradaki geri sayım kartı iptal edildi */ }
