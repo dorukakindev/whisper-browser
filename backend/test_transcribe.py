@@ -1064,6 +1064,40 @@ def test_translate_quota_probe_stops_parallel_fanout():
     assert status["failed"] == list(range(len(entries)))
 
 
+def test_translate_network_probe_stops_parallel_fanout():
+    """İş başında tamamen çevrimdışıysa ilk parça probu yakalar:
+    kalan parçalar rota/rota dolaşıp ücret yakmadan durur."""
+    import types
+
+    entries = [(float(i), float(i + 1), f"Source sentence number {i}.") for i in range(45)]
+    calls = []
+
+    def fail_network(**_kwargs):
+        calls.append(1)
+        raise RuntimeError("Connection error: getaddrinfo failed")
+
+    class _Offline:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=fail_network))
+
+    status = {}
+    with _fake_openai(_Offline):
+        out = T.llm_translate(
+            entries,
+            _TrArgs(translate_workers=8, translate_cache=False),
+            [],
+            source_lang="en",
+            status_out=status,
+        )
+    assert out is None
+    # Ağ hatası retryable'dır: prob tek parçada en fazla `attempts` istek yakar;
+    # kapı olmasaydı 45 parça × retry × rota kadar istek giderdi.
+    assert len(calls) <= 3, f"çevrimdışı probda {len(calls)} istek gönderildi"
+    assert status["lastError"] == "network_error"
+    assert status["failed"] == list(range(len(entries)))
+
+
 def test_same_translation_language_compares_primary_iso_tags():
     assert T.same_translation_language("tr", "TR")
     assert T.same_translation_language("tr-TR", "tr")

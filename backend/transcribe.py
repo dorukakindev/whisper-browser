@@ -4462,20 +4462,31 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             except Exception as error:
                 fatal_reason = record_chunk_result(probe, error=error)
 
-        if fatal_reason in FATAL_TRANSLATION_ERRORS and remaining_chunks:
-            skipped = sum(len(ch) for ch in remaining_chunks)
-            counters["failed"] += skipped
-            with lock:
-                for ch in remaining_chunks:
-                    for index in ch:
-                        if index not in done_idx:
-                            failure_by_index[index] = fatal_reason
-            log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
-                .format(fatal_reason, skipped), "warn")
-            emit("llm_progress", percent=100.0,
-                 done=counters["done"] + len(cached_idx), failed=counters["failed"],
-                 total=len(entries), stage="translate")
-            remaining_chunks = []
+        # İlk parça probu kimlik/kota/model hatalarıyla birlikte ağ hatasını da
+        # durdurucu sayar: iş başında bağlantı yoksa (uçak modu, DNS çökmesi)
+        # kalan yüzlerce parçanın retry+rota dolaşması yalnız süre yakar. Orta
+        # koşudaki geçici kopukluklar kapsam dışıdır — orada parça başına hata
+        # kaydedilip iş sürer.
+        if fatal_reason in FATAL_TRANSLATION_ERRORS or fatal_reason == "network_error":
+            probe_stop = fatal_reason if remaining_chunks else ""
+            if probe_stop:
+                skipped = sum(len(ch) for ch in remaining_chunks)
+                counters["failed"] += skipped
+                with lock:
+                    for ch in remaining_chunks:
+                        for index in ch:
+                            if index not in done_idx:
+                                failure_by_index[index] = probe_stop
+                if probe_stop == "network_error":
+                    log("Çeviri: sağlayıcıya bağlanılamadı (ağ hatası); {} blok "
+                        "API'ye gönderilmeden durduruldu.".format(skipped), "warn")
+                else:
+                    log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
+                        .format(probe_stop, skipped), "warn")
+                emit("llm_progress", percent=100.0,
+                     done=counters["done"] + len(cached_idx), failed=counters["failed"],
+                     total=len(entries), stage="translate")
+                remaining_chunks = []
 
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
