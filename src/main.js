@@ -8923,8 +8923,11 @@ function installSystemAudioCaptureHandler() {
     try {
       const mainFrame = mainWindow?.webContents?.mainFrame;
       const requestFrame = request.frame;
+      // Yalnız üst dokümanın getDisplayMedia çağrısı kabul edilir: ana pencere
+      // çerçeve ağacındaki bir alt kare (iframe) jesti kötüye kullanıp ekran
+      // görüntüsü + sistem sesi elde edemesin.
       const belongsToMainWindow = !!mainFrame && !!requestFrame
-        && (requestFrame === mainFrame || requestFrame.top === mainFrame);
+        && requestFrame === mainFrame;
       if (!belongsToMainWindow || !request.userGesture || !request.audioRequested || !browserLiveAsr || browserLiveAsr.stopping) {
         return callback({});
       }
