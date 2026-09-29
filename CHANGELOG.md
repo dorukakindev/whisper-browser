@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R245 (#181+#184 review triage): kaynak parçanın cümle-sonu sayısı hedef dilin sıra-sayısı kuralıyla ölçülüp doğru çeviriler reddediliyordu — artık kaynak dilin kuralıyla sayılır; VTT `NOTE` bloğu içindeki zaman kodu benzeri satır sahte cue üretip not metnini çıktıya sızdırıyordu — meta paragraflar sınır adaylığından çıkarıldı; altyazı indirmede boyut-sınırı/iptal gibi ilke hataları proxy yedeğini boşuna tetikliyordu ve yedek istekte DNS yeniden-doğrulaması eksikti (TOCTOU) — yedek artık yalnız gerçek ağ hatasında ve yeniden doğrulama sonrası koşar.
 - R242 (tur-4 açık maddeleri): bitişik komşular arasına sıkışan ~10 ms'lik cue ekranda okunamaz flaş olarak yazılıyordu — metin artık sonraki cue'nun başına katlanıp cue düşürülür (sonda kalırsa öncekine).
 - R243 (#182 review): sondaki flaş cue öncekine katlanırken konuşma zamanı korunur — öncekinin bitişi kısa cue'nun bitişine uzatılır.
 - R241 (tur-4 paketi): boş satırlı veya sıfır-süreli altyazı cue'ları tüm işi çökertmiyordu; VTT `NOTE` blokları çevrilip `}`/`-->` dizgileri bozuluyordu; `{\an8}` konum etiketleri birleşen cümlelere sızıyordu; "2. Dünya Savaşı" gibi sıra sayılarından sonra satır kırılıyordu; başarısız işin çıktı işlemi kurtarması aynı adlı kullanıcı dosyasını silebiliyor ve .tmp/journal bırakıyordu; ffmpeg/ffprobe çocuklarına gizli env değişkenleri sızıyordu.
