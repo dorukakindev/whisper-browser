@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1053.md](docs/devir/2026-09-29-1053.md) — R249 kapanış: kesin master merge kimliği (0b5efe6)
+Güncel çalışma: [docs/devir/2026-09-29-1128.md](docs/devir/2026-09-29-1128.md) — R250: #195 flag (ESUBTITLE_LIMIT retry test kilidi)
+Önceki çalışma: [docs/devir/2026-09-29-1053.md](docs/devir/2026-09-29-1053.md) — R249 kapanış: kesin master merge kimliği (0b5efe6)
 Önceki çalışma: [docs/devir/2026-09-29-1042.md](docs/devir/2026-09-29-1042.md) — R249: Electron smoke regresyonu (2 test-tarafı kusur) + #187 ESUBTITLE_LIMIT
 Önceki çalışma: [docs/devir/2026-09-29-1014.md](docs/devir/2026-09-29-1014.md) — R248 kapanış: kesin master merge kimliği (de41767)
 Önceki çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
