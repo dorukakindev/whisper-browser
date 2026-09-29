@@ -18,6 +18,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R288 (#229 review): dizin fsync gerçek G/Ç hatası artık yutulmaz; `atomicWriteFileSync` yeni oluşturulan klasör zincirini de senkronlar; `mirrorBackup` `.bak` fsync'i sıkılaştı.
+
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 
 - Düzeltme (R281): kalıcı depoların (oturum, not, varlık, katalog, afiş) yazım yolunda fsync yoktu — temp+rename atomikliği vardı ama güç kesintisinde sayfa-önbellek verisi kaybolabilirdi; tüm yazımlar artık temp fsync → rename → dizin fsync töreninden geçer.

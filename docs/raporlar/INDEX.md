@@ -201,3 +201,4 @@ tarih sırasıyla dosya adından okunur.
 | 228 | [BROWSER_BUG_REPORT_228.md](BROWSER_BUG_REPORT_228.md) | BROWSER_BUG_REPORT_228 — Oynatıcı zamanlama fuzz'ı (seek/hız/loop-cue) |
 | 229 | [BROWSER_BUG_REPORT_229.md](BROWSER_BUG_REPORT_229.md) | BROWSER_BUG_REPORT_229 — Canlı ASR hattı derin turu (R279) |
 | 230 | [BROWSER_BUG_REPORT_230.md](BROWSER_BUG_REPORT_230.md) | BROWSER_BUG_REPORT_230 — SponsorBlock önbellek TTL + anahtar-çakışması stresi (R280) |
+| 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
