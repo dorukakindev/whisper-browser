@@ -367,4 +367,10 @@ function classifyError(e) {
   assert.equal(violations.length, 0, `${violations.length} payload ihlali`);
   await test('korpus + invariant özeti tamam', () => {});
 })().catch((err) => { console.error(err); process.exitCode = 1; })
-  .finally(() => console.log(`\n${passed} kontrol geçti`));
+  .finally(() => {
+    console.log(`\n${passed} kontrol geçti`);
+    // main.js'in require-time kaynakları (dosya izleyicileri, zamanlayıcılar)
+    // süreci açık tutar; run-all'ın spawnSync timeout'unu tetiklememek için
+    // çıktılar basıldıktan sonra açıkça çık.
+    process.exit(process.exitCode || 0);
+  });
