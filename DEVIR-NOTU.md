@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0339.md](docs/devir/2026-09-29-0339.md) — R230: #160 review triage (menü araması quick + devre dışı eşleşme)
+Güncel çalışma: [docs/devir/2026-09-29-0345.md](docs/devir/2026-09-29-0345.md) — R230 kapanış: kesin master merge kimliği (2dc1d46)
+Önceki çalışma: [docs/devir/2026-09-29-0339.md](docs/devir/2026-09-29-0339.md) — R230: #160 review triage (menü araması quick + devre dışı eşleşme)
 Önceki çalışma: [docs/devir/2026-09-29-0333.md](docs/devir/2026-09-29-0333.md) — R229 kapanış: kesin master merge kimliği (75f0ce5)
 Önceki çalışma: [docs/devir/2026-09-29-0323.md](docs/devir/2026-09-29-0323.md) — R229: UI fix paketi uygulaması + menü vekili/arama/prefill birim testleri
 Önceki çalışma: [docs/devir/2026-09-29-0303.md](docs/devir/2026-09-29-0303.md) — R228: #157 review triage (sayfa-bazlı kurtarma)
