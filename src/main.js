@@ -156,6 +156,7 @@ const {
 } = require('./browser-session-privacy');
 const {
   attachNavigationGuard,
+  attachSubframeSchemeGuard,
   createWindowRegistry,
   decideUrlPolicy,
   safeWebContentsUrl,
@@ -1824,6 +1825,9 @@ function openYoutubeTvWindow(userAgentId) {
   };
   tvContents.on('will-navigate', guard);
   tvContents.on('will-redirect', guard);
+  // Alt kareler (reklam/embed iframe'leri) ana-kare kuralına tabi değildir;
+  // web şeması dışına (file:, javascript:, data:…) çıkışı reddet.
+  attachSubframeSchemeGuard(tvContents, { allowSchemes: new Set(['http:', 'https:', 'about:']) });
   const onTvNavigate = (_event, url) => {
     const onTvApp = youtubeTvMode.isTvAppUrl(url);
     // youtube.com/tv masaüstü sitesine yönlendirildiyse bu TV kimliği reddedildi.
@@ -14093,6 +14097,10 @@ function createWindow() {
 
   // Sayfa içi navigasyonu engelle (örn. pencereye dosya bırakılınca file:// açılması)
   mainWindow.webContents.on('will-navigate', (e) => e.preventDefault());
+  mainWindow.webContents.on('will-redirect', (e) => e.preventDefault());
+  // Renderer'ımız iframe barındırmaz; enjekte edilmiş bir alt karenin dış
+  // dünyaya gezinmesini de reddet.
+  attachSubframeSchemeGuard(mainWindow.webContents);
 
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });

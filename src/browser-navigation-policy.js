@@ -120,6 +120,29 @@ function attachNavigationGuard(webContents, options = {}) {
   };
 }
 
+// Yalnız alt kare (iframe) gezinmesini şema beyaz listesiyle sınırlar —
+// will-navigate ana karedir; will-frame-navigate alt kareler için tetiklenir.
+// allowSchemes boş bırakılırsa tüm alt kare gezinmesi reddedilir (örn. iframe
+// barındırmayan kendi renderer pencerelerimiz).
+function attachSubframeSchemeGuard(webContents, options = {}) {
+  if (!webContents || typeof webContents.on !== 'function') throw new TypeError('Geçerli bir webContents gerekli.');
+  const allowSchemes = options.allowSchemes instanceof Set ? options.allowSchemes : new Set();
+  const guard = (details) => {
+    const navigation = navigationEventDetails(details);
+    const parsed = parsePolicyUrl(navigation.url);
+    const allowed = parsed.ok && allowSchemes.has(parsed.protocol);
+    const decision = { url: navigation.url, allowed, reason: allowed ? 'scheme-allowed' : (parsed.ok ? 'scheme-not-allowed' : parsed.reason) };
+    try { if (typeof options.onDecision === 'function') options.onDecision(decision, details); } catch (_) {}
+    if (!allowed && navigation.event && typeof navigation.event.preventDefault === 'function') {
+      navigation.event.preventDefault();
+    }
+  };
+  webContents.on('will-frame-navigate', guard);
+  return () => {
+    if (typeof webContents.removeListener === 'function') webContents.removeListener('will-frame-navigate', guard);
+  };
+}
+
 function securePopupWebPreferences(partition) {
   return {
     partition,
@@ -182,6 +205,7 @@ module.exports = {
   MAX_POLICY_URL_LENGTH,
   URL_POLICY,
   attachNavigationGuard,
+  attachSubframeSchemeGuard,
   createWindowRegistry,
   decideUrlPolicy,
   parsePolicyUrl,

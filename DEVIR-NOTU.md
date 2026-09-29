@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
+Güncel çalışma: [docs/devir/2026-09-29-1508.md](docs/devir/2026-09-29-1508.md) — R265: alt kare navigasyon guard'ları (TV/ana pencere/mini boşlukları kapatıldı)
+Önceki çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
 Önceki çalışma: [docs/devir/2026-09-29-1447.md](docs/devir/2026-09-29-1447.md) — R263: 10k-cue overlay sınır perf (O(2n)→O(log n+aktif), ~176×)
 Önceki çalışma: [docs/devir/2026-09-29-1435.md](docs/devir/2026-09-29-1435.md) — R262: iş-ortasında-kapanış E2E + settings geriye-uyumluluk matrisi (temiz iptal + çökme kurtarması, bug yok)
 Önceki çalışma: [docs/devir/2026-09-29-1416.md](docs/devir/2026-09-29-1416.md) — R261: burn-in ffmpeg E2E (gerçek IPC+ffmpeg, kapılar+temizlik, bug yok)
