@@ -2050,6 +2050,17 @@ def test_normalize_timings():
     assert [item[2] for item in unordered] == ["ilk", "son"]
 
 
+def test_normalize_timings_merges_unrenderable_flash_forward():
+    """~10 ms'ye sıkışan cue ekranda okunamaz flaştı — metin sonraki cue'ya katlanır."""
+    out = T.normalize_timings([(0.0, 2.0, "a"), (2.0, 2.05, "b"), (2.05, 5.0, "c")])
+    assert len(out) == 2, f"flaş cue birleşmedi: {out}"
+    assert out[0][2] == "a"
+    assert out[1][2] == "b c", f"metin kayboldu: {out}"
+    # Tek başına kısa cue her zaman min_dur'a uzatılır — düşürülmez.
+    out2 = T.normalize_timings([(0.0, 0.01, "tek")], min_dur=0.8)
+    assert len(out2) == 1 and out2[0][1] - out2[0][0] >= 0.7
+
+
 def test_r51_86_nan_times_repaired_before_write():
     """R51-86: NaN/inf zamanlı blok noktalama onarımına span üretmez,
     normalize_timings sonrası yazıcılar finite zaman görür."""

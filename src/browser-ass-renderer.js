@@ -11,17 +11,31 @@ const ASSETS = Object.freeze({
   'jassub-worker-modern.wasm': 'application/wasm',
   'default.woff2': 'font/woff2',
 });
-const BASE = 'whisper-assets://ass/';
+// Host, oturum başına rastgele nonce'dur: sabit `ass` host'u herhangi bir web
+// sayfasının `whisper-assets://ass/jassub.js` yükleyerek uygulamayı parmak izi
+// ile tespit etmesine izin verirdi. URL yalnız enjekte edilen betiğin içinde
+// üretilir; sayfa nonce'u tahmin edemezse 404 döner ve protokol görünmez kalır.
+const crypto = require('node:crypto');
+const ASSETS_HOSTS = new WeakMap();
 const REGISTERED_PROTOCOLS = new WeakSet();
+
+function assAssetsBase(browserSession) {
+  return ASSETS_HOSTS.get(browserSession) || '';
+}
 
 function registerAssAssets(browserSession) {
   if (!browserSession?.protocol?.handle) throw new Error('ASS varlık protokolü kullanılamıyor.');
+  if (!ASSETS_HOSTS.has(browserSession)) {
+    const host = `ass-${crypto.randomBytes(8).toString('hex')}`;
+    ASSETS_HOSTS.set(browserSession, `whisper-assets://${host}/`);
+  }
   if (REGISTERED_PROTOCOLS.has(browserSession.protocol)) return;
+  const expectedHost = new URL(ASSETS_HOSTS.get(browserSession)).hostname;
   browserSession.protocol.handle('whisper-assets', (request) => {
     let url;
     try { url = new URL(request.url); } catch { return new Response('Geçersiz adres.', { status: 400 }); }
     const name = url.pathname.slice(1);
-    if (url.hostname !== 'ass' || !Object.hasOwn(ASSETS, name) || url.search || url.hash || !['GET', 'HEAD'].includes(request.method)) {
+    if (url.hostname !== expectedHost || !Object.hasOwn(ASSETS, name) || url.search || url.hash || !['GET', 'HEAD'].includes(request.method)) {
       return new Response('Varlık bulunamadı.', { status: 404 });
     }
     const file = path.join(ASSET_ROOT, name);
@@ -62,10 +76,13 @@ function buildAssClearScript(operationId) {
   })()`;
 }
 
-function buildAssInstallScript(text, operationId, fonts = []) {
+function buildAssInstallScript(text, operationId, fonts = [], browserSession = null) {
   if (typeof text !== 'string' || !text.trim() || text.length > 2 * 1024 * 1024) throw new Error('ASS altyazısı boş veya çok büyük.');
+  const assetsBase = browserSession ? assAssetsBase(browserSession) : '';
+  if (!assetsBase) throw new Error('ASS varlık protokolü bu oturumda kayıtlı değil.');
   const serialized = JSON.stringify(text);
   const serializedId = serializeOperationId(operationId);
+  const serializedBase = JSON.stringify(assetsBase);
   return `(async () => {
     ${buildAssClearScript()};
     const assText = ${serialized};
@@ -83,7 +100,7 @@ function buildAssInstallScript(text, operationId, fonts = []) {
       return y.width * y.height - x.width * x.height;
     })[0];
     if (!video) return { ok: false, error: 'Görünür video bulunamadı.' };
-    const base = ${JSON.stringify(BASE)};
+    const base = ${serializedBase};
     const workerUrl = URL.createObjectURL(new Blob(['import ' + JSON.stringify(base + 'worker.js') + ';'], { type: 'text/javascript' }));
     const state = { video, canvas: null, workerUrl, renderer: null, observer: null, detach: null, operationId: ${serializedId} };
     globalThis.__whisperAssState = state;
@@ -133,4 +150,4 @@ function buildAssInstallScript(text, operationId, fonts = []) {
   })()`;
 }
 
-module.exports = { registerAssAssets, buildAssInstallScript, buildAssClearScript };
+module.exports = { registerAssAssets, buildAssInstallScript, buildAssClearScript, assAssetsBase };
