@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0350.md](docs/devir/2026-09-29-0350.md) — R231: #162 review triage (bayat arama sonucu tazeleme)
+Güncel çalışma: [docs/devir/2026-09-29-0359.md](docs/devir/2026-09-29-0359.md) — R231b: #164 bug (vekil hedef izleme) + #161/#163 belge flag'leri
+Önceki çalışma: [docs/devir/2026-09-29-0350.md](docs/devir/2026-09-29-0350.md) — R231: #162 review triage (bayat arama sonucu tazeleme)
 Önceki çalışma: [docs/devir/2026-09-29-0345.md](docs/devir/2026-09-29-0345.md) — R230 kapanış: kesin master merge kimliği (2dc1d46)
 Önceki çalışma: [docs/devir/2026-09-29-0339.md](docs/devir/2026-09-29-0339.md) — R230: #160 review triage (menü araması quick + devre dışı eşleşme)
 Önceki çalışma: [docs/devir/2026-09-29-0333.md](docs/devir/2026-09-29-0333.md) — R229 kapanış: kesin master merge kimliği (75f0ce5)
