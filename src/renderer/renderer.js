@@ -19969,6 +19969,32 @@ if (moreSearch) {
     filterMoreMenu();
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = false; });
   });
+  // Menü açıkken öğe durumu değişebilir (örn. sayfa YouTube'dan çıkınca
+  // "Oynatıcıda izle" devre dışı kalır): sorgu varken sonuçları tazele ki
+  // bayat eşleşme gri kalmasın. Vekil öğelerin gerçek durumu menü dışındaki
+  // hedef düğmede yaşadığı için hedefler de ayrıca izlenir.
+  if (morePopover && typeof MutationObserver === 'function') {
+    const refreshMoreSearchResults = () => {
+      if (!moreSearch.value) return;
+      syncBrowserMenuProxies(morePopover);
+      filterMoreMenu();
+    };
+    const moreMenuObserver = new MutationObserver(refreshMoreSearchResults);
+    moreMenuObserver.observe(morePopover, {
+      attributes: true,
+      attributeFilter: ['disabled', 'aria-disabled'],
+      subtree: true,
+    });
+    morePopover.querySelectorAll('[data-browser-proxy]').forEach((button) => {
+      const target = $(button.dataset.browserProxy);
+      if (target) {
+        moreMenuObserver.observe(target, {
+          attributes: true,
+          attributeFilter: ['disabled', 'aria-disabled'],
+        });
+      }
+    });
+  }
 }
 
 
@@ -20160,7 +20186,12 @@ function syncBrowserMenuProxies(root) {
     // Whisper altyazı öğeleri kendi disabled/title durumunu zaten yönetir.
     if (button.id === 'browserWhisperSubtitlesMenu' || button.id === 'browserWhisperTranslateMenu') continue;
     const { unavailable } = browserProxyTargetState(button);
-    button.setAttribute('aria-disabled', unavailable ? 'true' : 'false');
+    const nextState = unavailable ? 'true' : 'false';
+    // Aynı değer bile mutation kaydı üretir; yukarıdaki gözlemciyle sonsuz
+    // mikro-görev döngüsünü önlemek için değişmeden yazma.
+    if (button.getAttribute('aria-disabled') !== nextState) {
+      button.setAttribute('aria-disabled', nextState);
+    }
   }
 }
 $$('[data-browser-proxy]').forEach((button) => {
