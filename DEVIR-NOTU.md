@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1320.md](docs/devir/2026-09-29-1320.md) — R256: kuyruk kill-resume E2E (crash→recovered→elle resume, gerçek backend)
+Güncel çalışma: [docs/devir/2026-09-29-1343.md](docs/devir/2026-09-29-1343.md) — R257: sekme şeridi churn soak (200 aç/kapat + toplu 8, sızıntı yok)
+Önceki çalışma: [docs/devir/2026-09-29-1320.md](docs/devir/2026-09-29-1320.md) — R256: kuyruk kill-resume E2E (crash→recovered→elle resume, gerçek backend)
 Önceki çalışma: [docs/devir/2026-09-29-1256.md](docs/devir/2026-09-29-1256.md) — R255: uçak-modu çeviri kapısı (ilk-parça probu network_error'da durdurur)
 Önceki çalışma: [docs/devir/2026-09-29-1248.md](docs/devir/2026-09-29-1248.md) — R254: hata yolları yerelleştirme süpürmesi (12 yüzey + 6 yeni systemError kuralı)
 Önceki çalışma: [docs/devir/2026-09-29-1233.md](docs/devir/2026-09-29-1233.md) — R253: çeviri-denetimi harness doğrulaması (15/15, bug yok)
