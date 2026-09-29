@@ -18,7 +18,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- R234: Dar ekranda transkript/ayar paneli sayfayı tamamen örttüğünde görünmez donmuş kareyi bekleme kaldırıldı; native tarayıcı görünümü panel açılırken gecikmeden gizlenir. Önceki yerel R178/R225 raporu R233'e taşınarak uzak R225 korundu.
+- R241: Dar ekranda transkript/ayar paneli sayfayı tamamen örttüğünde görünmez donmuş kareyi bekleme kaldırıldı; native tarayıcı görünümü panel açılırken gecikmeden gizlenir. Önceki yerel R178/R225 raporu R240'e taşınarak uzak R225 korundu.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 
 - Düzeltme (R281): kalıcı depoların (oturum, not, varlık, katalog, afiş) yazım yolunda fsync yoktu — temp+rename atomikliği vardı ama güç kesintisinde sayfa-önbellek verisi kaybolabilirdi; tüm yazımlar artık temp fsync → rename → dizin fsync töreninden geçer.

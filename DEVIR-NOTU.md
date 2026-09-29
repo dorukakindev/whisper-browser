@@ -1,4 +1,4 @@
-Güncel çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R234: güncel Devin master denetimi + dar panel native görünürlük yarışı
+Güncel çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R241: güncel Devin master denetimi + dar panel native görünürlük yarışı
 
 Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)

@@ -1,6 +1,6 @@
-# BROWSER_BUG_REPORT_233 — Devin yeniliklerinin Windows yerel kabulü ve eski dal aktarımı
+# BROWSER_BUG_REPORT_240 — Devin yeniliklerinin Windows yerel kabulü ve eski dal aktarımı
 
-Bu metin ilk olarak henüz GitHub'a birleşmemiş PR #148'de R178 adıyla yazılmıştı. Uzak master R178'i ekleyince R225'e taşındı. Uzak master daha sonra farklı bir R225 raporu ekledi; iki belgeyi korumak için bu rapor R233'e taşındı. Aşağıdaki 2026-09-28 ve 2026-09-29 gözlemleri kendi tarihlerinin kanıtlarıdır. 2026-09-29 bütünleştirmesi [önceki devir notunda](../devir/2026-09-29-2231.md) kayıtlıdır.
+Bu metin ilk olarak henüz GitHub'a birleşmemiş PR #148'de R178 adıyla yazılmıştı. Uzak master R178'i ekleyince R225'e taşındı. Uzak master daha sonra farklı bir R225 raporu ekledi; yerel rapor önce R233'e taşındı. Açık PR #232 de R233 numarasını kullanınca, iki belgeyi korumak için bu rapor R240'a taşındı. Aşağıdaki 2026-09-28 ve 2026-09-29 gözlemleri kendi tarihlerinin kanıtlarıdır. 2026-09-29 bütünleştirmesi [önceki devir notunda](../devir/2026-09-29-2231.md) kayıtlıdır.
 
 ## 2026-09-29 takip denetimi
 
