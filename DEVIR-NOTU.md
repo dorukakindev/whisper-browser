@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0610.md](docs/devir/2026-09-29-0610.md) — R237: tur-3 bağımsız denetimi (3 kalıntı: kütüphane tıklama yarışı + PDF düğme/durum sızıntısı)
+Güncel çalışma: [docs/devir/2026-09-29-0618.md](docs/devir/2026-09-29-0618.md) — R237 kapanış: kesin master merge kimliği (ffb0ff4)
+Önceki çalışma: [docs/devir/2026-09-29-0610.md](docs/devir/2026-09-29-0610.md) — R237: tur-3 bağımsız denetimi (3 kalıntı düzeltildi)
 Önceki çalışma: [docs/devir/2026-09-29-0554.md](docs/devir/2026-09-29-0554.md) — R236 kapanış: kesin master merge kimliği (44a3767)
 Önceki çalışma: [docs/devir/2026-09-29-0545.md](docs/devir/2026-09-29-0545.md) — R236: tur-3 UI paketi (site bazlı reklam koruması + yeni sekme sayfası + 19 düzeltme)
 Önceki çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
