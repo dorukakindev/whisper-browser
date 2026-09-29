@@ -53,6 +53,7 @@ function harness(deviceSetting, spawnImpl) {
     sendBrowserEvent: (_tab, payload) => events.push(payload),
     publishBrowserDiagnostics: () => {},
     terminateProcessTree: () => {},
+    parseNdjsonLine: require('../src/ndjson-lines').parseNdjsonLine,
     createNdjsonLineBuffer: ({ onOverflow } = {}) => {
       let buffer = '';
       return {

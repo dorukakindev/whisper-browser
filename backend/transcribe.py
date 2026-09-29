@@ -372,6 +372,8 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        # [download] ilerleme çıktısı NDJSON satırına yapışmasın.
+        "noprogress": True,
         # YouTube artık oynatıcı imzalarını harici bir JS çalışma zamanıyla
         # çözmeyi gerektiriyor. Node uygulamanın zaten zorunlu bağımlılığıdır;
         # yt-dlp-ejs ise install.bat ile yt-dlp[default] içinden kurulur.
