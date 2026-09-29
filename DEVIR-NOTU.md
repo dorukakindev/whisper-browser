@@ -1,5 +1,6 @@
 Güncel çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.md) — R283: çeviri prompt'u golden-snapshot kilidi (5+3 varyant byte-exact + model tablosu)
 Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
+Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
 Önceki çalışma: [docs/devir/2026-09-30-0430.md](docs/devir/2026-09-30-0430.md) — R278: oynatıcı zamanlama fuzz'ı (nextCueBoundaryAt ≡ oracle + playbackLearningAction invariant matrisi)
