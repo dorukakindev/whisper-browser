@@ -56,9 +56,9 @@ function normalizeBurninRecovery(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   // Şema migrasyonu: eksik/eski sürüm alanı v1 sayılır; daha yeni bir sürümle
   // yazılmış dosya alan anlamlarını değiştirmiş olabilir — sessizce v1 gibi
-  // okumak yanlış yollarla kurtarma yapar, bu yüzden reddedilir.
-  const rawVersion = Number(raw.version);
-  if (Number.isFinite(rawVersion) && rawVersion > BURNIN_RECOVERY_SCHEMA_VERSION) return null;
+  // okumak yanlış yollarla kurtarma yapar, bu yüzden reddedilir. Taşan değer
+  // (1e309) Infinity olur; isFinite koymadan büyüklük kıyası hepsini yakalar.
+  if (Number(raw.version) > BURNIN_RECOVERY_SCHEMA_VERSION) return null;
   const videoPath = typeof raw.videoPath === 'string' ? raw.videoPath.trim() : '';
   const subPath = typeof raw.subPath === 'string' ? raw.subPath.trim() : '';
   const tempPath = typeof raw.tempPath === 'string' ? raw.tempPath.trim() : '';
@@ -163,6 +163,29 @@ function burninRecoveryPathsMatch(recovery) {
     .test(path.basename(item.tempPath));
 }
 
+// Dosya sürüm alanı şemadan yeniyse dosya "tanınmış ama desteklenmeyen"
+// durumdadır; bu durumda .bak yedeğine düşülmez — yedeğin daha eski sürümde
+// kaldığı garanti değildir ve kullanıcının geçtiği eski işi diriltir.
+function burninRecoveryVersionTooNew(raw) {
+  return !!raw && typeof raw === 'object' && !Array.isArray(raw) &&
+    Number(raw.version) > BURNIN_RECOVERY_SCHEMA_VERSION;
+}
+
+// Birincil dosya okunamazsa (yok/bozuk/büyük/yol uymaz) .bak denenir;
+// sürüm-reddi ise her iki adayda da dosyayı tamamen reddeder.
+function readBurninRecoveryFile(primaryPath, fsImpl = fs) {
+  for (const candidate of [primaryPath, `${primaryPath}.bak`]) {
+    try {
+      if (!fsImpl.existsSync(candidate) || fsImpl.statSync(candidate).size > 128 * 1024) continue;
+      const raw = JSON.parse(fsImpl.readFileSync(candidate, 'utf8'));
+      if (burninRecoveryVersionTooNew(raw)) return null;
+      const recovery = normalizeBurninRecovery(raw);
+      if (recovery && burninRecoveryPathsMatch(recovery)) return recovery;
+    } catch (_) {}
+  }
+  return null;
+}
+
 module.exports = {
   BURNIN_RECOVERY_SCHEMA_VERSION,
   burninAudioArgs,
@@ -171,10 +194,12 @@ module.exports = {
   burninProcessNameMatches,
   burninRecoveryProcessMatches,
   burninRecoveryPathsMatch,
+  burninRecoveryVersionTooNew,
   burninReplacementBackupPaths,
   burninTempLooksComplete,
   cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
+  readBurninRecoveryFile,
   removeFileQuietly,
   restoreNewestBurninReplacementBackup,
   replaceBurninOutput,

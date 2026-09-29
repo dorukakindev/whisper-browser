@@ -10,9 +10,13 @@
 // alanlar kelepçelenir) ve idempotans kilitlenir.
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const {
   BURNIN_RECOVERY_SCHEMA_VERSION,
   normalizeBurninRecovery,
+  readBurninRecoveryFile,
 } = require('../src/burnin-output');
 
 let passed = 0;
@@ -46,10 +50,36 @@ test('sözlük: eksik/bozuk sürüm v1 sayılır', () => {
 });
 
 test('sözlük: sürüm > mevcut → reddedilir (ileri-uyumsuz güvenli)', () => {
-  for (const version of [2, 3, 99, '2', 1.5]) {
+  // 1e309 sayıya Infinity olarak dönüşür; kapı isFinite olmadan yakalar.
+  for (const version of [2, 3, 99, '2', 1.5, 1e309, Infinity, 'Infinity']) {
     assert.equal(normalizeBurninRecovery({ version, ...ok }), null,
       `version=${String(version)} yanlışlıkla kabul edildi`);
   }
+});
+
+test('dosya yolu: birincil okunamazsa .bak yedeği kullanılır', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'burnin-rec-'));
+  const primary = path.join(dir, 'burnin-recovery.json');
+  fs.writeFileSync(primary, '{bozuk json');
+  fs.writeFileSync(`${primary}.bak`, JSON.stringify({ version: 1, ...ok }));
+  const got = readBurninRecoveryFile(primary);
+  assert(got && got.version === 1);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('dosya yolu: sürüm-reddi .bak dirilmesini kapatır', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'burnin-rec-'));
+  const primary = path.join(dir, 'burnin-recovery.json');
+  // Birincil dosya sürüm>1 yazılmış ama yedeği eski v1 — reddedilen iş
+  // sessizce dirilmemeli.
+  fs.writeFileSync(primary, JSON.stringify({ version: 2, ...ok }));
+  fs.writeFileSync(`${primary}.bak`, JSON.stringify({ version: 1, ...ok }));
+  assert.equal(readBurninRecoveryFile(primary), null);
+  // .bak'ın kendisi de sürüm-dışı olabilir.
+  fs.writeFileSync(primary, '{bozuk');
+  fs.writeFileSync(`${primary}.bak`, JSON.stringify({ version: 3, ...ok }));
+  assert.equal(readBurninRecoveryFile(primary), null);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('idempotans: normalize iki kez uygulanınca aynı nesne', () => {
