@@ -25,3 +25,11 @@ farklı bayraklar üretir; bu tasarım gereği.
 
 ## Doğrulama
 `node tests/queue-opts-roundtrip.test.js` → 61.379 kontrol geçti.
+
+
+## Kapsam notu (#232 review sonrası)
+
+Roundtrip artık gerçek dosya yoluyla da kilitli: snapshot diske yazılıp
+`readQueueStateRaw` deseniyle (birincil → .bak) geri okunur — persist →
+disk → resume iddiası saf fonksiyonun ötesine taşındı. `dropped === 0`
+kilidi eklendi.
