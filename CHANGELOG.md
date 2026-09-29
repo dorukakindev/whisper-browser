@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
+- Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
 
 - Test (R283): Çeviri prompt'u golden-snapshot kilidi — `build_translate_prompt`/`build_refine_prompt` tam metin + 11 model sağlayıcı tablosu `backend/testdata/translate_prompt_golden.json`a byte-exact kilitlendi; register/profanity üretici-matris ratchet'leri eklendi.
 - Test (R284): Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı — persist→disk→resume alan sadakati (10.305 tohumlu öğe; opts byte-exact, sır-sızdırmazlık, URL hijyeni, yükleme idempotansı).
@@ -23,7 +24,6 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Fixed
 
 - Fix (R286): `burnin-recovery.json` ileri-sürüm kapısı — `version > 1` yazılmış kurtarma dosyası v1 alanlarıyla yanlış okunmaz (yanlış temp yolu silme riski kapandı); eksik/bozuk sürüm v1 sayılır.
-
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 
 - Düzeltme (R281): kalıcı depoların (oturum, not, varlık, katalog, afiş) yazım yolunda fsync yoktu — temp+rename atomikliği vardı ama güç kesintisinde sayfa-önbellek verisi kaybolabilirdi; tüm yazımlar artık temp fsync → rename → dizin fsync töreninden geçer.
