@@ -3738,7 +3738,7 @@ function maybeFlagEmptyHttpErrorPage(tab, view, wc) {
       ? `Site sunucusu HTTP ${status} hatası verdi ve boş yanıt döndürdü. Birazdan yeniden deneyin.`
       : `Site HTTP ${status} yanıtı verdi ve sayfa boş geldi.`;
     tab.loadError = { kind: 'http', code: `HTTP ${status}`, message, messageKey, params, url, retry: { action: 'none' } };
-    if (tab.id === browserActiveTabId) view.setVisible(false);
+    if (tab.id === browserActiveTabId) hideBrowserViewOffscreen(view);
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
       code: `HTTP ${status}`, errorKind: 'http', message, messageKey, params, url: redactDiagnosticText(url) });
@@ -5063,6 +5063,31 @@ function applyBrowserViewBounds(tab, view = tab?.view) {
   return true;
 }
 
+// Gizli bir WebContentsView, sınırı yerel yuvanın üzerinde kalırsa Windows'ta
+// HWND'i bölgedeki işaretçi olaylarını yutabiliyor: yeni-sekme sayfası ile
+// hata/ayarlar yüzeyinde tıklama ve imleç ölüyor, klavye ise çalışıyordu.
+// Gizlerken sınırı ekran dışına taşı; gösterirken sınırı yeniden uygula.
+function hideBrowserViewOffscreen(view) {
+  if (!view || view.webContents.isDestroyed()) return;
+  view.setVisible(false);
+  try {
+    const bounds = view.getBounds?.() || browserBounds || {};
+    const width = Math.max(1, Math.floor(Number(bounds.width)) || 1);
+    const height = Math.max(1, Math.floor(Number(bounds.height)) || 1);
+    view.setBounds({ x: -10000, y: -10000, width, height });
+  } catch (_) {}
+}
+
+function setBrowserViewShown(tab, view, shown) {
+  if (!view || view.webContents.isDestroyed()) return;
+  if (shown) {
+    applyBrowserViewBounds(tab, view);
+    view.setVisible(true);
+    return;
+  }
+  hideBrowserViewOffscreen(view);
+}
+
 function applyBrowserViewsLayout() {
   const active = activeBrowserTab();
   const secondary = secondaryBrowserTab();
@@ -5070,22 +5095,21 @@ function applyBrowserViewsLayout() {
   if (fullscreen) {
     for (const tab of browserTabs.values()) {
       if (!tab.view || tab.view.webContents.isDestroyed()) continue;
-      if (tab.id === fullscreen.id) applyBrowserViewBounds(tab, tab.view);
-      tab.view.setVisible(tab.id === fullscreen.id && browserTabShouldBeVisible(tab));
+      setBrowserViewShown(tab, tab.view, tab.id === fullscreen.id && browserTabShouldBeVisible(tab));
     }
     return;
   }
   if (active?.view && !active.view.webContents.isDestroyed()) {
-    applyBrowserViewBounds(active, active.view);
-    active.view.setVisible(browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
+    setBrowserViewShown(active, active.view,
+      browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
   }
   if (secondary?.view && !secondary.view.webContents.isDestroyed()) {
-    applyBrowserViewBounds(secondary, secondary.view);
-    secondary.view.setVisible(!active?.htmlFullscreen && browserTabShouldBeVisible(secondary));
+    setBrowserViewShown(secondary, secondary.view,
+      !active?.htmlFullscreen && browserTabShouldBeVisible(secondary));
   }
   for (const tab of browserTabs.values()) {
     if (tab.id === active?.id || tab.id === secondary?.id || !tab.view || tab.view.webContents.isDestroyed()) continue;
-    tab.view.setVisible(false);
+    hideBrowserViewOffscreen(tab.view);
   }
 }
 
@@ -5232,7 +5256,7 @@ async function openBrowserLinkInNewTab(rawUrl) {
   if (!requestIsCurrent()) return true;
   await waitForProtectedPlayback(url, tab);
   if (!requestIsCurrent()) return true;
-  view.setVisible(tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
+  setBrowserViewShown(tab, view, tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   suspendBrowserInstrumentationForNavigation(tab, view);
   try {
     await view.webContents.loadURL(url);
@@ -6977,7 +7001,13 @@ function installPdfDocumentProtocol() {
       const url = new URL(request.url);
       const origin = request.headers.get('origin');
       const referrer = String(request.referrer || request.headers.get('referer') || '');
-      if (origin !== 'null' && !referrer.startsWith('file://')) {
+      // Yalnız uygulamanın kendi file:// renderer'ı okuyabilir. Origin başlığı
+      // GET fetch'lerde gönderilmeyebilir (özel şemada referrer da boş
+      // gelebilir) — yokluğu 'null'/boş kabul edilir; dış bağlam (http/https
+      // kökeni ya da dosya-dışı referrer) reddedilir.
+      const originAllowed = origin == null || origin === 'null' || origin.startsWith('file://');
+      const referrerAllowed = referrer === '' || referrer.startsWith('file://');
+      if (!originAllowed || !referrerAllowed) {
         return new Response('İstek kaynağı desteklenmiyor.', { status: 403 });
       }
       if (url.hostname !== 'document' || !['GET', 'HEAD'].includes(request.method)) {
@@ -12594,7 +12624,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.pageResponsive = true;
     tab.loadError = null;
     tab.readerActive = false;
-    if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
+    if (tab.id === browserActiveTabId) setBrowserViewShown(tab, view, browserVisible && !browserModalOccluded);
     tab.generation += 1;
     // Eski belgenin bekleyen yeniden-deneme zamanlayıcısı yeni gezinmeyi
     // reload ile ezmesin (B83-23): gezinme başlangıcında temizlenir.
@@ -12761,7 +12791,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         }, retry.delayMs);
         tab.loadRetryTimer.unref?.();
       }
-      if (tab.id === browserActiveTabId) view.setVisible(false);
+      if (tab.id === browserActiveTabId) hideBrowserViewOffscreen(view);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
         code, message, messageKey, url: redactDiagnosticText(url) });
@@ -13103,7 +13133,7 @@ async function activateBrowserTab(rawId) {
   if (browserLiveAsr?.tab === previous) stopBrowserLiveAsr('Sekme değiştiği için canlı Whisper durduruldu.');
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
     previous.lifecycle = 'background';
-    if (!previousRemainsVisible) previous.view.setVisible(false);
+    if (!previousRemainsVisible) hideBrowserViewOffscreen(previous.view);
     detachBrowserDebugger(previous.view);
     // A hidden WebContentsView is still allowed to play media. Stop it when
     // switching tabs so only the selected site can produce audio or advance
@@ -13198,7 +13228,7 @@ async function hideBrowserView(pause = true) {
   browserVisible = false;
   stopBrowserPolling();
   for (const tab of browserTabs.values()) {
-    if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.setVisible(!!browserExtras?.mini.owns(tab));
+    if (tab.view && !tab.view.webContents.isDestroyed()) setBrowserViewShown(tab, tab.view, !!browserExtras?.mini.owns(tab));
   }
   if (!browserView || browserView.webContents.isDestroyed()) return;
   // Kuyruğu önce boşalt: toggle betiği sayfa içi __whisperCaptureQueue'yu
@@ -14083,7 +14113,7 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
   const certError = browserCertificateError(error);
   tab.loadError = { kind: 'certificate', code: error || 'CERTIFICATE_ERROR',
     message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url };
-  if (tab.id === browserActiveTabId && tab.view) tab.view.setVisible(false);
+  if (tab.id === browserActiveTabId && tab.view) hideBrowserViewOffscreen(tab.view);
   sendBrowserEvent(tab, { type: 'security-error', loading: false, code: error || 'CERTIFICATE_ERROR',
     message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url });
 });
@@ -14543,7 +14573,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
   tab.overlay = browserOverlay;
   resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
-  view.setVisible(!browserModalOccluded);
+  setBrowserViewShown(tab, view, !browserModalOccluded);
   startBrowserPolling();
   suspendBrowserInstrumentationForNavigation(tab, view);
   try {
@@ -16409,7 +16439,7 @@ ipcMain.handle('browser:readingList:open', async (event, request) => {
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
   applyBrowserViewBounds(tab, view);
   browserVisible = true;
-  view.setVisible(!browserModalOccluded);
+  setBrowserViewShown(tab, view, !browserModalOccluded);
   const fileUrl = pathToFileURL(found.filePath).href;
   try {
     await view.webContents.loadURL(fileUrl);

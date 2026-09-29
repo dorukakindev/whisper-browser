@@ -132,7 +132,11 @@ async function main() {
   assert.match(progressivePreview, /setTimeout\(flushPendingPreviewSegments, 16\)/);
   const pdfProtocol = section('function pdfProtocolHeaders', 'function pdfTranslationDirectory');
   assert.match(pdfProtocol, /'Access-Control-Allow-Origin': 'null'/);
-  assert.match(pdfProtocol, /origin !== 'null'[\s\S]*referrer\.startsWith\('file:\/\/'\)[\s\S]*status: 403/);
+  // Köken kapısı: Origin yokluğu 'null' sayılır (GET fetch'leri başlık göndermez);
+  // http kökeni ve dosya-dışı referrer yine 403'e düşer.
+  assert.match(pdfProtocol, /originAllowed = origin == null \|\| origin === 'null' \|\| origin\.startsWith\('file:\/\/'\)/);
+  assert.match(pdfProtocol, /referrerAllowed = referrer === '' \|\| referrer\.startsWith\('file:\/\/'\)/);
+  assert.match(pdfProtocol, /!originAllowed \|\| !referrerAllowed[\s\S]*status: 403/);
 
   const selectionStart = rendererSource.indexOf('let inputSelectionGeneration');
   const selectionGuard = rendererSource.slice(selectionStart, rendererSource.indexOf('const dropZone', selectionStart));
