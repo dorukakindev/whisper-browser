@@ -178,7 +178,7 @@ const {
   advanceWatchStability,
   watchOutputNames,
 } = require('./watch-folder');
-const { createNdjsonLineBuffer } = require('./ndjson-lines');
+const { createNdjsonLineBuffer, parseNdjsonLine } = require('./ndjson-lines');
 const {
   DEFAULT_CATEGORIES: SPONSORBLOCK_CATEGORIES,
   youtubeVideoId: sponsorBlockVideoId,
@@ -881,7 +881,8 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
@@ -1091,7 +1092,8 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, 
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (YOUTUBE_RESULT_TYPES.has(ev.type)) result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (onEvent) onEvent(ev);
@@ -1286,7 +1288,8 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent, timeoutMs = 4
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (INVIDIOUS_RESULT_TYPES.has(ev.type)) result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
@@ -8777,7 +8780,8 @@ function startBrowserLiveAsr(tab, options = {}) {
   const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
     let event;
-    try { event = JSON.parse(line); } catch (_) { return; }
+    event = parseNdjsonLine(line);
+      if (!event) return;
     if (browserLiveAsr !== job) return;
     if (!event || typeof event !== 'object') return;
     if (event.type === 'ready') {
@@ -17818,8 +17822,8 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
       if (job.canceled) return finish({ ok: false, canceled: true });
       const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop() || '';
       let parsed = null;
-      try { parsed = JSON.parse(line); }
-      catch (_) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      parsed = parseNdjsonLine(line);
+      if (!parsed) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
       // F17: sonucu klip hash'iyle sakla (aynı klip = aynı wav sha256)
       if (parsed?.ok && parsed.clipHash && typeof recordModelBenchmark === 'function') {
         try { parsed.historyCount = recordModelBenchmark(parsed); } catch (_) {}
@@ -19428,7 +19432,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     const line = raw.trim();
     if (!line) return;
     try {
-      const event = { ...JSON.parse(line), queueItemId: jobMeta.queueItemId };
+      const _parsed = parseNdjsonLine(line);
+      if (!_parsed) return;
+      const event = { ..._parsed, queueItemId: jobMeta.queueItemId };
       if (event.type === 'quality_report') {
         const { type: _type, queueItemId: _queueItemId, ...quality } = event;
         jobMeta.quality = quality;
@@ -19634,7 +19640,8 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
       let result = null;
       for (const line of out.split(/\r?\n/).reverse()) {
         if (!line.trim()) continue;
-        try { result = JSON.parse(line); break; } catch (_) {}
+        result = parseNdjsonLine(line);
+        if (result) break;
       }
       if (code === 0 && result && result.ok && typeof result.version === 'string') {
         return finish({ ok: true, message: `yt-dlp ${result.version} güvenli biçimde etkinleştirildi.` });

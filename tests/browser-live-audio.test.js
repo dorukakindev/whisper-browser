@@ -57,6 +57,7 @@ assert.throws(() => pcm16Wav(Buffer.alloc(16000 * 2 * 10)), /geçersiz/);
     browserLiveAsr: job, browserDiagnostics: null, publishBrowserDiagnostics() {},
     sendBrowserEvent() {}, terminateProcessTree() {}, spawn() {}, setTimeout: () => ({ unref() {} }),
     JSON, isCurrentBrowserContext: () => true,
+    parseNdjsonLine: require('../src/ndjson-lines').parseNdjsonLine,
     storeBrowserTrack: (cues) => { stored.push(cues); },
     job, tab: job.tab, language: 'en', context: {},
     fs: { unlinkSync() {}, existsSync: () => false },

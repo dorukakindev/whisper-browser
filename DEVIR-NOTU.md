@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0155.md](docs/devir/2026-09-30-0155.md) — R270: güvenlik modeli belgesi (preload ratchet doğrulandı, 0 kullanılmayan)
+Güncel çalışma: [docs/devir/2026-09-30-0200.md](docs/devir/2026-09-30-0200.md) — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı düzeltildi
+Önceki çalışma: [docs/devir/2026-09-30-0155.md](docs/devir/2026-09-30-0155.md) — R270: güvenlik modeli belgesi (preload ratchet doğrulandı, 0 kullanılmayan)
 Önceki çalışma: [docs/devir/2026-09-30-0150.md](docs/devir/2026-09-30-0150.md) — R269: dinamik <dialog> occlusion bug'ı + klavye/odak tur-2 (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0145.md](docs/devir/2026-09-30-0145.md) — R268: benchmark bozuk-dosya yolları + JSON roundtrip şema kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0140.md](docs/devir/2026-09-30-0140.md) — R267: diarization hattı birim kilitleri (PCM WAV/hata yolları/auth imzası — temiz)

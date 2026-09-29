@@ -62,6 +62,9 @@ def _ydl_opts(extra=None, cookie_browser=""):
     opts = {
         "quiet": True,
         "no_warnings": True,
+        # İlerleme çubuğu stdout'a yazılmasın — [download] metni NDJSON
+        # olay satırlarına yapışıp olayı bozuyordu. progress_hooks etkilenmez.
+        "noprogress": True,
         "noplaylist": True,
         # YouTube imza çözümü için Node gerekiyor (uygulamanın zaten bağımlılığı)
         "js_runtimes": {"node": {}},
