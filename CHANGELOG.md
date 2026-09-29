@@ -6,9 +6,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
+
+- Test: R276 — ASS/SSA override etiketi roundtrip sadakat kilidi: yalnız konum (`\anN`, `\pos`) ve tam-satır italik taşınır; karaoke/fade/move/font düşüşü de kilitli (9 senaryo).
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
 - R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
-- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
 
 ### Changed
 
@@ -18,6 +20,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - R234: Dar ekranda transkript/ayar paneli sayfayı tamamen örttüğünde görünmez donmuş kareyi bekleme kaldırıldı; native tarayıcı görünümü panel açılırken gecikmeden gizlenir. Önceki yerel R178/R225 raporu R233'e taşınarak uzak R225 korundu.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
+
+- Düzeltme (R281): kalıcı depoların (oturum, not, varlık, katalog, afiş) yazım yolunda fsync yoktu — temp+rename atomikliği vardı ama güç kesintisinde sayfa-önbellek verisi kaybolabilirdi; tüm yazımlar artık temp fsync → rename → dizin fsync töreninden geçer.
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 - R273: Devin Review toplu triage — prob `skipped` sayımı artık önceden-çevrilmiş konumları şişirmez; kalıcı prob hatasında 2. geçiş atlanır (1. geçiş korunur); overlay indeks probları bayat mutasyonları yakalar; burn-in eksik-glif sayacı yüzeye taşınır; disk-dolu hatası dosya-kaybından ayrılır. Tur-2: refine kapısı kalıcı-olmayan prob hatasında da açılıyordu; overlay bozuk-end sınırı suffixMin ile O(1); eksik-glif kaydı liste-birleşimi + ara yazım.
 

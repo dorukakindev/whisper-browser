@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
@@ -186,8 +187,9 @@ function mergeRecord(target, incoming) {
     importRef: target.importRef || incoming.importRef,
     episodes, watchStatus: target.watchStatus, favorite: target.favorite }, target);
 }
-function createMediaCatalogStore({ filePath }) {
+function createMediaCatalogStore({ filePath, fsImpl }) {
   if (!filePath) fail('Katalog dosya yolu gerekli.');
+  const io = fsImpl || fs;   // yazım yolu enjekte edilebilir (dayanıklılık matrisi)
   let cache;
   const backupPath = `${filePath}.bak`;
   function parseEnvelope(bytes) {
@@ -212,16 +214,19 @@ function createMediaCatalogStore({ filePath }) {
   function commit(items) {
     if (items.length > MAX_ITEMS) fail('Katalog kapasitesi doldu.');
     const next = { version: 1, items };
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    io.mkdirSync(path.dirname(filePath), { recursive: true });
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      io.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      fsyncFile(temp, io);
       try {
-        parseEnvelope(fs.readFileSync(filePath, 'utf8'));
-        fs.copyFileSync(filePath, backupPath);
+        parseEnvelope(io.readFileSync(filePath, 'utf8'));
+        io.copyFileSync(filePath, backupPath);
+        fsyncFileBestEffort(backupPath, io);
       } catch {}
-      fs.renameSync(temp, filePath); cache = next;
-    } finally { try { fs.unlinkSync(temp); } catch {} }
+      io.renameSync(temp, filePath); cache = next;
+      fsyncDirectory(path.dirname(filePath), io);
+    } finally { try { io.unlinkSync(temp); } catch {} }
   }
   function list() { return structuredClone(read().items); }
   function get(id) { const item = read().items.find((entry) => entry.id === id); return item ? structuredClone(item) : null; }
