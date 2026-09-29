@@ -203,3 +203,4 @@ tarih sırasıyla dosya adından okunur.
 | 230 | [BROWSER_BUG_REPORT_230.md](BROWSER_BUG_REPORT_230.md) | BROWSER_BUG_REPORT_230 — SponsorBlock önbellek TTL + anahtar-çakışması stresi (R280) |
 | 231 | [BROWSER_BUG_REPORT_231.md](BROWSER_BUG_REPORT_231.md) | BROWSER_BUG_REPORT_231 — Depo yazım dayanıklılığı (fsync) + review triage (R281) |
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
+| 235 | [BROWSER_BUG_REPORT_235.md](BROWSER_BUG_REPORT_235.md) | R286 — burnin-recovery sürüm kapısı + şema sözlüğü |
