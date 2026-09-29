@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0735.md](docs/devir/2026-09-29-0735.md) — R241: tur-4 paketi uygulaması (backend altyazı + IPC güvenliği + ui-smoke + ui-locale perf)
+Güncel çalışma: [docs/devir/2026-09-29-0800.md](docs/devir/2026-09-29-0800.md) — R242: tur-4 açık maddeleri (DNS-pinning, ~10ms cue, whisper-assets nonce)
+Önceki çalışma: [docs/devir/2026-09-29-0735.md](docs/devir/2026-09-29-0735.md) — R241: tur-4 paketi uygulaması (backend altyazı + IPC güvenliği + ui-smoke + ui-locale perf)
 Önceki çalışma: [docs/devir/2026-09-29-0658.md](docs/devir/2026-09-29-0658.md) — R240: patch bakiyesi + #176/#178 review triage (avatar/IP/önizleme)
 Önceki çalışma: [docs/devir/2026-09-29-0650.md](docs/devir/2026-09-29-0650.md) — R239 kapanış: kesin master merge kimliği (ae58ad8); tur-3 paketi tamamen kapandı
 Önceki çalışma: [docs/devir/2026-09-29-0644.md](docs/devir/2026-09-29-0644.md) — R239: sekme önizleme kartı native yüzey kırpması
