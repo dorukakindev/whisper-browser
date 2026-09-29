@@ -4234,7 +4234,7 @@ function cloneBrowserPlaces(places) {
   return {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
-    workspaces: (places?.workspaces || []).map(item => ({ ...item, activeTabId: item.activeTabId || item.tabs?.[0]?.id || '', splitSecondaryTabId: item.splitSecondaryTabId || '', splitRatio: Number(item.splitRatio) || 0.5, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
+    workspaces: (places?.workspaces || []).map(item => ({ ...item, activeTabId: item.activeTabId || item.tabs?.[0]?.id || '', splitSecondaryTabId: item.splitSecondaryTabId || '', splitRatio: Number(item.splitRatio) || 0.5, tabs: (Array.isArray(item.tabs) ? item.tabs : []).map(tab => ({ ...tab, trackRefs: (Array.isArray(tab?.trackRefs) ? tab.trackRefs : []).map(ref => ({ ...ref })) })) })),
     siteZooms: {},
     pathProfiles: Object.fromEntries(Object.entries(places?.pathProfiles || {}).map(([key, value]) => [key, { ...value }])),
     siteProfiles: Object.fromEntries(Object.entries(places?.siteProfiles || {}).map(([key, value]) => [key, { ...value }])),
