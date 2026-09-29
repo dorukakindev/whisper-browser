@@ -147,4 +147,43 @@ for (let i = 0; i < 3000; i++) {
 
 ok('en az 800 öğe tutuldu', kept > 800);
 ok('boyut/dizi aşımı düşürme gözlendi', oversizedDropped > 10);
+// Geçerli öğe kaybı sadakat ihlalidir: sayaç sıfır olmalı (yalnız
+// sınır-aşımı/sır taşıyan öğelerin düşmesi beklenir).
+ok('geçerli öğe kaybı yok', dropped === 0);
+
+// Disk yolu: üretilen snapshot'ı gerçek dosyaya yazıp main.js'teki
+// readQueueStateRaw deseniyle (birincil → .bak) geri oku. Saf fonksiyon
+// roundtrip'inin üstüne dosya kodlaması/bayakılık kanıtı ekler.
+{
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'queue-roundtrip-'));
+  const target = path.join(dir, 'queue-state.json');
+  const items = Array.from({ length: 12 }, (_, k) => randItem(9000 + k));
+  const disk = queueSnapshotForDisk({ items, queueRunning: false });
+  fs.writeFileSync(target, JSON.stringify(disk, null, 2));
+  // readQueueStateRaw: birincil varsa onu oku, bozuksa .bak'a düş.
+  const primaryParsed = JSON.parse(fs.readFileSync(target, 'utf8'));
+  ok('disk: bayt-bayt roundtrip', JSON.stringify(primaryParsed) === JSON.stringify(disk));
+  const loaded = normalizeQueueSnapshot(primaryParsed);
+  ok('disk: yüklenen öğe sayısı', loaded.items.length === disk.items.length);
+  // .bak yolu: birincili boz, yedeği geçerli tut.
+  fs.writeFileSync(`${target}.bak`, JSON.stringify(disk));
+  fs.writeFileSync(target, '{bozuk');
+  const raw = (() => {
+    for (const candidate of [target, `${target}.bak`]) {
+      try {
+        if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 8 * 1024 * 1024) continue;
+        const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch (_) {}
+    }
+    return { version: 1, items: [] };
+  })();
+  const recovered = normalizeQueueSnapshot(raw);
+  ok('disk: bozuk birincilde .bak kurtarır', recovered.items.length === disk.items.length);
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
 console.log(`queue-opts-roundtrip: ${checks} kontrol geçti (${kept} öğe, ${dropped} geçersiz, ${oversizedDropped} sınır-aşımı)`);
