@@ -7,10 +7,6 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
-| 178 | [BROWSER_BUG_REPORT_178.md](BROWSER_BUG_REPORT_178.md) | R219: Devin Review toplu triage (PR #139–147) |
-| 225 | [BROWSER_BUG_REPORT_225.md](BROWSER_BUG_REPORT_225.md) | R275: IPC payload fuzz turu 2 (uzak master'ın raporu) |
-| 240 | [BROWSER_BUG_REPORT_240.md](BROWSER_BUG_REPORT_240.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
-| 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |
@@ -152,3 +148,59 @@ tarih sırasıyla dosya adından okunur.
 | 175 | [BROWSER_BUG_REPORT_175.md](BROWSER_BUG_REPORT_175.md) | BROWSER_BUG_REPORT_175 — R195: R191 Windows bulguları (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu) |
 | 176 | [BROWSER_BUG_REPORT_176.md](BROWSER_BUG_REPORT_176.md) | BROWSER_BUG_REPORT_176 — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz; geriye dönük rapor) |
 | 177 | [BROWSER_BUG_REPORT_177.md](BROWSER_BUG_REPORT_177.md) | BROWSER_BUG_REPORT_177 — R197: kalan denetlenmemiş yüzey kapanışı + RSS published NaN düzeltmesi |
+| 178 | [BROWSER_BUG_REPORT_178.md](BROWSER_BUG_REPORT_178.md) | BROWSER_BUG_REPORT_178 — R219: Devin Review toplu triage (PR #139–147) |
+| 179 | [BROWSER_BUG_REPORT_179.md](BROWSER_BUG_REPORT_179.md) | BROWSER_BUG_REPORT_179 — R220/R221: çeviri hattı derin düzeltme paketi (backend) |
+| 180 | [BROWSER_BUG_REPORT_180.md](BROWSER_BUG_REPORT_180.md) | BROWSER_BUG_REPORT_180 — R222 Electron çeviri hattı paketi |
+| 181 | [BROWSER_BUG_REPORT_181.md](BROWSER_BUG_REPORT_181.md) | BROWSER_BUG_REPORT_181 — R222 devam turu: echo-kabul ölü yol, .partial yanlış-pozitif, sıra sayısı kapısı |
+| 182 | [BROWSER_BUG_REPORT_182.md](BROWSER_BUG_REPORT_182.md) | BROWSER_BUG_REPORT_182 — R223: #152 Devin Review triage + TM zehirlenmesi |
+| 183 | [BROWSER_BUG_REPORT_183.md](BROWSER_BUG_REPORT_183.md) | BROWSER_BUG_REPORT_183 — R224: #153 Devin Review triage (mezar taşı/PDF/TM kapanışları) |
+| 184 | [BROWSER_BUG_REPORT_184.md](BROWSER_BUG_REPORT_184.md) | BROWSER_BUG_REPORT_184 — R225: #154 Devin Review triage (TM kaynak-drifti + PDF yedek gizlenmesi) |
+| 185 | [BROWSER_BUG_REPORT_185.md](BROWSER_BUG_REPORT_185.md) | BROWSER_BUG_REPORT_185 — R226: #155 Devin Review triage (tamamen bozuk PDF sayfaları) |
+| 186 | [BROWSER_BUG_REPORT_186.md](BROWSER_BUG_REPORT_186.md) | BROWSER_BUG_REPORT_186 — R227: #156 Devin Review triage (meşru boş sayfa dirilmesi) |
+| 187 | [BROWSER_BUG_REPORT_187.md](BROWSER_BUG_REPORT_187.md) | BROWSER_BUG_REPORT_187 — R228: #157 Devin Review triage (sayfa-bazlı kurtarma) |
+| 188 | [BROWSER_BUG_REPORT_188.md](BROWSER_BUG_REPORT_188.md) | BROWSER_BUG_REPORT_188 — R229: whisper-browser-ui-fix paketi uygulaması + doğrulaması |
+| 189 | [BROWSER_BUG_REPORT_189.md](BROWSER_BUG_REPORT_189.md) | BROWSER_BUG_REPORT_189 — Tarayıcı UI tur-2 paketi uygulama ve doğrulama (R232) |
+| 190 | [BROWSER_BUG_REPORT_190.md](BROWSER_BUG_REPORT_190.md) | BROWSER_BUG_REPORT_190 — R233: tur-2 paketi kalanı + #165 Devin Review triage |
+| 191 | [BROWSER_BUG_REPORT_191.md](BROWSER_BUG_REPORT_191.md) | BROWSER_BUG_REPORT_191 — R234: PR #167 Devin Review triage |
+| 192 | [BROWSER_BUG_REPORT_192.md](BROWSER_BUG_REPORT_192.md) | BROWSER_BUG_REPORT_192 — R235: details menülerindeki form kontrolleri ok tuşlarını kaybediyordu |
+| 193 | [BROWSER_BUG_REPORT_193.md](BROWSER_BUG_REPORT_193.md) | BROWSER_BUG_REPORT_193 — Kullanıcı tur-3 UI paketi (site bazlı reklam koruması + yeni sekme sayfası + 19 oynatıcı/PDF/kuyruk düzeltmesi) |
+| 194 | [BROWSER_BUG_REPORT_194.md](BROWSER_BUG_REPORT_194.md) | BROWSER_BUG_REPORT_194 — R237: tur-3 paketi bağımsız denetimi (3 kalıntı düzeltildi) |
+| 195 | [BROWSER_BUG_REPORT_195.md](BROWSER_BUG_REPORT_195.md) | BROWSER_BUG_REPORT_195 — R238: avatar harfi kayıtlı alan adından |
+| 196 | [BROWSER_BUG_REPORT_196.md](BROWSER_BUG_REPORT_196.md) | BROWSER_BUG_REPORT_196 — R239: sekme önizleme kartı native yüzey altında kırpılıyordu |
+| 197 | [BROWSER_BUG_REPORT_197.md](BROWSER_BUG_REPORT_197.md) | BROWSER_BUG_REPORT_197 — R240: kullanıcı patch bakiyesi + docs-PR review flag'leri |
+| 198 | [BROWSER_BUG_REPORT_198.md](BROWSER_BUG_REPORT_198.md) | BROWSER BUG REPORT 198 — tur-4 paketi uygulama + doğrulama (R241) |
+| 199 | [BROWSER_BUG_REPORT_199.md](BROWSER_BUG_REPORT_199.md) | BROWSER_BUG_REPORT_199 — R242: tur-4 paketinin açık bıraktığı 3 madde |
+| 200 | [BROWSER_BUG_REPORT_200.md](BROWSER_BUG_REPORT_200.md) | BROWSER_BUG_REPORT_200 — R243: PR #182 Devin Review triage |
+| 201 | [BROWSER_BUG_REPORT_201.md](BROWSER_BUG_REPORT_201.md) | BROWSER_BUG_REPORT_201 — R244: performans/UX katalog kalıntıları (v8CacheOptions + is-compact) |
+| 202 | [BROWSER_BUG_REPORT_202.md](BROWSER_BUG_REPORT_202.md) | BROWSER_BUG_REPORT_202 — R245: Devin Review toplu triage (#181 + #184) |
+| 203 | [BROWSER_BUG_REPORT_203.md](BROWSER_BUG_REPORT_203.md) | BROWSER BUG REPORT 203 — R246: Windows doğrulama bulguları (NTP imleç-ölümü + PDF 403) |
+| 204 | [BROWSER_BUG_REPORT_204.md](BROWSER_BUG_REPORT_204.md) | BROWSER BUG REPORT 204 — R247: whisper-pdf kaynak kimliği tahmin edilebilir (security triage) |
+| 205 | [BROWSER_BUG_REPORT_205.md](BROWSER_BUG_REPORT_205.md) | BROWSER BUG REPORT 205 — R248: nonce testi türetim formülünü kilitlemiyordu |
+| 206 | [BROWSER_BUG_REPORT_206.md](BROWSER_BUG_REPORT_206.md) | BROWSER_BUG_REPORT_206 — R249: tam Electron smoke regresyonu + #187 review bulgusu |
+| 207 | [BROWSER_BUG_REPORT_207.md](BROWSER_BUG_REPORT_207.md) | BROWSER_BUG_REPORT_207 — Kullanıcı çeviri-denetimi harness'i doğrulama turu (R253) |
+| 208 | [BROWSER_BUG_REPORT_208.md](BROWSER_BUG_REPORT_208.md) | BROWSER_BUG_REPORT_208 — Kuyruk kill-resume uçtan-uca doğrulaması |
+| 209 | [BROWSER_BUG_REPORT_209.md](BROWSER_BUG_REPORT_209.md) | BROWSER_BUG_REPORT_209 — Sekme şeridi churn soak (R257) |
+| 210 | [BROWSER_BUG_REPORT_210.md](BROWSER_BUG_REPORT_210.md) | BROWSER_BUG_REPORT_210 — browserSplit state-machine fuzz (R258) |
+| 211 | [BROWSER_BUG_REPORT_211.md](BROWSER_BUG_REPORT_211.md) | BROWSER_BUG_REPORT_211 — Console-error ratchet (R259) |
+| 212 | [BROWSER_BUG_REPORT_212.md](BROWSER_BUG_REPORT_212.md) | BROWSER_BUG_REPORT_212 — PDF çeviri uçtan-uca E2E (plan maddesi 9) |
+| 213 | [BROWSER_BUG_REPORT_213.md](BROWSER_BUG_REPORT_213.md) | BROWSER_BUG_REPORT_213 — Burn-in ffmpeg uçtan-uca E2E (plan maddesi 10) |
+| 214 | [BROWSER_BUG_REPORT_214.md](BROWSER_BUG_REPORT_214.md) | BROWSER_BUG_REPORT_214 — R262: settings.json geriye-uyumluluk matrisi + iş-ortasında-kapanış E2E |
+| 215 | [BROWSER_BUG_REPORT_215.md](BROWSER_BUG_REPORT_215.md) | BROWSER_BUG_REPORT_215 — R263: 10k-cue overlay sınır taraması O(2n) → O(log n + aktif) |
+| 216 | [BROWSER_BUG_REPORT_216.md](BROWSER_BUG_REPORT_216.md) | BROWSER_BUG_REPORT_216 — R264: CJK/emoji burn-in doğrulaması + sessiz glif kaybı uyarısı |
+| 217 | [BROWSER_BUG_REPORT_217.md](BROWSER_BUG_REPORT_217.md) | BROWSER_BUG_REPORT_217 — R265: Navigasyon güvenliği — alt kare (iframe) boşlukları |
+| 218 | [BROWSER_BUG_REPORT_218.md](BROWSER_BUG_REPORT_218.md) | BROWSER_BUG_REPORT_218 — R266: Çeviri önbelleği disk-büyüme soak'u |
+| 219 | [BROWSER_BUG_REPORT_219.md](BROWSER_BUG_REPORT_219.md) | BROWSER_BUG_REPORT_219 — R267: Diarization (pyannote) hattı birim kilitleri |
+| 220 | [BROWSER_BUG_REPORT_220.md](BROWSER_BUG_REPORT_220.md) | BROWSER_BUG_REPORT_220 — R268: Benchmark/diagnostics roundtrip + bozuk dosya |
+| 221 | [BROWSER_BUG_REPORT_221.md](BROWSER_BUG_REPORT_221.md) | BROWSER_BUG_REPORT_221 — R269: odak/klavye tur-2 (dialog occlusion) |
+| 222 | [BROWSER_BUG_REPORT_222.md](BROWSER_BUG_REPORT_222.md) | BROWSER_BUG_REPORT_222 — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı |
+| 223 | [BROWSER_BUG_REPORT_223.md](BROWSER_BUG_REPORT_223.md) | BROWSER_BUG_REPORT_223 — R272: innerHTML/DOM-sink envanteri + ratchet |
+| 224 | [BROWSER_BUG_REPORT_224.md](BROWSER_BUG_REPORT_224.md) | BROWSER_BUG_REPORT_224 — R273: Devin Review toplu triage (master'ın birikmiş bulguları) |
+| 225 | [BROWSER_BUG_REPORT_225.md](BROWSER_BUG_REPORT_225.md) | R275 — IPC payload fuzz turu 2 (derin payload bombardımanı) |
+| 226 | [BROWSER_BUG_REPORT_226.md](BROWSER_BUG_REPORT_226.md) | R276 — ASS/SSA override etiketi roundtrip sadakati |
+| 227 | [BROWSER_BUG_REPORT_227.md](BROWSER_BUG_REPORT_227.md) | R277 — Çok-ekran pencere durumu (monitör kopması / ekran-dışı bounds) |
+| 228 | [BROWSER_BUG_REPORT_228.md](BROWSER_BUG_REPORT_228.md) | BROWSER_BUG_REPORT_228 — Oynatıcı zamanlama fuzz'ı (seek/hız/loop-cue) |
+| 229 | [BROWSER_BUG_REPORT_229.md](BROWSER_BUG_REPORT_229.md) | BROWSER_BUG_REPORT_229 — Canlı ASR hattı derin turu (R279) |
+| 230 | [BROWSER_BUG_REPORT_230.md](BROWSER_BUG_REPORT_230.md) | BROWSER_BUG_REPORT_230 — SponsorBlock önbellek TTL + anahtar-çakışması stresi (R280) |
+| 231 | [BROWSER_BUG_REPORT_231.md](BROWSER_BUG_REPORT_231.md) | R281 — Depo yazım dayanıklılığı (fsync) + Devin Review triage |
+| 240 | [BROWSER_BUG_REPORT_240.md](BROWSER_BUG_REPORT_240.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
+| 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |

@@ -1,5 +1,6 @@
 Güncel çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R241: güncel Devin master denetimi + dar panel native görünürlük yarışı
 
+Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
 Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
