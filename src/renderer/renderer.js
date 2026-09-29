@@ -224,6 +224,7 @@ async function offerBurnInRecovery() {
   }
   if (result.recovered) {
     logLine(`Tamamlanmış gömme çıktısı kurtarıldı: ${result.file}`, 'success');
+    logBurninMissingGlyphs(result.missingGlyphs);
     window.api.showInFolder(result.file);
     return;
   }
@@ -4101,7 +4102,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
     }
   } catch (error) {
     rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${friendlySystemError(error.message)}`);
-    return { loaded: false, reason: error.message };
+    return { loaded: false, reason: friendlySystemError(error.message) };
   }
   if (!loadedPath && outputs.dual) {
     $('playerSubSelect').value = outputs.dual.path;
@@ -4873,12 +4874,7 @@ window.api.onBurnInEvent((ev) => {
     $('burnInCancel').classList.add('hidden');
     $('burnInBtn').classList.remove('hidden');
     logLine(`Videoya gömüldü: ${ev.file}`, 'success');
-    if (Number(ev.missingGlyphs) > 0) {
-      const missing = Number(ev.missingGlyphs);
-      logLine(window.UiLocale?.get?.() === 'tr'
-        ? `Uyarı: ${missing} farklı karakter (ör. emoji/CJK) için bu sistemde glif taşıyan font bulunamadı — gömülü altyazıda kutu/boşluk görünebilir.`
-        : `Warning: no font on this system covers ${missing} distinct character(s) (e.g. emoji/CJK) — burned subtitles may show boxes or gaps.`, 'warn');
-    }
+    logBurninMissingGlyphs(ev.missingGlyphs);
     window.api.showInFolder(ev.file);
   } else if (ev.type === 'error') {
     $('burninProgress').classList.add('hidden');
@@ -4887,6 +4883,14 @@ window.api.onBurnInEvent((ev) => {
     logLine('Gömme hatası: ' + (ev.message || ''), 'error');
   }
 });
+
+function logBurninMissingGlyphs(count) {
+  const missing = Number(count) || 0;
+  if (missing <= 0) return;
+  logLine(window.UiLocale?.get?.() === 'tr'
+    ? `Uyarı: ${missing} farklı karakter (ör. emoji/CJK) için bu sistemde glif taşıyan font bulunamadı — gömülü altyazıda kutu/boşluk görünebilir.`
+    : `Warning: no font on this system covers ${missing} distinct character(s) (e.g. emoji/CJK) — burned subtitles may show boxes or gaps.`, 'warn');
+}
 
 // ===== Initial log =====
 logLine('Whisper Altyazı hazır. (Ctrl+Enter: başlat · Esc: iptal)', 'success');

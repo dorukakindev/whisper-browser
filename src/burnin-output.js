@@ -69,6 +69,7 @@ function normalizeBurninRecovery(raw) {
     startedAt: Math.max(0, Number(raw.startedAt) || 0),
     previousOutSize: Math.max(0, Number(raw.previousOutSize) || 0),
     previousOutMtimeMs: Math.max(0, Number(raw.previousOutMtimeMs) || 0),
+    missingGlyphs: Math.max(0, Number(raw.missingGlyphs) || 0),
   };
 }
 
