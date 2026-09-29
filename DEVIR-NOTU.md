@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1135.md](docs/devir/2026-09-29-1135.md) — R250 kapanış (master 6761540)
+Güncel çalışma: [docs/devir/2026-09-29-1156.md](docs/devir/2026-09-29-1156.md) — R251: #197+#198 docs flag tamamlaması
+Önceki çalışma: [docs/devir/2026-09-29-1135.md](docs/devir/2026-09-29-1135.md) — R250 kapanış (master 6761540)
 Önceki çalışma: [docs/devir/2026-09-29-1128.md](docs/devir/2026-09-29-1128.md) — R250: #195 flag (ESUBTITLE_LIMIT retry test kilidi)
 Önceki çalışma: [docs/devir/2026-09-29-1053.md](docs/devir/2026-09-29-1053.md) — R249 kapanış: kesin master merge kimliği (0b5efe6)
 Önceki çalışma: [docs/devir/2026-09-29-1042.md](docs/devir/2026-09-29-1042.md) — R249: Electron smoke regresyonu (2 test-tarafı kusur) + #187 ESUBTITLE_LIMIT
