@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 - Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
+- R273: Devin Review toplu triage — prob `skipped` sayımı artık önceden-çevrilmiş konumları şişirmez; kalıcı prob hatasında 2. geçiş atlanır (1. geçiş korunur); overlay indeks probları bayat mutasyonları yakalar; burn-in eksik-glif sayacı yüzeye taşınır; disk-dolu hatası dosya-kaybından ayrılır.
 
 ### Added
 
