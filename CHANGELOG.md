@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R284): Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı — persist→disk→resume alan sadakati (10.305 tohumlu öğe; opts byte-exact, sır-sızdırmazlık, URL hijyeni, yükleme idempotansı).
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
 - R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
 - Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
