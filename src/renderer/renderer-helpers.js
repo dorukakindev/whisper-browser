@@ -967,7 +967,12 @@ function showBrowserTabPreview(tabId, anchor) {
   const rect = anchor.getBoundingClientRect();
   const cw = card.offsetWidth, ch = card.offsetHeight;
   card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;
-  card.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - ch - 4)}px`;
+  // Native WebContentsView renderer DOM'unun üstünde durur — kartın alt kenarı
+  // sayfa yüzeyinin başladığı çizgiyi geçerse kırpılmış görünür. Bu yüzden üst
+  // sınır pencere yüksekliği değil, slot'un üst kenarıdır.
+  const slotTop = $('browserViewSlot')?.getBoundingClientRect?.().top;
+  const topLimit = Number.isFinite(slotTop) && slotTop > 0 ? Math.min(window.innerHeight, slotTop) : window.innerHeight;
+  card.style.top = `${Math.max(4, Math.min(rect.bottom + 6, topLimit - ch - 4))}px`;
 }
 
 // --- R153 dilim-3: kuyruk / hesap / menü yardımcıları ---
