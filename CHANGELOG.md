@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
 - Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
 
 - Test: R276 — ASS/SSA override etiketi roundtrip sadakat kilidi: yalnız konum (`\anN`, `\pos`) ve tam-satır italik taşınır; karaoke/fade/move/font düşüşü de kilitli (9 senaryo).
@@ -18,6 +19,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Fix (R286): `burnin-recovery.json` ileri-sürüm kapısı — `version > 1` yazılmış kurtarma dosyası v1 alanlarıyla yanlış okunmaz (yanlış temp yolu silme riski kapandı); eksik/bozuk sürüm v1 sayılır.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 
 - Düzeltme (R281): kalıcı depoların (oturum, not, varlık, katalog, afiş) yazım yolunda fsync yoktu — temp+rename atomikliği vardı ama güç kesintisinde sayfa-önbellek verisi kaybolabilirdi; tüm yazımlar artık temp fsync → rename → dizin fsync töreninden geçer.

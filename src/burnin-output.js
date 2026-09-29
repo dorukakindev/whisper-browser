@@ -50,15 +50,22 @@ function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID(
   }
 }
 
+const BURNIN_RECOVERY_SCHEMA_VERSION = 1;
+
 function normalizeBurninRecovery(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  // Şema migrasyonu: eksik/eski sürüm alanı v1 sayılır; daha yeni bir sürümle
+  // yazılmış dosya alan anlamlarını değiştirmiş olabilir — sessizce v1 gibi
+  // okumak yanlış yollarla kurtarma yapar, bu yüzden reddedilir.
+  const rawVersion = Number(raw.version);
+  if (Number.isFinite(rawVersion) && rawVersion > BURNIN_RECOVERY_SCHEMA_VERSION) return null;
   const videoPath = typeof raw.videoPath === 'string' ? raw.videoPath.trim() : '';
   const subPath = typeof raw.subPath === 'string' ? raw.subPath.trim() : '';
   const tempPath = typeof raw.tempPath === 'string' ? raw.tempPath.trim() : '';
   const outPath = typeof raw.outPath === 'string' ? raw.outPath.trim() : '';
   if (!videoPath || !subPath || !tempPath || !outPath) return null;
   return {
-    version: 1,
+    version: BURNIN_RECOVERY_SCHEMA_VERSION,
     id: String(raw.id || '').slice(0, 100) || randomUUID(),
     videoPath: videoPath.slice(0, 8000),
     subPath: subPath.slice(0, 8000),
@@ -157,6 +164,7 @@ function burninRecoveryPathsMatch(recovery) {
 }
 
 module.exports = {
+  BURNIN_RECOVERY_SCHEMA_VERSION,
   burninAudioArgs,
   burninFinalOutputLooksComplete,
   burninOutputPaths,
