@@ -31,7 +31,11 @@ app.whenReady().then(async () => {
   const activeEl = () => run('return document.activeElement?.id || document.activeElement?.tagName');
   const key = async (keyCode) => { win.webContents.sendInputEvent({ type: 'keyDown', keyCode }); await wait(200); };
 
-  // Bölünmüş görünüm menüsü: select + range + düğme içerir.
+  // Bölünmüş görünüm menüsü: select + range + düğme içerir. Menü AI panelinin
+  // alt bilgisinde yaşar; #playerLayer ve #aiChat gizli ataları focus()u yutar —
+  // oynatıcı katmanı ve AI sekmesi gerçek UI yoluyla açılır.
+  await run('openPlayer();setSideTab("ai");return true');
+  await until(() => run(`return !document.getElementById('aiChat').classList.contains('hidden')`), 'AI paneli');
   await run(`const m = document.getElementById('browserSplitMenu'); m.open = true; return true`);
   await until(() => run(`return document.getElementById('browserSplitMenu').open === true`), 'Menü açık');
 

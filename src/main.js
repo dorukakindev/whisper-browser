@@ -9462,7 +9462,10 @@ function browserSubtitleStateError(code, message) {
 function browserSubtitleRetryable(error) {
   if (!error) return true;
   if (error.code === 'EBROWSER_HTTP') return error.retryable === true;
-  if (['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE'].includes(error.code)) return false;
+  // ESUBTITLE_LIMIT: Node-pin yolunun boyut-sınırı hatası — ilke hatasıdır,
+  // yeniden denemede aynı büyük yanıt boşuna tekrar iner.
+  if (['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE',
+       'ESUBTITLE_LIMIT'].includes(error.code)) return false;
   if (error.code === 'ETIMEDOUT') return true;
   // withAbortTimeout kendi zaman aşımını ETIMEDOUT olarak işaretler. Buraya
   // ulaşan AbortError/ERR_ABORTED ise çoğunlukla gezinme veya kapanış iptalidir.
