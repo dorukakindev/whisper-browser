@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
+Güncel çalışma: [docs/devir/2026-09-29-0545.md](docs/devir/2026-09-29-0545.md) — R236: tur-3 UI paketi (site bazlı reklam koruması + yeni sekme sayfası + 19 düzeltme)
+Önceki çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
 Önceki çalışma: [docs/devir/2026-09-29-0520.md](docs/devir/2026-09-29-0520.md) — R234 kapanış: kesin master merge kimliği (983ac21)
 Önceki çalışma: [2026-09-29-0512](docs/devir/2026-09-29-0512.md) — R234: PR #167 review triage (menü ok çift-işlenmesi + split kısayol smoke'u)
 Önceki çalışma: [docs/devir/2026-09-29-0458.md](docs/devir/2026-09-29-0458.md) — R233 kapanış: kesin master merge kimliği (ba45720)
