@@ -156,7 +156,9 @@ function recoverOutputTransactions(outputDir, options = {}) {
             const recovery = `${entry.final}.${path.basename(journal)}.recovery`;
             fsImpl.copyFileSync(entry.backup, recovery);
             replaceRecoveredFile(recovery, entry.final, path.basename(journal), fsImpl);
-          } else if (!entry.existed) {
+          } else if (!entry.existed && data.state === 'prepared') {
+            // "staging"de final hiç yerine konmadı; aynı adla sonradan oluşan
+            // kullanıcı dosyasını silme (Python recover_output_transactions ile aynı).
             removeQuietly(entry.final, fsImpl);
           }
         }

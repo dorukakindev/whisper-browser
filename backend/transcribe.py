@@ -43,6 +43,7 @@ from subtitle_sdh import (is_structural_sdh_cue, restore_sdh_markers,
 from series_memory import SeriesMemory
 from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
+import sentence_translation as _sentence_translation_module
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   sentence_reply_issue, sentence_part_boundary_issue,
@@ -621,6 +622,9 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     text = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     if not text:
         return text
+    # Sıra sayısı kuralı YAZILAN metnin dilinden gelir: global bayrak kaynak
+    # dilden (ör. en) ayarlanır; Türkçe çeviri dosyasında '2. Dünya' kırılıyordu.
+    ordinal = (str(language).lower().split("-")[0] in _ORDINAL_LANGS) if language else None
 
     if wrap_mode == "none":
         return " ".join(text.split())
@@ -640,7 +644,7 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
                     current.append(w)
                     terminal = w.rstrip('"\'”’»)]}')
                     if (terminal.endswith(tuple(PUNCT_END))
-                            and not is_abbreviation(w) and len(current) < len(words)):
+                            and not is_abbreviation(w, ordinal) and len(current) < len(words)):
                         sub.append(" ".join(current))
                         current = []
                 if current:
@@ -655,7 +659,7 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         for w in words:
             current.append(w)
             terminal = w.rstrip('"\'”’»)]}')
-            if terminal.endswith(tuple(PUNCT_END)) and not is_abbreviation(w) and len(current) < len(words):
+            if terminal.endswith(tuple(PUNCT_END)) and not is_abbreviation(w, ordinal) and len(current) < len(words):
                 lines.append(" ".join(current))
                 current = []
         if current:
@@ -676,8 +680,10 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     # Yedek: cümle sonu / virgül / kelime sınırı sıralamasıyla kaydır
     tokens = []
     for word in text.split():
-        end = word[-1] if word else ""
-        if end in PUNCT_END:
+        end = word.rstrip('"\'”’»)]}')[-1:] if word else ""
+        # Kısaltma ('Mr.') ve sıra sayısı cümle sonu değildir; eskiden 'Mr.'
+        # ardından satır kırılıyordu.
+        if end in PUNCT_END and not is_abbreviation(word, ordinal):
             tokens.append((word, 3))
         elif end in PUNCT_SOFT:
             tokens.append((word, 2))
@@ -712,6 +718,10 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
 
     if current:
         lines.append(" ".join(current))
+    # max_lines sınırı yedek yolda da geçerli (sentence kipiyle aynı): fazla
+    # satırlar son satırda birleşir; eskiden 4 satırlık cue çıkabiliyordu.
+    if max_lines > 0 and len(lines) > max_lines:
+        lines = lines[:max_lines - 1] + [" ".join(lines[max_lines - 1:])]
 
     return "\n".join(lines)
 
@@ -1778,11 +1788,18 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         # Çeviri tarafındaki devam-birleştirme birden çok kaynak bloğu tek zaman
         # aralığında toplayabilir. İndeks eşlemesi bu noktadan sonra kayar; zaman
         # olarak örtüşen kaynak bloklarını birleştirerek doğru metni koru.
-        overlapping = [text for ss, ee, text in source_entries
-                       if min(e0, ee) - max(s0, ss) > 0.001]
-        src_text = " ".join(t.strip() for t in overlapping if t.strip())
-        if not src_text and i < len(source_entries):
+        # Sayılar eşitse çeviri sözleşmesi 1:1'dir: indeksle eşle. Zaman örtüşmesi
+        # yalnız sayılar farklıyken (devam birleştirme) kullanılır; aksi halde üst
+        # üste binen kaynak cue'larda (telsiz sesi + diyalog) kaynak satırları
+        # birden çok bloğa tekrar ve karışık yazılıyordu.
+        if len(source_entries) == len(translated_entries):
             src_text = source_entries[i][2]
+        else:
+            overlapping = [text for ss, ee, text in source_entries
+                           if min(e0, ee) - max(s0, ss) > 0.001]
+            src_text = " ".join(t.strip() for t in overlapping if t.strip())
+            if not src_text and i < len(source_entries):
+                src_text = source_entries[i][2]
         source_lang = source_language or language
         if translation_first:
             top = wrap_text(tr_text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
@@ -1800,13 +1817,38 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
     return output_path
 
 
+_VTT_ALLOWED_TAG = re.compile(r"</?(?:i|b|u|c|v|ruby|rt|lang)(?:[.\s][^<>]*)?>", re.I)
+_VTT_BARE_AMP = re.compile(r"&(?![A-Za-z][A-Za-z0-9]*;|#\d+;|#x[0-9A-Fa-f]+;)")
+
+
+def vtt_escape_cue_text(text):
+    """WebVTT cue metnini güvenli yaz: izinli etiketler (<i>, <b>…) korunur.
+
+    Kaçışsız '<' ("I <3 you") tarayıcının etiket ayrıştırıcısında metni yutuyor,
+    '-->' dosyayı geçersiz kılıyor, cue içindeki boş satır cue'yu erken bitiriyordu.
+    """
+    text = _BLANK_LINES.sub("\n", str(text or ""))
+
+    def plain(part):
+        part = _VTT_BARE_AMP.sub("&amp;", part)
+        return part.replace("<", "&lt;").replace("-->", "--&gt;")
+
+    out, pos = [], 0
+    for match in _VTT_ALLOWED_TAG.finditer(text):
+        out.append(plain(text[pos:match.start()]))
+        out.append(match.group(0))
+        pos = match.end()
+    out.append(plain(text[pos:]))
+    return "".join(out)
+
+
 def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence",
               decorations=None):
     with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
-            wrapped = _decorate(wrap_text(text, max_line_width, max_lines, language=language,
-                                          wrap_mode=wrap_mode), decorations, i - 1)
+            wrapped = _decorate(vtt_escape_cue_text(wrap_text(text, max_line_width, max_lines, language=language,
+                                                              wrap_mode=wrap_mode)), decorations, i - 1)
             f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")
             f.write(f"{wrapped}\n\n")
 
@@ -1937,6 +1979,10 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
     }
     n_words = len(all_words) if all_words else 0
     cursor = 0  # ileri-yönlü imleç — kelime eşlemesini O(n) tutar
+    # Her kelime TEK segmente gider. ±0.05 sn tolerans iki komşu segmentin
+    # penceresine de düşen sınır kelimesini ikisine birden yazıyordu; bu çift
+    # kelime re-export, Anki dışa aktarımı ve kelime tıklamasına taşınıyordu.
+    assigned = set()
     for i, (start, end, text) in enumerate(entries):
         safe_start = round(float(start), 3)
         safe_end = round(float(end), 3)
@@ -1969,8 +2015,17 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
                 cursor += 1
             j = cursor
             seg_words = []
+            next_start = float(entries[i + 1][0]) if i + 1 < len(entries) else None
             while j < n_words and all_words[j]["start"] <= end + 0.05:
-                if all_words[j].get("end", all_words[j]["start"]) >= start - 0.05:
+                w_start = float(all_words[j]["start"])
+                w_end = float(all_words[j].get("end", w_start))
+                mid = (w_start + w_end) / 2
+                # Orta noktası bu segmentin bitişinden sonra ve sonraki segmentin
+                # içindeyse kelime sonrakine aittir.
+                belongs_next = next_start is not None and mid > end and mid >= next_start
+                if (j not in assigned and not belongs_next
+                        and w_end >= start - 0.05):
+                    assigned.add(j)
                     word = dict(all_words[j])
                     if "probability" in word:
                         word["probability"] = finite_json_value(word["probability"])
@@ -2130,7 +2185,9 @@ _TR_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.!?;:…])")
 _TR_MULTIPLE_SPACES = re.compile(r"\s{2,}")
 _TR_ELLIPSIS = re.compile(r"\.{3,}")
 # HTML/XML benzeri etiketleri yakala: <br/>, <br />, <i>, </b>, <font ...>
-_HTML_TAG = re.compile(r"<[^>]+/?>")
+# Yalnız gerçek etiket adları (<i>, </font>, <br/>): eskiden "<[^>]+>" "I <3 you
+# & a < b > c" gibi metinden gerçek kelimeleri siliyordu.
+_HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>")
 # HTML karakter referansları: &nbsp;, &amp;, &#39;
 _HTML_ENTITY = re.compile(r"&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);")
 _HTML_ENTITIES = {
@@ -3531,6 +3588,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     routes = resolve_translate_routes(args.translate_base_url)
     target = (args.translate_to or "tr").lower()
     target_name = LANG_NAMES.get(target, target)
+    # Parça satır sonu ve cümle sayımı hedef dilin sıra sayısı kuralını izlesin.
+    _sentence_translation_module.set_target_language(target)
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
     auto_glossary_terms = extract_auto_glossary(entries, source_lang=source_lang)
     series_memory, series_key = SeriesMemory.for_input(
@@ -7535,7 +7594,12 @@ def translate_existing_subtitle(args):
             cue_formats = []   # indeks eşlemesi bozuldu; biçim güvenle taşınamaz
     if len(cue_formats) != len(entries):
         cue_formats = []
-    elif any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
+    entries, cue_formats, dropped_empty = drop_empty_entries(entries, cue_formats)
+    if dropped_empty:
+        log(f"{dropped_empty} metinsiz blok (yalnız efekt/etiket) çeviriden çıkarıldı.", "info")
+    if not entries:
+        raise RuntimeError("Altyazıda çevrilecek metin yok.")
+    if cue_formats and any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
         kept = sum(1 for item in cue_formats if item["align"] not in (None, 2) or item["pos"] or item["italic"])
         log(f"ASS biçimi korunuyor: {kept} blokta konum/hizalama/italik çeviriye taşınacak.")
 
@@ -7552,6 +7616,11 @@ def translate_existing_subtitle(args):
         if len(entries) != _merge_n0:
             log(f"Cumle birlestirme (ceviri): {_merge_n0} -> {len(entries)} blok "
                 f"({_merge_n0 - len(entries)} devam satiri onceki bloga katildi)")
+            if cue_formats:
+                # Birleştirme indeksleri kaydırır; ASS konum/italik biçimi yanlış
+                # satıra ({\an8} tabela → diyalog) taşınıyordu. Güvenle eşlenemez.
+                cue_formats = []
+                log("Cümle birleştirme nedeniyle ASS konum/italik biçimi taşınmadı.", "warn")
 
     # Hazır altyazıda cue kimliği/zamanı ve kaynak dosya AYNEN kalır. Yalnız
     # diyalogla aynı cue içindeki güvenli SDH betimlemesi model girdisinden
@@ -8204,8 +8273,19 @@ def read_subtitle_text(path):
     return text, "latin-1", False
 
 
-def parse_srt(text):
-    """SRT metnini [(start, end, text)] listesine çevir (iç satır sonlarını korur)."""
+_VTT_META_BLOCK = re.compile(r"^(?:NOTE(?:\s|$)|STYLE\s*$|REGION\s*$)")
+_BLANK_LINES = re.compile(r"\n[ \t]*\n+")
+
+
+def parse_srt(text, vtt=False):
+    """SRT metnini [(start, end, text)] listesine çevir (iç satır sonlarını korur).
+
+    Cue gövdesindeki boş satırlar tek satır sonuna indirilir: SRT'de boş satır
+    cue ayracıdır; korunursa katı yazıcı "N cue beklendi, N+1 blok" diye bütün
+    işi düşürüyordu (senkron/çeviri modunda API ücreti ödendikten sonra).
+    vtt=True iken NOTE/STYLE/REGION blokları cue metnine karışmaz (eskiden
+    çevirmen notu çevrilip ekranda gösteriliyordu).
+    """
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     entries = []
     lines = text.strip().split("\n")
@@ -8227,7 +8307,22 @@ def parse_srt(text):
             separated_cue_id = bool(candidate) and until > 1 and not lines[until - 2].strip()
             if candidate.isdigit() or separated_cue_id:
                 until -= 1
-        txt = "\n".join(lines[timing_idx + 1:until]).strip()
+        body_lines = lines[timing_idx + 1:until]
+        if vtt:
+            # Boş satırla ayrılmış paragraflardan meta blok olanları at.
+            paragraphs, current = [], []
+            for line in body_lines:
+                if line.strip():
+                    current.append(line)
+                elif current:
+                    paragraphs.append(current)
+                    current = []
+            if current:
+                paragraphs.append(current)
+            body_lines = [line for paragraph in paragraphs
+                          if not _VTT_META_BLOCK.match(paragraph[0].strip())
+                          for line in paragraph + [""]]
+        txt = _BLANK_LINES.sub("\n", "\n".join(body_lines).strip())
         if not txt:
             continue
         entries.append((start, end, txt))
@@ -8359,7 +8454,49 @@ def _decorate(text, decorations, index):
 
 def parse_subtitle_entries(text, suffix=""):
     ext = str(suffix or "").lower().lstrip(".")
-    return parse_ass(text) if ext in {"ass", "ssa"} else parse_srt(text)
+    entries = parse_ass(text) if ext in {"ass", "ssa"} else parse_srt(text, vtt=ext == "vtt")
+    return clamp_nonpositive_durations(entries)
+
+
+def clamp_nonpositive_durations(entries):
+    """Süresi sıfır/negatif cue'lara geçerli bir bitiş ver (cue sayısı değişmez).
+
+    Kaynak dosyalarda 00:00:01,000 --> 00:00:01,000 gibi cue'lar görülür; katı
+    SRT yazıcısı bunları "cue zamanı geçersiz" diye reddedip bütün çıktıyı
+    düşürüyordu. Bitiş en fazla 1 sn ileri alınır ve sonraki cue'nun başını geçmez
+    (milisaniye çözünürlüğünde en az 1 ms).
+    """
+    out = []
+    items = list(entries or [])
+    for index, (start, end, text) in enumerate(items):
+        start_ms = int(round(float(start) * 1000))
+        end_ms = int(round(float(end) * 1000))
+        if end_ms <= start_ms:
+            next_start_ms = None
+            for later in items[index + 1:]:
+                candidate = int(round(float(later[0]) * 1000))
+                if candidate > start_ms:
+                    next_start_ms = candidate
+                    break
+            limit = start_ms + 1000 if next_start_ms is None else min(start_ms + 1000, next_start_ms)
+            end = max(start_ms + 1, limit) / 1000.0
+        out.append((start, end, text))
+    return out
+
+
+def drop_empty_entries(entries, formats=None):
+    """Metni boş cue'ları (ör. yalnız {\\fad} etiketi taşıyan ASS satırı) at.
+
+    Katı SRT yazıcısı boş gövdeyi bilerek reddeder; boş cue'lar yazıcıya
+    ulaşmadan düşürülmeli. formats verilirse aynı indekslerle birlikte süzülür
+    (ASS biçim eşlemesi kaymasın).
+    """
+    keep = [i for i, (_s, _e, t) in enumerate(entries) if str(t or "").strip()]
+    kept_entries = [entries[i] for i in keep]
+    if formats is None:
+        return kept_entries, len(entries) - len(kept_entries)
+    kept_formats = [formats[i] for i in keep] if len(formats) == len(entries) else []
+    return kept_entries, kept_formats, len(entries) - len(kept_entries)
 
 
 def shift_srt_entries(entries, offset):
@@ -8706,7 +8843,7 @@ def sync_subtitles(args):
         log(f"Altyazı kodlaması: {used_enc} (UTF-8 değil, dönüştürüldü)", "warn")
     if repaired:
         log("Bozuk Türkçe karakterler onarıldı (çift kodlanmış UTF-8)", "success")
-    spans = parse_subtitle_entries(text, srt_path.suffix)
+    spans, _dropped_empty = drop_empty_entries(parse_subtitle_entries(text, srt_path.suffix))
     if not spans:
         raise RuntimeError("Altyazıda geçerli blok bulunamadı (SRT/VTT/ASS desteklenir).")
 
@@ -9014,6 +9151,10 @@ def main():
         args.llm_api_key = os.environ.get("WHISPER_LLM_API_KEY", "")
     if not args.translate_api_key:
         args.translate_api_key = os.environ.get("WHISPER_TRANSLATE_API_KEY", "")
+    # Anahtarlar okundu; ffmpeg/ffprobe gibi alt süreçlere miras kalmasınlar
+    # (en-az-yetki ortam sözleşmesi, CLAUDE.md).
+    for secret_env in ("WHISPER_HF_TOKEN", "WHISPER_LLM_API_KEY", "WHISPER_TRANSLATE_API_KEY"):
+        os.environ.pop(secret_env, None)
 
     try:
         if args.sync_subs:
@@ -9029,6 +9170,12 @@ def main():
         else:
             transcribe(args)
     except Exception as e:
+        # Yarım kalan çıktı işlemi journal/.tmp bırakmasın (bkz. pipeline_control).
+        try:
+            from pipeline_control import rollback_open_output_transactions
+            rollback_open_output_transactions()
+        except Exception:
+            pass
         emit("error", message=str(e), traceback=traceback.format_exc())
         sys.exit(1)
 
