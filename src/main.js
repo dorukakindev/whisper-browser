@@ -18907,13 +18907,10 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       // Kurtarma üzerinden yeniden başlatılan FFmpeg hata verirse kullanıcıyı
       // seçeneksiz bırakma. Eski geçici dosya silinmiş olsa bile kaynak video
       // ve altyazı yolları bir sonraki güvenli yeniden deneme için yeterlidir.
-      // Bu çalıştırmada toplanan eksik-glif sayısı da korunur — aksi halde
-      // kurtarma yoluyla biten işte uyarı sayısı kaybolurdu.
       try {
-        writeBurninRecoveryState({
-          ...job.previousRecovery,
-          missingGlyphs: job.missingGlyphs.size + (job.recoveredGlyphCount || 0),
-        });
+        job.previousRecovery.missingGlyphs =
+          job.missingGlyphs.size + (job.recoveredGlyphCount || 0);
+        writeBurninRecoveryState(job.previousRecovery);
       }
       catch (_) { clearBurninRecoveryState(job.recovery?.id, false); }
     } else {
