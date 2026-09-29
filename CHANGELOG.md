@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Kısmen bozuk PDF durum dosyası sağlam sayfaları kurtarır** —
+  geçersiz sayfa kayıtları tek tek atılır; tümüyle bozuk dosya yine
+  `.bak`/legacy yedeğine düşer.
+
 - **Temizlenmiş PDF sayfasının eski çevirileri dirilmez** — meşru boş
   sayfa kaydı (`{n: []}`) bozuk sayılmaz; yalnız yapısal olarak bozuk
   dosyalar `.bak`/legacy yedeğine düşer.
