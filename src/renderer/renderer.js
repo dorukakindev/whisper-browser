@@ -6963,6 +6963,12 @@ function renderBrowserPlaces() {
   // hatırla, çizimden sonra aynı konuma geri ver.
   const focusedRow = list.contains(document.activeElement) ? document.activeElement.closest('.browser-place-row') : null;
   const focusIndex = focusedRow ? [...list.querySelectorAll('.browser-place-row')].indexOf(focusedRow) : -1;
+  // Sıra numarası değil kayıt kimliği: odaklı satırın önüne yeni kayıt eklenirse
+  // (yeni gezinti/eklenen yer imi) aynı sıra farklı kayda düşerdi.
+  const focusKey = focusedRow
+    ? (focusedRow.querySelector('[data-place-open]')?.dataset.placeOpen
+      || focusedRow.querySelector('[data-offline-open]')?.dataset.offlineOpen || '')
+    : '';
   const focusClass = focusedRow ? (['browser-place-open', 'browser-place-folder', 'browser-place-remove']
     .find((name) => document.activeElement.classList.contains(name)) || 'browser-place-open') : '';
   list.replaceChildren();
@@ -7025,8 +7031,11 @@ function renderBrowserPlaces() {
     list.appendChild(row);
   });
   if (focusIndex >= 0) {
-    const rows = list.querySelectorAll('.browser-place-row');
-    const row = rows[Math.min(focusIndex, rows.length - 1)];
+    const rows = [...list.querySelectorAll('.browser-place-row')];
+    const row = (focusKey && rows.find((r) =>
+      r.querySelector('[data-place-open]')?.dataset.placeOpen === focusKey
+      || r.querySelector('[data-offline-open]')?.dataset.offlineOpen === focusKey))
+      || rows[Math.min(focusIndex, rows.length - 1)];
     // Silinen satırda "sil" düğmesi yerine aynı konumdaki satırın açma düğmesi.
     (row?.querySelector(`.${focusClass}`) || row?.querySelector('.browser-place-open'))?.focus({ preventScroll: true });
   }
@@ -12254,7 +12263,17 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
   if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
   if (event.type === 'browser-shortcut') {
-    if (event.tabId !== player.browserActiveTabId) return;
+    if (event.tabId !== player.browserActiveTabId) {
+      // Bölünmüş görünümün ikincil sayfası da kısayol gönderir (odak oradayken):
+      // main odağı zaten aldığı için olayı reddetmek hiçbir giriş açmadan odağı
+      // kaybederdi. Sayfayı önce aktif sekme yapıp kısayolu ona uygula.
+      if (event.tabId && event.tabId === player.browserSplit?.secondaryTabId) {
+        void activateBrowserTab(event.tabId).then((tab) => {
+          if (tab && player.workspaceMode === 'browser') runBrowserShortcut(event.key, !!event.shift);
+        });
+      }
+      return;
+    }
     // Fare yan tuşları gibi donanım kaynaklı kısayollar oynatıcı modunda da
     // gelebilir; browser görünür değilken yanlış "komut başarısız" sinyali
     // üretmesinler.
@@ -20025,20 +20044,37 @@ if (moreSearch) {
       moreEmpty.classList.toggle('hidden', !q || total > 0);
     }
   };
+  const moreMenuItems = (selector) => [...(morePopover?.querySelectorAll(selector) || [])]
+    .filter((item) => !item.classList.contains('hidden') && !item.disabled && item.getAttribute('aria-disabled') !== 'true'
+      && !item.closest('.browser-more-sub.hidden'));
+  // ↓/↑ gezintisi alt-grup özetlerine de düşer; Enter yalnız çalıştırılabilir
+  // komut öğelerini seçer (özet tıklamak grubu açar, komut değildir).
+  const moreMenuNavigables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub > summary, .browser-more-sub[open] [role^="menuitem"]');
+  const moreMenuActionables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub[open] [role^="menuitem"]');
   moreSearch.addEventListener('input', filterMoreMenu);
   moreSearch.addEventListener('keydown', (event) => {
+    if (event.isComposing) return;
+    // ↓ arama kutusundan ilk eyleme geçer; ↑ özet düğmeye döner (menü açılışında
+    // ilk ok tuşu aramayı atlayıp hızlı eylemlere düşüyordu).
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (event.key === 'ArrowDown') moreMenuNavigables()[0]?.focus();
+      else morePopover?.closest('details')?.querySelector(':scope > summary')?.focus();
+      return;
+    }
     // Enter ilk eşleşen görünür öğeyi çalıştırır (Chrome menü aramasıyla aynı).
-    if (event.key !== 'Enter' || event.isComposing || !moreSearch.value.trim()) return;
-    const first = [...(morePopover?.querySelectorAll('.browser-more-quick button, .browser-more-sub [role^="menuitem"]') || [])]
-      .find((item) => !item.classList.contains('hidden') && !item.disabled && item.getAttribute('aria-disabled') !== 'true');
+    if (event.key !== 'Enter' || !moreSearch.value.trim()) return;
+    const first = moreMenuActionables()[0];
     if (!first) return;
     event.preventDefault();
     first.click();
   });
-  // Menü kapanınca arama sıfırlanır; aksi halde bir sonraki açılışta öğeler
-  // gizli kalıyor ve menü "eksik" görünüyordu.
+  // Menü açılınca odak arama kutusuna düşer (klavyeyle ilk ↓ aramayı atlıyordu);
+  // kapanınca arama sıfırlanır, aksi halde bir sonraki açılışta öğeler gizli
+  // kalıyor ve menü "eksik" görünüyordu.
   $('browserMoreMenu')?.addEventListener('toggle', (event) => {
-    if (event.currentTarget.open || !moreSearch.value) return;
+    if (event.currentTarget.open) { moreSearch.focus(); return; }
+    if (!moreSearch.value) return;
     moreSearch.value = '';
     filterMoreMenu();
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = false; });
