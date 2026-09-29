@@ -40,6 +40,12 @@ test('Durum hataları metinden bağımsız kodlarla yeniden deneme dışında ka
   }
 });
 
+test('Node-pin boyut sınırı ilke hatasıdır, yeniden denenmez', () => {
+  const error = new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.');
+  error.code = 'ESUBTITLE_LIMIT';
+  assert.equal(context.browserSubtitleRetryable(error), false);
+});
+
 test('Zaman aşımı yeniden denenir; gezinme iptali yeniden denenmez', () => {
   const timeout = new Error('Zaman aşımı'); timeout.code = 'ETIMEDOUT';
   const navigationAbort = new Error('Gezinme'); navigationAbort.name = 'AbortError';
