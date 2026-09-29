@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-1435.md](docs/devir/2026-09-29-1435.md) — R262: iş-ortasında-kapanış E2E + settings geriye-uyumluluk matrisi (temiz iptal + çökme kurtarması, bug yok)
+Güncel çalışma: [docs/devir/2026-09-29-1447.md](docs/devir/2026-09-29-1447.md) — R263: 10k-cue overlay sınır perf (O(2n)→O(log n+aktif), ~176×)
+Önceki çalışma: [docs/devir/2026-09-29-1435.md](docs/devir/2026-09-29-1435.md) — R262: iş-ortasında-kapanış E2E + settings geriye-uyumluluk matrisi (temiz iptal + çökme kurtarması, bug yok)
 Önceki çalışma: [docs/devir/2026-09-29-1416.md](docs/devir/2026-09-29-1416.md) — R261: burn-in ffmpeg E2E (gerçek IPC+ffmpeg, kapılar+temizlik, bug yok)
 Önceki çalışma: [docs/devir/2026-09-29-1405.md](docs/devir/2026-09-29-1405.md) — R260: PDF çeviri E2E (2 sayfa, gerçek hattı, stub sağlayıcı, bug yok)
 Önceki çalışma: [docs/devir/2026-09-29-1352.md](docs/devir/2026-09-29-1352.md) — R259: console-error ratchet (yüzey turu, 0 hata)
