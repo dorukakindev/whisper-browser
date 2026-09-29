@@ -17,6 +17,7 @@ const tab = { subtitleSyncRecords: [] };
 let overlays = 0, renders = 0;
 const ctx = { $, document: { activeElement: null }, browserSubtitleSync: sync,
   player: { cues, cues2: cues, browserActiveTabId: 'a', activeIdx: 0, activeIdx2: 0, browserTime: 12, browserPaused: true },
+  friendlySystemError: (message) => String(message || ''),
   browserLoadedTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
   browserSyncTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
   browserTrackSourceIdentity: () => ({ mediaId: 'video', sourceTrackId: 'source', sourceHash: 'hash' }),

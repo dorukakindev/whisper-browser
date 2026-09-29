@@ -1292,7 +1292,7 @@ $('copyPreview').addEventListener('click', async () => {
     await window.api.copyText(srt);
     logLine(`${segs.length} segment panoya kopyalandı (SRT biçimi)`, 'success');
   } catch (error) {
-    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+    logLine(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, 'error');
   }
 });
 
@@ -4100,7 +4100,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
       loadedPath = translation.path;
     }
   } catch (error) {
-    rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${error.message}`);
+    rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${friendlySystemError(error.message)}`);
     return { loaded: false, reason: error.message };
   }
   if (!loadedPath && outputs.dual) {
@@ -8801,7 +8801,7 @@ function handleBrowserSubtitleAutomation(track) {
     player.browserAutomationLiveCharacters = (Number(player.browserAutomationLiveCharacters) || 0) + input.newCharacters;
     queueMicrotask(() => useBrowserTrack(true, track.id).catch((error) => {
       browserSubtitleAutomationGate.finish(input.operationKey);
-      setBrowserSignal(`Otomatik altyazı çevirisi başlatılamadı: ${error.message}`, false);
+      setBrowserSignal(`Otomatik altyazı çevirisi başlatılamadı: ${friendlySystemError(error.message)}`, false);
     }));
   }
   return decision;
@@ -9637,7 +9637,7 @@ async function copyBrowserAbText() {
     await window.api.copyText(cuesToSrt(cues));
     setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
   } catch (error) {
-    setBrowserSignal(`Panoya kopyalanamadı: ${error.message}`, false);
+    setBrowserSignal(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, false);
   }
 }
 
@@ -9876,7 +9876,7 @@ async function toggleBrowserLiveAsr() {
     await startBrowserLiveAsrCapture(stream, tabId, started.sessionId);
   } catch (error) {
     await stopBrowserLiveAsrCapture(true);
-    setBrowserSignal(`Sistem sesi başlatılamadı: ${error.message}`, false);
+    setBrowserSignal(`Sistem sesi başlatılamadı: ${friendlySystemError(error.message)}`, false);
   } finally { player.browserLiveAsrStarting = false; }
 }
 
@@ -10145,7 +10145,7 @@ function applyBrowserSyncPreview(transform, points) {
   const preview = browserSyncEnsurePreview();
   if (!preview) return;
   try { preview.transform = browserSubtitleSync.normalizeTransform(transform); }
-  catch (error) { refreshBrowserSyncPanel(error.message); return; }
+  catch (error) { refreshBrowserSyncPanel(friendlySystemError(error.message)); return; }
   if (points) preview.points = points.map((point) => ({ ...point }));
   preview.dirty = preview.transform.scale !== preview.baseTransform.scale
     || preview.transform.offsetSeconds !== preview.baseTransform.offsetSeconds
@@ -10180,7 +10180,7 @@ function captureBrowserSyncPoint(slot) {
       applyBrowserSyncPreview(result, result.points);
       if (warning) refreshBrowserSyncPanel(warning);
       return;
-    } catch (error) { return refreshBrowserSyncPanel(error.message); }
+    } catch (error) { return refreshBrowserSyncPanel(friendlySystemError(error.message)); }
   }
   applyBrowserSyncPreview(preview.transform, points);
 }
@@ -10214,7 +10214,7 @@ function saveBrowserSync() {
     preview.dirty = false;
     saveActiveBrowserTabWorkspace();
     refreshBrowserSyncPanel('Senkron bu video ve kaynak altyazı için kaydedildi.');
-  } catch (error) { refreshBrowserSyncPanel(error.message); }
+  } catch (error) { refreshBrowserSyncPanel(friendlySystemError(error.message)); }
 }
 
 function resetBrowserSync() {
@@ -10741,7 +10741,7 @@ async function setBrowserAdblockEnabled(enabled) {
   if (!control || !window.api.setBrowserAdblockEnabled) return;
   renderBrowserAdblockState({ state: 'loading' });
   const result = await window.api.setBrowserAdblockEnabled(enabled).catch((error) => ({
-    ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${error.message}`,
+    ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${friendlySystemError(error.message)}`,
   })) || { ok: false, requested: enabled, state: 'error', error: 'Reklam koruması değiştirilemedi.' };
   renderBrowserAdblockState(result);
   if (result?.enabled !== enabled) scheduleSave();
@@ -10789,7 +10789,7 @@ async function setBrowserPlayerAdPruneEnabled(enabled) {
     ok: false,
     enabled: false,
     failOpen: true,
-    error: 'Deneysel koruma değiştirilemedi: ' + error.message,
+    error: 'Deneysel koruma değiştirilemedi: ' + friendlySystemError(error.message),
   }));
   control.disabled = false;
   renderBrowserPlayerAdPruneState(result);
@@ -14273,7 +14273,7 @@ async function copyCue() {
     await window.api.copyText(cue.text);
     logLine('Altyazı satırı panoya kopyalandı.', 'success');
   } catch (error) {
-    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+    logLine(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, 'error');
   }
 }
 
@@ -14600,7 +14600,7 @@ async function copySelectedWord() {
     await window.api.copyText(player.selectedWord.word);
     osd('Kelime panoya kopyalandı');
   } catch (error) {
-    osd(`Panoya kopyalanamadı: ${error.message}`);
+    osd(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`);
   }
 }
 
