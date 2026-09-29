@@ -9486,6 +9486,15 @@ function queueCurrentBrowserPage() {
   setBrowserSignal('Açık sayfa mevcut ayarlarla transkripsiyon kuyruğuna eklendi.', true);
 }
 
+// Tarayıcıda açık bir YouTube videosu varsa indirme alanına onun adresi hazır
+// gelsin; kullanıcı adresi elle kopyalamak zorunda kalmasın.
+function prefillYoutubeUrlFromBrowser() {
+  const pageUrl = currentBrowserYoutubeUrl();
+  const input = $('playerYtUrl');
+  if (!pageUrl || !input || input.value.trim() === pageUrl) return;
+  input.value = pageUrl;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
 function currentBrowserYoutubeUrl() {
   if (player.workspaceMode !== 'browser') return '';
   const tab = browserTabState();
@@ -14154,6 +14163,10 @@ async function saveCueNote() {
 async function toggleCueSaved() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
+    // Tarayıcı modunda günlük görünmez; menüden gelen tıklama sessiz kalmasın.
+    if (player.workspaceMode === 'browser') {
+      setBrowserSignal('Kaydetmek için önce bir altyazı satırına gel.', false, { priority: 50, holdMs: 3500 });
+    }
     return;
   }
   const sig = cueSignature(player.cues[player.activeIdx]);
@@ -19888,18 +19901,55 @@ if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
 const moreSearch = $('browserMoreSearch');
 if (moreSearch) {
   const morePopover = moreSearch.closest('.browser-more-popover');
-  moreSearch.addEventListener('input', () => {
+  let moreEmpty = null;
+  const filterMoreMenu = () => {
     const q = foldSearch(moreSearch.value.trim());
+    let total = 0;
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
       let visible = 0;
       sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
-        const hit = !q || foldSearch(item.textContent || '').includes(q);
+        // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
+        // kısa sorgular simge ağırlıklı öğeleri de bulsun.
+        const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
+        const hit = !q || foldSearch(haystack).includes(q);
         item.classList.toggle('hidden', !hit);
         if (hit) visible += 1;
       });
       sub.classList.toggle('hidden', visible === 0);
       if (q && visible) sub.open = true;
+      total += visible;
     });
+    // Arama sürerken hızlı eylem satırı ve ayraç gizlenir; sonuç yoksa bunu söyle.
+    morePopover?.querySelector('.browser-more-quick')?.classList.toggle('hidden', !!q);
+    morePopover?.querySelector('.browser-more-quick + .browser-menu-separator')?.classList.toggle('hidden', !!q);
+    if (!moreEmpty && morePopover) {
+      moreEmpty = document.createElement('div');
+      moreEmpty.className = 'browser-more-empty hidden';
+      moreEmpty.setAttribute('role', 'status');
+      morePopover.appendChild(moreEmpty);
+    }
+    if (moreEmpty) {
+      moreEmpty.textContent = uiText('Menüde eşleşen komut yok.');
+      moreEmpty.classList.toggle('hidden', !q || total > 0);
+    }
+  };
+  moreSearch.addEventListener('input', filterMoreMenu);
+  moreSearch.addEventListener('keydown', (event) => {
+    // Enter ilk eşleşen görünür öğeyi çalıştırır (Chrome menü aramasıyla aynı).
+    if (event.key !== 'Enter' || event.isComposing || !moreSearch.value.trim()) return;
+    const first = [...(morePopover?.querySelectorAll('.browser-more-sub [role^="menuitem"]') || [])]
+      .find((item) => !item.classList.contains('hidden') && !item.disabled && item.getAttribute('aria-disabled') !== 'true');
+    if (!first) return;
+    event.preventDefault();
+    first.click();
+  });
+  // Menü kapanınca arama sıfırlanır; aksi halde bir sonraki açılışta öğeler
+  // gizli kalıyor ve menü "eksik" görünüyordu.
+  $('browserMoreMenu')?.addEventListener('toggle', (event) => {
+    if (event.currentTarget.open || !moreSearch.value) return;
+    moreSearch.value = '';
+    filterMoreMenu();
+    morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = false; });
   });
 }
 
@@ -19948,7 +19998,10 @@ if ($('browserReadLater')) $('browserReadLater').addEventListener('click', async
 if ($('browserElementPick')) $('browserElementPick').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const tabId = player.browserActiveTabId;
-  if (!tabId) return;
+  if (!tabId || !/^https?:/i.test(browserTabState()?.url || player.browserPageUrl || '')) {
+    setBrowserSignal('Önce bir sayfa aç.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
   setBrowserSignal('Sayfada gizlemek istediğin öğeye tıkla (Esc: vazgeç).', true, { priority: 55, holdMs: 8000 });
   const result = await window.api.browserElementRules?.({ action: 'pick', tabId })
     .catch((error) => ({ ok: false, error: error.message }));
@@ -19974,7 +20027,10 @@ if ($('browserElementPick')) $('browserElementPick').addEventListener('click', a
 if ($('browserElementClear')) $('browserElementClear').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const tabId = player.browserActiveTabId;
-  if (!tabId) return;
+  if (!tabId) {
+    setBrowserSignal('Önce bir sayfa aç.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
   const listed = await window.api.browserElementRules?.({ action: 'list', tabId }).catch(() => null);
   const count = listed?.selectors?.length || 0;
   if (!listed?.ok || !count) {
@@ -20065,13 +20121,55 @@ if ($('browserZoomIn')) $('browserZoomIn').addEventListener('click', () => chang
 if ($('browserZoomOutToolbar')) $('browserZoomOutToolbar').addEventListener('click', () => changeBrowserZoom('zoom-out'));
 if ($('browserZoomResetToolbar')) $('browserZoomResetToolbar').addEventListener('click', () => changeBrowserZoom('zoom-reset'));
 if ($('browserZoomInToolbar')) $('browserZoomInToolbar').addEventListener('click', () => changeBrowserZoom('zoom-in'));
+// Vekil menü öğeleri gizli/uzak bir düğmeyi tıklar. Hedef devre dışıysa öğe
+// eskiden hiçbir şey yapmadan kapanıyordu (kullanıcı için "çalışmayan düğme").
+// Menü açılırken hedefin durumu öğeye aria-disabled olarak yansıtılır; yine de
+// tıklanırsa nedeni sinyal satırında söylenir. Hedef görünmeyen bir <summary>
+// ise (tarayıcı modunda gizli oynatıcı başlığındaki "Görünüm düzeni") onu açmak
+// ekranda hiçbir şey göstermez; bu durumda görünür eşdeğeri açılır.
+const browserProxyFallbacks = {
+  playerLayoutQuick: () => toggleDrawerAt(null, '.player-layout-section .vm'),
+};
+function browserProxyTargetState(button) {
+  const target = $(button.dataset.browserProxy);
+  if (!target) return { target: null, unavailable: true, reason: '' };
+  const unavailable = !!target.disabled || target.getAttribute('aria-disabled') === 'true';
+  return { target, unavailable, reason: unavailable ? String(target.title || target.getAttribute('aria-label') || '') : '' };
+}
+function syncBrowserMenuProxies(root) {
+  if (!root?.querySelectorAll) return;
+  for (const button of root.querySelectorAll('[data-browser-proxy]')) {
+    // Whisper altyazı öğeleri kendi disabled/title durumunu zaten yönetir.
+    if (button.id === 'browserWhisperSubtitlesMenu' || button.id === 'browserWhisperTranslateMenu') continue;
+    const { unavailable } = browserProxyTargetState(button);
+    button.setAttribute('aria-disabled', unavailable ? 'true' : 'false');
+  }
+}
 $$('[data-browser-proxy]').forEach((button) => {
   button.addEventListener('click', () => {
-    const target = $(button.dataset.browserProxy);
-    if (target && !target.disabled) target.click();
+    const state = browserProxyTargetState(button);
     closeBrowserToolbarMenus();
+    runBrowserProxyAction(button, state);
   });
 });
+function runBrowserProxyAction(button, { target, unavailable, reason }) {
+  if (!target) return;
+  if (unavailable) {
+    if (player.workspaceMode === 'browser') {
+      setBrowserSignal(reason ? `${uiText('Şu an kullanılamıyor')}: ${reason}` : uiText('Bu işlem şu an kullanılamıyor.'),
+        false, { priority: 50, holdMs: 3500 });
+    }
+    return;
+  }
+  const fallback = browserProxyFallbacks[button.dataset.browserProxy];
+  if (target.tagName === 'SUMMARY' && !target.getClientRects().length) fallback?.();
+  else target.click();
+}
+for (const id of ['browserMoreMenu', 'appModeMenu', 'appMenu', 'browserTranslateMenu']) {
+  $(id)?.addEventListener('toggle', (event) => {
+    if (event.currentTarget.open) syncBrowserMenuProxies(event.currentTarget);
+  });
+}
 
 $('browserStartBrowse')?.addEventListener('click', () => {
   $('browserAddress')?.focus();
@@ -20829,7 +20927,10 @@ if ($('playerBookmark')) {
   $('playerBookmark').addEventListener('click', toggleCueSaved);
 }
 if ($('playerQuickDownload')) {
-  $('playerQuickDownload').addEventListener('click', () => toggleDrawerAt('yt', '#playerDownload'));
+  $('playerQuickDownload').addEventListener('click', () => {
+    prefillYoutubeUrlFromBrowser();
+    toggleDrawerAt('yt', '#playerDownload');
+  });
 }
 function openYoutubePanelAndProbe(rawUrl) {
   const url = String(rawUrl || '').trim();
