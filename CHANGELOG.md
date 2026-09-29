@@ -3,6 +3,7 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+- Güvenlik (R279): `getDisplayMedia` artık yalnız ana pencerenin üst dokümanına açık — alt kareler jestle ekran+loopback sesi alamıyor.
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
 - R277: Çok-ekran pencere durumu — boyut kelepçesi + x/y saklamama kuralı saf `window-state` modülüne çıkarıldı; bozuk/monitör-kopması matrisi 21 kontrolle kilitlendi.
 - R275: IPC payload fuzz turu 2 — 213 kanalın tümü × 37 hostile payload (9.240 çağrı) sanal alanda tarandı; tehlikeli-sink/prototype-kirliliği/hang invariant'ları kuruldu, temiz sonuç (bug yok).
