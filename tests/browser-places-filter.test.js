@@ -15,6 +15,10 @@ class Node {
   replaceChildren(...nodes) { this.children = nodes; }
   append(...nodes) { this.children.push(...nodes); }
   appendChild(node) { this.append(node); }
+  contains() { return false; }
+  querySelectorAll() { return []; }
+  querySelector() { return null; }
+  focus() {}
 }
 const nodes = Object.fromEntries(['browserPlacesSearch', 'browserPlacesFolder', 'browserPlacesList', 'browserPlacesCount', 'browserPlacesResetFilters'].map(id => [id, new Node()]));
 const context = {

@@ -26,6 +26,7 @@ function runFunction(name, context) {
     $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {} } },
     stopAmbient() {}, flushWatchState() {}, destroyHls() {},
     disconnectBrowserBoundsObserver() {}, window: { api: {} },
+    closeBrowserTransientPanels() {},
   };
   runFunction('closePlayer', ctx)();
   assert.equal(pending.size, 0);
