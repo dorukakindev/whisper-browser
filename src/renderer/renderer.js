@@ -5926,6 +5926,22 @@ function navigateBrowser(url, tabId = player.browserActiveTabId) {
 
 // R123-D1: Favicon'u olmayan/yüklenemeyen sekmede boş alan yerine alan adının
 // ilk harfiyle, host'a göre sabit tonda küçük avatar (Chrome/Arc benzeri).
+const BROWSER_AVATAR_SECOND_LEVEL_TLDS = new Set([
+  'ac', 'asso', 'bel', 'biz', 'co', 'com', 'edu', 'gen', 'go', 'gov', 'gr', 'info',
+  'jus', 'k12', 'mil', 'name', 'ne', 'net', 'nom', 'or', 'org', 'pol', 'tel', 'web',
+]);
+
+// Avatar harfi/tonu kayıtlı alan adından (ör. wikipedia.org) gelsin; tr.wikipedia.org
+// için "t", co.uk biçiminde "c" yerine gerçek sitenin ilk harfi gösterilir.
+function browserAvatarDomainKey(host) {
+  const labels = String(host || '').split('.').filter(Boolean);
+  if (labels.length <= 2) return labels.join('.');
+  const second = labels[labels.length - 2];
+  const tld = labels[labels.length - 1];
+  const drop = (tld.length === 2 && BROWSER_AVATAR_SECOND_LEVEL_TLDS.has(second)) ? 3 : 2;
+  return labels.slice(Math.max(0, labels.length - drop)).join('.');
+}
+
 function browserTabAvatar(tab) {
   const avatar = document.createElement('span');
   avatar.className = 'browser-tab-avatar';
@@ -5937,10 +5953,11 @@ function browserTabAvatar(tab) {
     avatar.textContent = '+';
     return avatar;
   }
+  const domainKey = browserAvatarDomainKey(host) || host;
   let hash = 0;
-  for (const ch of host) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+  for (const ch of domainKey) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
   avatar.style.setProperty('--avatar-hue', String(hash % 360));
-  avatar.textContent = (Array.from(host)[0] || '•').toUpperCase();
+  avatar.textContent = (Array.from(domainKey)[0] || '•').toUpperCase();
   return avatar;
 }
 

@@ -10,6 +10,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - R184: the YouTube TV banner gains a "Tam ekran / Fullscreen" button wired to the existing `youtube-tv:fullscreen` IPC (the main-process handler and preload export existed but nothing called them — lean-back viewing now has a one-click fullscreen toggle).
 - R179: opt-in community extras for the YouTube video open in the player — DeArrow crowdsourced titles (same hash-prefix privacy model as SponsorBlock; the community title replaces the player title while the original is kept) and Return YouTube Dislike vote counts (a `👎 N` badge in the meta row). Both behind persistent checkboxes in the SponsorBlock settings section, fetched only for the opened video (no per-card calls), with the same network posture as the SponsorBlock fetcher (credentials-free, no redirects, 7s timeout, 256KB cap, LRU+TTL cache, in-flight dedupe).
 
+### Changed
+
+- R238: sekme/yer-imi/NTP avatar harfi artık kayıtlı alan adından gelir — `tr.wikipedia.org` "T" yerine "W", `sub.bbc.co.uk` "S" yerine "B", `amazon.com.tr` "A" gösterir; renk tonu da alan bazında sabitlendi (aynı sitenin alt alanları aynı tonda).
+
 ### Fixed
 
 - R237: tur-3 kalıntıları — kütüphanede iki hızlı tıklamanın ilki geç dönen yetkiyle son seçimi eziyordu (aynı dalda `openIntent` artırılmıyordu); PDF çevirisi sürerken yeni PDF açılırsa çeviri düğmeleri kilitli kalıyordu; eski belgenin çeviri durum/sonuç satırı yerini alan belgenin satırını eziyordu.
