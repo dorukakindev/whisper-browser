@@ -9307,22 +9307,40 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
       // yolu kullanılır ki oturumun kendi kuralları geçerli olsun.
       let proxy = 'DIRECT';
       let intercepted = false;
+      // resolveProxy çökerse DIRECT varsaymak proxy-gerektiren ağları koparır;
+      // belirsiz durumda Chromium yoluna düşülür (eskisi gibi proxy zinciri).
+      let proxyUnknown = false;
       try {
         proxy = await tab.view.webContents.session.resolveProxy(requestUrl);
         intercepted = !!await tab.view.webContents.session.protocol
           ?.isProtocolHandled?.(new URL(requestUrl).protocol.replace(':', ''));
-      } catch (_) {}
-      if (!intercepted && /^\s*DIRECT\b/i.test(String(proxy || 'DIRECT'))) {
+      } catch (_) { proxyUnknown = true; }
+      const proxyChain = String(proxy || 'DIRECT').split(';').map((entry) => entry.trim()).filter(Boolean);
+      const directFirst = proxyChain.length > 0 && /^\s*DIRECT\s*$/i.test(proxyChain[0]);
+      if (!intercepted && !proxyUnknown && directFirst) {
         const headers = {};
         if (byteRange) headers.Range = `bytes=${byteRange.start}-${byteRange.end}`;
         if (sameOrigin) {
           const cookies = await (tab.view.webContents.session.cookies
             ?.get?.({ url: requestUrl }) || Promise.resolve([])).catch(() => []);
-          if (cookies.length) headers.Cookie = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+          // Secure çerezler düz-metin http isteğine taşınmaz.
+          const httpsOnly = new URL(requestUrl).protocol !== 'https:';
+          const usable = cookies.filter((cookie) => !httpsOnly || !cookie.secure);
+          if (usable.length) headers.Cookie = usable.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
         }
         const userAgent = sanitizeBrowserUserAgent(tab.view.webContents.session.getUserAgent?.() || '');
         if (userAgent) headers['User-Agent'] = userAgent;
-        response = await requestPinnedSubtitleBuffer(requestUrl, pin, { headers, signal, maxBytes });
+        try {
+          response = await requestPinnedSubtitleBuffer(requestUrl, pin, { headers, signal, maxBytes });
+        } catch (directError) {
+          // 'DIRECT; PROXY …' zinciri: doğrudan bacak düşerse Chromium'un
+          // proxy yedeği denenir; tek DIRECT bacakta hata aynen yükselir.
+          if (proxyChain.length < 2) throw directError;
+          response = await tab.view.webContents.session.fetch(requestUrl, {
+            method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,
+            ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
+          });
+        }
       } else {
         response = await tab.view.webContents.session.fetch(requestUrl, {
           method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,

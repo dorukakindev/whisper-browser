@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Fixed
 
 - R242 (tur-4 açık maddeleri): bitişik komşular arasına sıkışan ~10 ms'lik cue ekranda okunamaz flaş olarak yazılıyordu — metin artık sonraki cue'nun başına katlanıp cue düşürülür (sonda kalırsa öncekine).
+- R243 (#182 review): sondaki flaş cue öncekine katlanırken konuşma zamanı korunur — öncekinin bitişi kısa cue'nun bitişine uzatılır.
 - R241 (tur-4 paketi): boş satırlı veya sıfır-süreli altyazı cue'ları tüm işi çökertmiyordu; VTT `NOTE` blokları çevrilip `}`/`-->` dizgileri bozuluyordu; `{\an8}` konum etiketleri birleşen cümlelere sızıyordu; "2. Dünya Savaşı" gibi sıra sayılarından sonra satır kırılıyordu; başarısız işin çıktı işlemi kurtarması aynı adlı kullanıcı dosyasını silebiliyor ve .tmp/journal bırakıyordu; ffmpeg/ffprobe çocuklarına gizli env değişkenleri sızıyordu.
 - R240: Devin Review triage — aynı ilk harfli iki site arasında gezen sekmenin avatar tonu bayat kalıyordu (örn. news.google.com→music.github.com); adres önerisi işaretleri sekme avatarından farklı harf üretiyordu (tr.wikipedia.org önerisi T, sekmesi W); farklı IP adresleri aynı avatar tonunu paylaşıyordu; krom alanına sığmayan sekme önizleme kartı yine native yüzeyin altında kırpılıyordu (artık kart kendi içinde kırpılır).
 - R239: sekme üzerine gelince çıkan önizleme kartı sayfa yüzeyi (native WebContentsView) altına kayıp kırpılıyordu — kartın alt kenarı artık `#browserViewSlot` üst çizgisini aşamaz; sığmadığında sekme şeridinin içine çekilir.
@@ -220,6 +221,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - R241 (tur-4 paketi): Invidious altyazı dil kodu `..\..` yol traversal'ına kapandı; içe aktarılan çalışma paketindeki geçmiş kayıtları koşulsuz altyazı erişimi veriyordu (SMB/NTLM sızıntısı dahil); sayfa çevirisi blok hacmi 20k ile sınırlı; mailto döngüsü 1/3 sn'ye tıklandı; favicon getirme yalnız herkese açık host + yönlendirmesiz; `-` ile başlayan argüman değerleri `--opt=val` ile geçiyor.
 - R242 (tur-4 açık maddeleri): altyazı indirmesi DNS rebinding'e kapandı — DNS doğrulaması dönen {address, family} artık isteği Node tarafında aynı IP'ye sabitler (`lookup` pinning; SNI/Host korunur, proxy'li veya oturumun kendi https interceptor'ü olan ortamlarda Chromium yoluna geri düşülür). `whisper-assets://` host'u oturum başına rastgele nonce — sabit `ass` host'u artık 404 döndüğü için sayfalar uygulamayı parmak iziyle tespit edemez.
+- R243 (#182 review): `DIRECT; PROXY` zincirinde doğrudan bacak düşünce proxy yedeği denenir; `resolveProxy` belirsizliğinde Chromium yolu korunur; http isteğe Secure çerezler taşınmaz.
 
 ### Internal
 

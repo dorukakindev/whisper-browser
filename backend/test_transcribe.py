@@ -2061,6 +2061,16 @@ def test_normalize_timings_merges_unrenderable_flash_forward():
     assert len(out2) == 1 and out2[0][1] - out2[0][0] >= 0.7
 
 
+def test_normalize_timings_last_flash_keeps_speech_time():
+    """Sondaki flaş cue öncekine katlanırken konuşma zamanı korunur —
+    uzun sessizlik sonrası son söz yalnız önceki cue'da gösterilmez.
+    (Son cue tavanı olmadığından ancak min_dur < 0.2 ayarıyla flaş kalabilir.)"""
+    out = T.normalize_timings([(0.0, 2.0, "a"), (30.0, 30.01, "x")], min_dur=0.05)
+    assert len(out) == 1, f"son flaş cue birleşmedi: {out}"
+    assert out[0][2] == "a x"
+    assert out[0][1] >= 30.0, f"son cue'nun konuşma zamanı kayboldu: {out}"
+
+
 def test_r51_86_nan_times_repaired_before_write():
     """R51-86: NaN/inf zamanlı blok noktalama onarımına span üretmez,
     normalize_timings sonrası yazıcılar finite zaman görür."""

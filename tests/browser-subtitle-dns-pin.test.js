@@ -86,6 +86,43 @@ test('oturum https protokolünü işliyorsa interceptor korunur (session.fetch)'
   assert.equal(calls.fetched.length, 1);
 });
 
+test('resolveProxy çökerse DIRECT varsayılmaz — Chromium yoluna düşülür', async () => {
+  const { context, calls, session } = makeContext();
+  session.resolveProxy = async () => { throw new Error('pac yok'); };
+  const buffer = await context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null);
+  assert.equal(buffer.toString(), 'web');
+  assert.equal(calls.pinned.length, 0);
+  assert.equal(calls.fetched.length, 1);
+});
+
+test('DIRECT; PROXY zincirinde doğrudan bacak düşerse proxy yedeği denenir', async () => {
+  const { context, calls, session } = makeContext();
+  session.resolveProxy = async () => 'DIRECT; PROXY corp:8080';
+  context.requestPinnedSubtitleBuffer = async () => { throw new Error('ECONNREFUSED'); };
+  const buffer = await context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null);
+  assert.equal(buffer.toString(), 'web');
+  assert.equal(calls.fetched.length, 1, 'doğrudan bacak düşünce session.fetch yedeği çalışmalı');
+});
+
+test('tek DIRECT bacakta pinning hatası aynen yükselir (yedek yok)', async () => {
+  const { context, calls } = makeContext();
+  context.requestPinnedSubtitleBuffer = async () => { throw new Error('ECONNREFUSED'); };
+  await assert.rejects(() => context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null), /ECONNREFUSED/);
+  assert.equal(calls.fetched.length, 0);
+});
+
+test('http sayfasında Secure çerezler Cookie başlığına taşınmaz', async () => {
+  const { context, calls, session } = makeContext();
+  session.cookies.get = async () => [
+    { name: 'sid', value: '1', secure: false },
+    { name: 'sess', value: 'gizli', secure: true },
+  ];
+  session.getUserAgent = () => 'UA';
+  context.activeBrowserTab = () => ({ view: { webContents: { isDestroyed: () => false, getURL: () => 'http://page.example/', session } } });
+  await context.fetchBrowserBuffer('http://page.example/subs/a.srt', 1024, null);
+  assert.equal(calls.pinned[0].opts.headers.Cookie, 'sid=1');
+});
+
 test('yönlendirme hedefi yeniden doğrulanıp ayrıca sabitlenir', async () => {
   const pinnedCalls = [];
   const { context } = makeContext({
