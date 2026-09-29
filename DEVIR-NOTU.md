@@ -1,15 +1,86 @@
-Güncel çalışma: [2026-09-28 21:01 — Devin yenilikleri yerel kabulü: 84 commit ileri, eksik hash onarımı ve Windows smoke kapanışı](docs/devir/2026-09-28-2101.md).
+Güncel çalışma: [2026-09-29 22:31 — Devin master bütünleştirmesi ve R178 ad çakışması çözümü](docs/devir/2026-09-29-2231.md).
 
+Önceki çalışma: [docs/devir/2026-09-30-0205.md](docs/devir/2026-09-30-0205.md) — R272: innerHTML/DOM-sink envanteri + kaçışsız veri düzeltmeleri + statik ratchet
+Önceki çalışma: [docs/devir/2026-09-30-0200.md](docs/devir/2026-09-30-0200.md) — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı düzeltildi
+Önceki çalışma: [docs/devir/2026-09-30-0155.md](docs/devir/2026-09-30-0155.md) — R270: güvenlik modeli belgesi (preload ratchet doğrulandı, 0 kullanılmayan)
+Önceki çalışma: [docs/devir/2026-09-30-0150.md](docs/devir/2026-09-30-0150.md) — R269: dinamik <dialog> occlusion bug'ı + klavye/odak tur-2 (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0145.md](docs/devir/2026-09-30-0145.md) — R268: benchmark bozuk-dosya yolları + JSON roundtrip şema kilidi (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0140.md](docs/devir/2026-09-30-0140.md) — R267: diarization hattı birim kilitleri (PCM WAV/hata yolları/auth imzası — temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0135.md](docs/devir/2026-09-30-0135.md) — R266: çeviri önbelleği disk-büyüme soak'u (50k ölçek, journal eşiği, diriliş yok — temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
+Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
+Önceki çalışma: [docs/devir/2026-09-29-1508.md](docs/devir/2026-09-29-1508.md) — R265: alt kare navigasyon guard'ları (TV/ana pencere/mini boşlukları kapatıldı)
+Önceki çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
+Önceki çalışma: [docs/devir/2026-09-29-1447.md](docs/devir/2026-09-29-1447.md) — R263: 10k-cue overlay sınır perf (O(2n)→O(log n+aktif), ~176×)
+Önceki çalışma: [docs/devir/2026-09-29-1435.md](docs/devir/2026-09-29-1435.md) — R262: iş-ortasında-kapanış E2E + settings geriye-uyumluluk matrisi (temiz iptal + çökme kurtarması, bug yok)
+Önceki çalışma: [docs/devir/2026-09-29-1416.md](docs/devir/2026-09-29-1416.md) — R261: burn-in ffmpeg E2E (gerçek IPC+ffmpeg, kapılar+temizlik, bug yok)
+Önceki çalışma: [docs/devir/2026-09-29-1405.md](docs/devir/2026-09-29-1405.md) — R260: PDF çeviri E2E (2 sayfa, gerçek hattı, stub sağlayıcı, bug yok)
+Önceki çalışma: [docs/devir/2026-09-29-1352.md](docs/devir/2026-09-29-1352.md) — R259: console-error ratchet (yüzey turu, 0 hata)
+Önceki çalışma: [docs/devir/2026-09-29-1349.md](docs/devir/2026-09-29-1349.md) — R258: browserSplit state-machine fuzz (240 op, 7 invariant, temiz)
+Önceki çalışma: [docs/devir/2026-09-29-1343.md](docs/devir/2026-09-29-1343.md) — R257: sekme şeridi churn soak (200 aç/kapat + toplu 8, sızıntı yok)
+Önceki çalışma: [docs/devir/2026-09-29-1320.md](docs/devir/2026-09-29-1320.md) — R256: kuyruk kill-resume E2E (crash→recovered→elle resume, gerçek backend)
+Önceki çalışma: [docs/devir/2026-09-29-1256.md](docs/devir/2026-09-29-1256.md) — R255: uçak-modu çeviri kapısı (ilk-parça probu network_error'da durdurur)
+Önceki çalışma: [docs/devir/2026-09-29-1248.md](docs/devir/2026-09-29-1248.md) — R254: hata yolları yerelleştirme süpürmesi (12 yüzey + 6 yeni systemError kuralı)
+Önceki çalışma: [docs/devir/2026-09-29-1233.md](docs/devir/2026-09-29-1233.md) — R253: çeviri-denetimi harness doğrulaması (15/15, bug yok)
+Önceki çalışma: [docs/devir/2026-09-29-1201.md](docs/devir/2026-09-29-1201.md) — R252: #199 flag (R251 dosya listesi tamamlaması)
+Önceki çalışma: [docs/devir/2026-09-29-1156.md](docs/devir/2026-09-29-1156.md) — R251: #197+#198 docs flag tamamlaması
+Önceki çalışma: [docs/devir/2026-09-29-1135.md](docs/devir/2026-09-29-1135.md) — R250 kapanış (master 6761540)
+Önceki çalışma: [docs/devir/2026-09-29-1128.md](docs/devir/2026-09-29-1128.md) — R250: #195 flag (ESUBTITLE_LIMIT retry test kilidi)
+Önceki çalışma: [docs/devir/2026-09-29-1053.md](docs/devir/2026-09-29-1053.md) — R249 kapanış: kesin master merge kimliği (0b5efe6)
+Önceki çalışma: [docs/devir/2026-09-29-1042.md](docs/devir/2026-09-29-1042.md) — R249: Electron smoke regresyonu (2 test-tarafı kusur) + #187 ESUBTITLE_LIMIT
+Önceki çalışma: [docs/devir/2026-09-29-1014.md](docs/devir/2026-09-29-1014.md) — R248 kapanış: kesin master merge kimliği (de41767)
+Önceki çalışma: [docs/devir/2026-09-29-1003.md](docs/devir/2026-09-29-1003.md) — R248: #191 review (nonce türetim formülü kilitlendi)
+Önceki çalışma: [docs/devir/2026-09-29-1001.md](docs/devir/2026-09-29-1001.md) — R247 kapanış: kesin master merge kimliği (d1dae51)
+Önceki çalışma: [docs/devir/2026-09-29-0952.md](docs/devir/2026-09-29-0952.md) — R247: #189 review triage (whisper-pdf kaynak kimliği oturum nonce'u)
+Önceki çalışma: [docs/devir/2026-09-29-0945.md](docs/devir/2026-09-29-0945.md) — R246 kapanış: kesin master merge kimliği (7fb6a25)
+Önceki çalışma: [docs/devir/2026-09-29-0933.md](docs/devir/2026-09-29-0933.md) — R246: Windows doğrulama bulguları (NTP imleç-ölümü + whisper-pdf 403)
+Önceki çalışma: [docs/devir/2026-09-29-0921.md](docs/devir/2026-09-29-0921.md) — R245 kapanış: kesin master merge kimliği (345128f)
+Önceki çalışma: [docs/devir/2026-09-29-0907.md](docs/devir/2026-09-29-0907.md) — R245: #181+#184 review triage (kaynak-dili ordinal + VTT meta + ilke-hatası/TOCTOU)
+Önceki çalışma: [docs/devir/2026-09-29-0840.md](docs/devir/2026-09-29-0840.md) — R244: v8CacheOptions bypassHeatCheck + önizleme is-compact
+Önceki çalışma: [docs/devir/2026-09-29-0822.md](docs/devir/2026-09-29-0822.md) — R243 kapanış: kesin master merge kimliği (47ac1a9)
+Önceki çalışma: [docs/devir/2026-09-29-0817.md](docs/devir/2026-09-29-0817.md) — R243: #182 review triage (proxy zincir yedeği + secure çerez + son cue zamanı)
+Önceki çalışma: [docs/devir/2026-09-29-0808.md](docs/devir/2026-09-29-0808.md) — R242 kapanış: kesin master merge kimliği (483872f)
+Önceki çalışma: [docs/devir/2026-09-29-0800.md](docs/devir/2026-09-29-0800.md) — R242: tur-4 açık maddeleri (DNS-pinning, ~10ms cue, whisper-assets nonce)
+Önceki çalışma: [docs/devir/2026-09-29-0735.md](docs/devir/2026-09-29-0735.md) — R241: tur-4 paketi uygulaması (backend altyazı + IPC güvenliği + ui-smoke + ui-locale perf)
+Önceki çalışma: [docs/devir/2026-09-29-0658.md](docs/devir/2026-09-29-0658.md) — R240: patch bakiyesi + #176/#178 review triage (avatar/IP/önizleme)
+Önceki çalışma: [docs/devir/2026-09-29-0650.md](docs/devir/2026-09-29-0650.md) — R239 kapanış: kesin master merge kimliği (ae58ad8); tur-3 paketi tamamen kapandı
+Önceki çalışma: [docs/devir/2026-09-29-0644.md](docs/devir/2026-09-29-0644.md) — R239: sekme önizleme kartı native yüzey kırpması
+Önceki çalışma: [docs/devir/2026-09-29-0634.md](docs/devir/2026-09-29-0634.md) — R238 kapanış: kesin master merge kimliği (a09da0b)
+Önceki çalışma: [docs/devir/2026-09-29-0627.md](docs/devir/2026-09-29-0627.md) — R238: avatar harfi/tonu kayıtlı alan adından
+Önceki çalışma: [docs/devir/2026-09-29-0618.md](docs/devir/2026-09-29-0618.md) — R237 kapanış: kesin master merge kimliği (ffb0ff4)
+Önceki çalışma: [docs/devir/2026-09-29-0610.md](docs/devir/2026-09-29-0610.md) — R237: tur-3 bağımsız denetimi (3 kalıntı düzeltildi)
+Önceki çalışma: [docs/devir/2026-09-29-0554.md](docs/devir/2026-09-29-0554.md) — R236 kapanış: kesin master merge kimliği (44a3767)
+Önceki çalışma: [docs/devir/2026-09-29-0545.md](docs/devir/2026-09-29-0545.md) — R236: tur-3 UI paketi (site bazlı reklam koruması + yeni sekme sayfası + 19 düzeltme)
+Önceki çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
+Önceki çalışma: [docs/devir/2026-09-29-0520.md](docs/devir/2026-09-29-0520.md) — R234 kapanış: kesin master merge kimliği (983ac21)
+Önceki çalışma: [docs/devir/2026-09-29-0458.md](docs/devir/2026-09-29-0458.md) — R233 kapanış: kesin master merge kimliği (ba45720)
+Önceki çalışma: [docs/devir/2026-09-29-0449.md](docs/devir/2026-09-29-0449.md) — R233: tur-2 kalanı + #165 review (Ctrl+F tek köprü, menü odak, yer-imi kimlik odak, split ikincil kısayol)
+Önceki çalışma: [docs/devir/2026-09-29-0428.md](docs/devir/2026-09-29-0428.md) — R232 kapanış: kesin master merge kimliği (bc4ba08)
+Önceki çalışma: [docs/devir/2026-09-29-0417.md](docs/devir/2026-09-29-0417.md) — R232: tur-2 UI düzeltme paketi (palet çalışmıyordu + 17 bulgu) + regresyon kilitleri
+Önceki çalışma: [docs/devir/2026-09-29-0359.md](docs/devir/2026-09-29-0359.md) — R231b: #164 bug (vekil hedef izleme) + #161/#163 belge flag'leri
+Önceki çalışma: [docs/devir/2026-09-29-0350.md](docs/devir/2026-09-29-0350.md) — R231: #162 review triage (bayat arama sonucu tazeleme)
+Önceki çalışma: [docs/devir/2026-09-29-0345.md](docs/devir/2026-09-29-0345.md) — R230 kapanış: kesin master merge kimliği (2dc1d46)
+Önceki çalışma: [docs/devir/2026-09-29-0339.md](docs/devir/2026-09-29-0339.md) — R230: #160 review triage (menü araması quick + devre dışı eşleşme)
+Önceki çalışma: [docs/devir/2026-09-29-0333.md](docs/devir/2026-09-29-0333.md) — R229 kapanış: kesin master merge kimliği (75f0ce5)
+Önceki çalışma: [docs/devir/2026-09-29-0323.md](docs/devir/2026-09-29-0323.md) — R229: UI fix paketi uygulaması + menü vekili/arama/prefill birim testleri
+Önceki çalışma: [docs/devir/2026-09-29-0303.md](docs/devir/2026-09-29-0303.md) — R228: #157 review triage (sayfa-bazlı kurtarma)
+Önceki çalışma: [docs/devir/2026-09-29-0302.md](docs/devir/2026-09-29-0302.md) — R227 kapanış: kesin bitiş kod kimliği (8872287)
+Önceki çalışma: [docs/devir/2026-09-29-0253.md](docs/devir/2026-09-29-0253.md) — R227: #156 review triage (meşru boş sayfa dirilmesi düzeltildi)
+Önceki çalışma: [docs/devir/2026-09-29-0243.md](docs/devir/2026-09-29-0243.md) — R226: #155 review triage (tamamen bozuk PDF sayfaları yedeği gizleyemez)
 Önceki çalışma: [docs/devir/2026-09-29-0230.md](docs/devir/2026-09-29-0230.md) — R218: PR #146 review triage (smoke sağlamlaştırma)
+Önceki çalışma: [docs/devir/2026-09-29-0229.md](docs/devir/2026-09-29-0229.md) — R225: #154 review triage (TM kaynak-drifti, PDF yedek gizlenmesi, aday-sırası testleri)
+Önceki çalışma: [docs/devir/2026-09-29-0210.md](docs/devir/2026-09-29-0210.md) — R224: #153 review triage (mezar taşı dedup, PDF okuma, TM lookup bekçisi)
 Önceki çalışma: [docs/devir/2026-09-29-0200.md](docs/devir/2026-09-29-0200.md) — R217: kuyruk eşzamanlılık stresi + disk queueRunning bayat-true düzeltmesi
+Önceki çalışma: [docs/devir/2026-09-29-0147.md](docs/devir/2026-09-29-0147.md) — R223: #152 review triage + TM zehirlenmesi/journal/PDF-endpoint düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-29-0145.md](docs/devir/2026-09-29-0145.md) — R216: gerçek RapidOCR E2E + Windows dosya-adı fuzz
-
 Önceki çalışma: [docs/devir/2026-09-29-0130.md](docs/devir/2026-09-29-0130.md) — R215: 1000-döngü soak sayısal rapor (GEÇTİ)
 Önceki çalışma: [docs/devir/2026-09-29-0115.md](docs/devir/2026-09-29-0115.md) — R214: mimari diyagram + CONTRIBUTING yenileme
 Önceki çalışma: [docs/devir/2026-09-29-0100.md](docs/devir/2026-09-29-0100.md) — R213: sonuç modalı zaman kaydırma E2E smoke'u
 Önceki çalışma: [docs/devir/2026-09-29-0045.md](docs/devir/2026-09-29-0045.md) — R212: teknik hata mesajları dostu dile çevrilir (systemError)
 Önceki çalışma: [docs/devir/2026-09-29-0030.md](docs/devir/2026-09-29-0030.md) — R211: kuyruk persist yarışında "Sırada dur" kapanışı
 Önceki çalışma: [docs/devir/2026-09-29-0015.md](docs/devir/2026-09-29-0015.md) — R210: #137+#138 Devin Review triage (satır-sonu, JSON info, atomiklik, ASS/dual sadakat, fixture-parse, preload ratchet)
+Önceki çalışma: [docs/devir/2026-09-29-0010.md](docs/devir/2026-09-29-0010.md) — R222 devam: context-leak kotası + önbellek dayanıklılığı
+Önceki çalışma: [docs/devir/2026-09-29-0005.md](docs/devir/2026-09-29-0005.md) — R222: Electron çeviri hattı paketi (blok/eşleşme/kesici/journal)
 Önceki çalışma: [docs/devir/2026-09-29-0000.md](docs/devir/2026-09-29-0000.md) — R209: yazıcı→ayrıştırıcı roundtrip kilidi
 Önceki çalışma: [docs/devir/2026-09-28-2330.md](docs/devir/2026-09-28-2330.md) — R207: #135 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
@@ -22,6 +93,7 @@ Güncel çalışma: [2026-09-28 21:01 — Devin yenilikleri yerel kabulü: 84 co
 Önceki çalışma: [docs/devir/2026-09-28-2130.md](docs/devir/2026-09-28-2130.md) — R198: Devin Review takip düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-28-2100.md](docs/devir/2026-09-28-2100.md) — R197: kalan denetlenmemiş yüzey kapanışı
 Önceki çalışma: [docs/devir/2026-09-28-2030.md](docs/devir/2026-09-28-2030.md) — R196: Devin Review toplu triage (PR #120–124)
+Önceki çalışma: [docs/devir/2026-09-28-1806.md](docs/devir/2026-09-28-1806.md) — R219: Devin Review toplu triage (PR #139–147, 21 bulgu)
 Önceki çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
 Önceki çalışma: [docs/devir/2026-09-28-1700.md](docs/devir/2026-09-28-1700.md) — R194: renderer orta-boy fonksiyon kuyruğu kapandı (temiz) + tam smoke doğrulaması
 Önceki çalışma: [docs/devir/2026-09-28-1600.md](docs/devir/2026-09-28-1600.md) — R193: tools/ + CI denetimi (temiz) + PR64/PR65 kurtarma (preview_refresh + ikon hizalama)
@@ -58,6 +130,7 @@ Güncel çalışma: [2026-09-28 21:01 — Devin yenilikleri yerel kabulü: 84 co
 Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
+
 # Devir notları indeksi
 Önceki çalışma: [2026-09-27 14:05 — R163 kaynak sızıntı envanteri + ratchet (bug yok)](docs/devir/2026-09-27-1405.md).
 Önceki çalışma: [2026-09-27 13:50 — R162 unhandled-rejection + atomik-yazma kalan süpürme ratchet'ları (bug yok)](docs/devir/2026-09-27-1350.md).

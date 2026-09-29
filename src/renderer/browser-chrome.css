@@ -381,6 +381,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-nav-button .browser-stop-icon { display: none; }
 .browser-nav-button.loading .browser-reload-icon { display: none; }
 .browser-nav-button.loading .browser-stop-icon { display: block; }
+/* `.player-layer .btn-icon > svg { display: block }` (0,2,1) yukarıdaki iki kuralı
+   eziyordu: yenile ve durdur simgeleri üst üste birlikte görünüyordu. */
+.player-layer .browser-nav-button > .browser-stop-icon { display: none; }
+.player-layer .browser-nav-button.loading > .browser-reload-icon { display: none; }
+.player-layer .browser-nav-button.loading > .browser-stop-icon { display: block; }
 .browser-address-wrap {
   min-width: 0;
   height: 36px;
@@ -417,7 +422,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 }
 .browser-address-mirror.hidden { display: none; }
 .browser-address-mirror b { font-weight: 700; }
-.browser-address-mirror .mir-dim { color: #8f9ca7; }
+.browser-address-mirror .mir-dim { color: var(--text-muted); }
 .workspace-browser .browser-address-wrap input.mir-mode { color: transparent; caret-color: transparent; }
 .browser-address-bookmark {
   width: 28px;
@@ -433,19 +438,33 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 #browserDownloadsToggle { position: relative; }
 .browser-downloads { width: min(440px, calc(100% - 20px)); }
 .browser-downloads button:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 2px; }
-.browser-quick-places { width: min(620px, 100%); margin: 18px auto 0; padding-top: 14px; border-top: 1px solid var(--border); text-align: left; }
-.browser-quick-places-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #b6a889; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.browser-quick-places-head .link-btn { padding: 2px 0; color: #b9a16e; font-size: 10px; letter-spacing: 0; text-transform: none; }
-.browser-quick-places-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
-.browser-quick-place { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 9px; color: var(--text); border: 1px solid var(--border); border-radius: 8px; background: var(--bg-2); text-align: left; cursor: pointer; }
-.browser-quick-place:hover, .browser-quick-place:focus-visible { color: #f0d18b; border-color: #675128; background: #1e1a13; }
-.browser-quick-place-mark { flex: 0 0 24px; display: grid; width: 24px; height: 24px; place-items: center; color: #17130b; border-radius: 7px; background: var(--player-amber); font-size: 11px; font-weight: 800; }
-.browser-quick-place-copy { min-width: 0; display: block; }
+.browser-quick-places { width: min(640px, 100%); margin: 22px auto 0; text-align: left; }
+/* Başlık rengi eskiden koyu temaya göre sabitti (#b6a889); açık temada soluktu. */
+.browser-quick-places-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.browser-quick-places-actions { display: inline-flex; gap: 12px; }
+.browser-quick-places-head .link-btn { padding: 2px 0; color: var(--accent); font-size: 10px; letter-spacing: 0; text-transform: none; }
+/* Chrome'daki "sık ziyaret edilenler" gibi kare kutucuk ızgarası: site simgesi
+   (favicon ya da alan adı avatarı) üstte, başlık altta; üzerine gelince kaldır (×). */
+.browser-quick-places-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.browser-ntp-tile { position: relative; min-width: 0; }
+.browser-quick-place { width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 8px 11px; color: var(--text); border: 1px solid var(--border); border-radius: var(--chrome-radius-control, 10px); background: var(--bg-1); text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.browser-quick-place:hover, .browser-quick-place:focus-visible { border-color: var(--accent-dim); background: var(--bg-2); }
+.browser-quick-place:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.browser-quick-place-mark { position: relative; flex: 0 0 auto; display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: var(--bg-2); }
+.browser-ntp-tile-favicon { width: 20px; height: 20px; object-fit: contain; }
+.browser-quick-place-mark .browser-tab-avatar.browser-ntp-tile-avatar { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 10px; font-size: 15px; }
+.browser-ntp-tile-bookmark { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg-1); }
+.browser-quick-place-copy { width: 100%; min-width: 0; display: block; }
 .browser-quick-place-title, .browser-quick-place-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-quick-place-title { font-size: 11px; font-weight: 600; }
-.browser-quick-place-url { margin-top: 3px; color: var(--text-muted); font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; }
-@media (max-width: 640px) {
-.browser-quick-places-list { grid-template-columns: 1fr; }
+.browser-quick-place-url { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+.browser-ntp-tile-remove { position: absolute; top: 4px; right: 4px; display: grid; width: 22px; height: 22px; place-items: center; padding: 0; color: var(--text-muted); background: var(--bg-2); border: 1px solid var(--border); border-radius: 50%; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.browser-ntp-tile:hover .browser-ntp-tile-remove, .browser-ntp-tile-remove:focus-visible { opacity: 1; }
+.browser-ntp-tile-remove:hover { color: var(--text); border-color: var(--accent-dim); }
+.browser-ntp-tile-remove svg { width: 11px; height: 11px; }
+@media (hover: none) { .browser-ntp-tile-remove { opacity: .8; } }
+@media (max-width: 760px) {
+.browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .browser-workspace-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .browser-workspace-actions .btn { width: auto; min-height: 29px; padding: 0 9px; }
@@ -1094,10 +1113,16 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   background: var(--bg-2);
   box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
   pointer-events: none;
+  overflow: hidden;
 }
 .browser-tab-preview-title { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-tab-preview-url { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
 .browser-tab-preview-chips { margin-top: 4px; font-size: 11px; color: var(--accent); }
+/* Yerleşim şeridi tam karta yetmeyince tek satırlık varyant: url/rozet satırı
+   gizlenir, yalnız başlık kalır — kart şeridin içine sığar, sırıtmaz. */
+.browser-tab-preview.is-compact { padding: 4px 8px; }
+.browser-tab-preview.is-compact .browser-tab-preview-url,
+.browser-tab-preview.is-compact .browser-tab-preview-chips { display: none; }
 .browser-tab-menu { min-width: 210px; }
 /* 5) Açık tema: browser araç çubuğundaki ikincil ikonlar. */
 html[data-theme="light"] #browserSignalClose,
@@ -1387,3 +1412,14 @@ details.browser-translate-split.hidden { display: none !important; }
 .browser-ntp-resume-title, .browser-ntp-resume-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-ntp-resume-title { font-size: 11px; font-weight: 600; }
 .browser-ntp-resume-url { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+/* İzlemeye devam et: kartın altında izlenen oran. */
+.browser-ntp-resume-item { position: relative; overflow: hidden; }
+.browser-ntp-resume-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--border); }
+.browser-ntp-resume-progress::after { content: ''; display: block; width: var(--progress, 0%); height: 100%; background: var(--accent); }
+
+/* Sayfa çevirisi hızlı menüsü: onay kutusu ile etiket arasında boşluk yoktu. */
+.browser-page-quick-popover .browser-view-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+/* Menü içi arama sonuç vermediğinde boş durum. */
+.browser-more-empty { padding: 10px 12px; color: var(--text-muted); font-size: 12px; }
+/* Hedefi şu an kullanılamayan vekil menü öğesi. */
+.browser-menu-popover [data-browser-proxy][aria-disabled="true"] { opacity: .45; cursor: default; }

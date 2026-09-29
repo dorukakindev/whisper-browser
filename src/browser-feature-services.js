@@ -299,7 +299,7 @@ function registerBrowserFeatureServices(deps) {
           const abort = () => { try { void frame.executeJavaScript(ass.buildAssClearScript(operationId), true).catch(() => {}); } catch {} };
           controller.signal.addEventListener('abort', abort, { once: true });
           try {
-            result = await frame.executeJavaScript(ass.buildAssInstallScript(text, operationId, fonts), true);
+            result = await frame.executeJavaScript(ass.buildAssInstallScript(text, operationId, fonts, tab?.view?.webContents?.session || null), true);
             result.fontCount = fonts.length;
             if (current() && result?.ok) tab.assFrame = frame;
             else abort();

@@ -67,7 +67,9 @@ const UI_ENUMS = Object.freeze({
   translateRegister: ['documentary', 'drama', 'comedy', 'action', 'general'],
   translateProfanity: ['soft', 'medium', 'explicit'],
   translateContext: ['0', '2', '4', '6', '10'],
-  playerSpeed: ['0.5', '0.75', '1', '1.25', '1.5', '1.75', '2'],
+  // playerSpeed burada DEĞİL: oynatıcı sitenin/izleme tercihinin özel hızını
+  // (ör. 1.3×) seçeneğe ekler; enum bu değeri kayıtta sessizce düşürüyordu.
+  // Aralık denetimi UI_NUMERIC_RANGES'te.
   playerPlaybackPolicy: ['normal', 'accelerate-gaps', 'skip-gaps', 'shadowing', 'loop-cue'],
   youtubeCookieBrowser: ['', 'firefox', 'chrome', 'edge', 'brave', 'vivaldi', 'opera'],
   browserMangaTarget: ['tr', 'en', 'de', 'fr', 'es', 'it', 'ru', 'ar'],
@@ -84,6 +86,7 @@ const UI_ENUMS = Object.freeze({
 });
 
 const UI_NUMERIC_RANGES = Object.freeze({
+  playerSpeed: [0.25, 4],
   beamSize: [1, 10], bestOf: [1, 10], batchSize: [1, 32], vadThreshold: [0.1, 0.9],
   maxLineWidth: [20, 80], timingGap: [0.2, 1.5], hardMaxChars: [80, 320],
   incompleteGap: [0.5, 4], continuationGap: [0.5, 5], maxCps: [10, 30], temperature: [0, 1],

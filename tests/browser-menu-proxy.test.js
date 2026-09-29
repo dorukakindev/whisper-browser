@@ -1,0 +1,286 @@
+'use strict';
+// fix/browser-menu-ui-polish önerisi: vekil menü tıklaması, menü araması ve
+// tarayıcıdan YouTube adresi öndoldurma davranışlarının jsdom kilidi.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
+const root = path.join(__dirname, '..');
+const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js'), 'utf8');
+const helpers = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer-helpers.js'), 'utf8');
+
+function sliceBetween(source, start, end) {
+  const i = source.indexOf(start);
+  assert.ok(i >= 0, `dilim başı bulunamadı: ${start}`);
+  const j = source.indexOf(end, i);
+  assert.ok(j > i, `dilim sonu bulunamadı: ${end}`);
+  return source.slice(i, j);
+}
+function sliceFunction(source, signature) {
+  const i = source.indexOf(signature);
+  assert.ok(i >= 0, signature);
+  const j = source.indexOf('\nfunction ', i + signature.length);
+  assert.ok(j > i, signature);
+  return source.slice(i, j);
+}
+
+// ---- 1. prefillYoutubeUrlFromBrowser + currentBrowserYoutubeUrl -------------
+{
+  const block = sliceBetween(renderer,
+    'function prefillYoutubeUrlFromBrowser() {',
+    '\nfunction updateBrowserWhisperActions()');
+  const ytIdSrc = sliceFunction(renderer, 'function youtubeVideoId(url) {');
+  const factory = new Function('$', 'player', 'browserTabState', 'Event',
+    `${ytIdSrc}\n${block}\nreturn { prefillYoutubeUrlFromBrowser, currentBrowserYoutubeUrl };`);
+  const input = { value: '', events: 0, dispatchEvent() { this.events += 1; } };
+  const $ = (id) => (id === 'playerYtUrl' ? input : null);
+  const player = { workspaceMode: 'browser', browserPageUrl: 'https://www.youtube.com/watch?v=ABCDEFGHIJK', browserActiveTabId: 7 };
+  const { prefillYoutubeUrlFromBrowser, currentBrowserYoutubeUrl } = factory($, player, () => null, function Event() {});
+
+  assert.equal(currentBrowserYoutubeUrl(), 'https://www.youtube.com/watch?v=ABCDEFGHIJK',
+    'açık YouTube sayfası kurallı watch adresine indirgenir');
+  prefillYoutubeUrlFromBrowser();
+  assert.equal(input.value, 'https://www.youtube.com/watch?v=ABCDEFGHIJK');
+  assert.equal(input.events, 1, 'input olayı bir kez ateşlenir');
+
+  const first = input.value; input.events = 0;
+  prefillYoutubeUrlFromBrowser();
+  assert.equal(input.events, 0, 'aynı adres ikinci kez yazılmaz (olay yok)');
+  assert.equal(input.value, first);
+
+  player.browserPageUrl = 'https://example.com/v';
+  input.value = 'https://manuel.example/x';
+  prefillYoutubeUrlFromBrowser();
+  assert.equal(input.value, 'https://manuel.example/x',
+    'YouTube dışı sayfada alan değişmez');
+
+  player.browserPageUrl = 'https://www.youtube.com/watch?v=ABCDEFGHIJK';
+  player.workspaceMode = 'player';
+  input.value = '';
+  prefillYoutubeUrlFromBrowser();
+  assert.equal(input.value, '', 'oynatıcı modunda tarayıcı adresi doldurmaz');
+}
+
+// ---- 2. runBrowserProxyAction ----------------------------------------------
+{
+  const block = sliceBetween(renderer,
+    'const browserProxyFallbacks = {',
+    "\nfor (const id of ['browserMoreMenu', 'appModeMenu', 'appMenu', 'browserTranslateMenu'])");
+  const factory = new Function('player', 'setBrowserSignal', 'uiText', 'toggleDrawerAt', '$$',
+    `${block}\nreturn { runBrowserProxyAction, browserProxyTargetState };`);
+  const signals = [];
+  const drawerCalls = [];
+  const player = { workspaceMode: 'browser' };
+  const { runBrowserProxyAction } = factory(
+    player,
+    (text, detected, opts) => signals.push({ text, detected, opts }),
+    (s) => s,
+    (...args) => drawerCalls.push(args),
+    () => []);
+
+  const clicks = [];
+  const btn = { dataset: { browserProxy: 'playerLayoutQuick' } };
+  const summary = { tagName: 'SUMMARY', getClientRects: () => [], click() { clicks.push('summary'); } };
+  const plainBtn = { tagName: 'BUTTON', getClientRects: () => [{}], click() { clicks.push('button'); } };
+
+  runBrowserProxyAction(btn, { target: null, unavailable: false, reason: '' });
+  assert.deepEqual(signals, [], 'hedef yokken sessiz döner');
+
+  runBrowserProxyAction(btn, { target: plainBtn, unavailable: true, reason: 'Önce video aç' });
+  assert.equal(signals.length, 1, 'devre dışı hedef sinyal verir');
+  assert.match(signals[0].text, /Şu an kullanılamıyor: Önce video aç/);
+  assert.equal(clicks.length, 0, 'devre dışı hedef tıklanmaz');
+
+  signals.length = 0;
+  player.workspaceMode = 'player';
+  runBrowserProxyAction(btn, { target: plainBtn, unavailable: true, reason: 'x' });
+  assert.equal(signals.length, 0, 'tarayıcı modu dışında sinyal yazılmaz');
+  player.workspaceMode = 'browser';
+
+  runBrowserProxyAction(btn, { target: summary, unavailable: false, reason: '' });
+  assert.equal(drawerCalls.length, 1, 'görünmeyen <summary> fallback yoluna düşer');
+  assert.deepEqual(drawerCalls[0], [null, '.player-layout-section .vm']);
+  assert.equal(clicks.length, 0, 'görünmeyen summary tıklanmaz');
+
+  runBrowserProxyAction(btn, { target: plainBtn, unavailable: false, reason: '' });
+  assert.deepEqual(clicks, ['button'], 'normal hedef doğrudan tıklanır');
+}
+
+// ---- 3. browserMoreSearch: filtre, boş durum, Enter, kapanışta sıfırlama ----
+(async () => {
+  const dom = new JSDOM(`<!doctype html><button id="extReader" title="Okuma görünümü"></button>
+    <details id="browserMoreMenu"><summary id="moreMenuSummary">Daha fazla</summary><div class="browser-more-popover">
+    <input id="browserMoreSearch" type="search">
+    <div class="browser-more-quick" role="group"><button id="q1" title="Yeni sekme · Ctrl+T" aria-label="Yeni sekme">+</button>
+      <button id="q2" title="Kapatılan sekmeyi aç" aria-label="Kapatılan sekmeyi aç">⟲</button></div>
+    <div class="browser-menu-separator"></div>
+    <details class="browser-more-sub"><summary>Sayfa</summary>
+      <button role="menuitem" id="mQr">Sayfa QR kodunu göster</button>
+      <button role="menuitem" id="mHide">Sayfada öğe gizle…</button>
+      <button role="menuitem" id="mReader" data-browser-proxy="extReader">Okuma görünümü</button>
+    </details>
+    <details class="browser-more-sub"><summary>Video</summary>
+      <button role="menuitem" id="mDl" disabled aria-disabled="true">Videoyu indir</button>
+      <button role="menuitem" id="mWatch">Oynatıcıda izle</button>
+    </details>
+  </div></details>`);
+  const doc = dom.window.document;
+  const block = sliceBetween(renderer,
+    "const moreSearch = $('browserMoreSearch');",
+    "\nif ($('browserReadLater'))");
+  const foldSrc = sliceFunction(renderer, 'function foldSearch(value) {');
+  const proxyStateSrc = sliceFunction(renderer, 'function browserProxyTargetState(button) {');
+  // syncBrowserMenuProxies ile sonraki işlev arasında üst-düzey `$$` bağlaması
+  // var; sliceFunction onu da yakalayacağı için açık sınır verilir.
+  const proxySyncSrc = sliceBetween(renderer,
+    'function syncBrowserMenuProxies(root) {',
+    "\n$$('[data-browser-proxy]')");
+  // Blok üst-düzey bağlama kodudur: `const moreSearch = $(...)` + dinleyiciler.
+  // foldSearch + vekil senkronu blok içinde kullanıldığı için gövdenin başına
+  // eklenir (asıl tanımlar slice sınırının dışındadır).
+  new Function('$', 'uiText', 'document', 'MutationObserver',
+    `${foldSrc}\n${proxyStateSrc}\n${proxySyncSrc}\n${block}`)(
+    (id) => doc.getElementById(id),
+    (s) => s,
+    doc,
+    dom.window.MutationObserver);
+
+  const input = doc.getElementById('browserMoreSearch');
+  const menu = doc.getElementById('browserMoreMenu');
+  const popover = input.closest('.browser-more-popover');
+  const subs = [...popover.querySelectorAll('.browser-more-sub')];
+  const quickRow = popover.querySelector('.browser-more-quick');
+  const visibleItems = () => [...popover.querySelectorAll('[role^="menuitem"]')]
+    .filter((el) => !el.classList.contains('hidden'));
+  const visibleQuick = () => [...quickRow.querySelectorAll('button')]
+    .filter((el) => !el.classList.contains('hidden'));
+
+  // 'zzz' → eşleşme yok: boş durum satırı, hızlı eylem ve tüm gruplar gizli.
+  input.value = 'zzz';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.equal(visibleItems().length, 0);
+  const emptyRow = popover.querySelector('.browser-more-empty');
+  assert.ok(emptyRow && !emptyRow.classList.contains('hidden'), 'eşleşme yok satırı görünür');
+  assert.match(emptyRow.textContent, /Menüde eşleşen komut yok/);
+  assert.ok(quickRow.classList.contains('hidden'),
+    'eşleşmeyen aramada hızlı eylem gizlenir');
+  assert.ok(subs.every((s) => s.classList.contains('hidden')), 'tüm gruplar gizlenir');
+
+  // 'qr' → title/aria dahil aramayla QR öğesi bulunur; Enter ilk sonucu çalıştırır.
+  input.value = 'qr';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mQr'], 'yalnız QR öğesi kalır');
+  assert.ok(quickRow.classList.contains('hidden'), 'quick eşleşmesizken satır gizli kalır');
+  let clicked = null;
+  doc.getElementById('mQr').addEventListener('click', () => { clicked = 'mQr'; });
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }));
+  assert.equal(clicked, 'mQr', 'Enter ilk eşleşeni çalıştırır');
+  assert.ok(emptyRow.classList.contains('hidden'), 'sonuç varken boş durum gizli');
+
+  // Devin Review #160-1: hızlı eylemler aramada bulunur — 'yeni sekme' sorgusu
+  // satırı gizlemez, eşleşen düğme kalır ve Enter onu çalıştırır.
+  input.value = 'yeni sekme';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.ok(!quickRow.classList.contains('hidden'), 'quick eşleşmesi satırı açık tutar');
+  assert.deepEqual(visibleQuick().map((el) => el.id), ['q1'], 'yalnız eşleşen quick düğmesi kalır');
+  assert.ok(visibleItems().length === 0, 'alt menülerde eşleşme yok');
+  assert.ok(emptyRow.classList.contains('hidden'), 'quick eşleşmesi boş durumu bastırır');
+  let quickClicked = null;
+  doc.getElementById('q1').addEventListener('click', () => { quickClicked = 'q1'; });
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }));
+  assert.equal(quickClicked, 'q1', 'Enter hızlı eylemi de çalıştırır');
+
+  // Devin Review #160-2: devre dışı öğe eşleşme sayılmaz — 'indir' sorgusu
+  // grupsuz "eşleşme yok" satırına düşer, boş grup açılmaz.
+  input.value = 'indir';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.equal(visibleItems().length, 0, 'devre dışı öğe sonuç sayılmaz');
+  assert.ok(!emptyRow.classList.contains('hidden'), 'yalnız devre dışı eşleşmede boş durum görünür');
+
+  // Devin Review #162-1: menü açıkken öğe devre dışı kalırsa sonuç tazelenir —
+  // 'izle' eşleşmesi aria-disabled alınca gri kalmaz, boş durum devreye girer.
+  input.value = 'izle';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
+    '"izle" hem "gizle" hem "Oynatıcıda izle" öğelerini eşleştirir');
+  assert.ok(emptyRow.classList.contains('hidden'));
+  doc.getElementById('mWatch').setAttribute('aria-disabled', 'true');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide'],
+    'sonradan devre dışı kalan öğe gizlenir, diğer eşleşme kalır');
+  doc.getElementById('mHide').setAttribute('aria-disabled', 'true');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(visibleItems().length, 0, 'tüm eşleşmeler devre dışı kalınca sıfırlanır');
+  assert.ok(!emptyRow.classList.contains('hidden'), 'durum değişince boş durum devreye girer');
+  doc.getElementById('mWatch').removeAttribute('aria-disabled');
+  doc.getElementById('mHide').removeAttribute('aria-disabled');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
+    'tekrar aktif olunca sonuç geri döner');
+
+  // Devin Review #164-1: vekil öğenin durumu menü dışındaki hedefte yaşar —
+  // hedef devre dışı kalınca vekil sonuç gizlenir, geri açılınca döner.
+  input.value = 'okuma';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
+    'vekil öğe hedefi aktifken eşleşir');
+  doc.getElementById('extReader').setAttribute('disabled', '');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(doc.getElementById('mReader').getAttribute('aria-disabled'), 'true',
+    'hedef devre dışı kalınca vekil öğeye yansıtılır');
+  assert.equal(visibleItems().length, 0, 'devre dışı vekil arama sonucunda gizlenir');
+  assert.ok(!emptyRow.classList.contains('hidden'), 'vekil düşünce boş durum görünür');
+  doc.getElementById('extReader').removeAttribute('disabled');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
+    'hedef geri açılınca vekil sonuç geri döner');
+
+  // Tur-3: menü açılınca odak arama kutusuna düşer; ↓ ilk eyleme, ↑ özet
+  // düğmeye gider (eski davranışta ilk ok aramayı atlıyordu). wireDetailsMenuNav
+  // eşdeğeri burada fixture'a da bağlanır: arama kutusu olayı durdurmazsa aynı
+  // tuş details'te ikinci kez işlenip odağı sonraki/son öğeye kaydırır.
+  const navOrder = () => [doc.getElementById('q1'), doc.getElementById('q2'),
+    ...subs.flatMap((s) => [s.querySelector('summary'), ...s.querySelectorAll('button')])];
+  menu.addEventListener('keydown', (event) => {
+    if (!menu.open) return;
+    // wireDetailsMenuNav'daki form-kontrol kapısının eşdeğeri.
+    if (event.target?.closest?.('input, select, textarea')) return;
+    const items = navOrder().filter(Boolean);
+    const idx = items.indexOf(doc.activeElement);
+    if (event.key === 'ArrowDown') items[(idx + 1 + items.length) % items.length]?.focus();
+    else if (event.key === 'ArrowUp') items[(idx - 1 + items.length) % items.length]?.focus();
+  });
+  input.value = '';
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  menu.open = true;
+  menu.dispatchEvent(new dom.window.Event('toggle'));
+  assert.equal(doc.activeElement, input, 'menü açılışında odak arama kutusunda');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  assert.equal(doc.activeElement?.id, 'q1', '↓ arama kutusundan ilk eyleme geçer (çift işlenmez)');
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+  assert.equal(doc.activeElement?.id, 'moreMenuSummary', '↑ özet düğmeye döner (son öğeye atlamaz)');
+
+  // Menü kapanınca arama sıfırlanır ve tüm öğeler geri gelir.
+  input.value = 'okuma';
+  menu.open = false;
+  menu.dispatchEvent(new dom.window.Event('toggle'));
+  assert.equal(input.value, '', 'kapanışta arama kutusu sıfırlanır');
+  assert.equal(visibleItems().length, 5, 'tüm öğeler tekrar görünür (devre dışı dahil)');
+  assert.equal(visibleQuick().length, 2, 'hızlı eylemler geri döner');
+  assert.ok(subs.every((s) => !s.classList.contains('hidden')), 'gruplar geri döner');
+  assert.ok(subs.every((s) => s.open === false), 'gruplar kapalı duruma döner');
+})().then(() => {
+  // ---- 4. detailsNavSkipsControl: form kontrolleri menü ok gezintisinden muaf ----
+  const skipSrc = sliceFunction(helpers, 'function detailsNavSkipsControl(target) {');
+  const detailsNavSkipsControl = new Function(`${skipSrc}; return detailsNavSkipsControl;`)();
+  const d = new JSDOM(`<details open><summary>S</summary><button id="b1">x</button>
+    <input id="i1"><select id="s1"><option>a</option></select><textarea id="t1"></textarea></details>`);
+  const dd = d.window.document;
+  assert.equal(detailsNavSkipsControl(dd.getElementById('i1')), true, 'input odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('s1')), true, 'select odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('t1')), true, 'textarea odaklıyken oklar menü gezintisi yapmaz');
+  assert.equal(detailsNavSkipsControl(dd.getElementById('b1')), false, 'düğme odaklıyken ok gezintisi çalışır');
+  assert.equal(detailsNavSkipsControl(dd.querySelector('summary')), false, 'summary odaklıyken ok gezintisi çalışır');
+  assert.equal(detailsNavSkipsControl(null), false, 'boş hedef güvenli');
+  console.log('browser-menu-proxy: YouTube öndoldurma, vekil tıklama, menü araması ve kontrol kapısı kilitlendi.');
+}, (error) => { console.error(error); process.exit(1); });

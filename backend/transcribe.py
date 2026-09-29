@@ -43,10 +43,11 @@ from subtitle_sdh import (is_structural_sdh_cue, restore_sdh_markers,
 from series_memory import SeriesMemory
 from translation_memory import TranslationMemory
 from ndjson_utils import finite_json_value, json_dumps_finite
+import sentence_translation as _sentence_translation_module
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
                                   sentence_reply_issue, sentence_part_boundary_issue,
-                                  reply_id_range_issue,
+                                  reply_id_range_issue, normalize_reply_ids,
                                   part_tail_issue, part_repetition_issue, part_anchor_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
@@ -371,6 +372,8 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        # [download] ilerleme çıktısı NDJSON satırına yapışmasın.
+        "noprogress": True,
         # YouTube artık oynatıcı imzalarını harici bir JS çalışma zamanıyla
         # çözmeyi gerektiriyor. Node uygulamanın zaten zorunlu bağımlılığıdır;
         # yt-dlp-ejs ise install.bat ile yt-dlp[default] içinden kurulur.
@@ -621,6 +624,9 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     text = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     if not text:
         return text
+    # Sıra sayısı kuralı YAZILAN metnin dilinden gelir: global bayrak kaynak
+    # dilden (ör. en) ayarlanır; Türkçe çeviri dosyasında '2. Dünya' kırılıyordu.
+    ordinal = (str(language).lower().split("-")[0] in _ORDINAL_LANGS) if language else None
 
     if wrap_mode == "none":
         return " ".join(text.split())
@@ -640,7 +646,7 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
                     current.append(w)
                     terminal = w.rstrip('"\'”’»)]}')
                     if (terminal.endswith(tuple(PUNCT_END))
-                            and not is_abbreviation(w) and len(current) < len(words)):
+                            and not is_abbreviation(w, ordinal) and len(current) < len(words)):
                         sub.append(" ".join(current))
                         current = []
                 if current:
@@ -655,7 +661,7 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
         for w in words:
             current.append(w)
             terminal = w.rstrip('"\'”’»)]}')
-            if terminal.endswith(tuple(PUNCT_END)) and not is_abbreviation(w) and len(current) < len(words):
+            if terminal.endswith(tuple(PUNCT_END)) and not is_abbreviation(w, ordinal) and len(current) < len(words):
                 lines.append(" ".join(current))
                 current = []
         if current:
@@ -676,8 +682,10 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     # Yedek: cümle sonu / virgül / kelime sınırı sıralamasıyla kaydır
     tokens = []
     for word in text.split():
-        end = word[-1] if word else ""
-        if end in PUNCT_END:
+        end = word.rstrip('"\'”’»)]}')[-1:] if word else ""
+        # Kısaltma ('Mr.') ve sıra sayısı cümle sonu değildir; eskiden 'Mr.'
+        # ardından satır kırılıyordu.
+        if end in PUNCT_END and not is_abbreviation(word, ordinal):
             tokens.append((word, 3))
         elif end in PUNCT_SOFT:
             tokens.append((word, 2))
@@ -712,6 +720,10 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
 
     if current:
         lines.append(" ".join(current))
+    # max_lines sınırı yedek yolda da geçerli (sentence kipiyle aynı): fazla
+    # satırlar son satırda birleşir; eskiden 4 satırlık cue çıkabiliyordu.
+    if max_lines > 0 and len(lines) > max_lines:
+        lines = lines[:max_lines - 1] + [" ".join(lines[max_lines - 1:])]
 
     return "\n".join(lines)
 
@@ -1778,11 +1790,18 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
         # Çeviri tarafındaki devam-birleştirme birden çok kaynak bloğu tek zaman
         # aralığında toplayabilir. İndeks eşlemesi bu noktadan sonra kayar; zaman
         # olarak örtüşen kaynak bloklarını birleştirerek doğru metni koru.
-        overlapping = [text for ss, ee, text in source_entries
-                       if min(e0, ee) - max(s0, ss) > 0.001]
-        src_text = " ".join(t.strip() for t in overlapping if t.strip())
-        if not src_text and i < len(source_entries):
+        # Sayılar eşitse çeviri sözleşmesi 1:1'dir: indeksle eşle. Zaman örtüşmesi
+        # yalnız sayılar farklıyken (devam birleştirme) kullanılır; aksi halde üst
+        # üste binen kaynak cue'larda (telsiz sesi + diyalog) kaynak satırları
+        # birden çok bloğa tekrar ve karışık yazılıyordu.
+        if len(source_entries) == len(translated_entries):
             src_text = source_entries[i][2]
+        else:
+            overlapping = [text for ss, ee, text in source_entries
+                           if min(e0, ee) - max(s0, ss) > 0.001]
+            src_text = " ".join(t.strip() for t in overlapping if t.strip())
+            if not src_text and i < len(source_entries):
+                src_text = source_entries[i][2]
         source_lang = source_language or language
         if translation_first:
             top = wrap_text(tr_text, max_line_width, 2, language=language, wrap_mode=wrap_mode)
@@ -1800,13 +1819,38 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
     return output_path
 
 
+_VTT_ALLOWED_TAG = re.compile(r"</?(?:i|b|u|c|v|ruby|rt|lang)(?:[.\s][^<>]*)?>", re.I)
+_VTT_BARE_AMP = re.compile(r"&(?![A-Za-z][A-Za-z0-9]*;|#\d+;|#x[0-9A-Fa-f]+;)")
+
+
+def vtt_escape_cue_text(text):
+    """WebVTT cue metnini güvenli yaz: izinli etiketler (<i>, <b>…) korunur.
+
+    Kaçışsız '<' ("I <3 you") tarayıcının etiket ayrıştırıcısında metni yutuyor,
+    '-->' dosyayı geçersiz kılıyor, cue içindeki boş satır cue'yu erken bitiriyordu.
+    """
+    text = _BLANK_LINES.sub("\n", str(text or ""))
+
+    def plain(part):
+        part = _VTT_BARE_AMP.sub("&amp;", part)
+        return part.replace("<", "&lt;").replace("-->", "--&gt;")
+
+    out, pos = [], 0
+    for match in _VTT_ALLOWED_TAG.finditer(text):
+        out.append(plain(text[pos:match.start()]))
+        out.append(match.group(0))
+        pos = match.end()
+    out.append(plain(text[pos:]))
+    return "".join(out)
+
+
 def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence",
               decorations=None):
     with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
-            wrapped = _decorate(wrap_text(text, max_line_width, max_lines, language=language,
-                                          wrap_mode=wrap_mode), decorations, i - 1)
+            wrapped = _decorate(vtt_escape_cue_text(wrap_text(text, max_line_width, max_lines, language=language,
+                                                              wrap_mode=wrap_mode)), decorations, i - 1)
             f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")
             f.write(f"{wrapped}\n\n")
 
@@ -1937,6 +1981,10 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
     }
     n_words = len(all_words) if all_words else 0
     cursor = 0  # ileri-yönlü imleç — kelime eşlemesini O(n) tutar
+    # Her kelime TEK segmente gider. ±0.05 sn tolerans iki komşu segmentin
+    # penceresine de düşen sınır kelimesini ikisine birden yazıyordu; bu çift
+    # kelime re-export, Anki dışa aktarımı ve kelime tıklamasına taşınıyordu.
+    assigned = set()
     for i, (start, end, text) in enumerate(entries):
         safe_start = round(float(start), 3)
         safe_end = round(float(end), 3)
@@ -1969,8 +2017,17 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
                 cursor += 1
             j = cursor
             seg_words = []
+            next_start = float(entries[i + 1][0]) if i + 1 < len(entries) else None
             while j < n_words and all_words[j]["start"] <= end + 0.05:
-                if all_words[j].get("end", all_words[j]["start"]) >= start - 0.05:
+                w_start = float(all_words[j]["start"])
+                w_end = float(all_words[j].get("end", w_start))
+                mid = (w_start + w_end) / 2
+                # Orta noktası bu segmentin bitişinden sonra ve sonraki segmentin
+                # içindeyse kelime sonrakine aittir.
+                belongs_next = next_start is not None and mid > end and mid >= next_start
+                if (j not in assigned and not belongs_next
+                        and w_end >= start - 0.05):
+                    assigned.add(j)
                     word = dict(all_words[j])
                     if "probability" in word:
                         word["probability"] = finite_json_value(word["probability"])
@@ -2130,7 +2187,9 @@ _TR_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.!?;:…])")
 _TR_MULTIPLE_SPACES = re.compile(r"\s{2,}")
 _TR_ELLIPSIS = re.compile(r"\.{3,}")
 # HTML/XML benzeri etiketleri yakala: <br/>, <br />, <i>, </b>, <font ...>
-_HTML_TAG = re.compile(r"<[^>]+/?>")
+# Yalnız gerçek etiket adları (<i>, </font>, <br/>): eskiden "<[^>]+>" "I <3 you
+# & a < b > c" gibi metinden gerçek kelimeleri siliyordu.
+_HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>")
 # HTML karakter referansları: &nbsp;, &amp;, &#39;
 _HTML_ENTITY = re.compile(r"&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);")
 _HTML_ENTITIES = {
@@ -2357,12 +2416,26 @@ def offset_diarization_spans(diarization_spans, time_offset=0.0):
             for start, end, speaker in (diarization_spans or [])]
 
 
+def strip_reasoning_think_blocks(content):
+    """<think>…</think> zarfını ayıkla.
+
+    DeepSeek-R1 / Qwen3 gibi muhakeme modelleri asıl yanıttan önce düşünme
+    bloğu basar. Bloğun içindeki {…} nesnesi gerçek yanıt değildir; bu
+    etiket varken ham metin hiçbir zaman JSON adayı sayılmaz.
+    """
+    text = str(content or "")
+    text = re.sub(r"(?is)<think\b[^>]*>[\s\S]*?</think>", " ", text)
+    # Kapanmamış (token kesilmiş) düşünme bloğunun kalanı da atılır.
+    text = re.sub(r"(?is)<think\b[^>]*>[\s\S]*$", " ", text)
+    return text.strip()
+
+
 def parse_llm_json_object(content, error_message="LLM JSON yanıtı parse edilemedi"):
     """Modelin düz JSON, fenced JSON veya kısa açıklama + JSON yanıtını güvenle çöz."""
-    raw = (content or "").strip()
-    candidates = [raw]
+    body = strip_reasoning_think_blocks(content)
+    candidates = [body] if body else []
     candidates.extend(match.group(1).strip() for match in re.finditer(
-        r"```(?:json)?\s*([\s\S]*?)```", raw, re.IGNORECASE))
+        r"```(?:json)?\s*([\s\S]*?)```", body, re.IGNORECASE))
     decoder = json.JSONDecoder()
     for candidate in candidates:
         try:
@@ -2428,6 +2501,37 @@ def retryable_api_error(error):
         "timed out", "timeout", "connection reset", "connection aborted",
         "connection error", "temporarily unavailable", "rate limit",
     ))
+
+
+class TranslationTruncatedError(RuntimeError):
+    """finish_reason='length': yanıt token sınırında kesildi.
+
+    Aynı paketin tekrarı aynı kesik yanıtı verir; paketi küçültmek gerekir.
+    """
+
+
+def route_error_is_definitive(error):
+    """Rota değiştirilince de tekrar deneyince de düzelmeyecek yanıtlar.
+
+    İçerik filtresi, moderasyon ve yapısal 400 redleri aynı girdiye aynı ret'i
+    verir; yedek rota ve scheduler yeniden denemeleri yalnız ücret tüketir.
+    """
+    if api_error_status(error) == 400:
+        return True
+    message = str(error).lower()
+    return any(key in message for key in (
+        "content_filter", "content filter", "moderation", "safetysystem",
+        "prohibited content", "policy_violation",
+    ))
+
+
+def llm_generation_kwargs(model, temperature, reasoning_token_limit=8192):
+    """Reasoning aileleri (gpt-5/o-serisi) temperature'ı reddeder; onlara
+    çıktı bütçesi max_completion_tokens olarak verilir. 8192 hem muhakeme
+    hem çıktı token'larını sayar; daha ufak değer kesik JSON üretirdi."""
+    if is_reasoning_chat_model(model):
+        return {"max_completion_tokens": reasoning_token_limit}
+    return {"temperature": temperature}
 
 
 def api_retry_after_seconds(error, now=None):
@@ -2513,15 +2617,22 @@ _AUTO_TERM_STARTERS = frozenset({
 })
 
 
-def extract_auto_glossary(entries, max_terms=60, min_occurrences=2):
+def extract_auto_glossary(entries, max_terms=60, min_occurrences=2,
+                          source_lang=None):
     """Tum transkriptten tekrarlanan ozel ad/kurum adaylarini yerelde cikarir.
 
     Bu bir ceviri modeli degildir: hedef karsilik uydurmaz. Yalnizca buyuk harfli
     ad dizilerini ve kisaltmalari modele film-geneli tutarlilik ipucu olarak verir.
+    Almanca ailesi gibi tum isimlerin buyuk harfle yazildigi dillerde tek
+    kelimelik baslangic-buyuklu adaylar gürültüdür; onlarda yalnız çok
+    kelimeli öbekler ve BÜYÜK-HARF kısaltmalar sayılır.
     """
     counts = {}
     strong_counts = {}
     spellings = {}
+    noun_capitalizing = str(source_lang or "").split("-")[0].lower() in {
+        "de", "gsw", "lb", "yi",
+    }
     word_re = re.compile(r"[^\W\d_][\w'’-]*", re.UNICODE)
     for _start, _end, raw_text in entries or []:
         text = normalized_text(raw_text)
@@ -2539,10 +2650,11 @@ def extract_auto_glossary(entries, max_terms=60, min_occurrences=2):
             phrase = " ".join(item.group(0).strip("'’") for item in run).strip()
             key = unicodedata.normalize("NFC", phrase).casefold()
             if phrase and not (len(run) == 1 and at_start and key in _AUTO_TERM_STARTERS):
-                counts[key] = counts.get(key, 0) + 1
-                if len(run) > 1 or not at_start or phrase.isupper():
-                    strong_counts[key] = strong_counts.get(key, 0) + 1
-                spellings.setdefault(key, phrase)
+                if not (len(run) == 1 and noun_capitalizing and not phrase.isupper()):
+                    counts[key] = counts.get(key, 0) + 1
+                    if len(run) > 1 or not at_start or phrase.isupper():
+                        strong_counts[key] = strong_counts.get(key, 0) + 1
+                    spellings.setdefault(key, phrase)
             run = []
 
         for match in words:
@@ -2592,7 +2704,9 @@ def llm_postprocess(entries, args, warn_list=None):
     emit("status", stage="llm_postprocess", text=f"LLM düzeltiyor: {args.llm_model}")
 
     clients = {
-        url: OpenAI(api_key=args.llm_api_key, base_url=url, timeout=120)
+        # max_retries=0: SDK'nın kendi yeniden denemeleri üstteki
+        # call_api_with_retry ile iç içe geçip rota başına 3x istek üretiyordu.
+        url: OpenAI(api_key=args.llm_api_key, base_url=url, timeout=120, max_retries=0)
         for url in routes
     }
 
@@ -2681,10 +2795,11 @@ def llm_postprocess(entries, args, warn_list=None):
                     kwargs = {
                         "model": args.llm_model,
                         "messages": [
-                            {"role": "system", "content": system_prompt},
+                            {"role": chat_instruction_role(args.llm_model), "content": system_prompt},
                             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                         ],
-                        "temperature": 0.1,
+                        # gpt-5/o-serisi temperature parametresini 400 ile reddeder.
+                        **llm_generation_kwargs(args.llm_model, 0.1),
                     }
                     if response_format:
                         kwargs["response_format"] = {"type": "json_object"}
@@ -3175,18 +3290,18 @@ def load_translate_cache(path):
 def save_translate_cache(path, cache, limit=200000):
     if not path:
         return
-    try:
-        disk_cache = load_translate_cache(path)
-        if isinstance(disk_cache, dict):
-            merged = dict(disk_cache)
-            merged.update(cache)
-            cache = merged
-        if len(cache) > limit:
-            cache = dict(list(cache.items())[-limit:])
-        with atomic_text_writer(path, encoding="utf-8", newline="") as f:
-            json.dump(cache, f, ensure_ascii=False)
-    except Exception as e:
-        log(f"Çeviri önbelleği yazılamadı: {e}", "warn")
+    # Yazma hatasını yutmak çağıranın dirty-im temizlemesini kör yapardı —
+    # hata artık çağrıyı yapana yayılır; imler korunup sonraki flush'ta
+    # yeniden denenir.
+    disk_cache = load_translate_cache(path)
+    if isinstance(disk_cache, dict):
+        merged = dict(disk_cache)
+        merged.update(cache)
+        cache = merged
+    if len(cache) > limit:
+        cache = dict(list(cache.items())[-limit:])
+    with atomic_text_writer(path, encoding="utf-8", newline="") as f:
+        json.dump(cache, f, ensure_ascii=False)
 
 def classify_translation_error(error):
     """Sağlayıcı hatasını kullanıcıya ve devam metadata'sına kararlı kodla taşır."""
@@ -3205,6 +3320,14 @@ def classify_translation_error(error):
         return "authentication"
     if status is not None and status >= 500:
         return "server_error"
+    if isinstance(error, TranslationTruncatedError):
+        return "truncated"
+    if any(token in message for token in (
+            "content_filter", "content filter", "moderation", "safetysystem",
+            "prohibited content")):
+        return "content_filtered"
+    if status == 400:
+        return "bad_request"
     if any(token in message for token in ("insufficient_quota", "quota", "kota")):
         return "quota"
     if any(token in message for token in ("invalid_api_key", "unauthorized")) \
@@ -3249,6 +3372,112 @@ _SHORT_TRANSLATABLE_ECHOES = {
     "hello", "goodbye", "thanks", "thank you", "please", "yes", "no",
     "sorry", "wait", "stop", "go", "come on", "all right", "okay", "ok",
 }
+
+
+_VOCALIZATION_WORDS = frozenset({
+    "ha", "haha", "hee", "ho", "hmm", "hm", "uh", "uhm", "um", "ah", "oh",
+    "eh", "la", "lala", "na", "da", "dee", "du", "shh", "shhh", "whew",
+    "yay", "wow", "ow", "ouch", "aah", "ooh", "huh", "ugh", "hooray",
+})
+
+# Tek harfli belirsiz gönderimler (örn. İspanyolca/Portekizce "o") kasıtlı
+# yok; Türkçe leksikoru yalnız anlamlı kelimelerden kurulur.
+_TR_NATIVE_LEXICON = frozenset(
+    "merhaba nasılsın nasılsınız teşekkür teşekkürler günaydın iyi akşamlar "
+    "evet hayır tamam peki lütfen görüşürüz hoşça güle afiyet olsun geçmiş "
+    "olsun elbette tabii kabul birşey neden niye nasıl kimin kiminle nerede "
+    "nerde ne zaman zaman sen ben biz siz onlar bu şu ve ya ama fakat çünkü "
+    "için ile mi mı mu mü de da ki çok az hiç yok var güzel iyi kötü büyük "
+    "küçük yeni eski gel git yap ol al ver gör bil iste sev bekle dur bak "
+    "şimdi sonra önce bugün yarın dün akşam sabah öğle gece burada orada "
+    "şurada herkes kimse birisi hepsi bazı hiçbir herhangi".split()
+)
+_TR_DIACRITIC = re.compile(r"[çğıöşüÇĞİÖŞÜ]")
+
+
+def _line_looks_turkish(text):
+    """Tek satırın Türkçe olduğuna dair muhafazakâr sinyal.
+
+    Diyakritik harf varsa kesin; yoksa yaygın Türkçe leksikor oranı ≥ 2
+    vuruş ve ≥ %40 kapsama ister — kısa satırlarda İspanyolca "de la" gibi
+    rastlantısal tek vuruşlar yanlış tetiklemez.
+    """
+    raw_words = [w.strip(".,!?;:'\"-") for w in re.findall(r"[^\W\d_]+", text)]
+    diacritic_hits = [w for w in raw_words if w and _TR_DIACRITIC.search(w)]
+    if len(diacritic_hits) >= 2:
+        return True
+    if len(diacritic_hits) == 1 and not diacritic_hits[0][:1].isupper():
+        return True  # küçük harfli diyakritik kelime: 'nasılsın', 'görüşürüz'
+    # Tek büyük-harfli diyakritik vuruş çoğu zaman 'Aydın', 'İstanbul' gibi
+    # bir özel ad — satırın tamamı Türkçe sayılmaz.
+    words = [
+        w.strip(".,!?;:'\"-") for w in re.findall(r"[^\W\d_]+", text.casefold())
+    ]
+    words = [w for w in words if w]
+    if len(words) < 2:
+        return False
+    hits = sum(1 for w in words if w in _TR_NATIVE_LEXICON)
+    return hits >= 2 and hits / len(words) >= 0.4
+
+
+def file_looks_turkish(entries, limit=40):
+    """Dosya gövdesinin çoğunlukla Türkçe olduğuna dair hızlı karar.
+
+    translate_existing_subtitle'da kaynak dil 'auto' kalınca aynı-dil kapısı
+    çalışamaz; tamamı Türkçe bir .tr.srt'i tekrar Türkçeye çevirmek binlerce
+    boş istek demektir. Satır bazlı sinyalin dosya çoğunluğunu arar.
+    """
+    lines = [
+        str(row[2] or "") for row in entries or []
+        if len(str(row[2] or "").strip()) >= 4
+    ][:max(3, int(limit))]
+    if len(lines) < 3:
+        return False
+    hits = sum(1 for line in lines if _line_looks_turkish(line))
+    return hits / len(lines) >= 0.6
+
+
+def _is_camel_word(word):
+    return (len(word) > 1 and word[:1].islower()
+            and any(char.isupper() for char in word[1:]))
+
+
+def line_keeps_source(source_text, target, source_lang=None):
+    """Bu satırın çevrilmemesi gerektiğine dair muhafazakâr denetim.
+
+    Modelin yankıladığı satırların bir bölümü aslında DEĞİŞMEDEN kalmalı:
+    kahkaha/vokalizasyonlar, şarkı işaretli satırlar, kod/sayı/özel-ad
+    dizgileri ve kaynak içinde zaten hedef dilde olan satırlar. Bunlar
+    API'ye hiç gönderilmez; yankı kontrolü "değişmeden kabul" diye işler.
+    """
+    text = re.sub(r"<[^>]+>", " ", str(source_text or ""))
+    text = re.sub(r"\\N|\{[^}]*\}", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return True
+    if not re.search(r"[A-Za-zÀ-ÿ]", text):
+        return True  # yalnız sayı/noktalama/sembol dizgisi
+    words = re.findall(r"[^\W\d_]+", text)
+    if words and all(w in _VOCALIZATION_WORDS for w in (v.lower() for v in words)):
+        return True
+    if words and all(w.isupper() or w[:1].isupper() or _is_camel_word(w)
+                     for w in words) and (
+                         any((not w.isupper()
+                              and any(char.isupper() for char in w[1:]))
+                             or any(c.isdigit() for c in w)
+                             for w in words)
+                         or sum(1 for w in words if w.isupper()) >= 2):
+        # 'iPhone 15 Pro.', 'PlayStation 5', 'NASA FAA EASA' gibi ad/kod
+        # dizgileri korunur — en az bir camelCase/PascalCase/rakamlı token
+        # veya birden çok tam-BÜYÜK token şart. 'Good Morning Everyone' gibi
+        # Title-Case cümleler ile '[GUNFIRE]' gibi tek tam-büyük SDH
+        # etiketleri (kaynağı bağırmayı betimler, çevrilir) korunmaz.
+        return True
+    tgt = str(target or "").split("-")[0].lower()
+    src = str(source_lang or "").split("-")[0].lower()
+    if tgt == "tr" and src not in {"tr", "tur"} and _line_looks_turkish(text):
+        return True
+    return False
 
 
 def _normalized_echo_words(value):
@@ -3324,7 +3553,7 @@ def filter_series_memory_candidates(raw, source_text, target_text):
 
 
 def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None,
-                  speakers=None):
+                  speakers=None, precompleted=None):
     """
     Altyazilari OpenAI uyumlu bir API ile hedef dile cevirir.
     entries: [(start, end, text), ...] -> ayni yapida cevrilmis liste (blok sayisi DEGISMEZ).
@@ -3361,8 +3590,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     routes = resolve_translate_routes(args.translate_base_url)
     target = (args.translate_to or "tr").lower()
     target_name = LANG_NAMES.get(target, target)
+    # Parça satır sonu ve cümle sayımı hedef dilin sıra sayısı kuralını izlesin.
+    _sentence_translation_module.set_target_language(target)
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
-    auto_glossary_terms = extract_auto_glossary(entries)
+    auto_glossary_terms = extract_auto_glossary(entries, source_lang=source_lang)
     series_memory, series_key = SeriesMemory.for_input(
         getattr(args, "cache_dir", None), getattr(args, "input", ""), source_lang, target)
     if series_memory and series_memory.load_warning:
@@ -3400,7 +3631,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
     def client_for(url):
         if url not in clients:
-            clients[url] = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=180)
+            # max_retries=0: SDK'nın kendi 2 denemesi üstteki call_api_with_retry
+            # ile iç içe geçip rota başına 6 HTTP isteği üretiyordu; zaman
+            # aşımında tek uçta ~18 dk'ya çıkan kilitlenme senaryosu ölçülmüştü.
+            clients[url] = OpenAI(api_key=args.translate_api_key, base_url=url,
+                                  timeout=180, max_retries=0)
         return clients[url]
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -3410,6 +3645,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     groups = sentence_groups(entries, speakers=speaker_map)
     group_at = {i: group for group in groups for i in group}
     records = {}
+    lock = threading.Lock()
+    # 'Eksikleri tamamla' ve elle düzeltme akışlarında model dosyanın TAMAMINI
+    # görür; zaten çevrilmiş konumlar uygulamada asla ezilmez ama bağlam/cümle
+    # gruplaması doğru kurulur (eskiden yalnız eksik liste verilip komşular
+    # yanlışlıkla birleştiriliyordu).
+    done_idx = set()
+    precompleted_idx = set()
+    if precompleted:
+        for index, value in dict(precompleted).items():
+            try:
+                index = int(index)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= index < len(entries) and value:
+                out_texts[index] = str(value)
+                precompleted_idx.add(index)
+                done_idx.add(index)
+    echo_seen = {}
+    memory_candidates = []
+    cache_dirty = set()
+    cache_flush_at = [0.0]
+    cache_added_total = [0]
+    tm_staged_total = [0]
     tm = None
     if cache_on := bool(getattr(args, "translate_cache", True)):
         try:
@@ -3490,7 +3748,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         """
         source_parts = [entries[index][2] for index in group]
         for check in (
-            lambda: sentence_part_boundary_issue(source_parts, parts),
+            lambda: sentence_part_boundary_issue(source_parts, parts, source_lang),
             lambda: part_repetition_issue(source_parts, parts),
             lambda: part_tail_issue(parts, target),
             lambda: part_anchor_issue(source_parts, parts, target),
@@ -3535,13 +3793,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return payload
 
     # --- ONBELLEK: daha once cevrilmis bloklar tekrar GONDERILMEZ ---
+    refine_enabled = bool(getattr(args, "translate_refine", False))
     cache_on = getattr(args, "translate_cache", True)
     cache_file = translate_cache_path(args) if cache_on else None
     cache = load_translate_cache(cache_file) if cache_on else {}
     cached_idx = set()
     pending_groups = []
+    refine_pending_groups = []
     group_keys = {group[0]: group_key(group) for group in groups}
     for group in groups:
+        if all(i in done_idx for i in group):
+            continue  # tamamı önceden çevrilmiş grup: ne önbellek ne API gerekir
         key = group_keys[group[0]]
         hit = cache.get(key) if cache_on else None
         record = None
@@ -3552,6 +3814,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if not record and tm and len(group) == 1:
             source = entries[group[0]][2]
             fuzzy = tm.lookup(source, tm_scope, tm_context(group))
+            # Eski sürümlerden kalan yankı satırı "çeviri" diye dönmez.
+            # Depodaki kaynak güncel kaynaktan farklı olabilir (bulanık
+            # eşleşme bir yazım hatasıyla bulur); zehir testi bu yüzden
+            # depodaki kaynağa karşı da yapılır — aksi halde İngilizce
+            # hedef fark yaratıp çeviri diye uygulanırdı.
+            if fuzzy and (translation_is_source_echo(fuzzy.get("source") or source, fuzzy["target"])
+                          or translation_is_source_echo(source, fuzzy["target"])):
+                fuzzy = None
             if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target):
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
                 if record:
@@ -3560,16 +3830,114 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if record and not gate_issue and not translation_blocking_issues(
                 ' '.join(entries[i][2] for i in group), record['text'], target):
             for i, part in zip(group, record['parts']):
-                out_texts[i] = part
-            cached_idx.update(group)
+                if i not in precompleted_idx:
+                    out_texts[i] = part
+            cached_idx.update(i for i in group if i not in precompleted_idx)
+            done_idx.update(group)
             records[group[0]] = record
+            # 'refined: false' isabetler: 1. geçiş metni hazır ama 2. geçiş
+            # henüz onaylamamış — çeviriyi ödemeden yalnız refine tekrarlanır.
+            if refine_enabled and isinstance(hit, dict) \
+                    and hit.get('refined') is False:
+                refine_pending_groups.append(group)
         else:
             pending_groups.append(group)
+
+    # Artımlı kalıcılaştırma: kabul edilen her grup önbelleğe ve bulanık
+    # çeviri hafızasına iş sonunu beklemeden düşer. Eskiden önbellek yalnız
+    # iş sonunda yazılıyordu; iptal/çökmede ödenen tüm çeviriler kayboluyordu.
+    tm_pending = []
+
+    def stage_group_cache(group, refined=None):
+        if not (cache_on and cache_file):
+            return
+        key = group_keys[group[0]]
+        if len(group) == 1:
+            value = {"text": out_texts[group[0]], "parts": [out_texts[group[0]]]}
+        else:
+            value = dict(records[group[0]])
+        # 2. geçiş açıkken 'refined: false' = 1. geçiş metni, henüz onaysız.
+        # Sonraki koşu çevirisini önbellekten alıp yalnız refine'ı tekrarlar;
+        # geçici refine hatası artık kalıcı 'kaba çeviri' demek değildir.
+        value["refined"] = (not refine_enabled) if refined is None else bool(refined)
+        if cache.get(key) != value:
+            cache[key] = value
+            cache_dirty.add(group[0])
+            cache_added_total[0] += len(group)
+
+    def stage_tm_rows(group):
+        if not tm or len(group) != 1:
+            return
+        index = group[0]
+        # Kimlik/noktalama-benzek eko TM'e girmez: fuzzy eşleşme kaynağı
+        # sonraki dosyalarda 'çeviri' diye döndürür (tüm kapıları atlatır).
+        if translation_is_source_echo(entries[index][2], out_texts[index]):
+            return
+        tm_pending.append((index, entries[index][2], out_texts[index],
+                           tm_context(group)))
+
+    def flush_cache_and_tm(force=False):
+        if not cache_dirty and not tm_pending:
+            return
+        now = time.time()
+        if not force and now - cache_flush_at[0] < 2.0:
+            return
+        cache_flush_at[0] = now
+        if cache_dirty:
+            with lock:
+                snapshot = dict(cache)
+                dirty = cache_dirty.copy()
+            try:
+                save_translate_cache(cache_file, snapshot)
+                # Yalnız yazılan imler silinir — snapshot sonrası kilit altında
+                # eklenen yeni kayıtlar kirli kalır, sonraki flush'ta yazılır.
+                cache_dirty.difference_update(dirty)
+            except Exception as exc:
+                log(f"Çeviri önbelleğinin artımlı yazımı başarısız: {exc}", "warn")
+        if tm and tm_pending:
+            rows, tm_pending[:] = tm_pending[:], []
+            stored = 0
+            for index, source, target_text, context in rows:
+                if not target_text or index in precompleted_idx:
+                    continue
+                if translation_blocking_issues(source, target_text, target):
+                    continue
+                try:
+                    stored += int(tm.store(source, target_text, tm_scope, context))
+                except Exception as exc:
+                    log(f"Çeviri hafızasına artımlı yazma başarısız ({index}): {exc}",
+                        "warn")
+            if stored:
+                tm_staged_total[0] += stored
+
+    # Kesinlikle çevrilmemesi gereken tek-cue satırlar API'ye hiç gönderilmez:
+    # vokalizasyon ('Ha ha ha.'), şarkı işareti ('♪ …'), yalnız kod/sayı/özel-ad
+    # ve zaten hedef dilde olan satırlar. Eskiden model bunları aynen döndürünce
+    # 'kaynak yankısı' sanılıp grup kurtarmayla 3'er istek yakıyor ve işin sonunda
+    # .tr.srt yazılmadan exit 1 ile çıkılıyordu.
+    unchanged_idx = set()
+    for group in list(pending_groups):
+        if len(group) != 1:
+            continue
+        index = group[0]
+        if index in done_idx or not line_keeps_source(entries[index][2], target, source_lang):
+            continue
+        out_texts[index] = entries[index][2]
+        records[index] = {"text": entries[index][2], "parts": [entries[index][2]]}
+        unchanged_idx.add(index)
+        done_idx.add(index)
+        stage_group_cache(group, refined=True)
+    if unchanged_idx:
+        pending_groups = [g for g in pending_groups if g[0] not in unchanged_idx]
+        log(f"{len(unchanged_idx)} satır çevrilmeden korundu "
+            "(vokalizasyon/şarkı/kod/zaten hedef dilde).")
+
     pending = [i for group in pending_groups for i in group]
-    if cache_on and cached_idx:
+    if cache_on and (cached_idx or precompleted_idx or unchanged_idx):
         log(f"Ceviri onbellegi: {len(cached_idx)}/{len(entries)} blok hazir, "
+            f"{len(precompleted_idx)} blok onceki ceviriyle korundu, "
             f"{len(pending)} blok cevrilecek")
-    if not pending:
+    if not pending and not refine_pending_groups:
         log("Tum bloklar onbellekten geldi - API'ye hic istek gonderilmedi.", "success")
         emit("llm_progress", percent=100.0, done=len(entries), failed=0,
              total=len(entries), stage="translate")
@@ -3579,13 +3947,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         ])
         if status_out is not None:
             status_out["completed"] = list(range(len(entries)))
+            status_out["unchanged"] = sorted(unchanged_idx)
+            status_out["precompleted"] = sorted(precompleted_idx)
+        flush_cache_and_tm(force=True)
         close_translation_memory()
         return ready
 
     # Bir cümle ne istek sınırında ne kısmi önbellek isabetinde bölünür.
     chunks = pack_sentence_groups(pending_groups, CHUNK_SIZE)
     route_state = {"preferred": routes[0]}
-    lock = threading.Lock()
     counters = {"done": 0, "failed": 0}
     failure_by_index = {}
     last_emit_ts = [time.time()]
@@ -3615,19 +3985,28 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             kwargs = {}
             if json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
-            return call_api_with_retry(lambda: client_for(url).chat.completions.create(
+            resp = call_api_with_retry(lambda: client_for(url).chat.completions.create(
                 model=args.translate_model,
                 messages=[
-                    {"role": "system", "content": prompt_text},
+                    # gpt-5/o-serisi 'system' yerine 'developer' rolü ister ve
+                    # temperature=0.2'yi 400 ile reddeder (sohbet yolu aynı
+                    # kapıyı zaten kullanıyordu; dosya çevirisi kullanmıyordu).
+                    {"role": chat_instruction_role(args.translate_model),
+                     "content": prompt_text},
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                 ],
-                temperature=0.2,
+                **llm_generation_kwargs(args.translate_model, 0.2),
                 **kwargs,
-            ), attempts=2)
+            # SDK katmanı max_retries=0 ile kapatıldı; geçici 429/5xx için
+            # tek dış deneme yetersiz kalıyor (eski iç+dış yuvada efektif 3
+            # denemeydi). 3, iç içe fırtına üretmeden aynı dayanıklılığı verir.
+            ), attempts=3)
+            return resp
 
         for url in order:
             if fatal_stop["error"] is not None:
                 raise fatal_stop["error"]
+            cancellation_checkpoint("llm", "during")
             try:
                 return create(url, route_state.get("json_mode", True)), url
             except Exception as e:
@@ -3647,11 +4026,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         return create(url, False), url
                     except Exception as plain_error:
                         last_err = plain_error
-                        if route_error_is_fatal(plain_error):
+                        if route_error_is_fatal(plain_error) \
+                                or route_error_is_definitive(plain_error):
                             raise
                         continue
-                # Kota/anahtar sorunu tum rotalarda ayni olur - rota denemek anlamsiz.
-                if route_error_is_fatal(e):
+                # Kota/anahtar sorunu, kesin yanıt redleri (içerik filtresi,
+                # 400) ve paket kesilmesi tüm rotalarda aynı olur — rota
+                # değiştirmek yalnız ücret tüketir.
+                if (route_error_is_fatal(e) or route_error_is_definitive(e)
+                        or isinstance(e, TranslationTruncatedError)):
                     raise
         raise last_err if last_err else RuntimeError("Ceviri istegi basarisiz")
 
@@ -3669,12 +4052,43 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 log("Ceviri rotasi degisti -> {}".format(used_url), "warn")
 
         content = (resp.choices[0].message.content or "").strip()
-        data = parse_llm_json_object(content, "Ceviri yaniti JSON nesnesi degil")
+        # finish_reason='length': yanıt token bütçesinde kesildi. Kesik JSON
+        # 'geçersiz yanıt' sayılıp aynı paketle tekrarlanıyordu; önce ayrıştırıcı
+        # kurtarabildiği kadarıyla denenir (kalan grup ayrıştırırsa akış normal
+        # kurtarmaya düşer), hiçbir grup çıkmazsa paket grup sınırından bölünür.
+        finish_reason = ""
+        try:
+            finish_reason = str(resp.choices[0].finish_reason or "")
+        except Exception:
+            finish_reason = ""
+        # İçerik filtresi aynı girdiye aynı ret'i verir — rota, küçük paket
+        # ve son-deneme kurtarmaları yalnız ücret tüketir; doğrudan başarısız.
+        if "content_filter" in finish_reason or "content_filter" in content.lower():
+            raise RuntimeError(
+                f"içerik filtresi yanıtı reddetti (finish_reason={finish_reason})")
+        try:
+            data = parse_llm_json_object(content, "Ceviri yaniti JSON nesnesi degil")
+        except Exception as parse_error:
+            with lock:
+                translation_metrics["invalid_batches"] += 1
+            if finish_reason == "length":
+                raise TranslationTruncatedError(
+                    "model yanıtı token limitinde kesildi (finish_reason=length)"
+                ) from parse_error
+            raise
+        # Sağlayıcı kimlik kayması/liste biçimi normalize edilir — kaymış
+        # anahtarlar aralık-dışı sayılıp paket bütünüyle reddediliyordu.
+        # Beklenen kimlikler payload'un paket-içi pozisyonlarıdır (entry
+        # indeksleri değil — ikinci parça 20-39 da 0-19 kimlik ister).
+        data = normalize_reply_ids(data, (
+            index for row in payload['sentence_groups'] for index in row['ids']))
         range_issue = reply_id_range_issue(data, len(chunk_idx))
         if range_issue:
             # Kaymış numaralandırmada hiçbir grup güvenilir değildir; paket
             # bütünüyle reddedilir ve küçük paketlerle yeniden denenir.
             note_rejections({range_issue: 1})
+            with lock:
+                translation_metrics["invalid_batches"] += 1
             raise RuntimeError("Yanitta istenen aralik disinda blok kimligi var ({})".format(range_issue))
 
         filled = 0
@@ -3702,6 +4116,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             if (translation_is_source_echo(row['source'], record['text'])
                     and not is_structural_sdh_cue(row['source'])):
                 rejected["kaynak_yankisi"] = rejected.get("kaynak_yankisi", 0) + 1
+                with lock:
+                    echo_seen[group[0]] = echo_seen.get(group[0], 0) + 1
                 continue
             meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
             if meaning_issues:
@@ -3716,17 +4132,26 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 continue
             with lock:
                 for index, part in zip(group, record['parts']):
-                    out_texts[index] = part
+                    if index not in precompleted_idx:
+                        out_texts[index] = part
                 records[group[0]] = record
                 done_idx.update(group)
+                # Önbellek + bulanık hafıza artık kabul anında sıralanır; iptal
+                # veya çökmede ödenen çeviriler korunur (eskiden yalnız iş
+                # sonunda yazılıyordu).
+                stage_group_cache(group)
+                stage_tm_rows(group)
                 if series_memory and series_key:
                     candidates = filter_series_memory_candidates(
                         data.get("memory"), row['source'], record['text'])
-                    series_memory.merge(candidates, series_key[1], series_key[2])
-            filled += len(group)
+                    if candidates:
+                        memory_candidates.append((group[0], row['source'], candidates))
+            filled += len([i for i in group if i not in precompleted_idx])
         note_rejections(rejected)
         if filled == 0:
             details = ", ".join(f"{key}={count}" for key, count in sorted(rejected.items()))
+            with lock:
+                translation_metrics["invalid_batches"] += 1
             raise RuntimeError(
                 "Yanitta eksiksiz ve tutarli bir cumle grubu bulunamadi"
                 + (f" (ret: {details})" if details else " (ret nedeni: bos grup listesi)")
@@ -3758,6 +4183,19 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         "- Dagitim emin degilse TAM ceviriyi kur ve parcalari dogal duraklardan bol."
     )
 
+    # Yapısal ayrıştırma hatası iş boyunca bu eşiği aşınca uç protokol-bozuk
+    # sayılır (kırık JSON, kaymış kimlik, zorunlu alan eksik): aynı paketi
+    # küçük parçalara ayırıp defalarca denemek ücret dışında bir şey üretmez.
+    # Sayaç kümülatiftir — dönüşümlü bozuk/geçerli yanıt veren uç ardışık
+    # sayaçla asla kesici açmazdı ve kurtarma döngüsü sınırsız ücret yakardı.
+    # Kalan parçalar doğrudan başarısız işaretlenir; kurtarma yalnız geçici
+    # olabilecek ilk hatalarda çalışır.
+    MAX_STRUCTURAL_FAILURES = 6
+
+    def structural_breaker_tripped():
+        with lock:
+            return translation_metrics["invalid_batches"] >= MAX_STRUCTURAL_FAILURES
+
     def retry_groups_once(groups_to_retry, *, batched=True):
         """Eksik grupları önce ikili küçük paket, gerekirse tek grup olarak kurtar."""
         recovered = 0
@@ -3782,6 +4220,35 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             "status", stage="translate",
             text=f"Çeviri kurtarılıyor: 0/{len(groups_to_retry)} cümle grubu",
         )
+        def accept_unchanged_echo(group):
+            """Model iki turda da kaynağı aynen döndürdü — bu satır(lar)
+            değişmeden kalmalıdır ('Ha ha ha.', 'Hasta la vista, baby.',
+            'Rock and roll!'). Eskiden kaynak-yankısı ret zinciri işi
+            öldürüyor ve bu satırlar önbelleğe hiç yazılmadığı için her
+            yeniden çalıştırmada aynı maliyetli döngü tekrarlanıyordu.
+            Kabul edilen (precompleted dahil değil) blok sayısını döndürür."""
+            with lock:
+                written = []
+                for index in group:
+                    if index not in precompleted_idx and index not in done_idx:
+                        out_texts[index] = entries[index][2]
+                        written.append(index)
+                unchanged_idx.update(written)
+                records[group[0]] = {
+                    "text": " ".join(entries[i][2] for i in group),
+                    "parts": [entries[i][2] for i in group],
+                }
+                done_idx.update(group)
+                stage_group_cache(group)
+                # TM'e yankı-kabul satırı yazılmaz: store() yalnız birebir
+                # eşitliği engeller; noktalama-benzek eko ('Wait!'→'Wait.')
+                # sqlite'a girer ve sonraki dosyalarda fuzzy eşleşmeyle
+                # kaynağı 'çeviri' diye döndürür — tembel yankı kalıcılaşır.
+                # (Ön-uçuç keeps_source bekçileri de bilinçli TM yazmaz.)
+            log(f"{len(group)} cue'luk grup iki turda da kaynağı yankıladı; "
+                "satırlar değişmeden kabul edildi ve önbelleğe yazıldı.")
+            return sum(1 for index in group if index not in precompleted_idx)
+
         def rescue_group(group):
             """Tek grup: normal kurtarma → yanıt kalite kapısında kalırsa
             dağıtım kuralları açıkça eklenmiş ikinci (son) deneme.
@@ -3795,20 +4262,33 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 first_reason = classify_translation_error(first_error)
             if all(index in done_idx for index in group):
                 return rec
+            # Toplu tur + kurtarma turu ikisi de yankı döndürdüyse üçüncü
+            # isteği ödemeden değişmeden kabul et.
+            if echo_seen.get(group[0], 0) >= 2:
+                return rec + accept_unchanged_echo(group)
             # Aynı promptu tekrarlamak aynı dağıtımı üretir; yanıt yapısal/kalite
             # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
             # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
-            if first_reason in {"", "invalid_response", "empty_response"}:
+            if first_reason in {"", "invalid_response", "empty_response", "truncated"} \
+                    and not structural_breaker_tripped():
                 try:
                     rec += task_once(group, phase="fallback",
                                      prompt_suffix=RESCUE_SUFFIX)
                 except Exception as second_error:
+                    # İkinci deneme de raise etti — yankı iki turda
+                    # kanıtlanmışsa yine değişmeden kabul edilir (eskiden
+                    # except'in erken return'ü kabul kontrolünü atlıyordu).
                     reason = classify_translation_error(second_error)
+                    if echo_seen.get(group[0], 0) >= 2:
+                        return rec + accept_unchanged_echo(group)
                     with lock:
                         for index in group:
                             if index not in done_idx:
                                 failure_by_index.setdefault(index, reason)
                     return rec
+            if not all(index in done_idx for index in group) \
+                    and echo_seen.get(group[0], 0) >= 2:
+                return rec + accept_unchanged_echo(group)
             with lock:
                 for index in group:
                     if index not in done_idx:
@@ -3833,7 +4313,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         rec += rescue_group(group)
                 except Exception as retry_error:
                     reason = classify_translation_error(retry_error)
-                    if reason in {"invalid_response", "empty_response"}:
+                    if reason in {"invalid_response", "empty_response", "truncated"} \
+                            and not structural_breaker_tripped():
                         log(
                             f"Çeviri küçük paketi {bundle[0]}-{bundle[-1]} de geçersiz "
                             f"({retry_error}); tek gruplara ayrılıyor.",
@@ -3878,12 +4359,25 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         groups_in_chunk = chunk_groups(chunk_idx)
         try:
             recovered = task_once(chunk_idx)
-        except Exception as error:
-            reason = classify_translation_error(error)
-            if reason not in {"invalid_response", "empty_response"}:
-                raise
+        except TranslationTruncatedError:
+            # finish_reason=length: aynı boyutlu paket tekrar da kesilir;
+            # paketi grup sınırından ikiye bölüp her yarıyı sırayla dene.
+            if len(groups_in_chunk) > 1:
+                mid = len(groups_in_chunk) // 2
+                left = [i for g in groups_in_chunk[:mid] for i in g]
+                right = [i for g in groups_in_chunk[mid:] for i in g]
+                log(f"Çeviri {chunk_idx[0]}-{chunk_idx[-1]} yanıtı token "
+                    f"limitinde kesildi; paket {len(left)}+{len(right)} blok "
+                    "olarak bölünüyor.", "warn")
+                return task(left) + task(right)
             with lock:
                 translation_metrics["invalid_batches"] += 1
+            return retry_groups_once(groups_in_chunk, batched=False)
+        except Exception as error:
+            reason = classify_translation_error(error)
+            if reason not in {"invalid_response", "empty_response"} \
+                    or structural_breaker_tripped():
+                raise
             log(
                 f"Çeviri {chunk_idx[0]}-{chunk_idx[-1]} toplu yanıtı geçersiz "
                 f"({error}); küçük paketlerle yeniden deneniyor.",
@@ -3904,15 +4398,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             recovered += retry_groups_once(missing_groups, batched=False)
         return recovered
 
-    done_idx = set()
-
     def record_chunk_result(ch, *, got=None, error=None):
         """Tek parça sonucunu sayaçlara/olaylara uygula ve hata kodunu döndür."""
         reason = ""
         if error is None:
             counters["done"] += got
-            # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi)
-            missing = len(ch) - got
+            # Yanitta gelmeyen bloklar da BASARISIZ sayilir (kaynak metin kaldi).
+            # Önceden çevrilmiş (precompleted) konumlar done_idx'dedir — eksik
+            # sayılmazlar.
+            missing = len([i for i in ch if i not in done_idx])
             if missing > 0:
                 counters["failed"] += missing
                 with lock:
@@ -3922,7 +4416,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 log("Ceviri {}-{}: {} blok eksik/tutarsiz cumle grubundaydi - o bloklarda orijinal "
                     "metin kaldi.".format(ch[0], ch[-1], missing), "warn")
         else:
-            counters["failed"] += len(ch)
+            counters["failed"] += len([i for i in ch if i not in precompleted_idx])
             reason = classify_translation_error(error)
             with lock:
                 for index in ch:
@@ -3937,13 +4431,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 for i in completed
             ])
         now = time.time()
-        handled = counters["done"] + counters["failed"] + len(cached_idx)
+        handled = counters["done"] + counters["failed"] + len(cached_idx) \
+            + len(precompleted_idx)
         if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
             emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
-                 done=counters["done"] + len(cached_idx),
+                 done=counters["done"] + len(cached_idx) + len(precompleted_idx),
                  failed=counters["failed"], total=len(entries),
                  stage="translate")
             last_emit_ts[0] = now
+        # Kabul edilen grupların önbellek/hafıza kaydı iş sonunu beklemez:
+        # iptal/çökmede ödenen çeviriler korunur.
+        flush_cache_and_tm()
         return reason
 
     # İlk parçayı senkron bir sağlayıcı probu olarak kullan. Anahtar/kota gibi
@@ -3956,8 +4454,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # ile sınırlı: sağlayıcıya aynı anda giden kurtarma isteği toplu çeviri
     # düzeyini aşmaz. Senkron prob öncesinde açılır; ilk parça da kurtarma
     # gerektirebilir.
-    rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
+    rescue_pool = None
     try:
+        rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
         if remaining_chunks:
             probe = remaining_chunks.pop(0)
             try:
@@ -3965,20 +4464,31 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             except Exception as error:
                 fatal_reason = record_chunk_result(probe, error=error)
 
-        if fatal_reason in FATAL_TRANSLATION_ERRORS and remaining_chunks:
-            skipped = sum(len(ch) for ch in remaining_chunks)
-            counters["failed"] += skipped
-            with lock:
-                for ch in remaining_chunks:
-                    for index in ch:
-                        if index not in done_idx:
-                            failure_by_index[index] = fatal_reason
-            log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
-                .format(fatal_reason, skipped), "warn")
-            emit("llm_progress", percent=100.0,
-                 done=counters["done"] + len(cached_idx), failed=counters["failed"],
-                 total=len(entries), stage="translate")
-            remaining_chunks = []
+        # İlk parça probu kimlik/kota/model hatalarıyla birlikte ağ hatasını da
+        # durdurucu sayar: iş başında bağlantı yoksa (uçak modu, DNS çökmesi)
+        # kalan yüzlerce parçanın retry+rota dolaşması yalnız süre yakar. Orta
+        # koşudaki geçici kopukluklar kapsam dışıdır — orada parça başına hata
+        # kaydedilip iş sürer.
+        if fatal_reason in FATAL_TRANSLATION_ERRORS or fatal_reason == "network_error":
+            probe_stop = fatal_reason if remaining_chunks else ""
+            if probe_stop:
+                skipped = sum(len(ch) for ch in remaining_chunks)
+                counters["failed"] += skipped
+                with lock:
+                    for ch in remaining_chunks:
+                        for index in ch:
+                            if index not in done_idx:
+                                failure_by_index[index] = probe_stop
+                if probe_stop == "network_error":
+                    log("Çeviri: sağlayıcıya bağlanılamadı (ağ hatası); {} blok "
+                        "API'ye gönderilmeden durduruldu.".format(skipped), "warn")
+                else:
+                    log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
+                        .format(probe_stop, skipped), "warn")
+                emit("llm_progress", percent=100.0,
+                     done=counters["done"] + len(cached_idx), failed=counters["failed"],
+                     total=len(entries), stage="translate")
+                remaining_chunks = []
 
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
@@ -3992,189 +4502,213 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         fatal_stop["error"] = error
                         log("Kalıcı sağlayıcı hatası [{}]; sıradaki parçalar yeni istek "
                             "açmadan durduruluyor.".format(reason), "warn")
-    finally:
-        rescue_pool.shutdown()
-
-    log(
-        "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
-        "{} geçersiz toplu yanıt; {:.1f} sn.".format(
-            translation_metrics["batch_requests"],
-            translation_metrics["fallback_requests"],
-            translation_metrics["requests"],
-            translation_metrics["invalid_batches"],
-            time.time() - translation_metrics["started"],
+        log(
+            "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
+            "{} geçersiz toplu yanıt; {:.1f} sn.".format(
+                translation_metrics["batch_requests"],
+                translation_metrics["fallback_requests"],
+                translation_metrics["requests"],
+                translation_metrics["invalid_batches"],
+                time.time() - translation_metrics["started"],
+            )
         )
-    )
-    # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
-    # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
-    batch_count = translation_metrics["batch_requests"]
-    invalid_count = translation_metrics["invalid_batches"]
-    emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
-         batches=batch_count, invalid_batches=invalid_count,
-         fallback_requests=translation_metrics["fallback_requests"],
-         rejections=dict(sorted(translation_metrics["rejections"].items())))
-    if batch_count >= 2 and invalid_count / batch_count >= 0.25:
-        log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
-            f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
-            "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
+        # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
+        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
+        batch_count = translation_metrics["batch_requests"]
+        invalid_count = translation_metrics["invalid_batches"]
+        emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
+             batches=batch_count, invalid_batches=invalid_count,
+             fallback_requests=translation_metrics["fallback_requests"],
+             rejections=dict(sorted(translation_metrics["rejections"].items())))
+        if batch_count >= 2 and invalid_count / batch_count >= 0.25:
+            log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
+                f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+                "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
 
-    if counters["done"] == 0 and not cached_idx:
-        # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
-        # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
-        # kullaniciyi yanıltir - basarisiz say.
-        msg = "Hicbir blok cevrilemedi ({} blok denendi) - ceviri dosyasi YAZILMADI.".format(
-            len(entries))
-        log("! " + msg, "error")
-        if warn_list is not None:
-            warn_list.append(msg)
-        if status_out is not None:
-            status_out["failed"] = list(range(len(entries)))
-            status_out["failedReasons"] = {
-                str(index): failure_by_index.get(index, "api_failure")
-                for index in range(len(entries))
-            }
-            if failure_by_index:
-                status_out["lastError"] = next(iter(failure_by_index.values()))
-        close_translation_memory()
-        return None
-
-    if counters["failed"]:
-        msg = "{}/{} blok cevrilemedi - o bloklarda ORIJINAL metin kaldi.".format(
-            counters["failed"], len(entries))
-        log("! Ceviri tamamlandi ama " + msg, "warn")
-        if warn_list is not None:
-            warn_list.append(msg)
-    else:
-        log("Ceviri tamamlandi - {} blok {} diline cevrildi.".format(len(entries), target_name),
-            "success")
-
-    # ---- İKİNCİ GEÇİŞ: gözden geçir ve iyileştir ----
-    # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
-    # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
-    # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
-    if getattr(args, "translate_refine", False):
-        emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
-        log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
-        refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)
-        if glossary_terms:
-            refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
-        refined = list(out_texts)
-        refined_idx = set()
-        r_counters = {"changed": 0, "failed": 0}
-        r_rejections = {}
-
-        def refine_task(chunk_idx):
-            payload = translation_payload(chunk_idx, refine=True)
-            resp, used_url = call_api_with(refine_prompt, payload)
-            content = (resp.choices[0].message.content or "").strip()
-            data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
-            n_changed = 0
-            confirmed = []
-            rejected = {}
-            range_issue = reply_id_range_issue(data, len(chunk_idx))
-            if range_issue:
-                rejected[range_issue] = len(chunk_idx)
-                return n_changed, confirmed, rejected
-            for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
-                record = accept_sentence_reply(data, row['ids'])
-                if not record:
-                    continue
-                gate_issue = part_gate_issue(group, record['parts'])
-                if gate_issue:
-                    key = "part_kapisi:" + gate_issue
-                    rejected[key] = rejected.get(key, 0) + len(group)
-                    continue
-                if (translation_is_source_echo(row['source'], record['text'])
-                        and not is_structural_sdh_cue(row['source'])):
-                    rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
-                    continue
-                assessment = evaluate_refinement_candidate(
-                    row['source'], row['translation'], record['text'], target,
-                    sum(translation_char_budget(entries[i], args) for i in group))
-                if not assessment["accepted"]:
-                    for reason in assessment["reasons"]:
-                        rejected[reason] = rejected.get(reason, 0) + len(group)
-                    continue
-                with lock:
-                    for source_index, new_text in zip(group, record['parts']):
-                        if new_text != out_texts[source_index]:
-                            n_changed += 1
-                        refined[source_index] = new_text
-                    records[group[0]] = record
-                confirmed.extend(group)
-            return n_changed, confirmed, rejected
-
-        refine_chunks = pack_sentence_groups(
-            [group for group in pending_groups if all(i in done_idx for i in group)], CHUNK_SIZE)
-        with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
-            futs = {ex.submit(refine_task, ch): ch for ch in refine_chunks}
-            for fut in as_completed(futs):
-                ch = futs[fut]
-                try:
-                    changed, confirmed, rejected = fut.result()
-                    r_counters["changed"] += changed
-                    r_counters["failed"] += len(ch) - len(confirmed)
-                    refined_idx.update(confirmed)
-                    for reason, count in rejected.items():
-                        r_rejections[reason] = r_rejections.get(reason, 0) + count
-                except Exception as e:
-                    r_counters["failed"] += len(ch)
-                    log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
-                        ch[0], ch[-1], e), "warn")
-        out_texts = refined
-        if r_counters["failed"]:
-            log("2. geçiş: {} blok düzeltildi, {} blokta hata (1. geçiş korundu)".format(
-                r_counters["changed"], r_counters["failed"]), "warn")
+        if counters["done"] == 0 and not cached_idx:
+            # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
+            # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
+            # kullaniciyi yanıltir - basarisiz say.
+            msg = "Hicbir blok cevrilemedi ({} blok denendi) - ceviri dosyasi YAZILMADI.".format(
+                len(entries))
+            log("! " + msg, "error")
             if warn_list is not None:
-                warn_list.append(f"2. geçişte {r_counters['failed']} blok doğrulanamadı; ilgili cümlelerin 1. geçişi korundu.")
+                warn_list.append(msg)
+            if status_out is not None:
+                status_out["failed"] = list(range(len(entries)))
+                status_out["failedReasons"] = {
+                    str(index): failure_by_index.get(index, "api_failure")
+                    for index in range(len(entries))
+                }
+                if failure_by_index:
+                    status_out["lastError"] = next(iter(failure_by_index.values()))
+            close_translation_memory()
+            return None
+
+        if counters["failed"]:
+            msg = "{}/{} blok cevrilemedi - o bloklarda ORIJINAL metin kaldi.".format(
+                counters["failed"], len(entries))
+            log("! Ceviri tamamlandi ama " + msg, "warn")
+            if warn_list is not None:
+                warn_list.append(msg)
         else:
-            log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
+            log("Ceviri tamamlandi - {} blok {} diline cevrildi.".format(len(entries), target_name),
                 "success")
-        if r_rejections:
-            details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
-            log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
 
-    # Basarili cevirileri onbellege yaz (basarisizlar KAYNAK metin oldugu icin yazilmaz)
-    cacheable_idx = done_idx if not getattr(args, "translate_refine", False) \
-        else done_idx.intersection(refined_idx)
-    try:
-        if cache_on and cache_file:
-            added = 0
-            for group in pending_groups:
-                if not all(i in cacheable_idx for i in group):
-                    continue
-                k = group_keys[group[0]]
-                value = out_texts[group[0]] if len(group) == 1 else records[group[0]]
-                if cache.get(k) != value:
-                    cache[k] = value
-                    added += len(group)
-            if added:
-                cancellation_checkpoint("llm", "during")
-                save_translate_cache(cache_file, cache)
-                log(f"Ceviri onbellegine {added} blok eklendi.")
-        if tm:
-            stored = 0
-            for group in pending_groups:
-                if len(group) != 1 or group[0] not in cacheable_idx:
-                    continue
-                source = entries[group[0]][2]
-                target_text = out_texts[group[0]]
-                if not translation_blocking_issues(source, target_text, target):
-                    cancellation_checkpoint("llm", "during")
-                    stored += int(tm.store(source, target_text, tm_scope, tm_context(group)))
-            if stored:
-                log(f"Bulanık çeviri hafızasına {stored} güvenli cümle eklendi.")
+        # ---- İKİNCİ GEÇİŞ: gözden geçir ve iyileştir ----
+        # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
+        # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
+        # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
+        refined_idx = set()
+        if getattr(args, "translate_refine", False):
+            emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
+            log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
+            refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)
+            if glossary_terms:
+                refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
+            refined = list(out_texts)
+            r_counters = {"changed": 0, "failed": 0}
+            r_rejections = {}
+
+            def refine_task(chunk_idx):
+                payload = translation_payload(chunk_idx, refine=True)
+                resp, used_url = call_api_with(refine_prompt, payload)
+                content = (resp.choices[0].message.content or "").strip()
+                data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
+                n_changed = 0
+                confirmed = []
+                rejected = {}
+                # 1. geçişteki kimlik-kayması normalizasyonu 2. geçişte de zorunlu —
+                # 1'den numaralayan sağlayıcıda refine yanıtları sürekli
+                # aralık-dışı sayılıyor ve 'refined: false' sonsuz tekrar üretiyordu.
+                data = normalize_reply_ids(data, (
+                    index for row in payload['sentence_groups'] for index in row['ids']))
+                range_issue = reply_id_range_issue(data, len(chunk_idx))
+                if range_issue:
+                    rejected[range_issue] = len(chunk_idx)
+                    return n_changed, confirmed, rejected
+                for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
+                    record = accept_sentence_reply(data, row['ids'])
+                    if not record:
+                        continue
+                    gate_issue = part_gate_issue(group, record['parts'])
+                    if gate_issue:
+                        key = "part_kapisi:" + gate_issue
+                        rejected[key] = rejected.get(key, 0) + len(group)
+                        continue
+                    if (translation_is_source_echo(row['source'], record['text'])
+                            and not is_structural_sdh_cue(row['source'])):
+                        rejected["source_echo"] = rejected.get("source_echo", 0) + len(group)
+                        continue
+                    assessment = evaluate_refinement_candidate(
+                        row['source'], row['translation'], record['text'], target,
+                        sum(translation_char_budget(entries[i], args) for i in group))
+                    if not assessment["accepted"]:
+                        for reason in assessment["reasons"]:
+                            rejected[reason] = rejected.get(reason, 0) + len(group)
+                        continue
+                    with lock:
+                        for source_index, new_text in zip(group, record['parts']):
+                            if source_index in precompleted_idx:
+                                continue  # elle/eski çeviri asla ezilmez
+                            if new_text != out_texts[source_index]:
+                                n_changed += 1
+                            refined[source_index] = new_text
+                        records[group[0]] = record
+                    confirmed.extend(group)
+                return n_changed, confirmed, rejected
+
+            refine_chunks = pack_sentence_groups(
+                [group for group in pending_groups if all(i in done_idx for i in group)]
+                + refine_pending_groups, CHUNK_SIZE)
+            with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
+                futs = {ex.submit(refine_task, ch): ch for ch in refine_chunks}
+                for fut in as_completed(futs):
+                    ch = futs[fut]
+                    try:
+                        changed, confirmed, rejected = fut.result()
+                        r_counters["changed"] += changed
+                        r_counters["failed"] += len(ch) - len(confirmed)
+                        refined_idx.update(confirmed)
+                        for reason, count in rejected.items():
+                            r_rejections[reason] = r_rejections.get(reason, 0) + count
+                    except Exception as e:
+                        r_counters["failed"] += len(ch)
+                        log("2. geçiş {}-{} hatası: {} (1. geçiş çevirisi korundu)".format(
+                            ch[0], ch[-1], e), "warn")
+            out_texts = refined
+            if r_counters["failed"]:
+                log("2. geçiş: {} blok düzeltildi, {} blokta hata (1. geçiş korundu)".format(
+                    r_counters["changed"], r_counters["failed"]), "warn")
+                if warn_list is not None:
+                    warn_list.append(f"2. geçişte {r_counters['failed']} blok doğrulanamadı; ilgili cümlelerin 1. geçişi korundu.")
+            else:
+                log("2. geçiş tamamlandı: {} blok iyileştirildi".format(r_counters["changed"]),
+                    "success")
+            if r_rejections:
+                details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
+                log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
+
+        # Başarılı çevirilerin son metinleri önbelleğe yazılır. Artımlı yazım
+        # zaten yapıldı; burada 2. geçişle değişen grupların güncel hâlleri
+        # sıralanır. 2. geçişte doğrulanamayan grupların 1. geçiş çevirileri de
+        # artık kaydedilir (eskiden cacheable_idx'in dışında kalıp her yeniden
+        # çalıştırmada tekrar ücretlendiriliyorlardı).
+        # Dizi hafızası: kararlar 2. geçişin SON metinlerine karşı süzülüp
+        # iş sonunda tek dosya yazımıyla kalıcılaştırılır (eskiden 1. geçiş
+        # metniyle refine'dan önce yazılıp eski terimi kanon yapıyordu;
+        # paket başına kilit altında fsync de işçileri bekletiyordu).
+        if series_memory and series_key and memory_candidates:
+            merged_rows = []
+            for group_index, source, candidates in memory_candidates:
+                record = records.get(group_index)
+                final_text = record.get("text") if isinstance(record, dict) \
+                    else out_texts[group_index]
+                filtered = filter_series_memory_candidates(
+                    candidates, source, str(final_text or ""))
+                if filtered:
+                    merged_rows.append(filtered)
+            if merged_rows:
+                try:
+                    series_memory.merge_many(merged_rows, series_key[1], series_key[2])
+                    log(f"Dizi hafızasına {len(merged_rows)} paketin kararları "
+                        "tek kayıtta yazıldı.")
+                except Exception as exc:
+                    log(f"Dizi hafızasının son kaydı başarısız: {exc}", "warn")
+
+        for group in pending_groups + refine_pending_groups:
+            if not all(i in done_idx for i in group):
+                continue
+            stage_group_cache(
+                group,
+                refined=not refine_enabled or all(i in refined_idx for i in group))
+            stage_tm_rows(group)
+        flush_cache_and_tm(force=True)
+        if cache_added_total[0]:
+            log(f"Ceviri onbellegine {cache_added_total[0]} blok eklendi.")
+        if tm_staged_total[0]:
+            log(f"Bulanık çeviri hafızasına {tm_staged_total[0]} güvenli cümle eklendi.")
     finally:
-        # İptal tam önbellek yazım sınırında gelirse SQLite bağlantısını açık
-        # bırakma. Windows'ta bu, sonraki işin hafıza dosyasını kilitleyebilir.
+        # İptal/çıkış her yolda: sıralanmış önbellek/hafıza kayıtları
+        # korunur ve SQLite bağlantısı kapanır — Windows'ta açık kalan
+        # dosya sonraki işi kilitler. Havuz kapatması da burada: refine
+        # aşaması bitmeden havuzu erken kapatmak kurtarma gönderimlerini
+        # RuntimeError ile düşürürdü.
+        if rescue_pool is not None:
+            rescue_pool.shutdown()
+        try:
+            flush_cache_and_tm(force=True)
+        except Exception as exc:
+            log(f"Çeviri hafızasının son yazımı başarısız: {exc}", "warn")
         close_translation_memory()
-
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
         {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(result)
     ])
     if status_out is not None:
         status_out["completed"] = sorted(set(cached_idx).union(done_idx))
+        status_out["unchanged"] = sorted(unchanged_idx)
+        status_out["precompleted"] = sorted(precompleted_idx)
         status_out["failed"] = [i for i in range(len(entries))
                                  if i not in set(status_out["completed"])]
         status_out["failedReasons"] = {
@@ -5207,7 +5741,25 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
 
         out[i][1] = e
 
-    return [(s, e, t) for (s, e, t) in out]
+    # Bitişik komşular arasına sıkışan ~10 ms cue ekranda okunamaz flaş olur.
+    # Metni kaybetmektense blok sonraki cue'nun başına katlanır (komşusu zaten
+    # ~anında gösterilir); sonda kalırsa öncekinin sonuna eklenir.
+    merged = []
+    for i, (s, e, t) in enumerate(out):
+        if e - s < 0.2:
+            if i + 1 < len(out):
+                out[i + 1][2] = f"{(t or '').strip()} {(out[i + 1][2] or '').strip()}".strip()
+                continue
+            if merged:
+                merged[-1][2] = f"{(merged[-1][2] or '').strip()} {(t or '').strip()}".strip()
+                # Sondaki kısa cue'nun konuşma zamanı da korunur: öncekinin
+                # bitişi kısa cue'nun bitişine uzatılır (metin yalnız erkende
+                # gösterilmez).
+                merged[-1][1] = max(merged[-1][1], e)
+                continue
+        merged.append([s, e, t])
+
+    return [(s, e, t) for (s, e, t) in merged]
 
 
 def compute_quality_report(entries, max_cps=20.0, max_dur=7.0, min_dur=0.8, segment_metrics=None):
@@ -6427,7 +6979,13 @@ def transcribe(args):
                 entries, translated,
                 failed_count=max(0, len(entries) - len(provisional_completed)),
             )
-            quality_failed = set(translation_report["translation_issue_indices"])
+            # Bilinçli değişmeden bırakılan satırlar (zaten hedef dilde,
+            # yankı-kabul, önceden çevrilmiş) kalite kapısında 'çevrilmedi'
+            # sayılmasın — yoksa tamamlanan işler .partial dosya adıyla çıkıyordu.
+            quality_failed = (
+                set(translation_report["translation_issue_indices"])
+                - set(translation_status.get("unchanged") or ())
+                - set(translation_status.get("precompleted") or ()))
             completed_indices = provisional_completed - quality_failed
             translation_completed_count = len(completed_indices)
             translation_failed_count = max(0, len(entries) - translation_completed_count)
@@ -7067,7 +7625,12 @@ def translate_existing_subtitle(args):
             cue_formats = []   # indeks eşlemesi bozuldu; biçim güvenle taşınamaz
     if len(cue_formats) != len(entries):
         cue_formats = []
-    elif any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
+    entries, cue_formats, dropped_empty = drop_empty_entries(entries, cue_formats)
+    if dropped_empty:
+        log(f"{dropped_empty} metinsiz blok (yalnız efekt/etiket) çeviriden çıkarıldı.", "info")
+    if not entries:
+        raise RuntimeError("Altyazıda çevrilecek metin yok.")
+    if cue_formats and any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
         kept = sum(1 for item in cue_formats if item["align"] not in (None, 2) or item["pos"] or item["italic"])
         log(f"ASS biçimi korunuyor: {kept} blokta konum/hizalama/italik çeviriye taşınacak.")
 
@@ -7084,6 +7647,11 @@ def translate_existing_subtitle(args):
         if len(entries) != _merge_n0:
             log(f"Cumle birlestirme (ceviri): {_merge_n0} -> {len(entries)} blok "
                 f"({_merge_n0 - len(entries)} devam satiri onceki bloga katildi)")
+            if cue_formats:
+                # Birleştirme indeksleri kaydırır; ASS konum/italik biçimi yanlış
+                # satıra ({\an8} tabela → diyalog) taşınıyordu. Güvenle eşlenemez.
+                cue_formats = []
+                log("Cümle birleştirme nedeniyle ASS konum/italik biçimi taşınmadı.", "warn")
 
     # Hazır altyazıda cue kimliği/zamanı ve kaynak dosya AYNEN kalır. Yalnız
     # diyalogla aynı cue içindeki güvenli SDH betimlemesi model girdisinden
@@ -7186,44 +7754,75 @@ def translate_existing_subtitle(args):
                 log(f"Mevcut çeviri bulundu: {len(existing_by_key)} blok korunacak.", "info")
         except Exception as error:
             log(f"Mevcut çeviri okunamadı; tüm bloklar yeniden denenecek: {error}", "warn")
-    emit("status", stage="translate", text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
     def existing_for(entry, index):
         return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
 
-    pending_pairs = [(index, translation_source_entries[index])
-                     for index, entry in enumerate(entries)
-                     if existing_for(entry, index) is None]
-    pending_entries = [entry for _index, entry in pending_pairs]
-    pending_source_positions = {id(entry): source_index for source_index, entry in pending_pairs}
-    pending_status_positions = {source_index: pending_index
-                                for pending_index, (source_index, _entry) in enumerate(pending_pairs)}
+    # Kaynak==hedef dil kapısı. Normal transkripsiyon yolunda zaten vardı
+    # (:6738) ama var-olan-altyazı modunda yoktu: Türkçe bir .tr.srt'i
+    # Türkçeye 'çevirmek' kurtarma turlarıyla binlerce boş istek üretirdi
+    # (ölçüm: 3 satır için 8 istek; 1500 satır için ~3000 istek tahmini).
+    # Gövde-sezgiselliği YALNIZ kaynak 'auto' iken düşer: açıkça 'en' seçilmiş
+    # karma dosyada ilk 40 satır Türkçe olsa bile sonraki İngilizce satırlar
+    # atlanmamalı (satır bazlı koruma zaten hedef-dil satırlarını eler).
+    source_declared = getattr(args, "language", "auto")
+    source_is_auto = str(source_declared or "").strip().lower().replace("_", "-") \
+        in {"", "auto", "unknown", "und"}
+    same_language = same_translation_language(source_declared, target)
+    if not same_language and target == "tr" and source_is_auto \
+            and file_looks_turkish(translation_source_entries):
+        same_language = True
+
+    # 'Eksikleri tamamla': modele dosyanın TAMAMI gider; önceden çevrilmiş
+    # konumlar yalnızca bağlam olur ve asla ezilmez. Eskiden modele yalnız
+    # eksik satırların ayrı listesi veriliyordu — komşuları yanlışlıkla tek
+    # cümle sanıyor ('I think' + 'are right.' -> 'I think are right.').
+    precompleted = {
+        index: existing_for(entry, index)
+        for index, entry in enumerate(entries)
+        if existing_for(entry, index) is not None
+    }
     translation_status = {}
-    if existing_by_key and not pending_entries:
+    if same_language:
+        message = (f"Kaynak dil ile hedef dil aynı ({target}); gereksiz çeviri "
+                   "API çağrısı yapılmadı.")
+        log(message, "warn")
+        warn_list.append(message)
+        translation_status.update(
+            completed=list(range(len(entries))), failed=[], failedReasons={},
+            lastError="same_language", skipped="same_language")
+        translated = [(entry[0], entry[1],
+                       existing_for(entry, index) or entry[2])
+                      for index, entry in enumerate(entries)]
+        emit("status", stage="translate",
+             text="Kaynak dil zaten hedef dilde; çeviri isteği atlandı")
+        emit("translation_refresh", segments=[
+            {"index": i, "start": s, "end": e, "text": t}
+            for i, (s, e, t) in enumerate(translated)
+        ])
+    elif len(precompleted) == len(entries):
         log("Eksik çeviri yok; API çağrısı yapılmadı.", "success")
-        translated = [(entry[0], entry[1], existing_for(entry, index)) for index, entry in enumerate(entries)]
+        translated = [(entry[0], entry[1], existing_for(entry, index))
+                      for index, entry in enumerate(entries)]
     else:
+        emit("status", stage="translate",
+             text=f"Ceviriliyor: {LANG_NAMES.get(target, target)}")
         translated_pending = llm_translate(
-            pending_entries, args, warn_list, source_lang=args.language,
-            status_out=translation_status)
+            translation_source_entries, args, warn_list, source_lang=args.language,
+            status_out=translation_status, precompleted=precompleted)
         # Toplam API/kimlik/kota hatasında llm_translate None döndürür.
         # None'ı boş liste gibi ele alıp kaynak metinleri "çeviri" dosyasına
         # yazmak, kullanıcıya başarısız işi tamamlanmış gibi gösteriyordu.
-        if pending_entries and translated_pending is None:
+        if translated_pending is None:
             raise RuntimeError(
                 "Eksik altyazı blokları çevrilemedi; mevcut çeviri korunarak "
                 "yeniden deneme için çıktı yazılmadı."
             )
-        translated = translated_pending
-        # Aynı zaman aralığına sahip cue'lar olabilir; yalnız zaman kodu ile
-        # eşleştirmek birinin metnini diğerine yazıyordu. llm_translate sıralı
-        # liste döndürdüğü için pending nesnesinin kimliğini kullan.
-        translated_map = {
-            pending_source_positions[id(source_entry)]: result_entry[2]
-            for source_entry, result_entry in zip(pending_entries, translated or [])
-        }
-        translated = [(entry[0], entry[1], translated_map.get(index,
-                    existing_for(entry, index) or entry[2]))
-                      for index, entry in enumerate(entries)]
+        # llm_translate her zaman girişle aynı uzunlukta ve aynı sıralamada
+        # döndürür (başarısız konumda kaynak metin kalır); indeksler artık
+        # doğrudan entries uzayında eşleşir.
+        translated = [(entries[index][0], entries[index][1],
+                       translated_pending[index][2])
+                      for index in range(len(entries))]
     if translated:
         # Model girdisinden çıkarılan satır içi SDH işaretleri çeviri
         # metninde kaybolmasın: eksik olanlar cue başına geri konur.
@@ -7237,13 +7836,10 @@ def translate_existing_subtitle(args):
     if not translated:
         raise RuntimeError("Ceviri yapilamadi - ayrintilar gunlukte.")
 
-    provisional_completed = {
-        index for index, entry in enumerate(entries)
-        if existing_for(entry, index) is not None
-    }
-    for pending_index in set(translation_status.get("completed", [])):
-        if isinstance(pending_index, int) and 0 <= pending_index < len(pending_pairs):
-            provisional_completed.add(pending_pairs[pending_index][0])
+    provisional_completed = set(precompleted)
+    for index in set(translation_status.get("completed", [])):
+        if isinstance(index, int) and 0 <= index < len(entries):
+            provisional_completed.add(index)
     translation_report = compute_translation_quality_report(
         entries, translated,
         failed_count=max(0, len(entries) - len(provisional_completed)),
@@ -7251,7 +7847,14 @@ def translate_existing_subtitle(args):
     untranslated_indices = set(translation_report["translation_untranslated_indices"])
     empty_translation_indices = set(translation_report["translation_empty_indices"])
     timing_mismatch_indices = set(translation_report["translation_timing_mismatch_indices"])
-    quality_failed_indices = set(translation_report["translation_issue_indices"])
+    # Bilinçli değişmeden kalan satırlar kalite 'başarısız' sayılmaz
+    # (yankı-kabul / zaten hedef dilde / önceden çevrilmiş satırları
+    # .partial'a düşürüyordu).
+    quality_failed_indices = (
+        set(translation_report["translation_issue_indices"])
+        - set(translation_status.get("unchanged") or ())
+        - set(translation_status.get("precompleted") or ())
+        - set(precompleted))
     completed_source_indices = provisional_completed - quality_failed_indices
     completed_count = len(completed_source_indices)
     failed_count = max(0, len(entries) - completed_count)
@@ -7351,7 +7954,7 @@ def translate_existing_subtitle(args):
         if fmt in {"srt", "vtt", "ass"} and len(translated) == len(entries):
             metadata_cues = []
             for index, entry in enumerate(entries):
-                pending_index = pending_status_positions.get(index)
+                pending_index = index
                 completed = index in completed_source_indices
                 failed_reasons = translation_status.get("failedReasons", {})
                 metadata_cues.append({
@@ -7701,12 +8304,40 @@ def read_subtitle_text(path):
     return text, "latin-1", False
 
 
-def parse_srt(text):
-    """SRT metnini [(start, end, text)] listesine çevir (iç satır sonlarını korur)."""
+_VTT_META_BLOCK = re.compile(r"^(?:NOTE(?:\s|$)|STYLE\s*$|REGION\s*$)")
+_BLANK_LINES = re.compile(r"\n[ \t]*\n+")
+
+
+def parse_srt(text, vtt=False):
+    """SRT metnini [(start, end, text)] listesine çevir (iç satır sonlarını korur).
+
+    Cue gövdesindeki boş satırlar tek satır sonuna indirilir: SRT'de boş satır
+    cue ayracıdır; korunursa katı yazıcı "N cue beklendi, N+1 blok" diye bütün
+    işi düşürüyordu (senkron/çeviri modunda API ücreti ödendikten sonra).
+    vtt=True iken NOTE/STYLE/REGION blokları cue metnine karışmaz (eskiden
+    çevirmen notu çevrilip ekranda gösteriliyordu).
+    """
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     entries = []
     lines = text.strip().split("\n")
-    timing_indices = [i for i, line in enumerate(lines) if _SRT_TIMING.search(line)]
+    meta_lines = set()
+    if vtt:
+        # NOTE/STYLE/REGION blokları paragraf düzeyinde ayrışır: içlerindeki
+        # zaman kodu benzeri satırlar cue sınırı sayılmaz (çevirmen notundaki
+        # "00:05 --> 00:10" yazısı sahte cue üretip notu çeviriye sızdırıyordu).
+        idx = 0
+        while idx < len(lines):
+            if not lines[idx].strip():
+                idx += 1
+                continue
+            end = idx
+            while end < len(lines) and lines[end].strip():
+                end += 1
+            if _VTT_META_BLOCK.match(lines[idx].strip()):
+                meta_lines.update(range(idx, end))
+            idx = end
+    timing_indices = [i for i, line in enumerate(lines)
+                      if _SRT_TIMING.search(line) and i not in meta_lines]
     for position, timing_idx in enumerate(timing_indices):
         m = _SRT_TIMING.search(lines[timing_idx])
         if not m:
@@ -7724,7 +8355,22 @@ def parse_srt(text):
             separated_cue_id = bool(candidate) and until > 1 and not lines[until - 2].strip()
             if candidate.isdigit() or separated_cue_id:
                 until -= 1
-        txt = "\n".join(lines[timing_idx + 1:until]).strip()
+        body_lines = lines[timing_idx + 1:until]
+        if vtt:
+            # Boş satırla ayrılmış paragraflardan meta blok olanları at.
+            paragraphs, current = [], []
+            for line in body_lines:
+                if line.strip():
+                    current.append(line)
+                elif current:
+                    paragraphs.append(current)
+                    current = []
+            if current:
+                paragraphs.append(current)
+            body_lines = [line for paragraph in paragraphs
+                          if not _VTT_META_BLOCK.match(paragraph[0].strip())
+                          for line in paragraph + [""]]
+        txt = _BLANK_LINES.sub("\n", "\n".join(body_lines).strip())
         if not txt:
             continue
         entries.append((start, end, txt))
@@ -7856,7 +8502,49 @@ def _decorate(text, decorations, index):
 
 def parse_subtitle_entries(text, suffix=""):
     ext = str(suffix or "").lower().lstrip(".")
-    return parse_ass(text) if ext in {"ass", "ssa"} else parse_srt(text)
+    entries = parse_ass(text) if ext in {"ass", "ssa"} else parse_srt(text, vtt=ext == "vtt")
+    return clamp_nonpositive_durations(entries)
+
+
+def clamp_nonpositive_durations(entries):
+    """Süresi sıfır/negatif cue'lara geçerli bir bitiş ver (cue sayısı değişmez).
+
+    Kaynak dosyalarda 00:00:01,000 --> 00:00:01,000 gibi cue'lar görülür; katı
+    SRT yazıcısı bunları "cue zamanı geçersiz" diye reddedip bütün çıktıyı
+    düşürüyordu. Bitiş en fazla 1 sn ileri alınır ve sonraki cue'nun başını geçmez
+    (milisaniye çözünürlüğünde en az 1 ms).
+    """
+    out = []
+    items = list(entries or [])
+    for index, (start, end, text) in enumerate(items):
+        start_ms = int(round(float(start) * 1000))
+        end_ms = int(round(float(end) * 1000))
+        if end_ms <= start_ms:
+            next_start_ms = None
+            for later in items[index + 1:]:
+                candidate = int(round(float(later[0]) * 1000))
+                if candidate > start_ms:
+                    next_start_ms = candidate
+                    break
+            limit = start_ms + 1000 if next_start_ms is None else min(start_ms + 1000, next_start_ms)
+            end = max(start_ms + 1, limit) / 1000.0
+        out.append((start, end, text))
+    return out
+
+
+def drop_empty_entries(entries, formats=None):
+    """Metni boş cue'ları (ör. yalnız {\\fad} etiketi taşıyan ASS satırı) at.
+
+    Katı SRT yazıcısı boş gövdeyi bilerek reddeder; boş cue'lar yazıcıya
+    ulaşmadan düşürülmeli. formats verilirse aynı indekslerle birlikte süzülür
+    (ASS biçim eşlemesi kaymasın).
+    """
+    keep = [i for i, (_s, _e, t) in enumerate(entries) if str(t or "").strip()]
+    kept_entries = [entries[i] for i in keep]
+    if formats is None:
+        return kept_entries, len(entries) - len(kept_entries)
+    kept_formats = [formats[i] for i in keep] if len(formats) == len(entries) else []
+    return kept_entries, kept_formats, len(entries) - len(kept_entries)
 
 
 def shift_srt_entries(entries, offset):
@@ -8203,7 +8891,7 @@ def sync_subtitles(args):
         log(f"Altyazı kodlaması: {used_enc} (UTF-8 değil, dönüştürüldü)", "warn")
     if repaired:
         log("Bozuk Türkçe karakterler onarıldı (çift kodlanmış UTF-8)", "success")
-    spans = parse_subtitle_entries(text, srt_path.suffix)
+    spans, _dropped_empty = drop_empty_entries(parse_subtitle_entries(text, srt_path.suffix))
     if not spans:
         raise RuntimeError("Altyazıda geçerli blok bulunamadı (SRT/VTT/ASS desteklenir).")
 
@@ -8511,6 +9199,10 @@ def main():
         args.llm_api_key = os.environ.get("WHISPER_LLM_API_KEY", "")
     if not args.translate_api_key:
         args.translate_api_key = os.environ.get("WHISPER_TRANSLATE_API_KEY", "")
+    # Anahtarlar okundu; ffmpeg/ffprobe gibi alt süreçlere miras kalmasınlar
+    # (en-az-yetki ortam sözleşmesi, CLAUDE.md).
+    for secret_env in ("WHISPER_HF_TOKEN", "WHISPER_LLM_API_KEY", "WHISPER_TRANSLATE_API_KEY"):
+        os.environ.pop(secret_env, None)
 
     try:
         if args.sync_subs:
@@ -8526,6 +9218,12 @@ def main():
         else:
             transcribe(args)
     except Exception as e:
+        # Yarım kalan çıktı işlemi journal/.tmp bırakmasın (bkz. pipeline_control).
+        try:
+            from pipeline_control import rollback_open_output_transactions
+            rollback_open_output_transactions()
+        except Exception:
+            pass
         emit("error", message=str(e), traceback=traceback.format_exc())
         sys.exit(1)
 

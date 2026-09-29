@@ -60,11 +60,46 @@ const dormantNames = new Set(DORMANT.map((d) => d.name));
 const exports_ = preloadExports();
 assert(exports_.size > 200, `preload export sayısı beklenmedik düşük: ${exports_.size}`);
 
+// Yorum/dizgi içinde geçen `api.ad` sözlerini kullanım sanmamak için
+// tek geçişli sözcük tarayıcı: yorumlar ve dizgi sabitleri sırayla
+// tanınır (bir `//` dizginin içindeyse yorum sayılmaz). Nokta erişimi
+// yorum+dizgi soyulmuş metinde; `api['ad']` köşeli erişimi ad dizgi
+// sabitinin içinde olduğundan yalnız yorum soyulmuş metinde aranır.
+// Bilinen sınır: `//` içeren regex sabitleri (ör. /\/\//) satır
+// sonuna dek yorum sayılır — satır içi api çağrısını yiyebilir;
+// böyle bir satır varsa açık DORMANT gerekçesiyle işaretlenir.
+const TOKEN = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g;
+function stripTokens(src, stripStrings) {
+  return src.replace(TOKEN, (m) => {
+    if (m[0] === '/') return ' ';
+    return stripStrings ? m[0] + m[0] : m;
+  });
+}
+const rawSrc = srcFiles.map((f) => fs.readFileSync(f, 'utf8'));
+const noComments = rawSrc.map((s) => stripTokens(s, false));
+const noStrings = noComments.map((s) => stripTokens(s, true));
+
+// `api['ad']` köşeli erişimi dizgi SABİTİNİN içinde geçiyorsa kullanım
+// sayılmaz: ham kaynaktaki yorum+dizgi aralıkları maskelenir, köşeli
+// eşleşmenin başlangıcı maske dışında olmalı. (Soyulmuş metinde
+// `api['ad']` adı silindiği için arama ham metinde yapılır.)
+const maskSpans = rawSrc.map((s) => {
+  const spans = [];
+  for (const m of s.matchAll(new RegExp(TOKEN.source, 'g'))) {
+    spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+});
+const inSpan = (spans, i) => spans.some(([a, b]) => i >= a && i < b);
+
 const unused = [];
 for (const name of exports_) {
   if (dormantNames.has(name)) continue;
-  const re = new RegExp(`api\\??\\.${name}\\b`);
-  const used = srcFiles.some((f) => re.test(fs.readFileSync(f, 'utf8')));
+  const dot = new RegExp(`api\\??\\.${name}\\b`);
+  const bracket = new RegExp(`api\\??\\[\\s*['"\`]${name}['"\`]\\s*\\]`, 'g');
+  const used = noStrings.some((s) => dot.test(s))
+    || rawSrc.some((s, fi) => [...s.matchAll(bracket)]
+      .some((m) => !inSpan(maskSpans[fi], m.index)));
   if (!used) unused.push(name);
 }
 

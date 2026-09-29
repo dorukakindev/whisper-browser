@@ -28,7 +28,7 @@ test('oynatıcı zamanı ve iki bağımsız iz dönüşümü finite olmayan sayf
   assert.match(script, /const finite = \(value, fallback = 0\)/);
   assert.match(script, /videoToSource\(videoTime, state\.sourceTransform\)/);
   assert.match(script, /videoToSource\(videoTime, state\.translationTransform\)/);
-  assert.match(script, /sourceToVideo\(raw, transform\)/);
+  assert.match(script, /nextCueBoundaryAt\(cues, videoToSource\(videoTime, transform\)\)/);
   assert.match(script, /nextCueBoundary - videoTime/);
   assert.match(script, /if \(scale <= 0\) return finite\(videoTime\) - finite\(state\.offset, 0\)/);
 });
@@ -134,8 +134,11 @@ test('R51-77: JASSUB canvas aktifken DOM altyazı kutusu çizilmez ve geri döne
   assert.match(script, /__whisperBrowserOverlayController = \{[\s\S]{0,80}render,/);
   // ASS tarafı kurulum ve detach sonrası render'ı tetikler — duraklatılmış
   // videoda timeupdate gelmediği için tetikleme olmadan çift metin kalırdı.
-  const { buildAssInstallScript, buildAssClearScript } = require('../src/browser-ass-renderer');
-  const install = buildAssInstallScript('[Script Info]\nX\n[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hi', 'op');
+  const { buildAssInstallScript, buildAssClearScript, registerAssAssets, assAssetsBase } = require('../src/browser-ass-renderer');
+  const fakeSession = { protocol: { handle() {} } };
+  registerAssAssets(fakeSession);
+  assert.match(assAssetsBase(fakeSession), /^whisper-assets:\/\/ass-[0-9a-f]{16}\/$/);
+  const install = buildAssInstallScript('[Script Info]\nX\n[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hi', 'op', [], fakeSession);
   assert.equal((install.match(/__whisperBrowserOverlayController\?\.render\?\.\(\)/g) || []).length, 2);
   assert.match(install, /__whisperAssState === state\) globalThis\.__whisperAssState = null/);
   assert.match(buildAssClearScript(), /previous\.detach\(\)/);

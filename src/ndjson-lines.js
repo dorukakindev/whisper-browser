@@ -52,4 +52,22 @@ function createNdjsonLineBuffer(options = {}) {
   return { push, flush };
 }
 
-module.exports = { createNdjsonLineBuffer };
+// Tek satırı olay nesnesine çözer. yt-dlp'nin "[download] ..." ilerleme
+// metni gibi JSON olmayan çıktı, yardımcı sürecin stdout'unda aynı satıra
+// yapışabilir; tüm satırı parse etmek o olayı sessizce düşürür (ör. subs
+// indirilmesine rağmen "indirilemedi" dönmesi). Önce tam satır denenir;
+// tutmazsa ilk '{' ile son '}' arasındaki aday nesne kurtarılır.
+function parseNdjsonLine(raw) {
+  const line = String(raw ?? '').trim();
+  if (!line) return null;
+  const ok = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+  if (line.startsWith('{')) {
+    try { return ok(JSON.parse(line)); } catch (_) { /* aşağıda kurtarma dene */ }
+  }
+  const start = line.indexOf('{');
+  const end = line.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try { return ok(JSON.parse(line.slice(start, end + 1))); } catch (_) { return null; }
+}
+
+module.exports = { createNdjsonLineBuffer, parseNdjsonLine };

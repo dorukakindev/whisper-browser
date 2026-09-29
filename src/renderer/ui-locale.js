@@ -268,6 +268,11 @@
     ['Sayfa PDF olarak kaydedildi.', 'Page saved as PDF.'],
     ['Sayfa PDF olarak kaydedilemedi.', 'Page could not be saved as PDF.'],
     ['Kopyalanacak sayfa adresi yok.', 'No page address to copy.'],
+    ['Şu an kullanılamıyor', 'Not available right now'],
+    ['Bu işlem şu an kullanılamıyor.', 'This action is not available right now.'],
+    ['Önce bir sayfa aç.', 'Open a page first.'],
+    ['Menüde eşleşen komut yok.', 'No matching menu command.'],
+    ['Kaydetmek için önce bir altyazı satırına gel.', 'Move to a subtitle line first to save it.'],
     ['QR kodu için geçerli bir sayfa adresi yok.', 'No valid page address for a QR code.'],
     ['QR kodu üretilemedi.', 'QR code could not be generated.'],
     ['Kart görünümü ayarları', 'Card display settings'],
@@ -965,6 +970,7 @@
     ['Seçip Enter: sonucu panoya kopyala', 'Select and press Enter: copy result'],
     // Tarayıcı durum sinyalleri (setBrowserSignal sabit metinleri).
     ["Çeviri hata bildirimi temizlendi.", "Translation error notice cleared."],
+    ['Çeviri kalite kapısından geçmedi (korumalı işaret veya bağlam sızıntısı).', 'Translation did not pass the quality gate (protected marker or context leak).'],
     ["Workflow kaydı başladı. Komut paletinden çalıştırdığınız uygun eylemler kaydedilecek.", "Workflow recording started. Eligible actions you run from the command palette will be recorded."],
     ["Kaydedilecek workflow adımı bulunamadı.", "No workflow step to save."],
     ["Sekme veya medya değişti; komut yeniden seçilmeli.", "The tab or media changed; choose the command again."],
@@ -1024,6 +1030,12 @@
     ['Web adresi veya arama', 'Web address or search'],
     ['Adres gir', 'Enter address'],
     ['Ayarlar / Kaynak ve oynatma', 'Settings / Source and playback'],
+    ['Ayarlar / Altyazı ve çeviri', 'Settings / Subtitles and translation'],
+    ['Ayarlar / Sorun giderme', 'Settings / Troubleshooting'],
+    ['Sırada durulacak', 'Stopping after current'],
+    ['Bekliyor', 'Pending'],
+    ['Görünen sayfalar çevriliyor…', 'Translating visible pages…'],
+    ['Çeviri hazır', 'Translation ready'],
     ['Bu kez engelle', 'Block this time'],
     ['Bu kez izin ver', 'Allow this time'],
     ['Bu pencere', 'This window'],
@@ -1254,6 +1266,20 @@
     ['Geçmiş işlerin günlük dosyaları (her iş ayrı dosya)', 'Past job logs (one file per job)'],
     ['Reklam koruması açık · Kapat', 'Ad protection on · Turn off'],
     ['Reklam koruması açık; kapat', 'Ad protection on; turn off'],
+    ['Reklam koruması tüm sitelerde kapalı · Aç', 'Ad protection is off for all sites · Turn on'],
+    ['Reklam koruması açık · Tüm sitelerde kapat', 'Ad protection on · Turn off for all sites'],
+    ['Bu sitede reklam koruması açık · Kapat', 'Ad protection on for this site · Turn off'],
+    ['Bu sitede reklam koruması kapalı · Aç', 'Ad protection off for this site · Turn on'],
+    ['reklam koruması kapatıldı, sayfa yenileniyor.', 'ad protection turned off, reloading the page.'],
+    ['reklam koruması açıldı, sayfa yenileniyor.', 'ad protection turned on, reloading the page.'],
+    ['Reklam koruması kapalı · Ayarlarda hata ayrıntısı var', 'Ad protection off · See settings for error details'],
+    ['Reklam koruması kapalı; ayarlarda hata ayrıntısı var', 'Ad protection off; see settings for error details'],
+    ['Reklam koruması değiştiriliyor…', 'Changing ad protection…'],
+    ['Reklam koruması değiştiriliyor', 'Changing ad protection'],
+    ['Geçersiz altyazı dil kodu.', 'Invalid subtitle language code.'],
+    ['kaldı', 'left'],
+    ['Gizlenenleri geri getir', 'Restore hidden'],
+    ['Hızlı erişimden kaldır', 'Remove from quick access'],
     ['Aktif işleri kapat', 'Close active jobs'],
     ['Açık YouTube videosunun sesini Whisper ile yazıya çevir', 'Transcribe the current YouTube video audio with Whisper'],
     ['Açık YouTube videosunu Whisper ile yazıya çevir ve Türkçeye çevir', 'Transcribe the current YouTube video with Whisper and translate to Turkish'],
@@ -2555,6 +2581,11 @@
     [/^(\d+) kayıtlı senkron düzeltmesi( · Kaydedilmemiş önizleme var)?$/, (m) => `${m[1]} saved sync ${m[1] === '1' ? 'fix' : 'fixes'}${m[2] ? ' · Unsaved preview' : ''}`],
     [/^(Kaydedilen cümleleri göster|Düşük güvenli cümleleri göster|Çevrilmemiş satırları göster) \((\d+)\)$/, (m, t) => `${t(m[1])} (${m[2]})`],
     [/^Sayfa yakınlaştırma %(\d+)$/, (m) => `Page zoom ${m[1]}%`],
+    [/^Kaldığın yer: (.+)$/, (m) => `Resume from: ${m[1]}`],
+    [/^Sayfa sürekli yeni metin ekliyor; otomatik çeviri (\d+) blokta durduruldu\.$/, (m) => `The page keeps adding new text; auto-translation stopped at ${m[1]} blocks.`],
+    [/^(\d+)\/(\d+) sayfa$/, (m) => `${m[1]}/${m[2]} pages`],
+    [/^Sayfa (\d+)$/, (m) => `Page ${m[1]}`],
+    [/^(Kitap|Sayfalar) çevriliyor… \((\d+)\/(\d+)\)$/, (m) => `Translating ${m[1] === 'Kitap' ? 'book' : 'pages'}… (${m[2]}/${m[3]})`],
     [/^Altyazı tekrarı (\d+)\/(\d+)$/, (m) => `Cue repeat ${m[1]}/${m[2]}`],
     [/^Tekrar et · (\d+) sn$/, (m) => `Repeat · ${m[1]} s`],
     [/^A: (.+)$/, (m) => `A: ${m[1]}`],
@@ -2634,6 +2665,10 @@
     // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
     // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
     if (!(element instanceof Element)) return;
+    // Açılış taraması ~3.700 öğeyi dolaşır; çevrilecek özniteliği olmayan öğede
+    // pahalı closest() seçici eşlemesine hiç girme (açılış ölçümü: tur 4).
+    if (!element.hasAttribute('title') && !element.hasAttribute('aria-label')
+      && !element.hasAttribute('placeholder')) return;
     // Yazı alanlarının İÇERİĞİ kullanıcı verisidir ama kendi placeholder/aria-label'ı
     // arayüz metnidir ("Sorunu yaz…" EN arayüzde Türkçe kalıyordu).
     const blocked = element.matches(uiListContainers)
@@ -2656,6 +2691,10 @@
 
   function localizeText(node) {
     if (node?.nodeType !== Node.TEXT_NODE) return;
+    // Etiketler arasındaki boşluk düğümleri metin düğümlerinin çoğunluğudur;
+    // çevrilecek bir şey yok, closest() maliyetine girme.
+    const raw = node.nodeValue;
+    if (!raw || !raw.trim()) return;
     if (node.parentElement?.closest(ignored) && !node.parentElement.closest(uiIslands)) return;
     const before = node.nodeValue;
     const previous = originalText.get(node);

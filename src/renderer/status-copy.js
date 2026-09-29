@@ -56,6 +56,10 @@
   // mesajlar olduğu gibi geçer. Ham ayrıntı kısaltılarak parantezde korunur
   // (teşhis için) — kullanıcı önce anlaşılır cümleyi görür.
   const SYSTEM_ERROR_RULES = [
+    // İstisna adları genel metin kurallarından önce gelir (NotAllowedError:
+    // 'Permission denied' içerse bile izin engeli olarak sınıflandırılır).
+    [/notallowederror|notfounderror|notreadableerror|securityerror|overconstrainederror/i,
+      'İşletim sistemi veya tarayıcı izin/kaynak engeli — ayarları kontrol edin.', 'The OS or browser blocked access — check permissions and devices.'],
     [/\benoent\b|no such file or directory|cannot find the file/i,
       'Dosya veya komut bulunamadı.', 'File or command not found.'],
     [/\beacces\b|\beperm\b|permission denied|access is denied/i,
@@ -78,6 +82,16 @@
       'Adres kullanılamıyor veya zaten kullanımda.', 'The address is unavailable or already in use.'],
     [/spawn\s+\S+\s+enoent|command not found|is not recognized as/i,
       'Gerekli program bulunamadı veya kurulu değil.', 'A required program is missing or not installed.'],
+    [/\bebusy\b|\bebusy:|being used by another process|dosya.*kullan.*lmda/i,
+      'Dosya başka bir program tarafından kullanılıyor.', 'The file is in use by another program.'],
+    [/\bemfile\b|\benfile\b|too many open files/i,
+      'Çok fazla açık dosya var — birkaçını kapatıp yeniden deneyin.', 'Too many open files — close some and try again.'],
+    [/aborterror|err_aborted|aborted by the user/i,
+      'İşlem iptal edildi.', 'The operation was cancelled.'],
+    [/err_file_not_found|err_access_denied|err_disk_full|err_upload_file_changed/i,
+      'Dosyaya erişilemedi — taşınmış, silinmiş veya erişim engellenmiş olabilir.', 'The file is not accessible — it may have moved, been deleted, or blocked.'],
+    [/\beio\b|i\/o error|hardware error/i,
+      'Disk/aygıt okuma hatası.', 'A disk or device read error occurred.'],
   ];
 
   function systemError(locale, raw) {

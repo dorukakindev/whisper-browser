@@ -358,9 +358,13 @@ class GoldenCorpusTests(unittest.TestCase):
         self.assertEqual(passed_defects, expected_pass,
                          'danışman katman kusurları çıktıya geçer (belgelenen davranış)')
         groups_blocked = len(expected_blocked)
-        # Bloklanan grup: normal tekil kurtarma + sertleştirilmiş son deneme = 2 istek.
-        self.assertEqual(len(calls), golden_calls + 2 * groups_blocked,
-                         'bloklanan her grup tekil kurtarma + son-deneme isteği üretmeli')
+        # Bloklanan her grup en az bir tekil kurtarma isteği üretir; sertleştirilmiş
+        # son deneme ise yapısal-hata devresi (MAX_STRUCTURAL_FAILURES=6) sınırına
+        # tabidir — reddeden sağlayıcıda ikinci turlar kesilir (R220/R221).
+        self.assertGreaterEqual(len(calls), golden_calls + groups_blocked,
+                                'bloklanan her grup en az bir tekil kurtarma isteği üretmeli')
+        self.assertLessEqual(len(calls), golden_calls + groups_blocked + 6,
+                             'son-deneme istekleri devre kesici sınırını aşmamalı')
 
 
 if __name__ == '__main__':

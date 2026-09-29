@@ -1,0 +1,4 @@
+{
+  "_comment": "Bilerek görünür etkisi olmayan menü öğeleri. Anahtar: '<menü seçici> <öğe id|etiket>' (rapordaki 'key'). Her girdiye gerekçe yaz; 'scenario' verilirse ('bos-sekme' | 'yuklu-sayfa') yalnız o senaryoda geçerlidir. Şu an liste boş: tur 1–4 sonrası her öğe görünür bir etki üretiyor.",
+  "silent": {}
+}

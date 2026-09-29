@@ -3,15 +3,189 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+- R225: Yeni Devin master paketi Windows yerel kopyasına geçmiş kaybı olmadan bütünleştirildi; önceki moviehash ve Electron smoke onarımları korundu. R178 rapor adı çakışması iki içerik saklanarak çözüldü.
+- Güvenlik: kuyruk durum dosyasından ve sayfa çevirisi köprüsünden gelen veriler artık arayüzde HTML olarak yorumlanamaz (kaçışlama ratchet\'i kuruldu).
+- Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 
 ### Added
 
+- R241 (tur-4 paketi): `npm run smoke:ui`/`audit:ui` arayüz duman ve denetim araçları (menü öğelerini tıklayıp etki ölçer; CI'a bağlandı). Yeni-sekme/özniteliksiz öğelerde ui-locale açılış taramasının `closest()` maliyeti kaldırıldı (~26–42 ms hızlanma).
+- R236 (tur-3 paketi): site bazlı reklam koruması — site çipindeki düğme artık yalnız o siteyi etkiler (kapat: `adblockEnabled:false`, aç: alan silinip genel devralınır; genel kapalıysa/boş sekmede genel anahtar). Yeni sekme sayfası: frecency sıralı favicon/avatar kutucuk ızgarası, × ile gizle + geri getir, izleme kütüphanesinden ilerleme çubuklu "İzlemeye devam et" kartları.
 - R184: the YouTube TV banner gains a "Tam ekran / Fullscreen" button wired to the existing `youtube-tv:fullscreen` IPC (the main-process handler and preload export existed but nothing called them — lean-back viewing now has a one-click fullscreen toggle).
 - R179: opt-in community extras for the YouTube video open in the player — DeArrow crowdsourced titles (same hash-prefix privacy model as SponsorBlock; the community title replaces the player title while the original is kept) and Return YouTube Dislike vote counts (a `👎 N` badge in the meta row). Both behind persistent checkboxes in the SponsorBlock settings section, fetched only for the opened video (no per-card calls), with the same network posture as the SponsorBlock fetcher (credentials-free, no redirects, 7s timeout, 256KB cap, LRU+TTL cache, in-flight dedupe).
 
+### Changed
+
+- R244: ana pencere açılışında V8 kod önbelleği ilk yüklemeden itibaren etkin
+  (v8CacheOptions `bypassHeatCheck`); sekme önizleme kartı krom şeridine
+  sığmadığında tek satırlık kompakt görünüme düşer.
+- R238: sekme/yer-imi/NTP avatar harfi artık kayıtlı alan adından gelir — `tr.wikipedia.org` "T" yerine "W", `sub.bbc.co.uk` "S" yerine "B", `amazon.com.tr` "A" gösterir; renk tonu da alan bazında sabitlendi (aynı sitenin alt alanları aynı tonda).
+
 ### Fixed
 
-- R178 local acceptance: retain the full final 64 KiB when moviehash blocks overlap; close layout-only CDP sockets and exit the successful Electron experience test cleanly. The current Devin master package was checked on Windows and advanced locally without reverting history.
+- R249: altyazı boyut-sınırı hatası (`ESUBTITLE_LIMIT`, Node-pin indirme yolu) artık yeniden-denenebilir sayılmıyor — aynı büyük yanıt ikinci kez inmiyor. İki Electron smoke'unun test-tarafı kusurları düzeltildi: `menu-formcontrols` artık menünün yaşadığı AI panelini gerçek UI yoluyla (`openPlayer` + `setSideTab('ai')`) açıyor; `split-shortcut` ham IPC yerine renderer `setBrowserSplit` yardımcısını kullanıyor (ikisi de oluşturuldukları günden beri kırmızıydı).
+- R248 (#191 flag): whisper-pdf nonce testi yalnız "iki context farklı kimlik" ölçüyordu — kontrollü nonce'la türetim formülü (nonce+pdfHash karışımı) kilitlendi; tahmin edilebilir tuz artık testten geçemez.
+- R247 (#189 security): `whisper-pdf:` kaynak kimliği dosya içeriğinden deterministik türetiliyordu — içeriği bilen bir sayfa kimliği hesaplayıp Origin'siz/referrer'siz istekle belgeyi açabilirdi; kimlik artık oturum başına üretilen nonce ile karıştırılır (pdfHash durum anahtarı olarak deterministik kalır).
+- R246 (Windows doğrulama): gizli WebContentsView sınırı yerel yuvanın üstünde kalınca Windows'ta HWND bölgedeki işaretçi olaylarını yutuyordu — yeni-sekme sayfasında (#browserEmpty) ve hata/ayarlar yüzeyinde tıklama ile imleç ölüyor, klavye çalışıyordu; gizlenen görünümün sınırı artık ekran dışına taşınır, gösterilende yeniden uygulanır. `whisper-pdf:` koruma kapısı GET fetch'te gönderilmeyen Origin başlığını ve özel şemada boş gelen referrer'ı dış bağlam sayıp 403 dönüyordu — Windows'ta PDF okuyucu açılmıyordu; yokluk artık 'null'/boş kabul edilir, http kökeni ve dosya-dışı referrer yine reddedilir.
+- R245 (#181+#184 review triage): kaynak parçanın cümle-sonu sayısı hedef dilin sıra-sayısı kuralıyla ölçülüp doğru çeviriler reddediliyordu — artık kaynak dilin kuralıyla sayılır; VTT `NOTE` bloğu içindeki zaman kodu benzeri satır sahte cue üretip not metnini çıktıya sızdırıyordu — meta paragraflar sınır adaylığından çıkarıldı; altyazı indirmede boyut-sınırı/iptal gibi ilke hataları proxy yedeğini boşuna tetikliyordu ve yedek istekte DNS yeniden-doğrulaması eksikti (TOCTOU) — yedek artık yalnız gerçek ağ hatasında ve yeniden doğrulama sonrası koşar.
+- R242 (tur-4 açık maddeleri): bitişik komşular arasına sıkışan ~10 ms'lik cue ekranda okunamaz flaş olarak yazılıyordu — metin artık sonraki cue'nun başına katlanıp cue düşürülür (sonda kalırsa öncekine).
+- R243 (#182 review): sondaki flaş cue öncekine katlanırken konuşma zamanı korunur — öncekinin bitişi kısa cue'nun bitişine uzatılır.
+- R241 (tur-4 paketi): boş satırlı veya sıfır-süreli altyazı cue'ları tüm işi çökertmiyordu; VTT `NOTE` blokları çevrilip `}`/`-->` dizgileri bozuluyordu; `{\an8}` konum etiketleri birleşen cümlelere sızıyordu; "2. Dünya Savaşı" gibi sıra sayılarından sonra satır kırılıyordu; başarısız işin çıktı işlemi kurtarması aynı adlı kullanıcı dosyasını silebiliyor ve .tmp/journal bırakıyordu; ffmpeg/ffprobe çocuklarına gizli env değişkenleri sızıyordu.
+- R240: Devin Review triage — aynı ilk harfli iki site arasında gezen sekmenin avatar tonu bayat kalıyordu (örn. news.google.com→music.github.com); adres önerisi işaretleri sekme avatarından farklı harf üretiyordu (tr.wikipedia.org önerisi T, sekmesi W); farklı IP adresleri aynı avatar tonunu paylaşıyordu; krom alanına sığmayan sekme önizleme kartı yine native yüzeyin altında kırpılıyordu (artık kart kendi içinde kırpılır).
+- R239: sekme üzerine gelince çıkan önizleme kartı sayfa yüzeyi (native WebContentsView) altına kayıp kırpılıyordu — kartın alt kenarı artık `#browserViewSlot` üst çizgisini aşamaz; sığmadığında sekme şeridinin içine çekilir.
+- R237: tur-3 kalıntıları — kütüphanede iki hızlı tıklamanın ilki geç dönen yetkiyle son seçimi eziyordu (aynı dalda `openIntent` artırılmıyordu); PDF çevirisi sürerken yeni PDF açılırsa çeviri düğmeleri kilitli kalıyordu; eski belgenin çeviri durum/sonuç satırı yerini alan belgenin satırını eziyordu.
+- R236 (tur-3 paketi): oynatıcı/PDF/kuyruk/ayarlar 19 düzeltme — basılı-tutma 2× ve boşluk-hızlandırma geçici hızı kullanıcı hızı diye kaydediyordu; diyalog açıkken Backspace oynatıcıyı kapatıyordu; K'ye hızlı çift basış aynı cümleyi iki kez kaydediyordu; tam-ekran/PiP'te kapanınca pencere siyah tam ekranda kalıyordu; sıradaki-video geri sayımı mod değişiminde sürüyordu; kapanışta düzenleyici/A-B kalıntısı; bul/değiştir Esc'i oynatıcı zincirine geçiyordu; yavaş kütüphane tıklaması yeniyi eziyordu. PDF: tarayıcı modunda boş alan, Space/ok/Esc çakışması, çift çeviri, sırasız sayfa ekleme + zoom sonrası kaydırma, ikinci PDF bellek/durum sızıntısı, zoom etiketi. Kuyruk/ayarlar: iş sürerken yalnız iş seçenekleri kilitlenir, özel hız (1.3×) kalıcı, "Sırada dur" düğmesi yaşam döngüsü, ayar araması doğru çekmeceyi açar, EN'de kalan TR dizgiler.
+- R235: araç çubuğu details menülerindeki form kontrolleri (select'ler, kaydırıcılar, metin alanları) ok/Home/End tuşlarını kaybediyordu — `wireDetailsMenuNav` aynı tuşu menü gezintisi için de işleyip odağı söküyordu; kontrol odaklıyken gezinti artık atlanır. Sinyal menüsünün ~50 denetimi dahil.
+- R234: #167 review — ⋯ menü arama kutusunda ↓/↑ çift işleniyordu (arama işleyicisi ilk öğeyi odaklarken üstteki `wireDetailsMenuNav` aynı tuşu tekrar işleyip ikinciye/sona kaydırıyordu); olay artık kabarcıklanmıyor. İkincil bölünmüş-sayfa kısayol yolunu kilitleyen `electron-browser-split-shortcut` smoke'u eklendi.
+- R233: tur-2 paketi kalan düzeltmeler + #165 review — sayfa odaklıyken Ctrl+F iki köprüden de olay gönderiyordu (tek yola indirildi), ⋯ menü araması ilk ↓'da atlanıyordu (odak açılışta arama kutusunda; ↓/↑ komutlara, Enter ilk eyleme gider), yer-imleri listesi yenilenirken odak kayıt kimliğiyle geri verilir (yeni kayıt öne eklenince yanlış satıra düşmüyor), bölünmüş görünümün ikincil sayfasında kısayol basmak odağı çalıp hiçbir şey yapmıyordu (sayfa önce aktifleştirilir, sonra kısayol çalışır).
+- R232: tarayıcı UI tur-2 düzeltme paketi — komut paleti hiç çalışmıyordu (eşleştiriciye ham sekme nesnesi veriliyordu), diyalog/ayarlar açıkken Ctrl+W/T/Tab/1-9 arkadaki sekmeyi etkiliyordu, Esc başka panelleri de kapatıyordu, omnibox Home/End öneri seçiyordu (Alt+Home/End), QR paneli Esc'siz kalıyordu, paneller üst üste açılıyordu, sağ-tık menüsü native sayfanın arkasında kalıyordu, kapat düğmesine çift tık grup diyaloğu açıyordu, "Sağdakileri kapat" gruplu düzende yanlış tarafı kapıyordu, yer-imleri listesi klavye odağını düşürüyordu, sayfa odaklı kısayollar adres çubuğunu gösterip tuşu sayfaya bırakıyordu, SPA gezisinde bul çubuğu kapanıyordu.
+- R231b (#164 review): vekil menü öğelerinin durumu menü dışındaki hedef düğmede yaşar — menü açıkken hedef devre dışı kalırsa (örn. sekme değişimi) arama sonucu da tazelenir; bayat eşleşme gri kalmaz.
+- R231 (#162 review): ⋯ menüsü açıkken bir öğenin durumu değişirse (örn. sayfa YouTube'dan çıkınca "Oynatıcıda izle" devre dışı kalır) arama sonuçları kendiliğinden tazelenir — bayat gri eşleşme kalmaz.
+- R230 (#160 review): menü araması hızlı eylemleri (Yeni sekme, sekmeyi geri aç, sayfada bul, zoom) de bulur ve Enter'la çalıştırır; devre dışı öğeler eşleşme sayılmaz — ölü gri sonuç yerine "eşleşen komut yok" satırı.
+- R229: tarayıcı ⋯ menüsü ve vurgu cilası — yenile/durdur ikonları aynı anda gösterilmez, açık temada koyu çerçeve düzeltildi, "Aktif işler" ve `https://` şeması kontrast eşiğine çıkarıldı, vekil menü öğeleri devre dışı hedeflerde neden belirtir, menü araması kapanışta sıfırlanıp boş durum gösterir ve Enter ilk sonucu çalıştırır, "Bu anı kaydet" ve "Sayfada öğe gizle" sinyal verir, "Videoyu indir" açık YouTube adresini oynatıcı alanına öndoldurur, QR ikonu ve çeviri menüsü checkbox boşluğu düzeltildi.
+
+- **Kısmen bozuk PDF durum dosyası sağlam sayfaları kurtarır** —
+  geçersiz sayfa kayıtları tek tek atılır; tümüyle bozuk dosya yine
+  `.bak`/legacy yedeğine düşer.
+
+- **Temizlenmiş PDF sayfasının eski çevirileri dirilmez** — meşru boş
+  sayfa kaydı (`{n: []}`) bozuk sayılmaz; yalnız yapısal olarak bozuk
+  dosyalar `.bak`/legacy yedeğine düşer.
+
+- **Tamamen bozuk PDF sayfa kayıtları da yedeği gizleyemez** — `pages`
+  nesnesi taşıyıp içeriği normalize'da düşen dosya artık adaydan
+  atlanır; `.bak`/legacy çevirileri yüklenir.
+
+- **Bozuk PDF çeviri durumu sağlam yedeği gizliyordu** — kimliği uyumlu
+  ama sürümü/sayfaları geçersiz dosya taze duruma düşüp `.bak`/legacy
+  adaylarını atlıyordu; okuma döngüsü artık uyumsuz adayı atlar.
+- **Yazım-farklı hafıza satırı yankıyı çeviri diye döndürebiliyordu** —
+  TM eko bekçi artık depodaki kaynağa karşı da çalışır.
+
+- **Eski hafıza kayıtları yankı "çevirisi" diye dönebiliyordu** — önceki
+  sürümlerden kalan noktalama-benzek TM satırları `lookup` isabetiyle
+  kaynağı çeviri gibi uyguluyordu; kullanım anında da elenir.
+- **Bayat journal mezar taşı yeni çeviriyi silebiliyordu** — silme
+  satırı artık temel dosyadaki `updatedAt`'ten eskiyse atlanır; `v`
+  alanı taşımayan bozuk satır da mezar taşı sayılmaz.
+- **PDF çevirisinde uyumlu eski dosya bulunamıyordu** — durum okuma
+  döngüsü kimliği uyuşmayan adayları atlayıp aynı pdfHash'in uyumlu
+  legacy/yedek dosyasına ulaşır.
+
+- **Bulanık çeviri hafızasına tembel yankı satırı sızıyordu** —
+  "değişmeden kabul" edilen satırlar ve noktalama-benzek ekolar
+  (`'Wait!'→'Wait.'`) TM sqlite'a yazılıyordu; `store()` yalnız birebir
+  eşitliği reddettiği için bu satırlar sonraki dosyalarda fuzzy
+  eşleşmeyle kaynağı "çeviri" diye döndürüyordu (tüm kalite kapılarını
+  atlatır). TM artık yankı-kabul yolunda hiç yazılmıyor ve normal
+  yolda da eko-benzeri satırlar eleniyor.
+- **Önbellek kapasite kesimi yeniden açılışta diriliyordu** — sınırı
+  aşan kayıt bellekten silinse de journal satırları kalıyordu; replay
+  kesilen çeviriyi en yeni konuma oturtup yaşayan bir girdiyi dışarı
+  atıyordu. Kesimler artık journal'a mezar taşı (silme işareti) yazar.
+- **Süresi dolmuş journal satırları yüklemede elenmiyordu** — TTL
+  kontrolü yalnız temel dosyada vardı; eski satırlar replay ile
+  geri dönüp bir sonraki sıkıştırmada kalıcılaşıyordu.
+- **`.bak` yedeği sıkıştırma öncesi içeriği tutuyordu** — birincil
+  dosya bozulunca geri dönüş journal'dan katlanan son çevirileri
+  kaybediyordu; yedek artık rename sonrası (sıkıştırılmış tam
+  içerik) alınır.
+- **PDF çeviri durumu sağlayıcı değişiminde siliniyordu** — durum
+  dosyası yalnız `pdfHash` ile adlandırıldığı için endpoint'e göre
+  taze başlayan iş aynı dosyaya yazıp önceki sayfa çevirilerini
+  eziyordu. Dosya adı artık sağlayıcı kimliğini de kapsar; eski
+  dosyalar geriye dönük okunur.
+
+- **"Değişmeden kabul" hiç devreye girmiyordu** — iki turda da kaynağı
+  yankılayan satırın kabul kontrolü, ikinci kurtarma denemesi de hata
+  fırlatınca `except`'in erken dönüşüyle atlanıyordu; 'Rock and roll!',
+  'Ha ha ha.' gibi doğal olarak değişmez satırlar yine `.partial` dosyaya
+  ve başarısız sayıma düşüyordu. Kabul artık kurtarmanın her çıkış
+  noktasında çalışır ve üçüncü istek ödenmez.
+- **Değişmeden kalan satırlar işi `.partial` yapıyordu** — kalite
+  raporu kaynakla aynı görünen metni "çevrilmedi" sayıyordu; bilinçli
+  korunan satırlar (zaten hedef dilde / yankı-kabul / önceden çevrilmiş)
+  artık `status_out.unchanged`/`precompleted` üzerinden muaf tutulur.
+- **Türkçe sıra sayıları cümle sonu sanılıyordu** — `'21. yüzyıldayız.'`
+  içindeki `21.` ikinci cümle sonu sayılıp parça kapısı doğru çeviriyi
+  reddediyordu; ifade başındaki ve küçük harfle devam eden `rakam+nokta`
+  artık cümle sonu sayılmaz.
+- **Sayfa çevirisinde paragraf içi bağlantılar metni çiftliyordu** —
+  `<p>` içindeki `<a>/<button>/<label>` ayrı blok taranıyordu; üst blok ve
+  iç blok çevirileri üst üste yazılarak "Dosyayı buradaindirmek için…"
+  gibi bozuk çıktı üretiyordu. Taranan bloklar artık üst metin bloğuna
+  katılır; bağlantı öğesi korunur, nav içi gibi üst blok yoksa kendi
+  bloğu kalır.
+- **Sayfa çevirisinde tek hatalı blok komşu doğru çevirileri de
+  düşürüyordu** — korumalı-işaret/bağlam-sızıntısı kapısı artık blok
+  bazlı: hatalı blok kaynak metniyle bırakılıp `failedIds` ile
+  raporlanır; kaynak-echo'su içeren sonuçlar önbelleğe yazılmaz.
+- **Kısa tarayıcı çevirileri kalıcı hataya düşüyordu** — iki cue'luk
+  "I don't / know." → "Bilmiyorum." gibi tek-kelime çıktılar parça
+  zorunluluğuna takılıyordu; dağıtım artık birleşik balona düşer ve
+  `coveredCueIds` ile kapsanan cue'lar bütünlükte tamam sayılır.
+- **Kesin çeviri hataları istek fırtınası üretiyordu** — içerik
+  filtresi, yarıda kesilen yanıt, bozuk JSON ve düşünme-bloğu
+  kırılmaları HTTP kodu taşımadığı için tüm rotalar + scheduler
+  tekrarlarıyla cümle başına 6–12 istek yakıyordu. Bu hatalar artık
+  kesin sayılır (tekrarlanmaz) ve ardışık kesin hatalar kuyruğu
+  sağlayıcı-kesici gibi durdurur.
+- **Aynı zaman aralığındaki cue'lar aynı çeviriyle eşleşiyordu** —
+  `translationsForCues` eş örtüşmede hep ilk çeviri satırını
+  seçiyordu; artık kullanılmamış eş-değer satır tercih edilir,
+  birleşik (merged) satırın yeniden kullanımı korunur.
+- **Çeviri önbelleği ana süreci kısa aralıklarla donduruyordu** —
+  50k kayıtlı ~13MB dosya her yazımda baştan serileştirilip `.bak`
+  kopyalanıyordu (~60ms). Artımlı yazımlar `.journal` sonuna ekler;
+  bayt/tur/yaş eşiğinde tek tam sıkıştırma yapılır.
+- **PDF çeviri önbelleği sağlayıcı değişiminde karışıyordu** — önbellek
+  kimliğine `endpoint` eklendi; aynı model adıyla farklı sağlayıcıya
+  geçişte eski sonuçlar kullanılmaz.
+- **R221 (çeviri hattı — backend):** model bir satırı aynen
+  döndürdüğünde işin ölmesine yol açan yankı reddi düzeltildi —
+  "değişmeden kalmalı" satırlar (vokalizasyon, kod/özel-ad dizgileri,
+  zaten hedef dilde olan satırlar) artık API'ye hiç gönderilmez;
+  yankılayan grup iki kurtarma turundan sonra "değişmeden kabul" diye
+  işaretlenip önbelleğe yazılır. DeepSeek-R1/Qwen3 gibi düşünen
+  modellerin `<think>` bloğu artık JSON seçiminden önce silinir
+  (eski kod düşünme bloğu içindeki ilk `{…}` nesnesini gerçek yanıt
+  sanıyordu). `translate_existing_subtitle` aynı-dil kapısı eklendi —
+  `.tr.srt`'yi Türkçeye çevirmek ~3000 boş isteğe mal oluyordu; dosya
+  gövdesi çoğunlukla hedef dildeyse iş sıfır istekte biter. Çeviri
+  istemcisine `max_retries=0` eklendi — SDK varsayılanı + üstteki
+  kendi denemelerimiz birleşip paket başına 6 HTTP isteği üretiyordu.
+  GPT-5/o-serisi modellere `temperature` göndermek 400 hataya
+  düşüyordu — `llm_generation_kwargs` artık reasoning ailelerine
+  `max_completion_tokens` verir ve rol `developer` olur.
+  `finish_reason="length"` kesik yanıtı artık paketi ikiye böler
+  (kurtarma döngüsü yerine). Kesin sonuçlu hatalar (content_filter,
+  moderasyon, 400) rotaları fatal-fast bitirir ve `invalid_batches≥6`
+  yapısal devre kesicisi son-deneme turlarını keser. Çeviri önbelleği
+  ve TM artık her kabul edilen pakette (ve birkaç saniyede bir) diske
+  yazılır + paket aralarına iptal kontrol noktaları eklendi —
+  iptal/çökmede ödenen çeviriler kaybolmuyordu. "Eksikleri tamamla"
+  artık dosyanın tamamını bağlamla birlikte verip yalnız eksikleri
+  ister (önceden eksikler ayrı liste sanılarak yanlış cümleler
+  birleştiriliyordu). `series_memory.merge_many` paket başına fsync'i
+  iş sonu tek yazıma indirir ve final metinlere karşı yeniden süzer.
+  Refine geçişinde doğrulanamayan grup 1. geçiş çevirisi artık
+  önbelleğe yazılır. Almanca kaynaklarda otomatik terim çıkarımı
+  büyük-harf gürültüsünü artık atlar. `test_golden_corpus` sözleşmesi
+  devre-kesicili üst sınıra taşındı; `test_translate_pipeline_r220`
+  (23 test) yeni yardımcıları kilitler.
+
+- **"Sırada dur" sonrası kuyruk başlat düğmesi kilitli kalıyordu** —
+  `persistQueueNow` beklerken durdurulan kuyrukta `renderQueue` bayraklar
+  hâlâ yüksekken çiziliyor ve `finalizeQueue` düğmeleri yeniden
+  senkronlamıyordu; kuyruk bir daha başlatılamaz durumda kalıyordu.
+  Artık `finalizeQueue` `syncJobsCenter` çağırır (davranışsal regresyon
+  testi R219-01 düzeltmesiz kırmızı doğrulandı).
+- **Kuyruk durumu diske bayat `queueRunning:true` yazabiliyordu** —
+  80ms debounce'lu persist, bayraklar düşmeden önceki anlık görüntüyü
+  yazıyordu; `queueSnapshotForDisk` artık bayrağı normalize öğelerden
+  türetir (terminal olmayan öğe yoksa `false`).
+- **Video analiz köprüsü 1MB üstü stdin'i kesik JSON hatasıyla
+  reddediyordu** — artık açık boyut-sınırı mesajı döner.
 
 - **live-asr CUDA→CPU geri dönüşünde ses kaybı** — GPU yüklemesi çökünce
   kuyruğa alınmış ses parçaları diskten siliniyordu; artık yeni sürece
@@ -53,6 +227,12 @@ All notable changes to this project are documented here. The format follows [Kee
 - Kuyruk seçeneklerinde NaN/±Infinity değerler artık diske `null` olarak sızmaz; `queue-persistence.js` `sanitizePublicValue` sonlu-sayı kapısı ekler.
 - R156: settings hardening — a corrupt `settings.json` (unparseable, wrong root type, or type-corrupt top-level fields) no longer silently wipes all preferences: bad fields are dropped, good ones kept, the original file preserved as `settings.json.corrupt-<ts>`, and the user warned via the existing load-warning channel.
 - R155: installer UX — `start.bat` now runs `setlocal` so its PATH/env prefixes stop leaking into (and re-prepending in) the calling console; helper installers (`install-browser-align/tools/extras.bat`) pause on every failure path so double-clicked installs show the error instead of closing instantly.
+
+### Security
+
+- R241 (tur-4 paketi): Invidious altyazı dil kodu `..\..` yol traversal'ına kapandı; içe aktarılan çalışma paketindeki geçmiş kayıtları koşulsuz altyazı erişimi veriyordu (SMB/NTLM sızıntısı dahil); sayfa çevirisi blok hacmi 20k ile sınırlı; mailto döngüsü 1/3 sn'ye tıklandı; favicon getirme yalnız herkese açık host + yönlendirmesiz; `-` ile başlayan argüman değerleri `--opt=val` ile geçiyor.
+- R242 (tur-4 açık maddeleri): altyazı indirmesi DNS rebinding'e kapandı — DNS doğrulaması dönen {address, family} artık isteği Node tarafında aynı IP'ye sabitler (`lookup` pinning; SNI/Host korunur, proxy'li veya oturumun kendi https interceptor'ü olan ortamlarda Chromium yoluna geri düşülür). `whisper-assets://` host'u oturum başına rastgele nonce — sabit `ass` host'u artık 404 döndüğü için sayfalar uygulamayı parmak iziyle tespit edemez.
+- R243 (#182 review): `DIRECT; PROXY` zincirinde doğrudan bacak düşünce proxy yedeği denenir; `resolveProxy` belirsizliğinde Chromium yolu korunur; http isteğe Secure çerezler taşınmaz.
 
 ### Internal
 

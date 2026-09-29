@@ -226,10 +226,16 @@ test('gerçek ağ yardımcısı yanlış/eksik HTTP bayt aralığını kabul etm
   let response = { status: 206, ok: true, headers: new Map([['content-range', 'bytes 20-23/100']]), arrayBuffer: async () => Buffer.from('part') };
   const context = {
     URL, Buffer, BROWSER_FETCH_TIMEOUT: 1000,
-    activeBrowserTab: () => ({ view: { webContents: { isDestroyed: () => false, session: { fetch: async (_url, opts) => {
+    activeBrowserTab: () => ({ view: { webContents: { isDestroyed: () => false, getURL: () => 'https://other.example/', session: {
+      fetch: async () => { throw new Error('DIRECT ortamda session.fetch çağrılmamalı.'); },
+      resolveProxy: async () => 'DIRECT',
+      getUserAgent: () => 'ua',
+    } } } }),
+    assertPublicBrowserSubtitleUrl: async () => ({ address: '93.184.216.34', family: 4 }),
+    requestPinnedSubtitleBuffer: async (_url, _pin, opts) => {
       assert.equal(opts.headers.Range, 'bytes=20-23'); return response;
-    } } } } }),
-    assertPublicBrowserSubtitleUrl: async () => {},
+    },
+    sanitizeBrowserUserAgent: (value) => value,
     withAbortTimeout: fn => fn(undefined),
     browserSubtitleStateError: (code, message) => Object.assign(Error(message), { code }),
     // Sınır kapısının davranışı: gövde boyutu bellekte sayılır, aşımda reddedilir.

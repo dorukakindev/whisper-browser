@@ -119,11 +119,23 @@ class OcrRangeE2ETests(unittest.TestCase):
         self.assertTrue(r.get("error"))
 
     def test_stdin_size_cap(self):
-        # main() stdin'i 1MB ile sınırlar; dev istek ok:false veya kesilmiş
-        # JSON yerine temiz bir hata zarfı döndürmeli.
+        # main() stdin'i 1MB ile sınırlar; aşan girdi kesilmiş JSON
+        # hatası yerine açık boyut-sınırı mesajıyla reddedilmeli.
         r = _run({"operation": "ocrRange", "pad": "x" * (2 * 1024 * 1024),
                   "frames": [self.frame_a], "start": 0, "end": 1, "interval": 1})
         self.assertFalse(r.get("ok"))
+        self.assertIn("1MB", r.get("error", ""),
+                      "boyut sınırı açık mesajla bildirilmedi: %r" % r.get("error"))
+
+    def test_stdin_exactly_at_cap_parses(self):
+        # Sınırın TAM ucundaki istek (1,048,576 bayt) reddedilmemeli —
+        # minik gövde sınır-inkrement reddini yakalayamaz.
+        pad = 1024 * 1024 - len(json.dumps({"operation": "__bilinmeyen__", "pad": ""}))
+        body = {"operation": "__bilinmeyen__", "pad": "x" * pad}
+        self.assertEqual(len(json.dumps(body).encode("utf-8")), 1024 * 1024)
+        r = _run(body)
+        self.assertFalse(r.get("ok"))
+        self.assertIn("Bilinmeyen", r.get("error", ""))
 
 
 if __name__ == "__main__":

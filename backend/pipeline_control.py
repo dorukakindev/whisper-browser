@@ -165,7 +165,10 @@ def recover_output_transactions(output_dir) -> int:
                     backup = Path(row["backup"])
                     if row.get("existed") and backup.exists():
                         os.replace(backup, final)
-                    elif not row.get("existed"):
+                    elif not row.get("existed") and data.get("state") == "prepared":
+                        # Yalnız commit başladıysa (prepared) final bu işleme aittir.
+                        # "staging"de final hiç yerine konmadı; o adla sonradan
+                        # oluşan kullanıcı dosyası silinmemeli.
                         try:
                             final.unlink(missing_ok=True)
                         except OSError:
@@ -180,6 +183,30 @@ def recover_output_transactions(output_dir) -> int:
     return recovered
 
 
+_OPEN_TRANSACTIONS = []
+
+
+def rollback_open_output_transactions() -> int:
+    """Hata ile biten işte tamamlanmamış çıktı işlemlerini geri al.
+
+    transcribe() yazım bölümünde (ör. çeviri biçimi yazılamazken) istisna
+    yükselince journal "staging" durumunda ve .tmp dosyalarıyla klasörde
+    kalıyordu; sonraki kurtarma da o sırada kullanıcının oluşturduğu aynı adlı
+    dosyayı silebiliyordu. Ana istisna yolu bu yardımcıyı çağırır.
+    """
+    rolled = 0
+    while _OPEN_TRANSACTIONS:
+        tx = _OPEN_TRANSACTIONS.pop()
+        if getattr(tx, "state", "") == "committed":
+            continue
+        try:
+            tx.rollback()
+            rolled += 1
+        except Exception:
+            pass
+    return rolled
+
+
 class OutputTransaction:
     """Stage all outputs and atomically replace finals with rollback journaling."""
 
@@ -191,6 +218,7 @@ class OutputTransaction:
         self.journal = self.output_dir / f".whisper-output-transaction-{self.token}.json"
         self.entries: list[dict] = []
         self.state = "staging"
+        _OPEN_TRANSACTIONS.append(self)
         self.closed = False
         self.checkpoint = checkpoint
         self._replace = replace

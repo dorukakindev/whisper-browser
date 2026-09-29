@@ -35,7 +35,13 @@ function harness() {
       destroyed: false,
       focused: 0,
       closed: false,
-      webContents: { id: 'mini', mainFrame: 'frame' },
+      webContents: {
+        id: 'mini', mainFrame: 'frame',
+        openHandler: null, guardListeners: 0,
+        setWindowOpenHandler(fn) { this.openHandler = fn; },
+        on() { this.guardListeners += 1; },
+        removeListener() {},
+      },
       contentView: { added: null, addChildView(v) { this.added = v; }, removeChildView() {} },
       getContentSize: () => [800, 500],
       isDestroyed() { return this.destroyed || this.closed; },
@@ -92,6 +98,12 @@ function harness() {
   assert.strictEqual(h.player.open(tab).ok, true);
   assert.strictEqual(h.calls.windows.length, 1);
   assert.strictEqual(h.calls.windows[0].focused, 1);
+  // R265: yerel pencere navigasyon kilitleri bağlanır (pencere-açma deny +
+  // will-navigate/will-redirect preventDefault + subframe şema reddi)
+  const wc = h.calls.windows[0].webContents;
+  assert.strictEqual(typeof wc.openHandler, 'function');
+  assert.deepStrictEqual(wc.openHandler({ url: 'https://evil.test/' }), { action: 'deny' });
+  assert.strictEqual(wc.guardListeners, 3); // will-navigate, will-redirect, will-frame-navigate
 }
 // owns: yalnız açık hedef için true; pencere kapandıktan sonra false
 {

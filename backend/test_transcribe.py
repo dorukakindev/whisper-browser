@@ -14,6 +14,7 @@ import hashlib
 import os
 import sys
 import tempfile
+import time
 import types
 import wave
 from pathlib import Path
@@ -1063,6 +1064,40 @@ def test_translate_quota_probe_stops_parallel_fanout():
     assert status["failed"] == list(range(len(entries)))
 
 
+def test_translate_network_probe_stops_parallel_fanout():
+    """İş başında tamamen çevrimdışıysa ilk parça probu yakalar:
+    kalan parçalar rota/rota dolaşıp ücret yakmadan durur."""
+    import types
+
+    entries = [(float(i), float(i + 1), f"Source sentence number {i}.") for i in range(45)]
+    calls = []
+
+    def fail_network(**_kwargs):
+        calls.append(1)
+        raise RuntimeError("Connection error: getaddrinfo failed")
+
+    class _Offline:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=fail_network))
+
+    status = {}
+    with _fake_openai(_Offline):
+        out = T.llm_translate(
+            entries,
+            _TrArgs(translate_workers=8, translate_cache=False),
+            [],
+            source_lang="en",
+            status_out=status,
+        )
+    assert out is None
+    # Ağ hatası retryable'dır: prob tek parçada en fazla `attempts` istek yakar;
+    # kapı olmasaydı 45 parça × retry × rota kadar istek giderdi.
+    assert len(calls) <= 3, f"çevrimdışı probda {len(calls)} istek gönderildi"
+    assert status["lastError"] == "network_error"
+    assert status["failed"] == list(range(len(entries)))
+
+
 def test_same_translation_language_compares_primary_iso_tags():
     assert T.same_translation_language("tr", "TR")
     assert T.same_translation_language("tr-TR", "tr")
@@ -1225,14 +1260,22 @@ def test_translate_refine_failure_is_not_cached_as_confirmed():
     with _fake_openai(_Client):
         first = T.llm_translate(ENTRIES, args, [], source_lang="en")
     assert first and all(text.startswith("[TR] ") for _s, _e, text in first)
-    assert T.load_translate_cache(T.translate_cache_path(args)) == {}, \
-        "refine başarısızken ham çeviri önbelleğe yazıldı"
+    # Yeni sözleşme: ham 1. geçiş 'refined: false' bayrağıyla önbelleğe düşer —
+    # yeniden koşu çeviri ücretini ödemeden yalnız 2. geçişi tekrarlar.
+    cache = T.load_translate_cache(T.translate_cache_path(args))
+    assert cache and all(
+        isinstance(value, dict) and value.get("refined") is False
+        for value in cache.values()), cache
 
     state["fail_refine"] = False
     with _fake_openai(_Client):
         second = T.llm_translate(ENTRIES, args, [], source_lang="en")
     assert second and all(text.startswith("[R] [TR] ") for _s, _e, text in second)
-    assert state == {"fail_refine": False, "translate": 2, "refine": 2}, state
+    assert state == {"fail_refine": False, "translate": 1, "refine": 2}, state
+    cache = T.load_translate_cache(T.translate_cache_path(args))
+    assert all(
+        isinstance(value, dict) and value.get("refined") is True
+        for value in cache.values()), cache
 
 
 def test_translate_refine_caches_valid_unchanged_answers():
@@ -1779,15 +1822,15 @@ def test_translate_existing_subtitle_merge_continuation():
     src.write_text("\n".join([
         "1",
         "00:00:01,000 --> 00:00:04,000",
-        "Bu kulağa çok…",
+        "That sounds very…",
         "",
         "2",
         "00:00:04,200 --> 00:00:07,000",
-        "kasıntı gelir ama değil.",
+        "stiff, but it isn't.",
         "",
         "3",
         "00:00:09,000 --> 00:00:10,000",
-        "Tam bir cümle.",
+        "A complete sentence.",
         "",
     ]), encoding="utf-8-sig")
 
@@ -1825,7 +1868,7 @@ def test_translate_existing_subtitle_merge_continuation():
     try:
         merged_text = _run(merge_continuation=True, continuation_gap=3.0)
         assert "00:00:01,000 --> 00:00:07,000" in merged_text, merged_text
-        assert "[TR] Bu kulağa çok kasıntı gelir ama değil." in merged_text, merged_text
+        assert "[TR] That sounds very stiff, but it isn't." in merged_text, merged_text
         assert "00:00:04,200 --> 00:00:07,000" not in merged_text, merged_text
         assert merged_text.count("-->") == 2, merged_text
         # Tam cümle bloğu birleştirilmez — 3. blok ayrı kalır.
@@ -2039,6 +2082,27 @@ def test_normalize_timings():
     assert out4[0][0] == 0.0 and out4[0][1] > out4[0][0]
     unordered = T.normalize_timings([(5, 6, "son"), (1, 2, "ilk")], min_gap=0.08)
     assert [item[2] for item in unordered] == ["ilk", "son"]
+
+
+def test_normalize_timings_merges_unrenderable_flash_forward():
+    """~10 ms'ye sıkışan cue ekranda okunamaz flaştı — metin sonraki cue'ya katlanır."""
+    out = T.normalize_timings([(0.0, 2.0, "a"), (2.0, 2.05, "b"), (2.05, 5.0, "c")])
+    assert len(out) == 2, f"flaş cue birleşmedi: {out}"
+    assert out[0][2] == "a"
+    assert out[1][2] == "b c", f"metin kayboldu: {out}"
+    # Tek başına kısa cue her zaman min_dur'a uzatılır — düşürülmez.
+    out2 = T.normalize_timings([(0.0, 0.01, "tek")], min_dur=0.8)
+    assert len(out2) == 1 and out2[0][1] - out2[0][0] >= 0.7
+
+
+def test_normalize_timings_last_flash_keeps_speech_time():
+    """Sondaki flaş cue öncekine katlanırken konuşma zamanı korunur —
+    uzun sessizlik sonrası son söz yalnız önceki cue'da gösterilmez.
+    (Son cue tavanı olmadığından ancak min_dur < 0.2 ayarıyla flaş kalabilir.)"""
+    out = T.normalize_timings([(0.0, 2.0, "a"), (30.0, 30.01, "x")], min_dur=0.05)
+    assert len(out) == 1, f"son flaş cue birleşmedi: {out}"
+    assert out[0][2] == "a x"
+    assert out[0][1] >= 30.0, f"son cue'nun konuşma zamanı kayboldu: {out}"
 
 
 def test_r51_86_nan_times_repaired_before_write():
@@ -2663,7 +2727,11 @@ def test_cache_and_checkpoint_failed_replace_preserve_previous_file():
             with open(p, "rb") as f:
                 before[p] = f.read()
         with mock.patch.object(T.os, "replace", side_effect=OSError("disk locked")), mock.patch.object(T, "log"):
-            T.save_translate_cache(cache, {"new": "yeni"})
+            try:
+                T.save_translate_cache(cache, {"new": "yeni"})
+                assert False, "yazma hatası artık yutulmaz, çağrana yayılır"
+            except OSError:
+                pass
             assert not T.write_checkpoint(checkpoint, {}, [(0, 2, "yeni")], 2)
         for p, content in before.items():
             with open(p, "rb") as f:
@@ -2692,7 +2760,10 @@ def test_cache_and_checkpoint_fsync_before_replace():
             with open(p, "rb") as f:
                 before = f.read()
             with mock.patch.object(T.os, "fsync", side_effect=OSError("sync failed")), mock.patch.object(T.os, "replace") as rename, mock.patch.object(T, "log"):
-                writer(p)
+                try:
+                    writer(p)
+                except OSError:
+                    pass  # save artık hatayı yayar; checkpoint zaten False döner
                 rename.assert_not_called()
             with open(p, "rb") as f:
                 assert f.read() == before
@@ -2930,13 +3001,18 @@ def test_sentence_translation_refine_partial_preserves_whole_first_pass():
         return reply
     with tempfile.TemporaryDirectory() as tmp:
         args = _TrArgs(translate_refine=True, cache_dir=tmp)
-        for _ in range(2):
+        for run in range(2):
             result, seen, _, warnings = _sentence_translate(_SENTENCE_SOURCE, args, answer)
             assert [e[2] for e in result] == _SENTENCE_PARTS
-            assert len(seen) == 2, 'eksik refine onaylı olarak önbelleğe yazıldı'
-            assert any('1. geçişi korundu' in warning for warning in warnings)
-            refine = seen[1][0]['sentence_groups'][0]
+            # Yeni sözleşme: onaylanmamış 1. geçiş 'refined: false' ile önbellekte
+            # kalır; 2. koşu çeviriyi ödemeden yalnız refine'ı tekrarlar
+            # (run0: toplu+refine=2 istek, run1: yalnız refine=1 istek).
+            assert len(seen) == (2 if run == 0 else 1), (run, len(seen))
+            if run == 0:
+                assert any('1. geçişi korundu' in warning for warning in warnings)
+            refine = seen[-1][0]['sentence_groups'][0]
             assert refine['translation'] == ' '.join(_SENTENCE_PARTS)
+            assert 'src' in seen[-1][0]['items'][0]
 
 
 def test_sentence_translation_failed_groups_never_reach_refine():
@@ -3242,15 +3318,27 @@ def test_translate_existing_without_metadata_retries_source_echo_only():
         args.translate_existing = str(existing)
         seen = []
 
-        def translate_missing(entries, _args, _warnings, source_lang=None, status_out=None):
+        captured_precompleted = []
+
+        def translate_missing(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             seen.extend(entries)
-            status_out.update(completed=[0], failed=[])
-            return [(entries[0][0], entries[0][1], "Bu satır artık çevrildi.")]
+            captured_precompleted.append(dict(precompleted or {}))
+            status_out.update(completed=list(range(len(entries))), failed=[])
+            precompleted = precompleted or {}
+            return [
+                (entry[0], entry[1],
+                 precompleted.get(index, "Bu satır artık çevrildi."))
+                for index, entry in enumerate(entries)
+            ]
 
         with mock.patch.object(T, "llm_translate", side_effect=translate_missing), \
                 mock.patch.object(T, "emit"):
             T.translate_existing_subtitle(args)
-        assert [entry[2] for entry in seen] == ["This stayed in English."]
+        # Yeni sözleşme: modele dosyanın TAMAMI gider; önceden çevrilmiş
+        # konumlar 'precompleted' ile işaretlenip bağlam olarak kullanılır.
+        assert [entry[2] for entry in seen] == [
+            "This stayed in English.", "Second source line."]
+        assert captured_precompleted == [{1: "İkinci satır çevrildi."}]
         written = existing.read_text(encoding="utf-8-sig")
         assert "Bu satır artık çevrildi." in written
         assert "İkinci satır çevrildi." in written
@@ -3332,7 +3420,18 @@ def test_sentence_translation_retries_only_missing_groups_at_scale():
 
 
 def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
-    with tempfile.TemporaryDirectory() as tmp:
+    # Dosya-silme probu Windows'ta sqlite3_close_v2'nin zombie davranışı ve
+    # AV/dizinleyici kilitleri yüzünden yanıltıcı olur; sözleşme "bağlantı
+    # kapandı" olduğundan bağlantı durumunu anlamsal olarak izle.
+    instances = []
+    RealTM = T.TranslationMemory
+
+    class _ProbeTM(RealTM):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            instances.append(self)
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         args = _TrArgs(cache_dir=tmp, translate_cache=True)
         checkpoints = []
 
@@ -3340,7 +3439,8 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
             checkpoints.append((stage, point))
             raise T.PipelineCancelled(stage, point)
 
-        with mock.patch.object(T, 'cancellation_checkpoint', side_effect=cancel_before_cache):
+        with mock.patch.object(T, 'TranslationMemory', _ProbeTM), \
+                mock.patch.object(T, 'cancellation_checkpoint', side_effect=cancel_before_cache):
             try:
                 _sentence_translate([(0, 1, 'Cache boundary sentence.')], args=args)
                 raise AssertionError('Önbellek yazımı öncesindeki iptal yutuldu')
@@ -3350,9 +3450,60 @@ def test_cancel_before_cache_write_closes_memory_and_writes_no_exact_cache():
         assert checkpoints == [('llm', 'during')]
         cache_path = T.translate_cache_path(args)
         assert not Path(cache_path).exists(), 'İptal edilen çeviri tam önbelleğe yazıldı'
-        memory_path = Path(tmp) / 'translation-memory.sqlite3'
-        memory_path.unlink()
-        assert not memory_path.exists(), 'SQLite çeviri hafızası bağlantısı açık kaldı'
+        assert instances, 'Çeviri hafızası hiç açılmadı — test kurulumu yanlış'
+        assert all(instance._conn is None for instance in instances), \
+            'SQLite çeviri hafızası bağlantısı açık kaldı'
+
+
+def test_sentence_boundary_last_part_quota_catches_context_glued_part():
+    B = T.sentence_part_boundary_issue
+    # Kapalı kaynak parçada bağlam cümlesinin yapıştırılması fazladan son üretir.
+    assert B(['The real line.'], ['Bağlam cümlesi. Gerçek çeviri.']) == 'fazla_cumle_sonu:0'
+    # Açık kaynak parçada hedefin doğal kapanışına tek ek son bağışlanır.
+    assert not B(['I was going to'], ['Gidecektim.'])
+    # Çok parçalı grupta da son parça aynı kotaya tabidir.
+    assert B(['Text one.', 'two three.'], ['Bir metin.', 'iki üç. Kesinlikle.']) == 'fazla_cumle_sonu:1'
+    assert not B(['Text one.', 'two three.'], ['Bir metin.', 'iki üç.'])
+
+
+def test_sentence_translation_rejects_context_glued_last_part():
+    """Bağlam satırının ilk parçaya yapışması (context-leak) kabul edilemez —
+    sızdıran parça reddedilip kurtarma temiz yanıtı alır."""
+    calls = []
+
+    def answer(_payload):
+        calls.append(1)
+        leaked = len(calls) == 1
+        text = 'Önceki sahne cümlesi. Gerçek çeviri.' if leaked else 'Gerçek çeviri.'
+        return {'items': {'0': text}, 'sentences': {'0': text}}
+
+    result, _seen, _events, _warnings = _sentence_translate(
+        [(0, 1, 'The real line.')], answer=answer)
+    assert [e[2] for e in result] == ['Gerçek çeviri.']
+    assert len(calls) >= 2, 'sızdıran parça ilk denemede kabul edilmemeli'
+
+
+def test_convertible_unit_forgiveness_requires_bound_operand():
+    """Birim bağışlaması sayının birime BİTİŞİK olmasını ister: '6 feet' →
+    '1,83' bağışlanır; uzaktaki ilgisiz birim sözcüğü kaybı örtemez."""
+    B = T.part_anchor_issue
+    # Bitişik birim: '6 feet' değer değiştiren çeviri → sayı kaybı sayılmaz.
+    assert not B(['the bridge is 6 feet long.'], ['köprü 1,83 metre.'], 'tr')
+    # İlgisiz birim yakınlıkta dururken başka sayı düştü → kayıp raporlanır.
+    assert B(['in 5 miles they moved 10 boxes.'],
+             ['5 mil içinde kutuları taşıdılar.'], 'tr') == 'sayi_kaydi:0'
+
+
+def test_line_keeps_source_title_case_sentences_still_translate():
+    K = T.line_keeps_source
+    # Yalnız Title-Case sıradan cümleler korunmaz (eski len>=3 koşulunun
+    # ürettiği yanlış-pozitif: 'Good Morning Everyone.' çevrilmeden kalırdı).
+    assert not K('Good Morning Everyone.', 'tr')
+    assert not K('Stop The Press.', 'tr')
+    # camelCase / rakam / tam-BÜYÜK belirteçli ad ve kod dizgileri korunur.
+    assert K('iPhone 15 Pro.', 'tr')
+    assert K('PlayStation 5', 'tr')
+    assert K('NASA FAA EASA', 'tr')
 
 
 def test_sentence_reply_nfc_and_dialogue_line_breaks():
@@ -3837,7 +3988,7 @@ def test_subtitle_output_contract_and_model_change_resume():
 
         events = []
 
-        def first_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+        def first_translate(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             status_out.update(completed=list(range(len(entries))), failed=[])
             return [(s, e, "TR " + text) for s, e, text in entries]
 
@@ -3857,16 +4008,26 @@ def test_subtitle_output_contract_and_model_change_resume():
         pending_seen = []
         events.clear()
 
-        def resume_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+        captured_precompleted = []
+
+        def resume_translate(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             pending_seen.extend(entries)
-            status_out.update(completed=[0], failed=[])
-            return [(s, e, "YENİ " + text) for s, e, text in entries]
+            captured_precompleted.append(dict(precompleted or {}))
+            status_out.update(completed=list(range(len(entries))), failed=[])
+            precompleted = precompleted or {}
+            return [
+                (s, e, precompleted.get(index, "YENİ " + text))
+                for index, (s, e, text) in enumerate(entries)
+            ]
 
         with mock.patch.object(T, "llm_translate", side_effect=resume_translate), \
                 mock.patch.object(T, "emit", side_effect=lambda kind, **payload: events.append((kind, payload))):
             T.translate_existing_subtitle(args_for("model-new", str(translation)))
 
-        assert [row[2] for row in pending_seen] == ["Two."], pending_seen
+        # Yeni sözleşme: modele tüm satırlar gider; tamamlanmış konumlar
+        # 'precompleted' ile işaretlenir ve dokunulmadan döner (R221 #2).
+        assert [row[2] for row in pending_seen] == ["One.", "Two."], pending_seen
+        assert captured_precompleted == [{0: "Elle One."}], captured_precompleted
         done = [payload for kind, payload in events if kind == "done"][-1]
         assert done["outputs"][0]["role"] == "translation"
         assert done["outputs"][0]["language"] == "tr"
@@ -3910,7 +4071,7 @@ def test_translate_quality_gate_marks_long_source_echo_for_retry():
         args.translate_existing = ""
         events = []
 
-        def echo_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+        def echo_translate(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             status_out.update(completed=[0], failed=[])
             return list(entries)
 
@@ -3944,7 +4105,7 @@ def test_partial_translation_never_overwrites_existing_complete_artifact():
         args.translate_existing = ""
         events = []
 
-        def short_echo(entries, _args, _warnings, source_lang=None, status_out=None):
+        def short_echo(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             status_out.update(completed=[0], failed=[])
             return list(entries)
 
@@ -3973,7 +4134,7 @@ def test_completed_translation_removes_only_owned_partial_artifacts():
         args.formats, args.dual_subtitle, args.dual_translation_first = "srt", True, False
         args.translate_existing = ""
 
-        def partial_translate(entries, _args, _warnings, source_lang=None, status_out=None):
+        def partial_translate(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             status_out.update(completed=[0], failed=[1], failedReasons={"1": "api_failure"})
             return [
                 (entries[0][0], entries[0][1], "İlk satır."),
@@ -3997,9 +4158,14 @@ def test_completed_translation_removes_only_owned_partial_artifacts():
 
         args.translate_existing = str(partial)
 
-        def complete_translate(entries, _args, _warnings, source_lang=None, status_out=None):
-            status_out.update(completed=[0], failed=[], failedReasons={})
-            return [(entries[0][0], entries[0][1], "İkinci satır.")]
+        def complete_translate(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
+            status_out.update(completed=list(range(len(entries))), failed=[], failedReasons={})
+            precompleted = precompleted or {}
+            return [
+                (entry[0], entry[1],
+                 precompleted.get(index, "İkinci satır." if index == 1 else entry[2]))
+                for index, entry in enumerate(entries)
+            ]
 
         with mock.patch.object(T, "llm_translate", side_effect=complete_translate), \
                 mock.patch.object(T, "emit"):
@@ -4027,7 +4193,7 @@ def test_translate_existing_formats_commit_as_one_transaction():
         args.formats, args.dual_subtitle, args.dual_translation_first = "srt,vtt", False, False
         args.translate_existing = ""
 
-        def complete(entries, _args, _warnings, source_lang=None, status_out=None):
+        def complete(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             status_out.update(completed=[0], failed=[])
             return [(entries[0][0], entries[0][1], "Merhaba.")]
 
@@ -4061,7 +4227,7 @@ def test_translate_existing_strips_only_inline_sdh_from_model_input():
         args.translate_existing = ""
         seen = []
 
-        def translate_clean(entries, _args, _warnings, source_lang=None, status_out=None):
+        def translate_clean(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             seen.extend(entries)
             status_out.update(completed=[0, 1], failed=[])
             return [(entries[0][0], entries[0][1], "Kıpırdama."),
@@ -4100,7 +4266,7 @@ def test_translate_existing_rejects_mismatched_metadata_even_when_timeline_match
         seen = []
         events = []
 
-        def translate_all(entries, _args, _warnings, source_lang=None, status_out=None):
+        def translate_all(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             seen.extend(entries)
             status_out.update(completed=[0], failed=[])
             return [(entries[0][0], entries[0][1], "Yeni çeviri.")]
@@ -4134,7 +4300,7 @@ def test_translate_existing_metadata_completed_source_echo_is_retried():
         args.formats, args.dual_subtitle, args.dual_translation_first = "srt", False, False
         args.translate_existing = str(existing)
         seen = []
-        def translate_echo_retry(entries, _args, _warnings, source_lang=None, status_out=None):
+        def translate_echo_retry(entries, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             seen.extend(entries)
             status_out.update(completed=[0], failed=[])
             return [(entries[0][0], entries[0][1], "Çarpıcı bir gelişme yaşandı.")]
@@ -4198,7 +4364,7 @@ def test_translate_existing_preserves_user_edit_made_while_api_runs():
             "cues": [{"key": fingerprint, "status": "failed", "text": ""}],
         }), encoding="utf-8")
 
-        def translate_and_edit(pending, _args, _warnings, source_lang=None, status_out=None):
+        def translate_and_edit(pending, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
             existing.write_text("1\n00:00:01,000 --> 00:00:02,000\nKullanıcı düzenledi.\n",
                                 encoding="utf-8-sig")
             status_out.update(completed=[0], failed=[])

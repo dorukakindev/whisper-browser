@@ -137,6 +137,44 @@ class ModelBenchmarkCompare(unittest.TestCase):
         self.assertEqual(sampler.stop(), 256.0)
         self.assertEqual(sampler.scope, "gpu-delta")
 
+    def test_corrupt_input_raises_called_process_error(self):
+        """Bozuk girdi dosyası ffmpeg'i patlatır — __main__ sarmalı ok:false'a
+        çevirir; main() seviyesinde hata sessizce yutulmamalı."""
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = os.path.join(tmp, "corrupt.mp4")
+            with open(bad, "wb") as f:
+                f.write(b"this is not a media file" * 64)
+            argv = ["model_benchmark.py", "--input", bad, "--model", "small",
+                    "--device", "cpu", "--ffmpeg", "ffmpeg"]
+            with mock.patch.object(sys, "argv", argv):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    model_benchmark.main()
+
+    def test_start_beyond_duration_reports_no_measurable_audio(self):
+        """--start süreden uzunsa ffmpeg boş wav üretir; 'ölçülebilir ses yok'
+        RuntimeError'ı ok:false'a çevrilir (çöküş değil)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = os.path.join(tmp, "clip.wav")
+            _sine_wav(wav, 5.0)
+            argv = ["model_benchmark.py", "--input", wav, "--model", "small",
+                    "--device", "cpu", "--ffmpeg", "ffmpeg",
+                    "--start", "3600", "--seconds", "30"]
+            with mock.patch.object(sys, "argv", argv):
+                with self.assertRaises(RuntimeError) as ctx:
+                    model_benchmark.main()
+            self.assertIn("ölçülebilir ses", str(ctx.exception))
+
+    def test_result_json_roundtrip_preserves_schema(self):
+        """Emit edilen sonuç JSON roundtrip'ten bozulmadan çıkar —
+        renderer/teşhis tarafı yeniden okuyabilir."""
+        with tempfile.TemporaryDirectory() as tmp:
+            [result] = self._run(tmp, ["--compare-model", "tiny"], {
+                "small": [_Seg(0.0, "hello")], "tiny": [_Seg(0.0, "hello")]})
+            clone = json.loads(json.dumps(result))
+            self.assertEqual(clone, result)
+            self.assertEqual(len(clone["clipHash"]), 64)
+            self.assertEqual(clone["diff"]["matchedCueCount"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

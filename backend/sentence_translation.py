@@ -46,12 +46,33 @@ def sentence_parts_match(whole, parts):
 _END_RUN = re.compile(r'[.!?…]+[\"\'”’)}\]]*')
 
 
-def _numeric_separator(text, match):
-    """'3.000' / '2.4' / 'v1.2' — iki rakam arasındaki nokta cümle sonu değildir.
+# Sıra sayısını noktayla yazan hedef diller ("2. Dünya Savaşı"). transcribe.llm_translate
+# çeviri başında set_target_language ile ayarlar; kaynak dilden bağımsızdır.
+_ORDINAL_TARGET_LANGS = {"tr", "de", "cs", "da", "et", "fi", "hr", "hu", "is", "lv", "nb", "nn",
+                         "no", "pl", "sk", "sl", "sv"}
+_target_ordinals = False
+
+
+def set_target_language(language):
+    """Çeviri hedef dilinin sıra sayısı kuralını ayarla; önceki değeri döndür."""
+    global _target_ordinals
+    previous = _target_ordinals
+    _target_ordinals = _lang_ordinals(language)
+    return previous
+
+
+def _lang_ordinals(language):
+    """Verilen dil noktalı sıra sayısı yazıyor mu ('21. yüzyıl')."""
+    return str(language or "").lower().split("-")[0] in _ORDINAL_TARGET_LANGS
+
+
+def _numeric_separator(text, match, ordinals=None):
+    """'3.000' / '2.4' / 'v1.2' / '21. yüzyıl' — rakamla kapanmayan nokta cümle sonu değildir.
 
     Türkçe binlik ayraç ve ondalık nokta ('Kasada 3.000 sikke vardı.') satır
     sonu ekleme ve cümle-sonu kotasını kandırıyordu: '3.' gerçek bitiş sanılıp
-    sayının ortasına `\n` konuyordu.
+    sayının ortasına `\n` konuyordu. Sıra sayıları da aynı sınıftadır:
+    '21. yüzyıldayız.' içindeki '21.' parça cümlesini bitirmez.
     """
     i = match.start() - 1
     while i >= 0 and text[i] in "\"'”’)}] ":
@@ -61,18 +82,40 @@ def _numeric_separator(text, match):
     while j < len(text) and text[j] in "\"'”’)}] ":
         j += 1
     nxt = text[j] if j < len(text) else ""
-    return prev.isdigit() and nxt.isdigit()
+    if not prev.isdigit():
+        return False
+    if nxt.isdigit():
+        return True
+    # Sıra sayısı: rakam+nokta parça/ifade başındaysa ('21. yüzyıldayız.') ya
+    # da küçük harfle devam ediyorsa ('3. sınıf') cümle sonu değildir.
+    k = i
+    while k >= 0 and text[k].isdigit():
+        k -= 1
+    if not normalized_text(text[:k + 1]):
+        return True
+    # Sıra sayısını noktayla yazan hedef dilde kısa sayı + nokta + büyük harf
+    # ('2. Dünya Savaşı', '3. Selim') ifade içidir; eskiden '2.' sonrasına satır
+    # sonu konuyordu. 4+ basamak (yıl: '1935. Sonra…') gerçek cümle sonu kalır.
+    if (ordinals if ordinals is not None else _target_ordinals) and nxt.isupper() and 0 < i - k <= 3:
+        return True
+    return nxt.islower()
 
 
-def sentence_end_count(text):
-    """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz)."""
+def sentence_end_count(text, language=None):
+    """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz).
+
+    language verilirse sıra-sayısı kuralı o dile göre uygulanır — kaynak
+    parçalar hedefin değil kendi dilinin kuralıyla sayılmalıdır ('3. Then'
+    İngilizce kaynakta gerçek cümle sonudur; TR kuralı sıra sayısı sanırdı).
+    """
     text = normalized_text(text)
+    ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
-               if not _numeric_separator(text, match)
+               if not _numeric_separator(text, match, ordinals)
                and sentence_ended(text[:match.end()]))
 
 
-def internal_sentence_end_count(text):
+def internal_sentence_end_count(text, language=None):
     """Parça İÇİNDE tamamlanan cümle sayısı (parçanın kendi sonu hariç).
 
     "Wait. Are you sure" gibi gövdesinde tam cümle barındıran parçaların
@@ -80,13 +123,14 @@ def internal_sentence_end_count(text):
     istenen davranış kalite kapısında reddediliyordu.
     """
     text = normalized_text(text)
+    ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
-               if not _numeric_separator(text, match)
+               if not _numeric_separator(text, match, ordinals)
                and sentence_ended(text[:match.end()])
                and normalized_text(text[match.end():]))
 
 
-def sentence_part_boundary_issue(source_parts, translated_parts):
+def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=None):
     """Hedefin cümleyi kaynak cue'da olandan fazla cümleyle kapatmasını engelle.
 
     Kota = kaynak parçanın içerdiği toplam tam cümle sayısı. Böylece gövdesinde
@@ -98,9 +142,25 @@ def sentence_part_boundary_issue(source_parts, translated_parts):
             or not isinstance(translated_parts, (list, tuple))
             or len(source_parts) != len(translated_parts)):
         return "cue_siniri_gecersiz"
+    # Kaynak parçalar kendi dilinin sıra-sayısı kuralıyla sayılır — '3. Then'
+    # İngilizce'de gerçek cümle sonudur; TR kuralı sıra sayısı sanıp doğru
+    # çeviriyi 'fazla cümle' diye reddediyordu.
+    src_count = lambda text: sentence_end_count(text, language=source_lang)
     for index in range(max(0, len(source_parts) - 1)):
-        if sentence_end_count(translated_parts[index]) > sentence_end_count(source_parts[index]):
+        if sentence_end_count(translated_parts[index]) > src_count(source_parts[index]):
             return f"erken_cumle_sonu:{index}"
+    # Son parça: kaynak cümle kapalı bitiyorsa hedef fazladan cümle sonu
+    # üretemez; kaynak açık bitiyorsa (kesinti/devam) hedefin doğal kapanışına
+    # tek ek son bağışlanır. Bağlam satırını ilk parçaya yapıştıran
+    # context-leak ("<bağlam cümlesi>. <asıl çeviri>.") bu kapıdan yakalanır —
+    # tek-parçalı gruplar yukarıdaki döngüye hiç girmediği için ayrı kontrol
+    # gereklidir.
+    last = len(source_parts) - 1
+    quota = src_count(source_parts[last])
+    if not sentence_ended(source_parts[last]):
+        quota += 1
+    if sentence_end_count(translated_parts[last]) > quota:
+        return f"fazla_cumle_sonu:{last}"
     return ""
 
 
@@ -354,6 +414,16 @@ def _initial_name_swap(source, translated):
     return ""
 
 
+# Soru/zaman/hitap doldurucuları büyük harfle yazılsa bile özel ad değildir:
+# '- Where? - Here.' -> '- Nerede? - Burada.' gibi satırlarda 'Where' sözcüğü
+# ad demirine takılıp doğru çeviriyi reddediyordu.
+_NAME_STOPWORDS = frozenset(
+    "where when why what who whom whose which how here there then now "
+    "today tonight yesterday tomorrow morning afternoon evening night "
+    "hello hi hey yes no okay ok well please sorry thanks thank welcome "
+    "goodbye bye so".split())
+
+
 def _proper_names(text):
     """Cümle başında OLMAYAN büyük harfli tokenlar — özel ad adayı.
 
@@ -369,12 +439,13 @@ def _proper_names(text):
         candidate = word.strip("\"'“”‘’([{«")
         if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
             continue
-        lowered = candidate.lower().rstrip(".")
-        if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH:
+        lowered = candidate.lower().rstrip(".?!,;:…")
+        if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
+                or lowered in _NAME_STOPWORDS:
             continue
         sentence_initial = index == 0 or sentence_ended(" ".join(words[:index]))
-        if not sentence_initial and len(candidate.rstrip(".")) >= 2:
-            names.append(candidate.rstrip("."))
+        if not sentence_initial and len(candidate.rstrip(".?!,;:…")) >= 2:
+            names.append(candidate.rstrip(".?!,;:…"))
     return names
 
 
@@ -447,6 +518,147 @@ def _near_name_token(name, translated):
     return False
 
 
+# Kaynakta büyük harfli ama Türkçede bilinen yerel karşılığı olan adlar:
+# coğrafi adlar, kurumlar, hitaplar ve kutsal/kültürel adlar. Ad demiri
+# 'Germany'->'Almanya' ve 'Mom'->'anne' gibi doğru yerelleştirmeleri
+# reddediyordu; yerel karşılık setindeyse korunmuş sayılır. Gerçek ad
+# takası (Lawson->Larson) bu listede olmadığı için yine yakalanır.
+_LOCALIZED_NAME_EQUIVALENTS_RAW = {
+    "germany": ("almanya",), "german": ("alman",), "deutschland": ("almanya",),
+    "netherlands": ("hollanda",), "holland": ("hollanda",),
+    "dutch": ("hollanda", "flamanca"),
+    "egypt": ("mısır",), "egyptian": ("mısır",),
+    "greece": ("yunanistan",), "greek": ("yunan", "yunanistan", "rum"),
+    "cyprus": ("kıbrıs",), "switzerland": ("isviçre",), "swiss": ("isviçre",),
+    "japan": ("japonya",), "japanese": ("japon", "japonya"),
+    "london": ("londra",), "europe": ("avrupa",), "european": ("avrupa",),
+    "spain": ("ispanya",), "spanish": ("ispanyol", "ispanya"),
+    "england": ("ingiltere",), "english": ("ingiliz", "ingiltere"),
+    "britain": ("ingiltere",), "british": ("ingiliz", "ingiltere"),
+    "france": ("fransa",), "french": ("fransız", "fransa"),
+    "italy": ("italya",), "italian": ("italyan", "italya"),
+    "russia": ("rusya",), "russian": ("rus", "rusya"),
+    "china": ("çin",), "chinese": ("çin", "çinli"),
+    "india": ("hindistan",), "america": ("amerika",), "american": ("amerikan", "amerika"),
+    "usa": ("amerika", "abd"), "portugal": ("portekiz",), "portuguese": ("portekiz", "portekizli"),
+    "poland": ("polonya",), "sweden": ("isveç",), "swedish": ("isveç", "isveçli"),
+    "norway": ("norveç",), "norwegian": ("norveç", "norveçli"),
+    "denmark": ("danimarka",), "danish": ("danimarka", "danimarkalı"),
+    "finland": ("finlandiya",), "finnish": ("finlandiya", "fin"),
+    "belgium": ("belçika",), "austria": ("avusturya",), "australia": ("avustralya",),
+    "canada": ("kanada",), "mexico": ("meksika",), "brazil": ("brezilya",),
+    "argentina": ("arjantin",), "chile": ("şili",), "peru": ("peru",),
+    "colombia": ("kolombiya",), "cuba": ("küba",), "ukraine": ("ukrayna",),
+    "serbia": ("sırbistan",), "croatia": ("hırvatistan",), "bulgaria": ("bulgaristan",),
+    "romania": ("romanya",), "hungary": ("macaristan",), "turkey": ("türkiye", "hindi"),
+    "turkish": ("türk", "türkiye"), "korea": ("kore",), "korean": ("kore", "koreli"),
+    "taiwan": ("tayvan",), "thailand": ("tayland",), "vietnam": ("vietnam",),
+    "indonesia": ("endonezya",), "malaysia": ("malezya",), "singapore": ("singapur",),
+    "philippines": ("filipinler",), "pakistan": ("pakistan",), "afghanistan": ("afganistan",),
+    "iraq": ("ırak",), "iran": ("iran",), "israel": ("israil",), "syria": ("suriye",),
+    "lebanon": ("lübnan",), "morocco": ("fas",), "tunisia": ("tunus",),
+    "algeria": ("cezayir",), "libya": ("libya",), "africa": ("afrika",),
+    "asia": ("asya",), "moon": ("ay",), "earth": ("dünya",), "mars": ("mars",),
+    "sun": ("güneş",), "heaven": ("cennet",), "hell": ("cehennem",),
+    "christmas": ("noel",), "easter": ("paskalya",),
+    "paris": ("paris",), "rome": ("roma",), "athens": ("atina",),
+    "vienna": ("viyana",), "venice": ("venedik",), "florence": ("floransa",),
+    "munich": ("münih",), "zurich": ("zürih",), "geneva": ("cenevre",),
+    "brussels": ("brüksel",), "stockholm": ("stokholm",), "copenhagen": ("kopenhag",),
+    "oslo": ("oslo",), "warsaw": ("varşova",), "prague": ("prag",),
+    "budapest": ("budapeşte",), "bucharest": ("bükreş",), "sofia": ("sofya",),
+    "belgrade": ("belgrad",), "lisbon": ("lizbon",), "moscow": ("moskova",),
+    "beijing": ("pekin",), "cairo": ("kahire",), "jerusalem": ("kudüs",),
+    "baghdad": ("bağdat",), "beirut": ("beyrut",), "damascus": ("şam",),
+    "mediterranean": ("akdeniz",), "atlantic": ("atlantik",), "pacific": ("pasifik",),
+    "god": ("tanrı", "allah", "şükür"), "lord": ("tanrı", "rabbim", "rab"),
+    "jesus": ("isa", "tanrı"), "christ": ("isa", "tanrı"),
+    "honor": ("yargıç", "sayın"),
+    "police": ("polis", "itfaiye"), "nypd": ("polis",), "lapd": ("polis",),
+    "fire": ("itfaiye", "yangın", "ateş"),
+    "department": ("itfaiye", "departman", "müdürlük", "bölüm"),
+    "queen": ("kraliçe",), "king": ("kral",), "prince": ("prens",),
+    "princess": ("prenses",), "president": ("başkan", "cumhurbaşkanı"),
+    "captain": ("kaptan",), "doctor": ("doktor",), "doc": ("doktor",),
+    "detective": ("dedektif",), "sheriff": ("şerif",), "judge": ("yargıç",),
+    "mom": ("anne", "nine"), "mother": ("anne",), "mommy": ("anne", "anneciğim"),
+    "mama": ("anne", "anneanne"), "dad": ("baba",), "father": ("baba",),
+    "daddy": ("baba", "babacığım"), "papa": ("baba",),
+    "grandpa": ("dede", "büyükbaba"), "grandma": ("nine", "büyükanne"),
+    "sir": ("efendim", "bey", "bay"), "madam": ("hanım", "hanımefendi", "madam"),
+    "maam": ("hanımefendi", "hanım"), "mister": ("bay",),
+}
+_NAME_TOKEN_ALL = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüΑ-Ωα-ωА-Яа-я][\w\-]*", re.UNICODE)
+
+
+def _plain_word(token):
+    """Eşdeğer karşılaştırması için Türkçe dostu düz biçim (oe->o gibi
+    transliterasyon katlaması 'Noel'->'nol' eşleşmesini bozduğu için kanon
+    biçim yerine küçük harf + noktalama-stripte çalışır)."""
+    text = unicodedata.normalize("NFKD", str(token or "")).casefold()
+    return re.sub(r"[^a-zçğıöşüâîû0-9]", "", text)
+
+
+def _name_localized(name, translated):
+    """Adın hedefte yerelleşmiş karşılığıyla bulunması.
+
+    'Germany'->'Almanya'ya' veya 'Hollanda'->'Hollandalı' gibi çekim/ahalis
+    ekli biçimler eşdeğerin düz/önek biçimiyle tanınır; rastgele ad takası
+    yine geçmez (eşdeğer listesi kapalı)."""
+    equivalents = _LOCALIZED_NAME_EQUIVALENTS_RAW.get(
+        _plain_word(name)) or ()
+    if not equivalents:
+        return False
+    text = str(translated or "")
+    tokens = {match.group(0) for match in _NAME_TOKEN_ALL.finditer(text)}
+    tokens |= {match.group(1) for match in _NAME_INFLECTED.finditer(text)}
+    plain_tokens = {_plain_word(token) for token in tokens}
+    for plain in plain_tokens:
+        for equivalent in equivalents:
+            equivalent = _plain_word(equivalent)
+            if plain == equivalent \
+                    or (len(equivalent) >= 4 and plain.startswith(equivalent)):
+                return True
+    return False
+
+
+_CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)")
+# Metrik çevirisiyle değeri değişen birimler: 'He's 6 feet tall.' -> '1,83
+# boyunda.' gibi doğru dönüşüm sayı demirini tetikliyordu; hedefte herhangi
+# bir rakam varsa birim çevirisi kabul edilir, rakam yoksa sayı kaybı kalır.
+_CONVERTIBLE_UNITS = re.compile(
+    r"(?<!\w)(?:feet|foot|ft|inches?|inch|yards?|yds?|miles?|mph|pounds?|lbs?|"
+    r"ounces?|oz|gallons?|pints?|fahrenheit|°\s*f)(?!\w)", re.I)
+_UNIT_GAP = r"[\s,;:/()\[\]\-–—'\"]*"
+_CONVERTIBLE_UNIT_BEFORE = re.compile(_CONVERTIBLE_UNITS.pattern + _UNIT_GAP + r"$", re.I)
+
+
+def _bound_to_convertible_unit(source_text, match):
+    """Kayıp sayının dönüştürülebilir birime BİTİŞİK olması koşulu.
+
+    '6 feet' -> '1,83 m' gibi değer-değiştiren çeviri bağışlanır; fakat
+    'in 5 miles they moved 10 boxes' gibi 20 karakter ötedeki ilgisiz birim
+    sözcüğü '10' kaybını örtemez. Birim ya belirtecin hemen sonrasında ya
+    hemen öncesinde olmalı.
+    """
+    after = source_text[match.end():]
+    gap_end = re.match(_UNIT_GAP, after).end()
+    if _CONVERTIBLE_UNITS.match(after, pos=gap_end):
+        return True
+    return bool(_CONVERTIBLE_UNIT_BEFORE.search(source_text[:match.start()]))
+
+
+def _canonical_number(token):
+    token = str(token).replace('%', '')
+    if '.' in token and ',' in token:
+        decimal = '.' if token.rfind('.') > token.rfind(',') else ','
+        grouping = ',' if decimal == '.' else '.'
+        return token.replace(grouping, '').replace(decimal, '.')
+    if re.fullmatch(r'\d{1,3}(?:[.,]\d{3})+', token):
+        return token.replace('.', '').replace(',', '')
+    return token.replace(',', '.')
+
+
 def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
     """Sayı/para/birim/tarih/SDH/özel adın kaynak ID'sinden başka cue'ya kaymasını yakala.
 
@@ -475,16 +687,41 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
             and bool(re.match(r"^\s*[\d]", normalized_text(source)))
             and bool(re.search(r"[\d][,\.\s]*$", normalized_text(source_parts[index - 1])))
             and (prev_has_digit or bool(re.search(r"\d", str(translated)))))
-        for token in _number_tokens(str(source)):
+        # '10:30' saat ifadeleri sayı tokenı olarak iki parçaya düşer ve hedefin
+        # '10.30' / 'dokuzu çeyrek geçe' gibi doğal biçimleriyle eşleşemez;
+        # translation_meaning_issues'daki saat mantığı buraya da uygulanır.
+        source_numbers_text = str(source)
+        target_numbers_text = str(translated)
+        tr_target = str(target_lang or "").lower().split('-')[0] == 'tr'
+        for clock in _CLOCK_SOURCE.finditer(source_numbers_text):
+            hour, minute = int(clock.group(1)), clock.group(2)
+            target_clock = re.search(
+                rf'(?<!\d)0?{hour}[:.]{clock.group(2)}(?!\d)', target_numbers_text)
+            if target_clock:
+                target_numbers_text = (target_numbers_text[:target_clock.start()]
+                                       + ' ' + target_numbers_text[target_clock.end():])
+            elif tr_target and (word_match := _turkish_clock_match(
+                    target_numbers_text, hour, minute)):
+                target_numbers_text = (target_numbers_text[:word_match.start()]
+                                       + ' ' + target_numbers_text[word_match.end():])
+            else:
+                return f"sayi_kaydi:{index}"
+        source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
+        target_has_digit = bool(re.search(r"\d", target_numbers_text))
+        for match in _NUMBER_TOKEN.finditer(source_numbers_text):
+            token = _canonical_number(match.group(0))
             if skip_last_number and token:
                 words = normalized_text(source).rstrip(',;:').split()
-                if words and words[-1].startswith(token):
+                if words and words[-1].startswith(match.group(0)):
                     continue
             if skip_first_number and token:
                 words = normalized_text(source).split()
-                if words and words[0].startswith(token):
+                if words and words[0].startswith(match.group(0)):
                     continue
-            if not _number_preserved(token, str(translated), target_lang):
+            if not _number_preserved(token, target_numbers_text, target_lang):
+                if target_has_digit and _bound_to_convertible_unit(
+                        source_numbers_text, match):
+                    continue
                 return f"sayi_kaydi:{index}"
         for issue, patterns in (
                 ('currency', _CURRENCY_PATTERNS),
@@ -498,7 +735,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
         if sdh_kind:
             return f"sdh_kaydi:{index}:{sdh_kind}"
         for name in _proper_names(str(source)):
-            if _name_preserved(name, str(translated)):
+            if _name_preserved(name, str(translated)) \
+                    or _name_localized(name, str(translated)):
                 continue
             # ≥2 tokenlık adlı-varlık öbeği ('French Revolution'→'Fransız
             # Devrimi'): hedefte en az bir ad kalıntısı varsa yerelleştirme
@@ -644,16 +882,7 @@ def _semantic_markers(text, patterns):
 
 
 def _number_tokens(text):
-    def canonical(token):
-        token = token.replace('%', '')
-        if '.' in token and ',' in token:
-            decimal = '.' if token.rfind('.') > token.rfind(',') else ','
-            grouping = ',' if decimal == '.' else '.'
-            return token.replace(grouping, '').replace(decimal, '.')
-        if re.fullmatch(r'\d{1,3}(?:[.,]\d{3})+', token):
-            return token.replace('.', '').replace(',', '')
-        return token.replace(',', '.')
-    return [canonical(token) for token in _NUMBER_TOKEN.findall(str(text or ''))]
+    return [_canonical_number(token) for token in _NUMBER_TOKEN.findall(str(text or ''))]
 
 
 _TR_ONES = ('sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
@@ -901,12 +1130,19 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
                 issues.append('number_mismatch')
         source_numbers_text = re.sub(
             r'(?<!\d)\d{1,2}:[0-5]\d(?!\d)', ' ', source_numbers_text)
-    source_numbers = _number_tokens(source_numbers_text)
-    if source_numbers:
-        missing = [token for token in source_numbers
-                   if not _number_preserved(token, translated_numbers_text, target_lang)]
-        if missing and 'number_mismatch' not in issues:
-            issues.append('number_mismatch')
+    missing = []
+    for match in _NUMBER_TOKEN.finditer(source_numbers_text):
+        token = _canonical_number(match.group(0))
+        if _number_preserved(token, translated_numbers_text, target_lang):
+            continue
+        # '6 feet' -> '1,83' gibi birim çevirimi değeri değiştirir; hedefte
+        # bir rakam varsa ve sayı birime bitişikse kayıp sayılmaz.
+        if re.search(r'\d', translated_numbers_text) \
+                and _bound_to_convertible_unit(source_numbers_text, match):
+            continue
+        missing.append(token)
+    if missing and 'number_mismatch' not in issues:
+        issues.append('number_mismatch')
     if _SOURCE_NEGATION.search(source) and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
     if _SOURCE_MODAL.search(source) and not _TARGET_MODAL.search(translated):
@@ -1074,6 +1310,40 @@ def reply_id_range_issue(data, count):
     if any(int(key) >= count for key in seen):
         return "kimlik_araligi_disinda"
     return ""
+
+
+def normalize_reply_ids(data, expected_ids):
+    """Sağlayıcı kimlik biçim kaymalarını tek kurallı normalize et.
+
+    - `items` sözlük yerine sıralı liste dönerse: beklenen kimlikler sıralı
+      sırayla eşleştirilir (uzunluk birebir eşit değilse dokunulmaz).
+    - Tüm sayısal anahtarlar beklenenlerin uniform +1 kaymışıysa ("1..n" yerine
+      "0..n-1" istenmişken): items ve sentences anahtarları -1'e indirgenir.
+      Kısmi kesişim belirsizdir; yalnız bütün küme tam kaymışken uygulanır.
+    Diğer durumlarda veri değiştirilmez — normal kapı denetimleri karar verir.
+    """
+    if not isinstance(data, dict):
+        return data
+    items = data.get('items')
+    expected = sorted({int(index) for index in expected_ids})
+    if isinstance(items, list):
+        if len(items) == len(expected):
+            data['items'] = {
+                str(index): items[pos] for pos, index in enumerate(expected)}
+        return data
+    if isinstance(items, dict) and expected:
+        keys = {key for key in items if isinstance(key, str) and key.isdigit()}
+        shifted = {str(index + 1) for index in expected}
+        if keys == shifted:
+            data['items'] = {
+                str(int(key) - 1) if key.isdigit() else key: value
+                for key, value in items.items()}
+            sentences = data.get('sentences')
+            if isinstance(sentences, dict):
+                data['sentences'] = {
+                    str(int(key) - 1) if key.isdigit() else key: value
+                    for key, value in sentences.items()}
+    return data
 
 
 def accept_sentence_reply(data, ids):

@@ -26,8 +26,11 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
     emit({ type: 'find-result', token, matches: result.matches,
       activeMatch: result.activeMatchOrdinal, final: !!result.finalUpdate });
   });
-  wc.on('did-start-navigation', (event, _url, _inPlace, isMainFrame) => {
+  wc.on('did-start-navigation', (event, _url, inPlace, isMainFrame) => {
     if (!(event.isMainFrame ?? isMainFrame)) return;
+    // Aynı belge içi gezinme (pushState/hash — YouTube gibi SPA'larda sık)
+    // sayfayı değiştirmez; bul çubuğunu kullanıcı yazarken kapatmasın.
+    if (event.isSameDocument ?? inPlace) return;
     stop();
     emit({ type: 'find-reset' });
   });

@@ -38,6 +38,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: {},
       dialog: { showOpenDialog: async () => ({ filePaths: ['synthetic.mp4'] }) },
       loadSettings: () => ({}), KNOWN_MODELS: ['small'], app: { getAppPath: () => '/synthetic' },
+      parseNdjsonLine: require('../src/ndjson-lines').parseNdjsonLine,
       path, process, fs: { existsSync: () => false }, resolvePython: () => 'python',
       spawned: 0, killed: 0, cleared: 0,
     };
@@ -90,6 +91,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const stored = [];
   let acquisitionFinished = 0;
   const consume = vm.runInNewContext(consumeCode + '\nconsumeLiveAsrLine', {
+    parseNdjsonLine: require('../src/ndjson-lines').parseNdjsonLine,
     job, browserLiveAsr: job, context: {}, isCurrentBrowserContext: () => true,
     tab: { id: 'test', acquisitionId: 'test',
       acquisitionPlan: { finish: () => { acquisitionFinished++; return true; }, snapshot: () => ({}) } },

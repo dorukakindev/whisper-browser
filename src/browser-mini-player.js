@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { attachSubframeSchemeGuard } = require('./browser-navigation-policy');
 
 function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, command, dialogText }) {
   let window = null, tab = null;
@@ -37,6 +38,12 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
       try { main.contentView.removeChildView(currentTab.view); }
       catch (_) { currentWindow.close(); return { ok: false, error: 'Video görünümü taşınamadı.' }; }
       window.contentView.addChildView(currentTab.view);
+      // Yerel browser-mini.html dışına hiç gezinme yok: yeni pencere, sayfa
+      // içi gezinme ve alt kare çıkışları reddedilir.
+      window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      window.webContents.on('will-navigate', (e) => e.preventDefault());
+      window.webContents.on('will-redirect', (e) => e.preventDefault());
+      attachSubframeSchemeGuard(window.webContents);
       window.on('resize', layout);
       window.on('close', () => {
         if (window !== currentWindow) return;

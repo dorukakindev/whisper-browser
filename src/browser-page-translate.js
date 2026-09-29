@@ -334,20 +334,22 @@ function decodePageTranslation(raw, sentence) {
   }
   const contextTexts = [...(sentence?.contextBefore || []), ...(sentence?.contextAfter || [])]
     .map((item) => normalizeText(typeof item === 'string' ? item : item?.text)).filter((text) => text.length >= 24);
+  // Blok bazında kabul: bir blok korumalı işaret/bağlam-sızıntısı kapısına
+  // takılırsa yanındaki doğru çeviriler de atılmaz; başarısız blok kaynak
+  // metniyle bırakılır ve failedIds'te raporlanır.
+  const failedIds = [];
   const parts = expected.map((id, index) => {
     const source = String(sentence.pieces[index]?.text || '');
     const translation = byId.get(id);
+    const fail = () => { failedIds.push(id); return source; };
+    if (!translation) return fail();
     const sourceTokens = protectedPageTokens(source).sort();
     const targetTokens = protectedPageTokens(translation).sort();
-    if (JSON.stringify(sourceTokens) !== JSON.stringify(targetTokens)) {
-      throw new Error(`Sayfa çevirisi ${id} bloğundaki korumalı işaretleri değiştirdi.`);
-    }
-    if (contextTexts.some((text) => !source.includes(text) && translation.includes(text))) {
-      throw new Error(`Sayfa çevirisi ${id} bloğuna bağlam metni sızdırdı.`);
-    }
+    if (JSON.stringify(sourceTokens) !== JSON.stringify(targetTokens)) return fail();
+    if (contextTexts.some((text) => !source.includes(text) && translation.includes(text))) return fail();
     return translation;
   });
-  return { text: parts.join(' '), parts };
+  return { text: parts.join(' '), parts, failedIds };
 }
 
 function pageBlockScanScript(options = {}) {
@@ -487,18 +489,45 @@ function pageBlockScanScript(options = {}) {
       }
       return '';
     };
+    // Metin taşıyan bloklar: p/h1-6/li/hücre alıntıları. İçlerindeki
+    // a/button/label gibi etkileşimli etiketler ayrı blok OLURSA üst blok
+    // çevirisi bağlantı içeriğini zaten içerdiği için ekrana çift yazılır
+    // ("Dosyayı buradaindirmek için…"); metin üst bloğa katılır, bağlantı
+    // öğesi yerinde kalır. Üst metin bloğu yoksa (nav'daki link) etkileşimli
+    // öğe yine kendi bloğu olur.
+    const textBearingSelector = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,figcaption,td,th,dt,dd,summary';
+    const interactiveTags = new Set(['A', 'BUTTON', 'LABEL']);
     const blockRoot = (node) => {
       let element = node?.parentElement || node?.getRootNode?.()?.host || null;
       const fallback = element;
+      let interactiveRoot = null;
       while (element) {
         try {
-          if (element.matches?.(semanticSelector)) return element;
+          const tag = String(element.tagName || '');
+          if (element.matches?.(textBearingSelector)) return element;
+          if (element.matches?.(semanticSelector)) {
+            if (interactiveTags.has(tag)) {
+              // Metin atasını bulana kadar tırman; <a display:inline-block>
+              // gibi stilli bağlantılar <p>'ye katılmadan ayrı blok olmasın.
+              interactiveRoot = interactiveRoot || element;
+              element = parentAcrossShadow(element);
+              continue;
+            }
+            return interactiveRoot || element;
+          }
           const display = getComputedStyle(element).display;
-          if (blockedDisplays.has(display)) return element;
+          if (blockedDisplays.has(display)) {
+            if (interactiveTags.has(tag)) {
+              interactiveRoot = interactiveRoot || element;
+              element = parentAcrossShadow(element);
+              continue;
+            }
+            return interactiveRoot || element;
+          }
         } catch (_) {}
         element = parentAcrossShadow(element);
       }
-      return fallback || document.body || document.documentElement;
+      return interactiveRoot || fallback || document.body || document.documentElement;
     };
     const discoverRoots = () => {
       const maxRoots = 128;

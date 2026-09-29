@@ -303,10 +303,13 @@ async function executeBrowserCommandPalette(index = browserCommandPaletteState.s
   const command = browserCommandPaletteState.results[index];
   if (!command || command.enabled === false) return;
   const recordedStep = browserWorkflowStepForCommand(command);
-  const current = browserTabState();
+  // browserCommandContextMatches {tabId, generation, mediaId} bekler; ham sekme
+  // nesnesinde `tabId` yok (`id` var). Eskiden ham nesne verildiği için eşleşme
+  // her zaman başarısız oluyor ve paletten hiçbir komut çalışmıyordu.
+  const current = currentBrowserWorkflowContext();
   const valid = window.BrowserCommandPalette?.browserCommandContextMatches
     ? window.BrowserCommandPalette.browserCommandContextMatches(browserCommandPaletteState.context, current)
-    : !!current && current.id === browserCommandPaletteState.context?.tabId;
+    : !!current && current.tabId === browserCommandPaletteState.context?.tabId;
   if (!valid) { setBrowserSignal('Sekme veya medya değişti; komut yeniden seçilmeli.', false); closeBrowserCommandPalette(); return; }
   closeBrowserCommandPalette();
   try { await command.run(); }
@@ -636,9 +639,19 @@ async function completeBrowserRecovery(tab, kind, trackId = '') {
   updatePlayerTaskCenter();
 }
 
+// Form kontrollerinde ok/Home/End tuşları yerleşik anlam taşır (select'te
+// seçenek değişimi, range/number'da değer ayarı, metin/textarea'da imleç):
+// menü ok gezintisi bu davranışı ezmesin — kontrol odaklıyken tuşlar kendisine
+// kalsın. Aksi halde ⋯/sinyal menüsündeki ~50 denetimde her ok basımı odağı
+// başka öğeye kaydırıyordu.
+function detailsNavSkipsControl(target) {
+  return !!target?.closest?.('input, select, textarea');
+}
+
 function wireDetailsMenuNav(details) {
   details.addEventListener('keydown', (event) => {
     if (!details.open) return;
+    if (detailsNavSkipsControl(event.target)) return;
     const items = detailsMenuFocusable(details);
     if (!items.length) return;
     const current = document.activeElement;
@@ -667,6 +680,19 @@ function setBrowserQrOpen(open) {
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
   if (!open && panel.contains(document.activeElement)) $('browserMoreMenu')?.querySelector('summary')?.focus({ preventScroll: true });
+  // Odak panele taşınmazsa panelin kendi Esc dinleyicisi hiç çalışmıyordu
+  // (odak kapanmış ⋯ menüsündeki öğede kalıyordu).
+  if (open) requestAnimationFrame(() => $('browserQrClose')?.focus({ preventScroll: true }));
+}
+
+// Mod değişiminde / oynatıcı kapanırken geçici tarayıcı panellerinin hepsi
+// kapanır. Eskiden yalnız İndirmeler kapanıyordu; Yer imleri, QR ve komut paleti
+// (eski sekme bağlamıyla) açık kalıp geri dönüşte yeniden beliriyordu.
+function closeBrowserTransientPanels() {
+  setBrowserDownloadsOpen(false);
+  setBrowserPlacesOpen(false);
+  setBrowserQrOpen(false);
+  if (browserCommandPaletteState.open) closeBrowserCommandPalette();
 }
 
 async function showBrowserQrPanel() {
@@ -854,8 +880,10 @@ function browserTabActivity(tab) {
 }
 
 function closeBrowserTabMenu() {
+  const wasOpen = !!browserTabMenuEl;
   browserTabMenuEl?.remove();
   browserTabMenuEl = null;
+  if (wasOpen) syncBrowserOcclusion();
   document.removeEventListener('mousedown', browserTabMenuOutside, true);
 }
 
@@ -878,12 +906,35 @@ async function closeOtherBrowserTabs(keepId) {
   }
 }
 
-async function closeRightBrowserTabs(tabId) {
-  const idx = player.browserTabs.findIndex((t) => t.id === tabId);
-  if (idx < 0) return;
-  for (const t of player.browserTabs.slice(idx + 1)) {
-    if (!t.pinned) await closeBrowserTab(t.id);
+// Ekrandaki sıra: grup üyeleri grubun ilk üyesinin yerinde bir arada çizilir
+// (browserTabDisplayRows ile aynı kural), katlanmış grupların sekmeleri dahil.
+// Ham player.browserTabs sırası gruplar varken ekrandan farklı olabiliyordu;
+// "Sağdaki sekmeleri kapat" soldakileri kapatabiliyor ya da yanlışlıkla pasif kalıyordu.
+function browserTabsInScreenOrder() {
+  const keyOf = (tab) => {
+    const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
+    return group ? `${group.name.toLowerCase()}|${group.color}` : '';
+  };
+  const ordered = [];
+  const emitted = new Set();
+  for (const tab of player.browserTabs) {
+    const key = keyOf(tab);
+    if (!key) { ordered.push(tab); continue; }
+    if (emitted.has(key)) continue;
+    emitted.add(key);
+    for (const member of player.browserTabs) if (keyOf(member) === key) ordered.push(member);
   }
+  return ordered;
+}
+
+function browserTabsRightOf(tabId) {
+  const ordered = browserTabsInScreenOrder();
+  const idx = ordered.findIndex((t) => t.id === tabId);
+  return idx < 0 ? [] : ordered.slice(idx + 1).filter((t) => !t.pinned);
+}
+
+async function closeRightBrowserTabs(tabId) {
+  for (const t of browserTabsRightOf(tabId)) await closeBrowserTab(t.id);
 }
 
 function showBrowserTabPreview(tabId, anchor) {
@@ -913,10 +964,27 @@ function showBrowserTabPreview(tabId, anchor) {
   }
   document.body.appendChild(card);
   browserTabPreviewEl = card;
+  let cw = card.offsetWidth;
+  let ch = card.offsetHeight;
   const rect = anchor.getBoundingClientRect();
-  const cw = card.offsetWidth, ch = card.offsetHeight;
+  // Native WebContentsView renderer DOM'unun üstünde durur — kartın alt kenarı
+  // sayfa yüzeyinin başladığı çizgiyi geçerse kırpılmış görünür. Bu yüzden üst
+  // sınır pencere yüksekliği değil, slot'un üst kenarıdır.
+  const slotTop = $('browserViewSlot')?.getBoundingClientRect?.().top;
+  const topLimit = Number.isFinite(slotTop) && slotTop > 0 ? Math.min(window.innerHeight, slotTop) : window.innerHeight;
+  // Tam kart krom şeridinden uzunsa içerik sırıtırdı; tek satırlık kompakt
+  // varyanta düşüp yeniden ölç (url/rozet satırları CSS ile gizlenince kart
+  // daralır — genişlik de yeniden ölçülür, yoksa hizalama bayat kalır).
+  if (ch > topLimit - 8) {
+    card.className += ' is-compact';
+    cw = card.offsetWidth;
+    ch = card.offsetHeight;
+  }
   card.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - cw - 4))}px`;
-  card.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - ch - 4)}px`;
+  card.style.top = `${Math.max(4, Math.min(rect.bottom + 6, topLimit - ch - 4))}px`;
+  // Kart krom alanından uzunsa kendi içinde kırpılır — native yüzeyin altına
+  // taşan kısım hiçbir zaman görünmez; sınırı aşan içerik yerine kartı küçült.
+  card.style.maxHeight = `${Math.max(16, topLimit - 8)}px`;
 }
 
 // --- R153 dilim-3: kuyruk / hesap / menü yardımcıları ---

@@ -1,5 +1,7 @@
 const assert = require('assert');
-const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
+const fs = require('fs');
+const path = require('path');
+const { createNdjsonLineBuffer, parseNdjsonLine } = require('../src/ndjson-lines');
 
 let pass = 0;
 function test(name, fn) {
@@ -60,6 +62,56 @@ test('bozuk ve boş satırlar tamponu sonraki geçerli IPC olayından koparmaz',
     try { return JSON.parse(line); } catch (_) { return null; }
   }).filter(Boolean);
   assert.deepEqual(parsed, [{ type: 'done', ok: true }]);
+});
+
+test('parseNdjsonLine temiz JSON satırını döndürür', () => {
+  assert.deepEqual(parseNdjsonLine('{"type":"done","ok":true}'), { type: 'done', ok: true });
+});
+
+test('parseNdjsonLine yt-dlp ilerleme metni öncesinde yapışan olayı kurtarır', () => {
+  const glued = '[download]    416.00B at  Unknown B/s (00:00:00){"type":"subs","path":"/tmp/x.en.srt"}';
+  assert.deepEqual(parseNdjsonLine(glued), { type: 'subs', path: '/tmp/x.en.srt' });
+});
+
+test('parseNdjsonLine sonda kalan ilerleme metnini de eler', () => {
+  const glued = '{"type":"downloaded","path":"/tmp/v.mp4"} [download] 100%';
+  assert.deepEqual(parseNdjsonLine(glued), { type: 'downloaded', path: '/tmp/v.mp4' });
+});
+
+test('parseNdjsonLine JSON olmayan ve boş satırlarda null döner', () => {
+  for (const bad of ['', '   ', 'plain text', '[download] 50%', '{bozuk}', '123', 'null']) {
+    assert.equal(parseNdjsonLine(bad), null, `reddedilmeli: ${JSON.stringify(bad)}`);
+  }
+});
+
+test('parseNdjsonLine aynı satıra yapışan ÇİFT olaydan ilkini kurtarmaz — sözleşme notu', () => {
+  // İki JSON olayının aynı satıra yapışması gerçek senaryoda görülmedi;
+  // kurtarma yolu ilk '{' .. son '}' arasını alır, parse başarısızsa null döner.
+  assert.equal(parseNdjsonLine('{"a":1}{"b":2}'), null);
+});
+
+test('sözleşme: tüm yardımcı-süreç stdout tüketicileri parseNdjsonLine kullanır', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  // NDJSON akışı okuyan hiçbir yerde ham JSON.parse(line) kalmasın —
+  // yapışan ilerleme metni olayı düşürür (R271 gerçek bug).
+  assert(!/JSON\.parse\(line\)/.test(main), 'main.js içinde ham JSON.parse(line) kaldı');
+  const required = [
+    "ev = parseNdjsonLine(line)",            // media/youtube/invidious
+    "event = parseNdjsonLine(line)",         // live-asr
+    "const _parsed = parseNdjsonLine(line)", // transcribe
+    "parsed = parseNdjsonLine(line)",        // model benchmark
+    "result = parseNdjsonLine(line)",        // yt-dlp güncelleyici
+  ];
+  for (const needle of required) {
+    assert(main.includes(needle), `main.js eksik: ${needle}`);
+  }
+});
+
+test('sözleşme: yt-dlp ilerleme çıktısı backend tarafında da susturulmuş', () => {
+  for (const f of ['media.py', 'transcribe.py']) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'backend', f), 'utf8');
+    assert(src.includes('"noprogress": True'), `${f} noprogress ayarlamamış`);
+  }
 });
 
 if (!process.exitCode) console.log(`\n${pass} NDJSON tampon testi geçti.`);

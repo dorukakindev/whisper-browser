@@ -156,6 +156,7 @@ const {
 } = require('./browser-session-privacy');
 const {
   attachNavigationGuard,
+  attachSubframeSchemeGuard,
   createWindowRegistry,
   decideUrlPolicy,
   safeWebContentsUrl,
@@ -177,7 +178,7 @@ const {
   advanceWatchStability,
   watchOutputNames,
 } = require('./watch-folder');
-const { createNdjsonLineBuffer } = require('./ndjson-lines');
+const { createNdjsonLineBuffer, parseNdjsonLine } = require('./ndjson-lines');
 const {
   DEFAULT_CATEGORIES: SPONSORBLOCK_CATEGORIES,
   youtubeVideoId: sponsorBlockVideoId,
@@ -385,12 +386,12 @@ const {
 } = require('./browser-page-translate');
 const {
   buildPdfParagraphPages,
-  createPdfTranslationState,
-  normalizePdfTranslationState,
   recordPdfPageTranslation,
   pdfHashFromFirstChunk,
   pdfHashPlan,
   mapPdfItemsThroughViewport,
+  loadPdfTranslationState,
+  pdfTranslationStateFileStem,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -880,7 +881,8 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
@@ -1090,7 +1092,8 @@ function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, 
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (YOUTUBE_RESULT_TYPES.has(ev.type)) result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (onEvent) onEvent(ev);
@@ -1285,7 +1288,8 @@ function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent, timeoutMs = 4
       const line = String(raw || '').trim();
       if (!line) return;
       let ev;
-      try { ev = JSON.parse(line); } catch (_) { return; }
+      ev = parseNdjsonLine(line);
+      if (!ev) return;
       if (INVIDIOUS_RESULT_TYPES.has(ev.type)) result = ev;
       else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
@@ -1400,6 +1404,16 @@ ipcMain.handle('media:findSiblingSubs', async (_e, videoPath) => {
   }
 });
 
+// Altyazı dil kodu dosya adına girer (invidious.py: "<başlık> [id].<dil>.srt").
+// Doğrulanmazsa kötü niyetli bir Invidious örneğinin ilan ettiği "..\\..\\x"
+// gibi bir kod Windows'ta çıktı klasörü dışına dosya yazdırıyordu. Değerler
+// argparse'ın '-' ile başlayan değeri bayrak sanmaması için --opt=değer biçiminde geçer.
+const SUBTITLE_LANG_CODE = /^[A-Za-z0-9_-]{1,32}$/;
+function subtitleLangArg(value) {
+  const lang = String(value || 'en');
+  return SUBTITLE_LANG_CODE.test(lang) ? lang : null;
+}
+
 ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   const o = opts || {};
@@ -1411,9 +1425,11 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   } catch (error) {
     return { ok: false, error: error.message };
   }
+  const subLang = subtitleLangArg(o.lang);
+  if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = [
     'subs', '--url', mediaUrl.url,
-    '--sub-lang', o.lang || 'en',
+    `--sub-lang=${subLang}`,
     '--sub-auto', o.auto ? 'true' : 'false',
     '--output-dir', outDir,
   ];
@@ -1462,7 +1478,9 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
     return { ok: false, error: error.message };
   }
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['subs', '--url', mediaUrl.url, '--lang', o.lang || 'en', '--output-dir', outDir];
+  const subLang = subtitleLangArg(o.lang);
+  if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
+  const args = ['subs', '--url', mediaUrl.url, `--lang=${subLang}`, '--output-dir', outDir];
   if (o.auto) args.push('--auto');
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
@@ -1528,7 +1546,7 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
     return { ok: false, error: 'Arama terimi gerekli.' };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['search', '--query', query.trim().slice(0, 100)];
+  const args = ['search', `--query=${query.trim().slice(0, 100)}`];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
   const searchType = String(opts && opts.searchType || 'video').toLowerCase();
   if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
@@ -1552,7 +1570,7 @@ ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
   const q = String(query || '').trim().slice(0, 100);
   if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['suggest', '--query', q];
+  const args = ['suggest', `--query=${q}`];
   if (instance) args.push('--instance', instance);
   return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
@@ -1594,7 +1612,7 @@ ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
   }
   const instance = resolveInvidiousInstance(o.instance);
   const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
-  if (query) args.push('--query', query);
+  if (query) args.push(`--query=${query}`);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
   if (instance) args.push('--instance', instance);
@@ -1730,13 +1748,13 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   const args = [
     'download_stream',
     '--video-url', o.videoUrl,
-    '--title', String(o.title || 'invidious-video').slice(0, 120),
+    `--title=${String(o.title || 'invidious-video').slice(0, 120)}`,
     '--output-dir', outDir,
   ];
   if (o.audioUrl) args.push('--audio-url', o.audioUrl);
   if (o.height) args.push('--height', String(o.height));
   if (o.audioLang) args.push('--audio-lang', o.audioLang);
-  if (o.videoId) args.push('--video-id', String(o.videoId).slice(0, 40));
+  if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
   // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
   return runMediaCommand(args, (ev) => {
@@ -1810,6 +1828,9 @@ function openYoutubeTvWindow(userAgentId) {
   };
   tvContents.on('will-navigate', guard);
   tvContents.on('will-redirect', guard);
+  // Alt kareler (reklam/embed iframe'leri) ana-kare kuralına tabi değildir;
+  // web şeması dışına (file:, javascript:, data:…) çıkışı reddet.
+  attachSubframeSchemeGuard(tvContents, { allowSchemes: new Set(['http:', 'https:', 'about:']) });
   const onTvNavigate = (_event, url) => {
     const onTvApp = youtubeTvMode.isTvAppUrl(url);
     // youtube.com/tv masaüstü sitesine yönlendirildiyse bu TV kimliği reddedildi.
@@ -3724,7 +3745,7 @@ function maybeFlagEmptyHttpErrorPage(tab, view, wc) {
       ? `Site sunucusu HTTP ${status} hatası verdi ve boş yanıt döndürdü. Birazdan yeniden deneyin.`
       : `Site HTTP ${status} yanıtı verdi ve sayfa boş geldi.`;
     tab.loadError = { kind: 'http', code: `HTTP ${status}`, message, messageKey, params, url, retry: { action: 'none' } };
-    if (tab.id === browserActiveTabId) view.setVisible(false);
+    if (tab.id === browserActiveTabId) hideBrowserViewOffscreen(view);
     sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
     sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
       code: `HTTP ${status}`, errorKind: 'http', message, messageKey, params, url: redactDiagnosticText(url) });
@@ -4933,11 +4954,23 @@ function openExternalByPolicy(rawUrl, surface = 'renderer-external') {
   catch (_) { return Promise.resolve(false); }
 }
 
+// Web içeriğinin tetiklediği dış uygulama açılışları (mailto: vb.) kısılır:
+// sayfa tıklama olmadan location='mailto:…' döngüsüyle posta istemcisini arka
+// arkaya açabiliyordu. Kaynak webContents başına 3 sn'de en fazla bir açılış.
+const browserExternalOpenAt = new WeakMap();
+function openExternalFromWebContent(contents, rawUrl) {
+  const now = Date.now();
+  const key = contents && typeof contents === 'object' ? contents : null;
+  if (key && now - (browserExternalOpenAt.get(key) || 0) < 3000) return Promise.resolve(false);
+  if (key) browserExternalOpenAt.set(key, now);
+  return openExternalByPolicy(rawUrl);
+}
+
 function browserWindowOpenHandler(sourceContents, tab = null) {
   return ({ url }) => {
     const decision = decideUrlPolicy(url, 'browser-window-open', safeWebContentsUrl(sourceContents));
     if (decision.action === 'external') {
-      void openExternalByPolicy(decision.url);
+      void openExternalFromWebContent(sourceContents, decision.url);
       return { action: 'deny' };
     }
     if (decision.action !== 'allow') return { action: 'deny' };
@@ -4984,7 +5017,7 @@ function configureBrowserPopup(popup, tab, details = {}) {
   const detachNavigationGuard = attachNavigationGuard(contents, {
     surface: 'browser-navigation',
     sourceUrl: () => safeWebContentsUrl(contents),
-    openExternal: (url) => openExternalByPolicy(url),
+    openExternal: (url) => openExternalFromWebContent(contents, url),
   });
   contents.on('did-create-window', (child, childDetails = {}) => configureBrowserPopup(child, tab, childDetails));
   popup.once('closed', detachNavigationGuard);
@@ -5037,6 +5070,31 @@ function applyBrowserViewBounds(tab, view = tab?.view) {
   return true;
 }
 
+// Gizli bir WebContentsView, sınırı yerel yuvanın üzerinde kalırsa Windows'ta
+// HWND'i bölgedeki işaretçi olaylarını yutabiliyor: yeni-sekme sayfası ile
+// hata/ayarlar yüzeyinde tıklama ve imleç ölüyor, klavye ise çalışıyordu.
+// Gizlerken sınırı ekran dışına taşı; gösterirken sınırı yeniden uygula.
+function hideBrowserViewOffscreen(view) {
+  if (!view || view.webContents.isDestroyed()) return;
+  view.setVisible(false);
+  try {
+    const bounds = view.getBounds?.() || browserBounds || {};
+    const width = Math.max(1, Math.floor(Number(bounds.width)) || 1);
+    const height = Math.max(1, Math.floor(Number(bounds.height)) || 1);
+    view.setBounds({ x: -10000, y: -10000, width, height });
+  } catch (_) {}
+}
+
+function setBrowserViewShown(tab, view, shown) {
+  if (!view || view.webContents.isDestroyed()) return;
+  if (shown) {
+    applyBrowserViewBounds(tab, view);
+    view.setVisible(true);
+    return;
+  }
+  hideBrowserViewOffscreen(view);
+}
+
 function applyBrowserViewsLayout() {
   const active = activeBrowserTab();
   const secondary = secondaryBrowserTab();
@@ -5044,22 +5102,21 @@ function applyBrowserViewsLayout() {
   if (fullscreen) {
     for (const tab of browserTabs.values()) {
       if (!tab.view || tab.view.webContents.isDestroyed()) continue;
-      if (tab.id === fullscreen.id) applyBrowserViewBounds(tab, tab.view);
-      tab.view.setVisible(tab.id === fullscreen.id && browserTabShouldBeVisible(tab));
+      setBrowserViewShown(tab, tab.view, tab.id === fullscreen.id && browserTabShouldBeVisible(tab));
     }
     return;
   }
   if (active?.view && !active.view.webContents.isDestroyed()) {
-    applyBrowserViewBounds(active, active.view);
-    active.view.setVisible(browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
+    setBrowserViewShown(active, active.view,
+      browserExtras?.mini.owns(active) || browserTabShouldBeVisible(active));
   }
   if (secondary?.view && !secondary.view.webContents.isDestroyed()) {
-    applyBrowserViewBounds(secondary, secondary.view);
-    secondary.view.setVisible(!active?.htmlFullscreen && browserTabShouldBeVisible(secondary));
+    setBrowserViewShown(secondary, secondary.view,
+      !active?.htmlFullscreen && browserTabShouldBeVisible(secondary));
   }
   for (const tab of browserTabs.values()) {
     if (tab.id === active?.id || tab.id === secondary?.id || !tab.view || tab.view.webContents.isDestroyed()) continue;
-    tab.view.setVisible(false);
+    hideBrowserViewOffscreen(tab.view);
   }
 }
 
@@ -5206,7 +5263,7 @@ async function openBrowserLinkInNewTab(rawUrl) {
   if (!requestIsCurrent()) return true;
   await waitForProtectedPlayback(url, tab);
   if (!requestIsCurrent()) return true;
-  view.setVisible(tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
+  setBrowserViewShown(tab, view, tab.id === browserActiveTabId && browserVisible && !browserModalOccluded);
   suspendBrowserInstrumentationForNavigation(tab, view);
   try {
     await view.webContents.loadURL(url);
@@ -5976,24 +6033,40 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
       }
       throw error;
     }
-    data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
+    try {
+      data = await readJsonResponseLimited(response, 2 * 1024 * 1024, 'Çeviri servisi yanıtı');
+    } catch (parseError) {
+      // 200 gövdesi geldi ama okunamadı: aynı isteği tekrarlamak aynı gövdeyi
+      // üretir; transportError sayılırsa ağ hatası sanılıp kuyruk sonsuz
+      // yeniden dener.
+      parseError.definitive = true;
+      throw parseError;
+    }
   } catch (requestError) {
     // fetch'in kendisinin düşmesi (DNS/bağlantı) httpStatus taşımaz; devre
     // kesicinin ağ kesintisi fırtınasını da sayması için işaretle.
     if (requestError && requestError.httpStatus === undefined
-        && requestError.name !== 'AbortError') requestError.transportError = true;
+        && requestError.name !== 'AbortError'
+        && requestError.definitive !== true) requestError.transportError = true;
     throw requestError;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', forwardAbort);
   }
+  // Aynı girdiyle tekrar denenince değişmeyecek yanıtlar kesin hatadır:
+  // scheduler bunları tek seferde sonlandırır, yedek uç fırtınası yapılmaz.
+  const definitiveTranslationError = (message) => {
+    const error = new Error(message);
+    error.retryable = false;
+    return error;
+  };
   const finishReason = data?.choices?.[0]?.finish_reason;
   if (finishReason === 'length' || data?.status === 'incomplete') {
-    throw new Error('Çeviri yanıtı tamamlanmadan kesildi; kısmi metin uygulanmadı.');
+    throw definitiveTranslationError('Çeviri yanıtı tamamlanmadan kesildi; kısmi metin uygulanmadı.');
   }
   if (['content_filter', 'tool_calls', 'function_call'].includes(finishReason)
       || data?.choices?.[0]?.message?.refusal || data?.error) {
-    throw new Error('Çeviri sağlayıcısı geçerli bir çeviri üretmedi; yanıt uygulanmadı.');
+    throw definitiveTranslationError('Çeviri sağlayıcısı geçerli bir çeviri üretmedi; yanıt uygulanmadı.');
   }
   const text = data?.choices?.[0]?.message?.content ?? data?.output_text ?? data?.response;
   if (typeof text !== 'string' || !text.trim()) throw new Error('Çeviri servisi boş yanıt döndürdü.');
@@ -6001,10 +6074,10 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   // yeni çok-blok protokolü sanarak reddetme.
   const withoutThinking = text.trim().replace(/<think\b[^>]*>[\s\S]*?<\/think>\s*/gi, '').trim();
   if (/^<think\b/i.test(withoutThinking)) {
-    throw new Error('Çeviri servisi tamamlanmamış düşünme bloğu döndürdü.');
+    throw definitiveTranslationError('Çeviri servisi tamamlanmamış düşünme bloğu döndürdü.');
   }
   const cleaned = withoutThinking.replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
-  if (!cleaned) throw new Error('Çeviri servisi yalnız düşünme metni döndürdü.');
+  if (!cleaned) throw definitiveTranslationError('Çeviri servisi yalnız düşünme metni döndürdü.');
   if (pageMode) return decodePageTranslation(cleaned, sentence);
   if (!grouped) {
     // Bazi OpenAI-uyumlu saglayicilar tek cue icin bile bir JSON zarfi
@@ -6033,8 +6106,12 @@ async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, sig
   } catch (error) {
     if (!['PARTS_MISSING', 'PARTS_MISMATCH'].includes(error?.code)) throw error;
     const loose = decodeSentenceTranslation(cleaned, sentence.pieces.length, false);
-    const parts = fitTranslationParts(loose.text, sentence.pieces);
-    if (!parts) throw error;
+    let parts = null;
+    try { parts = fitTranslationParts(loose.text, sentence.pieces); } catch (_) { parts = null; }
+    // Kısa çeviri kaynak parçalara yerleşemiyorsa ("I don't"+"know." →
+    // "Bilmiyorum.") cümleyi merged işaretiyle döndür; scheduler tek
+    // birleşik balon üretir ve tüm cue kimliklerini kapsandı sayar.
+    if (!parts) return { text: loose.text, merged: true };
     return { text: loose.text, parts };
   }
 }
@@ -6053,6 +6130,8 @@ async function requestBrowserSentenceTranslation(sentence, config, signal) {
         if (signal?.aborted) throw error;
         const status = Number(error?.httpStatus) || 0;
         if (status && !shouldFailoverTranslationStatus(status)) throw error;
+        // Kesin hata başka uçta da aynı girdiyi reddeder — rotaları tüketme.
+        if (error?.retryable === false) throw error;
         lastError = error;
         if (attempt + 1 < attempts) await waitForMangaRetry(signal, 800);
       }
@@ -6609,9 +6688,20 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
           session.apiCharacters = (Number(session.apiCharacters) || 0)
             + (sentence.pieces || []).reduce((sum, piece) => sum + String(piece.text || '').length, 0);
         }
+        // Blok-bazlı kabulde kapıya takılan bloklar kaynak metinle döner —
+        // bunları başarılı saymak yerine hata kümesine al ki oturum
+        // "kısmi" kalsın ve bloklar yeniden denenebilsin.
+        const failedIds = new Set((result.failedIds || []).map(String));
         for (const cue of result.cues || []) {
           const blockId = String(cue.cueId);
           if (!acceptsResult(blockId)) continue;
+          if (failedIds.has(blockId)) {
+            const failure = { block: session.blocks.get(blockId),
+              error: 'Çeviri kalite kapısından geçmedi (korumalı işaret veya bağlam sızıntısı).' };
+            if (job.retryIds.has(blockId) && session.translations.has(blockId)) job.retryFailures.set(blockId, failure);
+            else session.failures.set(blockId, failure);
+            continue;
+          }
           const translation = String(cue.text || '').trim();
           if (!translation) continue;
           const source = session.blocks.get(blockId);
@@ -6842,6 +6932,8 @@ function pruneReplacedBrowserPageBlocks(session, replacedIds) {
   }
 }
 
+const MAX_AUTO_CONTINUE_SESSION_BLOCKS = 20000;
+const MAX_PENDING_DYNAMIC_BLOCKS = 3000;
 function acceptDynamicBrowserPageBlocks(tab, payload) {
   const session = tab?.pageTranslateSession;
   if (!session || session.generation !== tab.generation || !payload || payload.bridgeToken !== tab.bridgeToken) return;
@@ -6862,10 +6954,22 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
   if (session.autoContinue === false) return;
   const blocks = normalizePageBlocks(payload.blocks);
   if (!blocks.length) return;
+  // Karakter bütçesi "sınırsız" olsa bile otomatik devam kötü niyetli ya da
+  // sonsuz akışlı bir sayfada API harcamasını ve belleği sınırsız büyütmesin:
+  // oturum üst sınıra ulaşınca otomatik devam durur, kullanıcı elle sürdürebilir.
+  if (session.blocks.size >= MAX_AUTO_CONTINUE_SESSION_BLOCKS) {
+    session.autoContinue = false;
+    sendBrowserEvent(tab, { type: 'notice', success: false,
+      message: `Sayfa sürekli yeni metin ekliyor; otomatik çeviri ${MAX_AUTO_CONTINUE_SESSION_BLOCKS} blokta durduruldu.` });
+    return;
+  }
   if (tab.pageTranslateJob) {
     const job = tab.pageTranslateJob;
     job.dynamicBlocks ||= new Map();
-    for (const block of blocks) job.dynamicBlocks.set(block.id, block);
+    for (const block of blocks) {
+      if (job.dynamicBlocks.size >= MAX_PENDING_DYNAMIC_BLOCKS) break;
+      job.dynamicBlocks.set(block.id, block);
+    }
     void job.scheduler.whenIdle().then(() => {
       const pending = [...(job.dynamicBlocks?.values() || [])];
       job.dynamicBlocks?.clear();
@@ -6884,6 +6988,11 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
 const pdfDocuments = new Map();
 const pdfDocumentsByResourceId = new Map();
 const pdfTranslationJobs = new Map();
+// Kaynak kimliği yalnız içerik karmasından türetilirse tahmin edilebilir:
+// dosya içeriğini bilen bir sayfa kimliği hesaplayıp Origin'siz/referrer'siz
+// istekle belgeyi açabilir. Oturum başına üretilen nonce kimliği
+// tahmin edilemez kılar; pdfHash durum anahtarı olarak deterministik kalır.
+const pdfResourceNonce = randomBytes(24).toString('hex');
 
 function pdfProtocolHeaders(contentLength, extra = {}) {
   return {
@@ -6904,7 +7013,13 @@ function installPdfDocumentProtocol() {
       const url = new URL(request.url);
       const origin = request.headers.get('origin');
       const referrer = String(request.referrer || request.headers.get('referer') || '');
-      if (origin !== 'null' && !referrer.startsWith('file://')) {
+      // Yalnız uygulamanın kendi file:// renderer'ı okuyabilir. Origin başlığı
+      // GET fetch'lerde gönderilmeyebilir (özel şemada referrer da boş
+      // gelebilir) — yokluğu 'null'/boş kabul edilir; dış bağlam (http/https
+      // kökeni ya da dosya-dışı referrer) reddedilir.
+      const originAllowed = origin == null || origin === 'null' || origin.startsWith('file://');
+      const referrerAllowed = referrer === '' || referrer.startsWith('file://');
+      if (!originAllowed || !referrerAllowed) {
         return new Response('İstek kaynağı desteklenmiyor.', { status: 403 });
       }
       if (url.hostname !== 'document' || !['GET', 'HEAD'].includes(request.method)) {
@@ -6954,24 +7069,19 @@ function pdfTranslationDirectory() {
   return path.join(app.getPath('userData'), 'pdf-translations');
 }
 
-function pdfTranslationStatePath(pdfHash) {
-  const name = createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
-  return path.join(pdfTranslationDirectory(), `${name}.json`);
+function pdfTranslationStatePath(pdfHash, endpoint) {
+  return path.join(pdfTranslationDirectory(),
+    `${pdfTranslationStateFileStem(pdfHash, endpoint)}.json`);
 }
 
 function readPdfTranslationState(identity) {
-  const primary = pdfTranslationStatePath(identity.pdfHash);
-  for (const candidate of [primary, `${primary}.bak`]) {
-    try {
-      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
-      return normalizePdfTranslationState(JSON.parse(fs.readFileSync(candidate, 'utf8')), identity);
-    } catch (_) {}
-  }
-  return createPdfTranslationState(identity);
+  // Aday sırası ve kimlik/sürüm uyumluluğu pdf-translate.js'te — bozuk
+  // birincil dosya sağlam .bak/legacy yedeğini gizleyemez.
+  return loadPdfTranslationState(pdfTranslationDirectory(), identity);
 }
 
 function writePdfTranslationState(state) {
-  const target = pdfTranslationStatePath(state.pdfHash);
+  const target = pdfTranslationStatePath(state.pdfHash, state.endpoint);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   try { if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
   writeJsonAtomic(target, state);
@@ -6993,7 +7103,7 @@ function inspectPdfDocument(filePath) {
     const pdfHash = pdfHashFromFirstChunk(stat.size, chunk, tailChunk);
     const document = {
       pdfHash,
-      resourceId: createHash('sha256').update(`pdf-resource:${pdfHash}`, 'utf8').digest('hex'),
+      resourceId: createHash('sha256').update(`pdf-resource:${pdfResourceNonce}:${pdfHash}`, 'utf8').digest('hex'),
       filePath: target,
       title: path.basename(target, path.extname(target)),
       size: stat.size,
@@ -8557,6 +8667,10 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
     start: Number(cue.start) || 0,
     end: Number(cue.end) || Number(cue.start) || 0,
     text: String(cue.text || '').trim(),
+    // Birleşik balonda kapsanan ek kaynak kimliklerini taşı — yoksa kalıcı
+    // bütünlük ikinci cue'yu hep "eksik" sayar.
+    ...(Array.isArray(cue.coveredCueIds) && cue.coveredCueIds.length
+      ? { coveredCueIds: cue.coveredCueIds } : {}),
   })).map((cue) => ({ ...cue,
     sourceCueHash: browserSubtitleIdentityHash(`${context.sourceHash || ''}|${cue.cueId}|${cue.start}|${cue.end}`),
   })).filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
@@ -8666,7 +8780,8 @@ function startBrowserLiveAsr(tab, options = {}) {
   const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
     let event;
-    try { event = JSON.parse(line); } catch (_) { return; }
+    event = parseNdjsonLine(line);
+      if (!event) return;
     if (browserLiveAsr !== job) return;
     if (!event || typeof event !== 'object') return;
     if (event.type === 'ready') {
@@ -9114,12 +9229,15 @@ function storeBrowserTrack(cues, meta = {}) {
   return null;
 }
 
+// Doğrulanan adresi {address, family} olarak döndürür; indirme aynı IP'ye
+// sabitlenir — DNS doğrulaması ile bağlantı arasında yeniden çözümleme yoktur
+// (rebinding: doğrulanan genel IP yerine ikinci çözümlemede özel adrese düşme).
 async function assertPublicBrowserSubtitleUrl(rawUrl) {
   const parsed = new URL(String(rawUrl || ""));
   const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (isIP(host)) {
     if (!isPublicMangaIpAddress(host)) throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı adresi özel veya ayrılmış bir ağ adresine yöneliyor.");
-    return;
+    return { address: host, family: isIP(host) };
   }
   let addresses;
   try {
@@ -9130,6 +9248,67 @@ async function assertPublicBrowserSubtitleUrl(rawUrl) {
   if (!addresses.length || addresses.some((item) => !isPublicMangaIpAddress(item.address))) {
     throw browserSubtitleStateError("EBROWSER_UNSAFE_URL", "Altyazı alan adı özel veya ayrılmış bir ağ adresine çözümleniyor.");
   }
+  return { address: addresses[0].address, family: Number(addresses[0].family) || isIP(addresses[0].address) };
+}
+
+// DNS-pinli altyazı indirmesi (requestPinnedMangaImage kalıbı): Node isteğinin
+// lookup'u doğrulanmış tek adrese sabitlenir; SNI/Host asıl alan adında kaldığı
+// için TLS doğrulaması etkilenmez. Chromium fetch'e alternatiftir çünkü
+// session.fetch'in iç çözümlemesi doğrulanan adresten sapabilir (rebinding).
+async function requestPinnedSubtitleBuffer(requestUrl, pin, { headers = {}, signal, maxBytes } = {}) {
+  const parsed = new URL(String(requestUrl || ''));
+  const limit = Math.max(1024, Number(maxBytes) || 1024);
+  const transport = parsed.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      callback(value);
+    };
+    const request = transport.request(parsed, {
+      method: 'GET', headers, agent: false,
+      lookup: (_hostname, options, callback) => options?.all
+        ? callback(null, [pin])
+        : callback(null, pin.address, pin.family),
+    }, (response) => {
+      const chunks = [];
+      let size = 0;
+      response.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > limit) {
+          // İlke hatası kodlanır — çağıran taraf proxy yedeğine düşerken bunu
+          // ağ hatası sanıp ikinci istek yapmasın (yanıt sınırı aşmışken
+          // aynı gövdenin proxy üzerinden de çekilmesi maliyeti iki katlar).
+          request.destroy(Object.assign(new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.'), { code: 'ESUBTITLE_LIMIT' }));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        const status = Number(response.statusCode) || 0;
+        const responseHeaders = new Map();
+        for (const [name, value] of Object.entries(response.headers || {})) {
+          responseHeaders.set(name, Array.isArray(value) ? value.join(', ') : String(value));
+        }
+        const buffer = Buffer.concat(chunks);
+        finish(resolve, {
+          status,
+          ok: status >= 200 && status < 300,
+          headers: responseHeaders,
+          arrayBuffer: () => Promise.resolve(buffer),
+        });
+      });
+      response.on('error', (error) => finish(reject, error));
+    });
+    const onAbort = () => request.destroy(signal?.reason || Object.assign(new Error('Altyazı isteği iptal edildi.'), { code: 'ERR_ABORTED' }));
+    request.setTimeout(BROWSER_FETCH_TIMEOUT, () => request.destroy(Object.assign(new Error('Altyazı isteği zaman aşımına uğradı.'), { code: 'ETIMEDOUT' })));
+    request.on('error', (error) => finish(reject, error));
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    request.end();
+  });
 }
 async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = null, byteRange = null) {
   const tab = context ? browserTabById(context.tabId) : activeBrowserTab();
@@ -9154,7 +9333,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
   if (safe.length > 8192) {
     throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi güvenli uzunluk sınırını aşıyor.');
   }
-  await assertPublicBrowserSubtitleUrl(safe);
+  let pin = await assertPublicBrowserSubtitleUrl(safe);
   // WebContents oturumuyla yapılan fetch aynı cookie deposunu kullanır, fakat
   // sayfanın CSP/CORS kısıtına bağlı değildir. İmzalı CDN altyazılarında bu,
   // page-world fetch'e göre daha güvenilir.
@@ -9162,13 +9341,69 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
     let requestUrl = safe;
     let response;
     for (let redirect = 0; redirect <= 5; redirect++) {
-      response = await tab.view.webContents.session.fetch(requestUrl, {
-        method: 'GET', credentials: (() => {
-          try { return new URL(requestUrl).origin === new URL(tab.view.webContents.getURL()).origin ? 'include' : 'omit'; }
-          catch (_) { return 'omit'; }
-        })(), redirect: 'manual', signal,
-        ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
-      });
+      const sameOrigin = (() => {
+        try { return new URL(requestUrl).origin === new URL(tab.view.webContents.getURL()).origin; }
+        catch (_) { return false; }
+      })();
+      // Proxy'siz (DIRECT) ortamda Node pinning'i kullanır: bağlantı doğrulanan
+      // IP'ye sabitlenir, DNS yeniden çözümlenmez (rebinding kapanır). Proxy'li
+      // ortamda Node lookup'u proxy'yi atlayamaz — Chromium yoluna geri düşülür
+      // (rebinge penceresi kalır, DNS kontrolü hâlâ uygulanır). Oturum ilgili
+      // protokolü kendisi işliyorsa (fixture/test interceptor'ü) yine Chromium
+      // yolu kullanılır ki oturumun kendi kuralları geçerli olsun.
+      let proxy = 'DIRECT';
+      let intercepted = false;
+      // resolveProxy çökerse DIRECT varsaymak proxy-gerektiren ağları koparır;
+      // belirsiz durumda Chromium yoluna düşülür (eskisi gibi proxy zinciri).
+      let proxyUnknown = false;
+      try {
+        proxy = await tab.view.webContents.session.resolveProxy(requestUrl);
+        intercepted = !!await tab.view.webContents.session.protocol
+          ?.isProtocolHandled?.(new URL(requestUrl).protocol.replace(':', ''));
+      } catch (_) { proxyUnknown = true; }
+      const proxyChain = String(proxy || 'DIRECT').split(';').map((entry) => entry.trim()).filter(Boolean);
+      const directFirst = proxyChain.length > 0 && /^\s*DIRECT\s*$/i.test(proxyChain[0]);
+      if (!intercepted && !proxyUnknown && directFirst) {
+        const headers = {};
+        if (byteRange) headers.Range = `bytes=${byteRange.start}-${byteRange.end}`;
+        if (sameOrigin) {
+          const cookies = await (tab.view.webContents.session.cookies
+            ?.get?.({ url: requestUrl }) || Promise.resolve([])).catch(() => []);
+          // Secure çerezler düz-metin http isteğine taşınmaz.
+          const httpsOnly = new URL(requestUrl).protocol !== 'https:';
+          const usable = cookies.filter((cookie) => !httpsOnly || !cookie.secure);
+          if (usable.length) headers.Cookie = usable.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
+        }
+        const userAgent = sanitizeBrowserUserAgent(tab.view.webContents.session.getUserAgent?.() || '');
+        if (userAgent) headers['User-Agent'] = userAgent;
+        try {
+          response = await requestPinnedSubtitleBuffer(requestUrl, pin, { headers, signal, maxBytes });
+        } catch (directError) {
+          // 'DIRECT; PROXY …' zinciri: doğrudan bacak düşerse Chromium'un
+          // proxy yedeği denenir; tek DIRECT bacakta hata aynen yükselir.
+          // İlke hatası (boyut sınırı, kullanıcı iptali) ağ hatası değildir —
+          // proxy yedeğine de aynı yanıt/iptal geçerli, ikinci istek yapılmaz.
+          if (proxyChain.length < 2
+              || directError?.code === 'ESUBTITLE_LIMIT'
+              || directError?.code === 'ERR_ABORTED'
+              || signal?.aborted) {
+            throw directError;
+          }
+          // Yeniden-doğrulama: pin doğrulaması ile bu istek arasında DNS
+          // değişmiş olabilir (rebinding penceresi) — Chromium bacak kendi
+          // çözümlemesini yapacağı için hedef hâlâ genel olmalı.
+          await assertPublicBrowserSubtitleUrl(requestUrl);
+          response = await tab.view.webContents.session.fetch(requestUrl, {
+            method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,
+            ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
+          });
+        }
+      } else {
+        response = await tab.view.webContents.session.fetch(requestUrl, {
+          method: 'GET', credentials: sameOrigin ? 'include' : 'omit', redirect: 'manual', signal,
+          ...(byteRange ? { headers: { Range: `bytes=${byteRange.start}-${byteRange.end}` } } : {}),
+        });
+      }
       if (![301, 302, 303, 307, 308].includes(response.status)) break;
       if (redirect === 5) {
         throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı adresi çok fazla yönlendirme yaptı.');
@@ -9186,7 +9421,7 @@ async function fetchBrowserBuffer(url, maxBytes = 12 * 1024 * 1024, context = nu
         throw browserSubtitleStateError('EBROWSER_UNSAFE_URL', 'Altyazı yönlendirmesi güvenli değil.');
       }
       redirected.hash = '';
-      await assertPublicBrowserSubtitleUrl(redirected.href);
+      pin = await assertPublicBrowserSubtitleUrl(redirected.href);
       requestUrl = redirected.href;
     }
     if (!response.ok) throw browserSubtitleHttpError(response.status, requestUrl,
@@ -9235,7 +9470,10 @@ function browserSubtitleStateError(code, message) {
 function browserSubtitleRetryable(error) {
   if (!error) return true;
   if (error.code === 'EBROWSER_HTTP') return error.retryable === true;
-  if (['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE'].includes(error.code)) return false;
+  // ESUBTITLE_LIMIT: Node-pin yolunun boyut-sınırı hatası — ilke hatasıdır,
+  // yeniden denemede aynı büyük yanıt boşuna tekrar iner.
+  if (['EBROWSER_STALE', 'EBROWSER_CLOSED', 'EBROWSER_UNSAFE_URL', 'EBROWSER_UNSAFE_RESPONSE',
+       'ESUBTITLE_LIMIT'].includes(error.code)) return false;
   if (error.code === 'ETIMEDOUT') return true;
   // withAbortTimeout kendi zaman aşımını ETIMEDOUT olarak işaretler. Buraya
   // ulaşan AbortError/ERR_ABORTED ise çoğunlukla gezinme veya kapanış iptalidir.
@@ -12294,7 +12532,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('before-input-event', (event, input = {}) => {
     const key = browserShortcutForInput(input);
     if (!key) return;
+    // Ctrl+F'i bu köprü atlar: browser-page-find aynı tuşu kendi işleyicisiyle
+    // (aktif-sekme ve oklüzyon kapısıyla) 'find-open' olarak üretir; iki yol
+    // aynı anda hem find-open hem browser-shortcut gönderiyordu. Renderer'ın
+    // kendi DOM odaklı Ctrl+F'i tablonun 'f' girdisiyle çalışmaya devam eder.
+    if (key === 'f') return;
     event.preventDefault();
+    // Adres çubuğuna / komut paletine / yeni sekmeye odak taşıyan kısayollarda
+    // klavye odağı da uygulama penceresine geçmeli; yoksa DOM girdisi odaklı
+    // görünür ama tuşlar hâlâ web sayfasına gider. Bul çubuğunun odağı
+    // 'find-open' olayını işleyen yerde taşınır.
+    if (['l', 'k', 'p'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
   // Sayfa odağı aldığında renderer'daki adres çubuğu hâlâ DOM odağında kalır;
@@ -12349,7 +12597,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   attachNavigationGuard(wc, {
     surface: 'browser-navigation',
     sourceUrl: () => safeWebContentsUrl(wc),
-    openExternal: (url) => openExternalByPolicy(url),
+    openExternal: (url) => openExternalFromWebContent(wc, url),
   });
   const prepareNavigationCompatibility = (event, legacyUrl) => {
     const url = typeof event?.url === 'string' ? event.url : legacyUrl;
@@ -12392,7 +12640,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.pageResponsive = true;
     tab.loadError = null;
     tab.readerActive = false;
-    if (tab.id === browserActiveTabId) view.setVisible(browserVisible && !browserModalOccluded);
+    if (tab.id === browserActiveTabId) setBrowserViewShown(tab, view, browserVisible && !browserModalOccluded);
     tab.generation += 1;
     // Eski belgenin bekleyen yeniden-deneme zamanlayıcısı yeni gezinmeyi
     // reload ile ezmesin (B83-23): gezinme başlangıcında temizlenir.
@@ -12559,7 +12807,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         }, retry.delayMs);
         tab.loadRetryTimer.unref?.();
       }
-      if (tab.id === browserActiveTabId) view.setVisible(false);
+      if (tab.id === browserActiveTabId) hideBrowserViewOffscreen(view);
       sendBrowserEvent(tab, { type: 'navigation', ...browserNavigationStateForTab(tab, { loading: false }) });
       sendBrowserEvent(tab, { type: 'load-error', ...browserNavigationStateForTab(tab, { loading: false }),
         code, message, messageKey, url: redactDiagnosticText(url) });
@@ -12654,10 +12902,17 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // yerine).
     (async () => {
       try {
-        const response = /^https?:\/\//i.test(favicon)
-          ? await withTimeout(wc.session.fetch(favicon, { credentials: 'include' }), 8000,
-            'Favicon indirme zaman aşımına uğradı.')
-          : null;
+        if (!/^https?:\/\//i.test(favicon)) return;
+        // Sayfa, kendi kökeni dışındaki bir favicon'u özel ağ adresinden
+        // (http://192.168.1.1/cgi?…) ilan ederek ana süreçten çerezli bir GET
+        // yaptırabiliyordu (Chromium'un özel ağ korumasını atlayarak). Farklı
+        // kökenli favicon yalnız genel adrese ve yönlendirmesiz indirilir; yerel ağ
+        // sitesinin kendi favicon'u (aynı köken) etkilenmez.
+        const crossOrigin = browserSiteOrigin(favicon) !== browserSiteOrigin(faviconPageUrl);
+        if (crossOrigin) await assertPublicBrowserSubtitleUrl(favicon);
+        const response = await withTimeout(wc.session.fetch(favicon, {
+          credentials: 'include', ...(crossOrigin ? { redirect: 'manual' } : {}),
+        }), 8000, 'Favicon indirme zaman aşımına uğradı.');
         if (!response || !response.ok) return;
         const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
         if (!/^image\//.test(mime)) return;
@@ -12894,7 +13149,7 @@ async function activateBrowserTab(rawId) {
   if (browserLiveAsr?.tab === previous) stopBrowserLiveAsr('Sekme değiştiği için canlı Whisper durduruldu.');
   if (previous && previous.view && !previous.view.webContents.isDestroyed()) {
     previous.lifecycle = 'background';
-    if (!previousRemainsVisible) previous.view.setVisible(false);
+    if (!previousRemainsVisible) hideBrowserViewOffscreen(previous.view);
     detachBrowserDebugger(previous.view);
     // A hidden WebContentsView is still allowed to play media. Stop it when
     // switching tabs so only the selected site can produce audio or advance
@@ -12989,7 +13244,7 @@ async function hideBrowserView(pause = true) {
   browserVisible = false;
   stopBrowserPolling();
   for (const tab of browserTabs.values()) {
-    if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.setVisible(!!browserExtras?.mini.owns(tab));
+    if (tab.view && !tab.view.webContents.isDestroyed()) setBrowserViewShown(tab, tab.view, !!browserExtras?.mini.owns(tab));
   }
   if (!browserView || browserView.webContents.isDestroyed()) return;
   // Kuyruğu önce boşalt: toggle betiği sayfa içi __whisperCaptureQueue'yu
@@ -13680,6 +13935,13 @@ function createWindow() {
       webSecurity: true,
       webviewTag: false,
       allowRunningInsecureContent: false,
+      // Kendi renderer paketimiz her açılışta aynı büyük betikleri yükler;
+      // ısı-kontrolü atlanınca V8 kod önbelleği ilk yüklemeden itibaren
+      // deterministik devreye girer (VS Code'un da kullandığı politika).
+      // Üçüncü-taraf sayfalar (sekmeler, popup) varsayılan buluşsal
+      // politikada kalır — rastgele sitelerin betiklerini agresifçe
+      // önbelleğe almanın kazancı yok.
+      v8CacheOptions: 'bypassHeatCheck',
     },
   });
   installSystemAudioCaptureHandler();
@@ -13839,6 +14101,10 @@ function createWindow() {
 
   // Sayfa içi navigasyonu engelle (örn. pencereye dosya bırakılınca file:// açılması)
   mainWindow.webContents.on('will-navigate', (e) => e.preventDefault());
+  mainWindow.webContents.on('will-redirect', (e) => e.preventDefault());
+  // Renderer'ımız iframe barındırmaz; enjekte edilmiş bir alt karenin dış
+  // dünyaya gezinmesini de reddet.
+  attachSubframeSchemeGuard(mainWindow.webContents);
 
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -13867,7 +14133,7 @@ app.on('certificate-error', (event, webContents, url, error, _certificate, callb
   const certError = browserCertificateError(error);
   tab.loadError = { kind: 'certificate', code: error || 'CERTIFICATE_ERROR',
     message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url };
-  if (tab.id === browserActiveTabId && tab.view) tab.view.setVisible(false);
+  if (tab.id === browserActiveTabId && tab.view) hideBrowserViewOffscreen(tab.view);
   sendBrowserEvent(tab, { type: 'security-error', loading: false, code: error || 'CERTIFICATE_ERROR',
     message: certError.message, messageKey: certError.messageKey, params: { detail: certError.detail }, url });
 });
@@ -14327,7 +14593,7 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
   tab.overlay = browserOverlay;
   resetBrowserCaptureState({ restorePersisted: false, cancelTranslation: true });
-  view.setVisible(!browserModalOccluded);
+  setBrowserViewShown(tab, view, !browserModalOccluded);
   startBrowserPolling();
   suspendBrowserInstrumentationForNavigation(tab, view);
   try {
@@ -16193,7 +16459,7 @@ ipcMain.handle('browser:readingList:open', async (event, request) => {
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
   applyBrowserViewBounds(tab, view);
   browserVisible = true;
-  view.setVisible(!browserModalOccluded);
+  setBrowserViewShown(tab, view, !browserModalOccluded);
   const fileUrl = pathToFileURL(found.filePath).href;
   try {
     await view.webContents.loadURL(fileUrl);
@@ -16551,6 +16817,7 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
       pdfHash: document.pdfHash,
       targetLanguage: config.targetLanguage,
       model: config.model,
+      endpoint: config.endpoint,
     });
     return {
       ok: true,
@@ -16575,6 +16842,7 @@ ipcMain.handle('pdf:state', async (event, request = {}) => {
     pdfHash: document.pdfHash,
     targetLanguage: config.targetLanguage,
     model: config.model,
+    endpoint: config.endpoint,
   }) };
 });
 
@@ -16588,7 +16856,10 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
   catch (error) { return { ok: false, error: error.message }; }
   const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
   if (!config.apiKey) return { ok: false, error: 'PDF çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
-  const identity = { pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model };
+  const identity = {
+    pdfHash: document.pdfHash, targetLanguage: config.targetLanguage,
+    model: config.model, endpoint: config.endpoint,
+  };
   let state = readPdfTranslationState(identity);
   const job = { controller: new AbortController(), schedulers: new Set() };
   pdfTranslationJobs.set(document.pdfHash, job);
@@ -16624,7 +16895,8 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
   if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
   const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
   if (request.model && request.model !== config.model) config.model = String(request.model).slice(0, 120);
-  const state = readPdfTranslationState({ pdfHash: document.pdfHash, targetLanguage: config.targetLanguage, model: config.model });
+  const state = readPdfTranslationState({ pdfHash: document.pdfHash, targetLanguage: config.targetLanguage,
+    model: config.model, endpoint: config.endpoint });
   const pages = Object.entries(state.pages).sort(([a], [b]) => Number(a) - Number(b));
   if (!pages.length) return { ok: false, error: 'Dışa aktarılacak PDF çevirisi yok.' };
   const format = ['txt', 'md', 'html'].includes(request.format) ? request.format : 'txt';
@@ -16923,13 +17195,27 @@ ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
   const files = [];
   let video = '';
   const videoCandidate = [record.video, record.input]
-    .find((value) => typeof value === 'string' && value && !/^https?:/i.test(value));
+    .find((value) => typeof value === 'string' && value && !/^https?:/i.test(value)
+      && !(record.imported && /^(?:\\\\|\/\/)/.test(value)));
   if (videoCandidate) {
     try { video = await authorizeMediaFile(videoCandidate); }
     catch (error) { return { ok: false, error: error.message, files: [], video: '' }; }
   }
+  // Paketten içe aktarılan kayıt (workspace-package sanitizeImportedHistory):
+  // ağ paylaşımı yoluna hiç dokunulmaz (NTLM sızıntısı) ve yalnız bu makinenin
+  // çıktı/girdi klasörlerindeki altyazılara onaysız erişim verilir.
+  const importedRoots = record.imported ? [loadSettings().outputDir, loadSettings().inputDir]
+    .filter((dir) => typeof dir === 'string' && dir)
+    .map((dir) => { try { return fs.realpathSync(dir); } catch (_) { return ''; } })
+    .filter(Boolean) : [];
   for (const value of candidates) {
-    if (!value || !fs.existsSync(value)) continue;
+    if (!value) continue;
+    if (record.imported) {
+      if (/^(?:\\\\|\/\/)/.test(value)) continue;
+      let resolved = '';
+      try { resolved = fs.realpathSync(value); } catch (_) { continue; }
+      if (!importedRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep))) continue;
+    } else if (!fs.existsSync(value)) continue;
     const granted = subtitleFileAccess.grant(value);
     if (granted) files.push(granted);
   }
@@ -17536,8 +17822,8 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
       if (job.canceled) return finish({ ok: false, canceled: true });
       const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop() || '';
       let parsed = null;
-      try { parsed = JSON.parse(line); }
-      catch (_) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
+      parsed = parseNdjsonLine(line);
+      if (!parsed) { return finish({ ok: false, error: stderr.trim() || 'Benchmark sonucu okunamadı.' }); }
       // F17: sonucu klip hash'iyle sakla (aynı klip = aynı wav sha256)
       if (parsed?.ok && parsed.clipHash && typeof recordModelBenchmark === 'function') {
         try { parsed.historyCount = recordModelBenchmark(parsed); } catch (_) {}
@@ -18531,6 +18817,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     job.tempPath = tempPath;
     job.outPath = outPath;
     job.filterSubPath = filterSubPath;
+    job.missingGlyphs = new Set();
     job.cancelled = false;
     job.settled = false;
     job.previousRecovery = resumingPrevious ? previousRecovery : null;
@@ -18578,7 +18865,15 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   }
   if (job.stderr) {
     job.stderr.setEncoding('utf-8');
-    job.stderr.on('data', (d) => { errTail = (errTail + d).slice(-1500); });
+    job.stderr.on('data', (d) => {
+      errTail = (errTail + d).slice(-1500);
+      // libass, karşılık bulamadığı glifler için "failed to find any fallback"
+      // basar; iş yine de başarıyla biter ve altyazı kutu/boşluk olur — sessiz
+      // bırakmamak için eksik glif kodlarını topla.
+      for (const m of String(d).matchAll(/failed to find any fallback with glyph (0x[0-9A-Fa-f]+)/g)) {
+        job.missingGlyphs.add(m[1].toLowerCase());
+      }
+    });
   }
   const finish = (ok, message) => {
     if (job.settled) return;
@@ -18592,7 +18887,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
         replaceBurninOutput(tempPath, outPath);
         cleanupBurninReplacementBackups(outPath);
         clearBurninRecoveryState(job.recovery?.id, false);
-        send({ type: 'done', file: outPath });
+        send({ type: 'done', file: outPath, missingGlyphs: job.missingGlyphs.size });
         return;
       } catch (error) {
         message = `Gömme çıktısı tamamlanamadı: ${error.message}`;
@@ -19137,7 +19432,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     const line = raw.trim();
     if (!line) return;
     try {
-      const event = { ...JSON.parse(line), queueItemId: jobMeta.queueItemId };
+      const _parsed = parseNdjsonLine(line);
+      if (!_parsed) return;
+      const event = { ..._parsed, queueItemId: jobMeta.queueItemId };
       if (event.type === 'quality_report') {
         const { type: _type, queueItemId: _queueItemId, ...quality } = event;
         jobMeta.quality = quality;
@@ -19343,7 +19640,8 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
       let result = null;
       for (const line of out.split(/\r?\n/).reverse()) {
         if (!line.trim()) continue;
-        try { result = JSON.parse(line); break; } catch (_) {}
+        result = parseNdjsonLine(line);
+        if (result) break;
       }
       if (code === 0 && result && result.ok && typeof result.version === 'string') {
         return finish({ ok: true, message: `yt-dlp ${result.version} güvenli biçimde etkinleştirildi.` });

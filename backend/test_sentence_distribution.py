@@ -159,6 +159,19 @@ def test_numeric_separator_not_sentence_end():
     assert not sentence_ended("Kasada 3.000 sikke vardı")
 
 
+def test_ordinal_not_sentence_end():
+    """TR sıra sayısı '21. yüzyıl' cümle sonu değildir — gate_corpus2
+    'It's the 21st century.' → '21. yüzyıldayız.' yanlış-ret kalıntısı."""
+    assert sentence_end_count("21. yüzyıldayız.") == 1
+    assert sentence_end_count("1. sınıf öğrencisi") == 0
+    assert sentence_part_boundary_issue(
+        ["It's the 21st century."], ["21. yüzyıldayız."]) == ""
+    # İfade başında olmayan ordinal + küçük harf devam da sayılmaz
+    assert sentence_end_count("Onu 3. kez denedi") == 0
+    # Baştaki rakam+nokta her zaman ordinaldir (önünde kapanacak cümle yok)
+    assert sentence_end_count("21. Yüzyılda savaş bitti.") == 1
+
+
 # ---------- 3. Üç cue'ya yayılan uzun soru ----------
 
 def test_three_cue_question_no_early_close():
@@ -552,14 +565,170 @@ def test_lone_sdh_marker_echo_is_not_rejected():
 
 
 def test_dialogue_echo_still_rejected():
-    """Koruma: diyalog cue'unda kaynak-yankısı kapısı hâlâ aktif."""
+    """İlk yankı reddedilir ama gerçek çeviri ikinci turda kabul edilir."""
     entries = [(0.0, 2.0, "Wait right there.")]
     out, calls = _run_translate(
         entries,
         lambda payload, call: {"items": {"0": "Wait right there."}, "sentences": {}}
-        if call < 3 else {"items": {"0": "Tam orada bekle."}, "sentences": {}})
+        if call < 2 else {"items": {"0": "Tam orada bekle."}, "sentences": {}})
     assert [t for _, _, t in out] == ["Tam orada bekle."]
-    assert len(calls) == 3, f"{len(calls)} istek"
+    assert len(calls) == 2, f"{len(calls)} istek"
+
+
+def test_dialogue_echo_accepted_after_two_rounds():
+    """İki turda da kaynağı yankılayan satır 'değişmeden kabul' edilir
+    ('Ha ha ha.', 'Hasta la vista, baby.', 'Rock and roll!' gibi doğru
+    değişmezlerin işi exit 1'e düşürmesi ve .partial üretmesi engellendi)."""
+    entries = [(0.0, 2.0, "Wait right there.")]
+    out, calls = _run_translate(
+        entries,
+        lambda payload, call: {"items": {"0": "Wait right there."},
+                               "sentences": {}})
+    assert [t for _, _, t in out] == ["Wait right there."]
+    assert len(calls) == 2, f"{len(calls)} istek"
+
+
+def test_echo_accepted_never_seeds_translation_memory(tmp_path):
+    """Yankı-kabul satırı bulanık hafızaya yazılmaz — noktalama-benzek eko
+    ('Wait!'→'Wait.') store() eşitlik kapısını geçer, sonraki dosyalarda
+    fuzzy eşleşmeyle kaynağı 'çeviri' diye döndürürdü."""
+    import sqlite3
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "Wait right there, now!")]
+    calls = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        calls.append(payload)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "Wait right there, now."}, "sentences": {}})))])
+
+    with _fake_openai(_create):
+        out = T.llm_translate(
+            entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+            [], source_lang="en")
+    assert [t for _, _, t in out] == ["Wait right there, now!"]
+    assert len(calls) == 2  # toplu yankı + kurtarma yankısı → kabul
+    tm_file = cache_dir / "translation-memory.sqlite3"
+    if tm_file.exists():
+        # with-bloku bağlantıyı kapatmaz; Windows tmp_path temizliği açık
+        # dosyayı silemez (WinError 32).
+        conn = sqlite3.connect(tm_file)
+        try:
+            rows = conn.execute("SELECT source, target FROM tm").fetchall()
+        finally:
+            conn.close()
+        assert all(s.casefold() != t.casefold() for s, t in rows), rows
+        assert not any("wait right there" in s.casefold() for s, _ in rows), rows
+
+
+def test_poisoned_tm_row_is_not_served(tmp_path):
+    """Eski sürümden kalan zehirli TM satırı (noktalama-benzek eko) lookup'ta
+    'çeviri' diye dönmez — kullanımda da elenip API yoluna düşer."""
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "Wait right there, now!")]
+
+    class _PoisonedTM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def lookup(self, *args, **kwargs):
+            return {"target": "Wait right there, now.", "ratio": 0.99}
+
+        def store(self, *args, **kwargs):
+            return False
+
+        def close(self):
+            pass
+
+    def _create(**kw):
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "Wait right there, now!"}, "sentences": {}})))])
+
+    real_tm = T.TranslationMemory
+    T.TranslationMemory = _PoisonedTM
+    try:
+        with _fake_openai(_create):
+            out = T.llm_translate(
+                entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+                [], source_lang="en")
+    finally:
+        T.TranslationMemory = real_tm
+    # Zehirli satır elendi → API yankı yolu 'değişmeden kabul' ile kaynağı korur;
+    # düzeltmesiz kod fuzzy isabeti 'Wait right there, now.' diye dönerdi.
+    assert [t for _, _, t in out] == ["Wait right there, now!"], out
+
+
+def test_poisoned_tm_row_with_source_drift_is_not_served(tmp_path):
+    """Depodaki kaynak güncel kaynaktan farklıysa (bulanık eşleşme yazım
+    hatasıyla bulur) zehir testi depodaki kaynağa karşı da yapılır —
+    aksi halde yankı hedef 'çeviri' diye uygulanırdı."""
+    cache_dir = tmp_path / "cache"
+    entries = [(0.0, 2.0, "The quik fox jumps over it.")]
+
+    class _DriftedTM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def lookup(self, *args, **kwargs):
+            # Depodaki kaynak güncelden 'quik→quick' ile ayrılıyor; hedef
+            # depodaki kaynağın kopyası (zehirli satır).
+            return {"source": "The quick fox jumps over it.",
+                    "target": "The quick fox jumps over it.", "ratio": 0.9}
+
+        def store(self, *args, **kwargs):
+            return False
+
+        def close(self):
+            pass
+
+    def _create(**kw):
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(
+                {"items": {"0": "The quik fox jumps over it."}, "sentences": {}})))])
+
+    real_tm = T.TranslationMemory
+    T.TranslationMemory = _DriftedTM
+    try:
+        with _fake_openai(_create):
+            out = T.llm_translate(
+                entries, _Args(translate_cache=True, cache_dir=str(cache_dir)),
+                [], source_lang="en")
+    finally:
+        T.TranslationMemory = real_tm
+    # Kaynak-driftli zehirli satır elendi → echo-kabul kaynağı korur;
+    # depodaki-kaynak testi olmasaydı 'The quick fox jumps over it.' dönerdi.
+    assert [t for _, _, t in out] == ["The quik fox jumps over it."], out
+
+
+def test_boundary_issue_counts_source_under_source_language_ordinals():
+    """#181 BUG_0001: kaynak parça cümle sayısı hedef dilin kuralıyla ölçülüyordu.
+
+    İngilizce kaynakta '3.' gerçek cümle sonudur ('Really. 3. Then' → 2 son);
+    TR kuralı noktalı sıra sayısı sanıp 1 sayıyordu ve doğru iki-cümle
+    çeviriyi 'fazla cümle' diye reddediyordu.
+    """
+    from sentence_translation import set_target_language
+    set_target_language('tr')
+    # Kaynak EN kuralıyla sayılır → 2 son ≥ hedef 2 → kabul.
+    assert sentence_part_boundary_issue(
+        ['Really. 3. Then', 'he left.'],
+        ['Gerçekten. 3. Sonra bitti.', 'o gitti.'], 'en') == ""
+    # Dil verilmezse eski davranış sürer: hedef kuralıyla sayılır → reddeder.
+    assert sentence_part_boundary_issue(
+        ['Really. 3. Then', 'he left.'],
+        ['Gerçekten. 3. Sonra bitti.', 'o gitti.']) is not None
+    # Gerçek fazlalık (kaynak tek cümle, hedef üç cümle) yine reddedilir.
+    assert sentence_part_boundary_issue(
+        ['Wait for it.', 'x'],
+        ['Bekle. Bitti. Sonra.', 'y'], 'en') is not None
+    # Hedef dil de sıra-sayısı yazıyorsa (TR→EN) '3. Sonra' kaynakta sıra
+    # sayısı kalır — hedefin fazla cümlesi yine yakalanır.
+    assert sentence_part_boundary_issue(
+        ['Gerçekten. 3. Sonra bitti.', 'x'],
+        ['Really. 3. Then. Done.', 'y'], 'tr') is not None
 
 
 if __name__ == "__main__":

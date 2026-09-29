@@ -115,7 +115,13 @@ def detect_intro(request):
 
 def main():
     try:
-        request = json.loads(sys.stdin.buffer.read(1024 * 1024))
+        # İstek zarfı en fazla 1MB olabilir; +1 bayt okuyup doluluk
+        # kontrolüyle aşan girdiyi JSON ayrıştırma hatasına
+        # düşürmeden açık mesajla reddet.
+        raw = sys.stdin.buffer.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            raise ValueError("Video analiz isteği 1MB sınırını aşıyor.")
+        request = json.loads(raw)
         operation = request.get("operation")
         if operation == "ocrRange":
             result = ocr_range(request)

@@ -1,6 +1,8 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { normalizeText } = require('./subtitle-sentence-layout');
 
 const PDF_TRANSLATION_STATE_VERSION = 1;
@@ -372,6 +374,8 @@ function normalizedIdentity(identity = {}) {
     pdfHash: String(identity.pdfHash ?? '').trim(),
     targetLanguage: String(identity.targetLanguage ?? '').trim(),
     model: String(identity.model ?? '').trim(),
+    // Aynı model adıyla farklı sağlayıcı kullanılırsa önbellek karışmasın.
+    endpoint: String(identity.endpoint ?? '').trim(),
   };
 }
 
@@ -400,15 +404,24 @@ function normalizePdfBlock(block, index) {
   return normalized;
 }
 
+/** Persisted dosya normalize'dan veri taşıyabilir mi? Kimlik/sürüm/sayfa
+ *  kalıbını tek yerde tanımlar — okuma döngüsü uyumsuz adayı atlayıp
+ *  .bak/legacy'ye düşebilsin diye. */
+function isPdfTranslationStateCompatible(raw, identity) {
+  const fresh = createPdfTranslationState(identity);
+  return Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw)
+    && raw.version === PDF_TRANSLATION_STATE_VERSION
+    && String(raw.pdfHash ?? '').trim() === fresh.pdfHash
+    && String(raw.targetLanguage ?? '').trim() === fresh.targetLanguage
+    && String(raw.model ?? '').trim() === fresh.model
+    && String(raw.endpoint ?? '').trim() === fresh.endpoint
+    && Boolean(raw.pages) && typeof raw.pages === 'object' && !Array.isArray(raw.pages);
+}
+
 /** Validate persisted state; identity/version drift deliberately starts fresh. */
 function normalizePdfTranslationState(raw, identity) {
   const fresh = createPdfTranslationState(identity);
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)
-    || raw.version !== PDF_TRANSLATION_STATE_VERSION
-    || String(raw.pdfHash ?? '').trim() !== fresh.pdfHash
-    || String(raw.targetLanguage ?? '').trim() !== fresh.targetLanguage
-    || String(raw.model ?? '').trim() !== fresh.model
-    || !raw.pages || typeof raw.pages !== 'object' || Array.isArray(raw.pages)) return fresh;
+  if (!isPdfTranslationStateCompatible(raw, identity)) return fresh;
 
   for (const [pageKey, blocks] of Object.entries(raw.pages)) {
     if (!/^[1-9]\d*$/u.test(pageKey) || !Array.isArray(blocks)) continue;
@@ -416,6 +429,51 @@ function normalizePdfTranslationState(raw, identity) {
     if (!blocks.length || normalizedBlocks.length) fresh.pages[String(Number(pageKey))] = normalizedBlocks;
   }
   return fresh;
+}
+
+/** State dosya adı: sağlayıcı kimliğini de kapsar — sağlayıcı değişimi
+ *  ayrı durum dosyası üretir; öncekinin sayfa çevirileri korunur. */
+function pdfTranslationStateFileStem(pdfHash, endpoint) {
+  return createHash('sha256')
+    .update(`${String(pdfHash || '')}|${String(endpoint || '')}`, 'utf8').digest('hex');
+}
+
+/** Endpoint alanı eklenmeden önceki dosya adı — geriye dönük okuma yolu. */
+function pdfTranslationStateLegacyFileStem(pdfHash) {
+  return createHash('sha256').update(String(pdfHash || ''), 'utf8').digest('hex');
+}
+
+/** `directory` altındaki durum dosyalarından ilk uyumlu olanı döndürür.
+ *  Aday sırası: birincil → .bak → legacy → legacy.bak; kimliği/sürümü
+ *  uyuşmayan ya da bozuk adaylar atlanır (bozuk birincil sağlam yedeği
+ *  gizleyemez). Uyumlu dosya yoksa taze durum döner. */
+function loadPdfTranslationState(directory, identity) {
+  const normalized = normalizedIdentity(identity);
+  const primary = path.join(directory, `${pdfTranslationStateFileStem(normalized.pdfHash, normalized.endpoint)}.json`);
+  // Endpoint alanı eklenmeden önce yazılmış dosyalar pdfHash-only anahtardaydı.
+  const legacy = path.join(directory, `${pdfTranslationStateLegacyFileStem(normalized.pdfHash)}.json`);
+  for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
+    try {
+      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
+      const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (!isPdfTranslationStateCompatible(raw, normalized)) continue;
+      // Bozuk sayfa kayıtları (geçersiz anahtar, dizi olmayan değer,
+      // normalize'da null dönen blok) dosyayı tek başına gömmez: sağlam
+      // kayıtlar kurtarılır. Tümüyle bozuk dosya ise sağlam .bak/legacy
+      // yedeğini gizleyemez — aday atlanır. Boş sayfa kaydı ({n: []})
+      // meşrudur: temizlenen sayfanın eski çevirilerini yedekten diriltmez.
+      const entries = Object.entries(raw.pages);
+      const validEntries = entries.filter(([key, blocks]) =>
+        /^[1-9]\d*$/u.test(key) && Array.isArray(blocks)
+        && !blocks.some((block) => !normalizePdfBlock(block)));
+      if (entries.length && !validEntries.length) continue;
+      if (validEntries.length !== entries.length) {
+        raw.pages = Object.fromEntries(validEntries);
+      }
+      return normalizePdfTranslationState(raw, normalized);
+    } catch (_) {}
+  }
+  return createPdfTranslationState(normalized);
 }
 
 function isPdfPageComplete(blocks) {
@@ -445,6 +503,7 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
     pdfHash: state.pdfHash,
     targetLanguage: state.targetLanguage,
     model: state.model,
+    endpoint: state.endpoint,
   });
   const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
   if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
@@ -502,4 +561,8 @@ module.exports = {
   recordPdfPageTranslation,
   pdfHashPlan,
   pdfHashFromFirstChunk,
+  isPdfTranslationStateCompatible,
+  loadPdfTranslationState,
+  pdfTranslationStateFileStem,
+  pdfTranslationStateLegacyFileStem,
 };

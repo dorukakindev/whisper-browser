@@ -84,6 +84,7 @@ const ctx = {
   },
   setSubtitleMode(mode) { ctx.mode = mode; },
   flushWatchState() {}, logLine() {}, updatePlayerTaskCenter() {},
+  friendlySystemError: (message) => String(message || ''),
 };
 vm.createContext(ctx);
 const start = renderer.indexOf('function completedSubtitleOutputs(');

@@ -9,7 +9,7 @@ const { SubtitleFileAccess, MediaFileAccess, canonicalLocalPath, MAX_SUBTITLE_BY
 const { clonePublicOptions, validateQueueOptions } = require('../src/queue-persistence');
 const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
-const { createNdjsonLineBuffer } = require('../src/ndjson-lines');
+const { createNdjsonLineBuffer, parseNdjsonLine } = require('../src/ndjson-lines');
 const { defaultMediaFolders } = require('../src/media-folders');
 const { buildSecretEnv, sanitizeAbsolutePath } = require('../src/settings-security');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
@@ -231,7 +231,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
     const context = {
-      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer,
+      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       // transcribe:start başlatma yarışı koruması (R51-28/29): authorize
       // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
@@ -291,7 +291,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     // yetkilendiricisinde reddedilir ve açıklama işi hiç başlayamazdı.
     const subCalls = [], mediaCalls = [], spawned = [];
     const context = {
-      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer,
+      authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
@@ -377,6 +377,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
         ensureBrowserView: () => view, browserBounds: null, browserVisible: false,
         browserModalOccluded: occluded, browserOverlay: {}, resetBrowserCaptureState: () => {},
         applyBrowserViewBounds: () => {},
+        setBrowserViewShown: (_tab, v, shown) => v.setVisible(shown),
         startBrowserPolling: () => {}, scheduleBrowserSessionSave: () => {},
         browserEventContext: () => ({}), browserNavigationState: () => ({}) });
       assert((await navigate(authorized, { url: 'https://example.com', tabId: 't' })).ok);

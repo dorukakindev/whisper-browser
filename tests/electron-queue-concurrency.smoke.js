@@ -24,12 +24,18 @@ if (!fs.existsSync(venvPy)) {
 }
 // --all kovası ağ gerektirmemeli: tiny modelinin HF hub önbelleğinde
 // hazır olmasını ön koşul yap, ardından offline kipini zorla ki eksik
-// önbellekte indirme yerine hızlı hata alınsın.
+// önbellekte indirme yerine hızlı hata alınsın. Önbellek kökünün çözüm
+// sırası HF'ninkiyle aynıdır: HF_HUB_CACHE > HUGGINGFACE_HUB_CACHE >
+// HF_HOME/hub > ~/.cache/huggingface/hub. Boş dizin false-pozitif
+// üretmesin diye dizin varlığı yerine model-manager'ın hasModelFiles
+// sözleşmesi (config.json + model.bin + tokenizer/vocabulary) kullanılır.
+const { repositoryHasUsableSnapshot } = require('../src/model-manager.js');
 const home = process.env.HOME || process.env.USERPROFILE || '';
 const hfHub = process.env.HF_HUB_CACHE || process.env.HUGGINGFACE_HUB_CACHE
+  || (process.env.HF_HOME ? path.join(process.env.HF_HOME, 'hub') : null)
   || path.join(home, '.cache', 'huggingface', 'hub');
-if (!fs.existsSync(path.join(hfHub, 'models--Systran--faster-whisper-tiny'))) {
-  console.log('SKIP: HF önbelleğinde faster-whisper-tiny yok');
+if (!repositoryHasUsableSnapshot(path.join(hfHub, 'models--Systran--faster-whisper-tiny'))) {
+  console.log('SKIP: HF önbelleğinde kullanılabilir faster-whisper-tiny yok');
   process.exit(0);
 }
 process.env.HF_HUB_OFFLINE = '1';
@@ -44,6 +50,18 @@ fs.mkdirSync(inputDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(userData, 'settings.json'),
   JSON.stringify({ settingsVersion: 3, ui: { uiLocale: 'tr' }, inputDir, outputDir }));
+// ffmpeg'in flite filtresi ön koşul: yoksa ortam eksiği → SKIP. Filtre
+// varken üretim hatası ortam tamamken FAIL olmalı — SKIP'e düşürmek gerçek
+// fixture regresyonlarını (izin, disk, yarım dosya) gizler.
+let fliteOk = false;
+try {
+  fliteOk = /\bflite\b/.test(execFileSync('ffmpeg',
+    ['-hide_banner', '-filters'], { encoding: 'utf8', timeout: 15000 }));
+} catch { fliteOk = false; }
+if (!fliteOk) {
+  console.log('SKIP: ffmpeg flite filtresi yok (fixture üretilemez)');
+  process.exit(0);
+}
 try {
   for (const [i, sentence] of [
     'The queue is running now.',
@@ -59,8 +77,8 @@ try {
 } catch (err) {
   const detail = String(err && err.stderr || err && err.message || err)
     .split('\n').find(Boolean) || '?';
-  console.log(`SKIP: ffmpeg/flite üretimi başarısız (${detail})`);
-  process.exit(0);
+  console.error(`FAIL: ffmpeg fixture üretimi başarısız (${detail})`);
+  process.exit(1);
 }
 
 let unhandledRejections = 0;

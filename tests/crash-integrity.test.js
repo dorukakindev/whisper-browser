@@ -48,7 +48,8 @@ function failingFs(failOn) {
   // writeFileSync→writeFile, renameSync→rename, mkdirSync→mkdir, unlinkSync→unlink,
   // copyFileSync→copyFile, existsSync→access.
   const ASYNC_MAP = { writeFileSync: 'writeFile', renameSync: 'rename', mkdirSync: 'mkdir',
-    unlinkSync: 'unlink', copyFileSync: 'copyFile', utimesSync: 'utimes' };
+    unlinkSync: 'unlink', copyFileSync: 'copyFile', utimesSync: 'utimes',
+    appendFileSync: 'appendFile' };
   // (fs.promises prototype'ta yalnız getter'dır: doğrudan atama atmaz, defineProperty gerekli.)
   const wrappedPromises = Object.create(fs.promises);
   for (const [syncName, asyncName] of Object.entries(ASYNC_MAP)) {
@@ -235,19 +236,34 @@ async function main() {
   assert.equal(flushed.ok, true);
   assert.equal(fs.existsSync(file), true);
 
-  // writeFile patlaması → {ok:false, error}, önceki içerik korunur, tmp yok.
+  // Journal append patlaması → {ok:false}, satırlar yeniden kuyrukla (kayıp yok),
+  // temel dosya ve önceki içerik korunur, tmp yok.
   const okBefore = fs.readFileSync(file, 'utf8');
-  const fail = new PersistentTranslationCache(file, { fsModule: failingFs({ writeFileSync: null }), minFlushIntervalMs: 0 });
-  fail.set('k2', 'iki');
-  const r = await fail.flush();
-  assert.equal(r.ok, false);
-  assert.match(r.error, /EIO/);
+  const failAppend = new PersistentTranslationCache(file, { fsModule: failingFs({ appendFileSync: null }), minFlushIntervalMs: 0 });
+  failAppend.set('k2', 'iki');
+  const rAppend = await failAppend.flush();
+  assert.equal(rAppend.ok, false);
+  assert.match(rAppend.error, /EIO/);
+  assert.equal(failAppend.pendingJournal.length, 1, 'başarısız append satırları geri kuyrukla');
+  assert.equal(fs.readFileSync(file, 'utf8'), okBefore);
+  assert.equal(tmpFiles(dir).length, 0);
+
+  // Sıkıştırma writeFile patlaması → {ok:false}, eski içerik korunur, tmp yok.
+  const failWrite = new PersistentTranslationCache(file, {
+    fsModule: failingFs({ writeFileSync: null }), minFlushIntervalMs: 0, journalMaxFlushes: 1,
+  });
+  failWrite.set('k3', 'üç');
+  const rWrite = await failWrite.flush();
+  assert.equal(rWrite.ok, false);
+  assert.match(rWrite.error, /EIO/);
   assert.equal(fs.readFileSync(file, 'utf8'), okBefore);
   assert.equal(tmpFiles(dir).length, 0);
 
   // rename patlaması → {ok:false}; tmp temizlenir, eski içerik korunur.
-  const failRename = new PersistentTranslationCache(file, { fsModule: failingFs({ renameSync: null }), minFlushIntervalMs: 0 });
-  failRename.set('k3', 'üç');
+  const failRename = new PersistentTranslationCache(file, {
+    fsModule: failingFs({ renameSync: null }), minFlushIntervalMs: 0, journalMaxFlushes: 1,
+  });
+  failRename.set('k4', 'dört');
   const r2 = await failRename.flush();
   assert.equal(r2.ok, false);
   assert.equal(fs.readFileSync(file, 'utf8'), okBefore);

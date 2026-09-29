@@ -1,42 +1,72 @@
-# R178 — Devin yeniliklerinin Windows yerel kabulü ve eski dal aktarımı
+# BROWSER_BUG_REPORT_178 — R219: Devin Review toplu triage (PR #139–147)
 
-Tarih: 2026-09-28. Repo: `dorukakindev/whisper-browser`.
+Tarih: 2026-09-28 · Dal: `codex/r219-review-triage` · Kapsam: 7 merge'li PR'ın
+21 inceleme bulgusunun tamamı.
 
-## İleri yönde bütünleştirme
+## Düzeltilen doğrulanmış ürün bug'ı
 
-- Başlangıç yerel `master`: `2c56a253686ca8a2183639c7bff44865fff76d97`.
-- Uzak `master`: `7c0a28f911da519aaf07c0fec6f426cebf1adbbc`; 84 yeni erişilebilir commit, 281 dosyalık toplam fark. `git merge --ff-only origin/master` başarılı. Başlangıç hash'i yeni HEAD'in atası; reset/force/temizlik uygulanmadı. Kullanıcının 18 izlenmeyen üst düzey yolu korundu.
-- Son yenilikler: renderer yardımcı dosyası ayrımı, altyazı kodlama/dil eşleştirmesi, arama ve katalog hızlandırmaları, RSS abonelik akışı, favicon kalıcılığı, isteğe bağlı DeArrow/RYD, Windows dosya adı/kurulum kontrolleri, kuyruk yarışları ve canlı ASR CPU geri dönüşü. Önceki #64/#65 önizleme/simge düzeltmeleri de master'da.
-- GitHub'da 147 PR kaydı ve 137 merge edilmiş dal adı incelendi; açık PR yoktu. Güncel master'ın Windows ve Ubuntu CI sonuçları `success` idi. 68 yerel dal ve 151 uzak ref için ata/`git cherry` envanteri alındı. Squash nedeniyle `+` görünen eski commitler otomatik aktarım adayı sayılmadı.
-- `devin/t1`–`t6` serisinin mevcut zamanlama, yakalama, OAuth test kancası, crash-store IO ve Linux kurulum yolları kontrol edildi; eski dosyalar güncel dosyaların üzerine kopyalanmadı. `whard`/`wl` yerel tarihsel dallarının ürün dosyası listeleri alındı; navigasyon, DASH ve filtre yollarından örnekler güncel karşılıklarıyla karşılaştırıldı. Bu envanter bütün tarihsel dalların her satırına yeni bir bug denetimi değildir.
-- `codex/r90-deep-bug-hunt` yalnız tarihsel belge; `devin/repo-research-2026-09-25` raporundaki önizleme bulgusu #64'te çözülmüş. `haze/bug-report-2026-09-24` tarihsel rapor/revert içeriyor. Eski `update-skills` merge commitleri ürün değişikliği için taşınmadı.
+### F-178-1 — "Sırada dur" sonrası kuyruk başlat düğmesi kilitli kalıyordu
 
-## Doğrulanmış iki düzeltme
+**Kök neden:** `processNextQueueItem` içindeki durdurma dalı
+(`renderer.js:695`) `next.status='pending'` + `renderQueue()` +
+`finalizeQueue()` çağırır. `renderQueue → syncJobsCenter` düğme durumunu
+`queueRunning===true` iken hesaplar → `startQueueBtn.disabled=true`;
+`finalizeQueue` bayrakları düşürür ama düğmeleri **yeniden
+senkronlamazdı** → düğme kalıcı kilitli, kuyruk yeniden başlatılamazdı.
 
-### R178-01 — Hash'in son bloğu eksik toplanıyordu
+**Düzeltme:** `finalizeQueue` sonuna `syncJobsCenter()` eklendi.
 
-`origin/codex/bug-catcher-queue-next-moviehash` dalındaki YouTube Sonraki düğmesi onarımı mevcut master'da zaten vardı; aynı dalın hash onarımı yoktu. `src/opensubtitles-hash.js` 64–128 KiB dosyalarda son 64 KiB yerine yalnız örtüşmeyen son kısmı topluyordu. 100000 baytlık bağımsız referans vektörü: eski sonuç `01d017e6b4ff38f4`, beklenen `e09f6020dfa1c6a0`. Yeni regresyon eski kodda kırmızı, üç satırlık ürün değişikliğinden sonra yeşil.
+**Kanıt:** `tests/queue-lifecycle.test.js` R219-01 — gerçek
+`processNextQueueItem` + `finalizeQueue` + `syncJobsCenter` gövdeleri vm
+sandbox'ında sürüldü: persist beklemesinde `stopAfterCurrent` yükselir →
+öğe bekleyene döner → `disabled===false` → yeniden başlatma spawn'a
+ulaşır. Düzeltmesiz kaynak üzerinde test **kırmızı** doğrulandı
+(`başlat düğmesi kilitli kaldı`), düzeltmeyle yeşil.
 
-[OpenSubtitles referansı](https://opensubtitles.github.io/oshash/) ilk ve son 64 KiB toplamını tarif eder; aynı sayfa API için minimum 128 KiB şartını da belirtir. Bu düzeltme uygulamanın mevcut küçük-dosya uzantısını tutarlı yapar; sağlayıcının küçük dosyaları kabul ettiğini kanıtlamaz. Mevcut <64 KiB davranışı ve büyük dosya vektörleri korunur. Eski dal bütünüyle cherry-pick edilmedi.
+## Test/sağlamlaştırma düzeltmeleri (inceleme bulguları)
 
-### R178-02 — Başarılı yerleşim testi süreçten çıkmıyordu
+| # | Bulgu | Çözüm |
+|---|-------|-------|
+| #139-1 | Ratchet `api.ad` dizgi/yorum içinde de sayıyordu; `api['ad']` kaçıyordu | Tek-geçişli sözcük tarayıcı (yorum+dizgi soyma), köşeli erişim ayrı katmanda; 234 export, 0 kullanılmayan |
+| #139-2 | Golden fixture testi metni doğrulamıyordu | `test_recorded_golden_fixtures_parse_lossless` SRT/VTT için boşluk-normalize metin + `dual.srt` satır-içerik kiliti; ASS tek-yönlü kaçış belgeli atlanır |
+| #142-1 | `npm run test:electron` argümansız yalnız listeler | ARCHITECTURE/CONTRIBUTING komutları `--all`/`--smoke` ile düzeltildi |
+| #142-2 | Zaman-kaydırma smoke'unda IPC ölçülmüyordu | `window.api.shiftSubs` sayaçla sarıldı: mutlu yol 1, onay reddi 2, geçersiz/altyazısız girdide **0 yeni çağrı**, negatif kaydırma 3 |
+| #142-3 | Kısmi-alt-sıfır kelepçesi kapsanmıyordu | 3. cue eklendi: −3.6s'de `00:00:00,000 --> 00:00:00,900`'e kenetlenir (silinmez); ayrıca eski `.bak` `backupOnce`'ı atlattığı için fixture temizliği |
+| #143-1 | "İş geçişleri iki tarafta da doğrulanır" iddiası yanlış | Gerçek paylaşım yazıldı: renderer job-id yardımcıları + main terminal latch; kuyruk geçişleri renderer'da |
+| #144-1 | Arşiv soak JSON'u re-eval'a uygun değil | `evaluationBudgets` (DEFAULT_RESOURCE_SOAK_BUDGETS anlığı) + `_reEvalNote` (budanmış diziler uyarısı) eklendi |
+| #144-2 | R215 notunda hash/döküm/Windows komutu eksik | `36de86b` + dosya dökümü + Windows soak komutu |
+| #145-1 | UNC testi her platformda reddi varsayıyordu | Platform-bölünmüş sözleşme: POSIX göreli-yol reddi doğrulanır; Windows UNC kabulü (NAS) kapı-reddi-olmama olarak kilitlenir; `\\.\` de kilitlendi |
+| #145-2 | stdin >1MB kesik JSON hatası veriyordu | `read(1MB+1)` + açık "1MB sınırını aşıyor" reddi; test hem mesajı hem sınır-altı geçişi kilitler |
+| #146-1..3 | (PR #147'de çözüldü) | HF önbellek ön koşulu, flite SKIP, fırtına join — üst turda |
+| #147-1 | `HF_HOME` çözüm sırasında yoktu | `HF_HUB_CACHE > HUGGINGFACE_HUB_CACHE > HF_HOME/hub > ~/.cache` zinciri |
+| #147-2 | Dizin varlığı boş-önbellek false-pozitifi | `repositoryHasUsableSnapshot` (model-manager hasModelFiles sözleşmesi) |
+| #147-3 | Üretim hatası SKIP'e düşüyordu | flite filtre ön-kontrolü → yoksa SKIP; varken hata → FAIL |
+| #140-2 | CHANGELOG girdisi eksikti | Unreleased/Fixed: düğme kilitlenmesi + R217 bayat-bayrak + stdin sınırı |
+| #140-3 | R211 notunda merge hash'i eksikti | `2b43998` yazıldı |
 
-`WHISPER_SMOKE_LAYOUT_ONLY=1` koşusu 21 yerleşim kontrolünden sonra `passed` yazmasına rağmen süreç kapanmıyordu. Erken dönüş CDP soketlerini kapatmıyor, dış Electron test sürecinin başarılı yolunda da açık çıkış çağrısı bulunmuyordu. Soket kapatmaları ve başarıdan sonra `process.exit(0)` eklendi. Son aynı koşu yaklaşık 6 saniyede `SMOKE_EXIT=0` verdi. Hata eşiği veya assertion silinmedi.
+## Doğrulama
 
-## Hedefli doğrulama
+- `node tests/queue-lifecycle.test.js` → 21/21 (R219-01 düzeltmesiz kırmızı kanıtı)
+- `node tests/unicode-paths.test.js` → 2429 kontrol
+- `node tests/preload-usage-ratchet.test.js` → 234 export, 0 kullanılmayan
+- `backend/venv/bin/python backend/test_browser_video_analysis_ocr.py` → 7/7
+- `backend/venv/bin/python backend/test_writer_roundtrip.py` → 8/8
+- `electron tests/electron-subtitle-shift.smoke.js` → ok (5 senaryo + IPC sayacı + kısmi kelepçe)
+- `electron tests/electron-queue-concurrency.smoke.js` → ok (gerçek backend, 0 hata)
+- `node --check` renderer.js / smoke'lar → temiz
 
-| Kontrol | Sonuç |
-| --- | --- |
-| `node --test --test-isolation=none` ile queue-persistence, queue-lifecycle, settings-load-corruption, browser-subtitles, browser-textutil, media-catalog-store, subscription-feed, live-asr-fallback, electron-security, ipc-parity, preload-usage-ratchet, status-copy | 12 dosya geçti |
-| Aynı kipte browser-subtitle-search, subtitle-find-replace, subtitle-find-perf | 3 dosya geçti |
-| `node tests/install-supply-chain.test.js` | 50 izole kurulum/failure-injection senaryosu geçti |
-| `node tests/opensubtitles-hash.test.js` | 4 vektör geçti; yeni vektör eski kodda başarısızdı |
-| venv Python `-m unittest backend.test_golden_writers backend.test_writer_roundtrip backend.test_retry_backoff backend.test_ytdlp_update` | 38 unittest + retry modülünün 18 kontrolü geçti |
-| `node --check` main/preload/renderer/renderer-helpers/hash/smoke; Python `py_compile` transcribe/update_ytdlp/live_asr/workspace_video_package; `git diff --check` | temiz |
-| Ayrı profilli gerçek Windows Electron browser-experience, yalnız layout kipi | 3 boyut × 7 durum = 21; yatay taşma yok, native BrowserView görünürlüğü doğru; son süreç çıkışı 0 |
+## Windows etkisi
 
-İlk Electron denemesi sandbox Windows Mojo erişimine takıldı; yetkili sandbox dışı koşu çalıştı. Worktree'de eksik Node paketleri yeniden kurulmadı, mevcut `node_modules` junction ile kullanıldı. İlk çalıştırmalarda test kapanış sorunu ayrı raporlandı; sadece `passed` çıktısı yeterli sayılmadı.
+Ürün kodu değişimi tek satır (`syncJobsCenter()` çağrısı — platformdan
+bağımsız mantık). UNC testi platform-bölünmüş: Windows kolda kapı
+reddinin gelmediğini doğrular, realpath ağa dokunabilir — paylaşım
+erişimsizse fs hatası gelir ama kapı reddi gelmez; bu sözleşme doğru.
+Yeni Electron smoke koşuları Windows'ta aynen çalışır.
 
-## Sınırlar
+## Doğrulanmamış sınırlar
 
-Tam `npm test`, uzun soak, canlı/ücretli sağlayıcı, Google hesabı, GPU/DRM ve `start.bat` üzerinden gerçek medya açılışı koşulmadı. `start.bat` ve değişen kurulum betikleri okundu; setlocal/PATH/pause/import akışları ve pinler kontrol edildi. Yerel venv'de ctranslate2 **4.7.2** import başarılı; repo kilidi **4.4.0** istiyor. Bu tur venv'e downgrade/yeniden kurulum uygulanmadı; GPU uyumluluğu yeni kanıtlanmadı. Kullanıcı profili, anahtarlar ve kişisel medya okunmadı/yayımlanmadı. Test logları/sentetik profiller ignore edilen scratch/temp alanında, commit dışında.
+- `startQueueBtn.disabled` davranışı vm-sandbox'ta sahte DOM'la kanıtlandı;
+  gerçek Electron'da düğmenin görünür durumu el ile doğrulanmadı
+  (mantık aynı `syncJobsCenter` hesabı).
+- HF_HOME'lu ortam bu kutuda taklit edilmedi — çözüm zinciri kod
+  incelemesiyle doğrulandı.

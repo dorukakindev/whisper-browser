@@ -17,15 +17,17 @@ function runFunction(name, context) {
   const ctx = {
     closeBrowserFind() {},
     setBrowserDownloadsOpen() {},
+    document: { fullscreenElement: null, pictureInPictureElement: null },
     player: {
       shadowResumeTimer: 1, openIntent: 0, probeRequestSeq: 0,
       editing: true, cueEditUndo: [{ before: 1 }], cueEditRedo: [{ after: 1 }],
       abA: 10, abB: 20, cuesRaw: [{ text: 'eski' }], cues2Raw: [{ text: 'eski çeviri' }],
     },
     _liveCueRenderTimer: 2, clearTimeout: (id) => pending.delete(id),
-    $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {} } },
+    $: (id) => id === 'playerVideo' ? { pause() {} } : { classList: { add() {}, remove() {}, toggle() {} } },
     stopAmbient() {}, flushWatchState() {}, destroyHls() {},
     disconnectBrowserBoundsObserver() {}, window: { api: {} },
+    closeBrowserTransientPanels() {},
   };
   runFunction('closePlayer', ctx)();
   assert.equal(pending.size, 0);

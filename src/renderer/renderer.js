@@ -169,6 +169,8 @@ async function restorePersistedQueue() {
   }
   _queuePersistenceReady = true;
   renderQueue();
+  // Çalışan kuyruğa yeniden bağlanınca "Sırada dur" görünür olmalı.
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
 }
 
 async function offerBurnInRecovery() {
@@ -557,6 +559,8 @@ function clearQueue() {
   state.queue = state.queue.filter(x => x.status === 'running');
   if (_queueNextTimer) { clearTimeout(_queueNextTimer); _queueNextTimer = null; }
   state.queueRunning = false;
+  state.stopAfterCurrent = false;
+  if (typeof updateStopAfterBtn === 'function') updateStopAfterBtn();
   renderQueue();
 }
 
@@ -598,11 +602,11 @@ function renderQueue() {
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
-      <span class="queue-status">${STATUS_TEXT[item.status] || item.status}</span>
+      <span class="queue-status">${escapeHtml(STATUS_TEXT[item.status] || item.status)}</span>
       <span class="queue-actions">
-        ${openable ? `<button class="queue-remove queue-open" data-open="${item.id}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
-        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${item.id}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
-        ${removable ? `<button class="queue-remove" data-id="${item.id}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
+        ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
+        ${retryable ? `<button class="queue-remove queue-retry" data-retry="${escapeHtml(item.id)}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
+        ${removable ? `<button class="queue-remove" data-id="${escapeHtml(item.id)}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
       </span>
     `;
     list.appendChild(div);
@@ -637,6 +641,10 @@ function finalizeQueue() {
   state.currentQueueId = null;
   state.running = false;
   updateStopAfterBtn();
+  // Kuyruk bayrakları düştükten sonra başlat/durdur düğmelerini yeniden
+  // hesapla: persist beklemesindeki "Sırada dur" dalı renderQueue'yu bayraklar
+  // hâlâ yüksekken çalıştırdığı için düğme kilitli kalıyordu.
+  syncJobsCenter();
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   setStatus('Hazır');
@@ -779,6 +787,7 @@ async function processNextQueueItem() {
       next.status = 'pending';
       state.queueRunning = false;
       state.running = false;
+      updateStopAfterBtn();
       renderQueue();
       logLine('Kuyruk, önceki işlem tamamen kapanana kadar duraklatıldı.', 'warn');
       return;
@@ -802,7 +811,11 @@ function syncProcessingControlState() {
   const busy = !!(state.running || state.queueRunning);
   const valueControls = typeof PERSIST_VALUE_CONTROLS !== 'undefined' ? PERSIST_VALUE_CONTROLS : [];
   const checkboxControls = typeof PERSIST_CHECKBOX_CONTROLS !== 'undefined' ? PERSIST_CHECKBOX_CONTROLS : [];
-  for (const id of [...valueControls, ...checkboxControls, 'pickVideosBtn', 'pickFolderBtn']) {
+  // Yalnız iş seçenekleri kilitlenir. Oynatıcı (ses, hız, altyazı boyutu),
+  // arayüz dili/teması, tarayıcı ve SmartTube ayarları çalışan transkripsiyon
+  // işini etkilemez; eskiden iş sürerken ses düğmesi bile gri kalıyordu.
+  const isJobOption = (id) => !/^(?:player[A-Z]|sub(?:Size|Offset)$|browser[A-Z]|st[A-Z]|ui(?:Theme|Locale)$|primarySettingsOpen$)/.test(id);
+  for (const id of [...valueControls, ...checkboxControls].filter(isJobOption).concat(['pickVideosBtn', 'pickFolderBtn'])) {
     const el = $(id);
     if (el) {
       el.disabled = busy;
@@ -880,7 +893,10 @@ function syncBrowserOcclusion() {
   const settingsOverlay = !!(settings && !settings.classList.contains('hidden') && playerLayer
     && (playerLayer.classList.contains('sidebar-collapsed') || playerLayer.classList.contains('mode-cinema')
       || playerLayer.classList.contains('side-rail-mode')));
-  const occluded = !!_activeModal || !!(places && !places.classList.contains('hidden'))
+  // Sekme sağ tık menüsü body'ye eklenir ve sekme şeridinden aşağı, native
+  // sayfanın üstüne açılır; sayılmazsa alt öğeleri sayfanın arkasında kalıyordu.
+  const tabMenuOpen = typeof browserTabMenuEl !== 'undefined' && !!browserTabMenuEl?.isConnected;
+  const occluded = !!_activeModal || tabMenuOpen || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
     || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
@@ -890,7 +906,7 @@ function syncBrowserOcclusion() {
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
-    || settingsOverlay || !!$('mediaCatalogDialog')?.open
+    || settingsOverlay || !!document.querySelector('dialog[open]')
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   if (window.api.setBrowserOccluded) return applyBrowserOcclusion(occluded);
@@ -1276,7 +1292,7 @@ $('copyPreview').addEventListener('click', async () => {
     await window.api.copyText(srt);
     logLine(`${segs.length} segment panoya kopyalandı (SRT biçimi)`, 'success');
   } catch (error) {
-    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+    logLine(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, 'error');
   }
 });
 
@@ -3320,6 +3336,8 @@ $('cancelBtn').addEventListener('click', async () => {
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
     state.queueRunning = false;
+    state.stopAfterCurrent = false;
+    updateStopAfterBtn();
     // Çalışan item'ı tekrar "pending" yap ki kullanıcı yeniden başlatabilsin
     const cur = state.queue.find(x => x.id === state.currentQueueId);
     if (cur && cur.status === 'running') cur.status = 'pending';
@@ -4082,7 +4100,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
       loadedPath = translation.path;
     }
   } catch (error) {
-    rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${error.message}`);
+    rememberPendingPlayerLoad(event, job, `Dosya kaydedildi ancak oynatıcıya yüklenemedi: ${friendlySystemError(error.message)}`);
     return { loaded: false, reason: error.message };
   }
   if (!loadedPath && outputs.dual) {
@@ -4608,7 +4626,11 @@ function updateStopAfterBtn() {
   if (!btn) return;
   btn.classList.toggle('hidden', !state.queueRunning);
   btn.classList.toggle('armed', !!state.stopAfterCurrent);
-  btn.textContent = state.stopAfterCurrent ? '⏸ Sırada durulacak' : '⏸ Sırada dur';
+  btn.setAttribute('aria-pressed', state.stopAfterCurrent ? 'true' : 'false');
+  // textContent düğmenin SVG ve <span>'ını siliyor, çeviri eşleşmesini bozuyordu.
+  const label = btn.querySelector('span');
+  const text = uiText(state.stopAfterCurrent ? 'Sırada durulacak' : 'Sırada dur');
+  if (label) label.textContent = text; else btn.textContent = text;
 }
 $('stopAfterCurrent').addEventListener('click', () => {
   if (!state.queueRunning) return;
@@ -4851,6 +4873,12 @@ window.api.onBurnInEvent((ev) => {
     $('burnInCancel').classList.add('hidden');
     $('burnInBtn').classList.remove('hidden');
     logLine(`Videoya gömüldü: ${ev.file}`, 'success');
+    if (Number(ev.missingGlyphs) > 0) {
+      const missing = Number(ev.missingGlyphs);
+      logLine(window.UiLocale?.get?.() === 'tr'
+        ? `Uyarı: ${missing} farklı karakter (ör. emoji/CJK) için bu sistemde glif taşıyan font bulunamadı — gömülü altyazıda kutu/boşluk görünebilir.`
+        : `Warning: no font on this system covers ${missing} distinct character(s) (e.g. emoji/CJK) — burned subtitles may show boxes or gaps.`, 'warn');
+    }
     window.api.showInFolder(ev.file);
   } else if (ev.type === 'error') {
     $('burninProgress').classList.add('hidden');
@@ -5827,6 +5855,13 @@ function browserCommandPaletteCommands() {
 }
 function openBrowserCommandPalette(returnFocus = null) {
   if (player.workspaceMode !== 'browser' || !browserTabState()) return;
+  // Zaten açıkken Ctrl+K: yeniden kurma (eski metin kalıyor, dönüş odağı gizli
+  // palet girdisine kayıyordu) — yalnız girdiye odaklan.
+  if (browserCommandPaletteState.open && !$('browserCommandPalette')?.classList.contains('hidden')) {
+    const input = $('browserCommandPaletteInput'); input?.focus(); input?.select();
+    return;
+  }
+  const staleInput = $('browserCommandPaletteInput'); if (staleInput) staleInput.value = '';
   browserCommandPaletteState.open = true; browserCommandPaletteState.query = ''; browserCommandPaletteState.selected = 0;
   const activeElement = document.activeElement;
   browserCommandPaletteState.returnFocus = returnFocus
@@ -5850,7 +5885,7 @@ if ($('browserCommandPaletteInput')) $('browserCommandPaletteInput').addEventLis
 if ($('browserCommandPalette')) $('browserCommandPalette').addEventListener('keydown', (event) => {
   if (event.isComposing) return;
   const count = browserCommandPaletteState.results.length;
-  if (event.key === 'Escape') { event.preventDefault(); closeBrowserCommandPalette(); }
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeBrowserCommandPalette(); }
   else if (event.key === 'ArrowDown' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected + 1) % count; renderBrowserCommandPalette(); }
   else if (event.key === 'ArrowUp' && count) { event.preventDefault(); browserCommandPaletteState.selected = (browserCommandPaletteState.selected - 1 + count) % count; renderBrowserCommandPalette(); }
   else if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); executeBrowserCommandPalette(); }
@@ -5897,6 +5932,25 @@ function navigateBrowser(url, tabId = player.browserActiveTabId) {
 
 // R123-D1: Favicon'u olmayan/yüklenemeyen sekmede boş alan yerine alan adının
 // ilk harfiyle, host'a göre sabit tonda küçük avatar (Chrome/Arc benzeri).
+const BROWSER_AVATAR_SECOND_LEVEL_TLDS = new Set([
+  'ac', 'asso', 'bel', 'biz', 'co', 'com', 'edu', 'gen', 'go', 'gov', 'gr', 'info',
+  'jus', 'k12', 'mil', 'name', 'ne', 'net', 'nom', 'or', 'org', 'pol', 'tel', 'web',
+]);
+
+// Avatar harfi/tonu kayıtlı alan adından (ör. wikipedia.org) gelsin; tr.wikipedia.org
+// için "t", co.uk biçiminde "c" yerine gerçek sitenin ilk harfi gösterilir.
+function browserAvatarDomainKey(host) {
+  const raw = String(host || '');
+  // IP adreslerinde alan indirgeme yok — farklı sunucular aynı harf/tona düşmesin.
+  if (/^\d+(?:\.\d+){3}$/.test(raw) || raw.includes(':')) return raw;
+  const labels = raw.split('.').filter(Boolean);
+  if (labels.length <= 2) return labels.join('.');
+  const second = labels[labels.length - 2];
+  const tld = labels[labels.length - 1];
+  const drop = (tld.length === 2 && BROWSER_AVATAR_SECOND_LEVEL_TLDS.has(second)) ? 3 : 2;
+  return labels.slice(Math.max(0, labels.length - drop)).join('.');
+}
+
 function browserTabAvatar(tab) {
   const avatar = document.createElement('span');
   avatar.className = 'browser-tab-avatar';
@@ -5908,10 +5962,11 @@ function browserTabAvatar(tab) {
     avatar.textContent = '+';
     return avatar;
   }
+  const domainKey = browserAvatarDomainKey(host) || host;
   let hash = 0;
-  for (const ch of host) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+  for (const ch of domainKey) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
   avatar.style.setProperty('--avatar-hue', String(hash % 360));
-  avatar.textContent = (Array.from(host)[0] || '•').toUpperCase();
+  avatar.textContent = (Array.from(domainKey)[0] || '•').toUpperCase();
   return avatar;
 }
 
@@ -6025,9 +6080,13 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
   // bayat olduğunda değiştirilir (load olaylarını sıfırlamamak için).
   const iconEl = open.querySelector('.browser-tab-favicon, .browser-tab-avatar');
   const avatarFor = () => browserTabAvatar(tab);
+  const freshAvatar = avatarFor();
+  const avatarSame = (el) => !!el && el.textContent === freshAvatar.textContent
+    && (el.style?.getPropertyValue?.('--avatar-hue') || '') === freshAvatar.style.getPropertyValue('--avatar-hue');
   const iconStale = !iconEl || (tab.favicon
-    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon : iconEl.dataset.faviconFailed === tab.favicon)
-    : (iconEl.tagName === 'IMG' || iconEl.textContent !== avatarFor().textContent));
+    ? !(iconEl.tagName === 'IMG' ? iconEl.getAttribute('src') === tab.favicon
+      : iconEl.dataset.faviconFailed === tab.favicon && avatarSame(iconEl))
+    : (iconEl.tagName === 'IMG' || !avatarSame(iconEl)));
   if (iconStale) {
     const next = tab.favicon ? (() => {
       const favicon = document.createElement('img');
@@ -6181,7 +6240,7 @@ function openBrowserTabMenu(tabId, x, y) {
   }
   const closableOthers = player.browserTabs.filter((t) => t.id !== tabId && !t.pinned);
   addItem(window.UiLocale?.t('Diğer sekmeleri kapat') || 'Diğer sekmeleri kapat', () => closeOtherBrowserTabs(tabId), !closableOthers.length);
-  const rightCount = player.browserTabs.slice(player.browserTabs.findIndex((t) => t.id === tabId) + 1).filter((t) => !t.pinned).length;
+  const rightCount = browserTabsRightOf(tabId).length;
   addItem(window.UiLocale?.t('Sağdaki sekmeleri kapat') || 'Sağdaki sekmeleri kapat', () => closeRightBrowserTabs(tabId), !rightCount);
   addItem(window.UiLocale?.t('Grubu düzenle…') || 'Grubu düzenle…', () => editBrowserTabGroup(tabId));
   addItem(window.UiLocale?.t('Sekmeyi kapat') || 'Sekmeyi kapat', () => closeBrowserTab(tabId), !!tab.pinned);
@@ -6196,6 +6255,7 @@ function openBrowserTabMenu(tabId, x, y) {
   });
   document.body.appendChild(menu);
   browserTabMenuEl = menu;
+  syncBrowserOcclusion();
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - mw - 4))}px`;
   menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - mh - 4))}px`;
@@ -6767,6 +6827,7 @@ function setBrowserChromeCollapsed(collapsed, persist = true) {
   if (active) {
     setBrowserPlacesOpen(false);
     setBrowserDownloadsOpen(false);
+    setBrowserQrOpen(false);
   }
   if (persist) {
     try { localStorage.setItem('playerBrowserChromeCollapsed', player.browserChromeCollapsed ? 'true' : 'false'); } catch (_) {}
@@ -6797,33 +6858,102 @@ function syncBrowserNtpIntro() {
 }
 
 
+// ---- Yeni sekme sayfası ----
+// Sıralama saf modülde (BrowserAddressModel.ntpQuickTiles / ntpContinueItems).
+// Kullanıcının NTP'den kaldırdığı adresler bu cihazda saklanır (yalnız görünüm
+// tercihi; geçmiş/yer imi silinmez).
+const BROWSER_NTP_HIDDEN_KEY = 'browserNtpHidden';
+let browserNtpWatchLoadRequested = false;
+// Bu işlevler betik başlarken (aşağıdaki let/const bildirimlerinden önce)
+// çağrılabilir; geçici ölü bölge hatası NTP'yi kırmasın.
+function browserNtpWatchItems() {
+  try { return Array.isArray(watchLibraryCache) ? watchLibraryCache : []; } catch (_) { return []; }
+}
+function browserNtpFavicon(origin) {
+  try { return origin ? browserFaviconByOrigin.get(origin) || '' : ''; } catch (_) { return ''; }
+}
+function browserNtpHiddenList() {
+  try {
+    const value = JSON.parse(localStorage.getItem(BROWSER_NTP_HIDDEN_KEY) || '[]');
+    return Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 200) : [];
+  } catch (_) { return []; }
+}
+function setBrowserNtpHiddenList(list) {
+  try { localStorage.setItem(BROWSER_NTP_HIDDEN_KEY, JSON.stringify(list.slice(-200))); } catch (_) {}
+}
+
+function browserNtpSiteIcon(url) {
+  let origin = '';
+  try { origin = new URL(url).origin; } catch (_) {}
+  const favicon = browserNtpFavicon(origin);
+  if (favicon) {
+    const img = document.createElement('img');
+    img.className = 'browser-ntp-tile-favicon';
+    img.alt = '';
+    img.src = favicon;
+    img.setAttribute('aria-hidden', 'true');
+    return img;
+  }
+  const avatar = browserTabAvatar({ url });
+  avatar.classList.add('browser-ntp-tile-avatar');
+  return avatar;
+}
+
 function renderBrowserNtpResume() {
   const root = $('browserNtpResume');
   const list = $('browserNtpResumeList');
   if (!root || !list) return;
+  const model = globalThis.BrowserAddressModel;
+  // İzleme kütüphanesi henüz yüklenmediyse bir kez yükle ve yeniden çiz.
+  if (!browserNtpWatchItems().length && !browserNtpWatchLoadRequested && window.api.listWatchLibrary) {
+    browserNtpWatchLoadRequested = true;
+    window.api.listWatchLibrary().then((items) => {
+      if (Array.isArray(items) && items.length && !browserNtpWatchItems().length) watchLibraryCache = items;
+      renderBrowserNtpResume();
+    }).catch(() => {});
+  }
+  const watchItems = model?.ntpContinueItems ? model.ntpContinueItems(browserNtpWatchItems(), { limit: 6 }) : [];
+  const seen = new Set(watchItems.map((item) => model.ntpPlaceKey(item.url)));
+  // Kütüphanede izi olmayan medya sayfaları (eski davranış) yedek olarak kalır.
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const items = (places.history || []).filter((item) => item?.url && item.media).slice(0, 6);
+  const historyItems = (places.history || [])
+    .filter((item) => item?.url && item.media && !seen.has(model?.ntpPlaceKey?.(item.url) || item.url))
+    .slice(0, Math.max(0, 6 - watchItems.length))
+    .map((item) => ({ url: item.url, title: browserPlaceTitle(item), progress: 0, remaining: 0 }));
+  const items = [...watchItems, ...historyItems];
   list.replaceChildren();
   root.classList.toggle('hidden', items.length === 0);
   for (const item of items) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-ntp-resume-item';
-    button.dataset.browserNtpResume = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
+    if (item.key) button.dataset.browserNtpWatch = item.key;
+    else button.dataset.browserNtpResume = item.url;
+    const title = item.title || item.url;
+    const remaining = item.remaining > 0 ? `${pSecToTime(item.remaining)} ${uiText('kaldı')}` : '';
+    button.title = [title, remaining, item.url].filter(Boolean).join(' — ');
     const icon = document.createElement('span');
     icon.className = 'browser-ntp-resume-ico';
     icon.setAttribute('aria-hidden', 'true');
     const copy = document.createElement('span');
     copy.className = 'browser-ntp-resume-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-ntp-resume-title';
-    title.textContent = browserPlaceTitle(item);
-    const url = document.createElement('span');
-    url.className = 'browser-ntp-resume-url';
-    try { url.textContent = new URL(item.url).host || item.url; } catch (_) { url.textContent = item.url; }
-    copy.append(title, url);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-ntp-resume-title';
+    titleEl.textContent = title;
+    const meta = document.createElement('span');
+    meta.className = 'browser-ntp-resume-url';
+    let host = item.url;
+    try { host = new URL(item.url).host.replace(/^www\./, '') || item.url; } catch (_) {}
+    meta.textContent = remaining ? `${host} · ${remaining}` : host;
+    copy.append(titleEl, meta);
     button.append(icon, copy);
+    if (item.progress > 0) {
+      const bar = document.createElement('span');
+      bar.className = 'browser-ntp-resume-progress';
+      bar.setAttribute('aria-hidden', 'true');
+      bar.style.setProperty('--progress', `${Math.round(item.progress * 100)}%`);
+      button.appendChild(bar);
+    }
     list.appendChild(button);
   }
 }
@@ -6835,39 +6965,53 @@ function renderBrowserQuickPlaces() {
   syncBrowserNtpIntro();
   renderBrowserNtpResume();
   const places = player.browserPlaces || { history: [], bookmarks: [] };
-  const entries = [];
-  const seen = new Set();
-  for (const item of [...(places.bookmarks || []), ...(places.history || [])]) {
-    if (!item?.url) continue;
-    const key = browserPlaceKey(item.url) || item.url;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    entries.push(item);
-    if (entries.length >= 8) break;
-  }
+  const hidden = browserNtpHiddenList();
+  const tiles = globalThis.BrowserAddressModel?.ntpQuickTiles
+    ? globalThis.BrowserAddressModel.ntpQuickTiles(places, { hidden, limit: 8 }) : [];
   list.replaceChildren();
-  root.classList.toggle('hidden', entries.length === 0);
-  for (const item of entries) {
+  root.classList.toggle('hidden', tiles.length === 0 && hidden.length === 0);
+  const restore = $('browserQuickPlacesRestore');
+  if (restore) {
+    restore.classList.toggle('hidden', hidden.length === 0);
+    restore.textContent = `${uiText('Gizlenenleri geri getir')} (${hidden.length})`;
+  }
+  for (const item of tiles) {
+    const tile = document.createElement('div');
+    tile.className = 'browser-ntp-tile';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'browser-quick-place';
     button.dataset.browserQuickPlace = item.url;
-    button.title = `${browserPlaceTitle(item)} — ${item.url}`;
-    const mark = document.createElement('span');
-    mark.className = 'browser-quick-place-mark';
-    mark.textContent = (places.bookmarks || []).some(bookmark => browserPlaceKey(bookmark.url) === browserPlaceKey(item.url)) ? 'Y' : 'G';
-    mark.setAttribute('aria-hidden', 'true');
+    const title = item.title || browserPlaceTitle(item);
+    button.title = `${title} — ${item.url}`;
     const copy = document.createElement('span');
     copy.className = 'browser-quick-place-copy';
-    const title = document.createElement('span');
-    title.className = 'browser-quick-place-title';
-    title.textContent = browserPlaceTitle(item);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'browser-quick-place-title';
+    titleEl.textContent = title;
     const url = document.createElement('span');
     url.className = 'browser-quick-place-url';
-    url.textContent = item.url;
-    copy.append(title, url);
+    try { url.textContent = new URL(item.url).host.replace(/^www\./, ''); } catch (_) { url.textContent = item.url; }
+    copy.append(titleEl, url);
+    const mark = document.createElement('span');
+    mark.className = 'browser-quick-place-mark';
+    mark.appendChild(browserNtpSiteIcon(item.url));
+    if (item.bookmark) {
+      const star = document.createElement('span');
+      star.className = 'browser-ntp-tile-bookmark';
+      star.setAttribute('aria-hidden', 'true');
+      mark.appendChild(star);
+    }
     button.append(mark, copy);
-    list.appendChild(button);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'browser-ntp-tile-remove';
+    remove.dataset.browserQuickPlaceHide = item.key;
+    remove.title = `${uiText('Hızlı erişimden kaldır')}: ${title}`;
+    remove.setAttribute('aria-label', remove.title);
+    remove.appendChild(browserCloseIcon());
+    tile.append(button, remove);
+    list.appendChild(tile);
   }
 }
 
@@ -6942,6 +7086,20 @@ function renderBrowserPlaces() {
       ? 'browserPlaceTabOffline' : 'browserPlaceTabBookmarks');
   $('browserPlacesClear')?.classList.toggle('hidden', player.browserPlaceTab !== 'history');
   if (!list) return;
+  // Silme, klasör değişikliği ve her gezinmede gelen arka plan yenilemesi listeyi
+  // yeniden kurar; klavye odağı body'ye düşüyordu. Odaklı satırı ve düğme türünü
+  // hatırla, çizimden sonra aynı konuma geri ver.
+  const activeEl = globalThis.document?.activeElement || null;
+  const focusedRow = activeEl && list.contains(activeEl) ? activeEl.closest('.browser-place-row') : null;
+  const focusIndex = focusedRow ? [...list.querySelectorAll('.browser-place-row')].indexOf(focusedRow) : -1;
+  // Sıra numarası değil kayıt kimliği: odaklı satırın önüne yeni kayıt eklenirse
+  // (yeni gezinti/eklenen yer imi) aynı sıra farklı kayda düşerdi.
+  const focusKey = focusedRow
+    ? (focusedRow.querySelector('[data-place-open]')?.dataset.placeOpen
+      || focusedRow.querySelector('[data-offline-open]')?.dataset.offlineOpen || '')
+    : '';
+  const focusClass = focusedRow ? (['browser-place-open', 'browser-place-folder', 'browser-place-remove']
+    .find((name) => activeEl.classList?.contains(name)) || 'browser-place-open') : '';
   list.replaceChildren();
   const entries = browserPlaceList();
   const filtered = !!String($('browserPlacesSearch')?.value || '').trim()
@@ -6956,6 +7114,7 @@ function renderBrowserPlaces() {
         : player.browserPlaceTab === 'offline' ? 'Henüz çevrimdışı kopya yok. İçerik menüsünden “Çevrimdışı okuma listesine ekle” ile sayfanın o anki halini saklayabilirsiniz.'
           : 'Henüz ziyaret edilen site yok.';
     list.appendChild(empty);
+    if (focusIndex >= 0) $('browserPlacesSearch')?.focus({ preventScroll: true });
     return;
   }
   entries.forEach((item) => {
@@ -7000,6 +7159,15 @@ function renderBrowserPlaces() {
     remove.setAttribute('aria-label', remove.title);
     list.appendChild(row);
   });
+  if (focusIndex >= 0) {
+    const rows = [...list.querySelectorAll('.browser-place-row')];
+    const row = (focusKey && rows.find((r) =>
+      r.querySelector('[data-place-open]')?.dataset.placeOpen === focusKey
+      || r.querySelector('[data-offline-open]')?.dataset.offlineOpen === focusKey))
+      || rows[Math.min(focusIndex, rows.length - 1)];
+    // Silinen satırda "sil" düğmesi yerine aynı konumdaki satırın açma düğmesi.
+    (row?.querySelector(`.${focusClass}`) || row?.querySelector('.browser-place-open'))?.focus({ preventScroll: true });
+  }
 }
 
 let browserAddressSearchTimer = null;
@@ -7053,11 +7221,13 @@ function browserAddressResultMark(result) {
   } else {
     const host = browserAddressResultHost(result);
     if (host) {
+      // Sekme avatarıyla aynı kayıtlı-alan anahtarı — tr.wikipedia.org önerisi de 'W' verir.
+      const domainKey = browserAvatarDomainKey(host) || host;
       let hash = 0;
-      for (const ch of host) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+      for (const ch of domainKey) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
       mark.classList.add('is-host');
       mark.style.setProperty('--avatar-hue', String(hash % 360));
-      mark.textContent = (Array.from(host)[0] || '•').toUpperCase();
+      mark.textContent = (Array.from(domainKey)[0] || '•').toUpperCase();
     } else mark.textContent = result.mark || '•';
   }
   return mark;
@@ -7204,9 +7374,9 @@ async function openRetranslationReview(previousCues) {
   list.addEventListener('change', () => { revert.disabled = !list.querySelector('input:checked'); });
   dialog.append(head, list, actions);
   document.body.appendChild(dialog);
-  const close = () => { dialog.close(); dialog.remove(); };
+  const close = () => { dialog.close(); dialog.remove(); syncBrowserOcclusion(); };
   keep.addEventListener('click', close);
-  dialog.addEventListener('cancel', () => dialog.remove());
+  dialog.addEventListener('cancel', () => { dialog.remove(); syncBrowserOcclusion(); });
   revert.addEventListener('click', async () => {
     const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
     const current = translationChannel();
@@ -7226,6 +7396,7 @@ async function openRetranslationReview(previousCues) {
     close();
   });
   dialog.showModal();
+  syncBrowserOcclusion();
   (canRevert ? list.querySelector('input') : keep)?.focus();
 }
 
@@ -7311,7 +7482,15 @@ async function refreshBrowserAddressResults() {
       title: item.title || uiText('Kütüphane sonucu'), detail: item.snippet || item.url || '',
       kindLabel: libraryResultKindLabel(item), mark: 'K' }) && u) seenUrls.add(u);
   }
+  // Kütüphane araması dönmeden kullanıcı ↓ ile bir satır seçtiyse ikinci çizim
+  // seçimi 0'a sıfırlıyordu; Enter yazılan metni açıyordu. Seçimi koru.
+  const previous = player.browserAddressSelected > 0 ? player.browserAddressResults[player.browserAddressSelected] : null;
   renderBrowserAddressResults(results);
+  if (previous) {
+    const key = (row) => `${row?.action || ''}|${row?.id || row?.url || row?.value || row?.title || ''}`;
+    const keep = player.browserAddressResults.findIndex((row) => key(row) === key(previous));
+    if (keep > 0) selectBrowserAddressResult(keep, { scroll: false });
+  }
 }
 
 
@@ -7429,6 +7608,7 @@ function renderBrowserSiteProfile() {
     reset.addEventListener('click', () => updateBrowserProfileField(field, null, false, editContext));
     row.append(label, reset); box.appendChild(row);
   }
+  syncBrowserAdblockQuick();
   void renderBrowserPermissions();
 }
 
@@ -7495,7 +7675,8 @@ async function loadBrowserReadingList() {
 function setBrowserPlacesOpen(open) {
   const panel = $('browserPlacesPanel');
   if (!panel) return;
-  if (open) setBrowserDownloadsOpen(false);
+  // Places, İndirmeler ve QR aynı sağ üst köşeye açılır; üst üste binmesinler.
+  if (open) { setBrowserDownloadsOpen(false); if (typeof setBrowserQrOpen === 'function') setBrowserQrOpen(false); }
   panel.classList.toggle('hidden', !open);
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
@@ -7607,7 +7788,7 @@ function renderBrowserDownloads() {
 function setBrowserDownloadsOpen(open) {
   const panel = $('browserDownloadsPanel');
   if (!panel) return;
-  if (open) setBrowserPlacesOpen(false);
+  if (open) { setBrowserPlacesOpen(false); if (typeof setBrowserQrOpen === 'function') setBrowserQrOpen(false); }
   panel.classList.toggle('hidden', !open);
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   $('browserDownloadsToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -8627,7 +8808,7 @@ function handleBrowserSubtitleAutomation(track) {
     player.browserAutomationLiveCharacters = (Number(player.browserAutomationLiveCharacters) || 0) + input.newCharacters;
     queueMicrotask(() => useBrowserTrack(true, track.id).catch((error) => {
       browserSubtitleAutomationGate.finish(input.operationKey);
-      setBrowserSignal(`Otomatik altyazı çevirisi başlatılamadı: ${error.message}`, false);
+      setBrowserSignal(`Otomatik altyazı çevirisi başlatılamadı: ${friendlySystemError(error.message)}`, false);
     }));
   }
   return decision;
@@ -9463,7 +9644,7 @@ async function copyBrowserAbText() {
     await window.api.copyText(cuesToSrt(cues));
     setBrowserSignal(`${cues.length} altyazı satırı A-B aralığıyla panoya kopyalandı.`, true);
   } catch (error) {
-    setBrowserSignal(`Panoya kopyalanamadı: ${error.message}`, false);
+    setBrowserSignal(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, false);
   }
 }
 
@@ -9482,6 +9663,15 @@ function queueCurrentBrowserPage() {
   setBrowserSignal('Açık sayfa mevcut ayarlarla transkripsiyon kuyruğuna eklendi.', true);
 }
 
+// Tarayıcıda açık bir YouTube videosu varsa indirme alanına onun adresi hazır
+// gelsin; kullanıcı adresi elle kopyalamak zorunda kalmasın.
+function prefillYoutubeUrlFromBrowser() {
+  const pageUrl = currentBrowserYoutubeUrl();
+  const input = $('playerYtUrl');
+  if (!pageUrl || !input || input.value.trim() === pageUrl) return;
+  input.value = pageUrl;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
 function currentBrowserYoutubeUrl() {
   if (player.workspaceMode !== 'browser') return '';
   const tab = browserTabState();
@@ -9693,7 +9883,7 @@ async function toggleBrowserLiveAsr() {
     await startBrowserLiveAsrCapture(stream, tabId, started.sessionId);
   } catch (error) {
     await stopBrowserLiveAsrCapture(true);
-    setBrowserSignal(`Sistem sesi başlatılamadı: ${error.message}`, false);
+    setBrowserSignal(`Sistem sesi başlatılamadı: ${friendlySystemError(error.message)}`, false);
   } finally { player.browserLiveAsrStarting = false; }
 }
 
@@ -9962,7 +10152,7 @@ function applyBrowserSyncPreview(transform, points) {
   const preview = browserSyncEnsurePreview();
   if (!preview) return;
   try { preview.transform = browserSubtitleSync.normalizeTransform(transform); }
-  catch (error) { refreshBrowserSyncPanel(error.message); return; }
+  catch (error) { refreshBrowserSyncPanel(friendlySystemError(error.message)); return; }
   if (points) preview.points = points.map((point) => ({ ...point }));
   preview.dirty = preview.transform.scale !== preview.baseTransform.scale
     || preview.transform.offsetSeconds !== preview.baseTransform.offsetSeconds
@@ -9997,7 +10187,7 @@ function captureBrowserSyncPoint(slot) {
       applyBrowserSyncPreview(result, result.points);
       if (warning) refreshBrowserSyncPanel(warning);
       return;
-    } catch (error) { return refreshBrowserSyncPanel(error.message); }
+    } catch (error) { return refreshBrowserSyncPanel(friendlySystemError(error.message)); }
   }
   applyBrowserSyncPreview(preview.transform, points);
 }
@@ -10031,7 +10221,7 @@ function saveBrowserSync() {
     preview.dirty = false;
     saveActiveBrowserTabWorkspace();
     refreshBrowserSyncPanel('Senkron bu video ve kaynak altyazı için kaydedildi.');
-  } catch (error) { refreshBrowserSyncPanel(error.message); }
+  } catch (error) { refreshBrowserSyncPanel(friendlySystemError(error.message)); }
 }
 
 function resetBrowserSync() {
@@ -10449,16 +10639,17 @@ function renderBrowserAdblockState(result = {}) {
   if (control) control.disabled = busy;
   if (quick) {
     quick.disabled = busy;
-    quick.setAttribute('aria-pressed', String(enabled));
-    quick.classList.toggle('has-error', result.state === 'error' || result.ok === false);
-    const action = enabled ? 'kapat' : 'aç';
-    const label = busy ? 'Reklam koruması değiştiriliyor'
-      : result.state === 'error' || result.ok === false
-        ? `Reklam koruması kapalı; ayarlarda hata ayrıntısı var`
-        : `Reklam koruması ${enabled ? 'açık' : 'kapalı'}; ${action}`;
-    quick.title = busy ? 'Reklam koruması değiştiriliyor…'
-      : `Reklam koruması ${enabled ? 'açık' : 'kapalı'} · ${enabled ? 'Kapat' : 'Aç'}`;
-    quick.setAttribute('aria-label', label);
+    const failed = result.state === 'error' || result.ok === false;
+    quick.classList.toggle('has-error', failed);
+    if (busy) {
+      quick.setAttribute('aria-pressed', String(enabled));
+      quick.title = 'Reklam koruması değiştiriliyor…';
+      quick.setAttribute('aria-label', 'Reklam koruması değiştiriliyor');
+    } else if (failed) {
+      quick.setAttribute('aria-pressed', 'false');
+      quick.title = 'Reklam koruması kapalı · Ayarlarda hata ayrıntısı var';
+      quick.setAttribute('aria-label', 'Reklam koruması kapalı; ayarlarda hata ayrıntısı var');
+    } else syncBrowserAdblockQuick();
   }
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
@@ -10468,6 +10659,82 @@ function renderBrowserAdblockState(result = {}) {
     status.textContent = `Reklam koruması etkin${blockedNote}${cacheNote}.`;
   } else if (result.requested && result.error) status.textContent = result.error;
   else status.textContent = 'Reklam koruması kapalı.';
+}
+
+// Site çipindeki reklam koruması düğmesi SİTE bazlıdır. Eskiden yalnız genel
+// ayarı gösterip değiştiriyordu: site profili reklam korumasını kapatmış bir
+// sitede "açık" diyor, tıklayınca bütün sitelerin ayarını değiştiriyordu.
+// Etkin durum = genel ayar açık VE site/sekme profili kapatmamış (main
+// isSitePaused ile aynı öncelik).
+function browserAdblockSiteState() {
+  const globalOn = !!$('browserAdblockEnabled')?.checked;
+  let origin = '';
+  let siteOn = true;
+  try {
+    const effective = effectiveBrowserProfile();
+    origin = effective.origin || '';
+    siteOn = effective.values?.adblockEnabled !== false;
+  } catch (_) { /* site profili modülü yüklenmemiş olabilir */ }
+  const host = origin.replace(/^https?:\/\//, '');
+  return { globalOn, origin, host, siteOn, effective: globalOn && siteOn };
+}
+function syncBrowserAdblockQuick() {
+  const quick = $('browserAdblockQuick');
+  if (!quick) return;
+  const { globalOn, origin, host, siteOn, effective } = browserAdblockSiteState();
+  quick.setAttribute('aria-pressed', String(effective));
+  quick.dataset.scope = globalOn && origin ? 'site' : 'global';
+  let title;
+  if (!globalOn) title = uiText('Reklam koruması tüm sitelerde kapalı · Aç');
+  else if (!origin) title = uiText('Reklam koruması açık · Tüm sitelerde kapat');
+  else if (siteOn) title = `${uiText('Bu sitede reklam koruması açık · Kapat')} (${host})`;
+  else title = `${uiText('Bu sitede reklam koruması kapalı · Aç')} (${host})`;
+  quick.title = title;
+  quick.setAttribute('aria-label', title);
+  const label = quick.querySelector('.browser-adblock-label');
+  if (label) label.textContent = uiText(globalOn && origin ? 'Bu sitede reklam koruması' : 'Reklam koruması');
+}
+async function toggleBrowserAdblockForSite() {
+  const quick = $('browserAdblockQuick');
+  const control = $('browserAdblockEnabled');
+  if (!quick || !control || control.disabled || quick.disabled) return;
+  const { globalOn, origin, host, siteOn } = browserAdblockSiteState();
+  // Genel ayar kapalıysa site bazında açmak anlamsız: önce genel ayarı aç.
+  // Site açık değilken (boş sekme) düğme genel anahtardır.
+  if (!globalOn || !origin) {
+    control.checked = !control.checked;
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  const tab = browserTabState();
+  if (!tab || !window.api.updateBrowserSiteProfile) return;
+  // Sekme kapsamlı geçersiz kılma site ayarından önce gelir; varsa o da kalkar.
+  if (tab.siteOverrideOrigin === origin && tab.siteOverrides
+      && Object.prototype.hasOwnProperty.call(tab.siteOverrides, 'adblockEnabled')) {
+    const { adblockEnabled: _removed, ...rest } = tab.siteOverrides;
+    tab.siteOverrides = rest;
+  }
+  quick.disabled = true;
+  // Açarken alan silinir (genel ayarı devralır); kapatırken site profiline false yazılır.
+  const result = await window.api.updateBrowserSiteProfile({
+    tabId: player.browserActiveTabId, generation: tab.generation, origin,
+    field: 'adblockEnabled', value: siteOn ? false : null, reset: false, scope: 'site', url: player.browserPageUrl,
+  }).catch((error) => ({ ok: false, error: error.message }));
+  quick.disabled = false;
+  if (!result?.ok) {
+    setBrowserSignal(result?.error || 'Site ayarı kaydedilemedi.', false, { priority: 80, holdMs: 5000 });
+    syncBrowserAdblockQuick();
+    return;
+  }
+  if (result.places) player.browserPlaces = result.places;
+  renderBrowserSiteProfile();
+  syncBrowserAdblockQuick();
+  $('browserSiteChipDetails')?.removeAttribute('open');
+  syncBrowserOcclusion();
+  setBrowserSignal(`${host}: ${uiText(siteOn ? 'reklam koruması kapatıldı, sayfa yenileniyor.' : 'reklam koruması açıldı, sayfa yenileniyor.')}`,
+    true, { priority: 60, holdMs: 4000 });
+  // Engelleme yeni isteklere uygulanır; sayfadaki mevcut reklamlar için yenile.
+  void runBrowserChromeCommand('reload');
 }
 
 async function refreshBrowserAdblockState() {
@@ -10481,8 +10748,8 @@ async function setBrowserAdblockEnabled(enabled) {
   if (!control || !window.api.setBrowserAdblockEnabled) return;
   renderBrowserAdblockState({ state: 'loading' });
   const result = await window.api.setBrowserAdblockEnabled(enabled).catch((error) => ({
-    ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${error.message}`,
-  }));
+    ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${friendlySystemError(error.message)}`,
+  })) || { ok: false, requested: enabled, state: 'error', error: 'Reklam koruması değiştirilemedi.' };
   renderBrowserAdblockState(result);
   if (result?.enabled !== enabled) scheduleSave();
   if (result?.ok && result.reloadRequired && player.workspaceMode === 'browser' && player.browserPageUrl) {
@@ -10529,7 +10796,7 @@ async function setBrowserPlayerAdPruneEnabled(enabled) {
     ok: false,
     enabled: false,
     failOpen: true,
-    error: 'Deneysel koruma değiştirilemedi: ' + error.message,
+    error: 'Deneysel koruma değiştirilemedi: ' + friendlySystemError(error.message),
   }));
   control.disabled = false;
   renderBrowserPlayerAdPruneState(result);
@@ -10853,7 +11120,10 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
   if (mode !== previousMode) {
     closeBrowserFind(false);
-    setBrowserDownloadsOpen(false);
+    closeBrowserTransientPanels();
+    // Sıradaki video geri sayımı mod değişince sürerse sıfırda kullanıcıyı
+    // tarayıcıdan seçmediği bir videoya geri çekiyordu.
+    if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
     player.abA = null;
     player.abB = null;
     $('abLoopBtn')?.classList.remove('active');
@@ -11043,8 +11313,11 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('click', async (
   if (open) activateBrowserTabAndFocus(open.dataset.browserTabActivate);
 });
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('dblclick', (event) => {
+  // Kapat/sessiz düğmesine hızlı iki tık (birkaç sekmeyi art arda kapatmak)
+  // "Sekme grubunu düzenle" diyaloğunu açmasın.
+  if (event.target.closest('[data-browser-tab-close], [data-browser-tab-mute]')) return;
   const item = event.target.closest('[data-browser-tab-id]');
-  if (item) editBrowserTabGroup(item.dataset.browserTabId);
+  if (item && player.browserTabs.some((tab) => tab.id === item.dataset.browserTabId)) editBrowserTabGroup(item.dataset.browserTabId);
 });
 if ($('browserTabStrip')) $('browserTabStrip').addEventListener('contextmenu', (event) => {
   const item = event.target.closest('[data-browser-tab-id]');
@@ -11106,7 +11379,12 @@ if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown', (even
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   const tabs = [...$('browserTabStrip').querySelectorAll('[role="tab"]')];
   if (!tabs.length) return;
-  const current = Math.max(0, tabs.indexOf(document.activeElement));
+  // Odak sekmenin kapat/sessiz düğmesindeyse o sekmeden devam et; eskiden -1
+  // → 0'a düşüp ilk ya da son sekmeye atlıyordu.
+  const active = document.activeElement;
+  let owned = tabs.indexOf(active);
+  if (owned < 0) owned = tabs.findIndex((tab) => (tab.closest('[data-browser-tab-id]') || tab.parentElement)?.contains(active));
+  const current = Math.max(0, owned);
   let next = current;
   if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
   if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
@@ -11252,7 +11530,10 @@ $('browserPiP')?.addEventListener('click', () => {
   }).catch(() => {});
 });
 if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event) => {
-  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && player.browserAddressResults.length) {
+  // Home/End metin imlecine aittir (öneri listesi yazarken hep açık olduğundan
+  // eskiden imleç satır başına/sonuna gidemiyordu). Satır atlamak için Alt+Home/End.
+  const rowJump = (event.key === 'Home' || event.key === 'End') && event.altKey;
+  if ((['ArrowDown', 'ArrowUp'].includes(event.key) || rowJump) && player.browserAddressResults.length && !event.isComposing) {
     event.preventDefault();
     const length = player.browserAddressResults.length;
     const selected = event.key === 'Home' ? 0
@@ -11276,6 +11557,8 @@ if ($('browserAddress')) $('browserAddress').addEventListener('keydown', (event)
   }
   else if (event.key === 'Escape') {
     event.preventDefault();
+    // Adres düzenlemesini geri almak başka paneli/çekmeceyi kapatmasın.
+    event.stopPropagation();
     closeBrowserAddressResults();
     player.browserAddressDirty = false;
     $('browserAddress').value = player.browserPageUrl || '';
@@ -11332,6 +11615,19 @@ if ($('browserPlacesToggle')) $('browserPlacesToggle').addEventListener('click',
 });
 if ($('browserQuickPlacesMore')) $('browserQuickPlacesMore').addEventListener('click', () => setBrowserPlacesOpen(true));
 if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('click', async (event) => {
+  const hide = event.target.closest('[data-browser-quick-place-hide]');
+  if (hide) {
+    const list = browserNtpHiddenList();
+    if (!list.includes(hide.dataset.browserQuickPlaceHide)) list.push(hide.dataset.browserQuickPlaceHide);
+    // Kaldırılan kutucuğun yerine odak bir sonrakine geçsin (klavye kullanıcısı).
+    const tiles = [...$('browserQuickPlacesList').querySelectorAll('.browser-quick-place')];
+    const index = tiles.indexOf(hide.parentElement?.querySelector('.browser-quick-place'));
+    setBrowserNtpHiddenList(list);
+    renderBrowserQuickPlaces();
+    const next = $('browserQuickPlacesList').querySelectorAll('.browser-quick-place');
+    (next[Math.min(Math.max(0, index), next.length - 1)] || $('browserNtpSearch'))?.focus({ preventScroll: true });
+    return;
+  }
   const open = event.target.closest('[data-browser-quick-place]');
   if (!open) return;
   const url = open.dataset.browserQuickPlace;
@@ -11341,13 +11637,24 @@ if ($('browserQuickPlacesList')) $('browserQuickPlacesList').addEventListener('c
   await navigateBrowserFromAddress();
 });
 if ($('browserNtpResumeList')) $('browserNtpResumeList').addEventListener('click', (event) => {
+  const watch = event.target.closest('[data-browser-ntp-watch]');
+  if (watch) {
+    // Kütüphane kaydı: kütüphanedeki "Devam et" ile aynı akış (konumdan sürdürür).
+    const item = watchItemByKey(watch.dataset.browserNtpWatch);
+    if (item) void openWatchLibraryItem(item, item.completed ? 0 : Number(item.position) || 0);
+    return;
+  }
   const open = event.target.closest('[data-browser-ntp-resume]');
   if (open) browserNtpNavigate(open.dataset.browserNtpResume);
+});
+$('browserQuickPlacesRestore')?.addEventListener('click', () => {
+  setBrowserNtpHiddenList([]);
+  renderBrowserQuickPlaces();
 });
 if ($('browserNtpSearch')) {
   const ntpSearch = $('browserNtpSearch');
   ntpSearch.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.isComposing) {
       event.preventDefault();
       browserNtpNavigate(ntpSearch.value.trim());
     } else if (event.key === 'Escape') {
@@ -11648,6 +11955,22 @@ function openBrowserSettings(category = 'site', focusId = '') {
 function openBrowserSetting(settingId) {
   const entry = browserSettingsRegistry()?.list().find((item) => item.id === settingId);
   if (!entry) return false;
+  // Bazı anahtarlar (YouTube görünümü, Shorts gizleme) ayarlar yüzeyinde değil,
+  // çekmecedeki "Altyazı ve çeviri" sayfasındaki canlı araçlara taşınır. Arama
+  // sonucu eskiden "Site" kategorisini açıp gizli çekmecedeki öğeye odaklanıyor,
+  // ekranda hiçbir şey göstermiyordu.
+  const control = $(entry.id);
+  const surface = $('browserSettingsSurfaceContent');
+  if (control && surface && !surface.contains(control) && $('browserLiveViewToolsHost')?.contains(control)) {
+    if (player.browserSettingsOpen) void closeBrowserSettings();
+    setSettingsPage('browser-subtitles');
+    setSettingsDrawer(true);
+    requestAnimationFrame(() => {
+      control.scrollIntoView({ block: 'center' });
+      control.focus({ preventScroll: true });
+    });
+    return true;
+  }
   openBrowserSettings(entry.category, entry.id);
   return true;
 }
@@ -11707,12 +12030,10 @@ if ($('browserSitePermissionsOpen')) $('browserSitePermissionsOpen').addEventLis
   $('browserSiteChipDetails')?.removeAttribute('open');
   openBrowserSettings('site', 'browserPermissionsTitle');
 });
-if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => {
-  const control = $('browserAdblockEnabled');
-  if (!control || control.disabled) return;
-  control.checked = !control.checked;
-  control.dispatchEvent(new Event('change', { bubbles: true }));
-});
+if ($('browserAdblockQuick')) $('browserAdblockQuick').addEventListener('click', () => { void toggleBrowserAdblockForSite(); });
+// Çip her açıldığında o anki sekmenin sitesine göre durum yeniden hesaplanır
+// (sekme değişimi, gezinme, ayarlar panelinden yapılan değişiklik).
+$('browserSiteChipDetails')?.addEventListener('toggle', (event) => { if (event.currentTarget.open) syncBrowserAdblockQuick(); });
 if ($('browserPlayerResponseAdPrune')) $('browserPlayerResponseAdPrune').addEventListener('change', (event) => {
   void setBrowserPlayerAdPruneEnabled(event.target.checked);
 });
@@ -12061,6 +12382,10 @@ function visibleBrowserTabsInDisplayOrder() {
 
 function runBrowserShortcut(key, shift = false) {
   const normalized = String(key || '').toLowerCase();
+  // Uygulama diyaloğu (#appDialog gibi div tabanlı yönetilen modal) açıkken
+  // sekme/gezinme kısayolları arkadaki sayfaya işlemesin: "Sekme grubunu
+  // düzenle" içinde yazarken Ctrl+W arkadaki sekmeyi kapatıyordu.
+  if (_activeModal || document.querySelector('dialog[open]')) return true;
   if (['subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle'].includes(normalized)) {
     setSubtitleMode(normalized === 'subtitle-toggle' ? (browserSubtitleMode() === 'off' ? 'both' : 'off') : normalized.slice(9));
     saveActiveBrowserTabWorkspace();
@@ -12106,6 +12431,9 @@ function runBrowserShortcut(key, shift = false) {
   // Açık bir uygulama diyaloğu varken Ctrl+W sekme kapatmasın.
   if (normalized === 'w') {
     if (document.querySelector('dialog[open]')) return true;
+    // Ayarlar sözde sekmesi öndeyken Ctrl+W onu kapatır; arkadaki görünmeyen
+    // web sekmesini kapatmaz.
+    if (browserSettingsSurfaceVisible()) { closeBrowserSettings(); return true; }
     closeBrowserTab(player.browserActiveTabId);
     return true;
   }
@@ -12186,7 +12514,17 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   // Arama olayları altyazı edinme kuşağına bağlı değil; kendi istek token'ını taşır.
   if (['find-open', 'find-result', 'find-reset'].includes(event.type)) { receiveBrowserFindEvent(event); return; }
   if (event.type === 'browser-shortcut') {
-    if (event.tabId !== player.browserActiveTabId) return;
+    if (event.tabId !== player.browserActiveTabId) {
+      // Bölünmüş görünümün ikincil sayfası da kısayol gönderir (odak oradayken):
+      // main odağı zaten aldığı için olayı reddetmek hiçbir giriş açmadan odağı
+      // kaybederdi. Sayfayı önce aktif sekme yapıp kısayolu ona uygula.
+      if (event.tabId && event.tabId === player.browserSplit?.secondaryTabId) {
+        void activateBrowserTab(event.tabId).then((tab) => {
+          if (tab && player.workspaceMode === 'browser') runBrowserShortcut(event.key, !!event.shift);
+        });
+      }
+      return;
+    }
     // Fare yan tuşları gibi donanım kaynaklı kısayollar oynatıcı modunda da
     // gelebilir; browser görünür değilken yanlış "komut başarısız" sinyali
     // üretmesinler.
@@ -13609,18 +13947,28 @@ function translationsForCues(cues, translations) {
   const matches = new Array(cues.length).fill('');
   if (!translations.length) return matches;
   let cursor = 0;
+  // Aynı aralığı paylaşan cue'larda ilk satır her cue'ya eşleşirdi; eş
+  // örtüşmede henüz kullanılmamış satırı tercih et. Birleşik (merged)
+  // balonda tek çeviri satırı iki cue'yu da kaplar — başka aday yoksa
+  // kullanılmış satır yine geçerlidir.
+  const used = new Set();
   cues.forEach((cue, cueIndex) => {
     while (cursor < translations.length && translations[cursor].end <= cue.start) cursor++;
-    let best = null;
     let bestOverlap = 0;
+    let pickAny = -1;
+    let pickUnused = -1;
     for (let index = cursor; index < translations.length; index++) {
       const translated = translations[index];
       if (translated.start >= cue.end) break;
       const overlap = Math.min(cue.end, translated.end) - Math.max(cue.start, translated.start);
-      if (overlap > bestOverlap) { bestOverlap = overlap; best = translated; }
+      if (overlap <= 0) continue;
+      if (overlap > bestOverlap) { bestOverlap = overlap; pickAny = index; pickUnused = -1; }
+      if (overlap === bestOverlap && pickUnused < 0 && !used.has(index)) pickUnused = index;
     }
-    if (best && bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25)) {
-      matches[cueIndex] = best.text;
+    const chosen = pickUnused >= 0 ? pickUnused : pickAny;
+    if (chosen >= 0 && bestOverlap > Math.min(0.4, (cue.end - cue.start) * 0.25)) {
+      used.add(chosen);
+      matches[cueIndex] = translations[chosen].text;
     }
   });
   return matches;
@@ -13932,7 +14280,7 @@ async function copyCue() {
     await window.api.copyText(cue.text);
     logLine('Altyazı satırı panoya kopyalandı.', 'success');
   } catch (error) {
-    logLine(`Panoya kopyalanamadı: ${error.message}`, 'error');
+    logLine(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`, 'error');
   }
 }
 
@@ -14137,9 +14485,21 @@ async function saveCueNote() {
   osd(existing ? 'Zaman bağlı not güncellendi' : 'Zaman bağlı not kaydedildi');
 }
 
+// Kaydetme iki await içerir; hızlı ikinci K aynı imzayı iki kez ekliyordu
+// (sonra "çıkarıldı" dense de kart kayıtlı görünmeye devam ediyordu).
+let _cueSaveBusy = false;
 async function toggleCueSaved() {
+  if (_cueSaveBusy) return;
+  _cueSaveBusy = true;
+  try { await toggleCueSavedNow(); } finally { _cueSaveBusy = false; }
+}
+async function toggleCueSavedNow() {
   if (player.activeIdx < 0 || !player.cues[player.activeIdx]) {
     logLine('Kaydetmek için önce bir altyazı satırına gel.', 'warn');
+    // Tarayıcı modunda günlük görünmez; menüden gelen tıklama sessiz kalmasın.
+    if (player.workspaceMode === 'browser') {
+      setBrowserSignal('Kaydetmek için önce bir altyazı satırına gel.', false, { priority: 50, holdMs: 3500 });
+    }
     return;
   }
   const sig = cueSignature(player.cues[player.activeIdx]);
@@ -14247,7 +14607,7 @@ async function copySelectedWord() {
     await window.api.copyText(player.selectedWord.word);
     osd('Kelime panoya kopyalandı');
   } catch (error) {
-    osd(`Panoya kopyalanamadı: ${error.message}`);
+    osd(`Panoya kopyalanamadı: ${friendlySystemError(error.message)}`);
   }
 }
 
@@ -14912,7 +15272,8 @@ function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
   return {
-    speed: browserMode ? player.browserRate : (video ? video.playbackRate : 1),
+    // Geçici hız (basılı tutma / boşluk hızlandırma) yerine kullanıcının seçtiği hız.
+    speed: browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1)),
     volume: browserMode ? player.browserVolume : (video ? video.volume : 1),
     muted: browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
@@ -15607,7 +15968,11 @@ async function openWatchLibraryItem(item, seconds) {
     player.pendingAutoOpen = { key: item.key, intent };
     openYoutubePanelAndProbe(item.sourceRef);
   } else {
+    // Yetki beklenirken kullanıcı başka bir kayda tıkladıysa bu açılış eskidir;
+    // artırılmazsa aynı dalda üst üste iki tıklama yine yarışırdı.
+    const intent = ++player.openIntent;
     const authorization = await window.api.authorizeWatchItem?.(item.key);
+    if (intent !== player.openIntent) return;
     if (!authorization?.ok) {
       logLine(`Kütüphane medyası açılamadı: ${authorization?.error || 'erişim onaylanmadı'}`, 'warn');
       return;
@@ -18717,10 +19082,14 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  // Tam ekran/PiP'teyken Backspace ile kapatınca pencere siyah tam ekranda kalıyordu.
+  const doc = globalThis.document;
+  if (doc?.fullscreenElement) doc.exitFullscreen?.().catch(() => {});
+  if (doc?.pictureInPictureElement) doc.exitPictureInPicture?.().catch(() => {});
   if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
   closeBrowserFind(false);
   if (player.pdfReader) $('pdfReaderClose')?.click();
-  setBrowserDownloadsOpen(false);
+  closeBrowserTransientPanels();
   player.cancelHoldSpeed?.();
   if (typeof stopPlayerVideoFrameLoop === 'function') stopPlayerVideoFrameLoop();
   if (typeof resetActiveWordHighlight === 'function') resetActiveWordHighlight();
@@ -18742,6 +19111,12 @@ function closePlayer() {
   player.cueEditRedo = [];
   player.abA = null;
   player.abB = null;
+  // Durum sıfırlanıyor ama görünüm kalıyordu: geri dönünce düzenleme kutusu açık,
+  // kontroller tıklanamaz, A-B düğmesi etkin görünüyordu.
+  $('playerStage')?.classList.remove('editing');
+  $('subtitleEdit')?.classList.add('hidden');
+  $('abLoopBtn')?.classList.remove('active');
+  if (typeof renderAbMarkers === 'function') renderAbMarkers();
   player.cuesRaw = null;
   player.cues2Raw = null;
   player.wordSegments = [];
@@ -19699,6 +20074,25 @@ document.addEventListener('pointerdown', (event) => {
   if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu')) return;
   closeBrowserToolbarMenus();
 }, true);
+// Yer imleri / İndirmeler / QR / komut paleti açıkken sayfa donmuş bir
+// görüntüyle değiştirilir; o görüntüye tıklamak hiçbir şey yapmıyordu. Toolbar
+// menüleri gibi dış tıklamayla kapansınlar. Diyalog, çekmece ve menüler hariç.
+document.addEventListener('pointerdown', (event) => {
+  if (_activeModal || document.querySelector('dialog[open]')) return;
+  const panels = ['browserPlacesPanel', 'browserDownloadsPanel', 'browserQrPanel', 'browserCommandPalette']
+    .map((id) => $(id)).filter((panel) => panel && !panel.classList.contains('hidden'));
+  if (!panels.length) return;
+  const target = event.target;
+  if (!(target instanceof Element) || !target.isConnected) return;
+  if (panels.some((panel) => panel.contains(target))) return;
+  if (target.closest('#browserPlacesToggle, #browserDownloadsToggle, #browserMoreMenu, #browserCommandPaletteToggle, .browser-menu-popover, #settingsDrawer, #appDialog, [aria-modal="true"]')) return;
+  if (typeof browserTabMenuEl !== 'undefined' && browserTabMenuEl?.contains(target)) return;
+  if (!target.closest('#playerLayer')) return;
+  setBrowserPlacesOpen(false);
+  setBrowserDownloadsOpen(false);
+  setBrowserQrOpen(false);
+  if (browserCommandPaletteState.open) closeBrowserCommandPalette();
+}, true);
 
 const playerDetailsMenuIds = ['playerMore', 'playerHeadMore', 'subtitleActionsMenu', 'playerSpeedMenu', 'playerLayoutQuickMenu', 'sideSubtitleLayoutMenu'];
 function closePlayerDetailsMenus(restoreFocus = false) {
@@ -19874,19 +20268,120 @@ if ($('browserFindOpen')) $('browserFindOpen').addEventListener('click', () => {
 const moreSearch = $('browserMoreSearch');
 if (moreSearch) {
   const morePopover = moreSearch.closest('.browser-more-popover');
-  moreSearch.addEventListener('input', () => {
+  let moreEmpty = null;
+  const filterMoreMenu = () => {
     const q = foldSearch(moreSearch.value.trim());
+    // Arama "eylenebilir komut" bulur: devre dışı öğeler eşleşmez — gri ama
+    // tıklanamaz ölü sonuç yerine "eşleşme yok" satırı daha dürüsttür.
+    const usable = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    const matches = (item) => {
+      // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
+      // kısa sorgular simge ağırlıklı öğeleri de bulsun.
+      const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
+      return !q || (usable(item) && foldSearch(haystack).includes(q));
+    };
+    let total = 0;
+    // Hızlı eylem satırındaki düğmeler de aranır: "yeni sekme" gibi sorgular
+    // satırı bütünüyle gizleyip yanlışlıkla "eşleşme yok" göstermesin.
+    const quickRow = morePopover?.querySelector('.browser-more-quick');
+    let quickHits = 0;
+    quickRow?.querySelectorAll('button').forEach((item) => {
+      const hit = matches(item);
+      item.classList.toggle('hidden', !hit);
+      if (q && hit) quickHits += 1;
+    });
+    total += quickHits;
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
       let visible = 0;
       sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
-        const hit = !q || foldSearch(item.textContent || '').includes(q);
+        const hit = matches(item);
         item.classList.toggle('hidden', !hit);
         if (hit) visible += 1;
       });
       sub.classList.toggle('hidden', visible === 0);
       if (q && visible) sub.open = true;
+      total += visible;
     });
+    // Arama sırasında yalnız eşleşen hızlı eylemler kalır; eşleşme yoksa satır
+    // ve ayracı da gizlenir.
+    quickRow?.classList.toggle('hidden', !!q && !quickHits);
+    morePopover?.querySelector('.browser-more-quick + .browser-menu-separator')
+      ?.classList.toggle('hidden', !!q && !quickHits);
+    if (!moreEmpty && morePopover) {
+      moreEmpty = document.createElement('div');
+      moreEmpty.className = 'browser-more-empty hidden';
+      moreEmpty.setAttribute('role', 'status');
+      morePopover.appendChild(moreEmpty);
+    }
+    if (moreEmpty) {
+      moreEmpty.textContent = uiText('Menüde eşleşen komut yok.');
+      moreEmpty.classList.toggle('hidden', !q || total > 0);
+    }
+  };
+  const moreMenuItems = (selector) => [...(morePopover?.querySelectorAll(selector) || [])]
+    .filter((item) => !item.classList.contains('hidden') && !item.disabled && item.getAttribute('aria-disabled') !== 'true'
+      && !item.closest('.browser-more-sub.hidden'));
+  // ↓/↑ gezintisi alt-grup özetlerine de düşer; Enter yalnız çalıştırılabilir
+  // komut öğelerini seçer (özet tıklamak grubu açar, komut değildir).
+  const moreMenuNavigables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub > summary, .browser-more-sub[open] [role^="menuitem"]');
+  const moreMenuActionables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub[open] [role^="menuitem"]');
+  moreSearch.addEventListener('input', filterMoreMenu);
+  moreSearch.addEventListener('keydown', (event) => {
+    if (event.isComposing) return;
+    // ↓ arama kutusundan ilk eyleme geçer; ↑ özet düğmeye döner (menü açılışında
+    // ilk ok tuşu aramayı atlayıp hızlı eylemlere düşüyordu).
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      // stopPropagation: olay menü details'ine kabarcıklanırsa wireDetailsMenuNav
+      // aynı tuşu tekrar işleyip odağı bir sonraki/son öğeye kaydırıyordu.
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'ArrowDown') moreMenuNavigables()[0]?.focus();
+      else morePopover?.closest('details')?.querySelector(':scope > summary')?.focus();
+      return;
+    }
+    // Enter ilk eşleşen görünür öğeyi çalıştırır (Chrome menü aramasıyla aynı).
+    if (event.key !== 'Enter' || !moreSearch.value.trim()) return;
+    const first = moreMenuActionables()[0];
+    if (!first) return;
+    event.preventDefault();
+    first.click();
   });
+  // Menü açılınca odak arama kutusuna düşer (klavyeyle ilk ↓ aramayı atlıyordu);
+  // kapanınca arama sıfırlanır, aksi halde bir sonraki açılışta öğeler gizli
+  // kalıyor ve menü "eksik" görünüyordu.
+  $('browserMoreMenu')?.addEventListener('toggle', (event) => {
+    if (event.currentTarget.open) { moreSearch.focus(); return; }
+    if (!moreSearch.value) return;
+    moreSearch.value = '';
+    filterMoreMenu();
+    morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = false; });
+  });
+  // Menü açıkken öğe durumu değişebilir (örn. sayfa YouTube'dan çıkınca
+  // "Oynatıcıda izle" devre dışı kalır): sorgu varken sonuçları tazele ki
+  // bayat eşleşme gri kalmasın. Vekil öğelerin gerçek durumu menü dışındaki
+  // hedef düğmede yaşadığı için hedefler de ayrıca izlenir.
+  if (morePopover && typeof MutationObserver === 'function') {
+    const refreshMoreSearchResults = () => {
+      if (!moreSearch.value) return;
+      syncBrowserMenuProxies(morePopover);
+      filterMoreMenu();
+    };
+    const moreMenuObserver = new MutationObserver(refreshMoreSearchResults);
+    moreMenuObserver.observe(morePopover, {
+      attributes: true,
+      attributeFilter: ['disabled', 'aria-disabled'],
+      subtree: true,
+    });
+    morePopover.querySelectorAll('[data-browser-proxy]').forEach((button) => {
+      const target = $(button.dataset.browserProxy);
+      if (target) {
+        moreMenuObserver.observe(target, {
+          attributes: true,
+          attributeFilter: ['disabled', 'aria-disabled'],
+        });
+      }
+    });
+  }
 }
 
 
@@ -19934,7 +20429,10 @@ if ($('browserReadLater')) $('browserReadLater').addEventListener('click', async
 if ($('browserElementPick')) $('browserElementPick').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const tabId = player.browserActiveTabId;
-  if (!tabId) return;
+  if (!tabId || !/^https?:/i.test(browserTabState()?.url || player.browserPageUrl || '')) {
+    setBrowserSignal('Önce bir sayfa aç.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
   setBrowserSignal('Sayfada gizlemek istediğin öğeye tıkla (Esc: vazgeç).', true, { priority: 55, holdMs: 8000 });
   const result = await window.api.browserElementRules?.({ action: 'pick', tabId })
     .catch((error) => ({ ok: false, error: error.message }));
@@ -19960,7 +20458,10 @@ if ($('browserElementPick')) $('browserElementPick').addEventListener('click', a
 if ($('browserElementClear')) $('browserElementClear').addEventListener('click', async () => {
   closeBrowserToolbarMenus();
   const tabId = player.browserActiveTabId;
-  if (!tabId) return;
+  if (!tabId) {
+    setBrowserSignal('Önce bir sayfa aç.', false, { priority: 50, holdMs: 3000 });
+    return;
+  }
   const listed = await window.api.browserElementRules?.({ action: 'list', tabId }).catch(() => null);
   const count = listed?.selectors?.length || 0;
   if (!listed?.ok || !count) {
@@ -20051,13 +20552,60 @@ if ($('browserZoomIn')) $('browserZoomIn').addEventListener('click', () => chang
 if ($('browserZoomOutToolbar')) $('browserZoomOutToolbar').addEventListener('click', () => changeBrowserZoom('zoom-out'));
 if ($('browserZoomResetToolbar')) $('browserZoomResetToolbar').addEventListener('click', () => changeBrowserZoom('zoom-reset'));
 if ($('browserZoomInToolbar')) $('browserZoomInToolbar').addEventListener('click', () => changeBrowserZoom('zoom-in'));
+// Vekil menü öğeleri gizli/uzak bir düğmeyi tıklar. Hedef devre dışıysa öğe
+// eskiden hiçbir şey yapmadan kapanıyordu (kullanıcı için "çalışmayan düğme").
+// Menü açılırken hedefin durumu öğeye aria-disabled olarak yansıtılır; yine de
+// tıklanırsa nedeni sinyal satırında söylenir. Hedef görünmeyen bir <summary>
+// ise (tarayıcı modunda gizli oynatıcı başlığındaki "Görünüm düzeni") onu açmak
+// ekranda hiçbir şey göstermez; bu durumda görünür eşdeğeri açılır.
+const browserProxyFallbacks = {
+  playerLayoutQuick: () => toggleDrawerAt(null, '.player-layout-section .vm'),
+};
+function browserProxyTargetState(button) {
+  const target = $(button.dataset.browserProxy);
+  if (!target) return { target: null, unavailable: true, reason: '' };
+  const unavailable = !!target.disabled || target.getAttribute('aria-disabled') === 'true';
+  return { target, unavailable, reason: unavailable ? String(target.title || target.getAttribute('aria-label') || '') : '' };
+}
+function syncBrowserMenuProxies(root) {
+  if (!root?.querySelectorAll) return;
+  for (const button of root.querySelectorAll('[data-browser-proxy]')) {
+    // Whisper altyazı öğeleri kendi disabled/title durumunu zaten yönetir.
+    if (button.id === 'browserWhisperSubtitlesMenu' || button.id === 'browserWhisperTranslateMenu') continue;
+    const { unavailable } = browserProxyTargetState(button);
+    const nextState = unavailable ? 'true' : 'false';
+    // Aynı değer bile mutation kaydı üretir; yukarıdaki gözlemciyle sonsuz
+    // mikro-görev döngüsünü önlemek için değişmeden yazma.
+    if (button.getAttribute('aria-disabled') !== nextState) {
+      button.setAttribute('aria-disabled', nextState);
+    }
+  }
+}
 $$('[data-browser-proxy]').forEach((button) => {
   button.addEventListener('click', () => {
-    const target = $(button.dataset.browserProxy);
-    if (target && !target.disabled) target.click();
+    const state = browserProxyTargetState(button);
     closeBrowserToolbarMenus();
+    runBrowserProxyAction(button, state);
   });
 });
+function runBrowserProxyAction(button, { target, unavailable, reason }) {
+  if (!target) return;
+  if (unavailable) {
+    if (player.workspaceMode === 'browser') {
+      setBrowserSignal(reason ? `${uiText('Şu an kullanılamıyor')}: ${reason}` : uiText('Bu işlem şu an kullanılamıyor.'),
+        false, { priority: 50, holdMs: 3500 });
+    }
+    return;
+  }
+  const fallback = browserProxyFallbacks[button.dataset.browserProxy];
+  if (target.tagName === 'SUMMARY' && !target.getClientRects().length) fallback?.();
+  else target.click();
+}
+for (const id of ['browserMoreMenu', 'appModeMenu', 'appMenu', 'browserTranslateMenu']) {
+  $(id)?.addEventListener('toggle', (event) => {
+    if (event.currentTarget.open) syncBrowserMenuProxies(event.currentTarget);
+  });
+}
 
 $('browserStartBrowse')?.addEventListener('click', () => {
   $('browserAddress')?.focus();
@@ -20190,7 +20738,7 @@ function renderBrowserPageReport(event = {}) {
       const eligible = Math.max(0, Number(row.total) - Number(row.excluded || 0));
       const pct = eligible ? Math.round((row.translated / eligible) * 100) : 0;
       const checked = prefs.excludedSections.includes(row.section) ? ' checked' : '';
-      return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + row.translated + '/' + eligible + ' · %' + pct + (row.excluded ? ' · ' + row.excluded + ' dışlandı' : '') + '</output><button type="button" class="btn btn-ghost btn-sm" data-page-retry-section="' + escapeHtml(row.section) + '"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Yenile</button></label>';
+      return '<label class="browser-page-section-row"><input type="checkbox" data-page-exclude="' + escapeHtml(row.section) + '"' + checked + '><span>' + escapeHtml(row.section) + '</span><output>' + (Number(row.translated) || 0) + '/' + eligible + ' · %' + pct + (row.excluded ? ' · ' + (Number(row.excluded) || 0) + ' dışlandı' : '') + '</output><button type="button" class="btn btn-ghost btn-sm" data-page-retry-section="' + escapeHtml(row.section) + '"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Yenile</button></label>';
     }).join('') + '<button class="btn btn-ghost btn-sm" id="browserPageApplyExclusions" type="button"' + (player.browserPageTranslateBusy ? ' disabled' : '') + '>Bölüm dışlamalarını uygula</button>' : '';
     sections.innerHTML = completionHtml + sectionHtml;
     sections.querySelector('#browserPageApplyExclusions')?.addEventListener('click', applyBrowserPageExclusions);
@@ -20366,6 +20914,9 @@ $('browserPageQuickMenu')?.addEventListener('toggle', (event) => {
   if (event.currentTarget.open) void refreshBrowserPageHistory();
 });
 $('browserPagePreview')?.addEventListener('click', async (event) => {
+  // event.currentTarget await'ten sonra null olur; önizleme açıldığında etiket
+  // değişmiyor, yerine TypeError fırlıyordu (ui-smoke yakaladı).
+  const button = event.currentTarget;
   const panel = $('browserPagePreviewPanel');
   if (panel && !panel.hidden) {
     player.browserPagePreview = null;
@@ -20374,7 +20925,7 @@ $('browserPagePreview')?.addEventListener('click', async (event) => {
     return;
   }
   await previewBrowserPage();
-  if (panel && !panel.hidden) event.currentTarget.textContent = 'Önizlemeyi gizle';
+  if (panel && !panel.hidden && button) button.textContent = 'Önizlemeyi gizle';
 });
 $('browserPagePause')?.addEventListener('click', async () => {
   if (!player.browserActiveTabId || !player.browserPageTranslateBusy) return;
@@ -20522,7 +21073,11 @@ async function renderPdfReaderPage(pageNumber) {
     const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; source.appendChild(canvas);
     const translation = document.createElement('div'); translation.className = 'pdf-page-translation';
     const heading = document.createElement('h3'); heading.textContent = `Sayfa ${pageNumber}`; translation.appendChild(heading);
-    article.append(source, translation); $('pdfReaderPages').appendChild(article); reader.rendered.set(pageNumber, article);
+    // Sayfa sırası korunur: 50. sayfaya atlayınca ya da yukarı doğru doldururken
+    // sayfalar eskiden hep sona ekleniyor ve sıra karışıyordu.
+    const pagesRoot = $('pdfReaderPages');
+    const after = [...pagesRoot.children].find((node) => Number(node.dataset.page) > pageNumber) || null;
+    article.append(source, translation); pagesRoot.insertBefore(article, after); reader.rendered.set(pageNumber, article);
     reader.observer?.observe(article);
     reader.renderStage = `rendering:${pageNumber}`;
     article.dataset.state = 'rendering';
@@ -20555,7 +21110,23 @@ async function renderPdfReaderPage(pageNumber) {
 
 async function translateVisiblePdfPages(all = false) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
+  // Çeviri sürerken ikinci başlatma ilkinin sayaçlarını sıfırlıyor, iptal
+  // düğmesini kapatıyor ve ilk işi arayüzden durdurulamaz bırakıyordu.
+  if (reader.translating) return;
   reader.translating = true;
+  for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = true; }
+  try { await translateVisiblePdfPagesNow(reader, all); }
+  finally {
+    reader.translating = false;
+    // Yerini yeni bir okuyucu almışsa bile düğmeleri geri aç; yalnız o okuyucu
+    // da çeviri yürütüyorsa dokunma (kendi finally'si kapayacak).
+    const current = player.pdfReader;
+    if (!current || !current.translating) {
+      for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = false; }
+    }
+  }
+}
+async function translateVisiblePdfPagesNow(reader, all) {
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
@@ -20602,13 +21173,15 @@ async function translateVisiblePdfPages(all = false) {
     reader.translationCompleted = completed;
     reader.translationFailed = failed;
     if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
-    pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
+    // Okuyucu bu çeviri sürerken değiştiyse durum satırı yeni belgeye aittir.
+    if (player.pdfReader === reader) pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
     if (result?.canceled) { canceled = true; break; }
   }
   $('pdfTranslateCancel').disabled = true;
   reader.translating = false;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
-  pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
+  // Okuyucu değiştiyse eski çevirinin sonuç satırı yeni belgeyi ezmesin.
+  if (player.pdfReader === reader) pdfReaderSetStatus(canceled ? `Çeviri iptal edildi (${completed}/${pages.length} sayfa işlendi).`
     : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
 }
 
@@ -20650,6 +21223,10 @@ async function openPdfReader(filePath = '') {
   }
   let viewMode = 'both';
   try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
+  // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
+  // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
+  if (player.pdfReader) $('pdfReaderClose')?.click();
+  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = '%100';
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
@@ -20669,7 +21246,14 @@ async function openPdfReader(filePath = '') {
   };
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
     player.pdfReader.observer = new IntersectionObserver((entries) => entries.filter((entry) => entry.isIntersecting)
-      .forEach((entry) => { const number = Number(entry.target.dataset.page); void renderPdfReaderPage(number + 2); }), { root, rootMargin: '800px' });
+      .forEach((entry) => {
+        // Görünen sayfanın iki yanı da doldurulur: sayfa atlama ve yakınlaştırma
+        // sonrasında önceki sayfalar da kaydırdıkça geri gelir.
+        const number = Number(entry.target.dataset.page);
+        for (const next of [number - 1, number + 1, number + 2]) {
+          if (next >= 1 && next <= (player.pdfReader?.pdf?.numPages || 0)) void renderPdfReaderPage(next);
+        }
+      }), { root, rootMargin: '800px' });
   }
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
   syncBrowserOcclusion();
@@ -20686,8 +21270,11 @@ $('pdfReaderPage')?.addEventListener('change', (event) => {
   if (!reader?.pdf) return;
   const page = Math.max(1, Math.min(reader.pdf.numPages, Number(event.target.value) || 1));
   reader.currentPage = page; event.target.value = String(page);
-  document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  renderPdfReaderPage(page).catch(() => {});
+  // Sayfa henüz çizilmemişse önce çiz, sonra kaydır (eskiden kaydırma boşa gidiyordu).
+  renderPdfReaderPage(page).catch(() => {}).then(() => {
+    if (player.pdfReader !== reader) return;
+    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
 $('pdfReaderClose')?.addEventListener('click', () => {
   const reader = player.pdfReader;
@@ -20699,6 +21286,10 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   if (root) { root.onscroll = null; root.replaceChildren(); }
   player.pdfReader = null;
   $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
+  // Tarayıcı modunda açılırken #browserWorkspace gizleniyordu; kapanışta geri
+  // açılmadığı için sayfa alanı mod değişene kadar boş kalıyordu.
+  $('browserWorkspace')?.classList.toggle('hidden', player.workspaceMode !== 'browser');
+  if (player.workspaceMode === 'browser' && typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds();
   syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
@@ -20815,7 +21406,10 @@ if ($('playerBookmark')) {
   $('playerBookmark').addEventListener('click', toggleCueSaved);
 }
 if ($('playerQuickDownload')) {
-  $('playerQuickDownload').addEventListener('click', () => toggleDrawerAt('yt', '#playerDownload'));
+  $('playerQuickDownload').addEventListener('click', () => {
+    prefillYoutubeUrlFromBrowser();
+    toggleDrawerAt('yt', '#playerDownload');
+  });
 }
 function openYoutubePanelAndProbe(rawUrl) {
   const url = String(rawUrl || '').trim();
@@ -20924,8 +21518,14 @@ if ($('subtitleFindRedo')) {
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || $('subtitleFindReplacePanel')?.classList.contains('hidden')) return;
   if (!$('subtitleEdit')?.classList.contains('hidden')) return;
+  if (_activeModal || document.querySelector('dialog[open]')) return;
+  // Tek Esc yalnız bu paneli kapatsın: oynatıcı Esc zinciri aynı tuşla geri
+  // sayımı iptal ediyor, menü/çekmece kapatıyordu. Odak gizli girdide kalmasın.
+  event.preventDefault();
+  event.stopImmediatePropagation();
   setSubtitleFindReplaceOpen(false);
-});
+  $('subtitleFindReplaceToggle')?.focus({ preventScroll: true });
+}, true);
 if ($('clearCueSearch')) $('clearCueSearch').addEventListener('click', () => {
   const search = $('cueSearch');
   if (!search) return;
@@ -21905,6 +22505,11 @@ if ($('playerVideo')) {
   // değişiklikleri select'i güncellemeden bırakıyordu (sonraki > adımı atlıyordu).
   video.addEventListener('ratechange', () => {
     if (player.workspaceMode === 'browser') return;
+    // Basılı tutunca 2× ve "boşlukları hızlandır" politikasının geçici hızı
+    // kullanıcının seçtiği hız değildir. Select'e yazılırsa 5 sn'de bir kaydedilip
+    // sonraki açılışta video 2× başlıyordu.
+    if (player.holdingSpeed) return;
+    if (player.playbackPolicy !== 'normal' && Math.abs(video.playbackRate - (Number(player.learningBaseRate) || 1)) > 1e-6) return;
     syncPlayerSpeedControl(video.playbackRate);
   });
   // A-B dongusu: B'ye gelince A'ya don. Yalnız B'ye "oynayarak" ulaşınca —
@@ -22378,6 +22983,15 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('keydown', (e) => {
   const layer = $('playerLayer');
   if (!layer || layer.classList.contains('hidden')) return;
+  // Onay/sonuç diyaloğu açıkken (odak "Vazgeç" düğmesinde) Backspace arkadaki
+  // oynatıcıyı kapatıyordu; diyalog klavyesi yalnız Esc/Tab'ı yakalıyor.
+  if (typeof _activeModal !== 'undefined' && _activeModal) return;
+  // PDF okuyucu açıkken tuşlar okuyucuya aittir: Space gizli videoyu oynatıyor,
+  // oklar sesi değiştirip klavyeyle kaydırmayı engelliyordu. Esc okuyucuyu kapatır.
+  if (player.pdfReader) {
+    if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); $('pdfReaderClose')?.click(); }
+    return;
+  }
   const modifier = e.ctrlKey || e.metaKey;
   const video = $('playerVideo');
   if (e.key === 'Escape') {
@@ -22392,6 +23006,7 @@ document.addEventListener('keydown', (e) => {
     const ytModal = $('youtubeLoginModal');
     if (ytModal && !ytModal.classList.contains('hidden')) closeYoutubeLogin();
     else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
+    else if (!$('browserQrPanel')?.classList.contains('hidden')) setBrowserQrOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
     else if (subMenu && !subMenu.classList.contains('hidden')) setSubtitleModeMenuOpen(false);
     else if (typeof cancelStUpNextCountdown === 'function' && cancelStUpNextCountdown()) { /* sıradaki geri sayım kartı iptal edildi */ }
@@ -22447,7 +23062,7 @@ document.addEventListener('keydown', (e) => {
   if (modifier || e.altKey) return;
   // Basılı tutunca strobo yapan geçiş tuşları (Space/F/B/M/V/N/O/?) —
   // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
-  if (e.repeat && /^( |f|b|m|v|n|o|\?)$/i.test(e.key)) return;
+  if (e.repeat && /^( |f|b|m|v|n|o|k|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
   if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }

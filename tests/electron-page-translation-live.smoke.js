@@ -216,6 +216,30 @@ async function run() {
   assert.ok(await waitFor(async () => (await isolatedState(main, pageUrl))?.autoContinue === false, 5000),
     'Otomatik devam kapatılamadı.');
 
+  // Önizleme düğmesi (R245, #181 FLAG_0002): ilk tıklama paneli açar ve
+  // etiketi 'Önizlemeyi gizle' yapar; ikinci tıklama kapatır. Sağlayıcı
+  // çağrısı başarısız olsa bile panel hata metniyle açılır — her iki yol
+  // için de görünürlük/etiket sözleşmesi doğrulanır.
+  await evaluate(renderer, `(() => {
+    document.getElementById('browserPagePreview').click();
+    return true;
+  })()`);
+  const previewOpened = await waitFor(() => evaluate(renderer, `(() => {
+    const panel = document.getElementById('browserPagePreviewPanel');
+    return panel && !panel.hidden && (panel.textContent || '').trim().length > 0;
+  })()`).catch(() => null), 30000);
+  assert.equal(previewOpened, true, 'Önizleme paneli açılmadı.');
+  const previewLabel = await evaluate(renderer,
+    "document.getElementById('browserPagePreview').textContent");
+  assert.equal(previewLabel.trim(), 'Önizlemeyi gizle', 'Önizleme düğmesi etiketi güncellenmedi.');
+  await evaluate(renderer, "document.getElementById('browserPagePreview').click()");
+  assert.ok(await waitFor(() => evaluate(renderer,
+    "document.getElementById('browserPagePreviewPanel').hidden === true").catch(() => null), 5000),
+    'İkinci tıklama önizleme panelini kapatmadı.');
+  const closedLabel = await evaluate(renderer,
+    "document.getElementById('browserPagePreview').textContent");
+  assert.equal(closedLabel.trim(), 'Önizlemeyi göster', 'Kapanışta etiket sıfırlanmadı.');
+
   console.log('electron-page-translation-live: ' + JSON.stringify({
     translated: completed.translated, failed: completed.failed, activeDomBlocks: both.active.length,
     views: ['both', 'translation', 'original'], autoContinueDisabled: true, isolatedProfile: true,
