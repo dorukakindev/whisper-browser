@@ -10742,7 +10742,7 @@ async function setBrowserAdblockEnabled(enabled) {
   renderBrowserAdblockState({ state: 'loading' });
   const result = await window.api.setBrowserAdblockEnabled(enabled).catch((error) => ({
     ok: false, requested: enabled, enabled: false, state: 'error', error: `Reklam koruması değiştirilemedi: ${error.message}`,
-  }));
+  })) || { ok: false, requested: enabled, state: 'error', error: 'Reklam koruması değiştirilemedi.' };
   renderBrowserAdblockState(result);
   if (result?.enabled !== enabled) scheduleSave();
   if (result?.ok && result.reloadRequired && player.workspaceMode === 'browser' && player.browserPageUrl) {
@@ -20907,6 +20907,9 @@ $('browserPageQuickMenu')?.addEventListener('toggle', (event) => {
   if (event.currentTarget.open) void refreshBrowserPageHistory();
 });
 $('browserPagePreview')?.addEventListener('click', async (event) => {
+  // event.currentTarget await'ten sonra null olur; önizleme açıldığında etiket
+  // değişmiyor, yerine TypeError fırlıyordu (ui-smoke yakaladı).
+  const button = event.currentTarget;
   const panel = $('browserPagePreviewPanel');
   if (panel && !panel.hidden) {
     player.browserPagePreview = null;
@@ -20915,7 +20918,7 @@ $('browserPagePreview')?.addEventListener('click', async (event) => {
     return;
   }
   await previewBrowserPage();
-  if (panel && !panel.hidden) event.currentTarget.textContent = 'Önizlemeyi gizle';
+  if (panel && !panel.hidden && button) button.textContent = 'Önizlemeyi gizle';
 });
 $('browserPagePause')?.addEventListener('click', async () => {
   if (!player.browserActiveTabId || !player.browserPageTranslateBusy) return;

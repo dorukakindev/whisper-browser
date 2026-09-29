@@ -56,6 +56,16 @@ jobs:
       - name: UI contrast audit (Ubuntu, light/dark x TR/EN)
         if: runner.os == 'Linux'
         run: npm run audit:ui -- --strict --browser /usr/bin/google-chrome --out tmp/ui-audit
+      - name: UI smoke (Ubuntu, every menu item clicked in blank/loaded tab)
+        if: runner.os == 'Linux'
+        run: npm run smoke:ui -- --strict --browser /usr/bin/google-chrome --out tmp/ui-smoke
+      - name: Upload UI smoke report
+        if: runner.os == 'Linux' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke
+          path: tmp/ui-smoke
+          if-no-files-found: ignore
       - name: Upload UI audit screenshots
         if: runner.os == 'Linux' && always()
         uses: actions/upload-artifact@v4
