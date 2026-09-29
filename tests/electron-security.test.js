@@ -85,4 +85,11 @@ ok(/certificate-error[\s\S]{0,2000}callback\(false\)/.test(main), 'certificate-e
 const shellCalls = [...main.matchAll(/shell\.openExternal\s*\(/g)];
 ok(shellCalls.length === 1, `shell.openExternal ${shellCalls.length} yerde (yalnız openExternalByPolicy beklenir)`);
 
+// R244: V8 kod önbelleği politikası yalnız ana pencerede ve yalnız güvenli
+// değerde — 'bypassHeatCheckAndEagerCompile' GC/bellek baskısı riski taşır.
+const v8Uses = [...main.matchAll(/v8CacheOptions:\s*'([^']+)'/g)].map((m) => m[1]);
+ok(v8Uses.length === 1, `v8CacheOptions ${v8Uses.length} yerde (yalnız ana pencere beklenir)`);
+ok(v8Uses[0] === 'bypassHeatCheck', `v8CacheOptions=${v8Uses[0]} (yalnız bypassHeatCheck)`);
+ok(!/bypassHeatCheckAndEagerCompile/.test(main), 'eager compile yasak — GC/bellek baskısı');
+
 console.log(`electron-security: ${n} kontrol geçti (${siteCount} kurulum noktası)`);
