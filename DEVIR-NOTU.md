@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0417.md](docs/devir/2026-09-29-0417.md) — R232: tur-2 UI düzeltme paketi (palet çalışmıyordu + 17 bulgu) + regresyon kilitleri
+Güncel çalışma: [docs/devir/2026-09-29-0428.md](docs/devir/2026-09-29-0428.md) — R232 kapanış: kesin master merge kimliği (bc4ba08)
+Önceki çalışma: [docs/devir/2026-09-29-0417.md](docs/devir/2026-09-29-0417.md) — R232: tur-2 UI düzeltme paketi (palet çalışmıyordu + 17 bulgu) + regresyon kilitleri
 Önceki çalışma: [docs/devir/2026-09-29-0359.md](docs/devir/2026-09-29-0359.md) — R231b: #164 bug (vekil hedef izleme) + #161/#163 belge flag'leri
 Önceki çalışma: [docs/devir/2026-09-29-0350.md](docs/devir/2026-09-29-0350.md) — R231: #162 review triage (bayat arama sonucu tazeleme)
 Önceki çalışma: [docs/devir/2026-09-29-0345.md](docs/devir/2026-09-29-0345.md) — R230 kapanış: kesin master merge kimliği (2dc1d46)
