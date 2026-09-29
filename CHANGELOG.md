@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R229: tarayıcı ⋯ menüsü ve vurgu cilası — yenile/durdur ikonları aynı anda gösterilmez, açık temada koyu çerçeve düzeltildi, "Aktif işler" ve `https://` şeması kontrast eşiğine çıkarıldı, vekil menü öğeleri devre dışı hedeflerde neden belirtir, menü araması kapanışta sıfırlanıp boş durum gösterir ve Enter ilk sonucu çalıştırır, "Bu anı kaydet" ve "Sayfada öğe gizle" sinyal verir, "Videoyu indir" açık YouTube adresini oynatıcı alanına öndoldurur, QR ikonu ve çeviri menüsü checkbox boşluğu düzeltildi.
+
 - **Kısmen bozuk PDF durum dosyası sağlam sayfaları kurtarır** —
   geçersiz sayfa kayıtları tek tek atılır; tümüyle bozuk dosya yine
   `.bak`/legacy yedeğine düşer.

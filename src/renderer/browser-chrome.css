@@ -381,6 +381,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-nav-button .browser-stop-icon { display: none; }
 .browser-nav-button.loading .browser-reload-icon { display: none; }
 .browser-nav-button.loading .browser-stop-icon { display: block; }
+/* `.player-layer .btn-icon > svg { display: block }` (0,2,1) yukarıdaki iki kuralı
+   eziyordu: yenile ve durdur simgeleri üst üste birlikte görünüyordu. */
+.player-layer .browser-nav-button > .browser-stop-icon { display: none; }
+.player-layer .browser-nav-button.loading > .browser-reload-icon { display: none; }
+.player-layer .browser-nav-button.loading > .browser-stop-icon { display: block; }
 .browser-address-wrap {
   min-width: 0;
   height: 36px;
@@ -417,7 +422,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 }
 .browser-address-mirror.hidden { display: none; }
 .browser-address-mirror b { font-weight: 700; }
-.browser-address-mirror .mir-dim { color: #8f9ca7; }
+.browser-address-mirror .mir-dim { color: var(--text-muted); }
 .workspace-browser .browser-address-wrap input.mir-mode { color: transparent; caret-color: transparent; }
 .browser-address-bookmark {
   width: 28px;
@@ -1387,3 +1392,10 @@ details.browser-translate-split.hidden { display: none !important; }
 .browser-ntp-resume-title, .browser-ntp-resume-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-ntp-resume-title { font-size: 11px; font-weight: 600; }
 .browser-ntp-resume-url { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+
+/* Sayfa çevirisi hızlı menüsü: onay kutusu ile etiket arasında boşluk yoktu. */
+.browser-page-quick-popover .browser-view-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+/* Menü içi arama sonuç vermediğinde boş durum. */
+.browser-more-empty { padding: 10px 12px; color: var(--text-muted); font-size: 12px; }
+/* Hedefi şu an kullanılamayan vekil menü öğesi. */
+.browser-menu-popover [data-browser-proxy][aria-disabled="true"] { opacity: .45; cursor: default; }

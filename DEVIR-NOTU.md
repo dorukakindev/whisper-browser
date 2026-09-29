@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0303.md](docs/devir/2026-09-29-0303.md) — R228: #157 review triage (sayfa-bazlı kurtarma)
+Güncel çalışma: [docs/devir/2026-09-29-0323.md](docs/devir/2026-09-29-0323.md) — R229: UI fix paketi uygulaması + menü vekili/arama/prefill birim testleri
+Önceki çalışma: [docs/devir/2026-09-29-0303.md](docs/devir/2026-09-29-0303.md) — R228: #157 review triage (sayfa-bazlı kurtarma)
 Önceki çalışma: [docs/devir/2026-09-29-0302.md](docs/devir/2026-09-29-0302.md) — R227 kapanış: kesin bitiş kod kimliği (8872287)
 Önceki çalışma: [docs/devir/2026-09-29-0253.md](docs/devir/2026-09-29-0253.md) — R227: #156 review triage (meşru boş sayfa dirilmesi düzeltildi)
 Önceki çalışma: [docs/devir/2026-09-29-0243.md](docs/devir/2026-09-29-0243.md) — R226: #155 review triage (tamamen bozuk PDF sayfaları yedeği gizleyemez)
