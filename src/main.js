@@ -12327,6 +12327,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     const key = browserShortcutForInput(input);
     if (!key) return;
     event.preventDefault();
+    // Adres çubuğuna / komut paletine / bul çubuğuna / yeni sekmeye odak taşıyan
+    // kısayollarda klavye odağı da uygulama penceresine geçmeli; yoksa DOM girdisi
+    // odaklı görünür ama tuşlar hâlâ web sayfasına gider (Ctrl+F için zaten yapılıyordu).
+    if (['l', 'k', 'p', 'f'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
   // Sayfa odağı aldığında renderer'daki adres çubuğu hâlâ DOM odağında kalır;

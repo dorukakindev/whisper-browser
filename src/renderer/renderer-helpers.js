@@ -303,10 +303,13 @@ async function executeBrowserCommandPalette(index = browserCommandPaletteState.s
   const command = browserCommandPaletteState.results[index];
   if (!command || command.enabled === false) return;
   const recordedStep = browserWorkflowStepForCommand(command);
-  const current = browserTabState();
+  // browserCommandContextMatches {tabId, generation, mediaId} bekler; ham sekme
+  // nesnesinde `tabId` yok (`id` var). Eskiden ham nesne verildiği için eşleşme
+  // her zaman başarısız oluyor ve paletten hiçbir komut çalışmıyordu.
+  const current = currentBrowserWorkflowContext();
   const valid = window.BrowserCommandPalette?.browserCommandContextMatches
     ? window.BrowserCommandPalette.browserCommandContextMatches(browserCommandPaletteState.context, current)
-    : !!current && current.id === browserCommandPaletteState.context?.tabId;
+    : !!current && current.tabId === browserCommandPaletteState.context?.tabId;
   if (!valid) { setBrowserSignal('Sekme veya medya değişti; komut yeniden seçilmeli.', false); closeBrowserCommandPalette(); return; }
   closeBrowserCommandPalette();
   try { await command.run(); }
@@ -667,6 +670,19 @@ function setBrowserQrOpen(open) {
   panel.setAttribute('aria-hidden', open ? 'false' : 'true');
   syncBrowserOcclusion();
   if (!open && panel.contains(document.activeElement)) $('browserMoreMenu')?.querySelector('summary')?.focus({ preventScroll: true });
+  // Odak panele taşınmazsa panelin kendi Esc dinleyicisi hiç çalışmıyordu
+  // (odak kapanmış ⋯ menüsündeki öğede kalıyordu).
+  if (open) requestAnimationFrame(() => $('browserQrClose')?.focus({ preventScroll: true }));
+}
+
+// Mod değişiminde / oynatıcı kapanırken geçici tarayıcı panellerinin hepsi
+// kapanır. Eskiden yalnız İndirmeler kapanıyordu; Yer imleri, QR ve komut paleti
+// (eski sekme bağlamıyla) açık kalıp geri dönüşte yeniden beliriyordu.
+function closeBrowserTransientPanels() {
+  setBrowserDownloadsOpen(false);
+  setBrowserPlacesOpen(false);
+  setBrowserQrOpen(false);
+  if (browserCommandPaletteState.open) closeBrowserCommandPalette();
 }
 
 async function showBrowserQrPanel() {
@@ -854,8 +870,10 @@ function browserTabActivity(tab) {
 }
 
 function closeBrowserTabMenu() {
+  const wasOpen = !!browserTabMenuEl;
   browserTabMenuEl?.remove();
   browserTabMenuEl = null;
+  if (wasOpen) syncBrowserOcclusion();
   document.removeEventListener('mousedown', browserTabMenuOutside, true);
 }
 
@@ -878,12 +896,35 @@ async function closeOtherBrowserTabs(keepId) {
   }
 }
 
-async function closeRightBrowserTabs(tabId) {
-  const idx = player.browserTabs.findIndex((t) => t.id === tabId);
-  if (idx < 0) return;
-  for (const t of player.browserTabs.slice(idx + 1)) {
-    if (!t.pinned) await closeBrowserTab(t.id);
+// Ekrandaki sıra: grup üyeleri grubun ilk üyesinin yerinde bir arada çizilir
+// (browserTabDisplayRows ile aynı kural), katlanmış grupların sekmeleri dahil.
+// Ham player.browserTabs sırası gruplar varken ekrandan farklı olabiliyordu;
+// "Sağdaki sekmeleri kapat" soldakileri kapatabiliyor ya da yanlışlıkla pasif kalıyordu.
+function browserTabsInScreenOrder() {
+  const keyOf = (tab) => {
+    const group = window.BrowserTabLayout?.normalizeTabGroup(tab.group);
+    return group ? `${group.name.toLowerCase()}|${group.color}` : '';
+  };
+  const ordered = [];
+  const emitted = new Set();
+  for (const tab of player.browserTabs) {
+    const key = keyOf(tab);
+    if (!key) { ordered.push(tab); continue; }
+    if (emitted.has(key)) continue;
+    emitted.add(key);
+    for (const member of player.browserTabs) if (keyOf(member) === key) ordered.push(member);
   }
+  return ordered;
+}
+
+function browserTabsRightOf(tabId) {
+  const ordered = browserTabsInScreenOrder();
+  const idx = ordered.findIndex((t) => t.id === tabId);
+  return idx < 0 ? [] : ordered.slice(idx + 1).filter((t) => !t.pinned);
+}
+
+async function closeRightBrowserTabs(tabId) {
+  for (const t of browserTabsRightOf(tabId)) await closeBrowserTab(t.id);
 }
 
 function showBrowserTabPreview(tabId, anchor) {
