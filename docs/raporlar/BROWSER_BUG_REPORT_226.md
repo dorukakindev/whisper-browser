@@ -31,11 +31,12 @@ biçimine uygun ön/son ek üretir (`write_ass` kaçış sonrası ekler — meti
 - SSA `Marked=` alanlı Format satırı desteklenir; `\\pos(abc,def)` regex
   geçmez → decorations'a sızmaz.
 - `merge_continuation` ve `dedupe_cues` indeks eşlemesini bozduğunda formats
-  tamamen sıfırlanır (yanlış satıra etiket taşınmaz) — mevcut davranış, test kilitli.
+  tamamen sıfırlanır (yanlış satıra etiket taşınmaz) — her iki geçiş de
+  `test_merge_and_dedupe_reset_formats` senaryosuyla kilitlendi.
 
 ## Testler
 
-`backend/test_ass_override_roundtrip.py` — 8 senaryo: leading üç etiketin ASS
+`backend/test_ass_override_roundtrip.py` — 9 senaryo: leading üç etiketin ASS
 roundtrip'i, SRT/Vtt ayrımı, karaoke/fade/move/font/renk düşüşü, satır-içi italik
 reddi, boş-cue eşleme, SSA/Format varyasyonu, bozuk zaman eşleme.
 `backend/venv/bin/python backend/test_ass_override_roundtrip.py` → 8/8 PASS.
