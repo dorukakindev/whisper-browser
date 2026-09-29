@@ -906,7 +906,7 @@ function syncBrowserOcclusion() {
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
-    || settingsOverlay || !!$('mediaCatalogDialog')?.open
+    || settingsOverlay || !!document.querySelector('dialog[open]')
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   if (window.api.setBrowserOccluded) return applyBrowserOcclusion(occluded);
@@ -7374,9 +7374,9 @@ async function openRetranslationReview(previousCues) {
   list.addEventListener('change', () => { revert.disabled = !list.querySelector('input:checked'); });
   dialog.append(head, list, actions);
   document.body.appendChild(dialog);
-  const close = () => { dialog.close(); dialog.remove(); };
+  const close = () => { dialog.close(); dialog.remove(); syncBrowserOcclusion(); };
   keep.addEventListener('click', close);
-  dialog.addEventListener('cancel', () => dialog.remove());
+  dialog.addEventListener('cancel', () => { dialog.remove(); syncBrowserOcclusion(); });
   revert.addEventListener('click', async () => {
     const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
     const current = translationChannel();
@@ -7396,6 +7396,7 @@ async function openRetranslationReview(previousCues) {
     close();
   });
   dialog.showModal();
+  syncBrowserOcclusion();
   (canRevert ? list.querySelector('input') : keep)?.focus();
 }
 
