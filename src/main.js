@@ -91,6 +91,7 @@ const {
   summarizeCeaCaptureCompleteness,
 } = require('./browser-cea-full-capture');
 const { deriveStreamMediaIdentity } = require('./browser-media-identity');
+const { clampedWindowSize, windowStateForDisk } = require('./window-state');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const { summarizeTranslationIntegrity } = require('./browser-translation-integrity');
 const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
@@ -3468,11 +3469,7 @@ function saveWindowState() {
   try {
     // Maximized iken bile geri yüklenecek normal boyutu sakla
     const b = mainWindow.getNormalBounds ? mainWindow.getNormalBounds() : mainWindow.getBounds();
-    writeJsonAtomic(windowStatePath(), {
-      width: b.width,
-      height: b.height,
-      maximized: mainWindow.isMaximized(),
-    });
+    writeJsonAtomic(windowStatePath(), windowStateForDisk(b, mainWindow.isMaximized()));
   } catch (_) {}
 }
 
@@ -13906,8 +13903,7 @@ function createWindow() {
   const st = loadWindowState();
   // Kayıtlı boyutu ekrana kelepçele — bozuk/devasa window-state.json ekran-dışı pencere üretmesin
   const work = screen.getPrimaryDisplay().workAreaSize;
-  const initW = st && st.width >= 940 ? Math.min(st.width, work.width) : Math.min(1180, work.width);
-  const initH = st && st.height >= 680 ? Math.min(st.height, work.height) : Math.min(820, work.height);
+  const { width: initW, height: initH } = clampedWindowSize(st, work);
   mainWindow = new BrowserWindow({
     // Pozisyon kasıtlı olarak geri yüklenmiyor (ekran-dışı pencere riskini önlemek için)
     width: initW,
