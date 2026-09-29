@@ -1,5 +1,11 @@
-Güncel çalışma: [2026-09-29 22:31 — Devin master bütünleştirmesi ve R178 ad çakışması çözümü](docs/devir/2026-09-29-2231.md).
-
+Güncel çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
+Önceki çalışma: [docs/devir/2026-09-30-0430.md](docs/devir/2026-09-30-0430.md) — R278: oynatıcı zamanlama fuzz'ı (nextCueBoundaryAt ≡ oracle + playbackLearningAction invariant matrisi)
+Önceki çalışma: [docs/devir/2026-09-30-0400.md](docs/devir/2026-09-30-0400.md) — R277: pencere durumu saf modül + kelepçe kilidi (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0345.md](docs/devir/2026-09-30-0345.md) — R276: ASS/SSA override roundtrip kilidi (\an/\pos/\i1; temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0330.md](docs/devir/2026-09-30-0330.md) — R275: IPC payload fuzz turu 2 — 213 kanal × 37 hostile payload sanal alanı (temiz)
+Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
+Önceki çalışma: [docs/devir/2026-09-30-0230.md](docs/devir/2026-09-30-0230.md) — R273: Devin Review toplu triage (skipped/refine/overlay/glif/disk-dolu düzeltmeleri)
 Önceki çalışma: [docs/devir/2026-09-30-0205.md](docs/devir/2026-09-30-0205.md) — R272: innerHTML/DOM-sink envanteri + kaçışsız veri düzeltmeleri + statik ratchet
 Önceki çalışma: [docs/devir/2026-09-30-0200.md](docs/devir/2026-09-30-0200.md) — R271: yt-dlp canlı ağ doğrulaması + NDJSON yapışma bug'ı düzeltildi
 Önceki çalışma: [docs/devir/2026-09-30-0155.md](docs/devir/2026-09-30-0155.md) — R270: güvenlik modeli belgesi (preload ratchet doğrulandı, 0 kullanılmayan)

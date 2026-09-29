@@ -1,52 +1,82 @@
-# BROWSER_BUG_REPORT_225 — Devin yeniliklerinin Windows yerel kabulü ve eski dal aktarımı
+# R275 — IPC payload fuzz turu 2 (derin payload bombardımanı)
 
-Bu metin ilk olarak henüz GitHub'a birleşmemiş PR #148'de R178 adıyla yazılmıştı. Bu sırada uzak master kendi R178 raporunu ekledi. Birleştirmede iki belge de korundu; bu rapor R225 olarak yeniden adlandırıldı. Aşağıdaki 2026-09-28 gözlemleri o tarihin kanıtlarıdır. 2026-09-29 bütünleştirme sonucu [yeni devir notunda](../devir/2026-09-29-2231.md) kayıtlıdır.
+**Tarih:** 2026-09-29 · Dal: `fix/r275-ipc-payload-fuzz` → `master` · **Sonuç: temiz — bug yok**
 
-## 2026-09-29 takip denetimi
+## Kapsam
 
-- Başlangıç yerel `master` `742bdd8253e59583b98780be931fbc0bf61c546d`; uzak `master` `7ce9de09` idi. Ortak ata `7c0a28f9`; yerelde 2, uzakta 72 commit vardı. Bu nedenle fast-forward mümkün değildi. Önce açık PR #148 dalında `origin/master` ile geçmişi birleştirme başlatıldı; ürün kodunda çatışma yoktu.
-- Belge çatışmaları `AGENTS.md`, `CHANGELOG.md`, `DEVIR-NOTU.md` ve iki farklı içerikli `BROWSER_BUG_REPORT_178.md` dosyasındaydı. Uzak R178 kendi adıyla korundu, eski yerel R178 bu R225 dosyasına taşındı; önceki devir notunun bağlantısı düzeltildi. İndekste iki rapor da bulunur.
-- Açık PR #221, R273 review triage düzeltmeleri içeriyor. Henüz master'da olmayan bu PR kullanıcı incelemesi tamamlanmadan bu bütünleştirmeye alınmadı. Dünkü #148 de hâlâ açıktı; bu çalışma o dalı günceller.
-- Uzak master'ın Windows ve Ubuntu CI sonuçları `success`. Birleşik ağaçta `opensubtitles-hash`, `browser-subtitles`, `browser-translation-merged`, `dom-innerhtml-ratchet`, `queue-lifecycle` test dosyaları geçti. Venv Python çeviri hattı/golden corpus 29 unittest ve değişen backend sözdizimi temiz. İzole Windows Electron yerleşim kipi 3 boyut × 7 durum geçti, `SMOKE_EXIT=0`.
-- Tam `npm test`, canlı sağlayıcı/GPU/DRM ve `start.bat` ile gerçek medya açılışı bu takip turunda yinelenmedi. Yeni özelliklerin çoğu uzak master'da CI ile doğrulanmıştı; yerel testler birleşme sınırına odaklandı.
+`tests/adversarial-ipc.test.js` 213 `ipcMain.handle` kanalının **gönderici-yetki** kapılarını
+denetler ancak payload'ı asla handler gövdesine ulaştırmaz. Bu tur ikinci katmanı kaplar:
+yetkili göndericiyle **her kanal × her argüman pozisyonu × 37 hostile payload**
+(9.240 çağrı toplam).
 
-Tarih: 2026-09-28. Repo: `dorukakindev/whisper-browser`.
+## Yöntem
 
-## İleri yönde bütünleştirme
+Her handler `vm.runInNewContext` içinde kaydedilir; context global'i bilinmeyen tüm adları
+callable+awaitable **kaydedici proxy**'ye çözer (çağrı yolu + arg önizlemesi kaydedilir).
+Stub-truthy artefaktını önlemek için kapı adları gerçekçi double'lar alır:
 
-- Başlangıç yerel `master`: `2c56a253686ca8a2183639c7bff44865fff76d97`.
-- Uzak `master`: `7c0a28f911da519aaf07c0fec6f426cebf1adbbc`; 84 yeni erişilebilir commit, 281 dosyalık toplam fark. `git merge --ff-only origin/master` başarılı. Başlangıç hash'i yeni HEAD'in atası; reset/force/temizlik uygulanmadı. Kullanıcının 18 izlenmeyen üst düzey yolu korundu.
-- Son yenilikler: renderer yardımcı dosyası ayrımı, altyazı kodlama/dil eşleştirmesi, arama ve katalog hızlandırmaları, RSS abonelik akışı, favicon kalıcılığı, isteğe bağlı DeArrow/RYD, Windows dosya adı/kurulum kontrolleri, kuyruk yarışları ve canlı ASR CPU geri dönüşü. Önceki #64/#65 önizleme/simge düzeltmeleri de master'da.
-- GitHub'da 147 PR kaydı ve 137 merge edilmiş dal adı incelendi; açık PR yoktu. Güncel master'ın Windows ve Ubuntu CI sonuçları `success` idi. 68 yerel dal ve 151 uzak ref için ata/`git cherry` envanteri alındı. Squash nedeniyle `+` görünen eski commitler otomatik aktarım adayı sayılmadı.
-- `devin/t1`–`t6` serisinin mevcut zamanlama, yakalama, OAuth test kancası, crash-store IO ve Linux kurulum yolları kontrol edildi; eski dosyalar güncel dosyaların üzerine kopyalanmadı. `whard`/`wl` yerel tarihsel dallarının ürün dosyası listeleri alındı; navigasyon, DASH ve filtre yollarından örnekler güncel karşılıklarıyla karşılaştırıldı. Bu envanter bütün tarihsel dalların her satırına yeni bir bug denetimi değildir.
-- `codex/r90-deep-bug-hunt` yalnız tarihsel belge; `devin/repo-research-2026-09-25` raporundaki önizleme bulgusu #64'te çözülmüş. `haze/bug-report-2026-09-24` tarihsel rapor/revert içeriyor. Eski `update-skills` merge commitleri ürün değişikliği için taşınmadı.
+- `authorizeLocalMediaPath`/`authorizeMediaFile`/`authorizeSubtitleFile`/`authorizeWatchFolder`:
+  yalnız dolu string kabul ("yetkili dosya"), diğer tipler reddedilir.
+- `subtitleFileAccess`/`mediaFileAccess` gerçek sınıf; `pdfFileAccess`/`watchFolderAccess`/
+  `shellTargetAccess` reddeden double.
+- `dialog.*` her zaman iptal/red; `decideUrlPolicy` gerçek protokol filtresini taklit eder
+  (yalnız `http:`/`https:` external).
+- Çocuk süreç `.on('close'|'exit'|'finish'|'end')` dinleyicileri mikro-görevde kod 1 ile
+  tetiklenir — handler subprocess beklerken asılı kalmaz.
+- Modül-düzeyi `let` durumları falsy, `new Set/Map` kolleksiyonları gerçek olarak kurulur
+  ("başka iş çalışıyor" kapıları payload doğrulamasını gölgelemez).
+- `clonePublicOptions`/`validateQueueOptions`/`canonicalLocalPath`/`decodeSubtitleBuffer`
+  gerçek modüllerden gelir.
 
-## Doğrulanmış iki düzeltme
+## İhlal sınıfları ve sonuç
 
-### R178-01 — Hash'in son bloğu eksik toplanıyordu
+| İnvariant | Sonuç |
+|---|---|
+| Allowlist dışı tehlikeli sink (spawn/exec/fs-yazımı/shell/net/app.quit…) | **0** |
+| `Object.prototype`/`Array.prototype` kirliliği (`__proto__`, `constructor.prototype` payload'ları) | **0** |
+| 2 sn üstü çağrı (hang) | 1 — `youtube:authCode` (OAuth loopback bekleme — tasarım gereği, arg'suz) |
+| Error olmayan değerle throw/reject | **0** |
 
-`origin/codex/bug-catcher-queue-next-moviehash` dalındaki YouTube Sonraki düğmesi onarımı mevcut master'da zaten vardı; aynı dalın hash onarımı yoktu. `src/opensubtitles-hash.js` 64–128 KiB dosyalarda son 64 KiB yerine yalnız örtüşmeyen son kısmı topluyordu. 100000 baytlık bağımsız referans vektörü: eski sonuç `01d017e6b4ff38f4`, beklenen `e09f6020dfa1c6a0`. Yeni regresyon eski kodda kırmızı, üç satırlık ürün değişikliğinden sonra yeşil.
+İlk (ham) koşu 1.075 sahte pozitif üretti — recorder-truthy artefaktı (yetki fonksiyonlarının
+gerçek dönüşünü taklit etmeyen kör proxy'ler). Double'lar kalibre edilince tüm sink'ler
+kanalın amacıyla birebir örtüştü.
 
-[OpenSubtitles referansı](https://opensubtitles.github.io/oshash/) ilk ve son 64 KiB toplamını tarif eder; aynı sayfa API için minimum 128 KiB şartını da belirtir. Bu düzeltme uygulamanın mevcut küçük-dosya uzantısını tutarlı yapar; sağlayıcının küçük dosyaları kabul ettiğini kanıtlamaz. Mevcut <64 KiB davranışı ve büyük dosya vektörleri korunur. Eski dal bütünüyle cherry-pick edilmedi.
+## Allowlist'e alınan sink'ler (gerekçeli)
 
-### R178-02 — Başarılı yerleşim testi süreçten çıkmıyordu
+| Kanal | Sink | Gerekçe |
+|---|---|---|
+| `youtube-tv:signout` | `session…clearStorageData` | Kanalın tek işi oturum bölümünü temizlemek |
+| `logs:openFolder` | `shell.openPath` | Sabit günlük klasörünü açmak |
+| `browser:adapters:openFolder` | `mkdirSync`+`openPath` | Sabit adapters dizinini oluşturup açmak |
+| `maintenance:updateYtdlp` | `spawn` | Sabit argv güncelleme betiği |
+| `media:probeTracks`/`extractSubtitleTrack` | `spawn`/`mkdirSync` | Yetkili dosyada ffprobe/ffmpeg — kanalın işi |
+| `transcribe:start` | `spawn`/`mkdirSync` | Yetkili girdide python işi + userData/tmp iş dizini |
+| `queue:save` | `writeQueueState` | Kuyruk persist işi; `validateQueueOptions`+merge önceden |
+| `settings:save` | `saveSettings` | Ayar persist işi (payload = ayar nesnesi) |
+| `player:external` | `spawn` | `EXTERNAL_PLAYER_NAMES` + yetki/politika kapıları önceden |
+| `app:getEnvInfo` | `spawn` | Sabit argv ortam probu |
+| `youtube:authCode` | hang | Loopback OAuth onay bekleme — tasarım gereği |
 
-`WHISPER_SMOKE_LAYOUT_ONLY=1` koşusu 21 yerleşim kontrolünden sonra `passed` yazmasına rağmen süreç kapanmıyordu. Erken dönüş CDP soketlerini kapatmıyor, dış Electron test sürecinin başarılı yolunda da açık çıkış çağrısı bulunmuyordu. Soket kapatmaları ve başarıdan sonra `process.exit(0)` eklendi. Son aynı koşu yaklaşık 6 saniyede `SMOKE_EXIT=0` verdi. Hata eşiği veya assertion silinmedi.
+## Doğrulanan derin yollar (örnekler)
 
-## Hedefli doğrulama
+- `player:external` `schema-player-file` (`{player:'x', file:'/etc/passwd'}`) spawn'a ulaştı;
+  `schema-player-url` (`file:///etc/passwd`) protokol kapısında spawn'suz reddedildi.
+- `transcribe:start` `schema-path` payload'ı yetki kapısından geçip iş-dizini kurulumuna
+  ulaştı; `mkdirSync` yalnız `userData/tmp` altında.
+- `queue:save` `{__proto__:{polluted}}` nesnesini normalize edip yazdı — pollution invariant'ı
+  temiz (kendi veri özelliği olarak serileşir, prototype zinciri dokunulmaz; yeniden yüklemede
+  `loadQueueState` şema süzgecinden geçer).
+- `settings:save` hostile anahtarları `settings.json`'a veri olarak yazar — aynı gerekçe.
 
-| Kontrol | Sonuç |
-| --- | --- |
-| `node --test --test-isolation=none` ile queue-persistence, queue-lifecycle, settings-load-corruption, browser-subtitles, browser-textutil, media-catalog-store, subscription-feed, live-asr-fallback, electron-security, ipc-parity, preload-usage-ratchet, status-copy | 12 dosya geçti |
-| Aynı kipte browser-subtitle-search, subtitle-find-replace, subtitle-find-perf | 3 dosya geçti |
-| `node tests/install-supply-chain.test.js` | 50 izole kurulum/failure-injection senaryosu geçti |
-| `node tests/opensubtitles-hash.test.js` | 4 vektör geçti; yeni vektör eski kodda başarısızdı |
-| venv Python `-m unittest backend.test_golden_writers backend.test_writer_roundtrip backend.test_retry_backoff backend.test_ytdlp_update` | 38 unittest + retry modülünün 18 kontrolü geçti |
-| `node --check` main/preload/renderer/renderer-helpers/hash/smoke; Python `py_compile` transcribe/update_ytdlp/live_asr/workspace_video_package; `git diff --check` | temiz |
-| Ayrı profilli gerçek Windows Electron browser-experience, yalnız layout kipi | 3 boyut × 7 durum = 21; yatay taşma yok, native BrowserView görünürlüğü doğru; son süreç çıkışı 0 |
+## Kalan sınır
 
-İlk Electron denemesi sandbox Windows Mojo erişimine takıldı; yetkili sandbox dışı koşu çalıştı. Worktree'de eksik Node paketleri yeniden kurulmadı, mevcut `node_modules` junction ile kullanıldı. İlk çalıştırmalarda test kapanış sorunu ayrı raporlandı; sadece `passed` çıktısı yeterli sayılmadı.
+- Senkron ölümcül döngü (örn. `{length:1e9}` ile `Array` yapıcı yolu) asenkron bekçiyle
+  yakalanamaz; bunun için worker izolasyonu gerekir — korpus boyutları kasıtlı orta tutuldu.
+- `ipcMain.on` kanalları (settings:saveSync gibi) bu turun dışında — handle yüzeyi tamam.
+- Gerçek `spawn` argüman güvenliği argv-array biçimiyle kanıtlı (shell yok); önizlemelerde
+  traversal/URL payload'ları yalnız yetkili-string yolundan argv'ye ulaştı.
 
-## Sınırlar
+## Testler
 
-Tam `npm test`, uzun soak, canlı/ücretli sağlayıcı, Google hesabı, GPU/DRM ve `start.bat` üzerinden gerçek medya açılışı koşulmadı. `start.bat` ve değişen kurulum betikleri okundu; setlocal/PATH/pause/import akışları ve pinler kontrol edildi. Yerel venv'de ctranslate2 **4.7.2** import başarılı; repo kilidi **4.4.0** istiyor. Bu tur venv'e downgrade/yeniden kurulum uygulanmadı; GPU uyumluluğu yeni kanıtlanmadı. Kullanıcı profili, anahtarlar ve kişisel medya okunmadı/yayımlanmadı. Test logları/sentetik profiller ignore edilen scratch/temp alanında, commit dışında.
+`node tests/ipc-payload-fuzz.test.js` — 213/213 kanal, 9.240 çağrı, 0 ihlal, PASS.
+`npm test`'e otomatik dahil (`tests/run-all.js` `*.test.js` keşfi).

@@ -214,18 +214,30 @@ async function main() {
   const { stage, url } = stageRenderer();
   const allow = loadAllow();
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const port = 9800 + Math.floor(Math.random() * 400);
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ui-smoke-profile-'));
-  const child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--remote-debugging-address=127.0.0.1', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--allow-file-access-from-files', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
-  let target;
-  for (let i = 0; i < 150 && !target; i += 1) {
-    try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); }
-    catch (_) { /* henüz hazır değil */ }
-    if (!target) await sleep(200);
+  // CI'da Chrome ara sıra debug portunu açmadan ölüyor; 3 denemeye kadar
+  // yeniden başlat, çocuğun çıkış nedenini stderr'den yakala.
+  let target, child, profile, lastErr = '';
+  for (let attempt = 0; attempt < 3 && !target; attempt += 1) {
+    const port = 9800 + Math.floor(Math.random() * 400);
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ui-smoke-profile-'));
+    child = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
+      '--remote-debugging-address=127.0.0.1', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+      '--allow-file-access-from-files', '--window-size=1400,900', 'about:blank'],
+      { stdio: ['ignore', 'ignore', 'pipe'] });
+    let exited = false;
+    child.on('exit', (code, sig) => { exited = true; lastErr = `exit=${code} signal=${sig}`; });
+    child.stderr.on('data', (d) => { lastErr = String(d).trim().slice(-300); });
+    for (let i = 0; i < 150 && !target && !exited; i += 1) {
+      try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); }
+      catch (_) { /* henüz hazır değil */ }
+      if (!target) await sleep(200);
+    }
+    if (!target) {
+      try { child.kill(); } catch (_) { /* zaten çıktı */ }
+      try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_) {}
+    }
   }
-  if (!target) { child.kill(); throw new Error('Tarayıcı hata ayıklama bağlantısı açılmadı.'); }
+  if (!target) throw new Error(`Tarayıcı hata ayıklama bağlantısı açılmadı (${lastErr || 'zaman aşımı'}).`);
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve) => { ws.onopen = resolve; });
   let seq = 0; const pending = new Map();

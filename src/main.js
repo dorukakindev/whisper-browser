@@ -91,6 +91,7 @@ const {
   summarizeCeaCaptureCompleteness,
 } = require('./browser-cea-full-capture');
 const { deriveStreamMediaIdentity } = require('./browser-media-identity');
+const { clampedWindowSize, windowStateForDisk } = require('./window-state');
 const { buildBrowserSubtitleDocument, validateBrowserSubtitleDocument } = require('./browser-subtitle-output');
 const { summarizeTranslationIntegrity } = require('./browser-translation-integrity');
 const { hashText: browserSubtitleIdentityHash, normalizeTransform } = require('./browser-subtitle-sync');
@@ -3468,11 +3469,7 @@ function saveWindowState() {
   try {
     // Maximized iken bile geri yüklenecek normal boyutu sakla
     const b = mainWindow.getNormalBounds ? mainWindow.getNormalBounds() : mainWindow.getBounds();
-    writeJsonAtomic(windowStatePath(), {
-      width: b.width,
-      height: b.height,
-      maximized: mainWindow.isMaximized(),
-    });
+    writeJsonAtomic(windowStatePath(), windowStateForDisk(b, mainWindow.isMaximized()));
   } catch (_) {}
 }
 
@@ -8926,8 +8923,11 @@ function installSystemAudioCaptureHandler() {
     try {
       const mainFrame = mainWindow?.webContents?.mainFrame;
       const requestFrame = request.frame;
+      // Yalnız üst dokümanın getDisplayMedia çağrısı kabul edilir: ana pencere
+      // çerçeve ağacındaki bir alt kare (iframe) jesti kötüye kullanıp ekran
+      // görüntüsü + sistem sesi elde edemesin.
       const belongsToMainWindow = !!mainFrame && !!requestFrame
-        && (requestFrame === mainFrame || requestFrame.top === mainFrame);
+        && requestFrame === mainFrame;
       if (!belongsToMainWindow || !request.userGesture || !request.audioRequested || !browserLiveAsr || browserLiveAsr.stopping) {
         return callback({});
       }
@@ -13906,8 +13906,7 @@ function createWindow() {
   const st = loadWindowState();
   // Kayıtlı boyutu ekrana kelepçele — bozuk/devasa window-state.json ekran-dışı pencere üretmesin
   const work = screen.getPrimaryDisplay().workAreaSize;
-  const initW = st && st.width >= 940 ? Math.min(st.width, work.width) : Math.min(1180, work.width);
-  const initH = st && st.height >= 680 ? Math.min(st.height, work.height) : Math.min(820, work.height);
+  const { width: initW, height: initH } = clampedWindowSize(st, work);
   mainWindow = new BrowserWindow({
     // Pozisyon kasıtlı olarak geri yüklenmiyor (ekran-dışı pencere riskini önlemek için)
     width: initW,
@@ -14775,24 +14774,29 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
       method: 'GET', credentials: 'omit', useSessionCookies: false, redirect: 'error',
     });
     let timeoutTimer = setTimeout(() => {
-      request.abort(); resolve({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' });
+      request.abort(); done({ ok: false, errorKind: 'timeout', error: 'SponsorBlock zaman aşımına uğradı.' });
     }, 7000);
+    // Zamanlayıcı gövde bitene kadar canlı kalır (DeArrow/RYD kalıbı):
+    // başlıkları gönderip akışı durduran bir sunucu, başlıkta iptal edilen
+    // bir sayaçla promise'i ve uçuş içi kilidi sonsuza dek açık bırakırdı.
+    const done = (value) => { clearTimeout(timeoutTimer); resolve(value); };
     request.on('response', (response) => {
-      clearTimeout(timeoutTimer);
       let total = 0; const chunks = [];
       response.on('data', (chunk) => {
         total += chunk.length;
-        if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
+        if (total > MAX_SPONSORBLOCK_BYTES) { response.destroy(); request.abort(); return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' }); }
         chunks.push(chunk);
       });
+      response.on('error', () => done({ ok: false, errorKind: 'network', error: dt('SponsorBlock yanıtı okunurken bağlantı koptu.', 'Connection dropped while reading the SponsorBlock response.') }));
+      response.on('aborted', () => done({ ok: false, errorKind: 'network', error: dt('SponsorBlock yanıtı yarıda kesildi.', 'The SponsorBlock response was cut off mid-stream.') }));
       response.on('end', () => {
-        if (total > MAX_SPONSORBLOCK_BYTES) return resolve({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
+        if (total > MAX_SPONSORBLOCK_BYTES) return done({ ok: false, errorKind: 'size', error: 'SponsorBlock yanıtı çok büyük.' });
         if (response.statusCode === 404) {
           const empty = { segments: [], chapters: [], invalid: 0, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, empty, { negative: true, actionType: actionTypes });
-          return resolve({ ok: true, ...empty });
+          return done({ ok: true, ...empty });
         }
-        if (response.statusCode < 200 || response.statusCode >= 300) return resolve({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
+        if (response.statusCode < 200 || response.statusCode >= 300) return done({ ok: false, errorKind: 'http', status: response.statusCode, error: `SponsorBlock HTTP ${response.statusCode}` });
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
           const extracted = extractSponsorHashSegments(parsed, videoId);
@@ -14807,15 +14811,14 @@ function fetchSponsorBlockSegments(videoId, categories, duration = 0) {
             invalid: checked.invalid + chapterCheck.invalid + actions.invalid, source: 'SponsorBlock' };
           sponsorBlockCache.set(videoId, normalized, result,
             { negative: !result.segments.length && !result.chapters.length, actionType: actionTypes });
-          resolve({ ok: true, ...filterForDuration(result) });
-        } catch (_) { resolve({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
+          done({ ok: true, ...filterForDuration(result) });
+        } catch (_) { done({ ok: false, errorKind: 'json', error: 'SponsorBlock yanıtı okunamadı.' }); }
       });
     });
     request.on('error', (error) => {
-      clearTimeout(timeoutTimer);
       const message = String(error?.message || '');
       const redirected = error?.code === 'ERR_TOO_MANY_REDIRECTS' || /redirect/i.test(message);
-      resolve({ ok: false, errorKind: redirected ? 'redirect' : 'network',
+      done({ ok: false, errorKind: redirected ? 'redirect' : 'network',
         error: redirected ? 'SponsorBlock yönlendirmesi güvenlik nedeniyle reddedildi.'
           : `SponsorBlock bağlantısı kurulamadı: ${message}` });
     });
@@ -18817,7 +18820,10 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     job.tempPath = tempPath;
     job.outPath = outPath;
     job.filterSubPath = filterSubPath;
-    job.missingGlyphs = new Set();
+    // Önceki (kesilen) çalıştırmada toplanan glifler kayıttan listeyle
+    // taşınır — aynı glif yeniden görülse bile iki kez sayılmaz.
+    job.missingGlyphs = new Set(
+      resumingPrevious ? (previousRecovery.missingGlyphList || []) : []);
     job.cancelled = false;
     job.settled = false;
     job.previousRecovery = resumingPrevious ? previousRecovery : null;
@@ -18826,6 +18832,8 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       job.recovery = writeBurninRecoveryState({
         version: 1, id: randomUUID(), videoPath, subPath, tempPath, outPath,
         pid: job.pid, totalSec, startedAt: Date.now(), previousOutSize, previousOutMtimeMs,
+        missingGlyphs: job.missingGlyphs.size,
+        missingGlyphList: [...job.missingGlyphs],
       });
       if (resumingPrevious && previousRecovery.tempPath !== tempPath) {
         try { removeFileQuietly(previousRecovery.tempPath); } catch (_) {}
@@ -18869,9 +18877,20 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       errTail = (errTail + d).slice(-1500);
       // libass, karşılık bulamadığı glifler için "failed to find any fallback"
       // basar; iş yine de başarıyla biter ve altyazı kutu/boşluk olur — sessiz
-      // bırakmamak için eksik glif kodlarını topla.
-      for (const m of String(d).matchAll(/failed to find any fallback with glyph (0x[0-9A-Fa-f]+)/g)) {
+      // bırakmamak için eksik glif kodlarını topla. Tarama yuvarlanan errTail
+      // üzerinde yapılır: stderr parçası "failed to find any fallback with
+      // glyph" kalıbını ikiye bölebilir ve parça-bazlı tarama uyarıyı kaçırırdı
+      // (Set zaten tekrarları eler).
+      const glyphCountBefore = job.missingGlyphs.size;
+      for (const m of errTail.matchAll(/failed to find any fallback with glyph (0x[0-9A-Fa-f]+)/g)) {
         job.missingGlyphs.add(m[1].toLowerCase());
+      }
+      if (job.previousRecovery && job.missingGlyphs.size !== glyphCountBefore) {
+        // Yeni glif bulguları iş sonunu beklemeden kayda işlenir — uygulama
+        // FFmpeg uyarısıyla sona erme arasında kapanırsa uyarı kaybolmazdı.
+        job.previousRecovery.missingGlyphList = [...job.missingGlyphs].slice(0, 512);
+        job.previousRecovery.missingGlyphs = job.missingGlyphs.size;
+        try { writeBurninRecoveryState(job.previousRecovery); } catch (_) {}
       }
     });
   }
@@ -18887,7 +18906,8 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
         replaceBurninOutput(tempPath, outPath);
         cleanupBurninReplacementBackups(outPath);
         clearBurninRecoveryState(job.recovery?.id, false);
-        send({ type: 'done', file: outPath, missingGlyphs: job.missingGlyphs.size });
+        send({ type: 'done', file: outPath,
+          missingGlyphs: job.missingGlyphs.size });
         return;
       } catch (error) {
         message = `Gömme çıktısı tamamlanamadı: ${error.message}`;
@@ -18898,7 +18918,11 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
       // Kurtarma üzerinden yeniden başlatılan FFmpeg hata verirse kullanıcıyı
       // seçeneksiz bırakma. Eski geçici dosya silinmiş olsa bile kaynak video
       // ve altyazı yolları bir sonraki güvenli yeniden deneme için yeterlidir.
-      try { writeBurninRecoveryState(job.previousRecovery); }
+      try {
+        job.previousRecovery.missingGlyphList = [...job.missingGlyphs].slice(0, 512);
+        job.previousRecovery.missingGlyphs = job.missingGlyphs.size;
+        writeBurninRecoveryState(job.previousRecovery);
+      }
       catch (_) { clearBurninRecoveryState(job.recovery?.id, false); }
     } else {
       clearBurninRecoveryState(job.recovery?.id, false);
@@ -18946,7 +18970,8 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
       cleanupBurninReplacementBackups(recovery.outPath);
       removeFileQuietly(recovery.tempPath);
       clearBurninRecoveryState(recovery.id, false);
-      return { ok: true, recovered: true, file: recovery.outPath };
+      return { ok: true, recovered: true, file: recovery.outPath,
+        missingGlyphs: recovery.missingGlyphs || 0 };
     } catch (error) {
       return { ok: false, error: `Tamamlanmış çıktı doğrulandı ancak kurtarma kaydı temizlenemedi: ${error.message}` };
     }
@@ -18956,7 +18981,8 @@ ipcMain.handle('burnin:recovery:recover', async (event, recoveryId) => {
       replaceBurninOutput(recovery.tempPath, recovery.outPath);
       cleanupBurninReplacementBackups(recovery.outPath);
       clearBurninRecoveryState(recovery.id, false);
-      return { ok: true, recovered: true, file: recovery.outPath };
+      return { ok: true, recovered: true, file: recovery.outPath,
+        missingGlyphs: recovery.missingGlyphs || 0 };
     } catch (error) {
       return { ok: false, error: `Tamamlanmış geçici çıktı kurtarılamadı: ${error.message}` };
     }
@@ -19433,7 +19459,14 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (!line) return;
     try {
       const _parsed = parseNdjsonLine(line);
-      if (!_parsed) return;
+      if (!_parsed) {
+        // JSON olmayan stdout satırları (yt-dlp [download]/[info], ffmpeg
+        // bildirimleri vb.) iş günlüğüne ve arayüze log olarak iletilir —
+        // sessizce düşürülmeleri indirme ilerlemesini görünmez kılıyordu.
+        writeJobLog({ type: 'log', level: 'info', message: line, jobId });
+        sendJobEvent({ type: 'log', level: 'info', message: line });
+        return;
+      }
       const event = { ..._parsed, queueItemId: jobMeta.queueItemId };
       if (event.type === 'quality_report') {
         const { type: _type, queueItemId: _queueItemId, ...quality } = event;

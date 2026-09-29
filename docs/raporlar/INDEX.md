@@ -8,7 +8,8 @@ tarih sırasıyla dosya adından okunur.
 | No | Rapor | Başlık |
 |---|---|---|
 | 178 | [BROWSER_BUG_REPORT_178.md](BROWSER_BUG_REPORT_178.md) | R219: Devin Review toplu triage (PR #139–147) |
-| 225 | [BROWSER_BUG_REPORT_225.md](BROWSER_BUG_REPORT_225.md) | Devin yeniliklerinin yerel kabulü ve sonraki master bütünleştirmesi (eski yerel R178) |
+| 225 | [BROWSER_BUG_REPORT_225.md](BROWSER_BUG_REPORT_225.md) | R275: IPC payload fuzz turu 2 (uzak master'ın raporu) |
+| 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |

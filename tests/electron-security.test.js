@@ -92,4 +92,18 @@ ok(v8Uses.length === 1, `v8CacheOptions ${v8Uses.length} yerde (yalnız ana penc
 ok(v8Uses[0] === 'bypassHeatCheck', `v8CacheOptions=${v8Uses[0]} (yalnız bypassHeatCheck)`);
 ok(!/bypassHeatCheckAndEagerCompile/.test(main), 'eager compile yasak — GC/bellek baskısı');
 
+// R279: getDisplayMedia yalnız ana pencerenin ÜST dokümanına açık —
+// requestFrame.top===mainFrame kabulü ana penceredeki herhangi bir iframe'e
+// jestle ekran+loopback ses verirdi; üst-doküman eşitliği şart.
+const dm = main.match(/setDisplayMediaRequestHandler\(async \(request, callback\)[\s\S]{0,1400}?getSources/);
+ok(!!dm, 'setDisplayMediaRequestHandler bloğu bulunamadı');
+if (dm) {
+  ok(!/requestFrame\.top\s*===\s*mainFrame/.test(dm[0]),
+    'displayMedia alt kareye de açık (requestFrame.top kabulü)');
+  ok(/requestFrame === mainFrame/.test(dm[0]),
+    'displayMedia üst-doküman eşitliği (requestFrame===mainFrame) eksik');
+  ok(/request\.userGesture/.test(dm[0]), 'displayMedia jest koşulu eksik');
+  ok(/request\.audioRequested/.test(dm[0]), 'displayMedia ses-istemi koşulu eksik');
+}
+
 console.log(`electron-security: ${n} kontrol geçti (${siteCount} kurulum noktası)`);
