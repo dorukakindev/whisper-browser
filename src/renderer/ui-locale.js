@@ -2665,6 +2665,10 @@
     // aria-label'ı "Tarayıcı sekmeleri") çevrilir; İÇİNDEKİ site/kullanıcı verisi
     // ve başlık taşıyan öğelerin (".browser-place-title" vb.) title'ı korunur.
     if (!(element instanceof Element)) return;
+    // Açılış taraması ~3.700 öğeyi dolaşır; çevrilecek özniteliği olmayan öğede
+    // pahalı closest() seçici eşlemesine hiç girme (açılış ölçümü: tur 4).
+    if (!element.hasAttribute('title') && !element.hasAttribute('aria-label')
+      && !element.hasAttribute('placeholder')) return;
     // Yazı alanlarının İÇERİĞİ kullanıcı verisidir ama kendi placeholder/aria-label'ı
     // arayüz metnidir ("Sorunu yaz…" EN arayüzde Türkçe kalıyordu).
     const blocked = element.matches(uiListContainers)
@@ -2687,6 +2691,10 @@
 
   function localizeText(node) {
     if (node?.nodeType !== Node.TEXT_NODE) return;
+    // Etiketler arasındaki boşluk düğümleri metin düğümlerinin çoğunluğudur;
+    // çevrilecek bir şey yok, closest() maliyetine girme.
+    const raw = node.nodeValue;
+    if (!raw || !raw.trim()) return;
     if (node.parentElement?.closest(ignored) && !node.parentElement.closest(uiIslands)) return;
     const before = node.nodeValue;
     const previous = originalText.get(node);
