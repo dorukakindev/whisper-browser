@@ -141,3 +141,106 @@ test('yönlendirme hedefi yeniden doğrulanıp ayrıca sabitlenir', async () => 
   assert.equal(pinnedCalls.length, 2);
   assert.equal(pinnedCalls[1].url, 'https://cdn.example/x.srt');
 });
+
+// #184 SEC_0002: boyut sınırı/iptal ilke hatasıdır — çok bacaklı zincirde
+// ağ hatası sanılıp ikinci istek (proxy yedeği) yapılmamalı.
+test('çok bacaklı zincirde boyut sınırı ilke hatası proxy yedeği tetiklemez', async () => {
+  const { context, calls, session } = makeContext();
+  session.resolveProxy = async () => 'DIRECT; PROXY corp:8080';
+  context.requestPinnedSubtitleBuffer = async () => {
+    throw Object.assign(new Error('Altyazı yanıtı güvenli boyut sınırını aşıyor.'), { code: 'ESUBTITLE_LIMIT' });
+  };
+  await assert.rejects(() => context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null), /boyut sınırını aşıyor/);
+  assert.equal(calls.fetched.length, 0, 'ilke hatasında proxy yedeği ikinci istek yapmamalı');
+});
+
+test('çok bacaklı zincirde kullanıcı iptali proxy yedeği tetiklemez', async () => {
+  const { context, calls, session } = makeContext();
+  session.resolveProxy = async () => 'DIRECT; PROXY corp:8080';
+  context.withAbortTimeout = (fn) => fn({ aborted: true, addEventListener() {}, removeEventListener() {} });
+  context.requestPinnedSubtitleBuffer = async () => {
+    throw Object.assign(new Error('Altyazı isteği iptal edildi.'), { code: 'ERR_ABORTED' });
+  };
+  await assert.rejects(() => context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null), /iptal edildi/);
+  assert.equal(calls.fetched.length, 0, 'iptalde proxy yedeği çalışmamalı');
+});
+
+// #184 SEC_0001: proxy yedeği kendi çözümlemesini yapar — pin ile yedek
+// arasındaki DNS kayması (TOCTOU) için hedef yeniden doğrulanır.
+test('proxy yedeğinden önce hedef yeniden doğrulanır (TOCTOU daralması)', async () => {
+  const validates = [];
+  const { context, session } = makeContext({
+    context: {
+      assertPublicBrowserSubtitleUrl: async (url) => {
+        validates.push(url);
+        return { address: '93.184.216.34', family: 4 };
+      },
+      requestPinnedSubtitleBuffer: async () => { throw new Error('ECONNRESET'); },
+    },
+  });
+  session.resolveProxy = async () => 'DIRECT; PROXY corp:8080';
+  const buffer = await context.fetchBrowserBuffer('https://subs.example/a.srt', 1024, null);
+  assert.equal(buffer.toString(), 'web');
+  assert.deepEqual(validates, ['https://subs.example/a.srt', 'https://subs.example/a.srt'],
+    'pin doğrulaması + yedek öncesi yeniden doğrulama beklenir');
+});
+
+// İlke-hatası kodları kaynağında da kilitlenir: pinned istek sınır aşınca
+// ESUBTITLE_LIMIT, iptalde ERR_ABORTED üretmeli (yukarıdaki kapılar buna
+// güvenir; kod düşerse ikinci istek geri döner).
+function makePinnedContext({ chunkBytes = 2048 } = {}) {
+  const { EventEmitter } = require('events');
+  const context = {
+    URL, Buffer, Map, Promise, BROWSER_FETCH_TIMEOUT: 1000, console,
+    https: {
+      request: (_parsed, _opts, onResponse) => {
+        const request = {
+          _err: null,
+          setTimeout() {},
+          on(event, fn) { if (event === 'error') request._onerror = fn; },
+          destroy(err) {
+            request._err = err;
+            // Gerçek soket destroy(err) 'error' yayar — sınır/iptal hatası
+            // bu kanaldan reddedilir.
+            setImmediate(() => request._onerror?.(err));
+          },
+          end() {
+            const response = new EventEmitter();
+            onResponse(response);
+            setImmediate(() => {
+              response.emit('data', Buffer.alloc(chunkBytes));
+              if (request._err) request._onerror?.(request._err);
+            });
+          },
+        };
+        return request;
+      },
+    },
+    http: { request: () => { throw new Error('http beklenmiyor'); } },
+  };
+  vm.createContext(context);
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  vm.runInContext(source.slice(
+    source.indexOf('async function requestPinnedSubtitleBuffer('),
+    source.indexOf('async function fetchBrowserBuffer(')), context);
+  return context;
+}
+
+test('pinned istek boyut sınırında ESUBTITLE_LIMIT kodlu hata üretir', async () => {
+  const context = makePinnedContext();
+  await assert.rejects(
+    () => context.requestPinnedSubtitleBuffer('https://subs.example/big.srt',
+      { address: '93.184.216.34', family: 4 }, { maxBytes: 8 }),
+    (error) => error.code === 'ESUBTITLE_LIMIT' && /boyut sınırını aşıyor/.test(error.message));
+});
+
+test('pinned istek iptalde ERR_ABORTED kodlu hata üretir', async () => {
+  // Küçük chunk: sınır yarışı olmadan yalnız iptal yolu sınanır.
+  const context = makePinnedContext({ chunkBytes: 8 });
+  const signal = { aborted: false, addEventListener(_e, fn) { this._fn = fn; }, removeEventListener() {} };
+  const pending = context.requestPinnedSubtitleBuffer('https://subs.example/a.srt',
+    { address: '93.184.216.34', family: 4 }, { maxBytes: 1024, signal });
+  signal.aborted = true;
+  signal._fn();
+  await assert.rejects(() => pending, (error) => error.code === 'ERR_ABORTED');
+});

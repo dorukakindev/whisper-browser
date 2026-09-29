@@ -703,5 +703,33 @@ def test_poisoned_tm_row_with_source_drift_is_not_served(tmp_path):
     assert [t for _, _, t in out] == ["The quik fox jumps over it."], out
 
 
+def test_boundary_issue_counts_source_under_source_language_ordinals():
+    """#181 BUG_0001: kaynak parça cümle sayısı hedef dilin kuralıyla ölçülüyordu.
+
+    İngilizce kaynakta '3.' gerçek cümle sonudur ('Really. 3. Then' → 2 son);
+    TR kuralı noktalı sıra sayısı sanıp 1 sayıyordu ve doğru iki-cümle
+    çeviriyi 'fazla cümle' diye reddediyordu.
+    """
+    from sentence_translation import set_target_language
+    set_target_language('tr')
+    # Kaynak EN kuralıyla sayılır → 2 son ≥ hedef 2 → kabul.
+    assert sentence_part_boundary_issue(
+        ['Really. 3. Then', 'he left.'],
+        ['Gerçekten. 3. Sonra bitti.', 'o gitti.'], 'en') == ""
+    # Dil verilmezse eski davranış sürer: hedef kuralıyla sayılır → reddeder.
+    assert sentence_part_boundary_issue(
+        ['Really. 3. Then', 'he left.'],
+        ['Gerçekten. 3. Sonra bitti.', 'o gitti.']) is not None
+    # Gerçek fazlalık (kaynak tek cümle, hedef üç cümle) yine reddedilir.
+    assert sentence_part_boundary_issue(
+        ['Wait for it.', 'x'],
+        ['Bekle. Bitti. Sonra.', 'y'], 'en') is not None
+    # Hedef dil de sıra-sayısı yazıyorsa (TR→EN) '3. Sonra' kaynakta sıra
+    # sayısı kalır — hedefin fazla cümlesi yine yakalanır.
+    assert sentence_part_boundary_issue(
+        ['Gerçekten. 3. Sonra bitti.', 'x'],
+        ['Really. 3. Then. Done.', 'y'], 'tr') is not None
+
+
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)

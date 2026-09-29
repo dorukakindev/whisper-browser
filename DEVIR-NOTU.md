@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-29-0840.md](docs/devir/2026-09-29-0840.md) — R244: v8CacheOptions bypassHeatCheck + önizleme is-compact
+Güncel çalışma: [docs/devir/2026-09-29-0907.md](docs/devir/2026-09-29-0907.md) — R245: #181+#184 review triage (kaynak-dili ordinal + VTT meta + ilke-hatası/TOCTOU)
+Önceki çalışma: [docs/devir/2026-09-29-0840.md](docs/devir/2026-09-29-0840.md) — R244: v8CacheOptions bypassHeatCheck + önizleme is-compact
 Önceki çalışma: [docs/devir/2026-09-29-0822.md](docs/devir/2026-09-29-0822.md) — R243 kapanış: kesin master merge kimliği (47ac1a9)
 Önceki çalışma: [docs/devir/2026-09-29-0817.md](docs/devir/2026-09-29-0817.md) — R243: #182 review triage (proxy zincir yedeği + secure çerez + son cue zamanı)
 Önceki çalışma: [docs/devir/2026-09-29-0808.md](docs/devir/2026-09-29-0808.md) — R242 kapanış: kesin master merge kimliği (483872f)
