@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
+Güncel çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R234: güncel Devin master denetimi + dar panel native görünürlük yarışı
+
+Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
 Önceki çalışma: [docs/devir/2026-09-30-0430.md](docs/devir/2026-09-30-0430.md) — R278: oynatıcı zamanlama fuzz'ı (nextCueBoundaryAt ≡ oracle + playbackLearningAction invariant matrisi)
 Önceki çalışma: [docs/devir/2026-09-30-0400.md](docs/devir/2026-09-30-0400.md) — R277: pencere durumu saf modül + kelepçe kilidi (temiz)

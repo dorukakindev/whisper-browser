@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R234: Dar ekranda transkript/ayar paneli sayfayı tamamen örttüğünde görünmez donmuş kareyi bekleme kaldırıldı; native tarayıcı görünümü panel açılırken gecikmeden gizlenir. Önceki yerel R178/R225 raporu R233'e taşınarak uzak R225 korundu.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 - Düzeltme: yt-dlp ilerleme çıktısı altyazı indirme olayını düşürebilirdi; indirme olay satırları artık toleranslı çözümleniyor ve ilerleme çıktısı kaynağında susturuluyor.
 - R273: Devin Review toplu triage — prob `skipped` sayımı artık önceden-çevrilmiş konumları şişirmez; kalıcı prob hatasında 2. geçiş atlanır (1. geçiş korunur); overlay indeks probları bayat mutasyonları yakalar; burn-in eksik-glif sayacı yüzeye taşınır; disk-dolu hatası dosya-kaybından ayrılır. Tur-2: refine kapısı kalıcı-olmayan prob hatasında da açılıyordu; overlay bozuk-end sınırı suffixMin ile O(1); eksik-glif kaydı liste-birleşimi + ara yazım.
