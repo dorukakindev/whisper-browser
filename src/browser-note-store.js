@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
 const path = require('path');
 
 const { normalizeAnnotation } = require('./browser-learning');
@@ -106,12 +107,16 @@ class BrowserNoteStore {
     try {
       if (!options.preserveBackup && !options.mirrorBackup && io.existsSync(this.filePath)) {
         io.copyFileSync(this.filePath, this.backupPath);
+        fsyncFileBestEffort(this.backupPath, io);
       }
       const payload = JSON.stringify(this.snapshot(), null, 2);
       if (Buffer.byteLength(payload, 'utf8') > MAX_FILE_BYTES) {
         throw new Error('Not deposu güvenli boyut sınırını aştı; eski notlar silinmedi.');
       }
-      io.writeFileSync(temporary, payload, { encoding: 'utf8', flush: true });
+      // fsyncFile ile gerçek dayanıklılık — writeFileSync'in `flush` seçeneği
+      // WriteStream'e aittir ve burada yok sayılırdı (önceki ölü seçenek).
+      io.writeFileSync(temporary, payload, { encoding: 'utf8' });
+      fsyncFile(temporary, io);
       // mirrorBackup (R83-34): silme yazımında eski nesil yedekte kalmasın —
       // yedek doğrulanmış güncel duruma çekilir. Ayna birincil rename'den
       // ÖNCE kurulur: yedek yazılamazsa ana dosya hiç değişmez, böylece
@@ -120,8 +125,10 @@ class BrowserNoteStore {
       // yazımda oluşturulur.
       if (options.mirrorBackup || !io.existsSync(this.backupPath)) {
         io.copyFileSync(temporary, this.backupPath);
+        fsyncFileBestEffort(this.backupPath, io);
       }
       io.renameSync(temporary, this.filePath);
+      fsyncDirectory(path.dirname(this.filePath), io);
       this.needsLegacyImport = false;
       this.recoveryWriteError = '';
     } catch (error) {

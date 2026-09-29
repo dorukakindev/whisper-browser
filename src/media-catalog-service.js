@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs');
+const { atomicWriteFileSync } = require('./fsync-utils');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
@@ -128,7 +129,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (!image) throw new Error('En fazla 8 MB boyutunda geçerli bir afiş seçin.');
           const folder = path.join(userData(), 'catalog-posters'); fs.mkdirSync(folder, { recursive: true });
           const target = path.join(folder, randomUUID() + '.png');
-          fs.writeFileSync(target, nativeImage.createFromDataURL(image).toPNG());
+          atomicWriteFileSync(target, nativeImage.createFromDataURL(image).toPNG(), { encoding: 'utf8' });
           const previousPoster = found(input.id).posterPath;
           try {
             const saved = store().upsert({ id: input.id, posterPath: target });
