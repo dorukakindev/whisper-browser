@@ -15,6 +15,7 @@ Sürücü betikleri `python -c` ile çalışır; ağır yolu devre dışı bıra
 """
 
 import json
+import os
 import subprocess
 import sys
 import unittest
@@ -28,9 +29,13 @@ def _run(driver_body, *argv):
         "import sys; sys.path.insert(0, %r); import transcribe as T; "
         % BACKEND + driver_body + "\nT.main()"
     )
+    env = dict(os.environ)
+    # Windows'ta subprocess stdout konsol kod sayfasına (cp1252) düşer;
+    # emit() UTF-8 mesaj basar — okumayı aynı kodlamayla zorla.
+    env["PYTHONUTF8"] = "1"
     return subprocess.run(
         [sys.executable, "-c", code, *argv],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=60, env=env,
     )
 
 
