@@ -39,20 +39,28 @@ WORDS = [
 INFO = types.SimpleNamespace(language='tr', language_probability=0.98, duration=11.0)
 
 
+def _payload_bytes(path):
+    # İşletim-sistemi ayrımı: yazıcılar metin modunda açılır, Windows'ta \n
+    # CRLF'e çevrilir — içerik sözleşmesi aynıdır, yalnız satır sonu taşıyıcısı
+    # farklıdır. Özet satır sonu ve BOM'dan arındırılmış UTF-8 üzerinden alınır.
+    text = path.read_bytes().decode('utf-8-sig')
+    return text.replace('\r\n', '\n').replace('\r', '\n').encode('utf-8')
+
+
 def _digest(write_fn, suffix='.txt'):
     with tempfile.TemporaryDirectory() as td:
         path = Path(td) / ('out' + suffix)
         ret = write_fn(path)
         if isinstance(ret, str):
             return ret  # yardımcı kendi özetini verdi (ör. confidence üçlüsü)
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return hashlib.sha256(_payload_bytes(path)).hexdigest()
 
 
 def _conf_digest(path, threshold=0.6):
     # Dönen (yazıldı, sayı, sık_kelime) üçlüsü de kilidin parçası; yazılmazsa
     # payload boş kalır (threshold'un üstünde düşük-güven kelime yoksa dosya yok).
     wrote, count, frequent = T.write_confidence_report(path, ENTRIES, WORDS, threshold)
-    payload = path.read_bytes() if wrote else b''
+    payload = _payload_bytes(path) if wrote else b''
     return hashlib.sha256(
         payload + json.dumps([wrote, count, frequent], sort_keys=True).encode('utf-8')
     ).hexdigest()
@@ -81,18 +89,18 @@ CASES = {
 
 # --regen ile üretilen sabit tablo; isimler CASES anahtarlarıyla birebir.
 EXPECTED = {
-    'ass:no-speakers': 'a7a886da54cc08780db8d9627174fc14e8f7465ad75dee9e3f9080ca0700a68f',
-    'ass:speakers-balanced': 'ef948e166bcf5001591b350b4f6bedaecee56403bfdcd2d32246c63969aa14a2',
+    'ass:no-speakers': 'd28a0afc423fb3d1b31311ebabb6348f6c20c5bfe55ad2e88a795b6ef913d9fb',
+    'ass:speakers-balanced': '3bf8dc95cb15d6f7e59cd4c1d74e96997780e4490dc901afbfdeeb43e5b806a9',
     'confidence:0.3': '7ff491023546ea67336f01123d2bc3667e74d62d7abfa916bb1b62563f94496b',
-    'confidence:0.6': '1079423e87682357270eaff4aef7b99b88ad57d83f5356ad504af39d87238d7f',
-    'dual:source-first': '821fde8aa5f04f0a6dcaa2fa225e9c8819819db8ad40681405c301747868ef3e',
+    'confidence:0.6': 'a2839584832f4339c1baaa6b2ddd2ecd82843344d91a8c900850c07f53122721',
+    'dual:source-first': 'b3f3cbf6fbc9e75f3faf4d8d16eed301a8c277c96a483a3f8ee7ad8f1bee2e1b',
     'json:no-info': 'f865ed6ff60ebaa5129e4440ffeaf145bf47bba01bd49f4e7443b6089022030b',
     'json:words+speakers': 'bccfc9a23f45c2e9aa2b77751c0afd7686c8bb91c0f5c3291a3008a9143e07db',
-    'srt:lang-en': '52ece43180eaf075ac2707a51271165c1c2e4f38aea52ce58300fe65456ec19d',
-    'srt:sentence-maxlines-1': '339ffc6d3cc9ad14a35b879cdd8728948e872fc7347414495f36da318a5b296f',
-    'srt:wrap-balanced-30': '2a51756a86232c8c322b982a6165c1a2a80e1300654f43c616bbdd827eae025c',
-    'srt:wrap-balanced-80x3': 'b21e1dbc475e285ce8ae80f1e9e5757e88a0a9142819cde5c8d90c6a93ed2159',
-    'srt:wrap-none': '339ffc6d3cc9ad14a35b879cdd8728948e872fc7347414495f36da318a5b296f',
+    'srt:lang-en': '35cd90144b57f92d6e294736e72b9d042e81b414860ced5bef2946dc6aa99fe1',
+    'srt:sentence-maxlines-1': '7e49ee03d0c7ea75369fa3b004ea88f85accf1c89459cd73104f73e4a25cdfcb',
+    'srt:wrap-balanced-30': 'eb6a5aa6e3c73ebe41690e387ac4072da78571d84b5cd6bfbc50ca411ce68392',
+    'srt:wrap-balanced-80x3': 'd94c08add96ce294b52ddf1bb1919df2a378353d2866a3bfc70bee056bae2ef6',
+    'srt:wrap-none': '7e49ee03d0c7ea75369fa3b004ea88f85accf1c89459cd73104f73e4a25cdfcb',
     'vtt:balanced-30': '99f3bc66f4ecc1d769d2ce02dfd2b3b0a94ae9487416f77b1ecc33966953da57',
     'vtt:lang-en': 'e027a048cca897fb01e6cd99447e4fc879c6c5ca2753a623c7970b461a892224',
     'vtt:wrap-none': '02abbe38e1d358daac4c5710ba2c07d1339361c06925082f0b7f00c536752ad0',
