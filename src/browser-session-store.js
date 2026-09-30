@@ -260,11 +260,17 @@ function normalizeBrowserSession(raw, options = {}) {
   const keepAnchor = options?.keepAnchor === true;
   const normalized = (Array.isArray(source.tabs) ? source.tabs : [])
     .map((tab) => normalizeSessionTab(tab, { keepAnchor })).filter(Boolean);
-  // Aynı id'yi taşıyan ikinci sekme referansları belirsiz bırakır — ilk kayıt
-  // korunur, sonraki kopyalar elenir.
+  // Aynı id'yi taşıyan ikinci sekme referansları belirsiz bırakır; elenmek
+  // yerine yeni tekil kimlik basılır — içe aktarılan sayfa sessizce
+  // kaybolmaz.
   const seenIds = new Set();
-  const deduped = normalized.filter((tab) =>
-    tab.id && seenIds.has(tab.id) ? false : (seenIds.add(tab.id), true));
+  const deduped = normalized.map((tab) => {
+    if (!tab.id || !seenIds.has(tab.id)) { if (tab.id) seenIds.add(tab.id); return tab; }
+    for (let n = 2; ; n += 1) {
+      const candidate = `${tab.id}-dup${n}`;
+      if (!seenIds.has(candidate)) { seenIds.add(candidate); return { ...tab, id: candidate }; }
+    }
+  });
   const tabs = deduped.slice(0, MAX_SESSION_TABS);
   const activeTabId = cleanString(source.activeTabId, 128);
   const active = deduped.find((tab) => tab.id === activeTabId);

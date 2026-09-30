@@ -117,8 +117,10 @@ ok('proto kirliliği yok', ({}).polluted === undefined);
     activeTabId: 'dup', splitSecondaryTabId: 'dup' });
   checkSessionInvariants(s, 'dup-id');
   ok('dup secondary boş', s.splitSecondaryTabId === '');
-  ok('dup-id tekilleştirildi — ilk kayıt korunur',
-    s.tabs.length === 1 && s.tabs[0].url === 'https://a.com/');
+  ok('dup-id ikinci sekme tekil kimlikle korunur',
+    s.tabs.length === 2
+    && s.tabs[0].id === 'dup' && s.tabs[0].url === 'https://a.com/'
+    && s.tabs[1].id === 'dup-dup2' && s.tabs[1].url === 'https://b.com/');
 }
 
 // --- Disk okuma matrisi ------------------------------------------------
