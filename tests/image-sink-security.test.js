@@ -54,9 +54,14 @@ test('kapı fonksiyonları şema matrisini doğru süzer', () => {
     assert.strictEqual(safeSeekSheetImageUrl(url), '', `sheet kapısı kabul etti: ${JSON.stringify(url.slice(0, 40))}`);
     assert.strictEqual(safeRemoteImageUrl(url), '', `remote kapısı kabul etti: ${JSON.stringify(url.slice(0, 40))}`);
   }
+  // Boyut sınırı yalnız sheet kapısında (patolojik dizgiler); remote kapısı
+  // büyük data URL'i şema doğru olduğu sürece geçirir.
+  assert.strictEqual(safeSeekSheetImageUrl(`data:image/png;base64,${'a'.repeat(17 * 1024 * 1024)}`), '');
   // svg favicon'lar <img>'de script çalıştırmaz — kabul edilir.
   assert.strictEqual(safeRemoteImageUrl('data:image/svg+xml;base64,PHN2Zz4=').length > 0, true);
-  // 4096 sınırı yalnız sheet kapısında (uzun data URL'ler remote'ta korunur).
+  // Yerel ffmpeg sprite'ları büyük base64 data:image'lar — kabul edilmeli.
+  const bigSprite = `data:image/jpeg;base64,${'a'.repeat(600 * 1024)}`;
+  assert.strictEqual(safeSeekSheetImageUrl(bigSprite), bigSprite);
   assert.strictEqual(safeRemoteImageUrl(`data:image/png;base64,${'a'.repeat(5000)}`).length > 0, true);
 });
 

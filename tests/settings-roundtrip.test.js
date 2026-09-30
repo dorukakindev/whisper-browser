@@ -98,11 +98,22 @@ function fullSettings() {
       model: 'gpt-test',
       modelProfiles: JSON.stringify({ 'https://api.openai.com/v1': ['gpt-test'] }),
     },
-    manga: { endpointPreset: 'inherit', model: 'gpt-manga' },
+    manga: {
+      endpointPreset: 'inherit', customBaseUrl: '', model: 'gpt-manga',
+      modelProfiles: JSON.stringify({ 'https://api.openai.com/v1': ['gpt-manga'] }),
+      targetLanguage: 'tr', fontFamily: 'comic',
+      workers: 3, maxImages: 60, fontScale: 1.1,
+      autoTranslate: true, verticalText: true, sfxStyle: false,
+    },
     llm: {
       endpointPreset: 'https://api.deepseek.com', customBaseUrl: '',
       model: 'deepseek-chat',
+      modelProfiles: JSON.stringify({ 'https://api.deepseek.com': ['deepseek-chat'] }),
     },
+    browserSponsorExemptions: { 'örnek.test': ['segment-1', 'segment-2'], 'site.test': [] },
+    browserWorkflows: [
+      { id: 'wf-1', name: 'Gece işleri', enabled: true, steps: [{ op: 'transcribe' }] },
+    ],
   };
 }
 
@@ -121,10 +132,13 @@ test('export → import tam-tur: tüm izinli alanlar sadakatle döner', () => {
     assert.deepStrictEqual(s[key], settings[key], `alan kaybı/değişimi: ${key}`);
   }
   assert.deepStrictEqual(s.ui, settings.ui, 'ui kontrolleri tam-turda değişti');
-  assert.strictEqual(s.translate.endpointPreset, 'https://api.openai.com/v1');
-  assert.strictEqual(s.translate.model, 'gpt-test');
-  assert.strictEqual(s.manga.endpointPreset, 'inherit');
-  assert.strictEqual(s.llm.endpointPreset, 'https://api.deepseek.com');
+  // Endpoint grupları alan-bazlı değil bütün nesne olarak karşılaştırılır —
+  // modelProfiles/customBaseUrl/manga seçeneklerinin kaybı yakalanır.
+  assert.deepStrictEqual(s.translate, settings.translate, 'translate grubu kayıplı');
+  assert.deepStrictEqual(s.manga, settings.manga, 'manga grubu kayıplı');
+  assert.deepStrictEqual(s.llm, settings.llm, 'llm grubu kayıplı');
+  assert.deepStrictEqual(s.browserSponsorExemptions, settings.browserSponsorExemptions, 'sponsor istisnaları kayıplı');
+  assert.deepStrictEqual(s.browserWorkflows, settings.browserWorkflows, 'iş akışları kayıplı');
   assert(imported.bundled, 'zarf sürümü bundled sayılmalı');
 });
 
@@ -160,7 +174,13 @@ test('zarf bölümleri (browserPlaces/watchLibrary/learningAnnotations) taşın�
   const browserPlaces = { history: [{ url: 'https://örnek.test/film', title: 'Film' }], bookmarks: [{ url: 'https://yerimi.test/', title: 'Yer imi' }] };
   const watchLibrary = [{ key: 'media-1', title: 'Film', sourceRef: 'ref', localPath: 'D:\\film.mkv' }];
   const learningAnnotations = [{ id: 'n1', mediaUrl: 'https://x.test/v', quote: 'not' }];
-  const imported = parseImportText(bundled(fullSettings(), { browserPlaces, watchLibrary, learningAnnotations }), {});
+  // Üretim yoluyla: zarfı createBackupPayload kurar (bundled() taklidi değil)
+  // — export yarısındaki bölüm kaybı bu kontrolde yakalanır.
+  const backup = createBackupPayload(
+    fullSettings(), browserPlaces, watchLibrary,
+    new Date('2026-09-30T00:00:00.000Z'), { learningAnnotations },
+  );
+  const imported = parseImportText(JSON.stringify(backup), {});
   assert.deepStrictEqual(imported.browserPlaces, browserPlaces);
   assert.deepStrictEqual(imported.watchLibrary, watchLibrary);
   assert.deepStrictEqual(imported.learningAnnotations, learningAnnotations);

@@ -22929,7 +22929,9 @@ function safeRemoteImageUrl(url) {
 }
 function safeSeekSheetImageUrl(url) {
   const text = String(url || '').trim();
-  if (text.length > 4096) return '';
+  // Yerel sprite'lar base64 data:image olarak gelir — meşru önizlemeler
+  // yüzlerce KB olabilir; sınır yalnız patolojik dizgileri eler.
+  if (text.length > 16 * 1024 * 1024) return '';
   return safeRemoteImageUrl(text);
 }
 
