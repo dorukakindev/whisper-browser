@@ -16,6 +16,15 @@ const { createHash, randomUUID, randomBytes } = require('crypto');
 // kullandığı app/dialog/fs/path bağlamaları bu noktada hazırdır.)
 if (!verifyAppResources()) return;
 
+// Kurulum/kaynak kökü: kodun gerçekte bulunduğu yerin üstü. launch-time
+// appPath süreç-içi harness çalıştırmalarında (electron tests/x.smoke.js)
+// yanlış dizin gösterir; paketli uygulamada ikisi aynıdır (app.asar kökü).
+function appResourceRoot() {
+  return path.dirname(__dirname);
+}
+
+
+
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -274,6 +283,7 @@ const {
 } = require('./secret-store');
 const ytAccounts = require('./youtube-accounts');
 const {
+  DANGEROUS_KEYS,
   SettingsValidationError,
   buildSecretEnv,
   createBackupPayload,
@@ -283,6 +293,7 @@ const {
   recoverJsonTransaction,
   sanitizeAbsolutePath,
   sanitizeSettings,
+  scanJsonShape,
   withoutSecretEnv,
   writeJsonTransaction,
 } = require('./settings-security');
@@ -887,7 +898,7 @@ function pythonRuntimeEnv(extra = {}) {
 function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir medya işi zaten çalışıyor; önce bitmesini bekleyin.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'media.py');
     let proc;
     try {
@@ -1102,7 +1113,7 @@ function youtubeAuthEnv(overrides = {}) {
 function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, jobSlot = 'youtube') {
   return new Promise((resolve) => {
     if (mediaJobs[jobSlot]) return resolve({ ok: false, error: 'Bir YouTube işi zaten çalışıyor.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'youtube.py');
     let proc;
     try {
@@ -1302,7 +1313,7 @@ function invidiousAuthEnv(instance) {
 function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent, timeoutMs = 45_000, extraEnv = {}) {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir Invidious işi zaten çalışıyor.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'invidious.py');
     let proc;
     try {
@@ -2910,6 +2921,19 @@ function readPublicSettings() {
         : (!v || typeof v !== 'object' || Array.isArray(v));
       if (bad) { delete parsed[key]; dropped = true; }
     }
+    // Kayıt yolu sanitizeSettings→scanJsonShape ile kirlilik anahtarlarını
+    // (__proto__/constructor/prototype), derinlik ve düğüm sınırını reddeder;
+    // okuma yolunda aynı tarama uygulanmazsa crafted bir settings.json
+    // belleğe sızar ve SONRAKI her saveSettings'i kalıcı olarak öldürür
+    // (sanitize taratınca throw → persistence sessizce durur). Düşen ağaç
+    // yalnız o alan; diğer tercihler korunur (B-323-03).
+    for (const key of Object.keys(parsed)) {
+      if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) {
+        delete parsed[key]; dropped = true; continue;
+      }
+      try { scanJsonShape(parsed[key]); }
+      catch (_) { delete parsed[key]; dropped = true; }
+    }
     if (dropped) settingsFileCorrupt = true;
     return parsed;
   } catch (err) {
@@ -3256,6 +3280,12 @@ function loadWatchLibrary() {
 
 function loadWatchLibraryAll() {
   return watchLibraryStore().loadAll();
+}
+
+// Bozuk kütüphane dosyasında store kasıtlı fırlatır (veri korunur); tanı
+// anlık görüntüsü bu yüzden başarısız olmasın.
+function safeWatchLibraryEntryCount() {
+  try { return loadWatchLibrary().length; } catch (_) { return -1; }
 }
 
 function saveWatchLibrary(list, options = {}) {
@@ -8880,7 +8910,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const device = ['cpu', 'cuda'].includes(ui.device) ? ui.device : 'cuda';
   const computeType = String(ui.computeType || (device === 'cuda' ? 'float16' : 'int8')).slice(0, 32);
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
-  const script = path.join(app.getAppPath(), 'backend', 'live_asr.py');
+  const script = path.join(appResourceRoot(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
   const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
@@ -8947,7 +8977,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const launch = (nextDevice, nextComputeType) => {
     const proc = spawn(resolvePython(), [script, '--model', model, '--device', nextDevice,
       '--compute-type', nextComputeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
-    { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    { cwd: appResourceRoot(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     job.proc = proc;
     job.device = nextDevice;
     job.computeType = nextComputeType;
@@ -13692,7 +13722,7 @@ async function collectResourceSoakSnapshot(label, cycle) {
       hlsFetchedStreams: browserHlsFetchedSegments.size,
       hlsInFlight: browserHlsInFlight.size,
       subtitleSearchCache: subtitleSearchCache.size,
-      watchLibraryEntries: loadWatchLibrary().length,
+      watchLibraryEntries: safeWatchLibraryEntryCount(),
     },
     disk: { browserSubtitleFiles: subtitleUsage.count, browserSubtitleBytes: subtitleUsage.bytes },
     io: tracker.io,
@@ -14032,7 +14062,8 @@ function titleBarOverlayForTheme(theme) {
 // Kritik-olmayan eksikler (ör. backend betiği) sadece uyarı olarak günlüklenir —
 // tarayıcı yüzeyi onlarsız da kullanılabilir.
 function verifyAppResources() {
-  const appDir = app.getAppPath();
+
+  const appDir = appResourceRoot();
   let manifest;
   try { manifest = require('../tools/package-manifest'); } catch (_) { manifest = null; }
   // Denetim kümesi: BOOT_CRITICAL + src/main.js'in yerel require kapanışı.
@@ -17626,7 +17657,7 @@ ipcMain.handle('browser:research:export', async (event, request = {}) => {
 
 function runAnkiExport(annotations, outputPath, deckName) {
   if (ankiExportJob) return Promise.resolve({ ok: false, error: 'Anki dışa aktarımı zaten çalışıyor.' });
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const script = path.join(appDir, 'backend', 'export_anki.py');
   if (!fs.existsSync(script)) return Promise.resolve({ ok: false, error: 'Anki dışa aktarım yardımcısı bulunamadı.' });
   const input = Buffer.from(JSON.stringify({ annotations }), 'utf8');
@@ -17850,7 +17881,13 @@ function probeCommand(cmd, cmdArgs) {
     // stderr okunmazsa pipe tamponu dolup child'ı kilitleyebilir; stdout da
     // sınırsız birikmemeli (bozuk bir binary sonsuz çıktı basabilir).
     if (p.stderr) p.stderr.resume();
-    if (p.stdout) p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    if (p.stdout) {
+      // chunk başına ham Buffer → string dönüşümü, chunk sınırında bölünen
+      // UTF-8 dizilerini U+FFFD ile bozardı; akışın kendi dekoderi sınırları
+      // doğru birleştirir.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    }
     p.on('close', (code) => {
       if (code !== 0) return finish(null);
       finish((out.split(/\r?\n/)[0] || '').trim() || null);
@@ -17861,7 +17898,7 @@ function probeCommand(cmd, cmdArgs) {
 // Açılış ortam kontrolü: venv, ffmpeg ve GPU adı
 ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const pythonPath = resolvePython();
   const venvPy = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
   const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', venvPy))
@@ -17896,7 +17933,7 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
 
 ipcMain.handle('models:status', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  return { ok: true, ...scanModelCache(app.getAppPath()) };
+  return { ok: true, ...scanModelCache(appResourceRoot()) };
 });
 
 // F18: önbellek temizliği — her zaman açık kullanıcı onayı (native dialog),
@@ -17909,7 +17946,7 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
   if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Model işi çalışırken önbellek silinemez.' };
   }
-  const status = scanModelCache(app.getAppPath());
+  const status = scanModelCache(appResourceRoot());
   const entry = status.models.find((m) => m.id === model);
   if (!entry?.cached) return { ok: false, error: 'Model önbellekte bulunamadı.' };
   const sizeText = entry.sizeBytes ? ` (${Math.round(entry.sizeBytes / 1048576)} MB)` : '';
@@ -17925,7 +17962,7 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
     noLink: true,
   });
   if (confirm.response !== 0) return { ok: false, canceled: true };
-  return deleteCachedModel(app.getAppPath(), model);
+  return deleteCachedModel(appResourceRoot(), model);
 });
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
@@ -17955,7 +17992,7 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   const seconds = Number.isFinite(requestedSeconds) ? Math.max(30, Math.min(120, Math.round(requestedSeconds))) : 30;
   const requestedStart = Number(options.start);
   const start = Number.isFinite(requestedStart) ? Math.max(0, Math.min(24 * 60 * 60, requestedStart)) : 0;
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const localFfmpeg = path.join(appDir, 'backend', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
   const args = [path.join(appDir, 'backend', 'model_benchmark.py'),
     '--model', model, '--device', device, '--compute-type', computeType,
@@ -18431,7 +18468,7 @@ ipcMain.handle('settings:import', async (event) => {
 // ffmpeg/ffprobe yolu: önce backend/bin, sonra PATH
 function resolveFfTool(name) {
   const exeName = process.platform === 'win32' ? `${name}.exe` : name;
-  const local = path.join(app.getAppPath(), 'backend', 'bin', exeName);
+  const local = path.join(appResourceRoot(), 'backend', 'bin', exeName);
   return fs.existsSync(local) ? local : name;
 }
 
@@ -18470,13 +18507,18 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     }, 30000);
     timer.unref?.();
     p.on('error', () => finish({ ok: false, tracks: [] }));
-    if (p.stdout) p.stdout.on('data', (d) => {
-      if (settled) return;
-      if (out.length + d.length > 4 * 1024 * 1024) {
-        terminateProcessTree(p, { spawn });
-        finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
-      } else out += d;
-    });
+    if (p.stdout) {
+      // ffprobe çıktısında iz başlıkları UTF-8 olabilir ('Türkçe altyazı');
+      // Buffer→string per-chunk dönüşümü sınırda bölünen diziyi bozardı.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => {
+        if (settled) return;
+        if (out.length + d.length > 4 * 1024 * 1024) {
+          terminateProcessTree(p, { spawn });
+          finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
+        } else out += d;
+      });
+    }
     p.on('close', (code) => {
       if (settled) return;
       if (code !== 0) return finish({ ok: false, tracks: [] });
@@ -19187,7 +19229,7 @@ ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
 });
 
 function resolvePython() {
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const binDir = process.platform === 'win32' ? 'Scripts' : 'bin';
   const exeNames = process.platform === 'win32' ? ['python.exe', 'python3.exe'] : ['python3', 'python'];
   const candidates = [];
@@ -19306,7 +19348,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     return { ok: false, cancelled: true, error: 'İş başlatılırken iptal edildi.' };
   }
 
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const scriptPath = path.join(appDir, 'backend', 'transcribe.py');
   const pythonPath = resolvePython();
 
@@ -19787,7 +19829,7 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
     return { ok: false, error: 'Python sanal ortamı (venv) bulunamadı. Önce install.bat çalıştırın.' };
   }
   return new Promise((resolve) => {
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'update_ytdlp.py');
     const root = ytdlpRuntimeRoot(app.getPath('userData'));
     let out = '';

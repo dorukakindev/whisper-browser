@@ -244,6 +244,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // transcribe:start spawn'dan önce backend/transcribe.py varlığını kontrol
       // eder (R317) — sahte appDir'a stub betik dosyası konur.
       app: { getAppPath: () => fakeAppDir, getPath: () => os.tmpdir() }, path, Buffer, fs,
+      appResourceRoot: () => fakeAppDir,
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath,
       loadSettings: () => ({
@@ -303,6 +304,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       // transcribe.py varlık kontrolü (R317) depo kökünden geçer.
       app: { getAppPath: () => path.join(__dirname, '..'), getPath: () => os.tmpdir() }, path, Buffer, fs,
+      appResourceRoot: () => path.join(__dirname, '..'),
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath, canonicalLocalPath,
       MEDIA_EXTS: new Set(['mp4', 'mkv']),

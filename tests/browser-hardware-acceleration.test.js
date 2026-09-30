@@ -18,10 +18,12 @@ for (const [stored, disabled] of [
   [JSON.stringify({ ui: { browserHardwareAcceleration: 'false' } }), 0],
 ]) {
   let calls = 0;
+  const { scanJsonShape, DANGEROUS_KEYS } = require('../src/settings-security');
   vm.runInNewContext(readSettings + startup, {
     settingsPath: () => 'synthetic-settings.json',
     fs: { readFileSync() { if (stored === undefined) throw new Error('ENOENT'); return stored; } },
     app: { disableHardwareAcceleration() { calls++; } },
+    scanJsonShape, DANGEROUS_KEYS,
   });
   assert.strictEqual(calls, disabled, `Unexpected startup behavior: ${stored}`);
 }
