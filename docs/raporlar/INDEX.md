@@ -7,7 +7,6 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
-| 236 | [BROWSER_BUG_REPORT_236.md](BROWSER_BUG_REPORT_236.md) | R287: argv kaçış matrisi — seçenek-enjeksiyonu `=` biçimine bağlandı (39 seçenek/54 itim) |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |
@@ -206,3 +205,4 @@ tarih sırasıyla dosya adından okunur.
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
+| 236 | [BROWSER_BUG_REPORT_236.md](BROWSER_BUG_REPORT_236.md) | R287: argv kaçış matrisi — seçenek-enjeksiyonu `=` biçimine bağlandı (39 seçenek/54 itim) |

@@ -13,7 +13,14 @@ const { pushBoundOption, argvHasUnboundOptionValue } = require('../src/argv-esca
 const { findTestPython } = require('./python-runtime');
 
 let passed = 0;
-const test = (name, fn) => { fn(); passed += 1; console.log('  ✓', name); };
+let skipped = 0;
+const test = (name, fn) => {
+  const skipsBefore = skipped;
+  fn();
+  // skip() ile çıkan kontrol "geçti" sayılmaz — ayrı sayaçta tutulur.
+  if (skipped === skipsBefore) { passed += 1; console.log('  ✓', name); }
+};
+const skip = () => { skipped += 1; };
 
 test('pushBoundOption: normal değer iki-parça, -li değer tek-parça', () => {
   const a = [];
@@ -89,8 +96,8 @@ test('matris: main.js pushBoundOption adları gerçek argparse ile -li değeri k
   // bulunamazsa matrisin argparse ayağı atlanır, kaynak taraması sürer.
   const python = findTestPython();
   if (!python) {
+    skip();
     console.log('  SKIP argparse ayağı: yorumlayıcı bulunamadı');
-    passed += 1;
     return;
   }
   const res = spawnSync(python, ['-c', py, JSON.stringify(names), JSON.stringify(argv)],
@@ -104,4 +111,4 @@ test('matris: main.js pushBoundOption adları gerçek argparse ile -li değeri k
   }
 });
 
-console.log(`PASS: argv-escape-matrix (${passed} kontrol)`);
+console.log(`PASS: argv-escape-matrix (${passed} kontrol${skipped ? `, ${skipped} atlandı` : ''})`);
