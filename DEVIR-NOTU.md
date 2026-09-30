@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0528.md](docs/devir/2026-09-30-0528.md) — R307: arka-plan sekme unload retry-state (dirilişte taze bütçe + cloudflare timer temizliği)
+Güncel çalışma: [docs/devir/2026-09-30-0545.md](docs/devir/2026-09-30-0545.md) — R308: mini oynatıcı × bellekten boşaltma (mini pencere ölü kare bırakmıyor)
+Önceki çalışma: [docs/devir/2026-09-30-0528.md](docs/devir/2026-09-30-0528.md) — R307: arka-plan sekme unload retry-state (dirilişte taze bütçe + cloudflare timer temizliği)
 Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
 Önceki çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-30-1745.md](docs/devir/2026-09-30-1745.md) — R304: yer-imi içe aktarma bozuk-veri matrisi — jsessionid sızıntısı + visitedAt kapısı

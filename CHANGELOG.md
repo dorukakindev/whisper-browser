@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R308: bellekten boşaltılan sekme görünümü mini oynatıcıya taşınmışsa mini pencere de kapanır (önceden ölü son kareyle açık kalıyordu).
 - R307: bellekten boşaltılan sekme yeniden açıldığında tükenmiş yeniden-deneme/çökme bütçesini devralmıyor (önceden dirilen sekme ilk sayfa hatasında anında retry-limit diyaloğu açıyor, ilk çökmede otomatik diriliş yapılmıyordu); boşaltmada cloudflare sorgu zamanlayıcısı da temizlenir.
 - R306: tükenen sayfa yeniden-deneme bütçesi artık yeni adrese sızmıyor (önceden yeni sitenin ilk hatası anında retry-limit diyaloğu açıyordu); manga "Başarısızları yeniden dene" sayısı gezinme/çökme/temizlikte sıfırlanır.
 
