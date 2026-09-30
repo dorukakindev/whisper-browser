@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 269 | [BROWSER_BUG_REPORT_269.md](BROWSER_BUG_REPORT_269.md) | BROWSER_BUG_REPORT_269 — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı) |
 | 268 | [BROWSER_BUG_REPORT_268.md](BROWSER_BUG_REPORT_268.md) | BROWSER_BUG_REPORT_268 — R319: PR #265 Devin Review triage (4 kod düzeltmesi) |
 | 267 | [BROWSER_BUG_REPORT_267.md](BROWSER_BUG_REPORT_267.md) | BROWSER_BUG_REPORT_267 — R318: Devin Review toplu triage #236–#263 (14 kod düzeltmesi) |
 | 266 | [BROWSER_BUG_REPORT_266.md](BROWSER_BUG_REPORT_266.md) | BROWSER_BUG_REPORT_266 — R317: paket bütünlüğü manifesti + açılış erken uyarısı |

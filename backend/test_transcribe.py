@@ -4549,6 +4549,33 @@ def test_r51_86_nan_timestamps_never_reach_output_or_span_boundaries():
         except (ValueError, RuntimeError):
             pass
 
+
+def test_compute_media_duration_does_not_double_subtract_clip_start():
+    """Kırpılmış WAV'ın süresi info.duration'dadır; clip_start ikinci kez düşülmez.
+
+    60 sn kaynak + clip_start=10 → kırpılmış WAV 50 sn. Eski kod 50-10=40
+    hesaplıyor ve RTF/medya süresini düşük raporluyordu.
+    """
+    assert T.compute_media_duration(50.0, 10.0, None) == 50.0
+    # Devam modu: ses resume noktasından çıkarıldı → info.duration kalan süre.
+    assert T.compute_media_duration(3000.0, 600.0, None) == 3000.0
+    # clip_end penceresi içinde normal aralık.
+    assert T.compute_media_duration(40.0, 10.0, 50.0) == 40.0
+    # clip_end kaynağın sonunu aşarsa gerçek işlenen süre korunur.
+    assert T.compute_media_duration(50.0, 10.0, 90.0) == 50.0
+    # duration bilinmiyorsa pencere tek tahmindir.
+    assert T.compute_media_duration(0.0, 10.0, 50.0) == 40.0
+    # Kırpma yok → motor süresi olduğu gibi.
+    assert T.compute_media_duration(123.5, None, None) == 123.5
+
+
+def test_same_word_hallucination_is_case_insensitive():
+    """Karışık büyük/küçük harfli tekrar döngüsü de sert işaret sayılır."""
+    assert T.is_hallucination("No no NO no no")
+    assert T.should_skip_hallucination("evet Evet EVET evet evet")
+    assert not T.is_hallucination("Hayır hayır ama belki evet.")
+    assert not T.is_hallucination("No no no no")  # 4 < 5 eşik
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
