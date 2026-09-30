@@ -9,8 +9,9 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const rendererSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
-const helpersSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer-helpers.js'), 'utf8');
+// Windows CI checkout'ı CRLF üretir — fonksiyon-sonu taraması LF'e normalize edilir.
+const rendererSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8').replace(/\r\n/g, '\n');
+const helpersSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer-helpers.js'), 'utf8').replace(/\r\n/g, '\n');
 
 let passed = 0;
 function test(name, fn) {
