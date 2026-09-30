@@ -73,7 +73,9 @@ app.whenReady().then(async () => {
     assert(shifted.includes('00:00:06,500 --> 00:00:08,000'), 'İkinci blok kaymadı.');
     assert.equal(fs.readFileSync(srt + '.bak', 'utf8'), SRT_ORIGINAL, '.bak orijinali korumadı.');
     assert(dialogs.some(d => d.title === 'Altyazı dosyasına erişim'), 'Onay diyaloğu sorulmadı.');
-    assert((await logText()).includes('Zaman kaydırıldı (+1.5s)'), 'Başarı logu yazılmadı: ' + (await logText()));
+    // Başarı logu dosya yazımından SONRA gelir (IPC dönüşü → logLine) —
+    // dosya içeriği until'i log satırını garanti etmez; ayrıca beklenir.
+    await until(() => logText().then(t => t.includes('Zaman kaydırıldı (+1.5s)') ? t : null), 'Başarı logu');
     if (shiftInstrumented) assert.equal(await run('return window.__shiftCalls'), 1, 'Mutlu yolda IPC çağrısı 1 olmalı');
 
     // 2) Onay reddi: hiç yetkilendirilmemiş ikinci dosyada diyalog reddedilir —
