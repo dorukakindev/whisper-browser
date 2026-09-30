@@ -1,13 +1,25 @@
 'use strict';
 
+const { StringDecoder } = require('string_decoder');
+
 function createNdjsonLineBuffer(options = {}) {
   const maxLineChars = Math.max(1024, Number(options.maxLineChars) || 32 * 1024 * 1024);
   const onOverflow = typeof options.onOverflow === 'function' ? options.onOverflow : () => {};
   let pending = '';
   let dropping = false;
+  // Buffer chunk'ları StringDecoder ile birleşir — ham Buffer→string
+  // dönüşümü sınırda bölünen UTF-8 dizilerini bozardı (akışa setEncoding
+  // unutulursa bile doğru davranış).
+  let decoder = null;
 
   function push(chunk) {
-    let text = String(chunk ?? '');
+    let text;
+    if (Buffer.isBuffer(chunk)) {
+      decoder = decoder || new StringDecoder('utf8');
+      text = decoder.write(chunk);
+    } else {
+      text = String(chunk ?? '');
+    }
     const lines = [];
 
     if (dropping) {
@@ -39,6 +51,11 @@ function createNdjsonLineBuffer(options = {}) {
   }
 
   function flush() {
+    if (decoder) {
+      const tail = decoder.end();
+      if (tail) pending += tail;
+      decoder = null;
+    }
     if (dropping || !pending) {
       pending = '';
       dropping = false;
