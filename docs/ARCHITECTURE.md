@@ -48,6 +48,8 @@ flowchart LR
   every subprocess spawn (Python, ffmpeg, yt-dlp).
 - **`src/preload.js`** exposes the single `window.api` bridge. Renderer code cannot
   touch Node, `require`, or the network directly; every capability is one IPC call.
+  The full channel list lives in `docs/IPC-KATALOG.md` (regenerate it from
+  `src/main.js` when channels change).
 - **`src/renderer/`** is a single-page sandboxed UI. `renderer.js` holds view state
   and DOM logic; feature modules (`browser-*.js`, `queue-lifecycle.js`,
   `status-copy.js`, …) are plain scripts loaded before it.
