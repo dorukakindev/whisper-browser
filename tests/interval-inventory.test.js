@@ -28,7 +28,7 @@ function listJsFiles(dir, relBase = dir) {
   const out = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, entry.name);
-    const rel = path.relative(relBase, p);
+    const rel = path.relative(relBase, p).split(path.sep).join('/');
     if (entry.isDirectory()) {
       if (rel === 'renderer/vendor' || rel === 'node_modules') continue; // vendored/minified
       out.push(...listJsFiles(p, relBase));
@@ -52,7 +52,7 @@ describe('R324-3: interval envanteri — her setInterval ya eşli ya whitelist',
     const violations = [];
     const files = listJsFiles(SRC);
     for (const file of files) {
-      const rel = path.relative(SRC, file);
+      const rel = path.relative(SRC, file).split(path.sep).join('/');
       const text = fs.readFileSync(file, 'utf8');
       const lines = text.split('\n');
       const bare = [];
