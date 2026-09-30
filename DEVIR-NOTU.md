@@ -184,7 +184,6 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
-||||||| dd61d77
 # Devir notları indeksi
 Önceki çalışma: [2026-09-27 14:05 — R163 kaynak sızıntı envanteri + ratchet (bug yok)](docs/devir/2026-09-27-1405.md).
 Önceki çalışma: [2026-09-27 13:50 — R162 unhandled-rejection + atomik-yazma kalan süpürme ratchet'ları (bug yok)](docs/devir/2026-09-27-1350.md).
