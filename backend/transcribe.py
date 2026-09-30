@@ -9311,6 +9311,19 @@ def main():
             reexport_from_json(args)
         else:
             transcribe(args)
+    except KeyboardInterrupt:
+        # Bağımsız çalıştırmada Ctrl+C: protokol gereği her başarısızlık error
+        # olayı üretir; işlem kuyruğu gibi gören istemci gövdesiz iz kalmasın.
+        try:
+            from pipeline_control import rollback_open_output_transactions
+            rollback_open_output_transactions()
+        except Exception:
+            pass
+        try:
+            emit("error", message="İşlem kesildi (Ctrl+C)", kind="cancelled")
+        except Exception:
+            pass
+        sys.exit(130)
     except Exception as e:
         # Yarım kalan çıktı işlemi journal/.tmp bırakmasın (bkz. pipeline_control).
         try:

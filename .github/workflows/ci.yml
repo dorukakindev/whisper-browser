@@ -9,9 +9,17 @@ on:
 permissions:
   contents: read
 
+# Aynı ref'e ard arda push'lanınca bayat koşuyu iptal et (PR dalı
+# churn'ünde iki bacaklı matris boş yere koşmasın).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    # Asılı test süreci default 360 dk'yı yakmasın; tipik koşu ~15 dk.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
