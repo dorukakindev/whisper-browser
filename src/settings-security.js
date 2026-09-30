@@ -404,6 +404,9 @@ function sanitizePlayerPositions(value) {
   const keys = Object.keys(value).slice(-60);
   for (const rawKey of keys) {
     const key = boundedString(rawKey, 'Oynatıcı konum anahtarı', 4000);
+    // `clean[key] = ...` __proto__ anahtarında prototipi ezer; doğrudan
+    // çağrı taramasız da güvenli olsun.
+    if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) continue;
     const item = value[rawKey];
     if (!isPlainRecord(item)) throw new SettingsValidationError('Oynatıcı konumu nesne olmalıdır.');
     const t = Number(item.t);
@@ -871,6 +874,7 @@ function buildSecretEnv(baseEnv, options) {
 
 module.exports = {
   BACKUP_VERSION,
+  DANGEROUS_KEYS,
   MAX_IMPORT_BYTES,
   MAX_JSON_DEPTH,
   MAX_JSON_NODES,

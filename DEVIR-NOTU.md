@@ -20,6 +20,11 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-30-1129.md](docs/devir/2026-09-30-1129.md) — R324-5: listener-çifti süpürme — kalıcı emitter tekil-kayıt ratchet (temiz, R324 grubu kapandı)
 Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
 Önceki çalışma: [docs/devir/2026-09-30-1120.md](docs/devir/2026-09-30-1120.md) — R324-3: interval envanteri ratchet (11 eşli + 6 bilinçli singleton)
+Önceki çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
+Önceki çalışma: [docs/devir/2026-09-30-1113.md](docs/devir/2026-09-30-1113.md) — R324-1: sekme×görünüm yarış matrisi — boşaltma kapısı hostile fuzz (temiz) + 9 kilit
+Önceki çalışma: [docs/devir/2026-09-30-1107.md](docs/devir/2026-09-30-1107.md) — R323-7: bırakılan link seçimi uri-list spec + fuzz (B-323-05)
+Önceki çalışma: [docs/devir/2026-09-30-1051.md](docs/devir/2026-09-30-1051.md) — R323-6: NDJSON olay-akışı fuzz'ı (B-323-04 UTF-8 chunk-sınırı bozulması + 9 test ratchet'i)
+Önceki çalışma: [docs/devir/2026-09-30-1043.md](docs/devir/2026-09-30-1043.md) — R323-5: ayar hostile-deserialize — okuma-yolu tarama kapısı (B-323-03)
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
 Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
@@ -30,6 +35,7 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-30-1001.md](docs/devir/2026-09-30-1001.md) — R321: sayfasız sekme ikincil görünüme seçilemez (ölü yarı engeli)
 Önceki çalışma: [docs/devir/2026-09-30-0948.md](docs/devir/2026-09-30-0948.md) — R320-2: split/wrap/zamanlama derin okuma (temiz) + invariant fuzz
 Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0928.md](docs/devir/2026-09-30-0928.md) — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı)
 Önceki çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.md) — R283: çeviri prompt'u golden-snapshot kilidi (5+3 varyant byte-exact + model tablosu)
 Önceki çalışma: [docs/devir/2026-09-30-0905.md](docs/devir/2026-09-30-0905.md) — R319: PR #265 Devin Review triage (4 bug + 2 flag)
 Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
