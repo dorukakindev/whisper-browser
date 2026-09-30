@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 251 | [BROWSER_BUG_REPORT_251.md](BROWSER_BUG_REPORT_251.md) | R302 — subs:shift ±ms doğruluk ratchet'i (12 senaryo, bug yok) |
 | 250 | [BROWSER_BUG_REPORT_250.md](BROWSER_BUG_REPORT_250.md) | R301 — Kuyruk öncelik/sıra invariant'ları: FIFO+retry+dedupe+kapı ratchet'i (bug yok) |
 | 249 | [BROWSER_BUG_REPORT_249.md](BROWSER_BUG_REPORT_249.md) | R300 — Önizleme/favicon görüntü-sink güvenliği: safeRemoteImageUrl kapısı (2 boşluk) |
 | 248 | [BROWSER_BUG_REPORT_248.md](BROWSER_BUG_REPORT_248.md) | R299 — settings export↔import tam-tur ratchet'i (temiz tur) |
