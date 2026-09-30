@@ -31,7 +31,7 @@ test('LOG_MAX_BYTES sabiti tanımlı ve günlük nesnesi bayt/kesim alanları ta
   assert.match(SRC, /const LOG_MAX_BYTES = \d+ \* 1024 \* 1024/);
   // Sayacın ekleme kipinde mevcut dosya boyutundan + başlıktan başlaması
   // şart — 0'dan başlasaydı aynı-adlı dosya 4 MB sınırını sessizce aşardı.
-  assert.match(SRC, /jobLog = \{ file, stream, bytes: initialBytes \+ Buffer\.byteLength\(header\), truncated: false \}/);
+  assert.match(SRC, /jobLog = \{ file, stream, bytes: initialBytes \+ headerBytes, truncated: false \}/);
   assert.match(SRC, /GÜNLÜK SINIRI/, 'kesim işareti metni eksik');
 });
 
