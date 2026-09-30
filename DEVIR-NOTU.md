@@ -1,52 +1,52 @@
-Güncel çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
+Güncel çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
+Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
+Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
+Önceki çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
+Önceki çalışma: [docs/devir/2026-09-30-1745.md](docs/devir/2026-09-30-1745.md) — R304: yer-imi içe aktarma bozuk-veri matrisi — jsessionid sızıntısı + visitedAt kapısı
+Önceki çalışma: [docs/devir/2026-09-30-1730.md](docs/devir/2026-09-30-1730.md) — R303: review triage — emoji/UTF-16 map hizası + #247 belge flag'leri
+Önceki çalışma: [docs/devir/2026-09-30-1710.md](docs/devir/2026-09-30-1710.md) — R302: subs:shift ±ms doğruluk ratchet'i (12 senaryo + fuzz, bug yok)
+Önceki çalışma: [docs/devir/2026-09-30-1700.md](docs/devir/2026-09-30-1700.md) — R301: kuyruk sıra invariant'ları (paralel dalda)
+Önceki çalışma: [docs/devir/2026-09-30-1630.md](docs/devir/2026-09-30-1630.md) — R300: önizleme/favicon görüntü-sink güvenlik kapıları (2 boşluk kapandı)
+Önceki çalışma: [docs/devir/2026-09-30-1600.md](docs/devir/2026-09-30-1600.md) — R299: settings export↔import tam-tur ratchet'i
+Önceki çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage
+Önceki çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
+Önceki çalışma: [docs/devir/2026-09-30-1430.md](docs/devir/2026-09-30-1430.md) — R296: çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok)
+Önceki çalışma: [docs/devir/2026-09-30-1400.md](docs/devir/2026-09-30-1400.md) — R295: CI determinizm denetimi + baseline ratchet (2 küçük düzeltme, bug yok)
+Önceki çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
+Önceki çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.md) — R292: review flag süpürmesi (üretim okuyucusu eval + ham bayt + DEVIR-NOTU sıralaması)
+Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
+Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
+Önceki çalışma: [docs/devir/2026-09-30-1135.md](docs/devir/2026-09-30-1135.md) — R291: sekme/oturum persist bozuk-veri matrisi (402 kontrol)
+Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
 Önceki çalışma: [docs/devir/2026-09-30-1129.md](docs/devir/2026-09-30-1129.md) — R324-5: listener-çifti süpürme — kalıcı emitter tekil-kayıt ratchet (temiz, R324 grubu kapandı)
-Güncel çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
+Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
+Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
+Önceki çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
 Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
+Önceki çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
 Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
 Önceki çalışma: [docs/devir/2026-09-30-1001.md](docs/devir/2026-09-30-1001.md) — R321: sayfasız sekme ikincil görünüme seçilemez (ölü yarı engeli)
 Önceki çalışma: [docs/devir/2026-09-30-0948.md](docs/devir/2026-09-30-0948.md) — R320-2: split/wrap/zamanlama derin okuma (temiz) + invariant fuzz
+Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.md) — R283: çeviri prompt'u golden-snapshot kilidi (5+3 varyant byte-exact + model tablosu)
 Önceki çalışma: [docs/devir/2026-09-30-0905.md](docs/devir/2026-09-30-0905.md) — R319: PR #265 Devin Review triage (4 bug + 2 flag)
-Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
+Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
+Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
 Önceki çalışma: [docs/devir/2026-09-30-0740.md](docs/devir/2026-09-30-0740.md) — R317: paket bütünlüğü manifesti + erken eksik-dosya uyarısı
 Önceki çalışma: [docs/devir/2026-09-30-0729.md](docs/devir/2026-09-30-0729.md) — R316: dokunmatik sürükleme tutamaçları (pointercancel + touch-action + resizer pointer)
 Önceki çalışma: [docs/devir/2026-09-30-0714.md](docs/devir/2026-09-30-0714.md) — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim roundtrip)
+Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0654.md](docs/devir/2026-09-30-0654.md) — R314: iş günlüğü bayt sınırı (4MB kesim işareti)
 Önceki çalışma: [docs/devir/2026-09-30-0637.md](docs/devir/2026-09-30-0637.md) — R313: disk-dolu matrisi — iş günlüğü 'error' çöküşü + atomik dışa aktarımlar
 Önceki çalışma: [docs/devir/2026-09-30-0626.md](docs/devir/2026-09-30-0626.md) — R312: PDF büyük-belge sınırı (tembel çıkarma + tahliye + onay)
+Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
 Önceki çalışma: [docs/devir/2026-09-30-0618.md](docs/devir/2026-09-30-0618.md) — R311: SmartTube kanal/playlist derinliği (4 sayfalama bugı)
 Önceki çalışma: [docs/devir/2026-09-30-0610.md](docs/devir/2026-09-30-0610.md) — R310: derin-link yüzey denetimi (yüzey sıfır + negatif ratchet)
 Önceki çalışma: [docs/devir/2026-09-30-0600.md](docs/devir/2026-09-30-0600.md) — R309: yt-dlp rollback derinliği (yarım silinmiş paket previous'a düşer)
 Önceki çalışma: [docs/devir/2026-09-30-0545.md](docs/devir/2026-09-30-0545.md) — R308: mini oynatıcı × bellekten boşaltma (mini pencere ölü kare bırakmıyor)
 Önceki çalışma: [docs/devir/2026-09-30-0528.md](docs/devir/2026-09-30-0528.md) — R307: arka-plan sekme unload retry-state (dirilişte taze bütçe + cloudflare timer temizliği)
-Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
-Önceki çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
-Önceki çalışma: [docs/devir/2026-09-30-1745.md](docs/devir/2026-09-30-1745.md) — R304: yer-imi içe aktarma bozuk-veri matrisi — jsessionid sızıntısı + visitedAt kapısı
-Önceki çalışma: [docs/devir/2026-09-30-1730.md](docs/devir/2026-09-30-1730.md) — R303: review triage — emoji/UTF-16 map hizası + #247 belge flag'leri
-Önceki çalışma: [docs/devir/2026-09-30-1630.md](docs/devir/2026-09-30-1630.md) — R300: önizleme/favicon görüntü-sink güvenlik kapıları (2 boşluk kapandı)
-Önceki çalışma: [docs/devir/2026-09-30-1710.md](docs/devir/2026-09-30-1710.md) — R302: subs:shift ±ms doğruluk ratchet'i (12 senaryo + fuzz, bug yok)
-Önceki çalışma: [docs/devir/2026-09-30-1700.md](docs/devir/2026-09-30-1700.md) — R301: kuyruk sıra invariant'ları (paralel dalda)
-Önceki çalışma: [docs/devir/2026-09-30-1600.md](docs/devir/2026-09-30-1600.md) — R299: settings export↔import tam-tur ratchet'i
-Önceki çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage
-Önceki çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
-Önceki çalışma: [docs/devir/2026-09-30-1135.md](docs/devir/2026-09-30-1135.md) — R291: sekme/oturum persist bozuk-veri matrisi (402 kontrol)
-Önceki çalışma: [docs/devir/2026-09-30-1430.md](docs/devir/2026-09-30-1430.md) — R296: çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok)
-Önceki çalışma: [docs/devir/2026-09-30-1400.md](docs/devir/2026-09-30-1400.md) — R295: CI determinizm denetimi + baseline ratchet (2 küçük düzeltme, bug yok)
-Önceki çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
-Önceki çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.md) — R292: review flag süpürmesi (üretim okuyucusu eval + ham bayt + DEVIR-NOTU sıralaması)
-Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
-Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
-Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
-Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
-Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
-Önceki çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
-Önceki çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.md) — R283: çeviri prompt'u golden-snapshot kilidi (5+3 varyant byte-exact + model tablosu)
-Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
-Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)
-Önceki çalışma: [docs/devir/2026-09-30-0800.md](docs/devir/2026-09-30-0800.md) — R281: depo yazım dayanıklılığı (fsync töreni tüm depolara) + Devin Review toplu triage
-Önceki çalışma: [docs/devir/2026-09-30-0710.md](docs/devir/2026-09-30-0710.md) — R280: SponsorBlock gövde-askısı düzeltildi + TTL/anahtar stresi (temiz)
-Önceki çalışma: [docs/devir/2026-09-30-0624.md](docs/devir/2026-09-30-0624.md) — R279: canlı ASR derin turu — displayMedia alt-kare kapatıldı + worklet 13 senaryo
 Önceki çalışma: [docs/devir/2026-09-30-0430.md](docs/devir/2026-09-30-0430.md) — R278: oynatıcı zamanlama fuzz'ı (nextCueBoundaryAt ≡ oracle + playbackLearningAction invariant matrisi)
 Önceki çalışma: [docs/devir/2026-09-30-0400.md](docs/devir/2026-09-30-0400.md) — R277: pencere durumu saf modül + kelepçe kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0345.md](docs/devir/2026-09-30-0345.md) — R276: ASS/SSA override roundtrip kilidi (\an/\pos/\i1; temiz)
@@ -183,7 +183,6 @@ Güncel çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.m
 Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
-
 # Devir notları indeksi
 Önceki çalışma: [2026-09-27 14:05 — R163 kaynak sızıntı envanteri + ratchet (bug yok)](docs/devir/2026-09-27-1405.md).
 Önceki çalışma: [2026-09-27 13:50 — R162 unhandled-rejection + atomik-yazma kalan süpürme ratchet'ları (bug yok)](docs/devir/2026-09-27-1350.md).
