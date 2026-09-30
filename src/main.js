@@ -15117,6 +15117,9 @@ async function unloadBrowserTab(rawId) {
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
   cancelBrowserPermissionRequestsForTab(tab, 'Sekme bellekten boşaltıldığı için izin isteği engellendi.');
   browserExtras?.cancel(tab);
+  // Görünümü mini oynatıcıya taşınmış sekme boşaltılırsa mini pencere ölü
+  // kareyle açık kalıyordu; sekme nesnesi yaşasa da görünüm ölüyor.
+  if (browserExtras?.mini.owns(tab)) browserExtras.mini.close();
   stopBrowserManga(tab, false);
   stopBrowserPageTranslation(tab, false);
   tab.translationScheduler?.cancelAll('Sekme bellekten boşaltıldı.');
