@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-2100.md](docs/devir/2026-09-30-2100.md) — R330-1: doküman senkron turu + IPC kataloğu (50'lik kuyruk tamam)
+Güncel çalışma: [docs/devir/2026-09-30-2115.md](docs/devir/2026-09-30-2115.md) — R327-5: test paketi hız profili + test-timing.mjs (50'lik kuyruk kapandı)
+Önceki çalışma: [docs/devir/2026-09-30-2100.md](docs/devir/2026-09-30-2100.md) — R330-1: doküman senkron turu + IPC kataloğu
 Önceki çalışma: [docs/devir/2026-09-30-2045.md](docs/devir/2026-09-30-2045.md) — R330-2: açık kararlar indeksi (docs/ACIK-KARARLAR.md)
 Önceki çalışma: [docs/devir/2026-09-30-2030.md](docs/devir/2026-09-30-2030.md) — R329-4: rota dedupe host-bazlı (B-329-03) + sağlayıcı varyant matrisi
 Önceki çalışma: [docs/devir/2026-09-30-2015.md](docs/devir/2026-09-30-2015.md) — R329-3: diarization CUDA OOM'da CPU geri dönüşü (B-329-02) + 4 kilit
