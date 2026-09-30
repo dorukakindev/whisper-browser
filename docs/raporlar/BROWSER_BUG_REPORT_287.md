@@ -23,6 +23,8 @@ R327-3 (50k-cue overlay): `nextCueBoundaryAt` O(log n) indeksi (R263) doğruland
 
 R327-4 (uzun-oturum bellek): 200 döngü × (5k places + 5 sorgu) — heap 11.7 MB'de sabit, sızıntı yok. Temiz.
 
+R327-5 (test-suite hız profili): en yavaş dosya `series-memory-race.test.js` 10.9 s (kasıtlı paralel-birleştirme simülasyonu), ardından `browser-direct-media-navigation` 4.0 s, `browser-video-analysis` 3.8 s, `queue-opts-roundtrip` 3.6 s, `accessibility` 3.3 s, `ipc-payload-fuzz` 3.2 s (7881 probe), `browser-subtitle-long-timeline` 2.5 s; kalan dosyalar <2 s. Paket süresi ağır ama amaçlı testlerden geliyor — müdahale gerektirmez.
+
 ## Doğrulama
 
 - `node tests/browser-address-perf.test.js` — 5/5 (doğruluk, önbellek tazelemesi, inlineCompletion, 50k bütçe <60 ms ort., kaynak ratchet'i)
