@@ -82,7 +82,8 @@ assert.match(preload, /invidiousPlaylist/, 'preload playlist köprüsü');
 assert.match(renderer, /searchInvidiousPlaylists/, 'renderer playlist araması');
 assert.match(renderer, /renderStPlaylistRail/, 'arama üstü playlist rayı');
 assert.match(renderer, /openInvidiousPlaylistPage/, 'detay sayfası');
-assert.match(renderer, /loadInvidiousPlaylist\(playlistId, \+\+page\)/, 'sayfalama');
+assert.match(renderer, /loadInvidiousPlaylist\(playlistId, page \+ 1\)/, 'sayfalama');
+assert.match(renderer, /page \+= 1;/, 'sayfa sayacı yalnız başarıda ilerler');
 assert.match(locale, /\['Oynatma listesi', /, 'locale çifti');
 
 // --- A04 — gerçek bölüm/sekme düzeni ---
