@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
+Güncel çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
+Önceki çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-30-1745.md](docs/devir/2026-09-30-1745.md) — R304: yer-imi içe aktarma bozuk-veri matrisi — jsessionid sızıntısı + visitedAt kapısı
 Önceki çalışma: [docs/devir/2026-09-30-1730.md](docs/devir/2026-09-30-1730.md) — R303: review triage — emoji/UTF-16 map hizası + #247 belge flag'leri
 Önceki çalışma: [docs/devir/2026-09-30-1710.md](docs/devir/2026-09-30-1710.md) — R302: subs:shift ±ms doğruluk ratchet'i (12 senaryo + fuzz, bug yok)
