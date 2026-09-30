@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
+Güncel çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
+Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
 Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
 Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
