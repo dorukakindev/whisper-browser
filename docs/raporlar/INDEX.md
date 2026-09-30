@@ -205,3 +205,4 @@ tarih sırasıyla dosya adından okunur.
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
+| 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | R292 — Devin Review flag süpürmesi (üretim okuyucusu eval + ham bayt) |
