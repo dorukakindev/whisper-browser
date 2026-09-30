@@ -181,11 +181,14 @@ def _install_fake_pyannote(record, spans, fail=None, legacy=False):
                               if v is not None}
             return cls()
         def to(self, device):
-            record["to"] = device
+            record.setdefault("to", []).append(device)
         def __call__(self, audio, **kwargs):
             record["call_kwargs"] = kwargs
-            if fail:
-                raise fail
+            record["calls"] = record.get("calls", 0) + 1
+            pending = fail.pop(0) if isinstance(fail, list) and fail else (
+                None if isinstance(fail, list) else fail)
+            if pending:
+                raise pending
             class Ann:
                 def itertracks(self, yield_label=True):
                     turns = [(types.SimpleNamespace(start=s, end=e), None, sp)
@@ -312,3 +315,68 @@ def _run():
 
 if __name__ == "__main__":
     sys.exit(0 if _run() else 1)
+
+
+def _fake_load_once():
+    return mock.patch.object(
+        T, "_load_pcm_waveform_for_pyannote",
+        side_effect=lambda path, torch_mod: {"waveform": "W", "sample_rate": 16000})
+
+
+def test_run_diarization_oom_falls_back_to_cpu():
+    """CUDA OOM: pipeline CPU'ya taşınır, cache boşaltılır, bir kez yeniden denenir."""
+    record = {}
+    spans = [(0.0, 2.0, "SPEAKER_00")]
+    m1, _ = _install_fake_pyannote(record, spans, fail=[RuntimeError("CUDA out of memory")])
+    with m1, \
+         mock.patch.dict(sys.modules, {"torch": _FakeTorch(cuda_available=True)}), \
+         _fake_load_once():
+        out = T.run_diarization("a.wav", "hf-x")
+    assert out == spans
+    assert record["calls"] == 2          # OOM + CPU retry
+    assert record["to"] == ["cuda", "cpu"]  # önce CUDA'ya, sonra CPU'ya
+
+
+def test_run_diarization_oom_class_name_detection():
+    """Tip adında 'oom' geçen özel hata (torch.cuda.OutOfMemoryError sahtesi) de yakalanır."""
+    class FakeOutOfMemoryError(RuntimeError):
+        pass
+    record = {}
+    spans = [(0.0, 1.0, "SPEAKER_00")]
+    m1, _ = _install_fake_pyannote(record, spans, fail=[FakeOutOfMemoryError("alloc")])
+    with m1, \
+         mock.patch.dict(sys.modules, {"torch": _FakeTorch(cuda_available=True)}), \
+         _fake_load_once():
+        out = T.run_diarization("a.wav", "hf-x")
+    assert out == spans and record["calls"] == 2
+
+
+def test_run_diarization_non_oom_not_retried():
+    """OOM olmayan hata yeniden denenmez — tek çağrıyla yukarı fırlatılır."""
+    record = {}
+    m1, _ = _install_fake_pyannote(record, [], fail=[RuntimeError("model 404")])
+    with m1, \
+         mock.patch.dict(sys.modules, {"torch": _FakeTorch(cuda_available=True)}), \
+         _fake_load_once():
+        try:
+            T.run_diarization("a.wav", "hf-x")
+            assert False, "yükselmeliydi"
+        except RuntimeError as e:
+            assert "model 404" in str(e)
+    assert record["calls"] == 1
+
+
+def test_run_diarization_second_oom_propagates():
+    """CPU yedeği de OOM verirse hata korunarak yukarı taşınır (sonsuz döngü yok)."""
+    record = {}
+    m1, _ = _install_fake_pyannote(
+        record, [], fail=[RuntimeError("CUDA out of memory"), RuntimeError("CPU out of memory")])
+    with m1, \
+         mock.patch.dict(sys.modules, {"torch": _FakeTorch(cuda_available=True)}), \
+         _fake_load_once():
+        try:
+            T.run_diarization("a.wav", "hf-x")
+            assert False, "yükselmeliydi"
+        except RuntimeError as e:
+            assert "out of memory" in str(e)
+    assert record["calls"] == 2

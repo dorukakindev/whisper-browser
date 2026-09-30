@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-2000.md](docs/devir/2026-09-30-2000.md) — R329-2: backend çıkış-kodu sözleşmesi + KeyboardInterrupt kolu (B-329-01)
+Güncel çalışma: [docs/devir/2026-09-30-2015.md](docs/devir/2026-09-30-2015.md) — R329-3: diarization CUDA OOM'da CPU geri dönüşü (B-329-02) + 4 kilit
+Önceki çalışma: [docs/devir/2026-09-30-2000.md](docs/devir/2026-09-30-2000.md) — R329-2: backend çıkış-kodu sözleşmesi + KeyboardInterrupt kolu (B-329-01)
 Önceki çalışma: [docs/devir/2026-09-30-1945.md](docs/devir/2026-09-30-1945.md) — R329-1: yazıcı seçenek matrisi sha256 golden kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
 Önceki çalışma: [docs/devir/2026-09-30-1900.md](docs/devir/2026-09-30-1900.md) — R328-2: renderer realm sadakati ratchet'i (Node-globe yasağı + globe'siz vm probu, temiz)
