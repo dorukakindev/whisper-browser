@@ -1,0 +1,200 @@
+# Modül-bazlı test kapsam haritası
+
+Üretici: `node tools/coverage-map.js` — 181 taraf-1 modül × 397 test dosyası.
+
+| Sınıf | Adet | Anlam |
+| --- | ---: | --- |
+| direct | 170 | Test dosyası modülü require/import ediyor |
+| named | 7 | Modül adı test gövdesinde geçiyor (dolaylı/süreç-içi sürüş) |
+| none | 4 | Hiçbir testte referans yok |
+
+## none — hiç referanssız modüller
+
+- `backend/browser_media_tools.py`
+- `backend/catalog_scan.py`
+- `backend/ndjson_utils.py`
+- `backend/nmdb_catalog_import.py`
+
+## named — yalnız ad-referanslı modüller
+
+- `src/browser-mini-preload.js` — 1 test (ör. `tests/ipc-parity.test.js`)
+- `src/browser-preload.js` — 7 test (ör. `tests/browser-experience.test.js`, `tests/browser-foundation.test.js`, `tests/browser-manga.test.js`)
+- `src/main.js` — 228 test (ör. `tests/accessibility.test.js`, `tests/active-jobs-center.test.js`, `tests/adversarial-ipc.test.js`)
+- `src/preload.js` — 44 test (ör. `tests/anki-export-contract.test.js`, `tests/audit-report-regressions.test.js`, `tests/browser-adblock.test.js`)
+- `backend/browser_video_analysis.py` — 1 test (ör. `backend/test_browser_video_analysis_ocr.py`)
+- `backend/separate_dialogue.py` — 1 test (ör. `tests/package-integrity.test.js`)
+- `backend/workspace_video_package.py` — 2 test (ör. `tests/browser-report86-regressions.test.js`, `tests/workspace-video-bounds.test.js`)
+
+## direct — require/import edilen modüller
+
+- `src/argv-escape.js` — 5 test
+- `src/async-timeout.js` — 2 test
+- `src/atomic-json.js` — 2 test
+- `src/browser-acquisition.js` — 2 test
+- `src/browser-adapter-registry.js` — 2 test
+- `src/browser-adapters.js` — 2 test
+- `src/browser-adblock.js` — 1 test
+- `src/browser-address-model.js` — 6 test
+- `src/browser-ai-context.js` — 1 test
+- `src/browser-alignment.js` — 1 test
+- `src/browser-ass-renderer.js` — 1 test
+- `src/browser-asset-gc.js` — 1 test
+- `src/browser-asset-store.js` — 4 test
+- `src/browser-audio-policy.js` — 1 test
+- `src/browser-automation-rules.js` — 1 test
+- `src/browser-capture-provenance.js` — 3 test
+- `src/browser-capture-recovery.js` — 4 test
+- `src/browser-cea-captions.js` — 2 test
+- `src/browser-cea-checkpoint.js` — 4 test
+- `src/browser-cea-full-capture.js` — 3 test
+- `src/browser-chapters.js` — 1 test
+- `src/browser-cloudflare-compat.js` — 3 test
+- `src/browser-command-palette.js` — 3 test
+- `src/browser-context-menu.js` — 4 test
+- `src/browser-cosmetic-executor.js` — 1 test
+- `src/browser-cue-timeline-calibration.js` — 3 test
+- `src/browser-dark-mode.js` — 1 test
+- `src/browser-dash-capture.js` — 2 test
+- `src/browser-diagnostics-export.js` — 1 test
+- `src/browser-dialogue.js` — 1 test
+- `src/browser-downloads.js` — 2 test
+- `src/browser-drm.js` — 1 test
+- `src/browser-element-rules.js` — 2 test
+- `src/browser-event-envelope.js` — 2 test
+- `src/browser-feature-services.js` — 1 test
+- `src/browser-fonts.js` — 2 test
+- `src/browser-learning.js` — 2 test
+- `src/browser-library-tools.js` — 1 test
+- `src/browser-lifecycle-policy.js` — 3 test
+- `src/browser-link-hints.js` — 1 test
+- `src/browser-link-intent.js` — 1 test
+- `src/browser-live-audio.js` — 1 test
+- `src/browser-manga.js` — 6 test
+- `src/browser-media-controller.js` — 4 test
+- `src/browser-media-identity.js` — 5 test
+- `src/browser-media-selection.js` — 1 test
+- `src/browser-media-tools.js` — 1 test
+- `src/browser-media.js` — 1 test
+- `src/browser-mini-player.js` — 1 test
+- `src/browser-navigation-policy.js` — 4 test
+- `src/browser-network-capture.js` — 2 test
+- `src/browser-note-store.js` — 5 test
+- `src/browser-omnibox.js` — 8 test
+- `src/browser-overlay-controller.js` — 6 test
+- `src/browser-page-find.js` — 4 test
+- `src/browser-page-index.js` — 1 test
+- `src/browser-page-translate.js` — 5 test
+- `src/browser-place-url.js` — 7 test
+- `src/browser-playback-diagnostics.js` — 5 test
+- `src/browser-reader.js` — 2 test
+- `src/browser-reading-list.js` — 2 test
+- `src/browser-reference-media.js` — 1 test
+- `src/browser-research-notebook.js` — 1 test
+- `src/browser-script-execution.js` — 1 test
+- `src/browser-sensitive-keys.js` — 1 test
+- `src/browser-series-context.js` — 3 test
+- `src/browser-session-package.js` — 3 test
+- `src/browser-session-privacy.js` — 6 test
+- `src/browser-session-store.js` — 21 test
+- `src/browser-settings-registry.js` — 3 test
+- `src/browser-site-permissions.js` — 6 test
+- `src/browser-site-profiles.js` — 5 test
+- `src/browser-site-terminology.js` — 4 test
+- `src/browser-site-zoom.js` — 2 test
+- `src/browser-skip-segments.js` — 2 test
+- `src/browser-sponsorblock.js` — 3 test
+- `src/browser-subtitle-files.js` — 1 test
+- `src/browser-subtitle-output.js` — 3 test
+- `src/browser-subtitle-preferences.js` — 1 test
+- `src/browser-subtitle-review.js` — 2 test
+- `src/browser-subtitle-search.js` — 1 test
+- `src/browser-subtitle-sync.js` — 8 test
+- `src/browser-subtitles.js` — 17 test
+- `src/browser-tab-history.js` — 4 test
+- `src/browser-tab-layout.js` — 3 test
+- `src/browser-tab-resources.js` — 3 test
+- `src/browser-tabs.js` — 2 test
+- `src/browser-terminology.js` — 5 test
+- `src/browser-textutil.js` — 5 test
+- `src/browser-transcript-search.js` — 4 test
+- `src/browser-translation-archive.js` — 4 test
+- `src/browser-translation-cache.js` — 6 test
+- `src/browser-translation-integrity.js` — 3 test
+- `src/browser-translation-provider-error.js` — 2 test
+- `src/browser-translation-scheduler.js` — 18 test
+- `src/browser-video-analysis.js` — 1 test
+- `src/browser-workflow-recorder.js` — 1 test
+- `src/browser-youtube-style.js` — 1 test
+- `src/burnin-output.js` — 4 test
+- `src/catalog-discovery.js` — 1 test
+- `src/catalog-extensions.js` — 1 test
+- `src/fsync-utils.js` — 1 test
+- `src/gpu-diagnostics.js` — 1 test
+- `src/hls-recovery.js` — 1 test
+- `src/local-file-access.js` — 8 test
+- `src/manifest-transactions.js` — 1 test
+- `src/media-catalog-service.js` — 1 test
+- `src/media-catalog-store.js` — 4 test
+- `src/media-folders.js` — 2 test
+- `src/media-subtitle-tracks.js` — 2 test
+- `src/model-manager.js` — 1 test
+- `src/ndjson-lines.js` — 6 test
+- `src/nmdb-catalog-import.js` — 2 test
+- `src/opensubtitles-hash.js` — 1 test
+- `src/pdf-translate.js` — 3 test
+- `src/persistent-schema-inventory.js` — 1 test
+- `src/pipeline-job.js` — 2 test
+- `src/playback-policy.js` — 3 test
+- `src/player-task-center.js` — 1 test
+- `src/process-io.js` — 1 test
+- `src/process-lifecycle.js` — 1 test
+- `src/provider-api-keys.js` — 2 test
+- `src/provider-model-profiles.js` — 1 test
+- `src/queue-persistence.js` — 7 test
+- `src/renderer-ui-model.js` — 1 test
+- `src/resource-soak.js` — 1 test
+- `src/secret-store.js` — 6 test
+- `src/settings-security.js` — 10 test
+- `src/subscription-feed.js` — 1 test
+- `src/subscriptions-io.js` — 1 test
+- `src/subtitle-corpus-discovery.js` — 1 test
+- `src/subtitle-encoding-preview.js` — 1 test
+- `src/subtitle-export-validation.js` — 1 test
+- `src/subtitle-find-replace.js` — 2 test
+- `src/subtitle-output-contract.js` — 1 test
+- `src/subtitle-pair-quality.js` — 1 test
+- `src/subtitle-sentence-layout.js` — 5 test
+- `src/subtitle-word-sidecar.js` — 1 test
+- `src/text-stability-evaluator.js` — 1 test
+- `src/translation-diff.js` — 1 test
+- `src/translation-endpoints.js` — 2 test
+- `src/translation-model-score.js` — 1 test
+- `src/translation-provider-probe.js` — 1 test
+- `src/watch-folder.js` — 1 test
+- `src/watch-index.js` — 3 test
+- `src/watch-library-state.js` — 1 test
+- `src/watch-library-store.js` — 7 test
+- `src/watch-library-view.js` — 3 test
+- `src/window-state.js` — 1 test
+- `src/workspace-package.js` — 5 test
+- `src/workspace-video-package.js` — 3 test
+- `src/youtube-accounts.js` — 3 test
+- `src/youtube-player-response-pruner.js` — 1 test
+- `src/youtube-tv-mode.js` — 1 test
+- `src/ytdlp-runtime.js` — 1 test
+- `backend/browser_align.py` — 1 test
+- `backend/export_anki.py` — 1 test
+- `backend/invidious.py` — 2 test
+- `backend/io_errors.py` — 1 test
+- `backend/live_asr.py` — 2 test
+- `backend/media.py` — 2 test
+- `backend/model_benchmark.py` — 2 test
+- `backend/pipeline_control.py` — 2 test
+- `backend/sentence_translation.py` — 8 test
+- `backend/series_memory.py` — 2 test
+- `backend/subtitle_sdh.py` — 2 test
+- `backend/transcribe.py` — 28 test
+- `backend/translation_memory.py` — 2 test
+- `backend/update_ytdlp.py` — 1 test
+- `backend/youtube.py` — 1 test
+

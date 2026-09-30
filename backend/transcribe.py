@@ -2337,6 +2337,18 @@ def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
     }
 
 
+def _is_oom_error(exc):
+    """CUDA/ayırıcı OOM sınıfı: tip adı 'oom' içeren veya mesajı bellek
+    tahsisi hatası gösteren istisnalar (torch.cuda.OutOfMemoryError,
+    CUBLAS/cuDNN alloc hataları)."""
+    name = type(exc).__name__.lower()
+    if "oom" in name or "outofmemory" in name:
+        return True
+    msg = str(exc).lower()
+    return ("out of memory" in msg or "cublas_status_alloc" in msg
+            or "cudnn_status_alloc" in msg)
+
+
 def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
     """
     pyannote.audio ile konuşmacı tanıma.
@@ -2385,7 +2397,23 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
         )
         if torch.cuda.is_available():
             pipeline.to(torch.device("cuda"))
-        diarization = pipeline(diarization_audio, **kwargs)
+        try:
+            diarization = pipeline(diarization_audio, **kwargs)
+        except Exception as exc:
+            # CUDA OOM'da işi tümden düşürmek yerine CPU'ya düşüp bir kez
+            # yeniden dene — yavaş ama başarılı bir yol açılır.
+            if not (_is_oom_error(exc) and torch.cuda.is_available()):
+                raise
+            log("Konuşmacı tanıma GPU belleği doldu; CPU ile yeniden deneniyor.", "warn")
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
+            try:
+                pipeline.to(torch.device("cpu"))
+            except Exception:
+                pass
+            diarization = pipeline(diarization_audio, **kwargs)
         annotation = getattr(diarization, "speaker_diarization", diarization)
         return [(turn.start, turn.end, speaker)
                 for turn, _, speaker in annotation.itertracks(yield_label=True)]
@@ -2983,7 +3011,13 @@ def resolve_translate_routes(base_url):
     except Exception:
         host = ""
     if host in _SHUAI_HOSTS:
-        others = [u for _l, u in SHUAI_ROUTES if u.rstrip("/") != raw]
+        # Aynı endpointi iki biçimde (ör. schemesiz/büyük harf vs kanonik)
+        # yazmamak için host eşleşmesiyle düşür — dizgi eşitliğiyle yapılan
+        # dedupe 'oai.sb/v1' girdisinde aynı rotayı iki kez sıralıyordu.
+        others = [
+            u for _l, u in SHUAI_ROUTES
+            if (urlparse(u).hostname or "").lower() != host
+        ]
         return [raw] + others
     return [raw]
 
@@ -9283,6 +9317,19 @@ def main():
             reexport_from_json(args)
         else:
             transcribe(args)
+    except KeyboardInterrupt:
+        # Bağımsız çalıştırmada Ctrl+C: protokol gereği her başarısızlık error
+        # olayı üretir; işlem kuyruğu gibi gören istemci gövdesiz iz kalmasın.
+        try:
+            from pipeline_control import rollback_open_output_transactions
+            rollback_open_output_transactions()
+        except Exception:
+            pass
+        try:
+            emit("error", message="İşlem kesildi (Ctrl+C)", kind="cancelled")
+        except Exception:
+            pass
+        sys.exit(130)
     except Exception as e:
         # Yarım kalan çıktı işlemi journal/.tmp bırakmasın (bkz. pipeline_control).
         try:
