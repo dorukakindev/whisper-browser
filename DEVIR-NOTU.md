@@ -1,13 +1,14 @@
-Güncel çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
+Güncel çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage
+Önceki çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
 Önceki çalışma: [docs/devir/2026-09-30-1430.md](docs/devir/2026-09-30-1430.md) — R296: çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok)
 Önceki çalışma: [docs/devir/2026-09-30-1400.md](docs/devir/2026-09-30-1400.md) — R295: CI determinizm denetimi + baseline ratchet (2 küçük düzeltme, bug yok)
 Önceki çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
 Önceki çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.md) — R292: review flag süpürmesi (üretim okuyucusu eval + ham bayt + DEVIR-NOTU sıralaması)
+Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
+Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
 Önceki çalışma: [docs/devir/2026-09-30-1135.md](docs/devir/2026-09-30-1135.md) — R291: sekme/oturum persist bozuk-veri matrisi (402 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
 Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
-Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
-Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
 Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)

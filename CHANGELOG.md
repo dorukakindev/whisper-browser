@@ -5,9 +5,13 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- Omnibox (R298): metindeki görünmez karakterler aramayı bölmüyor artık; emoji sorguları çalışır (eskiden her şeyi döndürüyordu); ayrışık Korece jamo birleşik sorguyla eşleşir; otomatik tamamlama görünmez karakterli sorguda adayın temiz yazımını önerir.
+- Oturum (R298): yinelenen sekme kimliği düzeltmesi başka bir özgün sekmenin `<id>-dupN` kimliğini artık çalamaz.
+- Hata metinleri (R298): `err_unsafe_redirect` ayrı dostu-mesaj kuralı (TR/EN).
 - Omnibox (R297): geçmiş/yer imi araması artık aksan-katlamalı — "cafe" "café"yi, "isik" "Işık"ı, "lodz" "Łódź"yi bulur; ayrışık unicode yazım ve görünmez karakterler (bidi, ZWJ, NUL) sorguyu bozamaz.
 
 ### Added
+- Test (R298): foldSearchIndex yoğun-dizin kilitleri (72 kontrol) + önbellek-fuzz içerik assert'leri + series-memory `_save` yarışı + queue `.bak` gerçek-yazıcı sözleşmesi + ci-determinism aux/wallclock kapsamı.
 - Test (R296): çeviri önbelleği bozuk-girdi fuzz ratchet'i — journal/temel/.bak bozulma matrisi, tohumlu PRNG ile 114 deterministik senaryo.
 
 - Test (R295): CI determinizm ratchet'i — test/fixture ağacında `Math.random` yasaklandı; uyku-beklemesi ve duvar-saati assert sayıları `ci-determinism-baseline.txt` ile dondu; series-memory dosya adı deterministikleşti, retryAfter marjı genişledi.
@@ -19,13 +23,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (218 kontrol, 43 dosya).
 - Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
 - Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (28 kontrol).
-- Fix (R288-b): `browser-note-store` rename sonrası dizin-fsync hatasında belleği geri alıyordu → committed işaretiyle disk≡bellek korunur (upsert+remove). Matris: committed senaryo + çok düzeyli zincir fsync'i + katalog .bak okuma + finally temizliği (45 kontrol).
 - Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
 - Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
 
 - Test (R283): Çeviri prompt'u golden-snapshot kilidi — `build_translate_prompt`/`build_refine_prompt` tam metin + 11 model sağlayıcı tablosu `backend/testdata/translate_prompt_golden.json`a byte-exact kilitlendi; register/profanity üretici-matris ratchet'leri eklendi.
 - Test (R284): Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı — persist→disk→resume alan sadakati (10.305 tohumlu öğe; opts byte-exact, sır-sızdırmazlık, URL hijyeni, yükleme idempotansı).
-- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
 
 - Test: R276 — ASS/SSA override etiketi roundtrip sadakat kilidi: yalnız konum (`\anN`, `\pos`) ve tam-satır italik taşınır; karaoke/fade/move/font düşüşü de kilitli (9 senaryo).
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
@@ -36,6 +38,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - R277: Çok-ekran pencere durumu — boyut kelepçesi + x/y saklamama kuralı saf `window-state` modülüne çıkarıldı; bozuk/monitör-kopması matrisi 21 kontrolle kilitlendi.
 
 ### Fixed
+
+- Fix (R288-b): `browser-note-store` rename sonrası dizin-fsync hatasında belleği geri alıyordu → committed işaretiyle disk≡bellek korunur (upsert+remove). Matris: committed senaryo + çok düzeyli zincir fsync'i + katalog .bak okuma + finally temizliği (45 kontrol).
 
 - Düzeltme (R291): `cloneBrowserPlaces` workspace/sekme haritaları normalize-garantili veriye örtük bel bağlıyordu — `Array.isArray` kapıları eklendi.
 - R288 (#229 review): dizin fsync gerçek G/Ç hatası artık yutulmaz; `atomicWriteFileSync` yeni oluşturulan klasör zincirini de senkronlar; `mirrorBackup` `.bak` fsync'i sıkılaştı.
