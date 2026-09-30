@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
+Güncel çalışma: [docs/devir/2026-09-30-1330.md](docs/devir/2026-09-30-1330.md) — R294: err_* EN/TR tam kapsama ratchet'i (normalize + 9 kural + 9 messageKey)
+Önceki çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
 Önceki çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.md) — R292: review flag süpürmesi (üretim okuyucusu eval + ham bayt + DEVIR-NOTU sıralaması)
 Önceki çalışma: [docs/devir/2026-09-30-1135.md](docs/devir/2026-09-30-1135.md) — R291: sekme/oturum persist bozuk-veri matrisi (402 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet

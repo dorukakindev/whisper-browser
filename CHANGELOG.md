@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Fix (R294): teknik hata kodları artık dostu dile çevrilir — alt-çizgili Chromium `ERR_*` kodları normalize eşleşme + proxy/SSL/yönlendirme/engelleyici vb. 9 yeni kural ailesi ve hata ekranı messageKey'i
 - Test (R293): `series_memory` birleştirme yarışı — paralel süreç/iş parçacığı kayıp-güncelleme simülasyonu (6 senaryo, temiz)
 
 - Test (R292): kuyruk-opts roundtrip — `.bak` kurtarma artık main.js'ten eval edilen gerçek `readQueueStateRaw` ile sınanır; ham bayt eşitliği ve `_oversized` işareti kilitlendi; DEVIR-NOTU Önceki sıralaması düzeltildi.
