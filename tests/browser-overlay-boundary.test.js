@@ -107,6 +107,99 @@ test('append uzantısı: liste sona büyüyünce indeks tazelenir', () => {
   assert.equal(nextCueBoundaryAt(cues, 18.5), 200);
 });
 
+test('bozuk-dizi enjeksiyonu: junk öğe/seyrek delik atmadan oracle eşliği', () => {
+  const rand = mulberry32(0xBAD5);
+  const junk = () => {
+    const roll = rand();
+    if (roll < 0.2) return null;
+    if (roll < 0.4) return 'metin';
+    if (roll < 0.6) return { start: NaN, end: rand() * 30 };
+    if (roll < 0.8) return { start: rand() * 30 };           // end yok
+    return { start: `${Math.floor(rand() * 40)}`, end: rand() * 30 }; // dizgi start
+  };
+  for (let round = 0; round < 40; round++) {
+    // Seyrek diziler dahil: length alanını açıkta bırakıp delik üretilir.
+    const cues = [];
+    cues.length = 1 + Math.floor(rand() * 120);
+    for (let i = 0; i < cues.length; i++) {
+      if (rand() < 0.25) continue;               // delik — sparse
+      cues[i] = rand() < 0.6 ? junk() : { start: rand() * 50, end: rand() * 50 };
+    }
+    const t = rand() * 60;
+    const got = nextCueBoundaryAt(cues, t);
+    const want = bruteForce(cues, t);
+    assert(Number.isNaN(want) ? Number.isNaN(got) : got === want,
+      `round ${round}: ${got} !== ${want} (n=${cues.length})`);
+  }
+});
+
+test('prob mutasyonu: head/mid/tail start+end değişikliği O(1) yakalanır', () => {
+  // Değişmezlik sözleşmesi: yerinde mutasyon yalnız 0, n>>1, n-1
+  // noktalarında garantiyle yakalanır (JSDoc). Her prob konumunda
+  // cevabı değiştiren bir mutasyon yapılır — indeks bayat kalmamalı.
+  const A = () => [0, 10, 20, 30, 100, 200, 210, 220].map((s) => ({ start: s, end: s + 5 }));
+  const cases = [
+    ['head end',   (c) => { c[0].end = 4.5; },     4,     4.5],
+    ['head start', (c) => { c[0].start = 0.8; },   0.5,   0.8],
+    ['mid start',  (c) => { c[4].start = 27.5; },  26,    27.5],
+    ['mid end',    (c) => { c[4].end = 102; },     101,   102],
+    ['tail start', (c) => { c[7].start = 220.5; }, 219.5, 220.5],
+    ['tail end',   (c) => { c[7].end = 222.5; },   222,   222.5],
+  ];
+  for (const [name, mutate, t, want] of cases) {
+    const cues = A();
+    nextCueBoundaryAt(cues, t);                 // indeksi kur
+    mutate(cues);                               // prob konumunda mutasyon
+    const got = nextCueBoundaryAt(cues, t);
+    assert.equal(got, want, `${name}: ${got} !== ${want}`);
+    assert.equal(got, bruteForce(cues, t), `${name}: oracle'dan sapma`);
+  }
+  // Büyük n'de mid probu da yakalar (n>>1 ölçeklenir).
+  const big = [];
+  for (let i = 0; i < 200; i++) big.push(i <= 100
+    ? { start: i * 10, end: i * 10 + 5 }
+    : { start: 1000 + (i - 100) * 10, end: 1000 + (i - 100) * 10 + 5 });
+  nextCueBoundaryAt(big, 1001);
+  big[100].end = 1002;                          // mid (200>>1) end mutasyonu
+  assert.equal(nextCueBoundaryAt(big, 1001), 1002);
+  // Kimlik değişimi: yeni dizi referansı WeakMap'i kesin yeniden kurmaya zorlar.
+  const a = [{ start: 0, end: 5 }, { start: 10, end: 15 }];
+  assert.equal(nextCueBoundaryAt(a, 6), 10);
+  const b = [{ start: 0, end: 5 }, { start: 7, end: 9 }];
+  assert.equal(nextCueBoundaryAt(b, 6), 7);
+});
+
+test('sözleşme notu: prob-dışı mutasyon garanti kapsamı dışıdır', () => {
+  // O(1) prob fiyatına tam mutasyon algısı sığmaz; JSDoc bunu belgeler ve
+  // mutasyon yapan çağıranın yeni dizi vermesini ister. Bu test yalnız
+  // prob-dışı mutasyonun YAKALANAMAYACAĞI gerçeğini belgeler — gelecekte
+  // tam algı eklenirse bu vaka assert edilebilir hâle gelir.
+  const cues = [];
+  for (let i = 0; i < 8; i++) cues.push({ start: i * 10, end: i * 10 + 5 });
+  nextCueBoundaryAt(cues, 26);
+  cues[2].end = 29;                            // prob-dışı geçerli mutasyon
+  const got = nextCueBoundaryAt(cues, 26);
+  assert(got === 30 || got === 29,
+    'beklenmedik değer; prob-dışı mutasyon ya bayat (30) ya da algılandı (29)');
+});
+
+test('birim-agnostik: ms ölçekli cue alanlarında aynı sözleşme', () => {
+  const cues = [{ start: 1000, end: 2000 }, { start: 3000, end: 3500 }];
+  assert.equal(nextCueBoundaryAt(cues, 500), 1000);
+  assert.equal(nextCueBoundaryAt(cues, 1200), 2000);
+  assert.equal(nextCueBoundaryAt(cues, 2100), 3000);
+  assert(Number.isNaN(nextCueBoundaryAt(cues, 3600)));
+});
+
+test('küçülen dizi: length geriye düşünce indeks yeniden kurulur', () => {
+  const cues = [];
+  for (let i = 0; i < 10; i++) cues.push({ start: i * 10, end: i * 10 + 5 });
+  assert.equal(nextCueBoundaryAt(cues, 26), 30);
+  cues.length = 3;                             // kalanlar: 0-5,10-15,20-25
+  assert(Number.isNaN(nextCueBoundaryAt(cues, 26)));
+  assert.equal(nextCueBoundaryAt(cues, 6), 10);
+});
+
 test('perf: 10k cue × 20k sınır sorgusu bütçe içinde', () => {
   const rand = mulberry32(0xB10B);
   const cues = makeCues(rand, 10000).filter((c) => Number.isFinite(c.start) && Number.isFinite(c.end));

@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
+- Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
 
 - Test (R283): Çeviri prompt'u golden-snapshot kilidi — `build_translate_prompt`/`build_refine_prompt` tam metin + 11 model sağlayıcı tablosu `backend/testdata/translate_prompt_golden.json`a byte-exact kilitlendi; register/profanity üretici-matris ratchet'leri eklendi.
 - Test (R284): Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı — persist→disk→resume alan sadakati (10.305 tohumlu öğe; opts byte-exact, sır-sızdırmazlık, URL hijyeni, yükleme idempotansı).
