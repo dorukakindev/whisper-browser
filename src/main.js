@@ -5233,6 +5233,43 @@ function browserLoadError(code, description) {
     return { messageKey: 'insecure-response',
       message: 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.' };
   }
+  if ([-111, -115, -127, -130, -131, -336, -367].includes(Number(code))
+      || /ERR_(PROXY|TUNNEL)/i.test(raw)) {
+    return { messageKey: 'proxy-error',
+      message: 'Proxy/VPN bağlantısı kurulamadı. Proxy veya VPN ayarını kontrol edip bağlantıyı yenileyin.' };
+  }
+  if (Number(code) === -109 || /ERR_ADDRESS_UNREACHABLE/i.test(raw)) {
+    return { messageKey: 'address-unreachable',
+      message: 'Site adresine ağ üzerinden ulaşılamadı. Adresi ve internet bağlantısını kontrol edin.' };
+  }
+  if (Number(code) === -310 || Number(code) === -311 || /ERR_TOO_MANY_REDIRECTS|ERR_UNSAFE_REDIRECT/i.test(raw)) {
+    return { messageKey: 'redirect-loop',
+      message: 'Site çok fazla yönlendirme yaptı — adres döngüye giriyor olabilir.' };
+  }
+  if ([-20, -24, -27].includes(Number(code)) || /ERR_BLOCKED_BY/i.test(raw)) {
+    return { messageKey: 'blocked-by-filter',
+      message: 'İstek engelleyici tarafından durduruldu (reklam/izleme koruması veya yönetici ilkesi).' };
+  }
+  if ([-101, -100, -103].includes(Number(code)) || /ERR_CONNECTION_(RESET|CLOSED|ABORTED)/i.test(raw)) {
+    return { messageKey: 'connection-dropped',
+      message: 'Bağlantı karşı tarafça kesildi. Biraz sonra tekrar deneyin.' };
+  }
+  if ([-107, -113, -123, -149, -150].includes(Number(code)) || /ERR_SSL_/i.test(raw)) {
+    return { messageKey: 'ssl-error',
+      message: 'Siteyle güvenli bağlantı (SSL) kurulamadı. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.' };
+  }
+  if (Number(code) === -324 || /ERR_EMPTY_RESPONSE/i.test(raw)) {
+    return { messageKey: 'empty-response',
+      message: 'Site boş yanıt döndürdü. Biraz sonra tekrar deneyin.' };
+  }
+  if (Number(code) === -21 || /ERR_NETWORK_CHANGED/i.test(raw)) {
+    return { messageKey: 'network-changed',
+      message: 'Bağlantı sırasında ağ değişti — VPN/Wi-Fi geçişini kontrol edip sayfayı yenileyin.' };
+  }
+  if ([-300, -301, -302, -303].includes(Number(code)) || /ERR_(INVALID_URL|DISALLOWED_URL_SCHEME|UNKNOWN_URL_SCHEME|INVALID_REDIRECT)/i.test(raw)) {
+    return { messageKey: 'invalid-address',
+      message: 'Adres geçersiz veya desteklenmeyen bir şema içeriyor.' };
+  }
   return { messageKey: 'generic', message: raw };
 }
 
