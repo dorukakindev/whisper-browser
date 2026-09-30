@@ -40,9 +40,26 @@ test('foldSearchIndex: dense-map hizası her zaman birebir (jamo NFC + emoji)', 
   }
 });
 
+test('foldSearchIndex: birleşmeyen kalan jamo kendi aralığına eşlenir (#265)', () => {
+  // '하ᅧ' → dense '하ᅧ': birleşen '하' özgün dizinin ilk 2 birimini kaplar,
+  // kalan 'ᅧ' kendi 1-birimlik aralığına gider — tek jamo araması artık
+  // ilk heceyi de vurgulamaz.
+  const { dense, map } = foldSearchIndex('하ᅧ');
+  assert.strictEqual(dense, '하ᅧ');
+  assert.strictEqual(map.length, 2);
+  assert.deepStrictEqual(map[0], [0, 2], 'birleşen hece tükettiği aralığa gitmeli');
+  assert.deepStrictEqual(map[1], [2, 1], 'kalan jamo kendi aralığına gitmeli');
+  // Tam birleşik dizide baş hecesi özgün dizinin tamamını kaplar.
+  const full = foldSearchIndex('한');
+  assert.strictEqual(full.dense, '한');
+  assert.deepStrictEqual(full.map[0], [0, 3]);
+});
+
 test('main.js: iş günlüğü — ekleme kipi bayt sayacı + akış-kimliği hata bekçisi', () => {
   // Append kipinde sayaç mevcut içerik + başlık boyutundan başlar.
-  assert.match(SRC_MAIN, /initialBytes \+ Buffer\.byteLength\(header\)/);
+  assert.match(SRC_MAIN, /bytes: initialBytes \+ headerBytes/);
+  // Dolu (4 MB üstü) dosyaya başlık eklenmez — sonekli dosya adı denenir.
+  assert.match(SRC_MAIN, /initialBytes \+ headerBytes > LOG_MAX_BYTES/);
   // Gecikmiş 'error' olayı yalnız kendi akışının kaydını sıfırlar — yeni işin
   // günlüğü eski akışın hatasıyla kaybolmaz.
   assert.match(SRC_MAIN, /jobLog && jobLog\.stream === stream/);
@@ -80,7 +97,8 @@ test('renderer.js: PDF çeviri iptali reader kimliği + cancelRequested bayrağ�
 });
 
 test('renderer.js: sayfa çevirisi scope alanı whitelist yedeğine düşer', () => {
-  assert.match(SRC_RND, /\['article', 'whole', 'selection'\]\.includes\(scopePref\)/);
+  assert.match(SRC_RND, /scopeValid\(tab\.browserPageScope\)/);
+  assert.match(SRC_RND, /scopeValid\(scopePref\)/);
 });
 
 test('renderer.js: gömülü iz ipucu okunamayan (metin-değil-bitmap-değil) izleri sayar', () => {

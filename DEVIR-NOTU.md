@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
+Güncel çalışma: [docs/devir/2026-09-30-0905.md](docs/devir/2026-09-30-0905.md) — R319: PR #265 Devin Review triage (4 bug + 2 flag)
+Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
 Önceki çalışma: [docs/devir/2026-09-30-0740.md](docs/devir/2026-09-30-0740.md) — R317: paket bütünlüğü manifesti + erken eksik-dosya uyarısı
 Önceki çalışma: [docs/devir/2026-09-30-0729.md](docs/devir/2026-09-30-0729.md) — R316: dokunmatik sürükleme tutamaçları (pointercancel + touch-action + resizer pointer)
 Önceki çalışma: [docs/devir/2026-09-30-0714.md](docs/devir/2026-09-30-0714.md) — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim roundtrip)

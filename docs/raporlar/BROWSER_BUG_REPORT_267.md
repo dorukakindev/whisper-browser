@@ -1,7 +1,7 @@
 # BROWSER_BUG_REPORT_267 — R318: Devin Review toplu triage (PR #236–#263)
 
 **Kapsam:** PR #236–#263 aralığındaki Devin Review bulgularının triage'ı +
-ilgili belge/test eksikleri. 12 doğrulanmış düzeltme (kod), 10 test-tarafı
+ilgili belge/test eksikleri. 14 doğrulanmış düzeltme (kod), 10 test-tarafı
 düzeltme, ~10 belge tamamlama (devir notu merge-hash'leri, DEVIR-NOTU indeksi,
 CHANGELOG `### Fixed` tekilleştirme).
 
