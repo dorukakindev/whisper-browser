@@ -30,12 +30,12 @@ def _run(driver_body, *argv):
         % BACKEND + driver_body + "\nT.main()"
     )
     env = dict(os.environ)
-    # Windows'ta subprocess stdout konsol kod sayfasına (cp1252) düşer;
-    # emit() UTF-8 mesaj basar — okumayı aynı kodlamayla zorla.
+    # Windows'ta emit() konsol kod sayfasına (cp1252) düşer; hem çocuğun
+    # yazımını hem ebeveynin okumasını UTF-8'e sabitle.
     env["PYTHONUTF8"] = "1"
     return subprocess.run(
         [sys.executable, "-c", code, *argv],
-        capture_output=True, text=True, timeout=60, env=env,
+        capture_output=True, text=True, encoding="utf-8", timeout=60, env=env,
     )
 
 
