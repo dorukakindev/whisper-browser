@@ -353,6 +353,7 @@ async function test(title, fn) {
     const reader = player.pdfReader;
     const ctx = vm.createContext({
       $: (id) => (buttons[id] ||= { disabled: false, value: 'tr' }),
+      PDF_TRANSLATE_ALL_CONFIRM_PAGES: 40,
       player,
       window: { api: { translatePdfPages: async () => { player.pdfReader = { pdf: { numPages: 4 }, pdfHash: 'h2', pages: new Map() }; return { ok: true }; } } },
       extractPdfReaderPage: async () => {},
