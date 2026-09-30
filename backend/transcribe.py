@@ -8433,6 +8433,12 @@ def parse_srt(text, vtt=False):
         txt = _BLANK_LINES.sub("\n", "\n".join(body_lines).strip())
         if not txt:
             continue
+        if vtt:
+            # VTT cue metni HTML karakter referansı destekler (&lt; &amp;
+            # &nbsp; …); write_vtt metni bu biçimde kaçır, okuyucu geri çözmezse
+            # uygulamanın kendi yazdığı VTT yeniden içe aktarıldığında "&lt;"
+            # düz metin olarak kalıyor ve yeniden yazımda çift-kaçış oluyordu.
+            txt = html.unescape(txt)
         entries.append((start, end, txt))
     return entries
 
