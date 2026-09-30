@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 263 | [BROWSER_BUG_REPORT_263.md](BROWSER_BUG_REPORT_263.md) | BROWSER_BUG_REPORT_263 — R314: iş günlüğü bayt sınırı — 4MB + kesim işareti |
 | 262 | [BROWSER_BUG_REPORT_262.md](BROWSER_BUG_REPORT_262.md) | BROWSER_BUG_REPORT_262 — R313: disk-dolu matrisi — iş günlüğü 'error' çöküşü + atomik dışa aktarımlar |
 | 261 | [BROWSER_BUG_REPORT_261.md](BROWSER_BUG_REPORT_261.md) | BROWSER_BUG_REPORT_261 — R312: PDF büyük-belge sınırı (tembel çıkarma + tahliye + onay) |
 | 260 | [BROWSER_BUG_REPORT_260.md](BROWSER_BUG_REPORT_260.md) | BROWSER_BUG_REPORT_260 — R311: SmartTube kanal/playlist derinliği (4 sayfalama bugı) |
