@@ -52,12 +52,16 @@ test('writeBufferAtomic ENOSPC altında hedefi ve geçici dosyayı temiz bırak�
       if (p.includes('doluyken')) { const e = new Error('no space left on device'); e.code = 'ENOSPC'; throw e; }
       written.push({ path: p, data });
     },
-    renameSync(from, to) { written.push({ path: to, data: existing }); },
+    renameSync(from, to) {
+      const moved = written.find((w) => w.path === from);
+      written.push({ path: to, data: moved ? moved.data : existing });
+    },
     unlinkSync(p) { const i = written.findIndex((w) => w.path === p); if (i >= 0) written.splice(i, 1); },
   };
-  // Normal yazım tmp→rename töreni yapar.
+  // Normal yazım tmp→rename töreni yapar; hedef içeriği istenen baytları taşır.
   ctx.__f('hedef', Buffer.from('yeni'), io);
   assert.strictEqual(written.filter((w) => w.path === 'hedef').length, 1);
+  assert.strictEqual(written.find((w) => w.path === 'hedef').data.toString(), 'yeni');
   // ENOSPC: hedef hiç değişmez, tmp silinir, hata çağırana yükselir.
   written.length = 0;
   assert.throws(() => ctx.__f('doluyken-hedef', Buffer.from('x'), io), /no space left/);

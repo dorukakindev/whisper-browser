@@ -344,9 +344,14 @@ function classifyError(e) {
     // `Object.prototype` host'un prototipidir. Vm-realm'in gerçek
     // prototipleri için vm içinde üretilen literal'lerden türetilir:
     // `Object.getPrototypeOf({})` → vm realm'in Object.prototype'ı.
+    // Adlar yetmez: yerleşik metodun DEĞERİ'nin değiştirilmesi ad listesini
+    // aynı bırakır; her kaydın typeof + bayrakları + değer özetini de karşılaştır.
     const vmProtoProbe =
-      "Object.getOwnPropertyNames(Object.getPrototypeOf({})).join(',') + '|' + " +
-      "Object.getOwnPropertyNames(Object.getPrototypeOf([])).join(',')";
+      "(()=>{const pd=(p)=>Object.getOwnPropertyNames(p).map(n=>{"
+      + "const d=Object.getOwnPropertyDescriptor(p,n);"
+      + "return n+'~'+typeof d.value+'~'+(d.writable?1:0)+(d.enumerable?1:0)+(d.configurable?1:0)+'~'+String(d.value).slice(0,60)"
+      + "}).join(',');"
+      + "return pd(Object.getPrototypeOf({}))+'|'+pd(Object.getPrototypeOf([]))})()";
     if (protoBaseline === null) {
       protoBaseline = vm.runInContext(vmProtoProbe, globalProxy);
     }

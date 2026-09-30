@@ -11,12 +11,17 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ytdlp-runtime-'));
 try {
   const current = path.join(root, 'packages', 'yt-dlp-current');
   const previous = path.join(root, 'packages', 'yt-dlp-previous');
-  fs.mkdirSync(path.join(current, 'yt_dlp'), { recursive: true });
-  fs.mkdirSync(path.join(previous, 'yt_dlp'), { recursive: true });
-  fs.writeFileSync(path.join(current, 'yt_dlp', '__init__.py'), '');
-  fs.writeFileSync(path.join(current, 'yt_dlp', 'version.py'), '__version__ = "1.0"\n');
-  fs.writeFileSync(path.join(previous, 'yt_dlp', '__init__.py'), '');
-  fs.writeFileSync(path.join(previous, 'yt_dlp', 'version.py'), '__version__ = "0.9"\n');
+  // Gerçek paket imzası — RUNTIME_REQUIRED_MODULES ile aynı dosya takımı:
+  // __init__+version tek başına yeterli sayılmaz; YoutubeDL/extractor olmadan
+  // dizin "kısmen silinmiş" sayılmalı (R309 yarım-paket kapısı).
+  const REQUIRED = ['__init__.py', 'version.py', 'YoutubeDL.py', path.join('extractor', '__init__.py')];
+  for (const pkg of [current, previous]) {
+    for (const rel of REQUIRED) {
+      const abs = path.join(pkg, 'yt_dlp', rel);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, rel === 'version.py' ? '__version__ = "x"\n' : '');
+    }
+  }
   fs.writeFileSync(path.join(root, 'active.json'), JSON.stringify({
     path: 'packages/yt-dlp-current',
     previous: 'packages/yt-dlp-previous',

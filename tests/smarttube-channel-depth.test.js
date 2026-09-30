@@ -53,6 +53,12 @@ function fakeElement(tag) {
     append(...els) { this.children.push(...els); },
     prepend(child) { this.children.unshift(child); return child; },
     addEventListener(type, fn) { (this._listeners[type] = this._listeners[type] || []).push(fn); },
+    insertBefore(child, ref) {
+      (child._parents = child._parents || new Set()).add(this);
+      const i = ref ? this.children.indexOf(ref) : -1;
+      if (i < 0) this.children.push(child); else this.children.splice(i, 0, child);
+      return child;
+    },
     remove() {
       for (const p of this._parents || []) {
         p.children = p.children.filter((c) => c !== this);
@@ -162,17 +168,28 @@ test('sekme değişimi uçuştaki eski sekme sonucunu düşürür', async () => 
 test('kanal arama sayfayı sıfırlar + aktif chip nötrlenir (videolara dönüş çalışır)', async () => {
   const calls = [];
   const api = {
-    invidiousChannelTab: (cid, opts) => { calls.push(opts); return Promise.resolve({ ok: true, data: { videos: [{ videoId: 'sr1' }] } }); },
+    invidiousChannelTab: (cid, opts) => { calls.push(opts); return Promise.resolve({ ok: true, data: { videos: [{ videoId: `pg${opts.page}-x` }] } }); },
   };
   const ctx = makeContext(api);
-  ctx.loadInvidiousChannel = async () => ({ info: { author: 'KanalX', authorId: 'ch1' }, videos: [{ videoId: 'v0' }] });
+  // 20 video → 'Daha fazla' satırı çizilir; önce sayfa sayacını gerçek yolla
+  // ilerletmeden aramaya geçen test, sayfa sıfırlamasını hiç kanıtlayamaz.
+  ctx.loadInvidiousChannel = async () => ({ info: { author: 'KanalX', authorId: 'ch1' },
+    videos: Array.from({ length: 20 }, (_, i) => ({ videoId: `seed${i}` })) });
   loadIn(ctx);
   await ctx.openInvidiousChannelPage('ch1');
   const grid = ctx._ids.stGrid;
   const tabRow = grid.querySelectorAll('.st-chips')[0];
   const chips = tabRow.querySelectorAll('.st-chip');
   assert.equal(chips.length, 9, 'sekmeler çizilmedi');
-  // 'videos' chip'i aktif; videolarda "Daha fazla" yok (1 video < 20)
+  // Sayfa sayacını 2'ye taşı: 'Daha fazla' tıklaması page:2 isteği atar.
+  const tabBody = grid.children.find((c) => (c.className || '').includes('st-ch-body'));
+  const moreRow = tabBody.children.find((c) => (c.className || '').includes('st-more-row'));
+  assert.ok(moreRow, '20 videoda Daha fazla satırı çizilmedi');
+  const moreBtn = moreRow.children.find((c) => (c.className || '').includes('st-more-btn'));
+  moreBtn.fire('click');
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
+  assert.ok(calls.some((c) => c.tab === 'videos' && c.page === 2), 'sayfa 2 isteği atılmadı');
   const search = tabRow.children.find((c) => c.className === 'st-ch-search');
   assert.ok(search, 'kanal-içi arama alanı yok');
   search.value = 'test';

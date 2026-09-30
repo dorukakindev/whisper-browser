@@ -29,7 +29,9 @@ function loadJobLogSlice(over = {}) {
 
 test('LOG_MAX_BYTES sabiti tanımlı ve günlük nesnesi bayt/kesim alanları taşır', () => {
   assert.match(SRC, /const LOG_MAX_BYTES = \d+ \* 1024 \* 1024/);
-  assert.match(SRC, /jobLog = \{ file, stream, bytes: 0, truncated: false \}/);
+  // Sayacın ekleme kipinde mevcut dosya boyutundan + başlıktan başlaması
+  // şart — 0'dan başlasaydı aynı-adlı dosya 4 MB sınırını sessizce aşardı.
+  assert.match(SRC, /jobLog = \{ file, stream, bytes: initialBytes \+ Buffer\.byteLength\(header\), truncated: false \}/);
   assert.match(SRC, /GÜNLÜK SINIRI/, 'kesim işareti metni eksik');
 });
 

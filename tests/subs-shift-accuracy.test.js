@@ -1,7 +1,8 @@
 // R302 — subs:shift ±ms doğruluk ratchet'i (20'lik kuyruk madde 6).
-// main.js'teki shiftTimecodes vm ile çıkarılıp oracle'a karşı doğrulanır:
-// ms hassasiyeti, roundtrip, cue çıkarma sınırları, şekil yükseltmesi,
-// VTT ayarları, CRLF korunumu.
+// main.js'teki shiftTimecodes vm ile çıkarılıp doğrulanır: ms hassasiyeti,
+// roundtrip, cue çıkarma sınırları, şekil yükseltmesi, VTT ayarları, CRLF
+// korunumu; fuzz bölümü invariant-oracle ile (zaman/gövde sayısı + bağımsız
+// toMs +offset denetimi).
 
 const assert = require('assert');
 const fs = require('fs');
@@ -45,7 +46,6 @@ vm.createContext(sandbox);
 vm.runInContext(`globalThis.shiftTimecodes = ${fnMatch[0]}`, sandbox);
 const shift = sandbox.shiftTimecodes;
 
-// Oracle: SRT/VTT zaman damgası satırını bağımsız parse + ms aritmetiği.
 // =========================================================================
 test('ms hassasiyeti: 1ms/999ms kaydırma byte-exact', () => {
   const srt = '1\n00:00:01,000 --> 00:00:02,000\nA\n\n2\n00:00:03,500 --> 00:00:04,999\nB\n';

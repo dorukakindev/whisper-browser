@@ -34,10 +34,22 @@ assert(!/app\.on\(['"]open-url['"]/.test(main),
 
 // 4) process.argv yalnız dev/smoke bayraklarına dokunur — URL/girdi okuyan
 //    yeni bir argv bayrağı güvenlik incelemesi olmadan eklenemez.
+//    `includes` kalıbı yetmez: `.find`/for-of/`argv[2]` gibi her erişim
+//    biçimi de '--dev'/'--electron-' bağlamında durmalı.
 {
   const flags = [...main.matchAll(/process\.argv\.includes\((['"`])([^'"`]+)\1\)/g)].map(m => m[2]);
   assert(flags.every(f => f === '--dev' || f.startsWith('--electron-')),
     `beklenmeyen process.argv bayrağı: ${JSON.stringify(flags)}`);
+  // Tüm argv erişimleri: 12 satırlık bağlam penceresi bir --dev/--electron-
+  // literalı içermeli (prefix değişkenleri '--electron-…=' atamasıyla işaretli).
+  const argvUses = [...main.matchAll(/process\.argv/g)].map(m => m.index);
+  assert(argvUses.length > 0, 'argv envanteri boş');
+  const offending = argvUses.filter((idx) => {
+    const windowText = main.slice(Math.max(0, idx - 500), idx + 500);
+    return !/--dev|--electron-/.test(windowText);
+  });
+  assert.equal(offending.length, 0,
+    `bağlamı belirsiz process.argv erişimi: ${offending.map((i) => main.slice(i - 40, i + 40).replace(/\s+/g, ' ')).join(' | ')}`);
 }
 
 // 5) İç ayrıcalıklı şemalar yalnızca izinli ikisiyle sınırlı kalır —

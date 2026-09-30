@@ -776,14 +776,21 @@ function startJobLog(label, args) {
     const base = String(label || 'is').split(/[\\/]/).pop() || 'is';
     const safe = windowsSafeFileName(base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60), 'is');
     const file = path.join(logsDir(), `${stamp}_${safe}.log`);
+    // Aynı saniyede başlayan iki iş aynı dosya adını üretebilir; ekleme kipinde
+    // bayt sayacı mevcut içerikten başlamazsa 4 MB sınırı sessizce aşılırdı.
+    let initialBytes = 0;
+    try { initialBytes = fs.statSync(file).size; } catch (_) {}
     const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
     // Disk dolu/izin hatasında WriteStream 'error' olayını eşzamansız yayar;
     // dinleyicisiz bırakılırsa ana süreci düşürür. Günlüğü bırak, yazımı dur.
-    stream.on('error', () => { jobLog = null; try { stream.destroy(); } catch (_) {} });
+    // Gecikmiş hata yalnız kendi akışının kaydını siler — eski akışın hatası
+    // yeni işin günlüğünü sıfırlayıp olaylarını kaybettirmesin.
+    stream.on('error', () => { if (jobLog && jobLog.stream === stream) jobLog = null; try { stream.destroy(); } catch (_) {} });
     // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
-    stream.write(`# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`);
-    stream.write(`# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`);
-    jobLog = { file, stream, bytes: 0, truncated: false };
+    const header = `# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`
+      + `# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`;
+    stream.write(header);
+    jobLog = { file, stream, bytes: initialBytes + Buffer.byteLength(header), truncated: false };
     pruneOldLogs();
   } catch (_) {
     jobLog = null;
@@ -791,7 +798,9 @@ function startJobLog(label, args) {
 }
 
 function writeJobLog(event) {
-  if (!jobLog || LOG_SKIP.has(event.type)) return;
+  // Kesim işaretinden sonra gelen olaylar biçimlendirilmeden atılır — büyük
+  // traceback/uyarı listeleri sınır dolmuşken de string'e çevrilip harcanırdı.
+  if (!jobLog || jobLog.truncated || LOG_SKIP.has(event.type)) return;
   const t = new Date().toLocaleTimeString('tr-TR');
   let line;
   switch (event.type) {
@@ -823,7 +832,6 @@ function writeJobLog(event) {
     default:
       line = `[${t}] ${event.type}`;
   }
-  if (jobLog.truncated) return;
   const row = `${line}\n`;
   if (jobLog.bytes + Buffer.byteLength(row) > LOG_MAX_BYTES) {
     jobLog.truncated = true;
@@ -12950,6 +12958,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     stopBrowserPageTranslation(tab, false);
     tab.translationScheduler?.cancelAll('Sekme işlemi sona erdi.');
     tab.translationScheduler = null;
+    // Hata listesi silindi ama renderer'daki yeniden-denenebilir sayısı kalırdı;
+    // 'Başarısızları yeniden dene' düğmesi boş listeyle etkin görünmesin.
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
     if (browserLiveAsr?.tab === tab) {
       stopBrowserLiveAsr('Sekme işlemi sona erdiği için canlı Whisper durduruldu.');
     }
@@ -15181,6 +15192,10 @@ async function unloadBrowserTab(rawId) {
   tab.mangaPages?.clear?.();
   try { mainWindow.contentView.removeChildView(view); } catch (_) {}
   tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
+  // Bayat hata durumu dirilen sekmeyi boş bırakırdı: resumeRestoredBrowserPage
+  // loadError taşıyan sekmede URL'yi yeniden yüklemez. Yeni görünüm temiz
+  // başlasın; hata olursa yeni bir loadError kaydedilir.
+  tab.loadError = null;
   tab.lifecycle = 'unloaded'; tab.unloadedAt = Date.now();
   const persisted = persistBrowserSessionNow();
   sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
@@ -18451,7 +18466,7 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
       if (code !== 0) return finish({ ok: false, tracks: [] });
       try {
         const data = JSON.parse(out);
-        const tracks = (data.streams || []).filter((s) => s.codec_type === 'audio').map((s, i) => {
+        const tracks = (data.streams || []).filter((s) => s && s.codec_type === 'audio').map((s, i) => {
           const tags = s.tags || {};
           return {
             index: i,  // ses-göreli indeks → -map 0:a:i
