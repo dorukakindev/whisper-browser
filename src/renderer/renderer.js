@@ -11449,7 +11449,15 @@ if ($('browserSplitDivider')) {
   };
   divider.addEventListener('pointerdown', (event) => { dragging = true; divider.classList.add('is-dragging'); divider.setPointerCapture(event.pointerId); update(event.clientX); });
   divider.addEventListener('pointermove', (event) => { if (dragging) update(event.clientX); });
-  divider.addEventListener('pointerup', (event) => { if (!dragging) return; dragging = false; divider.classList.remove('is-dragging'); divider.releasePointerCapture(event.pointerId); setBrowserSplit(player.browserSplit.secondaryTabId, $('browserSplitRatio').value); });
+  const endDrag = (event) => {
+    if (!dragging) return;
+    dragging = false; divider.classList.remove('is-dragging');
+    try { divider.releasePointerCapture(event.pointerId); } catch (_) {}
+    setBrowserSplit(player.browserSplit.secondaryTabId, $('browserSplitRatio').value);
+  };
+  divider.addEventListener('pointerup', endDrag);
+  // Dokunmatikte sistem jesti sürüklemeyi iptal edebilir — dragging takılı kalmasın
+  divider.addEventListener('pointercancel', endDrag);
   divider.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
     event.preventDefault();
@@ -19433,27 +19441,31 @@ $$('.view-modes .vm').forEach((b) => {
 if ($('sideResizer')) {
   const rz = $('sideResizer');
   let dragging = false;
-  rz.addEventListener('mousedown', (e) => {
+  rz.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
     dragging = true;
     rz.classList.add('dragging');
     // Surukleme sirasinda grid gecis animasyonu kapatilir, yoksa el takip etmez
     const body = document.querySelector('.player-body');
     if (body) body.classList.add('resizing');
+    try { rz.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault();
   });
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     const layer = $('playerLayer').getBoundingClientRect();
     setSideWidth(layer.right - e.clientX);
   });
-  window.addEventListener('mouseup', () => {
+  const endResize = () => {
     if (!dragging) return;
     dragging = false;
     rz.classList.remove('dragging');
     const body = document.querySelector('.player-body');
     if (body) body.classList.remove('resizing');
     highlightCueRow();
-  });
+  };
+  window.addEventListener('pointerup', endResize);
+  window.addEventListener('pointercancel', endResize);
 }
 
 // Ayar cekmecesi
