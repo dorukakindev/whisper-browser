@@ -50,15 +50,22 @@ function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID(
   }
 }
 
+const BURNIN_RECOVERY_SCHEMA_VERSION = 1;
+
 function normalizeBurninRecovery(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  // Şema migrasyonu: eksik/eski sürüm alanı v1 sayılır; daha yeni bir sürümle
+  // yazılmış dosya alan anlamlarını değiştirmiş olabilir — sessizce v1 gibi
+  // okumak yanlış yollarla kurtarma yapar, bu yüzden reddedilir. Taşan değer
+  // (1e309) Infinity olur; isFinite koymadan büyüklük kıyası hepsini yakalar.
+  if (Number(raw.version) > BURNIN_RECOVERY_SCHEMA_VERSION) return null;
   const videoPath = typeof raw.videoPath === 'string' ? raw.videoPath.trim() : '';
   const subPath = typeof raw.subPath === 'string' ? raw.subPath.trim() : '';
   const tempPath = typeof raw.tempPath === 'string' ? raw.tempPath.trim() : '';
   const outPath = typeof raw.outPath === 'string' ? raw.outPath.trim() : '';
   if (!videoPath || !subPath || !tempPath || !outPath) return null;
   return {
-    version: 1,
+    version: BURNIN_RECOVERY_SCHEMA_VERSION,
     id: String(raw.id || '').slice(0, 100) || randomUUID(),
     videoPath: videoPath.slice(0, 8000),
     subPath: subPath.slice(0, 8000),
@@ -156,17 +163,43 @@ function burninRecoveryPathsMatch(recovery) {
     .test(path.basename(item.tempPath));
 }
 
+// Dosya sürüm alanı şemadan yeniyse dosya "tanınmış ama desteklenmeyen"
+// durumdadır; bu durumda .bak yedeğine düşülmez — yedeğin daha eski sürümde
+// kaldığı garanti değildir ve kullanıcının geçtiği eski işi diriltir.
+function burninRecoveryVersionTooNew(raw) {
+  return !!raw && typeof raw === 'object' && !Array.isArray(raw) &&
+    Number(raw.version) > BURNIN_RECOVERY_SCHEMA_VERSION;
+}
+
+// Birincil dosya okunamazsa (yok/bozuk/büyük/yol uymaz) .bak denenir;
+// sürüm-reddi ise her iki adayda da dosyayı tamamen reddeder.
+function readBurninRecoveryFile(primaryPath, fsImpl = fs) {
+  for (const candidate of [primaryPath, `${primaryPath}.bak`]) {
+    try {
+      if (!fsImpl.existsSync(candidate) || fsImpl.statSync(candidate).size > 128 * 1024) continue;
+      const raw = JSON.parse(fsImpl.readFileSync(candidate, 'utf8'));
+      if (burninRecoveryVersionTooNew(raw)) return null;
+      const recovery = normalizeBurninRecovery(raw);
+      if (recovery && burninRecoveryPathsMatch(recovery)) return recovery;
+    } catch (_) {}
+  }
+  return null;
+}
+
 module.exports = {
+  BURNIN_RECOVERY_SCHEMA_VERSION,
   burninAudioArgs,
   burninFinalOutputLooksComplete,
   burninOutputPaths,
   burninProcessNameMatches,
   burninRecoveryProcessMatches,
   burninRecoveryPathsMatch,
+  burninRecoveryVersionTooNew,
   burninReplacementBackupPaths,
   burninTempLooksComplete,
   cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
+  readBurninRecoveryFile,
   removeFileQuietly,
   restoreNewestBurninReplacementBackup,
   replaceBurninOutput,

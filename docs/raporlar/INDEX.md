@@ -8,6 +8,7 @@ tarih sırasıyla dosya adından okunur.
 | No | Rapor | Başlık |
 |---|---|---|
 | 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
+| 235 | [BROWSER_BUG_REPORT_235.md](BROWSER_BUG_REPORT_235.md) | R286 — burnin-recovery sürüm kapısı + şema sözlüğü |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |
