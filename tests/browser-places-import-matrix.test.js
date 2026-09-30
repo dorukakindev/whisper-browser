@@ -109,6 +109,9 @@ const clamp = normalizeBrowserPlaces({ history: [
   { url: 'https://c.tld', visits: 1e9, visitedAt: NaN },
   { url: 'https://d.tld', visits: 3.9, visitedAt: Infinity },
   { url: 'https://e.tld', visits: '50', media: 0 },
+  // Negatif damga bozuk değere eşdeğerdir: geçmişteki (sıralamayı bozan)
+  // negatif visitedAt şimdiye kelepçelenir.
+  { url: 'https://f.tld', visits: 2, visitedAt: -5 },
 ] });
 checkShape(clamp, 'kelepçe');
 ok('title 240', clamp.history[0].title.length === 240);
@@ -121,6 +124,7 @@ ok('visits 1e9→100000', clamp.history[2].visits === 100000);
 ok('visits 3.9→3', clamp.history[3].visits === 3);
 ok('visits "50"→50', clamp.history[4].visits === 50);
 ok('media 0→false', clamp.history[4].media === false);
+ok('visitedAt -5→şimdi', clamp.history[5].visitedAt > 1e12);
 
 // --- Kapasite sınırı -------------------------------------------------------
 const big = normalizeBrowserPlaces({ history: Array.from({ length: 150 }, (_, i) => ({ url: `https://h${i}.tld/` })) });

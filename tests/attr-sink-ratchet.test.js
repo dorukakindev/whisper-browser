@@ -21,7 +21,7 @@ const INDEX_HTML = path.join(RENDERER_DIR, 'index.html');
 const scriptFiles = new Set(
   // Tek çift-tırnak ve src'nin başka özniteliklerden sonra gelmesi de sayılır —
   // envanter gerçek yüklü betiklerin gerisinde kalmamalı.
-  [...fs.readFileSync(INDEX_HTML, 'utf8').matchAll(/<script\b[^>]*\bsrc\s*=\s*(['"])([^'"]+)\1/g)]
+  [...fs.readFileSync(INDEX_HTML, 'utf8').matchAll(/<script\b[^>]*\ssrc\s*=\s*(['"])([^'"]+)\1/g)]
     .filter((m) => m[2].endsWith('.js'))
     .map((m) => path.normalize(path.join(RENDERER_DIR, m[2])))
     .filter((abs) => !abs.includes(`${path.sep}vendor${path.sep}`))

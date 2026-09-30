@@ -76,8 +76,12 @@
         while (j < folded.length && isJamoV(folded.codePointAt(j))) { j += 1; vCount += 1; }
         while (vCount > 0 && j < folded.length && isJamoT(folded.codePointAt(j))) { j += 1; }
         if (vCount > 0) {
-          dense.push(folded.slice(i, j).normalize('NFC'));
-          map.push([i, j - i]);
+          // NFC çıktısı birden çok UTF-16 birimi üretebilir (ör. birleşmeyen
+          // L+V+V dizisi hece+jamo verir); yoğun dizinin her birimi için bir
+          // harita kaydı gerekir, yoksa sonraki eşleşmeler kayar.
+          const syllable = folded.slice(i, j).normalize('NFC');
+          dense.push(syllable);
+          for (let k = 0; k < syllable.length; k += 1) map.push([i, j - i]);
           i = j;
           continue;
         }

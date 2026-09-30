@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R318: Devin Review toplu triage (PR #236–#263) — iş günlüğü aynı-saniye append sayacı + gecikmiş akış hatasının yeni günlüğü silmesi + kesim sonrası formatlama; manga "Başarısızları yeniden dene" çökme/temizlikte sıfırlanır; bellekten boşaltılan sekme bayat `loadError` taşımaz; probeTracks `null` stream'e düşmez; sayfa çevirisi scope whitelist; sponsor kategori değişimi bölümleri yeniler; gömülü iz ipucu okunamayan metin izlerini sayar; yan-panel tutamacı yalnız başlatan işaretçiyi sürükler; PDF çevirisi okuyucu kimliğini karıştırmaz + paket arası iptal; kanal sayfalama kartları düğmenin üstüne ekler; omnibox jamo NFC birimi vurgu hizası; yarım silinmiş yt-dlp paketi previous'a düşmez.
 - R317: eksik dosyayla açılan paket artık boş pencere yerine açılışta diyalog gösterip çıkıyor; Windows paketlemesi gerekli 430 dosyayı doğruluyor (ignore kayması build'i kırar); transcribe.py eksikse iş başlamadan kurulum yönlendirmeli hata dönüyor.
 - R316: dokunmatikte bölünmüş-görünüm ve yan-panel sürükleme tutamaçları çalışmıyordu — sistem jestiyle iptal edilen sürükleme takılı kalıyordu ve yan-panel tutamacı dokunmatik hiç dinlemiyordu. İkisi de pointer olayları + iptal koruması kullanıyor.
 - R315: ayarlar tam-tur denetimi — 12 kontrol (SponsorBlock kategorileri çok-seçimi, zaman çizelgesi yakınlığı, dışa aktarma biçimleri, altyazı arama bayrakları vb.) hiç persist edilmiyordu; restart'ta varsayılana dönüyordu. Çok-seçim kontrolleri artık tüm seçenekleri toplar/geri yükler; persist listeleri iki kopyada da kilitli.
@@ -17,17 +18,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - R308: bellekten boşaltılan sekme görünümü mini oynatıcıya taşınmışsa mini pencere de kapanır (önceden ölü son kareyle açık kalıyordu).
 - R307: bellekten boşaltılan sekme yeniden açıldığında tükenmiş yeniden-deneme/çökme bütçesini devralmıyor (önceden dirilen sekme ilk sayfa hatasında anında retry-limit diyaloğu açıyor, ilk çökmede otomatik diriliş yapılmıyordu); boşaltmada cloudflare sorgu zamanlayıcısı da temizlenir.
 - R306: tükenen sayfa yeniden-deneme bütçesi artık yeni adrese sızmıyor (önceden yeni sitenin ilk hatası anında retry-limit diyaloğu açıyordu); manga "Başarısızları yeniden dene" sayısı gezinme/çökme/temizlikte sıfırlanır.
-
-### Fixed
 - R305: gömülü altyazı çıkarmada bozuk akış indeksi artık yanlış izi haritalamaz; bozuk ffprobe çıktısı prob sonucunu sessizce kaybettirmiyor.
-
-### Fixed
 - R304: yer imi/geçmiş içe aktarmada `jsessionid`/`PHPSESSID`/`ASPSESSIONID` taşıyıcıları artık siliniyor; bozuk `visitedAt` damgaları sıralamayı bozmuyor.
-
-### Fixed
 - R303: emoji araması altyazı/omnibox vurgusunu bozuyordu — vekil-çift map kaydı düzeltmesi (#245 review).
-
-### Fixed
 - Testler (R302): `subs:shift` zaman kaydırma ±ms doğruluğu 12 senaryoyla kilitlendi — 1ms byte-exact, roundtrip, negatif clamp + cue çıkarma, MM↔HH şekil yükseltmesi, ayırıcı/CRLF/VTT-ayar korunumu, ±86400s IPC sınırı + 1000-tohum fuzz.
 - Testler (R301): kuyruk öncelik/sıra sözleşmeleri 17 senaryoyla kilitlendi — FIFO seçimi, retry'nin konum koruması, dedupe'un pending+running kapsamı, path kanonikleştirme, id sayacı restore devamı ve kapı davranışları (persist reddi/iptal/spawn hatası) + 300-op mutasyon fuzz'ı.
 - Güvenlik (R300): sayfa/medya kökenli görüntü URL'leri artık `safeRemoteImageUrl` kapısından geçer — geri-yüklenen sekme favicon'u ve seekbar storyboard sprite'ı javascript:/file:/data:text şemalarına ve CSS tırnak-enjeksiyonuna kapalı.

@@ -16,6 +16,15 @@ function resolveInside(root, relativePath) {
   return resolved.startsWith(prefix) ? resolved : '';
 }
 
+// Sağlıklı bir yt-dlp paketinin asgari modül işaretleri — update_ytdlp.py
+// tarafındaki _healthy_package listesiyle aynı tutulmalı.
+const RUNTIME_REQUIRED_MODULES = [
+  path.join('yt_dlp', '__init__.py'),
+  path.join('yt_dlp', 'version.py'),
+  path.join('yt_dlp', 'YoutubeDL.py'),
+  path.join('yt_dlp', 'extractor', '__init__.py'),
+];
+
 function activeRuntimePath(root, fsImpl = fs) {
   let pointer;
   try {
@@ -26,11 +35,10 @@ function activeRuntimePath(root, fsImpl = fs) {
   for (const candidate of [pointer && pointer.path, pointer && pointer.previous]) {
     const resolved = resolveInside(root, candidate);
     // Yarım silinmiş/karantinaya alınmış paket: __init__.py tek başına paketi
-    // işe yaramaz kılmaz; validate_runtime'ın kullandığı yt_dlp.version modülü
-    // de durmalı ki import hataya düşmeden 'previous' geri dönüşü çalışsın.
-    if (resolved
-      && fsImpl.existsSync(path.join(resolved, 'yt_dlp', '__init__.py'))
-      && fsImpl.existsSync(path.join(resolved, 'yt_dlp', 'version.py'))) return resolved;
+    // işe yaramaz kılmaz; validate_runtime'ın kullandığı yt_dlp.version ve
+    // uygulamanın gerçekte içe aktardığı YoutubeDL modülleri de durmalı ki
+    // eksik modüllü paket seçilip YouTube işlemleri import hataya düşmesin.
+    if (resolved && RUNTIME_REQUIRED_MODULES.every((rel) => fsImpl.existsSync(path.join(resolved, rel)))) return resolved;
   }
   return '';
 }

@@ -5502,7 +5502,11 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserPageVisible = !!tab.browserPageVisible;
   player.browserPageError = tab.browserPageError || '';
   player.browserPageView = tab.browserPageView || (tab.browserPageVisible ? 'both' : 'original');
-  player.browserPageScope = tab.browserPageScope || 'article';
+  {
+    const scopePref = $('browserPageScope')?.value;
+    player.browserPageScope = tab.browserPageScope
+      || (['article', 'whole', 'selection'].includes(scopePref) ? scopePref : 'article');
+  }
   player.browserPageAutoContinue = tab.browserPageAutoContinue !== false;
   player.browserPageStats = tab.browserPageStats || null;
   player.browserPageCompletion = tab.browserPageCompletion || null;
@@ -12083,6 +12087,11 @@ if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', 
     refreshBrowserSponsorSegments().catch(() => {});
   }
 });
+// Kategori seçimi değişince açık videonun bölümleri eski kategorilerle kalırdı;
+// mod 'off' değilse yeni seçimle yeniden çekilir.
+if ($('browserSponsorCategories')) $('browserSponsorCategories').addEventListener('change', () => {
+  refreshBrowserSponsorSegments().catch(() => {});
+});
 if ($('browserSponsorTemporary')) $('browserSponsorTemporary').addEventListener('click', () => {
   player.browserSponsorTemporaryDisabled = !player.browserSponsorTemporaryDisabled;
   const button = $('browserSponsorTemporary');
@@ -15949,9 +15958,14 @@ async function refreshEmbeddedSubtitleTracks(filePath) {
   $('playerEmbeddedSubField')?.classList.remove('hidden');
   const textCount = player.embeddedSubtitleTracks.filter((track) => track.extractable).length;
   const bitmapCount = player.embeddedSubtitleTracks.filter((track) => track.requiresOcr).length;
+  // Çıkarılamayan metin izleri (bozuk indeks vb.) bitmap sayılmaz —
+  // ipucu '0 görüntü tabanlı iz' demesin diye ayrı sayılır.
+  const unreadCount = player.embeddedSubtitleTracks.filter((track) => !track.extractable && !track.requiresOcr).length;
   $('playerEmbeddedSubHint').textContent = textCount
-    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}.`
-    : `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor.`;
+    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+    : bitmapCount
+      ? `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+      : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`;
   $('playerEmbeddedSubLoad').disabled = !textCount;
 }
 
@@ -19441,9 +19455,13 @@ $$('.view-modes .vm').forEach((b) => {
 if ($('sideResizer')) {
   const rz = $('sideResizer');
   let dragging = false;
+  // Yalnız başlatan işaretçi sürükler: ikinci parmağın move/up olayı paneli
+  // kaydırıp sürüklemeyi bitirmesin (çoklu dokunuş).
+  let dragPointerId = null;
   rz.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || dragging) return;
     dragging = true;
+    dragPointerId = e.pointerId;
     rz.classList.add('dragging');
     // Surukleme sirasinda grid gecis animasyonu kapatilir, yoksa el takip etmez
     const body = document.querySelector('.player-body');
@@ -19452,13 +19470,14 @@ if ($('sideResizer')) {
     e.preventDefault();
   });
   window.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
+    if (!dragging || e.pointerId !== dragPointerId) return;
     const layer = $('playerLayer').getBoundingClientRect();
     setSideWidth(layer.right - e.clientX);
   });
-  const endResize = () => {
-    if (!dragging) return;
+  const endResize = (e) => {
+    if (!dragging || (e && e.pointerId !== dragPointerId)) return;
     dragging = false;
+    dragPointerId = null;
     rz.classList.remove('dragging');
     const body = document.querySelector('.player-body');
     if (body) body.classList.remove('resizing');
@@ -21219,6 +21238,7 @@ async function translateVisiblePdfPagesNow(reader, all) {
     });
     if (!proceed) { reader.translating = false; return; }
   }
+  reader.cancelRequested = false;
   reader.translationStartedAt = Date.now();
   reader.translationCompleted = 0;
   reader.translationFailed = 0;
@@ -21237,11 +21257,19 @@ async function translateVisiblePdfPagesNow(reader, all) {
   // sayfalara uygula. Her çağrı en fazla üç sayfa işler; aradaki çağrılarda iptal
   // düğmesi çalışmaya devam eder.
   for (let offset = 0; offset < pages.length; offset += 3) {
-    if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
+    // Aynı dosya yeniden açılınca pdfHash aynı kalır; kimlik karşılaştırması
+    // eski okuyucunun döngüsünü yeni okuyucunun boş sayfa haritasıyla sürdürüp
+    // çevrilen sayfaları ezmesini önler. İptal bayrağı paket arasında da durur.
+    if (player.pdfReader !== reader) break;
+    if (reader.cancelRequested) { canceled = true; break; }
     const batchPages = pages.slice(offset, offset + 3);
     if (all) {
-      for (const pageNumber of batchPages) await extractPdfReaderPage(pageNumber);
-      if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
+      for (const pageNumber of batchPages) {
+        if (reader.cancelRequested) { canceled = true; break; }
+        await extractPdfReaderPage(pageNumber);
+      }
+      if (player.pdfReader !== reader) break;
+      if (reader.cancelRequested) { canceled = true; break; }
     }
     const requests = batchPages.map((pageNumber) => {
       const entry = reader.pages.get(pageNumber) || {};
@@ -21399,7 +21427,11 @@ $('[data-pdf-view]') && $$('[data-pdf-view]').forEach((button) => {
 });
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
 $('pdfTranslateCancel')?.addEventListener('click', () => {
-  if (player.pdfReader?.pdfHash) window.api.cancelPdfTranslation?.(player.pdfReader.pdfHash);
+  const reader = player.pdfReader;
+  // Paket arasında ana süreçte iş yoktur; bayrak döngünün bir sonraki
+  // yinelemesinde durmayı sağlar (o an uçuşta olan paket de API'den iptal edilir).
+  if (reader) reader.cancelRequested = true;
+  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash);
 });
 $('pdfExport')?.addEventListener('click', async () => {
   const result = await window.api.exportPdfTranslation?.(player.pdfReader?.pdfHash, $('pdfExportFormat')?.value || 'txt', $('pdfTargetLanguage')?.value || 'tr').catch(() => null);
@@ -27251,10 +27283,14 @@ async function openInvidiousChannelPage(channelId) {
           if (!v.videoId || seen.has(v.videoId)) continue;
           seen.add(v.videoId);
           if (stVideoHidden(v)) continue;
-          tabBody.appendChild(buildSmartTubeCard(v));
+          // Düğme satırı listenin sonunda kalmalı; aksi halde her sayfa
+          // düğmenin altına eklenir ve kullanıcı geriye kaydırmak zorunda kalır.
+          tabBody.insertBefore(buildSmartTubeCard(v), row);
           added++;
         }
-        if (!added) { row.remove(); return; }
+        if (!added && got.length < 20) { row.remove(); return; }
+        // Tümü yinelenen/gizli dolu sayfa: düğmeyi kaldırma — sonraki
+        // sayfalar yeni video içerebilir; kayma ancak boş sayfada biter.
         btn.disabled = false;
       });
       row.appendChild(btn);
