@@ -84,6 +84,9 @@
       }
       dense.push(folded.slice(i, i + w));
       map.push([i, w]);
+      // dense UTF-16 birimi sayar, map öğe sayar — vekil çift (emoji) 2 birim
+      // kaplar ama tek kayıt bırakırdı; ofset hizası için ikinci kayıt şart.
+      if (w === 2) map.push([i, w]);
       i += w;
     }
     return { dense: dense.join(''), map };

@@ -43,7 +43,7 @@ dalları korunuyor.
 ```js
 safeRemoteImageUrl(url) → http(s) | data:image/ | blob: dışı → ''
   + tırnak/boşluk/backtick taraması
-safeSeekSheetImageUrl(url) → +4096 sınırı → safeRemoteImageUrl
+safeSeekSheetImageUrl(url) → +16 MB sınırı → safeRemoteImageUrl
 ```
 
 ## Regresyon kilitleri
@@ -51,7 +51,7 @@ safeSeekSheetImageUrl(url) → +4096 sınırı → safeRemoteImageUrl
 `tests/image-sink-security.test.js` (5 kontrol):
 - şema matrisi: http/https/data:image(raster+svg)/blob kabul;
   javascript:/data:text/html/file:/vbscript://`//proto-relative`/tırnak-boşluk
-  taşıyanlar/4096+ red.
+  taşıyanlar/16 MB+ red.
 - favicon sink'i `safeRemoteImageUrl(tab.favicon)` üzerinden (statik).
 - sheet sink'i `JSON.stringify` (statik) + JSON.parse roundtrip.
 - omnibox `/^data:image\//i` kapısı (statik).
