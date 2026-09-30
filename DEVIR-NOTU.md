@@ -1,5 +1,5 @@
 Güncel çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
-Önceki çalışma: [docs/devir/2026-09-30-1105.md](docs/devir/2026-09-30-1105.md) — R287: argv kaçış matrisi (`pushBoundOption`, 39 seçenek `=` biçimi)
+Önceki çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
 Önceki çalışma: [docs/devir/2026-09-30-0915.md](docs/devir/2026-09-30-0915.md) — R283: çeviri prompt'u golden-snapshot kilidi (5+3 varyant byte-exact + model tablosu)
 Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0830.md](docs/devir/2026-09-30-0830.md) — R282: dokümantasyon senkron turu (rapor indeksi 178–230 eklendi, sayaç→231)

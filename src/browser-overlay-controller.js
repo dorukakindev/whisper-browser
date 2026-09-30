@@ -1,12 +1,26 @@
 const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
 
-// Cue listeleri start sıralıdır (parse/kurulum sırasında sıralanır). Büyük
-// izlerde (10k+ cue) her video karesinde bütün start/end sınırlarını
-// taramak ana iş parçacığını boğar; önek-maksimum (aktif cue geri
-// yürüyüşü) + son-ek-minimum (gelecek cue'ların en erken bitişi) dizileri
-// listeyi bir kez O(n) kurup kare başına O(log n + aktif) çalışır.
-// browserActiveCuesAt ile aynı WeakMap/uzantı deseni; dönüş değeri kaynak
-// zamanında `> t` olan en küçük sınır, yoksa NaN'dır.
+/**
+ * Cue listeleri start sıralıdır (parse/kurulum sırasında sıralanır). Büyük
+ * izlerde (10k+ cue) her video karesinde bütün start/end sınırlarını
+ * taramak ana iş parçacığını boğar; önek-maksimum (aktif cue geri
+ * yürüyüşü) + son-ek-minimum (gelecek cue'ların en erken bitişi) dizileri
+ * listeyi bir kez O(n) kurup kare başına O(log n + aktif) çalışır.
+ * browserActiveCuesAt ile aynı WeakMap/uzantı deseni; dönüş değeri kaynak
+ * zamanında `> t` olan en küçük sınır, yoksa NaN'dır.
+ *
+ * Birim sözleşmesi: `sourceTime` cue alanlarıyla aynı birimdedir (s ya da ms
+ * — işlev birim-agnostiktir); karşılaştırma katı `>` iledir.
+ *
+ * Değişmezlik sözleşmesi: liste salt-okunur kabul edilir. Büyüme yalnız
+ * sondan ve start-sıralı ekleme ile desteklenir (canlı iz senaryosu);
+ * sıra-bozan uzatma indeksi geçersiz kılıp tam taramaya düşürür. Yerinde
+ * alan değişikliği O(1) kalmak adına yalnız üç prob noktasında (0, n>>1,
+ * n-1) gözlenir — bu noktalar dışında cue.start/end mutasyonu bayat
+ * prefixMax/suffixMin üzerinden YANLIŞ sınır döndürebilir. Mutasyon yapan
+ * çağıran yeni dizi referansı vermelidir (WeakMap anahtarı değişir, indeks
+ * yeniden kurulur); state.source/state.translation bu yolu izler.
+ */
 function nextCueBoundaryAt(cues, sourceTime) {
   const list = Array.isArray(cues) ? cues : [];
   const t = Number(sourceTime);
