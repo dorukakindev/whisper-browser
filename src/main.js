@@ -5242,9 +5242,13 @@ function browserLoadError(code, description) {
     return { messageKey: 'address-unreachable',
       message: 'Site adresine ağ üzerinden ulaşılamadı. Adresi ve internet bağlantısını kontrol edin.' };
   }
-  if (Number(code) === -310 || Number(code) === -311 || /ERR_TOO_MANY_REDIRECTS|ERR_UNSAFE_REDIRECT/i.test(raw)) {
+  if (Number(code) === -310 || /ERR_TOO_MANY_REDIRECTS/i.test(raw)) {
     return { messageKey: 'redirect-loop',
       message: 'Site çok fazla yönlendirme yaptı — adres döngüye giriyor olabilir.' };
+  }
+  if (Number(code) === -311 || /ERR_UNSAFE_REDIRECT/i.test(raw)) {
+    return { messageKey: 'unsafe-redirect',
+      message: 'Site güvenli olmayan bir adrese yönlendirdi — bağlantı durduruldu.' };
   }
   if ([-20, -24, -27].includes(Number(code)) || /ERR_BLOCKED_BY/i.test(raw)) {
     return { messageKey: 'blocked-by-filter',

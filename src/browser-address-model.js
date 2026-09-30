@@ -8,13 +8,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // I/İ/ı tek "i"; ASCII-dışı harfler NFD temel harfine iner (é→e, ş→s):
-  // ayrışık yazımla birleşik yazım eşleşir, vurgusuz sorgu vurgulu başlığı
-  // bulur. Birleştirme işaretleri ve biçim/denetim karakterleri (bidi
-  // denetimleri, ZWJ) düşer. Uzunluk birleşik (NFC) metinde korunur —
-  // vurgu konumları geçerli kalır; ayrışık/işaretli girdide kısalabilir.
+  // Katlamada düşürülen karakterler (birleştirme işaretleri, bidi denetimleri,
+  // ZWJ, denetim karakterleri, yalın vekil yarıları) bu işaretçiyle yer tutar —
+  // metin tarafında uzunluk HER ZAMAN korunur; eşleşme ofsetleri özgün metinle
+  // birebir hizalı kalır (vurgu konumları için).
+  const FOLD_SENTINEL = '\uFFFF';
   // NFD'de ayrışmayan Latin vuru harfleri — tek karakterle katlanır
-  // (uzunluk korunur; æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
+  // (æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
   const LATIN_STROKE = {
     'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'ð': 'd',
     'ŧ': 't', 'Ŧ': 't', 'ħ': 'h', 'Ħ': 'h', 'ŋ': 'n', 'Ŋ': 'n',
@@ -26,11 +26,24 @@
     return String(value == null ? '' : value)
       .replace(/[Iİı]/g, 'i')
       .replace(/[^\x20-\x7E]/g, (ch) => {
-        if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return '';
-        const base = LATIN_STROKE[ch] || ch.normalize('NFD')[0];
-        return base === ch ? ch : base;
+        if (/\p{M}|\p{Cf}|\p{Cc}|\p{Cs}/u.test(ch)) return FOLD_SENTINEL;
+        const mapped = LATIN_STROKE[ch];
+        if (mapped) return mapped;
+        // Yalnız "taban harf + birleştirme işaretleri" ayrışması temel harfe
+        // iner (é→e, أ→ا); Korece hece/jamo ve sunum biçimleri korunur.
+        const nfd = ch.normalize('NFD');
+        if (nfd.length > 1 && !/^\p{M}/u.test(nfd) && /^\p{M}+$/u.test(nfd.slice(1))) {
+          return nfd[0];
+        }
+        return ch;
       })
       .toLowerCase();
+  }
+
+  // Sorgu tarafı katlama: işaretçiler silinir — sorgudaki görünmez karakter
+  // eşleşmeyi bozmaz; metin ofsetleri korunduğu için konumlar yine doğru.
+  function foldSearchQuery(value) {
+    return foldSearchText(value).replace(/\uFFFF/g, '');
   }
 
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -58,7 +71,7 @@
   function inlineCompletion(query, items, now = Date.now()) {
     const typed = String(query || '');
     if (typed.length < 2 || /\s/.test(typed) || /^[a-z][a-z0-9+.-]*:/i.test(typed)) return null;
-    const needle = foldSearchText(typed);
+    const needle = foldSearchQuery(typed);
     let best = null;
     for (const item of Array.isArray(items) ? items : []) {
       const bare = strippedUrl(item?.url).replace(/\/$/, '');
@@ -82,7 +95,7 @@
     const query = String(input.query || '').trim();
     if (!query) return [];
     const omnibox = input.omnibox || {};
-    const folded = foldSearchText(query);
+    const folded = foldSearchQuery(query);
     const now = Number(input.now) || Date.now();
     const limit = Number(input.limit) || 14;
     const faviconFor = typeof input.faviconFor === 'function' ? input.faviconFor : () => '';
@@ -232,7 +245,7 @@
   function isRtlLanguage(code) { return RTL_LANGUAGE.test(String(code || '')); }
 
   return {
-    foldSearchText, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
+    foldSearchText, foldSearchQuery, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
     visibleTabsInDisplayOrder, langFromPath, isRtlLanguage, originOf, httpFallbackUrl,
     ntpPlaceKey, ntpQuickTiles, ntpContinueItems,
   };

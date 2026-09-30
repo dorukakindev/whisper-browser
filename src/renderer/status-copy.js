@@ -74,7 +74,7 @@
       'Bağlantı karşı tarafça kesildi.', 'The connection was dropped by the other side.'],
     [/\benotfound\b|\beai_again\b|name_not_resolved|getaddrinfo|err_name/i,
       'Alan adı çözümlenemedi — internet bağlantısını kontrol edin.', 'Could not resolve the host — check your internet connection.'],
-    [/\benetdown\b|\benetunreach\b|\behostunreach\b|network.?unreachable|err_internet_disconnected|err_network/i,
+    [/\benetdown\b|\benetunreach\b|\behostunreach\b|network.?unreachable|err_internet_disconnected|err_network_io_suspended|err_network_access_denied/i,
       'Ağ erişilemez durumda — internet bağlantısını kontrol edin.', 'The network is unreachable — check your internet connection.'],
     [/certificate|self.signed|unable to verify|err_cert/i,
       'Güvenlik sertifikası doğrulanamadı.', 'The security certificate could not be verified.'],

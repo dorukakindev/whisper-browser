@@ -1423,7 +1423,7 @@ $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   $('previewSearchClear')?.classList.toggle('hidden', !$('previewSearch').value);
   _searchTimer = setTimeout(() => {
-    previewFilter = foldSearch($('previewSearch').value.trim());
+    previewFilter = foldQuery($('previewSearch').value.trim());
     $$('#preview .segment').forEach(applySegmentFilter);
   }, 120);
 });
@@ -7020,7 +7020,7 @@ function renderBrowserQuickPlaces() {
 }
 
 function browserPlaceList() {
-  const query = foldSearch(String($('browserPlacesSearch')?.value || '').trim());
+  const query = foldQuery(String($('browserPlacesSearch')?.value || '').trim());
   if (player.browserPlaceTab === 'offline') {
     return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
       !query || foldSearch(`${item.title || ''} ${item.url || ''}`).includes(query));
@@ -7696,7 +7696,7 @@ function setBrowserPlacesOpen(open) {
 const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map(), pending: new Set(), errors: new Map() };
 
 function browserDownloadMatches(item) {
-  const query = foldSearch(String($('browserDownloadsSearch')?.value || '').trim());
+  const query = foldQuery(String($('browserDownloadsSearch')?.value || '').trim());
   const filter = $('browserDownloadsFilter')?.value || 'all';
   if (query && !foldSearch(`${item.filename} ${item.path || ''}`).includes(query)) return false;
   return filter === 'all' || (filter === 'active' ? item.active
@@ -7944,7 +7944,7 @@ function renderBrowserDiagnostics(diagnostics) {
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
-  const filter = foldSearch(String(browserDiagnosticsFilter || '').trim());
+  const filter = foldQuery(String(browserDiagnosticsFilter || '').trim());
   const entries = (Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 100) : [])
     .filter((entry) => !filter || foldSearch([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
       .filter(Boolean).join(' ')).includes(filter));
@@ -14005,7 +14005,7 @@ function cueHasLowConfidence(cue) {
 function renderCueList(filter = '') {
   const box = $('cueList');
   if (!box) return;
-  const q = foldSearch(filter.trim());
+  const q = foldQuery(filter.trim());
   box.innerHTML = '';
   updateCueMeta();
   if (!player.cues.length) {
@@ -15064,7 +15064,7 @@ function renderHistory() {
   const card = $('historyCard');
   const list = $('historyList');
   if (!card || !list) return;
-  const q = foldSearch($('historySearch')?.value);
+  const q = foldQuery($('historySearch')?.value);
   const items = q
     ? historyCache.filter((h) => foldSearch(h.title).includes(q))
     : historyCache;
@@ -16639,6 +16639,7 @@ const BROWSER_ERROR_EN = {
   'proxy-error': () => 'The proxy/VPN connection could not be established. Check the proxy or VPN settings and retry the connection.',
   'address-unreachable': () => 'The site address could not be reached over the network. Check the address and your internet connection.',
   'redirect-loop': () => 'The site redirected too many times — the address may be looping.',
+  'unsafe-redirect': () => 'The site tried to redirect to an unsafe address — the connection was stopped.',
   'blocked-by-filter': () => 'The request was blocked (ad/tracking protection or administrator policy).',
   'connection-dropped': () => 'The connection was dropped by the other side. Try again in a moment.',
   'ssl-error': () => 'A secure (SSL) connection to the site could not be established. Check the system clock and VPN/antivirus HTTPS inspection.',
@@ -18207,6 +18208,13 @@ function foldSearch(value) {
   const text = String(value == null ? '' : value);
   const fold = globalThis.BrowserAddressModel?.foldSearchText || globalThis.BrowserOmnibox?.foldSearchText;
   return fold ? fold(text) : text.replace(/[Iİı]/g, 'i').toLowerCase();
+}
+
+// Sorgu tarafı katlama: metindeki işaretçi karakterler sorgudan silinir —
+// görünmez/ayrışık yazılan sorgu da eşleşir; metin ofsetleri foldSearch ile
+// korunduğu için vurgu konumları doğru kalır.
+function foldQuery(value) {
+  return foldSearch(value).replace(/\uFFFF/g, '');
 }
 
 // Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR (yalnız bilinen dil kodları;
@@ -20283,7 +20291,7 @@ if (moreSearch) {
   const morePopover = moreSearch.closest('.browser-more-popover');
   let moreEmpty = null;
   const filterMoreMenu = () => {
-    const q = foldSearch(moreSearch.value.trim());
+    const q = foldQuery(moreSearch.value.trim());
     // Arama "eylenebilir komut" bulur: devre dışı öğeler eşleşmez — gri ama
     // tıklanamaz ölü sonuç yerine "eşleşme yok" satırı daha dürüsttür.
     const usable = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
@@ -22188,7 +22196,7 @@ async function runPlayerLibrarySearch() {
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
   if (playerLibraryView === 'collections') {
-    const folded = foldSearch(q.normalize('NFKC'));
+    const folded = foldQuery(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
         .some((value) => foldSearch(String(value || '').normalize('NFKC')).includes(folded)));
@@ -23684,7 +23692,7 @@ function renderBrowserRemapCues() {
   const select=$('browserRemapCue');select.replaceChildren();
   browserRemapTargets=new Map();
   const descriptor=subtitleFindDescriptors().find(row=>row.channel===$('browserRemapChannel').value);
-  const query=foldSearch($('browserRemapSearch').value.trim());
+  const query=foldQuery($('browserRemapSearch').value.trim());
   for(const [index,cue] of (descriptor?.cues||[]).entries()){
     if(query&&!foldSearch(cue.text).includes(query))continue;
     select.add(new Option(`${pSecToTime(cue.start)} · ${cue.text.slice(0,140)}`,String(index)));
@@ -24341,7 +24349,7 @@ if ($('cueSearch')) {
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
   $('cueSearch').addEventListener('input', (e) => {
     if (e.isComposing) return;
-    const q = foldSearch(e.target.value.trim());
+    const q = foldQuery(e.target.value.trim());
     renderCueList(e.target.value);
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);

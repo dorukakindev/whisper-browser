@@ -173,13 +173,13 @@
   // Arama eşleştirmesi için dil bağımsız katlama. toLocaleLowerCase('tr') ASCII
   // "I"yı "ı" yapıyor, kullanıcının yazdığı "i" İngilizce "Interstellar"ı
   // bulamıyordu; 'en' yerelinde de "İstanbul" "istanbul" ile eşleşmiyordu.
-  // ASCII-dışı harfler NFD temel harfine iner (é→e, ş→s): ayrışık yazılmış
-  // metinle birleşik yazım eşleşir, vurgusuz sorgu vurgulu başlığı bulur.
-  // Birleştirme işaretleri ve biçim/denetim karakterleri (bidi denetimleri,
-  // ZWJ) düşer — görünmez karakterler eşleşmeyi bozamaz. Katlama uzunluğu
-  // birleşik (NFC) metinde korur; ayrışık/işaretli girdide kısalabilir.
+  // Katlamada düşürülen karakterler (birleştirme işaretleri, bidi denetimleri,
+  // ZWJ, denetim karakterleri, yalın vekil yarıları) bu işaretçiyle yer tutar —
+  // metin tarafında uzunluk HER ZAMAN korunur; eşleşme ofsetleri özgün metinle
+  // birebir hizalı kalır (vurgu konumları için).
+  const FOLD_SENTINEL = '\uFFFF';
   // NFD'de ayrışmayan Latin vuru harfleri — tek karakterle katlanır
-  // (uzunluk korunur; æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
+  // (æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
   const LATIN_STROKE = {
     'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'ð': 'd',
     'ŧ': 't', 'Ŧ': 't', 'ħ': 'h', 'Ħ': 'h', 'ŋ': 'n', 'Ŋ': 'n',
@@ -191,11 +191,24 @@
     return String(value == null ? '' : value)
       .replace(/[Iİı]/g, 'i')
       .replace(/[^\x20-\x7E]/g, (ch) => {
-        if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return '';
-        const base = LATIN_STROKE[ch] || ch.normalize('NFD')[0];
-        return base === ch ? ch : base;
+        if (/\p{M}|\p{Cf}|\p{Cc}|\p{Cs}/u.test(ch)) return FOLD_SENTINEL;
+        const mapped = LATIN_STROKE[ch];
+        if (mapped) return mapped;
+        // Yalnız "taban harf + birleştirme işaretleri" ayrışması temel harfe
+        // iner (é→e, أ→ا); Korece hece/jamo ve sunum biçimleri korunur.
+        const nfd = ch.normalize('NFD');
+        if (nfd.length > 1 && !/^\p{M}/u.test(nfd) && /^\p{M}+$/u.test(nfd.slice(1))) {
+          return nfd[0];
+        }
+        return ch;
       })
       .toLowerCase();
+  }
+
+  // Sorgu tarafı katlama: işaretçiler silinir — sorgudaki görünmez karakter
+  // eşleşmeyi bozmaz; metin ofsetleri korunduğu için konumlar yine doğru.
+  function foldSearchQuery(value) {
+    return foldSearchText(value).replace(/\uFFFF/g, '');
   }
 
   // Varsayılan arama sağlayıcısı (adres çubuğu, sağ tık "ara"). Eskiden her
@@ -221,6 +234,6 @@
     return SEARCH_ENGINES[normalizeSearchEngine(engine)].label;
   }
 
-  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText,
+  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText, foldSearchQuery,
     SEARCH_ENGINES, normalizeSearchEngine, searchUrl, searchEngineLabel };
 });

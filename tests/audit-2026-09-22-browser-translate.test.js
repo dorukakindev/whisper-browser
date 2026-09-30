@@ -191,8 +191,10 @@ test('renderer arama filtreleri Türkçe yerel küçültme yerine foldSearch kul
   const renderer = read('src/renderer/renderer.js');
   assert.doesNotMatch(renderer, /toLocaleLowerCase\('tr'\)\.includes\(/);
   assert.match(renderer, /function foldSearch\(value\)/);
+  // Sorgu tarafı foldQuery (işaretçiler silinir), metin tarafı foldSearch —
+  // ikisi de Türkçe-yerel toLocaleLowerCase yerine modül katlamasına gider.
   for (const id of ['browserPlacesSearch', 'browserDownloadsSearch', 'historySearch', 'browserRemapSearch']) {
-    assert.match(renderer, new RegExp(`foldSearch\\([^)]*${id}`), id);
+    assert.match(renderer, new RegExp(`fold(?:Search|Query)\\([^)]*${id}`), id);
   }
 });
 
