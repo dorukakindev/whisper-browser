@@ -15108,6 +15108,12 @@ async function unloadBrowserTab(rawId) {
   tab.loadRetryTimer = null;
   if (tab.crashRecoveryTimer) clearTimeout(tab.crashRecoveryTimer);
   tab.crashRecoveryTimer = null;
+  clearBrowserCloudflareTimer(tab);
+  // Boşaltılan sekme yeni bir görünümle dirilir. Tükenmiş yeniden-deneme ve
+  // çökme bütçesi dirilen sekmeye sızarsa ilk hatada terminal olur ya da
+  // bekleyen-gezinme bayrağı ilk gerçek gezinmenin sıfırlamasını yutar.
+  tab.loadRetryAttempt = 0; tab.loadRetryPendingNav = false;
+  tab.crashRecoveryAttempt = 0;
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
   cancelBrowserPermissionRequestsForTab(tab, 'Sekme bellekten boşaltıldığı için izin isteği engellendi.');
   browserExtras?.cancel(tab);
