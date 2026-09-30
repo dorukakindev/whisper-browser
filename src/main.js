@@ -274,6 +274,7 @@ const {
 } = require('./secret-store');
 const ytAccounts = require('./youtube-accounts');
 const {
+  DANGEROUS_KEYS,
   SettingsValidationError,
   buildSecretEnv,
   createBackupPayload,
@@ -283,6 +284,7 @@ const {
   recoverJsonTransaction,
   sanitizeAbsolutePath,
   sanitizeSettings,
+  scanJsonShape,
   withoutSecretEnv,
   writeJsonTransaction,
 } = require('./settings-security');
@@ -2909,6 +2911,19 @@ function readPublicSettings() {
       const bad = kind === 'array' ? !Array.isArray(v)
         : (!v || typeof v !== 'object' || Array.isArray(v));
       if (bad) { delete parsed[key]; dropped = true; }
+    }
+    // Kayıt yolu sanitizeSettings→scanJsonShape ile kirlilik anahtarlarını
+    // (__proto__/constructor/prototype), derinlik ve düğüm sınırını reddeder;
+    // okuma yolunda aynı tarama uygulanmazsa crafted bir settings.json
+    // belleğe sızar ve SONRAKI her saveSettings'i kalıcı olarak öldürür
+    // (sanitize taratınca throw → persistence sessizce durur). Düşen ağaç
+    // yalnız o alan; diğer tercihler korunur (B-323-03).
+    for (const key of Object.keys(parsed)) {
+      if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) {
+        delete parsed[key]; dropped = true; continue;
+      }
+      try { scanJsonShape(parsed[key]); }
+      catch (_) { delete parsed[key]; dropped = true; }
     }
     if (dropped) settingsFileCorrupt = true;
     return parsed;
@@ -17856,7 +17871,13 @@ function probeCommand(cmd, cmdArgs) {
     // stderr okunmazsa pipe tamponu dolup child'ı kilitleyebilir; stdout da
     // sınırsız birikmemeli (bozuk bir binary sonsuz çıktı basabilir).
     if (p.stderr) p.stderr.resume();
-    if (p.stdout) p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    if (p.stdout) {
+      // chunk başına ham Buffer → string dönüşümü, chunk sınırında bölünen
+      // UTF-8 dizilerini U+FFFD ile bozardı; akışın kendi dekoderi sınırları
+      // doğru birleştirir.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    }
     p.on('close', (code) => {
       if (code !== 0) return finish(null);
       finish((out.split(/\r?\n/)[0] || '').trim() || null);
@@ -18476,13 +18497,18 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     }, 30000);
     timer.unref?.();
     p.on('error', () => finish({ ok: false, tracks: [] }));
-    if (p.stdout) p.stdout.on('data', (d) => {
-      if (settled) return;
-      if (out.length + d.length > 4 * 1024 * 1024) {
-        terminateProcessTree(p, { spawn });
-        finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
-      } else out += d;
-    });
+    if (p.stdout) {
+      // ffprobe çıktısında iz başlıkları UTF-8 olabilir ('Türkçe altyazı');
+      // Buffer→string per-chunk dönüşümü sınırda bölünen diziyi bozardı.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => {
+        if (settled) return;
+        if (out.length + d.length > 4 * 1024 * 1024) {
+          terminateProcessTree(p, { spawn });
+          finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
+        } else out += d;
+      });
+    }
     p.on('close', (code) => {
       if (settled) return;
       if (code !== 0) return finish({ ok: false, tracks: [] });

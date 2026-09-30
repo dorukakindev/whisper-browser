@@ -1079,3 +1079,20 @@ async function removeYoutubeAccount(id) {
     renderSmartTubeSection(stCurrentSection, { force: true });
   }
 }
+
+// Bırakılan link metninden güvenli hedef URL seçimi (R323-7).
+// text/uri-list spec'inde '#' ile başlayan satırlar yorumdur; düz metin
+// yedeğinde de aynı süzgeç uygulanır. Yalnız http/https kabul edilir —
+// file:, javascript:, data:, chrome: gibi şemalar ve şemasız girişler null
+// döner, böylece çağıran taraf alanı boş bırakır.
+function pickDroppedLink(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  for (const rawLine of text.split(/[\r\n]+/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    for (const token of line.split(/\s+/)) {
+      if (/^https?:\/\//i.test(token)) return token;
+    }
+  }
+  return null;
+}
