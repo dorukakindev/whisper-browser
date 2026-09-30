@@ -34,7 +34,7 @@ Aynı dosyada DeArrow ve RYD fetch'leri bu senaryo için açık yorumla güçlen
 
 | Dosya | Sonuç |
 | --- | --- |
-| `tests/sponsorblock-fetch-resilience.test.js` (yeni, 25 kontrol) | PASS — master'da askı senaryosu FAIL (kırmızı kanıt) |
+| `tests/sponsorblock-fetch-resilience.test.js` (yeni, 28 kontrol) | PASS — master'da askı senaryosu FAIL (kırmızı kanıt) |
 | `tests/browser-sponsorblock.test.js` | PASS |
 | `tests/browser-video-extras.test.js` | PASS |
 | `node --check src/main.js` | OK |
@@ -42,3 +42,7 @@ Aynı dosyada DeArrow ve RYD fetch'leri bu senaryo için açık yorumla güçlen
 ## Doğrulanamayan sınırlar
 
 - Gerçek `net.request` yarı-kapanma davranışı Electron ağ yığınına bağlı — test sahte akışla sözleşme düzeyinde kilitler; canlı sponsor.ajay.app davranışı doğrulanmadı.
+
+
+Kontrol sayısı notu: ilk kayıtta 25 yazıyordu; eklenen gecikmiş-olay
+senaryosuyla testin gerçek toplamı 28 kontrol — düzeltildi.
