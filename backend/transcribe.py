@@ -3011,7 +3011,13 @@ def resolve_translate_routes(base_url):
     except Exception:
         host = ""
     if host in _SHUAI_HOSTS:
-        others = [u for _l, u in SHUAI_ROUTES if u.rstrip("/") != raw]
+        # Aynı endpointi iki biçimde (ör. schemesiz/büyük harf vs kanonik)
+        # yazmamak için host eşleşmesiyle düşür — dizgi eşitliğiyle yapılan
+        # dedupe 'oai.sb/v1' girdisinde aynı rotayı iki kez sıralıyordu.
+        others = [
+            u for _l, u in SHUAI_ROUTES
+            if (urlparse(u).hostname or "").lower() != host
+        ]
         return [raw] + others
     return [raw]
 

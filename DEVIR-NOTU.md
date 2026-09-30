@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-2015.md](docs/devir/2026-09-30-2015.md) — R329-3: diarization CUDA OOM'da CPU geri dönüşü (B-329-02) + 4 kilit
+Güncel çalışma: [docs/devir/2026-09-30-2030.md](docs/devir/2026-09-30-2030.md) — R329-4: rota dedupe host-bazlı (B-329-03) + sağlayıcı varyant matrisi
+Önceki çalışma: [docs/devir/2026-09-30-2015.md](docs/devir/2026-09-30-2015.md) — R329-3: diarization CUDA OOM'da CPU geri dönüşü (B-329-02) + 4 kilit
 Önceki çalışma: [docs/devir/2026-09-30-2000.md](docs/devir/2026-09-30-2000.md) — R329-2: backend çıkış-kodu sözleşmesi + KeyboardInterrupt kolu (B-329-01)
 Önceki çalışma: [docs/devir/2026-09-30-1945.md](docs/devir/2026-09-30-1945.md) — R329-1: yazıcı seçenek matrisi sha256 golden kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
