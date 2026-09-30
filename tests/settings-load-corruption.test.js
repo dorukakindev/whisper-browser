@@ -16,8 +16,9 @@ ok(start > 0 && end > start, 'dilim bulundu');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-settings-'));
 const settingsFile = path.join(dir, 'settings.json');
+const { scanJsonShape, DANGEROUS_KEYS } = require('../src/settings-security');
 const sandbox = {
-  fs, path, settingsPath: () => settingsFile,
+  fs, path, settingsPath: () => settingsFile, scanJsonShape, DANGEROUS_KEYS,
 };
 vm.createContext(sandbox);
 vm.runInContext(src.slice(start, end), sandbox);
