@@ -44,6 +44,7 @@ function harness(deviceSetting, spawnImpl) {
     spawn: spawnImpl || ((...args) => { const p = fakeProc(); spawns.push({ args, proc: p }); return p; }),
     resolvePython: () => 'python',
     app: { getAppPath: () => '/app', getPath: () => '/tmp' },
+    appResourceRoot: () => '/app',
     path, fs, EventEmitter,
     randomUUID: () => 'uuid-1',
     browserEventContext: () => ({ tabId: 1 }),
