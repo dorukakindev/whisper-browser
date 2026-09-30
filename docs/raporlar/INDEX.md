@@ -8,6 +8,7 @@ tarih sırasıyla dosya adından okunur.
 | No | Rapor | Başlık |
 |---|---|---|
 | 244 | [BROWSER_BUG_REPORT_244.md](BROWSER_BUG_REPORT_244.md) | R295 — CI determinizm denetimi + baseline ratchet (Math.random yasak, uyku/duvar-saati) |
+| 243 | [BROWSER_BUG_REPORT_243.md](BROWSER_BUG_REPORT_243.md) | R294 — err_* EN/TR tam kapsama ratchet'i |
 | 242 | [BROWSER_BUG_REPORT_242.md](BROWSER_BUG_REPORT_242.md) | R293 — series_memory birleştirme yarışı (temiz) |
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | R292 — Devin Review flag süpürmesi (üretim okuyucusu eval + ham bayt) |
 | 239 | [BROWSER_BUG_REPORT_239.md](BROWSER_BUG_REPORT_239.md) | R291 — Sekme/oturum persist bozuk-veri matrisi |
