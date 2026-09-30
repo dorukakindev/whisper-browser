@@ -661,6 +661,10 @@ async function processNextQueueItem() {
     finalizeQueue();
     return;
   }
+  // Çağrı grafiği gereği bu işlev yalnız terminal olaylardan (done/error/exit)
+  // veya boşta başlatmadan gelir; yine de bir iş çalışıyorken yapılan fazladan
+  // çağrı ikinci bir süreci asla spawn etmesin.
+  if (state.queue.some(x => x.status === 'running')) return;
   // Sonraki bekleyen iş
   const next = state.queue.find(x => x.status === 'pending');
   if (!next) {
