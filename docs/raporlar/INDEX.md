@@ -239,3 +239,4 @@ tarih sırasıyla dosya adından okunur.
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
+| 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
