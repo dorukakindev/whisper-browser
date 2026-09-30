@@ -206,6 +206,7 @@ const {
   burninTempLooksComplete,
   cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
+  readBurninRecoveryFile,
   removeFileQuietly,
   restoreNewestBurninReplacementBackup,
   replaceBurninOutput,
@@ -18647,15 +18648,7 @@ function burninRecoveryStatePath() {
 }
 
 function readBurninRecoveryState() {
-  const primary = burninRecoveryStatePath();
-  for (const candidate of [primary, `${primary}.bak`]) {
-    try {
-      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 128 * 1024) continue;
-      const recovery = normalizeBurninRecovery(JSON.parse(fs.readFileSync(candidate, 'utf8')));
-      if (recovery && burninRecoveryPathsMatch(recovery)) return recovery;
-    } catch (_) {}
-  }
-  return null;
+  return readBurninRecoveryFile(burninRecoveryStatePath());
 }
 
 function writeBurninRecoveryState(recovery) {
