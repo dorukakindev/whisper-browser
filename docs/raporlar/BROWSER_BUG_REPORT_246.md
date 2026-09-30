@@ -23,3 +23,9 @@
 
 ## Windows etkisi
 Yok — saf JS eşleştirme.
+
+
+## Devin Review eki (aynı PR)
+- **Katlama sözleşmesi sertleştirildi:** karakter silme yerine `\uFFFF` işaretçisi — metin tarafında uzunluk artık HER girdide korunur; `appendHighlighted` ofsetleri ayrışık/görünmez karakterli altyazıda da doğru. Sorgu tarafı `foldSearchQuery` işaretçileri siler (görünmez karakterli sorgu yine eşleşir).
+- **Korece yanlış katlama düzeltildi:** heceler ilk ünsüzüne inmiyordu (yalnız 'taban harf + birleştirme işaretleri' ayrışması temel harfe iner; jamo/sunum biçimleri korunur).
+- **#242 review bug'ları:** `ERR_NETWORK_CHANGED` genel `err_network` kuralına takılıp "ağ erişilemez" diyordu — kural `err_network_io_suspended|err_network_access_denied`'e daraltıldı. `ERR_UNSAFE_REDIRECT` "yönlendirme döngüsü" gösteriyordu — yeni `unsafe-redirect` messageKey + EN şablonu.
