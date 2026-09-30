@@ -299,6 +299,7 @@ function classifyError(e) {
 (async () => {
   const violations = [];
   const coverage = { channels: 0, calls: 0, registerFails: [], hangs: [] };
+  let protoBaseline = null; // ilk taze realm'den bir kez alınır (evrensel karşılaştırma)
   for (const [channel, src] of handlers) {
     const calls = [];
     const rec = makeRecorder(calls);
@@ -335,6 +336,21 @@ function classifyError(e) {
     if (typeof callback !== 'function') { coverage.registerFails.push(`${channel}: no-callback`); continue; }
     coverage.channels += 1;
 
+    // Taze realm'in prototip anahtar kümesi — her çağrı sonrası karşılaştırılır.
+    // Tek-anahtar 'polluted' probunun görmediği eklenen/silinen her ad yakalanır.
+    // Baseline ilk kanalda bir kez alınır: önceki kanal kirliliği yeni
+    // baseline'a gömülüp maskelenmesin.
+    // `Object` globalProxy üzerinden HOST realm'in intrinsik'ini verir —
+    // `Object.prototype` host'un prototipidir. Vm-realm'in gerçek
+    // prototipleri için vm içinde üretilen literal'lerden türetilir:
+    // `Object.getPrototypeOf({})` → vm realm'in Object.prototype'ı.
+    const vmProtoProbe =
+      "Object.getOwnPropertyNames(Object.getPrototypeOf({})).join(',') + '|' + " +
+      "Object.getOwnPropertyNames(Object.getPrototypeOf([])).join(',')";
+    if (protoBaseline === null) {
+      protoBaseline = vm.runInContext(vmProtoProbe, globalProxy);
+    }
+
     const nArgs = argCounts.get(channel);
     const positions = nArgs === 0 ? [-1] : Array.from({ length: nArgs }, (_, i) => i);
     for (const pos of positions) {
@@ -363,6 +379,13 @@ function classifyError(e) {
         // Payload'un kendi prototipi de takas edilmiş olmamalı (nesne türlerinde).
         if (payload && (typeof payload === 'object' || typeof payload === 'function')) {
           assert.equal(payload.polluted, undefined);
+        }
+        // Vm-realm prototip kirliliği: işleyici içindeki nesneler vm'nin
+        // Object/Array.prototype'ını taşır — oraya yazılan iz host tarafındaki
+        // denetimden geçmez. Taze anahtar kümesiyle birebir karşılaştırılır.
+        const vmClean = vm.runInContext(vmProtoProbe, globalProxy) === protoBaseline;
+        if (!vmClean) {
+          violations.push({ channel, pos, label, ms, outcome: 'vm-proto-pollution', danger: [] });
         }
         const dangerHits = calls.filter((c) => DANGER.test(c.path));
         const allowed = SIDE_EFFECT_ALLOWLIST[channel] || [];

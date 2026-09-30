@@ -39,6 +39,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
       dialog: { showOpenDialog: async () => ({ filePaths: ['synthetic.mp4'] }) },
       loadSettings: () => ({}), KNOWN_MODELS: ['small'], app: { getAppPath: () => '/synthetic' },
       parseNdjsonLine: require('../src/ndjson-lines').parseNdjsonLine,
+      pushBoundOption: require('../src/argv-escape').pushBoundOption,
       path, process, fs: { existsSync: () => false }, resolvePython: () => 'python',
       spawned: 0, killed: 0, cleared: 0,
     };

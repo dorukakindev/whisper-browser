@@ -25,15 +25,26 @@ function fsyncFileBestEffort(filePath, io = fs) {
   try { fsyncFile(filePath, io); } catch (_) {}
 }
 
+// Dizin fsync'i desteklemeyen ortamlar: Windows'ta dizin open() zaten
+// reddedilir; FUSE vb. fsync'te ENOTSUP/EINVAL verebilir. Bunlar tolere
+// edilir; açılabilmiş bir dizinde fsync'in G/Ç hatasıyla düşmesi ise
+// gerçek dayanıklılık kaybıdır — yutulursa çağıran kaydı kalıcı sanır.
+const FSYNC_DIR_TOLERATED = new Set(['ENOTSUP', 'EINVAL', 'EPERM', 'EACCES', 'EROFS', 'ENOSYS', 'EISDIR']);
+
 function fsyncDirectory(dirPath, io = fs) {
   let descriptor;
   try {
     descriptor = io.openSync(dirPath, 'r');
-    io.fsyncSync(descriptor);
   } catch (_) {
-    // Windows ve bazı dosya sistemleri dizin fsync'ini desteklemez.
+    return; // açılamayan dizin → platform desteklemiyor, en iyi çaba.
+  }
+  try {
+    io.fsyncSync(descriptor);
+  } catch (error) {
+    if (error && FSYNC_DIR_TOLERATED.has(error.code)) return;
+    throw error;
   } finally {
-    if (descriptor !== undefined) try { io.closeSync(descriptor); } catch (_) {}
+    try { io.closeSync(descriptor); } catch (_) {}
   }
 }
 
@@ -43,12 +54,22 @@ function atomicWriteFileSync(filePath, payload, options = {}) {
   const io = options.io || fs;
   const dir = path.dirname(filePath);
   const temp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  // recursive mkdir'in yeni kurduğu zincir köke kadar çıkabilir; her düzeyin
+  // dizin kaydı kendi üst klasörünün önbelleğinde bekler. Yalnız `dir`'i
+  // senkronlamak güç kesintisinde yeni klasörü kaybettirir.
+  const missingDirs = [];
+  for (let d = dir; !io.existsSync(d) && path.dirname(d) !== d; d = path.dirname(d)) {
+    missingDirs.push(d);
+  }
+  const topParent = missingDirs.length ? path.dirname(missingDirs[missingDirs.length - 1]) : null;
   io.mkdirSync(dir, { recursive: true });
   try {
     io.writeFileSync(temp, payload, options.encoding || 'utf8');
     fsyncFile(temp, io);
     io.renameSync(temp, filePath);
     fsyncDirectory(dir, io);
+    for (let i = 1; i < missingDirs.length; i++) fsyncDirectory(missingDirs[i], io);
+    if (topParent) fsyncDirectory(topParent, io);
   } catch (error) {
     try { if (io.existsSync(temp)) io.unlinkSync(temp); } catch (_) {}
     throw error;
