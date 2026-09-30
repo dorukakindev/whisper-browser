@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |
@@ -203,4 +204,5 @@ tarih sırasıyla dosya adından okunur.
 | 230 | [BROWSER_BUG_REPORT_230.md](BROWSER_BUG_REPORT_230.md) | BROWSER_BUG_REPORT_230 — SponsorBlock önbellek TTL + anahtar-çakışması stresi (R280) |
 | 231 | [BROWSER_BUG_REPORT_231.md](BROWSER_BUG_REPORT_231.md) | BROWSER_BUG_REPORT_231 — Depo yazım dayanıklılığı (fsync) + review triage (R281) |
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
-| 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
+| 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
+| 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
