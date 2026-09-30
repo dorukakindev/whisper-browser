@@ -17,15 +17,24 @@ function parseSubtitleStreams(rawProbe) {
     try { parsed = JSON.parse(rawProbe); } catch (_) { return []; }
   }
   const streams = parsed && Array.isArray(parsed.streams)
-    ? parsed.streams.filter((stream) => !stream.codec_type || stream.codec_type === 'subtitle') : [];
+    ? parsed.streams.filter((stream) => stream && typeof stream === 'object'
+        && (!stream.codec_type || stream.codec_type === 'subtitle')) : [];
   return streams.map((stream, subtitleIndex) => {
     const tags = stream.tags || {};
     const disposition = stream.disposition || {};
     const codec = String(stream.codec_name || '').toLowerCase();
     const textBased = TEXT_SUBTITLE_CODECS.has(codec);
     const bitmap = BITMAP_SUBTITLE_CODECS.has(codec);
+    // `-map 0:N` mutlak akış indeksi ister; indeks alanı bozuk/eksikse
+    // altyazı-göreli sıraya düşmek başka bir izi (çoğu zaman video/ses
+    // akışını) haritalar — o iz listede kalır ama çıkarılamaz. Yalnız
+    // gerçek sayı veya boş-olmayan sayısal dizgi kabul; Number(null)=0 ve
+    // Number([])=0 tuzakları nesne/bool/null'da mutlak 0'a koerce olmasın.
+    const rawIndex = typeof stream.index === 'number' ? stream.index
+      : (typeof stream.index === 'string' && stream.index.trim() !== '' ? Number(stream.index) : NaN);
+    const streamIndex = Number.isInteger(rawIndex) && rawIndex >= 0 ? rawIndex : null;
     return {
-      streamIndex: Number.isFinite(Number(stream.index)) ? Number(stream.index) : subtitleIndex,
+      streamIndex,
       subtitleIndex,
       codec,
       language: String(tags.language || tags.LANGUAGE || '').toLowerCase(),
@@ -35,7 +44,7 @@ function parseSubtitleStreams(rawProbe) {
       hearingImpaired: !!Number(disposition.hearing_impaired),
       textBased,
       bitmap,
-      extractable: textBased,
+      extractable: textBased && streamIndex !== null,
       requiresOcr: bitmap,
     };
   });
@@ -46,7 +55,8 @@ function subtitleOutputExtension(track) {
 }
 
 function buildSubtitleExtractionArgs(inputPath, track, outputPath) {
-  if (!track || !track.textBased || !Number.isFinite(Number(track.streamIndex))) return null;
+  if (!track || !track.textBased || !Number.isInteger(track.streamIndex)
+      || track.streamIndex < 0) return null;
   const codec = ['ass', 'ssa'].includes(track.codec) ? 'ass' : 'srt';
   return [
     '-y', '-v', 'error',
