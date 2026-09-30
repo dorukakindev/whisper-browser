@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- Güvenlik (R300): sayfa/medya kökenli görüntü URL'leri artık `safeRemoteImageUrl` kapısından geçer — geri-yüklenen sekme favicon'u ve seekbar storyboard sprite'ı javascript:/file:/data:text şemalarına ve CSS tırnak-enjeksiyonuna kapalı.
 - Omnibox (R298): metindeki görünmez karakterler aramayı bölmüyor artık; emoji sorguları çalışır (eskiden her şeyi döndürüyordu); ayrışık Korece jamo birleşik sorguyla eşleşir; otomatik tamamlama görünmez karakterli sorguda adayın temiz yazımını önerir.
 - Oturum (R298): yinelenen sekme kimliği düzeltmesi başka bir özgün sekmenin `<id>-dupN` kimliğini artık çalamaz.
 - Hata metinleri (R298): `err_unsafe_redirect` ayrı dostu-mesaj kuralı (TR/EN).

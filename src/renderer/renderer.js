@@ -6092,10 +6092,12 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
       : iconEl.dataset.faviconFailed === tab.favicon && avatarSame(iconEl))
     : (iconEl.tagName === 'IMG' || !avatarSame(iconEl)));
   if (iconStale) {
-    const next = tab.favicon ? (() => {
+    // Geri yüklenen oturum verisi eski sürümlerden her şemayı taşıyabilir.
+    const faviconSrc = tab.favicon ? safeRemoteImageUrl(tab.favicon) : '';
+    const next = faviconSrc ? (() => {
       const favicon = document.createElement('img');
       favicon.className = 'browser-tab-favicon';
-      favicon.src = tab.favicon;
+      favicon.src = faviconSrc;
       favicon.alt = '';
       favicon.draggable = false;
       favicon.referrerPolicy = 'no-referrer';
@@ -22916,6 +22918,23 @@ if ($('subtitleModeMenu')) {
   });
 }
 
+// Sayfa/medya kökenli URL'ler img/background-image sink'ine basılmadan önce
+// bu kapıdan geçer: yalnız http(s), data:image ve blob: kabul — javascript:,
+// file:, data:text/html vb. şemalar sessizce düşürülür (svg data: <img>'de
+// script çalıştırmaz); tırnak/boşluk taşıyanlar da geçmez.
+function safeRemoteImageUrl(url) {
+  const text = String(url || '').trim();
+  if (!/^(https?:\/\/|data:image\/|blob:)/i.test(text)) return '';
+  return /[\s"'\\<>`]/.test(text) ? '' : text;
+}
+function safeSeekSheetImageUrl(url) {
+  const text = String(url || '').trim();
+  // Yerel sprite'lar base64 data:image olarak gelir — meşru önizlemeler
+  // yüzlerce KB olabilir; sınır yalnız patolojik dizgileri eler.
+  if (text.length > 16 * 1024 * 1024) return '';
+  return safeRemoteImageUrl(text);
+}
+
 // A20/B01: seekbar kare önizlemesi — YouTube storyboard veya yerel ffmpeg
 // sprite'ı. Sprite bilgisi ortak şema: {image|template, columns, rows, count,
 // frameWidth, frameHeight, intervalMs, level?}.
@@ -22983,8 +23002,12 @@ function updateSeekThumb(t, ratio, duration) {
   const url = sheet.image || (sheet.urlFor ? sheet.urlFor(page) : '');
   if (!url) { el.classList.add('hidden'); return; }
   if (el.dataset.sheetUrl !== url) {
-    el.style.backgroundImage = `url("${url}")`;
-    el.dataset.sheetUrl = url;
+    // storyboard template'i medya metadatasından gelir — yalnız http(s)/data:image
+    // kabul; JSON.stringify tırnak/satır sonu kaçışıyla url() dizgisini korur.
+    const safeUrl = safeSeekSheetImageUrl(url);
+    if (!safeUrl) { el.classList.add('hidden'); return; }
+    el.style.backgroundImage = `url(${JSON.stringify(safeUrl)})`;
+    el.dataset.sheetUrl = safeUrl;
     // Sprite sayfası yeni yüklendiyse doğal ölçüden hücre oranını ölç (yerel).
     if (!sheet.frameHeight && sheet.image) {
       const probe = new Image();
