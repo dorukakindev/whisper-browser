@@ -21,5 +21,5 @@ zaten https-kelepçeli (main.js:2148) ve onclick preventDefault +
 
 ## Kilitleme
 `tests/attr-sink-ratchet.test.js` — yasak kalıp taraması + href envanteri
-(1 site) + window.open=0: 78 kontrol. Yeni sink eklenirse test düşer ve
-envanterin bilinçli güncellenmesi gerekir.
+(1 site) + window.open=0: 218 kontrol (43 dosya). Yeni sink eklenirse
+test düşer ve envanterin bilinçli güncellenmesi gerekir.

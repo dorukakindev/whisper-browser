@@ -19,8 +19,11 @@ const RENDERER_DIR = path.join(__dirname, '..', 'src', 'renderer');
 // `../` betikleri taramadan kaçmak envanteri gerçeğin gerisinde bırakırdı.
 const INDEX_HTML = path.join(RENDERER_DIR, 'index.html');
 const scriptFiles = new Set(
-  [...fs.readFileSync(INDEX_HTML, 'utf8').matchAll(/<script\s+src="([^"]+\.js)"/g)]
-    .map((m) => path.normalize(path.join(RENDERER_DIR, m[1])))
+  // Tek çift-tırnak ve src'nin başka özniteliklerden sonra gelmesi de sayılır —
+  // envanter gerçek yüklü betiklerin gerisinde kalmamalı.
+  [...fs.readFileSync(INDEX_HTML, 'utf8').matchAll(/<script\b[^>]*\bsrc\s*=\s*(['"])([^'"]+)\1/g)]
+    .filter((m) => m[2].endsWith('.js'))
+    .map((m) => path.normalize(path.join(RENDERER_DIR, m[2])))
     .filter((abs) => !abs.includes(`${path.sep}vendor${path.sep}`))
     .map((abs) => path.relative(path.join(__dirname, '..'), abs)));
 const topLevel = fs.readdirSync(RENDERER_DIR)

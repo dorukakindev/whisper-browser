@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
-- Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (78 kontrol).
+- Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (218 kontrol, 43 dosya).
 - Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
 
 - Test (R283): Çeviri prompt'u golden-snapshot kilidi — `build_translate_prompt`/`build_refine_prompt` tam metin + 11 model sağlayıcı tablosu `backend/testdata/translate_prompt_golden.json`a byte-exact kilitlendi; register/profanity üretici-matris ratchet'leri eklendi.
