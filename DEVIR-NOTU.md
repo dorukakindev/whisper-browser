@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
+Güncel çalışma: [docs/devir/2026-09-30-1945.md](docs/devir/2026-09-30-1945.md) — R329-1: yazıcı seçenek matrisi sha256 golden kilidi (temiz)
+Önceki çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
 Önceki çalışma: [docs/devir/2026-09-30-1900.md](docs/devir/2026-09-30-1900.md) — R328-2: renderer realm sadakati ratchet'i (Node-globe yasağı + globe'siz vm probu, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
 Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
