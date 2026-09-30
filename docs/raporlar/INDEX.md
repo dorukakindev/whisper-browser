@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 242 | [BROWSER_BUG_REPORT_242.md](BROWSER_BUG_REPORT_242.md) | R293 — series_memory birleştirme yarışı (temiz) |
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | R292 — Devin Review flag süpürmesi (üretim okuyucusu eval + ham bayt) |
 | 239 | [BROWSER_BUG_REPORT_239.md](BROWSER_BUG_REPORT_239.md) | R291 — Sekme/oturum persist bozuk-veri matrisi |
 | 238 | [BROWSER_BUG_REPORT_238.md](BROWSER_BUG_REPORT_238.md) | R290 — Öznitelik/URL sink denetimi tur-2 (temiz + ratchet) |
