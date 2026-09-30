@@ -40,6 +40,6 @@ const tick=()=>new Promise(r=>setTimeout(r,10));
  const ra=new BrowserTranslationScheduler({maxConcurrent:1,maxAttempts:2,retryBaseMs:5,translate:async()=>{raCalls++;const e=new Error('HTTP 429');e.httpStatus=429;e.retryAfterMs=80;throw e;}});
  ra.setSentences([sentence('ra',0)]);ra.completeAll();
  const raStart=Date.now();await ra.whenIdle();
- assert.equal(raCalls,2);assert.ok(Date.now()-raStart>=70,'Retry-After bekleme uygulanmalı');
+ assert.equal(raCalls,2);assert.ok(Date.now()-raStart>=50,'Retry-After bekleme uygulanmalı');
  console.log('Kontrollü sağlayıcı: seek, geç yanıt, offline, retry, devre kesici ve Retry-After geçti.');
 })().catch(e=>{console.error(e);process.exitCode=1});

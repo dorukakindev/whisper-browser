@@ -50,8 +50,9 @@ const runAsync = (args, opts = {}) => new Promise((resolve, reject) => {
 });
 
 const tmpdir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'sm-race-'));
+let termsSeq = 0;
 const writeTerms = (dir, raws) => {
-  const f = path.join(dir, `terms-${Math.random().toString(36).slice(2)}.json`);
+  const f = path.join(dir, `terms-${process.pid}-${termsSeq++}.json`);
   fs.writeFileSync(f, JSON.stringify(raws));
   return f;
 };
