@@ -274,6 +274,7 @@ const {
 } = require('./secret-store');
 const ytAccounts = require('./youtube-accounts');
 const {
+  DANGEROUS_KEYS,
   SettingsValidationError,
   buildSecretEnv,
   createBackupPayload,
@@ -283,6 +284,7 @@ const {
   recoverJsonTransaction,
   sanitizeAbsolutePath,
   sanitizeSettings,
+  scanJsonShape,
   withoutSecretEnv,
   writeJsonTransaction,
 } = require('./settings-security');
@@ -2909,6 +2911,19 @@ function readPublicSettings() {
       const bad = kind === 'array' ? !Array.isArray(v)
         : (!v || typeof v !== 'object' || Array.isArray(v));
       if (bad) { delete parsed[key]; dropped = true; }
+    }
+    // Kayıt yolu sanitizeSettings→scanJsonShape ile kirlilik anahtarlarını
+    // (__proto__/constructor/prototype), derinlik ve düğüm sınırını reddeder;
+    // okuma yolunda aynı tarama uygulanmazsa crafted bir settings.json
+    // belleğe sızar ve SONRAKI her saveSettings'i kalıcı olarak öldürür
+    // (sanitize taratınca throw → persistence sessizce durur). Düşen ağaç
+    // yalnız o alan; diğer tercihler korunur (B-323-03).
+    for (const key of Object.keys(parsed)) {
+      if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) {
+        delete parsed[key]; dropped = true; continue;
+      }
+      try { scanJsonShape(parsed[key]); }
+      catch (_) { delete parsed[key]; dropped = true; }
     }
     if (dropped) settingsFileCorrupt = true;
     return parsed;
