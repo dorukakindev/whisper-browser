@@ -33,6 +33,37 @@ test('BOOT_CRITICAL listede ve depoda; paketleme betiği kalıpları tek kaynakt
   assert.equal(src.match(/\^\\\/\(\?:/g), null, 'ignore regex kopyası tools/package-windows.js içinde kaldı');
 });
 
+test('regex ile kaçan dosyalar gerekli kümede (worklet, resolve, iki-adımlı join)', () => {
+  const required = new Set(manifest.requiredPackageFiles(ROOT));
+  for (const rel of [
+    // audioWorklet.addModule('live-asr-worklet.js') — çıplak dize
+    'src/renderer/live-asr-worklet.js',
+    // path.resolve(__dirname, '..', 'backend', 'browser_align.py')
+    'backend/browser_align.py',
+    // path.join(backend, 'separate_dialogue.py') — iki adımlı değişken
+    'backend/separate_dialogue.py',
+  ]) {
+    assert.ok(required.has(rel), `${rel} gerekli paket kümesinde yok`);
+  }
+});
+
+test('açılış denetimi ilk yerel require öncesinde çalışır ve kapanışı kapılar', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src/main.js'), 'utf8');
+  const early = src.indexOf('if (!verifyAppResources()) return;');
+  const firstLocalRequire = src.indexOf("require('./browser-cea-checkpoint')");
+  assert.notEqual(early, -1, 'erken bütünlük çağrısı yok');
+  assert.notEqual(firstLocalRequire, -1);
+  assert.ok(early < firstLocalRequire,
+    'verifyAppResources ilk yerel require sonrasında — eksik modül diyalogsuz çöker');
+  // main.js'in tüm yerel require kapanışı gerekli paket kümesinde olmalı;
+  // aksi halde pakette eksik modül erken kontrolü de geçip require'da patlar.
+  const required = new Set(manifest.requiredPackageFiles(ROOT));
+  const missing = manifest
+    .requireClosure(ROOT, ['src/main.js'])
+    .filter((rel) => !required.has(rel));
+  assert.deepEqual(missing, []);
+});
+
 test('missingInTarget: eksik dosyayı paket çıktısında yakalar', () => {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-pkg-'));
   try {

@@ -53,6 +53,19 @@ const BACKEND_ENTRYPOINTS = [
   'export_anki.py',
   'update_ytdlp.py',
   'model_benchmark.py',
+  'browser_align.py',
+  'separate_dialogue.py',
+  'browser_media_tools.py',
+  'browser_video_analysis.py',
+  'catalog_scan.py',
+  'nmdb_catalog_import.py',
+  'workspace_video_package.py',
+];
+
+// require() veya path.join(__dirname, ...) kalıbıyla yakalanamayan dosyalar
+// (audioWorklet.addModule dizgesi, iki adımlı yol değişkeniyle spawn vb.).
+const EXTRA_FILES = [
+  'src/renderer/live-asr-worklet.js',
 ];
 
 function toRepoPath(p) {
@@ -88,7 +101,7 @@ function requireClosure(root, entries) {
     // `preload: path.join(__dirname, 'x.js')`,
     // `loadFile(path.join(__dirname, 'renderer', 'x.html'))`,
     // `path.join(__dirname, '..', 'backend', 'x.py')`.
-    for (const m of src.matchAll(/path\.join\(__dirname\s*((?:,\s*'[^']*')+)\s*\)/g)) {
+    for (const m of src.matchAll(/path\.(?:join|resolve)\(__dirname\s*((?:,\s*'[^']*')+)\s*\)/g)) {
       const parts = [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
       const target = toRepoPath(path.posix.normalize(path.posix.join(path.posix.dirname(toRepoPath(rel)), ...parts)));
       if (fs.existsSync(path.join(root, target)) && /\.(?:js|html|css|py|json)$/.test(target)) stack.push(target);
@@ -183,6 +196,9 @@ function requiredPackageFiles(root) {
   }
   for (const rel of walkDir(root, 'src/renderer/vendor')) files.add(rel);
 
+  // Dize referansıyla yüklenenler (worklet, değişken-yollu spawn).
+  for (const rel of EXTRA_FILES) files.add(rel);
+
   // Backend giriş betikleri + yerel import kapanışı.
   for (const rel of pythonClosure(root, BACKEND_ENTRYPOINTS)) files.add(rel);
 
@@ -198,7 +214,9 @@ module.exports = {
   PACKAGER_IGNORE,
   BOOT_CRITICAL,
   BACKEND_ENTRYPOINTS,
+  EXTRA_FILES,
   isIgnored,
+  requireClosure,
   requiredPackageFiles,
   missingInTarget,
 };

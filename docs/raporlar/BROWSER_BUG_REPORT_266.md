@@ -39,19 +39,21 @@ açılan uygulamanın kullanıcıya ne gösterdiği.
   açılış kümesi; `missingInTarget()` paket çıktısı doğrulayıcısı.
 - `tools/package-windows.js`: packager sonrası `missingInTarget` — eksik
   dosya varsa build listedeki adlarıyla derhal başarısız.
-- `src/main.js`: `verifyAppResources()` `createWindow` başında — BOOT_CRITICAL
-  eksikse iki dilli `dialog.showErrorBox` + `app.exit(1)`; kritik-olmayan
-  eksikler konsol uyarısı. `transcribe:start` artık spawn'dan önce
-  `transcribe.py` varlığını kontrol edip kurulum yönlendirmeli hata döner
-  (ham `ENOENT` yerine).
-- `tests/package-integrity.test.js` (yeni, 6 kontrol): liste↔depo↔ignore
+- `src/main.js`: `verifyAppResources()` ilk yerel `require` ÖNCESİNDE çağrılır —
+  BOOT_CRITICAL + main.js require kapanışı eksikse iki dilli
+  `dialog.showErrorBox` + `app.exit(1)` (eksik modülün require'da diyalogsuz
+  çöküşü önlenir); kritik-olmayan eksikler konsol uyarısı. `transcribe:start`
+  artık spawn'dan önce `transcribe.py` varlığını kontrol edip kurulum
+  yönlendirmeli hata döner (ham `ENOENT` yerine).
+- `tests/package-integrity.test.js` (yeni, 8 kontrol): liste↔depo↔ignore
   tutarlılığı, sahte paket ağacında eksik yakalama, `verifyAppResources`
   vm-dilim davranışı (diyalog+exit / yedek liste / sessiz geçiş),
-  transcribe.py erken-kontrol ratchet'i.
+  regex-kaçağı üç dosya (worklet/resolve/iki-adımlı join), erken-çağrı +
+  require-kapanışı kapsama ratchet'i, transcribe.py erken-kontrol ratchet'i.
 
 ## Doğrulama
 
-- 6/6 PASS; mevcut depoda liste tam (eksik/ignore-yutma yok — mevcut ignore
+- 8/8 PASS; mevcut depoda liste tam (eksik/ignore-yutma yok — mevcut ignore
   dizisi güvenli).
 - `node --check` src/main.js, tools/package-manifest.js,
   tools/package-windows.js temiz.

@@ -9,6 +9,13 @@ const { isIP } = require('net');
 const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
 const { createHash, randomUUID, randomBytes } = require('crypto');
+
+// Paket bütünlüğü erken kontrolü: yerel modül require'larından ÖNCE çalışır —
+// eksik bir başlangıç dosyası require çöküşüyle diyalogsuz çıkışa yol açardı.
+// (verifyAppResources aşağıda tanımlıdır; `function` bildirimi yukarı alınır,
+// kullandığı app/dialog/fs/path bağlamaları bu noktada hazırdır.)
+if (!verifyAppResources()) return;
+
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -14001,8 +14008,11 @@ function verifyAppResources() {
   const appDir = app.getAppPath();
   let manifest;
   try { manifest = require('../tools/package-manifest'); } catch (_) { manifest = null; }
+  // Denetim kümesi: BOOT_CRITICAL + src/main.js'in yerel require kapanışı.
+  // Kapanıştaki dosyalardan biri eksikse aşağıdaki require() çöker; erken
+  // kontrol bu yüzden modül yüklenmeden önce de çağrılır.
   const critical = manifest
-    ? manifest.BOOT_CRITICAL
+    ? [...manifest.BOOT_CRITICAL, ...manifest.requireClosure(appDir, ['src/main.js'])]
     : ['src/preload.js', 'src/renderer/index.html'];
   const missingCritical = critical.filter((rel) => !fs.existsSync(path.join(appDir, rel)));
   if (missingCritical.length) {
@@ -14027,7 +14037,6 @@ function verifyAppResources() {
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
-  if (!verifyAppResources()) return;
   installYoutubeStreamHeaders();
   const st = loadWindowState();
   // Kayıtlı boyutu ekrana kelepçele — bozuk/devasa window-state.json ekran-dışı pencere üretmesin
