@@ -769,6 +769,9 @@ function startJobLog(label, args) {
     const safe = windowsSafeFileName(base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60), 'is');
     const file = path.join(logsDir(), `${stamp}_${safe}.log`);
     const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
+    // Disk dolu/izin hatasında WriteStream 'error' olayını eşzamansız yayar;
+    // dinleyicisiz bırakılırsa ana süreci düşürür. Günlüğü bırak, yazımı dur.
+    stream.on('error', () => { jobLog = null; try { stream.destroy(); } catch (_) {} });
     // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
     stream.write(`# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`);
     stream.write(`# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`);
@@ -2790,7 +2793,7 @@ ipcMain.handle('media:saveImage', async (_e, payload) => {
       filters: [{ name: 'PNG', extensions: ['png'] }],
     });
     if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-    fs.writeFileSync(result.filePath, image);
+    writeBufferAtomic(result.filePath, image);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -13965,7 +13968,7 @@ async function runResourceSoakSession() {
   };
   report.verdict = evaluateResourceSoak(report);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf8');
+  writeBufferAtomic(outputPath, JSON.stringify(report, null, 2));
   console.log(`[resource-soak] rapor: ${outputPath}`);
   console.log(`[resource-soak] sonuç: ${report.verdict.pass ? 'GEÇTİ' : 'KALDI'}`);
   resourceSoakTracker?.close();
@@ -14255,7 +14258,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
         || path.join(app.getPath('temp'), 'whisper-resource-soak.json'));
       try {
         fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-        fs.writeFileSync(outputPath, JSON.stringify({
+        writeBufferAtomic(outputPath, JSON.stringify({
           schemaVersion: 1,
           generatedAt: new Date().toISOString(),
           error: error && error.stack || String(error),
@@ -15642,7 +15645,7 @@ ipcMain.handle('browser:session:export', async (event) => {
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    fs.writeFileSync(result.filePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8');
+    writeBufferAtomic(result.filePath, `${JSON.stringify(bundle, null, 2)}\n`);
     return { ok: true, path: result.filePath, tabs: bundle.payload.session.tabs.length,
       variants: bundle.payload.variants.length, checksum: bundle.checksum };
   } catch (error) { return { ok: false, error: `Oturum paketi kaydedilemedi: ${error.message}` }; }
@@ -16581,7 +16584,7 @@ async function saveBrowserPagePdf(tab) {
     ? selection.filePath : `${selection.filePath}.pdf`;
   try {
     const data = await wc.printToPDF({ printBackground: true });
-    fs.writeFileSync(outputPath, data);
+    writeBufferAtomic(outputPath, data);
     return { ok: true, path: outputPath, format: 'PDF' };
   } catch (error) {
     return { ok: false, error: `PDF kaydedilemedi: ${String(error?.message || error)}` };
@@ -16846,7 +16849,7 @@ ipcMain.handle('browser:diagnostics:export', async (event) => {
   try {
     const outputPath = path.extname(result.filePath).toLowerCase() === '.json'
       ? result.filePath : `${result.filePath}.json`;
-    fs.writeFileSync(outputPath, JSON.stringify(snapshot, null, 2), 'utf8');
+    writeBufferAtomic(outputPath, JSON.stringify(snapshot, null, 2));
     return { ok: true, path: outputPath, operationId: snapshot.operationId };
   } catch (error) {
     return { ok: false, error: `Tanı paketi kaydedilemedi: ${error.message}` };
@@ -17008,7 +17011,7 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
     filters: [{ name: format.toUpperCase(), extensions: [format] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  try { fs.writeFileSync(selection.filePath, content, 'utf8'); return { ok: true, path: selection.filePath }; }
+  try { writeBufferAtomic(selection.filePath, content); return { ok: true, path: selection.filePath }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -18109,7 +18112,7 @@ ipcMain.handle('subscriptions:export', async (event, payload) => {
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    fs.writeFileSync(result.filePath, text, 'utf8');
+    writeBufferAtomic(result.filePath, text);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
