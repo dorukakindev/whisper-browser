@@ -24797,6 +24797,10 @@ function stSelectSection(section) {
 // Bölüm render yarışı koruması — yavaş 'trending' isteği kullanıcının
 // açtığı 'popular' grid'ini ezmesin diye her render bir sıra numarası alır.
 let stSectionSeq = 0;
+// Kanal sayfası içi sekme/arama render yarışı — aynı sayfada uçuşta kalan
+// sekme isteği, kullanıcının yeni seçtiği sekmenin gövdesine yazmasın diye
+// her sekme değişimi ve kanal-içi arama bu sayacı artırır.
+let stChannelTabSeq = 0;
 let stActiveHomeRequestId = null;
 let lastInvidiousInstance = '';
 
@@ -26519,9 +26523,16 @@ async function openInvidiousPlaylistPage(playlistId) {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       btn.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
-      const next = await loadInvidiousPlaylist(playlistId, ++page).catch(() => null);
+      const next = await loadInvidiousPlaylist(playlistId, page + 1).catch(() => null);
       if (seq !== stSectionSeq) { row.remove(); return; }
-      const got = (next && next.videos) || [];
+      // Geçici hata sayfayı atlatmasın ve düğmeyi öldürmesin — tekrar dene.
+      if (!next) {
+        btn.disabled = false;
+        btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+        return;
+      }
+      page += 1;
+      const got = next.videos || [];
       const added = appendVideos(got);
       // Son sayfa ya da tamamen tekrar eden sayfa — devam düğmesini kaldır.
       if (!got.length || !added || got.length < 20) { row.remove(); return; }
@@ -26914,9 +26925,10 @@ async function renderStChannelTab(channelId, tab, body, getPage, setPage, query 
   loading.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
   body.appendChild(loading);
   const seq = stSectionSeq;   // sayfa değişirse geç sonuç düşsün
+  const tabSeq = stChannelTabSeq;  // sekme/arama değişirse geç sonuç düşsün
   const data = await loadInvidiousChannelTab(channelId, {
     tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
-  if (seq !== stSectionSeq) return;
+  if (seq !== stSectionSeq || tabSeq !== stChannelTabSeq) return;
   body.innerHTML = '';
   if (!data) {
     const e = document.createElement('div');
@@ -26932,11 +26944,14 @@ async function renderStChannelTab(channelId, tab, body, getPage, setPage, query 
     btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
     btn.addEventListener('click', async () => {
       btn.disabled = true;
-      setPage(getPage() + 1);
       const next = await loadInvidiousChannelTab(channelId, {
-        tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
+        tab: tab === 'search' ? 'videos' : tab, page: getPage() + 1, query });
+      if (seq !== stSectionSeq || tabSeq !== stChannelTabSeq) { btn.remove(); return; }
+      // Geçici ağ hatası sayfa sayacını ilerletmesin ve düğmeyi öldürmesin —
+      // kullanıcı aynı sayfayı tekrar isteyebilsin.
+      if (!next) { btn.disabled = false; return; }
+      setPage(getPage() + 1);
       btn.remove();
-      if (!next) return;
       appendItems(next);
     });
     body.appendChild(btn);
@@ -27107,6 +27122,7 @@ async function openInvidiousChannelPage(channelId) {
     if (tab === activeTab && tabBody.children.length) return;
     activeTab = tab;
     tabPage = 1;
+    stChannelTabSeq++;
     tabRow.querySelectorAll('.st-chip').forEach((c) => {
       c.classList.toggle('is-active', c.dataset.stChTab === tab);
       c.setAttribute('aria-selected', c.dataset.stChTab === tab ? 'true' : 'false');
@@ -27135,6 +27151,16 @@ async function openInvidiousChannelPage(channelId) {
     e.preventDefault();
     const q = chSearch.value.trim();
     if (!q) return;
+    // Arama yeni bir görünüm: sayfa sayacını sıfırla (önceki sekmenin sayfa
+    // numarası sonuçları atlatırdı) ve aktif sekmeyi nötrle — yoksa aktif
+    // chip'in tıklaması early-return'e takılıp videolara dönemezdi.
+    tabPage = 1;
+    activeTab = 'search';
+    stChannelTabSeq++;
+    tabRow.querySelectorAll('.st-chip').forEach((c) => {
+      c.classList.remove('is-active');
+      c.setAttribute('aria-selected', 'false');
+    });
     renderStChannelTab(channelId, 'search', tabBody, () => tabPage, (p) => { tabPage = p; }, q);
   });
   tabRow.appendChild(chSearch);
@@ -27147,6 +27173,38 @@ async function openInvidiousChannelPage(channelId) {
     tabBody.appendChild(empty);
   } else {
     renderTabVideos(videos);
+    // İlk sayfa kanal bilgisiyle birlikte geldi; derinleşmek için 2. sayfadan
+    // başlayan "Daha fazla" satırı — aynı video tekrarı dedupe ile elenir ve
+    // geçici hata düğmeyi öldürmez.
+    if (videos.length >= 20) {
+      const seen = new Set(videos.map((v) => v.videoId).filter(Boolean));
+      const tabSeq0 = stChannelTabSeq;
+      const row = document.createElement('div');
+      row.className = 'st-more-row st-grid-row';
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'st-more-btn';
+      btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const next = await loadInvidiousChannelTab(channelId, { tab: 'videos', page: tabPage + 1 });
+        if (seq !== stSectionSeq || stChannelTabSeq !== tabSeq0) { row.remove(); return; }
+        const got = (next && next.videos) || [];
+        if (!got.length) { btn.disabled = false; if (!next) return; row.remove(); return; }
+        tabPage += 1;
+        let added = 0;
+        for (const v of got) {
+          if (!v.videoId || seen.has(v.videoId)) continue;
+          seen.add(v.videoId);
+          if (stVideoHidden(v)) continue;
+          tabBody.appendChild(buildSmartTubeCard(v));
+          added++;
+        }
+        if (!added) { row.remove(); return; }
+        btn.disabled = false;
+      });
+      row.appendChild(btn);
+      tabBody.appendChild(row);
+    }
   }
 }
 
