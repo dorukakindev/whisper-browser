@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0545.md](docs/devir/2026-09-30-0545.md) — R308: mini oynatıcı × bellekten boşaltma (mini pencere ölü kare bırakmıyor)
+Güncel çalışma: [docs/devir/2026-09-30-0600.md](docs/devir/2026-09-30-0600.md) — R309: yt-dlp rollback derinliği (yarım silinmiş paket previous'a düşer)
+Önceki çalışma: [docs/devir/2026-09-30-0545.md](docs/devir/2026-09-30-0545.md) — R308: mini oynatıcı × bellekten boşaltma (mini pencere ölü kare bırakmıyor)
 Önceki çalışma: [docs/devir/2026-09-30-0528.md](docs/devir/2026-09-30-0528.md) — R307: arka-plan sekme unload retry-state (dirilişte taze bütçe + cloudflare timer temizliği)
 Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
 Önceki çalışma: [docs/devir/2026-09-30-1800.md](docs/devir/2026-09-30-1800.md) — R305: codec/kapsayıcı sniffing matrisi — mutlak-indeks + bozuk-probe düzeltmeleri
