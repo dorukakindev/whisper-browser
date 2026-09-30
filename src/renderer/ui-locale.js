@@ -2103,6 +2103,7 @@
     ['Bu altyazının okunmasına ve düzenlenmesine izin verilsin mi?', 'Allow reading and editing this subtitle?'],
     ['Sekme sırası güncel sekme kümesiyle eşleşmiyor.', 'The tab order does not match the current set of tabs.'],
     ['İkincil görünüm için aktif sekmeden farklı, açık bir sekme seçin.', 'For the secondary view, pick an open tab different from the active one.'],
+    ['İkincil görünüm için aktif sekmeden farklı, sayfası olan açık bir sekme seçin.', 'For the secondary view, pick an open tab that has a page and is different from the active one.'],
     ['Tarayıcı sekmesi oluşturulamadı.', 'The browser tab could not be created.'],
     ['Tarayıcı sekmesi etkinleştirilemedi.', 'The browser tab could not be activated.'],
     ['Tarayıcı alanı hazırlanamadı.', 'The browser area could not be prepared.'],
