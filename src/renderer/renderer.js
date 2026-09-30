@@ -2416,6 +2416,8 @@ const PERSIST_VALUE_CONTROLS = [
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
   'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
+  'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',
+  'browserExportFormat', 'browserExportTiming', 'browserPageExportFormat', 'pdfExportFormat', 'pdfTargetLanguage',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -2440,11 +2442,17 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserDeArrowEnabled', 'browserRydDislikes',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
   'browserAutoPip',
+  'subtitleFindCase', 'subtitleFindWhole',
 ];
 
 function collectUiSettings() {
   const ui = {};
-  PERSIST_VALUE_CONTROLS.forEach((id) => { const el = $(id); if (el) ui[id] = el.value; });
+  PERSIST_VALUE_CONTROLS.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    // select[multiple].value yalnız ilk seçeneği verir — tüm seçimleri dizi olarak topla.
+    ui[id] = el.multiple ? [...el.selectedOptions].map((option) => option.value) : el.value;
+  });
   PERSIST_CHECKBOX_CONTROLS.forEach((id) => {
     const el = $(id);
     if (el) ui[id] = el.tagName === 'DETAILS' ? el.open : el.checked;
@@ -2465,6 +2473,13 @@ function applyUiSettings(ui) {
       if (ui[id] === undefined) return;
       const el = $(id);
       if (!el) return;
+      if (el.multiple) {
+        // Çok-seçim geri yükleme: kayıtlı dizi içindeki seçenekleri işaretle.
+        const wanted = new Set(Array.isArray(ui[id]) ? ui[id].map(String) : []);
+        [...el.options].forEach((option) => { option.selected = wanted.has(option.value); });
+        el.dispatchEvent(new Event('change'));
+        return;
+      }
       // Kalıcı özel hız (örn. 1.3×) düz atamada option bulamaz → boş seçim +
       // hız 1'e düşerdi; önce option'ı üretip değeri ayarla.
       if (id === 'playerSpeed' && syncPlayerSpeedControl(ui[id]) !== null) {

@@ -45,7 +45,12 @@ const ENUM_VALUES = {
   browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
   browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto',
   browserAudioProfile: 'night', uiTheme: 'dark', uiLocale: 'tr',
-  browserSearchEngine: 'duckduckgo',
+  browserSearchEngine: 'duckduckgo', aiTranscriptScope: 'watched',
+  browserPageScope: 'article', browserExportFormat: 'srt', browserExportTiming: 'synchronized',
+  pdfExportFormat: 'md', pdfTargetLanguage: 'tr', browserPageExportFormat: 'json',
+};
+const MULTI_VALUES = {
+  browserSponsorCategories: ['sponsor', 'intro'],
 };
 const NUMERIC_VALUES = {
   playerSpeed: '1.4', beamSize: '5', bestOf: '3', batchSize: '8', vadThreshold: '0.5',
@@ -61,6 +66,7 @@ const NUMERIC_VALUES = {
   browserOverlayMaxLines: '2', browserOverlayGap: '12', browserVideoBrightness: '110',
   browserVideoContrast: '95', browserSilenceSpeedRate: '4',
   browserSilenceThresholdDb: '-45', stCardScale: '100', stCardFontScale: '100',
+  timelineZoom: '60',
 };
 const FREE_VALUES = {
   language: 'tr', translateTo: 'en', translateEndpointPreset: 'https://api.openai.com/v1',
@@ -71,7 +77,7 @@ const FREE_VALUES = {
 function fullUi() {
   const ui = {};
   for (const id of PERSIST_VALUE_CONTROLS) {
-    ui[id] = ENUM_VALUES[id] ?? NUMERIC_VALUES[id] ?? FREE_VALUES[id] ?? `değer-${id}`;
+    ui[id] = MULTI_VALUES[id] ?? ENUM_VALUES[id] ?? NUMERIC_VALUES[id] ?? FREE_VALUES[id] ?? `değer-${id}`;
   }
   for (const id of PERSIST_CHECKBOX_CONTROLS) ui[id] = true;
   return ui;
