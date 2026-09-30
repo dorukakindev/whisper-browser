@@ -14,7 +14,9 @@ try {
   fs.mkdirSync(path.join(current, 'yt_dlp'), { recursive: true });
   fs.mkdirSync(path.join(previous, 'yt_dlp'), { recursive: true });
   fs.writeFileSync(path.join(current, 'yt_dlp', '__init__.py'), '');
+  fs.writeFileSync(path.join(current, 'yt_dlp', 'version.py'), '__version__ = "1.0"\n');
   fs.writeFileSync(path.join(previous, 'yt_dlp', '__init__.py'), '');
+  fs.writeFileSync(path.join(previous, 'yt_dlp', 'version.py'), '__version__ = "0.9"\n');
   fs.writeFileSync(path.join(root, 'active.json'), JSON.stringify({
     path: 'packages/yt-dlp-current',
     previous: 'packages/yt-dlp-previous',
@@ -24,8 +26,19 @@ try {
   const env = pythonEnvWithRuntime({ PYTHONPATH: 'C:\\existing' }, root);
   assert.equal(env.PYTHONPATH, `${current}${path.delimiter}C:\\existing`);
 
+  // R309: yarım silinmiş paket — __init__.py durur ama version.py (gerçek
+  // doğrulama modülü) gitmişse bozuk dizin dönmemeli, previous'a düşülmeli.
+  fs.rmSync(path.join(current, 'yt_dlp', 'version.py'));
+  assert.equal(activeRuntimePath(root), previous, 'bozuk aktif sürümde önceki sürüme düşülmedi');
+  fs.writeFileSync(path.join(current, 'yt_dlp', 'version.py'), '__version__ = "1.0"\n');
+  assert.equal(activeRuntimePath(root), current, 'sağlam aktif sürüm pointer dışına çıktı');
+
   fs.rmSync(current, { recursive: true, force: true });
   assert.equal(activeRuntimePath(root), previous, 'eksik aktif sürümde önceki doğrulanmış sürüme düşülmedi');
+  // previous da yarım-silinmişse venv yedeğine düşülür (PYTHONPATH eklenmez)
+  fs.rmSync(path.join(previous, 'yt_dlp', 'version.py'));
+  assert.equal(activeRuntimePath(root), '', 'iki sürüm de bozuksa bozuk dizin döndü');
+  fs.writeFileSync(path.join(previous, 'yt_dlp', 'version.py'), '__version__ = "0.9"\n');
   assert.equal(resolveInside(root, '..\\outside'), '', 'runtime kökü dışına yol kaçışı kabul edildi');
   assert.equal(resolveInside(root, 'C:\\outside'), '', 'mutlak yol pointer olarak kabul edildi');
   assert(mainSource.includes("backend', 'update_ytdlp.py"), 'atomik updater üretim handlerına bağlı değil');

@@ -25,7 +25,12 @@ function activeRuntimePath(root, fsImpl = fs) {
   }
   for (const candidate of [pointer && pointer.path, pointer && pointer.previous]) {
     const resolved = resolveInside(root, candidate);
-    if (resolved && fsImpl.existsSync(path.join(resolved, 'yt_dlp', '__init__.py'))) return resolved;
+    // Yarım silinmiş/karantinaya alınmış paket: __init__.py tek başına paketi
+    // işe yaramaz kılmaz; validate_runtime'ın kullandığı yt_dlp.version modülü
+    // de durmalı ki import hataya düşmeden 'previous' geri dönüşü çalışsın.
+    if (resolved
+      && fsImpl.existsSync(path.join(resolved, 'yt_dlp', '__init__.py'))
+      && fsImpl.existsSync(path.join(resolved, 'yt_dlp', 'version.py'))) return resolved;
   }
   return '';
 }
