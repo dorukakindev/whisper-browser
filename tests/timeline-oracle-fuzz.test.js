@@ -48,16 +48,14 @@ test('uniform ofset: tohumlu fuzz — kabul edilir ve ofset gerçeğe yakın', (
     const jitter = () => (rnd() - 0.5) * 0.04; // ±20 ms algılayıcı gürültüsü
     const cands = refs
       .filter(() => rnd() < 0.75) // dropout — her cue eşleşmeyebilir
-      .map((cue) => {
-        let start = cue.start + offset + jitter();
-        if (start < 0) start = 0.001; // sitenin gördüğü eksen negatife inmez
-        return { start, text: cue.text };
-      });
+      .map((cue) => ({ start: cue.start + offset + jitter(), text: cue.text }));
     const result = calibrateCueTimeline(refs, cands);
     if (cands.length >= 2) {
       assert.equal(result.accepted, true, `trial ${trial}: uniform shift reddedildi`);
-      assert.ok(Math.abs(result.offsetSeconds - offset) <= 0.051,
-        `trial ${trial}: offset ${result.offsetSeconds} gerçek ${offset}'ten uzak`);
+      // Sözleşme: offsetSeconds = ref.start - cand.start — adaya UYGULANACAK
+      // kayma; üretici cand = ref + offset kullandığı için beklenen -offset.
+      assert.ok(Math.abs(result.offsetSeconds + offset) <= 0.051,
+        `trial ${trial}: offset ${result.offsetSeconds} gerçek ${-offset}'ten uzak`);
       assert.ok(result.matches >= 2);
     }
   }
@@ -88,8 +86,8 @@ test('yinelenen metin eşleşmeden düşer — kalan tekil eşleşmelerle kabul'
     cands.push({ start: refs[1].start + offset - 0.2, text: refs[1].text });
     const result = calibrateCueTimeline(refs, cands);
     assert.equal(result.accepted, true);
-    assert.ok(Math.abs(result.offsetSeconds - offset) <= 0.001,
-      `trial ${trial}: ${result.offsetSeconds} != ${offset}`);
+    assert.ok(Math.abs(result.offsetSeconds + offset) <= 0.001,
+      `trial ${trial}: ${result.offsetSeconds} != ${-offset}`);
     assert.equal(result.matches, 4, `trial ${trial}: yinelenenler düşmeli`);
   }
 });
@@ -107,8 +105,8 @@ test('azınlık aykırı ofset medyanı saptırmaz', () => {
     });
     const result = calibrateCueTimeline(refs, cands);
     assert.equal(result.accepted, true);
-    assert.ok(Math.abs(result.offsetSeconds - offset) <= 0.001,
-      `trial ${trial}: medyan aykırıya kaydı (${result.offsetSeconds} vs ${offset})`);
+    assert.ok(Math.abs(result.offsetSeconds + offset) <= 0.001,
+      `trial ${trial}: medyan aykırıya kaydı (${result.offsetSeconds} vs ${-offset})`);
   }
 });
 
