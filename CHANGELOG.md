@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R305: gömülü altyazı çıkarmada bozuk akış indeksi artık yanlış izi haritalamaz; bozuk ffprobe çıktısı prob sonucunu sessizce kaybettirmiyor.
+
+### Fixed
 - R304: yer imi/geçmiş içe aktarmada `jsessionid`/`PHPSESSID`/`ASPSESSIONID` taşıyıcıları artık siliniyor; bozuk `visitedAt` damgaları sıralamayı bozmuyor.
 
 ### Fixed
