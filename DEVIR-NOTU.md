@@ -1,4 +1,5 @@
 Güncel çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
+Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1015.md](docs/devir/2026-09-30-1015.md) — R285: nextCueBoundaryAt JSDoc sözleşmesi + birim stresi (prob-mutasyonu kilitleri, bozuk-dizi enjeksiyonu)
 Önceki çalışma: [docs/devir/2026-09-30-0945.md](docs/devir/2026-09-30-0945.md) — R284: kuyruk opts serileştirme roundtrip fuzz'ı (10.305 öğe, temiz)

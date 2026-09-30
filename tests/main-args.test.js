@@ -34,7 +34,8 @@ const body = src.slice(i, j) + '\n  return args;';
 const fakeApp = { getPath: (k) => `C:/fake/${k}` };
 // Aşamalı çıktı soneki doğrulayıcısı ortak sözleşmeden (queue-lifecycle) gelir.
 const { isValidOutputNameSuffix } = require('../src/renderer/queue-lifecycle');
-const buildArgs = new Function('options', 'scriptPath', 'path', 'app', 'isValidOutputNameSuffix', body);
+const { pushBoundOption } = require('../src/argv-escape');
+const buildArgs = new Function('options', 'scriptPath', 'path', 'app', 'isValidOutputNameSuffix', 'pushBoundOption', body);
 
 // ---- minik test cercevesi ----
 let pass = 0;
@@ -45,10 +46,13 @@ function test(name, fn) {
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'assert'); }
 
-/** args dizisinde "--flag deger" ciftini bulur (deger yoksa sadece varlik). */
+/** args dizisinde "--flag deger" ciftini bulur (deger yoksa sadece varlik).
+ *  `--flag=deger` tek-oge baglama biçimini de aynı sözleşmeyle çözer. */
 function argValue(args, flag) {
   const k = args.indexOf(flag);
-  return k < 0 ? undefined : args[k + 1];
+  if (k >= 0) return args[k + 1];
+  const bound = args.find((a) => typeof a === 'string' && a.startsWith(`${flag}=`));
+  return bound === undefined ? undefined : bound.slice(flag.length + 1);
 }
 function base(extra) {
   return Object.assign({
@@ -58,7 +62,7 @@ function base(extra) {
     outputDir: 'C:/out',
   }, extra);
 }
-const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp, isValidOutputNameSuffix);
+const build = (o) => buildArgs(o, 'transcribe.py', path, fakeApp, isValidOutputNameSuffix, pushBoundOption);
 
 test('girdi ve çıktı klasörleri backend argv sözleşmesine ayrı gider', () => {
   const args = build(base());
