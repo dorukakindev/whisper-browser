@@ -231,6 +231,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   });
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
+    const fakeAppDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-appdir-'));
+    fs.mkdirSync(path.join(fakeAppDir, 'backend'), { recursive: true });
+    fs.writeFileSync(path.join(fakeAppDir, 'backend', 'transcribe.py'), '# stub\n');
     const context = {
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
@@ -238,7 +241,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
-      app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
+      // transcribe:start spawn'dan önce backend/transcribe.py varlığını kontrol
+      // eder (R317) — sahte appDir'a stub betik dosyası konur.
+      app: { getAppPath: () => fakeAppDir, getPath: () => os.tmpdir() }, path, Buffer, fs,
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath,
       loadSettings: () => ({
@@ -296,7 +301,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
-      app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer, fs,
+      // transcribe.py varlık kontrolü (R317) depo kökünden geçer.
+      app: { getAppPath: () => path.join(__dirname, '..'), getPath: () => os.tmpdir() }, path, Buffer, fs,
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath, canonicalLocalPath,
       MEDIA_EXTS: new Set(['mp4', 'mkv']),

@@ -9,6 +9,13 @@ const { isIP } = require('net');
 const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
 const { createHash, randomUUID, randomBytes } = require('crypto');
+
+// Paket bütünlüğü erken kontrolü: yerel modül require'larından ÖNCE çalışır —
+// eksik bir başlangıç dosyası require çöküşüyle diyalogsuz çıkışa yol açardı.
+// (verifyAppResources aşağıda tanımlıdır; `function` bildirimi yukarı alınır,
+// kullandığı app/dialog/fs/path bağlamaları bu noktada hazırdır.)
+if (!verifyAppResources()) return;
+
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -13993,6 +14000,40 @@ function titleBarOverlayForTheme(theme) {
     : { color: '#0a0d11', symbolColor: '#a6adb6', height: 38 };
 }
 
+// Paket/kurulum bütünlüğü: BOOT_CRITICAL dosyalardan biri eksikse uygulama
+// zaten anlamlı açılamaz; boş pencere yerine erken diyalog gösterilip çıkılır.
+// Kritik-olmayan eksikler (ör. backend betiği) sadece uyarı olarak günlüklenir —
+// tarayıcı yüzeyi onlarsız da kullanılabilir.
+function verifyAppResources() {
+  const appDir = app.getAppPath();
+  let manifest;
+  try { manifest = require('../tools/package-manifest'); } catch (_) { manifest = null; }
+  // Denetim kümesi: BOOT_CRITICAL + src/main.js'in yerel require kapanışı.
+  // Kapanıştaki dosyalardan biri eksikse aşağıdaki require() çöker; erken
+  // kontrol bu yüzden modül yüklenmeden önce de çağrılır.
+  const critical = manifest
+    ? [...manifest.BOOT_CRITICAL, ...manifest.requireClosure(appDir, ['src/main.js'])]
+    : ['src/preload.js', 'src/renderer/index.html'];
+  const missingCritical = critical.filter((rel) => !fs.existsSync(path.join(appDir, rel)));
+  if (missingCritical.length) {
+    dialog.showErrorBox(
+      'Whisper Browser — eksik kurulum / incomplete installation',
+      `Gerekli uygulama dosyaları eksik:\n\n${missingCritical.join('\n')}\n\nPaketi yeniden indirin veya install.bat ile kurulumu tekrarlayın.\nRequired app files are missing — re-download the package or re-run install.bat.`,
+    );
+    app.exit(1);
+    return false;
+  }
+  if (manifest) {
+    const missing = manifest
+      .requiredPackageFiles(appDir)
+      .filter((rel) => !fs.existsSync(path.join(appDir, rel)));
+    if (missing.length) {
+      console.warn(`[package-integrity] kritik olmayan dosyalar eksik: ${missing.join(', ')}`);
+    }
+  }
+  return true;
+}
+
 function createWindow() {
   // Windows'ta bildirimlerin doğru uygulama adıyla görünmesi için
   if (process.platform === 'win32') app.setAppUserModelId('Whisper Altyazı');
@@ -19237,6 +19278,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const appDir = app.getAppPath();
   const scriptPath = path.join(appDir, 'backend', 'transcribe.py');
   const pythonPath = resolvePython();
+
+  if (!fs.existsSync(scriptPath)) {
+    return { ok: false, error: 'Kurulum eksik: backend/transcribe.py bulunamadı. Paketi yeniden indirin ya da install.bat ile kurulumu tekrarlayın.' };
+  }
 
   const args = [scriptPath];
   let chatFilePath = null;

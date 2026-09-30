@@ -2113,6 +2113,7 @@
     ['Daha yeni gezinme isteği var.', 'A newer navigation request exists.'],
     ['Sekme değişti veya daha yeni gezinme isteği var.', 'The tab changed or a newer navigation request exists.'],
     ['Tarayıcı başlatılamadı.', 'The browser could not be started.'],
+    ['Kurulum eksik: backend/transcribe.py bulunamadı. Paketi yeniden indirin ya da install.bat ile kurulumu tekrarlayın.', 'Incomplete installation: backend/transcribe.py was not found. Re-download the package or re-run install.bat.'],
     ['Okunacak etkin sayfa bulunamadı.', 'No active page to read.'],
     ['Uyumluluk modunda sayfa okuma görünümü kullanılamaz.', 'Page reading view is unavailable in compatibility mode.'],
     ['İzinleri gösterilecek geçerli bir site yok.', 'There is no valid site to show permissions for.'],
