@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-Güncel çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
+Güncel çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
-||||||| parent of 4b4fb4d (docs(r324-2): rapor 281 + devir notu + indeks)
-Güncel çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
-=======
-Güncel çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
-Önceki çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
->>>>>>> 4b4fb4d (docs(r324-2): rapor 281 + devir notu + indeks)
+Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
 Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
 Önceki çalışma: [docs/devir/2026-09-30-1001.md](docs/devir/2026-09-30-1001.md) — R321: sayfasız sekme ikincil görünüme seçilemez (ölü yarı engeli)
@@ -187,7 +181,6 @@ Güncel çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.m
 Önceki çalışma: [docs/devir/2026-09-27-1545.md](docs/devir/2026-09-27-1545.md) — R166 .wbp güvenlik (kurcalanmış zip metaverisi + yarım dosya temizliği)
 Önceki çalışma: [docs/devir/2026-09-27-1530.md](docs/devir/2026-09-27-1530.md) — R165 kalıcı favicon önbelleği (browser-favicons.json, LRU 120, IPC + renderer seed)
 Önceki çalışma: [docs/devir/2026-09-27-1515.md](docs/devir/2026-09-27-1515.md) — R164 altyazı arama: literalRanges O(L²)→tek-geçiş indexOf (21s→34ms, 2000-tur denklik fuzz)
-
 # Devir notları indeksi
 Önceki çalışma: [2026-09-27 14:05 — R163 kaynak sızıntı envanteri + ratchet (bug yok)](docs/devir/2026-09-27-1405.md).
 Önceki çalışma: [2026-09-27 13:50 — R162 unhandled-rejection + atomik-yazma kalan süpürme ratchet'ları (bug yok)](docs/devir/2026-09-27-1350.md).
