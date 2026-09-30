@@ -17850,7 +17850,13 @@ function probeCommand(cmd, cmdArgs) {
     // stderr okunmazsa pipe tamponu dolup child'ı kilitleyebilir; stdout da
     // sınırsız birikmemeli (bozuk bir binary sonsuz çıktı basabilir).
     if (p.stderr) p.stderr.resume();
-    if (p.stdout) p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    if (p.stdout) {
+      // chunk başına ham Buffer → string dönüşümü, chunk sınırında bölünen
+      // UTF-8 dizilerini U+FFFD ile bozardı; akışın kendi dekoderi sınırları
+      // doğru birleştirir.
+      p.stdout.setEncoding('utf8');
+      p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    }
     p.on('close', (code) => {
       if (code !== 0) return finish(null);
       finish((out.split(/\r?\n/)[0] || '').trim() || null);
@@ -18470,13 +18476,18 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     }, 30000);
     timer.unref?.();
     p.on('error', () => finish({ ok: false, tracks: [] }));
-    if (p.stdout) p.stdout.on('data', (d) => {
-      if (settled) return;
-      if (out.length + d.length > 4 * 1024 * 1024) {
-        terminateProcessTree(p, { spawn });
-        finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
-      } else out += d;
-    });
+    if (p.stdout) {
+      // ffprobe çıktısında iz başlıkları UTF-8 olabilir ('Türkçe altyazı');
+      // Buffer→string per-chunk dönüşümü sınırda bölünen diziyi bozardı.
+      p.stdout.setEncoding('utf8');
+      p.stdout.on('data', (d) => {
+        if (settled) return;
+        if (out.length + d.length > 4 * 1024 * 1024) {
+          terminateProcessTree(p, { spawn });
+          finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
+        } else out += d;
+      });
+    }
     p.on('close', (code) => {
       if (settled) return;
       if (code !== 0) return finish({ ok: false, tracks: [] });
