@@ -4549,6 +4549,7 @@ def test_r51_86_nan_timestamps_never_reach_output_or_span_boundaries():
         except (ValueError, RuntimeError):
             pass
 
+
 def test_compute_media_duration_does_not_double_subtract_clip_start():
     """Kırpılmış WAV'ın süresi info.duration'dadır; clip_start ikinci kez düşülmez.
 
@@ -4609,6 +4610,64 @@ def test_normalize_timings_property_fuzz():
         src = Counter(w for _s, _e, tt in entries for w in tt.split())
         dst = Counter(w for _s, _e, tt in out for w in tt.split())
         assert src == dst, f"trial {_trial}: metin kaybı {src - dst} / {dst - src}"
+
+
+
+def test_translate_progress_counts_preserved_lines():
+    """'Değişmeden korunan' satırlar ilerleme sayımına girmeli — yoksa
+    llm_progress kalıcı olarak %100'ün altında kalırdı (korunan satırlar
+    API'ye hiç gönderilmez, counters içine de düşmez)."""
+    import sys, types, importlib.machinery, json
+
+    entries = [
+        (0.0, 1.0, "Hello there."),
+        (1.0, 2.0, "Ha ha ha."),          # line_keeps_source → API'siz korunur
+        (2.0, 3.0, "This is a test."),
+        (3.0, 4.0, "iPhone 15 Pro."),      # camelCase+rakam → korunur
+        (4.0, 5.0, "Goodbye now."),
+    ]
+    captured_progress = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        items = {str(it["i"]): "[TR] " + it["t"] for it in payload["items"]}
+        sentences = {
+            str(group["ids"][0]): " ".join(items[str(index)] for index in group["ids"])
+            for group in payload["sentence_groups"]
+        }
+        answer = {"items": items, "sentences": sentences}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(answer)))])
+
+    class _Ok:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Ok
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real_mod = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    real_emit = T.emit
+    T.emit = lambda event_type, **kw: (
+        captured_progress.append(kw) if event_type == "llm_progress" else None)
+    try:
+        out = T.llm_translate(entries, _TrArgs(translate_cache=False), [], source_lang="en")
+    finally:
+        T.emit = real_emit
+        if real_mod is not None:
+            sys.modules["openai"] = real_mod
+        else:
+            sys.modules.pop("openai", None)
+    assert out is not None
+    # korunan satırlar kaynak metni korur
+    assert out[1][2] == "Ha ha ha." and out[3][2] == "iPhone 15 Pro.", out
+    assert captured_progress, "llm_progress hiç yayınlanmadı"
+    final = captured_progress[-1]
+    assert final["percent"] == 100.0, final
+    assert final["done"] == len(entries), final
+    assert final["failed"] == 0, final
 
 
 def _run():
