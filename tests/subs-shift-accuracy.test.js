@@ -46,44 +46,13 @@ vm.runInContext(`globalThis.shiftTimecodes = ${fnMatch[0]}`, sandbox);
 const shift = sandbox.shiftTimecodes;
 
 // Oracle: SRT/VTT zaman damgası satırını bağımsız parse + ms aritmetiği.
-function oracleShift(text, offsetMs) {
-  const out = [];
-  const re = /^(\s*)(\S+)(\s*-->\s*)(\S+)(.*)$/;
-  const toMs = (t) => {
-    const m = t.match(/^(?:(\d+):)?(\d{1,3}):(\d{2})([,.])(\d{1,3})$/);
-    if (!m) return null;
-    return (Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 1000
-      + Number(m[5].padEnd(3, '0'));
-  };
-  const fmt = (ms, hadHours) => {
-    const v = Math.max(0, Math.round(ms));
-    const h = Math.floor(v / 3600000);
-    const mm = Math.floor((v % 3600000) / 60000);
-    const ss = Math.floor((v % 60000) / 1000);
-    const msPart = String(v % 1000).padStart(3, '0');
-    const p = (n) => String(n).padStart(2, '0');
-    if (!hadHours && v < 3600000) return `${p(mm)}:${p(ss)},${msPart}`;
-    return `${p(h)}:${p(Math.floor((v % 3600000) / 60000))}:${p(ss)},${msPart}`;
-  };
-  for (const line of String(text).split(/\r?\n/)) {
-    const m = line.match(re);
-    if (!m) { out.push(line); continue; }
-    const a = toMs(m[2]); const b = toMs(m[4]);
-    if (a === null || b === null) { out.push(line); continue; }
-    const sa = a + offsetMs; const sb = b + offsetMs;
-    if (sb <= 0) { out.push(null); continue; } // silme işaretli
-    const cA = Math.max(0, sa);
-    const cB = Math.max(cA + 1, sb);
-    out.push(`${m[1]}${fmt(cA, m[2].split(':').length === 3)}${m[3]}${fmt(cB, m[4].split(':').length === 3)}${m[5]}`.replace(/,/g, m[2].includes(',') || m[4].includes(',') ? ',' : ','));
-  }
-  return out.filter((x) => x !== null).join('\n');
-}
-
 // =========================================================================
 test('ms hassasiyeti: 1ms/999ms kaydırma byte-exact', () => {
   const srt = '1\n00:00:01,000 --> 00:00:02,000\nA\n\n2\n00:00:03,500 --> 00:00:04,999\nB\n';
   assert.match(shift(srt, 0.001), /00:00:01,001 --> 00:00:02,001/);
-  assert.match(shift(srt, 0.999), /00:00:03,500 --> 00:00:04,999/.source && /00:00:04,499 --> 00:00:05,998/);
+  const shifted999 = shift(srt, 0.999);
+  assert.match(shifted999, /00:00:01,999 --> 00:00:02,999/, 'cue1 başlangıç+bitiş');
+  assert.match(shifted999, /00:00:04,499 --> 00:00:05,998/, 'cue2 başlangıç+bitiş');
   assert.match(shift(srt, -0.001), /00:00:00,999 --> 00:00:01,999/);
   assert.match(shift(srt, 1.5), /00:00:02,500 --> 00:00:03,500/);
 });
@@ -111,8 +80,8 @@ test('negatif clamp: başlangıç <0 → 0; bitiş ≤0 → cue blok silinir', (
 test('cue silme numara satırını ve gövdesini de kapsar (boşluk sınırı)', () => {
   const srt = '5\n00:00:01,000 --> 00:00:01,500\nSil\nsatır2\n\n6\n00:01:00,000 --> 00:01:01,000\nKal\n\n7\n00:02:00,000 --> 00:02:01,000\nKal2\n';
   const out = shift(srt, -2);
-  assert(!/\b5\b/.test(out.split('\n')[0]) || !/Sil/.test(out), 'numara+gövde silinmedi');
-  assert(!/Sil|satır2/.test(out));
+  assert(!/^5$/m.test(out), 'silinen cue numarası kaldı');
+  assert(!/Sil|satır2/.test(out), 'silinen cue gövdesi kaldı');
   assert.strictEqual((out.match(/Kal/g) || []).length, 2);
 });
 
@@ -129,8 +98,8 @@ test('şekil yükseltmesi: MM:SS kayınca HH eklenir; ayırıcı korunur', () =>
 test('VTT ayarları korunur; ondalık ayırıcı (virgül/nokta) korunur', () => {
   const vtt = 'WEBVTT\n\nnote-1\n00:00:05.000 --> 00:00:07.500 align:center line:90%\nA\n';
   const out = shift(vtt, 0.25);
-  assert.match(out, /00:00:05\.250 --> 00:00:07\.500/.source && /00:00:05\.250/, 'vtt satırı');
-  assert.match(out, /align:center line:90%/, 'ayar kayboldu');
+  assert.match(out, /00:00:05\.250 --> 00:00:07\.750/, 'vtt başlangıç+bitiş');
+  assert.match(out, /00:00:07\.750 align:center line:90%/, 'ayar kayboldu');
   // Virgül giriş virgül çıkış, nokta giriş nokta çıkış.
   assert.match(shift('1\n00:00:01,500 --> 00:00:02,000\nA\n', 0.1), /00:00:01,600 --> 00:00:02,100/);
   assert.match(shift('00:00:01.500 --> 00:00:02.000\nA\n', 0.1), /00:00:01.600 --> 00:00:02.100/);
@@ -141,7 +110,7 @@ test('CRLF biçimi korunur; BOM üretici tarafında değil', () => {
   const out = shift(srt, 0.1);
   assert(out.includes('\r\n'), 'CRLF kayboldu');
   assert(!out.includes('\uFEFF'), 'BOM shiftTimecodes içine girdi');
-  assert(!/\n[^\r]/.test(out.replace(/\r\n/g, '')), 'LF karıştı');
+  assert(!out.replace(/\r\n/g, '').includes('\n'), 'LF karıştı');
 });
 
 test('zaman-olmayan --> dizgileri değişmez', () => {
@@ -181,11 +150,12 @@ test('fuzz: 1000 rastgele kaydırma oracle ile bit-birebir (çıkarımsız bölg
     // Güvenli bölge: negatife düşmeyen + çakışmayan kaydırma
     const offset = Math.floor(rand() * 5000) / 1000;
     const got = shift(text, offset);
-    const want = oracleShift(text, offset * 1000).replace(/(^|\n)(\d{1,2}):(\d{2}),(\d{3})/g, (all, nl, mm, ss, ms) => all);
-    // oracle basit; karşılaştırma yerine invariant'lar: cue sayısı korunur, zamanlar kaydı
+    // invariant'lar: cue/gövde sayısı korunur, zamanlar kaydı, çıktı metni silinmez
     const gotTimes = [...got.matchAll(/(\d+):(\d{2}):(\d{2}),(\d{3})|(\d{1,3}):(\d{2}),(\d{3})/g)].map((m) => m[0]);
     const srcTimes = [...text.matchAll(/(\d+):(\d{2}):(\d{2}),(\d{3})|(\d{1,3}):(\d{2}),(\d{3})/g)].map((m) => m[0]);
     assert.strictEqual(gotTimes.length, srcTimes.length, `tohum ${i}: zaman sayısı değişti`);
+    assert.strictEqual((got.match(/^cue\d+$/gm) || []).length, cues, `tohum ${i}: gövde satırı kayboldu`);
+    assert.strictEqual((got.match(/^\d+$/gm) || []).length, cues, `tohum ${i}: cue numarası kayboldu`);
     for (let t = 0; t < srcTimes.length; t++) {
       const toMs = (v) => {
         const p = v.match(/^(?:(\d+):)?(\d{1,3}):(\d{2}),(\d{3})$/);
