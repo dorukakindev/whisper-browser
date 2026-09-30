@@ -8,9 +8,29 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // I/İ/ı tek "i"; uzunluk korunur (vurgu konumları için).
+  // I/İ/ı tek "i"; ASCII-dışı harfler NFD temel harfine iner (é→e, ş→s):
+  // ayrışık yazımla birleşik yazım eşleşir, vurgusuz sorgu vurgulu başlığı
+  // bulur. Birleştirme işaretleri ve biçim/denetim karakterleri (bidi
+  // denetimleri, ZWJ) düşer. Uzunluk birleşik (NFC) metinde korunur —
+  // vurgu konumları geçerli kalır; ayrışık/işaretli girdide kısalabilir.
+  // NFD'de ayrışmayan Latin vuru harfleri — tek karakterle katlanır
+  // (uzunluk korunur; æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
+  const LATIN_STROKE = {
+    'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'ð': 'd',
+    'ŧ': 't', 'Ŧ': 't', 'ħ': 'h', 'Ħ': 'h', 'ŋ': 'n', 'Ŋ': 'n',
+    'ƶ': 'z', 'Ƶ': 'z', 'æ': 'a', 'Æ': 'a', 'œ': 'o', 'Œ': 'o',
+    'þ': 't', 'Þ': 't', 'ĸ': 'k', 'ı': 'i', 'ſ': 's',
+  };
+
   function foldSearchText(value) {
-    return String(value == null ? '' : value).replace(/[Iİı]/g, 'i').toLowerCase();
+    return String(value == null ? '' : value)
+      .replace(/[Iİı]/g, 'i')
+      .replace(/[^\x20-\x7E]/g, (ch) => {
+        if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return '';
+        const base = LATIN_STROKE[ch] || ch.normalize('NFD')[0];
+        return base === ch ? ch : base;
+      })
+      .toLowerCase();
   }
 
   const DAY_MS = 24 * 60 * 60 * 1000;
