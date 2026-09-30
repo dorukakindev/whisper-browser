@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
+Güncel çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
+Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
 Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
