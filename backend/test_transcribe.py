@@ -3787,6 +3787,50 @@ def test_whisperx_zero_confidence_is_not_promoted_to_one():
     assert seg.words[0].probability == 1
 
 
+def test_wrap_whisperx_segment_edge_timestamps():
+    """Eksik/NaN damgalar sarmalanırken kilitlenmez:
+    - end yok → seg_start'a düşer (sıfır süre → aşağı yönde korunur)
+    - kelime start/end yok → önceki kelime sonuna/aynı ana yaslanır
+    - probability anahtarı yok → 1.0 varsayılır
+    """
+    seg = T._wrap_whisperx_segment({'start': 2.0, 'text': 'x',
+        'words': [{'word': 'a'}, {'word': 'b', 'start': 2.5}]})
+    assert seg.start == 2.0 and seg.end == 2.0
+    w0, w1 = seg.words
+    # ilk kelime damgasız → seg_start'a; ikinci yalnız start'lı → sıfır süre
+    assert (w0.start, w0.end) == (2.0, 2.0)
+    assert (w1.start, w1.end) == (2.5, 2.5)
+    assert w0.probability == 1.0
+    # boş kelime listesi words=None döner (need_words False yoluyla uyumlu)
+    seg2 = T._wrap_whisperx_segment({'start': 0, 'end': 1, 'text': 't', 'words': []})
+    assert seg2.words is None
+    # dize damgalar float'a dönüştürülür
+    seg3 = T._wrap_whisperx_segment({'start': '1.5', 'end': '2.5', 'text': 't'})
+    assert (seg3.start, seg3.end) == (1.5, 2.5)
+
+
+def test_assign_speakers_boundary_cases():
+    """assign_speakers: en çok örtüşen konuşmacı atanır; örtüşme yoksa boş."""
+    spans = [(0.0, 1.0, "A"), (1.0, 2.0, "B"), (4.0, 5.0, "A")]
+    entries = [(0.9, 1.1, "iki uç"), (2.5, 3.5, "boş")]
+    out = T.assign_speakers(entries, spans)
+    # ilk cue A(0.1s) ve B(0.1s) eşit örtüşür — max ilk bulunanı seçer;
+    # ikinci cue hiçbir span'le örtüşmez → atama yok
+    assert out[0] in ("A", "B") and 1 not in out
+    # boş span listesi her zaman boş sözlük
+    assert T.assign_speakers(entries, []) == {}
+    assert T.assign_speakers(entries, None) == {}
+    # sıfır/negatif süreli span'ler örtüşme üretmez
+    assert T.assign_speakers([(0.0, 1.0, "x")], [(0.0, 0.0, "A")]) == {}
+
+
+def test_offset_diarization_spans_edge():
+    assert T.offset_diarization_spans(None, 5.0) == []
+    assert T.offset_diarization_spans([(0.0, 1.0, "A")], None) == [(0.0, 1.0, "A")]
+    # string sayısal damgalar float'a döner
+    assert T.offset_diarization_spans([("0.5", "1.5", "A")], 2.0) == [(2.5, 3.5, "A")]
+
+
 def test_probe_duration_timeout_and_invalid_results():
     from unittest import mock
     with mock.patch.object(T.Path, 'exists', return_value=True):
