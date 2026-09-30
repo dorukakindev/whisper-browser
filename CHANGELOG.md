@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R292): kuyruk-opts roundtrip — `.bak` kurtarma artık main.js'ten eval edilen gerçek `readQueueStateRaw` ile sınanır; ham bayt eşitliği ve `_oversized` işareti kilitlendi; DEVIR-NOTU Önceki sıralaması düzeltildi.
 - Test (R291): sekme/oturum persist bozuk-veri matrisi — kök/alan tip-bozukluğu, sınır senaryoları, disk .bak kurtarma ve `.bak`=önceki-birincil sözleşmesi 402 kontrolle kilitlendi.
 - Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (218 kontrol, 43 dosya).
 - Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).

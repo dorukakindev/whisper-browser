@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | R292 — Devin Review flag süpürmesi (üretim okuyucusu eval + ham bayt) |
 | 239 | [BROWSER_BUG_REPORT_239.md](BROWSER_BUG_REPORT_239.md) | R291 — Sekme/oturum persist bozuk-veri matrisi |
 | 238 | [BROWSER_BUG_REPORT_238.md](BROWSER_BUG_REPORT_238.md) | R290 — Öznitelik/URL sink denetimi tur-2 (temiz + ratchet) |
 | 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
