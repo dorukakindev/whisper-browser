@@ -7,15 +7,15 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'tools', 'package-windows.js'), 'utf8');
-const start = source.indexOf('ignore: [');
-assert.ok(start > 0, 'package-windows.js içinde ignore listesi bulunamadı');
-// Regex gövdeleri `]` içerebilir; kapanış yalnız kendi satırındadır.
-const end = source.indexOf('\n    ],', start);
-assert.ok(end > start, 'ignore listesi kapanışı bulunamadı');
-const ignore = vm.runInNewContext(source.slice(start + 'ignore: '.length, end + 1 + '    ]'.length));
+// R317: ignore listesi tek kaynak olarak tools/package-manifest.js'te tutulur;
+// paketleyici oradan okur. Paket betiğine geri kopyalanmasın.
+const { PACKAGER_IGNORE } = require('../tools/package-manifest');
+const packagerSource = fs.readFileSync(path.join(__dirname, '..', 'tools', 'package-windows.js'), 'utf8');
+assert.ok(packagerSource.includes('ignore: PACKAGER_IGNORE'),
+  'package-windows.js ignore listesini manifest modülünden okumalı');
+assert.ok(!packagerSource.includes('ignore: ['), 'ignore dizisi paket betiğine geri kopyalanmış');
+const ignore = PACKAGER_IGNORE;
 // vm bağlamı ayrı realm'dir; instanceof yerine etiket kontrolü yapılır.
 assert.ok(ignore.every((rule) => Object.prototype.toString.call(rule) === '[object RegExp]'),
   'ignore girdileri RegExp olmalı');
