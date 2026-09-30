@@ -19,6 +19,7 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
 Önceki çalışma: [docs/devir/2026-09-30-1129.md](docs/devir/2026-09-30-1129.md) — R324-5: listener-çifti süpürme — kalıcı emitter tekil-kayıt ratchet (temiz, R324 grubu kapandı)
 Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
+Önceki çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1113.md](docs/devir/2026-09-30-1113.md) — R324-1: sekme×görünüm yarış matrisi — boşaltma kapısı hostile fuzz (temiz) + 9 kilit
 Önceki çalışma: [docs/devir/2026-09-30-1107.md](docs/devir/2026-09-30-1107.md) — R323-7: bırakılan link seçimi uri-list spec + fuzz (B-323-05)
 Önceki çalışma: [docs/devir/2026-09-30-1051.md](docs/devir/2026-09-30-1051.md) — R323-6: NDJSON olay-akışı fuzz'ı (B-323-04 UTF-8 chunk-sınırı bozulması + 9 test ratchet'i)
