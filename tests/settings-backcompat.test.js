@@ -23,7 +23,8 @@ ok(readSlice.length > 100 && migrateSlice.length > 100, 'dilimler bulundu');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-backcompat-'));
 const settingsFile = path.join(dir, 'settings.json');
-const sandbox = { fs, path, URL, settingsPath: () => settingsFile };
+const { scanJsonShape, DANGEROUS_KEYS } = require('../src/settings-security');
+const sandbox = { fs, path, URL, settingsPath: () => settingsFile, scanJsonShape, DANGEROUS_KEYS };
 vm.createContext(sandbox);
 vm.runInContext(readSlice + migrateSlice, sandbox);
 const load = () => {
