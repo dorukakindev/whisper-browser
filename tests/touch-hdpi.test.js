@@ -83,15 +83,21 @@ test('sideResizer: pointer olaylarıyla sürüklenir; pointercancel ile kapanır
   assert.ok(winListeners.pointermove && winListeners.pointerup && winListeners.pointercancel,
     'window üzerinde pointermove/up/cancel bağlı');
   rz.dispatch('pointerdown', { button: 0, pointerId: 3, preventDefault() {} });
-  winListeners.pointermove.forEach((f) => f({ clientX: 300 }));
+  // başka bir parmak sürüklemeyi ele geçiremez
+  winListeners.pointermove.forEach((f) => f({ clientX: 100, pointerId: 9 }));
+  assert.strictEqual(ctx.__width, undefined, 'yabancı pointerId sürüklememeli');
+  winListeners.pointermove.forEach((f) => f({ clientX: 300, pointerId: 3 }));
   assert.strictEqual(ctx.__width, 500, 'sağ kenar 800 - 300 = 500');
-  winListeners.pointercancel.forEach((f) => f({}));
+  // yabancı pointerId ile gelen iptal sürüklemeyi bitirmez
+  winListeners.pointercancel.forEach((f) => f({ pointerId: 9 }));
+  assert.ok(rz.classList.removed.includes('dragging') === false, 'yabancı iptal dragging\'i kaldırmamalı');
+  winListeners.pointercancel.forEach((f) => f({ pointerId: 3 }));
   assert.ok(rz.classList.removed.includes('dragging'), 'dragging temizlenmeli');
   assert.strictEqual(ctx.__highlight, 1, 'cue satırı vurgusu yenilenmeli');
   // sağ tık sürükleme başlatmaz
   rz.dispatch('pointerdown', { button: 2, preventDefault() {} });
   ctx.__width = undefined;
-  winListeners.pointermove.forEach((f) => f({ clientX: 100 }));
+  winListeners.pointermove.forEach((f) => f({ clientX: 100, pointerId: 3 }));
   assert.strictEqual(ctx.__width, undefined);
 });
 

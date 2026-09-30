@@ -35,7 +35,7 @@ assert.match(main, /loadRetryTimer: null,\s*loadRetryAttempt: 0,\s*loadRetryPend
 // Manga idle olaylarının üçü de retryable:0 gönderir; renderer alanı yoklukta
 // dokunmadığı için eski sayımın silinmesi bu alana bağlıdır.
 const idleEvents = main.match(/type: 'manga-state', state: 'idle'[^}]*/g) || [];
-assert.strictEqual(idleEvents.length, 3, 'manga idle olayı sayısı değişti');
+assert.strictEqual(idleEvents.length, 4, 'manga idle olayı sayısı değişti');
 for (const line of idleEvents) assert.ok(line.includes('retryable: 0'), `retryable eksik: ${line}`);
 assert.match(renderer, /event\.retryable !== undefined[\s\S]{0,160}browserMangaRetryable/);
 
