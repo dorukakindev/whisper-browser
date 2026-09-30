@@ -439,15 +439,27 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             if final_path and Path(final_path).exists():
                 wav_path = Path(final_path)
 
-        # Bulunamadıysa klasik uzantı taraması yap
+        # Bulunamadıysa klasik uzantı taraması yap. video_id extractor
+        # yanıtından gelir; '/' içeren bir kimlik yolu çıktı klasörünün
+        # dışına taşıracağı için adayları daima kapsama kontrolünden geçir.
         if not wav_path or not wav_path.exists():
+            resolved_out = Path(output_dir).resolve()
+            def _inside(p):
+                try:
+                    p.resolve().relative_to(resolved_out)
+                    return True
+                except (ValueError, OSError):
+                    return False
             wav_path = Path(output_dir) / f"{video_id}.wav"
-            if not wav_path.exists():
-                for ext in ("m4a", "webm", "mp3", "opus", "mp4"):
+            if not wav_path.is_file() or not _inside(wav_path):
+                wav_path = None
+                for ext in ("wav", "m4a", "webm", "mp3", "opus", "mp4"):
                     alt = Path(output_dir) / f"{video_id}.{ext}"
-                    if alt.exists():
+                    if alt.is_file() and _inside(alt):
                         wav_path = alt
                         break
+            if wav_path is None:
+                wav_path = Path(output_dir) / f"{video_id}.wav"
         if not wav_path.is_file():
             raise RuntimeError("YouTube indirmesi tamamlandı ancak indirilen ses dosyası bulunamadı.")
         log(f"İndirme tamamlandı: {title}")
