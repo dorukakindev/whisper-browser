@@ -320,6 +320,12 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
 
     if not video_url:
         raise ValueError("Video URL boş — Invidious probe'tan video URL'i alınamadı.")
+    # Bu betik doğrudan da çağrılabilir; main.js zaten http/https kısıtlıyor
+    # ama file:// gibi şemalar urlopen'la yerel dosya okuyup "video" çıktısına
+    # karışırdı. Şema kısıtını burada da kilit altına al.
+    for label, u in (("Video", video_url), ("Ses", audio_url)):
+        if u and urllib_parse.urlsplit(u).scheme.lower() not in ("http", "https"):
+            raise ValueError(f"{label} URL yalnızca http/https olmalı.")
 
     # ffmpeg yoksa GB'larca indirmeden önce keşfet
     ff = _find_ffmpeg()
