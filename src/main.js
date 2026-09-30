@@ -3258,6 +3258,12 @@ function loadWatchLibraryAll() {
   return watchLibraryStore().loadAll();
 }
 
+// Bozuk kütüphane dosyasında store kasıtlı fırlatır (veri korunur); tanı
+// anlık görüntüsü bu yüzden başarısız olmasın.
+function safeWatchLibraryEntryCount() {
+  try { return loadWatchLibrary().length; } catch (_) { return -1; }
+}
+
 function saveWatchLibrary(list, options = {}) {
   try {
     watchLibraryStore().replaceItems(list, options);
@@ -13692,7 +13698,7 @@ async function collectResourceSoakSnapshot(label, cycle) {
       hlsFetchedStreams: browserHlsFetchedSegments.size,
       hlsInFlight: browserHlsInFlight.size,
       subtitleSearchCache: subtitleSearchCache.size,
-      watchLibraryEntries: loadWatchLibrary().length,
+      watchLibraryEntries: safeWatchLibraryEntryCount(),
     },
     disk: { browserSubtitleFiles: subtitleUsage.count, browserSubtitleBytes: subtitleUsage.bytes },
     io: tracker.io,
