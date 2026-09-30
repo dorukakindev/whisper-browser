@@ -1806,7 +1806,9 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   if (o.audioUrl) pushBoundOption(args, '--audio-url', o.audioUrl);
   if (o.height) pushBoundOption(args, '--height', String(o.height));
   if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
-  if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
+  // videoId dosya adına gömülür — uzak yanıttan gelen '/' veya '..' yol kaçışına
+  // izin vermemek için YouTube kimlik alfabesi dışını kırp.
+  if (o.videoId) args.push(`--video-id=${String(o.videoId).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
   // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
   return runMediaCommand(args, (ev) => {
