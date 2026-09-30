@@ -632,6 +632,7 @@ function sendEvent(payload) {
 // Uygulama içi günlük kapanınca kayboluyor; gece çalışan kuyruklarda ne olduğunu
 // sonradan görebilmek için her iş userData/logs altına ayrı dosyaya yazılır.
 const LOG_KEEP = 100;                 // en yeni N günlük tutulur, gerisi silinir
+const LOG_MAX_BYTES = 4 * 1024 * 1024; // tek günlük dosyası bu boyutu aşamaz — sayı sınırı dosya boyutunu sınırlamaz, uzun/gürültülü iş dosyayı sınırsız şişirirdi
 const LOG_SKIP = new Set(['segment', 'progress', 'download_progress', 'llm_progress', 'preview_refresh', 'translation_chunk', 'translation_refresh']);
 let jobLog = null;
 
@@ -775,7 +776,7 @@ function startJobLog(label, args) {
     // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
     stream.write(`# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`);
     stream.write(`# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`);
-    jobLog = { file, stream };
+    jobLog = { file, stream, bytes: 0, truncated: false };
     pruneOldLogs();
   } catch (_) {
     jobLog = null;
@@ -815,7 +816,15 @@ function writeJobLog(event) {
     default:
       line = `[${t}] ${event.type}`;
   }
-  try { jobLog.stream.write(`${line}\n`); } catch (_) {}
+  if (jobLog.truncated) return;
+  const row = `${line}\n`;
+  if (jobLog.bytes + Buffer.byteLength(row) > LOG_MAX_BYTES) {
+    jobLog.truncated = true;
+    try { jobLog.stream.write(`[${t}] GÜNLÜK SINIRI: dosya ${Math.floor(LOG_MAX_BYTES / 1048576)} MB'ı aştı; bu dosyadaki sonraki olaylar yazılmadı.\n`); } catch (_) {}
+    return;
+  }
+  jobLog.bytes += Buffer.byteLength(row);
+  try { jobLog.stream.write(row); } catch (_) {}
 }
 
 let resourceSoakUnhandledRejectionCount = 0;
