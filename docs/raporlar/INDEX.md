@@ -221,4 +221,5 @@ tarih sırasıyla dosya adından okunur.
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
+| 253 | [BROWSER_BUG_REPORT_253.md](BROWSER_BUG_REPORT_253.md) | R304 — Yer-imi içe aktarma bozuk-veri matrisi (2 bug: jsessionid, visitedAt) |
 | 252 | [BROWSER_BUG_REPORT_252.md](BROWSER_BUG_REPORT_252.md) | R303: review triage — emoji/UTF-16 map hizası + #247 docs |

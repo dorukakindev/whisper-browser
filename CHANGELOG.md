@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R304: yer imi/geçmiş içe aktarmada `jsessionid`/`PHPSESSID`/`ASPSESSIONID` taşıyıcıları artık siliniyor; bozuk `visitedAt` damgaları sıralamayı bozmuyor.
+
+### Fixed
 - R303: emoji araması altyazı/omnibox vurgusunu bozuyordu — vekil-çift map kaydı düzeltmesi (#245 review).
 
 ### Fixed

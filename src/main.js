@@ -4219,15 +4219,20 @@ function rememberBrowserPlaceFavicon(rawUrl, dataUrl) {
 }
 
 function normalizeBrowserPlaces(places) {
-  const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
+  const clean = (items) => (Array.isArray(items) ? items : []).map((item) => {
+    // Sonlu pozitif damga dışındaki değerler (negatif, ±Infinity, bozuk) JSON'a
+    // null yazılır ve yakınlık×sıklık sıralamasını bozar — şimdiki zamana düş.
+    const visitedAt = Number(item && (item.visitedAt || item.createdAt));
+    return {
     url: safeBrowserPlaceUrl(item && item.url),
     title: String(item && item.title || '').trim().slice(0, 240),
     folder: String(item && item.folder || '').trim().slice(0, 64),
     media: !!(item && item.media),
-    visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    visitedAt: visitedAt > 0 && Number.isFinite(visitedAt) ? visitedAt : Date.now(),
     // Ziyaret sayısı adres çubuğu sıklık × yakınlık sıralaması için tutulur.
     visits: Math.max(1, Math.min(100000, Math.floor(Number(item && item.visits) || 1))),
-  })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
+    };
+  }).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
