@@ -1,5 +1,12 @@
+<<<<<<< HEAD
 Güncel çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
+||||||| parent of 4b4fb4d (docs(r324-2): rapor 281 + devir notu + indeks)
+Güncel çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
+=======
+Güncel çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
+Önceki çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
+>>>>>>> 4b4fb4d (docs(r324-2): rapor 281 + devir notu + indeks)
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
 Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
 Önceki çalışma: [docs/devir/2026-09-30-1001.md](docs/devir/2026-09-30-1001.md) — R321: sayfasız sekme ikincil görünüme seçilemez (ölü yarı engeli)
