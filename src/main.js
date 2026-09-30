@@ -3650,6 +3650,7 @@ function createBrowserTabRecord(initial = {}) {
     youtubeStyleSignature: '',
     loadRetryTimer: null,
     loadRetryAttempt: 0,
+    loadRetryPendingNav: false,
     crashRecoveryAttempt: 0,
     captureCoverage: new CaptureCoverageMap(),
     operationId: randomUUID(),
@@ -12710,10 +12711,16 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // reload ile ezmesin (B83-23): gezinme başlangıcında temizlenir.
     if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
     tab.loadRetryTimer = null;
+    // Yeniden-deneme reload'u da aynı olaydan geçer: hak sayacı yalnız
+    // kullanıcı kaynaklı yeni gezinmede sıfırlanır. Zamanlayıcı reload'unda
+    // korunmazsa her denemede bütçe yenilenip sonsuz döngü olur; başka
+    // belgede korunursa yeni adres hiç denenmeden retry-limit'e düşer.
+    if (tab.loadRetryPendingNav) tab.loadRetryPendingNav = false;
+    else tab.loadRetryAttempt = 0;
     tab.bridgeToken = randomUUID();
     tab.playbackDiagnostics.reset({ clearCapabilities: true });
     publishBrowserPlaybackDiagnostics(tab);
-    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
     sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       const prior = browserOverlay || tab.overlay || {};
@@ -12734,6 +12741,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.loading = false;
     if (!tab.loadError) {
       tab.loadRetryAttempt = 0;
+      tab.loadRetryPendingNav = false;
       tab.crashRecoveryAttempt = 0;
       if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
       tab.loadRetryTimer = null;
@@ -12809,7 +12817,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.generation += 1;
         tab.playbackDiagnostics.reset({ clearCapabilities: true });
         publishBrowserPlaybackDiagnostics(tab);
-        sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
         sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
       }
       rememberBrowserVisit(nextUrl, wc.getTitle(), !!identity.key);
@@ -12852,6 +12860,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       // ana belge hatasında kullanıcıya sayfa bağlamındaki mesaj gösterilir.
       void diagnostic;
       const { message, messageKey } = browserLoadError(code, description);
+      // Bayrak burada da düşürülür: yeniden-deneme reload'u nav olayını
+      // tetiklememişse bayrağın bir sonraki kullanıcı gezinmesini yanlışlıkla
+      // deneme saymasına izin verilmez.
+      tab.loadRetryPendingNav = false;
       const retry = navigationRetryPolicy({ code, attempt: tab.loadRetryAttempt, url });
       tab.loadError = { kind: 'connection', code, message, messageKey, url, retry };
       if (retry.action === 'retry' && !tab.loadRetryTimer) {
@@ -12867,6 +12879,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
           sendBrowserEvent(tab, { type: 'load-retry', attempt: tab.loadRetryAttempt,
             messageKey: 'load-retry', params: { attempt: tab.loadRetryAttempt, max: 3 },
             message: `Geçici ağ hatası yeniden deneniyor (${tab.loadRetryAttempt}/3).` });
+          tab.loadRetryPendingNav = true;
           wc.reload();
         }, retry.delayMs);
         tab.loadRetryTimer.unref?.();
@@ -12892,6 +12905,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.discoveryProbeTimer = null;
     if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
     tab.loadRetryTimer = null;
+    // Çökme sonrası yeniden oluşturulan görünüm yeni belge ister — ağ
+    // yeniden-deneme hakkı da sıfırlanır, eski sayfanın tükenen bütçesi
+    // yeni görünümün ilk hatasını anında retry-limit'e düşürmesin.
+    tab.loadRetryAttempt = 0;
+    tab.loadRetryPendingNav = false;
     if (tab.crashRecoveryTimer) clearTimeout(tab.crashRecoveryTimer);
     tab.crashRecoveryTimer = null;
     clearBrowserCloudflareTimer(tab);
@@ -15959,7 +15977,9 @@ ipcMain.handle('browser:manga:clear', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   await stopBrowserManga(tab, true);
-  sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+  // retryable alanı açıkça 0 gönderilmezse renderer önceki koşunun sayısını
+  // korur ve 'Başarısızları yeniden dene (N)' düğmesi boş listeyle kalır.
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
   return { ok: true };
 });
 
