@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 266 | [BROWSER_BUG_REPORT_266.md](BROWSER_BUG_REPORT_266.md) | BROWSER_BUG_REPORT_266 — R317: paket bütünlüğü manifesti + açılış erken uyarısı |
 | 265 | [BROWSER_BUG_REPORT_265.md](BROWSER_BUG_REPORT_265.md) | BROWSER_BUG_REPORT_265 — R316: dokunmatik sürükleme tutamaçları (pointercancel + touch-action) |
 | 264 | [BROWSER_BUG_REPORT_264.md](BROWSER_BUG_REPORT_264.md) | BROWSER_BUG_REPORT_264 — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim) |
 | 263 | [BROWSER_BUG_REPORT_263.md](BROWSER_BUG_REPORT_263.md) | BROWSER_BUG_REPORT_263 — R314: iş günlüğü bayt sınırı — 4MB + kesim işareti |
