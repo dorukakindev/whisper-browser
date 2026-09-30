@@ -5099,7 +5099,10 @@ function browserFullscreenBounds() {
 
 function secondaryBrowserTab() {
   const tab = browserTabById(browserSplitSecondaryTabId);
-  return tab && tab.id !== browserActiveTabId ? tab : null;
+  // Sayfasız ikincil (boş about:blank sekme) yerleşimi bölerdi ama görünmez
+  // kalıp sağ yarıyı ölü bırakırdı — browserTabShouldBeVisible ile aynı
+  // sayfa koşulunu bölme kararına da uygula.
+  return tab && tab.id !== browserActiveTabId && browserTabHasPage(tab) ? tab : null;
 }
 
 function browserTabHasPage(tab) {
@@ -14526,8 +14529,8 @@ ipcMain.handle('browser:split:set', (event, request = {}) => queueBrowserTabTran
     return { ok: true, split: browserSplitSnapshot(), tabs: browserTabsSnapshot() };
   }
   const secondary = browserTabById(request.secondaryTabId);
-  if (!secondary || secondary.id === browserActiveTabId) {
-    return { ok: false, error: 'İkincil görünüm için aktif sekmeden farklı, açık bir sekme seçin.' };
+  if (!secondary || secondary.id === browserActiveTabId || !browserTabHasPage(secondary)) {
+    return { ok: false, error: 'İkincil görünüm için aktif sekmeden farklı, sayfası olan açık bir sekme seçin.' };
   }
   browserSplitSecondaryTabId = secondary.id;
   browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(request.ratio) || browserSplitRatio));
