@@ -3897,7 +3897,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             except Exception as exc:
                 log(f"Çeviri önbelleğinin artımlı yazımı başarısız: {exc}", "warn")
         if tm and tm_pending:
-            rows, tm_pending[:] = tm_pending[:], []
+            # İş parçacıkları stage_tm_rows ile aynı anda ekleme yapabilir;
+            # kilitsiz slice+temizleme araya giren satırı sessizce düşürürdü.
+            with lock:
+                rows, tm_pending[:] = tm_pending[:], []
             stored = 0
             for index, source, target_text, context in rows:
                 if not target_text or index in precompleted_idx:
@@ -3933,6 +3936,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         pending_groups = [g for g in pending_groups if g[0] not in unchanged_idx]
         log(f"{len(unchanged_idx)} satır çevrilmeden korundu "
             "(vokalizasyon/şarkı/kod/zaten hedef dilde).")
+    # Başlangıçta değişmeden korunan satır sayısı — sonraki accept_unchanged_echo
+    # kabulü aynı kümeye ekler ama o satırlar zaten counters["done"] içinde
+    # sayılır; ilerleme hesabı yalnız bu başlangıç kesimini ayrıca ekler.
+    preserved_static = len(unchanged_idx)
 
     pending = [i for group in pending_groups for i in group]
     if cache_on and (cached_idx or precompleted_idx or unchanged_idx):
@@ -4433,11 +4440,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 for i in completed
             ])
         now = time.time()
+        # 'değişmeden korunan' satırlar (vokalizasyon/şarkı/zaten hedef dilde)
+        # done_idx'dedir ama API sayaçlarına girmez — handled'a eklenmezse
+        # ilerleme kalıcı olarak %100'ün altında kalırdı.
         handled = counters["done"] + counters["failed"] + len(cached_idx) \
-            + len(precompleted_idx)
+            + len(precompleted_idx) + preserved_static
         if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
             emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
-                 done=counters["done"] + len(cached_idx) + len(precompleted_idx),
+                 done=counters["done"] + len(cached_idx) + len(precompleted_idx)
+                 + preserved_static,
                  failed=counters["failed"], total=len(entries),
                  stage="translate")
             last_emit_ts[0] = now
@@ -4492,7 +4503,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
                         .format(probe_stop, skipped), "warn")
                 emit("llm_progress", percent=100.0,
-                     done=counters["done"] + len(cached_idx), failed=counters["failed"],
+                     done=counters["done"] + len(cached_idx) + len(precompleted_idx)
+                     + preserved_static, failed=counters["failed"],
                      total=len(entries), stage="translate")
                 remaining_chunks = []
 
