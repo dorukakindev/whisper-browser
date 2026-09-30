@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Test (R296): çeviri önbelleği bozuk-girdi fuzz ratchet'i — journal/temel/.bak bozulma matrisi, tohumlu PRNG ile 114 deterministik senaryo.
+
 - Test (R295): CI determinizm ratchet'i — test/fixture ağacında `Math.random` yasaklandı; uyku-beklemesi ve duvar-saati assert sayıları `ci-determinism-baseline.txt` ile dondu; series-memory dosya adı deterministikleşti, retryAfter marjı genişledi.
 
 - Test (R293): `series_memory` birleştirme yarışı — paralel süreç/iş parçacığı kayıp-güncelleme simülasyonu (6 senaryo, temiz)
