@@ -1826,8 +1826,8 @@ async function handleDropPayload(e) {
 
   // Dosya yok: tarayıcıdan sürüklenen bir link olabilir → YouTube sekmesine al
   const text = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').trim();
-  const url = text.split(/\s+/)[0];
-  if (/^https?:\/\//i.test(url)) {
+  const url = pickDroppedLink(text);
+  if (url) {
     const ytTab = document.querySelector('.tab[data-tab="youtube"]');
     if (ytTab) ytTab.click();
     $('youtubeUrl').value = url;
