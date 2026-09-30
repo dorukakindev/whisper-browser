@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
 - Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (28 kontrol).
 - Fix (R288-b): `browser-note-store` rename sonrası dizin-fsync hatasında belleği geri alıyordu → committed işaretiyle disk≡bellek korunur (upsert+remove). Matris: committed senaryo + çok düzeyli zincir fsync'i + katalog .bak okuma + finally temizliği (45 kontrol).
 - Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
