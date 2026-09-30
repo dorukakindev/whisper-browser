@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R313: disk dolu/izin hatasında iş günlüğü akışının dinleyicisiz 'error' olayı ana süreci düşürüyordu; artık günlük bırakılıp uygulama çalışır. Kullanıcı-seçimli dışa aktarımlar (ekran görüntüsü, oturum paketi, sayfa PDF'i, tanı, PDF çevirisi, abonelikler, soak raporları) atomik yazılır — disk dolu anında var olan sağlam dosya yok olmaz.
 - R312: PDF "tüm kitap" çevirisi artık metni paket paket çıkarır (büyük belgelerde bellek/tepkisizlik düzeltildi); çevrilen sayfaların metin kopyası tutulmaz; 40 sayfayı aşan tam-çevirilerde maliyet onayı sorulur.
 - R311: SmartTube kanal sayfasında sekme değişimi uçuşta kalan isteği öldürmez hale getirildi (içerik karışması); kanal-içi arama sayfayı sıfırlar ve Videolar dönüşü çalışır; ilk video sayfası "Daha fazla" ile derinleşir; geçici hata sayfalama düğmesini öldürmez.
 - R310: derin-link yüzeyi doğrulandı — OS protokol kaydı hiç yok; iç şemalar nonce kilitli; sessiz eklemeyi engelleyen ratchet eklendi.
