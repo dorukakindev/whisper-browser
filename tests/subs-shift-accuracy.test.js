@@ -8,7 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+// Windows CI checkout'ı CRLF üretir — gövde taraması LF'e normalize edilir.
+const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
 
 let passed = 0;
 function test(name, fn) {
