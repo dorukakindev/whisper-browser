@@ -147,13 +147,13 @@ test('FIFO: art arda işlem ekleme sırasını izler', async () => {
   }
   env.state.queueRunning = true;
   for (let i = 0; i < 3; i++) {
+    // Gerçek akış: terminal olay önce running'i done yapar, sonra sıra ilerler.
+    env.state.queue.filter((x) => x.status === 'running')
+      .forEach((x) => { x.status = 'done'; });
     const current = env.state.queue.find((x) => x.status === 'pending');
     const currentId = current && current.id;
     await env.processNextQueueItem();
     assert.strictEqual(item(env, currentId).status, 'running');
-    // Önceki çalışan done'a çevrilir (terminal sonrası bir sonraki çağrı)
-    env.state.queue.filter((x) => x.status === 'running' && x.id !== currentId)
-      .forEach((x) => { x.status = 'done'; });
   }
   assert.deepStrictEqual(env.__calls.spawned.map((o) => o.input), ['D:\\\\a.mp4', 'D:\\\\b.mp4', 'D:\\\\c.mp4']);
 });
@@ -245,14 +245,19 @@ test('watchSource: error öğesi yerinde dirilir (id/sıra korunur)', () => {
   assert.strictEqual(y.id, 2, 'id değişti');
 });
 
-test('id sayacı restore sonrası max+1 devam eder; yeni id özgün', () => {
+test('id sayacı restore sonrası max+1 devam eder; yeni id özgün', async () => {
   const env = makeEnv();
-  // Seyrek disk kimlikleri: [5, 99] → sayaç 99; yeni ekleme 100 olmalı.
-  env.state.queue = [
-    { id: 5, type: 'file', input: 'A', label: 'A', status: 'done', files: [], opts: {} },
-    { id: 99, type: 'file', input: 'B', label: 'B', status: 'error', files: [], opts: {} },
-  ];
-  env._queueIdCounter = env.state.queue.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0);
+  // Seyrek disk kimlikleri: [5, 99] → gerçek restore sayacı 99'a taşır; ekleme 100 olmalı.
+  env.window.api.loadQueueState = async () => ({
+    ok: true,
+    items: [
+      { id: 5, type: 'file', input: 'A', label: 'A', status: 'done', files: [], opts: {} },
+      { id: 99, type: 'file', input: 'B', label: 'B', status: 'error', files: [], opts: {} },
+    ],
+    activeQueueItemId: null, queueRunning: false, recoveredCount: 0, invalidCount: 0,
+  });
+  await env.restorePersistedQueue();
+  assert.strictEqual(env._queueIdCounter, 99, 'restore sayacı max id almadı');
   env.addToQueue('file', 'D:\\\\taze.mp4');
   const tail = env.state.queue[env.state.queue.length - 1];
   assert.strictEqual(tail.id, 100, `sayaç max+1 değil: ${tail.id}`);
@@ -371,6 +376,25 @@ test('restore: aktif id+status çifti olmadan işe yeniden bağlanmaz; sayaç ma
   assert.strictEqual(env._queueIdCounter, 7);
 });
 
+test('çalışan iş varken ek processNextQueueItem çağrısı ikinci süreci başlatmaz', async () => {
+  const env = makeEnv();
+  for (const name of ['a', 'b']) {
+    env.state.queue.push({ id: name.charCodeAt(0), type: 'file', input: `D:\\\\${name}.mp4`, label: name, status: 'pending', files: [], opts: {} });
+  }
+  env.state.queueRunning = true;
+  await env.processNextQueueItem();
+  assert.strictEqual(item(env, 97).status, 'running');
+  // Terminal olmadan gelen fazladan çağrı: running bekçisi ikinci spawn'ı keser.
+  await env.processNextQueueItem();
+  assert.strictEqual(env.__calls.spawned.length, 1, 'running varken ikinci spawn');
+  assert.strictEqual(item(env, 98).status, 'pending', 'ikinci öğe erken başladı');
+  // Terminal sonrası çağrı normal akışı sürdürür.
+  item(env, 97).status = 'done';
+  await env.processNextQueueItem();
+  assert.strictEqual(item(env, 98).status, 'running');
+  assert.strictEqual(env.__calls.spawned.length, 2);
+});
+
 test('fuzz: 300 rastgele mutasyonda FIFO + id-özgünlüğü + kapı invariant\'ları korunur', async () => {
   const env = makeEnv();
   const rand = mulberry32(301005);
@@ -385,6 +409,13 @@ test('fuzz: 300 rastgele mutasyonda FIFO + id-özgünlüğü + kapı invariant\'
     } else if (op < 0.85) {
       const err = env.state.queue.find((x) => x.status === 'error');
       if (err) { err.status = 'pending'; err.error = ''; }
+    } else if (op < 0.93) {
+      // Terminal geçiş + ilerleme: çalışan işi done/error yap, sırayı ilerlet.
+      // Gerçek akış: terminal olay processNextQueueItem'i tetikler.
+      const running = env.state.queue.find((x) => x.status === 'running');
+      if (running) running.status = rand() < 0.8 ? 'done' : 'error';
+      env.state.queueRunning = true;
+      await env.processNextQueueItem();
     } else {
       env.clearQueue();
     }
