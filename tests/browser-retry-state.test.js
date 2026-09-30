@@ -4,6 +4,8 @@
 //   zamanlayıcı reload'u korur), çökme sonrası görünüm sıfırlasın.
 // - manga-state 'idle' olayları retryable:0 taşısın (renderer bayat sayıyı
 //   'Başarısızları yeniden dene (N)' düğmesinde göstermesin).
+// R307: Bellekten boşaltılan sekme yeniden-deneme/çökme bütçesini sıfırlar;
+// dirilen sekme ilk hatasında taze bütçeyle yeniden denenir.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -165,4 +167,52 @@ wc.listeners['did-stop-loading']();
 assert.strictEqual(tab.loadRetryAttempt, 0);
 assert.strictEqual(tab.loadRetryPendingNav, false);
 
-console.log('browser-retry-state: OK');
+// --- R307: unloadBrowserTab diriliş bütçesini sıfırlar ---
+const unloadStart = main.indexOf('async function unloadBrowserTab');
+assert.ok(unloadStart >= 0, 'unloadBrowserTab bulunamadı');
+const unloadEnd = main.indexOf("\nipcMain.handle('browser:command'", unloadStart);
+assert.ok(unloadEnd > unloadStart, 'unloadBrowserTab sınırı bulunamadı');
+const unloadBody = main.slice(unloadStart, unloadEnd);
+assert.match(unloadBody, /loadRetryAttempt = 0; tab\.loadRetryPendingNav = false;\s*tab\.crashRecoveryAttempt = 0;/);
+assert.match(unloadBody, /clearBrowserCloudflareTimer\(tab\)/);
+
+Object.assign(context, {
+  browserSplitSecondaryTabId: '',
+  browserTabUnloadDecision: () => ({ allowed: true }),
+  browserTabRuntimeState: async () => ({ stateKnown: true }),
+  browserTabCapturePending: async () => ({ pending: 0 }),
+  executeBrowserViewFrames: async () => [],
+  browserCaptureHookScript: () => '',
+  safeBrowserPlaceUrl: (u) => u,
+  browserTabsSnapshot: () => [],
+  browserTabSnapshot: (item) => ({ id: item.id }),
+  mainWindow: { contentView: { removeChildView() {} } },
+  persistBrowserSessionNow: () => ({ ok: true }),
+  browserExtras: null,
+});
+tab.pageFind = { stop() {} };
+tab.translationScheduler = { cancelAll() {} };
+tab.restoringPage = false;
+// render-process-gone simülasyonu görünümü null'ladı — boşaltma için geri bağla.
+tab.view = context.view;
+vm.runInNewContext(unloadBody, context);
+
+// Bütçe tükenmiş + bayrak sarkan sekme boşaltılır: diriliş sonrası ilk hata
+// taze bütçeyle yeniden denenmeli (bug: attempt=3 kalıyordu → terminal).
+tab.loadRetryAttempt = 3; tab.loadRetryPendingNav = true; tab.crashRecoveryAttempt = 1;
+Promise.resolve(context.unloadBrowserTab('t1')).then((result) => {
+  assert.ok(result?.ok, `boşaltma başarısız: ${result?.error}`);
+  assert.strictEqual(tab.lifecycle, 'unloaded');
+  assert.strictEqual(tab.loadRetryAttempt, 0, 'bütçe dirilen sekmeye sızdı');
+  assert.strictEqual(tab.loadRetryPendingNav, false);
+  assert.strictEqual(tab.crashRecoveryAttempt, 0, 'çökme hakkı dirilen sekmeye sızdı');
+
+  // Diriliş: gerçek etkinleştirme 'restoring' yapar; gerçek gezinme gelir.
+  tab.lifecycle = 'restoring'; tab.view = context.view;
+  fireNav();
+  fireFail('https://a.test/');
+  assert.strictEqual(tab.loadError.retry.action, 'retry',
+    'dirilen sekme ilk hatasında yeniden denenmeli');
+  assert.strictEqual(tab.loadRetryAttempt, 1);
+  console.log('browser-retry-state: OK');
+});
