@@ -129,5 +129,21 @@ ok(invisCompletion && invisCompletion.text === 'cafe.com' && invisCompletion.pre
 // Vekil çifti olmayan yalın yarılar işaretçiye düşmeye devam eder.
 ok(foldSearchText('a\uD83Dz') === 'a\uFFFFz', 'yalın vekil yarı işaretçi');
 ok(foldSearchText('\uD83C\uDFAC') === '\uD83C\uDFAC', 'vekil çifti metinde korunur');
+// 5) map↔dense hizası: vekil çifti dense'de 2 UTF-16 birimi kaplar; map de
+//    iki kayıt taşımalı — aksi halde vurgu ofsetleri emoji sonrasında kayar
+//    (Devin Review: appendHighlighted map sınırını aşıyordu).
+{
+  const fi = foldSearchIndex('a\uD83C\uDFACz');
+  ok(fi.map.length === fi.dense.length, 'map dense ile aynı uzunlukta (vekil çift)');
+  const at = fi.dense.indexOf('\uD83C\uDFAC');
+  ok(fi.map[at][0] === 1 && fi.map[at][1] === 2, 'emoji başlangıç aralığı');
+  ok(fi.map[at + 1][0] === 1 && fi.map[at + 1][1] === 2, 'emoji ikinci yarı aynı aralığa');
+  ok(fi.map[at + 2][0] === 3, 'emoji sonrası karakter ofseti kaymadı');
+  // appendHighlighted sözleşmesi: at+q.length-1 her zaman geçerli map kaydı.
+  const fi2 = foldSearchIndex('x\uD83C\uDFACy\uD83C\uDFACz');
+  const q = foldSearchQuery('\uD83C\uDFACy');
+  const pos = fi2.dense.indexOf(q);
+  ok(pos >= 0 && fi2.map[pos + q.length - 1] !== undefined, 'emoji + ASCII kuyruk eşleşmesi map sınırında');
+}
 
 console.log(`PASS: omnibox-unicode (${checks} kontrol)`);
