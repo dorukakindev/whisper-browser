@@ -41,14 +41,14 @@ const ALLOWED = new Set([
   'src/renderer/renderer.js:1228::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
   'src/renderer/renderer.js:1456::start',                  // formatTime() çıktısı
   'src/renderer/renderer.js:1456::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:14022::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:20695::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:20695::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:20695::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:20695::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:20695::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:20756::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:20756::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:14024::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js:20722::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js:20722::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js:20722::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js:20722::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js:20722::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js:20783::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:20783::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
   'src/browser-page-translate.js:1047::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 

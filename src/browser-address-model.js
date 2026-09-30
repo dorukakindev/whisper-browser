@@ -8,9 +8,91 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // I/İ/ı tek "i"; uzunluk korunur (vurgu konumları için).
+  // Katlamada düşürülen karakterler (birleştirme işaretleri, bidi denetimleri,
+  // ZWJ, denetim karakterleri, yalın vekil yarıları) bu işaretçiyle yer tutar —
+  // metin tarafında uzunluk HER ZAMAN korunur; eşleşme ofsetleri özgün metinle
+  // birebir hizalı kalır (vurgu konumları için).
+  const FOLD_SENTINEL = '\uFFFF';
+  // NFD'de ayrışmayan Latin vuru harfleri — tek karakterle katlanır
+  // (æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
+  const LATIN_STROKE = {
+    'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'ð': 'd',
+    'ŧ': 't', 'Ŧ': 't', 'ħ': 'h', 'Ħ': 'h', 'ŋ': 'n', 'Ŋ': 'n',
+    'ƶ': 'z', 'Ƶ': 'z', 'æ': 'a', 'Æ': 'a', 'œ': 'o', 'Œ': 'o',
+    'þ': 't', 'Þ': 't', 'ĸ': 'k', 'ı': 'i', 'ſ': 's',
+  };
+
   function foldSearchText(value) {
-    return String(value == null ? '' : value).replace(/[Iİı]/g, 'i').toLowerCase();
+    return String(value == null ? '' : value)
+      .replace(/[Iİı]/g, 'i')
+      .replace(/[^\x20-\x7E]/g, (ch, off, str) => {
+        if (/\p{Cs}/u.test(ch)) {
+          // Vekil ÇİFTİ (emoji, tarihî yazı) meşru içeriktir — aranabilir
+          // kalır; yalnız başı kopmuş yarılar işaretçiye düşer.
+          const code = ch.charCodeAt(0);
+          const prev = off > 0 ? str.charCodeAt(off - 1) : 0;
+          const next = off + 1 < str.length ? str.charCodeAt(off + 1) : 0;
+          const paired = (code >= 0xd800 && code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff)
+            || (code >= 0xdc00 && code <= 0xdfff && prev >= 0xd800 && prev <= 0xdbff);
+          return paired ? ch : FOLD_SENTINEL;
+        }
+        if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return FOLD_SENTINEL;
+        const mapped = LATIN_STROKE[ch];
+        if (mapped) return mapped;
+        // Yalnız "taban harf + birleştirme işaretleri" ayrışması temel harfe
+        // iner (é→e, أ→ا); Korece hece/jamo ve sunum biçimleri korunur.
+        const nfd = ch.normalize('NFD');
+        if (nfd.length > 1 && !/^\p{M}/u.test(nfd) && /^\p{M}+$/u.test(nfd.slice(1))) {
+          return nfd[0];
+        }
+        return ch;
+      })
+      .toLowerCase();
+  }
+
+  // Hangul jamo kod noktaları: L (sesbaşı), V (orta), T (son). NFC yalnız
+  // L+V(+T) dizisini heceye birleştirir — tek başına duran jamo korunur.
+  const isJamoL = (cp) => (cp >= 0x1100 && cp <= 0x115f) || (cp >= 0xa960 && cp <= 0xa97c);
+  const isJamoV = (cp) => (cp >= 0x1160 && cp <= 0x11a7) || (cp >= 0xd7b0 && cp <= 0xd7c6);
+  const isJamoT = (cp) => (cp >= 0x11a8 && cp <= 0x11ff) || (cp >= 0xd7cb && cp <= 0xd7fb);
+
+  // Eşleştirme dizini: işaretçiler düşülür, NFC'de birleşen Hangul jamo
+  // dizileri tek heceye katlanır — metin ve sorgu aynı yoğun forma indiği için
+  // ayrışık/bileşik yazım, görünmez karakterler ve emoji aynı eşleşmeyi verir.
+  // map[i] = yoğun konum i'nin özgün metindeki [başlangıç, uzunluk] aralığı;
+  // vurgu ve tamamlama ofsetleri bu haritayla özgün metne çevrilir.
+  function foldSearchIndex(value) {
+    const folded = foldSearchText(value);
+    const dense = [];
+    const map = [];
+    let i = 0;
+    while (i < folded.length) {
+      const cp = folded.codePointAt(i);
+      const w = cp > 0xffff ? 2 : 1;
+      if (folded[i] === FOLD_SENTINEL) { i += w; continue; }
+      if (isJamoL(cp)) {
+        let j = i + w;
+        let vCount = 0;
+        while (j < folded.length && isJamoV(folded.codePointAt(j))) { j += 1; vCount += 1; }
+        while (vCount > 0 && j < folded.length && isJamoT(folded.codePointAt(j))) { j += 1; }
+        if (vCount > 0) {
+          dense.push(folded.slice(i, j).normalize('NFC'));
+          map.push([i, j - i]);
+          i = j;
+          continue;
+        }
+      }
+      dense.push(folded.slice(i, i + w));
+      map.push([i, w]);
+      i += w;
+    }
+    return { dense: dense.join(''), map };
+  }
+
+  // Sorgu tarafı katlama = yoğun form: işaretçiler silinir, jamo dizileri
+  // heceye katlanır — görünmez/ayrışık yazılan sorgu da aynı forma iner.
+  function foldSearchQuery(value) {
+    return foldSearchIndex(value).dense;
   }
 
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -38,22 +120,28 @@
   function inlineCompletion(query, items, now = Date.now()) {
     const typed = String(query || '');
     if (typed.length < 2 || /\s/.test(typed) || /^[a-z][a-z0-9+.-]*:/i.test(typed)) return null;
-    const needle = foldSearchText(typed);
+    const needle = foldSearchQuery(typed);
     let best = null;
     for (const item of Array.isArray(items) ? items : []) {
       const bare = strippedUrl(item?.url).replace(/\/$/, '');
-      if (!bare || !foldSearchText(bare).startsWith(needle)) continue;
+      if (!bare) continue;
+      const bareIdx = foldSearchIndex(bare);
+      if (!bareIdx.dense.startsWith(needle)) continue;
       const slash = bare.indexOf('/');
       const host = slash < 0 ? bare : bare.slice(0, slash);
-      const completion = typed.length <= host.length ? host : bare;
-      if (completion.length <= typed.length) continue;
+      // Kesim adayın ÖZGÜN karakterleriyle yapılır (yoğun uzunluk değil):
+      // sorgudaki görünmez/ayrışık karakterler üretilen tamamlamaya sızmaz.
+      const origEnd = needle.length
+        ? bareIdx.map[needle.length - 1][0] + bareIdx.map[needle.length - 1][1] : 0;
+      const completion = origEnd <= host.length ? host : bare;
+      if (completion.length <= origEnd) continue;
       const score = frecencyScore(item, now) + (completion === host ? 1 : 0);
       if (!best || score > best.score) {
         const url = completion === host ? `${originOf(item.url)}/` : item.url;
-        best = { text: typed + completion.slice(typed.length), url, score };
+        best = { text: completion, prefix: completion.slice(0, origEnd), url, score };
       }
     }
-    return best ? { text: best.text, url: best.url } : null;
+    return best ? { text: best.text, prefix: best.prefix, url: best.url } : null;
   }
 
   // Satır sırası: yazılan metin (veya bang / otomatik tamamlama) HER ZAMAN ilk satır.
@@ -62,7 +150,9 @@
     const query = String(input.query || '').trim();
     if (!query) return [];
     const omnibox = input.omnibox || {};
-    const folded = foldSearchText(query);
+    const folded = foldSearchQuery(query);
+    // Sorgu katlanınca boş kalıyorsa (yalnız işaretçi karakterler) saklı kayıt
+    // eşleşmez — ''.includes('') gibi her şeyi döndüren yol bilinçli kapatılır.
     const now = Number(input.now) || Date.now();
     const limit = Number(input.limit) || 14;
     const faviconFor = typeof input.faviconFor === 'function' ? input.faviconFor : () => '';
@@ -103,7 +193,7 @@
     for (const tab of Array.isArray(input.tabs) ? input.tabs : []) {
       // Aktif sekme listeden çıkarılır: ona geçiş hiçbir şey değiştirmez.
       if (input.activeTabId != null && tab.id === input.activeTabId) continue;
-      if (!foldSearchText(`${tab.title} ${tab.url}`).includes(folded)) continue;
+      if (!folded || !foldSearchIndex(`${tab.title} ${tab.url}`).dense.includes(folded)) continue;
       const key = urlKey(tab.url);
       if (key && claimedUrls.has(key)) continue;
       if (add({ action: 'tab', section: 'tabs', id: tab.id,
@@ -112,7 +202,8 @@
       }
     }
     const places = input.places || {};
-    const match = (item) => foldSearchText(`${item.title} ${item.url}`).includes(folded)
+    const match = (item) => !!folded
+      && foldSearchIndex(`${item.title} ${item.url}`).dense.includes(folded)
       && !claimedUrls.has(urlKey(item.url));
     for (const item of (places.bookmarks || []).filter(match)) add({ action: 'url', section: 'bookmarks', url: item.url,
       title: placeTitle(item), detail: item.url, kindLabel: 'Yer imi', mark: 'Y', icon: faviconFor(item.url) });
@@ -212,7 +303,7 @@
   function isRtlLanguage(code) { return RTL_LANGUAGE.test(String(code || '')); }
 
   return {
-    foldSearchText, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
+    foldSearchText, foldSearchIndex, foldSearchQuery, frecencyScore, inlineCompletion, buildAddressResults, SECTION_LABELS,
     visibleTabsInDisplayOrder, langFromPath, isRtlLanguage, originOf, httpFallbackUrl,
     ntpPlaceKey, ntpQuickTiles, ntpContinueItems,
   };

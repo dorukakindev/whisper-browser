@@ -264,11 +264,17 @@ function normalizeBrowserSession(raw, options = {}) {
   // yerine yeni tekil kimlik basılır — içe aktarılan sayfa sessizce
   // kaybolmaz.
   const seenIds = new Set();
+  // Aday kimlikler başka özgün sekmelerin kimliğini çalamaz: ileride o
+  // kimliği taşıyan özgün bir sekme varsa aktif/split başvuruları yanlış
+  // sayfaya düşer — üretim tüm özgün kimlikleri de dışlar.
+  const originalIds = new Set(normalized.map((tab) => tab.id).filter(Boolean));
   const deduped = normalized.map((tab) => {
     if (!tab.id || !seenIds.has(tab.id)) { if (tab.id) seenIds.add(tab.id); return tab; }
     for (let n = 2; ; n += 1) {
       const candidate = `${tab.id}-dup${n}`;
-      if (!seenIds.has(candidate)) { seenIds.add(candidate); return { ...tab, id: candidate }; }
+      if (!seenIds.has(candidate) && !originalIds.has(candidate)) {
+        seenIds.add(candidate); return { ...tab, id: candidate };
+      }
     }
   });
   const tabs = deduped.slice(0, MAX_SESSION_TABS);

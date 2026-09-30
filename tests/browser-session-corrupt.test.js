@@ -122,6 +122,21 @@ ok('proto kirliliği yok', ({}).polluted === undefined);
     && s.tabs[0].id === 'dup' && s.tabs[0].url === 'https://a.com/'
     && s.tabs[1].id === 'dup-dup2' && s.tabs[1].url === 'https://b.com/');
 }
+{
+  // Yineli sekme aday üretimi sonraki özgün kimliği çalamaz: 'dup'+'dup'+
+  // 'dup-dup2' dizisinde ikinci 'dup' 'dup-dup3' almalı — 'dup-dup2'
+  // özgün sekmede kalmalı ki başvurular doğru sayfayı seçsin.
+  const s = normalizeBrowserSession({ version: BROWSER_SESSION_VERSION,
+    tabs: [{ ...VALID_TAB, id: 'dup', url: 'https://a.com' },
+           { ...VALID_TAB, id: 'dup', url: 'https://b.com' },
+           { ...VALID_TAB, id: 'dup-dup2', url: 'https://c.com' }],
+    activeTabId: 'dup', splitSecondaryTabId: 'dup-dup2' });
+  checkSessionInvariants(s, 'dup-steal');
+  ok('aday üretimi özgün kimliği çalmaz',
+    s.tabs[0].id === 'dup' && s.tabs[1].id === 'dup-dup3' && s.tabs[2].id === 'dup-dup2');
+  ok('aktif/split özgün sayfayı seçer',
+    s.activeTabId === 'dup' && s.splitSecondaryTabId === 'dup-dup2');
+}
 
 // --- Disk okuma matrisi ------------------------------------------------
 {

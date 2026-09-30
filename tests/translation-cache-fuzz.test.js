@@ -50,7 +50,7 @@ function corruptJournalLine(rnd) {
 function baseEntriesPayload(rnd, n) {
   const rows = [];
   for (let i = 0; i < n; i++) {
-    const kind = pick(rnd, [0, 0, 0, 1, 2, 3, 4, 5]);
+    const kind = i === 0 ? 0 : pick(rnd, [0, 0, 0, 1, 2, 3, 4, 5]);
     if (kind === 0) rows.push([`ok${i}`, { value: `değer${i}`, updatedAt: now - Math.floor(rnd() * HOUR) }]);
     else if (kind === 1) rows.push([`nostr${i}`, { value: 42, updatedAt: now }]);
     else if (kind === 2) rows.push([`notime${i}`, { value: 'v' }]);            // updatedAt yok → 0 → TTL düşer
@@ -90,8 +90,16 @@ const invariantMap = (cache, label) => {
     fs.writeFileSync(`${file}.journal`, lines.join('\n') + '\n');
     const cache = new PersistentTranslationCache(file, { limit: 20 });
     invariantMap(cache, `journal seed=${seed}`);
-    // v dizge olmayan satırlar mezar taşı sayılmamalı — 'live' hayatta (gelecek
-    // mezar taşı satırı mevcut kaydı silebilir; o senaryoda da çökme olmamalı).
+    // İçerik çıktıları: günlükteki SON geçerli yazım kazanır. 'added' için son
+    // rakip satır yoksa kayıt hayattadır; 'dead' için sonda mezar taşı varsa
+    // temel kayıt silinir, yoksa canlı kalır; 'live' çekişmesiz kalmalı.
+    const parsed = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } });
+    const last = (key) => { for (let i = parsed.length - 1; i >= 0; i--) if (parsed[i] && parsed[i].k === key) return parsed[i]; return null; };
+    if (last('added')) assert.equal(cache.get('added'), 'eklendi', `journal seed=${seed}: eklenen kayıt hayatta`);
+    const deadLast = last('dead');
+    if (deadLast && deadLast.v === '') assert.equal(cache.map.has('dead'), false, `journal seed=${seed}: mezar taşı temel kaydı silmeli`);
+    else if (!deadLast) assert.equal(cache.get('dead'), 'ölü', `journal seed=${seed}: dokunulmayan temel kayıt korunur`);
+    if (!last('live')) assert.equal(cache.get('live'), 'canlı', `journal seed=${seed}: çekişmesiz canlı kayıt korunur`);
     cases++;
   }
 
@@ -102,6 +110,8 @@ const invariantMap = (cache, label) => {
     fs.writeFileSync(file, baseEntriesPayload(rnd, 3 + Math.floor(rnd() * 10)));
     const cache = new PersistentTranslationCache(file, { limit: 10 });
     invariantMap(cache, `base seed=${seed}`);
+    assert(cache.map.size >= 1, `base seed=${seed}: ok0 kaydı her zaman yüklenir`);
+    assert.equal(cache.get('ok0'), 'değer0', `base seed=${seed}: canlı temel içerik korunur`);
     cases++;
   }
 
@@ -123,6 +133,8 @@ const invariantMap = (cache, label) => {
     }
     const cache = new PersistentTranslationCache(file);
     invariantMap(cache, `schema i=${i}`);
+    const archives = fs.readdirSync(dir).filter((n) => n.startsWith(path.basename(file) + '.corrupt-'));
+    assert(archives.length >= 1, `schema i=${i}: bozuk birincil .corrupt-* arşivine taşınmalı`);
     if (withBackup) assert.equal(cache.get('rescued'), 'yedek', `schema i=${i}: .bak kurtarması`);
     else assert.equal(cache.map.size, 0, `schema i=${i}: ikisi de bozuksa boş başlamalı`);
     cases++;
