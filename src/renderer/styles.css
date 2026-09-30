@@ -718,6 +718,7 @@ to { transform: rotate(360deg); }
   cursor: col-resize;
   background: var(--border);
   transition: background .15s;
+  touch-action: none;
 }
 .side-resizer:hover, .side-resizer.dragging { background: var(--accent); }
 /* Gorunum modu dugmeleri */
@@ -5189,7 +5190,7 @@ textarea { resize: none; }
 .browser-split-popover { right: 0; left: auto; width: min(310px, 80vw); padding: 12px; display: grid; gap: 11px; }
 .browser-split-popover label { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; }
 .browser-split-popover select, .browser-split-popover input { width: 100%; }
-.browser-split-divider { position: absolute; z-index: 10; top: 0; bottom: 0; width: 6px; margin-left: -3px; cursor: col-resize; background: var(--border); border-inline: 1px solid rgba(213,163,92,.3); }
+.browser-split-divider { position: absolute; z-index: 10; top: 0; bottom: 0; width: 6px; margin-left: -3px; cursor: col-resize; background: var(--border); border-inline: 1px solid rgba(213,163,92,.3); touch-action: none; }
 .browser-split-divider:hover, .browser-split-divider:focus-visible, .browser-split-divider.is-dragging { background: var(--accent); }
 .browser-permission-prompt { position: absolute; z-index: 75; top: 62px; right: 14px; width: min(540px, calc(100% - 28px)); padding: 13px; border: 1px solid rgba(213,163,92,.55); border-radius: 9px; background: var(--bg-1); box-shadow: 0 16px 42px rgba(0,0,0,.48); }
 .browser-permission-prompt strong { color: var(--accent); }

@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R316: dokunmatikte bölünmüş-görünüm ve yan-panel sürükleme tutamaçları çalışmıyordu — sistem jestiyle iptal edilen sürükleme takılı kalıyordu ve yan-panel tutamacı dokunmatik hiç dinlemiyordu. İkisi de pointer olayları + iptal koruması kullanıyor.
 - R315: ayarlar tam-tur denetimi — 12 kontrol (SponsorBlock kategorileri çok-seçimi, zaman çizelgesi yakınlığı, dışa aktarma biçimleri, altyazı arama bayrakları vb.) hiç persist edilmiyordu; restart'ta varsayılana dönüyordu. Çok-seçim kontrolleri artık tüm seçenekleri toplar/geri yükler; persist listeleri iki kopyada da kilitli.
 - R314: tek iş günlüğü dosyası artık 4 MB'ı aşamaz — aşımda kesim işareti yazılıp sonraki olaylar düşürülür (önceden dosya sayısı sınırlı ama tek dosya boyutu sınırsızdı).
 - R313: disk dolu/izin hatasında iş günlüğü akışının dinleyicisiz 'error' olayı ana süreci düşürüyordu; artık günlük bırakılıp uygulama çalışır. Kullanıcı-seçimli dışa aktarımlar (ekran görüntüsü, oturum paketi, sayfa PDF'i, tanı, PDF çevirisi, abonelikler, soak raporları) atomik yazılır — disk dolu anında var olan sağlam dosya yok olmaz.
