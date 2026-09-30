@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Test (R291): sekme/oturum persist bozuk-veri matrisi — kök/alan tip-bozukluğu, sınır senaryoları, disk .bak kurtarma ve `.bak`=önceki-birincil sözleşmesi 402 kontrolle kilitlendi.
 - Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (218 kontrol, 43 dosya).
 - Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
 - Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (28 kontrol).
@@ -27,6 +28,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Düzeltme (R291): `cloneBrowserPlaces` workspace/sekme haritaları normalize-garantili veriye örtük bel bağlıyordu — `Array.isArray` kapıları eklendi.
 - R288 (#229 review): dizin fsync gerçek G/Ç hatası artık yutulmaz; `atomicWriteFileSync` yeni oluşturulan klasör zincirini de senkronlar; `mirrorBackup` `.bak` fsync'i sıkılaştı.
 - R287: backend argv geçişinde seçenek-enjeksiyonu kapatıldı — `-` ile başlayan değerler artık `--ad=değer` biçimiyle tek argv öğesinde bağlanır (39 serbest-metin seçeneği, `pushBoundOption`).
 - R287-b: `invidious:login --username` kaçağı + kalan 14 dinamik argv sitesi `=` biçimine çevrildi; job-log maskesi `--ad=değer` bağlı biçimini de gizler (prompt/glossary `-`li değerler loga sızmaz); argv-escape matrisi `findTestPython` kullanır.

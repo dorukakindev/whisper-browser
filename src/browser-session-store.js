@@ -260,9 +260,20 @@ function normalizeBrowserSession(raw, options = {}) {
   const keepAnchor = options?.keepAnchor === true;
   const normalized = (Array.isArray(source.tabs) ? source.tabs : [])
     .map((tab) => normalizeSessionTab(tab, { keepAnchor })).filter(Boolean);
-  const tabs = normalized.slice(0, MAX_SESSION_TABS);
+  // Aynı id'yi taşıyan ikinci sekme referansları belirsiz bırakır; elenmek
+  // yerine yeni tekil kimlik basılır — içe aktarılan sayfa sessizce
+  // kaybolmaz.
+  const seenIds = new Set();
+  const deduped = normalized.map((tab) => {
+    if (!tab.id || !seenIds.has(tab.id)) { if (tab.id) seenIds.add(tab.id); return tab; }
+    for (let n = 2; ; n += 1) {
+      const candidate = `${tab.id}-dup${n}`;
+      if (!seenIds.has(candidate)) { seenIds.add(candidate); return { ...tab, id: candidate }; }
+    }
+  });
+  const tabs = deduped.slice(0, MAX_SESSION_TABS);
   const activeTabId = cleanString(source.activeTabId, 128);
-  const active = normalized.find((tab) => tab.id === activeTabId);
+  const active = deduped.find((tab) => tab.id === activeTabId);
   // Aktif sekme sınır dışındaysa sıralamayı bozmadan başa al; son sekme
   // yerine en sondaki kayıt düşer, aktif sekme her zaman kurtarılır (R85-K2).
   if (active && !tabs.some((tab) => tab.id === activeTabId)) {
