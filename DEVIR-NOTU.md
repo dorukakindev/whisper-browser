@@ -1,8 +1,15 @@
+<<<<<<< HEAD
 Güncel çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
 Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
 Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
+||||||| parent of 221abe4 (docs(r323-7): rapor 279 + devir notu + indeks)
+Güncel çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
+=======
+Güncel çalışma: [docs/devir/2026-09-30-1107.md](docs/devir/2026-09-30-1107.md) — R323-7: bırakılan link seçimi uri-list spec + fuzz (B-323-05)
+Önceki çalışma: [docs/devir/2026-09-30-1007.md](docs/devir/2026-09-30-1007.md) — R322: renderer yüzeyi derin okuma (omnibox/palet + PDF görüntüleyici + oynatıcı çekirdek, temiz) + zaman dönüşüm kilidi
+>>>>>>> 221abe4 (docs(r323-7): rapor 279 + devir notu + indeks)
 Önceki çalışma: [docs/devir/2026-09-30-1001.md](docs/devir/2026-09-30-1001.md) — R321: sayfasız sekme ikincil görünüme seçilemez (ölü yarı engeli)
 Önceki çalışma: [docs/devir/2026-09-30-0948.md](docs/devir/2026-09-30-0948.md) — R320-2: split/wrap/zamanlama derin okuma (temiz) + invariant fuzz
 Önceki çalışma: [docs/devir/2026-09-30-0905.md](docs/devir/2026-09-30-0905.md) — R319: PR #265 Devin Review triage (4 bug + 2 flag)
