@@ -79,9 +79,24 @@
           // NFC çıktısı birden çok UTF-16 birimi üretebilir (ör. birleşmeyen
           // L+V+V dizisi hece+jamo verir); yoğun dizinin her birimi için bir
           // harita kaydı gerekir, yoksa sonraki eşleşmeler kayar.
+          // Birleşen hece özgün dizinin tamamını kaplar; birleşmeyen kalan
+          // jamo'lar kendi 1-birimlik aralıklarına eşlenir — yoksa tek jamo
+          // araması ilk heceyi de vurgular.
+          // Baştaki birleşmiş heceler (AC00–D7A3) tükettikleri özgün diziyi,
+          // birleşmeyen kalan jamo'lar kendi 1-birimlik aralıklarına eşlenir —
+          // yoksa tek jamo araması ilk heceyi de vurgular.
           const syllable = folded.slice(i, j).normalize('NFC');
           dense.push(syllable);
-          for (let k = 0; k < syllable.length; k += 1) map.push([i, j - i]);
+          const foldedLen = syllable.length;
+          let headDense = 0;
+          while (headDense < foldedLen) {
+            const scp = syllable.codePointAt(headDense);
+            if (scp < 0xac00 || scp > 0xd7a3) break;
+            headDense += 1;
+          }
+          const consumed = (j - i) - (foldedLen - headDense);
+          for (let k = 0; k < headDense; k += 1) map.push([i, consumed]);
+          for (let k = 0; k < foldedLen - headDense; k += 1) map.push([i + consumed + k, 1]);
           i = j;
           continue;
         }

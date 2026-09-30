@@ -5504,8 +5504,9 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserPageView = tab.browserPageView || (tab.browserPageVisible ? 'both' : 'original');
   {
     const scopePref = $('browserPageScope')?.value;
-    player.browserPageScope = tab.browserPageScope
-      || (['article', 'whole', 'selection'].includes(scopePref) ? scopePref : 'article');
+    const scopeValid = (v) => v === 'article' || v === 'whole' || v === 'selection';
+    player.browserPageScope = scopeValid(tab.browserPageScope) ? tab.browserPageScope
+      : (scopeValid(scopePref) ? scopePref : 'article');
   }
   player.browserPageAutoContinue = tab.browserPageAutoContinue !== false;
   player.browserPageStats = tab.browserPageStats || null;
@@ -15961,11 +15962,11 @@ async function refreshEmbeddedSubtitleTracks(filePath) {
   // Çıkarılamayan metin izleri (bozuk indeks vb.) bitmap sayılmaz —
   // ipucu '0 görüntü tabanlı iz' demesin diye ayrı sayılır.
   const unreadCount = player.embeddedSubtitleTracks.filter((track) => !track.extractable && !track.requiresOcr).length;
-  $('playerEmbeddedSubHint').textContent = textCount
+  $('playerEmbeddedSubHint').textContent = uiText(textCount
     ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
     : bitmapCount
       ? `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
-      : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`;
+      : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`);
   $('playerEmbeddedSubLoad').disabled = !textCount;
 }
 
@@ -21278,6 +21279,9 @@ async function translateVisiblePdfPagesNow(reader, all) {
         viewportTransform: entry.viewportTransform || [] };
     });
     const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
+    // Uçuşta kalan yanıt yeniden açılan okuyucuya uygulanamaz:
+    // renderPdfTranslation geçerli player.pdfReader'a yazar.
+    if (player.pdfReader !== reader) break;
     if (result?.state) {
       reader.state = result.state;
       for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
@@ -21306,7 +21310,8 @@ async function translateVisiblePdfPagesNow(reader, all) {
     }
     if (result?.canceled) { canceled = true; break; }
   }
-  $('pdfTranslateCancel').disabled = true;
+  // Eski iş, yeni okuyucunun çeviri işinin iptal düğmesini kapatmasın.
+  if (player.pdfReader === reader) $('pdfTranslateCancel').disabled = true;
   reader.translating = false;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
   // Okuyucu değiştiyse eski çevirinin sonuç satırı yeni belgeyi ezmesin.

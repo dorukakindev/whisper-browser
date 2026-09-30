@@ -775,22 +775,29 @@ function startJobLog(label, args) {
     // Dosya adı yalnızca girdinin adı olsun (tam yol değil); tam yol başlıkta yazılı
     const base = String(label || 'is').split(/[\\/]/).pop() || 'is';
     const safe = windowsSafeFileName(base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60), 'is');
-    const file = path.join(logsDir(), `${stamp}_${safe}.log`);
+    // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
+    const header = `# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`
+      + `# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`;
+    const headerBytes = Buffer.byteLength(header);
     // Aynı saniyede başlayan iki iş aynı dosya adını üretebilir; ekleme kipinde
     // bayt sayacı mevcut içerikten başlamazsa 4 MB sınırı sessizce aşılırdı.
+    // Dolu dosyaya yeni başlık da eklenmez — başlık sığana dek sonekli ad dene.
+    let file = path.join(logsDir(), `${stamp}_${safe}.log`);
     let initialBytes = 0;
     try { initialBytes = fs.statSync(file).size; } catch (_) {}
+    for (let attempt = 0; attempt < 10 && initialBytes + headerBytes > LOG_MAX_BYTES; attempt += 1) {
+      file = path.join(logsDir(), `${stamp}_${safe}-${attempt + 2}.log`);
+      try { initialBytes = fs.statSync(file).size; } catch (_) { initialBytes = 0; }
+    }
+    if (initialBytes + headerBytes > LOG_MAX_BYTES) { jobLog = null; return; }
     const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
     // Disk dolu/izin hatasında WriteStream 'error' olayını eşzamansız yayar;
     // dinleyicisiz bırakılırsa ana süreci düşürür. Günlüğü bırak, yazımı dur.
     // Gecikmiş hata yalnız kendi akışının kaydını siler — eski akışın hatası
     // yeni işin günlüğünü sıfırlayıp olaylarını kaybettirmesin.
     stream.on('error', () => { if (jobLog && jobLog.stream === stream) jobLog = null; try { stream.destroy(); } catch (_) {} });
-    // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
-    const header = `# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`
-      + `# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`;
     stream.write(header);
-    jobLog = { file, stream, bytes: initialBytes + Buffer.byteLength(header), truncated: false };
+    jobLog = { file, stream, bytes: initialBytes + headerBytes, truncated: false };
     pruneOldLogs();
   } catch (_) {
     jobLog = null;
