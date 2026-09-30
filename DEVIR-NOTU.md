@@ -19,9 +19,10 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
 Önceki çalışma: [docs/devir/2026-09-30-1129.md](docs/devir/2026-09-30-1129.md) — R324-5: listener-çifti süpürme — kalıcı emitter tekil-kayıt ratchet (temiz, R324 grubu kapandı)
 Önceki çalışma: [docs/devir/2026-09-30-1125.md](docs/devir/2026-09-30-1125.md) — R289: #223 review flag kapanışı (VM-realm kirlilik probu + triage)
+Önceki çalışma: [docs/devir/2026-09-30-1051.md](docs/devir/2026-09-30-1051.md) — R323-6: NDJSON olay-akışı fuzz'ı (B-323-04 UTF-8 chunk-sınırı bozulması + 9 test ratchet'i)
 Önceki çalışma: [docs/devir/2026-09-30-1043.md](docs/devir/2026-09-30-1043.md) — R323-5: ayar hostile-deserialize — okuma-yolu tarama kapısı (B-323-03)
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
-Önceki çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi (B-323-02)
+Önceki çalışma: [docs/devir/2026-09-30-1037.md](docs/devir/2026-09-30-1037.md) — R323-4: URL/host fuzz — Invidious SID sahtesi düzeltmesi (B-323-02)
 Önceki çalışma: [docs/devir/2026-09-30-1029.md](docs/devir/2026-09-30-1029.md) — R323-3: çeviri paket-bölme invariant fuzz (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1024.md](docs/devir/2026-09-30-1024.md) — R323-2: zaman ekseni oracle fuzz (kalibrasyon/kaydırma) — temiz kapanış
 Önceki çalışma: [docs/devir/2026-09-30-1018.md](docs/devir/2026-09-30-1018.md) — R323-1: SRT/VTT/ASS mega roundtrip fuzz — VTT entity çözümü düzeltmesi (B-323-01)
