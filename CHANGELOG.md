@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Test (R293): `series_memory` birleştirme yarışı — paralel süreç/iş parçacığı kayıp-güncelleme simülasyonu (6 senaryo, temiz)
 
 - Test (R292): kuyruk-opts roundtrip — `.bak` kurtarma artık main.js'ten eval edilen gerçek `readQueueStateRaw` ile sınanır; ham bayt eşitliği ve `_oversized` işareti kilitlendi; DEVIR-NOTU Önceki sıralaması düzeltildi.
 - Test (R291): sekme/oturum persist bozuk-veri matrisi — kök/alan tip-bozukluğu, sınır senaryoları, disk .bak kurtarma ve `.bak`=önceki-birincil sözleşmesi 402 kontrolle kilitlendi.
