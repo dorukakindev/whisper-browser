@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- Omnibox (R297): geçmiş/yer imi araması artık aksan-katlamalı — "cafe" "café"yi, "isik" "Işık"ı, "lodz" "Łódź"yi bulur; ayrışık unicode yazım ve görünmez karakterler (bidi, ZWJ, NUL) sorguyu bozamaz.
+
 ### Added
 - Test (R296): çeviri önbelleği bozuk-girdi fuzz ratchet'i — journal/temel/.bak bozulma matrisi, tohumlu PRNG ile 114 deterministik senaryo.
 

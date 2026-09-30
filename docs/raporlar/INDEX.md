@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 246 | [BROWSER_BUG_REPORT_246.md](BROWSER_BUG_REPORT_246.md) | R297 — Omnibox unicode/RTL katlama (aksan + ayrışık yazım + görünmez karakter) |
 | 245 | [BROWSER_BUG_REPORT_245.md](BROWSER_BUG_REPORT_245.md) | R296 — Çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok) |
 | 244 | [BROWSER_BUG_REPORT_244.md](BROWSER_BUG_REPORT_244.md) | R295 — CI determinizm denetimi + baseline ratchet (Math.random yasak, uyku/duvar-saati) |
 | 243 | [BROWSER_BUG_REPORT_243.md](BROWSER_BUG_REPORT_243.md) | R294 — err_* EN/TR tam kapsama ratchet'i |
