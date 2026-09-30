@@ -412,9 +412,19 @@ function applyBrowserAddressInlineCompletion(event) {
   const places = player.browserPlaces || {};
   const completion = globalThis.BrowserAddressModel.inlineCompletion(value,
     [...(places.bookmarks || []), ...(places.history || [])]);
-  if (!completion || !completion.text.toLowerCase().startsWith(value.toLowerCase())) return;
-  input.value = value + completion.text.slice(value.length);
-  input.setSelectionRange(value.length, input.value.length, 'forward');
+  if (!completion) return;
+  // prefix = adayın katlanmış sorguyu karşılayan özgün başı; sorgu görünmez
+  // karakter veya aksan farkı içeriyorsa yazılan metin adayın kendi başıyla
+  // değiştirilir — tamamlanan adrese karakter sızmaz.
+  const prefix = typeof completion.prefix === 'string' ? completion.prefix : value;
+  if (!completion.text.toLowerCase().startsWith(prefix.toLowerCase())) return;
+  if (prefix === value) {
+    input.value = value + completion.text.slice(value.length);
+    input.setSelectionRange(value.length, input.value.length, 'forward');
+  } else {
+    input.value = completion.text;
+    input.setSelectionRange(prefix.length, input.value.length, 'forward');
+  }
   player.browserAddressCompletion = { ...completion, text: input.value };
 }
 

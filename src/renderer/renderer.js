@@ -1280,7 +1280,7 @@ function clearPreview() {
 $('copyPreview').addEventListener('click', async () => {
   // Arama filtresi aktifse yalnızca görünen segmentleri kopyala
   const segs = state.previewSegs.filter(
-    (s) => !previewFilter || foldSearch(s.text).includes(previewFilter)
+    (s) => !previewFilter || foldIndex(s.text).dense.includes(previewFilter)
   );
   if (segs.length === 0) {
     logLine('Kopyalanacak segment yok', 'warn');
@@ -1442,7 +1442,7 @@ $('previewSearchClear')?.addEventListener('click', () => {
 function createSegmentEl(seg, idx) {
   const el = document.createElement('div');
   el.className = 'segment';
-  el.dataset.text = foldSearch(seg.text);
+  el.dataset.text = foldIndex(seg.text).dense;
   if (idx !== undefined) el.dataset.idx = String(idx);
   const start = formatTime(seg.start);
   const end = formatTime(seg.end);
@@ -1478,7 +1478,7 @@ function commitSegmentEdit(textEl) {
   if (newText === entry.text) return;
   entry.text = newText;
   entry.previewEdited = true;
-  segEl.dataset.text = foldSearch(newText);
+  segEl.dataset.text = foldIndex(newText).dense;
   syncPreviewSegmentState(segEl, entry);
 }
 
@@ -7023,13 +7023,13 @@ function browserPlaceList() {
   const query = foldQuery(String($('browserPlacesSearch')?.value || '').trim());
   if (player.browserPlaceTab === 'offline') {
     return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
-      !query || foldSearch(`${item.title || ''} ${item.url || ''}`).includes(query));
+      !query || foldIndex(`${item.title || ''} ${item.url || ''}`).dense.includes(query));
   }
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
-    return !query || foldSearch(`${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`).includes(query);
+    return !query || foldIndex(`${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`).dense.includes(query);
   });
 }
 
@@ -7698,7 +7698,7 @@ const browserDownloadState = { revision: -1, items: [], active: 0, message: '', 
 function browserDownloadMatches(item) {
   const query = foldQuery(String($('browserDownloadsSearch')?.value || '').trim());
   const filter = $('browserDownloadsFilter')?.value || 'all';
-  if (query && !foldSearch(`${item.filename} ${item.path || ''}`).includes(query)) return false;
+  if (query && !foldIndex(`${item.filename} ${item.path || ''}`).dense.includes(query)) return false;
   return filter === 'all' || (filter === 'active' ? item.active
     : filter === 'completed' ? item.state === 'completed' : !item.active && item.state !== 'completed');
 }
@@ -7946,8 +7946,8 @@ function renderBrowserDiagnostics(diagnostics) {
   recent.replaceChildren();
   const filter = foldQuery(String(browserDiagnosticsFilter || '').trim());
   const entries = (Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 100) : [])
-    .filter((entry) => !filter || foldSearch([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
-      .filter(Boolean).join(' ')).includes(filter));
+    .filter((entry) => !filter || foldIndex([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
+      .filter(Boolean).join(' ')).dense.includes(filter));
   if (!entries.length) {
     recent.textContent = filter ? 'Bu filtreyle eşleşen tanı kaydı yok.'
       : 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
@@ -13982,17 +13982,19 @@ function translationsForCues(cues, translations) {
 function appendHighlighted(el, text, q) {
   const flat = text.replace(/\n/g, ' ');
   if (!q) { el.textContent = flat; return; }
-  const low = foldSearch(flat);
-  let from = 0;
-  let at = low.indexOf(q);
+  const fi = foldIndex(flat);
+  let at = fi.dense.indexOf(q);
   if (at < 0) { el.textContent = flat; return; }
+  let from = 0;
   while (at >= 0) {
-    el.appendChild(document.createTextNode(flat.slice(from, at)));
+    const start = fi.map[at][0];
+    const end = fi.map[at + q.length - 1][0] + fi.map[at + q.length - 1][1];
+    el.appendChild(document.createTextNode(flat.slice(from, start)));
     const m = document.createElement('mark');
-    m.textContent = flat.slice(at, at + q.length);
+    m.textContent = flat.slice(start, end);
     el.appendChild(m);
-    from = at + q.length;
-    at = low.indexOf(q, from);
+    from = end;
+    at = fi.dense.indexOf(q, at + q.length);
   }
   el.appendChild(document.createTextNode(flat.slice(from)));
 }
@@ -14048,8 +14050,8 @@ function renderCueList(filter = '') {
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !foldSearch(c.text).includes(q)
-        && !foldSearch(counterpart).includes(q)) return;
+    if (q && !foldIndex(c.text).dense.includes(q)
+        && !foldIndex(counterpart).dense.includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -14546,7 +14548,7 @@ function toggleQualityOnly() {
 // kaynak metinle bırakılan blok) çevrilmemiş sayılır.
 function cueLooksUntranslated(text, counterpart) {
   if (!player.cues2.length) return false;
-  const norm = (value) => foldSearch(String(value || '')).replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const norm = (value) => foldIndex(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
   const a = norm(text);
   const b = norm(counterpart);
   return !b || (a.length > 3 && a === b);
@@ -15066,7 +15068,7 @@ function renderHistory() {
   if (!card || !list) return;
   const q = foldQuery($('historySearch')?.value);
   const items = q
-    ? historyCache.filter((h) => foldSearch(h.title).includes(q))
+    ? historyCache.filter((h) => foldIndex(h.title).dense.includes(q))
     : historyCache;
   $('historyCount').textContent = String(historyCache.length);
   $('jobsHistoryBadge').textContent = String(historyCache.length);
@@ -18214,7 +18216,24 @@ function foldSearch(value) {
 // görünmez/ayrışık yazılan sorgu da eşleşir; metin ofsetleri foldSearch ile
 // korunduğu için vurgu konumları doğru kalır.
 function foldQuery(value) {
-  return foldSearch(value).replace(/\uFFFF/g, '');
+  return foldIndex(value).dense;
+}
+
+// Metin+konum dizini: modüllerdeki foldSearchIndex ile aynı sözleşme (yoğun
+// form + her yoğun konumun özgün metindeki [başlangıç, uzunluk] aralığı).
+// Modüller yüklüyse oradan alınır; yoksa işaretçi-silme sade sürüme düşer.
+function foldIndex(value) {
+  const build = globalThis.BrowserAddressModel?.foldSearchIndex || globalThis.BrowserOmnibox?.foldSearchIndex;
+  if (build) return build(value);
+  const folded = foldSearch(value);
+  const dense = [];
+  const map = [];
+  for (let i = 0; i < folded.length; i++) {
+    if (folded[i] === '\uFFFF') continue;
+    map.push([i, 1]);
+    dense.push(folded[i]);
+  }
+  return { dense: dense.join(''), map };
 }
 
 // Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR (yalnız bilinen dil kodları;
@@ -20299,7 +20318,7 @@ if (moreSearch) {
       // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
       // kısa sorgular simge ağırlıklı öğeleri de bulsun.
       const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
-      return !q || (usable(item) && foldSearch(haystack).includes(q));
+      return !q || (usable(item) && foldIndex(haystack).dense.includes(q));
     };
     let total = 0;
     // Hızlı eylem satırındaki düğmeler de aranır: "yeni sekme" gibi sorgular
@@ -22199,7 +22218,7 @@ async function runPlayerLibrarySearch() {
     const folded = foldQuery(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => foldSearch(String(value || '').normalize('NFKC')).includes(folded)));
+        .some((value) => foldIndex(String(value || '').normalize('NFKC')).dense.includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
@@ -23694,7 +23713,7 @@ function renderBrowserRemapCues() {
   const descriptor=subtitleFindDescriptors().find(row=>row.channel===$('browserRemapChannel').value);
   const query=foldQuery($('browserRemapSearch').value.trim());
   for(const [index,cue] of (descriptor?.cues||[]).entries()){
-    if(query&&!foldSearch(cue.text).includes(query))continue;
+    if(query&&!foldIndex(cue.text).dense.includes(query))continue;
     select.add(new Option(`${pSecToTime(cue.start)} · ${cue.text.slice(0,140)}`,String(index)));
     browserRemapTargets.set(index,{...cue});
     if(select.options.length>=100)break;
@@ -24354,8 +24373,8 @@ if ($('cueSearch')) {
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);
       renderSeekMarkers(player.cues.filter((c, index) =>
-        foldSearch(c.text).includes(q)
-          || foldSearch(translations[index]).includes(q))
+        foldIndex(c.text).dense.includes(q)
+          || foldIndex(translations[index]).dense.includes(q))
         .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });

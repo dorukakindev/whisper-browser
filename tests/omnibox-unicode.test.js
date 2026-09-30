@@ -2,7 +2,7 @@ const assert = require('assert');
 const Omnibox = require('../src/browser-omnibox.js');
 const Address = require('../src/browser-address-model.js');
 
-const { foldSearchText, foldSearchQuery, buildAddressResults, inlineCompletion } = Address;
+const { foldSearchText, foldSearchIndex, foldSearchQuery, buildAddressResults, inlineCompletion } = Address;
 let checks = 0;
 const ok = (cond, msg) => { checks++; assert.ok(cond, msg); };
 
@@ -81,6 +81,53 @@ const completion = inlineCompletion('git', items);
 ok(completion && completion.text === 'github.com', 'inlineCompletion bozulmadı');
 const accentItems = [{ url: 'https://café.com/x', visits: 10, visitedAt: Date.now() }];
 const accentCompletion = inlineCompletion('cafe', accentItems);
-ok(accentCompletion && accentCompletion.text === 'cafe.com', 'aksanlı alan adı tamamlanır');
+ok(accentCompletion && accentCompletion.text === 'café.com', 'aksanlı alan adı tamamlanır (adayın kendi yazımı)');
+ok(accentCompletion.prefix === 'café', 'aksanlı tamamlama prefix i adayın özgün başı');
+
+// foldSearchIndex: yoğun form + özgün-konum haritası.
+{
+  const fi = foldSearchIndex('ca\u200Bfe');
+  ok(fi.dense === 'cafe', 'görünmez karakter yoğun formdan düşer');
+  ok(fi.map.length === 4 && fi.map[2][0] === 3, 'yoğun konum → özgün konum haritası');
+}
+{
+  const fi = foldSearchIndex('\u1112\u1161\u11AB\u1100\u116E\u11A8');  // ayrışık jamo: 한국
+  ok(fi.dense === '한국', 'jamo dizisi heceye katlanır');
+  ok(fi.map.length === 2 && fi.map[0][1] === 3, 'hece aralığı özgün jamo çalışısını kapsar');
+}
+
+// Devin Review düzeltmeleri:
+// 1) Metindeki görünmez karakterler eşleşmeyi BÖLMEZ (eskiden işaretçi sözü
+//    kesiyordu: 'ca\u200Bfe' içinde 'cafe' bulunamıyordu).
+const invisPlaces = { history: [
+  { title: 'ca\u200Bfe note', url: 'https://ex-1.test/x', visitedAt: Date.now(), visits: 5 },
+  { title: 'sinema \uD83C\uDFAC gecesi', url: 'https://ex-2.test/y', visitedAt: Date.now(), visits: 5 },
+], bookmarks: [] };
+const fInvis = (q) => buildAddressResults({ query: q, places: invisPlaces }).filter((r) => r.section === 'history');
+ok(fInvis('cafe').length === 1, 'görünmez-karakterli başlık düz sorguyla bulunur');
+// 2) Emoji sorgusu boşa düşüp her şeyi döndürmez — vekil ÇİFTİ aranabilir kalır.
+ok(foldSearchQuery('\uD83C\uDFAC') === '\uD83C\uDFAC', 'vekil çifti sorguda korunur');
+ok(fInvis('\uD83C\uDFAC').length === 1, 'emoji sorgusu emoji başlığı bulur');
+ok(fInvis('\u200B\u200B').length === 0, 'yalnız-işaretçi sorgu hiçbir kayıtla eşleşmez');
+// 3) Ayrışık Korece jamo ⇄ birleşik hece iki yönde eşleşir.
+const jamoPlaces = { history: [
+  { title: '\u1112\u1161\u11AB\u1100\u116E\u11A8 위키', url: 'https://ex-3.test/k', visitedAt: Date.now(), visits: 5 },
+], bookmarks: [] };
+const fJamo = (q) => buildAddressResults({ query: q, places: jamoPlaces }).filter((r) => r.section === 'history');
+ok(fJamo('한국').length === 1, 'birleşik sorgu → ayrışık başlık');
+const hangulPlaces = { history: [
+  { title: '한국 위키', url: 'https://ex-4.test/k', visitedAt: Date.now(), visits: 5 },
+], bookmarks: [] };
+ok(buildAddressResults({ query: '\u1112\u1161\u11AB', places: hangulPlaces })
+    .filter((r) => r.section === 'history').length === 1, 'ayrışık sorgu → birleşik başlık');
+// 4) Tamamlama: görünmez karakterli sorguda adayın KENDİ yazımı önerilir —
+//    sorgudaki işaretçi üretilen metne sızmaz.
+const invisItems = [{ url: 'https://cafe.com/x', visits: 10, visitedAt: Date.now() }];
+const invisCompletion = inlineCompletion('ca\u200B', invisItems);
+ok(invisCompletion && invisCompletion.text === 'cafe.com' && invisCompletion.prefix === 'ca',
+  'görünmez sorguda temiz aday tamamlanır');
+// Vekil çifti olmayan yalın yarılar işaretçiye düşmeye devam eder.
+ok(foldSearchText('a\uD83Dz') === 'a\uFFFFz', 'yalın vekil yarı işaretçi');
+ok(foldSearchText('\uD83C\uDFAC') === '\uD83C\uDFAC', 'vekil çifti metinde korunur');
 
 console.log(`PASS: omnibox-unicode (${checks} kontrol)`);

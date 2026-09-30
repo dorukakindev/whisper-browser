@@ -187,15 +187,22 @@ ok('geçerli öğe kaybı yok', dropped === 0);
   ok('disk: yazıcı snapshot sayısı', writtenRes.snapshot.items.length === disk.items.length);
   const loaded = normalizeQueueSnapshot(JSON.parse(written));
   ok('disk: yüklenen öğe sayısı', loaded.items.length === disk.items.length);
-  fs.writeFileSync(`${target}.bak`, JSON.stringify(disk));
+  // Yedek dosya elle kurulmaz: ikinci üretim yazımı birincili ezerken onu
+  // .bak'a kopyalar (writeQueueState'in copyFile adımı) — bozuk birincilde
+  // okuyucu gerçek yazıcı yedeğine düşer.
+  const secondRes = ctx.writeQueueState({ items: items.slice(0, 1), queueRunning: true });
+  assert(secondRes && secondRes.ok === true, 'ikinci writeQueueState başarısız');
+  ok('disk: .bak yazıcı üretimi (ilk snapshot arşivlendi)',
+    fs.existsSync(`${target}.bak`)
+    && JSON.parse(fs.readFileSync(`${target}.bak`, 'utf8')).items.length === writtenRes.snapshot.items.length);
   fs.writeFileSync(target, '{bozuk');
   const raw = ctx.readQueueStateRaw();
   const recovered = normalizeQueueSnapshot(raw);
-  ok('disk: bozuk birincilde .bak kurtarır (üretim okuyucusu)', recovered.items.length === disk.items.length);
+  ok('disk: bozuk birincilde .bak kurtarır (üretim okuyucusu)', recovered.items.length === writtenRes.snapshot.items.length);
   // .bak kurtarması sayaçla değil içerikle doğrulanır: id sırası ve her
-  // öğenin opts'u disk snapshot'ına birebir eşit olmalı.
-  ok('disk: .bak id sırası', JSON.stringify(recovered.items.map((t) => t.id)) === JSON.stringify(disk.items.map((t) => t.id)));
-  ok('disk: .bak opts sadakati', recovered.items.every((t, i) => JSON.stringify(t.opts) === JSON.stringify(disk.items[i].opts)));
+  // öğenin opts'u ilk snapshot'a birebir eşit olmalı.
+  ok('disk: .bak id sırası', JSON.stringify(recovered.items.map((t) => t.id)) === JSON.stringify(writtenRes.snapshot.items.map((t) => t.id)));
+  ok('disk: .bak opts sadakati', recovered.items.every((t, i) => JSON.stringify(t.opts) === JSON.stringify(writtenRes.snapshot.items[i].opts)));
   // 8 MB aşımı da üretim okuyucusunda _oversized işareti döndürür.
   fs.writeFileSync(target, `{${'x'.repeat(8 * 1024 * 1024 + 16)}`);
   fs.rmSync(`${target}.bak`);

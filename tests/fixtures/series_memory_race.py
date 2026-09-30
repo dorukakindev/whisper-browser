@@ -7,6 +7,9 @@ Modlar:
                her biri --per-worker kadar tek tek merge() çağırır.
   corrupt-mid  geçerli dosya üzerinde örnek açar, diski çöp veriyle ezer,
                merge_many'nin 0 dönüp dosyayı korumasını doğrular.
+  merge-late   merge gibi ama SeriesMemory önce kurulur; --wait-file
+               görününce merge_many çalışır — başlatma sonrası _save
+               çarpışmasını sınar.
 """
 import argparse
 import json
@@ -25,6 +28,16 @@ def mem_path(directory):
     return os.path.join(directory, 'series-memory', f'{SHOW}.{SRC}-{TGT}.json')
 
 
+def wait_for_file(path, timeout_s=20):
+    if not path:
+        return
+    deadline = time.time() + timeout_s
+    while not os.path.exists(path):
+        if time.time() > deadline:
+            raise TimeoutError(f'wait-file zaman aşımı: {path}')
+        time.sleep(0.01)
+
+
 def patch_class_lock_timeout(seconds):
     """__init__ dahil tüm kilit alımları için sınıf seviyesinde kısa deadline."""
     orig = SeriesMemory._file_lock
@@ -40,17 +53,20 @@ def main():
     ap.add_argument('--hold-ms', type=int, default=2000)
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--per-worker', type=int, default=30)
+    ap.add_argument('--wait-file')
     a = ap.parse_args()
     path = mem_path(a.dir)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if 'SM_LOCK_TIMEOUT' in os.environ:
         patch_class_lock_timeout(float(os.environ['SM_LOCK_TIMEOUT']))
 
-    if a.mode == 'merge':
+    if a.mode in ('merge', 'merge-late'):
         try:
             sm = SeriesMemory(path, SHOW, SRC, TGT)
             with open(a.terms_json, encoding='utf-8') as fh:
                 raws = json.load(fh)
+            print('READY', flush=True)
+            wait_for_file(a.wait_file)
             n = sm.merge_many(raws, a.ep[0], a.ep[1])
             print(json.dumps({'merged': n}))
         except TimeoutError:

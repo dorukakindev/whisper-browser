@@ -190,8 +190,18 @@
   function foldSearchText(value) {
     return String(value == null ? '' : value)
       .replace(/[Iİı]/g, 'i')
-      .replace(/[^\x20-\x7E]/g, (ch) => {
-        if (/\p{M}|\p{Cf}|\p{Cc}|\p{Cs}/u.test(ch)) return FOLD_SENTINEL;
+      .replace(/[^\x20-\x7E]/g, (ch, off, str) => {
+        if (/\p{Cs}/u.test(ch)) {
+          // Vekil ÇİFTİ (emoji, tarihî yazı) meşru içeriktir — aranabilir
+          // kalır; yalnız başı kopmuş yarılar işaretçiye düşer.
+          const code = ch.charCodeAt(0);
+          const prev = off > 0 ? str.charCodeAt(off - 1) : 0;
+          const next = off + 1 < str.length ? str.charCodeAt(off + 1) : 0;
+          const paired = (code >= 0xd800 && code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff)
+            || (code >= 0xdc00 && code <= 0xdfff && prev >= 0xd800 && prev <= 0xdbff);
+          return paired ? ch : FOLD_SENTINEL;
+        }
+        if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return FOLD_SENTINEL;
         const mapped = LATIN_STROKE[ch];
         if (mapped) return mapped;
         // Yalnız "taban harf + birleştirme işaretleri" ayrışması temel harfe
@@ -205,10 +215,49 @@
       .toLowerCase();
   }
 
-  // Sorgu tarafı katlama: işaretçiler silinir — sorgudaki görünmez karakter
-  // eşleşmeyi bozmaz; metin ofsetleri korunduğu için konumlar yine doğru.
+  // Hangul jamo kod noktaları: L (sesbaşı), V (orta), T (son). NFC yalnız
+  // L+V(+T) dizisini heceye birleştirir — tek başına duran jamo korunur.
+  const isJamoL = (cp) => (cp >= 0x1100 && cp <= 0x115f) || (cp >= 0xa960 && cp <= 0xa97c);
+  const isJamoV = (cp) => (cp >= 0x1160 && cp <= 0x11a7) || (cp >= 0xd7b0 && cp <= 0xd7c6);
+  const isJamoT = (cp) => (cp >= 0x11a8 && cp <= 0x11ff) || (cp >= 0xd7cb && cp <= 0xd7fb);
+
+  // Eşleştirme dizini: işaretçiler düşülür, NFC'de birleşen Hangul jamo
+  // dizileri tek heceye katlanır — metin ve sorgu aynı yoğun forma indiği için
+  // ayrışık/bileşik yazım, görünmez karakterler ve emoji aynı eşleşmeyi verir.
+  // map[i] = yoğun konum i'nin özgün metindeki [başlangıç, uzunluk] aralığı;
+  // vurgu ve tamamlama ofsetleri bu haritayla özgün metne çevrilir.
+  function foldSearchIndex(value) {
+    const folded = foldSearchText(value);
+    const dense = [];
+    const map = [];
+    let i = 0;
+    while (i < folded.length) {
+      const cp = folded.codePointAt(i);
+      const w = cp > 0xffff ? 2 : 1;
+      if (folded[i] === FOLD_SENTINEL) { i += w; continue; }
+      if (isJamoL(cp)) {
+        let j = i + w;
+        let vCount = 0;
+        while (j < folded.length && isJamoV(folded.codePointAt(j))) { j += 1; vCount += 1; }
+        while (vCount > 0 && j < folded.length && isJamoT(folded.codePointAt(j))) { j += 1; }
+        if (vCount > 0) {
+          dense.push(folded.slice(i, j).normalize('NFC'));
+          map.push([i, j - i]);
+          i = j;
+          continue;
+        }
+      }
+      dense.push(folded.slice(i, i + w));
+      map.push([i, w]);
+      i += w;
+    }
+    return { dense: dense.join(''), map };
+  }
+
+  // Sorgu tarafı katlama = yoğun form: işaretçiler silinir, jamo dizileri
+  // heceye katlanır — görünmez/ayrışık yazılan sorgu da aynı forma iner.
   function foldSearchQuery(value) {
-    return foldSearchText(value).replace(/\uFFFF/g, '');
+    return foldSearchIndex(value).dense;
   }
 
   // Varsayılan arama sağlayıcısı (adres çubuğu, sağ tık "ara"). Eskiden her
@@ -234,6 +283,6 @@
     return SEARCH_ENGINES[normalizeSearchEngine(engine)].label;
   }
 
-  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText, foldSearchQuery,
+  return { BANGS, resolveBang, evaluateArithmetic, formatCalcResult, markdownLink, foldSearchText, foldSearchIndex, foldSearchQuery,
     SEARCH_ENGINES, normalizeSearchEngine, searchUrl, searchEngineLabel };
 });

@@ -64,12 +64,35 @@ const readMem = (dir) => JSON.parse(fs.readFileSync(path.join(dir, MEM_REL), 'ut
     // Tek karar kümesi ≤20 terim taşır (model başına kota): 40'ı iki raw'a böl.
     const mk = (p, n) => [0, 1].map((k) => ({ terms: Object.fromEntries(
       Array.from({ length: n }, (_, j) => [`${p}-term-${k * n + j}`, `${p}-hedef-${k * n + j}`])) }));
-    const [r1, r2] = await Promise.all([
-      runAsync(['--dir', dir, '--mode', 'merge', '--ep', '1', '5',
-        '--terms-json', writeTerms(dir, mk('a', 20))]),
-      runAsync(['--dir', dir, '--mode', 'merge', '--ep', '1', '6',
-        '--terms-json', writeTerms(dir, mk('b', 20))]),
-    ]);
+    // Bariyer: iki işçi de örneğini kurup READY basana dek merge bekletilir —
+    // biri diğerinden önce bitiremez, bayat-kopya uzlaşması gerçekten sınanır.
+    const barrier = path.join(dir, 'go.marker');
+    const startWorker = (ep, raws) => {
+      const child = spawn(python, [WORKER, '--dir', dir, '--mode', 'merge',
+        '--ep', ...ep.split(' '), '--terms-json', raws, '--wait-file', barrier]);
+      let out = ''; let err = ''; let ready = false;
+      const readyPromise = new Promise((resolve) => {
+        child.stdout.on('data', (d) => {
+          out += d;
+          if (!ready && String(d).includes('READY')) { ready = true; resolve(); }
+        });
+      });
+      child.stderr.on('data', (d) => { err += d; });
+      const done = new Promise((resolve, reject) => {
+        child.on('close', (code) => {
+          if (code !== 0) return reject(new Error(`worker çıkış ${code}: ${err.slice(0, 400)}`));
+          try { resolve(JSON.parse(out.trim().split('\n').pop())); }
+          catch (e) { reject(e); }
+          return undefined;
+        });
+      });
+      return { readyPromise, done };
+    };
+    const w1 = startWorker('1 5', writeTerms(dir, mk('a', 20)));
+    const w2 = startWorker('1 6', writeTerms(dir, mk('b', 20)));
+    await Promise.all([w1.readyPromise, w2.readyPromise]);
+    fs.writeFileSync(barrier, 'go');
+    const [r1, r2] = await Promise.all([w1.done, w2.done]);
     assert.equal(r1.merged, 2, `işçi-1: ${JSON.stringify(r1)}`); // 2 raw da değişiklik üretti
     assert.equal(r2.merged, 2, `işçi-2: ${JSON.stringify(r2)}`);
     const data = readMem(dir);
@@ -128,6 +151,40 @@ const readMem = (dir) => JSON.parse(fs.readFileSync(path.join(dir, MEM_REL), 'ut
       ['--dir', dir, '--mode', 'merge', '--ep', '1', '1', '--terms-json', raws]);
     assert.equal(retry.merged, 1, `yeniden deneme başarısız: ${JSON.stringify(retry)}`);
     // Tutucu bu noktada çoktan çıkmış olabilir; beklemeksizin kapatmayı dene.
+    if (holder.exitCode === null) holder.kill();
+  });
+
+  await test('yazımda kilit çarpışması: kurulan örnek _save yolunda zaman aşımı', async () => {
+    // Örnek önce kurulur (READY), kilit sonra tutulur — zaman aşımı init'te
+    // değil _save sınırında yaşanır; işçi sessiz ezme yapmaz.
+    const dir = tmpdir();
+    const raws = writeTerms(dir, [{ terms: { A: 'geciken' } }]);
+    const barrier = path.join(dir, 'go.marker');
+    let ready = false;
+    const worker = spawn(python, [WORKER, '--dir', dir, '--mode', 'merge-late',
+      '--ep', '1', '1', '--terms-json', raws, '--wait-file', barrier],
+      { env: { ...process.env, SM_LOCK_TIMEOUT: '0.4' } });
+    let out = ''; let err = '';
+    worker.stdout.on('data', (d) => { out += d; if (String(d).includes('READY')) ready = true; });
+    worker.stderr.on('data', (d) => { err += d; });
+    await new Promise((resolve) => {
+      const t = setInterval(() => { if (ready) { clearInterval(t); resolve(); } }, 15);
+      setTimeout(() => { clearInterval(t); resolve(); }, 8000);
+    });
+    assert.equal(ready, true, 'işçi örnek kurmadan READY basmadı');
+    const holder = spawn(python, [WORKER, '--dir', dir, '--mode', 'hold', '--hold-ms', '2500']);
+    let held = false;
+    holder.stdout.on('data', (d) => { if (String(d).includes('HELD')) held = true; });
+    await new Promise((resolve) => {
+      const t = setInterval(() => { if (held) { clearInterval(t); resolve(); } }, 15);
+      setTimeout(() => { clearInterval(t); resolve(); }, 5000);
+    });
+    assert.equal(held, true, 'kilit tutucu HELD basmadı');
+    fs.writeFileSync(barrier, 'go');
+    const code = await new Promise((resolve) => worker.on('close', resolve));
+    assert.equal(code, 0, `işçi çıkış ${code}: ${err.slice(0, 300)}`);
+    const res = JSON.parse(out.trim().split('\n').pop());
+    assert.equal(res.timeout, true, `_save çarpışması zaman aşımı beklenirdi: ${JSON.stringify(res)}`);
     if (holder.exitCode === null) holder.kill();
   });
 

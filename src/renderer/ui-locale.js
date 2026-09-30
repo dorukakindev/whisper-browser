@@ -2047,6 +2047,7 @@
     ['Proxy/VPN bağlantısı kurulamadı. Proxy veya VPN ayarını kontrol edip bağlantıyı yenileyin.', 'The proxy/VPN connection could not be established. Check the proxy or VPN setting and retry the connection.'],
     ['Site adresine ağ üzerinden ulaşılamadı. Adresi ve internet bağlantısını kontrol edin.', 'The site address could not be reached over the network. Check the address and your internet connection.'],
     ['Site çok fazla yönlendirme yaptı — adres döngüye giriyor olabilir.', 'The site redirected too many times — the address may be looping.'],
+    ['Site güvenli olmayan bir adrese yönlendirdi — bağlantı durduruldu.', 'The site tried to redirect to an unsafe address — the connection was stopped.'],
     ['İstek engelleyici tarafından durduruldu (reklam/izleme koruması veya yönetici ilkesi).', 'The request was blocked (ad/tracking protection or administrator policy).'],
     ['Bağlantı karşı tarafça kesildi. Biraz sonra tekrar deneyin.', 'The connection was dropped by the other side. Try again in a moment.'],
     ['Siteyle güvenli bağlantı (SSL) kurulamadı. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.', 'A secure (SSL) connection to the site could not be established. Check the system clock and VPN/antivirus HTTPS inspection.'],
