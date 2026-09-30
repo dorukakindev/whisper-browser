@@ -240,3 +240,4 @@ tarih sırasıyla dosya adından okunur.
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
 | 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
+| 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |
