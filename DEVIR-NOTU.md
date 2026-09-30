@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage
+Güncel çalışma: [docs/devir/2026-09-30-1630.md](docs/devir/2026-09-30-1630.md) — R300: önizleme/favicon görüntü-sink güvenlik kapıları (2 boşluk kapandı)
+Önceki çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage
 Önceki çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
 Önceki çalışma: [docs/devir/2026-09-30-1430.md](docs/devir/2026-09-30-1430.md) — R296: çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok)
 Önceki çalışma: [docs/devir/2026-09-30-1400.md](docs/devir/2026-09-30-1400.md) — R295: CI determinizm denetimi + baseline ratchet (2 küçük düzeltme, bug yok)
