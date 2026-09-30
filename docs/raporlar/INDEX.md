@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 248 | [BROWSER_BUG_REPORT_248.md](BROWSER_BUG_REPORT_248.md) | R299 — settings export↔import tam-tur ratchet'i (temiz tur) |
 | 247 | [BROWSER_BUG_REPORT_247.md](BROWSER_BUG_REPORT_247.md) | R298 — Omnibox katlama turu-2: yoğun eşleşme dizini (görünmez/emoji/jamo) + flag triage |
 | 246 | [BROWSER_BUG_REPORT_246.md](BROWSER_BUG_REPORT_246.md) | R297 — Omnibox unicode/RTL katlama (aksan + ayrışık yazım + görünmez karakter) |
 | 245 | [BROWSER_BUG_REPORT_245.md](BROWSER_BUG_REPORT_245.md) | R296 — Çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok) |
