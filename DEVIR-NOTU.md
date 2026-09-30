@@ -15,6 +15,7 @@ Güncel çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.m
 Önceki çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.md) — R292: review flag süpürmesi (üretim okuyucusu eval + ham bayt + DEVIR-NOTU sıralaması)
 Önceki çalışma: [docs/devir/2026-09-30-1145.md](docs/devir/2026-09-30-1145.md) — R287-b: #235 review — `--username` kaçağı + job-log maske boşluğu + kalan argv siteleri `=` biçimi
 Önceki çalışma: [docs/devir/2026-09-30-1140.md](docs/devir/2026-09-30-1140.md) — R288-b: #236 turu-2 (committed fsync hatası belleği geri almıyor + matris genişleme)
+Önceki çalışma: [docs/devir/2026-09-30-1137.md](docs/devir/2026-09-30-1137.md) — R326: güvenlik denetimi — connect-src ölü izin kaldırıldı + envanter ratchet (geri kalan temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1135.md](docs/devir/2026-09-30-1135.md) — R291: sekme/oturum persist bozuk-veri matrisi (402 kontrol)
 Önceki çalışma: [docs/devir/2026-09-30-1133.md](docs/devir/2026-09-30-1133.md) — R325: userData bozulma/atomik/kota/oturum matrisleri + soak tanı düzeltmesi
 Önceki çalışma: [docs/devir/2026-09-30-1130.md](docs/devir/2026-09-30-1130.md) — R290: dış-sink denetimi (temiz) + attr-sink ratchet
