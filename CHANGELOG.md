@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R287: backend argv geçişinde seçenek-enjeksiyonu kapatıldı — `-` ile başlayan değerler artık `--ad=değer` biçimiyle tek argv öğesinde bağlanır (39 serbest-metin seçeneği, `pushBoundOption`).
+- R287-b: `invidious:login --username` kaçağı + kalan 14 dinamik argv sitesi `=` biçimine çevrildi; job-log maskesi `--ad=değer` bağlı biçimini de gizler (prompt/glossary `-`li değerler loga sızmaz); argv-escape matrisi `findTestPython` kullanır.
 - Fix (R286): `burnin-recovery.json` ileri-sürüm kapısı — `version > 1` yazılmış kurtarma dosyası v1 alanlarıyla yanlış okunmaz (yanlış temp yolu silme riski kapandı); eksik/bozuk sürüm v1 sayılır.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 
