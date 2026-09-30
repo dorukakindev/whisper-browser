@@ -162,27 +162,35 @@ ok('geçerli öğe kaybı yok', dropped === 0);
   const target = path.join(dir, 'queue-state.json');
   const items = Array.from({ length: 12 }, (_, k) => randItem(9000 + k));
   const disk = queueSnapshotForDisk({ items, queueRunning: false });
-  fs.writeFileSync(target, JSON.stringify(disk, null, 2));
-  // readQueueStateRaw: birincil varsa onu oku, bozuksa .bak'a düş.
-  const primaryParsed = JSON.parse(fs.readFileSync(target, 'utf8'));
-  ok('disk: bayt-bayt roundtrip', JSON.stringify(primaryParsed) === JSON.stringify(disk));
+  const written = JSON.stringify(disk, null, 2);
+  fs.writeFileSync(target, written);
+  // Ham bayt sadakati: diske yazılan UTF-8 içerik üretilen JSON ile bit-bit aynı.
+  ok('disk: ham bayt eşitliği', fs.readFileSync(target, 'utf8') === written);
+  const primaryParsed = JSON.parse(written);
   const loaded = normalizeQueueSnapshot(primaryParsed);
   ok('disk: yüklenen öğe sayısı', loaded.items.length === disk.items.length);
-  // .bak yolu: birincili boz, yedeği geçerli tut.
+  // .bak yolu üretim okuyucusuyla: queueStatePath + readQueueStateRaw
+  // main.js'ten dilimlenip sandbox'ta eval edilir (yerel kopya değil).
+  const vm = require('vm');
+  const mainSrc = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const sliceStart = mainSrc.indexOf('function queueStatePath()');
+  const sliceEnd = mainSrc.indexOf('function writeQueueState(', sliceStart);
+  assert(sliceStart > 0 && sliceEnd > sliceStart, 'main.js okuyucu dilimi bulunamadı');
+  const ctx = {
+    path, fs,
+    app: { getPath: () => dir },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(mainSrc.slice(sliceStart, sliceEnd), ctx);
   fs.writeFileSync(`${target}.bak`, JSON.stringify(disk));
   fs.writeFileSync(target, '{bozuk');
-  const raw = (() => {
-    for (const candidate of [target, `${target}.bak`]) {
-      try {
-        if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 8 * 1024 * 1024) continue;
-        const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-      } catch (_) {}
-    }
-    return { version: 1, items: [] };
-  })();
+  const raw = ctx.readQueueStateRaw();
   const recovered = normalizeQueueSnapshot(raw);
-  ok('disk: bozuk birincilde .bak kurtarır', recovered.items.length === disk.items.length);
+  ok('disk: bozuk birincilde .bak kurtarır (üretim okuyucusu)', recovered.items.length === disk.items.length);
+  // 8 MB aşımı da üretim okuyucusunda _oversized işareti döndürür.
+  fs.writeFileSync(target, `{${'x'.repeat(8 * 1024 * 1024 + 16)}`);
+  fs.rmSync(`${target}.bak`);
+  ok('disk: oversize birincil _oversized işareti', ctx.readQueueStateRaw()._oversized === true);
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
