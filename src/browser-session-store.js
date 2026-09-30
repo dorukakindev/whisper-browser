@@ -353,7 +353,9 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
     // ve bir sonraki yükleme birincil dosyadan tutarlı okur (R86-03).
     if (options.mirrorBackup) {
       fsModule.copyFileSync(temp, `${filePath}.bak`);
-      fsyncFileBestEffort(`${filePath}.bak`, fsModule);
+      // Ayna yedek commit töreninin parçası: fsync yutulursa güç kesintisi
+      // eski .bak'ı (silinmiş veriyi) birincil kaybında geri getirebilir.
+      fsyncFile(`${filePath}.bak`, fsModule);
     }
     fsModule.renameSync(temp, filePath);
     fsyncDirectory(dir, fsModule);

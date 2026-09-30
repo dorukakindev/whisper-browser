@@ -8,6 +8,8 @@ tarih sırasıyla dosya adından okunur.
 | No | Rapor | Başlık |
 |---|---|---|
 | 238 | [BROWSER_BUG_REPORT_238.md](BROWSER_BUG_REPORT_238.md) | R290 — Öznitelik/URL sink denetimi tur-2 (temiz + ratchet) |
+| 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
+| 236 | [BROWSER_BUG_REPORT_236.md](BROWSER_BUG_REPORT_236.md) | R287: argv kaçış matrisi — seçenek-enjeksiyonu `=` biçimine bağlandı (39 seçenek/54 itim) |
 | 235 | [BROWSER_BUG_REPORT_235.md](BROWSER_BUG_REPORT_235.md) | R286 — burnin-recovery sürüm kapısı + şema sözlüğü |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
