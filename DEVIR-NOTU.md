@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0714.md](docs/devir/2026-09-30-0714.md) — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim roundtrip)
+Güncel çalışma: [docs/devir/2026-09-30-0729.md](docs/devir/2026-09-30-0729.md) — R316: dokunmatik sürükleme tutamaçları (pointercancel + touch-action + resizer pointer)
+Önceki çalışma: [docs/devir/2026-09-30-0714.md](docs/devir/2026-09-30-0714.md) — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim roundtrip)
 Önceki çalışma: [docs/devir/2026-09-30-0654.md](docs/devir/2026-09-30-0654.md) — R314: iş günlüğü bayt sınırı (4MB kesim işareti)
 Önceki çalışma: [docs/devir/2026-09-30-0637.md](docs/devir/2026-09-30-0637.md) — R313: disk-dolu matrisi — iş günlüğü 'error' çöküşü + atomik dışa aktarımlar
 Önceki çalışma: [docs/devir/2026-09-30-0626.md](docs/devir/2026-09-30-0626.md) — R312: PDF büyük-belge sınırı (tembel çıkarma + tahliye + onay)
