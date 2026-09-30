@@ -98,6 +98,7 @@ function runVerify(appDir, { requireImpl } = {}) {
   const calls = [];
   const ctx = {
     app: { getAppPath: () => appDir, exit: (code) => calls.push(['exit', code]) },
+    appResourceRoot: () => appDir,
     dialog: { showErrorBox: (title, body) => calls.push(['errorBox', title, body]) },
     fs, path, console: { warn: (...a) => calls.push(['warn', a.join(' ')]) },
     require: requireImpl || ((id) => require(path.resolve(ROOT, 'src', id))),
@@ -135,6 +136,19 @@ test('verifyAppResources: manifest require edilemezse yedek kısa listeyle yine 
   } finally {
     fs.rmSync(empty, { recursive: true, force: true });
   }
+});
+
+test('ratchet: kaynak kökü app.getAppPath yerine appResourceRoot kullanır', () => {
+  // app.getAppPath() süreç-içi harness çalıştırmalarında yanlış dizin gösterir
+  // (electron tests/x.smoke.js → tests/). Paket/kurulum dosyalarına erişim
+  // appResourceRoot() üzerinden yapılmalı; getAppPath yalnız tanı alanında
+  // (appPath:) serbesttir.
+  const src = fs.readFileSync(path.join(ROOT, 'src/main.js'), 'utf8');
+  const offenders = src
+    .split('\n')
+    .filter((line) => line.includes('app.getAppPath()') && !line.includes('appPath:'));
+  assert.deepEqual(offenders, [],
+    `app.getAppPath() kaynak kökü olarak kullanılmış:\n${offenders.join('\n')}`);
 });
 
 test('transcribe:start — backend/transcribe.py eksikse spawn öncesi dostu hata', () => {
