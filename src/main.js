@@ -1270,12 +1270,16 @@ function isLocalInvidiousInstance(instance) {
     if (u.protocol !== 'http:') return false;
     const h = u.hostname.toLowerCase();
     if (h === 'localhost' || h === '::1' || h.endsWith('.local')) return true;
+    if (h.startsWith('[')) return /^(::1|fc|fd)/i.test(h.slice(1));
+    // WHATWG alan adı sahtelerini önleme: '127.evil.com' gibi sayısal-önekli
+    // DNS adları parser'da alan adı olarak kalır; özel-IP kontrolleri yalnızca
+    // kanonikleşmiş (yalnız rakam+nokta) host'ta çalışır (B-323-02).
+    if (!/^[\d.]+$/.test(h)) return false;
     if (/^127\./.test(h)) return true;
     if (/^10\./.test(h)) return true;
     if (/^192\.168\./.test(h)) return true;
     const m = h.match(/^172\.(\d{1,3})\./);
     if (m && +m[1] >= 16 && +m[1] <= 31) return true;
-    if (h.startsWith('[') && /^(::1|fc|fd)/i.test(h.slice(1))) return true;
     return false;
   } catch (_) {
     return false;
