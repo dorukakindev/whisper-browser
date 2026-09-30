@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R315: ayarlar tam-tur denetimi — 12 kontrol (SponsorBlock kategorileri çok-seçimi, zaman çizelgesi yakınlığı, dışa aktarma biçimleri, altyazı arama bayrakları vb.) hiç persist edilmiyordu; restart'ta varsayılana dönüyordu. Çok-seçim kontrolleri artık tüm seçenekleri toplar/geri yükler; persist listeleri iki kopyada da kilitli.
 - R314: tek iş günlüğü dosyası artık 4 MB'ı aşamaz — aşımda kesim işareti yazılıp sonraki olaylar düşürülür (önceden dosya sayısı sınırlı ama tek dosya boyutu sınırsızdı).
 - R313: disk dolu/izin hatasında iş günlüğü akışının dinleyicisiz 'error' olayı ana süreci düşürüyordu; artık günlük bırakılıp uygulama çalışır. Kullanıcı-seçimli dışa aktarımlar (ekran görüntüsü, oturum paketi, sayfa PDF'i, tanı, PDF çevirisi, abonelikler, soak raporları) atomik yazılır — disk dolu anında var olan sağlam dosya yok olmaz.
 - R312: PDF "tüm kitap" çevirisi artık metni paket paket çıkarır (büyük belgelerde bellek/tepkisizlik düzeltildi); çevrilen sayfaların metin kopyası tutulmaz; 40 sayfayı aşan tam-çevirilerde maliyet onayı sorulur.

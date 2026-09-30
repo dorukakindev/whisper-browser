@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 264 | [BROWSER_BUG_REPORT_264.md](BROWSER_BUG_REPORT_264.md) | BROWSER_BUG_REPORT_264 — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim) |
 | 263 | [BROWSER_BUG_REPORT_263.md](BROWSER_BUG_REPORT_263.md) | BROWSER_BUG_REPORT_263 — R314: iş günlüğü bayt sınırı — 4MB + kesim işareti |
 | 262 | [BROWSER_BUG_REPORT_262.md](BROWSER_BUG_REPORT_262.md) | BROWSER_BUG_REPORT_262 — R313: disk-dolu matrisi — iş günlüğü 'error' çöküşü + atomik dışa aktarımlar |
 | 261 | [BROWSER_BUG_REPORT_261.md](BROWSER_BUG_REPORT_261.md) | BROWSER_BUG_REPORT_261 — R312: PDF büyük-belge sınırı (tembel çıkarma + tahliye + onay) |
