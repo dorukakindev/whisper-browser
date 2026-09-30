@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R312: PDF "tüm kitap" çevirisi artık metni paket paket çıkarır (büyük belgelerde bellek/tepkisizlik düzeltildi); çevrilen sayfaların metin kopyası tutulmaz; 40 sayfayı aşan tam-çevirilerde maliyet onayı sorulur.
 - R311: SmartTube kanal sayfasında sekme değişimi uçuşta kalan isteği öldürmez hale getirildi (içerik karışması); kanal-içi arama sayfayı sıfırlar ve Videolar dönüşü çalışır; ilk video sayfası "Daha fazla" ile derinleşir; geçici hata sayfalama düğmesini öldürmez.
 - R310: derin-link yüzeyi doğrulandı — OS protokol kaydı hiç yok; iç şemalar nonce kilitli; sessiz eklemeyi engelleyen ratchet eklendi.
 - R309: yt-dlp güncelleme sonrası yarım silinmiş paket artık bozuk dizin olarak döndürülmüyor; previous ya da venv yedeğine düşülür.
