@@ -132,6 +132,29 @@
     return String(url || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '');
   }
 
+  // Kalıcı places nesnelerinin katlanmış arama dizini: aynı kayıt üzerinde tuş
+  // vuruşu başına foldSearchIndex/strip yeniden hesaplanmaz — büyük geçmişlerde
+  // omnibox'un tuş vuruşu gecikmesini düşürür. Kayıtlar yeni nesne olarak
+  // yüklenince eski girdiler GC ile temizlenir (WeakMap).
+  const placeSearchIndexCache = new WeakMap();
+  function placeSearchIndexOf(item) {
+    let cached = placeSearchIndexCache.get(item);
+    if (!cached) {
+      const bare = strippedUrl(item?.url).replace(/\/+$/, '');
+      const foldedIdx = foldSearchIndex(`${item?.title ?? ''} ${item?.url ?? ''}`);
+      const bareIdx = foldSearchIndex(bare);
+      cached = {
+        bare,
+        dense: foldedIdx.dense,
+        urlKey: bare.toLowerCase(),
+        bareDense: bareIdx.dense,
+        bareMap: bareIdx.map,
+      };
+      placeSearchIndexCache.set(item, cached);
+    }
+    return cached;
+  }
+
   function originOf(url) {
     try { return new URL(String(url || '')).origin; } catch (_) { return ''; }
   }
@@ -145,16 +168,16 @@
     const needle = foldSearchQuery(typed);
     let best = null;
     for (const item of Array.isArray(items) ? items : []) {
-      const bare = strippedUrl(item?.url).replace(/\/$/, '');
+      const idx = placeSearchIndexOf(item);
+      const bare = idx.bare;
       if (!bare) continue;
-      const bareIdx = foldSearchIndex(bare);
-      if (!bareIdx.dense.startsWith(needle)) continue;
+      if (!idx.bareDense.startsWith(needle)) continue;
       const slash = bare.indexOf('/');
       const host = slash < 0 ? bare : bare.slice(0, slash);
       // Kesim adayın ÖZGÜN karakterleriyle yapılır (yoğun uzunluk değil):
       // sorgudaki görünmez/ayrışık karakterler üretilen tamamlamaya sızmaz.
       const origEnd = needle.length
-        ? bareIdx.map[needle.length - 1][0] + bareIdx.map[needle.length - 1][1] : 0;
+        ? idx.bareMap[needle.length - 1][0] + idx.bareMap[needle.length - 1][1] : 0;
       const completion = origEnd <= host.length ? host : bare;
       if (completion.length <= origEnd) continue;
       const score = frecencyScore(item, now) + (completion === host ? 1 : 0);
@@ -225,8 +248,8 @@
     }
     const places = input.places || {};
     const match = (item) => !!folded
-      && foldSearchIndex(`${item.title} ${item.url}`).dense.includes(folded)
-      && !claimedUrls.has(urlKey(item.url));
+      && placeSearchIndexOf(item).dense.includes(folded)
+      && !claimedUrls.has(placeSearchIndexOf(item).urlKey);
     for (const item of (places.bookmarks || []).filter(match)) add({ action: 'url', section: 'bookmarks', url: item.url,
       title: placeTitle(item), detail: item.url, kindLabel: 'Yer imi', mark: 'Y', icon: faviconFor(item.url) });
     const history = (places.history || []).filter(match)
