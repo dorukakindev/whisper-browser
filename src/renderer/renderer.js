@@ -21172,19 +21172,36 @@ async function translateVisiblePdfPages(all = false) {
     }
   }
 }
+// Tüm-kitap çevirisinde bu sayıyı aşan belgelerde önce maliyet onayı istenir —
+// paket başına API çağrısı olduğu için binlerce sayfalık belge sessizce
+// yüzlerce istek yakabilirdi.
+const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;
 async function translateVisiblePdfPagesNow(reader, all) {
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
   if (!pages.length) { reader.translating = false; return; }
+  if (all && pages.length > PDF_TRANSLATE_ALL_CONFIRM_PAGES) {
+    const proceed = await openAppDialog({
+      title: interfaceChoice('Tüm kitap çevrilecek', 'Translate the whole book'),
+      description: interfaceChoice(
+        `${pages.length} sayfa sırayla çevrilecek; uzun sürebilir ve API maliyeti oluşturabilir.`,
+        `${pages.length} pages will be translated in sequence; this can take a while and incur API cost.`),
+      confirmLabel: interfaceChoice('Çevir', 'Translate'),
+      intent: 'primary',
+    });
+    if (!proceed) { reader.translating = false; return; }
+  }
   reader.translationStartedAt = Date.now();
   reader.translationCompleted = 0;
   reader.translationFailed = 0;
   reader.translationTotal = pages.length;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
-  if (all) {
-    for (const pageNumber of pages) await extractPdfReaderPage(pageNumber);
-  } else {
+  // "Tüm kitap" için metin çıkarma çeviri öncesi her sayfaya değil her pakete
+  // uygulanır; aksi hâlde büyük belgede tüm metin Map'te birikir ve işlem
+  // dakikalarca tepkisiz kalırdı. Görünen-sayfa yolunda girdi zaten
+  // renderPdfReaderPage ile sınırlı ve hazırdır.
+  if (!all) {
     for (const pageNumber of pages) await renderPdfReaderPage(pageNumber);
   }
   $('pdfTranslateCancel').disabled = false; pdfReaderSetStatus(all ? `Kitap çevriliyor… (0/${pages.length})` : 'Görünen sayfalar çevriliyor…');
@@ -21195,6 +21212,10 @@ async function translateVisiblePdfPagesNow(reader, all) {
   for (let offset = 0; offset < pages.length; offset += 3) {
     if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
     const batchPages = pages.slice(offset, offset + 3);
+    if (all) {
+      for (const pageNumber of batchPages) await extractPdfReaderPage(pageNumber);
+      if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
+    }
     const requests = batchPages.map((pageNumber) => {
       const entry = reader.pages.get(pageNumber) || {};
       return { pageNumber, blocks: entry.blocks || [], items: entry.items || [],
@@ -21221,6 +21242,13 @@ async function translateVisiblePdfPagesNow(reader, all) {
     if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
     // Okuyucu bu çeviri sürerken değiştiyse durum satırı yeni belgeye aittir.
     if (player.pdfReader === reader) pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
+    // Çizilmemiş sayfaların metin kopyasını bırak — çevrilen paketin blocks/items
+    // verisi durum dosyasında zaten kalıcı; Map'te tutmak büyük belgelerde
+    // belleği sınırsız büyütüyordu. Görünen sayfalar article/translation taşır.
+    for (const pageNumber of batchPages) {
+      const entry = reader.pages.get(pageNumber);
+      if (entry && !entry.article && !entry.translation) reader.pages.delete(pageNumber);
+    }
     if (result?.canceled) { canceled = true; break; }
   }
   $('pdfTranslateCancel').disabled = true;
