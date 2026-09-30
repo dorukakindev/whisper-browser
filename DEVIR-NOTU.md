@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0610.md](docs/devir/2026-09-30-0610.md) — R310: derin-link yüzey denetimi (yüzey sıfır + negatif ratchet)
+Güncel çalışma: [docs/devir/2026-09-30-0618.md](docs/devir/2026-09-30-0618.md) — R311: SmartTube kanal/playlist derinliği (4 sayfalama bugı)
+Önceki çalışma: [docs/devir/2026-09-30-0610.md](docs/devir/2026-09-30-0610.md) — R310: derin-link yüzey denetimi (yüzey sıfır + negatif ratchet)
 Önceki çalışma: [docs/devir/2026-09-30-0600.md](docs/devir/2026-09-30-0600.md) — R309: yt-dlp rollback derinliği (yarım silinmiş paket previous'a düşer)
 Önceki çalışma: [docs/devir/2026-09-30-0545.md](docs/devir/2026-09-30-0545.md) — R308: mini oynatıcı × bellekten boşaltma (mini pencere ölü kare bırakmıyor)
 Önceki çalışma: [docs/devir/2026-09-30-0528.md](docs/devir/2026-09-30-0528.md) — R307: arka-plan sekme unload retry-state (dirilişte taze bütçe + cloudflare timer temizliği)
