@@ -1,5 +1,6 @@
-Güncel çalışma: [docs/devir/2026-09-30-1710.md](docs/devir/2026-09-30-1710.md) — R302: subs:shift ±ms doğruluk ratchet'i (12 senaryo + fuzz, bug yok)
-Önceki çalışma: [docs/devir/2026-09-30-1700.md](docs/devir/2026-09-30-1700.md) — R301: kuyruk sıra invariant'ları (R300 ile aynı oturum — paralel dalda)
+Güncel çalışma: [docs/devir/2026-09-30-1730.md](docs/devir/2026-09-30-1730.md) — R303: review triage — emoji/UTF-16 map hizası + #247 belge flag'leri
+Önceki çalışma: [docs/devir/2026-09-30-1710.md](docs/devir/2026-09-30-1710.md) — R302: subs:shift ±ms doğruluk ratchet'i (12 senaryo + fuzz, bug yok)
+Önceki çalışma: [docs/devir/2026-09-30-1700.md](docs/devir/2026-09-30-1700.md) — R301: kuyruk sıra invariant'ları (paralel dalda)
 Önceki çalışma: [docs/devir/2026-09-30-1630.md](docs/devir/2026-09-30-1630.md) — R300: önizleme/favicon görüntü-sink güvenlik kapıları (2 boşluk kapandı)
 Önceki çalışma: [docs/devir/2026-09-30-1600.md](docs/devir/2026-09-30-1600.md) — R299: settings export↔import tam-tur ratchet'i
 Önceki çalışma: [docs/devir/2026-09-30-1510.md](docs/devir/2026-09-30-1510.md) — R298: omnibox katlama turu-2 (yoğun dizin) + #239-244 flag triage

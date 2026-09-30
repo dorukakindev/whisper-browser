@@ -5,8 +5,12 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R303: emoji araması altyazı/omnibox vurgusunu bozuyordu — vekil-çift map kaydı düzeltmesi (#245 review).
+
+### Fixed
 - Testler (R302): `subs:shift` zaman kaydırma ±ms doğruluğu 12 senaryoyla kilitlendi — 1ms byte-exact, roundtrip, negatif clamp + cue çıkarma, MM↔HH şekil yükseltmesi, ayırıcı/CRLF/VTT-ayar korunumu, ±86400s IPC sınırı + 1000-tohum fuzz.
 - Testler (R301): kuyruk öncelik/sıra sözleşmeleri 17 senaryoyla kilitlendi — FIFO seçimi, retry'nin konum koruması, dedupe'un pending+running kapsamı, path kanonikleştirme, id sayacı restore devamı ve kapı davranışları (persist reddi/iptal/spawn hatası) + 300-op mutasyon fuzz'ı.
+||||||| parent of dbe1a59 (docs(r303): devir notu + rapor 252 + indeks/sayaç)
 - Güvenlik (R300): sayfa/medya kökenli görüntü URL'leri artık `safeRemoteImageUrl` kapısından geçer — geri-yüklenen sekme favicon'u ve seekbar storyboard sprite'ı javascript:/file:/data:text şemalarına ve CSS tırnak-enjeksiyonuna kapalı.
 - Omnibox (R298): metindeki görünmez karakterler aramayı bölmüyor artık; emoji sorguları çalışır (eskiden her şeyi döndürüyordu); ayrışık Korece jamo birleşik sorguyla eşleşir; otomatik tamamlama görünmez karakterli sorguda adayın temiz yazımını önerir.
 - Oturum (R298): yinelenen sekme kimliği düzeltmesi başka bir özgün sekmenin `<id>-dupN` kimliğini artık çalamaz.
