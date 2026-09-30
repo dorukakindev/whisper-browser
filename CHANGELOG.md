@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
+- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (28 kontrol).
+- Fix (R288-b): `browser-note-store` rename sonrası dizin-fsync hatasında belleği geri alıyordu → committed işaretiyle disk≡bellek korunur (upsert+remove). Matris: committed senaryo + çok düzeyli zincir fsync'i + katalog .bak okuma + finally temizliği (45 kontrol).
 - Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
 - Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
 
@@ -24,6 +26,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- R288 (#229 review): dizin fsync gerçek G/Ç hatası artık yutulmaz; `atomicWriteFileSync` yeni oluşturulan klasör zincirini de senkronlar; `mirrorBackup` `.bak` fsync'i sıkılaştı.
+- R287: backend argv geçişinde seçenek-enjeksiyonu kapatıldı — `-` ile başlayan değerler artık `--ad=değer` biçimiyle tek argv öğesinde bağlanır (39 serbest-metin seçeneği, `pushBoundOption`).
+- R287-b: `invidious:login --username` kaçağı + kalan 14 dinamik argv sitesi `=` biçimine çevrildi; job-log maskesi `--ad=değer` bağlı biçimini de gizler (prompt/glossary `-`li değerler loga sızmaz); argv-escape matrisi `findTestPython` kullanır.
 - Fix (R286): `burnin-recovery.json` ileri-sürüm kapısı — `version > 1` yazılmış kurtarma dosyası v1 alanlarıyla yanlış okunmaz (yanlış temp yolu silme riski kapandı); eksik/bozuk sürüm v1 sayılır.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 

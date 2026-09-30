@@ -58,7 +58,7 @@ const src = fs.readFileSync(require('path').join(__dirname, '../src/main.js'), '
 
 // spawn argümanı --input doğrudan string geçer (shell yok → injection yok)
 {
-  ok(/args\.push\('--input',\s*options\.input\)/.test(src), '--input doğrudan argv elemanı');
+  ok(/pushBoundOption\(args, '--input',\s*options\.input\)/.test(src), '--input doğrudan argv elemanı');
   ok(/stdio:\s*\['pipe'/.test(src) || /spawn\(/.test(src), 'spawn argv kullanılır (shell: false)');
 }
 
