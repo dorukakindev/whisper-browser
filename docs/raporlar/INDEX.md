@@ -7,6 +7,10 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 255 | [BROWSER_BUG_REPORT_255.md](BROWSER_BUG_REPORT_255.md) | R306 — hata diyaloğu retry durum temizliği (bütçe sızıntısı + bayat manga sayımı) |
+| 254 | [BROWSER_BUG_REPORT_254.md](BROWSER_BUG_REPORT_254.md) | R305 — Codec/kapsayıcı sniffing matrisi (2 bug: mutlak indeks, null-stream TypeError) |
+| 253 | [BROWSER_BUG_REPORT_253.md](BROWSER_BUG_REPORT_253.md) | R304 — Yer-imi içe aktarma bozuk-veri matrisi (2 bug: jsessionid, visitedAt) |
+| 252 | [BROWSER_BUG_REPORT_252.md](BROWSER_BUG_REPORT_252.md) | R303: review triage — emoji/UTF-16 map hizası + #247 docs |
 | 251 | [BROWSER_BUG_REPORT_251.md](BROWSER_BUG_REPORT_251.md) | R302 — subs:shift ±ms doğruluk ratchet'i (12 senaryo, bug yok) |
 | 250 | [BROWSER_BUG_REPORT_250.md](BROWSER_BUG_REPORT_250.md) | R301 — Kuyruk öncelik/sıra invariant'ları: FIFO+retry+dedupe+kapı ratchet'i (bug yok) |
 | 249 | [BROWSER_BUG_REPORT_249.md](BROWSER_BUG_REPORT_249.md) | R300 — Önizleme/favicon görüntü-sink güvenliği: safeRemoteImageUrl kapısı (2 boşluk) |
@@ -221,6 +225,3 @@ tarih sırasıyla dosya adından okunur.
 | 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
 | 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
-| 254 | [BROWSER_BUG_REPORT_254.md](BROWSER_BUG_REPORT_254.md) | R305 — Codec/kapsayıcı sniffing matrisi (2 bug: mutlak indeks, null-stream TypeError) |
-| 253 | [BROWSER_BUG_REPORT_253.md](BROWSER_BUG_REPORT_253.md) | R304 — Yer-imi içe aktarma bozuk-veri matrisi (2 bug: jsessionid, visitedAt) |
-| 252 | [BROWSER_BUG_REPORT_252.md](BROWSER_BUG_REPORT_252.md) | R303: review triage — emoji/UTF-16 map hizası + #247 docs |

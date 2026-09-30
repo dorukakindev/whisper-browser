@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- R306: tükenen sayfa yeniden-deneme bütçesi artık yeni adrese sızmıyor (önceden yeni sitenin ilk hatası anında retry-limit diyaloğu açıyordu); manga "Başarısızları yeniden dene" sayısı gezinme/çökme/temizlikte sıfırlanır.
+
+### Fixed
 - R305: gömülü altyazı çıkarmada bozuk akış indeksi artık yanlış izi haritalamaz; bozuk ffprobe çıktısı prob sonucunu sessizce kaybettirmiyor.
 
 ### Fixed
