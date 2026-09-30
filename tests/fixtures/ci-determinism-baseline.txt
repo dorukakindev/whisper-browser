@@ -1,0 +1,3 @@
+math_random=0
+sleep_waits=21
+wallclock_asserts=8
