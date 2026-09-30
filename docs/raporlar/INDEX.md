@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 259 | [BROWSER_BUG_REPORT_259.md](BROWSER_BUG_REPORT_259.md) | BROWSER_BUG_REPORT_259 — R310: derin-link yüzey denetimi (yüzey sıfır) |
 | 258 | [BROWSER_BUG_REPORT_258.md](BROWSER_BUG_REPORT_258.md) | BROWSER_BUG_REPORT_258 — R309: yt-dlp rollback derinliği (bozuk paket previous/venv düşüşü) |
 | 257 | [BROWSER_BUG_REPORT_257.md](BROWSER_BUG_REPORT_257.md) | BROWSER_BUG_REPORT_257 — R308: mini oynatıcı × bellekten boşaltma sırası |
 | 256 | [BROWSER_BUG_REPORT_256.md](BROWSER_BUG_REPORT_256.md) | R307 — Arka-plan sekme unload retry-state (diriliş bütçesi sızıntısı + cloudflare timer) |
