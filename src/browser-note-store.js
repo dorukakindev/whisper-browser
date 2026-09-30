@@ -221,7 +221,11 @@ class BrowserNoteStore {
       if (count || this.needsLegacyImport) this.flush();
       this.needsLegacyImport = false;
     } catch (error) {
-      for (const id of added) this.annotations.delete(id);
+      // committed: rename geçti — dosya eklenen notları taşır; bellek geri
+      // alınırsa sonraki flush onları diskten siler.
+      if (!error || error.committed !== true) {
+        for (const id of added) this.annotations.delete(id);
+      }
       throw error;
     }
     return count;

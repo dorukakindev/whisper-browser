@@ -234,6 +234,18 @@ try {
   try { store3.remove(id); } catch (e) { removeErr = e; }
   ok('note-store: remove committed hata belleği geri almadı',
     removeErr && removeErr.code === 'EIO' && store3.list('m1').length === 1);
+  // importMissing aynı kuralı izler: committed hata eklenen notları geri
+  // almaz — alınırsa sonraki flush onları diskten siler.
+  state.fail = false;
+  const filePath4 = path.join(tmpRoot, 'notes-import', 'notes.json');
+  const io4 = dirFsyncBomber();
+  const store4 = new BrowserNoteStore(filePath4, { io: io4 });
+  state.fail = true;
+  let importErr = null;
+  try { store4.importMissing([{ mediaId: 'm2', note: 'aktar', id: 'nx' }]); }
+  catch (e) { importErr = e; }
+  ok('note-store: importMissing committed hata eklenen notu korur',
+    importErr && importErr.code === 'EIO' && store4.list('m2').length === 1);
 }
 
 // --- 5b) media-catalog-store: birincil bozulunca .bak yedeği okunur ---
