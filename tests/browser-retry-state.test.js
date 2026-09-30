@@ -175,6 +175,10 @@ assert.ok(unloadEnd > unloadStart, 'unloadBrowserTab sınırı bulunamadı');
 const unloadBody = main.slice(unloadStart, unloadEnd);
 assert.match(unloadBody, /loadRetryAttempt = 0; tab\.loadRetryPendingNav = false;\s*tab\.crashRecoveryAttempt = 0;/);
 assert.match(unloadBody, /clearBrowserCloudflareTimer\(tab\)/);
+// R308: mini oynatıcıya taşınmış sekmenin boşaltımı pencereyi kapatır —
+// yoksa mini pencere ölü kareyle açık kalır.
+assert.match(unloadBody, /browserExtras\?\.mini\.owns\(tab\)[^;]*browserExtras\.mini\.close\(\)/,
+  'boşaltım mini pencereyi kapatmıyor');
 
 Object.assign(context, {
   browserSplitSecondaryTabId: '',
@@ -188,7 +192,14 @@ Object.assign(context, {
   browserTabSnapshot: (item) => ({ id: item.id }),
   mainWindow: { contentView: { removeChildView() {} } },
   persistBrowserSessionNow: () => ({ ok: true }),
-  browserExtras: null,
+  miniClosed: false,
+  browserExtras: {
+    cancel() {},
+    mini: {
+      owns: (item) => item === tab,
+      close() { context.miniClosed = true; },
+    },
+  },
 });
 tab.pageFind = { stop() {} };
 tab.translationScheduler = { cancelAll() {} };
@@ -206,6 +217,8 @@ Promise.resolve(context.unloadBrowserTab('t1')).then((result) => {
   assert.strictEqual(tab.loadRetryAttempt, 0, 'bütçe dirilen sekmeye sızdı');
   assert.strictEqual(tab.loadRetryPendingNav, false);
   assert.strictEqual(tab.crashRecoveryAttempt, 0, 'çökme hakkı dirilen sekmeye sızdı');
+  // R308: görünümü mini'ye taşınmış sekmenin boşaltımı mini pencereyi kapatır.
+  assert.strictEqual(context.miniClosed, true, 'mini pencere boşaltımda kapanmadı');
 
   // Diriliş: gerçek etkinleştirme 'restoring' yapar; gerçek gezinme gelir.
   tab.lifecycle = 'restoring'; tab.view = context.view;
