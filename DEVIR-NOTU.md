@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-09-30-0928.md](docs/devir/2026-09-30-0928.md) — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı)
+Güncel çalışma: [docs/devir/2026-09-30-0948.md](docs/devir/2026-09-30-0948.md) — R320-2: split/wrap/zamanlama derin okuma (temiz) + invariant fuzz
+Önceki çalışma: [docs/devir/2026-09-30-0928.md](docs/devir/2026-09-30-0928.md) — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı)
 Önceki çalışma: [docs/devir/2026-09-30-0905.md](docs/devir/2026-09-30-0905.md) — R319: PR #265 Devin Review triage (4 bug + 2 flag)
 Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
 Önceki çalışma: [docs/devir/2026-09-30-0740.md](docs/devir/2026-09-30-0740.md) — R317: paket bütünlüğü manifesti + erken eksik-dosya uyarısı
