@@ -2139,9 +2139,11 @@ def is_hallucination(text):
     for pat in HALLUCINATION_PATTERNS:
         if pat.match(t):
             return True
-    # Aynı kelimenin/cümlenin 5+ kez ardışık tekrarı
+    # Aynı kelimenin/cümlenin 5+ kez ardışık tekrarı — Whisper'ın tekrar
+    # döngüsü büyük/küçük harfi karıştırabildiği için ("No no NO no no")
+    # karşılaştırma casefold üzerinden yapılır.
     words = t.split()
-    if len(words) >= 5 and len(set(words)) == 1:
+    if len(words) >= 5 and len({w.casefold() for w in words}) == 1:
         return True
     return False
 
@@ -2156,7 +2158,7 @@ def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
         not t
         or is_structural_sdh_cue(t)
         or re.fullmatch(r"(?:♪+|[.…\s]+)", t) is not None
-        or (len(words) >= 5 and len(set(words)) == 1)
+        or (len(words) >= 5 and len({w.casefold() for w in words}) == 1)
     )
     if hard_marker:
         return True
@@ -6262,6 +6264,24 @@ def checkpoint_resume_from(entries, last_time, backoff=2.0):
     return max(0.0, min([candidate, *crossing_starts]))
 
 
+def compute_media_duration(info_duration, clip_start, clip_end):
+    """İşin gerçekten işlediği ses süresi (perf/RTF için, saniye).
+
+    info_duration motorun raporladığı süredir ve her yolda KIRPILMIŞ WAV'a aittir:
+    yerel dosyada extract_audio kırpar, YouTube aralıklı indirmede dosya aralıklı
+    gelir, devam modunda ses resume noktasından çıkarılır. clip_start'ı burada
+    tekrar düşmek süreyi iki kez kısaltır.
+
+    clip_end kaynağın sonunu aşarsa istenen pencere gerçek süreyi şişirir;
+    duration bilinmediğinde pencere tek tahmin olarak kullanılır.
+    """
+    duration = float(info_duration or 0.0)
+    if clip_end is None:
+        return max(0.0, duration)
+    window = max(0.0, float(clip_end) - float(clip_start or 0.0))
+    return min(duration, window) if duration > 0 else window
+
+
 def transcribe(args):
     try:
         from faster_whisper import WhisperModel
@@ -7177,11 +7197,8 @@ def transcribe(args):
         # sonunda gercek zaman katsayisi (RTF) ve dusuk guvenli segment sayisi
         # yazilir; farkli model/motorlari ayni videoda karsilastirmak icin.
         elapsed = max(0.001, time.time() - job_started)
-        media_dur = float(getattr(info, "duration", 0.0) or 0.0)
-        if clip_end is not None:
-            media_dur = max(0.0, clip_end - (clip_start or 0.0))
-        elif clip_start is not None:
-            media_dur = max(0.0, media_dur - clip_start)
+        media_dur = compute_media_duration(
+            getattr(info, "duration", 0.0), clip_start, clip_end)
         rtf = (media_dur / elapsed) if media_dur else 0.0
         low_conf = 0
         try:
