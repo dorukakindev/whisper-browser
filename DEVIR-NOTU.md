@@ -180,6 +180,8 @@ Güncel çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.m
 Önceki çalışma: [2026-09-25 15:37 — R124 Adım 2 (Faz A): hayalet araç çubuğu, site çipi (kilit+host popover'a reklam koruması), aktif sekme yüzeyle birleşimi, hata ekranı katlanır detaylar](docs/devir/2026-09-25-1537.md).
 Önceki çalışma: [2026-09-25 14:55 — R124 Adım 1: main→renderer dinamik mesajlar messageKey+params ile İngilizce; teşhis kataloğu iki dilli; "Altyazı · N" çipi locale; 401/403 metni genelleştirildi](docs/devir/2026-09-25-1455.md).
 Önceki çalışma: [2026-09-25 03:34 — Haze: A'dan Z'ye derin bug denetimi (R125 olarak korundu)](docs/devir/2026-09-25-0334.md).
+Önceki çalışma: [2026-09-24 — R123: browser derin denetimi — arka plansız sayfalar okunamıyordu (kritik), boş HTTP hata sayfası, sayfa bağlamlı ağ mesajları, favicon silinmesi, sekme/adres cilası; baştan sona uygulama planı](docs/devir/2026-09-24-r123.md).
+Önceki çalışma: [2026-09-24 — R120: browser premium tasarım denetimi — menüde donmuş kare, sessiz altyazı şeridi, taşan menü, bağlamsal boş durum, sayfa 5xx teşhisi; ayrıntılı tasarım planı](docs/devir/2026-09-24-r120.md).
 Önceki çalışma: [2026-09-24 21:49 — GitHub PR #48 ile master eşitlemesi; YouTube çoklu hesap token-yenileme yarışı R123 ve hedefli testler](docs/devir/2026-09-24-2149.md).
 Önceki çalışma: [2026-09-24 19:54 — 18 yerel worktree'deki commit edilmemiş dosyaların denetimi; master'a taşınacak eksik ürün kodu bulunmadı; R121](docs/devir/2026-09-24-1954.md).
 Önceki çalışma: [2026-09-24 17:50 — GitHub master (#44–#47) ile yerel Windows kopyasının güvenli fast-forward eşitlemesi; hedefli SmartTube testleri ve Windows/Ubuntu CI doğrulaması](docs/devir/2026-09-24-1750.md).
@@ -379,8 +381,6 @@ Güncel çalışma: [docs/devir/2026-09-30-1150.md](docs/devir/2026-09-30-1150.m
 Önceki çalışma: [2026-09-14-0415 — Altyazı yönetimi, kurtarma ve tam ekran kontrolleri](docs/devir/2026-09-14-0415.md)
 Önceki çalışma: [2026-09-14-0328 — Tarayıcı durumu, video tercihleri ve tam ekran](docs/devir/2026-09-14-0328.md)
 Önceki çalışma: [2026-09-14-0250 — Tarayıcı tasarımı ve altyazı kurtarma](docs/devir/2026-09-14-0250.md)
-Önceki çalışma: [2026-09-24 — R123: browser derin denetimi — arka plansız sayfalar okunamıyordu (kritik), boş HTTP hata sayfası, sayfa bağlamlı ağ mesajları, favicon silinmesi, sekme/adres cilası; baştan sona uygulama planı](docs/devir/2026-09-24-r123.md).
-Önceki çalışma: [2026-09-24 — R120: browser premium tasarım denetimi — menüde donmuş kare, sessiz altyazı şeridi, taşan menü, bağlamsal boş durum, sayfa 5xx teşhisi; ayrıntılı tasarım planı](docs/devir/2026-09-24-r120.md).
 
 # Devir notları indeksi
 Önceki eşitleme notu: [2026-09-15 04:30 — yerel/GitHub doğrulaması](docs/devir/2026-09-15-0430.md).

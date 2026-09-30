@@ -162,31 +162,40 @@ ok('geçerli öğe kaybı yok', dropped === 0);
   const target = path.join(dir, 'queue-state.json');
   const items = Array.from({ length: 12 }, (_, k) => randItem(9000 + k));
   const disk = queueSnapshotForDisk({ items, queueRunning: false });
-  const written = JSON.stringify(disk, null, 2);
-  fs.writeFileSync(target, written);
-  // Ham bayt sadakati: diske yazılan UTF-8 içerik üretilen JSON ile bit-bit aynı.
-  ok('disk: ham bayt eşitliği', fs.readFileSync(target, 'utf8') === written);
-  const primaryParsed = JSON.parse(written);
-  const loaded = normalizeQueueSnapshot(primaryParsed);
-  ok('disk: yüklenen öğe sayısı', loaded.items.length === disk.items.length);
-  // .bak yolu üretim okuyucusuyla: queueStatePath + readQueueStateRaw
-  // main.js'ten dilimlenip sandbox'ta eval edilir (yerel kopya değil).
+  // .bak yolu üretim okuyucusuyla: queueStatePath + readQueueStateRaw +
+  // writeQueueState main.js'ten dilimlenip sandbox'ta eval edilir (yerel
+  // kopya değil); writeJsonAtomic + writeBufferAtomic dilim içindedir.
   const vm = require('vm');
   const mainSrc = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  const sliceStart = mainSrc.indexOf('function queueStatePath()');
-  const sliceEnd = mainSrc.indexOf('function writeQueueState(', sliceStart);
+  const sliceStart = mainSrc.indexOf('function writeJsonAtomic(');
+  const sliceEnd = mainSrc.indexOf('function loadQueueState(', sliceStart);
   assert(sliceStart > 0 && sliceEnd > sliceStart, 'main.js okuyucu dilimi bulunamadı');
   const ctx = {
     path, fs,
     app: { getPath: () => dir },
+    queueSnapshotForDisk,
+    randomUUID: require('crypto').randomUUID,
   };
   vm.createContext(ctx);
   vm.runInContext(mainSrc.slice(sliceStart, sliceEnd), ctx);
+  // Bayt kilidi üretim yazıcısından geçer: writeQueueState atomik temp+rename
+  // ile yazar; dönen snapshot ile disk içeriği bit-bit aynı olmalı.
+  const writtenRes = ctx.writeQueueState({ items, queueRunning: false });
+  assert(writtenRes && writtenRes.ok === true, 'writeQueueState başarısız: ' + (writtenRes && writtenRes.error));
+  const written = JSON.stringify(writtenRes.snapshot, null, 2);
+  ok('disk: ham bayt eşitliği (üretim yazıcısı)', fs.readFileSync(target, 'utf8') === written);
+  ok('disk: yazıcı snapshot sayısı', writtenRes.snapshot.items.length === disk.items.length);
+  const loaded = normalizeQueueSnapshot(JSON.parse(written));
+  ok('disk: yüklenen öğe sayısı', loaded.items.length === disk.items.length);
   fs.writeFileSync(`${target}.bak`, JSON.stringify(disk));
   fs.writeFileSync(target, '{bozuk');
   const raw = ctx.readQueueStateRaw();
   const recovered = normalizeQueueSnapshot(raw);
   ok('disk: bozuk birincilde .bak kurtarır (üretim okuyucusu)', recovered.items.length === disk.items.length);
+  // .bak kurtarması sayaçla değil içerikle doğrulanır: id sırası ve her
+  // öğenin opts'u disk snapshot'ına birebir eşit olmalı.
+  ok('disk: .bak id sırası', JSON.stringify(recovered.items.map((t) => t.id)) === JSON.stringify(disk.items.map((t) => t.id)));
+  ok('disk: .bak opts sadakati', recovered.items.every((t, i) => JSON.stringify(t.opts) === JSON.stringify(disk.items[i].opts)));
   // 8 MB aşımı da üretim okuyucusunda _oversized işareti döndürür.
   fs.writeFileSync(target, `{${'x'.repeat(8 * 1024 * 1024 + 16)}`);
   fs.rmSync(`${target}.bak`);
