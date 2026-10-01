@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2355.md](docs/devir/2026-10-01-2355.md) — 100-kuyruk batch 5: güvenlik/IPC tur-2 — browser-preload köprüsü + web-IPC invariant ratchet'i, 9 kontrol (rapor 368)
+Güncel çalışma: [docs/devir/2026-10-02-0010.md](docs/devir/2026-10-02-0010.md) — 100-kuyruk batch 6: kuyruk yaşam döngüsü — üç-yazıcılı interleaving + invariant kilitleri, 10 kontrol (rapor 369)
+Önceki çalışma: [docs/devir/2026-10-01-2355.md](docs/devir/2026-10-01-2355.md) — 100-kuyruk batch 5: güvenlik/IPC tur-2 — browser-preload köprüsü + web-IPC invariant ratchet'i, 9 kontrol (rapor 368)
 Önceki çalışma: [docs/devir/2026-10-01-2340.md](docs/devir/2026-10-01-2340.md) — 100-kuyruk batch 5: master suite onarımı — 12 bayat sözleşme/stub + CSS token uyumu (rapor 367)
 Önceki çalışma: [docs/devir/2026-10-01-2335.md](docs/devir/2026-10-01-2335.md) — 100-kuyruk batch 4: çeviri sözleşmesi/kalite — dil-değişimi yüzeyleri + fsync zinciri bakiyesi + export/i18n düzeltmeleri (rapor 366)
 Önceki çalışma: [docs/devir/2026-10-01-2312b.md](docs/devir/2026-10-01-2312b.md) — 100-kuyruk batch 3: backend hata/kenar yolları (60/60 süit yeşil + separate_dialogue sözleşme kilidi, rapor 365)
