@@ -27,6 +27,7 @@ try {
   assert(!serialized.includes('media.example'), 'Source URL must not persist in the payload');
   assert(!serialized.includes('completedIds'), 'Decoder state cannot be safely skipped on restart');
   assert.deepEqual(loadCeaCheckpoint(root, id, 1001), { completedSegments: 4,
+    build: '', migratedFrom: null,
     tracks: [{ instreamId: 'CC1', language: '', name: '', standard: '',
       timeTransform: null, cues: [{ start: 1, end: 2,
       text: 'A remembered caption', sequence: 4, discontinuity: 0 }] }] });
@@ -38,8 +39,11 @@ try {
   // Madde 25: parça kimliği + zaman dönüşümü checkpoint'te saklanıp geri yüklenir.
   const tt = { offsetSeconds: 2.45, matches: 37, confidence: 'strong' };
   assert.equal(saveCeaCheckpoint(root, id, [{ instreamId: 'CC1', language: 'en',
-    name: 'English captions', standard: 'cea-708', timeTransform: tt, cues }], 9, 2000), true);
+    name: 'English captions', standard: 'cea-708', timeTransform: tt, cues }], 9, 2000,
+    fs, '3.2.1'), true);
   const loaded = loadCeaCheckpoint(root, id, 2001);
+  assert.equal(loaded.build, '3.2.1', 'build kimliği saklanır');
+  assert.equal(loaded.migratedFrom, null);
   assert.deepEqual(loaded.tracks[0].language, 'en');
   assert.deepEqual(loaded.tracks[0].name, 'English captions');
   assert.deepEqual(loaded.tracks[0].standard, 'cea-708');
@@ -62,6 +66,29 @@ try {
     timeTransform: { offsetSeconds: 90001, matches: 2, confidence: 'weak' } }], 12, 5000), true);
   assert.deepEqual(loadCeaCheckpoint(root, id, 5001).tracks[0].timeTransform, null,
     'offset > 24h must drop');
+
+  // Madde 27: sürüm doğrulaması + güvenli migrasyon.
+  const target = checkpointPath(root, id);
+  const baseRecord = JSON.parse(fs.readFileSync(target, 'utf8'));
+  // v0 (sürüm alanı olmayan şema-öncesi kayıt) güvenli dönüştürülür.
+  delete baseRecord.version;
+  fs.writeFileSync(target, JSON.stringify(baseRecord));
+  const v0 = loadCeaCheckpoint(root, id, 6001);
+  assert(v0 && v0.migratedFrom === 0 && v0.tracks.length === 1,
+    'version-less record migrates as v0');
+  assert(fs.existsSync(target), 'migrated record file preserved');
+  // Gelecek sürüm reddedilir ama dosya korunur (sağlam kayıp yok).
+  baseRecord.version = 2;
+  fs.writeFileSync(target, JSON.stringify(baseRecord));
+  assert.equal(loadCeaCheckpoint(root, id, 6001), null, 'future version rejected');
+  assert(fs.existsSync(target), 'future-version file must not be deleted');
+  // Bozuk sürüm alanı reddedilir.
+  baseRecord.version = 'abc';
+  fs.writeFileSync(target, JSON.stringify(baseRecord));
+  assert.equal(loadCeaCheckpoint(root, id, 6001), null, 'non-integer version rejected');
+  // Bozuk JSON: yüklenmez ama iş kaybı yaratmaz (null → taze başlangıç).
+  fs.writeFileSync(target, '{bozuk');
+  assert.equal(loadCeaCheckpoint(root, id, 6001), null, 'corrupt JSON rejected');
 } finally {
   // The directory was created above exclusively for this test. Remove only its
   // known checkpoint file and then the now-empty directory.

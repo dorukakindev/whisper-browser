@@ -76,11 +76,15 @@ function normalizeTracks(tracks) {
   })).filter((entry) => entry.instreamId && entry.cues.length);
 }
 
-function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now(), fsImpl = fs) {
+function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now(), fsImpl = fs,
+    build = '') {
   const records = normalizeTracks(tracks);
   if (!records.length) return false;
   const target = checkpointPath(root, id);
+  // Kaynak özeti kimlikte (id = sha256(source|media|channels)) ve ayar/uygulama
+  // kimliği `build` alanında saklanır (madde 27): geri yükleme bağlamı doğrulanır.
   const payload = JSON.stringify({ version: VERSION, id, updatedAt: now,
+    build: String(build || '').slice(0, 40),
     completedSegments: Math.max(0, Math.floor(Number(progress) || 0)), tracks: records });
   if (Buffer.byteLength(payload) > MAX_BYTES) return false;
   fsImpl.mkdirSync(root, { recursive: true });
@@ -95,6 +99,16 @@ function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now(), fsI
   return true;
 }
 
+// Madde 27: sürüm alanı olmayan kayıtlar (şema-öncesi) v0 sayılıp güvenli
+// dönüştürülür — alanlar normalize edilir, bilinmeyenler düşürülür. Gelecek
+// sürümler (version > VERSION) uyumsuzdur: tahminle yüklemek sağlam işleri
+// bozabileceğinden kayıt reddedilir ama dosya silinmez.
+function checkpointVersion(raw) {
+  if (raw === undefined || raw === null) return 0;
+  const version = Number(raw);
+  return Number.isInteger(version) && version >= 0 ? version : -1;
+}
+
 function loadCeaCheckpoint(root, id, now = Date.now(), fsImpl = fs) {
   const target = checkpointPath(root, id);
   let data;
@@ -102,12 +116,15 @@ function loadCeaCheckpoint(root, id, now = Date.now(), fsImpl = fs) {
     if (fsImpl.statSync(target).size > MAX_BYTES) return null;
     data = JSON.parse(fsImpl.readFileSync(target, 'utf8'));
   } catch (_) { return null; }
-  if (data?.version !== VERSION || data.id !== id
+  const version = checkpointVersion(data?.version);
+  if (version < 0 || version > VERSION || data.id !== id
       || !Number.isFinite(Number(data.updatedAt))
       || now - Number(data.updatedAt) < 0
       || now - Number(data.updatedAt) > MAX_AGE_MS) return null;
   const tracks = normalizeTracks(data.tracks);
   return tracks.length ? { tracks,
+    build: String(data.build || '').slice(0, 40),
+    migratedFrom: version < VERSION ? version : null,
     completedSegments: Math.max(0, Math.floor(Number(data.completedSegments) || 0)) } : null;
 }
 
