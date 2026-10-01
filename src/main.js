@@ -9262,6 +9262,16 @@ function publishBrowserTrackNow(entry) {
     captureTotal: Math.max(0, Number(meta.captureTotal) || 0),
     inputPath: String(meta.inputPath || ''),
     outputPath: String(meta.outputPath || ''),
+    // Kuyruk-50 madde 22: köken inceleme — izin hangi videoya ve hangi
+    // zaman dönüşümüyle geldiği seçici/teşhis görünümünde gösterilir.
+    mediaId: String(browserWatchMediaId(tab) || '').slice(0, 240),
+    timeTransform: meta.calibration && meta.calibration.accepted === true
+      ? {
+        offsetSeconds: Number(meta.calibration.offsetSeconds) || 0,
+        matches: Math.max(0, Math.trunc(Number(meta.calibration.matches) || 0)),
+        confidence: String(meta.calibration.confidence || '').slice(0, 20),
+      }
+      : null,
     translationLanguages: (Array.isArray(meta.translationLanguages) ? meta.translationLanguages : [])
       .slice(0, 200),
   };
@@ -10259,6 +10269,7 @@ async function runBrowserHlsCeaFullCapture(job) {
         context: job.context, finalize: true,
         captureComplete: captureReady,
         captureTotal: job.total, inputPath,
+        calibration: calibration.accepted === true ? calibration : null,
       });
     }
     const completeness = summarizeCeaCaptureCompleteness(job.segments, job.completed, {

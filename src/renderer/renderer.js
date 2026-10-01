@@ -8897,9 +8897,11 @@ function renderBrowserTracks(selectedId) {
         roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
         variant, date, `${track.cueCount} satır`].filter(Boolean).join(' · ');
       if (option.textContent !== label) option.textContent = label;
+      const origin = browserTrackOriginSummary(track);
       option.title = track.sourceMismatch
         ? 'Bu çeviri farklı bir kaynak altyazıya ait; otomatik yüklenmez.'
-        : `${roleLabel}${variant ? ` · ${variant}` : ''}${date ? ` · ${date}` : ''}`;
+        : [`${roleLabel}${variant ? ` · ${variant}` : ''}${date ? ` · ${date}` : ''}`, origin]
+            .filter(Boolean).join('\n');
       option.disabled = !!track.sourceMismatch;
       target.appendChild(option);
     }
@@ -8913,8 +8915,10 @@ function renderBrowserTracks(selectedId) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     announceBrowserTrack(chosen);
     renderBrowserCeaCaptureState(chosen);
+    renderBrowserTrackOrigin(chosen);
   } else {
     renderBrowserCeaCaptureState(null);
+    renderBrowserTrackOrigin(null);
   }
   updateBrowserSubtitleSummary();
   refreshBrowserSyncPanel();
@@ -9101,6 +9105,65 @@ async function loadPersistedBrowserTranslation(track) {
   } finally {
     if (tab.persistedTranslationLoading === request) tab.persistedTranslationLoading = false;
   }
+}
+
+// ---- İz kökeni inceleme görünümü (kuyruk-50 madde 22) ----
+// Her yakalanan izin kaynağı, biçimi, dili, video kimliği ve zaman dönüşümü
+// tek satırda özetlenir; seçili izin neden seçildiği gerekçesiyle gösterilir.
+function browserTrackOriginSummary(track) {
+  if (!track) return '';
+  const t = (x) => (globalThis.UiLocale?.t ? globalThis.UiLocale.t(x) : x);
+  const source = track.role === 'translation' ? t('çeviri')
+    : track.source === 'text-track' ? t('site izi')
+      : track.source === 'manifest' ? t('manifest')
+        : track.source === 'live-asr' ? t('canlı ASR')
+          : track.captureKind === 'embedded-cea' ? t('gömülü CEA')
+            : track.source === 'network' ? t('ağ yakalama') : (track.source || track.format || t('web'));
+  const parts = [source, track.format || '', String(track.language || '').toUpperCase() || ''];
+  if (track.mediaId) parts.push(`${t('video kimliği')}: ${String(track.mediaId).slice(0, 60)}`);
+  const transform = track.timeTransform;
+  if (transform && Number.isFinite(Number(transform.offsetSeconds)) && Number(transform.offsetSeconds) !== 0) {
+    const offset = Number(transform.offsetSeconds);
+    parts.push(`${offset > 0 ? '+' : ''}${offset.toFixed(3)} ${t('sn kalibre')}` +
+      (Number(transform.matches) ? ` · ${Math.trunc(Number(transform.matches))} ${t('eşleşme')}` : ''));
+  }
+  return parts.filter(Boolean).join(' · ');
+}
+
+function browserTrackSelectionReason(track) {
+  if (!track) return '';
+  const t = (x) => (globalThis.UiLocale?.t ? globalThis.UiLocale.t(x) : x);
+  const total = player.browserTracks.length;
+  if (total <= 1) return '';
+  const candidates = player.browserTracks.filter((item) => item.role !== 'translation' && item.path);
+  const ceaComplete = player.browserCeaCapture?.state === 'complete'
+    ? completedBrowserCeaTrack(player.browserCeaCapture) : null;
+  let reason;
+  if (ceaComplete && track === ceaComplete) {
+    reason = t('tamamlanmış gömülü altyazı olduğu için');
+  } else if (browserTrackSelection(false)?.id === track.id) {
+    reason = t('iz listesinde seçili olduğu için');
+  } else if (track === candidates[0]) {
+    reason = t('mevcut ilk kaynak izi olduğu için');
+  } else {
+    reason = t('kaynak adayı olarak duruyor');
+  }
+  return `${candidates.length} ${t('kaynak adayı arasından')} ${reason}`;
+}
+
+function renderBrowserTrackOrigin(track) {
+  const box = $('browserTrackOrigin');
+  if (!box) return;
+  if (!track) {
+    box.textContent = '';
+    box.classList.add('hidden');
+    return;
+  }
+  const origin = browserTrackOriginSummary(track);
+  const reason = browserTrackSelectionReason(track);
+  box.textContent = [origin, reason].filter(Boolean).join(' — ');
+  box.title = [track.pageUrl, track.sourceUrl, origin, reason].filter(Boolean).join('\n');
+  box.classList.remove('hidden');
 }
 
 function browserTrackSelection(secondary = false) {
