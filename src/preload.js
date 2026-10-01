@@ -242,7 +242,8 @@ contextBridge.exposeInMainWorld('api', {
   exportBrowserSubtitle: (payload) => ipcRenderer.invoke('browser:subtitle:export', payload),
   captureFullBrowserSubtitle: (tabId, action = 'start') =>
     ipcRenderer.invoke('browser:subtitle:captureFull', { tabId, action }),
-  exportBrowserDiagnostics: () => ipcRenderer.invoke('browser:diagnostics:export'),
+  previewBrowserDiagnostics: () => ipcRenderer.invoke('browser:diagnostics:preview'),
+  exportBrowserDiagnostics: (json) => ipcRenderer.invoke('browser:diagnostics:export', { json }),
   exportBrowserClip: (payload) => ipcRenderer.invoke('browser:clip:export', payload),
   onBrowserEvent: (cb) => {
     const listener = (_event, payload) => cb(payload);
