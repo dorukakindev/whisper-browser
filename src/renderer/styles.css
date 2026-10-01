@@ -6861,6 +6861,18 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   border-left: 2px solid color-mix(in srgb, var(--ok, #4caf7d) 60%, transparent); padding-left: 6px;
 }
 .retranslate-review-row:has(input:checked) .diff-add { background: none; }
+/* Çok noktalı senkron: nokta listesi + güven göstergesi. */
+.browser-sync-point-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.browser-sync-point-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12px; color: var(--text-dim);
+  font-family: var(--font-mono, Consolas, monospace);
+}
+.browser-sync-point-del { flex: none; width: auto; padding: 0 8px; font-size: 14px; line-height: 1.4; }
+.browser-sync-confidence { margin: 6px 0 0; font-size: 12px; color: var(--text-dim); }
+.browser-sync-confidence-high, .browser-sync-confidence-exact { color: var(--ok, #4caf7d); }
+.browser-sync-confidence-medium { color: var(--warning); }
+.browser-sync-confidence-low { color: var(--danger); }
 /* ===== SmartTube TV görünümü (.st-tv) =====
    10-foot düzen: koyu TV paleti (temadan bağımsız), kenar menü yalnız simge,
    odaklanınca açılır; odaklı kart büyür ve beyaz çerçeve alır (kumanda ile

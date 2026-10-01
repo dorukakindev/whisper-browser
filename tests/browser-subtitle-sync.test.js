@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const {
+  MAX_POINTS,
   applyEditRecord,
+  calculateMultiPointTransform,
   calculateTwoPointTransform,
   createEditRecord,
   createSyncRecord,
@@ -156,4 +158,36 @@ const largeCues = Array.from({ length: 10000 }, (_, index) => ({
 const perfStart = performance.now();
 assert.equal(transformCuesForExport(largeCues, drift).length, 10000);
 assert(performance.now() - perfStart < 500, '10.000 cue senkron dönüşümü gereğinden yavaş');
+
+// --- kuyruk-50/6: çok noktalı fit + güven ---
+const fit3 = calculateMultiPointTransform([
+  { sourceTime: 0, videoTime: 2 }, { sourceTime: 100, videoTime: 102.1 }, { sourceTime: 200, videoTime: 202.2 }]);
+assert.ok(Math.abs(fit3.scale - 1.001) < .01);
+assert.ok(Math.abs(fit3.offsetSeconds - 2) < .5);
+assert.equal(fit3.confidence.level, 'high');
+assert.deepEqual(fit3.confidence.outliers, []);
+// Belirgin sapan nokta leave-one-out ile işaretlenir.
+const badFit = calculateMultiPointTransform([
+  { sourceTime: 0, videoTime: 2 }, { sourceTime: 100, videoTime: 102.5 },
+  { sourceTime: 200, videoTime: 203 }, { sourceTime: 150, videoTime: 180 }]);
+assert.ok(badFit.confidence.outliers.length >= 1);
+assert.equal(badFit.confidence.level, 'low');
+// Tam tutarlı 2 nokta 'exact' düzey verir.
+const exactFit = calculateMultiPointTransform([{ sourceTime: 0, videoTime: 5 }, { sourceTime: 100, videoTime: 105 }]);
+assert.equal(exactFit.confidence.level, 'exact');
+assert.equal(exactFit.confidence.rmsError, 0);
+// 2'den az nokta veya sıkışık kaynak açıklığı reddedilir.
+assert.throws(() => calculateMultiPointTransform([{ sourceTime: 0, videoTime: 0 }]));
+assert.throws(() => calculateMultiPointTransform([{ sourceTime: 0, videoTime: 0 }, { sourceTime: 0.5, videoTime: 5 }]));
+// Kesinti taklidi (101. kaynak saniyesi 130. video saniyesine atlarsa) tek fit düşük güven üretir.
+const cutFit = calculateMultiPointTransform([
+  { sourceTime: 0, videoTime: 0 }, { sourceTime: 100, videoTime: 100 },
+  { sourceTime: 101, videoTime: 130 }, { sourceTime: 200, videoTime: 230 }]);
+assert.notEqual(cutFit.confidence.level, 'high');
+// Senkron kaydı en fazla 8 nokta saklar.
+const manyPoints = Array.from({ length: 10 }, (_, i) => ({ sourceTime: i * 10, videoTime: i * 10 + 2, cueId: `c${i}` }));
+assert.equal(createSyncRecord({ mediaId: 'm', sourceTrackId: 's', sourceHash: 'h',
+  scale: 1, offsetSeconds: 2, points: manyPoints }).points.length, 8);
+assert.equal(MAX_POINTS, 8);
+
 console.log('Browser altyazı senkronu: dönüşüm, kalıcılık, canlı lineage, override ve export matrisi geçti.');

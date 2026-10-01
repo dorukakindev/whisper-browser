@@ -3182,8 +3182,11 @@
                 <div class="browser-view-actions">
                   <button class="btn btn-secondary btn-sm" id="browserSyncPoint1" type="button">1. eşleşmeyi kaydet</button>
                   <button class="btn btn-secondary btn-sm" id="browserSyncPoint2" type="button">2. eşleşmeyi kaydet</button>
+                  <button class="btn btn-secondary btn-sm" id="browserSyncPointAdd" type="button" title="Şu anki aktif bloğu videonun mevcut anına ek bir nokta olarak eşleştirir.">Nokta ekle</button>
                   <button class="btn btn-ghost btn-sm" id="browserSyncClearPoints" type="button">Noktaları temizle</button>
                 </div>
+                <div class="browser-sync-point-list" id="browserSyncPointList"></div>
+                <p class="browser-sync-confidence hidden" id="browserSyncConfidence" role="status" aria-live="polite"></p>
               </div>
               <label class="field browser-export-timing"><span class="field-label">Dışa aktarma zamanları</span>
                 <select id="browserExportTiming"><option value="original">Orijinal zamanlar</option><option value="synchronized">Senkron düzeltmesi uygulanmış zamanlar</option></select>

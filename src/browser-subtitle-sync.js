@@ -11,6 +11,7 @@
   const MIN_SCALE = .25;
   const MAX_SCALE = 4;
   const MIN_POINT_SPAN_SECONDS = 1;
+  const MAX_POINTS = 8;
 
   function clean(value, max = 240) {
     return String(value == null ? '' : value).trim().slice(0, max);
@@ -99,13 +100,66 @@
     return { ...transform, points: [point1, point2] };
   }
 
+  // Çok noktalı fit: N>=2 noktada en küçük kareler scale+offset.
+  // Kesilmiş/reklam eklenmiş videoda tek iki nokta yanıltır; artık değerler
+  // (residual) güven düzeyini ölçer ve sapan noktayı işaretler.
+  function calculateMultiPointTransform(rawPoints) {
+    const list = (Array.isArray(rawPoints) ? rawPoints : []).map(normalizePoint)
+      .sort((a, b) => a.sourceTime - b.sourceTime);
+    if (list.length < 2) throw new TypeError('En az iki eşleşme noktası gerekli.');
+    const sourceSpan = list[list.length - 1].sourceTime - list[0].sourceTime;
+    if (sourceSpan < MIN_POINT_SPAN_SECONDS) {
+      throw new RangeError('Eşleşme noktaları aynı veya birbirine çok yakın.');
+    }
+    const n = list.length;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (const p of list) { sx += p.sourceTime; sy += p.videoTime; sxx += p.sourceTime * p.sourceTime; sxy += p.sourceTime * p.videoTime; }
+    const denom = n * sxx - sx * sx;
+    if (denom <= 0) throw new RangeError('Eşleşme noktaları aynı kaynak zamanında yığılmış.');
+    const scale = (n * sxy - sx * sy) / denom;
+    const offsetSeconds = (sy - scale * sx) / n;
+    const transform = normalizeTransform({ scale, offsetSeconds });
+    const residuals = list.map((p) => p.videoTime - (p.sourceTime * transform.scale + transform.offsetSeconds));
+    const rmsError = Math.sqrt(residuals.reduce((sum, r) => sum + r * r, 0) / n);
+    const maxError = Math.max(...residuals.map(Math.abs));
+    // Sapan nokta işaretleme: leave-one-out. Her nokta kalanlarla yeniden
+    // fit edilir; noktanın o fit'e olan uzaklığı kalanların RMS'inden
+    // belirgin büyükse outlier sayılır (3+ noktada anlamlı). Tek fit'in
+    // RMS'i outlier tarafından şiştiği için onu gizleyemez.
+    const fitOn = (subset) => {
+      let fsx = 0, fsy = 0, fsxx = 0, fsxy = 0;
+      for (const p of subset) { fsx += p.sourceTime; fsy += p.videoTime; fsxx += p.sourceTime * p.sourceTime; fsxy += p.sourceTime * p.videoTime; }
+      const fdenom = subset.length * fsxx - fsx * fsx;
+      if (fdenom <= 0) return null;
+      const fscale = (subset.length * fsxy - fsx * fsy) / fdenom;
+      return { scale: fscale, offset: (fsy - fscale * fsx) / subset.length };
+    };
+    const outliers = [];
+    if (n >= 3) {
+      list.forEach((point, i) => {
+        const rest = list.filter((_, j) => j !== i);
+        const fit = fitOn(rest);
+        if (!fit) return;
+        const restRms = Math.sqrt(rest.reduce((sum, p) => {
+          const r = p.videoTime - (p.sourceTime * fit.scale + fit.offset);
+          return sum + r * r;
+        }, 0) / rest.length);
+        const looResidual = Math.abs(point.videoTime - (point.sourceTime * fit.scale + fit.offset));
+        if (looResidual > Math.max(.5, 3 * restRms)) outliers.push(i);
+      });
+    }
+    const level = n === 2 ? 'exact' : rmsError <= .3 ? 'high' : rmsError <= 1 ? 'medium' : 'low';
+    return { ...transform, points: list, residuals,
+             confidence: { rmsError, maxError, outliers, level, count: n } };
+  }
+
   function createSyncRecord(raw) {
     const mediaId = clean(raw && raw.mediaId, 240);
     const sourceTrackId = clean(raw && raw.sourceTrackId, 180);
     const sourceHash = clean(raw && raw.sourceHash, 128);
     if (!mediaId || !sourceTrackId || !sourceHash) throw new TypeError('Senkron kaydının medya, iz veya kaynak kimliği eksik.');
     const transform = normalizeTransform(raw);
-    const points = Array.isArray(raw.points) ? raw.points.filter(Boolean).slice(0, 2).map(normalizePoint) : [];
+    const points = Array.isArray(raw.points) ? raw.points.filter(Boolean).slice(0, MAX_POINTS).map(normalizePoint) : [];
     return {
       version: SYNC_RECORD_VERSION,
       mediaId,
@@ -237,10 +291,12 @@
     MAX_ABS_OFFSET_SECONDS,
     MAX_SCALE,
     MIN_POINT_SPAN_SECONDS,
+    MAX_POINTS,
     MIN_SCALE,
     SYNC_RECORD_VERSION,
     applyEditRecord,
     calculateTwoPointTransform,
+    calculateMultiPointTransform,
     createEditRecord,
     createSyncRecord,
     cueKey,
