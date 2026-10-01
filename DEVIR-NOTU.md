@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
+Güncel çalışma: [docs/devir/2026-10-01-1016.md](docs/devir/2026-10-01-1016.md) — R379–R382 derin okuma: VTT meta-blok sahte cue fix, onState izolasyonu (whenIdle takılma), ui-locale kazanan pinlemeleri; 9 dosya temiz
+Önceki çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
 Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R395–R397 kuyruk maddeleri 8–10: kayıt-hatası taslak korunması, çeviri-iptali bekçileri, ağ kesintisi sözleşme kilitleri
 Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R394 kuyruk-g7 büyük transkript: 8000 cue'da renderCue 36→0.8ms, arama 88→19ms (foldIndexCached + cueMetaStats) + cue-list-perf.test.js
