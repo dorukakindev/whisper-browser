@@ -1,4 +1,4 @@
-Güncel çalışma: [docs/devir/2026-09-30-2115.md](docs/devir/2026-09-30-2115.md) — R327-5: test paketi hız profili + test-timing.mjs (50'lik kuyruk kapandı)
+Güncel çalışma: [docs/devir/2026-10-01-0025.md](docs/devir/2026-10-01-0025.md) — R331: AI modları (--explain reasoning-kapısı + çip EN soruları, kullanıcı patch'i)
 Önceki çalışma: [docs/devir/2026-09-30-2100.md](docs/devir/2026-09-30-2100.md) — R330-1: doküman senkron turu + IPC kataloğu
 Önceki çalışma: [docs/devir/2026-09-30-2045.md](docs/devir/2026-09-30-2045.md) — R330-2: açık kararlar indeksi (docs/ACIK-KARARLAR.md)
 Önceki çalışma: [docs/devir/2026-09-30-2030.md](docs/devir/2026-09-30-2030.md) — R329-4: rota dedupe host-bazlı (B-329-03) + sağlayıcı varyant matrisi
