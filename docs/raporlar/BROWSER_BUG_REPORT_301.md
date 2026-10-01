@@ -1024,6 +1024,50 @@ endpoint çözümü + sınırlı yanıt okuma. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R351 — main.js bakiye derin okuması 7: spawn/tek-örnek + CDP attach + ad-prune/capture IPC (temiz)
+
+Yedinci turda ~770 satır okundu — spawn güvenlik sarmalayıcıları +
+uygulama bayrakları + tek-örnek kilidi, CDP gövde yakalama + Fetch
+duraklatma/prune + debugger attach, adblock/prune/capture/compat
+IPC geçişleri. Doğrulanmış bug yok.
+
+- **Süreç + açılış** (311–590): `spawn`/`spawnSync` env'i
+  `withoutSecretEnv(process.env)`'e indirger (secret sızmaz);
+  `disable-quic` VPN/tünel workaround'u belgeli; pakette
+  remote-debugging switch'leri kaldırılır; whisper-pdf/assets
+  privileged-scheme kaydı; hızlandırma yalnız kayıtlı false'ta kapanır;
+  tek-örnek kilidi → ikinci örnek pencereyi öne getirir; resource-soak
+  kendi userData'sıyla izole (belgeli); manifest registry 3-deneme/128
+  giriş/30s cooldown.
+- **CDP yanıt + prune** (11101–11295): `captureBrowserResponse` —
+  pending'den al, context/expired/12MB/compat kapıları; CEA-segment
+  2xx-dışı gövdeyi "yakalandı" saymaz (belgeli), 304 boş gövde,
+  gövde-sonrası context yeniden doğrulama + base64 ayrıca sınır;
+  `handleYoutubePlayerResponsePaused` tek-continue latch + tüm kapılar
+  (etkinlik/aktif-sekme/compat/sessionId/URL/status) + prune
+  değiştirmediyse continue + fulfill öncesi kimlik/generation yeniden
+  doğrulaması + entity-encoding başlıkları ayıklanır + hata fail-open
+  snapshot; `attachBrowserDebugger` WeakMap ownAttempt mandalı (belgeli
+  — bayat deneme yeni bağlantıyı koparamaz), her komut arası `current()`
+  kontrolü, 1.5s timeout, `ready` yalnız current'te; `ensureBrowserDebugger`
+  promise dedupe; `browserTrackProbeScript` shadow-root'ta en-büyük
+  video + disabled→hidden cue doldurup geri yükleme + FNV-1a
+  fingerprint (orta-liste değişikliği yakalar, belgeli) + prefix-hash
+  ile yalnız-yeni-cue emisyonu + data: src ağ kimliği sayılmaz
+  (belgeli — iz birleşmesi önlenir).
+- **IPC geçişleri** (15388–15582): `adblock:setEnabled` reloadRequired;
+  `playerAdPrune:setEnabled` — enable Fetch.enable veya attach, disable
+  Fetch.disable + yalnız capture da kapalıysa detach; başarısızlıkta
+  geri dönüm + failOpen snapshot + dostu hata; `sponsorBlock:get`/`videoExtras`
+  videoId zorunluluğu + allSettled bağımsız hata yüzeyi;
+  `capture:setEnabled` stateGeneration+registry/timers/pending/ranges
+  temizliği + sayfa reset + enable→hooks+toggle+attach, disable→toggle
+  + Network.disable + auto-attach off + yalnız prune kapalıysa detach;
+  `compatibility:setEnabled` host-scope tüm sekme uygulaması + per-tab
+  olay + anında save + reload.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
