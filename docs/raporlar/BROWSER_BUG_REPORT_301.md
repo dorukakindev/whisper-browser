@@ -1390,6 +1390,56 @@ PASS (+3 yeni bozuk-sayı testi). Sistem python'unda yt_dlp yok —
 Windows etkisi: yok — probe davranışı sadece bozuk uzak veride
 değişti (çöküş → atlama).
 
+## R360 — youtube.py tam derin okuma — temiz (OAuth + InnerTube feed)
+
+**Kapsam:** `backend/youtube.py` (599 satır) tamamen okundu — OAuth
+cihaz-kodu akışı, PKCE auth-code akışı, token yenileme/iptal ve
+InnerTube kişisel feed ayrıştırma.
+
+**Doğrulanan (bug yok):**
+
+- **Token sızıntısı yok:** `emit("login", access_token/refresh_token)`
+  stdout'a gider ama main.js token'ları `ytAccounts.upsertAccount`
+  (safeStorage) içine alır; renderer'a yalnız
+  `{loggedIn, userName, userEmail, ephemeral}` döner
+  (main.js:2092–2110). Secret'lar argv'den değil env'den geçer.
+- **Phishing bekçisi:** `_endpoint` — `WHISPER_YT_TEST_BASE` yalnız
+  loopback host'a yönlendirebilir; prod URL'ler aksi halde aynen kalır
+  (token akışı keyfi host'a kaydırılamaz).
+- **poll() dayanıklılığı:** `authorization_pending`/`slow_down`
+  beklenen yanıtlar; geçici ağ/5xx hatası üst üste 6 kez gelene dek
+  akışı öldürmez (tek kopma 30 dk pencereyi kapamıyor);
+  `expired_token`/`access_denied`/`invalid_grant` kullanıcı hatasına
+  eşlenir; nihai deadline var.
+- **Browse whitelist:** `allowed_browse` yalnız bilinen FE*/VL
+  kimliklerine izin verir; `'tv'` sentinele gömülü TV istemcisini
+  çözer, keyfi client-id özel scope'a gider.
+- **Ayrıştırma doğruluğu:** `_view_count` yerel farkındalıklı —
+  Türkçe "B"=bin, İngilizce "B"=milyar; Mn/Mio varyantları; NBSP/NNBSP
+  normalize edilir. `_length_seconds` saat:dakika:sn katlaması.
+  `_vr_to_card`/`_lockup_to_card` eksik alanlarda yumuşak düşer;
+  lockupViewModel (2025+ InnerTube şeması) destekli; canlı-rozet
+  stili taraması.
+- **revoke() dürüstlüğü:** `remote_ok` HTTP başarısına bağlı —
+  refresh_token tercih edilir, erişim hatasında yalan söylemez.
+- `_fetch_me` kanal id'sini kalıcı kimlik olarak taşır (hesap-adı
+  değişimi yetim satır üretmez); `_post_form/_post_json` timeout'lu,
+  hata gövdesi dict'e eşlenir.
+
+**Değerlendirilen ama değişmeyen:**
+
+- `poll` deadline'ı argv `expires_in`'den gelir ve gerçek device-code
+  ömründen sapabilir — token endpoint'i süre dolunca zaten
+  `expired_token` döndürür; davranış doğru.
+- `browse`'un `continuation` parametresi whitelist dışı — opak token
+  kullanıcı access token'ıyla aynı güven düzleminde; ek saldırı
+  yüzeyi yok.
+
+Testler: kod değişmedi; mevcut `backend/test_youtube*.py` dosyaları
+venv'de koşturulup yeşil doğrulandı.
+
+Windows etkisi: yok — salt okuma denetimi.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
