@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1021.md](docs/devir/2026-10-01-1021.md) — R384–R386 derin okuma: 'Ctrl+Manga' ipucu fix; page-translate/manga/sentence_translation temiz
+Güncel çalışma: [docs/devir/2026-10-01-1038.md](docs/devir/2026-10-01-1038.md) — R388–R389 derin okuma: self-closing <Tag/> yutması (B-303-02) + formatClipDur '60 sn' eldesi + master test tamiri (4 önceden-var düşüş)
+Önceki çalışma: [docs/devir/2026-10-01-1021.md](docs/devir/2026-10-01-1021.md) — R384–R386 derin okuma: 'Ctrl+Manga' ipucu fix; page-translate/manga/sentence_translation temiz
 Önceki çalışma: [docs/devir/2026-10-01-1016.md](docs/devir/2026-10-01-1016.md) — R379–R382 derin okuma: VTT meta-blok sahte cue fix, onState izolasyonu (whenIdle takılma), ui-locale kazanan pinlemeleri; 9 dosya temiz
 Önceki çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
