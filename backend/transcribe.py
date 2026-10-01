@@ -460,7 +460,11 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
                         break
             if wav_path is None:
                 wav_path = Path(output_dir) / f"{video_id}.wav"
-        if not wav_path.is_file():
+                # Son fallback de video_id'den türetilir; kapsam dışında
+                # aynı ada sahip gerçek bir dosya varsa bile alınmaz.
+                if not _inside(wav_path):
+                    wav_path = None
+        if not wav_path or not wav_path.is_file():
             raise RuntimeError("YouTube indirmesi tamamlandı ancak indirilen ses dosyası bulunamadı.")
         log(f"İndirme tamamlandı: {title}")
         return str(wav_path), title, ranged
