@@ -120,8 +120,10 @@ class RefineGateTests(unittest.TestCase):
             # 'refined: false' isabeti: 1. geçiş metni hazır, refine denenecek.
             source = entries[1][2]
             budget = T.translation_char_budget(entries[1], args)
+            # Girdi 28 sn boşluklu iki satır → sahne sınırı bağlamı keser;
+            # üretim tarafı source_context ile aynı boş bağlamı hesaplar.
             key = T.translate_cache_key(
-                source, args, "tr", "en", ["First sentence."], [],
+                source, args, "tr", "en", [], [],
                 budget, group_shape=None, speaker_shape=[""],
                 auto_glossary_terms=T.extract_auto_glossary(entries, source_lang="en"))
             cache_path = T.translate_cache_path(args)

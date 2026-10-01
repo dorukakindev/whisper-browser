@@ -4072,8 +4072,32 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         close_translation_memory()
         return ready
 
-    # Bir cümle ne istek sınırında ne kısmi önbellek isabetinde bölünür.
-    chunks = pack_sentence_groups(pending_groups, CHUNK_SIZE)
+    # Uyarlanabilir planlayıcı (kuyruk-50/4): parça büyüklüğü ve eşzamanlılık
+    # sağlayıcının gecikme/hata/token-tavanı ölçümlerine göre iş boyunca
+    # ayarlanır. translate_workers kullanıcının üst sınırı olarak korunur;
+    # planlayıcı yalnız aşağı ayarlar. Paketler yığından değil, her
+    # gönderimde güncel boyutla üretilir.
+    from translate_planner import AdaptivePlanner
+    planner = AdaptivePlanner(base_workers=max(1, args.translate_workers),
+                              base_chunk=CHUNK_SIZE)
+
+    def est_index_tokens(index):
+        # İstek gövdesi ~ kaynak metin + bağlam + yanıt payı (kaba est).
+        return max(1, len(entries[index][2]) // 3 + 8)
+
+    def est_group_tokens(group):
+        return sum(est_index_tokens(index) for index in group)
+
+    pack_pos = [0]
+
+    def pack_next():
+        """Planlayıcının güncel parça boyutuyla bir sonraki parçayı üret."""
+        if pack_pos[0] >= len(pending_groups):
+            return None
+        chunk, pack_pos[0] = planner.pack_groups(
+            pending_groups, pack_pos[0], est_group_tokens)
+        return chunk or None
+
     route_state = {"preferred": routes[0]}
     counters = {"done": 0, "failed": 0}
     failure_by_index = {}
@@ -4164,7 +4188,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             translation_metrics[metric_key] += 1
         payload = translation_payload(chunk_idx)
 
+        _req_t0 = time.time()
         resp, used_url = call_api_with(system_prompt + prompt_suffix, payload)
+        with lock:
+            # Rota-yedekli denemeler dahil uçtan uca süre — sağlayıcı
+            # doygunluğunun en dürüst iş-içi ölçüsü.
+            planner.note_latency(time.time() - _req_t0)
         with lock:
             if route_state["preferred"] != used_url:
                 route_state["preferred"] = used_url
@@ -4476,9 +4505,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def task(chunk_idx):
         """Geçersiz, eksik veya kaynak-yankısı yanıtı grup bazında kurtar."""
         groups_in_chunk = chunk_groups(chunk_idx)
+        est_tokens = sum(est_group_tokens(group) for group in groups_in_chunk)
         try:
             recovered = task_once(chunk_idx)
+            with lock:
+                planner.record('ok', est_tokens)
         except TranslationTruncatedError:
+            with lock:
+                planner.record('truncated', est_tokens)
             # finish_reason=length: aynı boyutlu paket tekrar da kesilir;
             # paketi grup sınırından ikiye bölüp her yarıyı sırayla dene.
             if len(groups_in_chunk) > 1:
@@ -4496,7 +4530,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             reason = classify_translation_error(error)
             if reason not in {"invalid_response", "empty_response"} \
                     or structural_breaker_tripped():
+                with lock:
+                    planner.record('error', est_tokens)
                 raise
+            with lock:
+                planner.record('invalid', est_tokens)
             log(
                 f"Çeviri {chunk_idx[0]}-{chunk_idx[-1]} toplu yanıtı geçersiz "
                 f"({error}); küçük paketlerle yeniden deneniyor.",
@@ -4570,7 +4608,6 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # İlk parçayı senkron bir sağlayıcı probu olarak kullan. Anahtar/kota gibi
     # bütün işi etkileyen kalıcı bir hata varsa onlarca paralel isteği aynı anda
     # göndermeden durur; başarılı probdan sonra normal paralellik korunur.
-    remaining_chunks = list(chunks)
     fatal_reason = ""
     probe_stop = ""
     # Kurtarma paketleri bu paylaşımlı havuzda paralellenir (ayrı executor —
@@ -4581,8 +4618,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     rescue_pool = None
     try:
         rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
-        if remaining_chunks:
-            probe = remaining_chunks.pop(0)
+        probe = pack_next()
+        if probe:
             try:
                 record_chunk_result(probe, got=task(probe))
             except Exception as error:
@@ -4594,16 +4631,16 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # koşudaki geçici kopukluklar kapsam dışıdır — orada parça başına hata
         # kaydedilip iş sürer.
         if fatal_reason in FATAL_TRANSLATION_ERRORS or fatal_reason == "network_error":
-            probe_stop = fatal_reason if remaining_chunks else ""
+            probe_stop = fatal_reason if pack_pos[0] < len(pending_groups) else ""
             if probe_stop:
                 # Yalnız gerçekten denenecek bloklar başarısız sayılır; önbellek/
                 # önceden çevrilmiş konumlar (done_idx) sayıyı şişirmezdi.
-                skipped = sum(1 for ch in remaining_chunks
-                              for index in ch if index not in done_idx)
+                skipped = sum(1 for group in pending_groups[pack_pos[0]:]
+                              for index in group if index not in done_idx)
                 counters["failed"] += skipped
                 with lock:
-                    for ch in remaining_chunks:
-                        for index in ch:
+                    for group in pending_groups[pack_pos[0]:]:
+                        for index in group:
                             if index not in done_idx:
                                 failure_by_index[index] = probe_stop
                 if probe_stop == "network_error":
@@ -4616,20 +4653,55 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                      done=counters["done"] + len(cached_idx) + len(precompleted_idx)
                      + preserved_static, failed=counters["failed"],
                      total=len(entries), stage="translate")
-                remaining_chunks = []
+                pack_pos[0] = len(pending_groups)
 
+        # Planlayıcı kapasitesi yalnız YENİ gönderimleri sınırlar; uçuştaki
+        # parçalar doğal olarak tamamlanır (adalet: kurtarma akışı ana havuzu
+        # asla sonsuza dek boğamaz — üst sınır her zaman translate_workers).
+        inflight = {}
+
+        def submit_available(executor):
+            while (len(inflight) < planner.workers
+                   and fatal_stop["error"] is None):
+                ch = pack_next()
+                if ch is None:
+                    break
+                inflight[executor.submit(task, ch)] = ch
+
+        from concurrent.futures import wait, FIRST_COMPLETED
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
-            futures = {ex.submit(task, ch): ch for ch in remaining_chunks}
-            for fut in as_completed(futures):
-                ch = futures[fut]
-                try:
-                    record_chunk_result(ch, got=fut.result())
-                except Exception as error:
-                    reason = record_chunk_result(ch, error=error)
-                    if reason in FATAL_TRANSLATION_ERRORS and fatal_stop["error"] is None:
-                        fatal_stop["error"] = error
-                        log("Kalıcı sağlayıcı hatası [{}]; sıradaki parçalar yeni istek "
-                            "açmadan durduruluyor.".format(reason), "warn")
+            submit_available(ex)
+            while inflight:
+                done_set, _pending = wait(inflight, return_when=FIRST_COMPLETED)
+                for fut in done_set:
+                    ch = inflight.pop(fut)
+                    try:
+                        record_chunk_result(ch, got=fut.result())
+                    except Exception as error:
+                        reason = record_chunk_result(ch, error=error)
+                        if reason in FATAL_TRANSLATION_ERRORS and fatal_stop["error"] is None:
+                            fatal_stop["error"] = error
+                            log("Kalıcı sağlayıcı hatası [{}]; sıradaki parçalar yeni istek "
+                                "açmadan durduruluyor.".format(reason), "warn")
+                submit_available(ex)
+        if fatal_stop["error"] is not None and pack_pos[0] < len(pending_groups):
+            # Gönderilmeyen parçalar da prob-durmasıyla aynı kaderi paylaşır:
+            # API'ye hiç çıkmadan aynı kalıcı nedenle başarısız işaretlenirler.
+            stop_reason = classify_translation_error(fatal_stop["error"])
+            skipped = sum(1 for group in pending_groups[pack_pos[0]:]
+                          for index in group if index not in done_idx)
+            counters["failed"] += skipped
+            with lock:
+                for group in pending_groups[pack_pos[0]:]:
+                    for index in group:
+                        if index not in done_idx:
+                            failure_by_index[index] = stop_reason
+            pack_pos[0] = len(pending_groups)
+            emit("llm_progress",
+                 percent=round(100 * (counters["done"] + counters["failed"])
+                               / max(1, len(entries)), 1),
+                 done=counters["done"], failed=counters["failed"],
+                 total=len(entries), stage="translate")
         log(
             "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
             "{} geçersiz toplu yanıt; {:.1f} sn.".format(
