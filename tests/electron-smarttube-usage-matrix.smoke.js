@@ -28,6 +28,7 @@ const mkVideo = (id, title, author) => ({
 });
 
 function registerMockIpc(counters) {
+  require('./electron-stub-ipc').registerBareWindowIpcStubs();
   const popular = Array.from({ length: 4 }, (_, i) => mkVideo(`pop${String(i).padEnd(8, '0')}`.slice(0, 11).padEnd(11, 'x'), `Popular ${i}`, 'PopChannel'));
   const trending = Array.from({ length: 3 }, (_, i) => mkVideo(`trd${String(i).padEnd(8, '0')}`.slice(0, 11).padEnd(11, 'y'), `Trending ${i}`, 'TrendChannel'));
   ipcMain.handle('invidious:feed', async (_e, kind) => {
@@ -48,8 +49,6 @@ function registerMockIpc(counters) {
     return { ok: true, data: { videos: popular.slice(0, 2) } };
   });
   ipcMain.handle('queue:save', async () => ({ ok: true }));
-  ipcMain.handle('queue:load', async () => ({ ok: true, data: null }));
-  ipcMain.on('queue:saveSync', (event) => { event.returnValue = { ok: true }; });
   ipcMain.handle('youtube:session', async () => ({ ok: true, data: { logged: false } }));
   ipcMain.handle('invidious:subscriptions', async () => ({ ok: false, error: 'HTTP 401 login' }));
 }
