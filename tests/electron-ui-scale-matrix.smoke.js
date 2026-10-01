@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { app, BrowserWindow } = require('electron');
+require('./electron-stub-ipc').registerBareWindowIpcStubs();
 const { buildBrowserReaderScript } = require('../src/browser-reader');
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-ui-scale-'));

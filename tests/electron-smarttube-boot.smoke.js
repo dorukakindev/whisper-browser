@@ -34,6 +34,7 @@ async function main() {
   const popular = Array.from({ length: 6 }, (_, i) => mkVideo(`pop${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'x'), `Popular ${i}`, 'PopChannel'));
   const trending = Array.from({ length: 4 }, (_, i) => mkVideo(`trd${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'y'), `Trending ${i}`, 'TrendChannel'));
   const musicTrend = Array.from({ length: 3 }, (_, i) => mkVideo(`mus${String(i).padStart(8, '0')}`.slice(0, 11).padEnd(11, 'z'), `MusicHit ${i}`, 'MusicChannel'));
+  require('./electron-stub-ipc').registerBareWindowIpcStubs();
   ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
     const tab = opts && opts.tab;
     if (kind === 'home') {
@@ -111,7 +112,6 @@ async function main() {
   ));
   ipcMain.handle('queue:save', async () => ({ ok: true }));
   ipcMain.handle('models:status', async () => ({ ok: true, data: {} }));
-  ipcMain.on('settings:saveSync', (e) => { e.returnValue = { ok: true }; });
 
   const consoleErrors = [];
   const win = new BrowserWindow({
