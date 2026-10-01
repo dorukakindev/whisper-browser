@@ -11,8 +11,11 @@ The installer verifies tools and lock files, stages and checks the Python enviro
 
 Optional components:
 
-    install-whisperx.bat
-    install-diarize.bat
+    install-whisperx.bat        :: WhisperX engine (wav2vec2 word alignment)
+    install-diarize.bat         :: pyannote.audio speaker diarization
+    install-browser-align.bat   :: ffsubsync — browser subtitle auto-alignment
+    install-browser-extras.bat  :: guessit/rebulk — media catalog filename parsing
+    install-browser-tools.bat   :: RapidOCR + sentence-transformers — frame OCR and local semantic search
 
 ## Ubuntu / Linux (development and test)
 
@@ -22,6 +25,12 @@ Install Git, Node.js 22.13+, Python 3.10 or 3.11, and FFmpeg, then run:
     ./start.sh
 
 `install.sh` runs the same `tools/install-orchestrator.js` lock-verified install as `install.bat` (venv staging, pinned Node packages, pinned Castlabs Electron binary). `start.sh` exports the equivalent `LD_LIBRARY_PATH` for the pip-installed cuDNN/cuBLAS packages. Optional WhisperX/diarize profiles accept the profile name as an argument (`./install.sh whisperx`); they are only verified on Windows.
+
+The browser optional extras have no `.sh` wrappers — install them straight into the venv:
+
+    backend/venv/bin/pip install -r backend/requirements-browser-align.txt   # ffsubsync
+    backend/venv/bin/pip install -r backend/requirements-catalog.txt       # guessit/rebulk
+    backend/venv/bin/pip install -r backend/requirements-browser-tools.txt # rapidocr + sentence-transformers
 
 Honest limits on Linux: DRM-protected playback signing (Castlabs EVS VMP via `drm-kur.bat`) is Windows-only — protected services such as Discovery+/Hulu are not supported on Linux. CUDA-tuned transcription is verified on Windows; on Linux it depends on the local NVIDIA driver stack. `safeStorage` secrets persist only when a Secret Service daemon is available. macOS is not a supported target.
 

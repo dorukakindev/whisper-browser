@@ -28,7 +28,7 @@
   "devDependencies": {
     "@electron/packager": "20.3.0",
     "axe-core": "4.13.0",
-    "electron": "https://github.com/castlabs/electron-releases#v43.2.0+wvcus",
+    "electron": "github:castlabs/electron-releases#v43.5.0+wvcus",
     "esbuild": "0.28.2",
     "imsc": "1.1.5",
     "jassub": "2.5.16",
@@ -39,8 +39,8 @@
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "2.18.2",
-    "darkreader": "4.9.130",
-    "hls.js": "^1.7.1",
+    "darkreader": "4.9.133",
+    "hls.js": "^1.7.3",
     "mux.js": "6.3.0",
     "pdfjs-dist": "6.3.289"
   },

@@ -687,7 +687,7 @@ to { transform: rotate(360deg); }
   border-radius: var(--radius);
   padding: 20px 24px;
   max-width: 560px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+  box-shadow: 0 20px 60px var(--shadow-deep);
 }
 .shortcut-help-box h3 { margin: 0 0 14px; font-size: 15px; }
 .shortcut-grid {
@@ -1100,7 +1100,7 @@ to { opacity: 1; transform: none; }
   background: var(--player-text);
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+  box-shadow: 0 1px 4px var(--shadow-deep);
   transition: transform .12s ease;
 }
 .player-volume:hover::-webkit-slider-thumb { transform: scale(1.15); }
@@ -3100,6 +3100,7 @@ to { opacity: 1; transform: translateY(0); }
   --z-dialog: 600;
   --z-toast: 900;
   --ink-bright: #fff;
+  --shadow-deep: rgba(0, 0, 0, .6);
 }
 /* Eski palet takma adları: SmartTube/Invidious katmanları hâlâ --fg/--muted/
    --bg/--bg-sunken adlarını kullanıyor. Tanımsız var() inherit'e düşüyordu ve

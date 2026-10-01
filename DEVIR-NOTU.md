@@ -1,4 +1,4 @@
-Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.md) — Doğrulama kuyruğu tur-1 (madde 1–7): parity sendSync kapsama, menu-visual WM'siz X11, tab-leak sınır toleransı
+Güncel çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
 Önceki çalışma: [docs/devir/2026-10-01-1151.md](docs/devir/2026-10-01-1151.md) — R413b: stub kapsamı preload'lu 2 smoke'a daraltıldı (preload'suz 7'si ölü koddu)
 Önceki çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal)
 Önceki çalışma: [docs/devir/2026-10-01-1134.md](docs/devir/2026-10-01-1134.md) — R412 tests/ kapanışı: son 7 büyük dosya temiz + 402 dosya tam-envanter süpürmesi — REPO GENELİ DERİN OKUMA TAMAM
@@ -54,6 +54,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-30-2000.md](docs/devir/2026-09-30-2000.md) — R329-2: backend çıkış-kodu sözleşmesi + KeyboardInterrupt kolu (B-329-01)
 Önceki çalışma: [docs/devir/2026-09-30-1945.md](docs/devir/2026-09-30-1945.md) — R329-1: yazıcı seçenek matrisi sha256 golden kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1930.md](docs/devir/2026-09-30-1930.md) — R328-4: CI flake analizi (tekrarlayan flake yok) + timeout/concurrency sertleştirme
+Önceki çalışma: [docs/devir/2026-09-30-1915.md](docs/devir/2026-09-30-1915.md) — R328-3: modül-bazlı kapsam haritası (181 taraf-1 modül × 397 test dosyası)
 Önceki çalışma: [docs/devir/2026-09-30-1900.md](docs/devir/2026-09-30-1900.md) — R328-2: renderer realm sadakati ratchet'i (Node-globe yasağı + globe'siz vm probu, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1845.md](docs/devir/2026-09-30-1845.md) — R318: Devin Review toplu triage #236–#263 (14 kod + 10 test + belge tamamlaması)
 Önceki çalışma: [docs/devir/2026-09-30-1815.md](docs/devir/2026-09-30-1815.md) — R306: hata diyaloğu retry durum temizliği (retry bütçesi sızıntısı + bayat manga sayımı)
@@ -68,6 +69,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-30-1500.md](docs/devir/2026-09-30-1500.md) — R297: omnibox unicode/RTL katlama (aksan + ayrışık yazım düzeltmesi)
 Önceki çalışma: [docs/devir/2026-09-30-1430.md](docs/devir/2026-09-30-1430.md) — R296: çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok)
 Önceki çalışma: [docs/devir/2026-09-30-1400.md](docs/devir/2026-09-30-1400.md) — R295: CI determinizm denetimi + baseline ratchet (2 küçük düzeltme, bug yok)
+Önceki çalışma: [docs/devir/2026-09-30-1330.md](docs/devir/2026-09-30-1330.md) — R294: err_* EN/TR tam kapsama ratchet'i
 Önceki çalışma: [docs/devir/2026-09-30-1255.md](docs/devir/2026-09-30-1255.md) — R293: series_memory birleştirme yarışı simülasyonu (6 senaryo, kayıp yok)
 Önceki çalışma: [docs/devir/2026-09-30-1211.md](docs/devir/2026-09-30-1211.md) — R328-1: smokes --all triage (appResourceRoot + subtitle-shift yarışı + env limiti)
 Önceki çalışma: [docs/devir/2026-09-30-1151.md](docs/devir/2026-09-30-1151.md) — R327: omnibox önbelleği (50k tuş vuruşu 207→6ms) + require/overlay/bellek ölçümleri
@@ -83,8 +85,10 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-30-1124.md](docs/devir/2026-09-30-1124.md) — R324-4: abort yayılım fuzz (IsCurrent sözleşmesi 3000 tohum, temiz)
 Önceki çalışma: [docs/devir/2026-09-30-1120.md](docs/devir/2026-09-30-1120.md) — R324-3: interval envanteri ratchet (11 eşli + 6 bilinçli singleton)
 Önceki çalışma: [docs/devir/2026-09-30-1118.md](docs/devir/2026-09-30-1118.md) — R324-2: subprocess churn fuzz (1500 tohum + 60 gerçek respawn, temiz)
+Önceki çalışma: [docs/devir/2026-09-30-1115.md](docs/devir/2026-09-30-1115.md) — R288: #229 review triage (fsync)
 Önceki çalışma: [docs/devir/2026-09-30-1113.md](docs/devir/2026-09-30-1113.md) — R324-1: sekme×görünüm yarış matrisi — boşaltma kapısı hostile fuzz (temiz) + 9 kilit
 Önceki çalışma: [docs/devir/2026-09-30-1107.md](docs/devir/2026-09-30-1107.md) — R323-7: bırakılan link seçimi uri-list spec + fuzz (B-323-05)
+Önceki çalışma: [docs/devir/2026-09-30-1105.md](docs/devir/2026-09-30-1105.md) — R287: argüman-kaçış matrisi
 Önceki çalışma: [docs/devir/2026-09-30-1051.md](docs/devir/2026-09-30-1051.md) — R323-6: NDJSON olay-akışı fuzz'ı (B-323-04 UTF-8 chunk-sınırı bozulması + 9 test ratchet'i)
 Önceki çalışma: [docs/devir/2026-09-30-1043.md](docs/devir/2026-09-30-1043.md) — R323-5: ayar hostile-deserialize — okuma-yolu tarama kapısı (B-323-03)
 Önceki çalışma: [docs/devir/2026-09-30-1040.md](docs/devir/2026-09-30-1040.md) — R286: burnin-recovery şema migrasyon sözlüğü (sürüm kapısı + 11 kontrol)
@@ -130,6 +134,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R241: güncel Devin master denetimi + dar panel native görünürlük yarışı
 Önceki çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
+Önceki çalışma: [docs/devir/2026-09-29-2231.md](docs/devir/2026-09-29-2231.md) — Devin master değişikliklerinin ileri yönde yerel bütünleştirilmesi (72 commit)
 Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)
 Önceki çalışma: [docs/devir/2026-09-29-1508.md](docs/devir/2026-09-29-1508.md) — R265: alt kare navigasyon guard'ları (TV/ana pencere/mini boşlukları kapatıldı)
 Önceki çalışma: [docs/devir/2026-09-29-1502.md](docs/devir/2026-09-29-1502.md) — R264: CJK/emoji burn-in doğrulama + eksik-glif uyarısı (sessiz tofu düzeltildi)
@@ -175,6 +180,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-29-0545.md](docs/devir/2026-09-29-0545.md) — R236: tur-3 UI paketi (site bazlı reklam koruması + yeni sekme sayfası + 19 düzeltme)
 Önceki çalışma: [docs/devir/2026-09-29-0538.md](docs/devir/2026-09-29-0538.md) — R235: menü form-kontrol ok-tuşu sınıfı (detailsNavSkipsControl kapısı)
 Önceki çalışma: [docs/devir/2026-09-29-0520.md](docs/devir/2026-09-29-0520.md) — R234 kapanış: kesin master merge kimliği (983ac21)
+Önceki çalışma: [docs/devir/2026-09-29-0512.md](docs/devir/2026-09-29-0512.md) — R234: PR #167 review triage
 Önceki çalışma: [docs/devir/2026-09-29-0458.md](docs/devir/2026-09-29-0458.md) — R233 kapanış: kesin master merge kimliği (ba45720)
 Önceki çalışma: [docs/devir/2026-09-29-0449.md](docs/devir/2026-09-29-0449.md) — R233: tur-2 kalanı + #165 review (Ctrl+F tek köprü, menü odak, yer-imi kimlik odak, split ikincil kısayol)
 Önceki çalışma: [docs/devir/2026-09-29-0428.md](docs/devir/2026-09-29-0428.md) — R232 kapanış: kesin master merge kimliği (bc4ba08)
@@ -204,6 +210,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-29-0010.md](docs/devir/2026-09-29-0010.md) — R222 devam: context-leak kotası + önbellek dayanıklılığı
 Önceki çalışma: [docs/devir/2026-09-29-0005.md](docs/devir/2026-09-29-0005.md) — R222: Electron çeviri hattı paketi (blok/eşleşme/kesici/journal)
 Önceki çalışma: [docs/devir/2026-09-29-0000.md](docs/devir/2026-09-29-0000.md) — R209: yazıcı→ayrıştırıcı roundtrip kilidi
+Önceki çalışma: [docs/devir/2026-09-28-2345.md](docs/devir/2026-09-28-2345.md) — R208: yazıcı hattı byte-exact golden kilidi
 Önceki çalışma: [docs/devir/2026-09-28-2330.md](docs/devir/2026-09-28-2330.md) — R207: #135 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2315.md](docs/devir/2026-09-28-2315.md) — R206: #134 flag takibi (belge turu)
 Önceki çalışma: [docs/devir/2026-09-28-2300.md](docs/devir/2026-09-28-2300.md) — R205: #133 flag takibi (belge turu)
@@ -214,6 +221,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [docs/devir/2026-09-28-2145.md](docs/devir/2026-09-28-2145.md) — R199: Devin Review takip turu 2 (acquisition stage kapanışı + changelog + not geri alımı)
 Önceki çalışma: [docs/devir/2026-09-28-2130.md](docs/devir/2026-09-28-2130.md) — R198: Devin Review takip düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-28-2100.md](docs/devir/2026-09-28-2100.md) — R197: kalan denetlenmemiş yüzey kapanışı
+Önceki çalışma: [docs/devir/2026-09-28-2101.md](docs/devir/2026-09-28-2101.md) — Devin yeniliklerinin yerel kabulü (84 commit uzak tabanı)
 Önceki çalışma: [docs/devir/2026-09-28-2030.md](docs/devir/2026-09-28-2030.md) — R196: Devin Review toplu triage (PR #120–124)
 Önceki çalışma: [docs/devir/2026-09-28-1806.md](docs/devir/2026-09-28-1806.md) — R219: Devin Review toplu triage (PR #139–147, 21 bulgu)
 Önceki çalışma: [docs/devir/2026-09-28-1800.md](docs/devir/2026-09-28-1800.md) — R195: R191 Windows bulguları düzeltildi (yt-dlp sürüm eşleşmesi, DeArrow harita zarfı, live-asr cuda→cpu geri dönüşü)
@@ -271,6 +279,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-27 10:35 — R143 a11y landmark (playerLayer role=region, region borcu 33→0, baseline 0'a kilitlendi)](docs/devir/2026-09-27-1035.md).
 Önceki çalışma: [2026-09-27 10:18 — R140 npm audit (temiz) + R141 startup perf (12ms, aksiyon yok) + R142 CSS token (447→445); rapor 139](docs/devir/2026-09-27-1018.md).
 Önceki çalışma: [2026-09-27 10:05 — R139 birim-test kapsamı (browser-mini-player 8 senaryo; kalan testsiz modül yalnız subprocess'li browser-dialogue); rapor 138](docs/devir/2026-09-27-1005.md).
+Önceki çalışma: [docs/devir/2026-09-27-0945.md](docs/devir/2026-09-27-0945.md) — R138/R151: IPC parity + guard denetimi (213 handle + 11 on + 22 send)
 Önceki çalışma: [2026-09-27 09:30 — R137 parser fuzz turu: 160k vaka temiz + CI ratchet (subtitle-parser-fuzz.test.js, 50k deterministik vaka); rapor BROWSER_BUG_REPORT_136.md](docs/devir/2026-09-27-0930.md).
 Önceki çalışma: [2026-09-27 09:08 — R136 i18n kapanış turu: 348 yeni EN sözlük girişi (renderer sink'leri + main.js IPC metinleri) + i18n-coverage sink ratchet'i; rapor BROWSER_BUG_REPORT_135.md](docs/devir/2026-09-27-0908.md).
 Önceki çalışma: [2026-09-27 08:48 — R135 dokümantasyon temizliği: AGENTS.md sayaç 134, kök raporlar docs/raporlar'a taşındı, INDEX.md indeksi (98 rapor), README eksik özellik satırları](docs/devir/2026-09-27-0848.md).
@@ -319,6 +328,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-22 18:20 — BROWSER_BUG_REPORT_108 ikinci tur: CI yanlış-pozitifleri düzeltildi (rakam-ayraç bölmesi, edat sarkık listesi, I/gün-ay ad-sayısı, Lizbon'dan/Majesteleri çekim kabulü, SDH tür-varlığı, tekil rescue gerçek ikinci deneme); golden korpus 6/6 + 192+26 yeşil](docs/devir/2026-09-22-1820.md).
 Önceki çalışma: [2026-09-22 16:44 — TR çeviri sentence-group dağıtım kapıları: erken-sonu kapısı iç-cümle kotalı hale geldi ("Bekle." artık kabul), parça başına sayı/özel-ad/SDH demirleme + açık bağlantı + tekrar kapıları, sertleştirilmiş son kurtarma promptu, cue içi ikinci cümleye gerçek \n; 24 yeni test, canlı koşu kanıtlı; BROWSER_BUG_REPORT_108](docs/devir/2026-09-22-1644.md).
 Önceki çalışma: [2026-09-22 15:35 — F-106-5: --bg-card/--bg-elev tanımsız yüzey token'ları (şeffaf sağ-tık menüsü/plakalar) köprüye eklendi; .st-upnext açık temada dark-on-dark'tı, yerel sabit token körlemesiyle düzeltildi; tema QA kanıtlı; BROWSER_BUG_REPORT_107](docs/devir/2026-09-22-1535.md).
+Önceki çalışma: [docs/devir/2026-09-22-1255.md](docs/devir/2026-09-22-1255.md) — audit raporu bulgu turu (BROWSER_BUG_REPORT_105)
 Önceki çalışma: [2026-09-22 15:00 — F-106-4: tanımsız palet değişkenleri (--fg/--muted/--bg/--bg-sunken) tüm SmartTube kromunu açık temada görünmez kılıyordu; html'e kanonik-token köprüsü eklendi, başlık/sidebar kontrastı geri döndü; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1500.md).
 Önceki çalışma: [2026-09-22 13:27 — SmartTube ana ekran thumbnail görünmezliği (flex×aspect-ratio çöküşü + Invidious /vi/ proxy bozuk) düzeltildi, sıfır-kurulum YouTube TV cihaz-kodu girişi eklendi; BROWSER_BUG_REPORT_106](docs/devir/2026-09-22-1327.md).
 Önceki çalışma: [2026-09-22 13:31 — PR #24 ile R105 düzeltmelerinin yerel bütünleştirmesi; çift R104 adı ayrıldı, birleşik testler geçti](docs/devir/2026-09-22-1331.md).
@@ -344,8 +354,9 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-20 22:17 — kozmetik/öneri kataloğu kapanışı, responsive reader+overlay ölçek matrisi, Windows paket/lisans/geçmiş denetimi, çapraz-platform yeşil CI ve GitHub güvenlik kapıları](docs/devir/2026-09-20-2217.md).
 Önceki çalışma: [2026-09-20 20:24 — R92/R93 ve Program Bug Report 83–85 yeniden doğrulaması; 6 ürün/defansif düzeltme + gizli alan export sertleştirmesi, hatalı prob ayrımı; npm test temiz](docs/devir/2026-09-20-2024.md).
 Önceki çalışma: [2026-09-20 19:45 — Parti 12–15 tamamlama: F17 doğru kesit/VRAM/cue kıyası, F18 model+runtime bakım paneli, EN/TR locale ve gerçek Electron responsive kabulü; npm test temiz](docs/devir/2026-09-20-1945.md).
-Önceki çalışma: [2026-09-20 16:45 — R93 adversarial test paketi: 4 yeni test dosyası ve ilk bulgu sınıflandırması; sonuçların önemli bölümü R89 yeniden doğrulamasında test-sözleşmesi hatası olarak düzeltildi](docs/devir/2026-09-20-1645.md).
-Önceki çalışma: [2026-09-20 15:55 — R92 tam kod tabanı derin inceleme ve ilk 11 aday bulgu; adayların nihai kararları R89 yeniden doğrulamasında kaydedildi](docs/devir/2026-09-20-1555.md).
+Önceki çalışma: 2026-09-20 16:45 — R93 adversarial test paketi: 4 yeni test dosyası ve ilk bulgu sınıflandırması; sonuçların önemli bölümü R89 yeniden doğrulamasında test-sözleşmesi hatası olarak düzeltildi *(not dosyası repoda mevcut değil — açıklama kaydı korundu)*.
+Önceki çalışma: [docs/devir/2026-09-20-1610.md](docs/devir/2026-09-20-1610.md) — Katalog Parti 6: sekme ve sayfa araçları (B06/B10/B14)
+Önceki çalışma: 2026-09-20 15:55 — R92 tam kod tabanı derin inceleme ve ilk 11 aday bulgu; adayların nihai kararları R89 yeniden doğrulamasında kaydedildi *(not dosyası repoda mevcut değil — açıklama kaydı korundu)*.
 Önceki çalışma: [2026-09-20 15:50 — R91 tam kod tabanı inceleme turu: 162 Node + 43 Python dosya tam incelendi; `npm test` PASS (192+ test, ~93 sn), `npm run test:electron-bridge` PASS (~4 sn); 3 yeni P3 bilgi notu (R91-01: translationSchedulerBusy defensive catch, R91-02: SafeSecretStore.save() temp temizliği, R91-03: OutputTransaction.stage() BaseException); mimari değerlendirme: olağanüstü kalite — güvenlik/hata yönetimi endüstriyel düzeyde; ciddi bug yok; ürün kodu değişmedi](docs/devir/2026-09-20-1550.md).
 Önceki çalışma: [2026-09-20 17:38 — Katalog Parti 15: E05 arama boş-durum/hata/kısmi ayrımı + E06 burn-in aşama/iptal/süre görünürlüğü; npm test temiz](docs/devir/2026-09-20-1738.md).
 Önceki çalışma: [2026-09-20 17:33 — Katalog Parti 14: kabul matrisi (F20) + servis yetenek matrisi (F04) belgeleri; yalnız belge turu](docs/devir/2026-09-20-1733.md).
@@ -363,6 +374,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-20 15:09 — Katalog Parti 2: okuma görünümü TOC scrollspy + odak affordance (E01), 180 karakter mikro metni (E02), son kullanılan altyazı izleri üstte (A09), SmartTube kart boyutu/yazı ölçeği ayarları (A10); npm test temiz, yeni 30+ kontrol; 4 Electron smoke ortam sınırı](docs/devir/2026-09-20-1509.md).
 Önceki çalışma: [2026-09-20 14:55 — Katalog E-paketi: adres çubuğu hesaplayıcı + bang kısayolları (C36/B24), Markdown bağlantı kopyası + QR paneli (B21), sayfayı PDF kaydet (B20); npm test temiz, 42 yeni kontrol; 2 Electron smoke ortam sınırı](docs/devir/2026-09-20-1455.md).
 Önceki çalışma: [2026-09-20 14:08 — SmartTube süreklilik 2. adım: kullanıcı kontrollü oynatma sırası (kartlarda '+'/'✓' düğmesi, localStorage kalıcılığı, ana sayfa "Oynatma sırası" rayı, ended/Next bağlantısı, dequeue yalnız başarılı açılışta); report67 72/72, player-ui 145/145, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1408.md).
+Önceki çalışma: [docs/devir/2026-09-20-1400.md](docs/devir/2026-09-20-1400.md) — tam özellik öneri kataloğu (FEATURE_RECOMMENDATION_CATALOG_2026-09-20)
 Önceki çalışma: [2026-09-20 13:35 — R75/R76 ve diğer özellik önerilerinin güncel kodla karar incelemesi; uygulanacak/ertelenecek/reddedilecekler, ürün kodu değişmedi](docs/devir/2026-09-20-1335.md).
 Önceki çalışma: [2026-09-20 12:42 — SmartTube report67 testlerindeki iki yanlış pozitifin salt-okunur ayıklanması; R86 44/44, tam paket 1 başarısız dosya; BROWSER_BUG_REPORT_88.md](docs/devir/2026-09-20-1242.md).
 Önceki çalışma: [2026-09-20 10:40 — SmartTube süreklilik 1. adım: kartlarda izleme ilerlemesi çubuğu + ana sayfada "İzlemeye devam et" rayı (kaldığı yerden devam, Invidious vekil thumbnail, kimlik tekilleştirme); report67 68/68, npm test yalnız fts5 ortam sınırı](docs/devir/2026-09-20-1040.md).
@@ -383,7 +395,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-19 13:34 — R79 SmartTube-style oynatıcı ve YouTube cihaz kodu girişi: kayıtlı istemciyle doğrudan kod, güvenli kuşak iptali, kişisel ana akış ve TV ölçekli görünüm; mock Electron + tam paket yeşil](docs/devir/2026-09-19-1334.md).
 Önceki çalışma: [2026-09-19 13:25 — R83 browser tam-kapsam denetimi (kod değişikliği yok): 8 kümeli paralel salt-okunur tur, 18 tekil bulgu (6×P2/12×P3) — CEA checkpoint cue çiftlenmesi, userinfo policy baypası (loadURL guard'sız, M-04 düzeltildi), browser modunda ölü oynatma politikaları, AudioContext sızıntısı, dinamik-blok apply kaybı, form probu yanlış-pozitifi; BROWSER_BUG_REPORT_83.md](docs/devir/2026-09-19-1325.md).
 Önceki çalışma: [2026-09-19 13:11 — R76 tarayıcı-tarafı GitHub özellik araştırması (kod değişikliği yok): 15+ repo — trickplay, incognito/konteyner sekmeler, ClearURLs, DLNA cast, userscript yöneticisi, Whisper sesli giriş, moviehash+subliminal, intro atlama, lite-mode, electron-updater; BROWSER_FEATURE_RESEARCH_76.md](docs/devir/2026-09-19-1311.md).
-Önceki çalışma: [2026-09-19 13:10 — R77 salt-okunur browser test+denetim turu (kod değişikliği yok): npm test + electron-bridge geçti; --all smoke setinde 3 flaky düşüş; arama modüllerinde gerçek-koşu doğrulamalı 8 bulgu — F1 P1: transcript-search fold() İ→ı katlaması (Türkçe sorgu eşleşmiyor), F2 İngilizce I→ı, F3 CJK siliniyor, F4 subtitle-search İ normalizasyonu (+50 iddiası çürütüldü), F5–F8 P3; K1/K2 kenar bulguları + T1–T3 test hijyeni; _repro/r76-transcript-search-verify.js 18 PASS; slop taraması: SL1 öksüz browser-link-intent.js (üretim kopyası preload içinde), SL2 yarı sahte telemetri (4 sabit-0 alan), SL3 ölü diakritik girdiler, SL4 çift normalizeCues/cuesToSrt, SL5 kök artıkları; temiz: TODO/debugger/@ts-ignore/.skip hepsi 0; BROWSER_BUG_REPORT_76.md; performans turu: PF1 P1 canlı yakalama: batch ~49 ms + yayın zinciri 101,6 ms/650ms (aynı 20k cue 3x sıralanıp 2x diske yazılıyor) = ~%20 çekirdek + 5,5 MB/sn disk; bellek kaçağı yok (GC platosu); PF2 oturum kaydı mutlu yol 195 ms + 40,3 MB/tur (tavan), PF2b karantina yolu 306 ms, PF3 elelenenler — _repro/r77-perf-*.js](docs/devir/2026-09-19-1310.md).
+Önceki çalışma: 2026-09-19 13:10 — R77 salt-okunur browser test+denetim turu (kod değişikliği yok): npm test + electron-bridge geçti; --all smoke setinde 3 flaky düşüş; arama modüllerinde gerçek-koşu doğrulamalı 8 bulgu — F1 P1: transcript-search fold() İ→ı katlaması (Türkçe sorgu eşleşmiyor), F2 İngilizce I→ı, F3 CJK siliniyor, F4 subtitle-search İ normalizasyonu (+50 iddiası çürütüldü), F5–F8 P3; K1/K2 kenar bulguları + T1–T3 test hijyeni; _repro/r76-transcript-search-verify.js 18 PASS; slop taraması: SL1 öksüz browser-link-intent.js (üretim kopyası preload içinde), SL2 yarı sahte telemetri (4 sabit-0 alan), SL3 ölü diakritik girdiler, SL4 çift normalizeCues/cuesToSrt, SL5 kök artıkları; temiz: TODO/debugger/@ts-ignore/.skip hepsi 0; BROWSER_BUG_REPORT_76.md; performans turu: PF1 P1 canlı yakalama: batch ~49 ms + yayın zinciri 101,6 ms/650ms (aynı 20k cue 3x sıralanıp 2x diske yazılıyor) = ~%20 çekirdek + 5,5 MB/sn disk; bellek kaçağı yok (GC platosu); PF2 oturum kaydı mutlu yol 195 ms + 40,3 MB/tur (tavan), PF2b karantina yolu 306 ms, PF3 elelenenler — _repro/r77-perf-*.js *(not dosyası repoda mevcut değil — açıklama kaydı korundu)*.
 Önceki çalışma: [2026-09-19 12:50 — R75 GitHub özellik araştırması (kod değişikliği yok): 12+ repo kaynak incelemesi — kullanılmayan Invidious uçları (storyboard/suggestions/tlang/kanal sekmeleri), SmartTube parite boşlukları (bağlam menüsü, oynatma kuyruğu, yerel abonelik), RYD/DeArrow/YouTube.js/Piped/MediaSession envanteri; BROWSER_FEATURE_RESEARCH_75.md](docs/devir/2026-09-19-1250.md).
 Önceki çalışma: [2026-09-19 12:30 — R74 güncel ağaç doğrulaması: oynatma hızı yarışı, native yüzey üstü menüler, adres listbox erişilebilirliği, açık tema kontrastı ve İngilizce varsayılan düzeltildi; yarım R62-R64 testleri kalıcılaştırıldı](docs/devir/2026-09-19-1230.md).
 Önceki çalışma: [2026-09-19 11:18 — R73 doğrulama turu: 36 ajan-bulgusundan 3'ü + bağımsız denetimde 4 ek bug düzeltildi (zoom-set NaN, quick-history geri bildirimi, decideSkip autoSkip önceliği, A-B seek kaçışı native+browser+hız-ölçekli, lastT offset, stSearchSeq); 16 yanlış pozitif elendi; npm test TAM GEÇTİ](docs/devir/2026-09-19-1118.md).
@@ -392,14 +404,17 @@ Güncel çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.m
 Önceki çalışma: [2026-09-18 23:55 — YouTube OAuth girişi oynatıcı paneline eklendi (playerYtOAuthBtn + senkron durum; smoke probları)](docs/devir/2026-09-18-2355.md).
 Önceki çalışma: [2026-09-18 23:30 — R71 çalışma zamanı log bug'ları: hata sınıflandırıcı request-id çakışması, model_unavailable FATAL, canlı-çeviri istek fırtınası (Retry-After + devre-kesici), maxLength DOM istisnası, log dedup; npm test TAM GEÇTİ](docs/devir/2026-09-18-2330.md).
 Önceki çalışma: [2026-09-18 21:42 — R69 doğrulama+uygulama: 36 bulgudan 12'si düzeltildi (ortak sensitive-keys modülü, IPv6 SSRF, çeviri pipeline, observer LRU, fullscreen); npm test TAM GEÇTİ](docs/devir/2026-09-18-2142.md).
+Önceki çalışma: [docs/devir/2026-09-18-1947.md](docs/devir/2026-09-18-1947.md) — gerçek YouTube OAuth (SmartTube cihaz-akışı) uygulaması
 Önceki çalışma: [2026-09-18 19:30 — R69 salt-okunur audit: 3 WIP test dosyası FAIL kanıtı + 4 ajanlık tarama, 36 bulgu (BROWSER_BUG_REPORT_69.md)](docs/devir/2026-09-18-1930.md).
 Önceki çalışma: [2026-09-18 18:52 — R68 84 bulgu doğrulaması: 30 gerçek düzeltildi, 36 FP; SID kalıcılık+güvenlik, birleşik feed, yaşam döngüsü (66/66 wiring + smoke kanıtlı)](docs/devir/2026-09-18-1852.md).
 Önceki çalışma: [2026-09-18 17:30 — R67 onarımları + SmartTube oynatıcı uçtan uca çalışır (TDZ boot-smoke kanıtlı)](docs/devir/2026-09-18-1730.md).
 Önceki çalışma: [2026-09-18 16:52 — R67 iş listesi uygulandı: chip'ler, roving grid, up-next, yorumlar, sayfalama (smoke+wiring kanıtlı)](docs/devir/2026-09-18-1652.md).
+Önceki çalışma: [docs/devir/2026-09-18-1421.md](docs/devir/2026-09-18-1421.md) — Invidious (SmartTube tarzı) entegrasyon denetimi — 6 salt-okunur ajan
 Önceki çalışma: [2026-09-18 13:30 — SmartTube tarzı: ana sayfa, auth, arama, kanal, download_stream](docs/devir/2026-09-18-1330.md).
 Önceki çalışma: [2026-09-18 13:13 — dalga 3: 8/10 ajanlık tamamlayıcı tarama bulguları (rapor 66)](docs/devir/2026-09-18-1313.md).
 Önceki çalışma: [2026-09-18 13:00 — SmartTube/Piped altyapısı: Invidious API entegrasyonu](docs/devir/2026-09-18-1300.md).
 Önceki çalışma: [2026-09-18 10:10 — 20 ajanlık kapsam taraması bulguları (rapor 64)](docs/devir/2026-09-18-1010.md).
+Önceki çalışma: [docs/devir/2026-09-18-0951.md](docs/devir/2026-09-18-0951.md) — handoff: fixture/otorite düzeltmeleri
 Önceki çalışma: [2026-09-18 01:30 — rapor 60 R58-14 eşit-başlangıç sınırı onarımı (rapor 61)](docs/devir/2026-09-18-0130.md).
 Önceki çalışma: [2026-09-18 01:07 — rapor 59 bağımsız kontrolü ve kalan R58-14 sınır açığı](docs/devir/2026-09-18-0107.md).
 Önceki çalışma: [2026-09-18 00:58 — rapor 58 onarımı: 15 kesin bulgunun tamamı (rapor 59)](docs/devir/2026-09-18-0058.md).
