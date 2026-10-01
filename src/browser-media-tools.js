@@ -177,6 +177,10 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
       if (typeof imageBase64 !== 'string' || imageBase64.length > 11 * 1024 * 1024) throw new Error('Kare verisi geçersiz veya çok büyük.');
       return python('ocr', { imageBase64, crop }, signal);
     },
+    // Madde 37 — motor varlığı/dil paketi denemesiz öğrenilir.
+    async ocrStatus({ signal } = {}) {
+      return python('ocrStatus', {}, signal);
+    },
     async semanticSearch({ query, cues, limit = 8 } = {}, { signal } = {}) {
       if (typeof query !== 'string' || query.length > 500 || !Array.isArray(cues) || cues.length > 10000) throw new Error('Arama en fazla 500 karakter ve 10.000 altyazı satırı destekliyor.');
       return pythonServe('semantic', { query, cues, limit }, signal, 300000);

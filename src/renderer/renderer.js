@@ -22314,6 +22314,7 @@ async function renderPdfReaderPage(pageNumber) {
     reader.renderStage = `ready:${pageNumber}`;
     const saved = reader.state?.pages?.[String(pageNumber)];
     if (Array.isArray(saved)) renderPdfTranslation(pageNumber, saved);
+    if (entry.ocr) renderPdfOcrNote(pageNumber, entry);
   } catch (error) {
     article?.remove();
     if (player.pdfReader === reader && (reader.renderGeneration || 0) === generation) {
