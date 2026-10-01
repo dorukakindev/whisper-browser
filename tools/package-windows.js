@@ -68,6 +68,7 @@ async function main() {
   if (missing.length) {
     throw new Error(`Packaged app is missing required files:\n  ${missing.join('\n  ')}`);
   }
+  const { packageInputSha256 } = require('./package-manifest');
   const manifest = {
     app: pkg.name,
     version: pkg.version,
@@ -75,7 +76,17 @@ async function main() {
     platform: 'win32',
     arch: 'x64',
     createdAt: new Date().toISOString(),
+    // Tekrarlanabilirlik parmak izi: aynı kaynak ağacı aynı hash'i üretir;
+    // iki üretim arasındaki gerçek fark bu alanla karşılaştırılır.
+    inputSha256: packageInputSha256(root, electronVersion),
     runtimeSetup: 'Run resources/app/install.bat before transcription on a new machine.',
+    runtimeRequirements: {
+      node: '>=22.13 (kurulum dışı çalışma için pakete gömülü değil)',
+      python: '3.10 veya 3.11 — install.bat venv oluşturur',
+      ffmpeg: 'backend\\bin altında veya PATH üzerinde (ffprobe dahil)',
+      models: 'ilk kullanımda Hugging Face üzerinden indirilir (internetsiz açılışta yerel medya/altyazı çalışır)',
+      network: 'açılış ağ gerektirmez; çeviri/sağlayıcı indirmeleri sonradan',
+    },
   };
   fs.writeFileSync(path.join(target, 'BUILD-MANIFEST.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   console.log(`Windows package: ${target}`);

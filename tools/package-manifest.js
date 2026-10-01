@@ -210,6 +210,33 @@ function missingInTarget(target, root) {
   return requiredPackageFiles(root).filter((rel) => !fs.existsSync(path.join(target, 'resources', 'app', ...rel.split('/'))));
 }
 
+// Tekrarlanabilir paket: aynı kaynak ağacı aynı parmak izini üretmeli.
+// Kanonik dosya listesinin içerik hash'i + paketleme girdileri
+// (package.json/lock, Electron sürümü, ignore kalıpları) tek SHA-256'da
+// birleşir — iki üretim arasındaki gerçek fark bu alanla karşılaştırılır
+// (createdAt gibi zamanla değişen provenance alanları hariç tutulur).
+function packageInputSha256(root, electronVersion = '') {
+  const { createHash } = require('node:crypto');
+  const hash = createHash('sha256');
+  hash.update(`electron:${electronVersion}\0`);
+  hash.update(`ignore:${PACKAGER_IGNORE.map(String).join('\n')}\0`);
+  for (const rel of requiredPackageFiles(root)) {
+    hash.update(rel);
+    hash.update('\0');
+    try {
+      hash.update(createHash('sha256').update(fs.readFileSync(path.join(root, rel))).digest('hex'));
+    } catch (_) {
+      hash.update('MISSING');
+    }
+    hash.update('\0');
+  }
+  for (const extra of ['package.json', 'package-lock.json']) {
+    const abs = path.join(root, extra);
+    if (fs.existsSync(abs)) hash.update(`${extra}\0${createHash('sha256').update(fs.readFileSync(abs)).digest('hex')}\0`);
+  }
+  return hash.digest('hex');
+}
+
 module.exports = {
   PACKAGER_IGNORE,
   BOOT_CRITICAL,
@@ -219,4 +246,5 @@ module.exports = {
   requireClosure,
   requiredPackageFiles,
   missingInTarget,
+  packageInputSha256,
 };
