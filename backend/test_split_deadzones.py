@@ -191,8 +191,10 @@ def t_recover_replaces_span(monkey_tmp):
 
     class FakeModel:
         def transcribe(self, piece, **kw):
-            # Yeniden çeviri noktalama DÖNDÜRÜYOR
-            return iter([_mk_punct_segment(2.0, 'Kelime var. Burada nokta var.')]), None
+            # Yeniden çeviri AYNI kelimelerle noktalama DÖNDÜRÜYOR
+            # (kelime-doğruluğu bekçisi farklı içeriği reddeder).
+            text = ' '.join('kelime%d x y iki.' % i for i in range(100))
+            return iter([_mk_punct_segment(2.0, text)]), None
 
     calls = []
     orig_cut = T._cut_wav
@@ -216,7 +218,8 @@ def t_recover_replaces_span(monkey_tmp):
           any('Another one.' in t for _, _, t in new_entries), new_entries)
     # Kapanış cümlesi span sınırına çekilir — eski bloklar yerine yenileri gelir
     check('recover: eski noktalamasız bloklar atılır',
-          not any(t.startswith('kelime') for _, _, t in new_entries), new_entries[-3:])
+          not any(t.endswith(' iki') for s_, e_, t in new_entries
+                  if 0 <= (s_ + e_) / 2 <= 100.0), new_entries[-3:])
 
 
 def t_recover_no_improvement_keeps_old(monkey_tmp):
