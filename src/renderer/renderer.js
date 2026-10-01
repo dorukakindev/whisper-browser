@@ -4235,13 +4235,42 @@ async function offerMediaRelink() {
   player.mediaRelinkOffered = staleKey;
   player.mediaRelinkInFlight = true;
   try {
-    const confirmed = await openAppDialog({
-      title: 'Medya dosyası bulunamadı',
-      description: `${stalePath}\n\nDosya taşınmış veya silinmiş olabilir. Yeni konumu seçerseniz izleme konumu, notlar ve altyazı ilişkileri yeni kayda taşınır.`,
-      confirmLabel: 'Yeni konumu seç', intent: 'primary',
-    });
-    if (confirmed !== true || player.mediaKey !== staleKey) return;
-    const replacement = await window.api.selectFile('media').catch(() => null);
+    // Madde 31: taşınan dosya için önce otomatik adaylar — aynı kökte aynı
+    // ad/boyut taşıyan dosya varsa kullanıcıya seçimli listede gösterilir.
+    // Hiçbir eşleşme yoksa ya da kullanıcı "Dosya seçici" şıkkını seçerse
+    // eski elle-seçim akışına düşülür (adaylar yalnız öneri; onay kullanıcıda).
+    let replacement = null;
+    const suggested = await window.api.suggestMediaRelink(staleKey)
+      .catch(() => null);
+    const candidates = suggested?.ok && Array.isArray(suggested.candidates)
+      ? suggested.candidates : [];
+    if (candidates.length) {
+      const fmtSize = (n) => n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB`
+        : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
+      const picked = await openAppDialog({
+        title: 'Medya dosyası bulunamadı',
+        description: `${stalePath}\n\nTaşınmış olabilecek adaylar bulundu. Eşleşen dosyayı seçin veya dosya seçiciyle gösterin.`,
+        confirmLabel: 'Seçilenle bağla', intent: 'primary',
+        choices: [
+          ...candidates.map((c) => ({
+            value: c.path,
+            label: `${c.name} · ${fmtSize(c.sizeBytes)}`,
+          })),
+          { value: '__browse__', label: 'Dosya seçiciyle göster…' },
+        ],
+      });
+      if (!picked || player.mediaKey !== staleKey) return;
+      if (picked.choice && picked.choice !== '__browse__') replacement = picked.choice;
+    }
+    if (!replacement) {
+      const confirmed = candidates.length ? true : await openAppDialog({
+        title: 'Medya dosyası bulunamadı',
+        description: `${stalePath}\n\nDosya taşınmış veya silinmiş olabilir. Yeni konumu seçerseniz izleme konumu, notlar ve altyazı ilişkileri yeni kayda taşınır.`,
+        confirmLabel: 'Yeni konumu seç', intent: 'primary',
+      });
+      if (confirmed !== true || player.mediaKey !== staleKey) return;
+      replacement = await window.api.selectFile('media').catch(() => null);
+    }
     if (!replacement || player.mediaKey !== staleKey) return;
     const result = await window.api.relinkWatchItem(staleKey, replacement)
       .catch((error) => ({ ok: false, error: error.message }));

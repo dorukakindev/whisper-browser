@@ -142,6 +142,7 @@ const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-captur
 const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
 const { assertJobTransition, isTerminalJobState } = require('./job-state-contract');
 const { createResourceScheduler } = require('./job-resource-scheduler');
+const { selectRelinkCandidates } = require('./media-relink-matcher');
 const {
   redactBrowserDiagnosticsText,
   sanitizeDiagnosticsSecrets,
@@ -3329,6 +3330,15 @@ function uniqueStrings(values) {
 }
 
 function upsertWatchItem(patch) {
+  // Madde 31: taşınan dosyayı yeniden bağlarken boyut en güçlü kimlik sinyali.
+  // Kayıt yazılırken yerel medyanın boyutunu parmak izi olarak sakla.
+  if (patch && typeof patch.localPath === 'string' && patch.localPath
+      && !Number.isFinite(patch.sizeBytes)) {
+    try {
+      const stat = fs.statSync(patch.localPath);
+      if (stat.isFile() && stat.size > 0) patch = { ...patch, sizeBytes: stat.size };
+    } catch (_) {}
+  }
   const merged = watchLibraryStore().upsert(patch);
   if (!merged) return null;
   try {
@@ -17649,6 +17659,63 @@ ipcMain.handle('library:relink', async (_event, request) => {
     const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.'}` };
   }
+});
+
+// Madde 31 — taşınan dosya için otomatik aday önerisi. Tarama sınırlıdır:
+// eski dosyanın son klasörü (yoksa üst klasörü) içinde en çok 2 seviye iner,
+// 1500 girdide durur, yalnız medya uzantılarını toplar. Boyut eşleşmesi
+// kayıtlı parmak iziyle; süre bilgisi parmak izi saklanmadan doğrulanamaz
+// (ffprobe pahalı) — belirsizlikte renderer aday listesini kullanıcıya gösterir.
+ipcMain.handle('library:relink-suggest', async (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.', candidates: [] };
+  const oldKey = String(request?.oldKey || '');
+  if (!oldKey.startsWith('file:')) {
+    return { ok: false, error: 'Yalnızca yerel medya kayıtları için öneri üretilir.', candidates: [] };
+  }
+  const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
+  if (!item) return { ok: false, error: 'Kütüphane kaydı bulunamadı.', candidates: [] };
+  const oldPath = String(item.localPath || item.sourceRef || '');
+  if (!oldPath) return { ok: true, status: 'none', candidates: [] };
+  let root = path.dirname(oldPath);
+  try {
+    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+      const parent = path.dirname(root);
+      root = (parent && parent !== root && fs.existsSync(parent)) ? parent : root;
+    }
+  } catch (_) {}
+  const candidates = [];
+  const visited = new Set();
+  const stack = [{ dir: root, depth: 0 }];
+  let scanned = 0;
+  try {
+    while (stack.length && scanned < 1500 && candidates.length < 200) {
+      const { dir, depth } = stack.pop();
+      const keyDir = dir.toLowerCase();
+      if (visited.has(keyDir)) continue;
+      visited.add(keyDir);
+      let names;
+      try { names = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { continue; }
+      for (const ent of names) {
+        if (++scanned > 1500 || candidates.length >= 200) break;
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) {
+          if (depth < 2 && !ent.name.startsWith('.')) stack.push({ dir: full, depth: depth + 1 });
+          continue;
+        }
+        if (!ent.isFile()) continue;
+        if (!MEDIA_EXTS.has(path.extname(ent.name).slice(1).toLowerCase())) continue;
+        if (full === oldPath) continue;
+        let sizeBytes = 0;
+        try { sizeBytes = fs.statSync(full).size; } catch (_) { continue; }
+        candidates.push({ path: full, sizeBytes });
+      }
+    }
+  } catch (_) {}
+  const selected = selectRelinkCandidates(item, candidates);
+  return { ok: true, status: selected.status,
+    candidates: selected.ranked.map((c) => ({
+      path: c.path, name: path.basename(c.path), sizeBytes: c.sizeBytes, score: c.score,
+    })) };
 });
 
 // Hizli yazimda her tus vurusu yeni bir tarama baslatir; kusak sayaci eskisini
