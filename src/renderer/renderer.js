@@ -18373,6 +18373,20 @@ function replaceVttCueText(rawText, cue, newText) {
   return replaceVttCueTexts(rawText, [{ cue, newText }]);
 }
 
+// SRT tam-yeniden-üretim taslağı: değiştirilen satır yeni metni alır,
+// dokunulmayan satırlar ayrıştırma öncesi ham gövdelerini (etiketleriyle)
+// korur — <i>/<font> gibi iç biçimler yeniden yazımda kaybolmaz.
+function draftCuesForSrtSave(rawCues, editIndex, newText) {
+  return rawCues.map((c, k) => (k === editIndex ? { ...c, text: newText }
+    : (c.rawText !== undefined ? { ...c, text: c.rawText } : c)));
+}
+
+// Kaynak cue'nun ham gövdesi ayrıştırma-temizlenmiş metinden farklıysa
+// içinde etiket/entity/görünmez karakter vardır; düzenleme onu düşürür.
+function cueHasInlineMarkup(cue) {
+  return !!(cue && cue.rawText !== undefined);
+}
+
 // ASS/SSA: dosyayi yeniden URETMEK yerine ilgili Dialogue satirinin METIN alanini
 // degistiririz. Yeniden uretim stilleri, konumlari, efektleri ve konusmaci
 // adlarini yok ederdi (eskiden .ass dosyasina duz SRT yaziliyordu).
@@ -19600,8 +19614,9 @@ async function applySubtitleFindReplacement(mode) {
   player.subtitleFindReplace.applying = false;
   for (const warning of writeResult.warnings) logLine(warning, 'warn');
   if (prepared.files.some((operation) =>
-    operation.format === 'ass' && operation.changes.some((change) => change.cue.assInner))) {
-    logLine('Uyarı: değiştirilen bazı ASS satırlarının metin içindeki biçim etiketleri kaldırıldı.', 'warn');
+    operation.changes.some((change) => (operation.format === 'ass'
+      ? change.cue.assInner : cueHasInlineMarkup(change.cue))))) {
+    logLine('Uyarı: değiştirilen bazı satırların metin içindeki biçim etiketleri kaldırıldı.', 'warn');
   }
   refreshAfterSubtitleBulkEdit();
   const changedMatches = plans.reduce((sum, item) => sum + item.matchCount, 0);
@@ -24587,6 +24602,11 @@ async function saveBrowserQuickEditor() {
     delete editor.remap;
     editor.initial = quickEditorValues(editor);
     for (const warning of result.warnings) logLine(warning, 'warn');
+    if (prepared.files.some((operation) =>
+      operation.changes.some((change) => (operation.format === 'ass'
+        ? change.cue.assInner : cueHasInlineMarkup(change.cue))))) {
+      logLine('Uyarı: değiştirilen bazı satırların metin içindeki biçim etiketleri kaldırıldı.', 'warn');
+    }
     refreshAfterSubtitleBulkEdit();
     editor.busy = false; openBrowserQuickEditor(); updateQuickEditorStatus('Kaydedildi · Kaynak ve çeviri tek işlemle geri alınabilir.');
   } catch (error) {
@@ -24913,12 +24933,16 @@ async function saveCueEdit() {
       logLine('VTT bloğu bulunamadı — dosya metadatası bozulmasın diye kaydedilmedi.', 'error');
       return;
     }
+    if (cueHasInlineMarkup(sourceCue)) {
+      logLine('Uyarı: bu satırın metin içindeki biçim etiketleri (italik vb.) kaldırıldı.', 'warn');
+    }
   } else {
     // SRT'de korunacak metadata yok; blok listesinden yeniden uretmek guvenli.
     // Dokunulmamis cue'larda ayrıştırma-temizliği öncesi ham metni koru.
-    const draft = rawCues.map((c, k) => (k === i ? { ...c, text }
-      : (c.rawText !== undefined ? { ...c, text: c.rawText } : c)));
-    payload = cuesToSrt(draft);
+    payload = cuesToSrt(draftCuesForSrtSave(rawCues, i, text));
+    if (cueHasInlineMarkup(sourceCue)) {
+      logLine('Uyarı: bu satırın metin içindeki biçim etiketleri (italik vb.) kaldırıldı.', 'warn');
+    }
   }
 
   let res;

@@ -10,7 +10,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf-8');
 const body = src.slice(src.indexOf('function parseAss'), src.indexOf('function setPlayerSource'));
-const F = new Function('window', body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceTimedCueTexts, replaceVttCueTexts, replaceVttCueText};')({ addEventListener() {} });
+const F = new Function('window', body + '; return {parseAss, parseSubtitles, cuesToVtt, cuesToSrt, replaceAssDialogueText, replaceTimedCueTexts, replaceVttCueTexts, replaceVttCueText, draftCuesForSrtSave, cueHasInlineMarkup};')({ addEventListener() {} });
 
 const BS = String.fromCharCode(92);
 let pass = 0; const fails = [];
@@ -316,6 +316,95 @@ t('SRT içindeki Dialogue sözcüğü ASS algılamasını tetiklemez', () => {
 t('kesirli saniyeler sağdan tamamlanır: .5 yarım saniyedir', () => {
   const cues = F.parseSubtitles('WEBVTT\n\n00:01.5 --> 00:02.05\nMetin');
   ok(cues[0].start === 1.5 && cues[0].end === 2.05, 'Kesirli zaman ölçeği bozuldu');
+});
+
+// ---- Ac -> duzenle -> kaydet -> yeniden ac dongusu: yalniz amaclanan satir degisir ----
+function changedLineIndices(before, after) {
+  const a = before.split('\n'); const b = after.split('\n');
+  const out = new Set();
+  const max = Math.max(a.length, b.length);
+  for (let i = 0; i < max; i++) if (a[i] !== b[i]) out.add(i);
+  return out;
+}
+
+t('ASS dongu: stil/karaoke/efekt bayt-bayt korunur, yalniz hedef satir degisir', () => {
+  const raw = [
+    '[Script Info]', 'Title: T', 'ScriptType: v4.00+', '',
+    '[V4+ Styles]',
+    'Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Alignment, MarginV',
+    'Style: Default,Arial,48,&H00FFFFFF,0,2,40',
+    'Style: Alt,Arial,42,&H0000FFFF,1,8,40', '',
+    '[Events]',
+    'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+    'Dialogue: 0,0:00:01.00,0:00:03.00,Default,AYNI,10,20,30,fade(200),' + BS + 'k30Ka{' + BS + 'k20}raoke',
+    'Dialogue: 1,0:00:04.00,0:00:06.00,Alt,B,0,0,0,,{' + BS + 'pos(960,100)}Hedef',
+    'Dialogue: 0,0:00:07.00,0:00:09.00,Default,,0,0,0,,Duz metin',
+  ].join('\n');
+  const cues = F.parseSubtitles(raw);
+  const out = F.replaceAssDialogueText(raw, cues[1].line, 'Yeni hedef', cues[1].assLead,
+    cues[1].assTextIndex, cues[1].assFieldCount, cues[1].sourceStart, cues[1].sourceEnd,
+    cues[1].assStartIndex, cues[1].assEndIndex);
+  const diff = [...changedLineIndices(raw, out)];
+  ok(diff.length === 1 && diff[0] === cues[1].line,
+    'amaç dışı satır değişti: ' + JSON.stringify(diff));
+  ok(out.split('\n')[11].includes(BS + 'k30'), 'karaoke etiketi kayboldu');
+  ok(out.includes('fade(200)') && out.includes('Style: Alt'), 'efekt/stil kayboldu');
+  ok(F.parseSubtitles(out).length === 3, 'yeniden açma blok sayısı bozuldu');
+});
+
+t('VTT dongu: cue kimlikleri/ayarlar/etiketler korunur, yalniz hedef govde degisir', () => {
+  const raw = [
+    'WEBVTT - T', '',
+    'STYLE', '::cue { color: yellow; }', '',
+    'NOTE yorum', '',
+    'cue-a',
+    '00:00:01.000 --> 00:00:03.000 align:start position:10%',
+    '<v Ali>Sesli</v> <i>etiketli</i> <00:00:02.000>zamanli', '',
+    'cue-b',
+    '00:00:04.000 --> 00:00:06.000',
+    'Hedef metin', '',
+    'cue-c',
+    '00:00:07.000 --> 00:00:09.000',
+    'Sabit metin', '',
+  ].join('\n');
+  const cues = F.parseSubtitles(raw);
+  const bodyLine = 13; // cue-b gövde satırının konumu
+  const out = F.replaceVttCueText(raw, cues[1], 'Yeni hedef');
+  const diff = [...changedLineIndices(raw, out)];
+  ok(diff.length === 1 && diff[0] === bodyLine,
+    'amaç dışı satır değişti: ' + JSON.stringify(diff));
+  ok(out.includes('cue-a') && out.includes('cue-c'), 'cue kimlikleri kayboldu');
+  ok(out.includes('<v Ali>Sesli</v>') && out.includes('<00:00:02.000>'),
+    'dokunulmayan cue etiketleri kayboldu');
+  ok(out.includes('position:10%'), 'zamanlama ayari kayboldu');
+  const reopened = F.parseSubtitles(out);
+  ok(reopened.length === 3, 'yeniden açma blok sayısı bozuldu');
+  ok(reopened[0].rawText !== undefined, 'etiketli cue ham gövdesi kayboldu');
+});
+
+t('SRT dongu: dokunulmayan cue etiketleri taslaq ile bayt-bayt korunur', () => {
+  const raw = '1\n00:00:01,000 --> 00:00:03,000\n<i>Italik</i> <font color="#ff0000">kirmizi</font>\n\n'
+    + '2\n00:00:04,000 --> 00:00:06,000\nHedef\n\n'
+    + '3\n00:00:07,000 --> 00:00:09,000\n<v Ali>Sesli</v>';
+  const cues = F.parseSubtitles(raw);
+  ok(F.cueHasInlineMarkup(cues[0]) && F.cueHasInlineMarkup(cues[2]), 'ham gövde işaretlenmedi');
+  const out = F.cuesToSrt(F.draftCuesForSrtSave(cues, 1, 'Yeni hedef'));
+  ok(out.includes('<i>Italik</i>') && out.includes('<font color="#ff0000">'),
+    'dokunulmayan cue etiketleri kayboldu');
+  ok(out.includes('<v Ali>Sesli</v>'), 'son cue etiketi kayboldu');
+  ok(out.includes('Yeni hedef'), 'yeni metin yok');
+});
+
+t('biçim uyarısı statik kilitleri: vtt/srt düzeltme + toplu + hızlı düzenleyici', () => {
+  const save = src.slice(src.indexOf('async function saveCueEdit'), src.indexOf('function youtubeCookieBrowser'));
+  ok(save.includes("player.subFormat === 'vtt'") && save.includes('cueHasInlineMarkup(sourceCue)'),
+    'saveCueEdit etiket uyarısı eksik');
+  const bulk = src.slice(src.indexOf('async function applySubtitleFindReplacement'),
+    src.indexOf('function openPlayer'));
+  ok(bulk.includes('cueHasInlineMarkup(change.cue)'), 'toplu değiştirme etiket uyarısı eksik');
+  const quick = src.slice(src.indexOf('async function saveBrowserQuickEditor'),
+    src.indexOf('async function browserQuickHistory'));
+  ok(quick.includes('cueHasInlineMarkup(change.cue)'), 'hızlı düzenleyici etiket uyarısı eksik');
 });
 
 console.log(`\n${pass} geçti, ${fails.length} başarısız (${pass + fails.length} test)`);
