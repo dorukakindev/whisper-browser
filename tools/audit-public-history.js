@@ -10,6 +10,7 @@ const secretRules = [
   ['experiential-key', /\bxpl_[A-Za-z0-9_-]{20,}\b/g],
   ['codecraft-key', /\bcc_[A-Za-z0-9_-]{20,}\b/g],
   ['github-token', /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g],
+  ['huggingface-token', /\bhf_[A-Za-z0-9]{30,}\b/g],
   ['google-api-key', /\bAIza[0-9A-Za-z_-]{20,}\b/g],
   ['aws-access-key', /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g],
   ['authorization-token', /\b(?:authorization\s*[:=]\s*Bearer|Bearer)\s+[A-Za-z0-9._~-]{20,}\b/gi],
@@ -37,9 +38,13 @@ function isPlaceholderUserInfoUrl(value) {
 }
 
 function isTestFixture(file, rule, value) {
+  // SSRF/url testlerinin sahte kimlikli URL'leri (user:pass@, u:p@) gerçek
+  // sır değildir; userinfo'su fixture kalıbında olanlar muaf.
+  const fixtureUserinfo = rule === 'url-userinfo'
+    && /:\/\/[a-z]{1,5}:(?:p|pw|pass|sifre|test|x|secret|user|name)@/i.test(String(value));
   return file.startsWith('tests/')
     && ((rule === 'openai-compatible-key' && value.length < 40)
-      || (rule === 'url-userinfo' && isExampleUrl(value)));
+      || (rule === 'url-userinfo' && (isExampleUrl(value) || fixtureUserinfo)));
 }
 
 function isDocumentedPublicGoogleKey(file, rule) {

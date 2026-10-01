@@ -149,12 +149,18 @@ async function main() {
       catch (_) { /* tarayıcı henüz hazır değil */ }
       if (!target) await sleep(200);
     }
-    return { child, target };
+    return { child, target, profile };
   };
-  let { child, target } = await launchBrowser();
+  const profiles = [];
+  const launchAndTrack = async () => {
+    const launched = await launchBrowser();
+    profiles.push(launched.profile);
+    return launched;
+  };
+  let { child, target } = await launchAndTrack();
   if (!target) {
     try { child.kill(); } catch (_) {}
-    ({ child, target } = await launchBrowser());
+    ({ child, target } = await launchAndTrack());
   }
   if (!target) { child.kill(); throw new Error('Tarayıcı hata ayıklama bağlantısı açılmadı.'); }
   const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -209,7 +215,9 @@ async function main() {
   } finally {
     ws.close(); child.kill();
     fs.rmSync(stage, { recursive: true, force: true });
-    try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_) { /* Windows kilidi */ }
+    for (const profile of profiles) {
+      try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_) { /* Windows kilidi */ }
+    }
   }
   report.totalContrastFailures = failures;
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
