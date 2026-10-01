@@ -6493,7 +6493,9 @@ def read_checkpoint(path, signature, include_metadata=False):
     if not include_metadata:
         return result
     detected_language = data.get("detected_language") if data.get("version") == 3 else None
-    if not isinstance(detected_language, str) or not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})?", detected_language, re.I):
+    if isinstance(detected_language, str):
+        detected_language = detected_language.strip().lower()
+    if not detected_language or not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})?", detected_language):
         detected_language = None
     return (*result, detected_language)
 
