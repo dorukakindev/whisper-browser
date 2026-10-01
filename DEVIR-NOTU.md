@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1748.md](docs/devir/2026-10-01-1748.md) — kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı (tembel paketleme + sınırlı inflight + token tavanı öğrenme)
+Güncel çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 5: çeviri değişiklik karşılaştırıcısı (eksik/yeni bölümleri + kelime-diff + terim rozeti + üç-sınıf güvenli kabul)
+Önceki çalışma: [docs/devir/2026-10-01-1748.md](docs/devir/2026-10-01-1748.md) — kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı (tembel paketleme + sınırlı inflight + token tavanı öğrenme)
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 3: anlam kaybı korpusu (120 vaka, CC0) + modal/negation blocking promosyonu — FR 0, gatable FA 44→3
 Önceki çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — 20'lik kullanım kuyruğu yeniden doğrulaması: 1 bulgu (ELECTRON_COMMIT pin eskimesi — düzeltildi) + ~30 test/13 smoke yeşil
 Önceki çalışma: Güncel çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
