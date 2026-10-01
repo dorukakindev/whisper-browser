@@ -3013,6 +3013,9 @@
             <label class="field">
               <span class="field-label">İkinci altyazı (karşılaştırma)</span>
               <select id="playerSubSelect2"><option value="">Kapalı</option></select>
+              <span class="sub2-delay-row"><span class="hint">İkinci gecikme</span>
+                <input type="number" id="sub2Offset" min="-60" max="60" step="0.1" value="0" title="Yalnız oynatma — dosyayı değiştirmez" aria-label="İkinci altyazı gecikmesi" /> <span class="hint" id="sub2OffsetUnit">sn</span>
+              </span>
             </label>
             <label class="field">
               <span class="field-label">Gösterilecek altyazı</span>
@@ -3121,9 +3124,9 @@
             <button class="btn btn-secondary btn-sm" id="subStyleReset">Görünümü sıfırla</button>
             <label class="field subtitle-style-field">
               <span class="field-label">Gecikme: <span class="value" id="subOffsetVal">0.0</span> sn</span>
-              <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" />
+              <input type="range" id="subOffset" min="-10" max="10" step="0.1" value="0" title="Yalnız oynatma — dosyayı değiştirmez" />
             </label>
-            <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile">Gecikmeyi dosyaya işle</button>
+            <button class="btn btn-secondary btn-sm hidden" id="applyOffsetToFile" title="Dosyaya kalıcı işlenir; ilk kayıtta .bak yedeği alınır">Gecikmeyi dosyaya işle</button>
             <button class="btn btn-secondary btn-sm" id="playerAutoSync"
               title="Yerel videonun sesini analiz ederek sabit kaymayı ve zamanla büyüyen sürüklenmeyi düzeltir">
               Sese göre otomatik senkronla
