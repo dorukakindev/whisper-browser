@@ -22,8 +22,8 @@ function makeCtx(extra = {}) {
   const ctx = vm.createContext({
     console, require, process, Buffer,
     setTimeout, clearTimeout, setInterval, clearInterval, setImmediate, Promise,
-    URL, URLSearchParams, crypto: { randomUUID: () => 'uuid-' + Math.random().toString(36).slice(2) },
-    randomUUID: () => 'uuid-' + Math.random().toString(36).slice(2),
+    URL, URLSearchParams, crypto: { randomUUID: (() => { let n = 0; return () => 'uuid-' + (++n); })() },
+    randomUUID: (() => { let n = 0; return () => 'uuid-' + (++n); })(),
     fs, path, os, Date, Math, JSON, Map, Set, WeakMap, WeakSet, Symbol,
     Number, String, Boolean, Object, Array, RegExp, Error, TypeError,
     Intl, TextEncoder, TextDecoder, AbortController,

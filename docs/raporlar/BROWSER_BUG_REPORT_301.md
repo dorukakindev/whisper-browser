@@ -144,7 +144,6 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   scoreCandidate (moviehash 100 + tam/kısmi başlık + sezon/bölüm + dil varyantı
   + sürüm puanları).
 
-||||||| 5e0d75e
 - `tests/soak-deadzone.test.js` — 11 senaryo: yieldToEventLoop + resourceEmitterListenerCount
   kapıları/gerçek-emitter sayımı, resourceCdpHeap (destroyed→0, attach→collectGarbage→
   getHeapUsage→detach zinciri, zaten-takılıda attach/detach yok, debugger-hatası→

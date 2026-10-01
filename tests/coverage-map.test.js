@@ -11,9 +11,6 @@ const { scan } = require('../tools/coverage-map');
 // Bilinen kapsamsız modüller (2026-09-30 envanteri). Bunlardan biri test
 // kazanırsa listeden silinmeli; listeye yeni giren eklenemez.
 const KNOWN_UNTESTED = new Set([
-  'backend/browser_media_tools.py',
-  'backend/catalog_scan.py',
-  'backend/ndjson_utils.py',
   'backend/nmdb_catalog_import.py',
 ]);
 
