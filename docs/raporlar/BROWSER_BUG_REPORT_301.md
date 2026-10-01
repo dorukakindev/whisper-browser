@@ -1298,6 +1298,59 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R388 — EN/TR geçişinde kullanıcı verisi korunması (2 kusur düzeltildi + ratchet)
+
+20'lik kullanım kuyruğunun 1. görevi: dil değiştirirken altyazı, not,
+medya başlığı ve düzenlenen metnin korunması. ui-locale.js mekanizması
+yeniden doğrulandı (originalText/originalAttributes WeakMap'leriyle
+TR↔EN gidiş-dönüşü kayıpsız; çeviri yalnız birebir anahtar veya tam
+eşleşen kalıpla çalışır) ve DOM'a kullanıcı verisi yazan tüm renderer
+noktaları `ignored` seçicisine karşı tek tek denetlendi.
+
+**B-388-01 — kullanıcı metni sözlük anahtarıyla çakışınca eziliyordu:**
+`ignored` kapsayıcı dışında saf kullanıcı verisi taşıyan düğümler,
+metinleri bütün olarak bir sözlük anahtarına eşitse çevrilip bozuluyordu
+(ör. "Kaydet" adlı medya dosyası EN'de "Save", "Tamamlandı" adlı video
+başlığı "Completed", "Ayarlar" adlı koleksiyon "Settings" görünüyordu).
+İşaretlenen yüzeyler (`data-ui-untranslated` — seçici zaten listede):
+
+- `#queueList` → `.queue-title` (iş etiketi/dosya adı)
+- `#browserDownloadsList` → `.browser-download-name` (dosya adı)
+- `renderUnifiedLibraryResults` → başlık `<strong>` + snippet
+- `renderResearchLibrary` → kart başlığı, alıntı `blockquote`,
+  `.research-card-translation`, `.research-tag` çipleri
+- `renderPlayerLibrary` → izleme satırı başlığı `<strong>`
+- `updateCollectionOptions` → koleksiyon `<option>` adları
+
+Bilinçli olarak işaretlenmeyenler (çevrilmesi doğru olanlar):
+`.queue-error`/`.browser-download-error` (ana süreç TR dizgileri),
+`.queue-status` ve eylem düğmeleri, `.jobs-empty`/`.player-library-empty`,
+`.queue-name[title]` (yol/URL — bütün eşleşme imkânsız), `.watch-hit`
+(`Not · saat · parça` bileşik — eşleşmez). `<option>`/aria-label
+bileşikleri de aynı nedenle bırakıldı.
+
+**B-388-02 — aynı yüzeylerde EN'de TR kalan arayüz kromu:** işaretli
+düğümlerin çevirisi dışarıda kalınca yazarlı TR fallback'ler ("İsimsiz
+video/içerik/sonuç", "Eşleşen kayıt", "İlk tekrar", "Kaydetme konumu
+henüz seçilmedi.", durum etiketleri) `uiText()` üzerinden kuruluyor;
+sözlüğe 50 yeni çift eklendi (Alıntı/Kelime/derece düğmeleri, indirme
+durumları ve eylemleri, kitaplık boş-durumları, Bitti/Sırada/Kuyrukta,
+Yukarı/Aşağı taşı, Aç, İptal et vb.) ve 3 kalıp (`N sonuç`,
+`N indirme sürüyor.`, `N içerik · M metin/not eşleşmesi`). Birleşik
+durum metinleri (`Son tekrar … · aralık … gün`, indirme etiketi +
+byte satırı, kart metası) parça bazında `uiText()`'e sarıldı.
+
+**Kanıtlar:** `tests/ui-locale-userdata.test.js` (yeni) — opt-out
+özniteliğinin `ignored`'da bulunması, 10 işaret noktası, sözlük çiftleri,
+3 kalıp, uiText sarmaları, veriye uiText sarılmaması, anahtar tekili.
+Kırmızı kanıtı: master'da ilk kontrolden düşüyor. `dom-innerhtml-ratchet`
+satır-pinleri güncellendi (`toolsMarkup` pini #314'ten beri bayattı);
+`browser-downloads.test.js` Node stub'ına `dataset`+`uiText` eklendi
+(sahada var olan DOM özellikleri — harness sadakati, davranış değişmez).
+
+Windows etkisi: yok — renderer dizgi/DOM özniteliği işi, platform
+bağımsız. Windows'ta elle doğrulanmadı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
