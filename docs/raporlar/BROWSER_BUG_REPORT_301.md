@@ -1068,6 +1068,56 @@ IPC geçişleri. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R352 — main.js bakiye derin okuması 8: manga çeviri hattı (temiz — kapsam tamam)
+
+Sekizinci ve son tur ~930 satır okundu — manga aday tarama, SSRF-korumalı
+görsel indirme, görsel-model çağrısı, önbellek/OCR katmanı, bölge
+düzenleme ve retry işçi havuzu. Doğrulanmış bug yok; bu tur ile
+`src/main.js`'in 19.959 satırının tamamı kampanya içinde satır satır
+okunmuş oldu.
+
+- **Konum + yaşam döngüsü** (7407–7479): `mangaJobIsCurrent` tam kimlik
+  (job + signal + generation + view); `captureBrowserMangaPosition`
+  busy-latch + aktif-sekme + documentId eşleşmesi + await-sonrası
+  yeniden doğrulama; `restoreBrowserMangaPosition` generation-başına
+  tek deneme + yanlış-doküman kapısı + isCanceled dörtlüsü
+  (aktif/generation/el-kaydırma/destroyed); `stopBrowserManga` abort +
+  sayfa/deneme/hata listesi temizliği (belgeli — bayat aday kota yakar
+  ve yanlış katman basar).
+- **SSRF-korumalı görsel indirme** (7481–7760): data-URL boyutu
+  Buffer'dan ÖNCE sınırlanır (belgeli); `assertPublicMangaImageHost`
+  literal-IP veya DNS tüm yanıtları public olmalı; `mangaRequestReferrer`
+  https→http Referer göndermez (strict-origin paritesi, belgeli);
+  `requestPinnedMangaImage` DNS-pinned lookup (doğrulanan IP bağlanır —
+  rebinding güvenli), çerez yalnız https, 14MB gövde, 30s, abort
+  yönlendirmesi; redirect zinciri ≤4 ve her adım `isSafeMangaImageUrl`;
+  MIME whitelist + magic-byte yedeği; `nativeImage` çözemezse sayfa
+  OffscreenCanvas decode yedeği ≤12MB (belgeli AVIF); piksel ≤14M
+  resize + gövde ≤7.5MB→JPEG90→≤9.5MB→0.82× (belgeli %33 şişme);
+  `fetchMangaImage` kaynak başına 2 deneme + yalnız retryable.
+- **Model çağrısı + işçi havuzu** (7762–8335): `requestMangaTranslation`
+  AtEndpoint — endpoint/apiKey kapısı, strict schema yalnız tek-uçta
+  (belgeli Shuaiapi uyumu), 90s abort, 8MB sınırlı yanıt + 64KB hata
+  detayı ≤300 karakter, schema'sız düşüm 401/403/413/429 dışında;
+  uçlar arası failover `shouldFailoverTranslationStatus` kapısıyla,
+  429 bütçesi 2 + server-hint gecikme, tek-uçta ek geçici deneme;
+  `fatalMangaBatchError` görsel-indirme hatası asla ölümcül değil,
+  401/403/404 ölümcül, 400 yalnız görsel-özel olmayan mesajda
+  (belgeli); `translateMangaCandidate` job-current öncesi/sonrası,
+  negatif-önbellek 24s TTL (belgeli balonsuz sayfa), OCR-katman
+  yeniden kullanımı worker eşzamanlılığıyla + abort, `imageRequests`
+  dedupe; `applyMangaEditFromPage` bridgeToken + `pre`/preHidden
+  optimistic-concurrency → ret'te izole-dünya-farkındalı revert
+  (belgeli — ana-dünya revert !s ile sessiz çıkıyordu) + cache;
+  `startBrowserManga` tüm kapılar + clear-await sonrası yeniden
+  busy-check (belgeli çift-tık yarışı), aday taraması trusted
+  main-frame'de (belgeli — çerçeve-dışı şişkinlik), kararlı-tarama
+  döngüsü ≤6 + 650ms + job-current, işçi havuzu min(workers,
+  seçili), aday başına 3 deneme + retryable backoff, fatal hata
+  batch'i keser, incremental hatalar ≤120 tutulur.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
