@@ -3370,6 +3370,12 @@ $('cancelBtn').addEventListener('click', async () => {
   } else {
     logLine('İptal isteği gönderildi.', 'warn');
   }
+  if (player.job && player.job.running && !player.job.cancelled && player.job !== aiJob) {
+    // İptal backend'e iletildi ama süreç kapanana dek aradaki canlı çeviri
+    // parçaları (translation_chunk/segment) hâlâ player.cues2'ye yazıyordu —
+    // işi hemen 'cancelled' işaretle ki geç gelen olaylar düşsün.
+    player.job.cancelled = true;
+  }
   if (!r || !r.ok || r.deferred) {
     // Backend'de çalışan iş yoktu veya iptal, başlatma IPC'si havada iken
     // kaydedildi → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
@@ -3377,8 +3383,7 @@ $('cancelBtn').addEventListener('click', async () => {
     if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
     // Backend canlı süreç bilmiyorken ölü bir oynatıcı işi kartı "çalışıyor"
     // kalmasın: normal iptal-temizlik yolunu yerel olarak uygula.
-    if (player.job && player.job.running && !player.job.cancelled) {
-      player.job.cancelled = true;
+    if (player.job && player.job.running && player.job.cancelled) {
       playerJobEvent({ type: 'exit' });
     }
     finishRun(false);
@@ -3726,10 +3731,13 @@ function playerJobEvent(event) {
   if (job.cancelled) {
     if (event.type === 'exit') {
       job.awaitingExit = false;
+      job.running = false;
       state.running = false;
       state.aiJob = false;
       state.cancelled = false;
       if (player.job === job) player.job = null;
+      txt.textContent = 'İş iptal edildi.';
+      setTimeout(() => bar.classList.add('hidden'), 1200);
       aiChatCtxLabel();
       updateMakeTransState();
     }
