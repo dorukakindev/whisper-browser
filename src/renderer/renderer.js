@@ -24830,6 +24830,54 @@ async function applyCueEditHistoryCore(direction) {
   osd(direction === 'undo' ? 'Düzenleme geri alındı' : 'Düzenleme yinelendi');
 }
 
+// Dışarıdan değişen altyazı dosyasına tekil-düzeltme birleştirme. Diskin güncel
+// sürümünü okur, hedef cue'yu kaynak indeksi veya zaman (±2ms) ile bulur,
+// kullanıcının metnini YALNIZ o cue'ya uygular ve güncel mtime bekçisiyle
+// yazar. Dış değişiklikler korunur; yanlış sürümün üzerine yazılmaz.
+async function mergeCueEditOntoExternal(path, subFormat, sourceCue, text, rawCues) {
+  const fresh = await window.api.readSubtitle(path)
+    .catch((error) => ({ ok: false, error: error && error.message }));
+  if (!fresh || !fresh.ok || typeof fresh.text !== 'string') return { ok: false };
+  const freshCues = parseSubtitles(fresh.text);
+  const tol = 0.002;
+  const wantStart = Number.isFinite(sourceCue.sourceStart) ? sourceCue.sourceStart : sourceCue.start;
+  const wantEnd = Number.isFinite(sourceCue.sourceEnd) ? sourceCue.sourceEnd : sourceCue.end;
+  const matchIndex = freshCues.findIndex((c) =>
+    c.subtitleSourceIndex === sourceCue.subtitleSourceIndex
+    || (Math.abs(c.start - wantStart) <= tol && Math.abs(c.end - wantEnd) <= tol));
+  if (matchIndex < 0) return { ok: false, reason: 'nomatch' };
+  const match = freshCues[matchIndex];
+  let payload;
+  if (subFormat === 'ass') {
+    payload = replaceAssDialogueText(fresh.text, match.line, text, match.assLead,
+      match.assTextIndex, match.assFieldCount,
+      Number.isFinite(match.sourceStart) ? match.sourceStart : match.start,
+      Number.isFinite(match.sourceEnd) ? match.sourceEnd : match.end,
+      match.assStartIndex, match.assEndIndex);
+  } else if (subFormat === 'vtt') {
+    payload = replaceVttCueText(fresh.text, match, text);
+  } else {
+    payload = cuesToSrt(draftCuesForSrtSave(freshCues, matchIndex, text));
+  }
+  if (payload === null || payload === undefined) return { ok: false, reason: 'nomatch' };
+  const res = await window.api.writeSubtitle(path, payload, {
+    action: 'edit-merge', cueIndex: matchIndex, start: match.start,
+    before: match.text, after: text,
+  }, { mtimeMs: fresh.mtimeMs, size: fresh.size })
+    .catch((error) => ({ ok: false, error: error && error.message }));
+  if (!res || !res.ok) return { ok: false };
+  // Önizleme bilgisi: bellekteki sürümle disk sürümü arasında kaç satır farklı.
+  const base = Array.isArray(rawCues) ? rawCues : [];
+  let diffCount = Math.abs(base.length - freshCues.length);
+  for (let k = 0; k < Math.min(base.length, freshCues.length); k++) {
+    const a = base[k]; const b = freshCues[k];
+    if (a.text !== b.text || Math.abs(a.start - b.start) > tol || Math.abs(a.end - b.end) > tol) diffCount++;
+  }
+  return { ok: true, res, payload, freshText: fresh.text, matchIndex,
+    matchStart: match.start, matchText: match.text, diffCount,
+    externalDiffers: match.text !== sourceCue.text };
+}
+
 async function saveCueEdit() {
   if (player.subtitleFindReplace.applying) {
     logLine('Toplu altyazı yazımı bitmeden tekil düzeltme kaydedilemez.', 'warn');
@@ -24951,6 +24999,36 @@ async function saveCueEdit() {
   }, subtitleStatFor(targetPath)); }
   catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
+    // Dışarıdan değişim: taslak kaybolmadan güncel sürüme birleştirmeyi dene.
+    // Yanlış sürümün üzerine yazılmaz — cerrahi değiştiriciler yalnız hedef
+    // cue'ya dokunur; kullanıcının seçili alanı güncel dosyayla birleşir.
+    if (/dışarıdan değiştirildi/.test((res && res.error) || '')) {
+      const merged = await mergeCueEditOntoExternal(targetPath, player.subFormat,
+        sourceCue, text, rawCues);
+      if (merged && merged.ok) {
+        noteSubtitleStat(targetPath, merged.res);
+        player.cueEditUndo.push({
+          path: targetPath, mediaKey: targetKey, index: merged.matchIndex,
+          start: merged.matchStart, before: merged.freshText, after: merged.payload,
+          beforeText: merged.matchText, afterText: text, at: Date.now(),
+        });
+        player.cueEditUndo = player.cueEditUndo.slice(-100);
+        player.cueEditRedo = [];
+        updateCueEditHistoryButtons();
+        const same = merged.externalDiffers ? ' Aynı satır diskte de değişmişti — metniniz uygulandı.' : '';
+        logLine(`Dosya dışarıdan değişmişti (${merged.diffCount} satır farklı); düzenlemeniz güncel sürümle birleştirildi (blok ${merged.matchIndex + 1}).${same}`, 'warn');
+        await loadSubtitle(targetPath, false, { silent: true });
+        closeCueEditor();
+        return;
+      }
+      if (merged && merged.reason === 'nomatch') {
+        logLine('Dosya dışarıdan değişti ve düzenlediğiniz satır artık eşleşmiyor; dosyayı yeniden açıp düzenlemeyi tekrarlayın. Taslağınız korunuyor.', 'error');
+        return;
+      }
+      // Yeniden değişim veya okuma hatası: birleştirme olmadı, taslak korunur.
+      logLine('Dosya yeniden değişti veya okunamadı; birleştirme uygulanmadı. Taslağınız korunuyor, tekrar deneyin.', 'error');
+      return;
+    }
     // Taslak editorde kalir: kullanici sorunu duzeltip ayni dugmeyle tekrar dener.
     const detail = friendlySystemError((res && res.error) || 'bilinmeyen hata');
     logLine(`Altyazı kaydedilemedi: ${detail} — taslağınız korunuyor, tekrar deneyin.`, 'error');

@@ -206,5 +206,122 @@ test('loadSubtitle: birincil altyazı değişimi kirli zamanlamayı sıfırlar (
     'birincil cues yeniden yüklenince bekleyen zamanlama geçmişi sıfırlanmalı');
 });
 
-console.log(`\n${passed} geçti, ${failed} düştü`);
-if (failed) process.exit(1);
+// --- Dışarıdan-değişim birleştirme (kuyruk-50/10) ----------------------------
+const formatSlice = slice('function parseAss(', 'function setPlayerSource(');
+const mergeSlice = slice('async function mergeCueEditOntoExternal(', 'async function saveCueEdit(');
+
+function mergeCtx(freshText, writeResult) {
+  const calls = [];
+  const ctx = {
+    window: {
+      addEventListener: () => {},
+      api: {
+        readSubtitle: async () => freshText,
+        writeSubtitle: async (p, payload, change, expect) => {
+          calls.push({ p, payload, change, expect });
+          return typeof writeResult === 'function' ? writeResult() : writeResult;
+        },
+      },
+    },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(formatSlice + '\n' + mergeSlice
+    + '\nthis.merge = mergeCueEditOntoExternal;', ctx);
+  return { ctx, calls };
+}
+
+const MERGE_SRT = '1\n00:00:01,000 --> 00:00:03,000\nBir\n\n'
+  + '2\n00:00:04,000 --> 00:00:06,000\nHedef\n\n'
+  + '3\n00:00:07,000 --> 00:00:09,000\nUc';
+
+async function mergeTests() {
+  await test_async('birleştirme: dış değişim korunur, yalnız hedef cue değişir', async () => {
+    const fresh = MERGE_SRT.replace('Uc', 'Dışarıdan değişen');
+    const { ctx, calls } = mergeCtx({ ok: true, text: fresh, mtimeMs: 99, size: 7 }, { ok: true, mtimeMs: 100, size: 9 });
+    const source = { subtitleSourceIndex: 1, start: 4, end: 6, text: 'Hedef' };
+    const base = [{ text: 'Bir' }, { text: 'Hedef' }, { text: 'Uc' }];
+    const out = await ctx.merge('p.srt', 'srt', source, 'Benim metnim', base);
+    assert.equal(out.ok, true);
+    assert.equal(out.matchIndex, 1);
+    assert.equal(out.diffCount, 1, 'yalnız bir satır dışarıdan değişmiş sayılmalı');
+    assert.equal(out.externalDiffers, false);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].expect.mtimeMs, 99, 'güncel mtime bekçisi');
+    assert.equal(calls[0].change.action, 'edit-merge', 'günlükte birleştirme ayırt edilir');
+    assert.ok(calls[0].payload.includes('Dışarıdan değişen'), 'dış değişiklik korunmadı');
+    assert.ok(calls[0].payload.includes('Benim metnim'), 'kullanıcı metni uygulanmadı');
+    assert.ok(!calls[0].payload.includes('Hedef\n'), 'eski hedef metin kaldı');
+  });
+
+  await test_async('birleştirme: aynı satır dışarıdan da değiştiyse metniniz uygulanır', async () => {
+    const fresh = MERGE_SRT.replace('Hedef', 'Diskte de değişti');
+    const { ctx } = mergeCtx({ ok: true, text: fresh, mtimeMs: 5, size: 1 }, { ok: true });
+    const source = { subtitleSourceIndex: 1, start: 4, end: 6, text: 'Hedef' };
+    const out = await ctx.merge('p.srt', 'srt', source, 'Benim metnim', []);
+    assert.equal(out.ok, true);
+    assert.equal(out.externalDiffers, true, 'aynı-satır çakışması önizlenmeli');
+  });
+
+  await test_async('birleştirme: hedef cue artık eşleşmiyorsa yazılmaz', async () => {
+    const fresh = MERGE_SRT.replace('Hedef', 'Farklı').replace('00:00:04,000 --> 00:00:06,000',
+      '00:00:44,000 --> 00:00:46,000');
+    const { ctx, calls } = mergeCtx({ ok: true, text: fresh, mtimeMs: 5, size: 1 }, { ok: true });
+    const source = { subtitleSourceIndex: 9, start: 4, end: 6, text: 'Hedef' };
+    const out = await ctx.merge('p.srt', 'srt', source, 'Benim metnim', []);
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, 'nomatch');
+    assert.equal(calls.length, 0, 'eşleşme yoksa dosyaya yazılmamalı');
+  });
+
+  await test_async('birleştirme: ikinci yazma da reddedilirse başarısız döner', async () => {
+    const { ctx } = mergeCtx({ ok: true, text: MERGE_SRT, mtimeMs: 5, size: 1 },
+      { ok: false, error: 'dışarıdan değiştirildi' });
+    const source = { subtitleSourceIndex: 1, start: 4, end: 6, text: 'Hedef' };
+    const out = await ctx.merge('p.srt', 'srt', source, 'x', []);
+    assert.equal(out.ok, false);
+  });
+
+  await test_async('birleştirme: VTT cue kimliği ve ASS stili güncel sürümde korunur', async () => {
+    const vtt = 'WEBVTT\n\ncue-a\n00:00:01.000 --> 00:00:03.000\nBir\n\ncue-b\n00:00:04.000 --> 00:00:06.000\nHedef';
+    const { ctx, calls } = mergeCtx({ ok: true, text: vtt, mtimeMs: 5, size: 1 }, { ok: true });
+    const source = { subtitleSourceIndex: 1, start: 4, end: 6, text: 'Hedef' };
+    const out = await ctx.merge('p.vtt', 'vtt', source, 'Yeni', []);
+    assert.equal(out.ok, true);
+    assert.ok(calls[0].payload.includes('cue-a') && calls[0].payload.includes('cue-b'),
+      'VTT cue kimlikleri kayboldu');
+    const ass = '[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'
+      + 'Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Bir\n'
+      + 'Dialogue: 0,0:00:04.00,0:00:06.00,Ust,K,0,0,0,,Hedef';
+    const r2 = mergeCtx({ ok: true, text: ass, mtimeMs: 5, size: 1 }, { ok: true });
+    const out2 = await r2.ctx.merge('p.ass', 'ass', { subtitleSourceIndex: 1, start: 4, end: 6, text: 'Hedef' }, 'Yeni', []);
+    assert.equal(out2.ok, true);
+    assert.ok(r2.calls[0].payload.includes(',Ust,K,'), 'ASS stil/ad alanları bozuldu');
+  });
+
+  test('saveCueEdit: dışarıdan-değişim hatası birleştirme yoluna bağlanır (statik kilit)', () => {
+    const save = slice('async function saveCueEdit()', 'function youtubeCookieBrowser');
+    assert.ok(save.includes('mergeCueEditOntoExternal(targetPath'), 'birleştirme çağrısı eksik');
+    assert.ok(/dışarıdan değiştirildi/.test(save), 'dışarıdan-değişim yakalaması eksik');
+    assert.ok(save.includes('closeCueEditor()'), 'başarılı birleştirme düzenleyiciyi kapatmalı');
+  });
+
+  test('mergeCueEditOntoExternal: birleştirme günlük eylemi ayırt edilir (statik kilit)', () => {
+    assert.ok(mergeSlice.includes("action: 'edit-merge'"),
+      'birleştirme yazıları günlükte edit-merge olarak ayırt edilmeli');
+    assert.ok(/findIndex\([\s\S]*subtitleSourceIndex/.test(mergeSlice)
+      && mergeSlice.includes('<= tol'), 'hedef cue kaynak-indeksi veya ±2ms ile eşleşmeli');
+  });
+}
+
+function test_async(name, fn) {
+  return Promise.resolve().then(fn).then(() => {
+    passed++; console.log(`ok ${passed + failed} - ${name}`);
+  }).catch((error) => {
+    failed++; console.error(`not ok ${passed + failed} - ${name}\n  ${error.stack || error}`);
+  });
+}
+
+mergeTests().then(() => {
+  console.log(`\n${passed} geçti, ${failed} düştü`);
+  if (failed) process.exit(1);
+});
