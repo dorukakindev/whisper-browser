@@ -187,6 +187,23 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   (content-length/arrayBuffer/stream-cancel), createResourceTracker (io sayaçları
   + close-sonrası donma).
 
+- `backend/test_zero_ref_module_locks.py` — 23 test: backend modüllerinde adı
+  hiçbir testte geçmeyen fonksiyonlar sözleşme düzeyinde kilitlendi:
+  parse_ffmpeg_version/ffmpeg_version_supported, is_sdh_descriptor (konuşmacı
+  ve gerçek-cümle reddi), finite_json_value/json_dumps_finite (NaN→null +
+  allow_nan=False kanıtı), job_temp_directory (env kökü), TM.context_key
+  (24-hex deterministik), live_asr.read_commands (bozuk JSON/non-dict error
+  olayı + stop), catalog_scan.scan (uzantı/symlink/5000 sınırı), valid_cues
+  matrisi + overlap_score aralıkları, uses_spaceless_script +
+  sentence_parts_match (CJK boşluk toleransı) + _turkish_clock_match
+  (beşte/çeyrek geçe/kala), update_ytdlp read_active/cleanup_stale_staging/
+  extract_wheel (traversal + dosya-sayısı sınırı)/download_artifact
+  (sha256 doğrulama + FileExistsError)/validate_runtime (sürüm eşleşmesi),
+  invidious feed_subscriptions oturum kapısı + find_working_instance RuntimeError,
+  ocr_frame/semantic_search boyut ve biçim kapıları, query_gpu_vram_used_mib
+  (csv parse/N/A/IOError), wav_duration (gerçek wav), detect_intro dosya-sayısı
+  kapısı. Nested yardımcılar kapsayan fonksiyonlar üzerinden doğrulandı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
