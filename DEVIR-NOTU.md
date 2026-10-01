@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-10-01-0025.md](docs/devir/2026-10-01-0025.md) — R331: AI modları (--explain reasoning-kapısı + çip EN soruları, kullanıcı patch'i)
+Güncel çalışma: [docs/devir/2026-10-01-0326.md](docs/devir/2026-10-01-0326.md) — Uzak master'ın yerele güvenli alınması (R283–R330 merge, 4 doc çakışması union)
+Önceki çalışma: [docs/devir/2026-10-01-0025.md](docs/devir/2026-10-01-0025.md) — R331: AI modları (--explain reasoning-kapısı + çip EN soruları, kullanıcı patch'i)
+Önceki çalışma: [docs/devir/2026-09-30-2115.md](docs/devir/2026-09-30-2115.md) — R327-5: test paketi hız profili + test-timing.mjs (50'lik kuyruk kapandı)
 Önceki çalışma: [docs/devir/2026-09-30-2100.md](docs/devir/2026-09-30-2100.md) — R330-1: doküman senkron turu + IPC kataloğu
 Önceki çalışma: [docs/devir/2026-09-30-2045.md](docs/devir/2026-09-30-2045.md) — R330-2: açık kararlar indeksi (docs/ACIK-KARARLAR.md)
 Önceki çalışma: [docs/devir/2026-09-30-2030.md](docs/devir/2026-09-30-2030.md) — R329-4: rota dedupe host-bazlı (B-329-03) + sağlayıcı varyant matrisi
@@ -79,6 +81,7 @@ Güncel çalışma: [docs/devir/2026-10-01-0025.md](docs/devir/2026-10-01-0025.m
 Önceki çalışma: [docs/devir/2026-09-30-0145.md](docs/devir/2026-09-30-0145.md) — R268: benchmark bozuk-dosya yolları + JSON roundtrip şema kilidi (temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0140.md](docs/devir/2026-09-30-0140.md) — R267: diarization hattı birim kilitleri (PCM WAV/hata yolları/auth imzası — temiz)
 Önceki çalışma: [docs/devir/2026-09-30-0135.md](docs/devir/2026-09-30-0135.md) — R266: çeviri önbelleği disk-büyüme soak'u (50k ölçek, journal eşiği, diriliş yok — temiz)
+Önceki çalışma: [docs/devir/2026-09-30-0128.md](docs/devir/2026-09-30-0128.md) — R241: güncel Devin master denetimi + dar panel native görünürlük yarışı
 Önceki çalışma: [docs/devir/2026-09-30-0123.md](docs/devir/2026-09-30-0123.md) — R222 devam: harness doğrulaması + echo-kabul/partial/ordinal düzeltmeleri
 Önceki çalışma: [docs/devir/2026-09-29-2304.md](docs/devir/2026-09-29-2304.md) — R273 kapanış: PR #221 master merge kimliği (6cdfb16)
 Önceki çalışma: [docs/devir/2026-09-29-1946.md](docs/devir/2026-09-29-1946.md) — R220/R221: çeviri hattı derin düzeltmeler (echo-kabul, aynı-dil kapısı, retry/kalıcılık, review triage)

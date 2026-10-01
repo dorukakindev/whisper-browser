@@ -931,7 +931,10 @@ function clearBrowserFreezeFrame() {
 async function applyBrowserOcclusion(occluded) {
   const seq = ++browserOcclusionSeq;
   const slot = $('browserViewSlot');
-  if (occluded && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
+  // Dar ekranda panel sayfayı tamamen örter. Donmuş kare görünmeyeceği için
+  // capturePage'i beklemek native görünümün panel üstünde kalmasına yol açar.
+  const fullyCovered = $('playerLayer')?.classList.contains('narrow-panel-takeover');
+  if (occluded && !fullyCovered && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
       && typeof player !== 'undefined' && player.workspaceMode === 'browser') {
     const shot = await window.api.snapshotBrowserPage().catch(() => null);
     if (seq !== browserOcclusionSeq) return null;
