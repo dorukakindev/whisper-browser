@@ -1574,6 +1574,53 @@ Testler: `backend/venv/bin/python backend/test_series_memory.py` →
 Windows etkisi: olumlu — AV/realtime-tarama veya eşzamanlı iş
 kilitli hafızada transkripsiyon artık devam eder (hafıza pasif).
 
+## R364 — pipeline_control.py tam derin okuma — temiz (işlem günlüğü)
+
+**Kapsam:** `backend/pipeline_control.py` (341 satır) tamamen okundu —
+iptal kontrol noktaları ve çökmeye-dayanıklı çıktı işlemleri
+(R152–R157 review zincirinin ürünü).
+
+**Doğrulanan (bug yok):**
+
+- `PipelineCancelled` bilinçli `BaseException` — `except Exception`
+  hiçbir zaman iptali uyarıya çeviremez (docstring'de belgeli).
+- `CancellationController` stage/point whitelist + marker-dosyası
+  sondası; `probe` hook'u test noktası.
+- `_entry_paths_are_local`: journal'daki final/staged/backup üçü de
+  çıktı kökünün doğrudan çocuğu olmalı — traversal kapalı.
+- `recover_output_transactions`: canlı sahip pid'i atlanır
+  (Windows'ta os.kill CTRL_C/SystemError yerine OpenProcess sorgusu;
+  erişim reddi canlı sayılır — belgeli), `staging` durumunda var
+  olmayan final silinmez (aynı adı kullanıcı sonradan yaratmış
+  olabilir — belgeli), `committed` yalnız enkaz temizler, bozuk
+  journal silinmez (yeniden denenir).
+- `OutputTransaction`: journal stage'den ÖNCE kalıcılaştırılır;
+  `existed` bayrağı yazmadan önce yakalanır; stage hatası yalnız o
+  kaydı düşürür (daha önceki sağlam çıktılar korunur);
+  commit sırası prepared→backup copy2→replace→handoff iptal
+  sınırı→committed→enkaz+journal temizliği — handoff öncesi iptal
+  hem Python hem supervisor kurtarmasını aynı sonuca getirir.
+- `rollback`: kilitli hedefte backup/journal KORUNUR (deferred +
+  kullanıcı uyarısı), sonraki başlatmada yeniden denenir —
+  "kilitli dosya yüzünden yedeği de kaybet" felaketi kapalı.
+- `rollback_open_output_transactions`: committed işlemleri atlar,
+  gerisini sırayla geri alır — ana istisna yolunda çağrılır.
+- `_write_json_atomic` tmp+fsync+os.replace.
+
+**Değerlendirilen ama değişmeyen:**
+
+- Sahte journal (`state:"prepared"` + `existed:false`) çıktı
+  dizinindeki bir dosyayı sildirebilir — fakat journal yazabilmek
+  zaten o dizine yazma yetkisi gerektirir; ayrıcalık yükselmesi yok.
+- Windows PID-yeniden-kullanımı: geri dönen pid canlı sayılıp
+  kurtarma ertelenebilir — kaçınılmaz platform sınırı.
+
+Testler: `backend/venv/bin/python backend/test_pipeline_control.py`
+koşturulup yeşil doğrulandı; kod değişmedi.
+
+Windows etkisi: yok — salt okuma denetimi (OpenProcess sorgusu zaten
+belgeli düzeltme olarak yerinde).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
