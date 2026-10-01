@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — kuyruk-50 madde 20: oynatma saati tutarlılığı (drift izleyici + öneri)
+Güncel çalışma: [docs/devir/2026-10-01-1956.md](docs/devir/2026-10-01-1956.md) — kuyruk-50 madde 21: adapter uyumluluk paketi (sözleşme + fixture + şema kapısı)
+Önceki çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — kuyruk-50 madde 20: oynatma saati tutarlılığı (drift izleyici + öneri)
 Önceki çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.md) — kuyruk-50 madde 19: takılma teşhis paneli (yerel oynatıcı kare düşüşü + buffer + çizim maliyeti)
 Önceki çalışma: [docs/devir/2026-10-01-1940.md](docs/devir/2026-10-01-1940.md) — kuyruk-50 madde 18: parça bazlı senkron profilleri (offsetProfiles + offset2)
 Önceki çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)

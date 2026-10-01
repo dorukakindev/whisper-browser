@@ -65,13 +65,20 @@ class BrowserAdapterRegistry {
 
   forPage(url) {
     let host = '';
-    try { host = new URL(String(url || '')).hostname.toLowerCase(); } catch (_) {}
+    try {
+      const parsed = new URL(String(url || ''));
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+      host = parsed.hostname.toLowerCase();
+    } catch (_) {}
     return this.list().find((adapter) => adapter.pageHosts.test(host)) || null;
   }
 
   forResponse(pageUrl, responseUrl) {
     let host = '';
-    try { host = new URL(String(responseUrl || '')).hostname.toLowerCase(); } catch (_) {}
+    try {
+      const parsed = new URL(String(responseUrl || ''));
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') host = parsed.hostname.toLowerCase();
+    } catch (_) {}
     const page = this.forPage(pageUrl);
     if (page && (page.hosts.test(host) || page.responseHint.test(String(responseUrl || '')))) return page;
     return this.list().find((adapter) => adapter.hosts.test(host)) || null;
