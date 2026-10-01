@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.md) — kuyruk-50 madde 19: takılma teşhis paneli (yerel oynatıcı kare düşüşü + buffer + çizim maliyeti)
+Güncel çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — kuyruk-50 madde 20: oynatma saati tutarlılığı (drift izleyici + öneri)
+Önceki çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.md) — kuyruk-50 madde 19: takılma teşhis paneli (yerel oynatıcı kare düşüşü + buffer + çizim maliyeti)
 Önceki çalışma: [docs/devir/2026-10-01-1940.md](docs/devir/2026-10-01-1940.md) — kuyruk-50 madde 18: parça bazlı senkron profilleri (offsetProfiles + offset2)
 Önceki çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)
 Önceki çalışma: [docs/devir/2026-10-01-1934.md](docs/devir/2026-10-01-1934.md) — kuyruk-50 madde 16: findCueAt seek indeksi
@@ -30,7 +31,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.m
 Önceki çalışma: [docs/devir/2026-10-01-1021.md](docs/devir/2026-10-01-1021.md) — R384–R386 derin okuma: 'Ctrl+Manga' ipucu fix; page-translate/manga/sentence_translation temiz
 Önceki çalışma: [docs/devir/2026-10-01-1016.md](docs/devir/2026-10-01-1016.md) — R379–R382 derin okuma: VTT meta-blok sahte cue fix, onState izolasyonu (whenIdle takılma), ui-locale kazanan pinlemeleri; 9 dosya temiz
 Önceki çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
-Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
+Önceki çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
 Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R395–R397 kuyruk maddeleri 8–10: kayıt-hatası taslak korunması, çeviri-iptali bekçileri, ağ kesintisi sözleşme kilitleri
 Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R394 kuyruk-g7 büyük transkript: 8000 cue'da renderCue 36→0.8ms, arama 88→19ms (foldIndexCached + cueMetaStats) + cue-list-perf.test.js
 Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R393 kuyruk-g6 çift altyazı: 4 kusur düzeltildi (auto-fit metin küçültme, max(13%,120px) kontrol rezervi, ayrı-sürükleme kelepçesi) + electron-subtitle-overlap smoke'u

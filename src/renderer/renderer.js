@@ -5020,6 +5020,8 @@ const player = {
   offsetProfiles: {},// parça-bazlı senkron: '<p|s>|<ses>|<yol>' -> sn; watch prefs'te kalıcı
   stutterProbe: null,// takılma teşhisi ölçüm penceresi (kuyruk-50/19)
   renderCostRing: [],// son renderCue süreleri (ms, halka ≤240)
+  clockDriftSamples: [],// {w, m, r} — video saati ↔ duvar saati sürüklenme örnekleri (kuyruk-50/20)
+  clockDriftWarned: false,// medya başına tek drift önerisi
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
   cueQualitySource: [], // canli Whisper guveni; SRT yeniden okununca zamanla eslestirilir
   subPath: '',       // duzenleme kaydederken yazilacak dosya
@@ -14542,6 +14544,59 @@ function collectLocalStutterSample() {
   if (probe.seconds >= 60) stopLocalStutterProbe(true);
 }
 
+// ---- Oynatma saati tutarlılığı (kuyruk-50 madde 20) ----
+// video.currentTime ile duvar saati (performance.now) arasındaki sürüklenmeyi
+// timeupdate akışında pasif örnekler; kalıcı sapma eşiği aşınca kullanıcıya
+// anlaşılır bir öneri gösterir (otomatik senkron). Saf karar: analyzeClockDrift.
+function analyzeClockDrift(samples, expectedRate) {
+  const exp = Number(expectedRate) || 0;
+  const out = { verdict: 'insufficient', drift: 0, driftPct: 0, observedRate: null, expectedRate: exp, seconds: 0 };
+  if (!Array.isArray(samples) || samples.length < 8 || !(exp > 0)) return out;
+  let sumM = 0, sumW = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1], b = samples[i];
+    if (!a || !b) continue;
+    const dw = (Number(b.w) - Number(a.w)) / 1000;
+    const dm = Number(b.m) - Number(a.m);
+    // Atlama, duraklatma veya hız değişimi aralığı sayılmaz.
+    if (dw <= 0 || dw > 3 || dm <= 0 || dm > 1.5 || a.r !== b.r) continue;
+    sumW += dw; sumM += dm;
+  }
+  out.seconds = Math.round(sumW * 10) / 10;
+  if (sumW < 15 || sumM <= 0) return out;
+  const observed = sumM / sumW;
+  out.observedRate = Math.round(observed * 1000) / 1000;
+  const drift = observed / exp - 1;
+  out.drift = drift;
+  out.driftPct = Math.round(Math.abs(drift) * 1000) / 10;
+  out.verdict = Math.abs(drift) >= 0.02 ? 'drift' : 'stable';
+  return out;
+}
+
+function samplePlaybackClock(video) {
+  if (!video || video.paused || video.ended || player.workspaceMode !== 'player'
+      || player.isLive || !isFinite(video.duration)) return;
+  const arr = player.clockDriftSamples;
+  const w = performance.now(), m = Number(video.currentTime) || 0, r = video.playbackRate || 1;
+  arr.push({ w, m, r });
+  if (arr.length > 240) arr.shift();
+  const v = analyzeClockDrift(arr, r);
+  if (v.verdict === 'drift' && !player.clockDriftWarned) {
+    player.clockDriftWarned = true;
+    showClockDriftSuggestion(v);
+  }
+}
+
+function showClockDriftSuggestion(v) {
+  const t = (x) => (window.UiLocale?.t ? window.UiLocale.t(x) : x);
+  const pct = (v.driftPct || 0).toFixed(1);
+  const dir = v.drift > 0 ? t('hızlı') : t('yavaş');
+  const msg = `Video saati ~%${pct} ${dir} ilerliyor — uzun filmlerde altyazı zamanla kayar; "Sese göre otomatik senkronla" ile düzeltebilirsin.`;
+  const hint = $('playerClockDriftHint');
+  if (hint) hint.textContent = msg;
+  logLine(`Oynatma saati: ${msg}`, 'warn');
+}
+
 function startLocalStutterProbe() {
   const video = $('playerVideo');
   if (!video || player.workspaceMode === 'browser') {
@@ -18315,6 +18370,10 @@ function resetMediaBoundState(options = {}) {
   player.offset2 = 0;
   player.offsetProfiles = {};
   stopLocalStutterProbe(false);
+  player.clockDriftSamples.length = 0;
+  player.clockDriftWarned = false;
+  const driftHint = $('playerClockDriftHint');
+  if (driftHint) driftHint.textContent = '';
   const offEl = $('subOffset');
   if (offEl && offEl.value !== '0') {
     offEl.value = '0';
@@ -23458,6 +23517,7 @@ if ($('playerVideo')) {
     if (player.hls) {
       player.hlsRecovery.playbackProgress(video.currentTime || 0, performance.now(), video.playbackRate);
     }
+    samplePlaybackClock(video);
     const seek = $('playerSeek');
     if (player.isLive || !isFinite(video.duration)) {
       // Canli: toplam sure yok; gecen sureyi ve CANLI rozetini goster
