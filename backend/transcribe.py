@@ -51,7 +51,8 @@ from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sent
                                   part_tail_issue, part_repetition_issue, part_anchor_issue,
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
-                                  translation_blocking_issues)
+                                  translation_blocking_issues, detect_scene_boundaries,
+                                  scene_context_bounds)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -3798,10 +3799,22 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def chunk_groups(indexes):
         return [group_at[i] for i in indexes if group_at[i][0] == i]
 
+    # Sabit baglam penceresi sahne siniri gecmez: uzun sessizlik (>=
+    # translate_scene_gap sn) veya INT./EXT. isaretinin actigi yeni sahneye
+    # onceki sahnenin replikleri 'baglam' diye sizip zamir/kayit/secim
+    # bozmasin. 0 = kapali (klasik sabit pencere).
+    SCENE_GAP = max(0.0, float(getattr(args, 'translate_scene_gap', 8.0) or 0.0))
+    scene_breaks = detect_scene_boundaries(entries, speaker_map, SCENE_GAP)
+    if scene_breaks:
+        log(f"Sahne bağlamı: {len(scene_breaks)} sahne sınırı "
+            f"(sessizlik >= {SCENE_GAP:g} sn veya mekan işareti)")
+
     def source_context(lo, hi):
+        bound_lo, bound_hi = scene_context_bounds(
+            scene_breaks, lo, hi, CONTEXT_LINES, len(entries))
         before = []
         left_speaker = speaker_map.get(lo)
-        for index in range(lo - 1, max(-1, lo - CONTEXT_LINES - 1), -1):
+        for index in range(lo - 1, bound_lo - 1, -1):
             neighbor_speaker = speaker_map.get(index)
             if left_speaker and neighbor_speaker and neighbor_speaker != left_speaker:
                 break
@@ -3809,7 +3822,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         before.reverse()
         after = []
         right_speaker = speaker_map.get(hi)
-        for index in range(hi + 1, min(len(entries), hi + 1 + CONTEXT_LINES)):
+        for index in range(hi + 1, bound_hi + 1):
             neighbor_speaker = speaker_map.get(index)
             if right_speaker and neighbor_speaker and neighbor_speaker != right_speaker:
                 break
@@ -9345,6 +9358,8 @@ def main():
     parser.add_argument("--cache-dir", default=None, help="Onbellek klasoru")
     parser.add_argument("--translate-context", type=int, default=4,
                         help="Cevrilen parcanin once/sonrasinda modele verilecek baglam satiri (0=kapali)")
+    parser.add_argument("--translate-scene-gap", type=float, default=8.0,
+                        help="Baglam icin sahne siniri: bu kadar saniyelik sessizlik (veya INT./EXT. isareti) baglami keser (0=kapali)")
     parser.add_argument("--translate-refine", type=lambda x: x.lower() == "true", default=False,
                         help="Ceviriyi ikinci gecisle gozden gecir ve iyilestir (2x maliyet)")
     parser.add_argument("--translate-keep-source", type=lambda x: x.lower() == "true", default=True,
