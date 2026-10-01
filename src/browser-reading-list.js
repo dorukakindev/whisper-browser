@@ -6,6 +6,7 @@
 // kopya uygulama dizininde kalır ve liste içinden açılır/silinir/yenilenir.
 const crypto = require('crypto');
 const fs = require('fs');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 const path = require('path');
 const { canonicalPageUrl } = require('./browser-translation-archive');
 
@@ -55,7 +56,9 @@ class BrowserReadingList {
     const temp = `${target}.tmp`;
     try {
       this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, entries: trimmed }, null, 2)}\n`);
+      fsyncFile(temp, this.fs);
       this.fs.renameSync(temp, target);
+      fsyncDirectory(path.dirname(target), this.fs);
     } finally {
       try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {}
     }

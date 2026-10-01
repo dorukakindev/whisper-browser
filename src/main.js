@@ -339,6 +339,7 @@ const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('.
 const { WatchIndex } = require('./watch-index');
 const { collectTrackAssetRefs, pruneAndSweepTracks } = require('./browser-asset-gc');
 const { writeJsonAtomic: writeAtomicJson, writeMirroredJsonAtomic } = require('./atomic-json');
+const { fsyncDirectory } = require('./fsync-utils');
 const { runBrowserPageIndexCapture } = require('./browser-page-index');
 const { BrowserNoteStore } = require('./browser-note-store');
 const { validateSubtitleExport } = require('./subtitle-export-validation');
@@ -2653,6 +2654,7 @@ function writeJsonAtomic(filePath, value, io = fs) {
   try {
     io.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
     io.renameSync(tmp, filePath);
+    fsyncDirectory(path.dirname(filePath), io);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
@@ -2665,6 +2667,7 @@ function writeBufferAtomic(filePath, value, io = fs) {
   try {
     io.writeFileSync(tmp, value, { flush: true });
     io.renameSync(tmp, filePath);
+    fsyncDirectory(path.dirname(filePath), io);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
@@ -16717,7 +16720,7 @@ ipcMain.handle('browser:page:export', async (event, request) => {
   if (!tab || !session?.translations?.size) return { ok: false, error: 'Dışa aktarılacak sayfa çevirisi yok.' };
   const format = ['txt', 'md', 'html', 'json'].includes(request?.format) ? request.format : 'txt';
   const snapshot = {
-    format, url: browserPageUrl(tab), title: browserExportTitle(tab),
+    format, lang: browserUiLocale(), url: browserPageUrl(tab), title: browserExportTitle(tab),
     targetLanguage: session.config.targetLanguage, sourceLanguage: session.config.sourceLanguage,
     scope: session.scope, mode: session.mode, blocks: [...session.blocks.values()].map((block) => ({ ...block })),
     translations: new Map(session.translations), failures: new Map(session.failures),

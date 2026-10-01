@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 
 class PersistentTranslationCache {
   constructor(filePath, options = {}) {
@@ -278,7 +279,9 @@ class PersistentTranslationCache {
       if (promises) {
         await promises.mkdir(dir, { recursive: true });
         await promises.writeFile(temp, payload, 'utf8');
+        fsyncFile(temp);
         await promises.rename(temp, this.filePath);
+        fsyncDirectory(dir);
         // .bak yeni temel İÇERİĞİN kopyasıdır — eski dosyayı sıkıştırmadan
         // önce yedeklemek, journal'dan katlanan son kayıtları kurtarma
         // noktasının dışında bırakırdı (bozuk temelden geri dönüşte kayıp).
@@ -287,7 +290,9 @@ class PersistentTranslationCache {
       } else {
         this.fs.mkdirSync(dir, { recursive: true });
         this.fs.writeFileSync(temp, payload, 'utf8');
+        fsyncFile(temp, this.fs);
         this.fs.renameSync(temp, this.filePath);
+        fsyncDirectory(dir, this.fs);
         try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         try { this.fs.unlinkSync(this.journalPath); } catch (_) {}
       }

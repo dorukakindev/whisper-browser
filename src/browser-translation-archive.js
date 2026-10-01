@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { cuesToSrt, normalizeCues } = require('./browser-asset-store');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
+const { atomicWriteFileSync } = require('./fsync-utils');
 
 const ARCHIVE_VERSION = 1;
 const INDEX_LIMIT = 5000;
@@ -119,7 +120,9 @@ function buildPageTranslationExport(raw = {}) {
   const title = normalizeText(raw.title || 'Sayfa çevirisi').slice(0, 300) || 'Sayfa çevirisi';
   const url = canonicalPageUrl(raw.url);
   const targetLanguage = languageCode(raw.targetLanguage);
-  const notice = complete ? '' : `KISMİ ÇEVİRİ: ${counts.translated}/${counts.total} blok çevrildi; ${counts.failed} başarısız, ${counts.pending} bekliyor, ${counts.excluded} dışlandı.`;
+  const notice = complete ? '' : (raw.lang === 'en'
+    ? `PARTIAL TRANSLATION: ${counts.translated}/${counts.total} blocks translated; ${counts.failed} failed, ${counts.pending} pending, ${counts.excluded} excluded.`
+    : `KISMİ ÇEVİRİ: ${counts.translated}/${counts.total} blok çevrildi; ${counts.failed} başarısız, ${counts.pending} bekliyor, ${counts.excluded} dışlandı.`);
   let text;
   if (format === 'json') {
     text = `${JSON.stringify({ version: 1, title, url, targetLanguage,
@@ -219,19 +222,15 @@ class BrowserTranslationArchive {
     try {
       if (this.fs.existsSync(filePath) && this.fs.readFileSync(filePath, 'utf8') === content) return;
     } catch (_) {}
-    const temp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-    this.fs.writeFileSync(temp, content, 'utf8');
-    this.fs.renameSync(temp, filePath);
+    atomicWriteFileSync(filePath, content, { io: this.fs });
   }
 
   _saveIndex(entry) {
     const index = this._readIndex();
     const previous = index.entries.find((item) => item.id === entry.id);
     index.entries = [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT);
-    const temp = `${this.indexPath}.${process.pid}.${Date.now()}.tmp`;
     this.ensure();
-    this.fs.writeFileSync(temp, `${JSON.stringify(index, null, 2)}\n`, 'utf8');
-    this.fs.renameSync(temp, this.indexPath);
+    atomicWriteFileSync(this.indexPath, `${JSON.stringify(index, null, 2)}\n`, { io: this.fs });
     // Index atomik olarak yeni revizyona gectikten sonra yalniz ayni mantiksal
     // kaydin eski dosyalarini ve yalniz arsiv kokunun icinde sil.
     for (const field of ['jsonPath', 'displayPath']) {

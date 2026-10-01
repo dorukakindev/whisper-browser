@@ -73,4 +73,19 @@ ok(/player\.editing/.test(renderer) && /player\.editing\s*=\s*true/.test(rendere
   ok(/escapeHtml\(/.test(fn), 'renderCueList kaçışsız metin basıyor');
 }
 
+// 8) B-366-01: ui-locale-change işleyicisi dinamik metin üreten yüzeyleri
+//    yeniden çizer — sözlük taraması (scan) yalnız sabit girdileri çevirir;
+//    interfaceChoice/describe çıktıları handler içinde tazelenmelidir.
+{
+  const handler = renderer.slice(renderer.indexOf("addEventListener('ui-locale-change'"), renderer.indexOf("addEventListener('ui-locale-change'") + 1200);
+  for (const fn of ['renderTranslationModelScore', 'updateGpuBadge', 'renderIntegrityResults',
+    'renderRuntimeStatus', 'renderBrowserDiagnostics', 'renderBrowserPlaybackDiagnostics', 'renderBrowserPageReport']) {
+    ok(handler.includes(`${fn}(`), `ui-locale-change ${fn} tazelemiyor`);
+  }
+  ok(/let lastRuntimeStatusEnv/.test(renderer) && /lastRuntimeStatusEnv = env/.test(renderer), 'runtime env önbelleği yok');
+  // Model-uyum uyarısı da günlükte geçerli dili izlesin.
+  const record = renderer.slice(renderer.indexOf('function recordTranslationModelScore'), renderer.indexOf('function recordTranslationModelScore') + 900);
+  ok(/describe\(next, event\.model, globalThis\.UiLocale\?\.get/.test(record), 'recordTranslationModelScore describe\'a locale geçirmiyor');
+}
+
 console.log(`renderer-edge-ratchet: ${n} kontrol geçti`);
