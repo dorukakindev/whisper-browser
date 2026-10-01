@@ -7,6 +7,14 @@ const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-librar
   'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
 const LIMIT = 256 * 1024 * 1024;
+// Meşru paket JSON'ları ~10 seviye içindedir; özyinelemeli gezginlerin yığın
+// sınırının çok altında, kurcalanmış girdiyi temiz hataya çeviren tavan.
+const MAX_PACKAGE_JSON_DEPTH = 32;
+function packageDepthError() {
+  const error = new Error(`Paket içeriği çok derin (en fazla ${MAX_PACKAGE_JSON_DEPTH} seviye).`);
+  error.code = 'WP_DEPTH';
+  return error;
+}
 const STORAGE_KEYS = ['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1'];
 function storageValues(values) {
   const result = {};
@@ -41,10 +49,16 @@ function rewrite(value, mappings) {
     }
     return current;
   };
-  function visit(current) {
+  function visit(current, depth = 0) {
     if (typeof current === 'string') return replacePath(current);
-    if (Array.isArray(current)) return current.map(visit);
-    if (current && typeof current === 'object') return Object.fromEntries(Object.entries(current).map(([k, v]) => [visit(k), visit(v)]));
+    if (Array.isArray(current)) {
+      if (depth >= MAX_PACKAGE_JSON_DEPTH) throw packageDepthError();
+      return current.map((item) => visit(item, depth + 1));
+    }
+    if (current && typeof current === 'object') {
+      if (depth >= MAX_PACKAGE_JSON_DEPTH) throw packageDepthError();
+      return Object.fromEntries(Object.entries(current).map(([k, v]) => [visit(k, depth + 1), visit(v, depth + 1)]));
+    }
     return current;
   }
   return visit(value);
@@ -60,7 +74,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
       // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
       // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
       // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
-      const visit = value => {
+      const visit = (value, depth = 0) => {
         if (typeof value === 'string' && path.isAbsolute(value)) {
           // Pakete giren video kaynakları kararlı takma kimliğe çevrilir;
           // kaynak makinenin mutlak yolu hiçbir manifest alanına yazılmaz
@@ -76,11 +90,18 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
           if (underRoot) return `{{ROOT}}/${relative}`;
           return value;
         }
-        if (Array.isArray(value)) return value.map(visit);
-        if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, visit(v)]));
+        if (Array.isArray(value)) {
+          if (depth >= MAX_PACKAGE_JSON_DEPTH) throw packageDepthError();
+          return value.map((item) => visit(item, depth + 1));
+        }
+        if (value && typeof value === 'object') {
+          if (depth >= MAX_PACKAGE_JSON_DEPTH) throw packageDepthError();
+          return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, visit(v, depth + 1)]));
+        }
         return value;
       };
-      try { buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8'))))); } catch (_) {}
+      try { buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8'))))); }
+      catch (error) { if (error?.code === 'WP_DEPTH') throw error; }
       seen.add(name); files.push({ name, data: buffer.toString('base64') });
       return;
     }
