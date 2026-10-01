@@ -4469,6 +4469,17 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .pdf-page-translation h3 {
   font-size: 13px; margin: 0 0 14px; color: var(--accent-hover); font: 700 12px/1.2 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .pdf-page-translation p { margin: 0 0 1em; white-space: pre-wrap; }
+.pdf-pair { margin: 0 0 1.2em; border-bottom: 1px solid var(--border); padding-bottom: .6em; }
+.pdf-pair:last-child { border-bottom: 0; }
+.pdf-pair-source {
+  margin: 0 0 .35em !important; font-size: .72em; line-height: 1.45;
+  color: var(--text-muted); font-family: system-ui, sans-serif;
+}
+.pdf-pair-target { margin: 0 !important; }
+.pdf-pair-target.pdf-pair-pending { color: var(--text-muted); font-style: italic; }
+.pdf-kind-heading .pdf-pair-target { font-weight: 700; font-size: 1.15em; }
+.pdf-kind-footnote .pdf-pair-target { font-size: .85em; }
+.pdf-kind-table .pdf-pair-target { font-variant-numeric: tabular-nums; }
 .pdf-page[data-state="loading"] .pdf-page-translation::after { content: 'Sayfa hazırlanıyor…'; color: var(--text-muted); }
 @media (max-width: 1180px) {
 .pdf-reader-toolbar { flex-wrap: wrap; }

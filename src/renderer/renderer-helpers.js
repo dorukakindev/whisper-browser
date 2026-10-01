@@ -788,9 +788,24 @@ async function extractPdfReaderPage(pageNumber) {
 function renderPdfTranslation(pageNumber, blocks) {
   const entry = player.pdfReader?.pages.get(pageNumber); if (!entry) return;
   if (!entry.translation) return;
-  entry.translation.querySelectorAll('p').forEach((node) => node.remove());
+  entry.translation.querySelectorAll('p, .pdf-pair').forEach((node) => node.remove());
   for (const block of blocks || []) {
-    const p = document.createElement('p'); p.textContent = block.translation || block.source || ''; entry.translation.appendChild(p);
+    // Madde 36 — kaynak/hedef eşleşmesi: her blok kaynak metni (küçük,
+    // soluk) ve çevirisiyle çift olarak çizilir; tür (başlık/dipnot/tablo)
+    // sınıf olarak taşınır. Eskiden yalnız çeviri gösteriliyordu.
+    const pair = document.createElement('div');
+    pair.className = 'pdf-pair';
+    pair.dataset.blockId = block.id || '';
+    if (block.kind) pair.classList.add(`pdf-kind-${block.kind}`);
+    const src = document.createElement('p');
+    src.className = 'pdf-pair-source';
+    src.textContent = block.source || '';
+    const tgt = document.createElement('p');
+    tgt.className = 'pdf-pair-target';
+    tgt.textContent = block.translation || block.source || '';
+    if (!block.translation) tgt.classList.add('pdf-pair-pending');
+    pair.append(src, tgt);
+    entry.translation.appendChild(pair);
   }
 }
 

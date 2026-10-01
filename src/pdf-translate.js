@@ -188,6 +188,7 @@ function textItemsToLines(items, options = {}) {
     const center = line.x + line.width / 2;
     line.column = spanning ? -1 : boundaries.filter((boundary) => center > boundary).length;
   }
+  markTableRegions(lines, pageWidth);
   const spanning = lines.filter((line) => line.column < 0).sort((a, b) => b.y - a.y || a.x - b.x);
   let remaining = lines.filter((line) => line.column >= 0);
   const ordered = [];
@@ -201,6 +202,75 @@ function textItemsToLines(items, options = {}) {
   }
   appendColumnOrder(remaining);
   return ordered;
+}
+
+// Tablo bölgeleri: art arda ≥3 satırda aynı sütun hizasında ≥3 parça varsa ve
+// en az bir hücre kendi bandını doldurmuyorsa (tıraşlı sağ kenar) bölge
+// tablodur. Hücreler `tableCell` olarak işaretlenip spanning (-1) sütununa
+// alınır — spanning döngüsü y-major (satır satır) sıraladığı için tablo
+// doğru okuma sırasında, üstteki/alttaki sütun içeriğinden ayrı kalır.
+// İki sütunlu gövde metni bu denetimden geçmez (≥3 parça şartı).
+function markTableRegions(lines, pageWidth) {
+  const byGroup = new Map();
+  for (const line of lines) {
+    if (!Number.isInteger(line.rowGroup)) continue;
+    if (!byGroup.has(line.rowGroup)) byGroup.set(line.rowGroup, []);
+    byGroup.get(line.rowGroup).push(line);
+  }
+  const rows = [...byGroup.entries()]
+    .map(([groupIndex, groupLines]) => ({
+      groupIndex,
+      parts: groupLines.sort((a, b) => a.rowPart - b.rowPart)
+        .map((line) => ({ x: line.x, right: line.x + line.width, lines: [line] })),
+    }))
+    .filter((row) => row.parts.length >= 3);
+  if (rows.length < 3) return;
+  const xTolerance = Math.max(6, pageWidth * 0.02);
+  const aligned = (prev, next) => prev.parts.length === next.parts.length
+    && prev.parts.every((part, index) => Math.abs(part.x - next.parts[index].x) <= xTolerance);
+  // Ardışık hizalı satır dizileri bul.
+  const regions = [];
+  const rowOrder = rows.map((row) => row.groupIndex).sort((a, b) => a - b);
+  const rowByIndex = new Map(rows.map((row) => [row.groupIndex, row]));
+  let prevIndex = null;
+  let run = [];
+  for (const index of rowOrder) {
+    const row = rowByIndex.get(index);
+    const prev = prevIndex == null ? null : rowByIndex.get(prevIndex);
+    const consecutive = prev && index === prevIndex + 1 && aligned(prev, row);
+    if (!consecutive) {
+      if (run.length >= 3) regions.push(run);
+      run = [row];
+    } else run.push(row);
+    prevIndex = index;
+  }
+  if (run.length >= 3) regions.push(run);
+  for (const region of regions) {
+    // Gövde sütunu metni bandı doldurur; tablo hücreleri bandı doldurmayabilir —
+    // en az bir hücrenin sağ kenarı bandının %40'ından darsa bölge tablodur.
+    let ragged = false;
+    for (const row of region) {
+      for (let index = 0; index < row.parts.length; index++) {
+        const part = row.parts[index];
+        const bandEnd = index + 1 < row.parts.length ? row.parts[index + 1].x : Infinity;
+        const bandStart = index ? row.parts[index - 1].right : -Infinity;
+        const bandWidth = Math.min(bandEnd, Number.isFinite(bandEnd) ? bandEnd : part.right)
+          - Math.max(bandStart, Number.isFinite(bandStart) ? bandStart : part.x);
+        if (Number.isFinite(bandWidth) && bandWidth > 0
+            && part.right - part.x < bandWidth * 0.6) { ragged = true; break; }
+      }
+      if (ragged) break;
+    }
+    if (!ragged) continue;
+    for (const row of region) {
+      for (const part of row.parts) {
+        for (const line of part.lines) {
+          line.tableCell = true;
+          line.column = -1;
+        }
+      }
+    }
+  }
 }
 
 function median(values) {
@@ -218,10 +288,12 @@ function paragraphFrom(lines, pageNumber, index) {
   const bottom = Math.min(...lines.map((line) => line.y - line.height));
   const left = Math.min(...lines.map((line) => line.x));
   const right = Math.max(...lines.map((line) => line.x + line.width));
+  const kinds = new Set(lines.map((line) => line.kind || 'body'));
   return {
     id: `${pageNumber}:${index}:${digest}`,
     text,
     lineCount: lines.length,
+    kind: kinds.size === 1 ? [...kinds][0] : 'body',
     box: { left, top, right, bottom },
   };
 }
@@ -258,6 +330,22 @@ function mergePdfLines(rawLines, options = {}) {
   const paragraphGap = Math.max(normalGap * 1.6,
     finiteNumber(options.minimumParagraphGap, 0));
   const pageNumber = Math.max(1, Math.trunc(finiteNumber(options.pageNumber, 1)));
+  // Madde 36 — satır türleri: belirgin büyük yazı başlık, alt kenardaki
+  // küçük yazı dipnot; ikisi de gövde paragrafıyla birleşmez (başlık metni
+  // dipnota, dipnot metni gövdeye karışmadan ayrı bloklar üretilir).
+  const medianHeight = Math.max(0.01, fallbackGap);
+  const pageHeight = Math.max(0, ...lines.map((line) => finiteNumber(line.pageHeight)))
+    || pageHeightFrom(options);
+  for (const line of lines) {
+    if (line.tableCell) { line.kind = 'table'; continue; }
+    if (pageHeight && line.y <= pageHeight * 0.14 && line.height <= medianHeight * 0.78
+        && !isStandalonePageNumber(line.text)) { line.kind = 'footnote'; continue; }
+    if (line.height >= medianHeight * 1.45 && line.text.length <= 200) {
+      line.kind = 'heading';
+      continue;
+    }
+    line.kind = line.kind || 'body';
+  }
 
   const paragraphs = [];
   let current = [{ ...lines[0] }];
@@ -269,8 +357,11 @@ function mergePdfLines(rawLines, options = {}) {
     const columnChanged = Number.isInteger(previous.column) && Number.isInteger(next.column)
       && previous.column !== next.column;
     const splitRow = previous.rowGroup === next.rowGroup && previous.rowPart !== next.rowPart;
-    const startsNewParagraph = !hyphenated && (columnChanged || splitRow
-      || gap > paragraphGap || gap < -fallbackGap * 2);
+    const kindChanged = (previous.kind || 'body') !== (next.kind || 'body');
+    // Tablo hücreleri atomiktir: aynı satırın hücreleri bile birleşmez.
+    const tableBoundary = previous.kind === 'table' || next.kind === 'table';
+    const startsNewParagraph = !hyphenated && (columnChanged || splitRow || kindChanged
+      || tableBoundary || gap > paragraphGap || gap < -fallbackGap * 2);
     if (startsNewParagraph) {
       paragraphs.push(paragraphFrom(current, pageNumber, paragraphs.length));
       current = [next];
@@ -369,6 +460,33 @@ function buildPdfParagraphPages(rawPages, options = {}) {
   }));
 }
 
+/** Madde 36 — farklı düzenlerde metin sırasının ve sayfa ilişkilerinin
+ *  korunmasını ölçer: sayfa başına paragraf sayısı, tür dağılımı (body/
+ *  heading/footnote/table) ve kimliklerin okuma sırası. Testler bu özeti
+ *  beklenen sırayla karşılaştırır; ayrıca onarım/rapor araçları da
+ *  kullanabilir. */
+function readingOrderMetrics(rawPages, options = {}) {
+  const pages = buildPdfParagraphPages(rawPages, options);
+  const perPage = pages.map((page) => {
+    const kinds = { body: 0, heading: 0, footnote: 0, table: 0 };
+    for (const paragraph of page.paragraphs) {
+      const kind = paragraph.kind || 'body';
+      kinds[kind] = (kinds[kind] || 0) + 1;
+    }
+    return {
+      pageNumber: page.pageNumber,
+      paragraphCount: page.paragraphs.length,
+      kinds,
+      order: page.paragraphs.map((paragraph) => paragraph.text.slice(0, 60)),
+    };
+  });
+  return {
+    pageCount: perPage.length,
+    paragraphCount: perPage.reduce((sum, page) => sum + page.paragraphCount, 0),
+    pages: perPage,
+  };
+}
+
 function normalizedIdentity(identity = {}) {
   return {
     pdfHash: String(identity.pdfHash ?? '').trim(),
@@ -400,6 +518,7 @@ function normalizePdfBlock(block, index) {
     translation,
     status,
   };
+  if (['heading', 'footnote', 'table'].includes(block.kind)) normalized.kind = block.kind;
   if (status === 'failed' && block.error != null) normalized.error = normalizeText(block.error).slice(0, 1000);
   return normalized;
 }
@@ -552,6 +671,7 @@ module.exports = {
   mergePdfTextItems,
   filterRepeatedMarginalLines,
   buildPdfParagraphPages,
+  readingOrderMetrics,
   isStandalonePageNumber,
   createPdfTranslationState,
   normalizePdfTranslationState,

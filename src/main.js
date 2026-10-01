@@ -7380,6 +7380,9 @@ function preparePdfPageRequests(rawPages) {
     .map((page) => [page.pageNumber, page.paragraphs.map((paragraph) => ({
       id: paragraph.id,
       source: paragraph.text,
+      // Madde 36 — başlık/dipnot/tablo türü kaynak↔hedef eşleştirmesinde
+      // korunur (görsel hiyerarşi + birleştirme sınırları).
+      ...(paragraph.kind && paragraph.kind !== 'body' ? { kind: paragraph.kind } : {}),
     }))]));
   return pages.map((page) => ({
     pageNumber: page.pageNumber,
@@ -7396,6 +7399,7 @@ async function translatePdfPage(document, pageRequest, config, state, job) {
   const blocks = rawBlocks.map((block, index) => ({
     id: String(block?.id ?? `${pageNumber}:${index}`).slice(0, 200),
     source: String(block?.source ?? block?.text ?? '').normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 12000),
+    ...(typeof block?.kind === 'string' ? { kind: block.kind.slice(0, 40) } : {}),
   })).filter((block) => block.source);
   if (!blocks.length) {
     const next = recordPdfPageTranslation(state, pageNumber, []);
@@ -7449,6 +7453,7 @@ async function translatePdfPage(document, pageRequest, config, state, job) {
       source: block.source,
       translation: results.get(block.id) || '',
       status: results.has(block.id) ? 'translated' : 'failed',
+      ...(block.kind ? { kind: block.kind } : {}),
       ...(failures.has(block.id) ? { error: failures.get(block.id) } : {}),
     }));
     const next = recordPdfPageTranslation(state, pageNumber, pageBlocks);
