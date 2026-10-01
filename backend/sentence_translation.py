@@ -1361,3 +1361,60 @@ def accept_sentence_reply(data, ids):
     if len(ids) == 1 and whole is None:
         whole = parts[0]
     return validate_sentence_parts(whole, parts, len(ids))
+
+
+
+_SCENE_MARKER = re.compile(
+    r'^\s*(?:[\[(]\s*)?(?:int\.?|ext\.?|i/e\.?|interior|exterior|ic\s+mekan|dis\s+mekan|mekan\s*[:.-])\b',
+    re.I,
+)
+
+
+def detect_scene_boundaries(entries, speakers=None, gap_threshold=8.0):
+    """Yeni sahnenin basladigi giris numaralarini dondurur (kume).
+
+    Sahne siniri iki bagimsiz sinyalle saptanir:
+    - onceki cue'un bitisiyle bu cue'un baslangici arasinda en az
+      `gap_threshold` saniyelik sessizlik (sahne gecisi, jenerik, reklam).
+    - cue metninin INT./EXT./ic mekan gibi mekan bildiren isaretle acilmasi.
+    Ilk giris (0) asla siniri sayilmaz; cakisan/bozuk zamanli girisler de
+    sinyal uretmez — korunmasiz blok korkulugu sentence_groups'a aittir.
+    """
+    try:
+        threshold = float(gap_threshold)
+    except (TypeError, ValueError):
+        threshold = 0.0
+    breaks = set()
+    if threshold <= 0 or len(entries) < 2:
+        return frozenset()
+    for index in range(1, len(entries)):
+        start, end, text = entries[index]
+        prev_end = entries[index - 1][1]
+        try:
+            start, end, prev_end = float(start), float(end), float(prev_end)
+        except (TypeError, ValueError):
+            continue
+        if not (math.isfinite(start) and math.isfinite(end)
+                and math.isfinite(prev_end)):
+            continue
+        if start - prev_end >= threshold or _SCENE_MARKER.match(str(text or '')):
+            breaks.add(index)
+    return frozenset(breaks)
+
+
+def scene_context_bounds(breaks, lo, hi, max_lines, entry_count):
+    """[lo, hi] parcasi icin sahne-sinirli baglam araligi: (before_start, after_end).
+
+    Sabit +/-max_lines penceresine ek ust sinir: baglam asla sahne siniri
+    gecmez — onceki sahnenin replikleri yeni sahnenin cevirisine 'baglam'
+    diye sizamaz. Donen araliklar yalniz okunur kaynak satirlar icindir.
+    """
+    left = max(0, lo - max(0, int(max_lines)))
+    prev_scene = [b for b in breaks if b <= lo]
+    if prev_scene:
+        left = max(left, max(prev_scene))
+    right = min(entry_count - 1, hi + max(0, int(max_lines)))
+    next_scene = [b for b in breaks if b > hi]
+    if next_scene:
+        right = min(right, min(next_scene) - 1)
+    return left, right
