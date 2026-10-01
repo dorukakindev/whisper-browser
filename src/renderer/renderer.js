@@ -24618,7 +24618,9 @@ async function saveCueEdit() {
   }, subtitleStatFor(targetPath)); }
   catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
-    logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+    // Taslak editorde kalir: kullanici sorunu duzeltip ayni dugmeyle tekrar dener.
+    const detail = friendlySystemError((res && res.error) || 'bilinmeyen hata');
+    logLine(`Altyazı kaydedilemedi: ${detail} — taslağınız korunuyor, tekrar deneyin.`, 'error');
     return;
   }
   noteSubtitleStat(targetPath, res);
