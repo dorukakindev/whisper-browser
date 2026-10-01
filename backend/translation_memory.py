@@ -194,10 +194,17 @@ class TranslationMemory:
             return None
         context_key = self.context_key(context_fingerprint)
         lo, hi = max(1, int(len(source) * .75)), int(len(source) * 1.25) + 1
-        with self._lock:
-            rows = self._conn.execute(
-                "SELECT source,target FROM tm WHERE scope=? AND context_key=? AND length(source) BETWEEN ? AND ? ORDER BY created_at DESC LIMIT 240",
-                (str(scope), context_key, lo, hi)).fetchall()
+        try:
+            with self._lock:
+                if self._conn is None:
+                    return None
+                rows = self._conn.execute(
+                    "SELECT source,target FROM tm WHERE scope=? AND context_key=? AND length(source) BETWEEN ? AND ? ORDER BY created_at DESC LIMIT 240",
+                    (str(scope), context_key, lo, hi)).fetchall()
+        except (sqlite3.Error, OSError):
+            # Hafıza yalnız bir önbellektir: orta-iş bozulma/disk hatası tüm
+            # çeviri döngüsünü öldürmez, ıskalayıp canlı çeviriye düşer.
+            return None
         best = None
         source_folded = source.casefold()
         for candidate, target in rows:

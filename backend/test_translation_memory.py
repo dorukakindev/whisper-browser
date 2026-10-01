@@ -125,6 +125,22 @@ class TranslationMemoryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Desteklenmeyen"):
                 TranslationMemory(future)
 
+    def test_lookup_degrades_when_db_breaks_or_closes(self):
+        # R365 — orta-iş sqlite bozulması/kiliti veya kapalı bağlantı
+        # tüm çeviri döngüsünü öldürmemeli: lookup ıskalayıp None döner.
+        with tempfile.TemporaryDirectory() as work:
+            tm = TranslationMemory(Path(work) / "tm.sqlite3")
+            source = "Hello there world, how are you today"
+            self.assertTrue(tm.store(source, "Merhaba dünya", "s", "ctx"))
+            tm._conn.execute("DROP TABLE tm")
+            tm._conn.commit()
+            # Bozuk tablo: sorgu sqlite3.OperationalError üretir — lookup ıskalar.
+            self.assertIsNone(tm.lookup(source, "s", "ctx"))
+            tm.close()
+            # Kapalı bağlantı da çökmez.
+            self.assertIsNone(tm.lookup(source, "s", "ctx"))
+            self.assertIsNone(tm.lookup(source, "s", "ctx"))
+
 
 if __name__ == "__main__":
     unittest.main()
