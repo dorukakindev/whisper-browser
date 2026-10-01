@@ -1,8 +1,9 @@
 'use strict';
 // R326-1 — CSP/permission policy denetimi ratchet'i.
-// index.html connect-src daralır: renderer'da https: bağlantısı yapan tek
-// yüzey whisper-pdf: fetch'idir; https: ölü izin olarak kalırsa gelecekteki
-// bir XSS vektörüne exfil yolu bırakır.
+// index.html connect-src'de https: İZNİ GEREKLİ: paketli hls.js oynatıcısı
+// renderer bağlamında uzak HTTPS manifest/segment indirir (setPlayerHls →
+// new Hls → fetch/XHR). https:'yı kaldırmak canlı yayın oynatmayı kırar
+// (R332 review bulgusu). Diğer direktiflerde uzak izin yoktur.
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -27,8 +28,8 @@ function cspOf(doc) {
 
 describe('R326-1: CSP politikası denetimi', () => {
   const csp = cspOf(html);
-  it('connect-src yalnız self + whisper-pdf (https: ölü izin yok)', () => {
-    assert.deepEqual(csp['connect-src'], ["'self'", 'whisper-pdf:']);
+  it('connect-src self + https: (hls.js) + whisper-pdf — başka izin yok', () => {
+    assert.deepEqual(csp['connect-src'], ["'self'", 'https:', 'whisper-pdf:']);
   });
   it('script-src katı self (unsafe-inline/eval yok)', () => {
     assert.deepEqual(csp['script-src'], ["'self'"]);

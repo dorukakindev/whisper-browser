@@ -176,15 +176,19 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
     const proc = new EventEmitter(); proc.stdout = new EventEmitter();
     let timeout, killed = 0;
     const probe = handler('media:probeTracks', { authorizedBrowserSender: () => true,
+      // vm context'te Node globali yok — handler Buffer.concat kullanır.
+      Buffer,
       resolveFfTool: () => 'ffprobe', authorizeLocalMediaPath: (value) => value, spawn: () => proc,
       setTimeout: fn => { timeout = fn; return { unref() {} }; }, clearTimeout() {},
       terminateProcessTree: () => { killed++; }, parseSubtitleStreams: () => [], subtitleTrackLabel: () => '',
     });
     const pending = probe.run({}, '/synthetic/video.mp4');
     if (scenario === 'timeout') timeout();
-    else if (scenario === 'oversize') proc.stdout.emit('data', 'a'.repeat(4 * 1024 * 1024 + 1));
+    // stdout 'data' gerçek akışta Buffer taşır — handler parçaları
+    // Buffer.concat ile birleştirir (UTF-8 sınır güvenliği).
+    else if (scenario === 'oversize') proc.stdout.emit('data', Buffer.alloc(4 * 1024 * 1024 + 1, 'a'));
     else if (scenario === 'error') proc.emit('error', Error('spawn failed'));
-    else proc.stdout.emit('data', '{"streams":[{"codec_type":"audio","codec_name":"aac"}]}');
+    else proc.stdout.emit('data', Buffer.from('{"streams":[{"codec_type":"audio","codec_name":"aac"}]}', 'utf8'));
     proc.emit('close', 0);
     const result = await pending;
     assert.equal(result.ok, scenario === 'success');
