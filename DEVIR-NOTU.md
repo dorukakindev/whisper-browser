@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R393 kuyruk-g6 çift altyazı: 4 kusur düzeltildi (auto-fit metin küçültme, max(13%,120px) kontrol rezervi, ayrı-sürükleme kelepçesi) + electron-subtitle-overlap smoke'u
+Güncel çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R394 kuyruk-g7 büyük transkript: 8000 cue'da renderCue 36→0.8ms, arama 88→19ms (foldIndexCached + cueMetaStats) + cue-list-perf.test.js
+Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R393 kuyruk-g6 çift altyazı: 4 kusur düzeltildi (auto-fit metin küçültme, max(13%,120px) kontrol rezervi, ayrı-sürükleme kelepçesi) + electron-subtitle-overlap smoke'u
 Önceki çalışma: [docs/devir/2026-10-01-1800.md](docs/devir/2026-10-01-1800.md) — R392 kuyruk-g5 klavye: B-392-01 görev merkezi Esc'te kapanmıyordu, zincire eklendi + electron-ui-keyboard smoke'u (12 kontrol)
 Önceki çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R391 kuyruk-g4 tema kontrastı: açık temada 16 doğrulanmış ihlal düzeltildi (player-panel/field-label/jobsQueueBadge → token) + electron-ui-theme-contrast smoke'u
 Önceki çalışma: [docs/devir/2026-10-01-1700.md](docs/devir/2026-10-01-1700.md) — R390 kuyruk-g3 dar pencere: 2 kusur düzeltildi (st-ray ikon-only + arama min-width) + electron-ui-narrow-tr smoke'u

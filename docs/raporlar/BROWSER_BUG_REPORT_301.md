@@ -1535,3 +1535,37 @@ testi için fullscreenchange dinleyicisi `typeof document` kapılı.
 **Ortam sınırları (Windows'ta elle doğrulanmalı):** pointer-sürükleme
 davranışı testlerde `applySubtitlePos`/sınıf enjeksiyonuyla sınandı — gerçek
 dokunmatik/fare sürükleme Windows'ta elle doğrulanmalı.
+
+---
+
+## R394 — kuyruk g7: büyük transkript performansı (4.000–10.000 satır)
+
+**Ölçülen darboğazlar (Electron, 8.000 cue, 1280×860):**
+
+| İşlem | Önce | Sonra |
+|---|---|---|
+| `renderCue` (oynatma karesi) | 36.2 ms | 0.8 ms |
+| `renderCueList('')` | 70.5 ms | 6.4 ms |
+| `renderCueList('metin')` (tuş başına) | 88.5 ms | 19.5 ms |
+| `highlightCueRow` | 33.5 ms | 1.1 ms |
+
+**Kök nedenler:**
+
+- `updateCueMeta` kare başına 4 tam-cue taraması yapıyordu (`savedCount`,
+  `lowCount`, `missing` + `translationsForCues`); `missing` hesabı her cue'da
+  `cueLooksUntranslated` → 2× `foldIndex` → 8k satırda ~31 ms.
+- `cueSearch` input handler'ı her tuşta 2×8k `foldIndex` + ayrıca
+  `translationsForCues` çağırıyordu (~88 ms/tuş).
+- Liste filtresi de arama açıkken her cue için yeniden `foldIndex`.
+
+**Çözüm:** `foldIndexCached` — içerik-adresli `Map` önbelleği (24k sınır;
+aynı metin hep aynı sonucu döndürür, metin değişince yeni anahtar üretilir,
+invalidasyon gerekmez). `cueMetaStats` — stats yalnız `cues/cues2/savedCues`
+kimliği veya uzunluğu değişince yeniden hesaplanır (oynatma karelerinde O(1)).
+
+**Kanıtlar:** yeni `tests/cue-list-perf.test.js` (5 kontrol: önbellek
+özdeşliği, memoizasyon, invalidasyon, 8k doğruluk, O(1) tekrar). İlgili
+paketler: subtitle-* (find/perf/format/parser-fuzz), player-ui 153,
+browser-bulk-edit-locks 16, cue-seek, dual-layout — hepsi yeşil.
+electron-subtitle-overlap smoke tekrar geçti. Windows'ta doğrulanmadı
+(platformdan bağımsız JS).
