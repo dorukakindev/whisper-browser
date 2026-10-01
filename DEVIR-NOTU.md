@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R391 kuyruk-g4 tema kontrastı: açık temada 16 doğrulanmış ihlal düzeltildi (player-panel/field-label/jobsQueueBadge → token) + electron-ui-theme-contrast smoke'u
+Güncel çalışma: [docs/devir/2026-10-01-1800.md](docs/devir/2026-10-01-1800.md) — R392 kuyruk-g5 klavye: B-392-01 görev merkezi Esc'te kapanmıyordu, zincire eklendi + electron-ui-keyboard smoke'u (12 kontrol)
+Önceki çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R391 kuyruk-g4 tema kontrastı: açık temada 16 doğrulanmış ihlal düzeltildi (player-panel/field-label/jobsQueueBadge → token) + electron-ui-theme-contrast smoke'u
 Önceki çalışma: [docs/devir/2026-10-01-1700.md](docs/devir/2026-10-01-1700.md) — R390 kuyruk-g3 dar pencere: 2 kusur düzeltildi (st-ray ikon-only + arama min-width) + electron-ui-narrow-tr smoke'u
 Önceki çalışma: [docs/devir/2026-10-01-1630.md](docs/devir/2026-10-01-1630.md) — R389 kuyruk-g2 dinamik mesajlar: 3 boşluk düzeltildi (~35 sözlük çifti + 20 kalıp, notifyDone uiText, görev merkezi ham-TR gidiş-dönüş + playerTaskText kaldırıldı)
 Önceki çalışma: [docs/devir/2026-10-01-1600.md](docs/devir/2026-10-01-1600.md) — R388 EN/TR geçişinde kullanıcı verisi korunması: 2 kusur düzeltildi (data-ui-untranslated işaretleri + 50 sözlük çifti/3 kalıp)

@@ -1459,3 +1459,43 @@ iki tema 0 FAIL; `css-hardcoded-colors` 436/436 (yeni sabit renk yok),
 
 Windows etkisi: tema token'ları platformdan bağımsız; aynı düzeltme
 geçerli. Elle doğrulanmadı.
+
+## R392 — Kuyruk g5: klavye (Tab/Enter/Esc + odak geri dönüşü)
+
+20'lik kuyruğun 5. görevi: menü, ayar ve panel yüzeylerinde gerçek
+trusted tuş olaylarıyla (sendInputEvent) klavye davranışını doğrula.
+Yeni smoke `tests/electron-ui-keyboard.smoke.js` uygulamanın kendi
+penceresinde (gerçek preload+renderer) çalışır: details menülerinde
+ArrowDown→öğe, Esc→kapanış+summary'ye odak iadesi, ayar çekmecesi Esc,
+alt yazı mod menüsü Esc, komut paleti Ctrl+K/Esc, menü içi form
+kontrolü muafiyeti — 12 kontrol.
+
+**B-392-01 — görev merkezi paneli Esc'te kapanmıyordu:** oynatıcı Esc
+zincirinde (ytModal→downloads→qr→places→subMenu→…) `#playerTaskCenter`
+hiç kontrol edilmiyordu; panel açıkken Esc hiçbir şey yapmıyordu —
+İndirme/Yer imi panelleriyle tutarsız. Zincire eklendi; kapanırken
+odak `playerTaskCenterToggle`'a döner. Kırmızı kanıtı: master
+`renderer.js`'iyle smoke'ta FAIL (playerTaskCenter: Esc açık paneli
+kapatmadı), düzeltmeyle 0 FAIL.
+
+**Temiz çıkan yüzeyler:** playerHeadMore/playerLayoutQuickMenu (player
+modu) ve appMenu/appModeMenu/browserMoreMenu (browser modu) Esc
+zinciri + odak iadesi; details menü ok gezintisi; subtitleModeMenu
+tık→Esc; settingsDrawer Esc.
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):**
+- Xvfb'de `sendInputEvent` Enter→native button click üretmiyor; menü
+  öğesi aktivasyonu `.click()` ile sınandı — Enter/Space'in native
+  aktivasyonu gerçek Windows'ta kontrol edilmeli.
+- `browserDownloadsToggle` sekme olmayan browser modunda gizli —
+  indirme panelinin Esc/odak-iade yolu bu koşudaki yerleşimde
+  sınanamadı (mevcut electron-browser-downloads smoke'u ayrıca
+  kapsıyor).
+- `hasFocus`/`document.hasFocus()`=true iken `element.focus()` gizli
+  chrome'daki summary'de sessizce yutuluyor — görünür yüzeylerde
+  odak/odak-iadesi doğrulandı.
+
+**Kanıtlar:** `xvfb-run -a node_modules/.bin/electron
+tests/electron-ui-keyboard.smoke.js` GEÇTİ; kırmızı kanıt master'da 1
+FAIL üretti; `player-escape-dialog` + `player-ui` (153) yeşil;
+`node --check` temiz.
