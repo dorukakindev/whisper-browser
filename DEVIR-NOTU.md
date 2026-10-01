@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-0719.md](docs/devir/2026-10-01-0719.md) — R340 modül kapsam turu 2: 7 araç modülü tam okuma (~3.230 satır) — sıfır kusur
+Güncel çalışma: [docs/devir/2026-10-01-0815.md](docs/devir/2026-10-01-0815.md) — R341 modül kapsam turu 3: 7 modül tam okuma — 2 gerçek düzeltme (.bak ENOENT + görünmez-sorgu tamamlama)
+Önceki çalışma: [docs/devir/2026-10-01-0719.md](docs/devir/2026-10-01-0719.md) — R340 modül kapsam turu 2: 7 araç modülü tam okuma (~3.230 satır) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-0715.md](docs/devir/2026-10-01-0715.md) — R339 browser-page-translate.js tam okuma + insertAfterRoot document-ebeveynli kök düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-0705.md](docs/devir/2026-10-01-0705.md) — R338 main.js çeviri hattı derin okuması: IPC→scheduler→istek→sayfa/PDF yüzeyleri temiz
 Önceki çalışma: [docs/devir/2026-10-01-0700.md](docs/devir/2026-10-01-0700.md) — R337 renderer derin-okuma kampanyası: yüzeyler temiz + 16 davranış kilidi (bulk/edit/snapshot/alternatives)

@@ -393,6 +393,46 @@ Zayıf test referanslı araç modüllerinin tam okuması (~3.230 satır):
 Sıfır doğrulanmış kusur; tek açık not yukarıdaki kullanılmayan-export
 satırı. Windows etkisi yok.
 
+## R341 — Modül kapsam turu 3 (orta-satır yardımcılar): 2 gerçek düzeltme
+
+Kapsam sıralamasının devamı (test dosyası referansı ≤7, ~2.718 satır tam
+okuma): media-catalog-store (283), browser-settings-registry (290),
+browser-translation-archive (348), browser-address-model (361),
+browser-feature-services (407), watch-index (483),
+browser-playback-diagnostics (538). İki doğrulanmış kusur kapandı:
+
+- **B-341-01 (media-catalog-store.read) — birincil silinirse .bak
+  atlanıyordu:** `read()` yalnız bozuk-şema dalında yedeği deniyordu;
+  ENOENT doğrudan boş katalog döndürüyordu. Silinmiş `catalog.json` +
+  sağlam `catalog.json.bak` durumunda kullanıcı kataloğu kaybolmuş
+  görünürdü (yedekte veri dururken). Artık birincil her kayboluşta yedek
+  deneniyor; ikisi de yoksa boş katalog (taze kurulum), ana yok + yedek
+  bozuksa koruma hatası. Kilit:
+  `tests/media-catalog-store.test.js` yeni blok — master'da FAIL
+  (`createMediaCatalogStore` boş liste döndürürdü), düzeltmede PASS.
+- **B-341-02 (browser-address-model.inlineCompletion) — görünmez
+  sorguda hayalet tamamlama:** 2 görünmez karakter (ZWSP/WJ/birleştirme
+  işareti) yazılınca yoğun sorgu boşa katlanıyor, `bareDense.startsWith('')`
+  her places kaydını aday yapıyor ve `origEnd=0` ile host tamamlaması
+  üretiliyordu — hiçbir şey yazmadan hayalet öneri. `buildAddressResults`
+  aynı sınıfı `!folded` ile zaten kapatıyordu; bu yol kaçmış. `!needle`
+  kapısı eklendi. Kilit: `tests/browser-address-model.test.js`
+  (ZWSP/WJ/işaretçi sorguları → null; master'da FAIL).
+
+Temiz çıkan yüzeyler: registry arama/scope-durum modeli (statik, TR
+panel metinleri panelin kurulu konvansiyonuna uygun), arşiv katmanı
+(canonical URL sorgu-süzgeci, traversal-güvenli `_saveIndex` artık-temizliği,
+findPage eşikleri), adres modeli kalanı (jamo/sentinel haritası,
+frecency, tekilleştirme, http-fallback kodları, NTP), feature-services
+(generation+mediaId+AbortController üçlüsü, stat TOCTOU, crop/dosya
+sınırları, ASS yetim-kare temizliği), watch-index (FTS tetikleyici
+şeması, sürüm kapısı, keep-set budama, cue kimliği tekilleştirme),
+playback-diagnostics (redaksiyon sıralaması, requestLike lisans kapısı,
+dedupe/üstel-emisyon sayaçları).
+
+Windows etkisi: B-341-01 yalnız dayanıklılık — Windows'ta da aynı
+.bak kurtarma semantiği; B-341-02 renderer-yan.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
