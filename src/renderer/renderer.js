@@ -5628,6 +5628,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
     player.cuesRaw = effectiveBrowserTranslationCues(restoredPrimaryTrack, base);
     player.cues = player.mergeCont ? mergeCueContinuation(player.cuesRaw) : player.cuesRaw;
   }
+  invalidateTimelineEdits('Sekme altyazısı değişti; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı');
   if (restoredSecondaryTrack) {
     const base = [...browserBaseCueMap(restoredSecondaryTrack.id).values()];
     player.cues2Raw = effectiveBrowserTranslationCues(restoredSecondaryTrack, base);
@@ -9456,6 +9457,7 @@ function refreshBrowserEditedChannel(trackId) {
   if (primary?.id === trackId) {
     player.cuesRaw = effective;
     player.cues = player.mergeCont ? mergeCueContinuation(effective) : effective;
+    invalidateTimelineEdits('Çeviri kanalı güncellendi; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı');
   } else {
     player.cues2Raw = effective;
     player.cues2 = player.mergeCont ? mergeCueContinuation(effective) : effective;
@@ -9516,6 +9518,7 @@ async function restoreBrowserTranslationSnapshot(tab) {
       end: Number(cue.end) || Number(cue.start) || 0, text: String(cue.text || ''),
     }));
     player.cues = player.mergeCont ? mergeCueContinuation(player.cuesRaw) : player.cuesRaw;
+    invalidateTimelineEdits('Canlı çeviri güncellendi; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı');
     current.cuesRaw = player.cuesRaw.slice();
     current.cues = player.cues.slice();
     if (!current.browserLoadedTrackId) current.browserLoadedTrackId = result.trackId;
@@ -15085,6 +15088,34 @@ function timelinePushUndo() {
   if ($('timelineUndo')) $('timelineUndo').disabled = false;
 }
 
+// Zamanlama paneli bellek-içi çalışır (değişiklikler ancak "kopya kaydet" ile
+// diske iner); kalıcı düzenleme geçmişi ise doğrudan dosyaya yazar. İki geçmiş
+// kronolojik karışamadığı için dosya-yazan işlemler kirli paneli reddeder,
+// altyazı içeriğini toptan değiştiren eşzamansız yollar da bekleyen zamanlama
+// geçmişini görünür biçimde sıfırlar — bayat snapshot'lar diskle çelişmez.
+function timelineEditsPending() {
+  return !!player.timeline.undo.length || !!player.timeline.redo?.length
+    || !!$('timelineDrawer')?.classList.contains('dirty');
+}
+
+function invalidateTimelineEdits(message) {
+  if (!timelineEditsPending()) return false;
+  player.timeline.undo = [];
+  player.timeline.redo = [];
+  $('timelineDrawer')?.classList.remove('dirty');
+  if ($('timelineUndo')) $('timelineUndo').disabled = true;
+  if ($('timelineRedo')) $('timelineRedo').disabled = true;
+  if ($('timelineStatus')) $('timelineStatus').textContent = message
+    || 'Altyazı içeriği değişti; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı';
+  return true;
+}
+
+function timelineBlocksFileWrites() {
+  if (!timelineEditsPending()) return false;
+  logLine('Zamanlama panelinde kaydedilmemiş düzenlemeler var; önce kopyayı kaydedin veya düzenlemeleri geri alın.', 'warn');
+  return true;
+}
+
 function drawTimeline() {
   const canvas = $('timelineCanvas');
   const drawer = $('timelineDrawer');
@@ -15287,6 +15318,20 @@ if ($('timelineUndo')) $('timelineUndo').addEventListener('click', () => {
   player.cues = prior;
   player.timeline.selected = Math.min(player.timeline.selected, player.cues.length - 1);
   $('timelineUndo').disabled = !player.timeline.undo.length;
+  // Geri alma ilk snapshot'a ulaşınca bellek dosyayla aynı: panel temiz sayılır,
+  // dosya-yazan işlemler tekrar serbest kalır.
+  if (!player.timeline.undo.length) {
+    $('timelineDrawer')?.classList.remove('dirty');
+    player.cuesRaw = player.cues.map(c => ({ ...c }));
+    if ($('timelineStatus')) $('timelineStatus').textContent = 'Tüm zamanlama düzenlemeleri geri alındı';
+    if ($('timelineUndo')) $('timelineUndo').disabled = true;
+    player.activeIdx = -1;
+    scheduleBrowserOverlaySync();
+    renderCueList($('cueSearch') ? $('cueSearch').value : '');
+    renderCue();
+    drawTimeline();
+    return;
+  }
   timelineMarkDirty('Son zamanlama değişikliği geri alındı');
 });
 if ($('timelineRedo')) $('timelineRedo').addEventListener('click', () => {
@@ -18997,6 +19042,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     player.cuesRaw = cues;
     player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
+    invalidateTimelineEdits('Altyazı dosyası değişti; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı');
     if (player.mergeCont && wordSegments.length) {
       wordStats = attachTimedWordsToCues(player.cues, wordSegments);
     }
@@ -19438,6 +19484,7 @@ function browserBulkStateStillMatches(edits, side = 'before', checkBase = true) 
 }
 
 function applySubtitleBulkMemory(files, desired) {
+  let primaryReplaced = false;
   for (const operation of files) {
     const raw = operation[desired];
     for (const channel of operation.channels) {
@@ -19455,6 +19502,7 @@ function applySubtitleBulkMemory(files, desired) {
       } else {
         player.cuesRaw = cues;
         player.cues = player.mergeCont ? mergeCueContinuation(cues) : cues;
+        primaryReplaced = true;
         player.subRaw = raw;
         player.activeIdx = Math.min(player.activeIdx, player.cues.length - 1);
         for (const oldCue of previousVisible) {
@@ -19468,6 +19516,9 @@ function applySubtitleBulkMemory(files, desired) {
       }
       if (track) track.cueCount = cues.length;
     }
+  }
+  if (primaryReplaced) {
+    invalidateTimelineEdits('Altyazı dosyası güncellendi; kaydedilmemiş zamanlama düzenlemeleri sıfırlandı');
   }
 }
 
@@ -19498,6 +19549,7 @@ function refreshAfterSubtitleBulkEdit() {
 
 async function applySubtitleFindReplacement(mode) {
   if (player.cueHistoryBusy || player.subtitleFindReplace.applying || !subtitleFindReplace) return;
+  if (timelineBlocksFileWrites()) return;
   const matches = player.subtitleFindReplace.matches.slice();
   let selected;
   if (mode === 'one') selected = new Set(matches.length ? [matches[0].id] : []);
@@ -24495,6 +24547,7 @@ function quickEditorStillCurrent(editor) {
 async function saveBrowserQuickEditor() {
   const editor = browserQuickEditor;
   if (!editor || editor.busy || player.cueHistoryBusy || player.subtitleFindReplace.applying) return;
+  if (timelineEditsPending()) { updateQuickEditorStatus('Zamanlama panelinde kaydedilmemiş düzenlemeler var; önce kopyayı kaydedin veya geri alın.'); return; }
   if (!quickEditorStillCurrent(editor)) { updateQuickEditorStatus('Video veya altyazı değişti. Taslak korunuyor; paneli kapatıp güncel satırı açın.'); return; }
   const plans = [];
   for (const row of editor.rows) {
@@ -24661,6 +24714,7 @@ async function applyCueEditHistoryCore(direction) {
     logLine('Toplu altyazı yazımı sürerken geçmiş işlemi başlatılamaz.', 'warn');
     return;
   }
+  if (timelineBlocksFileWrites()) return;
   const source = direction === 'undo' ? player.cueEditUndo : player.cueEditRedo;
   const target = direction === 'undo' ? player.cueEditRedo : player.cueEditUndo;
   const entry = source[source.length - 1];
@@ -24761,6 +24815,7 @@ async function saveCueEdit() {
     logLine('Toplu altyazı yazımı bitmeden tekil düzeltme kaydedilemez.', 'warn');
     return;
   }
+  if (timelineBlocksFileWrites()) return;
   const browserContext = player.workspaceMode === 'browser' ? player.browserCueEditContext : null;
   const localTarget = browserContext ? null : player.cueEditTarget;
   const i = browserContext ? Number(browserContext.cueIndex)
