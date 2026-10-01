@@ -3417,7 +3417,19 @@ function watchLibraryForRenderer() {
       : store.list();
     noteMediaIds = new Set(notes.map((note) => String(note.mediaId || '')).filter(Boolean));
   } catch (_) {}
-  return list.map((item) => ({ ...item, hasNotes: noteMediaIds.has(String(item.key || '')) }));
+  // Madde 32: filtreleme için tek sorguluk altyazı-dil haritası.
+  let langMap = null;
+  try { langMap = watchIndex()?.mediaLanguageMap() || null; } catch (_) {}
+  return list.map((item) => {
+    const key = String(item.key || '');
+    const langEntry = langMap?.get(key);
+    return {
+      ...item,
+      hasNotes: noteMediaIds.has(key),
+      hasSubs: Boolean(langEntry?.hasSubs),
+      subLangs: langEntry ? [...langEntry.languages] : [],
+    };
+  });
 }
 
 function foldWatchSearchText(value) {
@@ -3518,6 +3530,18 @@ async function searchWatchLibrary(query, isCancelled) {
       }
       item.matches = item.matches.slice(0, 5);
     }
+  // Madde 32: arama sonuçları da dil/altyazı filtrelerine tabi olabilsin diye
+  // aynı tek-sorgu haritasını sonuçlara ekle.
+  try {
+    const langMap = watchIndex()?.mediaLanguageMap();
+    if (langMap && langMap.size) {
+      for (const item of results) {
+        const entry = langMap.get(String(item.key || ''));
+        item.hasSubs = Boolean(entry?.hasSubs);
+        item.subLangs = entry ? [...entry.languages] : [];
+      }
+    }
+  } catch (_) {}
   return results;
 }
 

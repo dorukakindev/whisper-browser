@@ -253,6 +253,23 @@ class WatchIndex {
       .all(Math.max(1, Math.min(1000, Number(limit) || 100)), Math.max(0, Number(offset) || 0));
   }
 
+  // Madde 32 — kütüphane filtreleri için tek sorguluk dil/varlık haritası.
+  // media_id başına kayıtlı altyazı dillerini ve altyazı varlığını döndürür;
+  // renderer'ın N+1 sorgu yapmasına gerek kalmaz.
+  mediaLanguageMap() {
+    const map = new Map();
+    try {
+      for (const row of this.db.prepare(
+        "SELECT media_id, language FROM tracks WHERE media_id <> ''").iterate()) {
+        let entry = map.get(row.media_id);
+        if (!entry) { entry = { hasSubs: true, languages: new Set() }; map.set(row.media_id, entry); }
+        const lang = String(row.language || '').trim();
+        if (lang) entry.languages.add(lang);
+      }
+    } catch (_) {}
+    return map;
+  }
+
   renameMediaId(oldId, newId) {
     const source = String(oldId || '');
     const target = String(newId || '');
