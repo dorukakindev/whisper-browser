@@ -109,6 +109,12 @@ def test_word_per_word_early_sentence_end_rejected():
         ["Onu bulmam lazım", "çok geç olmadan."]) == ""
 
 
+def test_empty_source_parts_guarded():
+    """Boş parça listesi IndexError değil sınır-hatası kodu döndürür."""
+    assert sentence_part_boundary_issue([], []) == "cue_siniri_gecersiz"
+    assert sentence_part_boundary_issue(["x"], []) == "cue_siniri_gecersiz"
+
+
 def test_word_split_at_boundary_rejected_by_join_match():
     """Ek/kelime kopması parça birleşimi tam cümleden sapar → reddedilir."""
     record = validate_sentence_parts(

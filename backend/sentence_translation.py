@@ -140,7 +140,8 @@ def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=Non
     """
     if (not isinstance(source_parts, (list, tuple))
             or not isinstance(translated_parts, (list, tuple))
-            or len(source_parts) != len(translated_parts)):
+            or len(source_parts) != len(translated_parts)
+            or not source_parts):
         return "cue_siniri_gecersiz"
     # Kaynak parçalar kendi dilinin sıra-sayısı kuralıyla sayılır — '3. Then'
     # İngilizce'de gerçek cümle sonudur; TR kuralı sıra sayısı sanıp doğru
