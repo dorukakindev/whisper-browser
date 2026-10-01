@@ -34,7 +34,7 @@ manifest yazımı aşamalarından geçer. Hiçbir hata yolu başarı mesajına d
 - Node kurulumu Windows'ta `node.exe` + kurulu `npm-cli.js` üzerinden shell açmadan
   `npm ci --ignore-scripts` kullanır. Registry paketlerinin integrity
   ve lisans metadata'sı zorunludur. Castlabs Electron Git kaynağı yalnız izin verilen
-  `8244344c33634d9323377c0d0fd1d9b7f9b69540` commitinde kabul edilir.
+  `2ffdf82aa3214acedfb7447e2e920efc0398270b` commitinde kabul edilir.
 - Castlabs ikilisi, kilitli paketin yerel `install.js` dosyasıyla indirilir; bu dosya
   paketteki `checksums.json` değerlerini kullanır. Kurucu Electron'u çalıştırmaz.
 - Kaynaktan derlemeyi ve beklenmedik kurulum scriptlerini azaltmak için pip
