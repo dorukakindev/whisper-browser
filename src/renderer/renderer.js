@@ -14198,6 +14198,87 @@ function cueSearchIndex(cues) {
   return idx;
 }
 
+// Kaynak/hedef ORTAK metin dizini (kuyruk-50/17): her cue'nun kaynak metni ve
+// zaman-eşleşen karşı metni tek yoğun forma iner — hedefte bulunan satır da
+// aynı cue indeksine düşer. n-gram (tek/iki/üç) posting listeleri sayesinde
+// her tuş vuruşunda tüm liste taranmaz; yalnız aday cue'lar substring
+// doğrulamasından geçer, sonuç eski tarama semantiğiyle birebirdir.
+const _cueTextIndexCache = new WeakMap();
+function cueTextSearchIndex(cues, cues2) {
+  const ver = cues._cueIndexVersion || 0;
+  const v2 = cues2 ? (cues2._cueIndexVersion || 0) : -1;
+  const n2 = cues2 ? cues2.length : -1;
+  let idx = _cueTextIndexCache.get(cues);
+  if (idx && idx.len === cues.length && idx.head === cues[0] && idx.tail === cues[cues.length - 1]
+      && idx.ver === ver && idx.n2 === n2 && idx.v2 === v2
+      && idx.h2 === (cues2 ? cues2[0] : null) && idx.t2 === (cues2 ? cues2[cues2.length - 1] : null)) {
+    return idx;
+  }
+  const counterparts = translationsForCues(cues, cues2);
+  const texts = new Array(cues.length);
+  const postings = new Map();
+  const addGram = (gram, i) => {
+    let list = postings.get(gram);
+    if (list === undefined) { list = []; postings.set(gram, list); }
+    // cue metni soldan sağa tarandığı için aynı gram aynı cue içinde
+    // tekrarlansa bile son kayıt hep bu cue — sonuç indeks başına tek kayıt.
+    if (list[list.length - 1] !== i) list.push(i);
+  };
+  for (let i = 0; i < cues.length; i++) {
+    const dense = (foldIndexCached(cues[i] && cues[i].text).dense || '')
+      + '￿' + foldIndexCached(counterparts[i]).dense;
+    texts[i] = dense;
+    let p1 = '', p2 = '';
+    for (const ch of dense) {
+      if (ch !== '￿') {
+        addGram(ch, i);
+        if (p1 && p1 !== '￿') addGram(p1 + ch, i);
+        if (p2 && p2 !== '￿' && p1 && p1 !== '￿') addGram(p2 + p1 + ch, i);
+      }
+      p2 = p1; p1 = ch;
+    }
+  }
+  const binContains = (list, v) => {
+    let lo = 0, hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid] < v) lo = mid + 1; else hi = mid;
+    }
+    return lo < list.length && list[lo] === v;
+  };
+  idx = {
+    len: cues.length, head: cues[0], tail: cues[cues.length - 1],
+    ver, n2, v2, h2: cues2 ? cues2[0] : null, t2: cues2 ? cues2[cues2.length - 1] : null,
+    query(q) {
+      const chars = [...q];
+      if (!chars.length) return null;
+      const grams = new Set();
+      if (chars.length >= 3) {
+        for (let i = 0; i + 3 <= chars.length; i++) grams.add(chars[i] + chars[i + 1] + chars[i + 2]);
+      } else grams.add(chars.join(''));
+      const lists = [];
+      for (const gram of grams) {
+        const list = postings.get(gram);
+        if (!list || !list.length) return EMPTY_MATCH_SET;
+        lists.push(list);
+      }
+      lists.sort((a, b) => a.length - b.length);
+      const first = lists[0];
+      const out = new Set();
+      for (const i of first) {
+        if (!texts[i].includes(q)) continue;
+        let ok = true;
+        for (let k = 1; k < lists.length && ok; k++) ok = binContains(lists[k], i);
+        if (ok) out.add(i);
+      }
+      return out;
+    },
+  };
+  _cueTextIndexCache.set(cues, idx);
+  return idx;
+}
+const EMPTY_MATCH_SET = new Set();
+
 function findCueAt(cues, t, hint) {
   const match = (c) => c && c.start <= t && c.end > t;
   if (hint >= 0 && hint < cues.length && match(cues[hint])) {
@@ -14462,11 +14543,11 @@ function renderCueList(filter = '') {
   $('playerSide')?.classList.remove('no-cues');
   const primaryTranslation = browserPrimaryIsTranslation();
   const counterparts = translationsForCues(player.cues, player.cues2);
+  const matched = q ? cueTextSearchIndex(player.cues, player.cues2).query(q) : null;
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !foldIndexCached(c.text).dense.includes(q)
-        && !foldIndexCached(counterpart).dense.includes(q)) return;
+    if (q && !matched.has(i)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -25080,6 +25161,8 @@ async function saveCueEdit() {
   if (res.warning) logLine(res.warning, 'warn');
   cue.text = text;                            // ANCAK yazma basarili olduysa
   if (sourceCue !== cue) sourceCue.text = text;
+  if (player.cues) player.cues._cueIndexVersion = (player.cues._cueIndexVersion || 0) + 1;
+  if (player.cues2) player.cues2._cueIndexVersion = (player.cues2._cueIndexVersion || 0) + 1;
   invalidateCueSignature(cue);
   if (sourceCue !== cue) invalidateCueSignature(sourceCue);
   refreshCueWordRanges(cue);
