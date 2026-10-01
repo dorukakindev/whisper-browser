@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2217.md](docs/devir/2026-10-01-2217.md) — kuyruk-50 madde 46: temiz Windows kurulum matrisi + PERMISSION hatası (rapor 358)
+Güncel çalışma: [docs/devir/2026-10-01-2220.md](docs/devir/2026-10-01-2220.md) — kuyruk-50 madde 47: DPI/çoklu-monitör invariant ratchet'i (rapor 359)
+Önceki çalışma: [docs/devir/2026-10-01-2217.md](docs/devir/2026-10-01-2217.md) — kuyruk-50 madde 46: temiz Windows kurulum matrisi + PERMISSION hatası (rapor 358)
 Önceki çalışma: [docs/devir/2026-10-01-2215b.md](docs/devir/2026-10-01-2215b.md) — kuyruk-50 madde 45: parser derinlik/boyut dayanıklılığı (rapor 357)
 Önceki çalışma: [docs/devir/2026-10-01-2211.md](docs/devir/2026-10-01-2211.md) — kuyruk-50 madde 44: tanı paketi sistem bloğu + kullanıcı ön-inceleme diyaloğu (rapor 356)
 Önceki çalışma: [docs/devir/2026-10-01-2215.md](docs/devir/2026-10-01-2215.md) — kuyruk-50 madde 43: gizli depo kurtarma — kısmi-bozuk kasa ölü-kilidi + ham-girdi koruma (rapor 355)
