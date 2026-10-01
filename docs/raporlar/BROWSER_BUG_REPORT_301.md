@@ -1298,6 +1298,112 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R378 — yazıcı depoları + güvenlik/yaşam-döngüsü yüzeyleri
+
+Kapsam (~2.130 satır, 11 dosya): `src/manifest-transactions.js` (224), `src/workspace-package.js` (206), `src/burnin-output.js` (206), `src/subscriptions-io.js` (152), `src/browser-cea-checkpoint.js` (103), `src/browser-session-package.js` (178), `src/local-file-access.js` (135), `src/browser-navigation-policy.js` (215), `src/youtube-accounts.js` (155), `src/pipeline-job.js` (186), `src/renderer/queue-lifecycle.js` (262).
+
+### B-378-01 — `workspace-package.js` exportPackage(): .wbp çıktısı fsync'siz
+
+Kullanıcının dışa aktardığı çalışma paketi `writeFileSync(temp,'wx')` + `renameSync` ile yazılıyordu; çökmede yarım/yok dosya penceresi. Temp fsync + rename + dizin fsync eklendi.
+
+### B-378-02 — `workspace-package.js` restorePackage(): dosya başına commit fsync'siz
+
+Geri yükleme her dosyayı aynı fsync'siz kalıpla yazıyordu; ayrıca hata-yolu geri alımı (`writeFileSync(destination, previous)`) doğrudan fsync'siz yazıyordu. İkisi de düzeltildi. Testlenebilirlik için `exportPackage`/`restorePackage` opsiyonel `fsImpl` parametresi aldı (mevcut IPC çağrıları dokunmadan çalışır).
+
+### B-378-03 — `browser-cea-checkpoint.js` saveCeaCheckpoint(): checkpoint fsync'siz
+
+CEA ilerleme checkpoint'i (yarım kalan canlı-yayın altyazı yakalaması) temp+rename ile ama fsync'siz yazıyordu — yedi gün TTL'li kurtarma noktası çökmede kaybolabilirdi. Tören eklendi.
+
+### B-378-04 — `burnin-output.js` replaceBurninOutput(): rename zinciri dizin fsync'siz
+
+Temp dosyanın içeriği ffmpeg yazdığından dayanıklılık borcu dizin girdilerindeydi: `temp→out` ve `out→backup` + `temp→out` zincirlerinin ikisi de fsync'sizdi (yedekli-kurtarma yolu zaten var ama rename kaybı yedeği de yakabilirdi — her iki zincir + hata-geri-alımı sonrası dizin fsync'i eklendi).
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- manifest-transactions.js temiz: 304 doğrulayıcı eşleşmesi, parmak-izi dedupe, üstel geri-alma + cooldown + epoch-invalidate, bounded haritalar.
+- subscriptions-io.js temiz (saf UMD parser/serializer, I/O yok): alan sınırları, 1000-abone kapağı, OPML/CSV/NewPipe biçimleri, çıktıda &<>\" kaçışı.
+- browser-session-package.js temiz: sha256 checksum, sürüm kapısı, portable tab'da yerel altyazı yolları silinir, sanitizePlaces/Variant kapsamlı.
+- local-file-access.js temiz: realpath öncesi kontrol-karakter/`\\?\`/`\\.\` UNC/ikinci-`:` redleri, çift-uzantı kapısı (orijinal+realpath sonrası), PDF imza sniff'i, grant sınırı.
+- browser-navigation-policy.js temiz: yüzey bazlı protokol tabloları, kullanıcı-adı/parola reddi, alt-kare şema kilidi (boş set = reddet), güvenli popup webPreferences, sınırlı pencere kaydı.
+- youtube-accounts.js temiz: accessToken/expiresAt asla diske yazılmaz (refreshToken kalıcı, ephemeral=token'siz), renderer görünümü token'siz, flat-blob migrasyonu.
+- pipeline-job.js temiz: terminateProcessTree grace→taskkill/SIGKILL eskalasyonu + dinleyici temizliği; recoverOutputTransactions journal-adı regexi, ownerPid kapısı, kök-içi-yol zorlaması, aşamalı-durum (committed/staging/prepared) doğru — kurtarmanın kendisi çökme toleranslı tasarım.
+- queue-lifecycle.js temiz: runGeneration/startCount çift-sayaç, terminal mandalı (RESULT_EVENTS + exit-sentez), invariant zorlaması, single-flight zamanlayıcı.
+
+Windows etkisi: fsync-utils platform toleranslı; yeni fsImpl parametreleri Node tarafında eklediğinden `start.bat` etkilenmez.
+
+## R379 — yakalama/kimlik/metin-araçları derin okuma (temiz)
+
+Kapsam (~1.860 satır, 9 dosya): `src/browser-acquisition.js` (234), `src/browser-cea-captions.js` (220), `src/media-catalog-service.js` (213), `src/browser-workflow-recorder.js` (210), `src/browser-site-profiles.js` (209), `src/subtitle-find-replace.js` (207), `src/browser-media-identity.js` (193), `src/browser-cea-full-capture.js` (191), `src/hls-recovery.js` (187). Doğrulanmış kusur yok.
+
+### Notlar (doğrulanmış temiz)
+
+- browser-acquisition.js: kazanan mandalı (geciken paralel sonuç kazananı ezmiyor), düşük-seviye olayların geriye taşıması engelli (order-monotone + açık reset), onay geri-çekimi yalnız waiting/running'i bloke eder.
+- browser-cea-captions.js: Content-Range yanıtı her zaman yetkili; istek Range'i yalnız 206'da geçerli; belirsiz byte-range adayında eşleşme reddedilir (yanlış zaman çizgisine oturtmaz). AES-128 IV dizi/belirgin-IV per-spec.
+- media-catalog-service.js: her IPC `authorized()` kapılı; renderer dosya yolu enjekte edemez (native seçici), içe aktarılan kayıt için sessiz grant yok (kullanıcı dosyayı bir kez gösterir), afiş yazımı `atomicWriteFileSync`, afiş silme realpath-eşitlik kapılı, önizleme belirteci gönderici-kimlikli + 15 dk TTL + 3-slot.
+- browser-workflow-recorder.js: adım whitelist'i + komut-bazlı arg şeması, kayıt/oynatmada bağlam eşleşmesi (komut öncesi VE sonrası), AbortController, 12-workflow/100-step sınırları.
+- browser-site-profiles.js: alan tablosu tip/min/max/precision'lı, dil alanları `Intl.Locale` BCP47 doğrulamasından geçer, 200-profil tavanı limit-döndürür (sessiz düşürme yok), site→yol→sekme katmanlı çözünürlük.
+- browser-media-identity.js: URL normalizasyonu kimlik bilgilerini sıyırır, oynak akış parametreleri (expire/sig/token/x-amz-*) ve izleme parametreleri atılır, SPA hash-route'ları korunur, servis-bilinmeyen hostlar son rota anahtar kelimesinin kuyruğunu kimlik yapar.
+- browser-cea-full-capture.js: parça kimliği seq-bazlı (disc değişiminde yetim kalmaz), EXT-X-GAP zorunlu-işten çıkarılır ama süre muhasebesinde kalır, eşzamanlı yakalamada iptal/duraklama havuzu tam tahliye eder.
+- hls-recovery.js: epoch+token geçersizleme, tür-bazlı deneme bütçesi, kararlılık penceresi saat-geriye/ileri-sıçrama ve hız-kelepçeli (0.0625–16×) ilerleme muhasebesiyle hak iadesi.
+- subtitle-find-replace.js: grapheme-küme sınırı disiplini (ZWJ, bölgesel çift, birleşen im), NFKC uzunluk-değiştiren kod noktası tablosu + yavaş-yol geri dönüşü, bütün-kelime için taban-karakter komşusu.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
+## R380 — model/oturum/adaptör/okuyucu derin okuma (temiz)
+
+Kapsam (~1.080 satır, 8 dosya): `src/model-manager.js` (173), `src/browser-session-privacy.js` (171), `src/browser-adapter-registry.js` (163), `src/browser-reader.js` (160), `src/gpu-diagnostics.js` (160). `src/renderer/renderer-ui-model.js` artık mevcut değil (yeniden adlandırılmış/kaldırılmış). Doğrulanmış kusur yok.
+
+### Notlar (doğrulanmış temiz)
+
+- model-manager.js: model whitelist + `endsWith('-<id>')` eşleşmesi (turbo çakışması kapanmış), silme yalnız realpath-prefix kapılı + model-dışı yol reddi, snapshot/blob düzeni farkında boyut hesabı, eksik-kökte üst-kök yürüyüşüyle statfs.
+- browser-session-privacy.js: SITE_DATA_TYPES origin-filtreli türlerle sınırlı (cache/backgroundFetch kasıtlı dışarıda — Electron origin filtresini uygulamaz; tam temizlik yalnız reset'te), uçuş-hâlindeki yanıt geri-yazmasın diye clear öncesi closeAllConnections, cachestorage dar-API denemesi partial flag ile raporlanır, auth-cache yalnız oturum-reset'inde.
+- browser-adapter-registry.js: JSON eklentileri regex çalıştıramaz (responseHint silinir — enjeksiyon yok), host dizileri kaçışlı `(^|\.)` soneki kalıbı, kullanıcı adaptörü yalnız builtin'i `allowOverride` ile ezer, 50 dosya/64KB/30 host sınırları.
+- browser-reader.js: tag whitelist + ignored set + derinlik tavanı, safeUrl protokol kapısı (link http/https; görsel +data:image), noopener hedefler, kopyalanan başlık tekilleştirmesi, overflow geri yüklemesi, rAF-sınırlandırılmış TOC senkronu.
+- gpu-diagnostics.js: özellik/süreç/olay normalizasyonu, uzak-masaüstü/yazılım bağdaştırıcısı regexi, toparlanma = yeni jenerasyon > son olay jenerasyonu.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
+## R381 — görsel/IPC/eklenti yüzeyleri derin okuma
+
+Kapsam (~1.290 satır, 9 dosya): `src/browser-link-hints.js` (153), `src/browser-ass-renderer.js` (153), `src/browser-downloads.js` (149), `src/browser-reading-list.js` (142), `src/translation-provider-probe.js` (139), `src/browser-youtube-style.js` (139), `src/watch-library-view.js` (137), `src/browser-tab-resources.js` (135), `src/browser-translation-integrity.js` (130).
+
+### B-381-01 — `browser-reading-list.js` _writeIndex(): index.json fsync'siz
+
+Okuma-listesi indeksi (kullanıcı arşiv kayıtları + dosya boyutları) `writeFileSync(temp)+renameSync` ile fsync'siz yazıyordu — çökmede yeni kayıt indeksten kaybolur ama .mhtml dosyası dizinde yetim kalırdı (index kaybı = yeniden ekleme gerekir). Temp fsync + dizin fsync eklendi; matris bölüm-7 kilitlendi.
+
+### Notlar (doğrulanmış temiz)
+
+- browser-link-hints.js: aynı-köken üst frame'e delege (çift etiket/dinleyici yok), ESC postMessage yayını (her frame bir kez), 300 kök/700 aday tavanı, görünürlük/opacity/pointerEvents süzgeci.
+- browser-ass-renderer.js: oturum-nonce host (parmak izi koruması), katı 404 kapısı (host+ad+query+metot), jenerasyon bekçisi her async await'te, detach tam temizlik (observer/dinleyici/blob/canvas).
+- browser-downloads.js: WeakSet tek-ekleme, 8-aktif/100-kayıt tavanı, terminal kayıtlar sanitized (canlı nesne kalıcılaşmaz), open-player medya uzantısı whitelist'i, reveal exists kapılı.
+- translation-provider-probe.js: endpoint yalnız https veya loopback-http + kimliksiz, 64KB ilanlı+akışlı gövde tavanı, 15 sn abort, model charset kapısı, loopback-dışı auth zorunlu.
+- browser-youtube-style.js: saf CSS sabitleri + youtube.com host kapısı.
+- watch-library-view.js: WeakMap metadata önbelleği (imza doğrulamalı), sanal-aralık pinnedIndex overscan'i, anchor-ofset kaydırma geri yükleme.
+- browser-tab-resources.js: finiteCount null≠0 disiplini (ölçülmemiş alan null kalır), koruma-nedeni önceliği, paylaşılan-pid gruplama.
+- browser-translation-integrity.js: çok-katmanlı kimlik çözümü (coveredCueIds → açık kimlik → ±50ms zaman eşleşmesi → dizin geri dönüşü), durum önceliği doğru, eksik listeler 100'e kepli.
+
+Windows etkisi: fsync-utils platform toleranslı.
+
+## R382 — menü/dizi-bağlamı/analiz derin okuma
+
+Kapsam (~1.100 satır, 8 dosya): `src/browser-context-menu.js` (179), `src/browser-series-context.js` (179), `src/renderer/browser-video-analysis.js` (171), `src/browser-capture-provenance.js` (123), `src/renderer/browser-analysis-tools.js` (155), `src/provider-model-profiles.js` (117), `src/browser-transcript-search.js` (115), `src/browser-research-notebook.js` (114).
+
+### B-382-01 — `browser-series-context.js` commit(): dizi bağlamı fsync'siz
+
+`bind`/`save`/`bindAndSave` her çağrıda `commit()` ile series.json'a yazıyor; write+rename fsync'sizdi — çökmede video↔dizi bağlamı veya terim profili kaybolur. Temp fsync + dizin fsync eklendi; matris bölüm-8 kilitlendi.
+
+### Notlar (doğrulanmış temiz)
+
+- browser-context-menu.js: locale etiketleri, collapseSeparators, düzenlenebilir/seçim/bağlam kapıları (gezinme yalnız boş sayfada), 5 öneri tavanı.
+- renderer/browser-video-analysis.js: seq+contextKey bayatlık kapıları, sınırlı girişler (60sn/0.5-5sn/120 blok/3 aday), tıklamada yeniden-doğrulama.
+- browser-capture-provenance.js: tolere edilen aralık birleştirme, akış başına hata dizisi 100'e kesik, URL redaksiyonu.
+- renderer/browser-analysis-tools.js: tek-açıklı innerHTML, kaynak-imza + anahtar bekçi çifti, thumbnail seq+140ms debounce, apply'de tam-yeniden doğrulama.
+- provider-model-profiles.js: DANGEROUS_KEYS + sınır'lar + strict TypeError sözleşmesi; yazma yolu normalizasyonu.
+- browser-transcript-search.js: NFKD+aksan katlaması, İ-tek-folding, stop-list + çekim whitelist'i (R86-05 notu), skor-yakınlık karışımı, skor-önce/sonra-kronolojik sıralama.
+- browser-research-notebook.js: etiket/bağlantı normalize (protokol whitelist, dedupe, tavan), SM-2 benzeri plan, markdown kaçışı.
+
+Windows etkisi: fsync-utils platform toleranslı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
