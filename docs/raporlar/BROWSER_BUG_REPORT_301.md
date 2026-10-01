@@ -1298,6 +1298,29 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R383 — izin/kural/sözleşme derin okuma (kuyruk süpürmesi)
+
+Kapsam (~920 satır, 11 dosya): `src/browser-site-permissions.js` (100), `src/browser-element-rules.js` (110), `src/browser-place-url.js` (104), `src/subtitle-output-contract.js` (106), `src/browser-video-analysis.js` main-tarafı (101), `src/renderer/status-copy.js` (133), `src/process-lifecycle.js` (42), `src/opensubtitles-hash.js` (47), `src/browser-chapters.js` (41), `src/browser-drm.js` (44), `src/media-folders.js` (44).
+
+### B-383-01 — `browser-element-rules.js` _write(): element kuralları fsync'siz
+
+Site bazlı gizleme kuralları (60 kaynak × 40 seçici) `_write` ile tek JSON'a yazılıyor; write+rename fsync'sizdi — çökmede kullanıcının onayladığı kurallar kaybolurdu. Temp fsync + dizin fsync eklendi; matris bölüm-7 kilitlendi.
+
+### Notlar (doğrulanmış temiz)
+
+- browser-site-permissions.js: çerçeve URL'si kötü/opak ise gömme kaynağının grant'ini miras almaz; mediaTypes→camera/microphone eşlemesi block-kazanır; 200 kaynak tavanı + güncellemeye göre kesim.
+- browser-place-url.js: sorgu/yol-parametresi/fragment üç yolda hassas-anahtar silme; izleme parametreleri; OAuth fragment'i kalıcı değil; yol-matrisi `;param=` taraması; 8192 sınırı.
+- subtitle-output-contract.js: dosya-adı uzantısı kanıt değil (açık not); role whitelist; tamamlanan/başarısız toplam kelepçesi; sourceId çoğulsa tek kazanır.
+- browser-video-analysis.js (main): spawn env sır-temizliği, stdout 2MB tavanı, timeout+signal çift-iptal, temp klasör finally'de temizlenir, ffmpeg argları dizinde güvenli.
+- status-copy.js: sistem hatası → dostu-dil kuralları (Chromium alt-çizgi normalize'i dahil), 160 bayt detay kesimi, EN/TR çift metin.
+- process-lifecycle.js: sahiplenme `_terminating` tek bayrak; taskkill 5s timeout→SIGKILL geri dönüşü; temizlik çift yönlü.
+- opensubtitles-hash.js: resmi moviehash algoritması — ilk+son 64KiB u64 toplamı + boyut, kuyruk pad'leme doğru.
+- browser-chapters.js: normalize kontrol-dışı karakter süzgeci + 240 tavanı; birleştirmede eş-başlangıç toleransı native-önceliği; comparator aynı kaynakta tarafsız.
+- browser-drm.js: host whitelist korumalı siteler; console URL redaksiyonu (origin+path); UA'dan Electron çıkarma.
+- media-folders.js: win32 mutlak-yol testi POSIX'te de doğru; boş inputDir/outputDir varsayılanla dolar.
+
+Windows etkisi: fsync-utils platform toleranslı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
