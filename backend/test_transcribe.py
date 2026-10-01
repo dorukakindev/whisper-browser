@@ -3154,11 +3154,18 @@ def test_translate_rescue_scales_across_chunks_parallel():
     assert len(result) == len(source), f"{len(result)}/{len(source)} blok döndü"
     assert all("[TR]" in e[2] for e in result), "kaynak metin kalan blok var"
     assert inflight["max"] >= 2, f"kurtarma seri kaldi (max={inflight['max']})"
-    # 20 toplu parça + 20 tekil kurtarma = 40 istek, deterministik.
-    assert len(seen) == 40, len(seen)
+    # Parça başına bir eksik grup → toplu istek sayısı kadar tekil kurtarma.
+    batch_calls = [s for s in seen if s > 2]
+    rescue_calls = [s for s in seen if s <= 2]
+    assert len(seen) == 2 * len(batch_calls), len(seen)
     # Seri akış ≥ 40×0.025=1.0s; paralel beklenen çok altı. Üst sınırı gevşek
     # tut (CI makinesi yavaş olabilir) — asıl kanıt inflight ölçümü.
     assert elapsed < 2.5, f"kurtarma fazla uzun sürdü ({elapsed:.2f}s)"
+    # Uyarlanabilir planlayıcı sağlıklı sağlayıcıda parçaları büyütür; sabit
+    # 20-parça/40-istek pini yerine: her toplu parçanın son grubu düştü, her
+    # biri tam bir tekil kurtarma paketi üretti.
+    assert len(rescue_calls) == len(batch_calls), \
+        f"{len(batch_calls)} toplu parçaya {len(rescue_calls)} kurtarma isteği"
 
 
 def test_translate_rescue_bundle_server_error_marks_only_missing():
@@ -3289,7 +3296,9 @@ def test_translate_thousand_cues_invariance_order_and_count():
     assert [e[:2] for e in result] == [e[:2] for e in source], "zaman damgası değişti"
     assert all(e[2].startswith("[TR]") for e in result), "çevrilmemiş blok var"
     assert not warnings
-    assert len(calls) == 50, f"{len(calls)} istek; 50 toplu parça bekleniyordu"
+    # Sağlıklı sağlayıcıda planlayıcı parçaları 40 bloğa dek büyütür —
+    # istek sayısı sabit-20 üst sınırını AŞAMAZ ve gerçekte küçülür.
+    assert len(calls) < 50, f"{len(calls)} istek; büyüme bekleniyordu"
 
 
 def test_translate_existing_without_metadata_retries_source_echo_only():
