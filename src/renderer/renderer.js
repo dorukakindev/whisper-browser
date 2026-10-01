@@ -13042,6 +13042,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
 });
 
 window.addEventListener('resize', syncResponsivePlayerLayout);
+window.addEventListener('resize', scheduleFitSubtitleOverlays);
 bindBrowserBoundsObserver();
 
 function normalizeAudioLang(value) {
@@ -13802,11 +13803,11 @@ function clearCueWordData(cues) {
 // Altyazi metnini kutulu bir span icine yazar (arka plan yalnizca metnin
 // arkasinda dursun, satirin tamami boyunca degil) ve degisince animasyon tetikler.
 function setOverlayText(el, text, lang = '') {
-  if (!el) return;
+  if (!el) return false;
   const cur = el.firstChild && el.firstChild.textContent;
-  if (cur === text) return;                  // ayni metin: animasyonu tekrarlama
+  if (cur === text) return false;            // ayni metin: animasyonu tekrarlama
   el.textContent = '';
-  if (!text) return;
+  if (!text) return true;
   const span = document.createElement('span');
   span.className = 'subtitle-overlay-inner';
   // RTL altyazılarda taban yönü içerikten türetilir (Arapça/İbranice satır
@@ -13815,6 +13816,56 @@ function setOverlayText(el, text, lang = '') {
   if (lang) span.lang = String(lang).slice(0, 24);
   span.textContent = text;
   el.appendChild(span);
+  return true;
+}
+
+// ---- Altyazı sığdırma ----
+// Uzun metin veya büyük fontta overlay'in max-height'ı metni sessizce keser
+// (overflow:hidden); ayrı düzende kutu bandı birbirine ya da kontrollerin
+// üstüne taşabilir. Çözüm: metnin fontunu kutu sığana dek küçültmek —
+// oyuncuların auto-fit davranışı. Her renderCue çağrısı taban boyuta döner,
+// yalnız taşma varsa reflow yapılır (en çok 14 adım, rAF ile tek karede).
+let _fitSubsRaf = 0;
+function scheduleFitSubtitleOverlays() {
+  if (_fitSubsRaf) return;
+  _fitSubsRaf = requestAnimationFrame(() => { _fitSubsRaf = 0; fitSubtitleOverlays(); });
+}
+function fitSubtitleOverlays() {
+  const stage = $('playerStage');
+  const ov = $('subtitleOverlay');
+  const ov2 = $('subtitleOverlay2');
+  if (!stage || !ov || stage.classList.contains('hidden')) return;
+  const active = [ov, ov2].filter((el) => el && el.firstElementChild && el.firstElementChild.textContent.trim());
+  for (const el of [ov, ov2]) {
+    if (el && el.firstElementChild) el.firstElementChild.style.fontSize = '';
+  }
+  if (!active.length) return;
+  const split = stage.classList.contains('sub-split');
+  const stack = $('subtitleStack');
+  const ctl = document.querySelector('.player-controls');
+  const controlsVisible = !!(ctl && !stage.classList.contains('idle'));
+  const ctlTop = controlsVisible ? ctl.getBoundingClientRect().top : Infinity;
+  const base = active.map((el) => parseFloat(getComputedStyle(el.firstElementChild).fontSize) || 28);
+  const visible = (el) => el.getBoundingClientRect().height > 0;
+  const clipped = () => {
+    // Overlay'in kendi max-height'ı (%45) içeriyi keser — üstteki yığın
+    // taşmayı göremez, o yüzden her iki düzende de eleman bazında bakılır.
+    if (active.some((el) => el.scrollHeight > el.clientHeight + 6)) return true;
+    if (!split && stack) return stack.scrollHeight > stack.clientHeight + 6;
+    return false;
+  };
+  const collides = () => {
+    const r1 = ov.getBoundingClientRect();
+    const r2 = ov2 ? ov2.getBoundingClientRect() : null;
+    if (active.length === 2 && visible(ov) && visible(ov2)
+        && r1.bottom > r2.top + 1 && r2.bottom > r1.top + 1) return true;
+    return controlsVisible && active.some((el) => visible(el) && el.getBoundingClientRect().bottom > ctlTop + 1);
+  };
+  let scale = 1;
+  while ((clipped() || collides()) && scale > 0.35) {
+    scale -= 0.08;
+    active.forEach((el, i) => { el.firstElementChild.style.fontSize = `${(base[i] * scale).toFixed(1)}px`; });
+  }
 }
 
 let _playerVideoFrameToken = 0;
@@ -13942,6 +13993,7 @@ function renderCue() {
   const overlay2 = $('subtitleOverlay2');
   if (!video || !overlay) return;
   const t = video.currentTime - player.offset;
+  let overlayChanged = false;
 
   if (player.cues.length) {
     const i = findCueAt(player.cues, t, player.activeIdx);
@@ -13952,7 +14004,7 @@ function renderCue() {
     updateCueMeta();
     if (!$('aiChat').classList.contains('hidden')) aiChatCtxLabel();
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
-    if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
+    if (!player.editing) overlayChanged = setOverlayText(overlay, i >= 0 ? player.cues[i].text : '') || overlayChanged;
     renderActiveCueWord(i, i >= 0 ? player.cues[i] : null, t, overlay);
 
     // lastT video-zamanında saklanır — altyazı-zamanı + offset geri çevrimi
@@ -13964,7 +14016,7 @@ function renderCue() {
     // Boş izde eski indeks kalmasın — copyCue gibi tüketiciler stale
     // indeksle player.cues[...] okuyup TypeError yutuyordu.
     player.activeIdx = -1;
-    setOverlayText(overlay, '');
+    overlayChanged = setOverlayText(overlay, '') || overlayChanged;
     resetActiveWordHighlight();
     updateCueMeta();
   }
@@ -13973,11 +14025,12 @@ function renderCue() {
     if (player.cues2.length) {
       const j = findCueAt(player.cues2, t, player.activeIdx2);
       player.activeIdx2 = j;
-      setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '');
+      overlayChanged = setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '') || overlayChanged;
     } else {
-      setOverlayText(overlay2, '');
+      overlayChanged = setOverlayText(overlay2, '') || overlayChanged;
     }
   }
+  if (overlayChanged) scheduleFitSubtitleOverlays();
   scheduleTimelineDraw();
 }
 
@@ -17122,7 +17175,9 @@ function applySubtitleStyle() {
       + ` 0 2px ${(6 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
       + ` 0 0 ${(14 * o).toFixed(1)}px rgba(0,0,0,${(0.7 * o).toFixed(2)})`
     : 'none');
+  scheduleFitSubtitleOverlays();
 }
+if (typeof document !== 'undefined') document.addEventListener('fullscreenchange', scheduleFitSubtitleOverlays);
 
 function loadSubtitleStyle() {
   player.subStyle = Object.assign({}, SUB_STYLE_DEFAULTS);
@@ -17221,7 +17276,32 @@ function applySubtitlePos() {
       stage.classList.add('sub-moved');
     }
   }
-  if (ov2 && player.sub2Top != null) ov2.style.top = `${player.sub2Top}%`;
+  if (ov2 && player.sub2Top != null) {
+    // Ayrı düzende ikinci altyazının üst konumu ana bandın ya da kontrollerin
+    // üzerine inemez (R393: kayıtlı %85 kontrol çubuğuna oturuyordu).
+    let top2 = player.sub2Top;
+    if (stage && stage.classList.contains('sub-split')) {
+      const sr = stage.getBoundingClientRect();
+      // Sahne henüz görünmüyorsa (oynatıcı kapalı) kelepçe hesabı anlamsız —
+      // ilk render'da tekrar uygulanır.
+      if (sr.height > 50) {
+        const h = sr.height;
+        const prim = ov && ov.firstElementChild ? ov.getBoundingClientRect() : null;
+        const ctl = document.querySelector('.player-controls');
+        const lim = (prim && prim.height > 0)
+          ? prim.top
+          : (ctl && !stage.classList.contains('idle'))
+            ? ctl.getBoundingClientRect().top
+            : sr.bottom;
+        const eh = ov2.getBoundingClientRect().height || 0;
+        top2 = Math.max(1, Math.min(88, Math.min(top2,
+          ((lim - sr.top) / h) * 100 - (eh / h) * 100 - 1)));
+        player.sub2Top = top2;
+      }
+    }
+    ov2.style.top = `${top2}%`;
+  }
+  scheduleFitSubtitleOverlays();
 }
 
 function loadSubtitlePos() {
@@ -17284,7 +17364,23 @@ function makeSubtitleDraggable(el, edge) {
     const h = stage.getBoundingClientRect().height || 1;
     // asagi surukleme: alttan olculen deger AZALIR, ustten olculen ARTAR
     const delta = (dy / h) * 100 * (activeEdge === 'bottom' ? -1 : 1);
-    const pct = Math.max(1, Math.min(88, startPct + delta));
+    // Ayrı düzende ikinci altyazıyı ana banda ya da kontrollerin üzerine
+    // indirmeye izin verme (R393: %85'e sürükleme kontrol çubuğuna oturuyordu).
+    let bound = 88;
+    if (activeEdge === 'top' && stage.classList.contains('sub-split')) {
+      const sr = stage.getBoundingClientRect();
+      const prim = $('subtitleOverlay');
+      const primRect = prim && prim.firstElementChild ? prim.getBoundingClientRect() : null;
+      const ctl = document.querySelector('.player-controls');
+      const lim = (primRect && primRect.height > 0)
+        ? primRect.top
+        : (ctl && !stage.classList.contains('idle'))
+          ? ctl.getBoundingClientRect().top
+          : sr.bottom;
+      const eh = el.getBoundingClientRect().height || 0;
+      bound = Math.max(1, Math.min(88, ((lim - sr.top) / h) * 100 - (eh / h) * 100 - 1));
+    }
+    const pct = Math.max(1, Math.min(bound, startPct + delta));
     if (activeEdge === 'bottom') {
       player.subBottom = pct;
       stage.style.setProperty('--sub-user-bottom', `${pct}%`);
@@ -17325,8 +17421,12 @@ function showControls() {
   stage.classList.remove('idle');
   clearTimeout(player.idleTimer);
   // Duraklatılmışken veya düzeltme yaparken gizleme
+  scheduleFitSubtitleOverlays();
   if (!video || video.paused || player.editing) return;
-  player.idleTimer = setTimeout(() => stage.classList.add('idle'), 2500);
+  player.idleTimer = setTimeout(() => {
+    stage.classList.add('idle');
+    scheduleFitSubtitleOverlays();
+  }, 2500);
 }
 
 // ---- zaman çubuğu görselleri: oynanan + tamponlanan ----

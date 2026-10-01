@@ -1577,7 +1577,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .player-stage:fullscreen .subtitle-overlay { font-size: 2.2vw; }
 /* Kontroller gorunurken altyazi onlarin uzerine kalksin (uzeri kapanmasin) */
 .subtitle-overlay { transition: bottom .18s ease; }
-.player-stage:not(.idle):not(.sub-moved) .subtitle-overlay { bottom: 13%; }
+/* Kontrol çubuğu ~112px bandını kaplar; %13 küçük sahnelerde bandın içine girer
+   (R393: 5px taşma). Alt sınır pikselle korunur. */
+.player-stage:not(.idle):not(.sub-moved) .subtitle-overlay { bottom: max(13%, 120px); }
 .player-stage:not(.idle) .subtitle-secondary { bottom: auto; }
 /* Karşılaştırma altyazısı (kaynak dil) — ana altyazının üstünde, daha soluk */
 .subtitle-secondary {
@@ -1675,7 +1677,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   bottom: var(--sub-user-bottom, 5%);
 }
 .player-stage.sub-moved:not(.idle) .subtitle-overlay {
-  bottom: max(var(--sub-user-bottom, 5%), 13%);
+  bottom: max(var(--sub-user-bottom, 5%), 120px);
 }
 /* Çift dilli yığın (varsayılan): iki altyazı altta, aynı yazı stiliyle; kaynak
    üstte (.primary-first birincil kanal kaynaksa onu öne alır). Konum kuralları
@@ -1696,9 +1698,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   pointer-events: none;
   transition: bottom .18s ease;
 }
-.player-stage:not(.sub-split):not(.idle):not(.sub-moved) .subtitle-stack { bottom: 13%; }
+.player-stage:not(.sub-split):not(.idle):not(.sub-moved) .subtitle-stack { bottom: max(13%, 120px); }
 .player-stage.sub-moved:not(.sub-split) .subtitle-stack { transition: none; bottom: var(--sub-user-bottom, 5%); }
-.player-stage.sub-moved:not(.sub-split):not(.idle) .subtitle-stack { bottom: max(var(--sub-user-bottom, 5%), 13%); }
+.player-stage.sub-moved:not(.sub-split):not(.idle) .subtitle-stack { bottom: max(var(--sub-user-bottom, 5%), 120px); }
 .player-stage:not(.sub-split) .subtitle-stack > .subtitle-overlay {
   position: static;
   max-height: none;
