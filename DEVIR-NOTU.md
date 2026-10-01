@@ -1,4 +1,4 @@
-Güncel çalışma: [docs/devir/2026-10-01-2040.md](docs/devir/2026-10-01-2040.md) — kuyruk-50 madde 32: birleşik katalog filtreleri
+Güncel çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 33: taşınabilir paket kapsam önizlemesi + gizlilik ratchet'i
 Önceki çalışma: [docs/devir/2026-10-01-2040.md](docs/devir/2026-10-01-2040.md) — kuyruk-50 madde 32: birleşik katalog filtreleri
 Önceki çalışma: [docs/devir/2026-10-01-2034.md](docs/devir/2026-10-01-2034.md) — kuyruk-50 madde 31: medya yeniden bağlama motoru
 Önceki çalışma: [docs/devir/2026-10-01-2028.md](docs/devir/2026-10-01-2028.md) — kuyruk-50 madde 30: reexport transaction
