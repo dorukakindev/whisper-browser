@@ -124,6 +124,27 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   browserPopupWindowOptions + configureBrowserPopup (eklenemeyen pencere destroy),
   ytBrowseSerialized (seri zincir + supersedable nesil).
 
+- `tests/pure-modules-deadzone.test.js` — 4 senaryo: gpu-diagnostics (durum matrisi
+  pending/recovering/fallback/healthy + recovered bayrağı + KiB→MiB + uzak/yazılım
+  bağdaştırıcı regex'i + özellik normalizasyonu), secret-store (split/merge,
+  proto-pollution kapısı, dizi-ezme bekçisi, save→load roundtrip, .bak kurtarma,
+  partial-decrypt'te yazımın reddi, forExport süzgeci), media-catalog-store
+  (itemOf doğrulama matrisi, tmdb/imdb/poster/rating kapıları, sourceOf URL
+  güvenliği, upsert/get/remove + .bak kurtarma + import planı: importRef dedupe,
+  tür çakışması, skipped/conflict), translation-provider-probe (endpoint güvenlik
+  kapıları, classifyProbeFailure metin→kod önceliği, completionText varyantları,
+  fetch-stub matrisi ok/429/invalid/timeout/network, content-length sınırı).
+- `tests/exported-deadzone.test.js` — 6 senaryo: canonicalBrowserUrl (gizli
+  query+hash atılımı), parseDocument (exact/bozuk-parça karantinası/dizi-dışı
+  rethrow), migrateWatchDocument (tanınmayan kök, paket zarfı, kanonik dedupe,
+  mezar taşı silme+yeni-ezer, itemLimit→overflow, şema zemini, karantina
+  reddedilen, lastWatched sıralaması), endpointIdentity (preset/custom/inherit/
+  uiKeys fallback + grup önceliği), pdf-translate kapıları (isPdfPageComplete
+  status matrisi + isStandalonePageNumber sayı/Roma/'of'/s. kalıpları),
+  scoreCandidate (moviehash 100 + tam/kısmi başlık + sezon/bölüm + dil varyantı
+  + sürüm puanları).
+
+||||||| 5e0d75e
 - `tests/soak-deadzone.test.js` — 11 senaryo: yieldToEventLoop + resourceEmitterListenerCount
   kapıları/gerçek-emitter sayımı, resourceCdpHeap (destroyed→0, attach→collectGarbage→
   getHeapUsage→detach zinciri, zaten-takılıda attach/detach yok, debugger-hatası→
