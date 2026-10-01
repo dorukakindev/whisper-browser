@@ -322,6 +322,25 @@ doğrulanmış bekçiler bulundu — doğrulanmış bug yok.
 - `src/subtitle-sentence-layout.js` (416 satır) bu turda satır okumasına
   girilmedi — 9 ayrı test dosyasıyla (özel dahil) zaten kilitli.
 
+## R339 — browser-page-translate.js tam okuma (1 bug)
+
+- **insertAfterRoot uncaught-throw:** `pageApplyScript`'in yerleştirme
+  yardımcısında yapısal zincir `<html>`'e kadar tırmandığında
+  `anchor.parentNode` `Document` oluyordu; `document.insertBefore`
+  `HierarchyRequestError` fırlatır ve try'siz çağrı **tek blok yüzünden
+  tüm apply batch'ini** öldürürdü (aynı risk flex/grid `layoutRoot`
+  yolunda ve `ref.root.appendChild`'de). Yerleştirme çağrıları artık
+  try/catch'li; başarısız yol `document.body.appendChild` yedeğine
+  düşer. Çalışan yollarda davranış aynı. Kilit: document-ebeveynli
+  TABLE + flex kök senaryosu (eski kodda script istisna fırlatıyordu).
+- Modülün kalanı (1456 satır tam okuma) temiz: normalize/batchleme/
+  cache-key sınırları yerinde; scan tarafında observer kopmuş-kök
+  temizliği, ownWrites eşleşmesi, replacedIds bildirimi, visibleOnly/
+  bütçe bekçileri doğru; apply tarafında staleness (latestIdByRoot),
+  edit/undo araçları isimli dinleyicilerde (restore'da sökülüyor —
+  R129 sızıntısı kapalı); decode tarafında atomik kont + token-set
+  eşitliği + bağlam-sızıntısı kapıları blok-bazlı fail'e bağlı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.

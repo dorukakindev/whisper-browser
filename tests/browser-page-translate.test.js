@@ -481,6 +481,51 @@ vm.runInNewContext(pageApplyScript({ mode: 'bilingual', id: 'table:key', transla
   { ...pageContext, window: { __whisperPageTranslateState: tableState } });
 assert.equal(row.children.length, 0, 'çeviri doğrudan tr içine eklenmemeli');
 assert.equal(tableParent.children[1].className, 'whisper-page-tr');
+
+// insertAfterRoot: yapısal zincir <html>/document'a çıkınca insertBefore
+// HierarchyRequestError fırlatırdı — tek blok tüm apply batch'ini öldürürdü.
+// parentNode bir Element değilse (nodeType !== 1) güvenli yedeğe düşmeli.
+{
+  const throwingDocument = {
+    nodeType: 9,
+    insertBefore() { throw new Error('HierarchyRequestError'); },
+  };
+  const bodyChildren = [];
+  const docForStructural = {
+    ...applyDocument,
+    body: { appendChild(node) { bodyChildren.push(node); } },
+    documentElement: { appendChild() {} },
+  };
+  const docTable = { tagName: 'TABLE', parentNode: throwingDocument, nextSibling: null };
+  const docTableState = {
+    refs: new Map([['doc:table', { id: 'doc:table', root: docTable,
+      nodes: [{ nodeValue: 'Satır metni', isConnected: true }], originals: ['Satır metni'],
+      active: false, applied: false }]]),
+    latestIdByRoot: new WeakMap([[docTable, 'doc:table']]), activeByRoot: new WeakMap(), visible: true,
+  };
+  const structuralResult = vm.runInNewContext(
+    pageApplyScript({ mode: 'bilingual', id: 'doc:table', translation: 'Row text' }),
+    { ...pageContext, document: docForStructural, window: { __whisperPageTranslateState: docTableState } });
+  assert.equal(structuralResult.applied, 1,
+    'document-ebeveynli yapısal kök tüm batch\'i fırlatıp öldürmemeli');
+  assert.equal(bodyChildren.at(-1).className, 'whisper-page-tr');
+
+  const docFlexRoot = { tagName: 'DIV', parentNode: throwingDocument, nextSibling: null,
+    children: [], appendChild(node) { this.children.push(node); } };
+  const docFlexState = {
+    refs: new Map([['doc:flex', { id: 'doc:flex', root: docFlexRoot, rootDisplay: 'flex',
+      nodes: [{ nodeValue: 'Kart metni', isConnected: true }], originals: ['Kart metni'],
+      active: false, applied: false }]]),
+    latestIdByRoot: new WeakMap([[docFlexRoot, 'doc:flex']]), activeByRoot: new WeakMap(), visible: true,
+  };
+  const flexDocResult = vm.runInNewContext(
+    pageApplyScript({ mode: 'bilingual', id: 'doc:flex', translation: 'Card text' }),
+    { ...pageContext, document: docForStructural, window: { __whisperPageTranslateState: docFlexState } });
+  assert.equal(flexDocResult.applied, 1,
+    'document-ebeveynli flex kök de batch\'i öldürmemeli');
+  assert.equal(docFlexRoot.children.at(-1).className, 'whisper-page-tr',
+    'yedek yol köke eklemeli');
+}
 vm.runInNewContext(pageRestoreScript(), pageContext);
 assert.equal(firstNode.nodeValue + secondNode.nodeValue, 'Merhaba dünya.');
 

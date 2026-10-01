@@ -948,23 +948,33 @@ function pageApplyScript(payload = {}) {
     const insertAfterRoot = (ref, element) => {
       const structuralTag = (node) => /^(?:TABLE|TBODY|THEAD|TFOOT|TR|COLGROUP|SELECT|OPTION|HTML)$/i
         .test(String(node?.tagName || ''));
+      // anchor.parentNode Document olabilir (anchor <html>'e kadar tırmandığında):
+      // document.insertBefore HierarchyRequestError fırlatır ve tek blok tüm
+      // apply toplu işini öldürürdü — yakala ve güvenli yedeğe düş.
       if (structuralTag(ref.root)) {
         let anchor = ref.root;
         while (anchor.parentNode && structuralTag(anchor.parentNode)) anchor = anchor.parentNode;
+        let placed = false;
         if (anchor.parentNode?.insertBefore) {
-          anchor.parentNode.insertBefore(element, anchor.nextSibling || null);
-          return;
+          try {
+            anchor.parentNode.insertBefore(element, anchor.nextSibling || null);
+            placed = true;
+          } catch (_) {}
         }
-        document.body?.appendChild?.(element);
+        if (!placed) {
+          try { document.body?.appendChild?.(element); } catch (_) {}
+        }
         return;
       }
       const layoutRoot = /^(?:flex|grid|inline-flex|inline-grid)$/.test(String(ref.rootDisplay || ''))
         && ref.root !== document.body && ref.root !== document.documentElement;
       if (layoutRoot && ref.root.parentNode?.insertBefore) {
-        ref.root.parentNode.insertBefore(element, ref.root.nextSibling || null);
-      } else {
-        ref.root.appendChild?.(element);
+        try {
+          ref.root.parentNode.insertBefore(element, ref.root.nextSibling || null);
+          return;
+        } catch (_) {}
       }
+      try { ref.root.appendChild?.(element); } catch (_) {}
     };
     const ensureOverlay = (ref) => {
       if (ref.overlay && ref.overlay.isConnected !== false) return ref.overlay;
