@@ -1346,6 +1346,50 @@ paketi koşturulmadı.
 Windows etkisi: çeviri kapısı ürün davranışını değiştirmedi;
 erişilemez kod yoluna savunma. Etkisi yok.
 
+## R359 — invidious.py tam derin okuma + uzak-veri float bekçisi
+
+**Kapsam:** `backend/invidious.py` (1.166 satır) tamamen okundu —
+instance failover, SID oturum sızıntı koruması, probe/feed/arama/kanal/
+yorum/playlist uçları ve timedtext→SRT dönüşümü.
+
+**Düzeltilen:**
+
+- `probe()` bölüm/süre alanlarında ham `float()` çağrıları: uzak
+  instance `'abc'`/NaN/inf gibi sayısal-olmayan değer döndürünce tüm
+  probe çöküyordu (üstteki `except Exception` yalnız error olayı
+  basar — video kartı tamamen ölürdü). `_to_float` bekçisi eklendi;
+  bozuk bölüm yalnız o bölümü atlar, bozuk süre 0'a düşer.
+  Kırmızı kanıt: master'da 3 ERROR + 1 FAIL; düzeltmede 78/78 PASS
+  (venv).
+
+**Doğrulanan (bug yok):**
+
+- SID sızıntı zinciri: `_session_url_ok` netloc eşleşmesiyle SID yalnız
+  kendi instance'ına gider; failover başka instance'a düşerse credential
+  taşınmaz. `emit("login", sid=sid)` değeri main.js'te renderer'a
+  gitmeden soyulup safeStorage'a yazılıyor (main.js:1756-1763).
+- `fetch_subs`: dil kodu `[A-Za-z0-9_-]{1,32}` fullmatch + dosya yolu
+  `resolve().parent` karşılaştırması — traversal kapalı; utf-8-sig
+  yazımı.
+- `extract_video_id`/`channel_tab`/`playlist` ID whitelist'leri;
+  `suggest`/`comments`/`search` quote + sınır kapıları.
+- `_vtt_to_srt` boş-satırsız cue sınırı kurtarma + `to_srt` saat
+  normalizasyonu; `_convert_timedtext_to_srt` srv1/srv3 + `_num`
+  non-finite bekçisi.
+- `feed_home` iki paralel kol + `_emit_lock` NDJSON bütünlüğü;
+  yt-dlp yedek yolu `degraded` bayrağıyla işaretli.
+- `_ytdlp_tab_videos` 11-karakter videoId süzgeci (arama yolunda da
+  var; renderer `encodeURIComponent` kullandığı için ek risk yok).
+- `_parse_comment` etiket soyma → entity decode sırası textContent
+  güvenli; 2000 karakter sınırı.
+
+Testler: `backend/venv/bin/python backend/test_invidious.py` → 78/78
+PASS (+3 yeni bozuk-sayı testi). Sistem python'unda yt_dlp yok —
+önceden var olan env hatası değişmedi.
+
+Windows etkisi: yok — probe davranışı sadece bozuk uzak veride
+değişti (çöküş → atlama).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
