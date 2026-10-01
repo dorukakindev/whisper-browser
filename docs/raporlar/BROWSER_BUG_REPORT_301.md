@@ -616,6 +616,116 @@ imkânsız).
 Windows etkisi: ASS metin çözümü davranışı değişmedi; dosya içeriği aynı
 bayt dizisini işler (kaynak okunabilirliği düzeltmesi).
 
+## R345 — main.js bakiye derin okuması 1: yüksek-risk yüzeyleri (temiz)
+
+main.js'te bu kampanyada hiç tam okunmamış en riskli bloklar satır
+satır tarandı (~3.100 satır, 8 bölge). Doğrulanmış bug yok — önceki
+turların bekçileri yerinde.
+
+- **`transcribe:start` + `transcribe:cancel` + `maintenance:updateYtdlp`**
+  (19292–19936): opsiyon nesnesi/gönderici kapısı, inputDir/outputDir
+  `sanitizeAbsolutePath`, YouTube URL'i `decideUrlPolicy` + protokol
+  beyaz listesi, girdi dosyası yetkilendirmesi (reexport/translateOnly/
+  explain → `authorizeSubtitleFile`, diğer → `authorizeMediaFile`),
+  yardımcı altyazı dosyaları ayrı yetki, kuyruk opts ≤512KB
+  (`clonePublicOptions` — `SECRET_OPTION_KEYS` + regex'ler hfToken/
+  apiKey'leri ayıklıyor → kalıcı kuyruğa sır sızmaz), iş-başlatma
+  yarışı `jobStarting` + iptal `jobCancelSeq` deferred işaretiyle
+  spawn öncesi yakalanır, `pushBoundOption` `-`li değerleri `=`biçimine
+  bağlar, API anahtarları argv'de değil `buildSecretEnv` ortamında
+  (özellik kapalıysa miras bırakılmaz), sohbet bağlamı 8MB sınırlı
+  0o600 tmp JSON dosyasında, argv birim sınırı 30k (Windows
+  CreateProcess), stdio-null kontrolü, terminal mandalı (tek done/error),
+  NDJSON satır tamponu 32MB + taşma olayı, stderr 8k→4k kuyruk,
+  close handler'ında kuyruk-terminal persist + sentetik terminal +
+  iptal geç-kaldı (`cancelTooLate`) + temp dizini sahiplik-kontrollü
+  temizlik + yarim çıktı geri alımı (ownerPid), updateYtdlp venv-kapısı
+  + 10 dk zaman aşımı + tek-iş slotu.
+- **CEA tam-yakalama hattı** (9926–10434): en düşük bant varyantı,
+  beklenen süre retain + staleness kapılı prob, otomatik yeniden
+  deneme ≤2 tur (manifest yenileme + `mergeCeaCaptureSegments` —
+  kayan listenin penceresi korunur), checkpoint batch (20 segment)
+  + partial/error'da zorlamalı, segment sıralama `shouldPause` ile
+  decoder'a asla ters besleme yok, refresh-manifest `retryAction`
+  → plan yeniden çözümü + segment remap, native-track referansıyla
+  ≥0.05s kalibrasyon, kayıtlı checkpoint cue'ları geri yüklenir ama
+  decoder durumu SERİLEŞTİRİLEMEZ → parçalar baştan doğrulanır
+  (yorum belgeli), resume yalnız partial/error/cancelled + aynı
+  kaynak, EXT-X-GAP indirilmez, komşu-segment kurtarma ±1/+2.
+- **CDP payload işleme** (10683–11102): bağlam bayatlığı giriş +
+  her await sonrası (`requireActiveTransaction`), gövde sınırı,
+  payload dedupe + in-flight paylaşımı, manifest transaction
+  begin/commit (duplicate/not-modified/backoff/cooldown),
+  DASH init-segment dedupe + timescale/trex çözümü + başarısızlık
+  işareti, `browserDashSubtitleMatchers` 10k sınırı, iz listesi
+  24 sınırı, refresh-manifest tek-geç yeniden-getirme (fingerprint
+  değişmeli), JSON-manifest'ten çıkan altyazı URL'leri
+  `fetchAndStoreBrowserSubtitle` → `fetchBrowserBuffer` → SSRF
+  kapısından geçer, manifest retry timer'ları key'li tek seferlik.
+- **getBrowserCapturedResponseBody** (11073–11102): CDP
+  Network.getResponseBody 3 denemeli (yalnız retryable adayda),
+  üstel geri-sağlama 150ms·2^n, bağlam bayatlığı her turda.
+- **İndirme fetch yığını** (9382–9675): protokol/userinfo/uzunluk
+  kapıları, `assertPublicBrowserSubtitleUrl` DNS + genel-IP +
+  `{address,family}` pin; DIRECT zincirde Node-pinning (rebinding
+  kapalı), proxy/belirsiz/interceptor'da Chromium yolu (DNS
+  kontrolü sürer), DIRECT-bacak düşerse proxy yedeği (ilke hatası
+  ESUBTITLE_LIMIT/iptal yedeklenmez), redirect ≤5 + her hop
+  yeniden-doğrulama + yeniden-pin, same-origin çerez + Secure
+  kapısı http'de, byteRange 206/Content-Range/bayt-sayısı sıkı
+  doğrulama, retry kararları ilke/taşıma ayrımı.
+- **CEA segment çözücü** (9677–9924): tam-yakalama işi manifest
+  sırasını sahiplenirken CDP kopyası atlanır (decoder geriye
+  sarmaz), varış-bekleme decode zinciri DIŞINDA (kilitlenme
+  belgeli), ≤350ms sınırlı erken-seq beklemesi, playlist+
+  discontinuity anahtarlı decoder kuyruğu (playlist başına
+  serileşmiş), AES-128 anahtarı pinli fetch + 1KB + önbellek
+  + hata tahliyesi, init-segment dedupe (encryption/iv dahil
+  key), tracks↔instream eşleşmesi + yerel-zaman çizelgesi
+  tespiti + offset düzeltme, tüm koleksiyonlar sınırlı
+  (arrivals/decoders/inits 64, fetched 20k, matchers 20k),
+  `saveBrowserTrackToConfiguredFolder` sanitize+windowsSafe
+  +sha1 soneki + yedek + atomik-yazma + oku-doğrula + grant.
+- **YouTube auth akışı** (1999–2380): PKCE S256 + state +
+  127.0.0.1 geçici-port loopback, 10 dk timeout, her yolda
+  cleanup, kod/verifier/redirect_uri env'de (argv'de değil),
+  refresh-token'siz grant → ephemeral hesap, client değişimi
+  TÜM hesapları geçersizler (grant istemciye aittir), device_code
+  main'de kalır + verification_url https kapısı, poll'da token
+  taşıyan emit'ler renderer'a gitmez, uçuşta iptal `_ytDevice`
+  null → hayalet-hesap upsert'i engellenir, revoke O HESABIN
+  token'ıyla (aktif değil), browse whitelist + serileştirme +
+  generation supersede yalnız aynı-bid, logout önce uçuştaki
+  poll'u öldürür, cancel kapanışı 3s bekler (yarışsız).
+- **Medya IPC** (18478–18761): ffprobe 4MB bayt-sayacı + 30s,
+  gömülü-iz çıkarma sha256 anahtarlı deterministik çıktı adı
+  (traversal imkânsız), waveform 50Hz mono ≤12MB + 60s + tek-iş
+  + tek-kayıt önbellek, seekPreview süre ≤8s kapısı + stat-anahtar
+  + 8MB sprite + 90s + data-URL (CSP img-src file: izinsiz).
+- **İş günlüğü + süpürme** (657–894): `sweepStaleChatFiles`
+  yalnız kendi regex kalıplarına dokunur, `sweepOrphanOutputTransactions`
+  sahibi ölü journalları ownerPid'le geri alır (canlı sahibin
+  dosyasına dokunmaz), `pidAlive` ≤0/EPERM muhafazakâr-canlı,
+  `redactJobLogArgs` gizli-değer bayrakları + `=`biçimi,
+  `sanitizeProcessDetail` OSC/DCS önce süzülür (sıra belgeli),
+  `windowsSafeFileName` NFKC katlamalı ayrılmış-kök (COM¹/CONIN$),
+  aynı-saniye çakışmada sonekli ad + bayt sayacı mevcut boyuttan,
+  stream hatası yalnız kendi akışını siler, 4MB kesim işareti,
+  unhandledRejection loglanır.
+- **media/invidious handler'ları** (1396–1625): tümü
+  `authorizedBrowserSender` + `decideUrlPolicy` + `sanitizeAbsolutePath`,
+  `subtitleLangArg` traversal savunması (belgeli), cookieBrowser/
+  feed/tab/searchType/features hep beyaz liste, job-slot ayrımı
+  + `jobTag==='invidious-stream'` kontrollü iptal.
+
+Not: `createWindow`, `ensureBrowserView`, sayfa-içi enjekte betikler,
+manga hattı, OCR/geçmiş/kütüphane/ekran-birleştirme bölgeleri önceki
+kampanya turlarında (R321-A–D, R338, R339 ve öncesi) tam veya kısmi
+okundu; bu tur yalnız bakiye yüksek-risk bölgeleri kapattı.
+
+Windows etkisi: kod değişmedi (salt okuma); doğrulanan savunmalar
+Windows yolları/CreateProcess/win32 davranışlarını da kapsıyor.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
