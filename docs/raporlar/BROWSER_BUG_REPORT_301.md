@@ -469,6 +469,57 @@ teardown).
 
 Windows etkisi: B-342-01 yalnız metin-katlama — platform bağımsız.
 
+## R343 — Modül kapsam turu 5: 15 dosya ~7.980 satır, doğrulanmış bug yok
+
+Depo/kalıcılık ve servis katmanı tam okuma (boyut sırasıyla):
+watch-library-store (628), browser-library-tools
+(533), watch-library-state (473 — yalnız test/model modülü; main.js
+`createWatchLibraryStore` kullanır, üretimde erişilemez fark yok),
+browser-session-store (399), browser-note-store (260),
+browser-translation-archive (348), browser-adblock (326),
+browser-translation-cache (312), browser-settings-registry (290),
+browser-subtitle-search (410), subtitle-sentence-layout (416),
+browser-feature-services (407), watch-index (483), settings-security (903),
+browser-translation-scheduler (794).
+
+Doğrulanan riskli bölgeler (hepsi temiz):
+
+- **Kalıcılık törenleri:** atomik tmp+fsync+rename+fsyncDirectory zinciri,
+  mirrorBackup önce-rename (R86-03), `.bak` yalnız geçerli önceki belgeden,
+  `error.committed` bayrağıyla rollback yasağı, bozuk-arşiv en-yeni-5
+  saklaması, journal mezar-taşı/TTL/bayat-diriliş kuralları
+  (translation-cache), SQLite şema-sürüm kapısı + FTS5 tetiği + keep-set
+  budama (watch-index), transaction-journal tam-kaydı ve marker semantiği
+  (settings-security).
+- **Ağ güvenliği:** OpenSubtitles/Stremio elle-redirect zincirinde her hop
+  yeniden allowlist'ten geçer (SSRF), boundedBody bayt kapısı + reader
+  releaseLock, altyazı-şekli kapısı, moviehash/imdbId input doğrulaması,
+  ISO-639-2→1 indirgeme + varyant eşleşmesi; adblock `isSitePaused`
+  hatasında engelleme sürer (fail-safe yön); `whisper`-özel URL'lerde
+  creds/hash soyma.
+- **Endpoint-sır mirası (settings-security):** içe aktarımda endpoint kimliği
+  değiştiyse mevcut apiKey yeni uca taşınmaz; `clearedSecretFields` yalnız
+  allowSecrets yolunda; backup'ta sır DEĞERLERİ gömülü dizgilerde bile
+  `[GİZLİ]`; symlink bileşen-yürüyüşü.
+- **Scheduler:** çekirdek-kararlılık reconcile (bağlam değişimi yeniden
+  ücretlendirmez), farSeek pencere-dışı iptali, in-flight dedupe tüketici
+  sayaçlı, definitive vs sağlayıcı kesicileri ayrı sayaçlar, retry timer'ı
+  erken-uyanma yeniden-kurulumu (Windows), generation+bort kapıları her
+  await sonrası.
+- **Cümle yerleşimi:** NFC/casefold/spaceless eşleşme, sayı-simgesi ve
+  Türkçe yazıyla-sayı karşılaştırması (saat/geçe-kala/buçuk/ölçek
+  sözcükleri), inkâr-kaybı denetimi, korumalı cue'lar, DP yerleştirme
+  (400 kelime/12 parça sınırı, geri-izleme tahsissiz).
+
+Küçük gözlemler (bug değil): `browser-translation-archive._writeText` ve
+`browser-translation-cache.compact` tmp+rename yapar ama fsyncFile/
+fsyncDirectory çağırmaz — türetilmiş/yeniden-üretilebilir veri katmanı,
+.bak+journal zaten çökme kurtarması veriyor; `unifiedLibrarySearch`
+push-dedupe O(n²) — girişler yukarıda sınırlı.
+
+Windows etkisi: kod değişikliği yok; not edilen fsync farkı Windows'ta
+aynıdır (NTFS rename atomik, fsyncDirectory no-op'a yakın).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
