@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2018.md](docs/devir/2026-10-01-2018.md) — kuyruk-50 madde 28: kaynaklara göre kuyruk planlama
+Güncel çalışma: [docs/devir/2026-10-01-2021.md](docs/devir/2026-10-01-2021.md) — kuyruk-50 madde 29: POSIX süreç-ağacı iptali
+Önceki çalışma: [docs/devir/2026-10-01-2021.md](docs/devir/2026-10-01-2021.md) — kuyruk-50 madde 29: POSIX süreç-ağacı iptali
 Önceki çalışma: [docs/devir/2026-10-01-2018.md](docs/devir/2026-10-01-2018.md) — kuyruk-50 madde 28: kaynaklara göre kuyruk planlama
 Önceki çalışma: [docs/devir/2026-10-01-2014.md](docs/devir/2026-10-01-2014.md) — kuyruk-50 madde 27: checkpoint sürümleme
 Önceki çalışma: [docs/devir/2026-10-01-2013.md](docs/devir/2026-10-01-2013.md) — kuyruk-50 madde 26: ortak iş durum sözleşmesi

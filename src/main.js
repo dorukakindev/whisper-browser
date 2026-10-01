@@ -313,7 +313,11 @@ const {
 // varsayılan olarak temiz bir ortamla başlar.
 function spawn(command, args, options = {}) {
   const env = options.env || withoutSecretEnv(process.env);
-  return rawSpawn(command, args, { ...options, env });
+  // Madde 29 (POSIX): çocuk kendi süreç grubunun lideri olsun — iptalde
+  // terminateProcessTree kill(-pid) ile torunları (ffmpeg, yt-dlp) da öldürür.
+  // Windows'ta detached farklı anlam taşır; orada taskkill /T zaten kullanılır.
+  const detached = options.detached ?? (process.platform !== 'win32');
+  return rawSpawn(command, args, { ...options, env, detached });
 }
 
 function spawnSync(command, args, options = {}) {
@@ -18790,7 +18794,7 @@ ipcMain.handle('media:waveform', async (_event, filePath) => {
     p.stdout.on('data', (buf) => {
       bytes += buf.length;
       if (bytes <= 12 * 1024 * 1024) chunks.push(buf);
-      else try { p.kill(); } catch (_) {}
+      else try { terminateProcessTree(p, { spawn }); } catch (_) {}
     });
     p.on('close', (code) => {
       if (settled) return;
