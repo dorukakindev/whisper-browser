@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1126.md](docs/devir/2026-10-01-1126.md) — R410 UI yüzeyi derin okuma: index.html+styles.css+browser-chrome.css — 18 ölü CSS seçicisi silindi + rel=noopener; SON BÜYÜK OKUNMAMIŞ YÜZEY KAPANDI
+Güncel çalışma: [docs/devir/2026-10-01-1131.md](docs/devir/2026-10-01-1131.md) — R411 src/ kapanışı: kalan 29 dosya (~2.700 satır) temiz — SRC ENVANTERİ %100
+Önceki çalışma: [docs/devir/2026-10-01-1126.md](docs/devir/2026-10-01-1126.md) — R410 UI yüzeyi derin okuma: index.html+styles.css+browser-chrome.css — 18 ölü CSS seçicisi silindi + rel=noopener; SON BÜYÜK OKUNMAMIŞ YÜZEY KAPANDI
 Önceki çalışma: [docs/devir/2026-10-01-1115.md](docs/devir/2026-10-01-1115.md) — R409 tests/ derin okuma wave-2: sonraki en büyük 10 dosya (~4.650 satır) temiz — üst-18 hacim kapsandı
 Önceki çalışma: [docs/devir/2026-10-01-1109.md](docs/devir/2026-10-01-1109.md) — R408 tests/ en büyük 8 dosya + kök .bat/CI denetimi: sıfır kusur — DERİN-OKUMA ENVANTERİ KAPANDI
 Önceki çalışma: [docs/devir/2026-10-01-1059.md](docs/devir/2026-10-01-1059.md) — R394–R395 tools/ derin okuma: audit-ui profil sızıntısı + url-userinfo sahte-pozitifleri + hf_ kuralı; 17 betik temiz — TOOLS ENVANTERİ KAPANDI
