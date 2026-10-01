@@ -1351,6 +1351,44 @@ satır-pinleri güncellendi (`toolsMarkup` pini #314'ten beri bayattı);
 Windows etkisi: yok — renderer dizgi/DOM özniteliği işi, platform
 bağımsız. Windows'ta elle doğrulanmadı.
 
+## R389 — İş sürerken dil değiştirme: dinamik mesaj çeviri kapsamı (3 boşluk düzeltildi)
+
+20'lik kuyruğun 2. görevi: iş sürerken dil değiştir; ilerleme, hata ve
+bildirimlerde eksik çevirileri tamamla. translate() prob'uyla iş başı
+dizgilerinin tamamı tarandı.
+
+**B-389-01 — backend aşama metinleri ve ilerleme birleşimleri çevirisizdi:**
+transcribe.py'nin `emit("status", text=…)` gönderdiği ~19 TR dizgi
+(`Ses çıkarılıyor...`, `Transkripsiyon başladı...`, `Ceviriliyor: X`,
+`Model yükleniyor: X (Y)`, `Noktalama onarımı N/M` vb.) ve renderer'ın
+kurduğu ilerleme metinleri (`İndiriliyor %N`, `İndiriliyor/Transkripsiyon/
+Çevriliyor/LLM düzeltiyor · %N|N/M`, `N blokta hata`, `· kalan ~T`,
+`tamamlandı · T`, görev merkezi aşamaları: `Kaydediliyor`, `Oynatıcıya
+yükleniyor`, `Hazırlanıyor`, `Çeviri sürüyor`, kart etiketleri) EN
+modda TR kalıyordu. Sözlüğe 35+ yeni çift ve 16 yeni kalıp eklendi.
+
+**B-389-02 — OS bildirimi her zaman TR kalıyordu:** `notifyDone` başlık/
+gövdeyi (`Altyazı hazır`, `Kuyruk tamamlandı`, `Altyazı çıkarma
+başarısız`, `N iş bitti · M hata · K uyarı`, `N segment · M dosya`)
+`window.api.notify`'ye çevirmeden veriyordu; OS bildirimi DOM dışıdır,
+MutationObserver erişemez. Artık `uiText()` üzerinden geçiyor.
+
+**B-389-03 — görev merkezi yazma-anında EN üretiyordu:** `playerTaskText`
+EN dizgiyi doğrudan düğüme yazıyordu; TR'ye dönüşte `toTurkish` kalıp
+çıktılarını (ör. `3/12 completed`, `Downloading · 45%`) geri
+çeviremiyordu — dil geçişinde sürüklenme. Bloktaki tüm çağrılar ham TR
+yazımına çevrildi (observer çevirir + orijinali saklar → gidiş-dönüş
+kusursuz); kullanılmayan `playerTaskText` kaldırıldı, 4 yeni birleşim
+kalıbı (`N çalışıyor/bekliyor/hata`, `geçen süre T`) eklendi.
+
+**Kanıtlar:** `ui-locale-dynamic.test.js` — 73 örnek, 71 kalıp; yeni
+backend-taraması ratchet'i transcribe.py'deki HER `emit("status",
+text="TR literal")`'in çeviri kapsamını doğrular (taramada 3 ek eksik
+yakalandı ve eklendi); statik kilit: `api.notify(uiText(...))` ve
+`playerTaskText` yokluğu.
+
+Windows etkisi: yok — renderer dizgi işi. Windows'ta elle doğrulanmadı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
