@@ -13240,6 +13240,36 @@ async function maybeFetchPlayerVideoExtras() {
   } catch (_) {}
 }
 
+// updateCueMeta kare basina cagrilir; 4k-10k satirda savedCount/lowCount/
+// missing taramasi ~33ms/frame yapiyordu. Sonuclar yalniz alttaki bağımlı
+// durumlar degisince yeniden hesaplanir: cue dizisi + savedCues + cues2.
+let _cueMetaStats = null;
+function cueMetaStats() {
+  const cues = player.cues;
+  const saved = player.savedCues;
+  const cues2 = player.cues2;
+  if (_cueMetaStats
+      && _cueMetaStats.cues === cues
+      && _cueMetaStats.cuesLen === cues.length
+      && _cueMetaStats.saved === saved
+      && _cueMetaStats.savedLen === saved.length
+      && _cueMetaStats.cues2 === cues2
+      && _cueMetaStats.cues2Len === cues2.length) return _cueMetaStats;
+  const savedSet = new Set(saved);
+  const savedCount = cues.filter((cue) => savedSet.has(cueSignature(cue))).length;
+  const lowCount = cues.filter((c) => Number(c.lowConfidenceWords) > 0
+    || (c.confidence !== undefined && Number(c.confidence) < 0.6)).length;
+  const hasTranslation = cues2.length > 0;
+  const counterparts = hasTranslation ? translationsForCues(cues, cues2) : [];
+  const missing = hasTranslation
+    ? cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+  _cueMetaStats = {
+    cues, cuesLen: cues.length, saved, savedLen: saved.length,
+    cues2, cues2Len: cues2.length, savedCount, lowCount, missing,
+  };
+  return _cueMetaStats;
+}
+
 function updateCueMeta() {
   const total = player.cues.length;
   const position = $('cuePosition');
@@ -13270,11 +13300,11 @@ function updateCueMeta() {
     headSave.setAttribute('aria-pressed', saved ? 'true' : 'false');
     headSave.title = saved ? 'Aktif cümleyi kayıtlardan çıkar (K)' : 'Aktif cümleyi kaydet (K)';
   }
+  const stats = cueMetaStats();
   const savedFilter = $('savedOnlyBtn');
   if (savedFilter) {
     savedFilter.classList.toggle('active', player.savedOnly);
-    const savedSet = new Set(player.savedCues);
-    const savedCount = player.cues.filter(cue => savedSet.has(cueSignature(cue))).length;
+    const savedCount = stats.savedCount;
     savedFilter.title = player.savedOnly
       ? 'Tüm cümleleri göster'
       : `Kaydedilen cümleleri göster (${savedCount})`;
@@ -13283,8 +13313,7 @@ function updateCueMeta() {
   const qualityFilter = $('qualityOnlyBtn');
   if (qualityFilter) {
     qualityFilter.classList.toggle('active', player.qualityOnly);
-    const lowCount = player.cues.filter((c) => Number(c.lowConfidenceWords) > 0
-      || (c.confidence !== undefined && Number(c.confidence) < 0.6)).length;
+    const lowCount = stats.lowCount;
     qualityFilter.title = player.qualityOnly
       ? 'Tüm cümleleri göster'
       : `Düşük güvenli cümleleri göster (${lowCount})`;
@@ -13296,8 +13325,7 @@ function updateCueMeta() {
     if (!hasTranslation && player.untranslatedOnly) player.untranslatedOnly = false;
     untranslatedFilter.classList.toggle('hidden', !hasTranslation);
     untranslatedFilter.classList.toggle('active', player.untranslatedOnly);
-    const counterparts = hasTranslation ? translationsForCues(player.cues, player.cues2) : [];
-    const missing = hasTranslation ? player.cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+    const missing = hasTranslation ? stats.missing : 0;
     untranslatedFilter.title = player.untranslatedOnly ? 'Tüm cümleleri göster' : `Çevrilmemiş satırları göster (${missing})`;
     untranslatedFilter.setAttribute('aria-label', untranslatedFilter.title);
     untranslatedFilter.setAttribute('aria-pressed', player.untranslatedOnly ? 'true' : 'false');
@@ -14156,8 +14184,8 @@ function renderCueList(filter = '') {
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !foldIndex(c.text).dense.includes(q)
-        && !foldIndex(counterpart).dense.includes(q)) return;
+    if (q && !foldIndexCached(c.text).dense.includes(q)
+        && !foldIndexCached(counterpart).dense.includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -14654,7 +14682,7 @@ function toggleQualityOnly() {
 // kaynak metinle bırakılan blok) çevrilmemiş sayılır.
 function cueLooksUntranslated(text, counterpart) {
   if (!player.cues2.length) return false;
-  const norm = (value) => foldIndex(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const norm = (value) => foldIndexCached(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
   const a = norm(text);
   const b = norm(counterpart);
   return !b || (a.length > 3 && a === b);
@@ -18398,6 +18426,21 @@ function foldQuery(value) {
 // Metin+konum dizini: modüllerdeki foldSearchIndex ile aynı sözleşme (yoğun
 // form + her yoğun konumun özgün metindeki [başlangıç, uzunluk] aralığı).
 // Modüller yüklüyse oradan alınır; yoksa işaretçi-silme sade sürüme düşer.
+// Arama/filtre yollarinda ayni metin tekrar tekrar katlanir (8k cue x norm).
+// Map metinle anahtarlanir: ayni icerik hep ayni sonucu verir, metin degisince
+// yeni anahtar uretilir (invalidasyon gereksiz). Boyut sinirli.
+const _foldCache = new Map();
+function foldIndexCached(value) {
+  const key = String(value || '');
+  let v = _foldCache.get(key);
+  if (v === undefined) {
+    v = foldIndex(key);
+    if (_foldCache.size > 24000) _foldCache.clear();
+    _foldCache.set(key, v);
+  }
+  return v;
+}
+
 function foldIndex(value) {
   const build = globalThis.BrowserAddressModel?.foldSearchIndex || globalThis.BrowserOmnibox?.foldSearchIndex;
   if (build) return build(value);
@@ -22446,7 +22489,7 @@ async function runPlayerLibrarySearch() {
     const folded = foldQuery(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => foldIndex(String(value || '').normalize('NFKC')).dense.includes(folded)));
+        .some((value) => foldIndexCached(String(value || '').normalize('NFKC')).dense.includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
@@ -24624,8 +24667,8 @@ if ($('cueSearch')) {
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);
       renderSeekMarkers(player.cues.filter((c, index) =>
-        foldIndex(c.text).dense.includes(q)
-          || foldIndex(translations[index]).dense.includes(q))
+        foldIndexCached(c.text).dense.includes(q)
+          || foldIndexCached(translations[index]).dense.includes(q))
         .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });
