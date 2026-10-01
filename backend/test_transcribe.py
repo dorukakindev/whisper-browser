@@ -4800,6 +4800,67 @@ def test_translate_progress_counts_preserved_lines():
     assert final["failed"] == 0, final
 
 
+def test_checkpoint_hostile_read():
+    # Bozuk/saldırgan checkpoint gövdeleri güvenle reddedilir (imza doğru ama
+    # içerik hatalı → None; çökme/eksik alan/yanlış tip üretimi kırılmaz).
+    sig = {"model": "large-v3", "engine": "faster"}
+    base = {"version": 3, "signature": sig, "last_time": 4.0,
+            "entries": [[0.0, 2.0, "merhaba"]], "words": []}
+
+    def _read(data):
+        fd, path = tempfile.mkstemp(suffix=".ckpt.json")
+        os.close(fd)
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(data if isinstance(data, str) else json.dumps(data))
+            return T.read_checkpoint(path, sig, include_metadata=True)
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+    hostile = [
+        "",                                        # boş dosya
+        "not json {",                              # bozuk JSON
+        json.dumps([1, 2, 3]),                     # kök dict değil
+        json.dumps({"version": 99}),               # bilinmeyen sürüm
+        json.dumps({**base, "signature": {"x": 1}}),  # imza uyuşmaz
+        json.dumps({**base, "last_time": "dört"}),    # sayısal olmayan last_time
+        json.dumps({**base, "last_time": -5}),        # negatif last_time
+        json.dumps({**base, "last_time": float("nan")}),  # NaN last_time
+        json.dumps({**base, "entries": "metin"}),     # entries liste değil
+        json.dumps({**base, "entries": []}),          # boş entries
+        json.dumps({**base, "entries": [[0.0, "x", "t"]]}),    # süre tip bozuk
+        json.dumps({**base, "entries": [[5.0, 2.0, "t"]]}),    # e<=s
+        json.dumps({**base, "entries": [[-1.0, 2.0, "t"]]}),   # negatif başlangıç
+        json.dumps({**base, "entries": [[0.0, 2.0, 42]]}),     # metin str değil
+        json.dumps({**base, "entries": [{"s": 0, "e": 2, "t": "x"}]}),  # dict item
+        json.dumps({**base, "entries": [[0.0, 2.0]]}),          # kısa tuple
+    ]
+    for i, blob in enumerate(hostile):
+        assert _read(blob) is None, f"hostile #{i} kabul edildi"
+
+    # Kelime listesi: dict olmayan öğeler atlanır, geçerli olanlar korunur;
+    # ama bozuk zaman damgalı bir dict öğesi tüm checkpoint'i reddeder (sıkı).
+    ok = _read({**base,
+                "words": [{"word": "x", "start": 0.1, "end": 0.4, "probability": 0.9},
+                          "bozuk", {"start": 1.0}],
+                "detected_language": "TR"})
+    assert ok is not None
+    _ent, _lt, words, lang = ok
+    assert [w["word"] for w in words] == ["x"], words
+    assert lang == "tr"  # küçük harfe normalize edilir
+
+    bad_words = _read({**base,
+                       "words": [{"word": "y", "start": -1, "end": 0}]})
+    assert bad_words is None
+
+    # Geçersiz dil biçimi reddedilir (enjeksiyon güvenliği).
+    bad_lang = _read({**base, "detected_language": "tr'; DROP TABLE--"})
+    assert bad_lang is not None and bad_lang[3] is None
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
