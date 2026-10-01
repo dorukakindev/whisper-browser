@@ -1659,6 +1659,50 @@ Testler: `backend/venv/bin/python backend/test_translation_memory.py`
 Windows etkisi: olumlu — AV'nin SQLite WAL'ını tutması artık çeviriyi
 öldürmez; fuzzy önbellek o işte pasifleşir.
 
+## R366 — küçük backend modülleri derin okuma + eylem kapısı
+
+**Kapsam:** `io_errors.py` (71), `catalog_scan.py` (59),
+`nmdb_catalog_import.py` (72), `workspace_video_package.py` (79) —
+281 satır tamamen okundu.
+
+**Düzeltilen:**
+
+- **`workspace_video_package.main` fail-closed değildi:**
+  `action != 'write'/'read'` her isteği extract dalına düşürüyordu;
+  JS tarafı 'extract' gönderdiği için bugün görünmezdi ama yazım
+  hatası/gelecek eylem sessizce dosya çıkarırdı. Artık yalnız
+  'extract' kabul — başka her şey `Desteklenmeyen paket eylemi`.
+  Kırmızı kanıt: master'da `action:"delete-everything"` geçerli
+  arşivde ok:true döndürüp dosya çıkardı; düzeltmede ok:false,
+  hedef yaratılmadı. `tests/workspace-video-bounds.test.js`'e
+  senaryo eklendi (19 kontrol).
+
+**Doğrulanan (bug yok):**
+
+- `io_errors.py`: ffmpeg sürüm ayrıştırma (n-ön eki dahil),
+  sıralı hata sınıflandırma (disk→izin→bozuk→girdi→akış→filtre→genel),
+  yt-dlp 429/403/cookie-lock/bot-kapısı mesajları, passthrough
+  bekçisi (önceden yerelleşmiş metin ezilmez).
+- `catalog_scan.py`: os.walk followlinks=False + dirs islink +
+  Windows reparse-point süzgeci (0x400) — sembolik bağlantı kaçışı
+  üç katmanlı; 5000-satır kotası; guessit yalnız dosya adına;
+  sezon-listesi uyarısı; stdin/stdout UTF-8 reconfigure.
+- `nmdb_catalog_import.py`: `resolve(strict=True)`+is_file kapısı,
+  URI'da `mode=ro` + `PRAGMA query_only=ON` — salt okunur iki
+  katman; gerekli tablo kapısı, opsiyonel sütun NULL fallback,
+  20k LIMIT'ler, statik SQL (enjeksiyon yüzeyi yok).
+- `workspace_video_package.py` kalanı: `_copy_bounded` gerçek bayt
+  sayımı (sahte file_size beyanı reddedilir — belgeli),
+  `_extract_entry` 'xb' + yalnız-kendi-oluşturduğu-dosya temizliği,
+  symlink kaynak reddi, 256MB manifest / 100GB toplam sınırları,
+  eksik giriş → 'missing' listesi.
+
+Testler: `node tests/workspace-video-bounds.test.js` → 19/19 PASS
+(+3 yeni kontrol); `backend/venv/bin/python backend/test_io_errors.py`
+koşturuldu.
+
+Windows etkisi: yok — eylem kapısı platformdan bağımsız.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
