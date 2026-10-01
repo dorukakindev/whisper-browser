@@ -61,7 +61,9 @@ function srtTime(seconds) {
 }
 
 function formatClipDur(sec) {
-  const m = Math.floor(sec / 60), s2 = Math.round(sec % 60);
+  let m = Math.floor(sec / 60), s2 = Math.round(sec % 60);
+  // Yuvarlama s2'yi 60'a taşıyabilir (119.9 sn → "1 dk 60 sn") — eldeyi üst basamağa ver.
+  if (s2 === 60) { m += 1; s2 = 0; }
   return m ? `${m} dk ${s2} sn` : `${s2} sn`;
 }
 
