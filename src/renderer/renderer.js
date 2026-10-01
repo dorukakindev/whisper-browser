@@ -14173,6 +14173,31 @@ function queuePlayerVideoFrame() {
 // Yarı-açık [start, end) aralığı kullanılır (browserActiveCuesAt ile aynı
 // semantik): biten cue ile aynı anda başlayan cue çakışmaz; üst üste binen
 // izlerde en son başlayan aktif cue kazanır.
+// findCueAt performans indeksi: büyük transkriptte (on binlerce cue) seek veya
+// oynatma sırasında her tick'te O(n) tarama yapmak yerine ikili arama + sonek
+// "maxEnd" dizisiyle çalışır. Sonuç doğruluğu eski doğrusal taramayla birebir
+// aynıdır: start<=t && end>t koşulunu sağlayan SON cue döner.
+const _cueIndexCache = new WeakMap();
+function cueSearchIndex(cues) {
+  let idx = _cueIndexCache.get(cues);
+  if (idx && idx.length === cues.length && idx.head === cues[0] && idx.tail === cues[cues.length - 1]
+      && idx.ver === (cues._cueIndexVersion || 0)) {
+    return idx;
+  }
+  const n = cues.length;
+  const starts = new Float64Array(n);
+  const maxEndAfter = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) starts[i] = Number(cues[i].start) || 0;
+  for (let i = n - 1; i >= 0; i--) {
+    const e = Number(cues[i].end) || 0;
+    maxEndAfter[i] = e > maxEndAfter[i + 1] ? e : maxEndAfter[i + 1];
+  }
+  idx = { starts, maxEndAfter, length: n, head: cues[0], tail: cues[n - 1],
+          ver: cues._cueIndexVersion || 0 };
+  _cueIndexCache.set(cues, idx);
+  return idx;
+}
+
 function findCueAt(cues, t, hint) {
   const match = (c) => c && c.start <= t && c.end > t;
   if (hint >= 0 && hint < cues.length && match(cues[hint])) {
@@ -14182,11 +14207,19 @@ function findCueAt(cues, t, hint) {
     }
     return best;
   }
-  let best = -1;
-  for (let j = 0; j < cues.length; j++) {
-    if (match(cues[j])) best = j;
+  const { starts, maxEndAfter } = cueSearchIndex(cues);
+  // İlk start>t konumu; adaylar [0, hi). Oradan geriye ilk eşleşme = son eşleşme.
+  let lo = 0, hi = cues.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (starts[mid] <= t) lo = mid + 1; else hi = mid;
   }
-  return best;
+  for (let j = hi - 1; j >= 0; j--) {
+    // j ve öncesindeki tüm cue'lar t'den önce bitmişse daha eski eşleşme yok.
+    if (maxEndAfter[j] <= t) break;
+    if (match(cues[j])) return j;
+  }
+  return -1;
 }
 
 function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
@@ -15432,6 +15465,8 @@ if ($('timelineCanvas')) {
       cue.start = Math.max(0, Math.min(timelineDuration() - duration, drag.start + delta));
       cue.end = cue.start + duration;
     }
+    if (player.cues) player.cues._cueIndexVersion = (player.cues._cueIndexVersion || 0) + 1;
+    if (player.cues2) player.cues2._cueIndexVersion = (player.cues2._cueIndexVersion || 0) + 1;
     invalidateCueSignature(cue);
     drag.changed = true;
     if ($('timelineStatus')) $('timelineStatus').textContent =
