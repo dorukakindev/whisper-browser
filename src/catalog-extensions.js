@@ -84,7 +84,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const result = await dialog.showOpenDialog(owner(), { title: dl('Çalışma paketini seç', 'Choose a workspace package'), properties: ['openFile'], filters: [{ name: dl('Whisper çalışma paketi', 'Whisper workspace package'), extensions: ['wbp'] }] });
         if (result.canceled || !result.filePaths?.[0]) return { ok: false, canceled: true };
         const data = await require('./workspace-video-package').read(result.filePaths[0], pythonPath());
-        return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created };
+        // Madde 33: geri yükleme onayından önce paket kapsamını göster —
+        // bölüm/kayıt sayıları meta düzeyinde (içerik değil).
+        const scope = require('./workspace-package').describePackage(data);
+        return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created, scope };
       }
       case 'package-apply': {
         const { data } = take(event, input.token, 'package');

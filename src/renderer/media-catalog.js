@@ -430,8 +430,24 @@
       button('Geri yüklenecek paketi seç', async () => { const result = await api('package-preview'); if (result) { state.packageData = result; render(); } }));
     const include = $('label', 'mc-check'), checkbox = $('input'); checkbox.type = 'checkbox'; checkbox.checked = state.includeVideos; checkbox.disabled = state.busy;
     checkbox.addEventListener('change', () => { state.includeVideos = checkbox.checked; }); include.append(checkbox, $('span', '', 'Katalogdaki yerel videoları da pakete ekle')); body.insertBefore(include, body.children[3]);
-    if (state.packageData) body.append($('p', 'mc-danger-note', `${state.packageData.count} çalışma dosyası ve ${state.packageData.videos || 0} video geri yüklenecek. Paketteki kayıtlar mevcut kayıtların yerini alır. Mevcut durum ayrıca yedeklenir. Uygulama yeniden başlayacak; açık işleri önce bitirin.`),
-      button('Vazgeç', () => { state.packageData = null; render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token }); }, 'mc-danger'));
+    if (state.packageData) {
+      // Madde 33: paket kapsamı meta düzeyinde görünür — hangi bölümler ve
+      // kaç kayıt geri yüklenecek kullanıcı onaylamadan önce bilir.
+      const scope = state.packageData.scope;
+      if (scope) {
+        const parts = [];
+        if (scope.mediaItems) parts.push(`${scope.mediaItems} eser${scope.mediaEpisodes ? ` (${scope.mediaEpisodes} bölüm)` : ''}`);
+        if (scope.watchItems) parts.push(`${scope.watchItems} izleme kaydı`);
+        if (scope.notes) parts.push(`${scope.notes} not`);
+        if (scope.subtitleFiles) parts.push(`${scope.subtitleFiles} altyazı dosyası`);
+        if (scope.subtitleEdits) parts.push(`${scope.subtitleEdits} altyazı düzenlemesi`);
+        if (scope.syncRecords) parts.push(`${scope.syncRecords} senkron kaydı`);
+        if (scope.tabs) parts.push(`${scope.tabs} sekme`);
+        if (parts.length) body.append($('p', 'mc-muted', `Paket kapsamı: ${parts.join(' · ')}`));
+      }
+      body.append($('p', 'mc-danger-note', `${state.packageData.count} çalışma dosyası ve ${state.packageData.videos || 0} video geri yüklenecek. Paketteki kayıtlar mevcut kayıtların yerini alır. Mevcut durum ayrıca yedeklenir. Uygulama yeniden başlayacak; açık işleri önce bitirin.`),
+        button('Vazgeç', () => { state.packageData = null; render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token }); }, 'mc-danger'));
+    }
     return body;
   }
   function render() {
