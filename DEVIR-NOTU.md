@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1700.md](docs/devir/2026-10-01-1700.md) — R360 youtube.py tam derin okuma — temiz (bug yok)
+Güncel çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R361 update_ytdlp.py tam derin okuma + zehirli-dizin kurtarması — 1 dayanıklılık düzeltmesi
+Önceki çalışma: [docs/devir/2026-10-01-1700.md](docs/devir/2026-10-01-1700.md) — R360 youtube.py tam derin okuma — temiz (bug yok)
 Önceki çalışma: [docs/devir/2026-10-01-1630.md](docs/devir/2026-10-01-1630.md) — R359 invidious.py tam derin okuma + uzak-veri float bekçisi — 1 dayanıklılık düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-1600.md](docs/devir/2026-10-01-1600.md) — R358 sentence_translation.py tam derin okuma + boş-parça bekçisi — 1 savunma düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — R357 ui-locale.js kapanışı + DOM sözleşme denetimi — temiz + ratchet

@@ -1440,6 +1440,56 @@ venv'de koşturulup yeşil doğrulandı.
 
 Windows etkisi: yok — salt okuma denetimi.
 
+## R361 — update_ytdlp.py tam derin okuma + zehirli-dizin kurtarması
+
+**Kapsam:** `backend/update_ytdlp.py` (576 satır) tamamen okundu —
+en sertleştirilmiş modül: SSRF kapıları, atomik işlem, kilit,
+geri-alınabilir paket dizini.
+
+**Düzeltilen:**
+
+- **Zehirli paket dizini kalıcı kilitlenmesi:** güncelleme hedef adı
+  `yt-dlp-<sürüm>-<sha12>` deterministiktir; eski bir çalıştırmanın
+  ortasında kesilen `rmtree` (antivirüs kilidi / kuvvet kesme) aynı adı
+  bozuk içerikle bırakırsa, `validator(final_dir)` her denemede
+  başarısız olur ve `created_final` False olduğu için temizlik de
+  yapılmazdı — o sürümün güncellemesi sonsuza kilitlenirdi. Artık
+  önceden-var-dizin doğrulamayı geçemezse silinip yeniden kurulur.
+  Kırmızı kanıt: master'da UpdateError; düzeltmede 25/25 PASS.
+
+**Doğrulanan (bug yok):**
+
+- `_ipv4_literal` inet_aton polifili: hex/oktal/ondalık parçalar +
+  `a.b`/`a.b.c` sıkıştırma + parça-taşma sınırları tam doğru;
+  ayrışamayan sayısal-görünümlü host reddedilir.
+- `_url_is_allowed`: https → yalnız global IP/DNS; http yalnız
+  loopback (test); FQDN sondaki nokta normalize; IPv6 da loopback/
+  link-local olarak sınıflanıp reddedilir.
+- `_CheckedRedirectHandler` her yönlendirme hop'unu yeniden kapılar.
+- `select_artifact`: sürüm charset + tek-segment dosya adı + 64-hex
+  digest + URL kapısı (traversal dosya adı reddi belgeli).
+- `download_artifact`: 'xb' özel oluşturma + akışlı sha256 +
+  Content-Length + boyut sınırı + fsync + hata-temizliği.
+- `extract_wheel`: mutlak/`..`/NUL/ters-slasH/`:` parça reddi,
+  symlink external_attr reddi, dosya+boyut sınırları.
+- `update_lock`: O_EXCL + token-doğrulamalı sahiplik + ölü sahip
+  geri alımı; Windows `_process_alive` os.kill CTRL_C yerine
+  OpenProcess sorgusu (belgeli).
+- `validate_runtime` `python -I` izole import; `_version_parts`
+  sıfır-dolgu normalizasyonu.
+- `previous` yalnız sağlıklı pakete bağlanır (yarım-silinen aktif
+  paket yedek zincirini bozmaz); `_atomic_write_json` tmp+fsync+
+  replace; `prune_packages` yeni+önceki korur ve hatası kritik
+  değildir.
+- `classify_update_error` HTTP/URLError/PermissionError/BadZipFile
+  sınıflandırması.
+
+Testler: `backend/venv/bin/python backend/test_ytdlp_update.py` →
+25/25 PASS (+1 yeni zehirli-dizin testi).
+
+Windows etkisi: düzeltme tam da Windows senaryosuna yönelik —
+AV kilidi yüzünden yarım kalan paket dizini artık kendini onarır.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
