@@ -7,6 +7,76 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 370 | [BROWSER_BUG_REPORT_370.md](BROWSER_BUG_REPORT_370.md) | 100-kuyruk batch 7: performans |
+| 369 | [BROWSER_BUG_REPORT_369.md](BROWSER_BUG_REPORT_369.md) | 100-kuyruk batch 6: kuyruk yaşam döngüsü |
+| 368 | [BROWSER_BUG_REPORT_368.md](BROWSER_BUG_REPORT_368.md) | 100-kuyruk batch 5: güvenlik/IPC tur-2 |
+| 367 | [BROWSER_BUG_REPORT_367.md](BROWSER_BUG_REPORT_367.md) | 100-kuyruk batch 5: master suite onarımı (12 bayat sözleşme/stub + CSS token uyumu) |
+| 366 | [BROWSER_BUG_REPORT_366.md](BROWSER_BUG_REPORT_366.md) | 100-kuyruk batch 4 (maddeler 31–40): çeviri sözleşmesi/kalite + kalıcılık süpürmesi |
+| 365 | [BROWSER_BUG_REPORT_365.md](BROWSER_BUG_REPORT_365.md) | 100-kuyruk batch 3 (maddeler 21–30): backend hata/kenar yolları |
+| 364 | [BROWSER_BUG_REPORT_364.md](BROWSER_BUG_REPORT_364.md) | 100-kuyruk batch 2: renderer/UI kenarları |
+| 363 | [BROWSER_BUG_REPORT_363.md](BROWSER_BUG_REPORT_363.md) | 100-kuyruk batch 1: kalıcılık/bozulma dayanıklılığı |
+| 362 | [BROWSER_BUG_REPORT_362.md](BROWSER_BUG_REPORT_362.md) | Kuyruk-50 Madde 50: Sürüm kabul kampanyası |
+| 361 | [BROWSER_BUG_REPORT_361.md](BROWSER_BUG_REPORT_361.md) | Kuyruk-50 Madde 49: Tekrarlanabilir Windows paketi |
+| 360 | [BROWSER_BUG_REPORT_360.md](BROWSER_BUG_REPORT_360.md) | Kuyruk-50 Madde 48: Windows süreç ve dosya sınırları |
+| 359 | [BROWSER_BUG_REPORT_359.md](BROWSER_BUG_REPORT_359.md) | Kuyruk-50 Madde 47: DPI ve çoklu monitör |
+| 358 | [BROWSER_BUG_REPORT_358.md](BROWSER_BUG_REPORT_358.md) | Kuyruk-50 Madde 46: Temiz Windows kurulum matrisi |
+| 357 | [BROWSER_BUG_REPORT_357.md](BROWSER_BUG_REPORT_357.md) | Kuyruk-50 madde 45: parser dayanıklılığı |
+| 356 | [BROWSER_BUG_REPORT_356.md](BROWSER_BUG_REPORT_356.md) | Kuyruk-50 madde 44: Mahremiyetli tanı paketi |
+| 355 | [BROWSER_BUG_REPORT_355.md](BROWSER_BUG_REPORT_355.md) | Madde 43: Gizli bilgi deposu kurtarma |
+| 354 | [BROWSER_BUG_REPORT_354.md](BROWSER_BUG_REPORT_354.md) | Madde 42: Ağ yönlendirme sınırları |
+| 353 | [BROWSER_BUG_REPORT_353.md](BROWSER_BUG_REPORT_353.md) | Kuyruk-50 madde 41: IPC yetki sınırları |
+| 352 | [BROWSER_BUG_REPORT_352.md](BROWSER_BUG_REPORT_352.md) | Kuyruk-50 madde 40: Manga bölüm işleme |
+| 351 | [BROWSER_BUG_REPORT_351.md](BROWSER_BUG_REPORT_351.md) | Kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi |
+| 350 | [BROWSER_BUG_REPORT_350.md](BROWSER_BUG_REPORT_350.md) | Kuyruk-50 madde 38: PDF görev planlayıcısı |
+| 349 | [BROWSER_BUG_REPORT_349.md](BROWSER_BUG_REPORT_349.md) | Kuyruk-50 Madde 37: Yerel OCR yetenek yönetimi |
+| 348 | [BROWSER_BUG_REPORT_348.md](BROWSER_BUG_REPORT_348.md) | Kuyruk-50 Madde 36: PDF yerleşimini koruyan çeviri |
+| 347 | [BROWSER_BUG_REPORT_347.md](BROWSER_BUG_REPORT_347.md) | Kuyruk-50 madde 35: Veri bütünlüğü denetimi |
+| 346 | [BROWSER_BUG_REPORT_346.md](BROWSER_BUG_REPORT_346.md) | Kuyruk-50 madde 34: Veri şeması geçişleri |
+| 345 | [BROWSER_BUG_REPORT_345.md](BROWSER_BUG_REPORT_345.md) | Kuyruk-50 madde 33: Taşınabilir proje paketi |
+| 344 | [BROWSER_BUG_REPORT_344.md](BROWSER_BUG_REPORT_344.md) | Kuyruk-50 madde 32: büyük katalog sorguları |
+| 343 | [BROWSER_BUG_REPORT_343.md](BROWSER_BUG_REPORT_343.md) | Kuyruk-50 madde 31: medya yeniden bağlama motoru |
+| 342 | [BROWSER_BUG_REPORT_342.md](BROWSER_BUG_REPORT_342.md) | Kuyruk-50 madde 30: çok dosyalı çıktı işlemleri |
+| 341 | [BROWSER_BUG_REPORT_341.md](BROWSER_BUG_REPORT_341.md) | Kuyruk-50 madde 29: iptalin süreç ağacına yayılması |
+| 340 | [BROWSER_BUG_REPORT_340.md](BROWSER_BUG_REPORT_340.md) | Kuyruk-50 madde 28: kaynaklara göre kuyruk planlama |
+| 339 | [BROWSER_BUG_REPORT_339.md](BROWSER_BUG_REPORT_339.md) | Kuyruk-50 madde 27: checkpoint sürümleme |
+| 338 | [BROWSER_BUG_REPORT_338.md](BROWSER_BUG_REPORT_338.md) | Kuyruk-50 madde 26: ortak iş durum modeli |
+| 337 | [BROWSER_BUG_REPORT_337.md](BROWSER_BUG_REPORT_337.md) | Kuyruk-50 madde 25: uzun capture kurtarma tutarlılığı |
+| 336 | [BROWSER_BUG_REPORT_336.md](BROWSER_BUG_REPORT_336.md) | Kuyruk-50 madde 24: Live Whisper ses parçası değişimi |
+| 335 | [BROWSER_BUG_REPORT_335.md](BROWSER_BUG_REPORT_335.md) | Kuyruk-50 madde 23: Capture tekrar oynatma düzeneği |
+| 334 | [BROWSER_BUG_REPORT_334.md](BROWSER_BUG_REPORT_334.md) | Kuyruk-50 madde 22: Altyazı kökeni inceleme görünümü |
+| 333 | [BROWSER_BUG_REPORT_333.md](BROWSER_BUG_REPORT_333.md) | Kuyruk-50 madde 21: Adapter uyumluluk paketi |
+| 332 | [BROWSER_BUG_REPORT_332.md](BROWSER_BUG_REPORT_332.md) | Kuyruk-50 madde 20: Oynatma saati tutarlılığı |
+| 331 | [BROWSER_BUG_REPORT_331.md](BROWSER_BUG_REPORT_331.md) | Kuyruk-50 madde 19: Takılma teşhis paneli (yerel oynatıcı) |
+| 330 | [BROWSER_BUG_REPORT_330.md](BROWSER_BUG_REPORT_330.md) | Kuyruk-50 madde 18: Parça bazlı senkron profilleri |
+| 329 | [BROWSER_BUG_REPORT_329.md](BROWSER_BUG_REPORT_329.md) | Kuyruk görevi 17: kaynak/hedef ortak arama dizini |
+| 328 | [BROWSER_BUG_REPORT_328.md](BROWSER_BUG_REPORT_328.md) | Kuyruk görevi 16: büyük transkript sanallaştırma/performans |
+| 327 | [BROWSER_BUG_REPORT_327.md](BROWSER_BUG_REPORT_327.md) | Kuyruk görevi 15: konuşmacı düzeltme akışı |
+| 326 | [BROWSER_BUG_REPORT_326.md](BROWSER_BUG_REPORT_326.md) | Kuyruk görevi 14: GPU bellek bütçesi yönetimi |
+| 325 | [BROWSER_BUG_REPORT_325.md](BROWSER_BUG_REPORT_325.md) | Kuyruk görevi 13: transkripsiyon kaldığı yerden devam (checkpoint denetimi) |
+| 324 | [BROWSER_BUG_REPORT_324.md](BROWSER_BUG_REPORT_324.md) | Noktalama kurtarma değerlendirmesi (kuyruk-50/12) |
+| 323 | [BROWSER_BUG_REPORT_323.md](BROWSER_BUG_REPORT_323.md) | Uzun medya parça-birleştirme (kuyruk-50/11) |
+| 322 | [BROWSER_BUG_REPORT_322.md](BROWSER_BUG_REPORT_322.md) | Altyazı sürüm/kurtarma (kuyruk-50/10) |
+| 321 | [BROWSER_BUG_REPORT_321.md](BROWSER_BUG_REPORT_321.md) | Biçim kayıpsız düzenleme denetimi + etiket düşürme uyarısı |
+| 320 | [BROWSER_BUG_REPORT_320.md](BROWSER_BUG_REPORT_320.md) | Toplu düzenleme geçmişi: iki paralel yığının disk/bellek uyuşmazlığı |
+| 319 | [BROWSER_BUG_REPORT_319.md](BROWSER_BUG_REPORT_319.md) | Okuma hızına göre dağıtım (kuyruk-50/7) |
+| 318 | [BROWSER_BUG_REPORT_318.md](BROWSER_BUG_REPORT_318.md) | Çok noktalı senkron düzeltmesi (kuyruk-50/6) |
+| 317 | [BROWSER_BUG_REPORT_317.md](BROWSER_BUG_REPORT_317.md) | Çeviri değişiklik karşılaştırıcısı (kuyruk-50/5) |
+| 316 | [BROWSER_BUG_REPORT_316.md](BROWSER_BUG_REPORT_316.md) | kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı |
+| 315 | [BROWSER_BUG_REPORT_315.md](BROWSER_BUG_REPORT_315.md) | Anlam kaybı değerlendirme korpusu (kuyruk-50, madde 3) |
+| 314 | [BROWSER_BUG_REPORT_314.md](BROWSER_BUG_REPORT_314.md) | Kullanım kuyruğu yeniden doğrulama turu (R414–R433) |
+| 313 | [BROWSER_BUG_REPORT_313.md](BROWSER_BUG_REPORT_313.md) | Doğrulama kuyruğu tur-2 (madde 8–20) |
+| 312 | [BROWSER_BUG_REPORT_312.md](BROWSER_BUG_REPORT_312.md) | doğrulama/tutarlılık kuyruğu tur-1 (madde 1–7) |
+| 311 | [BROWSER_BUG_REPORT_311.md](BROWSER_BUG_REPORT_311.md) | R412 — tests/ derin-okuma kapanış dalgası + tam-envanter süpürmesi (temiz) |
+| 310 | [BROWSER_BUG_REPORT_310.md](BROWSER_BUG_REPORT_310.md) | R411 — src/ derin-okuma kapanışı: kalan 29 dosya (temiz) |
+| 309 | [BROWSER_BUG_REPORT_309.md](BROWSER_BUG_REPORT_309.md) | R410 — UI yüzeyi derin okuma: index.html + styles.css + browser-chrome.css |
+| 308 | [BROWSER_BUG_REPORT_308.md](BROWSER_BUG_REPORT_308.md) | R409: tests/ derin okuma wave-2 (orta-boy dosyalar) |
+| 307 | [BROWSER_BUG_REPORT_307.md](BROWSER_BUG_REPORT_307.md) | R408: tests/ en büyük dosyalar + kök .bat/CI denetimi |
+| 306 | [BROWSER_BUG_REPORT_306.md](BROWSER_BUG_REPORT_306.md) | tools/ derin okuma (R394–R395) |
+| 305 | [BROWSER_BUG_REPORT_305.md](BROWSER_BUG_REPORT_305.md) | R391–R393: backend test dosyaları + install-orchestrator derin okuma |
+| 304 | [BROWSER_BUG_REPORT_304.md](BROWSER_BUG_REPORT_304.md) | R388–R389 derin okuma: browser-subtitles.js + renderer-helpers.js |
+| 303 | [BROWSER_BUG_REPORT_303.md](BROWSER_BUG_REPORT_303.md) | R384–R386 derin okuma turu |
+| 302 | [BROWSER_BUG_REPORT_302.md](BROWSER_BUG_REPORT_302.md) | R379–R382 derin okuma turu |
+| 301 | [BROWSER_BUG_REPORT_301.md](BROWSER_BUG_REPORT_301.md) | R334: Yerel kalite turu (kapsam haritası + gerçek bug) |
 | 300 | [BROWSER_BUG_REPORT_300.md](BROWSER_BUG_REPORT_300.md) | R332 — Devin Review toplu triage #266–#299: 17 kod + 20 test/doküman düzeltmesi |
 | 299 | [BROWSER_BUG_REPORT_299.md](BROWSER_BUG_REPORT_299.md) | R331 — AI modları: --explain reasoning-kapısı, sınırlı istemci, hedef-dil kuralları, çip EN soruları |
 | 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |

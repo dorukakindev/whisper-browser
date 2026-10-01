@@ -29,7 +29,7 @@ oynatıcı penceresi. Kural statik ratchet ile kilitlidir
   argüman asla kanal adını belirlemez (keyfi IPC yok).
 - `tests/preload-usage-ratchet.test.js` her `api.<ad>` export'unun en az bir
   gerçek çağrı sitesini ister; kullanılmayan export yalnız gerekçeli
-  `DORMANT` listesiyle kalabilir. Şu an: 234 export, 7 dormant, 0 çıplak.
+  `DORMANT` listesiyle kalabilir. Şu an: 241 export, 7 dormant, 0 çıplak.
 - Preload↔main kanal paritesi ayrı statik testle kilitli
   (her köprü metodu canlı bir `ipcMain.handle`'a gider).
 - Yayın kanalları (`api.on*`) sarmalanmış dinleyici + unsubscribe döndürür;

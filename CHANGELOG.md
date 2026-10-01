@@ -4,7 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Kuyruk-50 kampanyası (madde 1–50, raporlar 315–362): transkripsiyon devam-noktası (checkpoint) kurtarma, GPU bellek bütçesi yönetimi, konuşmacı-düzeltme akışı, büyük transkript sanallaştırma, kaynak/hedef ortak arama dizini, parça-bazlı senkron profilleri, takılma teşhis paneli, oynatma-saati tutarlılığı, çeviri adaptör uyumluluk paketi, altyazı kökeni görünümü, capture tekrar-oynatma düzeneği, live-Whisper ses parçası değiştirme, checkpoint sürümleme, iptalin süreç ağacına yayılması, çok-dosya çıktı işlemleri, medya yeniden-bağlama motoru, büyük katalog sorguları, taşınabilir proje paketi, veri şeması geçişleri, veri bütünlüğü denetimi, PDF yerleşimini koruyan çeviri, yerel OCR yetenek yönetimi, PDF görev planlayıcısı, manga görüntü dönüşümü geçişleri + bölüm işleme, IPC yetki sınırları, ağ yönlendirme sınırları, gizli-bilgi deposu kurtarma, mahremiyetli tanı paketi, parser dayanıklılık paketi, Windows kurulum/DPI/süreç/paket matrisleri, sürüm kabul kampanyası.
+- 100-kuyruk batch 1–8 (raporlar 363–371): kalıcılık/bozulma, renderer/UI kenarları, backend hata yolları, çeviri sözleşmesi, güvenlik/IPC tur-2 ratchet'leri + kuyruk yaşam döngüsü üç-yazıcılı invariant'ları + sıcak-yol performans bütçeleri (toplam ~80 yeni kilit).
+- Test: `tests/perf-budgets-ratchet.test.js` — parse/arama/kuyruk/çeviri sıcak yollarında gerileme koruması.
+
+### Changed
+- Electron runtime `v43.5.0+wvcus` (castlabs) — GHSA aralığının dışına taşındı; `ELECTRON_COMMIT` supply-chain pini güncellendi, 56/56 Electron smoke yeşil.
+
 ### Fixed
+- ui-locale: `translatePattern` her DOM metin mutasyonunda 72 regex'i lineer tarıyordu (~2.6µs/miss) — 1024 girişlik sınırlı memo ile tekrar-miss 218→46ms.
+- Kuyruk düzenleme: `speakerMap` kalıcı kuyruk snapshot'ına yazılmıyordu — konuşmacı eşlemesi yeniden başlatmada kayboluyordu (batch 2).
 - R334: YouTube indirme çözümlemesinde traversal'lı `video_id` (`../ad`) son-fallback yolunda kapsam dışındaki aynı-adlı dosya ses kaynağı olarak kabul ediliyordu; kapsam dışı fallback artık reddedilir.
 - R334: İş günlüğü süreç detayı süzgeci OSC/DCS köprü dizgilerini yarım süzüyordu (`\x1b]8;;url` içindeki URL parçası metin olarak günlüğe sızıyordu); dizgi-sonlandırıcı escape'ler artık tamamen süzülür.
 - R334: Noktalama onarımı (`--fix-punctuation-collapse`) bölge kenarında yeniden çevrilen bloklar hayatta kalan eski blokla 0.3 sn'ye kadar çakışıp aynı anda iki altyazı gösteriyordu; sınır bandındaki çakışan yeni bloklar artık düşürülür (eski metin korunur, asla kötüleştirmez sözleşmesi).
