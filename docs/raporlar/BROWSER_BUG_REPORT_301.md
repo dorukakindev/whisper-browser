@@ -1118,6 +1118,57 @@ okunmuş oldu.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R353 — renderer.js orta bölge derin okuması: medya yaşam döngüsü + find&replace + görev merkezi (temiz)
+
+~2.070 satır okundu (17228–19254 + 19868–21241). Doğrulanmış bug yok.
+
+- **Konum + sürükleme + görsel işaretler** (17228–17506): subtitle drag
+  pointer-capture + 4px eşik + iptal yolu + yığın/split ayrımı (belgeli);
+  idle-hide pause/edit'te askıda; seek-buffered aralık bulma; marker
+  sınırı 400 + süre-dışı süzgeci; `youtubeVideoId` çok-biçim;
+  `mediaKeyFor` Windows yol normalizasyonu; `savePlayerPosition` —
+  canlıda atla, tamamlanma eşiği watch-completion'la aynı (belgeli
+  60s→eşik fix), <30s güncellemeyi atla (belgeli — silme kayıt
+  kaybediyordu), ≤60 kayıt; `resetMediaBoundState` eksiksiz temizlik +
+  offset sıfırlama (belgeli — gecikme sonraki videolara taşınıyordu).
+- **Altyazı kanal/mode yönetimi + media geçişi** (17507–17837):
+  `applySubtitleTrackSelection` birincil-çeviri doğru katman eşleşmesi;
+  `setSubtitlesVisible` son-mod geri açılımı (Y11); `setMediaKey` —
+  eski medya flush, YouTube↔YouTube ytInfo düşürülmesi (belgeli),
+  file: olmayanda playlist tasfiyesi (belgeli hortlak), extras/base
+  videoId eşleşmesi (`'\0'` sentinel), pendingSubs yalnız anahtar +
+  generation eşleşirse (belgeli — yanlış altyazı yapışması önlenir),
+  generation++ tek nokta.
+- **In-place yazıcılar** (17847–17991): `cuesToVtt` ms-yuvarlama
+  WEBVTT; `replaceTimedCueTexts` VTT/SRT — timing-index doğrulaması
+  ±2ms, occupied seti, aşağıdan-yukarı satır değişimi, cue-id/boş-satır
+  sınırıyla NOTE/STYLE/REGION korunur (belgeli); `replaceAssDialogueText`
+  Format-uyumlu alan indeksleri + son-alan zorunluluğu + beklenen-zaman
+  eşleşmesi ±2ms + süslü-parantez→tam-genişlik dönüşümü (enjeksiyon
+  koruması, belgeli).
+- **Find&replace toplu protokol** (18708–19156): find paneli generation
+  + mediaGeneration çift damgalı; prepare doğrulama (cue.text===before,
+  timing ≥80ms, browserOverride'da base/revision re-verify, aynı-dosya
+  tek-state kapısı, aynı-cue çelişki reddi, browserEdits ≤2000);
+  `writeSubtitleBulkFiles` sıralı write + hata→ters-sırada rollback +
+  rollbackFailed raporu; `subtitleBulkFileStateStillMatches`/`browser`
+  varyantı post-write re-verify → mismatch'te dosyaları before'a
+  geri yazar; undo kaydı ≤100; ASS inner-tag uyarısı.
+- **Görev merkezi + sayfa-çeviri UI + PDF okuyucu** (19868–21241):
+  `runBrowserTaskAction` busySet `${job.id}:${command}`; satır render
+  tamamen createElement/textContent; `scheduleBrowserUnifiedJobsRefresh`
+  250ms tek-uçuş latch; menü vekili `data-browser-proxy` — devre dışı
+  hedefler aria-disabled + neden sinyali (belgeli); syncBrowserMenuProxies
+  değişmeden yazmaz (mutation döngüsü, belgeli); sayfa-çevirisi UI
+  event'leri aktif-sekme/generation/seq korumalı, tüm innerHTML
+  escapeHtml'li, terim/seçici regex+uzunluk kapıları; PDF reader —
+  lazy import, renderGeneration + `player.pdfReader===reader` kimliği +
+  rendering-set dedupe + sayfa-sırası korunarak insert + print-intent
+  render (belgeli Windows rAF donması) + `translating` latch ve
+  yeni-okuyucu finally bekçisi (belgeli).
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
