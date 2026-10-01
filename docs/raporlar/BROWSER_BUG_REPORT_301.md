@@ -1742,6 +1742,36 @@ Testler: `py_compile` 4/4 geçti; kod değişmedi.
 
 Windows etkisi: yok — salt okuma denetimi.
 
+## R368 — backend kuyruk modülleri derin okuma — temiz
+
+**Kapsam:** `export_anki.py` (210), `subtitle_sdh.py` (176),
+`model_benchmark.py` (273) — 659 satır tamamen okundu; bug yok.
+
+**Doğrulanan:**
+
+- `export_anki.py`: girdi zarfı 32MB/5000 not/32MB-medya/256MB-toplam
+  kotası; medya uzantı whitelist + resolve(strict=True) + sha256-adlı
+  staging (kullanıcı yolu paket adına asla sızmaz); tüm metin alanları
+  `html.escape` (kaynak/çeviri/not/başlık/zaman); `type:"quote"` +
+  kaynak+(çeviri veya not) kapısı; boş ihracat reddi; `.apkg` uzantı
+  zorunluluğu; pid-damgalı tmp + os.replace + finally temizliği.
+- `subtitle_sdh.py`: `_key` NFKD+combining-strip+casefold normalize
+  (modül sabiti önceden normalize — P79-01 belgeli); descriptor
+  eşleşmesi tam-küme VEYA kelime-penceresi+modifier kapısı —
+  `[Brain]`/gerçek cümle yanlış silinmez; `strip_sdh_descriptors`
+  elle parantez yığını — iç içe/dengesiz gruplar güvenli;
+  `restore_sdh_markers` kimlik+parantez-türü eşleşmesi, belirsizlikte
+  kaynak etiketleri korur (belgeli).
+- `model_benchmark.py`: nvidia-smi sorguları timeout+hatada None;
+  VramSampler daemon + stop'ta son eşzamanlı örnek (hızlı-model yarışı
+  belgeli); saniye/başlangıç kelepçeleri; ffmpeg 180s timeout; wav
+  süre ≥1s kapısı; clip sha256 (kapsayıcıdan bağımsız A/B kimliği);
+  `del model` finally; drift greedy-min eşleşme; error → ok:false+exit1.
+
+Testler: kod değişmedi; py_compile 3/3 geçti.
+
+Windows etkisi: yok — salt okuma denetimi.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
