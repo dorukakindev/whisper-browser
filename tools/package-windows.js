@@ -50,9 +50,18 @@ async function main() {
     ignore: PACKAGER_IGNORE,
   });
   const target = paths[0];
-  if (!target || !fs.existsSync(path.join(target, 'Whisper Browser.exe'))) {
+  const exePath = path.join(target, 'Whisper Browser.exe');
+  if (!target || !fs.existsSync(exePath)) {
     throw new Error('Packager did not produce the expected Windows executable.');
   }
+  // MAX_PATH (>260 karakter) desteği: Electron'un gömülü manifesti
+  // longPathAware bildirmez; registry LongPathsEnabled tek başına yetmez.
+  const { patchExeManifest } = require('./windows-manifest');
+  const manifestPatch = await patchExeManifest(exePath);
+  if (!manifestPatch.patched && manifestPatch.reason !== 'longPathAware zaten tanımlı.') {
+    throw new Error(`Exe manifesti yamalanamadı: ${manifestPatch.reason}`);
+  }
+  if (manifestPatch.patched) console.log('Exe manifesti: longPathAware eklendi.');
   // Kaynak bütünlüğü: kanonik listede olup pakete düşmeyen dosya varsa
   // burada derhal başarısız ol (ör. ignore kalıbı yeni bir modülü yuttu).
   const missing = missingInTarget(target, root);
