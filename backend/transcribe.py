@@ -4844,6 +4844,36 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         except Exception as exc:
             log(f"Çeviri hafızasının son yazımı başarısız: {exc}", "warn")
         close_translation_memory()
+    # Özel ad/terim tutarlılık denetimi: aynı kaynak adın film boyunca farklı
+    # biçimlerde dönmesi kullanıcıya sözlük önerisiyle bildirilir. Yıkıcı
+    # değildir — düzeltme yalnız kullanıcının onayladığı sözlükle uygulanır.
+    try:
+        from name_consistency import (audit_name_consistency,
+            apply_glossary_corrections, glossary_decisions)
+        consistency_rows = audit_name_consistency(
+            entries, out_texts, names=auto_glossary_terms)
+        # Onaylı eşlemler: sözlükteki 'Kaynak=Hedef' çiftleri deterministik
+        # uygulanır (yalnız tespit edilmiş özel adlar, kaynak/zaman korunur).
+        approved = glossary_decisions(glossary_terms, auto_glossary_terms)
+        if approved:
+            corrected_texts, name_fixed = apply_glossary_corrections(
+                entries, out_texts, approved, consistency_rows)
+            out_texts[:] = corrected_texts
+            if name_fixed:
+                log(f"Onaylı sözlük eşlemi: {name_fixed} özel ad düzeltildi "
+                    f"({len(approved)} eşlem).")
+        for row in consistency_rows[:8]:
+            variants = ", ".join(f"'{v}'×{c}" for v, c in
+                                 list(row["variants"].items())[:4])
+            log(f"Özel ad tutarsızlığı: '{row['name']}' → {variants} "
+                f"— öneri: {row['name']}={row['suggestion']}", "warn")
+        if consistency_rows:
+            log(f"Toplam {len(consistency_rows)} özel ad tutarsızlığı; "
+                f"önerilen eşlemleri sözlüğe ekleyip 'eksikleri tamamla' "
+                f"ile uygulayabilirsiniz.")
+    except Exception as exc:
+        log(f"Özel ad denetimi atlandı: {exc}", "warn")
+
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
         {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(result)
