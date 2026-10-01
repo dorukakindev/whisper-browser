@@ -21,6 +21,9 @@ const { BrowserNoteStore } = require('../src/browser-note-store');
 const { BrowserAssetStore } = require('../src/browser-asset-store');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const { atomicWriteFileSync } = require('../src/fsync-utils');
+const { saveCeaCheckpoint, checkpointId } = require('../src/browser-cea-checkpoint');
+const { exportPackage, restorePackage, readPackage } = require('../src/workspace-package');
+const { replaceBurninOutput } = require('../src/burnin-output');
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  PASS ${name}`); }
@@ -291,6 +294,69 @@ try {
       ok(`atomic: zincir denemesi ${path.relative(tmpRoot, d) || '.'}`, opened.has(d));
     }
   }
+}
+
+// --- 7) browser-cea-checkpoint: saveCeaCheckpoint — B-378-03 ---
+{
+  const { calls, io } = recordingFs();
+  const root = path.join(tmpRoot, 'cea');
+  const tracks = [{ instreamId: 'CC1', cues: [{ start: 0, end: 1, text: 'merhaba' }] }];
+  const id = checkpointId('https://video.test/watch/m', 'media-1', tracks);
+  ok('cea: kimlik üretildi', /^[a-f0-9]{64}$/.test(id));
+  const saved = saveCeaCheckpoint(root, id, tracks, 0, Date.now(), io);
+  ok('cea: checkpoint yazıldı', saved === true);
+  assertCommitOrder('cea: saveCeaCheckpoint', calls, path.join(root, `cea-${id}.json`));
+}
+
+// --- 8) workspace-package: exportPackage + restorePackage — B-378-01/02 ---
+{
+  const { calls, io } = recordingFs();
+  const root = path.join(tmpRoot, 'wp-root');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'browser-notes.json'), JSON.stringify({ notes: [{ id: 'n1', text: 'merhaba' }] }));
+  const outFile = path.join(tmpRoot, 'workspace.wbp');
+  const exported = exportPackage(root, outFile, {}, null, io);
+  ok('workspace: paket dışa aktarıldı', exported.count >= 1);
+  assertCommitOrder('workspace: exportPackage', calls, outFile);
+
+  // restorePackage — hedef kökteki dosyayı paketle değiştirir.
+  calls.length = 0;
+  const root2 = path.join(tmpRoot, 'wp-restore');
+  fs.mkdirSync(root2, { recursive: true });
+  fs.writeFileSync(path.join(root2, 'browser-notes.json'), JSON.stringify({ notes: [] }));
+  const data = readPackage(outFile);
+  const applied = restorePackage(root2, data, [], io);
+  ok('workspace: restorePackage uygulandı', applied >= 1);
+  assertCommitOrder('workspace: restorePackage notes', calls, path.join(root2, 'browser-notes.json'));
+  // İçeriğin gerçekten yeni paketten geldiği.
+  ok('workspace: geri yüklenen içerik', fs.readFileSync(path.join(root2, 'browser-notes.json'), 'utf8').includes('merhaba'));
+}
+
+// --- 9) burnin-output: replaceBurninOutput dizin fsync'i — B-378-04 ---
+// Temp içeriği ffmpeg yazar; rename zincirinin dayanıklılık borcu dizin
+// fsync'idir (temp fsync burada beklenmez).
+{
+  const { calls, io } = recordingFs();
+  const dir = path.join(tmpRoot, 'burnin');
+  fs.mkdirSync(dir, { recursive: true });
+  const temp = path.join(dir, 'film.altyazili.tok.tmp.mp4');
+  const out = path.join(dir, 'film.altyazili.mp4');
+  fs.writeFileSync(temp, 'video-bytes');
+  replaceBurninOutput(temp, out, io, 'tok');
+  const renameIdx = calls.findIndex((c) => c.op === 'renameSync' && c.arg2 === out);
+  ok('burnin: ana rename var', renameIdx >= 0);
+  const dirIdx = calls.findIndex((c, i) => i > renameIdx && (c.op === 'fsync' || c.op === 'openSync') && c.arg === dir);
+  ok('burnin: dizin fsync denemesi rename sonrası', dirIdx > renameIdx);
+
+  // Var olan hedefin yedekli yer değiştirmesi de aynı dizin fsync'ini alır.
+  calls.length = 0;
+  const temp2 = path.join(dir, 'film.altyazili.tok2.tmp.mp4');
+  fs.writeFileSync(temp2, 'video-bytes-2');
+  replaceBurninOutput(temp2, out, io, 'tok2');
+  const renameIdx2 = calls.findIndex((c) => c.op === 'renameSync' && c.arg2 === out && c.arg === temp2);
+  ok('burnin: yedekli rename var', renameIdx2 >= 0);
+  const dirIdx2 = calls.findIndex((c, i) => i > renameIdx2 && (c.op === 'fsync' || c.op === 'openSync') && c.arg === dir);
+  ok('burnin: yedekli dizin fsync denemesi', dirIdx2 > renameIdx2);
 }
 
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});

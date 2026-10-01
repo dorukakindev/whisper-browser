@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { gzipSync, gunzipSync } = require('node:zlib');
 const { randomUUID, createHash } = require('node:crypto');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
   'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
@@ -49,13 +50,13 @@ function rewrite(value, mappings) {
   }
   return visit(value);
 }
-function exportPackage(root, output, rendererValues = {}, externalAliases = null) {
+function exportPackage(root, output, rendererValues = {}, externalAliases = null, fsImpl = fs) {
   const files = [], mappings = [], seen = new Set(); let total = 0;
   function add(file, name) {
     if (seen.has(name)) return;
-    const stat = fs.lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink()) return;
+    const stat = fsImpl.lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink()) return;
     if (stat.size > 16e6 || (total += stat.size) > LIMIT / 1.5) throw new Error('Çalışma paketi çok büyük (en fazla 170 MB veri).');
-    let buffer = fs.readFileSync(file);
+    let buffer = fsImpl.readFileSync(file);
     if (ROOTS.has(name)) {
       // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
       // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
@@ -68,7 +69,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
           if (externalAliases && externalAliases.has(value)) return externalAliases.get(value);
           const relative = path.relative(root, value).replace(/\\/g, '/');
           const underRoot = !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
-          if (/\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fs.existsSync(value)) {
+          if (/\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fsImpl.existsSync(value)) {
             if (underRoot && allowed(relative)) { add(value, relative); return `{{ROOT}}/${relative}`; }
             const target = 'workspace-assets/' + createHash('sha256').update(value).digest('hex') + path.extname(value).toLowerCase();
             add(value, target); return `{{ROOT}}/${target}`;
@@ -86,10 +87,10 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
     }
     seen.add(name); files.push({ name, data: buffer.toString('base64') });
   }
-  for (const name of ROOTS) if (fs.existsSync(path.join(root, name))) add(path.join(root, name), name);
+  for (const name of ROOTS) if (fsImpl.existsSync(path.join(root, name))) add(path.join(root, name), name);
   function walk(dir, prefix) {
-    if (!fs.existsSync(dir) || fs.lstatSync(dir).isSymbolicLink()) return;
-    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!fsImpl.existsSync(dir) || fsImpl.lstatSync(dir).isSymbolicLink()) return;
+    for (const ent of fsImpl.readdirSync(dir, { withFileTypes: true })) {
       if (ent.isSymbolicLink()) continue;
       const name = prefix + '/' + ent.name;
       if (ent.isDirectory()) walk(path.join(dir, ent.name), name); else if (allowed(name)) add(path.join(dir, ent.name), name);
@@ -101,8 +102,13 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
   const temp = output + '.' + randomUUID() + '.tmp';
-  try { fs.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 }); fs.renameSync(temp, output); }
-  finally { try { fs.unlinkSync(temp); } catch {} }
+  try {
+    fsImpl.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 });
+    fsyncFile(temp, fsImpl);
+    fsImpl.renameSync(temp, output);
+    fsyncDirectory(path.dirname(output), fsImpl);
+  }
+  finally { try { fsImpl.unlinkSync(temp); } catch {} }
   return { count: files.length, bytes: bytes.length };
 }
 function readPackage(file) {
@@ -163,15 +169,15 @@ function validate(data) {
   }
   if (!Array.isArray(data.mappings) || data.mappings.some(m => !Array.isArray(m) || typeof m[0] !== 'string' || m[0].length < 3 || !allowed(m[1]))) throw new Error('Paket dosya eşleştirmeleri geçersiz.');
 }
-function restorePackage(root, data, videoMappings = []) {
+function restorePackage(root, data, videoMappings = [], fsImpl = fs) {
   validate(data);
   const mappings = [...videoMappings, ...data.mappings.map(([from, relative]) => [from, path.join(root, relative)]), [data.sourceRoot, root]];
   const changes = data.files.map(file => {
     const destination = path.resolve(root, file.name);
     if (!destination.startsWith(path.resolve(root) + path.sep)) throw new Error('Paket yolu geçersiz.');
     let parent = path.dirname(destination);
-    while (parent !== path.resolve(root)) { if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.'); parent = path.dirname(parent); }
-    if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.');
+    while (parent !== path.resolve(root)) { if (fsImpl.existsSync(parent) && fsImpl.lstatSync(parent).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.'); parent = path.dirname(parent); }
+    if (fsImpl.existsSync(destination) && fsImpl.lstatSync(destination).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.');
     let bytes = Buffer.from(file.data, 'base64');
     if (file.name.endsWith('.json')) {
       let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
@@ -180,20 +186,26 @@ function restorePackage(root, data, videoMappings = []) {
       if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);
       bytes = Buffer.from(JSON.stringify(parsed));
     }
-    return { destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };
+    return { destination, bytes, previous: fsImpl.existsSync(destination) ? fsImpl.readFileSync(destination) : null };
   });
   // A durable pre-restore copy lets the user reverse an intentional replacement.
-  exportPackage(root, path.join(root, 'before-restore-' + Date.now() + '.wbp'));
+  exportPackage(root, path.join(root, 'before-restore-' + Date.now() + '.wbp'), {}, null, fsImpl);
   const applied = [];
   try {
     for (const change of changes) {
-      fs.mkdirSync(path.dirname(change.destination), { recursive: true });
+      fsImpl.mkdirSync(path.dirname(change.destination), { recursive: true });
       const temp = change.destination + '.' + randomUUID() + '.tmp';
-      try { fs.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 }); fs.renameSync(temp, change.destination); applied.push(change); }
-      finally { try { fs.unlinkSync(temp); } catch {} }
+      try {
+        fsImpl.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 });
+        fsyncFile(temp, fsImpl);
+        fsImpl.renameSync(temp, change.destination);
+        fsyncDirectory(path.dirname(change.destination), fsImpl);
+        applied.push(change);
+      }
+      finally { try { fsImpl.unlinkSync(temp); } catch {} }
     }
   } catch (error) {
-    for (const change of applied.reverse()) { if (change.previous) fs.writeFileSync(change.destination, change.previous); else fs.unlinkSync(change.destination); }
+    for (const change of applied.reverse()) { if (change.previous) { fsImpl.writeFileSync(change.destination, change.previous); fsyncFile(change.destination, fsImpl); } else fsImpl.unlinkSync(change.destination); }
     throw error;
   }
   return changes.length;

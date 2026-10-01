@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const { fsyncDirectory } = require('./fsync-utils');
 
 function burninOutputPaths(videoPath, token = randomUUID()) {
   const dir = path.dirname(videoPath);
@@ -34,8 +35,11 @@ function removeFileQuietly(filePath, fsImpl = fs) {
 }
 
 function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID()) {
+  // İçerik ffmpeg'nin yazdığı temp dosyada zaten duruyor — buradaki dayanıklılık
+  // borcu dizin girdileridir (rename'ler çökmede kaybolmamalı).
   if (!fsImpl.existsSync(outPath)) {
     fsImpl.renameSync(tempPath, outPath);
+    fsyncDirectory(path.dirname(outPath), fsImpl);
     return;
   }
   const backupPath = `${outPath}.${token}.replace-backup`;
@@ -43,9 +47,11 @@ function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID(
   try {
     fsImpl.renameSync(tempPath, outPath);
     removeFileQuietly(backupPath, fsImpl);
+    fsyncDirectory(path.dirname(outPath), fsImpl);
   } catch (error) {
     try { removeFileQuietly(outPath, fsImpl); } catch (_) {}
     try { fsImpl.renameSync(backupPath, outPath); } catch (_) {}
+    try { fsyncDirectory(path.dirname(outPath), fsImpl); } catch (_) {}
     throw error;
   }
 }
