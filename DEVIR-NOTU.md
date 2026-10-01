@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2034.md](docs/devir/2026-10-01-2034.md) — kuyruk-50 madde 31: medya yeniden bağlama motoru
+Güncel çalışma: [docs/devir/2026-10-01-2040.md](docs/devir/2026-10-01-2040.md) — kuyruk-50 madde 32: birleşik katalog filtreleri
+Önceki çalışma: [docs/devir/2026-10-01-2040.md](docs/devir/2026-10-01-2040.md) — kuyruk-50 madde 32: birleşik katalog filtreleri
 Önceki çalışma: [docs/devir/2026-10-01-2034.md](docs/devir/2026-10-01-2034.md) — kuyruk-50 madde 31: medya yeniden bağlama motoru
 Önceki çalışma: [docs/devir/2026-10-01-2028.md](docs/devir/2026-10-01-2028.md) — kuyruk-50 madde 30: reexport transaction
 Önceki çalışma: [docs/devir/2026-10-01-2021.md](docs/devir/2026-10-01-2021.md) — kuyruk-50 madde 29: POSIX süreç-ağacı iptali
