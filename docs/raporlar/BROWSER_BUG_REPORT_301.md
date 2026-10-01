@@ -76,6 +76,10 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
 - `backend/test_ytdlp_deadzones.py` — 6 senaryo / 22 kontrol: audio_lang kapısı, cookie whitelist, hata eşlemesi, progress_hook, dosya çözümleme (B-334-03 traversal dahil), ffmpeg_location+ffprobe uyarısı, clip notu+opts.
 - `tests/anki-export-runner.test.js` — 6 senaryo: tek-uçuş, betik yok, 32MB sınırı, başarı+izleme, 4 hata yolu, settled idempotency.
 - `tests/joblog-deadzone.test.js` — 4 senaryo: `sanitizeProcessDetail` (OSC/DCS sızıntısı B-334-02 dahil 11 kontrol), `redactJobLogArgs` (gizli-değer bayrakları + `--ad=değer` + slice(1) sözleşmesi), `pruneOldLogs` (en-yeni-K korunur + dizin keep-yuvası davranışı + eksik dir toleransı).
+- `tests/track-probe-deadzone.test.js` — 5 senaryo: 10-kapı matrisi, store+streamKey+not zinciri, bayat context, ETIMEDOUT hata notu, busy nesil bekçisi.
+- `tests/permission-settle-deadzone.test.js` — 4 senaryo: bilinmeyen kimlik, persist'siz izin, 'media'→camera+microphone persist + denied olayı, callback-hatası toleransı.
+- `tests/tv-window-deadzone.test.js` — 4 senaryo: sandbox/contextIsolation/nodeIntegration/webviewTag invariants, will-navigate/will-redirect/windowOpen red zinciri, alt-kare şema bekçisi, did-fail-load süzgeci, closed+UA-değişimi.
+- `backend/test_device_deadzones.py` — 14 kontrol: auto/cuda/cpu matrisi + CPU compute_type düşüşü + warn_list sözleşmesi (sahte torch enjeksiyonu).
 
 ## Yeni araçlar
 
