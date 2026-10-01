@@ -597,6 +597,9 @@ function renderQueue() {
     const removable = item.status !== 'running';
     const retryable = item.status === 'error';
     const openable = item.status === 'done' && item.files && item.files.length > 0;
+    const pendingSiblings = state.queue.filter((entry) => entry.status === 'pending');
+    const pendingIndex = pendingSiblings.findIndex((entry) => entry.id === item.id);
+    const movable = item.status === 'pending' && pendingSiblings.length > 1;
     div.innerHTML = `
       <span class="queue-icon">${icon}</span>
       <div class="queue-name" title="${escapeHtml(item.input)}">
@@ -607,6 +610,8 @@ function renderQueue() {
       <span class="queue-status">${escapeHtml(interrupted ? 'Yarım kaldı' : (STATUS_TEXT[item.status] || item.status))}</span>
       <span class="queue-actions">
         ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
+        ${movable && pendingIndex > 0 ? `<button class="queue-remove queue-move" data-move="-1" data-id="${escapeHtml(item.id)}" title="Yukarı taşı" aria-label="${escapeHtml(item.label)} işini yukarı taşı"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>` : ''}
+        ${movable && pendingIndex < pendingSiblings.length - 1 ? `<button class="queue-remove queue-move" data-move="1" data-id="${escapeHtml(item.id)}" title="Aşağı taşı" aria-label="${escapeHtml(item.label)} işini aşağı taşı"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>` : ''}
         ${retryable ? `<button class="queue-remove queue-retry" data-retry="${escapeHtml(item.id)}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
         ${removable ? `<button class="queue-remove" data-id="${escapeHtml(item.id)}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
       </span>
@@ -621,6 +626,9 @@ function renderQueue() {
   });
   list.querySelectorAll('.queue-remove[data-id]').forEach(btn => {
     btn.addEventListener('click', () => removeFromQueue(parseInt(btn.dataset.id, 10)));
+  });
+  list.querySelectorAll('.queue-move').forEach(btn => {
+    btn.addEventListener('click', () => moveQueueItem(parseInt(btn.dataset.id, 10), parseInt(btn.dataset.move, 10)));
   });
   list.querySelectorAll('.queue-retry').forEach(btn => {
     btn.addEventListener('click', () => {

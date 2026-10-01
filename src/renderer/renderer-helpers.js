@@ -1017,6 +1017,22 @@ function removeFromQueue(id) {
   remaining[Math.min(Math.max(removedIndex, 0), remaining.length - 1)]?.focus?.();
 }
 
+function moveQueueItem(id, delta) {
+  // Yalnız bekleyen işler yeniden sıralanır — çalışan/terminal öğelerin dizi
+  // konumu dokunulmaz; işlem sırası 'pending' öğelerin göreli dizilimidir.
+  const pendingIdx = state.queue
+    .map((item, index) => (item.status === 'pending' ? index : -1))
+    .filter((index) => index >= 0);
+  const slot = pendingIdx.indexOf(state.queue.findIndex((entry) => entry.id === id));
+  const neighbor = slot + (delta < 0 ? -1 : 1);
+  if (slot < 0 || neighbor < 0 || neighbor >= pendingIdx.length) return;
+  const queue = state.queue.slice();
+  const a = pendingIdx[slot]; const b = pendingIdx[neighbor];
+  [queue[a], queue[b]] = [queue[b], queue[a]];
+  state.queue = queue;
+  renderQueue();
+}
+
 function queueItemMeta(item) {
   const opts = item?.opts && typeof item.opts === 'object' ? item.opts : {};
   const source = item?.type === 'youtube' ? 'YouTube' : 'Dosya';
