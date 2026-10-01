@@ -4,7 +4,7 @@ const path = require('node:path');
 const {performance} = require('node:perf_hooks');
 const sync = require('../src/browser-subtitle-sync');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
-const block = renderer.slice(renderer.indexOf('function findCueAt('), renderer.indexOf('function applyPlaybackLearningPolicy('));
+const block = renderer.slice(renderer.indexOf('const _cueIndexCache'), renderer.indexOf('function applyPlaybackLearningPolicy('));
 const findCueAt = new Function(block + '; return findCueAt;')();
 // İki saat boyunca saniyede iki blok: sık seek, boşluk ve kanal senkronu.
 const cues = Array.from({length: 14400}, (_, i) => ({id: String(i), start: i*.5, end: i*.5+.4, text: `Satır ${i}`}));
