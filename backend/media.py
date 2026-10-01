@@ -21,6 +21,7 @@ birleştiremez. Üç yol var:
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -134,13 +135,25 @@ def probe(url, cookie_browser=""):
             break
 
     # 4) Bölümler — belgesellerde/uzun videolarda gezinmeyi kolaylaştırır
+    # Sayısal olmayan zaman damgası (özel extractor'lar bozuk değer
+    # döndürebilir) yalnız o bölümü atlar — tüm probe'u düşürmez.
+    def _ch_float(value):
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return None
+        return v if math.isfinite(v) else None
+
     chapters = []
     for ch in (info.get("chapters") or []):
-        if ch.get("start_time") is None:
+        if not isinstance(ch, dict) or ch.get("start_time") is None:
+            continue
+        start = _ch_float(ch.get("start_time"))
+        if start is None:
             continue
         chapters.append({
-            "start": float(ch.get("start_time") or 0),
-            "end": float(ch.get("end_time") or 0),
+            "start": start,
+            "end": _ch_float(ch.get("end_time")) or 0,
             "title": (ch.get("title") or "").strip(),
         })
 

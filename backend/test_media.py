@@ -62,6 +62,47 @@ class MediaValidationTests(unittest.TestCase):
             self.assertIn('escapeevil', path.name)      # geçerli karakterler kaldı
             path.resolve().relative_to(Path(work).resolve())  # kaçış yok
 
+    def test_probe_bad_chapter_time_skips_only_that_chapter(self):
+        # R362 — özel extractor'ların bozuk start_time/end_time değeri
+        # tüm probe'u düşürmemeli; yalnız o bölüm atlanır.
+        import io, json, sys
+        from contextlib import redirect_stdout
+        from unittest import mock
+
+        class FakeYDL:
+            def __init__(self, *_a, **_k):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def extract_info(self, url, download=False):
+                return {
+                    'title': 't', 'formats': [],
+                    'chapters': [
+                        {'start_time': 'bozuk', 'end_time': 5, 'title': 'kötü'},
+                        {'start_time': 0.0, 'end_time': 30.0, 'title': 'giriş'},
+                        {'start_time': float('nan'), 'end_time': 9, 'title': 'nan'},
+                        {'start_time': 60, 'end_time': 'abc', 'title': 'son'},
+                        'not-a-dict',
+                    ],
+                }
+
+        import yt_dlp
+        out = io.StringIO()
+        with mock.patch.object(yt_dlp, 'YoutubeDL', FakeYDL), \
+             redirect_stdout(out):
+            media.probe('https://youtu.be/x')
+        ev = json.loads(out.getvalue().strip().splitlines()[-1])
+        self.assertEqual(ev['type'], 'probe')
+        self.assertEqual(ev['chapters'], [
+            {'start': 0.0, 'end': 30.0, 'title': 'giriş'},
+            {'start': 60.0, 'end': 0.0, 'title': 'son'},
+        ])
+
 
 if __name__ == '__main__':
     unittest.main()
