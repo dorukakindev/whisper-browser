@@ -1431,3 +1431,31 @@ aynı düzeltme Windows'ta da geçerli. Elle doğrulanmadı.
 - `desktopCapturer` sınıfı smoke'lar gerçek Windows/compositor bekler.
 - GPU/CUDA/network-gated fonksiyonlar (`resolve_device_and_compute`, `download_youtube`, `sync_subtitles`, `llm_translate` canlı yolu) bu turda da doğrulanamadı — aynı sınıf daha önceki raporlarda tanımlı.
 - V8/CDP kapsamı yalnız derlenmiş fonksiyonları sayar; tembel-parse'lı iç fonksiyonlar sayılmaz — "hiç çalışmadı" listesi üst sınır tahminidir.
+
+## R391 — Kuyruk g4: açık temada seçili/devre dışı/odak/hata kontrastı
+
+20'lik kuyruğun 4. görevi: açık/koyu temada metin kontrastını WCAG
+eşiğiyle ölç. Yeni Electron smoke'u
+`tests/electron-ui-theme-contrast.smoke.js` her iki temada görünür tüm
+krom metnini tarar: normal metin ≥4.5, muted/küçük metin ≥3.0,
+devre-dışı ≥2.0, odak halkası ≥3.0 — alfa kompozitli gerçek arka plan
+geçişi (effBg) ile. Prob tema değiştirmeden önce geçişleri kapatır;
+yoksa `transition: color .2s` ölçümü eski renkte yakalıyordu (ilk
+koşudaki ~20 "hata" bu artefakttı — hata değil, ölçüm kusuruydu).
+
+**B-391-01 — açık temada 16 doğrulanmış kontrast ihlali (4 kural):**
+oyuncu panel başlıkları sabit `#a1a1a5`/`#96969a` (2.02:1), ayar
+çekmecesi `field-label`/`.hint`/`code` sabit `#929297` (2.43–3.05:1),
+aktif iş sekmesindeki `#jobsQueueBadge` koyu `#17130c` metin/amber
+zemin (2.60:1) — koyu tema amber'ı üstünde doğruydu ama açık temada
+`--accent` koyu kehribara (#7f4c15) dönünce okunamaz oldu.
+`html[data-theme="light"]` altında üç grup da token'a bağlandı:
+`--text-muted`/`--text-dim`/`--accent-contrast`.
+
+**Kanıtlar:** smoke kırmızı (light 16 FAIL, dark 0) → düzeltmelerle
+iki tema 0 FAIL; `css-hardcoded-colors` 436/436 (yeni sabit renk yok),
+`electron-ui-narrow-tr` hâlâ yeşil. Kırmızı kanıtı master
+`styles.css`'iyle tekrar üretildi (16 FAIL).
+
+Windows etkisi: tema token'ları platformdan bağımsız; aynı düzeltme
+geçerli. Elle doğrulanmadı.
