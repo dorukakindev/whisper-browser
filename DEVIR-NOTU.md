@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2230.md](docs/devir/2026-10-01-2230.md) — kuyruk-50 madde 35: veri bütünlüğü denetimi (tara+önizle+yedekli onar)
+Güncel çalışma: [docs/devir/2026-10-01-2300.md](docs/devir/2026-10-01-2300.md) — kuyruk-50 madde 36: PDF yerleşimli çeviri okuma sırası (başlık/dipnot/tablo) + kaynak↔hedef eşleme
+Önceki çalışma: [docs/devir/2026-10-01-2230.md](docs/devir/2026-10-01-2230.md) — kuyruk-50 madde 35: veri bütünlüğü denetimi (tara+önizle+yedekli onar)
 Önceki çalışma: [docs/devir/2026-10-01-2215.md](docs/devir/2026-10-01-2215.md) — kuyruk-50 madde 34: veri şeması geçiş fixture'ları + .bak koruma hatası
 Önceki çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 33: taşınabilir paket kapsam önizlemesi + gizlilik ratchet'i
 Önceki çalışma: [docs/devir/2026-10-01-2040.md](docs/devir/2026-10-01-2040.md) — kuyruk-50 madde 32: birleşik katalog filtreleri
