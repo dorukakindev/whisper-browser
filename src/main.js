@@ -8005,6 +8005,39 @@ function fatalMangaBatchError(error) {
   return !/(?:invalid|corrupt|decode|size|large|dimension|format).{0,40}(?:image|base64)|(?:image|base64).{0,40}(?:invalid|corrupt|decode|size|large|dimension|format)/i.test(message);
 }
 
+function mangaTerminologySeed(tab, config = {}) {
+  // Bölüm geneli terim tutarlılığı: sekme ömrü boyunca tek harita; her site
+  // kapsamı (origin|dil) için kalıcı eşleşmelerle bir kez tohumlanır.
+  if (!tab.mangaTerminologyMap) {
+    tab.mangaTerminologyMap = createTerminologyMap({ maxTerms: 60, maxChars: 2400 });
+    tab.mangaTerminologySeededScopes = new Set();
+  }
+  const scope = siteTerminologyScope(browserPageUrl(tab), config.targetLanguage);
+  if (scope && !tab.mangaTerminologySeededScopes.has(scope)) {
+    tab.mangaTerminologySeededScopes.add(scope);
+    seedSiteTerminology(tab.mangaTerminologyMap, readBrowserPlaces().siteTerminology?.[scope] || []);
+  }
+  return tab.mangaTerminologyMap;
+}
+
+function mangaLearnRegions(job, regions, cueId) {
+  if (!job?.terminologyMap || !Array.isArray(regions)) return;
+  for (const region of regions) {
+    learnTerminology(job.terminologyMap, String(region?.source || ''),
+      String(region?.translation || ''), cueId, 1);
+  }
+  job.terminologyText = terminologyPrompt(job.terminologyMap) || '';
+}
+
+function persistMangaSiteTerminology(tab, config = {}) {
+  const scope = siteTerminologyScope(browserPageUrl(tab), config.targetLanguage);
+  const rows = terminologySuggestions(tab?.mangaTerminologyMap || null, []);
+  if (!scope || !rows.length) return false;
+  const places = readBrowserPlaces();
+  places.siteTerminology = { ...(places.siteTerminology || {}), [scope]: rows };
+  return setBrowserPlaces(places, { broadcast: false });
+}
+
 async function translateMangaCandidate(tab, candidate, config, job) {
   const image = await fetchMangaImage(candidate, tab.view.webContents.getURL(), job.controller.signal,
     tab.view.webContents);
@@ -8053,7 +8086,11 @@ async function translateMangaCandidate(tab, candidate, config, job) {
           if (job.controller.signal.aborted) throw job.controller.signal.reason || new Error('Manga çevirisi iptal edildi.');
           const chunk = ocrRegions.slice(i, i + concurrency);
           const results = await Promise.all(chunk.map((region) =>
-            requestBrowserSentenceTranslation({ text: region.source }, config, job.controller.signal)
+            // terminologyEnabled sayfa-çevirisi tercihidir; bölüm terim
+            // tutarlılığı manga hattında her zaman geçerlidir.
+            requestBrowserSentenceTranslation({ text: region.source },
+              { ...config, terminologyEnabled: true, terminologyText: job.terminologyText || '' },
+              job.controller.signal)
               .then((result) => String(result?.text || '').trim().slice(0, 4000))));
           results.forEach((translation, index) => {
             if (translation) translated.push({ ...chunk[index], translation });
@@ -8073,7 +8110,8 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (!regions?.length && !noRegionsCached) {
     let request = job.imageRequests.get(key);
     if (!request) {
-      request = requestMangaTranslation(image, config, pageTitle, job.controller.signal)
+      request = requestMangaTranslation(image,
+        { ...config, terminologyText: job.terminologyText || '' }, pageTitle, job.controller.signal)
         .then((result) => {
           browserMangaCache().set(key, JSON.stringify(result.length
             ? { regions: result }
@@ -8091,6 +8129,9 @@ async function translateMangaCandidate(tab, candidate, config, job) {
   if (noRegionsCached) regions = [];
   if (!mangaJobIsCurrent(tab, job)) return { stale: true };
   if (!regions.length) return { translated: false, empty: true, resultState: "no_regions" };
+  // Sayfanın kaynak→çeviri çiftleri bölüm haritasına öğrenilir; istek anında
+  // güncel eşleşmeler prompt'a taşınır (paralel işçiler aynı haritayı paylaşır).
+  mangaLearnRegions(job, regions, candidate.id);
   regions = decorateMangaRegionColors(image, regions);
   const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
     id: candidate.id, regions, lang: config.targetLanguage, fontScale: config.fontScale, fontFamily: config.fontFamily,
@@ -8188,7 +8229,9 @@ async function retrySelectedMangaRegion(tab) {
     return { ok: false, error: 'Seçili manga bölgesi artık mevcut değil.' };
   }
   const config = browserMangaTranslationConfig({});
-  const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
+  const terminologyMap = mangaTerminologySeed(tab, config);
+  const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(),
+    imageRequests: new Map(), terminologyMap, terminologyText: terminologyPrompt(terminologyMap) || '' };
   tab.mangaJob = job;
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', translated: tab.mangaTranslated,
     message: 'Seçili manga bölgesi yeniden okunup çevriliyor…' });
@@ -8196,11 +8239,13 @@ async function retrySelectedMangaRegion(tab) {
     const image = await fetchMangaImage(page.candidate, tab.view.webContents.getURL(), job.controller.signal,
       tab.view.webContents);
     if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
-    const fresh = await requestMangaTranslation(image, config, page.pageTitle, job.controller.signal, {
+    const fresh = await requestMangaTranslation(image,
+      { ...config, terminologyText: job.terminologyText || '' }, page.pageTitle, job.controller.signal, {
       bubbleBox: selected.bubbleBox,
       source: selected.source,
     });
     if (!fresh.length) throw new Error('Seçili bölgede çevrilecek metin bulunamadı.');
+    mangaLearnRegions(job, fresh, selected.id);
     const replacement = nearestMangaRegion(fresh, selected.bubbleBox);
     const currentStates = await executeBrowserTrustedMain(tab.view, mangaRegionsStateScript(selected.id)).catch(() => []);
     const stateRows = currentStates.find((item) => Array.isArray(item) && item.length)
@@ -8258,7 +8303,9 @@ async function startBrowserManga(tab, options = {}) {
   if (incremental && tab.mangaAttempted.size >= config.maxImages) {
     return { ok: true, unchanged: true, translated: tab.mangaTranslated };
   }
-  const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(), imageRequests: new Map() };
+  const terminologyMap = mangaTerminologySeed(tab, config);
+  const job = { id: randomUUID(), generation: tab.generation, controller: new AbortController(),
+    imageRequests: new Map(), terminologyMap, terminologyText: terminologyPrompt(terminologyMap) || '' };
   tab.mangaJob = job;
   const retryCandidates = Array.isArray(options.retryCandidates) ? options.retryCandidates.filter(Boolean) : [];
   const retryRun = retryCandidates.length > 0;
@@ -8379,6 +8426,7 @@ async function startBrowserManga(tab, options = {}) {
   if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
   tab.mangaJob = null;
   tab.mangaTranslated = translated;
+  persistMangaSiteTerminology(tab, config);
   tab.mangaFailures = incremental ? [...tab.mangaFailures, ...failures].slice(-120) : failures;
   tab.mangaVisible = translated > 0;
   const state = translated ? 'ready' : (failed ? 'error' : 'empty');
