@@ -872,6 +872,9 @@ function buildSecretEnv(baseEnv, options) {
   return env;
 }
 
+// sanitizePlayerPositions da dışa açıktır: sanitizeSettings'in ön taraması
+// hostile anahtarı önce reddettiği için modülün kendi kapısı ancak doğrudan
+// çağrıyla sınanabilir — tek-çağrı sözleşmesi gereği export edilir.
 module.exports = {
   BACKUP_VERSION,
   DANGEROUS_KEYS,
@@ -892,6 +895,7 @@ module.exports = {
   readImportFile,
   recoverJsonTransaction,
   sanitizeAbsolutePath,
+  sanitizePlayerPositions,
   sanitizeSettings,
   scanJsonShape,
   withoutSecretEnv,

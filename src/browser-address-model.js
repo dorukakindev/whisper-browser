@@ -79,12 +79,10 @@
           // NFC çıktısı birden çok UTF-16 birimi üretebilir (ör. birleşmeyen
           // L+V+V dizisi hece+jamo verir); yoğun dizinin her birimi için bir
           // harita kaydı gerekir, yoksa sonraki eşleşmeler kayar.
-          // Birleşen hece özgün dizinin tamamını kaplar; birleşmeyen kalan
-          // jamo'lar kendi 1-birimlik aralıklarına eşlenir — yoksa tek jamo
-          // araması ilk heceyi de vurgular.
-          // Baştaki birleşmiş heceler (AC00–D7A3) tükettikleri özgün diziyi,
-          // birleşmeyen kalan jamo'lar kendi 1-birimlik aralıklarına eşlenir —
-          // yoksa tek jamo araması ilk heceyi de vurgular.
+          // Baştaki birleşmiş heceler (AC00–D7A3) tükettikleri özgün diziyi
+          // (consumed) kaplar; birleşmeyen kalan jamo'lar kendi 1-birimlik
+          // aralıklarına eşlenir — yoksa tek jamo araması ilk heceyi de
+          // vurgular.
           const syllable = folded.slice(i, j).normalize('NFC');
           dense.push(syllable);
           const foldedLen = syllable.length;
@@ -138,12 +136,20 @@
   // yüklenince eski girdiler GC ile temizlenir (WeakMap).
   const placeSearchIndexCache = new WeakMap();
   function placeSearchIndexOf(item) {
+    // Kaynak metin damgası — kayıt yerinde değişirse (başlık güncellemesi,
+    // adres düzenleme) WeakMap kimliği aynı kalır ama dizin bayatlar;
+    // damga eşleşmezse yeniden kurulur.
+    const stamp = `${item?.title ?? ''} ${item?.url ?? ''}`;
     let cached = placeSearchIndexCache.get(item);
-    if (!cached) {
-      const bare = strippedUrl(item?.url).replace(/\/+$/, '');
-      const foldedIdx = foldSearchIndex(`${item?.title ?? ''} ${item?.url ?? ''}`);
+    if (!cached || cached.stamp !== stamp) {
+      // Art arda bölü çizgileri ('a//b') tek bölüye katlanır — yoksa
+      // yazılan 'a/b' dizini 'a//b' kaydıyla eşleşmeyip öneri/eşleşme
+      // kaybolur. Sondaki yinelenen bölüler de aynı sözcük sayılır.
+      const bare = strippedUrl(item?.url).replace(/\/{2,}/g, '/').replace(/\/+$/, '');
+      const foldedIdx = foldSearchIndex(stamp.replace(/\/{2,}/g, '/'));
       const bareIdx = foldSearchIndex(bare);
       cached = {
+        stamp,
         bare,
         dense: foldedIdx.dense,
         urlKey: bare.toLowerCase(),
@@ -215,7 +221,7 @@
     // Aynı adresin açık sekme + geçmiş/yer imi satırlarında iki kez görünmesi
     // "Open tabs" tekrarı yaratıyordu; sekme satırı kazanır, url sahiplenilir.
     const claimedUrls = new Set();
-    const urlKey = (url) => strippedUrl(url).replace(/\/+$/, '').toLowerCase();
+    const urlKey = (url) => strippedUrl(url).replace(/\/{2,}/g, '/').replace(/\/+$/, '').toLowerCase();
     const bang = omnibox.resolveBang?.(query);
     if (bang) add({ action: 'navigate', section: 'input', url: bang.url,
       title: bang.query ? `${bang.label} araması: ${bang.query}` : `${bang.label} ana sayfası`,

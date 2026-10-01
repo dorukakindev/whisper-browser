@@ -433,23 +433,25 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         
         # Öncelikle yt-dlp'nin indirdiği/post-process ettiği nihai konumu tespit etmeye çalış
         wav_path = None
+        resolved_out = Path(output_dir).resolve()
+        def _inside(p):
+            try:
+                p.resolve().relative_to(resolved_out)
+                return True
+            except (ValueError, OSError):
+                return False
         requested_downloads = info.get("requested_downloads")
         if requested_downloads and len(requested_downloads) > 0:
             final_path = requested_downloads[0].get("filepath")
-            if final_path and Path(final_path).exists():
+            # Extractor yanıtından gelen yol da kapsamadan geçer — bilinen
+            # iyi bir yol yalnızca çıktı klasörü içindeyken kabul edilir.
+            if final_path and _inside(Path(final_path)) and Path(final_path).is_file():
                 wav_path = Path(final_path)
 
         # Bulunamadıysa klasik uzantı taraması yap. video_id extractor
         # yanıtından gelir; '/' içeren bir kimlik yolu çıktı klasörünün
         # dışına taşıracağı için adayları daima kapsama kontrolünden geçir.
         if not wav_path or not wav_path.exists():
-            resolved_out = Path(output_dir).resolve()
-            def _inside(p):
-                try:
-                    p.resolve().relative_to(resolved_out)
-                    return True
-                except (ValueError, OSError):
-                    return False
             wav_path = Path(output_dir) / f"{video_id}.wav"
             if not wav_path.is_file() or not _inside(wav_path):
                 wav_path = None
@@ -2153,9 +2155,11 @@ def is_hallucination(text):
             return True
     # Aynı kelimenin/cümlenin 5+ kez ardışık tekrarı — Whisper'ın tekrar
     # döngüsü büyük/küçük harfi karıştırabildiği için ("No no NO no no")
-    # karşılaştırma casefold üzerinden yapılır.
+    # karşılaştırma lower üzerinden yapılır. casefold kullanılmaz: ß→ss
+    # katlaması "Maße Masse" gibi farklı sözcükleri aynı sayıp gerçek
+    # diyaloğu tekrar sanarak silerdi.
     words = t.split()
-    if len(words) >= 5 and len({w.casefold() for w in words}) == 1:
+    if len(words) >= 5 and len({w.lower() for w in words}) == 1:
         return True
     return False
 
@@ -2170,7 +2174,7 @@ def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
         not t
         or is_structural_sdh_cue(t)
         or re.fullmatch(r"(?:♪+|[.…\s]+)", t) is not None
-        or (len(words) >= 5 and len({w.casefold() for w in words}) == 1)
+        or (len(words) >= 5 and len({w.lower() for w in words}) == 1)
     )
     if hard_marker:
         return True
@@ -2411,8 +2415,12 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
                 pass
             try:
                 pipeline.to(torch.device("cpu"))
-            except Exception:
-                pass
+            except Exception as move_exc:
+                # Geçiş başarısız olursa pipeline GPU'da kalır; sessizce
+                # geçmek sonraki çağrının yine GPU'da düşmesi demektir.
+                raise RuntimeError(
+                    f"CUDA OOM sonrası CPU geçişi başarısız: {move_exc}"
+                ) from exc
             diarization = pipeline(diarization_audio, **kwargs)
         annotation = getattr(diarization, "speaker_diarization", diarization)
         return [(turn.start, turn.end, speaker)
@@ -2997,6 +3005,16 @@ PROFANITY_RULES = {
 }
 
 
+def _route_key(url):
+    try:
+        from urllib.parse import urlparse
+        p = urlparse(url if "://" in url else "https://" + url)
+        path = (p.path or "/").rstrip("/") or "/"
+        return ((p.hostname or "").lower(), path.lower())
+    except Exception:
+        return ("", str(url or "").lower())
+
+
 def resolve_translate_routes(base_url):
     """
     Denenecek endpoint listesi. shuaiapi rotalarindan biri verilmisse dordu de
@@ -3012,12 +3030,10 @@ def resolve_translate_routes(base_url):
         host = ""
     if host in _SHUAI_HOSTS:
         # Aynı endpointi iki biçimde (ör. schemesiz/büyük harf vs kanonik)
-        # yazmamak için host eşleşmesiyle düşür — dizgi eşitliğiyle yapılan
-        # dedupe 'oai.sb/v1' girdisinde aynı rotayı iki kez sıralıyordu.
-        others = [
-            u for _l, u in SHUAI_ROUTES
-            if (urlparse(u).hostname or "").lower() != host
-        ]
+        # yazmamak için host+yol eşleşmesiyle düşür — yalnız host'la yapılan
+        # dedupe 'oai.sb/v2' girdisinde çalışan '/v1' yedeğini de eliyordu.
+        raw_key = _route_key(raw)
+        others = [u for _l, u in SHUAI_ROUTES if _route_key(u) != raw_key]
         return [raw] + others
     return [raw]
 
@@ -3363,6 +3379,15 @@ def classify_translation_error(error):
             "model does not exist", "invalid model", "unknown model")):
         return "model_unavailable"
     if status == 429:
+        # OpenAI, hesap kotası/kredi bitimini de 429 ile döndürür
+        # (code=insufficient_quota / "exceeded your current quota"); gövdede
+        # kota-tükendi işareti varsa 'biraz sonra dene' yerine kota uyarısı
+        # gösterilmeli. RPM mesajlarındaki jenerik "quota" kelimesi yanıltmasın
+        # diye yalnız tükenme kalıpları kontrol edilir.
+        if any(token in message for token in (
+                "insufficient_quota", "exceeded your current quota",
+                "kota doldu", "quota exceeded")):
+            return "quota"
         return "rate_limit"
     if status in (401, 403):
         return "authentication"
@@ -4831,10 +4856,21 @@ class _WxInfo:
         self.duration = duration
 
 
+def _wx_num(value, fallback):
+    """WhisperX damgası → sonlu float; NaN/±inf/parse hatası fallback'e düşer.
+    `float('nan') or x` yazmak NaN'ı gerçek değer sanıp sızdırır (NaN truthy);
+    normalize_timings NaN cue üretirdi."""
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return num if math.isfinite(num) else fallback
+
+
 def _wrap_whisperx_segment(s):
     """WhisperX dict segmentini faster-whisper benzeri nesneye çevir."""
-    seg_start = float(s.get("start") or 0.0)
-    seg_end = float(s.get("end") or seg_start)
+    seg_start = _wx_num(s.get("start") or 0.0, 0.0)
+    seg_end = _wx_num(s.get("end"), seg_start)
     text = (s.get("text") or "").strip()
     words = []
     prev_end = seg_start
@@ -4842,20 +4878,16 @@ def _wrap_whisperx_segment(s):
         wt = (w.get("word") or "").strip()
         if not wt:
             continue
-        ws = w.get("start")
-        we = w.get("end")
+        ws = _wx_num(w.get("start"), prev_end)
+        we = _wx_num(w.get("end"), ws)
         # Hizalama bazı kelimelere (sayı, noktalama) zaman damgası atamayabilir
-        if ws is None:
-            ws = prev_end
-        if we is None:
-            we = ws
         prob = w.get("score")
         if prob is None:
             prob = w.get("probability", 1.0)
+        prob = _wx_num(prob, 1.0)
         # faster-whisper konvansiyonu: kelime metni baştaki boşlukla gelir
-        words.append(_WxWord(" " + wt, float(ws), float(we),
-                             float(1.0 if prob is None else prob)))
-        prev_end = float(we)
+        words.append(_WxWord(" " + wt, ws, we, prob))
+        prev_end = we
     return _WxSegment(seg_start, seg_end, text, words or None)
 
 
@@ -6326,9 +6358,10 @@ def compute_media_duration(info_duration, clip_start, clip_end):
     """İşin gerçekten işlediği ses süresi (perf/RTF için, saniye).
 
     info_duration motorun raporladığı süredir ve her yolda KIRPILMIŞ WAV'a aittir:
-    yerel dosyada extract_audio kırpar, YouTube aralıklı indirmede dosya aralıklı
-    gelir, devam modunda ses resume noktasından çıkarılır. clip_start'ı burada
-    tekrar düşmek süreyi iki kez kısaltır.
+    yerel dosyada extract_audio kırpar, YouTube'da tam ses iner ve kırpma yine
+    extract_audio'da olur (aralıklı indirme boğazlandığı için bilinçli
+    kullanılmaz, bkz. download_youtube), devam modunda ses resume noktasından
+    çıkarılır. clip_start'ı burada tekrar düşmek süreyi iki kez kısaltır.
 
     clip_end kaynağın sonunu aşarsa istenen pencere gerçek süreyi şişirir;
     duration bilinmediğinde pencere tek tahmin olarak kullanılır.
@@ -8429,6 +8462,26 @@ def read_subtitle_text(path):
 
 _VTT_META_BLOCK = re.compile(r"^(?:NOTE(?:\s|$)|STYLE\s*$|REGION\s*$)")
 _BLANK_LINES = re.compile(r"\n[ \t]*\n+")
+# VTT cue metni yalnız ';' ile biten karakter referansları destekler.
+# html.unescape'in semikolsüz miras kuralı '&not-a-tag' → '¬-a-tag' gibi
+# düz metni bozardı; sayısal referanslar da (ör. &#10;) aynı sözleşmeyle çözülür.
+_VTT_CHARREF = re.compile(r"&(#x[0-9a-fA-F]+|#X[0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]+);")
+
+
+def _vtt_charref_rep(match):
+    ent = match.group(1)
+    if ent[1:2].lower() == "x":
+        try:
+            return chr(int(ent[2:], 16))
+        except (ValueError, OverflowError):
+            return match.group(0)
+    if ent.startswith("#"):
+        try:
+            return chr(int(ent[1:], 10))
+        except (ValueError, OverflowError):
+            return match.group(0)
+    named = html.entities.html5.get(ent + ";")
+    return named if named is not None else match.group(0)
 
 
 def parse_srt(text, vtt=False):
@@ -8501,7 +8554,13 @@ def parse_srt(text, vtt=False):
             # &nbsp; …); write_vtt metni bu biçimde kaçır, okuyucu geri çözmezse
             # uygulamanın kendi yazdığı VTT yeniden içe aktarıldığında "&lt;"
             # düz metin olarak kalıyor ve yeniden yazımda çift-kaçış oluyordu.
-            txt = html.unescape(txt)
+            txt = _VTT_CHARREF.sub(_vtt_charref_rep, txt)
+            # '&#10;&#10;' gibi referanslardan doğan boş satırlar cue
+            # sınırını bozardı — metni tek satır bloklara indir; tamamen
+            # boşalan cue atlanır.
+            txt = _BLANK_LINES.sub("\n", txt).strip()
+            if not txt:
+                continue
         entries.append((start, end, txt))
     return entries
 

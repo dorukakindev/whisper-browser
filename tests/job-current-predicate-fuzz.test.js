@@ -9,20 +9,40 @@ const fs = require('fs');
 const path = require('path');
 
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+const vm = require('vm');
 
 function rng(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32; }
 function pick(rand, arr) { return arr[Math.floor(rand() * arr.length)]; }
 
-// main.js içindeki gerçek predicate'ler ile aynı sözleşmeyi uygular —
-// predicate main içinden kopya değil, sözleşme-modeli: değişiklik halinde
-// bu test sapmayı yakalar (aşağıdaki statik test kaynak metni de kilitler).
-function jobIsCurrentContract(tab, job, slot) {
-  return !!tab && tab[slot] === job && !job.controller.signal.aborted
-    && tab.generation === job.generation && tab.view && !tab.view.webContents.isDestroyed();
+// main.js içindeki GERÇEK predicate gövdesini çıkarır — kopya-model yerine
+// üretim kodu fuzz'lanır, böylece hem oracle'ın hem predicate'in aynı
+// yanlışta buluşması imkânsızlaşır (statik kilitler ayrıca var).
+function extractFn(src, name) {
+  const re = new RegExp(`function\\s+${name}\\s*\\([\\s\\S]*?\\)\\s*\\{`);
+  const m = re.exec(src);
+  if (!m) return null;
+  // imzalı varsayılan parametrelerdeki `{}` yanlış kapanış üretmesin diye
+  // derinlik sayımı parametre listesinin `)` sonrasındaki `{` ile başlar.
+  const start = m.index + m[0].length - 1;
+  let depth = 0;
+  for (let i = start; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) return src.slice(m.index, i + 1);
+  }
+  return null;
+}
+
+const realm = vm.createContext({});
+const REAL_PREDICATES = {};
+for (const [slot, name] of [['pageTranslateJob', 'pageTranslationJobIsCurrent'], ['mangaJob', 'mangaJobIsCurrent']]) {
+  const src = extractFn(main, name);
+  assert.ok(src, `${name} main.js içinde bulunamadı`);
+  vm.runInContext(src, realm);
+  REAL_PREDICATES[slot] = realm[name];
 }
 
 describe('R324-4: IsCurrent sözleşmesi — hostile-durum fuzz (3000 tohum)', () => {
-  it('current ⟺ kimlik+!aborted+nesil+görünüm dörtlüsünün hepsi geçerli', () => {
+  it('current ⟺ kimlik+!aborted+nesil+görünüm dörtlüsünün hepsi geçerli (gerçek predicate)', () => {
     const slots = ['pageTranslateJob', 'mangaJob'];
     for (let seed = 0; seed < 3000; seed++) {
       const rand = rng(seed);
@@ -42,7 +62,7 @@ describe('R324-4: IsCurrent sözleşmesi — hostile-durum fuzz (3000 tohum)', (
         tab[slot] = rand() < 0.8 ? job : { generation: gen, controller: { signal: { aborted: false } } };
       }
 
-      const got = jobIsCurrentContract(tab, job, slot);
+      const got = REAL_PREDICATES[slot](tab, job);
       const expected = !!tab
         && tab[slot] === job
         && !job.controller.signal.aborted
@@ -62,7 +82,7 @@ describe('R324-4: IsCurrent sözleşmesi — hostile-durum fuzz (3000 tohum)', (
   it('NaN nesil her iki tarafta da eşleşmez (güvenli tarafa düşer)', () => {
     const job = { generation: NaN, controller: { signal: { aborted: false } } };
     const tab = { generation: NaN, mangaJob: job, view: { webContents: { isDestroyed: () => false } } };
-    assert.equal(jobIsCurrentContract(tab, job, 'mangaJob'), false);
+    assert.equal(REAL_PREDICATES.mangaJob(tab, job), false);
   });
 });
 
@@ -94,15 +114,30 @@ describe('R324-4: statik yayılım bütünlüğü', () => {
     }
   });
 
-  it('job döngüleri signal.aborted kontrol noktası taşır', () => {
-    // Manga/PDF/sayfa çevirisi işçi döngülerinin gövdelerinde aborted kontrolü.
-    // (Kesin satır değil: sözleşme — iptal işlenmiş bir döngü bunu içermeli.)
-    for (const [anchor, field] of [
-      ['manga-translate', 'aborted'], ['pdf', 'aborted'], ['page-translate', 'aborted'],
+  it('job döngüleri bölgesinde aborted kontrol noktası taşır', () => {
+    // Her işçi döngüsünün KENDİ gövdesinde iptal kontrolü olmalı — global
+    // sayım bir döngüde kontrol kaybolunca fark edemezdi. Anchor hem serbest
+    // fonksiyonları hem ipcMain.handle gövdelerini bulur.
+    const extractHandler = (channel) => {
+      const re = new RegExp(`ipcMain\\.handle\\('${channel}'[\\s\\S]*?=>\\s*\\{`);
+      const m = re.exec(main);
+      if (!m) return null;
+      const start = m.index + m[0].length - 1;
+      let depth = 0;
+      for (let i = start; i < main.length; i++) {
+        if (main[i] === '{') depth++;
+        else if (main[i] === '}' && --depth === 0) return main.slice(m.index, i + 1);
+      }
+      return null;
+    };
+    for (const [label, body] of [
+      ['manga işçi döngüsü', extractFn(main, 'translateMangaCandidate')],
+      ['pdf çeviri döngüsü', extractHandler('pdf:translatePages')],
+      ['sayfa çevirisi blok döngüsü', extractFn(main, 'runBrowserPageTranslationBlocks')],
     ]) {
-      // anchor bilgi amaçlı; kontrol main.js genelinde yeterli yoğunlukta
-      assert.ok((main.match(/signal\.aborted/g) || []).length >= 6,
-        `signal.aborted kontrol noktaları azaldı (${anchor}/${field})`);
+      assert.ok(body, `${label}: anchor bulunamadı — refaktörde bu test güncellenmeli`);
+      assert.ok(/\.aborted|mangaJobIsCurrent|pageTranslationJobIsCurrent|cancelAll/.test(body),
+        `${label}: gövdede abort/IsCurrent kontrolü yok`);
     }
   });
 });

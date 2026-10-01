@@ -44,13 +44,15 @@ test('sonlu olmayan girdi NaN kalır (bölme/if karışmaz)', () => {
 test('tarayıcı modu: eşitleme sarmalıcısına delege eder, hata verirse ham değere düşer', () => {
   const ctx = makeContext();
   ctx.player.workspaceMode = 'browser';
+  // Gerçek modül sözleşmesi (src/browser-subtitle-sync.js:62-73):
+  // video = source*scale + offset; source = (video - offset)/scale.
   ctx.browserSubtitleSync = {
-    videoToSourceTime: (v, t) => v * t.scale + t.offsetSeconds,
-    sourceToVideoTime: (v, t) => (v - t.offsetSeconds) / t.scale,
+    videoToSourceTime: (v, t) => (v - t.offsetSeconds) / t.scale,
+    sourceToVideoTime: (v, t) => v * t.scale + t.offsetSeconds,
   };
-  // transform scale=2, offset=5 → source = video*2+5
-  assert.equal(ctx.subtitleSourceTime(10), 25);
-  assert.equal(ctx.subtitleVideoTime(25), 10);
+  // transform scale=2, offset=5 → source = (video-5)/2
+  assert.equal(ctx.subtitleSourceTime(10), 2.5);
+  assert.equal(ctx.subtitleVideoTime(10), 25);
 
   ctx.browserSubtitleSync = { videoToSourceTime() { throw new Error('bozuk'); }, sourceToVideoTime() { throw new Error('bozuk'); } };
   assert.equal(ctx.subtitleSourceTime(7), 7, 'hata yutulup ham değer dönmeli');
