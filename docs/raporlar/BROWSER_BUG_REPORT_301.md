@@ -1249,6 +1249,55 @@ bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R356 — browser-subtitles.js tam derin okuma: altyazı ayrıştırma çekirdeği (temiz)
+
+2.018 satırın tamamı okundu — browserSubtitleSync'in format ayrıştırma
+ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
+
+- **Entity/metin temizliği** (1–94): `decodeEntities` sayısal entity'de
+  sınır/NULL/C0-C1 kontrolü + entity-kodlu bidi enjeksiyonu savunması
+  (&#8238;=RLO ayrıştırılırken sıyrılır); geniş ISO-8859-1/Extended-A
+  tablosu (belgeli R78-03); üretilen & tekrar çözülmez; `cleanCueText`
+  eksik-kapanış O(n²) koruması, ruby rt/rp metni atma, yalnız bilinen
+  etiketler (genel `<>` deseni gerçek diyaloğu siliyordu, belgeli),
+  BIDI spoofing regex'i, boşluk/satır normalizasyonu.
+- **Zaman + cue normalizasyonu** (96–163): `parseTime` birim/ms/saat-
+  dakika-saniye/kısa alan formları; `normalizeCues` start≥0+metin
+  süzgeci + kırık bitişleri komşuya kadar 8s yama + ≥0.08s kelepçe;
+  canlı-caption yuvarlanan-ikiz dedupe (≤1s içindeki birebir metin,
+  farklı metadata'lı kayıtları korur).
+- **Akış birleştirme** (165–250): `mergeBrowserStreamCues` — tekil-
+  parti hızlı yol (stale-growing-regression: gecikmiş kısa hipotez
+  tamamlanmış uzun metni geri alamaz, belgeli), batch yolunda revizyon
+  anahtarı + tekil-kimlik eşleşmesi (eşzamanlı bağımsız replikler
+  hipotez sanılmaz) + kimlik+metin kaymış-revizyon kazanması
+  (belgeli B83-S2) + ≤20k sınır.
+- **HLS/MPD ayrıştırma** (252–685, 860–998): X-TIMESTAMP-MAP
+  LOCAL↔MPEGTS ofseti + 2^33 rollover unwrap; ayraçsız SRT sıra
+  numarası ayıklaması + NOTE/STYLE/REGION sınırı; HLS segmentleri —
+  BYTERANGE örtük devamı (RFC 8216, belgeli), EXT-X-MAP örtük
+  aralık, KEY/METHOD-IV, SKIP zaman defteri, GAP, kayan-listedeki
+  aynı URI tekilleştirilmez (belgeli), düşen EXTINF'te targetDuration
+  yedeği; DASH — dashOuterBase Period-tabanı (belgeli kardeş-taban
+  bug'ı), SegmentList/Template/Timeline, r=-1 açık-tekrar canlı
+  kapısı, $Number$/$Time$/SubNumber token'ları, 10k parça üst-sınır,
+  dashSegmentOffset'te timescale yokluğunda tahmin yerine init'e
+  düşüm (belgeli).
+- **MP4/box + TTML** (1000–1853): mp4Boxes safe-integer kapıları +
+  size-0 yalnız üst düzey; tfhd/trun/tfdt/trex/mdhd bayrak sürüşü +
+  20k örnek sınırı; payl metni; parseXml — TTML ebeveyn-ofset yığını +
+  eksik-kapanış ilk-zamanlı-öğeden kesme (belgeli), style/region
+  referans çözümü döngü-korumalı, srv3 t/d ms + aAppend devamı,
+  p-içi zamanlı span mutlak/göreli heuristiği (belgeli).
+- **Yardımcılar** (1859–2017): `browserActiveCuesAt` ikili arama +
+  prefix-max WeakMap indeks (belgeli — uzun cue sabit geri-bakışta
+  kayboluyordu, şimdi O(log n + aktif)); cueFingerprint akışlı hash +
+  \x00-ayraç; findSubtitleUrls derinlik/kardinalite/URL-sayısı
+  kapıları + kesinti uyarısı; parseSubtitlePayload sıralı format
+  denemeleri (json→xml→vtt/srt→ass→sami→lrc) + 12MB sınır.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
