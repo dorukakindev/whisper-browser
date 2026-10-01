@@ -1298,6 +1298,63 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R376 — küçük yüzeyler devamı: omnibox, ayar kaydı, medya kataloğu, not/kuyruk depoları, senkron, sır kasası, varlık deposu
+
+Kapsam (~2.158 satır, sekiz dosya hepsi satır satır okundu):
+
+- `src/browser-omnibox.js` (307) — bang kısayolları, güvenli
+  aritmetik (shunting-yard + tekli-eksi önceliği), markdown
+  bağlantı kaçışı, FOLD_SENTINEL katlama/jamo dizini (adres
+  modeliyle aynı sözleşme), arama sağlayıcıları.
+- `src/browser-settings-registry.js` (290) — dondurulmuş ayar
+  kaydı + Türkçe-tutarlı arama katlaması + kapsam durum metni.
+- `src/media-catalog-store.js` (286) — eser kataloğu: alan
+  doğrulayıcıları (imdb/tmdb/path/episode), indeksli içe-aktarım
+  eşleşmesi (O(1)), çakışma raporu, fsync'li commit.
+- `src/browser-note-store.js` (260) — zaman damgalı not deposu:
+  birincil→.bak kurtarma, mirrorBackup sıralaması, committed-bayraklı
+  hata geri alımı, boyut kapısı.
+- `src/queue-persistence.js` (259) — kalıcı kuyruk normalize edici:
+  sır-anahtarı regex'leri + URL sorgu temizliği, derinlik/sayı/
+  dizi kapıları, terminal-korumalı birleştirme, stale queueRunning
+  düzeltmesi.
+- `src/browser-subtitle-sync.js` (257) — senkron/düzeltme kayıtları:
+  FNV kimlik (görünmez-karakter sıyırma), iki-nokta dönüşümü
+  (kelepçesiz reddetme), append-only önek-soy eşleşmesi,
+  dışa-aktarım kelepçesi+uyarısı.
+- `src/secret-store.js` (254) — şifreli kasa: proto-pollution
+  kapılı yol yardımcıları, redactExport, kısmi-çözme koruması.
+- `src/browser-asset-store.js` (245) — içerik-adresli altyazı
+  varlıkları: hex-kimlik traversal kapısı, fsync'li putTrack,
+  kayıp-srt diriltme, tmp/orphan süpürge.
+
+### B-376-01 — kasa yazımı ölü `flush:true` kullanıyordu (düzeltildi)
+
+`SafeSecretStore.save` `{encoding:'utf8', flush:true}` ile yazıyordu
+— `flush` seçeneği `writeFileSync`'te yok sayılır (WriteStream'e
+aittir); ayrıca fsyncFile/fsyncDirectory çağrısı da yoktu. R281
+töreni buraya hiç taşınmamış (B-375-01 ile aynı sınıfın ikinci
+örneği). Güç kesintisinde şifreli API anahtarlarının dosyası
+sıfır-bayt kalabilirdi.
+
+Düzeltme: tmp fsync → sağlam-birincil .bak kopyası + fsync →
+rename → dizin fsync. Kayıtlı-fs kilidi: 2 yazımda ≥4 fsyncSync;
+kırmızı kanıt master'da "fsync sayısı: 0" FAIL.
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- `mergeSettingsSecrets`/`clearedFields` semantiği doğrulandı —
+  kasa kapalıyken silme niyeti açık ayarlarda işaretli kalır;
+  parse-edilebilir birincil .bak'tan silinmiş anahtarı diriltmez.
+- `transformCuesForExport` kalanı-olmama hatası kasıtlı; diğer
+  kapılar (ölçek, ofset, nokta açıklığı) throw ile açık.
+- `normalizeQueueItem` etiket üretimi youtube→ilk 60 karakter,
+  file→basename — NaN/çok-uzun girdiler önceden kapılı.
+
+Windows etkisi: secret-store düzeltmesi fsync-utils'in Windows
+yollarını kullanır (dizin fsync en iyi çaba); davranış aynı,
+dayanıklılık arttı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
