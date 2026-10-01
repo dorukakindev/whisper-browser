@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2210.md](docs/devir/2026-10-01-2210.md) — kuyruk-50 madde 42: ağ yönlendirme sınırları — redirect zincirleri hop-başına doğrulama (rapor 354)
+Güncel çalışma: [docs/devir/2026-10-01-2215.md](docs/devir/2026-10-01-2215.md) — kuyruk-50 madde 43: gizli depo kurtarma — kısmi-bozuk kasa ölü-kilidi + ham-girdi koruma (rapor 355)
+Önceki çalışma: [docs/devir/2026-10-01-2210.md](docs/devir/2026-10-01-2210.md) — kuyruk-50 madde 42: ağ yönlendirme sınırları — redirect zincirleri hop-başına doğrulama (rapor 354)
 Önceki çalışma: [docs/devir/2026-10-01-2159.md](docs/devir/2026-10-01-2159.md) — kuyruk-50 madde 41: IPC yetki sınırları gerçek-Electron reddi (rapor 353)
 Önceki çalışma: [docs/devir/2026-10-01-2155.md](docs/devir/2026-10-01-2155.md) — kuyruk-50 madde 40: manga bölüm terim tutarlılığı hattı (rapor 352)
 Önceki çalışma: [docs/devir/2026-10-01-2145.md](docs/devir/2026-10-01-2145.md) — kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi

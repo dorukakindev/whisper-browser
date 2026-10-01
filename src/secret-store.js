@@ -138,19 +138,29 @@ class SafeSecretStore {
   loadFile(candidate) {
     try {
       const parsed = JSON.parse(this.fs.readFileSync(candidate, 'utf8'));
-      if (!parsed || parsed.version !== SECRET_STORE_VERSION || !parsed.entries || typeof parsed.entries !== 'object') {
+      // Eski sürüm kasa kayıtları alan-bazlı çözümle göçürülür; bu sürümden
+      // YENİ bir sürümün yazdığı dosya tanınmaz biçim sayılır ve el sürülmez.
+      const versionOk = parsed && typeof parsed.version === 'number'
+        && parsed.version >= 1 && parsed.version <= SECRET_STORE_VERSION;
+      if (!versionOk || !parsed.entries || typeof parsed.entries !== 'object') {
         return { ok: false, error: 'Güvenli anahtar deposu biçimi desteklenmiyor.', secrets: {} };
       }
       const secrets = {};
       const errors = [];
-      for (const field of this.fields) {
-        const encoded = parsed.entries[field];
+      // Çözülemeyen veya bu build'in bilmediği alanların şifreli ham metni:
+      // yeniden-yazım bunları olduğu gibi korur — kısmi bozuk kasa artık
+      // kalıcı anahtar kaybına veya kayıt ölü-kilidine yol açmaz.
+      const rawEntries = {};
+      for (const [field, encoded] of Object.entries(parsed.entries)) {
         if (typeof encoded !== 'string' || !encoded) continue;
+        if (!this.fields.includes(field)) { rawEntries[field] = encoded; continue; }
         try {
           const value = this.safeStorage.decryptString(Buffer.from(encoded, 'base64'));
           if (value) secrets[field] = value;
+          else rawEntries[field] = encoded;
         } catch (error) {
           errors.push({ field, error: error.message });
+          rawEntries[field] = encoded;
         }
       }
       return {
@@ -159,17 +169,27 @@ class SafeSecretStore {
         error: errors.length ? `${errors.length} gizli alan çözülemedi.` : undefined,
         errors,
         secrets,
+        rawEntries,
       };
     } catch (error) {
       return { ok: false, error: error.message, secrets: {} };
     }
   }
 
-  save(secrets) {
+  save(secrets, options = {}) {
     if (!this.isAvailable()) return { ok: false, unavailable: true, error: 'İşletim sistemi güvenli deposu kullanılamıyor.' };
+    const dropFields = new Set(options.dropFields || []);
     const entries = {};
     let temp;
     try {
+      // Mevcut kasayı bir kez çöz: .bak aynası için de, üzerine yazılacak
+      // çözülemeyen/bilinmeyen ham kayıtları korumak için de aynı sonuç kullanılır.
+      const existing = this.filePath && this.fs.existsSync(this.filePath)
+        ? this.loadFile(this.filePath) : null;
+      for (const [field, raw] of Object.entries(existing?.rawEntries || {})) {
+        const value = secrets && secrets[field];
+        if (!(typeof value === 'string' && value) && !dropFields.has(field)) entries[field] = raw;
+      }
       for (const field of this.fields) {
         const value = secrets && secrets[field];
         if (typeof value !== 'string' || !value) continue;
@@ -179,7 +199,7 @@ class SafeSecretStore {
       temp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${Date.now()}.tmp`);
       this.fs.mkdirSync(dir, { recursive: true });
       this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, { encoding: 'utf8', flush: true });
-      if (this.fs.existsSync(this.filePath) && this.loadFile(this.filePath).ok) {
+      if (existing?.ok) {
         this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
       }
       this.fs.renameSync(temp, this.filePath);
@@ -200,24 +220,35 @@ class SafeSecretStore {
       else delete publicSettings.clearedSecretFields;
     };
     recordClears();
-    if (!Object.keys(secrets).length) return { ok: true, publicSettings, stored: [] };
-    const current = this.load();
-    if (!current.ok && !current.unavailable && !current.partial) return { ...current, publicSettings };
-    // Kısmen çözülebilen kasa yalnız kurtarılan alanlarla yeniden yazılırsa,
-    // çözülemeyen şifreli kayıtlar kalıcı olarak kaybolur. Mevcut kasa dosyasını
-    // olduğu gibi koru ve kullanıcıdan bozuk kimlik bilgilerini çözmesini iste.
-    if (current.partial) {
-      return {
-        ...current,
-        ok: false,
-        error: 'Güvenli anahtar deposundaki bazı kayıtlar çözülemedi; mevcut anahtarlar korunmak için değişiklik kaydedilmedi.',
-        publicSettings,
-      };
+    if (!Object.keys(secrets).length) {
+      if (!cleared.size) return { ok: true, publicSettings, stored: [] };
+      // Yalnız-temizleme: kasa dosyasındaki silinmiş alanların şifreli metnini
+      // de düşür; kasa kullanılamıyorsa clearedSecretFields işareti yine geçerli.
+      const current = this.load();
+      if (current.unavailable) return { ok: true, publicSettings, stored: [] };
+      const next = { ...(current.secrets || {}) };
+      for (const field of cleared) delete next[field];
+      const saved = this.save(next, { dropFields: [...cleared] });
+      return saved.ok
+        ? { ok: true, publicSettings, stored: saved.stored }
+        : { ...saved, publicSettings };
     }
+    const current = this.load();
+    // Reddetme yalnız hiç kurtarılabilir girdi kalmayan sert-bozuk kasa içindir
+    // (JSON/örtük-biçim/yeni-sürüm): korunacak ham şifreli metin de yoksa değişiklik
+    // yazmak geri döndürülemez kayıp olur. Çözülemeyen girdiler varsa save()
+    // onları zaten koruduğundan kayıt güvenle ilerler.
+    const recoverable = current.partial
+      || (current.rawEntries && Object.keys(current.rawEntries).length > 0);
+    if (!current.ok && !current.unavailable && !recoverable) return { ...current, publicSettings };
+    // Kısmen çözülebilen kasa eskiden tüm kayıtları kilitlerdi — kullanıcının
+    // yeniden girdiği anahtar bile kaydedilemezdi. Çözülemeyen girdiler ham
+    // şifreli haliyle korunur (kullanıcı o alanı temizlerse dropFields düşürür),
+    // böylece yeniden giriş akışı çalışır ve kasa açılabilir.
     const next = { ...(current.secrets || {}) };
     for (const field of cleared) delete next[field];
     Object.assign(next, secrets);
-    const saved = this.save(next);
+    const saved = this.save(next, { dropFields: [...cleared] });
     // Silme niyetini açık ayarlarda sakla: kasa kapalıyken eski şifreli kayıt
     // kalabilir. Yeni anahtar BAŞARIYLA yazılmadan bu işareti kaldırma.
     if (saved.ok) {
