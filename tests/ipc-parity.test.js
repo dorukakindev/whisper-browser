@@ -48,7 +48,9 @@ let invoked = [], pSend = [], pOn = [];
 for (const f of preloadFiles) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');
   invoked.push(...grab(/ipcRenderer\.invoke\(\s*'([^']+)'/g, src));
-  pSend.push(...grab(/ipcRenderer\.send\(\s*'([^']+)'/g, src));
+  // sendSync de ipcMain.on'a düşer — yalnız `send` aramak senkron kanalları
+  // (queue:saveSync, settings:saveSync, library:upsert-before-close) kör eder.
+  pSend.push(...grab(/ipcRenderer\.send(?:Sync)?\(\s*'([^']+)'/g, src));
   pOn.push(...grab(/ipcRenderer\.on\(\s*'([^']+)'/g, src));
 }
 const pOnSet = new Set(pOn);

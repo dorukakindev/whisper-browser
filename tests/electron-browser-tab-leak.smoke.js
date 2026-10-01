@@ -201,6 +201,15 @@ app.whenReady().then(async () => {
       vis:document.visibilityState,
       resources:performance.getEntriesByType('resource').length}})()`;
   const expectedAt = (cues, t) => { const c = cues.find((x) => x.start <= t && t < x.end); return c ? c.text : ''; };
+  // Overlay boundary timer'ı video saatinden birkaç ms geç tetiklenebilir;
+  // sınır ±150ms içinde hem biten hem başlayan cue görünür kabul edilir.
+  const expectedNear = (cues, t, eps = 0.15) => {
+    const ok = new Set();
+    for (const c of cues) {
+      if ((c.start <= t && t < c.end) || Math.abs(c.start - t) <= eps || Math.abs(c.end - t) <= eps) ok.add(c.text);
+    }
+    return ok;
+  };
 
   // Controller diyagnostiği (izole dünya) — başlangıç değerleri.
   const diagOf = async (page) => page.executeJavaScriptInIsolatedWorld(999, [{
@@ -224,8 +233,9 @@ app.whenReady().then(async () => {
     if (s.src.includes('B-KAYNAK') || s.tr.includes('B-KAYNAK') || s.tr.includes('B-CEVIRI')) leaks.push({ tab: 'A', s });
     if (s.vis === 'visible') {
       const exp = expectedAt(cuesA, s.t);
-      if (s.src && s.src !== exp) leaks.push({ tab: 'A', s, expected: exp, kind: 'wrong-cue' });
-      if (s.tr && s.tr !== exp.replace('A-KAYNAK', 'A-CEVIRI')) leaks.push({ tab: 'A', s, kind: 'wrong-tr' });
+      const near = expectedNear(cuesA, s.t);
+      if (s.src && !near.has(s.src)) leaks.push({ tab: 'A', s, expected: exp, kind: 'wrong-cue' });
+      if (s.tr && ![...near].some((x) => s.tr === x.replace('A-KAYNAK', 'A-CEVIRI'))) leaks.push({ tab: 'A', s, kind: 'wrong-tr' });
     }
   }
   for (const s of both.b) {
@@ -233,7 +243,7 @@ app.whenReady().then(async () => {
     if (s.src.includes('A-KAYNAK') || s.tr.includes('A-KAYNAK') || s.tr.includes('A-CEVIRI')) leaks.push({ tab: 'B', s });
     if (s.vis === 'visible') {
       const exp = expectedAt(cuesB, s.t);
-      if (s.src && s.src !== exp) leaks.push({ tab: 'B', s, expected: exp, kind: 'wrong-cue' });
+      if (s.src && !expectedNear(cuesB, s.t).has(s.src)) leaks.push({ tab: 'B', s, expected: exp, kind: 'wrong-cue' });
       if (s.tr) leaks.push({ tab: 'B', s, kind: 'unexpected-translation-layer' });
     }
   }

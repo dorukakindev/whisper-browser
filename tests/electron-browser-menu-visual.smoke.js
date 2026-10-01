@@ -30,6 +30,30 @@ async function until(fn, label, timeout = 20000) {
   throw new Error(`${label} timed out`);
 }
 
+// X11'de desktopCapturer 'window' kaynaklarını _NET_CLIENT_LIST üzerinden
+// numaralandırır — çıplak Xvfb'te WM olmadığından liste boş döner. Bir kere
+// hafif bir WM başlatmayı dene; zaten WM'li ortamda (gerçek masaüstü, Windows)
+// pencere kaynakları vardır ve burası dokunmaz.
+let wmProc = null;
+async function ensureWindowManager() {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const sources = await desktopCapturer.getSources({ types: ['window'],
+      thumbnailSize: { width: 16, height: 16 } });
+    if (sources.length) return;
+    if (!wmProc && attempt === 0) {
+      const { spawn, spawnSync } = require('node:child_process');
+      for (const wm of ['kwin_x11', 'openbox', 'metacity', 'xfwm4', 'mutter']) {
+        if (spawnSync('which', [wm]).status === 0) {
+          wmProc = spawn(wm, ['--replace'], { stdio: 'ignore' });
+          wmProc.on('error', () => {});
+          break;
+        }
+      }
+    }
+    await wait(1500);
+  }
+}
+
 async function captureWindow(win, name) {
   const sources = await desktopCapturer.getSources({ types: ['window'],
     thumbnailSize: { width: 1440, height: 900 } });
@@ -104,6 +128,7 @@ app.whenReady().then(async () => {
     item.webContents.getURL().includes('index.html') && !item.webContents.isLoading()), 'App window');
   win.setContentSize(1440, 900);
   win.show();
+  await ensureWindowManager();
   const run = (body) => win.webContents.executeJavaScript(`(async()=>{${body}})()`, true);
   await until(() => run('return typeof initialSettingsReady !== "undefined" ? await initialSettingsReady.then(()=>true) : false'), 'Settings');
   await run('openPlayer();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));setWorkspaceMode("browser",false);return true');
@@ -147,5 +172,6 @@ app.whenReady().then(async () => {
   console.log(JSON.stringify({ ok: true, translateChangedPixels: changedPixels(closed, translated),
     moreChangedPixels: changedPixels(closed, more), output: out }));
   clearTimeout(watchdog);
+  if (wmProc) wmProc.kill();
   app.quit();
-}).catch((error) => { console.error(error); app.exit(1); });
+}).catch((error) => { console.error(error); if (wmProc) wmProc.kill(); app.exit(1); });
