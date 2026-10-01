@@ -599,7 +599,7 @@ function renderQueue() {
     div.innerHTML = `
       <span class="queue-icon">${icon}</span>
       <div class="queue-name" title="${escapeHtml(item.input)}">
-        <span class="queue-title">${escapeHtml(item.label)}</span>
+        <span class="queue-title" data-ui-untranslated>${escapeHtml(item.label)}</span>
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
@@ -7777,6 +7777,7 @@ function renderBrowserDownloads() {
     if (!row) {
       const root = document.createElement('article'); root.className = 'browser-download-row';
       const name = document.createElement('h4'); name.className = 'browser-download-name'; name.dir = 'auto';
+      name.dataset.uiUntranslated = '';
       const info = document.createElement('p'); info.className = 'browser-download-note';
       const progress = document.createElement('progress'); progress.max = 100; progress.setAttribute('aria-label', 'İndirme ilerlemesi');
       const saved = document.createElement('span'); saved.className = 'browser-download-path'; saved.dir = 'auto';
@@ -7812,11 +7813,11 @@ function renderBrowserDownloads() {
     row.name.textContent = item.filename;
     const label = item.paused ? 'Duraklatıldı' : item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
       : item.state === 'interrupted' ? (item.active ? 'Bağlantı kesildi' : 'İndirme başarısız') : 'İndiriliyor';
-    row.info.textContent = `${label} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ' (toplam boyut bilinmiyor)'}`;
+    row.info.textContent = `${uiText(label)} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ` (${uiText('toplam boyut bilinmiyor')})`}`;
     row.progress.hidden = !item.active;
     if (item.total > 0) row.progress.value = Math.min(100, item.received / item.total * 100);
     else row.progress.removeAttribute('value');
-    row.saved.textContent = item.path || 'Kaydetme konumu henüz seçilmedi.';
+    row.saved.textContent = item.path || uiText('Kaydetme konumu henüz seçilmedi.');
     row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
@@ -15552,14 +15553,16 @@ function renderUnifiedLibraryResults(list, results) {
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
-    title.textContent = result.title || 'İsimsiz sonuç';
+    title.dataset.uiUntranslated = '';
+    title.textContent = result.title || uiText('İsimsiz sonuç');
     const kind = document.createElement('span');
     kind.className = 'library-result-kind';
     kind.textContent = libraryResultKindLabel(result);
     head.append(title, kind);
     const snippet = document.createElement('div');
     snippet.className = 'player-library-meta';
-    snippet.textContent = result.snippet || result.url || 'Eşleşen kayıt';
+    snippet.dataset.uiUntranslated = '';
+    snippet.textContent = result.snippet || result.url || uiText('Eşleşen kayıt');
     const details = document.createElement('div');
     details.className = 'player-library-meta';
     const parts = [];
@@ -15631,15 +15634,18 @@ function renderResearchLibrary() {
   for (const annotation of researchAnnotations) {
     const card = document.createElement('article'); card.className = 'research-card'; card.dataset.researchId = annotation.id;
     const head = document.createElement('div'); head.className = 'research-card-head';
-    const title = document.createElement('strong'); title.textContent = annotation.mediaTitle || annotation.mediaId || 'İsimsiz içerik';
+    const title = document.createElement('strong'); title.dataset.uiUntranslated = '';
+    title.textContent = annotation.mediaTitle || annotation.mediaId || uiText('İsimsiz içerik');
     const meta = document.createElement('span');
-    meta.textContent = `${researchTypeLabel(annotation.type)} · ${researchStatusLabel(annotation.status)} · ${pSecToTime(annotation.start || 0)}`;
+    meta.textContent = `${uiText(researchTypeLabel(annotation.type))} · ${uiText(researchStatusLabel(annotation.status))} · ${pSecToTime(annotation.start || 0)}`;
     head.append(title, meta); card.appendChild(head);
     if (annotation.source) {
-      const quote = document.createElement('blockquote'); quote.textContent = annotation.source; card.appendChild(quote);
+      const quote = document.createElement('blockquote'); quote.dataset.uiUntranslated = '';
+      quote.textContent = annotation.source; card.appendChild(quote);
     }
     if (annotation.translation) {
       const translation = document.createElement('p'); translation.className = 'research-card-translation';
+      translation.dataset.uiUntranslated = '';
       translation.textContent = annotation.translation; card.appendChild(translation);
     }
     const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note';
@@ -15653,7 +15659,8 @@ function renderResearchLibrary() {
     if ((annotation.tags || []).length) {
       const tagList = document.createElement('div');
       for (const tag of annotation.tags) {
-        const chip = document.createElement('span'); chip.className = 'research-tag'; chip.textContent = tag; tagList.appendChild(chip);
+        const chip = document.createElement('span'); chip.className = 'research-tag';
+        chip.dataset.uiUntranslated = ''; chip.textContent = tag; tagList.appendChild(chip);
       }
       card.appendChild(tagList);
     }
@@ -15666,8 +15673,8 @@ function renderResearchLibrary() {
     if (reviewMode) {
       const due = document.createElement('small'); due.className = 'research-card-due';
       due.textContent = annotation.reviewCount
-        ? `Son tekrar ${historyWhen(annotation.lastReviewedAt)} · aralık ${Number(annotation.intervalDays || 0).toFixed(1)} gün`
-        : 'İlk tekrar';
+        ? `${uiText('Son tekrar')} ${historyWhen(annotation.lastReviewedAt)} · ${uiText('aralık')} ${Number(annotation.intervalDays || 0).toFixed(1)} ${uiText('gün')}`
+        : uiText('İlk tekrar');
       const reviews = document.createElement('div'); reviews.className = 'research-review-actions';
       for (const [rating, label] of [['again', 'Yine'], ['hard', 'Zor'], ['good', 'İyi'], ['easy', 'Kolay']]) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm';
@@ -15802,7 +15809,8 @@ function renderPlayerLibrary() {
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
-    title.textContent = item.title || 'İsimsiz video';
+    title.dataset.uiUntranslated = '';
+    title.textContent = item.title || uiText('İsimsiz video');
     if (playerLibraryView === 'collections') {
       const select = document.createElement('input');
       select.type = 'checkbox';
@@ -15888,6 +15896,7 @@ function updateCollectionOptions() {
     names.forEach((name) => {
       const option = document.createElement('option');
       option.value = `collection:${name}`;
+      option.dataset.uiUntranslated = '';
       option.textContent = name;
       select.appendChild(option);
     });

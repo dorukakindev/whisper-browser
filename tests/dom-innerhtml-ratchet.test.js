@@ -41,15 +41,15 @@ const ALLOWED = new Set([
   'src/renderer/renderer.js:1235::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
   'src/renderer/renderer.js:1463::start',                  // formatTime() çıktısı
   'src/renderer/renderer.js:1463::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:14075::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:20797::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:20797::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:20797::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:20797::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:20797::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:20858::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:20858::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
-  'src/browser-page-translate.js:1047::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
+  'src/renderer/renderer.js:14076::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js:20806::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js:20806::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js:20806::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js:20806::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js:20806::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js:20867::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:20867::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 
 function topLevelSplit(e) {
