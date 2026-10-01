@@ -4861,6 +4861,96 @@ def test_checkpoint_hostile_read():
     assert bad_lang is not None and bad_lang[3] is None
 
 
+def test_oom_guard_iter_classifies_and_preserves():
+    # Normal akış: öğeler aynen geçer.
+    assert list(T._oom_guard_iter(iter([1, 2, 3]))) == [1, 2, 3]
+
+    # OOM istisnası eyleme-dönüştürülebilir RuntimeError'a çevrilir.
+    class OOMIter:
+        def __iter__(self):
+            return self
+        def __next__(self):
+            raise RuntimeError("CUDA out of memory. Tried to allocate 2.00 GiB")
+    try:
+        list(T._oom_guard_iter(OOMIter()))
+        assert False, "OOM sınıflandırılmadı"
+    except RuntimeError as error:
+        msg = str(error)
+        assert "OOM" in msg and "int8" in msg and "batch_size" in msg
+        assert "Checkpoint korundu" in msg
+
+    # OOM-adlı istisna tipi de yakalanır (torch.cuda.OutOfMemoryError biçimi).
+    class OutOfMemoryError(Exception):
+        pass
+    def _boom2():
+        yield 1
+        raise OutOfMemoryError("vram doldu")
+    try:
+        list(T._oom_guard_iter(_boom2()))
+        assert False
+    except RuntimeError as error:
+        assert "OOM" in str(error)
+
+    # OOM olmayan hata değiştirilmeden geçer.
+    def _boom3():
+        yield 1
+        raise ValueError("başka bir hata")
+    try:
+        list(T._oom_guard_iter(_boom3()))
+        assert False
+    except ValueError as error:
+        assert str(error) == "başka bir hata"
+
+
+def test_estimate_transcription_vram_mib_contract():
+    e = T.estimate_transcription_vram_mib
+    assert e("large-v3", "float16", "faster", 1, False) == 3100
+    # int8 ~%55, float32 ~%190
+    assert e("large-v3", "int8", "faster", 1, False) == int(round(3100 * 0.55))
+    assert e("large-v3", "float32", "faster", 1, False) == int(round(3100 * 1.9))
+    # whisperx hizalama payı + diarization payı
+    wx = e("large-v3", "float16", "whisperx", 16, True)
+    assert wx > e("large-v3", "float16", "faster", 16, False) + 1400
+    assert e("large-v3", "float16", "faster", 1, True) == 3100 + 2500
+    # bilinmeyen model → büyük varsayım; batch çarpanı üstten sınırlı
+    assert e("bilinmeyen-model", "float16", "faster", 1, False) == 3100
+    capped = e("small", "float16", "faster-batched", 64, False)
+    assert capped <= int(round(750 * 2.35))  # base*(1+1.35) tavanı
+
+
+def test_check_vram_budget_warns_only_when_tight_on_cuda():
+    args = types.SimpleNamespace(model="large-v3", compute_type="float16",
+                                 engine="faster", batch_size=1, diarize=False)
+    logs = []
+    old_log = T.log
+    T.log = lambda m, l="info": logs.append((m, l))
+    try:
+        # CUDA yoksa sessiz.
+        T.check_vram_budget(args, "cpu")
+        assert logs == []
+        # torch yok/bozuk → sessiz.
+        with mock.patch.dict(sys.modules, {"torch": None}):
+            T.check_vram_budget(args, "cuda")
+        assert logs == []
+        # Boş VRAM bol → sessiz.
+        torch = types.SimpleNamespace(cuda=types.SimpleNamespace(
+            is_available=lambda: True,
+            mem_get_info=lambda: (20000 * 1048576, 24000 * 1048576)))
+        with mock.patch.dict(sys.modules, {"torch": torch}):
+            T.check_vram_budget(args, "cuda")
+        assert logs == []
+        # Boş VRAM dar → tek warn, tavsiye içerir.
+        torch2 = types.SimpleNamespace(cuda=types.SimpleNamespace(
+            is_available=lambda: True,
+            mem_get_info=lambda: (2000 * 1048576, 24000 * 1048576)))
+        with mock.patch.dict(sys.modules, {"torch": torch2}):
+            T.check_vram_budget(args, "cuda")
+        assert len(logs) == 1 and logs[0][1] == "warn"
+        assert "VRAM" in logs[0][0] and "int8" in logs[0][0]
+    finally:
+        T.log = old_log
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
