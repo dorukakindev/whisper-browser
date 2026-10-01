@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2225.md](docs/devir/2026-10-01-2225.md) — kuyruk-50 madde 48: longPathAware manifest yaması + süreç/dosya sınır matrisi (rapor 360)
+Güncel çalışma: [docs/devir/2026-10-01-2231.md](docs/devir/2026-10-01-2231.md) — madde 49 inputSha256 + runtime manifest (bd6243b)
+Önceki çalışma: [docs/devir/2026-10-01-2225.md](docs/devir/2026-10-01-2225.md) — kuyruk-50 madde 48: longPathAware manifest yaması + süreç/dosya sınır matrisi (rapor 360)
 Önceki çalışma: [docs/devir/2026-10-01-2220.md](docs/devir/2026-10-01-2220.md) — kuyruk-50 madde 47: DPI/çoklu-monitör invariant ratchet'i (rapor 359)
 Önceki çalışma: [docs/devir/2026-10-01-2217.md](docs/devir/2026-10-01-2217.md) — kuyruk-50 madde 46: temiz Windows kurulum matrisi + PERMISSION hatası (rapor 358)
 Önceki çalışma: [docs/devir/2026-10-01-2215b.md](docs/devir/2026-10-01-2215b.md) — kuyruk-50 madde 45: parser derinlik/boyut dayanıklılığı (rapor 357)
