@@ -2040,6 +2040,57 @@ def test_dedupe_policy_always_removes_overlapping_whisper_artifacts():
     far = [(0.0, 1.0, "Hayır."), (10.0, 11.0, "Hayır.")]
     assert T.apply_dedupe_policy(far, extended=True) == far
 
+
+def test_dedupe_policy_boundary_overlap_stitch():
+    # Uzun medyada pencere sınırı artefaktı: sonraki pencere önceki kuyruğu
+    # yeniden yazar ama metin birebir değil — kelime örtüşmesiyle ekleme.
+    stitched = T.apply_dedupe_policy([
+        (27.0, 30.0, "the cat sat on the mat"),
+        (29.4, 32.0, "the mat again"),
+    ], extended=False)
+    assert stitched == [(27.0, 32.0, "the cat sat on the mat again")]
+
+    # İçerme: yeniden yazılan kuyruk daha eksiksiz sürümü taşır.
+    contained = T.apply_dedupe_policy([
+        (27.0, 30.0, "the cat sat"),
+        (29.0, 33.0, "the cat sat on the mat"),
+    ], extended=False)
+    assert contained == [(27.0, 33.0, "the cat sat on the mat")]
+
+    # Ters içerme: yeni pencere kısa yankı üretirse önceki (daha tam) metin kalır.
+    shorter = T.apply_dedupe_policy([
+        (27.0, 30.0, "the cat sat on the mat"),
+        (29.0, 30.2, "the cat"),
+    ], extended=False)
+    assert shorter == [(27.0, 30.2, "the cat sat on the mat")]
+
+    # Baştaki noktalama tokenı hizayı kaydırmaz ("-- " öneki örtüşmeyi bozmaz).
+    punct = T.apply_dedupe_policy([
+        (27.0, 30.0, "on the mat"),
+        (29.0, 32.0, "-- the mat again"),
+    ], extended=False)
+    assert punct == [(27.0, 32.0, "on the mat again")]
+
+
+def test_dedupe_policy_boundary_overlap_real_repeats_kept():
+    # Gerçek tekrarlar zamansal örtüşmez → hiçbir sürümde silinmez.
+    real = [(0.0, 1.0, "Yes."), (1.5, 2.5, "Yes, I do.")]
+    assert T.apply_dedupe_policy(real, extended=False) == real
+
+    # Zamansal örtüşme ama kelime örtüşmesi yok → farklı replikler korunur.
+    diff = [(0.0, 4.0, "I don't think so"), (3.5, 6.0, "completely agree")]
+    assert T.apply_dedupe_policy(diff, extended=False) == diff
+
+    # Tek kelimelik sınır örtüşmesi yetersiz kanıt ("no" ortak ama <2 kelime).
+    thin = [(0.0, 2.0, "I said no"), (1.8, 3.0, "no way")]
+    assert T.apply_dedupe_policy(thin, extended=False) == thin
+
+    # Örtüşen kelime kısa tarafın yarısından azsa birleşmez.
+    weak = [(0.0, 5.0, "the cat sat on the mat and slept"),
+            (4.5, 7.0, "on the mat but then left quickly")]
+    assert T.apply_dedupe_policy(weak, extended=False) == weak
+
+
 def test_reexport_sorts_segments_before_writing():
     # JSON elle düzenlendiğinde sıra bozulabilir; re-export çıktısı kronolojik
     # olmalı ve konuşmacı etiketi segmentle birlikte taşınmalı.

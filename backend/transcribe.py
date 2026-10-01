@@ -5169,6 +5169,57 @@ def dedupe_consecutive(entries, max_gap=2.0):
     return [(o[0], o[1], o[2]) for o in out]
 
 
+def _norm_words_for_dedupe(text):
+    normed = _norm_for_dedupe(text)
+    if not normed:
+        return []
+    return [w.strip(" .,!?…:;-\"'‘’“”«»") for w in normed.split()
+            if w.strip(" .,!?…:;-\"'‘’“”«»")]
+
+
+def _boundary_overlap_merge(prev_text, next_text):
+    """Pencere sınırı artefaktı birleştirme.
+
+    Uzun medyada Whisper bir sonraki pencerede önceki kuyruğu yeniden yazar;
+    metinler birebir eşit olmaz. Zamansal örtüşme varken (çağıran garantiler):
+
+    - sonraki metin öncekinin kelime öneki/uzantısıysa daha eksiksiz olan tutulur;
+    - öncekinin kelime soneki sonrakinin önekiyle >=2 kelime ve kısa tarafın
+      en az yarısı kadar örtüşürse örtüşen bölüm bir kez yazılarak ekleme
+      yapılır (gerçek tekrarlar zamansal olarak örtüşmediği için bu yola
+      girmez).
+
+    Birleştirilemez metinlerde None döner.
+    """
+    a = _norm_words_for_dedupe(prev_text)
+    b = _norm_words_for_dedupe(next_text)
+    if not a or not b:
+        return None
+    if len(b) >= len(a) and b[:len(a)] == a:
+        return next_text
+    if len(a) >= len(b) and a[:len(b)] == b:
+        return prev_text
+    shared = 0
+    for k in range(min(len(a), len(b)) - 1, 1, -1):
+        if a[-k:] == b[:k]:
+            shared = k
+            break
+    if not shared or shared * 2 < min(len(a), len(b)):
+        return None
+    tokens = next_text.split()
+    # Baştaki tamamen noktalama-tokenları ("--", "—") normalize kelime üretmez;
+    # orijinal metin token'larına indirgerken atlanırlar, yoksa örtüşen kelime
+    # metinde tekrar eder.
+    lead = 0
+    while lead < len(tokens) and not tokens[lead].strip(" .,!?…:;-\"'‘’“”«»"):
+        lead += 1
+    tail = tokens[lead + shared:]
+    tail_text = " ".join(tail).strip()
+    if not tail_text:
+        return prev_text
+    return (prev_text.rstrip() + " " + tail_text).strip()
+
+
 def apply_dedupe_policy(entries, extended=False):
     """Whisper örtüşme artefaktlarını zorunlu, yakın tekrarları isteğe bağlı temizle.
 
@@ -5176,20 +5227,30 @@ def apply_dedupe_policy(entries, extended=False):
     kullanıcı tercihinden bağımsız bir üretim artefaktıdır. ``extended`` açıkken
     önceki davranış korunur ve aralarında en fazla iki saniye olan yakın tekrarlar
     da birleştirilir; kapalıyken uzaktaki veya yalnızca bitişik gerçek tekrarlar
-    korunur.
+    korunur. Zamansal olarak örtüşen fakat metni birebir olmayan pencere sınırı
+    yankıları kelime örtüşmesiyle birleştirilir (``_boundary_overlap_merge``).
     """
     cleaned = []
     for start, end, text in entries:
         if cleaned:
             prev_start, prev_end, prev_text = cleaned[-1]
+            overlap = float(start) < float(prev_end)
+            drift = float(start) - float(prev_start)
             same_rolling_cue = (
-                float(start) < float(prev_end)
-                and float(start) - float(prev_start) <= 1.0
+                overlap
+                and drift <= 1.0
                 and _norm_for_dedupe(text) == _norm_for_dedupe(prev_text)
             )
             if same_rolling_cue:
                 cleaned[-1] = (prev_start, max(float(prev_end), float(end)), prev_text)
                 continue
+            # Birebir-eşit metinlerde 1.0 sn sürüklenme sınırı korunur; kelime
+            # örtüşmeli birleştirme yalnız metinler farklı sınır yankısıyken.
+            if overlap and _norm_for_dedupe(text) != _norm_for_dedupe(prev_text):
+                merged_text = _boundary_overlap_merge(prev_text, text)
+                if merged_text is not None:
+                    cleaned[-1] = (prev_start, max(float(prev_end), float(end)), merged_text)
+                    continue
         cleaned.append((start, end, text))
     return dedupe_consecutive(cleaned) if extended else cleaned
 
