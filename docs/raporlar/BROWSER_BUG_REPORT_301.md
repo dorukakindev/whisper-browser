@@ -972,6 +972,58 @@ ve OAuth/oturum deposu. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R350 — main.js bakiye derin okuması 6: depo katmanı + oturum geri-yükleme + pdfProtocol (temiz)
+
+Altıncı turda ~995 satır okundu — geçmiş/kütüphane/not/favicon depoları,
+sekme-oturumu geri yükleme, kaynak anlık görüntüsü, indirme kayıtları,
+whisper-pdf protokolü + PDF kayıt/indeks/istek normalizasyonu, çeviri
+endpoint çözümü + sınırlı yanıt okuma. Doğrulanmış bug yok.
+
+- **Depo katmanı** (3048–3496): `loadHistory` ana→.bak sıralı geri
+  düşüm (belgeli — öncesi tüm geçmişi siliyordu); `saveHistory`
+  mirrorBackup'ta önce .bak'a yazıp ana dosyayı korur (R86-03);
+  `addHistory` aynı-girdi dedupe. Watch kütüphanesi Store + tombstone
+  depoları lazy-singleton; `watchIndex` unavailable-latch + tek sefer
+  legacy göç + `pruneAndSweepTracks`'e CANLI referans kümesi (açık
+  sekmeler + kalıcı oturum + workspace trackRefs, R83-27/R86-02).
+  `ensureBrowserNotesReady` needsLegacyImport göçünde store hatasını
+  boş JSON'a yutmaz (belgeli) — `migrationError` kalıcı; JSON notları
+  birincil kaynak, SQLite arama gölgesi. `subtitleTextForSearch`
+  inspect+has+isFile+8MB+mtime-LRU≤32, oynatıcıyla aynı kodlama
+  yolu (belgeli cp1254 paritesi); `subtitleSeconds` toleranslı VTT
+  (tek haneli dakika) + ASS centiseconds; `searchWatchLibrary`
+  event-loop'a bırakır (belgeli 1711 ms blok düzeltmesi) + `isCancelled`
+  + `loadWatchLibraryAll` taşma kayıtlarını da tarar + 5-eşleşme
+  sınırı + index/annotation hit dedupe + sentetik öğe.
+- **Oturum + kaynak snapshot** (4049–4268): `scheduleBrowserSessionSave`
+  trailing debounce + ≤10s yaş-sınırıyla zorunlu yazım (belgeli —
+  konum churn'ü timer'ı açlıktan öldüremez), finalize-sonrası yazmaz;
+  `restoreBrowserSessionState` cleanExit=false→kurtarma uyarısı,
+  restoreEnabled kapısı, sekme-kayıt + subtitleSelection grant,
+  active/split id doğrulaması + ratio kelepçesi + kapanış işaretçisi
+  anında persist; `browserEventContext` tam kimlik demeti;
+  `isCurrentBrowserContext` bütün tuple'ı yeniden doğrular;
+  `requestBrowserPageResourceMetrics` requestId+timeout+tekil resolve;
+  `browserResourceSnapshot` app-metrics + sekme sayfa/overlay
+  birleşimi + debugger-attach sayısı + bütçe özetçesi.
+- **pdfProtocol + çeviri köprüsü** (5917–6051, 7141–7340): media
+  kimliği değişince altyazı+iz+tercih sıfırlanır (belgeli stream
+  ayrımı); `browserTranslationConfig`/`Manga` dil regex + kelepçe +
+  glossary ≤200 + manga inherit zinciri; `safeTranslationEndpoint`
+  https veya localhost-http + /chat/completions normalize + query/hash
+  atılımı; `readResponseBufferLimited` content-length ön-kapı +
+  akışta sayım + overflow'da reader.cancel+releaseLock;
+  `whisper-pdf` handler Origin null/file kapısı + referrer kapısı
+  (absent-kabul belgeli) + host 'document' + GET/HEAD + 64-hex
+  resourceId (nonce-karışık sha256 — R191) + pdfFileAccess has+inspect
+  kimliği + RFC range (suffix/416/206) + akış gövde;
+  `inspectPdfDocument` canonical+stat+head/tail hash planı + ≤100 LRU;
+  `preparePdfPageRequests` ≤3 sayfa, güvenli-int pageNumber, 8000/2000
+  item/block, 16k/400k toplam sınırı, transform 6-sayı kesimi,
+  viewport eşleme.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
