@@ -2,6 +2,7 @@
 import contextlib
 import json
 import logging
+import math
 import os
 import sys
 
@@ -25,6 +26,8 @@ def transcribe(request):
     segments, info = model.transcribe(request['audio'], beam_size=5, vad_filter=True,
                                       language=request.get('language') or None)
     offset = float(request['start'])
+    if not math.isfinite(offset):
+        raise ValueError('Klip başlangıcı sonlu bir sayı olmalı.')
     cues = [{'start': s.start + offset, 'end': s.end + offset, 'text': s.text.strip()} for s in segments]
     return {'cues': cues, 'language': info.language}
 
