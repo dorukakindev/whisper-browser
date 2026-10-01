@@ -11,12 +11,25 @@ function normalizeEndpointBase(raw) {
   return String(raw || '').trim().replace(/\/+$/, '');
 }
 
+// Backend'deki _route_key ile aynı sözleşme: (küçük-host, sondaki-slashtan
+// arınmış path). Büyük-harfli/şema-karışık Shuai URL'leri kanonik rotayla
+// eşleşir — yoksa failover listesi aynı hostu iki kez deniyordu.
+function routeKey(url) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, '') || '/'}`;
+  } catch (_) {
+    return normalizeEndpointBase(url);
+  }
+}
+
 function resolveTranslationEndpoints(raw) {
   const selected = normalizeEndpointBase(raw) || SHUAI_ROUTES[0];
   let host = '';
   try { host = new URL(selected).hostname.toLowerCase(); } catch (_) {}
   if (!SHUAI_HOSTS.has(host)) return [selected];
-  return [selected, ...SHUAI_ROUTES.filter((route) => normalizeEndpointBase(route) !== selected)];
+  const selectedKey = routeKey(selected);
+  return [selected, ...SHUAI_ROUTES.filter((route) => routeKey(route) !== selectedKey)];
 }
 
 function shouldFailoverTranslationStatus(status, options = {}) {

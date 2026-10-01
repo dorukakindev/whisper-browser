@@ -10,9 +10,11 @@ permissions:
   contents: read
 
 # Aynı ref'e ard arda push'lanınca bayat koşuyu iptal et (PR dalı
-# churn'ünde iki bacaklı matris boş yere koşmasın).
+# churn'ünde iki bacaklı matris boş yere koşmasın). Re-run'lar kendi
+# grubuna ayrılır: eski commit'in yeniden koşusu aynı grubu paylaşıp
+# yeni commit'in koşusunu iptal ediyordu.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.run_attempt > 1 && format('-rerun-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:

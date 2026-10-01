@@ -11,17 +11,19 @@ const SRC = path.join(__dirname, '../src');
 
 // Handle'siz, ömür boyu yaşayan tekil interval'ler (modül-init IIFE içinde,
 // kendi signature-guard'larıyla çalışır). Yeni bir tanesi eklenirse bu liste
-// bilinçli güncellenmeli.
+// bilinçli güncellenmeli. `match` her bare çağrının bağlamında (satır + 2
+// sonraki satır) görünmek zorunda — yerine başka bir bare interval gelen
+// whitelisted interval sayı eşitliğiyle fark edilmezdi.
 const BARE_SINGLETON_WHITELIST = new Map([
-  ['renderer/browser-analysis-tools.js', 1],
-  ['renderer/browser-dialogue.js', 1],
-  ['renderer/browser-features.js', 1],
-  ['renderer/browser-series-context.js', 1],
-  ['renderer/browser-video-analysis.js', 1],
+  ['renderer/browser-analysis-tools.js', { count: 1, match: /player\.browserTime/ }],
+  ['renderer/browser-dialogue.js', { count: 1, match: /tools\.signature\(\)/ }],
+  ['renderer/browser-features.js', { count: 1, match: /setInterval\(tick/ }],
+  ['renderer/browser-series-context.js', { count: 1, match: /key\(ctx\)/ }],
+  ['renderer/browser-video-analysis.js', { count: 1, match: /signature\(\) !== contextKey/ }],
   // checkPlayerSleepTimer — renderer yaşamı boyunca tek çağrı
-  ['renderer/renderer.js', 1],
+  ['renderer/renderer.js', { count: 1, match: /checkPlayerSleepTimer/ }],
   // soak probu setInterval'i wrap eder (envanter aracı, üretim timer'ı değil)
-  ['renderer/resource-soak-probe.js', 0],
+  ['renderer/resource-soak-probe.js', { count: 0 }],
 ]);
 
 function listJsFiles(dir, relBase = dir) {
@@ -57,15 +59,21 @@ describe('R324-3: interval envanteri — her setInterval ya eşli ya whitelist',
       const lines = text.split('\n');
       const bare = [];
       const handled = new Set();
-      for (const line of lines) {
+      for (const [ln, line] of lines.entries()) {
         for (const m of line.matchAll(/\bsetInterval\s*\(/g)) {
           const h = handleFor(line.slice(0, m.index));
-          if (h) handled.add(h); else bare.push(line.trim().slice(0, 120));
+          if (h) handled.add(h);
+          else bare.push({ context: `${line}\n${lines[ln + 1] || ''}\n${lines[ln + 2] || ''}`, line: line.trim().slice(0, 120) });
         }
       }
       for (const h of handled) {
+        // 'x.y.timer' handle'ı için tam-yol eşleşmesi zorunlu — yalnız son
+        // segmente bakmak 'clearInterval(other.timer)'ı yanlışlıkla eş sayar.
         const ident = h.split('.').pop();
-        const clearRe = new RegExp(`clearInterval\\s*\\([^)]*\\b${ident}\\b`);
+        const escaped = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const clearRe = h.includes('.')
+          ? new RegExp(`clearInterval\\s*\\(\\s*${escaped}\\b`)
+          : new RegExp(`clearInterval\\s*\\([^)]*\\b${ident}\\b`);
         if (!clearRe.test(text)) {
           violations.push(`${rel}: '${h}' handle'lı interval için clearInterval eşi yok`);
         }
@@ -73,9 +81,16 @@ describe('R324-3: interval envanteri — her setInterval ya eşli ya whitelist',
       const expected = BARE_SINGLETON_WHITELIST.get(rel);
       if (bare.length) {
         if (expected === undefined) {
-          violations.push(`${rel}: ${bare.length} handle'siz interval (whitelist'te yok): ${bare[0]}`);
-        } else if (bare.length > expected) {
-          violations.push(`${rel}: ${bare.length} handle'siz interval > whitelist ${expected}`);
+          violations.push(`${rel}: ${bare.length} handle'siz interval (whitelist'te yok): ${bare[0].line}`);
+        } else {
+          if (bare.length > expected.count) {
+            violations.push(`${rel}: ${bare.length} handle'siz interval > whitelist ${expected.count}`);
+          }
+          for (const b of bare) {
+            if (expected.match && !expected.match.test(b.context)) {
+              violations.push(`${rel}: bare interval whitelist parmak iziyle uyuşmuyor: ${b.line}`);
+            }
+          }
         }
       }
     }
@@ -90,7 +105,7 @@ describe('R324-3: interval envanteri — her setInterval ya eşli ya whitelist',
       const total = (text.match(/\bsetInterval\s*\(/g) || []).length;
       const assigned = (text.match(/[=:]\s*setInterval\s*\(/g) || []).length;
       const bareCount = total - assigned;
-      assert.ok(bareCount >= expected, `${rel}: ${bareCount} bare < whitelist ${expected} — whitelist bayat`);
+      assert.ok(bareCount >= expected.count, `${rel}: ${bareCount} bare < whitelist ${expected.count} — whitelist bayat`);
     }
   });
 });

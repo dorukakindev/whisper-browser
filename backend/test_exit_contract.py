@@ -86,6 +86,27 @@ class TestExitContract(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "error")
         self.assertEqual(events[-1].get("kind"), "cancelled")
 
+    def test_keyboard_interrupt_rolls_back_open_transactions(self):
+        # Açık bir OutputTransaction varken Ctrl+C: rollback çağrısı error
+        # olayından ÖNCE gelmeli (130 çıkışı da geri alır — sadece hata yolu
+        # değil). Sahte tx gerçek _OPEN_TRANSACTIONS kaydına girer.
+        proc = _run(
+            "import types, pipeline_control as P\n"
+            "tx = types.SimpleNamespace(state='staging', rolled=0)\n"
+            "tx.rollback = lambda: setattr(tx, 'rolled', tx.rolled + 1)\n"
+            "P._OPEN_TRANSACTIONS.append(tx)\n"
+            "T.transcribe = " + (_THROW % "KeyboardInterrupt()") + "\n"
+            "real_emit = T.emit\n"
+            "T.emit = lambda t, **kw: real_emit(t, rolled=tx.rolled, **kw)\n",
+            "--input", "x.mp4",
+        )
+        self.assertEqual(proc.returncode, 130, proc.stderr[-400:])
+        events = _events(proc.stdout)
+        self.assertEqual(events[-1]["type"], "error")
+        self.assertEqual(events[-1].get("kind"), "cancelled")
+        self.assertEqual(events[-1].get("rolled"), 1,
+                         "Ctrl+C yolunda açık işlem geri alınmadan error olayı yazıldı")
+
     def test_error_path_rolls_back_transactions(self):
         # rollback_open_output_transactions'in error olayından ÖNCE çağrıldığını
         # doğrula: sahte pipeline_control sayacı + emit'i saran prob.

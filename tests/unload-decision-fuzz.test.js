@@ -143,10 +143,13 @@ describe('groupBrowserProcessMetrics / budget özetleri — hostile girdi', () =
   });
 
   it('normalizeBrowserPageResourceMetrics: measured:false ⇒ null alanlar; değerler negatif olamaz', () => {
-    const unmeasured = normalizeBrowserPageResourceMetrics({ measured: false, activeTimers: 9, overlayNodes: 3 });
+    const unmeasured = normalizeBrowserPageResourceMetrics({ measured: false, activeTimers: 9, overlayNodes: 3, ipcPerMinute: 12 });
     assert.equal(unmeasured.activeTimers, null);
     assert.equal(unmeasured.overlayNodes, null);
     assert.equal(unmeasured.measured, false);
+    // ipcPerMinute sayfa-ölçümü değil ana süreç sayacıdır — measured:false
+    // durumunda bile değer korunur (ölçülemeyen sayfa alanlarından ayrı).
+    assert.equal(unmeasured.ipcPerMinute, 12);
     for (let seed = 0; seed < 500; seed++) {
       const rand = rng(seed);
       const raw = {};

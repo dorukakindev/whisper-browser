@@ -2931,7 +2931,10 @@ function readPublicSettings() {
       if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) {
         delete parsed[key]; dropped = true; continue;
       }
-      try { scanJsonShape(parsed[key]); }
+      // Kayıt yolunda aynı değer kökün 1. seviyesi olarak taranır; okuma
+      // yolu da derinliği 1'den başlatır — 0'dan başlatsa tam sınırda olan
+      // ağaç okumada geçip sonraki HER kaydı reddederdi (B-323-03 devamı).
+      try { scanJsonShape(parsed[key], 1); }
       catch (_) { delete parsed[key]; dropped = true; }
     }
     if (dropped) settingsFileCorrupt = true;
@@ -5142,7 +5145,10 @@ function secondaryBrowserTab() {
 function browserTabHasPage(tab) {
   if (!tab) return false;
   const wc = tab.view?.webContents;
-  return !!(wc && !wc.isDestroyed() && (wc.getURL() !== 'about:blank' || tab.restoredUrl));
+  if (wc && !wc.isDestroyed() && wc.getURL() !== 'about:blank') return true;
+  // Bellekten boşaltılmış sekme: sayfası restoredUrl'de durur ve
+  // resumeRestoredBrowserPage ile geri açılır — ikincil görünüme de seçilebilir.
+  return !!tab.restoredUrl;
 }
 
 function browserTabShouldBeVisible(tab) {
@@ -18482,7 +18488,8 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
   catch (error) { return { ok: false, tracks: [], error: error.message }; }
   const ffprobe = resolveFfTool('ffprobe');
   return new Promise((resolve) => {
-    let out = '';
+    const chunks = [];
+    let outBytes = 0;
     let p;
     let settled = false;
     let timer;
@@ -18509,21 +18516,22 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     p.on('error', () => finish({ ok: false, tracks: [] }));
     if (p.stdout) {
       // ffprobe çıktısında iz başlıkları UTF-8 olabilir ('Türkçe altyazı');
-      // Buffer→string per-chunk dönüşümü sınırda bölünen diziyi bozardı.
-      p.stdout.setEncoding?.('utf8');
+      // Buffer biriktirip sonda tek seferde çözülür — çok baytlı karakter
+      // sınırda bölünmez ve boyut sınırı bayt cinsinden ölçülür (string
+      // karakter sayısı 4 baytlı gliflerde sınırı aşırdı).
       p.stdout.on('data', (d) => {
         if (settled) return;
-        if (out.length + d.length > 4 * 1024 * 1024) {
+        if (outBytes + d.length > 4 * 1024 * 1024) {
           terminateProcessTree(p, { spawn });
           finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
-        } else out += d;
+        } else { chunks.push(d); outBytes += d.length; }
       });
     }
     p.on('close', (code) => {
       if (settled) return;
       if (code !== 0) return finish({ ok: false, tracks: [] });
       try {
-        const data = JSON.parse(out);
+        const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         const tracks = (data.streams || []).filter((s) => s && s.codec_type === 'audio').map((s, i) => {
           const tags = s.tags || {};
           return {

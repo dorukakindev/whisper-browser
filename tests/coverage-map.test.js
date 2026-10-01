@@ -41,7 +41,9 @@ describe('R328-3: modül-bazlı kapsam haritası', () => {
   });
 
   it('require/import-edilen modül oranı gerilemez', () => {
+    // Eşik mevcut seviyeye sabitlendi (2026-10-01: 170/181) — yeni test
+    // referansı kaybedilirse ratchet sessizce düşmesin.
     const direct = rows.filter((r) => r.klass === 'direct').length;
-    assert.ok(direct >= 160, `direct kapsam geriledi: ${direct}/${moduleCount}`);
+    assert.ok(direct >= 170, `direct kapsam geriledi: ${direct}/${moduleCount}`);
   });
 });

@@ -26,7 +26,7 @@ describe('R324-5: kalıcı-emitter listener envanteri', () => {
   });
 
   it('webRequest hook kurulumları birer init çağrısı (yığma yok)', () => {
-    for (const hook of ['onBeforeSendHeaders', 'onHeadersReceived']) {
+    for (const hook of ['onBeforeRequest', 'onBeforeSendHeaders', 'onHeadersReceived']) {
       const count = (main.match(new RegExp(`webRequest\\.${hook}\\(`, 'g')) || []).length;
       assert.ok(count <= 2, `${hook} ${count} çağrı — yığma riski`);
     }
@@ -45,6 +45,10 @@ describe('R324-5: kalıcı-emitter listener envanteri', () => {
     // app.on/ipcMain.on/mainWindow.on görülmemeli (init-bölge dışında).
     // mainWindow.on kayıtları createWindow/init bölgesindedir (satır >10000):
     const windowOns = [...main.matchAll(/\bmainWindow\.on\('([^']+)'/g)].map((m) => ({ e: m[1], idx: m.index }));
+    const names = windowOns.map((w) => w.e);
+    const windowDups = names.filter((e, i) => names.indexOf(e) !== i);
+    assert.deepEqual([...new Set(windowDups)], [],
+      'mainWindow olayı tekrar kaydedilmiş — çift işleyici');
     for (const { e } of windowOns) {
       assert.ok(['close', 'closed', 'focus', 'app-command'].includes(e), `mainWindow.on('${e}') yeni kayıt — init envanterine eklemeli`);
     }

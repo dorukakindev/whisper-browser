@@ -3697,6 +3697,11 @@ async function handleProgressiveTerminal(event, job) {
 function playerJobEvent(event) {
   const job = player.job;
   if (!job || (!job.running && !job.awaitingExit)) return false;
+  // Harici Ctrl+C/sonlandırma: backend error kind:'cancelled' + çıkış 130
+  // yayar (R329-2 sözleşmesi). Yerel iptal bayrağı olmasa da iptal yoluna
+  // bağlan ki geç hata metni 'Altyazı oluşturulamadı' gibi görünmesin.
+  if ((event.type === 'error' && event.kind === 'cancelled')
+      || (event.type === 'exit' && event.code === 130)) job.cancelled = true;
   if(job.kind==='chat'){
     if(['chat','done','exit','error'].includes(event.type))clearTimeout(job.chatTimer);
     if(event.type==='chat'&&job.chatAnswered)return true;
@@ -4407,8 +4412,9 @@ window.api.onEvent((event) => {
 
     case 'error':
       // İptal ile yarışan geç hata olayını kullanıcıya gerçek hata gibi gösterme;
-      // süreç kapanışında exit dalı iptal durumunu toparlar.
-      if (state.cancelled) break;
+      // süreç kapanışında exit dalı iptal durumunu toparlar. Backend harici
+      // sonlandırmada kind:'cancelled' yayar — yerel bayraksız da iptal say.
+      if (state.cancelled || event.kind === 'cancelled') break;
       logLine('Hata: ' + (event.message || 'Bilinmeyen hata'), 'error');
       setStatus('Hata', 'error');
 
@@ -4431,7 +4437,9 @@ window.api.onEvent((event) => {
       // Iptali yalniz renderer bayragindan okumak yetmiyordu: uygulama kapanisi
       // veya kuyruk durdurma ana surecte iptal ettiginde renderer bunu hata
       // saniyordu. Ana surec artik exit olayini cancelled ile isaretliyor.
-      if (state.cancelled || event.cancelled) {
+      // Çıkış kodu 130 = KeyboardInterrupt (Ctrl+C) sözleşmesi — harici
+      // sonlandırmada cancelRequested bayrağı kurulmaz, koddan tanınır.
+      if (state.cancelled || event.cancelled || event.code === 130) {
         // Kullanıcı iptal etti — hata gibi gösterme
         state.cancelled = false;
         state.running = false;
@@ -15966,11 +15974,19 @@ async function refreshEmbeddedSubtitleTracks(filePath) {
   // Çıkarılamayan metin izleri (bozuk indeks vb.) bitmap sayılmaz —
   // ipucu '0 görüntü tabanlı iz' demesin diye ayrı sayılır.
   const unreadCount = player.embeddedSubtitleTracks.filter((track) => !track.extractable && !track.requiresOcr).length;
-  $('playerEmbeddedSubHint').textContent = uiText(textCount
-    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
-    : bitmapCount
-      ? `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
-      : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`);
+  // İnterpole edilmiş şablon uiText'e girilemez (anahtar eşleşmez) — TR/EN
+  // metinler interfaceChoice ile iki dilli kurulur.
+  $('playerEmbeddedSubHint').textContent = interfaceChoice(
+    textCount
+      ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+      : bitmapCount
+        ? `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+        : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`,
+    textCount
+      ? `${textCount} ready text track${textCount > 1 ? 's' : ''} found${bitmapCount ? `; ${bitmapCount} bitmap track${bitmapCount > 1 ? 's' : ''} not supported as text` : ''}${unreadCount ? `; ${unreadCount} track${unreadCount > 1 ? 's' : ''} unreadable` : ''}.`
+      : bitmapCount
+        ? `${bitmapCount} bitmap track${bitmapCount > 1 ? 's' : ''} found; not supported as text${unreadCount ? `; ${unreadCount} track${unreadCount > 1 ? 's' : ''} unreadable` : ''}.`
+        : `${unreadCount} subtitle track${unreadCount > 1 ? 's' : ''} found but none can be extracted; tracks with unreadable indexes cannot be selected.`);
   $('playerEmbeddedSubLoad').disabled = !textCount;
 }
 

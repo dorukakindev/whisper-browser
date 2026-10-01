@@ -19,13 +19,17 @@ function fixture(pid) {
   const signals = [], calls = [], warnings = [];
   const proc = new EventEmitter();
   proc.pid = pid; proc.exitCode = null; proc.signalCode = null;
-  proc.kill = (signal) => { signals.push(signal); return true; };
+  // close gözlendikten sonraki kill gerçek sinyal kaçağıdır — whenClosed ile
+  // sıralama da yakalanır (yalnız sinyal sayısı buna kör kalır).
+  let closedSeen = false;
+  proc.kill = (signal) => { signals.push({ signal, whenClosed: closedSeen }); return true; };
   const spawnFn = (...args) => { calls.push(args); return killer; };
   let timeoutFn = null;
   const setTimeoutFn = (fn, ms) => { timeoutFn = fn; assert.equal(ms, 5000); return { unref() {} }; };
   const clearTimeoutFn = () => { timeoutFn = null; };
   return { proc, spawn: spawnFn, signals, calls, warnings, killer,
     platform: 'win32', setTimeoutFn, clearTimeoutFn,
+    markClosed: () => { closedSeen = true; },
     onWarning: (m) => warnings.push(m), fireTimeout: () => timeoutFn && timeoutFn() };
 }
 
@@ -41,21 +45,16 @@ describe('terminateProcessTree — olay-sırası churn fuzz (1500 tohum)', () =>
         () => terminateProcessTree(f.proc, f),
         () => { if (killerAlive()) f.killer.emit('error', new Error('late')); },
         () => { if (killerAlive()) f.killer.emit('exit', pick(rand, [0, 1, -1])); },
-        () => { if (!closed) { closed = true; f.proc.exitCode = 0; f.proc.emit('close', 0); } },
+        () => { if (!closed) { closed = true; f.markClosed(); f.proc.exitCode = 0; f.proc.emit('close', 0); } },
         () => f.fireTimeout(),
-        () => { f.proc.signalCode = 'SIGTERM'; closed = true; f.proc.emit('close', null, 'SIGTERM'); },
+        () => { f.proc.signalCode = 'SIGTERM'; closed = true; f.markClosed(); f.proc.emit('close', null, 'SIGTERM'); },
       ];
       for (let i = 0; i < ops; i++) opSet[Math.floor(rand() * opSet.length)]();
       // invariant'lar
       assert.ok(f.calls.length <= 1, `seed ${seed}: birden çok taskkill`);
-      assert.ok(f.signals.length <= 1, `seed ${seed}: çoklu SIGKILL ${f.signals}`);
-      if (closed && f.proc.exitCode != null) {
-        // exitCode sonrası kill çağrısı yapılmamalı — fixture yalnız
-        // terminateProcessTree'nin kill'ini sayar; geç bir sinyal varsa
-        // fallback ancak exitCode'dan ÖNCE koşmuş olmalı. Bunu kesin sınamak
-        // için: sinyal varsa o an kapalı değildi — fixture bunu bilmez;
-        // güçlü invariant: SIGKILL sayısı ≤1 (üstte) yeterli.
-      }
+      assert.ok(f.signals.length <= 1, `seed ${seed}: çoklu SIGKILL ${JSON.stringify(f.signals)}`);
+      assert.ok(!f.signals.some((s) => s.whenClosed),
+        `seed ${seed}: close gözlendikten sonra kill gönderildi`);
       // fireTimeout sonrası ikinci SIGKILL olmamalı (fallbackUsed)
       if (f.signals.length === 1) {
         const before = f.signals.length;
@@ -88,8 +87,14 @@ describe('terminateProcessTree — gerçek süreç respawn churn', () => {
       });
       const closed = new Promise((res) => child.once('close', (c, s) => res([c, s])));
       assert.equal(terminateProcessTree(child, { spawn }), true);
-      const [code, signal] = await Promise.race([closed, new Promise((_, rej) =>
-        setTimeout(() => rej(new Error(`tur ${i}: close gelmedi`)), 4000))]);
+      // close kazanırsa 4s'lik reddedici timer açık kalıp süreci yaşatır —
+      // yarış sonrası mutlaka temizle.
+      let timeoutHandle = null;
+      const timeout = new Promise((_, rej) => {
+        timeoutHandle = setTimeout(() => rej(new Error(`tur ${i}: close gelmedi`)), 4000);
+      });
+      const [code, signal] = await Promise.race([closed, timeout])
+        .finally(() => clearTimeout(timeoutHandle));
       assert.equal(signal, 'SIGKILL', `tur ${i}: ${code}/${signal}`);
       // PID gerçekten öldü mü?
       let alive = false;

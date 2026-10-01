@@ -3,7 +3,7 @@
 Devin Review ve el-kontrol turlarında `needs_human` işaretlenen / kullanıcı
 kararı bekleyen maddelerin tek çatı listesi. Yeni bir `needs_human`
 raporlandığında buraya eklenir; kullanıcı karar verdiğinde madde "Kapandı"
-bölümüne taşınır. Son güncelleme: 2026-09-30 (R330-2).
+bölümüne taşınır. Son güncelleme: 2026-10-01 (R332).
 
 ## Kullanıcı kararı bekleyenler
 
@@ -16,15 +16,14 @@ bölümüne taşınır. Son güncelleme: 2026-09-30 (R330-2).
 | 5 | PR [#165](https://github.com/dorukakindev/whisper-browser/pull/165) | Ctrl+K komut paletinde sorguyu *seçer* | Chrome/Ctrl+L kuralına göre bilinçli davranış; onaylanırsa kapanır |
 | 6 | devir `2026-09-29-2304` | Üç-nokta-dışı metinde in-place mutasyon sınırı | Bilinçli sınır olarak kabul / kapsam genişletme |
 | 7 | devir `2026-09-30-0800` | `win-traversal` Linux ayıracı probu | Windows'a özgü kabul; onaylanırsa kapanır |
+| 8 | PR [#184](https://github.com/dorukakindev/whisper-browser/pull/184) | Proxy'li ortamda DNS-pinning: istemci DNS'i proxy çözer, sabitleme uygulanamaz | Tam çözüm CONNECT-tünelleme/varlık-mimarisi turu gerektirir — kapsam onayı |
+| 9 | PR [#184](https://github.com/dorukakindev/whisper-browser/pull/184) | `whisper-assets` nonce URL'si yalnız ASS alan sayfaya görünür | Tam kapanma varlık-mimarisi değişikliği ister — kapsam onayı |
+| 10 | Blueprint önerisi (CJK/emoji fontları + xvfb) | Yeni snapshot'a font paketleri | Timeline'daki blueprint kartında onay bekliyor |
 
 ## İzlemede (otomatik ilerleyen)
 
 - **Windows el-kontrol oturumu** `devin-3c20a465`: R236 tur-3 §3/§4 liste +
   NTP imleç + PDF açma doğrulaması — oturum suspend, rapor gelince triage.
-- **Blueprint önerisi** (CJK/emoji fontları + xvfb): timeline'da kullanıcı
-  onayı bekliyor.
-- Merge kuyruğu PR #278–#296: CI yeşil → squash-merge, ardından her PR'ın
-  review bulguları triage edilir.
 
 ## Kapandı (kayıt)
 

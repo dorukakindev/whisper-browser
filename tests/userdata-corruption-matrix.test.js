@@ -71,6 +71,34 @@ describe('R325-1: userData bozulma matrisi', () => {
     }
   });
 
+  it('ENOSPC enjeksiyonu: yarım yazımda var olan dosya korunur (watch-library)', () => {
+    const dir = tmpdir();
+    const { createWatchLibraryStore } = require('../src/watch-library-store');
+    const f = path.join(dir, 'wl.json');
+    const store = createWatchLibraryStore({ filePath: f });
+    store.replaceItems([{ key: 'k1', url: 'https://x/', title: 't', addedAt: 1 }]);
+    const goodRaw = fs.readFileSync(f, 'utf-8');
+    for (const point of ['before-temp-write', 'after-temp-write', 'before-main-replace']) {
+      const failing = createWatchLibraryStore({
+        filePath: f,
+        fault(stage) {
+          if (stage === point) {
+            const e = new Error('disk dolu');
+            e.code = 'ENOSPC';
+            throw e;
+          }
+        },
+      });
+      assert.throws(
+        () => failing.replaceItems([{ key: 'k2', url: 'https://y/', title: 'u', addedAt: 2 }]),
+        (e) => e.code === 'ENOSPC',
+        `${point}: ENOSPC yutulmamalı — yazıcıya iletilmeli`,
+      );
+      assert.equal(fs.readFileSync(f, 'utf-8'), goodRaw, `${point}: birincil dosya bozuldu`);
+      assert.equal(fs.existsSync(`${f}.tmp`), false, `${point}: yarım tmp kaldı`);
+    }
+  });
+
   it('watch-library: birincil bozuksa .bak kurtarır', () => {
     const dir = tmpdir();
     const { createWatchLibraryStore } = require('../src/watch-library-store');
@@ -99,6 +127,23 @@ describe('R325-1: userData bozulma matrisi', () => {
         .map((m) => m[1].trim())
         .filter((arg) => /getPath\('userData'\)|userData\(\)/.test(arg));
       assert.deepEqual(hits, [], `${file}: userData yoluna doğrudan yazım: ${hits.join('; ')}`);
+
+      // Takma-ad boşluğu: `writeFileSync(filePath, ...)` kalıbı hedefin
+      // userData mı kullanıcı-seçimi mi olduğunu gizler. Çıplak tanımlayıcı
+      // argümanlar iki sınıftan birine düşmeli:
+      //  (a) geçici ad deseni — tmp+rename töreninin ilk adımı (serbest);
+      //  (b) bu whitelist — kullanıcıya dönük çıktı yolları (dışa aktarım,
+      //      live-audio wav, sohbet yedeği, iptal işareti). Liste yalnız
+      //      KÜÇÜLÜR: yeni çıplak-tanımlayıcı yazımı inceleme gerektirir.
+      const NON_TEMP_OUTPUT_VARS = new Set(['filePath', 'p', 'cancelFilePath']);
+      const bare = [...src.matchAll(/writeFileSync\(([^,;\n]+)/g)]
+        .map((m) => m[1].trim())
+        .filter((arg) => /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(arg))
+        .filter((arg) => !/tmp|temp/i.test(arg))
+        .filter((arg) => !NON_TEMP_OUTPUT_VARS.has(arg));
+      assert.deepEqual(bare, [],
+        `${file}: sınıflanmamış çıplak-tanımlayıcı writeFileSync: ${bare.join('; ')} ` +
+        '(userData hedefliyse atomik yaz, kullanıcı çıktısıysa whitelist\'e değerlendir)');
     }
   });
 });
