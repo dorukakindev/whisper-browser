@@ -7,7 +7,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { app, BrowserWindow } = require('electron');
-require('./electron-stub-ipc').registerBareWindowIpcStubs();
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-icon-smoke-'));
 app.setPath('userData', profile);
