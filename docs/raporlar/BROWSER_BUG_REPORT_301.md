@@ -1389,6 +1389,38 @@ yakalandı ve eklendi); statik kilit: `api.notify(uiText(...))` ve
 
 Windows etkisi: yok — renderer dizgi işi. Windows'ta elle doğrulanmadı.
 
+## R390 — Dar pencerede TR/büyük yazı taşması (2 kusur düzeltildi)
+
+20'lik kuyruğun 3. görevi: dar pencerede (640px = uygulama minWidth
+tabanı), TR locale ve zoom ×1.0/×1.5 altında kesilen düğmeleri/taşan
+panelleri bul. Yeni Electron smoke'u
+`tests/electron-ui-narrow-tr.smoke.js` görünür tüm krom öğelerini
+(düğme, menü öğesi, etiket, başlık; kullanıcı-verisi bölgeleri hariç)
+üç denetimle tarar: belge yatay taşması, panel sağ-kenar aşımı,
+nowrap/hidden altında scrollWidth>clientWidth kırpılması.
+
+**B-390-01 — SmartTube yan rayı ≤720px'de etiketleri kırpıyordu:**
+60px rayda `.st-side-label` 9px'e düşse de tek kelimelik etiketler
+("Abonelikler" 148px, "Invidious giriş" 168px, "YouTube giriş" 164px)
+50px kutuya sığmıyor ve overflow visible olduğu için komşu sütuna
+taşıyordu. ≤720px'de etiketler artık gizli (ikon-only ray; anlam
+`title`/`aria-label`'da kalır) — 15 `st-side-item` düğmesine görünen
+etiketle birebir `aria-label` eklendi.
+
+**B-390-02 — st-topbar arama kutusu sağdaki görünüm düğmesini itiyordu:**
+`.st-search-wrap`/`#stSearchInput` `min-width:auto` (input'un doğal
+~20ch genişliği) yüzünden ~427px etkili genişlikte `#stDisplayToggle`
+görüntü alanı dışına çıkıyordu. `min-width:0` ile arama daralır,
+düğme görünür kalır.
+
+**Kanıtlar:** smoke kırmızıdaydı (14+1 kırpılmış öğe), düzeltmelerle
+yeşil; menüler/ayar çekmecesi/görev merkezi/indirme+AI+tanı+bul
+panelleri/kuyruk-araçları açıkken 640px'de sıfır taşma.
+`smarttube-*` ve `electron-smarttube-boot` testleri PASS.
+
+Windows etkisi: medya sorgusu + flex davranışı platformdan bağımsız;
+aynı düzeltme Windows'ta da geçerli. Elle doğrulanmadı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
