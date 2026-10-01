@@ -5514,9 +5514,44 @@ async function saveBrowserContextImage(tab, rawUrl) {
   try { parsed = new URL(String(rawUrl || '')); } catch (_) { throw new Error('Görsel adresi geçersiz.'); }
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Bu geçici veya gömülü görsel adresi henüz kaydedilemiyor. HTTP/HTTPS görseller destekleniyor.');
   if (!tab?.view || tab.view.webContents.isDestroyed()) throw new Error('Görselin bulunduğu sekme kapandı.');
-  const response = await tab.view.webContents.session.fetch(parsed.href, {
-    headers: { Referer: tab.view.webContents.getURL() || parsed.origin },
-  });
+  const pageUrl = tab.view.webContents.getURL() || '';
+  // Aynı kökenli görsel (yerel ağ sitesi dahil) serbest; farklı köken için
+  // hedefin genel adres olduğunu her yönlendirme hop'unda yeniden doğrula —
+  // session.fetch 'follow' olsaydı genel bir CDN hop'u iç ağ adresine
+  // zincirlenebilirdi.
+  const sameOriginAsPage = (candidate) => {
+    try { return browserSiteOrigin(candidate) === browserSiteOrigin(pageUrl); }
+    catch (_) { return false; }
+  };
+  const checkImageTarget = async (candidate) => {
+    if (sameOriginAsPage(candidate)) return;
+    await assertPublicBrowserSubtitleUrl(candidate);
+  };
+  let requestUrl = parsed.href;
+  let response;
+  for (let redirects = 0; redirects <= 4; redirects++) {
+    await checkImageTarget(requestUrl);
+    const sameOrigin = sameOriginAsPage(requestUrl);
+    response = await tab.view.webContents.session.fetch(requestUrl, {
+      redirect: 'manual',
+      // Çerez/Referer yalnız sayfa kökenindeki hop'ta taşınır; zincirin dış
+      // köken hop'larında dışarı sızmaz.
+      credentials: sameOrigin ? 'include' : 'omit',
+      headers: sameOrigin ? { Referer: pageUrl || new URL(requestUrl).origin } : {},
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) break;
+    if (redirects === 4) throw new Error('Görsel çok fazla kez yönlendirildi.');
+    const location = response.headers.get('location');
+    if (!location) throw new Error('Görsel yönlendirmesi hedef adres içermiyor.');
+    let next;
+    try { next = new URL(location, requestUrl); }
+    catch (_) { throw new Error('Görsel yönlendirmesi geçersiz bir adres içeriyor.'); }
+    if (!/^https?:$/.test(next.protocol) || next.username || next.password || next.href.length > 8192) {
+      throw new Error('Görsel yönlendirmesi güvenli değil.');
+    }
+    next.hash = '';
+    requestUrl = next.href;
+  }
   if (!response.ok) throw new Error(`Görsel indirilemedi (HTTP ${response.status}).`);
   const type = response.headers.get('content-type') || '';
   if (type && !/^image\//i.test(type)) throw new Error('Seçilen kaynak bir görsel değil.');
@@ -13263,13 +13298,29 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         // Sayfa, kendi kökeni dışındaki bir favicon'u özel ağ adresinden
         // (http://192.168.1.1/cgi?…) ilan ederek ana süreçten çerezli bir GET
         // yaptırabiliyordu (Chromium'un özel ağ korumasını atlayarak). Farklı
-        // kökenli favicon yalnız genel adrese ve yönlendirmesiz indirilir; yerel ağ
+        // kökenli hedeflerde genel-adres doğrulaması her hop'ta tekrarlanır; yerel ağ
         // sitesinin kendi favicon'u (aynı köken) etkilenmez.
-        const crossOrigin = browserSiteOrigin(favicon) !== browserSiteOrigin(faviconPageUrl);
-        if (crossOrigin) await assertPublicBrowserSubtitleUrl(favicon);
-        const response = await withTimeout(wc.session.fetch(favicon, {
-          credentials: 'include', ...(crossOrigin ? { redirect: 'manual' } : {}),
-        }), 8000, 'Favicon indirme zaman aşımına uğradı.');
+        const sameOriginAsPage = (candidate) =>
+          browserSiteOrigin(candidate) === browserSiteOrigin(faviconPageUrl);
+        let faviconUrl = favicon;
+        let response;
+        // 'follow' zinciri aynı-köken muafiyetini atlayabilirdi: ilk istek
+        // aynı kökene giderken 3xx hop'u ayrılmış/özel bir adrese taşıyabilirdi.
+        for (let hops = 0; hops <= 2; hops++) {
+          if (!sameOriginAsPage(faviconUrl)) await assertPublicBrowserSubtitleUrl(faviconUrl);
+          response = await withTimeout(wc.session.fetch(faviconUrl, {
+            credentials: sameOriginAsPage(faviconUrl) ? 'include' : 'omit',
+            redirect: 'manual',
+          }), 8000, 'Favicon indirme zaman aşımına uğradı.');
+          if (![301, 302, 303, 307, 308].includes(response.status)) break;
+          const location = response.headers.get('location');
+          if (!location || hops === 2) return;
+          let next;
+          try { next = new URL(location, faviconUrl); } catch (_) { return; }
+          if (!/^https?:$/.test(next.protocol) || next.username || next.password || next.href.length > 8192) return;
+          next.hash = '';
+          faviconUrl = next.href;
+        }
         if (!response || !response.ok) return;
         const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
         if (!/^image\//.test(mime)) return;
@@ -18608,10 +18659,26 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
-        const res = await fetch(
-          `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`,
-          { signal: controller.signal, redirect: 'follow',
+        // 'follow' zincir hedefini doğrulamaz; besleme yalnız youtube.com
+        // ailesinden kabul edilir — her hop elle izlenir.
+        let feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`;
+        let res;
+        for (let hops = 0; hops <= 2; hops++) {
+          res = await fetch(feedUrl, { signal: controller.signal, redirect: 'manual',
             headers: { Accept: 'application/atom+xml, text/xml, */*' } });
+          if (![301, 302, 303, 307, 308].includes(res.status)) break;
+          const location = res.headers.get('location');
+          if (!location || hops === 2) { res = null; break; }
+          let nextUrl;
+          try { nextUrl = new URL(location, feedUrl); } catch (_) { res = null; break; }
+          if (!/^https:$/.test(nextUrl.protocol)
+              || !(nextUrl.hostname === 'youtube.com' || nextUrl.hostname.endsWith('.youtube.com'))) {
+            res = null; break;
+          }
+          nextUrl.hash = '';
+          feedUrl = nextUrl.href;
+        }
+        if (!res) { errors += 1; continue; }
         const len = Number(res.headers.get('content-length')) || 0;
         if (!res.ok || len > 256 * 1024) { errors += 1; continue; }
         // Akış sınırlı okuma: content-length beyanı yalan olabilir; res.text()

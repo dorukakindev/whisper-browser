@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2159.md](docs/devir/2026-10-01-2159.md) — kuyruk-50 madde 41: IPC yetki sınırları gerçek-Electron reddi (rapor 353)
+Güncel çalışma: [docs/devir/2026-10-01-2210.md](docs/devir/2026-10-01-2210.md) — kuyruk-50 madde 42: ağ yönlendirme sınırları — redirect zincirleri hop-başına doğrulama (rapor 354)
+Önceki çalışma: [docs/devir/2026-10-01-2159.md](docs/devir/2026-10-01-2159.md) — kuyruk-50 madde 41: IPC yetki sınırları gerçek-Electron reddi (rapor 353)
 Önceki çalışma: [docs/devir/2026-10-01-2155.md](docs/devir/2026-10-01-2155.md) — kuyruk-50 madde 40: manga bölüm terim tutarlılığı hattı (rapor 352)
 Önceki çalışma: [docs/devir/2026-10-01-2145.md](docs/devir/2026-10-01-2145.md) — kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 38: PDF görev planlayıcısı (sınırlı paralel sayfa havuzu + O(n²) normalize düzeltmesi)
