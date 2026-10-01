@@ -1532,6 +1532,48 @@ Testler: `backend/venv/bin/python backend/test_media.py` → 5/5 PASS
 Windows etkisi: yok — probe yalnız bozuk extractor verisinde
 değişti (çöküş → atlama).
 
+## R363 — series_memory.py tam derin okuma + doğumda zarif devredilme
+
+**Kapsam:** `backend/series_memory.py` (420 satır) tamamen okundu —
+sezon/bölüm ayrıştırma, canon birleştirme, kilit ve atomik yazım.
+
+**Düzeltilen:**
+
+- **`__init__` kilit/disk hatası tüm işi düşürüyordu:**
+  `SeriesMemory.for_input` → `__init__` → `_file_lock` zincirinde
+  `mkdir`/`open` OSError'ı veya >10 sn tutulan kilit TimeoutError'ı
+  sarmasız yayılıyordu (transcribe.py:3696) ve transkripsiyon işini
+  başlamadan öldürüyordu. Hafıza yalnız bir optimizasyon — artık
+  OSError/TimeoutError yakalanıp `load_warning` set ediliyor;
+  `build_hint`/`merge` yolları zaten bu bayrakla zarif devrediliyor.
+  Kırmızı kanıt: master'da FileExistsError; düzeltmede 9/9 PASS
+  (+2 yeni test: bloklu dizin + kilit-timeout doğumu).
+
+**Doğrulanan (bug yok):**
+
+- Kayıp-güncelleme koruması: `_save` kilit altında diski yeniden okur,
+  `_merge_canon_maps`/`_merge_latest_disk_canon` erken-bölüm-canon
+  kuralıyla disk↔bellek birleştirir (R293 yarış testi temizdi).
+- `_file_lock` POSIX `LOCK_EX|LOCK_NB` + Windows `msvcrt LK_NBLCK`
+  deadline döngüsü (belgeli düzeltme); sahiplik token'ıyla unlock.
+- `_write_unlocked`: aynı-dizin mkstemp + fsync + `os.replace`;
+  Windows winerror 5/32/33 geri-denemesi.
+- `_read`: sürüm/kimlik/yapı doğrulaması; bozuk dosya korunur +
+  uyarı; `_safe_text` kontrol karakteri + `<`/`>` nötrleştirme;
+  `build_hint` `<untrusted_series_memory>` çitle prompt-injection
+  dayanıklılığı.
+- `_merge_into_data`: paket başına 20/12/12 kota, case-variant anahtar
+  değişimi, genel isim reddi, register ∈ {sen,siz}.
+- `parse_series_key`: SxxExx/NxNN/sezon-episode/anime desenleri;
+  `_slugify` yol-güvenli gösterim.
+- `_prune` en erken canon'u deterministik sırayla korur.
+
+Testler: `backend/venv/bin/python backend/test_series_memory.py` →
+9/9 PASS (+2 yeni test).
+
+Windows etkisi: olumlu — AV/realtime-tarama veya eşzamanlı iş
+kilitli hafızada transkripsiyon artık devam eder (hafıza pasif).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
