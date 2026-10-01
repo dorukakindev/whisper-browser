@@ -1064,15 +1064,21 @@ function pageApplyScript(payload = {}) {
       const send = (action, ref, extra = {}) => globalThis.__whisperTrustedBridgeSend?.('page-action', {
         action, id: ref.id, pre: ref.translation, bridgeToken: state.config?.bridgeToken || '', ...extra,
       });
-      const showOriginal = (ref) => {
-        if (!ref || state.view !== 'translation') return;
-        ref.previewOriginal = true;
-        restoreRef(ref);
-      };
       const restoreView = (ref) => {
         if (!ref?.previewOriginal) return;
         ref.previewOriginal = false;
+        if (state.previewedRef === ref) state.previewedRef = null;
         renderRef(ref, state.view);
+      };
+      const showOriginal = (ref) => {
+        if (!ref || state.view !== 'translation') return;
+        // Önizleme tek yuvadadır ve zamanlayıcı tek slottur: başka bir blok
+        // açıkken yenisini açmak eskisinin geri dönüşünü iptal edip kaynak
+        // metni çeviri görünümünde takılı bırakıyordu.
+        restoreView(state.previewedRef);
+        state.previewedRef = ref;
+        ref.previewOriginal = true;
+        restoreRef(ref);
       };
       const showTools = (ref) => {
         if (!ref?.active || state.editInput) return;
@@ -1086,6 +1092,7 @@ function pageApplyScript(payload = {}) {
       const hideTools = () => {
         if (state.editInput) return;
         tools.hidden = true;
+        restoreView(state.previewedRef);
         restoreView(state.hoveredRef);
         state.hoveredRef = null;
       };
@@ -1159,7 +1166,7 @@ function pageApplyScript(payload = {}) {
         if (action === 'original') {
           showOriginal(ref);
           clearTimeout(state.previewTimer);
-          state.previewTimer = setTimeout(() => restoreView(ref), 2500);
+          state.previewTimer = setTimeout(() => restoreView(state.previewedRef || ref), 2500);
         } else if (action === 'edit' || action === 'edit-site') {
           startEdit(ref, action === 'edit-site' ? 'site' : 'exact');
         } else if (action === 'edit-save') {

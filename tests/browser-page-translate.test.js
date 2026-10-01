@@ -642,4 +642,81 @@ assert.match(pageBlockScanScript(), /root\?\.isConnected === false/);
   assert.equal(scanState.observers.size, 1, 'yalnız belge observer\'ı kalmalı');
 }
 
+// 'Orijinal' araç önizlemesi tek yuvalıdır; previewTimer da tek slottur — B
+// bloğunda yeni bir önizleme açmak A'nın geri dönüş zamanlayıcısını iptal edip
+// A'yı kaynak metinde takılı bırakıyordu. state.previewedRef takibi, yeni
+// önizleme öncesi eskisini geri yükler.
+{
+  const previewRootA = {
+    tagName: 'P', children: [], nextSibling: null, parentNode: { insertBefore() {} },
+    getBoundingClientRect: () => ({ top: 10, bottom: 40, left: 5, right: 200, width: 195, height: 30 }),
+    appendChild(node) { this.children.push(node); },
+  };
+  const previewRootB = {
+    tagName: 'P', children: [], nextSibling: null, parentNode: { insertBefore() {} },
+    getBoundingClientRect: () => ({ top: 50, bottom: 80, left: 5, right: 200, width: 195, height: 30 }),
+    appendChild(node) { this.children.push(node); },
+  };
+  const previewNodeA = { nodeValue: 'Merhaba dünya.', isConnected: true };
+  const previewNodeB = { nodeValue: 'Güle güle dünya.', isConnected: true };
+  const previewState = {
+    refs: new Map([
+      ['pa:key', { id: 'pa:key', root: previewRootA, nodes: [previewNodeA],
+        originals: ['Merhaba dünya.'], section: 'Genel', active: false, applied: false }],
+      ['pb:key', { id: 'pb:key', root: previewRootB, nodes: [previewNodeB],
+        originals: ['Güle güle dünya.'], section: 'Genel', active: false, applied: false }],
+    ]),
+    latestIdByRoot: new WeakMap([[previewRootA, 'pa:key'], [previewRootB, 'pb:key']]),
+    activeByRoot: new WeakMap(), refByRoot: new WeakMap(),
+    observers: new Map(), visible: true,
+  };
+  const previewListeners = {};
+  const previewDoc = {
+    hidden: false,
+    head: { appendChild() {} },
+    body: { appendChild() {} },
+    documentElement: { appendChild() {} },
+    createElement: makeDomElement,
+    getElementById: () => null,
+    querySelectorAll: () => [],
+    addEventListener(type, fn) { previewListeners[type] = fn; },
+    removeEventListener(type) { delete previewListeners[type]; },
+  };
+  const previewContext = vm.createContext({
+    window: { __whisperPageTranslateState: previewState },
+    document: previewDoc,
+    addEventListener(type, fn) { previewListeners['g:' + type] = fn; },
+    removeEventListener() {},
+    setTimeout: () => 1, clearTimeout() {},
+    innerWidth: 1000, innerHeight: 600,
+    Map, Set, WeakMap, Math, Number, String, Array, Object, JSON, console,
+  });
+  const applyResult = vm.runInContext(pageApplyScript({
+    view: 'translation', translations: [
+      { id: 'pa:key', translation: 'Hello world.' },
+      { id: 'pb:key', translation: 'Goodbye world.' },
+    ],
+  }), previewContext);
+  assert.equal(applyResult.applied, 2);
+  assert.equal(previewNodeA.nodeValue, 'Hello world.');
+  assert.equal(previewNodeB.nodeValue, 'Goodbye world.');
+  const clickPreview = (id) => previewListeners.click?.({
+    isTrusted: true,
+    target: {
+      closest: () => ({
+        getAttribute: (name) => (name === 'data-whisper-id' ? id
+          : name === 'data-whisper-action' ? 'original' : null),
+      }),
+    },
+    preventDefault() {}, stopPropagation() {},
+  });
+  clickPreview('pa:key');
+  assert.equal(previewNodeA.nodeValue, 'Merhaba dünya.', 'A önizlemesi kaynağı göstermeli');
+  clickPreview('pb:key');
+  assert.equal(previewNodeB.nodeValue, 'Güle güle dünya.', 'B önizlemesi kaynağı göstermeli');
+  assert.equal(previewNodeA.nodeValue, 'Hello world.',
+    'B önizlemesi açılırken A çeviri görünümüne geri dönmeli (tek-slot timer yarışı)');
+  assert.equal(previewState.previewedRef, previewState.refs.get('pb:key'));
+}
+
 console.log('browser-page-translate: semantik bağlam, atomik çıktı ve DOM geri yükleme testleri geçti');

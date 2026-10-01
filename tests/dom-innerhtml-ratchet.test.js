@@ -49,7 +49,7 @@ const ALLOWED = new Set([
   'src/renderer/renderer.js:20797::pendingBlocks',         // Number(...) || 0
   'src/renderer/renderer.js:20858::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
   'src/renderer/renderer.js:20858::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
-  'src/browser-page-translate.js:1047::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
+  'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 
 function topLevelSplit(e) {
