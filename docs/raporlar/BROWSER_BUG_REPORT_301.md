@@ -281,6 +281,47 @@ kilitlendi, ileride plan kaynağı değişirse test yakalar.
   12000-kesim), sourceEditSnapshot (base-koruma, browserOverride atlanır,
   remap-kayıp hatası, 1000 sınırı).
 
+## R338 — main.js çeviri hattı derin okuması (temiz)
+
+R337'nin devamı: renderer'ın çağırdığı IPC tarafı. Okunan yüzeylerin tamamında
+doğrulanmış bekçiler bulundu — doğrulanmış bug yok.
+
+- **IPC handler'ları** (main.js 16759–16845): `browser:translation:start/
+  displayed/snapshot/stop/completeAll/retryFailed` + `network:setOnline` —
+  hepsi `authorizedBrowserSender` + `activeRequestedBrowserTab` (bayat-sekme
+  reddi) kapılı; displayed handler'ı trackId eşleşmesi ister.
+- **startBrowserTranslation** (8642–8804): 20000-cue sınırı, refresh yolunda
+  scheduler+trackId doğrulaması, sourceHash bağlam sabitlemesi, `isCurrent`
+  kapanışı (closing/scheduler/generation/mediaId), completeAll kuşak
+  bekçisi.
+- **persistCompletedBrowserTranslation** (8806–8873): deterministik trackId
+  (sourceTrackId+sourceHash+hedef+sağlayıcı+model+üslup+sözlük kimliği),
+  persistedSignature ile tekrarsız yazım, arşiv + ÇIKTI klasörü iki hedef,
+  hata yolu lastError teşhisi.
+- **BrowserTranslationScheduler modülü** (794 satır, tam okuma): nesil
+  bekçisi, paylaşılan in-flight önbellek tüketici sayımı (son tüketici
+  gidince abort), seek abort'unda pending'in senkron silinmesi, çift
+  devre kesici (sağlayıcı 5xx/429/transport + ardışık kesin hata),
+  deferred-vs-denenmiş hata ayrımı (retryFailed yalnız denenmişi
+  yeniden kuyruklar — kapalı kesicide 200 cümleyi itmez), retryAt
+  erken-uyanma re-arm, whenIdle timer'ı kaybetmez.
+- **İstek yolu** (6048–6285): endpoint HTTPS/yerel-HTTP kapısı,
+  failover statü süzgeci + kesin-hata kısa devresi, Retry-After
+  üst-sınırı (120s), 2MB yanıt sınırı, think-bloğu soyma + bilinen
+  çeviri-alanı JSON zarfı toleransı, PARTS_* çözümde gevşek-parça +
+  merged geri dönüşü, hata detayında kaynak metin redaksiyonu.
+- **Sayfa çevirisi** (6395–7130): oturum/iş nesil bekçisi her aşamada,
+  apply zinciri kuyruğu 20'şer paket + 45ms toplama, enstrümantasyon
+  güvenlik kapıları (uyumluluk/Cloudflare/stale/unknown), tarama
+  await'i sonrası kuşak doğrulaması (R83-22), dinamik blok kabulü
+  20k/3k üst sınırları + köprü tokenı, bellek/önbellek uygulaması
+  excludedIds'e saygılı.
+- **PDF çevirisi** (7334–7405): scheduler yaşam döngüsü job.schedulers
+  kümesinde izlenir, abort dinleyicisi finally'de sökülür, sayfa
+  blokları status+error alanıyla kayıt edilir.
+- `src/subtitle-sentence-layout.js` (416 satır) bu turda satır okumasına
+  girilmedi — 9 ayrı test dosyasıyla (özel dahil) zaten kilitli.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.

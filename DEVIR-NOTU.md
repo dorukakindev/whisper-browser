@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-0700.md](docs/devir/2026-10-01-0700.md) — R337 renderer derin-okuma kampanyası: yüzeyler temiz + 16 davranış kilidi (bulk/edit/snapshot/alternatives)
+Güncel çalışma: [docs/devir/2026-10-01-0705.md](docs/devir/2026-10-01-0705.md) — R338 main.js çeviri hattı derin okuması: IPC→scheduler→istek→sayfa/PDF yüzeyleri temiz
+Önceki çalışma: [docs/devir/2026-10-01-0700.md](docs/devir/2026-10-01-0700.md) — R337 renderer derin-okuma kampanyası: yüzeyler temiz + 16 davranış kilidi (bulk/edit/snapshot/alternatives)
 Önceki çalışma: [docs/devir/2026-10-01-0630.md](docs/devir/2026-10-01-0630.md) — R334+R335 kapsam kampanyası kapanışı: sıfır-referans yüzeyler kilitli, `npm test` tamamen yeşil (master bfbee62); CI Actions-disabled
 Önceki çalışma: [docs/devir/2026-10-01-0500.md](docs/devir/2026-10-01-0500.md) — R334 yerel kalite turu: B-334-01 boundary mükerrer fix + kapsam haritaları (main/renderer/backend)
 Önceki çalışma: [docs/devir/2026-10-01-0410.md](docs/devir/2026-10-01-0410.md) — R332: Devin Review toplu triage #266–#300 (kod + test + belge)
