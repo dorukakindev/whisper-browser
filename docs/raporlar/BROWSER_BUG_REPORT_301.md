@@ -162,6 +162,31 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   Sıfır-referans envanteri bu batch ile kapandı: kalan 32 ad nested iç kapanış
   (section çıkarmaya uygun değil) — üst fonksiyonları kilitli; dosyada belgeli.
 
+- `tests/misc-exports-deadzone.test.js` — 17 senaryo: ~30 modülün kilitlenmemiş
+  export fonksiyonu tek dosyada: subtitle-pair-quality (timestamp bucket +
+  overlap-eşik hizalaması), subtractCoverageRanges (aralık eksiltme + tolerans
+  birleşimi), youtube-accounts (hesap sanitize + accountIdFor fallback zinciri),
+  browserZoomHost (IPv6 dahil), serviceIdentity (youtu.be/watch/shorts/clip +
+  hint override), stableUrlHash (24-hex deterministik), publicWatchItem
+  (gizli alan süzgeci) + replaceWatchLibraryItems (dedupe/revision/sort/
+  tombstone sıfırlama), collectionNames/normalizeCollectionName/
+  normalizeSearchScope + mangaPositionCaptureScript (JSON kaçışı), fsyncFile /
+  fsyncFileBestEffort (gerçek + EPERM yutma), srtTime/assTime (yuvarlama+negatif+
+  NaN kapıları), burninRecoveryVersionTooNew + replace-backup desen temizliği,
+  expectedFormat (vtt/ass/srt), storageValues (8MB + JSON kapısı + string-dışı
+  eleme), directorySizeBytes (nested + yok-dizin), watchOutputNames (tüm sonek
+  matrisi + translateTo), trimTerminologyMap (sayı sırası + bütçe),
+  normalizeReviewState (ease/dueAt kelepçeleri), normalizeAdapter (id regex +
+  capability default'ları), normalizeCapabilities, normalizeSiteTermRows
+  (dedupe/count kelepçesi), urlOriginRelation (no-opener/same/cross/opaque),
+  sanitizeVariant (role/source beyaz liste + sourceHash hex süzgeci),
+  legacyMangaCacheKey (deterministik + dil duyarlı), mangaVisibilityScript,
+  pageIndexCaptureIsCurrent (nesil/görünüm/enable bekçisi), profileOf (terms
+  dedupe), runtimeRoot, headerValue (Headers/düz-nesne), waitForChildClose
+  (çıkmış/timeout/kapanan + dinleyici geri-alımı), readLimitedBytes
+  (content-length/arrayBuffer/stream-cancel), createResourceTracker (io sayaçları
+  + close-sonrası donma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
