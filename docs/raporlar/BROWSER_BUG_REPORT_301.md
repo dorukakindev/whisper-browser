@@ -1298,6 +1298,47 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R370 — index.html gövde denetimi — 2 mikro düzeltme
+
+**Kapsam:** `src/renderer/index.html` (3.459 satır) — id sözleşmesi
+dışında gövde ilk kez yapısal olarak tarandı.
+
+**Düzeltilen:**
+
+- **`shiftSeconds` etiketsiz girdi:** komşu `<label>` öğesi ne sarıyordu
+  ne `for=` ile bağlıydı — ekran okuyucu/etiket-tıklama bağlantısı
+  yoktu. `for="shiftSeconds"` eklendi (sarılı-etiket kalıbı dosyada
+  zaten yaygın; burası tek gerçek etiketsiz girdiydi).
+- **`target="_blank"` iki hf.co bağlantısı** `rel="noopener
+  noreferrer"` eksikti (diarization kurulum ipucu) — eklendi.
+
+**Doğrulanan (bug yok):**
+
+- 0 yinelenen id; `for=`/`aria-labelledby`/`aria-describedby` referans
+  bütünlüğü tam (eksik hedef yok).
+- 4 gerçek modal (resultModal, appDialog, invidiousLogin,
+  youtubeLogin) `role` + `aria-modal` taşıyor; 3 non-modal panel
+  (shortcutHelp, stDisplayPanel, wordInspector) doğru şekilde
+  aria-modal'sız (etkileşimi bloklamıyorlar).
+- CSP katı: `script-src 'self'` — satır-içi script yok, CDN yok;
+  `<script>` etiketlerinin tamamı yerel. `<img>` alt, `<iframe>`,
+  `autofocus`, pozitif tabindex, `javascript:` URL, `on*` attribute —
+  hepsi sıfır.
+- 25 id'nin JS/CSS'de isim-referansı yok — data-*/sınıf sorgularıyla
+  çalışan (doğrulandı: `[data-pdf-view]`, `[data-subtitle-display]`,
+  `.view-modes .vm`, `$(id+'Val')` dinamik erişim) veya salt yapısal
+  köprü niteliğinde; işlev kaybı yok.
+
+Testler: kod davranışı değişmedi; işaretleme düzeltmeleri.
+
+Windows etkisi: olumlu — zaman-kaydırma girdisi artık etiketli;
+dış bağlantılar noopener.
+
+Stil tarafı notu: styles.css için ayrı birim gerekli — statik
+taramada 2 görünen duplicate-property da yorum-içi metinler çıktı
+(false positive); token/kontrast denetimi Chromium gerektirir
+(--browser yoksa audit:ui koşamaz).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
