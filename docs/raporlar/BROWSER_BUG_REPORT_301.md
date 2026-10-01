@@ -1298,6 +1298,50 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R384 — küçük-dosya süpürmesi tamamı temiz
+
+Kapsam (~1.700 satır, 36 dosya — hepsi src/ küçük-yüzey modülleri): argv-escape, atomic-json, process-io, async-timeout, subtitle-export-validation, window-state, translation-endpoints, ytdlp-runtime, browser-ai-context, browser-media-selection, browser-dialogue (main), browser-capture-recovery, browser-dark-mode, browser-script-execution, renderer/browser-dialogue, browser-cosmetic-executor, browser-link-intent, browser-live-audio, browser-translation-provider-error, subtitle-encoding-preview, subtitle-corpus-discovery, browser-audio-policy, browser-media, browser-tab-layout, browser-subtitle-preferences, browser-fonts, browser-site-zoom, browser-site-terminology, browser-event-envelope, translation-diff, youtube-player-response-pruner, browser-learning, browser-subtitle-files, renderer/live-asr-worklet, text-stability-evaluator, browser-reference-media.
+
+### Notlar (doğrulanmış temiz — sıfır bulgu)
+
+- argv-escape.js: `--opt=değer` bağlama + kaçan-değer tarayıcısı doğru (R287'nin kilitleriyle uyumlu).
+- atomic-json.js: writeJsonAtomic `flush:true` (fdatasync) + pid'li tmp adı + mirror .bak politikası — R86-03 referans implementasyonu; dir-fsync yok ama ayna stratejisi kaldırıyor.
+- process-io.js: tek-satır probe, 8s timeout, 64KB tavan, child kill çift yollu.
+- async-timeout.js: settled-bayrak + clearTimeout çifti; AbortController'lı varyant abort'u reject'ten önce ateşler.
+- subtitle-export-validation.js: format=BOM sözleşmesi çift yönlü, U+FFFD ret, cue-sayı + ±2ms zaman + metin sadakati.
+- window-state.js: pozisyon bilinçli saklanmaz; boyut workArea'ya kelepçe; bozuk JSON varsayılana düşer.
+- translation-endpoints.js: routeKey host+path dedupe (büyük-harf/şema karışımı yakalar), 429 retryable değil (kota), sameProviderAliases'de 401/403 de dener.
+- ytdlp-runtime.js: resolveInside traversal kapısı + win32-mutlak reddi; yarım-paket 4-modül sağlık listesi update_ytdlp ile eşit tutulmalı (yorumda sabit).
+- browser-ai-context.js: scope='watched' gelecek-cue vermez; T\d+ alıntı çözümü.
+- browser-media-selection.js + browser-media.js: tek sıralama kuralı hem sayfa-içi hem çapraz-karede — 1px izleme videosu komut çalamaz, sesli-audio > duraklatılmış-video önceliği.
+- browser-dialogue.js (main): çıktı yolu temp klasörle sınırlı kontrol; temp-dir adı/yeri doğrulanır; model/dil whitelist.
+- browser-capture-recovery.js: SUBTITLE_URL_RE geniş ama yalnız retry tetikler (yanlış-pozitif = ekstra indirme denemesi, zararsız); çift-FNV parmak izi.
+- browser-dark-mode.js: bundle'da exportGeneratedCSS imzası şart, tema değerleri kelepçeli, 2MB CSS tavanı, globalThis temizliği try'da.
+- browser-script-execution.js: hazır-değil kapısı loading'de birikimi önler; context-loss mesaj kalıbı; isMainDocumentNavigation isSameDocument dışlar.
+- renderer/browser-dialogue.js: seq+signature bekçi çifti, reset bağlam-değişiminde, iptal cancel IPC'si, SRT kaydet saveSubtitleCopy kanalı.
+- browser-cosmetic-executor.js: wc başına tek loading dinleyicisi (WeakMap), 128 kuyruk tavanı, URL+allowed çift-doğrulama yeniden çalıştırmada.
+- browser-link-intent.js: orta-tık veya Ctrl/Cmd+sol — platform-nötr.
+- browser-live-audio.js: pcm16Wav 9s/16kHz/çift-bayt sınırları; WAV başlığı byte-doğru.
+- browser-translation-provider-error.js: "no available channel" 503'ü providerUnavailable (retry'siz) — doğru sınıflandırma.
+- subtitle-encoding-preview.js: 22 kodlama whitelist; 'auto' decodeSubtitleBuffer'a delege; önizleme 1400 karakter kesik.
+- subtitle-corpus-discovery.js: .ham.srt→.srt eşleşmesi, excluded bay-pass normalizasyonu, tr localeCompare sıralama.
+- browser-audio-policy.js: RMS -128 merkezli, -Infinity sessizlik, 450ms süre eşiği.
+- browser-tab-layout.js: reorderIds tam-permütasyon şart; splitBrowserBounds ratio [0.25,0.75], boş-bounds reddi (notlandı).
+- browser-subtitle-preferences.js: normalizeSessionTab doğrulaması her satırda, boş-seçim persist'de satırı siler, 200 LRU.
+- browser-fonts.js: 24 dosya/24MB toplam/8MB tek, 6-imza whitelist (TTF/OTF/TTC/WOFF/WOFF2), dump_attachment indeksi güvenli, temp-dir doğrulama.
+- browser-site-zoom.js: IPv6 köşeli-parantez host desteği (R77-C1 notu), 0.5–3 kelepçe, 200 site LRU-eviction.
+- browser-site-terminology.js: BCP-47 çok-alt-etiketli kodlar artık düşmez (notlandı), 200 kapsam/60 terim, tr-TR dedupe.
+- browser-event-envelope.js: sürüm-mismatch olayı reddi, tabId+generation zorunlu, mediaId/acquisitionId/operationId sağlayıcıya-göre sıkılaşır.
+- translation-diff.js: zaman-örtüşme eşlemesi (sıra-kimlik değil), 2000 tavan, selectedChangesStillMatch start+end+text üçlü doğrulaması.
+- youtube-player-response-pruner.js: 3 reklam alanı whitelist silme, yanlış-JSON dokunmaz, entity-header süzgeci.
+- browser-learning.js: sha1-parmak-izli annotation kimliği, trackId+cueId çift-eşleşme → ±50ms tek-aday geri dönüşü, tüm alanlar kesikli.
+- browser-subtitle-files.js: sahip-olunan-desen çift-regex (web-* + uuid-benzeri), korumalı-dosya LRU tahliyesi.
+- renderer/live-asr-worklet.js: ağırlıklı-box yeniden-örnekleme (44.1k tamsayı-olmayan oran), saat-drift >0.75s flush, 8s buffer/4s sessizlik-tarafı, rate kelepçesi sync ile eşit.
+- text-stability-evaluator.js: 64 aday LRU, settle/max-wait çift-koşul, revizyon-artışı publishedAt sıfırlar.
+- browser-reference-media.js: env sır-temizliği, stdout limiti, tek-kare thumbnail 320px, waveform RMS+peak karışımı 12k nokta tavanı.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
