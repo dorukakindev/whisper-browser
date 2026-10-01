@@ -924,6 +924,54 @@ medya yoklamaları, canlı Whisper işi, harici oynatıcı + okuma listesi
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R349 — main.js bakiye derin okuması 5: popup/nav + medya yardımcı süreçleri (temiz)
+
+Beşinci turda ~1.130 satır okundu — window.open/popup yaşa­m döngüsü,
+görünüm yerleşimi ve hata eşlemesi, bağlam menüsü eylemleri, görsel
+kaydetme/dönüştürme, media/YouTube/Invidious alt-süreç sarmalayıcıları
+ve OAuth/oturum deposu. Doğrulanmış bug yok.
+
+- **Popup + görünüm düzeni** (5066–5260): `browserWindowOpenHandler`
+  decideUrlPolicy + external→openExternal+deny + popup bütçesi;
+  `configureBrowserPopup` secure prefs + sanitize UA + recursion +
+  navigation guard detach-on-close; `safeBrowserBounds` ana-pencere
+  kelepçesi; `secondaryBrowserTab` sayfa koşulunu görünürlük kapısıyla
+  aynı tutar (belgeli) ve boşaltılmış sekme restoredUrl üzerinden
+  ikincil olabilir; gizli görünüm sınırı ekran dışına taşınır (Windows
+  HWND pointer-yutma belgeli); `browserTabShouldBeVisible` + fullscreen
+  tüm sekmeleri kapsar.
+- **Navigasyon + hata + bağlam menüsü** (5266–5688):
+  `openBrowserLinkInNewTab` decideUrlPolicy (userinfo reddi B83-03) +
+  MAX_SESSION_TABS + navigationRequestSeq + compat önce + await-sonrası
+  staleness + ERR_ABORTED reddedilmez; `loadedDirectBrowserMedia` yalnız
+  ERR_FAILED + medya uzantısı + aynı-URL + readyState/videoWidth
+  doğrulaması (belgeli — gerçek ağ hatası gizlenmez);
+  `browserLoadError` errno→messageKey matrisi (VPN/QUIC dahil);
+  `browserHistoryTargetUrl` navigationHistory API + normalize;
+  `navigateBrowserHistory`/`reloadBrowserTab` kimlik+seq+aktif-sekme
+  yeniden doğrulaması + compat; bağlam menüsü `actions` tablosu:
+  link/image URL'leri decideUrlPolicy'den geçer, medya eylemleri
+  renderer'ın browser:command yoluna devir eder (belgeli),
+  copy/cut/paste/select-all wc çağrısı, spell-add/replace wc üzerinde,
+  `saveBrowserContextImage` http(s)+image/*+50MB kapısı + PNG
+  dönüştürme sandbox'lı offscreen pencerede (webRequest yalnız
+  about:blank/data: izinli + 80Mpx + PNG magic doğrulaması).
+- **Medya yardımcı süreçleri + oturum** (901–1396): üç wrapper
+  (media.py/youtube.py/invidious.py) aynı sağlam iskelette — slot tekliği,
+  NDJSON 8MB, whitelist result-type, stderr tail sanitize+log, timeout
+  kind-başına, 'subs' yolu subtitleFileAccess.grant, close'da flush+
+  own-slot temizleme. `ensureYoutubeAccessToken` tv/custom kapısı +
+  60s marj + ephemeral null + tek-uçuş + account-identity yeniden
+  doğrulaması (bayat yenileme yenisiyle çakışmaz — belgeli) +
+  invalid_grant hesabı düşürür. `isLocalInvidiousInstance` https veya
+  yalnız yerel/özel host (localhost/127./10./192.168./172.16-31/.local/
+  ::1/fc/fd) + sayısal-önekli DNS sahtesi kapısı (B-323-02 belgeli);
+  `invidiousAuthEnv` SID yalnız kendi instance'ına + yalnız yerelde.
+  YouTube/Invidious oturumları SafeSecretStore'da; persistableAccounts
+  ephemeral hesapları ve kısa ömürlü token'ları diskten dışlar.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
