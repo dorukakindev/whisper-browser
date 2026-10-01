@@ -2297,6 +2297,8 @@
     ['Geçersiz tarayıcı oturum verisi.', 'Invalid browser session data.'],
     ['Video altyazı tercihi diske kaydedilemedi.', 'The video subtitle preference could not be written to disk.'],
     ['Oturum paketi çok büyük (en fazla 64 MB).', 'The session package is too large (max 64 MB).'],
+    ['Tanı paketi çok büyük.', 'The diagnostics bundle is too large.'],
+    ['Önizlenen tanı paketi okunamadı.', 'The previewed diagnostics bundle could not be read.'],
     ['Sekme henüz yüklenmedi.', 'The tab has not loaded yet.'],
     ['Yer imi bulunamadı.', 'Bookmark not found.'],
     ['Bir ad ve en az bir açık site gerekli.', 'A name and at least one open site are required.'],

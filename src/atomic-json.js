@@ -6,6 +6,7 @@
 // hedeflenir; wildcard silme kullanılmaz.
 const fs = require('node:fs');
 const path = require('node:path');
+const { fsyncDirectory } = require('./fsync-utils');
 
 function writeJsonAtomic(io, filePath, value) {
   io.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -13,6 +14,7 @@ function writeJsonAtomic(io, filePath, value) {
   try {
     io.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
     io.renameSync(tmp, filePath);
+    fsyncDirectory(path.dirname(filePath), io);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;

@@ -2088,7 +2088,9 @@ function runtimeState(id, text, status) {
   element.dataset.state = status;
 }
 
+let lastRuntimeStatusEnv = null;
 function renderRuntimeStatus(env, modelStatus = modelStatusSnapshot) {
+  lastRuntimeStatusEnv = env;
   const missing = interfaceChoice('Bulunamadı', 'Not found');
   runtimeState('runtimePython', env?.venv
     ? (env.pythonVersion || interfaceChoice('Hazır', 'Ready')) : missing, env?.venv ? 'ready' : 'error');
@@ -3348,6 +3350,15 @@ document.addEventListener('ui-locale-change', () => {
   renderBrowserTabs();
   // Geçmiş satırlarındaki 'bugün/dün/N gün önce' göreli damgaları locale'i izler.
   renderHistory();
+  // Aşağıdaki yüzeyler interfaceChoice/dinamik metin üretir — sözlük taraması
+  // bunları çeviremez; yeni dilde yeniden çizilmelidir.
+  renderTranslationModelScore();
+  updateGpuBadge();
+  renderIntegrityResults();
+  renderRuntimeStatus(lastRuntimeStatusEnv, modelStatusSnapshot);
+  if (player.browserDiagnostics) renderBrowserDiagnostics(player.browserDiagnostics);
+  if (player.browserPlaybackDiagnostics) renderBrowserPlaybackDiagnostics(player.browserPlaybackDiagnostics);
+  renderBrowserPageReport();
 });
 
 // ===== Clear buttons =====
@@ -7580,7 +7591,7 @@ function recordTranslationModelScore(event) {
   const next = score.recordRun(readTranslationModelScores(), event);
   try { localStorage.setItem(TRANSLATION_MODEL_SCORE_KEY, JSON.stringify(next)); } catch (_) {}
   renderTranslationModelScore();
-  const summary = score.describe(next, event.model);
+  const summary = score.describe(next, event.model, globalThis.UiLocale?.get?.() === 'en' ? 'en' : 'tr');
   if (summary.level === 'poor') logLine(`Model uyumu (${event.model}): ${summary.text}`, 'warn');
 }
 function renderTranslationModelScore() {

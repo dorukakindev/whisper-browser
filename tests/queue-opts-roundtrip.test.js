@@ -175,6 +175,7 @@ ok('geçerli öğe kaybı yok', dropped === 0);
     app: { getPath: () => dir },
     queueSnapshotForDisk,
     randomUUID: require('crypto').randomUUID,
+    fsyncDirectory: require('../src/fsync-utils').fsyncDirectory,
   };
   vm.createContext(ctx);
   vm.runInContext(mainSrc.slice(sliceStart, sliceEnd), ctx);
