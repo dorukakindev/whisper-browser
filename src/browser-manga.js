@@ -996,7 +996,7 @@ function mangaOverlayScript(payload) {
       region.setAttribute('data-whisper-manga-frame', '');
       text.setAttribute('data-whisper-manga-text', '');
       text.textContent = item.translation;
-      region.title = (item.source ? 'Orijinal: ' + item.source + '\\n' : '') + 'Düzenlemek için çift tıkla. Seçili bölgeyi yeniden çevirmek için Ctrl+Manga.';
+      region.title = (item.source ? 'Orijinal: ' + item.source + '\\n' : '') + 'Düzenlemek için çift tıkla. Manga düğmesine Ctrl+tık seçili bölgeyi yeniden çevirir.';
       region.setAttribute('lang', payload.lang);
       region.dataset.baseLeft = String(bx1 / 10);
       region.dataset.baseTop = String(by1 / 10);
