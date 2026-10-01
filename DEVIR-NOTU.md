@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2145.md](docs/devir/2026-10-01-2145.md) — kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi
+Güncel çalışma: [docs/devir/2026-10-01-2155.md](docs/devir/2026-10-01-2155.md) — kuyruk-50 madde 40: manga bölüm terim tutarlılığı hattı (rapor 352)
+Önceki çalışma: [docs/devir/2026-10-01-2145.md](docs/devir/2026-10-01-2145.md) — kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 38: PDF görev planlayıcısı (sınırlı paralel sayfa havuzu + O(n²) normalize düzeltmesi)
 Önceki çalışma: [docs/devir/2026-10-01-2315.md](docs/devir/2026-10-01-2315.md) — kuyruk-50 madde 37: yerel OCR yetenek yönetimi (yetenek raporu + görüntü-PDF yedeği + güven rozeti)
 Önceki çalışma: [docs/devir/2026-10-01-2300.md](docs/devir/2026-10-01-2300.md) — kuyruk-50 madde 36: PDF yerleşimli çeviri okuma sırası (başlık/dipnot/tablo) + kaynak↔hedef eşleme
