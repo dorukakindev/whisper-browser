@@ -17672,6 +17672,10 @@ function resetMediaBoundState(options = {}) {
   player.abA = null;
   player.abB = null;
   player.chatHistory = [];
+  // Eski videonun eksik-ceviri sayaci yeni medyanin butonuna "Eksik
+  // cevirileri tamamla (N)" olarak siziyordu — medyaya bagli metadata.
+  player.translationRetryAvailable = 0;
+  updateMakeTransState();
   if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
   player.timeline.waveform = [];
   player.timeline.waveformDuration = 0;

@@ -65,6 +65,15 @@ app.whenReady().then(async () => {
     return JSON.stringify({n: player.cues2.length, text: player.cues2[0].text})`)
     .then((r) => { console.log(r); const d = JSON.parse(r);
       check('medya degisiminde eski isin chununu yazmiyor', d.n === 1 && d.text === 'korunan2'); });
+  // 5) Medya degisimi sifirlamasi: eski videonun eksik-ceviri sayaci yeni
+  //    medyanin butonuna 'Eksik cevirileri tamamla (N)' olarak sizmamali.
+  await run(`
+    player.translationRetryAvailable = 4;
+    resetMediaBoundState();
+    return JSON.stringify({ retry: player.translationRetryAvailable })`)
+    .then((r) => { console.log(r); const d = JSON.parse(r);
+      check('medya degisiminde eksik-ceviri sayaci sifirlandi', d.retry === 0); });
   console.log(failures ? `FAIL ${failures} kontrol` : 'PASS: iptal/medya-degisimi karisma sozlesmesi gecti');
   app.exit(failures ? 1 : 0);
 }).catch((e) => { console.error(e); app.exit(1); });
+// append handled in-file; placeholder
