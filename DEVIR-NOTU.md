@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2014.md](docs/devir/2026-10-01-2014.md) — kuyruk-50 madde 27: checkpoint sürümleme
+Güncel çalışma: [docs/devir/2026-10-01-2018.md](docs/devir/2026-10-01-2018.md) — kuyruk-50 madde 28: kaynaklara göre kuyruk planlama
+Önceki çalışma: [docs/devir/2026-10-01-2018.md](docs/devir/2026-10-01-2018.md) — kuyruk-50 madde 28: kaynaklara göre kuyruk planlama
 Önceki çalışma: [docs/devir/2026-10-01-2014.md](docs/devir/2026-10-01-2014.md) — kuyruk-50 madde 27: checkpoint sürümleme
 Önceki çalışma: [docs/devir/2026-10-01-2013.md](docs/devir/2026-10-01-2013.md) — kuyruk-50 madde 26: ortak iş durum sözleşmesi
 Önceki çalışma: [docs/devir/2026-10-01-2011.md](docs/devir/2026-10-01-2011.md) — kuyruk-50 madde 25: CEA checkpoint parça kimliği + zaman dönüşümü

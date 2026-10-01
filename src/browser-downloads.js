@@ -4,7 +4,8 @@ const path = require('node:path');
 // Only the dedicated browser partition is attached. No URLs/cookies are kept.
 // Terminal records retain plain metadata, never DownloadItem/WebContents objects.
 function createBrowserDownloads({ publish, canStart = () => true, exists, reveal, dialogText,
-  loadRecords, saveRecords, maxActive = 8, maxRecords = 100, delay = 250 } = {}) {
+  loadRecords, saveRecords, maxActive = 8, maxRecords = 100, delay = 250,
+  scheduler = null } = {}) {
   const sessions = new WeakSet();
   const records = new Map();
   const live = new Map();
@@ -47,7 +48,16 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     }
   }
   function accept(event, item) {
-    if (!canStart() || live.size >= maxActive) {
+    const id = randomUUID();
+    // Madde 28: indirmeler ortak 'network'+'disk' kaynak bütçesinden yuva ister.
+    // Uzun işler (ör. CEA yakalama) ayrık yuvada koştuğundan burada reddedilen
+    // indirme 'zaten dolu' değil 'bütçe dolu' demektir; release ile yeniden yer açılır.
+    const admission = scheduler
+      ? scheduler.enqueue({ id, classes: ['network', 'disk'], long: false }) : 'running';
+    if (!canStart() || live.size >= maxActive || admission !== 'running') {
+      // Her iki red yolu da kabul edilmiş yuvayı iade eder — 'queued' kuyruktan
+      // silinir, 'running' kaynağı serbest bırakır.
+      try { scheduler?.cancel(id); } catch (_) {}
       event.preventDefault();
       message = !canStart() ? 'Uygulama kapanırken yeni indirme başlatılamaz.'
         : `Aynı anda en fazla ${maxActive} dosya indirilebilir. Diğer indirmelerin bitmesini bekleyin.`;
@@ -57,7 +67,6 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     // Do not setSavePath: keep Electron's native save dialog and overwrite consent.
     const dl = dialogText || ((tr) => tr);
     item.setSaveDialogOptions({ title: dl('İndirilen dosyayı kaydet', 'Save downloaded file'), buttonLabel: dl('Kaydet', 'Save') });
-    const id = randomUUID();
     const row = { id, filename: String(item.getFilename() || 'Dosya').slice(0, 300),
       state: 'progressing', received: 0, total: 0, path: '', active: true,
       paused: false, canPause: true, canResume: false, createdAt: Date.now(), completedAt: 0 };
@@ -80,6 +89,9 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
       read(state);
       row.completedAt = Date.now();
       live.delete(id);
+      // Madde 28: bitiş/iptal kaynak yuvasını serbest bırakır; scheduler bekleyen
+      // uzun işi (ör. CEA yakalama) bu release sırasında dispatch eder.
+      try { scheduler?.release(id); } catch (_) {}
       // A previous concurrency warning is no longer actionable once a slot is
       // free; do not leave the panel claiming the limit is still reached.
       message = '';

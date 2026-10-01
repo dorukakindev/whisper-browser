@@ -140,7 +140,8 @@ const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
   subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
 const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
 const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
-const { assertJobTransition } = require('./job-state-contract');
+const { assertJobTransition, isTerminalJobState } = require('./job-state-contract');
+const { createResourceScheduler } = require('./job-resource-scheduler');
 const {
   redactBrowserDiagnosticsText,
   sanitizeDiagnosticsSecrets,
@@ -576,6 +577,19 @@ const browserHlsInFlight = new Set();
 let browserHlsCeaSegmentMatchers = [];
 let browserHlsCeaActive = null;
 let browserHlsCeaFullCaptureJob = null;
+
+// Madde 28 — kaynaklara göre kuyruk planlama: indirmeler ve CEA yakalama ortak
+// 'network'+'disk' bütçesinden yer ister. Uzun işler (≥30 segmentlik yakalama)
+// ayrık uzun-yuvada koşar; kısa indirmeler ağ bütçesini süresiz bekletemez.
+const jobResourceScheduler = createResourceScheduler({ gpu: 1, cpu: 2, network: 4, disk: 4 },
+  { onDispatch(id) {
+    // Kuyrukta bekleyen iş yuva kazandı: yalnızca CEA yakalama bekleyebilir.
+    const job = browserHlsCeaFullCaptureJob;
+    if (job?.id === id && job.state === 'retry-wait' && !job.cancelled) {
+      sendBrowserHlsCeaFullProgress(job, 'running', 'Ağ kapasitesi açıldı; yakalama başlıyor.');
+      void runBrowserHlsCeaFullCapture(job);
+    }
+  } });
 const browserHlsCeaDecoders = new Map();
 const browserHlsCeaDecodeQueues = new Map();
 // decoderKey -> Map<sequence, {promise, resolve, done}> — aynı playlist'in
@@ -4596,6 +4610,7 @@ function scheduleBrowserPageIndex(tab, delay = 900) {
 }
 
 const browserDownloads = createBrowserDownloads({
+  scheduler: jobResourceScheduler,
   publish: downloads => sendBrowserEvent({ type: 'downloads', downloads }),
   canStart: () => !mainWindowClosing && !!mainWindow && !mainWindow.isDestroyed(),
   exists: filePath => { try { return fs.statSync(filePath).isFile(); } catch (_) { return false; } },
@@ -10024,6 +10039,12 @@ function sendBrowserHlsCeaFullProgress(job, state, message = '') {
     return;
   }
   job.state = state;
+  // Madde 28: terminal durumda kaynak yuvası serbest bırakılır — iptal, hata ve
+  // bitiş aynı iade yolundan geçer (çift iade no-op).
+  if (isTerminalJobState(state) && job.resourceAdmission) {
+    jobResourceScheduler.release(job.id);
+    job.resourceAdmission = null;
+  }
   job.total = Math.max(0, Number(job.segments?.length) || Number(job.total) || 0);
   const cueCount = (job.tracks || []).reduce((total, track) => {
     const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
@@ -10386,6 +10407,12 @@ function startBrowserHlsCeaFullCapture(tab) {
     autoRetryTimer: null,
   };
   job.total = job.segments.length;
+  // Madde 28: yakalama 'network' bütçesinden yuva ister; ≥30 segment 'uzun' iş
+  // sayılır ve ayrık yuvada koşar — kısa indirmeleri süresiz bekletemez.
+  // Bütçe doluysa iş 'retry-wait'te kalır; scheduler bir yuva açıldığında
+  // onDispatch ile yeniden çalıştırır.
+  job.resourceAdmission = jobResourceScheduler.enqueue({
+    id: job.id, classes: ['network'], long: job.total >= 30 });
   browserHlsCeaFullCaptureJob = job;
   if (saved) {
     clearBrowserHlsCeaFullCaptureState(job);
@@ -10411,6 +10438,11 @@ function startBrowserHlsCeaFullCapture(tab) {
         job.timeTransforms.set(streamKey, savedTrack.timeTransform);
       }
     }
+  }
+  if (job.resourceAdmission === 'queued') {
+    sendBrowserHlsCeaFullProgress(job, 'retry-wait',
+      'Ağ kapasitesi dolu; yakalama kaynak sırasında bekliyor.');
+    return { ok: true };
   }
   sendBrowserHlsCeaFullProgress(job, 'running', saved
     ? `${saved.completedSegments} segmentlik kurtarma kaydındaki satırlar korundu; çözücü güvenliği için parçalar baştan doğrulanıyor.${saved.migratedFrom !== null && saved.migratedFrom !== undefined ? ` (v${saved.migratedFrom} kaydı dönüştürüldü)` : ''}`
