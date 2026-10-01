@@ -872,6 +872,58 @@ bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R348 — main.js bakiye derin okuması 4: yoklama/live-ASR/capture yüzeyi (temiz)
+
+Dördüncü turda ~1.460 satır okundu — sayfa-içi eylem köprüsü, cloudflare
+prob durum makinesi, yakalama flush/onay akışı, manifest kurtarma,
+medya yoklamaları, canlı Whisper işi, harici oynatıcı + okuma listesi
++ arşiv IPC'leri. Doğrulanmış bug yok.
+
+- **Sayfa-eylemi köprüsü + cloudflare probu** (11695–11970):
+  `handleBrowserPageAction` bridgeToken kapısı + her DOM çağrısından
+  sonra session/generation eşleşmesi; edit'te `pre` mevcut çeviriyle
+  eşleşmeden yazılmaz (optimistic concurrency), bellek yazımı exact
+  varsayılan / site yalnız opt-in, retry tek-uçuş + result ack;
+  `settleRejectedRetry` eski kuşağa result göndermez.
+  `performBrowserPageInstrumentation` 'unknown' fail-closed (kanca
+  kurulmaz, 1,5 sn unref yeniden ölçüm ≤240), 'active'te kancalar sökülüp
+  debugger ayrılır, 'clear'da kanca+debugger geri kurulur ve bekleyen
+  overlay/manifest kurtarma tetiklenir; `suspendBrowserInstrumentation
+  ForNavigation` tüm probe/manifest/debugger alanlarını sıfırlar.
+  `setBrowserTabCompatibilityMode` actionSeq + await-sonrası
+  kimlik/mod yeniden doğrulaması (belgeli).
+- **Capture flush/drain** (11976–12302): flush↔reset promise tek-uçuşu
+  (her biri yalnız kendi kaydını siler), drain sonucu bağlam kontrolü
+  olmadan ACK/RELEASE eski belgeye gönderilmez; retry sonucu RELEASE'a
+  düşer, işlenen ACK; kare başına dropped-delta tek-seferlik raporu;
+  `probeActiveBrowserTracks`/`probeActiveBrowserMedia` busy-latch +
+  generation + compat/cloudflare/pending kapıları; media örneği
+  güvenilmeyen getter'lar finitize edilir (belgeli: oran 4x'e
+  kelepçelenmez — gözlenen gerçektir), signature-change'te event +
+  1,5 sn debounce persist; manifest kurtarma busy+seq, URL başına
+  done/2-deneme/60s/5s dedupe ≤96 kayıt, sniffing (MPD/EXTM3U) öncelikli.
+- **Live-ASR + görüntü yakalama** (8338–8642, 8875–9088, 16514–16759):
+  `startBrowserLiveAsr` tek-iş + model-süreç kapısı + KNOWN_MODELS/
+  device/computeType/dil whitelist'leri; NDJSON 8MB + overflow uyarısı;
+  stdin 'error' dinleyicisi (EPIPE çöküşü belgeli); chunk silme yalnız
+  iş-sahibi kayıtlı path'ler; CUDA'dan CPU'ya tek geçişte bekleyen
+  chunk'lar yeniden beslenir, senkron launch hatası sahneyi kapatır;
+  `stopBrowserLiveAsr` job'ı erken null'lamaz (son cue'lar düşmesin —
+  belgeli), 15s unref terminate. displayMedia handler üst-doküman +
+  userGesture + audioRequested + aktif-iş kapısı, yalnız loopback.
+  `captureBrowserFullPage` bekleyen attach'i bekler, kendi attach'ini
+  yalnız başka sahip/in-flight yoksa bırakır (belgeli), 30kx30k +
+  120Mpx sınırı; `captureBrowserVideoFrame` probe→rank komut
+  sıralamasıyla aynı, nested-frame güvenli kırpma konumu
+  doğrulanamadığı için reddeder (belgeli), hide→shot→restore.
+  `player:external` mpv/vlc whitelist + dosya adı stem'i doğrulaması +
+  URL için decideUrlPolicy external+http(s); element picker tek-iş +
+  CSS.escape + Esc iptal + capture-dinleyici temizliği; readingList
+  store-atomic, open kendi deposundaki file://'u yükler; pageIndex
+  generation kapısı açıkken eski extract'i yeniden-dolduramaz.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
