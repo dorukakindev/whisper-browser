@@ -56,7 +56,47 @@ test('fark penceresi açıldıktan sonra değişen satır geri alma sırasında 
   assert.equal(diff.selectedChangesStillMatch(after, changes, [0]), true);
   assert.equal(diff.selectedChangesStillMatch([{ ...after[0], text: 'Kullanıcının son düzenlemesi' }], changes, [0]), false);
   assert.equal(diff.selectedChangesStillMatch([{ ...after[0], start: 1 }], changes, [0]), false);
-  assert.match(renderer, /if \(!diff\.selectedChangesStillMatch\(current\.cues, changes, selected\)\)/);
+  const review = diff.fullTranslationDiff(before, after);
+  assert.equal(diff.reviewStillApplies(after, review, [0], [], []), true);
+  assert.equal(diff.reviewStillApplies([{ ...after[0], text: 'Kullanıcının son düzenlemesi' }], review, [0], [], []), false);
+  assert.match(renderer, /if \(!diff\.reviewStillApplies\(current\.cues, review, picks\.changed, picks\.missing, picks\.added\)\)/);
+});
+
+test('kuyruk-50/5: eksik/yeni satırlar görünür ve güvenli seçimle uygulanır', () => {
+  const before = [{ start: 0, end: 2, text: 'Ahmet geldi.' }, { start: 3, end: 5, text: 'Gitti.' }, { start: 6, end: 8, text: 'Kaldı.' }];
+  const after = [{ start: 0, end: 2, text: 'Ahmet gitti.' }, { start: 3, end: 5, text: 'Gitti.' }, { start: 9, end: 11, text: 'Yeni satır.' }];
+  const review = diff.fullTranslationDiff(before, after);
+  assert.equal(review.changed.length, 1);
+  assert.equal(review.missing.length, 1);           // 'Kaldı.' eksik satır
+  assert.equal(review.missing[0].text, 'Kaldı.');
+  assert.equal(review.added.length, 1);             // 'Yeni satır.' yeni
+  assert.equal(review.added[0].index, 2);
+  assert.deepEqual(review.changed[0].terms, []);  // 'Ahmet' her iki sürümde de var → terim uyarısı yok
+  const applied = diff.applyReviewChoice(after, review, [0], [0], [2]);
+  assert.deepEqual(applied.map((c) => [c.start, c.text]),
+    [[0, 'Ahmet geldi.'], [3, 'Gitti.'], [6, 'Kaldı.']]);
+  // Yuva doluysa eksik geri alımı güvenlikten geçemez.
+  const occupied = after.concat([{ start: 6, end: 8, text: 'Kaldı.' }]);
+  assert.equal(diff.reviewStillApplies(occupied, review, [], [0], []), false);
+  assert.equal(diff.reviewStillApplies(after, review, [], [0], []), true);
+  // Eklenen satır artık metni değiştiyse silme uygulanmaz.
+  const drifted = after.map((c, i) => (i === 2 ? { ...c, text: 'Değişti' } : c));
+  assert.equal(diff.reviewStillApplies(drifted, review, [], [], [2]), false);
+});
+
+test('kuyruk-50/5: kelime-diff değişen anlamı satır içinde işaretler', () => {
+  const parts = diff.wordParts('Ahmet eve geldi ama geç kaldı', 'Ahmet eve geldi ve erken oturdu');
+  assert.deepEqual(parts.before.filter((p) => p.kind === 'del').map((p) => p.text), ['ama geç kaldı']);
+  assert.deepEqual(parts.after.filter((p) => p.kind === 'add').map((p) => p.text), ['ve erken oturdu']);
+  // Terim uyarısı: eski sürümdeki özel ad yenisinde yoksa işaretlenir.
+  assert.deepEqual(diff.changedTerms('Ahmet İstanbul’a gitti', 'Şehre gitti'), ['Ahmet', 'İstanbul’a']);
+  assert.deepEqual(diff.changedTerms('Ahmet eve geldi', 'Ahmet eve geldi'), []);
+  // Render tarafı bölümleri ve işaretleri kullanır.
+  assert.match(renderer, /diff\.fullTranslationDiff\(previousCues, channel\.cues\)/);
+  assert.match(renderer, /retranslate-review-\$\{kind\}/);
+  assert.match(renderer, /makeRow\('missing', idx\)/);
+  assert.match(renderer, /makeRow\('added', item\.index\)/);
+  assert.ok(renderer.includes('`diff-${kind}`'));
 });
 
 test('yeniden çeviri anlık görüntüsü yalnız "tamamını yenile" işine ait', () => {

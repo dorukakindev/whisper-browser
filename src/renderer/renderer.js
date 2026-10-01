@@ -7451,12 +7451,27 @@ function translationChannel() {
   return null;
 }
 
+// Kelime-diff parçalarını span'lere çevirir; 'same' parçalar düz metin.
+function reviewPartsRow(parts, kind) {
+  const span = document.createElement('span');
+  span.dir = 'auto';
+  for (const part of parts) {
+    if (part.kind === 'same') { span.append(part.text + ' '); continue; }
+    const mark = document.createElement('span');
+    mark.className = `diff-${kind}`;
+    mark.textContent = part.text + ' ';
+    span.appendChild(mark);
+  }
+  return span;
+}
+
 async function openRetranslationReview(previousCues) {
   const diff = globalThis.TranslationDiff;
   const channel = translationChannel();
-  if (!diff || !channel) return;
-  const changes = diff.diffTranslationCues(previousCues, channel.cues);
-  if (!changes.length) { logLine('Yeniden çeviri tamamlandı; önceki çeviriyle fark yok.', 'info'); return; }
+  if (!diff || !channel || !diff.fullTranslationDiff) return;
+  const review = diff.fullTranslationDiff(previousCues, channel.cues);
+  const total = review.changed.length + review.missing.length + review.added.length;
+  if (!total) { logLine('Yeniden çeviri tamamlandı; önceki çeviriyle fark yok.', 'info'); return; }
   const en = globalThis.UiLocale?.get?.() === 'en';
   const canRevert = /\.srt$/i.test(channel.path);
   const dialog = document.createElement('dialog');
@@ -7464,20 +7479,71 @@ async function openRetranslationReview(previousCues) {
   dialog.setAttribute('aria-labelledby', 'retranslateReviewTitle');
   const head = document.createElement('div'); head.className = 'retranslate-review-head';
   const title = document.createElement('h2'); title.id = 'retranslateReviewTitle';
-  title.textContent = en ? `Retranslation changed ${changes.length} lines` : `Yeniden çeviri ${changes.length} satırı değiştirdi`;
+  const parts = [en ? `${review.changed.length} changed` : `${review.changed.length} değişen`];
+  if (review.missing.length) parts.push(en ? `${review.missing.length} missing` : `${review.missing.length} eksik`);
+  if (review.added.length) parts.push(en ? `${review.added.length} new` : `${review.added.length} yeni`);
+  title.textContent = en ? `Retranslation: ${parts.join(', ')} lines` : `Yeniden çeviri: ${parts.join(', ')} satır`;
   const hint = document.createElement('p');
   hint.textContent = canRevert
-    ? (en ? 'Tick the lines you want to keep in their previous form.' : 'Önceki hâlinde kalmasını istediğiniz satırları işaretleyin.')
+    ? (en ? 'Tick the lines you want to restore to their previous form (removed lines come back, added lines go away).' : 'Önceki hâline döndürmek istediğiniz satırları işaretleyin (silinen satırlar geri gelir, eklenenler kaldırılır).')
     : (en ? 'Reverting is only available for .srt translations; this list is for review.' : 'Geri alma yalnız .srt çevirilerde yazılabilir; bu liste inceleme içindir.');
   head.append(title, hint);
   const list = document.createElement('div'); list.className = 'retranslate-review-list';
-  for (const change of changes.slice(0, 500)) {
-    const row = document.createElement('label'); row.className = 'retranslate-review-row';
-    const check = document.createElement('input'); check.type = 'checkbox'; check.value = String(change.index); check.disabled = !canRevert;
-    const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(change.start);
-    const before = document.createElement('span'); before.className = 'retranslate-review-before'; before.dir = 'auto'; before.textContent = change.before;
-    const after = document.createElement('span'); after.className = 'retranslate-review-after'; after.dir = 'auto'; after.textContent = change.after;
-    row.append(check, time, before, after); list.appendChild(row);
+  const sectionLabel = (text) => {
+    const el = document.createElement('div');
+    el.className = 'retranslate-review-section';
+    el.textContent = text;
+    list.appendChild(el);
+  };
+  const makeRow = (kind, value) => {
+    const row = document.createElement('label');
+    row.className = `retranslate-review-row retranslate-review-${kind}`;
+    const check = document.createElement('input');
+    check.type = 'checkbox'; check.dataset.kind = kind; check.value = String(value);
+    check.disabled = !canRevert;
+    return { row, check };
+  };
+  // Değişen satırlar: kelime düzeyinde işaretli eski/yeni + terim uyarısı.
+  if (review.changed.length) {
+    sectionLabel(en ? 'Changed' : 'Değişen');
+    for (const change of review.changed.slice(0, 500)) {
+      const { row, check } = makeRow('changed', change.index);
+      const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(change.start);
+      const before = reviewPartsRow(change.parts.before, 'del'); before.className = 'retranslate-review-before';
+      const after = reviewPartsRow(change.parts.after, 'add'); after.className = 'retranslate-review-after';
+      row.append(check, time, before, after);
+      if (change.terms?.length) {
+        const badge = document.createElement('span');
+        badge.className = 'retranslate-review-terms';
+        badge.title = en ? 'A name/term from the old version is missing in the new one' : 'Eski sürümdeki bir ad/terim yenisinde yok';
+        badge.textContent = (en ? 'term: ' : 'terim: ') + change.terms.join(', ');
+        row.appendChild(badge);
+      }
+      list.appendChild(row);
+    }
+  }
+  // Eksik satırlar: yeni çeviride karşılığı olmayan eski cue'lar (veri kaybı).
+  if (review.missing.length) {
+    sectionLabel(en ? 'Missing (only in previous)' : 'Eksik (yalnız öncekinde)');
+    review.missing.forEach((item, idx) => {
+      if (idx >= 200) return;
+      const { row, check } = makeRow('missing', idx);
+      const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(item.start);
+      const text = document.createElement('span'); text.className = 'retranslate-review-before'; text.dir = 'auto'; text.textContent = item.text;
+      row.append(check, time, text);
+      list.appendChild(row);
+    });
+  }
+  // Yeni satırlar: eskide karşılığı olmayan yeni cue'lar; seçilirse kaldırılır.
+  if (review.added.length) {
+    sectionLabel(en ? 'New (only in current)' : 'Yeni (yalnız şimdikinde)');
+    for (const item of review.added.slice(0, 200)) {
+      const { row, check } = makeRow('added', item.index);
+      const time = document.createElement('span'); time.className = 'retranslate-review-time'; time.textContent = pSecToTime(item.start);
+      const text = document.createElement('span'); text.className = 'retranslate-review-after'; text.dir = 'auto'; text.textContent = item.text;
+      row.append(check, time, text);
+      list.appendChild(row);
+    }
   }
   const actions = document.createElement('div'); actions.className = 'retranslate-review-actions';
   const keep = document.createElement('button'); keep.type = 'button'; keep.className = 'btn btn-secondary';
@@ -7493,21 +7559,23 @@ async function openRetranslationReview(previousCues) {
   keep.addEventListener('click', close);
   dialog.addEventListener('cancel', () => { dialog.remove(); syncBrowserOcclusion(); });
   revert.addEventListener('click', async () => {
-    const selected = [...list.querySelectorAll('input:checked')].map((input) => Number(input.value));
+    const picks = { changed: [], missing: [], added: [] };
+    for (const input of list.querySelectorAll('input:checked')) picks[input.dataset.kind]?.push(Number(input.value));
     const current = translationChannel();
     if (!current || current.path !== channel.path) { close(); logLine('Çeviri izi değişti; geri alma yapılmadı.', 'warn'); return; }
-    if (!diff.selectedChangesStillMatch(current.cues, changes, selected)) {
+    if (!diff.reviewStillApplies(current.cues, review, picks.changed, picks.missing, picks.added)) {
       close();
       logLine(en ? 'The translation changed during review; no lines were overwritten.'
         : 'İnceleme sırasında çeviri değişti; hiçbir satırın üzerine yazılmadı.', 'warn');
       return;
     }
-    const next = diff.revertChanges(current.cues, changes, selected);
+    const next = diff.applyReviewChoice(current.cues, review, picks.changed, picks.missing, picks.added);
     const written = await window.api.writeSubtitle(current.path, cuesToSrt(next), null, subtitleStatFor(current.path)).catch((error) => ({ ok: false, error: error?.message }));
     if (!written?.ok) { logLine(`Geri alma yazılamadı: ${written?.error || 'bilinmeyen hata'}`, 'error'); return; }
     noteSubtitleStat(current.path, written);
     await loadSubtitle(current.path, current.secondary, { silent: true, role: 'translation' });
-    logLine(`${selected.length} satır önceki çeviriye döndürüldü.`, 'success');
+    const count = picks.changed.length + picks.missing.length + picks.added.length;
+    logLine(en ? `${count} lines restored to the previous version.` : `${count} satır önceki sürüme döndürüldü.`, 'success');
     close();
   });
   dialog.showModal();
