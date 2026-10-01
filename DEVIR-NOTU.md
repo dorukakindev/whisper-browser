@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R364 pipeline_control.py tam derin okuma — temiz (bug yok)
+Güncel çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R365 translation_memory.py tam derin okuma + lookup zarif devredilme — 1 dayanıklılık düzeltmesi
+Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R364 pipeline_control.py tam derin okuma — temiz (bug yok)
 Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R363 series_memory.py tam derin okuma + doğumda zarif devredilme — 1 dayanıklılık düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-1800.md](docs/devir/2026-10-01-1800.md) — R362 media.py tam derin okuma + bölüm float bekçisi — 1 dayanıklılık düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R361 update_ytdlp.py tam derin okuma + zehirli-dizin kurtarması — 1 dayanıklılık düzeltmesi

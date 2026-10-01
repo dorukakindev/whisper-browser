@@ -1621,6 +1621,44 @@ koşturulup yeşil doğrulandı; kod değişmedi.
 Windows etkisi: yok — salt okuma denetimi (OpenProcess sorgusu zaten
 belgeli düzeltme olarak yerinde).
 
+## R365 — translation_memory.py tam derin okuma + lookup zarif devredilme
+
+**Kapsam:** `backend/translation_memory.py` (241 satır) tamamen okundu —
+SQLite çeviri hafızası, fuzzy eşleşme kapıları, kota/prune.
+
+**Düzeltilen:**
+
+- **`lookup` orta-iş DB hatasında işi öldürüyordu:** `tm.lookup` çağrısı
+  (transcribe.py:3915) sarmasız çalışıyor; orta-iş tablo bozulması,
+  WAL-kilit zaman aşımı, disk doluluğu veya kapalı bağlantı
+  `sqlite3.Error`/`OSError`/`AttributeError` olarak çeviri döngüsüne
+  yayılıyordu. Hafıza yalnız bir önbellek — artık lookup bu hataları
+  yutup `None` (ıskala → canlı çeviri) döner; `self._conn is None`
+  bekçisi kapalı bağlantıyı da kapsar. `store` ve kurulum zaten
+  çağıran tarafta try/except'liydi (L3773, L4008). Kırmızı kanıt:
+  master'da `OperationalError: no such table: tm`; düzeltmede 7/7 PASS
+  (+1 yeni test: DROP TABLE + kapalı bağlantı).
+
+**Doğrulanan (bug yok):**
+
+- Fuzzy güvenlik kapıları: sayı imzası (1.5↔1,5), olumsuzluk/modal/
+  zamir çapaları, özel-ad imzası (cümle-başı işlev sözcükleri hariç),
+  noktalama iskeleti, soru kuyruğu — hepsi AND.
+- `_near_typographic_tokens`: ≤1 token değişimi + len≥5 + ratio≥.88 +
+  önek/sonek türetme reddi (possible→impossible) — belgeli düzeltme.
+- `__init__`: user_version ≠{0,1} → RuntimeError (çağıran sarılı),
+  tablo sütun kümesi eşitliği, WAL, `check_same_thread=False`+RLock.
+- `store`: boş/eko bekçisi, UNIQUE upsert, `max_rows` üstünde
+  histerezisli FIFO prune (overflow kadar en eski silinir).
+- `context_key` sha256[24]; `lookup` ±%25 uzunluk penceresi +
+  LIMIT 240 + `quick_ratio` üst-sınır elemesi (belgeli perf).
+
+Testler: `backend/venv/bin/python backend/test_translation_memory.py`
+→ 7/7 PASS (+1 yeni test).
+
+Windows etkisi: olumlu — AV'nin SQLite WAL'ını tutması artık çeviriyi
+öldürmez; fuzzy önbellek o işte pasifleşir.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
