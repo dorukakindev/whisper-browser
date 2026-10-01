@@ -395,6 +395,33 @@ class YtdlpUpdateTests(unittest.TestCase):
         self.assertTrue((self.temp / result["path"]).exists())
         self.assertEqual(json.loads((self.temp / "active.json").read_text())["path"], result["path"])
 
+    def test_preexisting_corrupt_package_dir_is_rebuilt(self):
+        """Yarım silinmiş aynı-adlı paket dizini güncellemeyi zehirleyemez.
+
+        R361 — eski bir çalıştırmanın ortasında kesilen rmtree, paket adını
+        (sürüm+hash sabit) bozuk durumda bırakırsa sonraki her güncelleme
+        doğrulamada çakılırdı; artık dizin silinip yeniden kurulur.
+        """
+        wheel = make_wheel("9999.1.0")
+        digest = hashlib.sha256(wheel).hexdigest()
+        final_name = f"yt-dlp-9999.1.0-{digest[:12]}"
+        poison = self.temp / "packages" / final_name
+        (poison / "yt_dlp").mkdir(parents=True)
+        (poison / "yt_dlp" / "__init__.py").write_text(
+            "raise ImportError('poisoned')\n", encoding="utf-8")
+        with UpdateServer() as server:
+            wheel_url = server.route("artifact.whl", wheel)
+            metadata = server.metadata("9999.1.0", wheel_url, digest)
+            result = U.update_runtime(
+                self.temp, metadata_url=metadata, allow_http_localhost=True)
+        self.assertEqual(result["version"], "9999.1.0")
+        active = json.loads((self.temp / "active.json").read_text(encoding="utf-8"))
+        package = self.temp / active["path"]
+        self.assertEqual(package.name, final_name)
+        self.assertEqual(
+            (package / "yt_dlp" / "version.py").read_text(encoding="utf-8").strip(),
+            "__version__ = '9999.1.0'")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

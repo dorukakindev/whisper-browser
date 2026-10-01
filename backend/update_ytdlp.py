@@ -499,7 +499,18 @@ def _update_runtime_unlocked(
         if not final_dir.exists():
             replace(extracted, final_dir)
             created_final = True
-        validator(final_dir, artifact["version"], python_path=python_path)
+        try:
+            validator(final_dir, artifact["version"], python_path=python_path)
+        except Exception:
+            if created_final:
+                raise
+            # Aynı adlı dizin eski bir çalıştırmanın yarım artığı olabilir
+            # (örn. rmtree'nin ortasında kesinti). Bozuk dizin her yeni
+            # güncellemeyi sonsuza dek zehirlemesin diye silip yeniden kur.
+            shutil.rmtree(final_dir, ignore_errors=True)
+            replace(extracted, final_dir)
+            created_final = True
+            validator(final_dir, artifact["version"], python_path=python_path)
 
         previous = read_active(runtime_root)
         payload = {
