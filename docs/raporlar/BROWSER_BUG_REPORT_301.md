@@ -204,6 +204,20 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   (csv parse/N/A/IOError), wav_duration (gerçek wav), detect_intro dosya-sayısı
   kapısı. Nested yardımcılar kapsayan fonksiyonlar üzerinden doğrulandı.
 
+- `backend/test_transcribe_helpers_locks.py` — 14 test: transcribe.py'nin
+  doğrudan çağrılabilen üst-seviye yardımcıları kilitlendi: subtitle_source_id
+  (youtube/file ayrımı + hash duyarlılığı), is_subtitle_language_tag +
+  split_subtitle_language_suffix (qualifier/dil-eki matrisi — niteleyici yalnız
+  dil eki varken ayrışır), translation_artifact_path ad kompozisyonu,
+  cleanup_owned_partial_translation_artifacts (meta hash/sourceId doğrulamalı
+  sahiplik), strip_continuation (baş/son yönü), vtt_escape_cue_text (izinli
+  etiket koruma + '-->'/boş-satır kaçışı), balanced_two_line_break (sığma + None
+  sinyali), translation_context (pencere kenarları), build_chat_prompt (dil +
+  güvenlik bölümü), clamp_nonpositive_durations (1ms taban / 1s tavan / sonraki
+  cue sınırı), requires_word_timestamps, preflight_output_dir (probe temizliği +
+  yazılamaz-kök reddi), best_offset_scored (işaretli lag + normalize skor).
+  llm_translate içindeki ~25 nested closure kamu yollar üzerinden kilitli sayılıyor.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
