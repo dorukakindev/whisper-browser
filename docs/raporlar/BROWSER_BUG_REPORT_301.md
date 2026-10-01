@@ -1298,6 +1298,42 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R385 — orta-boy src/ süpürmesi tamamı temiz
+
+Kapsam (~2.600 satır, 27 dosya — src/ 68–237 satır arası yüzeyler): browser-media-tools, browser-sponsorblock, browser-preload, browser-terminology, browser-network-capture, catalog-extensions, renderer/browser-series-context, renderer/resource-soak-probe, browser-alignment, browser-automation-rules, browser-cloudflare-compat, browser-command-palette, browser-cue-timeline-calibration, browser-dash-capture, browser-diagnostics-export, browser-lifecycle-policy, browser-mini-player, browser-page-find, browser-sensitive-keys, browser-subtitle-review, browser-tab-history, browser-tabs, catalog-discovery, media-subtitle-tracks, ndjson-lines, nmdb-catalog-import, persistent-schema-inventory.
+
+### Notlar (doğrulanmış temiz — sıfır bulgu)
+
+- browser-media-tools.js: stderr satır-kancası pts_time taşmasını yakalar (notlandı), kalıcı semantic işçi FIFO eşleşmeli + retire'in kendi-state'i koşulu, unref üç stdio ayrı (notlandı), 5MB stdout tavanı.
+- browser-sponsorblock.js: %90 kapsama segmenti reddi (auto-skip sarımı), 2h süre sınırı, hashPrefix sonuç-doğrulama, DeArrow zarf çift-biçimi + şahedSha anahtarı, RYD 1e12 kelepçe, cache LRU+negatif TTL.
+- browser-preload.js: trusted-bridge whitelist (6 tip), yeni-sekme hareketi isTrusted+URL şeması, discovery WeakSet çifti + 80ms toplu flush, pagehide persist bırakır, find-observer opt-in + 350ms debounce, telemetri null-sayım dürüstlüğü (R77-SL2).
+- browser-terminology.js: cümle-başı belirsiz-başlangıç soyma (TR/EN), strong-koşul (büyük-harf/camelCase), minOccurrences≥2, maxTerms/maxChars çift tavan, locked-terms süzgeci.
+- browser-network-capture.js: safe-headers whitelist (set-cookie/authorization dışarı), safeLogUrl ayrı alan, base64 ön-sınır decode'dan önce, aday+dedupe çift LRU/TTL, sha256 içerik anahtarı.
+- catalog-extensions.js: token preview 15dk/sender-bağlı/tek-kullanımlık tip-doğrulamalı, before-JSON TOCTOU yeniden-doğrulama (iki kez), poster sadece image.tmdb.org path-regex, yarım-poster temizliği, restore öncesi canlı-storage yedeği + 3 yedek sınırı + symlink ret.
+- renderer/browser-series-context.js: requestId + bağlam-anahtarı çift bayatlık bekçisi, 80 terim/1000 karakter UI kapısı, 10k replik sınırı.
+- renderer/resource-soak-probe.js: yalnız resourceSoakMode'da, WeakRef çifti + bağlı-olmayan düğüm süzgeci, yalnız soak-instrümantasyonu.
+- browser-alignment.js: 3–10k cue + zaman/metin doğrulama, audio-kipi referans by-pass, temp-root her yolda temizlenir, satır-sayısı eşitlik + zaman re-doğrulama.
+- browser-automation-rules.js: karar ağacı sıralı bekçiler (stale_tab→identity→ad→source→completed→running→canceled), çift-FNV anahtar, gate 3-set LRU claim/finish/complete/cancel.
+- browser-cloudflare-compat.js: güçlü-marker VEYA turnstile+metin veya frame-URL, host whitelist normalizasyonu, TR/EN mesajlar.
+- browser-command-palette.js: TR katlama + UiLocale çift-dil haystack, Alt+ok/Alt+D/F5/F6/BrowserBack köprüsü, bağlam eşleşmesi tabId+generation+mediaId.
+- browser-cue-timeline-calibration.js: tekil-eşleşme şartı, medyan+tolerans inlier, tek-güçlü-örnek ≥24 karakter, negatif cue düşümü (B83-07).
+- browser-dash-capture.js: boş-VTT'siz sessiz bölüm ayrımı, 64MB toplam tavan, 6'lı paralel batch + current() bekçileri, tamamlanmış-set 64 akış sınırı, store başarısızsa done işaretlenmez.
+- browser-diagnostics-export.js: çift-katman redaksiyon (sır-desenleri + yakalanan cue metinleri), <8 karakter cue yalnız tam-alan eşleşmesinde maskeli.
+- browser-lifecycle-policy.js: 404 terminal, 403+imza-URL refresh-manifest, 429 Retry-After parse (saniye+HTTP-tarihi), Chromium negatif kodları net-err-N etiketi, crash recove-once vs manual ayrımı + messageKey.
+- browser-mini-player.js: sender+mainFrame doğrulama, 3-aksiyon whitelist, window'a view taşıma/geri-bağlama her yolda (close'da restore), will-navigate/will-redirect reddi + subframe şema bekçisi, unload-aware restore.
+- browser-page-find.js: Electron 43 bulma-oturumu tuhaflığı (findNext yalnız devamda — notlandı), requestId sonuç eşleşmesi, same-document SPA atlaması stop'u korur, 2000 karakter tavan.
+- browser-sensitive-keys.js: tek-kaynak sözlük ~70 isim (jsessionid/PHPSESSID/AWS/Cloudflare dahil), küçük-harf set + x-amz öneki.
+- browser-subtitle-review.js: 3-aşamalı reconcile (cueId→±2ms bucket→edited-metin), çift-eşleşme çatışma kaydı, 12k metin/kontrol-karakteri/saat-satırı enjeksiyon retleri, ikili-arama covered() O(log n).
+- browser-tab-history.js: OAuth-parametre redaksiyonu kalıcı yazıda, >8192 URL origin+path'e iner (R85-K1), tüm alanlar kelepçeli, 20 girdi sınırı.
+- browser-tabs.js: sekme-id regex, generation monoton ilerleme, establishes-context olayları (capture-status/navigation) eski mediaId ile yeni bağlam kurabilir (Discovery+ senaryosu notlandı).
+- catalog-discovery.js: readLimitedBytes akış-sınırlı (content-length yalanı reddi), token uzunluk+CRLF ret, redirect:'error', 4MB TMDB sınırı, series dosya-dedupe uyarılı.
+- media-subtitle-tracks.js: mutlak-indeks sözleşmesi (R305) — bozuk index null kalır (çıkarılamaz ama listelenir), bitmap vs metin codec ayrımı.
+- ndjson-lines.js: StringDecoder UTF-8 sınır-güvenliği (B-323-04 referansı), taşan-satır drop-modu, [download] yapışık-JSON kurtarma.
+- nmdb-catalog-import.js: env-sır-temizliği, 32MB/30s sınır, bölüm-adı regex, work_id tamsayı kapısı, sha256 dbPath ad alanı.
+- persistent-schema-inventory.js: 26 sürümlü şema kaydı — kaynakla birebir ratchet'in konusu (okuma doğrulandı; statik taban).
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
