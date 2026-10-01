@@ -139,6 +139,7 @@ const {
 const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
   subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
 const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
+const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
 const {
   redactBrowserDiagnosticsText,
   sanitizeDiagnosticsSecrets,
@@ -8922,7 +8923,8 @@ function startBrowserLiveAsr(tab, options = {}) {
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
   const script = path.join(appResourceRoot(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
-  const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
+    const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false,
+    autoDetect: !(language && language !== 'auto'), audioSwitch: createLiveAsrAudioSwitch() };
   const consumeLiveAsrLine = (line) => {
     let event;
     event = parseNdjsonLine(line);
@@ -8940,10 +8942,20 @@ function startBrowserLiveAsr(tab, options = {}) {
       const cue = { id: `live-${job.nextCueId++}`, start: event.start, end: event.end, text: event.text };
       job.cues.push(cue);
       if (job.cues.length > 20000) job.cues.splice(0, job.cues.length - 20000);
+      // Ses dili/parçası değişimi (madde 24): otomatik dil modunda aynı yeni dil
+      // ardışık parçalarda görülünce yeni streamKey'e geç — yeni sesin cue'ları
+      // eski dilin izine karışmaz; tek seferlik yanlış algı izi bölmez.
+      const switchState = job.autoDetect
+        ? job.audioSwitch.observe(event.language) : { action: 'stable', language: '', streamSeq: 1 };
+      if (switchState.action === 'switch') {
+        sendBrowserEvent(tab, { type: 'live-asr-warning',
+          message: `Ses dili değişti (${switchState.language}) — canlı altyazı yeni izde sürüyor.` });
+      }
       storeBrowserTrack([cue], {
-        language: event.language || language, label: 'Canlı sistem sesi · Whisper',
+        language: switchState.language || event.language || language,
+        label: 'Canlı sistem sesi · Whisper',
         format: 'live-asr', sourceUrl: 'system-audio',
-        streamKey: `live-asr:${tab.id}:${tab.acquisitionId}`, context,
+        streamKey: `live-asr:${tab.id}:${tab.acquisitionId}${switchState.streamSeq > 1 ? `:p${switchState.streamSeq}` : ''}`, context,
       });
       if (tab.acquisitionPlan?.finish('live-asr', {
         success: true, trackCount: 1, reason: 'Sistem sesinden altyazı üretiliyor.',
