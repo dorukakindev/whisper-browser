@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 38: PDF görev planlayıcısı (sınırlı paralel sayfa havuzu + O(n²) normalize düzeltmesi)
+Güncel çalışma: [docs/devir/2026-10-01-2145.md](docs/devir/2026-10-01-2145.md) — kuyruk-50 madde 39: manga görüntü dönüşümü geometrisi
+Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 38: PDF görev planlayıcısı (sınırlı paralel sayfa havuzu + O(n²) normalize düzeltmesi)
 Önceki çalışma: [docs/devir/2026-10-01-2315.md](docs/devir/2026-10-01-2315.md) — kuyruk-50 madde 37: yerel OCR yetenek yönetimi (yetenek raporu + görüntü-PDF yedeği + güven rozeti)
 Önceki çalışma: [docs/devir/2026-10-01-2300.md](docs/devir/2026-10-01-2300.md) — kuyruk-50 madde 36: PDF yerleşimli çeviri okuma sırası (başlık/dipnot/tablo) + kaynak↔hedef eşleme
 Önceki çalışma: [docs/devir/2026-10-01-2230.md](docs/devir/2026-10-01-2230.md) — kuyruk-50 madde 35: veri bütünlüğü denetimi (tara+önizle+yedekli onar)

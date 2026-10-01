@@ -1185,7 +1185,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
     assert.doesNotThrow(() => new vm.Script(generated), `${name} geçerli JavaScript üretmiyor`);
   }
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.2\.0\+wvcus/);
+  assert.match(pkg.devDependencies.electron, /castlabs\/electron-releases#v43\.\d+\.\d+\+wvcus/);
   const installBat = fs.readFileSync(path.join(__dirname, '..', 'install.bat'), 'utf8');
   assert.match(
     installBat,

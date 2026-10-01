@@ -49,6 +49,7 @@ const context = vm.createContext({
   document: { images, documentElement: new Element(), createElement: () => new Element() },
   innerWidth: 1200, innerHeight: 1200, addEventListener() {}, removeEventListener() {},
   requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+  getComputedStyle: () => ({}),
   __whisperTrustedBridgeSend: (_channel, payload) => messages.push(payload),
 });
 context.window = context;
