@@ -1298,6 +1298,33 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R386 — backend küçükleri süpürmesi tamamı temiz (kod tabanı tamamlanmış)
+
+Kapsam (~2.250 satır, 14 dosya — backend/ test_*.py dışı son dosyalar): ndjson_utils, io_errors, separate_dialogue, nmdb_catalog_import, workspace_video_package, browser_align, browser_media_tools, browser_video_analysis, subtitle_sdh, export_anki, model_benchmark, translation_memory, pipeline_control, series_memory.
+
+### Notlar (doğrulanmış temiz — sıfır bulgu)
+
+- ndjson_utils.py: finite_json_value özyinelemeli NaN/Inf→null; allow_nan=False çift bekçi.
+- io_errors.py: ffmpeg/yt-dlp mesaj eşleme sırası — "429|too many" 403'ten önce, tanımlı-özel metinler startswith beyaz-listeyle geçer, tanımazsa genel-son satır (sır sızıntısı yok).
+- separate_dialogue.py: tek-istek protokolü; PATH prepend ana süreç toolDirectory'siyle sınırlı; hata 400 karakter kesikli.
+- nmdb_catalog_import.py: resolve(strict=True) + `mode=ro` URI + PRAGMA query_only çift kilidi; tablo/kolon varlık doğrulaması; 20k satır tavanı.
+- workspace_video_package.py: `xb` hedef (üzerine yazmaz), gerçek-bayt vs beyan-edilen file_size ayrımı (sahte-zip koruması — notlandı), yalnız kendi-oluşturduğu dosyayı siler, symlink ret, 100 GB tavan, KeyError→missing raporu.
+- browser_align.py: stdin/stdout UTF-8 reconfigure, 3–10k + zaman doğrulama, tempdir WHISPER_ALIGN_TMPDIR ile sınırlı, satır-sayısı eşitliği + zaman re-doğrulama, overlap_score çift-işaretçi doğru, confidence formülü şeffaf.
+- browser_media_tools.py: base64 validate=True + 8MB/16MP sınır, crop tamsayı+sınır kontrolü, tek-kez model yükleme, satır-sınırı (24MB) serve'da da, query/cue alanları 600 karakter kesikli.
+- browser_video_analysis.py: 1MB zarf, 60s OCR aralığı/120 kare/0.5–5s interval, crop normalize [0,1], ≥0.5 skor eşiği, 8kHz/120s ses sınırı, 24-bant log-normalize spektrum + sessizlik sıfırlama, pencere 16 (~8.2s) skor≥0.78.
+- subtitle_sdh.py: normalize-modül-sabiti (P79-01), alt-dize yerine terim-kelime+modifier eşleşmesi ("[Brain]" içindeki "rain" düşmez), dengeli-parantez yığın taraması iç-içe retleri, restore kimlik-eşleşmede belirsizlikte kaynak korur.
+- export_anki.py: 32MB girdi/5k not/256MB medya toplamı, html.escape tüm alanlarda, uzantı whitelist + sha256-adlı stage dosyası, .apkg zorunluluğu, pid-tmp+os.replace atomik yazım.
+- model_benchmark.py: nvidia-smi süreç→gpu-delta çift-katman VRAM (WDDM notu), sampler son-eşzamanlı örnek garantisi, clip sha256 kimliği, tolerans-greedy segman eşleme, hata yolları emit+json.
+- translation_memory.py: şema-versiyon+sütun seti çift-doğrulama, WAL+RLock, ±25% uzunluk ön-filtre, quick_ratio üst-sınır optimizasyonu (P79-02), fuzzy-uyum zinciri: tek-yazım-farkı + önek/son-ek ret (possible→impossible) + sayı/olumsuzluk/modal/zamir/özel-ad/noktalama çapaları — yanlış-eşleşme zinciri çok katmanlı.
+- pipeline_control.py: iptal BaseException (except-yakalayamaz), checkpoint stage/point whitelist, transaction yaşam döngüsü staging→prepared→committed, rollback yalnız prepared+ uygulanırken final-kullanıcı-dosyası staging'de silinmez (notlandı), kilitli-hedef journal'ı sonraki açılışa bırakır, _entry_paths_are_local resolve-eşitliği journal okumada, Windows PID-yaşamı OpenProcess+limited-info (ErişimReddi=canlı kabul).
+- series_memory.py: çift-platform dosya kilidi deadline'lı (LOCK_EX sonsuz-bekleme yok), _save içinde disk-yeniden-okuma + erken-bölüm-kanonu-kazanır (bayat-örnek başka işin kararını silemez), Windows sharing-violation 6-denemeli os.replace, _safe_text `<>`→`‹›` prompt-injection ekranı, hint dosyası 'untrusted' işaretli, generic-karakter soyucu.
+
+### Kapanış
+
+Bu turun tamamlanmasıyla birlikte `src/` ve `backend/` altındaki **tüm ürün dosyaları** (test_*.py hariç) R374–R386 serisinde en az bir kez tam okundu. Toplam: ~150+ dosya, ~60k+ satır, 13 doğrulanmış bug (11 fsync sınıfı + 2 çeşitli), 100+ temiz notu.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
