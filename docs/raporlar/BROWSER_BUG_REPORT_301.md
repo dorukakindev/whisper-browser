@@ -433,6 +433,42 @@ dedupe/üstel-emisyon sayaçları).
 Windows etkisi: B-341-01 yalnız dayanıklılık — Windows'ta da aynı
 .bak kurtarma semantiği; B-341-02 renderer-yan.
 
+## R342 — Modül kapsam turu 4: 1 kopya-düzeltme (omnibox jamo haritası)
+
+Sıralama devamı (5 dosya, ~2.660 satır tam okuma): browser-skip-segments
+(74), browser-omnibox (291→311), browser-textutil (309),
+browser-media-controller (643), pdf-translate (568), browser-manga (1066).
+
+- **B-342-01 (browser-omnibox.foldSearchIndex) — jamo-dizisi harita
+  kaymasının bayat kopyası:** `browser-address-model.js`'teki `foldSearchIndex`
+  jamo bloğu daha önce düzeltilmişti (NFC çıktısı birden çok UTF-16 birimi
+  üretebilir — L+V+V dizisi hece+jamo verir; yoğun dizinin her birimi için
+  ayrı harita kaydı gerekir, yoksa `map.length < dense.length` ve sonraki
+  eşleşme ofsetleri kayar). `browser-omnibox.js`'teki aynı-sözleşme kopyası
+  bayattı ve hâlâ `map.push([i, j-i])` tek-kayıt sürümündeydi. Renderer
+  `BrowserAddressModel` yüklüyken onu tercih ettiği için üretimde etki
+  sınırlı, fakat kopya Node'da `require` edilebilir ve testlerde
+  kullanılıyor — birebir pariteye çekildi ve kilitlendi.
+  Kilit: `tests/browser-omnibox.test.js` parite döngüsü — master'da FAIL
+  (`map kapsar` + `map parite` düşüyordu), düzeltmede 72 vaka birebir
+  hizalı.
+
+Temiz çıkan yüzeyler: skip-segments (geri-seek bastırması, reklam-zamanı
+kapısı, autoSkip önceliği), omnibox kalanı (bang güvenli-URL'leri,
+eval'siz aritmetik, Markdown-kaçışları), textutil (eski-kodlama
+yarışmasının dal sırası — %99-geçerli-UTF-8 kapısı ipucundan önce,
+çift-kodlama onarımı FFFD-korumalı, İzlandaca carveout'u),
+media-controller (docToken gezinme bekçisi, SPA yeniden-takma
+context-kapatmama, ratechange applyingRate mikro-görev
+yeniden-doğrulaması, cross-origin audioGraph kapısı, 128 gözlemci tavanı),
+pdf-translate (RTL aynalama, gutter-küme sütun sırası, marj-tekrarı
+süzgeci, durum dosyası 4-aday kurtarma + tam-bozuk-aday yedeği
+gizleyemez, hash baş+son parça), manga (::ffff hex/noktalı IPv6 haritası,
+sınırlı JSON aday taraması, köprü-token'lı düzenleme akışı, eksiksiz
+teardown).
+
+Windows etkisi: B-342-01 yalnız metin-katlama — platform bağımsız.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
