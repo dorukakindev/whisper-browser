@@ -1298,6 +1298,48 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R357 — ui-locale.js kapanışı + index.html↔renderer.js DOM sözleşme denetimi
+
+- `src/renderer/ui-locale.js` (2.789 satır) tamamlandı: gözlemci/uygulama
+  makinesi (2.648–2.789) okundu — MutationObserver `characterData` →
+  `localizeText`, attribute (`title/aria-label/placeholder` filtresi) →
+  `localizeElement`, `childList` → `scan`; her yazım aynı gözlemciyi tekrar
+  tetikler ama `before === after` olduğunda ikinci tur no-op'a düşer
+  (sonsuz döngü yok). `originalText`/`originalAttributes` WeakMap'leri
+  iki yönlü çeviri bekçisiyle tutar: mevcut değer eski orijinalin iki
+  çevirisinden de farklıysa yeni orijinal kaydedilir — uygulamanın
+  dinamik metin güncellemeleri doğru yakalanır. `ignored` kapsayıcı
+  mantığı üç katmanlı: liste kapsayıcılarının (`uiListContainers`) kendi
+  öznitelikleri çevrilir içerikleri çevrilmez; `ownAttributeHosts`
+  (textarea/contenteditable) aynı ayrımı metin alanları için yapar;
+  `uiIslands` (`.ai-chat-empty`, `.browser-tab-close` vb.) ignored
+  bölgedeki arayüz adacıklarını geri kazanır. `setLocale` lang özniteliği,
+  belge başlığı, iki locale select'i, tema option etiketi ve ignored
+  bölgedeki üç statik metni (cueList boş durumu — `data-empty-kind`
+  'search' bekçisi B-117-05'i kilitler, playerTitle, playerVideoPath)
+  elle senkronlar; `ui-locale-change` olayı yayınlar. index.html'de
+  `<body>` sonunda yüklendiği için `document.body` hazır — null-body
+  yolu yok. TR geri-dönüş yolu `toEnglish.has(source)` bekçisiyle
+  orijinali doğrudan geri yükler; EN-kaynaklı dizgiler `toTurkish`
+  üzerinden çevrilir (BROWSER bölümü override'ları dahil: 'Media
+  library'→'Arşiv', kimlik çifti 'Open your movie and series library'
+  kasıtlı TR karşılığıyla ezilir). Kusur yok.
+- DOM sözleşme denetimi (yeni ratchet `tests/dom-contract.test.js`):
+  renderer JS'indeki bütün literal id aramaları çıkarıldı — `$('x')`
+  (getElementById), `el('x')`, `getElementById('x')`, `querySelector`
+  `'#x'` ilk-bileşenleri ve `$$('#x …')` CSS sorguları: **980 tekil id,
+  0 çözümlenemeyen**. Karşı tarafta 1.145 index.html statik id'si
+  (+ browser-mini.html'den `miniStatus`) ve JS'in dinamik ürettiği
+  27 id (`el.id=`, `id="x"` şablonları, `setAttribute`) kayıtlı.
+  index.html'de **yinelenen id yok**. Şablon-literal id araması
+  (`$(`…${x}…`)`) yok — hepsi literal çözümlenebilir. Yanlış-pozitif
+  süzgeci: media-catalog.js'in yerel `$`ı `(tag, className)` element
+  kurucusudur; test dosya-içi yerel `$` tanımını sezip o dosyada `$`
+  desenini atlar. Ratchet hem eksik id'yi hem id yinelemesini sert
+  düşürür.
+
+Windows etkisi: kod değişmedi (salt okuma + yeni test).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
