@@ -4951,6 +4951,54 @@ def test_check_vram_budget_warns_only_when_tight_on_cuda():
         T.log = old_log
 
 
+def test_speaker_rename_parse_and_apply():
+    n = T.normalize_speaker_label
+    p = T.parse_speaker_rename
+    a = T.apply_speaker_rename
+
+    # normalize: kontrol karakterleri/virgül/uzunluk temizlenir, etiket korunur.
+    assert n("SPEAKER_00") == "SPEAKER_00"
+    assert n("  Anne\x01\nBob  ") == "Anne Bob"
+    assert len(n("x" * 200)) == 64
+    assert n(None) == "" and n("") == ""
+
+    # parse: JSON dict, 'A=B' listesi, @dosya, bozuk girdi.
+    assert p('{"SPEAKER_00": "Anne"}') == {"SPEAKER_00": "Anne"}
+    assert p("SPEAKER_00=Anne, SPEAKER_01=Anne") == {"SPEAKER_00": "Anne", "SPEAKER_01": "Anne"}
+    assert p("SPEAKER_00=Anne\nSPEAKER_01=Bob") == {"SPEAKER_00": "Anne", "SPEAKER_01": "Bob"}
+    assert p("not-a-map-???") == {}
+    assert p("") == {} and p(None) == {}
+    assert p("@/nonexistent/map.json") == {}  # yoksa yoksay (crash yok)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump({"SPEAKER_00": "Zeynep"}, f)
+        path = f.name
+    try:
+        assert p("@" + path) == {"SPEAKER_00": "Zeynep"}
+    finally:
+        os.unlink(path)
+    # Boş hedef düşer; aynı ada eşleme gereksiz.
+    assert p('{"A": "", "B": "B", "C": "D"}') == {"C": "D"}
+
+    # apply: yeniden adlandırma + birleştirme; haritasız/lablesız korunur.
+    m = {0: "SPEAKER_00", 1: "SPEAKER_01", 2: "SPEAKER_00"}
+    assert a(m, {"SPEAKER_00": "Anne"}) == {0: "Anne", 1: "SPEAKER_01", 2: "Anne"}
+    merged = a(m, {"SPEAKER_00": "Kişi", "SPEAKER_01": "Kişi"})
+    assert set(merged.values()) == {"Kişi"}
+    # Zincir tek geçişte uygulanır: A→B, B→C A'yı C yapmaz.
+    chain = a({0: "A"}, {"A": "B", "B": "C"})
+    assert chain[0] == "B"
+    assert a({}, {"A": "B"}) == {} and a(m, {}) is m
+
+    # Sözleşme: düzeltme zaman/metin bütünlüğünü bozmaz — yalnız etiket değişir.
+    entries = [(0.0, 1.5, "Merhaba dünya."), (1.5, 3.0, "Nasılsın?")]
+    speakers = {0: "SPEAKER_00", 1: "SPEAKER_01"}
+    renamed = a(speakers, {"SPEAKER_00": "Anne", "SPEAKER_01": "Anne"})
+    labeled = T.label_entries_for_text_output(entries, renamed)
+    assert [ (s, e) for s, e, _ in labeled ] == [(0.0, 1.5), (1.5, 3.0)]
+    assert labeled[0][2] == "[Anne] Merhaba dünya."
+    assert labeled[1][2] == "[Anne] Nasılsın?"
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0

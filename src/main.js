@@ -19540,6 +19540,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     if (options.minSpeakers) args.push('--min-speakers', String(options.minSpeakers));
     if (options.maxSpeakers) args.push('--max-speakers', String(options.maxSpeakers));
     args.push('--label-speakers', options.labelSpeakers !== false ? 'true' : 'false');
+    if (options.speakerMap) pushBoundOption(args, '--speaker-map', String(options.speakerMap));
   }
 
   // LLM post-processing

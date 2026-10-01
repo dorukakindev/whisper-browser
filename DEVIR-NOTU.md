@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1914.md](docs/devir/2026-10-01-1914.md) — kuyruk-50 madde 14: ortak VRAM bütçesi (tahmin tablosu + dar-bellek uyarısı) + segment akışı OOM sınıflandırması
+Güncel çalışma: [docs/devir/2026-10-01-1921.md](docs/devir/2026-10-01-1921.md) — kuyruk-50 madde 15: konuşmacı düzeltme akışı (--speaker-map + reexport + UI alanı)
+Önceki çalışma: [docs/devir/2026-10-01-1914.md](docs/devir/2026-10-01-1914.md) — kuyruk-50 madde 14: ortak VRAM bütçesi + akış OOM sınıflandırması
 Önceki çalışma: [docs/devir/2026-10-01-1907.md](docs/devir/2026-10-01-1907.md) — kuyruk-50 madde 13: checkpoint/resume denetimi (makine zaten kurulu) + detected_language normalize + hostile-read ratchet
 Önceki çalışma: [docs/devir/2026-10-01-1902.md](docs/devir/2026-10-01-1902.md) — kuyruk-50 madde 12: noktalama kurtarma değerlendirmesi (kelime-doğruluğu bekçisi)
 Önceki çalışma: [docs/devir/2026-10-01-1852.md](docs/devir/2026-10-01-1852.md) — kuyruk-50 madde 11: pencere sınırı yankı birleştirme (kelime-örtüşmeli stitch + içerme)
