@@ -41,5 +41,15 @@ const tick=()=>new Promise(r=>setTimeout(r,10));
  ra.setSentences([sentence('ra',0)]);ra.completeAll();
  const raStart=Date.now();await ra.whenIdle();
  assert.equal(raCalls,2);assert.ok(Date.now()-raStart>=50,'Retry-After bekleme uygulanmalı');
- console.log('Kontrollü sağlayıcı: seek, geç yanıt, offline, retry, devre kesici ve Retry-After geçti.');
+ // onState callback hatası planlayıcıyı kilitleyemez: emitState sarmasızken
+ // throw, start() finally'sindeki pump()'a yayılıp unhandled rejection üretir
+ // ve resolveIdleIfNeeded'ı atlayarak whenIdle'ı asılı bırakırdı (R380).
+ let stateCalls=0;
+ const throwing=new BrowserTranslationScheduler({maxConcurrent:1,translate:async(s)=>JSON.stringify({text:'TR:'+s.text}),onState:()=>{stateCalls++;throw new Error('ui boom');}});
+ throwing.setSentences([sentence('ui',0)]);throwing.updatePlayhead(0);
+ await throwing.whenIdle();
+ assert.equal(throwing.snapshot().completed,1,'onState throw işin tamamlanmasını engellememeli');
+ assert.ok(stateCalls>0,'onState gerçekten çağrılmalı');
+ throwing.cancelAll();
+ console.log('Kontrollü sağlayıcı: seek, geç yanıt, offline, retry, devre kesici, Retry-After ve onState-yalıtımı geçti.');
 })().catch(e=>{console.error(e);process.exitCode=1});

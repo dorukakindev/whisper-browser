@@ -411,7 +411,15 @@ class BrowserTranslationScheduler {
 
   emitState() {
     const incomplete = this.sentences.filter((sentence) => !this.results.has(sentence.id));
-    this.onState({
+    // onResult'un emitResult sarması gibi UI callback hatası planlayıcıyı
+    // kilitleyemez: pump()→emitState zincirindeki throw, start() finally'sine
+    // yayılıp unhandled rejection üretir ve resolveIdleIfNeeded'ı atlayarak
+    // whenIdle bekleyenlerini asılı bırakır.
+    try { this.onState(this.stateSnapshot(incomplete)); } catch (_) {}
+  }
+
+  stateSnapshot(incomplete) {
+    return {
       playhead: this.playhead,
       queued: this.queue.length,
       pending: this.pending.size,
@@ -424,7 +432,7 @@ class BrowserTranslationScheduler {
       retrying: [...this.failures.values()].filter((failure) => !failure.terminal).length,
       paused: this.paused,
       stats: { ...this.stats },
-    });
+    };
   }
 
   setPaused(paused) {

@@ -358,7 +358,15 @@ def _vtt_to_srt(content):
     """WEBVTT metnini SRT'ye çevirir."""
     lines = content.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     cues, cur = [], []
+    # NOTE/STYLE/REGION blokları boş satıra kadar sürer; önceki sürüm yalnız
+    # başlık satırını atlayıp blok içeriğini (CSS, yorum) cue metni sanıyordu —
+    # çok satırlı bloklar zaman damgasız sahte cue üretiyordu.
+    in_meta_block = False
     for line in lines:
+        if in_meta_block:
+            if line.strip() == "":
+                in_meta_block = False
+            continue
         if "-->" in line and "." in line:
             # Boş satırsız cue sınırı (kompakt VTT) — önceki cue'yu kurtar,
             # yoksa üzerine yazılarak sessizce düşüyordu.
@@ -379,7 +387,9 @@ def _vtt_to_srt(content):
                 if len(cur) > 1:
                     cues.append(cur)
                 cur = []
-            elif not line.startswith(("WEBVTT", "NOTE", "STYLE", "Kind:", "Language:")):
+            elif line.startswith(("NOTE", "STYLE", "REGION")) and not cur:
+                in_meta_block = True
+            elif not line.startswith(("WEBVTT", "NOTE", "STYLE", "Kind:", "Language:", "REGION")):
                 cur.append(line)
     if cur and len(cur) > 1:
         cues.append(cur)

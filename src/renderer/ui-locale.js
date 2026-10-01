@@ -2742,6 +2742,14 @@
   // The top action is deliberately called BROWSER in both languages.
   toTurkish.set('Media library', 'Arşiv');
   toTurkish.set('Open your movie and series library', 'Film ve dizi arşivini aç');
+  // Aynı İngilizce dizeye zamanla birden çok Türkçe karşılık eklendi (entries
+  // içinde yinelenen EN anahtarları); Map'te son girdi kazanır ama bağlama
+  // göre doğru olmayanı seçebilir. Genel/geçerli karşılık burada sabitlenir:
+  // 'and' birleştirmede düz bağlaç 've', 'Cancel' uygulama genelinde 'İptal'.
+  toTurkish.set('and', 've');
+  toTurkish.set('Cancel', 'İptal');
+  // 'Completed' kütüphane durum metniyle aynı sözcüğü alır ('Tamamlandı').
+  toTurkish.set('Completed', 'Tamamlandı');
   const normalize = value => value === 'tr' ? 'tr' : 'en';
   let locale = 'en';
   try { locale = normalize(localStorage.getItem('whisper.uiLocale')); } catch (_) {}
