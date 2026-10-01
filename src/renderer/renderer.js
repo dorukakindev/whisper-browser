@@ -589,7 +589,8 @@ function renderQueue() {
   }
   state.queue.forEach((item) => {
     const div = document.createElement('div');
-    div.className = `queue-item ${item.status}`;
+    const interrupted = !!item.recovered && item.status === 'pending';
+    div.className = `queue-item ${item.status}${interrupted ? ' recovered' : ''}`;
     const icon = item.type === 'youtube'
       ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>'
       : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
@@ -603,7 +604,7 @@ function renderQueue() {
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
-      <span class="queue-status">${escapeHtml(STATUS_TEXT[item.status] || item.status)}</span>
+      <span class="queue-status">${escapeHtml(interrupted ? 'Yarım kaldı' : (STATUS_TEXT[item.status] || item.status))}</span>
       <span class="queue-actions">
         ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
         ${retryable ? `<button class="queue-remove queue-retry" data-retry="${escapeHtml(item.id)}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
@@ -686,6 +687,7 @@ async function processNextQueueItem() {
     return;
   }
   next.status = 'running';
+  next.recovered = false;
   state.currentQueueId = next.id;
   renderQueue();
   // Ana süreç başlatılmadan önce çalışan öğeyi diske geçir. Main süreç de
