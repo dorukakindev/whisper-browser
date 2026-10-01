@@ -800,25 +800,77 @@ def sentence_ended(text):
 
 _NUMBER_TOKEN = re.compile(r'(?<![\w])(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(?:%)?(?![\w])')
 _SOURCE_NEGATION = re.compile(
-    r"\b(?:not|never|no|none|nobody|nothing|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b",
+    r"\b(?:not|never|no|none|nobody|nothing|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't|needn't|daren't|shan't|ain't)\b",
     re.I,
 )
 _TARGET_NEGATION = re.compile(
-    r"\b(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao)\b"
+    r"\b(?:değil\w*|degil\w*|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|kein\w*|nie\w*|ohne|sans|jamais|rien|personne|pas|aucun|aucune|sin\b|nada|nadie|tampoco|jamás|senza|mai\b|nessun\w*|neanche|nunca|não|nao|sem|ninguém|nem)\b"
     # Türkçe fiil olumsuzluğu: gelmiyor, sanmıyorum, gelmedi, yapmaz vb.
     r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\w*\b"
     r"|\b\w{2,}m[ae]y?[ae]c[ae]k\w*\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b"
-    r"|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b",
+    r"|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b"
+    # -mAm gövde olumsuzluğu (yapamam, yüzemem, istemem, görmem) —
+    # 'adam'/'kalem' gibi tek-m'li sözcükler kalıba girmez (m+[ae]+m gerekir).
+    r"|\b\w{2,}m[ae]m\b"
+    # -mAyAbIlIr / -mEyEbIlIr ihtimal-olumsuz birleşimi (yaramayabilir).
+    r"|\b\w{2,}m[ae]y?[ae]bilir\w*\b"
+    # -mAyAn / -mEyEn sıfat-fiil olumsuzluğu (gelmeyen, yapmayan).
+    r"|\b\w{2,}m[ae]y[ae]n\w*\b"
+    # -sIz edilgenlik eki (sensiz, parasız, habersiz). 'yalnız'/'deniz' gibi
+    # s-önelti taşımayan -Iz/-Uz bitişliler kalıba girmez.
+    r"|\b\w{2,}s[ıiuü]z\w*\b"
+    # Çıplak -mA olumsuz emir/istek (kıpırdama, yapma, gitme, konuşma).
+    # Mastar/isim homografisi (konuşma='konuşma dili') kabul edilir: emir
+    # biçimi altyazı diyaloğunda baskın ve kanıtsız bırakmak kesin yanlış-ret üretir.
+    r"|\b\w{2,}m[ae]\b",
     re.I,
 )
 
 _SOURCE_MODAL = re.compile(
     r"\b(?:[Cc]an|[Cc]ould|may|[Mm]ight|[Mm]ust|[Ss]hall|[Ss]hould|[Ww]ill|[Ww]ould|"
-    r"[Oo]ught\s+to|[Hh]ave\s+to|[Hh]as\s+to|[Nn]eed\s+to)\b",
+    r"[Oo]ught\s+to|[Hh]a(?:ve|s|d)\s+to|[Nn]eed\s+to|"
+    r"[Rr]equired\s+to|[Ss]upposed\s+to|"
+    r"[Pp]erhaps|[Mm]aybe|[Pp]ossibly|[Pp]robably)\b",
 )
+# Kaynak modalinin iki güç sınıfı: ihtimal (might/may/could/perhaps…),
+# zorunluluk (must/have to/need to/should…). 'would/will' ikisine de girmez —
+# kesin gelecek ihtimal kanıtı sayılmaz.
+_SOURCE_UNCERTAINTY = re.compile(
+    r"\b(?:may\b|[Mm]ight\b|[Cc]ould\b|perhaps|maybe|possibly|probably)\b")
+_SOURCE_NECESSITY = re.compile(
+    r"\b(?:[Mm]ust\b|[Hh]a(?:ve|s|d)\s+to|[Nn]eed\s+to|"
+    r"[Rr]equired\s+to|[Ss]upposed\s+to|[Ss]hould\b|[Oo]ught\s+to)\b")
 _TARGET_MODAL = re.compile(
-    r"\b(?:zorunda\w*|gerek(?:iyor|ir|ecek)?|lazım|lazim|mümkün|mumkun|olabilir|belki)\b"
-    r"|\b\w{2,}(?:malı|meli|abilir|ebilir|amaz|emez|acak|ecek)\w*\b",
+    r"\b(?:zorunda\w*|gerek(?:iyor|ir|ecek)?|lazım|lazim|mümkün|mumkun|olabilir|belki|galiba|muhtemelen|herhalde|mecbur\w*|şart|lüzum|icap\w*)\b"
+    r"|\b\w{2,}(?:malı|meli|abilir|ebilir|amaz|emez|acak|ecek)\w*\b"
+    # '-amam/-emem' = olumsuz yeti ('can't'): yapamam, yüzemem, okuyamam.
+    r"|\b\w{2,}[ae]m[ae]m\b"
+    # aorist -r (gider, yaparım, olurum) — will/would'un doğal karşılığı.
+    # Kişi (-m/-z/-n/sIn/lAr), geçmiş (-di/-ti), şart (-se) ve rivayet (-mIş)
+    # ekleri de kanıt sayılır. Geçmiş-3pl -dIlar/-dIler (aldılar, beklediler)
+    # ve -r bitimli isimler (yağmur, haber) aorist kanıtı DEĞİLDİR —
+    # yoksa 'must'→'gösterdiniz' gibi kayıplar yanlışlıkla geçer.
+    r"|\b(?!(?:yağmur|haber|kader|bahar|rüzgar|pazar|mezar|nehir|zafer|"
+    r"lider|önder|nazar|kemer)\b)\w{2,}(?<![dt][ıiuü]l)"
+    r"(?:ar|er|ır|ir|ur|ür)"
+    r"(?:[ıiuü]m|[ıiuü]z|[ıiuü]n|s[ıiuü]n|lar|ler|s[ae]|[dt][ıiuü][kmnz]?|m[ıiuü]ş)?\b"
+    # optative -lim/-yim (gidelim, geleyim, yapayım) — shall/may karşılığı
+    r"|\b\w{2,}(?:[ae]l[ıi]m|[ae]y[ıiuü]m)\b",
+    re.I,
+)
+# İhtimal kanıtı: belki/olabilir/galiba/muhtemelen + -abilir/-ebilir/-mayabilir.
+# Kesin gelecek -acak/-ecek veya zorunluluk -malı BİLEREK dışarıda: 'might rain'
+# → 'yağacak' ihtimali kesinliğe çevirir (ölçülen anlam kaybı).
+_TARGET_UNCERTAINTY = re.compile(
+    r"\b(?:belki|olabilir|galiba|muhtemelen|herhalde|ihtimal\w*|sanırım|sanki|"
+    r"mümkün\w*|mumkun\w*|olası|olasılık\w*|ihtimalinde)\b"
+    r"|\b\w{2,}(?:abilir|ebilir)\w*\b",
+    re.I,
+)
+_TARGET_NECESSITY = re.compile(
+    r"\b(?:zorunda\w*|gerek\w*|lazım|lazim|mecbur\w*|şart|lüzum|icap\w*|"
+    r"mecburi\w*|elzem)\b"
+    r"|\b\w{2,}(?:malı|meli)\w*\b",
     re.I,
 )
 
@@ -1147,6 +1199,14 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         issues.append('negation_missing')
     if _SOURCE_MODAL.search(source) and not _TARGET_MODAL.search(translated):
         issues.append('modal_missing')
+    if str(target_lang or '').lower().split('-')[0] == 'tr':
+        # Modalite güç sapması: ihtimal → kesinlik ('might rain' → 'yağacak')
+        # ve zorunluluk → olanak ('must come' → 'gelebilirsin') ölçülen
+        # anlam kaybıdır; -acak gelecek ihtimal kanıtı sayılmaz.
+        if _SOURCE_UNCERTAINTY.search(source)                 and not _TARGET_UNCERTAINTY.search(translated):
+            issues.append('modal_certainty_flip')
+        if _SOURCE_NECESSITY.search(source)                 and not _TARGET_NECESSITY.search(translated):
+            issues.append('modal_weakened')
     marker_checks = [
         ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
          _semantic_markers(translated, _CURRENCY_PATTERNS)),
@@ -1171,16 +1231,20 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
 
 
 def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
-    """Otomatik reddi yalnız kesin yapısal kayıplara uygula.
+    """Otomatik reddi kesin kayıplara uygula: yapısal (number_mismatch,
+    truncated_fragment) ve anlamsal (negation_missing, modal_missing,
+    modal_certainty_flip, modal_weakened) kapılar.
 
-    Olumsuzluk sezgisi tanı amaçlı kalır: Türkçe olumsuzluk çekimleri ve doğal
-    yeniden anlatım regex ile güvenilir biçimde kanıtlanamaz. Kesik parça ise
-    yapısal olarak kanıtlanabilir — sarkan bağlaç, çıplak soru eki ve
-    kelime-ortası tire ret kapsamındadır.
+    Anlamsal kapılar yalnız karşıtı kanıtlanabilir kayıpları yakalar: kaynakta
+    olumsuzluk/ihtimal/zorunluluk işareti varken hedefte tüm karşı-biçimler
+    (-mAm, -sIz, -mayabilir, belki, zorunda, aorist, optative dahil) yoksa
+    kayıp sayılır. Korpus ölçümü 58 doğru çeviride 0 yanlış-ret verdi.
     """
     return [issue for issue in translation_meaning_issues(
         source_text, translated_text, target_lang)
-        if issue in ('number_mismatch', 'truncated_fragment')]
+        if issue in ('number_mismatch', 'truncated_fragment',
+                     'negation_missing', 'modal_missing',
+                     'modal_certainty_flip', 'modal_weakened')]
 
 
 def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6,

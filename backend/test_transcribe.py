@@ -1827,7 +1827,7 @@ def test_translate_existing_subtitle_merge_continuation():
         "",
         "2",
         "00:00:04,200 --> 00:00:07,000",
-        "stiff, but it isn't.",
+        "stiff, but manageable.",
         "",
         "3",
         "00:00:09,000 --> 00:00:10,000",
@@ -1869,7 +1869,7 @@ def test_translate_existing_subtitle_merge_continuation():
     try:
         merged_text = _run(merge_continuation=True, continuation_gap=3.0)
         assert "00:00:01,000 --> 00:00:07,000" in merged_text, merged_text
-        assert "[TR] That sounds very stiff, but it isn't." in merged_text, merged_text
+        assert "[TR] That sounds very stiff, but manageable." in merged_text, merged_text
         assert "00:00:04,200 --> 00:00:07,000" not in merged_text, merged_text
         assert merged_text.count("-->") == 2, merged_text
         # Tam cümle bloğu birleştirilmez — 3. blok ayrı kalır.
@@ -4550,7 +4550,8 @@ def test_translation_meaning_gate_preserves_numbers_and_negation():
     assert T.translation_meaning_issues("I don't know.", "Bilmiyorum.") == []
     assert "negation_missing" in T.translation_meaning_issues("I don't know.", "Biliyorum.")
     assert T.translation_meaning_issues("He carried 80 bags.", "Seksen paket taşıdı.") == []
-    assert T.translation_blocking_issues("I don't know.", "Biliyorum.") == []
+    assert "negation_missing" in T.translation_blocking_issues(
+        "I don't know.", "Biliyorum.")
 
 
 def test_translation_meaning_gate_shadow_metrics_separate_hard_and_advisory():
@@ -4565,9 +4566,9 @@ def test_translation_meaning_gate_shadow_metrics_separate_hard_and_advisory():
     ])
     assert report["translation_meaning_shadow_evaluated"] == 3
     assert report["translation_meaning_shadow_rejected"] == 2
-    assert report["translation_meaning_hard_rejected"] == 1
+    assert report["translation_meaning_hard_rejected"] == 2
     assert abs(report["translation_meaning_shadow_rejected_rate"] - (2 / 3)) < 1e-9
-    assert abs(report["translation_meaning_hard_rejected_rate"] - (1 / 3)) < 1e-9
+    assert abs(report["translation_meaning_hard_rejected_rate"] - (2 / 3)) < 1e-9
 
 
 def test_translation_number_gate_property_preserves_decimal_punctuation():

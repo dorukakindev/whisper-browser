@@ -154,7 +154,7 @@
       "source": "I don't know the answer.",
       "target": "Cevabı bilmiyorum.",
       "defect": "Cevabı biliyorum.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "neg-02",
@@ -164,7 +164,7 @@
       "source": "She never opened the case.",
       "target": "Kasayı asla açmadı.",
       "defect": "Kasayı açtı.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "neg-03",
@@ -174,7 +174,7 @@
       "source": "No passenger complained.",
       "target": "Hiçbir yolcu şikâyet etmedi.",
       "defect": "Yolcular şikâyet etti.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "neg-04",
@@ -184,7 +184,7 @@
       "source": "They cannot enter tonight.",
       "target": "Bu gece giremezler.",
       "defect": "Bu gece girebilirler.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "neg-05",
@@ -194,7 +194,7 @@
       "source": "Nobody heard the alarm.",
       "target": "Kimse alarmı duymadı.",
       "defect": "Herkes alarmı duydu.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "neg-06",
@@ -204,7 +204,7 @@
       "source": "The bag is not mine.",
       "target": "Çanta benim değil.",
       "defect": "Çanta benim.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "pro-01",
@@ -255,7 +255,7 @@
       "source": "Could you please sign here, sir?",
       "target": "Burayı imzalayabilir misiniz, efendim?",
       "defect": "Burayı imzalar mısın?",
-      "detection": "register",
+      "detection": "blocking",
       "register_markers": [
         "misiniz\\b",
         "efendim"
@@ -592,7 +592,7 @@
       "source": "You must show your passport.",
       "target": "Pasaportunuzu göstermek zorundasınız.",
       "defect": "Pasaportunuzu gösterdiniz.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "mod-02",
@@ -602,7 +602,7 @@
       "source": "It might rain tonight.",
       "target": "Bu gece yağmur yağabilir.",
       "defect": "Bu gece yağmur yağdı.",
-      "detection": "meaning"
+      "detection": "blocking"
     },
     {
       "id": "cur-01",
