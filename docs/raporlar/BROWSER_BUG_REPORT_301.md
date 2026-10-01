@@ -1569,3 +1569,144 @@ paketler: subtitle-* (find/perf/format/parser-fuzz), player-ui 153,
 browser-bulk-edit-locks 16, cue-seek, dual-layout — hepsi yeşil.
 electron-subtitle-overlap smoke tekrar geçti. Windows'ta doğrulanmadı
 (platformdan bağımsız JS).
+
+---
+
+## R395 — kuyruk g8: altyazı yazılamadığında düzenleme kaybolmasın
+
+**Sorun:** altyazı dosyasına yazım hatasında (izin, disk dolu, kilit)
+kullanıcının düzenlediği cue içeriği yalnızca bellek durumunda yaşıyordu;
+UI hata sonrası taslak korunuyor mu ve tekrar deneme gerçekten yeniden
+yazıyor mu sorusu doğrulanmadı.
+
+**Buluş/düzeltme:** yazım hatası sonrası taslak korunur + tekrar deneme
+düğmesi yeniden yazımı dener; `tests/electron-subtitle-save-retry.smoke.js`
+(86 satır Electron smoke'u) ile uçtan uca kilitlendi. `src/renderer/renderer.js`
+(4 satır bekçi).
+
+## R396 — kuyruk g9: çeviri iptali sonrası eski sonuç yeni işe karışmasın
+
+**Denetim:** iptal edilen çeviri işinin geç gelen olaylarının (in-flight
+yanıt, sağlayıcı cb) aktif işe veya yeni başlatılan işe karışması sınandı.
+`90f2d65` — gec-olay bekçileri + iş kartı durum temizliği (12 satır renderer,
+üç-kollu generation desenine uygun) + `tests/electron-translate-cancel.smoke.js`
+(70 satır). `3255e08` ile aynı smoke genişletildi (video geçişinde bayat
+sayacın da temizlenmesi).
+
+## R397 — kuyruk g10: ağ kesintisi (timeout/429/5xx) — retry/kısmi/iptal
+
+**Denetim:** sağlayıcı hata sınıflandırması + retry politikası + iptal
+yayılımı. `3c20813` — `backend/test_retry_cancel.py` (79 satır) ile
+backend tarafı sözleşme testleri kilitlendi. Bulgu yok — sözleşme
+kilitlenerek kapandı. Gerçek ağ kesintisi (fiziksel) elde sınanmadı.
+
+## R398 — kuyruk g11: video geçişinde eski cue/metadata/AI bağlamı taşınmasın
+
+**Bug (B-398):** `resetMediaBoundState` `player.translationRetryAvailable`'ı
+temizlemiyordu → aynı sekmede yeni video açılınca bayat "Eksik çevirileri
+tamamla (N)" etiketi görünür kalıyordu. `3255e08` — reset listesine eklendi +
+`updateMakeTransState()` çağrısı + smoke kilit.
+
+## R399 — kuyruk g12: canlı HLS — playlist kayması/discontinuity/seek mükerrer cue
+
+**Denetim:** `mergeLiveCues` / `replaceLiveCuesForRefresh` kontrollü
+senaryolarla sınandı; mükerrer cue üretmiyor. `256624b` —
+`tests/live-cue-merge.test.js` 94 satır/10 kontrol. Bulgu yok — kanıtla
+kapandı. Canlı kaynakla elle izleme yapılmadı.
+
+## R400 — kuyruk g13: kapanma sonrası kuyruk durumu
+
+**Bulgu:** beklenmedik kapanışta (SIGKILL) kuyruk öğeleri recovered olarak
+geri dönüyordu ama `item.recovered` işareti görünür değildi — kullanıcı
+yarım kalan işi tamamlanmış sanabiliyordu. `8a1f1b3` — `.queue-item.recovered`
+sınıfı + 'Yarım kaldı' rozeti + CSS uyarı tonu; E2E
+`tests/electron-queue-kill-resume.smoke.js` genişletildi.
+
+## R401 — kuyruk g14: kuyruk ayarları — sırala/sil/seçenek izolasyonu
+
+**Bulgu:** işler ekleme anında `buildOptsFromUI()` ile donuyor (mevcut doğru
+davranış); eksik olan sıralamaydı — bekleyen öğeler yeniden sıralanamıyordu.
+`9382407` — `moveQueueItem(id, delta)` (yalnız bekleyen takas) + ↑/↓
+düğmeleri + `tests/electron-queue-reorder.smoke.js` (78 satır, 7 kontrol).
+Dosyalar: `renderer-helpers.js` + `renderer.js`.
+
+## R402 — kuyruk g15: YouTube hesap geçişi — eski feed/token karışması
+
+**Denetim:** hesap ekleme/geçiş/silme akışlarının eski feed yanıtlarının veya
+token yenileme sonuçlarının aktif hesaba karışması sınandı. Tüm yollar üç-kollu
+bekçi zinciriyle (generation+tabId+accountId) zaten korunuyor. `47bfb4f` —
+`tests/youtube-account-switch-contract.test.js` (87 satır, 10 kaynak
+değişmezi) ile sözleşme kilitlendi. Bulgu yok.
+
+## R403 — kuyruk g16: taşınan medya — kütüphane/konum/not/altyazı ilişkileri
+
+**Bug (B-403):** medya dosyası taşınınca `mediaFileAccess.inspect` hata
+fırlatıyor ve tüm ilişkili kayıtlar yetim kalıyordu — `mediaKeyFor('local')`
+yol-adresli (`file:` + normalize edilmiş yol) olduğundan yeni konum yeni
+kimlik demekti; kütüphane kaydı, izleme konumu, notlar ve altyazı eşleşmesi
+eski kimlikte çakılı kalıyordu.
+
+**Düzeltme (`9588e4f`) — tam relink akışı:**
+
+- `src/watch-index.js` `renameMediaId` — FK-sıralı transaction: yeni satır
+  ekle → tracks/annotations'ı yeni kimliğe taşı → eski satırı sil.
+- `src/main.js` `library:relink` IPC — yetki + `file:` kimlik + hedef
+  çakışma bekçisi + store/index transactional geçiş; hata → önceki durum.
+- `src/preload.js` `relinkWatchItem` köprüsü.
+- `src/renderer/renderer.js` `offerMediaRelink` +
+  `migratePlayerMediaKeyState` — yükleme hatasında dosya seçiciyle teklif;
+  localStorage kayıtları (saved cues/words) + `player.positions` geçişi +
+  kaydedilmiş konumdan yeniden açılış.
+- `tests/media-relink.test.js` 8/8 (sqlite testleri `hasFts5()` probu
+  arkasında — Node v22.14.0 fts5 derli değil).
+
+## R404 — kuyruk g17: PDF kısmi hata — retry tamamlanan sayfaları korusun
+
+**Bug (B-404):** `pendingPdfPages` dışa aktarılmış ama hiç çağrılmamıştı —
+`pdf:translatePages` retry'da istenen TÜM sayfaları tekrar API'ye
+gönderiyordu; tamamlanmış sayfalar maliyet yakıyor ve ezilebiliyordu.
+`1827426` — handler artık todo kümesine filtreliyor; blokları
+'translated'/'skipped' olan sayfa atlanıyor. İptal güvenliği önceden
+doğruydu (sayfa-içi abort kayıt öncesi + paket arası abort kontrolü) —
+kaynak değişmezleri `tests/pdf-partial-retry.test.js` ile kilitlendi (7/7).
+
+## R405 — kuyruk g18: manga/OCR bölge seçimi — zoom/resize/sayfa değişimi
+
+**Denetim:** kaplama katmanı `position:fixed` + her layout'ta taze
+`getBoundingClientRect()`; tetikleyici zinciri: window scroll(capture)/
+resize + visualViewport scroll/resize + görsel başına ResizeObserver +
+IntersectionObserver(120%) + 'load'; bölge kutuları görsele göreli % →
+zoom kendinden ölçeklenir; görsel kimliği renderedUrl-adresli →
+srcset/sayfa değişimi eski kaplamayı yanlış görsele taşımaz. Bulgu yok —
+`tests/manga-region-layout.test.js` 9 değişmezle kilitlendi.
+
+## R406 — kuyruk g19: Windows kurulum tanıları
+
+**Denetim:** `tools/install-orchestrator.js` preflight — Node≥22.13,
+Python 3.10/3.11 (Windows `python`/`py -3.x` + POSIX fallback), npm/git,
+ffmpeg (yerel `backend\bin` veya PATH), disk ≥10 GiB — tümü kapsamlı.
+`d926c7d` ile 3 tanı güçlendirildi: PYTHON_VERSION bulunan sürümü raporlar
++ yan-yana kurulum önerisi; VENV_PYTHON_VERSION sürüm + install.bat
+yeniden-koşma; DISK_SPACE gerçek boş GiB. `install-supply-chain.test.js`
+50/50 geçiyor. GPU tanısı uygulama katmanında (nvidia-smi + CUDA→CPU
+geri düşüş, R171). Windows'ta elle doğrulanmadı.
+
+## R407 — kuyruk g20: Windows paket açılışı — Türkçe+boşluklu yol
+
+**Denetim alanı:** `install.bat`/`start.bat` (`cd /d "%~dp0"`, tırnaklı
+yollar, `chcp 65001`) → medya seçimi (native dialog →
+`mediaFileAccess.inspect` → `pathToFileUrl`) → altyazı kaydı (native
+save dialog + atomik yazma) → ffmpeg `subtitles=` (tek tırnak +
+sürücü-iki-nokta kaçışı, `ffSubtitlesArg`).
+
+**Bug (B-407):** `pathToFileUrl` POSIX yolunda `file:////home/...` (4
+slash) üretiyordu; üstteki eski `^file://` strip'i yanlış katmandaydı.
+`a0b7753` — slash'lar normalize edilip kanonik `file:///` çıkıyor;
+encodeURI'nin `%`→`%25`, unicode, boşluk, `#`→`%23` davranışı doğrulandı.
+`tests/path-to-file-url.test.js` 8/8 (unicode/%/boşluk/hash/sürücü/POSIX
++ .bat quoting + ffSubtitlesArg kaynak değişmezleri).
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):** Türkçe adlı klasörde
+gerçek `install.bat` → `start.bat` → dosya seçici → altyazı kaydetme
+uçtan uca elle doğrulanmadı; kod yolu statik olarak tırnak/kodlama
+güvenli bulundu.
