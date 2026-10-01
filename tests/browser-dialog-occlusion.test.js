@@ -14,15 +14,17 @@ test('occlusion hesabı açık <dialog> öğesini kapsar', () => {
   assert.match(body, /document\.querySelector\('dialog\[open\]'\)/);
 });
 
+// Fark penceresi bölümlü hâlde büyüdü; dilimi fonksiyonun tamamına genişlet.
+const reviewDialogBody = renderer.slice(
+  renderer.indexOf('async function openRetranslationReview'),
+  renderer.indexOf('function uiText'));
+
 test('retranslate-review diyaloğu açılışta occlusion senkronlar', () => {
-  const i = renderer.indexOf("className = 'retranslate-review'");
-  const seg = renderer.slice(i, i + 4000);
-  assert.match(seg, /dialog\.showModal\(\);\s*syncBrowserOcclusion\(\);/);
+  assert.match(reviewDialogBody, /dialog\.showModal\(\);\s*syncBrowserOcclusion\(\);/);
 });
 
 test('retranslate-review kapanış yolları occlusion resync yapar', () => {
-  const i = renderer.indexOf("className = 'retranslate-review'");
-  const seg = renderer.slice(i, i + 4000);
+  const seg = reviewDialogBody;
   assert.match(seg, /dialog\.remove\(\); syncBrowserOcclusion\(\); \}/);
   assert.match(seg, /dialog\.addEventListener\('cancel', \(\) => \{ dialog\.remove\(\); syncBrowserOcclusion\(\); \}\)/);
 });

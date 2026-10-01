@@ -6834,6 +6834,33 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .retranslate-review-row:has(input:checked) .retranslate-review-after { color: var(--text-muted); text-decoration: line-through; }
 .retranslate-review-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
 .retranslate-review-actions .btn { flex: none; width: auto; }
+/* Fark görünümü: bölüm başlığı, kelime işaretleri, terim rozeti, eksik/yeni. */
+.retranslate-review-section {
+  padding: 8px 6px 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.retranslate-review-row .diff-add {
+  background: color-mix(in srgb, var(--ok, #4caf7d) 22%, transparent);
+  border-radius: 3px; padding: 0 1px;
+}
+.retranslate-review-row .diff-del {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border-radius: 3px; padding: 0 1px;
+}
+.retranslate-review-terms {
+  grid-column: 3 / -1; font-size: 11px; color: var(--warning);
+  font-style: normal;
+}
+.retranslate-review-missing { grid-template-columns: auto 64px minmax(0,1fr); }
+.retranslate-review-added { grid-template-columns: auto 64px minmax(0,1fr); }
+.retranslate-review-missing .retranslate-review-before {
+  color: var(--text-dim); font-style: italic; text-decoration: none;
+  border-left: 2px solid color-mix(in srgb, var(--danger) 60%, transparent); padding-left: 6px;
+}
+.retranslate-review-added .retranslate-review-after {
+  border-left: 2px solid color-mix(in srgb, var(--ok, #4caf7d) 60%, transparent); padding-left: 6px;
+}
+.retranslate-review-row:has(input:checked) .diff-add { background: none; }
 /* ===== SmartTube TV görünümü (.st-tv) =====
    10-foot düzen: koyu TV paleti (temadan bağımsız), kenar menü yalnız simge,
    odaklanınca açılır; odaklı kart büyür ve beyaz çerçeve alır (kumanda ile
