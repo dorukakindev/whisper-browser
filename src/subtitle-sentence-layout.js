@@ -365,14 +365,30 @@ function fitTranslationParts(text, pieces) {
   if (count === 1) return normalized ? [normalized] : null;
   const durations = pieces.map((piece) => Math.max(0.1, Number(piece.end) - Number(piece.start) || 0.1));
   const total = durations.reduce((a, b) => a + b, 0);
+  // Okuma hızı üst sınırı: sentenceTranslationRequest'in modele verdiği
+  // max_chars = süre × 21 CPS bütçesinin aynısı. DP orantılı hedefi bozmadan
+  // kapasiteyi aşan yerleşime ağır ek ceza uygular; kısa cue'ya okunamaz
+  // yoğunlukta metin düşmesi engellenir (zaman sınırları parça→cue
+  // eşlemesiyle korunur, bu yalnız metin paylaşımıdır).
+  const CPS_LIMIT = 21;
+  // Taşma ağırlığı cümle-sonu ikramiyesini (2) ancak somut taşmalarda aşar:
+  // ~7 karakterlik aşımda ≈2.7 ceza, marjinal aşımda ikramiyeye boyun eğer.
+  const OVERFLOW_WEIGHT = 20;
+  const capacities = durations.map((duration) => Math.max(4, duration * CPS_LIMIT));
   const prefix = [0];
   for (const word of words) prefix.push(prefix.at(-1) + word.length + separator.length);
   const glue = /^(?:ve|veya|ama|çünkü|eğer|bu|şu|o|bir|her|hiçbir|çok|daha|en|the|a|an|and|of|to)$/iu;
-  // Ceza yalnız konuma bağlı — DP iç döngüsünde kelime başına 3 regex
-  // tekrar çalışıyordu; bir kez önden hesapla (P79-03).
+  // Cümle bütünlüğü: cümle sonu noktalama kesim için güçlü ikramiye,
+  // yan cümle sınırı hafif ikramiye. Kısaltma ("Dr.") ve sıra sayısı
+  // ("21.") sonundaki nokta cümle sonu sayılmaz.
+  const SENTENCE_TAIL = /[.!?…。！？]$/u;
+  const CLAUSE_TAIL = /[,;:]$/u;
   const penalties = words.map((_, position) => {
     if (position === words.length) return 0;
-    if (/[.!?,;:…]["'”’)]*$/.test(words[position - 1])) return -0.8;
+    const previous = String(words[position - 1]).replace(/["'”’)\]]+$/u, '');
+    if (SENTENCE_TAIL.test(previous) && !/\d\.$/u.test(previous)
+      && !ABBREVIATIONS.has(previous.slice(0, -1).toLocaleLowerCase('tr'))) return -2;
+    if (CLAUSE_TAIL.test(previous)) return -0.4;
     if (glue.test(words[position - 1])) return 3;
     if (/^(?:mi|mı|mu|mü|de|da|ki)[?!.]*$/iu.test(words[position])) return 2;
     return 0;
@@ -390,7 +406,12 @@ function fitTranslationParts(text, pieces) {
       for (let end = start + 1; end <= words.length - (count - slot - 1); end++) {
         if (slot === count - 1 && end !== words.length) continue;
         const chars = prefix[end] - prefix[start];
-        const cost = state.cost + ((chars - target) / Math.max(8, target)) ** 2 + penalty(end);
+        // prefix her kelimeye ayraç uzunluğunu katar; gerçek metin boyu
+        // ilk kelimenin önündeki ayraç olmadan ölçülür.
+        const overflow = Math.max(0, (chars - separator.length) - capacities[slot]);
+        const cost = state.cost + ((chars - target) / Math.max(8, target)) ** 2
+          + (overflow ? OVERFLOW_WEIGHT * (overflow / Math.max(8, capacities[slot])) ** 2 : 0)
+          + penalty(end);
         if (!next.has(end) || cost < next.get(end).cost) next.set(end, { cost, prev: { start, state } });
       }
     }

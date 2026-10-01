@@ -163,6 +163,33 @@ async function run() {
   const japaneseFit = layout.fitTranslationParts('これは自然な日本語です。', fitPieces);
   assert.equal(japaneseFit.length, 2, 'boşluksuz dil çoklu cue için bölünmedi');
   assert.equal(japaneseFit.join(''), 'これは自然な日本語です。', 'boşluksuz metin değiştirilmemeli');
+  // kuyruk-50/7: okuma hızı — kapasiteyi aşan yerleşime ek ceza; hızlı
+  // diyalogda en yüksek CPS orantılı yerleşimden daha düşük olmalı.
+  const cpsOf = (parts, pieces) => parts.map((part, index) =>
+    part.length / Math.max(0.1, pieces[index].end - pieces[index].start));
+  const rapidPieces = [{ start: 0, end: 0.9 }, { start: 0.9, end: 1.8 },
+    { start: 1.8, end: 2.7 }, { start: 2.7, end: 6 }];
+  const rapidText = 'Neden buradasın? Sana güvenmiyorum. Haklısın, kimse güvenmiyor.'
+    + ' O yüzden bu gece her şeyi anlatacağım ve sen karar vereceksin.';
+  const rapid = layout.fitTranslationParts(rapidText, rapidPieces);
+  assert.equal(rapid.join(' '), rapidText, 'kayıpsız kesim korunmalı');
+  assert(Math.max(...cpsOf(rapid, rapidPieces)) <= 23,
+    `0.9s cue okunamaz yoğunlukta: ${JSON.stringify(rapid)}`);
+  assert.equal(rapid[2], 'Haklısın, kimse', 'cümle bütünlüğü uğruna kısa cue aşırı doldurulmalıydı');
+  // Uzun tek cue + iki çok kısa: "gidiyorum." 0.3s cue'a zorunlu; en iyi
+  // olası dağıtım seçilmeli (orta cue hafif doldurulur).
+  const unbalanced = layout.fitTranslationParts(
+    'Bütün gece seni düşündüm ve sonunda bir karar verdim. Ne? Yarın gidiyorum.',
+    [{ start: 0, end: 6 }, { start: 6, end: 6.4 }, { start: 6.4, end: 6.7 }]);
+  assert.equal(unbalanced[0], 'Bütün gece seni düşündüm ve sonunda bir karar verdim. Ne?');
+  // Kısaltma ve sıra sayısı noktası cümle sonu ikramiyesi almamalı.
+  const abbrev = layout.fitTranslationParts('Dr. Aksoy geldi mi? Evet geldi.',
+    [{ start: 0, end: 1.5 }, { start: 1.5, end: 4 }]);
+  assert.equal(abbrev[0], 'Dr. Aksoy geldi mi?', 'Dr. cümle sonu sayılıp soru bölünmemeli');
+  const ordinal = layout.fitTranslationParts('21. yüzyılda yaşıyoruz bu doğru.',
+    [{ start: 0, end: 1.5 }, { start: 1.5, end: 4 }]);
+  assert.notEqual(ordinal[0], '21.', 'sıra sayısı noktası cümle sonu ikramiyesi almamalı');
+  assert.equal(ordinal.join(' '), '21. yüzyılda yaşıyoruz bu doğru.');
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('gemini-3.8-flash'), { temperature: 0.2 });
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('gpt-5.4-mini'), { max_completion_tokens: 4096 });
   assert.deepEqual(layout.sentenceTranslationGenerationParameters('openai/o4-mini'), { max_completion_tokens: 4096 });
