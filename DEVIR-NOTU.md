@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2003.md](docs/devir/2026-10-01-2003.md) — kuyruk-50 madde 22: altyazı kökeni inceleme görünümü
+Güncel çalışma: [docs/devir/2026-10-01-2006.md](docs/devir/2026-10-01-2006.md) — kuyruk-50 madde 23: capture tekrar oynatma düzeneği
+Önceki çalışma: [docs/devir/2026-10-01-2006.md](docs/devir/2026-10-01-2006.md) — kuyruk-50 madde 23: capture tekrar oynatma düzeneği
 Önceki çalışma: [docs/devir/2026-10-01-2003.md](docs/devir/2026-10-01-2003.md) — kuyruk-50 madde 22: altyazı kökeni inceleme görünümü
 Önceki çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — kuyruk-50 madde 20: oynatma saati tutarlılığı (drift izleyici + öneri)
 Önceki çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.md) — kuyruk-50 madde 19: takılma teşhis paneli (yerel oynatıcı kare düşüşü + buffer + çizim maliyeti)
