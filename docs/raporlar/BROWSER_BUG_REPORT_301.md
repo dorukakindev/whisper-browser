@@ -1772,6 +1772,38 @@ Testler: kod değişmedi; py_compile 3/3 geçti.
 
 Windows etkisi: yok — salt okuma denetimi.
 
+## R369 — backend son iki modül + NaN-offset sözleşme düzeltmesi
+
+**Kapsam:** `ndjson_utils.py` (24), `separate_dialogue.py` (39) —
+backend envanteri tamamlandı (transcribe.py dışı tüm modüller okundu).
+
+**Düzeltilen:**
+
+- **`separate_dialogue.transcribe` sonlu-olmayan offset:** `float(
+  request['start'])` NaN/±inf'i geçiriyordu; cue'lara sızan NaN
+  `json.dumps`ta çıplak `NaN` literal üretiyordu — geçersiz JSON,
+  ana süreç `JSON.parse`'te düşer (ok:false yerine parse çökmesi).
+  Artık `math.isfinite` bekçisi ValueError üretir → temiz ok:false.
+  Kırmızı kanıt: master `{"ok": true, "cues": [{"start": NaN...}]}`
+  bastı; düzeltmede ok:false. Yeni `test_separate_dialogue.py`
+  (+2 test: nan/±inf reddi + finite offset kaydırması).
+
+**Doğrulanan (bug yok):**
+
+- `ndjson_utils.py`: `finite_json_value` dict/list/tuple özyinelemeli;
+  NaN/±inf→None; `json_dumps_finite` `allow_nan=False` — ikinci
+  savunma katmanı (beklenmedik non-finite sızarsa dumps hata verir,
+  sahte-ok üretmez).
+- `separate_dialogue` kalanı: `toolDirectory` PATH öneki, UVR modeli
+  ayrımı, boş dosya listesi reddi, stdout'un stderr'a redirect'i
+  (kütüphane print'leri NDJSON'u bozmaz), exception→ok:false.
+
+Testler: `backend/venv/bin/python backend/test_separate_dialogue.py`
+→ 2/2 PASS. Kırmızı kanıt alındı.
+
+Windows etkisi: olumlu — diyalog-ayırma araç hatası artık yapısal
+ok:false döner; ana süreç parse çökmesi olmaz.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.

@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — R368 backend kuyruk modülleri derin okuma — temiz (bug yok)
+Güncel çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — R369 backend envanteri kapandı + NaN-offset sözleşme düzeltmesi
+Önceki çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — R368 backend kuyruk modülleri derin okuma — temiz (bug yok)
 Önceki çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R367 orta backend modülleri derin okuma — temiz (bug yok)
 Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R366 küçük backend modülleri derin okuma + eylem kapısı — 1 düzeltme
 Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R365 translation_memory.py tam derin okuma + lookup zarif devredilme — 1 dayanıklılık düzeltmesi
