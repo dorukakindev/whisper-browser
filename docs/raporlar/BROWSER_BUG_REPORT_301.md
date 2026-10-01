@@ -218,6 +218,20 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   yazılamaz-kök reddi), best_offset_scored (işaretli lag + normalize skor).
   llm_translate içindeki ~25 nested closure kamu yollar üzerinden kilitli sayılıyor.
 
+- `tests/export-closure-deadzone.test.js` — 7 senaryo: src/ altında export
+  edilmiş son kilitsiz fonksiyonlar kapatıldı — browser-adblock (safeBlockedUrl
+  userinfo/query/hash sıyırması + non-http reddi, blockedRequestEntry
+  subtitleLike + meta güvenliği, safeErrorMessage, fetchWithTimeout abort
+  sinyali + hızlı-yanıt geçişi, read/writeEngineCache MAX_CACHE_BYTES kapısı),
+  browser-adapters.hostnameOf, browser-note-store.normalizeStoredAnnotation
+  (snake→camel + alan kelepçeleri), browser-session-privacy
+  .closeBrowserSessionConnections, browser-translation-archive
+  .normalizePageRows (order sırası + Map/eleme), model-manager
+  hasModelFiles/repositoryHasUsableSnapshot/findModelRepository (snapshot
+  dizini + turbo≠v3 ayrımı), subtitle-sentence-layout.hasSpeakerLabel
+  (NON_SPEAKER_LABEL yapısal etiketler). Kalan export'lar yalnız sabitler —
+  davranış üzerinden dolaylı kilitli.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
