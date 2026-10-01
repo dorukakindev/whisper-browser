@@ -1211,6 +1211,44 @@ Windows etkisi: kod değişmedi (salt okuma).
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R355 — renderer.js kapanış turu: bağlamalar + PDF çeviri işçisi + progresif transkripsiyon (temiz)
+
+~1.570 satır okundu (19431–19868 + 21241–21924). Bu turla birlikte
+renderer.js'in tamamı (28.830 satır) derin okunmuş oldu; doğrulanmış
+bug yok.
+
+- **Bağlama yüzeyi + ayar çekmecesi** (19431–19868): sideResizer tek-
+  işaretçi kilitli (pointerId; belgeli çoklu-dokunuş), grid geçişi
+  sürüklemede kapanır; ayar paneli snapshot'ı scroll/arama/AI-taslağı
+  mediaKey koşullu; initializeSettingsPages yüzey dağılımı persistent/
+  diagnostic/live + boşalan kabuğu kaldırır; setSettingsPage scroll
+  geri yükler (rAF); setSettingsDrawer odak iadesi çift yollu
+  (rAF+120ms), çekmece açılması dar ekranda takeover'ı kurar (belgeli —
+  eskiden panel zorla açılıyordu).
+- **PDF çeviri işçisi** (21247–21342): `PDF_TRANSLATE_ALL_CONFIRM_PAGES
+  =40` maliyet onayı (belgeli); tüm-kitapta metin çıkarma paket başına
+  (bellek, belgeli); 3 sayfalık paketler + paket arasında iptal;
+  `player.pdfReader !== reader` kimlik kırılımı her await'ten sonra
+  (pdfHash çakışmasında eski döngünün yeni okuyucuyu ezmesi engellenir,
+  belgeli); partial sayaç kelepçeli; çizilmemiş sayfa metni tahliye;
+  durum satırı yalnız okuyucu hâlâ aynıysa yazılır.
+- **PDF açılış/kapanış/zoom** (21344–21487): openPdfReader boyut
+  doğrulaması (content-length ve buffer), pdf.js worker'a tek kopya
+  transferi, ikinci açılışta eski okuyucu close-a tıklatılır (belgeli),
+  renderGeneration + Map/Set yaşam döngüsü; close gözlemci+generation+
+  iptal+bellek tasfiyesi + browserWorkspace geri açımı (belgeli);
+  zoom değişiminde generation++ + yeniden çizim.
+- **Progressive transkripsiyon + iş iptali** (21734–21922):
+  startProgressivePlayerTranscription üç kaynak ayrımı (browser
+  YouTube / youtube: / yerel), formatlar 'srt' zorunlu (belgeli —
+  bölümler atomik birleşir), outputNameSuffix `-whisper-<ts>` eşsiz
+  (belgeli — ara bölüm hazır .srt'yi ezemez), optsProblem kapısı;
+  playerJobCancel: iptal ana süreçte doğrulanmazsa durum geri
+  yüklenir (belgeli), aksi halde kapat; syncSubtitlePrimaryAction
+  tek-birincil vurgu.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
