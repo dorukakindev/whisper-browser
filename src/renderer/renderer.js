@@ -5018,6 +5018,8 @@ const player = {
   offset: 0,         // altyazı gecikmesi (sn) — birincil kanal
   offset2: 0,        // ikinci (karşılaştırma) kanalın bağımsız gecikmesi (sn)
   offsetProfiles: {},// parça-bazlı senkron: '<p|s>|<ses>|<yol>' -> sn; watch prefs'te kalıcı
+  stutterProbe: null,// takılma teşhisi ölçüm penceresi (kuyruk-50/19)
+  renderCostRing: [],// son renderCue süreleri (ms, halka ≤240)
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
   cueQualitySource: [], // canli Whisper guveni; SRT yeniden okununca zamanla eslestirilir
   subPath: '',       // duzenleme kaydederken yazilacak dosya
@@ -14393,6 +14395,7 @@ function renderCue() {
   const overlay = $('subtitleOverlay');
   const overlay2 = $('subtitleOverlay2');
   if (!video || !overlay) return;
+  const _rcT0 = performance.now();
   const t = video.currentTime - player.offset;
   let overlayChanged = false;
 
@@ -14436,6 +14439,156 @@ function renderCue() {
   }
   if (overlayChanged) scheduleFitSubtitleOverlays();
   scheduleTimelineDraw();
+  const ring = player.renderCostRing;
+  ring.push(performance.now() - _rcT0);
+  if (ring.length > 240) ring.shift();
+}
+
+// ---- Takılma teşhis paneli (kuyruk-50 madde 19) ----
+// Kare düşüşü (getVideoPlaybackQuality), buffer ileride süresi, kare aralığı
+// jitter'ı (rVFC mediaTime farkı) ve altyazı çizim maliyeti (renderCostRing)
+// aynı örnek penceresinde toplanır; verdict ağ/çözme/renderer kaynaklarını
+// ayrıştırır. Web modu playbackDiagnostics hattı zaten var — bu akış yerel
+// oynatıcı içindir.
+function localBufferedAhead(video) {
+  if (!video || !video.buffered || !video.buffered.length) return 0;
+  const t = Number(video.currentTime) || 0;
+  let ahead = 0;
+  for (let i = 0; i < video.buffered.length; i++) {
+    const s = video.buffered.start(i);
+    const e = video.buffered.end(i);
+    if (s <= t && t <= e) return Math.max(0, e - t);
+    if (s > t) ahead = Math.max(ahead, e - t);
+  }
+  return ahead;
+}
+
+// Saf karar fonksiyonu — doğrudan test edilebilir.
+function analyzeLocalStutter(s) {
+  const m = {
+    seconds: Math.max(0, Math.round((Number(s?.seconds) || 0) * 10) / 10),
+    droppedRatio: Math.max(0, Number(s?.droppedRatio) || 0),
+    stalls: Math.max(0, Number(s?.stalls) || 0),
+    bufferAvg: Number.isFinite(s?.bufferAvg) ? s.bufferAvg : null,
+    renderAvg: Number.isFinite(s?.renderAvg) ? s.renderAvg : null,
+    renderP95: Number.isFinite(s?.renderP95) ? s.renderP95 : null,
+    frameGapP95: Number.isFinite(s?.frameGapP95) ? s.frameGapP95 : null,
+  };
+  if (m.seconds < 5) return { verdict: 'insufficient', signals: [], metrics: m };
+  const signals = [];
+  if ((m.renderAvg ?? 0) >= 8 || (m.renderP95 ?? 0) >= 16) signals.push('renderer');
+  if (m.droppedRatio >= 0.03
+      || ((m.frameGapP95 ?? 0) >= 80 && m.droppedRatio >= 0.005)) signals.push('decode');
+  if ((m.stalls > 0 && (m.bufferAvg ?? Infinity) < 1.5)
+      || (m.bufferAvg ?? Infinity) < 0.5) signals.push('network');
+  return { verdict: signals.length > 1 ? 'mixed' : (signals[0] || 'ok'), signals, metrics: m };
+}
+
+const STUTTER_VERDICT_TEXT = {
+  ok: 'Belirgin takılma yok',
+  insufficient: 'Yetersiz örnek — en az 5 saniye oynatın',
+  network: 'Olası kaynak: ağ/buffer (tamponlama sırasında ileride süre düşük)',
+  decode: 'Olası kaynak: video çözme (kare düşüşü yüksek)',
+  renderer: 'Olası kaynak: altyazı çizimi/renderer (çizim maliyeti yüksek)',
+  mixed: 'Birden fazla sinyal birlikte — ayrıntılar günlükte',
+};
+
+function updateStutterProbeHint(result) {
+  const hint = $('playerStutterHint');
+  const btn = $('playerStutterProbe');
+  if (btn) {
+    const running = !!player.stutterProbe;
+    btn.classList.toggle('active', running);
+    btn.textContent = window.UiLocale?.t
+      ? window.UiLocale.t(running ? 'Takılma ölçümünü bitir' : 'Takılma tanısı')
+      : (running ? 'Takılma ölçümünü bitir' : 'Takılma tanısı');
+  }
+  if (!hint) return;
+  if (result) {
+    const t = (x) => (window.UiLocale?.t ? window.UiLocale.t(x) : x);
+    const m = result.metrics;
+    hint.textContent = t(STUTTER_VERDICT_TEXT[result.verdict] || result.verdict)
+      + ` · ${t('süre')} ${m.seconds}s · ${t('düşen')} ${(m.droppedRatio * 100).toFixed(1)}%`
+      + ` · buf ${m.bufferAvg == null ? '—' : m.bufferAvg.toFixed(1) + 's'}`
+      + ` · çizim ${m.renderAvg == null ? '—' : m.renderAvg.toFixed(1) + 'ms'}`;
+  } else if (player.stutterProbe) {
+    const secs = (player.stutterProbe.seconds || 0).toFixed(0);
+    hint.textContent = (window.UiLocale?.t ? window.UiLocale.t('Ölçülüyor') : 'Ölçülüyor') + ` · ${secs} sn`;
+  }
+}
+
+function collectLocalStutterSample() {
+  const video = $('playerVideo');
+  const probe = player.stutterProbe;
+  if (!probe || !video) return;
+  if (video.paused || video.ended) return;
+  const q = typeof video.getVideoPlaybackQuality === 'function'
+    ? video.getVideoPlaybackQuality() : null;
+  const total = q ? q.totalVideoFrames : 0;
+  const dropped = q ? q.droppedVideoFrames : 0;
+  probe.droppedFrames += Math.max(0, dropped - probe.prevDropped);
+  probe.totalFrames += Math.max(0, total - probe.prevTotal);
+  probe.prevDropped = dropped; probe.prevTotal = total;
+  probe.seconds += probe.intervalMs / 1000;
+  const ahead = localBufferedAhead(video);
+  probe.bufferSum += ahead; probe.bufferSamples += 1;
+  const ring = player.renderCostRing;
+  if (ring.length) {
+    for (const cost of ring) probe.renderCosts.push(cost);
+    ring.length = 0;
+    if (probe.renderCosts.length > 6000) probe.renderCosts.splice(0, probe.renderCosts.length - 6000);
+  }
+  updateStutterProbeHint();
+  if (probe.seconds >= 60) stopLocalStutterProbe(true);
+}
+
+function startLocalStutterProbe() {
+  const video = $('playerVideo');
+  if (!video || player.workspaceMode === 'browser') {
+    logLine('Takılma tanısı yalnızca yerel oynatıcıda ölçülür; web oynatımı için Yakalama ayrıntıları panelini kullanın.', 'warn');
+    return;
+  }
+  const q = typeof video.getVideoPlaybackQuality === 'function' ? video.getVideoPlaybackQuality() : null;
+  player.stutterProbe = {
+    intervalMs: 1000, seconds: 0, stalls: 0, waiting: 0,
+    droppedFrames: 0, totalFrames: 0,
+    prevDropped: q ? q.droppedVideoFrames : 0, prevTotal: q ? q.totalVideoFrames : 0,
+    bufferSum: 0, bufferSamples: 0, renderCosts: [], frameGaps: [],
+    timer: setInterval(collectLocalStutterSample, 1000),
+  };
+  const hint = $('playerStutterHint');
+  if (hint) hint.textContent = '';
+  updateStutterProbeHint();
+}
+
+function stopLocalStutterProbe(report) {
+  const probe = player.stutterProbe;
+  if (!probe) return;
+  clearInterval(probe.timer);
+  player.stutterProbe = null;
+  const costs = probe.renderCosts.slice().sort((a, b) => a - b);
+  const gaps = probe.frameGaps.slice().sort((a, b) => a - b);
+  const pct = (arr, p) => (arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * p))] : null);
+  const result = analyzeLocalStutter({
+    seconds: probe.seconds,
+    droppedRatio: probe.totalFrames > 0 ? probe.droppedFrames / probe.totalFrames : 0,
+    stalls: probe.stalls + Math.min(probe.waiting, Math.floor(probe.waiting / 4)),
+    bufferAvg: probe.bufferSamples ? probe.bufferSum / probe.bufferSamples : null,
+    renderAvg: costs.length ? costs.reduce((a, b) => a + b, 0) / costs.length : null,
+    renderP95: pct(costs, 0.95),
+    frameGapP95: pct(gaps, 0.95),
+  });
+  if (report) {
+    const m = result.metrics;
+    const t = (x) => (window.UiLocale?.t ? window.UiLocale.t(x) : x);
+    const text = t(STUTTER_VERDICT_TEXT[result.verdict] || result.verdict)
+      + ` · ${m.seconds}s · düşen ${(m.droppedRatio * 100).toFixed(1)}%`
+      + ` · stall ${probe.stalls} · buf ${m.bufferAvg == null ? '—' : m.bufferAvg.toFixed(1) + 's'}`
+      + ` · çizim ort/p95 ${m.renderAvg == null ? '—' : m.renderAvg.toFixed(1)}ms/${m.renderP95 == null ? '—' : m.renderP95.toFixed(1)}ms`
+      + ` · kare-p95 ${m.frameGapP95 == null ? '—' : m.frameGapP95.toFixed(0) + 'ms'}`;
+    logLine(`Takılma tanısı: ${text}`, result.verdict === 'ok' || result.verdict === 'insufficient' ? 'info' : 'warn');
+    updateStutterProbeHint(result);
+  }
 }
 
 // ---- Altyazı listesi (LLPlayer'daki "subtitles sidebar" fikri) ----
@@ -18161,6 +18314,7 @@ function resetMediaBoundState(options = {}) {
   player.offset = 0;
   player.offset2 = 0;
   player.offsetProfiles = {};
+  stopLocalStutterProbe(false);
   const offEl = $('subOffset');
   if (offEl && offEl.value !== '0') {
     offEl.value = '0';
@@ -23359,8 +23513,8 @@ if ($('playerVideo')) {
   const interruptHlsStability = () => {
     if (player.hls) player.hlsRecovery.interruptStability();
   };
-  video.addEventListener('waiting', () => { interruptHlsStability(); spin(true); });
-  video.addEventListener('stalled', () => { interruptHlsStability(); spin(true); });
+  video.addEventListener('waiting', () => { interruptHlsStability(); spin(true); if (player.stutterProbe) player.stutterProbe.waiting += 1; });
+  video.addEventListener('stalled', () => { interruptHlsStability(); spin(true); if (player.stutterProbe) player.stutterProbe.stalls += 1; });
   video.addEventListener('loadstart', () => { interruptHlsStability(); spin(true); });
   video.addEventListener('seeking', interruptHlsStability);
   video.addEventListener('seeked', () => {
@@ -23517,6 +23671,10 @@ if ($('playerVideo')) {
           const sorted = samples.slice().sort((a, b) => a - b);
           player.frameDuration = sorted[Math.floor(sorted.length / 2)];
         }
+      }
+      if (player.stutterProbe && delta > 0 && delta < 1) {
+        player.stutterProbe.frameGaps.push(delta * 1000);
+        if (player.stutterProbe.frameGaps.length > 4000) player.stutterProbe.frameGaps.shift();
       }
       if (!video.paused) video.requestVideoFrameCallback(onFrame);
     };
@@ -25382,6 +25540,13 @@ if ($('sub2Offset')) {
     setLocalSyncProfileValue(true);
     player.activeIdx2 = -1;
     renderCue();
+  });
+}
+
+if ($('playerStutterProbe')) {
+  $('playerStutterProbe').addEventListener('click', () => {
+    if (player.stutterProbe) stopLocalStutterProbe(true);
+    else startLocalStutterProbe();
   });
 }
 
