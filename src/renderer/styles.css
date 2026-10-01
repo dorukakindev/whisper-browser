@@ -4119,6 +4119,11 @@ html[data-theme="light"] .player-layout-section .player-panel-title,
 html[data-theme="light"] .subtitle-display-segments button:not(.active),
 html[data-theme="light"] .pdf-view-modes button:not(.active) { color: var(--text-dim); }
 html[data-theme="light"] .player-layout-section .view-modes .vm.active { color: var(--accent); background: var(--bg-2); }
+html[data-theme="light"] .player-panel-title { color: var(--text-muted); }
+html[data-theme="light"] .settings-drawer .field-label,
+html[data-theme="light"] .settings-drawer .hint { color: var(--text-dim); }
+/* Açık temada --accent koyu kehribar; sabit koyu sayaç metni üstünde okunamaz. */
+html[data-theme="light"] .jobs-tab.active > span { color: var(--accent-contrast); background: transparent; }
 /* Oynatıcı katmanının --player-* renkleri yalnız .workspace-browser için temaya
    bağlanmıştı; açık temada oynatıcı/SmartTube/çift dilli liste açık zemin üstünde
    neredeyse beyaz (1.03–1.43:1) metinle çiziliyordu. */
