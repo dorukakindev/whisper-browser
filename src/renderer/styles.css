@@ -6074,6 +6074,7 @@ html, body, * { scrollbar-color: auto; }
 }
 .st-search-wrap {
   flex: 1;
+  min-width: 0;             /* dar pencerede input'un doğal genişliği taşma yapmasın */
   display: flex;
   position: relative;       /* st-suggest konumlanması buraya bağlanır */
   background: var(--bg-elev);
@@ -6188,6 +6189,7 @@ html, body, * { scrollbar-color: auto; }
 .st-ch-search:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 #stSearchInput {
   flex: 1;
+  min-width: 0;
   padding: 8px 14px;
   background: transparent;
   border: 0;
@@ -6584,7 +6586,10 @@ to { opacity: 1; transform: translateX(0); }
 .st-brand-name { display: none; }
 .st-topbar { padding: 10px; gap: 8px; }
 .st-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 6px 12px 24px; }
-.st-side-label { font-size: 9px; }
+/* 60px rayda tek-kelime TR etiketler bile sığmaz — ikon-only; anlam
+   title/aria-label'da kalır. */
+.st-side-label { display: none; }
+.st-side-item { gap: 0; }
 /* Dar sahnede up-next paneli genişliğe uysun, thumb küçülsün (D10) */
 .st-upnext { width: min(300px, 62vw); }
 .st-upnext-thumb { width: clamp(72px, 30%, 96px); }
