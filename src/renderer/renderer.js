@@ -12790,10 +12790,50 @@ if ($('browserDiagnosticsCopy')) $('browserDiagnosticsCopy').addEventListener('c
   const ok = await window.api.copyText(browserDiagnosticsCopyText(player.browserDiagnostics)).catch(() => false);
   logLine(ok ? 'Tarayıcı tanı özeti panoya kopyalandı.' : 'Tanı özeti panoya kopyalanamadı.', ok ? 'success' : 'warn');
 });
+// Tanı paketi ön-inceleme diyaloğu: gönderilecek/kaydedilecek verinin tamamı
+// kullanıcıya açık JSON olarak gösterilir; "Dışa aktar" aynı içeriği yazar.
+function showDiagnosticsReviewDialog(json) {
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const dialog = document.createElement('dialog');
+  dialog.className = 'retranslate-review diagnostics-review';
+  dialog.setAttribute('aria-labelledby', 'diagnosticsReviewTitle');
+  const head = document.createElement('div'); head.className = 'retranslate-review-head';
+  const title = document.createElement('h2'); title.id = 'diagnosticsReviewTitle';
+  title.textContent = en ? 'Review diagnostics bundle' : 'Tanı paketini incele';
+  const hint = document.createElement('p');
+  hint.textContent = en
+    ? 'This is the exact content that will be saved. Tokens, cookies, personal paths and captured subtitle text are already redacted.'
+    : 'Kaydedilecek içerik aynen budur. Anahtarlar, çerezler, kişisel yollar ve yakalanan altyazı metinleri önceden gizlendi.';
+  head.append(title, hint);
+  const body = document.createElement('pre');
+  body.className = 'diagnostics-review-json';
+  body.textContent = json;
+  const actions = document.createElement('div'); actions.className = 'retranslate-review-actions';
+  const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn btn-secondary';
+  cancel.textContent = en ? 'Cancel' : 'İptal';
+  const save = document.createElement('button'); save.type = 'button'; save.className = 'btn btn-primary';
+  save.textContent = en ? 'Export…' : 'Dışa aktar…';
+  actions.append(cancel, save);
+  dialog.append(head, body, actions);
+  document.body.appendChild(dialog);
+  const close = () => { dialog.close(); dialog.remove(); syncBrowserOcclusion(); };
+  cancel.addEventListener('click', close);
+  dialog.addEventListener('cancel', () => { dialog.remove(); syncBrowserOcclusion(); });
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    const result = await window.api.exportBrowserDiagnostics?.(json).catch((error) => ({ ok: false, error: error.message }));
+    if (result?.ok) { close(); logLine(`Tarayıcı tanı paketi kaydedildi: ${result.path}`, 'success'); return; }
+    save.disabled = false;
+    if (!result?.canceled) logLine(result?.error || 'Tanı paketi dışa aktarılamadı.', 'warn');
+  });
+  dialog.showModal();
+  syncBrowserOcclusion();
+  save.focus();
+}
 if ($('browserDiagnosticsExport')) $('browserDiagnosticsExport').addEventListener('click', async () => {
-  const result = await window.api.exportBrowserDiagnostics?.().catch((error) => ({ ok: false, error: error.message }));
-  if (result?.ok) logLine(`Tarayıcı tanı paketi kaydedildi: ${result.path}`, 'success');
-  else if (!result?.canceled) logLine(result?.error || 'Tarayıcı tanı paketi dışa aktarılamadı.', 'warn');
+  const preview = await window.api.previewBrowserDiagnostics?.().catch((error) => ({ ok: false, error: error.message }));
+  if (!preview?.ok || !preview.json) { logLine(preview?.error || 'Tanı paketi hazırlanamadı.', 'warn'); return; }
+  showDiagnosticsReviewDialog(preview.json);
 });
 if ($('browserTabUnload')) $('browserTabUnload').addEventListener('click', async () => {
   const tab = (Array.isArray(player.browserTabs) ? player.browserTabs : [])

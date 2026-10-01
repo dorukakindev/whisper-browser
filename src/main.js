@@ -4985,6 +4985,20 @@ function browserDiagnosticsExportSnapshot() {
   const snapshot = {
     version: 1,
     exportedAt: new Date().toISOString(),
+    // Sistem/iş bağlamı: tanı paketi ortam bilgisi olmadan tek başına az işe
+    // yarar; kişisel veri içermeyen süreç/GPU özeti (yol değil, adlandırma).
+    system: {
+      platform: process.platform,
+      arch: process.arch,
+      appVersion: String(app.getVersion() || ''),
+      versions: {
+        electron: String(process.versions.electron || ''),
+        chrome: String(process.versions.chrome || ''),
+        node: String(process.versions.node || ''),
+      },
+      locale: String(app.getLocale() || '').slice(0, 40),
+      gpu: browserGpuDiagnostics || null,
+    },
     operationId: String(source.operationId || '').slice(0, 160),
     pageUrl: redactCaptureUrl(source.pageUrl || ''),
     captureEnabled: !!source.captureEnabled,
@@ -17179,7 +17193,13 @@ ipcMain.handle('browser:subtitle:export', async (event, payload) => {
   }
 });
 
-ipcMain.handle('browser:diagnostics:export', async (event) => {
+ipcMain.handle('browser:diagnostics:preview', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const snapshot = browserDiagnosticsExportSnapshot();
+  return { ok: true, operationId: snapshot.operationId, json: JSON.stringify(snapshot, null, 2) };
+});
+
+ipcMain.handle('browser:diagnostics:export', async (event, payload = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!app.isPackaged && process.argv.includes('--electron-diagnostics-sensitive-smoke')) {
     browserDiagnostics = {
@@ -17198,6 +17218,14 @@ ipcMain.handle('browser:diagnostics:export', async (event) => {
     browserTrackBuffers.set('smoke', [{ text: 'Gizli cue metni tanı alanına sızdı' }]);
   }
   const snapshot = browserDiagnosticsExportSnapshot();
+  // Renderer ön-incelemesi: kullanıcının gözden geçirdiği içerik aynen yazılır;
+  // payload yoksa (eski çağıranlar) taze anlık görüntüye düşer.
+  let bundleJson;
+  if (typeof payload?.json === 'string' && payload.json) {
+    if (payload.json.length > 4 * 1024 * 1024) return { ok: false, error: 'Tanı paketi çok büyük.' };
+    try { JSON.parse(payload.json); bundleJson = payload.json; }
+    catch (_) { return { ok: false, error: 'Önizlenen tanı paketi okunamadı.' }; }
+  } else bundleJson = JSON.stringify(snapshot, null, 2);
   const smokePrefix = '--electron-diagnostics-output=';
   const smokePath = !app.isPackaged
     ? process.argv.find((argument) => argument.startsWith(smokePrefix))?.slice(smokePrefix.length) : '';
@@ -17211,7 +17239,7 @@ ipcMain.handle('browser:diagnostics:export', async (event) => {
   try {
     const outputPath = path.extname(result.filePath).toLowerCase() === '.json'
       ? result.filePath : `${result.filePath}.json`;
-    writeBufferAtomic(outputPath, JSON.stringify(snapshot, null, 2));
+    writeBufferAtomic(outputPath, bundleJson);
     return { ok: true, path: outputPath, operationId: snapshot.operationId };
   } catch (error) {
     return { ok: false, error: `Tanı paketi kaydedilemedi: ${error.message}` };

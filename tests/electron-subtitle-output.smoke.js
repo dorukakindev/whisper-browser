@@ -608,6 +608,15 @@ const call = (method, params = {}) => new Promise((resolve, reject) => {
     files: [translationPath], running: false, queueRunning: false,
   }, 'done/done/exit sırası kuyruk işini tek terminal duruma getirmedi.');
 
+  const preview = await call('Runtime.evaluate', {
+    expression: anchorEvalExpression('window.api.previewBrowserDiagnostics()'), awaitPromise: true, returnByValue: true,
+  });
+  assert.equal(preview.result?.value?.ok, true, preview.result?.value?.error || 'Tanı ön-inceleme IPC başarısız.');
+  const previewJson = preview.result?.value?.json || '';
+  assert.match(previewJson, /"system"/u, 'Önizlenen tanı paketinde sistem bloğu yok.');
+  assert.match(previewJson, /"platform"/u, 'Önizlenen tanı paketinde platform alanı yok.');
+  assert.equal(previewJson.includes('PAGE_SECRET'), false, 'Önizlenen pakette hassas veri kaldı.');
+
   const exported = await call('Runtime.evaluate', {
     expression: anchorEvalExpression('window.api.exportBrowserDiagnostics()'), awaitPromise: true, returnByValue: true,
   });

@@ -88,4 +88,32 @@ for (const forbidden of ['user', 'pass', 'SECRET', 'C:\\Users\\K', 'altyazi.srt'
   assert(!deepJson.includes(forbidden), `derin tanı sansüründe hassas değer kaldı: ${forbidden}`);
 }
 
+// Madde-44: sistem bloğu + ön-inceleme akışı ratchet'leri.
+{
+  const fs = require('fs');
+  const path = require('path');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
+
+  const snapIdx = main.indexOf('function browserDiagnosticsExportSnapshot');
+  const snapBody = main.slice(snapIdx, main.indexOf('\nfunction normalizeBrowserUrl', snapIdx));
+  assert(snapBody.includes('system:'), 'tanı paketinde sistem bloğu yok');
+  assert(snapBody.includes('platform: process.platform'), 'platform alanı eksik');
+  assert(snapBody.includes('appVersion'), 'uygulama sürümü eksik');
+  assert(snapBody.includes('versions:'), 'runtime sürümleri eksik');
+
+  assert(main.includes("ipcMain.handle('browser:diagnostics:preview'"), 'ön-inceleme kanalı yok');
+  const expIdx = main.indexOf("ipcMain.handle('browser:diagnostics:export'");
+  const expBody = main.slice(expIdx, expIdx + 3200);
+  assert(expBody.includes('payload?.json'), 'dışa aktarma önizlenen içeriği kabul etmiyor');
+  assert(expBody.includes('JSON.parse(payload.json)'), 'önizlenen içerik JSON doğrulanmıyor');
+  assert(expBody.includes('bundleJson'), 'yazım incelenen içerikten yapılmıyor');
+
+  assert(preload.includes('previewBrowserDiagnostics'), 'preload ön-inceleme köprüsü eksik');
+  assert(preload.includes("exportBrowserDiagnostics: (json)"), 'preload export parametresi eksik');
+  assert(renderer.includes('showDiagnosticsReviewDialog'), 'renderer inceleme diyaloğu yok');
+  assert(renderer.includes('previewBrowserDiagnostics'), 'renderer ön-inceleme çağırmıyor');
+}
+
 console.log('Tarayıcı tanı paketi altyazı metni gizlilik testleri geçti.');
