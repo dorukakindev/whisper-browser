@@ -751,8 +751,11 @@ function redactJobLogArgs(args) {
 }
 
 function sanitizeProcessDetail(value) {
+  // Dizgi sonlandırmalı escape'ler (OSC/DCS/SOS/PM/APC) içerik taşır —
+  // önce onlar tamamen süzülür, yoksa Fe dalı ilk karakteri yiyip içeriği
+  // düz metin olarak bırakır (ör. \x1b]8;;url\x07 → 'ttps://url' sızıntısı).
   return String(value || '')
-    .replace(/\x1B(?:[@-_][0-?]*[ -\/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/gu, '')
+    .replace(/\x1B(?:[\]PX^_][^\x07\x1B]*(?:\x07|\x1B\\)|[@-_][0-?]*[ -\/]*[@-~])/gu, '')
     .replace(/https?:\/\/\S+/giu, '<URL gizlendi>')
     .replace(/[A-Za-z]:\\[^\r\n\t ]+/gu, '<yol gizlendi>')
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/gu, '')
