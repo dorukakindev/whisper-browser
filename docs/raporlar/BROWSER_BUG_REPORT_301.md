@@ -1298,6 +1298,64 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R375 — küçük/orta yüzeyler derin okuması: oturum deposu, soak bütçeleri, adres modeli, çeviri arşivi, reklam engelleyici, eski-kodlama çözümü
+
+Kapsam (~2.131 satır, altı dosya hepsi satır satır okundu):
+
+- `src/browser-session-store.js` (399) — sekme/oturum kalıcılığı:
+  v8 şema zinciri, alan-bazlı normalizasyon (track/ref/recoveryJob
+  whitelist'leri, süre/hız/ses kelepçeleri), çift kimlik `-dupN`
+  üretimi, aktif-sekme hayatta tutma, tmp+fsync+bak commit'i.
+- `src/resource-soak.js` (384) — soak değerlendirici: OLS eğim
+  (faz-etiketli video/page alt serileri), dinleyici sürüklenmesi
+  (toggle-prob öncelikli), dosya-bazlı ve yazar-kategorili G/Ç
+  bütçeleri, async_hooks Timeout sahiplik sınıflaması, tepeler.
+- `src/browser-address-model.js` (365) — DOM'suz adres modeli:
+  FOLD_SENTINEL hizalı katlama dizini (Türkçe I/İ/ı, vekil çifti,
+  jamo NFC birleşimi, haritalı ofsetler), frecency, satır-içi
+  tamamlama (özgün-karakter kesim), sonuç birleştirme
+  (sekme sahiplenir), dil soneki, http geri-dönüş kapısı, NTP.
+- `src/browser-translation-archive.js` (348) — Sayfalar/Altyazılar
+  kalıcı arşivi: kanonik URL (hassas parametre süzgeci), içerik-bağlı
+  kimlik, id-exact + içerik-anahtarlı bulanık sayfa eşleşmesi
+  (eşik: ≥0,5 oran), kaçışlı dışa aktarım biçimleri, sınırlı indeks,
+  traversal-korumalı eski-dosya silme.
+- `src/browser-adblock.js` (326) — Ghostery motoru sarmalayıcı:
+  önbellek TTL/boyut, fetch zaman aşımı, bayat geri dönüş, tek-uçuş
+  enablePromise, kısmi-kurulum geri alımı, site-duraklatma baypası,
+  kozmetik hata tekilleştirmesi.
+- `src/browser-textutil.js` (309) — eski-kodlama altyazı çözümü:
+  UTF-16 BOM + UTF-8 dizi sayımı + cp1254 yerellik testi +
+  dil-ipuçlu senaryo-tutarlılığı yarışması + çift-kodlama onarımı
+  (kayıpsızlık bekçisi) + Ð/Þ/Ý→Ğ/Ş/İ fixup'ı (İzlandaca ayrımı).
+
+### B-375-01 — çeviri arşivi fsync törenini atlıyordu (düzeltildi)
+
+`BrowserTranslationArchive._writeText` ve `_saveIndex` düz
+`writeFileSync` + `renameSync` kullanıyordu — R281'de diğer tüm
+depolara taşınan "temp fsync → rename → dizin fsync + tmp temizliği"
+töreni bu dosyada yoktu. Güç kesintisinde yeni index.json /
+arşiv .json / .md / .srt dosyası sıfır-bayt kalabilir; rename
+hatasında `.tmp` artığı da kalırdı.
+
+Düzeltme: iki yazım yolu `atomicWriteFileSync` üzerinden geçer
+(`{ io: this.fs }` — fsModule enjeksiyonu korunur). Kayıtlı-fs
+kilidiyle fsync sayısı ≥3 ve `.tmp` artığı yok doğrulandı —
+kırmızı kanıt: master'da aynı test FAIL.
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- `browser-session-store.js` — `splitSecondaryTabId` doğrulaması ham
+  `activeTabId` ile karşılaştırır (çözümlenmiş aktif kimlikle değil);
+  ham kimlik geçersizse ikincil ilk sekmeye eşitlenebilir — kozmetik
+  kenar, zararsız.
+- `safeBlockedUrl`/`safeFilterRule` sır temizleme çift katmanlı
+  (URL sorgusu + key=value + bearer) — doğrulandı.
+
+Windows etkisi: kod değişimi fsync-utils'in Windows-toleranslı
+yollarını kullanır (dizin fsync'i reddedilirse en iyi çaba); davranış
+aynı, dayanıklılık arttı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
