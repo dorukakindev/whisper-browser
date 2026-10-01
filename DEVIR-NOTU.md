@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2300.md](docs/devir/2026-10-01-2300.md) — kuyruk-50 madde 36: PDF yerleşimli çeviri okuma sırası (başlık/dipnot/tablo) + kaynak↔hedef eşleme
+Güncel çalışma: [docs/devir/2026-10-01-2315.md](docs/devir/2026-10-01-2315.md) — kuyruk-50 madde 37: yerel OCR yetenek yönetimi (yetenek raporu + görüntü-PDF yedeği + güven rozeti)
+Önceki çalışma: [docs/devir/2026-10-01-2300.md](docs/devir/2026-10-01-2300.md) — kuyruk-50 madde 36: PDF yerleşimli çeviri okuma sırası (başlık/dipnot/tablo) + kaynak↔hedef eşleme
 Önceki çalışma: [docs/devir/2026-10-01-2230.md](docs/devir/2026-10-01-2230.md) — kuyruk-50 madde 35: veri bütünlüğü denetimi (tara+önizle+yedekli onar)
 Önceki çalışma: [docs/devir/2026-10-01-2215.md](docs/devir/2026-10-01-2215.md) — kuyruk-50 madde 34: veri şeması geçiş fixture'ları + .bak koruma hatası
 Önceki çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 33: taşınabilir paket kapsam önizlemesi + gizlilik ratchet'i
