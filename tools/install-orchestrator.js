@@ -9,7 +9,7 @@ const SCHEMA_VERSION = 1;
 const MIN_FREE_BYTES = 10 * 1024 ** 3;
 const TORCH_INDEX = 'https://download.pytorch.org/whl/cu121';
 const TORCH_PINS = ['torch==2.5.1+cu121', 'torchaudio==2.5.1+cu121'];
-const ELECTRON_COMMIT = '8244344c33634d9323377c0d0fd1d9b7f9b69540';
+const ELECTRON_COMMIT = '2ffdf82aa3214acedfb7447e2e920efc0398270b';
 const VALID_PROFILES = new Set(['core', 'whisperx', 'diarize']);
 // Some old packages publish SPDX-compatible license data through the legacy
 // `licenses` field. npm does not copy that field into lockfile v3. Keep the

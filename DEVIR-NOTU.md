@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
+Güncel çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — 20'lik kullanım kuyruğu yeniden doğrulaması: 1 bulgu (ELECTRON_COMMIT pin eskimesi — düzeltildi) + ~30 test/13 smoke yeşil
+Önceki çalışma: Güncel çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
 Önceki çalışma: [docs/devir/2026-10-01-1151.md](docs/devir/2026-10-01-1151.md) — R413b: stub kapsamı preload'lu 2 smoke'a daraltıldı (preload'suz 7'si ölü koddu)
 Önceki çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal)
 Önceki çalışma: [docs/devir/2026-10-01-1134.md](docs/devir/2026-10-01-1134.md) — R412 tests/ kapanışı: son 7 büyük dosya temiz + 402 dosya tam-envanter süpürmesi — REPO GENELİ DERİN OKUMA TAMAM
