@@ -310,7 +310,7 @@ assert.match(main, /Manga görsellerinin yüklenmesi bekleniyor/);
 assert.match(main, /if \(!result\.length\)[\s\S]{0,240}focusRegion, true/);
 assert.match(main, /browserMangaCache\(\)\.set\(key, JSON\.stringify\(result\.length[\s\S]{0,300}if \(result\.length\) \{[\s\S]{0,300}browserMangaCache\(\)\.set\(ocrKey/);
 assert.match(main, /if \(regions\?\.length && !browserMangaCache\(\)\.get\(ocrKey\)\)[\s\S]{0,360}browserMangaCache\(\)\.set\(ocrKey/);
-assert.match(main, /requestBrowserSentenceTranslation\(\{ text: region\.source \}, config/);
+assert.match(main, /requestBrowserSentenceTranslation\(\{ text: region\.source \},/);
 assert.match(main, /stopBrowserManga\(tab, false\)[\s\S]{0,180}tab\.mangaTranslated = 0/);
 assert.match(preload, /startBrowserManga:[\s\S]{0,120}browser:manga:start/);
 assert.match(preload, /retrySelectedBrowserManga:[\s\S]{0,120}browser:manga:retrySelected/);
@@ -442,4 +442,47 @@ assert.match(html, /generativelanguage\.googleapis\.com\/v1beta\/openai/);
     'https→http düşüşünde Referer sızıyor');
 }
 
-console.log('browser-manga: 93 test');
+// Madde-40: bölüm terim tutarlılığı — prompt'ta öğrenilen eşleşmeler taşınır.
+{
+  const prompt = buildMangaPrompt({ targetLanguage: 'Türkçe',
+    terminologyText: 'Senpai=Senpai | Katana=Kılıç' });
+  assert.match(prompt, /öğrenilen terim eşleşmeleri.*Senpai=Senpai \| Katana=Kılıç/s,
+    'terminologyText prompt satırına girmiyor');
+  const sanitized = buildMangaPrompt({ terminologyText: 'A\nB\u0000C' });
+  assert.match(sanitized, /A B C/, 'terminology kontrol karakterleri temizlenmiyor');
+  const capped = buildMangaPrompt({ terminologyText: 'x'.repeat(5000) });
+  assert.ok(capped.length < 5000 + 1200, 'terminology uzunluğu sınırlanmıyor');
+  const none = buildMangaPrompt({ targetLanguage: 'Türkçe' });
+  assert.ok(!/öğrenilen terim eşleşmeleri/.test(none), 'boş terminology satırı sızıyor');
+}
+
+// Madde-40: bölüm terim hattı — seed, öğrenme, istek geçişi, site kalıcılığı.
+{
+  const seedIdx = main.indexOf('function mangaTerminologySeed');
+  assert.ok(seedIdx > 0, 'mangaTerminologySeed tanımsız');
+  const seedBody = main.slice(seedIdx, seedIdx + 1200);
+  assert.match(seedBody, /createTerminologyMap\(\{ maxTerms: 60, maxChars: 2400 \}\)/,
+    'bölüm haritası sekme ömrüyle yaratılmıyor');
+  assert.match(seedBody, /siteTerminologyScope\(browserPageUrl\(tab\), config\.targetLanguage\)/,
+    'site kapsamı tohumlama dışı');
+  assert.match(seedBody, /seedSiteTerminology\(tab\.mangaTerminologyMap/,
+    'kalıcı site eşleşmeleri tohumlanmıyor');
+  const startIdx = main.indexOf('async function startBrowserManga');
+  const startBody = main.slice(startIdx, startIdx + 4000);
+  assert.match(startBody, /mangaTerminologySeed\(tab, config\)[\s\S]{0,400}terminologyMap/,
+    'iş başında bölüm haritası bağlanmıyor');
+  const candIdx = main.indexOf('async function translateMangaCandidate');
+  const candBody = main.slice(candIdx, main.indexOf('\nfunction nearestMangaRegion', candIdx));
+  assert.match(candBody, /requestMangaTranslation\(image,\s*\{ \.\.\.config, terminologyText: job\.terminologyText \|\| '' \}/,
+    'görsel isteği terim metnini taşımıyor');
+  assert.match(candBody, /terminologyEnabled: true, terminologyText: job\.terminologyText \|\| '' \}[\s\S]{0,80}\.then\(\(result\) => String\(result\?\.text/,
+    'OCR metin yolu terim metnini taşımıyor');
+  assert.match(candBody, /no_regions[^]*?mangaLearnRegions\(job, regions, candidate\.id\)/,
+    'sayfa çiftleri bölüm haritasına öğrenilmiyor');
+  assert.match(main, /function persistMangaSiteTerminology[\s\S]{0,600}siteTerminology = \{ \.\.\.\(places\.siteTerminology/,
+    'öğrenilen eşleşmeler site kapsamına yazılmıyor');
+  assert.match(main, /tab\.mangaJob = null;\s*\n\s*tab\.mangaTranslated = translated;\s*\n\s*persistMangaSiteTerminology\(tab, config\)/,
+    'iş kapanışında site kalıcılığı çağrılmıyor');
+}
+
+console.log('browser-manga: 105 test');
