@@ -50,10 +50,27 @@ function normalizeCue(cue) {
   return out;
 }
 
+function normalizeTimeTransform(raw) {
+  // Kuyruk-50 madde 25: kabul edilmiş kalibrasyon (zaman dönüşümü) kaydı
+  // checkpoint'te saklanır; kapanma sonrası aynı dönüşümle yayın sürer.
+  if (!raw || typeof raw !== 'object') return null;
+  const offsetSeconds = Number(raw.offsetSeconds);
+  if (!Number.isFinite(offsetSeconds) || Math.abs(offsetSeconds) > 86400) return null;
+  const matches = Math.max(0, Math.trunc(Number(raw.matches) || 0));
+  const confidence = String(raw.confidence || '').slice(0, 20);
+  return { offsetSeconds, matches, confidence };
+}
+
 function normalizeTracks(tracks) {
   if (!Array.isArray(tracks)) return [];
   return tracks.slice(0, 8).map((entry) => ({
     instreamId: String(entry?.instreamId || '').replace(/[^A-Z0-9_]/gi, '').slice(0, 20),
+    // Parça kimliği (madde 25): yeniden başlatmada plan değişse bile
+    // kurtarılan iz doğru dil/ad ile yayınlanır.
+    language: String(entry?.language || '').trim().slice(0, 24),
+    name: String(entry?.name || '').trim().slice(0, 120),
+    standard: String(entry?.standard || '').trim().slice(0, 24),
+    timeTransform: normalizeTimeTransform(entry?.timeTransform),
     cues: (Array.isArray(entry?.cues) ? entry.cues : []).slice(0, 20000)
       .map(normalizeCue).filter(Boolean),
   })).filter((entry) => entry.instreamId && entry.cues.length);
