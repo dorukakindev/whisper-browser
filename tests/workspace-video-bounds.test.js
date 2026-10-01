@@ -124,7 +124,18 @@ try {
       'var olan dosya silinmedi/bozulmadı');
   }
 
-  // 5) Kaynak ratchetleri: sınırlı kopya her iki çıkarım yolunda da kullanılır.
+  // 5) R366: bilinmeyen action sessizce extract dalına düşmez — fail-closed.
+  {
+    const archive = path.join(work, 'normal.wbp');
+    const bogus = runPackage({ action: 'delete-everything', archive,
+      videos: [{ name: videoName, target: path.join(work, 'cikti4', 'v4.mp4') }] });
+    ok(bogus.ok === false, 'bilinmeyen eylem reddedilir');
+    ok(/Desteklenmeyen paket eylemi/.test(bogus.error || ''),
+      `eylem hatası: ${bogus.error}`);
+    ok(!fs.existsSync(path.join(work, 'cikti4')), 'hedef yaratılmadı');
+  }
+
+  // 6) Kaynak ratchetleri: sınırlı kopya her iki çıkarım yolunda da kullanılır.
   const src = fs.readFileSync(SCRIPT, 'utf8');
   ok(src.includes('_copy_bounded') && !src.includes('copyfileobj'),
     'sınırsız copyfileobj kalmadı');

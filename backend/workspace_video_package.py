@@ -54,6 +54,9 @@ def main(req):
         if req['action'] == 'read':
             _extract_entry(bundle, info, req['manifest'])
             return {}
+        if req['action'] != 'extract':
+            # Bilinmeyen eylem sessizce extract dalına düşmezdi — fail-closed.
+            raise ValueError(f"Desteklenmeyen paket eylemi: {req['action']!r}")
         total = 0
         missing = []
         for entry in req['videos']:
