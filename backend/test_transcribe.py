@@ -3787,6 +3787,50 @@ def test_whisperx_zero_confidence_is_not_promoted_to_one():
     assert seg.words[0].probability == 1
 
 
+def test_wrap_whisperx_segment_edge_timestamps():
+    """Eksik/NaN damgalar sarmalanırken kilitlenmez:
+    - end yok → seg_start'a düşer (sıfır süre → aşağı yönde korunur)
+    - kelime start/end yok → önceki kelime sonuna/aynı ana yaslanır
+    - probability anahtarı yok → 1.0 varsayılır
+    """
+    seg = T._wrap_whisperx_segment({'start': 2.0, 'text': 'x',
+        'words': [{'word': 'a'}, {'word': 'b', 'start': 2.5}]})
+    assert seg.start == 2.0 and seg.end == 2.0
+    w0, w1 = seg.words
+    # ilk kelime damgasız → seg_start'a; ikinci yalnız start'lı → sıfır süre
+    assert (w0.start, w0.end) == (2.0, 2.0)
+    assert (w1.start, w1.end) == (2.5, 2.5)
+    assert w0.probability == 1.0
+    # boş kelime listesi words=None döner (need_words False yoluyla uyumlu)
+    seg2 = T._wrap_whisperx_segment({'start': 0, 'end': 1, 'text': 't', 'words': []})
+    assert seg2.words is None
+    # dize damgalar float'a dönüştürülür
+    seg3 = T._wrap_whisperx_segment({'start': '1.5', 'end': '2.5', 'text': 't'})
+    assert (seg3.start, seg3.end) == (1.5, 2.5)
+
+
+def test_assign_speakers_boundary_cases():
+    """assign_speakers: en çok örtüşen konuşmacı atanır; örtüşme yoksa boş."""
+    spans = [(0.0, 1.0, "A"), (1.0, 2.0, "B"), (4.0, 5.0, "A")]
+    entries = [(0.9, 1.1, "iki uç"), (2.5, 3.5, "boş")]
+    out = T.assign_speakers(entries, spans)
+    # ilk cue A(0.1s) ve B(0.1s) eşit örtüşür — max ilk bulunanı seçer;
+    # ikinci cue hiçbir span'le örtüşmez → atama yok
+    assert out[0] in ("A", "B") and 1 not in out
+    # boş span listesi her zaman boş sözlük
+    assert T.assign_speakers(entries, []) == {}
+    assert T.assign_speakers(entries, None) == {}
+    # sıfır/negatif süreli span'ler örtüşme üretmez
+    assert T.assign_speakers([(0.0, 1.0, "x")], [(0.0, 0.0, "A")]) == {}
+
+
+def test_offset_diarization_spans_edge():
+    assert T.offset_diarization_spans(None, 5.0) == []
+    assert T.offset_diarization_spans([(0.0, 1.0, "A")], None) == [(0.0, 1.0, "A")]
+    # string sayısal damgalar float'a döner
+    assert T.offset_diarization_spans([("0.5", "1.5", "A")], 2.0) == [(2.5, 3.5, "A")]
+
+
 def test_probe_duration_timeout_and_invalid_results():
     from unittest import mock
     with mock.patch.object(T.Path, 'exists', return_value=True):
@@ -4548,6 +4592,127 @@ def test_r51_86_nan_timestamps_never_reach_output_or_span_boundaries():
             raise AssertionError("NaN damga JSON'a yazıldı")
         except (ValueError, RuntimeError):
             pass
+
+
+def test_compute_media_duration_does_not_double_subtract_clip_start():
+    """Kırpılmış WAV'ın süresi info.duration'dadır; clip_start ikinci kez düşülmez.
+
+    60 sn kaynak + clip_start=10 → kırpılmış WAV 50 sn. Eski kod 50-10=40
+    hesaplıyor ve RTF/medya süresini düşük raporluyordu.
+    """
+    assert T.compute_media_duration(50.0, 10.0, None) == 50.0
+    # Devam modu: ses resume noktasından çıkarıldı → info.duration kalan süre.
+    assert T.compute_media_duration(3000.0, 600.0, None) == 3000.0
+    # clip_end penceresi içinde normal aralık.
+    assert T.compute_media_duration(40.0, 10.0, 50.0) == 40.0
+    # clip_end kaynağın sonunu aşarsa gerçek işlenen süre korunur.
+    assert T.compute_media_duration(50.0, 10.0, 90.0) == 50.0
+    # duration bilinmiyorsa pencere tek tahmindir.
+    assert T.compute_media_duration(0.0, 10.0, 50.0) == 40.0
+    # Kırpma yok → motor süresi olduğu gibi.
+    assert T.compute_media_duration(123.5, None, None) == 123.5
+
+
+def test_same_word_hallucination_is_case_insensitive():
+    """Karışık büyük/küçük harfli tekrar döngüsü de sert işaret sayılır."""
+    assert T.is_hallucination("No no NO no no")
+    assert T.should_skip_hallucination("evet Evet EVET evet evet")
+    assert not T.is_hallucination("Hayır hayır ama belki evet.")
+    assert not T.is_hallucination("No no no no")  # 4 < 5 eşik
+
+
+def test_normalize_timings_property_fuzz():
+    """30k rastgele girdide normalize_timings invariant'ları.
+
+    normalize_timings'in sözleşmesi: metin asla kaybolmaz (kısa cue'lar komşuya
+    katlanır), süre pozitif kalır, başlangıç negatifleşmez ve ardışık cue'lar
+    arasında min_gap korunur (yalnızca 0.01 geri-dönüş toleransı). Rastgele
+    örtüşen/geri-adımlı/sıfır-süreli dizilerde bunların hepsi tutar.
+    """
+    import random
+    from collections import Counter
+
+    rng = random.Random(20260930)
+    for _trial in range(30000):
+        n = rng.randint(1, 40)
+        t = 0.0
+        entries = []
+        for _ in range(n):
+            t += rng.choice([0.0, 0.05, 0.3, 0.8, 2.0, -0.4])
+            dur = rng.choice([0.0, 0.02, 0.1, 0.5, 1.0, 5.0, 9.0])
+            e = t + dur if rng.random() < 0.9 else t - 0.5
+            entries.append((t, e, f"w{rng.randint(1, 5)} " * rng.randint(1, 12)))
+        out = T.normalize_timings(entries)
+        for i, (s, e, _txt) in enumerate(out):
+            assert e > s, f"trial {_trial}: pozitif olmayan süre {s}..{e}"
+            assert s >= -1e-9, f"trial {_trial}: negatif başlangıç {s}"
+            if i + 1 < len(out):
+                gap = out[i + 1][0] - e
+                assert gap >= 0.07 - 1e-9, (
+                    f"trial {_trial}: {i}. cue çakışıyor (gap {gap})"
+                )
+        src = Counter(w for _s, _e, tt in entries for w in tt.split())
+        dst = Counter(w for _s, _e, tt in out for w in tt.split())
+        assert src == dst, f"trial {_trial}: metin kaybı {src - dst} / {dst - src}"
+
+
+
+def test_translate_progress_counts_preserved_lines():
+    """'Değişmeden korunan' satırlar ilerleme sayımına girmeli — yoksa
+    llm_progress kalıcı olarak %100'ün altında kalırdı (korunan satırlar
+    API'ye hiç gönderilmez, counters içine de düşmez)."""
+    import sys, types, importlib.machinery, json
+
+    entries = [
+        (0.0, 1.0, "Hello there."),
+        (1.0, 2.0, "Ha ha ha."),          # line_keeps_source → API'siz korunur
+        (2.0, 3.0, "This is a test."),
+        (3.0, 4.0, "iPhone 15 Pro."),      # camelCase+rakam → korunur
+        (4.0, 5.0, "Goodbye now."),
+    ]
+    captured_progress = []
+
+    def _create(**kw):
+        payload = json.loads(kw["messages"][-1]["content"])
+        items = {str(it["i"]): "[TR] " + it["t"] for it in payload["items"]}
+        sentences = {
+            str(group["ids"][0]): " ".join(items[str(index)] for index in group["ids"])
+            for group in payload["sentence_groups"]
+        }
+        answer = {"items": items, "sentences": sentences}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=json.dumps(answer)))])
+
+    class _Ok:
+        def __init__(self, *a, **k):
+            self.chat = types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=_create))
+
+    fake = types.ModuleType("openai")
+    fake.OpenAI = _Ok
+    fake.__spec__ = importlib.machinery.ModuleSpec("openai", None)
+    real_mod = sys.modules.get("openai")
+    sys.modules["openai"] = fake
+    real_emit = T.emit
+    T.emit = lambda event_type, **kw: (
+        captured_progress.append(kw) if event_type == "llm_progress" else None)
+    try:
+        out = T.llm_translate(entries, _TrArgs(translate_cache=False), [], source_lang="en")
+    finally:
+        T.emit = real_emit
+        if real_mod is not None:
+            sys.modules["openai"] = real_mod
+        else:
+            sys.modules.pop("openai", None)
+    assert out is not None
+    # korunan satırlar kaynak metni korur
+    assert out[1][2] == "Ha ha ha." and out[3][2] == "iPhone 15 Pro.", out
+    assert captured_progress, "llm_progress hiç yayınlanmadı"
+    final = captured_progress[-1]
+    assert final["percent"] == 100.0, final
+    assert final["done"] == len(entries), final
+    assert final["failed"] == 0, final
+
 
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

@@ -54,6 +54,7 @@ function ipcHarness(code) {
     spawn: () => {},
     mainWindow: null,
     runYoutubeCommand: null, // test kurar
+    pushBoundOption: require('../src/argv-escape').pushBoundOption,
     console, setTimeout, clearTimeout, Promise, Date, String, Number,
     Math, JSON, Object, Array, Map,
   };

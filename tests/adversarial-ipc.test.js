@@ -11,6 +11,7 @@ const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle'
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer, parseNdjsonLine } = require('../src/ndjson-lines');
 const { defaultMediaFolders } = require('../src/media-folders');
+const { pushBoundOption } = require('../src/argv-escape');
 const { buildSecretEnv, sanitizeAbsolutePath } = require('../src/settings-security');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
@@ -25,7 +26,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -230,6 +231,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   });
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
+    const fakeAppDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-appdir-'));
+    fs.mkdirSync(path.join(fakeAppDir, 'backend'), { recursive: true });
+    fs.writeFileSync(path.join(fakeAppDir, 'backend', 'transcribe.py'), '# stub\n');
     const context = {
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
@@ -237,7 +241,10 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
-      app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer,
+      // transcribe:start spawn'dan önce backend/transcribe.py varlığını kontrol
+      // eder (R317) — sahte appDir'a stub betik dosyası konur.
+      app: { getAppPath: () => fakeAppDir, getPath: () => os.tmpdir() }, path, Buffer, fs,
+      appResourceRoot: () => fakeAppDir,
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath,
       loadSettings: () => ({
@@ -261,7 +268,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // transcribe:start artik is basina sahipli bir gecici klasor aciyor;
       // harness GERCEK randomUUID'yi verir.
       randomUUID: require('crypto').randomUUID,
-      createIdempotentCancel, recoverOutputTransactions,
+      createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     // Unlike register(), keep one context so assignments remain observable.
     const sandbox = vm.createContext(context);
@@ -295,7 +302,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
-      app: { getAppPath: () => os.tmpdir(), getPath: () => os.tmpdir() }, path, Buffer, fs,
+      // transcribe.py varlık kontrolü (R317) depo kökünden geçer.
+      app: { getAppPath: () => path.join(__dirname, '..'), getPath: () => os.tmpdir() }, path, Buffer, fs,
+      appResourceRoot: () => path.join(__dirname, '..'),
       process: { env: {} }, resolvePython: () => 'mock-python',
       defaultMediaFolders, sanitizeAbsolutePath, canonicalLocalPath,
       MEDIA_EXTS: new Set(['mp4', 'mkv']),
@@ -316,7 +325,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       createProcessTerminalLatch, randomUUID: require('crypto').randomUUID,
-      createIdempotentCancel, recoverOutputTransactions,
+      createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     const sandbox = vm.createContext(context);
     sandbox.ipcMain = { handle: (_name, fn) => { sandbox.start = fn; } };
@@ -334,7 +343,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   await test('benchmark dosya diyaloğu sırasında başlayan model işi ikinci spawnı engeller', async () => {
     const context = { authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: { webContents: sender },
-      loadSettings: () => ({ ui: { uiLocale: 'en' } }) };
+      loadSettings: () => ({ ui: { uiLocale: 'en' } }), pushBoundOption };
     let complete;
     context.dialog = { showOpenDialog: () => new Promise((resolve) => { complete = resolve; }) };
     const sandbox = vm.createContext(context);

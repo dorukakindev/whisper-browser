@@ -34,6 +34,8 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
   'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
+  'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',
+  'browserExportFormat', 'browserExportTiming', 'browserPageExportFormat', 'pdfExportFormat', 'pdfTargetLanguage',
 ]);
 
 const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
@@ -52,7 +54,14 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'browserAutoSkipAds', 'browserPlayerResponseAdPrune', 'browserDeArrowEnabled', 'browserRydDislikes',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
   'browserAutoPip',
+  'subtitleFindCase', 'subtitleFindWhole',
 ]);
+
+// Çok-seçimli kontroller: değerleri dizi olarak saklanır (string tekilleştirme
+// yapmaz — select[multiple]'in el.value'su yalnız ilk seçeneği döndürür).
+const UI_MULTI_VALUE_ENUMS = Object.freeze({
+  browserSponsorCategories: ['sponsor', 'selfpromo', 'interaction', 'intro', 'outro', 'preview', 'music_offtopic'],
+});
 
 const UI_ENUMS = Object.freeze({
   model: ['large-v3', 'large-v3-turbo', 'large-v2', 'medium', 'small', 'base', 'tiny'],
@@ -83,6 +92,14 @@ const UI_ENUMS = Object.freeze({
   uiTheme: ['system', 'dark', 'light'],
   uiLocale: ['en', 'tr'],
   browserSearchEngine: ['google', 'duckduckgo', 'bing', 'brave', 'startpage'],
+  timelineZoom: ['0', '30', '60', '120', '300'],
+  aiTranscriptScope: ['nearby', 'watched', 'full'],
+  browserPageScope: ['article', 'whole', 'selection'],
+  browserExportFormat: ['srt', 'vtt', 'ass'],
+  browserExportTiming: ['original', 'synchronized'],
+  pdfExportFormat: ['txt', 'md', 'html'],
+  pdfTargetLanguage: ['tr', 'en', 'de', 'fr', 'es'],
+  browserPageExportFormat: ['txt', 'md', 'html', 'json'],
 });
 
 const UI_NUMERIC_RANGES = Object.freeze({
@@ -205,6 +222,20 @@ function sanitizeUiSettings(ui, { strict = true } = {}) {
   const clean = {};
   for (const id of PERSIST_VALUE_CONTROLS) {
     if (!Object.prototype.hasOwnProperty.call(ui, id)) continue;
+    if (UI_MULTI_VALUE_ENUMS[id]) {
+      const allowed = UI_MULTI_VALUE_ENUMS[id];
+      const values = ui[id];
+      if (!Array.isArray(values)) {
+        if (strict) throw new SettingsValidationError(`Arayüz ayarı ${id} dizi olmalıdır.`);
+        continue;
+      }
+      const picked = values.map((v) => String(v).trim()).filter((v) => allowed.includes(v)).slice(0, 16);
+      if (picked.length !== Math.min(values.length, 16) && strict) {
+        throw new SettingsValidationError(`Arayüz ayarı ${id} geçersiz bir değer içeriyor.`);
+      }
+      clean[id] = picked;
+      continue;
+    }
     const value = boundedString(ui[id], `Arayüz ayarı ${id}`, id === 'initialPrompt' ? 20000 : 2048);
     if (UI_ENUMS[id] && !UI_ENUMS[id].includes(value)) {
       // Yerel kayıtta (strict=false) tek bozuk kontrol değeri tüm ayar
@@ -373,6 +404,9 @@ function sanitizePlayerPositions(value) {
   const keys = Object.keys(value).slice(-60);
   for (const rawKey of keys) {
     const key = boundedString(rawKey, 'Oynatıcı konum anahtarı', 4000);
+    // `clean[key] = ...` __proto__ anahtarında prototipi ezer; doğrudan
+    // çağrı taramasız da güvenli olsun.
+    if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) continue;
     const item = value[rawKey];
     if (!isPlainRecord(item)) throw new SettingsValidationError('Oynatıcı konumu nesne olmalıdır.');
     const t = Number(item.t);
@@ -840,11 +874,13 @@ function buildSecretEnv(baseEnv, options) {
 
 module.exports = {
   BACKUP_VERSION,
+  DANGEROUS_KEYS,
   MAX_IMPORT_BYTES,
   MAX_JSON_DEPTH,
   MAX_JSON_NODES,
   PERSIST_CHECKBOX_CONTROLS,
   PERSIST_VALUE_CONTROLS,
+  UI_MULTI_VALUE_ENUMS,
   SETTINGS_VERSION,
   SettingsValidationError,
   assertSafeJsonFile,

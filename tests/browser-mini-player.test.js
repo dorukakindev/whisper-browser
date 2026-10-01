@@ -14,6 +14,7 @@ function harness() {
     return {
       id,
       closing: false,
+      lifecycle: 'background',
       view: {
         bounds: null,
         visible: false,
@@ -141,6 +142,26 @@ async function commandSuite() {
     { tab: 't1', action: 'play-pause', arg: undefined },
   ]);
 }
+// R308: sekme kapanırken/boşaltılırken geri bağlama atlanır
+{
+  const h = harness();
+  const tab = h.makeTab('t1');
+  h.player.open(tab);
+  // destroyBrowserTab yolu: closing → görünüm geri bağlanmaz, restore çalışmaz
+  tab.closing = true;
+  const win1 = h.calls.windows[0];
+  win1.close();
+  assert.strictEqual(h.calls.restore, 0, 'closing sekmede restore çağrılmamalı');
+  assert.strictEqual(h.main.contentView.added, undefined, 'closing görünümü ana pencereye bağlanmamalı');
+  // unloadBrowserTab yolu: lifecycle 'unloading' → aynı atlama
+  const h2 = harness();
+  const tab2 = h2.makeTab('t2');
+  h2.player.open(tab2);
+  tab2.lifecycle = 'unloading';
+  h2.calls.windows[0].close();
+  assert.strictEqual(h2.calls.restore, 0, 'unloading sekmede restore çağrılmamalı');
+  assert.strictEqual(h2.main.contentView.added, undefined, 'unloading görünümü ana pencereye bağlanmamalı');
+}
 // close/layout: pencere yokken sessiz no-op
 {
   const h = harness();
@@ -148,5 +169,5 @@ async function commandSuite() {
   h.player.layout();
 }
 commandSuite().then(() => {
-  console.log('browser-mini-player: 8 senaryo geçti (open guardları, layout, owns, command eşleme)');
+  console.log('browser-mini-player: 10 senaryo geçti (open guardları, layout, owns, closing/unloading kapanışı, command eşleme)');
 }).catch((e) => { console.error(e); process.exit(1); });

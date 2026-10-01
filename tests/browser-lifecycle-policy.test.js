@@ -40,7 +40,7 @@ assert.equal(subtitleRequestRetryPolicy({ retryable: true, attempt: 2 }).delayMs
   const path = require('path');
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const crashStart = main.indexOf("wc.on('render-process-gone'");
-  const crashBody = main.slice(crashStart, crashStart + 3600);
+  const crashBody = main.slice(crashStart, crashStart + 4400);
   assert.match(crashBody, /tab\.crashRecoveryTimer = setTimeout/,
     'crash retry zamanlayıcısı sekmeye yazılmıyor');
   assert.match(crashBody, /tab\.lifecycle === 'unloaded' \|\| tab\.lifecycle === 'unloading'/,

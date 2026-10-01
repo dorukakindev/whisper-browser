@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { PACKAGER_IGNORE, missingInTarget } = require('./package-manifest');
 
 const root = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -46,22 +47,17 @@ async function main() {
     asar: false,
     electronVersion,
     electronZipDir: path.dirname(electronZip),
-    ignore: [
-      /^\/(?:\.git|\.github|\.claude|\.agents|\.context_cache|\.uiprev|scratch|artifacts|tests|benchmarks|quality|design-system)(?:\/|$)/,
-      /^\/docs\/(?:devir|raporlar)(?:\/|$)/,
-      /^\/backend\/(?:venv|\.venv|\.venv-installing-[^/]+|\.venv-backup-[^/]+|separator-venv|separator-models|bin|__pycache__)(?:\/|$)/,
-      /^\/(?:BROWSER|PROGRAM|BUG|DEEP_ANALYSIS|YOUTUBE_REKLAM_ENGELLEME)[^/]*\.md$/,
-      // Çalışma oturumu notları ve iç tasarım sözleşmeleri kullanıcı paketine
-      // girmez; kullanıcıya açık belgeler (README, KURULUM, PRIVACY, SUPPORT,
-      // lisans bildirimleri) pakette kalır. tools/ hariç tutulur çünkü paket
-      // içi install.bat, tools/install-orchestrator.js'i çağırır.
-      /^\/(?:AGENTS|CLAUDE|DEVIR-NOTU|YENI-BILGISAYAR|DESIGN|UI-DESIGN-SYSTEM|UX-CONTRACT|CODE_OF_CONDUCT|CONTRIBUTING|DRM-KURULUM)\.md$/,
-      /^\/(?:settings|window-state|premium-ui)\.json$/,
-    ],
+    ignore: PACKAGER_IGNORE,
   });
   const target = paths[0];
   if (!target || !fs.existsSync(path.join(target, 'Whisper Browser.exe'))) {
     throw new Error('Packager did not produce the expected Windows executable.');
+  }
+  // Kaynak bütünlüğü: kanonik listede olup pakete düşmeyen dosya varsa
+  // burada derhal başarısız ol (ör. ignore kalıbı yeni bir modülü yuttu).
+  const missing = missingInTarget(target, root);
+  if (missing.length) {
+    throw new Error(`Packaged app is missing required files:\n  ${missing.join('\n  ')}`);
   }
   const manifest = {
     app: pkg.name,

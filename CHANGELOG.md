@@ -4,9 +4,52 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-### Added
+### Fixed
+- R320: transcribe.py ana hat derin okuma — perf istatistiğinde `media_dur` kırpılmış WAV süresinden `clip_start`'ı ikinci kez düşüyordu (RTF ve mediaSeconds eksik raporlanıyordu); `clip_end` kaynak sonunu aşarsa pencere kelepçelenir. Aynı-kelime halüsinasyon kontrolü artık büyük/küçük harf duyarsız (`No no NO no no` artık yakalanır).
+- R319: PR #265 Devin Review triage — uçuşta kalan PDF çeviri yanıtı yeniden açılan okuyucuya yazamaz + iptal düğmesini kapatmaz; omnibox'ta birleşmeyen jamo kendi aralığına eşlenir (tek jamo araması ilk heceyi vurgulamaz); sekme ölçüsüz `browserPageScope` değeri çeviriye taşınmaz; dolu iş günlüğüne yeni başlık eklenmez (sonekli dosya adı); gömülü-iz ipuçları EN'e çevrilir.
+- R318: Devin Review toplu triage (PR #236–#263) — iş günlüğü aynı-saniye append sayacı + gecikmiş akış hatasının yeni günlüğü silmesi + kesim sonrası formatlama; manga "Başarısızları yeniden dene" çökme/temizlikte sıfırlanır; bellekten boşaltılan sekme bayat `loadError` taşımaz; probeTracks `null` stream'e düşmez; sayfa çevirisi scope whitelist; sponsor kategori değişimi bölümleri yeniler; gömülü iz ipucu okunamayan metin izlerini sayar; yan-panel tutamacı yalnız başlatan işaretçiyi sürükler; PDF çevirisi okuyucu kimliğini karıştırmaz + paket arası iptal; kanal sayfalama kartları düğmenin üstüne ekler; omnibox jamo NFC birimi vurgu hizası; yarım silinmiş yt-dlp paketi previous'a düşmez.
+- R317: eksik dosyayla açılan paket artık boş pencere yerine açılışta diyalog gösterip çıkıyor; Windows paketlemesi gerekli 430 dosyayı doğruluyor (ignore kayması build'i kırar); transcribe.py eksikse iş başlamadan kurulum yönlendirmeli hata dönüyor.
+- R316: dokunmatikte bölünmüş-görünüm ve yan-panel sürükleme tutamaçları çalışmıyordu — sistem jestiyle iptal edilen sürükleme takılı kalıyordu ve yan-panel tutamacı dokunmatik hiç dinlemiyordu. İkisi de pointer olayları + iptal koruması kullanıyor.
+- R315: ayarlar tam-tur denetimi — 12 kontrol (SponsorBlock kategorileri çok-seçimi, zaman çizelgesi yakınlığı, dışa aktarma biçimleri, altyazı arama bayrakları vb.) hiç persist edilmiyordu; restart'ta varsayılana dönüyordu. Çok-seçim kontrolleri artık tüm seçenekleri toplar/geri yükler; persist listeleri iki kopyada da kilitli.
+- R314: tek iş günlüğü dosyası artık 4 MB'ı aşamaz — aşımda kesim işareti yazılıp sonraki olaylar düşürülür (önceden dosya sayısı sınırlı ama tek dosya boyutu sınırsızdı).
+- R313: disk dolu/izin hatasında iş günlüğü akışının dinleyicisiz 'error' olayı ana süreci düşürüyordu; artık günlük bırakılıp uygulama çalışır. Kullanıcı-seçimli dışa aktarımlar (ekran görüntüsü, oturum paketi, sayfa PDF'i, tanı, PDF çevirisi, abonelikler, soak raporları) atomik yazılır — disk dolu anında var olan sağlam dosya yok olmaz.
+- R312: PDF "tüm kitap" çevirisi artık metni paket paket çıkarır (büyük belgelerde bellek/tepkisizlik düzeltildi); çevrilen sayfaların metin kopyası tutulmaz; 40 sayfayı aşan tam-çevirilerde maliyet onayı sorulur.
+- R311: SmartTube kanal sayfasında sekme değişimi uçuşta kalan isteği öldürmez hale getirildi (içerik karışması); kanal-içi arama sayfayı sıfırlar ve Videolar dönüşü çalışır; ilk video sayfası "Daha fazla" ile derinleşir; geçici hata sayfalama düğmesini öldürmez.
+- R310: derin-link yüzeyi doğrulandı — OS protokol kaydı hiç yok; iç şemalar nonce kilitli; sessiz eklemeyi engelleyen ratchet eklendi.
+- R309: yt-dlp güncelleme sonrası yarım silinmiş paket artık bozuk dizin olarak döndürülmüyor; previous ya da venv yedeğine düşülür.
+- R308: bellekten boşaltılan sekme görünümü mini oynatıcıya taşınmışsa mini pencere de kapanır (önceden ölü son kareyle açık kalıyordu).
+- R307: bellekten boşaltılan sekme yeniden açıldığında tükenmiş yeniden-deneme/çökme bütçesini devralmıyor (önceden dirilen sekme ilk sayfa hatasında anında retry-limit diyaloğu açıyor, ilk çökmede otomatik diriliş yapılmıyordu); boşaltmada cloudflare sorgu zamanlayıcısı da temizlenir.
+- R306: tükenen sayfa yeniden-deneme bütçesi artık yeni adrese sızmıyor (önceden yeni sitenin ilk hatası anında retry-limit diyaloğu açıyordu); manga "Başarısızları yeniden dene" sayısı gezinme/çökme/temizlikte sıfırlanır.
+- R305: gömülü altyazı çıkarmada bozuk akış indeksi artık yanlış izi haritalamaz; bozuk ffprobe çıktısı prob sonucunu sessizce kaybettirmiyor.
+- R304: yer imi/geçmiş içe aktarmada `jsessionid`/`PHPSESSID`/`ASPSESSIONID` taşıyıcıları artık siliniyor; bozuk `visitedAt` damgaları sıralamayı bozmuyor.
+- R303: emoji araması altyazı/omnibox vurgusunu bozuyordu — vekil-çift map kaydı düzeltmesi (#245 review).
+- Testler (R302): `subs:shift` zaman kaydırma ±ms doğruluğu 12 senaryoyla kilitlendi — 1ms byte-exact, roundtrip, negatif clamp + cue çıkarma, MM↔HH şekil yükseltmesi, ayırıcı/CRLF/VTT-ayar korunumu, ±86400s IPC sınırı + 1000-tohum fuzz.
+- Testler (R301): kuyruk öncelik/sıra sözleşmeleri 17 senaryoyla kilitlendi — FIFO seçimi, retry'nin konum koruması, dedupe'un pending+running kapsamı, path kanonikleştirme, id sayacı restore devamı ve kapı davranışları (persist reddi/iptal/spawn hatası) + 300-op mutasyon fuzz'ı.
+- Güvenlik (R300): sayfa/medya kökenli görüntü URL'leri artık `safeRemoteImageUrl` kapısından geçer — geri-yüklenen sekme favicon'u ve seekbar storyboard sprite'ı javascript:/file:/data:text şemalarına ve CSS tırnak-enjeksiyonuna kapalı.
+- Omnibox (R298): metindeki görünmez karakterler aramayı bölmüyor artık; emoji sorguları çalışır (eskiden her şeyi döndürüyordu); ayrışık Korece jamo birleşik sorguyla eşleşir; otomatik tamamlama görünmez karakterli sorguda adayın temiz yazımını önerir.
+- Oturum (R298): yinelenen sekme kimliği düzeltmesi başka bir özgün sekmenin `<id>-dupN` kimliğini artık çalamaz.
+- Hata metinleri (R298): `err_unsafe_redirect` ayrı dostu-mesaj kuralı (TR/EN).
+- Omnibox (R297): geçmiş/yer imi araması artık aksan-katlamalı — "cafe" "café"yi, "isik" "Işık"ı, "lodz" "Łódź"yi bulur; ayrışık unicode yazım ve görünmez karakterler (bidi, ZWJ, NUL) sorguyu bozamaz.
 
-- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (25 kontrol).
+### Added
+- Test (R299): ayarlar dışa/içe aktarma tam-tur sadakat ratchet'i — tüm izinli alanların kayıpsız taşındığı, endpoint değişiminde API anahtarının taşınmadığı ve gelecek-sürüm alanlarının güvenle düşürüldüğü kilitlendi (10 kontrol).
+- Test (R298): foldSearchIndex yoğun-dizin kilitleri (72 kontrol) + önbellek-fuzz içerik assert'leri + series-memory `_save` yarışı + queue `.bak` gerçek-yazıcı sözleşmesi + ci-determinism aux/wallclock kapsamı.
+- Test (R296): çeviri önbelleği bozuk-girdi fuzz ratchet'i — journal/temel/.bak bozulma matrisi, tohumlu PRNG ile 114 deterministik senaryo.
+
+- Test (R295): CI determinizm ratchet'i — test/fixture ağacında `Math.random` yasaklandı; uyku-beklemesi ve duvar-saati assert sayıları `ci-determinism-baseline.txt` ile dondu; series-memory dosya adı deterministikleşti, retryAfter marjı genişledi.
+
+- Test (R293): `series_memory` birleştirme yarışı — paralel süreç/iş parçacığı kayıp-güncelleme simülasyonu (6 senaryo, temiz)
+
+- Test (R292): kuyruk-opts roundtrip — `.bak` kurtarma artık main.js'ten eval edilen gerçek `readQueueStateRaw` ile sınanır; ham bayt eşitliği ve `_oversized` işareti kilitlendi; DEVIR-NOTU Önceki sıralaması düzeltildi.
+- Test (R291): sekme/oturum persist bozuk-veri matrisi — kök/alan tip-bozukluğu, sınır senaryoları, disk .bak kurtarma ve `.bak`=önceki-birincil sözleşmesi 402 kontrolle kilitlendi.
+- Test (R290): dış-sink ratchet'i — renderer'da yasak sink kalıpları (on* öznitelik, eval, document.write, location.href, window.open) + href atama envanteri kilidi (218 kontrol, 43 dosya).
+- Test (R289): IPC fuzz vm-realm kirlilik probu — sanal bağlamın Object/Array.prototype'ına yazılan kirlilik artık violation (#223 flag kapanışı).
+- Test (R280): SponsorBlock fetch/önbellek dayanıklılık ratchet'i — askı/aborted/error/404/5xx/dedupe senaryoları + TTL/anahtar/LRU matrisi (28 kontrol).
+- Test (R286): burnin-recovery şema migrasyon sözlüğü — sürüm kapısı, idempotans, tip-bozuk kelepçe, zorunlu-yol matrisi (9 kontrol).
+- Test (R285): `nextCueBoundaryAt` JSDoc sözleşmesi + stres turu — bozuk-dizi enjeksiyonu, prob-konumu mutasyon kilitleri (6 senaryo + n=200), ms-birimi ve küçülen-dizi kontrolleri (11 toplam).
+
+- Test (R283): Çeviri prompt'u golden-snapshot kilidi — `build_translate_prompt`/`build_refine_prompt` tam metin + 11 model sağlayıcı tablosu `backend/testdata/translate_prompt_golden.json`a byte-exact kilitlendi; register/profanity üretici-matris ratchet'leri eklendi.
+- Test (R284): Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı — persist→disk→resume alan sadakati (10.305 tohumlu öğe; opts byte-exact, sır-sızdırmazlık, URL hijyeni, yükleme idempotansı).
 
 - Test: R276 — ASS/SSA override etiketi roundtrip sadakat kilidi: yalnız konum (`\anN`, `\pos`) ve tam-satır italik taşınır; karaoke/fade/move/font düşüşü de kilitli (9 senaryo).
 - Test: R278 — oynatıcı zamanlama fuzz ratchet'i: `nextCueBoundaryAt` indeksli yol ile oracle eşliği (4000 senaryo) ve `playbackLearningAction` invariant matrisi (seek geriye gitmez, oran [0.25,4], loop-cue sonlu).
@@ -18,6 +61,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Fix (R288-b): `browser-note-store` rename sonrası dizin-fsync hatasında belleği geri alıyordu → committed işaretiyle disk≡bellek korunur (upsert+remove). Matris: committed senaryo + çok düzeyli zincir fsync'i + katalog .bak okuma + finally temizliği (45 kontrol).
+
+- Düzeltme (R291): `cloneBrowserPlaces` workspace/sekme haritaları normalize-garantili veriye örtük bel bağlıyordu — `Array.isArray` kapıları eklendi.
+- R288 (#229 review): dizin fsync gerçek G/Ç hatası artık yutulmaz; `atomicWriteFileSync` yeni oluşturulan klasör zincirini de senkronlar; `mirrorBackup` `.bak` fsync'i sıkılaştı.
+- R287: backend argv geçişinde seçenek-enjeksiyonu kapatıldı — `-` ile başlayan değerler artık `--ad=değer` biçimiyle tek argv öğesinde bağlanır (39 serbest-metin seçeneği, `pushBoundOption`).
+- R287-b: `invidious:login --username` kaçağı + kalan 14 dinamik argv sitesi `=` biçimine çevrildi; job-log maskesi `--ad=değer` bağlı biçimini de gizler (prompt/glossary `-`li değerler loga sızmaz); argv-escape matrisi `findTestPython` kullanır.
+- Fix (R286): `burnin-recovery.json` ileri-sürüm kapısı — `version > 1` yazılmış kurtarma dosyası v1 alanlarıyla yanlış okunmaz (yanlış temp yolu silme riski kapandı); eksik/bozuk sürüm v1 sayılır.
 - R241: Dar ekranda transkript/ayar paneli sayfayı tamamen örttüğünde görünmez donmuş kareyi bekleme kaldırıldı; native tarayıcı görünümü panel açılırken gecikmeden gizlenir. Önceki yerel R178/R225 raporu R240'e taşınarak uzak R225 korundu.
 - Düzeltme (R280): SponsorBlock isteği, gövdesi ortada kesilen sunucu yanıtlarında sonsuza dek asılı kalabiliyordu — zaman aşımı artık yanıt bitene dek canlı ve hata yolları kapanıyor.
 

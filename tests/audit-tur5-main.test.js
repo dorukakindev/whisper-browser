@@ -153,6 +153,8 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
   const images = handler('media:saveImage', { authorizedBrowserSender: () => true, Buffer, path,
     loadSettings: () => ({}), app: { getPath: () => '/synthetic' },
     mainWindow: {}, dialog: { showSaveDialog: async () => { dialogs++; return { filePath: 'test.png' }; } },
+    // R313: handler artık atomik yazıcı kullanıyor — mekanik disk-full.test.js'te kilitli.
+    writeBufferAtomic: (_, value) => { written = value; },
     fs: { writeFileSync: (_, value) => { written = value; } } });
   for (const dataUrl of ['data:image/png;base64,AAAA', 'data:image/jpeg;base64,AAAA',
     'data:image/png;base64,' + 'A'.repeat(24 * 1024 * 1024)]) {

@@ -29,10 +29,12 @@ test('satır içi tamamlama alan adında durur, yol yazılınca yolu tamamlar', 
     { url: 'https://github.com/dorukakindev/whisper-browser', visits: 9, visitedAt: now },
     { url: 'https://www.google.com/search?q=a', visits: 30, visitedAt: now },
   ];
-  assert.deepEqual(model.inlineCompletion('git', items, now), { text: 'github.com', url: 'https://github.com/' });
-  assert.deepEqual(model.inlineCompletion('goo', items, now), { text: 'google.com', url: 'https://www.google.com/' });
+  assert.deepEqual(model.inlineCompletion('git', items, now), { text: 'github.com', prefix: 'git', url: 'https://github.com/' });
+  assert.deepEqual(model.inlineCompletion('goo', items, now), { text: 'google.com', prefix: 'goo', url: 'https://www.google.com/' });
   assert.equal(model.inlineCompletion('github.com/d', items, now).url, 'https://github.com/dorukakindev/whisper-browser');
-  assert.equal(model.inlineCompletion('GİT', items, now).text.slice(0, 3), 'GİT');
+  // prefix adayın kendi başıdır: yazılanın aksanı/büyük harfi/görünmez karakteri
+  // tamamlanan metne sızmaz; renderer prefix≠yazılan iken adayı baştan yazar.
+  assert.deepEqual(model.inlineCompletion('GİT', items, now), { text: 'github.com', prefix: 'git', url: 'https://github.com/' });
   for (const typed of ['g', 'git hub', 'https:', 'github.com']) assert.equal(model.inlineCompletion(typed, items, now), null, typed);
 });
 

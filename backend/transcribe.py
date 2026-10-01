@@ -439,15 +439,27 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             if final_path and Path(final_path).exists():
                 wav_path = Path(final_path)
 
-        # Bulunamadıysa klasik uzantı taraması yap
+        # Bulunamadıysa klasik uzantı taraması yap. video_id extractor
+        # yanıtından gelir; '/' içeren bir kimlik yolu çıktı klasörünün
+        # dışına taşıracağı için adayları daima kapsama kontrolünden geçir.
         if not wav_path or not wav_path.exists():
+            resolved_out = Path(output_dir).resolve()
+            def _inside(p):
+                try:
+                    p.resolve().relative_to(resolved_out)
+                    return True
+                except (ValueError, OSError):
+                    return False
             wav_path = Path(output_dir) / f"{video_id}.wav"
-            if not wav_path.exists():
-                for ext in ("m4a", "webm", "mp3", "opus", "mp4"):
+            if not wav_path.is_file() or not _inside(wav_path):
+                wav_path = None
+                for ext in ("wav", "m4a", "webm", "mp3", "opus", "mp4"):
                     alt = Path(output_dir) / f"{video_id}.{ext}"
-                    if alt.exists():
+                    if alt.is_file() and _inside(alt):
                         wav_path = alt
                         break
+            if wav_path is None:
+                wav_path = Path(output_dir) / f"{video_id}.wav"
         if not wav_path.is_file():
             raise RuntimeError("YouTube indirmesi tamamlandı ancak indirilen ses dosyası bulunamadı.")
         log(f"İndirme tamamlandı: {title}")
@@ -2139,9 +2151,11 @@ def is_hallucination(text):
     for pat in HALLUCINATION_PATTERNS:
         if pat.match(t):
             return True
-    # Aynı kelimenin/cümlenin 5+ kez ardışık tekrarı
+    # Aynı kelimenin/cümlenin 5+ kez ardışık tekrarı — Whisper'ın tekrar
+    # döngüsü büyük/küçük harfi karıştırabildiği için ("No no NO no no")
+    # karşılaştırma casefold üzerinden yapılır.
     words = t.split()
-    if len(words) >= 5 and len(set(words)) == 1:
+    if len(words) >= 5 and len({w.casefold() for w in words}) == 1:
         return True
     return False
 
@@ -2156,7 +2170,7 @@ def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
         not t
         or is_structural_sdh_cue(t)
         or re.fullmatch(r"(?:♪+|[.…\s]+)", t) is not None
-        or (len(words) >= 5 and len(set(words)) == 1)
+        or (len(words) >= 5 and len({w.casefold() for w in words}) == 1)
     )
     if hard_marker:
         return True
@@ -2323,6 +2337,18 @@ def _load_pcm_waveform_for_pyannote(wav_path, torch_module):
     }
 
 
+def _is_oom_error(exc):
+    """CUDA/ayırıcı OOM sınıfı: tip adı 'oom' içeren veya mesajı bellek
+    tahsisi hatası gösteren istisnalar (torch.cuda.OutOfMemoryError,
+    CUBLAS/cuDNN alloc hataları)."""
+    name = type(exc).__name__.lower()
+    if "oom" in name or "outofmemory" in name:
+        return True
+    msg = str(exc).lower()
+    return ("out of memory" in msg or "cublas_status_alloc" in msg
+            or "cudnn_status_alloc" in msg)
+
+
 def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
     """
     pyannote.audio ile konuşmacı tanıma.
@@ -2371,7 +2397,23 @@ def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
         )
         if torch.cuda.is_available():
             pipeline.to(torch.device("cuda"))
-        diarization = pipeline(diarization_audio, **kwargs)
+        try:
+            diarization = pipeline(diarization_audio, **kwargs)
+        except Exception as exc:
+            # CUDA OOM'da işi tümden düşürmek yerine CPU'ya düşüp bir kez
+            # yeniden dene — yavaş ama başarılı bir yol açılır.
+            if not (_is_oom_error(exc) and torch.cuda.is_available()):
+                raise
+            log("Konuşmacı tanıma GPU belleği doldu; CPU ile yeniden deneniyor.", "warn")
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
+            try:
+                pipeline.to(torch.device("cpu"))
+            except Exception:
+                pass
+            diarization = pipeline(diarization_audio, **kwargs)
         annotation = getattr(diarization, "speaker_diarization", diarization)
         return [(turn.start, turn.end, speaker)
                 for turn, _, speaker in annotation.itertracks(yield_label=True)]
@@ -2969,7 +3011,13 @@ def resolve_translate_routes(base_url):
     except Exception:
         host = ""
     if host in _SHUAI_HOSTS:
-        others = [u for _l, u in SHUAI_ROUTES if u.rstrip("/") != raw]
+        # Aynı endpointi iki biçimde (ör. schemesiz/büyük harf vs kanonik)
+        # yazmamak için host eşleşmesiyle düşür — dizgi eşitliğiyle yapılan
+        # dedupe 'oai.sb/v1' girdisinde aynı rotayı iki kez sıralıyordu.
+        others = [
+            u for _l, u in SHUAI_ROUTES
+            if (urlparse(u).hostname or "").lower() != host
+        ]
         return [raw] + others
     return [raw]
 
@@ -3895,7 +3943,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             except Exception as exc:
                 log(f"Çeviri önbelleğinin artımlı yazımı başarısız: {exc}", "warn")
         if tm and tm_pending:
-            rows, tm_pending[:] = tm_pending[:], []
+            # İş parçacıkları stage_tm_rows ile aynı anda ekleme yapabilir;
+            # kilitsiz slice+temizleme araya giren satırı sessizce düşürürdü.
+            with lock:
+                rows, tm_pending[:] = tm_pending[:], []
             stored = 0
             for index, source, target_text, context in rows:
                 if not target_text or index in precompleted_idx:
@@ -3931,6 +3982,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         pending_groups = [g for g in pending_groups if g[0] not in unchanged_idx]
         log(f"{len(unchanged_idx)} satır çevrilmeden korundu "
             "(vokalizasyon/şarkı/kod/zaten hedef dilde).")
+    # Başlangıçta değişmeden korunan satır sayısı — sonraki accept_unchanged_echo
+    # kabulü aynı kümeye ekler ama o satırlar zaten counters["done"] içinde
+    # sayılır; ilerleme hesabı yalnız bu başlangıç kesimini ayrıca ekler.
+    preserved_static = len(unchanged_idx)
 
     pending = [i for group in pending_groups for i in group]
     if cache_on and (cached_idx or precompleted_idx or unchanged_idx):
@@ -4431,11 +4486,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 for i in completed
             ])
         now = time.time()
+        # 'değişmeden korunan' satırlar (vokalizasyon/şarkı/zaten hedef dilde)
+        # done_idx'dedir ama API sayaçlarına girmez — handled'a eklenmezse
+        # ilerleme kalıcı olarak %100'ün altında kalırdı.
         handled = counters["done"] + counters["failed"] + len(cached_idx) \
-            + len(precompleted_idx)
+            + len(precompleted_idx) + preserved_static
         if now - last_emit_ts[0] > 0.3 or handled >= len(entries):
             emit("llm_progress", percent=round(handled / len(entries) * 100.0, 1),
-                 done=counters["done"] + len(cached_idx) + len(precompleted_idx),
+                 done=counters["done"] + len(cached_idx) + len(precompleted_idx)
+                 + preserved_static,
                  failed=counters["failed"], total=len(entries),
                  stage="translate")
             last_emit_ts[0] = now
@@ -4490,7 +4549,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     log("Kalıcı sağlayıcı hatası [{}]; {} blok API'ye gönderilmeden durduruldu."
                         .format(probe_stop, skipped), "warn")
                 emit("llm_progress", percent=100.0,
-                     done=counters["done"] + len(cached_idx), failed=counters["failed"],
+                     done=counters["done"] + len(cached_idx) + len(precompleted_idx)
+                     + preserved_static, failed=counters["failed"],
                      total=len(entries), stage="translate")
                 remaining_chunks = []
 
@@ -6262,6 +6322,24 @@ def checkpoint_resume_from(entries, last_time, backoff=2.0):
     return max(0.0, min([candidate, *crossing_starts]))
 
 
+def compute_media_duration(info_duration, clip_start, clip_end):
+    """İşin gerçekten işlediği ses süresi (perf/RTF için, saniye).
+
+    info_duration motorun raporladığı süredir ve her yolda KIRPILMIŞ WAV'a aittir:
+    yerel dosyada extract_audio kırpar, YouTube aralıklı indirmede dosya aralıklı
+    gelir, devam modunda ses resume noktasından çıkarılır. clip_start'ı burada
+    tekrar düşmek süreyi iki kez kısaltır.
+
+    clip_end kaynağın sonunu aşarsa istenen pencere gerçek süreyi şişirir;
+    duration bilinmediğinde pencere tek tahmin olarak kullanılır.
+    """
+    duration = float(info_duration or 0.0)
+    if clip_end is None:
+        return max(0.0, duration)
+    window = max(0.0, float(clip_end) - float(clip_start or 0.0))
+    return min(duration, window) if duration > 0 else window
+
+
 def transcribe(args):
     try:
         from faster_whisper import WhisperModel
@@ -7177,11 +7255,8 @@ def transcribe(args):
         # sonunda gercek zaman katsayisi (RTF) ve dusuk guvenli segment sayisi
         # yazilir; farkli model/motorlari ayni videoda karsilastirmak icin.
         elapsed = max(0.001, time.time() - job_started)
-        media_dur = float(getattr(info, "duration", 0.0) or 0.0)
-        if clip_end is not None:
-            media_dur = max(0.0, clip_end - (clip_start or 0.0))
-        elif clip_start is not None:
-            media_dur = max(0.0, media_dur - clip_start)
+        media_dur = compute_media_duration(
+            getattr(info, "duration", 0.0), clip_start, clip_end)
         rtf = (media_dur / elapsed) if media_dur else 0.0
         low_conf = 0
         try:
@@ -8392,6 +8467,12 @@ def parse_srt(text, vtt=False):
         txt = _BLANK_LINES.sub("\n", "\n".join(body_lines).strip())
         if not txt:
             continue
+        if vtt:
+            # VTT cue metni HTML karakter referansı destekler (&lt; &amp;
+            # &nbsp; …); write_vtt metni bu biçimde kaçır, okuyucu geri çözmezse
+            # uygulamanın kendi yazdığı VTT yeniden içe aktarıldığında "&lt;"
+            # düz metin olarak kalıyor ve yeniden yazımda çift-kaçış oluyordu.
+            txt = html.unescape(txt)
         entries.append((start, end, txt))
     return entries
 
@@ -9236,6 +9317,19 @@ def main():
             reexport_from_json(args)
         else:
             transcribe(args)
+    except KeyboardInterrupt:
+        # Bağımsız çalıştırmada Ctrl+C: protokol gereği her başarısızlık error
+        # olayı üretir; işlem kuyruğu gibi gören istemci gövdesiz iz kalmasın.
+        try:
+            from pipeline_control import rollback_open_output_transactions
+            rollback_open_output_transactions()
+        except Exception:
+            pass
+        try:
+            emit("error", message="İşlem kesildi (Ctrl+C)", kind="cancelled")
+        except Exception:
+            pass
+        sys.exit(130)
     except Exception as e:
         # Yarım kalan çıktı işlemi journal/.tmp bırakmasın (bkz. pipeline_control).
         try:

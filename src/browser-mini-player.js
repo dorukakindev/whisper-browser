@@ -49,7 +49,10 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
         if (window !== currentWindow) return;
         try { currentWindow.contentView.removeChildView(currentTab.view); } catch (_) {}
         window = null; tab = null;
-        if (currentTab.view && !currentTab.view.webContents.isDestroyed() && !currentTab.closing) {
+        // 'unloading': sekme bellekten boşaltılıyor — görünüm az sonra
+        // yok edilecek; ana pencereye geri bağlayıp düzenlemek boşuna iş.
+        if (currentTab.view && !currentTab.view.webContents.isDestroyed()
+            && !currentTab.closing && currentTab.lifecycle !== 'unloading') {
           const main = owner();
           // Kapanan ana pencerede addChildView native tarafta fırlayabilir.
           if (main && !main.isDestroyed()) {

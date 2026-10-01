@@ -9,6 +9,22 @@ const { isIP } = require('net');
 const { pathToFileURL } = require('url');
 const { Readable } = require('stream');
 const { createHash, randomUUID, randomBytes } = require('crypto');
+
+// Paket bütünlüğü erken kontrolü: yerel modül require'larından ÖNCE çalışır —
+// eksik bir başlangıç dosyası require çöküşüyle diyalogsuz çıkışa yol açardı.
+// (verifyAppResources aşağıda tanımlıdır; `function` bildirimi yukarı alınır,
+// kullandığı app/dialog/fs/path bağlamaları bu noktada hazırdır.)
+if (!verifyAppResources()) return;
+
+// Kurulum/kaynak kökü: kodun gerçekte bulunduğu yerin üstü. launch-time
+// appPath süreç-içi harness çalıştırmalarında (electron tests/x.smoke.js)
+// yanlış dizin gösterir; paketli uygulamada ikisi aynıdır (app.asar kökü).
+function appResourceRoot() {
+  return path.dirname(__dirname);
+}
+
+
+
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
@@ -206,10 +222,12 @@ const {
   burninTempLooksComplete,
   cleanupBurninReplacementBackups,
   normalizeBurninRecovery,
+  readBurninRecoveryFile,
   removeFileQuietly,
   restoreNewestBurninReplacementBackup,
   replaceBurninOutput,
 } = require('./burnin-output');
+const { pushBoundOption } = require('./argv-escape');
 const {
   mergeQueueSnapshotForSave,
   clonePublicOptions,
@@ -265,6 +283,7 @@ const {
 } = require('./secret-store');
 const ytAccounts = require('./youtube-accounts');
 const {
+  DANGEROUS_KEYS,
   SettingsValidationError,
   buildSecretEnv,
   createBackupPayload,
@@ -274,6 +293,7 @@ const {
   recoverJsonTransaction,
   sanitizeAbsolutePath,
   sanitizeSettings,
+  scanJsonShape,
   withoutSecretEnv,
   writeJsonTransaction,
 } = require('./settings-security');
@@ -630,6 +650,7 @@ function sendEvent(payload) {
 // Uygulama içi günlük kapanınca kayboluyor; gece çalışan kuyruklarda ne olduğunu
 // sonradan görebilmek için her iş userData/logs altına ayrı dosyaya yazılır.
 const LOG_KEEP = 100;                 // en yeni N günlük tutulur, gerisi silinir
+const LOG_MAX_BYTES = 4 * 1024 * 1024; // tek günlük dosyası bu boyutu aşamaz — sayı sınırı dosya boyutunu sınırlamaz, uzun/gürültülü iş dosyayı sınırsız şişirirdi
 const LOG_SKIP = new Set(['segment', 'progress', 'download_progress', 'llm_progress', 'preview_refresh', 'translation_chunk', 'translation_refresh']);
 let jobLog = null;
 
@@ -720,9 +741,13 @@ function redactJobLogArgs(args) {
     '--input', '--output-dir', '--cache-dir', '--initial-prompt', '--glossary', '--translate-context',
   ]);
   const values = Array.isArray(args) ? args.slice(1) : [];
-  return values.map((value, index) => (
-    index > 0 && hiddenValueFlags.has(values[index - 1]) ? '<gizlendi>' : String(value)
-  )).join(' ');
+  return values.map((value, index) => {
+    const token = String(value);
+    // `--ad=değer` bağlı biçimi tek öğedir — ayrı-değer taraması bunu görmez.
+    const eq = token.indexOf('=');
+    if (eq > 0 && hiddenValueFlags.has(token.slice(0, eq))) return `${token.slice(0, eq)}=<gizlendi>`;
+    return index > 0 && hiddenValueFlags.has(values[index - 1]) ? '<gizlendi>' : token;
+  }).join(' ');
 }
 
 function sanitizeProcessDetail(value) {
@@ -761,12 +786,29 @@ function startJobLog(label, args) {
     // Dosya adı yalnızca girdinin adı olsun (tam yol değil); tam yol başlıkta yazılı
     const base = String(label || 'is').split(/[\\/]/).pop() || 'is';
     const safe = windowsSafeFileName(base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60), 'is');
-    const file = path.join(logsDir(), `${stamp}_${safe}.log`);
-    const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
     // Argümanlar gizli anahtar içermez (HF token / LLM key ortam değişkeniyle geçer)
-    stream.write(`# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`);
-    stream.write(`# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`);
-    jobLog = { file, stream };
+    const header = `# Whisper Altyazı iş günlüğü\n# Başlangıç : ${d.toLocaleString('tr-TR')}\n`
+      + `# Girdi     : ${base}\n# Ayarlar   : ${redactJobLogArgs(args)}\n\n`;
+    const headerBytes = Buffer.byteLength(header);
+    // Aynı saniyede başlayan iki iş aynı dosya adını üretebilir; ekleme kipinde
+    // bayt sayacı mevcut içerikten başlamazsa 4 MB sınırı sessizce aşılırdı.
+    // Dolu dosyaya yeni başlık da eklenmez — başlık sığana dek sonekli ad dene.
+    let file = path.join(logsDir(), `${stamp}_${safe}.log`);
+    let initialBytes = 0;
+    try { initialBytes = fs.statSync(file).size; } catch (_) {}
+    for (let attempt = 0; attempt < 10 && initialBytes + headerBytes > LOG_MAX_BYTES; attempt += 1) {
+      file = path.join(logsDir(), `${stamp}_${safe}-${attempt + 2}.log`);
+      try { initialBytes = fs.statSync(file).size; } catch (_) { initialBytes = 0; }
+    }
+    if (initialBytes + headerBytes > LOG_MAX_BYTES) { jobLog = null; return; }
+    const stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf-8' });
+    // Disk dolu/izin hatasında WriteStream 'error' olayını eşzamansız yayar;
+    // dinleyicisiz bırakılırsa ana süreci düşürür. Günlüğü bırak, yazımı dur.
+    // Gecikmiş hata yalnız kendi akışının kaydını siler — eski akışın hatası
+    // yeni işin günlüğünü sıfırlayıp olaylarını kaybettirmesin.
+    stream.on('error', () => { if (jobLog && jobLog.stream === stream) jobLog = null; try { stream.destroy(); } catch (_) {} });
+    stream.write(header);
+    jobLog = { file, stream, bytes: initialBytes + headerBytes, truncated: false };
     pruneOldLogs();
   } catch (_) {
     jobLog = null;
@@ -774,7 +816,9 @@ function startJobLog(label, args) {
 }
 
 function writeJobLog(event) {
-  if (!jobLog || LOG_SKIP.has(event.type)) return;
+  // Kesim işaretinden sonra gelen olaylar biçimlendirilmeden atılır — büyük
+  // traceback/uyarı listeleri sınır dolmuşken de string'e çevrilip harcanırdı.
+  if (!jobLog || jobLog.truncated || LOG_SKIP.has(event.type)) return;
   const t = new Date().toLocaleTimeString('tr-TR');
   let line;
   switch (event.type) {
@@ -806,7 +850,14 @@ function writeJobLog(event) {
     default:
       line = `[${t}] ${event.type}`;
   }
-  try { jobLog.stream.write(`${line}\n`); } catch (_) {}
+  const row = `${line}\n`;
+  if (jobLog.bytes + Buffer.byteLength(row) > LOG_MAX_BYTES) {
+    jobLog.truncated = true;
+    try { jobLog.stream.write(`[${t}] GÜNLÜK SINIRI: dosya ${Math.floor(LOG_MAX_BYTES / 1048576)} MB'ı aştı; bu dosyadaki sonraki olaylar yazılmadı.\n`); } catch (_) {}
+    return;
+  }
+  jobLog.bytes += Buffer.byteLength(row);
+  try { jobLog.stream.write(row); } catch (_) {}
 }
 
 let resourceSoakUnhandledRejectionCount = 0;
@@ -847,7 +898,7 @@ function pythonRuntimeEnv(extra = {}) {
 function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir medya işi zaten çalışıyor; önce bitmesini bekleyin.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'media.py');
     let proc;
     try {
@@ -1062,7 +1113,7 @@ function youtubeAuthEnv(overrides = {}) {
 function runYoutubeCommand(cmdArgs, onEvent, timeoutMs = 60_000, extraEnv = {}, jobSlot = 'youtube') {
   return new Promise((resolve) => {
     if (mediaJobs[jobSlot]) return resolve({ ok: false, error: 'Bir YouTube işi zaten çalışıyor.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'youtube.py');
     let proc;
     try {
@@ -1230,12 +1281,16 @@ function isLocalInvidiousInstance(instance) {
     if (u.protocol !== 'http:') return false;
     const h = u.hostname.toLowerCase();
     if (h === 'localhost' || h === '::1' || h.endsWith('.local')) return true;
+    if (h.startsWith('[')) return /^(::1|fc|fd)/i.test(h.slice(1));
+    // WHATWG alan adı sahtelerini önleme: '127.evil.com' gibi sayısal-önekli
+    // DNS adları parser'da alan adı olarak kalır; özel-IP kontrolleri yalnızca
+    // kanonikleşmiş (yalnız rakam+nokta) host'ta çalışır (B-323-02).
+    if (!/^[\d.]+$/.test(h)) return false;
     if (/^127\./.test(h)) return true;
     if (/^10\./.test(h)) return true;
     if (/^192\.168\./.test(h)) return true;
     const m = h.match(/^172\.(\d{1,3})\./);
     if (m && +m[1] >= 16 && +m[1] <= 31) return true;
-    if (h.startsWith('[') && /^(::1|fc|fd)/i.test(h.slice(1))) return true;
     return false;
   } catch (_) {
     return false;
@@ -1258,7 +1313,7 @@ function invidiousAuthEnv(instance) {
 function runInvidiousCommand(cmdArgs, kind = 'invidious', onEvent, timeoutMs = 45_000, extraEnv = {}) {
   return new Promise((resolve) => {
     if (mediaJobs[kind]) return resolve({ ok: false, error: 'Bu türde bir Invidious işi zaten çalışıyor.' });
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'invidious.py');
     let proc;
     try {
@@ -1340,9 +1395,10 @@ ipcMain.handle('media:probe', async (_e, url) => {
   const input = typeof url === 'object' && url ? url : { url };
   const mediaUrl = decideUrlPolicy(input.url, 'renderer-external');
   if (mediaUrl.action !== 'external' || !['http:', 'https:'].includes(mediaUrl.protocol) || !mediaUrl.hostname) return { ok: false, error: "Yalnızca http/https medya URL'leri kullanılabilir." };
-  const args = ['probe', '--url', mediaUrl.url];
+  const args = ['probe'];
+  pushBoundOption(args, '--url', mediaUrl.url);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(input.cookieBrowser)) {
-    args.push('--cookie-browser', input.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', input.cookieBrowser);
   }
   return runMediaCommand(args, null, 'probe');
 });
@@ -1358,11 +1414,13 @@ ipcMain.handle('media:download', async (_e, opts) => {
   } catch (error) {
     return { ok: false, error: error.message };
   }
-  const args = ['download', '--url', mediaUrl.url, '--output-dir', outDir];
-  if (o.height) args.push('--height', String(o.height));
-  if (o.audioLang) args.push('--audio-lang', o.audioLang);
+  const args = ['download'];
+  pushBoundOption(args, '--url', mediaUrl.url);
+  pushBoundOption(args, '--output-dir', outDir);
+  if (o.height) pushBoundOption(args, '--height', String(o.height));
+  if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
-    args.push('--cookie-browser', o.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1429,13 +1487,14 @@ ipcMain.handle('media:downloadSubs', async (_e, opts) => {
   const subLang = subtitleLangArg(o.lang);
   if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = [
-    'subs', '--url', mediaUrl.url,
+    'subs',
     `--sub-lang=${subLang}`,
     '--sub-auto', o.auto ? 'true' : 'false',
-    '--output-dir', outDir,
   ];
+  pushBoundOption(args, '--url', mediaUrl.url);
+  pushBoundOption(args, '--output-dir', outDir);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
-    args.push('--cookie-browser', o.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1460,8 +1519,9 @@ ipcMain.handle('invidious:probe', async (_e, url, opts) => {
     return { ok: false, error: "Yalnızca http/https URL'leri kullanılabilir." };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['probe', '--url', mediaUrl.url];
-  if (instance) args.push('--instance', instance);
+  const args = ['probe'];
+  pushBoundOption(args, '--url', mediaUrl.url);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', null, 60_000, invidiousAuthEnv(instance));
 });
 
@@ -1483,7 +1543,7 @@ ipcMain.handle('invidious:subs', async (_e, url, opts) => {
   if (!subLang) return { ok: false, error: 'Geçersiz altyazı dil kodu.' };
   const args = ['subs', '--url', mediaUrl.url, `--lang=${subLang}`, '--output-dir', outDir];
   if (o.auto) args.push('--auto');
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1528,9 +1588,9 @@ ipcMain.handle('invidious:feed', async (_e, kind, opts) => {
   // Trend kategori sekmesi — yalnızca bilinen değerler geçer
   const tab = String(opts && opts.tab || '').trim().toLowerCase();
   if (kind === 'trending' && ['music', 'gaming', 'news', 'movies'].includes(tab)) {
-    args.push('--tab', tab);
+    pushBoundOption(args, '--tab', tab);
   }
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   const timeoutMs = kind === 'trending' ? 120_000 : 75_000;
   const requestId = Number.isSafeInteger(opts && opts.requestId) ? opts.requestId : null;
   return runInvidiousCommand(args, 'invidious', (ev) => {
@@ -1550,13 +1610,13 @@ ipcMain.handle('invidious:search', async (_e, query, opts) => {
   const args = ['search', `--query=${query.trim().slice(0, 100)}`];
   if (opts && opts.page) args.push('--page', String(Math.max(1, parseInt(opts.page, 10) || 1)));
   const searchType = String(opts && opts.searchType || 'video').toLowerCase();
-  if (['playlist', 'all'].includes(searchType)) args.push('--search-type', searchType);
+  if (['playlist', 'all'].includes(searchType)) pushBoundOption(args, '--search-type', searchType);
   // A04: yalnız bilinen Invidious özellik süzgeçleri geçer — serbest metin gitmez.
   const features = String(opts && opts.features || '').toLowerCase()
     .split(',').map((t) => t.trim())
     .filter((t) => ['live', 'hd', 'subtitles', 'creative_commons', '3d', '360', 'hdr'].includes(t));
-  if (features.length) args.push('--features', features.join(','));
-  if (instance) args.push('--instance', instance);
+  if (features.length) pushBoundOption(args, '--features', features.join(','));
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1572,7 +1632,7 @@ ipcMain.handle('invidious:suggest', async (_e, query, opts) => {
   if (!q) return { ok: true, data: { type: 'suggestions', query: '', suggestions: [], instance: '' } };
   const instance = resolveInvidiousInstance(opts && opts.instance);
   const args = ['suggest', `--query=${q}`];
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious-suggest', null, 12_000, invidiousAuthEnv(instance));
 });
 
@@ -1587,8 +1647,9 @@ ipcMain.handle('invidious:channel', async (_e, channelId, opts) => {
     return { ok: false, error: 'Geçersiz kanal ID formatı.' };
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
-  const args = ['channel', '--channel-id', channelId];
-  if (instance) args.push('--instance', instance);
+  const args = ['channel'];
+  pushBoundOption(args, '--channel-id', channelId);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1612,11 +1673,13 @@ ipcMain.handle('invidious:channelTab', async (_e, channelId, opts) => {
     return { ok: false, error: 'Geçersiz kanal sekmesi.' };
   }
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['channel-tab', '--channel-id', cid, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos'];
+  const args = ['channel-tab'];
+  pushBoundOption(args, '--channel-id', cid);
+  pushBoundOption(args, '--tab', INV_CHANNEL_TABS.has(tab) ? tab : 'videos');
   if (query) args.push(`--query=${query}`);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1637,10 +1700,11 @@ ipcMain.handle('invidious:comments', async (_e, url, opts) => {
   const target = isId ? url.trim() : mediaUrl.url;
   const o = opts || {};
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['comments', '--url', target];
+  const args = ['comments'];
+  pushBoundOption(args, '--url', target);
   const cont = String(o.continuation || '').trim();
-  if (cont) args.push('--continuation', cont.slice(0, 500));
-  if (instance) args.push('--instance', instance);
+  if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 500));
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1657,10 +1721,11 @@ ipcMain.handle('invidious:playlist', async (_e, playlistId, opts) => {
   }
   const o = opts || {};
   const instance = resolveInvidiousInstance(o.instance);
-  const args = ['playlist', '--playlist-id', pid];
+  const args = ['playlist'];
+  pushBoundOption(args, '--playlist-id', pid);
   const page = Math.max(1, parseInt(o.page, 10) || 1);
   if (page > 1) args.push('--page', String(Math.min(page, 100)));
-  if (instance) args.push('--instance', instance);
+  if (instance) pushBoundOption(args, '--instance', instance);
   return runInvidiousCommand(args, 'invidious', (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('invidious:event', ev);
@@ -1678,8 +1743,9 @@ ipcMain.handle('invidious:login', async (_e, opts) => {
   }
   const instance = resolveInvidiousInstance(opts && opts.instance);
   // Şifre argv'de değil env'de — süreç listesinde görünmesin (B82-01).
-  const args = ['login', '--username', String(username).slice(0, 100)];
-  if (instance) args.push('--instance', instance);
+  const args = ['login'];
+  pushBoundOption(args, '--username', String(username).slice(0, 100));
+  if (instance) pushBoundOption(args, '--instance', instance);
   const loginEnv = { WHISPER_INVIDIOUS_PASSWORD: String(password).slice(0, 200) };
   let res = await runInvidiousCommand(args, 'invidious', null, 45_000, loginEnv);
   if (res && res.ok && res.data && res.data.username) {
@@ -1748,14 +1814,16 @@ ipcMain.handle('invidious:downloadStream', async (_e, opts) => {
   }
   const args = [
     'download_stream',
-    '--video-url', o.videoUrl,
     `--title=${String(o.title || 'invidious-video').slice(0, 120)}`,
-    '--output-dir', outDir,
   ];
-  if (o.audioUrl) args.push('--audio-url', o.audioUrl);
-  if (o.height) args.push('--height', String(o.height));
-  if (o.audioLang) args.push('--audio-lang', o.audioLang);
-  if (o.videoId) args.push(`--video-id=${String(o.videoId).slice(0, 40)}`);
+  pushBoundOption(args, '--video-url', o.videoUrl);
+  pushBoundOption(args, '--output-dir', outDir);
+  if (o.audioUrl) pushBoundOption(args, '--audio-url', o.audioUrl);
+  if (o.height) pushBoundOption(args, '--height', String(o.height));
+  if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
+  // videoId dosya adına gömülür — uzak yanıttan gelen '/' veya '..' yol kaçışına
+  // izin vermemek için YouTube kimlik alfabesi dışını kırp.
+  if (o.videoId) args.push(`--video-id=${String(o.videoId).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`);
   // media.py'de çalışır — 'download' slot + 2 saat timeout + media:cancel ücretsiz.
   // jobTag: invidious:cancel bu işi tanıyıp öldürebilsin diye (K1).
   return runMediaCommand(args, (ev) => {
@@ -2249,8 +2317,9 @@ ipcMain.handle('youtube:browse', async (_e, browseId, opts) => {
         return { ok: false, error: 'Bir YouTube işi zaten çalışıyor.' };
       }
     }
-    const args = ['browse', '--browse-id', bid];
-    if (cont) args.push('--continuation', cont.slice(0, 2000));
+    const args = ['browse'];
+  pushBoundOption(args, '--browse-id', bid);
+    if (cont) pushBoundOption(args, '--continuation', cont.slice(0, 2000));
     return runYoutubeCommand(args, (ev) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('youtube:event', ev);
@@ -2772,7 +2841,7 @@ ipcMain.handle('media:saveImage', async (_e, payload) => {
       filters: [{ name: 'PNG', extensions: ['png'] }],
     });
     if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-    fs.writeFileSync(result.filePath, image);
+    writeBufferAtomic(result.filePath, image);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -2851,6 +2920,19 @@ function readPublicSettings() {
       const bad = kind === 'array' ? !Array.isArray(v)
         : (!v || typeof v !== 'object' || Array.isArray(v));
       if (bad) { delete parsed[key]; dropped = true; }
+    }
+    // Kayıt yolu sanitizeSettings→scanJsonShape ile kirlilik anahtarlarını
+    // (__proto__/constructor/prototype), derinlik ve düğüm sınırını reddeder;
+    // okuma yolunda aynı tarama uygulanmazsa crafted bir settings.json
+    // belleğe sızar ve SONRAKI her saveSettings'i kalıcı olarak öldürür
+    // (sanitize taratınca throw → persistence sessizce durur). Düşen ağaç
+    // yalnız o alan; diğer tercihler korunur (B-323-03).
+    for (const key of Object.keys(parsed)) {
+      if (DANGEROUS_KEYS.has(String(key).normalize('NFKC').toLocaleLowerCase('en-US'))) {
+        delete parsed[key]; dropped = true; continue;
+      }
+      try { scanJsonShape(parsed[key]); }
+      catch (_) { delete parsed[key]; dropped = true; }
     }
     if (dropped) settingsFileCorrupt = true;
     return parsed;
@@ -3198,6 +3280,12 @@ function loadWatchLibrary() {
 
 function loadWatchLibraryAll() {
   return watchLibraryStore().loadAll();
+}
+
+// Bozuk kütüphane dosyasında store kasıtlı fırlatır (veri korunur); tanı
+// anlık görüntüsü bu yüzden başarısız olmasın.
+function safeWatchLibraryEntryCount() {
+  try { return loadWatchLibrary().length; } catch (_) { return -1; }
 }
 
 function saveWatchLibrary(list, options = {}) {
@@ -3632,6 +3720,7 @@ function createBrowserTabRecord(initial = {}) {
     youtubeStyleSignature: '',
     loadRetryTimer: null,
     loadRetryAttempt: 0,
+    loadRetryPendingNav: false,
     crashRecoveryAttempt: 0,
     captureCoverage: new CaptureCoverageMap(),
     operationId: randomUUID(),
@@ -4201,15 +4290,20 @@ function rememberBrowserPlaceFavicon(rawUrl, dataUrl) {
 }
 
 function normalizeBrowserPlaces(places) {
-  const clean = (items) => (Array.isArray(items) ? items : []).map((item) => ({
+  const clean = (items) => (Array.isArray(items) ? items : []).map((item) => {
+    // Sonlu pozitif damga dışındaki değerler (negatif, ±Infinity, bozuk) JSON'a
+    // null yazılır ve yakınlık×sıklık sıralamasını bozar — şimdiki zamana düş.
+    const visitedAt = Number(item && (item.visitedAt || item.createdAt));
+    return {
     url: safeBrowserPlaceUrl(item && item.url),
     title: String(item && item.title || '').trim().slice(0, 240),
     folder: String(item && item.folder || '').trim().slice(0, 64),
     media: !!(item && item.media),
-    visitedAt: Number(item && (item.visitedAt || item.createdAt)) || Date.now(),
+    visitedAt: visitedAt > 0 && Number.isFinite(visitedAt) ? visitedAt : Date.now(),
     // Ziyaret sayısı adres çubuğu sıklık × yakınlık sıralaması için tutulur.
     visits: Math.max(1, Math.min(100000, Math.floor(Number(item && item.visits) || 1))),
-  })).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
+    };
+  }).filter((item) => item.url).slice(0, BROWSER_PLACE_LIMIT);
   const workspaces = (Array.isArray(places?.workspaces) ? places.workspaces : []).slice(0, 20).map(item => ({
     name: String(item?.name || '').trim().slice(0, 64),
     tabs: (Array.isArray(item?.tabs) ? item.tabs : []).map(normalizeSessionTab).filter(Boolean).slice(0, MAX_SESSION_TABS),
@@ -4234,7 +4328,7 @@ function cloneBrowserPlaces(places) {
   return {
     history: (places?.history || []).map((item) => ({ ...item })),
     bookmarks: (places?.bookmarks || []).map((item) => ({ ...item })),
-    workspaces: (places?.workspaces || []).map(item => ({ ...item, activeTabId: item.activeTabId || item.tabs?.[0]?.id || '', splitSecondaryTabId: item.splitSecondaryTabId || '', splitRatio: Number(item.splitRatio) || 0.5, tabs: item.tabs.map(tab => ({ ...tab, trackRefs: tab.trackRefs.map(ref => ({ ...ref })) })) })),
+    workspaces: (places?.workspaces || []).map(item => ({ ...item, activeTabId: item.activeTabId || item.tabs?.[0]?.id || '', splitSecondaryTabId: item.splitSecondaryTabId || '', splitRatio: Number(item.splitRatio) || 0.5, tabs: (Array.isArray(item.tabs) ? item.tabs : []).map(tab => ({ ...tab, trackRefs: (Array.isArray(tab?.trackRefs) ? tab.trackRefs : []).map(ref => ({ ...ref })) })) })),
     siteZooms: {},
     pathProfiles: Object.fromEntries(Object.entries(places?.pathProfiles || {}).map(([key, value]) => [key, { ...value }])),
     siteProfiles: Object.fromEntries(Object.entries(places?.siteProfiles || {}).map(([key, value]) => [key, { ...value }])),
@@ -5039,7 +5133,10 @@ function browserFullscreenBounds() {
 
 function secondaryBrowserTab() {
   const tab = browserTabById(browserSplitSecondaryTabId);
-  return tab && tab.id !== browserActiveTabId ? tab : null;
+  // Sayfasız ikincil (boş about:blank sekme) yerleşimi bölerdi ama görünmez
+  // kalıp sağ yarıyı ölü bırakırdı — browserTabShouldBeVisible ile aynı
+  // sayfa koşulunu bölme kararına da uygula.
+  return tab && tab.id !== browserActiveTabId && browserTabHasPage(tab) ? tab : null;
 }
 
 function browserTabHasPage(tab) {
@@ -5214,6 +5311,47 @@ function browserLoadError(code, description) {
   if (Number(code) === -501 || /ERR_INSECURE_RESPONSE/i.test(raw)) {
     return { messageKey: 'insecure-response',
       message: 'Site güvenli olmayan bir TLS/sertifika yanıtı verdi. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.' };
+  }
+  if ([-111, -115, -127, -130, -131, -336, -367].includes(Number(code))
+      || /ERR_(PROXY|TUNNEL)/i.test(raw)) {
+    return { messageKey: 'proxy-error',
+      message: 'Proxy/VPN bağlantısı kurulamadı. Proxy veya VPN ayarını kontrol edip bağlantıyı yenileyin.' };
+  }
+  if (Number(code) === -109 || /ERR_ADDRESS_UNREACHABLE/i.test(raw)) {
+    return { messageKey: 'address-unreachable',
+      message: 'Site adresine ağ üzerinden ulaşılamadı. Adresi ve internet bağlantısını kontrol edin.' };
+  }
+  if (Number(code) === -310 || /ERR_TOO_MANY_REDIRECTS/i.test(raw)) {
+    return { messageKey: 'redirect-loop',
+      message: 'Site çok fazla yönlendirme yaptı — adres döngüye giriyor olabilir.' };
+  }
+  if (Number(code) === -311 || /ERR_UNSAFE_REDIRECT/i.test(raw)) {
+    return { messageKey: 'unsafe-redirect',
+      message: 'Site güvenli olmayan bir adrese yönlendirdi — bağlantı durduruldu.' };
+  }
+  if ([-20, -24, -27].includes(Number(code)) || /ERR_BLOCKED_BY/i.test(raw)) {
+    return { messageKey: 'blocked-by-filter',
+      message: 'İstek engelleyici tarafından durduruldu (reklam/izleme koruması veya yönetici ilkesi).' };
+  }
+  if ([-101, -100, -103].includes(Number(code)) || /ERR_CONNECTION_(RESET|CLOSED|ABORTED)/i.test(raw)) {
+    return { messageKey: 'connection-dropped',
+      message: 'Bağlantı karşı tarafça kesildi. Biraz sonra tekrar deneyin.' };
+  }
+  if ([-107, -113, -123, -149, -150].includes(Number(code)) || /ERR_SSL_/i.test(raw)) {
+    return { messageKey: 'ssl-error',
+      message: 'Siteyle güvenli bağlantı (SSL) kurulamadı. Sistem saatini ve VPN/antivirüs HTTPS denetimini kontrol edin.' };
+  }
+  if (Number(code) === -324 || /ERR_EMPTY_RESPONSE/i.test(raw)) {
+    return { messageKey: 'empty-response',
+      message: 'Site boş yanıt döndürdü. Biraz sonra tekrar deneyin.' };
+  }
+  if (Number(code) === -21 || /ERR_NETWORK_CHANGED/i.test(raw)) {
+    return { messageKey: 'network-changed',
+      message: 'Bağlantı sırasında ağ değişti — VPN/Wi-Fi geçişini kontrol edip sayfayı yenileyin.' };
+  }
+  if ([-300, -301, -302, -303].includes(Number(code)) || /ERR_(INVALID_URL|DISALLOWED_URL_SCHEME|UNKNOWN_URL_SCHEME|INVALID_REDIRECT)/i.test(raw)) {
+    return { messageKey: 'invalid-address',
+      message: 'Adres geçersiz veya desteklenmeyen bir şema içeriyor.' };
   }
   return { messageKey: 'generic', message: raw };
 }
@@ -8772,7 +8910,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const device = ['cpu', 'cuda'].includes(ui.device) ? ui.device : 'cuda';
   const computeType = String(ui.computeType || (device === 'cuda' ? 'float16' : 'int8')).slice(0, 32);
   const language = String(options.language || ui.language || '').replace(/[^a-z-]/gi, '').slice(0, 16);
-  const script = path.join(app.getAppPath(), 'backend', 'live_asr.py');
+  const script = path.join(appResourceRoot(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
   const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false };
   const consumeLiveAsrLine = (line) => {
@@ -8839,7 +8977,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const launch = (nextDevice, nextComputeType) => {
     const proc = spawn(resolvePython(), [script, '--model', model, '--device', nextDevice,
       '--compute-type', nextComputeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
-    { cwd: app.getAppPath(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    { cwd: appResourceRoot(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     job.proc = proc;
     job.device = nextDevice;
     job.computeType = nextComputeType;
@@ -12646,10 +12784,16 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // reload ile ezmesin (B83-23): gezinme başlangıcında temizlenir.
     if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
     tab.loadRetryTimer = null;
+    // Yeniden-deneme reload'u da aynı olaydan geçer: hak sayacı yalnız
+    // kullanıcı kaynaklı yeni gezinmede sıfırlanır. Zamanlayıcı reload'unda
+    // korunmazsa her denemede bütçe yenilenip sonsuz döngü olur; başka
+    // belgede korunursa yeni adres hiç denenmeden retry-limit'e düşer.
+    if (tab.loadRetryPendingNav) tab.loadRetryPendingNav = false;
+    else tab.loadRetryAttempt = 0;
     tab.bridgeToken = randomUUID();
     tab.playbackDiagnostics.reset({ clearCapabilities: true });
     publishBrowserPlaybackDiagnostics(tab);
-    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
     sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
     if (tab.id === browserActiveTabId) {
       const prior = browserOverlay || tab.overlay || {};
@@ -12670,6 +12814,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.loading = false;
     if (!tab.loadError) {
       tab.loadRetryAttempt = 0;
+      tab.loadRetryPendingNav = false;
       tab.crashRecoveryAttempt = 0;
       if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
       tab.loadRetryTimer = null;
@@ -12745,7 +12890,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.generation += 1;
         tab.playbackDiagnostics.reset({ clearCapabilities: true });
         publishBrowserPlaybackDiagnostics(tab);
-        sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+        sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
         sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false });
       }
       rememberBrowserVisit(nextUrl, wc.getTitle(), !!identity.key);
@@ -12788,6 +12933,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
       // ana belge hatasında kullanıcıya sayfa bağlamındaki mesaj gösterilir.
       void diagnostic;
       const { message, messageKey } = browserLoadError(code, description);
+      // Bayrak burada da düşürülür: yeniden-deneme reload'u nav olayını
+      // tetiklememişse bayrağın bir sonraki kullanıcı gezinmesini yanlışlıkla
+      // deneme saymasına izin verilmez.
+      tab.loadRetryPendingNav = false;
       const retry = navigationRetryPolicy({ code, attempt: tab.loadRetryAttempt, url });
       tab.loadError = { kind: 'connection', code, message, messageKey, url, retry };
       if (retry.action === 'retry' && !tab.loadRetryTimer) {
@@ -12803,6 +12952,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
           sendBrowserEvent(tab, { type: 'load-retry', attempt: tab.loadRetryAttempt,
             messageKey: 'load-retry', params: { attempt: tab.loadRetryAttempt, max: 3 },
             message: `Geçici ağ hatası yeniden deneniyor (${tab.loadRetryAttempt}/3).` });
+          tab.loadRetryPendingNav = true;
           wc.reload();
         }, retry.delayMs);
         tab.loadRetryTimer.unref?.();
@@ -12828,6 +12978,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.discoveryProbeTimer = null;
     if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
     tab.loadRetryTimer = null;
+    // Çökme sonrası yeniden oluşturulan görünüm yeni belge ister — ağ
+    // yeniden-deneme hakkı da sıfırlanır, eski sayfanın tükenen bütçesi
+    // yeni görünümün ilk hatasını anında retry-limit'e düşürmesin.
+    tab.loadRetryAttempt = 0;
+    tab.loadRetryPendingNav = false;
     if (tab.crashRecoveryTimer) clearTimeout(tab.crashRecoveryTimer);
     tab.crashRecoveryTimer = null;
     clearBrowserCloudflareTimer(tab);
@@ -12849,6 +13004,9 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     stopBrowserPageTranslation(tab, false);
     tab.translationScheduler?.cancelAll('Sekme işlemi sona erdi.');
     tab.translationScheduler = null;
+    // Hata listesi silindi ama renderer'daki yeniden-denenebilir sayısı kalırdı;
+    // 'Başarısızları yeniden dene' düğmesi boş listeyle etkin görünmesin.
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
     if (browserLiveAsr?.tab === tab) {
       stopBrowserLiveAsr('Sekme işlemi sona erdiği için canlı Whisper durduruldu.');
     }
@@ -13564,7 +13722,7 @@ async function collectResourceSoakSnapshot(label, cycle) {
       hlsFetchedStreams: browserHlsFetchedSegments.size,
       hlsInFlight: browserHlsInFlight.size,
       subtitleSearchCache: subtitleSearchCache.size,
-      watchLibraryEntries: loadWatchLibrary().length,
+      watchLibraryEntries: safeWatchLibraryEntryCount(),
     },
     disk: { browserSubtitleFiles: subtitleUsage.count, browserSubtitleBytes: subtitleUsage.bytes },
     io: tracker.io,
@@ -13883,7 +14041,7 @@ async function runResourceSoakSession() {
   };
   report.verdict = evaluateResourceSoak(report);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf8');
+  writeBufferAtomic(outputPath, JSON.stringify(report, null, 2));
   console.log(`[resource-soak] rapor: ${outputPath}`);
   console.log(`[resource-soak] sonuç: ${report.verdict.pass ? 'GEÇTİ' : 'KALDI'}`);
   resourceSoakTracker?.close();
@@ -13897,6 +14055,41 @@ function titleBarOverlayForTheme(theme) {
   return theme === 'light'
     ? { color: '#f1ede5', symbolColor: '#514a43', height: 38 }
     : { color: '#0a0d11', symbolColor: '#a6adb6', height: 38 };
+}
+
+// Paket/kurulum bütünlüğü: BOOT_CRITICAL dosyalardan biri eksikse uygulama
+// zaten anlamlı açılamaz; boş pencere yerine erken diyalog gösterilip çıkılır.
+// Kritik-olmayan eksikler (ör. backend betiği) sadece uyarı olarak günlüklenir —
+// tarayıcı yüzeyi onlarsız da kullanılabilir.
+function verifyAppResources() {
+
+  const appDir = appResourceRoot();
+  let manifest;
+  try { manifest = require('../tools/package-manifest'); } catch (_) { manifest = null; }
+  // Denetim kümesi: BOOT_CRITICAL + src/main.js'in yerel require kapanışı.
+  // Kapanıştaki dosyalardan biri eksikse aşağıdaki require() çöker; erken
+  // kontrol bu yüzden modül yüklenmeden önce de çağrılır.
+  const critical = manifest
+    ? [...manifest.BOOT_CRITICAL, ...manifest.requireClosure(appDir, ['src/main.js'])]
+    : ['src/preload.js', 'src/renderer/index.html'];
+  const missingCritical = critical.filter((rel) => !fs.existsSync(path.join(appDir, rel)));
+  if (missingCritical.length) {
+    dialog.showErrorBox(
+      'Whisper Browser — eksik kurulum / incomplete installation',
+      `Gerekli uygulama dosyaları eksik:\n\n${missingCritical.join('\n')}\n\nPaketi yeniden indirin veya install.bat ile kurulumu tekrarlayın.\nRequired app files are missing — re-download the package or re-run install.bat.`,
+    );
+    app.exit(1);
+    return false;
+  }
+  if (manifest) {
+    const missing = manifest
+      .requiredPackageFiles(appDir)
+      .filter((rel) => !fs.existsSync(path.join(appDir, rel)));
+    if (missing.length) {
+      console.warn(`[package-integrity] kritik olmayan dosyalar eksik: ${missing.join(', ')}`);
+    }
+  }
+  return true;
 }
 
 function createWindow() {
@@ -14173,7 +14366,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
         || path.join(app.getPath('temp'), 'whisper-resource-soak.json'));
       try {
         fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-        fs.writeFileSync(outputPath, JSON.stringify({
+        writeBufferAtomic(outputPath, JSON.stringify({
           schemaVersion: 1,
           generatedAt: new Date().toISOString(),
           error: error && error.stack || String(error),
@@ -14371,8 +14564,8 @@ ipcMain.handle('browser:split:set', (event, request = {}) => queueBrowserTabTran
     return { ok: true, split: browserSplitSnapshot(), tabs: browserTabsSnapshot() };
   }
   const secondary = browserTabById(request.secondaryTabId);
-  if (!secondary || secondary.id === browserActiveTabId) {
-    return { ok: false, error: 'İkincil görünüm için aktif sekmeden farklı, açık bir sekme seçin.' };
+  if (!secondary || secondary.id === browserActiveTabId || !browserTabHasPage(secondary)) {
+    return { ok: false, error: 'İkincil görünüm için aktif sekmeden farklı, sayfası olan açık bir sekme seçin.' };
   }
   browserSplitSecondaryTabId = secondary.id;
   browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(request.ratio) || browserSplitRatio));
@@ -15026,9 +15219,18 @@ async function unloadBrowserTab(rawId) {
   tab.loadRetryTimer = null;
   if (tab.crashRecoveryTimer) clearTimeout(tab.crashRecoveryTimer);
   tab.crashRecoveryTimer = null;
+  clearBrowserCloudflareTimer(tab);
+  // Boşaltılan sekme yeni bir görünümle dirilir. Tükenmiş yeniden-deneme ve
+  // çökme bütçesi dirilen sekmeye sızarsa ilk hatada terminal olur ya da
+  // bekleyen-gezinme bayrağı ilk gerçek gezinmenin sıfırlamasını yutar.
+  tab.loadRetryAttempt = 0; tab.loadRetryPendingNav = false;
+  tab.crashRecoveryAttempt = 0;
   tab.pageFind?.stop(); tab.pageFind = null; detachBrowserDebugger(view);
   cancelBrowserPermissionRequestsForTab(tab, 'Sekme bellekten boşaltıldığı için izin isteği engellendi.');
   browserExtras?.cancel(tab);
+  // Görünümü mini oynatıcıya taşınmış sekme boşaltılırsa mini pencere ölü
+  // kareyle açık kalıyordu; sekme nesnesi yaşasa da görünüm ölüyor.
+  if (browserExtras?.mini.owns(tab)) browserExtras.mini.close();
   stopBrowserManga(tab, false);
   stopBrowserPageTranslation(tab, false);
   tab.translationScheduler?.cancelAll('Sekme bellekten boşaltıldı.');
@@ -15037,6 +15239,10 @@ async function unloadBrowserTab(rawId) {
   tab.mangaPages?.clear?.();
   try { mainWindow.contentView.removeChildView(view); } catch (_) {}
   tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
+  // Bayat hata durumu dirilen sekmeyi boş bırakırdı: resumeRestoredBrowserPage
+  // loadError taşıyan sekmede URL'yi yeniden yüklemez. Yeni görünüm temiz
+  // başlasın; hata olursa yeni bir loadError kaydedilir.
+  tab.loadError = null;
   tab.lifecycle = 'unloaded'; tab.unloadedAt = Date.now();
   const persisted = persistBrowserSessionNow();
   sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
@@ -15551,7 +15757,7 @@ ipcMain.handle('browser:session:export', async (event) => {
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    fs.writeFileSync(result.filePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8');
+    writeBufferAtomic(result.filePath, `${JSON.stringify(bundle, null, 2)}\n`);
     return { ok: true, path: result.filePath, tabs: bundle.payload.session.tabs.length,
       variants: bundle.payload.variants.length, checksum: bundle.checksum };
   } catch (error) { return { ok: false, error: `Oturum paketi kaydedilemedi: ${error.message}` }; }
@@ -15895,7 +16101,9 @@ ipcMain.handle('browser:manga:clear', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   await stopBrowserManga(tab, true);
-  sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false });
+  // retryable alanı açıkça 0 gönderilmezse renderer önceki koşunun sayısını
+  // korur ve 'Başarısızları yeniden dene (N)' düğmesi boş listeyle kalır.
+  sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
   return { ok: true };
 });
 
@@ -16488,7 +16696,7 @@ async function saveBrowserPagePdf(tab) {
     ? selection.filePath : `${selection.filePath}.pdf`;
   try {
     const data = await wc.printToPDF({ printBackground: true });
-    fs.writeFileSync(outputPath, data);
+    writeBufferAtomic(outputPath, data);
     return { ok: true, path: outputPath, format: 'PDF' };
   } catch (error) {
     return { ok: false, error: `PDF kaydedilemedi: ${String(error?.message || error)}` };
@@ -16753,7 +16961,7 @@ ipcMain.handle('browser:diagnostics:export', async (event) => {
   try {
     const outputPath = path.extname(result.filePath).toLowerCase() === '.json'
       ? result.filePath : `${result.filePath}.json`;
-    fs.writeFileSync(outputPath, JSON.stringify(snapshot, null, 2), 'utf8');
+    writeBufferAtomic(outputPath, JSON.stringify(snapshot, null, 2));
     return { ok: true, path: outputPath, operationId: snapshot.operationId };
   } catch (error) {
     return { ok: false, error: `Tanı paketi kaydedilemedi: ${error.message}` };
@@ -16775,12 +16983,11 @@ ipcMain.handle('browser:clip:export', async (event, payload) => {
     filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  const args = [
-    'clip', '--url', url, '--clip-start', String(start), '--clip-end', String(end),
-    '--output-file', selection.filePath,
-  ];
+  const args = ['clip', '--clip-start', String(start), '--clip-end', String(end)];
+  pushBoundOption(args, '--url', url);
+  pushBoundOption(args, '--output-file', selection.filePath);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(payload?.cookieBrowser)) {
-    args.push('--cookie-browser', payload.cookieBrowser);
+    pushBoundOption(args, '--cookie-browser', payload.cookieBrowser);
   }
   return runMediaCommand(args, (ev) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('media:event', ev);
@@ -16916,7 +17123,7 @@ ipcMain.handle('pdf:export', async (event, request = {}) => {
     filters: [{ name: format.toUpperCase(), extensions: [format] }],
   });
   if (selection.canceled || !selection.filePath) return { ok: false, canceled: true };
-  try { fs.writeFileSync(selection.filePath, content, 'utf8'); return { ok: true, path: selection.filePath }; }
+  try { writeBufferAtomic(selection.filePath, content); return { ok: true, path: selection.filePath }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 
@@ -17450,7 +17657,7 @@ ipcMain.handle('browser:research:export', async (event, request = {}) => {
 
 function runAnkiExport(annotations, outputPath, deckName) {
   if (ankiExportJob) return Promise.resolve({ ok: false, error: 'Anki dışa aktarımı zaten çalışıyor.' });
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const script = path.join(appDir, 'backend', 'export_anki.py');
   if (!fs.existsSync(script)) return Promise.resolve({ ok: false, error: 'Anki dışa aktarım yardımcısı bulunamadı.' });
   const input = Buffer.from(JSON.stringify({ annotations }), 'utf8');
@@ -17674,7 +17881,13 @@ function probeCommand(cmd, cmdArgs) {
     // stderr okunmazsa pipe tamponu dolup child'ı kilitleyebilir; stdout da
     // sınırsız birikmemeli (bozuk bir binary sonsuz çıktı basabilir).
     if (p.stderr) p.stderr.resume();
-    if (p.stdout) p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    if (p.stdout) {
+      // chunk başına ham Buffer → string dönüşümü, chunk sınırında bölünen
+      // UTF-8 dizilerini U+FFFD ile bozardı; akışın kendi dekoderi sınırları
+      // doğru birleştirir.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => { if (out.length < 262144) out += d; });
+    }
     p.on('close', (code) => {
       if (code !== 0) return finish(null);
       finish((out.split(/\r?\n/)[0] || '').trim() || null);
@@ -17685,7 +17898,7 @@ function probeCommand(cmd, cmdArgs) {
 // Açılış ortam kontrolü: venv, ffmpeg ve GPU adı
 ipcMain.handle('app:getEnvInfo', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const pythonPath = resolvePython();
   const venvPy = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
   const venv = fs.existsSync(path.join(appDir, 'backend', 'venv', venvPy))
@@ -17720,7 +17933,7 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
 
 ipcMain.handle('models:status', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  return { ok: true, ...scanModelCache(app.getAppPath()) };
+  return { ok: true, ...scanModelCache(appResourceRoot()) };
 });
 
 // F18: önbellek temizliği — her zaman açık kullanıcı onayı (native dialog),
@@ -17733,7 +17946,7 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
   if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Model işi çalışırken önbellek silinemez.' };
   }
-  const status = scanModelCache(app.getAppPath());
+  const status = scanModelCache(appResourceRoot());
   const entry = status.models.find((m) => m.id === model);
   if (!entry?.cached) return { ok: false, error: 'Model önbellekte bulunamadı.' };
   const sizeText = entry.sizeBytes ? ` (${Math.round(entry.sizeBytes / 1048576)} MB)` : '';
@@ -17749,7 +17962,7 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
     noLink: true,
   });
   if (confirm.response !== 0) return { ok: false, canceled: true };
-  return deleteCachedModel(app.getAppPath(), model);
+  return deleteCachedModel(appResourceRoot(), model);
 });
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
@@ -17779,19 +17992,20 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   const seconds = Number.isFinite(requestedSeconds) ? Math.max(30, Math.min(120, Math.round(requestedSeconds))) : 30;
   const requestedStart = Number(options.start);
   const start = Number.isFinite(requestedStart) ? Math.max(0, Math.min(24 * 60 * 60, requestedStart)) : 0;
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const localFfmpeg = path.join(appDir, 'backend', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
-  const args = [path.join(appDir, 'backend', 'model_benchmark.py'), '--input', picked.filePaths[0],
+  const args = [path.join(appDir, 'backend', 'model_benchmark.py'),
     '--model', model, '--device', device, '--compute-type', computeType,
     '--seconds', String(seconds), '--start', String(start),
     '--ffmpeg', fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg'];
-  if (language && language !== 'auto') args.push('--language', language);
+  pushBoundOption(args, '--input', picked.filePaths[0]);
+  if (language && language !== 'auto') pushBoundOption(args, '--language', language);
   // F17: aynı klipte ikinci ayar — yalnız bilinen model kimliği kabul edilir
   const compare = options.compare && typeof options.compare === 'object' ? options.compare : {};
   const compareModel = KNOWN_MODELS.includes(compare.model) ? compare.model : '';
   if (compareModel) {
-    args.push('--compare-model', compareModel,
-      '--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
+    pushBoundOption(args, '--compare-model', compareModel);
+    args.push('--compare-device', ['cpu', 'cuda'].includes(compare.device) ? compare.device : device,
       '--compare-compute-type', String(compare.computeType || computeType).slice(0, 32));
   }
   const proc = spawn(resolvePython(), args, { cwd: appDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -18016,7 +18230,7 @@ ipcMain.handle('subscriptions:export', async (event, payload) => {
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
-    fs.writeFileSync(result.filePath, text, 'utf8');
+    writeBufferAtomic(result.filePath, text);
     return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -18254,7 +18468,7 @@ ipcMain.handle('settings:import', async (event) => {
 // ffmpeg/ffprobe yolu: önce backend/bin, sonra PATH
 function resolveFfTool(name) {
   const exeName = process.platform === 'win32' ? `${name}.exe` : name;
-  const local = path.join(app.getAppPath(), 'backend', 'bin', exeName);
+  const local = path.join(appResourceRoot(), 'backend', 'bin', exeName);
   return fs.existsSync(local) ? local : name;
 }
 
@@ -18293,19 +18507,24 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     }, 30000);
     timer.unref?.();
     p.on('error', () => finish({ ok: false, tracks: [] }));
-    if (p.stdout) p.stdout.on('data', (d) => {
-      if (settled) return;
-      if (out.length + d.length > 4 * 1024 * 1024) {
-        terminateProcessTree(p, { spawn });
-        finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
-      } else out += d;
-    });
+    if (p.stdout) {
+      // ffprobe çıktısında iz başlıkları UTF-8 olabilir ('Türkçe altyazı');
+      // Buffer→string per-chunk dönüşümü sınırda bölünen diziyi bozardı.
+      p.stdout.setEncoding?.('utf8');
+      p.stdout.on('data', (d) => {
+        if (settled) return;
+        if (out.length + d.length > 4 * 1024 * 1024) {
+          terminateProcessTree(p, { spawn });
+          finish({ ok: false, tracks: [], error: 'İz taraması yanıtı boyut sınırını aştı.' });
+        } else out += d;
+      });
+    }
     p.on('close', (code) => {
       if (settled) return;
       if (code !== 0) return finish({ ok: false, tracks: [] });
       try {
         const data = JSON.parse(out);
-        const tracks = (data.streams || []).filter((s) => s.codec_type === 'audio').map((s, i) => {
+        const tracks = (data.streams || []).filter((s) => s && s.codec_type === 'audio').map((s, i) => {
           const tags = s.tags || {};
           return {
             index: i,  // ses-göreli indeks → -map 0:a:i
@@ -18630,15 +18849,7 @@ function burninRecoveryStatePath() {
 }
 
 function readBurninRecoveryState() {
-  const primary = burninRecoveryStatePath();
-  for (const candidate of [primary, `${primary}.bak`]) {
-    try {
-      if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 128 * 1024) continue;
-      const recovery = normalizeBurninRecovery(JSON.parse(fs.readFileSync(candidate, 'utf8')));
-      if (recovery && burninRecoveryPathsMatch(recovery)) return recovery;
-    } catch (_) {}
-  }
-  return null;
+  return readBurninRecoveryFile(burninRecoveryStatePath());
 }
 
 function writeBurninRecoveryState(recovery) {
@@ -19018,7 +19229,7 @@ ipcMain.handle('burnin:recovery:discard', (event, recoveryId) => {
 });
 
 function resolvePython() {
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const binDir = process.platform === 'win32' ? 'Scripts' : 'bin';
   const exeNames = process.platform === 'win32' ? ['python.exe', 'python3.exe'] : ['python3', 'python'];
   const candidates = [];
@@ -19137,9 +19348,13 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     return { ok: false, cancelled: true, error: 'İş başlatılırken iptal edildi.' };
   }
 
-  const appDir = app.getAppPath();
+  const appDir = appResourceRoot();
   const scriptPath = path.join(appDir, 'backend', 'transcribe.py');
   const pythonPath = resolvePython();
+
+  if (!fs.existsSync(scriptPath)) {
+    return { ok: false, error: 'Kurulum eksik: backend/transcribe.py bulunamadı. Paketi yeniden indirin ya da install.bat ile kurulumu tekrarlayın.' };
+  }
 
   const args = [scriptPath];
   let chatFilePath = null;
@@ -19155,17 +19370,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   };
 
   if (options.youtube) {
-    args.push('--youtube', options.youtube);
+    pushBoundOption(args, '--youtube', options.youtube);
   } else if (options.input) {
-    args.push('--input', options.input);
+    pushBoundOption(args, '--input', options.input);
   } else if (options.chat) {
     // Sohbet altyazi dosyasi degil, gecici JSON baglami kullanir.
   } else {
     return { ok: false, error: 'Bir dosya ya da YouTube linki gerekli.' };
   }
 
-  args.push('--input-dir', options.inputDir);
-  args.push('--output-dir', options.outputDir);
+  pushBoundOption(args, '--input-dir', options.inputDir);
+  pushBoundOption(args, '--output-dir', options.outputDir);
   if (options.outputNameSuffix) {
     const suffix = String(options.outputNameSuffix);
     if (!isValidOutputNameSuffix(suffix)) {
@@ -19177,19 +19392,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     // --ad=değer biçimi, tireli değeri tek argüman olarak bağlar.
     args.push(`--output-name-suffix=${suffix}`);
   }
-  if (options.model) args.push('--model', options.model);
-  if (options.engine) args.push('--engine', options.engine);
+  if (options.model) pushBoundOption(args, '--model', options.model);
+  if (options.engine) pushBoundOption(args, '--engine', options.engine);
   if (options.batchSize) args.push('--batch-size', String(options.batchSize));
   if (Number.isInteger(options.audioTrack) && options.audioTrack >= 0) {
     args.push('--audio-track', String(options.audioTrack));
   }
-  if (options.youtubeAudioLang) args.push('--youtube-audio-lang', String(options.youtubeAudioLang));
+  if (options.youtubeAudioLang) pushBoundOption(args, '--youtube-audio-lang', String(options.youtubeAudioLang));
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(options.youtubeCookieBrowser)) {
-    args.push('--youtube-cookie-browser', options.youtubeCookieBrowser);
+    pushBoundOption(args, '--youtube-cookie-browser', options.youtubeCookieBrowser);
   }
   args.push('--quality-report', options.qualityReport !== false ? 'true' : 'false');
   args.push('--resume', options.resume !== false ? 'true' : 'false');
-  if (options.device) args.push('--device', options.device);
+  if (options.device) pushBoundOption(args, '--device', options.device);
   args.push('--snap-to-speech', options.snapToSpeech !== false ? 'true' : 'false');
   args.push('--fix-timings', options.fixTimings !== false ? 'true' : 'false');
   if (options.maxCps) args.push('--max-cps', String(options.maxCps));
@@ -19203,23 +19418,23 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--confidence-report', options.confidenceReport !== false ? 'true' : 'false');
   if (options.incompleteGap) args.push('--incomplete-gap', String(options.incompleteGap));
   args.push('--dedupe', options.dedupe !== false ? 'true' : 'false');
-  if (options.computeType) args.push('--compute-type', options.computeType);
-  if (options.language) args.push('--language', options.language);
-  if (options.task) args.push('--task', options.task);
+  if (options.computeType) pushBoundOption(args, '--compute-type', options.computeType);
+  if (options.language) pushBoundOption(args, '--language', options.language);
+  if (options.task) pushBoundOption(args, '--task', options.task);
   if (options.beamSize) args.push('--beam-size', String(options.beamSize));
   if (options.bestOf) args.push('--best-of', String(options.bestOf));
   args.push('--vad-filter', options.vadFilter ? 'true' : 'false');
   if (options.vadThreshold) args.push('--vad-threshold', String(options.vadThreshold));
   args.push('--condition-on-previous', options.conditionOnPrevious ? 'true' : 'false');
-  if (options.initialPrompt) args.push('--initial-prompt', options.initialPrompt);
-  if (options.formats) args.push('--formats', options.formats);
+  if (options.initialPrompt) pushBoundOption(args, '--initial-prompt', options.initialPrompt);
+  if (options.formats) pushBoundOption(args, '--formats', options.formats);
   args.push('--lang-suffix', options.langSuffix ? 'true' : 'false');
   // JSON'dan yeniden dışa aktarma: transkripsiyon yok, --input bir .json çıktısıdır
   if (options.reexport) args.push('--reexport', 'true');
   // Altyazı senkronlama: transkripsiyon yok, --input video + --sync-srt harici SRT
   if (options.syncSubs) {
     args.push('--sync-subs', 'true');
-    if (options.syncSrt) args.push('--sync-srt', options.syncSrt);
+    if (options.syncSrt) pushBoundOption(args, '--sync-srt', options.syncSrt);
     if (options.syncMaxShift) args.push('--sync-max-shift', String(options.syncMaxShift));
     args.push('--sync-fix-framerate', options.syncFixFramerate !== false ? 'true' : 'false');
     args.push('--sync-piecewise', options.syncPiecewise !== false ? 'true' : 'false');
@@ -19227,8 +19442,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.maxLineWidth) args.push('--max-line-width', String(options.maxLineWidth));
   if (options.maxLines) args.push('--max-lines', String(options.maxLines));
   if (options.maxChars) args.push('--max-chars', String(options.maxChars));
-  if (options.splitMode) args.push('--split-mode', options.splitMode);
-  if (options.wrapMode) args.push('--wrap-mode', options.wrapMode);
+  if (options.splitMode) pushBoundOption(args, '--split-mode', options.splitMode);
+  if (options.wrapMode) pushBoundOption(args, '--wrap-mode', options.wrapMode);
   if (options.timingGap) args.push('--timing-gap', String(options.timingGap));
   if (options.hardMaxChars) args.push('--hard-max-chars', String(options.hardMaxChars));
 
@@ -19250,7 +19465,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.vadMaxSpeechS !== undefined) args.push('--vad-max-speech-s', String(options.vadMaxSpeechS));
 
   // Sözlük
-  if (options.glossary) args.push('--glossary', options.glossary);
+  if (options.glossary) pushBoundOption(args, '--glossary', options.glossary);
 
   // Zaman aralığı (kırpma)
   if (options.clipStart) args.push('--clip-start', String(options.clipStart));
@@ -19269,8 +19484,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.llmPostprocess) {
     args.push('--llm-postprocess', 'true');
     // llmApiKey argv yerine ortam değişkeniyle geçer (aşağıda)
-    if (options.llmBaseUrl) args.push('--llm-base-url', options.llmBaseUrl);
-    if (options.llmModel) args.push('--llm-model', options.llmModel);
+    if (options.llmBaseUrl) pushBoundOption(args, '--llm-base-url', options.llmBaseUrl);
+    if (options.llmModel) pushBoundOption(args, '--llm-model', options.llmModel);
     if (options.llmWorkers) args.push('--llm-workers', String(options.llmWorkers));
     args.push('--llm-fix-censorship', options.llmFixCensorship !== false ? 'true' : 'false');
     args.push('--llm-fix-hallucination', options.llmFixHallucination !== false ? 'true' : 'false');
@@ -19283,19 +19498,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // çalışıyordu. Bu blok asla o if'in içine taşınmamalı.)
   // API anahtarı argv'de DEĞİL, ortam değişkeninde geçer.
   args.push('--translate', options.translate ? 'true' : 'false');
-  if (options.translateTo) args.push('--translate-to', options.translateTo);
-  if (options.translateBaseUrl) args.push('--translate-base-url', options.translateBaseUrl);
-  if (options.translateModel) args.push('--translate-model', options.translateModel);
+  if (options.translateTo) pushBoundOption(args, '--translate-to', options.translateTo);
+  if (options.translateBaseUrl) pushBoundOption(args, '--translate-base-url', options.translateBaseUrl);
+  if (options.translateModel) pushBoundOption(args, '--translate-model', options.translateModel);
   if (!options.chat && options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
-  if (!options.chat && options.translateRegister) args.push('--translate-register', options.translateRegister);
-  if (!options.chat && options.translateProfanity) args.push('--translate-profanity', options.translateProfanity);
+  if (!options.chat && options.translateRegister) pushBoundOption(args, '--translate-register', options.translateRegister);
+  if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
   if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
-    args.push('--translate-context', String(options.translateContext));
+    pushBoundOption(args, '--translate-context', String(options.translateContext));
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
-  if (!options.chat && options.translateExisting) args.push('--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateExisting) pushBoundOption(args, '--translate-existing', options.translateExisting);
   if (!options.chat && options.translateOnly && options.dedupeCues) args.push('--dedupe-cues');
   // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
   // metinlerde sinira takilir ve surec listesinde gorunur.
@@ -19319,16 +19534,16 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Aciklama modu: tek blok/kelime, baglamiyla birlikte
   if (options.explain) {
     args.push('--explain', 'true');
-    args.push('--explain-index', String(options.explainIndex || 0));
-    args.push('--explain-kind', options.explainKind || 'sentence');
-    if (options.explainWord) args.push('--explain-word', options.explainWord);
-    if (options.explainTranslation) args.push('--explain-translation', options.explainTranslation);
+    pushBoundOption(args, '--explain-index', String(options.explainIndex || 0));
+    pushBoundOption(args, '--explain-kind', options.explainKind || 'sentence');
+    if (options.explainWord) pushBoundOption(args, '--explain-word', options.explainWord);
+    if (options.explainTranslation) pushBoundOption(args, '--explain-translation', options.explainTranslation);
   }
   args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
-  args.push('--cache-dir', path.join(app.getPath('userData'), 'cache'));
+  pushBoundOption(args, '--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
-  if (options.audioPreprocess) args.push('--audio-preprocess', options.audioPreprocess);
+  if (options.audioPreprocess) pushBoundOption(args, '--audio-preprocess', options.audioPreprocess);
 
   // Gizli anahtarları argv yerine ortam değişkeniyle ve yalnız onları kullanan
   // özellikler açıkken geçir (process listesinde ve ilgisiz child env'lerinde görünmesin).
@@ -19614,7 +19829,7 @@ ipcMain.handle('maintenance:updateYtdlp', async (event) => {
     return { ok: false, error: 'Python sanal ortamı (venv) bulunamadı. Önce install.bat çalıştırın.' };
   }
   return new Promise((resolve) => {
-    const appDir = app.getAppPath();
+    const appDir = appResourceRoot();
     const script = path.join(appDir, 'backend', 'update_ytdlp.py');
     const root = ytdlpRuntimeRoot(app.getPath('userData'));
     let out = '';

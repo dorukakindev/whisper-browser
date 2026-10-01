@@ -661,6 +661,10 @@ async function processNextQueueItem() {
     finalizeQueue();
     return;
   }
+  // Çağrı grafiği gereği bu işlev yalnız terminal olaylardan (done/error/exit)
+  // veya boşta başlatmadan gelir; yine de bir iş çalışıyorken yapılan fazladan
+  // çağrı ikinci bir süreci asla spawn etmesin.
+  if (state.queue.some(x => x.status === 'running')) return;
   // Sonraki bekleyen iş
   const next = state.queue.find(x => x.status === 'pending');
   if (!next) {
@@ -1283,7 +1287,7 @@ function clearPreview() {
 $('copyPreview').addEventListener('click', async () => {
   // Arama filtresi aktifse yalnızca görünen segmentleri kopyala
   const segs = state.previewSegs.filter(
-    (s) => !previewFilter || foldSearch(s.text).includes(previewFilter)
+    (s) => !previewFilter || foldIndex(s.text).dense.includes(previewFilter)
   );
   if (segs.length === 0) {
     logLine('Kopyalanacak segment yok', 'warn');
@@ -1426,7 +1430,7 @@ $('previewSearch').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   $('previewSearchClear')?.classList.toggle('hidden', !$('previewSearch').value);
   _searchTimer = setTimeout(() => {
-    previewFilter = foldSearch($('previewSearch').value.trim());
+    previewFilter = foldQuery($('previewSearch').value.trim());
     $$('#preview .segment').forEach(applySegmentFilter);
   }, 120);
 });
@@ -1445,7 +1449,7 @@ $('previewSearchClear')?.addEventListener('click', () => {
 function createSegmentEl(seg, idx) {
   const el = document.createElement('div');
   el.className = 'segment';
-  el.dataset.text = foldSearch(seg.text);
+  el.dataset.text = foldIndex(seg.text).dense;
   if (idx !== undefined) el.dataset.idx = String(idx);
   const start = formatTime(seg.start);
   const end = formatTime(seg.end);
@@ -1481,7 +1485,7 @@ function commitSegmentEdit(textEl) {
   if (newText === entry.text) return;
   entry.text = newText;
   entry.previewEdited = true;
-  segEl.dataset.text = foldSearch(newText);
+  segEl.dataset.text = foldIndex(newText).dense;
   syncPreviewSegmentState(segEl, entry);
 }
 
@@ -1825,8 +1829,8 @@ async function handleDropPayload(e) {
 
   // Dosya yok: tarayıcıdan sürüklenen bir link olabilir → YouTube sekmesine al
   const text = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').trim();
-  const url = text.split(/\s+/)[0];
-  if (/^https?:\/\//i.test(url)) {
+  const url = pickDroppedLink(text);
+  if (url) {
     const ytTab = document.querySelector('.tab[data-tab="youtube"]');
     if (ytTab) ytTab.click();
     $('youtubeUrl').value = url;
@@ -2415,6 +2419,8 @@ const PERSIST_VALUE_CONTROLS = [
   'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
   'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
+  'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',
+  'browserExportFormat', 'browserExportTiming', 'browserPageExportFormat', 'pdfExportFormat', 'pdfTargetLanguage',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -2439,11 +2445,17 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'browserDeArrowEnabled', 'browserRydDislikes',
   'stHideShorts', 'stHideWatched', 'stHideLive', 'stHideTrending', 'stAutoRelated',
   'browserAutoPip',
+  'subtitleFindCase', 'subtitleFindWhole',
 ];
 
 function collectUiSettings() {
   const ui = {};
-  PERSIST_VALUE_CONTROLS.forEach((id) => { const el = $(id); if (el) ui[id] = el.value; });
+  PERSIST_VALUE_CONTROLS.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    // select[multiple].value yalnız ilk seçeneği verir — tüm seçimleri dizi olarak topla.
+    ui[id] = el.multiple ? [...el.selectedOptions].map((option) => option.value) : el.value;
+  });
   PERSIST_CHECKBOX_CONTROLS.forEach((id) => {
     const el = $(id);
     if (el) ui[id] = el.tagName === 'DETAILS' ? el.open : el.checked;
@@ -2464,6 +2476,13 @@ function applyUiSettings(ui) {
       if (ui[id] === undefined) return;
       const el = $(id);
       if (!el) return;
+      if (el.multiple) {
+        // Çok-seçim geri yükleme: kayıtlı dizi içindeki seçenekleri işaretle.
+        const wanted = new Set(Array.isArray(ui[id]) ? ui[id].map(String) : []);
+        [...el.options].forEach((option) => { option.selected = wanted.has(option.value); });
+        el.dispatchEvent(new Event('change'));
+        return;
+      }
       // Kalıcı özel hız (örn. 1.3×) düz atamada option bulamaz → boş seçim +
       // hız 1'e düşerdi; önce option'ı üretip değeri ayarla.
       if (id === 'playerSpeed' && syncPlayerSpeedControl(ui[id]) !== null) {
@@ -5486,7 +5505,12 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserPageVisible = !!tab.browserPageVisible;
   player.browserPageError = tab.browserPageError || '';
   player.browserPageView = tab.browserPageView || (tab.browserPageVisible ? 'both' : 'original');
-  player.browserPageScope = tab.browserPageScope || 'article';
+  {
+    const scopePref = $('browserPageScope')?.value;
+    const scopeValid = (v) => v === 'article' || v === 'whole' || v === 'selection';
+    player.browserPageScope = scopeValid(tab.browserPageScope) ? tab.browserPageScope
+      : (scopeValid(scopePref) ? scopePref : 'article');
+  }
   player.browserPageAutoContinue = tab.browserPageAutoContinue !== false;
   player.browserPageStats = tab.browserPageStats || null;
   player.browserPageCompletion = tab.browserPageCompletion || null;
@@ -6095,10 +6119,12 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
       : iconEl.dataset.faviconFailed === tab.favicon && avatarSame(iconEl))
     : (iconEl.tagName === 'IMG' || !avatarSame(iconEl)));
   if (iconStale) {
-    const next = tab.favicon ? (() => {
+    // Geri yüklenen oturum verisi eski sürümlerden her şemayı taşıyabilir.
+    const faviconSrc = tab.favicon ? safeRemoteImageUrl(tab.favicon) : '';
+    const next = faviconSrc ? (() => {
       const favicon = document.createElement('img');
       favicon.className = 'browser-tab-favicon';
-      favicon.src = tab.favicon;
+      favicon.src = faviconSrc;
       favicon.alt = '';
       favicon.draggable = false;
       favicon.referrerPolicy = 'no-referrer';
@@ -7023,16 +7049,16 @@ function renderBrowserQuickPlaces() {
 }
 
 function browserPlaceList() {
-  const query = foldSearch(String($('browserPlacesSearch')?.value || '').trim());
+  const query = foldQuery(String($('browserPlacesSearch')?.value || '').trim());
   if (player.browserPlaceTab === 'offline') {
     return (Array.isArray(player.browserOfflineList) ? player.browserOfflineList : []).filter(item =>
-      !query || foldSearch(`${item.title || ''} ${item.url || ''}`).includes(query));
+      !query || foldIndex(`${item.title || ''} ${item.url || ''}`).dense.includes(query));
   }
   const places = player.browserPlaces || { history: [], bookmarks: [] };
   const folder = player.browserPlaceTab === 'bookmarks' ? ($('browserPlacesFolder')?.value || '') : '';
   return (Array.isArray(places[player.browserPlaceTab]) ? places[player.browserPlaceTab] : []).filter(item => {
     if (folder && item.folder !== folder) return false;
-    return !query || foldSearch(`${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`).includes(query);
+    return !query || foldIndex(`${browserPlaceTitle(item)} ${item.url} ${item.folder || ''}`).dense.includes(query);
   });
 }
 
@@ -7699,9 +7725,9 @@ function setBrowserPlacesOpen(open) {
 const browserDownloadState = { revision: -1, items: [], active: 0, message: '', rows: new Map(), pending: new Set(), errors: new Map() };
 
 function browserDownloadMatches(item) {
-  const query = foldSearch(String($('browserDownloadsSearch')?.value || '').trim());
+  const query = foldQuery(String($('browserDownloadsSearch')?.value || '').trim());
   const filter = $('browserDownloadsFilter')?.value || 'all';
-  if (query && !foldSearch(`${item.filename} ${item.path || ''}`).includes(query)) return false;
+  if (query && !foldIndex(`${item.filename} ${item.path || ''}`).dense.includes(query)) return false;
   return filter === 'all' || (filter === 'active' ? item.active
     : filter === 'completed' ? item.state === 'completed' : !item.active && item.state !== 'completed');
 }
@@ -7947,10 +7973,10 @@ function renderBrowserDiagnostics(diagnostics) {
   const recent = $('browserDiagnosticsRecent');
   if (!recent) return;
   recent.replaceChildren();
-  const filter = foldSearch(String(browserDiagnosticsFilter || '').trim());
+  const filter = foldQuery(String(browserDiagnosticsFilter || '').trim());
   const entries = (Array.isArray(diagnostics.recent) ? diagnostics.recent.slice(0, 100) : [])
-    .filter((entry) => !filter || foldSearch([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
-      .filter(Boolean).join(' ')).includes(filter));
+    .filter((entry) => !filter || foldIndex([entry.strategy, entry.outcome, entry.service, entry.mime, entry.url, entry.detail]
+      .filter(Boolean).join(' ')).dense.includes(filter));
   if (!entries.length) {
     recent.textContent = filter ? 'Bu filtreyle eşleşen tanı kaydı yok.'
       : 'Yakalanan altyazı adayları burada, hassas bağlantı parametreleri gizlenerek gösterilir.';
@@ -11431,7 +11457,15 @@ if ($('browserSplitDivider')) {
   };
   divider.addEventListener('pointerdown', (event) => { dragging = true; divider.classList.add('is-dragging'); divider.setPointerCapture(event.pointerId); update(event.clientX); });
   divider.addEventListener('pointermove', (event) => { if (dragging) update(event.clientX); });
-  divider.addEventListener('pointerup', (event) => { if (!dragging) return; dragging = false; divider.classList.remove('is-dragging'); divider.releasePointerCapture(event.pointerId); setBrowserSplit(player.browserSplit.secondaryTabId, $('browserSplitRatio').value); });
+  const endDrag = (event) => {
+    if (!dragging) return;
+    dragging = false; divider.classList.remove('is-dragging');
+    try { divider.releasePointerCapture(event.pointerId); } catch (_) {}
+    setBrowserSplit(player.browserSplit.secondaryTabId, $('browserSplitRatio').value);
+  };
+  divider.addEventListener('pointerup', endDrag);
+  // Dokunmatikte sistem jesti sürüklemeyi iptal edebilir — dragging takılı kalmasın
+  divider.addEventListener('pointercancel', endDrag);
   divider.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
     event.preventDefault();
@@ -12056,6 +12090,11 @@ if ($('browserSponsorMode')) $('browserSponsorMode').addEventListener('change', 
     setBrowserSignal(mode === 'auto' ? 'Sponsor bölümleri otomatik atlanacak.' : 'Sponsor bölümü bulunduğunda atlama seçeneği gösterilecek.', true);
     refreshBrowserSponsorSegments().catch(() => {});
   }
+});
+// Kategori seçimi değişince açık videonun bölümleri eski kategorilerle kalırdı;
+// mod 'off' değilse yeni seçimle yeniden çekilir.
+if ($('browserSponsorCategories')) $('browserSponsorCategories').addEventListener('change', () => {
+  refreshBrowserSponsorSegments().catch(() => {});
 });
 if ($('browserSponsorTemporary')) $('browserSponsorTemporary').addEventListener('click', () => {
   player.browserSponsorTemporaryDisabled = !player.browserSponsorTemporaryDisabled;
@@ -13985,17 +14024,19 @@ function translationsForCues(cues, translations) {
 function appendHighlighted(el, text, q) {
   const flat = text.replace(/\n/g, ' ');
   if (!q) { el.textContent = flat; return; }
-  const low = foldSearch(flat);
-  let from = 0;
-  let at = low.indexOf(q);
+  const fi = foldIndex(flat);
+  let at = fi.dense.indexOf(q);
   if (at < 0) { el.textContent = flat; return; }
+  let from = 0;
   while (at >= 0) {
-    el.appendChild(document.createTextNode(flat.slice(from, at)));
+    const start = fi.map[at][0];
+    const end = fi.map[at + q.length - 1][0] + fi.map[at + q.length - 1][1];
+    el.appendChild(document.createTextNode(flat.slice(from, start)));
     const m = document.createElement('mark');
-    m.textContent = flat.slice(at, at + q.length);
+    m.textContent = flat.slice(start, end);
     el.appendChild(m);
-    from = at + q.length;
-    at = low.indexOf(q, from);
+    from = end;
+    at = fi.dense.indexOf(q, at + q.length);
   }
   el.appendChild(document.createTextNode(flat.slice(from)));
 }
@@ -14008,7 +14049,7 @@ function cueHasLowConfidence(cue) {
 function renderCueList(filter = '') {
   const box = $('cueList');
   if (!box) return;
-  const q = foldSearch(filter.trim());
+  const q = foldQuery(filter.trim());
   box.innerHTML = '';
   updateCueMeta();
   if (!player.cues.length) {
@@ -14051,8 +14092,8 @@ function renderCueList(filter = '') {
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !foldSearch(c.text).includes(q)
-        && !foldSearch(counterpart).includes(q)) return;
+    if (q && !foldIndex(c.text).dense.includes(q)
+        && !foldIndex(counterpart).dense.includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -14549,7 +14590,7 @@ function toggleQualityOnly() {
 // kaynak metinle bırakılan blok) çevrilmemiş sayılır.
 function cueLooksUntranslated(text, counterpart) {
   if (!player.cues2.length) return false;
-  const norm = (value) => foldSearch(String(value || '')).replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const norm = (value) => foldIndex(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
   const a = norm(text);
   const b = norm(counterpart);
   return !b || (a.length > 3 && a === b);
@@ -15067,9 +15108,9 @@ function renderHistory() {
   const card = $('historyCard');
   const list = $('historyList');
   if (!card || !list) return;
-  const q = foldSearch($('historySearch')?.value);
+  const q = foldQuery($('historySearch')?.value);
   const items = q
-    ? historyCache.filter((h) => foldSearch(h.title).includes(q))
+    ? historyCache.filter((h) => foldIndex(h.title).dense.includes(q))
     : historyCache;
   $('historyCount').textContent = String(historyCache.length);
   $('jobsHistoryBadge').textContent = String(historyCache.length);
@@ -15921,9 +15962,14 @@ async function refreshEmbeddedSubtitleTracks(filePath) {
   $('playerEmbeddedSubField')?.classList.remove('hidden');
   const textCount = player.embeddedSubtitleTracks.filter((track) => track.extractable).length;
   const bitmapCount = player.embeddedSubtitleTracks.filter((track) => track.requiresOcr).length;
-  $('playerEmbeddedSubHint').textContent = textCount
-    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}.`
-    : `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor.`;
+  // Çıkarılamayan metin izleri (bozuk indeks vb.) bitmap sayılmaz —
+  // ipucu '0 görüntü tabanlı iz' demesin diye ayrı sayılır.
+  const unreadCount = player.embeddedSubtitleTracks.filter((track) => !track.extractable && !track.requiresOcr).length;
+  $('playerEmbeddedSubHint').textContent = uiText(textCount
+    ? `${textCount} hazır metin izi bulundu${bitmapCount ? `; ${bitmapCount} görüntü izi metin olarak desteklenmiyor` : ''}${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+    : bitmapCount
+      ? `${bitmapCount} görüntü tabanlı iz bulundu; bu izler metin olarak desteklenmiyor${unreadCount ? `; ${unreadCount} iz okunamadı` : ''}.`
+      : `${unreadCount} altyazı izi bulundu ancak hiçbiri çıkarılamıyor; indeksleri okunamayan izler seçilemez.`);
   $('playerEmbeddedSubLoad').disabled = !textCount;
 }
 
@@ -16639,6 +16685,16 @@ const BROWSER_ERROR_EN = {
   'quic-error': () => 'The VPN connection could not complete the QUIC protocol; restart the app and try again.',
   'connection-refused': () => 'The site refused the connection. Check the address, VPN/proxy settings, and whether the site is up.',
   'insecure-response': () => 'The site returned an insecure TLS/certificate response. Check the system clock and VPN/antivirus HTTPS inspection.',
+  'proxy-error': () => 'The proxy/VPN connection could not be established. Check the proxy or VPN settings and retry the connection.',
+  'address-unreachable': () => 'The site address could not be reached over the network. Check the address and your internet connection.',
+  'redirect-loop': () => 'The site redirected too many times — the address may be looping.',
+  'unsafe-redirect': () => 'The site tried to redirect to an unsafe address — the connection was stopped.',
+  'blocked-by-filter': () => 'The request was blocked (ad/tracking protection or administrator policy).',
+  'connection-dropped': () => 'The connection was dropped by the other side. Try again in a moment.',
+  'ssl-error': () => 'A secure (SSL) connection to the site could not be established. Check the system clock and VPN/antivirus HTTPS inspection.',
+  'empty-response': () => 'The site returned an empty response. Try again in a moment.',
+  'network-changed': () => 'The network changed mid-connection — check VPN/Wi-Fi switching and reload the page.',
+  'invalid-address': () => 'The address is invalid or uses a disallowed scheme.',
   'http-empty-server': (p) => `The site server returned an HTTP ${p.status} error with an empty response. Try again shortly.`,
   'http-empty-client': (p) => `The site returned HTTP ${p.status} and the page came back empty.`,
   'certificate-error': (p) => `This site's security certificate could not be verified${p.detail ? ` (${p.detail})` : ''}. Connection blocked; check the system clock, VPN/proxy, and antivirus HTTPS inspection.`,
@@ -18203,6 +18259,30 @@ function foldSearch(value) {
   return fold ? fold(text) : text.replace(/[Iİı]/g, 'i').toLowerCase();
 }
 
+// Sorgu tarafı katlama: metindeki işaretçi karakterler sorgudan silinir —
+// görünmez/ayrışık yazılan sorgu da eşleşir; metin ofsetleri foldSearch ile
+// korunduğu için vurgu konumları doğru kalır.
+function foldQuery(value) {
+  return foldIndex(value).dense;
+}
+
+// Metin+konum dizini: modüllerdeki foldSearchIndex ile aynı sözleşme (yoğun
+// form + her yoğun konumun özgün metindeki [başlangıç, uzunluk] aralığı).
+// Modüller yüklüyse oradan alınır; yoksa işaretçi-silme sade sürüme düşer.
+function foldIndex(value) {
+  const build = globalThis.BrowserAddressModel?.foldSearchIndex || globalThis.BrowserOmnibox?.foldSearchIndex;
+  if (build) return build(value);
+  const folded = foldSearch(value);
+  const dense = [];
+  const map = [];
+  for (let i = 0; i < folded.length; i++) {
+    if (folded[i] === '\uFFFF') continue;
+    map.push([i, 1]);
+    dense.push(folded[i]);
+  }
+  return { dense: dense.join(''), map };
+}
+
 // Dil kodunu dosya adindan cikar: "film.tr.srt" -> TR (yalnız bilinen dil kodları;
 // mantık src/browser-address-model.js'te, backend SUBTITLE_LANGUAGE_CODES ile aynı küme).
 function langFromPath(path) {
@@ -19379,27 +19459,36 @@ $$('.view-modes .vm').forEach((b) => {
 if ($('sideResizer')) {
   const rz = $('sideResizer');
   let dragging = false;
-  rz.addEventListener('mousedown', (e) => {
+  // Yalnız başlatan işaretçi sürükler: ikinci parmağın move/up olayı paneli
+  // kaydırıp sürüklemeyi bitirmesin (çoklu dokunuş).
+  let dragPointerId = null;
+  rz.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || dragging) return;
     dragging = true;
+    dragPointerId = e.pointerId;
     rz.classList.add('dragging');
     // Surukleme sirasinda grid gecis animasyonu kapatilir, yoksa el takip etmez
     const body = document.querySelector('.player-body');
     if (body) body.classList.add('resizing');
+    try { rz.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault();
   });
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
+  window.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragPointerId) return;
     const layer = $('playerLayer').getBoundingClientRect();
     setSideWidth(layer.right - e.clientX);
   });
-  window.addEventListener('mouseup', () => {
-    if (!dragging) return;
+  const endResize = (e) => {
+    if (!dragging || (e && e.pointerId !== dragPointerId)) return;
     dragging = false;
+    dragPointerId = null;
     rz.classList.remove('dragging');
     const body = document.querySelector('.player-body');
     if (body) body.classList.remove('resizing');
     highlightCueRow();
-  });
+  };
+  window.addEventListener('pointerup', endResize);
+  window.addEventListener('pointercancel', endResize);
 }
 
 // Ayar cekmecesi
@@ -20277,7 +20366,7 @@ if (moreSearch) {
   const morePopover = moreSearch.closest('.browser-more-popover');
   let moreEmpty = null;
   const filterMoreMenu = () => {
-    const q = foldSearch(moreSearch.value.trim());
+    const q = foldQuery(moreSearch.value.trim());
     // Arama "eylenebilir komut" bulur: devre dışı öğeler eşleşmez — gri ama
     // tıklanamaz ölü sonuç yerine "eşleşme yok" satırı daha dürüsttür.
     const usable = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
@@ -20285,7 +20374,7 @@ if (moreSearch) {
       // Etiketin yanında title/aria-label da aranır: "pdf", "qr", "vlc" gibi
       // kısa sorgular simge ağırlıklı öğeleri de bulsun.
       const haystack = `${item.textContent || ''} ${item.title || ''} ${item.getAttribute('aria-label') || ''}`;
-      return !q || (usable(item) && foldSearch(haystack).includes(q));
+      return !q || (usable(item) && foldIndex(haystack).dense.includes(q));
     };
     let total = 0;
     // Hızlı eylem satırındaki düğmeler de aranır: "yeni sekme" gibi sorgular
@@ -21133,19 +21222,37 @@ async function translateVisiblePdfPages(all = false) {
     }
   }
 }
+// Tüm-kitap çevirisinde bu sayıyı aşan belgelerde önce maliyet onayı istenir —
+// paket başına API çağrısı olduğu için binlerce sayfalık belge sessizce
+// yüzlerce istek yakabilirdi.
+const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;
 async function translateVisiblePdfPagesNow(reader, all) {
   const count = reader.pdf.numPages;
   const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
   if (!pages.length) { reader.translating = false; return; }
+  if (all && pages.length > PDF_TRANSLATE_ALL_CONFIRM_PAGES) {
+    const proceed = await openAppDialog({
+      title: interfaceChoice('Tüm kitap çevrilecek', 'Translate the whole book'),
+      description: interfaceChoice(
+        `${pages.length} sayfa sırayla çevrilecek; uzun sürebilir ve API maliyeti oluşturabilir.`,
+        `${pages.length} pages will be translated in sequence; this can take a while and incur API cost.`),
+      confirmLabel: interfaceChoice('Çevir', 'Translate'),
+      intent: 'primary',
+    });
+    if (!proceed) { reader.translating = false; return; }
+  }
+  reader.cancelRequested = false;
   reader.translationStartedAt = Date.now();
   reader.translationCompleted = 0;
   reader.translationFailed = 0;
   reader.translationTotal = pages.length;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
-  if (all) {
-    for (const pageNumber of pages) await extractPdfReaderPage(pageNumber);
-  } else {
+  // "Tüm kitap" için metin çıkarma çeviri öncesi her sayfaya değil her pakete
+  // uygulanır; aksi hâlde büyük belgede tüm metin Map'te birikir ve işlem
+  // dakikalarca tepkisiz kalırdı. Görünen-sayfa yolunda girdi zaten
+  // renderPdfReaderPage ile sınırlı ve hazırdır.
+  if (!all) {
     for (const pageNumber of pages) await renderPdfReaderPage(pageNumber);
   }
   $('pdfTranslateCancel').disabled = false; pdfReaderSetStatus(all ? `Kitap çevriliyor… (0/${pages.length})` : 'Görünen sayfalar çevriliyor…');
@@ -21154,8 +21261,20 @@ async function translateVisiblePdfPagesNow(reader, all) {
   // sayfalara uygula. Her çağrı en fazla üç sayfa işler; aradaki çağrılarda iptal
   // düğmesi çalışmaya devam eder.
   for (let offset = 0; offset < pages.length; offset += 3) {
-    if (!player.pdfReader || reader.pdfHash !== player.pdfReader.pdfHash) break;
+    // Aynı dosya yeniden açılınca pdfHash aynı kalır; kimlik karşılaştırması
+    // eski okuyucunun döngüsünü yeni okuyucunun boş sayfa haritasıyla sürdürüp
+    // çevrilen sayfaları ezmesini önler. İptal bayrağı paket arasında da durur.
+    if (player.pdfReader !== reader) break;
+    if (reader.cancelRequested) { canceled = true; break; }
     const batchPages = pages.slice(offset, offset + 3);
+    if (all) {
+      for (const pageNumber of batchPages) {
+        if (reader.cancelRequested) { canceled = true; break; }
+        await extractPdfReaderPage(pageNumber);
+      }
+      if (player.pdfReader !== reader) break;
+      if (reader.cancelRequested) { canceled = true; break; }
+    }
     const requests = batchPages.map((pageNumber) => {
       const entry = reader.pages.get(pageNumber) || {};
       return { pageNumber, blocks: entry.blocks || [], items: entry.items || [],
@@ -21163,6 +21282,9 @@ async function translateVisiblePdfPagesNow(reader, all) {
         viewportTransform: entry.viewportTransform || [] };
     });
     const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
+    // Uçuşta kalan yanıt yeniden açılan okuyucuya uygulanamaz:
+    // renderPdfTranslation geçerli player.pdfReader'a yazar.
+    if (player.pdfReader !== reader) break;
     if (result?.state) {
       reader.state = result.state;
       for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
@@ -21182,9 +21304,17 @@ async function translateVisiblePdfPagesNow(reader, all) {
     if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
     // Okuyucu bu çeviri sürerken değiştiyse durum satırı yeni belgeye aittir.
     if (player.pdfReader === reader) pdfReaderSetStatus(`${all ? 'Kitap' : 'Sayfalar'} çevriliyor… (${Math.min(pages.length, completed + failed)}/${pages.length})`);
+    // Çizilmemiş sayfaların metin kopyasını bırak — çevrilen paketin blocks/items
+    // verisi durum dosyasında zaten kalıcı; Map'te tutmak büyük belgelerde
+    // belleği sınırsız büyütüyordu. Görünen sayfalar article/translation taşır.
+    for (const pageNumber of batchPages) {
+      const entry = reader.pages.get(pageNumber);
+      if (entry && !entry.article && !entry.translation) reader.pages.delete(pageNumber);
+    }
     if (result?.canceled) { canceled = true; break; }
   }
-  $('pdfTranslateCancel').disabled = true;
+  // Eski iş, yeni okuyucunun çeviri işinin iptal düğmesini kapatmasın.
+  if (player.pdfReader === reader) $('pdfTranslateCancel').disabled = true;
   reader.translating = false;
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter({ refresh: false });
   // Okuyucu değiştiyse eski çevirinin sonuç satırı yeni belgeyi ezmesin.
@@ -21305,7 +21435,11 @@ $('[data-pdf-view]') && $$('[data-pdf-view]').forEach((button) => {
 });
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
 $('pdfTranslateCancel')?.addEventListener('click', () => {
-  if (player.pdfReader?.pdfHash) window.api.cancelPdfTranslation?.(player.pdfReader.pdfHash);
+  const reader = player.pdfReader;
+  // Paket arasında ana süreçte iş yoktur; bayrak döngünün bir sonraki
+  // yinelemesinde durmayı sağlar (o an uçuşta olan paket de API'den iptal edilir).
+  if (reader) reader.cancelRequested = true;
+  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash);
 });
 $('pdfExport')?.addEventListener('click', async () => {
   const result = await window.api.exportPdfTranslation?.(player.pdfReader?.pdfHash, $('pdfExportFormat')?.value || 'txt', $('pdfTargetLanguage')?.value || 'tr').catch(() => null);
@@ -22182,10 +22316,10 @@ async function runPlayerLibrarySearch() {
   const scope = playerLibraryView === 'notes' ? 'notes' : ($('playerLibrarySearchScope')?.value || 'all');
   const seq = ++player.playerLibrarySearchSeq;
   if (playerLibraryView === 'collections') {
-    const folded = foldSearch(q.normalize('NFKC'));
+    const folded = foldQuery(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => foldSearch(String(value || '').normalize('NFKC')).includes(folded)));
+        .some((value) => foldIndex(String(value || '').normalize('NFKC')).dense.includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
@@ -22883,6 +23017,23 @@ if ($('subtitleModeMenu')) {
   });
 }
 
+// Sayfa/medya kökenli URL'ler img/background-image sink'ine basılmadan önce
+// bu kapıdan geçer: yalnız http(s), data:image ve blob: kabul — javascript:,
+// file:, data:text/html vb. şemalar sessizce düşürülür (svg data: <img>'de
+// script çalıştırmaz); tırnak/boşluk taşıyanlar da geçmez.
+function safeRemoteImageUrl(url) {
+  const text = String(url || '').trim();
+  if (!/^(https?:\/\/|data:image\/|blob:)/i.test(text)) return '';
+  return /[\s"'\\<>`]/.test(text) ? '' : text;
+}
+function safeSeekSheetImageUrl(url) {
+  const text = String(url || '').trim();
+  // Yerel sprite'lar base64 data:image olarak gelir — meşru önizlemeler
+  // yüzlerce KB olabilir; sınır yalnız patolojik dizgileri eler.
+  if (text.length > 16 * 1024 * 1024) return '';
+  return safeRemoteImageUrl(text);
+}
+
 // A20/B01: seekbar kare önizlemesi — YouTube storyboard veya yerel ffmpeg
 // sprite'ı. Sprite bilgisi ortak şema: {image|template, columns, rows, count,
 // frameWidth, frameHeight, intervalMs, level?}.
@@ -22950,8 +23101,12 @@ function updateSeekThumb(t, ratio, duration) {
   const url = sheet.image || (sheet.urlFor ? sheet.urlFor(page) : '');
   if (!url) { el.classList.add('hidden'); return; }
   if (el.dataset.sheetUrl !== url) {
-    el.style.backgroundImage = `url("${url}")`;
-    el.dataset.sheetUrl = url;
+    // storyboard template'i medya metadatasından gelir — yalnız http(s)/data:image
+    // kabul; JSON.stringify tırnak/satır sonu kaçışıyla url() dizgisini korur.
+    const safeUrl = safeSeekSheetImageUrl(url);
+    if (!safeUrl) { el.classList.add('hidden'); return; }
+    el.style.backgroundImage = `url(${JSON.stringify(safeUrl)})`;
+    el.dataset.sheetUrl = safeUrl;
     // Sprite sayfası yeni yüklendiyse doğal ölçüden hücre oranını ölç (yerel).
     if (!sheet.frameHeight && sheet.image) {
       const probe = new Image();
@@ -23678,9 +23833,9 @@ function renderBrowserRemapCues() {
   const select=$('browserRemapCue');select.replaceChildren();
   browserRemapTargets=new Map();
   const descriptor=subtitleFindDescriptors().find(row=>row.channel===$('browserRemapChannel').value);
-  const query=foldSearch($('browserRemapSearch').value.trim());
+  const query=foldQuery($('browserRemapSearch').value.trim());
   for(const [index,cue] of (descriptor?.cues||[]).entries()){
-    if(query&&!foldSearch(cue.text).includes(query))continue;
+    if(query&&!foldIndex(cue.text).dense.includes(query))continue;
     select.add(new Option(`${pSecToTime(cue.start)} · ${cue.text.slice(0,140)}`,String(index)));
     browserRemapTargets.set(index,{...cue});
     if(select.options.length>=100)break;
@@ -24335,13 +24490,13 @@ if ($('cueSearch')) {
   // filmde nerelerde geciyorsa cubukta gorunur, tiklayip atlarsin.
   $('cueSearch').addEventListener('input', (e) => {
     if (e.isComposing) return;
-    const q = foldSearch(e.target.value.trim());
+    const q = foldQuery(e.target.value.trim());
     renderCueList(e.target.value);
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);
       renderSeekMarkers(player.cues.filter((c, index) =>
-        foldSearch(c.text).includes(q)
-          || foldSearch(translations[index]).includes(q))
+        foldIndex(c.text).dense.includes(q)
+          || foldIndex(translations[index]).dense.includes(q))
         .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });
@@ -24737,6 +24892,10 @@ function stSelectSection(section) {
 // Bölüm render yarışı koruması — yavaş 'trending' isteği kullanıcının
 // açtığı 'popular' grid'ini ezmesin diye her render bir sıra numarası alır.
 let stSectionSeq = 0;
+// Kanal sayfası içi sekme/arama render yarışı — aynı sayfada uçuşta kalan
+// sekme isteği, kullanıcının yeni seçtiği sekmenin gövdesine yazmasın diye
+// her sekme değişimi ve kanal-içi arama bu sayacı artırır.
+let stChannelTabSeq = 0;
 let stActiveHomeRequestId = null;
 let lastInvidiousInstance = '';
 
@@ -26459,9 +26618,16 @@ async function openInvidiousPlaylistPage(playlistId) {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       btn.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
-      const next = await loadInvidiousPlaylist(playlistId, ++page).catch(() => null);
+      const next = await loadInvidiousPlaylist(playlistId, page + 1).catch(() => null);
       if (seq !== stSectionSeq) { row.remove(); return; }
-      const got = (next && next.videos) || [];
+      // Geçici hata sayfayı atlatmasın ve düğmeyi öldürmesin — tekrar dene.
+      if (!next) {
+        btn.disabled = false;
+        btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+        return;
+      }
+      page += 1;
+      const got = next.videos || [];
       const added = appendVideos(got);
       // Son sayfa ya da tamamen tekrar eden sayfa — devam düğmesini kaldır.
       if (!got.length || !added || got.length < 20) { row.remove(); return; }
@@ -26854,9 +27020,10 @@ async function renderStChannelTab(channelId, tab, body, getPage, setPage, query 
   loading.textContent = window.UiLocale?.t('Yükleniyor…') || 'Yükleniyor…';
   body.appendChild(loading);
   const seq = stSectionSeq;   // sayfa değişirse geç sonuç düşsün
+  const tabSeq = stChannelTabSeq;  // sekme/arama değişirse geç sonuç düşsün
   const data = await loadInvidiousChannelTab(channelId, {
     tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
-  if (seq !== stSectionSeq) return;
+  if (seq !== stSectionSeq || tabSeq !== stChannelTabSeq) return;
   body.innerHTML = '';
   if (!data) {
     const e = document.createElement('div');
@@ -26872,11 +27039,14 @@ async function renderStChannelTab(channelId, tab, body, getPage, setPage, query 
     btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
     btn.addEventListener('click', async () => {
       btn.disabled = true;
-      setPage(getPage() + 1);
       const next = await loadInvidiousChannelTab(channelId, {
-        tab: tab === 'search' ? 'videos' : tab, page: getPage(), query });
+        tab: tab === 'search' ? 'videos' : tab, page: getPage() + 1, query });
+      if (seq !== stSectionSeq || tabSeq !== stChannelTabSeq) { btn.remove(); return; }
+      // Geçici ağ hatası sayfa sayacını ilerletmesin ve düğmeyi öldürmesin —
+      // kullanıcı aynı sayfayı tekrar isteyebilsin.
+      if (!next) { btn.disabled = false; return; }
+      setPage(getPage() + 1);
       btn.remove();
-      if (!next) return;
       appendItems(next);
     });
     body.appendChild(btn);
@@ -27047,6 +27217,7 @@ async function openInvidiousChannelPage(channelId) {
     if (tab === activeTab && tabBody.children.length) return;
     activeTab = tab;
     tabPage = 1;
+    stChannelTabSeq++;
     tabRow.querySelectorAll('.st-chip').forEach((c) => {
       c.classList.toggle('is-active', c.dataset.stChTab === tab);
       c.setAttribute('aria-selected', c.dataset.stChTab === tab ? 'true' : 'false');
@@ -27075,6 +27246,16 @@ async function openInvidiousChannelPage(channelId) {
     e.preventDefault();
     const q = chSearch.value.trim();
     if (!q) return;
+    // Arama yeni bir görünüm: sayfa sayacını sıfırla (önceki sekmenin sayfa
+    // numarası sonuçları atlatırdı) ve aktif sekmeyi nötrle — yoksa aktif
+    // chip'in tıklaması early-return'e takılıp videolara dönemezdi.
+    tabPage = 1;
+    activeTab = 'search';
+    stChannelTabSeq++;
+    tabRow.querySelectorAll('.st-chip').forEach((c) => {
+      c.classList.remove('is-active');
+      c.setAttribute('aria-selected', 'false');
+    });
     renderStChannelTab(channelId, 'search', tabBody, () => tabPage, (p) => { tabPage = p; }, q);
   });
   tabRow.appendChild(chSearch);
@@ -27087,6 +27268,42 @@ async function openInvidiousChannelPage(channelId) {
     tabBody.appendChild(empty);
   } else {
     renderTabVideos(videos);
+    // İlk sayfa kanal bilgisiyle birlikte geldi; derinleşmek için 2. sayfadan
+    // başlayan "Daha fazla" satırı — aynı video tekrarı dedupe ile elenir ve
+    // geçici hata düğmeyi öldürmez.
+    if (videos.length >= 20) {
+      const seen = new Set(videos.map((v) => v.videoId).filter(Boolean));
+      const tabSeq0 = stChannelTabSeq;
+      const row = document.createElement('div');
+      row.className = 'st-more-row st-grid-row';
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'st-more-btn';
+      btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const next = await loadInvidiousChannelTab(channelId, { tab: 'videos', page: tabPage + 1 });
+        if (seq !== stSectionSeq || stChannelTabSeq !== tabSeq0) { row.remove(); return; }
+        const got = (next && next.videos) || [];
+        if (!got.length) { btn.disabled = false; if (!next) return; row.remove(); return; }
+        tabPage += 1;
+        let added = 0;
+        for (const v of got) {
+          if (!v.videoId || seen.has(v.videoId)) continue;
+          seen.add(v.videoId);
+          if (stVideoHidden(v)) continue;
+          // Düğme satırı listenin sonunda kalmalı; aksi halde her sayfa
+          // düğmenin altına eklenir ve kullanıcı geriye kaydırmak zorunda kalır.
+          tabBody.insertBefore(buildSmartTubeCard(v), row);
+          added++;
+        }
+        if (!added && got.length < 20) { row.remove(); return; }
+        // Tümü yinelenen/gizli dolu sayfa: düğmeyi kaldırma — sonraki
+        // sayfalar yeni video içerebilir; kayma ancak boş sayfada biter.
+        btn.disabled = false;
+      });
+      row.appendChild(btn);
+      tabBody.appendChild(row);
+    }
   }
 }
 

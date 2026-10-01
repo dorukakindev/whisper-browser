@@ -7,6 +7,40 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 269 | [BROWSER_BUG_REPORT_269.md](BROWSER_BUG_REPORT_269.md) | BROWSER_BUG_REPORT_269 — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı) |
+| 268 | [BROWSER_BUG_REPORT_268.md](BROWSER_BUG_REPORT_268.md) | BROWSER_BUG_REPORT_268 — R319: PR #265 Devin Review triage (4 kod düzeltmesi) |
+| 267 | [BROWSER_BUG_REPORT_267.md](BROWSER_BUG_REPORT_267.md) | BROWSER_BUG_REPORT_267 — R318: Devin Review toplu triage #236–#263 (14 kod düzeltmesi) |
+| 266 | [BROWSER_BUG_REPORT_266.md](BROWSER_BUG_REPORT_266.md) | BROWSER_BUG_REPORT_266 — R317: paket bütünlüğü manifesti + açılış erken uyarısı |
+| 265 | [BROWSER_BUG_REPORT_265.md](BROWSER_BUG_REPORT_265.md) | BROWSER_BUG_REPORT_265 — R316: dokunmatik sürükleme tutamaçları (pointercancel + touch-action) |
+| 264 | [BROWSER_BUG_REPORT_264.md](BROWSER_BUG_REPORT_264.md) | BROWSER_BUG_REPORT_264 — R315: ayarlar UI→persist→restart tam turu (12 kayıp kontrol + çok-seçim) |
+| 263 | [BROWSER_BUG_REPORT_263.md](BROWSER_BUG_REPORT_263.md) | BROWSER_BUG_REPORT_263 — R314: iş günlüğü bayt sınırı — 4MB + kesim işareti |
+| 262 | [BROWSER_BUG_REPORT_262.md](BROWSER_BUG_REPORT_262.md) | BROWSER_BUG_REPORT_262 — R313: disk-dolu matrisi — iş günlüğü 'error' çöküşü + atomik dışa aktarımlar |
+| 261 | [BROWSER_BUG_REPORT_261.md](BROWSER_BUG_REPORT_261.md) | BROWSER_BUG_REPORT_261 — R312: PDF büyük-belge sınırı (tembel çıkarma + tahliye + onay) |
+| 260 | [BROWSER_BUG_REPORT_260.md](BROWSER_BUG_REPORT_260.md) | BROWSER_BUG_REPORT_260 — R311: SmartTube kanal/playlist derinliği (4 sayfalama bugı) |
+| 259 | [BROWSER_BUG_REPORT_259.md](BROWSER_BUG_REPORT_259.md) | BROWSER_BUG_REPORT_259 — R310: derin-link yüzey denetimi (yüzey sıfır) |
+| 258 | [BROWSER_BUG_REPORT_258.md](BROWSER_BUG_REPORT_258.md) | BROWSER_BUG_REPORT_258 — R309: yt-dlp rollback derinliği (bozuk paket previous/venv düşüşü) |
+| 257 | [BROWSER_BUG_REPORT_257.md](BROWSER_BUG_REPORT_257.md) | BROWSER_BUG_REPORT_257 — R308: mini oynatıcı × bellekten boşaltma sırası |
+| 256 | [BROWSER_BUG_REPORT_256.md](BROWSER_BUG_REPORT_256.md) | R307 — Arka-plan sekme unload retry-state (diriliş bütçesi sızıntısı + cloudflare timer) |
+| 255 | [BROWSER_BUG_REPORT_255.md](BROWSER_BUG_REPORT_255.md) | R306 — hata diyaloğu retry durum temizliği (bütçe sızıntısı + bayat manga sayımı) |
+| 254 | [BROWSER_BUG_REPORT_254.md](BROWSER_BUG_REPORT_254.md) | R305 — Codec/kapsayıcı sniffing matrisi (2 bug: mutlak indeks, null-stream TypeError) |
+| 253 | [BROWSER_BUG_REPORT_253.md](BROWSER_BUG_REPORT_253.md) | R304 — Yer-imi içe aktarma bozuk-veri matrisi (2 bug: jsessionid, visitedAt) |
+| 252 | [BROWSER_BUG_REPORT_252.md](BROWSER_BUG_REPORT_252.md) | R303: review triage — emoji/UTF-16 map hizası + #247 docs |
+| 251 | [BROWSER_BUG_REPORT_251.md](BROWSER_BUG_REPORT_251.md) | R302 — subs:shift ±ms doğruluk ratchet'i (12 senaryo, bug yok) |
+| 250 | [BROWSER_BUG_REPORT_250.md](BROWSER_BUG_REPORT_250.md) | R301 — Kuyruk öncelik/sıra invariant'ları: FIFO+retry+dedupe+kapı ratchet'i (bug yok) |
+| 249 | [BROWSER_BUG_REPORT_249.md](BROWSER_BUG_REPORT_249.md) | R300 — Önizleme/favicon görüntü-sink güvenliği: safeRemoteImageUrl kapısı (2 boşluk) |
+| 248 | [BROWSER_BUG_REPORT_248.md](BROWSER_BUG_REPORT_248.md) | R299 — settings export↔import tam-tur ratchet'i (temiz tur) |
+| 247 | [BROWSER_BUG_REPORT_247.md](BROWSER_BUG_REPORT_247.md) | R298 — Omnibox katlama turu-2: yoğun eşleşme dizini (görünmez/emoji/jamo) + flag triage |
+| 246 | [BROWSER_BUG_REPORT_246.md](BROWSER_BUG_REPORT_246.md) | R297 — Omnibox unicode/RTL katlama (aksan + ayrışık yazım + görünmez karakter) |
+| 245 | [BROWSER_BUG_REPORT_245.md](BROWSER_BUG_REPORT_245.md) | R296 — Çeviri önbelleği bozuk-girdi fuzz ratchet'i (114 senaryo, bug yok) |
+| 244 | [BROWSER_BUG_REPORT_244.md](BROWSER_BUG_REPORT_244.md) | R295 — CI determinizm denetimi + baseline ratchet (Math.random yasak, uyku/duvar-saati) |
+| 243 | [BROWSER_BUG_REPORT_243.md](BROWSER_BUG_REPORT_243.md) | R294 — err_* EN/TR tam kapsama ratchet'i |
+| 242 | [BROWSER_BUG_REPORT_242.md](BROWSER_BUG_REPORT_242.md) | R293 — series_memory birleştirme yarışı (temiz) |
+| 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | R292 — Devin Review flag süpürmesi (üretim okuyucusu eval + ham bayt) |
+| 239 | [BROWSER_BUG_REPORT_239.md](BROWSER_BUG_REPORT_239.md) | R291 — Sekme/oturum persist bozuk-veri matrisi |
+| 238 | [BROWSER_BUG_REPORT_238.md](BROWSER_BUG_REPORT_238.md) | R290 — Öznitelik/URL sink denetimi tur-2 (temiz + ratchet) |
+| 237 | [BROWSER_BUG_REPORT_237.md](BROWSER_BUG_REPORT_237.md) | R288: #229 review triage — fsync hata sınıflandırması, zincir fsync, SRT/sıra kilidi |
+| 236 | [BROWSER_BUG_REPORT_236.md](BROWSER_BUG_REPORT_236.md) | R287: argv kaçış matrisi — seçenek-enjeksiyonu `=` biçimine bağlandı (39 seçenek/54 itim) |
+| 235 | [BROWSER_BUG_REPORT_235.md](BROWSER_BUG_REPORT_235.md) | R286 — burnin-recovery sürüm kapısı + şema sözlüğü |
 | 25 | [BROWSER_BUG_REPORT_25.md](BROWSER_BUG_REPORT_25.md) | Tarayıcı Entegrasyonu Hata Raporu 25 (Sözleşme ve Kalan-Açık Turu) |
 | 26 | [BROWSER_BUG_REPORT_26.md](BROWSER_BUG_REPORT_26.md) | Browser Bug Raporu 26 — derin denetim (izin modeli, kalıcılık, arşiv, yaşam döngüsü) |
 | 27 | [BROWSER_BUG_REPORT_27.md](BROWSER_BUG_REPORT_27.md) | Browser Denetim Raporu 27 — Derin Tarama (Modül Kapanışı + Deneysel Doğrulama) |
@@ -201,6 +235,11 @@ tarih sırasıyla dosya adından okunur.
 | 228 | [BROWSER_BUG_REPORT_228.md](BROWSER_BUG_REPORT_228.md) | BROWSER_BUG_REPORT_228 — Oynatıcı zamanlama fuzz'ı (seek/hız/loop-cue) |
 | 229 | [BROWSER_BUG_REPORT_229.md](BROWSER_BUG_REPORT_229.md) | BROWSER_BUG_REPORT_229 — Canlı ASR hattı derin turu (R279) |
 | 230 | [BROWSER_BUG_REPORT_230.md](BROWSER_BUG_REPORT_230.md) | BROWSER_BUG_REPORT_230 — SponsorBlock önbellek TTL + anahtar-çakışması stresi (R280) |
-| 231 | [BROWSER_BUG_REPORT_231.md](BROWSER_BUG_REPORT_231.md) | R281 — Depo yazım dayanıklılığı (fsync) + Devin Review triage |
+| 231 | [BROWSER_BUG_REPORT_231.md](BROWSER_BUG_REPORT_231.md) | BROWSER_BUG_REPORT_231 — Depo yazım dayanıklılığı (fsync) + review triage (R281) |
+| 232 | [BROWSER_BUG_REPORT_232.md](BROWSER_BUG_REPORT_232.md) | R283 — Çeviri prompt'u golden-snapshot kilidi (byte-exact fixture + model tablosu) |
+| 233 | [BROWSER_BUG_REPORT_233.md](BROWSER_BUG_REPORT_233.md) | R284 — Kuyruk öğesi seçenek-serileştirme roundtrip fuzz'ı |
+| 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
 | 240 | [BROWSER_BUG_REPORT_240.md](BROWSER_BUG_REPORT_240.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |
+| 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
+| 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |

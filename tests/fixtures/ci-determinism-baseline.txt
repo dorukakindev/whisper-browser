@@ -1,0 +1,4 @@
+math_random=0
+aux_math_random=11
+sleep_waits=21
+wallclock_asserts=10

@@ -412,9 +412,19 @@ function applyBrowserAddressInlineCompletion(event) {
   const places = player.browserPlaces || {};
   const completion = globalThis.BrowserAddressModel.inlineCompletion(value,
     [...(places.bookmarks || []), ...(places.history || [])]);
-  if (!completion || !completion.text.toLowerCase().startsWith(value.toLowerCase())) return;
-  input.value = value + completion.text.slice(value.length);
-  input.setSelectionRange(value.length, input.value.length, 'forward');
+  if (!completion) return;
+  // prefix = adayın katlanmış sorguyu karşılayan özgün başı; sorgu görünmez
+  // karakter veya aksan farkı içeriyorsa yazılan metin adayın kendi başıyla
+  // değiştirilir — tamamlanan adrese karakter sızmaz.
+  const prefix = typeof completion.prefix === 'string' ? completion.prefix : value;
+  if (!completion.text.toLowerCase().startsWith(prefix.toLowerCase())) return;
+  if (prefix === value) {
+    input.value = value + completion.text.slice(value.length);
+    input.setSelectionRange(value.length, input.value.length, 'forward');
+  } else {
+    input.value = completion.text;
+    input.setSelectionRange(prefix.length, input.value.length, 'forward');
+  }
   player.browserAddressCompletion = { ...completion, text: input.value };
 }
 
@@ -1068,4 +1078,21 @@ async function removeYoutubeAccount(id) {
   if (['home', 'subscriptions', 'history'].includes(stCurrentSection)) {
     renderSmartTubeSection(stCurrentSection, { force: true });
   }
+}
+
+// Bırakılan link metninden güvenli hedef URL seçimi (R323-7).
+// text/uri-list spec'inde '#' ile başlayan satırlar yorumdur; düz metin
+// yedeğinde de aynı süzgeç uygulanır. Yalnız http/https kabul edilir —
+// file:, javascript:, data:, chrome: gibi şemalar ve şemasız girişler null
+// döner, böylece çağıran taraf alanı boş bırakır.
+function pickDroppedLink(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  for (const rawLine of text.split(/[\r\n]+/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    for (const token of line.split(/\s+/)) {
+      if (/^https?:\/\//i.test(token)) return token;
+    }
+  }
+  return null;
 }

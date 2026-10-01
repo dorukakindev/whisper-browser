@@ -46,8 +46,9 @@ test('burn-in kurtarma kaydı preload üzerinden yönetilir ve yollar doğrulan�
     assert(main.includes(`ipcMain.handle('${channel}'`), `${channel} handler yok`);
     assert(preload.includes(`ipcRenderer.invoke('${channel}'`), `${channel} preload köprüsü yok`);
   }
-  assert.match(main, /normalizeBurninRecovery\(JSON\.parse/);
-  assert.match(main, /burninRecoveryPathsMatch\(recovery\)/);
+  // Okuma döngüsü burnin-output.js'te: sürüm-reddi .bak dirilmesini kapatır.
+  assert.match(main, /readBurninRecoveryFile\(burninRecoveryStatePath\(\)\)/);
+  assert.match(main, /burninRecoveryPathsMatch\(normalized\)/);
   assert.match(main, /replaceBurninOutput\(recovery\.tempPath, recovery\.outPath\)/);
 });
 

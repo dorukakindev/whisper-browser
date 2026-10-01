@@ -201,11 +201,11 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   function read() {
     if (cache) return cache;
     try {
-      cache = parseEnvelope(fs.readFileSync(filePath, 'utf8'));
+      cache = parseEnvelope(io.readFileSync(filePath, 'utf8'));
     } catch (error) {
       if (error.code === 'ENOENT') cache = { version: 1, items: [] };
       else {
-        try { cache = parseEnvelope(fs.readFileSync(backupPath, 'utf8')); }
+        try { cache = parseEnvelope(io.readFileSync(backupPath, 'utf8')); }
         catch { fail('Katalog dosyası ve güvenli yedeği okunamadı; veri korunuyor.'); }
       }
     }

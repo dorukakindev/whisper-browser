@@ -275,7 +275,9 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
     browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', browserAudioProfile: 'night', uiTheme: 'light', uiLocale: 'tr',
-    browserSearchEngine: 'duckduckgo',
+    browserSearchEngine: 'duckduckgo', aiTranscriptScope: 'watched',
+    browserPageScope: 'article', browserExportFormat: 'vtt', browserExportTiming: 'original',
+    pdfExportFormat: 'txt', pdfTargetLanguage: 'en', browserPageExportFormat: 'txt',
   };
   const numericValues = {
     beamSize: '5', bestOf: '5', batchSize: '8', vadThreshold: '0.5', maxLineWidth: '42',
@@ -293,9 +295,11 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserVideoBrightness: '115', browserVideoContrast: '90',
     browserSilenceSpeedRate: '3', browserSilenceThresholdDb: '-45',
     stCardScale: '120', stCardFontScale: '110',
+    timelineZoom: '120',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [
-    id, enumValues[id] ?? numericValues[id] ?? (id.endsWith('BaseUrl') ? '' : `değer-${id}`),
+    id, id === 'browserSponsorCategories' ? ['sponsor', 'intro']
+      : enumValues[id] ?? numericValues[id] ?? (id.endsWith('BaseUrl') ? '' : `değer-${id}`),
   ]));
   for (const id of PERSIST_CHECKBOX_CONTROLS) ui[id] = id.length % 2 === 0;
   const expected = sanitizeSettings({

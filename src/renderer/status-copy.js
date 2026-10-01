@@ -74,10 +74,30 @@
       'Bağlantı karşı tarafça kesildi.', 'The connection was dropped by the other side.'],
     [/\benotfound\b|\beai_again\b|name_not_resolved|getaddrinfo|err_name/i,
       'Alan adı çözümlenemedi — internet bağlantısını kontrol edin.', 'Could not resolve the host — check your internet connection.'],
-    [/\benetdown\b|\benetunreach\b|\behostunreach\b|network.?unreachable|err_internet_disconnected|err_network/i,
+    [/\benetdown\b|\benetunreach\b|\behostunreach\b|network.?unreachable|err_internet_disconnected|err_network_io_suspended|err_network_access_denied/i,
       'Ağ erişilemez durumda — internet bağlantısını kontrol edin.', 'The network is unreachable — check your internet connection.'],
     [/certificate|self.signed|unable to verify|err_cert/i,
       'Güvenlik sertifikası doğrulanamadı.', 'The security certificate could not be verified.'],
+    [/err_address_unreachable|address unreachable/i,
+      'Adrese ağ üzerinden ulaşılamadı — adresi ve bağlantıyı kontrol edin.', 'The address is unreachable over the network — check the address and connection.'],
+    [/err_proxy|err_tunnel|proxy connection|tunnel connection|proxy auth|proxy_configuration/i,
+      'Proxy/VPN bağlantısı kurulamadı — proxy veya VPN ayarlarını kontrol edin.', 'The proxy/VPN connection failed — check your proxy or VPN settings.'],
+    [/err_ssl_|ssl protocol|ssl version|cipher mismatch|ssl handshake|bad record mac|insecure response/i,
+      'Siteyle güvenli bağlantı (SSL) kurulamadı.', 'A secure (SSL) connection to the site could not be established.'],
+    [/unsafe redirect|err_unsafe_redirect/i,
+      'Site güvenli olmayan bir adrese yönlendirdi — bağlantı durduruldu.', 'The site tried to redirect to an unsafe address — the connection was stopped.'],
+    [/too many redirects|redirect loop|err_invalid_redirect/i,
+      'Site çok fazla yönlendirme yaptı — adres döngüye giriyor olabilir.', 'The site redirected too many times — the address may be looping.'],
+    [/err_blocked_by_client|err_blocked_by_response|err_blocked_by_administrator|blocked by client|blocked by response|blocked by administrator/i,
+      'İstek engelleyici tarafından durduruldu (reklam/izleme koruması veya yönetici ilkesi).', 'The request was blocked (ad/tracking protection or administrator policy).'],
+    [/err_empty_response|empty response/i,
+      'Site boş yanıt döndürdü.', 'The site returned an empty response.'],
+    [/err_invalid_url|invalid url|disallowed url|unknown url scheme|unsafe url|unsafe port/i,
+      'Adres geçersiz veya desteklenmeyen şema/bağlantı noktası içeriyor.', 'The address is invalid or uses a disallowed scheme/port.'],
+    [/quic|http2|http3|h2_or/i,
+      'QUIC/HTTP3 bağlantısı kurulamadı — VPN veya ağ denetimini kontrol edin.', 'The QUIC/HTTP3 connection failed — check VPN or network inspection.'],
+    [/err_connection_closed|err_connection_aborted|network changed|err_network_changed/i,
+      'Bağlantı kapandı veya ağ değişti — VPN/Wi-Fi geçişini kontrol edin.', 'The connection closed or the network changed — check VPN/Wi-Fi switching.'],
     [/err_address|eaddrnotavail|eaddrinuse/i,
       'Adres kullanılamıyor veya zaten kullanımda.', 'The address is unavailable or already in use.'],
     [/spawn\s+\S+\s+enoent|command not found|is not recognized as/i,
@@ -97,8 +117,11 @@
   function systemError(locale, raw) {
     const message = String(raw || '').trim();
     if (!message) return pick(locale, 'Bilinmeyen hata.', 'Unknown error.');
+    // Chromium kodları alt çizgili gelir (ERR_CONNECTION_TIMED_OUT); boşluklu
+    // yazılmış kalıpların da yakalaması için normalize edilmiş kopya da sınanır.
+    const spaced = message.replace(/_/g, ' ');
     for (const [pattern, tr, en] of SYSTEM_ERROR_RULES) {
-      if (pattern.test(message)) {
+      if (pattern.test(message) || pattern.test(spaced)) {
         const detail = message.length > 160 ? `${message.slice(0, 157)}…` : message;
         return `${pick(locale, tr, en)} (${detail})`;
       }

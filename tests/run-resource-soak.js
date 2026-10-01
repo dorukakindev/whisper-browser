@@ -215,7 +215,11 @@ server.listen(0, '127.0.0.1', async () => {
     if (report) {
       report.meaningful = !smoke && cycles >= 200
         && Number(report.hibernation?.attempts) >= 50;
-      fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
+      // Raporun anotasyonu da atomik olmalı: doğrudan writeFileSync, okuyucu
+      // süreç ayrıldığı anda yarım JSON bırakıp bir sonraki okumayı bozardı.
+      const reportTmp = `${reportPath}.${process.pid}.tmp`;
+      fs.writeFileSync(reportTmp, JSON.stringify(report, null, 2), 'utf8');
+      fs.renameSync(reportTmp, reportPath);
       console.log(`Soak raporu: ${reportPath}`);
       console.log(`Sonuç: ${report.verdict && report.verdict.pass ? 'GEÇTİ' : 'KALDI'}`);
       if (!report.meaningful) console.log('Not: kısa smoke yalnız yürütme yolunu doğrular; kaynak bütçesi kanıtı değildir.');

@@ -306,6 +306,27 @@ def validate_runtime(package_dir, expected_version, python_path=sys.executable, 
     return actual
 
 
+# src/ytdlp-runtime.js RUNTIME_REQUIRED_MODULES ile aynı tutulmalı.
+_RUNTIME_REQUIRED_FILES = (
+    Path("yt_dlp") / "__init__.py",
+    Path("yt_dlp") / "version.py",
+    Path("yt_dlp") / "YoutubeDL.py",
+    Path("yt_dlp") / "extractor" / "__init__.py",
+)
+
+
+def _healthy_package(runtime_root, relative):
+    if not isinstance(relative, str) or not relative:
+        return False
+    root = Path(runtime_root).resolve()
+    resolved = (root / relative).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        return False
+    return all((resolved / rel).is_file() for rel in _RUNTIME_REQUIRED_FILES)
+
+
 def read_active(runtime_root):
     active_path = Path(runtime_root) / "active.json"
     try:
@@ -486,8 +507,17 @@ def _update_runtime_unlocked(
             "version": artifact["version"],
             "sha256": artifact["sha256"],
         }
-        if previous and isinstance(previous.get("path"), str):
-            payload["previous"] = previous["path"]
+        # Geri dönüş hedefi yalnız sağlıklı paket olur: aktif paket yarım
+        # silinmişse bozuk path'i yeni 'previous' olarak yazıp sağlıklı
+        # yedeği kaybetmek yerine çalışan ilk aday korunur.
+        if previous:
+            fallback = next(
+                (item for item in (previous.get("path"), previous.get("previous"))
+                 if _healthy_package(runtime_root, item)),
+                None,
+            )
+            if fallback:
+                payload["previous"] = fallback
         _atomic_write_json(runtime_root / "active.json", payload, replace=replace)
         committed = True
         try:

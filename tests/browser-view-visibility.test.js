@@ -101,3 +101,54 @@ test('bozulmuş webContents dokunulmaz', () => {
   context.hideBrowserViewOffscreen(dead);
   assert.equal(dead.visible, true, 'bozulmuş görünüme yazılmaz');
 });
+
+// R321-A: sayfasız sekme ikincil seçilirse aktif görünüm daralan birinciye
+// sıkışır ama ikincil browserTabShouldBeVisible yüzünden gizli kalır —
+// sağ yarı ölü alan olurdu. secondaryBrowserTab bölme kararında aynı sayfa
+// koşulunu uygulamalı.
+function makeSplitContext() {
+  const tabs = new Map();
+  const context = {
+    browserTabs: tabs,
+    browserActiveTabId: 'a',
+    browserSplitSecondaryTabId: 'b',
+    browserTabById: (id) => tabs.get(String(id)) || null,
+    __tabs: tabs,
+  };
+  vm.createContext(context);
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const start = source.indexOf('function secondaryBrowserTab(');
+  const end = source.indexOf('function browserTabShouldBeVisible(');
+  assert.ok(start > 0 && end > start, 'ikincil-sekme kaynağı bulunamadı');
+  vm.runInContext(source.slice(start, end), context);
+  return { context, tabs };
+}
+
+const pageful = (id, url = 'https://example.com') => ({
+  id,
+  view: { webContents: { isDestroyed: () => false, getURL: () => url } },
+});
+
+test('ikincil sekme: boş sekme bölme kararına katılmaz (ölü yarı engellenir)', () => {
+  const { context, tabs } = makeSplitContext();
+  tabs.set('a', pageful('a'));
+  tabs.set('b', pageful('b', 'about:blank'));
+  assert.equal(context.secondaryBrowserTab(), null, 'about:blank ikincil sayılmamalı');
+  tabs.get('b').restoredUrl = 'https://example.com/b';
+  assert.equal(context.secondaryBrowserTab()?.id, 'b', 'restoredUrl ikincil sayılır');
+});
+
+test('ikincil sekme: aktif sekme ikincil sayılamaz', () => {
+  const { context, tabs } = makeSplitContext();
+  tabs.set('a', pageful('a'));
+  context.browserSplitSecondaryTabId = 'a';
+  assert.equal(context.secondaryBrowserTab(), null);
+});
+
+test('ikincil sekme: bozulmuş webContents sayfasız sayılır', () => {
+  const { context, tabs } = makeSplitContext();
+  tabs.set('a', pageful('a'));
+  const dead = { id: 'b', view: { webContents: { isDestroyed: () => true } } };
+  tabs.set('b', dead);
+  assert.equal(context.secondaryBrowserTab(), null);
+});

@@ -129,6 +129,8 @@ function sliceFunction(source, signature) {
     "const moreSearch = $('browserMoreSearch');",
     "\nif ($('browserReadLater'))");
   const foldSrc = sliceFunction(renderer, 'function foldSearch(value) {');
+  const foldQuerySrc = sliceFunction(renderer, 'function foldQuery(value) {');
+  const foldIndexSrc = sliceFunction(renderer, 'function foldIndex(value) {');
   const proxyStateSrc = sliceFunction(renderer, 'function browserProxyTargetState(button) {');
   // syncBrowserMenuProxies ile sonraki işlev arasında üst-düzey `$$` bağlaması
   // var; sliceFunction onu da yakalayacağı için açık sınır verilir.
@@ -139,7 +141,7 @@ function sliceFunction(source, signature) {
   // foldSearch + vekil senkronu blok içinde kullanıldığı için gövdenin başına
   // eklenir (asıl tanımlar slice sınırının dışındadır).
   new Function('$', 'uiText', 'document', 'MutationObserver',
-    `${foldSrc}\n${proxyStateSrc}\n${proxySyncSrc}\n${block}`)(
+    `${foldSrc}\n${foldQuerySrc}\n${foldIndexSrc}\n${proxyStateSrc}\n${proxySyncSrc}\n${block}`)(
     (id) => doc.getElementById(id),
     (s) => s,
     doc,

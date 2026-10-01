@@ -31,6 +31,10 @@ const SENSITIVE_KEY_NAMES = Object.freeze([
   'apikey',
   'session', 'session_id', 'session-id', 'sessionId',
   'sid',
+  // Path-matrix/sorgu taşıyıcıları: `;jsessionid=` (Java), `PHPSESSID`,
+  // `ASPSESSIONID`/`ASP.NET_SessionId` — URL'de canlı oturum kimliği saklar.
+  'jsessionid', 'phpsessid', 'aspsessionid', 'asp.net_sessionid',
+  'sessionid',
   'client_secret', 'client-secret', 'clientSecret',
   'client_id', 'client-id', 'clientId',
   'appSecret',
