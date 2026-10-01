@@ -1490,6 +1490,48 @@ Testler: `backend/venv/bin/python backend/test_ytdlp_update.py` →
 Windows etkisi: düzeltme tam da Windows senaryosuna yönelik —
 AV kilidi yüzünden yarım kalan paket dizini artık kendini onarır.
 
+## R362 — media.py tam derin okuma + bölüm float bekçisi
+
+**Kapsam:** `backend/media.py` (555 satır) tamamen okundu — yt-dlp
+probe/download/clip, Invidious download_stream, hazır altyazı
+indirme.
+
+**Düzeltilen:**
+
+- `probe()` bölüm zamanlarında ham `float()` — R359'un yt-dlp
+  varyantı: özel extractor'lar sayısal-olmayan `start_time`/`end_time`
+  döndürebilir; tek bozuk değer tüm probe'u düşürüyordu. `_ch_float`
+  bekçisi (TypeError/ValueError/NaN/inf) eklendi; bozuk bölüm atlanır,
+  dict-olmayan giriş de süzülür. Kırmızı kanıt: master'da 1 ERROR;
+  düzeltmede 5/5 PASS.
+
+**Doğrulanan (bug yok):**
+
+- `download`: `audio_lang` regex whitelist'ten önce selector'e
+  gömülmez (belgeli düzeltme); `%(title).120s` yt-dlp sanitize
+  eder; `post_hooks`+`filepath` aday zinciri başlık-benzerliği
+  taramasını kaldırır; hook 0.3s throttle + fragment fallback.
+- `download_stream`: http/https şema kapısı (file:// yerel dosya
+  okuma belgeli); `safe_title`/`safe_id` charset indirgeme +
+  uzunluk sınırı; `.invtmp-*` artık temizliği; ffmpeg var-yok
+  ön-kontrolü + 300s merge sınırı; `except BaseException` yarım
+  çıktıyı siler; `finally` tmp'leri kaldırır.
+- `download_clip`: argüman doğrulama ağır import'tan önce
+  (belgeli); ≤3600s + output-file zorunlu + uzantı placeholder'ı.
+- `fetch_subs`: video-id ekiyle aday süzümü + dil soneki eşleşmesi
+  (`re.escape` ile) + ikinci-istek dosya-yoklama bug'ı kapalı
+  (belgeli).
+- `main`: bot-confirm/cookie-copy/ENOSPC/EACCES kullanıcı-mesajı
+  eşlemesi; hata NDJSON'a `traceback` tanısıyla gider.
+- `_ydl_opts`: `noprogress` NDJSON kirliliği belgeli düzeltme;
+  cookie tarayıcısı whitelist; ffmpeg local-bin → PATH sırası.
+
+Testler: `backend/venv/bin/python backend/test_media.py` → 5/5 PASS
+(+1 yeni bozuk-bölüm testi).
+
+Windows etkisi: yok — probe yalnız bozuk extractor verisinde
+değişti (çöküş → atlama).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
