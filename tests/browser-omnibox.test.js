@@ -65,4 +65,18 @@ const indexHtml = fs.readFileSync(require('path').join(__dirname, '..', 'src', '
 ok(indexHtml.includes('../browser-omnibox.js') && indexHtml.includes('vendor/qrcode.js'), 'betikler bağlı');
 ok(indexHtml.includes('id="browserQrPanel"') && indexHtml.includes('id="browserExportPdf"'), 'panel ve menü öğeleri bağlı');
 
+// R342: foldSearchIndex iki modülde aynı sözleşmeyi taşır — omnibox kopyası
+// jamo-dizisi harita kaymasına karşı kilitli (L+V+V dizisi NFC'de 2 birim
+// üretir; her yoğun birim için ayrı harita kaydı gerekir). address-model
+// sürümüyle birebir parite beklenir.
+const addrModel = require('../src/browser-address-model');
+for (const t of ['한국어', '한ㄱ국', '한극', 'a한b', '한국', 'café', '갠', '한개ᅡ국', '하ᅡᆫ', '한하', '한 ​국']) {
+  const o = omnibox.foldSearchIndex(t);
+  const a = addrModel.foldSearchIndex(t);
+  ok(o.dense === a.dense, `dense parite ${JSON.stringify(t)}`);
+  ok(o.map.length === o.dense.length, `map kapsar ${JSON.stringify(t)}`);
+  ok(JSON.stringify(o.map) === JSON.stringify(a.map), `map parite ${JSON.stringify(t)}`);
+}
+ok(omnibox.foldSearchQuery('한극') === addrModel.foldSearchQuery('한극'), 'foldSearchQuery jamo parite');
+
 console.log(`browser-omnibox: ${tests} test`);
