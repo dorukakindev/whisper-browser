@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
 const { createBrowserMediaTools } = require('./browser-media-tools');
 const { createBrowserMiniPlayer } = require('./browser-mini-player');
 const subtitles = require('./browser-subtitle-search');
@@ -42,14 +43,18 @@ function registerBrowserFeatureServices(deps) {
     const temp = `${target}.${randomUUID()}.tmp`;
     try {
       fsx.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      fsyncFile(temp, fsx);
       fsx.renameSync(temp, target);
+      fsyncDirectory(path.dirname(target), fsx);
     } finally { try { fsx.unlinkSync(temp); } catch {} }
   }
   function writeOwnedSubtitle(filePath, text) {
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
       fsx.writeFileSync(temp, '\uFEFF' + text, 'utf8');
+      fsyncFile(temp, fsx);
       fsx.renameSync(temp, filePath);
+      fsyncDirectory(path.dirname(filePath), fsx);
     } finally { try { fsx.unlinkSync(temp); } catch {} }
     grantSubtitle(filePath);
   }

@@ -21,6 +21,8 @@ const { BrowserNoteStore } = require('../src/browser-note-store');
 const { BrowserAssetStore } = require('../src/browser-asset-store');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const { atomicWriteFileSync } = require('../src/fsync-utils');
+const { registerBrowserFeatureServices } = require('../src/browser-feature-services');
+const { PersistentTranslationCache } = require('../src/browser-translation-cache');
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  PASS ${name}`); }
@@ -91,14 +93,15 @@ function assertCommitOrder(name, calls, filePath) {
       return calls.some((c) => c.op === 'fsync' && (c.arg === target || c.arg === source));
     });
     ok(`${name}: yedek fsync'lenir`, hasFsync);
-    // Sıra kilidi: yedek fsync'i yedek yazımı ile ana rename ARASINDA olmalı —
-    // önceki bir fsync yanlış sıralamayı gizler, rename'den sonraki ise
-    // yedeğin commit'ten önce kalıcı olmadığı anlamına gelir.
+    // Sıra kilidi: yedek fsync'i kendi yazımından sonra gelmeli; rename-öncesi
+    // yedeklerde rename'den önce de kapanmalı. Rename-SONRASI yazılan .bak
+    // (translation-cache: yeni temelin kopyası) yazımından sonra fsync'lenir.
     const ordered = bakWrites.every((w) => {
       const target = w.op === 'renameSync' ? w.arg : w.arg2;
       const source = w.op === 'renameSync' ? w.arg : w.arg;
       const writeIdx = calls.indexOf(w);
-      return calls.some((c, i) => i > writeIdx && i < mainRename && c.op === 'fsync' && (c.arg === target || c.arg === source));
+      const upperBound = writeIdx < mainRename ? mainRename : calls.length;
+      return calls.some((c, i) => i > writeIdx && i < upperBound && c.op === 'fsync' && (c.arg === target || c.arg === source));
     });
     ok(`${name}: yedek fsync'i yazım-rename arasında`, ordered);
   }
@@ -291,6 +294,89 @@ try {
       ok(`atomic: zincir denemesi ${path.relative(tmpRoot, d) || '.'}`, opened.has(d));
     }
   }
+}
+
+// --- 7) browser-feature-services: skip-segments save() + writeOwnedSubtitle ---
+// B-377-01/02: IPC kapanlarında kalan iki yazım yolu da R281'den sonra
+// fsync'siz kalmıştı — matris artık kapan içindeki commit'leri de kilitler.
+{
+  const root = path.join(tmpRoot, 'feature-services');
+  const { calls, io } = recordingFs();
+  const handlers = new Map();
+  const wc = { isDestroyed: () => false, getURL: () => 'https://video.test/watch/one' };
+  const tab = { id: 'tab-1', view: { webContents: wc }, mediaId: 'media-1', closing: false };
+  const service = registerBrowserFeatureServices({
+    app: { getPath: kind => kind === 'userData' ? root : os.tmpdir() },
+    ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [] }) },
+    BrowserWindow: class {}, owner: () => ({ isDestroyed: () => false }),
+    getTab: id => id === tab.id ? tab : null, activeTab: () => tab,
+    context: () => ({ generation: 1, mediaId: tab.mediaId }),
+    authorized: () => true,
+    frames: () => [], probeScript: () => '', rankCandidates: () => [], commandScript: () => '',
+    captureFrame: async () => null, restoreLayout: () => {}, grantSubtitle: () => true,
+    pythonPath: () => '', ffmpegPath: () => '', ffprobePath: () => '',
+    fsImpl: io,
+  });
+  ok('feature-services: kayıt başarılı', !!service);
+  const extras = handlers.get('browser:extras');
+  const req = (action, extra = {}) => extras({ sender: 'trusted' },
+    { action, tabId: tab.id, generation: 1, mediaId: 'media-1', ...extra });
+  const saved = await req('skip-save', { record: { id: 'd-1', kind: 'intro', start: 1, end: 5 } });
+  ok('feature-services: skip-save başarılı', saved.ok === true);
+  assertCommitOrder('feature-services: skip-save', calls, path.join(root, 'browser-skip-segments.json'));
+  // İkinci commit önceki yazımın yeniden kaydına dokunur — yeniden fsync
+  // kanıtı calls dizisinde ikinci rename öbeği olarak görünür.
+  calls.length = 0;
+  const saved2 = await req('skip-save', { record: { id: 'd-2', kind: 'intro', start: 6, end: 8 } });
+  ok('feature-services: ikinci skip-save başarılı', saved2.ok === true);
+  assertCommitOrder('feature-services: skip-save-2', calls, path.join(root, 'browser-skip-segments.json'));
+
+  // writeOwnedSubtitle: encoding-preview → encoding-apply zinciri.
+  const fixture = path.join(root, 'fixture.srt');
+  fs.writeFileSync(fixture, '1\n00:00:00,000 --> 00:00:01,000\nMerhaba\n', 'utf8');
+  const handlers2 = new Map();
+  const { calls: calls2, io: io2 } = recordingFs();
+  registerBrowserFeatureServices({
+    app: { getPath: kind => kind === 'userData' ? root : os.tmpdir() },
+    ipcMain: { handle: (channel, handler) => handlers2.set(channel, handler) },
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [fixture] }) },
+    BrowserWindow: class {}, owner: () => ({ isDestroyed: () => false }),
+    getTab: id => id === tab.id ? tab : null, activeTab: () => tab,
+    context: () => ({ generation: 1, mediaId: tab.mediaId }),
+    authorized: () => true,
+    frames: () => [], probeScript: () => '', rankCandidates: () => [], commandScript: () => '',
+    captureFrame: async () => null, restoreLayout: () => {}, grantSubtitle: () => true,
+    pythonPath: () => '', ffmpegPath: () => '', ffprobePath: () => '',
+    fsImpl: io2,
+  });
+  const extras2 = handlers2.get('browser:extras');
+  const req2 = (action, extra = {}) => extras2({ sender: 'trusted' },
+    { action, tabId: tab.id, generation: 1, mediaId: 'media-1', ...extra });
+  const preview = await req2('encoding-preview');
+  ok('feature-services: encoding-preview başarılı', preview.ok === true);
+  calls2.length = 0;
+  const applied = await req2('encoding-apply', { token: preview.token, encoding: 'utf-8' });
+  ok('feature-services: encoding-apply başarılı', applied.ok === true);
+  const written = fs.readdirSync(path.join(root, 'browser-subtitles'));
+  ok('feature-services: altyazı dosyası yazıldı', written.length === 1);
+  assertCommitOrder('feature-services: writeOwnedSubtitle', calls2,
+    path.join(root, 'browser-subtitles', written[0]));
+}
+
+// --- 8) translation-cache compact() — B-377-03 ---
+// Sıkıştırma 13 MB'lık temel dosyayı temp→rename ile yazar; fsync'sizdi.
+// promises dalını kayıt dışında bırakmamak için io'dan promises soyulur
+// (senkron dal üretim dalının aynısı, sadece async sarmasız).
+{
+  const filePath = path.join(tmpRoot, 'cache', 'translation-cache.json');
+  const { calls, io } = recordingFs();
+  const ioSyncOnly = new Proxy(io, { get: (t, p) => (p === 'promises' ? undefined : t[p]) });
+  const cache = new PersistentTranslationCache(filePath, { fsModule: ioSyncOnly });
+  cache.set('merhaba', 'hello');
+  const flushed = await cache.flush();
+  ok('translation-cache: flush başarılı', flushed.ok === true);
+  assertCommitOrder('translation-cache: compact', calls, filePath);
 }
 
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});
