@@ -8670,52 +8670,76 @@ def reexport_from_json(args):
         base_name = base_name[: -(len(lang) + 1)]
 
     emit("status", stage="write", text="Formatlar yeniden yazılıyor...")
+    # Ana transkripsiyon yoluyla aynı kural: önceki koşunun yarım çıktı işlemi
+    # geri alınır; TÜM formatlar staged dosyaya yazılıp tek seferde yerine konur.
+    # Yoksa çökme/iptal "srt yeni, vtt eski" tutarsız çıktı kümesi bırakıyordu.
+    recovered_transactions = recover_output_transactions(output_dir)
+    if recovered_transactions:
+        log(f"Yarım kalmış {recovered_transactions} çıktı işlemi geri alındı.", "warn")
+    output_tx = OutputTransaction(
+        output_dir,
+        checkpoint=cancellation_checkpoint,
+        warning=lambda message: log(message, "warn"),
+    )
     formats = args.formats.split(",") if args.formats else ["srt"]
     name_suffix = f".{lang}" if (args.lang_suffix and lang) else ""
     output_files = []
     output_descriptors = []
     source_hash = subtitle_entries_hash(entries)
     source_id = subtitle_source_id(args, source_hash)
-    for fmt in formats:
-        fmt = fmt.strip().lower()
-        out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
-        if out_path.resolve() == src.resolve():
-            # Kaynak JSON'ı üzerine yazmak veri kaybıdır; ayrı ad üret ve
-            # uyarıyı hem olay çıktısına hem kalıcı job log'una taşı.
-            out_path = output_dir / f"{base_name}{name_suffix}.reexport.{fmt}"
-            export_warnings.append(
-                f"Kaynak JSON korunması için yeniden dışa aktarma ayrı dosyaya yazıldı: {out_path.name}"
-            )
-            log(export_warnings[-1], "warn")
-        text_entries = (label_entries_for_text_output(entries, speakers_map)
-                        if getattr(args, "label_speakers", False) and speakers_map else entries)
-        if fmt == "srt":
-            write_srt(text_entries, out_path, args.max_line_width, args.max_lines,
-                      language=lang, wrap_mode=args.wrap_mode)
-        elif fmt == "vtt":
-            write_vtt(text_entries, out_path, args.max_line_width, args.max_lines,
-                      language=lang, wrap_mode=args.wrap_mode)
-        elif fmt == "txt":
-            write_txt(text_entries, out_path)
-        elif fmt == "ass":
-            write_ass(entries, out_path, max_line_width=args.max_line_width, language=lang, wrap_mode=args.wrap_mode, speakers=speakers_map)
-        elif fmt == "json":
-            # Kelimeler kaynakta segmentlere zaten eşlenmiş. Yeniden zaman
-            # penceresiyle eşlemek sınır kelimelerini her geçişte çoğaltıyordu;
-            # hazır listeyi ver. (Kaynağı kopyalamak da çözerdi ama bozuk
-            # segment ayıklamasını ve şema normalizasyonunu atlardı.)
-            write_json(entries, out_path, info=info, speakers=speakers_map,
-                       segment_words=segment_words)
-        else:
-            log(f"Bilinmeyen format atlandı: {fmt}", "warn")
-            continue
-        output_files.append(str(out_path))
-        if fmt in {"srt", "vtt", "ass"}:
-            output_descriptors.append(subtitle_output(
-                out_path, "source", lang, source_id, source_hash,
-                total=len(entries), completed=len(entries),
-            ))
-        log(f"Yazıldı: {out_path}")
+    try:
+        for fmt in formats:
+            fmt = fmt.strip().lower()
+            out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
+            if out_path.resolve() == src.resolve():
+                # Kaynak JSON'ı üzerine yazmak veri kaybıdır; ayrı ad üret ve
+                # uyarıyı hem olay çıktısına hem kalıcı job log'una taşı.
+                out_path = output_dir / f"{base_name}{name_suffix}.reexport.{fmt}"
+                export_warnings.append(
+                    f"Kaynak JSON korunması için yeniden dışa aktarma ayrı dosyaya yazıldı: {out_path.name}"
+                )
+                log(export_warnings[-1], "warn")
+            text_entries = (label_entries_for_text_output(entries, speakers_map)
+                            if getattr(args, "label_speakers", False) and speakers_map else entries)
+            if fmt == "srt":
+                writer = lambda staged: write_srt(
+                    text_entries, staged, args.max_line_width, args.max_lines,
+                    language=lang, wrap_mode=args.wrap_mode)
+            elif fmt == "vtt":
+                writer = lambda staged: write_vtt(
+                    text_entries, staged, args.max_line_width, args.max_lines,
+                    language=lang, wrap_mode=args.wrap_mode)
+            elif fmt == "txt":
+                writer = lambda staged: write_txt(text_entries, staged)
+            elif fmt == "ass":
+                writer = lambda staged: write_ass(
+                    entries, staged, max_line_width=args.max_line_width,
+                    language=lang, wrap_mode=args.wrap_mode, speakers=speakers_map)
+            elif fmt == "json":
+                # Kelimeler kaynakta segmentlere zaten eşlenmiş. Yeniden zaman
+                # penceresiyle eşlemek sınır kelimelerini her geçişte çoğaltıyordu;
+                # hazır listeyi ver.
+                writer = lambda staged: write_json(
+                    entries, staged, info=info, speakers=speakers_map,
+                    segment_words=segment_words)
+            else:
+                log(f"Bilinmeyen format atlandı: {fmt}", "warn")
+                continue
+            output_tx.stage(out_path, writer)
+            output_files.append(str(out_path))
+            if fmt in {"srt", "vtt", "ass"}:
+                output_descriptors.append(subtitle_output(
+                    out_path, "source", lang, source_id, source_hash,
+                    total=len(entries), completed=len(entries),
+                ))
+        output_tx.commit()
+    except BaseException:
+        # Commit öncesi herhangi bir hata/iptal: yerine konmuş hiçbir final
+        # dokunulmadı; eski sağlam küme aynen korunur.
+        output_tx.rollback()
+        raise
+    for written in output_files:
+        log(f"Yazıldı: {written}")
 
     emit("done", files=output_files, outputs=output_descriptors,
          sourceId=source_id, sourceHash=source_hash,
