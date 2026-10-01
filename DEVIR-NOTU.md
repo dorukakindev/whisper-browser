@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-01-2420.md](docs/devir/2026-10-01-2420.md) — R381 görsel/IPC yüzeyleri: B-381-01 reading-list fsync düzeltmesi + 8 dosya temiz
 Güncel çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1500.md](docs/devir/2026-10-01-1500.md) — R355 renderer.js kapanış turu — sıfır kusur, KAPSAM TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1430.md](docs/devir/2026-10-01-1430.md) — R354 renderer.js alt-orta derin okuması: ~2.100 satır — sıfır kusur
