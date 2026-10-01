@@ -231,6 +231,56 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   (NON_SPEAKER_LABEL yapısal etiketler). Kalan export'lar yalnız sabitler —
   davranış üzerinden dolaylı kilitli.
 
+## R337 — renderer.js derin-okuma kampanyası (temiz)
+
+Hiç doğrudan kilitlenmemiş bölgelerin satır-satır okuması. Yöntem: önceki
+kampanyalarda ~30 gerçek bug üreten aynı derin-okuma. Bu turda yüzeylerin
+optimistik-eşzamanlılık bekçileri (revision/signature/generation/mediaKey),
+iptal tokenları, geri-alma yolları ve throttle bekçileri eksiksiz bulundu —
+doğrulanmış bug yok. Okunan yüzeyler:
+
+- **Cue düzenleme/geri-alma** (9200–9350, 18980–19120, 23630–23830,
+  24050–24600): edit-context kaydı (identical-time cue'lar `|index` ile
+  ayrışır — bilinçli tasarım), base-cue-map zinciri, üç kollu
+  applyCueEditHistoryCore (state-match → yaz → yeniden-doğrula → rollback),
+  writeSubtitleBulkFiles tersine-yazma, browserBulkStateStillMatches
+  (side + checkBase parametreleri: undo'da temel-kayması bilinçli atlanır),
+  applySubtitleBulkMemory migrate-kaydedilmiş-çağrışımı, sourceEditSnapshot
+  (1000-kayıt sınırı + remap eşleşme-kontrolü), reviewSourceCues çakışma
+  toplayıcısı. Aday bulgu `row` undefined TypeError'ı doğrulanmadı:
+  plan'lar editor.rows'tan türetildiği için erişilemez (savunma notu).
+- **Oynatıcı öğrenme modları** (13860–13930, 14283–14360, 14960–15030,
+  16951–17060): browserLearningSeekUntil throttle + rateSequence nesil
+  bekçisi tam; toggleAbLoop 0,2s minimum; stepCue kenar gezintisi doğru;
+  seekToCue/loop temizliği tutarlı; timeline pointerdown hit-test scale-aware.
+- **Kuyruk yaşam döngüsü** (90–160, 680–760): persist-before-spawn iki
+  katmanlı kayıt, persist-sırasında-durma yarışı bekçisi, recoveredCount,
+  queueSecretsFromCurrentUi (endpoint'ler diskten çıkarılmış → yeniden
+  eklenir), çarpışma soneki üyeliğe göre yeniden üretilir.
+- **Omnibox/navigasyon** (11288–11420): navigateSeq + tabId bekçisi,
+  abort'lu eski istek yeni belgeyi bozmuyor, bang-çözümleme main'e dek.
+- **media-catalog.js (471 satır tam okuma)**: api() sessionId+token iptal
+  zinciri, import/preview token temizliği, WeakMap arama-katlama önbelleği,
+  liste scroll geri-yükleme, odak-INDEX geri-verme — tümü doğru.
+- **smarttube-tv.js (250 satır tam okuma)**: isLeftmostCard geometri
+  temelli (bölüm başlıkları ızgarayı böler), TV state birikimi + handoff
+  dedupe, agent rotasyonu — doğru.
+- **preload.js (236 satır tam okuma)**: ince invoke geçişi; doğrulama main
+  handler'larında (R275 fuzz ile kilitli), ipc-parity ratchet'i var.
+
+Kalan tek potansiyel savunma eksiği: `sourceEditSnapshot`'ta
+`row.browserOverride` tanımsız-satırda TypeError atar — bugünkü tek
+çağıran `editor.rows`'tan plan ürettiği için erişilemez; davranış
+kilitlendi, ileride plan kaynağı değişirse test yakalar.
+
+- `tests/browser-bulk-edit-locks.test.js` — 16 senaryo vm-kesit kilidi:
+  browserBulkStateStillMatches doğruluk tablosu (side=before/after,
+  checkBase, tek-bozuk-edit → every false), attachBrowserCueIdentities
+  (role passthrough, 2ms tolerans sınırı .0019/.0021, sıra-kayması
+  eşleşmesi), appendTranslationAlternatives (json-çiti, dedupe, ≤3,
+  12000-kesim), sourceEditSnapshot (base-koruma, browserOverride atlanır,
+  remap-kayıp hatası, 1000 sınırı).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
