@@ -172,6 +172,10 @@
     const typed = String(query || '');
     if (typed.length < 2 || /\s/.test(typed) || /^[a-z][a-z0-9+.-]*:/i.test(typed)) return null;
     const needle = foldSearchQuery(typed);
+    // Sorgu katlanınca boş kalıyorsa (yalnız görünmez/işaretçi karakterler)
+    // ''.startsWith('') her kaydı aday yapar — buildAddressResults ile
+    // aynı kapı: boş yoğun sorgu hayalet tamamlama üretmez.
+    if (!needle) return null;
     let best = null;
     for (const item of Array.isArray(items) ? items : []) {
       const idx = placeSearchIndexOf(item);

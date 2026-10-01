@@ -36,6 +36,10 @@ test('satır içi tamamlama alan adında durur, yol yazılınca yolu tamamlar', 
   // tamamlanan metne sızmaz; renderer prefix≠yazılan iken adayı baştan yazar.
   assert.deepEqual(model.inlineCompletion('GİT', items, now), { text: 'github.com', prefix: 'git', url: 'https://github.com/' });
   for (const typed of ['g', 'git hub', 'https:', 'github.com']) assert.equal(model.inlineCompletion(typed, items, now), null, typed);
+  // R341: yalnız görünmez/işaretçi karakterli sorgu yoğun forma boş katlanır;
+  // ''.startsWith('') her kaydı aday yapıp hayalet tamamlama üretirdi —
+  // buildAddressResults'teki !folded kapısının aynısı burada da gerekli.
+  for (const typed of ['​', '​ ', '́́', '\u2060\u2060']) assert.equal(model.inlineCompletion(typed, items, now), null, JSON.stringify(typed));
 });
 
 test('tamamlama varsa ilk satır tamamlanan adres, ikinci satır yazılan metin', () => {

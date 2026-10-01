@@ -83,6 +83,23 @@ try {
   assert.equal(fs.existsSync(`${resilient}.bak`), true);
   fs.writeFileSync(resilient, '{broken', 'utf8');
   assert.equal(createMediaCatalogStore({ filePath: resilient }).get(first.id).title, 'Yedekli kayıt');
+  // R341: birincil dosya silinirse (ENOENT) da yedeğe düşülür — öncesi yalnız
+  // bozuk şemada yedeği deniyordu; silinmiş ana dosya + mevcut .bak sessizce
+  // boş katalog gösteriyordu.
+  {
+    const missing = path.join(dir, 'missing.json');
+    const missingStore = createMediaCatalogStore({ filePath: missing });
+    const kept = missingStore.upsert({ kind: 'film', title: 'Yedekten dirilen' });
+    missingStore.upsert({ id: kept.id, synopsis: 'yedek sürüm' });
+    fs.unlinkSync(missing);
+    assert.equal(createMediaCatalogStore({ filePath: missing }).get(kept.id).title, 'Yedekten dirilen');
+    // Her iki dosya da yoksa taze kurulum boş katalogla açılır (hata vermez).
+    fs.unlinkSync(`${missing}.bak`);
+    assert.deepEqual(createMediaCatalogStore({ filePath: missing }).list(), []);
+    // Ana dosya yokken .bak bozuksa koruma hatası verilir (sessiz boş değil).
+    fs.writeFileSync(`${missing}.bak`, '{broken', 'utf8');
+    assert.throws(() => createMediaCatalogStore({ filePath: missing }).list(), /korunuyor/);
+  }
   const malformed = path.join(dir, 'malformed.json');
   fs.writeFileSync(malformed, JSON.stringify({ version: 1, items: [{ kind: 'bad' }] }), 'utf8');
   assert.throws(() => createMediaCatalogStore({ filePath: malformed }).list(), /korunuyor/);

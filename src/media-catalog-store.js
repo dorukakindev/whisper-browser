@@ -203,10 +203,13 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     try {
       cache = parseEnvelope(io.readFileSync(filePath, 'utf8'));
     } catch (error) {
-      if (error.code === 'ENOENT') cache = { version: 1, items: [] };
-      else {
-        try { cache = parseEnvelope(io.readFileSync(backupPath, 'utf8')); }
-        catch { fail('Katalog dosyası ve güvenli yedeği okunamadı; veri korunuyor.'); }
+      // Birincil her kayboluşta yedeğe düş: ENOENT (silinmiş ana dosya) ile
+      // bozuk şema aynı kurtarma yolunu izler. Yalnız ikisi de yoksa/bozuksa
+      // ENOENT'te boş katalog, bozukta koruma hatası verilir.
+      try { cache = parseEnvelope(io.readFileSync(backupPath, 'utf8')); }
+      catch (backupError) {
+        if (error.code === 'ENOENT' && backupError.code === 'ENOENT') cache = { version: 1, items: [] };
+        else fail('Katalog dosyası ve güvenli yedeği okunamadı; veri korunuyor.');
       }
     }
     return cache;
