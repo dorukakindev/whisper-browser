@@ -448,10 +448,14 @@ function createWatchLibraryStore(options) {
       try { parsed = parseDocument(primaryRaw); } catch (_) {}
     }
     if (!parsed && io.existsSync(`${filePath}.bak`)) {
-      parsed = parseDocument(io.readFileSync(`${filePath}.bak`, 'utf-8'));
-      source = 'backup';
+      // Madde 34: yedeğin de bozuk parse'ı ham SyntaxError sızdırıyordu —
+      // birincil+yedek ikisi de okunamadığında tasarlanan koruma hatası
+      // fırlatılmalı ve her iki dosya da yerinde kalmalı.
+      try { parsed = parseDocument(io.readFileSync(`${filePath}.bak`, 'utf-8')); source = 'backup'; }
+      catch (_) {}
     }
-    if (!parsed && primaryExists) throw new Error('İzleme kütüphanesi ve yedeği okunamadı; dosyalar korunuyor');
+    if (!parsed && (primaryExists || io.existsSync(`${filePath}.bak`)))
+      throw new Error('İzleme kütüphanesi ve yedeği okunamadı; dosyalar korunuyor');
     if (!parsed) parsed = { value: [], syntaxQuarantine: [], exact: true };
     fault('after-read');
     const hasLegacyTombstoneFile = io.existsSync(tombstonePath);
