@@ -203,4 +203,50 @@ function remapRendererValues(root, data, videoMappings = []) {
   const values = storageValues(data.rendererValues);
   return Object.fromEntries(STORAGE_KEYS.map(key => [key, key in values ? JSON.stringify(rewrite(JSON.parse(values[key]), maps)) : null]));
 }
-module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues };
+// Madde 33 — paket kapsamı önizlemesi: geri yüklemeden önce kullanıcı
+// pakette NE olduğunu görmeli (bölüm başına dosya/bayt + kayıt sayıları).
+// Güvenlik sınırı: yalnız meta sayıları döner; dosya içeriği/indeks verisi
+// — hiçbir sır, yol veya metin — bu özetin dışına çıkmaz.
+function describePackage(data) {
+  const files = Array.isArray(data?.files) ? data.files : [];
+  const sections = {};
+  for (const file of files) {
+    const name = typeof file.name === 'string' ? file.name : '';
+    const top = name.includes('/') ? name.split('/')[0] + '/' : name;
+    const section = sections[top] || (sections[top] = { files: 0, bytes: 0 });
+    section.files += 1;
+    section.bytes += Math.ceil(String(file.data || '').length * 3 / 4);
+  }
+  const summary = {
+    files: files.length,
+    videos: Array.isArray(data?.videos) ? data.videos.length : 0,
+    created: data?.created || null,
+    sections,
+  };
+  const json = (name) => {
+    const file = files.find((f) => f.name === name);
+    if (!file) return null;
+    try { return JSON.parse(Buffer.from(file.data, 'base64').toString('utf8')); }
+    catch (_) { return null; }
+  };
+  const catalog = json('media-catalog.json');
+  if (Array.isArray(catalog?.items)) {
+    summary.mediaItems = catalog.items.length;
+    summary.mediaEpisodes = catalog.items.reduce((n, i) => n + (Array.isArray(i?.episodes) ? i.episodes.length : 0), 0);
+  }
+  const watch = json('watch-library.json');
+  if (Array.isArray(watch?.items)) summary.watchItems = watch.items.length;
+  const notes = json('browser-notes.json');
+  if (Array.isArray(notes?.annotations)) summary.notes = notes.annotations.length;
+  const session = json('browser-session.json');
+  if (Array.isArray(session?.tabs)) {
+    summary.tabs = session.tabs.length;
+    summary.syncRecords = session.tabs.reduce((n, t) =>
+      n + (Array.isArray(t?.subtitleSyncRecords) ? t.subtitleSyncRecords.length : 0), 0);
+  }
+  if (sections['browser-subtitles/']) summary.subtitleFiles = sections['browser-subtitles/'].files;
+  if (sections['subtitle-edits/']) summary.subtitleEdits = sections['subtitle-edits/'].files;
+  return summary;
+}
+
+module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues, describePackage };
