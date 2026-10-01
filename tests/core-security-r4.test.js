@@ -64,7 +64,10 @@ test('web içeriğinin dış uygulama açması kısılır (mailto döngüsü)', 
 });
 
 test('farklı kökenli favicon yalnız genel adresten ve yönlendirmesiz indirilir', () => {
-  assert.match(main, /const crossOrigin = browserSiteOrigin\(favicon\) !== browserSiteOrigin\(faviconPageUrl\);\s*if \(crossOrigin\) await assertPublicBrowserSubtitleUrl\(favicon\);/);
+  // Favicon zincirinin her hop'unda aynı-köken dışı adres genel-adres
+  // doğrulamasından geçer ve 'follow' yerine manual redirect kullanılır.
+  assert.match(main, /browserSiteOrigin\(candidate\) === browserSiteOrigin\(faviconPageUrl\)/);
+  assert.match(main, /if \(!sameOriginAsPage\(faviconUrl\)\) await assertPublicBrowserSubtitleUrl\(faviconUrl\);/);
   assert.match(main, /redirect: 'manual'/);
 });
 

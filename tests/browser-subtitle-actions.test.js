@@ -198,7 +198,7 @@ function action(name, next, context) {
     $: () => null,
     mergeCueContinuation: (cues) => cues.map((item) => ({ ...item })),
     updateBrowserTranslationExportButton() {}, syncSubtitleModeUi() {}, scheduleBrowserOverlaySync() {},
-    renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {},
+    renderBrowserCueAt() {}, renderCueList() {}, renderCue() {}, updateCueMeta() {}, invalidateTimelineEdits() {},
     window: { api: { reportBrowserTranslationDisplayed: async (...args) => { displayReports.push(args); } } },
   };
   vm.createContext(streamContext);

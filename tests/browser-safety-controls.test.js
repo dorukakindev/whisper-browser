@@ -29,7 +29,10 @@ test('sag tik menusu istenen bes islemi sunar', () => {
   for (const id of ['back', 'forward', 'reload', 'open-link-new-tab', 'translate-selection', 'copy', 'save-image']) {
     assert(main.includes(`'${id}'`) || main.includes(`  ${id}: `), `${id} eylemi main.js'te bağlı değil`);
   }
-  assert.match(main, /session\.fetch\(parsed\.href/);
+  // Görsel indirme hop-başına doğrulanan adresle manual redirect zinciri yapar
+  // (SSRF rebinding'e karşı session.fetch 'follow' kullanılmaz).
+  assert.match(main, /session\.fetch\(requestUrl/);
+  assert.match(main, /redirect: 'manual'/);
   assert.match(main, /50 \* 1024 \* 1024/);
 });
 

@@ -118,9 +118,18 @@ async function t_secret_store() {
   }, filePath });
   const l2 = store2.load();
   assert.strictEqual(l2.partial, true);
+  // Kısmen çözülen kasa kurtarılabilir kayıtlarla devam eder; çözülemeyen
+  // girdi ham baytlarıyla korunur (kullanıcı kasaya yeniden girebilsin diye
+  // kilitlenmez) — #393 sözleşmesi.
   const s2 = store2.saveFromSettings({ hfToken: 'yeni' });
-  assert.strictEqual(s2.ok, false);
-  assert.ok(s2.error.includes('çözülemedi'));
+  assert.strictEqual(s2.ok, true);
+  const written2 = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  assert.strictEqual(written2.entries['manga.apiKey'], Buffer.from('ca0a', 'hex').toString('base64'),
+    'çözülemeyen kayıt ham haliyle korunur');
+  assert.strictEqual(written2.entries.hfToken, Buffer.from('ENC:yeni').toString('base64'));
+  const l3 = store2.load();
+  assert.strictEqual(l3.partial, true, 'kırık kayıt korunur: yükleme yine kısmi işaretli');
+  assert.strictEqual(l3.secrets.hfToken, 'yeni');
   // forExport: gizli alan + token-sonlu anahtarlar süzülür
   const exp = store.forExport({ hfToken: 'x', prefs: { sessionToken: 't', theme: 'dark' } });
   assert.strictEqual(exp.hfToken, undefined);
