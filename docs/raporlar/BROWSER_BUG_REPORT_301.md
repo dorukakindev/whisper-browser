@@ -341,6 +341,58 @@ doğrulanmış bekçiler bulundu — doğrulanmış bug yok.
   R129 sızıntısı kapalı); decode tarafında atomik kont + token-set
   eşitliği + bağlam-sızıntısı kapıları blok-bazlı fail'e bağlı.
 
+## R340 — modül kapsam turu 2: az-kilitli araç modülleri (temiz, 0 bug)
+
+Zayıf test referanslı araç modüllerinin tam okuması (~3.230 satır):
+
+- **browser-library-tools.js** (533): foldLibraryText NFKC+tr-TR katlaması,
+  approximateAnchorMatch hücre/ε bütçeleri, stableId, unifiedLibrarySearch
+  dedupe+skor, koleksiyon rename/reorder üyelik haritaları, text-anchor
+  v1/v2 şema kapıları, seçim/manga konum yakalama+geri yükleme betikleri,
+  resolveTextAnchor puanlama (kesin 10+blok 100+yol 20+konum 80 / fuzzy
+  .78 eşiği + bütçe), ReopenGuard nesil bekçisi — hepsi doğru. Not:
+  Node tarafı resolveTextAnchor ürün kodundan çağrılmıyor (tek canlı yol
+  enjekte textAnchorRestoreScript); Uint16 DP taşması DP üst sınırı
+  2×desen uzunluğu (≤640) ile matematiksel erişilemez.
+- **browser-adblock.js** (326): enable/disable yarışı `!requested`
+  yeniden-kontrolüyle kapalı (check→enable arasında await yok),
+  env-bayrak geri yükleme try/finally'de, 24s TTL + 64MB önbellek,
+  stale-fallback zinciri, site-duraklatma proxy'si hem istek hem
+  başlık hem kozmetik yolda, engel/izin günlükleri sınırlı +
+  hassas-anahtar maskeli.
+- **watch-library-state.js** (473): CRDT revision/tombstone/alan-damgası
+  modeli tutarlı — yeniden-oluşturma bekçisi (_createdRevision),
+  tombstone silinmiş-kayıt çatışması, progress alan damgası
+  (manual-status > bayat progress, yazar+sequence tie-break),
+  oturum birleştirme (max watch/ended, min started), tahliye
+  mezar taşları, import tam sıfırlama.
+- **browser-subtitle-search.js** (410): ISO 639-2→1 dil eşleşmesi +
+  varyant kuralları, hash-file eşleşmesi + başlık geri düşümü,
+  Stremio anahtarsız yedek, her yönlendirme hop'unda host/protokol
+  yeniden-doğrulama, akış-sınırlı gövde, altyazı-yapı geçerlilik
+  kapısı, dil-ipuçlu kodlama çözümü.
+- **browser-translation-cache.js** (312): artımlı journal + sıkıştırma
+  doğru — replay dedup (temel updatedAt ≥ satır), mezar taşı kapısı
+  (`typeof v === 'string'` zorunluluğu yarım-satır silmeyi engeller),
+  TTL her iki yolda da uygulanır, LRU dokunuşları journal'a biner,
+  compact sırasında gelen set'ler kaybolmaz (pendingCount splice),
+  .bak zinciri kopya-sırası doğru, bozuk arşivler son-5'e sınırlı.
+- **browser-note-store.js** (260): atomik rename + fsyncFile +
+  fsyncDirectory, mirrorBackup silme yazımında eski nesli yedekten
+  siler (rename'den ÖNCE — sahte başarı yok), `error.committed`
+  bayrağıyla rollback bellek/disk ayrışması yapmaz, yük-hatası tüm
+  yazımları kilitler, sınır taşmasında bellek geri alınır.
+- **browser-overlay-controller.js** (828): sınır zamanlayıcısı
+  tam-arm deseni (seek/ratechange'te yeniden kurulum, ~1ms EPS
+  float asimetrisi, 400ms kare-ölümü yedeği, 60s kap), medya aday
+  dinleyici temizliği (kopmuş eleman tahliyesi), gözlemci 128 sınırı
+  LRU tahliyesi (document muaf), tam ekran kapsayıcı taşıması
+  (moveBefore — Electron 43'te mevcut; site-özellik değerini korur),
+  native-caption gizleme yalnız katman açıkken.
+
+Sıfır doğrulanmış kusur; tek açık not yukarıdaki kullanılmayan-export
+satırı. Windows etkisi yok.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
