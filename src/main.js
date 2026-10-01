@@ -140,6 +140,7 @@ const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
   subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
 const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
 const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
+const { assertJobTransition } = require('./job-state-contract');
 const {
   redactBrowserDiagnosticsText,
   sanitizeDiagnosticsSecrets,
@@ -10012,6 +10013,16 @@ function publishBrowserHlsCeaCaptureState(tab, payload = {}, syncSnapshot = fals
 
 function sendBrowserHlsCeaFullProgress(job, state, message = '') {
   if (!job?.tab) return;
+  // Ortak iş durum modeli (madde 26): geçersiz geçiş ya da sözleşmede olmayan
+  // durum adı tanı kaydına düşürülüp atlanır — iş makinesi sessizce saçma bir
+  // duruma sürüklenemez.
+  try {
+    assertJobTransition('cea', job.state || 'idle', state);
+  } catch (error) {
+    noteBrowserCapture('cea', { url: job.sourceUrl, context: job.context }, 'error',
+      error?.message || `Geçersiz CEA durum geçişi: ${job.state} → ${state}`);
+    return;
+  }
   job.state = state;
   job.total = Math.max(0, Number(job.segments?.length) || Number(job.total) || 0);
   const cueCount = (job.tracks || []).reduce((total, track) => {
