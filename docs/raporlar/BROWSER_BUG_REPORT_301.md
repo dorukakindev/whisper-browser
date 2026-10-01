@@ -726,6 +726,90 @@ okundu; bu tur yalnız bakiye yüksek-risk bölgeleri kapattı.
 Windows etkisi: kod değişmedi (salt okuma); doğrulanan savunmalar
 Windows yolları/CreateProcess/win32 davranışlarını da kapsıyor.
 
+## R346 — main.js bakiye derin okuması 2: yaşam döngüsü + dış servisler (temiz)
+
+İkinci turda ~2.000 satır daha okundu — kalıcılık/dış-çağrı/enjeksiyon
+yüzeyleri. Doğrulanmış bug yok.
+
+- **Ayarlar/abonelik dışa-içe aktarma + RSS** (18180–18479): export'ta
+  2MB sınır + dosya-adı beyaz listesi + diyalog seçimi + atomik yazma;
+  import'ta main parse ETMEZ (renderer'a ham metin, main sınır okur);
+  `settings:import` parseImportText sonrası yol değişimi → kullanıcı
+  onayı, endpoint değişimi → mevcut anahtarlar YENİ endpoint'e
+  TAŞINMAZ (kullanıcıya bildirilir), bütün bölümler doğrulanıp
+  writeJsonTransaction ile atomik, watch kütüphanesi sürümlü depo
+  (düz JSON bypass yok), notlar normalize+http kapısı;
+  `subs:rssFeed` UC-id regex'i, URL yalnız doğrulanmış id'den kurulur
+  (SSRF kapalı), 30 kanal/8sn/4-eşzamanlı/256KB sınırlı akış okuma.
+- **subs:shift + burn-in hattı + kurtarma** (18764–19292):
+  `shiftTimecodes` sıfır-altı cue bloğunu boş-satır/WEBVTT sınırına
+  kadar tümüyle kaldırır (YARI yok), `subs:shift` dosyayı kodlama-
+  tespitiyle okur (düz utf-8 yazımı eski cp1254 dosyaları bozuyordu —
+  belgeli) + backupOnce + atomik yazma; `ffSubtitlesArg` tek-tırnak +
+  sürücü iki-nokta kaçışı; `stageBurninSubtitle` UUID'li ASCII adla
+  kopya (orijinal el değmez); `burninRecovery` normalize + yol-eşleşme
+  kapısı + .bak + id-eşleşmeli clear; `processNameForPid` tasklist/ps
+  ad-doğrulaması (sadece pid-alive yetmez — yeniden kullanılmış pid'i
+  süzüyor); `burnin:start` latch + model-işi çakışması + önceki
+  kurtarma id+yol eşleşmesi yoksa reddeder + `-progress` pipe +
+  yuvarlanan errTail'de eksik-glif taraması (parça-bölünmesi belgeli)
+  + kurtarma kaydı job-object altında + hata yolunda geçici temizlik
+  + iptal-sonrası-başarı da done; `recovery:recover` await-sonrası
+  latch yeniden kontrolü + externalRunning/canFinalize/alreadyDone
+  ayrımı + yeniden-başlatmadan önce eski çıktıyı yedekten geri koy;
+  `discard` aynı yaşayan-süreç kapısı.
+- **Enjekte yakalama betikleri** (11393–11652): idempotent kurulum,
+  epoch-etiketli kuyruk (seek tüm eski girişleri düşürür), url+
+  fingerprint dedupe + 120-set/128-kuyruk sınırları + in-flight
+  evict, fetch `clone().text()` (gerçek yanıtı tüketmez), XHR
+  open/send şeffaf wrapper + responseType'a göre body (arraybuffer/
+  blob chunked btoa — fromCharCode arg sınırı), seek once-listener,
+  drain lease-ack 15s + deliveryId doğrulaması + 32-batch,
+  release 4-deneme backoff (900·2^n ≤15s), JSON.stringify + U+2028/
+  U+2029 kaçışı (sayfa içinde eval kırılmasın).
+- **İzleme klasörü + atomik yazıcılar + kuyruk okuma** (2416–2695):
+  `scanWatchFolder` nokta-atlama + bir-seviye + MEDIA_EXTS +
+  çıktı-varlığı önbelleği + kararlılık sayacı + kalıcı-hatada 5dk
+  yeniden-deneme + watchSeen GC; `watch:start` canonical + isDirectory
+  + diyalog onayı + **TOCTOU** (onay sonrası path yeniden
+  doğrulanır) + ilk tarama çıktı-temelli (queued damgası yalnız
+  gerçek çıktıya); `watch:report` resolve-temelli entry + durum
+  beyaz listesi + error→5dk; `backupOnce` tek-.bak;
+  `writeSubtitleAtomic` BOM yalnız srt/ass/ssa + validate-then-rename
+  + tmp temizliği; `writeTextAtomic`/`writeJsonAtomic`/`writeBufferAtomic`
+  tmp→rename (buffer'ta pid+uuid tmp — eşzamanlı yazıcılar);
+  `readQueueStateRaw` primary+.bak + 8MB kapı + `_oversized` işareti
+  (sessiz sıfırlama yok); `writeQueueState` .bak-rotasyon;
+  `loadQueueState` running→pending onarımı yalnız invalidCount=0'da
+  persist (bozuk dosya forensik korunur).
+- **Altyazı dizini süpürme/iz-geçersizleştirme/reset/tercihler/stream-key**
+  (5688–5917): `sweepBrowserSubtitleFiles` web-*.srt iğnesi + yaş-
+  ve-sayı üst sınırı; `trackBrowserSubtitleFile` aktif yayınlar
+  LRU'dan korunur; `invalidateBrowserTabSubtitles` scheduler slot
+  ÖNCE bırakılır sonra cancelAll (senkron onState yarışı belgeli);
+  `resetBrowserCaptureState` tam durum temizliği + üretim artışı +
+  acquisition plan renderer'a yeni kimlikle ÖNCE yayımlanır (bayat
+  persisted-track reddi belgeli); `browserTrackStreamKey` segment/
+  volatile-param katlaması + sabit sıralama; tercih deposu
+  writeMirroredJsonAtomic (yedek yalnız doğrulanmış durumdan).
+- **SponsorBlock/DeArrow/RYD + unloadBrowserTab + browser:command**
+  (14955–15393): üç fetch'er da sabit-https-host + hash-prefix
+  (videoId Gitmez — SponsorBlock/DeArrow) + credentials:omit +
+  sessionCookies:false + redirect:error + 7s zaman aşımı gövde
+  boyu canlı (belgeli) + boyut kapısı + negatif-önbellek + in-flight
+  dedupe; `browserTabRuntimeState` 1.8s timeout + bilinmezde
+  stateKnown:false; `unloadBrowserTab` split-ikincil koruma +
+  capture-pending kapısı + await'lar arası üç karar yeniden-kontrolü
+  (resourceActionSeq) + tüm timer'lar temizlenir + retry/crash
+  bütçesi dirilen sekmeye SIZMAZ + mini-pencere kapatılır +
+  debugger detach + izin iptalleri + loadError sıfırlanır;
+  `browser:command` sender=mainWindow.webContents katı kontrol +
+  medya komutlarında probe→rank→context-yeniden-doğrulama→mutate
+  (yan etki geri alınamaz; bayat komut yeni belgenin video'sunu
+  seek'lemesin).
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
