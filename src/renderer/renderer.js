@@ -19529,7 +19529,7 @@ async function playPlaylistDelta(delta) {
 
 function pathToFileUrl(p) {
   const norm = String(p).replace(/\\/g, '/');
-  return 'file:///' + encodeURI(norm).replace(/^file:\/\/\//, '').replace(/#/g, '%23');
+  return 'file:///' + encodeURI(norm).replace(/^\/+/, '').replace(/#/g, '%23');
 }
 
 // ---- gorunum modlari: Sinema / Okuma / Calisma ----
