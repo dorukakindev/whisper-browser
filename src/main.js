@@ -7391,6 +7391,16 @@ function preparePdfPageRequests(rawPages) {
 }
 
 async function translatePdfPage(document, pageRequest, config, state, job) {
+  const { pageNumber, pageBlocks } = await translatePdfPageBlocks(document, pageRequest, config, job);
+  const next = recordPdfPageTranslation(state, pageNumber, pageBlocks);
+  writePdfTranslationState(next);
+  return next;
+}
+
+// Madde 38 — sayfa bloklarını hesaplayan bölüm durum yazımından ayrıldı:
+// sınırlı paralellikli havuz sayfaları eşzamanlı çevirebilir, durum+checkpoint
+// yazımı tek iş parçacığında sırayla yapılır (yarış yok).
+async function translatePdfPageBlocks(document, pageRequest, config, job) {
   const pageNumber = Number(pageRequest?.pageNumber);
   const rawBlocks = Array.isArray(pageRequest?.blocks) ? pageRequest.blocks : [];
   if (!Number.isSafeInteger(pageNumber) || pageNumber < 1 || rawBlocks.length > 2000) {
@@ -7401,11 +7411,7 @@ async function translatePdfPage(document, pageRequest, config, state, job) {
     source: String(block?.source ?? block?.text ?? '').normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 12000),
     ...(typeof block?.kind === 'string' ? { kind: block.kind.slice(0, 40) } : {}),
   })).filter((block) => block.source);
-  if (!blocks.length) {
-    const next = recordPdfPageTranslation(state, pageNumber, []);
-    writePdfTranslationState(next);
-    return next;
-  }
+  if (!blocks.length) return { pageNumber, pageBlocks: [] };
   const results = new Map();
   const failures = new Map();
   const context = {
@@ -7456,9 +7462,7 @@ async function translatePdfPage(document, pageRequest, config, state, job) {
       ...(block.kind ? { kind: block.kind } : {}),
       ...(failures.has(block.id) ? { error: failures.get(block.id) } : {}),
     }));
-    const next = recordPdfPageTranslation(state, pageNumber, pageBlocks);
-    writePdfTranslationState(next);
-    return next;
+    return { pageNumber, pageBlocks };
   } finally {
     job.controller.signal.removeEventListener('abort', abort);
     job.schedulers.delete(scheduler);
@@ -17225,11 +17229,31 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
   const job = { controller: new AbortController(), schedulers: new Set() };
   pdfTranslationJobs.set(document.pdfHash, job);
   try {
-    for (const page of pages) {
-      if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
-      if (!todo.has(page.pageNumber)) continue;
-      state = await translatePdfPage(document, page, config, state, job);
-    }
+    // Madde 38 — sınırlı paralellik: sayfalar 2'li havuzda çevrilir; durum ve
+    // checkpoint yazımı tamamlanma sırasıyla tek noktada yapılır (yarış yok).
+    // İlk gerçek hata diğer işçiyi durdurur; iptalde ise kalan sayfa kendi
+    // cancelAll'ıyla temiz çıkıp hata üstte üretilir.
+    const pending = pages.filter((page) => todo.has(page.pageNumber));
+    let cursor = 0;
+    let firstError = null;
+    const workers = Array.from({ length: Math.min(2, pending.length) }, async () => {
+      while (true) {
+        if (firstError || job.controller.signal.aborted) return;
+        const page = pending[cursor++];
+        if (!page) return;
+        try {
+          const { pageBlocks } = await translatePdfPageBlocks(document, page, config, job);
+          state = recordPdfPageTranslation(state, page.pageNumber, pageBlocks);
+          writePdfTranslationState(state);
+        } catch (error) {
+          if (!firstError) firstError = error;
+          return;
+        }
+      }
+    });
+    await Promise.all(workers);
+    if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
+    if (firstError) throw firstError;
     const failed = Object.values(state.pages).flat().filter((block) => block.status === 'failed').length;
     const failedCount = pages.filter((page) => (state.pages[String(page.pageNumber)] || [])
       .some((block) => block.status === 'failed')).length;

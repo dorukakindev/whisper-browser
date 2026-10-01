@@ -497,10 +497,22 @@ function normalizedIdentity(identity = {}) {
   };
 }
 
+// Madde 38 — durum zaten normalize edilmişse recordPdfPageTranslation'ın
+// her sayfada tüm blokları yeniden normalize etmesi O(n²) maliyet üretiyordu.
+// JSON.stringify ve spread kopyasına taşınmayan non-enumerable işaret ile
+// "bu nesne normalize" kanıtlanır; işaretsiz durumlar eskisi gibi tam
+// normalize edilir (güvenli yedek yol).
+const PDF_STATE_NORMALIZED = Symbol('pdfStateNormalized');
+function markPdfStateNormalized(state) {
+  try { Object.defineProperty(state, PDF_STATE_NORMALIZED, { value: true, enumerable: false, configurable: true }); } catch (_) {}
+}
+
 function createPdfTranslationState(identity) {
   const normalized = normalizedIdentity(identity);
   if (!normalized.pdfHash) throw new TypeError('PDF kimliği boş olamaz.');
-  return { version: PDF_TRANSLATION_STATE_VERSION, ...normalized, pages: {} };
+  const state = { version: PDF_TRANSLATION_STATE_VERSION, ...normalized, pages: {} };
+  markPdfStateNormalized(state);
+  return state;
 }
 
 function normalizePdfBlock(block, index) {
@@ -547,6 +559,7 @@ function normalizePdfTranslationState(raw, identity) {
     const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
     if (!blocks.length || normalizedBlocks.length) fresh.pages[String(Number(pageKey))] = normalizedBlocks;
   }
+  markPdfStateNormalized(fresh);
   return fresh;
 }
 
@@ -618,15 +631,18 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
   if (!Number.isSafeInteger(page) || page < 1 || !Array.isArray(blocks)) {
     throw new TypeError('PDF sayfa sonucu geçersiz.');
   }
-  const normalized = normalizePdfTranslationState(state, {
-    pdfHash: state.pdfHash,
-    targetLanguage: state.targetLanguage,
-    model: state.model,
-    endpoint: state.endpoint,
-  });
+  const normalized = state?.[PDF_STATE_NORMALIZED] === true
+    ? { ...state, pages: { ...state.pages } }
+    : normalizePdfTranslationState(state, {
+      pdfHash: state.pdfHash,
+      targetLanguage: state.targetLanguage,
+      model: state.model,
+      endpoint: state.endpoint,
+    });
   const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
   if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
   normalized.pages[String(page)] = normalizedBlocks;
+  markPdfStateNormalized(normalized);
   return normalized;
 }
 
