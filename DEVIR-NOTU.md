@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1000.md](docs/devir/2026-10-01-1000.md) — R345 main.js bakiye derin okuması 1: ~3.100 satır yüksek-risk yüzeyi (spawn/CEA/CDP/fetch/auth/media) — sıfır kusur
+Güncel çalışma: [docs/devir/2026-10-01-1030.md](docs/devir/2026-10-01-1030.md) — R346 main.js bakiye derin okuması 2: ~2.000 satır (kalıcılık/dış-servis/enjeksiyon/sekme-yaşam-döngüsü) — sıfır kusur
+Önceki çalışma: [docs/devir/2026-10-01-1000.md](docs/devir/2026-10-01-1000.md) — R345 main.js bakiye derin okuması 1: ~3.100 satır yüksek-risk yüzeyi (spawn/CEA/CDP/fetch/auth/media) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-0930.md](docs/devir/2026-10-01-0930.md) — R344 modül kapsam turu 6: 8 dosya ~3.860 satır (bu segment) — WJ kaçışı okunabilirleşti + okur-tarafı kilit
 Önceki çalışma: [docs/devir/2026-10-01-0900.md](docs/devir/2026-10-01-0900.md) — R343 modül kapsam turu 5: 15 dosya ~7.980 satır (depo/kalıcılık+servis katmanı) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-0840.md](docs/devir/2026-10-01-0840.md) — R342 modül kapsam turu 4: 6 dosya okuma — omnibox jamo harita kopyası pariteye çekildi
