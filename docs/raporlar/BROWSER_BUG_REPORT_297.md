@@ -19,11 +19,15 @@
    eklendi.
 3. **IPC katalog** (yeni): `docs/IPC-KATALOG.md` — `ipcMain.handle`
    kanalları önek gruplu tam liste (grep-extract; browser 105, library 14,
-   media 14, invidious 14, youtube 10, burnin/dialog/models/pdf/settings
-   ×5, history/app 4, queue/shell/watch 3, subscriptions/subs/transcribe
-   2, translation/player/paths/notify/maintenance/logs/clipboard 1) +
-   `ipcMain.on` ve renderer→main `send` listeleri. Yeniden-üretim talimatı
-   belgenin başlığında.
+   media 14, invidious 14, youtube 10, burnin/dialog/models/pdf/youtube-tv
+   ×5, settings/history 4, shell/watch 3, app/queue/subscriptions/subs/
+   transcribe 2, translation/player/paths/notify/maintenance/logs/
+   clipboard 1) + `ipcMain.on` ve renderer→main `send` listeleri.
+   Yeniden-üretim talimatı belgenin başlığında. (R332 düzeltmesi: özgün
+   özet app'i 4 ve queue'yu 3 saymıştı, youtube-tv'yi atlamıştı; ayrıca
+   `browser:extras`, `browser:mini:command`, `media-catalog:request`
+   servis modüllerinden geldiği için grep çıktısında eksikti — katalog
+   216 kanala ve sendSync listesine güncellendi.)
 4. **Rapor indeksi**: 297 satırı eklendi.
 
 ## Bulgular

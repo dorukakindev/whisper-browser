@@ -76,11 +76,10 @@ test('R67-04: CSP img-src/media-src https: içerir; connect-src gerçek yüzeyi 
   assert.ok(csp, 'CSP meta yok');
   assert.match(csp[1], /img-src[^;]*https:/, 'img-src https: eksik (thumbnail\'lar bloklanır)');
   assert.match(csp[1], /media-src[^;]*https:/, 'media-src https: eksik (akış bloklanır)');
-  // connect-src yalnız chrome belgesinin gerçek fetch yüzeyini kapsar: 'self' +
-  // whisper-pdf: (R326/B-326-01). HLS manifestleri sayfa görünümünün kendi
-  // kökeninde akar — index.html CSP'si onu yönetmez; ölü https: izni kaldırıldı.
-  assert.match(csp[1], /connect-src 'self' whisper-pdf:/, 'connect-src yüzeyi eksik');
-  assert.doesNotMatch(csp[1].match(/connect-src[^;]*/)?.[0] || '', /https:/, 'connect-src ölü https: içermemeli');
+  // connect-src gerçek fetch yüzeyini kapsar: 'self' + whisper-pdf: +
+  // https: (paketli hls.js oynatıcısı index.html bağlamında uzak manifest/
+  // segment indirir — R332 review bulgusu; https:'yı kaldırmak akışı kırar).
+  assert.match(csp[1], /connect-src 'self' https: whisper-pdf:/, 'connect-src yüzeyi eksik');
   assert.match(csp[1], /script-src 'self'/, 'script-src gevşememeli');
 });
 

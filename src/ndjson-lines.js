@@ -18,7 +18,10 @@ function createNdjsonLineBuffer(options = {}) {
       decoder = decoder || new StringDecoder('utf8');
       text = decoder.write(chunk);
     } else {
-      text = String(chunk ?? '');
+      // Buffer olmayan chunk, decoder içinde bekleyen eksik UTF-8 dizisini
+      // kuyrukta bırakırdı — önce kalan baytları akıt ki olay bölünmesin.
+      text = decoder ? decoder.end() + String(chunk ?? '') : String(chunk ?? '');
+      decoder = null;
     }
     const lines = [];
 
@@ -63,6 +66,9 @@ function createNdjsonLineBuffer(options = {}) {
     }
     const line = pending;
     pending = '';
+    // Sondaki kırpılmamış parça da aynı sınıra tabi — decoder.end() kuyruğu
+    // uzatınca taşan satır sessizce dönebilirdi.
+    if (line.length > maxLineChars) { onOverflow(line.length); return []; }
     return [line];
   }
 

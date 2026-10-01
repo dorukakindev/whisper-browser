@@ -313,8 +313,6 @@ def _run():
     return failed == 0
 
 
-if __name__ == "__main__":
-    sys.exit(0 if _run() else 1)
 
 
 def _fake_load_once():
@@ -380,3 +378,6 @@ def test_run_diarization_second_oom_propagates():
         except RuntimeError as e:
             assert "out of memory" in str(e)
     assert record["calls"] == 2
+
+if __name__ == "__main__":
+    sys.exit(0 if _run() else 1)

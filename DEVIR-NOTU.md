@@ -1,4 +1,5 @@
 Güncel çalışma: [docs/devir/2026-10-01-0500.md](docs/devir/2026-10-01-0500.md) — R334 yerel kalite turu: B-334-01 boundary mükerrer fix + kapsam haritaları (main/renderer/backend)
+Önceki çalışma: [docs/devir/2026-10-01-0410.md](docs/devir/2026-10-01-0410.md) — R332: Devin Review toplu triage #266–#300 (kod + test + belge)
 Önceki çalışma: [docs/devir/2026-10-01-0326.md](docs/devir/2026-10-01-0326.md) — Uzak master'ın yerele güvenli alınması (R283–R330 merge, 4 doc çakışması union)
 Önceki çalışma: [docs/devir/2026-10-01-0025.md](docs/devir/2026-10-01-0025.md) — R331: AI modları (--explain reasoning-kapısı + çip EN soruları, kullanıcı patch'i)
 Önceki çalışma: [docs/devir/2026-09-30-2115.md](docs/devir/2026-09-30-2115.md) — R327-5: test paketi hız profili + test-timing.mjs (50'lik kuyruk kapandı)

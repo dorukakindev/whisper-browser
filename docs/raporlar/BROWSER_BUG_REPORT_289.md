@@ -25,7 +25,8 @@ kullanımlarında** vardı: `backend/media.py`, `youtube.py`, `invidious.py`,
 spawn `cwd` değerleri — hepsi harness bağlamında yanlış dizin gösterirdi.
 
 **Düzeltme:** tek `appResourceRoot()` = `path.dirname(__dirname)`.
-Paketli kurulumda `__dirname` = `app.asar/src` → üst dizin app.asar kökü =
+Paketli kurulumda paketleyici `asar: false` kullanır — `__dirname` =
+`resources/app/src` → üst dizin `resources/app` = uygulama kökü =
 eski `app.getAppPath()` değeriyle birebir aynı; harness'ta ise kodun
 gerçekten yüklendiği kök — manifestin denetlediği dosyalar `__dirname`
 göreli require'larla yüklendiği için doğru sabit nokta budur.
@@ -62,6 +63,7 @@ kalıyor (+0 kod kaynaklı). E2E'de main.js açılış kapısı doğrulandı.
 ## Doğrulanmayan
 
 - Paketli Windows kurulumunda appResourceRoot: mantıksal denklik
-  (`app.asar/src` → `app.asar`) argümanına dayanıyor; gerçek paket
+  (`resources/app/src` → `resources/app`; paketleyici `asar: false`)
+  argümanına dayanıyor; gerçek paket
   üzerinde doğrulanmadı — Windows CI + paketleme testi karşılar.
 - menu-visual gerçek masaüstü koşusu.

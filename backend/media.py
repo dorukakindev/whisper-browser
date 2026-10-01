@@ -325,7 +325,7 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
     # karışırdı. Şema kısıtını burada da kilit altına al.
     for label, u in (("Video", video_url), ("Ses", audio_url)):
         if u and urllib_parse.urlsplit(u).scheme.lower() not in ("http", "https"):
-            raise ValueError(f"{label} URL yalnızca http/https olmalı.")
+            raise ValueError(f"{label} URL yalnızca http/https olmalı. ({label} URL must be http or https.)")
 
     # ffmpeg yoksa GB'larca indirmeden önce keşfet
     ff = _find_ffmpeg()

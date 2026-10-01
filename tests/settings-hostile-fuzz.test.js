@@ -177,13 +177,17 @@ test('sanitizeSettings: yalnız SettingsValidationError fırlatır (fuzz)', () =
 });
 
 test('sanitizePlayerPositions: proto-anahtarı direkt-çağrıda da güvenli', () => {
-  const { sanitizeSettings } = require('../src/settings-security');
-  // sanitizeSettings içinde tarama önce reddeder; doğrudan davranışı vm'siz
-  // doğrulamak için modül içinden geçen tek yol payload — en azından
-  // sanitizeSettings çıktısı kirlenmemeli (tarama reddetse bile).
-  assert.throws(() => sanitizeSettings(
-    { playerPositions: { __proto__: { t: 1, d: 1, at: 1, title: 'x' } } },
-    { allowSecrets: true }), SettingsValidationError);
+  const { sanitizeSettings, sanitizePlayerPositions } = require('../src/settings-security');
+  // Doğrudan çağrı sözleşmesi: sanitizeSettings'in ön taraması hostile
+  // anahtarı önce reddettiği için modülün kendi kapısı ayrıca sınanmalı —
+  // tarama atlandığında bile __proto__ anahtarı çıktıya sızmasın.
+  const direct = sanitizePlayerPositions(
+    JSON.parse('{"__proto__":{"t":1,"d":1,"at":1,"title":"x"},"file:/v.mp4":{"t":42,"d":100,"at":5,"title":"ok"}}'));
+  assert.deepEqual(Object.keys(direct), ['file:/v.mp4']);
+  assert.equal(direct['file:/v.mp4'].t, 42);
+  assert.equal(Object.getPrototypeOf(direct), Object.prototype);
+  assert.equal({}.polluted, undefined);
+  // sanitizeSettings üzerinden gelen yol da aynı çıktıyı verir.
   const ok = sanitizeSettings(
     { playerPositions: { 'file:/v.mp4': { t: 42, d: 100, at: 5, title: 'ok' } } },
     { allowSecrets: true });

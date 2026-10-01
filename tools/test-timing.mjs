@@ -23,7 +23,9 @@ const TEST_FILE_TIMEOUT_MS = 10 * 60 * 1000; // run-all.js ile aynı tavan
 
 const args = process.argv.slice(2);
 const topIdx = args.indexOf('--top');
-const TOP = topIdx >= 0 ? Number(args[topIdx + 1]) || 10 : 0; // 0 = hepsi
+// Number(...) || 10 yazılsaydı '--top 0' anlamsız biçimde 10'a düşüyordu;
+// 0 bilinçli "tam tablo" seçimidir.
+const TOP = topIdx >= 0 && Number.isFinite(Number(args[topIdx + 1])) ? Number(args[topIdx + 1]) : (topIdx >= 0 ? 10 : 0); // 0 = hepsi
 const jsonIdx = args.indexOf('--json');
 const JSON_OUT = jsonIdx >= 0 ? args[jsonIdx + 1] : null;
 const onlyIdx = args.indexOf('--only'); // dosya-adı süzgeci (yeniden-ölçüm)
@@ -62,6 +64,13 @@ const pyTests = fs.existsSync(backendDir)
     .filter((x) => !ONLY || x.includes(ONLY))
   : [];
 const python = findTestPython();
+if (pyTests.length && !python) {
+  console.error(`UYARI: python bulunamadı — ${pyTests.length} backend testi ölçülemedi (skipped).`);
+}
+if (ONLY && !nodeTests.length && !pyTests.length) {
+  console.error(`--only '${ONLY}' hiçbir test dosyasıyla eşleşmedi.`);
+  process.exit(2);
+}
 
 const results = [];
 for (const f of nodeTests) {
@@ -75,6 +84,8 @@ if (python) {
     results.push(r);
     process.stderr.write(`\r${results.length} dosya ölçüldü — son: ${r.file} ${r.ms}ms ${r.status}   `);
   }
+} else {
+  for (const f of pyTests) results.push({ file: `backend/${f}`, ms: 0, status: 'skipped' });
 }
 process.stderr.write('\n');
 

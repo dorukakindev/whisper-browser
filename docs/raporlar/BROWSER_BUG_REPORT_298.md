@@ -14,6 +14,8 @@ node tools/test-timing.mjs --top 15 --json out.json
 ## Ölçüm (bu makine, sıralı tek-işlem)
 
 - Toplam: **397 dosya, 162.3 s** — 366 Node `.test.js` + 31 Python `test_*.py`
+  (envanter ölçüm anındaki ağaçtır; R332 itibarıyla 367 Node + 47 Python =
+  414 dosya — test sayısı sürekli büyür, toplam süre anlık değer kabul edilsin)
 - Dağılım: **backend/ 97.5s (%60)**, tests/ 64.7s (%40)
 - Medyan dosya: 41ms · p95: ~1.35s → paket "birkaç ağır dosya + uzun kuyruk"
 

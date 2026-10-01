@@ -11,6 +11,7 @@ sarılı olduğu için `import transcribe` GPU/venv olmadan da çalışır.
 
 import json
 import hashlib
+import math
 import os
 import sys
 import tempfile
@@ -3791,6 +3792,7 @@ def test_wrap_whisperx_segment_edge_timestamps():
     """Eksik/NaN damgalar sarmalanırken kilitlenmez:
     - end yok → seg_start'a düşer (sıfır süre → aşağı yönde korunur)
     - kelime start/end yok → önceki kelime sonuna/aynı ana yaslanır
+    - NaN/±inf damgalar → fallback'e düşer (NaN cue üretmez)
     - probability anahtarı yok → 1.0 varsayılır
     """
     seg = T._wrap_whisperx_segment({'start': 2.0, 'text': 'x',
@@ -3801,6 +3803,11 @@ def test_wrap_whisperx_segment_edge_timestamps():
     assert (w0.start, w0.end) == (2.0, 2.0)
     assert (w1.start, w1.end) == (2.5, 2.5)
     assert w0.probability == 1.0
+    # NaN/inf damgalar gerçek değer sanılıp sızmamalı (NaN truthy'dir)
+    nan_seg = T._wrap_whisperx_segment({'start': float('nan'), 'end': float('inf'),
+        'text': 'x', 'words': [{'word': 'a', 'start': float('nan'), 'end': 1.0}]})
+    assert math.isfinite(nan_seg.start) and math.isfinite(nan_seg.end)
+    assert nan_seg.words[0].start == nan_seg.start and nan_seg.words[0].end == 1.0
     # boş kelime listesi words=None döner (need_words False yoluyla uyumlu)
     seg2 = T._wrap_whisperx_segment({'start': 0, 'end': 1, 'text': 't', 'words': []})
     assert seg2.words is None
@@ -3814,9 +3821,11 @@ def test_assign_speakers_boundary_cases():
     spans = [(0.0, 1.0, "A"), (1.0, 2.0, "B"), (4.0, 5.0, "A")]
     entries = [(0.9, 1.1, "iki uç"), (2.5, 3.5, "boş")]
     out = T.assign_speakers(entries, spans)
-    # ilk cue A(0.1s) ve B(0.1s) eşit örtüşür — max ilk bulunanı seçer;
-    # ikinci cue hiçbir span'le örtüşmez → atama yok
-    assert out[0] in ("A", "B") and 1 not in out
+    # Cue A ve B ile tasarlanan 0.1s eşitliğinde görünse de IEEE toplamı
+    # B'ye 0.1000...09 verir (1.1-1.0 ≠ 1.0-0.9) — asıl sözleşme DETERMİNİZM:
+    # aynı girdi her çağrıda aynı atamayı üretmeli (max ilk-maksimumu tutar).
+    assert out[0] == "B" and 1 not in out
+    assert T.assign_speakers(entries, spans) == out, "aynı girdi farklı atama verdi"
     # boş span listesi her zaman boş sözlük
     assert T.assign_speakers(entries, []) == {}
     assert T.assign_speakers(entries, None) == {}
@@ -4464,6 +4473,22 @@ def test_translation_error_classifier_survives_request_id_digits():
             self.status_code = status
     assert T.classify_translation_error(ApiError(401)) == "authentication"
     assert T.classify_translation_error(ApiError(429)) == "rate_limit"
+    # Gerçek 429 + insufficient_quota gövdesi: OpenAI kota tükenmesini 429
+    # ile döndürür — yeniden-dene önerisi yerine kota uyarısı sınıflandırılır.
+    class QuotaError(Exception):
+        def __init__(self):
+            super().__init__("Error code: 429 - {'error': {'code': "
+                             "'insufficient_quota', 'message': 'You exceeded "
+                             "your current quota'}}")
+            self.status_code = 429
+    assert T.classify_translation_error(QuotaError()) == "quota"
+    # RPM sınırındaki jenerik 'quota' kelimesi kota sınıfına çekilmez.
+    class RpmError(Exception):
+        def __init__(self):
+            super().__init__("Error code: 429 - Rate limit reached on "
+                             "requests per min (RPM) quota")
+            self.status_code = 429
+    assert T.classify_translation_error(RpmError()) == "rate_limit"
 
 
 def test_subtitle_output_descriptor_does_not_infer_role_from_filename():

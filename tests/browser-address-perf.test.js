@@ -58,7 +58,20 @@ test('inlineCompletion doğru adayı önerir (önbellekli yol)', () => {
   assert.ok(first && /github\.com/.test(first.text));
 });
 
-test('50k geçmiş: ısınma sonrası tuş vuruşu bütçesi (<60ms ortalama)', () => {
+test('üretim sınırı (BROWSER_PLACE_LIMIT=100): tuş vuruşu ~anında (<10ms)', () => {
+  // main.js history/bookmarks'ı 100 kayıtla sınırlar — ulaşılabilir gerçek
+  // yük budur; 50k testi aşağıda kapasite payı olarak kalır.
+  const places = placesOf(100);
+  buildAddressResults({ query: 'site', places, tabs: [], faviconFor: () => null });
+  const t0 = Date.now();
+  for (let k = 0; k < 20; k += 1) {
+    buildAddressResults({ query: `sayfa ${k}`, places, tabs: [], faviconFor: () => null });
+  }
+  const avg = (Date.now() - t0) / 20;
+  assert.ok(avg < 10, `üretim ölçeğinde tuş vuruşu bütçeyi aştı: ${avg.toFixed(1)}ms`);
+});
+
+test('50k geçmiş: kapasite payı — ısınma sonrası tuş vuruşu bütçesi (<60ms)', () => {
   const places = placesOf(50000);
   // Isınma: ilk sorgu önbelleği doldurur (tek seferlik maliyet).
   buildAddressResults({ query: 'site', places, tabs: [], faviconFor: () => null });

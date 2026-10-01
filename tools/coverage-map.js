@@ -27,6 +27,23 @@ function listFiles(rel, re, excludeRe) {
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+// Test gövdesindeki dizgi/yorum içeriğini maskeler — kaynak metni fixture
+// olarak taşıyan testler (ratchet'ler, parser testleri) içlerinde geçen
+// require/import dizgileriyle kapsamı şişiriyordu.
+// Yorumlarda anılan modül adları gerçek kapsam değildir — `// require('./x')`
+// satırları directPattern'e sahte eşleşme verirdi. Dizgiler korunur:
+// `vm.runInContext("require('x')")` veya `python -c "import x"` gibi eval
+// edilen kod dizgileri gerçek test kapsamıdır.
+function stripNonCode(src, ext) {
+  let out = String(src)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ');
+  // '#' yorumu yalnız Python'da — JS regex/dizgilerindeki '#fff' veya
+  // '#[a-z]' içerikleri satırı yanlışlıkla keserdi.
+  if (ext === '.py') out = out.replace(/#(?!\/)[^\n]*/g, ' ');
+  return out;
+}
+
 // mod → doğrudan tarama kalıbı (require/import ailesi)
 function directPattern(base, ext) {
   if (ext === '.js') {
@@ -51,7 +68,7 @@ function scan() {
     // öz-referansı taramadan dışla.
     for (const name of listFiles(dir, re, exclude)) {
       const rel = path.join(dir, name).split(path.sep).join('/');
-      tests.push({ rel, body: fs.readFileSync(path.join(ROOT, rel), 'utf8') });
+      tests.push({ rel, body: stripNonCode(fs.readFileSync(path.join(ROOT, rel), 'utf8'), path.extname(rel)) });
     }
   }
   const rows = modules.map((mod) => {

@@ -38,6 +38,15 @@ WORDS = [
 
 INFO = types.SimpleNamespace(language='tr', language_probability=0.98, duration=11.0)
 
+# Seçenekleri gerçekten çalıştıran ek fixture'lar (ENTRIES'e dokunulmadı —
+# paylaşılan tabloların özeti sabit kalsın):
+#  * 80 sütunda 3 satır gerektiren tek cümle — max_lines=3, =2'den farklı çıktı
+#    vermezse seçenek etkisiz demektir.
+LONG_ENTRY = (12.0, 16.0, 'Uzun cümle ' + ' '.join('kelime%d' % i for i in range(30)) + ' bitti.')
+#  * sıra sayısı: '2.' tr'de kısaltma (kırılmaz), en'de cümle sonu (kırılır) —
+#    language parametresi wrap kararını değiştirmezse regresyon yakalanamazdı.
+ORDINAL_ENTRY = (0.0, 1.5, '2. Dünya savaşı başladı.')
+
 
 def _payload_bytes(path):
     # İşletim-sistemi ayrımı: yazıcılar metin modunda açılır, Windows'ta \n
@@ -71,8 +80,17 @@ CASES = {
     'srt:wrap-balanced-30': lambda p: T.write_srt(ENTRIES, p, wrap_mode='balanced', max_line_width=30),
     'srt:wrap-balanced-80x3': lambda p: T.write_srt(
         ENTRIES, p, wrap_mode='balanced', max_line_width=80, max_lines=3),
+    # max_lines=3, =2 ile aynı özeti üretirse seçenek devre dışı demektir.
+    'srt:balanced-80x3-long': lambda p: T.write_srt(
+        [LONG_ENTRY], p, wrap_mode='balanced', max_line_width=80, max_lines=3),
+    'srt:balanced-80x2-long': lambda p: T.write_srt(
+        [LONG_ENTRY], p, wrap_mode='balanced', max_line_width=80, max_lines=2),
     'srt:sentence-maxlines-1': lambda p: T.write_srt(ENTRIES, p, wrap_mode='sentence', max_lines=1),
     'srt:lang-en': lambda p: T.write_srt(ENTRIES, p, language='en'),
+    # ordinal: tr '2.'yi kısaltma sayıp kırmaz, en cümle sonu sayıp kırar —
+    # iki özet birbirinden farklı olmalı (aşağıdaki çift testi de kilitler).
+    'srt:lang-en-ordinal': lambda p: T.write_srt([ORDINAL_ENTRY], p, language='en'),
+    'srt:lang-tr-ordinal': lambda p: T.write_srt([ORDINAL_ENTRY], p, language='tr'),
     'vtt:wrap-none': lambda p: T.write_vtt(ENTRIES, p, wrap_mode='none'),
     'vtt:balanced-30': lambda p: T.write_vtt(ENTRIES, p, wrap_mode='balanced', max_line_width=30),
     'vtt:lang-en': lambda p: T.write_vtt(ENTRIES, p, language='en'),
@@ -94,6 +112,10 @@ EXPECTED = {
     'confidence:0.3': '7ff491023546ea67336f01123d2bc3667e74d62d7abfa916bb1b62563f94496b',
     'confidence:0.6': 'a2839584832f4339c1baaa6b2ddd2ecd82843344d91a8c900850c07f53122721',
     'dual:source-first': 'b3f3cbf6fbc9e75f3faf4d8d16eed301a8c277c96a483a3f8ee7ad8f1bee2e1b',
+    'srt:balanced-80x2-long': '2de8cab102d4b2d219099597352013f6ff8be6b48e8ce006cee3b6fba630489f',
+    'srt:balanced-80x3-long': '9cfc0d7ce0a2021d31a0df6731564de3912eb735c3bfcf11a25d94ea3f387771',
+    'srt:lang-en-ordinal': '71627b66233933fa6005cf68ef85dfd5b8e78fd2db7722673f7a84ae459178f8',
+    'srt:lang-tr-ordinal': '6984e17cb80e8480d6717767523ea2c745c0f3c81c87a6aee3fa95671618e417',
     'json:no-info': 'f865ed6ff60ebaa5129e4440ffeaf145bf47bba01bd49f4e7443b6089022030b',
     'json:words+speakers': 'bccfc9a23f45c2e9aa2b77751c0afd7686c8bb91c0f5c3291a3008a9143e07db',
     'srt:lang-en': '35cd90144b57f92d6e294736e72b9d042e81b414860ced5bef2946dc6aa99fe1',
@@ -119,6 +141,16 @@ class TestGoldenMatrix(unittest.TestCase):
     def test_expected_covers_no_extra(self):
         extra = sorted(set(EXPECTED) - set(CASES))
         self.assertFalse(extra, f'EXPECTED bayat anahtar içeriyor: {extra}')
+
+    def test_option_pairs_actually_differ(self):
+        # Golden kilit çıktıyı dondurur ama etkisiz seçeneği de dondurabilir.
+        # Çift testler seçeneğin ÇALIŞTIĞINI ayrıca kilitler.
+        self.assertNotEqual(_digest(CASES['srt:balanced-80x3-long']),
+                            _digest(CASES['srt:balanced-80x2-long']),
+                            'max_lines=3 seçeneği çıktıyı değiştirmiyor')
+        self.assertNotEqual(_digest(CASES['srt:lang-en-ordinal']),
+                            _digest(CASES['srt:lang-tr-ordinal']),
+                            'language seçeneği ordinal davranışını değiştirmiyor')
 
 
 def _regen():
