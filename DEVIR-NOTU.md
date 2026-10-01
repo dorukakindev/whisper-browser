@@ -1,4 +1,9 @@
-Güncel çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
+Güncel çalışma: [docs/devir/2026-10-01-2380.md](docs/devir/2026-10-01-2380.md) — R377 derin okuma + fsync süpürme bakiyesi: 3 dayanıklılık bug'ı (feature-services ×2 + translation-cache compact) düzeltildi, matris kilitli
+Önceki çalışma: [docs/devir/2026-10-01-2370.md](docs/devir/2026-10-01-2370.md) — R376 derin okuma: secret-store fsync düzeltmesi (B-376-01) + omnibox/settings-registry/media-catalog/note-store/queue-persistence/subtitle-sync/asset-store temiz
+Önceki çalışma: [docs/devir/2026-10-01-2360.md](docs/devir/2026-10-01-2360.md) — R375 derin okuma: browser-translation-archive fsync düzeltmesi + session-store/resource-soak/address-model/adblock/textutil temiz
+Önceki çalışma: [docs/devir/2026-10-01-2350.md](docs/devir/2026-10-01-2350.md) — R374 derin okuma: media-controller/watch-library/watch-index/watch-state/pdf-translate/playback-diagnostics/library-tools temiz
+Önceki çalışma: [docs/devir/2026-10-01-2340.md](docs/devir/2026-10-01-2340.md) — R357 derin okuma: DOM-sözleşme ratchet'leri
+Önceki çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1500.md](docs/devir/2026-10-01-1500.md) — R355 renderer.js kapanış turu — sıfır kusur, KAPSAM TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1430.md](docs/devir/2026-10-01-1430.md) — R354 renderer.js alt-orta derin okuması: ~2.100 satır — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1400.md](docs/devir/2026-10-01-1400.md) — R353 renderer.js orta bölge derin okuması: ~2.070 satır — sıfır kusur

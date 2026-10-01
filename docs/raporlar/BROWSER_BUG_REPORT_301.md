@@ -1298,6 +1298,31 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R377 — browser-feature-services + renderer/browser-features + browser-translation-cache + subtitle-sentence-layout + browser-subtitle-search
+
+Kapsam (~1.900 satır, 5 dosya): `src/browser-feature-services.js` (407) — `browser:extras` IPC kapanı: sekme bazlı iş kuyruğu (AbortController), üretim/medya/geçerlilik üç-kollu bekçi, kare yakalama, dosya diyalogları, eşleştirme, sahip-altyazı yazımı, atla-segmentleri deposu; `src/renderer/browser-features.js` (347) — yan-panel UI: 1 sn bağlam-yoklaması, bayat-sonuç bekçileri, OCR kırpma hareket yaşamı, metin-render; `src/browser-translation-cache.js` (312) — kalıcı çeviri önbelleği: v1/v2 şema geçişi, .bak yedeği, journal tekrarı, LRU, tek-uçuş flush, ihtiyaç bazlı sıkıştırma; `src/subtitle-sentence-layout.js` (416) — cümle protokolü v4, TR sayı-sözcük motoru, anlam-bekçisi denetimleri, DP süre-ağırlıklı metin bölütleme; `src/browser-subtitle-search.js` (410) — OpenSubtitles + Stremio sağlayıcı hatları, sınırlı gövde okuma, indirme URL beyaz listesi + elle yönlendirme, çözülmüş dosya doğrulama.
+
+### B-377-01 — `browser-feature-services.js` save(): fsync'siz atomik commit (R281 sınıfı)
+
+`browser-skip-segments.json` kaydında `writeFileSync(temp, 'wx')` + `renameSync` arasında fsync yoktu ve dizin fsync'i hiç yapılmıyordu; çökmede dosya kaybı veya rename-içeriği eşleşmemesi penceresi vardı. `fsyncFile(temp)` + rename + `fsyncDirectory(dir)` töreni eklendi — R375/R376 ile aynı kalıp.
+
+### B-377-02 — `writeOwnedSubtitle()`: kullanıcı altyazı dosyası fsync'siz commit
+
+`userData/browser-subtitles/*.srt` yazımı da aynı sınıftaydı (import-ezgisi `save()`dan bağımsız satır) — `writeFileSync(temp, BOM+metin)` + `renameSync` fsync'sizdi; aynı tören eklendi.
+
+### B-377-03 — `browser-translation-cache.js` compact(): üç fsync eksikliği
+
+13 MB'lık temel önbellek dosyasının sıkıştırmasında `writeFile(temp)` ve `rename(temp→base)` fsync'sizdi; `.bak` kopyası da fsync'sizdi ve dizin fsync'i hiç yoktu. Promise ve senkron iki dal da düzeltildi (temp fsync → rename → .bak fsync → dir fsync). Matris testine eklendi; `.bak` yazımının rename-SONRASI olduğu yeni düzeni kapsamak için sıra kuralı genelleştirildi (yedek kendi yazımından sonra fsync'lenir — rename-öncesi yedeklerde rename öncesi kapanmalı).
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- renderer/browser-features.js tam okuma temiz: `tick()` bağlam-imza sıfırlaması, `current(ctx,seq)` bayat bekçisi, iptal→sunucu-abort köprüsü, OCR pointer-cancel temizliği, `data:image/(png|jpeg|webp)` doğrulaması, metin-render textContent-only; `browser-skips-changed` bayat-uygulama olasılığı senkron dispatch'e bağlı olarak kapalı (teorik-yarış çözüldü).
+- subtitle-sentence-layout.js tam okuma temiz: v2/3/4 protokol kabul, kısaltma/bağlaç cümle-sonu sezgisi, TR sayı-sözcük eşleme (999M, saat kalıpları, negatif/yüzde), PARTS_MISMATCH/PARTS_MISSING kodları, JSON çit-sıyırma, `arrayLike` reddi, `merged:true` kaçış yolu, DP bölütlemede tahsissiz geri-izleme + sınır kapısı (400 kelime/12 parça).
+- browser-subtitle-search.js tam okuma temiz: streaming boundedBody + cancel/releaseLock, istek sınırları (300/12/0..10000 aralıkları), moviehash regex + boş-sonuç geri düşümü, fileId+fileName aynı dosya kaydından, langTag ISO 639-2→1 + varyant bilinçli eşleşme, anyTagged dil süzgeci, her yönlendirme-hop'u yeniden onaylanan host whitelist (https+kullanıcı-adı/port yok), indirilen dosyanın altyazı-yapısı doğrulaması (`-->`|WEBVTT|ASS) + NUL reddi, dosya-adı traversal koruması.
+- Yeniden-ortaya-çıkan sınıf notu: R281'in fsync süpürmesinden beri bulunan beşinci dosya (`browser-feature-services` iki yazımda). Kalan `writeFileSync.*renameSync` örüntüsü taraması bu turda tamamlandı; yeni IPC-depo eklentilerinde matris ratchet'i zorunlu.
+
+Windows etkisi: fsync-utils zaten ENOTSUP/EPERM/EROFS tolerant (Windows dizin fsync'i EPERM verebilir) — davranış eşdeğer; testte dizin-fsync destek kapısı korunur.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
