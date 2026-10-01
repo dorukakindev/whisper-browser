@@ -1298,6 +1298,55 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R373 — orta-boy yüzeylerin tam derin okuması: sayfa-çeviri, güvenlik, scheduler, overlay, manga + renderer-helpers
+
+Kapsam (~6.160 satır, altı dosya hepsi satır satır okundu):
+
+- `src/browser-page-translate.js` (1.473) — sayfa-içi çeviri enjeksiyon
+  betiği: tarama, kabul/red, araç çubuğu, uygulama, görünüm, önizleme.
+- `src/settings-security.js` (903) — ayar şeması doğrulama ve güvenli
+  çekirdek anahtar süzgeci (önceki tur kısmı).
+- `src/browser-translation-scheduler.js` (794) — pencere planlama,
+  eşzamanlı pompa, hata sınıflandırması, çekirdek/paylaşılan önbellek,
+  geri-yükleme, deferred yeniden-planlama.
+- `src/browser-overlay-controller.js` (828) — native-yüzey
+  kaplaması: sürükleme, sınır-taraması (`nextCueBoundaryAt` dizini),
+  medya keşfi, gözlemci kotaları, tam-ekran hostu.
+- `src/browser-manga.js` (1.066) — aday seçimi, bölge normalizasyonu,
+  renk örneklemesi, önbellek anahtarları, URL/IP güvenlik süzgeci,
+  enjekte düzen/undo.
+- `src/renderer/renderer-helpers.js` (1.098) — R153 çıkarımları:
+  kuyruk, sekme şeridi, palet, QR, koleksiyon, izin akışı.
+
+### B-373-01 — Sayfa-çeviri 'Orijinali gör' önizlemesi başka blokta takılı kalıyordu
+
+- Araç çubuğundaki "Orijinal" düğmesi 2,5 saniyelik kaynak önizlemesi
+  açar; `previewTimer` tekil yuvadır. A bloğunda önizleme açıkken B
+  bloğunun düğmesine basmak A'nın geri-dönüş zamanlayıcısını iptal edip
+  A'yı kaynak metinde süresiz bırakıyordu (kullanıcı A'yı yanlışlıkla
+  çevrilmemiş sanıyor).
+- **Düzeltme:** `state.previewedRef` tek-yuvalı takip; `showOriginal`
+  her yeni önizleme öncesi `restoreView(state.previewedRef)` çağırır;
+  `hideTools` ve zamanlayıcı geri-dönüşü de aynı yuvayı kullanır.
+- Regresyon: `tests/browser-page-translate.test.js` — iki bloklu
+  sahte-DOM senaryosu, master'da KIRMIZI (A kaynak metinde kalıyor),
+  düzeltmeyle PASS. `dom-innerhtml-ratchet` toolsMarkup pini
+  1047→1057 (master'daki preexisting bayat pin — R372 dalıyla aynı).
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- `knownIds` kümesi blok-sonu salımdan sonra silinmez; SPA'da uzun oturum
+  sınırlı sızıntı olabilir — pratikte muted DOM referansları yaklaşık
+  aynı maliyettedir; kabul edildi.
+- `isPublicMangaIpAddress` 192.0.0.x için yalnız .0 ve .2'yi reddeder;
+  kalan /24 zaten yönlendirilemez — kötüye kullanım yüzeyi yok.
+- `pageMemory`/`persistTranslation`/`flushPersistedTranslations`
+  bilinçli olarak pasifleştirilmiş yedekler (kalıcı bellek main
+  sürecinde tutulur) — kod yorumunda belgeli.
+
+Windows etkisi: düzeltme tarayıcı-içi enjekte betikte; Windows'ta
+davranış değişimi yalnız olumlu (önizleme artık her zaman geri döner).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
