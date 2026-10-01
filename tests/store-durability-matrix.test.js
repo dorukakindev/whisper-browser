@@ -21,6 +21,7 @@ const { BrowserNoteStore } = require('../src/browser-note-store');
 const { BrowserAssetStore } = require('../src/browser-asset-store');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const { atomicWriteFileSync } = require('../src/fsync-utils');
+const { BrowserElementRules } = require('../src/browser-element-rules');
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  PASS ${name}`); }
@@ -291,6 +292,16 @@ try {
       ok(`atomic: zincir denemesi ${path.relative(tmpRoot, d) || '.'}`, opened.has(d));
     }
   }
+}
+
+// --- 7) browser-element-rules: _write — B-383-01 ---
+{
+  const { calls, io } = recordingFs();
+  const file = path.join(tmpRoot, 'element-rules', 'rules.json');
+  const rules = new BrowserElementRules(file, io);
+  const added = rules.add('https://ornek.test/sayfa', 'div.reklam-banneri');
+  ok('element-rules: ekleme ok', added.ok === true);
+  assertCommitOrder('element-rules: write', calls, file);
 }
 
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});
