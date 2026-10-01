@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)
+Güncel çalışma: [docs/devir/2026-10-01-1940.md](docs/devir/2026-10-01-1940.md) — kuyruk-50 madde 18: parça bazlı senkron profilleri (offsetProfiles + offset2)
+Önceki çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)
 Önceki çalışma: [docs/devir/2026-10-01-1934.md](docs/devir/2026-10-01-1934.md) — kuyruk-50 madde 16: findCueAt seek indeksi
 Önceki çalışma: [docs/devir/2026-10-01-1921.md](docs/devir/2026-10-01-1921.md) — kuyruk-50 madde 15: konuşmacı düzeltme akışı
 Önceki çalışma: [docs/devir/2026-10-01-1914.md](docs/devir/2026-10-01-1914.md) — kuyruk-50 madde 14: ortak VRAM bütçesi + akış OOM sınıflandırması
