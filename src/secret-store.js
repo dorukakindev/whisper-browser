@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
 
 const SECRET_STORE_VERSION = 1;
 const DEFAULT_SECRET_FIELDS = Object.freeze([
@@ -178,11 +179,14 @@ class SafeSecretStore {
       const dir = path.dirname(this.filePath);
       temp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${Date.now()}.tmp`);
       this.fs.mkdirSync(dir, { recursive: true });
-      this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, { encoding: 'utf8', flush: true });
+      this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, { encoding: 'utf8' });
+      fsyncFile(temp, this.fs);
       if (this.fs.existsSync(this.filePath) && this.loadFile(this.filePath).ok) {
         this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
+        fsyncFileBestEffort(`${this.filePath}.bak`, this.fs);
       }
       this.fs.renameSync(temp, this.filePath);
+      fsyncDirectory(dir, this.fs);
       return { ok: true, stored: Object.keys(entries) };
     } catch (error) {
       return { ok: false, error: error.message };

@@ -423,6 +423,24 @@ async function main() {
   assert.match(r.error, /EIO/);
   assert(!fs.existsSync(secFile));
   assert.equal(tmpFiles(dir).length, 0);
+
+  // B-376-01: kasa yazımı diğer depolarla aynı fsync törenini taşır —
+  // {flush:true} writeFileSync'te ölü seçenekti (WriteStream'e aittir).
+  // Güç kesintisi şifreli kayıtları sıfır-bayt bırakmamalı.
+  const fsynced = [];
+  const recordingFs = Object.create(fs, {
+    fsyncSync: { value(fd) { fsynced.push(fd); return fs.fsyncSync(fd); } },
+  });
+  const sec2File = path.join(dir, 'secrets-fsync.json');
+  const sec2 = new SafeSecretStore({
+    filePath: sec2File, safeStorage: fakeSafeStorage, fields: ['apiKey'],
+    fsModule: recordingFs,
+  });
+  assert.equal(sec2.save({ apiKey: 'FIRST-KEY-NOT-REAL' }).ok, true);
+  assert.equal(sec2.save({ apiKey: 'SECOND-KEY-NOT-REAL' }).ok, true);
+  // En az tmp + yedek + dizin fsync çağrısı beklenir (2 yazım).
+  assert.ok(fsynced.length >= 4, `fsync sayısı: ${fsynced.length}`);
+  assert.equal(tmpFiles(dir).length, 0);
 }
 
 // ---- Bölüm I: yanlış nesil karışması --------------------------------------------
