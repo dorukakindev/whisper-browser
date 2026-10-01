@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
+Güncel çalışma: [docs/devir/2026-10-01-1844.md](docs/devir/2026-10-01-1844.md) — kuyruk-50 madde 10: dışarıdan-değişim birleştirme (taslak koruma + seçili değişiklik güncel sürüme uygulanır)
+Önceki çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
 Önceki çalışma: [docs/devir/2026-10-01-1829.md](docs/devir/2026-10-01-1829.md) — kuyruk-50 madde 8: toplu düzenleme geçmişi — iki paralel yığının disk/bellek uyuşmazlığı giderildi (engel + görünür sıfırlama)
 Önceki çalışma: [docs/devir/2026-10-01-1813.md](docs/devir/2026-10-01-1813.md) — kuyruk-50 madde 7: okuma hızına göre dağıtım (CPS kapasitesi + cümle-sonu önceliği; en kötü CPS 30→22)
 Önceki çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 6: çok noktalı senkron (least-squares + LOO outlier + güven göstergesi)
