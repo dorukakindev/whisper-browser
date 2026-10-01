@@ -1,0 +1,1101 @@
+{
+ "meta": {
+  "name": "whisper-browser meaning-loss evaluation corpus",
+  "version": 1,
+  "license": "CC0-1.0 — tüm örnekler bu çalışma için sıfırdan yazıldı; dış kaynak metin içermez",
+  "categories": [
+   "olumsuzluk",
+   "ihtimal",
+   "zorunluluk",
+   "sayi",
+   "hitap",
+   "argo"
+  ],
+  "labels": {
+   "accept": "doğru çeviri — kapı reddetmemeli",
+   "reject": "anlam kaybı var — ideal kapı yakalamalı; 'gatable:false' yapısal kanıtı olmayan kör-nokta satırları"
+  }
+ },
+ "cases": [
+  {
+   "id": "olumsuzluk-01",
+   "cat": "olumsuzluk",
+   "src": "I never saw him.",
+   "cand": "Onu gördüm.",
+   "expected": "reject",
+   "why": "never düşürüldü — anlam tersine döndü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-02",
+   "cat": "olumsuzluk",
+   "src": "I don't know where he went.",
+   "cand": "Nereye gittiğini biliyorum.",
+   "expected": "reject",
+   "why": "don't kaybı olumlu cümleye çevirdi",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-03",
+   "cat": "olumsuzluk",
+   "src": "She can't swim.",
+   "cand": "Yüzebilir.",
+   "expected": "reject",
+   "why": "can't → olumlu",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-04",
+   "cat": "olumsuzluk",
+   "src": "He isn't coming.",
+   "cand": "Geliyor.",
+   "expected": "reject",
+   "why": "isn't düştü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-05",
+   "cat": "olumsuzluk",
+   "src": "We mustn't tell anyone.",
+   "cand": "Birine söylemeliyiz.",
+   "expected": "reject",
+   "why": "mustn't yasağı zorunluluğa döndü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-06",
+   "cat": "olumsuzluk",
+   "src": "No one answered.",
+   "cand": "Biri cevapladı.",
+   "expected": "reject",
+   "why": "no one → biri",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-07",
+   "cat": "olumsuzluk",
+   "src": "There's nothing left.",
+   "cand": "Her şey duruyor.",
+   "expected": "reject",
+   "why": "nothing → her şey",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-08",
+   "cat": "olumsuzluk",
+   "src": "I won't go.",
+   "cand": "Gideceğim.",
+   "expected": "reject",
+   "why": "won't → olumlu gelecek",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-09",
+   "cat": "olumsuzluk",
+   "src": "He hardly speaks.",
+   "cand": "Sürekli konuşuyor.",
+   "expected": "reject",
+   "why": "hardly → sürekli",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-10",
+   "cat": "olumsuzluk",
+   "src": "Without your help, I'd fail.",
+   "cand": "Yardımınla başarırım.",
+   "expected": "reject",
+   "why": "without tersine çevrildi",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-11",
+   "cat": "olumsuzluk",
+   "src": "I didn't take the money.",
+   "cand": "Parayı aldım.",
+   "expected": "reject",
+   "why": "didn't düştü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-12",
+   "cat": "olumsuzluk",
+   "src": "Nobody came to the funeral.",
+   "cand": "Cenazeye herkes geldi.",
+   "expected": "reject",
+   "why": "nobody → herkes",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-13",
+   "cat": "olumsuzluk",
+   "src": "You needn't worry.",
+   "cand": "Endişelenmelisin.",
+   "expected": "reject",
+   "why": "needn't düşürülüp zorunluluğa döndü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-14",
+   "cat": "olumsuzluk",
+   "src": "It wasn't me.",
+   "cand": "Bendim.",
+   "expected": "reject",
+   "why": "wasn't düştü",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-15",
+   "cat": "olumsuzluk",
+   "src": "I can't swim.",
+   "cand": "Yüzemem.",
+   "expected": "accept",
+   "why": "-mAm olumsuzluğu gövdede",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-16",
+   "cat": "olumsuzluk",
+   "src": "I never saw him.",
+   "cand": "Onu hiç görmedim.",
+   "expected": "accept",
+   "why": "hiç + -medi",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-17",
+   "cat": "olumsuzluk",
+   "src": "She doesn't know.",
+   "cand": "Bilmiyor.",
+   "expected": "accept",
+   "why": "-mIyor olumsuzluğu",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-18",
+   "cat": "olumsuzluk",
+   "src": "He won't come.",
+   "cand": "Gelmeyecek.",
+   "expected": "accept",
+   "why": "-mEyecek",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-19",
+   "cat": "olumsuzluk",
+   "src": "I don't want it.",
+   "cand": "İstemem.",
+   "expected": "accept",
+   "why": "-mem (istemem)",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-20",
+   "cat": "olumsuzluk",
+   "src": "We mustn't tell.",
+   "cand": "Söylememeliyiz.",
+   "expected": "accept",
+   "why": "-memeli",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-21",
+   "cat": "olumsuzluk",
+   "src": "There's nothing left.",
+   "cand": "Hiçbir şey kalmadı.",
+   "expected": "accept",
+   "why": "hiçbir + -madı",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-22",
+   "cat": "olumsuzluk",
+   "src": "I can't do this without you.",
+   "cand": "Sensiz yapamam.",
+   "expected": "accept",
+   "why": "-sIz privative + -mam",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-23",
+   "cat": "olumsuzluk",
+   "src": "He hardly ever calls.",
+   "cand": "Neredeyse hiç aramaz.",
+   "expected": "accept",
+   "why": "hiç + -maz",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-24",
+   "cat": "olumsuzluk",
+   "src": "I couldn't reach him.",
+   "cand": "Ona ulaşamadım.",
+   "expected": "accept",
+   "why": "-amadı",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-25",
+   "cat": "olumsuzluk",
+   "src": "It wasn't me.",
+   "cand": "Ben değildim.",
+   "expected": "accept",
+   "why": "değil geçmiş",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-26",
+   "cat": "olumsuzluk",
+   "src": "You needn't come.",
+   "cand": "Gelmen gerekmez.",
+   "expected": "accept",
+   "why": "gerekmez olumsuz",
+   "gatable": true
+  },
+  {
+   "id": "olumsuzluk-27",
+   "cat": "olumsuzluk",
+   "src": "I haven't eaten.",
+   "cand": "Yemedim.",
+   "expected": "accept",
+   "why": "-medi",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-01",
+   "cat": "ihtimal",
+   "src": "It might rain.",
+   "cand": "Yağmur yağacak.",
+   "expected": "reject",
+   "why": "might → kesin gelecek (-acak modallık sayılır ama ihtimal kaybı)",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-02",
+   "cat": "ihtimal",
+   "src": "He may come.",
+   "cand": "Geliyor.",
+   "expected": "reject",
+   "why": "may → süren kesinlik",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-03",
+   "cat": "ihtimal",
+   "src": "You should ask.",
+   "cand": "Soruyorsun.",
+   "expected": "reject",
+   "why": "should → şimdiki kesin",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-04",
+   "cat": "ihtimal",
+   "src": "It could be him.",
+   "cand": "O.",
+   "expected": "reject",
+   "why": "could olabilirliği düştü",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-05",
+   "cat": "ihtimal",
+   "src": "Perhaps she left.",
+   "cand": "Gitti.",
+   "expected": "reject",
+   "why": "perhaps düştü",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-06",
+   "cat": "ihtimal",
+   "src": "I might be wrong.",
+   "cand": "Yanılıyorum.",
+   "expected": "reject",
+   "why": "might düştü",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-07",
+   "cat": "ihtimal",
+   "src": "He could have escaped.",
+   "cand": "Kaçtı.",
+   "expected": "reject",
+   "why": "could have → kesin geçmiş",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-08",
+   "cat": "ihtimal",
+   "src": "Maybe he forgot.",
+   "cand": "Unuttu.",
+   "expected": "reject",
+   "why": "maybe düştü",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-09",
+   "cat": "ihtimal",
+   "src": "I could be dreaming.",
+   "cand": "Rüya görüyorum.",
+   "expected": "reject",
+   "why": "could → kesin",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-10",
+   "cat": "ihtimal",
+   "src": "It may not work.",
+   "cand": "İşe yaramıyor.",
+   "expected": "reject",
+   "why": "may not → düpedüz olumsuz kesin",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-11",
+   "cat": "ihtimal",
+   "src": "It might rain.",
+   "cand": "Yağabilir.",
+   "expected": "accept",
+   "why": "-ebilir ihtimal",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-12",
+   "cat": "ihtimal",
+   "src": "He may come.",
+   "cand": "Belki gelir.",
+   "expected": "accept",
+   "why": "belki",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-13",
+   "cat": "ihtimal",
+   "src": "You should ask.",
+   "cand": "Sormalısın.",
+   "expected": "accept",
+   "why": "-malı",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-14",
+   "cat": "ihtimal",
+   "src": "It could be him.",
+   "cand": "O olabilir.",
+   "expected": "accept",
+   "why": "olabilir",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-15",
+   "cat": "ihtimal",
+   "src": "Perhaps she left.",
+   "cand": "Belki gitti.",
+   "expected": "accept",
+   "why": "belki + geçmiş",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-16",
+   "cat": "ihtimal",
+   "src": "I might be wrong.",
+   "cand": "Yanılmış olabilirim.",
+   "expected": "accept",
+   "why": "olabilir",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-17",
+   "cat": "ihtimal",
+   "src": "You have to see this.",
+   "cand": "Bunu görmelisin.",
+   "expected": "accept",
+   "why": "have to → -malı",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-18",
+   "cat": "ihtimal",
+   "src": "She could have escaped.",
+   "cand": "Kaçmış olabilir.",
+   "expected": "accept",
+   "why": "could have → olabilir",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-19",
+   "cat": "ihtimal",
+   "src": "I may need help.",
+   "cand": "Yardıma ihtiyacım olabilir.",
+   "expected": "accept",
+   "why": "olabilir",
+   "gatable": true
+  },
+  {
+   "id": "ihtimal-20",
+   "cat": "ihtimal",
+   "src": "It may not work.",
+   "cand": "İşe yaramayabilir.",
+   "expected": "accept",
+   "why": "may not → -mayabilir",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-01",
+   "cat": "zorunluluk",
+   "src": "You must come.",
+   "cand": "Gelebilirsin.",
+   "expected": "reject",
+   "why": "must → can (zorunluluk→olanak)",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-02",
+   "cat": "zorunluluk",
+   "src": "He had to leave.",
+   "cand": "Gitti.",
+   "expected": "reject",
+   "why": "had to düştü",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-03",
+   "cat": "zorunluluk",
+   "src": "You need to finish.",
+   "cand": "Bitirebilirsin.",
+   "expected": "reject",
+   "why": "need to → -ebilir",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-04",
+   "cat": "zorunluluk",
+   "src": "She has to pay today.",
+   "cand": "Bugün ödeyebilir.",
+   "expected": "reject",
+   "why": "has to → -ebilir",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-05",
+   "cat": "zorunluluk",
+   "src": "I must remember this.",
+   "cand": "Hatırlamak isterim.",
+   "expected": "reject",
+   "why": "must → istek",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-06",
+   "cat": "zorunluluk",
+   "src": "You mustn't enter.",
+   "cand": "Girmelisin.",
+   "expected": "reject",
+   "why": "mustn't → -malı (çift kayıp)",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-07",
+   "cat": "zorunluluk",
+   "src": "He doesn't have to go.",
+   "cand": "Gitmek zorunda.",
+   "expected": "reject",
+   "why": "doesn't have to → zorunda",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-08",
+   "cat": "zorunluluk",
+   "src": "I shouldn't stay.",
+   "cand": "Kalmalıyım.",
+   "expected": "reject",
+   "why": "shouldn't → -malı",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-09",
+   "cat": "zorunluluk",
+   "src": "We had to sell the house.",
+   "cand": "Evi sattık.",
+   "expected": "reject",
+   "why": "had to düştü",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-10",
+   "cat": "zorunluluk",
+   "src": "You are required to sign.",
+   "cand": "İmzalayabilirsin.",
+   "expected": "reject",
+   "why": "required → -ebilir",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-11",
+   "cat": "zorunluluk",
+   "src": "You must come.",
+   "cand": "Gelmek zorundasın.",
+   "expected": "accept",
+   "why": "zorunda",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-12",
+   "cat": "zorunluluk",
+   "src": "He had to leave.",
+   "cand": "Gitmek zorundaydı.",
+   "expected": "accept",
+   "why": "zorundaydı",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-13",
+   "cat": "zorunluluk",
+   "src": "You need to finish.",
+   "cand": "Bitirmen gerekiyor.",
+   "expected": "accept",
+   "why": "gerekiyor",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-14",
+   "cat": "zorunluluk",
+   "src": "I mustn't forget.",
+   "cand": "Unutmamalıyım.",
+   "expected": "accept",
+   "why": "-mamalı",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-15",
+   "cat": "zorunluluk",
+   "src": "She has to pay now.",
+   "cand": "Şimdi ödemesi lazım.",
+   "expected": "accept",
+   "why": "lazım",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-16",
+   "cat": "zorunluluk",
+   "src": "You don't have to answer.",
+   "cand": "Cevaplamak zorunda değilsin.",
+   "expected": "accept",
+   "why": "zorunda değil",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-17",
+   "cat": "zorunluluk",
+   "src": "I have to go.",
+   "cand": "Gitmeliyim.",
+   "expected": "accept",
+   "why": "-meli",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-18",
+   "cat": "zorunluluk",
+   "src": "We needn't hurry.",
+   "cand": "Acele etmemize gerek yok.",
+   "expected": "accept",
+   "why": "gerek yok",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-19",
+   "cat": "zorunluluk",
+   "src": "He must not see this.",
+   "cand": "Bunu görmemeli.",
+   "expected": "accept",
+   "why": "-memeli",
+   "gatable": true
+  },
+  {
+   "id": "zorunluluk-20",
+   "cat": "zorunluluk",
+   "src": "You must not enter.",
+   "cand": "Girmemelisin.",
+   "expected": "accept",
+   "why": "-memeli",
+   "gatable": true
+  },
+  {
+   "id": "sayi-01",
+   "cat": "sayi",
+   "src": "20 people died.",
+   "cand": "İki kişi öldü.",
+   "expected": "reject",
+   "why": "20 → 2",
+   "gatable": true
+  },
+  {
+   "id": "sayi-02",
+   "cat": "sayi",
+   "src": "The meeting is at 5:30.",
+   "cand": "Toplantı 5'te.",
+   "expected": "reject",
+   "why": "5:30 kayboldu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-03",
+   "cat": "sayi",
+   "src": "I paid $45.",
+   "cand": "45 lira ödedim.",
+   "expected": "reject",
+   "why": "$ → lira para birimi değişti (dönüşüm yok)",
+   "gatable": true
+  },
+  {
+   "id": "sayi-04",
+   "cat": "sayi",
+   "src": "It costs $100.",
+   "cand": "100 € tutuyor.",
+   "expected": "reject",
+   "why": "usd → eur değişimi",
+   "gatable": true
+  },
+  {
+   "id": "sayi-05",
+   "cat": "sayi",
+   "src": "We drove 60 miles.",
+   "cand": "60 kilometre gittik.",
+   "expected": "reject",
+   "why": "mile→km dönüşümsüz birim değişimi",
+   "gatable": true
+  },
+  {
+   "id": "sayi-06",
+   "cat": "sayi",
+   "src": "He scored 3 goals.",
+   "cand": "5 gol attı.",
+   "expected": "reject",
+   "why": "3→5",
+   "gatable": true
+  },
+  {
+   "id": "sayi-07",
+   "cat": "sayi",
+   "src": "She's 17.",
+   "cand": "18 yaşında.",
+   "expected": "reject",
+   "why": "17→18",
+   "gatable": true
+  },
+  {
+   "id": "sayi-08",
+   "cat": "sayi",
+   "src": "It happened in 1998.",
+   "cand": "1989'da oldu.",
+   "expected": "reject",
+   "why": "yıl değişti",
+   "gatable": true
+  },
+  {
+   "id": "sayi-09",
+   "cat": "sayi",
+   "src": "About 40% agreed.",
+   "cand": "Çoğunluk kabul etti.",
+   "expected": "reject",
+   "why": "40% düştü",
+   "gatable": true
+  },
+  {
+   "id": "sayi-10",
+   "cat": "sayi",
+   "src": "There were 1,500 seats.",
+   "cand": "150 koltuk vardı.",
+   "expected": "reject",
+   "why": "1500→150",
+   "gatable": true
+  },
+  {
+   "id": "sayi-11",
+   "cat": "sayi",
+   "src": "I have 3 brothers.",
+   "cand": "Üç erkek kardeşim var.",
+   "expected": "accept",
+   "why": "3 → üç (yazıyla)",
+   "gatable": true
+  },
+  {
+   "id": "sayi-12",
+   "cat": "sayi",
+   "src": "The meeting is at 5:30.",
+   "cand": "Toplantı 5.30'da.",
+   "expected": "accept",
+   "why": "saat nokta biçimi",
+   "gatable": true
+  },
+  {
+   "id": "sayi-13",
+   "cat": "sayi",
+   "src": "I paid $45.",
+   "cand": "45 dolar ödedim.",
+   "expected": "accept",
+   "why": "usd korundu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-14",
+   "cat": "sayi",
+   "src": "He scored 3 goals.",
+   "cand": "3 gol attı.",
+   "expected": "accept",
+   "why": "3 korundu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-15",
+   "cat": "sayi",
+   "src": "We drove 60 miles.",
+   "cand": "60 mil gittik.",
+   "expected": "accept",
+   "why": "mil korundu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-16",
+   "cat": "sayi",
+   "src": "It happened in 1998.",
+   "cand": "1998'de oldu.",
+   "expected": "accept",
+   "why": "yıl korundu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-17",
+   "cat": "sayi",
+   "src": "2,000 people came.",
+   "cand": "2000 kişi geldi.",
+   "expected": "accept",
+   "why": "binlik ayraç normalizasyonu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-18",
+   "cat": "sayi",
+   "src": "She's 17 years old.",
+   "cand": "17 yaşında.",
+   "expected": "accept",
+   "why": "17 korundu",
+   "gatable": true
+  },
+  {
+   "id": "sayi-19",
+   "cat": "sayi",
+   "src": "It costs 50 euros.",
+   "cand": "50 avroya mal oluyor.",
+   "expected": "accept",
+   "why": "euro→avro aynı birim",
+   "gatable": true
+  },
+  {
+   "id": "sayi-20",
+   "cat": "sayi",
+   "src": "The room is 30 degrees Celsius.",
+   "cand": "Oda 30 santigrat.",
+   "expected": "accept",
+   "why": "celsius eşlemi",
+   "gatable": true
+  },
+  {
+   "id": "hitap-01",
+   "cat": "hitap",
+   "src": "Your Majesty, the letter arrived.",
+   "cand": "Mektup geldi.",
+   "expected": "reject",
+   "why": "Majesteleri hitabı düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-02",
+   "cat": "hitap",
+   "src": "Sir, you forgot your bag.",
+   "cand": "Çantanı unuttun.",
+   "expected": "reject",
+   "why": "Sir düştü + sen-formu",
+   "gatable": false
+  },
+  {
+   "id": "hitap-03",
+   "cat": "hitap",
+   "src": "Ladies and gentlemen, welcome!",
+   "cand": "Hoş geldiniz.",
+   "expected": "reject",
+   "why": "hitap grubu düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-04",
+   "cat": "hitap",
+   "src": "Mr. President, your speech…",
+   "cand": "Konuşman…",
+   "expected": "reject",
+   "why": "Mr. President düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-05",
+   "cat": "hitap",
+   "src": "Doctor, may I come in?",
+   "cand": "Girebilir miyim?",
+   "expected": "reject",
+   "why": "Doktor hitabı düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-06",
+   "cat": "hitap",
+   "src": "Your Honor, I object.",
+   "cand": "İtiraz ediyorum.",
+   "expected": "reject",
+   "why": "Your Honor düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-07",
+   "cat": "hitap",
+   "src": "Grandma, dinner is ready.",
+   "cand": "Yemek hazır.",
+   "expected": "reject",
+   "why": "Grandma düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-08",
+   "cat": "hitap",
+   "src": "Boss, the client called.",
+   "cand": "Müşteri aradı.",
+   "expected": "reject",
+   "why": "Patron hitabı düştü",
+   "gatable": false
+  },
+  {
+   "id": "hitap-09",
+   "cat": "hitap",
+   "src": "Your Majesty, the letter arrived.",
+   "cand": "Majesteleri, mektup geldi.",
+   "expected": "accept",
+   "why": "hitap korundu",
+   "gatable": false
+  },
+  {
+   "id": "hitap-10",
+   "cat": "hitap",
+   "src": "Sir, you forgot your bag.",
+   "cand": "Efendim, çantanızı unuttunuz.",
+   "expected": "accept",
+   "why": "hitap + siz-formu",
+   "gatable": false
+  },
+  {
+   "id": "hitap-11",
+   "cat": "hitap",
+   "src": "Ladies and gentlemen, welcome!",
+   "cand": "Hanımlar beyler, hoş geldiniz!",
+   "expected": "accept",
+   "why": "hitap korundu",
+   "gatable": false
+  },
+  {
+   "id": "hitap-12",
+   "cat": "hitap",
+   "src": "Doctor, may I come in?",
+   "cand": "Doktor, girebilir miyim?",
+   "expected": "accept",
+   "why": "hitap korundu",
+   "gatable": false
+  },
+  {
+   "id": "hitap-13",
+   "cat": "hitap",
+   "src": "Grandma, dinner is ready.",
+   "cand": "Büyükanne, yemek hazır.",
+   "expected": "accept",
+   "why": "hitap korundu",
+   "gatable": false
+  },
+  {
+   "id": "argo-01",
+   "cat": "argo",
+   "src": "That's sick!",
+   "cand": "Bu hasta!",
+   "expected": "reject",
+   "why": "argo 'müthiş' harfi harfine çevrildi",
+   "gatable": false
+  },
+  {
+   "id": "argo-02",
+   "cat": "argo",
+   "src": "He's a chicken.",
+   "cand": "O bir tavuk.",
+   "expected": "reject",
+   "why": "chicken=korkak harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-03",
+   "cat": "argo",
+   "src": "Break a leg!",
+   "cand": "Bacağını kır!",
+   "expected": "reject",
+   "why": "deyim harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-04",
+   "cat": "argo",
+   "src": "You're pulling my leg.",
+   "cand": "Bacağımı çekiyorsun.",
+   "expected": "reject",
+   "why": "deyim harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-05",
+   "cat": "argo",
+   "src": "It's raining cats and dogs.",
+   "cand": "Kedi ve köpek yağıyor.",
+   "expected": "reject",
+   "why": "deyim harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-06",
+   "cat": "argo",
+   "src": "He kicked the bucket.",
+   "cand": "Kovayı tekmeledi.",
+   "expected": "reject",
+   "why": "deyim harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-07",
+   "cat": "argo",
+   "src": "That movie bombed.",
+   "cand": "Film bombalandı.",
+   "expected": "reject",
+   "why": "bombed=çakıldı",
+   "gatable": false
+  },
+  {
+   "id": "argo-08",
+   "cat": "argo",
+   "src": "You nailed it.",
+   "cand": "Çiviledin.",
+   "expected": "reject",
+   "why": "nailed harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-09",
+   "cat": "argo",
+   "src": "He's out of his mind.",
+   "cand": "Aklının dışında.",
+   "expected": "reject",
+   "why": "deyim harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-10",
+   "cat": "argo",
+   "src": "She's a real gem.",
+   "cand": "O gerçek bir mücevher.",
+   "expected": "reject",
+   "why": "gem harfi harfine",
+   "gatable": false
+  },
+  {
+   "id": "argo-11",
+   "cat": "argo",
+   "src": "That's sick!",
+   "cand": "Bu efsane!",
+   "expected": "accept",
+   "why": "argo deyimsel karşılık",
+   "gatable": false
+  },
+  {
+   "id": "argo-12",
+   "cat": "argo",
+   "src": "Break a leg!",
+   "cand": "Bol şans!",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-13",
+   "cat": "argo",
+   "src": "He kicked the bucket.",
+   "cand": "Nalları dikti.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-14",
+   "cat": "argo",
+   "src": "It's raining cats and dogs.",
+   "cand": "Bardaktan boşanırcasına yağıyor.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-15",
+   "cat": "argo",
+   "src": "You nailed it.",
+   "cand": "Tam isabet.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-16",
+   "cat": "argo",
+   "src": "He's a chicken.",
+   "cand": "Korkağın teki.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-17",
+   "cat": "argo",
+   "src": "She's a real gem.",
+   "cand": "Çok değerli biri.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-18",
+   "cat": "argo",
+   "src": "That movie bombed.",
+   "cand": "Film çakıldı.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-19",
+   "cat": "argo",
+   "src": "Whatever.",
+   "cand": "Her neyse.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  },
+  {
+   "id": "argo-20",
+   "cat": "argo",
+   "src": "He's out of his mind.",
+   "cand": "Aklını kaçırmış.",
+   "expected": "accept",
+   "why": "deyimsel",
+   "gatable": false
+  }
+ ]
+}
