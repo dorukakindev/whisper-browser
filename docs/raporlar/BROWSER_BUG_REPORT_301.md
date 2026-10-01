@@ -1298,6 +1298,46 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R372 — styles.css + browser-chrome.css yapısal denetim (20 ölü kural + ratchet)
+
+8.424 satır CSS üzerinde tam envanter taraması: 1.003 sınıf seçicisi
+karşılığı üretim DOM referansı (src/**/*.js + index.html).
+
+- **Sözdizimi:** küme dengesi, boş bildirim, çift noktalı — temiz.
+- **Değişkenler:** 121 tanım / 117 kullanım; tanımsız başvuruların
+  tamamı fallback'li istemli soft-hook (`--wl-font-sans`, `--font-mono`,
+  `--bg-alt` → `var(--x, yedek)`). 13 tanımlı-kullanılmayan token
+  (space/z/elev/motion aileleri) tasarım rezervi — notlandı, silinmedi.
+- **Ölü seçiciler (silindi):** `cue-row` ailesi (okuma-modu
+  yeniden tasarımı kalıntısı), `history-empty`, `tool-spacer`×2,
+  `tool-glyph`, `view-modes-label`×2, `back-to-active`×2,
+  `side-tab-title`, `player-task-center-list`, `pdf-source-text`,
+  `research-card-links`, `browser-tab-pin`×3 (kasıtlı kaldırılan
+  sekme-sabitleme düğmesinin CSS artığı — test zaten yokluğunu
+  kilitliyor), `browser-empty-rule`, `browser-signal-title`,
+  `cue-word.is-hovered`/`.is-picked` (Highlight API'ye taşınan eski
+  sınıf tabanlı vurgu yolu — kurallar artık hiç tetiklenmiyordu).
+  Sarkık virgül düzeltmesi: light-theme `.cue-word:hover` ayrık kurala
+  indirildi.
+- **Korunanlar:** `.tool-row-quiet` (player-ui.test.js kural gövdesini
+  kilitler), `.browser-tab.pinned` (canlı), dinamik üretim aileleri
+  (`log-${level}`, `is-${state}`, `segment-state-${key}`, `ai-msg-${role}`,
+  `ai-context-${kind}`, `confidence-${level}` — hepsi şablon
+  birleştirmesiyle kurulur).
+- **Yeni ratchet:** `tests/css-dead-selectors.test.js` — her sınıf
+  seçicisi üretim kaynağında geçmeli ya da `prefix-${` dinamik
+  ailesine girmeli (1.068 seçici, 0 ölü; `tool-row-quiet` bilinçli
+  beyaz listede).
+- **Ayrı bulgu (master'da düşüyordu):** `dom-innerhtml-ratchet`
+  whitelist'i `toolsMarkup` için satır numarasına bağlıydı ve kod
+  kayınca (1047→1057) master'da FAIL üretiyordu — sabit literal
+  güvenli, satır güncellendi.
+- Sabit-renk baseline 436→433 (silinen kurallardaki hex'ler düştü).
+
+Windows etkisi: yalnız ölü CSS silindi; renderlanan hiçbir kural
+değişmedi — Windows riski yok. `npm test` tamamen yeşil (213 dosya
++ python arka uç). CI kapalı (hesap flag'i) — kanıt yerel.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
