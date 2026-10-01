@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2211.md](docs/devir/2026-10-01-2211.md) — kuyruk-50 madde 44: tanı paketi sistem bloğu + kullanıcı ön-inceleme diyaloğu (rapor 356)
+Güncel çalışma: [docs/devir/2026-10-01-2215b.md](docs/devir/2026-10-01-2215b.md) — kuyruk-50 madde 45: parser derinlik/boyut dayanıklılığı (rapor 357)
+Önceki çalışma: [docs/devir/2026-10-01-2211.md](docs/devir/2026-10-01-2211.md) — kuyruk-50 madde 44: tanı paketi sistem bloğu + kullanıcı ön-inceleme diyaloğu (rapor 356)
 Önceki çalışma: [docs/devir/2026-10-01-2215.md](docs/devir/2026-10-01-2215.md) — kuyruk-50 madde 43: gizli depo kurtarma — kısmi-bozuk kasa ölü-kilidi + ham-girdi koruma (rapor 355)
 Önceki çalışma: [docs/devir/2026-10-01-2210.md](docs/devir/2026-10-01-2210.md) — kuyruk-50 madde 42: ağ yönlendirme sınırları — redirect zincirleri hop-başına doğrulama (rapor 354)
 Önceki çalışma: [docs/devir/2026-10-01-2159.md](docs/devir/2026-10-01-2159.md) — kuyruk-50 madde 41: IPC yetki sınırları gerçek-Electron reddi (rapor 353)

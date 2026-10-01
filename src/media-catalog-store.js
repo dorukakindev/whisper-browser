@@ -193,6 +193,11 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   let cache;
   const backupPath = `${filePath}.bak`;
   function parseEnvelope(bytes) {
+    // 10000 kayıt sınırının çok üstündeki bir dosya belleği sınırsız şişirir;
+    // utf8 karakter sayısı bayt boyunun en fazla 1/4'ü kadar küçüktür, bu
+    // tavan gerçek boyutu ~256MB ile sınırlar.
+    if (typeof bytes === 'string' && bytes.length > 64e6)
+      fail('Katalog dosyası çok büyük; veri korunuyor.');
     const parsed = JSON.parse(bytes);
     if (parsed.version !== 1 || !Array.isArray(parsed.items) || parsed.items.length > MAX_ITEMS)
       fail('Katalog dosyası geçersiz; veri korunuyor.');
