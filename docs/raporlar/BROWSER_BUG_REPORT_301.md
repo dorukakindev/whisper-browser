@@ -21,6 +21,13 @@ GitHub engelini beklemeden yürütülen yerel doğrulama turu. Beş iş kalemi:
 - **Düzeltme:** Survivor-overlap bekçisi — katı span dışında merkezi olan eski bloklar `survivors` olarak toplanır; kabul bandına düşen yeni bloklardan survivor'la >0.05 s çakışanlar düşürülür. `new_words` için de aynı bekçi (kelime listesinde aynı asimetri vardı).
 - **Kilit:** yeni blok düşürüldüğü için `new_entries` boşalıyor → span atlanıyor, eski metin korunuyor (tasarımın "asla kötüleştirmez" sözleşmesiyle uyumlu).
 
+### B-334-02 · `sanitizeProcessDetail` OSC dizgi sızıntısı (main.js)
+
+- **Kök neden:** ANSI regex'i önce Fe-dalı `[@-_][0-?]*[ -\/]*[@-~]` dener; `]` (0x5D) bu aralıkta olduğu için OSC dizgisi `\x1b]8;;h` olarak yenir — `h` "final byte" sanılıp OSC içeriği (`ttps://kotu.example`) düz metin olarak günlüğe sızar ve `https?://` maskesi de tutmaz ('ttps' kaldı).
+- **Kanıt (kırmızı):** eski kod `\x1b]8;;https://kotu.example\x07link\x1b]8;;\x07` → `"ttps://kotu.examplelink"` (URL parçası görünür); düzeltmede → `"link"`.
+- **Düzeltme:** dizgi-sonlandırıcı escape'ler (`]`, `P`, `X`, `^`, `_` → OSC/DCS/SOS/PM/APC) Fe dalından ÖNCE `[^\x07\x1B]*(?:\x07|\x1B\\)` ile tamamen süzülür; içerik penceresi `\x1b`yi de dışlar (sonlandırılmamış dizgi sonraki escape'i yutmaz).
+- **Kilit:** `tests/joblog-deadzone.test.js` — OSC köprüsü, DCS/PM dizgileri, CSI, URL/yol/kontrol/500-kırpma kontrolleri.
+
 ## Kapsam haritaları
 
 ### Backend (`coverage.py`, 47 test dosyası subprocess)
@@ -56,9 +63,10 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
 
 `xvfb-run -a node tests/run-electron-smokes.js --all` (NODE_V8_COVERAGE): tek düşüş `electron-browser-menu-visual` — `desktopCapturer` pencere listelemesi başsız Xvfb'de çalışmaz (compositor yok). **Ortam sınırlaması**, ürün regresyonu değil; R328-1'de aynı sınıf belgelenmişti.
 
-## Yeni test dosyası
+## Yeni test dosyaları
 
-`backend/test_split_deadzones.py` — 17 senaryo / 24 kontrol, hepsi yeşil: timing big-pause/bağlaç/hard_max/max_words/None-zamanlı kelime/words=None; punctuation cümle-sonu/soft-70%/passthrough; find_unpunctuated_spans 4 kapı; recover_punctuation_collapse replace/keep/sınır-bandı 4 senaryo.
+- `backend/test_split_deadzones.py` — 17 senaryo / 24 kontrol, hepsi yeşil: timing big-pause/bağlaç/hard_max/max_words/None-zamanlı kelime/words=None; punctuation cümle-sonu/soft-70%/passthrough; find_unpunctuated_spans 4 kapı; recover_punctuation_collapse replace/keep/sınır-bandı 4 senaryo.
+- `tests/joblog-deadzone.test.js` — 4 senaryo: `sanitizeProcessDetail` (OSC/DCS sızıntısı B-334-02 dahil 11 kontrol), `redactJobLogArgs` (gizli-değer bayrakları + `--ad=değer` + slice(1) sözleşmesi), `pruneOldLogs` (en-yeni-K korunur + dizin keep-yuvası davranışı + eksik dir toleransı).
 
 ## Yeni araçlar
 
