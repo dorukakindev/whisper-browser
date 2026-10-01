@@ -1703,6 +1703,45 @@ koşturuldu.
 
 Windows etkisi: yok — eylem kapısı platformdan bağımsız.
 
+## R367 — orta backend modülleri derin okuma — temiz
+
+**Kapsam:** `live_asr.py` (124), `browser_align.py` (132),
+`browser_media_tools.py` (142), `browser_video_analysis.py` (138) —
+536 satır tamamen okundu; doğrulanmış bug yok.
+
+**Doğrulanan:**
+
+- `live_asr.py`: NDJSON komut okuyucu bozuk satırda emit+continue;
+  stop'ta kuyruk drenajı (belgeli — son ~9 sn kaybolmaz);
+  offset/rate sonluluk + hız kelepçesi [0.0625,16]; segment_bounds
+  finite/ordered; parça hatası `chunk_done`+error'a çevrilir;
+  `json_dumps_finite` NaN-güvenli emit.
+- `browser_align.py`: cue doğrulama (3–10000, sayısal/finite,
+  start<end≤86400); referans modunda valid_cues her iki tarafa;
+  ses modunda dosya-varlığı kapısı; ffsubsync başarı + satır sayısı
+  korunumu + çıktı zaman bekçisi; `autoApply` her zaman False —
+  araç yalnız önizleme üretir.
+- `browser_media_tools.py`: base64 beyan→gerçek ikili sınır (8MB),
+  16MP çözünürlük kapısı, crop mutlak-piksel sınır kontrolü;
+  semantic: query ≤500, cues ≤10k, gövde ≤600/cue; model lazy
+  singleton (P79-04 belgeli); serve() satır başına 24MB kapı;
+  main() read-before-parse +1 bayt doluluk kontrolü; dispatch
+  bilinmeyen işlemde fail-closed.
+- `browser_video_analysis.py`: frames ≤120, start/end/interval
+  zincirli karşılaştırma — NaN `0<=nan` zincirinde doğal reddedilir;
+  crop 0..1 normalize bekçisi; `_audio_features` 8kHz/mono/≤120sn
+  kapısı + sessiz-blok sıfırlama (sessizlik eşleşmeye girmez);
+  detect_intro 2–4 dosya, 8.192s pencere, 0.78/0.7 eşikleri,
+  `suggestOnly`+`autoSkip:False`; istek zarfı 1MB (+1 okuma).
+
+**Not edilen (değişmedi):** `live_asr`/`browser_media_tools.serve`
+satır okuyucuları sınır kontrolünden ÖNCE tüm satırı belleğe alır —
+stdin kanalı main.js kontrolünde, dışa açık değil.
+
+Testler: `py_compile` 4/4 geçti; kod değişmedi.
+
+Windows etkisi: yok — salt okuma denetimi.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.

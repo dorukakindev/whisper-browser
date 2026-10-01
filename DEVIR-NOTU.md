@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R366 küçük backend modülleri derin okuma + eylem kapısı — 1 düzeltme
+Güncel çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R367 orta backend modülleri derin okuma — temiz (bug yok)
+Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R366 küçük backend modülleri derin okuma + eylem kapısı — 1 düzeltme
 Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R365 translation_memory.py tam derin okuma + lookup zarif devredilme — 1 dayanıklılık düzeltmesi
 Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R364 pipeline_control.py tam derin okuma — temiz (bug yok)
 Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R363 series_memory.py tam derin okuma + doğumda zarif devredilme — 1 dayanıklılık düzeltmesi
