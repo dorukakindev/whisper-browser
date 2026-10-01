@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2330.md](docs/devir/2026-10-01-2330.md) — 100-kuyruk batch 1: kalıcılık/bozulma (SIGKILL-ortasında-yazım kilidi + afiş atomikliği, rapor 363)
+Güncel çalışma: [docs/devir/2026-10-01-2310.md](docs/devir/2026-10-01-2310.md) — 100-kuyruk batch 2: renderer/UI kenarları (speakerMap persist bug'ı + edge ratchet, rapor 364)
+Önceki çalışma: [docs/devir/2026-10-01-2330.md](docs/devir/2026-10-01-2330.md) — 100-kuyruk batch 1: kalıcılık/bozulma (SIGKILL-ortasında-yazım kilidi + afiş atomikliği, rapor 363)
 Önceki çalışma: [docs/devir/2026-10-01-2255.md](docs/devir/2026-10-01-2255.md) — kuyruk-50 madde 50 (son): sürüm kabul kampanyası harness'i (rapor 362)
 Önceki çalışma: [docs/devir/2026-10-01-2231.md](docs/devir/2026-10-01-2231.md) — madde 49 inputSha256 + runtime manifest (bd6243b)
 Önceki çalışma: [docs/devir/2026-10-01-2225.md](docs/devir/2026-10-01-2225.md) — kuyruk-50 madde 48: longPathAware manifest yaması + süreç/dosya sınır matrisi (rapor 360)
