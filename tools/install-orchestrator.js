@@ -101,7 +101,8 @@ class RealDriver {
     });
     if (result.error) {
       if (options.allowFailure) return { ...result, status: -1 };
-      throw new InstallError('PROCESS_START', `${command} baslatilamadi: ${result.error.message}`);
+      const permission = classifyInstallError(result.error, `${command} baslatma`);
+      throw permission || new InstallError('PROCESS_START', `${command} baslatilamadi: ${result.error.message}`);
     }
     if (result.status !== 0 && !options.allowFailure) {
       const detail = options.capture ? `\n${String(result.stderr || result.stdout || '').trim()}` : '';
@@ -599,18 +600,30 @@ function main(argv = process.argv.slice(2)) {
     process.stdout.write(`\nKurulum dogrulandi. Manifest SHA-256: ${state.pythonManifestSha256}\n`);
     return 0;
   } catch (error) {
-    const code = error instanceof InstallError ? error.code : 'UNEXPECTED';
-    process.stderr.write(`\nHATA [${code}]: ${error.message}\n`);
+    const classified = error instanceof InstallError ? error : classifyInstallError(error, 'Kurulum adimi');
+    const shown = classified || error;
+    const code = shown instanceof InstallError ? shown.code : 'UNEXPECTED';
+    process.stderr.write(`\nHATA [${code}]: ${shown.message}\n`);
     return 1;
   }
 }
 
 if (require.main === module) process.exitCode = main();
 
+// Sınırlı yazma izinleri (Program Files, salt-okunur paylaşım, AV kilidi)
+// ham EACCES/EPERM/EROFS olarak sızıyordu; kullanıcıya eylemlenebilir mesaj.
+function classifyInstallError(error, action = 'Kurulum adimi') {
+  if (!error || !['EACCES', 'EPERM', 'EROFS'].includes(error.code)) return null;
+  const target = error.path ? ` (${error.path})` : '';
+  return new InstallError('PERMISSION',
+    `${action} yapilamadi — yazma izni yok${target}. Kurulumu kullanici dizininizin altina (or. D:\\Whisper Local) tasiymak veya klasore yazma izni vermek gerekir.`);
+}
+
 module.exports = {
   ELECTRON_COMMIT,
   LEGACY_NPM_LICENSES,
   InstallError,
+  classifyInstallError,
   InstallOrchestrator,
   MIN_FREE_BYTES,
   RealDriver,
