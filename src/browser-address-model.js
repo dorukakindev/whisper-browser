@@ -15,6 +15,22 @@
   const FOLD_SENTINEL = '\uFFFF';
   // NFD'de ayrışmayan Latin vuru harfleri — tek karakterle katlanır
   // (æ→a / œ→o gibi bileşikler yaklaşık eşleşir).
+  // Tipografik noktalama varyantları ASCII karşılığına iner — metin ve sorgu
+  // aynı biçimde katlandığı için '…' 'vs '...', '’' vs "'", '—' vs '-' aynı
+  // eşleşmeyi verir. Yalnız ASCII-dışı karakterler bu tablodan geçer.
+  const PUNCT_FOLD = {
+    '‘': "'", '’': "'", '‚': "'", '‛': "'", '`': "'", '´': "'", 'ʼ': "'", 'ʹ': "'",
+    '“': '"', '”': '"', '„': '"', '‟': '"', '«': '"', '»': '"', 'ʺ': '"', '″': '"',
+    '‹': "'", '›': "'",
+    '‐': '-', '‑': '-', '‒': '-', '–': '-', '—': '-', '―': '-', '−': '-',
+    '…': '...', '‥': '..', '·': '.',
+    '⸲': ',', '⸴': ',',
+    '。': '.', '․': '.', '‧': '.', '।': '.', '։': '.', '・': '.',
+    '？': '?', '！': '!', 'ǃ': '!',
+    '（': '(', '）': ')', '［': '[', '］': ']', '｛': '{', '｝': '}',
+    '：': ':', '；': ';', '、': ',', '，': ',', '､': ',', '｡': '.',
+    '／': '/', '＼': '\\', '｜': '|', '　': ' ',
+  };
   const LATIN_STROKE = {
     'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'ð': 'd',
     'ŧ': 't', 'Ŧ': 't', 'ħ': 'h', 'Ħ': 'h', 'ŋ': 'n', 'Ŋ': 'n',
@@ -37,6 +53,8 @@
           return paired ? ch : FOLD_SENTINEL;
         }
         if (/\p{M}|\p{Cf}|\p{Cc}/u.test(ch)) return FOLD_SENTINEL;
+        const punct = PUNCT_FOLD[ch];
+        if (punct !== undefined) return punct;
         const mapped = LATIN_STROKE[ch];
         if (mapped) return mapped;
         // Yalnız "taban harf + birleştirme işaretleri" ayrışması temel harfe

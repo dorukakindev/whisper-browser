@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1925.md](docs/devir/2026-10-01-1925.md) — kuyruk-50 madde 16: findCueAt seek indeksi (ikili arama + maxEndAfter, ~9x)
+Güncel çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)
+Önceki çalışma: [docs/devir/2026-10-01-1934.md](docs/devir/2026-10-01-1934.md) — kuyruk-50 madde 16: findCueAt seek indeksi
 Önceki çalışma: [docs/devir/2026-10-01-1921.md](docs/devir/2026-10-01-1921.md) — kuyruk-50 madde 15: konuşmacı düzeltme akışı
 Önceki çalışma: [docs/devir/2026-10-01-1914.md](docs/devir/2026-10-01-1914.md) — kuyruk-50 madde 14: ortak VRAM bütçesi + akış OOM sınıflandırması
 Önceki çalışma: [docs/devir/2026-10-01-1907.md](docs/devir/2026-10-01-1907.md) — kuyruk-50 madde 13: checkpoint/resume denetimi (makine zaten kurulu) + detected_language normalize + hostile-read ratchet
