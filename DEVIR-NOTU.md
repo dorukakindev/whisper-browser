@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1109.md](docs/devir/2026-10-01-1109.md) — R408 tests/ en büyük 8 dosya + kök .bat/CI denetimi: sıfır kusur — DERİN-OKUMA ENVANTERİ KAPANDI
+Güncel çalışma: [docs/devir/2026-10-01-1115.md](docs/devir/2026-10-01-1115.md) — R409 tests/ derin okuma wave-2: sonraki en büyük 10 dosya (~4.650 satır) temiz — üst-18 hacim kapsandı
+Önceki çalışma: [docs/devir/2026-10-01-1109.md](docs/devir/2026-10-01-1109.md) — R408 tests/ en büyük 8 dosya + kök .bat/CI denetimi: sıfır kusur — DERİN-OKUMA ENVANTERİ KAPANDI
 Önceki çalışma: [docs/devir/2026-10-01-1059.md](docs/devir/2026-10-01-1059.md) — R394–R395 tools/ derin okuma: audit-ui profil sızıntısı + url-userinfo sahte-pozitifleri + hf_ kuralı; 17 betik temiz — TOOLS ENVANTERİ KAPANDI
 Önceki çalışma: [docs/devir/2026-10-01-1051.md](docs/devir/2026-10-01-1051.md) — R391–R393 derin okuma: B-391-01 invidious kanal-ID kapısı + B-392-01 install-whisperx pyannote lock hizası (ilk günden bozuktu); backend testleri + orchestrator kalanı temiz
 Önceki çalışma: [docs/devir/2026-10-01-1038.md](docs/devir/2026-10-01-1038.md) — R388–R389 derin okuma: self-closing <Tag/> yutması (B-303-02) + formatClipDur '60 sn' eldesi + master test tamiri (4 önceden-var düşüş)
