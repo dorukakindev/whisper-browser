@@ -50,4 +50,20 @@ assert.equal(parseSubtitlePayload(pathAss.text, '', 'test.ass').cues[0].text,
 assert.equal(validateBrowserSubtitleDocument(corrupted, 'srt', cues).ok, false);
 assert.throws(() => buildBrowserSubtitleDocument([], 'srt'), /altyazı yok/i);
 
+// WJ işaretli kaçışlar yazar↔okur anlam ayrımıdır: metindeki literal \N / \h,
+// yazarın gerçek satır-sonu \N'inden ayrılır ve birebir geri okunur.
+const markerAss = buildBrowserSubtitleDocument([
+  { start: 0, end: 1, text: 'literal \\N ve \\h metin' },
+  { start: 1, end: 2, text: 'çift \\\\ ters bölü {grup}' },
+], 'ass');
+const markerCues = parseSubtitlePayload(markerAss.text, '', 'test.ass').cues;
+assert.equal(markerCues[0].text, 'literal \\N ve \\h metin');
+assert.equal(markerCues[1].text, 'çift \\\\ ters bölü {grup}');
+
+// İşaretsiz üçüncü taraf dizileri korunur: \WJ yoksa \\{ geri çözülmez.
+const thirdParty = '[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'
+  + 'Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,dis \\\\{literal\\\\} kalır\\\\N ve \\\\yolu\n';
+assert.equal(parseSubtitlePayload(thirdParty, '', 'third.ass').cues[0].text,
+  'dis \\\\{literal\\\\} kalır\\\nve \\\\yolu');
+
 console.log('Browser subtitle output: SRT/VTT/ASS round-trip, Unicode and timing validation passed.');

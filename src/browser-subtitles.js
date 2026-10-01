@@ -383,7 +383,7 @@ function parseAss(body) {
       : rawText;
     const text = cleanedText
       .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ')
-      .replace(/\\([{}])⁠/g, '$1').replace(/\\⁠/g, '\\');
+      .replace(/\\([{}])\u2060/g, '$1').replace(/\\\u2060/g, '\\');
     if (start !== null) out.push({ start, end, text });
   }
   return normalizeCues(out);

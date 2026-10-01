@@ -520,6 +520,102 @@ push-dedupe O(n²) — girişler yukarıda sınırlı.
 Windows etkisi: kod değişikliği yok; not edilen fsync farkı Windows'ta
 aynıdır (NTFS rename atomik, fsyncDirectory no-op'a yakın).
 
+## R344 — Modül kapsam turu 6: orta/büyük modüller + WJ kaçış sözleşmesi
+
+Bu segmentte tam okunan dosyalar: browser-overlay-controller (828),
+browser-subtitles (2018), browser-session-package (178),
+renderer-ui-model (173), model-manager (173), browser-session-privacy
+(171), browser-adapter-registry (163), gpu-diagnostics (160).
+Turun ilk segmentinde ayrıca ~15 orta-boy modül (~3.800 satır) okundu;
+o segmentin dosya bazlı listesi bağlam özetlenmesinde kayboldu, kapsam
+haritası devam notunda güncellenecek. Toplam tur ~23 dosya.
+
+Doğrulanan riskli bölgeler (hepsi temiz):
+
+- **browser-overlay-controller:** `nextCueBoundaryAt` WeakMap indeksi,
+  3-nokta problar (0, n>>1, n-1), sıralı-kontrol→ikili-arama else
+  kaba-kuvvet, suffixMin yalnız geçerli cue'lara; enjekte script:
+  boundaryTimer her render'da yeniden kurulur (seek/ratechange),
+  BOUNDARY_EPS=0.001 float toleransı, rVFC→rAF→400ms frameFallbackTimer
+  zinciri, delayMs ≤60000 kelepçe, MutationObserver 128 LRU (document
+  korunur), sürükleme isTrusted+pointerId+pointercancel/blur temizliği +
+  iptalde startOffset geri yüklemesi + bridgeToken, native tam-ekranda
+  popover manual, ensureRoot tekilleme, mode-off tam söküm.
+- **browser-subtitles (2018 satır tam okuma):** entity çözücü
+  (codepoint ≤0x10FFFF, çözülen entity'de kontrol/bidi-süzüm, adlı-entity
+  whitelist, çift-çözüm yok — `&` yeniden-üretim kapısı), cleanCueText
+  (bilinen-etiket whitelist + karaoke zaman damgaları, rt/rp ruby silme,
+  BIDI_SPOOF_RE, `{\\` eksik-kapanış doğrusal tarama), parseTime (birim
+  sonekleri + h:m:s), normalizeCues (8s/3s uç onarımı, min 0.08s süre,
+  aynı-saniye yuvarlanan çift birleştirme), mergeBrowserStreamCues
+  (tek-cue hızlı yol + `${ms}|${presentationKey}|${id}` revizyon grupları,
+  büyüyen-bayat reddi, id+metin dedupe, ≤20000), unwrapMpegTs (33-bit
+  rollover ±eşik), parseTimedBlocks (X-TIMESTAMP-MAP LOCAL/MPEGTS, sıra
+  numarası ve cue-id satır dışlama, NOTE/STYLE/REGION), stripAssOverride
+  +AssDrawing (doğrusal, p>0 çizim modu), parseSami (çok-sınıf→ilk-sınıf),
+  parseLrc (çok-etiket, son satır +5s), HLS ayrıştırıcılar (forced bayrak,
+  CEA608 instream, variant, byterange devam + MAP init + KEY + SKIP/GAP +
+  discontinuity-seq, EXTINF-yoksa targetDuration geri düşümü,
+  isHlsSubtitlePlaylist %60 uzantı bulgusu), DASH (dashOuterBase kardeş-
+  Period BaseURL dışlaması, dashPeriodBounds, SegmentTimeline safe-int
+  kapıları + r=-1 canlı + 10k tavan, $Number$/$SubNumber$/$Time$/$B$/$$
+  şablonlama, PTO çıkarma), parseXml (kapanmamış-eleman kesim, style/
+  region resolveStyle döngü kümesi, yığın-ebeveyn ofsetleri, mutlak-vs-
+  göreli zaman bulgusu ±0.001s/>süre+3s, srv3 ms t/d), parseJson (json3
+  aAppend devam, Ms-sonek /1000, ≤20000), parseYoutubeCaptionMetadata,
+  MP4 ayrıştırıcı (size=0 yalnız kök, tfhd/tfdt/trun bayrak yürüyüşü
+  sınırlı, ≤20000 örnek, payl/vttc derinlik-4, timescale merdiveni,
+  baseDataOffset/data_offset/implicitCursor adresleme), findSubtitleUrls
+  (JSON derinlik-8, 500 dizi/1000 anahtar, 64 URL tavanı + console.warn),
+  cuesToSrt/cuesToVtt (BOM'suz CRLF), cueFingerprint (akışlı sha256).
+- **browser-session-package:** sha256 checksum öncesi migrasyon; v0→v1
+  (browserSession/browserPlaces/tracks anahtarları); `portableSessionTab`
+  yerel dosya yollarını soyar (makine-yerel); `safePortableValue`→
+  `safePlaceUrl`; workspace activeTabId/splitSecondaryTabId var olan
+  sekme kimliklerine işaret etmeli; tavanlar (288 varyant, 100 places,
+  20 workspace, 24 sekme/workspace).
+- **renderer-ui-model:** createJobModel FSM — nesil-bazlı bayat olay
+  reddi, başlangıçta-iptal → resolve'da 'retry-cancel', validateJobState
+  invariant'ları, cycleFocusIndex, isElementVisibleForFocus,
+  effectiveViewport kesme noktaları.
+- **model-manager:** `repositoryMatchesModel` endsWith (large-v3-turbo'nun
+  large-v3'le eşleşmesini önler); `deleteCachedModel` KNOWN_MODELS
+  whitelist + realpathSync kapsama (`repoResolved.startsWith(rootResolved)`)
+  öncesi rmSync; `freeBytesFor` var olan ata-dizine yürür.
+- **browser-session-privacy:** SITE_DATA_TYPES donmuş — 'downloads'/
+  'cache'/'backgroundFetch' bilinçli dışarıda (origin filtresi
+  desteklenmiyor/tehlikeli); clearBrowserSiteData önce bağlantıları
+  kapatır (uçuşta Set-Cookie dirilmesi engeli), origins-kapsamlı
+  clearData, Cache Storage eski clearStorageData ile, auth önbelleği
+  yalnız resetBrowserSessionData'da; shutdownBrowserSession
+  activeReset/activeMutation bekler.
+- **browser-adapter-registry:** `pattern()` host dizilerini son-eki
+  regex'e kaçışlar; kullanıcı JSON adaptörleri (≤50 dosya, ≤64KB,
+  yalnız sürüm 1) `responseHint: undefined` + `source:'user'` +
+  `verificationStatus:'unverified'` alır — kod/regex enjekte edemez;
+  kullanıcı yerleşiği yalnız `allowOverride` ile geçersiz kılar; 16
+  yerleşik adaptör donmuş.
+- **gpu-diagnostics:** saf normalizasyon — REMOTE_OR_SOFTWARE_RE,
+  pending/recovering/fallback/healthy durumları, CRITICAL_FEATURES
+  (videoDecode/webgl/gpuCompositing), gpuInfoText derinlik-5 sınırı.
+
+Düzeltme (semantik değişiklik değil, okunabilirlik + kilit): `parseAss`'in
+WJ (U+2060 WORD JOINER) kaçış-çözüm regex'leri görünmez karakter içeriyordu
+(`/\\([{}])\u2060/` ve `/\\\u2060/` bayt olarak yazılmıştı). Regex'ler
+ölü kod değildi: `escapeAssText` yazıcısı kendi `\`→`\WJ` ve `{`→`\{WJ`
+kaçışlarını üçüncü-taraf bozuk ASS'teki `\\{` dizilerinden ayırmak için
+bu görünmez işareti kullanır ve okuyucu onu birebir geri çözer
+(yazıcıdaki yorum bunu belgeliyor). Regex'ler artık açık `\u2060` kaçışıyla
+yazılmış — aynı semantik, görünmez karakterin yanlış okunmasını önler.
+Yeni test kilidi (browser-subtitle-output.test.js): literal `\N`/`\h`
+metni, `\\` çifti + `{grup}` yuvarlak turu, işaretsiz üçüncü-taraf
+`\\{literal\\}`/`\\yolu` korunması. Sözleşme önceden kilitsizdi — test
+master'da da geçer (davranış zaten doğruydu; artık sessiz gerileme
+imkânsız).
+
+Windows etkisi: ASS metin çözümü davranışı değişmedi; dosya içeriği aynı
+bayt dizisini işler (kaynak okunabilirliği düzeltmesi).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
