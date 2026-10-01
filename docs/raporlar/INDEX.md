@@ -7,6 +7,36 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 300 | [BROWSER_BUG_REPORT_300.md](BROWSER_BUG_REPORT_300.md) | R332 — Devin Review toplu triage #266–#299: 17 kod + 20 test/doküman düzeltmesi |
+| 299 | [BROWSER_BUG_REPORT_299.md](BROWSER_BUG_REPORT_299.md) | R331 — AI modları: --explain reasoning-kapısı, sınırlı istemci, hedef-dil kuralları, çip EN soruları |
+| 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |
+| 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
+| 296 | [BROWSER_BUG_REPORT_296.md](BROWSER_BUG_REPORT_296.md) | R329-4 — LLM sağlayıcı varyant matrisi |
+| 295 | [BROWSER_BUG_REPORT_295.md](BROWSER_BUG_REPORT_295.md) | R329-3 — diarization OOM/kenar dayanıklılığı |
+| 294 | [BROWSER_BUG_REPORT_294.md](BROWSER_BUG_REPORT_294.md) | R329-2 — backend çıkış-kodu/durum sözleşmesi (KeyboardInterrupt → 130 + cancelled) |
+| 293 | [BROWSER_BUG_REPORT_293.md](BROWSER_BUG_REPORT_293.md) | R329-1 — yazıcı seçenek matrisi golden kilidi (temiz) |
+| 292 | [BROWSER_BUG_REPORT_292.md](BROWSER_BUG_REPORT_292.md) | R328-4 — CI flake aday analizi + workflow sertleştirme |
+| 291 | [BROWSER_BUG_REPORT_291.md](BROWSER_BUG_REPORT_291.md) | R328-3 — modül-bazlı kapsam haritası |
+| 290 | [BROWSER_BUG_REPORT_290.md](BROWSER_BUG_REPORT_290.md) | R328-2 — jsdom/VM-realism ratchet'i |
+| 289 | [BROWSER_BUG_REPORT_289.md](BROWSER_BUG_REPORT_289.md) | R328-1 — Electron smokes --all yerel doğrulaması |
+| 287 | [BROWSER_BUG_REPORT_287.md](BROWSER_BUG_REPORT_287.md) | R327 — performans turu (omnibox önbelleği + ölçüm envanteri) |
+| 286 | [BROWSER_BUG_REPORT_286.md](BROWSER_BUG_REPORT_286.md) | R326 — güvenlik denetim turu |
+| 285 | [BROWSER_BUG_REPORT_285.md](BROWSER_BUG_REPORT_285.md) | R325 — kalıcılık matrisleri |
+| 284 | [BROWSER_BUG_REPORT_284.md](BROWSER_BUG_REPORT_284.md) | R324-5 — kalan listener-çifti süpürme |
+| 283 | [BROWSER_BUG_REPORT_283.md](BROWSER_BUG_REPORT_283.md) | R324-4 — iptal/abort yayılım tutarlılığı |
+| 282 | [BROWSER_BUG_REPORT_282.md](BROWSER_BUG_REPORT_282.md) | R324-3 — timer/interval envanteri + ratchet |
+| 281 | [BROWSER_BUG_REPORT_281.md](BROWSER_BUG_REPORT_281.md) | R324-2 — subprocess spawn→kill→respawn churn |
+| 280 | [BROWSER_BUG_REPORT_280.md](BROWSER_BUG_REPORT_280.md) | R324-1 — sekme×görünüm yarış matrisi |
+| 279 | [BROWSER_BUG_REPORT_279.md](BROWSER_BUG_REPORT_279.md) | R323-7 — clipboard/drag URL sanitizasyon fuzz'ı |
+| 278 | [BROWSER_BUG_REPORT_278.md](BROWSER_BUG_REPORT_278.md) | R323-6 — NDJSON olay-akışı fuzz'ı |
+| 277 | [BROWSER_BUG_REPORT_277.md](BROWSER_BUG_REPORT_277.md) | R323-5 — ayar şeması hostile-deserialize fuzz'ı |
+| 276 | [BROWSER_BUG_REPORT_276.md](BROWSER_BUG_REPORT_276.md) | R323-4 — URL/host normalizasyon fuzz'ı (IDN/punycode/SSRF) |
+| 275 | [BROWSER_BUG_REPORT_275.md](BROWSER_BUG_REPORT_275.md) | R323-3 — çeviri paket-bölme invariant property testi |
+| 274 | [BROWSER_BUG_REPORT_274.md](BROWSER_BUG_REPORT_274.md) | R323-2 — zamanlama kaydırma/kalibrasyon oracle fuzz'ı |
+| 273 | [BROWSER_BUG_REPORT_273.md](BROWSER_BUG_REPORT_273.md) | R323-1 — SRT/VTT/ASS roundtrip mega-fuzz (~100k cue) |
+| 272 | [BROWSER_BUG_REPORT_272.md](BROWSER_BUG_REPORT_272.md) | R322 — renderer yüzeyi derin okuma (omnibox/palet/klavye + PDF/manga + oynatıcı çekirdek) |
+| 271 | [BROWSER_BUG_REPORT_271.md](BROWSER_BUG_REPORT_271.md) | R321 — main.js yaşam döngüsü derin okuma (pencere/görünüm/occlusion/split) |
+| 270 | [BROWSER_BUG_REPORT_270.md](BROWSER_BUG_REPORT_270.md) | R320-2 — split/wrap/zamanlama normalizasyonu derin okuma (temiz) |
 | 269 | [BROWSER_BUG_REPORT_269.md](BROWSER_BUG_REPORT_269.md) | BROWSER_BUG_REPORT_269 — R320: transcribe.py ana hat derin okuma (media_dur çift düşümü + casefold tekrar kapısı) |
 | 268 | [BROWSER_BUG_REPORT_268.md](BROWSER_BUG_REPORT_268.md) | BROWSER_BUG_REPORT_268 — R319: PR #265 Devin Review triage (4 kod düzeltmesi) |
 | 267 | [BROWSER_BUG_REPORT_267.md](BROWSER_BUG_REPORT_267.md) | BROWSER_BUG_REPORT_267 — R318: Devin Review toplu triage #236–#263 (14 kod düzeltmesi) |
@@ -241,6 +271,3 @@ tarih sırasıyla dosya adından okunur.
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
 | 240 | [BROWSER_BUG_REPORT_240.md](BROWSER_BUG_REPORT_240.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |
-| 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
-| 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |
-| 299 | [BROWSER_BUG_REPORT_299.md](BROWSER_BUG_REPORT_299.md) | R331 — AI modları: --explain reasoning-kapısı, sınırlı istemci, hedef-dil kuralları, çip EN soruları |
