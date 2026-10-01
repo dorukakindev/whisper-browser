@@ -161,6 +161,33 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
   assert.deepEqual(applied[0].translations.map((row) => row.id), ['live-a', 'live-b']);
   assert.equal(events.at(-1).message, 'Kayıtlı sayfa çevirisi arşivden yüklendi; yeniden çeviri yapılmadı.');
 
+  // R375: arşiv yazımları diğer depolarla aynı fsync törenini taşır —
+  // güç kesintisi yeni index.json / .json / .md / .srt dosyasını
+  // sıfır-bayt bırakmamalı. Kayıtlı-fs sarmalı fsync çağrılarını sayar.
+  {
+    const fsynced = [];
+    const recordingFs = Object.create(fs, {
+      fsyncSync: { value(fd) { fsynced.push(fd); return fs.fsyncSync(fd); } },
+    });
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-archive-fsync-'));
+    try {
+      const archive2 = new BrowserTranslationArchive(dir2, { fsModule: recordingFs });
+      assert.equal(archive2.savePage({
+        url: 'https://example.com/fsync', title: 'Fsync',
+        targetLanguage: 'tr', complete: true,
+        blocks: [{ id: 'b1', text: 'Hello.', tag: 'p', role: '', section: 'Giriş', order: 0 }],
+        translations: { b1: 'Merhaba.' },
+      }).ok, true);
+      // En az json + md + index için birer tmp fsync'i beklenir.
+      assert.ok(fsynced.length >= 3, `tmp fsync sayısı: ${fsynced.length}`);
+      const leftOver = fs.readdirSync(dir2, { recursive: true })
+        .filter((entry) => String(entry).endsWith('.tmp'));
+      assert.deepEqual(leftOver, []);
+    } finally {
+      fs.rmSync(dir2, { recursive: true, force: true });
+    }
+  }
+
   console.log('browser-translation-archive: sayfa eşleştirme ve SRT arşivi geçti');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
