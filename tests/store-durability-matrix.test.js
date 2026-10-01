@@ -21,6 +21,8 @@ const { BrowserNoteStore } = require('../src/browser-note-store');
 const { BrowserAssetStore } = require('../src/browser-asset-store');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const { atomicWriteFileSync } = require('../src/fsync-utils');
+const { BrowserReadingList } = require('../src/browser-reading-list');
+const { createBrowserSeriesContext } = require('../src/browser-series-context');
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  PASS ${name}`); }
@@ -291,6 +293,32 @@ try {
       ok(`atomic: zincir denemesi ${path.relative(tmpRoot, d) || '.'}`, opened.has(d));
     }
   }
+}
+
+// --- 7) browser-reading-list: _writeIndex — B-381-01 ---
+{
+  const { calls, io } = recordingFs();
+  const root = path.join(tmpRoot, 'reading-list');
+  const list = new BrowserReadingList(root, io);
+  const plan = list.prepare({ url: 'https://ornek.test/makale', title: 'Örnek Makale' });
+  ok('reading-list: hazırlık ok', plan.ok === true);
+  // .mhtml dosyası hazırda (savePage çağıran tarafta) — indeksi commit'le.
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(plan.filePath, 'mhtml-bytes');
+  const committed = list.commit(plan.entry);
+  ok('reading-list: commit ok', committed.ok === true);
+  assertCommitOrder('reading-list: index yazımı', calls, list.indexPath);
+}
+
+// --- 8) browser-series-context: commit() — B-382-01 ---
+{
+  const { calls, io } = recordingFs();
+  const file = path.join(tmpRoot, 'series-context', 'series.json');
+  const store = createBrowserSeriesContext({ filePath: file, fsImpl: io });
+  const bound = store.bindAndSave('https://ornek.test|video-1', 'Dizi', 'https://ornek.test/v/1',
+    { synopsis: 'kısa', terms: [{ source: 'captain', target: 'kaptan' }] });
+  ok('series-context: bağlama ok', bound?.seriesName === 'Dizi');
+  assertCommitOrder('series-context: commit', calls, file);
 }
 
 await test('store dayanıklılık matrisi — temp fsync → rename → dizin fsync', () => {});
