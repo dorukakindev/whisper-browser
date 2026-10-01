@@ -1169,6 +1169,48 @@ Windows etkisi: kod değişmedi (salt okuma).
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R354 — renderer.js alt-orta bölge derin okuması: düzenleme protokolleri + geçmiş + sayfa/senkron (temiz)
+
+~2.100 satır okundu (21924–22223, 23517–24659). Doğrulanmış bug yok.
+
+- **Oto-senkron + çeviri başlatma** (21924–22135): autoSync yalnız
+  localPath+subPath varsa, sync fix-framerate/piecewise bayrakları, job
+  mediaKey bağlı; `makeTransBtn` — state.running/queueRunning kapısı,
+  forceRetranslate değilse retranslateSnapshot sıfırlanır (belgeli —
+  başarısız yeniden çevirinin anlık görüntüsü devralınmasın), kaynak
+  rolü birincil ya da ikincil kanaldan, `translateExisting` yalnız açık
+  çeviri-rolü izi (belgeli — kaynak çeviri sanılmasın), browserTrack
+  dili UI seçiminden güvenilir (belgeli), outputFiles korunur
+  (belgeli — API hatasında kaynak iz kopmasın), hata yolunda
+  outputs geri yüklenir; `retranslateAll` onay diyaloğu + eski çeviri
+  snapshot'ı; `quickSubsBtn` forceTranslate yalnız bu iş + iş
+  başlamazsa bayrak geri alınır (belgeli).
+- **Geçmiş + kütüphane + uyku + görünüm** (22137–23527, 23544–23596):
+  history silme/temizleme openAppDialog onaylı; search debounce 120ms +
+  isComposing; uyku zamanlayıcısı 15s tick + pause browser'da
+  browserCommand; ses slider clamp 0–1; görünüm modları token clamp +
+  snapGridColumns reflow (belgeli Chrome interpolate takılması) +
+  dar-görünüm takeover inert uygular (playerStage/browserWorkspace/
+  pdfReader) + odak-içindeyse takeover başlatmaz; sideWidth clamp
+  320–520 + ≥480px video payı.
+- **Hızlı editör yaşam döngüsü** (23627–24659): `quickDrafts` şema-
+  doğrulamalı okuma (imza/uzunluk/yaş/kanal whitelist) + ≤30 kayıt;
+  `quickEditorStillCurrent` tam kimlik (editor örneği + mediaKey +
+  tabId + generation + her satırın path/trackId/raw/cue/record
+  eşleşmesi); `saveBrowserQuickEditor` → prepare→write→re-verify→
+  rollback zinciri + reviewSources snapshot ve storage-hatası geri
+  yazımı + undo girişi ≤100; tekil `saveCueEdit` — browserContext'te
+  track/mediaKey/editRecordMatches + revision çakışma algısı (belgeli
+  metin ekranda), dosya tarafında cueEditTarget signature+path+mediaKey
+  kilidi, mergedView değişirse reddetme (belirsizlik), diske yazım
+  başarılı olana dek bellek dokunulmaz (belgeli), ASS/VTT in-place
+  yazarlar + null'da iptal, imza invalidate + savedCues göçü +
+  sözcük aralıkları tazeleme; `applyCueEditHistory` üç varyant
+  (bulk/browser-override/single) hepsinde medya+eşleşme+yeniden-
+  doğrulama + hata'da rollback.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
