@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2021.md](docs/devir/2026-10-01-2021.md) — kuyruk-50 madde 29: POSIX süreç-ağacı iptali
+Güncel çalışma: [docs/devir/2026-10-01-2028.md](docs/devir/2026-10-01-2028.md) — kuyruk-50 madde 30: reexport transaction
+Önceki çalışma: [docs/devir/2026-10-01-2028.md](docs/devir/2026-10-01-2028.md) — kuyruk-50 madde 30: reexport transaction
 Önceki çalışma: [docs/devir/2026-10-01-2021.md](docs/devir/2026-10-01-2021.md) — kuyruk-50 madde 29: POSIX süreç-ağacı iptali
 Önceki çalışma: [docs/devir/2026-10-01-2018.md](docs/devir/2026-10-01-2018.md) — kuyruk-50 madde 28: kaynaklara göre kuyruk planlama
 Önceki çalışma: [docs/devir/2026-10-01-2014.md](docs/devir/2026-10-01-2014.md) — kuyruk-50 madde 27: checkpoint sürümleme
