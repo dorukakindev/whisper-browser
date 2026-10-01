@@ -738,6 +738,40 @@ class InvidiousProbeStoryboards(unittest.TestCase):
         self.assertEqual(ev["storyboards"], [])
 
 
+class InvidiousProbeMalformedNumbers(unittest.TestCase):
+    """R359 — bozuk uzak sayı alanları tüm probe'u düşürmez."""
+
+    def _run(self, payload):
+        from unittest import mock
+        payload = {"title": "t", "lengthSeconds": 120, **(payload or {})}
+        events = []
+        with mock.patch.object(invidious, "_fetch_with_failover",
+                               lambda *a, **k: (payload, "i")), \
+             mock.patch.object(invidious, "emit", lambda typ, **kw: events.append((typ, kw))):
+            invidious.probe("https://youtu.be/a1234567890")
+        return next(e for t, e in events if t == "probe")
+
+    def test_bad_chapter_time_skips_only_that_chapter(self):
+        ev = self._run({"chapters": [
+            {"startTime": "bozuk", "endTime": 5, "title": "kötü"},
+            {"startTime": 0, "endTime": 30, "title": "giriş"},
+            {"startTime": float("nan"), "endTime": 9, "title": "nan"},
+            {"startTime": 60, "endTime": "abc", "title": "son"},
+        ]})
+        self.assertEqual(ev["chapters"], [
+            {"start": 0.0, "end": 30.0, "title": "giriş"},
+            {"start": 60.0, "end": 0.0, "title": "son"},
+        ])
+
+    def test_bad_duration_falls_back_to_zero(self):
+        ev = self._run({"lengthSeconds": "bozuk"})
+        self.assertEqual(ev["duration"], 0)
+
+    def test_infinite_duration_falls_back_to_zero(self):
+        ev = self._run({"lengthSeconds": float("inf")})
+        self.assertEqual(ev["duration"], 0)
+
+
 class InvidiousChannelTab(unittest.TestCase):
     """A27 — kanal sekme uçları."""
 

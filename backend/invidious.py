@@ -95,6 +95,15 @@ def _to_int(value, default=0):
             return default
 
 
+def _to_float(value, default=0.0):
+    """Uzak JSON'dan güvenli float — sayısal olmayan/NaN/inf alan default'a düşer."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    return v if math.isfinite(v) else default
+
+
 def _abs_url(inst, url):
     """Instance-göreli URL'leri mutlak yap."""
     if not url:
@@ -278,11 +287,16 @@ def probe(url, instance=None):
     # Bölümler
     chapters = []
     for ch in (data.get("chapters") or []):
-        if ch.get("startTime") is None:
+        if not isinstance(ch, dict) or ch.get("startTime") is None:
+            continue
+        # Bozuk uzak veri tek bölümü değil tüm probe'u düşürüyordu —
+        # sayısal olmayan zaman damgası o bölümü atlar.
+        start = _to_float(ch.get("startTime"), default=None)
+        if start is None:
             continue
         chapters.append({
-            "start": float(ch.get("startTime") or 0),
-            "end": float(ch.get("endTime") or 0),
+            "start": start,
+            "end": _to_float(ch.get("endTime"), 0),
             "title": (ch.get("title") or "").strip(),
         })
 
@@ -335,7 +349,7 @@ def probe(url, instance=None):
         chapters=chapters,
         subtitleLangs=sub_langs,
         audioLangs=audio_langs,
-        duration=float(data.get("lengthSeconds") or 0),
+        duration=_to_float(data.get("lengthSeconds"), 0),
         thumbnail=(f"https://i.ytimg.com/vi/{vid}/maxresdefault.jpg" if vid
                    else _pick_thumbnail(inst, data.get("videoThumbnails") or [])),
         storyboards=storyboards,
