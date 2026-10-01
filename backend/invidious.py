@@ -981,17 +981,32 @@ def suggest(query, instance=None):
 
 
 # ===== Kanal =====
+# UCID sözleşmesi main.js'in IPC kapısıyla aynı tutulur (ASCII, 2-40):
+# backend'in isalnum() denetimi unicode alfanumerik ve tek-karakter ID'leri
+# de geçirirdi; quote() '/' karakterini olduğu gibi bıraktığından strip()
+# öncesi de zorunludur.
+_CHANNEL_ID_RE = re.compile(r"^[A-Za-z0-9_-]{2,40}$")
+
+
+def _checked_channel_id(channel_id):
+    cid = (channel_id if isinstance(channel_id, str) else "").strip()
+    if not _CHANNEL_ID_RE.match(cid):
+        raise RuntimeError(f"Geçersiz kanal ID: {channel_id!r}")
+    return cid
+
+
 def channel(channel_id, instance=None):
     """Kanal bilgisi + son videolar — instance failover."""
+    cid = _checked_channel_id(channel_id)
     data, inst = _fetch_with_failover(
-        f"/api/v1/channels/{urllib_parse.quote(channel_id)}",
+        f"/api/v1/channels/{urllib_parse.quote(cid)}",
         preferred=instance, timeout=15)
     if not isinstance(data, dict):
         raise RuntimeError(f"Kanal bulunamadı: {channel_id}")
-    log(f"Invidious channel: {channel_id} @ {inst}")
+    log(f"Invidious channel: {cid} @ {inst}")
     info = {
         "author": data.get("author", ""),
-        "authorId": data.get("authorId", channel_id),
+        "authorId": data.get("authorId", cid),
         "authorThumbnails": data.get("authorThumbnails", []),
         "subCount": int(data.get("subCount") or 0),
         "description": (data.get("description") or "")[:500],
@@ -1007,9 +1022,7 @@ CHANNEL_TABS = ("videos", "shorts", "streams", "podcasts", "releases",
 
 def channel_tab(channel_id, tab="videos", page=1, query="", instance=None):
     """Kanal alt-uçları — /api/v1/channels/:id/<tab> ve /search."""
-    cid = (channel_id or "").strip()
-    if not cid or len(cid) > 40 or not all(ch.isalnum() or ch in "-_" for ch in cid):
-        raise RuntimeError(f"Geçersiz kanal ID: {channel_id!r}")
+    cid = _checked_channel_id(channel_id)
     t = (tab or "videos").strip().lower()
     q = (query or "").strip()[:100]
     if q:

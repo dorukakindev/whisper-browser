@@ -378,6 +378,35 @@ test('start bat cudnn cublas urun sozlesmesi korunur', () => {
   assert.match(source, /nvidia\\cublas\\bin/);
   assert.match(source, /call npm start/);
 });
+test('RealDriver lock dosyasi secimi pin sozlesmesiyle hizali', (root) => {
+  // B-392-01: installIntoVenv ile expectedPins ayni karari vermeli — whisperx
+  // tek basina pin'de pyannote-audio isterken kurulum diarize.lock'u atliyor
+  // ve verifyVenv PIN_MISMATCH ile hep dusuyordu. FakeDriver bu yuzu
+  // kapsamaz; gercek RealDriver'da run() kaydedilir.
+  const calls = [];
+  const driver = new RealDriver(SOURCE_ROOT);
+  driver.run = (command, args) => { calls.push(args); return { status: 0 }; };
+  for (const profiles of [
+    ['core'],
+    ['core', 'diarize'],
+    ['core', 'whisperx'],
+    ['core', 'diarize', 'whisperx'],
+  ]) {
+    calls.length = 0;
+    driver.installIntoVenv('venv-yolu', profiles);
+    const requirements = calls.flat().filter((arg) => /\.lock$/.test(String(arg)));
+    const names = requirements.map((arg) => path.basename(String(arg)));
+    const wantsDiarize = profiles.includes('diarize') || profiles.includes('whisperx');
+    assert.deepEqual(
+      names.includes('requirements-diarize.lock'), wantsDiarize,
+      `${profiles}: diarize.lock secimi pin sozlesmesinden sapti`);
+    assert.equal(names.includes('requirements-whisperx.lock'), profiles.includes('whisperx'));
+    assert(names.includes('requirements-core.lock'));
+    // pin tarafiyla birebir ayni karar
+    const pins = new InstallOrchestrator(root).expectedPins(profiles);
+    assert.equal(pins.has('pyannote-audio'), names.includes('requirements-diarize.lock'));
+  }
+});
 test('orchestrator electron uygulamasini baslatmaz', () => {
   const source = fs.readFileSync(path.join(SOURCE_ROOT, 'tools', 'install-orchestrator.js'), 'utf8');
   const processCalls = source.split(/\r?\n/).filter((line) => line.includes('this.run(')).join('\n');

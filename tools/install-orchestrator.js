@@ -27,6 +27,13 @@ class InstallError extends Error {
   }
 }
 
+// pyannote gereksinimi hem whisperx hem diarize profilinde pin'lenir;
+// kurulum tarafı da aynı koşulu kullanır ki pin/install kayması olmasın
+// (whisperx tek başınayken diarize.lock atlanıp PIN_MISMATCH verirdi).
+function needsDiarizeProfile(profiles) {
+  return profiles.includes('whisperx') || profiles.includes('diarize');
+}
+
 function sha256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
@@ -188,7 +195,7 @@ class RealDriver {
     if (profiles.includes('whisperx')) {
       this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', '--constraint', constraints, '--requirement', path.join(this.root, 'backend', 'requirements-whisperx.lock')], { code: 'WHISPERX_INSTALL' });
     }
-    if (profiles.includes('diarize') && !profiles.includes('whisperx')) {
+    if (needsDiarizeProfile(profiles)) {
       this.run(python, ['-m', 'pip', 'install', '--only-binary=:all:', '--constraint', constraints, '--requirement', path.join(this.root, 'backend', 'requirements-diarize.lock')], { code: 'DIARIZE_INSTALL' });
     }
   }
@@ -380,7 +387,7 @@ class InstallOrchestrator {
           }
           return this.acquireLock(false);
         }
-        throw new InstallError('CONCURRENT_INSTALL', 'Baska bir kurulum calisiyor veya sahibi dogrulanamayan bir kurulum kilidi var.');
+        throw new InstallError('CONCURRENT_INSTALL', `Baska bir kurulum calisiyor veya sahibi dogrulanamayan bir kurulum kilidi var: ${this.lockPath}`);
       }
       throw error;
     }
@@ -410,7 +417,7 @@ class InstallOrchestrator {
       pins.set(name, version);
     }
     if (profiles.includes('whisperx')) pins.set('whisperx', '3.4.2');
-    if (profiles.includes('whisperx') || profiles.includes('diarize')) pins.set('pyannote-audio', '3.3.2');
+    if (needsDiarizeProfile(profiles)) pins.set('pyannote-audio', '3.3.2');
     return pins;
   }
 
@@ -609,6 +616,7 @@ module.exports = {
   RealDriver,
   TORCH_PINS,
   canonicalPackageName,
+  needsDiarizeProfile,
   normalizeManifest,
   parsePinnedRequirements,
   parsePythonVersion,

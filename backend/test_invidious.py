@@ -12,6 +12,7 @@ import sys
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 import invidious
@@ -341,22 +342,48 @@ class InvidiousFeedParsing(unittest.TestCase):
 
 
 class InvidiousChannelIdValidation(unittest.TestCase):
-    """Kanal ID format validasyonu (main.js'te yapılır)."""
+    """Kanal ID doğrulaması gerçek fonksiyonlarda — ağ çağrısından önce ret.
 
-    def test_valid_ucid_pattern(self):
-        # Invidious UCID = UC + 22 alphanumeric
-        import re
-        pattern = r"^[A-Za-z0-9_-]{2,40}$"
-        self.assertRegex("UCabcdefghijklmnopqrstuv", pattern)
-        self.assertRegex("UC12345678", pattern)
-        self.assertRegex("UC_x-1", pattern)
+    main.js'in IPC kapısı `^[A-Za-z0-9_-]{2,40}$` uygular; backend ikinci
+    savunma hattı olarak aynı sözleşmeyi korumalı (R391: channel() hiç
+    doğrulamıyordu; channel_tab() ise isalnum() ile unicode ve tek-karakter
+    ID'leri kabul ediyordu — iki katman sözleşmesi ayrılmıştı).
+    """
 
-    def test_invalid_ucid_rejected(self):
-        import re
-        pattern = r"^[A-Za-z0-9_-]{2,40}$"
-        self.assertNotRegex("javascript:alert(1)", pattern)
-        self.assertNotRegex("", pattern)
-        self.assertNotRegex("../etc/passwd", pattern)
+    def _gate_rejects(self, fn):
+        for bad in ("", "  ", "x", "javascript:alert(1)", "../etc/passwd",
+                    "a/b", "a/../b", "UC ID", "UC;rm", "UCğüşı", "x" * 41,
+                    "../channels/UC", None, 12):
+            with self.subTest(bad=bad), \
+                 patch.object(invidious, "_fetch_with_failover") as m:
+                with self.assertRaises(RuntimeError):
+                    fn(bad)
+                m.assert_not_called()
+
+    def test_channel_rejects_bad_id_before_fetch(self):
+        self._gate_rejects(lambda cid: invidious.channel(cid))
+
+    def test_channel_tab_rejects_bad_id_before_fetch(self):
+        self._gate_rejects(lambda cid: invidious.channel_tab(cid))
+
+    def test_valid_ucid_reaches_fetch(self):
+        for fn in (lambda cid: invidious.channel(cid),
+                   lambda cid: invidious.channel_tab(cid)):
+            with patch.object(invidious, "_fetch_with_failover",
+                              return_value=({"authorId": "X"}, "inst")) as m:
+                with patch.object(invidious, "emit"):
+                    fn("UC_x-1")
+            self.assertTrue(m.called)
+            self.assertIn("/api/v1/channels/UC_x-1", m.call_args[0][0])
+
+    def test_main_js_gate_matches_backend_contract(self):
+        """main.js IPC kapısı ile backend doğrulaması aynı regex'i paylaşır."""
+        main_js = os.path.join(os.path.dirname(__file__), "..", "src", "main.js")
+        with open(main_js, encoding="utf-8") as f:
+            src = f.read()
+        pattern = invidious._CHANNEL_ID_RE.pattern
+        self.assertIn(f"/{pattern}/", src,
+                      "main.js kanal-ID kapısı backend sözleşmesinden saptı")
 
 
 class InvidiousVideoIdExtractionR67(unittest.TestCase):
