@@ -83,8 +83,84 @@ const cases = [
   ['Gecikme +0.5 sn', 'Delay +0.5 s'],
   ['1.25× hız', '1.25× speed'],
   ['Mini oynatıcı kapatıldı', 'Mini player closed'],
+  // İş ilerlemesi dinamik dizgileri (kuyruk madde 2): backend stage metinleri,
+  // görev merkezi aşamaları ve yüzde/sayaç birleşimleri.
+  ["YouTube'dan indiriliyor...", 'Downloading from YouTube...'],
+  ['Ses çıkarılıyor...', 'Extracting audio...'],
+  ['Transkripsiyon başladı...', 'Transcription started...'],
+  ['Konuşmacılar tanımlanıyor...', 'Identifying speakers...'],
+  ['Altyazı dosyası yazılıyor...', 'Writing subtitle file...'],
+  ['Çeviri gözden geçiriliyor (2. geçiş)', 'Reviewing translation (2nd pass)'],
+  ['Formatlar yeniden yazılıyor...', 'Rewriting formats...'],
+  ['Video sesi çıkarılıyor...', 'Extracting video audio...'],
+  ['Ses aktivitesi analiz ediliyor...', 'Analyzing voice activity...'],
+  ['Kayma hesaplanıyor (korelasyon)...', 'Computing offset (correlation)...'],
+  ['Parçalı hizalama deneniyor...', 'Trying chunked alignment...'],
+  ['Senkronlu altyazı yazılıyor...', 'Writing synced subtitles...'],
+  ['WhisperX transkripsiyon...', 'WhisperX transcription...'],
+  ['WhisperX hizalama (kelime zaman damgaları)...', 'WhisperX alignment (word timestamps)...'],
+  ['İndiriliyor 45%', 'Downloading 45%'],
+  ['İndiriliyor · %45', 'Downloading · 45%'],
+  ['Transkripsiyon · %87.4', 'Transcribing · 87.4%'],
+  ['Çevriliyor · 3/12', 'Translating · 3/12'],
+  ['LLM düzeltiyor · 3/12', 'LLM fixing · 3/12'],
+  ['LLM düzeltiyor: qwen2.5', 'LLM fixing: qwen2.5'],
+  ['WhisperX modeli yükleniyor: tiny', 'Loading WhisperX model: tiny'],
+  ['Ceviriliyor: Türkçe', 'Translating: Turkish'],
+  ['3/12 tamamlandı', '3/12 completed'],
+  ['3/12 tamamlandı · 2 hata', '3/12 completed · 2 errors'],
+  ['3/12 tamamlandı · 1 hata', '3/12 completed · 1 error'],
+  ['5 blokta hata', '5 block errors'],
+  ['indirme · kalan ~01:23', 'download · ~01:23 left'],
+  ['12:00 / 45:00 · kalan ~30:00', '12:00 / 45:00 · ~30:00 left'],
+  ['tamamlandı · 01:23', 'completed · 01:23'],
+  ['Kaydediliyor', 'Saving'],
+  ['Oynatıcıya yükleniyor', 'Loading into player'],
+  ['Oynatıcıya yüklendi', 'Loaded into player'],
+  ['Oynatıcıya yüklenemedi', 'Could not load into player'],
+  ['Dosya kaydedildi', 'File saved'],
+  ['Dosyayı bul', 'Locate file'],
+  ['Yeniden yükle', 'Reload'],
+  ['Çeviri sürüyor', 'Translating'],
+  ['Altyazı çevirisi', 'Subtitle translation'],
+  ['indiriliyor…', 'downloading…'],
+  ['Sağlayıcı boş yanıt döndürdü.', 'Provider returned an empty response.'],
+  ['Kuyruk tamamlandı', 'Queue finished'],
+  ['Altyazı çıkarma başarısız', 'Subtitle extraction failed'],
+  ['Bilinmeyen hata', 'Unknown error'],
+  ['7 segment · 2 dosya', '7 segments · 2 files'],
+  ['3 iş bitti', '3 jobs done'],
+  ['3 iş bitti · 2 hata', '3 jobs done · 2 errors'],
+  ['3 iş bitti · 2 hata · 1 uyarı', '3 jobs done · 2 errors · 1 warning'],
+  ['3 iş bitti · 1 uyarı', '3 jobs done · 1 warning'],
+  ['3/? tamamlandı', '3/? completed'],
+  ['3/? tamamlandı · 1 hata', '3/? completed · 1 error'],
+  ['2 çalışıyor', '2 running'],
+  ['3 bekliyor', '3 waiting'],
+  ['1 hata', '1 error'],
+  ['geçen süre 01:23', 'elapsed 01:23'],
 ];
 for (const [tr, expected] of cases) assert.equal(en(tr), expected, tr);
+
+// 2d) Görev merkezi ham TR yazar (observer çevirir + orijinali saklar);
+//     yazma anında EN üreten playerTaskText kalmamalı.
+assert.doesNotMatch(renderer, /playerTaskText/,
+  'playerTaskText kalmadı — görev metinleri ham TR yazılmalı');
+
+// 2c) OS bildirimi DOM dışıdır — notifyDone api.notify'a uiText'ten geçirerek
+//     vermeli, yoksa EN modda bildirim TR kalır.
+assert.match(renderer, /api\.notify\(uiText\(title\), uiText\(body \|\| ''\)\)/,
+  'notifyDone bildirim metni uiText üzerinden geçmeli');
+
+// 2b) transcribe.py'deki her emit("status", text="…") TR literali sözlük/kalıpla
+//     kapsanır — iş sürerken gelen aşama metinleri EN'de çıplak kalamaz.
+const backend = fs.readFileSync(path.join(__dirname, '../backend/transcribe.py'), 'utf8');
+const stageMiss = [];
+for (const m of backend.matchAll(/emit\("status"[^)]*text=f?"((?:[^"\\]|\\.)*)"/g)) {
+  const sample = m[1].replace(/\{[^}]*\}/g, '7');
+  if (en(sample) === sample) stageMiss.push(sample);
+}
+assert.deepEqual(stageMiss, [], `EN karşılığı olmayan backend stage metinleri:\n  ${stageMiss.join('\n  ')}`);
 
 // 3) Kalıplar yalnız TR→EN çalışır; TR hedefte metne dokunmaz. Boşluklar korunur.
 assert.equal(translate('Ses %40', 'tr'), 'Ses %40');

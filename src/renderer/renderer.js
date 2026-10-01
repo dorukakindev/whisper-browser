@@ -3405,7 +3405,8 @@ function notifyDone(title, body) {
   try {
     const cb = $('notifyOnDone');
     if (cb && !cb.checked) return;
-    if (!document.hasFocus()) window.api.notify(title, body || '');
+    // OS bildirimi DOM dışı — MutationObserver çeviremez; burada çevir.
+    if (!document.hasFocus()) window.api.notify(uiText(title), uiText(body || ''));
   } catch (_) {}
 }
 
@@ -19884,10 +19885,6 @@ function scheduleBrowserUnifiedJobsRefresh() {
   }, 250);
 }
 
-function playerTaskText(value) {
-  return window.UiLocale?.t ? window.UiLocale.t(String(value || '')) : String(value || '');
-}
-
 async function runBrowserTaskAction(job, command) {
   const key = `${job.id || job.kind}:${command}`;
   if (playerTaskActionBusy.has(key)) return;
@@ -19993,24 +19990,26 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     const titleLine = document.createElement('div'); titleLine.className = 'player-task-title-line';
     const label = document.createElement('strong'); label.textContent = row.label;
     const stateLabel = document.createElement('span'); stateLabel.className = 'player-task-state';
+    // Ham TR yazılır; observer EN'e çevirir ve orijinali kaydeder — iş
+    // sürerken dil değiştirilince gidiş-dönüş kayıpsız olur.
     stateLabel.textContent = progress.percent !== null ? `${progress.percent.toFixed(0)}%`
-      : row.recoverable ? playerTaskText('Yarım kaldı')
-        : (row.state === 'paused' || row.status === 'paused') ? playerTaskText('Duraklatıldı') : playerTaskText('İşleniyor');
+      : row.recoverable ? 'Yarım kaldı'
+        : (row.state === 'paused' || row.status === 'paused') ? 'Duraklatıldı' : 'İşleniyor';
     titleLine.append(label, stateLabel);
     const detail = document.createElement('span'); detail.className = 'player-task-detail';
-    detail.textContent = playerTaskText(row.detail || 'Hazırlanıyor');
+    detail.textContent = row.detail || 'Hazırlanıyor';
     copy.append(titleLine, detail);
     if (row.context) {
       const context = document.createElement('span'); context.className = 'player-task-context';
       context.dataset.uiUntranslated = ''; context.textContent = row.context; context.title = row.context; copy.appendChild(context);
     }
     const metaParts = [];
-    if (progress.total) metaParts.push(`${progress.completed}/${progress.total} ${playerTaskText('tamamlandı')}`);
-    if (row.pending) metaParts.push(`${row.pending} ${playerTaskText('çalışıyor')}`);
-    if (row.queued) metaParts.push(`${row.queued} ${playerTaskText('bekliyor')}`);
-    if (row.failed) metaParts.push(`${row.failed} ${playerTaskText('hata')}`);
+    if (progress.total) metaParts.push(`${progress.completed}/${progress.total} tamamlandı`);
+    if (row.pending) metaParts.push(`${row.pending} çalışıyor`);
+    if (row.queued) metaParts.push(`${row.queued} bekliyor`);
+    if (row.failed) metaParts.push(`${row.failed} hata`);
     const elapsed = PlayerTaskCenterModel.elapsedLabel(row.startedAt);
-    if (elapsed) metaParts.push(`${playerTaskText('geçen süre')} ${elapsed}`);
+    if (elapsed) metaParts.push(`geçen süre ${elapsed}`);
     if (metaParts.length) {
       const meta = document.createElement('span'); meta.className = 'player-task-meta';
       for (const value of metaParts) { const part = document.createElement('span'); part.textContent = value; meta.appendChild(part); }
@@ -20034,7 +20033,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
       const action = document.createElement('button');
       action.type = 'button'; action.className = 'player-task-action';
       if (spec.kind === 'stop') action.classList.add('is-stop');
-      action.textContent = playerTaskText(spec.label);
+      action.textContent = spec.label;
       action.disabled = !!spec.busyKey && playerTaskActionBusy.has(spec.busyKey);
       action.addEventListener('click', async () => { action.disabled = true; await spec.run?.(); });
       controls.appendChild(action);
@@ -20042,7 +20041,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     if (typeof row.dismiss === 'function') {
       const dismiss = document.createElement('button'); dismiss.type = 'button';
       dismiss.className = 'player-task-dismiss'; dismiss.textContent = '×';
-      dismiss.title = playerTaskText('Temizle'); dismiss.setAttribute('aria-label', playerTaskText('Temizle'));
+      dismiss.title = 'Temizle'; dismiss.setAttribute('aria-label', 'Temizle');
       dismiss.addEventListener('click', async () => { dismiss.disabled = true; await row.dismiss(); });
       controls.appendChild(dismiss);
     }
