@@ -90,6 +90,40 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
 - `tests/browser-store-deadzone.test.js` — 11 senaryo: userData yol birleştirmeleri (6 getter), SafeSecretStore singleton'ları (invidious/youtube/settings), invidiousSessionInstance+resolveInvidiousInstance öncelik zinciri, watchLibraryForRenderer hasNotes+bozuk-depo index yedeği, adblock publish bekçisi+isSitePaused siteOverride>siteProfiles önceliği, writeBrowserPlacesAtomic bozuk-ana-dosyayı yedeğe kopyalamama+mirrorBackup, writeBrowserPlaces dirty+flush, browserTabHasPage about:blank/restoredUrl, browserPermissionAllowed media→mediaType dağıtımı, hlsCeaTracksForVariant NONE/grup filtre, clearBrowserHlsCeaFullCaptureState decoder+fetch+streamKey temizliği, inspectMediaScanRoots 0/>1000 throw+dir/file süzgeci.
 - `tests/browser-style-deadzone.test.js` — 9 senaryo: darkReaderBundle önbellek+okuma, applyBrowserDarkMode exec-kapıları+user-origin insert+seq/generation bayat reddi, applyBrowserYoutubeStyle '1:1' signature+unchanged+yarış-temizliği, removeBrowserElementPickCss anahtar bekçisi, waitForGpuInfo/settleGpuReadyWaiters çözüm matrisi, refresh/collectGpuDiagnostics tetik+summarize, browserResourceSnapshot sayfa+overlay birleşimi+budget sayaçları, decorateMangaRegionColors boş-resim fallback+crop örnekleme, configureBrowserPlaybackWebRequest session dedupe+aktif-webContents kabulü.
 
+- `tests/browser-config-deadzone.test.js` — 12 senaryo: persistPaths/windowsStatePaths
+  tek-yazım, safeStore fallback+fallback-store singleton, watchIndex dizinler/özyinelemeli,
+  browserTranslationConfig (param+öncelik matrisi), browserMangaTranslationConfig,
+  browserUiLocale/normalizeBrowserLocaleMatrix (tr/en/unknown), browserSearchEngineMatrix,
+  browserExportTitle Uzun-Başlık+ suffix, browserEventContext/TabsSnapshot/PlaybackSnapshot,
+  browserNavigationStateForTab + browserTabRuntimeState (async 5 kol), trimInsertionCollection/
+  boundedIpcRows (20000satır+4MB bütçe)/boundedBrowserOverlayCues, subtitleLangArg/
+  subtitleTextForSearch (SUBTITLE_SEARCH_CACHE_LIMIT=32 LRU), browserPermissionLabel/
+  browserTrackStreamKey/hlsCeaSegmentFetchKey, pdfProtocolHeaders.
+- `tests/auth-io-deadzone.test.js` — 18 senaryo: stopPowerBlocker/setTaskbarProgress/
+  endJobLog/pidAlive/backupOnce, persistQueueTerminal+persistQueueRunning+writeQueueState,
+  appendSubtitleEditLog (dosya-adı kapısı, 1000 dosya/4MB/64MB limitleri, uyarı metni),
+  openExternalByPolicy karar matrisi + openExternalFromWebContent WeakMap 3sn hız sınırı,
+  readJsonResponseLimited (BOM+JSON.parse+etiket), validateLocalMediaPath/authorize
+  (gerçek MediaFileAccess/SubtitleFileAccess + dialog stub'ı), scanMediaFromPaths
+  (doğal-sıralama, gizli-klasör atlama, maxDepth sayımı dosya-derinliği, 'kök ziyarete
+  dedupe), inspectMediaScanRoots (1000 kapısı/dizin/medya-olmayan süzüm),
+  authorizeMediaScanRoots önizleme diyaloğu, stageBurninSubtitle (userData kopya +
+  48s süpürme), burninRecoveryStatePath + read/write/clear (id süzümü, .bak),
+  inspectBurninRecovery (stat/ffprobe/alreadyDone/canFinalize), processIsAlive/
+  processNameForPid + burninRecoveryProcessIsRunning (pid-eşleşme + ad-zamanı kapısı),
+  resolveFfTool/resolvePython/resolveExternalPlayerPath (env-öncelik + which),
+  ytActiveAccount/youtubeAuthEnv (override merge + _ytDevice.deviceCode),
+  validateInvidiousInstance/invidiousSessionInstance/invidiousAuthEnv (uzak http SID
+  gitmez), _ytAbortAuthFlow temizliği, ensureYoutubeAccessToken (taze token, refresh,
+  in-flight dedupe, invalid_grant → hesap silme), runYoutubeCommand/runInvidiousCommand
+  (slot-kilit, ENOENT metinleri, result/ev ayrıştırma, subs grant + instance sonuç),
+  sendYoutubeTvState/configureYoutubeTvSession (UA + fullscreen-only izin + download
+  bekçisi), closeYoutubeTvWindow, installYoutubeStreamHeaders (googlevideo filteri,
+  Origin/Referer + CORS başlıkları), prepareWidevineComponents (yokluk/hazır/üretim-
+  hatası 240-kesimi + drm rapor zamanlama), browserWindowOpenHandler (4 dal) +
+  browserPopupWindowOptions + configureBrowserPopup (eklenemeyen pencere destroy),
+  ytBrowseSerialized (seri zincir + supersedable nesil).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
