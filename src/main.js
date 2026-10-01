@@ -413,6 +413,7 @@ const {
   mapPdfItemsThroughViewport,
   loadPdfTranslationState,
   pdfTranslationStateFileStem,
+  pendingPdfPages,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -17080,11 +17081,16 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
     model: config.model, endpoint: config.endpoint,
   };
   let state = readPdfTranslationState(identity);
+  // Yeniden denemede durum dosyasinda tamamlanmis sayfalari koru: blok bazinda
+  // 'translated'/'skipped' olan sayfa tekrar API'ye gonderilip hem maliyet
+  // yakmasin hem de olasi bir daha-kotu sonuc eskisini ezmesin.
+  const todo = new Set(pendingPdfPages(pages.map((page) => page.pageNumber), state));
   const job = { controller: new AbortController(), schedulers: new Set() };
   pdfTranslationJobs.set(document.pdfHash, job);
   try {
     for (const page of pages) {
       if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
+      if (!todo.has(page.pageNumber)) continue;
       state = await translatePdfPage(document, page, config, state, job);
     }
     const failed = Object.values(state.pages).flat().filter((block) => block.status === 'failed').length;
