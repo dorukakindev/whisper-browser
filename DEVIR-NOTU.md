@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
+Güncel çalışma: [docs/devir/2026-10-01-2350.md](docs/devir/2026-10-01-2350.md) — R374 izleme/kütüphane/PDF kümesi tam derin okuma (7 dosya ~4.776 satır): sıfır kusur
+Önceki çalışma: [docs/devir/2026-10-01-2340.md](docs/devir/2026-10-01-2340.md) — R373 orta-boy yüzeyler tam derin okuma (6 dosya ~6.160 satır): 1 bug (önizleme tek-slot yarışı) düzeltildi, kalan 5 dosya temiz (dalda bekliyor)
+Önceki çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1500.md](docs/devir/2026-10-01-1500.md) — R355 renderer.js kapanış turu — sıfır kusur, KAPSAM TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1430.md](docs/devir/2026-10-01-1430.md) — R354 renderer.js alt-orta derin okuması: ~2.100 satır — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1400.md](docs/devir/2026-10-01-1400.md) — R353 renderer.js orta bölge derin okuması: ~2.070 satır — sıfır kusur

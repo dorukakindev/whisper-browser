@@ -1298,6 +1298,69 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R374 — izleme/kütüphane/PDF kümesi derin okuması: medya denetleyici, watch üçlüsü, PDF metin geometrisi, oynatma teşhisi, kütüphane araçları
+
+Kapsam (~4.776 satır, yedi dosya hepsi satır satır okundu):
+
+- `src/browser-media-controller.js` (643) — sayfa-içi medya denetim
+  betiği üreticisi: doküman jetonu ile komut doğrulaması, observer
+  budaması, ses grafiği + sessizlik izleme, hız niyeti yeniden-doğrulama,
+  reklam susturma/geri açma, komut beyaz listesi.
+- `src/watch-library-store.js` (628) — JSON izleme deposu: şema v3
+  migrasyonu, bozuk-belge kurtarma (eleman-bazlı ayrıştırma +
+  karantina), mezar taşları, taşma bölmeleri, tmp+fsync+bak atomik
+  commit'i (fault-injection hook'lu), tek-seferlik legacy sidecar
+  içe aktarımı.
+- `src/watch-index.js` (483) — node:sqlite indeksi: şema sürüm
+  kapıları, FTS5 cue/sayfa tetikleyicileri, güvenli arama metni,
+  track budaması (keep kümesi), sayfa indeks URL kanonikleştirmesi.
+- `src/watch-library-state.js` (473) — CRDT tarzı alan-bazlı birleştirme:
+  `_fieldRevisions` damgaları, progress/manual-status önceliği,
+  yeniden-oluşturma ve mezar-taşı çatışma reddi, oturum birleştirme,
+  limit tahliyesi → mezar taşı.
+- `src/pdf-translate.js` (568) — PDF metin çıkarma geometrisi: viewport
+  dönüşümü + Y ekseni çevirme, satır/parça/sütun kümeleme (gutter
+  analizi), tire birleştirme, marjinal üstbilgi/altbilgi süzgeci, sayfa
+  numarası tespiti, durum dosyası kimlik+uyumluluk zinciri
+  (birincil→.bak→legacy→legacy.bak), örnekleme-hash.
+- `src/browser-playback-diagnostics.js` (538) — oynatma teşhisi:
+  çift-dilli katalog (aşırı-iddiasız güven seviyeleri), katmanlı
+  sır-temizleme (URL sorgusu, cookie/authorization/bearer/JWT,
+  hassas key=value), kaynak-sınıfı çıkarımı (lisans/belge/medya/API),
+  webRequest kanıt kurulumu, üstel-geri tepmeli emit eşikleri.
+- `src/browser-library-tools.js` (533) — birleşik arama, koleksiyon
+  işlemleri (yeniden-adlandır + sıra koruması), metin-çapa yakalama/
+  geri yükleme betikleri (enjeksiyon-güvenli JSON.stringify), bütçeli
+  Levenshtein yaklaşık eşleşmesi, manga konum geri yükleme,
+  ReopenGuard sıra bileti.
+
+### Sonuç
+
+**Doğrulanmış hata yok.** Yedi dosyanın tamamı temiz: savunma derinliği
+yüksek (atomik commit, şema kapıları, kimlik bağlı önbellek anahtarları,
+karantina geri dönüşleri) ve bilinçli tasarım takasları yorumlarda
+belgeli.
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- `watch-index.js::safePageIndexUrl` sorguyu tamamen atar — `?v=A` ile
+  `?v=B` aynı anahtara düşer; kasıtlı gizlilik takası (test pinli,
+  R86-02). Pratik maliyet: YouTube watch sayfaları tek indeks girdisi
+  paylaşır ve saklanan URL sorgusuzdur (tıklanabilirliği kısmen zayıf).
+- `watch-library-state.js::applyWatchUpsert` — `if (changed)` koşulu
+  fonksiyon-seviyesi bayrağı okuduğu için sessions alanı dokunulmadan
+  başka alan değiştiğinde de `sessions` damgası ilerler; damga yalnız
+  bilgi amaçlı (gate'lenmiyor) — kozmetik, zararsız.
+- `pdf-translate.js::pdfHashFromFirstChunk` örnekleme anahtarıdır
+  (ilk 1MB + son 256KB + boyut) — tam dosya hashi değil; önbellek
+  kimliği olarak bilinçli sınır, belgeli.
+- `selectPrunableTracks` keep kümesi `assetId`'nin küçük-harflisini
+  taşır ve `asset_path` ile karşılaştırılır; iki taraf da aynı
+  kompozit kimliği küçük harfler — üretici zinciri doğrulandı
+  (trackRefs.assetId ← row.asset_path ← saved.assetId).
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
