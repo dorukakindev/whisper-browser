@@ -2129,6 +2129,114 @@ $('updateYtdlp').addEventListener('click', () => runYtdlpUpdate($('updateYtdlp')
 $('runtimeUpdateYtdlp')?.addEventListener('click', () => runYtdlpUpdate($('runtimeUpdateYtdlp')));
 $('runtimeRefresh')?.addEventListener('click', () => refreshRuntimeStatus());
 
+// Madde 35 — veri bütünlüğü denetimi: tarama → onarım önizlemesi (seçimli) →
+// yedekli onarım. Kullanıcı verisi asla onaysız değişmez.
+let integrityLastIssues = [];
+async function runIntegrityScan() {
+  const results = $('integrityResults');
+  const btn = $('integrityScan');
+  if (!results || !btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = interfaceChoice('denetleniyor...', 'scanning...');
+  results.classList.remove('hidden');
+  results.textContent = interfaceChoice('Dosyalar taranıyor...', 'Scanning data files...');
+  try {
+    const r = await window.api.integrityScan();
+    if (!r.ok) {
+      results.textContent = interfaceChoice(`Denetim başarısız: ${r.error}`, `Audit failed: ${r.error}`);
+      return;
+    }
+    integrityLastIssues = r.issues || [];
+    renderIntegrityResults();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = window.UiLocale?.t?.('Veri bütünlüğünü denetle') || interfaceChoice('Veri bütünlüğünü denetle', 'Audit data integrity');
+  }
+}
+
+function renderIntegrityResults() {
+  const results = $('integrityResults');
+  if (!results) return;
+  results.textContent = '';
+  if (!integrityLastIssues.length) {
+    const ok = document.createElement('p');
+    ok.className = 'field-hint';
+    ok.textContent = interfaceChoice('✓ Sorun bulunamadı — veri dosyaları tutarlı.', '✓ No issues — data files are consistent.');
+    results.appendChild(ok);
+    return;
+  }
+  const summary = document.createElement('p');
+  summary.className = 'field-hint';
+  const repairable = integrityLastIssues.filter((i) => i.repair).length;
+  summary.textContent = interfaceChoice(
+    `${integrityLastIssues.length} bulgu (${repairable} onarılabilir). Onarmak istediklerinizi seçin:`,
+    `${integrityLastIssues.length} finding(s) (${repairable} repairable). Select what to repair:`);
+  results.appendChild(summary);
+  const list = document.createElement('ul');
+  list.className = 'integrity-issue-list';
+  for (const issue of integrityLastIssues) {
+    const li = document.createElement('li');
+    li.dataset.severity = issue.severity;
+    if (issue.repair) {
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = true;
+      box.dataset.issueId = issue.id;
+      label.appendChild(box);
+      label.appendChild(document.createTextNode(` ${issue.detail}`));
+      li.appendChild(label);
+    } else {
+      li.textContent = issue.detail;
+      li.classList.add('integrity-readonly');
+    }
+    list.appendChild(li);
+  }
+  results.appendChild(list);
+  if (repairable) {
+    const repairBtn = document.createElement('button');
+    repairBtn.type = 'button';
+    repairBtn.className = 'btn btn-secondary btn-sm';
+    repairBtn.textContent = interfaceChoice('Seçilenleri yedekleyip onar', 'Back up and repair selected');
+    repairBtn.addEventListener('click', () => runIntegrityRepair(repairBtn));
+    results.appendChild(repairBtn);
+  }
+}
+
+async function runIntegrityRepair(btn) {
+  const results = $('integrityResults');
+  const ids = [...results.querySelectorAll('input[type=checkbox]:checked')]
+    .map((box) => box.dataset.issueId);
+  if (!ids.length) return;
+  btn.disabled = true;
+  try {
+    const r = await window.api.integrityRepair(ids);
+    if (!r.ok) {
+      results.appendChild(Object.assign(document.createElement('p'), {
+        className: 'field-hint',
+        textContent: interfaceChoice(`Onarım başarısız: ${r.error}`, `Repair failed: ${r.error}`),
+      }));
+      return;
+    }
+    const parts = [interfaceChoice(
+      `${r.applied.length} onarıldı (yedek: .integrity.bak)`,
+      `${r.applied.length} repaired (backup: .integrity.bak)`)];
+    if (r.skipped.length) parts.push(interfaceChoice(`${r.skipped.length} atlandı`, `${r.skipped.length} skipped`));
+    if (r.errors.length) parts.push(interfaceChoice(`${r.errors.length} hata`, `${r.errors.length} error(s)`));
+    const p = document.createElement('p');
+    p.className = 'field-hint';
+    p.textContent = parts.join(' · ');
+    results.appendChild(p);
+    logLine(interfaceChoice(`Veri bütünlüğü: ${parts.join(' · ')}`, `Data integrity: ${parts.join(' · ')}`));
+    const rescan = await window.api.integrityScan();
+    if (rescan.ok) { integrityLastIssues = rescan.issues || []; renderIntegrityResults(); }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('integrityScan')?.addEventListener('click', () => runIntegrityScan());
+
 // YouTube URL alanında Enter → başlat
 $('youtubeUrl').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.isComposing && !state.running) {

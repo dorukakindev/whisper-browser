@@ -20070,6 +20070,31 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
 
 // yt-dlp güncelleme — YouTube indirme hatalarının başlıca nedeni eski yt-dlp sürümüdür
 let updateJob = null;
+// Madde 35 — veri bütünlüğü denetimi: kırık ilişkiler, mükerrer kimlikler ve
+// bozuk kayıtları tarar; onarım önce önizlenir, yalnız onaylanan bulgular
+// `.integrity.bak` yedeğiyle uygulanır.
+ipcMain.handle('integrity:scan', (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const { issues } = require('./data-integrity').auditUserData(app.getPath('userData'));
+    return { ok: true, issues };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle('integrity:repair', (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const ids = Array.isArray(payload.ids) ? payload.ids.filter((id) => typeof id === 'string').slice(0, 500) : [];
+  if (!ids.length) return { ok: false, error: 'Onarılacak bulgu seçilmedi.' };
+  try {
+    const report = require('./data-integrity').applyRepairs(app.getPath('userData'), ids);
+    return { ok: true, ...report };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 ipcMain.handle('maintenance:updateYtdlp', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob) return { ok: false, error: 'Bir iş çalışırken güncelleme yapılamaz.' };
