@@ -6,16 +6,26 @@ const vm = require('node:vm');
 const sync = require('../src/browser-subtitle-sync');
 const source = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
 const nodes = new Map();
+const makeNode = () => {
+  const node = { value: '', disabled: false, listeners: {}, children: [],
+    classes: new Set(), classList: { toggle(key, on) { this.classes ??= new Set(); on ? this.classes.add(key) : this.classes.delete(key); } },
+    setAttribute() {}, append(...kids) { this.children.push(...kids); },
+    appendChild(kid) { this.children.push(kid); return kid; },
+    addEventListener(event, callback) { this.listeners[event] = callback; } };
+  Object.defineProperty(node, 'textContent', {
+    get() { return node._text || ''; },
+    set(value) { node._text = String(value ?? ''); node.children.length = 0; },
+  });
+  return node;
+};
 const $ = id => {
-  if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', disabled: false, listeners: {},
-    classes: new Set(), classList: { toggle(key, on) { const set = nodes.get(id).classes; on ? set.add(key) : set.delete(key); } },
-    addEventListener(event, callback) { this.listeners[event] = callback; } });
+  if (!nodes.has(id)) nodes.set(id, makeNode());
   return nodes.get(id);
 };
 const cues = [{ start: 10, end: 12, text: 'İlk' }, { start: 100, end: 102, text: 'İkinci' }];
 const tab = { subtitleSyncRecords: [] };
 let overlays = 0, renders = 0;
-const ctx = { $, document: { activeElement: null }, browserSubtitleSync: sync,
+const ctx = { $, document: { activeElement: null, createElement: () => makeNode() }, browserSubtitleSync: sync,
   player: { cues, cues2: cues, browserActiveTabId: 'a', activeIdx: 0, activeIdx2: 0, browserTime: 12, browserPaused: true },
   friendlySystemError: (message) => String(message || ''),
   browserLoadedTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
@@ -69,4 +79,38 @@ const unselected = JSON.stringify(ctx.player.browserSyncPreview);
 ctx.alignBrowserSyncCurrentCue();
 assert.equal(JSON.stringify(ctx.player.browserSyncPreview), unselected);
 assert.match($('browserSyncWarning').textContent, /bloğuna gidin/);
+
+// --- kuyruk-50/6: çok noktalı senkron UI ---
+$('browserSyncChannel').value = 'primary';
+$('browserSyncChannel').listeners.change();
+ctx.player.activeIdx = 0; ctx.player.browserTime = 12;
+ctx.player.cues = [{ start: 10, end: 12, text: 'İlk' }, { start: 100, end: 102, text: 'İkinci' }, { start: 200, end: 202, text: 'Üçüncü' }];
+ctx.player.cues2 = ctx.player.cues;
+ctx.resetBrowserSync();
+ctx.player.browserSyncPreview = null;
+ctx.captureBrowserSyncPoint(0);
+ctx.player.activeIdx = 1; ctx.player.browserTime = 103;
+ctx.captureBrowserSyncPoint(1);
+// 3. nokta: yeni ekleme düğmesi listeye ekler ve fit'i tazeler.
+ctx.player.activeIdx = 2; ctx.player.browserTime = 203.2;
+ctx.addBrowserSyncPoint();
+const preview3 = ctx.player.browserSyncPreview;
+assert.equal(preview3.points.length, 3);
+assert.match($('browserSyncConfidence').textContent, /Güven|Confidence/);
+assert.match($('browserSyncConfidence').textContent, /yüksek|high|Tam uyum|Exact/);
+assert.equal($('browserSyncPointList').children.length, 3);
+// Sapan nokta: video zamanı çok uzak → düşük güven + outlier işareti.
+ctx.player.activeIdx = 2; ctx.player.browserTime = 260;
+ctx.addBrowserSyncPoint();
+assert.match($('browserSyncConfidence').textContent + $('browserSyncWarning').textContent, /düşük|low|sapıyor|deviates/);
+// Nokta silme: satır × düğmesi kaldırır ve refit eder.
+const delBtn = $('browserSyncPointList').children[2].children[1];
+delBtn.listeners.click();
+assert.equal(ctx.player.browserSyncPreview.points.length, 2);
+// Aynı cue'yu tekrar eşleştirmek kopya üretmez, günceller.
+ctx.player.activeIdx = 1; ctx.player.browserTime = 104;
+ctx.addBrowserSyncPoint();
+assert.equal(ctx.player.browserSyncPreview.points.length, 2);
+assert.ok(Math.abs(ctx.player.browserSyncPreview.points[1].videoTime - 104) < 1e-9);
+
 console.log('Senkron UI: atomik eşleşme, değişiklik durumu, boş giriş, hızlı hizalama ve iz değişimi geçti.');

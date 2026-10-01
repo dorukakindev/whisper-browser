@@ -10319,15 +10319,62 @@ function refreshBrowserSyncPanel(message = '') {
     $('browserSyncOffset').value = Number(transform.offsetSeconds).toFixed(3);
   }
   $('browserSyncDirty')?.classList.toggle('hidden', !preview?.dirty);
+  const points = preview?.points || [];
   if ($('browserSyncPoints')) {
-    const points = preview?.points || [];
     $('browserSyncPoints').textContent = points.length
-      ? points.map((point, index) => `${index + 1}. kaynak ${formatSyncSeconds(point.sourceTime)} → video ${formatSyncSeconds(point.videoTime)}`).join(' · ')
-      : 'Drift için iki uzak altyazı bloğunu videodaki doğru başlangıçlarıyla eşleştirin.';
+      ? ''
+      : 'Drift için iki uzak altyazı bloğunu videodaki doğru başlangıçlarıyla eşleştirin; kesinti/reklam varsa ek nokta ekleyin.';
+  }
+  // Nokta listesi: her satır kaynak→video zamanı + sil düğmesi.
+  if ($('browserSyncPointList')) {
+    $('browserSyncPointList').textContent = '';
+    const en = globalThis.UiLocale?.get?.() === 'en';
+    points.forEach((point, index) => {
+      const row = document.createElement('div');
+      row.className = 'browser-sync-point-row';
+      const label = document.createElement('span');
+      label.textContent = `${index + 1}. ${en ? 'source' : 'kaynak'} ${formatSyncSeconds(point.sourceTime)} → ${en ? 'video' : 'video'} ${formatSyncSeconds(point.videoTime)}`;
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'btn btn-ghost btn-sm browser-sync-point-del';
+      del.textContent = '×';
+      del.title = en ? 'Remove match point' : 'Eşleşme noktasını kaldır';
+      del.setAttribute('aria-label', `${en ? 'Remove match point' : 'Eşleşme noktasını kaldır'} ${index + 1}`);
+      del.disabled = !selected.track;
+      del.addEventListener('click', () => removeBrowserSyncPoint(index));
+      row.append(label, del);
+      $('browserSyncPointList').appendChild(row);
+    });
+  }
+  // Güven satırı: residual tabanlı düzey + ortalama sapma + sapan nokta.
+  if ($('browserSyncConfidence')) {
+    const en = globalThis.UiLocale?.get?.() === 'en';
+    let confidence = null;
+    if (points.length >= 2) {
+      try { confidence = browserSubtitleSync.calculateMultiPointTransform(points).confidence; } catch (_) { /* gösterge isteğe bağlı */ }
+    }
+    if (!confidence) {
+      $('browserSyncConfidence').textContent = '';
+      $('browserSyncConfidence').className = 'browser-sync-confidence hidden';
+    } else {
+      const levelText = confidence.level === 'exact'
+        ? (en ? 'Exact fit (2 points)' : 'Tam uyum (2 nokta)')
+        : (en ? { high: 'high', medium: 'medium', low: 'low' }[confidence.level]
+           : { high: 'yüksek', medium: 'orta', low: 'düşük' }[confidence.level]);
+      let text = en
+        ? `Confidence: ${levelText} · avg deviation ${formatSyncSeconds(confidence.rmsError)}`
+        : `Güven: ${levelText} · ortalama sapma ${formatSyncSeconds(confidence.rmsError)}`;
+      if (confidence.outliers.length) {
+        text += en
+          ? ` · point ${confidence.outliers.map((i) => i + 1).join(', ')} deviates`
+          : ` · ${confidence.outliers.map((i) => i + 1).join(', ')}. nokta sapıyor`;
+      }
+      $('browserSyncConfidence').textContent = text;
+      $('browserSyncConfidence').className = `browser-sync-confidence browser-sync-confidence-${confidence.level}`;
+    }
   }
   if ($('browserSyncWarning')) $('browserSyncWarning').textContent = message || '';
   for (const id of ['browserSyncEarlier', 'browserSyncLater', 'browserSyncEarlierStep', 'browserSyncLaterStep',
-    'browserSyncPoint1', 'browserSyncPoint2', 'browserSyncAlignCurrent', 'browserSyncOffset', 'browserSyncClearPoints', 'browserSyncSave', 'browserSyncCancel', 'browserSyncReset']) {
+    'browserSyncPoint1', 'browserSyncPoint2', 'browserSyncPointAdd', 'browserSyncAlignCurrent', 'browserSyncOffset', 'browserSyncClearPoints', 'browserSyncSave', 'browserSyncCancel', 'browserSyncReset']) {
     if ($(id)) $(id).disabled = !selected.track;
   }
 }
@@ -10353,27 +10400,84 @@ function nudgeBrowserSync(amount) {
   return true;
 }
 
-function captureBrowserSyncPoint(slot) {
+// Senkron fit'i + güven uyarısı tek noktada: 2+ noktada en küçük kareler
+// fit; sapan nokta veya büyük düzeltme ayrıca raporlanır.
+function refitBrowserSyncPoints(points) {
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const have = (Array.isArray(points) ? points : []).filter(Boolean);
+  if (have.length < 2) { applyBrowserSyncPreview(player.browserSyncPreview.transform, points); return; }
+  try {
+    const result = browserSubtitleSync.calculateMultiPointTransform(have);
+    const warnings = [];
+    if (Math.abs(result.scale - 1) > .02 || Math.abs(result.offsetSeconds) > 30) {
+      warnings.push(en
+        ? 'The correction looks large. Wrong version or ad break? Verify before saving.'
+        : 'Düzeltme büyük görünüyor. Yanlış sürüm veya reklam kesintisi olabilir; doğrulamadan kaydetmeyin.');
+    }
+    if (result.confidence.level === 'low') {
+      warnings.push(en
+        ? 'Low confidence: match points disagree — a cut or ad break may need more points.'
+        : 'Güven düşük: eşleşme noktaları uyuşmuyor — kesinti veya reklam için daha fazla nokta gerekebilir.');
+    } else if (result.confidence.outliers.length) {
+      warnings.push(en
+        ? `Point ${result.confidence.outliers.map((i) => i + 1).join(', ')} deviates from the rest — re-match or delete it.`
+        : `${result.confidence.outliers.map((i) => i + 1).join(', ')}. nokta diğerlerinden sapıyor — yeniden eşleştirin veya silin.`);
+    }
+    applyBrowserSyncPreview(result, result.points);
+    if (warnings.length) refreshBrowserSyncPanel(warnings.join(' '));
+    return;
+  } catch (error) { return refreshBrowserSyncPanel(friendlySystemError(error.message)); }
+}
+
+function browserSyncPointFromCurrent() {
   const selected = browserSyncSelection();
-  const preview = browserSyncEnsurePreview();
   const index = selected.secondary ? player.activeIdx2 : player.activeIdx;
   const cue = selected.cues[index];
-  if (!preview || !cue) return refreshBrowserSyncPanel('Eşleşme için önce videoda görünen bir altyazı bloğu seçin.');
-  const points = preview.points.slice(0, 2);
-  points[slot] = { sourceTime: Number(cue.start), videoTime: Number(player.browserTime), cueId: browserSubtitleSync.cueKey(cue, index) };
-  if (!Number.isFinite(points[slot].sourceTime) || !Number.isFinite(points[slot].videoTime)
-      || points[slot].sourceTime < 0 || points[slot].videoTime < 0) return refreshBrowserSyncPanel('Eşleşme noktası geçersiz.');
-  if (points[0] && points[1]) {
-    try {
-      const result = browserSubtitleSync.calculateTwoPointTransform(points[0], points[1]);
-      const warning = Math.abs(result.scale - 1) > .02 || Math.abs(result.offsetSeconds) > 30
-        ? 'Düzeltme büyük görünüyor. Yanlış sürüm veya reklam kesintisi olabilir; doğrulamadan kaydetmeyin.' : '';
-      applyBrowserSyncPreview(result, result.points);
-      if (warning) refreshBrowserSyncPanel(warning);
-      return;
-    } catch (error) { return refreshBrowserSyncPanel(friendlySystemError(error.message)); }
+  if (!cue) return null;
+  const point = { sourceTime: Number(cue.start), videoTime: Number(player.browserTime), cueId: browserSubtitleSync.cueKey(cue, index) };
+  if (!Number.isFinite(point.sourceTime) || !Number.isFinite(point.videoTime)
+      || point.sourceTime < 0 || point.videoTime < 0) return undefined;
+  return point;
+}
+
+function captureBrowserSyncPoint(slot) {
+  const preview = browserSyncEnsurePreview();
+  const point = browserSyncPointFromCurrent();
+  if (!preview) return;
+  if (point === null) return refreshBrowserSyncPanel('Eşleşme için önce videoda görünen bir altyazı bloğu seçin.');
+  if (point === undefined) return refreshBrowserSyncPanel('Eşleşme noktası geçersiz.');
+  const points = (preview.points || []).slice(0, browserSubtitleSync.MAX_POINTS || 8);
+  points[slot] = point;
+  refitBrowserSyncPoints(points);
+}
+
+// 3+ nokta: kesilmiş/reklamlı videoda drift'i tek çift noktadan daha güvenli
+// yakalar; aynı cue tekrar eşleştirilirse nokta güncellenir.
+function addBrowserSyncPoint() {
+  const preview = browserSyncEnsurePreview();
+  const point = browserSyncPointFromCurrent();
+  if (!preview) return;
+  if (point === null) return refreshBrowserSyncPanel('Eşleşme için önce videoda görünen bir altyazı bloğu seçin.');
+  if (point === undefined) return refreshBrowserSyncPanel('Eşleşme noktası geçersiz.');
+  const points = (preview.points || []).filter(Boolean);
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const existing = points.findIndex((p) => p.cueId === point.cueId);
+  if (existing >= 0) points[existing] = point;
+  else {
+    if (points.length >= (browserSubtitleSync.MAX_POINTS || 8)) {
+      return refreshBrowserSyncPanel(en ? 'At most 8 match points are kept.' : 'En fazla 8 eşleşme noktası tutulur.');
+    }
+    points.push(point);
   }
-  applyBrowserSyncPreview(preview.transform, points);
+  refitBrowserSyncPoints(points);
+}
+
+function removeBrowserSyncPoint(index) {
+  const preview = browserSyncEnsurePreview();
+  if (!preview) return;
+  const points = (preview.points || []).filter(Boolean);
+  points.splice(index, 1);
+  refitBrowserSyncPoints(points);
 }
 
 function alignBrowserSyncCurrentCue() {
@@ -19935,6 +20039,7 @@ if ($('browserSyncEarlierStep')) $('browserSyncEarlierStep').addEventListener('c
 if ($('browserSyncLaterStep')) $('browserSyncLaterStep').addEventListener('click', () => nudgeBrowserSync(Number($('browserSyncStep')?.value) || 1));
 if ($('browserSyncPoint1')) $('browserSyncPoint1').addEventListener('click', () => captureBrowserSyncPoint(0));
 if ($('browserSyncPoint2')) $('browserSyncPoint2').addEventListener('click', () => captureBrowserSyncPoint(1));
+if ($('browserSyncPointAdd')) $('browserSyncPointAdd').addEventListener('click', () => addBrowserSyncPoint());
 if ($('browserSyncAlignCurrent')) $('browserSyncAlignCurrent').addEventListener('click', alignBrowserSyncCurrentCue);
 if ($('browserSyncClearPoints')) $('browserSyncClearPoints').addEventListener('click', () => {
   const preview = browserSyncEnsurePreview();
