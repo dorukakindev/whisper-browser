@@ -23195,6 +23195,7 @@ document.addEventListener('keydown', (e) => {
     const downloads = $('browserDownloadsPanel');
     const ytModal = $('youtubeLoginModal');
     if (ytModal && !ytModal.classList.contains('hidden')) closeYoutubeLogin();
+    else if (!$('playerTaskCenter')?.classList.contains('hidden')) { setPlayerTaskCenter(false); $('playerTaskCenterToggle')?.focus(); }
     else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
     else if (!$('browserQrPanel')?.classList.contains('hidden')) setBrowserQrOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
