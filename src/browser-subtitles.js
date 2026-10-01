@@ -76,7 +76,7 @@ function cleanCueText(value) {
   }
   // IMSC ruby anotasyonunda rt okunuş/açıklama metnidir. Ana karakterlerle
   // birleşirse düz metinde sahte bir diyalog oluşur; ana ruby metnini koru.
-  source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
+  source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b(?:[^>]*[^/>])?>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
   const decoded = decodeEntities(source.replace(/<br\s*\/?>/gi, '\n'));
   // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
@@ -391,7 +391,7 @@ function parseAss(body) {
 function parseSami(body) {
   const out = [];
   const matches = [...String(body || '').matchAll(/<sync\b[^>]*\bstart\s*=\s*["']?(\d+)["']?[^>]*>([\s\S]*?)(?=<sync\b|$)/gi)];
-  const paragraphPattern = /<p\b([^>]*)>([\s\S]*?)(?=<p\b|<\/sync\b|$)/gi;
+  const paragraphPattern = /<p\b([^>]*[^/>])?>([\s\S]*?)(?=<p\b|<\/sync\b|$)/gi;
   const classes = [];
   for (const match of matches) {
     for (const paragraph of match[2].matchAll(paragraphPattern)) {
@@ -699,12 +699,12 @@ function resolveUrl(value, baseUrl) {
 }
 
 function lastBaseUrl(xml, baseUrl) {
-  const values = [...String(xml || '').matchAll(/<BaseURL\b[^>]*>([\s\S]*?)<\/BaseURL>/gi)];
+  const values = [...String(xml || '').matchAll(/<BaseURL\b(?:[^>]*[^/>])?>([\s\S]*?)<\/BaseURL>/gi)];
   return values.length ? resolveUrl(values[values.length - 1][1], baseUrl) : baseUrl;
 }
 
 function firstBaseValue(xml) {
-  const match = String(xml || '').match(/<BaseURL\b[^>]*>([\s\S]*?)<\/BaseURL>/i);
+  const match = String(xml || '').match(/<BaseURL\b(?:[^>]*[^/>])?>([\s\S]*?)<\/BaseURL>/i);
   return match ? decodeEntities(match[1]).trim() : '';
 }
 
@@ -742,7 +742,7 @@ function parseIsoDurationSeconds(raw) {
 
 function dashPeriodBounds(xml, adaptation) {
   const source = String(xml || '');
-  const periods = [...source.matchAll(/<Period\b([^>]*)>([\s\S]*?)<\/Period>/gi)];
+  const periods = [...source.matchAll(/<Period\b([^>]*[^/>])?>([\s\S]*?)<\/Period>/gi)];
   const mpdTag = (source.match(/<MPD\b([^>]*)>/i) || [])[1] || '';
   const totalDuration = parseIsoDurationSeconds(attr(mpdTag, 'mediaPresentationDuration'));
   let inferredStart = 0;
@@ -765,7 +765,7 @@ function dashPeriodBounds(xml, adaptation) {
 
 function dashSegmentTemplate(scope) {
   const source = String(scope || '');
-  const closed = source.match(/<SegmentTemplate\b([^>]*)>([\s\S]*?)<\/SegmentTemplate>/i);
+  const closed = source.match(/<SegmentTemplate\b([^>]*[^/>])?>([\s\S]*?)<\/SegmentTemplate>/i);
   if (closed) return { tag: closed[1] || '', inner: closed[2] || '' };
   const empty = source.match(/<SegmentTemplate\b([^>]*?)\/?\s*>/i);
   return empty ? { tag: empty[1] || '', inner: '' } : null;
@@ -784,7 +784,7 @@ function dashTemplateTimeline(template, periodDuration) {
   const presentationTimeOffset = Number(attr(template.tag, 'presentationTimeOffset')) || 0;
   const endTime = presentationTimeOffset + Math.max(0, Number(periodDuration) || 0) * timescale;
   const duration = Math.max(0, Number(attr(template.tag, 'duration')) || 0);
-  const timelineInner = (template.inner.match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+  const timelineInner = (template.inner.match(/<SegmentTimeline\b(?:[^>]*[^/>])?>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
   const rows = [];
   if (!timelineInner) {
     if (!duration || !periodDuration) return rows;
@@ -819,7 +819,7 @@ function dashTemplateTimeline(template, periodDuration) {
 
 function dashTemplateHasFiniteLiveTimeline(template) {
   const timelineInner = (String(template?.inner || '')
-    .match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+    .match(/<SegmentTimeline\b(?:[^>]*[^/>])?>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
   if (!timelineInner) return false;
   const entries = [...timelineInner.matchAll(/<S\b([^>]*)\/?\s*>/gi)];
   if (!entries.length) return false;
@@ -835,7 +835,7 @@ function dashTemplateHasFiniteLiveTimeline(template) {
 }
 function dashTextAdaptations(xml) {
   const out = [];
-  for (const match of String(xml || '').matchAll(/<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi)) {
+  for (const match of String(xml || '').matchAll(/<AdaptationSet\b([^>]*[^/>])?>([\s\S]*?)<\/AdaptationSet>/gi)) {
     const tag = match[1];
     const inner = match[2];
     const repTag = (inner.match(/<Representation\b([^>]*)/i) || [])[1] || '';
@@ -848,7 +848,7 @@ function dashTextAdaptations(xml) {
 
 function dashRepresentations(inner) {
   const reps = [];
-  for (const match of String(inner || '').matchAll(/<Representation\b([^>]*)>([\s\S]*?)<\/Representation>/gi)) {
+  for (const match of String(inner || '').matchAll(/<Representation\b([^>]*[^/>])?>([\s\S]*?)<\/Representation>/gi)) {
     reps.push({ tag: match[1], inner: match[2] });
   }
   for (const match of String(inner || '').matchAll(/<Representation\b([^>]*?)\/>/gi)) {
@@ -868,7 +868,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
     const adaptationPrefix = adaptation.inner.split(/<Representation\b/i)[0];
     const adaptationBase = lastBaseUrl(adaptationPrefix, outerBase);
     const adaptationTemplate = dashSegmentTemplate(adaptationPrefix);
-    const adaptationListMatch = adaptationPrefix.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
+    const adaptationListMatch = adaptationPrefix.match(/<SegmentList\b([^>]*[^/>])?>([\s\S]*?)<\/SegmentList>/i);
     const periodBounds = dashPeriodBounds(xml, adaptation);
     const periodStart = periodBounds.start;
     for (const rep of dashRepresentations(adaptation.inner)) {
@@ -881,7 +881,7 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
       const language = attr(adaptation.tag, 'lang') || attr(rep.tag, 'lang') || '';
       const label = attr(adaptation.tag, 'label') || representationId || language || 'DASH altyazısı';
       const format = /vtt|wvtt/i.test(adaptation.signature + rep.tag) ? 'vtt' : 'ttml';
-      const repListMatch = rep.inner.match(/<SegmentList\b([^>]*)>([\s\S]*?)<\/SegmentList>/i);
+      const repListMatch = rep.inner.match(/<SegmentList\b([^>]*[^/>])?>([\s\S]*?)<\/SegmentList>/i);
       const segmentList = repListMatch || adaptationListMatch;
       if (!media && segmentList) {
         const listTag = segmentList[1] || '';
@@ -1008,7 +1008,7 @@ function dashByteRange(raw) {
 }
 
 function dashListTimeline(xml, count) {
-  const inner = (xml.match(/<SegmentTimeline\b[^>]*>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
+  const inner = (xml.match(/<SegmentTimeline\b(?:[^>]*[^/>])?>([\s\S]*?)<\/SegmentTimeline>/i) || [])[1];
   if (!inner) return [];
   const entries = [...inner.matchAll(/<S\b([^>]*)\/?\s*>/gi)];
   const timeline = [];
@@ -1368,7 +1368,7 @@ function parseXml(body) {
     });
   }
   // YouTube timedtext / srv biçimi.
-  for (const match of xml.matchAll(/<(?:[\w.-]+:)?(text|p)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi)) {
+  for (const match of xml.matchAll(/<(?:[\w.-]+:)?(text|p)\b([^>]*[^/>])?>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi)) {
     const elementName = localName(match[1]);
     const tag = match[2];
     const inner = match[3];
@@ -1387,11 +1387,11 @@ function parseXml(body) {
     // Her zamanli span kendi cue'su olur; p baslangici varsa span ona gore
     // ofsetlenir. Boylece farkli span sureleri tek buyuk cue'ya cokmez.
     const timedSpans = elementName === 'p' ? [...inner.matchAll(
-      /<(?:[\w.-]+:)?(span)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi,
+      /<(?:[\w.-]+:)?(span)\b([^>]*[^/>])?>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi,
     )].filter((span) => /\b(?:begin|start|t|end|dur|d)\s*=/i.test(span[2])) : [];
     if (timedSpans.length) {
       const outsideText = cleanCueText(inner.replace(
-        /<(?:[\w.-]+:)?(span)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?\1\s*>/gi, ''));
+        /<(?:[\w.-]+:)?(span)\b(?:[^>]*[^/>])?>[\s\S]*?<\/(?:[\w.-]+:)?\1\s*>/gi, ''));
       let paragraphStart = parseXmlTime(startRaw, xml);
       if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
         paragraphStart = Number(startRaw) / 1000;

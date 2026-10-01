@@ -70,7 +70,8 @@ test('çevrilmemiş satır sezgisi', () => {
   const end = renderer.indexOf('function untranslatedCueBanner(', start);
   const fold = (value) => String(value).replace(/[Iİı]/g, 'i').toLowerCase();
   const foldIx = (value) => ({ dense: fold(value), map: [] });
-  const make = (cues2) => new Function('player', 'foldIndex', `${renderer.slice(start, end)}; return cueLooksUntranslated;`)({ cues2 }, foldIx);
+  const make = (cues2) => new Function('player', 'foldIndex', 'foldIndexCached',
+    `${renderer.slice(start, end)}; return cueLooksUntranslated;`)({ cues2 }, foldIx, foldIx);
   const looks = make([{}]);
   assert.equal(looks('Where are you going?', ''), true, 'karşılığı yok');
   assert.equal(looks('Where are you going?', 'Where are you going?'), true, 'kaynak aynen kalmış');
