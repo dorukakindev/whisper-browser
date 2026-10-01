@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal, 9 dosya)
+Güncel çalışma: [docs/devir/2026-10-01-1151.md](docs/devir/2026-10-01-1151.md) — R413b: stub kapsamı preload'lu 2 smoke'a daraltıldı (preload'suz 7'si ölü koddu)
+Önceki çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal)
 Önceki çalışma: [docs/devir/2026-10-01-1134.md](docs/devir/2026-10-01-1134.md) — R412 tests/ kapanışı: son 7 büyük dosya temiz + 402 dosya tam-envanter süpürmesi — REPO GENELİ DERİN OKUMA TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1131.md](docs/devir/2026-10-01-1131.md) — R411 src/ kapanışı: kalan 29 dosya (~2.700 satır) temiz — SRC ENVANTERİ %100
 Önceki çalışma: [docs/devir/2026-10-01-1126.md](docs/devir/2026-10-01-1126.md) — R410 UI yüzeyi derin okuma: index.html+styles.css+browser-chrome.css — 18 ölü CSS seçicisi silindi + rel=noopener; SON BÜYÜK OKUNMAMIŞ YÜZEY KAPANDI
