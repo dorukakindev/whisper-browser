@@ -28,6 +28,13 @@ GitHub engelini beklemeden yürütülen yerel doğrulama turu. Beş iş kalemi:
 - **Düzeltme:** dizgi-sonlandırıcı escape'ler (`]`, `P`, `X`, `^`, `_` → OSC/DCS/SOS/PM/APC) Fe dalından ÖNCE `[^\x07\x1B]*(?:\x07|\x1B\\)` ile tamamen süzülür; içerik penceresi `\x1b`yi de dışlar (sonlandırılmamış dizgi sonraki escape'i yutmaz).
 - **Kilit:** `tests/joblog-deadzone.test.js` — OSC köprüsü, DCS/PM dizgileri, CSI, URL/yol/kontrol/500-kırpma kontrolleri.
 
+### B-334-03 · `download_youtube` video_id traversal son-fallback boşluğu (transcribe.py)
+
+- **Kök neden:** R332'nin `_inside` kapsam bekçisi uzantı taramasındaki adayları kontrol ediyordu fakat tarama başarısız olunca yapılan SON fallback (`Path(output_dir)/f"{video_id}.wav"`) ve ardındaki `wav_path.is_file()` kapısı bekçiden geçmiyordu. `video_id='../evil'` gibi traversal'lı bir extractor kimliği + kapsam dışında gerçekten var olan dosya → kapsam dışı dosya "indirilen ses" olarak kabul ediliyordu.
+- **Kanıt (kırmızı):** `id='../evil'`, üst dizinde `evil.wav` mevcut → eski kod `wav_path` olarak kapsam dışı dosyayı döndürüyordu (test `traversal red` düşüşüyle kanıtlı); düzeltmede `RuntimeError('bulunamadı')`.
+- **Düzeltme:** son fallback de `_inside`'dan geçer, kapsam dışıysa `wav_path=None`; ardındaki varlık kapısı `not wav_path or not wav_path.is_file()` olarak güncellendi.
+- **Kilit:** `backend/test_ytdlp_deadzones.py` — traversal senaryosu dahil 22 kontrol (sahte `yt_dlp` modülü, ağ yok).
+
 ## Kapsam haritaları
 
 ### Backend (`coverage.py`, 47 test dosyası subprocess)
@@ -66,6 +73,8 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
 ## Yeni test dosyaları
 
 - `backend/test_split_deadzones.py` — 17 senaryo / 24 kontrol, hepsi yeşil: timing big-pause/bağlaç/hard_max/max_words/None-zamanlı kelime/words=None; punctuation cümle-sonu/soft-70%/passthrough; find_unpunctuated_spans 4 kapı; recover_punctuation_collapse replace/keep/sınır-bandı 4 senaryo.
+- `backend/test_ytdlp_deadzones.py` — 6 senaryo / 22 kontrol: audio_lang kapısı, cookie whitelist, hata eşlemesi, progress_hook, dosya çözümleme (B-334-03 traversal dahil), ffmpeg_location+ffprobe uyarısı, clip notu+opts.
+- `tests/anki-export-runner.test.js` — 6 senaryo: tek-uçuş, betik yok, 32MB sınırı, başarı+izleme, 4 hata yolu, settled idempotency.
 - `tests/joblog-deadzone.test.js` — 4 senaryo: `sanitizeProcessDetail` (OSC/DCS sızıntısı B-334-02 dahil 11 kontrol), `redactJobLogArgs` (gizli-değer bayrakları + `--ad=değer` + slice(1) sözleşmesi), `pruneOldLogs` (en-yeni-K korunur + dizin keep-yuvası davranışı + eksik dir toleransı).
 
 ## Yeni araçlar
