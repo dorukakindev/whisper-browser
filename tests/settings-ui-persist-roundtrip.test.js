@@ -60,6 +60,8 @@ const OTHER_STORE = new Set([
   'bfSkipStart', 'bfSkipEnd', 'bfSkipKind', 'bfSkipScope', 'bfSkipAuto',
   'bfSeriesName', 'bfSeriesContext',
   'bfContextSeries', 'bfContextStyle', 'bfContextSynopsis', 'bfContextTerms',
+  // Medya-bazlı oynatma tercihi (whisper-player-saved:<mediaKey> deposu)
+  'sub2Offset',
 ]);
 
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
@@ -83,7 +85,8 @@ const TRANSIENT = new Set([
   'invLoginPassword', 'invLoginUsername',
   'modelBenchmarkCompare', 'modelBenchmarkSeconds', 'modelBenchmarkStart',
   'pdfReaderPage', 'playerAudioLock', 'playerChapters', 'playerEmbeddedSubSelect',
-  'playerHeadMore', 'playerLayoutQuickMenu', 'playerLibraryFilter', 'playerLibrarySearch',
+  'playerHeadMore', 'playerLayoutQuickMenu', 'playerLibraryFilter', 'playerLibraryLang',
+  'playerLibrarySearch', 'playerLibrarySubs',
   'playerLibrarySearchScope', 'playerMore', 'playerQuality', 'playerQuickYtUrl', 'playerSeek',
   'playerSourceSelect', 'playerSpeedMenu', 'playerStreamAudio', 'playerSubSelect', 'playerSubSelect2',
   'playerSubtitleDisplay', 'playerYtSubLang', 'playerYtUrl', 'previewSearch',

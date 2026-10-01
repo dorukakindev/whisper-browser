@@ -23,7 +23,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
-  'minSpeakers', 'maxSpeakers', 'llmWorkers',
+  'minSpeakers', 'maxSpeakers', 'speakerMap', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
