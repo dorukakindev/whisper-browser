@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
+const { atomicWriteFileSync } = require('./fsync-utils');
 function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText }) {
   const dl = dialogText || ((tr) => tr);
   const client = createMetadataClient(), previews = new Map();
@@ -47,7 +48,9 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           const buffer = await readLimitedBytes(response, 8e6, 'Afiş');
           const image = nativeImage.createFromBuffer(buffer); if (image.isEmpty()) throw new Error('Afiş biçimi geçersiz.');
           const folder = path.join(userData(), 'catalog-posters'); fs.mkdirSync(folder, { recursive: true });
-          patch.posterPath = path.join(folder, randomUUID() + '.png'); fs.writeFileSync(patch.posterPath, image.resize({ width: 500 }).toPNG());
+          patch.posterPath = path.join(folder, randomUUID() + '.png');
+          // Yarım afiş kalmasın — ortak temp+fsync+rename töreni.
+          atomicWriteFileSync(patch.posterPath, image.resize({ width: 500 }).toPNG());
         }
         try {
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
