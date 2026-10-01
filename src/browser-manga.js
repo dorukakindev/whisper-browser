@@ -1,5 +1,18 @@
 const { createHash } = require('crypto');
 const { isIP } = require('net');
+const {
+  mangaAxisTransform, mangaImageContentRect, mangaMapAxisPoint,
+  mangaOverlayFrame, mangaParsePosition, mangaRegionFractionBox,
+} = require('./manga-geometry');
+
+// Madde 39 — geometri fonksiyonları sayfa içinde de çalışmalı (enjekte script):
+// tek kaynak = manga-geometry.js; burada fonksiyon kaynak metinleri toplanır ve
+// mangaOverlayScript gövdesine eklenir. Fonksiyonlar sayfa içinde require
+// çağıramayacağı için birbirini isimle çağırır — hepsi listede olmalı.
+const MANGA_GEOMETRY_SOURCE = [
+  mangaParsePosition, mangaImageContentRect, mangaAxisTransform,
+  mangaMapAxisPoint, mangaOverlayFrame, mangaRegionFractionBox,
+].map((fn) => fn.toString()).join('\n');
 
 const MAX_MANGA_REGIONS = 160;
 const MAX_MANGA_REGION_TEXT = 1200;
@@ -630,6 +643,7 @@ function mangaOverlayScript(payload) {
   });
   return `(() => {
     const payload = ${safe};
+${MANGA_GEOMETRY_SOURCE}
     payload.fontStack = payload.fontFamily === 'compact' ? 'Arial Narrow, Roboto Condensed, sans-serif'
       : payload.fontFamily === 'system' ? 'Segoe UI, Arial, sans-serif'
       : 'Comic Sans MS, Comic Neue, Trebuchet MS, sans-serif';
@@ -701,6 +715,18 @@ function mangaOverlayScript(payload) {
           // kaybolur ve mangaTranslated sayacı yanıltıcı kalır.
           if (!overlay.isConnected) (document.body || document.documentElement)?.appendChild(overlay);
           const rect = target.getBoundingClientRect();
+          // Madde 39 — object-fit letterbox ve axis-aligned transform (flip/
+          // rot90) için bölge konumları element-bounding-rect kesrine eşlenir;
+          // rastgele açılı dönüşümde (rot45/skew) katman gizlenir ki yanlış
+          // bölge gösterimi ve OCR kesimi engellenir.
+          const computed = getComputedStyle(target);
+          const frame = mangaOverlayFrame({
+            rect, offsetWidth: target.offsetWidth || rect.width,
+            offsetHeight: target.offsetHeight || rect.height,
+            naturalWidth: target.naturalWidth, naturalHeight: target.naturalHeight,
+            objectFit: computed.objectFit, objectPosition: computed.objectPosition,
+            transform: computed.transform,
+          });
           // Viewport koordinatları iç kaydırmalı/transform uygulanmış manga
           // okuyucularında da görselle aynı referans düzlemini kullanır.
           // Kritik konum stilleri important ile yazılır — sayfanın kendi
@@ -710,10 +736,10 @@ function mangaOverlayScript(payload) {
           overlay.style.setProperty('top', rect.top + 'px', 'important');
           overlay.style.setProperty('width', rect.width + 'px', 'important');
           overlay.style.setProperty('height', rect.height + 'px', 'important');
-          overlay.style.setProperty('visibility',
-            rect.width > 1 && rect.height > 1 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth
-              ? 'visible' : 'hidden', 'important');
-          if (overlay.style.visibility !== 'visible' && !state.visibleImages.has(id)) continue;
+          const frameVisible = frame.supported
+            && rect.width > 1 && rect.height > 1 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+          overlay.style.setProperty('visibility', frameVisible ? 'visible' : 'hidden', 'important');
+          if (!frameVisible && !state.visibleImages.has(id)) continue;
           for (const group of overlay.querySelectorAll('[data-whisper-manga-region]')) {
             const region = group.querySelector('[data-whisper-manga-frame]');
             const text = group.querySelector('[data-whisper-manga-text]');
@@ -721,6 +747,30 @@ function mangaOverlayScript(payload) {
             // tüm yerleşim döngüsünü TypeError ile durdurur (B83-17).
             if (!region || !text) continue;
             const verticalText = group.dataset.verticalText === 'true';
+            // Madde 39 — bölge % konumu her düzende içerik kutusu + eksen
+            // eşlemesiyle yeniden hesaplanır; base* dataset değerleri de
+            // eşlenen değerleri tutar ki refit-sıfırlama tutarlı kalsın.
+            try {
+              const bubble = mangaRegionFractionBox(JSON.parse(group.dataset.bubbleBox || '[]'), frame);
+              const textBox = mangaRegionFractionBox(JSON.parse(group.dataset.textBox || '[]'), frame);
+              if (bubble.supported) {
+                region.style.setProperty('left', (bubble.x1 * 100) + '%', 'important');
+                region.style.setProperty('top', (bubble.y1 * 100) + '%', 'important');
+                region.style.setProperty('width', ((bubble.x2 - bubble.x1) * 100) + '%', 'important');
+                region.style.setProperty('height', ((bubble.y2 - bubble.y1) * 100) + '%', 'important');
+                region.dataset.baseLeft = String(bubble.x1 * 100);
+                region.dataset.baseTop = String(bubble.y1 * 100);
+                region.dataset.baseWidth = String((bubble.x2 - bubble.x1) * 100);
+                region.dataset.baseHeight = String((bubble.y2 - bubble.y1) * 100);
+              }
+              const cleanup = group.querySelector('[data-whisper-manga-cleanup]');
+              if (cleanup && textBox.supported) {
+                cleanup.style.setProperty('left', (textBox.x1 * 100) + '%', 'important');
+                cleanup.style.setProperty('top', (textBox.y1 * 100) + '%', 'important');
+                cleanup.style.setProperty('width', ((textBox.x2 - textBox.x1) * 100) + '%', 'important');
+                cleanup.style.setProperty('height', ((textBox.y2 - textBox.y1) * 100) + '%', 'important');
+              }
+            } catch (_) {}
             // Düzenleme/geri alma sonrasında eski genişlemeyi taşımadan yeniden sığdır.
             if (region.dataset.fittedText !== text.textContent) {
               region.style.width = region.dataset.baseWidth + '%';

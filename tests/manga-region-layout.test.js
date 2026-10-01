@@ -15,7 +15,7 @@ function test(name, fn) {
 
 test('kaplama katmanı sabit konumlu ve hedef her düzenlemede taze rect ile okunur', () => {
   assert.match(src, /overlay\.style\.setProperty\('position', 'fixed', 'important'\)/);
-  assert.match(src, /const rect = target\.getBoundingClientRect\(\);[\s\S]{0,700}overlay\.style\.setProperty\('left', rect\.left/);
+  assert.match(src, /const rect = target\.getBoundingClientRect\(\);[\s\S]{0,1500}overlay\.style\.setProperty\('left', rect\.left/);
 });
 
 test('kaydırma + pencere yeniden boyutlandırma + görünür-alan (pinch/sayfa zoom) yeniden düzenler', () => {
@@ -50,11 +50,19 @@ test('kaplama kaldırıldıysa görsel dururken geri bağlanır (anti-tamper day
 });
 
 test('sayfa dışına taşan kaplama görünmezliğe çekilir, kaydırınca geri gelir', () => {
-  assert.match(src, /visibility',\s*[\s\S]{0,200}rect\.bottom > 0 && rect\.right > 0/);
+  assert.match(src, /rect\.bottom > 0 && rect\.right > 0[\s\S]{0,300}setProperty\('visibility'/);
+});
+
+test('object-fit/dönüşüm geometrisi: içerik kutusu ve eksen eşlemesi manga-geometry üzerinden', () => {
+  assert.match(src, /require\('\.\/manga-geometry'\)/);
+  assert.match(src, /getComputedStyle\(target\)/);
+  assert.match(src, /mangaOverlayFrame\(\{/);
+  assert.match(src, /mangaRegionFractionBox\(JSON\.parse\(group\.dataset\.bubbleBox/);
+  assert.match(src, /frame\.supported[\s\S]{0,200}rect\.bottom > 0/);
 });
 
 test('düzen döngüsü frame başına kuyruklanır (layoutQueued ile birden çok istek tekile iner)', () => {
   assert.match(src, /if \(!state\.layoutQueued\) \{\s*state\.layoutQueued = true;\s*state\.layoutFrame = requestAnimationFrame\(state\.layout\);\s*\}/);
 });
 
-console.log(`PASS ${passed}/9`);
+console.log(`PASS ${passed}/10`);
