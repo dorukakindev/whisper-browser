@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2009.md](docs/devir/2026-10-01-2009.md) — kuyruk-50 madde 24: Live Whisper ses-dili değişiminde iz bölümü
+Güncel çalışma: [docs/devir/2026-10-01-2011.md](docs/devir/2026-10-01-2011.md) — kuyruk-50 madde 25: CEA checkpoint parça kimliği + zaman dönüşümü
+Önceki çalışma: [docs/devir/2026-10-01-2011.md](docs/devir/2026-10-01-2011.md) — kuyruk-50 madde 25: CEA checkpoint parça kimliği + zaman dönüşümü
 Önceki çalışma: [docs/devir/2026-10-01-2009.md](docs/devir/2026-10-01-2009.md) — kuyruk-50 madde 24: Live Whisper ses-dili değişiminde iz bölümü
 Önceki çalışma: [docs/devir/2026-10-01-2006.md](docs/devir/2026-10-01-2006.md) — kuyruk-50 madde 23: capture tekrar oynatma düzeneği
 Önceki çalışma: [docs/devir/2026-10-01-2003.md](docs/devir/2026-10-01-2003.md) — kuyruk-50 madde 22: altyazı kökeni inceleme görünümü

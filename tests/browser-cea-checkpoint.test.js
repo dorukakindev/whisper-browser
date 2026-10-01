@@ -27,12 +27,41 @@ try {
   assert(!serialized.includes('media.example'), 'Source URL must not persist in the payload');
   assert(!serialized.includes('completedIds'), 'Decoder state cannot be safely skipped on restart');
   assert.deepEqual(loadCeaCheckpoint(root, id, 1001), { completedSegments: 4,
-    tracks: [{ instreamId: 'CC1', cues: [{ start: 1, end: 2,
+    tracks: [{ instreamId: 'CC1', language: '', name: '', standard: '',
+      timeTransform: null, cues: [{ start: 1, end: 2,
       text: 'A remembered caption', sequence: 4, discontinuity: 0 }] }] });
   assert.equal(loadCeaCheckpoint(root, id, 1000 + 8 * 24 * 60 * 60 * 1000), null);
   assert.equal(loadCeaCheckpoint(root, checkpointId(url, 'browser:different', tracks), 1001), null);
   assert.equal(clearCeaCheckpoint(root, id), true);
   assert.equal(clearCeaCheckpoint(root, id), false);
+
+  // Madde 25: parça kimliği + zaman dönüşümü checkpoint'te saklanıp geri yüklenir.
+  const tt = { offsetSeconds: 2.45, matches: 37, confidence: 'strong' };
+  assert.equal(saveCeaCheckpoint(root, id, [{ instreamId: 'CC1', language: 'en',
+    name: 'English captions', standard: 'cea-708', timeTransform: tt, cues }], 9, 2000), true);
+  const loaded = loadCeaCheckpoint(root, id, 2001);
+  assert.deepEqual(loaded.tracks[0].language, 'en');
+  assert.deepEqual(loaded.tracks[0].name, 'English captions');
+  assert.deepEqual(loaded.tracks[0].standard, 'cea-708');
+  assert.deepEqual(loaded.tracks[0].timeTransform, tt);
+  // Eski biçim (yeni alanlar yok) geriye uyumlu yüklenir — boş kimlik alanları.
+  assert.equal(saveCeaCheckpoint(root, id, [{ instreamId: 'CC1', cues }], 10, 3000), true);
+  const legacy = loadCeaCheckpoint(root, id, 3001);
+  assert.deepEqual(legacy.tracks[0].timeTransform, null);
+  assert.deepEqual(legacy.tracks[0].language, '');
+  // Bozulmuş zaman dönüşümü ve aşırı değerler düşürülür.
+  assert.equal(saveCeaCheckpoint(root, id, [{ instreamId: 'CC1', cues,
+    language: 'x'.repeat(200), name: 12345, standard: { evil: 1 },
+    timeTransform: { offsetSeconds: Number.POSITIVE_INFINITY, matches: -4,
+      confidence: 'x'.repeat(100) } }], 11, 4000), true);
+  const hostile = loadCeaCheckpoint(root, id, 4001);
+  assert.deepEqual(hostile.tracks[0].timeTransform, null, 'non-finite offset must drop');
+  assert.equal(hostile.tracks[0].language.length <= 24, true);
+  assert.equal(typeof hostile.tracks[0].name, 'string');
+  assert.equal(saveCeaCheckpoint(root, id, [{ instreamId: 'CC1', cues,
+    timeTransform: { offsetSeconds: 90001, matches: 2, confidence: 'weak' } }], 12, 5000), true);
+  assert.deepEqual(loadCeaCheckpoint(root, id, 5001).tracks[0].timeTransform, null,
+    'offset > 24h must drop');
 } finally {
   // The directory was created above exclusively for this test. Remove only its
   // known checkpoint file and then the now-empty directory.

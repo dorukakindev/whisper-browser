@@ -10150,11 +10150,19 @@ function persistBrowserHlsCeaCheckpoint(job, force = false) {
   // Save the first caption-bearing segment promptly. Subsequent writes are
   // batched so long lessons do not synchronously rewrite the file per segment.
   if (!force && job.checkpointedAtCount && count - job.checkpointedAtCount < 20) return;
-  const tracks = (job.tracks || []).map((track) => ({
-    instreamId: track.instreamId,
-    cues: browserTrackBuffers.get(
-      `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`) || [],
-  }));
+  const tracks = (job.tracks || []).map((track) => {
+    const streamKey = `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`;
+    return {
+      instreamId: track.instreamId,
+      // Parça kimliği + uygulanmış zaman dönüşümü (madde 25): kapanma sonrası
+      // plan değişse bile iz doğru kimlik ve aynı dönüşümle yayınlanır.
+      language: track.language || '',
+      name: track.name || '',
+      standard: track.standard || '',
+      timeTransform: job.timeTransforms?.get(streamKey) || null,
+      cues: browserTrackBuffers.get(streamKey) || [],
+    };
+  });
   try {
     if (saveCeaCheckpoint(browserCeaCheckpointRoot(), job.checkpointId, tracks, count)) {
       job.checkpointedAtCount = count;
@@ -10264,6 +10272,14 @@ async function runBrowserHlsCeaFullCapture(job) {
         instreamId: track.instreamId || '',
       });
       const calibration = calibrateCueTimeline(references, cues);
+      if (calibration.accepted) {
+        if (!job.timeTransforms) job.timeTransforms = new Map();
+        job.timeTransforms.set(streamKey, {
+          offsetSeconds: Number(calibration.offsetSeconds) || 0,
+          matches: Math.max(0, Math.trunc(Number(calibration.matches) || 0)),
+          confidence: String(calibration.confidence || ''),
+        });
+      }
       if (calibration.accepted && Math.abs(calibration.offsetSeconds) >= 0.05) {
         cues = normalizeCues(shiftCueTimeline(cues, calibration.offsetSeconds));
         browserTrackBuffers.set(streamKey, cues);
@@ -10362,15 +10378,26 @@ function startBrowserHlsCeaFullCapture(tab) {
   if (saved) {
     clearBrowserHlsCeaFullCaptureState(job);
     for (const track of job.tracks) {
-      const restored = saved.tracks.find((item) => item.instreamId === track.instreamId)?.cues;
+      const savedTrack = saved.tracks.find((item) => item.instreamId === track.instreamId);
+      const restored = savedTrack?.cues;
       if (!restored?.length) continue;
+      // Parça kimliği (madde 25): kayıtlı dil/ad taze plandan önceliklidir —
+      // manifest kapanıştan sonra değiştiyse bile iz aynı streamKey'de sürer.
+      const language = savedTrack.language || track.language || '';
+      track.language = language;
+      const streamKey = `${browserTrackStreamKey(job.sourceUrl, language)}|cea:${track.instreamId}`;
       storeBrowserTrack(restored, {
-        language: track.language || '', label: track.name || track.instreamId || 'Gömülü altyazı',
-        format: track.standard || 'cea-608', captureKind: 'embedded-cea',
-        instreamId: track.instreamId, sourceUrl: job.sourceUrl,
-        streamKey: `${browserTrackStreamKey(job.sourceUrl, track.language)}|cea:${track.instreamId}`,
+        language, label: savedTrack.name || track.name || track.instreamId || 'Gömülü altyazı',
+        format: savedTrack.standard || track.standard || 'cea-608', captureKind: 'embedded-cea',
+        instreamId: track.instreamId, sourceUrl: job.sourceUrl, streamKey,
         context: job.context, captureComplete: false,
+        calibration: savedTrack.timeTransform
+          ? { ...savedTrack.timeTransform, accepted: true } : null,
       });
+      if (savedTrack.timeTransform) {
+        if (!job.timeTransforms) job.timeTransforms = new Map();
+        job.timeTransforms.set(streamKey, savedTrack.timeTransform);
+      }
     }
   }
   sendBrowserHlsCeaFullProgress(job, 'running', saved
