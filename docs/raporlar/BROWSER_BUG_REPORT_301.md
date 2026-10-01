@@ -1298,6 +1298,54 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R358 — sentence_translation.py tam derin okuma + boş-parça bekçisi
+
+**Kapsam:** `backend/sentence_translation.py` (1.363 satır) tamamen
+okundu — cümle gruplama/paketleme, yanıt doğrulama zinciri ve kalite
+kapılarının tamamı.
+
+**Düzeltilen:**
+
+- `sentence_part_boundary_issue([], [])` — boş ve eşit uzunluklu liste
+  çifti ilk kapıyı geçip `source_parts[-1]`'e ulaşıyordu → IndexError.
+  Kapı artık `not source_parts` koşulunu da reddediyor
+  (`cue_siniri_gecersiz`). Çağıranlar bugün boş grup üretemese de
+  (sentence_groups yalnız dolu grup çıkarır) savunma katmanı kilitlendi.
+  Kırmızı kanıt: master'da IndexError; düzeltmede 44/44 PASS.
+
+**Doğrulanan (bug yok):**
+
+- `normalize_reply_ids` → `reply_id_range_issue` sırası her iki geçişte
+  doğru (1. geçiş 4189, refine 4714): +1 kaymış kimlikler önce
+  kurtarılıyor, aralık denetimi sonra yapılıyor.
+- `sentence_groups`: korunan cue'lar (konuşmacı işaretli/zamanı bozuk/
+  SDH'li) tek başına flush ediliyor; speaker_map entry-indeks anahtarlı
+  (transcribe.py:3701 ile tutarlı); boş grup üretmiyor.
+- `pack_sentence_groups`: cümle bölünmüyor; aralık/cache boşluğu
+  (grup[0] ≠ current[-1]+1) yeni parça başlatıyor.
+- `part_anchor_issue`: sınırda bölünmüş sayı yarısı ('3,' + '000')
+  atlatılıyor; saat ifadeleri bütün ifade olarak doğrulanıp sayı
+  döngüsünden çıkarılıyor; birim-çevrimi bağışı yalnız bitişik birimle;
+  ≥2 tokenlık varlık öbeği yerelleştirme/yakın-yazım ayrımı yapıyor.
+- TR sayı/saat çözümü: `iki üç`/`beş on` yaklaşık aralıkları değer
+  değiştirmeyen devam sayılıyor; 'beşte' gibi ekli biçimler bare=False
+  ile yanlış birleşmeyi kapatıyor; `_turkish_clock_match` 12/24 saat
+  iki biçimle geçe/kala kabul ediyor.
+- `translation_meaning_issues`/`blocking_issues`: blok kapısı yalnız
+  yapısal kanıta (sayı/kesik parça) indirilmiş — olumsuzluk/modal
+  tanı amaçlı kalıyor; kırpık-parça üçlüsü (sarkan bağlaç, çıplak
+  soru eki, orta-tire) tam kapalı.
+- `validate_sentence_parts`/`accept_sentence_reply`: parça birleşimi
+  tam cümleyi kanıtlamadan kabul yok; 12K sınırı; multi-part'ta ayrı
+  tam çeviri zorunlu; eski düz yanıt yalnız tek-blok uyumlu.
+
+Testler: `python3 backend/test_sentence_distribution.py` 44/44 PASS
+(+2 yeni bekçi testi). Yalnız backend modülü değişti — JS test
+paketi koşturulmadı.
+
+Windows etkisi: çeviri kapısı ürün davranışını değiştirmedi;
+erişilemez kod yoluna savunma. Etkisi yok.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
