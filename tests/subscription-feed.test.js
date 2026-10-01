@@ -80,6 +80,11 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
   // R180: gövde okuma akış-sınırlı olmalı — res.text() tamamını belleğe alırdı.
   ok(body.includes('readResponseBufferLimited'), 'sınırlı okuyucu kullanılıyor');
   ok(!/await res\.text\(\)/.test(body), 'sınırsız res.text() kalmadı');
+  // Madde-42: feed 'follow' zincir hedefi doğrulanmazdı — hop'lar elle izlenir,
+  // hedef youtube.com ailesinde kalır.
+  ok(body.includes("redirect: 'manual'"), 'feed follow-zincirle inmemeli');
+  ok(body.includes(".youtube.com"), 'feed hop host-ailesi sınırı yok');
+  ok(!/redirect:\s*'follow'/.test(body), 'feed takip zinciri kaldı');
 }
 
 // R180: readResponseBufferLimited — akışta boyut sınırı (yalan content-length).

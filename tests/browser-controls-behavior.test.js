@@ -30,6 +30,21 @@ function extract(start, end, deps = {}) {
   for (const url of ['blob:https://example.test/id', 'data:image/png;base64,AA==']) {
     await assert.rejects(images.saveBrowserContextImage(null, url), /henüz kaydedilemiyor/);
   }
+  const imgBody = String(images.saveBrowserContextImage);
+  assert(/redirect:\s*'manual'/.test(imgBody), 'görsel kaydetme follow-zincirle inmemeli');
+  assert(imgBody.includes('assertPublicBrowserSubtitleUrl'), 'farklı köken genel-adres kapısız');
+  assert(/credentials:\s*sameOrigin \? 'include' : 'omit'/.test(imgBody), 'çerez zincir hop\'unda dışarı sızıyor');
+  assert(imgBody.includes('checkImageTarget'), 'her hop yeniden doğrulanmıyor');
+
+  // Madde-42: favicon zinciri — 'follow' aynı-köken hop'u dışarı taşıyamaz.
+  {
+    const favIdx = source.indexOf('Favicon indirme zaman aşımına uğradı');
+    const favBody = source.slice(favIdx - 1800, favIdx + 800);
+    assert(favBody.includes("redirect: 'manual'"), 'favicon follow-zincirle inmemeli');
+    assert(favBody.includes('assertPublicBrowserSubtitleUrl'), 'favicon hop genel-adres kapısız');
+    assert(favBody.includes('sameOriginAsPage'), 'favicon hop köken-karşılaştırmasız');
+    assert(!/redirect:\s*['"]follow['"]/.test(favBody), 'favicon takip zinciri kaldı');
+  }
 
   const pageConfig = extract('function browserPageTranslationConfig(', 'function browserPageMemoryVersion', {
     browserTranslationConfig: () => ({ targetLanguage: 'de', workers: 2 }),
