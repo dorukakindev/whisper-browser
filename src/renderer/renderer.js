@@ -3973,6 +3973,7 @@ function playerJobEvent(event) {
     void attachCompletedJobSubtitles(event, job).then((result) => {
       if (isSyncJob && result.loaded) {
         player.offset = 0;
+        player.offset2 = 0;
         if ($('subOffset')) {
           $('subOffset').value = '0';
           $('subOffset').dispatchEvent(new Event('input'));
@@ -5014,7 +5015,9 @@ const player = {
   cues2: [],         // karşılaştırma altyazısı (ör. kaynak dil)
   activeIdx: -1,
   activeIdx2: -1,
-  offset: 0,         // altyazı gecikmesi (sn)
+  offset: 0,         // altyazı gecikmesi (sn) — birincil kanal
+  offset2: 0,        // ikinci (karşılaştırma) kanalın bağımsız gecikmesi (sn)
+  offsetProfiles: {},// parça-bazlı senkron: '<p|s>|<ses>|<yol>' -> sn; watch prefs'te kalıcı
   subtitles: [],     // seçilebilir altyazı dosyaları [{path, label}]
   cueQualitySource: [], // canli Whisper guveni; SRT yeniden okununca zamanla eslestirilir
   subPath: '',       // duzenleme kaydederken yazilacak dosya
@@ -5389,6 +5392,10 @@ function restoreLocalSubtitleWorkspace() {
   player.sub2Format = saved.sub2Format || 'srt';
   player.sub2Raw = saved.sub2Raw || '';
   player.offset = saved.offset;
+  player.offset2 = Number(saved.offset2) || 0;
+  player.offsetProfiles = (saved.offsetProfiles && typeof saved.offsetProfiles === 'object')
+    ? { ...saved.offsetProfiles } : {};
+  if ($('sub2Offset')) $('sub2Offset').value = String(player.offset2);
   player.mediaKey = saved.mediaKey || '';
   player.localPath = saved.localPath || '';
   player.originalUrl = saved.originalUrl || '';
@@ -5489,6 +5496,9 @@ function saveActiveBrowserTabWorkspace() {
     subRole: player.subRole, sub2Role: player.sub2Role,
     subFormat: player.subFormat, subRaw: player.subRaw,
     sub2Format: player.sub2Format, sub2Raw: player.sub2Raw, offset: player.offset,
+    offset2: player.offset2,
+    offsetProfiles: player.offsetProfiles && typeof player.offsetProfiles === 'object'
+      ? { ...player.offsetProfiles } : {},
     viewMode: player.viewMode,
     subtitleMode: savedSubtitleMode,
     subtitleSelection: selection,
@@ -5647,6 +5657,7 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.sub2Format = tab.sub2Format || 'srt';
   player.sub2Raw = tab.sub2Raw || '';
   player.offset = Number(tab.offset) || 0;
+  player.offset2 = 0;
   if ($('translateTo') && tab.targetLanguage) $('translateTo').value = tab.targetLanguage;
   ['playerSubSelect', 'playerSubSelect2'].forEach((id, index) => {
     const select = $(id);
@@ -14413,7 +14424,10 @@ function renderCue() {
 
   if (overlay2) {
     if (player.cues2.length) {
-      const j = findCueAt(player.cues2, t, player.activeIdx2);
+      // İkinci kanal kendi gecikme profilini taşır — birincil parçanın kayması
+      // farklı zaman çizelgesindeki dosyaya sızmaz.
+      const t2 = video.currentTime - (Number(player.offset2) || 0);
+      const j = findCueAt(player.cues2, t2, player.activeIdx2);
       player.activeIdx2 = j;
       overlayChanged = setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '') || overlayChanged;
     } else {
@@ -15824,6 +15838,9 @@ function captureWatchPrefs() {
     muted: browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
     offset: player.offset,
+    offset2: player.offset2,
+    offsetProfiles: player.offsetProfiles && typeof player.offsetProfiles === 'object'
+      ? { ...player.offsetProfiles } : {},
     autoPause: player.autoPause,
     playbackPolicy: player.playbackPolicy,
     cueRepeatCount: Number($('playerCueRepeatCount')?.value) || 5,
@@ -15973,6 +15990,10 @@ async function restoreWatchProfile(key) {
     if ($('subOffset')) $('subOffset').value = String(player.offset);
     if ($('subOffsetVal')) $('subOffsetVal').textContent = player.offset.toFixed(1);
   }
+  player.offsetProfiles = (prefs.offsetProfiles && typeof prefs.offsetProfiles === 'object')
+    ? { ...prefs.offsetProfiles } : {};
+  player.offset2 = Number(prefs.offset2) || 0;
+  if ($('sub2Offset')) $('sub2Offset').value = String(player.offset2);
   const checks = [
     ['autoPauseCue', 'autoPause'], ['autoFollow', 'autoFollow'],
     ['showSource', 'showSource'], ['showTranslation', 'showTranslation'],
@@ -18138,6 +18159,8 @@ function resetMediaBoundState(options = {}) {
   // (Eskiden yalnizca "dosyaya isle" dugmesi gizleniyordu; +2.3 sn'lik bir
   // duzeltme sonraki butun videolara tasiniyordu.)
   player.offset = 0;
+  player.offset2 = 0;
+  player.offsetProfiles = {};
   const offEl = $('subOffset');
   if (offEl && offEl.value !== '0') {
     offEl.value = '0';
@@ -18957,6 +18980,62 @@ function clearBrowserSecondarySelection() {
   if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
 }
 
+// Parça-bazlı senkron profilleri (yalnız yerel oynatıcı modu). Web modunda
+// iz düzeltmeleri subtitleSyncRecords'ta medya+iz kimliğiyle yaşar; yerelde
+// tek player.offset vardı ve dosya/parça değişince eski kayma sızıyordu.
+// Profil anahtarı kanal + seçili ses izi + altyazı dosya yoludur — aynı
+// medyanın farklı ses/altyazı parçaları kendi gecikmesini hatırlar.
+function localSyncProfileKey(secondary) {
+  if (player.workspaceMode !== 'player') return '';
+  const path = secondary ? player.sub2Path : player.subPath;
+  if (!path) return '';
+  const audio = ($('playerAudioLang') ? $('playerAudioLang').value : '') || '';
+  return `${secondary ? 's' : 'p'}|${audio}|${path}`;
+}
+
+function setLocalSyncProfileValue(secondary) {
+  const key = localSyncProfileKey(secondary);
+  if (!key) return;
+  if (!player.offsetProfiles || typeof player.offsetProfiles !== 'object') player.offsetProfiles = {};
+  const value = Number(secondary ? player.offset2 : player.offset) || 0;
+  if (value) player.offsetProfiles[key] = value; else delete player.offsetProfiles[key];
+  // Sınırsız büyümeyi engelle: medya başına yüzlerce dosya denenirse prefs_json
+  // şişmesin — en eski (ekleme sırasındaki ilk) kayıtları düşür.
+  const keys = Object.keys(player.offsetProfiles);
+  if (keys.length > 128) {
+    for (const oldKey of keys.slice(0, keys.length - 128)) delete player.offsetProfiles[oldKey];
+  }
+}
+
+// loadSubtitle başarı yolunda çağrılır. isSwitch = kanalda önceki (farklı,
+// dolu) bir dosya vardı — o zaman profilsiz yeni parça 0'dan başlar, eski
+// dosyanın kayması sızmaz. İlk yüklemede profil yoksa mevcut player.offset
+// (legacy prefs.offset) korunur.
+function applyLocalSyncProfile(secondary, isSwitch) {
+  if (player.workspaceMode !== 'player') return;
+  if (!player.offsetProfiles || typeof player.offsetProfiles !== 'object') player.offsetProfiles = {};
+  const key = localSyncProfileKey(secondary);
+  if (!key) return;
+  const stored = player.offsetProfiles[key];
+  const next = Number.isFinite(stored) ? stored
+    : (isSwitch ? 0 : (secondary ? 0 : player.offset));
+  if (secondary) {
+    player.offset2 = next;
+    if ($('sub2Offset')) $('sub2Offset').value = String(next);
+    player.activeIdx2 = -1;
+  } else {
+    player.offset = next;
+    if ($('subOffset')) $('subOffset').value = String(next);
+    if ($('subOffsetVal')) $('subOffsetVal').textContent = next.toFixed(1);
+    player.activeIdx = -1;
+    const btn = $('applyOffsetToFile');
+    if (btn) {
+      const shiftable = player.subFormat === 'srt' || player.subFormat === 'vtt';
+      btn.classList.toggle('hidden', !next || !player.subPath || !shiftable);
+    }
+  }
+}
+
 async function loadSubtitle(path, secondary = false, options = {}) {
   if (player.workspaceMode === 'browser' && !options.silent) {
     const tab = browserTabState();
@@ -19066,6 +19145,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   const requestedRole = options.role || knownSubtitle?.role
     || (secondary ? 'translation' : 'source');
   const previousPrimaryPath = player.subPath;
+  const previousSecondaryPath = player.sub2Path;
   const res = await window.api.readSubtitle(path).catch((error) => ({ ok: false, error: error.message }));
   // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
   // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
@@ -19120,6 +19200,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     player.activeIdx2 = -1;
     player.sub2Path = path;
+    applyLocalSyncProfile(true, !!previousSecondaryPath && previousSecondaryPath !== path);
     player.sub2Raw = res.text;
     player.sub2Stat = { mtimeMs: res.mtimeMs, size: res.size };
     player.sub2Format = /\.(ass|ssa)$/i.test(path) ? 'ass'
@@ -19185,6 +19266,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.subStat = { mtimeMs: res.mtimeMs, size: res.size };
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
+    applyLocalSyncProfile(false, !!previousPrimaryPath && previousPrimaryPath !== path);
     const browserTrack = browserTrackForPath;
     const previousTranslation = player.browserTracks.find((track) =>
       track.id === player.browserTranslationTrackId);
@@ -25277,6 +25359,7 @@ if ($('subOffset')) {
       return;
     }
     player.offset = parseFloat(e.target.value);
+    setLocalSyncProfileValue(false);
     $('subOffsetVal').textContent = player.offset.toFixed(1);
     player.activeIdx = -1;
     renderCue();
@@ -25288,6 +25371,17 @@ if ($('subOffset')) {
       const shiftable = player.subFormat === 'srt' || player.subFormat === 'vtt';
       btn.classList.toggle('hidden', !player.offset || !player.subPath || !shiftable);
     }
+  });
+}
+
+// İkinci kanalın bağımsız parça gecikmesi (yalnız oynatma, dosya yazılmaz).
+if ($('sub2Offset')) {
+  $('sub2Offset').addEventListener('input', (e) => {
+    const value = parseFloat(e.target.value);
+    player.offset2 = Math.max(-60, Math.min(60, Number.isFinite(value) ? value : 0));
+    setLocalSyncProfileValue(true);
+    player.activeIdx2 = -1;
+    renderCue();
   });
 }
 
