@@ -498,8 +498,16 @@ def parse_timecode(value):
 
 def probe_duration(media_path, ffmpeg_path):
     """ffprobe ile medya süresini (saniye) döndür; başarısızsa None."""
-    ffprobe = Path(ffmpeg_path).parent / "ffprobe.exe"
-    if not ffprobe.exists():
+    # ffmpeg'in yanında duran ffprobe'u önce ara — Windows'ta .exe, Linux'ta
+    # uzantısız (ikisi de dene; platforma uygun ad öncelikli). Yoksa PATH'e düş.
+    names = ("ffprobe.exe", "ffprobe") if os.name == "nt" else ("ffprobe", "ffprobe.exe")
+    ffprobe = None
+    for name in names:
+        candidate = Path(ffmpeg_path).parent / name
+        if candidate.is_file():
+            ffprobe = candidate
+            break
+    if ffprobe is None:
         found = shutil.which("ffprobe")
         if not found:
             return None
