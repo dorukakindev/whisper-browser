@@ -311,6 +311,7 @@ function buildOptsFromUI() {
     minSpeakers: parseInt($('minSpeakers').value, 10) || 0,
     maxSpeakers: parseInt($('maxSpeakers').value, 10) || 0,
     labelSpeakers: $('labelSpeakers').checked,
+    speakerMap: $('speakerMap').value.trim(),
     llmPostprocess: $('llmPostprocess').checked,
     llmApiKey: $('llmApiKey').value.trim(),
     // state.forceTranslate: kontrol cubugundaki tek-tik dugmesi. Kalici
@@ -2418,7 +2419,7 @@ const PERSIST_VALUE_CONTROLS = [
   'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
   'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
   'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
-  'minSpeakers', 'maxSpeakers', 'llmWorkers',
+  'minSpeakers', 'maxSpeakers', 'speakerMap', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',

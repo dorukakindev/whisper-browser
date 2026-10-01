@@ -2569,6 +2569,57 @@ def assign_speakers(entries, diarization_spans):
     return result
 
 
+def normalize_speaker_label(label):
+    """Konuşmacı etiketini yazım için temizle: kontrol karakterleri ve
+    virgül ASS Name alanını bozar; baş/son boşluk taşar."""
+    label = re.sub(r"[\x00-\x1f\x7f]+", " ", str(label or ""))
+    return " ".join(label.split()).strip()[:64]
+
+
+def parse_speaker_rename(raw):
+    """`--speaker-map` girdisi: JSON sözlüğü, `@dosya` yolu ya da
+    `ESKİ=YENİ, ...` satır listesi. Dönüş {eski: yeni}; bozuk girdi {} —
+    yanlış yazılmış harita transkripsiyonu durdurmamalı, yalnız uyarı."""
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        items = raw.items()
+    else:
+        text = str(raw).strip()
+        if text.startswith("@"):
+            try:
+                text = Path(text[1:]).read_text(encoding="utf-8")
+            except OSError as exc:
+                log(f"Konuşmacı haritası okunamadı ({exc}); yoksayılıyor.", "warn")
+                return {}
+        try:
+            parsed = json.loads(text)
+            items = parsed.items() if isinstance(parsed, dict) else []
+        except (ValueError, AttributeError):
+            pairs = [p.split("=", 1) for p in re.split(r"[,;\n]", text)]
+            items = [(p[0], p[1]) for p in pairs if len(p) == 2]
+    rename = {}
+    for old, new in items:
+        old_n, new_n = normalize_speaker_label(old), normalize_speaker_label(new)
+        if old_n and new_n and old_n != new_n:
+            rename[old_n] = new_n
+    return rename
+
+
+def apply_speaker_rename(speakers_map, rename_map):
+    """Etki alanı sözlüğünü {eski: yeni} ile yeniden adlandır/birleştir.
+    Zaman ve metin korunur — yalnız etiket değişir; aynı hedefe gönderilen
+    birden çok etiket tek konuşmacıda birleşir. Kilit nokta: eşleme yalnız
+    ESKİ ad üzerinden çalışır; `A=B, B=C` zinciri C'yi iki kez uygulamaz
+    (tek geçişte yalnız orijinal adlar aranır)."""
+    if not speakers_map or not rename_map:
+        return speakers_map
+    normalized = {normalize_speaker_label(k): v for k, v in rename_map.items()
+                  if normalize_speaker_label(k)}
+    return {i: normalized.get(normalize_speaker_label(label), normalize_speaker_label(label))
+            for i, label in speakers_map.items()}
+
+
 def offset_diarization_spans(diarization_spans, time_offset=0.0):
     """Kırpılmış ses eksenindeki pyannote span'larını kaynak medya eksenine taşı."""
     offset = float(time_offset or 0.0)
@@ -7307,6 +7358,12 @@ def transcribe(args):
         # sonra kur; aksi halde etiket başka diyaloğa taşınabilir.
         if diarization_spans:
             speakers_map = assign_speakers(entries, diarization_spans)
+            # Konuşmacı düzeltmesi: yeniden adlandırma/birleştirme haritası
+            # etiket atamasından hemen sonra uygulanır — çeviri bağlamı, dual
+            # çıktı ve tüm format yazıcıları aynı düzeltilmiş adları görür.
+            speaker_rename = parse_speaker_rename(getattr(args, "speaker_map", ""))
+            if speaker_rename:
+                speakers_map = apply_speaker_rename(speakers_map, speaker_rename)
             unique = sorted(set(speakers_map.values()))
             log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
 
@@ -8563,6 +8620,11 @@ def reexport_from_json(args):
     records.sort(key=lambda row: (row[0], row[1]))
     entries = [(s, e, text) for s, e, text, _speaker, _words in records]
     speakers_map = {i: speaker for i, (_s, _e, _text, speaker, _words) in enumerate(records) if speaker}
+    # Yeniden dışa aktarmada da aynı düzeltme akışı geçerli: JSON'da saklanan
+    # otomatik etiketler, kullanıcı haritasıyla yeniden adlandırılır/birleştirilir.
+    speaker_rename = parse_speaker_rename(getattr(args, "speaker_map", ""))
+    if speaker_rename:
+        speakers_map = apply_speaker_rename(speakers_map, speaker_rename)
     # Segment başına kelimeler kaynakta zaten eşlenmiş; sıralamayla birlikte taşı.
     segment_words = [words for _s, _e, _text, _speaker, words in records]
     def _word_start(word):
@@ -9591,6 +9653,8 @@ def main():
     parser.add_argument("--max-speakers", type=int, default=0)
     parser.add_argument("--label-speakers", type=lambda x: x.lower() == "true", default=True,
                         help="SRT/VTT/TXT'de altyazı başına [SPEAKER_XX] etiketi ekle")
+    parser.add_argument("--speaker-map", type=str, default="",
+                        help="Konuşmacı düzeltme haritası: JSON dict, '@dosya' ya da 'ESKİ=YENİ,...' — yeniden adlandırma ve birleştirme")
     # LLM Post-processing (DeepSeek, OpenAI vb. — OpenAI uyumlu)
     parser.add_argument("--translate", type=lambda x: x.lower() == "true", default=False,
                         help="Altyaziyi hedef dile cevir (OpenAI uyumlu API)")
