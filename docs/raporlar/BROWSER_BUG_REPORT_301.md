@@ -1298,6 +1298,41 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R371 — backend/transcribe.py bakiye turu (1 doğrulanmış taşınabilirlik kusuru)
+
+Bakiye bölgeler: `main()` (argparse + dispatch + interrupt sözleşmesi),
+`transcribe()` gövdesi (6402–7382, ~980 satır), `sync_subtitles` ve senkron
+zinciri (8384–9192), `translate_existing_subtitle` (7781–8215),
+`reexport_from_json` (8218–8374), `explain_subtitle`/`chat_about_video`
+(7496–7778), `recover_punctuation_collapse` (1060–1209),
+`snap/normalize/quality-report` (5674–6085), checkpoint makinesi
+(6088–6399), `run_whisperx` + merge/fix yardımcıları (4896–5674),
+`llm_postprocess` (2755–2972), `probe_duration`/`extract_audio`/zaman
+formatları (476–625). Dosyanın kalan kısmı R320/R222/R208–R209/golden
+kilitleriyle zaten denetlenmişti — **transcribe.py artık tam okunmuş durumda.**
+
+- **B-371-01 — `probe_duration` taşınabilirlik kusuru:** ffmpeg'in
+  yanındaki ffprobe yalnız `ffprobe.exe` adıyla aranıyordu. PATH'te ffprobe
+  olmayan POSIX kurulumunda (backend/bin'e el ile konulan ikililer)
+  süre ölçümü sessizce `None`a düşüyordu. Artık iki ad da denenir
+  (platforma uygun öncelikli), `.is_file()` ile dizin eşleşmesi elenir.
+  Kırmızı kanıtı: izole PATH + uzantısız kardeş ffprobe → master `None`,
+  düzeltme `42.5`. Kilit: `backend/test_probe_duration.py` 5 senaryo
+  (uzantısız/.exe kardeş, eksik probe, araç hatası, geçersiz çıktı —
+  platform-duyarlı beklentiler, Windows CI'da da doğru).
+- Notlar (bug değil): `reexport_from_json`'da `all_words` toplanıp
+  sıralanıyor ama kullanılmıyor — zararsız ölü yerel değişken.
+- Okunan diğer kod temiz: atomicity/iptal disiplini (OutputTransaction +
+  journal + rollback + cancellation_checkpoint aşamaları), VRAM boşaltma
+  sırası (model → diarization öncesi), checkpoint imza+fizibilite
+  doğrulaması, punctuation-onarım iyileşme kapısı, LLM drift reddi
+  (kelime/karakter oranı, boşluksuz alfabe ayrımı), NDJSON/secrets
+  sözleşmesi (env-scrub, argv'siz anahtarlar).
+
+Windows etkisi: **pozitif** — Windows'ta `.exe` önceliği korunur, davranış
+değişmez; etkilenen platform POSIX kurulumları. CI koşamıyor (GitHub
+Actions hesap flag'inde kapalı) — kanıt yerel `unittest` çıktısıdır.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
