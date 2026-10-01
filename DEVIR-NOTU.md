@@ -1,9 +1,7 @@
-Güncel çalışma: [docs/devir/2026-10-01-1902.md](docs/devir/2026-10-01-1902.md) — kuyruk-50 madde 12: noktalama kurtarma değerlendirmesi (kelime-doğruluğu bekçisi)
+Güncel çalışma: [docs/devir/2026-10-01-1907.md](docs/devir/2026-10-01-1907.md) — kuyruk-50 madde 13: checkpoint/resume denetimi (makine zaten kurulu) + detected_language normalize + hostile-read ratchet
+Önceki çalışma: [docs/devir/2026-10-01-1902.md](docs/devir/2026-10-01-1902.md) — kuyruk-50 madde 12: noktalama kurtarma değerlendirmesi (kelime-doğruluğu bekçisi)
 Önceki çalışma: [docs/devir/2026-10-01-1852.md](docs/devir/2026-10-01-1852.md) — kuyruk-50 madde 11: pencere sınırı yankı birleştirme (kelime-örtüşmeli stitch + içerme)
 Önceki çalışma: [docs/devir/2026-10-01-1844.md](docs/devir/2026-10-01-1844.md) — kuyruk-50 madde 10: dışarıdan değişen altyazıda tekil düzeltme birleştirme (taslak kaybolmaz)
-Önceki çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
-||||||| parent of 3108a76 (docs(devir+rapor): kuyruk-50 madde 11 kapanış kayıtları)
-Güncel çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
 Önceki çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
 Önceki çalışma: [docs/devir/2026-10-01-1829.md](docs/devir/2026-10-01-1829.md) — kuyruk-50 madde 8: toplu düzenleme geçmişi — iki paralel yığının disk/bellek uyuşmazlığı giderildi (engel + görünür sıfırlama)
 Önceki çalışma: [docs/devir/2026-10-01-1813.md](docs/devir/2026-10-01-1813.md) — kuyruk-50 madde 7: okuma hızına göre dağıtım (CPS kapasitesi + cümle-sonu önceliği; en kötü CPS 30→22)
@@ -12,7 +10,7 @@ Güncel çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.m
 Önceki çalışma: [docs/devir/2026-10-01-1748.md](docs/devir/2026-10-01-1748.md) — kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı (tembel paketleme + sınırlı inflight + token tavanı öğrenme)
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 3: anlam kaybı korpusu (120 vaka, CC0) + modal/negation blocking promosyonu — FR 0, gatable FA 44→3
 Önceki çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — 20'lik kullanım kuyruğu yeniden doğrulaması: 1 bulgu (ELECTRON_COMMIT pin eskimesi — düzeltildi) + ~30 test/13 smoke yeşil
-Önceki çalışma: Güncel çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
+Önceki çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
 Önceki çalışma: [docs/devir/2026-10-01-1151.md](docs/devir/2026-10-01-1151.md) — R413b: stub kapsamı preload'lu 2 smoke'a daraltıldı (preload'suz 7'si ölü koddu)
 Önceki çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal)
 Önceki çalışma: [docs/devir/2026-10-01-1134.md](docs/devir/2026-10-01-1134.md) — R412 tests/ kapanışı: son 7 büyük dosya temiz + 402 dosya tam-envanter süpürmesi — REPO GENELİ DERİN OKUMA TAMAM
