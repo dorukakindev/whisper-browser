@@ -70,25 +70,40 @@ test('istek listesi temizlenir: geçersiz sayfa numaraları atılır, tekrar tek
 
 test('pdf:translatePages pendingPdfPages ile tamamlanan sayfayı atlar', () => {
   assert.match(mainSource, /const todo = new Set\(pendingPdfPages\(pages\.map/);
-  assert.match(mainSource, /if \(!todo\.has\(page\.pageNumber\)\) continue;/);
+  // Madde 38 — havuz: bekleyen liste tek seferde süzülür, işçi imleçle alır.
+  assert.match(mainSource, /const pending = pages\.filter\(\(page\) => todo\.has\(page\.pageNumber\)\);/);
 });
 
-test('iptal paket-içi sayfa yazımından önce durur (yarım sayfa diske düşmez)', () => {
-  const body = mainSource.slice(
-    mainSource.indexOf('async function translatePdfPage'),
-    mainSource.indexOf('function mangaJobIsCurrent'));
-  const abortIdx = body.indexOf("throw new Error('PDF çevirisi iptal edildi.')");
-  const recordIdx = body.indexOf('recordPdfPageTranslation(state, pageNumber, pageBlocks)');
-  assert.ok(abortIdx > 0 && recordIdx > abortIdx, 'iptal kontrolü sayfa kaydından önce olmalı');
-});
-
-test('iptal eden iş döngüde de erken durur (paket arası abort kontrolü)', () => {
+test('sayfalar sınırlı paralellikte işler: işçi havuzu ≤2, durum tek zincirde', () => {
   const handler = mainSource.slice(
     mainSource.indexOf("ipcMain.handle('pdf:translatePages'"),
     mainSource.indexOf("ipcMain.handle('pdf:cancel'"));
-  const loopIdx = handler.indexOf('for (const page of pages)');
-  const abortIdx = handler.indexOf('job.controller.signal.aborted', loopIdx);
-  assert.ok(loopIdx > 0 && abortIdx > loopIdx, 'sayfa döngüsünde abort kontrolü olmalı');
+  assert.match(handler, /length: Math\.min\(2, pending\.length\)/);
+  assert.ok(handler.indexOf('translatePdfPageBlocks') > 0, 'işçi sayfa bloklarını hesaplar');
+  assert.ok(handler.indexOf('recordPdfPageTranslation(state, page.pageNumber, pageBlocks)') > 0,
+    'durum yazımı havuz içinde seri kalmalı');
 });
 
-console.log(`PASS ${passed}/7`);
+test('iptal paket-içi sayfa yazımından önce durur (yarım sayfa diske düşmez)', () => {
+  // Abort kontrolü blok hesaplayıcıda, kayıt havuzun seri yazımında — iki
+  // dilimi ayrı ayrı doğrula: kayıt yalnız hesaplayıcı döndükten sonra gelir.
+  const body = mainSource.slice(
+    mainSource.indexOf('async function translatePdfPageBlocks'),
+    mainSource.indexOf('function mangaJobIsCurrent'));
+  const abortIdx = body.indexOf("throw new Error('PDF çevirisi iptal edildi.')");
+  const returnIdx = body.indexOf('return { pageNumber, pageBlocks }');
+  assert.ok(abortIdx > 0 && returnIdx > abortIdx, 'iptal kontrolü blok dönüşünden önce olmalı');
+});
+
+test('iptal eden iş döngüde de erken durur (işçi başı abort kontrolü)', () => {
+  const handler = mainSource.slice(
+    mainSource.indexOf("ipcMain.handle('pdf:translatePages'"),
+    mainSource.indexOf("ipcMain.handle('pdf:cancel'"));
+  const workerIdx = handler.indexOf('while (true)');
+  const abortIdx = handler.indexOf('job.controller.signal.aborted', workerIdx);
+  assert.ok(workerIdx > 0 && abortIdx > workerIdx, 'işçi döngüsünde abort kontrolü olmalı');
+  const cursorIdx = handler.indexOf('pending[cursor++]');
+  assert.ok(cursorIdx > abortIdx, 'abort kontrolü sayfa alımından önce olmalı');
+});
+
+console.log(`PASS ${passed}/8`);
