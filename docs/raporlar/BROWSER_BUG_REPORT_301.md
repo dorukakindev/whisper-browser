@@ -1298,6 +1298,39 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R378 — yazıcı depoları + güvenlik/yaşam-döngüsü yüzeyleri
+
+Kapsam (~2.130 satır, 11 dosya): `src/manifest-transactions.js` (224), `src/workspace-package.js` (206), `src/burnin-output.js` (206), `src/subscriptions-io.js` (152), `src/browser-cea-checkpoint.js` (103), `src/browser-session-package.js` (178), `src/local-file-access.js` (135), `src/browser-navigation-policy.js` (215), `src/youtube-accounts.js` (155), `src/pipeline-job.js` (186), `src/renderer/queue-lifecycle.js` (262).
+
+### B-378-01 — `workspace-package.js` exportPackage(): .wbp çıktısı fsync'siz
+
+Kullanıcının dışa aktardığı çalışma paketi `writeFileSync(temp,'wx')` + `renameSync` ile yazılıyordu; çökmede yarım/yok dosya penceresi. Temp fsync + rename + dizin fsync eklendi.
+
+### B-378-02 — `workspace-package.js` restorePackage(): dosya başına commit fsync'siz
+
+Geri yükleme her dosyayı aynı fsync'siz kalıpla yazıyordu; ayrıca hata-yolu geri alımı (`writeFileSync(destination, previous)`) doğrudan fsync'siz yazıyordu. İkisi de düzeltildi. Testlenebilirlik için `exportPackage`/`restorePackage` opsiyonel `fsImpl` parametresi aldı (mevcut IPC çağrıları dokunmadan çalışır).
+
+### B-378-03 — `browser-cea-checkpoint.js` saveCeaCheckpoint(): checkpoint fsync'siz
+
+CEA ilerleme checkpoint'i (yarım kalan canlı-yayın altyazı yakalaması) temp+rename ile ama fsync'siz yazıyordu — yedi gün TTL'li kurtarma noktası çökmede kaybolabilirdi. Tören eklendi.
+
+### B-378-04 — `burnin-output.js` replaceBurninOutput(): rename zinciri dizin fsync'siz
+
+Temp dosyanın içeriği ffmpeg yazdığından dayanıklılık borcu dizin girdilerindeydi: `temp→out` ve `out→backup` + `temp→out` zincirlerinin ikisi de fsync'sizdi (yedekli-kurtarma yolu zaten var ama rename kaybı yedeği de yakabilirdi — her iki zincir + hata-geri-alımı sonrası dizin fsync'i eklendi).
+
+### Notlar (doğrulanmış temiz / kabul sınırı)
+
+- manifest-transactions.js temiz: 304 doğrulayıcı eşleşmesi, parmak-izi dedupe, üstel geri-alma + cooldown + epoch-invalidate, bounded haritalar.
+- subscriptions-io.js temiz (saf UMD parser/serializer, I/O yok): alan sınırları, 1000-abone kapağı, OPML/CSV/NewPipe biçimleri, çıktıda &<>\" kaçışı.
+- browser-session-package.js temiz: sha256 checksum, sürüm kapısı, portable tab'da yerel altyazı yolları silinir, sanitizePlaces/Variant kapsamlı.
+- local-file-access.js temiz: realpath öncesi kontrol-karakter/`\\?\`/`\\.\` UNC/ikinci-`:` redleri, çift-uzantı kapısı (orijinal+realpath sonrası), PDF imza sniff'i, grant sınırı.
+- browser-navigation-policy.js temiz: yüzey bazlı protokol tabloları, kullanıcı-adı/parola reddi, alt-kare şema kilidi (boş set = reddet), güvenli popup webPreferences, sınırlı pencere kaydı.
+- youtube-accounts.js temiz: accessToken/expiresAt asla diske yazılmaz (refreshToken kalıcı, ephemeral=token'siz), renderer görünümü token'siz, flat-blob migrasyonu.
+- pipeline-job.js temiz: terminateProcessTree grace→taskkill/SIGKILL eskalasyonu + dinleyici temizliği; recoverOutputTransactions journal-adı regexi, ownerPid kapısı, kök-içi-yol zorlaması, aşamalı-durum (committed/staging/prepared) doğru — kurtarmanın kendisi çökme toleranslı tasarım.
+- queue-lifecycle.js temiz: runGeneration/startCount çift-sayaç, terminal mandalı (RESULT_EVENTS + exit-sentez), invariant zorlaması, single-flight zamanlayıcı.
+
+Windows etkisi: fsync-utils platform toleranslı; yeni fsImpl parametreleri Node tarafında eklediğinden `start.bat` etkilenmez.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
