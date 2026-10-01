@@ -88,8 +88,18 @@ class SeriesMemory:
         self.load_warning = ""
         # İlk okuma da yazıcıyla aynı kilidi paylaşmalı: Windows'ta açık bir
         # okuyucu, atomik yeniden adlandırmayı paylaşım ihlaliyle durdurabilir.
-        with self._file_lock():
-            self.data = self._read()
+        # Kilit dosyası açılamıyorsa veya başka bir iş timeout'a dek tutuyorsa
+        # hafıza yalnız bir optimizasyon — tüm transkripsiyonu düşürmek yerine
+        # bu iş için devre dışı bırak.
+        try:
+            with self._file_lock():
+                self.data = self._read()
+        except (OSError, TimeoutError) as exc:
+            self.load_warning = (
+                f"Dizi hafızası kilitli veya yazılamıyor ({exc}); bu işte "
+                "hafıza devre dışı bırakıldı."
+            )
+            self.data = self._empty()
 
     @classmethod
     def for_input(cls, cache_dir, input_path, source_language="auto", target_language="tr"):

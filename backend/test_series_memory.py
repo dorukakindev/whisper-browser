@@ -161,6 +161,55 @@ class SeriesMemoryTests(unittest.TestCase):
                     pass
                 holder.close()
 
+    def test_blocked_or_locked_memory_degrades_instead_of_crashing(self):
+        # R363 — kilit dosyası açılamayan hafıza (örn. series-memory yolunda
+        # dizin yerine dosya var) tüm transkripsiyonu düşürmemeli; yalnız bu
+        # iş için devre dışı kalır ve uyarı yüzeye çıkar.
+        with tempfile.TemporaryDirectory() as work:
+            blocker = Path(work) / "series-memory"
+            blocker.write_text("not a dir")
+            mem = SeriesMemory(blocker / "x.en-tr.json", "x", "en", "tr")
+            self.assertTrue(mem.load_warning)
+            self.assertEqual(mem.build_hint(), "")
+            self.assertFalse(mem.merge({"terms": {"a": "b"}}, 1, 1))
+
+    def test_lock_timeout_in_constructor_degrades(self):
+        # Kilit başka bir işte tutuluyorsa __init__ TimeoutError yerine
+        # hafızayı devre dışı bırakır (hızlı timeout ile).
+        with tempfile.TemporaryDirectory() as work:
+            memory, _ = SeriesMemory.for_input(work, "Show.S01E11.srt", "en", "tr")
+            lock_path = memory.path.with_suffix(memory.path.suffix + ".lock")
+            holder = open(lock_path, "a+b")
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    holder.write(b"\0"); holder.flush(); holder.seek(0)
+                    msvcrt.locking(holder.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+                original = SeriesMemory._file_lock
+
+                def fast_lock(self, timeout=0.2):
+                    return original(self, timeout)
+
+                with patch.object(SeriesMemory, "_file_lock", fast_lock):
+                    mem = SeriesMemory(memory.path, "show", "en", "tr")
+                self.assertTrue(mem.load_warning)
+                self.assertEqual(mem.build_hint(), "")
+            finally:
+                try:
+                    holder.seek(0)
+                    if os.name == "nt":
+                        import msvcrt
+                        msvcrt.locking(holder.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+                holder.close()
+
 
 if __name__ == "__main__":
     unittest.main()
