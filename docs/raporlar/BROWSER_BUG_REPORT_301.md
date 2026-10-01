@@ -1298,6 +1298,64 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R387 — backend test dosyaları denetimi: 52 test_*.py tam koşu + vakumlu-test taraması (temiz)
+
+Kapsam: ürün kodu denetimi R386'da kapanınca anlamlı kalan yüzey test
+dosyalarının kendi doğruluğu — kof test yanlış güven verir. Yöntem: her
+dosya gerçek koşucusuyla (unittest keşfi veya `python dosya.py` __main__
+runner'ı) tek tek koşturuldu; ardından vakumlu/maskeleyici desenler için
+statik tarama yapıldı.
+
+Sonuç: **52 dosya / 13.605 satır, tamamı yeşil, kusur bulunamadı.**
+
+- **Koşu kanıtı**: venv'de pytest yok — repo'nun gerçek mekanizması
+  `tests/run-all.js`'in her `backend/test_*.py`'yi `python backend/<f>`
+  olarak çağırması. Unittest keşfi altında "NO TESTS RAN" veren 13 dosya
+  (`test_ass_override_roundtrip`, `test_device_deadzones`,
+  `test_diarization`, `test_live_asr`, `test_output_ass`,
+  `test_output_json_words`, `test_output_newlines`,
+  `test_output_reexport_collision`, `test_retry_backoff`,
+  `test_sentence_distribution`, `test_transcribe`,
+  `test_ytdlp_deadzones`) __main__ runner ile koştu ve yeşil — bu bir
+  tasarım seçimi, maskeleme değil. test_transcribe.py tek başına 213
+  test, test_sentence_distribution 43, test_invidious 75.
+- **Çıkış sözleşmesi**: 8 dosyada `tail`'de görünür `sys.exit`
+  olmadığı için kontrol edildi — hepsi hata durumunda yakalanmamış
+  istisna ile exit-1 veriyor; "geçti" satırı yalnız başarıda basılıyor.
+  npm-test içinden sessiz geçiş riski yok.
+- **Vakum taraması**: `assertTrue(True)`/sabit eşitlik 0; bare
+  early-return 3 adet (`test_transcribe.py` 2492/2509 — `_has_numpy()`
+  koşullu atlamalar, mesaj basıyor; `test_ytdlp_update.py` 39 — fixture
+  handler'ın normal 404 kolu, test değil). `try/except` içinde assert
+  kullanan desenler incelendi: `raise AssertionError` try içinde,
+  except yalnız beklenen tipi yakalıyor — klasik "muhafazalı red"
+  deseni, maskeleme yok. assertRaises'ların çoğu mesaj/regex
+  denetimli (`assertRaisesRegex`, `as ctx` + mesaj kontrolü).
+- **Mock sadakati**: fake'ler gerçek çağrı argümanlarını kaydedip
+  (`calls.append`) testin onları doğrulaması deseniyle — kendi kendini
+  doğrulayan vacuous mock yok.
+- **Zaman/duvar-saati**: gerçek `time.sleep` 4 noktada — `test_invidious`
+  594 (50ms, paralel-inflight ölçümü), `test_transcribe` 3069/3135
+  (paralellik kanıtı için kısa duraklama), `test_pipeline_control`
+  20/54 (canlı-PID bebek süreçleri) — hepsi koşul ölçümlü, sonuç
+  bekleme değil.
+- **Ağ/alt-süreç**: urllib/subprocess kullanımları fixture sunucu +
+  localhost sınırlı; canlı-ağ bağımlılığı yok (test_youtube/test_media
+  gerçek URL'leri mock'lu subprocess doğrulamasında kullanıyor).
+- **En büyük iki dosya örneklem derin okuma**: test_transcribe.py
+  (4759) ve test_invidious.py (786) ana bölümleri okundu — cümle
+  dağıtım kurtarma/refine/paralel paket invariantları, defect-injection
+  tabloları (`reordered`/`extra_word`/`dropped`), sahte yt_dlp modülü
+  ile post-hook sözleşmesi gerçek davranışı kilitliyor.
+
+Bilinen kısıtlar: `test_invidious.py` daha önce belgelenen ortam
+düşüşü bu koşuda tekrarlamadı (geçici/dış-bağımlılık sınıfı). Backend
+testleri `tests/run-all.js` dışında pytest ile koşamaz — venv'e pytest
+eklenmedi (bilinçli: runner'lar iç içe).
+
+Windows etkisi: kod değişmedi (salt okuma); python-test çağrıları
+zaten platform-bağımsız `sys.executable` ile yapılıyor.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
