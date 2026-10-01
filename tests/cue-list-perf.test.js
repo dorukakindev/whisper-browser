@@ -23,6 +23,7 @@ function slice(from, to) {
 }
 
 const slices = [
+  slice('const _cueIndexCache', 'function applyPlaybackLearningPolicy('),
   slice('const cueSignatureCache', 'function subtitleStatFor'),
   slice('function translationsForCues(', 'function appendHighlighted'),
   slice('function foldSearch(value)', 'function updateSubtitleChips'),
@@ -40,7 +41,16 @@ function mkCtx() {
     this.foldC = foldIndexCached;
     this.foldRaw = foldIndex;
     this.untr = cueLooksUntranslated;
-    this.tfc = translationsForCues;`, ctx);
+    this.tfc = translationsForCues;
+    this.findAt = findCueAt;
+    this.linearFind = (cues, t) => {
+      let best = -1;
+      for (let j = 0; j < cues.length; j++) {
+        const c = cues[j];
+        if (c && c.start <= t && c.end > t) best = j;
+      }
+      return best;
+    };`, ctx);
   return ctx;
 }
 
@@ -103,6 +113,47 @@ test('ikinci stats cagrisi 8000 satirda O(1) (yeniden hesaplama yok)', () => {
   for (let i = 0; i < 1000; i++) ctx.stats();
   const dt = performance.now() - t0;
   assert.ok(dt < 50, `1000 onbellekli cagri ${dt.toFixed(1)}ms — yeniden tarama oluyor`);
+});
+
+test('findCueAt sonucu dogrusal oracle ile birebir (10k, cakismali)', () => {
+  const ctx = mkCtx();
+  const cues = mkCues(10000);
+  // Kasti cakisma/ortusme/Negatif zaman/bos aralik senaryolari
+  cues[500].end = 999999;                    // devasa uzun cue — tum zamanlarda aday
+  cues[1234].start = cues[1233].start - 1;   // onceden baslayan cakisma
+  cues[7000] = { start: cues[6999].start, end: cues[6999].end, text: 'es-zamanli' };
+  const times = [-1, 0, 2.5, 100.3, 2499.99, 2500, 49999, 1e9, -1e9, 35000.001];
+  for (const t of times) {
+    assert.equal(ctx.findAt(cues, t, -1), ctx.linearFind(cues, t), `t=${t}`);
+    assert.equal(ctx.findAt(cues, t, 0), ctx.linearFind(cues, t), `t=${t} hint=0`);
+  }
+  // Tum indeks uzerinde tik yakinsi parity
+  for (let t = 0; t < 50; t += 0.37) {
+    const want = ctx.linearFind(cues.slice(0, 200), t);
+    assert.equal(ctx.findAt(cues.slice(0, 200), t, -1), want, `t=${t}`);
+  }
+});
+
+test('findCueAt 10k satirda seek+tick O(log n): isabet-missi pahali degil', () => {
+  const ctx = mkCtx();
+  const cues = mkCues(10000);
+  // Isinma: indeks kurulur
+  ctx.findAt(cues, 1, -1);
+  const t0 = performance.now();
+  let acc = 0;
+  for (let i = 0; i < 2000; i++) acc += ctx.findAt(cues, (i * 23.7) % 50000, -1);
+  const dt = performance.now() - t0;
+  assert.ok(dt < 250, `2000 rastgele seek ${dt.toFixed(1)}ms — indeks yerine tarama oluyor`);
+  assert.ok(Number.isInteger(acc));
+});
+
+test('findCueAt yerinde mutasyondan sonra bayat indeks donmez (_cueIndexVersion)', () => {
+  const ctx = mkCtx();
+  const cues = mkCues(5000);
+  assert.equal(ctx.findAt(cues, 100.0, -1), 20);   // 20*5=100
+  cues[20].end = 95;                              // cue 20 artik t'den once bitiyor
+  cues._cueIndexVersion = (cues._cueIndexVersion || 0) + 1;
+  assert.equal(ctx.findAt(cues, 100.0, -1), ctx.linearFind(cues, 100.0));
 });
 
 console.log(`\ncue-list-perf: ${passed} gecti, ${failed} basarisiz`);
