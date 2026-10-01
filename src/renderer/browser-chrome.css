@@ -287,7 +287,7 @@ html[data-theme="light"] {
   white-space: nowrap;
 }
 .browser-tab.active .browser-tab-open { color: var(--text); }
-.browser-tab-close, .browser-tab-audio, .browser-tab-pin, .browser-tab-new, .browser-adblock-quick {
+.browser-tab-close, .browser-tab-audio, .browser-tab-new, .browser-adblock-quick {
   border: 0;
   color: var(--text-muted);
   background: transparent;
@@ -298,8 +298,6 @@ html[data-theme="light"] {
 .browser-tab-close:disabled { opacity: .38; cursor: wait; }
 .browser-tab-audio { width: 22px; height: 23px; flex: 0 0 22px; padding: 0; border-radius: 5px; font-size: 12px; }
 .browser-tab-audio:hover, .browser-tab-audio[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
-.browser-tab-pin { width: 22px; height: 23px; flex: 0 0 22px; display: grid; place-items: center; padding: 0; border-radius: 5px; }
-.browser-tab-pin:hover, .browser-tab-pin[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 .browser-tab.pinned { border-left-color: var(--player-amber); }
 /* Sabit sekme yalnız simge gösterir (Chrome davranışı): etiket ve kapat
    düğmesi gizlenir, genişlik ikonu saracak kadar küçülür. Ses göstergesi
@@ -561,7 +559,6 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   padding: 36px;
   text-align: center;
 }
-.browser-empty-rule { width: 34px; height: 2px; margin-bottom: 17px; background: var(--player-amber); }
 .browser-empty strong { color: var(--text); font-size: 17px; font-weight: 650; }
 .browser-empty p { max-width: 510px; margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
 .browser-empty small { max-width: 520px; margin-top: 13px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
@@ -875,7 +872,6 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .browser-nav-button, .workspace-browser .browser-place-button { background: transparent; color: var(--text-dim); border-color: transparent; }
 .workspace-browser .browser-nav-button:hover:not(:disabled), .workspace-browser .browser-place-button:hover { background: var(--bg-3); border-color: var(--border); }
 .workspace-browser .browser-signal { background: var(--bg-1); border-color: var(--border); }
-.workspace-browser .browser-signal-title { color: var(--text-dim); }
 .workspace-browser .browser-signal-kicker { color: var(--text-muted); }
 .workspace-browser .browser-menu-popover { padding: 8px; border-radius: var(--radius); background: var(--bg-2); border-color: var(--border-strong); box-shadow: 0 12px 36px rgba(0,0,0,.24); }
 .workspace-browser .browser-menu-popover button { min-height: 36px; padding: 7px 10px; color: var(--text-dim); line-height: 1.4; }
