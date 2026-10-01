@@ -1499,3 +1499,39 @@ tık→Esc; settingsDrawer Esc.
 tests/electron-ui-keyboard.smoke.js` GEÇTİ; kırmızı kanıt master'da 1
 FAIL üretti; `player-escape-dialog` + `player-ui` (153) yeşil;
 `node --check` temiz.
+
+---
+
+## R393 — kuyruk g6: çift altyazı örtüşmesi (uzun metin / büyük font / sürükleme / tam ekran)
+
+**Doğrulanan kusurlar (tümü düzeltildi, kırmızı kanıtlı):**
+
+- **B-393-01 (ortaya çıkan veri kaybı):** Yığın düzende uzun metin + büyük
+  fontta (44px, ~300 karakter) her altyazının ~%80'i sessizce kesiliyordu —
+  `.subtitle-stack` `max-height:60%; overflow:hidden` ve her
+  `.subtitle-overlay`'in kendi `max-height:45%` kapağı. Ölçü: inner 1195px →
+  224px görünür (clip 978). Düzeltme: `fitSubtitleOverlays()` — aktif
+  altyazılar taşarsa/çakışırsa metin ölçeği kutu sığana dek küçültülür
+  (oyuncuların auto-fit'i; en çok 14 adım, rAF birleştirme, yalnız metin
+  değişince tetiklenir, kısa metne dokunmaz — 6px süpürme toleransı).
+- **B-393-02:** Kontroller görünürken yığın kontrol bandına 5px biniyordu —
+  `bottom:13%` küçük sahnelerde ~104px'lik kontrol bandından az.
+  `bottom:max(13%,120px)` (3 kural: yığın, sub-moved yığın, ayrı-overlay).
+- **B-393-03:** Ayrı düzende uzun ikinci altyazı kutusu (top:6% +
+  max-height:45%) ana banda 68px biniyordu. Ölçek-küçültme artık eleman
+  bazında clip algılıyor (üst yığın çocuğun içsel kesimini göremez).
+- **B-393-04:** `%85`'e sürüklenen ikinci altyazı kontrol çubuğuna
+  oturuyordu ve kayıtlı değer geri yüklenirken de banda iniyordu. Sürükleme
+  `pointermove` ve `applySubtitlePos` içinde dinamik kelepçe: üst konum,
+  ana bandın (veya kontrollerin) üst kenarını geçemez.
+
+**Kanıtlar:** `tests/electron-subtitle-overlap.smoke.js` — master'da 8
+kontrol FAIL (yığın clip 973+973, yığın→kontrol 750>745, ayrı çakışma
+ov=411-750/ov2=140-479, sürüklenen ov2.alt=750>ctl.üst=745, tam-ekran clip
+57+57); dalda tümü PASS. İlgili birim: subtitle-*, player-*,
+browser-overlay-*, renderer-* paketleri yeşil; css ratchet yeşil; vm-realm
+testi için fullscreenchange dinleyicisi `typeof document` kapılı.
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):** pointer-sürükleme
+davranışı testlerde `applySubtitlePos`/sınıf enjeksiyonuyla sınandı — gerçek
+dokunmatik/fare sürükleme Windows'ta elle doğrulanmalı.
