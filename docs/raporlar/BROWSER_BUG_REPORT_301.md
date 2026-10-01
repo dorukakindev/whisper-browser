@@ -80,6 +80,11 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
 - `tests/permission-settle-deadzone.test.js` — 4 senaryo: bilinmeyen kimlik, persist'siz izin, 'media'→camera+microphone persist + denied olayı, callback-hatası toleransı.
 - `tests/tv-window-deadzone.test.js` — 4 senaryo: sandbox/contextIsolation/nodeIntegration/webviewTag invariants, will-navigate/will-redirect/windowOpen red zinciri, alt-kare şema bekçisi, did-fail-load süzgeci, closed+UA-değişimi.
 - `backend/test_device_deadzones.py` — 14 kontrol: auto/cuda/cpu matrisi + CPU compute_type düşüşü + warn_list sözleşmesi (sahte torch enjeksiyonu).
+- `tests/capture-drain-deadzone.test.js` — 6 senaryo: erken-dönüş kapıları, ≤4-pass boşaltma döngüsü, warning koşulu, sekme pending/unverified, arka-plan toplamı+dışlama, kapatma diyaloğu, flushSession mutation beklemesi.
+- `tests/capture-export-deadzone.test.js` — 6 senaryo: responsiveness no-op/durum, exportSnapshot redaksiyonu+kaplar, captureFullPage debugger sahiplenmesi+120Mpx reddi, videoFrame zoom-rect+iç-çerçeve reddi, savePageCapture dalları+uzantı normalizasyonu, savePageArchive .mht/.mhtml.
+- `tests/pdf-state-deadzone.test.js` — 5 senaryo: statePath stem, .bak rotasyonu (gerçek fs), okuma, hazırlama validasyon matrisi (sayfa/item/blok/karakter kapları), inspectPdfDocument resourceId formülü+LRU 100.
+- `tests/state-helpers-deadzone.test.js` — 7 senaryo: uniqueStrings, subtitleSeconds (SRT/VTT/ASS+padEnd), nextBrowserTabId tekliği, safeBrowserBounds kelepçe/null, zoom oku/yaz/sil, window-state bozuk→null+maximized normal-boyut, titleBarOverlay, processIsAlive.
+- `tests/misc-pipeline-deadzone.test.js` — 8 senaryo: foldWatchSearchText (tr-TR İ→i+NFKC), unified arama kapsamları+bozuk-depo index yedeği, IPC frekans penceresi, data-URL kapısı, fatal-batch matrisi, nearestRegion centroid, receipts süzgeci, terminal-bekçi budama.
 
 ## Yeni araçlar
 
