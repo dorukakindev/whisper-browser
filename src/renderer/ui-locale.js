@@ -2831,13 +2831,23 @@
   const originalAttributes = new WeakMap();
   const uiListContainers = '#browserTabStrip,#browserAddressResults,#browserAddressSuggestions,#cueList,#log,#aiChatLog';
 
+  const PATTERN_MEMO_LIMIT = 1024;
+  const patternMemo = new Map();
+
   function translatePattern(text) {
+    // Statik kalıp listesi her mutasyonda lineer taranıyordu; sonuç girdiye
+    // göre deterministik olduğundan sınırlı memo yeterlidir.
+    const cached = patternMemo.get(text);
+    if (cached !== undefined || patternMemo.has(text)) return cached;
     const inner = (part) => toEnglish.get(part) ?? part;
+    let result;
     for (const [re, build] of patterns) {
       const m = text.match(re);
-      if (m) return build(m, inner);
+      if (m) { result = build(m, inner); break; }
     }
-    return undefined;
+    if (patternMemo.size >= PATTERN_MEMO_LIMIT) patternMemo.clear();
+    patternMemo.set(text, result);
+    return result;
   }
 
   function translate(value, target = locale) {
