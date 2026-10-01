@@ -413,6 +413,7 @@ const {
   mapPdfItemsThroughViewport,
   loadPdfTranslationState,
   pdfTranslationStateFileStem,
+  pendingPdfPages,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
@@ -17080,11 +17081,16 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
     model: config.model, endpoint: config.endpoint,
   };
   let state = readPdfTranslationState(identity);
+  // Yeniden denemede durum dosyasinda tamamlanmis sayfalari koru: blok bazinda
+  // 'translated'/'skipped' olan sayfa tekrar API'ye gonderilip hem maliyet
+  // yakmasin hem de olasi bir daha-kotu sonuc eskisini ezmesin.
+  const todo = new Set(pendingPdfPages(pages.map((page) => page.pageNumber), state));
   const job = { controller: new AbortController(), schedulers: new Set() };
   pdfTranslationJobs.set(document.pdfHash, job);
   try {
     for (const page of pages) {
       if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
+      if (!todo.has(page.pageNumber)) continue;
       state = await translatePdfPage(document, page, config, state, job);
     }
     const failed = Object.values(state.pages).flat().filter((block) => block.status === 'failed').length;
@@ -17499,6 +17505,51 @@ ipcMain.handle('library:remove', async (_event, key) => {
   } catch (error) {
     const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; veritabanındaki kayıt korundu.'}` };
+  }
+});
+
+// Taşınan yerel medya için kütüphane kaydını yeni konuma bağlar. Kayıt anahtarı
+// file:+yol olduğundan taşınma eski izleme konumunu/notları yetim bırakırdı;
+// iz+not satırları da yeni medya kimliğine taşınır. Yeni yol kullanıcının dosya
+// seçiciyle işaretlediği hedeftir — onay diyaloğu gerekmez, ancak dosyanın
+// gerçekten var olduğu inspect ile doğrulanır.
+ipcMain.handle('library:relink', async (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const oldKey = String(request?.oldKey || '');
+  const newPath = String(request?.newPath || '');
+  if (!oldKey.startsWith('file:')) {
+    return { ok: false, error: 'Yalnızca yerel medya kayıtları yeniden bağlanabilir.' };
+  }
+  const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
+  if (!item) return { ok: false, error: 'Kütüphane kaydı bulunamadı.' };
+  let target;
+  try {
+    target = mediaFileAccess.inspect(newPath);
+    if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+  const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
+  const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
+  if (collision) {
+    return { ok: false, error: 'Seçilen dosya zaten başka bir kütüphane kaydına bağlı.' };
+  }
+  let previous, written = false;
+  try {
+    previous = loadWatchLibraryAll().slice();
+    const index = watchIndex();
+    const run = () => {
+      const saved = watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
+      if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
+      if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
+      index?.renameMediaId(oldKey, newKey);
+      written = true;
+    };
+    if (index) index.transaction(run); else run();
+    return { ok: true, key: newKey, path: target };
+  } catch (error) {
+    const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
+    return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.'}` };
   }
 });
 

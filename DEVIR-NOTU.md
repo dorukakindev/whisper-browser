@@ -1,4 +1,14 @@
-Güncel çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
+Güncel çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
+Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
+Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R395–R397 kuyruk maddeleri 8–10: kayıt-hatası taslak korunması, çeviri-iptali bekçileri, ağ kesintisi sözleşme kilitleri
+Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R394 kuyruk-g7 büyük transkript: 8000 cue'da renderCue 36→0.8ms, arama 88→19ms (foldIndexCached + cueMetaStats) + cue-list-perf.test.js
+Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R393 kuyruk-g6 çift altyazı: 4 kusur düzeltildi (auto-fit metin küçültme, max(13%,120px) kontrol rezervi, ayrı-sürükleme kelepçesi) + electron-subtitle-overlap smoke'u
+Önceki çalışma: [docs/devir/2026-10-01-1800.md](docs/devir/2026-10-01-1800.md) — R392 kuyruk-g5 klavye: B-392-01 görev merkezi Esc'te kapanmıyordu, zincire eklendi + electron-ui-keyboard smoke'u (12 kontrol)
+Önceki çalışma: [docs/devir/2026-10-01-1730.md](docs/devir/2026-10-01-1730.md) — R391 kuyruk-g4 tema kontrastı: açık temada 16 doğrulanmış ihlal düzeltildi (player-panel/field-label/jobsQueueBadge → token) + electron-ui-theme-contrast smoke'u
+Önceki çalışma: [docs/devir/2026-10-01-1700.md](docs/devir/2026-10-01-1700.md) — R390 kuyruk-g3 dar pencere: 2 kusur düzeltildi (st-ray ikon-only + arama min-width) + electron-ui-narrow-tr smoke'u
+Önceki çalışma: [docs/devir/2026-10-01-1630.md](docs/devir/2026-10-01-1630.md) — R389 kuyruk-g2 dinamik mesajlar: 3 boşluk düzeltildi (~35 sözlük çifti + 20 kalıp, notifyDone uiText, görev merkezi ham-TR gidiş-dönüş + playerTaskText kaldırıldı)
+Önceki çalışma: [docs/devir/2026-10-01-1600.md](docs/devir/2026-10-01-1600.md) — R388 EN/TR geçişinde kullanıcı verisi korunması: 2 kusur düzeltildi (data-ui-untranslated işaretleri + 50 sözlük çifti/3 kalıp)
+Önceki çalışma: [docs/devir/2026-10-01-1530.md](docs/devir/2026-10-01-1530.md) — R356 browser-subtitles.js tam derin okuma: 2.018 satır altyazı ayrıştırma çekirdeği — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1500.md](docs/devir/2026-10-01-1500.md) — R355 renderer.js kapanış turu — sıfır kusur, KAPSAM TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1430.md](docs/devir/2026-10-01-1430.md) — R354 renderer.js alt-orta derin okuması: ~2.100 satır — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1400.md](docs/devir/2026-10-01-1400.md) — R353 renderer.js orta bölge derin okuması: ~2.070 satır — sıfır kusur

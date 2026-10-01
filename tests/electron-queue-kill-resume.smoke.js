@@ -184,6 +184,16 @@ async function verifyPhase(run) {
   assert.equal(restored.running, false, 'Kuyruk kendiliğinden sürdü — sözleşme elle devamdır');
   console.log('verify: yarım iş pending+recovered olarak durdu, otomatik resume yok');
 
+  // Kullanıcı hangi işin yarım kaldığını listeden görebilmeli — recovered
+  // rozetinin DOM'a düştüğünü doğrula (R400 bulgusu: rozet hiç yoktu).
+  const badge = await until(() => run(`return {
+    text: document.querySelector('.queue-item.recovered .queue-status')?.textContent || '',
+    count: document.querySelectorAll('.queue-item.recovered').length,
+  }`), 'Yarım kaldı rozeti', 30000);
+  assert.equal(badge.count, 1, `recovered rozeti DOM'da yok: ${JSON.stringify(badge)}`);
+  assert.equal(badge.text.trim(), 'Yarım kaldı', `Beklenmeyen rozet metni: ${badge.text}`);
+  console.log('verify: yarım iş "Yarım kaldı" rozetiyle listelendi');
+
   // Kullanıcı "Kuyruğu başlat"a basar → iki iş de tamamlanır.
   await run('document.getElementById("startQueueBtn").click(); return true;');
   await until(() => run('return state.queueRunning === true'), 'Kuyruk sürdü', 30000);

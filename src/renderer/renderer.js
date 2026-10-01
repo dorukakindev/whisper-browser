@@ -589,23 +589,29 @@ function renderQueue() {
   }
   state.queue.forEach((item) => {
     const div = document.createElement('div');
-    div.className = `queue-item ${item.status}`;
+    const interrupted = !!item.recovered && item.status === 'pending';
+    div.className = `queue-item ${item.status}${interrupted ? ' recovered' : ''}`;
     const icon = item.type === 'youtube'
       ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3 3 0 0 0 2.6 19.9C4.5 20.5 12 20.5 12 20.5s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>'
       : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
     const removable = item.status !== 'running';
     const retryable = item.status === 'error';
     const openable = item.status === 'done' && item.files && item.files.length > 0;
+    const pendingSiblings = state.queue.filter((entry) => entry.status === 'pending');
+    const pendingIndex = pendingSiblings.findIndex((entry) => entry.id === item.id);
+    const movable = item.status === 'pending' && pendingSiblings.length > 1;
     div.innerHTML = `
       <span class="queue-icon">${icon}</span>
       <div class="queue-name" title="${escapeHtml(item.input)}">
-        <span class="queue-title">${escapeHtml(item.label)}</span>
+        <span class="queue-title" data-ui-untranslated>${escapeHtml(item.label)}</span>
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
       </div>
-      <span class="queue-status">${escapeHtml(STATUS_TEXT[item.status] || item.status)}</span>
+      <span class="queue-status">${escapeHtml(interrupted ? 'Yarım kaldı' : (STATUS_TEXT[item.status] || item.status))}</span>
       <span class="queue-actions">
         ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
+        ${movable && pendingIndex > 0 ? `<button class="queue-remove queue-move" data-move="-1" data-id="${escapeHtml(item.id)}" title="Yukarı taşı" aria-label="${escapeHtml(item.label)} işini yukarı taşı"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>` : ''}
+        ${movable && pendingIndex < pendingSiblings.length - 1 ? `<button class="queue-remove queue-move" data-move="1" data-id="${escapeHtml(item.id)}" title="Aşağı taşı" aria-label="${escapeHtml(item.label)} işini aşağı taşı"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>` : ''}
         ${retryable ? `<button class="queue-remove queue-retry" data-retry="${escapeHtml(item.id)}" title="Yeniden dene" aria-label="${escapeHtml(item.label)} işini yeniden dene"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 1M18 15a7 7 0 0 1-11.9 3L4 17"/></svg></button>` : ''}
         ${removable ? `<button class="queue-remove" data-id="${escapeHtml(item.id)}" title="Kaldır" aria-label="${escapeHtml(item.label)} işini kuyruktan kaldır"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : ''}
       </span>
@@ -620,6 +626,9 @@ function renderQueue() {
   });
   list.querySelectorAll('.queue-remove[data-id]').forEach(btn => {
     btn.addEventListener('click', () => removeFromQueue(parseInt(btn.dataset.id, 10)));
+  });
+  list.querySelectorAll('.queue-move').forEach(btn => {
+    btn.addEventListener('click', () => moveQueueItem(parseInt(btn.dataset.id, 10), parseInt(btn.dataset.move, 10)));
   });
   list.querySelectorAll('.queue-retry').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -686,6 +695,7 @@ async function processNextQueueItem() {
     return;
   }
   next.status = 'running';
+  next.recovered = false;
   state.currentQueueId = next.id;
   renderQueue();
   // Ana süreç başlatılmadan önce çalışan öğeyi diske geçir. Main süreç de
@@ -3370,6 +3380,12 @@ $('cancelBtn').addEventListener('click', async () => {
   } else {
     logLine('İptal isteği gönderildi.', 'warn');
   }
+  if (player.job && player.job.running && !player.job.cancelled && player.job !== aiJob) {
+    // İptal backend'e iletildi ama süreç kapanana dek aradaki canlı çeviri
+    // parçaları (translation_chunk/segment) hâlâ player.cues2'ye yazıyordu —
+    // işi hemen 'cancelled' işaretle ki geç gelen olaylar düşsün.
+    player.job.cancelled = true;
+  }
   if (!r || !r.ok || r.deferred) {
     // Backend'de çalışan iş yoktu veya iptal, başlatma IPC'si havada iken
     // kaydedildi → 'exit' event'i gelmeyecek; UI'i kendimiz toparla
@@ -3377,8 +3393,7 @@ $('cancelBtn').addEventListener('click', async () => {
     if (aiJob && player.job === aiJob) {player.job = null;state.activeJobId=null;updateAiChatActions();}
     // Backend canlı süreç bilmiyorken ölü bir oynatıcı işi kartı "çalışıyor"
     // kalmasın: normal iptal-temizlik yolunu yerel olarak uygula.
-    if (player.job && player.job.running && !player.job.cancelled) {
-      player.job.cancelled = true;
+    if (player.job && player.job.running && player.job.cancelled) {
       playerJobEvent({ type: 'exit' });
     }
     finishRun(false);
@@ -3405,7 +3420,8 @@ function notifyDone(title, body) {
   try {
     const cb = $('notifyOnDone');
     if (cb && !cb.checked) return;
-    if (!document.hasFocus()) window.api.notify(title, body || '');
+    // OS bildirimi DOM dışı — MutationObserver çeviremez; burada çevir.
+    if (!document.hasFocus()) window.api.notify(uiText(title), uiText(body || ''));
   } catch (_) {}
 }
 
@@ -3725,10 +3741,13 @@ function playerJobEvent(event) {
   if (job.cancelled) {
     if (event.type === 'exit') {
       job.awaitingExit = false;
+      job.running = false;
       state.running = false;
       state.aiJob = false;
       state.cancelled = false;
       if (player.job === job) player.job = null;
+      txt.textContent = 'İş iptal edildi.';
+      setTimeout(() => bar.classList.add('hidden'), 1200);
       aiChatCtxLabel();
       updateMakeTransState();
     }
@@ -4200,6 +4219,60 @@ async function locateMissingSubtitle(missingPath, secondary, role) {
   } else {
     logLine(`${missingPath.split(/[\\/]/).pop()} yerine seçilen dosya yüklenemedi.`, 'error');
   }
+}
+
+// Tasinmis yerel medya: kutuphane kaydi file:+yol anahtarli oldugundan tasima
+// izleme konumunu/notlari yetim birakirdi. Kullanici yeni konumu secince main
+// tarafi kayit+iz+notlari yeni kimlige tasir; renderer da kendi mediaKey'li
+// depolarini (kayitli cue/kelime, izleme konumu) tasir.
+async function offerMediaRelink() {
+  const staleKey = player.mediaKey;
+  const stalePath = player.localPath;
+  if (!staleKey || !staleKey.startsWith('file:') || !stalePath) return;
+  if (player.mediaRelinkOffered === staleKey || player.mediaRelinkInFlight) return;
+  player.mediaRelinkOffered = staleKey;
+  player.mediaRelinkInFlight = true;
+  try {
+    const confirmed = await openAppDialog({
+      title: 'Medya dosyası bulunamadı',
+      description: `${stalePath}\n\nDosya taşınmış veya silinmiş olabilir. Yeni konumu seçerseniz izleme konumu, notlar ve altyazı ilişkileri yeni kayda taşınır.`,
+      confirmLabel: 'Yeni konumu seç', intent: 'primary',
+    });
+    if (confirmed !== true || player.mediaKey !== staleKey) return;
+    const replacement = await window.api.selectFile('media').catch(() => null);
+    if (!replacement || player.mediaKey !== staleKey) return;
+    const result = await window.api.relinkWatchItem(staleKey, replacement)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) {
+      logLine(`Medya yeniden bağlanamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    migratePlayerMediaKeyState(staleKey, result.key);
+    const position = player.positions[result.key]?.t || 0;
+    logLine(`Taşınan medya bulundu ve kütüphane kaydı güncellendi: ${result.path}`, 'success');
+    refreshWatchLibrary().catch(() => {});
+    await openLocalMedia(result.path, position);
+  } finally {
+    player.mediaRelinkInFlight = false;
+  }
+}
+
+function migratePlayerMediaKeyState(oldKey, newKey) {
+  if (!oldKey || !newKey || oldKey === newKey) return;
+  for (const prefix of ['whisper-player-saved:', 'whisper-player-words:']) {
+    try {
+      const raw = localStorage.getItem(prefix + oldKey);
+      if (raw !== null && localStorage.getItem(prefix + newKey) === null) {
+        localStorage.setItem(prefix + newKey, raw);
+      }
+      localStorage.removeItem(prefix + oldKey);
+    } catch (_) {}
+  }
+  if (player.positions[oldKey] && !player.positions[newKey]) {
+    player.positions[newKey] = player.positions[oldKey];
+  }
+  delete player.positions[oldKey];
+  scheduleSave();
 }
 
 window.api.onEvent((event) => {
@@ -7777,6 +7850,7 @@ function renderBrowserDownloads() {
     if (!row) {
       const root = document.createElement('article'); root.className = 'browser-download-row';
       const name = document.createElement('h4'); name.className = 'browser-download-name'; name.dir = 'auto';
+      name.dataset.uiUntranslated = '';
       const info = document.createElement('p'); info.className = 'browser-download-note';
       const progress = document.createElement('progress'); progress.max = 100; progress.setAttribute('aria-label', 'İndirme ilerlemesi');
       const saved = document.createElement('span'); saved.className = 'browser-download-path'; saved.dir = 'auto';
@@ -7812,11 +7886,11 @@ function renderBrowserDownloads() {
     row.name.textContent = item.filename;
     const label = item.paused ? 'Duraklatıldı' : item.state === 'completed' ? 'Tamamlandı' : item.state === 'cancelled' ? 'İptal edildi'
       : item.state === 'interrupted' ? (item.active ? 'Bağlantı kesildi' : 'İndirme başarısız') : 'İndiriliyor';
-    row.info.textContent = `${label} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ' (toplam boyut bilinmiyor)'}`;
+    row.info.textContent = `${uiText(label)} · ${browserDownloadBytes(item.received)}${item.total ? ` / ${browserDownloadBytes(item.total)}` : ` (${uiText('toplam boyut bilinmiyor')})`}`;
     row.progress.hidden = !item.active;
     if (item.total > 0) row.progress.value = Math.min(100, item.received / item.total * 100);
     else row.progress.removeAttribute('value');
-    row.saved.textContent = item.path || 'Kaydetme konumu henüz seçilmedi.';
+    row.saved.textContent = item.path || uiText('Kaydetme konumu henüz seçilmedi.');
     row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
@@ -13040,6 +13114,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
 });
 
 window.addEventListener('resize', syncResponsivePlayerLayout);
+window.addEventListener('resize', scheduleFitSubtitleOverlays);
 bindBrowserBoundsObserver();
 
 function normalizeAudioLang(value) {
@@ -13237,6 +13312,36 @@ async function maybeFetchPlayerVideoExtras() {
   } catch (_) {}
 }
 
+// updateCueMeta kare basina cagrilir; 4k-10k satirda savedCount/lowCount/
+// missing taramasi ~33ms/frame yapiyordu. Sonuclar yalniz alttaki bağımlı
+// durumlar degisince yeniden hesaplanir: cue dizisi + savedCues + cues2.
+let _cueMetaStats = null;
+function cueMetaStats() {
+  const cues = player.cues;
+  const saved = player.savedCues;
+  const cues2 = player.cues2;
+  if (_cueMetaStats
+      && _cueMetaStats.cues === cues
+      && _cueMetaStats.cuesLen === cues.length
+      && _cueMetaStats.saved === saved
+      && _cueMetaStats.savedLen === saved.length
+      && _cueMetaStats.cues2 === cues2
+      && _cueMetaStats.cues2Len === cues2.length) return _cueMetaStats;
+  const savedSet = new Set(saved);
+  const savedCount = cues.filter((cue) => savedSet.has(cueSignature(cue))).length;
+  const lowCount = cues.filter((c) => Number(c.lowConfidenceWords) > 0
+    || (c.confidence !== undefined && Number(c.confidence) < 0.6)).length;
+  const hasTranslation = cues2.length > 0;
+  const counterparts = hasTranslation ? translationsForCues(cues, cues2) : [];
+  const missing = hasTranslation
+    ? cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+  _cueMetaStats = {
+    cues, cuesLen: cues.length, saved, savedLen: saved.length,
+    cues2, cues2Len: cues2.length, savedCount, lowCount, missing,
+  };
+  return _cueMetaStats;
+}
+
 function updateCueMeta() {
   const total = player.cues.length;
   const position = $('cuePosition');
@@ -13267,11 +13372,11 @@ function updateCueMeta() {
     headSave.setAttribute('aria-pressed', saved ? 'true' : 'false');
     headSave.title = saved ? 'Aktif cümleyi kayıtlardan çıkar (K)' : 'Aktif cümleyi kaydet (K)';
   }
+  const stats = cueMetaStats();
   const savedFilter = $('savedOnlyBtn');
   if (savedFilter) {
     savedFilter.classList.toggle('active', player.savedOnly);
-    const savedSet = new Set(player.savedCues);
-    const savedCount = player.cues.filter(cue => savedSet.has(cueSignature(cue))).length;
+    const savedCount = stats.savedCount;
     savedFilter.title = player.savedOnly
       ? 'Tüm cümleleri göster'
       : `Kaydedilen cümleleri göster (${savedCount})`;
@@ -13280,8 +13385,7 @@ function updateCueMeta() {
   const qualityFilter = $('qualityOnlyBtn');
   if (qualityFilter) {
     qualityFilter.classList.toggle('active', player.qualityOnly);
-    const lowCount = player.cues.filter((c) => Number(c.lowConfidenceWords) > 0
-      || (c.confidence !== undefined && Number(c.confidence) < 0.6)).length;
+    const lowCount = stats.lowCount;
     qualityFilter.title = player.qualityOnly
       ? 'Tüm cümleleri göster'
       : `Düşük güvenli cümleleri göster (${lowCount})`;
@@ -13293,8 +13397,7 @@ function updateCueMeta() {
     if (!hasTranslation && player.untranslatedOnly) player.untranslatedOnly = false;
     untranslatedFilter.classList.toggle('hidden', !hasTranslation);
     untranslatedFilter.classList.toggle('active', player.untranslatedOnly);
-    const counterparts = hasTranslation ? translationsForCues(player.cues, player.cues2) : [];
-    const missing = hasTranslation ? player.cues.filter((c, i) => cueLooksUntranslated(c.text, counterparts[i])).length : 0;
+    const missing = hasTranslation ? stats.missing : 0;
     untranslatedFilter.title = player.untranslatedOnly ? 'Tüm cümleleri göster' : `Çevrilmemiş satırları göster (${missing})`;
     untranslatedFilter.setAttribute('aria-label', untranslatedFilter.title);
     untranslatedFilter.setAttribute('aria-pressed', player.untranslatedOnly ? 'true' : 'false');
@@ -13800,11 +13903,11 @@ function clearCueWordData(cues) {
 // Altyazi metnini kutulu bir span icine yazar (arka plan yalnizca metnin
 // arkasinda dursun, satirin tamami boyunca degil) ve degisince animasyon tetikler.
 function setOverlayText(el, text, lang = '') {
-  if (!el) return;
+  if (!el) return false;
   const cur = el.firstChild && el.firstChild.textContent;
-  if (cur === text) return;                  // ayni metin: animasyonu tekrarlama
+  if (cur === text) return false;            // ayni metin: animasyonu tekrarlama
   el.textContent = '';
-  if (!text) return;
+  if (!text) return true;
   const span = document.createElement('span');
   span.className = 'subtitle-overlay-inner';
   // RTL altyazılarda taban yönü içerikten türetilir (Arapça/İbranice satır
@@ -13813,6 +13916,56 @@ function setOverlayText(el, text, lang = '') {
   if (lang) span.lang = String(lang).slice(0, 24);
   span.textContent = text;
   el.appendChild(span);
+  return true;
+}
+
+// ---- Altyazı sığdırma ----
+// Uzun metin veya büyük fontta overlay'in max-height'ı metni sessizce keser
+// (overflow:hidden); ayrı düzende kutu bandı birbirine ya da kontrollerin
+// üstüne taşabilir. Çözüm: metnin fontunu kutu sığana dek küçültmek —
+// oyuncuların auto-fit davranışı. Her renderCue çağrısı taban boyuta döner,
+// yalnız taşma varsa reflow yapılır (en çok 14 adım, rAF ile tek karede).
+let _fitSubsRaf = 0;
+function scheduleFitSubtitleOverlays() {
+  if (_fitSubsRaf) return;
+  _fitSubsRaf = requestAnimationFrame(() => { _fitSubsRaf = 0; fitSubtitleOverlays(); });
+}
+function fitSubtitleOverlays() {
+  const stage = $('playerStage');
+  const ov = $('subtitleOverlay');
+  const ov2 = $('subtitleOverlay2');
+  if (!stage || !ov || stage.classList.contains('hidden')) return;
+  const active = [ov, ov2].filter((el) => el && el.firstElementChild && el.firstElementChild.textContent.trim());
+  for (const el of [ov, ov2]) {
+    if (el && el.firstElementChild) el.firstElementChild.style.fontSize = '';
+  }
+  if (!active.length) return;
+  const split = stage.classList.contains('sub-split');
+  const stack = $('subtitleStack');
+  const ctl = document.querySelector('.player-controls');
+  const controlsVisible = !!(ctl && !stage.classList.contains('idle'));
+  const ctlTop = controlsVisible ? ctl.getBoundingClientRect().top : Infinity;
+  const base = active.map((el) => parseFloat(getComputedStyle(el.firstElementChild).fontSize) || 28);
+  const visible = (el) => el.getBoundingClientRect().height > 0;
+  const clipped = () => {
+    // Overlay'in kendi max-height'ı (%45) içeriyi keser — üstteki yığın
+    // taşmayı göremez, o yüzden her iki düzende de eleman bazında bakılır.
+    if (active.some((el) => el.scrollHeight > el.clientHeight + 6)) return true;
+    if (!split && stack) return stack.scrollHeight > stack.clientHeight + 6;
+    return false;
+  };
+  const collides = () => {
+    const r1 = ov.getBoundingClientRect();
+    const r2 = ov2 ? ov2.getBoundingClientRect() : null;
+    if (active.length === 2 && visible(ov) && visible(ov2)
+        && r1.bottom > r2.top + 1 && r2.bottom > r1.top + 1) return true;
+    return controlsVisible && active.some((el) => visible(el) && el.getBoundingClientRect().bottom > ctlTop + 1);
+  };
+  let scale = 1;
+  while ((clipped() || collides()) && scale > 0.35) {
+    scale -= 0.08;
+    active.forEach((el, i) => { el.firstElementChild.style.fontSize = `${(base[i] * scale).toFixed(1)}px`; });
+  }
 }
 
 let _playerVideoFrameToken = 0;
@@ -13940,6 +14093,7 @@ function renderCue() {
   const overlay2 = $('subtitleOverlay2');
   if (!video || !overlay) return;
   const t = video.currentTime - player.offset;
+  let overlayChanged = false;
 
   if (player.cues.length) {
     const i = findCueAt(player.cues, t, player.activeIdx);
@@ -13950,7 +14104,7 @@ function renderCue() {
     updateCueMeta();
     if (!$('aiChat').classList.contains('hidden')) aiChatCtxLabel();
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
-    if (!player.editing) setOverlayText(overlay, i >= 0 ? player.cues[i].text : '');
+    if (!player.editing) overlayChanged = setOverlayText(overlay, i >= 0 ? player.cues[i].text : '') || overlayChanged;
     renderActiveCueWord(i, i >= 0 ? player.cues[i] : null, t, overlay);
 
     // lastT video-zamanında saklanır — altyazı-zamanı + offset geri çevrimi
@@ -13962,7 +14116,7 @@ function renderCue() {
     // Boş izde eski indeks kalmasın — copyCue gibi tüketiciler stale
     // indeksle player.cues[...] okuyup TypeError yutuyordu.
     player.activeIdx = -1;
-    setOverlayText(overlay, '');
+    overlayChanged = setOverlayText(overlay, '') || overlayChanged;
     resetActiveWordHighlight();
     updateCueMeta();
   }
@@ -13971,11 +14125,12 @@ function renderCue() {
     if (player.cues2.length) {
       const j = findCueAt(player.cues2, t, player.activeIdx2);
       player.activeIdx2 = j;
-      setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '');
+      overlayChanged = setOverlayText(overlay2, j >= 0 ? player.cues2[j].text : '') || overlayChanged;
     } else {
-      setOverlayText(overlay2, '');
+      overlayChanged = setOverlayText(overlay2, '') || overlayChanged;
     }
   }
+  if (overlayChanged) scheduleFitSubtitleOverlays();
   scheduleTimelineDraw();
 }
 
@@ -14101,8 +14256,8 @@ function renderCueList(filter = '') {
   const indexes = [];
   player.cues.forEach((c, i) => {
     const counterpart = counterparts[i];
-    if (q && !foldIndex(c.text).dense.includes(q)
-        && !foldIndex(counterpart).dense.includes(q)) return;
+    if (q && !foldIndexCached(c.text).dense.includes(q)
+        && !foldIndexCached(counterpart).dense.includes(q)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
     if (player.qualityOnly && !lowConfidence) return;
@@ -14599,7 +14754,7 @@ function toggleQualityOnly() {
 // kaynak metinle bırakılan blok) çevrilmemiş sayılır.
 function cueLooksUntranslated(text, counterpart) {
   if (!player.cues2.length) return false;
-  const norm = (value) => foldIndex(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
+  const norm = (value) => foldIndexCached(String(value || '')).dense.replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/[\s\p{P}]+/gu, ' ').trim();
   const a = norm(text);
   const b = norm(counterpart);
   return !b || (a.length > 3 && a === b);
@@ -15552,14 +15707,16 @@ function renderUnifiedLibraryResults(list, results) {
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
-    title.textContent = result.title || 'İsimsiz sonuç';
+    title.dataset.uiUntranslated = '';
+    title.textContent = result.title || uiText('İsimsiz sonuç');
     const kind = document.createElement('span');
     kind.className = 'library-result-kind';
     kind.textContent = libraryResultKindLabel(result);
     head.append(title, kind);
     const snippet = document.createElement('div');
     snippet.className = 'player-library-meta';
-    snippet.textContent = result.snippet || result.url || 'Eşleşen kayıt';
+    snippet.dataset.uiUntranslated = '';
+    snippet.textContent = result.snippet || result.url || uiText('Eşleşen kayıt');
     const details = document.createElement('div');
     details.className = 'player-library-meta';
     const parts = [];
@@ -15631,15 +15788,18 @@ function renderResearchLibrary() {
   for (const annotation of researchAnnotations) {
     const card = document.createElement('article'); card.className = 'research-card'; card.dataset.researchId = annotation.id;
     const head = document.createElement('div'); head.className = 'research-card-head';
-    const title = document.createElement('strong'); title.textContent = annotation.mediaTitle || annotation.mediaId || 'İsimsiz içerik';
+    const title = document.createElement('strong'); title.dataset.uiUntranslated = '';
+    title.textContent = annotation.mediaTitle || annotation.mediaId || uiText('İsimsiz içerik');
     const meta = document.createElement('span');
-    meta.textContent = `${researchTypeLabel(annotation.type)} · ${researchStatusLabel(annotation.status)} · ${pSecToTime(annotation.start || 0)}`;
+    meta.textContent = `${uiText(researchTypeLabel(annotation.type))} · ${uiText(researchStatusLabel(annotation.status))} · ${pSecToTime(annotation.start || 0)}`;
     head.append(title, meta); card.appendChild(head);
     if (annotation.source) {
-      const quote = document.createElement('blockquote'); quote.textContent = annotation.source; card.appendChild(quote);
+      const quote = document.createElement('blockquote'); quote.dataset.uiUntranslated = '';
+      quote.textContent = annotation.source; card.appendChild(quote);
     }
     if (annotation.translation) {
       const translation = document.createElement('p'); translation.className = 'research-card-translation';
+      translation.dataset.uiUntranslated = '';
       translation.textContent = annotation.translation; card.appendChild(translation);
     }
     const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note';
@@ -15653,7 +15813,8 @@ function renderResearchLibrary() {
     if ((annotation.tags || []).length) {
       const tagList = document.createElement('div');
       for (const tag of annotation.tags) {
-        const chip = document.createElement('span'); chip.className = 'research-tag'; chip.textContent = tag; tagList.appendChild(chip);
+        const chip = document.createElement('span'); chip.className = 'research-tag';
+        chip.dataset.uiUntranslated = ''; chip.textContent = tag; tagList.appendChild(chip);
       }
       card.appendChild(tagList);
     }
@@ -15666,8 +15827,8 @@ function renderResearchLibrary() {
     if (reviewMode) {
       const due = document.createElement('small'); due.className = 'research-card-due';
       due.textContent = annotation.reviewCount
-        ? `Son tekrar ${historyWhen(annotation.lastReviewedAt)} · aralık ${Number(annotation.intervalDays || 0).toFixed(1)} gün`
-        : 'İlk tekrar';
+        ? `${uiText('Son tekrar')} ${historyWhen(annotation.lastReviewedAt)} · ${uiText('aralık')} ${Number(annotation.intervalDays || 0).toFixed(1)} ${uiText('gün')}`
+        : uiText('İlk tekrar');
       const reviews = document.createElement('div'); reviews.className = 'research-review-actions';
       for (const [rating, label] of [['again', 'Yine'], ['hard', 'Zor'], ['good', 'İyi'], ['easy', 'Kolay']]) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost btn-sm';
@@ -15802,7 +15963,8 @@ function renderPlayerLibrary() {
     const head = document.createElement('div');
     head.className = 'player-library-item-head';
     const title = document.createElement('strong');
-    title.textContent = item.title || 'İsimsiz video';
+    title.dataset.uiUntranslated = '';
+    title.textContent = item.title || uiText('İsimsiz video');
     if (playerLibraryView === 'collections') {
       const select = document.createElement('input');
       select.type = 'checkbox';
@@ -15888,6 +16050,7 @@ function updateCollectionOptions() {
     names.forEach((name) => {
       const option = document.createElement('option');
       option.value = `collection:${name}`;
+      option.dataset.uiUntranslated = '';
       option.textContent = name;
       select.appendChild(option);
     });
@@ -17112,7 +17275,9 @@ function applySubtitleStyle() {
       + ` 0 2px ${(6 * o).toFixed(1)}px rgba(0,0,0,${(0.9 * o).toFixed(2)}),`
       + ` 0 0 ${(14 * o).toFixed(1)}px rgba(0,0,0,${(0.7 * o).toFixed(2)})`
     : 'none');
+  scheduleFitSubtitleOverlays();
 }
+if (typeof document !== 'undefined') document.addEventListener('fullscreenchange', scheduleFitSubtitleOverlays);
 
 function loadSubtitleStyle() {
   player.subStyle = Object.assign({}, SUB_STYLE_DEFAULTS);
@@ -17211,7 +17376,32 @@ function applySubtitlePos() {
       stage.classList.add('sub-moved');
     }
   }
-  if (ov2 && player.sub2Top != null) ov2.style.top = `${player.sub2Top}%`;
+  if (ov2 && player.sub2Top != null) {
+    // Ayrı düzende ikinci altyazının üst konumu ana bandın ya da kontrollerin
+    // üzerine inemez (R393: kayıtlı %85 kontrol çubuğuna oturuyordu).
+    let top2 = player.sub2Top;
+    if (stage && stage.classList.contains('sub-split')) {
+      const sr = stage.getBoundingClientRect();
+      // Sahne henüz görünmüyorsa (oynatıcı kapalı) kelepçe hesabı anlamsız —
+      // ilk render'da tekrar uygulanır.
+      if (sr.height > 50) {
+        const h = sr.height;
+        const prim = ov && ov.firstElementChild ? ov.getBoundingClientRect() : null;
+        const ctl = document.querySelector('.player-controls');
+        const lim = (prim && prim.height > 0)
+          ? prim.top
+          : (ctl && !stage.classList.contains('idle'))
+            ? ctl.getBoundingClientRect().top
+            : sr.bottom;
+        const eh = ov2.getBoundingClientRect().height || 0;
+        top2 = Math.max(1, Math.min(88, Math.min(top2,
+          ((lim - sr.top) / h) * 100 - (eh / h) * 100 - 1)));
+        player.sub2Top = top2;
+      }
+    }
+    ov2.style.top = `${top2}%`;
+  }
+  scheduleFitSubtitleOverlays();
 }
 
 function loadSubtitlePos() {
@@ -17274,7 +17464,23 @@ function makeSubtitleDraggable(el, edge) {
     const h = stage.getBoundingClientRect().height || 1;
     // asagi surukleme: alttan olculen deger AZALIR, ustten olculen ARTAR
     const delta = (dy / h) * 100 * (activeEdge === 'bottom' ? -1 : 1);
-    const pct = Math.max(1, Math.min(88, startPct + delta));
+    // Ayrı düzende ikinci altyazıyı ana banda ya da kontrollerin üzerine
+    // indirmeye izin verme (R393: %85'e sürükleme kontrol çubuğuna oturuyordu).
+    let bound = 88;
+    if (activeEdge === 'top' && stage.classList.contains('sub-split')) {
+      const sr = stage.getBoundingClientRect();
+      const prim = $('subtitleOverlay');
+      const primRect = prim && prim.firstElementChild ? prim.getBoundingClientRect() : null;
+      const ctl = document.querySelector('.player-controls');
+      const lim = (primRect && primRect.height > 0)
+        ? primRect.top
+        : (ctl && !stage.classList.contains('idle'))
+          ? ctl.getBoundingClientRect().top
+          : sr.bottom;
+      const eh = el.getBoundingClientRect().height || 0;
+      bound = Math.max(1, Math.min(88, ((lim - sr.top) / h) * 100 - (eh / h) * 100 - 1));
+    }
+    const pct = Math.max(1, Math.min(bound, startPct + delta));
     if (activeEdge === 'bottom') {
       player.subBottom = pct;
       stage.style.setProperty('--sub-user-bottom', `${pct}%`);
@@ -17315,8 +17521,12 @@ function showControls() {
   stage.classList.remove('idle');
   clearTimeout(player.idleTimer);
   // Duraklatılmışken veya düzeltme yaparken gizleme
+  scheduleFitSubtitleOverlays();
   if (!video || video.paused || player.editing) return;
-  player.idleTimer = setTimeout(() => stage.classList.add('idle'), 2500);
+  player.idleTimer = setTimeout(() => {
+    stage.classList.add('idle');
+    scheduleFitSubtitleOverlays();
+  }, 2500);
 }
 
 // ---- zaman çubuğu görselleri: oynanan + tamponlanan ----
@@ -17526,6 +17736,11 @@ function resetMediaBoundState(options = {}) {
   player.abA = null;
   player.abB = null;
   player.chatHistory = [];
+  // Eski videonun eksik-ceviri sayaci yeni medyanin butonuna "Eksik
+  // cevirileri tamamla (N)" olarak siziyordu — medyaya bagli metadata.
+  player.translationRetryAvailable = 0;
+  player.mediaRelinkOffered = '';
+  updateMakeTransState();
   if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
   player.timeline.waveform = [];
   player.timeline.waveformDuration = 0;
@@ -18288,6 +18503,21 @@ function foldQuery(value) {
 // Metin+konum dizini: modüllerdeki foldSearchIndex ile aynı sözleşme (yoğun
 // form + her yoğun konumun özgün metindeki [başlangıç, uzunluk] aralığı).
 // Modüller yüklüyse oradan alınır; yoksa işaretçi-silme sade sürüme düşer.
+// Arama/filtre yollarinda ayni metin tekrar tekrar katlanir (8k cue x norm).
+// Map metinle anahtarlanir: ayni icerik hep ayni sonucu verir, metin degisince
+// yeni anahtar uretilir (invalidasyon gereksiz). Boyut sinirli.
+const _foldCache = new Map();
+function foldIndexCached(value) {
+  const key = String(value || '');
+  let v = _foldCache.get(key);
+  if (v === undefined) {
+    v = foldIndex(key);
+    if (_foldCache.size > 24000) _foldCache.clear();
+    _foldCache.set(key, v);
+  }
+  return v;
+}
+
 function foldIndex(value) {
   const build = globalThis.BrowserAddressModel?.foldSearchIndex || globalThis.BrowserOmnibox?.foldSearchIndex;
   if (build) return build(value);
@@ -19299,7 +19529,7 @@ async function playPlaylistDelta(delta) {
 
 function pathToFileUrl(p) {
   const norm = String(p).replace(/\\/g, '/');
-  return 'file:///' + encodeURI(norm).replace(/^file:\/\/\//, '').replace(/#/g, '%23');
+  return 'file:///' + encodeURI(norm).replace(/^\/+/, '').replace(/#/g, '%23');
 }
 
 // ---- gorunum modlari: Sinema / Okuma / Calisma ----
@@ -19875,10 +20105,6 @@ function scheduleBrowserUnifiedJobsRefresh() {
   }, 250);
 }
 
-function playerTaskText(value) {
-  return window.UiLocale?.t ? window.UiLocale.t(String(value || '')) : String(value || '');
-}
-
 async function runBrowserTaskAction(job, command) {
   const key = `${job.id || job.kind}:${command}`;
   if (playerTaskActionBusy.has(key)) return;
@@ -19984,24 +20210,26 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     const titleLine = document.createElement('div'); titleLine.className = 'player-task-title-line';
     const label = document.createElement('strong'); label.textContent = row.label;
     const stateLabel = document.createElement('span'); stateLabel.className = 'player-task-state';
+    // Ham TR yazılır; observer EN'e çevirir ve orijinali kaydeder — iş
+    // sürerken dil değiştirilince gidiş-dönüş kayıpsız olur.
     stateLabel.textContent = progress.percent !== null ? `${progress.percent.toFixed(0)}%`
-      : row.recoverable ? playerTaskText('Yarım kaldı')
-        : (row.state === 'paused' || row.status === 'paused') ? playerTaskText('Duraklatıldı') : playerTaskText('İşleniyor');
+      : row.recoverable ? 'Yarım kaldı'
+        : (row.state === 'paused' || row.status === 'paused') ? 'Duraklatıldı' : 'İşleniyor';
     titleLine.append(label, stateLabel);
     const detail = document.createElement('span'); detail.className = 'player-task-detail';
-    detail.textContent = playerTaskText(row.detail || 'Hazırlanıyor');
+    detail.textContent = row.detail || 'Hazırlanıyor';
     copy.append(titleLine, detail);
     if (row.context) {
       const context = document.createElement('span'); context.className = 'player-task-context';
       context.dataset.uiUntranslated = ''; context.textContent = row.context; context.title = row.context; copy.appendChild(context);
     }
     const metaParts = [];
-    if (progress.total) metaParts.push(`${progress.completed}/${progress.total} ${playerTaskText('tamamlandı')}`);
-    if (row.pending) metaParts.push(`${row.pending} ${playerTaskText('çalışıyor')}`);
-    if (row.queued) metaParts.push(`${row.queued} ${playerTaskText('bekliyor')}`);
-    if (row.failed) metaParts.push(`${row.failed} ${playerTaskText('hata')}`);
+    if (progress.total) metaParts.push(`${progress.completed}/${progress.total} tamamlandı`);
+    if (row.pending) metaParts.push(`${row.pending} çalışıyor`);
+    if (row.queued) metaParts.push(`${row.queued} bekliyor`);
+    if (row.failed) metaParts.push(`${row.failed} hata`);
     const elapsed = PlayerTaskCenterModel.elapsedLabel(row.startedAt);
-    if (elapsed) metaParts.push(`${playerTaskText('geçen süre')} ${elapsed}`);
+    if (elapsed) metaParts.push(`geçen süre ${elapsed}`);
     if (metaParts.length) {
       const meta = document.createElement('span'); meta.className = 'player-task-meta';
       for (const value of metaParts) { const part = document.createElement('span'); part.textContent = value; meta.appendChild(part); }
@@ -20025,7 +20253,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
       const action = document.createElement('button');
       action.type = 'button'; action.className = 'player-task-action';
       if (spec.kind === 'stop') action.classList.add('is-stop');
-      action.textContent = playerTaskText(spec.label);
+      action.textContent = spec.label;
       action.disabled = !!spec.busyKey && playerTaskActionBusy.has(spec.busyKey);
       action.addEventListener('click', async () => { action.disabled = true; await spec.run?.(); });
       controls.appendChild(action);
@@ -20033,7 +20261,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     if (typeof row.dismiss === 'function') {
       const dismiss = document.createElement('button'); dismiss.type = 'button';
       dismiss.className = 'player-task-dismiss'; dismiss.textContent = '×';
-      dismiss.title = playerTaskText('Temizle'); dismiss.setAttribute('aria-label', playerTaskText('Temizle'));
+      dismiss.title = 'Temizle'; dismiss.setAttribute('aria-label', 'Temizle');
       dismiss.addEventListener('click', async () => { dismiss.disabled = true; await row.dismiss(); });
       controls.appendChild(dismiss);
     }
@@ -22338,7 +22566,7 @@ async function runPlayerLibrarySearch() {
     const folded = foldQuery(q.normalize('NFKC'));
     playerLibraryResults = !folded ? watchLibraryCache : watchLibraryCache.filter((item) =>
       [item.title, item.sourceRef, ...(item.collections || [])]
-        .some((value) => foldIndex(String(value || '').normalize('NFKC')).dense.includes(folded)));
+        .some((value) => foldIndexCached(String(value || '').normalize('NFKC')).dense.includes(folded)));
     playerUnifiedLibraryResults = [];
     list?.setAttribute('aria-busy', 'false');
     renderPlayerLibrary();
@@ -22786,6 +23014,10 @@ if ($('playerVideo')) {
       [MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED]: 'Video biçimi veya kaynak adresi desteklenmiyor.',
     };
     logLine(messages[code] || 'Video bilinmeyen bir medya hatası nedeniyle açılamadı.', 'error');
+    // Tasinmis/silinmis yerel dosya: kutuphane kaydini yeni konuma bagla.
+    if (player.localPath && code !== MediaError.MEDIA_ERR_ABORTED) {
+      offerMediaRelink();
+    }
   });
 
   $('playPause').addEventListener('click', () => {
@@ -23187,6 +23419,7 @@ document.addEventListener('keydown', (e) => {
     const downloads = $('browserDownloadsPanel');
     const ytModal = $('youtubeLoginModal');
     if (ytModal && !ytModal.classList.contains('hidden')) closeYoutubeLogin();
+    else if (!$('playerTaskCenter')?.classList.contains('hidden')) { setPlayerTaskCenter(false); $('playerTaskCenterToggle')?.focus(); }
     else if (downloads && !downloads.classList.contains('hidden')) setBrowserDownloadsOpen(false);
     else if (!$('browserQrPanel')?.classList.contains('hidden')) setBrowserQrOpen(false);
     else if (places && !places.classList.contains('hidden')) setBrowserPlacesOpen(false);
@@ -24466,7 +24699,9 @@ async function saveCueEdit() {
   }, subtitleStatFor(targetPath)); }
   catch (err) { res = { ok: false, error: err && err.message }; }
   if (!res || !res.ok) {
-    logLine(`Altyazı kaydedilemedi: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
+    // Taslak editorde kalir: kullanici sorunu duzeltip ayni dugmeyle tekrar dener.
+    const detail = friendlySystemError((res && res.error) || 'bilinmeyen hata');
+    logLine(`Altyazı kaydedilemedi: ${detail} — taslağınız korunuyor, tekrar deneyin.`, 'error');
     return;
   }
   noteSubtitleStat(targetPath, res);
@@ -24515,8 +24750,8 @@ if ($('cueSearch')) {
     if (q) {
       const translations = translationsForCues(player.cues, player.cues2);
       renderSeekMarkers(player.cues.filter((c, index) =>
-        foldIndex(c.text).dense.includes(q)
-          || foldIndex(translations[index]).dense.includes(q))
+        foldIndexCached(c.text).dense.includes(q)
+          || foldIndexCached(translations[index]).dense.includes(q))
         .map((c) => subtitleVideoTime(c.start, false)));
     } else renderSeekMarkers(defaultMarkers());
   });

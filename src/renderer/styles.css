@@ -241,6 +241,7 @@
 .queue-item.running .queue-status { color: var(--accent); background: rgba(99, 102, 241, 0.15); }
 .queue-item.done .queue-status { color: var(--success); background: rgba(16, 185, 129, 0.15); }
 .queue-item.error .queue-status { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
+.queue-item.recovered .queue-status { color: var(--warning); background: rgba(245, 158, 11, 0.15); }
 .queue-remove {
   background: transparent;
   border: 1px solid var(--border);
@@ -1577,7 +1578,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .player-stage:fullscreen .subtitle-overlay { font-size: 2.2vw; }
 /* Kontroller gorunurken altyazi onlarin uzerine kalksin (uzeri kapanmasin) */
 .subtitle-overlay { transition: bottom .18s ease; }
-.player-stage:not(.idle):not(.sub-moved) .subtitle-overlay { bottom: 13%; }
+/* Kontrol çubuğu ~112px bandını kaplar; %13 küçük sahnelerde bandın içine girer
+   (R393: 5px taşma). Alt sınır pikselle korunur. */
+.player-stage:not(.idle):not(.sub-moved) .subtitle-overlay { bottom: max(13%, 120px); }
 .player-stage:not(.idle) .subtitle-secondary { bottom: auto; }
 /* Karşılaştırma altyazısı (kaynak dil) — ana altyazının üstünde, daha soluk */
 .subtitle-secondary {
@@ -1675,7 +1678,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   bottom: var(--sub-user-bottom, 5%);
 }
 .player-stage.sub-moved:not(.idle) .subtitle-overlay {
-  bottom: max(var(--sub-user-bottom, 5%), 13%);
+  bottom: max(var(--sub-user-bottom, 5%), 120px);
 }
 /* Çift dilli yığın (varsayılan): iki altyazı altta, aynı yazı stiliyle; kaynak
    üstte (.primary-first birincil kanal kaynaksa onu öne alır). Konum kuralları
@@ -1696,9 +1699,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   pointer-events: none;
   transition: bottom .18s ease;
 }
-.player-stage:not(.sub-split):not(.idle):not(.sub-moved) .subtitle-stack { bottom: 13%; }
+.player-stage:not(.sub-split):not(.idle):not(.sub-moved) .subtitle-stack { bottom: max(13%, 120px); }
 .player-stage.sub-moved:not(.sub-split) .subtitle-stack { transition: none; bottom: var(--sub-user-bottom, 5%); }
-.player-stage.sub-moved:not(.sub-split):not(.idle) .subtitle-stack { bottom: max(var(--sub-user-bottom, 5%), 13%); }
+.player-stage.sub-moved:not(.sub-split):not(.idle) .subtitle-stack { bottom: max(var(--sub-user-bottom, 5%), 120px); }
 .player-stage:not(.sub-split) .subtitle-stack > .subtitle-overlay {
   position: static;
   max-height: none;
@@ -4119,6 +4122,11 @@ html[data-theme="light"] .player-layout-section .player-panel-title,
 html[data-theme="light"] .subtitle-display-segments button:not(.active),
 html[data-theme="light"] .pdf-view-modes button:not(.active) { color: var(--text-dim); }
 html[data-theme="light"] .player-layout-section .view-modes .vm.active { color: var(--accent); background: var(--bg-2); }
+html[data-theme="light"] .player-panel-title { color: var(--text-muted); }
+html[data-theme="light"] .settings-drawer .field-label,
+html[data-theme="light"] .settings-drawer .hint { color: var(--text-dim); }
+/* Açık temada --accent koyu kehribar; sabit koyu sayaç metni üstünde okunamaz. */
+html[data-theme="light"] .jobs-tab.active > span { color: var(--accent-contrast); background: transparent; }
 /* Oynatıcı katmanının --player-* renkleri yalnız .workspace-browser için temaya
    bağlanmıştı; açık temada oynatıcı/SmartTube/çift dilli liste açık zemin üstünde
    neredeyse beyaz (1.03–1.43:1) metinle çiziliyordu. */
@@ -6074,6 +6082,7 @@ html, body, * { scrollbar-color: auto; }
 }
 .st-search-wrap {
   flex: 1;
+  min-width: 0;             /* dar pencerede input'un doğal genişliği taşma yapmasın */
   display: flex;
   position: relative;       /* st-suggest konumlanması buraya bağlanır */
   background: var(--bg-elev);
@@ -6188,6 +6197,7 @@ html, body, * { scrollbar-color: auto; }
 .st-ch-search:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 #stSearchInput {
   flex: 1;
+  min-width: 0;
   padding: 8px 14px;
   background: transparent;
   border: 0;
@@ -6584,7 +6594,10 @@ to { opacity: 1; transform: translateX(0); }
 .st-brand-name { display: none; }
 .st-topbar { padding: 10px; gap: 8px; }
 .st-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 6px 12px 24px; }
-.st-side-label { font-size: 9px; }
+/* 60px rayda tek-kelime TR etiketler bile sığmaz — ikon-only; anlam
+   title/aria-label'da kalır. */
+.st-side-label { display: none; }
+.st-side-item { gap: 0; }
 /* Dar sahnede up-next paneli genişliğe uysun, thumb küçülsün (D10) */
 .st-upnext { width: min(300px, 62vw); }
 .st-upnext-thumb { width: clamp(72px, 30%, 96px); }

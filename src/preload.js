@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('media:event', listener);
   },
   authorizeWatchItem: (key) => ipcRenderer.invoke('library:authorizeItem', key),
+  relinkWatchItem: (oldKey, newPath) => ipcRenderer.invoke('library:relink', { oldKey, newPath }),
   showBrowser: (tabId, bounds) => ipcRenderer.invoke('browser:show', { tabId, bounds }),
   getBrowserGpuDiagnostics: () => ipcRenderer.invoke('browser:gpuDiagnostics'),
   hideBrowser: () => ipcRenderer.invoke('browser:hide'),

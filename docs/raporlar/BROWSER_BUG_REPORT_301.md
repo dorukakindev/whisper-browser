@@ -1298,6 +1298,129 @@ ve akış-birleştirme çekirdeği. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R388 — EN/TR geçişinde kullanıcı verisi korunması (2 kusur düzeltildi + ratchet)
+
+20'lik kullanım kuyruğunun 1. görevi: dil değiştirirken altyazı, not,
+medya başlığı ve düzenlenen metnin korunması. ui-locale.js mekanizması
+yeniden doğrulandı (originalText/originalAttributes WeakMap'leriyle
+TR↔EN gidiş-dönüşü kayıpsız; çeviri yalnız birebir anahtar veya tam
+eşleşen kalıpla çalışır) ve DOM'a kullanıcı verisi yazan tüm renderer
+noktaları `ignored` seçicisine karşı tek tek denetlendi.
+
+**B-388-01 — kullanıcı metni sözlük anahtarıyla çakışınca eziliyordu:**
+`ignored` kapsayıcı dışında saf kullanıcı verisi taşıyan düğümler,
+metinleri bütün olarak bir sözlük anahtarına eşitse çevrilip bozuluyordu
+(ör. "Kaydet" adlı medya dosyası EN'de "Save", "Tamamlandı" adlı video
+başlığı "Completed", "Ayarlar" adlı koleksiyon "Settings" görünüyordu).
+İşaretlenen yüzeyler (`data-ui-untranslated` — seçici zaten listede):
+
+- `#queueList` → `.queue-title` (iş etiketi/dosya adı)
+- `#browserDownloadsList` → `.browser-download-name` (dosya adı)
+- `renderUnifiedLibraryResults` → başlık `<strong>` + snippet
+- `renderResearchLibrary` → kart başlığı, alıntı `blockquote`,
+  `.research-card-translation`, `.research-tag` çipleri
+- `renderPlayerLibrary` → izleme satırı başlığı `<strong>`
+- `updateCollectionOptions` → koleksiyon `<option>` adları
+
+Bilinçli olarak işaretlenmeyenler (çevrilmesi doğru olanlar):
+`.queue-error`/`.browser-download-error` (ana süreç TR dizgileri),
+`.queue-status` ve eylem düğmeleri, `.jobs-empty`/`.player-library-empty`,
+`.queue-name[title]` (yol/URL — bütün eşleşme imkânsız), `.watch-hit`
+(`Not · saat · parça` bileşik — eşleşmez). `<option>`/aria-label
+bileşikleri de aynı nedenle bırakıldı.
+
+**B-388-02 — aynı yüzeylerde EN'de TR kalan arayüz kromu:** işaretli
+düğümlerin çevirisi dışarıda kalınca yazarlı TR fallback'ler ("İsimsiz
+video/içerik/sonuç", "Eşleşen kayıt", "İlk tekrar", "Kaydetme konumu
+henüz seçilmedi.", durum etiketleri) `uiText()` üzerinden kuruluyor;
+sözlüğe 50 yeni çift eklendi (Alıntı/Kelime/derece düğmeleri, indirme
+durumları ve eylemleri, kitaplık boş-durumları, Bitti/Sırada/Kuyrukta,
+Yukarı/Aşağı taşı, Aç, İptal et vb.) ve 3 kalıp (`N sonuç`,
+`N indirme sürüyor.`, `N içerik · M metin/not eşleşmesi`). Birleşik
+durum metinleri (`Son tekrar … · aralık … gün`, indirme etiketi +
+byte satırı, kart metası) parça bazında `uiText()`'e sarıldı.
+
+**Kanıtlar:** `tests/ui-locale-userdata.test.js` (yeni) — opt-out
+özniteliğinin `ignored`'da bulunması, 10 işaret noktası, sözlük çiftleri,
+3 kalıp, uiText sarmaları, veriye uiText sarılmaması, anahtar tekili.
+Kırmızı kanıtı: master'da ilk kontrolden düşüyor. `dom-innerhtml-ratchet`
+satır-pinleri güncellendi (`toolsMarkup` pini #314'ten beri bayattı);
+`browser-downloads.test.js` Node stub'ına `dataset`+`uiText` eklendi
+(sahada var olan DOM özellikleri — harness sadakati, davranış değişmez).
+
+Windows etkisi: yok — renderer dizgi/DOM özniteliği işi, platform
+bağımsız. Windows'ta elle doğrulanmadı.
+
+## R389 — İş sürerken dil değiştirme: dinamik mesaj çeviri kapsamı (3 boşluk düzeltildi)
+
+20'lik kuyruğun 2. görevi: iş sürerken dil değiştir; ilerleme, hata ve
+bildirimlerde eksik çevirileri tamamla. translate() prob'uyla iş başı
+dizgilerinin tamamı tarandı.
+
+**B-389-01 — backend aşama metinleri ve ilerleme birleşimleri çevirisizdi:**
+transcribe.py'nin `emit("status", text=…)` gönderdiği ~19 TR dizgi
+(`Ses çıkarılıyor...`, `Transkripsiyon başladı...`, `Ceviriliyor: X`,
+`Model yükleniyor: X (Y)`, `Noktalama onarımı N/M` vb.) ve renderer'ın
+kurduğu ilerleme metinleri (`İndiriliyor %N`, `İndiriliyor/Transkripsiyon/
+Çevriliyor/LLM düzeltiyor · %N|N/M`, `N blokta hata`, `· kalan ~T`,
+`tamamlandı · T`, görev merkezi aşamaları: `Kaydediliyor`, `Oynatıcıya
+yükleniyor`, `Hazırlanıyor`, `Çeviri sürüyor`, kart etiketleri) EN
+modda TR kalıyordu. Sözlüğe 35+ yeni çift ve 16 yeni kalıp eklendi.
+
+**B-389-02 — OS bildirimi her zaman TR kalıyordu:** `notifyDone` başlık/
+gövdeyi (`Altyazı hazır`, `Kuyruk tamamlandı`, `Altyazı çıkarma
+başarısız`, `N iş bitti · M hata · K uyarı`, `N segment · M dosya`)
+`window.api.notify`'ye çevirmeden veriyordu; OS bildirimi DOM dışıdır,
+MutationObserver erişemez. Artık `uiText()` üzerinden geçiyor.
+
+**B-389-03 — görev merkezi yazma-anında EN üretiyordu:** `playerTaskText`
+EN dizgiyi doğrudan düğüme yazıyordu; TR'ye dönüşte `toTurkish` kalıp
+çıktılarını (ör. `3/12 completed`, `Downloading · 45%`) geri
+çeviremiyordu — dil geçişinde sürüklenme. Bloktaki tüm çağrılar ham TR
+yazımına çevrildi (observer çevirir + orijinali saklar → gidiş-dönüş
+kusursuz); kullanılmayan `playerTaskText` kaldırıldı, 4 yeni birleşim
+kalıbı (`N çalışıyor/bekliyor/hata`, `geçen süre T`) eklendi.
+
+**Kanıtlar:** `ui-locale-dynamic.test.js` — 73 örnek, 71 kalıp; yeni
+backend-taraması ratchet'i transcribe.py'deki HER `emit("status",
+text="TR literal")`'in çeviri kapsamını doğrular (taramada 3 ek eksik
+yakalandı ve eklendi); statik kilit: `api.notify(uiText(...))` ve
+`playerTaskText` yokluğu.
+
+Windows etkisi: yok — renderer dizgi işi. Windows'ta elle doğrulanmadı.
+
+## R390 — Dar pencerede TR/büyük yazı taşması (2 kusur düzeltildi)
+
+20'lik kuyruğun 3. görevi: dar pencerede (640px = uygulama minWidth
+tabanı), TR locale ve zoom ×1.0/×1.5 altında kesilen düğmeleri/taşan
+panelleri bul. Yeni Electron smoke'u
+`tests/electron-ui-narrow-tr.smoke.js` görünür tüm krom öğelerini
+(düğme, menü öğesi, etiket, başlık; kullanıcı-verisi bölgeleri hariç)
+üç denetimle tarar: belge yatay taşması, panel sağ-kenar aşımı,
+nowrap/hidden altında scrollWidth>clientWidth kırpılması.
+
+**B-390-01 — SmartTube yan rayı ≤720px'de etiketleri kırpıyordu:**
+60px rayda `.st-side-label` 9px'e düşse de tek kelimelik etiketler
+("Abonelikler" 148px, "Invidious giriş" 168px, "YouTube giriş" 164px)
+50px kutuya sığmıyor ve overflow visible olduğu için komşu sütuna
+taşıyordu. ≤720px'de etiketler artık gizli (ikon-only ray; anlam
+`title`/`aria-label`'da kalır) — 15 `st-side-item` düğmesine görünen
+etiketle birebir `aria-label` eklendi.
+
+**B-390-02 — st-topbar arama kutusu sağdaki görünüm düğmesini itiyordu:**
+`.st-search-wrap`/`#stSearchInput` `min-width:auto` (input'un doğal
+~20ch genişliği) yüzünden ~427px etkili genişlikte `#stDisplayToggle`
+görüntü alanı dışına çıkıyordu. `min-width:0` ile arama daralır,
+düğme görünür kalır.
+
+**Kanıtlar:** smoke kırmızıdaydı (14+1 kırpılmış öğe), düzeltmelerle
+yeşil; menüler/ayar çekmecesi/görev merkezi/indirme+AI+tanı+bul
+panelleri/kuyruk-araçları açıkken 640px'de sıfır taşma.
+`smarttube-*` ve `electron-smarttube-boot` testleri PASS.
+
+Windows etkisi: medya sorgusu + flex davranışı platformdan bağımsız;
+aynı düzeltme Windows'ta da geçerli. Elle doğrulanmadı.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
@@ -1308,3 +1431,282 @@ Windows etkisi: kod değişmedi (salt okuma).
 - `desktopCapturer` sınıfı smoke'lar gerçek Windows/compositor bekler.
 - GPU/CUDA/network-gated fonksiyonlar (`resolve_device_and_compute`, `download_youtube`, `sync_subtitles`, `llm_translate` canlı yolu) bu turda da doğrulanamadı — aynı sınıf daha önceki raporlarda tanımlı.
 - V8/CDP kapsamı yalnız derlenmiş fonksiyonları sayar; tembel-parse'lı iç fonksiyonlar sayılmaz — "hiç çalışmadı" listesi üst sınır tahminidir.
+
+## R391 — Kuyruk g4: açık temada seçili/devre dışı/odak/hata kontrastı
+
+20'lik kuyruğun 4. görevi: açık/koyu temada metin kontrastını WCAG
+eşiğiyle ölç. Yeni Electron smoke'u
+`tests/electron-ui-theme-contrast.smoke.js` her iki temada görünür tüm
+krom metnini tarar: normal metin ≥4.5, muted/küçük metin ≥3.0,
+devre-dışı ≥2.0, odak halkası ≥3.0 — alfa kompozitli gerçek arka plan
+geçişi (effBg) ile. Prob tema değiştirmeden önce geçişleri kapatır;
+yoksa `transition: color .2s` ölçümü eski renkte yakalıyordu (ilk
+koşudaki ~20 "hata" bu artefakttı — hata değil, ölçüm kusuruydu).
+
+**B-391-01 — açık temada 16 doğrulanmış kontrast ihlali (4 kural):**
+oyuncu panel başlıkları sabit `#a1a1a5`/`#96969a` (2.02:1), ayar
+çekmecesi `field-label`/`.hint`/`code` sabit `#929297` (2.43–3.05:1),
+aktif iş sekmesindeki `#jobsQueueBadge` koyu `#17130c` metin/amber
+zemin (2.60:1) — koyu tema amber'ı üstünde doğruydu ama açık temada
+`--accent` koyu kehribara (#7f4c15) dönünce okunamaz oldu.
+`html[data-theme="light"]` altında üç grup da token'a bağlandı:
+`--text-muted`/`--text-dim`/`--accent-contrast`.
+
+**Kanıtlar:** smoke kırmızı (light 16 FAIL, dark 0) → düzeltmelerle
+iki tema 0 FAIL; `css-hardcoded-colors` 436/436 (yeni sabit renk yok),
+`electron-ui-narrow-tr` hâlâ yeşil. Kırmızı kanıtı master
+`styles.css`'iyle tekrar üretildi (16 FAIL).
+
+Windows etkisi: tema token'ları platformdan bağımsız; aynı düzeltme
+geçerli. Elle doğrulanmadı.
+
+## R392 — Kuyruk g5: klavye (Tab/Enter/Esc + odak geri dönüşü)
+
+20'lik kuyruğun 5. görevi: menü, ayar ve panel yüzeylerinde gerçek
+trusted tuş olaylarıyla (sendInputEvent) klavye davranışını doğrula.
+Yeni smoke `tests/electron-ui-keyboard.smoke.js` uygulamanın kendi
+penceresinde (gerçek preload+renderer) çalışır: details menülerinde
+ArrowDown→öğe, Esc→kapanış+summary'ye odak iadesi, ayar çekmecesi Esc,
+alt yazı mod menüsü Esc, komut paleti Ctrl+K/Esc, menü içi form
+kontrolü muafiyeti — 12 kontrol.
+
+**B-392-01 — görev merkezi paneli Esc'te kapanmıyordu:** oynatıcı Esc
+zincirinde (ytModal→downloads→qr→places→subMenu→…) `#playerTaskCenter`
+hiç kontrol edilmiyordu; panel açıkken Esc hiçbir şey yapmıyordu —
+İndirme/Yer imi panelleriyle tutarsız. Zincire eklendi; kapanırken
+odak `playerTaskCenterToggle`'a döner. Kırmızı kanıtı: master
+`renderer.js`'iyle smoke'ta FAIL (playerTaskCenter: Esc açık paneli
+kapatmadı), düzeltmeyle 0 FAIL.
+
+**Temiz çıkan yüzeyler:** playerHeadMore/playerLayoutQuickMenu (player
+modu) ve appMenu/appModeMenu/browserMoreMenu (browser modu) Esc
+zinciri + odak iadesi; details menü ok gezintisi; subtitleModeMenu
+tık→Esc; settingsDrawer Esc.
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):**
+- Xvfb'de `sendInputEvent` Enter→native button click üretmiyor; menü
+  öğesi aktivasyonu `.click()` ile sınandı — Enter/Space'in native
+  aktivasyonu gerçek Windows'ta kontrol edilmeli.
+- `browserDownloadsToggle` sekme olmayan browser modunda gizli —
+  indirme panelinin Esc/odak-iade yolu bu koşudaki yerleşimde
+  sınanamadı (mevcut electron-browser-downloads smoke'u ayrıca
+  kapsıyor).
+- `hasFocus`/`document.hasFocus()`=true iken `element.focus()` gizli
+  chrome'daki summary'de sessizce yutuluyor — görünür yüzeylerde
+  odak/odak-iadesi doğrulandı.
+
+**Kanıtlar:** `xvfb-run -a node_modules/.bin/electron
+tests/electron-ui-keyboard.smoke.js` GEÇTİ; kırmızı kanıt master'da 1
+FAIL üretti; `player-escape-dialog` + `player-ui` (153) yeşil;
+`node --check` temiz.
+
+---
+
+## R393 — kuyruk g6: çift altyazı örtüşmesi (uzun metin / büyük font / sürükleme / tam ekran)
+
+**Doğrulanan kusurlar (tümü düzeltildi, kırmızı kanıtlı):**
+
+- **B-393-01 (ortaya çıkan veri kaybı):** Yığın düzende uzun metin + büyük
+  fontta (44px, ~300 karakter) her altyazının ~%80'i sessizce kesiliyordu —
+  `.subtitle-stack` `max-height:60%; overflow:hidden` ve her
+  `.subtitle-overlay`'in kendi `max-height:45%` kapağı. Ölçü: inner 1195px →
+  224px görünür (clip 978). Düzeltme: `fitSubtitleOverlays()` — aktif
+  altyazılar taşarsa/çakışırsa metin ölçeği kutu sığana dek küçültülür
+  (oyuncuların auto-fit'i; en çok 14 adım, rAF birleştirme, yalnız metin
+  değişince tetiklenir, kısa metne dokunmaz — 6px süpürme toleransı).
+- **B-393-02:** Kontroller görünürken yığın kontrol bandına 5px biniyordu —
+  `bottom:13%` küçük sahnelerde ~104px'lik kontrol bandından az.
+  `bottom:max(13%,120px)` (3 kural: yığın, sub-moved yığın, ayrı-overlay).
+- **B-393-03:** Ayrı düzende uzun ikinci altyazı kutusu (top:6% +
+  max-height:45%) ana banda 68px biniyordu. Ölçek-küçültme artık eleman
+  bazında clip algılıyor (üst yığın çocuğun içsel kesimini göremez).
+- **B-393-04:** `%85`'e sürüklenen ikinci altyazı kontrol çubuğuna
+  oturuyordu ve kayıtlı değer geri yüklenirken de banda iniyordu. Sürükleme
+  `pointermove` ve `applySubtitlePos` içinde dinamik kelepçe: üst konum,
+  ana bandın (veya kontrollerin) üst kenarını geçemez.
+
+**Kanıtlar:** `tests/electron-subtitle-overlap.smoke.js` — master'da 8
+kontrol FAIL (yığın clip 973+973, yığın→kontrol 750>745, ayrı çakışma
+ov=411-750/ov2=140-479, sürüklenen ov2.alt=750>ctl.üst=745, tam-ekran clip
+57+57); dalda tümü PASS. İlgili birim: subtitle-*, player-*,
+browser-overlay-*, renderer-* paketleri yeşil; css ratchet yeşil; vm-realm
+testi için fullscreenchange dinleyicisi `typeof document` kapılı.
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):** pointer-sürükleme
+davranışı testlerde `applySubtitlePos`/sınıf enjeksiyonuyla sınandı — gerçek
+dokunmatik/fare sürükleme Windows'ta elle doğrulanmalı.
+
+---
+
+## R394 — kuyruk g7: büyük transkript performansı (4.000–10.000 satır)
+
+**Ölçülen darboğazlar (Electron, 8.000 cue, 1280×860):**
+
+| İşlem | Önce | Sonra |
+|---|---|---|
+| `renderCue` (oynatma karesi) | 36.2 ms | 0.8 ms |
+| `renderCueList('')` | 70.5 ms | 6.4 ms |
+| `renderCueList('metin')` (tuş başına) | 88.5 ms | 19.5 ms |
+| `highlightCueRow` | 33.5 ms | 1.1 ms |
+
+**Kök nedenler:**
+
+- `updateCueMeta` kare başına 4 tam-cue taraması yapıyordu (`savedCount`,
+  `lowCount`, `missing` + `translationsForCues`); `missing` hesabı her cue'da
+  `cueLooksUntranslated` → 2× `foldIndex` → 8k satırda ~31 ms.
+- `cueSearch` input handler'ı her tuşta 2×8k `foldIndex` + ayrıca
+  `translationsForCues` çağırıyordu (~88 ms/tuş).
+- Liste filtresi de arama açıkken her cue için yeniden `foldIndex`.
+
+**Çözüm:** `foldIndexCached` — içerik-adresli `Map` önbelleği (24k sınır;
+aynı metin hep aynı sonucu döndürür, metin değişince yeni anahtar üretilir,
+invalidasyon gerekmez). `cueMetaStats` — stats yalnız `cues/cues2/savedCues`
+kimliği veya uzunluğu değişince yeniden hesaplanır (oynatma karelerinde O(1)).
+
+**Kanıtlar:** yeni `tests/cue-list-perf.test.js` (5 kontrol: önbellek
+özdeşliği, memoizasyon, invalidasyon, 8k doğruluk, O(1) tekrar). İlgili
+paketler: subtitle-* (find/perf/format/parser-fuzz), player-ui 153,
+browser-bulk-edit-locks 16, cue-seek, dual-layout — hepsi yeşil.
+electron-subtitle-overlap smoke tekrar geçti. Windows'ta doğrulanmadı
+(platformdan bağımsız JS).
+
+---
+
+## R395 — kuyruk g8: altyazı yazılamadığında düzenleme kaybolmasın
+
+**Sorun:** altyazı dosyasına yazım hatasında (izin, disk dolu, kilit)
+kullanıcının düzenlediği cue içeriği yalnızca bellek durumunda yaşıyordu;
+UI hata sonrası taslak korunuyor mu ve tekrar deneme gerçekten yeniden
+yazıyor mu sorusu doğrulanmadı.
+
+**Buluş/düzeltme:** yazım hatası sonrası taslak korunur + tekrar deneme
+düğmesi yeniden yazımı dener; `tests/electron-subtitle-save-retry.smoke.js`
+(86 satır Electron smoke'u) ile uçtan uca kilitlendi. `src/renderer/renderer.js`
+(4 satır bekçi).
+
+## R396 — kuyruk g9: çeviri iptali sonrası eski sonuç yeni işe karışmasın
+
+**Denetim:** iptal edilen çeviri işinin geç gelen olaylarının (in-flight
+yanıt, sağlayıcı cb) aktif işe veya yeni başlatılan işe karışması sınandı.
+`90f2d65` — gec-olay bekçileri + iş kartı durum temizliği (12 satır renderer,
+üç-kollu generation desenine uygun) + `tests/electron-translate-cancel.smoke.js`
+(70 satır). `3255e08` ile aynı smoke genişletildi (video geçişinde bayat
+sayacın da temizlenmesi).
+
+## R397 — kuyruk g10: ağ kesintisi (timeout/429/5xx) — retry/kısmi/iptal
+
+**Denetim:** sağlayıcı hata sınıflandırması + retry politikası + iptal
+yayılımı. `3c20813` — `backend/test_retry_cancel.py` (79 satır) ile
+backend tarafı sözleşme testleri kilitlendi. Bulgu yok — sözleşme
+kilitlenerek kapandı. Gerçek ağ kesintisi (fiziksel) elde sınanmadı.
+
+## R398 — kuyruk g11: video geçişinde eski cue/metadata/AI bağlamı taşınmasın
+
+**Bug (B-398):** `resetMediaBoundState` `player.translationRetryAvailable`'ı
+temizlemiyordu → aynı sekmede yeni video açılınca bayat "Eksik çevirileri
+tamamla (N)" etiketi görünür kalıyordu. `3255e08` — reset listesine eklendi +
+`updateMakeTransState()` çağrısı + smoke kilit.
+
+## R399 — kuyruk g12: canlı HLS — playlist kayması/discontinuity/seek mükerrer cue
+
+**Denetim:** `mergeLiveCues` / `replaceLiveCuesForRefresh` kontrollü
+senaryolarla sınandı; mükerrer cue üretmiyor. `256624b` —
+`tests/live-cue-merge.test.js` 94 satır/10 kontrol. Bulgu yok — kanıtla
+kapandı. Canlı kaynakla elle izleme yapılmadı.
+
+## R400 — kuyruk g13: kapanma sonrası kuyruk durumu
+
+**Bulgu:** beklenmedik kapanışta (SIGKILL) kuyruk öğeleri recovered olarak
+geri dönüyordu ama `item.recovered` işareti görünür değildi — kullanıcı
+yarım kalan işi tamamlanmış sanabiliyordu. `8a1f1b3` — `.queue-item.recovered`
+sınıfı + 'Yarım kaldı' rozeti + CSS uyarı tonu; E2E
+`tests/electron-queue-kill-resume.smoke.js` genişletildi.
+
+## R401 — kuyruk g14: kuyruk ayarları — sırala/sil/seçenek izolasyonu
+
+**Bulgu:** işler ekleme anında `buildOptsFromUI()` ile donuyor (mevcut doğru
+davranış); eksik olan sıralamaydı — bekleyen öğeler yeniden sıralanamıyordu.
+`9382407` — `moveQueueItem(id, delta)` (yalnız bekleyen takas) + ↑/↓
+düğmeleri + `tests/electron-queue-reorder.smoke.js` (78 satır, 7 kontrol).
+Dosyalar: `renderer-helpers.js` + `renderer.js`.
+
+## R402 — kuyruk g15: YouTube hesap geçişi — eski feed/token karışması
+
+**Denetim:** hesap ekleme/geçiş/silme akışlarının eski feed yanıtlarının veya
+token yenileme sonuçlarının aktif hesaba karışması sınandı. Tüm yollar üç-kollu
+bekçi zinciriyle (generation+tabId+accountId) zaten korunuyor. `47bfb4f` —
+`tests/youtube-account-switch-contract.test.js` (87 satır, 10 kaynak
+değişmezi) ile sözleşme kilitlendi. Bulgu yok.
+
+## R403 — kuyruk g16: taşınan medya — kütüphane/konum/not/altyazı ilişkileri
+
+**Bug (B-403):** medya dosyası taşınınca `mediaFileAccess.inspect` hata
+fırlatıyor ve tüm ilişkili kayıtlar yetim kalıyordu — `mediaKeyFor('local')`
+yol-adresli (`file:` + normalize edilmiş yol) olduğundan yeni konum yeni
+kimlik demekti; kütüphane kaydı, izleme konumu, notlar ve altyazı eşleşmesi
+eski kimlikte çakılı kalıyordu.
+
+**Düzeltme (`9588e4f`) — tam relink akışı:**
+
+- `src/watch-index.js` `renameMediaId` — FK-sıralı transaction: yeni satır
+  ekle → tracks/annotations'ı yeni kimliğe taşı → eski satırı sil.
+- `src/main.js` `library:relink` IPC — yetki + `file:` kimlik + hedef
+  çakışma bekçisi + store/index transactional geçiş; hata → önceki durum.
+- `src/preload.js` `relinkWatchItem` köprüsü.
+- `src/renderer/renderer.js` `offerMediaRelink` +
+  `migratePlayerMediaKeyState` — yükleme hatasında dosya seçiciyle teklif;
+  localStorage kayıtları (saved cues/words) + `player.positions` geçişi +
+  kaydedilmiş konumdan yeniden açılış.
+- `tests/media-relink.test.js` 8/8 (sqlite testleri `hasFts5()` probu
+  arkasında — Node v22.14.0 fts5 derli değil).
+
+## R404 — kuyruk g17: PDF kısmi hata — retry tamamlanan sayfaları korusun
+
+**Bug (B-404):** `pendingPdfPages` dışa aktarılmış ama hiç çağrılmamıştı —
+`pdf:translatePages` retry'da istenen TÜM sayfaları tekrar API'ye
+gönderiyordu; tamamlanmış sayfalar maliyet yakıyor ve ezilebiliyordu.
+`1827426` — handler artık todo kümesine filtreliyor; blokları
+'translated'/'skipped' olan sayfa atlanıyor. İptal güvenliği önceden
+doğruydu (sayfa-içi abort kayıt öncesi + paket arası abort kontrolü) —
+kaynak değişmezleri `tests/pdf-partial-retry.test.js` ile kilitlendi (7/7).
+
+## R405 — kuyruk g18: manga/OCR bölge seçimi — zoom/resize/sayfa değişimi
+
+**Denetim:** kaplama katmanı `position:fixed` + her layout'ta taze
+`getBoundingClientRect()`; tetikleyici zinciri: window scroll(capture)/
+resize + visualViewport scroll/resize + görsel başına ResizeObserver +
+IntersectionObserver(120%) + 'load'; bölge kutuları görsele göreli % →
+zoom kendinden ölçeklenir; görsel kimliği renderedUrl-adresli →
+srcset/sayfa değişimi eski kaplamayı yanlış görsele taşımaz. Bulgu yok —
+`tests/manga-region-layout.test.js` 9 değişmezle kilitlendi.
+
+## R406 — kuyruk g19: Windows kurulum tanıları
+
+**Denetim:** `tools/install-orchestrator.js` preflight — Node≥22.13,
+Python 3.10/3.11 (Windows `python`/`py -3.x` + POSIX fallback), npm/git,
+ffmpeg (yerel `backend\bin` veya PATH), disk ≥10 GiB — tümü kapsamlı.
+`d926c7d` ile 3 tanı güçlendirildi: PYTHON_VERSION bulunan sürümü raporlar
++ yan-yana kurulum önerisi; VENV_PYTHON_VERSION sürüm + install.bat
+yeniden-koşma; DISK_SPACE gerçek boş GiB. `install-supply-chain.test.js`
+50/50 geçiyor. GPU tanısı uygulama katmanında (nvidia-smi + CUDA→CPU
+geri düşüş, R171). Windows'ta elle doğrulanmadı.
+
+## R407 — kuyruk g20: Windows paket açılışı — Türkçe+boşluklu yol
+
+**Denetim alanı:** `install.bat`/`start.bat` (`cd /d "%~dp0"`, tırnaklı
+yollar, `chcp 65001`) → medya seçimi (native dialog →
+`mediaFileAccess.inspect` → `pathToFileUrl`) → altyazı kaydı (native
+save dialog + atomik yazma) → ffmpeg `subtitles=` (tek tırnak +
+sürücü-iki-nokta kaçışı, `ffSubtitlesArg`).
+
+**Bug (B-407):** `pathToFileUrl` POSIX yolunda `file:////home/...` (4
+slash) üretiyordu; üstteki eski `^file://` strip'i yanlış katmandaydı.
+`a0b7753` — slash'lar normalize edilip kanonik `file:///` çıkıyor;
+encodeURI'nin `%`→`%25`, unicode, boşluk, `#`→`%23` davranışı doğrulandı.
+`tests/path-to-file-url.test.js` 8/8 (unicode/%/boşluk/hash/sürücü/POSIX
++ .bat quoting + ffSubtitlesArg kaynak değişmezleri).
+
+**Ortam sınırları (Windows'ta elle doğrulanmalı):** Türkçe adlı klasörde
+gerçek `install.bat` → `start.bat` → dosya seçici → altyazı kaydetme
+uçtan uca elle doğrulanmadı; kod yolu statik olarak tırnak/kodlama
+güvenli bulundu.

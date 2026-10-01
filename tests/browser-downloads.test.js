@@ -107,7 +107,7 @@ async function waitFor(check, label, timeoutMs = 5000) {
 
   // Execute real renderer functions, including revision protection and stable DOM.
   class Node {
-    constructor() { this.children = []; this.attributes = {}; this.listeners = {}; this.textContent = ''; this.classes = new Set();
+    constructor() { this.children = []; this.attributes = {}; this.listeners = {}; this.textContent = ''; this.classes = new Set(); this.dataset = {};
       this.classList = { contains: x => this.classes.has(x), toggle: (x, on) => on ? this.classes.add(x) : this.classes.delete(x) }; }
     setAttribute(k, v) { this.attributes[k] = v; }
     removeAttribute(k) { delete this.attributes[k]; }
@@ -124,6 +124,7 @@ async function waitFor(check, label, timeoutMs = 5000) {
   const rs = renderer.indexOf('const browserDownloadState =');
   const re = renderer.indexOf('function renderBrowserDiagnostics(', rs);
   const ctx = { $: id => nodes[id], document: { createElement: () => new Node(), activeElement: null },
+    uiText: (s) => s,
     setBrowserPlacesOpen() {}, syncBrowserOcclusion() {}, window: { api: { browserDownloads: async () => ({ ok: true, downloads: manager.snapshot() }) } } };
   vm.createContext(ctx);
   vm.runInContext(renderer.slice(renderer.indexOf('function foldSearch(value)'), renderer.indexOf('// Dil kodunu dosya adindan cikar')), ctx);

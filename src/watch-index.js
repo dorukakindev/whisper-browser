@@ -253,6 +253,31 @@ class WatchIndex {
       .all(Math.max(1, Math.min(1000, Number(limit) || 100)), Math.max(0, Number(offset) || 0));
   }
 
+  renameMediaId(oldId, newId) {
+    const source = String(oldId || '');
+    const target = String(newId || '');
+    if (!source || !target || source === target) return null;
+    const old = this.db.prepare('SELECT * FROM media WHERE id = ?').get(source);
+    if (!old) return null;
+    this.transaction(() => {
+      // foreign_keys = ON yalnizca ON DELETE CASCADE tanimli; ON UPDATE CASCADE
+      // yok — once yeni satiri ac, cocuklari tas, sonra eski satiri sil.
+      this.db.prepare(`
+        INSERT INTO media(id, service, title, url, duration, position, completed, last_watched, prefs_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          service=excluded.service, title=excluded.title, url=excluded.url,
+          duration=excluded.duration, position=excluded.position, completed=excluded.completed,
+          last_watched=excluded.last_watched, prefs_json=excluded.prefs_json
+      `).run(target, old.service, old.title, old.url, old.duration, old.position,
+        old.completed, old.last_watched, old.prefs_json);
+      this.db.prepare('UPDATE tracks SET media_id = ? WHERE media_id = ?').run(target, source);
+      this.db.prepare('UPDATE annotations SET media_id = ? WHERE media_id = ?').run(target, source);
+      this.db.prepare('DELETE FROM media WHERE id = ?').run(source);
+    });
+    return this.getMedia(target);
+  }
+
   removeMedia(id) {
     return this.db.prepare('DELETE FROM media WHERE id = ?').run(String(id || ''));
   }
