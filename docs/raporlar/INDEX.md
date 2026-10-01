@@ -243,3 +243,4 @@ tarih sırasıyla dosya adından okunur.
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |
 | 297 | [BROWSER_BUG_REPORT_297.md](BROWSER_BUG_REPORT_297.md) | R330-1 — doküman senkron turu: GUVENLIK-MODELI/ARCHITECTURE temiz + IPC kataloğu |
 | 298 | [BROWSER_BUG_REPORT_298.md](BROWSER_BUG_REPORT_298.md) | R327-5 — test paketi hız profili: 397 dosya 162s, en yavaş-10 tablosu + ölçüm aracı |
+| 299 | [BROWSER_BUG_REPORT_299.md](BROWSER_BUG_REPORT_299.md) | R331 — AI modları: --explain reasoning-kapısı, sınırlı istemci, hedef-dil kuralları, çip EN soruları |

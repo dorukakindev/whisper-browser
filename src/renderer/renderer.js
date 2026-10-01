@@ -3839,6 +3839,7 @@ function playerJobEvent(event) {
     state.running = false;
     state.aiJob = false;
     bar.classList.add('hidden');
+    updateMakeTransState();
     return true;
   }
   if (event.type === 'status' && event.text) {
@@ -16749,7 +16750,9 @@ async function askExplain(kind, index, word) {
     logLine('Önce bir altyazı yükleyin.', 'error');
     return;
   }
-  if (state.running || state.queueRunning) {
+  // Sohbet bağlamı hazırlanırken ya da önceki AI süreci henüz kapanmadan
+  // player.job ezilirse eski sürecin exit olayı yeni açıklama işine yazılıyordu.
+  if (state.running || state.queueRunning || aiChatPreparing || player.job?.awaitingExit) {
     logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
     return;
   }
@@ -22561,7 +22564,8 @@ if ($('aiChatText')) {
 if ($('aiChatLog')) {
   $('aiChatLog').addEventListener('click', (e) => {
     const chip = e.target.closest('.ai-chip');
-    if (chip) aiChatSend(chip.dataset.ask);
+    // EN arayüzde çip etiketi çevriliyordu ama gönderilen soru (data-ask) Türkçe kalıyordu.
+    if (chip) aiChatSend((window.UiLocale?.get?.() === 'en' && chip.dataset.askEn) || chip.dataset.ask);
   });
 }
 if ($('aiChatClear')) {
