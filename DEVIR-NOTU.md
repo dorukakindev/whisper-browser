@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1804.md](docs/devir/2026-10-01-1804.md) — kuyruk-50 madde 6: çok noktalı senkron (least-squares + LOO outlier + güven göstergesi)
+Güncel çalışma: [docs/devir/2026-10-01-1813.md](docs/devir/2026-10-01-1813.md) — kuyruk-50 madde 7: okuma hızına göre dağıtım (CPS kapasitesi + cümle-sonu önceliği; en kötü CPS 30→22)
+Önceki çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 6: çok noktalı senkron (least-squares + LOO outlier + güven göstergesi)
 Önceki çalışma: [docs/devir/2026-10-01-1756.md](docs/devir/2026-10-01-1756.md) — kuyruk-50 madde 5: çeviri değişiklik karşılaştırıcısı (eksik/yeni bölümleri + kelime-diff + terim rozeti + üç-sınıf güvenli kabul)
 Önceki çalışma: [docs/devir/2026-10-01-1748.md](docs/devir/2026-10-01-1748.md) — kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı (tembel paketleme + sınırlı inflight + token tavanı öğrenme)
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 3: anlam kaybı korpusu (120 vaka, CC0) + modal/negation blocking promosyonu — FR 0, gatable FA 44→3
