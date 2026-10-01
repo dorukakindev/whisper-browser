@@ -810,6 +810,68 @@ yüzeyleri. Doğrulanmış bug yok.
 
 Windows etkisi: kod değişmedi (salt okuma).
 
+## R347 — main.js bakiye derin okuması 3: IPC dayanıklılık yüzeyi (temiz)
+
+Üçüncü turda ~1.980 satır daha okundu — diyalog yetkilendirme, geçmiş/
+kütüphane/araştırma, kabuk yolları, model/benchmark, oturum paketi,
+yer-imi/places, overlay, manga + sayfa-çevirisi IPC bloku. Doğrulanmış
+bug yok.
+
+- **Diyaloglar + medya tarama** (17139–17515): `dialog:openVideo/
+  openFile/openFolder/openFolders/openInputFolder` yalnız kullanıcının
+  seçtiği path'i grant eder; `authorizeMediaFile` diyalog + onay-sonrası
+  `inspect` tekrar karşılaştırması (junction swap TOCTOU belgeli);
+  `scanMediaFromPaths` canonical+visited+derinlik/sayı sınırı + sayısal
+  doğal sıralama; `authorizeMediaScanRoots` onay öncesi/sonrası kök
+  listesi bayt-eşit olmalı; `media:listFolder` authorize→aynı klasör
+  maxDepth 1 + 5000 sınır.
+- **Geçmiş/kütüphane/notlar** (17401–17865): `history:authorizeFiles`
+  kayıt-bazlı (listeleme yetkisiz), `imported` kayıtta UNC/NTLM
+  reddedilir ve yalnız kayıtlı girdi/çıktı köklerinin içindeki
+  gerçek-yol altyazılara grant; `library:remove` not varken medya
+  satırını korur (CASCADE'yi belgeli engeller), işlem transaction +
+  başarısızlıkta restore; `library:search` kuşak-sayacı iptali;
+  `annotations:toggle` saved=false iken eşleşme yoksa `missing` gerçeği
+  (B83-18), `mediaUrl` http-kapısı + kalıcı-kayıt normalizasyonu;
+  `research:export` writeTextAtomic; `review` beyaz liste dereceleri;
+  `exportAnki` yalnız quote, diyalog yolu `.apkg` normalleşir, stdin
+  ≤32MB, tek-iş + 2dk timeout + terminateProcessTree + son satır JSON
+  + çıktı varlığı.
+- **Kabuk/bildirim/pano** (17773–17904): `openPath`/`showInFolder`
+  uzantı beyaz listesi + erişim kümesi + diyalog + `canonicalLocalPath`
+  TOCTOU tekrar-kontrolü; `openExternal` → `openExternalByPolicy`
+  (R326-4); `notify` WeakMap başına 3s throttle + başlık/gövde
+  kesilmesi; `clipboard:write` ≤4MB; `probeCommand` stderr resume +
+  UTF-8 akış-dekoder + 256KB sınır + 30s timeout (hepsi belgeli
+  savunmalar).
+- **Model/env/ayar/kuyruk** (17908–18179): `models:delete` KNOWN_MODELS
+  + iş-kapısı + uyarı diyaloğu; `models:benchmark` GPU-dışlayıcı kapı
+  diyalog ÖNCESİ ve SONRASI (belgeli TOCTOU), tüm argümanlar whitelist
+  veya kelepçeli + `pushBoundOption`, 20dk timeout, stdout/stderr
+  kesilmiş, clipHash'li tarih 20/40 sınırı; `translation:probe`
+  safeTranslationEndpoint + NFC/uzunluk/kontrol-char kapısı;
+  `settings:save` kısmi birleştirme (main'in tuttuğu alanlar silinmez);
+  `releaseQueueTerminalGuards` terminal-durum el-sıkışması + GC.
+- **Oturum paketi / places / overlay / manga / sayfa-çevirisi IPC**
+  (15580–16516): `session:export` persist→snapshot→paket→diyalog→
+  writeBufferAtomic+checksum; `session:import` kuyruk+mutation
+  serialize, 64MB kapı, inspectPackage, variant id remap, yerel
+  sitePermissions/siteTerminology pakette taşınmaz (dışa aktarımda
+  düşürülür — belgeli), active/split id yeniden doğrulaması, clamped
+  ratio; `updateTab` canlı URL renderer iddiasını ezemez + yeni
+  subtitleSelection yalnız önceden grant'lenmiş dosyaya; `setOverlay`
+  whitelist+kelepçe+boundedIpcRows + transform fallback eşleşmesi
+  (renderer ile aynı olmalı — belgeli); manga IPC'lerinde
+  active-tab+staleness, `manga:clear` retryable:0 explicit (belgeli),
+  `manga:toggle` DOM'da katman kaldıysa durum sıfırlanır;
+  sayfa-çevirisi handler'larında session+generation eşleşmesi her
+  await'te, exclusions akışı rescan→exclude→apply→pending→archive
+  sırası, `retrySection`/`retryFailed` çalışan işte kapılı,
+  export'ta uzantı normalizasyonu; harici oynatıcı (mpv/vlc) sabit
+  yol listesi.
+
+Windows etkisi: kod değişmedi (salt okuma).
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
