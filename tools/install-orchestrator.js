@@ -202,8 +202,10 @@ class RealDriver {
     const python = this.venvPython(venv);
     if (!fs.existsSync(python)) throw new InstallError('VENV_BROKEN', 'Sanal ortam Python calistiricisi eksik.');
     const versionResult = this.run(python, ['--version'], { capture: true, code: 'VENV_BROKEN' });
-    if (!supportedPython(parsePythonVersion(`${versionResult.stdout}\n${versionResult.stderr}`))) {
-      throw new InstallError('VENV_PYTHON_VERSION', 'Sanal ortam Python surumu 3.10 veya 3.11 degil.');
+    const venvVersion = parsePythonVersion(`${versionResult.stdout}\n${versionResult.stderr}`);
+    if (!supportedPython(venvVersion)) {
+      const found = venvVersion ? `${venvVersion.major}.${venvVersion.minor}.${venvVersion.patch}` : 'taninamayan surum';
+      throw new InstallError('VENV_PYTHON_VERSION', `Sanal ortam Python surumu 3.10 veya 3.11 degil; bulunan ${found}. install.bat ile kurulumu yeniden calistirin.`);
     }
     this.run(python, ['-m', 'pip', 'check'], { capture: true, code: 'PIP_CHECK' });
     const installed = new Map(this.pythonPackages(venv).map((item) => [canonicalPackageName(item.name), item.version]));
@@ -335,11 +337,18 @@ class InstallOrchestrator {
     const nodeVersion = this.driver.nodeVersion();
     if (!supportedNode(nodeVersion)) throw new InstallError('NODE_VERSION', `Node.js 22.13+ gerekir; bulunan ${nodeVersion}.`);
     const python = this.driver.systemPythonVersion();
-    if (!supportedPython(python)) throw new InstallError('PYTHON_VERSION', 'CPython 3.10 veya 3.11 gerekir.');
+    if (!supportedPython(python)) {
+      throw new InstallError('PYTHON_VERSION',
+        `CPython 3.10 veya 3.11 gerekir; bulunan ${python.major}.${python.minor}.${python.patch}. Desteklenen surumu yan yana kurup yeniden deneyin.`);
+    }
     if (!this.driver.localFfmpegExists() && !(this.driver.commandExists('ffmpeg') && this.driver.commandExists('ffprobe'))) {
       throw new InstallError('FFMPEG_MISSING', 'ffmpeg ve ffprobe bulunamadi. Ikisini backend\\bin altina koyun veya PATH ekleyin.');
     }
-    if (this.driver.freeBytes() < MIN_FREE_BYTES) throw new InstallError('DISK_SPACE', 'Kurulum icin en az 10 GiB bos alan gerekir.');
+    const freeBytes = this.driver.freeBytes();
+    if (freeBytes < MIN_FREE_BYTES) {
+      throw new InstallError('DISK_SPACE',
+        `Kurulum icin en az 10 GiB bos alan gerekir; su an ${(freeBytes / 1024 ** 3).toFixed(1)} GiB bos.`);
+    }
     this.validatePolicy();
   }
 
