@@ -2404,6 +2404,67 @@ def _is_oom_error(exc):
             or "cudnn_status_alloc" in msg)
 
 
+_OOM_ADVICE = (
+    "Olası çözümler: (1) Hesaplama tipi=int8, (2) Cihaz=CPU, "
+    "(3) batch_size düşürün ya da daha küçük bir model seçin."
+)
+
+
+def _oom_guard_iter(iterator):
+    """Segment akışında OOM'u eyleme-dönüştürülebilir RuntimeError'a çevir.
+    İş temiz hata ile düşer (yarım çıktı yazılmaz — yazıcılar döngüden sonra
+    koşar) ve checkpoint korunduğu için aynı ayarlarla devam edilebilir."""
+    try:
+        for item in iterator:
+            yield item
+    except Exception as exc:
+        if _is_oom_error(exc):
+            raise RuntimeError(
+                f"GPU belleği transkripsiyon sırasında doldu (OOM): {exc}\n"
+                f"{_OOM_ADVICE} Checkpoint korundu — kaldığı yerden devam edilebilir."
+            ) from exc
+        raise
+
+
+def estimate_transcription_vram_mib(model, compute_type, engine, batch_size, diarize):
+    """Transkripsiyon+hizalama+konuşmacı tanıma ortak GPU bellek tahmini (MiB).
+    Renderer'daki estimateVramMib ile aynı taban tabloyu kullanır — iki taraf
+    tek sözleşme paylaşır (UI rozeti ve backend uyarısı aynı sayıyı görür)."""
+    base = {
+        "large-v3": 3100, "large-v3-turbo": 1700, "large-v2": 3100,
+        "medium": 1600, "small": 750, "base": 400, "tiny": 250,
+    }.get(model, 3100)
+    mult = 0.55 if compute_type in ("int8", "int8_float16") else (1.9 if compute_type == "float32" else 1.0)
+    est = base * mult
+    if engine in ("faster-batched", "whisperx"):
+        batch_multiplier = min(1.35, 0.12 + max(0, int(batch_size or 1) - 1) * 0.035)
+        est += base * mult * batch_multiplier
+    if engine == "whisperx":
+        est += 1400  # wav2vec2 hizalama payı
+    if diarize:
+        est += 2500  # pyannote
+    return int(round(est))
+
+
+def check_vram_budget(args, device):
+    """CUDA işinde tahmin boş VRAM'in %85'ini aşarsa işe başlamadan uyar.
+    Engel değil bilgi: tahmin kabaca olduğu için yalnız warn çıkar."""
+    if device != "cuda":
+        return
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return
+        free_mib = torch.cuda.mem_get_info()[0] / 1048576.0
+    except Exception:
+        return
+    estimate = estimate_transcription_vram_mib(
+        args.model, args.compute_type, args.engine, args.batch_size, args.diarize)
+    if estimate > free_mib * 0.85:
+        log(f"VRAM uyarısı: tahmin ~{estimate} MiB, boş ~{int(free_mib)} MiB — "
+            f"OOM riski. {_OOM_ADVICE}", "warn")
+
+
 def run_diarization(wav_path, hf_token, min_speakers=None, max_speakers=None):
     """
     pyannote.audio ile konuşmacı tanıma.
@@ -6643,6 +6704,7 @@ def transcribe(args):
     try:
         warn_list = []  # done event'ine taşınacak kısmi-başarısızlık uyarıları
         device, compute_type = resolve_device_and_compute(args.device, args.compute_type, warn_list)
+        check_vram_budget(args, device)
 
         # Zaman aralığı kırpmasını EN BAŞTA doğrula — geçersizse YouTube indirmesini
         # boşa harcamadan hemen hata ver. Zaman damgaları orijinal videoya hizalanır.
@@ -6886,7 +6948,7 @@ def transcribe(args):
         last_ckpt = time.time()
         CKPT_INTERVAL = 20.0  # sn — checkpoint yazma sıklığı (çökme kaybını sınırlar)
 
-        for segment in segments_iter:
+        for segment in _oom_guard_iter(segments_iter):
             # Iptal, segment akisi bitene kadar beklemesin (uzun filmde dakikalar).
             cancellation_checkpoint("transcribe", "during")
             # Bazı motorlar sessiz/bozuk karelerde sınırı None bırakabilir.
