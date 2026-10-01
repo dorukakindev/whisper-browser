@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2006.md](docs/devir/2026-10-01-2006.md) — kuyruk-50 madde 23: capture tekrar oynatma düzeneği
+Güncel çalışma: [docs/devir/2026-10-01-2009.md](docs/devir/2026-10-01-2009.md) — kuyruk-50 madde 24: Live Whisper ses-dili değişiminde iz bölümü
+Önceki çalışma: [docs/devir/2026-10-01-2009.md](docs/devir/2026-10-01-2009.md) — kuyruk-50 madde 24: Live Whisper ses-dili değişiminde iz bölümü
 Önceki çalışma: [docs/devir/2026-10-01-2006.md](docs/devir/2026-10-01-2006.md) — kuyruk-50 madde 23: capture tekrar oynatma düzeneği
 Önceki çalışma: [docs/devir/2026-10-01-2003.md](docs/devir/2026-10-01-2003.md) — kuyruk-50 madde 22: altyazı kökeni inceleme görünümü
 Önceki çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — kuyruk-50 madde 20: oynatma saati tutarlılığı (drift izleyici + öneri)
