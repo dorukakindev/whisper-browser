@@ -4221,6 +4221,60 @@ async function locateMissingSubtitle(missingPath, secondary, role) {
   }
 }
 
+// Tasinmis yerel medya: kutuphane kaydi file:+yol anahtarli oldugundan tasima
+// izleme konumunu/notlari yetim birakirdi. Kullanici yeni konumu secince main
+// tarafi kayit+iz+notlari yeni kimlige tasir; renderer da kendi mediaKey'li
+// depolarini (kayitli cue/kelime, izleme konumu) tasir.
+async function offerMediaRelink() {
+  const staleKey = player.mediaKey;
+  const stalePath = player.localPath;
+  if (!staleKey || !staleKey.startsWith('file:') || !stalePath) return;
+  if (player.mediaRelinkOffered === staleKey || player.mediaRelinkInFlight) return;
+  player.mediaRelinkOffered = staleKey;
+  player.mediaRelinkInFlight = true;
+  try {
+    const confirmed = await openAppDialog({
+      title: 'Medya dosyası bulunamadı',
+      description: `${stalePath}\n\nDosya taşınmış veya silinmiş olabilir. Yeni konumu seçerseniz izleme konumu, notlar ve altyazı ilişkileri yeni kayda taşınır.`,
+      confirmLabel: 'Yeni konumu seç', intent: 'primary',
+    });
+    if (confirmed !== true || player.mediaKey !== staleKey) return;
+    const replacement = await window.api.selectFile('media').catch(() => null);
+    if (!replacement || player.mediaKey !== staleKey) return;
+    const result = await window.api.relinkWatchItem(staleKey, replacement)
+      .catch((error) => ({ ok: false, error: error.message }));
+    if (!result?.ok) {
+      logLine(`Medya yeniden bağlanamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+      return;
+    }
+    migratePlayerMediaKeyState(staleKey, result.key);
+    const position = player.positions[result.key]?.t || 0;
+    logLine(`Taşınan medya bulundu ve kütüphane kaydı güncellendi: ${result.path}`, 'success');
+    refreshWatchLibrary().catch(() => {});
+    await openLocalMedia(result.path, position);
+  } finally {
+    player.mediaRelinkInFlight = false;
+  }
+}
+
+function migratePlayerMediaKeyState(oldKey, newKey) {
+  if (!oldKey || !newKey || oldKey === newKey) return;
+  for (const prefix of ['whisper-player-saved:', 'whisper-player-words:']) {
+    try {
+      const raw = localStorage.getItem(prefix + oldKey);
+      if (raw !== null && localStorage.getItem(prefix + newKey) === null) {
+        localStorage.setItem(prefix + newKey, raw);
+      }
+      localStorage.removeItem(prefix + oldKey);
+    } catch (_) {}
+  }
+  if (player.positions[oldKey] && !player.positions[newKey]) {
+    player.positions[newKey] = player.positions[oldKey];
+  }
+  delete player.positions[oldKey];
+  scheduleSave();
+}
+
 window.api.onEvent((event) => {
   // Kuyruk durdurulmuş veya yeni bir tekil iş başlamış olsa bile eski Python
   // sürecinden geç gelen terminal/progress olayı yeni arayüz durumuna sızmasın.
@@ -17685,6 +17739,7 @@ function resetMediaBoundState(options = {}) {
   // Eski videonun eksik-ceviri sayaci yeni medyanin butonuna "Eksik
   // cevirileri tamamla (N)" olarak siziyordu — medyaya bagli metadata.
   player.translationRetryAvailable = 0;
+  player.mediaRelinkOffered = '';
   updateMakeTransState();
   if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
   player.timeline.waveform = [];
@@ -22959,6 +23014,10 @@ if ($('playerVideo')) {
       [MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED]: 'Video biçimi veya kaynak adresi desteklenmiyor.',
     };
     logLine(messages[code] || 'Video bilinmeyen bir medya hatası nedeniyle açılamadı.', 'error');
+    // Tasinmis/silinmis yerel dosya: kutuphane kaydini yeni konuma bagla.
+    if (player.localPath && code !== MediaError.MEDIA_ERR_ABORTED) {
+      offerMediaRelink();
+    }
   });
 
   $('playPause').addEventListener('click', () => {

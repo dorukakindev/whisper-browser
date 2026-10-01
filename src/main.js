@@ -17502,6 +17502,51 @@ ipcMain.handle('library:remove', async (_event, key) => {
   }
 });
 
+// Taşınan yerel medya için kütüphane kaydını yeni konuma bağlar. Kayıt anahtarı
+// file:+yol olduğundan taşınma eski izleme konumunu/notları yetim bırakırdı;
+// iz+not satırları da yeni medya kimliğine taşınır. Yeni yol kullanıcının dosya
+// seçiciyle işaretlediği hedeftir — onay diyaloğu gerekmez, ancak dosyanın
+// gerçekten var olduğu inspect ile doğrulanır.
+ipcMain.handle('library:relink', async (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const oldKey = String(request?.oldKey || '');
+  const newPath = String(request?.newPath || '');
+  if (!oldKey.startsWith('file:')) {
+    return { ok: false, error: 'Yalnızca yerel medya kayıtları yeniden bağlanabilir.' };
+  }
+  const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
+  if (!item) return { ok: false, error: 'Kütüphane kaydı bulunamadı.' };
+  let target;
+  try {
+    target = mediaFileAccess.inspect(newPath);
+    if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+  const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
+  const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
+  if (collision) {
+    return { ok: false, error: 'Seçilen dosya zaten başka bir kütüphane kaydına bağlı.' };
+  }
+  let previous, written = false;
+  try {
+    previous = loadWatchLibraryAll().slice();
+    const index = watchIndex();
+    const run = () => {
+      const saved = watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
+      if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
+      if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
+      index?.renameMediaId(oldKey, newKey);
+      written = true;
+    };
+    if (index) index.transaction(run); else run();
+    return { ok: true, key: newKey, path: target };
+  } catch (error) {
+    const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
+    return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.'}` };
+  }
+});
+
 // Hizli yazimda her tus vurusu yeni bir tarama baslatir; kusak sayaci eskisini
 // ilk yield noktasinda durdurur, boylece 10k kayitlik kutuphane ust uste
 // taranmaz. Renderer da debounce suresince 'library:search-cancel' gonderir.
