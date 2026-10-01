@@ -769,7 +769,7 @@ async function extractPdfReaderPage(pageNumber) {
     transform: Array.isArray(item.transform) ? item.transform.slice(0, 6) : [],
     hasEOL: item.hasEOL === true,
   }));
-  const blocks = [];
+  let blocks = [];
   let lines = [];
   for (const item of items) {
     const text = String(item.str || '').trim(); if (!text) continue;
@@ -777,12 +777,110 @@ async function extractPdfReaderPage(pageNumber) {
     if (item.hasEOL) { blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') }); lines = []; }
   }
   if (lines.length) blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') });
+  // Madde 37 — metin katmanı OLMAYAN sayfalarda OCR yedeği; metin katmanı
+  // olan sayfalar (items.length > 0) gereksiz OCR'dan geçirilmez.
+  let ocr = null;
+  if (!items.length) {
+    try {
+      ocr = await ocrPdfPage(page, pageNumber, reader, pageWidth, pageHeight);
+      if (ocr?.blocks?.length) blocks = ocr.blocks;
+    } catch (error) {
+      ocr = { failed: true, error: String(error?.message || error) };
+    }
+  }
   reader.pages.set(pageNumber, {
     blocks, items, pageHeight, pageWidth,
     viewportTransform: Array.isArray(pageViewport.transform) ? pageViewport.transform.slice(0, 6) : [],
-    article: null, translation: null,
+    ocr, article: null, translation: null,
   });
   return blocks;
+}
+
+// Görüntü tabanlı sayfayı ayrı tuvalde çözünürlüğü sınırlı render edip
+// yerel OCR'dan geçirir; motor yokluğu ve dil paketi raporu açık döner.
+async function ocrPdfPage(page, pageNumber, reader, pageWidth, pageHeight) {
+  if (!window.api.ocrStatus || !window.api.ocrFrame) return null;
+  reader.ocrStatusPromise ||= window.api.ocrStatus()
+    .then((result) => (result && result.ok === false ? { available: false, error: result.error } : result?.status || result))
+    .catch((error) => ({ available: false, error: error.message }));
+  const status = await reader.ocrStatusPromise;
+  if (!status?.available) return { unavailable: true, status };
+  const scale = Math.min(2, 2048 / Math.max(pageWidth, pageHeight, 1));
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvas, viewport, intent: 'print' }).promise;
+  const result = await window.api.ocrFrame({ imageBase64: canvas.toDataURL('image/png') })
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (!result?.ok) return { failed: true, error: result?.error || 'OCR başarısız.' };
+  const lines = (result.lines || []).filter((line) => line && typeof line.text === 'string' && line.text.trim())
+    .map((line) => ({ text: line.text.trim(), score: Number(line.score) || 0, box: line.box || null }));
+  const meanScore = lines.length ? lines.reduce((sum, line) => sum + line.score, 0) / lines.length : 0;
+  return {
+    lines, blocks: ocrLinesToBlocks(lines, pageNumber),
+    meanScore, lowConfidence: lines.length > 0 && meanScore < 0.6,
+    languageNote: status.languageNote || '', engine: status.engine || '',
+  };
+}
+
+// OCR satırlarını dikey aralığa göre paragraf bloklarına gruplar — çeviri
+// hattı bu blokları metin katmanlı sayfayla aynı sözleşmeyle tüketir.
+function ocrLinesToBlocks(lines, pageNumber) {
+  const sorted = [...lines].sort((a, b) => (a.box?.top ?? 0) - (b.box?.top ?? 0)
+    || (a.box?.left ?? 0) - (b.box?.left ?? 0));
+  const heights = sorted.map((line) => Math.max(1, (line.box?.bottom ?? 0) - (line.box?.top ?? 0)))
+    .sort((a, b) => a - b);
+  const medianH = heights[Math.floor(heights.length / 2)] || 10;
+  const groups = [];
+  let current = null;
+  for (const line of sorted) {
+    const top = line.box?.top ?? 0;
+    if (current && top - current.bottom > medianH * 1.6) { groups.push(current); current = null; }
+    if (!current) current = { texts: [], scores: [], bottom: top };
+    current.texts.push(line.text);
+    current.scores.push(line.score);
+    current.bottom = Math.max(current.bottom, line.box?.bottom ?? top);
+  }
+  if (current) groups.push(current);
+  return groups.map((group, index) => ({
+    id: `${pageNumber}:ocr:${index}`,
+    source: group.texts.join(' '),
+    score: group.scores.reduce((sum, value) => sum + value, 0) / Math.max(1, group.scores.length),
+  }));
+}
+
+// Madde 37 — sayfa başına OCR durum rozeti: motor yokluğu, düşük güven ve
+// dil paketi notu açık gösterilir; metin katmanlı sayfada not üretilmez.
+function renderPdfOcrNote(pageNumber, entry) {
+  if (!entry?.translation || !entry.ocr) return;
+  entry.translation.querySelector('.pdf-ocr-note')?.remove();
+  const note = document.createElement('div');
+  note.className = 'pdf-ocr-note';
+  const ocr = entry.ocr;
+  const percent = Math.round((ocr.meanScore || 0) * 100);
+  if (ocr.unavailable) {
+    note.classList.add('pdf-ocr-warn');
+    note.textContent = interfaceChoice(
+      `OCR motoru kurulu değil: ${ocr.status?.error || 'RapidOCR bulunamadı'} — backend/requirements-browser-tools.txt paketlerini kurun.`,
+      `OCR engine unavailable: ${ocr.status?.error || 'RapidOCR not found'} — install backend/requirements-browser-tools.txt.`);
+  } else if (ocr.failed) {
+    note.classList.add('pdf-ocr-warn');
+    note.textContent = interfaceChoice(`OCR başarısız: ${ocr.error}`, `OCR failed: ${ocr.error}`);
+  } else if (!ocr.lines?.length) {
+    note.textContent = interfaceChoice(
+      'Bu sayfada metin katmanı yok; OCR da metin bulamadı.',
+      'No text layer on this page; OCR found no text.');
+  } else if (ocr.lowConfidence) {
+    note.classList.add('pdf-ocr-warn');
+    note.textContent = interfaceChoice(
+      `OCR düşük güven (%${percent}) — ${ocr.languageNote || 'sonucu gözden geçirin.'}`,
+      `Low OCR confidence (${percent}%) — ${ocr.languageNote || 'review the result.'}`);
+  } else {
+    note.textContent = interfaceChoice(
+      `OCR ile ${ocr.lines.length} satır çıkarıldı (güven %${percent}).`,
+      `OCR extracted ${ocr.lines.length} lines (${percent}% confidence).`);
+  }
+  entry.translation.querySelector('h3')?.after(note) || entry.translation.prepend(note);
 }
 
 function renderPdfTranslation(pageNumber, blocks) {

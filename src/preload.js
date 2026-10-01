@@ -275,6 +275,8 @@ contextBridge.exposeInMainWorld('api', {
   cancelTranscribe: () => ipcRenderer.invoke('transcribe:cancel'),
   updateYtdlp: () => ipcRenderer.invoke('maintenance:updateYtdlp'),
   integrityScan: () => ipcRenderer.invoke('integrity:scan'),
+  ocrStatus: (refresh) => ipcRenderer.invoke('ocr:status', { refresh: refresh === true }),
+  ocrFrame: (payload) => ipcRenderer.invoke('ocr:frame', payload),
   integrityRepair: (ids) => ipcRenderer.invoke('integrity:repair', { ids }),
   shiftSubs: (filePath, offsetSec) => ipcRenderer.invoke('subs:shift', filePath, offsetSec),
   probeTracks: (filePath) => ipcRenderer.invoke('media:probeTracks', filePath),

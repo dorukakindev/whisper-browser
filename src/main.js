@@ -20100,6 +20100,39 @@ ipcMain.handle('integrity:repair', (event, payload = {}) => {
   }
 });
 
+// Madde 37 — OCR yetenek yönetimi: motor varlığı, dil paketi ve düşük güven
+// durumları açık raporlanır; metin katmanı olan sayfalar OCR'dan geçirilmez.
+let ocrStatusCache = null;
+ipcMain.handle('ocr:status', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (ocrStatusCache && payload.refresh !== true) return { ok: true, status: ocrStatusCache };
+  try {
+    const status = await require('./browser-media-tools')
+      .createBrowserMediaTools({ pythonPath: resolvePython() }).ocrStatus();
+    ocrStatusCache = status;
+    return { ok: true, status };
+  } catch (error) {
+    // Python/venv yokluğu da bir yetenek raporudur — açık durum döner.
+    ocrStatusCache = { available: false, engine: 'RapidOCR (onnxruntime)', languages: [], error: error.message };
+    return { ok: true, status: ocrStatusCache };
+  }
+});
+
+ipcMain.handle('ocr:frame', async (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const imageBase64 = String(payload.imageBase64 || '');
+  if (!imageBase64 || imageBase64.length > 11 * 1024 * 1024) {
+    return { ok: false, error: 'Kare verisi geçersiz veya çok büyük.' };
+  }
+  try {
+    const result = await require('./browser-media-tools')
+      .createBrowserMediaTools({ pythonPath: resolvePython() }).ocrFrame({ imageBase64 });
+    return { ok: true, ...result };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 ipcMain.handle('maintenance:updateYtdlp', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob) return { ok: false, error: 'Bir iş çalışırken güncelleme yapılamaz.' };

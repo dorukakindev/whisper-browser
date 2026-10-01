@@ -2434,6 +2434,7 @@
     ['Python süreç akışları (stdout/stderr) oluşturulamadı.', 'Python process streams (stdout/stderr) could not be created.'],
     ['Bir iş çalışırken güncelleme yapılamaz.', 'Cannot update while a job is running.'],
     ['Güncelleme zaten çalışıyor.', 'An update is already running.'],
+    ['Kare verisi geçersiz veya çok büyük.', 'The frame data is invalid or too large.'],
     ['Python sanal ortamı (venv) bulunamadı. Önce install.bat çalıştırın.', 'The Python virtual environment (venv) was not found. Run install.bat first.'],
     ['Güncelleme süreç akışları oluşturulamadı.', 'The update process streams could not be created.'],
     ['yt-dlp güncellemesi 10 dakika içinde tamamlanmadı ve durduruldu.', 'The yt-dlp update did not finish in 10 minutes and was stopped.'],

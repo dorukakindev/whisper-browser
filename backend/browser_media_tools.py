@@ -40,8 +40,46 @@ def ocr_frame(request):
                 raise ValueError("Seçilen kare bölgesi geçersiz.")
             img = img.crop((x, y, x + w, y + h))
         result, _ = RapidOCR()(np.asarray(img))
-    lines = [{"text": str(row[1]), "score": float(row[2])} for row in (result or [])]
+    lines = []
+    for row in (result or []):
+        quad = row[0] if len(row) > 0 and row[0] is not None else []
+        xs = [float(pt[0]) for pt in quad if len(pt) >= 2]
+        ys = [float(pt[1]) for pt in quad if len(pt) >= 2]
+        box = None
+        if xs and ys:
+            box = {"left": min(xs), "top": min(ys), "right": max(xs), "bottom": max(ys)}
+        lines.append({"text": str(row[1]), "score": float(row[2]), "box": box})
     return {"text": "\n".join(line["text"] for line in lines), "lines": lines}
+
+
+# Madde 37 — OCR yetenek raporu: motor yokluğu ve dil paketi kapsamı açık
+# döner; arayüz bunu OCR denemesinden ÖNCE gösterir.
+def ocr_status(_request):
+    try:
+        import rapidocr_onnxruntime  # noqa: F401
+    except ImportError:
+        return {
+            "available": False,
+            "engine": "RapidOCR (onnxruntime)",
+            "languages": [],
+            "error": "OCR bağımlılığı eksik. backend/requirements-browser-tools.txt paketlerini kurun.",
+        }
+    version = getattr(rapidocr_onnxruntime, "__version__", "") or ""
+    try:
+        from importlib.metadata import version as _pkg_version
+        version = version or _pkg_version("rapidocr_onnxruntime") or ""
+    except Exception:
+        pass
+    return {
+        "available": True,
+        "engine": "RapidOCR (onnxruntime)",
+        "version": version,
+        # Gömülü PP-OCRv4 paketi Çince+İngilizce karakterleri kapsar; diğer
+        # yazı sistemlerinde sonuç düşük güvenle dönebilir — arayüz bunu
+        # satır bazlı güven puanıyla gösterir.
+        "languages": ["en", "zh"],
+        "languageNote": "Gömülü model paketi İngilizce ve Çince karakterleri kapsar; diğer dillerde düşük güven beklenir.",
+    }
 
 
 _SEMANTIC_MODEL = None
@@ -98,6 +136,8 @@ def _dispatch(request):
     operation = request.get("operation")
     if operation == "ocr":
         return ocr_frame(request)
+    if operation == "ocrStatus":
+        return ocr_status(request)
     if operation == "semantic":
         return semantic_search(request)
     raise ValueError("Bilinmeyen medya işlemi.")

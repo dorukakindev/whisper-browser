@@ -4480,6 +4480,9 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .pdf-kind-heading .pdf-pair-target { font-weight: 700; font-size: 1.15em; }
 .pdf-kind-footnote .pdf-pair-target { font-size: .85em; }
 .pdf-kind-table .pdf-pair-target { font-variant-numeric: tabular-nums; }
+/* Madde 37 — OCR yetenek rozeti: motor yokluğu / düşük güven / dil paketi */
+.pdf-ocr-note { font-size: 0.78em; font-family: var(--font-ui); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; margin: 6px 0 10px; }
+.pdf-ocr-warn { color: var(--warn, #e4a36a); border-color: color-mix(in srgb, var(--warn, #e4a36a) 45%, var(--border)); }
 .pdf-page[data-state="loading"] .pdf-page-translation::after { content: 'Sayfa hazırlanıyor…'; color: var(--text-muted); }
 @media (max-width: 1180px) {
 .pdf-reader-toolbar { flex-wrap: wrap; }
