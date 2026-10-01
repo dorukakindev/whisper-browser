@@ -16578,11 +16578,15 @@ function renderPlayerLibrary() {
   }
   const searching = !!($('playerLibrarySearch') && $('playerLibrarySearch').value.trim());
   const filter = $('playerLibraryFilter') ? $('playerLibraryFilter').value : 'all';
-  let items = searching ? playerLibraryResults : watchLibraryCache;
-  if (filter === 'continue') items = items.filter((x) => !x.completed && watchProgress(x) > 0);
-  else if (filter === 'completed') items = items.filter((x) => x.completed);
-  else if (filter === 'has-notes') items = items.filter((x) => x.hasNotes || (x.matches || []).some((match) => match.annotationType));
-  else if (filter.startsWith('collection:')) items = items.filter((x) => (x.collections || []).includes(filter.slice(11)));
+  // Madde 32: durum + koleksiyon + altyazı dili + altyazı varlığı filtreleri
+  // tek geçişte birleşik uygulanır; sıralama girdi (store) sırasıyla kararlı.
+  let items = typeof LibraryFilters === 'object' && LibraryFilters
+    ? LibraryFilters.applyLibraryFilters(searching ? playerLibraryResults : watchLibraryCache,
+      { watchState: filter,
+        language: $('playerLibraryLang')?.value || 'all',
+        subs: $('playerLibrarySubs')?.value || 'all' },
+      { watchProgress })
+    : (searching ? playerLibraryResults : watchLibraryCache);
   if (playerLibraryView === 'collections' && filter.startsWith('collection:')) {
     const collection = filter.slice(11);
     items = items.slice().sort((a, b) => Number(a.prefs?.collectionOrder?.[collection] ?? Number.MAX_SAFE_INTEGER)
@@ -16701,7 +16705,10 @@ function updateCollectionOptions() {
     const select = $(id);
     if (!select) return;
     const current = select.value;
-    [...select.options].slice(3).forEach((o) => o.remove());
+    // Statik secenekler all/continue/completed/has-notes (4 adet); dinamik
+    // koleksiyon satirlari yalniz bunlardan sonra gelir. slice(3) 'has-notes'u
+    // de siliyordu — koleksiyon yuklenince filtrede secenek kalici kaybolurdu.
+    [...select.options].slice(4).forEach((o) => o.remove());
     names.forEach((name) => {
       const option = document.createElement('option');
       option.value = `collection:${name}`;
@@ -16711,6 +16718,21 @@ function updateCollectionOptions() {
     });
     if ([...select.options].some((o) => o.value === current)) select.value = current;
   });
+  // Madde 32: kayitli altyazı dillerini dil filtresine doldur.
+  const langSelect = $('playerLibraryLang');
+  if (langSelect && typeof LibraryFilters === 'object' && LibraryFilters) {
+    const current = langSelect.value;
+    [...langSelect.options].slice(1).forEach((o) => o.remove());
+    LibraryFilters.libraryLanguages(watchLibraryCache).forEach((lang) => {
+      const option = document.createElement('option');
+      option.value = lang;
+      option.dataset.uiUntranslated = '';
+      option.textContent = lang;
+      langSelect.appendChild(option);
+    });
+    if ([...langSelect.options].some((o) => o.value === current)) langSelect.value = current;
+    else langSelect.value = 'all';
+  }
 }
 
 async function refreshWatchLibrary() {
@@ -23406,6 +23428,8 @@ if ($('playerLibraryUndoBtn')) $('playerLibraryUndoBtn').addEventListener('click
   osd('Not geri alındı');
 });
 if ($('playerLibraryFilter')) $('playerLibraryFilter').addEventListener('change', renderPlayerLibrary);
+if ($('playerLibraryLang')) $('playerLibraryLang').addEventListener('change', renderPlayerLibrary);
+if ($('playerLibrarySubs')) $('playerLibrarySubs').addEventListener('change', renderPlayerLibrary);
 if ($('playerLibrarySearchScope')) $('playerLibrarySearchScope').addEventListener('change', () => {
   clearTimeout(playerLibrarySearchTimer);
   playerLibrarySearchTimer = setTimeout(runPlayerLibrarySearch, 50);

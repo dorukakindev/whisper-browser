@@ -2712,6 +2712,14 @@
                 <option value="completed">Tamamlananlar</option>
                 <option value="has-notes">Notu olanlar</option>
               </select>
+              <select id="playerLibraryLang" aria-label="Altyazı dili filtresi">
+                <option value="all">Tüm diller</option>
+              </select>
+              <select id="playerLibrarySubs" aria-label="Altyazı varlığı filtresi">
+                <option value="all">Altyazı: tümü</option>
+                <option value="yes">Altyazılı</option>
+                <option value="no">Altyazısız</option>
+              </select>
               <select id="playerLibrarySearchScope" aria-label="Arama kapsamı">
                 <option value="all">Her yerde</option>
                 <option value="tabs">Açık sekmeler</option>
@@ -3364,6 +3372,7 @@
   <script src="../provider-model-profiles.js"></script>
   <script src="../subtitle-find-replace.js"></script>
   <script src="queue-lifecycle.js"></script>
+  <script src="../library-filters.js"></script>
   <script src="../renderer-ui-model.js"></script>
   <script src="../player-task-center.js"></script>
 <dialog id="mediaCatalogDialog" aria-label="Film ve dizi arşivi"><div id="mediaCatalogRoot"></div></dialog>
