@@ -124,6 +124,23 @@ Derleyiciye ulaşan 801 blokta 295'i çalışmadı; named-fonksiyon olarak **yal
   browserPopupWindowOptions + configureBrowserPopup (eklenemeyen pencere destroy),
   ytBrowseSerialized (seri zincir + supersedable nesil).
 
+- `tests/soak-deadzone.test.js` — 11 senaryo: yieldToEventLoop + resourceEmitterListenerCount
+  kapıları/gerçek-emitter sayımı, resourceCdpHeap (destroyed→0, attach→collectGarbage→
+  getHeapUsage→detach zinciri, zaten-takılıda attach/detach yok, debugger-hatası→
+  performance.memory geri dönüşü, çift-hata→0), resourceDirectoryUsage (dosya+bayt+
+  uzantı süzgeci + yok-dizin→0), collectResourceSoakSnapshot (tam şema: renderer/browser
+  heap, getAppMetrics KiB→byte, gpu süzgeci, dinleyici toplamı, tracker-olmadan
+  varsayılan, disk sayacı), resourceSoakSleep, collectResourceSoakHeapPoint (faz etiketi
+  + heap alanları), resourceSoakCycle (sayfa URL'i, polling tetikleme, watch kaydı,
+  görünüm-yok→throw, yayın-sayısı → true), resourceSoakWaitForTab (hazır→true,
+  about:blank→min-500ms→false, view-yok→false), runResourceSoakSession (fixture
+  127.0.0.1 kapısı UI'a dokunmadan throw), startBrowserHlsCeaFullCapture (sekme/iş/
+  plan kapıları, job kurulumu, running eventi, resume devam mesajı),
+  prepareBrowserHlsCeaCapture (varyant süzgeç+bant-sıralaması, matcher kayıt sayımı,
+  playhead çevresi parça geri-alma, EXT-X-GAP atlama, isActive erken-çıkış).
+  Sıfır-referans envanteri bu batch ile kapandı: kalan 32 ad nested iç kapanış
+  (section çıkarmaya uygun değil) — üst fonksiyonları kilitli; dosyada belgeli.
+
 ## Yeni araçlar
 
 - `tools/ui-fuzz-coverage.js` — Electron sürücüsü: `webContents.debugger` + `Profiler.startPreciseCoverage`, deterministik yüzey turu + seeded mulberry32 maymun-fuzz (400 adım: %70 tıklama, %20 tuş, %10 metin), console-hata hasadı (`ERROR_ALLOW=/Autofill/i`), kapsam JSON'a yazılır.
