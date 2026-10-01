@@ -10175,7 +10175,8 @@ function persistBrowserHlsCeaCheckpoint(job, force = false) {
     };
   });
   try {
-    if (saveCeaCheckpoint(browserCeaCheckpointRoot(), job.checkpointId, tracks, count)) {
+    if (saveCeaCheckpoint(browserCeaCheckpointRoot(), job.checkpointId, tracks, count,
+        Date.now(), fs, app.getVersion())) {
       job.checkpointedAtCount = count;
     }
   } catch (error) {
@@ -10412,7 +10413,7 @@ function startBrowserHlsCeaFullCapture(tab) {
     }
   }
   sendBrowserHlsCeaFullProgress(job, 'running', saved
-    ? `${saved.completedSegments} segmentlik kurtarma kaydındaki satırlar korundu; çözücü güvenliği için parçalar baştan doğrulanıyor.`
+    ? `${saved.completedSegments} segmentlik kurtarma kaydındaki satırlar korundu; çözücü güvenliği için parçalar baştan doğrulanıyor.${saved.migratedFrom !== null && saved.migratedFrom !== undefined ? ` (v${saved.migratedFrom} kaydı dönüştürüldü)` : ''}`
     : resume
     ? `Eksik segmentlerden devam ediliyor: ${job.completed.size}/${job.total}.`
     : `Tam altyazı yakalama başladı: ${job.total} segment.`);
