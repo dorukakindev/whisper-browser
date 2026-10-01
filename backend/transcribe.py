@@ -1139,6 +1139,20 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                 (s, e, t) for (s, e, t) in new_entries
                 if span_start - 0.25 <= (s + e) / 2 <= span_end + 0.25
             ]
+            # Kabul penceresi (±0.25sn) ve kırpma (max(ns, span_start)) bölge
+            # dışına taşan blok üretebilir; span dışında hayatta kalan eski
+            # blokla çakışırsa aynı anda iki altyazı gösterilir (mükerrer).
+            # Hayatta kalanlarla çakışan yeni blokları düşür.
+            survivors = [
+                (os_, oe) for (os_, oe, _t) in entries
+                if not (span_start <= (os_ + oe) / 2 <= span_end)
+            ]
+            if survivors:
+                new_entries = [
+                    (s, e, t) for (s, e, t) in new_entries
+                    if not any(s < oe - 0.05 and os_ < e - 0.05
+                               for os_, oe in survivors)
+                ]
             if not new_entries:
                 log(f"Noktalama onarımı {i}: yeni blok üretilemedi, eski hali korundu", "warn")
                 continue
@@ -1158,10 +1172,18 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
             entries.extend(new_entries)
             entries.sort(key=lambda x: x[0])
             if new_words:
-                all_words = [w for w in all_words
-                             if not (span_start <= (w["start"] + w["end"]) / 2 <= span_end)]
-                all_words.extend(w for w in new_words
-                                 if span_start - 0.25 <= (w["start"] + w["end"]) / 2 <= span_end + 0.25)
+                word_survivors = [w for w in all_words
+                                  if not (span_start <= (w["start"] + w["end"]) / 2 <= span_end)]
+                all_words = [
+                    w for w in all_words
+                    if not (span_start <= (w["start"] + w["end"]) / 2 <= span_end)
+                ]
+                all_words.extend(
+                    w for w in new_words
+                    if span_start - 0.25 <= (w["start"] + w["end"]) / 2 <= span_end + 0.25
+                    and not any(
+                        w["start"] < ow["end"] - 0.05 and ow["start"] < w["end"] - 0.05
+                        for ow in word_survivors))
                 all_words.sort(key=lambda w: w["start"])
             fixed += 1
             log(
