@@ -1175,9 +1175,33 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                 )
                 continue
 
+            # Noktalama iyileşse bile kelime içeriği ağır değişmişse yeni
+            # sürüm aynı sesin çözümü değildir (halüsinasyon/farklı bölge) —
+            # kurtarma kelime doğruluğunu düşürmemeli.
+            word_sim = _word_multiset_overlap(
+                " ".join(t for _, _, t in old_entries),
+                " ".join(t for _, _, t in new_entries))
+            if word_sim < 0.5:
+                log(
+                    f"Noktalama onarımı {i}: kelime içeriği çok farklı "
+                    f"(örtüşme %{word_sim*100:.0f}), eski hali korundu",
+                    "warn",
+                )
+                continue
+
             entries = [(s, e, t) for (s, e, t) in entries if not (span_start <= (s + e) / 2 <= span_end)]
             entries.extend(new_entries)
             entries.sort(key=lambda x: x[0])
+            if new_words:
+                old_span_words = [w for w in all_words
+                                  if span_start <= (w["start"] + w["end"]) / 2 <= span_end]
+                word_list_sim = _word_multiset_overlap(
+                    " ".join(w["word"] for w in old_span_words),
+                    " ".join(w["word"] for w in new_words)) if old_span_words else 1.0
+                if word_list_sim < 0.5:
+                    # Metin kabul edildi ama kelime damgaları farklı içerik —
+                    # eski (aynı sesle hizalı) kelimeleri koru.
+                    new_words = []
             if new_words:
                 word_survivors = [w for w in all_words
                                   if not (span_start <= (w["start"] + w["end"]) / 2 <= span_end)]
@@ -5167,6 +5191,28 @@ def dedupe_consecutive(entries, max_gap=2.0):
                 continue
         out.append([s, e, t])
     return [(o[0], o[1], o[2]) for o in out]
+
+
+def _word_multiset_overlap(text_a, text_b):
+    """İki metnin normalize kelime çok-kümesi örtüşmesi (0..1, max'a oranla).
+
+    Noktalama kurtarması gibi yeniden-transkripsiyonlarda "aynı ses mi
+    çözüldü" sorusunun cevabı — kelimeler büyük ölçüde değişmişse yeni
+    sürüm aynı bölgenin çözümü değildir.
+    """
+    a = _norm_words_for_dedupe(text_a)
+    b = _norm_words_for_dedupe(text_b)
+    if not a or not b:
+        return 0.0
+    counts = {}
+    for w in a:
+        counts[w] = counts.get(w, 0) + 1
+    shared = 0
+    for w in b:
+        if counts.get(w):
+            counts[w] -= 1
+            shared += 1
+    return shared / max(len(a), len(b))
 
 
 def _norm_words_for_dedupe(text):

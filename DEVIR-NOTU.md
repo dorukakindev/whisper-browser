@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-1852.md](docs/devir/2026-10-01-1852.md) — kuyruk-50 madde 11: pencere sınırı yankı birleştirme (kelime-örtüşmeli stitch + içerme)
+Güncel çalışma: [docs/devir/2026-10-01-1902.md](docs/devir/2026-10-01-1902.md) — kuyruk-50 madde 12: noktalama kurtarma değerlendirmesi (kelime-doğruluğu bekçisi)
+Önceki çalışma: [docs/devir/2026-10-01-1852.md](docs/devir/2026-10-01-1852.md) — kuyruk-50 madde 11: pencere sınırı yankı birleştirme (kelime-örtüşmeli stitch + içerme)
 Önceki çalışma: [docs/devir/2026-10-01-1844.md](docs/devir/2026-10-01-1844.md) — kuyruk-50 madde 10: dışarıdan değişen altyazıda tekil düzeltme birleştirme (taslak kaybolmaz)
 Önceki çalışma: [docs/devir/2026-10-01-1837.md](docs/devir/2026-10-01-1837.md) — kuyruk-50 madde 9: biçim kayıpsız düzenleme (etiket-düşürme uyarıları + satır-diff döngü kanıtı)
 ||||||| parent of 3108a76 (docs(devir+rapor): kuyruk-50 madde 11 kapanış kayıtları)
