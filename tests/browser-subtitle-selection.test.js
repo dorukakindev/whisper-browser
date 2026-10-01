@@ -33,7 +33,7 @@ function harness() {
     updateBrowserTranslationExportButton() {}, updateBrowserTranslationRetryButton() {},
     updatePlayerAutoSyncState() {}, renderCue() {}, scheduleBrowserOverlaySync() {}, logLine() {},
     updateCueEditHistoryButtons() {}, setSubtitleMode: (mode) => modes.push(mode),
-    renderBrowserCueAt() {}, saveActiveBrowserTabWorkspace() {},
+    renderBrowserCueAt() {}, saveActiveBrowserTabWorkspace() {}, invalidateTimelineEdits() {},
     setBrowserSignal: (message) => signals.push(message),
   };
   vm.createContext(ctx);

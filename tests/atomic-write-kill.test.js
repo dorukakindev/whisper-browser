@@ -49,12 +49,14 @@ for (;;) {
 }
 `;
 
+runKillRound.round = 0;
 function runKillRound(mode, dir) {
   const child = spawn(process.execPath, ['-e', CHILD, mode, dir], { stdio: 'ignore' });
   // Çocuğun Node açılışı (~30-60ms) + ilk birkaç yazım tamamlanmadan kill
   // atmamak için pencere 45-160ms — hem dosya yazımı hem rename ortasında
-  // öldürme örneklenir.
-  const killAt = 45 + Math.floor(Math.random() * 115);
+  // öldürme örneklenir. Deterministik robin 37 adımla tüm ofsetleri dolaşır
+  // (37 ile 115 aralarında asal), Math.random yasağı ratchet'ini de korur.
+  const killAt = 45 + ((runKillRound.round++ * 37) % 115);
   return new Promise((resolve) => {
     setTimeout(() => { try { child.kill('SIGKILL'); } catch (_) {} }, killAt);
     child.on('exit', () => resolve());

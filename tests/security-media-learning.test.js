@@ -160,7 +160,7 @@ test('tek bozuk gizli alan sağlam anahtarların yüklenmesini engellemez', () =
   }
 });
 
-test('kısmen çözülen kasa yeni kayıtla sessizce daraltılmaz', () => {
+test('kısmen çözülen kasa yeni kayıtla daraltılmaz; kırık kayıt ham haliyle korunur', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-secrets-partial-save-'));
   const file = path.join(dir, 'secrets.safe.json');
   const selectiveStorage = {
@@ -172,17 +172,26 @@ test('kısmen çözülen kasa yeni kayıtla sessizce daraltılmaz', () => {
     },
   };
   try {
+    const brokenEntry = Buffer.from('encrypted:broken').toString('base64');
     const original = JSON.stringify({ version: 1, entries: {
       hfToken: Buffer.from('encrypted:hf-ok').toString('base64'),
-      'llm.apiKey': Buffer.from('encrypted:broken').toString('base64'),
+      'llm.apiKey': brokenEntry,
     } });
     fs.writeFileSync(file, original);
     const store = new SafeSecretStore({ safeStorage: selectiveStorage, filePath: file });
     const result = store.saveFromSettings({ translate: { apiKey: 'new-value' } });
-    assert.equal(result.ok, false);
-    assert.equal(result.partial, true);
-    assert.match(result.error, /korunmak için değişiklik kaydedilmedi/);
-    assert.equal(fs.readFileSync(file, 'utf8'), original);
+    assert.equal(result.ok, true);
+    const written = JSON.parse(fs.readFileSync(file, 'utf8'));
+    // Çözülemeyen kayıt ham şifreli metniyle aynen korunur — daraltılmaz veya silinmez.
+    assert.equal(written.entries['llm.apiKey'], brokenEntry);
+    // Sağlam kayıtlar yeniden şifrelenir; yeni anahtar kasaya girer.
+    assert.equal(written.entries.hfToken, Buffer.from('encrypted:hf-ok').toString('base64'));
+    assert.equal(written.entries['translate.apiKey'], Buffer.from('encrypted:new-value').toString('base64'));
+    // Kullanıcı kırık alanı temizlerse dropFields onu düşürür.
+    const cleared = store.saveFromSettings({ llm: { apiKey: '' } });
+    assert.equal(cleared.ok, true);
+    const afterClear = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.equal(afterClear.entries['llm.apiKey'], undefined);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

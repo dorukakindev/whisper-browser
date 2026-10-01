@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-01-2335.md](docs/devir/2026-10-01-2335.md) — 100-kuyruk batch 4: çeviri sözleşmesi/kalite — dil-değişimi yüzeyleri + fsync zinciri bakiyesi + export/i18n düzeltmeleri (rapor 366)
+Güncel çalışma: [docs/devir/2026-10-01-2340.md](docs/devir/2026-10-01-2340.md) — 100-kuyruk batch 5: master suite onarımı — 12 bayat sözleşme/stub + CSS token uyumu (rapor 367)
+Önceki çalışma: [docs/devir/2026-10-01-2335.md](docs/devir/2026-10-01-2335.md) — 100-kuyruk batch 4: çeviri sözleşmesi/kalite — dil-değişimi yüzeyleri + fsync zinciri bakiyesi + export/i18n düzeltmeleri (rapor 366)
 Önceki çalışma: [docs/devir/2026-10-01-2312b.md](docs/devir/2026-10-01-2312b.md) — 100-kuyruk batch 3: backend hata/kenar yolları (60/60 süit yeşil + separate_dialogue sözleşme kilidi, rapor 365)
 Önceki çalışma: [docs/devir/2026-10-01-2310.md](docs/devir/2026-10-01-2310.md) — 100-kuyruk batch 2: renderer/UI kenarları (speakerMap persist bug'ı + edge ratchet, rapor 364)
 Önceki çalışma: [docs/devir/2026-10-01-2330.md](docs/devir/2026-10-01-2330.md) — 100-kuyruk batch 1: kalıcılık/bozulma (SIGKILL-ortasında-yazım kilidi + afiş atomikliği, rapor 363)

@@ -4483,7 +4483,7 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .pdf-kind-table .pdf-pair-target { font-variant-numeric: tabular-nums; }
 /* Madde 37 — OCR yetenek rozeti: motor yokluğu / düşük güven / dil paketi */
 .pdf-ocr-note { font-size: 0.78em; font-family: var(--font-ui); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; margin: 6px 0 10px; }
-.pdf-ocr-warn { color: var(--warn, #e4a36a); border-color: color-mix(in srgb, var(--warn, #e4a36a) 45%, var(--border)); }
+.pdf-ocr-warn { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
 .pdf-page[data-state="loading"] .pdf-page-translation::after { content: 'Sayfa hazırlanıyor…'; color: var(--text-muted); }
 @media (max-width: 1180px) {
 .pdf-reader-toolbar { flex-wrap: wrap; }
@@ -5185,7 +5185,7 @@ textarea { resize: none; }
 .browser-split-popover { right: 0; left: auto; width: min(310px, 80vw); padding: 12px; display: grid; gap: 11px; }
 .browser-split-popover label { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; }
 .browser-split-popover select, .browser-split-popover input { width: 100%; }
-.browser-split-divider { position: absolute; z-index: 10; top: 0; bottom: 0; width: 6px; margin-left: -3px; cursor: col-resize; background: var(--border); border-inline: 1px solid rgba(213,163,92,.3); touch-action: none; }
+.browser-split-divider { position: absolute; z-index: 10; top: 0; bottom: 0; width: 6px; margin-left: -3px; cursor: col-resize; background: var(--border); border-inline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); touch-action: none; }
 .browser-split-divider:hover, .browser-split-divider:focus-visible, .browser-split-divider.is-dragging { background: var(--accent); }
 .browser-permission-prompt { position: absolute; z-index: 75; top: 62px; right: 14px; width: min(540px, calc(100% - 28px)); padding: 13px; border: 1px solid rgba(213,163,92,.55); border-radius: 9px; background: var(--bg-1); box-shadow: 0 16px 42px rgba(0,0,0,.48); }
 .browser-permission-prompt strong { color: var(--accent); }
@@ -6882,7 +6882,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   color: var(--text-muted); text-transform: uppercase;
 }
 .retranslate-review-row .diff-add {
-  background: color-mix(in srgb, var(--ok, #4caf7d) 22%, transparent);
+  background: color-mix(in srgb, var(--success) 22%, transparent);
   border-radius: 3px; padding: 0 1px;
 }
 .retranslate-review-row .diff-del {
@@ -6900,7 +6900,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   border-left: 2px solid color-mix(in srgb, var(--danger) 60%, transparent); padding-left: 6px;
 }
 .retranslate-review-added .retranslate-review-after {
-  border-left: 2px solid color-mix(in srgb, var(--ok, #4caf7d) 60%, transparent); padding-left: 6px;
+  border-left: 2px solid color-mix(in srgb, var(--success) 60%, transparent); padding-left: 6px;
 }
 .retranslate-review-row:has(input:checked) .diff-add { background: none; }
 /* Çok noktalı senkron: nokta listesi + güven göstergesi. */
@@ -6912,7 +6912,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 }
 .browser-sync-point-del { flex: none; width: auto; padding: 0 8px; font-size: 14px; line-height: 1.4; }
 .browser-sync-confidence { margin: 6px 0 0; font-size: 12px; color: var(--text-dim); }
-.browser-sync-confidence-high, .browser-sync-confidence-exact { color: var(--ok, #4caf7d); }
+.browser-sync-confidence-high, .browser-sync-confidence-exact { color: var(--success); }
 .browser-sync-confidence-medium { color: var(--warning); }
 .browser-sync-confidence-low { color: var(--danger); }
 /* ===== SmartTube TV görünümü (.st-tv) =====

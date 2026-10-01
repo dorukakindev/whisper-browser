@@ -318,6 +318,7 @@ async function t_cea_full_start() {
     sendBrowserHlsCeaFullProgress: (job, state, msg) => sent.push({ state, msg }),
     runBrowserHlsCeaFullCapture: () => {},
     browserTrackStreamKey: () => 'sk',
+    jobResourceScheduler: require('../src/job-resource-scheduler').createResourceScheduler({ gpu: 1, cpu: 2, network: 4, disk: 4 }),
   });
   evalSections(ctx, [section('function startBrowserHlsCeaFullCapture(', 'async function prepareBrowserHlsCeaCapture(')]);
   // sekme yok/aktif değil → hata

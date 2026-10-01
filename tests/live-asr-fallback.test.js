@@ -73,6 +73,7 @@ function harness(deviceSetting, spawnImpl) {
     setTimeout: (fn) => ({ unref() {} }),
     JSON, Object, Number, String, Math, Promise,
     dt: (tr, en) => en,
+    createLiveAsrAudioSwitch: require('../src/live-asr-audio-switch').createLiveAsrAudioSwitch,
   };
   const region = main.slice(start, tail);
   vm.runInNewContext(region, sandbox);

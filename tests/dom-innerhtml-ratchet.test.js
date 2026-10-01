@@ -37,18 +37,18 @@ const TOP_BOOLEAN_OP = /===|!==|==|!=|<=|>=|<|>|\binstanceof\b|\bin\b/;
 // Tekil, doğrulanmış lokal-değişken izinleri — dosya:satır + tam ifade.
 // Yalnız ifadenin ürettiği değerin kanıtlı güvenli olduğu durumlar.
 const ALLOWED = new Set([
-  'src/renderer/renderer.js:603::icon',                    // static SVG literal ternary
-  'src/renderer/renderer.js:1245::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
-  'src/renderer/renderer.js:1473::start',                  // formatTime() çıktısı
-  'src/renderer/renderer.js:1473::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:14230::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:21025::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:21025::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:21025::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:21025::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:21025::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:21086::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:21086::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:604::icon',                    // static SVG literal ternary
+  'src/renderer/renderer.js:1246::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
+  'src/renderer/renderer.js:1474::start',                  // formatTime() çıktısı
+  'src/renderer/renderer.js:1474::end',                    // formatTime() çıktısı
+  'src/renderer/renderer.js:14993::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js:21950::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js:21950::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js:21950::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js:21950::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js:21950::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js:22011::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:22011::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
   'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 
