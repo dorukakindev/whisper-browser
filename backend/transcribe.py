@@ -5597,6 +5597,53 @@ def strip_repeated_prefix(entries, max_gap=2.0):
     return [(a, b, c) for a, b, c in out if c], removed
 
 
+def dedupe_rolling_window_cues(entries, max_gap=2.0):
+    """YouTube rolling-window altyazı artefaktı: her cue ya önceki cue'nun
+    metniyle başlayıp üstüne ekler (uzantı) ya da önceki metnin kuyruk
+    parçasını aynen tekrarlar (saf tekrar — iki satırlık kayan pencerede
+    üstte duran satır).
+
+    Uzantıda yinelenen ön ek atılır; saf-tekrar cue kaldırılıp süresi önceki
+    cue'nun bitişine katlanır. Böylece her cue yalnızca yeni kelimeleri taşır:
+    çeviri modeline temiz kısa fragment'ler gider (echo/bozuk-parça ret'lerinin
+    kök nedeni — rapor 401 sınıf A) ve hedef altyazı kaynakla aynı karaoke
+    ritmini korur.
+
+    Kelime sınırı koruması: saf-tekrar eşleşmesi yalnızca tekrar metni
+    boşluk sınırında biterken ve >=5 karakterken; ön-ek soyması önceki
+    KAYNAK metin >=12 karakterken ve bloklar zamansal komşuyken uygulanır.
+    Döner: (entries, ayıklanan_ön_ek, kaldırılan_tekrar).
+    """
+    out = []
+    raw_prev = ""
+    stripped = 0
+    dropped = 0
+    for s0, e0, text in entries:
+        t = (text or "").strip()
+        raw = t
+        if out and raw_prev and len(raw_prev) >= 12:
+            gap = float(s0) - float(out[-1][1])
+            if gap <= max_gap:
+                is_repeat = (
+                    t == raw_prev
+                    or (len(t) >= 5
+                        and raw_prev.endswith(t)
+                        and raw_prev[-len(t) - 1].isspace()))
+                if is_repeat:
+                    out[-1][1] = max(out[-1][1], float(e0))
+                    dropped += 1
+                    raw_prev = raw
+                    continue
+                if t.startswith(raw_prev) and len(t) > len(raw_prev):
+                    rest = t[len(raw_prev):].strip(" ,.;:-")
+                    if rest:
+                        t = rest
+                        stripped += 1
+        out.append([float(s0), float(e0), t])
+        raw_prev = raw
+    return [(a, b, c) for a, b, c in out if c], stripped, dropped
+
+
 _ROLLING_WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
 
 
@@ -8203,6 +8250,21 @@ def translate_existing_subtitle(args):
         log(f"{dropped_empty} metinsiz blok (yalnız efekt/etiket) çeviriden çıkarıldı.", "info")
     if not entries:
         raise RuntimeError("Altyazıda çevrilecek metin yok.")
+
+    # YouTube rolling-window tekilleştirme: uzantı cue'larındaki yinelenen ön ek
+    # ayıklanır, saf-tekrar cue'ları süresiyle birlikte öncekine katlanır. Hem
+    # model girdisi kısa temiz fragment'lere iner (echo/invalid_response
+    # ret'lerinin kök nedeni — rapor 401 sınıf A) hem de çıktı altyazısı
+    # kaynakla aynı karaoke ritminde kalır. Kaynak dosya değişmez.
+    _roll_n0 = len(entries)
+    entries, _roll_stripped, _roll_dropped = dedupe_rolling_window_cues(entries)
+    if _roll_stripped or _roll_dropped:
+        log(f"Rolling-window tekilleştirme: {_roll_stripped} ön ek ayıklandı, "
+            f"{_roll_dropped} tekrar cue öncekine katlandı "
+            f"({_roll_n0} -> {len(entries)} blok).")
+        if cue_formats:
+            cue_formats = []
+            log("Rolling-window tekilleştirme nedeniyle ASS konum/italik biçimi taşınmadı.", "warn")
     if cue_formats and any(item["align"] not in (None, 2) or item["pos"] or item["italic"] for item in cue_formats):
         kept = sum(1 for item in cue_formats if item["align"] not in (None, 2) or item["pos"] or item["italic"])
         log(f"ASS biçimi korunuyor: {kept} blokta konum/hizalama/italik çeviriye taşınacak.")
