@@ -298,7 +298,7 @@ function buildOptsFromUI() {
     initialPrompt: $('initialPrompt').value.trim(),
     clipStart: $('clipStart').value.trim(),
     clipEnd: $('clipEnd').value.trim(),
-    glossary: glossary.join('|'),
+    glossary: glossaryCombined().join('|'),
     formats: $('formats').value,
     langSuffix: $('langSuffix').checked,
     maxLineWidth: parseInt($('maxLineWidth').value, 10),
@@ -1130,6 +1130,30 @@ function setJobsTab(tab, focus = false) {
   $('historyToolbar')?.classList.toggle('hidden', tab !== 'history');
 }
 
+// Madde 15 — çeviri kalite raporundaki indeks dizilerini tek uyarı türüyle
+// eşler: her satır neden işaretlendiğinin açıklamasını ve ne yapılacağını taşır.
+const QUALITY_ISSUE_KINDS = [
+  { key: 'translation_untranslated_indices', label: 'çevrilmemiş satır', why: 'Model bu satırları kaynak hâliyle bıraktı — yanıt reddi veya dizin kayması olabilir.', fix: 'Satırları yeniden çevirin.' },
+  { key: 'translation_empty_indices', label: 'boş çeviri', why: 'Sağlayıcı bu satırlar için boş metin döndürdü.', fix: 'Satırları yeniden çevirin; tekrarlanırsa modeli değiştirin.' },
+  { key: 'translation_number_mismatch_indices', label: 'sayı uyuşmazlığı', why: 'Kaynak metindeki sayılar çeviride farklı görünüyor.', fix: 'Satırları inceleyip gerekirse yeniden çevirin.' },
+  { key: 'translation_negation_mismatch_indices', label: 'olumsuzluk uyuşmazlığı', why: 'Olumlu/olumsuz anlam çeviride ters dönmüş olabilir.', fix: 'Kaynakla karşılaştırıp düzeltin veya yeniden çevirin.' },
+  { key: 'translation_modal_mismatch_indices', label: 'kip uyuşmazlığı', why: '"should/must/can" gibi kipler anlamı değiştirmiş olabilir.', fix: 'Kaynakla karşılaştırın.' },
+  { key: 'translation_currency_mismatch_indices', label: 'para birimi uyuşmazlığı', why: 'Para miktarı/birimi çeviride değişmiş görünüyor.', fix: 'Miktarı kaynakla doğrulayın.' },
+  { key: 'translation_unit_mismatch_indices', label: 'birim uyuşmazlığı', why: 'Ölçü birimleri çeviride farklılaşmış olabilir.', fix: 'Birimi kaynakla doğrulayın.' },
+  { key: 'translation_date_mismatch_indices', label: 'tarih uyuşmazlığı', why: 'Tarih ifadesi çeviride değişmiş görünüyor.', fix: 'Tarihi kaynakla doğrulayın.' },
+  { key: 'translation_timing_mismatch_indices', label: 'zamanlama uyuşmazlığı', why: 'Metin içindeki saat/süre ifadeleri uyuşmuyor.', fix: 'Satırları inceleyin.' },
+  { key: 'translation_truncated_fragment_indices', label: 'kesik parça', why: 'Yanıt sınırda kesildi — satır cümle ortasında bitiyor olabilir.', fix: 'Satırları yeniden çevirin.' },
+  { key: 'translation_meaning_shadow_rejected_indices', label: 'anlam şüphesi (düşürüldü)', why: 'Alternatif çeviri anlam denetimini geçemedi; kaynak metin korundu. (Kesin retler de bu kümede.)', fix: 'Satırları yeniden çevirin.' },
+];
+
+function qualityIssueGroups() {
+  const qr = state.lastQualityReport;
+  if (!qr) return [];
+  return QUALITY_ISSUE_KINDS
+    .map((kind) => ({ ...kind, indices: (Array.isArray(qr[kind.key]) ? qr[kind.key] : []).map(Number).filter(Number.isFinite) }))
+    .filter((group) => group.indices.length);
+}
+
 function reviewItems() {
   const items = [];
   state.queue.forEach((item) => {
@@ -1143,6 +1167,16 @@ function reviewItems() {
       items.push({ tone: 'warning', title: 'Son çıktı kalite raporu', detail: `${qr.cps_violations || 0} hızlı okuma · ${qr.overlaps || 0} çakışma · ${qr.too_long || 0} uzun blok` });
     }
   }
+  // Madde 15 — çeviri uyarıları tür bazında ayrı satır; tıklanınca kaynak +
+  // sonuç + açıklama + düzeltme eylemiyle ayrıntı açılır.
+  qualityIssueGroups().forEach((group) => {
+    items.push({
+      tone: 'warning',
+      title: `Çeviri uyarısı: ${group.indices.length} ${group.label}`,
+      detail: group.why,
+      qualityKind: group,
+    });
+  });
   return items;
 }
 
@@ -1173,8 +1207,106 @@ function renderReviewCenter() {
     detail.textContent = item.detail;
     body.append(title, detail);
     row.append(mark, body);
+    if (item.qualityKind) {
+      row.classList.add('review-item-actionable');
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      const open = () => openQualityIssueDetail(item.qualityKind);
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    }
     list.appendChild(row);
   });
+}
+
+// Madde 15 — kalite uyarısı ayrıntısı: işaretli her satır için kaynak metin,
+// üretilen çeviri ve nedenin açıklaması tek alanda; aralıklı yeniden çeviri
+// eylemi aynı diyalogdan başlar.
+function openQualityIssueDetail(group) {
+  const source = player.cueQualitySource || [];
+  const channel = translationChannel();
+  const dialog = document.createElement('dialog');
+  dialog.className = 'retranslate-review quality-issue-detail';
+  dialog.setAttribute('aria-labelledby', 'qualityIssueTitle');
+  const head = document.createElement('div');
+  head.className = 'retranslate-review-head';
+  const title = document.createElement('h2');
+  title.id = 'qualityIssueTitle';
+  title.textContent = `${group.indices.length} ${uiText(group.label)}`;
+  const hint = document.createElement('p');
+  hint.textContent = uiText(group.why) + ' ' + uiText(group.fix);
+  head.append(title, hint);
+  const body = document.createElement('div');
+  body.className = 'retranslate-review-list';
+  const cap = 40;
+  group.indices.slice(0, cap).forEach((index) => {
+    const row = document.createElement('div');
+    row.className = 'retranslate-review-row';
+    const meta = document.createElement('div');
+    meta.className = 'retranslate-review-meta';
+    const srcCue = source[index] || {};
+    meta.textContent = `#${index + 1} · ${pSecToTime(srcCue.start || 0)}`;
+    const parts = document.createElement('div');
+    parts.className = 'retranslate-review-parts';
+    const mkPart = (label, text) => {
+      const el = document.createElement('div');
+      el.className = 'retranslate-review-part';
+      const small = document.createElement('small');
+      small.textContent = label;
+      const span = document.createElement('span');
+      span.dir = 'auto';
+      span.textContent = text || '—';
+      el.append(small, span);
+      return el;
+    };
+    parts.append(
+      mkPart(uiText('Kaynak'), srcCue.text),
+      mkPart(uiText('Çeviri'), channel?.cues?.[index]?.text));
+    row.append(meta, parts);
+    body.append(row);
+  });
+  if (group.indices.length > cap) {
+    const more = document.createElement('div');
+    more.className = 'retranslate-review-more';
+    more.textContent = uiText(`+${group.indices.length - cap} satır daha`);
+    body.append(more);
+  }
+  const actions = document.createElement('div');
+  actions.className = 'retranslate-review-actions';
+  const retranslate = document.createElement('button');
+  retranslate.type = 'button';
+  retranslate.className = 'btn btn-primary btn-sm';
+  retranslate.textContent = uiText('Bu satırları yeniden çevir');
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'btn btn-ghost btn-sm';
+  close.textContent = uiText('Kapat');
+  actions.append(retranslate, close);
+  dialog.append(head, body, actions);
+  const finish = () => { dialog.remove(); };
+  close.addEventListener('click', finish);
+  dialog.addEventListener('cancel', finish);
+  retranslate.addEventListener('click', async () => {
+    finish();
+    // İşaretli satırları kapsayan en küçük aralığı seçili aralık gibi işle.
+    const times = group.indices.map((index) => source[index] || channel?.cues?.[index])
+      .filter(Boolean);
+    if (!times.length) { logLine(uiText('Aralık için satır zamanlaması bulunamadı.'), 'warn'); return; }
+    const lo = Math.min(...times.map((cue) => Number(cue.start) || 0));
+    const hi = Math.max(...times.map((cue) => Number(cue.end) || 0));
+    const ok = await openAppDialog({
+      title: uiText('İşaretli satırları yeniden çevir'),
+      description: uiText(`${group.indices.length} satırı kapsayan ${pSecToTime(lo)}–${pSecToTime(hi)} aralığı yeniden çevrilecek. Aralık dışı satırlar korunur.`),
+      confirmLabel: uiText('Yeniden çevir'), intent: 'primary',
+    });
+    if (!ok) return;
+    void startRangeRetranslate({ lo, hi });
+  });
+  document.body.appendChild(dialog);
+  try { dialog.showModal(); } catch (_) { /* açık dialog yarışı */ }
+  syncBrowserOcclusion();
 }
 
 
@@ -2013,26 +2145,83 @@ ranges.forEach(([input, label]) => {
 });
 
 // ===== Glossary (sözlük) yönetimi =====
+// Madde 12 — iki kapsam: 'global' her projede geçerli; 'project' yalnız o
+// medya anahtarına bağlı. Backend'e giden liste proje terimleri önce olacak
+// şekilde birleşir — aynı terim iki kapsamda varsa proje kapsamı kazanır
+// (listedeki sıra = öncelik; sanitize ilk görüleni tutar).
 let glossary = [];
+let projectGlossaries = {};
+let glossaryScope = 'global';
 const glossaryListEl = $('glossaryList');
 const glossaryInputEl = $('glossaryInput');
 
+function glossaryActiveList() {
+  if (glossaryScope === 'project' && player.mediaKey) {
+    return projectGlossaries[player.mediaKey] || (projectGlossaries[player.mediaKey] = []);
+  }
+  return glossary;
+}
+
+function glossaryCombined() {
+  const project = (player.mediaKey && projectGlossaries[player.mediaKey]) || [];
+  const projectFold = new Set(project.map((t) => t.toLowerCase()));
+  return project.concat(glossary.filter((t) => !projectFold.has(t.toLowerCase())));
+}
+
 function renderGlossary() {
+  const active = glossaryActiveList();
+  const other = glossaryScope === 'project' ? glossary
+    : (player.mediaKey && projectGlossaries[player.mediaKey]) || [];
   glossaryListEl.innerHTML = '';
-  if (glossary.length === 0) {
-    glossaryListEl.innerHTML = '<div class="glossary-empty">Henüz terim yok. İlk terimini ekle.</div>';
+  const globalBtn = $('glossaryScopeGlobal');
+  const projectBtn = $('glossaryScopeProject');
+  if (globalBtn) {
+    globalBtn.classList.toggle('active', glossaryScope === 'global');
+    globalBtn.setAttribute('aria-selected', String(glossaryScope === 'global'));
+  }
+  if (projectBtn) {
+    projectBtn.classList.toggle('active', glossaryScope === 'project');
+    projectBtn.setAttribute('aria-selected', String(glossaryScope === 'project'));
+    projectBtn.disabled = !player.mediaKey;
+    projectBtn.title = player.mediaKey
+      ? uiText('Yalnız bu medyada geçerli terimler — genel sözlüğün önüne geçer')
+      : uiText('Önce bir medya yükleyin');
+  }
+  const count = $('glossaryProjectCount');
+  const projectLen = (player.mediaKey && projectGlossaries[player.mediaKey]?.length) || 0;
+  if (count) count.textContent = projectLen ? `(${projectLen})` : '';
+  if (!active.length) {
+    const empty = document.createElement('div');
+    empty.className = 'glossary-empty';
+    empty.textContent = glossaryScope === 'project'
+      ? uiText('Bu medyaya özel terim yok. Genel sözlük yine geçerli.')
+      : uiText('Henüz terim yok. İlk terimini ekle.');
+    glossaryListEl.appendChild(empty);
     return;
   }
-  glossary.forEach((term, i) => {
+  const otherFold = new Set(other.map((t) => t.toLowerCase()));
+  active.forEach((term, i) => {
     const tag = document.createElement('div');
     tag.className = 'glossary-tag';
-    tag.innerHTML = `<span></span><button title="Sil">×</button>`;
-    tag.querySelector('span').textContent = term;
-    tag.querySelector('button').addEventListener('click', () => {
-      glossary.splice(i, 1);
+    const span = document.createElement('span');
+    span.textContent = term;
+    tag.append(span);
+    if (otherFold.has(term.toLowerCase())) {
+      const badge = document.createElement('em');
+      badge.className = 'glossary-conflict';
+      badge.textContent = glossaryScope === 'project' ? uiText('geneli eziyor') : uiText('proje eziyor');
+      badge.title = uiText('Aynı terim diğer kapsamda da var — bu medyada proje sözlüğü kazanır.');
+      tag.append(badge);
+    }
+    const remove = document.createElement('button');
+    remove.title = uiText('Sil');
+    remove.textContent = '×';
+    remove.addEventListener('click', () => {
+      active.splice(i, 1);
       saveAppSettings();
       renderGlossary();
     });
+    tag.append(remove);
     glossaryListEl.appendChild(tag);
   });
 }
@@ -2040,10 +2229,11 @@ function renderGlossary() {
 function addGlossaryTerm() {
   const v = glossaryInputEl.value.trim();
   if (!v) return;
+  const active = glossaryActiveList();
   for (const term of v.split(/[,;]/).map(s => s.trim()).filter(Boolean)) {
-    if (glossary.includes(term)) continue;
-    if (glossary.length >= 500) { logLine('Glossary limit: 500 terms.', 'warn'); break; }
-    glossary.push(term);
+    if (active.some((t) => t.toLowerCase() === term.toLowerCase())) continue;
+    if (active.length >= 500) { logLine('Glossary limit: 500 terms.', 'warn'); break; }
+    active.push(term);
   }
   glossaryInputEl.value = '';
   saveAppSettings();
@@ -2053,6 +2243,44 @@ $('glossaryAdd').addEventListener('click', addGlossaryTerm);
 glossaryInputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); addGlossaryTerm(); }
 });
+
+$('glossaryScopeGlobal')?.addEventListener('click', () => {
+  glossaryScope = 'global';
+  renderGlossary();
+});
+$('glossaryScopeProject')?.addEventListener('click', () => {
+  if (!player.mediaKey) { logLine(uiText('Önce bir medya yükleyin.'), 'warn'); return; }
+  glossaryScope = 'project';
+  renderGlossary();
+});
+
+// İçe aktarma: virgül/noktalı virgül/satır sonu ile ayrılmış liste mevcut
+// kapsama eklenir; yinelenenler atlanır.
+$('glossaryImport')?.addEventListener('click', async () => {
+  const value = await openAppDialog({
+    title: glossaryScope === 'project' ? uiText('Bu medyaya terim içe aktar') : uiText('Genel sözlüğe terim içe aktar'),
+    description: uiText('Terimleri virgül veya yeni satırla ayırın. Yinelenenler atlanır.'),
+    confirmLabel: uiText('İçe aktar'), intent: 'primary',
+    inputLabel: uiText('Terim listesi'),
+  });
+  if (value === false || value === null || typeof value !== 'string') return;
+  const active = glossaryActiveList();
+  let added = 0;
+  for (const term of value.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)) {
+    if (active.some((t) => t.toLowerCase() === term.toLowerCase())) continue;
+    if (active.length >= 500) break;
+    active.push(term);
+    added += 1;
+  }
+  if (added) { saveAppSettings(); renderGlossary(); }
+  logLine(uiText(`${added} terim içe aktarıldı`), added ? 'success' : 'info');
+});
+
+// Madde 14 — fiyat alanları canlı tahmini günceller.
+['translatePriceIn', 'translatePriceOut'].forEach((id) => {
+  $(id)?.addEventListener('input', renderTranslateCost);
+});
+renderTranslateCost();
 
 // HF token yardımı
 $('hfTokenHelp').addEventListener('click', (e) => {
@@ -2502,6 +2730,7 @@ function appSettingsPayload() {
   rememberVisibleProviderApiKey('manga');
   return {
     glossary,
+    projectGlossaries,
     ...secretSettingPatch('hfToken', 'hfToken'),
     inputDir: state.inputDir || '',
     outputDir: state.outputDir || '',
@@ -2556,6 +2785,7 @@ const PERSIST_VALUE_CONTROLS = [
   'minSpeakers', 'maxSpeakers', 'speakerMap', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
+  'abModel', 'translatePriceIn', 'translatePriceOut',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
@@ -3093,6 +3323,8 @@ const initialSettingsReady = (async () => {
     if (s) {
       if (s._loadWarning) logLine(String(s._loadWarning), 'error');
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
+      projectGlossaries = (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries))
+        ? s.projectGlossaries : {};
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
       state.outputDir = s.outputDir || null;
@@ -3889,6 +4121,7 @@ function playerJobEvent(event) {
       state.running = false;
       state.aiJob = false;
       state.cancelled = false;
+      if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
       if (player.job === job) player.job = null;
       txt.textContent = 'İş iptal edildi.';
       setTimeout(() => bar.classList.add('hidden'), 1200);
@@ -3930,6 +4163,7 @@ function playerJobEvent(event) {
     state.aiJob = false;
     state.cancelled = false;
     state.forceTranslate = false;
+    if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
     if (player.job === job) player.job = null;
     txt.textContent = 'Altyazı işi tamamlanmadan kapandı.';
     setTimeout(() => bar.classList.add('hidden'), 4000);
@@ -4100,6 +4334,26 @@ function playerJobEvent(event) {
     }
     const isTranslateJob = job.kind === 'translate';
     const isSyncJob = job.kind === 'sync';
+    if (isTranslateJob && state.abCollect) {
+      // Madde 13 — A/B varyant işi: çıktı oynatıcıya yüklenmeden canlı
+      // birikimden yakalanır; dosya varyant etiketiyle ayrı yazıldığı için
+      // kullanıcının yüklü çevirisi korunur.
+      const collect = state.abCollect;
+      state.abCollect = null;
+      // Varyant işi normal review dalını atladığı için bayat anlık görüntü
+      // sonraki çeviride yanlış fark ekranı açmasın.
+      state.retranslateSnapshot = null;
+      player.cueQualitySource = (job.liveSource || []).slice();
+      collect.resolve({
+        // Kaynak-girdi diziniyle anahtarlı sözlük: yalnız aralık içi satırlar
+        // canlı parçaya girdiği için sıralı dizi dizinleri kaydırırdı.
+        cues: [...(job.liveTranslation || new Map()).entries()]
+          .reduce((map, [index, cue]) => { map[index] = cue; return map; }, {}),
+        file: (event.files || [])[0] || null,
+      });
+      finish(uiText('A/B varyantı hazır.'), 'success');
+      return true;
+    }
     const translationDescriptor = isTranslateJob
       ? completedSubtitleOutputs(event, 'translation').translation : null;
     const translationFailed = Math.max(0,
@@ -4131,9 +4385,11 @@ function playerJobEvent(event) {
           void openRetranslationReview(snapshot.cues);
         }
       }
+      const translateStatsSuffix = isTranslateJob && state.lastTranslateStats?.requests
+        ? ` · ${translateStatsText(state.lastTranslateStats)}` : '';
       const successText = translationPartial
         ? `Kısmi çeviri yüklendi: ${translationCompleted}/${translationTotal || translationCompleted + translationFailed} cue hazır, ${translationFailed} cue eksik. Eksikleri tamamlayabilirsiniz.`
-        : isTranslateJob ? 'Türkçe çeviri hazır ve oynatıcıya yüklendi.'
+        : isTranslateJob ? uiText(`Türkçe çeviri hazır ve oynatıcıya yüklendi.`) + translateStatsSuffix
         : isSyncJob ? 'Altyazı sese göre senkronlandı ve oynatıcıya yüklendi.'
         : 'Altyazı hazır ve oynatıcıya yüklendi.';
       finish(result.loaded ? successText
@@ -4176,6 +4432,13 @@ function playerJobEvent(event) {
     bar.classList.add('hidden');
     retryAiChat(job);
   } else if (event.type === 'error') {
+    if (state.abCollect) {
+      // Madde 13 — A/B varyant işi başarısız oldu: bekleyen promise'i çöz yoksa
+      // runAbCompare sonsuza dek bekler.
+      const collect = state.abCollect;
+      state.abCollect = null;
+      collect.resolve(null);
+    }
     finish(`Altyazı oluşturulamadı: ${friendlyYoutubeError(event.message || '').slice(0, 240)}`, 'error');
     refreshHistory();
   }
@@ -4568,6 +4831,17 @@ window.api.onEvent((event) => {
 
     case 'translation_quality': {
       recordTranslationModelScore(event);
+      // Madde 14 — istek/önbellek/karakter sayaçlarını son-iş maliyet görünümüne taşı.
+      state.lastTranslateStats = {
+        model: String(event.model || ''),
+        requests: Number(event.requests) || 0,
+        cacheHits: Number(event.cache_hits) || 0,
+        promptChars: Number(event.prompt_chars) || 0,
+        completionChars: Number(event.completion_chars) || 0,
+        fallbackRequests: Number(event.fallback_requests) || 0,
+        elapsed: Number(event.elapsed) || 0,
+      };
+      renderTranslateCost();
       break;
     }
     case 'llm_progress': {
@@ -4963,6 +5237,9 @@ $('importSettings').addEventListener('click', async () => {
   }
   const s = r.settings || {};
   glossary = Array.isArray(s.glossary) ? s.glossary : glossary;
+  if (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries)) {
+    projectGlossaries = s.projectGlossaries;
+  }
   if (s.hfToken !== undefined) $('hfToken').value = s.hfToken || '';
   state.inputDir = s.inputDir || null;
   state.outputDir = s.outputDir || null;
@@ -5257,7 +5534,7 @@ const player = {
   audioLocks: {},        // video anahtari -> { lang, label }; oynatma/Whisper ayni ses
   timeline: { open: false, waveform: [], waveformDuration: 0, selected: -1,
     undo: [], drag: null, loading: false, drawPending: false,
-    recovery: null, recoveryTimer: null, listenUntil: 0 },
+    recovery: null, recoveryTimer: null, listenUntil: 0, range: null },
   idleTimer: null,
   resumeOffered: false,
   playlist: [],       // yerel klasör/çoklu seçim sırası
@@ -7627,6 +7904,44 @@ function renderTranslationModelScore() {
   hint.textContent = summary.text;
   hint.dataset.level = summary.level;
   hint.classList.toggle('hidden', !summary.text);
+}
+
+// Madde 14 — son çeviri işinin istek/önbellek/karakter özeti + kullanıcı
+// fiyatıyla ücret tahmini. Token verisi sağlayıcıya bağlı olduğundan karakter
+// sayısından (≈4 karakter/token) tahmin edilir; fiyatlar boşsa tahmin gösterilmez.
+function translateCostEstimate(stats) {
+  if (!stats) return '';
+  const priceIn = parseFloat($('translatePriceIn')?.value) || 0;
+  const priceOut = parseFloat($('translatePriceOut')?.value) || 0;
+  if (!priceIn && !priceOut) return '';
+  const inTok = (stats.promptChars || 0) / 4;
+  const outTok = (stats.completionChars || 0) / 4;
+  const usd = inTok * priceIn / 1e6 + outTok * priceOut / 1e6;
+  return `~$${usd >= 0.01 ? usd.toFixed(3) : usd.toFixed(4)}`;
+}
+
+function translateStatsText(stats) {
+  if (!stats) return '';
+  const parts = [
+    uiText(`${stats.requests} istek`),
+    uiText(`${stats.cacheHits} önbellek`),
+    uiText(`${Math.round((stats.promptChars + stats.completionChars) / 100) / 10}k karakter`),
+  ];
+  const cost = translateCostEstimate(stats);
+  if (cost) parts.push(cost);
+  if (stats.elapsed) parts.push(`${Math.round(stats.elapsed)} sn`);
+  return parts.join(' · ');
+}
+
+function renderTranslateCost() {
+  const line = $('translateCostLine');
+  if (!line) return;
+  const stats = state.lastTranslateStats;
+  if (!stats || !stats.requests) {
+    line.textContent = uiText('Fiyatları girince son işin yaklaşık ücreti burada gösterilir (≈4 karakter/token).');
+    return;
+  }
+  line.textContent = uiText(`Son iş: ${translateStatsText(stats)}`);
 }
 
 // Yeniden çeviri farkı: eski/yeni satırlar yan yana; seçilenler eski hâline döner.
@@ -15905,6 +16220,20 @@ function drawTimeline() {
       ctx.fillText(cue.text.replace(/\n/g, ' '), x1 + 6, 102); ctx.restore();
     }
   });
+  // Aralık seçimi (Shift+tık): kapsanan blokların altına vurgu bandı.
+  const tlRange = player.timeline.range;
+  if (tlRange && player.cues.length) {
+    const lo = Math.max(0, Math.min(tlRange.a, tlRange.b));
+    const hi = Math.min(player.cues.length - 1, Math.max(tlRange.a, tlRange.b));
+    ctx.fillStyle = 'rgba(213,163,92,.85)';
+    for (let i = lo; i <= hi; i++) {
+      const cue = player.cues[i];
+      if (!cue) continue;
+      const x1 = Math.max(0, xFor(subtitleVideoTime(cue.start, false)));
+      const x2 = Math.min(w, xFor(subtitleVideoTime(cue.end, false)));
+      ctx.fillRect(x1, 117.5, Math.max(2, x2 - x1), 3);
+    }
+  }
   const now = timelinePlaybackTime();
   if (now >= view.start && now <= view.end) {
     const x = xFor(now); ctx.strokeStyle = '#f4f4f6'; ctx.lineWidth = 1;
@@ -16107,6 +16436,278 @@ async function timelineRemoveEmptyCues() {
   timelineMarkDirty(uiText(`${idx.length} boş blok kaldırıldı`));
 }
 
+// Madde 11/13 — zaman çizelgesinde Shift+tık ile aralık seçimi. Aralık yalnız
+// seçili satırların yeniden çevirisi ve A/B kör karşılaştırması için kullanılır;
+// dosya düzenlemesini etkilemez.
+function timelineRangeIndices() {
+  const range = player.timeline.range;
+  if (!range || !player.cues.length) return [];
+  const lo = Math.max(0, Math.min(range.a, range.b));
+  const hi = Math.min(player.cues.length - 1, Math.max(range.a, range.b));
+  const out = [];
+  for (let i = lo; i <= hi; i++) out.push(i);
+  return out;
+}
+
+function timelineRangeSeconds() {
+  const idx = timelineRangeIndices();
+  if (!idx.length) return null;
+  const first = player.cues[idx[0]];
+  const last = player.cues[idx[idx.length - 1]];
+  if (!first || !last) return null;
+  return { lo: first.start, hi: last.end, count: idx.length, indices: idx };
+}
+
+function timelineClearRange() {
+  if (!player.timeline.range) return;
+  player.timeline.range = null;
+  updateRangeRetranslateUI();
+  if (player.timeline.open) drawTimeline();
+}
+
+function updateRangeRetranslateUI() {
+  const range = timelineRangeSeconds();
+  const chip = $('timelineRangeChip');
+  if (chip) {
+    chip.classList.toggle('hidden', !range);
+    const label = $('timelineRangeText');
+    if (label && range) {
+      label.textContent = uiText(`${range.count} blok aralıkta · ${pSecToTime(range.lo)}–${pSecToTime(range.hi)}`);
+    }
+  }
+  const ok = !!range && !state.running && !state.queueRunning;
+  const btn = $('retranslateRangeBtn');
+  if (btn) {
+    btn.disabled = !ok;
+    btn.title = range
+      ? uiText(`${range.count} bloğu seçili modelle yeniden çevir; aralık dışı satırlar korunur`)
+      : uiText('Zaman çizelgesinde Shift+tık ile aralık seçin');
+  }
+  const ab = $('abCompareBtn');
+  if (ab) {
+    ab.disabled = !ok;
+    ab.title = range
+      ? uiText('Aralığı ana model ve A/B modeliyle üretip kör karşılaştır')
+      : uiText('A/B karşılaştırma için zaman çizelgesinde Shift+tık ile aralık seçin');
+  }
+}
+
+// Madde 11 — yalnız aralıkla kesişen satırları yeniden çevirir. Backend
+// --translate-cue-range ile aralık dışını precompleted korur; elle düzenlenmiş
+// satırlar aralık dışındaysa asla ezilmez. Sonuç fark incelemesine düşer.
+async function startRangeRetranslate(rangeSeconds, options = {}) {
+  const translation = translationChannel();
+  if (translation && translation.cues.length) {
+    state.retranslateSnapshot = {
+      mediaKey: player.mediaKey,
+      cues: translation.cues.map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
+    };
+  }
+  state.translateCueRange = `${Number(rangeSeconds.lo).toFixed(3)}:${Number(rangeSeconds.hi).toFixed(3)}`;
+  if (options.modelOverride) state.translateModelOverride = options.modelOverride;
+  if (options.variantLabel) state.translateVariantLabel = options.variantLabel;
+  timelineClearRange();
+  $('makeTransBtn').click();
+}
+
+// Madde 13 — kör A/B karşılaştırma: aynı aralık iki modelle ayrı dosyaya
+// üretilir (.tr.ab-a/.tr.ab-b), sağlayıcı adı gizlenir, kullanıcı 3 eksende
+// puanlar ve kazananı tek tıkla yüklü çeviriye uygular.
+let abRunning = false;
+
+function runAbVariant(model, range, label) {
+  return new Promise((resolve) => {
+    const btn = $('makeTransBtn');
+    if (!btn || btn.disabled || state.running || state.queueRunning) {
+      resolve(null);
+      return;
+    }
+    state.abCollect = { resolve };
+    state.translateCueRange = `${Number(range.lo).toFixed(3)}:${Number(range.hi).toFixed(3)}`;
+    state.translateModelOverride = model;
+    state.translateVariantLabel = label;
+    btn.click();
+  });
+}
+
+function abCompareLog(entry) {
+  try {
+    const key = 'whisper-ab-compare-log';
+    let log;
+    try { log = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { log = []; }
+    if (!Array.isArray(log)) log = [];
+    log.push({ ...entry, at: Date.now() });
+    localStorage.setItem(key, JSON.stringify(log.slice(-50)));
+  } catch (_) { /* kota dolu */ }
+}
+
+async function runAbCompare() {
+  if (abRunning) return;
+  const range = timelineRangeSeconds();
+  if (!range || !range.count) {
+    logLine(uiText('A/B için zaman çizelgesinde Shift+tık ile aralık seçin.'), 'warn');
+    return;
+  }
+  const modelA = ($('translateModel')?.value || '').trim();
+  const modelB = ($('abModel')?.value || '').trim();
+  if (!modelA || !modelB || modelA === modelB) {
+    logLine(uiText('A/B için iki farklı model gerekli — çeviri modeli ile B modelini ayarlar satırında girin.'), 'warn');
+    return;
+  }
+  abRunning = true;
+  const btn = $('abCompareBtn');
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = uiText('A/B çalışıyor… (1/2)'); }
+    const variantA = await runAbVariant(modelA, range, 'ab-a');
+    if (!abRunning) return;
+    if (btn) btn.textContent = uiText('A/B çalışıyor… (2/2)');
+    const variantB = await runAbVariant(modelB, range, 'ab-b');
+    if (!abRunning || !variantA || !variantB) return;
+    openAbReview(range, variantA, variantB, { modelA, modelB });
+  } catch (error) {
+    logLine(uiText('A/B karşılaştırması başarısız: ') + (error?.message || error), 'error');
+  } finally {
+    abRunning = false;
+    if (btn) btn.textContent = uiText('A/B kör karşılaştır');
+    updateRangeRetranslateUI();
+  }
+}
+
+// Kör inceleme: sütunlar "Çeviri A/B" olarak etiketlenir; gerçek model adları
+// puan kaydedilip kazanan uygulanana kadar görünmez.
+function openAbReview(range, variantA, variantB, models) {
+  const channel = translationChannel();
+  const swap = Math.random() < 0.5;
+  const shown = swap ? [variantB, variantA] : [variantA, variantB];
+  const shownModels = swap ? [models.modelB, models.modelA] : [models.modelA, models.modelB];
+  const source = (player.cueQualitySource || []).length ? player.cueQualitySource : (player.cues || []);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'retranslate-review ab-review';
+  dialog.setAttribute('aria-labelledby', 'abReviewTitle');
+  const head = document.createElement('div');
+  head.className = 'retranslate-review-head';
+  const title = document.createElement('h2');
+  title.id = 'abReviewTitle';
+  title.textContent = uiText(`Kör çeviri karşılaştırması — ${range.count} satır`);
+  const hint = document.createElement('p');
+  hint.textContent = uiText('Hangi sütunun hangi model olduğu gizlidir. Üç eksende puanlayın, kazananı seçin.');
+  head.append(title, hint);
+  const body = document.createElement('div');
+  body.className = 'retranslate-review-list';
+  range.indices.forEach((index) => {
+    const row = document.createElement('div');
+    row.className = 'retranslate-review-row ab-review-row';
+    const meta = document.createElement('div');
+    meta.className = 'retranslate-review-meta';
+    const srcCue = source[index] || {};
+    meta.textContent = `#${index + 1} · ${pSecToTime(srcCue.start || 0)}`;
+    const parts = document.createElement('div');
+    parts.className = 'retranslate-review-parts ab-review-parts';
+    const mkPart = (label, text) => {
+      const el = document.createElement('div');
+      el.className = 'retranslate-review-part';
+      const small = document.createElement('small');
+      small.textContent = label;
+      const span = document.createElement('span');
+      span.dir = 'auto';
+      span.textContent = text || '—';
+      el.append(small, span);
+      return el;
+    };
+    parts.append(
+      mkPart(uiText('Kaynak'), srcCue.text),
+      mkPart(uiText('Çeviri 1'), shown[0]?.cues?.[index]?.text),
+      mkPart(uiText('Çeviri 2'), shown[1]?.cues?.[index]?.text));
+    row.append(meta, parts);
+    body.append(row);
+  });
+  // Puanlama: anlam doğruluğu / doğallık / tutarlılık — her eksen için kazanan.
+  const rating = document.createElement('div');
+  rating.className = 'ab-review-rating';
+  const axes = [uiText('Anlam doğruluğu'), uiText('Doğallık'), uiText('Tutarlılık')];
+  const picks = axes.map((axis) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'ab-review-axis';
+    const span = document.createElement('span');
+    span.textContent = axis;
+    const select = document.createElement('select');
+    [uiText('Eşit'), uiText('Çeviri 1 daha iyi'), uiText('Çeviri 2 daha iyi')]
+      .forEach((label, value) => {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = label;
+        select.appendChild(option);
+      });
+    wrap.append(span, select);
+    rating.appendChild(wrap);
+    return select;
+  });
+  const actions = document.createElement('div');
+  actions.className = 'retranslate-review-actions';
+  const applyBtn = document.createElement('button');
+  applyBtn.type = 'button';
+  applyBtn.className = 'btn btn-primary btn-sm';
+  applyBtn.textContent = uiText('Kazananı uygula');
+  const reveal = document.createElement('button');
+  reveal.type = 'button';
+  reveal.className = 'btn btn-ghost btn-sm';
+  reveal.textContent = uiText('Modelleri göster');
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'btn btn-ghost btn-sm';
+  close.textContent = uiText('Kapat');
+  actions.append(applyBtn, reveal, close);
+  dialog.append(head, body, rating, actions);
+  const finish = () => { dialog.remove(); };
+  close.addEventListener('click', finish);
+  dialog.addEventListener('cancel', finish);
+  reveal.addEventListener('click', () => {
+    abCompareLog({
+      mediaKey: player.mediaKey, cues: range.count,
+      models: { modelA: models.modelA, modelB: models.modelB, swap },
+      scores: picks.map((select, i) => ({ axis: i, pick: Number(select.value) })),
+    });
+    reveal.textContent = uiText(`Çeviri 1: ${shownModels[0]} · Çeviri 2: ${shownModels[1]}`);
+    reveal.disabled = true;
+  });
+  applyBtn.addEventListener('click', async () => {
+    // Çoğunluk: eksenlerde en çok kazanan varyant; eşitse uygulanmaz.
+    const votes = picks.reduce((acc, select) => acc + (Number(select.value) - 1), 0);
+    if (votes === 0) {
+      logLine(uiText('Eksenler berabere — uygulanacak kazanan yok. Sütunu doğrudan seçmek için puanları değiştirin.'), 'warn');
+      return;
+    }
+    const winnerShown = votes < 0 ? 0 : 1; // 1=picks düşük → Çeviri 1
+    const winner = shown[winnerShown];
+    const modelName = shownModels[winnerShown];
+    finish();
+    if (!channel?.path || !winner?.file) {
+      logLine(uiText('Çeviri kanalı yok; kazanan uygulanamadı.'), 'warn');
+      return;
+    }
+    // Kazanan varyant dosyası tam çıktıdır: aralık dışı satırlar iş başındaki
+    // mevcut çeviriyle korunmuş olduğundan dosya içeriği olduğu gibi yazılır.
+    const variant = await window.api.readSubtitle(winner.file).catch(() => null);
+    if (!variant?.ok || !variant.text) {
+      logLine(uiText('Kazanan uygulanamadı: ') + uiText(variant?.error ? String(variant.error) : 'dosya okunamadı'), 'error');
+      return;
+    }
+    const written = await window.api.writeSubtitle(
+      channel.path, variant.text, null, subtitleStatFor(channel.path)).catch(() => null);
+    if (!written?.ok) {
+      logLine(uiText('Kazanan uygulanamadı: ') + uiText(written?.error ? String(written.error) : 'yazma hatası'), 'error');
+      return;
+    }
+    noteSubtitleStat(channel.path, written);
+    await loadSubtitle(channel.path, channel.secondary, { silent: true, role: 'translation' });
+    abCompareLog({ mediaKey: player.mediaKey, applied: modelName, cues: range.count });
+    logLine(uiText(`A/B kazananı uygulandı: ${range.count} satır (${modelName}).`), 'success');
+  });
+  document.body.appendChild(dialog);
+  try { dialog.showModal(); } catch (_) { /* açık dialog yarışı */ }
+  syncBrowserOcclusion();
+}
+
 // Madde 6 — seçili bloğun aralığını tek geçide dinle.
 function timelineListenSelected() {
   const cue = player.cues[player.timeline.selected];
@@ -16237,6 +16838,15 @@ if ($('timelineCanvas')) {
     }
     player.timeline.selected = hit;
     player.activeIdx = hit;
+    if (e.shiftKey) {
+      // Aralık seçimi: ilk Shift+tık çapa olur, sonraki Shift+tık genişletir.
+      const prev = player.timeline.range;
+      const anchor = prev ? prev.anchor : hit;
+      player.timeline.range = { anchor, a: Math.min(anchor, hit), b: Math.max(anchor, hit) };
+      updateRangeRetranslateUI();
+      drawTimeline();
+      return;
+    }
     const cue = player.cues[hit];
     const mode = Math.abs(cueAt - cue.start) <= edgeSec ? 'start'
       : Math.abs(cueAt - cue.end) <= edgeSec ? 'end' : 'move';
@@ -18828,6 +19438,8 @@ function resetMediaBoundState(options = {}) {
   player.timeline.waveform = [];
   player.timeline.waveformDuration = 0;
   player.timeline.selected = -1;
+  player.timeline.range = null;
+  updateRangeRetranslateUI();
   player.timeline.undo = [];
   player.timeline.redo = [];
   player.cueEditUndo = [];
@@ -23326,6 +23938,7 @@ function updateMakeTransState() {
       ? 'Önce bir çeviri oluştur'
       : 'Yüklü çeviriyi yeniden işlem yapmadan SRT olarak kaydet';
   }
+  updateRangeRetranslateUI();
   syncSubtitlePrimaryAction();
 }
 
@@ -23383,10 +23996,10 @@ if ($('makeTransBtn')) {
       logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
       return;
     }
-    // Fark incelemesi yalnız "Tamamını yeni modelle çevir" işine aittir; normal
-    // çeviri/eksik tamamlama önceki (belki başarısız) yeniden çevirinin anlık
-    // görüntüsünü devralmasın.
-    if (!state.forceRetranslate) state.retranslateSnapshot = null;
+    // Fark incelemesi yalnız "Tamamını yeni modelle çevir" ve aralık-kısıtlı
+    // yeniden çeviri işlerine aittir; normal çeviri/eksik tamamlama önceki
+    // (belki başarısız) yeniden çevirinin anlık görüntüsünü devralmasın.
+    if (!state.forceRetranslate && !state.translateCueRange) state.retranslateSnapshot = null;
     const sourcePrimary = player.subRole === 'source' && player.subPath && player.cues.length;
     const sourcePath = sourcePrimary ? player.subPath
       : (player.sub2Role === 'source' && player.sub2Path && player.cues2.length ? player.sub2Path : '');
@@ -23414,6 +24027,14 @@ if ($('makeTransBtn')) {
       : (player.subRole === 'translation' ? player.subPath
         : player.sub2Role === 'translation' ? player.sub2Path : '');
     if (existingTranslation && !state.forceRetranslate) opts.translateExisting = existingTranslation;
+    // Aralık-kısıtlı yeniden çeviri: yalnız bu saniye aralığıyla kesişen
+    // bloklar yeniden üretilir; aralık dışı mevcut çeviri/kaynakla korunur.
+    if (state.translateCueRange) {
+      opts.translateCueRange = state.translateCueRange;
+      if (!opts.translateExisting && existingTranslation) opts.translateExisting = existingTranslation;
+    }
+    if (state.translateVariantLabel) opts.translateVariantLabel = state.translateVariantLabel;
+    if (state.translateModelOverride) opts.translateModel = state.translateModelOverride;
     const browserLanguage = browserTrackSourceLanguage(browserTrack);
     // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa
@@ -23422,6 +24043,10 @@ if ($('makeTransBtn')) {
     const problem = optsProblem(opts);
     if (problem) {
       state.forceRetranslate = false;
+      state.translateCueRange = null;
+      state.translateModelOverride = null;
+      state.translateVariantLabel = null;
+      if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
       logLine(problem, 'error'); setSettingsDrawer(true); return;
     }
 
@@ -23450,7 +24075,11 @@ if ($('makeTransBtn')) {
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
     const r = await startTranscribeSafe(opts);
     state.forceRetranslate = false;
+    state.translateCueRange = null;
+    state.translateModelOverride = null;
+    state.translateVariantLabel = null;
     if (!r || !r.ok) {
+      if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
       state.running = false;
       player.job = null;
       state.outputFiles = previousOutputs;
@@ -23482,6 +24111,32 @@ if ($('retranslateAllBtn')) {
     $('makeTransBtn').click();
     if (!state.running) { state.forceRetranslate = false; state.retranslateSnapshot = null; }
   });
+}
+
+// Madde 11 — yalnız seçili aralığı yeniden çevir.
+if ($('retranslateRangeBtn')) {
+  $('retranslateRangeBtn').addEventListener('click', async () => {
+    const range = timelineRangeSeconds();
+    if (!range) { logLine(uiText('Zaman çizelgesinde Shift+tık ile aralık seçin.'), 'warn'); return; }
+    const accepted = await openAppDialog({
+      title: uiText('Seçili aralığı yeniden çevir'),
+      description: uiText(`${range.count} blok (${pSecToTime(range.lo)}–${pSecToTime(range.hi)}) seçili modelle yeniden çevrilecek. Aralık dışı satırlar ve elle düzenlemeler korunur; sonuç fark olarak gösterilir.`),
+      confirmLabel: uiText('Aralığı çevir'), intent: 'primary',
+    });
+    if (!accepted) return;
+    void startRangeRetranslate(range);
+  });
+}
+
+// Madde 13 — aynı aralığı iki yapılandırmayla üretip kör karşılaştır.
+if ($('abCompareBtn')) {
+  $('abCompareBtn').addEventListener('click', () => {
+    void runAbCompare();
+  });
+}
+
+if ($('timelineRangeClear')) {
+  $('timelineRangeClear').addEventListener('click', timelineClearRange);
 }
 
 if ($('exportTranslationBtn')) {

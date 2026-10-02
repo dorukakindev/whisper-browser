@@ -99,8 +99,10 @@ test('kuyruk-50/5: kelime-diff değişen anlamı satır içinde işaretler', () 
   assert.ok(renderer.includes('`diff-${kind}`'));
 });
 
-test('yeniden çeviri anlık görüntüsü yalnız "tamamını yenile" işine ait', () => {
-  assert.match(renderer, /if \(!state\.forceRetranslate\) state\.retranslateSnapshot = null;/);
+test('yeniden çeviri anlık görüntüsü yalnız yeniden-çeviri işlerine ait', () => {
+  // Anlık görüntü "tamamını yenile" VE aralık yeniden çevirisi için korunur;
+  // kalan işlerde sıfırlanır (madde 11 — aralık farkı da aynı review'e düşer).
+  assert.match(renderer, /if \(!state\.forceRetranslate && !state\.translateCueRange\) state\.retranslateSnapshot = null;/);
   assert.match(renderer, /void openRetranslationReview\(snapshot\.cues\)/);
   assert.match(renderer, /const canRevert = \/\\\.srt\$\/i\.test\(channel\.path\)/, 'VTT/ASS dosyasına SRT yazılmamalı');
 });

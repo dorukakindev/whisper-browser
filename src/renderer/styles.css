@@ -6898,6 +6898,39 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   font-style: normal;
 }
 .retranslate-review-missing { grid-template-columns: auto 64px minmax(0,1fr); }
+/* Kalite uyarısı / A/B inceleme satırları: meta + yan yana metin parçaları. */
+.quality-issue-detail .retranslate-review-row,
+.ab-review .retranslate-review-row { grid-template-columns: minmax(0,1fr); cursor: default; }
+.retranslate-review-meta { color: var(--text-muted); font: 11px/1.6 var(--font-mono, Consolas, monospace); }
+.retranslate-review-parts { display: grid; gap: 8px; }
+.ab-review-parts { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.retranslate-review-part small {
+  display: block; color: var(--text-muted); font-size: 10px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; margin-bottom: 2px;
+}
+.retranslate-review-part span { display: block; font-size: 13px; line-height: 1.45; }
+.retranslate-review-more { padding: 8px 6px; color: var(--text-dim); font-size: 12px; }
+.ab-review-rating {
+  display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 18px 0;
+}
+.ab-review-axis { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ab-review-axis select { width: auto; min-width: 0; }
+/* İnceleme merkezi — tıklanabilir kalite uyarısı satırı. */
+.review-item-actionable { cursor: pointer; }
+.review-item-actionable:hover,
+.review-item-actionable:focus-visible { background: var(--bg-3); outline: none; }
+.review-item-actionable:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+/* Sözlük kapsam sekmesi + çakışma rozeti. */
+.glossary-scope { display: flex; gap: 6px; margin-top: 10px; }
+.glossary-scope-btn {
+  flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer;
+}
+.glossary-scope-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.glossary-scope-btn:disabled { opacity: .45; cursor: not-allowed; }
+.glossary-conflict {
+  color: var(--warning); font-size: 10px; font-style: normal; font-weight: 600;
+}
 .retranslate-review-added { grid-template-columns: auto 64px minmax(0,1fr); }
 .retranslate-review-missing .retranslate-review-before {
   color: var(--text-dim); font-style: italic; text-decoration: none;
