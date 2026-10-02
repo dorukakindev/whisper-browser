@@ -19299,6 +19299,68 @@ ipcMain.handle('subs:shift', async (_event, filePath, offsetSec) => {
   }
 });
 
+// Madde 10 — kaydedilmemiş zamanlama düzenlemesi kurtarma kaydı.
+// Panel bellek-içi çalışır; "kopya kaydet" yapılmadan uygulama çökerse
+// düzenlemeler kaybolur. Kayıt userData/timeline-recovery.json'a
+// {sourceKey → {baseSig, cues, savedAt}} olarak atomik yazılır; aynı kaynak
+// yeniden açıldığında mevcut cue'lar baseSig ile karşılaştırılır.
+function timelineRecoveryPath() {
+  return path.join(app.getPath('userData'), 'timeline-recovery.json');
+}
+function readTimelineRecovery() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(timelineRecoveryPath(), 'utf-8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    return raw.records && typeof raw.records === 'object' ? raw.records : {};
+  } catch (_) { return {}; }
+}
+ipcMain.handle('timeline:recovery', (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const action = String(payload.action || '');
+  const sourceKey = String(payload.sourceKey || '').slice(0, 1024);
+  if (!sourceKey) return { ok: false, error: 'Kaynak kimliği eksik.' };
+  try {
+    const records = readTimelineRecovery();
+    if (action === 'get') {
+      const rec = records[sourceKey] || null;
+      return { ok: true, record: rec };
+    }
+    if (action === 'save') {
+      const cues = Array.isArray(payload.cues) ? payload.cues : null;
+      const baseSig = String(payload.baseSig || '');
+      if (!cues || cues.length > 50000 || !baseSig) {
+        return { ok: false, error: 'Geçersiz kurtarma kaydı.' };
+      }
+      records[sourceKey] = {
+        baseSig, savedAt: Date.now(),
+        cues: cues.map((c) => ({
+          start: Number(c?.start) || 0, end: Number(c?.end) || 0,
+          text: String(c?.text ?? '').slice(0, 4000),
+        })).slice(0, 50000),
+      };
+      // Kayıt çok fazla kaynak biriktirmesin: en eski 20 üzeri atılır.
+      const keys = Object.keys(records);
+      if (keys.length > 20) {
+        for (const key of keys
+          .sort((a, b) => (records[a].savedAt || 0) - (records[b].savedAt || 0))
+          .slice(0, keys.length - 20)) delete records[key];
+      }
+      writeJsonAtomic(timelineRecoveryPath(), { version: 1, records });
+      return { ok: true };
+    }
+    if (action === 'clear') {
+      if (sourceKey in records) {
+        delete records[sourceKey];
+        writeJsonAtomic(timelineRecoveryPath(), { version: 1, records });
+      }
+      return { ok: true };
+    }
+    return { ok: false, error: 'Bilinmeyen işlem.' };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 // ---- Altyazıyı videoya göm (ffmpeg burn-in) ----
 // subtitles filtresi argümanı: yolu tek tırnağa al (boşluk + sürücü iki noktası güvenli),
 // backslash→slash çevir, içerideki tek tırnağı kaçışla. argv ile geçildiği için shell kaçışı gerekmez.

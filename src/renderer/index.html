@@ -3253,6 +3253,7 @@
             <button class="tool-button" id="timelineForward">+100 ms</button>
             <button class="tool-button" id="timelineSplit">Oynatma noktasında böl</button>
             <button class="tool-button" id="timelineMerge">Sonrakiyle birleştir</button>
+            <button class="tool-button" id="timelineListen" title="Seçili bloğun aralığını dinle">Seçiliyi dinle</button>
           </div>
           <div class="timeline-group timeline-group-end">
             <label>Görünüm
@@ -3270,6 +3271,7 @@
         <div class="timeline-canvas-wrap">
           <canvas id="timelineCanvas" tabindex="0" aria-label="Altyazı zamanlaması: yukarı/aşağı ile blok seç, sağ/sol ile 100 ms kaydır, Enter ile oynatma konumuna git"></canvas>
           <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür.</div>
+          <div class="timeline-issues hidden" id="timelineIssues" role="group" aria-label="Altyazı sorunları"></div>
         </div>
       </section>
     </div>
@@ -3483,6 +3485,7 @@
 
 <script src="ui-locale.js"></script>
 <script src="status-copy.js"></script>
+<script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
 <script src="media-catalog.js"></script>
