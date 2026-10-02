@@ -157,7 +157,23 @@ function main() {
   lines.push('');
 
   fs.mkdirSync(path.dirname(OUT_MD), { recursive: true });
-  fs.writeFileSync(OUT_MD, lines.join('\n'), 'utf-8');
+  const next = lines.join('\n');
+  // İçerik değişmediyse mevcut "Oluşturulma" satırını koru — aksi halde her
+  // koşu yeni timestamp ile çalışan ağacı kirletir.
+  if (fs.existsSync(OUT_MD)) {
+    const prev = fs.readFileSync(OUT_MD, 'utf-8');
+    const stripTs = (s) => s.replace(/^Oluşturulma: .*$/m, '');
+    const ts = prev.match(/^Oluşturulma: .*$/m);
+    if (ts && stripTs(prev).trim() === stripTs(next).trim()) {
+      if (process.argv.includes('--json')) {
+        process.stdout.write(JSON.stringify(manifest, null, 2) + '\n');
+        return;
+      }
+      process.stdout.write('OFFLINE-MANIFEST değişmedi — mevcut dosya korundu.\n');
+      return;
+    }
+  }
+  fs.writeFileSync(OUT_MD, next, 'utf-8');
   if (process.argv.includes('--json')) {
     process.stdout.write(JSON.stringify(manifest, null, 2) + '\n');
     return;
