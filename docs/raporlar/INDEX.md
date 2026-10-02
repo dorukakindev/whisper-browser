@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 382 | [BROWSER_BUG_REPORT_382.md](BROWSER_BUG_REPORT_382.md) | Yeni-100 batch 9 — doküman/araç/infra derinleştirme: 2 indeks kayması (not 0255 + rapor 373) + docs-index-integrity ratchet'i |
+| 373 | [BROWSER_BUG_REPORT_373.md](BROWSER_BUG_REPORT_373.md) | 100-kuyruk batch 10 (son): kapanış temizliği (91–100) — indeks onarımları + final suit/smoke kanıtı |
 | 372 | [BROWSER_BUG_REPORT_372.md](BROWSER_BUG_REPORT_372.md) | 100-kuyruk batch 9: Windows hazırlık matrisi (81–90) |
 | 371 | [BROWSER_BUG_REPORT_371.md](BROWSER_BUG_REPORT_371.md) | 100-kuyruk batch 8: doküman/infra senkron |
 | 370 | [BROWSER_BUG_REPORT_370.md](BROWSER_BUG_REPORT_370.md) | 100-kuyruk batch 7: performans |
