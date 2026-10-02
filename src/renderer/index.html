@@ -1147,6 +1147,8 @@
         <div class="player-head-copy">
           <span class="player-eyebrow">WHISPER ALTYAZI <span class="player-eyebrow-dot">/</span> OYNATICI</span>
           <div class="player-title" id="playerTitle" title="Oynatıcı">Oynatıcı</div>
+          <span class="player-series-chip hidden" id="playerSeriesChip" title=""></span>
+          <span class="player-chapter-now hidden" id="playerChapterNow" title=""></span>
           <div class="player-meta" id="playerMeta">Bilingual viewing workspace</div>
         </div>
         <div class="player-workspace-switch" role="tablist" aria-label="İzleme modu">
@@ -2883,6 +2885,8 @@
                     title="Zaman çizelgesinde Shift+tık ile aralık seçip yalnız o satırları yeniden çevir">Seçili aralığı yeniden çevir</button>
                   <button class="btn btn-sm action-button action-button-outline" id="abCompareBtn" role="menuitem" disabled
                     title="Seçili aralığı ana model ve A/B modeliyle ayrı ayrı üretip sağlayıcı adı gizli karşılaştır">A/B kör karşılaştır</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="subCompareBtn" role="menuitem" disabled
+                    title="Birinci ve ikinci kanal altyazıyı zaman üzerinden hizalayıp eksik replik ve kayma farkını gösterir">Altyazıları karşılaştır</button>
                   <button class="btn btn-sm action-button action-button-outline" id="exportTranslationBtn" role="menuitem" disabled
                     title="Yüklü çeviriyi yeniden işlem yapmadan SRT olarak kaydet">Çeviriyi dışa aktar</button>
                 </div>
@@ -3046,6 +3050,7 @@
             <div class="player-panel-title">Altyazı</div>
             <select id="playerSubSelect" aria-label="Altyazı dosyası seçimi"><option value="">Altyazı yok</option></select>
             <button class="btn btn-secondary btn-sm" id="playerPickSub">Altyazı dosyası seç</button>
+            <div class="hint hidden" id="playerLangPrefHint"></div>
             <label class="field hidden" id="playerEmbeddedSubField">
               <span class="field-label">Videodaki gömülü altyazı</span>
               <select id="playerEmbeddedSubSelect"></select>

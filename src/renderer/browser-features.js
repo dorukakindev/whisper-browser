@@ -243,9 +243,12 @@
   function applySkips(result) {
     if (!result) return;
     skipKeys = { mediaKey: result.mediaKey || '', seriesKey: result.seriesKey || '' };
+    // Dizi düzeyinde izleme ayarları (madde 18) aynı seri kimliğine bağlanır.
+    player.browserSeriesKey = result.seriesKey || '';
     skipRecords = window.WhisperBrowserSkipSegments.normalizeRecords(result.records).filter((record) =>
       record.scope === 'media' ? record.scopeKey === skipKeys.mediaKey : record.scopeKey === skipKeys.seriesKey);
     skipState = {}; candidateKey = ''; renderSkips();
+    if (typeof updateSeriesChip === 'function') updateSeriesChip();
   }
   async function listSkips() {
     const result = await call('skip-list');
@@ -280,6 +283,8 @@
     if (key !== contextKey) {
       contextKey = key; sequence++; setBusy(false); frameImage = null; skipRecords = []; skipState = {}; candidateKey = '';
       skipKeys = { mediaKey: '', seriesKey: '' };
+      player.browserSeriesKey = '';
+      if (typeof updateSeriesChip === 'function') updateSeriesChip();
       for (const id of ['bfSubtitleResults', 'bfSemanticResults', 'bfOcrFrame', 'bfOcrResult', 'bfScenes', 'bfSkipRecords', 'bfSkipCandidate']) clear($(id));
       $('bfOcrFrame').classList.remove('bf-has-image');
       $('bfTitle').value = ctx ? String(player.browserPageTitle || '').slice(0, 160) : '';
