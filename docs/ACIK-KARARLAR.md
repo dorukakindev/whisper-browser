@@ -3,7 +3,8 @@
 Devin Review ve el-kontrol turlarında `needs_human` işaretlenen / kullanıcı
 kararı bekleyen maddelerin tek çatı listesi. Yeni bir `needs_human`
 raporlandığında buraya eklenir; kullanıcı karar verdiğinde madde "Kapandı"
-bölümüne taşınır. Son güncelleme: 2026-10-01 (R332).
+bölümüne taşınır. Son güncelleme: 2026-10-02 (batch 10 doğrulaması —
+10 açık madde hâlâ geçerli, yeni needs_human yok).
 
 ## Kullanıcı kararı bekleyenler
 

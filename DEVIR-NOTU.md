@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.md) — 100-kuyruk batch 9: Windows hazırlık matrisi — renameSync dayanıklılığı (40 nokta) + kanonik yol eşleşmesi, 2 kusur (rapor 372)
+Güncel çalışma: [docs/devir/2026-10-02-0104.md](docs/devir/2026-10-02-0104.md) — 100-kuyruk batch 10 (SON): kapanış temizliği — 5 indeks/belge onarımı + burnin smoke ffmpeg-pid düzeltmesi, 57/57 smoke (rapor 373)
+Önceki çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.md) — 100-kuyruk batch 9: Windows hazırlık matrisi — renameSync dayanıklılığı (40 nokta) + kanonik yol eşleşmesi, 2 kusur (rapor 372)
 Önceki çalışma: [docs/devir/2026-10-02-0055.md](docs/devir/2026-10-02-0055.md) — 100-kuyruk batch 8: doküman/infra senkron — INDEX 330/330 + IPC katalog 223+12 + sayaçlar (rapor 371)
 Önceki çalışma: [docs/devir/2026-10-02-0030.md](docs/devir/2026-10-02-0030.md) — 100-kuyruk batch 7: performans — translatePattern memo + sıcak-yol bütçe ratchet'i, 11 kontrol (rapor 370)
 Önceki çalışma: [docs/devir/2026-10-02-0010.md](docs/devir/2026-10-02-0010.md) — 100-kuyruk batch 6: kuyruk yaşam döngüsü — üç-yazıcılı interleaving + invariant kilitleri, 10 kontrol (rapor 369)
@@ -41,7 +42,7 @@ Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.m
 Önceki çalışma: [docs/devir/2026-10-01-1948.md](docs/devir/2026-10-01-1948.md) — kuyruk-50 madde 19: takılma teşhis paneli (yerel oynatıcı kare düşüşü + buffer + çizim maliyeti)
 Önceki çalışma: [docs/devir/2026-10-01-1940.md](docs/devir/2026-10-01-1940.md) — kuyruk-50 madde 18: parça bazlı senkron profilleri (offsetProfiles + offset2)
 Önceki çalışma: [docs/devir/2026-10-01-1931.md](docs/devir/2026-10-01-1931.md) — kuyruk-50 madde 17: kaynak/hedef ortak arama dizini (n-gram, ~100-1000x)
-Önceki çalışma: [docs/devir/2026-10-01-1934.md](docs/devir/2026-10-01-1934.md) — kuyruk-50 madde 16: findCueAt seek indeksi
+Önceki çalışma: [docs/devir/2026-10-01-1925.md](docs/devir/2026-10-01-1925.md) — kuyruk-50 madde 16: findCueAt seek indeksi
 Önceki çalışma: [docs/devir/2026-10-01-1921.md](docs/devir/2026-10-01-1921.md) — kuyruk-50 madde 15: konuşmacı düzeltme akışı
 Önceki çalışma: [docs/devir/2026-10-01-1914.md](docs/devir/2026-10-01-1914.md) — kuyruk-50 madde 14: ortak VRAM bütçesi + akış OOM sınıflandırması
 Önceki çalışma: [docs/devir/2026-10-01-1907.md](docs/devir/2026-10-01-1907.md) — kuyruk-50 madde 13: checkpoint/resume denetimi (makine zaten kurulu) + detected_language normalize + hostile-read ratchet
@@ -52,10 +53,12 @@ Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.m
 Önceki çalışma: [docs/devir/2026-10-01-1829.md](docs/devir/2026-10-01-1829.md) — kuyruk-50 madde 8: toplu düzenleme geçmişi — iki paralel yığının disk/bellek uyuşmazlığı giderildi (engel + görünür sıfırlama)
 Önceki çalışma: [docs/devir/2026-10-01-1813.md](docs/devir/2026-10-01-1813.md) — kuyruk-50 madde 7: okuma hızına göre dağıtım (CPS kapasitesi + cümle-sonu önceliği; en kötü CPS 30→22)
 Önceki çalışma: [docs/devir/2026-10-01-2200.md](docs/devir/2026-10-01-2200.md) — kuyruk-50 madde 6: çok noktalı senkron (least-squares + LOO outlier + güven göstergesi)
+Önceki çalışma: [docs/devir/2026-10-01-1804.md](docs/devir/2026-10-01-1804.md) — kuyruk-50 madde 6: çok noktalı senkron (uygulama notu)
 Önceki çalışma: [docs/devir/2026-10-01-1756.md](docs/devir/2026-10-01-1756.md) — kuyruk-50 madde 5: çeviri değişiklik karşılaştırıcısı (eksik/yeni bölümleri + kelime-diff + terim rozeti + üç-sınıf güvenli kabul)
 Önceki çalışma: [docs/devir/2026-10-01-1748.md](docs/devir/2026-10-01-1748.md) — kuyruk-50 madde 4: uyarlanabilir çeviri planlayıcısı (tembel paketleme + sınırlı inflight + token tavanı öğrenme)
 Önceki çalışma: [docs/devir/2026-10-01-2130.md](docs/devir/2026-10-01-2130.md) — kuyruk-50 madde 3: anlam kaybı korpusu (120 vaka, CC0) + modal/negation blocking promosyonu — FR 0, gatable FA 44→3
 Önceki çalışma: [docs/devir/2026-10-01-2100.md](docs/devir/2026-10-01-2100.md) — 20'lik kullanım kuyruğu yeniden doğrulaması: 1 bulgu (ELECTRON_COMMIT pin eskimesi — düzeltildi) + ~30 test/13 smoke yeşil
+Önceki çalışma: [docs/devir/2026-10-01-1655.md](docs/devir/2026-10-01-1655.md) — kuyruk-50 madde 2: özel ad tutarlılığı
 Önceki çalışma: [docs/devir/2026-10-01-1545.md](docs/devir/2026-10-01-1545.md) — Doğrulama kuyruğu tur-2 kapanışı (madde 8–20): 4 kusur düzeltildi (css token 430, for= label, 5-installer docs, indeks 505/505) + electron 43.5.0+wvcus; kalan maddeler temiz
 Önceki çalışma: [docs/devir/2026-10-01-1151.md](docs/devir/2026-10-01-1151.md) — R413b: stub kapsamı preload'lu 2 smoke'a daraltıldı (preload'suz 7'si ölü koddu)
 Önceki çalışma: [docs/devir/2026-10-01-1143.md](docs/devir/2026-10-01-1143.md) — R413 smoke stderr gürültüsü: bare-window smoke'lara paylaşımlı IPC stub'ı (13 kanal)
@@ -70,7 +73,8 @@ Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.m
 Önceki çalışma: [docs/devir/2026-10-01-1021.md](docs/devir/2026-10-01-1021.md) — R384–R386 derin okuma: 'Ctrl+Manga' ipucu fix; page-translate/manga/sentence_translation temiz
 Önceki çalışma: [docs/devir/2026-10-01-1016.md](docs/devir/2026-10-01-1016.md) — R379–R382 derin okuma: VTT meta-blok sahte cue fix, onState izolasyonu (whenIdle takılma), ui-locale kazanan pinlemeleri; 9 dosya temiz
 Önceki çalışma: [docs/devir/2026-10-01-2030.md](docs/devir/2026-10-01-2030.md) — R402–R407 kuyruk maddeleri 15–20: hesap geçişi kilidi, medya relink akışı, PDF retry sayfa koruması, manga bölge invariants, kurulum tanıları, Türkçe-yol URL — KUYRUK TAMAM
-Önceki çalışma: [docs/devir/2026-10-01-1952.md](docs/devir/2026-10-01-1952.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
+Önceki çalışma: [docs/devir/2026-10-01-2000.md](docs/devir/2026-10-01-2000.md) — R398–R401 kuyruk maddeleri 11–14: bayat eksik-çeviri sayacı, canlı HLS kilitleri, 'Yarım kaldı' rozeti, kuyruk ↑/↓ sıralama
+Önceki çalışma: [docs/devir/2026-10-01-1956.md](docs/devir/2026-10-01-1956.md) — kuyruk-50 madde 21: adapter uyumluluk paketi
 Önceki çalışma: [docs/devir/2026-10-01-1930.md](docs/devir/2026-10-01-1930.md) — R395–R397 kuyruk maddeleri 8–10: kayıt-hatası taslak korunması, çeviri-iptali bekçileri, ağ kesintisi sözleşme kilitleri
 Önceki çalışma: [docs/devir/2026-10-01-1900.md](docs/devir/2026-10-01-1900.md) — R394 kuyruk-g7 büyük transkript: 8000 cue'da renderCue 36→0.8ms, arama 88→19ms (foldIndexCached + cueMetaStats) + cue-list-perf.test.js
 Önceki çalışma: [docs/devir/2026-10-01-1830.md](docs/devir/2026-10-01-1830.md) — R393 kuyruk-g6 çift altyazı: 4 kusur düzeltildi (auto-fit metin küçültme, max(13%,120px) kontrol rezervi, ayrı-sürükleme kelepçesi) + electron-subtitle-overlap smoke'u
@@ -86,6 +90,7 @@ Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.m
 Önceki çalışma: [docs/devir/2026-10-01-1330.md](docs/devir/2026-10-01-1330.md) — R352 main.js bakiye derin okuması 8: ~930 satır (manga hattı) — sıfır kusur, KAPSAM TAMAM
 Önceki çalışma: [docs/devir/2026-10-01-1300.md](docs/devir/2026-10-01-1300.md) — R351 main.js bakiye derin okuması 7: ~770 satır (spawn/CDP attach/capture IPC) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1230.md](docs/devir/2026-10-01-1230.md) — R350 main.js bakiye derin okuması 6: ~995 satır (depo/oturum/pdfProtocol) — sıfır kusur
+Önceki çalışma: [docs/devir/2026-10-01-1215.md](docs/devir/2026-10-01-1215.md) — doğrulama kuyruğu tur-1 (madde 1–7)
 Önceki çalışma: [docs/devir/2026-10-01-1200.md](docs/devir/2026-10-01-1200.md) — R349 main.js bakiye derin okuması 5: ~1.130 satır (popup/nav + medya yardımcı süreçleri) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1130.md](docs/devir/2026-10-01-1130.md) — R348 main.js bakiye derin okuması 4: ~1.460 satır (yoklama/live-ASR/capture) — sıfır kusur
 Önceki çalışma: [docs/devir/2026-10-01-1100.md](docs/devir/2026-10-01-1100.md) — R347 main.js bakiye derin okuması 3: ~1.980 satır (IPC dayanıklılık yüzeyi) — sıfır kusur
