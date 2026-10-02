@@ -94,6 +94,19 @@ test('yerleşim: boş sekme gizlenince ekran dışına iner, sayfalı sekme yuva
   assert.equal(idle.view.visible, false);
 });
 
+// R396: oluşturma yolu aynı ailenin kalan deliğiydi — bounds'suz yeni view
+// tam pencere kaplıyor; Windows HWND'i setVisible(false) ile işaretçi
+// testinden düşmediği için boş-sekme yüzeyi ölü kalıyordu. addChildView
+// hemen sonrası offscreen taşıma zorunlu.
+test('oluşturma yolu: addChildView sonrası görünüm ekran dışına taşınır', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const add = source.indexOf('mainWindow.contentView.addChildView(view)');
+  assert.ok(add > 0, 'ensureBrowserView addChildView bulunamadı');
+  const hide = source.indexOf('hideBrowserViewOffscreen(view)', add);
+  assert.ok(hide > add && hide - add < 600,
+    'addChildView hemen sonrası hideBrowserViewOffscreen çağrısı beklenir');
+});
+
 test('bozulmuş webContents dokunulmaz', () => {
   const { context } = makeContext();
   const dead = makeView();

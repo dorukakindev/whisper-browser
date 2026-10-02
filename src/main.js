@@ -13258,6 +13258,10 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   view.setBackgroundColor('#ffffff');
   view.setVisible(false);
   mainWindow.contentView.addChildView(view);
+  // Yeni view bounds'suz tam pencere kaplıyor; setVisible(false) Windows'ta
+  // HWND'i işaretçi testinden düşürmediği için boş-sekme yüzeyi ölüyordu.
+  // Layout gösterene dek ekran dışına taşı.
+  hideBrowserViewOffscreen(view);
   const wc = view.webContents;
   installBrowserContextMenu(tab, wc);
   // WebContentsView odaktayken klavye olayları uygulama renderer'ına ulaşmaz.
