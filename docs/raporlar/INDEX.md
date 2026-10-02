@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 395 | [BROWSER_BUG_REPORT_395.md](BROWSER_BUG_REPORT_395.md) | yeni master denetimi + dar panel native görünürlük yarışı (numara yarışı: 241→300→393→395) |
+| 394 | [BROWSER_BUG_REPORT_394.md](BROWSER_BUG_REPORT_394.md) | Windows senkron sonrası tam-suit envanteri — 29 kırmızı sınıflandırması (merge drift'i vs ortam) |
 | 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |
 | 392 | [BROWSER_BUG_REPORT_392.md](BROWSER_BUG_REPORT_392.md) | 50-kuyruk batch 9+10 — veri koruma (yedekleme, dış-değişiklik, disk, çevrimdışı, kurtarma merkezi) + kurulum/sürüm (yükseltme yedeği, çevrimdışı manifest, güncelleme ön kontrolü, Windows rehberi, RC teslimi) |
 | 391 | [BROWSER_BUG_REPORT_391.md](BROWSER_BUG_REPORT_391.md) | 50-kuyruk batch 8 — PDF/manga: çift-görünüm vurgusu, tablo belirsizliği, sayfa seçimi, manga OCR düzeltme + tek-bölge retranslate, düzeltme koruması |
