@@ -343,3 +343,4 @@ tarih sırasıyla dosya adından okunur.
 | 234 | [BROWSER_BUG_REPORT_234.md](BROWSER_BUG_REPORT_234.md) | R285 — nextCueBoundaryAt JSDoc sözleşmesi + birim stresi |
 | 240 | [BROWSER_BUG_REPORT_240.md](BROWSER_BUG_REPORT_240.md) | Devin yeniliklerinin yerel kabulü ve master bütünleştirmesi (eski yerel R178/R225) |
 | 241 | [BROWSER_BUG_REPORT_241.md](BROWSER_BUG_REPORT_241.md) | Güncel master denetimi ve dar panel native görünürlük yarışı |
+| 374 | [BROWSER_BUG_REPORT_374.md](BROWSER_BUG_REPORT_374.md) | Yeni-100 batch 1 — E2E yolculuklar: 3 yeni smoke (tam akış, kuyruk iptali, PDF iptal/devam) + 7 maddede kapsam kanıtı |

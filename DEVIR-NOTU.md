@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-02-0104.md](docs/devir/2026-10-02-0104.md) — 100-kuyruk batch 10 (SON): kapanış temizliği — 5 indeks/belge onarımı + burnin smoke ffmpeg-pid düzeltmesi, 57/57 smoke (rapor 373)
+Güncel çalışma: [docs/devir/2026-10-02-0124.md](docs/devir/2026-10-02-0124.md) — Yeni-100 batch 1: E2E yolculuklar — 3 yeni smoke (tam akış, kuyruk iptali, PDF iptal/devam), 7 madde kapsam kanıtı (rapor 374)
+Önceki çalışma: [docs/devir/2026-10-02-0104.md](docs/devir/2026-10-02-0104.md) — 100-kuyruk batch 10 (SON): kapanış temizliği — 5 indeks/belge onarımı + burnin smoke ffmpeg-pid düzeltmesi, 57/57 smoke (rapor 373)
 Önceki çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.md) — 100-kuyruk batch 9: Windows hazırlık matrisi — renameSync dayanıklılığı (40 nokta) + kanonik yol eşleşmesi, 2 kusur (rapor 372)
 Önceki çalışma: [docs/devir/2026-10-02-0055.md](docs/devir/2026-10-02-0055.md) — 100-kuyruk batch 8: doküman/infra senkron — INDEX 330/330 + IPC katalog 223+12 + sayaçlar (rapor 371)
 Önceki çalışma: [docs/devir/2026-10-02-0030.md](docs/devir/2026-10-02-0030.md) — 100-kuyruk batch 7: performans — translatePattern memo + sıcak-yol bütçe ratchet'i, 11 kontrol (rapor 370)
