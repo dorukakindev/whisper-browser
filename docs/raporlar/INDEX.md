@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 387 | [BROWSER_BUG_REPORT_387.md](BROWSER_BUG_REPORT_387.md) | 50-kuyruk batch 4 — izleme: altyazı karşılaştırma, dil tercihi, dizi ayarları, bölüm–transkript bağlantısı, klasör medya–altyazı eşleştirme |
 | 386 | [BROWSER_BUG_REPORT_386.md](BROWSER_BUG_REPORT_386.md) | 50-kuyruk batch 3 — çeviri inceleme: aralıklı yeniden çeviri, proje sözlüğü, kör A/B, maliyet görünümü, kalite uyarı paneli |
 | 385 | [BROWSER_BUG_REPORT_385.md](BROWSER_BUG_REPORT_385.md) | 50'lik kuyruk batch 2 — altyazı editörü: dalga biçimi timeline + CPS haritası + sorunlar paneli + kurtarma kaydı, canlı CDP doğrulandı |
 | 383 | [BROWSER_BUG_REPORT_383.md](BROWSER_BUG_REPORT_383.md) | Yeni-100 batch 10 (SON) — kapanış süpürmesi: bayat test regex'i + açık-karar onarımı + tam paket/61-smoke kanıtı + kampanya özeti |
@@ -357,3 +358,6 @@ tarih sırasıyla dosya adından okunur.
 | 380 | [BROWSER_BUG_REPORT_380.md](BROWSER_BUG_REPORT_380.md) | Yeni-100 batch 7 — performans/bellek derinleştirme: posterCache 300 FIFO + favicon tek-bounded-yol, ~17 koleksiyon tavan kanıtı |
 | 381 | [BROWSER_BUG_REPORT_381.md](BROWSER_BUG_REPORT_381.md) | Yeni-100 batch 8 — güvenlik/mahremiyet derinleştirme: iş günlüğü endpoint redaksiyonu + endpoint userinfo soyma, 8 yüzey doğrulandı |
 | 384 | [BROWSER_BUG_REPORT_384.md](BROWSER_BUG_REPORT_384.md) | 50'lik kuyruk batch 1 — kurtarma i18n + erişilebilirlik denetimi + uzun-film koşusu + yetenek paneli |
+| 385 | [BROWSER_BUG_REPORT_385.md](BROWSER_BUG_REPORT_385.md) | 50'lik kuyruk batch 2 — altyazı editörü: dalga biçimi timeline + CPS haritası + sorunlar paneli + kurtarma kaydı, canlı CDP doğrulandı |
+| 386 | [BROWSER_BUG_REPORT_386.md](BROWSER_BUG_REPORT_386.md) | 50-kuyruk batch 3 — çeviri inceleme: aralıklı yeniden çeviri, proje sözlüğü, kör A/B, maliyet görünümü, kalite uyarı paneli |
+| 387 | [BROWSER_BUG_REPORT_387.md](BROWSER_BUG_REPORT_387.md) | 50-kuyruk batch 4 — izleme: altyazı karşılaştırma, dil tercihi, dizi ayarları, bölüm–transkript bağlantısı, klasör medya–altyazı eşleştirme |
