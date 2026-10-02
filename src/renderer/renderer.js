@@ -338,6 +338,7 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
+    translateLenient: $('translateLenient') ? $('translateLenient').checked : false,
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
@@ -358,7 +359,7 @@ function buildOptsFromUI() {
 function resolveNetBudgetPreset() {
   const H = globalThis.JobTimingHelpers;
   const raw = $('networkBudget') ? $('networkBudget').value : 'full';
-  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 6, pageWorkers: 4 };
+  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 8, pageWorkers: 4 };
 }
 
 // Tekil baslatma ve KUYRUK ayni on kontrollerden gecer. Eskiden kuyruk
@@ -3303,7 +3304,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -5358,6 +5359,19 @@ window.api.onEvent((event) => {
         elapsed: Number(event.elapsed) || 0,
       };
       renderTranslateCost();
+      // Bu işin kendi biçim-bozma oranı eşiği aştıysa kullanıcıya bildir:
+      // yalnızca akan günlükte kalmasın (arka plandayken OS bildirimi,
+      // odakta iken iş-bitim uyarıları warn_list üzerinden zaten gelir).
+      if (event.unhealthy && event.model) {
+        const _b = Number(event.batches) || 0;
+        const _pct = _b ? Math.round(100 * (Number(event.invalid_batches) || 0) / _b) : 0;
+        notifyDone(
+          interfaceChoice('Çeviri modeli sağlıksız yanıt üretiyor',
+            'Translation model is producing broken replies'),
+          interfaceChoice(
+            `${event.model}: toplu yanıtların %${_pct}'i geçersiz — daha kararlı bir modele geçmek maliyeti düşürür.`,
+            `${event.model}: ${_pct}% of batch replies were invalid — switching to a more stable model lowers the cost.`));
+      }
       break;
     }
     case 'llm_progress': {

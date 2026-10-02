@@ -1,4 +1,7 @@
 Güncel çalışma: [docs/devir/2026-10-02-2020.md](docs/devir/2026-10-02-2020.md) — oynatıcı Whisper işi tek geçiş: aşamalı pencere planı (indirme+model+çeviri çift maliyeti) kaldırıldı
+Önceki çalışma: [docs/devir/2026-10-02-1951.md](docs/devir/2026-10-02-1951.md) — sağlıksız çeviri modeli bildirime bağlandı (translation_quality.unhealthy + warn_list) + 4sapi/gemini-3.8-flash canlı doğrulama
+Önceki çalışma: [docs/devir/2026-10-02-1921.md](docs/devir/2026-10-02-1921.md) — çeviri paralellik tavanı 6→8: dört ayrı kelepçe (preset + budgetWorkerCap + browserTranslationConfig + canlı scheduler) + stderr-tail günlüklemesi
+Önceki çalışma: [docs/devir/2026-10-02-2003.md](docs/devir/2026-10-02-2003.md) — çeviri gevşek-kabul modu: kalite kapıları reddetmez, şüpheli satırlar yazılır ama önbellek/TM'e girmez (--translate-lenient)
 Önceki çalışma: [docs/devir/2026-10-02-1415.md](docs/devir/2026-10-02-1415.md) — çeviri girişi rolling-window kaynak tekilleştirme: 120→71 blok, echo ret'leri 13→4 (rapor 402)
 Önceki çalışma: [docs/devir/2026-10-02-1335.md](docs/devir/2026-10-02-1335.md) — anlam kapıları yanlış-pozitif turu: olumsuz modal maskesi + çekimli olumsuzluk/-AbIl biçimleri + could-you istekleri (rapor 401)
 Önceki çalışma: [docs/devir/2026-10-02-1245.md](docs/devir/2026-10-02-1245.md) — çeviri kalite kapıları yanlış-pozitif turu: canlı korpus ölçümü + 4 kök düzeltme (sonda-nokta ayrımı, 'bir' tail, window-tekrarı, caseless ad) (rapor 400)

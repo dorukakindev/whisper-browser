@@ -963,6 +963,9 @@ function writeJobLog(event) {
     }
     case 'exit':
       line = `[${t}] SÜREÇ KAPANDI (kod ${event.code})`;
+      if (event.stderr && String(event.stderr).trim()) {
+        line += `\n         stderr: ${String(event.stderr).trim()}`;
+      }
       break;
     default:
       line = `[${t}] ${event.type}`;
@@ -6317,7 +6320,7 @@ function browserTranslationConfig(overrides = {}) {
     sourceLanguage: /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(requestedSourceLanguage) ? requestedSourceLanguage : '',
     register: String(overrides.register || ui.translateRegister || 'documentary').slice(0, 32),
     profanity: String(overrides.profanity || ui.translateProfanity || 'medium').slice(0, 32),
-    workers: Math.max(1, Math.min(6, Number(ui.translateWorkers) || 2)),
+    workers: Math.max(1, Math.min(8, Number(ui.translateWorkers) || 2)),
     glossary: (Array.isArray(settings.glossary) ? settings.glossary : []).slice(0, 200),
     terminologyEnabled: Boolean(overrides.terminologyEnabled || ui.browserTerminologyEnabled),
   };
@@ -19032,12 +19035,12 @@ ipcMain.handle('cache:clear', async (event, input = {}) => {
 // sürmekte olan scheduler'lara da CANLI uygulanır (pump her turda maxConcurrent
 // okur). Bilinmeyen değerler dengeliye düşer.
 function applyNetBudgetToSchedulers(budget) {
-  const preset = { full: 0, balanced: 3, saver: 1 }[budget] ?? 3;
+  const preset = { full: 8, balanced: 3, saver: 1 }[budget] ?? 3;
   let touched = 0;
   for (const tab of browserTabs.values()) {
     for (const sched of [tab?.translationScheduler, tab?.pageTranslateJob?.scheduler]) {
       if (sched && typeof sched.maxConcurrent === 'number') {
-        sched.maxConcurrent = Math.max(1, Math.min(6, preset || 6));
+        sched.maxConcurrent = Math.max(1, Math.min(8, preset));
         touched += 1;
       }
     }
@@ -20821,6 +20824,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!options.chat && options.translateRegister) pushBoundOption(args, '--translate-register', options.translateRegister);
   if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
+  // Gevşek kabul: kalite kapıları backend'de atlanır; yalnız açıkken gönderilir
+  // (varsayılan sıkı denetim — bayrağın yokluğu eski davranışla birebir aynı).
+  if (!options.chat && options.translateLenient) args.push('--translate-lenient', 'true');
   if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
     pushBoundOption(args, '--translate-context', String(options.translateContext));
   }

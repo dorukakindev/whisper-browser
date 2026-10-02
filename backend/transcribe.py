@@ -4230,6 +4230,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     planner = AdaptivePlanner(base_workers=max(1, args.translate_workers),
                               base_chunk=CHUNK_SIZE)
 
+    # Gevşek mod (--translate-lenient): yapısal kontroller korunur (yoksa yanıt
+    # bloğa eşlenemez); parça/yankı/anlam kalite kapıları reddetmez — modelin
+    # döndürdüğü olduğu gibi yazılır. Kapıya takılan gruplar 'untrusted'
+    # işaretlenir: dosyaya yazılır ama önbelleğe, bulanık hafızaya ve dizi
+    # hafızasına girmez (hatalı/yankı çeviri sonraki işleri zehirlemesin).
+    lenient_mode = bool(getattr(args, "translate_lenient", False))
+    lenient_untrusted = set()
+
     def est_index_tokens(index):
         # İstek gövdesi ~ kaynak metin + bağlam + yanıt payı (kaba est).
         return max(1, len(entries[index][2]) // 3 + 8)
@@ -4408,7 +4416,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     "bilinmeyen_yapisal_ret", 0) + 1
                 continue
             gate_issue = part_gate_issue(group, record['parts'])
-            if gate_issue:
+            if gate_issue and not lenient_mode:
                 key = "part_kapisi_" + gate_issue
                 rejected[key] = rejected.get(key, 0) + 1
                 continue
@@ -4417,14 +4425,15 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # "eksikleri tamamla" çalışması da İngilizce satırı atlar.
             # Yalnız-SDH cue'unda ("[music playing]") işaretin aynen dönmesi
             # yankı değil doğru sonuçtur; ret kurtarma yakıyordu.
-            if (translation_is_source_echo(row['source'], record['text'])
-                    and not is_structural_sdh_cue(row['source'])):
+            is_echo = (translation_is_source_echo(row['source'], record['text'])
+                       and not is_structural_sdh_cue(row['source']))
+            if is_echo and not lenient_mode:
                 rejected["kaynak_yankisi"] = rejected.get("kaynak_yankisi", 0) + 1
                 with lock:
                     echo_seen[group[0]] = echo_seen.get(group[0], 0) + 1
                 continue
             meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
-            if meaning_issues:
+            if meaning_issues and not lenient_mode:
                 for issue in meaning_issues:
                     key = "anlam_" + issue
                     rejected[key] = rejected.get(key, 0) + 1
@@ -4434,7 +4443,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     for index in group:
                         failure_by_index.setdefault(index, "meaning_" + meaning_issues[0])
                 continue
+            untrusted = bool(gate_issue or is_echo or meaning_issues)
             with lock:
+                if untrusted:
+                    lenient_untrusted.add(group[0])
                 for index, part in zip(group, record['parts']):
                     if index not in precompleted_idx:
                         out_texts[index] = part
@@ -4442,14 +4454,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 done_idx.update(group)
                 # Önbellek + bulanık hafıza artık kabul anında sıralanır; iptal
                 # veya çökmede ödenen çeviriler korunur (eskiden yalnız iş
-                # sonunda yazılıyordu).
-                stage_group_cache(group)
-                stage_tm_rows(group)
-                if series_memory and series_key:
-                    candidates = filter_series_memory_candidates(
-                        data.get("memory"), row['source'], record['text'])
-                    if candidates:
-                        memory_candidates.append((group[0], row['source'], candidates))
+                # sonunda yazılıyordu). Gevşek modda kapıya takılan grup
+                # yazılır ama kalıcı depoya girmez — şüpheli metin sonraki
+                # işlere bulaşmasın.
+                if not untrusted:
+                    stage_group_cache(group)
+                    stage_tm_rows(group)
+                    if series_memory and series_key:
+                        candidates = filter_series_memory_candidates(
+                            data.get("memory"), row['source'], record['text'])
+                        if candidates:
+                            memory_candidates.append((group[0], row['source'], candidates))
             filled += len([i for i in group if i not in precompleted_idx])
         note_rejections(rejected)
         if filled == 0:
@@ -4869,9 +4884,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             )
         )
         # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
-        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
+        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir. `unhealthy`
+        # alanı bu işin kendi oranıdır — renderer onu iş bitmeden bildirime
+        # bağlar (kullanıcı günlük sonuna kadar beklemesin diye).
         batch_count = translation_metrics["batch_requests"]
         invalid_count = translation_metrics["invalid_batches"]
+        unhealthy = batch_count >= 2 and invalid_count / batch_count >= 0.25
         emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
              batches=batch_count, invalid_batches=invalid_count,
              fallback_requests=translation_metrics["fallback_requests"],
@@ -4880,11 +4898,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
              completion_chars=translation_metrics["completion_chars"],
              cache_hits=len(cached_idx) + len(precompleted_idx) + len(unchanged_idx),
              elapsed=round(time.time() - translation_metrics["started"], 1),
+             unhealthy=unhealthy,
              rejections=dict(sorted(translation_metrics["rejections"].items())))
-        if batch_count >= 2 and invalid_count / batch_count >= 0.25:
-            log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
-                f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
-                "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
+        if unhealthy:
+            msg = (f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
+                   f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+                   "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.")
+            log(msg, "warn")
+            # warn_list'e de girer: işin 'done' uyarılarında ve kuyruk
+            # özetinde görünür — yalnızca akan günlükte kalmasın.
+            if warn_list is not None:
+                warn_list.append(msg)
 
         if counters["done"] == 0 and not cached_idx:
             # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
@@ -5058,6 +5082,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
         for group in pending_groups + refine_pending_groups:
             if not all(i in done_idx for i in group):
+                continue
+            if group[0] in lenient_untrusted:
                 continue
             stage_group_cache(
                 group,
@@ -9880,6 +9906,10 @@ def main():
                         help="Ceviriyi ikinci gecisle gozden gecir ve iyilestir (2x maliyet)")
     parser.add_argument("--translate-keep-source", type=lambda x: x.lower() == "true", default=True,
                         help="Kaynak dildeki altyaziyi da yaz (kapaliysa yalnizca ceviri yazilir)")
+    parser.add_argument("--translate-lenient", type=lambda x: x.lower() == "true", default=False,
+                        help="Kalite kapilari (parca/yanki/anlam) atlanir; yapisal olarak gecerli "
+                             "yanit oldugu gibi yazilir. Yapilar bozuksa kurtarma yine calisir; "
+                             "kaynak yankilari yazilir ama onbellek/bulanik hafizaya girmez.")
     parser.add_argument("--llm-postprocess", type=lambda x: x.lower() == "true", default=False)
     parser.add_argument("--llm-api-key", default="")
     parser.add_argument("--llm-base-url", default="https://api.deepseek.com",
