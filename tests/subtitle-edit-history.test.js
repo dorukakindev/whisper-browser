@@ -44,7 +44,7 @@ function timelineCtx() {
   const nodes = {};
   const logs = [];
   const player = {
-    timeline: { undo: [], redo: [], drag: null, selected: -1, annotationSnapshot: null },
+    timeline: { undo: [], redo: [], drag: null, selected: -1, annotationSnapshot: null, recovery: null, recoveryTimer: null },
     cues: [], cuesRaw: [],
   };
   const ctx = {
@@ -54,6 +54,8 @@ function timelineCtx() {
     logLine: (m) => logs.push(m),
     renderCueList: () => {}, renderCue: () => {}, drawTimeline: () => {},
     scheduleBrowserOverlaySync: () => {},
+    clearTimeout: () => {},
+    timelineClearRecovery: () => {},
   };
   vm.createContext(ctx);
   vm.runInContext(historySlice

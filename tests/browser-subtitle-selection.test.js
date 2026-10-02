@@ -34,6 +34,7 @@ function harness() {
     updatePlayerAutoSyncState() {}, renderCue() {}, scheduleBrowserOverlaySync() {}, logLine() {},
     updateCueEditHistoryButtons() {}, setSubtitleMode: (mode) => modes.push(mode),
     renderBrowserCueAt() {}, saveActiveBrowserTabWorkspace() {}, invalidateTimelineEdits() {},
+    timelineCheckRecovery: async () => {},
     setBrowserSignal: (message) => signals.push(message),
   };
   vm.createContext(ctx);

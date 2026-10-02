@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 385 | [BROWSER_BUG_REPORT_385.md](BROWSER_BUG_REPORT_385.md) | 50'lik kuyruk batch 2 — altyazı editörü: dalga biçimi timeline + CPS haritası + sorunlar paneli + kurtarma kaydı, canlı CDP doğrulandı |
 | 383 | [BROWSER_BUG_REPORT_383.md](BROWSER_BUG_REPORT_383.md) | Yeni-100 batch 10 (SON) — kapanış süpürmesi: bayat test regex'i + açık-karar onarımı + tam paket/61-smoke kanıtı + kampanya özeti |
 | 382 | [BROWSER_BUG_REPORT_382.md](BROWSER_BUG_REPORT_382.md) | Yeni-100 batch 9 — doküman/araç/infra derinleştirme: 2 indeks kayması (not 0255 + rapor 373) + docs-index-integrity ratchet'i |
 | 373 | [BROWSER_BUG_REPORT_373.md](BROWSER_BUG_REPORT_373.md) | 100-kuyruk batch 10 (son): kapanış temizliği (91–100) — indeks onarımları + final suit/smoke kanıtı |

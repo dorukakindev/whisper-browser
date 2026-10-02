@@ -2938,6 +2938,10 @@ to { opacity: 1; transform: translateY(0); }
 #timelineCanvas:focus-visible { box-shadow: inset 0 0 0 2px rgba(243,189,79,.75); }
 .timeline-help { position: absolute; right: 10px; bottom: 7px; color: var(--text-muted); font-size: 9px; pointer-events: none; }
 .timeline-drawer.dirty #timelineStatus { color: var(--player-amber); }
+.timeline-issues { position: absolute; left: 8px; bottom: 7px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 220px); }
+.timeline-issue-chip { padding: 2px 8px; font: 600 10px/1.5 inherit; color: var(--text-muted); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+.timeline-issue-chip:hover, .timeline-issue-chip:focus-visible { color: var(--text); border-color: var(--accent); outline: none; }
+.timeline-issue-fix { color: var(--player-amber); border-color: rgba(213,163,92,.4); }
 @media (max-width: 1120px) {
 .player-layer { --side-w: 38%; }
 .player-body { grid-template-columns: minmax(0, 1fr) 6px minmax(340px, var(--side-w)); }
