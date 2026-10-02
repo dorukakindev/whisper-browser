@@ -62,7 +62,7 @@ for (const match of staticCopy.matchAll(/(?:title|aria-label|placeholder)="([^"]
 const NEUTRAL = [
   '%', '%100', '%50', '%7', '%86', '+', '+100 ms',
   ', .', '----', '-1.0', '.', '.bak', '.comments\n.recommendations', '/',
-  '0', '0%', '0.0', '0.00', '0.5×', '0.50', '0.60', '0.75×', '0:00', '0:00 / 0:00',
+  '0', '0%', '0.0', '0.00', '0.30', '0.5×', '0.50', '0.60', '0.75×', '0:00', '0:00 / 0:00',
   '0–9', '1×', '1.0', '1.25×', '1.5×', '1.75×', '100%', '16', '1:30', '2',
   '2×', '2× ▶▶', '2.4', '2.50', '20', '2000', '220', '28', '3.0', '4', '400', '42',
   '45', '4SAPI · GPT-5.4 / Gemini 3.8 Flash', '5', '5:00', '70', '<', '< >',
@@ -82,7 +82,7 @@ const NEUTRAL = [
   'Tureng (EN↔TR)', 'V', 'VTT', 'VTT (web)', 'Vivaldi', 'W', 'WEB-DL, BluRay…',
   'WhisperX', 'YouTube', 'YouTube (yt-dlp)', 'YouTube browser', 'base', 'batched',
   'cc_... / sk-...', 'deepseek-v4-flash', 'diarization', 'faster-whisper',
-  'float16', 'gemini-3.8-flash', 'google.com/device', 'gpt-5.4', 'hf_...',
+  'float16', 'gemini-3.8-flash', 'gemini-3.8-pro', 'google.com/device', 'gpt-5.4', 'hf_...',
   'hotwords', 'https://api.example.com/v1', 'https://youtube.com/watch?v=...',
   'install-diarize.bat', 'install-whisperx.bat', 'int8', 'large-v2', 'large-v3',
   'large-v3-turbo', 'large-v3-turbo · faster', 'medium', 'no_repeat_ngram_size=3',

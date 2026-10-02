@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('api', {
   downloadYoutube: (opts) => ipcRenderer.invoke('media:download', opts),
   downloadYoutubeSubs: (opts) => ipcRenderer.invoke('media:downloadSubs', opts),
   findSiblingSubs: (videoPath) => ipcRenderer.invoke('media:findSiblingSubs', videoPath),
+  scanFolderBundle: (videoPaths) => ipcRenderer.invoke('media:scanFolderBundle', videoPaths),
   authorizeHistoryFiles: (recordId) => ipcRenderer.invoke('history:authorizeFiles', recordId),
   cancelYoutubeDownload: () => ipcRenderer.invoke('media:cancelDownload'),
   // Invidious API (reklamsız/gizli YouTube — SmartTube/Piped arkasındaki altyapı)

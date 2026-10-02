@@ -67,6 +67,7 @@ const state = {
   watchDir: null,       // izlenen klasör (yeni dosyalar kuyruğa eklenir)
   syncVideo: null,      // altyazı senkron aracı: referans video
   syncSrt: null,        // altyazı senkron aracı: hizalanacak SRT
+  seriesPrefs: {},        // { seriesKey: prefs-subset } — dizi düzeyinde izleme ayarları
 };
 
 const browserSubtitleSync = globalThis.BrowserSubtitleSync;
@@ -2768,6 +2769,7 @@ function appSettingsPayload() {
     },
     ui: collectUiSettings(),
     playerPositions: player.positions,
+    seriesPrefs: state.seriesPrefs,
     browserSponsorExemptions: normalizeBrowserSponsorExemptions(browserSponsorExemptions),
     browserWorkflows: window.BrowserWorkflowRecorder
       ? window.BrowserWorkflowRecorder.normalizeWorkflowLibrary(browserWorkflowLibrary) : [],
@@ -3332,6 +3334,9 @@ const initialSettingsReady = (async () => {
       $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
       if (s.playerPositions && typeof s.playerPositions === 'object') {
         player.positions = s.playerPositions;
+      }
+      if (s.seriesPrefs && typeof s.seriesPrefs === 'object' && !Array.isArray(s.seriesPrefs)) {
+        state.seriesPrefs = s.seriesPrefs;
       }
       browserSponsorExemptions = normalizeBrowserSponsorExemptions(s.browserSponsorExemptions);
       if (window.BrowserWorkflowRecorder) {
@@ -5481,10 +5486,15 @@ const player = {
   sub2Format: 'srt',
   sub2Raw: '',
   subOrigins: {},    // { yol: 'YouTube' | 'Whisper' | 'Dosya' } - panelde gosterilir
+  subLang: '',       // birinci kanalın dil kodu (dosya adından/izden)
+  sub2Lang: '',      // ikinci kanalın dil kodu
   editing: false,
   autoPause: false,
   pausedAt: -1,
   ytInfo: null,
+  browserSeriesKey: '',   // tarayıcı dizi-kaydı anahtarı (browser-features köprüsü)
+  watchPrefs: null,       // restore edilmiş medya/dizi tercihleri (dil kapıları okur)
+  folderMatch: null,      // klasör eşleştirme önizlemesinden gelen video→altyazı haritası
   chapters: [],
   nativeChapters: [],
   browserSponsorChapters: [],
@@ -9422,6 +9432,8 @@ function renderBrowserTracks(selectedId) {
   }
   updateBrowserSubtitleSummary();
   refreshBrowserSyncPanel();
+  // Madde 17 — kaydedilmiş dil tercihleri iz listesi değiştiğinde uygulanır.
+  applySavedLanguagePrefs();
 }
 
 function replaceBrowserTrackSubtitlePath(previousTrack, nextTrack) {
@@ -13658,6 +13670,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const duration = Number(event.media.duration);
     player.browserTime = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
     player.browserDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
+    updateChapterNow(player.browserTime);
     player.browserPaused = !!event.media.paused;
     player.browserAdPlaying = !!event.media.adPlaying;
     player.browserAdSkippable = !!event.media.adSkippable;
@@ -15414,6 +15427,19 @@ function renderCueList(filter = '') {
     const time = document.createElement('div');
     time.className = 'cue-card-time';
     time.textContent = pSecToTime(c.start);
+    // Madde 19 — bölüm sınırı yeni bir bölüme geçen satırlarda işaretlenir;
+    // arama sonucu ve bölüm seçimi aynı navigasyon akışını paylaşır.
+    if (player.chapters?.length) {
+      const prevStart = i > 0 ? player.cues[i - 1].start : -1;
+      const chapter = chapterAtTime(c.start + 0.001);
+      const prevChapter = prevStart >= 0 ? chapterAtTime(prevStart + 0.001) : null;
+      if (chapter && chapter !== prevChapter) {
+        const chip = document.createElement('div');
+        chip.className = 'cue-card-chapter';
+        chip.textContent = chapter.title || interfaceChoice('Bölüm', 'Chapter');
+        time.appendChild(chip);
+      }
+    }
     if (lowConfidence) {
       const confidence = document.createElement('button');
       confidence.type = 'button';
@@ -15445,7 +15471,6 @@ function renderCueList(filter = '') {
       appendInteractiveText(translation, counterpart, q, i, 'translation');
       body.appendChild(translation);
     }
-
     card.appendChild(time);
     card.appendChild(body);
     // tiklama/cift tiklama listeye DELEGE edilir (bkz. bindCueListDelegation)
@@ -16727,6 +16752,390 @@ function timelineListenSelected() {
   }
 }
 
+// ============================================================
+// Madde 16 — iki altyazıyı zaman üzerinden karşılaştır
+// ============================================================
+
+// Zaman-overlap ile iki hizalı liste üretir. Sonuç satırları:
+//  { a, b, driftMs }            — eşleşen çift (zaman çakışması var)
+//  { a, b: null }               — yalnız A'da var (B'de eksik replik)
+//  { a: null, b }               — yalnız B'de var
+// İki geçişli: önce overlap skoruyla eşle, sonra kalanlara başlangıç
+// yakınlığıyla (tolerans) tek şans ver.
+function alignSubtitlePair(cuesA, cuesB, toleranceSec = 3) {
+  const rows = [];
+  const usedB = new Set();
+  const bStarts = (cuesB || []).map((c) => Number(c.start) || 0);
+  for (const a of cuesA || []) {
+    let best = -1;
+    let bestOverlap = 0;
+    for (let j = 0; j < (cuesB || []).length; j++) {
+      if (usedB.has(j)) continue;
+      const b = cuesB[j];
+      const overlap = Math.min(a.end, b.end) - Math.max(a.start, b.start);
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = j; }
+      else if (best === -1 && Math.abs(a.start - bStarts[j]) <= toleranceSec) { best = j; bestOverlap = 0; }
+    }
+    if (best >= 0) {
+      usedB.add(best);
+      rows.push({ a, b: cuesB[best], driftMs: Math.round((cuesB[best].start - a.start) * 1000) });
+    } else rows.push({ a, b: null });
+  }
+  (cuesB || []).forEach((b, j) => { if (!usedB.has(j)) rows.push({ a: null, b }); });
+  rows.sort((x, y) => (x.a ? x.a.start : x.b.start) - (y.a ? y.a.start : y.b.start));
+  return rows;
+}
+
+function subtitleCompareStats(rows) {
+  let matched = 0; let onlyA = 0; let onlyB = 0; let driftSum = 0;
+  for (const r of rows) {
+    if (r.a && r.b) { matched++; driftSum += r.driftMs; }
+    else if (r.a) onlyA++;
+    else onlyB++;
+  }
+  return { matched, onlyA, onlyB, meanDriftMs: matched ? Math.round(driftSum / matched) : 0 };
+}
+
+function openSubtitleCompare() {
+  if (typeof openAppDialog !== 'function') return;
+  const labelA = player.subPath ? player.subPath.split(/[\\/]/).pop() : uiText('Birinci kanal');
+  const labelB = player.sub2Path ? player.sub2Path.split(/[\\/]/).pop() : uiText('İkinci kanal');
+  const rows = alignSubtitlePair(player.cues, player.cues2);
+  const stats = subtitleCompareStats(rows);
+  const dialog = document.createElement('div');
+  dialog.className = 'subtitle-compare app-dialog-card';
+  dialog.innerHTML = `
+    <div class="app-dialog-head">
+      <div class="app-dialog-title">${escapeHtml(uiText('Altyazı karşılaştırma'))}</div>
+      <button type="button" class="btn-icon" data-close aria-label="${escapeHtml(uiText('Kapat'))}">×</button>
+    </div>
+    <div class="app-dialog-body subtitle-compare-body">
+      <div class="subtitle-compare-legend">
+        <span class="sc-tag sc-a">${escapeHtml(labelA)}</span>
+        <span class="sc-tag sc-b">${escapeHtml(labelB)}</span>
+      </div>
+      <div class="subtitle-compare-stats">${escapeHtml(uiText(`${stats.matched} eşleşen satır · ${stats.onlyA} sadece A · ${stats.onlyB} sadece B · ort. kayma ${stats.meanDriftMs}ms`))}</div>
+      <div class="subtitle-compare-list"></div>
+    </div>`;
+  const list = dialog.querySelector('.subtitle-compare-list');
+  const frag = document.createDocumentFragment();
+  // Ardışık "sadece B" gruplarını tek butonla birleştirilebilir parçaya topla.
+  let run = [];
+  const flushRun = () => {
+    if (!run.length) return;
+    const bar = document.createElement('div');
+    bar.className = 'sc-row sc-only-b sc-merge-row';
+    const first = run[0].b;
+    const info = document.createElement('div');
+    info.className = 'sc-cell';
+    info.textContent = `${pSecToTime(first.start)} — ${pSecToTime(run[run.length - 1].b.end)} · ${run.length} satır`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm';
+    btn.textContent = uiText('Bu parçayı A’ya ekle');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const channel = subtitleChannelFor(false);
+      if (!channel.path) { logLine(uiText('Önce birinci altyazı dosyası açık olmalı.'), 'warn'); return; }
+      const merged = player.cues.concat(run.map((r) => ({ ...r.b })));
+      merged.sort((x, y) => x.start - y.start);
+      const written = cuesToSrt(merged);
+      const result = await window.api.writeSubtitle(channel.path, written, null, subtitleStatFor(channel.path));
+      if (!result?.ok) { logLine(`${uiText('Yazma başarısız')}: ${result?.error || ''}`, 'error'); btn.disabled = false; return; }
+      noteSubtitleStat(channel.path, written);
+      await loadSubtitle(channel.path, false, { silent: true, role: 'translation' });
+      bar.remove();
+      logLine(uiText(`${run.length} satır birinci altyazıya eklendi.`), 'success');
+    });
+    bar.append(info, btn);
+    frag.appendChild(bar);
+    run = [];
+  };
+  for (const r of rows) {
+    if (!r.a && r.b) { run.push(r); continue; }
+    flushRun();
+    const row = document.createElement('div');
+    row.className = 'sc-row' + (r.a && r.b ? ' sc-match' : (r.a ? ' sc-only-a' : ''));
+    const ca = document.createElement('div');
+    ca.className = 'sc-cell sc-a-cell';
+    ca.textContent = r.a ? `${pSecToTime(r.a.start)}  ${r.a.text}` : '—';
+    const cb = document.createElement('div');
+    cb.className = 'sc-cell sc-b-cell';
+    cb.textContent = r.b ? `${pSecToTime(r.b.start)}  ${r.b.text}` : '—';
+    const cd = document.createElement('div');
+    cd.className = 'sc-cell sc-drift';
+    cd.textContent = r.a && r.b ? `${r.driftMs > 0 ? '+' : ''}${r.driftMs}ms` : '';
+    row.append(ca, cb, cd);
+    frag.appendChild(row);
+  }
+  flushRun();
+  list.appendChild(frag);
+  dialog.querySelector('[data-close]').addEventListener('click', () => dialog.remove());
+  document.body.appendChild(dialog);
+  syncBrowserOcclusion?.();
+}
+
+function updateSubCompareButton() {
+  const btn = $('subCompareBtn');
+  if (btn) btn.disabled = !(player.cues && player.cues.length && player.cues2 && player.cues2.length);
+}
+
+// ============================================================
+// Madde 17 — dil tercihlerini medya kimliğiyle hatırla
+// ============================================================
+
+// "<ad>.tr.srt" / "<ad>.en-US.vtt" gibi dosya adından dil kodunu çıkarır;
+// sonda dil olmayan adlarda '' döner (yanlış tahmin yapmayız).
+function subLangFromPath(p) {
+  if (!p) return '';
+  const base = String(p).split(/[\\/]/).pop() || '';
+  const stem = base.replace(/\.(srt|vtt|ass|ssa)$/i, '');
+  const m = stem.match(/\.([a-z]{2,3}(?:[-_][a-z0-9]{2,8})?)$/i);
+  return m ? m[1].replace('_', '-').toLowerCase() : '';
+}
+
+// Tercih edilen dil listede yoksa sessizce yanlış parçayı seçmek yerine
+// kullanıcıya görünür bir uyarı bırak.
+function languagePrefHint(message) {
+  const hint = $('playerLangPrefHint');
+  if (!hint) return;
+  hint.textContent = message || '';
+  hint.classList.toggle('hidden', !message);
+}
+
+function langLabel(code) { return String(code || '').toUpperCase(); }
+
+// listede pref dilini ara: tam 'en' eşleşmesi ya da 'en-*' ailesi
+function findTrackByLang(tracks, pref, langOf) {
+  if (!pref) return null;
+  const base = String(pref).toLowerCase().split('-')[0];
+  return (tracks || []).find((t) => {
+    const l = String(langOf(t) || '').toLowerCase();
+    return l === String(pref).toLowerCase() || l.split('-')[0] === base;
+  }) || null;
+}
+
+// Kaydedilmiş dil tercihlerini mevcut seçicilere uygula. Dönüş:
+// uygulanan tercih açıklaması ya da fallback notu (hint'e yazılır).
+function applySavedLanguagePrefs() {
+  const prefs = player.watchPrefs || {};
+  const notes = [];
+  // YouTube altyazı dili
+  const ytSel = $('playerYtSubLang');
+  if (ytSel && prefs.subLang && ytSel.options.length > 1) {
+    const hit = [...ytSel.options].find((o) => o.value.split('|')[0] === prefs.subLang
+      || o.value.split('|')[0].split('-')[0] === String(prefs.subLang).split('-')[0]);
+    if (hit) { ytSel.value = hit.value; }
+    else notes.push(uiText(`Bu videoda ${langLabel(prefs.subLang)} altyazısı yok; listeden seçin.`));
+  }
+  // Tarayıcı izleri
+  if (player.browserTracks?.length && prefs.subLang) {
+    const hit = findTrackByLang(player.browserTracks.filter((t) => t.role !== 'translation'), prefs.subLang,
+      (t) => browserTrackSourceLanguage(t));
+    const sel = $('browserTrackSelect');
+    if (hit && sel) sel.value = String(hit.id);
+    else if (!hit) notes.push(uiText(`Kaynakta ${langLabel(prefs.subLang)} izi yok.`));
+  }
+  // HLS ses kanalı (yerel/akış)
+  if (player.hls?.audioTracks?.length && prefs.audioTrackLang) {
+    const tracks = player.hls.audioTracks;
+    const idx = tracks.findIndex((t) => audioLanguagesMatch(t.lang || '', prefs.audioTrackLang));
+    if (idx >= 0 && player.hls.audioTrack !== idx) {
+      player.hls.audioTrack = idx;
+      player.playbackAudioLang = tracks[idx].lang || prefs.audioTrackLang;
+      const sel = $('playerStreamAudio'); if (sel) sel.value = String(idx);
+    } else if (idx < 0) notes.push(uiText(`Bu yayında ${langLabel(prefs.audioTrackLang)} ses kanalı yok.`));
+  }
+  languagePrefHint(notes.join(' '));
+}
+
+// ============================================================
+// Madde 18 — dizi düzeyinde izleme ayarları
+// ============================================================
+
+// "Show.S01E02.…mkv", "Show - 02.mkv", "Show 1x02.mkv" gibi adlardan
+// dizi anahtarı türet. Tanınamayan ada sahip dosyada '' döner (kararsızlık
+// yerine dizi bağlamasız kalır — yanlış gruplamaktan iyidir).
+function seriesKeyFromLocalPath(p) {
+  const base = String(p || '').split(/[\\/]/).pop() || '';
+  const stem = base.replace(/\.[a-z0-9]{2,5}$/i, '');
+  const m = stem.match(/^(.*?)[ ._-]*[sS](\d{1,2})[ ._-]*[eE](\d{1,3})/)
+    || stem.match(/^(.*?)[ ._-]+(\d{1,2})[xX](\d{1,3})/)
+    || stem.match(/^(.*?)[ ._-]+(?:[bB][öo][lL][üu][mM]|[eE][pP])[ ._-]*(\d{1,3})(?:[ ._-]|$)/)
+    || stem.match(/^(.*?)[ ._-]+(\d{1,3})(?:[ ._-]|$)/);
+  if (!m || !m[1] || !m[1].trim()) return null;
+  const slug = m[1].toLowerCase().replace(/[^a-z0-9çğıöşü]+/gi, ' ').trim().replace(/\s+/g, '-');
+  return slug ? `series:local:${slug}` : null;
+}
+
+function seriesLabelFromKey(key) {
+  if (!key) return '';
+  if (key.startsWith('series:local:')) return key.slice(13).replace(/-/g, ' ');
+  if (key.startsWith('series:youtube:')) return player.ytInfo?.author || key.slice(15);
+  if (key.includes('|')) return key.split('|').pop() || key;   // tarayıcı 'origin|name' serisi
+  return key;
+}
+
+// O anki medyanın dizi anahtarı: yerel dosya adı → tarayıcı seri kaydı →
+// YouTube kanal kimliği. Hiçbiri yoksa null.
+function seriesKeyForPlayer() {
+  if (player.browserSeriesKey) return player.browserSeriesKey;
+  if (player.localPath) {
+    const k = seriesKeyFromLocalPath(player.localPath);
+    if (k) return k;
+  }
+  if (player.ytInfo?.authorId) return `series:youtube:${player.ytInfo.authorId}`;
+  return null;
+}
+
+const SERIES_PREF_KEYS = ['subStyle', 'subBottom', 'sub2Top', 'viewMode', 'showSource', 'showTranslation',
+  'mergeContinuation', 'speed', 'audioTrackLang', 'subLang', 'sub2Lang', 'playbackPolicy', 'cueRepeatCount', 'autoFollow'];
+function seriesWatchSubset(prefs) {
+  const out = {};
+  if (!prefs || typeof prefs !== 'object') return out;
+  for (const k of SERIES_PREF_KEYS) if (prefs[k] !== undefined) out[k] = prefs[k];
+  return out;
+}
+
+function updateSeriesChip() {
+  const chip = $('playerSeriesChip');
+  if (!chip) return;
+  const key = seriesKeyForPlayer();
+  const has = !!(key && state.seriesPrefs && state.seriesPrefs[key]);
+  chip.textContent = has ? `≡ ${seriesLabelFromKey(key)}` : '';
+  chip.title = has ? uiText('Dizi ayarları bu diziye bağlı') : '';
+  chip.classList.toggle('hidden', !has);
+}
+
+// ============================================================
+// Madde 19 — bölüm ↔ transkript tek navigasyon akışı
+// ============================================================
+
+function chapterAtTime(t) {
+  const chs = player.chapters || [];
+  if (!chs.length || !Number.isFinite(t)) return null;
+  let lo = 0; let hi = chs.length - 1; let found = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (chs[mid].start <= t) { found = chs[mid]; lo = mid + 1; } else hi = mid - 1;
+  }
+  return found;
+}
+
+function updateChapterNow(t) {
+  const el = $('playerChapterNow');
+  if (!el) return;
+  const c = chapterAtTime(t);
+  el.textContent = c ? `▸ ${c.title || pSecToTime(c.start)}` : '';
+  el.title = c ? uiText('Şu anki bölüm') : '';
+  el.classList.toggle('hidden', !c);
+}
+
+// Bölüm seçimiyle birlikte transkript listesi de aynı bölüme gider.
+function scrollTranscriptToTime(t) {
+  const cues = player.cues || [];
+  if (!cues.length) return;
+  let idx = cues.findIndex((c) => c.end >= t);
+  if (idx < 0) idx = cues.length - 1;
+  player.activeIdx = idx;
+  renderCueList(($('cueSearch')?.value || '').trim());
+  requestAnimationFrame(() => {
+    const row = $('cueList')?.querySelector(`.cue-card[data-idx="${idx}"]`);
+    row?.scrollIntoView({ block: 'center' });
+  });
+}
+
+// ============================================================
+// Madde 20 — klasör medya–altyazı eşleştirme önizlemesi
+// ============================================================
+
+// Bir video adına karşı altyazı adı skoru:
+//   aynı kök (stem) 100 · kök öneki 80 · ortak bölüm jetonu (S01E02/1x02/-02) 60
+//   dil soneki aynı köke bağlıysa zaten önek kapsamında.
+function folderMatchScore(videoName, subName) {
+  const vStem = videoName.replace(/\.[^.]+$/, '').toLowerCase();
+  const sStem = subName.replace(/\.(srt|vtt|ass|ssa)$/i, '').toLowerCase();
+  const sCore = sStem.replace(/\.[a-z]{2,3}(-[a-z0-9]{2,8})?$/i, ''); // dil soneki düşür
+  if (sCore === vStem || sStem === vStem) return 100;
+  if (sCore.startsWith(vStem + '.') || sStem.startsWith(vStem + '.') || vStem.startsWith(sCore + '.')) return 80;
+  const ep = (s) => s.match(/[sS](\d{1,2})[ ._-]*[eE](\d{1,3})/) || s.match(/(\d{1,2})[xX](\d{1,3})/) || s.match(/[ ._-](\d{1,3})$/);
+  const ve = ep(vStem); const se = ep(sStem);
+  // 'S01E02'→('01','02') ile '1x02'→('1','02') aynı bölüm: sayısal karşılaştır.
+  if (ve && se && ve.slice(-2).map(Number).join('|') === se.slice(-2).map(Number).join('|')) return 60;
+  return 0;
+}
+
+// Her video için aday altyazı listesi (skorlu, azalan). En iyi iki aday
+// arası <15 puan ise "belirsiz" — kullanıcıya bırakılır.
+function folderMatchPlan(bundle) {
+  const subs = bundle.subtitles || [];
+  const plan = (bundle.videos || []).map((v) => {
+    const cands = subs
+      .map((s) => ({ sub: s, score: folderMatchScore(v.name, s.name) }))
+      .filter((c) => c.score > 0)
+      .sort((a, b) => b.score - a.score);
+    const ambiguous = cands.length > 1 && (cands[0].score - cands[1].score) < 15;
+    return { video: v, candidates: cands, picked: ambiguous ? null : (cands[0]?.sub.path || ''), ambiguous };
+  });
+  return plan;
+}
+
+async function openFolderMatchDialog(bundle, firstVideo, playlist) {
+  if (typeof openAppDialog !== 'function') return playlist;
+  const plan = folderMatchPlan(bundle);
+  const dialog = document.createElement('div');
+  dialog.className = 'folder-match app-dialog-card';
+  const matched = plan.filter((p) => p.picked).length;
+  const ambiguousCount = plan.filter((p) => p.ambiguous).length;
+  dialog.innerHTML = `
+    <div class="app-dialog-head">
+      <div class="app-dialog-title">${escapeHtml(uiText('Klasör medya–altyazı eşleşmesi'))}</div>
+      <button type="button" class="btn-icon" data-close aria-label="${escapeHtml(uiText('Kapat'))}">×</button>
+    </div>
+    <div class="app-dialog-body">
+      <div class="subtitle-compare-stats">${escapeHtml(uiText(`${bundle.videos.length} video · ${bundle.subtitles.length} altyazı · ${matched} otomatik eşleşme${ambiguousCount ? ` · ${ambiguousCount} belirsiz` : ''}`))}</div>
+      <div class="folder-match-list"></div>
+      <div class="app-dialog-actions">
+        <button type="button" class="btn" data-close>${escapeHtml(uiText('Vazgeç'))}</button>
+        <button type="button" class="btn btn-primary" data-open>${escapeHtml(uiText('İlk videoyu aç'))}</button>
+      </div>
+    </div>`;
+  const list = dialog.querySelector('.folder-match-list');
+  for (const row of plan) {
+    const line = document.createElement('div');
+    line.className = 'fm-row' + (row.ambiguous ? ' fm-ambiguous' : '');
+    const name = document.createElement('div');
+    name.className = 'fm-video';
+    name.textContent = row.video.name;
+    const sel = document.createElement('select');
+    sel.className = 'fm-pick';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = row.candidates.length ? uiText('Altyazı yok') : uiText('Aday yok');
+    sel.appendChild(none);
+    for (const c of row.candidates) {
+      const o = document.createElement('option');
+      o.value = c.sub.path;
+      o.textContent = `${c.sub.name} (${c.score})`;
+      sel.appendChild(o);
+    }
+    if (row.picked) sel.value = row.picked;
+    if (row.ambiguous) sel.value = '';
+    sel.addEventListener('change', () => { row.picked = sel.value; row.ambiguous = false; line.classList.remove('fm-ambiguous'); });
+    line.append(name, sel);
+    list.appendChild(line);
+  }
+  const close = () => { dialog.remove(); syncBrowserOcclusion?.(); };
+  dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
+  dialog.querySelector('[data-open]').addEventListener('click', () => {
+    player.folderMatch = new Map(plan.filter((r) => r.picked).map((r) => [r.video.path, r.picked]));
+    close();
+    openLocalMedia(firstVideo, 0, playlist);
+  });
+  document.body.appendChild(dialog);
+  syncBrowserOcclusion?.();
+  return 'dialog';
+}
+
 if (typeof $ === 'function') {
 if ($('timelineListen')) $('timelineListen').addEventListener('click', timelineListenSelected);
 if ($('timelineIssues')) $('timelineIssues').addEventListener('click', (e) => {
@@ -17172,6 +17581,9 @@ function captureWatchPrefs() {
     selectedSubRole: player.subRole || 'source',
     secondSubRole: player.sub2Role || 'translation',
     audioLang: $('playerAudioLang') ? $('playerAudioLang').value : '',
+    audioTrackLang: player.playbackAudioLang || '',   // HLS akışındaki gerçek ses dili
+    subLang: player.subLang || subLangFromPath(player.subPath),
+    sub2Lang: player.sub2Lang || subLangFromPath(player.sub2Path),
   };
 }
 
@@ -17236,6 +17648,22 @@ async function flushWatchState(completed = false, refresh = false) {
         await window.api.updateWatchItem(watchMutationRequest(patch, 'progress')));
       if (res && res.ok && res.item && refresh) renderPlayerLibrary();
     } catch (_) {}
+    // Dizi düzeyinde tercihler: medya anahtarına bağlı kütüphane kaydı yanında
+    // seri anahtarına da altyazı/yazı/hız altkümesi yazılır; yeni bölüm açılınca
+    // restoreWatchProfile bunu varsayılan olarak uygular (bölüm kaydı varsa
+    // bölümün kendi prefs'i alan alan üstün gelir).
+    try {
+      const sKey = seriesKeyForPlayer();
+      if (sKey && patch.prefs) {
+        const next = seriesWatchSubset(patch.prefs);
+        if (Object.keys(next).length
+            && JSON.stringify(state.seriesPrefs[sKey]) !== JSON.stringify(next)) {
+          state.seriesPrefs[sKey] = next;
+          scheduleSave();
+        }
+      }
+    } catch (_) {}
+    updateSeriesChip();
   });
 }
 
@@ -17271,7 +17699,19 @@ async function restoreWatchProfile(key) {
     player.watchManualCompletedKey = key;
     player.watchManualCompleted = item.completionOverride;
   }
-  const prefs = item.prefs || {};
+  // Dizi düzeyinde kayıtlı tercihler bölüm kaydı yoksa devreye girer; bölümün
+  // kendi prefs'i varsa alan alan üstün gelir (seri kaydı korunur).
+  const seriesKey = seriesKeyForPlayer();
+  const seriesPrefs = seriesKey && state.seriesPrefs ? (state.seriesPrefs[seriesKey] || {}) : {};
+  const itemPrefs = item.prefs || {};
+  const prefs = { ...seriesPrefs, ...itemPrefs };
+  const usedSeriesPrefs = Object.keys(seriesPrefs).length > 0
+    && Object.keys(itemPrefs).length === 0;
+  player.watchPrefs = prefs;
+  if (usedSeriesPrefs) {
+    logLine(interfaceChoice(`Dizi ayarları uygulandı: ${seriesLabelFromKey(seriesKey)}.`,
+      `Series settings applied: ${seriesLabelFromKey(seriesKey)}.`), 'info');
+  }
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
   if (browserMode && window.api.browserCommand) {
@@ -17350,6 +17790,8 @@ async function restoreWatchProfile(key) {
     await loadSubtitle(prefs.secondSubPath, true, { role: prefs.secondSubRole || 'translation' });
     if (staleGeneration(gen) || player.mediaKey !== key) return;
   }
+  applySavedLanguagePrefs();
+  updateSeriesChip();
 }
 
 function makeWatchAction(label, action, key, extra) {
@@ -19295,11 +19737,17 @@ function renderResolvedChapters() {
   player.chapters.forEach((c, i) => {
     const o = document.createElement('option');
     o.value = String(i);
-    o.textContent = `${pSecToTime(c.start)} · ${c.title || 'Bölüm ' + (i + 1)}`
-      + (c.source === 'sponsorblock' ? ' · Topluluk' : '');
+    // Bölümün kapsadığı transkript satırı sayısı — aynı navigasyon akışında
+    // bölümün kaç satırlık olduğu görünür (madde 19).
+    const nextStart = player.chapters[i + 1] ? player.chapters[i + 1].start : Infinity;
+    const cueCount = (player.cues || []).filter((q) => q.start >= c.start && q.start < nextStart).length;
+    o.textContent = `${pSecToTime(c.start)} · ${c.title || interfaceChoice('Bölüm', 'Chapter') + ' ' + (i + 1)}`
+      + (c.source === 'sponsorblock' ? ` · ${interfaceChoice('Topluluk', 'Community')}` : '')
+      + (cueCount ? ` · ${interfaceChoice(`${cueCount} satır`, `${cueCount} lines`)}` : '');
     sel.appendChild(o);
   });
   panel.classList.remove('hidden');
+  updateChapterNow(player.workspaceMode === 'browser' ? player.browserTime : ($('playerVideo')?.currentTime || 0));
   if (!$('cueSearch')?.value.trim()) renderSeekMarkers(player.chapters.map((c) => c.start));
 }
 
@@ -19714,6 +20162,9 @@ function setMediaKey(key) {
     player.pendingLibrarySeek = null;
   }
   player.localPath = '';
+  // Klasör eşleştirme seçimleri yalnız oynatma listesinin dosyalarına özgüdür;
+  // yeni medya anahtarında bayat harita yeni dosyalara sızmasın (madde 20).
+  player.folderMatch = new Map();
   player.generation++;
   player.hlsRecovery.sourceChanged(nextKey);
   player.isLive = false;
@@ -19938,6 +20389,7 @@ function setPlayerSource(src, title, key, meta) {
   // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
   // oynaticida B videosu acikken A transkribe edilebilirdi.
   player.localPath = (meta && meta.localPath) || player.localPath || '';
+  updateSeriesChip();
   syncPlayerSourceQuick();
   syncSubtitlePrimaryAction();
   updatePlayerAutoSyncState();
@@ -20042,9 +20494,19 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
     if (lockedIndex >= 0 && $('playerAudioLock') && $('playerAudioLock').checked) {
       hls.audioTrack = lockedIndex;
     }
+    // Madde 17 — medyayla kaydedilmiş ses dili tercihi aktif bellekten önce
+    // değerlendirilir; tercih yayında yoksa uyarı verilir, sessizce yanlış
+    // parça seçilmez.
+    const prefLang = player.watchPrefs?.audioTrackLang || '';
+    const prefIndex = prefLang
+      ? tracks.findIndex((track) => audioLanguagesMatch(track.lang, prefLang)) : -1;
+    if (prefLang && prefIndex < 0) {
+      languagePrefHint(uiText(`Bu yayında ${langLabel(prefLang)} ses kanalı yok; listeden seçin.`));
+    }
     const rememberedIndex = player.playbackAudioLang
       ? tracks.findIndex((track) => audioLanguagesMatch(track.lang, player.playbackAudioLang)) : -1;
-    if (hls.audioTrack < 0 && rememberedIndex >= 0) hls.audioTrack = rememberedIndex;
+    if (hls.audioTrack < 0 && prefIndex >= 0) hls.audioTrack = prefIndex;
+    else if (hls.audioTrack < 0 && rememberedIndex >= 0) hls.audioTrack = rememberedIndex;
     const activeIndex = hls.audioTrack >= 0 ? hls.audioTrack
       : (lockedIndex >= 0 ? lockedIndex : (rememberedIndex >= 0 ? rememberedIndex : 0));
     sel.value = String(activeIndex);
@@ -20402,6 +20864,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.wordSegments2 = [];
       player.activeIdx2 = -1;
       player.sub2Path = '';
+      player.sub2Lang = '';
       player.sub2Raw = '';
       player.sub2Format = 'srt';
       player.sub2Role = 'translation';
@@ -20434,6 +20897,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.wordSegments = [];
       player.activeIdx = -1;
       player.subPath = '';
+      player.subLang = '';
       player.subRole = 'source';
       player.subRaw = '';
       renderSeekMarkers(defaultMarkers());
@@ -20479,6 +20943,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     updateMakeTransState();
     updateBrowserTranslationExportButton();
     updateBrowserTranslationRetryButton();
+    updateSubCompareButton();
     renderCue();
     if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
     if (secondary) setSubtitleMode(player.cues.length ? 'source' : 'off', false);
@@ -20545,6 +21010,8 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     player.activeIdx2 = -1;
     player.sub2Path = path;
+    player.sub2Lang = (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
+      || subLangFromPath(path);
     applyLocalSyncProfile(true, !!previousSecondaryPath && previousSecondaryPath !== path);
     player.sub2Raw = res.text;
     player.sub2Stat = { mtimeMs: res.mtimeMs, size: res.size };
@@ -20606,6 +21073,8 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.translationRetryAvailable = 0;
     player.activeIdx = -1;
     player.subPath = path;
+    player.subLang = (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
+      || subLangFromPath(path);
     player.subRole = requestedRole;
     player.subRaw = res.text;
     player.subStat = { mtimeMs: res.mtimeMs, size: res.size };
@@ -20681,6 +21150,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   updateBrowserTranslationExportButton();
   updateBrowserTranslationRetryButton();
   updatePlayerAutoSyncState();
+  updateSubCompareButton();
   renderCue();
   scheduleBrowserOverlaySync();
   if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
@@ -20701,11 +21171,29 @@ async function attachSiblingSubtitles(videoPath, autoLoad = true) {
   });
   if (staleGeneration(gen)) return;      // bu arada baska videoya gecilmis
   const files = (res && res.files) || [];
-  if (!files.length) return;
+  if (!files.length) {
+    // Madde 20 — klasör eşleştirme önizlemesinde bu video için ayrılan kayıt
+    // kök-ada göre bulunamazsa yine de saygı gösterilir.
+    const matched = player.folderMatch?.get(videoPath);
+    if (matched) {
+      addSubtitleOption(matched);
+      if (autoLoad && !player.cues.length) {
+        $('playerSubSelect').value = matched;
+        await loadSubtitle(matched);
+      }
+    }
+    return;
+  }
   files.forEach((f) => addSubtitleOption(f));
+  const matched = player.folderMatch?.get(videoPath);
+  if (matched && !files.includes(matched)) {
+    files.unshift(matched);
+    addSubtitleOption(matched);
+  }
   if (autoLoad && !player.cues.length) {
-    $('playerSubSelect').value = files[0];
-    await loadSubtitle(files[0]);
+    const pick = matched || files[0];
+    $('playerSubSelect').value = pick;
+    await loadSubtitle(pick);
   }
   if (files.length > 1) {
     logLine(`${files.length} altyazı bulundu (ikinci altyazı listesinden seçebilirsin).`, 'info');
@@ -24135,6 +24623,11 @@ if ($('abCompareBtn')) {
   });
 }
 
+// Madde 16 — birinci ve ikinci kanalı zaman üzerinden karşılaştır.
+if ($('subCompareBtn')) {
+  $('subCompareBtn').addEventListener('click', () => openSubtitleCompare());
+}
+
 if ($('timelineRangeClear')) {
   $('timelineRangeClear').addEventListener('click', timelineClearRange);
 }
@@ -24712,6 +25205,7 @@ if ($('playerVideo')) {
       $('playerTime').textContent = `${pSecToTime(video.currentTime)} / ${pSecToTime(video.duration)}`;
       updateSeekVisuals();
     }
+    updateChapterNow(video.currentTime);
     // Konumu 5 saniyede bir kaydet (her timeupdate'te yazmak ayar dosyasını yorar)
     const now = Date.now();
     if (!video.paused && player.watchSession) {
@@ -25650,6 +26144,16 @@ if ($('playerPickFolder')) {
   $('playerPickFolder').addEventListener('click', async () => {
     const files = await window.api.selectFolders();
     if (!files || !files.length) return;
+    // Madde 20 — klasörde altyazı adayları varsa eşleştirme önizlemesi göster;
+    // belirsizler kullanıcıya kalır, kaynak dosyalar hiçbir zaman değiştirilmez.
+    let bundle = null;
+    if (window.api.scanFolderBundle) {
+      bundle = await window.api.scanFolderBundle(files).catch(() => null);
+    }
+    if (bundle?.ok && bundle.subtitles?.length) {
+      const result = await openFolderMatchDialog(bundle, files[0], files);
+      if (result === 'dialog') return;
+    }
     openLocalMedia(files[0], 0, files);
   });
 }
@@ -30601,6 +31105,9 @@ if ($('playerProbe')) {
         });
       subField.classList.remove('hidden');
       subBtn.classList.remove('hidden');
+      // Madde 17 — bu videoda tercih edilen dil varsa önceden seçilir;
+      // yoksa sessizce yanlış parça seçmek yerine uyarı gösterilir.
+      applySavedLanguagePrefs();
     } else {
       subField.classList.add('hidden');
       subBtn.classList.add('hidden');
@@ -30858,6 +31365,9 @@ if ($('playerChapters')) {
       video.currentTime = player.chapters[i].start;
       video.play().catch(() => {});
     }
+    // Madde 19 — bölüm seçimi transkripti de aynı aralığa götürür.
+    scrollTranscriptToTime(player.chapters[i].start);
+    updateChapterNow(player.chapters[i].start);
     logLine(`Bölüm: ${player.chapters[i].title || i + 1}`, 'info');
   });
 }

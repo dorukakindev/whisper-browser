@@ -17672,6 +17672,56 @@ ipcMain.handle('media:listFolder', async (_event, filePath) => {
   catch (_) { return []; }
 });
 
+// Madde 20 — klasör eşleştirme önizlemesi: kullanıcının seçtiği klasör
+// taramasından gelen video yollarının bulunduğu klasörleri (ve bir alt
+// düzeyi) video + altyazı dosyaları için tarar. Kaynak dosyalara yazılmaz;
+// dönen altyazılar readSubtitle için tek tek yetkilendirilir.
+const SUBTITLE_SCAN_EXTS = ['.srt', '.vtt', '.ass', '.ssa'];
+ipcMain.handle('media:scanFolderBundle', async (_event, videoPaths) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try {
+    const inputs = Array.isArray(videoPaths) ? videoPaths.filter((p) => typeof p === 'string' && p) : [];
+    if (!inputs.length) return { ok: true, videos: [], subtitles: [] };
+    const dirs = [...new Set(inputs.map((p) => {
+      try { return path.dirname(authorizeLocalMediaPath(p)); } catch (_) { return null; }
+    }).filter(Boolean))];
+    if (!dirs.length) return { ok: true, videos: [], subtitles: [] };
+    const videos = [];
+    const subtitles = [];
+    const seen = new Set();
+    for (const dir of dirs) {
+      const queue = [[dir, 0]];
+      while (queue.length) {
+        const [cur, depth] = queue.shift();
+        if (depth > 1) continue;
+        let entries;
+        try { entries = fs.readdirSync(cur, { withFileTypes: true }); } catch (_) { continue; }
+        entries.sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true }));
+        for (const ent of entries) {
+          const full = path.join(cur, ent.name);
+          if (ent.isDirectory()) {
+            if (!ent.name.startsWith('.') && !seen.has(full)) { seen.add(full); queue.push([full, depth + 1]); }
+            continue;
+          }
+          if (!ent.isFile()) continue;
+          const ext = path.extname(ent.name).toLowerCase();
+          if (MEDIA_EXTS.includes(ext)) {
+            const granted = mediaFileAccess.inspect(full);
+            if (granted && !seen.has(granted)) { seen.add(granted); videos.push({ path: granted, name: ent.name }); }
+          } else if (SUBTITLE_SCAN_EXTS.includes(ext)) {
+            const granted = subtitleFileAccess.grant(full);
+            if (granted && !seen.has(granted)) { seen.add(granted); subtitles.push({ path: granted, name: ent.name }); }
+          }
+          if (videos.length + subtitles.length > 4000) return { ok: true, videos, subtitles, truncated: true };
+        }
+      }
+    }
+    return { ok: true, videos, subtitles };
+  } catch (err) {
+    return { ok: false, error: err.message, videos: [], subtitles: [] };
+  }
+});
+
 ipcMain.handle('dialog:openFolder', async (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const settings = loadSettings();

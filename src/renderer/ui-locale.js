@@ -2823,6 +2823,18 @@
     ['Birimi kaynakla doğrulayın.', 'Verify the unit against the source.'],
     ['Tarihi kaynakla doğrulayın.', 'Verify the date against the source.'],
     ['Satırları inceleyin.', 'Review these lines.'],
+    // Madde 16–20 · izleme deneyimi
+    ['Altyazıları karşılaştır', 'Compare subtitles'],
+    ['Birinci ve ikinci kanal altyazıyı zaman üzerinden hizalayıp eksik replik ve kayma farkını gösterir', 'Aligns the primary and secondary subtitle channels over time to show missing lines and timing drift'],
+    ['Altyazı karşılaştırma', 'Subtitle comparison'],
+    ['Bu parçayı A’ya ekle', 'Add this part to primary'],
+    ['Önce birinci altyazı dosyası açık olmalı.', 'Open the primary subtitle file first.'],
+    ['Yazma başarısız', 'Write failed'],
+    ['Klasör medya–altyazı eşleşmesi', 'Folder media–subtitle matching'],
+    ['İlk videoyu aç', 'Open first video'],
+    ['Aday yok', 'No candidates'],
+    ['Dizi ayarları bu diziye bağlı', 'Series settings bound to this series'],
+    ['Şu anki bölüm', 'Current chapter'],
   ];
 
   // Şablonlu arayüz metinleri (sayaçlar, "X: üst kapsamdan al", OSD değerleri).
@@ -2832,6 +2844,14 @@
   // gözlemci saklanan özgün metni geri yazar.
   const patterns = [
     [/^Genel değer: (.+)$/, (m, t) => `Global value: ${m[1] === 'Açık' ? 'On' : t(m[1])}`],
+    // Madde 16–20 · izleme deneyimi
+    [/^(\d+) eşleşen satır · (\d+) sadece A · (\d+) sadece B · ort\. kayma (\d+)ms$/, (m) => `${m[1]} matched cues · ${m[2]} only A · ${m[3]} only B · avg drift ${m[4]}ms`],
+    [/^(\d+) satır birinci altyazıya eklendi\.$/, (m) => `${m[1]} cues added to the primary subtitle.`],
+    [/^Bu videoda (.+) altyazısı yok; listeden seçin\.$/, (m) => `The ${m[1]} subtitle is not available for this video; pick one from the list.`],
+    [/^Kaynakta (.+) izi yok\.$/, (m) => `No ${m[1]} track in the source.`],
+    [/^Bu yayında (.+) ses kanalı yok; listeden seçin\.$/, (m) => `No ${m[1]} audio channel in this stream; pick one from the list.`],
+    [/^Bu yayında (.+) ses kanalı yok\.$/, (m) => `No ${m[1]} audio channel in this stream.`],
+    [/^(\d+) video · (\d+) altyazı · (\d+) otomatik eşleşme( · (\d+) belirsiz)?$/, (m) => `${m[1]} videos · ${m[2]} subtitles · ${m[3]} auto-matched${m[4] ? ` · ${m[5]} ambiguous` : ''}`],
     [/^Feed unavailable: yt-dlp mevcut değil$/, () => 'Feed unavailable: yt-dlp is not installed'],
     [/^(.+): üst kapsamdan al$/, (m, t) => `${t(m[1])}: inherit from parent scope`],
     [/^(Kaynak|Çeviri) · (.+)$/, (m) => `${m[1] === 'Kaynak' ? 'Source' : 'Translation'} · ${m[2]}`],
