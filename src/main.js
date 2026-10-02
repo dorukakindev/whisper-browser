@@ -766,6 +766,10 @@ function sweepOrphanOutputTransactions() {
 function redactJobLogArgs(args) {
   const hiddenValueFlags = new Set([
     '--input', '--output-dir', '--cache-dir', '--initial-prompt', '--glossary', '--translate-context',
+    // Sağlayıcı endpoint'leri iç ağ adları taşıyabilir; paylaşılabilen iş
+    // günlüğünde tam URL olarak kalmasınlar (kullanıcı-bilgisi zaten ayar
+    // sınırında reddediliyor, burada tüm gövde gizlenir).
+    '--translate-base-url', '--llm-base-url',
   ]);
   const values = Array.isArray(args) ? args.slice(1) : [];
   return values.map((value, index) => {
@@ -6116,6 +6120,10 @@ function safeTranslationEndpoint(raw) {
     const url = new URL(String(raw || ''));
     const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
     if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) return '';
+    // Ayar sınırı userinfo'yu reddeder; burası renderer-canlı değerlerle de
+    // çağrılabildiği için derinlik açısından yeniden soyulur.
+    url.username = '';
+    url.password = '';
     const pathname = url.pathname.replace(/\/+$/, '');
     url.pathname = /\/chat\/completions$/i.test(pathname)
       ? pathname : `${pathname}/chat/completions`;
