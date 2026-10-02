@@ -1973,8 +1973,19 @@ def test_is_hallucination():
 def test_hallucination_confidence_gate_preserves_real_spoken_lines():
     for text in [
         "İzlediğiniz için teşekkürler.",
+        "Dinlediğiniz için teşekkürler.",
         "Abone olmayı unutmayın arkadaşlar",
         "Thanks for watching.",
+        # "thank you for watching" Whisper'ın en yaygın halüsinasyonudur; kalıp
+        # "thank(s) for" arasına giren "you"yu atlayamadığı için kaçıyordu.
+        "Thank you for watching.",
+        "Thank you for watching this video.",
+        "thank you for watching!",
+        "Thank you for listening.",
+        "Thanks for listening to the show.",
+        "See you in the next video.",
+        "We'll see you in the next video.",
+        "See you next time.",
     ]:
         assert T.is_hallucination(text) is True
         assert T.should_skip_hallucination(text, -0.2, 0.05) is False
@@ -2134,6 +2145,26 @@ def test_normalize_timings():
     assert out4[0][0] == 0.0 and out4[0][1] > out4[0][0]
     unordered = T.normalize_timings([(5, 6, "son"), (1, 2, "ilk")], min_gap=0.08)
     assert [item[2] for item in unordered] == ["ilk", "son"]
+
+
+def test_normalize_timings_media_end_clamps_last_cue():
+    # Okunabilirlik uzatması (min_dur/CPS) son cue'yu medya sonunun ötesine
+    # taşırmaz — aksi halde altyazı dosyanın bittiği yerden sonra da ekranda kalır.
+    out = T.normalize_timings([(1.5, 2.16, "We'll see you in the next video.")],
+                              min_dur=0.8, max_cps=20.0, media_end=2.4)
+    assert out[0][1] <= 2.4, f"son cue medya sonunu aştı: {out[0][1]}"
+    # Model'in kendi bitişi zaten medya sonunu geçtiyse de kelepçe uygulanır
+    # (whisper dosya sonunda zamanı şişirebilir).
+    out2 = T.normalize_timings([(0.0, 9.5, "son replik biraz uzun")], media_end=9.0)
+    assert out2[0][1] <= 9.0
+    # media_end verilmezse davranış eskisi gibi: son cue serbest uzar.
+    out3 = T.normalize_timings([(0.0, 0.1, "biraz uzunca metin")], min_dur=0.8)
+    assert out3[0][1] - out3[0][0] >= 0.7
+    # Son olmayan cue kelepçeden bağımsız; bitişik cue'lar medya_end'den
+    # küçük olsa da çakışma kuralı değişmez.
+    out4 = T.normalize_timings([(0.0, 5.0, "a"), (4.0, 8.0, "b")],
+                               min_gap=0.08, media_end=20.0)
+    assert out4[0][1] <= out4[1][0]
 
 
 def test_normalize_timings_merges_unrenderable_flash_forward():
