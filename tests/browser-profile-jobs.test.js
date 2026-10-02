@@ -110,6 +110,8 @@ function extract(start, end) { return source.slice(source.indexOf(start), source
     vm.runInNewContext(source.slice(start, end), {
       $: () => button,
       saveAppSettings: async () => saveOk,
+      openAppDialog: async () => ({ choice: 'all' }),
+      uiText: (s) => s,
       window: { api: { exportSettings: async () => { exports++; return { ok: true, path: 'test' }; } } },
       logLine() {},
     });

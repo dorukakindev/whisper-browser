@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |
+| 392 | [BROWSER_BUG_REPORT_392.md](BROWSER_BUG_REPORT_392.md) | 50-kuyruk batch 9+10 — veri koruma (yedekleme, dış-değişiklik, disk, çevrimdışı, kurtarma merkezi) + kurulum/sürüm (yükseltme yedeği, çevrimdışı manifest, güncelleme ön kontrolü, Windows rehberi, RC teslimi) |
 | 391 | [BROWSER_BUG_REPORT_391.md](BROWSER_BUG_REPORT_391.md) | 50-kuyruk batch 8 — PDF/manga: çift-görünüm vurgusu, tablo belirsizliği, sayfa seçimi, manga OCR düzeltme + tek-bölge retranslate, düzeltme koruması |
 | 390 | [BROWSER_BUG_REPORT_390.md](BROWSER_BUG_REPORT_390.md) | 50-kuyruk batch 7 — kaynak/performans: aşama ETA, donanım rehberi, ağ bütçesi, önbellek ekranı, iş kaynak zaman çizelgesi |
 | 389 | [BROWSER_BUG_REPORT_389.md](BROWSER_BUG_REPORT_389.md) | 50-kuyruk batch 6 — browser akışları: site desteği açıklaması, yakalama inceleme, kuyruk eylemi, workspace eksik-raporu, profil çipi |
@@ -369,3 +371,5 @@ tarih sırasıyla dosya adından okunur.
 | 389 | [BROWSER_BUG_REPORT_389.md](BROWSER_BUG_REPORT_389.md) | 50-kuyruk batch 6 — browser akışları: site desteği açıklaması, yakalama inceleme, kuyruk eylemi, workspace eksik-raporu, profil çipi |
 | 390 | [BROWSER_BUG_REPORT_390.md](BROWSER_BUG_REPORT_390.md) | 50-kuyruk batch 7 — kaynak/performans: aşama ETA, donanım rehberi, ağ bütçesi, önbellek ekranı, iş kaynak zaman çizelgesi |
 | 391 | [BROWSER_BUG_REPORT_391.md](BROWSER_BUG_REPORT_391.md) | 50-kuyruk batch 8 — PDF/manga: çift-görünüm vurgusu, tablo belirsizliği, sayfa seçimi, manga OCR düzeltme + tek-bölge retranslate, düzeltme koruması |
+| 392 | [BROWSER_BUG_REPORT_392.md](BROWSER_BUG_REPORT_392.md) | 50-kuyruk batch 9+10 — veri koruma (yedekleme, dış-değişiklik, disk, çevrimdışı, kurtarma merkezi) + kurulum/sürüm (yükseltme yedeği, çevrimdışı manifest, güncelleme ön kontrolü, Windows rehberi, RC teslimi) |
+| 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |

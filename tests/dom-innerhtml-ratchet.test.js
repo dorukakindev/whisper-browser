@@ -37,18 +37,24 @@ const TOP_BOOLEAN_OP = /===|!==|==|!=|<=|>=|<|>|\binstanceof\b|\bin\b/;
 // Tekil, doğrulanmış lokal-değişken izinleri — dosya:satır + tam ifade.
 // Yalnız ifadenin ürettiği değerin kanıtlı güvenli olduğu durumlar.
 const ALLOWED = new Set([
-  'src/renderer/renderer.js:604::icon',                    // static SVG literal ternary
-  'src/renderer/renderer.js:1246::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
-  'src/renderer/renderer.js:1474::start',                  // formatTime() çıktısı
-  'src/renderer/renderer.js:1474::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:15005::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:21967::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:21967::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:21967::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:21967::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:21967::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:22028::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:22028::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:620::icon',                    // static SVG literal ternary
+  'src/renderer/renderer.js:1384::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js:1384::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js:1447::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
+  'src/renderer/renderer.js:1675::start',                  // formatTime() çıktısı
+  'src/renderer/renderer.js:1675::end',                    // formatTime() çıktısı
+  'src/renderer/renderer.js:2906::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
+  'src/renderer/renderer.js:2906::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
+  'src/renderer/renderer.js:2906::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
+  'src/renderer/renderer.js:2906::notes',                  // recommendedHardwareConfig sabit literal notları
+  'src/renderer/renderer.js:16183::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js:24135::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js:24135::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js:24135::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js:24135::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js:24135::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js:24196::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:24196::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
   'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 

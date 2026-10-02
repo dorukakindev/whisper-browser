@@ -115,7 +115,7 @@ check('sabit pencere sızıntı üretir', fixed_leak > 0)
 check('bağlam maliyeti düştü', scene_ctx_chars <= fixed_ctx_chars)
 
 # --- kablo bağlantısı -------------------------------------------------------
-src = open('backend/transcribe.py').read()
+src = open('backend/transcribe.py', encoding='utf-8').read()
 check('source_context sahne kelepçesi kullanır',
       'scene_context_bounds(' in src and 'detect_scene_boundaries(' in src)
 check('argparse bayrağı var', '--translate-scene-gap' in src)

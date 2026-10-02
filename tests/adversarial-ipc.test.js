@@ -27,7 +27,7 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, ...context, ipcMain: { handle: (name, fn) => {
+  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, networkOnline: () => true, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -95,7 +95,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       fs.writeFileSync(file, original);
       const access = new SubtitleFileAccess(); access.grant(file);
       const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES,
-        decodeSubtitleBuffer, renameSyncResilient,
+        decodeSubtitleBuffer, renameSyncResilient, markOwnSubtitleWrite: () => {},
         authorizedBrowserSender: auth, subtitleFileAccess: access,
         dialog: { showMessageBox: async () => ({ response: 0 }) }, mainWindow: {} });
       const snippets = [

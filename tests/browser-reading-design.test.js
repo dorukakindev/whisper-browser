@@ -23,6 +23,8 @@ function fakeClassList() {
       if (enabled) values.add(name); else values.delete(name);
       return enabled;
     },
+    add(name) { values.add(name); },
+    remove(name) { values.delete(name); },
     contains(name) { return values.has(name); },
   };
 }

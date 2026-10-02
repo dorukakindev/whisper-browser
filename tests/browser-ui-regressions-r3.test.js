@@ -361,10 +361,11 @@ async function test(title, fn) {
       renderPdfTranslation: () => {},
       updatePdfReaderProgress: () => {},
       pdfReaderSetStatus: (text) => statusLog.push(text),
+      interfaceChoice: (tr) => tr,
     });
     vm.runInContext(`${extractFunction(renderer, 'translateVisiblePdfPagesNow')} globalThis.translateNow = translateVisiblePdfPagesNow;`, ctx);
     await ctx.translateNow(reader, true);
-    assert.deepEqual([...statusLog], ['Kitap çevriliyor… (0/4)'],
+    assert.deepEqual([...statusLog], ['Kapsam: 4 sayfa (1, 2, 3, 4)', 'Kitap çevriliyor… (0/4)'],
       'okuyucu değiştiyse eski çevirinin ilerleme/sonuç satırı yazılmamalı');
   });
 

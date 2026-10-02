@@ -34,6 +34,7 @@ const ctx = { $, document: { activeElement: null, createElement: () => makeNode(
   browserSavedTransform: () => ({ scale: 1, offsetSeconds: 0 }), browserSavedSyncRecord: () => null,
   browserTabState: () => tab, saveActiveBrowserTabWorkspace() {},
   scheduleBrowserOverlaySync: () => overlays++, renderBrowserCueAt: () => renders++,
+  browserCloseIcon: () => makeNode(),
 };
 vm.createContext(ctx);
 vm.runInContext(source.slice(source.indexOf('function browserSyncSelection('), source.indexOf('function bestAvailableSubtitleMode(')), ctx);

@@ -172,7 +172,7 @@ vm.runInContext(renderer.slice(start, end), ctx);
     $: () => null,
   };
   vm.createContext(prefsCtx);
-  vm.runInContext(extractFunction('captureWatchPrefs'), prefsCtx);
+  vm.runInContext(extractFunction('subLangFromPath') + '\n' + extractFunction('captureWatchPrefs'), prefsCtx);
   const prefs = prefsCtx.captureWatchPrefs();
   assert.equal(prefs.selectedSubRole, 'translation');
   assert.equal(prefs.secondSubRole, 'source');
@@ -188,6 +188,11 @@ vm.runInContext(renderer.slice(start, end), ctx);
     $: (id) => restoreControls[id] || null,
     syncPlayerSpeedControl() {}, syncVolumeFill() {}, setViewMode() {},
     applySubtitleStyle() {}, applySubtitlePos() {}, browserCommand: async () => {},
+    applySavedLanguagePrefs() {}, updateSeriesChip() {}, uiText: (s) => s,
+    interfaceChoice: (_tr, en) => en, seriesLabelFromKey: (k) => k,
+    libraryResultKindLabel: (k) => k, logLine() {}, pSecToTime: (v) => v,
+    listWatchLibrary: () => [], renderUnifiedLibraryResults() {},
+    stillCurrent: () => true,
     SUB_STYLE_DEFAULTS: {},
     addSubtitleOption(file, _label, metadata) { restored.push(['option', file, metadata.role]); },
     async loadSubtitle(file, secondary, options) {
@@ -195,7 +200,7 @@ vm.runInContext(renderer.slice(start, end), ctx);
     },
   };
   vm.createContext(restoreCtx);
-  vm.runInContext(extractFunction('restoreWatchProfile'), restoreCtx);
+  vm.runInContext(extractFunction('seriesKeyForPlayer') + '\n' + extractFunction('restoreWatchProfile'), restoreCtx);
   await restoreCtx.restoreWatchProfile('youtube:abc123');
   assert.deepEqual(restored.filter((row) => row[0] === 'load'), [
     ['load', 'C:\\out\\film.tr.srt', false, 'translation'],

@@ -2284,7 +2284,8 @@ function renderGlossary() {
     }
     const remove = document.createElement('button');
     remove.title = uiText('Sil');
-    remove.textContent = '×';
+    remove.setAttribute('aria-label', uiText('Sil'));
+    remove.appendChild(browserCloseIcon());
     remove.addEventListener('click', () => {
       active.splice(i, 1);
       saveAppSettings();
@@ -2886,17 +2887,17 @@ function renderHardwareGuide() {
   const rec = H.recommendedHardwareConfig(ctx);
   box.classList.remove('hidden');
   const hwSummary = [
-    ctx.gpuName ? `${ctx.gpuName} · ${H.formatMib(ctx.vramMib, en)} VRAM` : (en ? 'No NVIDIA GPU' : 'NVIDIA GPU yok'),
-    ctx.cpuModel ? `${ctx.cpuModel} (${ctx.cpuCount} ${en ? 'cores' : 'çekirdek'})` : '',
+    ctx.gpuName ? `${escapeHtml(ctx.gpuName)} · ${H.formatMib(ctx.vramMib, en)} VRAM` : (en ? 'No NVIDIA GPU' : 'NVIDIA GPU yok'),
+    ctx.cpuModel ? `${escapeHtml(ctx.cpuModel)} (${ctx.cpuCount} ${en ? 'cores' : 'çekirdek'})` : '',
     ctx.totalMemMib ? `${H.formatMib(ctx.totalMemMib, en)} RAM` : '',
   ].filter(Boolean).join(' · ');
   const stateLabel = { fits: en ? 'fits' : 'sığar', tight: en ? 'tight' : 'sınırda', over: en ? 'too big' : 'sığmaz', unknown: '—' };
   const stateClass = { fits: 'ready', tight: 'warning', over: 'error', unknown: 'warning' };
   const list = rows.map((r) => {
     const mark = r.id === rec.model ? ' ★' : '';
-    return `<div class="hwguide-row" data-state="${r.state}"><span>${r.id}${mark}</span>`
+    return `<div class="hwguide-row" data-state="${escapeHtml(r.state)}"><span>${escapeHtml(r.id)}${mark}</span>`
       + `<span data-ui-untranslated>~${H.formatMib(r.need, en)}</span>`
-      + `<span data-state="${stateClass[r.state] || 'warning'}">${stateLabel[r.state] || r.state}</span></div>`;
+      + `<span data-state="${stateClass[r.state] || 'warning'}">${stateLabel[r.state] || escapeHtml(r.state)}</span></div>`;
   }).join('');
   const recLine = en
     ? `Recommended: ${rec.model} · ${rec.device} · ${rec.computeType} · ${rec.engine} · batch ${rec.batchSize}`
@@ -2955,14 +2956,13 @@ async function renderCacheStats() {
   }
   const rows = H.cacheStatRows(stats.stats || stats, en);
   const jobActive = !!(state.running || state.queueRunning || state.activeOutputJob);
-  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   box.innerHTML = rows.map((r) => {
     const guard = H.cacheClearGuard(r.kind, { jobActive, en });
     const disable = !r.clearable || !guard.ok;
-    return `<div class="cache-row"><span>${esc(r.label)}</span>`
-      + `<span data-ui-untranslated>${r.bytes == null ? '—' : esc(H.formatBytesForUi(r.bytes, en))}${r.detail ? ` · ${esc(r.detail)}` : ''}</span>`
-      + `<button class="btn btn-secondary btn-sm" data-cache-kind="${r.kind}" ${disable ? 'disabled' : ''}`
-      + (guard.ok ? '' : ` title="${esc(guard.reason)}"`) + `>${en ? 'Clear' : 'Temizle'}</button></div>`;
+    return `<div class="cache-row"><span>${escapeHtml(r.label)}</span>`
+      + `<span data-ui-untranslated>${r.bytes == null ? '—' : escapeHtml(H.formatBytesForUi(r.bytes, en))}${r.detail ? ` · ${escapeHtml(r.detail)}` : ''}</span>`
+      + `<button class="btn btn-secondary btn-sm" data-cache-kind="${escapeHtml(r.kind)}" ${disable ? 'disabled' : ''}`
+      + (guard.ok ? '' : ` title="${escapeHtml(guard.reason)}"`) + `>${en ? 'Clear' : 'Temizle'}</button></div>`;
   }).join('');
   box.querySelectorAll('button[data-cache-kind]').forEach((btn) => {
     btn.addEventListener('click', () => runCacheClear(btn.dataset.cacheKind));
@@ -11709,7 +11709,7 @@ function refreshBrowserSyncPanel(message = '') {
       label.textContent = `${index + 1}. ${en ? 'source' : 'kaynak'} ${formatSyncSeconds(point.sourceTime)} → ${en ? 'video' : 'video'} ${formatSyncSeconds(point.videoTime)}`;
       const del = document.createElement('button');
       del.type = 'button'; del.className = 'btn btn-ghost btn-sm browser-sync-point-del';
-      del.textContent = '×';
+      del.appendChild(browserCloseIcon());
       del.title = en ? 'Remove match point' : 'Eşleşme noktasını kaldır';
       del.setAttribute('aria-label', `${en ? 'Remove match point' : 'Eşleşme noktasını kaldır'} ${index + 1}`);
       del.disabled = !selected.track;
@@ -23370,7 +23370,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     }
     if (typeof row.dismiss === 'function') {
       const dismiss = document.createElement('button'); dismiss.type = 'button';
-      dismiss.className = 'player-task-dismiss'; dismiss.textContent = '×';
+      dismiss.className = 'player-task-dismiss'; dismiss.appendChild(browserCloseIcon());
       dismiss.title = 'Temizle'; dismiss.setAttribute('aria-label', 'Temizle');
       dismiss.addEventListener('click', async () => { dismiss.disabled = true; await row.dismiss(); });
       controls.appendChild(dismiss);

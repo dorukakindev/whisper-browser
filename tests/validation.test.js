@@ -94,7 +94,7 @@ t('negatif kaydirmada tamamen video disinda kalan blok atilir', () => {
 const writeStart = msrc.indexOf('function writeSubtitleAtomic(');
 const writeEnd = msrc.indexOf('function writeJsonAtomic(', writeStart);
 ok(writeStart >= 0 && writeEnd > writeStart, 'atomik altyazı yazıcısı bulunamadı');
-const writeSubtitleAtomic = new Function('fs', 'renameSyncResilient', `${msrc.slice(writeStart, writeEnd)}; return writeSubtitleAtomic;`)(fs, require('../src/fsync-utils').renameSyncResilient);
+const writeSubtitleAtomic = new Function('fs', 'renameSyncResilient', 'markOwnSubtitleWrite', `${msrc.slice(writeStart, writeEnd)}; return writeSubtitleAtomic;`)(fs, require('../src/fsync-utils').renameSyncResilient, () => {});
 
 t('SRT BOM alır fakat WebVTT BOM almaz', () => {
   const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'whisper-bom-'));
