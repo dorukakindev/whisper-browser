@@ -302,6 +302,12 @@ t('çeviri endpointi tam rota verilince chat/completions ekini çoğaltmaz', () 
     'https://api.example.test/v1/chat/completions', 'tam rota iki kez tamamlandı');
   ok(safeTranslationEndpoint('http://api.example.test/v1') === '',
     'uzak güvensiz HTTP rota kabul edildi');
+  // Ayar sınırı userinfo'yu reddeder ama bu yol renderer-canlı değerlerle de
+  // çağrılabilir — uç noktada gizli bilgi taşınamaz (yerel http de dahil).
+  ok(safeTranslationEndpoint('https://user:pass@api.example.test/v1') ===
+    'https://api.example.test/v1/chat/completions', 'uzak userinfo soyulmadı');
+  ok(safeTranslationEndpoint('http://user:pass@localhost:8080/v1') ===
+    'http://localhost:8080/v1/chat/completions', 'yerel userinfo soyulmadı');
 });
 
 t('altyazıyı farklı kaydet kaynak biçimini ve uzantısını korur', () => {

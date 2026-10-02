@@ -84,6 +84,11 @@ function t_redact() {
   // Ardışık iki gizli bayrak — değerler maskelenir, bayrak adları görünür
   assert.strictEqual(red(['t.py', '--input', 'a', '--glossary', 'b']),
     '--input <gizlendi> --glossary <gizlendi>');
+  // Sağlayıcı uç noktaları günlüğe tam URL düşmez (iç ağ adı sızıntısı)
+  assert.strictEqual(red(['t.py', '--translate-base-url', 'https://ic-ag.corp/v1']),
+    '--translate-base-url <gizlendi>');
+  assert.strictEqual(red(['t.py', '--llm-base-url=https://ic-ag.corp/v1', '--model', 'm']),
+    '--llm-base-url=<gizlendi> --model m');
 }
 
 function t_prune() {
