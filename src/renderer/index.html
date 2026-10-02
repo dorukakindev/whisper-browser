@@ -933,6 +933,10 @@
                 <input type="checkbox" id="translateKeepSource" checked />
                 <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
               </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="translateLenient" />
+                <span>Gevşek kabul: kalite denetimini atla — model ne döndürürse doğrudan yazılır (daha hızlı; hatalı veya kaynak dilde kalan satırlar sessizce geçer)</span>
+              </label>
               <div class="hint field-full">
                 shuaiapi rotalarından biri seçiliyse, bir rota tıkanırsa diğerlerine otomatik geçilir.
                 Sözlükteki özel isimler çeviride de korunur. Çeviri dosyası <code>&lt;ad&gt;.tr.srt</code> olarak yazılır.

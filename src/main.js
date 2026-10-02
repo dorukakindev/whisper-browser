@@ -20824,6 +20824,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!options.chat && options.translateRegister) pushBoundOption(args, '--translate-register', options.translateRegister);
   if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
+  // Gevşek kabul: kalite kapıları backend'de atlanır; yalnız açıkken gönderilir
+  // (varsayılan sıkı denetim — bayrağın yokluğu eski davranışla birebir aynı).
+  if (!options.chat && options.translateLenient) args.push('--translate-lenient', 'true');
   if (!options.chat && options.translateContext !== undefined && options.translateContext !== '') {
     pushBoundOption(args, '--translate-context', String(options.translateContext));
   }

@@ -338,6 +338,7 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
+    translateLenient: $('translateLenient') ? $('translateLenient').checked : false,
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
@@ -3303,7 +3304,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
