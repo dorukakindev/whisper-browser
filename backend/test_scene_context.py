@@ -4,6 +4,11 @@ import sys
 import time
 sys.path.insert(0, 'backend')
 
+# Türkçe Windows konsolu (cp1254) '→' gibi karakterleri kodlayamaz; okunabilir
+# kalsın diye kodlanamayanlar '?' olur (open() tarafı zaten utf-8 sabitli).
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(errors='replace')
+
 from sentence_translation import detect_scene_boundaries, scene_context_bounds
 
 

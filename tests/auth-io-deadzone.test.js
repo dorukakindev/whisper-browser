@@ -366,9 +366,10 @@ function t_resolve() {
   ]);
   // resolveFfTool: backend/bin'de yok → bare ad
   assert.strictEqual(vm.runInContext('resolveFfTool("ffprobe")', ctx), 'ffprobe');
-  // resolvePython: venv yok → spawnSync probe, status 0 → 'python3' (linux commands[0])
+  // resolvePython: venv yok → spawnSync probe, status 0 → commands[0]
+  // (linux 'python3', win32 'python' — resolvePython'daki platform sırası)
   const py = vm.runInContext('resolvePython()', ctx);
-  assert.strictEqual(py, 'python3');
+  assert.strictEqual(py, process.platform === 'win32' ? 'python' : 'python3');
   assert.strictEqual(JSON.stringify(spawnCalls[0][1]), JSON.stringify(['--version']));
   // resolveExternalPlayerPath: env yok, aday yok → probe 'which' → stdout satırı kabul
   spawnCalls.length = 0;
@@ -546,7 +547,7 @@ async function t_run_commands() {
   // başarılı: sonuç satırı + close
   const p1 = vm.runInContext('runYoutubeCommand(["browse","--browse-id","FEsubscriptions"])', ctx);
   const s1 = spawned[spawned.length - 1];
-  assert.strictEqual(s1.args[0], '/app/backend/youtube.py');
+  assert.strictEqual(s1.args[0], path.join('/app', 'backend', 'youtube.py'));
   s1.p.stdout.emit('data', JSON.stringify({ type: 'token', ok: 1 }) + '\n');
   s1.p.emit('close', 0);
   const r2 = await p1;
@@ -566,7 +567,7 @@ async function t_run_commands() {
   ctx.subtitleFileAccess = { grant: (p) => grants.push(p) };
   const p3 = vm.runInContext('runInvidiousCommand(["subs"], "invidious")', ctx);
   const s3 = spawned[spawned.length - 1];
-  assert.strictEqual(s3.args[0], '/app/backend/invidious.py');
+  assert.strictEqual(s3.args[0], path.join('/app', 'backend', 'invidious.py'));
   s3.p.stdout.emit('data', JSON.stringify({ type: 'subs', path: '/t/x.srt' }) + '\n');
   s3.p.emit('close', 0);
   const r4 = await p3;

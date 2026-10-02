@@ -248,21 +248,24 @@ async function t_pdf_save(userData) {
   r = await save({ view: { webContents: { isDestroyed: () => false, printToPDF: async () => Buffer.from('x') } } });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.canceled, true);
-  // .pdf uzantısı eklenir + printBackground true
-  ctx.__dlg = { filePath: '/tmp/cikti' };
+  // .pdf uzantısı eklenir + printBackground true. Stub writeBufferAtomic gerçek
+  // diske yazar — Windows'ta `/tmp` olmadığından yazılabilir dizin (userData) kullanılır.
+  const pdfOut = path.join(userData, 'cikti');
+  ctx.__dlg = { filePath: pdfOut };
   const wc = { isDestroyed: () => false, printToPDF: async (o) => { calls.pdf.push(o); return Buffer.from('PDF'); } };
   r = await save({ view: { webContents: wc } });
   assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.path, '/tmp/cikti.pdf');
+  assert.strictEqual(r.path, pdfOut + '.pdf');
   assert.strictEqual(calls.pdf[0].printBackground, true);
-  assert.strictEqual(calls.bufAtomic[0].t, '/tmp/cikti.pdf');
+  assert.strictEqual(calls.bufAtomic[0].t, pdfOut + '.pdf');
   // .PDF (büyük harf) → tekrar eklenmez
-  ctx.__dlg = { filePath: '/tmp/CIKTI.PDF' };
+  const pdfUpper = path.join(userData, 'CIKTI.PDF');
+  ctx.__dlg = { filePath: pdfUpper };
   r = await save({ view: { webContents: wc } });
-  assert.strictEqual(r.path, '/tmp/CIKTI.PDF');
+  assert.strictEqual(r.path, pdfUpper);
   // printToPDF throw → hata
   const wcBad = { isDestroyed: () => false, printToPDF: async () => { throw new Error('yok'); } };
-  ctx.__dlg = { filePath: '/tmp/f.pdf' };
+  ctx.__dlg = { filePath: path.join(userData, 'f.pdf') };
   r = await save({ view: { webContents: wcBad } });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /kaydedilemedi/);

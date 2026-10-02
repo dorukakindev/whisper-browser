@@ -9,12 +9,15 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const PY = fs.readFileSync('backend/browser_media_tools.py', 'utf8');
-const MAIN = fs.readFileSync('src/main.js', 'utf8');
-const PRELOAD = fs.readFileSync('src/preload.js', 'utf8');
-const HELPERS = fs.readFileSync('src/renderer/renderer-helpers.js', 'utf8');
-const RENDERER = fs.readFileSync('src/renderer/renderer.js', 'utf8');
-const CSS = fs.readFileSync('src/renderer/styles.css', 'utf8');
+// Windows checkout'ta (core.autocrlf) kaynaklar CRLF iner; `\n\n`/`\n}` gibi
+// yapısal sınırlar için satır sonları LF'e normalize edilir.
+const readSrc = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+const PY = readSrc('backend/browser_media_tools.py');
+const MAIN = readSrc('src/main.js');
+const PRELOAD = readSrc('src/preload.js');
+const HELPERS = readSrc('src/renderer/renderer-helpers.js');
+const RENDERER = readSrc('src/renderer/renderer.js');
+const CSS = readSrc('src/renderer/styles.css');
 
 let passed = 0;
 function test(name, fn) {
@@ -174,7 +177,7 @@ test('rozet stilleri tanımlı', () => {
 // =========================================================================
 
 test('browser-media-tools.ocrStatus python ocrStatus operasyonunu çağırır', () => {
-  const src = fs.readFileSync('src/browser-media-tools.js', 'utf8');
+  const src = readSrc('src/browser-media-tools.js');
   const m = src.match(/ocrStatus\(\{[\s\S]*?return python\('ocrStatus'/);
   assert.ok(m, 'ocrStatus sarmalayıcısı yok veya yanlış operasyon');
 });

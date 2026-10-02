@@ -138,9 +138,17 @@ check('JSON dizini: geçerli kullanıcı adaptörü yüklenir, büyük dosya red
   const { loaded, errors } = createBuiltinAdapterRegistry().loadJsonDirectory(dir);
   return JSON.stringify(loaded) === '["mytv"]' && errors.length === 1;
 })());
-check('JSON dizini yoksa hata döner (atmaz)', (() => {
-  const { loaded, errors } = createBuiltinAdapterRegistry().loadJsonDirectory('/nonexistent-dir-xyz');
-  return loaded.length === 0 && errors.length === 1;
+// loadJsonDirectory eksik dizini recursive mkdir ile oluşturur (ilk-açılış UX'i);
+// gerçek hata ancak oluşturulamaz/okunamaz yolda doğar — dosya çakışması bunu verir.
+check('JSON dizini okunamazsa hata döner (atmaz)', (() => {
+  const blocker = path.join(os.tmpdir(), `wb-adapter-engel-${process.pid}`);
+  fs.writeFileSync(blocker, 'x');
+  try {
+    const { loaded, errors } = createBuiltinAdapterRegistry().loadJsonDirectory(blocker);
+    return loaded.length === 0 && errors.length === 1;
+  } finally {
+    fs.rmSync(blocker, { force: true });
+  }
 })());
 check('get/lookup unknown → null', ADAPTER_REGISTRY.get('yok') === null);
 check('get case-insensitive', ADAPTER_REGISTRY.get('NETFLIX').id === 'netflix');

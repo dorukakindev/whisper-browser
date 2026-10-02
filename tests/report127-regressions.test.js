@@ -80,6 +80,8 @@ try {
     index.upsertMedia({ id: 'youtube:aaaaaaaaaaa', title: 'b', lastWatched: 7000 });
     const tied = index.listMedia().filter((row) => row.last_watched === 7000);
     assert.deepStrictEqual(tied.map((row) => row.id), ['youtube:aaaaaaaaaaa', 'youtube:bbbbbbbbbbb']);
+    // Windows'ta açık watch.db tutamacı teardown rmSync'i EPERM ile kırıyor.
+    index.close();
   });
 
   test('settings-security: POSIX ve Windows mutlak yolları her platformda kabul edilir', () => {
@@ -105,5 +107,6 @@ try {
 
   console.log(`report127-regressions: ${passed} test geçti`);
 } finally {
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Windows'ta AV/indexer gibi kısa ömürlü kilitler rm'i EPERM yapabilir.
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

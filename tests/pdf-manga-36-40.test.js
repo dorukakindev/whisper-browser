@@ -11,13 +11,16 @@ const fs = require('fs');
 const vm = require('vm');
 
 const PDF = require('../src/pdf-translate');
-const MAIN = fs.readFileSync('src/main.js', 'utf8');
-const MANGA = fs.readFileSync('src/browser-manga.js', 'utf8');
-const PRELOAD = fs.readFileSync('src/preload.js', 'utf8');
-const HELPERS = fs.readFileSync('src/renderer/renderer-helpers.js', 'utf8');
-const RENDERER = fs.readFileSync('src/renderer/renderer.js', 'utf8');
-const HTML = fs.readFileSync('src/renderer/index.html', 'utf8');
-const CSS = fs.readFileSync('src/renderer/styles.css', 'utf8');
+// Windows checkout'ta (core.autocrlf) kaynaklar CRLF iner; `\n}` gibi yapısal
+// sınırlar için satır sonları LF'e normalize edilir.
+const readSrc = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+const MAIN = readSrc('src/main.js');
+const MANGA = readSrc('src/browser-manga.js');
+const PRELOAD = readSrc('src/preload.js');
+const HELPERS = readSrc('src/renderer/renderer-helpers.js');
+const RENDERER = readSrc('src/renderer/renderer.js');
+const HTML = readSrc('src/renderer/index.html');
+const CSS = readSrc('src/renderer/styles.css');
 
 let passed = 0;
 function test(name, fn) {
@@ -152,7 +155,7 @@ test('madde 36 — pair tıklaması kaynak sayfada konum işareti çizer', () =>
 test('madde 36 — blok koordinatı extract→normalize→render zincirinde taşınır', () => {
   assert.ok(/top: Math\.max\(\.\.\.lines\.map/.test(HELPERS), 'extract box yok');
   assert.ok(/paragraph\.box \? \{ box: paragraph\.box \}/.test(MAIN), 'prepare box yok');
-  assert.ok(/normalized\.box = \{/.test(fs.readFileSync('src/pdf-translate.js', 'utf8')), 'normalize box yok');
+  assert.ok(/normalized\.box = \{/.test(readSrc('src/pdf-translate.js')), 'normalize box yok');
 });
 
 // =========================================================================
@@ -174,7 +177,7 @@ test('madde 37 — düzenleme diyaloğu + düzeltme görsel işareti', () => {
   assert.ok(/openAppDialog\(\{[\s\S]*?inputLabel/.test(HELPERS), 'input diyaloğu yok');
   assert.ok(/pdf-pair-edited/.test(CSS) && /pdf-pair-editnote/.test(CSS), 'edited CSS yok');
   assert.ok(/pdf-pair-ambiguous/.test(CSS) && /pdf-pair-ambiguous-note/.test(CSS), 'ambiguous CSS yok');
-  assert.ok(/orderAmbiguous/.test(fs.readFileSync('src/pdf-translate.js', 'utf8')), 'orderAmbiguous üretimi yok');
+  assert.ok(/orderAmbiguous/.test(readSrc('src/pdf-translate.js')), 'orderAmbiguous üretimi yok');
 });
 
 // =========================================================================

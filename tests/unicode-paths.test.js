@@ -159,8 +159,12 @@ body = raw[3:].decode('utf-8')
 assert 'Şiir' in body and 'İstanbul' in body, 'Türkçe korunur'
 print('py:unicode-path-write OK')`;
   const { execFileSync } = require('child_process');
+  // Windows'ta `python3` takma adı çoğu kurulumda yoktur; run-all.js ile aynı
+  // yorumlayıcı keşfi (venv → py launcher → python3/python) kullanılır.
+  const python = require('./python-runtime').findTestPython();
+  if (!python) throw new Error('python unicode write: Python yorumlayıcısı bulunamadı');
   try {
-    execFileSync('python3', ['-c', py], { cwd: require('path').join(__dirname, '..'), stdio: 'pipe' });
+    execFileSync(python, ['-c', py], { cwd: require('path').join(__dirname, '..'), stdio: 'pipe' });
     n += 1;
   } catch (e) { throw new Error(`python unicode write: ${e.stderr || e.message}`); }
 }

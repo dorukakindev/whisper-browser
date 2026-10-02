@@ -10,7 +10,8 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const SRC = fs.readFileSync('src/renderer/renderer.js', 'utf8');
+// CRLF checkout'ta (Windows core.autocrlf) `\n}\n` sınırı tutmaz — LF'e normalize.
+const SRC = fs.readFileSync('src/renderer/renderer.js', 'utf8').replace(/\r\n/g, '\n');
 async function main() {
 const BODY = SRC.match(
   /const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;[\s\S]*?\nasync function translateVisiblePdfPagesNow\(reader, all, explicitPages[^\)]*\) \{[\s\S]*?\n\}\n/);
