@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- Çeviri kalite kapıları: modal/negasyon denetimi artık hedef dile kapsamlı (DE/EN gibi dillerde doğru çeviri `.partial`'a düşmüyor), yerelleşmiş SDH etiketleri (`[Müzik]`, `(Kahkaha)`) İngilizceye geri düşmek yerine korunuyor, SDH köşeli/parantez içeriği özel-ad kapısına takılmıyor, Latin-dışı alfabeli kaynak satırlar (Japonca/Çince/Arapça/Kiril) artık gerçekten çevriliyor ve kalite raporu bilinçli korunan satırları "çevrilmedi" saymıyor.
+
+
 ### Added
 - Kuyruk-50 kampanyası (madde 1–50, raporlar 315–362): transkripsiyon devam-noktası (checkpoint) kurtarma, GPU bellek bütçesi yönetimi, konuşmacı-düzeltme akışı, büyük transkript sanallaştırma, kaynak/hedef ortak arama dizini, parça-bazlı senkron profilleri, takılma teşhis paneli, oynatma-saati tutarlılığı, çeviri adaptör uyumluluk paketi, altyazı kökeni görünümü, capture tekrar-oynatma düzeneği, live-Whisper ses parçası değiştirme, checkpoint sürümleme, iptalin süreç ağacına yayılması, çok-dosya çıktı işlemleri, medya yeniden-bağlama motoru, büyük katalog sorguları, taşınabilir proje paketi, veri şeması geçişleri, veri bütünlüğü denetimi, PDF yerleşimini koruyan çeviri, yerel OCR yetenek yönetimi, PDF görev planlayıcısı, manga görüntü dönüşümü geçişleri + bölüm işleme, IPC yetki sınırları, ağ yönlendirme sınırları, gizli-bilgi deposu kurtarma, mahremiyetli tanı paketi, parser dayanıklılık paketi, Windows kurulum/DPI/süreç/paket matrisleri, sürüm kabul kampanyası.
 - 100-kuyruk batch 1–10 (raporlar 363–373): kalıcılık/bozulma, renderer/UI kenarları, backend hata yolları, çeviri sözleşmesi, güvenlik/IPC tur-2 ratchet'leri + kuyruk yaşam döngüsü üç-yazıcılı invariant'ları + sıcak-yol performans bütçeleri + Windows dosya-sistemi matrisi + kapanış süpürmesi — indeks onarımı, IPC/preload sayaç ve ratchet-baseline doğrulaması (toplam ~90 yeni kilit).

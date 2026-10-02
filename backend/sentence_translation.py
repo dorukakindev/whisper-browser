@@ -383,6 +383,11 @@ def _initial_name_swap(source, translated):
     words = normalized_text(source).split()
     if not words:
         return ""
+    # Köşeli/parantezli işaretin İÇERİĞİ ad demirine girmez: '[MUSIC]'→'[Müzik]'
+    # gibi betimleme yerelleşmesi SDH kapısına aittir; burada 'MUSIC'→'Müzik'
+    # 2-editlik takas sanılıp doğru çeviri ozel_ad_bozulma ile reddedilirdi.
+    if re.match(r"^[\[({«][^\])}»]+[\])}»]?$", words[0]):
+        return ""
     first = words[0].strip("\"'“”‘’([{«")
     if len(first) < 3 or not first[0].isupper():
         return ""
@@ -435,7 +440,17 @@ def _proper_names(text):
     body = text[prefix.end():] if prefix else text
     words = body.split()
     names = []
+    depth = 0
     for index, word in enumerate(words):
+        # Köşeli/parantezli işaretin içeriği ('[MUSIC]', '(PHONE RINGS)') ad
+        # değil betimlemedir — SDH kapısı denetler; burada sayılırsa yerelleşmiş
+        # biçimi '(fısıldar)' ad kaybı sanılıp doğru çeviri reddedilirdi.
+        opens = len(re.findall(r"[\[({«]", word))
+        closes = len(re.findall(r"[\])}»]", word))
+        inside = depth > 0
+        depth = max(0, depth + opens - closes)
+        if inside or opens > closes or re.match(r"^[\[({«][^\])}»]*[\])}»]$", word):
+            continue
         candidate = word.strip("\"'“”‘’([{«")
         if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
             continue
@@ -911,6 +926,13 @@ _TR_LONE_QUESTION_PARTICLE = re.compile(
 )
 _TR_TRUNCATED_HYPHEN = re.compile(r'\w-\s*$')
 
+# Anlam kapılarının hedef-dil kapsamı: _TARGET_* kalıpları yalnız listelenen
+# dilleri ayırt eder (TR ekleri + listeli Avrupa karşılıkları). Desteklenmeyen
+# hedefte kapıyı çalıştırmak her doğru çeviriyi "kayıp" diye reddederdi —
+# 'You must wait.'→DE 'Du musst warten.' modal_missing'e takılıyordu.
+_NEGATION_TARGET_LANGS = frozenset("tr en de fr es it pt".split())
+_MODAL_TARGET_LANGS = frozenset(["tr"])
+
 _MONTH_PATTERNS = {
     'jan': re.compile(r'\b(?:January|Jan\.?|Ocak)\b', re.I),
     'feb': re.compile(r'\b(?:February|Feb\.?|Şubat|Subat)\b', re.I),
@@ -1195,11 +1217,14 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         missing.append(token)
     if missing and 'number_mismatch' not in issues:
         issues.append('number_mismatch')
-    if _SOURCE_NEGATION.search(source) and not _TARGET_NEGATION.search(translated):
+    lang = str(target_lang or '').lower().split('-')[0]
+    if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(source) \
+            and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
-    if _SOURCE_MODAL.search(source) and not _TARGET_MODAL.search(translated):
+    if lang in _MODAL_TARGET_LANGS and _SOURCE_MODAL.search(source) \
+            and not _TARGET_MODAL.search(translated):
         issues.append('modal_missing')
-    if str(target_lang or '').lower().split('-')[0] == 'tr':
+    if lang == 'tr':
         # Modalite güç sapması: ihtimal → kesinlik ('might rain' → 'yağacak')
         # ve zorunluluk → olanak ('must come' → 'gelebilirsin') ölçülen
         # anlam kaybıdır; -acak gelecek ihtimal kanıtı sayılmaz.
@@ -1217,7 +1242,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     for issue, source_markers, translated_markers in marker_checks:
         if source_markers and not source_markers.issubset(translated_markers):
             issues.append(issue)
-    if str(target_lang or '').lower().split('-')[0] == 'tr':
+    if lang == 'tr':
         words = translated.split()
         # Cümlenin bağlaçla bitmesi ya da metnin yalnız soru ekinden oluşması
         # (kaynak gerçekten cümleyken) kesik dağıtımın kesin izidir. Tek

@@ -131,9 +131,39 @@ def sdh_markers_removed(text):
     return [value[s:e] for s, e in _sdh_spans(value)]
 
 
+# Diller arası işaret kimliği: her terimin normalize (_key) biçimi tek bir
+# kanonik anahtara düşer. Kapsam yalnız 2 maddeyken yerelleşmiş betimleme
+# ('[MÜZİK]') kaynak işaret ('[MUSIC]') ile eşleşemiyor ve belirsiz kabul
+# edilip sessizce İngilizce hâline geri düşülüyordu.
 _SDH_EQUIVALENTS = {
-    "music": "music", "muzik": "music",
-    "applause": "applause", "applauding": "applause", "alkis": "applause", "alkıs": "applause",
+    term: canonical for canonical, terms in {
+        "music": ("music", "müzik", "muzik"),
+        "applause": ("applause", "applauding", "alkış", "alkis", "alkıs"),
+        "cheering": ("cheering", "crowd cheering"),
+        "laughter": ("laughter", "laughing", "chuckles", "kahkaha",
+                     "gülüşmeler", "gulusmeler"),
+        "sighs": ("sighs", "sighing", "iç çeker", "ic ceker"),
+        "gasps": ("gasps", "gasping"),
+        "coughs": ("coughs", "coughing", "öksürür", "oksurur"),
+        "screams": ("screams", "screaming", "çığlık", "ciglik"),
+        "crying": ("crying", "sobbing", "weeping"),
+        "whispers": ("whispers", "whispering", "fısıldar", "fisildar"),
+        "inaudible": ("inaudible", "anlaşılmıyor", "anlasilmiyor"),
+        "garbled voices": ("garbled voices", "uğultu", "ugultu"),
+        "door slams": ("door slams", "kapı çarpar", "kapi carpar"),
+        "door closes": ("door closes",),
+        "door opens": ("door opens",),
+        "phone rings": ("phone rings", "ringing", "telefon çalar", "telefon calar"),
+        "gunshot": ("gunshot", "gunshots", "silah sesi"),
+        "thunder": ("thunder", "gök gürültüsü", "gok gurultusu"),
+        "explosion": ("explosion",),
+        "siren": ("siren",),
+        "engine": ("engine",),
+        "footsteps": ("footsteps",),
+        "wind": ("wind",),
+        "rain": ("rain",),
+        "silence": ("silence",),
+    }.items() for term in terms
 }
 
 

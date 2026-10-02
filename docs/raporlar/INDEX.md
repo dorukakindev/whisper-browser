@@ -347,3 +347,4 @@ tarih sırasıyla dosya adından okunur.
 | 375 | [BROWSER_BUG_REPORT_375.md](BROWSER_BUG_REPORT_375.md) | Yeni-100 batch 2 — Windows derinleştirme: UNC file:// host + '?' kodlama + ENAMETOOLONG + windowsHide yapısal varsayılan |
 | 376 | [BROWSER_BUG_REPORT_376.md](BROWSER_BUG_REPORT_376.md) | Yeni-100 batch 3 — gerçek-model kenar matrisi: halüsinasyon kalıp boşlukları (thank you for watching/listening + we'll see you) + son cue medya-sonu kelepçesi |
 | 377 | [BROWSER_BUG_REPORT_377.md](BROWSER_BUG_REPORT_377.md) | Yeni-100 batch 4 — gerçek çökme yaşam döngüsü: çökmüş wc script/send kapıları + crash-kind ezilmesi (load-error maskesi) + lifecycle-deep smoke |
+| 378 | [BROWSER_BUG_REPORT_378.md](BROWSER_BUG_REPORT_378.md) | Yeni-100 batch 5 — çeviri kalite: anlam kapısı dil kapsamı + SDH yerelleşme sözlüğü + SDH-ad kapısı + Latin-dışı koruma + rapor muhasebesi |
