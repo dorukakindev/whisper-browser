@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-02-0055.md](docs/devir/2026-10-02-0055.md) — 100-kuyruk batch 8: doküman/infra senkron — INDEX 330/330 + IPC katalog 223+12 + sayaçlar (rapor 371)
+Güncel çalışma: [docs/devir/2026-10-02-0013.md](docs/devir/2026-10-02-0013.md) — 100-kuyruk batch 9: Windows hazırlık matrisi — renameSync dayanıklılığı (40 nokta) + kanonik yol eşleşmesi, 2 kusur (rapor 372)
+Önceki çalışma: [docs/devir/2026-10-02-0055.md](docs/devir/2026-10-02-0055.md) — 100-kuyruk batch 8: doküman/infra senkron — INDEX 330/330 + IPC katalog 223+12 + sayaçlar (rapor 371)
 Önceki çalışma: [docs/devir/2026-10-02-0030.md](docs/devir/2026-10-02-0030.md) — 100-kuyruk batch 7: performans — translatePattern memo + sıcak-yol bütçe ratchet'i, 11 kontrol (rapor 370)
 Önceki çalışma: [docs/devir/2026-10-02-0010.md](docs/devir/2026-10-02-0010.md) — 100-kuyruk batch 6: kuyruk yaşam döngüsü — üç-yazıcılı interleaving + invariant kilitleri, 10 kontrol (rapor 369)
 Önceki çalışma: [docs/devir/2026-10-01-2355.md](docs/devir/2026-10-01-2355.md) — 100-kuyruk batch 5: güvenlik/IPC tur-2 — browser-preload köprüsü + web-IPC invariant ratchet'i, 9 kontrol (rapor 368)

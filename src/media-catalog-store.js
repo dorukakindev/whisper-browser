@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs');
-const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
@@ -232,7 +232,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
         io.copyFileSync(filePath, backupPath);
         fsyncFileBestEffort(backupPath, io);
       } catch {}
-      io.renameSync(temp, filePath); cache = next;
+      renameSyncResilient(io, temp, filePath); cache = next;
       fsyncDirectory(path.dirname(filePath), io);
     } finally { try { io.unlinkSync(temp); } catch {} }
   }

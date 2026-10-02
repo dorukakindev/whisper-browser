@@ -339,7 +339,7 @@ const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('.
 const { WatchIndex } = require('./watch-index');
 const { collectTrackAssetRefs, pruneAndSweepTracks } = require('./browser-asset-gc');
 const { writeJsonAtomic: writeAtomicJson, writeMirroredJsonAtomic } = require('./atomic-json');
-const { fsyncDirectory } = require('./fsync-utils');
+const { fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 const { runBrowserPageIndexCapture } = require('./browser-page-index');
 const { BrowserNoteStore } = require('./browser-note-store');
 const { validateSubtitleExport } = require('./subtitle-export-validation');
@@ -2434,6 +2434,14 @@ const watchFolderAccess = new Set();
 const shellTargetAccess = new Set();
 const watchSeen = new Map();      // yol -> {size, stableCount, queued}
 const WATCH_INTERVAL = 5000;
+
+// Windows dosya sistemi büyük-küçük harf duyarsız: aynı dosyanın farklı
+// yazımlı yolları (sürücü harfi, dizin büyük harfi) ayrı anahtar/eşleşme
+// üretirdi. Yol eşitliği gereken noktalar kanonik küçültmeyle karşılaştırır.
+function canonicalFsPath(p) {
+  const resolved = path.resolve(String(p));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
 const WATCH_STABLE_TICKS = 2;     // ~10 sn boyunca boyut değişmemeli
 
 function scanWatchFolder() {
@@ -2593,7 +2601,8 @@ ipcMain.handle('watch:report', async (event, filePath, status) => {
     return { ok: false, error: 'Geçersiz izleme sonucu.' };
   }
   const resolved = path.resolve(filePath);
-  const entry = watchSeen.get(resolved) || watchSeen.get(filePath);
+  const entry = watchSeen.get(resolved) || watchSeen.get(filePath)
+    || watchSeen.get(canonicalFsPath(filePath));
   if (!entry) return { ok: true, ignored: true };
   if (status === 'done') {
     entry.queued = true;
@@ -2626,7 +2635,7 @@ function writeSubtitleAtomic(filePath, text, validateTemporary = null, io = fs) 
   try {
     io.writeFileSync(tmp, data, 'utf-8');
     if (typeof validateTemporary === 'function') validateTemporary(tmp);
-    io.renameSync(tmp, filePath);
+    renameSyncResilient(io, tmp, filePath);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
@@ -2641,7 +2650,7 @@ function writeTextAtomic(filePath, text, io = fs) {
   const tmp = filePath + '.tmp';
   try {
     io.writeFileSync(tmp, String(text).replace(/^\uFEFF/, ''), { encoding: 'utf8', flush: true });
-    io.renameSync(tmp, filePath);
+    renameSyncResilient(io, tmp, filePath);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
@@ -2653,7 +2662,7 @@ function writeJsonAtomic(filePath, value, io = fs) {
   const tmp = filePath + '.tmp';
   try {
     io.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', flush: true });
-    io.renameSync(tmp, filePath);
+    renameSyncResilient(io, tmp, filePath);
     fsyncDirectory(path.dirname(filePath), io);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
@@ -2666,7 +2675,7 @@ function writeBufferAtomic(filePath, value, io = fs) {
   const tmp = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     io.writeFileSync(tmp, value, { flush: true });
-    io.renameSync(tmp, filePath);
+    renameSyncResilient(io, tmp, filePath);
     fsyncDirectory(path.dirname(filePath), io);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
@@ -3009,7 +3018,7 @@ function loadSettings() {
   if (settingsFileCorrupt) {
     // Bozuk dosyayı silmeden forenzik için koru; kullanıcıya uyarı gösterilir.
     try {
-      fs.renameSync(settingsPath(),
+      renameSyncResilient(fs, settingsPath(),
         `${settingsPath()}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
       settingsLoadWarning = settingsFileFullyLost
         ? 'Ayar dosyası bozuk bulundu; dosya yedeklendi ve güvenli varsayılanlar yüklendi.'
@@ -19400,8 +19409,8 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   const previousRecovery = readBurninRecoveryState();
   const resumingPrevious = !!previousRecovery
     && previousRecovery.id === String(recoveryId || '')
-    && path.resolve(previousRecovery.videoPath) === path.resolve(videoPath)
-    && path.resolve(previousRecovery.subPath) === path.resolve(subPath);
+    && canonicalFsPath(previousRecovery.videoPath) === canonicalFsPath(videoPath)
+    && canonicalFsPath(previousRecovery.subPath) === canonicalFsPath(subPath);
   if (previousRecovery && !resumingPrevious) {
     return { ok: false, recovery: true,
       error: 'Yarım kalan bir gömme işi var. Önce kurtarma bildiriminden tamamlayın veya yeniden başlatın.' };

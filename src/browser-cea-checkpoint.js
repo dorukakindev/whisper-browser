@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const VERSION = 1;
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -93,7 +93,7 @@ function saveCeaCheckpoint(root, id, tracks, progress = 0, now = Date.now(), fsI
   try {
     fsImpl.writeFileSync(temporary, payload, { encoding: 'utf8', flag: 'w' });
     fsyncFile(temporary, fsImpl);
-    fsImpl.renameSync(temporary, target);
+    renameSyncResilient(fsImpl, temporary, target);
     fsyncDirectory(root, fsImpl);
   } catch (error) {
     try { fsImpl.unlinkSync(temporary); } catch (_) {}

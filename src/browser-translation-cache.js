@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 class PersistentTranslationCache {
   constructor(filePath, options = {}) {
@@ -46,7 +46,7 @@ class PersistentTranslationCache {
       try {
         if (!this.fs.existsSync(filePath)) return;
         const archive = `${filePath}.corrupt-${process.pid}-${Date.now()}`;
-        this.fs.renameSync(filePath, archive);
+        renameSyncResilient(this.fs, filePath, archive);
       } catch (_) { /* Kurtarma başarısız olsa bile bellekte temiz cache ile devam et. */ }
       // Bozuk arşivler teşhis için tutulur ama sınırsız birikmez — dosya adına
       // yazan zaman damgasına göre en yeni 5 kopya korunur (B83-N3).
@@ -291,7 +291,7 @@ class PersistentTranslationCache {
         this.fs.mkdirSync(dir, { recursive: true });
         this.fs.writeFileSync(temp, payload, 'utf8');
         fsyncFile(temp, this.fs);
-        this.fs.renameSync(temp, this.filePath);
+        renameSyncResilient(this.fs, temp, this.filePath);
         fsyncDirectory(dir, this.fs);
         try { this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`); } catch (_) {}
         try { this.fs.unlinkSync(this.journalPath); } catch (_) {}

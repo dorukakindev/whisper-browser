@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { renameSyncResilient } = require('./fsync-utils');
 
 const SECRET_STORE_VERSION = 1;
 const DEFAULT_SECRET_FIELDS = Object.freeze([
@@ -202,7 +203,7 @@ class SafeSecretStore {
       if (existing?.ok) {
         this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
       }
-      this.fs.renameSync(temp, this.filePath);
+      renameSyncResilient(this.fs, temp, this.filePath);
       return { ok: true, stored: Object.keys(entries) };
     } catch (error) {
       return { ok: false, error: error.message };

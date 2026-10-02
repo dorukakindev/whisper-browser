@@ -5,6 +5,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const { gzipSync, gunzipSync } = require('node:zlib');
 const { run } = require('./browser-media-tools');
 const core = require('./workspace-package');
+const { renameSyncResilient } = require('./fsync-utils');
 const VIDEO = /\.(mp4|mkv|avi|webm|mov|m4v|ts)$/i;
 // Manifest ve içe aktarılan katalog kayıtlarında video kaynağının kararlı,
 // paket-içi takma kimliği — mutlak yerel yol asla yazılmaz (R86-01).
@@ -43,7 +44,7 @@ async function exportWithVideos(root, output, values, exe) {
     data.videos = videos.map(v => ({ ...v, source: videoAliases.get(v.source) }));
     fs.writeFileSync(manifest, gzipSync(Buffer.from(JSON.stringify(data))));
     await python(exe, { action: 'write', manifest, videos, output: temp });
-    fs.renameSync(temp, output); return { ...report, videos: videos.length };
+    renameSyncResilient(fs, temp, output); return { ...report, videos: videos.length };
   } finally { for (const file of [manifest, temp]) { try { fs.unlinkSync(file); } catch {} } }
 }
 async function read(file, exe) {

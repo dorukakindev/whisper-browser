@@ -176,6 +176,7 @@ ok('geçerli öğe kaybı yok', dropped === 0);
     queueSnapshotForDisk,
     randomUUID: require('crypto').randomUUID,
     fsyncDirectory: require('../src/fsync-utils').fsyncDirectory,
+    renameSyncResilient: require('../src/fsync-utils').renameSyncResilient,
   };
   vm.createContext(ctx);
   vm.runInContext(mainSrc.slice(sliceStart, sliceEnd), ctx);

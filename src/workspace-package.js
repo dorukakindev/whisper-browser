@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { gzipSync, gunzipSync } = require('node:zlib');
 const { randomUUID, createHash } = require('node:crypto');
+const { renameSyncResilient } = require('./fsync-utils');
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
   'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
@@ -122,7 +123,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
   const temp = output + '.' + randomUUID() + '.tmp';
-  try { fs.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 }); fs.renameSync(temp, output); }
+  try { fs.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 }); renameSyncResilient(fs, temp, output); }
   finally { try { fs.unlinkSync(temp); } catch {} }
   return { count: files.length, bytes: bytes.length };
 }
@@ -210,7 +211,7 @@ function restorePackage(root, data, videoMappings = []) {
     for (const change of changes) {
       fs.mkdirSync(path.dirname(change.destination), { recursive: true });
       const temp = change.destination + '.' + randomUUID() + '.tmp';
-      try { fs.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 }); fs.renameSync(temp, change.destination); applied.push(change); }
+      try { fs.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 }); renameSyncResilient(fs, temp, change.destination); applied.push(change); }
       finally { try { fs.unlinkSync(temp); } catch {} }
     }
   } catch (error) {

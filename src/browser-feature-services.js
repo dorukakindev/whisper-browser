@@ -7,7 +7,7 @@ const { createBrowserMiniPlayer } = require('./browser-mini-player');
 const subtitles = require('./browser-subtitle-search');
 const { movieHash } = require('./opensubtitles-hash');
 const skips = require('./browser-skip-segments');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 function registerBrowserFeatureServices(deps) {
   const { app, ipcMain, dialog, BrowserWindow, owner, getTab, activeTab, context, authorized,
@@ -44,7 +44,7 @@ function registerBrowserFeatureServices(deps) {
     try {
       fsx.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
       fsyncFile(temp, fsx);
-      fsx.renameSync(temp, target);
+      renameSyncResilient(fsx, temp, target);
       fsyncDirectory(path.dirname(target), fsx);
     } finally { try { fsx.unlinkSync(temp); } catch {} }
   }
@@ -53,7 +53,7 @@ function registerBrowserFeatureServices(deps) {
     try {
       fsx.writeFileSync(temp, '\uFEFF' + text, 'utf8');
       fsyncFile(temp, fsx);
-      fsx.renameSync(temp, filePath);
+      renameSyncResilient(fsx, temp, filePath);
       fsyncDirectory(path.dirname(filePath), fsx);
     } finally { try { fsx.unlinkSync(temp); } catch {} }
     grantSubtitle(filePath);

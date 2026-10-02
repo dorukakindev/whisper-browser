@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 const path = require('path');
 const { canonicalMediaIdentity, normalizeBrowserUrl } = require('./browser-media-identity');
 const { safePlaceUrl } = require('./browser-place-url');
@@ -374,7 +374,7 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
       // eski .bak'ı (silinmiş veriyi) birincil kaybında geri getirebilir.
       fsyncFile(`${filePath}.bak`, fsModule);
     }
-    fsModule.renameSync(temp, filePath);
+    renameSyncResilient(fsModule, temp, filePath);
     fsyncDirectory(dir, fsModule);
     return { ok: true, session };
   } catch (error) {

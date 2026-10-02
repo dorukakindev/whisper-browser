@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const CURRENT_SCHEMA_VERSION = 3;
 const DEFAULT_ITEM_LIMIT = 1000;
@@ -389,11 +389,11 @@ function atomicCommit(filePath, document, options) {
       io.writeFileSync(backupTmpPath, oldRaw, 'utf-8');
       fsyncFile(backupTmpPath, io);
       fault('after-backup-write');
-      io.renameSync(backupTmpPath, backupPath);
+      renameSyncResilient(io, backupTmpPath, backupPath);
       fault('after-backup-replace');
     }
     fault('before-main-replace');
-    io.renameSync(tmpPath, filePath);
+    renameSyncResilient(io, tmpPath, filePath);
     fault('after-main-replace');
     fsyncDirectory(path.dirname(filePath), io);
     fault('after-directory-fsync');

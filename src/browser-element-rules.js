@@ -6,7 +6,7 @@
 // ('>' ve ':' meşru seçici birleştiricileri olarak serbest).
 const fs = require('fs');
 const path = require('path');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const ORIGIN_LIMIT = 60;
 const SELECTOR_LIMIT = 40;
@@ -52,7 +52,7 @@ class BrowserElementRules {
     try {
       this.fs.writeFileSync(temp, `${JSON.stringify({ version: 1, origins: Object.fromEntries(entries) }, null, 2)}\n`);
       fsyncFile(temp, this.fs);
-      this.fs.renameSync(temp, this.filePath);
+      renameSyncResilient(this.fs, temp, this.filePath);
       fsyncDirectory(dir, this.fs);
     } finally {
       try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {}

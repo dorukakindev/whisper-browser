@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
-const { fsyncDirectory } = require('./fsync-utils');
+const { fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 function burninOutputPaths(videoPath, token = randomUUID()) {
   const dir = path.dirname(videoPath);
@@ -36,19 +36,19 @@ function removeFileQuietly(filePath, fsImpl = fs) {
 
 function replaceBurninOutput(tempPath, outPath, fsImpl = fs, token = randomUUID()) {
   if (!fsImpl.existsSync(outPath)) {
-    fsImpl.renameSync(tempPath, outPath);
+    renameSyncResilient(fsImpl, tempPath, outPath);
     fsyncDirectory(path.dirname(outPath), fsImpl);
     return;
   }
   const backupPath = `${outPath}.${token}.replace-backup`;
-  fsImpl.renameSync(outPath, backupPath);
+  renameSyncResilient(fsImpl, outPath, backupPath);
   try {
-    fsImpl.renameSync(tempPath, outPath);
+    renameSyncResilient(fsImpl, tempPath, outPath);
     removeFileQuietly(backupPath, fsImpl);
     fsyncDirectory(path.dirname(outPath), fsImpl);
   } catch (error) {
     try { removeFileQuietly(outPath, fsImpl); } catch (_) {}
-    try { fsImpl.renameSync(backupPath, outPath); } catch (_) {}
+    try { renameSyncResilient(fsImpl, backupPath, outPath); } catch (_) {}
     throw error;
   }
 }
@@ -148,7 +148,7 @@ function restoreNewestBurninReplacementBackup(outPath, fsImpl = fs) {
       catch (_) { return null; }
     }).filter(Boolean).sort((a, b) => b.mtimeMs - a.mtimeMs);
   if (!backups.length) return false;
-  fsImpl.renameSync(backups[0].backupPath, outPath);
+  renameSyncResilient(fsImpl, backups[0].backupPath, outPath);
   cleanupBurninReplacementBackups(outPath, fsImpl);
   return true;
 }
