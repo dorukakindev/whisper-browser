@@ -3,10 +3,16 @@
 // Native sayfa araması; DOM enjeksiyonu yok. Her WebContents kendi isteğini tutar.
 function createBrowserPageFind(wc, emit, isActive = () => true) {
   let requestId = null, query = '', token = 0, observerOn = false;
+  function frameGone() {
+    // Çökmüş (render-process-gone) fakat henüz destroy edilmemiş wc'ye send /
+    // stopFindInPage "Render frame was disposed" hatası basar — çökme temizlik
+    // yolunda stderr'i kirletir.
+    return !wc || wc.isDestroyed() || (typeof wc.isCrashed === 'function' && wc.isCrashed());
+  }
   function setObserverEnabled(enabled) {
     observerOn = !!enabled;
     try {
-      if (typeof wc.send === 'function' && !wc.isDestroyed()) {
+      if (typeof wc.send === 'function' && !frameGone()) {
         wc.send('browser:find-state', { active: !!enabled });
       }
     } catch (_) {}
@@ -15,7 +21,7 @@ function createBrowserPageFind(wc, emit, isActive = () => true) {
     requestId = null;
     query = '';
     setObserverEnabled(false);
-    try { if (!wc.isDestroyed()) wc.stopFindInPage('clearSelection'); } catch (_) {}
+    try { if (!frameGone()) wc.stopFindInPage('clearSelection'); } catch (_) {}
   }
   wc.on('found-in-page', (_event, result) => {
     if (requestId === null || result.requestId !== requestId) return;
