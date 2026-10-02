@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 397 | [BROWSER_BUG_REPORT_397.md](BROWSER_BUG_REPORT_397.md) | YouTube indirme 403 — birleşik io_errors sınıflandırıcısı + eylemlenebilir rehber + pin 2026.8.19 |
+| 396 | [BROWSER_BUG_REPORT_396.md](BROWSER_BUG_REPORT_396.md) | Windows elle doğrulama master c8ed7e7 — start.bat + reklam koruması GEÇTİ, NTP pointer-ölümü KALDI |
 | 395 | [BROWSER_BUG_REPORT_395.md](BROWSER_BUG_REPORT_395.md) | yeni master denetimi + dar panel native görünürlük yarışı (numara yarışı: 241→300→393→395) |
 | 394 | [BROWSER_BUG_REPORT_394.md](BROWSER_BUG_REPORT_394.md) | Windows senkron sonrası tam-suit envanteri — 29 kırmızı sınıflandırması (merge drift'i vs ortam) |
 | 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |
