@@ -346,3 +346,4 @@ tarih sırasıyla dosya adından okunur.
 | 374 | [BROWSER_BUG_REPORT_374.md](BROWSER_BUG_REPORT_374.md) | Yeni-100 batch 1 — E2E yolculuklar: 3 yeni smoke (tam akış, kuyruk iptali, PDF iptal/devam) + 7 maddede kapsam kanıtı |
 | 375 | [BROWSER_BUG_REPORT_375.md](BROWSER_BUG_REPORT_375.md) | Yeni-100 batch 2 — Windows derinleştirme: UNC file:// host + '?' kodlama + ENAMETOOLONG + windowsHide yapısal varsayılan |
 | 376 | [BROWSER_BUG_REPORT_376.md](BROWSER_BUG_REPORT_376.md) | Yeni-100 batch 3 — gerçek-model kenar matrisi: halüsinasyon kalıp boşlukları (thank you for watching/listening + we'll see you) + son cue medya-sonu kelepçesi |
+| 377 | [BROWSER_BUG_REPORT_377.md](BROWSER_BUG_REPORT_377.md) | Yeni-100 batch 4 — gerçek çökme yaşam döngüsü: çökmüş wc script/send kapıları + crash-kind ezilmesi (load-error maskesi) + lifecycle-deep smoke |

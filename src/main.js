@@ -13537,9 +13537,15 @@ function resumeRestoredBrowserPage(tab) {
         // yüklemeyi denesin; 'restoring'de takılı kalan sekme unload kararını
         // ve oturum görüntüsünü bozuyordu (B83-30).
         if (requestIsCurrent()) tab.lifecycle = 'restore_failed';
-        const loadError = browserLoadError(error.errno, error.code || error.message);
-        sendBrowserEvent(tab, { type: 'load-error', loading: false, url,
-          message: loadError.message, messageKey: loadError.messageKey });
+        // Renderer yükleme ortasında çöktüyse loadURL de reddeder; çökme
+        // işleyicisinin 'crash' işaretini genel bağlantı hatasıyla ezme —
+        // yoksa kullanıcı "Sekme çöktü / Sekmeyi yeniden yükle" yerine
+        // yanıltıcı "Sayfa açılamadı" yüzeyi görür.
+        if (!(tab.loadError && tab.loadError.kind === 'crash')) {
+          const loadError = browserLoadError(error.errno, error.code || error.message);
+          sendBrowserEvent(tab, { type: 'load-error', loading: false, url,
+            message: loadError.message, messageKey: loadError.messageKey });
+        }
       }
     } finally { tab.restoringPage = false; }
   })();

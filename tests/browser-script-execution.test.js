@@ -24,6 +24,8 @@ assert.equal(browserScriptExecutionReady(contents()), true);
 assert.equal(browserScriptExecutionReady({ ...contents(), getURL: () => '' }), false,
   'henüz adresi olmayan WebContents Electron bekleme kuyruğuna alınmamalı');
 assert.equal(browserScriptExecutionReady({ ...contents(), isLoadingMainFrame: () => true }), false);
+assert.equal(browserScriptExecutionReady({ ...contents(), isCrashed: () => true }), false,
+  'çökmüş (render-process-gone) fakat henüz destroy edilmemiş wc\'ye script çağrısı gitmemeli');
 assert.equal(browserScriptExecutionReady({
   isDestroyed() { throw new Error('kapandı'); },
   isLoading: () => false,
