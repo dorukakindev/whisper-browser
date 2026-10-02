@@ -27,9 +27,9 @@ test('çalışan kuyruk işi iki taraftan kalıcılaştırılır ve terminal ola
   const processQueue = renderer.slice(renderer.indexOf('async function processNextQueueItem'),
     renderer.indexOf('// ===== Helpers ====='));
   assert.match(processQueue, /next\.status = 'running'[\s\S]*await persistQueueNow\(\)/);
-  assert.match(main, /activeQueueItemId = jobMeta\.queueItemId;[\s\S]{0,100}persistQueueRunning\(jobMeta\.queueItemId, options\)/);
+  assert.match(main, /activeQueueItemId = jobMeta\.queueItemId;[\s\S]{0,100}persistQueueRunning\(jobMeta\.queueItemId, options/);
   assert.match(main, /event\.type === 'done' \|\| event\.type === 'error'[\s\S]{0,180}persistQueueTerminal/);
-  assert.match(main, /if \(!jobMeta\.terminalSeen\) persistQueueTerminal\(jobMeta\.queueItemId, exitEvent\)/);
+  assert.match(main, /if \(!jobMeta\.terminalSeen\) persistQueueTerminal\(jobMeta\.queueItemId, exitEvent/);
 });
 
 test('renderer yenilenince yaşayan işe bağlanır, çökmüş iş beklemeye alınır', () => {
