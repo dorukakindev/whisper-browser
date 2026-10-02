@@ -318,12 +318,16 @@ function spawn(command, args, options = {}) {
   // terminateProcessTree kill(-pid) ile torunları (ffmpeg, yt-dlp) da öldürür.
   // Windows'ta detached farklı anlam taşır; orada taskkill /T zaten kullanılır.
   const detached = options.detached ?? (process.platform !== 'win32');
-  return rawSpawn(command, args, { ...options, env, detached });
+  // windowsHide varsayılanı: unutulmuş bir çağrı Windows'ta arka planda boş
+  // konsol penceresi bırakır; POSIX'te seçenek yok sayılır.
+  const windowsHide = options.windowsHide ?? (process.platform === 'win32');
+  return rawSpawn(command, args, { ...options, env, detached, windowsHide });
 }
 
 function spawnSync(command, args, options = {}) {
   const env = options.env || withoutSecretEnv(process.env);
-  return rawSpawnSync(command, args, { ...options, env });
+  const windowsHide = options.windowsHide ?? (process.platform === 'win32');
+  return rawSpawnSync(command, args, { ...options, env, windowsHide });
 }
 const { buildBrowserOverlayScript } = require('./browser-overlay-controller');
 const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,

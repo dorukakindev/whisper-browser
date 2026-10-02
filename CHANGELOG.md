@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - 100-kuyruk batch 1–10 (raporlar 363–373): kalıcılık/bozulma, renderer/UI kenarları, backend hata yolları, çeviri sözleşmesi, güvenlik/IPC tur-2 ratchet'leri + kuyruk yaşam döngüsü üç-yazıcılı invariant'ları + sıcak-yol performans bütçeleri + Windows dosya-sistemi matrisi + kapanış süpürmesi — indeks onarımı, IPC/preload sayaç ve ratchet-baseline doğrulaması (toplam ~90 yeni kilit).
 - Test: `tests/perf-budgets-ratchet.test.js` — parse/arama/kuyruk/çeviri sıcak yollarında gerileme koruması.
 - Test: yeni-100 batch 1 (rapor 374) — `electron-journey-full` (içe aktar→gerçek transkribe→çevir→düzenle→dışa aktar tek akış), `electron-queue-cancel-mid` (kuyruk ortada-kullanıcı-iptali + devam), `electron-pdf-cancel-resume` (PDF çeviri iptal→tamamlanan korunur→devam) Electron smoke'ları.
+- Fix: yeni-100 batch 2 (rapor 375) — `pathToFileUrl` UNC ağ paylaşımında sunucu adını host olarak korur (eskiden yola katlanıp yerel dizine çözülüyordu) + `?` dosya-adı karakterini kodlar; `ENAMETOOLONG` dostça hata kuralı; `spawn`/`spawnSync`'te windowsHide yapısal varsayılan.
 - Test: `tests/fsync-rename-resilient.test.js` + `tests/windows-path-canonical.test.js` — Windows kilit/yol-katlaması kilidi.
 
 ### Changed

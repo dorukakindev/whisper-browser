@@ -64,6 +64,8 @@
       'Dosya veya komut bulunamadı.', 'File or command not found.'],
     [/\beacces\b|\beperm\b|permission denied|access is denied/i,
       'İzin yetersiz — dosya veya klasör erişimi engellendi.', 'Permission denied — the file or folder is not accessible.'],
+    [/\benametoolong\b|name too long|path too long|file name too long/i,
+      'Dosya yolu çok uzun — daha kısa bir klasör adı ya da konum deneyin.', 'The file path is too long — try a shorter folder name or location.'],
     [/\benospc\b|no space left|err_disk_full|disk full/i,
       'Diskte yer kalmadı.', 'No space left on disk.'],
     [/\betimedout\b|timed out|timeout/i,
