@@ -359,7 +359,7 @@ function buildOptsFromUI() {
 function resolveNetBudgetPreset() {
   const H = globalThis.JobTimingHelpers;
   const raw = $('networkBudget') ? $('networkBudget').value : 'full';
-  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 6, pageWorkers: 4 };
+  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 8, pageWorkers: 4 };
 }
 
 // Tekil baslatma ve KUYRUK ayni on kontrollerden gecer. Eskiden kuyruk
