@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Translation review surface (queue items 11–15): Shift+click range selection on the waveform timeline with a range chip and "Retranslate selected range" action (out-of-range lines preserved via precompleted mask, result shown as a diff review); project-scoped glossary tab with import, per-media lists and global/project conflict badges; blind A/B model comparison (`.tr.ab-a`/`.tr.ab-b` variant files, hidden provider names, 3-axis rating, apply-winner to the loaded translation); per-job cost view (requests, cache hits, chars, ~$ estimate from user-entered $/1M-token prices); quality-warning panel with per-kind why + source/result rows + grouped retranslate action.
+
 - Subtitle editor: audio-waveform timeline with range-limited ffmpeg extraction, CPS reading-speed heat strip on cue blocks, issues panel (empty/short/overlap/fast/line-break) with jump-to-problem chips and undoable bulk empty-cue removal, drag overlap preview with live collision warning, and crash-safe unsaved-edit recovery records (per-source journal + restore prompt).
 - Runtime capability panel now shows word alignment (WhisperX), speaker diarization (pyannote), and OCR engine (RapidOCR) availability with per-component remedies; translation-recovery UI strings localized to English; long-film acceptance harness supports --minutes with regional overlap metrics.
 
