@@ -28194,6 +28194,9 @@ function friendlyYoutubeError(raw) {
   if (/could not copy.*cookie|cookie database/i.test(message)) {
     return 'Tarayıcı oturumu okunamadı. Tarayıcıyı tamamen kapatıp yeniden dene veya Firefox seç.';
   }
+  if (/403|forbidden/i.test(message) && !/indirme isteğini reddetti/i.test(message)) {
+    return 'YouTube indirme isteğini reddetti (HTTP 403). En sık neden eski yt-dlp sürümüdür — Ayarlar > Bakım\'dan yt-dlp güncellemesini çalıştırıp yeniden dene. Devam ederse oturum açık bir tarayıcı seç.';
+  }
   return message || 'bilinmeyen hata';
 }
 

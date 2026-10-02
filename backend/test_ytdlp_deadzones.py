@@ -143,13 +143,22 @@ def t_error_mapping():
             check('cookie hatası', False, 'hata yok')
         except RuntimeError as e:
             check('cookie hatası eşlemesi', 'cookie veritabanı' in str(e), str(e))
-        # Tanınmayan hata olduğu gibi yukarı taşar
+        # HTTP 403 → yt-dlp güncelleme rehberi (R397 canlı bulgu)
+        FakeYDL.raise_on_extract = RuntimeError("unable to download video data: HTTP Error 403: Forbidden")
+        try:
+            T.download_youtube('https://x/v', outdir)
+            check('403 hatası', False, 'hata yok')
+        except RuntimeError as e:
+            check('403 eşlemesi', 'yt-dlp güncellemesini' in str(e), str(e))
+        # Tanınmayan hata sınıflandırıcıdan geçer — ham metin imzalı URL sızıntısı
+        # yapabileceği için kullanıcıya taşınmaz (io_errors sözleşmesi).
         FakeYDL.raise_on_extract = ValueError('bilinmeyen-hata')
         try:
             T.download_youtube('https://x/v', outdir)
             check('tanınmayan hata', False, 'hata yok')
-        except ValueError as e:
-            check('tanınmayan hata', 'bilinmeyen-hata' in str(e), str(e))
+        except RuntimeError as e:
+            check('tanınmayan hata', 'bilinmeyen-hata' not in str(e)
+                  and 'tamamlanamadı' in str(e), str(e))
         # Boş info → anlaşılır hata
         FakeYDL.raise_on_extract = None
         FakeYDL.info_result = None

@@ -49,8 +49,9 @@ def classify_ytdlp_error(error):
         return "YouTube çok fazla istek nedeniyle geçici bekleme istedi (HTTP 429). Daha sonra yeniden deneyin."
     if re.search(r"(?:http error\s*)?403|forbidden", text, re.I):
         return (
-            "YouTube erişimi reddetti (HTTP 403). Oturum/cookie seçimini doğrulayın; "
-            "geçici servis kısıtıysa daha sonra yeniden deneyin."
+            "YouTube indirme isteğini reddetti (HTTP 403). En sık neden eski yt-dlp sürümüdür — "
+            "Ayarlar > Bakım'dan yt-dlp güncellemesini çalıştırıp yeniden deneyin. "
+            "Devam ederse Kaynak > YouTube bölümünden girişli bir tarayıcı seçin."
         )
     if re.search(r"requested format is not available|no video formats found", text, re.I):
         return "İstenen video veya ses biçimi bu içerikte bulunamadı."

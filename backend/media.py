@@ -533,21 +533,8 @@ def main():
                      args.cookie_browser)
     except Exception as e:
         import traceback
-        message = str(e)
-        if "confirm you’re not a bot" in message or "confirm you're not a bot" in message:
-            message = ("YouTube bu video için oturum doğrulaması istedi. "
-                       "YouTube ayarlarından giriş yaptığınız tarayıcıyı seçip yeniden deneyin.")
-        elif "Could not copy" in message and "cookie" in message.lower():
-            message = ("Tarayıcı cookie veritabanı okunamadı. Tarayıcıyı tamamen kapatıp "
-                       "yeniden deneyin veya Firefox oturumunu seçin.")
-        elif isinstance(e, OSError):
-            # Disk dolu / izin hatası ham errno olarak kalmasın (D-O9)
-            import errno as _errno
-            if e.errno == _errno.ENOSPC:
-                message = "Disk dolu — indirme için yeterli alan yok. Çıktı klasörünü veya boş alanı kontrol edin."
-            elif e.errno in (_errno.EACCES, _errno.EPERM):
-                message = "Dosyaya yazma izni yok — çıktı klasörünün yazılabilir olduğunu doğrulayın."
-        emit("error", message=message, traceback=traceback.format_exc())
+        from io_errors import classify_ytdlp_error
+        emit("error", message=classify_ytdlp_error(e), traceback=traceback.format_exc())
         sys.exit(1)
 
 
