@@ -1,4 +1,4 @@
-# BROWSER_BUG_REPORT_397 — Windows elle doğrulama: NTP pointer düzeltmesi (PR #438 @ `0e9d115`)
+# BROWSER_BUG_REPORT_398 — Windows elle doğrulama: NTP pointer düzeltmesi (PR #438 @ `0e9d115`)
 
 Tarih: 2026-10-02 (UTC). Repo: `dorukakindev/whisper-browser`. Doğrulama tabanı: `master` `0e9d115636b0b2c22bce11a51034d27e762d8efa` (R396 raporundan bu yana: #437 doküman merge + #438 NTP pointer fix). Dal: `codex/windows-manual-check-2026-10-02-r2`.
 
