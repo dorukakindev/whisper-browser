@@ -47,6 +47,29 @@ test('sürücü harfi korunur, POSIX yolu üç slash ile kalır', () => {
   assert.ok(f('/home/kullanıcı/dosya.srt').startsWith('file:///home/'));
 });
 
+test('UNC ağ yolu sunucuyu host olarak korur (yerel dizine çözülmez)', () => {
+  // \\sunucu\paylas\x → file://sunucu/paylas/x; eski sürüm sunucu adını yola
+  // katlıyor ve URL yerel 'C:\sunucu\paylas\x'e düşüyordu — ağ paylaşımındaki
+  // medya oynatıcıda açılmıyordu.
+  const url = f('\\\\nas-kutu\\filmler\\gece.mp4');
+  assert.strictEqual(url, 'file://nas-kutu/filmler/gece.mp4');
+  const parsed = new URL(url);
+  assert.strictEqual(parsed.hostname, 'nas-kutu');
+  assert.strictEqual(parsed.pathname, '/filmler/gece.mp4');
+});
+
+test('UNC yolunda Türkçe ve boşluk da host bölümüne dokunmadan kodlanır', () => {
+  const url = f('\\\\server\\paylaşım\\Kış Güneşi.mkv');
+  assert.strictEqual(url, 'file://server/payla%C5%9F%C4%B1m/K%C4%B1%C5%9F%20G%C3%BCne%C5%9Fi.mkv');
+});
+
+test('soru işareti dosya adı sorgu sınırı oluşturmaz', () => {
+  // POSIX'te '?' geçerli dosya adı karakteridir; kodlanmadan kalırsa URL
+  // parçalayıcı kalanını sorgu dizisi sanıp dosyayı keser.
+  const url = f('/home/x/neyin peşinde?.mp4');
+  assert.strictEqual(url, 'file:///home/x/neyin%20pe%C5%9Finde%3F.mp4');
+});
+
 test('install.bat anahtar yolları tırnaklı ve dizini %~dp0 üzerinden kurar', () => {
   assert.match(installBat, /cd \/d "%~dp0"/);
   assert.match(installBat, /node "%~dp0tools\\install-orchestrator\.js"/);
@@ -67,4 +90,4 @@ test('ffmpeg subtitles= argümanı tek tırnak + sürücü iki nokta kaçışlı
   assert.ok(body.includes("subtitles='${fwd}'"), 'tek tırnaklı sarma');
 });
 
-console.log(`PASS ${passed}/8`);
+console.log(`PASS ${passed}/${passed}`);

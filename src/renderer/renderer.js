@@ -20453,7 +20453,12 @@ async function playPlaylistDelta(delta) {
 
 function pathToFileUrl(p) {
   const norm = String(p).replace(/\\/g, '/');
-  return 'file:///' + encodeURI(norm).replace(/^\/+/, '').replace(/#/g, '%23');
+  if (norm.startsWith('//')) {
+    // UNC ağ yolu: \\sunucu\paylas\x → file://sunucu/paylas/x — sunucu adı
+    // yetki (host) bölümünde kalmalı; yola katlanırsa yerel dizine çözülür.
+    return 'file://' + encodeURI(norm.slice(2)).replace(/#/g, '%23').replace(/\?/g, '%3F');
+  }
+  return 'file:///' + encodeURI(norm).replace(/^\/+/, '').replace(/#/g, '%23').replace(/\?/g, '%3F');
 }
 
 // ---- gorunum modlari: Sinema / Okuma / Calisma ----
