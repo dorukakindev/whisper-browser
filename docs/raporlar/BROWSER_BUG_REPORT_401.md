@@ -84,7 +84,28 @@ Bilerek değiştirilmeyenler:
   `test_could_you_request_not_uncertainty`,
   `test_modal_gates_still_catch_real_flips`. Toplam 48/48 yeşil.
 - `test_transcribe.py` 222/222, `test_translation_quality_corpus.py` 5/5.
-- Canlı korpus yeniden koşusu (düzeltilmiş kapılar): sonuçlar aşağıda.
+- Golden korpus pinleri: `test_meaning_loss_eval.py` 4/4, `test_golden_matrix.py` 3/3
+  (ilk sürümde `may/might not` maskesi ihtimal-10 pinini bozdu; maske daraltılıp
+  pin geri kazanıldı — 'may not'→'işe yaramıyor' kesinleştirmesi hâlâ ret).
+- Tam `npm test` birleşik koşu: tek kırmızı yukarıdaki iki pin dosyasıydı;
+  daraltma sonrası hepsi yeşil.
+
+## Canlı korpus ölçümü (önce → sonra)
+
+Aynı 120-cue korpus, aynı model, gerçek API:
+
+| Metrik | Önce | Sonra |
+|--------|------|-------|
+| Probe'da yakalanan toplam ret | 65 | 57 |
+| `translation_meaning_hard_rejected` (anlam kapısı) | 14 | 13 |
+| `translation_failed` | 95 | 85 |
+| Tamamlanan blok | 25 | 35 |
+
+Kalan 13 anlam retinin elle sınıflandırması: 9 model-yankısı (hedef = verbatim
+İngilizce kaynak — ret doğru, sınıf A), 4 bozuk parça ("no laughing bag"→"bu",
+"adamla, evet." — rolling-window kaynağın kısa kesimleri). Yanlış-pozitif yok.
+`translation_failed` kalan 85'in büyük kısmı echo/`invalid_response` — kapı
+sorunu değil, rolling-window dedup işine bağlı.
 
 ## Windows etkisi
 
