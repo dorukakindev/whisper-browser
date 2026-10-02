@@ -690,12 +690,17 @@
               <span>Sözlük / Hotwords</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </summary>
+            <div class="glossary-scope" role="tablist" aria-label="Sözlük kapsamı">
+              <button type="button" id="glossaryScopeGlobal" class="glossary-scope-btn active" role="tab" aria-selected="true">Genel</button>
+              <button type="button" id="glossaryScopeProject" class="glossary-scope-btn" role="tab" aria-selected="false">Bu medya <span id="glossaryProjectCount"></span></button>
+            </div>
             <div class="glossary-controls">
               <input type="text" id="glossaryInput" placeholder="Yeni terim ekle (örn: Anthropic, Kubernetes, Atatürk)" aria-label="Sözlük terimleri"/>
               <button class="btn-icon-add" id="glossaryAdd" title="Terimi ekle" aria-label="Terimi sözlüğe ekle">+</button>
+              <button class="btn btn-ghost btn-sm" id="glossaryImport" type="button" title="Virgül veya satır sonuyla ayrılmış liste içe aktar">İçe aktar</button>
             </div>
             <div class="glossary-list" id="glossaryList"></div>
-            <div class="hint">Her transkripsiyonda otomatik olarak Whisper'a verilir, özel isimlerin/jargonun doğru yazılmasını sağlar. Terimler <em>hotwords</em> olarak geçirilir: videonun başından sonuna kadar her çözümleme penceresinde etkilidir.</div>
+            <div class="hint" id="glossaryScopeHint">Her transkripsiyonda otomatik olarak Whisper'a verilir, özel isimlerin/jargonun doğru yazılmasını sağlar. Terimler <em>hotwords</em> olarak geçirilir: videonun başından sonuna kadar her çözümleme penceresinde etkilidir.</div>
           </details>
 
           <!-- LLM POST-PROCESSING -->
@@ -804,6 +809,20 @@
                 <button class="btn btn-secondary btn-sm" id="translateProbeBtn" type="button">Küçük test isteği gönder</button>
                 <output id="translateProbeStatus" class="provider-probe-status" role="status" aria-live="polite">Henüz test edilmedi.</output>
               </div>
+              <label class="field">
+                <span class="field-label">A/B karşılaştırma modeli</span>
+                <input type="text" id="abModel" placeholder="gemini-3.8-pro" list="translationModelSuggestions" />
+                <small class="hint">Zaman çizelgesinde aralık seçip "A/B kör karşılaştır" ile ana modelle kıyaslanır.</small>
+              </label>
+              <label class="field">
+                <span class="field-label">Girdi fiyatı ($/1M token)</span>
+                <input type="text" id="translatePriceIn" placeholder="0.30" inputmode="decimal" />
+              </label>
+              <label class="field">
+                <span class="field-label">Çıktı fiyatı ($/1M token)</span>
+                <input type="text" id="translatePriceOut" placeholder="2.50" inputmode="decimal" />
+                <small id="translateCostLine" class="hint" role="status" aria-live="polite"></small>
+              </label>
               <label class="field field-full hidden" id="translateCustomUrlField">
                 <span class="field-label">Özel endpoint URL</span>
                 <input type="text" id="translateBaseUrl" placeholder="https://api.example.com/v1" />
@@ -2860,6 +2879,10 @@
                     title="Yüklü altyazıyı çevirir — Whisper yeniden çalışmaz, zaman kodları korunur">Çeviri oluştur</button>
                   <button class="btn btn-sm action-button action-button-outline" id="retranslateAllBtn" role="menuitem"
                     title="Mevcut çeviriyi kullanmadan bütün satırları seçili modelle yeniden çevir">Tamamını yeni modelle çevir</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="retranslateRangeBtn" role="menuitem" disabled
+                    title="Zaman çizelgesinde Shift+tık ile aralık seçip yalnız o satırları yeniden çevir">Seçili aralığı yeniden çevir</button>
+                  <button class="btn btn-sm action-button action-button-outline" id="abCompareBtn" role="menuitem" disabled
+                    title="Seçili aralığı ana model ve A/B modeliyle ayrı ayrı üretip sağlayıcı adı gizli karşılaştır">A/B kör karşılaştır</button>
                   <button class="btn btn-sm action-button action-button-outline" id="exportTranslationBtn" role="menuitem" disabled
                     title="Yüklü çeviriyi yeniden işlem yapmadan SRT olarak kaydet">Çeviriyi dışa aktar</button>
                 </div>
@@ -3270,7 +3293,11 @@
         </div>
         <div class="timeline-canvas-wrap">
           <canvas id="timelineCanvas" tabindex="0" aria-label="Altyazı zamanlaması: yukarı/aşağı ile blok seç, sağ/sol ile 100 ms kaydır, Enter ile oynatma konumuna git"></canvas>
-          <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür.</div>
+          <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür. Shift+tık ile yeniden çeviri için aralık seçin.</div>
+          <div class="timeline-range-chip hidden" id="timelineRangeChip" role="status">
+            <span id="timelineRangeText"></span>
+            <button type="button" id="timelineRangeClear" aria-label="Aralık seçimini temizle">×</button>
+          </div>
           <div class="timeline-issues hidden" id="timelineIssues" role="group" aria-label="Altyazı sorunları"></div>
         </div>
       </section>

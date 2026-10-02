@@ -4248,6 +4248,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     translation_metrics = {
         "started": time.time(), "requests": 0, "batch_requests": 0,
         "fallback_requests": 0, "invalid_batches": 0, "rejections": {},
+        "prompt_chars": 0, "completion_chars": 0,
     }
 
     def note_rejections(counts):
@@ -4339,6 +4340,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 log("Ceviri rotasi degisti -> {}".format(used_url), "warn")
 
         content = (resp.choices[0].message.content or "").strip()
+        with lock:
+            # Karakter sayısı ücret tahmini için tutulur (token verisi sağlayıcıya
+            # bağlı; yaklaşık 4 karakter ≈ 1 token varsayımı renderer tarafında).
+            translation_metrics["prompt_chars"] += (
+                len(system_prompt + prompt_suffix) + len(json.dumps(payload, ensure_ascii=False)))
+            translation_metrics["completion_chars"] += len(content)
         # finish_reason='length': yanıt token bütçesinde kesildi. Kesik JSON
         # 'geçersiz yanıt' sayılıp aynı paketle tekrarlanıyordu; önce ayrıştırıcı
         # kurtarabildiği kadarıyla denenir (kalan grup ayrıştırırsa akış normal
@@ -4858,6 +4865,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
              batches=batch_count, invalid_batches=invalid_count,
              fallback_requests=translation_metrics["fallback_requests"],
+             requests=translation_metrics["requests"],
+             prompt_chars=translation_metrics["prompt_chars"],
+             completion_chars=translation_metrics["completion_chars"],
+             cache_hits=len(cached_idx) + len(precompleted_idx) + len(unchanged_idx),
+             elapsed=round(time.time() - translation_metrics["started"], 1),
              rejections=dict(sorted(translation_metrics["rejections"].items())))
         if batch_count >= 2 and invalid_count / batch_count >= 0.25:
             log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
@@ -4928,6 +4940,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 payload = translation_payload(chunk_idx, refine=True)
                 resp, used_url = call_api_with(refine_prompt, payload)
                 content = (resp.choices[0].message.content or "").strip()
+                with lock:
+                    translation_metrics["prompt_chars"] += (
+                        len(refine_prompt) + len(json.dumps(payload, ensure_ascii=False)))
+                    translation_metrics["completion_chars"] += len(content)
                 data = parse_llm_json_object(content, "2. geçiş yanıtı JSON nesnesi değil")
                 n_changed = 0
                 confirmed = []
@@ -8327,6 +8343,41 @@ def translate_existing_subtitle(args):
         for index, entry in enumerate(entries)
         if existing_for(entry, index) is not None
     }
+
+    # --translate-cue-range BASLANGIC:BITIS (saniye): yalniz aralikla kesisen
+    # bloklar yeniden cevirilir; aralik disi bloklar mevcut ceviriyle — o da
+    # yoksa kaynak metinle — precompleted isaretlenir, boylece cikti dosyasi
+    # tam kalir ve model baglama tum dosyayi gorur.
+    _cue_range_raw = str(getattr(args, "translate_cue_range", "") or "").strip()
+    if _cue_range_raw:
+        try:
+            _range_parts = [float(p) for p in _cue_range_raw.split(":")]
+            if len(_range_parts) != 2 or _range_parts[1] <= _range_parts[0]:
+                raise ValueError("gecersiz aralik")
+            _range_lo, _range_hi = _range_parts
+        except Exception:
+            raise RuntimeError(
+                f"--translate-cue-range degeri okunamadi (beklenen 'BASLANGIC:BITIS' saniye): {_cue_range_raw!r}")
+        _range_mask = {
+            index for index, entry in enumerate(entries)
+            if float(entry[1]) > _range_lo - 0.001 and float(entry[0]) < _range_hi + 0.001
+        }
+        if not _range_mask:
+            raise RuntimeError(
+                f"--translate-cue-range araliginda blok yok ({_range_lo:.2f}-{_range_hi:.2f} sn).")
+        for index, entry in enumerate(entries):
+            if index in _range_mask:
+                continue
+            if index not in precompleted:
+                precompleted[index] = existing_for(entry, index) or entry[2]
+        precompleted = {
+            index: text for index, text in precompleted.items()
+            if index not in _range_mask
+        }
+        log(f"Aralik kisitli yeniden ceviri: {len(_range_mask)} blok "
+            f"({_range_lo:.1f}-{_range_hi:.1f} sn) yeniden cevrilecek; "
+            "aralik disi mevcut ceviri/kaynakla korunuyor.", "info")
+
     translation_status = {}
     if same_language:
         message = (f"Kaynak dil ile hedef dil aynı ({target}); gereksiz çeviri "
@@ -8416,6 +8467,9 @@ def translate_existing_subtitle(args):
     # "film.en.forced.srt" -> "film.tr.forced.srt"; "Dune.Part.Two.srt" -> "Dune.Part.Two.tr.srt"
     stem, qualifiers = split_subtitle_language_suffix(src_path.stem)
     target_label = ".".join([target, *qualifiers])
+    _variant_label = re.sub(r"[^A-Za-z0-9_-]+", "", str(getattr(args, "translate_variant_label", "") or ""))
+    if _variant_label:
+        target_label = f"{target_label}.{_variant_label}"
     requested = []
     for fmt in str(getattr(args, "formats", "srt") or "srt").split(","):
         fmt = fmt.strip().lower()
@@ -9735,6 +9789,10 @@ def main():
                         help="--input bir altyazi dosyasi: Whisper calistirmadan yalnizca cevir")
     parser.add_argument("--translate-existing", default="",
                         help="Kismi ceviriyi okuyup tamamlanan bloklari koru; yalniz eksikleri cevir")
+    parser.add_argument("--translate-cue-range", default="",
+                        help="'BASLANGIC:BITIS' saniye araligiyla kesisen bloklari yeniden cevir; aralik disi mevcut ceviri/kaynakla korunur")
+    parser.add_argument("--translate-variant-label", default="",
+                        help="Cikti adina ek guvenlik etiketi (orn. 'ab-a' -> film.tr.ab-a.srt); A/B karşılaştırma varyantları yüklü çeviriyi ezmesin diye")
     parser.add_argument("--dedupe-cues", action="store_true", help="Yalnızca yakın ve aynı metinli cue tekrarlarını güvenle tekilleştir")
     parser.add_argument("--translate-cache", type=lambda x: x.lower() == "true", default=True,
                         help="Cevrilmis bloklari onbellege al (ayni blok tekrar gonderilmez)")

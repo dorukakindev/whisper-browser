@@ -20053,6 +20053,18 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
   if (!options.chat && options.translateExisting) pushBoundOption(args, '--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateOnly && options.translateCueRange) {
+    // 'BASLANGIC:BITIS' saniye — backend yalnız aralıkla kesişen cue'ları yeniden çevirir.
+    const cueRange = String(options.translateCueRange).trim();
+    if (/^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(cueRange)) {
+      pushBoundOption(args, '--translate-cue-range', cueRange);
+    }
+  }
+  if (!options.chat && options.translateOnly && options.translateVariantLabel) {
+    // A/B varyant çıktıları yüklü çeviriyi ezmesin diye dosya adına etiket.
+    const label = String(options.translateVariantLabel).replace(/[^\w-]+/g, '').slice(0, 24);
+    if (label) pushBoundOption(args, '--translate-variant-label', label);
+  }
   if (!options.chat && options.translateOnly && options.dedupeCues) args.push('--dedupe-cues');
   // Sohbet: soru + gecmis + baglam TEK dosyaya yazilir. argv'ye koymak uzun
   // metinlerde sinira takilir ve surec listesinde gorunur.
