@@ -3691,8 +3691,11 @@ def line_keeps_source(source_text, target, source_lang=None):
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return True
-    if not re.search(r"[A-Za-zÀ-ÿ]", text):
+    if not re.search(r"[^\W\d_]", text):
         return True  # yalnız sayı/noktalama/sembol dizgisi
+    # Not: harf denetimi [A-Za-zÀ-ÿ] değil Unicode — Latin dışı alfabeli
+    # kaynaklar (こんにちは, Привет, مرحبا) 'harfsiz' sanılıp korunuyor ve
+    # hiç çevrilmeden çıktıya geçiyordu.
     words = re.findall(r"[^\W\d_]+", text)
     if words and all(w in _VOCALIZATION_WORDS for w in (v.lower() for v in words)):
         return True
@@ -6316,8 +6319,12 @@ def canonicalize_subtitle_entries(entries, max_start_delta=0.08, max_gap=0.12):
 
 
 def compute_translation_quality_report(source_entries, translated_entries,
-                                       failed_count=0, timing_tolerance=0.002):
-    """Kaynak/hedef cue'larını değiştirmeden muhafazakâr kalite kapısı."""
+                                       failed_count=0, timing_tolerance=0.002,
+                                       target_lang='tr'):
+    """Kaynak/hedef cue'larını değiştirmeden muhafazakâr kalite kapısı.
+
+    target_lang anlam kapılarının (modal/olumsuzluk/TR-kesinti) dil kapsamını
+    belirler; varsayılan 'tr' geriye dönük davranışı korur."""
     source = list(source_entries or [])
     target = list(translated_entries or [])
     total = max(len(source), len(target))
@@ -6351,10 +6358,14 @@ def compute_translation_quality_report(source_entries, translated_entries,
         # Kısa özel adlar, sayılar ve URL'ler aynı kalabilir. Uzun ve harf
         # içeren birebir kaynak yankısı ise yeniden denemeye açık tutulur.
         # Yalnız-SDH cue'unda işaretin korunması eksik çeviri değildir.
+        # line_keeps_source ile API'ye hiç gönderilmeyen satırlar (şarkı
+        # işaretli, vokalizasyon, ad/kod dizgisi, zaten hedef dilde) bilinçli
+        # korunur — yoksa 'kaynak metinli cue' uyarısı doğru çıktıda da basılırdı.
         if (translation_is_source_echo(src_text, dst_text)
-                and not is_structural_sdh_cue(src_text)):
+                and not is_structural_sdh_cue(src_text)
+                and not line_keeps_source(src_text, target_lang)):
             untranslated_indices.append(index)
-        meaning_issues = translation_meaning_issues(src_text, dst_text)
+        meaning_issues = translation_meaning_issues(src_text, dst_text, target_lang)
         if 'number_mismatch' in meaning_issues:
             number_mismatch_indices.append(index)
         if 'negation_missing' in meaning_issues:
@@ -6371,7 +6382,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
             truncated_fragment_indices.append(index)
         if meaning_issues:
             meaning_shadow_rejected_indices.append(index)
-        if translation_blocking_issues(src_text, dst_text):
+        if translation_blocking_issues(src_text, dst_text, target_lang):
             blocking_issue_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
                 or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
@@ -7486,6 +7497,7 @@ def transcribe(args):
             translation_report = compute_translation_quality_report(
                 entries, translated,
                 failed_count=max(0, len(entries) - len(provisional_completed)),
+                target_lang=(args.translate_to or "tr").lower(),
             )
             # Bilinçli değişmeden bırakılan satırlar (zaten hedef dilde,
             # yankı-kabul, önceden çevrilmiş) kalite kapısında 'çevrilmedi'
@@ -8377,6 +8389,7 @@ def translate_existing_subtitle(args):
     translation_report = compute_translation_quality_report(
         entries, translated,
         failed_count=max(0, len(entries) - len(provisional_completed)),
+        target_lang=target,
     )
     untranslated_indices = set(translation_report["translation_untranslated_indices"])
     empty_translation_indices = set(translation_report["translation_empty_indices"])

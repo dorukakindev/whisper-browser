@@ -4645,6 +4645,32 @@ def test_translation_meaning_gate_preserves_numbers_and_negation():
         "I don't know.", "Biliyorum.")
 
 
+def test_translation_meaning_gates_are_scoped_to_target_language():
+    # _TARGET_MODAL yalnız TR kalıptır; TR dışı hedefte doğru çeviri
+    # modal_missing/negation_missing ile reddedilmemeli.
+    assert T.translation_meaning_issues(
+        "You must wait.", "Du musst warten.", "de") == []
+    assert T.translation_meaning_issues(
+        "You must wait.", "You have to wait.", "en") == []
+    assert T.translation_meaning_issues(
+        "We might win.", "Podríamos ganar.", "es") == []
+    assert "modal_missing" in T.translation_meaning_issues(
+        "You must wait.", "Bekle.", "tr")
+    # Olumsuzluk kapısı kalıbın bildiği dillerde (de/fr/es/it/pt/en) çalışır:
+    assert "negation_missing" in T.translation_meaning_issues(
+        "I didn't go.", "Ich ging.", "de")
+    assert T.translation_meaning_issues(
+        "I didn't go.", "Ich bin nicht gegangen.", "de") == []
+    assert T.translation_meaning_issues(
+        "I don't know.", "らない。", "ja") == []
+    # Kalite raporu da gerçek hedef dili kullanır:
+    report = T.compute_translation_quality_report(
+        [(0.0, 1.0, "You must wait.")], [(0.0, 1.0, "Du musst warten.")],
+        target_lang="de")
+    assert report["translation_modal_mismatch"] == 0
+    assert report["translation_issue_indices"] == []
+
+
 def test_translation_meaning_gate_shadow_metrics_separate_hard_and_advisory():
     report = T.compute_translation_quality_report([
         (0, 1, "There are 2.4 million dollars."),
