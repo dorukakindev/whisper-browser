@@ -58,9 +58,11 @@ function harness() {
     BrowserWindow,
     ipcMain,
     owner: () => (main.destroyed ? null : main),
-    restore: () => { calls.restore += 1; },
+    restore: () => { calls.restore += 1; calls.order.push('restore'); },
+    hideOffscreen: (v) => { calls.order.push('hide'); calls.hidden = v; },
     command: (tab, action, arg) => { calls.command.push({ tab: tab.id, action, arg }); return { ok: true }; },
   });
+  calls.order = [];
   return { calls, ipcHandlers, makeTab, main, player };
 }
 
@@ -118,6 +120,10 @@ function harness() {
   h.calls.windows[0].close();
   assert.strictEqual(h.player.owns(tab), false);
   assert.strictEqual(h.calls.restore, 1);
+  // R397/W: geri bağlanan view restore() düzeni koşmadan önce mini
+  // sınırlarıyla görünür kalıp işaretçiyi yutmasın — önce offscreen çekilir.
+  assert.strictEqual(h.calls.hidden, tab.view, 'geri bağlanan view önce ekran dışına çekilmeli');
+  assert.deepStrictEqual(h.calls.order, ['hide', 'restore'], 'hide, restore öncesinde koşmalı');
 }
 // mini:command handler — yanlış sender → ok:false; geçersiz action → ok:false
 async function commandSuite() {

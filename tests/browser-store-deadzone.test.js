@@ -240,6 +240,12 @@ function t_tab_has_page() {
   assert.strictEqual(h({}), false);
   assert.strictEqual(h({ view: { webContents: { isDestroyed: () => true, getURL: () => 'https://a' } } }), false);
   assert.strictEqual(h({ view: { webContents: { isDestroyed: () => false, getURL: () => 'about:blank' } } }), false);
+  // R397/W: hiç gezinmemiş görünümde getURL() '' döner — '' 'about:blank'ten
+  // farklı diye "sayfa" sayılıp boş view yeni-sekme yüzeyinin üstüne çiziliyor,
+  // Windows HWND'i tüm işaretçi girdisini yutuyordu.
+  assert.strictEqual(h({ view: { webContents: { isDestroyed: () => false, getURL: () => '' } } }), false);
+  // '' + restoredUrl → boşaltılmış sekme gibi sayfası var (yeniden yüklenir)
+  assert.strictEqual(h({ restoredUrl: 'https://r', view: { webContents: { isDestroyed: () => false, getURL: () => '' } } }), true);
   // about:blank + restoredUrl → yine de sayfası var
   assert.strictEqual(h({ restoredUrl: 'https://r', view: { webContents: { isDestroyed: () => false, getURL: () => 'about:blank' } } }), true);
   assert.strictEqual(h({ view: { webContents: { isDestroyed: () => false, getURL: () => 'https://a' } } }), true);
