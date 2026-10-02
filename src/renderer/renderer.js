@@ -338,7 +338,7 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
-    translateLenient: $('translateLenient') ? $('translateLenient').checked : false,
+    translateLenient: $('translateLenient') ? $('translateLenient').checked : true,
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
@@ -3662,7 +3662,7 @@ function endpointPresetRecommendedModel(preset) {
   if (declared) return declared;
   const endpoint = String(preset?.value || preset || '').trim().replace(/\/+$/, '');
   if (endpoint === 'https://codecraftapi.com/v1') return 'gemini-3.7-flash';
-  if (endpoint === 'https://4sapi.com/v1') return 'gpt-5.4';
+  if (endpoint === 'https://4sapi.com/v1') return 'gemini-3.8-flash';
   return '';
 }
 
