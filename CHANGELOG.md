@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Fixed
+- Kuyruk kalıcı kaydı: `queue:saveSync` artık `queue:save` ile aynı şekil kapısına sahip (bozuk gövde diske boş kuyruk yazıp kaydı siliyordu); `validateQueueOptions` `items` dizisini zorunlu kılar; `persistQueueTerminal/Running` disk yazma hatasını iş günlüğüne `error` olarak bildirir.
 - Çeviri kalite kapıları: modal/negasyon denetimi artık hedef dile kapsamlı (DE/EN gibi dillerde doğru çeviri `.partial`'a düşmüyor), yerelleşmiş SDH etiketleri (`[Müzik]`, `(Kahkaha)`) İngilizceye geri düşmek yerine korunuyor, SDH köşeli/parantez içeriği özel-ad kapısına takılmıyor, Latin-dışı alfabeli kaynak satırlar (Japonca/Çince/Arapça/Kiril) artık gerçekten çevriliyor ve kalite raporu bilinçli korunan satırları "çevrilmedi" saymıyor.
 
 
