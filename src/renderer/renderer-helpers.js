@@ -43,6 +43,14 @@ function recordStageTiming(stage) {
       span.textContent = formatTime((now - _stageStart) / 1000);
       el.appendChild(span);
     }
+    // Madde 31 — biten aşamanın gerçek süresi kalıcı geçmişe yazılır; sessiz
+    // aşamaların ETA'sı bu medyana dayanır (ölçüm olmayana sahte ETA yok).
+    const H = globalThis.JobTimingHelpers;
+    if (H && typeof state === 'object' && state) {
+      state.stageDurationHistory = H.recordStageDuration(
+        state.stageDurationHistory, _activeStage, (now - _stageStart) / 1000);
+      try { localStorage.setItem('whisper.stageStats', JSON.stringify(state.stageDurationHistory)); } catch (_) {}
+    }
   }
   if (_activeStage !== stage) {
     _activeStage = stage;

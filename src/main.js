@@ -2,6 +2,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, Notificatio
 const path = require('path');
 const { spawn: rawSpawn, spawnSync: rawSpawnSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const dns = require('dns').promises;
 const http = require('http');
 const https = require('https');
@@ -430,7 +431,53 @@ const {
   pendingPdfPages,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
-const { KNOWN_MODELS, scanModelCache } = require('./model-manager');
+const { KNOWN_MODELS, scanModelCache, directorySizeBytes } = require('./model-manager');
+
+// Madde 35 — kaynak zaman çizelgesi: iş sürerken sistem belleği + GPU VRAM +
+// serbest disk + mevcut aşama 5 sn'de bir örneklenir; job_resource olayları
+// renderer'a akar ve kapanışta seri job_resource_final olarak teslim edilir.
+function startJobResourceSampler({ sendJobEvent, outputDir }) {
+  const series = [];
+  let stage = 'download';
+  const sample = () => {
+    const total = os.totalmem() || 1;
+    const sysMemPct = Math.round(((total - os.freemem()) / total) * 1000) / 10;
+    let gpuMemMb = null;
+    try {
+      const gpu = rawSpawnSync('nvidia-smi', ['--query-gpu=memory.used', '--format=csv,noheader,nounits'],
+        { timeout: 4000, encoding: 'utf-8', windowsHide: true });
+      const mb = parseInt(String(gpu?.stdout || '').trim(), 10);
+      if (Number.isFinite(mb)) gpuMemMb = mb;
+    } catch (_) {}
+    let diskFreeMb = null;
+    try {
+      let statDir = outputDir || appResourceRoot();
+      // Çıktı klasörü iş sürerken henüz oluşmamış olabilir — var olan ilk
+      // ebeveyn dizine çık; o da yoksa kaynak köküne düş.
+      for (let i = 0; i < 8 && statDir; i += 1) {
+        try {
+          const st = fs.statfsSync(statDir);
+          diskFreeMb = Math.round((Number(st.bavail) * Number(st.bsize)) / 1048576);
+          break;
+        } catch (_) { statDir = path.dirname(statDir); }
+      }
+    } catch (_) {}
+    const entry = { t: Date.now(), stage, sysMemPct, gpuMemMb, diskFreeMb,
+      cpuLoad: Math.round((os.loadavg()[0] || 0) / Math.max(1, os.cpus().length) * 100) / 100 };
+    if (series.push(entry) > 480) series.shift();
+    sendJobEvent({ type: 'job_resource', ...entry });
+  };
+  sample();
+  const timer = setInterval(sample, 5000);
+  timer.unref?.();
+  return {
+    setStage: (next) => { if (next) stage = String(next).slice(0, 40); },
+    stop: () => {
+      clearInterval(timer);
+      sendJobEvent({ type: 'job_resource_final', samples: series.slice() });
+    },
+  };
+}
 const {
   buildSubtitleExtractionArgs,
   parseSubtitleStreams,
@@ -18529,6 +18576,7 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
     if (m) vramMib = parseInt(m[1], 10);
   }
   const gpuDiagnostics = await collectBrowserGpuDiagnostics('environment-request', 1200);
+  const cpus = os.cpus() || [];
   return {
     venv, pythonVersion: pythonLine || '',
     ffmpeg: !!ffmpegLine, ffmpegVersion: ffmpegLine || '',
@@ -18536,7 +18584,167 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
     gpu: gpuLine, vramMib, optionalDeps,
     gpuFeatures: gpuDiagnostics.features,
     gpuDiagnostics,
+    // Donanım rehberi (madde 32): öneriler GPU/CPU/RAM ölçümüne dayanır.
+    cpuCount: cpus.length || 0,
+    cpuModel: cpus[0]?.model || '',
+    totalMemMib: Math.round((os.totalmem() || 0) / 1048576),
   };
+});
+
+// Madde 34 — Önbellek yönetimi: model/çeviri/manga/tmp/asset/günlük boyutları
+// tek yerden; temizleme çalışan işin ihtiyaç duyduğu dosyaları korur.
+function cacheBusyGuardError() {
+  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+    return 'Bir iş çalışırken bu önbellek temizlenemez.';
+  }
+  return null;
+}
+
+function cacheStatsPayload() {
+  const userData = app.getPath('userData');
+  const stats = { ok: true };
+  try {
+    const models = scanModelCache(appResourceRoot());
+    stats.models = {
+      bytes: models.models.reduce((sum, m) => sum + (Number(m.sizeBytes) || 0), 0),
+      freeBytes: models.freeBytes,
+      installed: models.models.filter((m) => m.installed).length,
+      partial: models.models.filter((m) => m.cached && !m.installed).length,
+    };
+  } catch (_) { stats.models = { bytes: null, installed: 0, partial: 0 }; }
+  const fileStat = (p) => {
+    try { return fs.statSync(p).size; } catch (_) { return 0; }
+  };
+  try {
+    const cache = browserTranslationCache();
+    stats.translation = {
+      bytes: fileStat(cache.filePath) + fileStat(`${cache.filePath}.journal`),
+      count: cache.map.size,
+    };
+  } catch (_) { stats.translation = { bytes: null, count: 0 }; }
+  try {
+    const manga = browserMangaCache();
+    stats.manga = {
+      bytes: fileStat(manga.filePath) + fileStat(`${manga.filePath}.journal`),
+      count: manga.map.size,
+    };
+  } catch (_) { stats.manga = { bytes: null, count: 0 }; }
+  try { stats.tmp = { bytes: directorySizeBytes(path.join(userData, 'tmp')) }; }
+  catch (_) { stats.tmp = { bytes: null }; }
+  try { stats.assets = { bytes: directorySizeBytes(path.join(userData, 'browser-assets')) }; }
+  catch (_) { stats.assets = { bytes: null }; }
+  try { stats.logs = { bytes: directorySizeBytes(logsDir()) }; }
+  catch (_) { stats.logs = { bytes: null }; }
+  return stats;
+}
+
+ipcMain.handle('cache:stats', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  return cacheStatsPayload();
+});
+
+ipcMain.handle('cache:clear', async (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const kind = String(input.kind || '');
+  const busy = cacheBusyGuardError();
+  if (busy && ['models', 'tmp'].includes(kind)) return { ok: false, error: busy };
+  const userData = app.getPath('userData');
+  try {
+    if (kind === 'models') {
+      // Tüm indirilmiş + yarım modeller: mevcut güvenli silme yolunu her
+      // bilinen kimlik için uygular (yol çevreleme zaten orada denetlenir).
+      let freed = 0;
+      const { deleteCachedModel: del } = require('./model-manager');
+      for (const m of KNOWN_MODELS) {
+        const r = del(appResourceRoot(), m);
+        if (r.ok) freed += Number(r.freedBytes) || 0;
+      }
+      return { ok: true, freedBytes: freed };
+    }
+    if (kind === 'translation' || kind === 'manga') {
+      const cache = kind === 'manga' ? browserMangaCache() : browserTranslationCache();
+      const freed = (() => { try { return fs.statSync(cache.filePath).size; } catch (_) { return 0; } })()
+        + (() => { try { return fs.statSync(`${cache.filePath}.journal`).size; } catch (_) { return 0; } })();
+      cache.map.clear();
+      cache.pendingJournal = [];
+      cache.journalBytes = 0;
+      cache.journalFlushes = 0;
+      cache.version = 0;
+      await cache.flush().catch(() => {});
+      for (const p of [cache.filePath, `${cache.filePath}.journal`, `${cache.filePath}.bak`]) {
+        try { fs.rmSync(p, { force: true }); } catch (_) {}
+      }
+      cache.baseFileWritten = false;
+      return { ok: true, freedBytes: freed };
+    }
+    if (kind === 'tmp') {
+      const dir = path.join(userData, 'tmp');
+      const freed = directorySizeBytes(dir);
+      try {
+        for (const file of fs.readdirSync(dir)) {
+          try { fs.rmSync(path.join(dir, file), { recursive: true, force: true }); } catch (_) {}
+        }
+      } catch (_) {}
+      return { ok: true, freedBytes: freed };
+    }
+    if (kind === 'assets') {
+      // Çalışan işlerin kullandığı varlıklar korunur: referans kümesi sekme,
+      // oturum ve çalışma alanı kayıtlarından toplanır.
+      const tabSources = [[...browserTabs.values()]];
+      try {
+        tabSources.push(readBrowserSessionWithStatus(browserSessionPath(app)).session?.tabs);
+      } catch (_) {}
+      try {
+        for (const ws of browserPlacesSnapshot()?.workspaces || []) tabSources.push(ws?.tabs);
+      } catch (_) {}
+      const store = browserAssetStore();
+      const dir = path.join(userData, 'browser-assets');
+      const before = directorySizeBytes(dir);
+      const removed = store.sweepOrphans(collectTrackAssetRefs(...tabSources), 0);
+      const after = directorySizeBytes(dir);
+      return { ok: true, freedBytes: Math.max(0, before - after), removed };
+    }
+    if (kind === 'logs') {
+      const dir = logsDir();
+      const freed = directorySizeBytes(dir);
+      try {
+        for (const file of fs.readdirSync(dir)) {
+          if (!file.endsWith('.log')) continue;
+          // Açık iş günlüğü korunur — o dosya hâlâ yazılıyor olabilir.
+          if (jobLog?.file && path.basename(jobLog.file) === file) continue;
+          try { fs.rmSync(path.join(dir, file), { force: true }); } catch (_) {}
+        }
+      } catch (_) {}
+      return { ok: true, freedBytes: freed };
+    }
+    return { ok: false, error: 'Bilinmeyen önbellek türü.' };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+// Madde 33 — Ağ bütçesi: indirme hızı yeni işlere uygulanır; çeviri eşzamanlılığı
+// sürmekte olan scheduler'lara da CANLI uygulanır (pump her turda maxConcurrent
+// okur). Bilinmeyen değerler dengeliye düşer.
+function applyNetBudgetToSchedulers(budget) {
+  const preset = { full: 0, balanced: 3, saver: 1 }[budget] ?? 3;
+  let touched = 0;
+  for (const tab of browserTabs.values()) {
+    for (const sched of [tab?.translationScheduler, tab?.pageTranslateJob?.scheduler]) {
+      if (sched && typeof sched.maxConcurrent === 'number') {
+        sched.maxConcurrent = Math.max(1, Math.min(6, preset || 6));
+        touched += 1;
+      }
+    }
+  }
+  return touched;
+}
+
+ipcMain.handle('network:budget', (event, input = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const budget = ['full', 'balanced', 'saver'].includes(String(input.budget)) ? String(input.budget) : 'balanced';
+  const touched = applyNetBudgetToSchedulers(budget);
+  return { ok: true, budget, touched };
 });
 
 ipcMain.handle('models:status', (event) => {
@@ -20197,6 +20405,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.translateBaseUrl) pushBoundOption(args, '--translate-base-url', options.translateBaseUrl);
   if (options.translateModel) pushBoundOption(args, '--translate-model', options.translateModel);
   if (!options.chat && options.translateWorkers) args.push('--translate-workers', String(options.translateWorkers));
+  // Madde 33 — ağ bütçesi: yeni işin yt-dlp indirme hızı byte/s cinsinden
+  // sınırlanır (çalışan işin limitini değiştirmez; değişim bir sonraki işe ve
+  // canlı scheduler'lara uygulanır).
+  if (!options.chat && Number.isFinite(Number(options.dlRateLimitKbps)) && Number(options.dlRateLimitKbps) > 0) {
+    args.push('--rate-limit', String(Math.round(Number(options.dlRateLimitKbps) * 1024)));
+  }
   if (!options.chat && options.translateRegister) pushBoundOption(args, '--translate-register', options.translateRegister);
   if (!options.chat && options.translateProfanity) pushBoundOption(args, '--translate-profanity', options.translateProfanity);
   if (!options.chat) args.push('--translate-keep-source', options.translateKeepSource !== false ? 'true' : 'false');
@@ -20363,6 +20577,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   activeTranscriptionJobId = jobId;
   const sendJobEvent = (event) => sendEvent({ ...event, jobId });
 
+  const jobResourceSampler = startJobResourceSampler({ sendJobEvent, outputDir: pipelineOutputDir });
+
   activeJob.stdout.setEncoding('utf-8');
   activeJob.stderr.setEncoding('utf-8');
 
@@ -20394,6 +20610,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         return;
       }
       const event = { ..._parsed, queueItemId: jobMeta.queueItemId };
+      if (event.type === 'status' && event.stage) jobResourceSampler.setStage(event.stage);
       if (event.type === 'quality_report') {
         const { type: _type, queueItemId: _queueItemId, ...quality } = event;
         jobMeta.quality = quality;
@@ -20467,6 +20684,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     // Süreç hiç terminal olayı basmadan kapandıysa mandal sentetik bir 'error'
     // üretir: iş sessizce kaybolmasın. İptal edilmişse üretmez.
     const closing = lifecycle.close(code, stderrBuf.slice(-1000));
+    jobResourceSampler.stop();
     if (closing.syntheticTerminal) {
       const synthetic = { ...closing.syntheticTerminal, queueItemId: jobMeta.queueItemId };
       if (!jobMeta.skip) {

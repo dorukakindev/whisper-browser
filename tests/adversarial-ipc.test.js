@@ -299,6 +299,10 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // transcribe:start artik is basina sahipli bir gecici klasor aciyor;
       // harness GERCEK randomUUID'yi verir.
       randomUUID: require('crypto').randomUUID,
+      // Madde 35 kaynak örnekleyici: modül düzeyinde tanımlı, handler onu
+      // startJobResourceSampler(...) olarak çağırır — sahte implementasyon
+      // gerçek arayüzünü (setStage/stop) döndürür.
+      startJobResourceSampler: () => ({ setStage() {}, stop() {} }),
       createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     // Unlike register(), keep one context so assignments remain observable.
@@ -356,6 +360,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       createProcessTerminalLatch, randomUUID: require('crypto').randomUUID,
+      // Madde 35 kaynak örnekleyici arayüzü (setStage/stop).
+      startJobResourceSampler: () => ({ setStage() {}, stop() {} }),
       createIdempotentCancel, recoverOutputTransactions, pushBoundOption,
     };
     const sandbox = vm.createContext(context);
