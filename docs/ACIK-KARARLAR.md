@@ -19,7 +19,7 @@ bölümüne taşınır. Son güncelleme: 2026-10-02 (batch 10 doğrulaması —
 | 7 | devir `2026-09-30-0800` | `win-traversal` Linux ayıracı probu | Windows'a özgü kabul; onaylanırsa kapanır |
 | 8 | PR [#184](https://github.com/dorukakindev/whisper-browser/pull/184) | Proxy'li ortamda DNS-pinning: istemci DNS'i proxy çözer, sabitleme uygulanamaz | Tam çözüm CONNECT-tünelleme/varlık-mimarisi turu gerektirir — kapsam onayı |
 | 9 | PR [#184](https://github.com/dorukakindev/whisper-browser/pull/184) | `whisper-assets` nonce URL'si yalnız ASS alan sayfaya görünür | Tam kapanma varlık-mimarisi değişikliği ister — kapsam onayı |
-| 10 | Blueprint önerisi (CJK/emoji fontları + xvfb) | Yeni snapshot'a font paketleri | Timeline'daki blueprint kartında onay bekliyor |
+| ~~10~~ | Blueprint önerisi (CJK/emoji fontları + xvfb) | ~~Timeline'da onay bekliyor~~ | **KAPANDI 2026-10-02:** blueprint `initialize`'da `fonts-noto-cjk fonts-noto-color-emoji xvfb` zaten kurulu — doğrulandı |
 
 ## İzlemede (otomatik ilerleyen)
 
