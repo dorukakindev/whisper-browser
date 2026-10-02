@@ -293,6 +293,83 @@ def test_negation_modal_whole_level():
         "We must leave.", "Gidiyoruz.", "tr")
 
 
+def test_negation_inflected_target_forms_count():
+    # Çekimli olumsuzluk biçimleri olumsuzluk kanıtıdır — 'k'-sonlu -mAyAcAk
+    # kalıbı ğ'li çekimleri, 'yok/hiçbir/kimse' çekimlerini kaçırıyordu.
+    assert T.translation_meaning_issues(
+        "There was no luggage.", "Bavul yoktu.", "tr") == []
+    assert T.translation_meaning_issues(
+        "None of them had anything.", "Hiçbirinde bir şey yoktu.", "tr") == []
+    assert T.translation_meaning_issues(
+        "Nobody's bag was checked.", "Kimsenin çantasına bakılmadı.", "tr") == []
+    assert T.translation_meaning_issues(
+        "I won't say anything.", "Bir şey söylemeyeceğim.", "tr") == []
+    assert T.translation_meaning_issues(
+        "You mustn't enter.", "Girmeyin.", "tr") == []
+    assert T.translation_meaning_issues(
+        "He left without paying.", "Ödemeden gitti.", "tr") == []
+
+
+def test_negated_english_modals_skip_modal_gate_not_negation():
+    # Olumsuzlaştırılmış kaynak modal Türkçede olumsuz çekimle karşılanır;
+    # modal kanıtı aramak doğru çeviriyi ret'liyordu. Olumsuzluk kapısı
+    # hâlâ gerçek taklafları yakalar.
+    assert T.translation_meaning_issues(
+        "He won't come.", "Gelmez.", "tr") == []
+    assert T.translation_meaning_issues(
+        "You will not believe this.", "İnanmazsın.", "tr") == []
+    assert T.translation_meaning_issues(
+        "I couldn't find it.", "Bulamadım.", "tr") == []
+    assert T.translation_meaning_issues(
+        "I can't believe this.", "İnanamıyorum.", "tr") == []
+    assert T.translation_meaning_issues(
+        "They won't release him.", "Onu serbest bırakacaklar.", "tr") == [
+        "negation_missing"]
+    assert T.translation_meaning_issues(
+        "You shouldn't go.", "Gitmelisin.", "tr") == ["negation_missing"]
+    # 'don't have to' zorunluluk-yok; 'gerekmiyor' modal kanıtı sayılır.
+    assert T.translation_meaning_issues(
+        "You don't have to go.", "Gitmen gerekmiyor.", "tr") == []
+
+
+def test_ability_modal_non_aorist_forms_count():
+    # -AbIl aorist-dışı biçimlerde de yeti/modal kanıtıdır.
+    assert T.translation_meaning_issues(
+        "You could see the powder.", "Tozu görebiliyordun.", "tr") == []
+    assert T.translation_meaning_issues(
+        "He was able to leave.", "Ayrılabildi.", "tr") == []
+    assert T.translation_meaning_issues(
+        "It could be a mistake.", "Hata olabileceği düşünülüyor.", "tr") == []
+
+
+def test_could_you_request_not_uncertainty():
+    # 'Could you/we X' kibar istek kalıbı; aorist soru doğal karşılıktır.
+    # 'Could he X' ise belirsizlik — hâlâ denetlenir.
+    assert T.translation_meaning_issues(
+        "Could you open the bag, please?",
+        "Çantayı açar mısınız, lütfen?", "tr") == []
+    assert "modal_certainty_flip" in T.translation_meaning_issues(
+        "Could he be mistaken?", "Yanıldı mı?", "tr")
+
+
+def test_modal_gates_still_catch_real_flips():
+    # Gevşetme sonrası gerçek anlam taklafları hâlâ yakalanmalı.
+    assert "modal_certainty_flip" in T.translation_meaning_issues(
+        "It might rain.", "Yağmur yağacak.", "tr")
+    assert "modal_missing" in T.translation_meaning_issues(
+        "It might rain.", "Yağmur yağıyordu.", "tr")
+    assert "negation_missing" in T.translation_meaning_issues(
+        "You should not do that.", "Bunu yapmalısın.", "tr")
+    assert "modal_missing" in T.translation_meaning_issues(
+        "You must wait.", "Bekle.", "tr")
+    # 'may/might not' maskelenmez — olumsuz-olasılık ihtimal kanıtı ister;
+    # 'may not'→'işe yaramıyor' kesinleştirmesi korpus ihtimal-10 pinidir.
+    assert "modal_certainty_flip" in T.translation_meaning_issues(
+        "It may not work.", "İşe yaramıyor.", "tr")
+    assert T.translation_meaning_issues(
+        "He might not come.", "Gelmeyebilir.", "tr") == []
+
+
 # ---------- 9. SDH işareti demirleme ----------
 
 def test_sdh_marker_preserved_in_same_cue():

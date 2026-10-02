@@ -861,11 +861,21 @@ _SOURCE_NEGATION = re.compile(
     re.I,
 )
 _TARGET_NEGATION = re.compile(
-    r"\b(?:değil\w*|degil\w*|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|kein\w*|nie\w*|ohne|sans|jamais|rien|personne|pas|aucun|aucune|sin\b|nada|nadie|tampoco|jamás|senza|mai\b|nessun\w*|neanche|nunca|não|nao|sem|ninguém|nem)\b"
+    # 'yok/hiçbir/kimse' çekimli biçimlerde de kanıttır (yoktu, yokmuş,
+    # hiçbiri, kimsenin) — sondaymış \w*'siz bırakmak R401 canlı korpusunda
+    # 'yoktu' retleri üretiyordu.
+    r"\b(?:değil\w*|degil\w*|yok\w*|hiç|hic|asla|kimse\w*|hiçbir\w*|hicbir\w*|olmadan|hayır|hayir|not|never|no|without|nein|nicht|kein\w*|nie\w*|ohne|sans|jamais|rien|personne|pas|aucun|aucune|sin\b|nada|nadie|tampoco|jamás|senza|mai\b|nessun\w*|neanche|nunca|não|nao|sem|ninguém|nem)\b"
     # Türkçe fiil olumsuzluğu: gelmiyor, sanmıyorum, gelmedi, yapmaz vb.
     r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\w*\b"
-    r"|\b\w{2,}m[ae]y?[ae]c[ae]k\w*\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b"
+    # -mAyAcAk olumsuz gelecek ğ'li çekimlerde de kanıttır
+    # (söylemeyeceğim, gelmeyeceğiz — 'k' kalıbı 'ğ'yi kaçırıyordu).
+    r"|\b\w{2,}m[ae]y?[ae]c[ae][kğ]\w*\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b"
     r"|\b\w{2,}mamalı\w*\b|\b\w{2,}memeli\w*\b"
+    # -mAyIp olumsuz zarf-fiil (gelmeyip, bakmayıp, istemeyip).
+    r"|\b\w{2,}m[ae]y[ıiuü]p\b"
+    # -mAyIn(Iz) olumsuz çoğul/kibar emir (girmeyin, yapmayın, gelmeyiniz) —
+    # çıplak -mA kalıbı tekilleri yakalar, bu uzun biçimi kaçırıyordu.
+    r"|\b\w{2,}m[ae]y[ıiuü]?n[ıiuü]?z?\b"
     # -mAm gövde olumsuzluğu (yapamam, yüzemem, istemem, görmem) —
     # 'adam'/'kalem' gibi tek-m'li sözcükler kalıba girmez (m+[ae]+m gerekir).
     r"|\b\w{2,}m[ae]m\b"
@@ -897,9 +907,35 @@ _SOURCE_UNCERTAINTY = re.compile(
 _SOURCE_NECESSITY = re.compile(
     r"\b(?:[Mm]ust\b|[Hh]a(?:ve|s|d)\s+to|[Nn]eed\s+to|"
     r"[Rr]equired\s+to|[Ss]upposed\s+to|[Ss]hould\b|[Oo]ught\s+to)\b")
+# Olumsuzlaştırılmış İngilizce modalı ("won't", "will not", "couldn't") modal
+# kanıtı aramadan önce kaynaktan sil: Türkçe bunları olumsuz çekimle
+# (-mAz/-mIş/-mA) bütünleşik karşılar; ayrı modal kanıtı istemek doğru
+# çevirileri ret'liyordu ('will not believe' → 'inanmazsın' R401). Gerçek
+# anlam kaybı (olumlu kaynak → olumsuz hedef) olumsuzluk kapısından yakalanır:
+# maske yalnız modal denetimini gevşetir, 'not' hâlâ _SOURCE_NEGATION'da durur.
+# 'may not'/'might not' BİLEREK maskelenmez: olumsuz-olasılık ('gelmeyebilir')
+# ihtimal kanıtı ister; maskelenirse 'may not'→'işe yaramıyor' kesinleştirmesi
+# kapıdan kaçar (korpus ihtimal-10 pini).
+_NEGATED_MODAL = re.compile(
+    r"\b(?:[Cc]an['’]t|[Cc]annot|[Cc]ould(?:n['’]t|\s+not)|"
+    r"[Mm]ust(?:n['’]t|\s+not)|[Nn]eedn['’]t|"
+    r"[Dd]aren['’]t|[Ss]han['’]t|[Ss]hall\s+not|"
+    r"[Ss]hould(?:n['’]t|\s+not)|[Ww]ill\s+not|[Ww]on['’]t|"
+    r"[Ww]ould(?:n['’]t|\s+not))\b")
+# 'Could you/we X' kibar istek kalıbı belirsizlik değil rica ifade eder; Türkçe
+# karşılığı aorist sorudur ("açar mısınız") — ihtimal kanıtı aramak doğru
+# çevirileri modal_certainty_flip ile reddediyordu (R401 ölçümü).
+_REQUEST_COULD = re.compile(r"\b[Cc]ould\s+(?:you|we|u)\b")
 _TARGET_MODAL = re.compile(
-    r"\b(?:zorunda\w*|gerek(?:iyor|ir|ecek)?|lazım|lazim|mümkün|mumkun|olabilir|belki|galiba|muhtemelen|herhalde|mecbur\w*|şart|lüzum|icap\w*)\b"
-    r"|\b\w{2,}(?:malı|meli|abilir|ebilir|amaz|emez|acak|ecek)\w*\b"
+    # 'gerek\w*' tüm çekimleri kapsar (gerekmiyor, gerekmez, gerekmedi) —
+    # dar üç-bişim kalıbı 'don’t have to' → 'gerekmiyor' doğru çevirisini
+    # modal_missing ile reddediyordu.
+    r"\b(?:zorunda\w*|gerek\w*|lazım|lazim|mümkün|mumkun|olabilir|belki|galiba|muhtemelen|herhalde|mecbur\w*|şart|lüzum|icap\w*)\b"
+    # -AbIl yeti/yetenek eki aorist-dışı biçimlerde de modal kanıttır:
+    # görebiliyordu, yapabildi, kullanabilecek ('could see'→'görebiliyordun'
+    # doğru çeviridir; yalnız 'abilir' aramak R401'de ölçülen en büyük
+    # yanlış-pozitif sınıfıydı).
+    r"|\b\w{2,}(?:malı|meli|abil|ebil|amaz|emez|acak|ecek)\w*\b"
     # '-amam/-emem' = olumsuz yeti ('can't'): yapamam, yüzemem, okuyamam.
     r"|\b\w{2,}[ae]m[ae]m\b"
     # aorist -r (gider, yaparım, olurum) — will/would'un doğal karşılığı.
@@ -915,13 +951,15 @@ _TARGET_MODAL = re.compile(
     r"|\b\w{2,}(?:[ae]l[ıi]m|[ae]y[ıiuü]m)\b",
     re.I,
 )
-# İhtimal kanıtı: belki/olabilir/galiba/muhtemelen + -abilir/-ebilir/-mayabilir.
-# Kesin gelecek -acak/-ecek veya zorunluluk -malı BİLEREK dışarıda: 'might rain'
-# → 'yağacak' ihtimali kesinliğe çevirir (ölçülen anlam kaybı).
+# İhtimal kanıtı: belki/olabilir/galiba/muhtemelen + -abilir/-ebilir/-mayabilir
+# ve -AbIl'ın aorist-dışı çekimleri (görebiliyordu, bilebildi — 'could'
+# yeti/olasılık anlamını korur). Kesin gelecek -acak/-ecek veya zorunluluk
+# -malı BİLEREK dışarıda: 'might rain' → 'yağacak' ihtimali kesinliğe
+# çevirir (ölçülen anlam kaybı).
 _TARGET_UNCERTAINTY = re.compile(
     r"\b(?:belki|olabilir|galiba|muhtemelen|herhalde|ihtimal\w*|sanırım|sanki|"
     r"mümkün\w*|mumkun\w*|olası|olasılık\w*|ihtimalinde)\b"
-    r"|\b\w{2,}(?:abilir|ebilir)\w*\b",
+    r"|\b\w{2,}(?:abil|ebil)\w*\b",
     re.I,
 )
 _TARGET_NECESSITY = re.compile(
@@ -1260,19 +1298,26 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     if missing and 'number_mismatch' not in issues:
         issues.append('number_mismatch')
     lang = str(target_lang or '').lower().split('-')[0]
-    if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(source) \
+    # Altyazı kaynaklarında kıvırcık kesme (’) düz kesmeye katlanır; aksi
+    # halde "can’t/won’t" biçimleri kaynak işaret listesinden düşer.
+    src_norm = source.replace('’', "'")
+    if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(src_norm) \
             and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
-    if lang in _MODAL_TARGET_LANGS and _SOURCE_MODAL.search(source) \
+    modal_source = _NEGATED_MODAL.sub(' ', src_norm)
+    if lang in _MODAL_TARGET_LANGS and _SOURCE_MODAL.search(modal_source) \
             and not _TARGET_MODAL.search(translated):
         issues.append('modal_missing')
     if lang == 'tr':
         # Modalite güç sapması: ihtimal → kesinlik ('might rain' → 'yağacak')
         # ve zorunluluk → olanak ('must come' → 'gelebilirsin') ölçülen
         # anlam kaybıdır; -acak gelecek ihtimal kanıtı sayılmaz.
-        if _SOURCE_UNCERTAINTY.search(source)                 and not _TARGET_UNCERTAINTY.search(translated):
+        uncertainty_source = _REQUEST_COULD.sub(' ', modal_source)
+        if _SOURCE_UNCERTAINTY.search(uncertainty_source) \
+                and not _TARGET_UNCERTAINTY.search(translated):
             issues.append('modal_certainty_flip')
-        if _SOURCE_NECESSITY.search(source)                 and not _TARGET_NECESSITY.search(translated):
+        if _SOURCE_NECESSITY.search(modal_source) \
+                and not _TARGET_NECESSITY.search(translated):
             issues.append('modal_weakened')
     marker_checks = [
         ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
