@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-02-1415.md](docs/devir/2026-10-02-1415.md) — çeviri girişi rolling-window kaynak tekilleştirme: 120→71 blok, echo ret'leri 13→4 (rapor 402)
+Güncel çalışma: [docs/devir/2026-10-02-1951.md](docs/devir/2026-10-02-1951.md) — sağlıksız çeviri modeli bildirime bağlandı (translation_quality.unhealthy + warn_list) + 4sapi/gemini-3.8-flash canlı doğrulama
+Önceki çalışma: [docs/devir/2026-10-02-1415.md](docs/devir/2026-10-02-1415.md) — çeviri girişi rolling-window kaynak tekilleştirme: 120→71 blok, echo ret'leri 13→4 (rapor 402)
 Önceki çalışma: [docs/devir/2026-10-02-1335.md](docs/devir/2026-10-02-1335.md) — anlam kapıları yanlış-pozitif turu: olumsuz modal maskesi + çekimli olumsuzluk/-AbIl biçimleri + could-you istekleri (rapor 401)
 Önceki çalışma: [docs/devir/2026-10-02-1245.md](docs/devir/2026-10-02-1245.md) — çeviri kalite kapıları yanlış-pozitif turu: canlı korpus ölçümü + 4 kök düzeltme (sonda-nokta ayrımı, 'bir' tail, window-tekrarı, caseless ad) (rapor 400)
 Önceki çalışma: [docs/devir/2026-10-02-1840.md](docs/devir/2026-10-02-1840.md) — NTP pointer-ölümü kök düzeltmesi: boş view '' URL'si sayfa sayılıp HWND yutuyordu (rapor 399) + Windows raporu 398'e taşındı
