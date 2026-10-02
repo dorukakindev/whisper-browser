@@ -4,6 +4,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Subtitle editor: audio-waveform timeline with range-limited ffmpeg extraction, CPS reading-speed heat strip on cue blocks, issues panel (empty/short/overlap/fast/line-break) with jump-to-problem chips and undoable bulk empty-cue removal, drag overlap preview with live collision warning, and crash-safe unsaved-edit recovery records (per-source journal + restore prompt).
 - Runtime capability panel now shows word alignment (WhisperX), speaker diarization (pyannote), and OCR engine (RapidOCR) availability with per-component remedies; translation-recovery UI strings localized to English; long-film acceptance harness supports --minutes with regional overlap metrics.
 
 ### Fixed
