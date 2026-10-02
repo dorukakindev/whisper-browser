@@ -389,11 +389,10 @@ function browserAddressResultHost(result) {
 
 function rememberBrowserFavicon(url, favicon) {
   const origin = globalThis.BrowserAddressModel?.originOf(url);
-  if (origin && typeof favicon === 'string' && /^data:image\//i.test(favicon)) {
-    browserFaviconByOrigin.delete(origin);
-    browserFaviconByOrigin.set(origin, favicon);
-    if (browserFaviconByOrigin.size > 200) browserFaviconByOrigin.delete(browserFaviconByOrigin.keys().next().value);
-  }
+  // Simge gövdesi omurga yardımcısında da kapılanır; burada yine süzülmesi
+  // helpers'ın bağımsız kullanıldığı bağlamlarda (vm testleri, gelecekteki
+  // çağıranlar) şema dışı dizgilerin haritaya girmesini engeller.
+  if (origin && /^data:image\//i.test(favicon)) rememberBrowserFaviconByOrigin(origin, favicon);
 }
 
 function browserFaviconFor(url) {
