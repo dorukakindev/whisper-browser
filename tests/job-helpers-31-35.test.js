@@ -104,6 +104,7 @@ test('32: uygunluk satırları fits/tight/over sınıflar', () => {
 
 test('33: preset çözümleme + geçersiz değerde full', () => {
   assert.equal(H.resolveNetworkBudget('saver').translateWorkers, 1);
+  assert.equal(H.resolveNetworkBudget('full').translateWorkers, 8);
   assert.equal(H.resolveNetworkBudget('bogus').key, 'full');
   assert.equal(H.resolveNetworkBudget(undefined).key, 'full');
 });
@@ -112,6 +113,7 @@ test('33: saver bütçe işçi sayısını 1e indirir', () => {
   assert.equal(H.budgetWorkerCap('saver', 'page'), 1);
   assert.equal(H.budgetWorkerCap('saver', 'track'), 1);
   assert.ok(H.budgetWorkerCap('balanced', 'track') <= 3);
+  assert.equal(H.budgetWorkerCap('full', 'track'), 8);
 });
 
 test('33: etiket çift dilli', () => {

@@ -338,6 +338,7 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateRefine: $('translateRefine').checked,
+    translateLenient: $('translateLenient') ? $('translateLenient').checked : false,
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
@@ -358,7 +359,7 @@ function buildOptsFromUI() {
 function resolveNetBudgetPreset() {
   const H = globalThis.JobTimingHelpers;
   const raw = $('networkBudget') ? $('networkBudget').value : 'full';
-  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 6, pageWorkers: 4 };
+  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 8, pageWorkers: 4 };
 }
 
 // Tekil baslatma ve KUYRUK ayni on kontrollerden gecer. Eskiden kuyruk
@@ -3303,7 +3304,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',

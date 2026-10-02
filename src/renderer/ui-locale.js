@@ -510,6 +510,7 @@
     ['Çift dilli tek dosya da yaz (<ad>.dual.srt — kaynak ve çeviri üst üste)', 'Also write a bilingual file (<name>.dual.srt — source and translation together)'],
     ['İkinci geçiş: çeviriyi gözden geçir ve iyileştir (kalite artar, maliyet 2 katına çıkar)', 'Second pass: review and refine translation (higher quality, roughly double cost)'],
     ['Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)', 'Also save source subtitles (otherwise only translation is written)'],
+    ['Gevşek kabul: kalite denetimini atla — model ne döndürürse doğrudan yazılır (daha hızlı; hatalı veya kaynak dilde kalan satırlar sessizce geçer)', 'Lenient acceptance: skip quality checks — the model reply is written as-is (faster; wrong or untranslated lines pass silently)'],
     ['LLM ile düzeltme (DeepSeek/OpenAI)', 'LLM correction (DeepSeek/OpenAI)'],
     ['Transcribe sonrası LLM ile düzelt (sansür restore, halüsinasyon, noktalama)', 'Correct with an LLM after transcription (censorship, hallucinations, punctuation)'],
     ['Sansürlü küfürleri restore et (f*** → fuck)', 'Restore censored profanity (f*** → fuck)'],

@@ -109,10 +109,21 @@ test('ceviri yan ayarlari da gider', () => {
   }));
   assert(argValue(args, '--translate-model') === 'gpt-4o-mini', 'model yok');
   assert(argValue(args, '--translate-workers') === '4', 'workers yok');
+  const high = build(base({ translate: true, llmPostprocess: false, translateWorkers: 8 }));
+  assert(argValue(high, '--translate-workers') === '8', 'workers=8 backend argümanına ulaşmıyor');
   assert(argValue(args, '--translate-register') === 'documentary', 'register yok');
   assert(argValue(args, '--translate-refine') === 'true', 'refine yok');
   assert(argValue(args, '--translate-keep-source') === 'false', 'keep-source yanlis');
   assert(argValue(args, '--dual-subtitle') === 'true', 'dual yok');
+});
+
+test('gevşek kabul yalnızca açıkken bayrak gönderir', () => {
+  const on = build(base({ translate: true, translateLenient: true }));
+  assert(argValue(on, '--translate-lenient') === 'true', '--translate-lenient yok');
+  const off = build(base({ translate: true, translateLenient: false }));
+  assert(!off.includes('--translate-lenient'), 'kapalıyken bayrak sızdı');
+  const unset = build(base({ translate: true }));
+  assert(!unset.includes('--translate-lenient'), 'varsayılanda bayrak sızdı');
 });
 
 test('cue tekilleştirme yalnızca çeviri-only işinde açıkça gider', () => {

@@ -177,6 +177,45 @@ class AssFormatPreservationTests(unittest.TestCase):
         self.assertNotIn(",,{\\an1}", ass)
 
 
+class LenientAcceptanceTests(unittest.TestCase):
+    SRC = "You should not do that."
+    BAD = "Bunu yapmalısın."   # olumsuzluk düşmüş → negation_missing (pinli)
+
+    def _echo_provider(self):
+        install_provider(lambda payload: {str(i["i"]): i["t"] for i in payload["items"]})
+
+    def test_strict_mode_rejects_semantic_loss(self):
+        install_provider(lambda payload: {str(i["i"]): self.BAD for i in payload["items"]})
+        # Tek blok + sürekli ret → tümü başarısız → None (kısmi sözleşmesi)
+        self.assertIsNone(quiet(T.llm_translate, [(0, 2, self.SRC)], Args(), [],
+                                source_lang="en"))
+
+    def test_lenient_mode_writes_model_reply(self):
+        install_provider(lambda payload: {str(i["i"]): self.BAD for i in payload["items"]})
+        out = quiet(T.llm_translate, [(0, 2, self.SRC)], Args(translate_lenient=True), [],
+                    source_lang="en")
+        self.assertEqual(out[0][2], self.BAD)
+
+    def test_lenient_mode_still_rejects_broken_structure(self):
+        # Kimlik aralığı dışı yanıt yapısal rettir — gevşek mod eşleyemez.
+        install_provider(lambda payload: {"9": self.BAD for i in payload["items"]})
+        self.assertIsNone(quiet(T.llm_translate, [(0, 2, self.SRC)],
+                                Args(translate_lenient=True), [], source_lang="en"))
+
+    def test_lenient_echo_is_written_but_not_cached(self):
+        self._echo_provider()
+        with tempfile.TemporaryDirectory() as cache:
+            args = Args(translate_lenient=True, translate_cache=True, cache_dir=cache,
+                        input="/x/film.en.srt")
+            out = quiet(T.llm_translate, [(0, 2, self.SRC)], args, [], source_lang="en")
+            self.assertEqual(out[0][2], self.SRC)
+            cache_file = Path(cache) / "translate-cache.json"
+            stored = json.loads(cache_file.read_text(encoding="utf-8")) \
+                if cache_file.exists() else {}
+            self.assertFalse(any(self.SRC in str(v) for v in stored.values()),
+                             "yankı çeviri kalıcı önbelleğe yazılmamalı")
+
+
 class TranslationQualityEventTests(unittest.TestCase):
     def test_quality_event_reports_batches_and_rejections(self):
         calls = []

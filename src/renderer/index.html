@@ -910,8 +910,8 @@
               </label>
               <div class="hint field-full">Manga alanları boşsa altyazı profili kullanılır. Ayrı anahtar girerseniz aynı sağlayıcıda iki farklı API anahtarıyla çalışabilirsiniz. 4SAPI seçildiğinde altyazıda <code>gpt-5.4</code>, manga tarafında <code>gemini-3.8-flash</code> önerilir; iki model de model listesinden seçilebilir.</div>
               <label class="field">
-                <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">4</span></span>
-                <input type="range" id="translateWorkers" min="1" max="10" step="1" value="4" />
+                <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">6</span></span>
+                <input type="range" id="translateWorkers" min="1" max="10" step="1" value="6" />
               </label>
               <label class="field">
                 <span class="field-label">Küfür/argo</span>
@@ -932,6 +932,10 @@
               <label class="field switch-field field-full">
                 <input type="checkbox" id="translateKeepSource" checked />
                 <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
+              </label>
+              <label class="field switch-field field-full">
+                <input type="checkbox" id="translateLenient" />
+                <span>Gevşek kabul: kalite denetimini atla — model ne döndürürse doğrudan yazılır (daha hızlı; hatalı veya kaynak dilde kalan satırlar sessizce geçer)</span>
               </label>
               <div class="hint field-full">
                 shuaiapi rotalarından biri seçiliyse, bir rota tıkanırsa diğerlerine otomatik geçilir.
