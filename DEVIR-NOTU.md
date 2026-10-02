@@ -1,4 +1,6 @@
-Güncel çalışma: [docs/devir/2026-10-02-1130.md](docs/devir/2026-10-02-1130.md) — YouTube 403 bulgusu: indirme hataları birleşik sınıflandırıcı + eylemlenebilir rehber + yt-dlp pin 2026.8.19 (rapor 397)
+Güncel çalışma: [docs/devir/2026-10-02-1840.md](docs/devir/2026-10-02-1840.md) — NTP pointer-ölümü kök düzeltmesi: boş view '' URL'si sayfa sayılıp HWND yutuyordu (rapor 399) + Windows raporu 398'e taşındı
+Önceki çalışma: [docs/devir/2026-10-02-1530.md](docs/devir/2026-10-02-1530.md) — Windows elle doğrulama @0e9d115: PDF onay pointer GEÇTİ, NTP ölü-pointer KALDI + başıboş WebContentsView kanıtı (rapor 398)
+Önceki çalışma: [docs/devir/2026-10-02-1130.md](docs/devir/2026-10-02-1130.md) — YouTube 403 bulgusu: indirme hataları birleşik sınıflandırıcı + eylemlenebilir rehber + yt-dlp pin 2026.8.19 (rapor 397)
 Önceki çalışma: [docs/devir/2026-10-02-1112.md](docs/devir/2026-10-02-1112.md) — PR #437-438 kapanışı: Windows rapor 396 merge + NTP pointer-ölümü düzeltmesi (oluşturma anında offscreen taşıma)
 Önceki çalışma: [docs/devir/2026-10-02-1000.md](docs/devir/2026-10-02-1000.md) — birleşik master tam-suit onarımı: ~16 dosyalık merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) — Windows raporu 481/510'un Ubuntu tarafı (rapor 393)
 Önceki çalışma: [docs/devir/2026-10-02-1406.md](docs/devir/2026-10-02-1406.md) — Windows elle doğrulama @c8ed7e7: start.bat + reklam koruması 6/6 + sekme önizleme + PDF yüzeyleri GEÇTİ; NTP pointer-ölümü KALDI (rapor 396)

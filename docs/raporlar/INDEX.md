@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 399 | [BROWSER_BUG_REPORT_399.md](BROWSER_BUG_REPORT_399.md) | NTP pointer-ölümü kök düzeltmesi — boş view '' URL'si 'sayfa' sayılıp HWND yutuyordu (3 yol: hasPage + hevesli view + mini reattach) |
 | 398 | [BROWSER_BUG_REPORT_398.md](BROWSER_BUG_REPORT_398.md) | Windows elle doğrulama @0e9d115 — PDF onay pointer GEÇTİ, NTP ölü-pointer KALDI (başıboş WebContentsView kanıtı) |
 | 397 | [BROWSER_BUG_REPORT_397.md](BROWSER_BUG_REPORT_397.md) | YouTube indirme 403 — birleşik io_errors sınıflandırıcısı + eylemlenebilir rehber + pin 2026.8.19 |
 | 396 | [BROWSER_BUG_REPORT_396.md](BROWSER_BUG_REPORT_396.md) | Windows elle doğrulama master c8ed7e7 — start.bat + reklam koruması GEÇTİ, NTP pointer-ölümü KALDI |
