@@ -46,7 +46,7 @@ const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
   'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise',
   'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback', 'qualityReport',
   'notifyOnDone', 'resume', 'diarize', 'labelSpeakers', 'translate', 'translateKeepSource',
-  'translateRefine', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
+  'translateRefine', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen', 'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess',
   'llmFixCensorship', 'llmFixHallucination', 'llmFixPunctuation', 'llmFixConsistency',

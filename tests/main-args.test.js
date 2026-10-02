@@ -115,6 +115,15 @@ test('ceviri yan ayarlari da gider', () => {
   assert(argValue(args, '--dual-subtitle') === 'true', 'dual yok');
 });
 
+test('gevşek kabul yalnızca açıkken bayrak gönderir', () => {
+  const on = build(base({ translate: true, translateLenient: true }));
+  assert(argValue(on, '--translate-lenient') === 'true', '--translate-lenient yok');
+  const off = build(base({ translate: true, translateLenient: false }));
+  assert(!off.includes('--translate-lenient'), 'kapalıyken bayrak sızdı');
+  const unset = build(base({ translate: true }));
+  assert(!unset.includes('--translate-lenient'), 'varsayılanda bayrak sızdı');
+});
+
 test('cue tekilleştirme yalnızca çeviri-only işinde açıkça gider', () => {
   const on = build(base({ translate: true, translateOnly: true, dedupeCues: true }));
   assert(on.includes('--dedupe-cues'), '--dedupe-cues yok');
