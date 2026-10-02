@@ -5474,7 +5474,13 @@ function secondaryBrowserTab() {
 function browserTabHasPage(tab) {
   if (!tab) return false;
   const wc = tab.view?.webContents;
-  if (wc && !wc.isDestroyed() && wc.getURL() !== 'about:blank') return true;
+  // Hiç gezinmemiş görünümde getURL() '' döner: '' !== 'about:blank' diye
+  // "sayfası var" sayılıp boş view yuvanın üstüne çiziliyordu — Windows'ta
+  // HWND yeni-sekme yüzeyinin tüm işaretçi girdisini yutuyor (R397/W).
+  if (wc && !wc.isDestroyed()) {
+    const url = wc.getURL();
+    if (url && url !== 'about:blank') return true;
+  }
   // Bellekten boşaltılmış sekme: sayfası restoredUrl'de durur ve
   // resumeRestoredBrowserPage ile geri açılır — ikincil görünüme de seçilebilir.
   return !!tab.restoredUrl;
@@ -13952,12 +13958,15 @@ async function activateBrowserTab(rawId) {
   if (browserSplitSecondaryTabId === next.id) browserSplitSecondaryTabId = '';
   if (next.lifecycle === 'unloaded' || next.lifecycle === 'restore_failed') next.lifecycle = 'restoring';
   else next.lifecycle = 'active';
-  browserView = ensureBrowserView(next);
+  // Sayfasız sekmede boş görünüm kurulmaz (R397/W): yeni sekme yüzeyi
+  // renderer'da çizilir; boş HWND üstte kalıp işaretçiyi yutardı.
+  const nextNeedsView = !!(next.view || next.restoredUrl);
+  browserView = nextNeedsView ? ensureBrowserView(next) : null;
   // ensureBrowserView null dönerse (kapanan pencere/oturum mutasyonu) sekme
   // 'restoring'de takılı kalıp unload/restore yollarına erişemiyordu —
   // görünümü olmayan sekmeyi tekrar unloaded yap ki sonraki etkinleştirme
   // gerçek yüklemeyi denesin (B83-30).
-  if (!browserView) next.lifecycle = 'unloaded';
+  if (!browserView && nextNeedsView) next.lifecycle = 'unloaded';
   browserCaptureEnabled = next.captureEnabled !== false;
   browserOverlay = next.overlay || { source: [], translation: [], mode: 'translation', offset: 0 };
   browserDiagnostics = next.diagnostics;
@@ -15285,9 +15294,14 @@ ipcMain.handle('browser:show', (event, payload) => queueBrowserTabTransition(asy
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi oluşturulamadı.' };
   if (tab.id !== browserActiveTabId) tab = await activateBrowserTab(tab.id);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi etkinleştirilemedi.' };
-  const view = ensureBrowserView(tab);
+  // Sayfasız sekmeye hevesli view kurma: boş WebContentsView, Windows'ta
+  // HWND'i yeni-sekme yüzeyinin üstünde tutup işaretçiyi yutabiliyordu
+  // (R397/W). Görünüm yalnız gösterilecek bir sayfa varsa kurulur; ilk
+  // gezinmede ensureBrowserView yine çağrılır.
+  const needsView = !!(tab.view || tab.restoredUrl);
+  const view = needsView ? ensureBrowserView(tab) : null;
   const bounds = safeBrowserBounds(payload && payload.bounds);
-  if (!view || !bounds) {
+  if (!bounds || (needsView && !view)) {
     // Bu çağrının ürettiği boş kayıt view kurulamadan kalmasın — kalıcı
     // oturum dosyasına "hayalet sekme" olarak yazılırdı.
     if (createdHere && tab && !tab.view && !tab.restoredUrl) {
@@ -21338,6 +21352,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   frames: browserFrames, probeScript: buildBrowserMediaProbeScript,
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
   captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
+  hideOffscreen: hideBrowserViewOffscreen,
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
   authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),

@@ -1,7 +1,7 @@
 const path = require('node:path');
 const { attachSubframeSchemeGuard } = require('./browser-navigation-policy');
 
-function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, command, dialogText }) {
+function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, command, dialogText, hideOffscreen }) {
   let window = null, tab = null;
   function layout() {
     if (!window || window.isDestroyed() || !tab?.view || tab.view.webContents.isDestroyed()) return false;
@@ -56,7 +56,14 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
           const main = owner();
           // Kapanan ana pencerede addChildView native tarafta fırlayabilir.
           if (main && !main.isDestroyed()) {
-            try { main.contentView.addChildView(currentTab.view); restore(); } catch (_) {}
+            try {
+              main.contentView.addChildView(currentTab.view);
+              // Geri eklenen view mini pencerenin sınırlarıyla görünür kalıp
+              // ana pencerede işaretçiyi yutmasın: restore() gerçek yerleşimi
+              // uygulayana dek ekran dışına çek.
+              hideOffscreen?.(currentTab.view);
+              restore();
+            } catch (_) {}
           }
         }
       });
