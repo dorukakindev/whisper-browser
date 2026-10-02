@@ -244,13 +244,15 @@ function makeIndex() {
 
 if (hasFts5) {
 
-test('mergeMediaIds: hedef satır korunur; iz/not taşınır, kimlik çakışması atılır, kaynak silinir', () => {
+test('mergeMediaIds: hedef satır korunur; iz/not taşınır, kaynak silinir', () => {
   const { index, dir } = makeIndex();
   try {
     index.upsertMedia({ id: 'file:keep', title: 'Hedef', duration: 3600, position: 500, completed: 0, lastWatched: 9 });
     index.upsertMedia({ id: 'file:drop', title: 'Kaynak', duration: 3500, position: 800, completed: 1, lastWatched: 5 });
     index.upsertTrack({ id: 't1', mediaId: 'file:keep', role: 'source', language: 'en' });
-    index.upsertTrack({ id: 't1', mediaId: 'file:drop', role: 'source', language: 'tr' }); // kimlik çakışması → atılır
+    // tracks.id global PRIMARY KEY — aynı kimlik ikinci medyada upsert edilirse
+    // satır kaynağa TAŞINIR (çakışma çoğalmaz); merge'de hedefe geri döner.
+    index.upsertTrack({ id: 't3', mediaId: 'file:drop', role: 'source', language: 'tr' });
     index.upsertTrack({ id: 't2', mediaId: 'file:drop', role: 'translation', language: 'tr' });
     index.upsertAnnotation({ id: 'a1', mediaId: 'file:drop', type: 'note', start: 10, end: 20 });
     const result = index.mergeMediaIds('file:drop', 'file:keep');
@@ -258,7 +260,8 @@ test('mergeMediaIds: hedef satır korunur; iz/not taşınır, kimlik çakışmas
     assert.equal(result.title, 'Hedef'); // hedef alanları korunur
     assert.equal(result.position, 500);
     const tracks = index.db.prepare('SELECT id, language FROM tracks WHERE media_id = ? ORDER BY id').all('file:keep');
-    assert.deepEqual(tracks, [{ id: 't1', language: 'en' }, { id: 't2', language: 'tr' }]);
+    assert.deepEqual(tracks,
+      [{ id: 't1', language: 'en' }, { id: 't2', language: 'tr' }, { id: 't3', language: 'tr' }]);
     const notes = index.db.prepare('SELECT id FROM annotations WHERE media_id = ?').all('file:keep');
     assert.deepEqual(notes, [{ id: 'a1' }]);
     assert.equal(index.getMedia('file:drop'), null);

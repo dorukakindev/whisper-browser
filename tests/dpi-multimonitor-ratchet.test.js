@@ -55,7 +55,8 @@ for (const st of [null, {}, 'x', 7, { width: 4000, height: 3000, x: -5000, y: -5
 // 4) htmlFullscreen bounds pencere-içerik-bağı — getContentBounds tabanlı,
 // ekran koordinatı (screen.*) kullanmaz.
 {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  // CRLF checkout'ta `\n}\n` sınırı tutmaz — LF'e normalize.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
   const fn = src.slice(src.indexOf('function browserFullscreenBounds'), src.indexOf('\n}\n', src.indexOf('function browserFullscreenBounds')));
   assert(fn.includes('getContentBounds'), 'fullscreen bounds içerik-tabanlı değil');
   assert(!/screen\./.test(fn), 'fullscreen bounds ekrana bağlı olamaz');
@@ -64,7 +65,7 @@ for (const st of [null, {}, 'x', 7, { width: 4000, height: 3000, x: -5000, y: -5
 // 5) Pozisyon-geri-yükleme yokluğu ratchet'i — createWindow yalnız clamped
 // width/height kullanır; x/y restore edilmez.
 {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8').replace(/\r\n/g, '\n');
   const create = src.slice(src.indexOf('function createWindow'), src.indexOf('mainWindow = new BrowserWindow') + 2000);
   assert(create.includes('clampedWindowSize'), 'kelepçe bağlı değil');
   const opts = create.slice(create.indexOf('mainWindow = new BrowserWindow'));
