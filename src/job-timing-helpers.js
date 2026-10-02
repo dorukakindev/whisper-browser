@@ -184,7 +184,7 @@ function formatMib(mib, en) {
 // ---------- Madde 33: ağ kullanım bütçesi ----------
 
 const NET_BUDGET_PRESETS = {
-  full: { dlRateKbps: 0, translateWorkers: 6, pageWorkers: 4 },
+  full: { dlRateKbps: 0, translateWorkers: 8, pageWorkers: 4 },
   balanced: { dlRateKbps: 8192, translateWorkers: 3, pageWorkers: 2 },
   saver: { dlRateKbps: 2048, translateWorkers: 1, pageWorkers: 1 },
 };
@@ -197,11 +197,11 @@ function resolveNetworkBudget(value) {
 }
 
 // Çalışan scheduler'a uygulanacak üst sınır — tür farkı (page vs track)
-// bütçe alanıyla çözülür; uygun değer 1..6 aralığına kilitlenir.
+// bütçe alanıyla çözülür; uygun değer 1..8 aralığına kilitlenir.
 function budgetWorkerCap(budgetKey, kind) {
   const preset = resolveNetworkBudget(budgetKey);
   const raw = kind === 'page' ? preset.pageWorkers : preset.translateWorkers;
-  return Math.max(1, Math.min(6, raw));
+  return Math.max(1, Math.min(8, raw));
 }
 
 function netBudgetLabel(value, en) {

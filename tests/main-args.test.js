@@ -109,6 +109,8 @@ test('ceviri yan ayarlari da gider', () => {
   }));
   assert(argValue(args, '--translate-model') === 'gpt-4o-mini', 'model yok');
   assert(argValue(args, '--translate-workers') === '4', 'workers yok');
+  const high = build(base({ translate: true, llmPostprocess: false, translateWorkers: 8 }));
+  assert(argValue(high, '--translate-workers') === '8', 'workers=8 backend argümanına ulaşmıyor');
   assert(argValue(args, '--translate-register') === 'documentary', 'register yok');
   assert(argValue(args, '--translate-refine') === 'true', 'refine yok');
   assert(argValue(args, '--translate-keep-source') === 'false', 'keep-source yanlis');

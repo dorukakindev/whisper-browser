@@ -188,7 +188,7 @@ function t_translation_config() {
   c = vm.runInContext('browserTranslationConfig()', ctx);
   assert.strictEqual(c.endpoint, 'https://x/v1');
   assert.strictEqual(c.targetLanguage, 'tr', 'bozuk dil kodu düzeltilemedi');
-  assert.strictEqual(c.workers, 6);
+  assert.strictEqual(c.workers, 8);
   assert.strictEqual(c.register.length, 32);
   assert.strictEqual(c.glossary.length, 200);
   // overrides kazanır
