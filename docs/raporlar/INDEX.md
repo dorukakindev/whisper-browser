@@ -354,3 +354,4 @@ tarih sırasıyla dosya adından okunur.
 | 379 | [BROWSER_BUG_REPORT_379.md](BROWSER_BUG_REPORT_379.md) | Yeni-100 batch 6 — kuyruk/kurtarma derinleştirme: saveSync şekil kapısı + items-dizisi invariant'ı + persist yazma uyarısı |
 | 380 | [BROWSER_BUG_REPORT_380.md](BROWSER_BUG_REPORT_380.md) | Yeni-100 batch 7 — performans/bellek derinleştirme: posterCache 300 FIFO + favicon tek-bounded-yol, ~17 koleksiyon tavan kanıtı |
 | 381 | [BROWSER_BUG_REPORT_381.md](BROWSER_BUG_REPORT_381.md) | Yeni-100 batch 8 — güvenlik/mahremiyet derinleştirme: iş günlüğü endpoint redaksiyonu + endpoint userinfo soyma, 8 yüzey doğrulandı |
+| 384 | [BROWSER_BUG_REPORT_384.md](BROWSER_BUG_REPORT_384.md) | 50'lik kuyruk batch 1 — kurtarma i18n + erişilebilirlik denetimi + uzun-film koşusu + yetenek paneli |
