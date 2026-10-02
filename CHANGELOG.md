@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Test: `tests/fsync-rename-resilient.test.js` + `tests/windows-path-canonical.test.js` — Windows kilit/yol-katlaması kilidi.
 - Fix: yeni-100 batch 3 (rapor 376) — gerçek tiny/CPU kenar matrisi: "thank you for watching/listening" + "we'll see you" halüsinasyon kalıp boşlukları (saf sessizlikte "Thank you for watching." cue'su üretiliyordu) + `normalize_timings(media_end)` son cue medya-sonu kelepçesi.
 - Test: `tests/e2e-transcribe-edgecases.test.js` (opt-in `WHISPER_E2E=1`) — deterministik lavfi armatürleriyle 6 senaryo/18 kontrol (sessizlik, gürültü, bozuk, kısa, clip-offset+kelepçe, süre ötesi clip).
+- Fix: yeni-100 batch 4 (rapor 377) — çökme yaşam döngüsü: `browserScriptExecutionReady` artık `isCrashed()` kapılı (çökmüş wc'ye script çağrıları kesildi); `resumeRestoredBrowserPage` yükleme-ortası çökmede `errorKind='crash'`i genel bağlantı hatasıyla ezmiyordu; pageFind çökmüş wc'ye send/stopFindInPage atmıyor.
+- Test: `tests/electron-lifecycle-deep.smoke.js` — gerçek `forcefullyCrashRenderer()` ile 6 senaryo (recreate-once+restoredUrl, mid-load ikinci çökme bütçesi, kapalı-sekme dirilmez, arka plan izolasyonu, wc sızıntısı, unhandledrejection).
 
 ### Changed
 - Electron runtime `v43.5.0+wvcus` (castlabs) — GHSA aralığının dışına taşındı; `ELECTRON_COMMIT` supply-chain pini güncellendi, 56/56 Electron smoke yeşil.
