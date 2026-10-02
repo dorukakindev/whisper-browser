@@ -8,9 +8,20 @@
   const state = { items: [], watchItems: [], section: 'movie', search: '', status: 'all', favorite: false,
     selected: null, mode: 'list', draft: null, busy: false, message: '', error: false, importData: null, importIds: new Set(), removeId: null, visibleCount: 40, session: 0, opener: null };
   const posterCache = new Map();
+  // Afiş gövdeleri data: URL'si olarak bellekte durur (onlarca/yüzlerce KB
+  // kayıt başına). Oturum genelinde sınırsız büyüyen harita katalogdaki
+  // görüntülenen her öğeyi sonsuza tutardı — sınırlı FIFO önbelleği
+  // yeniden-isteği ucuz IPC'ye bırakır.
+  const POSTER_CACHE_LIMIT = 300;
+  function cachePoster(id, promise) {
+    posterCache.delete(id);
+    posterCache.set(id, promise);
+    while (posterCache.size > POSTER_CACHE_LIMIT)
+      posterCache.delete(posterCache.keys().next().value);
+  }
   Object.assign(state, { credential: '', metadataQuery: '', metadataResults: [], metadata: null, metadataFields: new Set(), season: 1, seasonData: null, packageData: null });
   function loadPoster(target, id) {
-    if (!posterCache.has(id)) posterCache.set(id, Promise.resolve(window.api?.mediaCatalog?.({ action: 'poster', id })).catch(() => null));
+    if (!posterCache.has(id)) cachePoster(id, Promise.resolve(window.api?.mediaCatalog?.({ action: 'poster', id })).catch(() => null));
     posterCache.get(id).then(result => {
       if (!target.isConnected) return;
       const image = safePoster(result?.image);

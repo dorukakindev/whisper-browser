@@ -7762,7 +7762,20 @@ function friendlySystemError(raw) {
 
 // Bu oturumda görülen site simgeleri (köken → veri URL'si). Geçmiş ve yer imi
 // kayıtları simge saklamaz; açık/açılmış sekmelerden öğrenilir.
+// Tek-bounded-yol: canlı olaylar renderer-helpers.rememberBrowserFavicon'da
+// 200 tavanına sahipti fakat seed yükleyici sınırı uygulamıyordu. Tüm yazım
+// noktalarını 400'lük FIFO tavanıyla birleştirir; kalıcı dosya 120 kökende
+// sınırlı olduğundan seed her zaman tavanın altında kalır.
+const BROWSER_FAVICON_SESSION_LIMIT = 400;
 const browserFaviconByOrigin = new Map();
+function rememberBrowserFaviconByOrigin(origin, icon) {
+  if (!origin || typeof icon !== 'string' || !/^data:image\//i.test(icon)) return;
+  if (browserFaviconByOrigin.get(origin) === icon) return;
+  browserFaviconByOrigin.delete(origin);
+  browserFaviconByOrigin.set(origin, icon);
+  while (browserFaviconByOrigin.size > BROWSER_FAVICON_SESSION_LIMIT)
+    browserFaviconByOrigin.delete(browserFaviconByOrigin.keys().next().value);
+}
 
 // Kalıcı site-simgesi önbelleğini (userData/browser-favicons.json) oturum
 // içi Map'e bir kez besler; var olan taze kayıtlar korunur.
@@ -7773,8 +7786,7 @@ async function loadBrowserFavicons() {
   const result = await window.api.listBrowserFavicons().catch(() => null);
   if (!result?.ok || !result.favicons || typeof result.favicons !== 'object') return;
   for (const [origin, icon] of Object.entries(result.favicons)) {
-    if (typeof icon === 'string' && /^data:image\//i.test(icon) && !browserFaviconByOrigin.has(origin))
-      browserFaviconByOrigin.set(origin, icon);
+    if (!browserFaviconByOrigin.has(origin)) rememberBrowserFaviconByOrigin(origin, icon);
   }
 }
 
