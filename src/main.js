@@ -18349,14 +18349,26 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
   const ffExe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
   const localFfmpeg = fs.existsSync(path.join(appDir, 'backend', 'bin', ffExe));
   const runtimeRoot = ytdlpRuntimeRoot(app.getPath('userData'));
-  const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion] = await Promise.all([
+  const [pythonLine, ffmpegLine, gpuLine, ytDlpVersion, depsLine] = await Promise.all([
     probeCommand(pythonPath, ['--version']),
     probeCommand(localFfmpeg ? path.join(appDir, 'backend', 'bin', ffExe) : 'ffmpeg', ['-version']),
     probeCommand('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader']),
     probeCommand(pythonPath, ['-c', 'from yt_dlp.version import __version__; print(__version__)'], {
       env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
     }),
+    // Opsiyonel bağımlılıklar: find_spec ağır import çekmez (pyannote torch
+    // yükü 3+ sn sürer); modül yoksa None/ImportError → false.
+    probeCommand(pythonPath, ['-c',
+      'import json,importlib.util\n'
+      + 'def has(n):\n'
+      + ' try: return importlib.util.find_spec(n) is not None\n'
+      + ' except Exception: return False\n'
+      + 'print(json.dumps({"whisperx":has("whisperx"),"pyannoteAudio":has("pyannote.audio"),"rapidocr":has("rapidocr_onnxruntime")}))'], {
+      env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8' }),
+    }),
   ]);
+  let optionalDeps = null;
+  try { optionalDeps = JSON.parse(depsLine || 'null'); } catch (_) { optionalDeps = null; }
   // "NVIDIA GeForce RTX 4070 Ti, 12282 MiB" → toplam VRAM (MiB)
   let vramMib = null;
   if (gpuLine) {
@@ -18368,7 +18380,7 @@ ipcMain.handle('app:getEnvInfo', async (event) => {
     venv, pythonVersion: pythonLine || '',
     ffmpeg: !!ffmpegLine, ffmpegVersion: ffmpegLine || '',
     ytDlpVersion: ytDlpVersion || '', ytDlpManaged: !!activeYtdlpRuntimePath(runtimeRoot),
-    gpu: gpuLine, vramMib,
+    gpu: gpuLine, vramMib, optionalDeps,
     gpuFeatures: gpuDiagnostics.features,
     gpuDiagnostics,
   };

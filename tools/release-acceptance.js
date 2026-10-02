@@ -38,7 +38,14 @@ if (spawnSync('python3', ['-c', 'import gtts'], { encoding: 'utf8' }).status !==
 
 // ---------- korpus ----------
 // Lisanslı uzun medya yerine: kamuya açık metinden gTTS ile sentezlenmiş
-// uzun konuşma (kutusuz, lisans sorunu yok). ~4 dakika, 48 çeşitli cümle.
+// uzun konuşma (kutusuz, lisans sorunu yok). Varsayılan ~4 dakika;
+// `--minutes N` uzun-film kabul koşusu için süreyi ölçekler (satır başına
+// gTTS + ffmpeg concat — tek dev isteğin sınırına takılmadan).
+const TARGET_MINUTES = (() => {
+  const i = process.argv.indexOf('--minutes');
+  const n = i >= 0 ? Number(process.argv[i + 1]) : 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+})();
 const SPEECH_LINES = [
   'The committee approved the proposal on March 14, 1982.',
   'Prices rose by 12.5 percent, from $3.40 to $3.83 a share.',
@@ -54,7 +61,9 @@ const SPEECH_LINES = [
 
 function makeSpeechText() {
   const out = [];
-  for (let round = 0; round < 5; round += 1) {
+  // Bir tur ≈ 55 saniye konuşma üretir (ölçülü); hedef süreye göre tur sayısı.
+  const rounds = TARGET_MINUTES > 0 ? Math.max(1, Math.ceil(TARGET_MINUTES * 60 / 55)) : 5;
+  for (let round = 0; round < rounds; round += 1) {
     for (const line of SPEECH_LINES) out.push(line);
     out.push(`Segment ${round + 1} ends. A brief pause follows.`);
   }
@@ -186,10 +195,38 @@ const stage = (name, data) => metrics.stages.push({ name, ...data });
   const media = path.join(tmpDir, 'long-speech.mp3');
   const speechText = makeSpeechText();
   {
-    const g = spawnSync('python3', ['-c',
-      'import sys\nfrom gtts import gTTS\ntext=sys.argv[1]\ngTTS(text, lang="en").save(sys.argv[2])',
-      speechText, media], { encoding: 'utf8' });
-    if (g.status !== 0) fail(`gTTS başarısız: ${g.stderr}`);
+    // Uzun koşularda tek dev gTTS isteği sınıra takılır; metni cümle
+    // sınırlarından ~3500 karakterlik parçalara böl, her parçayı ayrı
+    // sentezle ve ffmpeg concat ile birleştir. Kısa koşu tek parçada kalır.
+    const chunks = [];
+    let rest = speechText;
+    while (rest.length) {
+      let cut = Math.min(rest.length, 3500);
+      if (cut < rest.length) {
+        const boundary = rest.lastIndexOf('. ', cut);
+        if (boundary > 1200) cut = boundary + 1;
+      }
+      chunks.push(rest.slice(0, cut).trim());
+      rest = rest.slice(cut).trim();
+    }
+    const parts = [];
+    for (let i = 0; i < chunks.length; i += 1) {
+      const part = path.join(tmpDir, `speech-part-${i}.mp3`);
+      const g = spawnSync('python3', ['-c',
+        'import sys\nfrom gtts import gTTS\ntext=sys.argv[1]\ngTTS(text, lang="en").save(sys.argv[2])',
+        chunks[i], part], { encoding: 'utf8' });
+      if (g.status !== 0) fail(`gTTS başarısız (parça ${i}): ${g.stderr}`);
+      parts.push(part);
+    }
+    if (parts.length === 1) {
+      fs.copyFileSync(parts[0], media);
+    } else {
+      const listFile = path.join(tmpDir, 'speech-parts.txt');
+      fs.writeFileSync(listFile, parts.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'), 'utf8');
+      const c = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0',
+        '-i', listFile, '-c', 'copy', media], { encoding: 'utf8' });
+      if (c.status !== 0) fail(`ffmpeg concat başarısız: ${c.stderr}`);
+    }
   }
   const mediaSec = (() => {
     const p = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
@@ -214,11 +251,23 @@ const stage = (name, data) => metrics.stages.push({ name, ...data });
     const json = JSON.parse(fs.readFileSync(path.join(outA, 'long-speech.json'), 'utf8'));
     const mono = srt.cues.every((c, i) => i === 0 || toMs(c.start) >= toMs(srt.cues[i - 1].start) - 1);
     const transcriptText = srt.cues.map((c) => c.text).join(' ');
+    // Madde 3 ölçümü: kaliteyi dosya başı/ortası/sonundan ayrı örnekle —
+    // model yalnız ilk dakikalarda doğruysa ortalama skor bunu gizlerdi.
+    // Referans metin tur tekrarlı; aynı indeks üçlüsüne bölünerek karşılaştırılır.
+    const regionOverlap = {};
+    for (const [name, lo, hi] of [['start', 0, 1 / 3], ['middle', 1 / 3, 2 / 3], ['end', 2 / 3, 1]]) {
+      const cueSlice = srt.cues.slice(Math.floor(srt.cues.length * lo), Math.ceil(srt.cues.length * hi));
+      const refSlice = speechText.split(/(?<=\.)\s+/).slice(
+        Math.floor(speechText.split(/(?<=\.)\s+/).length * lo),
+        Math.ceil(speechText.split(/(?<=\.)\s+/).length * hi));
+      regionOverlap[name] = Number(wordRatio(cueSlice.map((c) => c.text).join(' '), refSlice.join(' ')).toFixed(3));
+    }
     stage('transcribe', {
       wallMs: r.wallMs, peakMib: Math.round(r.peakMib),
       cues: { srt: srt.cues.length, vtt: vtt.cues.length, json: (json.segments || json.cues || []).length },
       srtBom: srt.bom, vttBom: vtt.bom, monotonicTimes: mono,
       wordOverlapVsReference: Number(wordRatio(transcriptText, speechText).toFixed(3)),
+      wordOverlapByRegion: regionOverlap,
     });
     // Sözleşme: SRT/ASS utf-8-sig; WebVTT spec BOM'u YASAKLAR — vttBom=false beklenir.
     if (!srt.bom) metrics.issues.push('B-50-01: SRT çıktı BOM eksik');

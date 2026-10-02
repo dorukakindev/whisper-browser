@@ -35,6 +35,9 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       runtimeState('runtimeFfmpeg', 'ffmpeg 7.1', 'ready');
       runtimeState('runtimeYtdlp', 'yt-dlp 2026.09.18 · verified managed runtime', 'ready');
       runtimeState('runtimeGpu', 'NVIDIA GeForce RTX 4070 SUPER', 'ready');
+      runtimeState('runtimeWhisperx', 'Not installed — install-whisperx.bat', 'warning');
+      runtimeState('runtimeDiarize', 'Not installed — install-diarize.bat', 'warning');
+      runtimeState('runtimeOcr', 'Ready', 'ready');
       runtimeState('runtimeDisk', '120.0 GB free', 'ready');
       document.getElementById('runtimeMaintenance').scrollIntoView({ block: 'center' });
       const details = document.getElementById('runtimeMaintenance');
@@ -45,6 +48,11 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         title: details.querySelector('summary span').textContent.trim(),
         pythonLabel: details.querySelector('dt').textContent.trim(),
         python: ready.textContent.trim(),
+        whisperx: document.getElementById('runtimeWhisperx').textContent.trim(),
+        whisperxLabel: (() => {
+          const labels = Array.from(details.querySelectorAll('dt')).map((n) => n.textContent.trim());
+          return labels.filter((l) => /alignment|diarization|OCR/i.test(l));
+        })(),
         marker: getComputedStyle(ready, '::before').content,
         update: document.getElementById('runtimeUpdateYtdlp').textContent.trim(),
         box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
@@ -57,6 +65,9 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.equal(state.title, 'Runtime and maintenance');
     assert.equal(state.pythonLabel, 'Python environment');
     assert.equal(state.python, 'Python 3.12.7');
+    assert.equal(state.whisperx, 'Not installed — install-whisperx.bat');
+    assert.deepEqual(state.whisperxLabel, [
+      'Word alignment (WhisperX)', 'Speaker diarization (pyannote)', 'OCR engine (RapidOCR)']);
     assert.match(state.marker, /✓/);
     assert.equal(state.update, 'Update yt-dlp');
     assert.ok(state.box.left >= 0 && state.box.right <= state.viewport.width + 1);
