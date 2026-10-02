@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { renameSyncResilient } = require('./fsync-utils');
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
@@ -107,18 +108,18 @@ function removeQuietly(filePath, fsImpl = fs) {
 
 function replaceRecoveredFile(source, destination, token, fsImpl = fs) {
   if (!fsImpl.existsSync(destination)) {
-    fsImpl.renameSync(source, destination);
+    renameSyncResilient(fsImpl, source, destination);
     return;
   }
   const displaced = `${destination}.${token}.recovery-old`;
   removeQuietly(displaced, fsImpl);
-  fsImpl.renameSync(destination, displaced);
+  renameSyncResilient(fsImpl, destination, displaced);
   try {
-    fsImpl.renameSync(source, destination);
+    renameSyncResilient(fsImpl, source, destination);
     removeQuietly(displaced, fsImpl);
   } catch (error) {
     try { removeQuietly(destination, fsImpl); } catch (_) {}
-    try { fsImpl.renameSync(displaced, destination); } catch (_) {}
+    try { renameSyncResilient(fsImpl, displaced, destination); } catch (_) {}
     throw error;
   }
 }

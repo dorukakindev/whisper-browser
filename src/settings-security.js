@@ -3,6 +3,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 const { normalizeProviderModelProfiles, serializeProviderModelProfiles } = require('./provider-model-profiles');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
+const { renameSyncResilient } = require('./fsync-utils');
 
 const SETTINGS_VERSION = 3;
 const BACKUP_VERSION = 3;
@@ -750,7 +751,7 @@ function recoverJsonTransaction(journalPath, fsImpl = fs) {
     if (!committed) {
       if (fsImpl.existsSync(record.backup)) {
         try { if (fsImpl.existsSync(record.filePath)) fsImpl.unlinkSync(record.filePath); } catch (_) {}
-        fsImpl.renameSync(record.backup, record.filePath);
+        renameSyncResilient(fsImpl, record.backup, record.filePath);
       } else if (!record.existed && fsImpl.existsSync(record.filePath)) {
         fsImpl.unlinkSync(record.filePath);
       }
@@ -815,10 +816,10 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
     }), { encoding: 'utf8', flag: 'wx' });
     for (const record of records) {
       if (record.existed) {
-        fsImpl.renameSync(record.filePath, record.backup);
+        renameSyncResilient(fsImpl, record.filePath, record.backup);
         record.movedOriginal = true;
       }
-      fsImpl.renameSync(record.tmp, record.filePath);
+      renameSyncResilient(fsImpl, record.tmp, record.filePath);
       record.installed = true;
     }
     fsImpl.writeFileSync(marker, 'committed', { encoding: 'utf8', flag: 'wx' });
@@ -826,7 +827,7 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
     for (const record of [...records].reverse()) {
       try { if (record.installed && fsImpl.existsSync(record.filePath)) fsImpl.unlinkSync(record.filePath); } catch (_) {}
       try {
-        if (record.movedOriginal && fsImpl.existsSync(record.backup)) fsImpl.renameSync(record.backup, record.filePath);
+        if (record.movedOriginal && fsImpl.existsSync(record.backup)) renameSyncResilient(fsImpl, record.backup, record.filePath);
       } catch (_) {}
       try { if (fsImpl.existsSync(record.tmp)) fsImpl.unlinkSync(record.tmp); } catch (_) {}
       try { if (fsImpl.existsSync(record.backup)) fsImpl.unlinkSync(record.backup); } catch (_) {}

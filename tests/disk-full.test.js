@@ -39,7 +39,8 @@ test('writeBufferAtomic ENOSPC altında hedefi ve geçici dosyayı temiz bırak�
   const end = SRC.indexOf('function queueStatePath(');
   assert.ok(start > 0 && end > start, 'writeBufferAtomic bulunamadı');
   const ctx = { process: { pid: 1 }, randomUUID: () => 'x', path,
-    fsyncDirectory: require('../src/fsync-utils').fsyncDirectory };
+    fsyncDirectory: require('../src/fsync-utils').fsyncDirectory,
+    renameSyncResilient: require('../src/fsync-utils').renameSyncResilient };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(`${SRC.slice(start, end)}\nthis.__f = writeBufferAtomic;`, ctx);

@@ -11,6 +11,7 @@ const { createProcessTerminalLatch } = require('../src/renderer/queue-lifecycle'
 const { createIdempotentCancel, recoverOutputTransactions } = require('../src/pipeline-job');
 const { createNdjsonLineBuffer, parseNdjsonLine } = require('../src/ndjson-lines');
 const { defaultMediaFolders } = require('../src/media-folders');
+const { renameSyncResilient } = require('../src/fsync-utils');
 const { pushBoundOption } = require('../src/argv-escape');
 const { buildSecretEnv, sanitizeAbsolutePath } = require('../src/settings-security');
 const { decodeSubtitleBuffer } = require('../src/browser-textutil');
@@ -94,7 +95,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       fs.writeFileSync(file, original);
       const access = new SubtitleFileAccess(); access.grant(file);
       const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES,
-        decodeSubtitleBuffer,
+        decodeSubtitleBuffer, renameSyncResilient,
         authorizedBrowserSender: auth, subtitleFileAccess: access,
         dialog: { showMessageBox: async () => ({ response: 0 }) }, mainWindow: {} });
       const snippets = [

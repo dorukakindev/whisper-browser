@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { fsyncFile, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const MAX_MEDIA = 500;
 const MAX_SERIES = 200;
@@ -63,7 +63,7 @@ function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
     try {
       io.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
       fsyncFile(temp, io);
-      io.renameSync(temp, target);
+      renameSyncResilient(io, temp, target);
       fsyncDirectory(path.dirname(target), io);
       state = next;
     } finally { try { io.unlinkSync(temp); } catch {} }

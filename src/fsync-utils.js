@@ -12,6 +12,29 @@
 const fs = require('fs');
 const path = require('path');
 
+const RENAME_RETRY_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+
+function sleepSync(ms) {
+  try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
+  catch (_) {}
+}
+
+// Windows'ta antivirüs/Windows Search indeksleyici az önce yazılan dosyayı
+// kısa süreli açık tutar; hedef üzerine renameSync EPERM/EACCES/EBUSY ile
+// düşebilir — kullanıcı bunu "kaydetme başarısız" olarak görür. Atomik
+// commit anlambilimini koruyarak kısa sınırlı yeniden deneme eklenir;
+// kalıcı hata son denemede aynen fırlatılır. `io` enjekte edilmiş fs'tir —
+// sahte-fs testlerinde davranış aynı kalır.
+function renameSyncResilient(io, tmp, target, { attempts = 10, delayMs = 25 } = {}) {
+  for (let i = 0; ; i++) {
+    try { return io.renameSync(tmp, target); }
+    catch (error) {
+      if (!error || !RENAME_RETRY_CODES.has(error.code) || i >= attempts - 1) throw error;
+      sleepSync(delayMs);
+    }
+  }
+}
+
 function fsyncFile(filePath, io = fs) {
   // Windows'ta FlushFileBuffers salt-okunur tanıtıcıda EPERM döndürebilir.
   // Geçici dosyalar bize ait ve yazılabilir; r+ gerçek flush semantiğini korur.
@@ -66,7 +89,7 @@ function atomicWriteFileSync(filePath, payload, options = {}) {
   try {
     io.writeFileSync(temp, payload, options.encoding || 'utf8');
     fsyncFile(temp, io);
-    io.renameSync(temp, filePath);
+    renameSyncResilient(io, temp, filePath);
     fsyncDirectory(dir, io);
     for (let i = 1; i < missingDirs.length; i++) fsyncDirectory(missingDirs[i], io);
     if (topParent) fsyncDirectory(topParent, io);
@@ -76,4 +99,4 @@ function atomicWriteFileSync(filePath, payload, options = {}) {
   }
 }
 
-module.exports = { fsyncFile, fsyncFileBestEffort, fsyncDirectory, atomicWriteFileSync };
+module.exports = { fsyncFile, fsyncFileBestEffort, fsyncDirectory, atomicWriteFileSync, renameSyncResilient };

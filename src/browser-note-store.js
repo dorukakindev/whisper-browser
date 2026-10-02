@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
-const { fsyncFile, fsyncFileBestEffort, fsyncDirectory } = require('./fsync-utils');
+const { fsyncFile, fsyncFileBestEffort, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 const path = require('path');
 
 const { normalizeAnnotation } = require('./browser-learning');
@@ -128,7 +128,7 @@ class BrowserNoteStore {
         io.copyFileSync(temporary, this.backupPath);
         fsyncFileBestEffort(this.backupPath, io);
       }
-      io.renameSync(temporary, this.filePath);
+      renameSyncResilient(io, temporary, this.filePath);
       committed = true;
       fsyncDirectory(path.dirname(this.filePath), io);
       this.needsLegacyImport = false;

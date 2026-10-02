@@ -41,8 +41,9 @@ test('BUG-117-01 browser:research:export çağırdığı writeTextAtomic tanıml
 
 test('BUG-117-01 writeTextAtomic klasör oluşturur, BOM yazmaz, .tmp bırakmaz', () => {
   // eslint-disable-next-line no-new-func
-  const writeTextAtomic = new Function('fs', 'path',
-    `${extractFunction(mainSource, 'writeTextAtomic')}\nreturn writeTextAtomic;`)(fs, path);
+  const { renameSyncResilient } = require('../src/fsync-utils');
+  const writeTextAtomic = new Function('fs', 'path', 'renameSyncResilient',
+    `${extractFunction(mainSource, 'writeTextAtomic')}\nreturn writeTextAtomic;`)(fs, path, renameSyncResilient);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r111-'));
   try {
     const target = path.join(dir, 'nested', 'defter.md');
@@ -50,7 +51,8 @@ test('BUG-117-01 writeTextAtomic klasör oluşturur, BOM yazmaz, .tmp bırakmaz'
     assert.equal(fs.readFileSync(target, 'utf8'), '# Başlık\n\n- not');
     assert.equal(fs.existsSync(target + '.tmp'), false);
 
-    // rename başarısızsa geçici dosya temizlenir ve hata yükselir.
+    // rename başarısızsa geçici dosya temizlenir ve hata yükselir
+    // (kodsuz hata retry sınıfı dışıdır — ilk denemede yayılır).
     const failingIo = { ...fs, renameSync() { throw new Error('rename failed'); } };
     const other = path.join(dir, 'fail.md');
     assert.throws(() => writeTextAtomic(other, 'x', failingIo), /rename failed/);

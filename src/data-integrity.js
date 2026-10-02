@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { canonicalWatchKey } = require('./watch-library-store');
+const { renameSyncResilient } = require('./fsync-utils');
 
 const AUDITED_FILES = [
   'watch-library.json', 'watch-library-tombstones.json',
@@ -33,7 +34,7 @@ function atomicWrite(filePath, payload, io) {
       const fd = io.openSync(temp, 'r');
       try { io.fsyncSync(fd); } finally { io.closeSync(fd); }
     } catch (_) {}
-    io.renameSync(temp, filePath);
+    renameSyncResilient(io, temp, filePath);
   } finally {
     try { if (io.existsSync(temp)) io.unlinkSync(temp); } catch (_) {}
   }
