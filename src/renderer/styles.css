@@ -4363,6 +4363,30 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 #browserExportFormat { min-width: 58px; width: 58px; flex: 0 0 58px; }
 .browser-track-actions .btn { width: auto; min-height: 32px; flex: 0 0 auto; padding: 0 11px; white-space: nowrap; }
 .browser-dismiss { width: 30px; height: 30px; color: #9b9ba1; border-radius: var(--radius-sm); }
+.browser-track-preview {
+  flex: 1 1 100%;
+  max-height: 140px;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--ink-muted);
+  font: 11px/1.5 var(--font-mono, monospace);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.browser-profile-chip {
+  height: 28px;
+  padding: 0 10px;
+  color: var(--accent);
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+.browser-profile-chip[data-scope="general"] { color: var(--ink-muted); background: transparent; }
 .browser-profile-field { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .browser-profile-field label { display: grid; gap: 5px; flex: 1 1 180px; min-width: 0; }
 .browser-profile-field-title { color: var(--ink-primary); }

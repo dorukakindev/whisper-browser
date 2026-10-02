@@ -5653,6 +5653,7 @@ const player = {
   browserMangaAutoTimer: null,
   browserReaderAutoTimer: null,
   browserNoTrackTimer: null,
+  browserTrackPreviewSeq: 0,
   browserMangaLookaheadBusy: false,
   browserMangaLookaheadTimer: null,
   browserPageTranslateBusy: false,
@@ -8901,8 +8902,32 @@ function browserSubtitleHealth(input) {
   if (input.tracks) return input.targetAvailable
     ? { state: 'select', text: 'Altyazı bulundu; görüntülenecek izi seçin.', action: 'select', label: 'İzi seç' }
     : { state: 'language', text: 'Hedef dilde site altyazısı bulunamadı. Mevcut izi seçip çevirebilirsiniz.', action: 'select', label: 'İzi seç ve çevir' };
-  if (!input.capture) return { state: 'paused', text: 'Altyazı araması duraklatıldı.', action: 'capture', label: 'Aramayı aç' };
-  if (input.searchDone) return { state: 'missing', text: 'Henüz altyazı bulunamadı. Videoyu ve sitenin altyazısını açın veya dosya yükleyin.', action: 'file', label: 'Dosyadan yükle' };
+  if (!input.capture) {
+    const adapterLabel = String(input.adapter?.label || '');
+    return {
+      state: 'paused',
+      text: adapterLabel && adapterLabel !== 'Genel web videosu'
+        ? `Altyazı araması duraklatıldı (${adapterLabel}).`
+        : 'Altyazı araması duraklatıldı.',
+      action: 'capture', label: 'Aramayı aç',
+    };
+  }
+  if (input.searchDone) {
+    // Madde 26 — site desteği açıklaması: adapter kimliği, denenip bulunamayan
+    // aşamalar ve alternatif akış anlaşılır biçimde sunulur.
+    const en = globalThis.UiLocale?.get?.() === 'en';
+    const detail = globalThis.BrowserFlowHelpers?.browserMissingDetail?.(
+      { adapter: input.adapter, acquisition: input.acquisition, en });
+    const base = en
+      ? 'No subtitles found yet. Start the video and enable the site captions, or load a file.'
+      : 'Henüz altyazı bulunamadı. Videoyu ve sitenin altyazısını açın veya dosya yükleyin.';
+    return {
+      state: 'missing',
+      text: detail?.detail ? `${base} ${detail.detail}` : base,
+      action: 'file', label: en ? 'Load from file' : 'Dosyadan yükle',
+      info: detail?.showInfo ? 'diagnostics' : '',
+    };
+  }
   return { state: 'searching', text: 'Sayfada altyazı aranıyor…', action: '', label: '' };
 }
 function renderBrowserVideoSubtitles() {
@@ -9021,12 +9046,19 @@ function renderBrowserSubtitleHealth() {
     ceaCueCount: Number(player.browserCeaCapture?.cueCount || 0),
     directTranslate: !!directTranslateTrack,
     translationError: String(player.browserTranslationLastError || ''),
+    adapter: player.browserDiagnostics?.adapter,
+    acquisition: player.browserDiagnostics?.acquisition,
     targetAvailable: player.browserTracks.some(track => String(track.language || '').toLowerCase().split('-')[0] === target.split('-')[0]),
   });
   panel.dataset.state = health.state;
   $('browserSubtitleHealthText').textContent = health.text;
   const button = $('browserSubtitleHealthAction');
   button.classList.toggle('hidden', !health.action); button.dataset.action = health.action; button.textContent = health.label;
+  const infoButton = $('browserSubtitleHealthInfo');
+  if (infoButton) {
+    infoButton.classList.toggle('hidden', health.info !== 'diagnostics');
+    infoButton.dataset.infoAction = health.info || '';
+  }
   const clearButton = $('browserSubtitleHealthClear');
   if (clearButton) clearButton.classList.toggle('hidden', health.dismissible !== true);
 }
@@ -9063,6 +9095,33 @@ function updateBrowserSubtitleSummary() {
     : count
       ? `${label.textContent} · ${en ? 'open tracks and translation options' : 'izleri ve çeviri seçeneklerini aç'}`
       : (en ? 'No subtitle track yet; open subtitle and translation settings' : 'Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç');
+  renderBrowserProfileChip();
+}
+
+// Madde 30 — etkin profil kapsamı araç çubuğunda görünür; kullanıcı hangi
+// sınırda çalıştığını (genel/site/yol/sekme) ayarları açmadan görür.
+function renderBrowserProfileChip() {
+  const chip = $('browserProfileChip');
+  if (!chip) return;
+  const api = globalThis.BrowserFlowHelpers;
+  if (!api || !player.browserPageUrl || browserSettingsSurfaceVisible?.()) {
+    chip.classList.add('hidden');
+    return;
+  }
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const effective = effectiveBrowserProfile();
+  const scope = api.browserProfileActiveScope(effective);
+  const label = { general: en ? 'Default profile' : 'Genel profil',
+    site: en ? 'Site profile' : 'Site profili',
+    path: en ? 'Path profile' : 'Yol profili',
+    tab: en ? 'Tab profile' : 'Sekme profili' }[scope] || '';
+  chip.classList.remove('hidden');
+  chip.dataset.scope = scope;
+  chip.textContent = label;
+  chip.title = en
+    ? `${label} applies to ${effective.origin || 'this page'}. Open the site profile to inspect or change boundaries.`
+    : `${label} ${effective.origin || 'bu sayfa'} için geçerli. Sınırları görmek veya değiştirmek için site profilini aç.`;
+  chip.setAttribute('aria-label', chip.title);
 }
 
 function clearBrowserTracks(message) {
@@ -9434,6 +9493,39 @@ function renderBrowserTracks(selectedId) {
   refreshBrowserSyncPanel();
   // Madde 17 — kaydedilmiş dil tercihleri iz listesi değiştiğinde uygulanır.
   applySavedLanguagePrefs();
+  void renderBrowserTrackPreview();
+}
+
+// Madde 27 — yakalama inceleme: seçili izin rolü/dili/biçimi, zaman dönüşümü
+// ve ilk satırları yükleme değiştirilmeden önizlenir.
+let browserTrackPreviewOpen = false;
+async function renderBrowserTrackPreview() {
+  const box = $('browserTrackPreview');
+  const toggle = $('browserTrackPreviewToggle');
+  if (!box) return;
+  toggle?.setAttribute('aria-pressed', browserTrackPreviewOpen ? 'true' : 'false');
+  if (!browserTrackPreviewOpen) { box.classList.add('hidden'); box.textContent = ''; return; }
+  const track = browserTrackSelection(false);
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  box.classList.remove('hidden');
+  if (!track) {
+    box.textContent = en ? 'Select a track to inspect.' : 'İncelemek için bir iz seçin.';
+    return;
+  }
+  const meta = globalThis.BrowserFlowHelpers?.browserTrackReviewMeta?.(track, en) || '';
+  const seq = ++player.browserTrackPreviewSeq;
+  const result = track.path ? await window.api.readSubtitle(track.path).catch(() => null) : null;
+  if (seq !== player.browserTrackPreviewSeq || browserTrackSelection(false)?.id !== track.id) {
+    return void renderBrowserTrackPreview();
+  }
+  const lines = result?.ok
+    ? parseSubtitles(result.text).slice(0, 5)
+      .map((cue) => `${pSecToTime(cue.start)}  ${String(cue.text || '').replace(/\s+/g, ' ').trim()}`)
+    : [];
+  box.textContent = [meta,
+    lines.length ? lines.join('\n')
+      : (en ? 'Track file is empty or unreadable; loading it will show nothing.' : 'İz dosyası boş ya da okunamıyor; yüklenirse içerik gösterilmez.')]
+    .filter(Boolean).join('\n');
 }
 
 function replaceBrowserTrackSubtitlePath(previousTrack, nextTrack) {
@@ -12350,7 +12442,25 @@ function stopBrowserMangaLookaheadTimer() {
   player.browserMangaLookaheadTimer = null;
 }
 $('browserProfileScope')?.addEventListener('change', renderBrowserSiteProfile);
-$('browserProfileReset')?.addEventListener('click', () => updateBrowserProfileField('', null, true));
+$('browserProfileReset')?.addEventListener('click', async () => {
+  // Madde 30 — sıfırlama öncesi etkilenecek özelleştirmeler ve etkilenmeyen
+  // veri sınırları (çerezler/oturumlar) kullanıcıya önizlenir.
+  const scope = $('browserProfileScope')?.value || 'general';
+  const en = globalThis.UiLocale?.get?.() === 'en';
+  const effective = effectiveBrowserProfile();
+  const copy = globalThis.BrowserFlowHelpers?.browserProfileBoundaryCopy?.(
+    { ...effective, fieldTitles: Object.fromEntries(browserProfileControls().map(([field, , title]) => [field, title])) },
+    scope, en);
+  if (copy?.overrideCount) {
+    const accepted = await openAppDialog({
+      title: `${copy.scopeLabel} — ${en ? 'reset overrides' : 'özelleştirmeleri sıfırla'}`,
+      description: copy.description,
+      confirmLabel: en ? 'Reset' : 'Sıfırla',
+    });
+    if (!accepted) return;
+  }
+  updateBrowserProfileField('', null, true);
+});
 const browserRangeOutputs = {
   browserMangaWorkers: ['browserMangaWorkersVal', (value) => String(value)],
   browserMangaFontScale: ['browserMangaFontScaleVal', (value) => `%${value}`],
@@ -12703,6 +12813,20 @@ $('browserWorkspaceOpen')?.addEventListener('click', async () => {
     const added = Math.max(0, player.browserTabs.length - beforeCount);
     if (result.firstTabId) await activateBrowserTabAndFocus(result.firstTabId);
     setBrowserSignal(`“${name}” çalışma alanından ${added} sekme açıldı.`, true);
+    // Madde 29 — kayıtlı iz/kurtarma kaynağı diskte yoksa kullanıcıya açık göster.
+    if (Array.isArray(result.missing) && result.missing.length) {
+      const en = globalThis.UiLocale?.get?.() === 'en';
+      const lines = result.missing.slice(0, 8).map((entry) => `• ${entry.tab || ''} — ${entry.detail}`);
+      await openAppDialog({
+        title: en ? 'Missing workspace resources' : 'Çalışma alanının eksik kaynakları',
+        description: (en
+          ? `${result.missing.length} saved resource(s) are missing; related tabs open but the features below need to be re-run.`
+          : `${result.missing.length} kayıtlı kaynak bulunamadı; sekmeler açıldı fakat aşağıdaki özelliklerin yeniden üretilmesi gerekir.`)
+          + '\n' + lines.join('\n')
+          + (result.missing.length > 8 ? `\n… +${result.missing.length - 8}` : ''),
+        confirmLabel: en ? 'OK' : 'Tamam',
+      });
+    }
   } finally {
     button.disabled = false;
   }
@@ -13086,6 +13210,7 @@ if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventL
     case 'capture-full': await toggleBrowserCeaFullCapture(); break;
     case 'translate': await translateBrowserSubtitleFromHealth(); break;
     case 'translation-settings': toggleDrawerAt(null, '#translateApiKey'); break;
+    case 'diagnostics': toggleSettingsPage('browser-diagnostics'); break;
     case 'select': $('browserTrackActions')?.classList.remove('hidden'); $('browserTrackSelect')?.focus(); break;
     case 'retry': $('browserTranslationRetryFailed')?.click(); break;
     case 'show': setSubtitleMode(player.cues.length && player.cues2.length ? 'both' : player.cues.length ? 'source' : 'translation'); break;
@@ -13094,6 +13219,19 @@ if ($('browserSubtitleHealthAction')) $('browserSubtitleHealthAction').addEventL
 });
 if ($('browserSubtitleHealthClear')) $('browserSubtitleHealthClear').addEventListener('click', () => {
   clearBrowserTranslationError({ announce: true });
+});
+$('browserSubtitleHealthInfo')?.addEventListener('click', () => {
+  if ($('browserSubtitleHealthInfo')?.dataset.infoAction === 'diagnostics') toggleSettingsPage('browser-diagnostics');
+});
+$('browserTrackPreviewToggle')?.addEventListener('click', () => {
+  browserTrackPreviewOpen = !browserTrackPreviewOpen;
+  $('browserTrackActions')?.classList.remove('hidden');
+  void renderBrowserTrackPreview();
+});
+$('browserProfileChip')?.addEventListener('click', () => {
+  if ($('browserProfileScope')) $('browserProfileScope').value = 'site';
+  openBrowserSettings('site', 'browserProfileScope');
+  renderBrowserSiteProfile();
 });
 if ($('browserManualSubtitle')) $('browserManualSubtitle').addEventListener('click', loadManualBrowserSubtitle);
 if ($('browserCopyAb')) $('browserCopyAb').addEventListener('click', copyBrowserAbText);
@@ -18142,6 +18280,11 @@ function renderPlayerLibrary() {
       makeWatchAction('Koleksiyon', 'collection', item.key),
       makeWatchAction('Kaldır', 'remove', item.key),
     );
+    // Madde 28 — seçili içerik transkripsiyon/çeviri işine dönüştürülür; her
+    // videonun durumu ve çıktısı kuyruk listesinde ayrı izlenir.
+    if (globalThis.BrowserFlowHelpers?.watchItemQueueTarget?.(item)) {
+      actions.append(makeWatchAction('Kuyruğa ekle', 'queue', item.key));
+    }
     if (playerLibraryView === 'collections' && filter.startsWith('collection:')) {
       actions.append(
         makeWatchAction('Yukarı taşı', 'collection-up', item.key),
@@ -24765,6 +24908,17 @@ async function handleWatchLibraryAction(e) {
     || playerLibraryResults.find((entry) => entry.key === button.dataset.key);
   if (!item) return;
   const action = button.dataset.watchAction;
+  if (action === 'queue') {
+    const en = globalThis.UiLocale?.get?.() === 'en';
+    const target = globalThis.BrowserFlowHelpers?.watchItemQueueTarget?.(item);
+    if (!target) { logLine(en ? 'This entry has no queueable media source.' : 'Bu kayıt kuyruğa eklenebilir bir medya kaynağı içermiyor.', 'warn'); return; }
+    if (addToQueue(target.type, target.input)) {
+      logLine(en
+        ? `"${item.title || target.input}" was queued — per-item status and output are tracked in the queue list.`
+        : `"${item.title || target.input}" kuyruğa eklendi — durum ve çıktı kuyruk listesinde izlenir.`, 'success');
+    }
+    return;
+  }
   if (action === 'open' || action === 'hit' || action === 'restart') {
     openWatchLibraryItem(item, Number(button.dataset.seconds) || 0);
     if ($('sideTabSubs')) setSideTab('subs');
