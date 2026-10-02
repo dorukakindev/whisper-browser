@@ -3553,6 +3553,18 @@ body::before {
   letter-spacing: 0.04em; color: #b5c2ca; background: var(--bg-1); border-color: var(--border-strong); }
 .status-pill.active { color: var(--accent); background: rgba(213,163,92,.11); border-color: rgba(213,163,92,.48); }
 .status-pill.success { color: var(--success); background: rgba(105,181,139,.11); border-color: rgba(105,181,139,.42); }
+.net-badge {
+  padding: 4px 10px;
+  border: 1px solid rgba(208,125,82,.5);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #d99a6c;
+  background: rgba(208,125,82,.1);
+  align-self: center; }
+.net-badge.hidden { display: none; }
 .progress-bar {
   border-radius: 4px;
   overflow: hidden;
@@ -4678,6 +4690,13 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .integrity-issue-list > li[data-severity="warn"] { border-color: var(--warning); }
 .integrity-issue-list > li label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
 .integrity-issue-list > li.integrity-readonly { color: var(--text-muted); }
+/* Madde 45 — kurtarma merkezi */
+.recovery-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; }
+.recovery-row .recovery-copy { display: grid; gap: 2px; min-width: 0; }
+.recovery-row .recovery-copy strong { font-size: 13px; overflow-wrap: anywhere; }
+.recovery-row .recovery-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.recovery-section-title { margin-top: 12px; font-weight: 600; color: var(--text); }
+.recovery-empty { margin-top: 4px; color: var(--text-muted); }
 @media (max-width: 1080px) {
 .runtime-status-list > div { grid-template-columns: 1fr; gap: 3px; }
 }
