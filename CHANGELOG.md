@@ -6,13 +6,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 - Kuyruk-50 kampanyası (madde 1–50, raporlar 315–362): transkripsiyon devam-noktası (checkpoint) kurtarma, GPU bellek bütçesi yönetimi, konuşmacı-düzeltme akışı, büyük transkript sanallaştırma, kaynak/hedef ortak arama dizini, parça-bazlı senkron profilleri, takılma teşhis paneli, oynatma-saati tutarlılığı, çeviri adaptör uyumluluk paketi, altyazı kökeni görünümü, capture tekrar-oynatma düzeneği, live-Whisper ses parçası değiştirme, checkpoint sürümleme, iptalin süreç ağacına yayılması, çok-dosya çıktı işlemleri, medya yeniden-bağlama motoru, büyük katalog sorguları, taşınabilir proje paketi, veri şeması geçişleri, veri bütünlüğü denetimi, PDF yerleşimini koruyan çeviri, yerel OCR yetenek yönetimi, PDF görev planlayıcısı, manga görüntü dönüşümü geçişleri + bölüm işleme, IPC yetki sınırları, ağ yönlendirme sınırları, gizli-bilgi deposu kurtarma, mahremiyetli tanı paketi, parser dayanıklılık paketi, Windows kurulum/DPI/süreç/paket matrisleri, sürüm kabul kampanyası.
-- 100-kuyruk batch 1–8 (raporlar 363–371): kalıcılık/bozulma, renderer/UI kenarları, backend hata yolları, çeviri sözleşmesi, güvenlik/IPC tur-2 ratchet'leri + kuyruk yaşam döngüsü üç-yazıcılı invariant'ları + sıcak-yol performans bütçeleri (toplam ~80 yeni kilit).
+- 100-kuyruk batch 1–10 (raporlar 363–373): kalıcılık/bozulma, renderer/UI kenarları, backend hata yolları, çeviri sözleşmesi, güvenlik/IPC tur-2 ratchet'leri + kuyruk yaşam döngüsü üç-yazıcılı invariant'ları + sıcak-yol performans bütçeleri + Windows dosya-sistemi matrisi + kapanış süpürmesi — indeks onarımı, IPC/preload sayaç ve ratchet-baseline doğrulaması (toplam ~90 yeni kilit).
 - Test: `tests/perf-budgets-ratchet.test.js` — parse/arama/kuyruk/çeviri sıcak yollarında gerileme koruması.
+- Test: `tests/fsync-rename-resilient.test.js` + `tests/windows-path-canonical.test.js` — Windows kilit/yol-katlaması kilidi.
 
 ### Changed
 - Electron runtime `v43.5.0+wvcus` (castlabs) — GHSA aralığının dışına taşındı; `ELECTRON_COMMIT` supply-chain pini güncellendi, 56/56 Electron smoke yeşil.
 
 ### Fixed
+- 100-kuyruk batch 10: `electron-burnin-close-midjob` smoke'unun çökme simülasyonu ffmpeg'i öldürmüyordu — main.js `spawn` sarmalayıcısı POSIX'te alt süreçleri `detached:true` (kendi süreç grubu lideri) başlattığı için grup SIGKILL yalnız Electron ağacını vuruyordu; yetim ffmpeg tmp çıktıyı bitirip kurtarmayı restart yerine `canFinalize` koluna sokuyordu. Sürücü artık recovery.json'daki kayıtlı ffmpeg pid'ini kendi grubuyla ayrıca öldürüyor (ürün davranışı doğruydu — test tasarım açığıydı).
+- 100-kuyruk batch 9: `renameSync` Windows kilit hataları (antivirüs/indexer kaynaklı EPERM/EACCES/EBUSY) artık 40 noktada `renameSyncResilient` ile sınırlı yeniden deneme görüyor — "kaydedilemedi" yanılgısı giderildi; `watch:report` ve burnin kurtarma yol eşleşmeleri `canonicalFsPath` ile büyük-küçük harf duyarsız karşılaştırma yapıyor.
 - ui-locale: `translatePattern` her DOM metin mutasyonunda 72 regex'i lineer tarıyordu (~2.6µs/miss) — 1024 girişlik sınırlı memo ile tekrar-miss 218→46ms.
 - Kuyruk düzenleme: `speakerMap` kalıcı kuyruk snapshot'ına yazılmıyordu — konuşmacı eşlemesi yeniden başlatmada kayboluyordu (batch 2).
 - R334: YouTube indirme çözümlemesinde traversal'lı `video_id` (`../ad`) son-fallback yolunda kapsam dışındaki aynı-adlı dosya ses kaynağı olarak kabul ediliyordu; kapsam dışı fallback artık reddedilir.

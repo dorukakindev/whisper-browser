@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 372 | [BROWSER_BUG_REPORT_372.md](BROWSER_BUG_REPORT_372.md) | 100-kuyruk batch 9: Windows hazırlık matrisi (81–90) |
+| 371 | [BROWSER_BUG_REPORT_371.md](BROWSER_BUG_REPORT_371.md) | 100-kuyruk batch 8: doküman/infra senkron |
 | 370 | [BROWSER_BUG_REPORT_370.md](BROWSER_BUG_REPORT_370.md) | 100-kuyruk batch 7: performans |
 | 369 | [BROWSER_BUG_REPORT_369.md](BROWSER_BUG_REPORT_369.md) | 100-kuyruk batch 6: kuyruk yaşam döngüsü |
 | 368 | [BROWSER_BUG_REPORT_368.md](BROWSER_BUG_REPORT_368.md) | 100-kuyruk batch 5: güvenlik/IPC tur-2 |
