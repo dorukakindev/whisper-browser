@@ -48,6 +48,7 @@ const ENUM_VALUES = {
   browserSearchEngine: 'duckduckgo', aiTranscriptScope: 'watched',
   browserPageScope: 'article', browserExportFormat: 'srt', browserExportTiming: 'synchronized',
   pdfExportFormat: 'md', pdfTargetLanguage: 'tr', browserPageExportFormat: 'json',
+  networkBudget: 'balanced',
 };
 const MULTI_VALUES = {
   browserSponsorCategories: ['sponsor', 'intro'],
@@ -67,11 +68,13 @@ const NUMERIC_VALUES = {
   browserVideoContrast: '95', browserSilenceSpeedRate: '4',
   browserSilenceThresholdDb: '-45', stCardScale: '100', stCardFontScale: '100',
   timelineZoom: '60',
+  minSpeakers: '1', maxSpeakers: '4', translatePriceIn: '0.01', translatePriceOut: '0.03',
 };
 const FREE_VALUES = {
   language: 'tr', translateTo: 'en', translateEndpointPreset: 'https://api.openai.com/v1',
   translateModel: 'gpt-test', initialPrompt: 'Altyazı için ön bilgi',
   translateBaseUrl: 'https://api.openai.com/v1',
+  speakerMap: 'S01:Ahmet', abModel: 'gemini-test',
 };
 
 function fullUi() {

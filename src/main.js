@@ -2517,14 +2517,15 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
 // kullanıcı izlerken yaptığı düzeltmeyi geri alabilsin.
 // ===== Dışarıdan dosya değişikliği izleme =====
 // Madde 42 — açık altyazı dosyaları başka bir editörde değişince fark edilir.
-// Dosya yerine DİZİN izlenir: atomik yazım (geçici dosya + rename) dosya
-// kolağacını ilk rename'de öldürür, dizin olayı yeni dosya adıyla gelmeye
-// devam eder. Uygulamanın kendi writeSubtitleAtomic yazımları kısa süre
-// bastırılır (ownSubtitleWrites) — aksi halde her kayıt "dış değişiklik"
-// gibi görünür.
-const subtitleFileWatchers = new Map(); // dir -> { watcher, files: Map<basename, fullPath> }
+// Klasör izlemedeki gibi aralıklı stat modeli kullanılır: mtime değişimi
+// atomik yazımları (geçici dosya + rename) da yakalar. Uygulamanın kendi
+// writeSubtitleAtomic yazımları kısa süre bastırılır (ownSubtitleWrites) —
+// aksi halde her kayıt "dış değişiklik" gibi görünür.
+const subtitleFileWatchers = new Map(); // resolvedPath -> son görülen mtimeMs
 const subtitleWatchDebounce = new Map(); // fullPath -> timer
 const ownSubtitleWrites = new Map(); // resolvedPath -> suppress-until ts
+let subtitleWatchTimer = null;
+const SUBTITLE_WATCH_INTERVAL = 2000;
 
 function markOwnSubtitleWrite(fullPath) {
   try { ownSubtitleWrites.set(path.resolve(String(fullPath)), Date.now() + 2000); } catch (_) {}
@@ -2545,42 +2546,43 @@ function notifySubtitleFileChanged(fullPath) {
   } catch (_) {}
 }
 
+function pollSubtitleWatchFiles() {
+  for (const [target, prevMtime] of subtitleFileWatchers) {
+    fs.stat(target, (err, stat) => {
+      // Dosya geçici kaybolabilir (atomik yazım); kayıt korunur.
+      if (err || stat.mtimeMs === prevMtime) return;
+      subtitleFileWatchers.set(target, stat.mtimeMs);
+      clearTimeout(subtitleWatchDebounce.get(target));
+      // Düzenleyiciler ardışık kaydeder; tek özet olay yeterli.
+      subtitleWatchDebounce.set(target, setTimeout(() => {
+        subtitleWatchDebounce.delete(target);
+        notifySubtitleFileChanged(target);
+      }, 400));
+    });
+  }
+}
+
 function rebuildSubtitleWatchers(paths) {
-  const wanted = new Map(); // dir -> Map<basename, fullPath>
+  const wanted = new Set();
   for (const p of paths.slice(0, 4)) {
-    const resolved = path.resolve(String(p));
-    const dir = path.dirname(resolved);
-    const base = path.basename(resolved);
-    if (!wanted.has(dir)) wanted.set(dir, new Map());
-    wanted.get(dir).set(base, resolved);
+    try { wanted.add(path.resolve(String(p))); } catch (_) {}
   }
-  for (const [dir, entry] of subtitleFileWatchers) {
-    if (wanted.has(dir)) continue;
-    try { entry.watcher.close(); } catch (_) {}
-    subtitleFileWatchers.delete(dir);
+  for (const target of subtitleFileWatchers.keys()) {
+    if (wanted.has(target)) continue;
+    subtitleFileWatchers.delete(target);
+    clearTimeout(subtitleWatchDebounce.get(target));
+    subtitleWatchDebounce.delete(target);
   }
-  for (const [dir, files] of wanted) {
-    const existing = subtitleFileWatchers.get(dir);
-    if (existing) { existing.files = files; continue; }
-    try {
-      const watcher = fs.watch(dir, { persistent: false }, (_event, filename) => {
-        if (!filename) return;
-        const entry = subtitleFileWatchers.get(dir);
-        const target = entry && entry.files.get(String(filename));
-        if (!target) return;
-        clearTimeout(subtitleWatchDebounce.get(target));
-        // Düzenleyiciler ardışık kaydeder; tek özet olay yeterli.
-        subtitleWatchDebounce.set(target, setTimeout(() => {
-          subtitleWatchDebounce.delete(target);
-          notifySubtitleFileChanged(target);
-        }, 400));
-      });
-      watcher.on('error', () => {
-        try { watcher.close(); } catch (_) {}
-        if (subtitleFileWatchers.get(dir)?.watcher === watcher) subtitleFileWatchers.delete(dir);
-      });
-      subtitleFileWatchers.set(dir, { watcher, files });
-    } catch (_) {}
+  for (const target of wanted) {
+    if (subtitleFileWatchers.has(target)) continue;
+    try { subtitleFileWatchers.set(target, fs.statSync(target).mtimeMs); } catch (_) {}
+  }
+  if (subtitleFileWatchers.size && !subtitleWatchTimer) {
+    subtitleWatchTimer = setInterval(pollSubtitleWatchFiles, SUBTITLE_WATCH_INTERVAL);
+    if (typeof subtitleWatchTimer.unref === 'function') subtitleWatchTimer.unref();
+  } else if (!subtitleFileWatchers.size && subtitleWatchTimer) {
+    clearInterval(subtitleWatchTimer);
+    subtitleWatchTimer = null;
   }
 }
 

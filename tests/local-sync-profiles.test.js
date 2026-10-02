@@ -25,6 +25,7 @@ function slice(from, to) {
 const src = [
   slice('// Parça-bazlı senkron profilleri', 'async function loadSubtitle('),
   slice('function captureWatchPrefs()', 'function beginWatchSession'),
+  slice('function subLangFromPath(', 'function languagePrefHint'),
 ].join('\n');
 
 function mkCtx(overrides = {}) {
