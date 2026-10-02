@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 388 | [BROWSER_BUG_REPORT_388.md](BROWSER_BUG_REPORT_388.md) | 50-kuyruk batch 5 — kütüphane: devam görünümü, mükerrer birleştirme, toplu yol bağlama, tarama missing, paket eksik-medya eşlemesi |
 | 387 | [BROWSER_BUG_REPORT_387.md](BROWSER_BUG_REPORT_387.md) | 50-kuyruk batch 4 — izleme: altyazı karşılaştırma, dil tercihi, dizi ayarları, bölüm–transkript bağlantısı, klasör medya–altyazı eşleştirme |
 | 386 | [BROWSER_BUG_REPORT_386.md](BROWSER_BUG_REPORT_386.md) | 50-kuyruk batch 3 — çeviri inceleme: aralıklı yeniden çeviri, proje sözlüğü, kör A/B, maliyet görünümü, kalite uyarı paneli |
 | 385 | [BROWSER_BUG_REPORT_385.md](BROWSER_BUG_REPORT_385.md) | 50'lik kuyruk batch 2 — altyazı editörü: dalga biçimi timeline + CPS haritası + sorunlar paneli + kurtarma kaydı, canlı CDP doğrulandı |
@@ -361,3 +362,4 @@ tarih sırasıyla dosya adından okunur.
 | 385 | [BROWSER_BUG_REPORT_385.md](BROWSER_BUG_REPORT_385.md) | 50'lik kuyruk batch 2 — altyazı editörü: dalga biçimi timeline + CPS haritası + sorunlar paneli + kurtarma kaydı, canlı CDP doğrulandı |
 | 386 | [BROWSER_BUG_REPORT_386.md](BROWSER_BUG_REPORT_386.md) | 50-kuyruk batch 3 — çeviri inceleme: aralıklı yeniden çeviri, proje sözlüğü, kör A/B, maliyet görünümü, kalite uyarı paneli |
 | 387 | [BROWSER_BUG_REPORT_387.md](BROWSER_BUG_REPORT_387.md) | 50-kuyruk batch 4 — izleme: altyazı karşılaştırma, dil tercihi, dizi ayarları, bölüm–transkript bağlantısı, klasör medya–altyazı eşleştirme |
+| 388 | [BROWSER_BUG_REPORT_388.md](BROWSER_BUG_REPORT_388.md) | 50-kuyruk batch 5 — kütüphane: devam görünümü, mükerrer birleştirme, toplu yol bağlama, tarama missing, paket eksik-medya eşlemesi |

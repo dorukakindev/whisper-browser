@@ -271,4 +271,47 @@ function describePackage(data) {
   return summary;
 }
 
-module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues, describePackage };
+// Kuyruk maddesi 25 — taşıma sihirbazı: paketteki mutlak ortam yollarından
+// bu bilgisayarda bulunamayanları kök bazında gruplar. Geri yükleme öncesi
+// kullanıcı yeni kök seçebilir; eşleme rewrite() zincirine eklenir.
+function looksLikeLocalMediaPath(value) {
+  if (typeof value !== 'string' || !value || value.length > 4000) return false;
+  if (/^https?:\/\//i.test(value)) return false;
+  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\') || value.startsWith('/');
+}
+
+function missingLocalMedia(data, exists = fs.existsSync) {
+  const existsFn = typeof exists === 'function' ? exists : () => false;
+  const groups = new Map();
+  const json = (name) => {
+    const file = (data?.files || []).find((f) => f.name === name);
+    if (!file) return null;
+    try { return JSON.parse(Buffer.from(file.data, 'base64').toString('utf8')); }
+    catch (_) { return null; }
+  };
+  const add = (value) => {
+    if (!looksLikeLocalMediaPath(value)) return;
+    let missing = false;
+    try { missing = !existsFn(value); } catch (_) { missing = true; }
+    if (!missing) return;
+    const parts = value.split(/[\\/]+/).filter(Boolean);
+    const sep = value.includes('\\') ? '\\' : '/';
+    const dir = parts.length > 1 ? parts.slice(0, -1).join(sep) : '';
+    const key = dir || parts[0] || value;
+    const row = groups.get(key) || { root: key, count: 0 };
+    row.count += 1;
+    groups.set(key, row);
+  };
+  const watch = json('watch-library.json');
+  for (const item of watch?.items || []) add(item?.localPath);
+  const catalog = json('media-catalog.json');
+  for (const item of catalog?.items || []) {
+    if (item?.source?.type === 'local') add(item.source.value);
+    for (const ep of item?.episodes || []) {
+      if (ep?.source?.type === 'local') add(ep.source.value);
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count || a.root.localeCompare(b.root)).slice(0, 20);
+}
+
+module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues, describePackage, missingLocalMedia, looksLikeLocalMediaPath };

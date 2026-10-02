@@ -1017,6 +1017,8 @@
     ['Diziler', 'Series'],
     ['İzlenecekler', 'Watchlist'],
     ['Takvim', 'Calendar'],
+    ['Kopyaları birleştir', 'Merge duplicates'],
+    ['Yolları yeniden bağla', 'Re-link paths'],
     ['Katalogda ara', 'Search library'],
     ['Başlık, yıl veya konu ara', 'Search titles, years or topics'],
     ['İzleme durumuna göre filtrele', 'Filter by watch status'],

@@ -162,9 +162,12 @@
   }
   function renderNav() {
     const nav = $('nav', 'mc-nav'); nav.setAttribute('aria-label', 'Katalog bölümleri');
-    for (const [key, label] of [['movie', 'Filmler'], ['series', 'Diziler'], ['watchlist', 'İzlenecekler'], ['calendar', 'Takvim']]) {
-      const control = button(label, () => { state.section = key; state.mode = 'list'; render(); });
-      control.setAttribute('aria-current', state.section === key ? 'page' : 'false'); nav.append(control);
+    for (const [key, label] of [['movie', 'Filmler'], ['series', 'Diziler'], ['watchlist', 'İzlenecekler'], ['calendar', 'Takvim'], ['resume', 'Devam edenler']]) {
+      const control = button(t(label), () => {
+        if (key === 'resume') { state.mode = 'resume'; state.resumeWatch = undefined; state.resumeQueue = undefined; } else { state.section = key; state.mode = 'list'; }
+        render();
+      });
+      control.setAttribute('aria-current', key === 'resume' ? (state.mode === 'resume' ? 'page' : 'false') : (state.mode === 'list' && state.section === key ? 'page' : 'false')); nav.append(control);
     }
     return nav;
   }
@@ -188,7 +191,9 @@
     const actions = $('div', 'mc-list-actions');
     actions.append(button('Film ekle', () => edit(null, 'movie'), 'mc-primary'), button('Dizi ekle', () => edit(null, 'series')),
       button('Eski arşivi içe aktar', () => previewImport()), button('Klasör tara', () => previewImport('folder-preview')),
-      button('Çalışma paketi', () => { state.mode = 'package'; render(); })); body.append(actions);
+      button('Çalışma paketi', () => { state.mode = 'package'; render(); }),
+      button('Kopyaları birleştir', () => { state.dupes = null; state.dupeError = ''; state.mode = 'dupes'; render(); }),
+      button('Yolları yeniden bağla', () => { state.relink ||= { oldPrefix: '', newPrefix: '', rows: null, applyResult: null }; state.mode = 'relink'; render(); })); body.append(actions);
     const grid = $('div', 'mc-grid'); grid.id = 'mcGrid'; body.append(grid); renderCards(grid);
     return body;
   }
@@ -349,6 +354,16 @@
       const list = $('ul'); for (const warning of data.warnings) list.append($('li', '', typeof warning === 'string' ? warning : warning?.reason || warning?.message || JSON.stringify(warning)));
       warnings.append(list); body.append(warnings);
     }
+    if (Array.isArray(data.missing) && data.missing.length) {
+      const missing = $('details', 'mc-warnings'); missing.append($('summary', '', english()
+        ? `${data.missing.length} catalogued source no longer on disk`
+        : `${data.missing.length} kayıtlı kaynak diskte bulunamadı`));
+      const list = $('ul'); for (const row of data.missing) list.append($('li', '', `${row.title || ''} · ${row.path}`));
+      missing.append($('p', 'mc-muted', english()
+        ? 'Restore the files or re-link them under “Yolları yeniden bağla”; nothing was removed from the catalog.'
+        : 'Dosyaları geri koyun veya “Yolları yeniden bağla” ile yeni konumu gösterin; katalogdan hiçbir kayıt silinmedi.'), list);
+      body.append(missing);
+    }
     const selection = $('div', 'mc-list-actions');
     selection.append(button('Tümünü seç', () => { state.importIds = new Set(rows.map(item => String(item.importRef || item.id || '')).filter(Boolean)); render(); }),
       button('Seçimi temizle', () => { state.importIds.clear(); render(); })); body.append(selection);
@@ -438,7 +453,7 @@
     const body = $('div', 'mc-content mc-form'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }), $('h3', '', 'Taşınabilir çalışma paketi'),
       $('p', 'mc-muted', 'Katalog, posterler, kayıtlı altyazılar, düzeltmeler, notlar, izleme geçmişi ve senkron tercihleri birlikte taşınır. Hesap oturumları ve anahtarlar dahil değildir. Videoları eklerseniz kopyalama uzun sürebilir (en fazla 100 GB).'),
       button('Paketi dışa aktar', async () => { const rendererValues = Object.fromEntries(['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1', 'browser-subtitle-drafts-v1'].map(key => [key, localStorage.getItem(key)])); const result = await api('package-export', { rendererValues, includeVideos: state.includeVideos }); if (result) feedback(`${result.count} çalışma dosyası, ${result.videos || 0} video ve kayıtlı düzenlemeler paketlendi.`); }),
-      button('Geri yüklenecek paketi seç', async () => { const result = await api('package-preview'); if (result) { state.packageData = result; render(); } }));
+      button('Geri yüklenecek paketi seç', async () => { const result = await api('package-preview'); if (result) { state.packageData = result; state.packageMappings = new Map(); render(); } }));
     const include = $('label', 'mc-check'), checkbox = $('input'); checkbox.type = 'checkbox'; checkbox.checked = state.includeVideos; checkbox.disabled = state.busy;
     checkbox.addEventListener('change', () => { state.includeVideos = checkbox.checked; }); include.append(checkbox, $('span', '', 'Katalogdaki yerel videoları da pakete ekle')); body.insertBefore(include, body.children[3]);
     if (state.packageData) {
@@ -456,11 +471,220 @@
         if (scope.tabs) parts.push(`${scope.tabs} sekme`);
         if (parts.length) body.append($('p', 'mc-muted', `Paket kapsamı: ${parts.join(' · ')}`));
       }
+      // Madde 25 — taşıma sihirbazı: paketteki mutlak ortam yollarından bu
+      // bilgisayarda olmayanlar listelenir; her köke yeni hedef seçilir ve
+      // eşleme geri yükleme sırasında kayıtlara uygulanır.
+      state.packageMappings ||= new Map();
+      if (Array.isArray(state.packageData.missingMedia) && state.packageData.missingMedia.length) {
+        const missing = $('div', 'mc-package-missing');
+        missing.append($('h4', '', english() ? 'Media folders not found on this machine' : 'Bu bilgisayarda bulunamayan ortam klasörleri'));
+        for (const group of state.packageData.missingMedia) {
+          const row = $('div', 'mc-import-row');
+          row.append($('span', '', `${group.root} · ${group.count} ${english() ? 'file(s)' : 'dosya'}`));
+          const mapped = state.packageMappings.get(group.root);
+          row.append($('small', 'mc-muted', mapped ? `→ ${mapped}` : (english() ? 'unmapped — records will keep the missing path' : 'eşleme yok — kayıtlar eksik yolu gösterecek')));
+          row.append(button(mapped ? t('Değiştir') : (english() ? 'Pick new folder' : 'Yeni kök seç'), async () => {
+            const result = await api('choose-directory');
+            if (result?.path) { state.packageMappings.set(group.root, result.path); render(); }
+          }));
+          missing.append(row);
+        }
+        body.append(missing);
+      }
       body.append($('p', 'mc-danger-note', `${state.packageData.count} çalışma dosyası ve ${state.packageData.videos || 0} video geri yüklenecek. Paketteki kayıtlar mevcut kayıtların yerini alır. Mevcut durum ayrıca yedeklenir. Uygulama yeniden başlayacak; açık işleri önce bitirin.`),
-        button('Vazgeç', () => { state.packageData = null; render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token }); }, 'mc-danger'));
+        button('Vazgeç', () => { state.packageData = null; state.packageMappings = new Map(); render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token, mediaMappings: [...(state.packageMappings || new Map()).entries()] }); }, 'mc-danger'));
     }
     return body;
   }
+  // Madde 23 — devam edilecekler: yarım kalan izleme kayıtları, kuyruktaki
+  // işler ve kaydedilmemiş düzenleme taslakları tek ekranda. İzleme kartı
+  // son konumdan oynatır (player kendi resume akışını uygular).
+  function renderResume() {
+    const body = $('div', 'mc-content');
+    body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'),
+      $('h3', '', english() ? 'Resume work' : 'Devam edenler'));
+    if (state.resumeWatch === undefined) {
+      state.resumeWatch = null;
+      window.api.listWatchLibrary?.().then((items) => { state.resumeWatch = Array.isArray(items) ? items : []; if (state.mode === 'resume') render(); })
+        .catch(() => { state.resumeWatch = []; if (state.mode === 'resume') render(); });
+    }
+    if (state.resumeQueue === undefined) {
+      state.resumeQueue = null;
+      window.api.loadQueueState?.().then((snapshot) => {
+        state.resumeQueue = Array.isArray(snapshot?.items) ? snapshot.items : [];
+        if (state.mode === 'resume') render();
+      }).catch(() => { state.resumeQueue = []; if (state.mode === 'resume') render(); });
+    }
+    const progress = (item) => {
+      const pos = Number(item.position) || 0, dur = Number(item.duration) || 0;
+      return dur > 0 ? pos / dur : 0;
+    };
+    const watching = (state.resumeWatch || [])
+      .filter((item) => item && !item.completed && progress(item) > 0)
+      .sort((a, b) => (Number(b.lastWatched) || 0) - (Number(a.lastWatched) || 0))
+      .slice(0, 200);
+    const fmtPos = (seconds) => {
+      const total = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+      return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+    };
+    const dateOf = (ms) => ms ? new Date(ms).toLocaleDateString(english() ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'short' }) : '';
+    const watchWrap = $('div', 'mc-resume-section');
+    watchWrap.append($('h4', '', english() ? `Continue watching (${watching.length})` : `İzlemeye devam (${watching.length})`));
+    if (!watching.length) watchWrap.append($('p', 'mc-muted', english() ? 'No half-finished videos.' : 'Yarım kalan video yok.'));
+    else {
+      const grid = $('div', 'mc-grid');
+      for (const item of watching) {
+        const card = $('div', 'mc-card');
+        const pct = Math.round(progress(item) * 100);
+        card.append($('strong', '', item.title || item.localPath || item.sourceRef || item.key || ''));
+        card.append($('p', 'mc-card-meta', `${fmtPos(item.position)} / ${fmtPos(item.duration)} · %${pct} · ${dateOf(item.lastWatched)}`));
+        const acts = $('div', 'mc-card-actions');
+        acts.append(button(english() ? 'Resume' : 'Sürdür', async () => {
+          if (typeof window.openMediaCatalogPlayback !== 'function') { feedback('Oynatma köprüsü kullanılamıyor.', true); return; }
+          const auth = await window.api.authorizeWatchItem?.(item.key).catch(() => null);
+          if (auth && !auth.ok) { feedback(english() ? (auth.error || 'File is not accessible.') : (auth.error || 'Dosyaya erişilemiyor.'), true); return; }
+          try { await window.openMediaCatalogPlayback(item); if (dialog.open) close(); }
+          catch (error) { feedback(String(error?.message || error), true); }
+        }));
+        card.append(acts); grid.append(card);
+      }
+      watchWrap.append(grid);
+    }
+    body.append(watchWrap);
+    // Kuyruktaki yarım işler — çeviri/transkripsiyon/indirme kartları
+    const jobs = $('div', 'mc-resume-section');
+    const queueItems = (Array.isArray(state.resumeQueue) ? state.resumeQueue : []).filter((job) => job && job.status !== 'done');
+    jobs.append($('h4', '', english() ? `Queue jobs (${queueItems.length})` : `Kuyruk işleri (${queueItems.length})`));
+    if (!queueItems.length) jobs.append($('p', 'mc-muted', english() ? 'No pending or unfinished queue jobs.' : 'Bekleyen veya yarım kalan iş yok.'));
+    else {
+      const list = $('div', 'mc-import-list');
+      for (const job of queueItems.slice(0, 100)) {
+        const row = $('div', 'mc-import-row');
+        const statusText = { pending: english() ? 'waiting' : 'bekliyor', running: english() ? 'running' : 'çalışıyor', error: english() ? 'failed' : 'hata' };
+        row.append($('span', '', `${job.label || job.input || `#${job.id}`}`), $('small', 'mc-muted', `${statusText[job.status] || job.status}${job.recovered ? ` · ${english() ? 'recovered' : 'kurtarıldı'}` : ''}${job.error ? ' · ' + job.error : ''}`));
+        list.append(row);
+      }
+      jobs.append(list);
+    }
+    body.append(jobs);
+    // Kaydedilmemiş düzenleme taslakları (hızlı editör + kaynak metin düzeltmeleri)
+    const drafts = $('div', 'mc-resume-section');
+    let draftCount = 0, editCount = 0;
+    try { draftCount = Object.keys(JSON.parse(localStorage.getItem('browser-subtitle-drafts-v1') || '{}') || {}).length; } catch (_) {}
+    try { editCount = Object.keys(JSON.parse(localStorage.getItem('browser-source-edits-v1') || '{}') || {}).length; } catch (_) {}
+    drafts.append($('h4', '', english() ? 'Unsaved edits' : 'Kaydedilmemiş düzenlemeler'));
+    drafts.append($('p', 'mc-muted', english()
+      ? `${draftCount} draft cue edit(s), ${editCount} corrected source section(s). Open the video to review and save them.`
+      : `${draftCount} taslak altyazı düzenlemesi, ${editCount} düzeltilmiş kaynak bölümü. Kaydetmek için videoyu açıp gözden geçirin.`));
+    body.append(drafts);
+    return body;
+  }
+
+  // Madde 22 — mükerrer kayıt önizleme + birleştirme
+  function renderDupes() {
+    const body = $('div', 'mc-content');
+    body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'),
+      $('h3', '', english() ? 'Merge duplicate records' : 'Kopya kayıtları birleştir'));
+    if (state.dupes === null) {
+      body.append($('p', 'mc-muted', english() ? 'Scanning the watch library for records that look like the same media (same file name, size or duration)…' : 'İzleme kütüphanesi aynı ortama benzeyen kayıtlar için taranıyor…'));
+      window.api.listLibraryDuplicates?.().then((result) => {
+        if (state.mode !== 'dupes') return;
+        state.dupes = result?.ok ? (result.groups || []) : [];
+        state.dupeError = result?.ok ? '' : (result?.error || '');
+        render();
+      }).catch((error) => { if (state.mode === 'dupes') { state.dupes = []; state.dupeError = String(error?.message || error); render(); } });
+      return body;
+    }
+    if (state.dupeError) body.append($('p', 'mc-feedback mc-error', state.dupeError));
+    const groups = state.dupes;
+    if (!groups.length) {
+      body.append($('p', 'mc-muted', english() ? 'No duplicate records found.' : 'Mükerrer kayıt bulunamadı.'));
+      return body;
+    }
+    body.append($('p', 'mc-muted', english()
+      ? `${groups.length} candidate group(s). Choose the record to keep; watch position, notes and subtitle links move to it, the other record is removed.`
+      : `${groups.length} aday grup. Saklanacak kaydı seçin; izleme konumu, notlar ve altyazı bağları ona taşınır, diğer kayıt silinir.`));
+    const list = $('div', 'mc-import-list');
+    groups.forEach((group, groupIndex) => {
+      const card = $('div', 'mc-dupe-group');
+      card.append($('strong', '', `${group.members[0]?.title || group.members[0]?.path || ''} · ${group.strong ? (english() ? 'strong match' : 'güçlü eşleşme') : (english() ? 'weak match' : 'zayıf eşleşme')}`));
+      group.members.forEach((member, memberIndex) => {
+        const row = $('div', 'mc-import-row');
+        const keep = $('input'); keep.type = 'radio'; keep.name = `mc-dupe-${groupIndex}`; keep.checked = memberIndex === 0;
+        row.append(keep, $('span', '', member.title || member.path), $('small', 'mc-muted',
+          `${member.path}${member.sizeBytes ? ` · ${(member.sizeBytes / 1048576).toFixed(0)} MB` : ''}${member.position ? ` · ${english() ? 'watched to' : 'konum'} ${Math.floor(member.position / 60)} dk` : ''}`));
+        card.append(row);
+      });
+      card.append(button(english() ? 'Merge into selected record' : 'Seçili kayıtta birleştir', async () => {
+        const selectedIndex = [...card.querySelectorAll(`input[name="mc-dupe-${groupIndex}"]`)].findIndex((input) => input.checked);
+        const keep = group.members[Math.max(0, selectedIndex)];
+        const others = group.members.filter((member) => member.key !== keep.key);
+        let failure = null;
+        for (const other of others) {
+          const result = await window.api.mergeLibraryDuplicates?.({ targetKey: keep.key, sourceKey: other.key });
+          if (!result?.ok) { failure = result; break; }
+        }
+        if (failure) feedback(english() ? (failure.error || 'Merge failed.') : (failure.error || 'Birleştirme başarısız.'), true);
+        else { state.dupes = groups.filter((_, i) => i !== groupIndex); render(); }
+      }));
+      list.append(card);
+    });
+    body.append(list);
+    return body;
+  }
+
+  // Madde 24 — toplu yol yeniden bağlama önizleme + uygulama
+  function renderRelink() {
+    const body = $('div', 'mc-content');
+    body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'),
+      $('h3', '', english() ? 'Re-link library paths' : 'Kütüphane yollarını yeniden bağla'));
+    state.relink ||= { oldPrefix: '', newPrefix: '', rows: null, applyResult: null };
+    const relink = state.relink;
+    const form = $('div', 'mc-form-grid');
+    form.append(formField(english() ? 'Old folder root (e.g. D:\\Films)' : 'Eski klasör kökü (örn. D:\\Filmler)', relink.oldPrefix, (value) => { relink.oldPrefix = value; }));
+    form.append(formField(english() ? 'New folder root' : 'Yeni klasör kökü', relink.newPrefix, (value) => { relink.newPrefix = value; }));
+    body.append(form);
+    const actions = $('div', 'mc-list-actions');
+    actions.append(button(english() ? 'Preview matching records' : 'Eşleşen kayıtları önizle', async () => {
+      const result = await window.api.relinkWatchItemsBulk?.({ oldPrefix: relink.oldPrefix, newPrefix: relink.newPrefix });
+      if (!result?.ok) { feedback(result?.error || '', true); return; }
+      relink.rows = result.rows; relink.applyResult = null; render();
+    }));
+    actions.append(button(english() ? 'Pick new root…' : 'Yeni kök seç…', async () => {
+      const result = await api('choose-directory');
+      if (result?.path) { relink.newPrefix = result.path; render(); }
+    }));
+    const readyCount = (relink.rows || []).filter((row) => row.status === 'ready').length;
+    if (relink.rows && readyCount) actions.append(button(english() ? `Apply ${readyCount} re-links` : `${readyCount} kaydı yeniden bağla`, async () => {
+      const result = await window.api.relinkWatchItemsBulk?.({ oldPrefix: relink.oldPrefix, newPrefix: relink.newPrefix, apply: true });
+      if (!result?.ok) { feedback(result?.error || '', true); return; }
+      relink.applyResult = result; relink.rows = null; render();
+    }, 'mc-primary'));
+    body.append(actions);
+    if (relink.applyResult) {
+      body.append($('p', 'mc-feedback', english()
+        ? `${relink.applyResult.applied} record(s) re-linked. ${relink.applyResult.failures?.length || 0} failed, ${relink.applyResult.skipped || 0} skipped.`
+        : `${relink.applyResult.applied} kayıt yeniden bağlandı. ${relink.applyResult.failures?.length || 0} başarısız, ${relink.applyResult.skipped || 0} atlandı.`));
+    }
+    if (relink.rows) {
+      const statusText = {
+        alive: english() ? 'still exists — untouched' : 'hâlâ mevcut — dokunulmaz',
+        ready: english() ? 'will be re-linked' : 'yeniden bağlanacak',
+        missing: english() ? 'no file at new location' : 'yeni konumda dosya yok',
+        pending: english() ? 'missing — enter new root first' : 'kayıp — önce yeni kök girin',
+      };
+      const list = $('div', 'mc-import-list');
+      for (const row of relink.rows.slice(0, 300)) {
+        const line = $('div', 'mc-import-row');
+        line.append($('span', '', row.title || row.oldPath), $('small', 'mc-muted', `${statusText[row.status] || row.status}${row.candidate ? ` → ${row.candidate}` : ''}`));
+        list.append(line);
+      }
+      body.append(list);
+    }
+    return body;
+  }
+
   function render() {
     if (!dialog.open) return;
     const viewKey = `${state.mode}:${state.mode === 'list' ? '' : state.selected || ''}:${state.section}`;
@@ -474,7 +698,7 @@
     const focusIdx = [...root.querySelectorAll(FOCUSABLES)].indexOf(document.activeElement);
     root.replaceChildren(renderHeader(), renderNav());
     if (state.message) { const message = $('p', state.error ? 'mc-feedback mc-error' : 'mc-feedback', state.message); message.setAttribute('role', state.error ? 'alert' : 'status'); root.append(message); }
-    root.append(state.mode === 'metadata' ? renderMetadata() : state.mode === 'package' ? renderPackage() : state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : renderList());
+    root.append(state.mode === 'metadata' ? renderMetadata() : state.mode === 'package' ? renderPackage() : state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : state.mode === 'resume' ? renderResume() : state.mode === 'dupes' ? renderDupes() : state.mode === 'relink' ? renderRelink() : renderList());
     if (focusIdx >= 0) {
       const next = root.querySelectorAll(FOCUSABLES)[focusIdx] || root.querySelector('.mc-close');
       next?.focus();

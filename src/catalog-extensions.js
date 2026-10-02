@@ -24,7 +24,13 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const choice = await dialog.showOpenDialog(owner(), { title: dl('Film ve dizi klasörünü seç', 'Choose a movies & series folder'), properties: ['openDirectory'] });
         if (choice.canceled || !choice.filePaths?.[0]) return { ok: false, canceled: true };
         const data = await scanFolder(choice.filePaths[0], pythonPath());
-        return { ok: true, token: remember(event, { type: 'folder', ...data }), items: data.items.map(i => visible(i)), warnings: data.warnings, summary: store().previewImport(data.items) };
+        // Kuyruk maddesi 21 — "yeni/değişen"in yanında "kaybolan" da ayrı
+        // görünür: katalogda kayıtlı ama taranan kök altında artık bulunamayan
+        // yerel kaynaklar. Kullanıcı isterse sonradan "Yolları yeniden
+        // bağla" ile düzeltir; önizleme hiçbir şeyi silmez.
+        const missing = require('./media-relink-matcher').collectMissingSources(
+          store().list(), choice.filePaths[0], (value) => { try { return fs.existsSync(value); } catch (_) { return false; } });
+        return { ok: true, token: remember(event, { type: 'folder', ...data }), items: data.items.map(i => visible(i)), warnings: data.warnings, summary: store().previewImport(data.items), missing };
       }
       case 'folder-apply': {
         const data = take(event, input.token, 'folder');
@@ -90,11 +96,28 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         // Madde 33: geri yükleme onayından önce paket kapsamını göster —
         // bölüm/kayıt sayıları meta düzeyinde (içerik değil).
         const scope = require('./workspace-package').describePackage(data);
-        return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created, scope };
+        // Kuyruk maddesi 25 — paketteki mutlak ortam yollarından bu
+        // bilgisayarda bulunamayanları kök bazında göster; kullanıcı her
+        // köke yeni hedef seçebilir ve eşleme geri yüklemede uygulanır.
+        const missingMedia = require('./workspace-package').missingLocalMedia(data);
+        return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created, scope, missingMedia };
       }
       case 'package-apply': {
         const { data } = take(event, input.token, 'package');
         if (!canRestore()) throw new Error('Çalışan medya işlemini bitirin veya durdurun; ardından yeniden geri yükleyin.');
+        // Kullanıcının önizlemede seçtiği ortam-kökü eşlemeleri. Yalnız
+        // mutlak yollar kabul edilir ve hedefin gerçekten var olan bir
+        // klasör olması gerekir — yazım hatası kayıtları ölü yola bağlardı.
+        const mediaMappings = [];
+        for (const pair of Array.isArray(input.mediaMappings) ? input.mediaMappings.slice(0, 20) : []) {
+          if (!Array.isArray(pair) || pair.length !== 2) throw new Error('Ortam eşleşmesi geçersiz.');
+          const [from, to] = pair;
+          if (typeof from !== 'string' || from.length < 2 || from.length > 4000 ||
+              typeof to !== 'string' || !to || to.length > 4000) throw new Error('Ortam eşleşmesi geçersiz.');
+          if (!fs.existsSync(to) || !fs.statSync(to).isDirectory()) throw new Error(`Hedef klasör yok: ${to.slice(0, 160)}`);
+          mediaMappings.push([from, to]);
+        }
+        const videoMappings = [...mediaMappings, ...(data.videoMappings || [])];
         const packages = require('./workspace-package');
         const videoPackage = require('./workspace-video-package');
         const videoFolder = await videoPackage.extract(userData(), data, pythonPath());
@@ -111,17 +134,22 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           packages.exportPackage(userData(), backup, live);
           const backups = fs.readdirSync(userData()).filter(name => /^before-restore-complete-\d+\.wbp$/.test(name)).sort().reverse();
           for (const name of backups.slice(3)) { try { fs.unlinkSync(path.join(userData(), name)); } catch {} }
-          const restored = packages.remapRendererValues(userData(), data, data.videoMappings || []);
+          const restored = packages.remapRendererValues(userData(), data, videoMappings);
           await setStorage(restored);
           storageChanged = true;
           if (!canRestore()) throw new Error('Yeni medya işlemi başladı; geri yükleme iptal edildi.');
-          require('./workspace-package').restorePackage(userData(), data, data.videoMappings || []);
+          require('./workspace-package').restorePackage(userData(), data, videoMappings);
         } catch (error) {
           try { if (storageChanged) await setStorage(live); }
           finally { if (videoFolder) videoPackage.clean(userData(), videoFolder); }
           throw error;
         }
         previews.delete(input.token); restart(); return { ok: true };
+      }
+      case 'choose-directory': {
+        const pick = await dialog.showOpenDialog(owner(), { title: dl('Ortam klasörünü seç', 'Choose the media folder'), properties: ['openDirectory'] });
+        if (pick.canceled || !pick.filePaths?.[0]) return { ok: false, canceled: true };
+        return { ok: true, path: pick.filePaths[0] };
       }
       case 'extension-cancel': { const row = previews.get(input.token); if (row?.sender === event.sender.id) previews.delete(input.token); return { ok: true }; }
       default: return null;
