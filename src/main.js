@@ -142,7 +142,7 @@ const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-captur
 const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
 const { assertJobTransition, isTerminalJobState } = require('./job-state-contract');
 const { createResourceScheduler } = require('./job-resource-scheduler');
-const { selectRelinkCandidates } = require('./media-relink-matcher');
+const { selectRelinkCandidates, planBulkRelink, findLibraryDuplicates, mergeWatchItems, looksLikeAbsoluteDir } = require('./media-relink-matcher');
 const {
   redactBrowserDiagnosticsText,
   sanitizeDiagnosticsSecrets,
@@ -17889,27 +17889,18 @@ ipcMain.handle('library:remove', async (_event, key) => {
 // iz+not satırları da yeni medya kimliğine taşınır. Yeni yol kullanıcının dosya
 // seçiciyle işaretlediği hedeftir — onay diyaloğu gerekmez, ancak dosyanın
 // gerçekten var olduğu inspect ile doğrulanır.
-ipcMain.handle('library:relink', async (_event, request) => {
-  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const oldKey = String(request?.oldKey || '');
-  const newPath = String(request?.newPath || '');
-  if (!oldKey.startsWith('file:')) {
-    return { ok: false, error: 'Yalnızca yerel medya kayıtları yeniden bağlanabilir.' };
-  }
+// Tek kayıt yeniden bağlamanın çekirdeği — library:relink (dosya seçici) ve
+// library:relink-bulk (toplu kök eşleme) aynı yolu kullanır: hedef inspect+grant,
+// anahtar çakışması yoksa kayıt taşıma + iz/not satırlarını renameMediaId ile
+// yeni kimliğe aktarma, başarısızlıkta liste geri yazımı.
+async function relinkLibraryItem(oldKey, newPath) {
   const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
-  if (!item) return { ok: false, error: 'Kütüphane kaydı bulunamadı.' };
-  let target;
-  try {
-    target = mediaFileAccess.inspect(newPath);
-    if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
-  } catch (error) {
-    return { ok: false, error: error.message };
-  }
+  if (!item) throw new Error('Kütüphane kaydı bulunamadı.');
+  const target = mediaFileAccess.inspect(newPath);
+  if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
   const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
   const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
-  if (collision) {
-    return { ok: false, error: 'Seçilen dosya zaten başka bir kütüphane kaydına bağlı.' };
-  }
+  if (collision) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
   let previous, written = false;
   try {
     previous = loadWatchLibraryAll().slice();
@@ -17922,7 +17913,112 @@ ipcMain.handle('library:relink', async (_event, request) => {
       written = true;
     };
     if (index) index.transaction(run); else run();
-    return { ok: true, key: newKey, path: target };
+    return { key: newKey, path: target };
+  } catch (error) {
+    const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
+    if (!restored) error.message += ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.';
+    throw error;
+  }
+}
+
+ipcMain.handle('library:relink', async (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const oldKey = String(request?.oldKey || '');
+  const newPath = String(request?.newPath || '');
+  if (!oldKey.startsWith('file:')) {
+    return { ok: false, error: 'Yalnızca yerel medya kayıtları yeniden bağlanabilir.' };
+  }
+  try {
+    const result = await relinkLibraryItem(oldKey, newPath);
+    return { ok: true, ...result };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+// Kuyruk maddesi 24 — kök klasör taşınması: eski önek altındaki file: kayıtları
+// için yeni kök eşlemesi. apply:false önizleme her satırın durumunu verir
+// (alive/ready/missing/pending); apply:true yalnız 'ready' satırları tek tek
+// relinkLibraryItem ile bağlar — doğrulanamayan adaylar asla yazılmaz.
+ipcMain.handle('library:relink-bulk', async (_event, input) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const oldPrefix = String(input?.oldPrefix || '').trim();
+  const newPrefix = typeof input?.newPrefix === 'string' ? input.newPrefix.trim() : '';
+  if (!oldPrefix || oldPrefix.length > 4000 || (newPrefix && newPrefix.length > 4000)) {
+    return { ok: false, error: 'Kök yolu geçersiz.' };
+  }
+  if (!looksLikeAbsoluteDir(oldPrefix) || (newPrefix && !looksLikeAbsoluteDir(newPrefix))) {
+    return { ok: false, error: 'Eski ve yeni kök mutlak klasör yolu olmalı.' };
+  }
+  const exists = (value) => { try { return fs.existsSync(value); } catch (_) { return false; } };
+  const plan = planBulkRelink(loadWatchLibraryAll(), { oldPrefix, newPrefix, exists });
+  if (!input?.apply) {
+    return { ok: true, rows: plan.rows.slice(0, 500), scanned: plan.rows.length };
+  }
+  if (!newPrefix) return { ok: false, error: 'Uygulamak için yeni kök gerekli.' };
+  const failures = [];
+  let applied = 0;
+  for (const row of plan.rows) {
+    if (row.status !== 'ready') continue;
+    try { await relinkLibraryItem(row.key, row.candidate); applied += 1; }
+    catch (error) { failures.push({ key: row.key, oldPath: row.oldPath, error: String(error?.message || error).slice(0, 200) }); }
+  }
+  return { ok: true, applied, failures: failures.slice(0, 100),
+    skipped: plan.rows.filter((row) => row.status !== 'ready').length };
+});
+
+// Kuyruk maddesi 22 — mükerrer kayıt önizleme + birleştirme. Aday grupları
+// saf planlayıcıdan gelir; kullanıcı hangi kaydın kalacağını seçer, izleme
+// konumu/not/iz/oturum verisi mergeWatchItems + mergeMediaIds ile korunur.
+ipcMain.handle('library:dupes', (_event) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const groups = findLibraryDuplicates(loadWatchLibraryAll());
+  return { ok: true, groups: groups.slice(0, 200).map((group) => ({
+    strong: group.strong, reason: group.reason,
+    members: group.members.slice(0, 8).map((item) => ({
+      key: item.key, title: item.title || '',
+      path: item.localPath || item.sourceRef || item.url || '',
+      sizeBytes: Math.max(0, Number(item.sizeBytes) || 0),
+      duration: Math.max(0, Number(item.duration) || 0),
+      position: Math.max(0, Number(item.position) || 0),
+      lastWatched: Math.max(0, Number(item.lastWatched) || 0),
+      completed: !!item.completed,
+    })),
+  })) };
+});
+
+ipcMain.handle('library:dupes-merge', (_event, request) => {
+  if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const targetKey = String(request?.targetKey || '');
+  const sourceKey = String(request?.sourceKey || '');
+  if (!targetKey || !sourceKey || targetKey === sourceKey) {
+    return { ok: false, error: 'Birleştirilecek iki ayrı kayıt seçin.' };
+  }
+  const all = loadWatchLibraryAll();
+  const target = all.find((entry) => entry?.key === targetKey);
+  const source = all.find((entry) => entry?.key === sourceKey);
+  if (!target || !source) return { ok: false, error: 'Kütüphane kaydı bulunamadı.' };
+  const merged = mergeWatchItems(source, target);
+  let previous, written = false;
+  try {
+    previous = all.slice();
+    const index = watchIndex();
+    const run = () => {
+      const saved = watchLibraryStore().upsert(merged);
+      if (!saved) throw new Error('Birleştirilmiş kayıt yazılamadı.');
+      if (!watchLibraryStore().remove(sourceKey)) throw new Error('Kaynak kayıt kaldırılamadı.');
+      index?.mergeMediaIds(sourceKey, targetKey);
+      try {
+        index?.upsertMedia({
+          id: merged.key, service: merged.type || '', title: merged.title || '', url: merged.sourceRef || '',
+          duration: merged.duration, position: merged.position, completed: merged.completed,
+          lastWatched: merged.lastWatched, prefs: merged.prefs,
+        });
+      } catch (_) {}
+      written = true;
+    };
+    if (index) index.transaction(run); else run();
+    return { ok: true, key: targetKey };
   } catch (error) {
     const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.'}` };

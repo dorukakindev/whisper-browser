@@ -299,6 +299,34 @@ class WatchIndex {
     return this.db.prepare('DELETE FROM media WHERE id = ?').run(String(id || ''));
   }
 
+  // Kuyruk maddesi 22 — mükerrer kayıt birleştirme. renameMediaId'den farkı:
+  // hedef medya satırı VARSA alanlarını korur (birleştirme zaten ayrıca
+  // upsert'ler); kaynağın izlerini ve notlarını hedefe taşır, kimliği
+  // çakışan satırları atar, sonra kaynak satırı siler.
+  mergeMediaIds(sourceId, targetId) {
+    const source = String(sourceId || '');
+    const target = String(targetId || '');
+    if (!source || !target || source === target) return null;
+    const sourceRow = this.db.prepare('SELECT * FROM media WHERE id = ?').get(source);
+    if (!sourceRow) return null;
+    this.transaction(() => {
+      const targetRow = this.db.prepare('SELECT * FROM media WHERE id = ?').get(target);
+      if (!targetRow) {
+        this.db.prepare(`
+          INSERT INTO media(id, service, title, url, duration, position, completed, last_watched, prefs_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(target, sourceRow.service, sourceRow.title, sourceRow.url, sourceRow.duration,
+            sourceRow.position, sourceRow.completed, sourceRow.last_watched, sourceRow.prefs_json);
+      }
+      this.db.prepare('DELETE FROM tracks WHERE media_id = ? AND id IN (SELECT id FROM tracks WHERE media_id = ?)').run(source, target);
+      this.db.prepare('UPDATE tracks SET media_id = ? WHERE media_id = ?').run(target, source);
+      this.db.prepare('DELETE FROM annotations WHERE media_id = ? AND id IN (SELECT id FROM annotations WHERE media_id = ?)').run(source, target);
+      this.db.prepare('UPDATE annotations SET media_id = ? WHERE media_id = ?').run(target, source);
+      this.db.prepare('DELETE FROM media WHERE id = ?').run(source);
+    });
+    return this.getMedia(target);
+  }
+
   upsertTrack(track = {}) {
     if (!track.id || !track.mediaId) throw new TypeError('İz ve medya kimliği gerekli.');
     this.db.prepare(`

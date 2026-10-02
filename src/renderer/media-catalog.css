@@ -59,5 +59,14 @@
 @media (max-width: 680px) { .mc-calendar-row { grid-template-columns: 90px 1fr; } .mc-nav { flex-wrap: wrap; } }
 .mc-import-list { display: grid; gap: 5px; max-height: 420px; overflow: auto; margin: 16px 0; }
 .mc-import-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); background: var(--bg-1); }
+.mc-resume-section { margin: 10px 0 22px; }
+.mc-resume-section h4 { margin: 0 0 8px; font-size: 15px; letter-spacing: -.01em; }
+.mc-card-meta { color: var(--text-muted); font-size: 12px; margin: 0; font-variant-numeric: tabular-nums; }
+.mc-card-actions { display: flex; gap: 8px; padding: 0 10px 10px; }
+.mc-dupe-group { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--border); background: var(--bg-1); }
+.mc-dupe-group > button { justify-self: start; }
+.mc-package-missing { display: grid; gap: 5px; margin: 10px 0; }
+.mc-package-missing h4 { margin: 0 0 4px; font-size: 14px; }
+.mc-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
 .mc-feedback { margin: 0; padding: 9px 26px; border-bottom: 1px solid var(--border); color: var(--accent); }
 @media (max-width: 680px) { #mediaCatalogDialog { width: calc(100vw - 12px); height: calc(100vh - 12px); } .mc-header, .mc-content { padding-left: 16px; padding-right: 16px; } .mc-nav { padding: 0 16px; gap: 18px; } .mc-detail-hero { grid-template-columns: 110px 1fr; gap: 15px; } .mc-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 10px; } .mc-form form { grid-template-columns: 1fr; } }
