@@ -4869,9 +4869,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             )
         )
         # Model uyum karnesi: renderer model başına son işleri saklar ve ayarlarda
-        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir.
+        # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir. `unhealthy`
+        # alanı bu işin kendi oranıdır — renderer onu iş bitmeden bildirime
+        # bağlar (kullanıcı günlük sonuna kadar beklemesin diye).
         batch_count = translation_metrics["batch_requests"]
         invalid_count = translation_metrics["invalid_batches"]
+        unhealthy = batch_count >= 2 and invalid_count / batch_count >= 0.25
         emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
              batches=batch_count, invalid_batches=invalid_count,
              fallback_requests=translation_metrics["fallback_requests"],
@@ -4880,11 +4883,17 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
              completion_chars=translation_metrics["completion_chars"],
              cache_hits=len(cached_idx) + len(precompleted_idx) + len(unchanged_idx),
              elapsed=round(time.time() - translation_metrics["started"], 1),
+             unhealthy=unhealthy,
              rejections=dict(sorted(translation_metrics["rejections"].items())))
-        if batch_count >= 2 and invalid_count / batch_count >= 0.25:
-            log(f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
-                f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
-                "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.", "warn")
+        if unhealthy:
+            msg = (f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
+                   f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+                   "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.")
+            log(msg, "warn")
+            # warn_list'e de girer: işin 'done' uyarılarında ve kuyruk
+            # özetinde görünür — yalnızca akan günlükte kalmasın.
+            if warn_list is not None:
+                warn_list.append(msg)
 
         if counters["done"] == 0 and not cached_idx:
             # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
