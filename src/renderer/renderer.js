@@ -4395,22 +4395,11 @@ function applyCueQuality(cues, qualityCues) {
 
 function progressiveRanges(duration, current, windowSec = 600, overlapSec = 4) {
   if (!isFinite(duration) || duration <= 0) return [{ start: '', end: '' }];
-  // Videonun başına çok yakınken 2-30 saniyelik ayrı bir "başa dön" işi
-  // üretme. Bu küçük son iş hem tüm YouTube sesini yeniden indiriyor hem de
-  // ara çıktıyı tek blokla ezmeye çok yatkındı.
-  const requestedStart = Math.max(0, Math.min(duration, (Number(current) || 0) - 2));
-  const start = requestedStart <= 30 ? 0 : requestedStart;
-  const firstEnd = Math.min(duration, start + windowSec);
-  const overlap = Math.max(0, Math.min(30, Number(overlapSec) || 0));
-  const ranges = [{ start, end: firstEnd }];
-  // Whisper penceresi tam sözcük/cümle ortasında kesilebilir. Komşu işler kısa
-  // bir bağlamı yeniden işler; refresh yolu bu örtüşen eski cue'ları atomik
-  // olarak değiştirir, böylece 600.000 gibi sınırlarda hece/kelime kaybolmaz.
-  if (firstEnd < duration - 0.5) {
-    ranges.push({ start: Math.max(start, firstEnd - overlap), end: duration });
-  }
-  if (start > 0.5) ranges.push({ start: 0, end: Math.min(duration, start + overlap) });
-  return ranges;
+  // Tek geçiş: eski aşamalı plan (öncelikli 10dk pencere + kalan + baş-doldurma)
+  // sesi yeniden indiriyor, modeli yeniden yüklüyor ve çeviride ikinci bağlam
+  // maliyeti üretiyordu; kullanıcı iki aşamayı istemiyor. Artık konumdan
+  // bağımsız olarak tüm video tek işte işlenir — eksik bölüm kalmaz.
+  return [{ start: 0, end: duration }];
 }
 
 async function startProgressiveChunk(job) {
@@ -4421,7 +4410,9 @@ async function startProgressiveChunk(job) {
   job.awaitingExit = false;
   job.running = true;
   const n = job.rangeIndex + 1;
-  $('playerJobText').textContent = `Öncelikli altyazı bölümü ${n}/${job.ranges.length} hazırlanıyor…`;
+  $('playerJobText').textContent = job.ranges.length > 1
+    ? `Altyazı bölümü ${n}/${job.ranges.length} hazırlanıyor…`
+    : 'Altyazı hazırlanıyor…';
   const result = await startTranscribeSafe(opts);
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (!result || !result.ok) {
@@ -4810,7 +4801,9 @@ function playerJobEvent(event) {
     job.percent = Math.min(100, Math.max(0, overall));
     fill.style.width = `${Math.min(100, overall)}%`;
     txt.textContent = job.kind === 'progressive'
-      ? `İzleme konumundan hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
+      ? (job.ranges.length > 1
+        ? `Bölüm hazırlanıyor · ${job.rangeIndex + 1}/${job.ranges.length} · %${event.percent.toFixed(0)}`
+        : `Altyazı hazırlanıyor · %${event.percent.toFixed(0)}`)
       : `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
     job.stage = txt.textContent;
   } else if (event.type === 'llm_progress' && job.kind === 'translate') {
@@ -25200,7 +25193,9 @@ async function startProgressivePlayerTranscription(config = {}) {
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   updateBrowserWhisperActions();
   const actionLabel = opts.translate ? 'Whisper altyazı + çeviri' : 'Whisper altyazı';
-  logLine(`${actionLabel} izleme konumundan başlatıldı · ${ranges.length} aşama`, 'info');
+  logLine(ranges.length > 1
+    ? `${actionLabel} başlatıldı · ${ranges.length} aşama`
+    : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
   if (browserYoutube) {
     setBrowserSignal(`${actionLabel} başlatıldı; çıktı bu YouTube sekmesine otomatik yüklenecek.`, true,
       { priority: 70, holdMs: 4000 });
@@ -25208,8 +25203,9 @@ async function startProgressivePlayerTranscription(config = {}) {
   await startProgressiveChunk(player.job);
 }
 
-// "Altyazı oluştur": ilk olarak oynatma konumunun onundeki 10 dakikayi işler;
-// izleyici beklemeden devam ederken kalan kisimlar arkada tamamlanir.
+// "Altyazı oluştur": tüm videoyu tek geçişte işler; eski aşamalı plan
+// (öncelikli pencere + kalan + baş-doldurma) her aşamada sesi yeniden
+// indirip modeli yeniden yüklediği için kaldırıldı.
 if ($('makeSubsBtn')) {
   $('makeSubsBtn').addEventListener('click', () => player.workspaceMode === 'browser'
     ? startBrowserYoutubeWhisper(false) : startProgressivePlayerTranscription());

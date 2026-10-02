@@ -40,14 +40,15 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(calls[0].baseOpts.translate, false);
   assert.equal(calls[0].baseOpts.input, undefined);
   assert.equal(calls[0].baseOpts.youtube, 'https://www.youtube.com/watch?v=abcdefghijk');
-  assert.equal(calls[0].ranges[0].start, 798);
+  assert.equal(calls[0].ranges[0].start, 0);
   assert.match(calls[0].baseOpts.outputNameSuffix, /^-whisper-[a-z0-9-]{4,48}$/i);
-  assert.equal(ctx.progressiveRanges(1306, 8).length, 2,
-    'videonun başındaki birkaç saniye için üçüncü ve yıkıcı bir iş üretildi');
+  // Tek geçiş: aşamalı plan kaldırıldı — konumdan bağımsız tüm video tek işte.
+  assert.equal(ctx.progressiveRanges(1306, 8).length, 1,
+    'izleme konumu ikinci bir iş üretti');
   assert.deepEqual(Array.from(ctx.progressiveRanges(1306, 8), range => [range.start, range.end]),
-    [[0, 600], [596, 1306]]);
+    [[0, 1306]]);
   assert.deepEqual(Array.from(ctx.progressiveRanges(1800, 800), range => [range.start, range.end]),
-    [[798, 1398], [1394, 1800], [0, 802]], 'aşamalı işler sınır bağlamını örtüştürmeli');
+    [[0, 1800]], 'tek geçiş tüm videoyu baştan sona kapsamalı');
   const refreshed = ctx.replaceLiveCuesForRefresh(
     [{ start: 596, end: 599.98, text: 'yarım eski' }, { start: 600, end: 602, text: 'eski sınır' }],
     [{ start: 596, end: 602, text: 'tam yenilenmiş cümle' }],
