@@ -230,6 +230,36 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const result = await handler(authorized, { items: [{ opts: { glossary: 'x'.repeat(600000) } }] });
     assert.equal(result.ok, false); assert.equal(writes, 0);
   });
+  await test('queue:saveSync bozuk snapshot diske boş kuyruk yazmaz', async () => {
+    // Bulgu kilidi: items dizisi taşımayan herhangi bir payload, merge'in
+    // boş-kuyruk normalize'ı üzerinden kalıcı kaydı siliyordu.
+    const start = main.indexOf("ipcMain.on('queue:saveSync'");
+    const end = main.indexOf('\n});', start) + 4;
+    let callback, merges = 0, writes = 0;
+    const { mergeQueueSnapshotForSave } = require('../src/queue-persistence');
+    vm.runInNewContext(main.slice(start, end), {
+      authorizedBrowserSender: () => true, validateQueueOptions,
+      mergeQueueSnapshotForSave: (a, b, c, d) => { merges++; return mergeQueueSnapshotForSave(a, b, c, d); },
+      readQueueStateRaw: () => ({ version: 1, items: [{ id: 1, status: 'pending' }] }),
+      writeQueueState: () => { writes++; return { ok: true }; },
+      releaseQueueTerminalGuards: () => {},
+      activeQueueItemId: null, queueTerminalGuards: new Set(),
+      ipcMain: { on: (channel, fn) => { if (channel === 'queue:saveSync') callback = fn; } },
+    });
+    assert(callback);
+    const event = { ...authorized, returnValue: undefined };
+    for (const bad of [null, undefined, 'x', 42, [], { items: 'nope' }, { items: 42 },
+        { queueRunning: true }, {}, JSON.parse('{"__proto__":{"x":1}}')]) {
+      event.returnValue = undefined;
+      callback(event, bad);
+      assert.equal(event.returnValue.ok, false, `payload: ${JSON.stringify(bad)}`);
+    }
+    assert.equal(merges, 0); assert.equal(writes, 0);
+    event.returnValue = undefined;
+    callback(event, { items: [{ id: 1, status: 'pending', opts: {} }], queueRunning: false });
+    assert.equal(event.returnValue.ok, true);
+    assert.equal(merges, 1); assert.equal(writes, 1);
+  });
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
     const fakeAppDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-appdir-'));

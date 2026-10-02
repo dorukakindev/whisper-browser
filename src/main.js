@@ -2738,25 +2738,33 @@ function loadQueueState() {
   };
 }
 
-function persistQueueTerminal(queueItemId, event) {
+function persistQueueTerminal(queueItemId, event, warn = null) {
   if (!queueItemId) return;
   queueTerminalGuards.add(Number(queueItemId));
-  writeQueueState(updateQueueSnapshotTerminal(readQueueStateRaw(), queueItemId, event));
+  // Disk yazımı başarısız olursa (dolu disk, izin) bellekteki durumla kalıcı
+  // kayıt sessizce ayrışıyordu — iş günlüğüne uyarı bırak.
+  const result = writeQueueState(updateQueueSnapshotTerminal(readQueueStateRaw(), queueItemId, event));
+  if (result && result.ok === false && typeof warn === 'function') {
+    warn(`Kuyruk terminal durumu diske yazılamadı: ${result.error}`);
+  }
 }
 
-function persistQueueRunning(queueItemId, options) {
+function persistQueueRunning(queueItemId, options, warn = null) {
   if (!queueItemId) return;
   // Bu yalnız gerçekten yeni Python işi başladığında çağrılır; önceki terminal
   // durumunu koruyan yarış engeli artık bilinçli yeniden-denemeyi durdurmamalı.
   queueTerminalGuards.delete(Number(queueItemId));
   const input = String(options?.youtube || options?.input || '');
-  writeQueueState(updateQueueSnapshotRunning(readQueueStateRaw(), queueItemId, {
+  const result = writeQueueState(updateQueueSnapshotRunning(readQueueStateRaw(), queueItemId, {
     type: options?.youtube ? 'youtube' : 'file',
     input,
     label: options?.youtube ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
       : path.basename(input),
     opts: options || {},
   }));
+  if (result && result.ok === false && typeof warn === 'function') {
+    warn(`Kuyruk çalışma durumu diske yazılamadı: ${result.error}`);
+  }
 }
 
 function appendSubtitleEditLog(logDir, fileId, record) {
@@ -18615,6 +18623,12 @@ ipcMain.on('app:ui-locale', (event, locale) => {
 ipcMain.on('queue:saveSync', (event, snapshot) => {
   if (!authorizedBrowserSender(event)) { event.returnValue = { ok: false, error: 'Yetkisiz istek.' }; return; }
   try {
+    // queue:save ile aynı şekil kapısı: nesne-olmayan/bozuk snapshot
+    // normalizeQueueSnapshot'ta boş kuyruğa düşer ve diske boş yazılarak
+    // kalıcı kuyruğu silerdi.
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      event.returnValue = { ok: false, error: 'Geçersiz kuyruk durumu.' }; return;
+    }
     const validation = validateQueueOptions(snapshot);
     if (!validation.ok) { event.returnValue = validation; return; }
     // saveSync'in de korumaları salması gerekir — aksi halde yeniden-deneme
@@ -20033,12 +20047,17 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     terminalSeen: false,
   };
 
+  // persistQueueRunning'in uyarısı dahil tüm iş bağlamları işlev kapsamında
+  // aynı jobId'yi görür — spawn'ın try bloğuna girmeden önce tanımlanır.
+  const jobId = String(options.jobId || `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+
   try {
     const argvUnits = [pythonPath, ...args].reduce((sum, arg) => sum + String(arg).length * 2 + 3, 0);
     if (argvUnits > 30000) throw new Error('Komut satırı çok uzun. Başlangıç metnini, sözlüğü veya dosya yollarını kısaltın.');
     activeJob = spawn(pythonPath, args, { env, cwd: appDir, windowsHide: true });
     activeQueueItemId = jobMeta.queueItemId;
-    persistQueueRunning(jobMeta.queueItemId, options);
+    persistQueueRunning(jobMeta.queueItemId, options,
+      (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
   } catch (err) {
     const failedJob = activeJob;
     activeJob = null;
@@ -20092,7 +20111,6 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Her işin kendi kimliği ve terminal mandalı var. Renderer gelen olayın hâlâ
   // aktif işe ait olduğunu bu kimlikle doğrular; mandal da bir iş için yalnız
   // TEK terminal olayı (done/error) geçmesine izin verir.
-  const jobId = String(options.jobId || `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   const lifecycle = createProcessTerminalLatch(jobId);
   activeJobLatch = lifecycle;
   activeTranscriptionJobId = jobId;
@@ -20146,7 +20164,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       if (event.type === 'done' || event.type === 'error') {
         if (!acceptTerminalEvent(event.type)) return;
         jobMeta.terminalSeen = true;
-        persistQueueTerminal(jobMeta.queueItemId, event);
+        persistQueueTerminal(jobMeta.queueItemId, event,
+          (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
         if (!jobMeta.skip) {
           recordJob(jobMeta, event);
           jobMeta.skip = true;              // tek is = tek kayit
@@ -20208,7 +20227,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         jobMeta.skip = true;
       }
       jobMeta.terminalSeen = true;
-      persistQueueTerminal(jobMeta.queueItemId, synthetic);
+      persistQueueTerminal(jobMeta.queueItemId, synthetic,
+        (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
       writeJobLog({ ...synthetic, jobId });
       sendJobEvent(synthetic);
     }
@@ -20218,7 +20238,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       // üretildi — renderer 'iptal edildi' demek yerine uyarı göstersin.
       ...(lifecycle.state.cancelRequested && jobMeta.terminalSeen
         && lifecycle.state.terminalType === 'done' ? { cancelTooLate: true } : {}) };
-    if (!jobMeta.terminalSeen) persistQueueTerminal(jobMeta.queueItemId, exitEvent);
+    if (!jobMeta.terminalSeen) persistQueueTerminal(jobMeta.queueItemId, exitEvent,
+      (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
     writeJobLog({ ...exitEvent, jobId });
     cleanupChatFile();
     endJobLog();
@@ -20248,7 +20269,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     }
     if (acceptTerminalEvent('error')) {
       writeJobLog({ type: 'error', message, jobId });
-      persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message });
+      persistQueueTerminal(jobMeta.queueItemId, { type: 'error', message },
+        (warning) => writeJobLog({ type: 'log', level: 'error', message: warning, jobId }));
       jobMeta.terminalSeen = true;
       cleanupChatFile();
       endJobLog();
