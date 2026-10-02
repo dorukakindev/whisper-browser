@@ -130,6 +130,15 @@ def internal_sentence_end_count(text, language=None):
                and normalized_text(text[match.end():]))
 
 
+def _starts_lowercase_continuation(text):
+    """Parçanın ilk harf karakteri küçük harfse True — parça önceki cümlenin
+    yetim devamıdır (erken-kapama imzası). Harfsiz başlangıç False sayılır."""
+    for char in str(text or "").strip():
+        if char.isalpha():
+            return char.islower()
+    return False
+
+
 def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=None):
     """Hedefin cümleyi kaynak cue'da olandan fazla cümleyle kapatmasını engelle.
 
@@ -147,7 +156,19 @@ def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=Non
     # çeviriyi 'fazla cümle' diye reddediyordu.
     src_count = lambda text: sentence_end_count(text, language=source_lang)
     for index in range(max(0, len(source_parts) - 1)):
-        if sentence_end_count(translated_parts[index]) > src_count(source_parts[index]):
+        # İÇ cümle sonları (sonrası metinle devam eden) her zaman ret: model
+        # parçanın ortasına kaynakta olmayan cümle sıkıştırmış demektir.
+        if internal_sentence_end_count(translated_parts[index]) > src_count(source_parts[index]):
+            return f"erken_cumle_sonu:{index}"
+        # Sonda eklenen terminal nokta iki duruma ayrılır (canlı-korpus ölçümü,
+        # R400): sonraki parça BÜYÜK harfle başlıyorsa model parçayı doğal
+        # cümle olarak kapatmıştır — rolling-window kaynak noktasız bittiği
+        # için doğru çeviriler sırf '.' yüzünden reddedilip İngilizce
+        # kalıyordu; KÜÇÜK harfle başlıyorsa cümle ortadan kesilip devamı
+        # yetim parçaya taşmış demektir ('...emer.' + 'daha parlaktır') —
+        # gerçek erken-kapama kusuru, hâlâ ret.
+        if (sentence_end_count(translated_parts[index]) > src_count(source_parts[index])
+                and _starts_lowercase_continuation(translated_parts[index + 1])):
             return f"erken_cumle_sonu:{index}"
     # Son parça: kaynak cümle kapalı bitiyorsa hedef fazladan cümle sonu
     # üretemez; kaynak açık bitiyorsa (kesinti/devam) hedefin doğal kapanışına
@@ -172,9 +193,13 @@ def sentence_part_boundary_issue(source_parts, translated_parts, source_lang=Non
 # konmazlar; aksi halde doğru altcümle kesimini yanlış-pozitifle bloklarlar.
 # Gösterme/zamir sonları ('kişi o.', 'işte bu', 'sanki şu') meşru cümlecik
 # kapanışıdır — koşulsuz sarkık sayılmazlar.
+# 'bir' listeden çıkarıldı: isim öbeği kesimi ("ağır bir | bavul") kaynak
+# parçanın birebir aynasını üretir ve doğrudur — belirteç/ek kesimindeki
+# gerçek sarkmalar 'değil|mi' gibi _PAIR_MATES ile yakalanır; 'bir' sonda
+# yanlış-pozitif ret üretiyordu (ölçülmüş canlı-korpus verisi).
 _DANGLING_TAIL = frozenset(
     "ve veya yahut ne hem diye hâlâ hala ama fakat "
-    "ancak çünkü cunku eğer eger madem hatta ise sanki adeta her bir".split())
+    "ancak çünkü cunku eğer eger madem hatta ise sanki adeta her".split())
 
 # Çift-bileşenli yapılar: sonda kalabilirler ama eşleri SONRAKİ parçanın
 # başlangıcında ise kesim bileşik yapıyı bölmüştür ('değil|mi', 'emin|misin',
@@ -214,8 +239,15 @@ def part_repetition_issue(source_parts, translated_parts):
     previous_source = previous_target = None
     for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
         source_n, translated_n = normalized_text(source), normalized_text(translated)
+        # Rolling-window parçaları içerik paylaşır ('um yeah um' ⊃ 'um'):
+        # kapsayan/kapsanan kaynak çiftine aynı hedefin dönmesi tembellik
+        # değil sadık çeviridir — yanlış-pozitifle reddedilip İngilizce
+        # kalıyordu. Gerçek kopyalama (ilgisiz kaynaklara aynı hedef)
+        # yakalanmaya devam eder.
+        contained = (source_n != previous_source and previous_source
+                     and (source_n in previous_source or previous_source in source_n))
         if (translated_n and previous_target and translated_n == previous_target
-                and source_n != previous_source):
+                and source_n != previous_source and not contained):
             return f"tekrarli_part:{index}"
         previous_source, previous_target = source_n, translated_n
     return ""
@@ -359,6 +391,16 @@ def _name_preserved(name, translated):
         if len(token) >= len(name) \
                 and _common_prefix_len(token, name) >= threshold:
             return True
+    # Büyük-küçük harf duyarsız tarama: kaynak altyazıda orta-cümle
+    # büyük harfli yazılan ortak isimler ("a young Backpacker") hedefte
+    # küçük harfle doğru çevrilir ("genç backpacker") — adın kaybı değil
+    # yazım tercihidir; kanon eşitlik dışı bulanık eşleşme açılmaz
+    # ('larson'↔'lawson' yine sayılmaz).
+    canon_name = _canon_name(name)
+    if canon_name:
+        for token in _NAME_TOKEN.findall(translated):
+            if _canon_name(token.rstrip("'’\"“”‘’([{«.,!?;:…")) == canon_name:
+                return True
     return False
 
 
