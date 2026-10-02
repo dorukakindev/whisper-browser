@@ -349,3 +349,4 @@ tarih sırasıyla dosya adından okunur.
 | 377 | [BROWSER_BUG_REPORT_377.md](BROWSER_BUG_REPORT_377.md) | Yeni-100 batch 4 — gerçek çökme yaşam döngüsü: çökmüş wc script/send kapıları + crash-kind ezilmesi (load-error maskesi) + lifecycle-deep smoke |
 | 378 | [BROWSER_BUG_REPORT_378.md](BROWSER_BUG_REPORT_378.md) | Yeni-100 batch 5 — çeviri kalite: anlam kapısı dil kapsamı + SDH yerelleşme sözlüğü + SDH-ad kapısı + Latin-dışı koruma + rapor muhasebesi |
 | 379 | [BROWSER_BUG_REPORT_379.md](BROWSER_BUG_REPORT_379.md) | Yeni-100 batch 6 — kuyruk/kurtarma derinleştirme: saveSync şekil kapısı + items-dizisi invariant'ı + persist yazma uyarısı |
+| 380 | [BROWSER_BUG_REPORT_380.md](BROWSER_BUG_REPORT_380.md) | Yeni-100 batch 7 — performans/bellek derinleştirme: posterCache 300 FIFO + favicon tek-bounded-yol, ~17 koleksiyon tavan kanıtı |
