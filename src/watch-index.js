@@ -301,8 +301,9 @@ class WatchIndex {
 
   // Kuyruk maddesi 22 — mükerrer kayıt birleştirme. renameMediaId'den farkı:
   // hedef medya satırı VARSA alanlarını korur (birleştirme zaten ayrıca
-  // upsert'ler); kaynağın izlerini ve notlarını hedefe taşır, kimliği
-  // çakışan satırları atar, sonra kaynak satırı siler.
+  // upsert'ler); kaynağın izlerini ve notlarını hedefe taşır, sonra kaynak
+  // satırı siler. tracks.id/annotations.id genel PK — kimlik çakışması
+  // oluşamaz; birleştirme basit sahiplik transferidir.
   mergeMediaIds(sourceId, targetId) {
     const source = String(sourceId || '');
     const target = String(targetId || '');
@@ -318,9 +319,7 @@ class WatchIndex {
           .run(target, sourceRow.service, sourceRow.title, sourceRow.url, sourceRow.duration,
             sourceRow.position, sourceRow.completed, sourceRow.last_watched, sourceRow.prefs_json);
       }
-      this.db.prepare('DELETE FROM tracks WHERE media_id = ? AND id IN (SELECT id FROM tracks WHERE media_id = ?)').run(source, target);
       this.db.prepare('UPDATE tracks SET media_id = ? WHERE media_id = ?').run(target, source);
-      this.db.prepare('DELETE FROM annotations WHERE media_id = ? AND id IN (SELECT id FROM annotations WHERE media_id = ?)').run(source, target);
       this.db.prepare('UPDATE annotations SET media_id = ? WHERE media_id = ?').run(target, source);
       this.db.prepare('DELETE FROM media WHERE id = ?').run(source);
     });
