@@ -310,7 +310,7 @@ def find_ffmpeg():
 
 
 def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_end=None,
-                     audio_lang=None, cookie_browser=None):
+                     audio_lang=None, cookie_browser=None, rate_limit=None):
     # Uzun indirmelerde iptal, indirme bitene kadar beklemesin.
     cancellation_checkpoint("download", "during")
     """
@@ -387,6 +387,15 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
         # dosya (webm/m4a) olduğu gibi bırakılır; kırpma + 16 kHz mono dönüşümü
         # extract_audio'da tek ffmpeg geçişinde olur.
     }
+    # Ağ bütçesi (madde 33): kullanıcı indirme hızını sınırladıysa yt-dlp'nin
+    # yerleşik ratelimit'i kullanılır (byte/s). None veya 0 = sınırsız.
+    if rate_limit:
+        try:
+            rl = int(rate_limit)
+            if rl > 0:
+                ydl_opts["ratelimit"] = rl
+        except (TypeError, ValueError):
+            pass
     browser = str(cookie_browser or "").strip().lower()
     if browser:
         allowed = {"chrome", "edge", "firefox", "brave", "vivaldi", "opera"}
@@ -6853,6 +6862,7 @@ def transcribe(args):
                 clip_start=clip_start, clip_end=clip_end,
                 audio_lang=args.youtube_audio_lang,
                 cookie_browser=args.youtube_cookie_browser,
+                rate_limit=(args.rate_limit or 0) or None,
             )
             cancellation_checkpoint("download", "after")
             cancellation_checkpoint("download", "handoff")
@@ -9764,6 +9774,8 @@ def main():
                         help="OpenAI uyumlu endpoint; shuaiapi rotalarinda otomatik yedekleme yapilir")
     parser.add_argument("--translate-model", default="gemini-3.8-flash")
     parser.add_argument("--translate-workers", type=int, default=4)
+    parser.add_argument("--rate-limit", type=int, default=0,
+                        help="yt-dlp indirme hızı sınırı (byte/s); 0 = sınırsız")
     parser.add_argument("--translate-register", default="documentary",
                         choices=["documentary", "drama", "comedy", "action", "general"])
     parser.add_argument("--translate-profanity", default="medium",

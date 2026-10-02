@@ -53,6 +53,10 @@ const state = {
   startTime: 0,
   _speedEma: 0,
   _etaBase: null,
+  _llmEtaBase: null,
+  // Madde 31 — aşama süresi geçmişi ({stage: [sec...]}) ile canlı kaynak serisi
+  stageDurationHistory: loadStageDurationHistory(),
+  jobResourceSeries: [],
   // Kuyruk
   queue: [],            // [{id, type:'file'|'youtube', input, label, status, files}]
   queueRunning: false,  // tüm kuyruk işleniyor mu?
@@ -324,7 +328,9 @@ function buildOptsFromUI() {
       ? $('translateBaseUrl').value.trim()
       : $('translateEndpointPreset').value,
     translateModel: $('translateModel').value.trim(),
-    translateWorkers: parseInt($('translateWorkers').value, 10),
+    translateWorkers: Math.min(
+      parseInt($('translateWorkers').value, 10),
+      resolveNetBudgetPreset().translateWorkers),
     translateRegister: $('translateRegister').value,
     translateContext: $('translateContext') ? $('translateContext').value : '4',
     translateCache: $('translateCache') ? $('translateCache').checked : true,
@@ -343,7 +349,16 @@ function buildOptsFromUI() {
     llmFixHallucination: $('llmFixHallucination').checked,
     llmFixPunctuation: $('llmFixPunctuation').checked,
     llmFixConsistency: $('llmFixConsistency').checked,
+    // Madde 33 — ağ bütçesi: seçilen preset indirme hızına (KB/s) çevrilir;
+    // çeviri eşzamanlılığı da preset ile sınırlanır (UI değeri üst sınır).
+    dlRateLimitKbps: resolveNetBudgetPreset().dlRateKbps,
   };
+}
+
+function resolveNetBudgetPreset() {
+  const H = globalThis.JobTimingHelpers;
+  const raw = $('networkBudget') ? $('networkBudget').value : 'full';
+  return H ? H.resolveNetworkBudget(raw) : { key: 'full', dlRateKbps: 0, translateWorkers: 6, pageWorkers: 4 };
 }
 
 // Tekil baslatma ve KUYRUK ayni on kontrollerden gecer. Eskiden kuyruk
@@ -742,6 +757,8 @@ async function processNextQueueItem() {
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -1339,6 +1356,56 @@ function resetStages() {
 // Aşama başına geçen süre: yeni aşamaya geçişte öncekinin süresini damgala
 let _activeStage = null;
 let _stageStart = 0;
+
+// Madde 31 — kalıcı aşama-süresi geçmişi (localStorage `whisper.stageStats`).
+// Bozuk kayıt sessizce sıfırlanır; ölçümü olmayan aşamaya uydurma ETA yazılmaz.
+function loadStageDurationHistory() {
+  try {
+    const raw = localStorage.getItem('whisper.stageStats');
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) { return {}; }
+}
+
+// Madde 35 — kaynak zaman çizelgesi: sparkline + aşama/özet satırı. Yalnız
+// sayısal ölçüm ve aşama adı gösterilir; kişisel içerik taşınmaz.
+function renderResourceTimeline() {
+  const H = globalThis.JobTimingHelpers;
+  const wrap = $('resourceTimeline');
+  if (!H || !wrap) return;
+  const series = state.jobResourceSeries;
+  if (!Array.isArray(series) || !series.length) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const svg = $('resourceSparkline');
+  if (svg) {
+    const pts = H.resourceSparkPoints(series, 'sysMemPct', 300, 40);
+    const gpuPts = H.resourceSparkPoints(series, 'gpuMemMb', 300, 40);
+    svg.innerHTML = (pts ? `<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>` : '')
+      + (gpuPts ? `<polyline points="${gpuPts}" fill="none" stroke="var(--info, #6aa6d8)" stroke-width="1.5" opacity="0.7"/>` : '');
+  }
+  const last = series[series.length - 1];
+  const en = window.UiLocale?.get?.() !== 'tr';
+  const parts = [
+    last.stage ? H.stageLabel(last.stage, en) : '',
+    Number.isFinite(last.sysMemPct) ? (en ? `RAM ${last.sysMemPct.toFixed(0)}%` : `RAM %${last.sysMemPct.toFixed(0)}`) : '',
+    Number.isFinite(last.gpuMemMb) ? `GPU ${Math.round(last.gpuMemMb)} MB` : '',
+    Number.isFinite(last.diskFreeMb) ? (en ? `disk ${H.formatBytesForUi(last.diskFreeMb * 1048576, en)} free` : `disk ${H.formatBytesForUi(last.diskFreeMb * 1048576, en)} boş`) : '',
+  ].filter(Boolean);
+  const el = $('resourceSummary');
+  if (el) el.textContent = parts.join(' · ') || '—';
+}
+
+$('resourceCopy')?.addEventListener('click', async () => {
+  const H = globalThis.JobTimingHelpers;
+  if (!H) return;
+  const text = H.formatResourceReport(state.jobResourceSeries, { en: window.UiLocale?.get?.() !== 'tr' });
+  try {
+    await window.api.copyText(text);
+    logLine(interfaceChoice('Kaynak zaman çizelgesi özeti panoya kopyalandı.', 'Resource timeline summary copied to clipboard.'), 'success');
+  } catch (_) {
+    logLine(interfaceChoice('Kopyalama başarısız.', 'Copy failed.'), 'error');
+  }
+});
 
 function formatTime(seconds) {
   if (!isFinite(seconds) || seconds < 0) return '—';
@@ -2492,6 +2559,157 @@ async function runIntegrityRepair(btn) {
 
 $('integrityScan')?.addEventListener('click', () => runIntegrityScan());
 
+// ===== Madde 33 — ağ kullanım bütçesi =====
+// Preset değişimi sürmekte olan scheduler'lara da anında uygulanır; indirme
+// hız sınırı ise yt-dlp başlangıç argümanı olduğu için bir sonraki işe etki eder.
+$('networkBudget')?.addEventListener('change', async () => {
+  const H = globalThis.JobTimingHelpers;
+  const preset = resolveNetBudgetPreset();
+  const label = H ? H.netBudgetLabel($('networkBudget').value, window.UiLocale?.get?.() !== 'tr') : preset.key;
+  try {
+    const r = await window.api.netBudget?.(preset.key);
+    const touched = Number(r?.touched) || 0;
+    logLine(interfaceChoice(
+      `Ağ bütçesi: ${label}${touched ? ` · ${touched} çalışan çeviri planlayıcısı güncellendi` : ''}`,
+      `Network budget: ${label}${touched ? ` · updated ${touched} running translation schedulers` : ''}`));
+  } catch (_) {
+    logLine(interfaceChoice(`Ağ bütçesi: ${label}`, `Network budget: ${label}`));
+  }
+});
+
+// ===== Madde 32 — donanım rehberi =====
+// Mevcut GPU/CPU/RAM'den model+batch uygunluğu gösterilir; öneri tek tıkla
+// gerçek UI select'lerine uygulanır (görünür değişiklik + kayıt).
+function hardwareGuideCtx() {
+  return {
+    gpuName: state.gpuName || (lastRuntimeStatusEnv?.gpu ? String(lastRuntimeStatusEnv.gpu).split(',')[0].trim() : ''),
+    vramMib: state.gpuVramMib || lastRuntimeStatusEnv?.vramMib || null,
+    cpuCount: lastRuntimeStatusEnv?.cpuCount || 0,
+    cpuModel: lastRuntimeStatusEnv?.cpuModel || '',
+    totalMemMib: lastRuntimeStatusEnv?.totalMemMib || 0,
+    computeType: $('computeType')?.value || 'float16',
+    engine: $('engine')?.value || 'faster',
+    batchSize: parseInt($('batchSize')?.value, 10) || 1,
+    diarize: !!$('diarize')?.checked,
+    en: window.UiLocale?.get?.() !== 'tr',
+  };
+}
+
+function renderHardwareGuide() {
+  const H = globalThis.JobTimingHelpers;
+  const box = $('hwGuideResults');
+  if (!H || !box) return;
+  const ctx = hardwareGuideCtx();
+  const en = ctx.en;
+  const rows = H.hardwareGuideRows(ctx);
+  const rec = H.recommendedHardwareConfig(ctx);
+  box.classList.remove('hidden');
+  const hwSummary = [
+    ctx.gpuName ? `${ctx.gpuName} · ${H.formatMib(ctx.vramMib, en)} VRAM` : (en ? 'No NVIDIA GPU' : 'NVIDIA GPU yok'),
+    ctx.cpuModel ? `${ctx.cpuModel} (${ctx.cpuCount} ${en ? 'cores' : 'çekirdek'})` : '',
+    ctx.totalMemMib ? `${H.formatMib(ctx.totalMemMib, en)} RAM` : '',
+  ].filter(Boolean).join(' · ');
+  const stateLabel = { fits: en ? 'fits' : 'sığar', tight: en ? 'tight' : 'sınırda', over: en ? 'too big' : 'sığmaz', unknown: '—' };
+  const stateClass = { fits: 'ready', tight: 'warning', over: 'error', unknown: 'warning' };
+  const list = rows.map((r) => {
+    const mark = r.id === rec.model ? ' ★' : '';
+    return `<div class="hwguide-row" data-state="${r.state}"><span>${r.id}${mark}</span>`
+      + `<span data-ui-untranslated>~${H.formatMib(r.need, en)}</span>`
+      + `<span data-state="${stateClass[r.state] || 'warning'}">${stateLabel[r.state] || r.state}</span></div>`;
+  }).join('');
+  const recLine = en
+    ? `Recommended: ${rec.model} · ${rec.device} · ${rec.computeType} · ${rec.engine} · batch ${rec.batchSize}`
+    : `Önerilen: ${rec.model} · ${rec.device} · ${rec.computeType} · ${rec.engine} · batch ${rec.batchSize}`;
+  const notes = (rec.notes || []).map((n) => `<p class="field-hint">${n}</p>`).join('');
+  box.innerHTML = `<div class="hwguide-summary">${hwSummary}</div>`
+    + `<div class="hwguide-grid">${list}</div>`
+    + `<p class="hwguide-rec" data-ui-untranslated>${recLine}</p>${notes}`;
+}
+
+function applyHardwareGuide() {
+  const H = globalThis.JobTimingHelpers;
+  if (!H) return;
+  const rec = H.recommendedHardwareConfig(hardwareGuideCtx());
+  const en = window.UiLocale?.get?.() !== 'tr';
+  const setIf = (id, value) => {
+    const el = $(id);
+    if (!el || value == null) return;
+    if (el.options && [...el.options].some((o) => o.value === String(value))) el.value = String(value);
+    else if (!el.options) el.value = String(value);
+    el.dispatchEvent(new Event('change'));
+  };
+  setIf('model', rec.model);
+  setIf('device', rec.device);
+  setIf('computeType', rec.computeType);
+  setIf('engine', rec.engine);
+  setIf('batchSize', rec.batchSize);
+  scheduleSave();
+  updateGpuBadge();
+  logLine(interfaceChoice(
+    `Donanım rehberi uygulandı: ${rec.model} · ${rec.device} · ${rec.computeType} · ${rec.engine} · batch ${rec.batchSize}`,
+    `Hardware guide applied: ${rec.model} · ${rec.device} · ${rec.computeType} · ${rec.engine} · batch ${rec.batchSize}`), 'success');
+}
+
+$('hwGuideToggle')?.addEventListener('click', () => {
+  const box = $('hwGuideResults');
+  if (box?.classList.contains('hidden')) renderHardwareGuide();
+  else box?.classList.add('hidden');
+});
+$('hwGuideApply')?.addEventListener('click', () => { renderHardwareGuide(); applyHardwareGuide(); });
+
+// ===== Madde 34 — önbellek yönetim ekranı =====
+// Boyut listesi + tür-bazlı temizlik; çalışan işin ihtiyacı olan dosyalar
+// main.js tarafında meşguliyet bekçisi + referans kümesiyle korunur.
+async function renderCacheStats() {
+  const H = globalThis.JobTimingHelpers;
+  const box = $('cacheResults');
+  if (!H || !box) return;
+  const en = window.UiLocale?.get?.() !== 'tr';
+  box.classList.remove('hidden');
+  box.innerHTML = `<p class="field-hint">${en ? 'Measuring...' : 'Ölçülüyor...'}</p>`;
+  const stats = await window.api.cacheStats?.().catch(() => null);
+  if (!stats?.ok) {
+    box.innerHTML = `<p class="field-hint">${en ? 'Cache stats unavailable.' : 'Önbellek bilgisi alınamadı.'}</p>`;
+    return;
+  }
+  const rows = H.cacheStatRows(stats.stats || stats, en);
+  const jobActive = !!(state.running || state.queueRunning || state.activeOutputJob);
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  box.innerHTML = rows.map((r) => {
+    const guard = H.cacheClearGuard(r.kind, { jobActive, en });
+    const disable = !r.clearable || !guard.ok;
+    return `<div class="cache-row"><span>${esc(r.label)}</span>`
+      + `<span data-ui-untranslated>${r.bytes == null ? '—' : esc(H.formatBytesForUi(r.bytes, en))}${r.detail ? ` · ${esc(r.detail)}` : ''}</span>`
+      + `<button class="btn btn-secondary btn-sm" data-cache-kind="${r.kind}" ${disable ? 'disabled' : ''}`
+      + (guard.ok ? '' : ` title="${esc(guard.reason)}"`) + `>${en ? 'Clear' : 'Temizle'}</button></div>`;
+  }).join('');
+  box.querySelectorAll('button[data-cache-kind]').forEach((btn) => {
+    btn.addEventListener('click', () => runCacheClear(btn.dataset.cacheKind));
+  });
+}
+
+async function runCacheClear(kind) {
+  const en = window.UiLocale?.get?.() !== 'tr';
+  const H = globalThis.JobTimingHelpers;
+  const guard = H?.cacheClearGuard(kind, { jobActive: state.running || state.queueRunning || state.activeOutputJob, en });
+  if (guard && !guard.ok) { logLine(guard.reason, 'warn'); return; }
+  try {
+    const r = await window.api.cacheClear?.(kind);
+    if (!r?.ok) {
+      logLine(interfaceChoice(`Önbellek temizlenemedi: ${r?.error || 'bilinmeyen hata'}`, `Cache clear failed: ${r?.error || 'unknown error'}`), 'error');
+      return;
+    }
+    const freed = H ? H.formatBytesForUi(r.freedBytes, en) : '';
+    logLine(interfaceChoice(`Önbellek temizlendi (${kind})${freed ? ` · ${freed} boşaltıldı` : ''}`,
+      `Cache cleared (${kind})${freed ? ` · freed ${freed}` : ''}`), 'success');
+  } catch (err) {
+    logLine(interfaceChoice(`Önbellek temizlenemedi: ${err?.message || err}`, `Cache clear failed: ${err?.message || err}`), 'error');
+  }
+  await renderCacheStats();
+}
+
+$('cacheRefresh')?.addEventListener('click', () => renderCacheStats());
+
 // YouTube URL alanında Enter → başlat
 $('youtubeUrl').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.isComposing && !state.running) {
@@ -2798,6 +3016,7 @@ const PERSIST_VALUE_CONTROLS = [
   'stCardScale', 'stCardFontScale',
   'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',
   'browserExportFormat', 'browserExportTiming', 'browserPageExportFormat', 'pdfExportFormat', 'pdfTargetLanguage',
+  'networkBudget',
 ];
 const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
@@ -3693,6 +3912,8 @@ $('startBtn').addEventListener('click', async () => {
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -4774,6 +4995,20 @@ window.api.onEvent((event) => {
         logLine(event.text);
         $('progressTime').textContent = event.text;
       }
+      // Madde 31 — ölçüm olayı üretmeyen aşamalarda (çıkarma, model yükleme,
+      // yazma, diarization) geçmiş medyanından dürüst ETA gösterilir; geçmiş
+      // yoksa hiçbir süre yazılmaz (sahte ETA yok).
+      {
+        const H = globalThis.JobTimingHelpers;
+        if (H && !event.text?.match(/kalan|remaining/i)) {
+          const silent = ['extract', 'load_model', 'write', 'diarize'].includes(String(event.stage));
+          if (silent) {
+            const eta = H.estimateStageEta(event.stage, { elapsedSec: 0, history: state.stageDurationHistory });
+            const suffix = H.formatStageEta(eta, window.UiLocale?.get?.() !== 'tr');
+            if (suffix) $('progressTime').textContent = `${$('progressTime').textContent}${suffix}`;
+          }
+        }
+      }
       break;
 
     case 'download_progress':
@@ -4862,9 +5097,55 @@ window.api.onEvent((event) => {
         state.activeOutputJob.percent = percent;
       }
       $('progressText').textContent = `${_lbl} ${percent.toFixed(1)}% (${event.done}/${event.total})`;
-      if (event.failed) $('progressTime').textContent = `${event.failed} blokta hata`;
+      if (event.failed) {
+        $('progressTime').textContent = `${event.failed} blokta hata`;
+      } else {
+        // Madde 31 — LLM/çeviri aşaması gerçek ölçümden ETA: adet/hız oranı
+        // done/total üzerinden; ilk ölçümde taban kurulur.
+        const done = Number(event.done) || 0;
+        const total = Number(event.total) || 0;
+        if (done > 0 && total > done) {
+          if (!state._llmEtaBase || done < state._llmEtaBase.done) {
+            state._llmEtaBase = { done, at: Date.now() };
+          }
+          const elapsed = (Date.now() - state._llmEtaBase.at) / 1000;
+          if (elapsed > 2) {
+            const rate = (done - state._llmEtaBase.done) / elapsed || done / elapsed;
+            if (rate > 0) {
+              const remaining = (total - done) / rate;
+              $('progressTime').textContent = interfaceChoice(
+                `${_lbl === 'Çevriliyor' ? 'çeviri' : 'LLM'} · kalan ~${formatTime(remaining)}`,
+                `${_lbl === 'Çevriliyor' ? 'translation' : 'LLM'} · ~${formatTime(remaining)} left`);
+            }
+          }
+        }
+      }
       break;
     }
+
+    case 'job_resource':
+      // Madde 35 — kaynak zaman çizelgesi: örnek seriye eklenip sparkline
+      // tazelenir; kişisel içerik (dosya adı/URL) taşınmaz.
+      {
+        const H = globalThis.JobTimingHelpers;
+        if (H) {
+          state.jobResourceSeries = H.appendResourceSample(state.jobResourceSeries, event);
+          renderResourceTimeline();
+        }
+      }
+      break;
+
+    case 'job_resource_final':
+      {
+        const H = globalThis.JobTimingHelpers;
+        if (H && Array.isArray(event.samples)) {
+          for (const s of event.samples) {
+            state.jobResourceSeries = H.appendResourceSample(state.jobResourceSeries, s);
+          }
+          renderResourceTimeline();
+        }
+      }
+      break;
 
     case 'preview_refresh':
       // LLM/diarization metni değiştirdi — önizlemeyi nihai çıktıyla tek seferde tazele
@@ -5320,6 +5601,8 @@ $('reexportJson').addEventListener('click', async () => {
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -5371,6 +5654,8 @@ $('syncBtn').addEventListener('click', async () => {
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -24452,6 +24737,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   state.outputFiles = [];
   $('startBtn').classList.add('hidden');
@@ -24604,6 +24891,8 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   state.cancelled = false;
   state._speedEma = 0;
   state._etaBase = null;
+  state._llmEtaBase = null;
+  state.jobResourceSeries = [];
   state.startTime = Date.now();
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [],
     selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };

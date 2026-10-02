@@ -394,6 +394,31 @@
                 <p class="field-hint">Kırık ilişkiler, mükerrer kimlikler ve bozuk kayıtlar taranır; onarım yalnızca seçilen bulgulara yedekli uygulanır.</p>
                 <div class="integrity-results hidden" id="integrityResults" role="status" aria-live="polite"></div>
               </div>
+              <div class="netbudget-tools">
+                <div class="field">
+                  <label class="field-label" for="networkBudget">Ağ kullanım bütçesi</label>
+                  <select id="networkBudget">
+                    <option value="full">Sınırsız (tam hız)</option>
+                    <option value="balanced">Dengeli — izleme için alan bırakır</option>
+                    <option value="saver">Tasarruf — en düşük ağ kullanımı</option>
+                  </select>
+                  <p class="field-hint">İndirme ve çeviri işlerinin oynatılan videonun ağ payını tüketmesini sınırlar. Değişiklik sürmekte olan çeviri işlerinde de anında uygulanır; indirme hız sınırı bir sonraki işe etki eder.</p>
+                </div>
+              </div>
+              <div class="hwguide-tools" id="hwGuideTools">
+                <div class="runtime-maintenance-actions">
+                  <button class="btn btn-secondary btn-sm" id="hwGuideToggle" type="button">Donanım rehberi</button>
+                  <button class="btn btn-secondary btn-sm" id="hwGuideApply" type="button">Önerilen ayarları uygula</button>
+                </div>
+                <div class="hwguide-results hidden" id="hwGuideResults"></div>
+              </div>
+              <div class="cache-tools" id="cacheTools">
+                <div class="runtime-maintenance-actions">
+                  <button class="btn btn-secondary btn-sm" id="cacheRefresh" type="button">Önbellek boyutları</button>
+                </div>
+                <p class="field-hint">Model, çeviri ve medya önbelleklerinin kapladığı alan; çalışan işin ihtiyaç duyduğu dosyalar temizlikte korunur.</p>
+                <div class="cache-results hidden" id="cacheResults"></div>
+              </div>
             </div>
           </details>
 
@@ -1061,6 +1086,13 @@
             <div class="progress-meta">
               <span id="progressText">0%</span>
               <span id="progressTime">—</span>
+            </div>
+            <div class="resource-timeline hidden" id="resourceTimeline">
+              <svg id="resourceSparkline" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div class="resource-timeline-meta">
+                <span id="resourceSummary" data-ui-untranslated>—</span>
+                <button class="btn btn-secondary btn-sm" id="resourceCopy" type="button">Özeti kopyala</button>
+              </div>
             </div>
           </div>
 
@@ -3523,6 +3555,7 @@
   </div>
 </div>
 
+<script src="../job-timing-helpers.js"></script>
 <script src="ui-locale.js"></script>
 <script src="status-copy.js"></script>
 <script src="timeline-issue-scan.js"></script>
