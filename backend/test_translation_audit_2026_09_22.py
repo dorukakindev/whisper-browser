@@ -235,6 +235,47 @@ class TranslationQualityEventTests(unittest.TestCase):
         self.assertEqual(quality[0]["model"], "m")
         self.assertEqual(quality[0]["invalid_batches"], 1)
         self.assertEqual(quality[0]["rejections"].get("kimlik_araligi_disinda"), 1)
+        # Tek toplu istekli iş (kalanı kurtarma/fallback): batches>=2 eşiği
+        # sağlanmaz, sağlıksız sayılmaz — tek seferlik tökezleme bildirim üretmez.
+        self.assertEqual(quality[0]["unhealthy"], False)
+
+    def test_unhealthy_flag_fires_when_batch_fail_ratio_high(self):
+        # 25 blok → 2 toplu paket; ilki 1'den numaralı (aralık dışı) dönüp
+        # invalid sayılır → 1/2 = %50 ≥ %25 eşiği, unhealthy=True.
+        calls = []
+
+        def handler(payload):
+            calls.append(1)
+            base = 1 if len(calls) == 1 else 0
+            return {str(item["i"] + base): "Çeviri " + str(item["i"]) + "." for item in payload["items"]}
+
+        install_provider(handler)
+        entries = [(i * 2, i * 2 + 1, f"Line {i}.") for i in range(25)]
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            T.llm_translate(entries, Args(), [], source_lang="en")
+        events = [json.loads(line) for line in buffer.getvalue().splitlines() if line.startswith("{")]
+        quality = [event for event in events if event.get("type") == "translation_quality"]
+        self.assertEqual(len(quality), 1)
+        self.assertGreaterEqual(quality[0]["batches"], 2)
+        self.assertGreaterEqual(quality[0]["invalid_batches"], 1)
+        self.assertEqual(quality[0]["unhealthy"], True)
+
+    def test_healthy_run_marks_unhealthy_false(self):
+        tr = {"One.": "Bir.", "Two.": "İki.", "Three.": "Üç."}
+
+        def handler(payload):
+            return {str(item["i"]): tr[item["t"]] for item in payload["items"]}
+
+        install_provider(handler)
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            T.llm_translate([(0, 2, "One."), (3, 5, "Two."), (6, 8, "Three.")], Args(), [], source_lang="en")
+        events = [json.loads(line) for line in buffer.getvalue().splitlines() if line.startswith("{")]
+        quality = [event for event in events if event.get("type") == "translation_quality"]
+        self.assertEqual(len(quality), 1)
+        self.assertEqual(quality[0]["invalid_batches"], 0)
+        self.assertEqual(quality[0]["unhealthy"], False)
 
 
 if __name__ == "__main__":

@@ -5366,6 +5366,19 @@ window.api.onEvent((event) => {
         elapsed: Number(event.elapsed) || 0,
       };
       renderTranslateCost();
+      // Bu işin kendi biçim-bozma oranı eşiği aştıysa kullanıcıya bildir:
+      // yalnızca akan günlükte kalmasın (arka plandayken OS bildirimi,
+      // odakta iken iş-bitim uyarıları warn_list üzerinden zaten gelir).
+      if (event.unhealthy && event.model) {
+        const _b = Number(event.batches) || 0;
+        const _pct = _b ? Math.round(100 * (Number(event.invalid_batches) || 0) / _b) : 0;
+        notifyDone(
+          interfaceChoice('Çeviri modeli sağlıksız yanıt üretiyor',
+            'Translation model is producing broken replies'),
+          interfaceChoice(
+            `${event.model}: toplu yanıtların %${_pct}'i geçersiz — daha kararlı bir modele geçmek maliyeti düşürür.`,
+            `${event.model}: ${_pct}% of batch replies were invalid — switching to a more stable model lowers the cost.`));
+      }
       break;
     }
     case 'llm_progress': {
