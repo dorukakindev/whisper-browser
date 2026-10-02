@@ -2118,15 +2118,15 @@ HALLUCINATION_PATTERNS = [
     re.compile(r"^\s*kanal[ıa]?\s+abone\s+ol.*$", re.IGNORECASE),
     re.compile(r"^\s*abone\s+olmay[ıi]?\s+unutmay[ıi]n.*$", re.IGNORECASE),
     re.compile(r"^\s*videoyu\s+be[ğg]enmeyi.*$", re.IGNORECASE),
-    re.compile(r"^\s*izledi[ğg]iniz\s+için\s+te[şs]ekk[üu]rler.*$", re.IGNORECASE),
+    re.compile(r"^\s*(?:izledi[ğg]iniz|dinledi[ğg]iniz)\s+için\s+te[şs]ekk[üu]rler.*$", re.IGNORECASE),
     # İngilizce
     re.compile(r"^\s*subtitles?\s*(by|:).*$", re.IGNORECASE),
     re.compile(r"^\s*amara\.org.*$", re.IGNORECASE),
-    re.compile(r"^\s*thanks?\s+for\s+watching.*$", re.IGNORECASE),
+    re.compile(r"^\s*thanks?\s*(?:you\s*)?for\s+(?:watching|listening)\b.*$", re.IGNORECASE),
     re.compile(r"^\s*don't\s+forget\s+to\s+(like|subscribe).*$", re.IGNORECASE),
     re.compile(r"^\s*like\s+(and|&)\s+subscribe.*$", re.IGNORECASE),
     re.compile(r"^\s*please\s+(like|subscribe).*$", re.IGNORECASE),
-    re.compile(r"^\s*see\s+you\s+(next\s+time|in\s+the\s+next).*$", re.IGNORECASE),
+    re.compile(r"^\s*(?:we'?ll\s+)?see\s+you\s+(?:next\s+time|in\s+the\s+next).*$", re.IGNORECASE),
     re.compile(r"^\s*hit\s+the\s+bell.*$", re.IGNORECASE),
     re.compile(r"^\s*copyright.*$", re.IGNORECASE),
     re.compile(r"^\s*transcri(ption|bed)\s+by.*$", re.IGNORECASE),
@@ -6125,7 +6125,8 @@ def snap_entries_to_regions(entries, starts, ends, max_shift=1.0, min_dur=0.6):
     return out, moved, (total / moved if moved else 0.0)
 
 
-def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=20.0):
+def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=20.0,
+                      media_end=None):
     """
     Profesyonel altyazı zamanlama normalizasyonu (Netflix/BBC tarzı).
     Yalnızca bitiş zamanlarını ayarlar (başlangıçları kaydırmaz → zincirleme kayma yok):
@@ -6138,6 +6139,9 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
     konuşma sürerken altyazının kaybolmasına yol açar. Uzun blok kalite
     raporunda işaretlenir; bölünecekse metin/zaman birlikte bölünmelidir.
     entries: [(start, end, text), ...] — zamana göre sıralı varsayılır.
+    media_end: medya/kesit sonu (saniye); verilirse son cue'nun bitişi bu
+    sınırı aşamaz — aksi halde okunabilirlik uzatması altyazıyı dosyanın
+    bittiği noktanın ötesine taşır.
     """
     if not entries:
         return entries
@@ -6179,6 +6183,8 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
             e = s
         next_start = out[i + 1][0] if i + 1 < n else None
         ceiling = (next_start - min_gap) if next_start is not None else None
+        if next_start is None and media_end is not None:
+            ceiling = media_end
 
         # Minimum süre — yer varsa uzat
         if e - s < min_dur:
@@ -7348,6 +7354,9 @@ def transcribe(args):
                 max_dur=args.max_duration,
                 min_gap=args.min_gap,
                 max_cps=args.max_cps,
+                # Kesit/duraklat-devam sürümünde ses sınırı orijinal eksende
+                # offset + kodlanan uzunluk; son cue dosya sonunu aşamaz.
+                media_end=time_offset + getattr(info, "duration", 0.0),
             )
             log(f"Zamanlama iyileştirildi (hedef en çok {args.max_cps:.0f} CPS, "
                 f"min {args.min_duration:.2f}s, boşluk {args.min_gap:.2f}s; "

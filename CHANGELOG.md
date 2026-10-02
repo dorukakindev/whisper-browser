@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Test: yeni-100 batch 1 (rapor 374) — `electron-journey-full` (içe aktar→gerçek transkribe→çevir→düzenle→dışa aktar tek akış), `electron-queue-cancel-mid` (kuyruk ortada-kullanıcı-iptali + devam), `electron-pdf-cancel-resume` (PDF çeviri iptal→tamamlanan korunur→devam) Electron smoke'ları.
 - Fix: yeni-100 batch 2 (rapor 375) — `pathToFileUrl` UNC ağ paylaşımında sunucu adını host olarak korur (eskiden yola katlanıp yerel dizine çözülüyordu) + `?` dosya-adı karakterini kodlar; `ENAMETOOLONG` dostça hata kuralı; `spawn`/`spawnSync`'te windowsHide yapısal varsayılan.
 - Test: `tests/fsync-rename-resilient.test.js` + `tests/windows-path-canonical.test.js` — Windows kilit/yol-katlaması kilidi.
+- Fix: yeni-100 batch 3 (rapor 376) — gerçek tiny/CPU kenar matrisi: "thank you for watching/listening" + "we'll see you" halüsinasyon kalıp boşlukları (saf sessizlikte "Thank you for watching." cue'su üretiliyordu) + `normalize_timings(media_end)` son cue medya-sonu kelepçesi.
+- Test: `tests/e2e-transcribe-edgecases.test.js` (opt-in `WHISPER_E2E=1`) — deterministik lavfi armatürleriyle 6 senaryo/18 kontrol (sessizlik, gürültü, bozuk, kısa, clip-offset+kelepçe, süre ötesi clip).
 
 ### Changed
 - Electron runtime `v43.5.0+wvcus` (castlabs) — GHSA aralığının dışına taşındı; `ELECTRON_COMMIT` supply-chain pini güncellendi, 56/56 Electron smoke yeşil.
