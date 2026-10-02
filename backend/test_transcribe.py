@@ -686,6 +686,59 @@ def test_strip_repeated_prefix():
     assert count == 2
 
 
+def test_dedupe_rolling_window_cues_youtube_pattern():
+    # Gerçek YouTube rolling-window: uzantı + saf kuyruk tekrarı zinciri.
+    entries = [
+        (1.14, 3.49, "tonight on border security a woman is stopped delivering an"),
+        (3.50, 6.47, "a woman is stopped delivering an"),
+        (6.47, 10.15, "a woman is stopped delivering an unusually heavy suitcase"),
+        (10.16, 13.43, "and what's discovered inside her bag is"),
+        (13.44, 15.25, "and what's discovered inside her bag is no laughing bag"),
+        (15.25, 15.26, "no laughing bag"),
+        (15.26, 21.05, "no laughing bag with this man yeah"),
+    ]
+    out, stripped, dropped = T.dedupe_rolling_window_cues(entries)
+    texts = [e[2] for e in out]
+    # [1] saf tekrar: [0]'ın kuyruğu — düşer, süresi [0]'a katlanır.
+    # [2] uzantı: [1]'in metniyle başlar — ama [1] düştü; karşılaştırma KAYNAK
+    # zincirine göre yapılır: [2] "a woman is stopped delivering an" ile başlar.
+    # [5] saf tekrar: [4]'ün kuyruğu — düşer.
+    # [6] uzantı: [5]'in metniyle başlar → "with this man yeah" kalır.
+    assert texts == [
+        "tonight on border security a woman is stopped delivering an",
+        "unusually heavy suitcase",
+        "and what's discovered inside her bag is",
+        "no laughing bag",
+        "with this man yeah",
+    ]
+    assert stripped == 3 and dropped == 2
+    # Zaman katlaması: [0]'ın bitişi düşen [1]'in bitişine uzar (6.47).
+    assert out[0][1] == 6.47
+    # [4] (düşmeden önceki son çıktı) [5]'in süresini devralmaz — [5] [4]'ün
+    # kuyruğu olup DÜŞER; [4]'ün bitişi 15.26'ya uzar.
+    assert out[3][1] == 15.26
+
+
+def test_dedupe_rolling_window_cues_safety_guards():
+    # Kelime ortası saf-tekrar eşleşmesi YASAK: "comedian".endswith("ian")
+    entries = [(0.0, 1.0, "he is a great comedian"), (1.1, 1.5, "ian")]
+    out, stripped, dropped = T.dedupe_rolling_window_cues(entries)
+    assert dropped == 0 and len(out) == 2
+    # <5 karakter tekrarlar düşmez (kısa gerçek replikler korunur).
+    entries = [(0.0, 1.0, "she said no, really no"), (1.1, 1.5, "no")]
+    out, _, dropped = T.dedupe_rolling_window_cues(entries)
+    assert dropped == 0 and len(out) == 2
+    # >=12 karakter olmayan önceki metin zincir başlatmaz.
+    entries = [(0.0, 1.0, "short one"), (1.1, 1.5, "short one plus more")]
+    out, stripped, dropped = T.dedupe_rolling_window_cues(entries)
+    assert stripped == 0 and dropped == 0 and len(out) == 2
+    # Uzak boşlukta dokunulmaz.
+    entries = [(0.0, 1.0, "a woman is stopped delivering an"),
+               (30.0, 31.0, "a woman is stopped delivering an")]
+    out, _, dropped = T.dedupe_rolling_window_cues(entries)
+    assert dropped == 0 and len(out) == 2
+
+
 def test_reconcile_rolling_hypotheses_repairs_real_progressive_asr_shapes():
     first, n1 = T.reconcile_rolling_hypotheses([
         (280.0, 285.0, "as well as its alchemical context of transformation,"),
