@@ -445,7 +445,7 @@ function startJobResourceSampler({ sendJobEvent, outputDir }) {
     const sysMemPct = Math.round(((total - os.freemem()) / total) * 1000) / 10;
     let gpuMemMb = null;
     try {
-      const gpu = rawSpawnSync('nvidia-smi', ['--query-gpu=memory.used', '--format=csv,noheader,nounits'],
+      const gpu = spawnSync('nvidia-smi', ['--query-gpu=memory.used', '--format=csv,noheader,nounits'],
         { timeout: 4000, encoding: 'utf-8', windowsHide: true });
       const mb = parseInt(String(gpu?.stdout || '').trim(), 10);
       if (Number.isFinite(mb)) gpuMemMb = mb;
@@ -464,6 +464,7 @@ function startJobResourceSampler({ sendJobEvent, outputDir }) {
       }
     } catch (_) {}
     const entry = { t: Date.now(), stage, sysMemPct, gpuMemMb, diskFreeMb,
+      lowDisk: Number.isFinite(diskFreeMb) && diskFreeMb < 512,
       cpuLoad: Math.round((os.loadavg()[0] || 0) / Math.max(1, os.cpus().length) * 100) / 100 };
     if (series.push(entry) > 480) series.shift();
     sendJobEvent({ type: 'job_resource', ...entry });
@@ -479,6 +480,39 @@ function startJobResourceSampler({ sendJobEvent, outputDir }) {
     },
   };
 }
+// Madde 43 — disk alanı ön kontrolü: uzun indirme/ses çıkarma/gömme öncesi
+// yaklaşık ihtiyaç hesaplanır; yetersizse iş sayılarla açık hata vererek durur.
+function diskFreeBytes(dirPath) {
+  let target = dirPath;
+  for (let i = 0; i < 8 && target; i += 1) {
+    try {
+      const st = fs.statfsSync(target);
+      const free = Number(st.bavail) * Number(st.bsize);
+      if (Number.isFinite(free) && free >= 0) return free;
+      return null;
+    } catch (_) { target = path.dirname(target); }
+  }
+  return null;
+}
+
+function formatDiskAmount(bytes) {
+  return bytes >= 1073741824
+    ? `${(bytes / 1073741824).toFixed(1)} GB`
+    : `${Math.ceil(bytes / 1048576)} MB`;
+}
+
+function diskSpaceError(needBytes, freeBytes, where) {
+  return `Disk alanı yetersiz: yaklaşık ${formatDiskAmount(needBytes)} boş alan gerekir, `
+    + `${formatDiskAmount(freeBytes)} boş (${where}). Başka dosyaları temizleyip yeniden deneyin.`;
+}
+
+// Çevrimdışı kapısı: net.isOnline renderer'daki navigator.onLine karşılığıdır;
+// belirsizde (API yoksa) isteği engelleme — çevrimiçi varsay.
+function networkOnline() {
+  try { return !(typeof net !== 'undefined' && net.isOnline && net.isOnline() === false); }
+  catch (_) { return true; }
+}
+
 const {
   buildSubtitleExtractionArgs,
   parseSubtitleStreams,
@@ -2481,6 +2515,92 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
 
 // Oynatıcıda düzeltilen altyazıyı diske yaz. İlk yazımda .bak yedeği alınır —
 // kullanıcı izlerken yaptığı düzeltmeyi geri alabilsin.
+// ===== Dışarıdan dosya değişikliği izleme =====
+// Madde 42 — açık altyazı dosyaları başka bir editörde değişince fark edilir.
+// Dosya yerine DİZİN izlenir: atomik yazım (geçici dosya + rename) dosya
+// kolağacını ilk rename'de öldürür, dizin olayı yeni dosya adıyla gelmeye
+// devam eder. Uygulamanın kendi writeSubtitleAtomic yazımları kısa süre
+// bastırılır (ownSubtitleWrites) — aksi halde her kayıt "dış değişiklik"
+// gibi görünür.
+const subtitleFileWatchers = new Map(); // dir -> { watcher, files: Map<basename, fullPath> }
+const subtitleWatchDebounce = new Map(); // fullPath -> timer
+const ownSubtitleWrites = new Map(); // resolvedPath -> suppress-until ts
+
+function markOwnSubtitleWrite(fullPath) {
+  try { ownSubtitleWrites.set(path.resolve(String(fullPath)), Date.now() + 2000); } catch (_) {}
+}
+
+function notifySubtitleFileChanged(fullPath) {
+  try {
+    const resolved = path.resolve(fullPath);
+    const suppressUntil = ownSubtitleWrites.get(resolved) || 0;
+    if (suppressUntil > Date.now()) { ownSubtitleWrites.delete(resolved); return; }
+    const stat = fs.statSync(fullPath);
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    // İçerik olayla gönderilir; çok büyük dosyada renderer ham okumaya düşer.
+    const content = stat.size <= 4 * 1024 * 1024 ? fs.readFileSync(fullPath, 'utf-8') : null;
+    mainWindow.webContents.send('subtitle:fileChanged', {
+      path: fullPath, mtimeMs: stat.mtimeMs, size: stat.size, content,
+    });
+  } catch (_) {}
+}
+
+function rebuildSubtitleWatchers(paths) {
+  const wanted = new Map(); // dir -> Map<basename, fullPath>
+  for (const p of paths.slice(0, 4)) {
+    const resolved = path.resolve(String(p));
+    const dir = path.dirname(resolved);
+    const base = path.basename(resolved);
+    if (!wanted.has(dir)) wanted.set(dir, new Map());
+    wanted.get(dir).set(base, resolved);
+  }
+  for (const [dir, entry] of subtitleFileWatchers) {
+    if (wanted.has(dir)) continue;
+    try { entry.watcher.close(); } catch (_) {}
+    subtitleFileWatchers.delete(dir);
+  }
+  for (const [dir, files] of wanted) {
+    const existing = subtitleFileWatchers.get(dir);
+    if (existing) { existing.files = files; continue; }
+    try {
+      const watcher = fs.watch(dir, { persistent: false }, (_event, filename) => {
+        if (!filename) return;
+        const entry = subtitleFileWatchers.get(dir);
+        const target = entry && entry.files.get(String(filename));
+        if (!target) return;
+        clearTimeout(subtitleWatchDebounce.get(target));
+        // Düzenleyiciler ardışık kaydeder; tek özet olay yeterli.
+        subtitleWatchDebounce.set(target, setTimeout(() => {
+          subtitleWatchDebounce.delete(target);
+          notifySubtitleFileChanged(target);
+        }, 400));
+      });
+      watcher.on('error', () => {
+        try { watcher.close(); } catch (_) {}
+        if (subtitleFileWatchers.get(dir)?.watcher === watcher) subtitleFileWatchers.delete(dir);
+      });
+      subtitleFileWatchers.set(dir, { watcher, files });
+    } catch (_) {}
+  }
+}
+
+ipcMain.handle('subtitle:watch', (event, payload = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const paths = (Array.isArray(payload.paths) ? payload.paths : [])
+    .filter((p) => typeof p === 'string' && p);
+  // Yalnız daha önce yetkilendirilmiş dosyalar izlenir — izleme isteği asla
+  // erişim izni diyaloğu üretmez; izinsiz yol sessizce atlanır.
+  const authorized = [];
+  for (const p of paths) {
+    try {
+      const target = subtitleFileAccess.inspect(p);
+      if (subtitleFileAccess.has(target)) authorized.push(target);
+    } catch (_) {}
+  }
+  rebuildSubtitleWatchers(authorized);
+  return { ok: true, watching: authorized.length };
+});
+
 // ===== Klasör izleme =====
 // Bir klasöre yeni video düşünce kuyruğa eklenir. Kopyalama bitmeden işlememek için
 // dosya boyutu iki ölçüm arasında DEĞİŞMEYİNCE "hazır" sayılır (subgen'de de aynı sorun).
@@ -2693,6 +2813,8 @@ function writeSubtitleAtomic(filePath, text, validateTemporary = null, io = fs) 
     io.writeFileSync(tmp, data, 'utf-8');
     if (typeof validateTemporary === 'function') validateTemporary(tmp);
     renameSyncResilient(io, tmp, filePath);
+    // Kendi yazımımız dış-değişiklik izleyicisini tetiklemesin (madde 42).
+    markOwnSubtitleWrite(filePath);
   } catch (error) {
     try { if (io.existsSync(tmp)) io.unlinkSync(tmp); } catch (_) {}
     throw error;
@@ -3069,8 +3191,63 @@ function migrateSubtitleModelDefault(settings) {
 }
 
 let settingsLoadWarning = '';
+
+// Madde 46 — yükseltme öncesi veri yedeği: sürüm değişince userData kökündeki
+// JSON durum dosyaları herhangi bir migration yazımından ÖNCE anlık
+// görüntülenir. İlk kurulumda (marker yok) yedek alınmaz.
+let preupgradeSnapshotDone = false;
+function snapshotUserDataBeforeUpgrade() {
+  if (preupgradeSnapshotDone) return;
+  preupgradeSnapshotDone = true;
+  try {
+    const dir = app.getPath('userData');
+    const markerPath = path.join(dir, 'app-version.json');
+    const current = String(app.getVersion() || '');
+    if (!current) return;
+    let previous = '';
+    try {
+      previous = String(JSON.parse(fs.readFileSync(markerPath, 'utf-8'))?.version || '');
+    } catch (_) {}
+    if (!previous || previous === current) {
+      if (previous !== current) {
+        try { writeJsonAtomic(markerPath, { version: current, recordedAt: new Date().toISOString() }); } catch (_) {}
+      }
+      return;
+    }
+    const backupDir = path.join(dir, 'preupgrade-backup', previous.replace(/[^\w.-]/g, '_'));
+    fs.mkdirSync(backupDir, { recursive: true });
+    // Yalnız kök JSON durum dosyaları (ayarlar, kuyruk, kütüphane, oturum,
+    // kurtarma kayıtları); büyük/blob dizinler kopyalanmaz.
+    let copied = 0;
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.toLowerCase().endsWith('.json') || name === 'app-version.json') continue;
+      try {
+        const src = path.join(dir, name);
+        const st = fs.statSync(src);
+        if (!st.isFile() || st.size > 8 * 1024 * 1024) continue;
+        fs.copyFileSync(src, path.join(backupDir, name));
+        copied += 1;
+      } catch (_) {}
+      if (copied >= 64) break;
+    }
+    try {
+      writeJsonAtomic(path.join(backupDir, 'backup-info.json'), {
+        fromVersion: previous, toVersion: current,
+        createdAt: new Date().toISOString(), files: copied,
+      });
+    } catch (_) {}
+    try { writeJsonAtomic(markerPath, { version: current, recordedAt: new Date().toISOString() }); } catch (_) {}
+    if (copied) {
+      settingsLoadWarning = [settingsLoadWarning,
+        `Yükseltme öncesi ${copied} veri dosyası yedeklendi: ${backupDir}`]
+        .filter(Boolean).join(' · ');
+    }
+  } catch (_) {}
+}
+
 function loadSettings() {
   settingsLoadWarning = '';
+  snapshotUserDataBeforeUpgrade();
   try {
     recoverJsonTransaction(path.join(app.getPath('userData'), '.whisper-settings-transaction.json'));
   } catch (_) {
@@ -19190,6 +19367,10 @@ ipcMain.handle('subscriptions:import', async (event) => {
 // 256 KB / 8 sn / 4 eşzamanlı sınır, kanal başına hata tek tek toplanır.
 ipcMain.handle('subs:rssFeed', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Madde 44 — çevrimdışıyken besleme çekmek yerine anlaşılır durum dön.
+  if (!networkOnline()) {
+    return { ok: false, offline: true, error: 'İnternet bağlantısı yok; abonelik akışları çevrimdışıyken güncellenemez.' };
+  }
   const raw = Array.isArray(payload && payload.channels) ? payload.channels : [];
   const channels = [];
   const seenIds = new Set();
@@ -19254,8 +19435,24 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
   return { ok: true, videos, errors, skipped: raw.length - channels.length };
 });
 
-ipcMain.handle('settings:export', async (event) => {
+ipcMain.handle('settings:export', async (event, payload = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  // Madde 41 — yedek kapsamı: kullanıcı hangi bölümlerin çıkacağını seçer;
+  // kapsam dışı bölümler dosyaya hiç yazılmaz (undefined anahtarlar JSON'da
+  // düşer). Hesap sırları ve API anahtarları her kapsamda redakte edilir.
+  const scope = ['all', 'settings', 'browser', 'library', 'notes'].includes(payload?.scope)
+    ? payload.scope : 'all';
+  const scopeLabels = {
+    all: dt('Tümü (ayarlar + tarayıcı + kütüphane + notlar)', 'All (settings + browser + library + notes)'),
+    settings: dt('Yalnız ayarlar', 'Settings only'),
+    browser: dt('Yalnız tarayıcı verisi (geçmiş/yer imleri + kütüphane)', 'Browser data only (history/bookmarks + library)'),
+    library: dt('Yalnız izleme kütüphanesi', 'Watch library only'),
+    notes: dt('Yalnız notlar', 'Notes only'),
+  };
+  const wantSettings = scope === 'all' || scope === 'settings';
+  const wantPlaces = scope === 'all' || scope === 'browser';
+  const wantLibrary = scope === 'all' || scope === 'browser' || scope === 'library';
+  const wantNotes = scope === 'all' || scope === 'notes';
   const result = await dialog.showSaveDialog(mainWindow, {
     title: dt('Uygulama yedeğini dışa aktar', 'Export app backup'),
     defaultPath: 'whisper-altyazi-yedek.json',
@@ -19263,24 +19460,28 @@ ipcMain.handle('settings:export', async (event) => {
   });
   if (result.canceled || !result.filePath) return { ok: false };
   try {
-    const noteStore = ensureBrowserNotesReady();
-    if (noteStore.loadError || noteStore.migrationError) {
-      return { ok: false, error: noteStore.loadError || noteStore.migrationError };
+    const extra = {};
+    if (wantNotes) {
+      const noteStore = ensureBrowserNotesReady();
+      if (noteStore.loadError || noteStore.migrationError) {
+        return { ok: false, error: noteStore.loadError || noteStore.migrationError };
+      }
+      extra.learningAnnotations = noteStore.list().map((annotation) => ({
+          ...annotation,
+          mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
+            ? persistentBrowserMediaUrl(annotation.mediaUrl) : annotation.mediaUrl,
+        }));
     }
-    const learningAnnotations = noteStore.list().map((annotation) => ({
-        ...annotation,
-        mediaUrl: /^https?:/i.test(annotation.mediaUrl || '')
-          ? persistentBrowserMediaUrl(annotation.mediaUrl) : annotation.mediaUrl,
-      }));
     const backup = createBackupPayload(
-      loadSettings(),
-      browserPlacesSnapshot(),
-      loadWatchLibraryAll(),
+      wantSettings ? loadSettings() : undefined,
+      wantPlaces ? browserPlacesSnapshot() : undefined,
+      wantLibrary ? loadWatchLibraryAll() : undefined,
       new Date(),
-      { learningAnnotations },
+      extra,
     );
     writeJsonTransaction([{ filePath: result.filePath, value: backup }]);
-    return { ok: true, path: result.filePath };
+    return { ok: true, path: result.filePath, scope, scopeLabel: scopeLabels[scope],
+      secretsExcluded: true };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -19297,39 +19498,61 @@ ipcMain.handle('settings:import', async (event) => {
   try {
     const currentSettings = loadSettings();
     const imported = parseImportText(readImportFile(result.filePaths[0]), currentSettings);
+    const importedSettings = imported.settings || {};
     const changedPaths = [
       ['inputDir', 'Girdi klasörü'],
       ['outputDir', 'Çıktı klasörü'],
       ['watchDir', 'İzleme klasörü'],
       ['lastInputDir', 'Son girdi klasörü'],
-    ].filter(([key]) => imported.settings[key]
-      && path.win32.normalize(imported.settings[key]) !== path.win32.normalize(currentSettings[key] || ''));
+    ].filter(([key]) => importedSettings[key]
+      && path.win32.normalize(importedSettings[key]) !== path.win32.normalize(currentSettings[key] || ''));
     const stripTag = (id) => String(id || '').replace(/^(?:preset|custom):/, '') || 'varsayılan';
     const translateIdOf = (s) => endpointIdentity(s.translate,
       { ui: s.ui, uiKeys: ['translateEndpointPreset', 'translateBaseUrl'], defaultPreset: 'https://api.shuaiapi.com/v1' });
     const prevTranslateId = translateIdOf(currentSettings);
-    const nextTranslateId = translateIdOf(imported.settings);
+    const nextTranslateId = imported.settings ? translateIdOf(imported.settings) : prevTranslateId;
     const endpointWarnings = [];
     if (prevTranslateId !== nextTranslateId) {
       endpointWarnings.push(`Çeviri endpoint'i: ${stripTag(prevTranslateId)} → ${stripTag(nextTranslateId)}`);
     }
-    if (endpointIdentity(currentSettings.manga, { inherited: prevTranslateId, defaultPreset: 'inherit' })
+    if (imported.settings && endpointIdentity(currentSettings.manga, { inherited: prevTranslateId, defaultPreset: 'inherit' })
         !== endpointIdentity(imported.settings.manga, { inherited: nextTranslateId, defaultPreset: 'inherit' })) {
       endpointWarnings.push('Manga çeviri endpoint\'i değişiyor.');
     }
-    if (endpointIdentity(currentSettings.llm) !== endpointIdentity(imported.settings.llm)) {
+    if (imported.settings && endpointIdentity(currentSettings.llm) !== endpointIdentity(imported.settings.llm)) {
       endpointWarnings.push('LLM endpoint\'i değişiyor.');
     }
-    if (changedPaths.length || endpointWarnings.length) {
+    // Madde 41 — geri yükleme öncesi fark özeti: hangi bölümün kaç kayıtla
+    // değişeceği onay diyaloğunda görünür.
+    const sectionDiffs = [];
+    if (imported.bundled && imported.browserPlaces) {
+      const places = browserPlacesSnapshot();
+      const next = imported.browserPlaces;
+      const diff = [
+        `Geçmiş: ${places.history.length} → ${(Array.isArray(next.history) ? next.history.length : 0)}`,
+        `yer imleri: ${places.bookmarks.length} → ${(Array.isArray(next.bookmarks) ? next.bookmarks.length : 0)}`,
+      ].join(', ');
+      if (!diff.startsWith('Geçmiş: 0 → 0')) sectionDiffs.push(`Tarayıcı yerleri (${diff})`);
+    }
+    if (imported.bundled && Array.isArray(imported.watchLibrary)) {
+      sectionDiffs.push(`İzleme kütüphanesi: ${loadWatchLibraryAll().length} → ${imported.watchLibrary.length} öğe`);
+    }
+    if (imported.bundled && Array.isArray(imported.learningAnnotations)) {
+      sectionDiffs.push(`Notlar: ${imported.learningAnnotations.length} kayıt yedeğe dahil (yalnız eksikler eklenir)`);
+    }
+    if (changedPaths.length || endpointWarnings.length || sectionDiffs.length) {
       const confirmation = await dialog.showMessageBox(mainWindow, {
         type: 'warning',
         title: dt('İçe aktarım değişikliklerini onayla', 'Confirm import changes'),
         message: endpointWarnings.length
           ? dt('İçe aktarılan ayarlar çeviri endpoint adresini değiştiriyor. Güvenlik gereği mevcut API anahtarları yeni endpoint\'e taşınmadı; gerekirse yeniden girin.', 'The imported settings change the translation endpoint address. For security, existing API keys were not carried to the new endpoint; re-enter them if needed.')
-          : dt('İçe aktarılan ayarlar dosya klasörlerini değiştirecek.', 'The imported settings will change file folders.'),
+          : dt('İçe aktarım mevcut verilerin bir kısmını değiştirecek.', 'The import will change part of the current data.'),
         detail: [
-          ...changedPaths.map(([key, label]) => `${label}: ${imported.settings[key]}`),
+          ...changedPaths.map(([key, label]) => `${label}: ${importedSettings[key]}`),
           ...endpointWarnings,
+          ...sectionDiffs,
+          // Madde 41 — hesap sırları taşınma sınırı her içe aktarımda görünür.
+          dt('Hesap sırları ve API anahtarları yedek dosyasına yazılmaz; içe aktarım mevcut sırlarınızı korur.', 'Account secrets and API keys are never written to backup files; the import keeps your existing secrets.'),
         ].join('\n'),
         buttons: [dt('İçe aktar', 'Import'), dt('Vazgeç', 'Cancel')],
         defaultId: 1,
@@ -19338,10 +19561,13 @@ ipcMain.handle('settings:import', async (event) => {
       });
       if (confirmation.response !== 0) return { ok: false, canceled: true };
     }
-    const entries = [{
-      filePath: settingsPath(),
-      value: getSettingsSecretStore().forExport(imported.settings),
-    }];
+    const entries = [];
+    if (imported.settings) {
+      entries.push({
+        filePath: settingsPath(),
+        value: getSettingsSecretStore().forExport(imported.settings),
+      });
+    }
     let importedBrowserPlaces = null;
     let importedWatchLibrary = null;
     if (imported.bundled && imported.browserPlaces !== undefined) {
@@ -19370,8 +19596,9 @@ ipcMain.handle('settings:import', async (event) => {
     }
     // Önce bütün bölümleri doğrula, sonra settings + browser dosyalarını tek
     // transaction ile kur. Watch verisi K1'in sürümlü/tombstone'lu deposundan
-    // geçer; düz JSON yazarak store zarfını bypass etme.
-    writeJsonTransaction(entries);
+    // geçer; düz JSON yazarak store zarfını bypass etme. Kapsamlı yedek
+    // yalnız notları içeriyorsa yazılacak dosya olmayabilir.
+    if (entries.length) writeJsonTransaction(entries);
     if (importedBrowserPlaces) {
       browserPlacesCache = importedBrowserPlaces;
       browserPlacesDirty = false;
@@ -19786,6 +20013,18 @@ function readTimelineRecovery() {
 ipcMain.handle('timeline:recovery', (event, payload = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const action = String(payload.action || '');
+  // Madde 45 — kurtarma merkezi tüm kayıtları tek çağrıda listeler.
+  if (action === 'list') {
+    const records = readTimelineRecovery();
+    return {
+      ok: true,
+      records: Object.entries(records).map(([key, rec]) => ({
+        sourceKey: key,
+        savedAt: Number(rec?.savedAt) || 0,
+        cueCount: Array.isArray(rec?.cues) ? rec.cues.length : 0,
+      })).sort((a, b) => b.savedAt - a.savedAt).slice(0, 50),
+    };
+  }
   const sourceKey = String(payload.sourceKey || '').slice(0, 1024);
   if (!sourceKey) return { ok: false, error: 'Kaynak kimliği eksik.' };
   try {
@@ -19997,6 +20236,16 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
   const ffmpeg = resolveFfTool('ffmpeg');
   const ffprobe = resolveFfTool('ffprobe');
   const { outPath, tempPath } = burninOutputPaths(videoPath);
+  // Madde 43 — gömme geçici çıktısı kaynak video boyutuna yakındır; yazmadan
+  // önce hedef klasörde yer var mı bak.
+  try {
+    const videoBytes = fs.statSync(videoPath).size;
+    const burninNeed = Math.ceil(videoBytes * 1.05) + 64 * 1048576;
+    const burninFree = diskFreeBytes(path.dirname(outPath));
+    if (Number.isFinite(burninFree) && burninFree < burninNeed) {
+      return { ok: false, error: diskSpaceError(burninNeed, burninFree, path.dirname(outPath)) };
+    }
+  } catch (_) {}
   let filterSubPath;
   try {
     // libass'in Windows filtre ayrıştırıcısı kesme işaretli yolları bozabiliyor.
@@ -20356,6 +20605,36 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // hic girme — devam etmek UI'da gorunmeyen sahipsiz bir surec birakirdi.
   if (jobCancelSeq === startSeq) {
     return { ok: false, cancelled: true, error: 'İş başlatılırken iptal edildi.' };
+  }
+
+  // Madde 43 — disk alanı ön kontrolü: indirme ve ses çıkarma büyük geçici
+  // dosyalar yazmadan önce yaklaşık ihtiyaç hesaplanır. Metin-üretimi işleri
+  // (reexport/translateOnly/explain/chat) büyük geçici yazmadığından atlanır.
+  if (!options.reexport && !options.translateOnly && !options.explain && !options.chat) {
+    try {
+      let tmpNeed = 512 * 1048576;
+      if (options.youtube) {
+        tmpNeed = 3 * 1073741824;
+      } else if (options.input) {
+        try {
+          const ffprobe = resolveFfTool('ffprobe');
+          const dur = parseFloat(await probeCommand(ffprobe,
+            ['-v', 'error', '-show_entries', 'format=duration', '-of',
+              'default=noprint_wrappers=1:nokey=1', options.input])) || 0;
+          // 16kHz mono PCM ≈ 32 KB/sn; süre okunamazsa 512 MB varsayımı yeterli.
+          if (dur > 0) tmpNeed = Math.ceil(dur * 32000) + 64 * 1048576;
+        } catch (_) {}
+      }
+      const tmpFree = diskFreeBytes(os.tmpdir());
+      if (Number.isFinite(tmpFree) && tmpFree < tmpNeed) {
+        return { ok: false, error: diskSpaceError(tmpNeed, tmpFree, os.tmpdir()) };
+      }
+      const outNeed = 256 * 1048576;
+      const outFree = diskFreeBytes(options.outputDir);
+      if (Number.isFinite(outFree) && outFree < outNeed) {
+        return { ok: false, error: diskSpaceError(outNeed, outFree, options.outputDir) };
+      }
+    } catch (_) {}
   }
 
   const appDir = appResourceRoot();
@@ -20917,7 +21196,30 @@ ipcMain.handle('ocr:frame', async (event, payload = {}) => {
   }
 });
 
+// Madde 48 — güncelleme ön kontrolü: kullanıcı yeni sürüm kurmadan önce açık
+// işler, kurtarılabilir kayıtlar, disk ve bağlantı durumunu tek çağrıda görür.
+ipcMain.handle('maintenance:updatePrecheck', async (event) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  let burnin = null;
+  try { burnin = await inspectBurninRecovery(); } catch (_) {}
+  let browserJobs = 0;
+  try { browserJobs = (browserUnifiedJobsSnapshot() || []).length; } catch (_) {}
+  return {
+    ok: true,
+    transcribeActive: !!activeJob,
+    burninRecoverable: !!(burnin && burnin.available),
+    browserJobs,
+    offline: !networkOnline(),
+    tmpFreeBytes: diskFreeBytes(os.tmpdir()),
+    dataFreeBytes: diskFreeBytes(app.getPath('userData')),
+  };
+});
+
 ipcMain.handle('maintenance:updateYtdlp', async (event) => {
+  // Madde 44 — çevrimdışıyken güncelleme denemesi yerine açık durum dön.
+  if (!networkOnline()) {
+    return { ok: false, offline: true, error: 'İnternet bağlantısı yok; yt-dlp güncellemesi çevrimdışıyken yapılamaz.' };
+  }
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (activeJob) return { ok: false, error: 'Bir iş çalışırken güncelleme yapılamaz.' };
   if (updateJob) return { ok: false, error: 'Güncelleme zaten çalışıyor.' };

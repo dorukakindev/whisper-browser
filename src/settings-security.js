@@ -27,6 +27,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'minSpeakers', 'maxSpeakers', 'speakerMap', 'llmWorkers',
   'translateTo', 'translateEndpointPreset', 'translateModel', 'translateWorkers',
   'translateRegister', 'translateProfanity', 'translateBaseUrl', 'translateContext',
+  'abModel', 'translatePriceIn', 'translatePriceOut',
   'subSize', 'subOffset', 'playerSpeed', 'playerVolume', 'playerPlaybackPolicy', 'playerCueRepeatCount', 'youtubeCookieBrowser',
   'browserMangaTarget', 'browserMangaFont', 'browserMangaWorkers', 'browserMangaMaxImages', 'browserMangaFontScale',
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
@@ -37,6 +38,7 @@ const PERSIST_VALUE_CONTROLS = Object.freeze([
   'stCardScale', 'stCardFontScale',
   'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',
   'browserExportFormat', 'browserExportTiming', 'browserPageExportFormat', 'pdfExportFormat', 'pdfTargetLanguage',
+  'networkBudget',
 ]);
 
 const PERSIST_CHECKBOX_CONTROLS = Object.freeze([
@@ -101,6 +103,7 @@ const UI_ENUMS = Object.freeze({
   pdfExportFormat: ['txt', 'md', 'html'],
   pdfTargetLanguage: ['tr', 'en', 'de', 'fr', 'es'],
   browserPageExportFormat: ['txt', 'md', 'html', 'json'],
+  networkBudget: ['full', 'balanced', 'saver'],
 });
 
 const UI_NUMERIC_RANGES = Object.freeze({
@@ -112,6 +115,7 @@ const UI_NUMERIC_RANGES = Object.freeze({
   compressionRatioThreshold: [1.5, 4], logProbThreshold: [-3, 0], noSpeechThreshold: [0.1, 0.9],
   vadMinSpeechMs: [0, 1000], vadMinSilenceMs: [100, 3000], vadSpeechPadMs: [0, 500],
   vadMaxSpeechS: [0, 60], translateWorkers: [1, 10], llmWorkers: [1, 10], playerVolume: [0, 100],
+  translatePriceIn: [0, 10000], translatePriceOut: [0, 10000],
   playerCueRepeatCount: [2, 20],
   subSize: [14, 56], subOffset: [-10, 10], browserMangaWorkers: [1, 6],
   browserMangaMaxImages: [1, 120], browserMangaFontScale: [70, 170],
@@ -617,17 +621,27 @@ function parseImportText(text, existingSettings = {}) {
   let rawSettings = redactedData;
   if (hasVersion) {
     const version = Number(redactedData.backupVersion);
-    if (![2, 3].includes(version) || !isPlainRecord(redactedData.settings)) {
-      throw new SettingsValidationError('Yedek sürümü desteklenmiyor veya ayar bölümü geçersiz.');
+    if (![2, 3].includes(version)) {
+      throw new SettingsValidationError('Yedek sürümü desteklenmiyor.');
     }
     bundled = true;
-    rawSettings = redactedData.settings;
+    // Kapsamlı yedeklerde ayar bölümü bulunmayabilir — o durumda ayar dosyası
+    // hiç yazılmaz, yalnız mevcut bölümler geri yüklenir.
+    rawSettings = isPlainRecord(redactedData.settings) ? redactedData.settings : undefined;
+    if (rawSettings === undefined
+        && redactedData.browserPlaces === undefined
+        && redactedData.watchLibrary === undefined
+        && !Array.isArray(redactedData.learningAnnotations)) {
+      throw new SettingsValidationError('Yedek dosyasında geri yüklenebilecek bölüm yok.');
+    }
   }
-  const settings = sanitizeSettings(rawSettings, { allowSecrets: false, existingSettings });
+  const settings = rawSettings !== undefined
+    ? sanitizeSettings(rawSettings, { allowSecrets: false, existingSettings })
+    : undefined;
   return {
     bundled,
     settings,
-    publicSettings: publicSettings(settings),
+    publicSettings: settings ? publicSettings(settings) : undefined,
     browserPlaces: bundled ? redactedData.browserPlaces : undefined,
     watchLibrary: bundled ? redactedData.watchLibrary : undefined,
     learningAnnotations: bundled ? redactedData.learningAnnotations : undefined,

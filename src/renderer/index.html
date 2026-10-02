@@ -394,6 +394,20 @@
                 <p class="field-hint">Kırık ilişkiler, mükerrer kimlikler ve bozuk kayıtlar taranır; onarım yalnızca seçilen bulgulara yedekli uygulanır.</p>
                 <div class="integrity-results hidden" id="integrityResults" role="status" aria-live="polite"></div>
               </div>
+              <div class="integrity-tools" id="recoveryCenterTools">
+                <div class="runtime-maintenance-actions">
+                  <button class="btn btn-secondary btn-sm" id="recoveryCenterBtn" type="button">Kurtarma merkezini aç</button>
+                </div>
+                <p class="field-hint">Yarım kalan işler, geçici çıktılar ve kurtarılabilir düzenlemeler tek yerde listelenir; devam etme veya güvenli temizleme yapılabilir.</p>
+                <div class="integrity-results hidden" id="recoveryResults" role="status" aria-live="polite"></div>
+              </div>
+              <div class="integrity-tools" id="updatePrecheckTools">
+                <div class="runtime-maintenance-actions">
+                  <button class="btn btn-secondary btn-sm" id="updatePrecheckBtn" type="button">Güncelleme ön kontrolü</button>
+                </div>
+                <p class="field-hint">Yeni sürüm kurmadan önce açık işler, kurtarılabilir kayıtlar, bağımlılıklar ve disk alanı denetlenir; gerekirse önce yedek alın.</p>
+                <div class="integrity-results hidden" id="updatePrecheckResults" role="status" aria-live="polite"></div>
+              </div>
               <div class="netbudget-tools">
                 <div class="field">
                   <label class="field-label" for="networkBudget">Ağ kullanım bütçesi</label>
@@ -1079,6 +1093,7 @@
               <h2>İlerleme</h2>
             </div>
             <div class="status-pill" id="statusPill" role="status" aria-live="polite">Hazır</div>
+            <span class="net-badge hidden" id="netBadge" role="status" aria-live="polite">Çevrimdışı</span>
           </div>
 
           <div class="progress-wrap">

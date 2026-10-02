@@ -279,11 +279,12 @@ contextBridge.exposeInMainWorld('api', {
   saveQueueState: (snapshot) => ipcRenderer.invoke('queue:save', snapshot),
   saveQueueStateSync: (snapshot) => ipcRenderer.sendSync('queue:saveSync', snapshot),
   saveImage: (payload) => ipcRenderer.invoke('media:saveImage', payload),
-  exportSettings: () => ipcRenderer.invoke('settings:export'),
+  exportSettings: (payload) => ipcRenderer.invoke('settings:export', payload),
   importSettings: () => ipcRenderer.invoke('settings:import'),
   startTranscribe: (opts) => ipcRenderer.invoke('transcribe:start', opts),
   cancelTranscribe: () => ipcRenderer.invoke('transcribe:cancel'),
   updateYtdlp: () => ipcRenderer.invoke('maintenance:updateYtdlp'),
+  updatePrecheck: () => ipcRenderer.invoke('maintenance:updatePrecheck'),
   integrityScan: () => ipcRenderer.invoke('integrity:scan'),
   ocrStatus: (refresh) => ipcRenderer.invoke('ocr:status', { refresh: refresh === true }),
   ocrFrame: (payload) => ipcRenderer.invoke('ocr:frame', payload),
@@ -305,5 +306,12 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on('burnin:event', listener);
     return () => ipcRenderer.removeListener('burnin:event', listener);
+  },
+  // Madde 42 — altyazı dosyası dışarıdan değişince bildirim.
+  watchSubtitlePaths: (payload) => ipcRenderer.invoke('subtitle:watch', payload),
+  onSubtitleFileChanged: (cb) => {
+    const listener = (_event, payload) => cb(payload);
+    ipcRenderer.on('subtitle:fileChanged', listener);
+    return () => ipcRenderer.removeListener('subtitle:fileChanged', listener);
   },
 });

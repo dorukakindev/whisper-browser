@@ -278,6 +278,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserSearchEngine: 'duckduckgo', aiTranscriptScope: 'watched',
     browserPageScope: 'article', browserExportFormat: 'vtt', browserExportTiming: 'original',
     pdfExportFormat: 'txt', pdfTargetLanguage: 'en', browserPageExportFormat: 'txt',
+    networkBudget: 'balanced',
   };
   const numericValues = {
     beamSize: '5', bestOf: '5', batchSize: '8', vadThreshold: '0.5', maxLineWidth: '42',
@@ -295,6 +296,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     browserVideoBrightness: '115', browserVideoContrast: '90',
     browserSilenceSpeedRate: '3', browserSilenceThresholdDb: '-45',
     stCardScale: '120', stCardFontScale: '110',
+    translatePriceIn: '0.30', translatePriceOut: '2.50',
     timelineZoom: '120',
   };
   const ui = Object.fromEntries(PERSIST_VALUE_CONTROLS.map((id) => [

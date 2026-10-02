@@ -759,6 +759,7 @@ async function processNextQueueItem() {
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -2559,6 +2560,286 @@ async function runIntegrityRepair(btn) {
 
 $('integrityScan')?.addEventListener('click', () => runIntegrityScan());
 
+// ===== Madde 45 — kurtarma merkezi =====
+// Yarım kalan işler (kuyruk, gömme, kaydedilmemiş zaman çizelgesi düzenlemeleri,
+// browser işleri) tek ekranda; her satır devam ettir veya güvenli sil eylemi taşır.
+async function openRecoveryCenter() {
+  const results = $('recoveryResults');
+  const btn = $('recoveryCenterBtn');
+  if (!results || !btn || btn.disabled) return;
+  btn.disabled = true;
+  results.classList.remove('hidden');
+  results.textContent = interfaceChoice('Kurtarılabilir kayıtlar toplanıyor…', 'Collecting recoverable items…');
+  try {
+    const [burnin, timeline] = await Promise.all([
+      window.api.getBurnInRecovery ? window.api.getBurnInRecovery().catch(() => null) : null,
+      window.api.timelineRecovery ? window.api.timelineRecovery({ action: 'list' }).catch(() => null) : null,
+    ]);
+    renderRecoveryCenter({ burnin, timeline });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function recoveryRow(title, detail, actions) {
+  const row = document.createElement('div');
+  row.className = 'recovery-row';
+  const copy = document.createElement('div');
+  copy.className = 'recovery-copy';
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const small = document.createElement('span');
+  small.className = 'field-hint';
+  small.textContent = detail;
+  copy.append(strong, small);
+  const actionBox = document.createElement('div');
+  actionBox.className = 'recovery-actions';
+  for (const [label, handler] of actions) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-ghost btn-sm';
+    b.textContent = label;
+    b.addEventListener('click', handler);
+    actionBox.appendChild(b);
+  }
+  row.append(copy, actionBox);
+  return row;
+}
+
+function renderRecoveryCenter({ burnin, timeline }) {
+  const results = $('recoveryResults');
+  if (!results) return;
+  results.textContent = '';
+  const frag = document.createDocumentFragment();
+  const sectionTitle = (text) => {
+    const h = document.createElement('p');
+    h.className = 'field-hint recovery-section-title';
+    h.textContent = text;
+    return h;
+  };
+
+  // 1) Kuyruk — yarım kalan (recovered) ve hatalı işler.
+  const queueItems = state.queue.filter((item) => item.recovered || item.status === 'error');
+  frag.appendChild(sectionTitle(interfaceChoice('Kuyruk işleri', 'Queue jobs')));
+  if (!queueItems.length) {
+    frag.appendChild(Object.assign(document.createElement('p'), {
+      className: 'field-hint recovery-empty',
+      textContent: interfaceChoice('Yarım kalan veya hatalı kuyruk işi yok.', 'No interrupted or failed queue jobs.'),
+    }));
+  } else {
+    for (const item of queueItems) {
+      const statusText = item.recovered
+        ? interfaceChoice('kapanışta yarım kaldı', 'interrupted at shutdown')
+        : interfaceChoice(`hata: ${item.error || 'bilinmeyen'}`, `error: ${item.error || 'unknown'}`);
+      frag.appendChild(recoveryRow(item.label, statusText, [
+        [interfaceChoice('Yeniden dene', 'Retry'), () => {
+          item.status = 'pending';
+          item.error = '';
+          item.recovered = false;
+          renderQueue();
+          if (!state.queueRunning) startQueue();
+          openRecoveryCenter();
+        }],
+        [interfaceChoice('Kaldır', 'Remove'), () => { removeFromQueue(item.id); openRecoveryCenter(); }],
+      ]));
+    }
+  }
+
+  // 2) Gömme (burn-in) — yarım ffmpeg çıktısı.
+  frag.appendChild(sectionTitle(interfaceChoice('Gömme işi', 'Burn-in job')));
+  const rec = burnin && burnin.ok && burnin.available ? burnin.recovery : null;
+  if (!rec) {
+    frag.appendChild(Object.assign(document.createElement('p'), {
+      className: 'field-hint recovery-empty',
+      textContent: interfaceChoice('Kurtarılabilir gömme işi yok.', 'No recoverable burn-in job.'),
+    }));
+  } else {
+    const detail = burnin.externalRunning
+      ? interfaceChoice('önceki FFmpeg hâlâ çalışıyor — dokunulmadı', 'previous FFmpeg still running — untouched')
+      : burnin.alreadyDone
+        ? interfaceChoice('çıktı zaten üretilmiş — artık dosyayı temizleyebilirsiniz', 'output already produced — you can clean up the residue')
+        : burnin.canFinalize
+          ? interfaceChoice('geçici dosya tamam — doğrudan finalize edilebilir', 'temp file complete — can be finalized directly')
+          : interfaceChoice('iş kesintiye uğradı — yeniden işlenebilir', 'job was interrupted — can be rerun');
+    const actions = [];
+    if (!burnin.externalRunning) {
+      actions.push([interfaceChoice('Kurtar', 'Recover'), async () => {
+        const r = await window.api.recoverBurnIn?.(rec.id).catch(() => null);
+        if (r?.ok || r?.started) logLine(interfaceChoice('Gömme kurtarması başlatıldı.', 'Burn-in recovery started.'), 'info');
+        else logLine(interfaceChoice(`Kurtarma başarısız: ${r?.error || 'bilinmeyen'}`, `Recovery failed: ${r?.error || 'unknown'}`), 'warn');
+        openRecoveryCenter();
+      }]);
+    }
+    actions.push([interfaceChoice('Sil', 'Discard'), async () => {
+      await window.api.discardBurnInRecovery?.(rec.id).catch(() => null);
+      openRecoveryCenter();
+    }]);
+    frag.appendChild(recoveryRow(rec.outPath || rec.inputPath || interfaceChoice('Gömme işi', 'Burn-in job'), detail, actions));
+  }
+
+  // 3) Kaydedilmemiş zaman çizelgesi düzenlemeleri.
+  frag.appendChild(sectionTitle(interfaceChoice('Kaydedilmemiş düzenlemeler', 'Unsaved timeline edits')));
+  const timelineRecords = timeline && timeline.ok && Array.isArray(timeline.records) ? timeline.records : [];
+  if (!timelineRecords.length) {
+    frag.appendChild(Object.assign(document.createElement('p'), {
+      className: 'field-hint recovery-empty',
+      textContent: interfaceChoice('Kurtarılabilir düzenleme kaydı yok.', 'No recoverable edit records.'),
+    }));
+  } else {
+    for (const record of timelineRecords) {
+      const when = record.savedAt ? new Date(record.savedAt).toLocaleString() : '—';
+      frag.appendChild(recoveryRow(
+        record.sourceKey,
+        interfaceChoice(`${record.cueCount} satır · kaydedildi ${when} · aynı kaynak açıldığında geri yükleme önerilir`, `${record.cueCount} cues · saved ${when} · restore is offered when the same source opens`),
+        [[interfaceChoice('Kaydı sil', 'Discard record'), async () => {
+          await window.api.timelineRecovery?.({ action: 'clear', sourceKey: record.sourceKey }).catch(() => null);
+          openRecoveryCenter();
+        }]]));
+    }
+  }
+
+  // 4) Browser işleri — ayrı tanı sayfasında devam ettirilir.
+  const browserCount = (Array.isArray(player.browserTabs) ? player.browserTabs : [])
+    .reduce((total, tab) => total + (tab.recoveryJobs?.length || 0), 0);
+  frag.appendChild(sectionTitle(interfaceChoice('Browser işleri', 'Browser jobs')));
+  frag.appendChild(Object.assign(document.createElement('p'), {
+    className: 'field-hint recovery-empty',
+    textContent: browserCount
+      ? interfaceChoice(`${browserCount} kurtarılabilir browser işi var — “Tarayıcı” bölümündeki tanı sayfasından devam ettirilir veya silinir.`, `${browserCount} recoverable browser job(s) — continue or discard from the diagnostics page in the Browser section.`)
+      : interfaceChoice('Kurtarılabilir browser işi yok.', 'No recoverable browser jobs.'),
+  }));
+}
+
+$('recoveryCenterBtn')?.addEventListener('click', () => openRecoveryCenter());
+
+// ===== Madde 48 — güncelleme ön kontrolü =====
+function precheckRow(status, title, detail) {
+  const icon = { ok: '✓', warn: '⚠', fail: '✗', info: 'ℹ' }[status] || 'ℹ';
+  const row = document.createElement('div');
+  row.className = 'recovery-row';
+  const copy = document.createElement('div');
+  copy.className = 'recovery-copy';
+  const strong = document.createElement('strong');
+  strong.textContent = `${icon} ${title}`;
+  const small = document.createElement('span');
+  small.className = 'field-hint';
+  small.textContent = detail;
+  copy.append(strong, small);
+  row.appendChild(copy);
+  return row;
+}
+
+async function openUpdatePrecheck() {
+  const results = $('updatePrecheckResults');
+  const btn = $('updatePrecheckBtn');
+  if (!results || !btn || btn.disabled) return;
+  btn.disabled = true;
+  results.classList.remove('hidden');
+  results.textContent = interfaceChoice('Ön kontrol çalışıyor…', 'Running pre-update checks…');
+  try {
+    const [pre, env] = await Promise.all([
+      window.api.updatePrecheck?.().catch(() => null),
+      window.api.getEnvInfo?.().catch(() => null),
+    ]);
+    results.textContent = '';
+    const frag = document.createDocumentFragment();
+    const blockers = [];
+
+    // 1) Açık işler — transkripsiyon + kuyruk + browser işleri.
+    const queueActive = state.queue.filter((i) => i.status === 'pending' || i.status === 'running').length;
+    const openCount = (pre?.transcribeActive ? 1 : 0) + queueActive + (pre?.browserJobs || 0);
+    if (openCount) {
+      blockers.push('jobs');
+      frag.appendChild(precheckRow('warn',
+        interfaceChoice(`${openCount} açık iş var`, `${openCount} open job(s)`),
+        interfaceChoice('Güncelleme öncesi işlerin bitmesini bekleyin veya kurtarma merkezinden güvenli durdurun.',
+          'Wait for jobs to finish or stop them safely via the recovery center before updating.')));
+    } else {
+      frag.appendChild(precheckRow('ok',
+        interfaceChoice('Açık iş yok', 'No open jobs'),
+        interfaceChoice('Kuyruk ve süren işlemler temiz.', 'Queue and running operations are clean.')));
+    }
+
+    // 2) Kurtarılabilir kayıtlar.
+    const recoverable = (pre?.burninRecoverable ? 1 : 0);
+    if (recoverable) {
+      frag.appendChild(precheckRow('info',
+        interfaceChoice('Kurtarılabilir kayıt var', 'Recoverable records exist'),
+        interfaceChoice('Kurtarma merkezinden devam ettirin veya güvenli temizleyin.',
+          'Continue or discard them from the recovery center.')));
+    }
+
+    // 3) Bağımlılıklar — venv + ffmpeg zorunlu, GPU opsiyonel.
+    if (env && (!env.venv || !env.ffmpeg)) {
+      blockers.push('deps');
+      frag.appendChild(precheckRow('fail',
+        interfaceChoice('Eksik bağımlılık', 'Missing dependency'),
+        interfaceChoice(
+          `${!env.venv ? 'Python venv bulunamadı' : ''}${!env.venv && !env.ffmpeg ? ' · ' : ''}${!env.ffmpeg ? 'FFmpeg bulunamadı' : ''} — güncelleme öncesi install.bat çalıştırın.`,
+          `${!env.venv ? 'Python venv missing' : ''}${!env.venv && !env.ffmpeg ? ' · ' : ''}${!env.ffmpeg ? 'FFmpeg missing' : ''} — run install.bat before updating.`)));
+    } else {
+      frag.appendChild(precheckRow('ok',
+        interfaceChoice('Bağımlılıklar tam', 'Dependencies OK'),
+        interfaceChoice('Python ortamı ve FFmpeg hazır.', 'Python environment and FFmpeg are ready.')));
+    }
+
+    // 4) Disk alanı — tmp'de 1 GB altı güncelleme paketine yetmez.
+    const tmpFree = Number(pre?.tmpFreeBytes);
+    if (Number.isFinite(tmpFree) && tmpFree < 1073741824) {
+      blockers.push('disk');
+      frag.appendChild(precheckRow('warn',
+        interfaceChoice('Geçici dizinde az alan', 'Low space in temp dir'),
+        interfaceChoice('Güncelleme paketi için yaklaşık 1 GB boş alan önerilir.',
+          'About 1 GB free space is recommended for the update package.')));
+    }
+
+    // 5) Bağlantı — paket indirme çevrimdışıyken yapılamaz.
+    if (pre?.offline) {
+      frag.appendChild(precheckRow('info',
+        interfaceChoice('Çevrimdışısınız', 'You are offline'),
+        interfaceChoice('Paket indirme bağlantı gelinceye dek bekler; yerel yedekleme yine de alınabilir.',
+          'Package download waits for connectivity; a local backup can still be taken.')));
+    }
+
+    // 6) Yedek — her durumda öneri + tek-tık eylem.
+    const backupRow = precheckRow('info',
+      interfaceChoice('Güncelleme öncesi yedek önerilir', 'Backup recommended before updating'),
+      interfaceChoice('Ayarlar, kütüphane ve notlar tek dosyaya yazılır; sırlar dosyaya girmez.',
+        'Settings, library and notes are written to one file; secrets are never included.'));
+    const backupActions = document.createElement('div');
+    backupActions.className = 'recovery-actions';
+    const backupBtn = document.createElement('button');
+    backupBtn.type = 'button';
+    backupBtn.className = 'btn btn-ghost btn-sm';
+    backupBtn.textContent = interfaceChoice('Yedeği şimdi al', 'Take backup now');
+    backupBtn.addEventListener('click', async () => {
+      backupBtn.disabled = true;
+      const r = await window.api.exportSettings?.({ scope: 'all' }).catch(() => null);
+      backupBtn.disabled = false;
+      if (r?.ok) logLine(interfaceChoice(`Yedek oluşturuldu: ${r.path}`, `Backup created: ${r.path}`), 'success');
+      else logLine(interfaceChoice('Yedek alınamadı.', 'Backup failed.'), 'error');
+    });
+    backupActions.appendChild(backupBtn);
+    backupRow.appendChild(backupActions);
+    frag.appendChild(backupRow);
+
+    // Karar satırı.
+    const verdict = document.createElement('p');
+    verdict.className = 'field-hint recovery-section-title';
+    verdict.textContent = blockers.length
+      ? interfaceChoice('Önce yukarıdaki uyarıları giderin; sonra güncellemeyi çalıştırın.',
+          'Resolve the warnings above first, then run the update.')
+      : interfaceChoice('Güncellemeye hazır — paketi indirip kurabilirsiniz.',
+          'Ready to update — you can download and install the package.');
+    frag.appendChild(verdict);
+    results.appendChild(frag);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('updatePrecheckBtn')?.addEventListener('click', () => openUpdatePrecheck());
+
 // ===== Madde 33 — ağ kullanım bütçesi =====
 // Preset değişimi sürmekte olan scheduler'lara da anında uygulanır; indirme
 // hız sınırı ise yt-dlp başlangıç argümanı olduğu için bir sonraki işe etki eder.
@@ -3141,6 +3422,7 @@ for (const id of ['uiLocale', 'playerUiLocale']) {
     // ayrıca anında bildiriyoruz.
     if (id === 'uiLocale') window.api?.notifyUiLocale?.(control.value);
     if (id === 'playerUiLocale') scheduleSave();
+    if (typeof updateNetBadge === 'function') updateNetBadge();
   });
 }
 
@@ -3914,6 +4196,7 @@ $('startBtn').addEventListener('click', async () => {
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -5132,6 +5415,15 @@ window.api.onEvent((event) => {
           state.jobResourceSeries = H.appendResourceSample(state.jobResourceSeries, event);
           renderResourceTimeline();
         }
+        // Madde 43 — iş sürerken disk kritik eşiğe düşerse bir kez uyar;
+        // kullanıcı güvenli noktada durdurup alan açabilir.
+        if (event.lowDisk && !state.lowDiskWarned) {
+          state.lowDiskWarned = true;
+          logLine(interfaceChoice(
+            'Disk alanı kritik seviyede azaldı (500 MB altı). İş güvenli durdurulup disk temizlenmezse çıktı yarım kalabilir.',
+            'Free disk space is critically low (under 500 MB). Stop the job and free space or the output may be incomplete.'),
+            'warn');
+        }
       }
       break;
 
@@ -5510,8 +5802,25 @@ document.addEventListener('keydown', (e) => {
 // ===== Ayarları dışa/içe aktar =====
 $('exportSettings').addEventListener('click', async () => {
   if (!await saveAppSettings()) return;  // önce mevcut UI'yi diske yaz
-  const r = await window.api.exportSettings();
-  if (r && r.ok) logLine(`Uygulama yedeği oluşturuldu: ${r.path}`, 'success');
+  // Madde 41 — kapsam kullanıcı seçimiyle dosyaya yazılır; sırlar hiç yazılmaz.
+  const pick = await openAppDialog({
+    title: uiText('Yedek kapsamı'),
+    description: uiText('Yedek dosyasına yazılacak bölümleri seçin. Hesap sırları ve API anahtarları hiçbir kapsamda dosyaya yazılmaz.'),
+    confirmLabel: uiText('Dışa aktar'),
+    intent: 'primary',
+    choices: [
+      { value: 'all', label: uiText('Tümü') },
+      { value: 'settings', label: uiText('Yalnız ayarlar') },
+      { value: 'browser', label: uiText('Tarayıcı + kütüphane') },
+      { value: 'library', label: uiText('Yalnız kütüphane') },
+      { value: 'notes', label: uiText('Yalnız notlar') },
+    ],
+    choiceLabel: uiText('Kapsam'),
+    choiceValue: 'all',
+  });
+  if (!pick) return;
+  const r = await window.api.exportSettings({ scope: pick.choice || 'all' });
+  if (r && r.ok) logLine(`Uygulama yedeği oluşturuldu: ${r.path}${r.scopeLabel ? ` — ${r.scopeLabel}` : ''}`, 'success');
   else if (r && r.error) logLine('Dışa aktarma başarısız: ' + r.error, 'error');
 });
 
@@ -5603,6 +5912,7 @@ $('reexportJson').addEventListener('click', async () => {
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -5656,6 +5966,7 @@ $('syncBtn').addEventListener('click', async () => {
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
@@ -5736,6 +6047,83 @@ function logBurninMissingGlyphs(count) {
     ? `Uyarı: ${missing} farklı karakter (ör. emoji/CJK) için bu sistemde glif taşıyan font bulunamadı — gömülü altyazıda kutu/boşluk görünebilir.`
     : `Warning: no font on this system covers ${missing} distinct character(s) (e.g. emoji/CJK) — burned subtitles may show boxes or gaps.`, 'warn');
 }
+
+// ===== Madde 42 — dışarıdan dosya değişikliği =====
+// Açık birincil/ikincil altyazı dosyaları main'de dizin-bazlı izlenir; olayda
+// içerik main'den okunmuş gelir. Kullanıcının açık düzenlemesi ya da geri-alma
+// geçmişi varsa dosya asla sessizce ezilmez.
+let subtitleWatchTimer = null;
+function watchedSubtitlePaths() {
+  const paths = new Set();
+  if (player.subPath) paths.add(player.subPath);
+  if (player.sub2Path) paths.add(player.sub2Path);
+  return [...paths].slice(0, 8);
+}
+function scheduleSubtitleWatchRefresh() {
+  if (subtitleWatchTimer !== null) return;
+  subtitleWatchTimer = setTimeout(() => {
+    subtitleWatchTimer = null;
+    window.api.watchSubtitlePaths?.({ paths: watchedSubtitlePaths() }).catch(() => null);
+  }, 250);
+}
+
+const externalSubtitleChanges = new Map();
+function subtitleTrackHasEdits(filePath) {
+  const isOpenTrack = filePath === player.subPath || filePath === player.sub2Path;
+  return isOpenTrack && (player.editing || player.cueEditUndo.length > 0);
+}
+
+function applyExternalSubtitleContent(filePath, text) {
+  const cues = parseSubtitles(text);
+  const secondary = filePath === player.sub2Path && filePath !== player.subPath;
+  const merged = player.mergeCont ? mergeCueContinuation(cues) : cues;
+  if (secondary) {
+    player.cues2Raw = cues;
+    player.cues2 = merged;
+    player.activeIdx2 = -1;
+    player.sub2Raw = text;
+  } else {
+    player.cuesRaw = cues;
+    player.cues = merged;
+    player.activeIdx = -1;
+    player.subRaw = text;
+  }
+  // writeSubtitle'ın expect kontrolü son okunan mtime'a bakar; izleyiciden
+  // gelen içerik artık disk gerçeği olduğundan stat'ı tazele.
+  const change = externalSubtitleChanges.get(filePath);
+  noteSubtitleStat(filePath, change ? { mtimeMs: change.mtimeMs, size: change.size } : null);
+  renderCueList($('cueSearch') ? $('cueSearch').value : '');
+  renderCue();
+}
+
+window.api.onSubtitleFileChanged?.((payload) => {
+  const filePath = String(payload?.path || '');
+  if (!filePath || (filePath !== player.subPath && filePath !== player.sub2Path)) return;
+  const text = typeof payload?.content === 'string' ? payload.content : null;
+  externalSubtitleChanges.set(filePath, {
+    mtimeMs: Number(payload?.mtimeMs) || Date.now(),
+    size: Number(payload?.size) || (text ? text.length : 0),
+  });
+  const name = filePath.split(/[\\/]/).pop();
+  if (subtitleTrackHasEdits(filePath)) {
+    logLine(interfaceChoice(
+      `"${name}" başka bir programda değişti. Açık düzenlemeleriniz korunuyor; yeni içeriği görmek için altyazıyı yeniden seçin.`,
+      `"${name}" changed in another program. Your open edits are preserved; reselect the subtitle to see the new content.`), 'warn');
+    return;
+  }
+  if (text === null) {
+    // 4 MB üzeri dosyada içerik olayla gelmez; boş gösterime düşmemek için
+    // sessiz tazeleme yerine uyarı göster.
+    logLine(interfaceChoice(
+      `"${name}" dışarıdan değişti — dosya büyük olduğu için gösterim yenilenmedi; yeniden seçin.`,
+      `"${name}" changed externally — too large to auto-refresh; reselect it.`), 'warn');
+    return;
+  }
+  applyExternalSubtitleContent(filePath, text);
+  logLine(interfaceChoice(
+    `"${name}" dışarıdan değişti — gösterim güncellendi.`,
+    `"${name}" changed externally — display refreshed.`), 'info');
+});
 
 // ===== Initial log =====
 logLine('Whisper Altyazı hazır. (Ctrl+Enter: başlat · Esc: iptal)', 'success');
@@ -8852,17 +9240,31 @@ $('browserSessionImport')?.addEventListener('click', async () => {
   logLine(message, result.warnings?.length ? 'warn' : 'success');
 });
 
+// Madde 44 — çevrimdışı durum göstergesi: bağlantı koptuğunda sabit rozet,
+// gelince sinyal + bekleyen çevirilerin yeniden denenmesi.
+function updateNetBadge(online) {
+  const badge = $('netBadge');
+  if (!badge) return;
+  badge.textContent = interfaceChoice('Çevrimdışı', 'Offline');
+  badge.classList.toggle('hidden', online !== false);
+}
+
 function syncBrowserNetworkState() {
-  if (!window.api.setBrowserNetworkOnline) return;
   const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  updateNetBadge(online);
+  if (!window.api.setBrowserNetworkOnline) return;
   window.api.setBrowserNetworkOnline(online).then((result) => {
     if (!result?.ok) return;
     if (!online) {
-      setBrowserSignal('Ağ bağlantısı yok; yeni altyazı ve sayfa çevirileri çevrimdışı kuyrukta bekleyecek.', false,
-        { priority: 75, holdMs: 5000 });
+      setBrowserSignal(interfaceChoice(
+        'Ağ bağlantısı yok; yeni altyazı ve sayfa çevirileri çevrimdışı kuyrukta bekleyecek.',
+        'No network connection; new subtitle and page translations will wait offline.'),
+        false, { priority: 75, holdMs: 5000 });
     } else if (result.retried) {
-      setBrowserSignal(`Bağlantı geri geldi; ${result.retried} eksik çeviri yeniden kuyruğa alındı.`, true,
-        { priority: 70, holdMs: 5000 });
+      setBrowserSignal(interfaceChoice(
+        `Bağlantı geri geldi; ${result.retried} eksik çeviri yeniden kuyruğa alındı.`,
+        `Connection restored; ${result.retried} missing translation(s) re-queued.`),
+        true, { priority: 70, holdMs: 5000 });
     }
   }).catch(() => {});
 }
@@ -21579,6 +21981,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   updateBrowserTranslationRetryButton();
   updatePlayerAutoSyncState();
   updateSubCompareButton();
+  scheduleSubtitleWatchRefresh();
   renderCue();
   scheduleBrowserOverlaySync();
   if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
@@ -24771,6 +25174,7 @@ async function startProgressivePlayerTranscription(config = {}) {
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   state.outputFiles = [];
   $('startBtn').classList.add('hidden');
@@ -24925,6 +25329,7 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   state._etaBase = null;
   state._llmEtaBase = null;
   state.jobResourceSeries = [];
+  state.lowDiskWarned = false;
   state.startTime = Date.now();
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [],
     selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };
