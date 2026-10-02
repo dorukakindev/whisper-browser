@@ -24159,14 +24159,14 @@ async function renderPdfReaderPage(pageNumber) {
 }
 
 
-async function translateVisiblePdfPages(all = false) {
+async function translateVisiblePdfPages(all = false, pageList = null) {
   const reader = player.pdfReader; if (!reader?.pdf) return;
   // Çeviri sürerken ikinci başlatma ilkinin sayaçlarını sıfırlıyor, iptal
   // düğmesini kapatıyor ve ilk işi arayüzden durdurulamaz bırakıyordu.
   if (reader.translating) return;
   reader.translating = true;
   for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = true; }
-  try { await translateVisiblePdfPagesNow(reader, all); }
+  try { await translateVisiblePdfPagesNow(reader, all, pageList); }
   finally {
     reader.translating = false;
     // Yerini yeni bir okuyucu almışsa bile düğmeleri geri aç; yalnız o okuyucu
@@ -24181,12 +24181,22 @@ async function translateVisiblePdfPages(all = false) {
 // paket başına API çağrısı olduğu için binlerce sayfalık belge sessizce
 // yüzlerce istek yakabilirdi.
 const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;
-async function translateVisiblePdfPagesNow(reader, all) {
+async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
   const count = reader.pdf.numPages;
-  const pages = all ? Array.from({ length: count }, (_, i) => i + 1)
+  // Madde 38 — açık sayfa listesi (aralık/yalnız başarısızlar/çevrilmemişler)
+  // verilirse görünüm varsayımı yerine bu kapsam çalışır; sonuçlar yine
+  // belge sırasıyla yazılır çünkü listeyi sıralı tutarız.
+  const pages = explicitPages != null
+    ? [...new Set((Array.isArray(explicitPages) ? explicitPages : []).map(Number)
+      .filter((page) => Number.isSafeInteger(page) && page >= 1 && page <= count))].sort((a, b) => a - b)
+    : all ? Array.from({ length: count }, (_, i) => i + 1)
     : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
   if (!pages.length) { reader.translating = false; return; }
-  if (all && pages.length > PDF_TRANSLATE_ALL_CONFIRM_PAGES) {
+  // İş başlamadan kapsamı göster: sayfa sayısı ve ilk birkaç sayfa önizlemesi.
+  pdfReaderSetStatus(interfaceChoice(
+    `Kapsam: ${pages.length} sayfa (${pages.slice(0, 6).join(', ')}${pages.length > 6 ? '…' : ''})`,
+    `Scope: ${pages.length} pages (${pages.slice(0, 6).join(', ')}${pages.length > 6 ? '…' : ''})`));
+  if (pages.length > PDF_TRANSLATE_ALL_CONFIRM_PAGES) {
     const proceed = await openAppDialog({
       title: interfaceChoice('Tüm kitap çevrilecek', 'Translate the whole book'),
       description: interfaceChoice(
@@ -24207,7 +24217,10 @@ async function translateVisiblePdfPagesNow(reader, all) {
   // uygulanır; aksi hâlde büyük belgede tüm metin Map'te birikir ve işlem
   // dakikalarca tepkisiz kalırdı. Görünen-sayfa yolunda girdi zaten
   // renderPdfReaderPage ile sınırlı ve hazırdır.
-  if (!all) {
+  // Açık sayfa listesi de paket içi metin çıkarma yolunu kullanır — sayfa
+  // hiç çizilmemiş olabilir.
+  const batchExtract = all || explicitPages != null;
+  if (!batchExtract) {
     for (const pageNumber of pages) await renderPdfReaderPage(pageNumber);
   }
   $('pdfTranslateCancel').disabled = false; pdfReaderSetStatus(all ? `Kitap çevriliyor… (0/${pages.length})` : 'Görünen sayfalar çevriliyor…');
@@ -24222,7 +24235,7 @@ async function translateVisiblePdfPagesNow(reader, all) {
     if (player.pdfReader !== reader) break;
     if (reader.cancelRequested) { canceled = true; break; }
     const batchPages = pages.slice(offset, offset + 3);
-    if (all) {
+    if (batchExtract) {
       for (const pageNumber of batchPages) {
         if (reader.cancelRequested) { canceled = true; break; }
         await extractPdfReaderPage(pageNumber);
@@ -24243,6 +24256,17 @@ async function translateVisiblePdfPagesNow(reader, all) {
     if (result?.state) {
       reader.state = result.state;
       for (const page of batchPages) renderPdfTranslation(page, result.state.pages?.[String(page)]);
+      // Madde 38 — paketteki başarısız sayfaları kaydet: state'te kaydı
+      // olmayan veya failed blok taşıyan sayfalar "yalnız başarısızlar"
+      // kapsamının aday kümesi.
+      reader.lastFailedPages ||= new Set();
+      for (const page of batchPages) {
+        const blocks = result.state.pages?.[String(page)];
+        const pageFailed = !Array.isArray(blocks) || blocks.length === 0
+          || blocks.some((block) => block?.status === 'failed');
+        if (pageFailed) reader.lastFailedPages.add(page);
+        else reader.lastFailedPages.delete(page);
+      }
       updatePdfReaderProgress();
     }
     if (result?.ok) completed += batchPages.length;
@@ -24389,6 +24413,14 @@ $('[data-pdf-view]') && $$('[data-pdf-view]').forEach((button) => {
   button.addEventListener('click', () => setPdfReaderView(button.dataset.pdfView));
 });
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
+// Madde 38 — sayfa seçimi: aralık / yalnız başarısızlar / çevrilmemişler.
+$('pdfTranslateScope')?.addEventListener('click', async () => {
+  const reader = player.pdfReader; if (!reader?.pdf || reader.translating) return;
+  const pages = await choosePdfPageScope(reader);
+  if (pages == null) return;
+  if (!pages.length) return; // "başarısız yok"/"tamamı çevrilmiş" durum satırında gösterildi
+  translateVisiblePdfPages(true, pages);
+});
 $('pdfTranslateCancel')?.addEventListener('click', () => {
   const reader = player.pdfReader;
   // Paket arasında ana süreçte iş yoktur; bayrak döngünün bir sonraki

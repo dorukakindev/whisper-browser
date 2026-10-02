@@ -778,12 +778,26 @@ async function extractPdfReaderPage(pageNumber) {
   }));
   let blocks = [];
   let lines = [];
+  const flushLines = () => {
+    if (!lines.length) return;
+    // Madde 36 — karşılık vurgusu: blok konumu (PDF koordinatları, y alttan)
+    // çift görünümde kaynak sayfa üzerinde işaret çizgisi için saklanır.
+    blocks.push({
+      id: `${pageNumber}:${blocks.length}`,
+      source: lines.map((line) => line.text).join(' '),
+      top: Math.max(...lines.map((line) => line.y)),
+      bottom: Math.min(...lines.map((line) => line.y - line.height)),
+      left: Math.min(...lines.map((line) => line.x)),
+      right: Math.max(...lines.map((line) => line.x + line.width)),
+    });
+    lines = [];
+  };
   for (const item of items) {
     const text = String(item.str || '').trim(); if (!text) continue;
     lines.push({ text, x: item.transform?.[4] || 0, y: item.transform?.[5] || 0, width: item.width || 0, height: item.height || 1 });
-    if (item.hasEOL) { blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') }); lines = []; }
+    if (item.hasEOL) flushLines();
   }
-  if (lines.length) blocks.push({ id: `${pageNumber}:${blocks.length}`, source: lines.map((line) => line.text).join(' ') });
+  flushLines();
   // Madde 37 — metin katmanı OLMAYAN sayfalarda OCR yedeği; metin katmanı
   // olan sayfalar (items.length > 0) gereksiz OCR'dan geçirilmez.
   let ocr = null;
@@ -901,17 +915,198 @@ function renderPdfTranslation(pageNumber, blocks) {
     const pair = document.createElement('div');
     pair.className = 'pdf-pair';
     pair.dataset.blockId = block.id || '';
+    pair.tabIndex = 0;
     if (block.kind) pair.classList.add(`pdf-kind-${block.kind}`);
+    if (block.orderAmbiguous) pair.classList.add('pdf-pair-ambiguous');
     const src = document.createElement('p');
     src.className = 'pdf-pair-source';
     src.textContent = block.source || '';
     const tgt = document.createElement('p');
     tgt.className = 'pdf-pair-target';
-    tgt.textContent = block.translation || block.source || '';
-    if (!block.translation) tgt.classList.add('pdf-pair-pending');
+    // Madde 37 — kullanıcı düzeltmesi makine çevirisinin üstünde gösterilir;
+    // kaynak metin küçük satırda kalır, düzeltme işareti verilir.
+    tgt.textContent = block.userText || block.translation || block.source || '';
+    if (block.userText) {
+      pair.classList.add('pdf-pair-edited');
+      const note = document.createElement('span');
+      note.className = 'pdf-pair-editnote';
+      note.textContent = interfaceChoice('✎ düzeltildi', '✎ edited');
+      tgt.appendChild(note);
+      tgt.title = block.translation || '';
+    }
+    if (!block.translation && !block.userText) tgt.classList.add('pdf-pair-pending');
+    if (block.orderAmbiguous) {
+      const marker = document.createElement('span');
+      marker.className = 'pdf-pair-ambiguous-note';
+      marker.textContent = interfaceChoice('sıra belirsiz', 'order uncertain');
+      src.appendChild(marker);
+    }
     pair.append(src, tgt);
+    // Madde 36 — tek tık/Enter/Space: çift görünümde kaynak sayfadaki
+    // karşılığa kayan işaret + odak halkası. İki görünüm aynı sırada ilerler.
+    pair.addEventListener('click', () => focusPdfCounterpart(pageNumber, block.id, pair));
+    pair.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); focusPdfCounterpart(pageNumber, block.id, pair); }
+    });
+    // Madde 36 — çift tıklayınca hedef metin düzeltme diyaloğu açılır;
+    // düzeltme pdf:editBlock ile kalıcı yazılır.
+    pair.addEventListener('dblclick', () => editPdfBlockPair(pageNumber, block, pair).catch((error) => logLine(error?.message || error, 'error')));
     entry.translation.appendChild(pair);
   }
+}
+
+// Madde 36/37 — çift tıklanan çiftin hedefini düzeltme diyaloğu; boş
+// metin girilirse düzeltme kaldırılır. userText kalıcı state'e yazılır
+// ve yeniden işlemelerde korunur.
+async function editPdfBlockPair(pageNumber, block, pair) {
+  const reader = player.pdfReader;
+  if (!reader?.pdfHash || !window.api.editPdfBlock) return;
+  const current = block.userText || block.translation || '';
+  const value = await openAppDialog({
+    title: interfaceChoice('Çeviriyi düzelt', 'Edit translation'),
+    description: interfaceChoice('Elle düzeltilen metin kalıcıdır ve yeniden çeviride korunur. Boş bırakırsan makine çevirisine döner.', 'Your edit is stored and kept across re-runs. Leave empty to restore the machine translation.'),
+    confirmLabel: interfaceChoice('Kaydet', 'Save'),
+    intent: 'primary',
+    inputLabel: interfaceChoice('Hedef metin', 'Target text'),
+    inputValue: current,
+    inputMaxLength: 24000,
+  });
+  if (value === false) return;
+  const result = await window.api.editPdfBlock(reader.pdfHash, pageNumber, block.id, String(value || ''), $('pdfTargetLanguage')?.value || 'tr');
+  if (!result?.ok) { logLine(`PDF düzeltme yazılamadı: ${result?.error || 'bilinmeyen hata'}`, 'error'); return; }
+  Object.assign(block, result.block);
+  const pages = reader.state?.pages || {};
+  const list = pages[String(pageNumber)] || [];
+  const index = list.findIndex((row) => row.id === block.id);
+  if (index >= 0) list[index] = result.block;
+  renderPdfTranslation(pageNumber, list.length ? list : [result.block]);
+}
+
+// Madde 36 — çift görünümde seçili bloğun kaynak taraftaki karşılığı:
+// tabIndex ile klavye odağı alınır; Enter/Space ile de tetiklenir.
+function focusPdfCounterpart(pageNumber, blockId, pair) {
+  const reader = player.pdfReader;
+  const entry = reader?.pages.get(pageNumber);
+  if (!entry?.article) return;
+  entry.article.querySelectorAll('.pdf-pair-focus').forEach((node) => node.classList.remove('pdf-pair-focus'));
+  pair.classList.add('pdf-pair-focus');
+  const source = entry.article.querySelector('.pdf-page-source');
+  if (!source) return;
+  source.querySelectorAll('.pdf-source-marker').forEach((node) => node.remove());
+  const blocks = (reader.state?.pages?.[String(pageNumber)] || reader.pages.get(pageNumber)?.blocks) || [];
+  const block = blocks.find((row) => row.id === blockId);
+  if (!block?.box || !entry.pageHeight) return;
+  const canvas = source.querySelector('canvas');
+  if (!canvas) return;
+  const fracTop = 1 - (block.box.top / entry.pageHeight);
+  const fracBottom = 1 - (block.box.bottom / entry.pageHeight);
+  const marker = document.createElement('div');
+  marker.className = 'pdf-source-marker';
+  marker.style.top = `${Math.max(0, Math.min(1, fracTop)) * 100}%`;
+  marker.style.height = `${Math.max(0.01, fracBottom - fracTop) * 100}%`;
+  source.style.position = 'relative';
+  source.appendChild(marker);
+  marker.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+// Madde 38 — sayfa seçimi: "1-4, 8" aralığı, yalnız başarısız sayfalar veya
+// henüz çevrilmemiş sayfalar. pdf-translate.js'in parsePdfPageSelection'ı
+// renderer yolunu karşılamaz çünkü o modül renderer'da require edilemez;
+// burada aynı sözleşmenin tarayıcı kopyası tutulur (ratchet testi
+// metin eşleşmesiyle ikisini bağlar).
+function parsePdfPageSelectionInput(input, numPages) {
+  const limit = Math.max(0, Math.trunc(Number(numPages) || 0));
+  const text = String(input ?? '').trim();
+  if (!text) return { pages: [], scope: 'all' };
+  const pages = new Set();
+  for (const part of text.split(',')) {
+    const piece = part.trim();
+    const match = /^(\d{1,7})(?:\s*-\s*(\d{1,7}))?$/.exec(piece);
+    if (!match) return null;
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : start;
+    if (start < 1 || end < start || (limit && end > limit)) return null;
+    for (let page = start; page <= end; page += 1) {
+      if (!limit || page <= limit) pages.add(page);
+    }
+  }
+  return { pages: [...pages].sort((a, b) => a - b), scope: 'range' };
+}
+
+// Madde 38 — başarısız sayfalar: blocks dizisinde en az bir status==='failed'
+// veya çeviri hiç kaydedilmeden istek gönderilmiş sayfalar (sayfa state'te
+// yok ama önceki koşuda istendi → failedPages kümesi).
+function pdfFailedPages(reader) {
+  const numPages = Number(reader?.pdf?.numPages) || 0;
+  const failed = new Set();
+  const statePages = reader?.state?.pages || {};
+  for (let page = 1; page <= numPages; page += 1) {
+    const blocks = statePages[String(page)];
+    if (Array.isArray(blocks) && blocks.some((block) => block?.status === 'failed')) failed.add(page);
+  }
+  for (const page of reader?.lastFailedPages || []) failed.add(page);
+  return [...failed].sort((a, b) => a - b);
+}
+
+// Madde 38 — çevrilmemiş sayfalar: state kaydında eksik olan VEYA içindeki
+// blokların tamamı translated/skipped olmayan sayfalar.
+function pdfUntranslatedPages(reader) {
+  const numPages = Number(reader?.pdf?.numPages) || 0;
+  const statePages = reader?.state?.pages || {};
+  const list = [];
+  for (let page = 1; page <= numPages; page += 1) {
+    const blocks = statePages[String(page)];
+    const complete = Array.isArray(blocks) && blocks.length > 0
+      && blocks.every((block) => block?.status === 'translated' || block?.status === 'skipped');
+    if (!complete) list.push(page);
+  }
+  return list;
+}
+
+// Madde 38 — "Sayfa seç" diyaloğu: aralık girdisi + kapsam seçeneği
+// (aralık / yalnız başarısızlar / çevrilmemişler). Sonuç sıralı sayfa
+// listesi döner veya iptalde null.
+async function choosePdfPageScope(reader) {
+  const failed = pdfFailedPages(reader);
+  const untranslated = pdfUntranslatedPages(reader);
+  const numPages = Number(reader?.pdf?.numPages) || 0;
+  const result = await openAppDialog({
+    title: interfaceChoice('Çevrilecek sayfaları seç', 'Select pages to translate'),
+    description: interfaceChoice(
+      `${numPages} sayfalık belge — ${failed.length} başarısız, ${untranslated.length} çevrilmemiş.`,
+      `${numPages}-page document — ${failed.length} failed, ${untranslated.length} untranslated.`),
+    confirmLabel: interfaceChoice('Çevir', 'Translate'),
+    intent: 'primary',
+    inputLabel: interfaceChoice('Sayfa aralığı (örn. 1-4, 8, 12-15)', 'Page range (e.g. 1-4, 8, 12-15)'),
+    inputValue: '',
+    inputMaxLength: 400,
+    choices: [
+      { value: 'range', label: interfaceChoice('Aralık', 'Range') },
+      { value: 'failed', label: interfaceChoice(`Başarısızlar (${failed.length})`, `Failed (${failed.length})`) },
+      { value: 'untranslated', label: interfaceChoice(`Çevrilmemiş (${untranslated.length})`, `Untranslated (${untranslated.length})`) },
+    ],
+    choiceLabel: interfaceChoice('Kapsam', 'Scope'),
+    choiceValue: 'range',
+  });
+  if (result === false || result == null) return null;
+  const choice = typeof result === 'object' ? result.choice : 'range';
+  if (choice === 'failed') {
+    if (!failed.length) { pdfReaderSetStatus(interfaceChoice('Başarısız sayfa yok.', 'No failed pages.')); return []; }
+    return failed;
+  }
+  if (choice === 'untranslated') {
+    if (!untranslated.length) { pdfReaderSetStatus(interfaceChoice('Tüm sayfalar çevrilmiş.', 'All pages are translated.')); return []; }
+    return untranslated;
+  }
+  const text = typeof result === 'object' ? result.text : '';
+  const parsed = parsePdfPageSelectionInput(text, numPages);
+  if (!parsed || !parsed.pages.length) {
+    pdfReaderSetStatus(interfaceChoice(
+      `Geçersiz sayfa aralığı: "${text}" — örn. 1-4, 8, 12-15`,
+      `Invalid page range: "${text}" — e.g. 1-4, 8, 12-15`), true);
+    return null;
+  }
+  return parsed.pages;
 }
 
 async function chooseCollectionName(title, initial = '') {

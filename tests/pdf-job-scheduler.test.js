@@ -13,7 +13,7 @@ const vm = require('vm');
 const SRC = fs.readFileSync('src/renderer/renderer.js', 'utf8');
 async function main() {
 const BODY = SRC.match(
-  /const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;[\s\S]*?\nasync function translateVisiblePdfPagesNow\(reader, all\) \{[\s\S]*?\n\}\n/);
+  /const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;[\s\S]*?\nasync function translateVisiblePdfPagesNow\(reader, all, explicitPages[^\)]*\) \{[\s\S]*?\n\}\n/);
 assert.ok(BODY, 'translateVisiblePdfPagesNow kaynağı bulunamadı');
 
 let passed = 0;

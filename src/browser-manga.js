@@ -152,6 +152,10 @@ function normalizeMangaRegions(input) {
       backgroundColor: /^#[0-9a-f]{6}$/i.test(String(raw?.backgroundColor || '')) ? raw.backgroundColor : '',
       textColor: /^#[0-9a-f]{6}$/i.test(String(raw?.textColor || '')) ? raw.textColor : '',
       hidden,
+      // Madde 40 — kullanıcı kaynak düzeltmesi: yeniden OCR/çeviri koşusunda
+      // elle girilen kaynak metni korunur (overlay dataset + state birleşimi).
+      ...(raw?.sourceEdited === true ? { sourceEdited: true } : {}),
+      ...(raw?.edited === true ? { edited: true } : {}),
     });
   }
   return normalized;
@@ -627,6 +631,11 @@ function mangaRegionsStateScript(imageId) {
       index: Number(region.dataset.index),
       translation: region.querySelector('[data-whisper-manga-text]')?.textContent || '',
       hidden: region.dataset.hidden === 'true',
+      // Madde 40 — kullanıcı düzeltmeleri state birleşiminde korunur:
+      // kaynak metin + elle-düzeltme bayrakları merged satıra taşınır.
+      source: region.dataset.source || '',
+      sourceEdited: region.dataset.sourceEdited === 'true',
+      edited: region.dataset.edited === 'true',
     }));
   })()`;
 }
@@ -663,6 +672,9 @@ ${MANGA_GEOMETRY_SOURCE}
           globalThis.__whisperTrustedBridgeSend?.('manga-edit', {
             id: group.dataset.imageId || '', index: Number(group.dataset.index),
             translation: group.dataset.translation || '', hidden: group.dataset.hidden === 'true',
+            source: group.dataset.source || '',
+            sourceEdited: group.dataset.sourceEdited === 'true',
+            edited: group.dataset.edited === 'true',
             pre: previous?.translation ?? group.dataset.translation ?? '',
             preHidden: previous?.hidden === true,
             bridgeToken: state.bridgeToken,
@@ -901,11 +913,22 @@ ${MANGA_GEOMETRY_SOURCE}
         Object.assign(columns.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '14px' });
         const sourcePanel = document.createElement('div');
         const sourceTitle = document.createElement('div');
-        sourceTitle.textContent = 'Orijinal';
+        sourceTitle.textContent = 'Orijinal (OCR) — düzeltebilirsin';
+        // Madde 39 — OCR kaynağı da düzenlenebilir: yanlış okunan metni elle
+        // düzeltip yalnız bu bölgeyi yeniden çevirtmek mümkün olur.
+        const sourceArea = document.createElement('textarea');
+        sourceArea.setAttribute('aria-label', 'OCR kaynak metni');
+        sourceArea.dir = 'auto';
+        sourceArea.value = group.dataset.source || '';
+        sourceArea.maxLength = 4000;
+        Object.assign(sourceArea.style, { width: '100%', minHeight: '64px', resize: 'vertical', boxSizing: 'border-box',
+          padding: '9px', color: '#eef1f4', background: '#0b0f13', border: '1px solid #46515c', borderRadius: '7px',
+          font: '14px/1.4 Segoe UI, Arial, sans-serif', marginTop: '6px' });
         const original = document.createElement('p');
-        original.textContent = group.dataset.source || 'Kaynak metin bulunamadı.';
+        original.textContent = '';
         original.dir = 'auto';
-        Object.assign(original.style, { whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.45', overflowWrap: 'anywhere' });
+        Object.assign(original.style, { whiteSpace: 'pre-wrap', fontSize: '12px', lineHeight: '1.4',
+          overflowWrap: 'anywhere', color: '#9aa8b5', display: 'none' });
         const originalImage = [...document.images].find(item => item.getAttribute('data-whisper-manga-id') === group.dataset.imageId);
         sourcePanel.append(sourceTitle);
         if (originalImage?.naturalWidth) {
@@ -927,7 +950,7 @@ ${MANGA_GEOMETRY_SOURCE}
             sourcePanel.append(preview);
           } catch (_) {}
         }
-        sourcePanel.append(original);
+        sourcePanel.append(sourceArea, original);
         const translationPanel = document.createElement('label');
         translationPanel.textContent = 'Çeviri';
         // main.js saklama/yükleme sınırı 4000 — editör aynı sınırı izler.
@@ -947,9 +970,10 @@ ${MANGA_GEOMETRY_SOURCE}
           return button;
         };
         let onOutsidePointerDown = null;
-        // Taslak, kaydedilmiş çeviriden farklıysa yanlışlıkla dışarı tıklama veya
-        // Esc metni silmesin; atmak için 'Kapat' düğmesi bilinçli seçilmelidir.
-        const dirty = () => area.value.trim() !== (group.dataset.translation || '');
+        // Taslak, kaydedilmiş çeviriden veya kaynaktan farklıysa yanlışlıkla
+        // dışarı tıklama/Esc metni silmesin; atmak için 'Kapat' bilinçli seçilir.
+        const dirty = () => area.value.trim() !== (group.dataset.translation || '')
+          || sourceArea.value.trim() !== (group.dataset.source || '');
         const close = () => {
           if (onOutsidePointerDown) document.removeEventListener('pointerdown', onOutsidePointerDown, true);
           editor.remove();
@@ -980,10 +1004,36 @@ ${MANGA_GEOMETRY_SOURCE}
           close();
         }));
         buttons.appendChild(makeButton('Kapat', false, close));
+        // Madde 39 — OCR kaynağı düzeltilip yalnız bu bölge yeniden çevrilir;
+        // manga-retranslate köprüsü metin-yolu çeviriyi tetikler (yeniden OCR yok).
+        buttons.appendChild(makeButton('Kaynaktan yeniden çevir', false, () => {
+          const previous = state.remember(group);
+          const corrected = sourceArea.value.trim();
+          if (corrected && corrected !== (group.dataset.source || '')) {
+            group.dataset.source = corrected;
+            group.dataset.sourceEdited = 'true';
+          }
+          group.dataset.edited = 'true';
+          try {
+            globalThis.__whisperTrustedBridgeSend?.('manga-retranslate', {
+              id: group.dataset.imageId || '', index: Number(group.dataset.index),
+              source: corrected, translation: area.value.trim(),
+              bridgeToken: state.bridgeToken,
+            });
+          } catch (_) {}
+          state.emitEdit(group, previous);
+          close();
+        }));
         buttons.appendChild(makeButton('Uygula', true, () => {
           const previous = state.remember(group);
           const text = group.querySelector('[data-whisper-manga-text]');
           if (text) text.textContent = area.value.trim();
+          const corrected = sourceArea.value.trim();
+          if (corrected !== (group.dataset.source || '')) {
+            group.dataset.source = corrected;
+            group.dataset.sourceEdited = 'true';
+          }
+          group.dataset.edited = 'true';
           group.dataset.translation = area.value.trim();
           group.dataset.hidden = 'false';
           group.style.display = '';
@@ -1037,6 +1087,10 @@ ${MANGA_GEOMETRY_SOURCE}
       group.dataset.source = item.source || '';
       group.dataset.translation = item.translation;
       group.dataset.hidden = item.hidden ? 'true' : 'false';
+      // Madde 40 — kullanıcı düzeltme bayrakları dataset'te yaşar; yeniden
+      // tarama/çeviri merged akışında kaybolmaz.
+      group.dataset.sourceEdited = item.sourceEdited ? 'true' : 'false';
+      group.dataset.edited = item.edited ? 'true' : 'false';
       group.dataset.textBox = JSON.stringify(item.textBox);
       group.dataset.bubbleBox = JSON.stringify(item.bubbleBox);
       group.dataset.shape = item.shape;

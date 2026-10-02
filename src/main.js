@@ -429,6 +429,7 @@ const {
   loadPdfTranslationState,
   pdfTranslationStateFileStem,
   pendingPdfPages,
+  applyPdfBlockEdit,
 } = require('./pdf-translate');
 const { matchingLearningAnnotation, normalizeAnnotation } = require('./browser-learning');
 const { KNOWN_MODELS, scanModelCache, directorySizeBytes } = require('./model-manager');
@@ -7512,6 +7513,11 @@ function preparePdfPageRequests(rawPages) {
       // Madde 36 — başlık/dipnot/tablo türü kaynak↔hedef eşleştirmesinde
       // korunur (görsel hiyerarşi + birleştirme sınırları).
       ...(paragraph.kind && paragraph.kind !== 'body' ? { kind: paragraph.kind } : {}),
+      // Madde 37 — belirsiz tablo sırası işaretini bloğa taşı; kullanıcı
+      // bu hücrelerde okuma sırasını doğrulamalı.
+      ...(paragraph.orderAmbiguous === true ? { orderAmbiguous: true } : {}),
+      // Madde 36 — karşılık vurgusu için blok konumu (sayfa koordinatı).
+      ...(paragraph.box ? { box: paragraph.box } : {}),
     }))]));
   return pages.map((page) => ({
     pageNumber: page.pageNumber,
@@ -8317,13 +8323,74 @@ function applyMangaEditFromPage(tab, payload) {
     return false;
   }
   const translation = String(payload.translation ?? current.translation ?? '').trim().slice(0, 4000);
-  page.regions[index] = { ...current, translation, hidden: payload.hidden === true };
+  // Madde 40 — kullanıcı düzeltmesi: kaynak metin + düzeltme bayrakları da
+  // saklanır; yeniden OCR/çeviri merged akışı bunları ezmeyi atlar.
+  const next = { ...current, translation, hidden: payload.hidden === true };
+  if (typeof payload.source === 'string' && payload.source.trim()
+      && payload.source.trim() !== String(current.source || '').trim()) {
+    next.source = payload.source.trim().slice(0, 4000);
+    next.sourceEdited = true;
+  } else if (payload.sourceEdited === true) next.sourceEdited = true;
+  if (payload.edited === true) next.edited = true;
+  page.regions[index] = next;
   browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
   sendBrowserEvent(tab, {
     type: 'manga-edit', imageId: String(payload.id || ''), index,
     hidden: payload.hidden === true, translation,
   });
   return true;
+}
+
+// Madde 39 — düzeltilmiş OCR kaynağından tek bölge yeniden çevirisi:
+// yeniden OCR yapılmaz; bölgenin kullanıcı-onaylı kaynağı metin-yolu
+// çeviriye gider, sonuç bölge + önbellek + overlay'e yazılır.
+async function retranslateMangaRegionFromSource(tab, payload) {
+  if (!tab || !payload || typeof payload !== 'object') return { ok: false, error: 'Geçersiz istek.' };
+  if (!tab.bridgeToken || payload.bridgeToken !== tab.bridgeToken) return { ok: false, error: 'Köprü doğrulaması başarısız.' };
+  const page = tab.mangaPages?.get(String(payload.id || ''));
+  const index = Number(payload.index);
+  if (!page || !Number.isInteger(index) || index < 0 || index >= page.regions.length) {
+    return { ok: false, error: 'Manga bölgesi artık mevcut değil.' };
+  }
+  const source = String(payload.source ?? page.regions[index].source ?? '').trim().slice(0, 4000);
+  if (!source) return { ok: false, error: 'Çevrilecek kaynak metin boş.' };
+  const config = browserMangaTranslationConfig({});
+  try {
+    const translation = String(await requestBrowserSentenceTranslation(source, config, new AbortController().signal) || '').trim().slice(0, 4000);
+    if (!translation) throw new Error('Çeviri boş döndü.');
+    const current = page.regions[index];
+    const next = { ...current, source, translation, sourceEdited: true, edited: true, hidden: false };
+    page.regions[index] = next;
+    // Düzeltilmiş kaynak→çeviri çifti bölüm/site terminolojisine öğrenilir.
+    try {
+      if (tab.mangaTerminologyMap) {
+        learnTerminology(tab.mangaTerminologyMap, source, translation, `${payload.id}:${index}`, 1);
+        persistMangaSiteTerminology(tab, config);
+      }
+    } catch (_) {}
+    browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
+    // Overlay metnini yerinde güncelle — tam katman yeniden kurulmaz.
+    const update = `(() => { const s = window.__whisperMangaOverlay; if (!s) return false;
+      for (const region of document.querySelectorAll('[data-whisper-manga-region]')) {
+        if (region.dataset.imageId !== ${JSON.stringify(String(payload.id || ''))} || Number(region.dataset.index) !== ${JSON.stringify(index)}) continue;
+        region.dataset.translation = ${JSON.stringify(translation)};
+        region.dataset.source = ${JSON.stringify(source)};
+        region.dataset.sourceEdited = 'true'; region.dataset.edited = 'true';
+        region.dataset.hidden = 'false'; region.style.display = '';
+        const text = region.querySelector('[data-whisper-manga-text]'); if (text) text.textContent = ${JSON.stringify(translation)};
+        s.onLayout?.(); return true;
+      } return false; })()`;
+    void executeBrowserTrustedMain(tab.view, update).catch(() => {});
+    sendBrowserEvent(tab, { type: 'manga-edit', imageId: String(payload.id || ''), index,
+      hidden: false, translation });
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'ready', translated: tab.mangaTranslated,
+      message: 'Bölge düzeltilen kaynaktan yeniden çevrildi.' });
+    return { ok: true, translation };
+  } catch (error) {
+    sendBrowserEvent(tab, { type: 'manga-state', state: 'ready', translated: tab.mangaTranslated,
+      error: error?.message || 'Yeniden çeviri başarısız.', message: `Bölge yeniden çevrilemedi: ${error?.message || 'hata'}` });
+    return { ok: false, error: error?.message || 'Yeniden çeviri başarısız.' };
+  }
 }
 
 function applyBrowserOverlayStyleFromPage(tab, payload) {
@@ -8365,17 +8432,9 @@ async function retrySelectedMangaRegion(tab) {
   sendBrowserEvent(tab, { type: 'manga-state', state: 'running', translated: tab.mangaTranslated,
     message: 'Seçili manga bölgesi yeniden okunup çevriliyor…' });
   try {
-    const image = await fetchMangaImage(page.candidate, tab.view.webContents.getURL(), job.controller.signal,
-      tab.view.webContents);
-    if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
-    const fresh = await requestMangaTranslation(image,
-      { ...config, terminologyText: job.terminologyText || '' }, page.pageTitle, job.controller.signal, {
-      bubbleBox: selected.bubbleBox,
-      source: selected.source,
-    });
-    if (!fresh.length) throw new Error('Seçili bölgede çevrilecek metin bulunamadı.');
-    mangaLearnRegions(job, fresh, selected.id);
-    const replacement = nearestMangaRegion(fresh, selected.bubbleBox);
+    // Overlay'deki canlı satırlar önce okunur: kullanıcı düzeltmeleri (kaynak
+    // metin + bayraklar) merged çıktıya taşınır; sourceEdited seçiminde
+    // görüntü indirme ve OCR tamamen atlanır (madde 39 — yalnız ilgili sonuç).
     const currentStates = await executeBrowserTrustedMain(tab.view, mangaRegionsStateScript(selected.id)).catch(() => []);
     const stateRows = currentStates.find((item) => Array.isArray(item) && item.length)
       || currentStates.find(Array.isArray) || [];
@@ -8385,10 +8444,40 @@ async function retrySelectedMangaRegion(tab) {
         ...region,
         translation: String(local.translation ?? region.translation ?? '').trim().slice(0, 4000),
         hidden: local.hidden === true,
+        // Madde 40 — kullanıcı düzeltmeleri merged'de korunur: elle değiştirilen
+        // kaynak + düzeltme bayrakları yeniden taramada sessizce ezilemez.
+        ...(local.source ? { source: String(local.source).slice(0, 4000) } : {}),
+        ...(local.sourceEdited === true ? { sourceEdited: true } : {}),
+        ...(local.edited === true ? { edited: true } : {}),
       } : region;
     });
-    merged[selected.index] = { ...replacement, hidden: false };
-    page.regions = decorateMangaRegionColors(image, merged);
+    const selectedLocal = stateRows.find((item) => item?.index === selected.index);
+    if (selectedLocal?.sourceEdited === true && selectedLocal?.source) {
+      // Metin-yolu: düzeltilmiş OCR kaynağı doğrudan çevrilir.
+      const retranslated = String(await requestBrowserSentenceTranslation(
+        String(selectedLocal.source).slice(0, 4000), config, job.controller.signal) || '').trim().slice(0, 4000);
+      merged[selected.index] = {
+        ...merged[selected.index],
+        source: String(selectedLocal.source).slice(0, 4000),
+        translation: retranslated || merged[selected.index].translation,
+        sourceEdited: true, edited: true, hidden: false,
+      };
+      page.regions = normalizeMangaRegions(merged);
+    } else {
+      const image = await fetchMangaImage(page.candidate, tab.view.webContents.getURL(), job.controller.signal,
+        tab.view.webContents);
+      if (!mangaJobIsCurrent(tab, job)) return { ok: false, canceled: true };
+      const fresh = await requestMangaTranslation(image,
+        { ...config, terminologyText: job.terminologyText || '' }, page.pageTitle, job.controller.signal, {
+        bubbleBox: selected.bubbleBox,
+        source: selected.source,
+      });
+      if (!fresh.length) throw new Error('Seçili bölgede çevrilecek metin bulunamadı.');
+      mangaLearnRegions(job, fresh, selected.id);
+      const replacement = nearestMangaRegion(fresh, selected.bubbleBox);
+      merged[selected.index] = { ...replacement, hidden: false };
+      page.regions = decorateMangaRegionColors(image, merged);
+    }
     browserMangaCache().set(page.cacheKey, JSON.stringify({ regions: page.regions }));
     const applied = await executeBrowserTrustedMain(tab.view, mangaOverlayScript({
       id: selected.id, regions: page.regions, lang: config.targetLanguage, fontScale: config.fontScale, fontFamily: config.fontFamily,
@@ -14834,6 +14923,7 @@ ipcMain.on('browser:trusted-bridge', (event, message) => {
       && candidate.view.webContents === event.sender);
   if (!tab || (message.type !== 'page-blocks' && message.type !== 'page-action' && tab.id !== browserActiveTabId)) return;
   if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
+  else if (message.type === 'manga-retranslate') void retranslateMangaRegionFromSource(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
   else if (message.type === 'subtitle-control' && ['subtitle-earlier', 'subtitle-later', 'subtitle-larger', 'subtitle-smaller', 'subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle', 'subtitle-save'].includes(message.payload?.action)) {
     sendBrowserEvent(tab, { type: 'browser-shortcut', key: message.payload.action });
@@ -17424,6 +17514,24 @@ ipcMain.handle('pdf:state', async (event, request = {}) => {
     model: config.model,
     endpoint: config.endpoint,
   }) };
+});
+
+// Madde 37 — tek bloğun hedef metnine kullanıcı düzeltmesi; düzeltme
+// state.pages içine userText olarak yazılır ve yeniden işlemelerde korunur.
+ipcMain.handle('pdf:editBlock', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  const document = pdfDocumentByHash(request.pdfHash);
+  if (!document) return { ok: false, error: 'PDF oturumu bulunamadı; dosyayı yeniden açın.' };
+  const config = browserTranslationConfig({ targetLanguage: request.targetLanguage });
+  if (request.model && request.model !== config.model) config.model = String(request.model).slice(0, 120);
+  const state = readPdfTranslationState({
+    pdfHash: document.pdfHash, targetLanguage: config.targetLanguage,
+    model: config.model, endpoint: config.endpoint,
+  });
+  const block = applyPdfBlockEdit(state, request.page, request.blockId, request.userText);
+  if (!block) return { ok: false, error: 'Blok bulunamadı.' };
+  writePdfTranslationState(state);
+  return { ok: true, block, state };
 });
 
 ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
