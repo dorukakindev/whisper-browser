@@ -362,6 +362,12 @@ def test_modal_gates_still_catch_real_flips():
         "You should not do that.", "Bunu yapmalısın.", "tr")
     assert "modal_missing" in T.translation_meaning_issues(
         "You must wait.", "Bekle.", "tr")
+    # 'may/might not' maskelenmez — olumsuz-olasılık ihtimal kanıtı ister;
+    # 'may not'→'işe yaramıyor' kesinleştirmesi korpus ihtimal-10 pinidir.
+    assert "modal_certainty_flip" in T.translation_meaning_issues(
+        "It may not work.", "İşe yaramıyor.", "tr")
+    assert T.translation_meaning_issues(
+        "He might not come.", "Gelmeyebilir.", "tr") == []
 
 
 # ---------- 9. SDH işareti demirleme ----------

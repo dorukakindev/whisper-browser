@@ -913,9 +913,12 @@ _SOURCE_NECESSITY = re.compile(
 # çevirileri ret'liyordu ('will not believe' → 'inanmazsın' R401). Gerçek
 # anlam kaybı (olumlu kaynak → olumsuz hedef) olumsuzluk kapısından yakalanır:
 # maske yalnız modal denetimini gevşetir, 'not' hâlâ _SOURCE_NEGATION'da durur.
+# 'may not'/'might not' BİLEREK maskelenmez: olumsuz-olasılık ('gelmeyebilir')
+# ihtimal kanıtı ister; maskelenirse 'may not'→'işe yaramıyor' kesinleştirmesi
+# kapıdan kaçar (korpus ihtimal-10 pini).
 _NEGATED_MODAL = re.compile(
-    r"\b(?:[Cc]an['’]t|[Cc]annot|[Cc]ould(?:n['’]t|\s+not)|[Mm]ay\s+not|"
-    r"[Mm]ight(?:n['’]t|\s+not)|[Mm]ust(?:n['’]t|\s+not)|[Nn]eedn['’]t|"
+    r"\b(?:[Cc]an['’]t|[Cc]annot|[Cc]ould(?:n['’]t|\s+not)|"
+    r"[Mm]ust(?:n['’]t|\s+not)|[Nn]eedn['’]t|"
     r"[Dd]aren['’]t|[Ss]han['’]t|[Ss]hall\s+not|"
     r"[Ss]hould(?:n['’]t|\s+not)|[Ww]ill\s+not|[Ww]on['’]t|"
     r"[Ww]ould(?:n['’]t|\s+not))\b")
