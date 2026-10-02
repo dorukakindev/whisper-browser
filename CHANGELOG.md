@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Runtime capability panel now shows word alignment (WhisperX), speaker diarization (pyannote), and OCR engine (RapidOCR) availability with per-component remedies; translation-recovery UI strings localized to English; long-film acceptance harness supports --minutes with regional overlap metrics.
+
 ### Fixed
 - Güvenlik/mahremiyet: iş günlüğü başlığı artık `--translate-base-url`/`--llm-base-url` uç noktalarını `<gizlendi>` ile maskeler (paylaşılabilen günlükte iç ağ adı kalmaz); çeviri uç noktası normalizatörü renderer-canlı değerlerde userinfo (`user:pass@`) bilgisini de soyuyor.
 - Performans/bellek: medya kataloğu afiş önbelleği artık 300 kayıtla sınırlı (oturum-içi sınırsız büyüme giderildi); site simgesi haritası tek 400-kayıtlık sınırlı yazım yolunda birleşti.

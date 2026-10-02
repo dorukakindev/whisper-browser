@@ -2102,6 +2102,30 @@ function renderRuntimeStatus(env, modelStatus = modelStatusSnapshot) {
     env?.ytDlpVersion ? (env.ytDlpManaged ? 'ready' : 'warning') : 'error');
   runtimeState('runtimeGpu', env?.gpu || interfaceChoice('NVIDIA GPU algılanmadı', 'No NVIDIA GPU detected'),
     env?.gpu ? 'ready' : 'warning');
+  // Madde 5 — opsiyonel bağımlılıklar tek panelde: her satır, eksik bileşenin
+  // hangi işlemi kapattığını ve nasıl kurulacağını title'da açıklar.
+  const deps = env?.optionalDeps || null;
+  const depTile = (id, available, missingText, title) => {
+    const el = $(id);
+    if (!el) return;
+    runtimeState(id, deps === null
+      ? interfaceChoice('Ölçülemedi', 'Not measured')
+      : available ? interfaceChoice('Hazır', 'Ready') : missingText,
+      deps === null ? 'warning' : (available ? 'ready' : 'warning'));
+    if (title) el.title = deps === null ? '' : title;
+  };
+  depTile('runtimeWhisperx', !!deps?.whisperx,
+    interfaceChoice('Kurulu değil — install-whisperx.bat', 'Not installed — install-whisperx.bat'),
+    interfaceChoice('WhisperX motoru wav2vec2 ile <100ms kelime hizalaması sağlar. Kurulum: install-whisperx.bat bir kez çalıştırılır.',
+      'The WhisperX engine gives <100ms word alignment via wav2vec2. Install: run install-whisperx.bat once.'));
+  depTile('runtimeDiarize', !!deps?.pyannoteAudio,
+    interfaceChoice('Kurulu değil — install-diarize.bat', 'Not installed — install-diarize.bat'),
+    interfaceChoice('Konuşmacı tanıma (diarization) pyannote.audio gerektirir. Kurulum: install-diarize.bat + HF token + model erişim onayı.',
+      'Speaker diarization requires pyannote.audio. Install: run install-diarize.bat, add an HF token, and accept model access.'));
+  depTile('runtimeOcr', !!deps?.rapidocr,
+    interfaceChoice('Kurulu değil — install.bat', 'Not installed — install.bat'),
+    interfaceChoice('Manga/PDF görsel OCR RapidOCR (onnxruntime) ile çalışır; install.bat içinde kurulur.',
+      'Manga/PDF image OCR runs on RapidOCR (onnxruntime); it is installed by install.bat.'));
   const free = modelStatus?.freeBytes;
   runtimeState('runtimeDisk', Number.isFinite(Number(free))
     ? interfaceChoice(`${(free / 1073741824).toFixed(1)} GB boş`, `${(free / 1073741824).toFixed(1)} GB free`)
