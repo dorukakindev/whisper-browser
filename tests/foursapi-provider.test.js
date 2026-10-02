@@ -12,8 +12,8 @@ const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
 
 assert.match(html,
-  /value="https:\/\/4sapi\.com\/v1" data-default-model="gpt-5\.4">4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
-  '4SAPI altyazı sağlayıcısı GPT-5.4 önerisiyle bulunmalı');
+  /value="https:\/\/4sapi\.com\/v1" data-default-model="gemini-3\.8-flash" selected>4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
+  '4SAPI altyazı sağlayıcısı seçili ve Gemini 3.8 Flash önerisiyle bulunmalı');
 assert.match(html,
   /value="https:\/\/4sapi\.com\/v1" data-default-model="gemini-3\.8-flash">4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
   '4SAPI manga sağlayıcısı Gemini 3.8 Flash önerisiyle bulunmalı');
@@ -26,8 +26,8 @@ const helperStart = renderer.indexOf('function endpointPresetRecommendedModel(')
 const helperEnd = renderer.indexOf('\n// Çeviri endpoint preset', helperStart);
 assert(helperStart >= 0 && helperEnd > helperStart, 'Sağlayıcı model eşleme yardımcısı bulunamadı');
 vm.runInContext(renderer.slice(helperStart, helperEnd), rendererContext);
-assert.equal(rendererContext.endpointPresetRecommendedModel('https://4sapi.com/v1'), 'gpt-5.4');
-assert.equal(rendererContext.endpointPresetRecommendedModel('https://4sapi.com/v1/'), 'gpt-5.4');
+assert.equal(rendererContext.endpointPresetRecommendedModel('https://4sapi.com/v1'), 'gemini-3.8-flash');
+assert.equal(rendererContext.endpointPresetRecommendedModel('https://4sapi.com/v1/'), 'gemini-3.8-flash');
 assert.equal(rendererContext.endpointPresetRecommendedModel({
   value: 'https://4sapi.com/v1',
   selectedOptions: [{ dataset: { defaultModel: 'gemini-3.8-flash' } }],

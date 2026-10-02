@@ -817,12 +817,12 @@
               <label class="field">
                 <span class="field-label">Endpoint (rota)</span>
                 <select id="translateEndpointPreset">
-                  <option value="https://api.shuaiapi.com/v1" selected>shuaiapi · CF optimize</option>
+                  <option value="https://api.shuaiapi.com/v1">shuaiapi · CF optimize</option>
                   <option value="https://oai.sb/v1">shuaiapi · Global</option>
                   <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
-                  <option value="https://4sapi.com/v1" data-default-model="gpt-5.4">4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash" selected>4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -910,8 +910,8 @@
               </label>
               <div class="hint field-full">Manga alanları boşsa altyazı profili kullanılır. Ayrı anahtar girerseniz aynı sağlayıcıda iki farklı API anahtarıyla çalışabilirsiniz. 4SAPI seçildiğinde altyazıda <code>gpt-5.4</code>, manga tarafında <code>gemini-3.8-flash</code> önerilir; iki model de model listesinden seçilebilir.</div>
               <label class="field">
-                <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">6</span></span>
-                <input type="range" id="translateWorkers" min="1" max="10" step="1" value="6" />
+                <span class="field-label">Paralel istek: <span class="value" id="translateWorkersVal">8</span></span>
+                <input type="range" id="translateWorkers" min="1" max="10" step="1" value="8" />
               </label>
               <label class="field">
                 <span class="field-label">Küfür/argo</span>
@@ -934,7 +934,7 @@
                 <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
               </label>
               <label class="field switch-field field-full">
-                <input type="checkbox" id="translateLenient" />
+                <input type="checkbox" id="translateLenient" checked />
                 <span>Gevşek kabul: kalite denetimini atla — model ne döndürürse doğrudan yazılır (daha hızlı; hatalı veya kaynak dilde kalan satırlar sessizce geçer)</span>
               </label>
               <div class="hint field-full">
