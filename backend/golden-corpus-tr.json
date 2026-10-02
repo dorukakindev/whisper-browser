@@ -339,7 +339,7 @@
       ],
       "defect_parts": [
         "Sana söyleyecektim.",
-        "Ama telefon geldi."
+        "ama telefon geldi."
       ],
       "detection": "boundary"
     },
@@ -360,7 +360,7 @@
       ],
       "defect_parts": [
         "Fırtına elektrikleri kesti.",
-        "İçeride kaldık."
+        "içeride kaldık."
       ],
       "detection": "boundary"
     },
@@ -381,7 +381,7 @@
       ],
       "defect_parts": [
         "Onu görürsen.",
-        "Aradığımı söyle."
+        "aradığımı söyle."
       ],
       "detection": "boundary"
     },
@@ -402,7 +402,7 @@
       ],
       "defect_parts": [
         "Plan işe yaradı.",
-        "Bu yüzden erken çıktık."
+        "bu yüzden erken çıktık."
       ],
       "detection": "boundary"
     },

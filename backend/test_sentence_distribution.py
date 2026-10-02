@@ -97,12 +97,21 @@ def test_two_cue_single_sentence_distributes_naturally():
     assert [t for _, _, t in out] == ["Onu bulmam lazım", "çok geç olmadan."]
 
 
-def test_word_per_word_early_sentence_end_rejected():
-    """Parça 0'ı noktalama ile erken kapatan dağıtım reddedilir."""
-    issue = sentence_part_boundary_issue(
+def test_word_per_word_boundary_period_contract():
+    """Sonda nokta + küçük-harf devam = yetim parça (ret); sonda nokta +
+    büyük-harf devam = doğal kapanış (kabul); parça içi ek cümle = ret."""
+    # Yetim devam: 'o çok geç olmadan' küçük harfle başlıyor → ret (Jung imzası)
+    assert sentence_part_boundary_issue(
         ["I have to find her", "before it is too late."],
-        ["Onu bulmalıyım.", "o çok geç olmadan."])
-    assert issue == "erken_cumle_sonu:0"
+        ["Onu bulmalıyım.", "o çok geç olmadan."]) == "erken_cumle_sonu:0"
+    # Doğal kapanış: sonraki parça büyük harfle başlıyor → kabul (R400 FP)
+    assert sentence_part_boundary_issue(
+        ["I have to find her", "before it is too late."],
+        ["Onu bulmalıyım.", "O çok geç olmadan."]) == ""
+    # Parça içinde kaynakta olmayan ek cümle: hâlâ ret.
+    assert sentence_part_boundary_issue(
+        ["I have to find her", "before it is too late."],
+        ["Onu bulmalıyım. Hemen.", "O çok geç olmadan."]) == "erken_cumle_sonu:0"
     # Noktasız doğal durak ise serbest (mevcut doğru davranış korunur)
     assert sentence_part_boundary_issue(
         ["I have to find her", "before it is too late."],
@@ -125,11 +134,16 @@ def test_internal_sentence_in_source_allows_translated_end():
         ["Bekle.", "Benimle gelmek istediğinden emin misin?"]) == ""
 
 
-def test_extra_sentence_end_beyond_internal_still_rejected():
-    """Kaynak parçada 1 iç cümle varken hedefte 2 cümle sonu → ret."""
+def test_extra_interior_sentence_beyond_source_rejected():
+    """Kaynak parçada 1 iç cümle varken hedefte İÇTE ek cümle → ret."""
     assert sentence_part_boundary_issue(
         ["Wait. Are you sure", "you want to come with me?"],
-        ["Bekle. Emin misin?", "Benimle gelmek istediğinden?"]) == "erken_cumle_sonu:0"
+        ["Bekle. Emin misin? Hemen gel.", "Benimle gelmek istediğinden?"]) == "erken_cumle_sonu:0"
+    # Aynı iç-cümle sayısı + sonda doğal kapanış: 'Bekle. Emin misin?'
+    # sadık çeviri — eski tam-sayı kapısı yanlış-pozitifle reddediyordu.
+    assert sentence_part_boundary_issue(
+        ["Wait. Are you sure", "you want to come with me?"],
+        ["Bekle. Emin misin?", "Benimle gelmek istediğinden?"]) == ""
 
 
 def test_intra_cue_second_sentence_gets_newline():
@@ -178,6 +192,8 @@ def test_three_cue_question_no_early_close():
     entries = [(0, 1, "Do you really"), (1, 2, "think that we"),
                (2, 3, "can make it?")]
     assert sentence_groups(entries) == [[0, 1, 2]]
+    # 'Gerçekten mi?' + küçük-harf 'başarabileceğimizi' devamı yetim parça —
+    # erken-kapama imzasıyla hâlâ ret.
     assert sentence_part_boundary_issue(
         ["Do you really", "think that we", "can make it?"],
         ["Gerçekten mi?", "başarabileceğimizi", "sanıyor musun?"]) == "erken_cumle_sonu:0"
@@ -301,6 +317,11 @@ def test_dangling_tail_rejected():
     assert part_tail_issue(["Doğru mu", "sanıyorsun?"], "tr") == ""
     # TR dışı hedefte devre dışı
     assert part_tail_issue(["I will not", "go."], "en") == ""
+    # 'bir' sonda isim öbeği kesiminin doğal aynasıdır ('ağır bir | bavul') —
+    # sarkık sayılmaz (canlı-korpus yanlış-pozitifi: BROWSER_BUG_REPORT_400).
+    assert part_tail_issue(["ağır bir", "bavul taşıyan bir kadın durduruluyor."], "tr") == ""
+    # Gerçek sarkık bağlaç hâlâ yakalanır.
+    assert part_tail_issue(["Gelmeyeceğim ama", "yine de gideceğim."], "tr") == "acik_baglanti:0"
 
 
 def test_name_anchor_accepts_inflection_and_rejects_substitution():
@@ -324,24 +345,38 @@ def test_name_anchor_accepts_inflection_and_rejects_substitution():
     assert part_anchor_issue(
         ["He quoted the Theogony carefully."],
         ["Dikkatle alıntı yaptı."], "tr").startswith("ozel_ad_kaydi")
+    # Orta-cümle büyük harfli ORTAK isim: 'Backpacker' → 'backpacker'
+    # büyük-küçük harf duyarsız korunma — doğru çeviri bloklanmaz.
+    assert part_anchor_issue(
+        ["and a young Backpacker is lost for words"],
+        ["ve genç backpacker dili tutuldu"], "tr") == ""
+    # Kanon eşitlik dışı düşüş hâlâ ret: 'gezgin' adın biçimi sayılmaz —
+    # eşanlam çeviriyi kapı ayırt edemez (belgelenmiş sınır).
+    assert part_anchor_issue(
+        ["and a young Backpacker is lost for words"],
+        ["ve genç bir gezgin dili tutuldu"], "tr").startswith("ozel_ad_kaydi")
 
 
 def test_repeated_part_rejected():
     assert part_repetition_issue(
         ["Yes.", "No."], ["Evet.", "Evet."]) == "tekrarli_part:1"
     assert part_repetition_issue(["Yes.", "Yes."], ["Evet.", "Evet."]) == ""
+    # Rolling-window parçaları içerik paylaşır: 'um yeah um' ⊃ 'um' çiftine
+    # aynı hedefin dönmesi sadık çeviri — yanlış-pozitif sayılmaz.
+    assert part_repetition_issue(
+        ["um yeah um", "um"], ["şey", "şey"]) == ""
 
 
 # ---------- 11. Cache'e bozuk sonuç yazılmaz + entegrasyon ----------
 
-def test_llm_translate_rejects_early_end_and_recovers(tmp_path):
-    """İlk yanıt erken kapanırsa ret → tek grup kurtarma ile doğru dağıtım alınır."""
+def test_llm_translate_rejects_interior_end_and_recovers(tmp_path):
+    """İlk yanıt parça içinde ek cümle üretirse ret → kurtarma doğru dağıtım alır."""
     entries = [(1.0, 2.5, "I have to find her"), (2.5, 4.0, "before it is too late.")]
 
     def reply(payload, call):
         if call == 1:
-            return {"items": {"0": "Onu bulmalıyım.", "1": "o çok geç olmadan."},
-                    "sentences": {"0": "Onu bulmalıyım. o çok geç olmadan."}}
+            return {"items": {"0": "Onu bulmalıyım. Şimdi.", "1": "o çok geç olmadan."},
+                    "sentences": {"0": "Onu bulmalıyım. Şimdi. o çok geç olmadan."}}
         return {"items": {"0": "Onu bulmam lazım", "1": "çok geç olmadan."},
                 "sentences": {"0": "Onu bulmam lazım çok geç olmadan."}}
 
