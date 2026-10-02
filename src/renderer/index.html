@@ -1297,6 +1297,8 @@
               </button>
             </div>
             <div class="browser-toolbar-actions">
+              <button class="btn-ghost browser-profile-chip hidden" id="browserProfileChip" type="button"
+                title="Bu sitede etkin olan ayar profilini göster" aria-label="Etkin tarayıcı profili">Genel profil</button>
               <details class="browser-translate-split browser-translate-menu" id="browserTranslateMenu">
                   <summary class="browser-subtitle-settings-button" id="browserSubtitleSettingsToggle"
                     title="Altyazı izlerini ve çeviri seçeneklerini aç" aria-label="Altyazı ve çeviri ayarlarını aç" aria-expanded="false">
@@ -1649,6 +1651,8 @@
               <span id="browserSubtitleHealthText">Bir video sayfası açın.</span>
               <div class="browser-subtitle-health-actions">
                 <button id="browserSubtitleHealthAction" class="btn btn-secondary btn-sm" type="button" data-action="address">Adres gir</button>
+                <button id="browserSubtitleHealthInfo" class="btn btn-ghost btn-sm hidden" type="button"
+                  title="Bu sitede hangi yakalama aşamalarının sonuçsuz kaldığını ve alternatif akışları göster">Ayrıntılar</button>
                 <button id="browserSubtitleHealthClear" class="btn btn-ghost btn-sm hidden" type="button"
                   title="Bu çeviri hata bildirimini temizle">Temizle</button>
               </div>
@@ -1686,6 +1690,8 @@
                   title="Gömülü CEA altyazısının bütün video segmentlerini düşük bant varyantından getir">Tüm altyazıyı getir</button>
                 <button class="btn btn-primary btn-sm" id="browserTrackTranslate" type="button">Yükle ve çevir</button>
                 <button class="btn btn-secondary btn-sm" id="browserTrackTranslateAll" type="button">Tüm izi tamamla</button>
+                <button class="btn btn-ghost btn-sm" id="browserTrackPreviewToggle" type="button" aria-pressed="false"
+                  title="Seçili izin ilk satırlarını, dil ve zaman dönüşümü bilgisini göster">İncele</button>
                 <button class="btn btn-ghost btn-sm" id="browserTranslationRetryFailed" type="button" disabled>Hatalıları yeniden dene</button>
                 <select id="browserExportFormat" aria-label="Dışa aktarma biçimi" title="Dışa aktarma biçimi">
                   <option value="srt">SRT</option>
@@ -1698,6 +1704,7 @@
                   title="Bu bildirimi kapat" aria-label="Bildirimi kapat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
                 <p class="browser-session-status hidden" id="browserTrackCaptureStatus" role="status" aria-live="polite"></p>
                 <p class="browser-session-status hidden" id="browserTrackOrigin" role="status" aria-live="polite"></p>
+                <pre class="browser-track-preview hidden" id="browserTrackPreview" role="status" aria-live="polite"></pre>
               </div>
               <details class="browser-view-settings" id="browserViewSettings">
                 <summary>Görünüm, sayfa ve manga</summary>
@@ -3418,6 +3425,7 @@
   <script src="queue-lifecycle.js"></script>
   <script src="../library-filters.js"></script>
   <script src="../renderer-ui-model.js"></script>
+  <script src="../browser-flow-helpers.js"></script>
   <script src="../player-task-center.js"></script>
 <dialog id="mediaCatalogDialog" aria-label="Film ve dizi arşivi"><div id="mediaCatalogRoot"></div></dialog>
 

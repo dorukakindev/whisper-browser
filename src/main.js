@@ -308,6 +308,7 @@ const {
   readBrowserSessionWithStatus,
   writeBrowserSessionAtomic,
 } = require('./browser-session-store');
+const { workspaceMissingResources } = require('./browser-flow-helpers');
 
 // Ebeveyn süreç ortamında gizli anahtarlar bulunabilir. Yalnız transkripsiyon
 // işi açıkça buildSecretEnv ile gereken anahtarı alır; diğer tüm alt süreçler
@@ -16198,7 +16199,13 @@ ipcMain.handle('browser:workspace:open', (event, name) => queueBrowserTabTransit
   browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(workspace.splitRatio) || browserSplitRatio));
   applyBrowserViewsLayout();
   scheduleBrowserSessionSave();
-  return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId, split: browserSplitSnapshot(), firstTabId: added[0]?.id || '' };
+  // Madde 29 — kaydedilmiş iz/kurtarma kaynağı diskte yoksa açılan sekmelerde
+  // hangi özelliğin yeniden üretilmesi gerektiği açıkça raporlanır.
+  const missing = workspaceMissingResources(added, {
+    getTrack: (assetId) => browserAssetStore().getTrack(assetId),
+    exists: (filePath) => { try { return fs.existsSync(filePath); } catch (_) { return true; } },
+  });
+  return { ok: true, tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId, split: browserSplitSnapshot(), firstTabId: added[0]?.id || '', missing };
 }));
 
 ipcMain.handle('browser:places:toggleBookmark', (event, rawEntry) => {
