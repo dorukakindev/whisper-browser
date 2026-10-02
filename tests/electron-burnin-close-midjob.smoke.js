@@ -62,6 +62,16 @@ const spawnChild = (phase) => {
   return state;
 };
 
+// Kaydedilen gömme işi (ffmpeg) POSIX'te detached=true ile KENDİ süreç
+// grubunun lideri — çocuk-grup SIGKILL electron ağacını öldürür ama ffmpeg
+// yetim kalıp tmp çıktıyı bitirebilir → kurtarma restart yerine canFinalize
+// koluna girer. Çökmeyi gerçeğe yaklaştırmak için pid'i kendi grubuyla öldür.
+const killBurninProcess = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return;
+  try { process.kill(process.platform === 'win32' ? pid : -pid, 'SIGKILL'); }
+  catch (_) { try { process.kill(pid, 'SIGKILL'); } catch (_) { /* zaten öldü */ } }
+};
+
 const waitMarker = async (state, marker, ms = 240000) => {
   const started = Date.now();
   while (Date.now() - started < ms) {
@@ -109,6 +119,9 @@ const waitExit = async (state, label) => {
     // B) Sert çökme: kurtarma kaydı kalır → recoveryId ile bitirilir.
     const crash = spawnChild('crash');
     await waitMarker(crash, '(çökme bekleniyor)');
+    // 'start' işaretinde recovery.json zaten yazılı (main.js gönderimden önce
+    // yazar); içindeki ffmpeg pid'ini ÖNCE öldür ki tmp dosyası yarım kalsın.
+    try { killBurninProcess(JSON.parse(fs.readFileSync(recoveryPath, 'utf8')).pid); } catch (_) {}
     crash.kill();
     await crash.done;
     assert(fs.existsSync(recoveryPath), 'çökme sonrası kurtarma kaydı yok');
