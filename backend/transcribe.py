@@ -30,6 +30,7 @@ import time
 import traceback
 import warnings
 from contextlib import contextmanager
+from io_errors import classify_ytdlp_error
 from pipeline_control import (
     OutputTransaction,
     PipelineCancelled,
@@ -434,7 +435,7 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
                 "Tarayıcı cookie veritabanı okunamadı. Tarayıcıyı tamamen kapatıp "
                 "yeniden deneyin veya Firefox oturumunu seçin."
             ) from exc
-        raise
+        raise RuntimeError(classify_ytdlp_error(exc)) from exc
 
     # Indirme bittikten sonra dosya yolunu aynı blokta çözümle.
     if info:
