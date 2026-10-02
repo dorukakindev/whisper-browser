@@ -217,6 +217,7 @@ contextBridge.exposeInMainWorld('api', {
   translatePdfPages: (payload) => ipcRenderer.invoke('pdf:translatePages', payload),
   cancelPdfTranslation: (pdfHash) => ipcRenderer.invoke('pdf:cancel', { pdfHash }),
   exportPdfTranslation: (pdfHash, format, targetLanguage, model) => ipcRenderer.invoke('pdf:export', { pdfHash, format, targetLanguage, model }),
+  editPdfBlock: (pdfHash, page, blockId, userText, targetLanguage, model) => ipcRenderer.invoke('pdf:editBlock', { pdfHash, page, blockId, userText, targetLanguage, model }),
   captureBrowserPage: (tabId, options = {}) => ipcRenderer.invoke('browser:capturePage', { tabId, options }),
   archiveBrowserPage: (tabId) => ipcRenderer.invoke('browser:archivePage', { tabId }),
   exportBrowserPagePdf: (tabId) => ipcRenderer.invoke('browser:exportPagePdf', { tabId }),

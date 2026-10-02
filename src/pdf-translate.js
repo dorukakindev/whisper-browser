@@ -289,13 +289,20 @@ function paragraphFrom(lines, pageNumber, index) {
   const left = Math.min(...lines.map((line) => line.x));
   const right = Math.max(...lines.map((line) => line.x + line.width));
   const kinds = new Set(lines.map((line) => line.kind || 'body'));
-  return {
+  const paragraph = {
     id: `${pageNumber}:${index}:${digest}`,
     text,
     lineCount: lines.length,
     kind: kinds.size === 1 ? [...kinds][0] : 'body',
     box: { left, top, right, bottom },
   };
+  // Madde 37 — belirsiz tablo sırası: column=-1 işaretli hücreler "ragged"
+  // bölgelerden gelir (sütun sınırları güvenle atanamadı); okuma sırası
+  // yalnızca y/x sezgisine dayanır. Kullanıcı bu blokta sırayı doğrulamalı.
+  if (paragraph.kind === 'table' && lines.some((line) => line.column === -1)) {
+    paragraph.orderAmbiguous = true;
+  }
+  return paragraph;
 }
 
 /** Merge ordered PDF lines into translation-sized paragraphs. */
@@ -531,6 +538,20 @@ function normalizePdfBlock(block, index) {
     status,
   };
   if (['heading', 'footnote', 'table'].includes(block.kind)) normalized.kind = block.kind;
+  if (block.orderAmbiguous === true) normalized.orderAmbiguous = true;
+  // Madde 36 — karşılık vurgusu için sayfa koordinatları (x/y sayfa
+  // yüksekliğiyle bölünerek çift görünümde konum çizgisine dönüşür).
+  const box = block.box;
+  if (box && [box.top, box.bottom, box.left, box.right].every(Number.isFinite)) {
+    normalized.box = {
+      top: Number(box.top), bottom: Number(box.bottom),
+      left: Number(box.left), right: Number(box.right),
+    };
+  }
+  // Madde 37 — kullanıcı düzeltmesi: hedef metne elle yazılan userText
+  // çevirinin üstünde gösterilir ve yeniden işlemelerde korunur.
+  const userText = typeof block.userText === 'string' ? normalizeText(block.userText).slice(0, 24000) : '';
+  if (userText) { normalized.userText = userText; normalized.edited = true; }
   if (status === 'failed' && block.error != null) normalized.error = normalizeText(block.error).slice(0, 1000);
   return normalized;
 }
@@ -641,9 +662,57 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
     });
   const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
   if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
+  // Madde 37 — yeniden işlemede kullanıcı düzeltmeleri korunur: aynı blok
+  // kimliğindeki eski userText yeni sonuca taşınır.
+  const previous = Array.isArray(normalized.pages?.[String(page)]) ? normalized.pages[String(page)] : [];
+  const previousEdits = new Map(previous.filter((block) => block?.userText).map((block) => [block.id, block.userText]));
+  if (previousEdits.size) {
+    for (const block of normalizedBlocks) {
+      const kept = previousEdits.get(block.id);
+      if (kept && !block.userText) { block.userText = kept; block.edited = true; }
+    }
+  }
   normalized.pages[String(page)] = normalizedBlocks;
   markPdfStateNormalized(normalized);
   return normalized;
+}
+
+/** Madde 37 — tek blok hedef metnine kullanıcı düzeltmesi yazar (boş
+ *  metin düzeltmeyi kaldırır). Değişen blok döner; eşleşme yoksa null. */
+function applyPdfBlockEdit(state, pageNumber, blockId, userText) {
+  const page = Number(pageNumber);
+  const blocks = Array.isArray(state?.pages?.[String(page)]) ? state.pages[String(page)] : null;
+  if (!blocks) return null;
+  const index = blocks.findIndex((block) => block?.id === String(blockId ?? ''));
+  if (index < 0) return null;
+  const text = typeof userText === 'string' ? normalizeText(userText).slice(0, 24000) : '';
+  const next = { ...blocks[index] };
+  if (text) { next.userText = text; next.edited = true; }
+  else { delete next.userText; delete next.edited; }
+  blocks[index] = next;
+  return next;
+}
+
+/** Madde 38 — sayfa aralığı ayrıştırıcı: "1-4, 8, 12-15" → [1,2,3,4,8,12,13,14,15].
+ *  Geçersiz girdi null döner; boş girdi "tümü" anlamına boş dizi döner. */
+function parsePdfPageSelection(input, numPages) {
+  const limit = Math.max(0, Math.trunc(Number(numPages) || 0));
+  const text = String(input ?? '').trim();
+  if (!text) return { pages: [], scope: 'all' };
+  const pages = new Set();
+  for (const part of text.split(',')) {
+    const piece = part.trim();
+    const match = /^(\d{1,7})(?:\s*-\s*(\d{1,7}))?$/.exec(piece);
+    if (!match) return null;
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : start;
+    if (start < 1 || end < start || (limit && end > limit)) return null;
+    for (let page = start; page <= end; page += 1) {
+      if (!limit || page <= limit) pages.add(page);
+    }
+  }
+  const list = [...pages].sort((a, b) => a - b);
+  return { pages: list, scope: 'range' };
 }
 
 function pdfHashPlan(fileSize, maxChunkBytes = PDF_HASH_CHUNK_BYTES) {
@@ -695,6 +764,8 @@ module.exports = {
   translatedPdfPages,
   pendingPdfPages,
   recordPdfPageTranslation,
+  applyPdfBlockEdit,
+  parsePdfPageSelection,
   pdfHashPlan,
   pdfHashFromFirstChunk,
   isPdfTranslationStateCompatible,

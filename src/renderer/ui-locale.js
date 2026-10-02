@@ -685,6 +685,7 @@
     ['↑↓ seç · Enter çalıştır · Esc kapat', '↑↓ select · Enter run · Esc close'],
     ['Bu sayfadan çevir', 'Translate from this page'],
     ['Tüm kitabı çevir', 'Translate entire book'],
+    ['Sayfa seç', 'Select pages'],
     ['Dışa aktar', 'Export'],
     ['Yardımı kapat', 'Close help'],
     ['Klavye kısayolları', 'Keyboard shortcuts'],

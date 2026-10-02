@@ -4509,6 +4509,22 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .pdf-kind-heading .pdf-pair-target { font-weight: 700; font-size: 1.15em; }
 .pdf-kind-footnote .pdf-pair-target { font-size: .85em; }
 .pdf-kind-table .pdf-pair-target { font-variant-numeric: tabular-nums; }
+/* Madde 36 — çift görünümde seçili çiftin karşılığı: odak halkası + kaynak
+   sayfa üzerinde konum işareti. Klavye odağı da aynı durumu üretir. */
+.pdf-pair { cursor: pointer; }
+.pdf-pair:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.pdf-pair-focus { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.pdf-source-marker {
+  position: absolute; left: 4%; right: 4%;
+  border: 2px solid var(--accent); border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none; z-index: 2;
+}
+/* Madde 37 — belirsiz tablo sırası + kullanıcı düzeltmesi işaretleri */
+.pdf-pair-ambiguous .pdf-pair-source { border-left: 3px solid var(--warning, #c9a227); padding-left: .5em; }
+.pdf-pair-ambiguous-note { display: inline-block; margin-left: .6em; font-size: .8em; color: var(--warning, #c9a227); font-style: normal; }
+.pdf-pair-edited .pdf-pair-target { border-left: 3px solid var(--accent); padding-left: .5em; }
+.pdf-pair-editnote { display: inline-block; margin-left: .6em; font-size: .72em; color: var(--accent); font-style: normal; }
 /* Madde 37 — OCR yetenek rozeti: motor yokluğu / düşük güven / dil paketi */
 .pdf-ocr-note { font-size: 0.78em; font-family: var(--font-ui); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; margin: 6px 0 10px; }
 .pdf-ocr-warn { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
