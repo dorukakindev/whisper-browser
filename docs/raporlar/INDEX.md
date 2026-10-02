@@ -348,3 +348,4 @@ tarih sırasıyla dosya adından okunur.
 | 376 | [BROWSER_BUG_REPORT_376.md](BROWSER_BUG_REPORT_376.md) | Yeni-100 batch 3 — gerçek-model kenar matrisi: halüsinasyon kalıp boşlukları (thank you for watching/listening + we'll see you) + son cue medya-sonu kelepçesi |
 | 377 | [BROWSER_BUG_REPORT_377.md](BROWSER_BUG_REPORT_377.md) | Yeni-100 batch 4 — gerçek çökme yaşam döngüsü: çökmüş wc script/send kapıları + crash-kind ezilmesi (load-error maskesi) + lifecycle-deep smoke |
 | 378 | [BROWSER_BUG_REPORT_378.md](BROWSER_BUG_REPORT_378.md) | Yeni-100 batch 5 — çeviri kalite: anlam kapısı dil kapsamı + SDH yerelleşme sözlüğü + SDH-ad kapısı + Latin-dışı koruma + rapor muhasebesi |
+| 379 | [BROWSER_BUG_REPORT_379.md](BROWSER_BUG_REPORT_379.md) | Yeni-100 batch 6 — kuyruk/kurtarma derinleştirme: saveSync şekil kapısı + items-dizisi invariant'ı + persist yazma uyarısı |

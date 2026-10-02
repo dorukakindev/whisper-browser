@@ -80,7 +80,14 @@ function clonePublicOptions(raw) {
 }
 
 function validateQueueOptions(snapshot) {
-  for (const item of (Array.isArray(snapshot?.items) ? snapshot.items : []).slice(0, MAX_QUEUE_ITEMS)) {
+  // Kayıt isteği her zaman tam kuyruk snapshot'ı taşır: items dizi değilse
+  // (veya hiç yoksa) normalizeQueueSnapshot boş kuyruğa düşürür ve merge
+  // diske boş yazarak mevcut kaydı siler — reddet.
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)
+      || !Array.isArray(snapshot.items)) {
+    return { ok: false, error: 'Geçersiz kuyruk durumu.' };
+  }
+  for (const item of snapshot.items.slice(0, MAX_QUEUE_ITEMS)) {
     if (clonePublicOptions(item?.opts) === null) {
       return { ok: false, error: 'Kuyruk ayarları kaydedilemedi: bir işin seçenekleri geçersiz veya 512 KB sınırını aşıyor. Mevcut kayıt korundu.' };
     }
