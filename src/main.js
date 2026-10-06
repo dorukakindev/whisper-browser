@@ -17471,9 +17471,15 @@ ipcMain.handle('browser:translation:retryFailed', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab?.translationScheduler) return { ok: false, error: 'Yeniden denenecek web çevirisi bulunamadı.' };
+  // Devre kesicinin hiç denemediği (ertelenmiş) cümleler retryFailed'de
+  // temizlenip oynatma penceresine göre yeniden planlanır; sayaç 0 dönse de
+  // hata kaydı silinmiştir. Eskiden bu durum "hatalı cümle yok" hatası
+  // gösterip düğmeyi eski sayıda bırakıyordu.
+  const hadFailures = tab.translationScheduler.snapshot().failures.some((failure) => failure.terminal);
   const retried = tab.translationScheduler.retryFailed();
-  return retried > 0
-    ? { ok: true, retried }
+  if (retried > 0) return { ok: true, retried };
+  return hadFailures
+    ? { ok: true, retried: 0, deferred: true }
     : { ok: false, error: 'Yeniden denenecek hatalı cümle yok.' };
 });
 

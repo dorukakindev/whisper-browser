@@ -10856,7 +10856,10 @@ function stopReplacedBrowserTranslation(nextTrackId = '') {
   void window.api.stopBrowserTranslation(player.browserActiveTabId).catch(() => {});
 }
 
-function mergeBrowserTranslationCues(target, cues) {
+function mergeBrowserTranslationCues(target, cues, qualityIssues = null) {
+  // Kalite kapısına rağmen kabul edilen çeviri (gevşek mod / elle son deneme)
+  // satır bazında işaretlenir; temiz yeni sonuç gelince işaret kalkar.
+  const flagged = Array.isArray(qualityIssues) && qualityIssues.length > 0;
   for (const cue of Array.isArray(cues) ? cues : []) {
     const text = String(cue?.text || '').trim();
     if (!text) continue;
@@ -10864,9 +10867,44 @@ function mergeBrowserTranslationCues(target, cues) {
     target.set(key, {
       id: `web-tr-${key}`, start: Number(cue.start) || 0,
       end: Number(cue.end) || Number(cue.start) || 0, text,
+      ...(flagged || cue?.qualityWarning ? { qualityWarning: true } : {}),
     });
   }
   return target;
+}
+
+// Kaynak satırlarının hangisinin uyarıyla kabul edilmiş bir çeviriyle
+// örtüştüğünü döndürür (translationsForCues ile aynı zaman eşleşmesi).
+function qualityWarningsForCues(cues, translations) {
+  const flags = new Array(cues.length).fill(false);
+  const flagged = (translations || []).filter((cue) => cue?.qualityWarning);
+  if (!flagged.length) return flags;
+  let cursor = 0;
+  cues.forEach((cue, index) => {
+    while (cursor < flagged.length && flagged[cursor].end <= cue.start) cursor++;
+    for (let pos = cursor; pos < flagged.length && flagged[pos].start < cue.end; pos++) {
+      if (Math.min(cue.end, flagged[pos].end) - Math.max(cue.start, flagged[pos].start) > 0) {
+        flags[index] = true;
+        break;
+      }
+    }
+  });
+  return flags;
+}
+
+function cueQualityWarningIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.4');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  const mark = document.createElementNS(ns, 'path');
+  mark.setAttribute('d', 'M12 6v8M12 18.5v.01');
+  svg.appendChild(mark);
+  return svg;
 }
 
 function browserTranslationJustCompleted(tab, progress) {
@@ -10954,7 +10992,7 @@ function applyBrowserTranslationResult(event) {
     renderBrowserSubtitleHealth();
     return;
   }
-  mergeBrowserTranslationCues(player.browserLiveTranslations, event.result.cues);
+  mergeBrowserTranslationCues(player.browserLiveTranslations, event.result.cues, event.result.qualityIssues);
   player.cues2Raw = [...player.browserLiveTranslations.values()]
     .filter((cue) => cue.text).sort((a, b) => a.start - b.start || a.end - b.end);
   player.cues2 = player.mergeCont ? mergeCueContinuation(player.cues2Raw) : player.cues2Raw;
@@ -11156,7 +11194,9 @@ async function retryFailedBrowserTranslation() {
   const tab = browserTabState();
   if (tab) tab.browserTranslationFailed = 0;
   updateBrowserTranslationRetryButton();
-  setBrowserSignal(`${Number(result.retried) || 0} hatalı cümle yeniden çeviri kuyruğuna alındı.`, true,
+  setBrowserSignal(result.deferred
+    ? 'Hatalı cümleler oynatma konumuna gelince yeniden çevrilecek.'
+    : `${Number(result.retried) || 0} hatalı cümle yeniden çeviri kuyruğuna alındı.`, true,
     { priority: 65, holdMs: 4000 });
 }
 
@@ -14684,7 +14724,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       if (!player.browserTranslationFailed) void completeBrowserRecovery(translationTab, 'subtitle-translation', event.trackId);
       updateBrowserTranslationExportButton();
       const scope = progress.sourceComplete === false ? 'Yakalanan kısmın çevirisi hazır' : 'Canlı çeviri hazır';
-      setBrowserSignal(`${scope}: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}`, true,
+      const checkCount = Math.max(0, Number(progress.qualityAccepted) || 0);
+      const checkText = checkCount ? ` ${checkCount} satır uyarıyla kabul edildi; listede işaretli.` : '';
+      setBrowserSignal(`${scope}: ${Number(progress.completed)}/${Number(progress.total)} cümle.${justCompleted ? ' Çeviri ana altyazı olarak gösteriliyor.' : ''}${checkText}`, true,
         { priority: 65, holdMs: 4000 });
     } else if (progress.total && progress.failed) {
       updateBrowserTranslationExportButton();
@@ -16213,6 +16255,9 @@ function renderCueList(filter = '') {
   $('playerSide')?.classList.remove('no-cues');
   const primaryTranslation = browserPrimaryIsTranslation();
   const counterparts = translationsForCues(player.cues, player.cues2);
+  const qualityFlags = primaryTranslation
+    ? player.cues.map((cue) => !!cue?.qualityWarning)
+    : qualityWarningsForCues(player.cues, player.cues2Raw || player.cues2);
   const matched = q ? cueTextSearchIndex(player.cues, player.cues2).query(q) : null;
   const indexes = [];
   player.cues.forEach((c, i) => {
@@ -16220,7 +16265,9 @@ function renderCueList(filter = '') {
     if (q && !matched.has(i)) return;
     if (player.savedOnly && !isCueSaved(i)) return;
     const lowConfidence = cueHasLowConfidence(c);
-    if (player.qualityOnly && !lowConfidence) return;
+    // "Kalite" süzgeci uyarıyla kabul edilen çevirileri de gösterir: kullanıcı
+    // hatalı-cümle döngüsü yerine bu satırları tek yerden gözden geçirir.
+    if (player.qualityOnly && !lowConfidence && !qualityFlags[i]) return;
     if (player.untranslatedOnly && !cueLooksUntranslated(c.text, counterpart)) return;
     indexes.push(i);
   });
@@ -16281,6 +16328,18 @@ function renderCueList(filter = '') {
       confidence.setAttribute('aria-label', confidence.title);
       confidence.textContent = '!';
       time.appendChild(confidence);
+    }
+    if (qualityFlags[i]) {
+      card.classList.add('quality-warning');
+      const warning = document.createElement('button');
+      warning.type = 'button';
+      warning.className = 'cue-quality-warning';
+      warning.title = interfaceChoice(
+        'Çeviri sayı denetiminden geçmedi; uyarıyla kabul edildi. Sayıları kontrol edin.',
+        'Translation failed the number check and was accepted with a warning. Check the numbers.');
+      warning.setAttribute('aria-label', warning.title);
+      warning.appendChild(cueQualityWarningIcon());
+      time.appendChild(warning);
     }
 
     const body = document.createElement('div');

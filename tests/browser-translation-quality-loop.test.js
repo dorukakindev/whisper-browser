@@ -169,3 +169,42 @@ test('renderer: erken çıkan yeniden çeviri bayrakları sonraki "Çevir"e sız
   clear({ dropSnapshot: true });
   assert.equal(state.retranslateSnapshot, null);
 });
+
+test('renderer: uyarıyla kabul edilen çeviri işaretlenir, temiz sonuç işareti kaldırır', () => {
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+  const take = (name, next) => renderer.slice(renderer.indexOf(`function ${name}(`), renderer.indexOf(next));
+  const source = [
+    take('browserTranslationCueKey', 'function browserTranslationMapFromCues('),
+    take('mergeBrowserTranslationCues', 'function cueQualityWarningIcon('),
+  ].join('\n');
+  const { merge, flags } = new Function(`${source}; return { merge: mergeBrowserTranslationCues, flags: qualityWarningsForCues };`)();
+  const map = new Map();
+  merge(map, [{ cueId: 'a', start: 0, end: 2, text: 'Elmalarım var.' }], ['number_mismatch']);
+  merge(map, [{ cueId: 'b', start: 3, end: 5, text: 'Temiz.' }], null);
+  assert.equal(map.get('a').qualityWarning, true);
+  assert.equal(map.get('b').qualityWarning, undefined);
+  const cues = [{ start: 0, end: 2 }, { start: 3, end: 5 }, { start: 6, end: 7 }];
+  assert.deepEqual(flags(cues, [...map.values()]), [true, false, false]);
+  merge(map, [{ cueId: 'a', start: 0, end: 2, text: '3 elmam var.' }], []);
+  assert.equal(map.get('a').qualityWarning, undefined, 'yeni temiz çeviri uyarıyı kaldırmalı');
+  assert.match(renderer, /player\.qualityOnly && !lowConfidence && !qualityFlags\[i\]/,
+    'kalite süzgeci uyarılı satırları da göstermeli');
+});
+
+test('tasarım: browser yan paneli dört sekmeyi de gösterir, bölüm başlıkları amber değildir', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/renderer/browser-chrome.css'), 'utf8');
+  assert.match(css, /workspace-browser \.side-tab \.side-tab-icon \{ display: none; \}/, 'çift ikon (SVG + elmas) kalmamalı');
+  assert.match(css, /\.side-tab:not\(\.active\) > span:not\(\.side-tab-ico\):not\(\.side-tab-icon\) \{[\s\S]*?clip-path: inset\(50%\)/,
+    'etkin olmayan sekme etiketi görsel olarak gizlenip erişilebilir kalmalı');
+  assert.match(css, /browser-subtitle-review > summary \{[\s\S]*?color: var\(--text-secondary\)/);
+  const html = fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8');
+  assert.match(html, /id="sideTabTools"[^>]*title="Araçlar"/);
+  assert.match(html, /id="sideTabSubs"[^>]*title="Altyazılar"/);
+});
+
+test('main.js: yalnız ertelenmiş hatalar varken yeniden deneme hata göstermez', () => {
+  const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const handler = main.slice(main.indexOf("ipcMain.handle('browser:translation:retryFailed'"),
+    main.indexOf("ipcMain.handle('browser:network:setOnline'"));
+  assert.match(handler, /hadFailures[\s\S]*?\{ ok: true, retried: 0, deferred: true \}/);
+});

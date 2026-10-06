@@ -1419,3 +1419,76 @@ details.browser-translate-split.hidden { display: none !important; }
 .browser-more-empty { padding: 10px 12px; color: var(--text-muted); font-size: 12px; }
 /* Hedefi şu an kullanılamayan vekil menü öğesi. */
 .browser-menu-popover [data-browser-proxy][aria-disabled="true"] { opacity: .45; cursor: default; }
+
+/* R403 — browser yan panel tasarım düzeltmeleri.
+   Amber yalnız ana eylem/etkin durum/odak içindir (UI-DESIGN-SYSTEM §1);
+   katlanır bölüm başlıkları ve araç başlığı sessiz, aynı tipografiyle çizilir. */
+.player-layer.workspace-browser .side-tab .side-tab-icon { display: none; }
+.player-layer.workspace-browser .browser-subtitle-review > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 2px;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.player-layer.workspace-browser .browser-subtitle-review > summary::-webkit-details-marker { display: none; }
+.player-layer.workspace-browser .browser-subtitle-review > summary::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .16s ease;
+}
+.player-layer.workspace-browser .browser-subtitle-review[open] > summary::before { transform: rotate(90deg); }
+.player-layer.workspace-browser .browser-subtitle-review > summary:hover,
+.player-layer.workspace-browser .browser-subtitle-review[open] > summary { color: var(--text); }
+.player-layer.workspace-browser .browser-subtitle-review > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.player-layer.workspace-browser .tools-toggle { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text-secondary); }
+.player-layer.workspace-browser .tools-toggle:hover { color: var(--text); }
+/* Araç çubuğundaki iki eylem aynı boyda okunur (önceki 10px/12px kayması). */
+.player-layer.workspace-browser .browser-toolbar-actions .browser-page-button { font-size: 12px; }
+/* Transkript satırı: tek satırlık replikte 47px yerine 39px; yoğun bilgiyi
+   kart sayısıyla değil boşlukla taşır, çift dil satırında aralık korunur. */
+.player-layer.workspace-browser .transcript .cue-card { padding-top: 8px; padding-bottom: 8px; }
+/* Kalite uyarısıyla kabul edilen çeviri: hata değil, kontrol edilecek satır. */
+.cue-quality-warning {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  padding: 0;
+  color: var(--warning);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  cursor: help;
+}
+.cue-quality-warning svg { display: block; width: 11px; height: 11px; }
+.cue-quality-warning:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cue-card.quality-warning .cue-card-tr { text-decoration: underline dotted var(--warning); text-underline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .player-layer.workspace-browser .browser-subtitle-review > summary::before { transition: none; }
+}
+/* R403 — yan panel sekmeleri: dördüncü \"Araçlar\" sekmesi gizli kaydırma
+   çubuğu olan şeridin dışına taşıyor, fareyle hiç görünmüyordu. Etkin sekme
+   etiketli kalır, diğerleri ikon olur; etiket ekran okuyucu için korunur. */
+.player-layer.workspace-browser .player-side:not(.side-rail) .side-tab:not(.active) { padding-left: 8px; padding-right: 8px; }
+.player-layer.workspace-browser .player-side:not(.side-rail) .side-tab:not(.active) > span:not(.side-tab-ico):not(.side-tab-icon) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.player-layer.workspace-browser .player-side:not(.side-rail) .side-tab { position: relative; }
