@@ -63,5 +63,28 @@ class MediaValidationTests(unittest.TestCase):
             path.resolve().relative_to(Path(work).resolve())  # kaçış yok
 
 
+class MediaFriendlyOsErrorTests(unittest.TestCase):
+    """Windows disk dolu/izin hataları errno ile sınıflanır (metin İngilizce değil)."""
+
+    def test_windows_disk_full_and_permission_by_errno(self):
+        import errno
+        import media
+        disk = OSError(errno.ENOSPC, "There is not enough space on the disk")
+        self.assertIn("Disk dolu", media.friendly_os_error(disk))
+        win = OSError(22, "Yetersiz alan")
+        win.winerror = 112
+        self.assertIn("Disk dolu", media.friendly_os_error(win))
+        try:
+            try:
+                raise PermissionError(errno.EACCES, "Erişim engellendi", r"C:\gizli\video.mp4")
+            except PermissionError as inner:
+                raise RuntimeError("yt-dlp postprocess failed") from inner
+        except RuntimeError as wrapped:
+            message = media.friendly_os_error(wrapped)
+        self.assertIn("yazılamadı", message)
+        self.assertNotIn("gizli", message)
+        self.assertIsNone(media.friendly_os_error(ValueError("Geçersiz ses dili")))
+
+
 if __name__ == '__main__':
     unittest.main()

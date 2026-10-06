@@ -141,6 +141,7 @@ const { crashRecoveryPolicy, navigationRetryPolicy, parseRetryAfterMs,
   subtitleRequestRetryPolicy } = require('./browser-lifecycle-policy');
 const { CaptureCoverageMap, normalizeCueProvenance } = require('./browser-capture-provenance');
 const { createLiveAsrAudioSwitch } = require('./live-asr-audio-switch');
+const { createLiveAsrRealtimeMonitor } = require('./live-asr-realtime');
 const { assertJobTransition, isTerminalJobState } = require('./job-state-contract');
 const { createResourceScheduler } = require('./job-resource-scheduler');
 const { selectRelinkCandidates, planBulkRelink, findLibraryDuplicates, mergeWatchItems, looksLikeAbsoluteDir } = require('./media-relink-matcher');
@@ -9456,7 +9457,8 @@ function startBrowserLiveAsr(tab, options = {}) {
   const script = path.join(appResourceRoot(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
     const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false,
-    autoDetect: !(language && language !== 'auto'), audioSwitch: createLiveAsrAudioSwitch() };
+    autoDetect: !(language && language !== 'auto'), audioSwitch: createLiveAsrAudioSwitch(),
+    realtime: createLiveAsrRealtimeMonitor({ model }) };
   const consumeLiveAsrLine = (line) => {
     let event;
     event = parseNdjsonLine(line);
@@ -9504,6 +9506,8 @@ function startBrowserLiveAsr(tab, options = {}) {
         try { fs.unlinkSync(filePath); } catch (_) {}
       }
       if (event.error) sendBrowserEvent(tab, { type: 'live-asr-warning', message: event.error });
+      const notice = job.realtime.observe(event);
+      if (notice) sendBrowserEvent(tab, { type: 'live-asr-warning', message: notice.message, level: notice.level });
     } else if (event.type === 'error') {
       // Model yükleme hatası (hazır olmadan gelen error): 'close' olayı
       // geri dönüş kararını verir — CUDA'sız makinede CPU'ya düşeriz.
@@ -9531,7 +9535,12 @@ function startBrowserLiveAsr(tab, options = {}) {
   const launch = (nextDevice, nextComputeType) => {
     const proc = spawn(resolvePython(), [script, '--model', model, '--device', nextDevice,
       '--compute-type', nextComputeType, ...(language && language !== 'auto' ? ['--language', language] : [])],
-    { cwd: appResourceRoot(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    // PYTHONIOENCODING: parça yolları stdin'den UTF-8 JSON olarak gider. Ortam
+    // verilmezse Windows'ta Python boruyu ANSI kod sayfasıyla (cp1254) çözer ve
+    // kullanıcı adında Türkçe harf olan %TEMP% yolları bozulup her parça
+    // "dosya bulunamadı" ile düşerdi. pythonRuntimeEnv gizli anahtarları da ayıklar.
+    { cwd: appResourceRoot(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
+      env: pythonRuntimeEnv({ PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }) });
     job.proc = proc;
     job.device = nextDevice;
     job.computeType = nextComputeType;

@@ -74,6 +74,10 @@ function harness(deviceSetting, spawnImpl) {
     JSON, Object, Number, String, Math, Promise,
     dt: (tr, en) => en,
     createLiveAsrAudioSwitch: require('../src/live-asr-audio-switch').createLiveAsrAudioSwitch,
+    createLiveAsrRealtimeMonitor: require('../src/live-asr-realtime').createLiveAsrRealtimeMonitor,
+    // Gerçek pythonRuntimeEnv gizli anahtarları ayıklayıp ekstra değişkenleri
+    // ekler; burada yalnız ekstra değişkenlerin spawn'a ulaştığını izleriz.
+    pythonRuntimeEnv: (extra = {}) => ({ SANITIZED: '1', ...extra }),
   };
   const region = main.slice(start, tail);
   vm.runInNewContext(region, sandbox);
@@ -109,6 +113,11 @@ function tab() {
     assert.equal(argv[argv.indexOf('--device') + 1], 'cpu');
     assert.equal(argv[argv.indexOf('--compute-type') + 1], 'int8');
     assert.ok(events.some((e) => e.type === 'live-asr-warning' && /CPU/i.test(e.message)));
+    // Her iki başlatma da UTF-8 stdin ortamıyla (Türkçe %TEMP% yolu) gider.
+    for (const row of [first, second]) {
+      assert.equal(row.args[2].env?.PYTHONIOENCODING, 'utf-8', 'live_asr env PYTHONIOENCODING almadı');
+      assert.equal(row.args[2].env?.SANITIZED, '1', 'live_asr env pythonRuntimeEnv üzerinden kurulmadı');
+    }
     // İkinci süreç ready verebilir ve job canlı kalır.
     second.proc.stdout.emit('data', '{"type":"ready","model":"small"}\n');
     assert.ok(events.some((e) => e.type === 'live-asr-state' && e.ready === true));

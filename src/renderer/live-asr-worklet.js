@@ -8,6 +8,7 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     this.sum = 0;
     this.weight = 0;
     this.silence = 0;
+    this.peak = 0;
     this.clock = null;
     this.port.onmessage = ({ data }) => {
       if (!data || typeof data !== 'object') return;
@@ -26,9 +27,18 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
   }
   flush() {
     if (!this.length) return;
-    const pcm = this.samples.slice(0, this.length);
+    const length = this.length, peak = this.peak;
+    this.length = 0; this.silence = 0; this.peak = 0;
+    // Duraklatma/atlama/hız değişimi her seferinde tamponu boşaltır; bunun
+    // 50-200 ms'lik kırıntıları Whisper'a gitmez. Bu kadar kısa sesle model
+    // sözcük çıkaramaz ama "Teşekkürler." gibi halüsinasyon üretir.
+    if (length < WhisperPcmCapture.MIN_SAMPLES) { this.port.postMessage({ type: 'dropped', reason: 'short', samples: length }); return; }
+    // Tamamen sessiz parça (video sessize alınmış, ses kapalı, reklam arası
+    // boşluğu): GPU'ya göndermek boşa iş ve sessizlik halüsinasyonu riskidir.
+    // Ev sahibi art arda sessizlikte kullanıcıyı uyarır.
+    if (peak < WhisperPcmCapture.SILENT_PEAK) { this.port.postMessage({ type: 'silent', samples: length, offset: this.offset }); return; }
+    const pcm = this.samples.slice(0, length);
     this.port.postMessage({ type: 'chunk', pcm: pcm.buffer, offset: this.offset, rate: this.rate }, [pcm.buffer]);
-    this.length = 0; this.silence = 0;
   }
   process(inputs) {
     const channels = inputs[0];
@@ -50,6 +60,8 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
           }
           const value = Math.max(-1, Math.min(1, this.sum / ratio));
           this.samples[this.length++] = Math.round(value * (value < 0 ? 32768 : 32767));
+          const magnitude = Math.abs(value);
+          if (magnitude > this.peak) this.peak = magnitude;
           this.silence = Math.abs(value) < .008 ? this.silence + 1 : 0;
           this.sum = 0; this.weight = 0;
           // Prefer a quiet boundary after four seconds; bound latency at eight.
@@ -60,4 +72,8 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     return true;
   }
 }
+// 0,25 sn (16 kHz): bundan kısa kırıntı tek sözcük bile taşımaz.
+WhisperPcmCapture.MIN_SAMPLES = 4000;
+// ≈ -48 dBFS: en sessiz diyalog bile tepe değerde bunun üzerindedir.
+WhisperPcmCapture.SILENT_PEAK = 0.004;
 registerProcessor('whisper-pcm-capture', WhisperPcmCapture);

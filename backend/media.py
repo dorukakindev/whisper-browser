@@ -20,6 +20,7 @@ birleştiremez. Üç yol var:
 """
 
 import argparse
+import errno as _errno
 import json
 import os
 import re
@@ -30,6 +31,34 @@ from pathlib import Path
 from ndjson_utils import json_dumps_finite
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
+# Windows'ta disk dolu hatası "There is not enough space on the disk" (WinError
+# 112), izin hatası çoğu kez yalnız errno ile gelir; classify_ytdlp_error metin
+# desenine baktığı için bunlar genel "YouTube işlemi tamamlanamadı" iletisine
+# düşüyor ve kullanıcı asıl nedeni (disk/izin) göremiyordu. Önce errno'ya bak.
+_DISK_FULL_ERRNOS = {_errno.ENOSPC, getattr(_errno, "EDQUOT", _errno.ENOSPC)}
+_PERMISSION_ERRNOS = {_errno.EACCES, _errno.EPERM}
+_DISK_FULL_WINERRORS = {39, 112}      # ERROR_HANDLE_DISK_FULL, ERROR_DISK_FULL
+_PERMISSION_WINERRORS = {5, 32, 33}   # ACCESS_DENIED, SHARING_VIOLATION, LOCK_VIOLATION
+
+
+def friendly_os_error(error):
+    """Zincirdeki ilk OSError'ı Türkçe, yol sızdırmayan bir iletiye çevirir."""
+    seen = set()
+    current = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, OSError):
+            code = current.errno
+            winerror = getattr(current, "winerror", None)
+            if code in _DISK_FULL_ERRNOS or winerror in _DISK_FULL_WINERRORS:
+                return "Disk dolu: indirme klasöründe yeterli boş alan yok. Yer açıp yeniden deneyin."
+            if code in _PERMISSION_ERRNOS or winerror in _PERMISSION_WINERRORS:
+                return ("İndirme klasörüne yazılamadı: dosya başka bir programda açık "
+                        "veya yazma izni yok. Klasörü/dosyayı kontrol edip yeniden deneyin.")
+        current = current.__cause__ or current.__context__
+    return None
 
 
 def emit(event_type, **kwargs):
@@ -534,7 +563,8 @@ def main():
     except Exception as e:
         import traceback
         from io_errors import classify_ytdlp_error
-        emit("error", message=classify_ytdlp_error(e), traceback=traceback.format_exc())
+        emit("error", message=friendly_os_error(e) or classify_ytdlp_error(e),
+             traceback=traceback.format_exc())
         sys.exit(1)
 
 

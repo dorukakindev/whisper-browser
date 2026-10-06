@@ -37,7 +37,16 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
       const currentWindow = window, currentTab = tab;
       try { main.contentView.removeChildView(currentTab.view); }
       catch (_) { currentWindow.close(); return { ok: false, error: 'Video görünümü taşınamadı.' }; }
-      window.contentView.addChildView(currentTab.view);
+      try { window.contentView.addChildView(currentTab.view); }
+      catch (_) {
+        // Görünüm ana pencereden söküldü ama yeni pencereye eklenemedi: geri
+        // koymazsak sekme hiçbir pencerede değildir (boş sekme).
+        try { main.contentView.addChildView(currentTab.view); } catch (__) {}
+        window = null; tab = null;
+        try { currentWindow.destroy(); } catch (__) {}
+        restore();
+        return { ok: false, error: 'Video görünümü taşınamadı.' };
+      }
       // Yerel browser-mini.html dışına hiç gezinme yok: yeni pencere, sayfa
       // içi gezinme ve alt kare çıkışları reddedilir.
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -46,9 +55,19 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
       attachSubframeSchemeGuard(window.webContents);
       window.on('resize', layout);
       window.on('close', () => {
-        if (window !== currentWindow) return;
+        // BrowserWindow.close() 'close' olayını eşzamanlı yaymaz (beforeunload
+        // turu). open(B) eski pencereyi kapatıp hemen yenisini kurduğunda bu
+        // işleyici geç çalışır; eskiden `window !== currentWindow` ise erken
+        // dönüyordu ve A sekmesinin görünümü ne eski pencereden sökülüyor ne de
+        // ana pencereye geri bağlanıyordu — A sekmesi kalıcı olarak boş kalırdı.
+        // Görünüm iadesi HER kapanışta yapılır; yalnız durum sıfırlama güncel
+        // pencereye özgüdür.
+        const isCurrent = window === currentWindow;
         try { currentWindow.contentView.removeChildView(currentTab.view); } catch (_) {}
-        window = null; tab = null;
+        if (isCurrent) { window = null; tab = null; }
+        // Sekme bu arada yeni mini pencereye taşındıysa ana pencereye geri
+        // bağlama: onu yeni pencere sahipleniyor.
+        if (!isCurrent && tab === currentTab) return;
         // 'unloading': sekme bellekten boşaltılıyor — görünüm az sonra
         // yok edilecek; ana pencereye geri bağlayıp düzenlemek boşuna iş.
         if (currentTab.view && !currentTab.view.webContents.isDestroyed()
@@ -56,8 +75,7 @@ function createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore, comma
           const main = owner();
           // Kapanan ana pencerede addChildView native tarafta fırlayabilir.
           if (main && !main.isDestroyed()) {
-            try {
-              main.contentView.addChildView(currentTab.view);
+            try { main.contentView.addChildView(currentTab.view);
               // Geri eklenen view mini pencerenin sınırlarıyla görünür kalıp
               // ana pencerede işaretçiyi yutmasın: restore() gerçek yerleşimi
               // uygulayana dek ekran dışına çek.

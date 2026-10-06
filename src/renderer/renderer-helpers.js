@@ -511,8 +511,13 @@ function updateBrowserLiveAsrButton(message = '') {
 function syncBrowserLiveAsrClock() {
   const capture = player.browserLiveAsrCapture;
   if (!capture?.node || capture.stopping) return;
+  // Reklam oynarken medya saati reklamın kendi saatidir (0-30 sn). Sistem sesi
+  // yakalanmaya devam ederse reklamdaki konuşma asıl videonun ilk saniyelerine
+  // canlı altyazı olarak yazılır ve izi kalıcı olarak kirletir. Reklam süresince
+  // yakalamayı duraklatılmış say; reklam bitince saat sıçraması flush tetikler.
   capture.node.port.postMessage({ type: 'sync', time: Number(player.browserTime) || 0,
-    contextTime: capture.context.currentTime, paused: !!player.browserPaused, rate: player.browserRate || 1 });
+    contextTime: capture.context.currentTime,
+    paused: !!player.browserPaused || !!player.browserAdPlaying, rate: player.browserRate || 1 });
 }
 
 function browserPageHost(url = player.browserPageUrl) {
