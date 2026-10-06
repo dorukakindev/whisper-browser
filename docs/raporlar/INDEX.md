@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 405 | [BROWSER_BUG_REPORT_405.md](BROWSER_BUG_REPORT_405.md) | canlı Whisper ve tarayıcı yaşam döngüsü derin denetimi — Türkçe %TEMP% yolu (stdin UTF-8), reklam sırasında yakalama, kırıntı/sessiz parça, "Altyazı M.K." süzgeci, dil kapısı, RTF uyarısı, mini oynatıcı close yarışı, Windows disk dolu iletisi |
 | 404 | [BROWSER_BUG_REPORT_404.md](BROWSER_BUG_REPORT_404.md) | browser yan paneli tasarım turu — gizli Araçlar sekmesi, çift ikon, amber başlıklar, tipografi/yoğunluk, uyarılı çeviri işareti, ertelenmiş yeniden deneme hatası |
 | 403 | [BROWSER_BUG_REPORT_403.md](BROWSER_BUG_REPORT_403.md) | "hatalı cümle" yeniden çeviri döngüsü — canlı çeviride gevşek kabul + elle son deneme, kısmi kayıt, kurtarma süre bütçesi, sızan yeniden çeviri bayrakları |
 | 402 | [BROWSER_BUG_REPORT_402.md](BROWSER_BUG_REPORT_402.md) | çeviri girişi rolling-window kaynak tekilleştirme — 120→71 blok, echo ret'leri 13→4, başarısız blok 85→45 |
