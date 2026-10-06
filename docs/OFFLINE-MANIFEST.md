@@ -1,6 +1,6 @@
 # Çevrimdışı Kurulum Manifesti
 
-Oluşturulma: 2026-10-02T07:44:05.507Z · sürüm 0.9.0-beta.1
+Oluşturulma: 2026-10-06T06:42:59.850Z · sürüm 0.9.0-beta.1
 Bu dosya `node tools/offline-manifest.js` ile üretilir; elle düzenlemeyin.
 
 ## Python (pip) bileşenleri

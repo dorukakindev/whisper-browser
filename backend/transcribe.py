@@ -3596,6 +3596,11 @@ def classify_translation_error(error):
     return "api_failure"
 
 
+# Çeviri kurtarma turlarının (küçük paket/tek grup yeniden denemeleri) iş
+# başına duvar saati bütçesi. llm_translate içinde açıklanır.
+TRANSLATION_RECOVERY_BUDGET_SEC = 300
+
+
 # model_unavailable da fatal'dir: sağlayıcının bu model için kanalı yoksa kalan
 # yüzlerce parçayı sırayla denemek yalnızca isteği ve süreyi boşa harcar.
 FATAL_TRANSLATION_ERRORS = frozenset({"authentication", "quota", "model_unavailable"})
@@ -4238,6 +4243,45 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     lenient_mode = bool(getattr(args, "translate_lenient", False))
     lenient_untrusted = set()
 
+    # Kurtarma süre bütçesi: ilk kurtarma turundan itibaren bu kadar saniye
+    # geçince YENİ kurtarma isteği açılmaz; kalan gruplar 'recovery_timeout'
+    # ile başarısız işaretlenir ve iş biter. Eskiden sınır yoktu — zaman aşımı
+    # (180 sn) × 3 deneme × 2 kurtarma turu × rota sayısı birkaç takılan
+    # grupta işi bir saate uzatıyordu. Uçuştaki istekler kesilmez.
+    try:
+        recovery_budget_sec = max(30.0, float(
+            getattr(args, "translate_recovery_budget", TRANSLATION_RECOVERY_BUDGET_SEC)
+            or TRANSLATION_RECOVERY_BUDGET_SEC))
+    except (TypeError, ValueError):
+        recovery_budget_sec = float(TRANSLATION_RECOVERY_BUDGET_SEC)
+    recovery_clock = {"started": None, "notified": False}
+
+    def start_recovery_clock():
+        with lock:
+            if recovery_clock["started"] is None:
+                recovery_clock["started"] = time.time()
+
+    def recovery_budget_exhausted():
+        with lock:
+            started = recovery_clock["started"]
+            exhausted = started is not None and time.time() - started > recovery_budget_sec
+            first = exhausted and not recovery_clock["notified"]
+            if first:
+                recovery_clock["notified"] = True
+        if first:
+            msg = (f"Çeviri kurtarma süresi ({int(recovery_budget_sec)} sn) doldu; kalan "
+                   "sorunlu satırlar için yeni istek açılmadı, iş tamamlanıyor.")
+            log(msg, "warn")
+            if warn_list is not None:
+                warn_list.append(msg)
+        return exhausted
+
+    def mark_recovery_timeout(indexes):
+        with lock:
+            for index in indexes:
+                if index not in done_idx:
+                    failure_by_index.setdefault(index, "recovery_timeout")
+
     def est_index_tokens(index):
         # İstek gövdesi ~ kaynak metin + bağlam + yanıt payı (kaba est).
         return max(1, len(entries[index][2]) // 3 + 8)
@@ -4276,7 +4320,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             for key, value in (counts or {}).items():
                 bucket[key] = bucket.get(key, 0) + int(value)
 
-    def call_api_with(prompt_text, payload):
+    def call_api_with(prompt_text, payload, attempts=3):
         """Tercih edilen rotadan baslar; baglanti/5xx hatasinda siradaki rotaya gecer."""
         with lock:
             order = [route_state["preferred"]] + [r for r in routes if r != route_state["preferred"]]
@@ -4301,7 +4345,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # SDK katmanı max_retries=0 ile kapatıldı; geçici 429/5xx için
             # tek dış deneme yetersiz kalıyor (eski iç+dış yuvada efektif 3
             # denemeydi). 3, iç içe fırtına üretmeden aynı dayanıklılığı verir.
-            ), attempts=3)
+            # Kurtarma isteklerinde 2: tek grubun zaman aşımı tekrarı işi uzatır.
+            ), attempts=attempts)
             return resp
 
         for url in order:
@@ -4347,7 +4392,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         payload = translation_payload(chunk_idx)
 
         _req_t0 = time.time()
-        resp, used_url = call_api_with(system_prompt + prompt_suffix, payload)
+        resp, used_url = call_api_with(system_prompt + prompt_suffix, payload,
+                                       attempts=2 if phase == "fallback" else 3)
         with lock:
             # Rota-yedekli denemeler dahil uçtan uca süre — sağlayıcı
             # doygunluğunun en dürüst iş-içi ölçüsü.
@@ -4529,6 +4575,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 index for group in bundle_groups for index in group
             ]))
         started = time.time()
+        start_recovery_clock()
         log(
             f"Çeviri kurtarma başladı: {len(groups_to_retry)} cümle grubu / "
             f"{sum(len(group) for group in groups_to_retry)} blok, "
@@ -4575,6 +4622,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             sayaç yarışı olmasın diye)."""
             rec = 0
             first_reason = ""
+            if all(index in done_idx for index in group):
+                return rec
+            if echo_seen.get(group[0], 0) >= 2:
+                return rec + accept_unchanged_echo(group)
+            if recovery_budget_exhausted():
+                mark_recovery_timeout(group)
+                return rec
             try:
                 rec += task_once(group, phase="fallback")
             except Exception as first_error:
@@ -4589,7 +4643,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             # kapısında kaldıysa son denemeye dağıtım kuralları eklenir. Ağ/kimlik
             # hatasında ek deneme anlamsızdır, doğrudan başarısız işaretlenir.
             if first_reason in {"", "invalid_response", "empty_response", "truncated"} \
-                    and not structural_breaker_tripped():
+                    and not structural_breaker_tripped() \
+                    and not recovery_budget_exhausted():
                 try:
                     rec += task_once(group, phase="fallback",
                                      prompt_suffix=RESCUE_SUFFIX)
@@ -4619,6 +4674,16 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             denemeleriyle. (işlenen grup sayısı, kurtarılan blok sayısı) döner."""
             bundle_groups, bundle = item
             rec = 0
+            if recovery_budget_exhausted():
+                # Bütçe dolduysa paket API'ye çıkmaz; yalnız iki turda
+                # kanıtlanmış yankılar (istek gerektirmez) kabul edilir.
+                for group in bundle_groups:
+                    if echo_seen.get(group[0], 0) >= 2 \
+                            and not all(index in done_idx for index in group):
+                        rec += accept_unchanged_echo(group)
+                    else:
+                        mark_recovery_timeout(group)
+                return len(bundle_groups), rec
             if len(bundle_groups) == 1:
                 rec = rescue_group(bundle_groups[0])
             else:
