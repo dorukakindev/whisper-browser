@@ -98,7 +98,7 @@
       untranslated_source: 'kaynak metin çevrilmemiş', empty_translation: 'çeviri boş',
       timeline_mismatch: 'zaman çizelgesi uyuşmuyor',
       client_missing: 'API istemcisi eksik', api_key_missing: 'API anahtarı eksik',
-      api_failure: 'API hatası',
+      api_failure: 'API hatası', recovery_timeout: 'kurtarma süresi doldu',
     })[code] || 'çeviri hatası';
   }
 

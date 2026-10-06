@@ -6323,6 +6323,9 @@ function browserTranslationConfig(overrides = {}) {
     workers: Math.max(1, Math.min(8, Number(ui.translateWorkers) || 2)),
     glossary: (Array.isArray(settings.glossary) ? settings.glossary : []).slice(0, 200),
     terminologyEnabled: Boolean(overrides.terminologyEnabled || ui.browserTerminologyEnabled),
+    // Ayarlar → Çeviri'deki "gevşek kabul" (varsayılan açık) canlı web
+    // altyazısı çevirisine de uygulanır; kayıtsız profilde açık sayılır.
+    lenient: ui.translateLenient !== false,
   };
 }
 
@@ -9269,6 +9272,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     lookAhead: 90,
     context,
     paused: !browserNetworkOnline,
+    lenient: config.lenient === true,
     translate: (sentence, call) => requestBrowserSentenceTranslation(sentence, { ...config, terminologyText: call.terminologyText }, call.signal),
     onResult: (result, sentence) => {
       if (!isCurrent()) return;
@@ -9298,6 +9302,12 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
           persistCompletedBrowserTranslation(tab, scheduler, config, scheduler.context);
           noteBrowserDiagnosticActivity(tab, 'lastTranslation', `${state.completed}/${state.total} altyazı cümlesi çevrildi.`);
         } else if (state.total > 0 && !state.pending && !state.queued && state.failed) {
+          // Tek hatalı cümle yüzlerce hazır cümlenin kaydını engellemesin:
+          // kuyruk durulduğunda hazır kısım (otomatik yüklenmeden) diske ve
+          // arşive yazılır; eksikler tamamlanınca tam sürüm üzerine yazılır.
+          if (!state.retrying && state.completed > 0) {
+            persistCompletedBrowserTranslation(tab, scheduler, config, scheduler.context, { partial: true });
+          }
           noteBrowserDiagnosticActivity(tab, 'lastError', `${state.failed} altyazı cümlesi çevrilemedi.`);
         }
       }
@@ -9322,8 +9332,9 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   };
 }
 
-function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
+function persistCompletedBrowserTranslation(tab, scheduler, config, context, options = {}) {
   if (!tab || tab.translationScheduler !== scheduler) return null;
+  const partial = options && options.partial === true;
   const cues = scheduler.snapshot().results.flatMap((result) => result.cues || []).map((cue, index) => ({
     id: `web-tr-${String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, '')}`,
     cueId: String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, ''),
@@ -9387,7 +9398,11 @@ function persistCompletedBrowserTranslation(tab, scheduler, config, context) {
   } catch (_) {}
   if (archived?.ok) track.archivePath = archived.path;
   tab.translationPersistedSignature = signature;
-  sendBrowserEvent(tab, { type: 'subtitle-found', track: { ...track, role: 'translation', autoLoad: true } });
+  // Kısmi kayıt yalnız güvence içindir: canlı çeviri ekranda sürerken dosya
+  // izine otomatik geçmek, sonradan tamamlanan cümlelerin görünmesini keserdi.
+  sendBrowserEvent(tab, { type: 'subtitle-found', track: partial
+    ? { ...track, role: 'translation', autoLoad: false, partial: true }
+    : { ...track, role: 'translation', autoLoad: true } });
   return track;
 }
 
@@ -17469,13 +17484,16 @@ ipcMain.handle('browser:network:setOnline', (event, online) => {
   for (const tab of browserTabs.values()) {
     if (tab.translationScheduler) {
       tab.translationScheduler.setPaused(!browserNetworkOnline);
-      if (browserNetworkOnline) retried += tab.translationScheduler.retryFailed();
+      // Ağ dönüşü yalnız ağ/sağlayıcı düşüşlerini yeniden dener; kalite
+      // kapısı/kesin hata alan cümleler her çevrimiçi olayında yeniden
+      // ücretlendirilmez (onlar "Hatalıları yeniden dene" ile denenir).
+      if (browserNetworkOnline) retried += tab.translationScheduler.retryFailed({ onlyTransient: true });
     }
     const pageScheduler = tab.pageTranslateJob?.scheduler;
     if (pageScheduler) {
       const userPaused = tab.pageTranslateSession?.userPaused === true;
       pageScheduler.setPaused(!browserNetworkOnline || userPaused);
-      if (browserNetworkOnline) retried += pageScheduler.retryFailed();
+      if (browserNetworkOnline) retried += pageScheduler.retryFailed({ onlyTransient: true });
     }
   }
   return { ok: true, online: browserNetworkOnline, retried };

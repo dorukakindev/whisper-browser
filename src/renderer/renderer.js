@@ -17353,6 +17353,12 @@ function updateRangeRetranslateUI() {
 // --translate-cue-range ile aralık dışını precompleted korur; elle düzenlenmiş
 // satırlar aralık dışındaysa asla ezilmez. Sonuç fark incelemesine düşer.
 async function startRangeRetranslate(rangeSeconds, options = {}) {
+  // Onay diyaloğu açıkken başka iş başlamış olabilir: çalışan işin fark
+  // anlık görüntüsünü ezme, aralık niyetini sonraki tıklamaya bırakma.
+  if (state.running || state.queueRunning) {
+    logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
+    return;
+  }
   const translation = translationChannel();
   if (translation && translation.cues.length) {
     state.retranslateSnapshot = {
@@ -25357,9 +25363,24 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   }
 });
 
+// Yeniden çeviri niyeti (tamamı/aralık/A-B modeli) makeTransBtn tıklamasından
+// hemen önce kurulur. Düğme erken çıkarsa bayraklar kalırsa sonraki sıradan
+// "Çevir" sessizce yalnız eski aralığı veya A/B modelini çeviriyordu.
+function clearPendingRetranslateIntent({ dropSnapshot = false } = {}) {
+  state.forceRetranslate = false;
+  state.translateCueRange = null;
+  state.translateModelOverride = null;
+  state.translateVariantLabel = null;
+  if (dropSnapshot) state.retranslateSnapshot = null;
+  if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
+}
+
 if ($('makeTransBtn')) {
   $('makeTransBtn').addEventListener('click', async () => {
     if (state.running || state.queueRunning) {
+      // Çalışan işin kendi fark anlık görüntüsü korunur; yalnız bu tıklamanın
+      // taşıdığı niyet düşürülür.
+      clearPendingRetranslateIntent();
       logLine('Zaten bir iş çalışıyor — bitmesini bekleyin.', 'warn');
       return;
     }
@@ -25372,6 +25393,7 @@ if ($('makeTransBtn')) {
       : (player.sub2Role === 'source' && player.sub2Path && player.cues2.length ? player.sub2Path : '');
     const sourceCues = sourcePrimary ? player.cues : player.cues2;
     if (!sourcePath || !sourceCues.length) {
+      clearPendingRetranslateIntent({ dropSnapshot: true });
       logLine('Önce kaynak rolünde bir altyazı yükleyin.', 'error');
       return;
     }
@@ -25409,11 +25431,7 @@ if ($('makeTransBtn')) {
     if (browserLanguage) opts.language = browserLanguage;
     const problem = optsProblem(opts);
     if (problem) {
-      state.forceRetranslate = false;
-      state.translateCueRange = null;
-      state.translateModelOverride = null;
-      state.translateVariantLabel = null;
-      if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
+      clearPendingRetranslateIntent({ dropSnapshot: true });
       logLine(problem, 'error'); setSettingsDrawer(true); return;
     }
 
