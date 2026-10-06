@@ -2121,7 +2121,16 @@ def write_json(entries, output_path, info=None, speakers=None, all_words=None,
 # Whisper'ın yaygın halüsinasyonları — eğitim verisindeki YouTube/altyazı
 # kalıplarından kaynaklanır. "Bag of Hallucinations" yaklaşımı:
 # https://arxiv.org/pdf/2501.11378
+# Asla gerçek konuşma olmayan imza kalıpları: güven sinyali beklenmeden elenir.
+# "Altyazı M.K." Whisper'ın Türkçe sessizlik/müzik üzerindeki en yaygın
+# halüsinasyonudur (eğitim verisindeki altyazı imzası); eski desen yalnız
+# "Altyazı çevirisi"/"Altyazı:" biçimini tanıdığından süzgeçten geçiyordu.
+HARD_HALLUCINATION_PATTERNS = [
+    re.compile(r"^\s*alt\s*yaz[ıi]\s*:?\s*m\s*\.?\s*k\s*\.?\s*$", re.IGNORECASE),
+]
+
 HALLUCINATION_PATTERNS = [
+    *HARD_HALLUCINATION_PATTERNS,
     # Türkçe
     re.compile(r"^\s*altyaz[ıi]\s*(çeviris[iy]?|:).*$", re.IGNORECASE),
     re.compile(r"^\s*beni\s+takip\s+et.*$", re.IGNORECASE),
@@ -2235,6 +2244,7 @@ def should_skip_hallucination(text, avg_logprob=None, no_speech_prob=None):
         not t
         or is_structural_sdh_cue(t)
         or re.fullmatch(r"(?:♪+|[.…\s]+)", t) is not None
+        or any(pat.match(t) for pat in HARD_HALLUCINATION_PATTERNS)
         or (len(words) >= 5 and len({w.lower() for w in words}) == 1)
     )
     if hard_marker:

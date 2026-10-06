@@ -11405,7 +11405,24 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
   capture.source = context.createMediaStreamSource(stream);
   capture.node.port.onmessage = ({ data }) => {
     if (data.type === 'flushed') { capture.resolveFlush?.(); return; }
-    if (data.type !== 'chunk' || player.browserLiveAsrCapture !== capture) return;
+    if (player.browserLiveAsrCapture !== capture) return;
+    if (data.type === 'silent') {
+      // Sessiz parça GPU'ya gitmez. Oynatma sürerken art arda ~12 sn sessizlik
+      // çoğunlukla sekmenin/videonun sessize alındığını gösterir: sistem sesi
+      // yakalaması o zaman hiçbir şey duyamaz. Oturum başına bir kez söyle.
+      capture.silentChunks = (capture.silentChunks || 0) + 1;
+      if (capture.silentChunks >= 3 && !capture.silenceWarned && !player.browserPaused) {
+        capture.silenceWarned = true;
+        setBrowserSignal(player.browserMuted || player.browserVolume === 0
+          ? 'Canlı Whisper ses duymuyor: video sessize alınmış. Sesi açın; sistem sesi yakalaması yalnız duyulan sesi yazar.'
+          : 'Canlı Whisper birkaç saniyedir ses duymuyor. Video sesini ve Windows ses çıkışını kontrol edin.', false,
+        { priority: 70, holdMs: 6000 });
+      }
+      return;
+    }
+    if (data.type !== 'chunk') return;
+    capture.silentChunks = 0;
+    capture.silenceWarned = false;
     if (capture.pending.size >= 8) {
       setBrowserSignal('Canlı Whisper kuyruğu doldu; ses parçası atlandı. Daha küçük bir model seçin.', false);
       return;
@@ -14765,7 +14782,13 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     updateBrowserLiveAsrButton(event.message || 'Canlı Whisper');
     if (event.message) setBrowserSignal(event.message, !!event.active);
   } else if (event.type === 'live-asr-warning') {
-    logLine(`Canlı Whisper: ${event.message || 'ses parçası işlenemedi'}`, 'warn');
+    logLine(`Canlı Whisper: ${event.message || 'ses parçası işlenemedi'}`, event.level === 'info' ? 'info' : 'warn');
+    // Gerçek zaman/süzgeç bildirimleri yalnız günlükte kalırsa kullanıcı
+    // altyazının neden geride kaldığını göremiyordu; tarayıcı şeridinde de göster.
+    if (event.level === 'warn' || event.level === 'info') {
+      setBrowserSignal(`Canlı Whisper: ${event.message}`, event.level === 'info',
+        { priority: event.level === 'warn' ? 72 : 40, holdMs: event.level === 'warn' ? 8000 : 4000 });
+    }
   } else if (event.type === 'drm-status') {
     const message = event.supported
       ? 'Widevine teknik erişimi doğrulandı. Bu sonuç servis lisansı, abonelik veya bölge erişimini garanti etmez.'

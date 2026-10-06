@@ -65,7 +65,7 @@ const NEUTRAL = [
   '0', '0%', '0.0', '0.00', '0.30', '0.5×', '0.50', '0.60', '0.75×', '0:00', '0:00 / 0:00',
   '0–9', '1×', '1.0', '1.25×', '1.5×', '1.75×', '100%', '16', '1:30', '2',
   '2×', '2× ▶▶', '2.4', '2.50', '20', '2000', '220', '28', '3.0', '4', '400', '42',
-  '45', '4SAPI · GPT-5.4 / Gemini 3.8 Flash', '5', '5:00', '70', '<', '< >',
+  '45', '4SAPI · GPT-5.4 / Gemini 3.8 Flash', '5', '5:00', '70', '8', '<', '< >',
   '<ad>.synced.srt', '<ad>.tr.srt', '>', '?', 'A', 'A D', 'A-B', 'API Key', 'ASS',
   'ASS (Aegisub — stil/renk/karaoke)', 'Açık', 'B', 'BROWSER', 'Backspace',
   'Bilingual viewing workspace', 'Bing', 'Brave', 'Brave Search', 'C', 'CPU',
