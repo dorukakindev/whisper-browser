@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 403 | [BROWSER_BUG_REPORT_403.md](BROWSER_BUG_REPORT_403.md) | "hatalı cümle" yeniden çeviri döngüsü — canlı çeviride gevşek kabul + elle son deneme, kısmi kayıt, kurtarma süre bütçesi, sızan yeniden çeviri bayrakları |
 | 402 | [BROWSER_BUG_REPORT_402.md](BROWSER_BUG_REPORT_402.md) | çeviri girişi rolling-window kaynak tekilleştirme — 120→71 blok, echo ret'leri 13→4, başarısız blok 85→45 |
 | 401 | [BROWSER_BUG_REPORT_401.md](BROWSER_BUG_REPORT_401.md) | anlam kapıları (anlam_*) yanlış-pozitif turu — olumsuz modal maskesi, -AbIl/-mAyIn çekimleri, çekimli olumsuzluk, could-you istekleri |
 | 400 | [BROWSER_BUG_REPORT_400.md](BROWSER_BUG_REPORT_400.md) | çeviri kalite kapıları yanlış-pozitif turu — canlı korpus ölçümü + 4 kök düzeltme (sonda-nokta ayrımı, 'bir' tail, window-tekrarı, caseless ad) |

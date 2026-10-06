@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-02-2115.md](docs/devir/2026-10-02-2115.md) — varsayılanlar: 4SAPI+gemini-3.8-flash sağlayıcı, gevşek kabul açık, işçi 8; kullanıcı settings.json güncellendi
+Güncel çalışma: [docs/devir/2026-10-06-1430.md](docs/devir/2026-10-06-1430.md) — "hatalı cümle" yeniden çeviri döngüsü: canlı çeviride gevşek kabul + elle son deneme, kısmi kayıt, kurtarma süre bütçesi (rapor 403)
+Önceki çalışma: [docs/devir/2026-10-02-2115.md](docs/devir/2026-10-02-2115.md) — varsayılanlar: 4SAPI+gemini-3.8-flash sağlayıcı, gevşek kabul açık, işçi 8; kullanıcı settings.json güncellendi
 Önceki çalışma: [docs/devir/2026-10-02-2020.md](docs/devir/2026-10-02-2020.md) — oynatıcı Whisper işi tek geçiş: aşamalı pencere planı (indirme+model+çeviri çift maliyeti) kaldırıldı
 Önceki çalışma: [docs/devir/2026-10-02-1951.md](docs/devir/2026-10-02-1951.md) — sağlıksız çeviri modeli bildirime bağlandı (translation_quality.unhealthy + warn_list) + 4sapi/gemini-3.8-flash canlı doğrulama
 Önceki çalışma: [docs/devir/2026-10-02-1921.md](docs/devir/2026-10-02-1921.md) — çeviri paralellik tavanı 6→8: dört ayrı kelepçe (preset + budgetWorkerCap + browserTranslationConfig + canlı scheduler) + stderr-tail günlüklemesi
