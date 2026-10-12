@@ -11289,12 +11289,39 @@ function currentBrowserYoutubeUrl() {
   } catch (_) { return ''; }
 }
 
+// R406 — tek tık = Whisper + çeviri. Çeviri sağlayıcısı hazırsa (API anahtarı
+// girili) "Altyazı oluştur" ve boş paneldeki ana düğme kaynak altyazıyla birlikte
+// çeviriyi de üretir. Eskiden browser yolu startBrowserYoutubeWhisper(false) ile
+// çeviriyi ZORLA kapatıyordu: anahtar girili, çeviri açık olsa bile yalnız
+// kaynak altyazı çıkıyor, kullanıcı ikinci kez "Çeviri oluştur"a basmak zorunda
+// kalıyordu. Yalnız kaynak isteyen için boş panelde "Yalnız altyazı" kalır.
+function translationReadyForCreate() {
+  const key = $('translateApiKey');
+  return !!(key && String(key.value || '').trim());
+}
+
+function openTranslationKeySetup() {
+  const input = $('translateApiKey');
+  try { if (typeof setSettingsDrawer === 'function') setSettingsDrawer(true); } catch (_) {}
+  if (!input) return;
+  for (let parent = input.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
+  setTimeout(() => {
+    try { input.scrollIntoView({ block: 'center' }); input.focus(); } catch (_) {}
+  }, 120);
+}
+
 function updateBrowserWhisperActions() {
   const url = currentBrowserYoutubeUrl();
   const busy = !!(state.running || state.queueRunning);
   if (player.workspaceMode === 'browser' && $('makeSubsBtn')) {
     $('makeSubsBtn').disabled = !url || busy;
-    $('makeSubsBtn').title = url ? 'Bu YouTube videosu için Whisper altyazısı oluştur' : 'Whisper için bir YouTube videosu açın; diğer sitelerde Canlı Whisper kullanılabilir';
+    $('makeSubsBtn').title = url
+      ? (translationReadyForCreate()
+        ? 'Bu YouTube videosu için Whisper altyazısı ve çeviri oluştur'
+        : 'Bu YouTube videosu için Whisper altyazısı oluştur')
+      : 'Whisper için bir YouTube videosu açın; diğer sitelerde Canlı Whisper kullanılabilir';
   }
   const descriptions = {
     browserWhisperSubtitles: url
@@ -16249,20 +16276,28 @@ function renderCueList(filter = '') {
     const browserMode = player.workspaceMode === 'browser';
     const trackCount = browserMode ? (player.browserTracks?.length || 0) : 0;
     const emptyKind = trackCount ? 'tracks' : (browserMode && !player.browserMediaSeen ? 'no-media' : 'none');
+    const emptyTranslationReady = typeof translationReadyForCreate === 'function' && translationReadyForCreate();
     const emptyText = emptyKind === 'tracks'
       ? `${lt('Sayfada altyazı izi bulundu')} · ${trackCount}`
       : emptyKind === 'no-media' ? lt('Bu sayfada video yok') : lt('Bu video için altyazı yok');
     box.innerHTML = '<div class="cue-list-empty cue-empty-rich" data-empty-kind="' + emptyKind + '">'
-      + '<span class="cue-empty-icon" aria-hidden="true">▭</span>'
+      + '<span class="cue-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/></svg></span>'
       + '<div class="cue-empty-text">' + escapeHtml(emptyText) + '</div>'
       + (emptyKind === 'no-media' ? ''
         : emptyKind === 'tracks'
           ? '<div class="cue-empty-cta"><button type="button" class="cue-empty-primary" data-empty-action="tracks">'
             + escapeHtml(lt('Altyazı izini seç')) + '</button></div>'
-          : '<div class="cue-empty-cta">'
-            + '<button type="button" class="cue-empty-primary" data-empty-action="make">' + lt('Whisper ile oluştur') + '</button>'
-            + '<button type="button" data-empty-action="pick">' + lt('Altyazı dosyası seç') + '</button>'
-            + '</div>')
+          : (emptyTranslationReady
+            ? '<div class="cue-empty-cta">'
+              + '<button type="button" class="cue-empty-primary" data-empty-action="make">' + escapeHtml(lt('Whisper + çeviri')) + '</button>'
+              + '<button type="button" data-empty-action="source">' + escapeHtml(lt('Yalnız altyazı')) + '</button>'
+              + '<button type="button" data-empty-action="pick">' + escapeHtml(lt('Altyazı dosyası seç')) + '</button>'
+              + '</div>'
+            : '<div class="cue-empty-cta">'
+              + '<button type="button" class="cue-empty-primary" data-empty-action="make">' + escapeHtml(lt('Whisper ile oluştur')) + '</button>'
+              + '<button type="button" data-empty-action="pick">' + escapeHtml(lt('Altyazı dosyası seç')) + '</button>'
+              + '</div>'
+              + '<button type="button" class="cue-empty-hint" data-empty-action="setup">' + escapeHtml(lt('Çeviri için API anahtarı ekle')) + '</button>'))
       + '</div>';
     box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsMenu')?.click());
     const make = box.querySelector('[data-empty-action="make"]');
@@ -16273,6 +16308,14 @@ function renderCueList(filter = '') {
       make.addEventListener('click', () => $('makeSubsBtn')?.click());
     }
     pick?.addEventListener('click', () => $('playerPickSub')?.click());
+    const sourceOnly = box.querySelector('[data-empty-action="source"]');
+    if (sourceOnly) {
+      sourceOnly.disabled = !!$('makeSubsBtn')?.disabled;
+      sourceOnly.addEventListener('click', () => (player.workspaceMode === 'browser'
+        ? startBrowserYoutubeWhisper(false)
+        : startProgressivePlayerTranscription({ translateOverride: false })));
+    }
+    box.querySelector('[data-empty-action="setup"]')?.addEventListener('click', openTranslationKeySetup);
     return;
   }
   $('playerSide')?.classList.remove('no-cues');
@@ -25213,11 +25256,6 @@ async function startProgressivePlayerTranscription(config = {}) {
     }
     opts.youtube = url;
     delete opts.input;
-    // Browser araç çubuğundaki iki eylem ayardaki genel çeviri anahtarından
-    // bağımsız ve açık bir niyet taşır: biri yalnız kaynak, diğeri kaynak+çeviri.
-    if (Object.prototype.hasOwnProperty.call(config, 'translateOverride')) {
-      opts.translate = !!config.translateOverride;
-    }
     opts.youtubeAudioLang = '';
   } else if (key.startsWith('youtube:')) {
     const url = (player.ytInfo && player.ytInfo.sourceUrl) || $('playerYtUrl').value.trim();
@@ -25232,6 +25270,12 @@ async function startProgressivePlayerTranscription(config = {}) {
     if (!path || path === 'Seçilmedi' || path === 'Not selected') { logLine('Önce bir video aç.', 'error'); return; }
     opts.input = path;
     delete opts.youtube;
+  }
+  // Açık eylem niyeti (yalnız kaynak / kaynak+çeviri) ayardaki genel çeviri
+  // anahtarından önce gelir — browser'da da yerel oynatıcıda da (R406: eskiden
+  // yalnız browser dalı okuyordu, yerel videoda "Altyazı oluştur" çeviriyi atlıyordu).
+  if (Object.prototype.hasOwnProperty.call(config, 'translateOverride')) {
+    opts.translate = !!config.translateOverride;
   }
   // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
   // dosyada birlestirilir. Kullanici ana ekrandaki kalici format secimini kaybetmez.
@@ -25295,8 +25339,12 @@ async function startProgressivePlayerTranscription(config = {}) {
 // (öncelikli pencere + kalan + baş-doldurma) her aşamada sesi yeniden
 // indirip modeli yeniden yüklediği için kaldırıldı.
 if ($('makeSubsBtn')) {
-  $('makeSubsBtn').addEventListener('click', () => player.workspaceMode === 'browser'
-    ? startBrowserYoutubeWhisper(false) : startProgressivePlayerTranscription());
+  $('makeSubsBtn').addEventListener('click', () => {
+    const translate = translationReadyForCreate();
+    return player.workspaceMode === 'browser'
+      ? startBrowserYoutubeWhisper(translate)
+      : startProgressivePlayerTranscription(translate ? { translateOverride: true } : {});
+  });
 }
 
 if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async () => {
@@ -28350,7 +28398,7 @@ async function fetchInvidiousFeed(kind, force = false, opts = {}) {
   }
   const res = await invCall(() => window.api.invidiousFeed(kind, opts));
   if (!res || !res.ok || !res.data) {
-    const reason = (res && res.error) || 'bilinmeyen';
+    const reason = (res && res.error) || 'bilinmeyen hata';
     logLine(`Invidious ${kind} alınamadı: ${reason}`, 'error');
     // Hata durumunda exception fırlat ki grid'de görünsün
     throw new Error(reason);
@@ -28372,7 +28420,7 @@ async function searchInvidious(query, page = 1, opts = {}) {
   if (!res || !res.ok || !res.data) {
     // fetchInvidiousFeed ile aynı sözleşme: hata boş diziye düşürülmez —
     // ölü instance/zaman aşımı gerçek "sonuç yok"tan ayrılsın diye throw edilir.
-    const reason = (res && res.error) || 'bilinmeyen';
+    const reason = (res && res.error) || 'bilinmeyen hata';
     logLine(`Invidious arama alınamadı: ${reason}`, 'error');
     throw new Error(reason);
   }
@@ -28472,7 +28520,7 @@ async function doInvidiousLogin() {
   if (passEl) passEl.value = '';   // şifre bellekten/dokumandan hemen silinir
   if (btn) { btn.disabled = false; btn.textContent = 'Oturum aç'; }
   if (!res || !res.ok) {
-    logLine(`Invidious giriş başarısız: ${(res && res.error) || 'bilinmeyen'}`, 'error');
+    logLine(`Invidious giriş başarısız: ${(res && res.error) || 'bilinmeyen hata'}`, 'error');
     return;
   }
   invidiousLoggedIn = { username: user, instance: res.data && res.data.instance };

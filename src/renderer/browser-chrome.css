@@ -1492,3 +1492,82 @@ details.browser-translate-split.hidden { display: none !important; }
   white-space: nowrap;
 }
 .player-layer.workspace-browser .player-side:not(.side-rail) .side-tab { position: relative; }
+
+/* ===== R406 — oynatıcı + browser tasarım turu =====
+   Yalnız mevcut token'lar; amber yalnız ana eylem / etkin durum / odak. */
+
+/* Yan panel giriş kutuları: metin kenara yapışıyordu (iç boşluk yoktu). */
+.player-side .side-source-quick input,
+.player-side .side-toolrow input[type="search"] {
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12.5px;
+}
+.player-side .side-source-quick input::placeholder,
+.player-side .side-toolrow input[type="search"]::placeholder { color: var(--text-muted); }
+
+/* Boş panel: ana eylem tam genişlikte, ikincil eylemler altında yan yana;
+   ikincil düğmeler tarayıcı varsayılanı (gri dolgu + açık çerçeve) yerine
+   tasarım token'larıyla çizilir. */
+.cue-list-empty.cue-empty-rich { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.cue-empty-icon { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto 12px;
+  color: var(--text-dim); background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; }
+.cue-empty-icon svg { display: block; }
+.cue-empty-text { color: var(--text-dim); font-size: 12.5px; }
+.cue-empty-cta {
+  /* Dar panelde ikincil eylemler alt alta, genişte yan yana — metin kesilmez. */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  width: min(100%, 340px); margin: 0 auto; gap: 8px; padding: 18px 10px 6px; box-sizing: border-box;
+}
+.cue-empty-cta > button { width: 100%; min-height: 34px; padding: 7px 12px; border-radius: 9px;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.cue-empty-cta > .cue-empty-primary { grid-column: 1 / -1; }
+.cue-empty-cta > button:last-child:nth-child(2) { grid-column: 1 / -1; }
+.cue-empty-cta > button:not(.cue-empty-primary) {
+  color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong);
+}
+.cue-empty-cta > button:not(.cue-empty-primary):hover:not(:disabled) { background: var(--bg-3); }
+.cue-empty-cta > .cue-empty-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.cue-empty-cta > button:disabled { opacity: .5; cursor: not-allowed; }
+.cue-empty-cta > button:focus-visible,
+.cue-empty-hint:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cue-empty-hint {
+  margin-top: 6px; padding: 4px 6px; font: inherit; font-size: 11.5px; cursor: pointer;
+  color: var(--text-dim); background: transparent; border: 0; border-radius: 6px;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong);
+}
+.cue-empty-hint:hover { color: var(--text); }
+
+/* Araçlar: anahtar ızgarası "Altyazı işlemleri" düğmesine yapışıktı. */
+#sentenceTools > .sentence-tools + .sentence-tools { margin-top: 8px; }
+
+/* SmartTube rayı: etkin işaret yuvarlak köşede hilal gibi kırpılıyordu
+   (inset gölge + 10px köşe). Kenara oturan ayrı bir çubuk çizilir; simgeler
+   artık aynı çizgi kalınlığında SVG. */
+.st-side-item { position: relative; }
+.st-side-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; font-size: 22px; }
+.st-side-icon svg { display: block; width: 22px; height: 22px; }
+.smarttube-browser .st-sidebar .st-side-item.is-active { color: var(--accent); box-shadow: none; background: var(--accent-soft); }
+.smarttube-browser .st-sidebar .st-side-item.is-active::before {
+  /* Kapsül köşesinin düz kısmında durur: TV düzeninde öğe 23px yuvarlak ve
+     overflow:hidden olduğundan kenardaki (left:0) çubuk yine hilal gibi kırpılıyordu. */
+  content: ''; position: absolute; left: 6px; top: 15px; bottom: 15px; width: 3px;
+  border-radius: 3px; background: var(--accent);
+}
+/* TV düzeni (varsayılan) de aynı çubuğu kullanır; eski inset gölge kırpılıyordu. */
+.st-tv .st-sidebar .st-side-item.is-active { box-shadow: none; }
+.st-home-fallback-actions .btn { white-space: nowrap; }
+
+/* Yeni sekme: ilk açılıştan sonra yalnız arama kutusu kalıyordu. Hızlı erişim
+   ve "izlemeye devam et" boşken simge, başlık ve üç eylem kartı kompakt
+   biçimde görünür; açıklama paragrafı ve "hakkında" yalnız ilk açılışta. */
+.browser-empty:not(.browser-ntp-first):has(#browserQuickPlaces.hidden):has(#browserNtpResume.hidden) .browser-ntp-intro { display: flex; }
+.browser-empty:not(.browser-ntp-first) .browser-ntp-intro > p,
+.browser-empty:not(.browser-ntp-first) .browser-ntp-intro > .browser-home-about,
+.browser-empty:not(.browser-ntp-first) .browser-ntp-intro > .browser-section-eyebrow { display: none; }
+.browser-empty:not(.browser-ntp-first):has(#browserQuickPlaces.hidden):has(#browserNtpResume.hidden) .browser-ntp-core { margin-top: 26px; }
+.workspace-browser .browser-empty:not(.browser-ntp-first) .browser-ntp-intro > strong { font-size: clamp(20px, 1.9vw, 26px); }
+/* Arama kutusunun büyük açılır-menü gölgesi koyu temada kirli bir hale bırakıyordu. */
+.browser-ntp-search { box-shadow: 0 1px 3px -1px var(--shadow-deep); }
+.browser-ntp-search:focus-within { box-shadow: 0 0 0 3px var(--accent-soft); }
