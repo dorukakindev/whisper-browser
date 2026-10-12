@@ -99,6 +99,7 @@
       timeline_mismatch: 'zaman çizelgesi uyuşmuyor',
       client_missing: 'API istemcisi eksik', api_key_missing: 'API anahtarı eksik',
       api_failure: 'API hatası', recovery_timeout: 'kurtarma süresi doldu',
+      recovery_limit: 'kurtarma sınırına ulaşıldı',
     })[code] || 'çeviri hatası';
   }
 

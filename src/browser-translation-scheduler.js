@@ -286,6 +286,16 @@ class BrowserTranslationScheduler {
     this.providerFailureThreshold = Math.max(2, Math.trunc(finiteNumber(options.providerFailureThreshold, 8)));
     this.consecutiveProviderFailures = 0;
     this.consecutiveDefinitiveFailures = 0;
+    // Kalite kesicisi: art arda bu kadar cümle sayı/anlam kapısına takılır ve
+    // araya tek temiz çeviri girmezse sorun cümlelerde değil kapı–model
+    // uyumundadır (ör. model sayıları hep yazıyla yazıyor). Cümle başına iki
+    // ücretli istek yakmayı sürdürmek yerine oturumun kalanında kapı uyarıyla
+    // kabul eder (metin yazılır, önbelleğe girmez) ve kapıda bekleyen son
+    // adaylar yeni istek açılmadan kabul edilir. TEK hatalı cümle kesiciyi
+    // açmaz: temiz bir çeviri sayacı sıfırlar.
+    this.qualityBreakerThreshold = Math.max(2, Math.trunc(finiteNumber(options.qualityBreakerThreshold, 4)));
+    this.consecutiveQualityFailures = 0;
+    this.qualityAutoLenient = false;
     this.onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     this.onState = typeof options.onState === 'function' ? options.onState : () => {};
     // UI callback'inin hatası iş sonucunu bozmasın / ikinci throw unhandled
@@ -451,6 +461,7 @@ class BrowserTranslationScheduler {
       retrying: [...this.failures.values()].filter((failure) => !failure.terminal).length,
       paused: this.paused,
       qualityAccepted: this.qualityAccepted,
+      qualityAutoLenient: this.qualityAutoLenient,
       stats: { ...this.stats },
     };
   }
@@ -627,13 +638,14 @@ class BrowserTranslationScheduler {
           if (qualityIssues.length) {
             // Gevşek modda veya elle son denemede kapı reddetmez; metin
             // uyarıyla yazılır ve commitResult önbelleğe almaz.
-            if (this.lenient || forceAccept) return { ...decoded, cached: false, qualityIssues };
+            if (this.lenient || forceAccept || this.qualityAutoLenient) return { ...decoded, cached: false, qualityIssues };
             const gateError = new Error('Çeviri sayısal bilgiyi korumadı.');
             gateError.qualityGate = true;
             gateError.qualityIssues = qualityIssues;
             gateError.candidate = { ...decoded };
             throw gateError;
           }
+          this.consecutiveQualityFailures = 0;
           return { ...decoded, cached: false };
         });
     }).then((result) => this.commitResult(job, result)).catch(async (error) => {
@@ -728,6 +740,17 @@ class BrowserTranslationScheduler {
           nextRetryMs: terminal ? 0 : delay,
           cues: [],
         }, sentence);
+        // Yalnız İLK denemedeki ret sayılır: aynı cümlenin yeniden denemesi aynı
+        // girdiyle aynı kapıya takılır ve seriyi şişirmemeli — seri, ART ARDA
+        // FARKLI cümlelerin kapıya takılmasını ölçer.
+        if (quality && attempts === 1) {
+          this.consecutiveQualityFailures += 1;
+          if (!this.lenient && !this.qualityAutoLenient
+              && this.consecutiveQualityFailures >= this.qualityBreakerThreshold) {
+            this.qualityAutoLenient = true;
+            void this.acceptStoredQualityCandidates();
+          }
+        }
         if (!terminal) {
           // Windows zamanlayıcısı retryAt duvar saatinden önce uyanabilir.
           // O durumda updatePlayhead bu işi hâlâ dışlar; tek timerı silmek
@@ -792,10 +815,34 @@ class BrowserTranslationScheduler {
     this.emitResult(value, sentence);
   }
 
+  // Kesici açıldığında kapıda takılı kalan cümlelerin SON adayı yeni istek
+  // açılmadan uyarıyla kabul edilir (önbelleğe yazılmaz).
+  async acceptStoredQualityCandidates() {
+    const generation = this.generation;
+    for (const sentence of this.sentences) {
+      if (generation !== this.generation) return 0;
+      const candidate = this.qualityCandidates.get(sentence.id);
+      if (!candidate || this.results.has(sentence.id) || this.pending.has(sentence.id)) continue;
+      const job = {
+        sentence, generation,
+        controller: new AbortController(),
+        cacheKey: translationCacheKey(sentence, { ...this.context }),
+      };
+      const issues = Array.isArray(candidate.qualityIssues) && candidate.qualityIssues.length
+        ? candidate.qualityIssues : ['quality_breaker'];
+      try { await this.commitResult(job, { ...candidate, cached: false, qualityIssues: issues }); }
+      catch (_) { /* Aday yerleştirilemedi; cümle normal hata akışında kalır. */ }
+    }
+    if (generation === this.generation) this.emitState();
+    return this.results.size;
+  }
+
   cancelAll(reason = 'İptal edildi.') {
     this.providerFailure = '';
     this.consecutiveProviderFailures = 0;
     this.consecutiveDefinitiveFailures = 0;
+    this.consecutiveQualityFailures = 0;
+    this.qualityAutoLenient = false;
     this.queue = [];
     for (const job of this.pending.values()) job.controller.abort(reason);
     this.pending.clear();

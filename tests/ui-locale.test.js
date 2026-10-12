@@ -91,8 +91,9 @@ const NEUTRAL = [
   'shuaiapi · CF optimize', 'shuaiapi · Global', 'sk-...', 'small', 'tiny', 'tr',
   'tt0133093', 'vs base', 'vs large-v3', 'vs large-v3-turbo', 'vs medium',
   'vs small', 'vs tiny', 'xxxxx.apps.googleusercontent.com', 'yt-dlp', '×', '–',
-  '—', '— / —', '← →', '↑', '↑ ↓', '↓', '↗', '↺', '−', '−100 ms', '≡', '⊞',
-  '⌂', '⏻', '▣', '▶', '●', '★', '☷', '♪', '⚿', '✎', '✦',
+  '—', '— / —', '← →', '↑', '↑ ↓', '↓', '↗', '−', '−100 ms', '▣', '▶',
+  // R406: SmartTube rayının metin glifleri (⌂ ★ ⚿ ✎ …) aynı çizgide SVG simgelere
+  // dönüştü; artık çevrilmemiş statik metin olarak görünmezler.
 ];
 // 'Açık' tema seçeneği setLocale içinde açıkça güncellenir; sayı/glif/marka
 // dizgileri her iki dilde aynı kalır.

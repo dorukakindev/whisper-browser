@@ -3610,6 +3610,29 @@ def classify_translation_error(error):
 # başına duvar saati bütçesi. llm_translate içinde açıklanır.
 TRANSLATION_RECOVERY_BUDGET_SEC = 300
 
+# Kurtarma turlarının SAYAÇ tabanlı sınırları (süre bütçesini tamamlar). Süre
+# bütçesi tek başına yetmiyordu: hızlı yanıt veren bir sağlayıcıda sistematik
+# bir kalite kapısı reddi (her pakette aynı sayı/yankı itirazı) 300 sn içinde
+# yüzlerce kurtarma isteği açabiliyordu — "tek satır hata verdi diye onlarca
+# paketi yeniden deneme döngüsü". Bütçe grup sayısıyla ölçeklenir: normal bir
+# dosyada birkaç bozuk grubu kurtarmaya yeter, sistematik reddi keser.
+TRANSLATION_RESCUE_REQUESTS_MIN = 12
+TRANSLATION_RESCUE_REQUESTS_MAX = 80
+# Verim kesicisi: kurtarma istekleri blok kazandırmıyorsa (kapı/model sorunu,
+# tekrar denemek aynı sonucu verir) kalan gruplar için yeni istek açılmaz.
+TRANSLATION_RESCUE_PROBE_REQUESTS = 6      # bu kadar istekte HİÇ blok kurtulmadıysa kes
+TRANSLATION_RESCUE_SUSTAINED_REQUESTS = 20  # bu kadar istekten sonra verim oranına bak
+TRANSLATION_RESCUE_MIN_YIELD = 0.25         # kurtaran istek oranı bunun altındaysa kes
+# Ana (toplu) paket döngüsü için aynı kesici: sağlayıcı/protokol baştan sona
+# bozuksa (kırık JSON, kaymış kimlik, her grupta aynı kapı reddi) kalan yüzlerce
+# paketi tek tek göndermek yalnız ücret yakar. Kurtarma kesicisi bunu durduramıyordu
+# çünkü yalnız kurtarma isteklerini sayıyordu. TEK satırlık hata paketi geçersiz
+# kılmaz (diğer gruplar kabul edilir) — kesici yalnız "hiç üretken paket yok" ya da
+# "paketlerin çok küçük bir kısmı üretken" durumunda devreye girer.
+TRANSLATION_BATCH_PROBE_REQUESTS = 8        # bu kadar paketin HİÇBİRİ blok üretmediyse kes
+TRANSLATION_BATCH_SUSTAINED_REQUESTS = 16   # bu kadar pakette verim oranına bak
+TRANSLATION_BATCH_MIN_YIELD = 0.15          # üretken paket oranı bunun altındaysa kes
+
 
 # model_unavailable da fatal'dir: sağlayıcının bu model için kanalı yoksa kalan
 # yüzlerce parçayı sırayla denemek yalnızca isteği ve süreyi boşa harcar.
@@ -4264,7 +4287,33 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             or TRANSLATION_RECOVERY_BUDGET_SEC))
     except (TypeError, ValueError):
         recovery_budget_sec = float(TRANSLATION_RECOVERY_BUDGET_SEC)
-    recovery_clock = {"started": None, "notified": False}
+    recovery_clock = {"started": None, "notified": False, "why": ""}
+
+    # Sayaç tabanlı kurtarma sınırı: istek bütçesi grup sayısıyla ölçeklenir ve
+    # verim kesicisi istekler işe yaramıyorsa kurtarmayı erken kapatır.
+    # `translate_rescue_requests` yalnız testler/ileri kullanım içindir.
+    try:
+        rescue_request_cap = int(getattr(args, "translate_rescue_requests", 0) or 0)
+    except (TypeError, ValueError):
+        rescue_request_cap = 0
+    if rescue_request_cap <= 0:
+        rescue_request_cap = max(
+            TRANSLATION_RESCUE_REQUESTS_MIN,
+            min(TRANSLATION_RESCUE_REQUESTS_MAX, 6 + len(pending_groups) // 6))
+    rescue_stats = {"requests": 0, "productive": 0}
+
+    def rescue_limit_reason_locked():
+        """'' | 'requests' | 'yield' — lock altında çağrılır."""
+        requests_made = rescue_stats["requests"]
+        if requests_made >= rescue_request_cap:
+            return "requests"
+        productive = rescue_stats["productive"]
+        if requests_made >= TRANSLATION_RESCUE_PROBE_REQUESTS and productive == 0:
+            return "yield"
+        if requests_made >= TRANSLATION_RESCUE_SUSTAINED_REQUESTS \
+                and productive / requests_made < TRANSLATION_RESCUE_MIN_YIELD:
+            return "yield"
+        return ""
 
     def start_recovery_clock():
         with lock:
@@ -4274,13 +4323,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def recovery_budget_exhausted():
         with lock:
             started = recovery_clock["started"]
-            exhausted = started is not None and time.time() - started > recovery_budget_sec
+            time_over = started is not None and time.time() - started > recovery_budget_sec
+            limit = rescue_limit_reason_locked()
+            exhausted = time_over or bool(limit)
             first = exhausted and not recovery_clock["notified"]
             if first:
                 recovery_clock["notified"] = True
+                recovery_clock["why"] = "time" if time_over else limit
+            why = recovery_clock["why"]
+            requests_made = rescue_stats["requests"]
+            productive = rescue_stats["productive"]
         if first:
-            msg = (f"Çeviri kurtarma süresi ({int(recovery_budget_sec)} sn) doldu; kalan "
-                   "sorunlu satırlar için yeni istek açılmadı, iş tamamlanıyor.")
+            if why == "time":
+                msg = (f"Çeviri kurtarma süresi ({int(recovery_budget_sec)} sn) doldu; kalan "
+                       "sorunlu satırlar için yeni istek açılmadı, iş tamamlanıyor.")
+            elif why == "requests":
+                msg = (f"Çeviri kurtarma istek sınırına ({rescue_request_cap}) ulaşıldı; kalan "
+                       "sorunlu satırlar için yeni istek açılmadı, iş tamamlanıyor. Bu satırlarda "
+                       "kaynak metin kaldı; 'Eksikleri tamamla' ile tek tek yeniden denenebilir.")
+            else:
+                msg = (f"Çeviri kurtarma istekleri sonuç vermiyor ({productive}/{requests_made} "
+                       "istek blok kurtardı); aynı hatayı tekrarlamak yalnız ücret yakacağı için "
+                       "kalan sorunlu satırlar için yeni istek açılmadı. Model/kalite kapısı "
+                       "uyumunu kontrol edin veya gevşek modu deneyin.")
             log(msg, "warn")
             if warn_list is not None:
                 warn_list.append(msg)
@@ -4288,9 +4353,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
     def mark_recovery_timeout(indexes):
         with lock:
+            reason = "recovery_timeout" if recovery_clock["why"] == "time" else "recovery_limit"
             for index in indexes:
                 if index not in done_idx:
-                    failure_by_index.setdefault(index, "recovery_timeout")
+                    failure_by_index.setdefault(index, reason)
 
     def est_index_tokens(index):
         # İstek gövdesi ~ kaynak metin + bağlam + yanıt payı (kaba est).
@@ -4320,7 +4386,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     translation_metrics = {
         "started": time.time(), "requests": 0, "batch_requests": 0,
         "fallback_requests": 0, "invalid_batches": 0, "rejections": {},
-        "prompt_chars": 0, "completion_chars": 0,
+        "prompt_chars": 0, "completion_chars": 0, "productive_batches": 0,
     }
 
     def note_rejections(counts):
@@ -4399,6 +4465,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             translation_metrics["requests"] += 1
             metric_key = "fallback_requests" if phase == "fallback" else "batch_requests"
             translation_metrics[metric_key] += 1
+            if phase == "fallback":
+                rescue_stats["requests"] += 1
         payload = translation_payload(chunk_idx)
 
         _req_t0 = time.time()
@@ -4542,6 +4610,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # istenip yalnizca birkacini dondurdugunde geri kalanlar sessizce KAYNAK
         # metin olarak kaliyordu; eskiden parca uzunlugu dondugu icin ilerleme
         # 20/20, failed=0 ve "Ceviri tamamlandi" yaziyordu.
+        if filled > 0:
+            with lock:
+                if phase == "fallback":
+                    rescue_stats["productive"] += 1
+                else:
+                    translation_metrics["productive_batches"] += 1
         return filled
 
     RESCUE_SUFFIX = (
@@ -4570,6 +4644,16 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def structural_breaker_tripped():
         with lock:
             return translation_metrics["invalid_batches"] >= MAX_STRUCTURAL_FAILURES
+
+    def batch_breaker_tripped():
+        """Ana paket döngüsü kesicisi: üretken paket yoksa/çok azsa yeni paket açma."""
+        with lock:
+            made = translation_metrics["batch_requests"]
+            good = translation_metrics["productive_batches"]
+        if made >= TRANSLATION_BATCH_PROBE_REQUESTS and good == 0:
+            return True
+        return (made >= TRANSLATION_BATCH_SUSTAINED_REQUESTS
+                and good / made < TRANSLATION_BATCH_MIN_YIELD)
 
     def retry_groups_once(groups_to_retry, *, batched=True):
         """Eksik grupları önce ikili küçük paket, gerekirse tek grup olarak kurtar."""
@@ -4908,7 +4992,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
         def submit_available(executor):
             while (len(inflight) < planner.workers
-                   and fatal_stop["error"] is None):
+                   and fatal_stop["error"] is None
+                   and not batch_breaker_tripped()):
                 ch = pack_next()
                 if ch is None:
                     break
@@ -4943,6 +5028,32 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         if index not in done_idx:
                             failure_by_index[index] = stop_reason
             pack_pos[0] = len(pending_groups)
+            emit("llm_progress",
+                 percent=round(100 * (counters["done"] + counters["failed"])
+                               / max(1, len(entries)), 1),
+                 done=counters["done"], failed=counters["failed"],
+                 total=len(entries), stage="translate")
+        if (fatal_stop["error"] is None and pack_pos[0] < len(pending_groups)
+                and batch_breaker_tripped()):
+            skipped = sum(1 for group in pending_groups[pack_pos[0]:]
+                          for index in group if index not in done_idx)
+            counters["failed"] += skipped
+            with lock:
+                for group in pending_groups[pack_pos[0]:]:
+                    for index in group:
+                        if index not in done_idx:
+                            failure_by_index[index] = "invalid_response"
+                made = translation_metrics["batch_requests"]
+                good = translation_metrics["productive_batches"]
+            pack_pos[0] = len(pending_groups)
+            msg = (f"Çeviri sağlayıcısı {made} toplu isteğin yalnız {good} tanesinde geçerli "
+                   f"çeviri döndürdü; kalan {skipped} blok için yeni istek açılmadı. Aynı "
+                   "hatayı tekrarlamak yalnız ücret yakar — daha kararlı bir model seçin, "
+                   "paralel iş sayısını düşürün veya gevşek modu deneyin. Bu satırlarda "
+                   "kaynak metin kaldı; 'Eksikleri tamamla' ile yeniden denenebilir.")
+            log(msg, "warn")
+            if warn_list is not None:
+                warn_list.append(msg)
             emit("llm_progress",
                  percent=round(100 * (counters["done"] + counters["failed"])
                                / max(1, len(entries)), 1),

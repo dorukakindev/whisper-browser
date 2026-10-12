@@ -208,3 +208,61 @@ test('main.js: yalnız ertelenmiş hatalar varken yeniden deneme hata göstermez
     main.indexOf("ipcMain.handle('browser:network:setOnline'"));
   assert.match(handler, /hadFailures[\s\S]*?\{ ok: true, retried: 0, deferred: true \}/);
 });
+
+// Kalite kesicisi: tek hatalı cümle döngü değildir, ama art arda kapıya takılan
+// cümleler kapı–model uyumsuzluğudur; cümle başına iki ücretli istek yakmak
+// yerine oturum uyarıyla kabul etmeye geçer.
+function makeManyScheduler({ count, isBad, schedulerOptions = {} }) {
+  const cache = new Map();
+  const calls = [];
+  const cues = Array.from({ length: count }, (_, i) => ({
+    id: `n${i}`, start: i * 4, end: i * 4 + 2, text: `I have ${i + 3} apples${isBad(i) ? ' bad' : ''}.`,
+  }));
+  const scheduler = new BrowserTranslationScheduler({
+    cache, requireSentenceParts: false, retryBaseMs: 10, retryMaxMs: 20, maxConcurrent: 1,
+    context: { trackIdentity: 'track', targetLanguage: 'tr' },
+    ...schedulerOptions,
+    translate: async (sentence) => {
+      calls.push(sentence.id);
+      const number = String(sentence.text).match(/\d+/)[0];
+      return { text: /bad/.test(sentence.text) ? 'Elmalarım var.' : `Bende ${number} elma var.` };
+    },
+  });
+  scheduler.setSentences(assembleCueSentences(cues, { sourceComplete: true }));
+  return { scheduler, cache, calls };
+}
+
+test('kalite kesicisi: art arda kapı reddi oturumu uyarıyla kabule geçirir, istek fırtınası olmaz', async () => {
+  const { scheduler, cache, calls } = makeManyScheduler({ count: 30, isBad: () => true });
+  scheduler.completeAll();
+  await scheduler.whenIdle();
+  const snap = scheduler.stateSnapshot([]);
+  assert.equal(snap.qualityAutoLenient, true, 'kesici açılmalı');
+  assert.equal(scheduler.snapshot().completed, 30, 'tüm cümleler uyarıyla kabul edilmeli');
+  assert.equal(scheduler.snapshot().failures.length, 0);
+  // Kesici olmadan 30 cümle × 2 istek = 60 istek yanardı.
+  assert.ok(calls.length <= 4 * 2 + 30, `istek sayısı ${calls.length}: kesici yeterince erken açılmadı`);
+  assert.ok(calls.length < 60, 'kesicisiz üst sınır olan 60 istek aşıldı');
+  assert.equal(cache.size, 0, 'uyarıyla kabul edilen çeviriler önbelleğe girmemeli');
+  assert.ok(scheduler.snapshot().results.every((r) => r.qualityIssues && r.qualityIssues.length));
+});
+
+test('kalite kesicisi: tek hatalı cümle kesiciyi açmaz, araya giren temiz çeviri sayacı sıfırlar', async () => {
+  const { scheduler } = makeManyScheduler({ count: 24, isBad: (i) => i % 3 === 0 });
+  scheduler.completeAll();
+  await scheduler.whenIdle();
+  const snap = scheduler.stateSnapshot([]);
+  assert.equal(snap.qualityAutoLenient, false, 'dağınık tekil hatalar kesiciyi açmamalı');
+  // Sıkı mod sözleşmesi korunur: hatalı cümleler terminal "quality" olarak kalır.
+  assert.equal(scheduler.snapshot().failures.filter((f) => f.kind === 'quality').length, 8);
+  assert.equal(scheduler.snapshot().completed, 16);
+});
+
+test('kalite kesicisi: gevşek modda gereksizdir ve sayaç tutulmaz', async () => {
+  const { scheduler, calls } = makeManyScheduler({
+    count: 10, isBad: () => true, schedulerOptions: { lenient: true } });
+  scheduler.completeAll();
+  await scheduler.whenIdle();
+  assert.equal(calls.length, 10, 'gevşek mod cümle başına tek istek yakar');
+  assert.equal(scheduler.stateSnapshot([]).qualityAutoLenient, false);
+});
