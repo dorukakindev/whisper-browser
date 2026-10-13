@@ -362,7 +362,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-find [role="status"] { flex: 0 1 auto; max-width: 155px; color: var(--accent-hover); font-size: 12px; }
 .browser-find .btn-icon { flex: 0 0 30px; width: 30px; height: 30px; }
 .browser-find :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.browser-toolbar-actions { min-width: max-content; display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.browser-toolbar-actions { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .browser-nav-button {
   width: 32px;
   height: 32px;
@@ -1170,6 +1170,17 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 }
 .browser-tab .browser-tab-close { transition: opacity var(--motion-fast) ease; }
 .browser-tab:not(.active):not(:hover):not(:focus-within) .browser-tab-close { opacity: 0; }
+#browserSubtitleLabel { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+@media (max-width: 920px) {
+  /* The local player's stacked layout collapses the browser's view slot. */
+  .player-layer.workspace-browser .player-body { display: grid; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  #browserPageLabel { display: none; }
+  #browserSubtitleLabel { max-width: 110px; }
+  .browser-toolbar-actions { gap: 3px; }
+}
 @media (hover: none) {
 .browser-tab .browser-tab-close { opacity: 1 !important; }
 }
