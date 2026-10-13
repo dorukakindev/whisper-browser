@@ -63,3 +63,10 @@ kalitesi için canlı ölçüm yapılmadı; bu düzeltme hız artışı iddiası
 Tam `npm test`, canlı ücretli sağlayıcı, gerçek YouTube + CUDA + `start.bat`
 uçtan uca işi ve native video/DPI/DRM doğrulanmadı. `start.bat`, `install.bat`,
 Windows dosya seçici/yol ve GPU bağımlılıkları değişmedi; yeni bağımlılık yok.
+
+## Uzak CI engeli
+
+[PR #452](https://github.com/dorukakindev/whisper-browser/pull/452) açıldı.
+PR'da kontrol koşusu oluşmadı; etkin CI iş akışını elle başlatma isteği GitHub
+HTTP 422 / `Actions has been disabled for this user.` ile reddedildi. Windows CI
+sonucu bu nedenle doğrulanamadı; hesap Actions erişimi düzeldikten sonra koşulmalı.
