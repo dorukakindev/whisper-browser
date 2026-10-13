@@ -4748,6 +4748,14 @@ function playerJobEvent(event) {
   if (event.type === 'status' && event.text) {
     job.stage = event.text;
     txt.textContent = event.text;
+    // A new stage has its own progress; transcription's 100% is not translation's.
+    if (event.stage && job.progressStage !== event.stage) {
+      job.progressStage = event.stage;
+      job.percent = null;
+      job.completed = 0;
+      job.total = 0;
+      fill.style.width = '0%';
+    }
   }
   if (event.type === 'segment') {
     job.liveSource = mergeLiveCues(job.liveSource || [], liveSegments(event));
@@ -4818,7 +4826,10 @@ function playerJobEvent(event) {
     job.percent = Math.min(100, Math.max(0, Number(event.percent) || 0));
     player.translationRetryAvailable = failed;
     const phaseLabel = event.stage === 'translate' ? 'Çeviri oluşturuluyor' : 'LLM düzeltiyor';
-    txt.textContent = `${phaseLabel} · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
+    txt.textContent = `${phaseLabel} · %${job.percent.toFixed(0)}${job.total ? ` · ${job.completed}/${job.total} blok` : ''}${failed ? ` · ${failed} eksik` : ''}`;
+    if (event.waiting) {
+      txt.textContent += ` · Sağlayıcı yanıtı bekleniyor · ${Math.max(0, Math.round(Number(event.elapsed) || 0))} sn`;
+    }
     job.stage = txt.textContent;
     fill.style.width = `${Math.min(100, Math.max(0, Number(event.percent) || 0))}%`;
     updateMakeTransState();

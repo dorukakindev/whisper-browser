@@ -4946,12 +4946,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # düzeyini aşmaz. Senkron prob öncesinde açılır; ilk parça da kurtarma
     # gerektirebilir.
     rescue_pool = None
+    from concurrent.futures import wait, FIRST_COMPLETED
+
+    def emit_waiting_progress():
+        completed = counters["done"] + len(cached_idx) + len(precompleted_idx) + preserved_static
+        emit("llm_progress", percent=round(
+            (completed + counters["failed"]) / max(1, len(entries)) * 100.0, 1),
+            done=completed, failed=counters["failed"], total=len(entries),
+            stage="translate", waiting=True,
+            elapsed=round(time.time() - translation_metrics["started"], 1))
+
     try:
         rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
         probe = pack_next()
         if probe:
+            emit_waiting_progress()
             try:
-                record_chunk_result(probe, got=task(probe))
+                # Keep the one-request credential/quota gate, but report liveness
+                # while its provider response or recovery is pending.
+                with ThreadPoolExecutor(max_workers=1) as probe_pool:
+                    probe_future = probe_pool.submit(task, probe)
+                    while not wait([probe_future], timeout=5)[0]:
+                        emit_waiting_progress()
+                    record_chunk_result(probe, got=probe_future.result())
             except Exception as error:
                 fatal_reason = record_chunk_result(probe, error=error)
 
@@ -5003,7 +5020,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             submit_available(ex)
             while inflight:
-                done_set, _pending = wait(inflight, return_when=FIRST_COMPLETED)
+                done_set, _pending = wait(inflight, timeout=5, return_when=FIRST_COMPLETED)
+                if not done_set:
+                    emit_waiting_progress()
                 for fut in done_set:
                     ch = inflight.pop(fut)
                     try:

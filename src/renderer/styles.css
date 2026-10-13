@@ -1440,6 +1440,12 @@ to { opacity: 1; transform: none; }
   border-radius: var(--radius-sm);
 }
 .job-bar .progress-track { flex: 1; }
+.player-job-status { flex: 0 0 auto; margin: 6px 12px; flex-wrap: wrap; }
+.player-job-status > span { flex: 1 1 260px; }
+.player-job-status .progress-track {
+  flex: 1 1 100px; height: 6px; overflow: hidden;
+  background: var(--bg-0); border-radius: var(--radius-sm);
+}
 .sentence-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sentence-tools .btn-icon { font-size: 15px; line-height: 1; }
 /* Metin tabanli kucuk dugmeler (A-B, ?) alt alta kirilmasin */

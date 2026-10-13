@@ -1280,6 +1280,11 @@
         <div id="playerTaskCenterList"></div>
       </section>
 
+      <div class="job-bar player-job-status hidden" id="playerJobBar" role="status" aria-live="polite">
+        <span id="playerJobText">Hazırlanıyor…</span>
+        <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
+        <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">&times;</button>
+      </div>
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
@@ -2891,11 +2896,6 @@
                 title="Altyazı başlangıç ve bitişlerini dalga biçimi üzerinde düzenle">Zaman çizgisi</button>
             </div>
             <div id="sentenceTools">
-            <div class="job-bar hidden" id="playerJobBar">
-              <span id="playerJobText">Hazırlanıyor…</span>
-              <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
-              <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">&times;</button>
-            </div>
             <div class="sentence-tools tool-row-nav">
               <div class="tool-seg" role="group" aria-label="Altyazı gezinme">
                 <button class="tool-button" id="cuePrevBtn" title="Önceki blok (A)"

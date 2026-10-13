@@ -2,6 +2,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const code = fs.readFileSync(require('node:path').join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const { JSDOM } = require('jsdom');
+const markup = new JSDOM(fs.readFileSync(require('node:path').join(__dirname, '../src/renderer/index.html'), 'utf8')).window.document;
+assert.equal(markup.querySelectorAll('#playerJobBar').length, 1);
+assert.equal(markup.getElementById('playerJobBar').parentElement.id, 'playerLayer',
+  'browser progress must remain outside the collapsible subtitle sidebar');
 const nodes = new Map();
 const node = id => {
   if (!nodes.has(id)) nodes.set(id, { value: '', style: {}, classList: { add() {}, remove() {} }, click() { this.clicks = (this.clicks || 0) + 1; } });
@@ -97,11 +102,22 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
     browserTabId: 'a', ranges: [{ start: 0, end: 1800 }], rangeIndex: 0 };
   ctx.player.job = progJob;
   ctx.playerJobEvent({ type: 'llm_progress', percent: 42, done: 106, total: 252, failed: 3, stage: 'translate' });
-  assert.equal(node('playerJobText').textContent, 'Çeviri oluşturuluyor · %42 · 3 eksik');
+  assert.equal(node('playerJobText').textContent, 'Çeviri oluşturuluyor · %42 · 106/252 blok · 3 eksik');
   assert.equal(node('playerJobFill').style.width, '42%');
   assert.equal(progJob.completed, 106);
   ctx.playerJobEvent({ type: 'llm_progress', percent: 80, done: 10, total: 12 });
-  assert.equal(node('playerJobText').textContent, 'LLM düzeltiyor · %80');
+  assert.equal(node('playerJobText').textContent, 'LLM düzeltiyor · %80 · 10/12 blok');
+  ctx.playerJobEvent({ type: 'status', stage: 'translate', text: 'Ceviriliyor: Turkce' });
+  assert.equal(node('playerJobFill').style.width, '0%');
+  assert.equal(progJob.percent, null, 'new stage reused transcription percentage');
+  ctx.playerJobEvent({ type: 'llm_progress', percent: 0, done: 0, total: 252,
+    stage: 'translate', waiting: true, elapsed: 35 });
+  assert.equal(node('playerJobText').textContent,
+    'Çeviri oluşturuluyor · %0 · 0/252 blok · Sağlayıcı yanıtı bekleniyor · 35 sn');
+  ctx.player.browserActiveTabId = 'other';
+  ctx.playerJobEvent({ type: 'llm_progress', percent: 50, stage: 'translate' });
+  assert.equal(progJob.percent, 0, 'background tab progress contaminated current video');
+  ctx.player.browserActiveTabId = 'a';
   ctx.player.job = null;
 
   const terminalActions = [];

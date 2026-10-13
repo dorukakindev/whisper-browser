@@ -2967,6 +2967,8 @@
     [/^Yeni sekme açılamadı: (.*)$/, (m) => `Could not open a new tab: ${m[1]}`],
     [/^(\d+) bağlantı\/form etiketi gösterildi\. Harfleri yazın; Esc ile kapatın\.$/, (m) => `${m[1]} link/form ${m[1] === '1' ? 'label' : 'labels'} shown. Type the letters; press Esc to close.`],
     // İş ilerlemesi dinamik birleşimleri (kuyruk madde 2)
+    [/^(Çeviri oluşturuluyor|LLM düzeltiyor) · %(\d+)( · (\d+)\/(\d+) blok)?( · (\d+) eksik)?( · Sağlayıcı yanıtı bekleniyor · (\d+) sn)?$/, (m) => `${m[1] === 'Çeviri oluşturuluyor' ? 'Translating' : 'LLM fixing'} · ${m[2]}%${m[3] ? ` · ${m[4]}/${m[5]} blocks` : ''}${m[6] ? ` · ${m[7]} missing` : ''}${m[8] ? ` · Waiting for provider response · ${m[9]} s` : ''}`],
+    [/^Altyazı (hazırlanıyor|oluşturuluyor) · %(\d+)$/, (m) => `Generating subtitles · ${m[2]}%`],
     [/^İndiriliyor (\d+(?:\.\d+)?)%$/, (m) => `Downloading ${m[1]}%`],
     [/^İndiriliyor · %(\d+(?:\.\d+)?)$/, (m) => `Downloading · ${m[1]}%`],
     [/^Transkripsiyon · %(\d+(?:\.\d+)?)$/, (m) => `Transcribing · ${m[1]}%`],
