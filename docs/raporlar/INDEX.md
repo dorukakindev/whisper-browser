@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 406 | [BROWSER_BUG_REPORT_406.md](BROWSER_BUG_REPORT_406.md) | oynatıcı işi çeviri aşamasında ilerleme çubuğu donuk — llm_progress yalnız 'translate' işinde işleniyordu, 'progressive' işe genişletildi |
 | 405 | [BROWSER_BUG_REPORT_405.md](BROWSER_BUG_REPORT_405.md) | canlı Whisper ve tarayıcı yaşam döngüsü derin denetimi — Türkçe %TEMP% yolu (stdin UTF-8), reklam sırasında yakalama, kırıntı/sessiz parça, "Altyazı M.K." süzgeci, dil kapısı, RTF uyarısı, mini oynatıcı close yarışı, Windows disk dolu iletisi |
 | 404 | [BROWSER_BUG_REPORT_404.md](BROWSER_BUG_REPORT_404.md) | browser yan paneli tasarım turu — gizli Araçlar sekmesi, çift ikon, amber başlıklar, tipografi/yoğunluk, uyarılı çeviri işareti, ertelenmiş yeniden deneme hatası |
 | 403 | [BROWSER_BUG_REPORT_403.md](BROWSER_BUG_REPORT_403.md) | "hatalı cümle" yeniden çeviri döngüsü — canlı çeviride gevşek kabul + elle son deneme, kısmi kayıt, kurtarma süre bütçesi, sızan yeniden çeviri bayrakları |
