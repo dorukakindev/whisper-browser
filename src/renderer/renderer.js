@@ -4806,14 +4806,19 @@ function playerJobEvent(event) {
         : `Altyazı hazırlanıyor · %${event.percent.toFixed(0)}`)
       : `Altyazı oluşturuluyor · %${event.percent.toFixed(0)}`;
     job.stage = txt.textContent;
-  } else if (event.type === 'llm_progress' && job.kind === 'translate') {
+  } else if (event.type === 'llm_progress' && ['translate', 'progressive'].includes(job.kind)) {
+    // R406 devamı: tek geçişli Whisper işi çeviri aşamasına geçince llm_progress
+    // yayınlanır ama eski koşul yalnız 'translate' işini dinliyordu — oynatıcı
+    // çubuğu transkripsiyonun %100'ünde donuk kalıyordu. progressive işte de
+    // çeviri/LLM-düzeltme ilerlemesini göster.
     const failed = Math.max(0, Number(event.failed) || 0);
     job.failedBlocks = failed;
     job.completed = Math.max(0, Number(event.done) || 0);
     job.total = Math.max(0, Number(event.total) || 0);
     job.percent = Math.min(100, Math.max(0, Number(event.percent) || 0));
     player.translationRetryAvailable = failed;
-    txt.textContent = `Çeviri oluşturuluyor · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
+    const phaseLabel = event.stage === 'translate' ? 'Çeviri oluşturuluyor' : 'LLM düzeltiyor';
+    txt.textContent = `${phaseLabel} · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
     job.stage = txt.textContent;
     fill.style.width = `${Math.min(100, Math.max(0, Number(event.percent) || 0))}%`;
     updateMakeTransState();

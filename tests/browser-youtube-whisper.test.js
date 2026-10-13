@@ -88,6 +88,22 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
     { workspaceMode: 'browser', browserTabId: 'other', mediaKey: ctx.player.mediaKey });
   assert.equal(ctx.player.browserTracks.length, before, 'başka sekmenin çıktısı eklendi');
 
+  // Tek geçişli oynatıcı işi çeviri aşamasında ilerleme göstermeli: llm_progress
+  // önceden yalnız 'translate' işinde işleniyordu, 'progressive' işte çubuk
+  // transkripsiyonun %100'ünde donuk kalıyordu.
+  ctx.updateMakeTransState = () => {};
+  vm.runInContext(section('function playerJobEvent(', 'function completedSubtitleOutputs('), ctx);
+  const progJob = { running: true, mediaKey: ctx.player.mediaKey, kind: 'progressive',
+    browserTabId: 'a', ranges: [{ start: 0, end: 1800 }], rangeIndex: 0 };
+  ctx.player.job = progJob;
+  ctx.playerJobEvent({ type: 'llm_progress', percent: 42, done: 106, total: 252, failed: 3, stage: 'translate' });
+  assert.equal(node('playerJobText').textContent, 'Çeviri oluşturuluyor · %42 · 3 eksik');
+  assert.equal(node('playerJobFill').style.width, '42%');
+  assert.equal(progJob.completed, 106);
+  ctx.playerJobEvent({ type: 'llm_progress', percent: 80, done: 10, total: 12 });
+  assert.equal(node('playerJobText').textContent, 'LLM düzeltiyor · %80');
+  ctx.player.job = null;
+
   const terminalActions = [];
   const job = {
     running: true, awaitingExit: false, mediaKey: ctx.player.mediaKey,
