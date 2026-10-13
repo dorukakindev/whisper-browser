@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
+Güncel çalışma: [docs/devir/2026-10-14-0131.md](docs/devir/2026-10-14-0131.md) — rapor 407: browser üstünde görünür çeviri ilerlemesi, blok sayıları ve sağlayıcı bekleme süresi; son işin süre tanısı
+Önceki çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
 Önceki çalışma: [docs/devir/2026-10-12-1850.md](docs/devir/2026-10-12-1850.md) — Claude v3 paketi: tek tıkta Whisper+çeviri, sayaç/verim çeviri döngü kesicileri (109→14 istek), scheduler otomatik-gevşek kesici, tasarım turu
 Önceki çalışma: [docs/devir/2026-10-06-1130.md](docs/devir/2026-10-06-1130.md) — rapor 405: canlı Whisper UTF-8 stdin (Türkçe %TEMP%), dil kapısı, halüsinasyon süzgeci, RTF izleyici, reklamda duraklatma, mini oynatıcı close yarışı, Windows disk dolu iletisi
 Önceki çalışma: [docs/devir/2026-10-06-1530.md](docs/devir/2026-10-06-1530.md) — browser yan paneli tasarım turu + ertelenmiş yeniden deneme (rapor 404)
