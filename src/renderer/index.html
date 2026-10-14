@@ -3593,6 +3593,7 @@
 <dialog class="dub-generator" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
   <header><strong id="dubGeneratorTitle">Altyazıdan ses üret</strong><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></header>
   <p>Türkçe SRT seçin. VoxCPM2 kayıtlı sesinizle cümle grupları halinde dublaj üretir.</p>
+  <button class="btn btn-ghost" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button>
   <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
   <details><summary>Ses ve motor ayarları</summary>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>
@@ -3608,8 +3609,9 @@
   <p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
   <pre id="dubGeneratorDetails" data-ui-untranslated></pre>
+  <p id="dubGeneratedName" data-ui-untranslated></p>
   <progress id="dubGeneratorProgress" max="100" value="0"></progress>
-  <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
+  <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
 </dialog>
 <script src="../job-timing-helpers.js"></script>
 <script src="ui-locale.js"></script>

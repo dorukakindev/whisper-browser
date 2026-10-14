@@ -5,6 +5,11 @@
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
     ['Ses üretimi başarısız oldu.', 'Audio generation failed.'],
+    ['Sesi kullan', 'Use audio'], ['Metin / TXT stüdyosunu aç', 'Open text / TXT studio'],
+    ['Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.', 'The last generated audio is ready. Use audio attaches it to the open video.'],
+    ['Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.', 'Could not attach audio; check the video and try again.'],
+    ['Metin stüdyosu açılamadı.', 'Could not open the text studio.'],
+    ['Metin stüdyosu açık. Metin yapıştırabilir veya TXT dosyası seçebilirsiniz.', 'Text studio is open. Paste text or choose a TXT file.'],
     ['Geçen süre', 'Elapsed time'], ['Üretim kaydını aç', 'Open generation record'],
     ['Ses kalitesi', 'Voice quality'], ['Kaliteli (15 adım)', 'Quality (15 steps)'],
     ['Hızlı (10 adım)', 'Fast (10 steps)'], ['Paralel üretim', 'Parallel generation'],

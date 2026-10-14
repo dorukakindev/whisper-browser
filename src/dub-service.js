@@ -7,7 +7,15 @@ const { performance } = require('node:perf_hooks');
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment }) {
   let job = null;
+  let textUI = null;
   const configPath = () => path.join(app.getPath('userData'), 'dub-settings.json');
+  function voiceEnvironment(engine) {
+    const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };
+    const torchLib = path.join(engine, '.venv', 'Lib', 'site-packages', 'torch', 'lib');
+    if (fs.existsSync(torchLib)) env.PATH = torchLib + path.delimiter + (env.PATH || env.Path || '');
+    for (const key of Object.keys(env)) if (key !== 'PATH' && key.toLowerCase() === 'path') delete env[key];
+    return env;
+  }
   function config() {
     let saved = {};
     try { saved = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch (_) {}
@@ -41,6 +49,43 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
     try { return await fn(e, ...args); } catch (error) { return { ok: false, error: error.message }; }
   };
+  ipcMain.handle('dub:textUI', guard(async () => {
+    if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (textUI) return { ok: true, alreadyOpen: true };
+    const c = config();
+    const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
+    const script = path.join(c.engine, 'arayuz.py');
+    if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
+    const proc = spawn(python, [script], { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true, stdio: 'ignore' });
+    textUI = proc;
+    proc.once('close', () => { if (textUI === proc) textUI = null; });
+    await new Promise((resolve, reject) => {
+      proc.once('spawn', resolve);
+      proc.once('error', error => { if (textUI === proc) textUI = null; reject(error); });
+    });
+    proc.unref?.();
+    return { ok: true };
+  }));
+  ipcMain.handle('dub:latest', guard(async () => {
+    const root = path.join(app.getPath('userData'), 'dub-output');
+    const logs = path.join(app.getPath('userData'), 'dub-logs');
+    if (!fs.existsSync(logs)) return { ok: true, output: null };
+    const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).map(n =>
+      ({ file: path.join(logs, n), time: fs.statSync(path.join(logs, n)).mtimeMs })).sort((a,b) => b.time - a.time);
+    for (const entry of candidates) {
+      try {
+        const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
+        if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
+        const output = path.join(root, `${saved.id}.wav`);
+        if (path.resolve(saved.path || '') !== path.resolve(output) || !fs.existsSync(output)) continue;
+        grantMedia(output);
+        return { ok: true, output: { path: output, url: pathToFileURL(output).href,
+          name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
+          timing: saved.timing, logPath: entry.file } };
+      } catch (_) {}
+    }
+    return { ok: true, output: null };
+  }));
   ipcMain.handle('dub:config', guard(async (_e, kind) => {
     if (kind) {
       if (job) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
@@ -63,6 +108,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       path.join(c.engine, '.venv', 'Scripts', 'python.exe'), c.reference, c.transcript].every(p => fs.existsSync(p)) };
   }));
   ipcMain.handle('dub:start', guard(async (e, request = {}) => {
+    if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
     if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '',
@@ -103,10 +149,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       if (request.sample === true) args.push('--limit', '11');
       emit(s, 'status', { text: 'Motor yükleniyor…' });
-      const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };
-      const torchLib = path.join(c.engine, '.venv', 'Lib', 'site-packages', 'torch', 'lib');
-      if (fs.existsSync(torchLib)) env.PATH = torchLib + path.delimiter + (env.PATH || env.Path || '');
-      for (const key of Object.keys(env)) if (key !== 'PATH' && key.toLowerCase() === 'path') delete env[key];
+      const env = voiceEnvironment(c.engine);
       s.proc = spawn(python, args, { cwd: c.engine, env, windowsHide: true });
       let pending = '';
       function line(value) {
@@ -167,6 +210,6 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   ipcMain.handle('dub:cancel', guard(cancel));
   app.on('before-quit', () => { void cancel(); });
-  return { running: () => !!job, cancel };
+  return { running: () => !!job || !!textUI, cancel };
 }
 module.exports = { registerDubService };

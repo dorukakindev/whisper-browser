@@ -19,6 +19,7 @@
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency']) el(id).disabled = !!current;
     el('dubGeneratorStart').disabled = !!current || !srt || !cfg?.ready;
     el('dubGeneratorCancel').disabled = !current;
+    el('dubTextStudio').disabled = !!current;
     el('browserDubGenerate')?.classList.toggle('active', !!current);
   }
   async function configure(kind) {
@@ -36,6 +37,19 @@
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
     await configure();
+    if (!current && !output) {
+      const r = await window.api.latestDub().catch(() => null);
+      if (current || output || !r?.output) return;
+      output = r.output; logPath = output.logPath;
+      el('dubGeneratorOutput').classList.remove('hidden');
+      el('dubGeneratorUse').classList.remove('hidden');
+      el('dubGeneratorLog').classList.toggle('hidden', !logPath);
+      el('dubGeneratedName').textContent = output.name;
+      el('dubGeneratorProgress').value = 100;
+      elapsed(output.elapsedSeconds || 0);
+      if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
+      status('Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
+    }
   }
   el('browserDubGenerate').addEventListener('click', open);
   el('dubMainOpen').addEventListener('click', open);
@@ -59,6 +73,8 @@
     timer = setInterval(() => elapsed((performance.now() - started) / 1000), 1000);
     logPath = null; el('dubGeneratorLog').classList.add('hidden');
     output = null; el('dubGeneratorOutput').classList.add('hidden');
+    el('dubGeneratedName').textContent = '';
+    el('dubGeneratorUse').classList.add('hidden');
     el('dubGeneratorDetails').textContent = ''; el('dubGeneratorCount').textContent = '';
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
@@ -77,6 +93,25 @@
     if (!r?.ok) { status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
+  el('dubGeneratorUse').addEventListener('click', async () => {
+    const selected = output;
+    if (!selected) return;
+    const context = window.BrowserDubAudioUI?.context();
+    if (!context?.tabId || context.mode !== 'browser' || !context.visible) {
+      status('Dublaj için önce browser videosunu açın.'); return;
+    }
+    el('dubGeneratorUse').disabled = true;
+    try {
+      const attached = await window.BrowserDubAudioUI.attachGenerated({ name: selected.name, url: selected.url }, context);
+      if (output === selected) status(attached ? 'Üretim tamamlandı; dublaj videoya bağlandı.' : 'Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.');
+    } catch (_) { status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); }
+    finally { el('dubGeneratorUse').disabled = false; }
+  });
+  el('dubTextStudio').addEventListener('click', async () => {
+    const r = await window.api.openTextVoiceUI().catch(() => null);
+    if (!r?.ok) { status('Metin stüdyosu açılamadı.'); el('dubGeneratorDetails').textContent = r?.error || ''; }
+    else status('Metin stüdyosu açık. Metin yapıştırabilir veya TXT dosyası seçebilirsiniz.');
+  });
   el('dubGeneratorLog').addEventListener('click', () => { if (logPath) void window.api.openPath(logPath); });
   window.api.onDubEvent(event => {
     const job = current;
@@ -94,11 +129,14 @@
       current = null; controls();
       if (event.type === 'done') {
         output = event; el('dubGeneratorProgress').value = 100;
+        el('dubGeneratedName').textContent = event.name;
         el('dubGeneratorOutput').classList.remove('hidden');
+        el('dubGeneratorUse').classList.remove('hidden');
         status(job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.');
         if (!job.sample && job.context?.mode === 'browser') {
           void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url }, job.context)
-            .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); });
+            .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
+            .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });
         }
       } else if (event.type === 'cancelled') status('İptal edildi.');
       else { status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || ''; }

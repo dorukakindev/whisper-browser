@@ -7,6 +7,7 @@
   const context = () => ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, generation: browserTabState()?.generation,
     priorMuted: !!browserTabState()?.tabMuted,
+    hasMedia: !!player.browserMediaSeen,
     visible: !byId('playerLayer').classList.contains('hidden') });
   const notify = message => setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
@@ -62,7 +63,7 @@
     attachGenerated: async (file, expected) => {
       const c = context();
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
-          || c.mode !== 'browser' || !c.visible) return false;
+          || c.mode !== 'browser' || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
       controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });

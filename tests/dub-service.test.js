@@ -5,7 +5,7 @@ const { registerDubService } = require('../src/dub-service');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dub-service-'));
 const desktop = path.join(root, 'desktop'), engine = path.join(desktop, 'Ses', 'VoxCPM2');
 fs.mkdirSync(path.join(engine, '.venv', 'Scripts'), { recursive:true });
-for (const name of ['altyazi_oku.py','anlatici_ham.wav','anlatici_ham.txt','.venv/Scripts/python.exe']) fs.writeFileSync(path.join(engine,name), 'fixture');
+for (const name of ['altyazi_oku.py','arayuz.py','anlatici_ham.wav','anlatici_ham.txt','.venv/Scripts/python.exe','.venv/Scripts/pythonw.exe']) fs.writeFileSync(path.join(engine,name), 'fixture');
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
@@ -16,7 +16,8 @@ const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[na
   spawn:(exe,args,opts)=>{
     calls.push({exe,args,opts}); child=new EventEmitter(); child.exitCode=null;
     child.stdout=new EventEmitter(); child.stderr=new EventEmitter();
-    child.stdout.setEncoding=child.stderr.setEncoding=()=>{}; return child;
+    child.stdout.setEncoding=child.stderr.setEncoding=()=>{};
+    queueMicrotask(() => child.emit('spawn')); return child;
   }, terminate:()=>killOK });
 const call = (name,...args)=>handlers[name]({sender},...args);
 (async()=>{
@@ -40,6 +41,7 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     child.emit('close',0); assert.equal(service.running(),false); assert.equal(events.at(-1).type,'done');
     assert.ok(events.at(-1).url.startsWith('file:')); assert.equal(events.at(-1).name,'Türkçe-dublaj.wav');
     const finished = events.at(-1);
+    assert.equal((await call('dub:latest')).output.path, output);
     const summary = JSON.parse(fs.readFileSync(finished.logPath, 'utf8'));
     assert.equal(summary.result, 'done'); assert.equal(summary.sample, true);
     assert.equal(summary.metrics.retries, 1);
@@ -69,6 +71,11 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     const fallback=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1]; fs.writeFileSync(fallback,'audio');
     child.emit('close',0);
     assert.equal(events.at(-1).type,'done'); assert.ok(events.at(-1).logError, 'log failure must be reported without losing audio');
+    assert.equal((await call('dub:textUI')).ok,true);
+    assert.ok(calls.at(-1).exe.endsWith('pythonw.exe'));
+    assert.ok(calls.at(-1).args[0].endsWith('arayuz.py'));
+    assert.equal((await call('dub:start',{id:'studio-busy',srt})).ok,false);
+    child.emit('close',0); assert.equal(service.running(),false);
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

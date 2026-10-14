@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('api', {
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
   dubConfig: (kind) => ipcRenderer.invoke('dub:config', kind),
   startDub: (request) => ipcRenderer.invoke('dub:start', request),
+  openTextVoiceUI: () => ipcRenderer.invoke('dub:textUI'),
+  latestDub: () => ipcRenderer.invoke('dub:latest'),
   cancelDub: () => ipcRenderer.invoke('dub:cancel'),
   onDubEvent: (cb) => {
     const listener = (_e, value) => cb(value);
