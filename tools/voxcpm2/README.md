@@ -22,20 +22,30 @@ hizalamasıdır; grup içindeki her kelimeye özgün cue zamanı garanti edilmez
 
 - `--gruplama satir`: ayrı satır üretimi.
 - `--plan`: GPU üretmeden grup planı. `--limit 11`: ilk 11 kaynak cue ile örnek.
-- `--max-hiz 1.15`: varsayılan azami tempo. Süre yetmediğinde üretim yalnız
-  o grup için farklı seed ile mevcut `--retry` sınırında tekrar denenir.
+- `--max-hiz 1.25`: varsayılan azami tempo. Sırf süreye sığmamak tekrar sentez
+  nedeni değildir; akustik kusurlar `--retry` sınırında yeniden denenir.
 - `--tasarsa hata`: isteğe bağlı katı mod; konuşma hâlâ sığmıyorsa timing raporu yazılır,
   nihai WAV yazılmaz. Mevcut çıktılar silinmez. Bu durumda ses kalitesinin
   korunması için metin/süre veya ilgili grup ayrıca incelenmelidir.
 - `--tasarsa kirp`: varsayılan ve arayüz modu; taşma üretimi durdurmaz. Sığmayan
   konuşmanın sonu yumuşak kesilebilir; sayısı ve kesilen örnek sayısı
   raporda saklanır. Sessiz padding temizliği konuşma kesilmesinden ayrı sayılır.
-- `--bosluk-pay-ms 1000`: grubun ardından kullanılabilecek en çok boşluk;
+- `--bosluk-pay-ms 2000`: grubun ardından kullanılabilecek en çok boşluk;
   sonraki grubun başlangıcı ve varsa video sonu aşılmaz.
+- `--erken-pay-ms 300`: yalnız taşan grupta önceki gerçek sessizlikten en fazla
+  300ms kullanılır. Önceki konuşmayla çakışmaz; video başına taşmaz. Küçük
+  başlangıç kayması mümkündür; manifest gerçek ses başlangıç/bitişini gösterir.
 - `--grup-max-sn`, `--grup-max-karakter`, `--grup-bosluk-ms`: plan sınırları.
 
-Model ayarları korunur: 15 adım, cfg 1.65, temperature 0.8. Yeni planlar v2
-önbellek anahtarı kullanır; eski cue önbellekleri silinmez. Varsayılan çıktı
+Arayüzde Kaliteli (15 adım) / Hızlı (10 adım) ve 4 / 8 paralel grup seçilir;
+seçimler dub-settings.json'da saklanır. Varsayılan 15 adım / 4 grup, cfg1.65,
+temperature0.8 ve Hi-Fi referans+döküm korunur. 8 grup daha çok VRAM ister;
+tam iş öncesi kısa örnekle denemek mümkündür. CLI `--steps`/`--eszamanli`.
+
+Yeni v3 ses önbelleği zamanlama ve batch kapasitesinden ayrıdır; yalnız tempo,
+boşluk veya paralellik değiştirmek sesi yeniden üretmez. Aynı model/referans/
+döküm/üretim ayarlarıyla eşleşen eski v2 sesler kopyalanarak kullanılabilir;
+eski cue önbellekleri silinmez. Varsayılan çıktı
 adında `cumle`/`satir` yer alır; eski ses dosyası ezilmez. `timing_report.json`
 parça önbelleğinde, ayrıntılı zamanlama ve kaynak kimlikleri nihai manifestte.
 Üretilen kişisel ses/manifest/transcript dosyalarını Git'e koymayın.
@@ -46,4 +56,7 @@ token sınırı 1024. `--eszamanli`, `--max-model-len`, `--batch-tokens`,
 cfg/temperature/adım ayarını değiştirmez. Küçük token penceresinde referans ve
 hedef metin + üretim bütçesi pencereye sığmalıdır. Windows'ta yalnız bu süreçte
 pread ağırlık yükleme kullanılır; kurulu paket dosyaları değiştirilmez. Motor
-hazırlığı 120sn ile sınırlanır ve ölen alt süreç için hata açıkça bildirilir.
+hazırlığı120sn, tek sentez isteği `--request-timeout 180` ile sınırlanır.
+generation_report.json model/referans/üretim sürelerini ve deneme sayılarını
+tutar; özet uygulamanın üretim loguna aktarılır. Bu sayaçlar model kalitesinin
+otomatik kanıtı değildir; farklı profillerin sesi dinlenerek karşılaştırılmalı.

@@ -5,6 +5,7 @@ import unittest
 import ast
 import json
 import math
+import asyncio
 
 import numpy as np
 
@@ -14,6 +15,38 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_quality_retry_does_not_retry_valid_long_speech(self):
+        calls = []
+        async def generate(seed):
+            calls.append(seed)
+            return np.ones(32000, dtype=np.float32)
+        audio, metric = asyncio.run(D.quality_retry(generate, lambda _: 0, 42))
+        self.assertEqual(len(audio), 32000)
+        self.assertEqual(calls, [42])
+        self.assertEqual(metric['retries'], 0)
+
+    def test_quality_retry_keeps_best_valid_attempt_and_times_out(self):
+        async def generate(seed): return seed
+        best, metric = asyncio.run(D.quality_retry(generate, lambda x: {1:2,100004:1,200007:3}[x], 1))
+        self.assertEqual(best, 100004)
+        self.assertEqual(metric['attempts'], 3)
+        async def invalid(seed): return np.array([])
+        with self.assertRaises(ValueError):
+            asyncio.run(D.quality_retry(invalid, lambda _: math.inf, 1))
+        async def stalled(seed): await asyncio.sleep(1)
+        with self.assertRaises(asyncio.TimeoutError):
+            asyncio.run(D.quality_retry(stalled, lambda _: 0, 1, timeout=.01))
+
+    def test_placement_borrows_silence_without_overlap_or_unnecessary_shift(self):
+        cues = [(0,1000,'a'),(1500,2500,'b'),(3000,4000,'c')]
+        start, stop = D.placement_window(cues, 1, 2, 1.3, 1.25, limit_ms=4000)
+        self.assertAlmostEqual(start, 1.3)
+        self.assertEqual(stop, 3)
+        self.assertEqual(D.placement_window(cues, 1, 1, 1.3, 1.25), (1.5,3))
+        start, stop = D.placement_window(cues, 2, 3, 2.9, 1.25, limit_ms=4500)
+        self.assertGreaterEqual(start, 2.9)
+        self.assertEqual(stop, 4.5)
+
     def test_default_timeline_returns_wav_when_speech_overflows(self):
         # Load the pure timeline function without importing the external GPU engine.
         source = Path(__file__).resolve().parents[1] / 'tools/voxcpm2/altyazi_oku.py'
@@ -21,6 +54,7 @@ class DubTimingTests(unittest.TestCase):
                         if isinstance(n, ast.FunctionDef) and n.name == 'build_timeline')
         scope = dict(np=np, math=math, json=json, Path=Path, sf=D.sf,
                      available_window=D.available_window, fit_audio=D.fit_to_window,
+                     placement_window=D.placement_window,
                      TimingOverflow=D.TimingOverflow)
         exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), 'exec'), scope)
         with tempfile.TemporaryDirectory() as directory:

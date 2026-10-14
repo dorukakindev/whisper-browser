@@ -6,6 +6,11 @@
   const entries = [
     ['Ses üretimi başarısız oldu.', 'Audio generation failed.'],
     ['Geçen süre', 'Elapsed time'], ['Üretim kaydını aç', 'Open generation record'],
+    ['Ses kalitesi', 'Voice quality'], ['Kaliteli (15 adım)', 'Quality (15 steps)'],
+    ['Hızlı (10 adım)', 'Fast (10 steps)'], ['Paralel üretim', 'Parallel generation'],
+    ['4 grup (az bellek)', '4 groups (less memory)'], ['8 grup (daha fazla bellek)', '8 groups (more memory)'],
+    ['Hızlandırılan / kırpılan gruplar', 'Accelerated / clipped groups'],
+    ['Akıllı zamanlama: boşlukları kullanır, en fazla 1,25× hızlandırır; hâlâ sığmayan konuşmanın sonu kesilebilir.', 'Smart timing uses gaps and speeds up to 1.25×; speech that still does not fit may be cut at the end.'],
     ['Bir SRT altyazı dosyası seçin.', 'Choose an SRT subtitle file.'],
     ['SRT → Ses', 'SRT → Audio'],
     ['Altyazıdan ses üret', 'Generate audio from subtitles'],

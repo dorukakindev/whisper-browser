@@ -16,7 +16,7 @@
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
-    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly']) el(id).disabled = !!current;
+    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency']) el(id).disabled = !!current;
     el('dubGeneratorStart').disabled = !!current || !srt || !cfg?.ready;
     el('dubGeneratorCancel').disabled = !current;
     el('browserDubGenerate')?.classList.toggle('active', !!current);
@@ -25,6 +25,7 @@
     const r = await window.api.dubConfig(kind).catch(() => null);
     if (!r?.ok) { status('Ses üretimi başarısız oldu.'); return; }
     cfg = r;
+    if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
     el('dubTranscriptName').textContent = basename(r.transcript);
@@ -59,9 +60,11 @@
     logPath = null; el('dubGeneratorLog').classList.add('hidden');
     output = null; el('dubGeneratorOutput').classList.add('hidden');
     el('dubGeneratorDetails').textContent = ''; el('dubGeneratorCount').textContent = '';
+    el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
     status('Motor yükleniyor…'); controls();
-    const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample }).catch(e => ({ ok:false,error:e.message }));
+    const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
+      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value) }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
       current = null; status('Ses üretimi başarısız oldu.');
@@ -82,6 +85,7 @@
       status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
     } else if (event.type === 'status') status(event.text);
+    else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
       stopTimer(event.elapsedSeconds);
       logPath = event.logPath;

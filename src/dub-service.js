@@ -13,7 +13,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     try { saved = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch (_) {}
     const engine = saved.engine || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
     return { engine, reference: saved.reference || path.join(engine, 'anlatici_ham.wav'),
-      transcript: saved.transcript || path.join(engine, 'anlatici_ham.txt') };
+      transcript: saved.transcript || path.join(engine, 'anlatici_ham.txt'),
+      profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
   function emit(s, type, data = {}) {
     const record = { time: new Date().toISOString(), type, elapsedSeconds: (performance.now() - s.started) / 1000, ...data };
@@ -27,6 +28,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
       progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null, ...data };
+    summary.settings = s.settings || null;
+    summary.metrics = s.metrics || null;
     if (s.summaryPath) {
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
@@ -67,6 +70,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     job = s;
     try {
       const c = config();
+      const profile = request.profile ?? c.profile;
+      const concurrency = request.concurrency ?? c.concurrency;
+      if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
+      c.profile = profile; c.concurrency = concurrency;
+      s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: 1.25 };
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(c.engine, 'altyazi_oku.py');
       for (const file of [python, script, c.reference, c.transcript]) {
@@ -79,6 +87,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       if (fs.existsSync(output)) throw new Error('Bu işin ses çıktısı zaten var.');
+      fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });
@@ -89,7 +98,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           result: 'running', sample: s.sample }, null, 2), 'utf8');
       } catch (error) { s.logError = error.message; }
       const args = [script, srt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--gruplama', 'cumle', '--tasarsa', 'kirp', '--output', output];
+        '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', '1.25',
+        '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
+        '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       if (request.sample === true) args.push('--limit', '11');
       emit(s, 'status', { text: 'Motor yükleniyor…' });
       const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };
@@ -106,6 +117,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         else if (/Referans hazir/.test(value)) emit(s, 'status', { text: 'Ses üretiliyor…' });
         else if (/^Zamanlama:/.test(value)) emit(s, 'status', { text: 'Ses zaman çizelgesine yerleştiriliyor…' });
         if (/^(Zamanlama:|Ses:.*Islem:)/.test(value)) emit(s, 'statistics', { text: value.slice(0, 1000) });
+        if (value.startsWith('DUB_METRICS ')) {
+          try {
+            const raw = JSON.parse(value.slice(12));
+            s.metrics = Object.fromEntries(['load_seconds','reference_seconds','generation_seconds',
+              'attempts','retries','cached_groups','generated_groups','steps','concurrency'].filter(k =>
+                Number.isFinite(raw[k]) && raw[k] >= 0).map(k => [k, raw[k]]));
+            emit(s, 'metrics', { metrics: s.metrics });
+          } catch (_) {}
+        }
+        const timing = value.match(/^Zamanlama: (\d+) grup hizlandirildi, (\d+) grup kirpildi, (\d+) grup tasiyor\./);
+        if (timing) {
+          s.timing = { accelerated: Number(timing[1]), clipped: Number(timing[2]), overflow: Number(timing[3]) };
+          emit(s, 'timing', s.timing);
+        }
       }
       s.proc.stdout.setEncoding('utf8'); s.proc.stderr.setEncoding('utf8');
       s.proc.stdout.on('data', text => { pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
@@ -118,7 +143,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (s.cancelled) { finish(s, 'cancelled'); return; }
         if (code === 0 && fs.existsSync(output)) {
           grantMedia(output);
-          finish(s, 'done', { path: output, url: pathToFileURL(output).href, name: path.basename(srt, '.srt') + '-dublaj.wav' });
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href,
+            name: path.basename(srt, '.srt') + '-dublaj.wav', timing: s.timing || null });
         } else {
           const details = s.tail.split(/\r?\n/).filter(l => /^(ValueError|RuntimeError|UYARI|Error)/.test(l)).slice(-3).join('\n');
           finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });

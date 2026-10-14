@@ -1,5 +1,7 @@
 """Sentence planning and explicit timing outcomes; no model dependency."""
 import re
+import asyncio
+import math
 import subprocess
 from pathlib import Path
 
@@ -12,6 +14,35 @@ class TimingOverflow(ValueError):
         self.report = report
         super().__init__(f"Ses pencereye sigmadi: {report['overrun_seconds']:.2f} sn tasma. "
                          "Ses kesilmedi; raporu inceleyin veya acikca --tasarsa kirp secin.")
+
+
+async def quality_retry(generate, assess, seed, retries=2, timeout=180):
+    """Retry acoustic failures only; fitting duration is a separate operation."""
+    best, best_score, attempts = None, math.inf, 0
+    for attempt in range(retries + 1):
+        raw = await asyncio.wait_for(generate(seed + attempt * 100003), timeout)
+        attempts += 1
+        score = assess(raw)
+        if math.isfinite(score) and score < best_score:
+            best, best_score = raw, score
+        if score == 0:
+            break
+    if best is None:
+        raise ValueError("Model gecerli ses uretemedi.")
+    return best, {'attempts': attempts, 'retries': attempts - 1, 'quality_score': best_score}
+
+
+def placement_window(cues, i, audio_seconds, previous_end_s, max_speed,
+                     extra_ms=2000, lead_ms=300, limit_ms=None):
+    """Borrow actual preceding silence only when nominal timing needs it."""
+    nominal = cues[i][0] / 1000
+    stop = nominal + available_window(cues, i, extra_ms, limit_ms)
+    if audio_seconds > (stop - nominal) * max_speed:
+        start = max(0, nominal - lead_ms / 1000, previous_end_s)
+        start = min(nominal, start)
+    else:
+        start = nominal
+    return start, stop
 
 
 def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=600):
