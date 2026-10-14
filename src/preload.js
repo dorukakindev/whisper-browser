@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('api', {
   startDub: (request) => ipcRenderer.invoke('dub:start', request),
   openTextVoiceUI: () => ipcRenderer.invoke('dub:textUI'),
   latestDub: () => ipcRenderer.invoke('dub:latest'),
+  planDub: (request) => ipcRenderer.invoke('dub:plan', request),
+  shortenDub: (key) => ipcRenderer.invoke('dub:shorten', key),
   cancelDub: () => ipcRenderer.invoke('dub:cancel'),
   onDubEvent: (cb) => {
     const listener = (_e, value) => cb(value);

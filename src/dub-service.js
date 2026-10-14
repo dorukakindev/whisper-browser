@@ -5,9 +5,10 @@ const { pathToFileURL } = require('node:url');
 const { performance } = require('node:perf_hooks');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment }) {
+  spawn, terminate, busy, grantMedia, environment, shorten }) {
   let job = null;
   let textUI = null;
+  const plans = new Map();
   const configPath = () => path.join(app.getPath('userData'), 'dub-settings.json');
   function voiceEnvironment(engine) {
     const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };
@@ -49,6 +50,36 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
     try { return await fn(e, ...args); } catch (error) { return { ok: false, error: error.message }; }
   };
+  ipcMain.handle('dub:plan', guard(async (e, request = {}) => {
+    if (job) throw new Error('Üretimin bitmesini bekleyin.');
+    const srt = await authorizeSubtitle(request.srt);
+    if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
+    const c = config();
+    const result = await new Promise((resolve, reject) => {
+      const proc = spawn(path.join(c.engine, '.venv', 'Scripts', 'python.exe'),
+        [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt],
+        { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
+      let out = '', settled = false;
+      const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
+      const timer = setTimeout(() => { void terminate(proc); finish(new Error('Dublaj planı zaman aşımına uğradı.')); }, 15000);
+      proc.stdout.setEncoding('utf8'); proc.stderr.resume();
+      proc.stdout.on('data', data => { out += data; if (out.length > 4000000) { void terminate(proc); finish(new Error('Dublaj planı çok büyük.')); } });
+      proc.once('error', error => finish(error));
+      proc.once('close', code => {
+        if (code !== 0) return finish(new Error('SRT planı okunamadı.'));
+        try { finish(null, JSON.parse(out)); } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
+      });
+    });
+    plans.set(e.sender.id, { srt, ...result });
+    return { ok: true, ...result };
+  }));
+  ipcMain.handle('dub:shorten', guard(async (e, key) => {
+    const group = plans.get(e.sender.id)?.groups.find(g => g.key === key);
+    if (!group || typeof shorten !== 'function') throw new Error('Önce dublaj metnini hazırlayın.');
+    if (group.text.length > 4000) throw new Error('Bu metin otomatik kısaltma için çok uzun; elle düzenleyin.');
+    const text = await shorten(group.text, group.seconds);
+    return { ok: true, text };
+  }));
   ipcMain.handle('dub:textUI', guard(async () => {
     if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (textUI) return { ok: true, alreadyOpen: true };
@@ -148,6 +179,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       if (request.sample === true) args.push('--limit', '11');
+      if (request.dubText) {
+        const plan = plans.get(e.sender.id);
+        if (!plan || plan.srt !== srt || request.dubText.sourceHash !== plan.sourceHash) throw new Error('Dublaj planını yeniden hazırlayın.');
+        const edits = request.dubText.edits;
+        if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
+        const keys = new Set(plan.groups.map(g => g.key));
+        for (const [key, text] of Object.entries(edits)) {
+          if (!keys.has(key) || typeof text !== 'string' || !text.trim() || text.length > 1000) throw new Error('Geçersiz dublaj metni.');
+        }
+        const textPath = path.join(outputDir, `${s.id}-dub-text.json`);
+        fs.writeFileSync(textPath, JSON.stringify({ sourceHash: plan.sourceHash, edits }, null, 2), 'utf8');
+        args.push('--dub-text', textPath);
+        s.settings.reviewedText = true;
+      }
       emit(s, 'status', { text: 'Motor yükleniyor…' });
       const env = voiceEnvironment(c.engine);
       s.proc = spawn(python, args, { cwd: c.engine, env, windowsHide: true });

@@ -4,6 +4,14 @@
   const modal = el('dubGeneratorDialog');
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
+  let plan = null, edits = {}, planning = false;
+  const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
+  function showGroup() {
+    const g = group();
+    el('dubPlanOriginal').value = g?.text || '';
+    el('dubPlanText').value = g ? (edits[g.key] || g.text) : '';
+    el('dubPlanInfo').textContent = g ? `${(g.start / 1000).toFixed(2)}–${(g.end / 1000).toFixed(2)} s · ${g.seconds.toFixed(2)} s · ${Object.keys(edits).length} ✓` : '';
+  }
   function elapsed(seconds) {
     const total = Math.max(0, Math.floor(seconds));
     el('dubGeneratorElapsed').textContent = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -17,7 +25,10 @@
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency']) el(id).disabled = !!current;
-    el('dubGeneratorStart').disabled = !!current || !srt || !cfg?.ready;
+    el('dubGeneratorStart').disabled = !!current || planning || !srt || !cfg?.ready;
+    el('dubPlanPrepare').disabled = !!current || planning || !srt;
+    for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = !!current || planning || !plan;
+    el('dubChooseSrt').disabled = !!current || planning;
     el('dubGeneratorCancel').disabled = !current;
     el('dubTextStudio').disabled = !!current;
     el('browserDubGenerate')?.classList.toggle('active', !!current);
@@ -58,8 +69,39 @@
   el('dubChooseSrt').addEventListener('click', async () => {
     const p = await window.api.selectFile('subtitle');
     if (typeof p === 'string' && /\.srt$/i.test(p)) {
-      srt = p; el('dubSrtName').textContent = basename(p); status('Hazır'); controls();
+      srt = p; plan = null; edits = {}; el('dubPlanGroup').replaceChildren(); showGroup();
+      el('dubSrtName').textContent = basename(p); status('Hazır'); controls();
     } else if (p) status('Bir SRT altyazı dosyası seçin.');
+  });
+  el('dubPlanPrepare').addEventListener('click', async () => {
+    planning = true; controls();
+    try {
+      const r = await window.api.planDub({ srt });
+      if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
+      plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
+      r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
+        option.textContent = `${i + 1} · ${g.seconds.toFixed(1)} s · ${g.text.slice(0, 65)}`; el('dubPlanGroup').append(option); });
+      showGroup(); status('Cümle grupları hazır');
+    } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
+    finally { planning = false; controls(); }
+  });
+  el('dubPlanGroup').addEventListener('change', showGroup);
+  el('dubPlanApply').addEventListener('click', () => {
+    const g = group(), text = el('dubPlanText').value.trim();
+    if (!g || !text) return;
+    if (text === g.text) delete edits[g.key]; else edits[g.key] = text;
+    showGroup(); status('Dublaj metni uygulandı.');
+  });
+  el('dubPlanReset').addEventListener('click', () => { const g = group(); if (g) delete edits[g.key]; showGroup(); });
+  el('dubPlanShorten').addEventListener('click', async () => {
+    const g = group(); if (!g) return;
+    planning = true; controls(); status('Kısaltma önerisi hazırlanıyor…');
+    try {
+      const r = await window.api.shortenDub(g.key);
+      if (!r?.ok) throw new Error(r?.error || 'Uygun bir kısaltma alınamadı.');
+      el('dubPlanText').value = r.text; status('Öneriyi kontrol edip Bu metni uygula düğmesine basın.');
+    } catch (error) { el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.'); }
+    finally { planning = false; controls(); }
   });
   for (const [id, kind] of [['dubChooseEngine','engine'], ['dubChooseVoice','reference'], ['dubChooseTranscript','transcript']]) {
     el(id).addEventListener('click', () => configure(kind));
@@ -80,7 +122,8 @@
     el('dubGeneratorProgress').removeAttribute('value');
     status('Motor yükleniyor…'); controls();
     const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
-      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value) }).catch(e => ({ ok:false,error:e.message }));
+      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
+      dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
       current = null; status('Ses üretimi başarısız oldu.');

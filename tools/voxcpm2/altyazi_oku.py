@@ -77,34 +77,7 @@ if sys.platform == 'win32':
     _weight_loader.safe_open = _PreadWeights
 
 SAMPLE_RATE = 48000
-TAG_RE = re.compile(r"<[^>]+>|\{[^}]*\}")
-TIME_RE = re.compile(
-    r"(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*"
-    r"(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})")
-
-
-def parse_srt(path):
-    """SRT -> [(start_ms, end_ms, temiz_metin)]."""
-    text = Path(path).read_text(encoding="utf-8-sig", errors="replace")
-    cues = []
-    for match in TIME_RE.finditer(text):
-        fields = match.groups()
-        h1, m1, s1, ms1, h2, m2, s2, ms2 = (
-            int(g.ljust(3, '0')) if i in (3, 7) else int(g) for i, g in enumerate(fields))
-        start = ((h1 * 60 + m1) * 60 + s1) * 1000 + ms1
-        end = ((h2 * 60 + m2) * 60 + s2) * 1000 + ms2
-        line_end = text.find("\n", match.end())
-        block_end = text.find("\n\n", match.end())
-        if line_end < 0:
-            line_end = len(text)
-        if block_end < 0:
-            block_end = len(text)
-        body = text[line_end:block_end]
-        body = TAG_RE.sub(" ", body)
-        body = re.sub(r"\s+", " ", body).strip()
-        if body and end > start:
-            cues.append((start, end, body))
-    return cues
+from dub_plan import parse_srt, apply_edits
 
 
 def atempo_filters(ratio):
@@ -321,6 +294,7 @@ def parse_args(argv=None):
     p.add_argument("--bosluk-pay-ms", type=int, default=2000)
     p.add_argument("--erken-pay-ms", type=int, default=300)
     p.add_argument("--tasarsa", choices=("hata", "kirp"), default="kirp")
+    p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
     if not args.srt.is_file() or not args.reference.is_file():
@@ -363,6 +337,8 @@ def main(argv=None):
     source_cues = cues
     groups = sentence_plan(cues, args.gruplama, args.grup_max_karakter,
                            args.grup_max_sn, args.grup_bosluk_ms)
+    if args.dub_text:
+        apply_edits(groups, json.loads(args.dub_text.read_text(encoding='utf-8')), file_sha256(args.srt))
     cues = [(g['start'], g['end'], g['text']) for g in groups]
     print(f"Plan: {len(source_cues)} altyazi satiri -> {len(groups)} {args.gruplama} grubu.", flush=True)
     if args.plan:

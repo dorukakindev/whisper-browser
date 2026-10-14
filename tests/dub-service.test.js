@@ -9,20 +9,34 @@ for (const name of ['altyazi_oku.py','arayuz.py','anlatici_ham.wav','anlatici_ha
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
-const sender = { isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
+const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
+  shorten: async (text, seconds) => { assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   spawn:(exe,args,opts)=>{
     calls.push({exe,args,opts}); child=new EventEmitter(); child.exitCode=null;
     child.stdout=new EventEmitter(); child.stderr=new EventEmitter();
-    child.stdout.setEncoding=child.stderr.setEncoding=()=>{};
+    child.stdout.setEncoding=child.stderr.setEncoding=child.stderr.resume=()=>{};
     queueMicrotask(() => child.emit('spawn')); return child;
   }, terminate:()=>killOK });
 const call = (name,...args)=>handlers[name]({sender},...args);
 (async()=>{
   try {
     assert.equal((await call('dub:config')).ready,true);
+    const pendingPlan = call('dub:plan', {srt});
+    await new Promise(resolve => setImmediate(resolve));
+    child.stdout.emit('data', JSON.stringify({sourceHash:'fixture-hash', groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+    child.emit('close',0);
+    assert.equal((await pendingPlan).sourceHash, 'fixture-hash');
+    assert.equal((await call('dub:shorten','1')).text, 'Kısa metin.');
+    assert.equal((await call('dub:shorten','999')).ok,false);
+    assert.equal((await call('dub:start',{id:'bad-plan',srt,dubText:{sourceHash:'wrong',edits:{}}})).ok,false);
+    assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:'fixture-hash',edits:{'1':'Kısa metin.'}}})).ok,true);
+    const textPath=calls.at(-1).args[calls.at(-1).args.indexOf('--dub-text')+1];
+    assert.equal(JSON.parse(fs.readFileSync(textPath,'utf8')).edits['1'],'Kısa metin.');
+    assert.equal(fs.readFileSync(srt,'utf8'),'fixture');
+    child.emit('close',1); calls.length=0;
     allowed=false; assert.equal((await call('dub:start',{id:'denied',srt})).ok,false); allowed=true;
     assert.equal((await call('dub:start',{id:'../bad',srt})).ok,false);
     assert.equal((await call('dub:start',{id:'invalid-profile',srt,profile:'unsafe'})).ok,false);

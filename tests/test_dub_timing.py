@@ -15,6 +15,25 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_sentence_boundaries_abbreviations_and_continuations(self):
+        cues = [(0,1000,'Dr.'),(1000,2000,'Ali geldi.'),(2000,3000,'Ama henüz bütün hazırlıklar'),
+                (3000,4000,'tamamlanmış değildi.'),(4000,4500,'Evet.')]
+        groups = D.sentence_plan(cues)
+        self.assertEqual([g['text'] for g in groups], ['Dr. Ali geldi.', 'Ama henüz bütün hazırlıklar tamamlanmış değildi. Evet.'])
+        self.assertEqual([i for g in groups for i in g['source_ids']], list(range(1,6)))
+        self.assertEqual(len(D.sentence_plan([(0,2000,'bir'),(1500,3000,'iki')])), 2)
+
+    def test_separate_text_checks_source_and_keeps_original(self):
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/voxcpm2'))
+        from dub_plan import apply_edits
+        groups = D.sentence_plan([(0,1000,'Bu çok uzun bir cümledir.')])
+        apply_edits(groups, {'sourceHash':'abc', 'edits':{'1':'Bu uzun.'}}, 'abc')
+        self.assertEqual(groups[0]['original_text'], 'Bu çok uzun bir cümledir.')
+        self.assertEqual(groups[0]['text'], 'Bu uzun.')
+        with self.assertRaises(ValueError): apply_edits(groups, {'sourceHash':'xyz'}, 'abc')
+        with self.assertRaises(ValueError): apply_edits(groups, {'sourceHash':'abc','edits':{'1':''}}, 'abc')
+
     def test_quality_retry_does_not_retry_valid_long_speech(self):
         calls = []
         async def generate(seed):
