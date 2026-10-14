@@ -7,6 +7,22 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 422 | [BROWSER_BUG_REPORT_422.md](BROWSER_BUG_REPORT_422.md) | seçilen aralık dublajı ve Windows CI sınırları |
+| 421 | [BROWSER_BUG_REPORT_421.md](BROWSER_BUG_REPORT_421.md) | Rapor 421 — Dublaj cümlesi ve süreye uygun metin |
+| 420 | [BROWSER_BUG_REPORT_420.md](BROWSER_BUG_REPORT_420.md) | Rapor 420 — Gerçek OmniVoice Türkçe/CUDA denemesi |
+| 419 | [BROWSER_BUG_REPORT_419.md](BROWSER_BUG_REPORT_419.md) | Rapor 419 — GitHub ses/dublaj ekosistemi incelemesi |
+| 418 | [BROWSER_BUG_REPORT_418.md](BROWSER_BUG_REPORT_418.md) | Rapor 418 — Sesi kullan ve metin/TXT stüdyosu erişimi |
+| 417 | [BROWSER_BUG_REPORT_417.md](BROWSER_BUG_REPORT_417.md) | Rapor 417 — Dublaj hız profilleri ve daha az konuşma kırpması |
+| 416 | [BROWSER_BUG_REPORT_416.md](BROWSER_BUG_REPORT_416.md) | Rapor 416 — VoxCPM2 hız ve dublaj kalitesi araştırması |
+| 415 | [BROWSER_BUG_REPORT_415.md](BROWSER_BUG_REPORT_415.md) | Rapor 415 — Taşma nedeniyle hazır dublajın tamamlanamaması |
+| 414 | [BROWSER_BUG_REPORT_414.md](BROWSER_BUG_REPORT_414.md) | Rapor 414 — Dublaj süre ve kalıcı kayıt eksikliği |
+| 413 | [BROWSER_BUG_REPORT_413.md](BROWSER_BUG_REPORT_413.md) | Rapor 413 — SRT'den ses üretme arayüzü |
+| 412 | [BROWSER_BUG_REPORT_412.md](BROWSER_BUG_REPORT_412.md) | Rapor 412 — VoxCPM2 cümle grupları ve doğru zamanlama raporu uygulandı |
+| 411 | [BROWSER_BUG_REPORT_411.md](BROWSER_BUG_REPORT_411.md) | Rapor 411 — Dublajın kısa satırlarda doğallığı ve kesilme sayacı |
+| 410 | [BROWSER_BUG_REPORT_410.md](BROWSER_BUG_REPORT_410.md) | Rapor 410 — Browser videosunda yerel dublaj sesi |
+| 409 | [BROWSER_BUG_REPORT_409.md](BROWSER_BUG_REPORT_409.md) | Rapor 409 — Küçük browser/oynatıcı tasarım turu |
+| 408 | [BROWSER_BUG_REPORT_408.md](BROWSER_BUG_REPORT_408.md) | Rapor 408 — Son tamamlanan Whisper + çeviri çıktısının denetimi |
+| 407 | [BROWSER_BUG_REPORT_407.md](BROWSER_BUG_REPORT_407.md) | Rapor 407 — Browser Whisper + çeviri ilerlemesi ve süre tanısı |
 | 406 | [BROWSER_BUG_REPORT_406.md](BROWSER_BUG_REPORT_406.md) | oynatıcı işi çeviri aşamasında ilerleme çubuğu donuk — llm_progress yalnız 'translate' işinde işleniyordu, 'progressive' işe genişletildi |
 | 405 | [BROWSER_BUG_REPORT_405.md](BROWSER_BUG_REPORT_405.md) | canlı Whisper ve tarayıcı yaşam döngüsü derin denetimi — Türkçe %TEMP% yolu (stdin UTF-8), reklam sırasında yakalama, kırıntı/sessiz parça, "Altyazı M.K." süzgeci, dil kapısı, RTF uyarısı, mini oynatıcı close yarışı, Windows disk dolu iletisi |
 | 404 | [BROWSER_BUG_REPORT_404.md](BROWSER_BUG_REPORT_404.md) | browser yan paneli tasarım turu — gizli Araçlar sekmesi, çift ikon, amber başlıklar, tipografi/yoğunluk, uyarılı çeviri işareti, ertelenmiş yeniden deneme hatası |

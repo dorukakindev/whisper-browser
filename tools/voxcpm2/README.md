@@ -82,3 +82,26 @@ tam üretimde uygulanır. Metin değişince ilgili ses önbelleği de değişir.
 Tamamlanmış cümleden sonra yeni uzun cümle ayrı gruptur. Çok kısa replikler
 (24 karakterden az) bağlamla tutulur; Dr./Prof. gibi kısaltmalar ve üç nokta
 bitiş sayılmaz. Karakter/süre sınırları korunur, kelime içinden kesilmez.
+
+
+## Yalnız zaman aralığını seslendirme
+
+**Yalnız seçilen zaman aralığını seslendir** açılır. Başlangıç/bitiş `dk:sn`,
+`saat:dk:sn` veya saniye olarak girilir; **Başlangıcı videodan al** mevcut
+YouTube konumunu alır. Cümle planı da seçilen aralığa göre hazırlanır; aralık
+sonradan değiştirilirse eski plan temizlenir. Örnek seçeneği açıksa seçilen
+aralıktaki ilk 11 kaynak cue kullanılır.
+
+`--range-start 120 --range-end 180`: yalnız kesişen altyazı cue'ları üretilir.
+Kaynak kimlikleri korunur. Sınır cue'nun tam metni okunur; zaman penceresi
+sınırda daraldığından sonu kırpılabilir. SRT kelime zamanlaması içermediği için
+sınırda kelimeye göre metin bölünmesi garanti edilmez.
+
+WAV yalnız 60sn içerir; başına 120sn sessizlik eklenmez. Manifest
+`video_offset_seconds` taşır; uygulamanın sonuç/logu `range` taşır. **Sesi kullan**
+çıktıyı videonun 120. saniyesine hizalar ve 180. saniyeden sonra özgün sese döner;
+geriden/ileriden aralığa yeniden sarma desteklenir. Önceden kullanıcı tarafından
+sessize alınmış sekme aralık dışında da sessiz kalır. Dosyayı elle ses seçiciyle
+açmak bu range metadata'sını taşımaz; otomatik bağlama veya Sesi kullan gerekir.
+CLI'da aralık WAV'ını tüm videoya gömme desteklenmez; yanlış hizalama yerine
+net hata verilir. Yeni model/bağımlılık kurulmaz.

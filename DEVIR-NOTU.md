@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-0113.md](docs/devir/2026-10-15-0113.md) — rapor 421: cümle sınırları ve onaylı ayrı dublaj metni; kısa CUDA doğrulaması
+Güncel çalışma: [docs/devir/2026-10-15-0132.md](docs/devir/2026-10-15-0132.md) — rapor 422: seçilen aralık dublajı, kısa WAV, aralık dışında özgün ses; Windows CI sınırları
+Önceki çalışma: [docs/devir/2026-10-15-0113.md](docs/devir/2026-10-15-0113.md) — rapor 421: cümle sınırları ve onaylı ayrı dublaj metni; kısa CUDA doğrulaması
 Önceki çalışma: [docs/devir/2026-10-15-0059.md](docs/devir/2026-10-15-0059.md) — rapor 420: ayrı OmniVoice kurulumu ve gerçek Türkçe CUDA denemesi; 10sn hedef iyi, 6sn hedefte metin kaybı
 Önceki çalışma: [docs/devir/2026-10-15-0046.md](docs/devir/2026-10-15-0046.md) — rapor 419: alternatif GitHub ses/dublaj motorları; OmniVoice hedef süre ve ambiyans koruma araştırması
 Önceki çalışma: [docs/devir/2026-10-15-0041.md](docs/devir/2026-10-15-0041.md) — rapor 418: Sesi kullan, son çıktı erişimi ve bağımsız Metin/TXT stüdyosunu açma
