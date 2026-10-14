@@ -4,6 +4,20 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Ses ekle', 'Add audio'],
+    ['Dublaj sesi ekle', 'Add dubbed audio'],
+    ['Videonun sesi yerine yerel dublaj dosyası çal', 'Play a local dub instead of the video audio'],
+    ['Dublaj', 'Dub'],
+    ['Ses kayması (sn)', 'Audio offset (s)'],
+    ['Pozitif değer dublajı geciktirir', 'Positive values delay the dub'],
+    ['Sesi kaldır', 'Remove audio'],
+    ['Dublaj açık', 'Dub active'],
+    ['Dublaj için önce browser videosunu açın.', 'Open a browser video before adding a dub.'],
+    ['Ses dosyası açılamadı. WAV veya MP3 deneyin.', 'Could not open the audio file. Try WAV or MP3.'],
+    ['Dublaj başlatılamadı; video sesi geri açıldı.', 'Could not start the dub; video audio was restored.'],
+    ['Video sesi kapatılamadı; dublaj başlatılmadı.', 'Could not mute the video; dub was not started.'],
+    ['Video sesi geri yüklenemedi; sekmenin ses düğmesini kullanın.', 'Could not restore video audio; use the tab mute button.'],
+    ['Dublaj sona erdi', 'Dub ended'],
     ['Whisper Altyazı', 'Whisper Browser'],
     ['Yerel altyazı çalışma alanı', 'Local subtitle workspace'],
     ['Interface language', 'Interface language'],

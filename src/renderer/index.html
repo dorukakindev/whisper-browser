@@ -1285,6 +1285,15 @@
         <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
         <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">Durdur</button>
       </div>
+      <div class="browser-dub-strip hidden" id="browserDubStrip">
+        <strong>Dublaj</strong><span id="browserDubName" data-ui-untranslated></span>
+        <label>Ses düzeyi<input id="browserDubVolume" type="range" min="0" max="1" step="0.05" value="1" /></label>
+        <label title="Pozitif değer dublajı geciktirir">Ses kayması (sn)<input id="browserDubOffset" type="number" min="-60" max="60" step="0.1" value="0" /></label>
+        <button class="btn btn-ghost btn-sm" id="browserDubRemove" type="button">Sesi kaldır</button>
+        <span id="browserDubStatus" role="status" aria-live="polite"></span>
+      </div>
+      <input id="browserDubFile" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.opus" hidden />
+      <audio id="browserDubAudio" preload="auto" hidden></audio>
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
@@ -1353,6 +1362,10 @@
               </button>
             </div>
             <div class="browser-toolbar-actions">
+              <button class="browser-page-button browser-dub-button" id="browserDubAdd" type="button" title="Videonun sesi yerine yerel dublaj dosyası çal" aria-label="Dublaj sesi ekle">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>
+                <span>Ses ekle</span>
+              </button>
               <button class="btn-ghost browser-profile-chip hidden" id="browserProfileChip" type="button"
                 title="Bu sitede etkin olan ayar profilini göster" aria-label="Etkin tarayıcı profili">Genel profil</button>
               <details class="browser-translate-split browser-translate-menu" id="browserTranslateMenu">
@@ -3581,6 +3594,8 @@
 <script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
+<script src="browser-dub-audio.js"></script>
+<script src="browser-dub-ui.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>
 <script src="browser-analysis-tools.js"></script>

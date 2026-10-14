@@ -16496,11 +16496,11 @@ ipcMain.handle('browser:favicons:list', (event) => {
   return { ok: true, favicons: Object.fromEntries(readBrowserFavicons()) };
 });
 
-ipcMain.handle('browser:tab:mute', (event, tabId) => {
+ipcMain.handle('browser:tab:mute', (event, tabId, muted) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(tabId), wc = tab?.view?.webContents;
   if (!wc || wc.isDestroyed()) return { ok: false, error: 'Sekme henüz yüklenmedi.' };
-  wc.setAudioMuted(!wc.isAudioMuted());
+  wc.setAudioMuted(typeof muted === 'boolean' ? muted : !wc.isAudioMuted());
   tab.tabMuted = wc.isAudioMuted();
   const audio = { tabMuted: tab.tabMuted, audible: wc.isCurrentlyAudible() };
   sendBrowserEvent(tab, { type: 'tab-audio', ...audio });

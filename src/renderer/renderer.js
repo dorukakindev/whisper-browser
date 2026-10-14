@@ -6704,6 +6704,7 @@ function saveActiveBrowserTabWorkspace() {
 }
 
 function restoreActiveBrowserTabWorkspace(tab) {
+  window.BrowserDubAudioUI?.checkContext();
   if (browserQuickEditor && browserQuickEditor.tabId !== tab?.id) closeBrowserQuickEditor();
   if (!tab) return;
   player.browserSyncPreview = null;
@@ -12883,6 +12884,7 @@ async function showBrowserWorkspace(retry = 0) {
 }
 
 function setWorkspaceMode(mode, persist = true) {
+  if (mode !== player.workspaceMode) window.BrowserDubAudioUI?.stop();
   mode = mode === 'browser' ? 'browser' : 'player';
   const previousMode = player.workspaceMode;
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
@@ -21098,6 +21100,7 @@ function setSubtitleModeMenuOpen(open) {
 }
 
 function setMediaKey(key) {
+  if (key !== player.mediaKey) window.BrowserDubAudioUI?.stop();
   // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
   // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
   closeTimeline();

@@ -180,7 +180,7 @@ contextBridge.exposeInMainWorld('api', {
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),
   removeBrowserPlace: (kind, url) => ipcRenderer.invoke('browser:places:remove', kind, url),
   clearBrowserHistory: (scope = {}) => ipcRenderer.invoke('browser:places:clearHistory', scope && typeof scope === 'object' ? { site: scope.site || scope.url || '', before: Number(scope.before) || 0 } : {}),
-  muteBrowserTab: (tabId) => ipcRenderer.invoke('browser:tab:mute', tabId),
+  muteBrowserTab: (tabId, muted) => ipcRenderer.invoke('browser:tab:mute', tabId, muted),
   setBrowserBookmarkFolder: (url, folder) => ipcRenderer.invoke('browser:places:folder', url, folder),
   saveBrowserWorkspace: (name) => ipcRenderer.invoke('browser:workspace:save', name),
   openBrowserWorkspace: (name) => ipcRenderer.invoke('browser:workspace:open', name),

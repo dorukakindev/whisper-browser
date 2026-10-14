@@ -1,0 +1,85 @@
+const assert = require('node:assert/strict');
+const Dub = require('../src/renderer/browser-dub-audio');
+const flush = () => new Promise(resolve => setImmediate(resolve));
+// Exercise the actual main IPC handler: explicit mute is idempotent and
+// existing callers retain toggle behavior; untrusted senders cannot mute.
+const vm = require('node:vm'), fs = require('node:fs'), path = require('node:path');
+const main = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+let handler, actualMute = false, authorized = true;
+const tab = { view: { webContents: { isDestroyed: () => false,
+  isAudioMuted: () => actualMute, setAudioMuted: v => { actualMute = v; }, isCurrentlyAudible: () => false } } };
+vm.runInNewContext(main.slice(main.indexOf("ipcMain.handle('browser:tab:mute'"),
+  main.indexOf("ipcMain.handle('browser:places:folder'")), {
+  ipcMain: { handle: (_name, fn) => { handler = fn; } },
+  authorizedBrowserSender: () => authorized, browserTabById: () => tab, sendBrowserEvent() {},
+});
+assert.equal(handler({}, 'a', true).ok, true); assert.equal(actualMute, true);
+handler({}, 'a', true); assert.equal(actualMute, true);
+handler({}, 'a'); assert.equal(actualMute, false);
+authorized = false; assert.equal(handler({}, 'a', true).ok, false); assert.equal(actualMute, false);
+function fixture({ priorMuted = false, mute } = {}) {
+  const calls = [], errors = [], revoked = [];
+  const c = { mode: 'browser', tabId: 'a', mediaKey: 'video', generation: 1, priorMuted };
+  const audio = { currentTime: 0, duration: 100, readyState: 4, paused: true,
+    addEventListener() {}, pause() { this.paused = true; },
+    play() { this.paused = false; return Promise.resolve(); },
+    load() {}, removeAttribute() {} };
+  let clock = 10000;
+  const dub = new Dub({ audio, context: () => c, now: () => clock,
+    urls: { createObjectURL: () => 'blob:test', revokeObjectURL: u => revoked.push(u) },
+    mute: mute || (async (...args) => { calls.push(args); return { ok: true }; }),
+    error: e => errors.push(e) });
+  return { dub, audio, calls, errors, revoked, c, advance: n => { clock += n; } };
+}
+(async () => {
+  const f = fixture();
+  try {
+    assert.equal(await f.dub.attach({ name: 'test.wav' }, f.c), true);
+    assert.deepEqual(f.calls, [['a', true]]);
+    f.dub.update({ currentTime: 10, paused: false, playbackRate: 1 }); await flush();
+    assert.equal(f.audio.currentTime, 10); assert.equal(f.audio.paused, false);
+    f.dub.update({ currentTime: 42, paused: true });
+    assert.equal(f.audio.currentTime, 42); assert.equal(f.audio.paused, true);
+    f.dub.update({ currentTime: 20, paused: false, playbackRate: 2 }); await flush();
+    assert.equal(f.audio.playbackRate, 2);
+    f.advance(300); f.dub.tick(); assert.ok(Math.abs(f.audio.currentTime - 20.6) < .01);
+    f.dub.offset = 3; f.dub.update({ currentTime: 30, paused: true });
+    assert.equal(f.audio.currentTime, 27);
+    f.dub.update({ currentTime: 10, paused: false, adPlaying: true });
+    assert.equal(f.audio.paused, true);
+    f.dub.update({ currentTime: 10, paused: false, readyState: 1 });
+    assert.equal(f.audio.paused, true);
+    f.dub.update({ currentTime: 100, paused: false }); assert.equal(f.audio.paused, false);
+    await flush();
+    f.advance(2300); f.dub.tick(); assert.equal(f.audio.paused, true);
+    f.c.mediaKey = 'other'; f.dub.tick(); await flush();
+    assert.equal(f.dub.session, null); assert.equal(f.audio.paused, true);
+    assert.deepEqual(f.calls, [['a', true], ['a', false]]);
+    assert.deepEqual(f.revoked, ['blob:test']);
+  } finally { await f.dub.remove(); }
+  const muted = fixture({ priorMuted: true });
+  await muted.dub.attach({ name: 'test.mp3' }, muted.c); await muted.dub.remove();
+  assert.deepEqual(muted.calls, [['a', true], ['a', true]], 'pre-existing mute was not restored');
+  const replaced = fixture();
+  await replaced.dub.attach({ name: 'first.wav' }, replaced.c);
+  replaced.c.priorMuted = true; // current tab is muted by the first dub
+  await replaced.dub.attach({ name: 'second.wav' }, replaced.c);
+  await replaced.dub.remove();
+  assert.deepEqual(replaced.calls.at(-1), ['a', false], 'replacement forgot original tab mute');
+  const failed = fixture({ mute: async () => ({ ok: false }) });
+  assert.equal(await failed.dub.attach({ name: 'test.wav' }, failed.c), false);
+  assert.equal(failed.dub.session, null); assert.equal(failed.errors.length, 1);
+  let resolveMute;
+  const late = fixture({ mute: (_id, muted) => muted
+    ? new Promise(resolve => { resolveMute = resolve; }) : Promise.resolve({ ok: true }) });
+  const attach = late.dub.attach({ name: 'late.wav' }, late.c); await flush();
+  const remove = late.dub.remove(); resolveMute({ ok: true });
+  await Promise.all([attach, remove]);
+  assert.equal(late.audio.paused, true); assert.equal(late.dub.session, null);
+  const blocked = fixture();
+  blocked.audio.play = () => Promise.reject(new Error('autoplay rejected'));
+  await blocked.dub.attach({ name: 'blocked.wav' }, blocked.c);
+  blocked.dub.update({ currentTime: 5, paused: false }); await flush(); await flush();
+  assert.equal(blocked.dub.session, null); assert.deepEqual(blocked.calls.at(-1), ['a', false]);
+  console.log('browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed');
+})().catch(e => { console.error(e); process.exitCode = 1; });
