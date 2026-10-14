@@ -24,10 +24,11 @@ hizalamasıdır; grup içindeki her kelimeye özgün cue zamanı garanti edilmez
 - `--plan`: GPU üretmeden grup planı. `--limit 11`: ilk 11 kaynak cue ile örnek.
 - `--max-hiz 1.15`: varsayılan azami tempo. Süre yetmediğinde üretim yalnız
   o grup için farklı seed ile mevcut `--retry` sınırında tekrar denenir.
-- `--tasarsa hata`: varsayılan; konuşma hâlâ sığmıyorsa timing raporu yazılır,
+- `--tasarsa hata`: isteğe bağlı katı mod; konuşma hâlâ sığmıyorsa timing raporu yazılır,
   nihai WAV yazılmaz. Mevcut çıktılar silinmez. Bu durumda ses kalitesinin
   korunması için metin/süre veya ilgili grup ayrıca incelenmelidir.
-- `--tasarsa kirp`: açıkça izin verilen kırpma; sayısı ve kesilen örnek sayısı
+- `--tasarsa kirp`: varsayılan ve arayüz modu; taşma üretimi durdurmaz. Sığmayan
+  konuşmanın sonu yumuşak kesilebilir; sayısı ve kesilen örnek sayısı
   raporda saklanır. Sessiz padding temizliği konuşma kesilmesinden ayrı sayılır.
 - `--bosluk-pay-ms 1000`: grubun ardından kullanılabilecek en çok boşluk;
   sonraki grubun başlangıcı ve varsa video sonu aşılmaz.

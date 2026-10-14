@@ -89,7 +89,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           result: 'running', sample: s.sample }, null, 2), 'utf8');
       } catch (error) { s.logError = error.message; }
       const args = [script, srt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--gruplama', 'cumle', '--output', output];
+        '--gruplama', 'cumle', '--tasarsa', 'kirp', '--output', output];
       if (request.sample === true) args.push('--limit', '11');
       emit(s, 'status', { text: 'Motor yükleniyor…' });
       const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };

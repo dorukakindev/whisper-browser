@@ -2,6 +2,9 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import ast
+import json
+import math
 
 import numpy as np
 
@@ -11,6 +14,28 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_default_timeline_returns_wav_when_speech_overflows(self):
+        # Load the pure timeline function without importing the external GPU engine.
+        source = Path(__file__).resolve().parents[1] / 'tools/voxcpm2/altyazi_oku.py'
+        function = next(n for n in ast.parse(source.read_text(encoding='utf-8')).body
+                        if isinstance(n, ast.FunctionDef) and n.name == 'build_timeline')
+        scope = dict(np=np, math=math, json=json, Path=Path, sf=D.sf,
+                     available_window=D.available_window, fit_audio=D.fit_to_window,
+                     TimingOverflow=D.TimingOverflow)
+        exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), 'exec'), scope)
+        with tempfile.TemporaryDirectory() as directory:
+            part = Path(directory) / 'part.wav'
+            sr = 8000
+            D.sf.write(part, np.sin(np.arange(sr*2)*2*np.pi*220/sr)*.3, sr)
+            warnings = []
+            audio, timing = scope['build_timeline']([(0,1000,'a'),(1000,2000,'b')],
+                [part,part], sr, 2, 1.15, directory, log=warnings.append, end_limit_ms=2000)
+            self.assertEqual(len(audio), sr*2)
+            self.assertEqual(timing['clipped_groups'], 2)
+            self.assertGreater(float(np.abs(audio).max()), .1)
+            self.assertEqual(len([w for w in warnings if w.startswith('UYARI:')]), 2)
+            self.assertTrue((Path(directory)/'timing_report.json').is_file())
+
     def test_continuation_groups_preserve_text_and_ids(self):
         cues = [(0, 2000, 'Bu kisa cumle'), (2050, 4000, 'burada tamamlanir.'),
                 (6500, 7500, 'Yeni sahne.'), (7550, 9000, '- Baska konusmaci.')]

@@ -28,6 +28,7 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(service.running(),true);
     assert.equal((await call('dub:start',{id:'second',srt})).ok,false);
     assert.ok(calls[0].args.includes('--limit')); assert.equal(calls[0].opts.env.HF_HUB_DISABLE_XET,'1');
+    assert.equal(calls[0].args[calls[0].args.indexOf('--tasarsa')+1], 'kirp');
     child.stdout.emit('data','[2/7] private subtitle text\n');
     assert.deepEqual(events.at(-1),{id:'test',type:'progress',done:2,total:7});
     child.stdout.emit('data','Zamanlama: 2 grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.\nSes: 2.0 dk | Islem: 1.1 dk\n');

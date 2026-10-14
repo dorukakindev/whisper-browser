@@ -2,7 +2,7 @@
 
 Devam eden altyazi satirlarini cumle gruplari halinde nano-vLLM ile uretir.
 Sesi grup penceresine yerlestirir; hafif tempo duzeltmesi yapar. Konusma
-kirpmak acik --tasarsa kirp secimi gerektirir. Cikti video uzunluguna
+tasmalari varsayilan olarak kirpar ve raporlar; nihai WAV uretilir. Cikti video uzunluguna
 esit tek WAV; --video verilirse ayrica dublajli MP4 uretir.
 
 Parca onbellegi: ciktilar/<srt>_altyazi/<ayar-ozeti>/cue_XXXX.wav — yarim kalan
@@ -213,7 +213,7 @@ async def uret(args, cues, paths, prompt_text):
 
 
 def build_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
-                   overflow="hata", extra_ms=1000, end_limit_ms=None):
+                   overflow="kirp", extra_ms=1000, end_limit_ms=None):
     """Uretilmis satir seslerini zaman cizelgesine yerlestirir."""
     total_frames = int(math.ceil(total_s * sr))
     timeline = np.zeros(total_frames, dtype=np.float32)
@@ -239,6 +239,8 @@ def build_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
         reports.append(report)
         sigdirildi += int(report['tempo'] > 1.0)
         kirpildi += int(report['cut_frames'] > 0)
+        if report['cut_frames'] > 0:
+            log(f"UYARI: Grup {i + 1}, {report['cut_frames'] / sr:.2f} sn kirpildi; WAV uretimi devam ediyor.")
         offset = int(start_ms / 1000.0 * sr)
         end = min(offset + len(wav), total_frames)
         timeline[offset:end] += wav[:end - offset]
@@ -307,7 +309,7 @@ def parse_args(argv=None):
     p.add_argument("--grup-max-karakter", type=int, default=250)
     p.add_argument("--grup-bosluk-ms", type=int, default=600)
     p.add_argument("--bosluk-pay-ms", type=int, default=1000)
-    p.add_argument("--tasarsa", choices=("hata", "kirp"), default="hata")
+    p.add_argument("--tasarsa", choices=("hata", "kirp"), default="kirp")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
     if not args.srt.is_file() or not args.reference.is_file():
