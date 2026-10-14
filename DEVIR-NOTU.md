@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-14-0705.md](docs/devir/2026-10-14-0705.md) — rapor 410: browser videosuna yerel dublaj sesi, saat takibi, ses/kayma kontrolü ve orijinal sesi geri yükleme
+Güncel çalışma: [docs/devir/2026-10-14-0745.md](docs/devir/2026-10-14-0745.md) — rapor 411: kısa satır dublajında cümle grubu önerisi; dış araçta kırpma sayacının yanlış raporlanması
+Önceki çalışma: [docs/devir/2026-10-14-0705.md](docs/devir/2026-10-14-0705.md) — rapor 410: browser videosuna yerel dublaj sesi, saat takibi, ses/kayma kontrolü ve orijinal sesi geri yükleme
 Önceki çalışma: [docs/devir/2026-10-14-0155.md](docs/devir/2026-10-14-0155.md) — rapor 409: dar browser yerleşimi, okunur Durdur düğmesi ve uzun etiket kontrolü
 Önceki çalışma: [docs/devir/2026-10-14-0149.md](docs/devir/2026-10-14-0149.md) — rapor 408: tamamlanan 196 blokluk çıktı denetimi; zamanlar eşleşiyor, 12 kalite işaretinin birçoğu satır yerel yanlış pozitif
 Önceki çalışma: [docs/devir/2026-10-14-0131.md](docs/devir/2026-10-14-0131.md) — rapor 407: browser üstünde görünür çeviri ilerlemesi, blok sayıları ve sağlayıcı bekleme süresi; son işin süre tanısı
