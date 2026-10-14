@@ -5,6 +5,7 @@
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
     ['Ses üretimi başarısız oldu.', 'Audio generation failed.'],
+    ['Geçen süre', 'Elapsed time'], ['Üretim kaydını aç', 'Open generation record'],
     ['Bir SRT altyazı dosyası seçin.', 'Choose an SRT subtitle file.'],
     ['SRT → Ses', 'SRT → Audio'],
     ['Altyazıdan ses üret', 'Generate audio from subtitles'],

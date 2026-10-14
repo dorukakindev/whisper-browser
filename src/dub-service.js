@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { performance } = require('node:perf_hooks');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment }) {
@@ -15,7 +16,23 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       transcript: saved.transcript || path.join(engine, 'anlatici_ham.txt') };
   }
   function emit(s, type, data = {}) {
+    const record = { time: new Date().toISOString(), type, elapsedSeconds: (performance.now() - s.started) / 1000, ...data };
+    if (s.logPath && !s.logError) {
+      try { fs.appendFileSync(s.logPath, JSON.stringify(record) + '\n', 'utf8'); }
+      catch (error) { s.logError = error.message; }
+    }
     if (!s.sender.isDestroyed()) s.sender.send('dub:event', { id: s.id, type, ...data });
+  }
+  function finish(s, type, data = {}) {
+    const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
+      elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
+      progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null, ...data };
+    if (s.summaryPath) {
+      try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
+      catch (error) { s.logError = error.message; }
+    }
+    emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
+      logPath: s.summaryPath || null, logError: s.logError || null });
   }
   const guard = fn => async (e, ...args) => {
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -45,7 +62,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   ipcMain.handle('dub:start', guard(async (e, request = {}) => {
     if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
-    const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '' };
+    const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '',
+      started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
     job = s;
     try {
       const c = config();
@@ -56,11 +74,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
-      if (s.cancelled) { job = null; emit(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
+      if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
       const outputDir = path.join(app.getPath('userData'), 'dub-output');
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       if (fs.existsSync(output)) throw new Error('Bu işin ses çıktısı zaten var.');
+      const logDir = path.join(app.getPath('userData'), 'dub-logs');
+      try {
+        fs.mkdirSync(logDir, { recursive: true });
+        const logBase = `${s.id}-${Date.now()}`;
+        s.logPath = path.join(logDir, `${logBase}.ndjson`);
+        s.summaryPath = path.join(logDir, `${logBase}.json`);
+        fs.writeFileSync(s.summaryPath, JSON.stringify({ id: s.id, startedAt: s.startedAt,
+          result: 'running', sample: s.sample }, null, 2), 'utf8');
+      } catch (error) { s.logError = error.message; }
       const args = [script, srt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
         '--gruplama', 'cumle', '--output', output];
       if (request.sample === true) args.push('--limit', '11');
@@ -74,29 +101,31 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       function line(value) {
         s.tail = (s.tail + '\n' + value).slice(-6000);
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
-        if (progress) emit(s, 'progress', { done: Number(progress[1]), total: Number(progress[2]) });
+        if (progress) { s.progress = { done: Number(progress[1]), total: Number(progress[2]) }; emit(s, 'progress', s.progress); }
         else if (/^Plan:/.test(value)) emit(s, 'status', { text: 'Cümle grupları hazır' });
         else if (/Referans hazir/.test(value)) emit(s, 'status', { text: 'Ses üretiliyor…' });
         else if (/^Zamanlama:/.test(value)) emit(s, 'status', { text: 'Ses zaman çizelgesine yerleştiriliyor…' });
+        if (/^(Zamanlama:|Ses:.*Islem:)/.test(value)) emit(s, 'statistics', { text: value.slice(0, 1000) });
       }
       s.proc.stdout.setEncoding('utf8'); s.proc.stderr.setEncoding('utf8');
       s.proc.stdout.on('data', text => { pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
       s.proc.stderr.on('data', text => { s.tail = (s.tail + text).slice(-6000); });
       s.proc.on('error', error => { s.spawnError = error.message; });
       s.proc.on('close', code => {
+        s.exitCode = code;
         if (pending) line(pending);
         if (job === s) job = null;
-        if (s.cancelled) { emit(s, 'cancelled'); return; }
+        if (s.cancelled) { finish(s, 'cancelled'); return; }
         if (code === 0 && fs.existsSync(output)) {
           grantMedia(output);
-          emit(s, 'done', { path: output, url: pathToFileURL(output).href, name: path.basename(srt, '.srt') + '-dublaj.wav' });
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href, name: path.basename(srt, '.srt') + '-dublaj.wav' });
         } else {
           const details = s.tail.split(/\r?\n/).filter(l => /^(ValueError|RuntimeError|UYARI|Error)/.test(l)).slice(-3).join('\n');
-          emit(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });
+          finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });
         }
       });
       return { ok: true, id: s.id };
-    } catch (error) { if (job === s) job = null; throw error; }
+    } catch (error) { if (job === s) job = null; finish(s, 'error', { error: error.message }); throw error; }
   }));
   async function cancel() {
     const s = job;

@@ -3,6 +3,16 @@
   const el = id => document.getElementById(id);
   const modal = el('dubGeneratorDialog');
   let srt = '', cfg = null, current = null, output = null;
+  let timer = null, logPath = null;
+  function elapsed(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    el('dubGeneratorElapsed').textContent = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+  function stopTimer(seconds) {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+    if (Number.isFinite(seconds)) elapsed(seconds);
+  }
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
@@ -43,12 +53,17 @@
     if (current || !srt || !cfg?.ready) return;
     current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: el('dubSampleOnly').checked };
     const pending = current;
+    const started = performance.now();
+    elapsed(0); stopTimer();
+    timer = setInterval(() => elapsed((performance.now() - started) / 1000), 1000);
+    logPath = null; el('dubGeneratorLog').classList.add('hidden');
     output = null; el('dubGeneratorOutput').classList.add('hidden');
     el('dubGeneratorDetails').textContent = ''; el('dubGeneratorCount').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
     status('Motor yükleniyor…'); controls();
     const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
+      stopTimer((performance.now() - started) / 1000);
       current = null; status('Ses üretimi başarısız oldu.');
       el('dubGeneratorDetails').textContent = r?.error || ''; controls();
     }
@@ -59,6 +74,7 @@
     if (!r?.ok) { status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
+  el('dubGeneratorLog').addEventListener('click', () => { if (logPath) void window.api.openPath(logPath); });
   window.api.onDubEvent(event => {
     const job = current;
     if (!job || event.id !== job.id) return;
@@ -67,6 +83,10 @@
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
     } else if (event.type === 'status') status(event.text);
     else if (['done','error','cancelled'].includes(event.type)) {
+      stopTimer(event.elapsedSeconds);
+      logPath = event.logPath;
+      el('dubGeneratorLog').classList.toggle('hidden', !logPath);
+      if (event.logError) el('dubGeneratorDetails').textContent = event.logError;
       current = null; controls();
       if (event.type === 'done') {
         output = event; el('dubGeneratorProgress').value = 100;
