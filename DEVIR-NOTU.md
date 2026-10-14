@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-0041.md](docs/devir/2026-10-15-0041.md) — rapor 418: Sesi kullan, son çıktı erişimi ve bağımsız Metin/TXT stüdyosunu açma
+Güncel çalışma: [docs/devir/2026-10-15-0046.md](docs/devir/2026-10-15-0046.md) — rapor 419: alternatif GitHub ses/dublaj motorları; OmniVoice hedef süre ve ambiyans koruma araştırması
+Önceki çalışma: [docs/devir/2026-10-15-0041.md](docs/devir/2026-10-15-0041.md) — rapor 418: Sesi kullan, son çıktı erişimi ve bağımsız Metin/TXT stüdyosunu açma
 Önceki çalışma: [docs/devir/2026-10-14-1339.md](docs/devir/2026-10-14-1339.md) — rapor 417: 10/15 adım, 4/8 paralellik, akıllı zamanlama ve bağımsız ses önbelleği; gerçek CUDA ölçümü
 Önceki çalışma: [docs/devir/2026-10-14-1323.md](docs/devir/2026-10-14-1323.md) — rapor 416: VoxCPM2 hız/kalite araştırması; gereksiz tekrarlar ve zamanlama iyileştirmeleri
 Önceki çalışma: [docs/devir/2026-10-14-1232.md](docs/devir/2026-10-14-1232.md) — rapor 415: zamanlama taşmasında WAV üretimine devam; hazır 123 parçalık iş kurtarıldı
