@@ -376,6 +376,14 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   gap: 8px 12px; padding: 8px 12px; background: var(--bg-1);
   border-bottom: 1px solid var(--border); color: var(--text); font-size: 12px;
 }
+.dub-generator { width: min(580px, calc(100vw - 32px)); max-height: 85vh; margin: auto; overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-1); color: var(--text); }
+.dub-generator::backdrop { background: rgba(0,0,0,.65); }
+.dub-generator header { display: flex; justify-content: space-between; align-items: center; }
+.dub-generator p { font-size: 13px; color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.dub-generator-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; font-size: 13px; }
+.dub-generator-row .btn { flex: 0 0 auto; }
+.dub-generator-row span { min-width: 0; overflow-wrap: anywhere; }
+.dub-generator progress { width: 100%; accent-color: var(--accent); }
 #browserDubName { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-dub-strip label { display: inline-flex; align-items: center; gap: 6px; }
 .browser-dub-strip input[type="range"] { width: 90px; accent-color: var(--accent); }

@@ -56,6 +56,18 @@
     if (event.type === 'media' && event.media) controller.update(event.media);
     if (event.type === 'tab-audio' && event.tabMuted === false && s.muted) void controller.remove();
   });
-  window.BrowserDubAudioUI = { stop: () => void controller.remove(), checkContext: () => controller.tick() };
+  window.BrowserDubAudioUI = {
+    stop: () => void controller.remove(), checkContext: () => controller.tick(),
+    context,
+    attachGenerated: async (file, expected) => {
+      const c = context();
+      if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
+          || c.mode !== 'browser' || !c.visible) return false;
+      if (!await controller.attach(file, c)) return false;
+      controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
+        playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });
+      return true;
+    },
+  };
   window.addEventListener('beforeunload', () => { audio.pause(); void controller.remove(); });
 })();

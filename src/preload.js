@@ -22,6 +22,14 @@ contextBridge.exposeInMainWorld('api', {
   },
   listMediaFolder: (filePath) => ipcRenderer.invoke('media:listFolder', filePath),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
+  dubConfig: (kind) => ipcRenderer.invoke('dub:config', kind),
+  startDub: (request) => ipcRenderer.invoke('dub:start', request),
+  cancelDub: () => ipcRenderer.invoke('dub:cancel'),
+  onDubEvent: (cb) => {
+    const listener = (_e, value) => cb(value);
+    ipcRenderer.on('dub:event', listener);
+    return () => ipcRenderer.removeListener('dub:event', listener);
+  },
   selectInputFolder: () => ipcRenderer.invoke('dialog:openInputFolder'),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),

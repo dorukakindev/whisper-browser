@@ -4,6 +4,22 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Ses üretimi başarısız oldu.', 'Audio generation failed.'],
+    ['Bir SRT altyazı dosyası seçin.', 'Choose an SRT subtitle file.'],
+    ['SRT → Ses', 'SRT → Audio'],
+    ['Altyazıdan ses üret', 'Generate audio from subtitles'],
+    ['SRT altyazısından kendi sesinle dublaj üret', 'Generate a dub from SRT in your voice'],
+    ['Türkçe SRT seçin. VoxCPM2 kayıtlı sesinizle cümle grupları halinde dublaj üretir.', 'Choose a Turkish SRT. VoxCPM2 generates sentence groups using your saved voice.'],
+    ['SRT seç', 'Choose SRT'], ['Ses ve motor ayarları', 'Voice and engine settings'],
+    ['Motor klasörü', 'Engine folder'], ['Ses referansı', 'Voice reference'],
+    ['Referans dökümü', 'Reference transcript'], ['Önce kısa örnek üret (ilk 11 satır)', 'Generate a short sample first (first 11 cues)'],
+    ['Benim sesimle üret', 'Generate in my voice'], ['Ses dosyasını aç', 'Open audio file'],
+    ['Motor veya referans eksik; ses ve motor ayarlarını kontrol edin.', 'Engine or reference missing; check voice and engine settings.'],
+    ['Üretim tamamlandı; dublaj videoya bağlandı.', 'Generation complete; dub attached to the video.'],
+    ['Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.', 'Audio ready. You can choose this file using Add audio.'],
+    ['Kısa örnek hazır; tüm video için örnek seçimini kapatın.', 'Sample ready; disable the sample option for the full video.'],
+    ['Motor yükleniyor…', 'Loading engine…'], ['Cümle grupları hazır', 'Sentence groups ready'],
+    ['Ses üretiliyor…', 'Generating audio…'], ['Ses zaman çizelgesine yerleştiriliyor…', 'Placing audio on the timeline…'],
     ['Ses ekle', 'Add audio'],
     ['Dublaj sesi ekle', 'Add dubbed audio'],
     ['Videonun sesi yerine yerel dublaj dosyası çal', 'Play a local dub instead of the video audio'],

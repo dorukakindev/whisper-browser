@@ -32,7 +32,8 @@
         if (this.session !== s) return false;
         if (!result?.ok) { await this.remove(); this.error('Video sesi kapatılamadı; dublaj başlatılmadı.'); return false; }
         if (!this.matches()) { await this.remove(); return false; }
-        s.url = this.urls.createObjectURL(file);
+        s.isBlob = !file.url;
+        s.url = file.url || this.urls.createObjectURL(file);
         this.audio.src = s.url; this.audio.load();
         this.changed(s, 'Dublaj açık');
         return true;
@@ -45,7 +46,7 @@
       const s = this.session; this.session = null; this.sample = null;
       clearInterval(this.timer); this.timer = null;
       this.audio.pause(); this.audio.removeAttribute('src'); this.audio.load();
-      if (s?.url) this.urls.revokeObjectURL(s.url);
+      if (s?.url && s.isBlob) this.urls.revokeObjectURL(s.url);
       this.changed(null, '');
       if (!s) return this.cleanup;
       this.cleanup = this.cleanup.then(async () => {

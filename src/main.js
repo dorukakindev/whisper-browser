@@ -9445,7 +9445,7 @@ function sweepBrowserLiveAsrTemp() {
 
 function startBrowserLiveAsr(tab, options = {}) {
   if (browserLiveAsr) return { ok: false, error: 'Canlı Whisper zaten çalışıyor.' };
-  if (activeJob || burninJob || burninStartPending || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
+  if (dubService.running() || activeJob || burninJob || burninStartPending || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -17916,6 +17916,14 @@ const MEDIA_EXTS = new Set([
   'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'
 ]);
 const mediaFileAccess = new MediaFileAccess(MEDIA_EXTS);
+const dubService = require('./dub-service').registerDubService({
+  app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
+  authorizeSubtitle: authorizeSubtitleFile, spawn,
+  terminate: proc => terminateProcessTree(proc, { spawn }),
+  busy: () => !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
+  grantMedia: file => mediaFileAccess.grant(file),
+  environment: () => withoutSecretEnv(process.env),
+});
 
 function validateLocalMediaPath(filePath) {
   return mediaFileAccess.inspect(filePath);
@@ -20267,7 +20275,7 @@ let burninStartPending = false;
 ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob || burninStartPending) return { ok: false, error: 'Gömme zaten çalışıyor.' };
-  if (activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (dubService.running() || activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
   try {
@@ -20612,7 +20620,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Asagidaki await'li yetkilendirme bolgesinde ikinci bir baslatma giremesin
   // (activeJob henuz null oldugundan eski kontrol bunu yakalayamaz) ve bu
   // aralikta gelen iptal spawn'dan once uygulanabilsin.
-  if (activeJob || jobStarting || burninJob || burninStartPending
+  if (dubService.running() || activeJob || jobStarting || burninJob || burninStartPending
       || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, busy: true, error: 'Başka bir iş çalışıyor veya başlatılıyor. Bitmesini bekleyin.' };
   }
