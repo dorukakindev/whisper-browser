@@ -1,7 +1,7 @@
 # VoxCPM2 altyazı dublaj aracı
 
 Bu dosyalar Whisper uygulamasına TTS bağımlılığı eklemez. Mevcut VoxCPM2
-ortamının `altyazi_oku.py` güncellemesidir; `dub_timing.py` aynı klasöre konur.
+ortamının `altyazi_oku.py` güncellemesidir; `dub_timing.py` ve `dub_plan.py` aynı klasöre konur.
 Çalışan kitap motoru ve kişisel ses referansları değiştirilmez.
 
 Motor klasöründen mevcut venv ile:
@@ -60,3 +60,25 @@ hazırlığı120sn, tek sentez isteği `--request-timeout 180` ile sınırlanır
 generation_report.json model/referans/üretim sürelerini ve deneme sayılarını
 tutar; özet uygulamanın üretim loguna aktarılır. Bu sayaçlar model kalitesinin
 otomatik kanıtı değildir; farklı profillerin sesi dinlenerek karşılaştırılmalı.
+
+
+## Ayrı dublaj metni
+
+Altyazıdan ses üret → Dublaj metnini düzenle → Cümle planını hazırla.
+Grup seç; özgün metni ve ayrılan süreyi gör. Elle düzenle veya **AI ile süreye
+göre kısalt** seç. AI mevcut Çeviri sağlayıcısını kullanır; yalnız seçili grubun
+metni ve hedef süresi gönderilir, ses referansı gönderilmez. **Bu metni uygula**
+ile seçilen metin üretime girer. Öneri otomatik uygulanmaz; anlam/isim/olumsuzluk
+kontrolü kullanıcıya aittir. Sayı kaybı görülen öneriler reddedilir. Süre tahmini
+kesin değildir; mevcut tempo/kırpma davranışı geçerlidir.
+
+Uygulanan metinler sesin yanında `<iş-kimliği>-dub-text.json` olarak saklanır;
+SRT yazılmaz. `--dub-text dosya.json` CLI'da aynı planı kullanır: `sourceHash`
+kaynak SRT SHA256, `edits` kaynak cue kimliklerinden oluşan anahtarlarla metin
+sözlüğüdür (`"1,2": "Kısa metin."`). Kaynak değişirse üretim reddedilir. Kısa
+örneğin sonunda kesilen kaynak grubunun tam-plan düzenlemesi uygulanmaz;
+tam üretimde uygulanır. Metin değişince ilgili ses önbelleği de değişir.
+
+Tamamlanmış cümleden sonra yeni uzun cümle ayrı gruptur. Çok kısa replikler
+(24 karakterden az) bağlamla tutulur; Dr./Prof. gibi kısaltmalar ve üç nokta
+bitiş sayılmaz. Karakter/süre sınırları korunur, kelime içinden kesilmez.
