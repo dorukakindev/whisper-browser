@@ -6,6 +6,17 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
+  function timecode(value) {
+    const text = value.trim();
+    if (!/^\d+(?::[0-5]?\d){0,2}(?:\.\d{1,3})?$/.test(text)) throw new Error('Geçersiz zaman aralığı.');
+    return text.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+  }
+  function selectedRange() {
+    if (!el('dubRangeEnabled').checked) return null;
+    const range = { start: timecode(el('dubRangeStart').value), end: timecode(el('dubRangeEnd').value) };
+    if (range.end <= range.start || range.end > 86400) throw new Error('Geçersiz zaman aralığı.');
+    return range;
+  }
   function showGroup() {
     const g = group();
     el('dubPlanOriginal').value = g?.text || '';
@@ -29,6 +40,8 @@
     el('dubPlanPrepare').disabled = !!current || planning || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = !!current || planning || !plan;
     el('dubChooseSrt').disabled = !!current || planning;
+    el('dubRangeEnabled').disabled = !!current || planning;
+    for (const id of ['dubRangeStart', 'dubRangeEnd', 'dubRangeNow']) el(id).disabled = !!current || planning || !el('dubRangeEnabled').checked;
     el('dubGeneratorCancel').disabled = !current;
     el('dubTextStudio').disabled = !!current;
     el('browserDubGenerate')?.classList.toggle('active', !!current);
@@ -76,7 +89,7 @@
   el('dubPlanPrepare').addEventListener('click', async () => {
     planning = true; controls();
     try {
-      const r = await window.api.planDub({ srt });
+      const r = await window.api.planDub({ srt, range: selectedRange() });
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
@@ -84,6 +97,14 @@
       showGroup(); status('Cümle grupları hazır');
     } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
     finally { planning = false; controls(); }
+  });
+  function invalidatePlan() {
+    plan = null; edits = {}; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
+  }
+  for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
+  el('dubRangeNow').addEventListener('click', () => {
+    el('dubRangeStart').value = String(Math.floor(Number(player.browserTime) || 0));
+    invalidatePlan();
   });
   el('dubPlanGroup').addEventListener('change', showGroup);
   el('dubPlanApply').addEventListener('click', () => {
@@ -108,6 +129,8 @@
   }
   el('dubGeneratorStart').addEventListener('click', async () => {
     if (current || !srt || !cfg?.ready) return;
+    let range;
+    try { range = selectedRange(); } catch (error) { status(error.message); return; }
     current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: el('dubSampleOnly').checked };
     const pending = current;
     const started = performance.now();
@@ -123,7 +146,7 @@
     status('Motor yükleniyor…'); controls();
     const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
-      dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
+      range, dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
       current = null; status('Ses üretimi başarısız oldu.');
@@ -145,7 +168,7 @@
     }
     el('dubGeneratorUse').disabled = true;
     try {
-      const attached = await window.BrowserDubAudioUI.attachGenerated({ name: selected.name, url: selected.url }, context);
+      const attached = await window.BrowserDubAudioUI.attachGenerated({ name: selected.name, url: selected.url, range: selected.range }, context);
       if (output === selected) status(attached ? 'Üretim tamamlandı; dublaj videoya bağlandı.' : 'Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.');
     } catch (_) { status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); }
     finally { el('dubGeneratorUse').disabled = false; }
@@ -177,7 +200,7 @@
         el('dubGeneratorUse').classList.remove('hidden');
         status(job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.');
         if (!job.sample && job.context?.mode === 'browser') {
-          void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url }, job.context)
+          void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url, range:event.range }, job.context)
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });
         }

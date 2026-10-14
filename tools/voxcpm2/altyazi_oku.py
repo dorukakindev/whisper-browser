@@ -77,7 +77,7 @@ if sys.platform == 'win32':
     _weight_loader.safe_open = _PreadWeights
 
 SAMPLE_RATE = 48000
-from dub_plan import parse_srt, apply_edits
+from dub_plan import parse_srt, apply_edits, make_groups
 
 
 def atempo_filters(ratio):
@@ -294,9 +294,15 @@ def parse_args(argv=None):
     p.add_argument("--bosluk-pay-ms", type=int, default=2000)
     p.add_argument("--erken-pay-ms", type=int, default=300)
     p.add_argument("--tasarsa", choices=("hata", "kirp"), default="kirp")
+    p.add_argument("--range-start", type=float)
+    p.add_argument("--range-end", type=float)
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
+    if (args.range_start is None) != (args.range_end is None):
+        p.error('Baslangic ve bitis birlikte gerekli.')
+    if args.range_start is not None and args.video:
+        p.error('Aralik dublajini browser oynaticisinda kullanin; video gommesi desteklenmiyor.')
     if not args.srt.is_file() or not args.reference.is_file():
         p.error("SRT veya referans ses dosyasi bulunamadi.")
     if args.video and not args.video.is_file():
@@ -330,13 +336,11 @@ def main(argv=None):
     if args.kaydir:
         cues = [(s + args.kaydir, e + args.kaydir, t) for s, e, t in cues]
         cues = [c for c in cues if c[0] >= 0]
-    if args.limit:
-        cues = cues[:args.limit]
     if not cues:
         raise SystemExit("Kaydirma sonrasinda okunabilir satir kalmadi.")
     source_cues = cues
-    groups = sentence_plan(cues, args.gruplama, args.grup_max_karakter,
-                           args.grup_max_sn, args.grup_bosluk_ms)
+    groups = make_groups(cues, args.range_start, args.range_end, args.limit, args.gruplama,
+                         args.grup_max_karakter, args.grup_max_sn, args.grup_bosluk_ms)
     if args.dub_text:
         apply_edits(groups, json.loads(args.dub_text.read_text(encoding='utf-8')), file_sha256(args.srt))
     cues = [(g['start'], g['end'], g['text']) for g in groups]
@@ -392,8 +396,14 @@ def main(argv=None):
               'cached_groups': len(paths), 'generated_groups': 0,
               'steps': args.steps, 'concurrency': args.eszamanli}), flush=True)
 
+    timeline_cues = cues
     total_s = duration or (cues[-1][1] + 2000) / 1000.0
-    timeline, timing = build_timeline(cues, paths, sr, total_s, args.max_hiz, parts_dir,
+    if args.range_start is not None:
+        offset_ms = round(args.range_start * 1000)
+        timeline_cues = [(s - offset_ms, e - offset_ms, t) for s, e, t in cues]
+        total_s = args.range_end - args.range_start
+        args.end_limit_ms = total_s * 1000
+    timeline, timing = build_timeline(timeline_cues, paths, sr, total_s, args.max_hiz, parts_dir,
                                      overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
                                      end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
 
@@ -413,6 +423,7 @@ def main(argv=None):
     print(f"Dublaj WAV: {wav_path}", flush=True)
 
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
+                "video_offset_seconds": args.range_start or 0,
                 "grouping": args.gruplama, "timing": timing,
                 "duration": float(len(timeline) / sr),
                 "text": "\n".join(t for _, _, t in cues),

@@ -7230,4 +7230,6 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .player-side.side-rail .side-tab-actions .side-tool { width: 32px; height: 32px; flex-basis: 32px; }
 /* Dubbing text remains readable inside the existing modal at narrow widths. */
 #dubTextEditor textarea, #dubPlanGroup { width: 100%; box-sizing: border-box; margin: 8px 0; }
-#dubTextEditor textarea { resize: vertical; min-height: 72px; color: var(--text); background: var(--bg); }
+#dubTextEditor textarea { resize: vertical; min-height: 72px; color: var(--text); background: var(--bg); font: inherit; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.dub-range-row input { width: 100px; max-width: 100%; box-sizing: border-box; color: var(--text); background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit; }
+.dub-range-row { flex-wrap: wrap; }

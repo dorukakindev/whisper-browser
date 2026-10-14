@@ -34,6 +34,17 @@ class DubTimingTests(unittest.TestCase):
         with self.assertRaises(ValueError): apply_edits(groups, {'sourceHash':'xyz'}, 'abc')
         with self.assertRaises(ValueError): apply_edits(groups, {'sourceHash':'abc','edits':{'1':''}}, 'abc')
 
+    def test_range_selects_only_intersections_with_original_source_ids(self):
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/voxcpm2'))
+        from dub_plan import make_groups
+        cues = [(0,1000,'Eski.'),(2000,4000,'Yeni cümle'),(4000,7000,'burada biter.'),(8000,9000,'Son.')]
+        groups = make_groups(cues, 3, 6)
+        self.assertEqual(groups, [{'start':3000,'end':6000,'text':'Yeni cümle burada biter.','source_ids':[2,3]}])
+        self.assertEqual(make_groups(cues,3,6,limit=1)[0]['source_ids'],[2])
+        for start,end in [(6,3),(-1,3),(float('nan'),3),(10,11)]:
+            with self.assertRaises(ValueError): make_groups(cues,start,end)
+
     def test_quality_retry_does_not_retry_valid_long_speech(self):
         calls = []
         async def generate(seed):

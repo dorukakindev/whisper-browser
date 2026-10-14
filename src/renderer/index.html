@@ -3601,6 +3601,13 @@
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
   </details>
   <label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce kısa örnek üret (ilk 11 satır)</label>
+  <label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
+  <div class="dub-generator-row dub-range-row">
+    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
+  </div>
+  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam metinle okunur; pencereye sığmazsa sonu kesilebilir.</p>
   <details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
     <p>Orijinal SRT korunur. Kısaltma önerisini kontrol edip uygula; süreye sığması tahminidir.</p>
     <button id="dubPlanPrepare" class="btn btn-secondary" type="button">Cümle planını hazırla</button>

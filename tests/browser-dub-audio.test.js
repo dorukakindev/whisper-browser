@@ -58,6 +58,21 @@ function fixture({ priorMuted = false, mute } = {}) {
     assert.deepEqual(f.revoked, ['blob:test']);
   } finally { await f.dub.remove(); }
   const muted = fixture({ priorMuted: true });
+  const ranged = fixture();
+  await ranged.dub.attach({name:'range.wav',range:{start:20,end:30}}, ranged.c);
+  ranged.audio.duration = 10;
+  ranged.dub.update({currentTime:15,paused:false}); await flush();
+  assert.equal(ranged.audio.paused,true); assert.deepEqual(ranged.calls.at(-1),['a',false]);
+  ranged.dub.update({currentTime:22,paused:false}); await flush(); await flush();
+  assert.equal(ranged.audio.currentTime,2); assert.equal(ranged.audio.paused,false);
+  assert.deepEqual(ranged.calls.at(-1),['a',true]);
+  ranged.dub.update({currentTime:31,paused:false}); await flush();
+  assert.equal(ranged.audio.paused,true); assert.deepEqual(ranged.calls.at(-1),['a',false]);
+  ranged.dub.update({currentTime:25,paused:false}); await flush(); await flush();
+  assert.equal(ranged.audio.currentTime,5); assert.equal(ranged.audio.paused,false);
+  ranged.dub.update({currentTime:25,paused:false,adPlaying:true}); await flush();
+  assert.equal(ranged.audio.paused,true); assert.deepEqual(ranged.calls.at(-1),['a',false]);
+  await ranged.dub.remove();
   await muted.dub.attach({ name: 'test.mp3' }, muted.c); await muted.dub.remove();
   assert.deepEqual(muted.calls, [['a', true], ['a', true]], 'pre-existing mute was not restored');
   const replaced = fixture();

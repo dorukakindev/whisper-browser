@@ -19,12 +19,14 @@
       const priorMuted = this.session?.tabId === c.tabId ? this.session.priorMuted : c.priorMuted;
       await this.remove();
       if (!file || !c.tabId || !c.mediaKey || c.mode !== 'browser') return false;
-      const s = { ...c, priorMuted, name: file.name, muted: false, url: null };
+      const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
+      if (s.range && (!Number.isFinite(s.range.start) || !Number.isFinite(s.range.end) || s.range.start < 0 || s.range.end <= s.range.start)) return false;
       this.session = s; this.sample = null; this.offset = 0;
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
-      s.mutePromise = Promise.resolve(this.mute(s.tabId, true)).then(result => {
-        s.muted = !!result?.ok;
+      s.desiredMuted = s.range ? !!priorMuted : true;
+      s.mutePromise = Promise.resolve(this.mute(s.tabId, s.desiredMuted)).then(result => {
+        s.muted = !!result?.ok && s.desiredMuted;
         return result;
       });
       try {
@@ -61,6 +63,18 @@
       return this.cleanup;
     }
     async fail(message) { await this.remove(); this.error(message); }
+    rangeMute(s, desired) {
+      if (s.desiredMuted === desired) return;
+      s.desiredMuted = desired;
+      s.mutePromise = s.mutePromise.then(async () => {
+        if (this.session !== s) return;
+        const result = await this.mute(s.tabId, desired);
+        if (!result?.ok) throw new Error('mute failed');
+        s.muted = desired;
+      }).then(() => { if (this.session === s) this.tick(); }).catch(() => {
+        if (this.session === s) void this.fail('Video sesi değiştirilemedi; dublaj durduruldu.');
+      });
+    }
     update(media) { this.sample = { ...media, at: this.now() }; this.tick(); }
     tick() {
       const s = this.session;
@@ -68,11 +82,20 @@
       if (!this.matches()) { void this.remove(); return; }
       const m = this.sample, a = this.audio;
       if (!s.url || !m || this.now() - m.at > 2200 || m.adPlaying
-          || m.spinnerVisible || (m.readyState !== undefined && m.readyState < 3)) { a.pause(); return; }
+          || m.spinnerVisible || (m.readyState !== undefined && m.readyState < 3)) {
+        if (s.range) this.rangeMute(s, !!s.priorMuted);
+        a.pause(); return;
+      }
       const rate = Math.max(0.25, Math.min(4, Number(m.playbackRate) || 1));
       const playing = !m.paused && !m.ended;
-      const target = Math.max(0, Number(m.currentTime) || 0)
+      const videoTime = Math.max(0, Number(m.currentTime) || 0)
         + (playing ? Math.max(0, this.now() - m.at) / 1000 * rate : 0) - this.offset;
+      const target = videoTime - (s.range?.start || 0);
+      if (s.range) {
+        const inside = videoTime >= s.range.start && videoTime < s.range.end && a.readyState > 0;
+        this.rangeMute(s, inside || !!s.priorMuted);
+        if (!inside || !s.muted) { a.pause(); return; }
+      }
       a.playbackRate = rate;
       const end = Number.isFinite(a.duration) ? a.duration : Infinity;
       const ended = target >= end;

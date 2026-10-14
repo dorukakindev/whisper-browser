@@ -9,6 +9,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   let job = null;
   let textUI = null;
   const plans = new Map();
+  function rangeOption(raw) {
+    if (raw == null) return null;
+    const { start, end } = raw;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || end > 86400 || end - start < 0.1) throw new Error('Geçersiz zaman aralığı.');
+    return { start, end };
+  }
   const configPath = () => path.join(app.getPath('userData'), 'dub-settings.json');
   function voiceEnvironment(engine) {
     const env = { ...environment(), HF_HUB_DISABLE_XET: '1' };
@@ -55,9 +61,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const srt = await authorizeSubtitle(request.srt);
     if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
     const c = config();
+    const range = rangeOption(request.range);
     const result = await new Promise((resolve, reject) => {
       const proc = spawn(path.join(c.engine, '.venv', 'Scripts', 'python.exe'),
-        [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt],
+        [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt,
+          ...(range ? [String(range.start), String(range.end)] : [])],
         { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
       let out = '', settled = false;
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
@@ -70,7 +78,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         try { finish(null, JSON.parse(out)); } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
       });
     });
-    plans.set(e.sender.id, { srt, ...result });
+    plans.set(e.sender.id, { srt, range, ...result });
     return { ok: true, ...result };
   }));
   ipcMain.handle('dub:shorten', guard(async (e, key) => {
@@ -112,6 +120,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         grantMedia(output);
         return { ok: true, output: { path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
+          range: rangeOption(saved.range),
           timing: saved.timing, logPath: entry.file } };
       } catch (_) {}
     }
@@ -152,6 +161,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
       c.profile = profile; c.concurrency = concurrency;
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: 1.25 };
+      s.range = rangeOption(request.range); s.settings.range = s.range;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(c.engine, 'altyazi_oku.py');
       for (const file of [python, script, c.reference, c.transcript]) {
@@ -179,9 +189,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       if (request.sample === true) args.push('--limit', '11');
+      if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
       if (request.dubText) {
         const plan = plans.get(e.sender.id);
-        if (!plan || plan.srt !== srt || request.dubText.sourceHash !== plan.sourceHash) throw new Error('Dublaj planını yeniden hazırlayın.');
+        if (!plan || plan.srt !== srt || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
         const edits = request.dubText.edits;
         if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
         const keys = new Set(plan.groups.map(g => g.key));
@@ -232,7 +243,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (code === 0 && fs.existsSync(output)) {
           grantMedia(output);
           finish(s, 'done', { path: output, url: pathToFileURL(output).href,
-            name: path.basename(srt, '.srt') + '-dublaj.wav', timing: s.timing || null });
+            name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.range });
         } else {
           const details = s.tail.split(/\r?\n/).filter(l => /^(ValueError|RuntimeError|UYARI|Error)/.test(l)).slice(-3).join('\n');
           finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });

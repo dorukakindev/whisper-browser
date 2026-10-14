@@ -55,7 +55,7 @@
     }
     if (event.generation !== undefined && event.generation !== s.generation) return;
     if (event.type === 'media' && event.media) controller.update(event.media);
-    if (event.type === 'tab-audio' && event.tabMuted === false && s.muted) void controller.remove();
+    if (event.type === 'tab-audio' && event.tabMuted === false && s.desiredMuted) void controller.remove();
   });
   window.BrowserDubAudioUI = {
     stop: () => void controller.remove(), checkContext: () => controller.tick(),

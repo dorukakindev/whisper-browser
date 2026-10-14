@@ -1,6 +1,7 @@
 """Model-free SRT plan and separate reviewed dubbing text."""
 import hashlib
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -52,11 +53,34 @@ def apply_edits(groups, document, source_hash):
         g['text'] = re.sub(r'\s+', ' ', value).strip()
     return groups
 
-def plan(path):
+def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250,
+                max_seconds=12, max_gap_ms=600):
+    if (start is None) != (end is None):
+        raise ValueError('Baslangic ve bitis birlikte gerekli.')
+    if start is not None and (not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start):
+        raise ValueError('Gecersiz zaman araligi.')
+    selected, source_ids = [], []
+    for i, (s, e, text) in enumerate(cues):
+        if start is not None:
+            if e <= start * 1000 or s >= end * 1000:
+                continue
+            s, e = max(s, round(start * 1000)), min(e, round(end * 1000))
+        selected.append((s, e, text)); source_ids.append(i + 1)
+        if limit and len(selected) >= limit:
+            break
+    if not selected:
+        raise ValueError('Secilen aralikta altyazi yok.')
+    groups = sentence_plan(selected, mode, max_chars, max_seconds, max_gap_ms)
+    for g in groups:
+        g['source_ids'] = [source_ids[i - 1] for i in g['source_ids']]
+    return groups
+
+
+def plan(path, start=None, end=None):
     source = Path(path)
     if source.stat().st_size > 2_000_000:
         raise ValueError('SRT cok buyuk.')
-    groups = sentence_plan(parse_srt(source))
+    groups = make_groups(parse_srt(source), start, end)
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
@@ -65,4 +89,4 @@ def plan(path):
     return {'sourceHash': hashlib.sha256(source.read_bytes()).hexdigest(), 'groups': groups}
 
 if __name__ == '__main__':
-    print(json.dumps(plan(sys.argv[1]), ensure_ascii=True))
+    print(json.dumps(plan(sys.argv[1], *(map(float, sys.argv[2:4]))), ensure_ascii=True))
