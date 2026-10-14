@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-14-1232.md](docs/devir/2026-10-14-1232.md) — rapor 415: zamanlama taşmasında WAV üretimine devam; hazır 123 parçalık iş kurtarıldı
+Güncel çalışma: [docs/devir/2026-10-14-1323.md](docs/devir/2026-10-14-1323.md) — rapor 416: VoxCPM2 hız/kalite araştırması; gereksiz tekrarlar ve zamanlama iyileştirmeleri
+Önceki çalışma: [docs/devir/2026-10-14-1232.md](docs/devir/2026-10-14-1232.md) — rapor 415: zamanlama taşmasında WAV üretimine devam; hazır 123 parçalık iş kurtarıldı
 Önceki çalışma: [docs/devir/2026-10-14-1211.md](docs/devir/2026-10-14-1211.md) — rapor 414: dublaj üretim süresi, kalıcı sonuç/ilerleme kayıtları ve kayıt açma
 Önceki çalışma: [docs/devir/2026-10-14-0905.md](docs/devir/2026-10-14-0905.md) — rapor 413: SRT → Ses arayüzü, ilerleme/iptal ve aynı browser videosuna çıktı bağlama
 Önceki çalışma: [docs/devir/2026-10-14-0812.md](docs/devir/2026-10-14-0812.md) — rapor 412: cümle gruplu dublaj ve doğru kırpma sayacı uygulandı; gerçek kısa üretim 11 cue→7 grup, 0 kırpma
