@@ -34,6 +34,7 @@ const BOOT_CRITICAL = [
   'src/main.js',
   'src/preload.js',
   'src/browser-preload.js',
+  'src/youtube-ad-preload.js',
   'src/browser-mini-preload.js',
   'src/renderer/index.html',
   'src/renderer/browser-mini.html',

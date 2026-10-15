@@ -3956,10 +3956,42 @@ function ensureBrowserAdblockController() {
   return browserAdblockController;
 }
 
+function browserYoutubeGuardPolicy(tab, url) {
+  const origin = browserSiteOrigin(url);
+  if (!origin || !isYoutubePageUrl(url)) return { enabled: false };
+  const local = tab?.siteOverrideOrigin === origin ? tab.siteOverrides : null;
+  const paused = Object.prototype.hasOwnProperty.call(local || {}, 'adblockEnabled')
+    ? local.adblockEnabled === false : readBrowserPlaces().siteProfiles?.[origin]?.adblockEnabled === false;
+  const requested = browserAdblockController?.getState().requested ?? browserAdblockInitiallyEnabled;
+  return { enabled: requested && !paused };
+}
+
+function refreshBrowserYoutubeGuards() {
+  for (const tab of browserTabs.values()) {
+    const wc = tab.view?.webContents;
+    if (!wc || wc.isDestroyed()) continue;
+    try { wc.send('browser:youtube-guard:policy-changed', browserYoutubeGuardPolicy(tab, wc.getURL())); }
+    catch (_) { /* Tab may close between the state change and delivery. */ }
+  }
+}
+
+// A single synchronous, local policy read at document-start. Never wait for
+// filter downloads here, and never accept a URL supplied by the remote page.
+ipcMain.on('browser:youtube-guard:policy', event => {
+  let policy = { enabled: false };
+  try {
+    const tab = [...browserTabs.values()].find(item => item.view?.webContents === event.sender);
+    if (tab && !event.sender.isDestroyed() && event.senderFrame === event.sender.mainFrame)
+      policy = browserYoutubeGuardPolicy(tab, event.senderFrame.url);
+  } catch (_) {}
+  event.returnValue = policy;
+});
+
 async function configureBrowserAdblock(enabled) {
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
   const result = await ensureBrowserAdblockController().setEnabled(browserSession, enabled);
   publishBrowserAdblockState(result);
+  refreshBrowserYoutubeGuards();
   return result;
 }
 
@@ -13217,6 +13249,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   let browserUserAgent = sanitizeBrowserUserAgent(browserSession.getUserAgent());
   if (!browserConfiguredSessions.has(browserSession)) {
     if (browserUserAgent) browserSession.setUserAgent(browserUserAgent);
+    browserSession.registerPreloadScript({ type: 'frame', filePath: path.join(__dirname, 'youtube-ad-preload.js') });
     browserConfiguredSessions.add(browserSession);
   } else {
     browserUserAgent = sanitizeBrowserUserAgent(browserSession.getUserAgent());
@@ -16849,6 +16882,7 @@ ipcMain.handle('browser:profile:update', (event, request = {}) => {
       if (item.view && !item.view.webContents.isDestroyed()) applyStoredBrowserZoom(item, item.view.webContents, url);
     }
   }
+  if (request.field === 'adblockEnabled' || request.reset === true) refreshBrowserYoutubeGuards();
   return { ok: true, origin, places: browserPlacesSnapshot(),
     reloadRequired: request.field === 'adblockEnabled' };
 });
