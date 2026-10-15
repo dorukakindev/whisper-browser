@@ -80,6 +80,7 @@
     }
   }
   el('browserDubGenerate').addEventListener('click', open);
+  el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => syncBrowserOcclusion());
@@ -107,7 +108,7 @@
   }
   for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
   el('dubRangeNow').addEventListener('click', () => {
-    el('dubRangeStart').value = String(Math.floor(Number(player.browserTime) || 0));
+    el('dubRangeStart').value = String(Math.floor(Number(window.BrowserDubAudioUI?.context()?.currentTime) || 0));
     invalidatePlan();
   });
   el('dubPlanGroup').addEventListener('change', showGroup);
@@ -156,7 +157,7 @@
     status('Motor yükleniyor…'); controls();
     const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
-      keepBackground: el('dubKeepBackground').checked, backgroundSource,
+      keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
@@ -177,8 +178,8 @@
     const selected = output;
     if (!selected) return;
     const context = window.BrowserDubAudioUI?.context();
-    if (!context?.tabId || context.mode !== 'browser' || !context.visible) {
-      status('Dublaj için önce browser videosunu açın.'); return;
+    if (!context?.tabId || !context.hasMedia || !context.visible) {
+      status('Ses eklemek için önce bir video açın.'); return;
     }
     el('dubGeneratorUse').disabled = true;
     try {
@@ -216,7 +217,7 @@
         el('dubGeneratorOutput').classList.remove('hidden');
         el('dubGeneratorUse').classList.remove('hidden');
         status(job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.');
-        if (!job.sample && job.context?.mode === 'browser') {
+        if (!job.sample && job.context?.hasMedia) {
           void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url, range:event.range, sync:event.sync, background:event.background }, job.context)
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });

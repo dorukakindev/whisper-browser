@@ -4,18 +4,33 @@
   const audio = byId('browserDubAudio'), input = byId('browserDubFile');
   const add = byId('browserDubAdd'), strip = byId('browserDubStrip');
   if (!audio || !input || !add) return;
-  const context = () => ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
+  const video = byId('playerVideo');
+  const context = () => player.workspaceMode === 'player' ? ({
+    mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
+    priorMuted: video.muted, playbackRate: video.playbackRate,
+    currentTime: video.currentTime, backgroundSource: player.localPath || '',
+    hasMedia: !!(video.currentSrc || video.getAttribute('src')),
+    visible: !byId('playerLayer').classList.contains('hidden'),
+  }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
-    playbackRate: player.browserRate || 1,
+    playbackRate: player.browserRate || 1, currentTime: player.browserTime,
     visible: !byId('playerLayer').classList.contains('hidden') });
-  const notify = message => setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
+  const notify = message => player.workspaceMode === 'player'
+    ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
     backgroundAudio: byId('browserDubBackground'),
-    mute: (id, muted) => window.api.muteBrowserTab(id, muted), error: notify,
-    setRate: request => window.api.setDubVideoRate(request),
+    mute: (id, muted) => {
+      if (id !== 'player-video') return window.api.muteBrowserTab(id, muted);
+      video.muted = muted; return { ok: true };
+    }, error: notify,
+    setRate: request => {
+      if (request.tabId !== 'player-video') return window.api.setDubVideoRate(request);
+      video.playbackRate = request.rate;
+      return { ok: true, media: { currentTime: video.currentTime, playbackRate: video.playbackRate } };
+    },
     changed: (s, message) => {
       strip.classList.toggle('hidden', !s);
       byId('browserDubName').textContent = s?.name || '';
@@ -23,27 +38,43 @@
       byId('browserDubBackgroundControls').classList.toggle('hidden', !s?.background);
       add.classList.toggle('active', !!s);
       add.setAttribute('aria-pressed', String(!!s));
+      byId('playerDubAdd')?.classList.toggle('active', !!s);
       scheduleBrowserBounds();
     } });
   let chosenContext = null;
-  add.addEventListener('click', () => {
+  function chooseAudio() {
+    byId('playerMore').open = false;
     const c = context();
-    if (c.mode !== 'browser' || !c.tabId || !player.browserMediaSeen) {
-      notify('Dublaj için önce browser videosunu açın.'); return;
+    if (!c.tabId || !c.hasMedia) {
+      notify('Ses eklemek için önce bir video açın.'); return;
     }
     chosenContext = c; input.value = ''; input.click();
+  }
+  add.addEventListener('click', chooseAudio);
+  byId('playerDubAdd')?.addEventListener('click', chooseAudio);
+  function updateLocal() {
+    if (controller.session?.mode !== 'player') return;
+    controller.update({ currentTime: video.currentTime, paused: video.paused,
+      ended: video.ended, playbackRate: video.playbackRate, readyState: video.readyState });
+  }
+  for (const event of ['play','pause','seeking','seeked','timeupdate','ratechange','waiting','playing','ended','loadedmetadata']) {
+    video.addEventListener(event, updateLocal);
+  }
+  byId('playerSpeed')?.addEventListener('change', event => {
+    if (controller.session?.mode === 'player') controller.setBaseRate(Number(event.target.value));
   });
   input.addEventListener('change', async () => {
     const c = chosenContext, current = context(), file = input.files?.[0];
     if (!file || !c || c.tabId !== current.tabId || c.mediaKey !== current.mediaKey
-        || c.generation !== current.generation || current.mode !== 'browser') return;
+        || c.generation !== current.generation || current.mode !== c.mode || !current.visible) return;
     add.disabled = true;
     try {
       if (await controller.attach(file, { ...c, priorMuted: current.priorMuted })) {
         audio.volume = Number(byId('browserDubVolume').value);
         byId('browserDubOffset').value = '0';
-        controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
+        if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
           playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });
+        updateLocal();
       }
     } finally { add.disabled = false; }
   });
@@ -71,10 +102,11 @@
     attachGenerated: async (file, expected) => {
       const c = context();
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
-          || c.mode !== 'browser' || !c.visible || !c.hasMedia) return false;
+          || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
-      controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
+      if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });
+      updateLocal();
       return true;
     },
   };

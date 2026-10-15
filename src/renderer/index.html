@@ -2521,6 +2521,8 @@
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
                 <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
+                  <button type="button" class="pc-menu-item" id="playerDubAdd" role="menuitem"><span class="pc-menu-label">Ses ekle</span></button>
+                  <button type="button" class="pc-menu-item" id="playerDubGenerate" role="menuitem"><span class="pc-menu-label">Altyazıdan ses üret</span></button>
                   <button type="button" class="pc-menu-item" id="abLoopBtn" role="menuitem"
                     title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat" aria-label="A-B döngüsü noktalarını ayarla">
                     <span class="pc-menu-key" aria-hidden="true">A-B</span><span class="pc-menu-label">A-B döngüsü</span><span class="pc-menu-shortcut">B</span>
@@ -3659,7 +3661,7 @@
   <label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
   <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
   <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
-  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık YouTube videosunu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div>
+  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık videoyu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div>
   <p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
   <p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>

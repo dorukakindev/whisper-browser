@@ -4,6 +4,8 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Ses eklemek için önce bir video açın.', 'Open a video before adding audio.'],
+    ['Açık videoyu kullan', 'Use the open video'],
     ['Hesaplar', 'Accounts'],
     ['YouTube hesabını burada bağlayarak oynatıcıda aboneliklerini ve listelerini kullanabilirsin.', 'Connect your YouTube account here to use your subscriptions and playlists in the player.'],
     ['Ayrı YouTube TV penceresi', 'Separate YouTube TV window'],
