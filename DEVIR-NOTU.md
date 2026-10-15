@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-2253.md](docs/devir/2026-10-15-2253.md) — rapor433: APINEX ve videodan referans ses kütüphanesi
+Güncel çalışma: [docs/devir/2026-10-15-2326.md](docs/devir/2026-10-15-2326.md) — rapor434: YouTube referans ses bağlantısı ve görünür hata nedeni
+Önceki çalışma: [docs/devir/2026-10-15-2253.md](docs/devir/2026-10-15-2253.md) — rapor433: APINEX ve videodan referans ses kütüphanesi
 Önceki çalışma: [docs/devir/2026-10-15-1041.md](docs/devir/2026-10-15-1041.md) — rapor432: Browser tema, menü ve dar görünüm düzeni
 Önceki çalışma: [docs/devir/2026-10-15-1032.md](docs/devir/2026-10-15-1032.md) — rapor431: Oynatıcı YouTube hesabı, tema ve ses seçenekleri
 Önceki çalışma: [docs/devir/2026-10-15-1006.md](docs/devir/2026-10-15-1006.md) — rapor430: Dış rapor407 doğrulaması; başlatma/iptal, parser, kelime verisi ve Windows yolları
