@@ -17916,6 +17916,7 @@ const MEDIA_EXTS = new Set([
   'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'
 ]);
 const mediaFileAccess = new MediaFileAccess(MEDIA_EXTS);
+const dubRateTargets = new Map();
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
   authorizeSubtitle: authorizeSubtitleFile, spawn,
@@ -17923,6 +17924,47 @@ const dubService = require('./dub-service').registerDubService({
   busy: () => !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
   grantMedia: file => mediaFileAccess.grant(file),
   environment: () => withoutSecretEnv(process.env),
+  prepareBackground: async ({request,...options}) => {
+    let source;
+    if (request.backgroundSource) source = await authorizeMediaFile(request.backgroundSource);
+    else {
+      const expected = request.backgroundTab || {};
+      const tab = browserTabById(expected.tabId);
+      if (!tab || tab.generation !== expected.generation || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
+      const url = new URL(tab.view.webContents.getURL());
+      const videoId = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})(?:\/|$)/)?.[1];
+      if (url.protocol !== 'https:' || !['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname) || !/^[a-zA-Z0-9_-]{11}$/.test(videoId || '')) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
+      source = `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    return require('./dub-background').prepareBackground({...options,source,appRoot:appResourceRoot(),
+      userData:app.getPath('userData'),downloadPython:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),
+      spawn,environment:()=>withoutSecretEnv(process.env)});
+  },
+  setRate: async request => {
+    const tab = browserTabById(request.tabId);
+    if (!tab || tab.generation !== request.generation || (request.mediaId && request.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) { dubRateTargets.delete(request.tabId); return {ok:request.release===true,stale:true}; }
+    const generation = tab.generation, view = tab.view;
+    const command = token => buildBrowserMediaCommandScript('dub-rate', {
+      rate:request.rate,baseRate:Math.max(.25,Math.min(4,Number(request.baseRate)||1)),release:request.release===true,
+    },token);
+    const cached = dubRateTargets.get(request.tabId);
+    if (cached && cached.generation===generation && cached.view===view && cached.mediaId===tab.mediaId) {
+      const result = await withTimeout(cached.frame.executeJavaScript(command(cached.token),true),1000,'Dublaj hız komutu zaman aşımı.').catch(()=>null);
+      if (result?.handled) { if (request.release) dubRateTargets.delete(request.tabId); return {ok:true,media:result}; }
+    }
+    const candidates = await Promise.all(browserFrames(view).map(async frame => ({ frame,
+      media: await withTimeout(frame.executeJavaScript(buildBrowserMediaProbeScript(), true), 1000, 'Dublaj video denetimi zaman aşımı.').catch(() => null) })));
+    for (const candidate of rankBrowserMediaCandidates(candidates)) {
+      if (browserTabById(request.tabId) !== tab || tab.generation !== generation || (request.mediaId && request.mediaId !== tab.mediaId) || tab.view !== view) return {ok:false};
+      const result = await withTimeout(candidate.frame.executeJavaScript(command(candidate.media?.docToken), true), 1000, 'Dublaj hız komutu zaman aşımı.').catch(() => null);
+      if (result?.handled) {
+        if (!request.release) dubRateTargets.set(request.tabId,{frame:candidate.frame,token:candidate.media?.docToken,generation,view,mediaId:tab.mediaId});
+        else dubRateTargets.delete(request.tabId);
+        return {ok:true, media:result};
+      }
+    }
+    return {ok:false};
+  },
   shorten: async (text, seconds) => {
     const config = browserTranslationConfig();
     const problem = browserTranslationConfigProblem(config);

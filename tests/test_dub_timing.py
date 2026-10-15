@@ -15,6 +15,20 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_adaptive_timeline_keeps_speech_and_maps_video_without_overlap(self):
+        with tempfile.TemporaryDirectory() as folder:
+            a,b = Path(folder)/'a.wav',Path(folder)/'b.wav'
+            D.sf.write(a,np.ones(12000,dtype=np.float32)*.2,8000)
+            D.sf.write(b,np.ones(8000,dtype=np.float32)*.3,8000)
+            wav,timing,sync = D.build_adaptive_timeline([(0,1000,'a'),(1000,2000,'b')],
+                [a,b],8000,2,1,folder,extra_ms=0)
+            self.assertGreaterEqual(len(wav),19800)
+            self.assertEqual(timing['clipped_groups'],0)
+            self.assertEqual(timing['stretched_groups'],1)
+            self.assertAlmostEqual(sync['segments'][0]['v1'],1)
+            self.assertGreater(sync['segments'][0]['a1'],1.49)
+            self.assertEqual(sync['segments'][1]['a0'],sync['segments'][0]['a1'])
+
     def test_sentence_boundaries_abbreviations_and_continuations(self):
         cues = [(0,1000,'Dr.'),(1000,2000,'Ali geldi.'),(2000,3000,'Ama henüz bütün hazırlıklar'),
                 (3000,4000,'tamamlanmış değildi.'),(4000,4500,'Evet.')]

@@ -46,7 +46,7 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
   // Dubbing preferences persist through dub:config in dub-settings.json.
-  'dubProfile', 'dubConcurrency',
+  'dubProfile', 'dubConcurrency', 'dubTimingMode',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',
   'autoPauseCue', 'autoFollow', 'showSource', 'showTranslation', 'playerMergeCont', 'playerAudioLang',
@@ -72,7 +72,7 @@ const TRANSIENT = new Set([
   // Per-video audio and reviewed text belong to the current dubbing job.
   'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
   'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText',
-  'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd',
+  'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd', 'dubKeepBackground', 'browserDubBackgroundVolume',
   'aiChatText', 'aiContextPreview', 'appDialogInput', 'appMenu', 'appModeMenu', 'audioTrack',
   'browserAddress', 'browserAnalysisTools', 'browserCommandPaletteInput',
   'browserDiagnosticsFilter', 'browserDownloadsFilter', 'browserDownloadsSearch',

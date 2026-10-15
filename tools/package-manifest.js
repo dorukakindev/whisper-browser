@@ -65,6 +65,10 @@ const BACKEND_ENTRYPOINTS = [
 // require() veya path.join(__dirname, ...) kalıbıyla yakalanamayan dosyalar
 // (audioWorklet.addModule dizgesi, iki adımlı yol değişkeniyle spawn vb.).
 const EXTRA_FILES = [
+  'tools/voxcpm2/altyazi_oku.py',
+  'tools/voxcpm2/dub_plan.py',
+  'tools/voxcpm2/dub_timing.py',
+  'tools/voxcpm2/prepare_background.py',
   'src/renderer/live-asr-worklet.js',
 ];
 

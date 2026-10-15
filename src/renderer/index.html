@@ -1289,12 +1289,14 @@
       <div class="browser-dub-strip hidden" id="browserDubStrip">
         <strong>Dublaj</strong><span id="browserDubName" data-ui-untranslated></span>
         <label>Ses düzeyi<input id="browserDubVolume" type="range" min="0" max="1" step="0.05" value="1" /></label>
+        <label id="browserDubBackgroundControls" class="hidden">Arka plan düzeyi<input id="browserDubBackgroundVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
         <label title="Pozitif değer dublajı geciktirir">Ses kayması (sn)<input id="browserDubOffset" type="number" min="-60" max="60" step="0.1" value="0" /></label>
         <button class="btn btn-ghost btn-sm" id="browserDubRemove" type="button">Sesi kaldır</button>
         <span id="browserDubStatus" role="status" aria-live="polite"></span>
       </div>
       <input id="browserDubFile" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.opus" hidden />
       <audio id="browserDubAudio" preload="auto" hidden></audio>
+      <audio id="browserDubBackground" preload="auto" hidden></audio>
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
@@ -3607,7 +3609,7 @@
     <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
     <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
   </div>
-  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam metinle okunur; pencereye sığmazsa sonu kesilebilir.</p>
+  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
   <details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
     <p>Orijinal SRT korunur. Kısaltma önerisini kontrol edip uygula; süreye sığması tahminidir.</p>
     <button id="dubPlanPrepare" class="btn btn-secondary" type="button">Cümle planını hazırla</button>
@@ -3623,7 +3625,13 @@
   </details>
   <div class="dub-generator-row"><label for="dubProfile">Ses kalitesi</label><select id="dubProfile"><option value="quality">Kaliteli (15 adım)</option><option value="fast">Hızlı (10 adım)</option></select></div>
   <div class="dub-generator-row"><label for="dubConcurrency">Paralel üretim</label><select id="dubConcurrency"><option value="4">4 grup (az bellek)</option><option value="8">8 grup (daha fazla bellek)</option></select></div>
-  <p>Akıllı zamanlama: boşlukları kullanır, en fazla 1,25× hızlandırır; hâlâ sığmayan konuşmanın sonu kesilebilir.</p>
+  <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
+  <select id="dubTimingMode"><option value="video">Konuşmayı tam tut; videoyu yavaşlat</option><option value="clip">Video sabit; sığmayan konuşmayı kes</option></select>
+  <p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p>
+  <label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
+  <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
+  <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
+  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık YouTube videosunu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div>
   <p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
   <p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
@@ -3639,6 +3647,7 @@
 <script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
+<script src="dub-sync-map.js"></script>
 <script src="browser-dub-audio.js"></script>
 <script src="browser-dub-ui.js"></script>
 <script src="dub-generator-ui.js"></script>

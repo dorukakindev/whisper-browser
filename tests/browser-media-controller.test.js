@@ -477,6 +477,25 @@ test('Picture-in-Picture desteklenmiyorsa kullanıcıya açık hata döner', () 
   assert.match(script, /handled: false, error/);
 });
 
+asyncTest('dublaj hızı temel hız zorlamasıyla savaşmaz ve süre dolunca geri yüklenir', async () => {
+  const listeners={};let expired;
+  const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,
+    currentTime:2,duration:100,playbackRate:1,currentSrc:'same.mp4',style:{},
+    addEventListener(type,fn){listeners[type]=fn;}};
+  const h=mediaCommandHarness(video);
+  Object.assign(h.context,{setTimeout:fn=>{expired=fn;return 1;},clearTimeout:()=>{}});
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({rate:1,enforceRate:true}),h.context);
+  const result=await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  assert.equal(result.handled,true);assert.equal(video.playbackRate,.4);
+  video.playbackRate=1;listeners.ratechange();
+  assert.equal(video.playbackRate,.4);
+  expired();assert.equal(video.playbackRate,1);
+  await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  video.currentSrc='new.mp4';expired();assert.equal(video.playbackRate,1);
+  await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  video.playbackRate=2;expired();assert.equal(video.playbackRate,2,'expired lease overwrote a newer user rate');
+});
+
 Promise.all(pending).then(() => console.log(`browser-media-controller: ${passed} test`)).catch((error) => {
   console.error(error.stack || error);
   process.exitCode = 1;

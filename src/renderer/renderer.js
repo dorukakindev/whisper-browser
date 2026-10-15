@@ -7006,6 +7006,7 @@ if ($('browserFindInput')) {
 }
 
 function browserCommand(command, value, tabId = player.browserActiveTabId) {
+  if (command === 'speed' && tabId === player.browserActiveTabId) window.BrowserDubAudioUI?.setBaseRate?.(value);
   if (['play', 'pause', 'play-pause', 'seek', 'seek-relative'].includes(command)) {
     clearTimeout(player.shadowResumeTimer);
     player.shadowResumeTimer = null;

@@ -90,7 +90,7 @@ def available_window(cues, i, extra_ms=1000, limit_ms=None):
 
 def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
     """Return audio AND metrics; clipping requires explicit opt-in."""
-    if sr <= 0 or window_s <= 0 or max_speed < 1 or overflow not in ('hata', 'kirp'):
+    if sr <= 0 or window_s <= 0 or max_speed < 1 or overflow not in ('hata', 'kirp', 'uzat'):
         raise ValueError("Gecersiz zamanlama secenegi")
     wav = np.asarray(wav, dtype=np.float32)
     before = len(wav) / sr
@@ -99,24 +99,25 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
               'tempo': 1.0, 'cut_frames': 0, 'silence_trim_frames': 0, 'overrun_seconds': 0.0}
     if ratio > 1.02:
         tempo = min(ratio, max_speed)
-        src, dst = Path(tmp_dir) / f'fit_{tag}_src.wav', Path(tmp_dir) / f'fit_{tag}.wav'
-        try:
-            sf.write(str(src), wav, sr, subtype='PCM_16')
-            result = subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', str(src),
-                '-af', f'atempo={tempo:.6f}', str(dst)], capture_output=True,
-                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-            if result.returncode:
-                raise RuntimeError("FFmpeg tempo islemi basarisiz")
-            wav, rate = sf.read(str(dst), dtype='float32')
-            if rate != sr:
-                raise RuntimeError("Tempo islemi ornek hizini degistirdi")
-            report['tempo'] = tempo
-        finally:
-            src.unlink(missing_ok=True); dst.unlink(missing_ok=True)
+        if tempo > 1.001:
+            src, dst = Path(tmp_dir) / f'fit_{tag}_src.wav', Path(tmp_dir) / f'fit_{tag}.wav'
+            try:
+                sf.write(str(src), wav, sr, subtype='PCM_16')
+                result = subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', str(src),
+                    '-af', f'atempo={tempo:.6f}', str(dst)], capture_output=True,
+                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                if result.returncode:
+                    raise RuntimeError("FFmpeg tempo islemi basarisiz")
+                wav, rate = sf.read(str(dst), dtype='float32')
+                if rate != sr:
+                    raise RuntimeError("Tempo islemi ornek hizini degistirdi")
+                report['tempo'] = tempo
+            finally:
+                src.unlink(missing_ok=True); dst.unlink(missing_ok=True)
     frames = max(1, int(window_s * sr))
     excess = max(0, len(wav) - frames)
     report['overrun_seconds'] = excess / sr
-    if excess:
+    if excess and overflow != 'uzat':
         # Trimming genuinely silent padding is not cutting speech.
         silent = bool(np.max(np.abs(wav[frames:])) <= 0.001)
         if not silent and overflow == 'hata':
@@ -129,3 +130,39 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
                 wav[-fade:] *= np.linspace(1, 0, fade, dtype=np.float32)
     report['after_seconds'] = len(wav) / sr
     return wav, report
+
+
+def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_ms=2000):
+    """Keep full speech; expand audio windows and map original video to audio."""
+    chunks, segments, reports = [], [], []
+    video_cursor = 0.0
+    audio_frames = 0
+    for i, ((start_ms, _, _), path) in enumerate(zip(cues, paths)):
+        start = start_ms / 1000
+        window = available_window(cues, i, extra_ms, total_s * 1000)
+        gap = max(0, round((start - video_cursor) * sr))
+        if gap:
+            chunks.append(np.zeros(gap, dtype=np.float32)); audio_frames += gap
+        wav, rate = sf.read(str(path), dtype='float32')
+        if rate != sr or wav.ndim != 1:
+            raise ValueError('Ses parcasi ornek hizi/kanali uyumsuz.')
+        wav, report = fit_to_window(wav, sr, window, max_speed, tmp_dir, f'adaptive_{i}', 'uzat')
+        window_frames = max(round(window * sr), len(wav))
+        a0 = audio_frames / sr
+        chunks.append(wav); audio_frames += len(wav)
+        if window_frames > len(wav):
+            chunks.append(np.zeros(window_frames - len(wav), dtype=np.float32))
+            audio_frames += window_frames - len(wav)
+        stop = start + window
+        segments.append({'v0': start, 'v1': stop, 'a0': a0, 'a1': audio_frames / sr})
+        report.update(group=i + 1, start_seconds=a0, start_shift_seconds=0.0,
+                      stretch=max(1.0, window_frames / sr / window))
+        reports.append(report); video_cursor = stop
+    tail = max(0, round((total_s - video_cursor) * sr))
+    if tail: chunks.append(np.zeros(tail, dtype=np.float32))
+    audio = np.concatenate(chunks) if chunks else np.zeros(1, dtype=np.float32)
+    sync = {'version': 1, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
+    timing = {'version': 3, 'accelerated_groups': sum(r['tempo'] > 1 for r in reports),
+              'clipped_groups': 0, 'overflow_groups': 0,
+              'stretched_groups': sum(r['stretch'] > 1.001 for r in reports), 'groups': reports}
+    return audio, timing, sync

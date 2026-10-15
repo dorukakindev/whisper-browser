@@ -34,6 +34,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from dub_timing import sentence_plan, available_window, placement_window, quality_retry, TimingOverflow
 from dub_timing import fit_to_window as fit_audio
+from dub_timing import build_adaptive_timeline
 
 from kitap_ortak import (  # noqa: E402
     MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, apply_durak, assess_chunk,
@@ -295,6 +296,7 @@ def parse_args(argv=None):
     p.add_argument("--erken-pay-ms", type=int, default=300)
     p.add_argument("--tasarsa", choices=("hata", "kirp"), default="kirp")
     p.add_argument("--range-start", type=float)
+    p.add_argument("--timing-mode", choices=('clip', 'video'), default='clip')
     p.add_argument("--range-end", type=float)
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
@@ -303,6 +305,8 @@ def parse_args(argv=None):
         p.error('Baslangic ve bitis birlikte gerekli.')
     if args.range_start is not None and args.video:
         p.error('Aralik dublajini browser oynaticisinda kullanin; video gommesi desteklenmiyor.')
+    if args.timing_mode == 'video' and args.video:
+        p.error('Uyarlamali dublaji browser oynaticisinda kullanin.')
     if not args.srt.is_file() or not args.reference.is_file():
         p.error("SRT veya referans ses dosyasi bulunamadi.")
     if args.video and not args.video.is_file():
@@ -403,9 +407,16 @@ def main(argv=None):
         timeline_cues = [(s - offset_ms, e - offset_ms, t) for s, e, t in cues]
         total_s = args.range_end - args.range_start
         args.end_limit_ms = total_s * 1000
-    timeline, timing = build_timeline(timeline_cues, paths, sr, total_s, args.max_hiz, parts_dir,
-                                     overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
-                                     end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
+    sync = None
+    if args.timing_mode == 'video':
+        timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
+            args.max_hiz, parts_dir, args.bosluk_pay_ms)
+        (parts_dir / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
+        print(f"Zamanlama: {timing['accelerated_groups']} grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.", flush=True)
+    else:
+        timeline, timing = build_timeline(timeline_cues, paths, sr, total_s, args.max_hiz, parts_dir,
+                                         overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
+                                         end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
 
     stem = args.srt.stem
     sample_suffix = f"_ornek{args.limit}" if args.limit else ""
@@ -421,6 +432,8 @@ def main(argv=None):
         if normed:
             wav_path = Path(normed)
     print(f"Dublaj WAV: {wav_path}", flush=True)
+    if sync:
+        wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
 
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
                 "video_offset_seconds": args.range_start or 0,

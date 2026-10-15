@@ -6,16 +6,21 @@
   if (!audio || !input || !add) return;
   const context = () => ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, generation: browserTabState()?.generation,
+    mediaId: browserTabState()?.mediaId || '',
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
+    playbackRate: player.browserRate || 1,
     visible: !byId('playerLayer').classList.contains('hidden') });
   const notify = message => setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
+    backgroundAudio: byId('browserDubBackground'),
     mute: (id, muted) => window.api.muteBrowserTab(id, muted), error: notify,
+    setRate: request => window.api.setDubVideoRate(request),
     changed: (s, message) => {
       strip.classList.toggle('hidden', !s);
       byId('browserDubName').textContent = s?.name || '';
       byId('browserDubStatus').textContent = message;
+      byId('browserDubBackgroundControls').classList.toggle('hidden', !s?.background);
       add.classList.toggle('active', !!s);
       add.setAttribute('aria-pressed', String(!!s));
       scheduleBrowserBounds();
@@ -44,6 +49,8 @@
   });
   byId('browserDubRemove').addEventListener('click', () => void controller.remove());
   byId('browserDubVolume').addEventListener('input', e => { audio.volume = Number(e.target.value); });
+  byId('browserDubBackgroundVolume').addEventListener('input', e => { byId('browserDubBackground').volume=Number(e.target.value); });
+  byId('browserDubBackground').volume=Number(byId('browserDubBackgroundVolume').value);
   byId('browserDubOffset').addEventListener('input', e => {
     controller.offset = Math.max(-60, Math.min(60, Number(e.target.value) || 0)); controller.tick();
   });
@@ -60,6 +67,7 @@
   window.BrowserDubAudioUI = {
     stop: () => void controller.remove(), checkContext: () => controller.tick(),
     context,
+    setBaseRate: rate => controller.setBaseRate(rate),
     attachGenerated: async (file, expected) => {
       const c = context();
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation

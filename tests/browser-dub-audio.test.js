@@ -17,7 +17,7 @@ assert.equal(handler({}, 'a', true).ok, true); assert.equal(actualMute, true);
 handler({}, 'a', true); assert.equal(actualMute, true);
 handler({}, 'a'); assert.equal(actualMute, false);
 authorized = false; assert.equal(handler({}, 'a', true).ok, false); assert.equal(actualMute, false);
-function fixture({ priorMuted = false, mute } = {}) {
+function fixture({ priorMuted = false, mute, setRate, backgroundAudio } = {}) {
   const calls = [], errors = [], revoked = [];
   const c = { mode: 'browser', tabId: 'a', mediaKey: 'video', generation: 1, priorMuted };
   const audio = { currentTime: 0, duration: 100, readyState: 4, paused: true,
@@ -26,6 +26,8 @@ function fixture({ priorMuted = false, mute } = {}) {
     load() {}, removeAttribute() {} };
   let clock = 10000;
   const dub = new Dub({ audio, context: () => c, now: () => clock,
+    setRate,
+    backgroundAudio,
     urls: { createObjectURL: () => 'blob:test', revokeObjectURL: u => revoked.push(u) },
     mute: mute || (async (...args) => { calls.push(args); return { ok: true }; }),
     error: e => errors.push(e) });
@@ -58,6 +60,29 @@ function fixture({ priorMuted = false, mute } = {}) {
     assert.deepEqual(f.revoked, ['blob:test']);
   } finally { await f.dub.remove(); }
   const muted = fixture({ priorMuted: true });
+  const rates = [];
+  const adaptive = fixture({setRate:async r=>{rates.push(r);return {ok:true};}});
+  await adaptive.dub.attach({name:'full.wav',sync:{version:1,videoDuration:10,audioDuration:12,
+    segments:[{v0:0,v1:4,a0:0,a1:6}]}},adaptive.c);
+  adaptive.dub.update({currentTime:2,paused:false,playbackRate:2/3}); await flush();
+  assert.equal(adaptive.audio.currentTime,3);
+  assert.ok(Math.abs(adaptive.audio.playbackRate-1)<.001);
+  assert.ok(Math.abs(rates.at(-1).rate-2/3)<.001);
+  adaptive.advance(800); adaptive.dub.update({currentTime:7,paused:false,playbackRate:1}); await flush();
+  assert.equal(adaptive.audio.currentTime,9); assert.equal(rates.at(-1).rate,1);
+  await adaptive.dub.remove(); assert.equal(rates.at(-1).release,true);
+  const bg={...adaptive.audio,currentTime:0,duration:10,paused:true};
+  const music=fixture({backgroundAudio:bg,setRate:async()=>({ok:true})});
+  await music.dub.attach({name:'mix.wav',range:{start:20,end:30},background:{url:'file:///background.wav'},
+    sync:{version:1,videoDuration:10,audioDuration:12,segments:[{v0:0,v1:4,a0:0,a1:6}]}},music.c);
+  music.dub.update({currentTime:22,paused:false,playbackRate:2/3});await flush();await flush();
+  assert.equal(music.audio.currentTime,3);assert.equal(bg.currentTime,2);
+  assert.equal(bg.playbackRate,2/3);assert.equal(bg.paused,false);
+  music.dub.update({currentTime:22,paused:true,playbackRate:2/3});await flush();
+  assert.equal(bg.paused,true);assert.equal(music.audio.paused,true);
+  music.dub.update({currentTime:31,paused:false,playbackRate:1});await flush();
+  assert.equal(bg.paused,true);assert.deepEqual(music.calls.at(-1),['a',false]);
+  await music.dub.remove();
   const ranged = fixture();
   await ranged.dub.attach({name:'range.wav',range:{start:20,end:30}}, ranged.c);
   ranged.audio.duration = 10;

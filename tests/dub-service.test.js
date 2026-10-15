@@ -5,15 +5,23 @@ const { registerDubService } = require('../src/dub-service');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dub-service-'));
 const desktop = path.join(root, 'desktop'), engine = path.join(desktop, 'Ses', 'VoxCPM2');
 fs.mkdirSync(path.join(engine, '.venv', 'Scripts'), { recursive:true });
-for (const name of ['altyazi_oku.py','arayuz.py','anlatici_ham.wav','anlatici_ham.txt','.venv/Scripts/python.exe','.venv/Scripts/pythonw.exe']) fs.writeFileSync(path.join(engine,name), 'fixture');
+for (const name of ['altyazi_oku.py','kitap_ortak.py','arayuz.py','anlatici_ham.wav','anlatici_ham.txt','.venv/Scripts/python.exe','.venv/Scripts/pythonw.exe']) fs.writeFileSync(path.join(engine,name), 'fixture');
+fs.writeFileSync(path.join(root,'dub-settings.json'), JSON.stringify({timingMode:'clip'}));
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
+let backgroundMode='ok', rejectPreparation;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds) => { assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
+  setRate: async request=>({ok:request.rate===.8}),
+  prepareBackground: async ({output,onProcess})=>{
+    if (backgroundMode==='fail') throw new Error('fixture separation failed');
+    if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
+    fs.writeFileSync(output,'instrumental');
+  },
   spawn:(exe,args,opts)=>{
     calls.push({exe,args,opts}); child=new EventEmitter(); child.exitCode=null;
     child.stdout=new EventEmitter(); child.stderr=new EventEmitter();
@@ -99,6 +107,28 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.ok(calls.at(-1).args[0].endsWith('arayuz.py'));
     assert.equal((await call('dub:start',{id:'studio-busy',srt})).ok,false);
     child.emit('close',0); assert.equal(service.running(),false);
+    assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:.8})).ok,true);
+    assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:Infinity})).ok,false);
+    fs.unlinkSync(path.join(root,'dub-logs'));fs.mkdirSync(path.join(root,'dub-logs'));
+    assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true})).ok,true);
+    const adaptiveOutput=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(adaptiveOutput,'audio');
+    fs.writeFileSync(adaptiveOutput.replace(/\.wav$/,'.sync.json'),JSON.stringify({version:1,videoDuration:2,audioDuration:3,
+      segments:[{v0:0,v1:2,a0:0,a1:3}]}));
+    child.emit('close',0);
+    assert.equal(events.at(-1).sync.audioDuration,3);assert.ok(events.at(-1).background.url.startsWith('file:'));
+    assert.equal((await call('dub:latest')).output.sync.audioDuration,3);
+    backgroundMode='fail';
+    assert.equal((await call('dub:start',{id:'voice-fallback',srt,timingMode:'clip',keepBackground:true})).ok,true);
+    assert.ok(events.some(e=>e.id==='voice-fallback'&&e.type==='warning'));
+    fs.writeFileSync(calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1],'audio');child.emit('close',0);
+    assert.equal(events.at(-1).type,'done');assert.equal(events.at(-1).background,null);
+    backgroundMode='hold';
+    const preparing=call('dub:start',{id:'cancel-background',srt,keepBackground:true});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(service.running(),true);assert.equal((await call('dub:cancel')).ok,true);
+    rejectPreparation(new Error('cancelled'));await preparing;
+    assert.equal(events.at(-1).type,'cancelled');assert.equal(service.running(),false);
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
