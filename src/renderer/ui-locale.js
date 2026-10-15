@@ -4,6 +4,11 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Reklam engelleyici: Açık', 'Ad blocker: On'],
+    ['Reklam engelleyici: Kapalı', 'Ad blocker: Off'],
+    ['Reklam engelleyici: Hazırlanıyor…', 'Ad blocker: Preparing…'],
+    ['Reklam engelleyici: Hata · Tekrar dene', 'Ad blocker: Error · Retry'],
+    ['Reklam filtreleri yüklenemedi. Tekrar denemek için tıklayın.', 'Ad filters could not load. Click to retry.'],
     ['Ses üretimi başarısız oldu.', 'Audio generation failed.'],
     ['Sesi kullan', 'Use audio'], ['Metin / TXT stüdyosunu aç', 'Open text / TXT studio'],
     ['Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.', 'The last generated audio is ready. Use audio attaches it to the open video.'],

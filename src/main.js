@@ -543,6 +543,10 @@ protocol?.registerSchemesAsPrivileged?.([{
 // Bu Electron tercihi app.ready öncesinde uygulanmalıdır; çalışma sırasında
 // değiştirilen ayar sonraki açılışta geçerli olur. Python/CUDA'yı etkilemez.
 // Varsayılan açık: yalnız açıkça kaydedilmiş false hızlandırmayı kapatır.
+// Select an isolated test profile before reading any of its launch preferences.
+if (process.env.WHISPER_RESOURCE_SOAK_USER_DATA) {
+  try { app.setPath('userData', process.env.WHISPER_RESOURCE_SOAK_USER_DATA); } catch (_) {}
+}
 const browserHardwareAccelerationEnabled = readPublicSettings().ui?.browserHardwareAcceleration !== false;
 if (!browserHardwareAccelerationEnabled) app.disableHardwareAcceleration();
 const browserAdblockInitiallyEnabled = readPublicSettings().ui?.browserAdblockEnabled !== false;
@@ -558,9 +562,6 @@ let browserPageIndexGeneration = 0;
 // kullanici profiliyle degil, kendi verdigi gecici klasorle calistirir:
 // olcum ne kullanicinin ayarlarini/gecmisini kirletir ne de onlardan etkilenir.
 const RESOURCE_SOAK_MODE = process.env.WHISPER_RESOURCE_SOAK === '1';
-if (process.env.WHISPER_RESOURCE_SOAK_USER_DATA) {
-  try { app.setPath('userData', process.env.WHISPER_RESOURCE_SOAK_USER_DATA); } catch (_) {}
-}
 if (RESOURCE_SOAK_MODE) app.commandLine.appendSwitch('js-flags', '--expose-gc');
 const resourceSoakTracker = RESOURCE_SOAK_MODE ? createResourceTracker() : null;
 let resourceSoakPublicationCount = 0;

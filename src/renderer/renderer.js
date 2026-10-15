@@ -4106,6 +4106,7 @@ if ($('batchSize')) $('batchSize').addEventListener('input', updateGpuBadge);
 updateGpuBadge();
 
 document.addEventListener('ui-locale-change', () => {
+  syncBrowserAdblockMenu();
   updatePlayerMeta();
   if (!player.cues.length) renderCueList('');
   // Sekme şeridi observer'ın yok sayılan bölgesinde: 'New tab' etiketi ve
@@ -12405,7 +12406,11 @@ function renderBrowserAdblockState(result = {}) {
   const knownState = typeof result.enabled === 'boolean';
   const enabled = knownState ? result.enabled : !!control?.checked;
   const busy = result.state === 'loading';
-  if (knownState && control) control.checked = enabled;
+  player.browserAdblockRuntime = { ...(player.browserAdblockRuntime || {}), ...result };
+  // The checkbox is the saved user intent. A loading/error snapshot can have
+  // enabled=false while requested=true; never persist that transient false.
+  if (control && typeof result.requested === 'boolean') control.checked = result.requested;
+  else if (knownState && !busy && result.state !== 'error' && control) control.checked = enabled;
   if (control) control.disabled = busy;
   if (quick) {
     quick.disabled = busy;
@@ -12421,6 +12426,7 @@ function renderBrowserAdblockState(result = {}) {
       quick.setAttribute('aria-label', 'Reklam koruması kapalı; ayarlarda hata ayrıntısı var');
     } else syncBrowserAdblockQuick();
   }
+  syncBrowserAdblockMenu();
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
   else if (result.enabled) {
@@ -12463,11 +12469,29 @@ function syncBrowserAdblockQuick() {
   quick.setAttribute('aria-label', title);
   const label = quick.querySelector('.browser-adblock-label');
   if (label) label.textContent = uiText(globalOn && origin ? 'Bu sitede reklam koruması' : 'Reklam koruması');
+  syncBrowserAdblockMenu();
+}
+function syncBrowserAdblockMenu() {
+  const button = $('browserAdblockMenuToggle');
+  const label = $('browserAdblockMenuLabel');
+  if (!button || !label) return;
+  const runtime = player.browserAdblockRuntime || {};
+  const busy = !!$('browserAdblockEnabled')?.disabled || !!$('browserAdblockQuick')?.disabled;
+  const failed = runtime.state === 'error' || runtime.ok === false;
+  const enabled = browserAdblockSiteState().effective && runtime.enabled !== false && !failed;
+  label.textContent = uiText(busy ? 'Reklam engelleyici: Hazırlanıyor…'
+    : failed ? 'Reklam engelleyici: Hata · Tekrar dene'
+      : enabled ? 'Reklam engelleyici: Açık' : 'Reklam engelleyici: Kapalı');
+  button.disabled = busy;
+  button.setAttribute('aria-checked', busy ? 'mixed' : String(enabled));
+  button.title = failed ? uiText('Reklam filtreleri yüklenemedi. Tekrar denemek için tıklayın.')
+    : $('browserAdblockQuick')?.title || label.textContent;
 }
 async function toggleBrowserAdblockForSite() {
   const quick = $('browserAdblockQuick');
   const control = $('browserAdblockEnabled');
   if (!quick || !control || control.disabled || quick.disabled) return;
+  if (player.browserAdblockRuntime?.state === 'error') { await setBrowserAdblockEnabled(true); return; }
   const { globalOn, origin, host, siteOn } = browserAdblockSiteState();
   // Genel ayar kapalıysa site bazında açmak anlamsız: önce genel ayarı aç.
   // Site açık değilken (boş sekme) düğme genel anahtardır.
@@ -12485,6 +12509,7 @@ async function toggleBrowserAdblockForSite() {
     tab.siteOverrides = rest;
   }
   quick.disabled = true;
+  syncBrowserAdblockMenu();
   // Açarken alan silinir (genel ayarı devralır); kapatırken site profiline false yazılır.
   const result = await window.api.updateBrowserSiteProfile({
     tabId: player.browserActiveTabId, generation: tab.generation, origin,
