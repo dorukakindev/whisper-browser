@@ -56,6 +56,7 @@ const BACKEND_ENTRYPOINTS = [
   'model_benchmark.py',
   'browser_align.py',
   'separate_dialogue.py',
+  'voice_reference.py',
   'browser_media_tools.py',
   'browser_video_analysis.py',
   'catalog_scan.py',

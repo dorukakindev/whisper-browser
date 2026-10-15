@@ -42,6 +42,7 @@ test('regex ile kaçan dosyalar gerekli kümede (worklet, resolve, iki-adımlı 
     'backend/browser_align.py',
     // path.join(backend, 'separate_dialogue.py') — iki adımlı değişken
     'backend/separate_dialogue.py',
+    'backend/voice_reference.py',
   ]) {
     assert.ok(required.has(rel), `${rel} gerekli paket kümesinde yok`);
   }
