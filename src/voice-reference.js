@@ -10,7 +10,7 @@ function prepareVoiceReference({ source, start, end, reference, transcript, appR
     '--ffmpeg', ffmpeg], { cwd: appRoot, env: { ...environment(), PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }, windowsHide: true });
   onProcess(child);
   return new Promise((resolve, reject) => {
-    let pending = '', finished = false, timedOut = false;
+    let pending = '', failure = '', finished = false, timedOut = false;
     const timer = setTimeout(() => { timedOut = true; Promise.resolve(terminate(child)).catch(() => {}); }, 10 * 60 * 1000);
     const done = error => {
       if (finished) return; finished = true; clearTimeout(timer); onProcess(null);
@@ -20,11 +20,16 @@ function prepareVoiceReference({ source, start, end, reference, transcript, appR
     child.stdout.on('data', text => {
       pending = (pending + text).slice(-16384);
       const lines = pending.split(/\r?\n/); pending = lines.pop();
-      for (const line of lines) if (line.startsWith('VOICE_REFERENCE ')) status(line.slice(16).trim());
+      for (const line of lines) {
+        if (line.startsWith('VOICE_REFERENCE ')) status(line.slice(16).trim());
+        if (line.startsWith('VOICE_REFERENCE_ERROR ')) {
+          try { const value = JSON.parse(line.slice(22)); if (typeof value === 'string') failure = value.slice(0, 500); } catch (_) {}
+        }
+      }
     });
     child.once('error', () => done(new Error('Reference process could not start.')));
     child.once('close', code => done(code === 0 && !timedOut && fs.existsSync(reference) && fs.existsSync(transcript)
-      ? null : new Error(timedOut ? 'Reference preparation timed out.' : 'Reference preparation failed. Select clear speech and check the source.')));
+      ? null : new Error(timedOut ? 'Reference preparation timed out.' : failure || 'Reference preparation failed. Select clear speech and check the source.')));
   });
 }
 module.exports = { prepareVoiceReference };

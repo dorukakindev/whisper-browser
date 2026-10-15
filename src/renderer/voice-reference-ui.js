@@ -6,6 +6,17 @@
   let active = null, stopping = false, references = [], folder = '', applying = false;
   const t = value => window.UiLocale?.t(value) || value;
   const status = value => { el('voiceReferenceStatus').textContent = t(value); };
+  const failure = error => {
+    status('Referans hazırlanamadı; kaynağı ve konuşma aralığını kontrol edin.');
+    const messages = {
+      'Audio server connection failed. Check your network or proxy.': 'Ses sunucusuna bağlanılamadı. Ağ veya proxy bağlantısını kontrol edin.',
+      'YouTube rejected the audio connection; retry or use a local video.': 'YouTube ses bağlantısını reddetti. Yeniden deneyin veya yerel video kullanın.',
+      'No clear speech found; select a single speaker without music.': 'Net konuşma bulunamadı. Tek konuşmacılı ve müziksiz bir bölüm seçin.',
+      'The selected interval is outside the available audio.': 'Seçilen aralık mevcut sesin dışında.',
+      'Open the YouTube video first.': 'Önce YouTube videosunu açın.'
+    };
+    if (typeof error === 'string' && error.trim()) el('voiceReferenceStatus').textContent += ' ' + t(messages[error] || error.slice(0, 500));
+  };
   const selected = () => references.find(item => item.id === el('voiceReferenceSelect').value);
   function controls() {
     for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSelect','voiceReferenceText']) el(id).disabled = !!active || applying;
@@ -66,10 +77,10 @@
       const result = await api.prepareVoiceReference({ id, range: { start, end },
         source: context.mode === 'player' ? context.backgroundSource : '',
         context: { tabId: context.tabId, generation: context.generation, mediaId: context.mediaId } });
-      if (!result?.ok) { status(result?.cancelled ? 'Durduruldu.' : 'Referans hazırlanamadı; kaynağı ve konuşma aralığını kontrol edin.'); return; }
+      if (!result?.ok) { if (result?.cancelled) status('Durduruldu.'); else failure(result?.error); return; }
       await refresh(result.reference.id);
       status('Referans hazır. Dökümü kontrol edip Bu sesi kullan düğmesine basın.');
-    } catch (_) { status('Referans hazırlanamadı; kaynağı ve konuşma aralığını kontrol edin.'); }
+    } catch (_) { failure(); }
     finally {
       active = null; stopping = false; controls();
       window.dispatchEvent(new CustomEvent('voice-reference:busy', { detail: false }));

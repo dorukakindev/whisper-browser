@@ -2,6 +2,14 @@
 import argparse
 import math
 import os
+import json
+import sys
+import urllib.request
+from urllib.parse import urlparse
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import threading
+import secrets
 from pathlib import Path
 import subprocess
 import wave
@@ -13,11 +21,67 @@ def validate_range(start, end):
     return end - start
 
 
+@contextmanager
+def audio_relay(source, headers):
+    """Serve only the resolved audio URL; preserve FFmpeg byte-range seeking."""
+    token = '/' + secrets.token_hex(24)
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass  # Signed URLs and headers must never enter logs.
+
+        def do_HEAD(self):
+            self.forward(True)
+
+        def do_GET(self):
+            self.forward(False)
+
+        def forward(self, head):
+            if self.path != token:
+                self.send_error(404)
+                return
+            request_headers = dict(headers)
+            if self.headers.get('Range'):
+                request_headers['Range'] = self.headers['Range']
+            request = urllib.request.Request(source, headers=request_headers, method='HEAD' if head else 'GET')
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    self.send_response(response.status)
+                    for key in ('Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges'):
+                        if response.headers.get(key):
+                            self.send_header(key, response.headers[key])
+                    self.end_headers()
+                    if not head:
+                        while True:
+                            chunk = response.read(65536)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass  # FFmpeg closes an old range when it seeks.
+            except Exception:
+                self.close_connection = True
+                try:
+                    self.send_error(502, 'Audio server connection failed')
+                except OSError:
+                    pass
+
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    server.daemon_threads = True
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        yield f'http://127.0.0.1:{server.server_port}{token}'
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+
+
 def extract_clip(source, start, end, output, ffmpeg):
     duration = validate_range(start, end)
-    headers = []
+    headers = {}
+    remote = False
     if not Path(source).is_file():
-        from urllib.parse import urlparse
         parsed = urlparse(source)
         if parsed.scheme != 'https' or parsed.hostname not in ('youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'):
             raise ValueError('Unsupported reference source.')
@@ -27,23 +91,36 @@ def extract_clip(source, start, end, output, ffmpeg):
                               'format': 'bestaudio/best', 'socket_timeout': 30,
                               'retries': 2, 'js_runtimes': {'node': {}}}) as downloader:
             info = downloader.extract_info(source, download=False)
+        remote = True
         source = info.get('url') or ''
         if not source.startswith('https://'):
             raise ValueError('YouTube audio URL is unavailable.')
         for key, value in (info.get('http_headers') or {}).items():
             if not any(c in str(key) + str(value) for c in '\r\n'):
-                headers.append(f'{key}: {value}\r\n')
+                headers[str(key)] = str(value)
     output = Path(output)
     temporary = output.with_suffix('.partial.wav')
     print('VOICE_REFERENCE extract', flush=True)
     args = [ffmpeg, '-nostdin', '-hide_banner', '-loglevel', 'error', '-y']
-    if headers:
-        args += ['-headers', ''.join(headers)]
-    args += ['-ss', str(start), '-i', source, '-t', str(duration), '-vn', '-ac', '1', '-ar', '24000', str(temporary)]
-    result = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                            timeout=180, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    def run(input_source):
+        return subprocess.run(args + ['-ss', str(start), '-i', input_source, '-t', str(duration),
+                                     '-vn', '-ac', '1', '-ar', '24000', str(temporary)],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=180,
+                              creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    if remote:
+        # Python follows the same network/proxy route as yt-dlp. A local relay
+        # lets FFmpeg seek selected bytes without its separate TLS/network stack.
+        with audio_relay(source, headers) as local_source:
+            result = run(local_source)
+    else:
+        result = run(source)
     if result.returncode:
-        raise RuntimeError('Reference audio extraction failed.')
+        detail = result.stderr.decode('utf-8', 'replace').lower()
+        if '403 forbidden' in detail or '401 unauthorized' in detail:
+            raise RuntimeError('YouTube rejected the audio connection; retry or use a local video.')
+        if 'connection' in detail or 'timed out' in detail or 'error number -138' in detail:
+            raise RuntimeError('Audio server connection failed. Check your network or proxy.')
+        raise RuntimeError('Reference audio extraction failed; the source could not be read.')
     with wave.open(str(temporary), 'rb') as audio:
         actual = audio.getnframes() / audio.getframerate()
     if actual < 3 or abs(actual - duration) > 0.25:
@@ -83,4 +160,12 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        # Only controlled, URL-free diagnostic messages cross the IPC boundary.
+        message = str(error) if isinstance(error, (ValueError, RuntimeError)) else 'Reference preparation failed. Check the source and local tools.'
+        if 'http://' in message or 'https://' in message:
+            message = 'YouTube audio could not be retrieved. Check network access.'
+        print('VOICE_REFERENCE_ERROR ' + json.dumps(message[:500]), flush=True)
+        sys.exit(1)

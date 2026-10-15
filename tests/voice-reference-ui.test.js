@@ -29,6 +29,12 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(el('voiceReferenceStatus').textContent, 'Durduruluyor…');
   resolvePrepare({ ok: false, cancelled: true }); await tick();
   assert.equal(el('voiceReferenceStatus').textContent, 'Durduruldu.');
+  el('voiceReferencePrepare').click(); await tick();
+  resolvePrepare({ ok: false, error: 'Audio server connection failed. Check your network or proxy.' }); await tick();
+  assert.match(el('voiceReferenceStatus').textContent, /Ses sunucusuna bağlanılamadı/);
+  el('voiceReferencePrepare').click(); await tick();
+  resolvePrepare({ ok: false, error: '<b>untrusted</b>' }); await tick();
+  assert.equal(el('voiceReferenceStatus').children.length, 0, 'error text is never HTML');
   el('voiceReferenceEnd').value = '2:00'; el('voiceReferencePrepare').click(); await tick();
   assert.match(el('voiceReferenceStatus').textContent, /3–30/);
   console.log('voice-reference-ui: 5–25 range, GPU status, preview/use, transcript and confirmed cancellation passed');
