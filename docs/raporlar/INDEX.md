@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 423 | [BROWSER_BUG_REPORT_423.md](BROWSER_BUG_REPORT_423.md) | kesilmeyen konuşma, uyarlamalı video hızı ve arka plan katmanı |
 | 422 | [BROWSER_BUG_REPORT_422.md](BROWSER_BUG_REPORT_422.md) | seçilen aralık dublajı ve Windows CI sınırları |
 | 421 | [BROWSER_BUG_REPORT_421.md](BROWSER_BUG_REPORT_421.md) | Rapor 421 — Dublaj cümlesi ve süreye uygun metin |
 | 420 | [BROWSER_BUG_REPORT_420.md](BROWSER_BUG_REPORT_420.md) | Rapor 420 — Gerçek OmniVoice Türkçe/CUDA denemesi |

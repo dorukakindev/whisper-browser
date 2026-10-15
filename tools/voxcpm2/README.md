@@ -1,7 +1,9 @@
 # VoxCPM2 altyazı dublaj aracı
 
 Bu dosyalar Whisper uygulamasına TTS bağımlılığı eklemez. Mevcut VoxCPM2
-ortamının `altyazi_oku.py` güncellemesidir; `dub_timing.py` ve `dub_plan.py` aynı klasöre konur.
+ortamını kullanan kanonik dublaj scriptleridir. Uygulama artık bu klasördeki scripti
+`VOXCPM_ROOT` ile seçilen dış motorla çalıştırır; eski dış scriptin kopyasına bağımlı değildir.
+Bağımsız CLI kullanımında `altyazi_oku.py`, `dub_timing.py`, `dub_plan.py` birlikte motor klasörüne konabilir.
 Çalışan kitap motoru ve kişisel ses referansları değiştirilmez.
 
 Motor klasöründen mevcut venv ile:
@@ -97,7 +99,8 @@ Kaynak kimlikleri korunur. Sınır cue'nun tam metni okunur; zaman penceresi
 sınırda daraldığından sonu kırpılabilir. SRT kelime zamanlaması içermediği için
 sınırda kelimeye göre metin bölünmesi garanti edilmez.
 
-WAV yalnız 60sn içerir; başına 120sn sessizlik eklenmez. Manifest
+Sabit video modunda WAV yalnız 60sn içerir; başına 120sn sessizlik eklenmez.
+Uyarlamalı video modunda konuşmayı korumak için daha uzun olabilir. Manifest
 `video_offset_seconds` taşır; uygulamanın sonuç/logu `range` taşır. **Sesi kullan**
 çıktıyı videonun 120. saniyesine hizalar ve 180. saniyeden sonra özgün sese döner;
 geriden/ileriden aralığa yeniden sarma desteklenir. Önceden kullanıcı tarafından
@@ -105,3 +108,51 @@ sessize alınmış sekme aralık dışında da sessiz kalır. Dosyayı elle ses 
 açmak bu range metadata'sını taşımaz; otomatik bağlama veya Sesi kullan gerekir.
 CLI'da aralık WAV'ını tüm videoya gömme desteklenmez; yanlış hizalama yerine
 net hata verilir. Yeni model/bağımlılık kurulmaz.
+
+
+## Konuşmayı tam tutan video modu
+
+Uygulamada **Konuşma süreye sığmazsa → Konuşmayı tam tut; videoyu yavaşlat**
+varsayılandır. Ses doğal hızda tutulur; yetmeyen grup penceresi ses dosyasında
+uzatılır ve `<id>.sync.json` oluşturulur. **Sesi kullan**, özgün video zamanı ile
+uzatılmış ses zamanını eşler. Oynatıcı videoyu sadece gereken pencerede yavaşlatır;
+sonra seçilen temel hıza döner. Kullanıcının uygulamadaki hız kontrolü temel hızı
+günceller. Kaldırma/sekme değiştirme/reklam/pause/seek durumları yönetilir; sayfa
+hız override'ı yenilenmezse3sn sonra geri bırakılır. Müzik de video hızıyla gider.
+
+CLI varsayılan clip olarak korunur. Doğal hızla tam konuşma örneği:
+`--timing-mode video --max-hiz 1`. Video modundaki uzun WAV tek başına oynatılırsa
+video ile doğrusal senkron değildir; uygulamada Sesi kullan ve harita gerekir.
+Sabit videoya CLI gömme bu modda reddedilir. Aşırı dar pencerede oynatıcı hız
+sınırları yetmezse ses dosyası korunur ama oynatma hata vererek durabilir.
+
+Önceden kırpılmış nihai WAV kayıp sözcükleri içermez. Yeniden üretim gerekir;
+uyumlu metin/model/ayar için ham cue önbelleği varsa yeni GPU sentezi olmadan
+zaman çizelgesi yeniden kurulabilir.
+
+## Müzik ve ortam seslerini koruma
+
+**Müzik ve ortam seslerini koru** seçeneği varsayılan kapalıdır. Açık YouTube
+videosu kaynak alınır; native **Arka plan için video / ses seç** ile yerel kaynak
+verilebilir. Yalnız izinli yerel medya veya doğrulanmış YouTube kimliği kullanılır.
+YouTube sesini indirme başarısızsa yerel kaynak seçilebilir; cookie/hesap anahtarları
+bu yeni indirme yolunda kullanılmaz. Sınır gerekiyorsa aralık alanları kullanılır.
+
+Mevcut `backend/requirements-separator.lock` ile ayrı `backend/separator-venv`
+ortamı kullanılır (kurulum: mevcut `install-browser-extras.bat`). Audio Separator0.47.0
+ve `UVR_MDXNET_KARA_2.onnx` instrumental katman üretir. Bu kurulumun ayırma
+motoru CPU'dur; VoxCPM2 CUDA ortamına paket kurulmaz. İlk model indirmesi yaklaşık53MB;
+ses ayırma ek süre alır. Kaynak/ayar uyumlu arka plan önbelleği yeniden kullanılır.
+
+Konuşma tamamen yok olmayabilir, bazı efektler zayıflayabilir. Sesler hiçbir uzak
+ses işleme servisine yüklenmez; ağ yalnız YouTube kaynağı/model indirmesidir.
+Anlatıcı WAV'ı ve `<id>-background.wav` ayrı tutulur; **Sesi kullan** bunları birlikte
+oynatır. Arka plan düzeyi şeritte ayarlanır. Tek dosyalık mix/export eklenmedi.
+Arka plan ayırma başarısız olursa uyarıyla yalnız dublaj üretilir; Durdur hazırlıkta
+da etkilidir.
+
+Kısa doğrulama: gerçek yerel11sn ses+sentetik müzik instrumental üretimi ve
+1sn video penceresine3.19658sn tam konuşma/0kırpma, ayrı arka plan, geçerli harita.
+Bu, uzun YouTube videolarında kusursuz ayırma veya canlı Electron senkron kanıtı değildir.
+
+Kaynak: [Audio Separator](https://github.com/nomadkaraoke/python-audio-separator).
