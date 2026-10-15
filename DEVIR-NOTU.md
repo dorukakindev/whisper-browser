@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-0720.md](docs/devir/2026-10-15-0720.md) — rapor429: RTX4070 SUPER CUDA ayırma, seçili aralık ve görünür durdurma
+Güncel çalışma: [docs/devir/2026-10-15-1006.md](docs/devir/2026-10-15-1006.md) — rapor430: Dış rapor407 doğrulaması; başlatma/iptal, parser, kelime verisi ve Windows yolları
+Önceki çalışma: [docs/devir/2026-10-15-0720.md](docs/devir/2026-10-15-0720.md) — rapor429: RTX4070 SUPER CUDA ayırma, seçili aralık ve görünür durdurma
 Önceki çalışma: [docs/devir/2026-10-15-0707.md](docs/devir/2026-10-15-0707.md) — rapor428: Arka plan ayırma önceki CPU ortamı, GPU desteği açıklaması
 Önceki çalışma: [docs/devir/2026-10-15-0703.md](docs/devir/2026-10-15-0703.md) — rapor427: Browser Whisper ve çeviri için video başına zaman aralığı
 Önceki çalışma: [docs/devir/2026-10-15-0655.md](docs/devir/2026-10-15-0655.md) — rapor426: Sayfa menüsü reklam engelleyici Açık/Kapalı ve açık tercihinin korunması
