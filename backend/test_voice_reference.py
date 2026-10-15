@@ -1,5 +1,6 @@
 import array
 import math
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -20,7 +21,9 @@ class VoiceReferenceTests(unittest.TestCase):
                 ref.validate_range(start, end)
 
     def test_actual_selected_audio_interval(self):
-        ffmpeg = str(Path(__file__).parent / 'bin' / 'ffmpeg.exe') if sys.platform == 'win32' else shutil.which('ffmpeg')
+        ffmpeg = shutil.which(os.environ.get('WHISPER_TEST_FFMPEG', 'ffmpeg'))
+        if not ffmpeg and sys.platform == 'win32':
+            ffmpeg = str(Path(__file__).parent / 'bin' / 'ffmpeg.exe')
         self.assertTrue(ffmpeg and Path(ffmpeg).is_file(), 'ffmpeg is required for the selected-interval regression')
         with tempfile.TemporaryDirectory(prefix='referans-Türkçe-') as directory:
             source, output = Path(directory) / 'kaynak.wav', Path(directory) / 'seçilen.wav'

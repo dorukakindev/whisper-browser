@@ -61,7 +61,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   const referencesRoot = () => path.join(app.getPath('userData'), 'Referans sesler');
   function referencePaths(id) {
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id || '')) throw new Error('Invalid reference ID.');
-    const folder = path.join(referencesRoot(), id);
+    fs.mkdirSync(referencesRoot(), { recursive: true });
+    const folder = path.join(fs.realpathSync(referencesRoot()), id);
     if (fs.existsSync(folder) && fs.realpathSync(folder) !== path.resolve(folder)) throw new Error('Invalid reference folder.');
     return { folder, reference: path.join(folder, 'reference.wav'), transcript: path.join(folder, 'reference.txt'), metadata: path.join(folder, 'reference.json') };
   }
