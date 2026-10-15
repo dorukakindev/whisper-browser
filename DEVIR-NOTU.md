@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-0619.md](docs/devir/2026-10-15-0619.md) — rapor424: YouTube reklam betikleri, erken uygulama ve filtre yenileme
+Güncel çalışma: [docs/devir/2026-10-15-0627.md](docs/devir/2026-10-15-0627.md) — Devin için150 görevlik kod değiştirmeyen test paketi; ürün kodu aynı
+Önceki çalışma: [docs/devir/2026-10-15-0619.md](docs/devir/2026-10-15-0619.md) — rapor424: YouTube reklam betikleri, erken uygulama ve filtre yenileme
 Önceki çalışma: [docs/devir/2026-10-15-0558.md](docs/devir/2026-10-15-0558.md) — rapor423: kesilmeyen konuşma için video yavaşlatma ve Audio Separator arka plan katmanı
 Önceki çalışma: [docs/devir/2026-10-15-0132.md](docs/devir/2026-10-15-0132.md) — rapor 422: seçilen aralık dublajı, kısa WAV, aralık dışında özgün ses; Windows CI sınırları
 Önceki çalışma: [docs/devir/2026-10-15-0113.md](docs/devir/2026-10-15-0113.md) — rapor 421: cümle sınırları ve onaylı ayrı dublaj metni; kısa CUDA doğrulaması
