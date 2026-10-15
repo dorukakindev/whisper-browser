@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('api', {
   dubConfig: (kind) => ipcRenderer.invoke('dub:config', kind),
   listVoiceReferences: () => ipcRenderer.invoke('dub:references'),
   prepareVoiceReference: request => ipcRenderer.invoke('dub:referencePrepare', request),
+  renameVoiceReference: request => ipcRenderer.invoke('dub:referenceRename', request),
   useVoiceReference: request => ipcRenderer.invoke('dub:referenceUse', request),
   startDub: (request) => ipcRenderer.invoke('dub:start', request),
   openTextVoiceUI: () => ipcRenderer.invoke('dub:textUI'),

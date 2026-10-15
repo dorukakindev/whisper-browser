@@ -87,6 +87,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     references.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return { ok: true, folder: referencesRoot(), references, activeId: references.find(item => item.path === config().reference)?.id || '' };
   }));
+  function referenceName(raw, optional = false) {
+    if (raw == null && optional) return '';
+    if (typeof raw !== 'string' || /[\u0000-\u001f\u007f]/.test(raw) || raw.trim().length > 160) throw new Error('Check the reference name.');
+    const name = raw.trim();
+    if (!name && !optional) throw new Error('Check the reference name.');
+    return name;
+  }
+  ipcMain.handle('dub:referenceRename', guard(async (_e, request = {}) => {
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
+    const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
+    fs.writeFileSync(p.metadata, JSON.stringify({ ...meta, name }), 'utf8');
+    return { ok: true, name };
+  }));
   ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
     if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
     const entry = referenceEntry(request.id);
@@ -100,6 +114,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
     if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const name = referenceName(request.name, true);
     const range = rangeOption(request.range);
     if (!range || range.end - range.start < 3 || range.end - range.start > 30) throw new Error('Select 3–30 seconds.');
     const p = referencePaths(request.id);
@@ -116,7 +131,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (s.cancelled) throw new Error('Cancelled.');
       const text = fs.readFileSync(p.transcript, 'utf8').trim();
       if (!text || text.length > 8000 || fs.statSync(p.reference).size < 44) throw new Error('No reference speech found.');
-      fs.writeFileSync(p.metadata, JSON.stringify({ name: `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), 'utf8');
+      fs.writeFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), 'utf8');
       const reference = referenceEntry(request.id);
       finish(s, 'reference_ready');
       return { ok: true, reference };

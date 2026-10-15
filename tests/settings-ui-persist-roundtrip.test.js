@@ -74,7 +74,7 @@ const TRANSIENT = new Set([
   'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
   'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText',
   'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd', 'dubKeepBackground', 'browserDubBackgroundVolume',
-  'voiceReferenceRecorder', 'voiceReferenceStart', 'voiceReferenceEnd', 'voiceReferenceSelect', 'voiceReferenceText',
+  'voiceReferenceName', 'voiceReferenceRecorder', 'voiceReferenceStart', 'voiceReferenceEnd', 'voiceReferenceSelect', 'voiceReferenceText',
   'aiChatText', 'aiContextPreview', 'appDialogInput', 'appMenu', 'appModeMenu', 'audioTrack',
   'browserAddress', 'browserAnalysisTools', 'browserCommandPaletteInput',
   'browserDiagnosticsFilter', 'browserDownloadsFilter', 'browserDownloadsSearch',

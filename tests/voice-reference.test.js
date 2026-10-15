@@ -24,19 +24,33 @@ const tick = () => new Promise(setImmediate);
   allowed = false; assert.equal((await call('dub:references')).ok, false); allowed = true;
   assert.equal((await call('dub:referencePrepare', { ...request(), range: { start: 5, end: 40 } })).ok, false);
   assert.equal((await call('dub:referencePrepare', { ...request(), id: '../outside' })).ok, false);
-  const good = request(), result = await call('dub:referencePrepare', good);
+  const good = { ...request(), name: '  Türkçe anlatıcı  ' }, result = await call('dub:referencePrepare', good);
   assert(result.ok); assert.equal(preparation.start, 5); assert.equal(preparation.end, 25);
   assert.equal(service.running(), false);
   assert(events.some(event => event.type === 'reference_status' && event.stage === 'transcribe_cuda'));
   assert.equal((await call('dub:referencePrepare', good)).ok, false);
   const library = await call('dub:references'); assert.equal(library.references.length, 1);
   assert.equal(library.references[0].id, good.id);
+  assert.equal(library.references[0].name, 'Türkçe anlatıcı');
+  assert.equal((await call('dub:referenceRename', { id: good.id, name: '  Yeni ses adı  ' })).ok, true);
+  assert.equal((await call('dub:references')).references[0].name, 'Yeni ses adı');
+  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'Referans sesler', good.id, 'reference.json'), 'utf8'));
+  assert.equal(metadata.createdAt, library.references[0].createdAt);
+  for (const name of ['', ' ', 'x'.repeat(161), 'line\nname', 123]) {
+    assert.equal((await call('dub:referenceRename', { id: good.id, name })).ok, false);
+  }
+  assert.equal((await call('dub:referenceRename', { id: '../outside', name: 'name' })).ok, false);
+  allowed = false;
+  assert.equal((await call('dub:referenceRename', { id: good.id, name: 'blocked' })).ok, false);
+  allowed = true;
+
   assert.equal(await call('dub:referenceUse', { id: good.id, text: '' }).then(r => r.ok), false);
   assert.equal((await call('dub:referenceUse', { id: good.id, text: 'Corrected transcript.' })).ok, true);
   const saved = JSON.parse(fs.readFileSync(path.join(root, 'dub-settings.json'), 'utf8'));
   assert.equal(saved.reference, result.reference.path); assert.equal(fs.readFileSync(saved.transcript, 'utf8'), 'Corrected transcript.');
   mode = 'hold'; const pending = call('dub:referencePrepare', request()); await tick();
   assert.equal(service.running(), true);
+  assert.equal((await call('dub:referenceRename', { id: good.id, name: 'busy' })).ok, false);
   assert.equal((await call('dub:referencePrepare', request())).ok, false);
   assert.equal((await call('dub:start', { id: 'blocked' })).ok, false);
   assert.equal((await call('dub:referenceUse', { id: good.id })).ok, false);
