@@ -349,6 +349,21 @@ test('reklam sinyali yokken normal içerik reklam sayılmaz', () => {
   assert.equal(result.adRemaining, null);
 });
 
+asyncTest('gizli ilk Atla düğmesi görünür sonraki düğmeyi engellemez', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15, muted: false, volume: 1 };
+  let clicks = 0;
+  const hidden = { isConnected: true, getClientRects: () => [] };
+  const visible = { ...visibleAdElement(), click: () => { clicks++; } };
+  const harness = mediaCommandHarness(video, { '.ytp-ad-skip-button': hidden });
+  harness.context.document.querySelectorAll = (selector) => selector === 'video,audio' ? [video]
+    : selector === '.ytp-ad-skip-button' ? [hidden, visible] : [];
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd', 0), harness.context);
+  assert.equal(result.adAction, 'clicked');
+  assert.equal(clicks, 1);
+  assert.equal(video.currentTime, 2, 'visible skip must win over seeking the ad');
+});
+
 test('açık reklam sayacı kalan saniyeye çevrilir', () => {
   const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15 };

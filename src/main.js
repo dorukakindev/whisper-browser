@@ -3930,6 +3930,9 @@ function ensureBrowserAdblockController() {
       cachePath: path.join(app.getPath('userData'), 'browser-adblock-engine.bin'),
       initialEnabled: browserAdblockInitiallyEnabled,
       logger: console,
+      onStateChanged: publishBrowserAdblockState,
+      getOpenPages: () => [...browserTabs.values()].map(tab => tab.view?.webContents)
+        .filter(contents => contents && !contents.isDestroyed()),
       isSitePaused: (details = {}) => {
         const tab = [...browserTabs.values()].find((item) => item.view
           && !item.view.webContents.isDestroyed() && item.view.webContents.id === Number(details.webContentsId));

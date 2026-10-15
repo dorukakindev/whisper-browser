@@ -9,6 +9,7 @@ const {
   DEFAULT_CACHE_TTL_MS,
   createBrowserAdblock,
   loadEngine,
+  fetchWithTimeout,
 } = require('../src/browser-adblock');
 
 class FakeEngine extends EventEmitter {
@@ -75,6 +76,20 @@ class FakeEngine extends EventEmitter {
     assert.equal(stale.source, 'cache');
     assert.equal(stale.stale, true);
     assert.equal(builds, 2, 'stale cache should first attempt a refresh');
+
+    await assert.rejects(fetchWithTimeout(async () => ({ ok: false, status: 503 }), 100)(
+      'https://filters.invalid/list'), /HTTP 503/);
+    let signal;
+    const bodyTimeout = fetchWithTimeout(async (_url, options) => {
+      signal = options.signal;
+      return { ok: true, text: () => new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      }) };
+    }, 10);
+    // Keep this unit-test process alive while the production timer is unref'ed.
+    const keepAlive = setTimeout(() => {}, 1000);
+    try { await assert.rejects(bodyTimeout('https://filters.invalid/list'), /zaman aşımı/); }
+    finally { clearTimeout(keepAlive); }
 
     const session = { name: 'persist:whisper-browser' };
     const controller = createBrowserAdblock({
@@ -162,6 +177,72 @@ class FakeEngine extends EventEmitter {
     cosmeticUrl = 'https://site.test/watch/3';
     await cosmeticEngine.onInjectCosmeticFilters({ sender: wc }, cosmeticUrl, '.ad {display:none}');
     assert.equal(cosmeticWarnings.length, 2, 'beklenen gezinme yarışı hata olarak yazıldı');
+
+    const frameCalls = [];
+    const frameUrl = 'https://www.youtube.com/watch?v=public';
+    let failRefresh = false;
+    class FrameEngine extends FakeEngine {
+      enableBlockingInSession(target) {
+        if (this.failEnable) throw new Error('fixture enable failed');
+        super.enableBlockingInSession(target);
+      }
+      async onInjectCosmeticFilters(event) {
+        await event.sender.executeJavaScript('wrap-fetch');
+        await event.sender.insertCSS('hide-home-ads');
+      }
+    }
+    const frameController = createBrowserAdblock({
+      cachePath: path.join(tempRoot, 'frame.bin'),
+      blockerClass: class { static async fromPrebuiltAdsOnly() {
+        lastEngine = new FrameEngine(); lastEngine.failEnable = failRefresh; return lastEngine;
+      } },
+      fetchImpl: async () => ({ ok: true }), isSitePaused: () => false,
+    });
+    await frameController.setEnabled(session, true);
+    const frameEngine = lastEngine;
+    const senderFrame = { url: frameUrl, isDestroyed: () => false,
+      executeJavaScript: async (code) => frameCalls.push(code) };
+    const sender = new EventEmitter();
+    Object.assign(sender, { id: 44, isDestroyed: () => false, isLoading: () => true,
+      getURL: () => frameUrl,
+      executeJavaScript: () => { throw new Error('must not wait for full page load'); },
+      insertCSS: async (css) => frameCalls.push(css) });
+    await frameEngine.onInjectCosmeticFilters({ sender, senderFrame }, frameUrl);
+    assert.match(frameCalls[0], /^\(function \(\) \{\nwrap-fetch\n\}\)\(\);$/);
+    assert.equal(frameCalls[1], 'hide-home-ads');
+    assert.equal(sender.listenerCount('did-stop-loading'), 0);
+    senderFrame.url = 'https://example.com/new-document';
+    await frameEngine.onInjectCosmeticFilters({ sender, senderFrame }, frameUrl);
+    assert.equal(frameCalls.length, 2, 'old frame URL must not inject into a new document');
+    const beforeRefresh = frameEngine;
+    const refreshed = await frameController.refresh();
+    assert.equal(refreshed.changed, true);
+    assert.equal(beforeRefresh.enabledSessions.size, 0);
+    assert.equal(lastEngine.enabledSessions.has(session), true);
+    const afterRefresh = lastEngine;
+    failRefresh = true;
+    const rollback = await frameController.refresh();
+    assert.equal(rollback.enabled, true, 'failed update must keep previous protection');
+    assert.equal(rollback.stale, true);
+    assert.equal(afterRefresh.enabledSessions.has(session), true);
+    const failedReplacement = lastEngine;
+    await frameController.setEnabled(session, false);
+    await frameController.refresh();
+    assert.equal(lastEngine, failedReplacement, 'disabled protection must not refresh or re-enable');
+
+    senderFrame.url = frameUrl;
+    const lateController = createBrowserAdblock({
+      cachePath: path.join(tempRoot, 'late.bin'), isSitePaused: () => false,
+      getOpenPages: () => [sender],
+      blockerClass: class { static async fromPrebuiltAdsOnly() { return new FrameEngine(); } },
+      fetchImpl: async () => ({ ok: true }),
+    });
+    sender.mainFrame = senderFrame;
+    const previousCalls = frameCalls.length;
+    await lateController.setEnabled(session, true);
+    await new Promise(setImmediate);
+    assert.equal(frameCalls.length, previousCalls + 2, 'first open page missed late session preload');
+    await lateController.setEnabled(session, false);
     lastEngine.emit('request-blocked');
     assert.equal(controller.getState().blocked, 0);
     const unchanged = await controller.setEnabled(session, true);

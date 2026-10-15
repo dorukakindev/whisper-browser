@@ -329,14 +329,19 @@ function controllerBootstrap() {
       '.ytp-ad-text',
     ];
     const visibleElement = (selector) => {
-      const element = document.querySelector?.(selector) || null;
-      if (!element || element.isConnected === false) return null;
-      if (typeof element.getClientRects === 'function' && element.getClientRects().length === 0) return null;
-      if (typeof getComputedStyle === 'function') {
-        const style = getComputedStyle(element);
-        if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') return null;
+      const first = document.querySelector?.(selector);
+      if (!first) return null;
+      const matches = [first, ...(document.querySelectorAll?.(selector) || [])];
+      for (const element of matches) {
+        if (!element || element.isConnected === false) continue;
+        if (typeof element.getClientRects === 'function' && element.getClientRects().length === 0) continue;
+        if (typeof getComputedStyle === 'function') {
+          const style = getComputedStyle(element);
+          if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') continue;
+        }
+        return element;
       }
-      return element;
+      return null;
     };
     const firstVisible = (selectors) => {
       for (const selector of selectors) {
