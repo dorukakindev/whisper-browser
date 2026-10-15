@@ -3663,9 +3663,9 @@ function endpointPresetRecommendedModel(preset) {
   const endpoint = String(preset?.value || preset || '').trim().replace(/\/+$/, '');
   if (endpoint === 'https://codecraftapi.com/v1') return 'gemini-3.7-flash';
   if (endpoint === 'https://4sapi.com/v1') return 'gemini-3.8-flash';
+  if (endpoint === 'https://api.apinex.bond/v1') return 'free/deepseek-v4-pro-0813';
   return '';
 }
-
 function clearBrowserTranslationError(options = {}) {
   const previous = String(player.browserTranslationLastError || '').trim();
   player.browserTranslationLastError = '';

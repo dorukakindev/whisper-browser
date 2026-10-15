@@ -388,6 +388,12 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .dub-generator-row .btn { flex: 0 0 auto; }
 .dub-generator-row span { min-width: 0; overflow-wrap: anywhere; }
 .dub-generator progress { width: 100%; accent-color: var(--accent); }
+#voiceReferenceRecorder { margin-block: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+#voiceReferenceRecorder > summary { cursor: pointer; }
+#voiceReferenceRecorder audio, #voiceReferenceRecorder textarea, #voiceReferenceSelect { width: 100%; margin-block: 8px; }
+#voiceReferenceRecorder textarea, #voiceReferenceRecorder input { color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); padding: 8px; font: inherit; }
+#voiceReferenceRecorder input { width: 88px; }
+#voiceReferenceRecorder textarea { resize: vertical; }
 .dub-generator select { min-height: 34px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); color: var(--text); font: inherit; }
 .dub-generator select:disabled { opacity: .65; }
 #browserDubName { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -824,6 +824,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash" selected>4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -890,6 +891,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash">4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -901,6 +903,7 @@
                 <span class="field-label">Manga modeli</span>
                 <input type="text" id="mangaModel" placeholder="Boşsa altyazı modeli kullanılır" list="translationModelSuggestions" />
                 <datalist id="translationModelSuggestions">
+                  <option value="free/deepseek-v4-pro-0813"></option>
                   <option value="gpt-5.4"></option>
                   <option value="gemini-3.8-flash"></option>
                 </datalist>
@@ -1387,6 +1390,7 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7M16 14h1"/></svg></span>
                       <span class="browser-menu-label">Altyazı ve çeviri</span>
                     </button>
+                    <button type="button" role="menuitem" id="browserVoiceReferenceOpen">Videodan referans ses al</button>
                         <div class="browser-menu-separator" role="separator"></div>
                     <div class="browser-menu-group-label">Whisper altyazı</div>
                     <button type="button" id="browserWhisperSubtitlesMenu" role="menuitem" data-browser-proxy="browserWhisperSubtitles"
@@ -2526,6 +2530,7 @@
                 <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
                   <button type="button" class="pc-menu-item" id="playerDubAdd" role="menuitem"><span class="pc-menu-label">Ses ekle</span></button>
                   <button type="button" class="pc-menu-item" id="playerDubGenerate" role="menuitem"><span class="pc-menu-label">Altyazıdan ses üret</span></button>
+                  <button type="button" class="pc-menu-item" id="playerVoiceReferenceOpen" role="menuitem"><span class="pc-menu-label">Videodan referans ses al</span></button>
                   <button type="button" class="pc-menu-item" id="abLoopBtn" role="menuitem"
                     title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat" aria-label="A-B döngüsü noktalarını ayarla">
                     <span class="pc-menu-key" aria-hidden="true">A-B</span><span class="pc-menu-label">A-B döngüsü</span><span class="pc-menu-shortcut">B</span>
@@ -3636,6 +3641,22 @@
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
   </details>
   <label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce kısa örnek üret (ilk 11 satır)</label>
+  <details id="voiceReferenceRecorder">
+    <summary>Videodan referans ses al</summary>
+    <p>Tek konuşmacılı, müziksiz 3–30 saniye seçin. Hazırlanınca sesi dinleyip dökümü kontrol edin.</p>
+    <div class="dub-generator-row">
+      <label for="voiceReferenceStart">Başlangıç (dk:sn)</label><input id="voiceReferenceStart" type="text" value="0:05" maxlength="16" data-ui-untranslated />
+      <label for="voiceReferenceEnd">Bitiş (dk:sn)</label><input id="voiceReferenceEnd" type="text" value="0:25" maxlength="16" data-ui-untranslated />
+    </div>
+    <div class="dub-generator-row"><button id="voiceReferencePrepare" type="button" class="btn btn-secondary">Referans sesi hazırla</button><button id="voiceReferenceCancel" type="button" class="btn btn-ghost" disabled>Durdur</button></div>
+    <p id="voiceReferenceStatus" role="status" aria-live="polite">Hazır</p>
+    <label for="voiceReferenceSelect">Referans sesler</label>
+    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select>
+    <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
+    <label for="voiceReferenceText">Referans dökümü</label>
+    <textarea id="voiceReferenceText" rows="3" maxlength="8000" data-ui-untranslated></textarea>
+    <div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div>
+  </details>
   <label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
   <div class="dub-generator-row dub-range-row">
     <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
@@ -3684,6 +3705,7 @@
 <script src="browser-dub-audio.js"></script>
 <script src="browser-dub-ui.js"></script>
 <script src="dub-generator-ui.js"></script>
+<script src="voice-reference-ui.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>
 <script src="browser-analysis-tools.js"></script>

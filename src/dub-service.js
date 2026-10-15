@@ -6,7 +6,7 @@ const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference }) {
   let job = null;
   let textUI = null;
   const plans = new Map();
@@ -58,6 +58,72 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
     try { return await fn(e, ...args); } catch (error) { return { ok: false, error: error.message }; }
   };
+  const referencesRoot = () => path.join(app.getPath('userData'), 'Referans sesler');
+  function referencePaths(id) {
+    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id || '')) throw new Error('Invalid reference ID.');
+    const folder = path.join(referencesRoot(), id);
+    if (fs.existsSync(folder) && fs.realpathSync(folder) !== path.resolve(folder)) throw new Error('Invalid reference folder.');
+    return { folder, reference: path.join(folder, 'reference.wav'), transcript: path.join(folder, 'reference.txt'), metadata: path.join(folder, 'reference.json') };
+  }
+  function referenceEntry(id) {
+    const p = referencePaths(id);
+    for (const file of [p.reference, p.transcript, p.metadata]) {
+      if (!fs.statSync(file).isFile() || fs.realpathSync(file) !== path.resolve(file)) throw new Error('Invalid reference file.');
+    }
+    if (fs.statSync(p.transcript).size > 32000 || fs.statSync(p.metadata).size > 4000) throw new Error('Invalid reference metadata.');
+    const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
+    grantMedia(p.reference);
+    return { id, name: String(meta.name || id).slice(0, 160), createdAt: String(meta.createdAt || ''), path: p.reference,
+      url: pathToFileURL(p.reference).href, text: fs.readFileSync(p.transcript, 'utf8'), folder: p.folder };
+  }
+  ipcMain.handle('dub:references', guard(async () => {
+    fs.mkdirSync(referencesRoot(), { recursive: true });
+    const references = [];
+    for (const id of fs.readdirSync(referencesRoot()).sort().reverse()) {
+      try { references.push(referenceEntry(id)); } catch (_) {}
+      if (references.length === 100) break;
+    }
+    references.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { ok: true, folder: referencesRoot(), references, activeId: references.find(item => item.path === config().reference)?.id || '' };
+  }));
+  ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const entry = referenceEntry(request.id);
+    const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
+    if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
+    const p = referencePaths(request.id), c = config();
+    fs.writeFileSync(p.transcript, text, 'utf8');
+    c.reference = p.reference; c.transcript = p.transcript;
+    fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
+    return { ok: true };
+  }));
+  ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const range = rangeOption(request.range);
+    if (!range || range.end - range.start < 3 || range.end - range.start > 30) throw new Error('Select 3–30 seconds.');
+    const p = referencePaths(request.id);
+    if (fs.existsSync(p.folder)) throw new Error('Reference already exists.');
+    if (typeof prepareReference !== 'function') throw new Error('Reference capture is unavailable.');
+    const s = { id: request.id, sender: e.sender, proc: null, cancelled: false,
+      started: performance.now(), startedAt: new Date().toISOString(), settings: { kind: 'reference', range } };
+    job = s;
+    try {
+      fs.mkdirSync(p.folder, { recursive: true });
+      s.logPath = path.join(p.folder, 'events.ndjson'); s.summaryPath = path.join(p.folder, 'job.json');
+      await prepareReference({ request, ...p, ...range, onProcess: proc => { s.proc = proc; },
+        isCancelled: () => s.cancelled, status: stage => emit(s, 'reference_status', { stage }) });
+      if (s.cancelled) throw new Error('Cancelled.');
+      const text = fs.readFileSync(p.transcript, 'utf8').trim();
+      if (!text || text.length > 8000 || fs.statSync(p.reference).size < 44) throw new Error('No reference speech found.');
+      fs.writeFileSync(p.metadata, JSON.stringify({ name: `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), 'utf8');
+      const reference = referenceEntry(request.id);
+      finish(s, 'reference_ready');
+      return { ok: true, reference };
+    } catch (error) {
+      finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message });
+      return { ok: false, cancelled: s.cancelled, error: error.message };
+    } finally { if (job === s) job = null; }
+  }));
   ipcMain.handle('dub:rate', guard(async (_e, request = {}) => {
     if (typeof setRate !== 'function' || !Number.isFinite(request.rate) || request.rate < .0625 || request.rate > 4
         || !Number.isInteger(request.generation) || typeof request.tabId !== 'string') throw new Error('Geçersiz dublaj hız isteği.');

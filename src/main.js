@@ -17966,6 +17966,24 @@ const dubService = require('./dub-service').registerDubService({
   busy: () => !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
   grantMedia: file => mediaFileAccess.grant(file),
   environment: () => withoutSecretEnv(process.env),
+  prepareReference: async options => {
+    const request = options.request;
+    let source;
+    if (request.source) source = await authorizeMediaFile(request.source);
+    else {
+      const expected = request.context || {}, tab = browserTabById(expected.tabId);
+      if (!tab || tab.generation !== expected.generation || (expected.mediaId && expected.mediaId !== tab.mediaId)
+          || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Open the YouTube video first.');
+      const url = new URL(tab.view.webContents.getURL());
+      const id = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})(?:\/|$)/)?.[1];
+      if (url.protocol !== 'https:' || !['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname)
+          || !/^[a-zA-Z0-9_-]{11}$/.test(id || '')) throw new Error('Open the YouTube video first.');
+      source = `https://www.youtube.com/watch?v=${id}`;
+    }
+    return require('./voice-reference').prepareVoiceReference({ ...options, source,
+      appRoot: appResourceRoot(), python: resolvePython(), ffmpeg: resolveFfTool('ffmpeg'), spawn,
+      terminate: proc => terminateProcessTree(proc, { spawn }), environment: () => withoutSecretEnv(process.env) });
+  },
   prepareBackground: async ({request,...options}) => {
     let source;
     if (request.backgroundSource) source = await authorizeMediaFile(request.backgroundSource);

@@ -6,6 +6,7 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '';
+  let referenceBusy = false;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
   function timecode(value) {
     const text = value.trim();
@@ -36,8 +37,8 @@
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
-    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode']) el(id).disabled = !!current;
-    el('dubGeneratorStart').disabled = !!current || planning || !srt || !cfg?.ready;
+    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode']) el(id).disabled = !!current || referenceBusy;
+    el('dubGeneratorStart').disabled = !!current || referenceBusy || planning || !srt || !cfg?.ready;
     el('dubPlanPrepare').disabled = !!current || planning || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = !!current || planning || !plan;
     el('dubChooseSrt').disabled = !!current || planning;
@@ -80,6 +81,8 @@
     }
   }
   el('browserDubGenerate').addEventListener('click', open);
+  window.addEventListener('voice-reference:changed', () => { void configure(); });
+  window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
   el('dubGeneratorClose').addEventListener('click', () => modal.close());

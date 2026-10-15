@@ -131,6 +131,7 @@ const ENDPOINT_PRESETS = new Set([
   'https://api.shuaiapi.com/v1', 'https://oai.sb/v1', 'https://api.oai.sb/v1',
   'https://cdn.shuaiapi.com/v1', 'https://api.openai.com/v1', 'https://api.deepseek.com',
   'https://codecraftapi.com/v1', 'https://4sapi.com/v1',
+  'https://api.apinex.bond/v1',
   'https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1',
   'https://generativelanguage.googleapis.com/v1beta/openai', 'custom',
 ]);

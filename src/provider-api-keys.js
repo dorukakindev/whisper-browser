@@ -11,6 +11,7 @@
     'oai.sb': 'shuaiapi',
     'api.oai.sb': 'shuaiapi',
     'codecraftapi.com': 'codecraftapi',
+    'api.apinex.bond': 'apinex',
     '4sapi.com': '4sapi',
     '4sapi.org': '4sapi',
     '4sapi.cn': '4sapi',
