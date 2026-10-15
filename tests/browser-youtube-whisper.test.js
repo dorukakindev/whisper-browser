@@ -32,6 +32,9 @@ vm.runInContext(section('function progressiveRanges(', 'async function startProg
 vm.runInContext(section('function cueKey(', 'function progressiveRanges('), ctx);
 vm.runInContext(section('async function handleProgressiveTerminal(', 'function playerJobEvent('), ctx);
 vm.runInContext(section('function currentBrowserYoutubeUrl(', 'async function exportBrowserAbClip('), ctx);
+vm.runInContext(section('function currentBrowserWhisperRange(', 'function openBrowserWhisperRangeSettings('), ctx);
+vm.runInContext(section('function parseClipInput(', "['clipStart', 'clipEnd']"), ctx);
+ctx.uiText = text => text;
 vm.runInContext(section('async function startProgressivePlayerTranscription(', '// "Altyazı oluştur"'), ctx);
 (async () => {
   assert.equal(ctx.currentBrowserYoutubeUrl(), 'https://www.youtube.com/watch?v=abcdefghijk');
@@ -79,6 +82,29 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   await ctx.startBrowserYoutubeWhisper(true);
   assert.equal(node('makeTransBtn').clicks, 1, 'geciken kaynak yeni sekmede çeviri başlattı');
   ctx.player.browserActiveTabId = 'a';
+  ctx.state.running = false;
+  ctx.player.browserWhisperRange = { url: ctx.currentBrowserYoutubeUrl(), range: { start: 120, end: 600 } };
+  await ctx.startBrowserYoutubeWhisper(true);
+  assert.equal(calls.length, 3, 'a selected range must bypass reusable full-video source');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[2].ranges)), [{ start: 120, end: 600 }]);
+  assert.equal(calls[2].baseOpts.translate, true);
+  assert.equal(calls[2].clipRange.start, 120);
+  let submitted;
+  ctx.startTranscribeSafe = async opts => { submitted = opts; return { ok: true }; };
+  vm.runInContext(section('async function startProgressiveChunk(', 'async function finishProgressiveJob('), ctx);
+  await ctx.startProgressiveChunk(ctx.player.job);
+  assert.equal(submitted.clipStart, 120);
+  assert.equal(submitted.clipEnd, 600);
+  assert.equal(submitted.translate, true, 'same clipped transcription job must request translation');
+  ctx.startProgressiveChunk = async job => calls.push(job);
+  assert.equal(ctx.validateBrowserWhisperRange(true, '0:00', '10:00', 1800).range.end, 600);
+  for (const [a,b] of [['10:00','0:00'],['bad','10:00'],['0:00','40:00'],['','10:00']]) {
+    assert(ctx.validateBrowserWhisperRange(true,a,b,1800).error);
+  }
+  assert.equal(ctx.validateBrowserWhisperRange(false, '', '', 1800).range, null);
+  ctx.player.browserWhisperRange.url = 'https://www.youtube.com/watch?v=another';
+  assert.equal(ctx.currentBrowserWhisperRange(), null, 'range must not leak to another video');
+  ctx.state.running = false;
   ctx.browserSubtitleSync = { hashText: text => Buffer.from(text).toString('hex') };
   ctx.renderBrowserTracks = () => {};
   vm.runInContext(section('function registerCompletedBrowserOutputs(', 'async function attachCompletedJobSubtitles('), ctx);
@@ -88,6 +114,9 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(registered.sourceTrackId, 'src', 'çeviri mevcut kaynak izinden koptu');
   assert.equal(registered.status, 'partial');
   assert.equal(registered.failed, 2);
+  ctx.registerCompletedBrowserOutputs({ items: [{ role: 'source', path: 'range.srt' }] },
+    { workspaceMode: 'browser', browserTabId: 'a', mediaKey: ctx.player.mediaKey, clipRange: { start: 120, end: 600 } });
+  assert.equal(ctx.player.browserTracks.find(t => t.path === 'range.srt').generatedBy, 'whisper-range', 'partial video output must not masquerade as reusable full-video output');
   const before = ctx.player.browserTracks.length;
   ctx.registerCompletedBrowserOutputs({ items: [{ role: 'translation', path: 'wrong.srt' }] },
     { workspaceMode: 'browser', browserTabId: 'other', mediaKey: ctx.player.mediaKey });

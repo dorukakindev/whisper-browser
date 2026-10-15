@@ -7233,3 +7233,9 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 #dubTextEditor textarea { resize: vertical; min-height: 72px; color: var(--text); background: var(--bg); font: inherit; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
 .dub-range-row input { width: 100px; max-width: 100%; box-sizing: border-box; color: var(--text); background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit; }
 .dub-range-row { flex-wrap: wrap; }
+.browser-whisper-action-row { display: flex; align-items: center; gap: 4px; }
+.browser-whisper-action-row #browserWhisperTranslateMenu { flex: 1; min-width: 0; }
+.browser-whisper-action-row #browserWhisperRangeSettings { width: 36px; flex: 0 0 36px; justify-content: center; padding: 8px; }
+#browserWhisperRangeDialog .dub-generator-options { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 12px; margin: 16px 0; }
+#browserWhisperRangeDialog input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+#browserWhisperRangeError { color: var(--danger); }

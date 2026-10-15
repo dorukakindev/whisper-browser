@@ -69,6 +69,7 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  'browserWhisperRangeEnabled', 'browserWhisperRangeStart', 'browserWhisperRangeEnd',
   // Per-video audio and reviewed text belong to the current dubbing job.
   'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
   'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText',

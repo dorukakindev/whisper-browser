@@ -5007,7 +5007,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       label: labelParts.join(' · '),
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
-      generatedBy: item.generatedBy || job.generatedBy || 'whisper',
+      generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper',
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
@@ -11384,7 +11384,8 @@ async function startBrowserYoutubeWhisper(translate) {
     setBrowserSignal('Whisper işlemi için browser içinde bir YouTube video sayfası açın.', false);
     return;
   }
-  const reusableTranslation = translate ? player.browserTracks.find((track) =>
+  const clipRange = currentBrowserWhisperRange();
+  const reusableTranslation = translate && !clipRange ? player.browserTracks.find((track) =>
     track.generatedBy === 'whisper' && track.role === 'translation' && track.path
       && track.language === ($('translateTo')?.value || 'tr')
       && track.status === 'complete' && !Number(track.failed)) : null;
@@ -11397,7 +11398,7 @@ async function startBrowserYoutubeWhisper(translate) {
       { priority: 70, holdMs: 5000 });
     return;
   }
-  const reusableSource = player.browserTracks.find((track) =>
+  const reusableSource = !clipRange && player.browserTracks.find((track) =>
     track.generatedBy === 'whisper' && track.role === 'source' && track.path);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
@@ -11419,6 +11420,7 @@ async function startBrowserYoutubeWhisper(translate) {
   await startProgressivePlayerTranscription({
     browserYoutube: true,
     translateOverride: !!translate,
+    clipRange,
   });
 }
 
@@ -25338,13 +25340,14 @@ async function startProgressivePlayerTranscription(config = {}) {
   }
 
   const video = $('playerVideo');
-  const ranges = progressiveRanges(
+  const ranges = browserYoutube && config.clipRange ? [config.clipRange] : progressiveRanges(
     browserYoutube ? Number(player.browserDuration) : Number(video && video.duration),
     browserYoutube ? Number(player.browserTime) : Number(video && video.currentTime));
   // Her aşamalı çalışma kendi dosyasına yazar. Aynı başlıklı hazır bir .srt
   // artık ara bölüm veya son birkaç saniyelik iş tarafından ezilemez.
   opts.outputNameSuffix = `-whisper-${Date.now().toString(36)}`;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
+    clipRange: browserYoutube ? config.clipRange || null : null,
     startedAt: Date.now(), percent: 0,
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
     sourceFile: '', translationFile: '', awaitingExit: false,
@@ -25372,7 +25375,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   const actionLabel = opts.translate ? 'Whisper altyazı + çeviri' : 'Whisper altyazı';
   logLine(ranges.length > 1
     ? `${actionLabel} başlatıldı · ${ranges.length} aşama`
-    : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
+    : config.clipRange ? `${actionLabel} · ${config.clipRange.start}–${config.clipRange.end} sn`
+      : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
   if (browserYoutube) {
     setBrowserSignal(`${actionLabel} başlatıldı; çıktı bu YouTube sekmesine otomatik yüklenecek.`, true,
       { priority: 70, holdMs: 4000 });
@@ -32611,4 +32615,54 @@ function setupRovingTablists() {
 }
 
 setupRovingTablists();
+// Range choices belong to a video and session, never to all subsequent videos.
+function currentBrowserWhisperRange() {
+  const saved = player.browserWhisperRange;
+  return saved?.url === currentBrowserYoutubeUrl() ? saved.range : null;
+}
+function validateBrowserWhisperRange(enabled, startText, endText, duration) {
+  if (!enabled) return { range: null };
+  const start = parseClipInput(startText), end = parseClipInput(endText);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+    return { error: uiText('Geçerli bir başlangıç ve bitiş girin. Bitiş başlangıçtan büyük olmalı.') };
+  }
+  if (Number.isFinite(duration) && duration > 0 && (start >= duration || end > duration + 0.5)) {
+    return { error: uiText('Seçilen aralık video süresini aşıyor.') };
+  }
+  return { range: { start, end } };
+}
+function openBrowserWhisperRangeSettings() {
+  closeBrowserToolbarMenus();
+  const modal = $('browserWhisperRangeDialog');
+  modal.dataset.videoUrl = currentBrowserYoutubeUrl();
+  const range = currentBrowserWhisperRange();
+  $('browserWhisperRangeEnabled').checked = !!range;
+  $('browserWhisperRangeStart').value = range ? pSecToTime(range.start) : '0:00';
+  $('browserWhisperRangeEnd').value = range ? pSecToTime(range.end) : pSecToTime(Math.min(600, (!player.browserAdPlaying && Number(player.browserDuration)) || 600));
+  $('browserWhisperRangeError').textContent = '';
+  syncBrowserWhisperRangeFields();
+  openManagedModal(modal, $('browserWhisperRangeEnabled'), $('browserWhisperRangeSettings'));
+}
+function syncBrowserWhisperRangeFields() {
+  const disabled = !$('browserWhisperRangeEnabled').checked;
+  $('browserWhisperRangeStart').disabled = disabled;
+  $('browserWhisperRangeEnd').disabled = disabled;
+}
+function applyBrowserWhisperRangeSettings() {
+  const url = currentBrowserYoutubeUrl();
+  if (!url || url !== $('browserWhisperRangeDialog').dataset.videoUrl) {
+    $('browserWhisperRangeError').textContent = uiText('Önce bir YouTube videosu açın ve ayarları tekrar açın.');
+    return;
+  }
+  const result = validateBrowserWhisperRange($('browserWhisperRangeEnabled').checked,
+    $('browserWhisperRangeStart').value, $('browserWhisperRangeEnd').value, player.browserAdPlaying ? 0 : Number(player.browserDuration));
+  if (result.error) { $('browserWhisperRangeError').textContent = result.error; return; }
+  player.browserWhisperRange = { url, range: result.range };
+  closeManagedModal($('browserWhisperRangeDialog'));
+  setBrowserSignal(uiText(result.range ? 'Whisper ve çeviri seçilen zaman aralığını işleyecek.' : 'Whisper ve çeviri videonun tamamını işleyecek.'), true);
+}
+$('browserWhisperRangeSettings')?.addEventListener('click', openBrowserWhisperRangeSettings);
+$('browserWhisperRangeEnabled')?.addEventListener('change', syncBrowserWhisperRangeFields);
+$('browserWhisperRangeApply')?.addEventListener('click', applyBrowserWhisperRangeSettings);
+$$('[data-whisper-range-close]').forEach(button => button.addEventListener('click', () => closeManagedModal($('browserWhisperRangeDialog'))));
 // PLAYER_END

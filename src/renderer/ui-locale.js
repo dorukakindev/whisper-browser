@@ -4,6 +4,15 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Whisper ve çeviri zaman aralığı', 'Whisper and translation time range'],
+    ['Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.', 'Whisper and translation process only the selected range. Subtitles stay aligned with the video.'],
+    ['Yalnız seçilen zaman aralığını işle', 'Process only the selected time range'],
+    ['Örnek: 0:00 → 10:00 ilk on dakikayı işler. Kapalıysa videonun tamamı işlenir.', 'Example: 0:00 → 10:00 processes the first ten minutes. Turn off to process the entire video.'],
+    ['Geçerli bir başlangıç ve bitiş girin. Bitiş başlangıçtan büyük olmalı.', 'Enter valid start and end times. End must be after start.'],
+    ['Seçilen aralık video süresini aşıyor.', 'The selected range exceeds the video duration.'],
+    ['Önce bir YouTube videosu açın ve ayarları tekrar açın.', 'Open a YouTube video first, then reopen these settings.'],
+    ['Whisper ve çeviri seçilen zaman aralığını işleyecek.', 'Whisper and translation will process the selected time range.'],
+    ['Whisper ve çeviri videonun tamamını işleyecek.', 'Whisper and translation will process the entire video.'],
     ['Reklam engelleyici: Açık', 'Ad blocker: On'],
     ['Reklam engelleyici: Kapalı', 'Ad blocker: Off'],
     ['Reklam engelleyici: Hazırlanıyor…', 'Ad blocker: Preparing…'],

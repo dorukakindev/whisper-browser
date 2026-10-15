@@ -1391,11 +1391,16 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8v8M16 8v8M5 11v2M19 11v2"/></svg></span>
                       <span class="browser-menu-label">Whisper ile altyazı çıkar</span>
                     </button>
+                    <div class="browser-whisper-action-row">
                     <button type="button" id="browserWhisperTranslateMenu" role="menuitem" data-browser-proxy="browserWhisperTranslate"
                       title="Açık YouTube videosunu Whisper ile yazıya çevir ve Türkçeye çevir">
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h8M8 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg></span>
                       <span class="browser-menu-label">Whisper + çeviri</span>
                     </button>
+                    <button type="button" id="browserWhisperRangeSettings" role="menuitem" title="Whisper ve çeviri zaman aralığı" aria-label="Whisper ve çeviri zaman aralığı">
+                      <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></span>
+                    </button>
+                    </div>
                     <button type="button" role="menuitem" data-browser-proxy="browserMangaTranslate">
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h10.5A3.5 3.5 0 0 1 19 7.5V18H8.5A3.5 3.5 0 0 1 5 14.5V4Z"/><path d="M9 9h6M9 12h4"/></svg></span>
                       <span class="browser-menu-label">Mangayı çevir</span>
@@ -3441,6 +3446,21 @@
     </div>
 
     <!-- UYGULAMA DIALOG'U — onay ve kısa metin girişi için ortak sahip -->
+    <div class="modal hidden" id="browserWhisperRangeDialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="browserWhisperRangeTitle">
+      <div class="modal-backdrop" data-whisper-range-close></div>
+      <div class="modal-content app-dialog-content" tabindex="-1">
+        <h3 id="browserWhisperRangeTitle">Whisper ve çeviri zaman aralığı</h3>
+        <p>Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.</p>
+        <label class="dub-generator-row"><input type="checkbox" id="browserWhisperRangeEnabled" />Yalnız seçilen zaman aralığını işle</label>
+        <div class="dub-generator-options">
+          <label for="browserWhisperRangeStart">Başlangıç (dk:sn)</label><input id="browserWhisperRangeStart" type="text" value="0:00" maxlength="16" data-ui-untranslated />
+          <label for="browserWhisperRangeEnd">Bitiş (dk:sn)</label><input id="browserWhisperRangeEnd" type="text" value="10:00" maxlength="16" data-ui-untranslated />
+        </div>
+        <p class="muted">Örnek: 0:00 → 10:00 ilk on dakikayı işler. Kapalıysa videonun tamamı işlenir.</p>
+        <p id="browserWhisperRangeError" role="alert" data-ui-untranslated></p>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost" data-whisper-range-close>Vazgeç</button><button type="button" class="btn btn-primary" id="browserWhisperRangeApply">Uygula</button></div>
+      </div>
+    </div>
     <div class="modal app-dialog hidden" id="appDialog" role="alertdialog" aria-modal="true"
       aria-labelledby="appDialogTitle" aria-describedby="appDialogDescription">
       <div class="modal-backdrop" data-dialog-cancel></div>
