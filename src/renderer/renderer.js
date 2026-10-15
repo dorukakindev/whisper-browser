@@ -31188,6 +31188,7 @@ let _ytBrowserFlow = false;   // loopback (tarayıcı) akışı sürüyor
 let _ytSavedClientId = '';    // istemci görünümüne dönüşte ID'yi geri doldurur (secret asla)
 
 function _ytShowView(id) {
+  $('ytCustomAuthOptions')?.classList.toggle('hidden', !_ytSavedClientId);
   ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
     const el = $(v);
     if (el) el.classList.toggle('hidden', v !== id);
@@ -31539,6 +31540,7 @@ function initSmartTube() {
   // YouTube OAuth düğmeleri (cihaz-kodu akışı)
   const ytLoginBtn = $('stYtLoginBtn');
   if (ytLoginBtn) ytLoginBtn.addEventListener('click', openYoutubeLogin);
+  $('stYoutubeAccounts')?.addEventListener('click', openYoutubeLogin);
   const ytLogoutBtn = $('stYtLogoutBtn');
   if (ytLogoutBtn) ytLogoutBtn.addEventListener('click', openYoutubeLogin);
   // Oynatıcı panelindeki giriş düğmesi de aynı cihaz-kodu akışını açar.

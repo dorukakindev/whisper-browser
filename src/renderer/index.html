@@ -2340,6 +2340,7 @@
                   </button>
                   <div class="st-suggest hidden" id="stSuggestBox" role="listbox" aria-label="Arama önerileri"></div>
                 </div>
+                <button class="st-mini-btn" id="stYoutubeAccounts" type="button" title="YouTube hesapları" aria-haspopup="dialog">Hesaplar</button>
                 <button class="st-icon-btn" id="stDisplayToggle" title="Kart görünümü ayarları" aria-label="Kart görünümü ayarları" aria-expanded="false" aria-haspopup="dialog">
                   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6"/></svg>
                 </button>
@@ -3548,13 +3549,10 @@
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
   <div class="modal-content yt-login-content">
+      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
+      <p class="small-muted">YouTube hesabını burada bağlayarak oynatıcıda aboneliklerini ve listelerini kullanabilirsin.</p>
     <!-- Görünüm 1: kullanıcının kendi OAuth istemcisi -->
     <div id="ytClientView">
-      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
-      <div class="yt-tv-shortcut">
-        <button class="btn btn-primary" id="ytTvModeLogin" type="button">YouTube TV modunda giriş yap</button>
-        <p class="small-muted">Kurulum gerektirmez: YouTube'un kendi TV arayüzü açılır, ekrandaki kodu telefonda yt.be/activate adresine girersiniz. Altyazı ve çeviri araçları için oynatılan videoyu Ctrl+Shift+S ile uygulamaya devredebilirsiniz.</p>
-      </div>
       <p class="small-muted yt-own-client-head">Ya da uygulamanın kendi ızgarası için kendi OAuth istemcinizle:</p>
       <p class="small-muted">
         Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi
@@ -3580,10 +3578,11 @@
     </div>
     <!-- Görünüm 2: giriş akışı seçimi — önerilen tarayıcı (loopback) veya TV cihaz kodu -->
     <div id="ytDeviceView" class="hidden">
-      <h3>YouTube ile giriş</h3>
+      <div id="ytCustomAuthOptions" class="hidden">
       <p class="small-muted">Masaüstü uygulamaları için Google'ın önerdiği yol: sistem tarayıcınızda Google onayı.</p>
       <button class="btn btn-primary" id="ytBrowserAuth" type="button">Tarayıcıda yetkilendir</button>
       <p class="small-muted yt-device-alt">Alternatif: Google Cloud'da "TVs and Limited Input" tipi istemciniz varsa cihaz koduyla giriş.</p>
+      </div>
       <button class="btn btn-secondary" id="ytDeviceCodeStart" type="button">Cihaz kodu üret</button>
       <div id="ytDeviceCodeBlock" class="hidden">
         <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
@@ -3613,6 +3612,11 @@
         <button class="btn btn-primary" id="ytLogoutConfirm">Oturumu kapat</button>
       </div>
     </div>
+    <details class="yt-tv-shortcut">
+      <summary>Ayrı YouTube TV penceresi</summary>
+      <p class="small-muted">TV oturumu ayrı tutulur; uygulamanın Hesaplar listesine eklenmez.</p>
+      <button class="btn btn-secondary" id="ytTvModeLogin" type="button">TV penceresini aç</button>
+    </details>
   </div>
 </div>
 

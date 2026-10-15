@@ -4,6 +4,11 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Hesaplar', 'Accounts'],
+    ['YouTube hesabını burada bağlayarak oynatıcıda aboneliklerini ve listelerini kullanabilirsin.', 'Connect your YouTube account here to use your subscriptions and playlists in the player.'],
+    ['Ayrı YouTube TV penceresi', 'Separate YouTube TV window'],
+    ['TV oturumu ayrı tutulur; uygulamanın Hesaplar listesine eklenmez.', 'The TV session stays separate and is not added to the app’s Accounts list.'],
+    ['TV penceresini aç', 'Open TV window'],
     ['Durduruluyor…', 'Stopping…'],
     ['Durduruldu.', 'Stopped.'],
     ['Müzik ve ortam sesi ayrılıyor · GPU (CUDA)…', 'Separating music and ambience · GPU (CUDA)…'],
