@@ -8,7 +8,7 @@ Whisper Browser uygulamasını aşağıdaki 150 görevle denetle. **Ürün kodun
 
 Repo: https://github.com/dorukakindev/whisper-browser
 
-Test edilecek sabit sürüm: **475b887a7d6ae0800d88981c6566403ebf62a347**, dal `codex/browser-whisper-progress-20261014`. Sadece master'ı açma; son browser/dublaj düzeltmeleri bu dalda bulunuyor. Kendi izole kopyanda bu commit'e geç; başlangıç/bitiş `git status --short`, `git diff --exit-code` ve HEAD'i raporla. Çalıştırma araçlarını ve sonuçları repo dışındaki ayrı bir QA klasörüne yaz. Otomatik mevcut testlerin ürettiği ignore edilmiş fixture/profiller olabilir; bunları kaynak değişikliği sayma, raporla. Bu paketin belge commit'ini indirmek test hedefinin ürün kodunu değiştirmez.
+Test edilecek sabit sürüm: **75cfe5e367f517ce1077b0f891132395f71d401e**, dal `codex/browser-whisper-progress-20261014`. Sadece master'ı açma; son browser/dublaj düzeltmeleri bu dalda bulunuyor. Kendi izole kopyanda bu commit'e geç; başlangıç/bitiş `git status --short`, `git diff --exit-code` ve HEAD'i raporla. Çalıştırma araçlarını ve sonuçları repo dışındaki ayrı bir QA klasörüne yaz. Otomatik mevcut testlerin ürettiği ignore edilmiş fixture/profiller olabilir; bunları kaynak değişikliği sayma, raporla. Bu paketin belge commit'ini indirmek test hedefinin ürün kodunu değiştirmez.
 
 AGENTS.md, YENI-BILGISAYAR.md ve docs/devir/2026-10-15-0619.md dosyalarını oku. AGENTS'in ürün düzeltmesine ait commit/push döngüsü bu görev için uygulanmaz: kullanıcı bu denetimde yalnız test ve rapor istiyor. Repo veya bağımlılık kilitlerini güncelleme; gerekirse mevcut kilitli bağımlılıkları kur, kurulum komutlarını yaz. Kullanıcının gerçek profiline, çerezlerine, anahtarlarına ve özel ses kayıtlarına erişme. Ücretli API çağrısı, hesap açma, model eğitimi veya büyük yeni model indirmesi yapma. Mevcut kullanıcı süreçlerini kapatma. Yalnız test için başlattığın süreçleri kapat.
 
@@ -310,7 +310,7 @@ Durumlar:
 
 ```json
 {
-  "tested_commit": "475b887a7d6ae0800d88981c6566403ebf62a347",
+  "tested_commit": "75cfe5e367f517ce1077b0f891132395f71d401e",
   "findings": [
     {
       "id": "F001",
