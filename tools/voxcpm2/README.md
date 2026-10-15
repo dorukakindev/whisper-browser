@@ -138,11 +138,15 @@ verilebilir. Yalnız izinli yerel medya veya doğrulanmış YouTube kimliği kul
 YouTube sesini indirme başarısızsa yerel kaynak seçilebilir; cookie/hesap anahtarları
 bu yeni indirme yolunda kullanılmaz. Sınır gerekiyorsa aralık alanları kullanılır.
 
-Mevcut `backend/requirements-separator.lock` ile ayrı `backend/separator-venv`
-ortamı kullanılır (kurulum: mevcut `install-browser-extras.bat`). Audio Separator0.47.0
-ve `UVR_MDXNET_KARA_2.onnx` instrumental katman üretir. Bu kurulumun ayırma
-motoru CPU'dur; VoxCPM2 CUDA ortamına paket kurulmaz. İlk model indirmesi yaklaşık53MB;
+Ayırma ayrı `backend/separator-venv` ortamında çalışır. `install-browser-extras.bat`
+NVIDIA varsa `requirements-separator-gpu.lock` ile CUDA 12.4 PyTorch ve ONNX Runtime GPU
+kurar; NVIDIA yoksa CPU kilidini kullanır. `install-browser-extras.bat --cpu` CPU'ya döner.
+Audio Separator0.47.0 ve `UVR_MDXNET_KARA_2.onnx` instrumental katman üretir.
+VoxCPM2 CUDA ortamına paket kurulmaz. İlk model indirmesi yaklaşık53MB;
 ses ayırma ek süre alır. Kaynak/ayar uyumlu arka plan önbelleği yeniden kullanılır.
+Seçilen dublaj aralığı önce FFmpeg ile kesilir; ayırma yalnız o parçayı işler.
+YouTube kaynak ses indirmesi daha uzun olabilir; bu tüm videonun ayrıldığı anlamına gelmez.
+Durdur sırasında durum Durduruluyor, süreç kapanınca Durduruldu olur.
 
 Konuşma tamamen yok olmayabilir, bazı efektler zayıflayabilir. Sesler hiçbir uzak
 ses işleme servisine yüklenmez; ağ yalnız YouTube kaynağı/model indirmesidir.
