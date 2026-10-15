@@ -167,8 +167,10 @@
   });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     el('dubGeneratorCancel').disabled = true;
+    if (current) current.stopping = true;
+    status('Durduruluyor…');
     const r = await window.api.cancelDub().catch(() => null);
-    if (!r?.ok) { status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
+    if (!r?.ok && current) { current.stopping = false; status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
   el('dubGeneratorUse').addEventListener('click', async () => {
@@ -194,6 +196,7 @@
   window.api.onDubEvent(event => {
     const job = current;
     if (!job || event.id !== job.id) return;
+    if (job.stopping && !['done','error','cancelled'].includes(event.type)) return;
     if (event.type === 'progress') {
       status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
@@ -217,7 +220,7 @@
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });
         }
-      } else if (event.type === 'cancelled') status('İptal edildi.');
+      } else if (event.type === 'cancelled') status('Durduruldu.');
       else { status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || ''; }
     }
   });

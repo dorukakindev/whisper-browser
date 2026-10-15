@@ -4,6 +4,10 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Durduruluyor…', 'Stopping…'],
+    ['Durduruldu.', 'Stopped.'],
+    ['Müzik ve ortam sesi ayrılıyor · GPU (CUDA)…', 'Separating music and ambience · GPU (CUDA)…'],
+    ['Müzik ve ortam sesi ayrılıyor · CPU…', 'Separating music and ambience · CPU…'],
     ['Whisper ve çeviri zaman aralığı', 'Whisper and translation time range'],
     ['Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.', 'Whisper and translation process only the selected range. Subtitles stay aligned with the video.'],
     ['Yalnız seçilen zaman aralığını işle', 'Process only the selected time range'],

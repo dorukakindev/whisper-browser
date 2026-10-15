@@ -224,7 +224,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           const file = path.join(outputDir,`${s.id}-background.wav`);
           await prepareBackground({request,srt,range:s.range,output:file,
             onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
-            status:stage=>emit(s,'status',{text:stage==='download'?'Video sesi indiriliyor…':'Müzik ve ortam sesi ayrılıyor…'})});
+            status:stage=>{
+              if (stage === 'separate_gpu' || stage === 'separate_cpu') s.settings.backgroundDevice = stage.slice(9);
+              const text = stage === 'download' ? 'Video sesi indiriliyor…'
+                : stage === 'separate_gpu' ? 'Müzik ve ortam sesi ayrılıyor · GPU (CUDA)…'
+                  : stage === 'separate_cpu' ? 'Müzik ve ortam sesi ayrılıyor · CPU…' : 'Müzik ve ortam sesi ayrılıyor…';
+              emit(s,'status',{text});
+            }});
           if (s.cancelled) throw new Error('İptal edildi.');
           grantMedia(file); background={url:pathToFileURL(file).href}; s.settings.keepBackground=true;
         } catch (error) {

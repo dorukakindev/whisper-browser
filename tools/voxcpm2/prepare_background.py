@@ -64,6 +64,8 @@ def main():
         separator = Separator(output_dir=str(work),output_format='WAV',model_file_dir=args.models,
                               log_level=logging.WARNING,output_single_stem='Instrumental')
         separator.load_model(model_filename='UVR_MDXNET_KARA_2.onnx')
+        device = 'gpu' if str(separator.torch_device).startswith('cuda') else 'cpu'
+        print('DUB_BACKGROUND separate_' + device, flush=True)
         files = separator.separate(str(audio))
         if not files: raise ValueError('Arka plan kanali uretilemedi.')
         generated = Path(files[0])

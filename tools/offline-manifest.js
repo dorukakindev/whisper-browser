@@ -67,6 +67,7 @@ function main() {
     python: {
       supported: '3.10–3.11 (CPython, Windows x64)',
       torchIndex: 'https://download.pytorch.org/whl/cu121',
+      separatorTorchIndex: 'https://download.pytorch.org/whl/cu124',
       torchPins: ['torch==2.5.1+cu121', 'torchaudio==2.5.1+cu121'],
       lockfiles: [
         collectLockfile('backend/requirements-core.lock', true),
@@ -74,6 +75,7 @@ function main() {
         collectLockfile('backend/requirements-whisperx.lock', false),
         collectLockfile('backend/requirements-diarize.lock', false),
         collectLockfile('backend/requirements-separator.lock', false),
+        collectLockfile('backend/requirements-separator-gpu.lock', false),
       ],
     },
     npm: npmDependencies(),
@@ -120,6 +122,7 @@ function main() {
   lines.push('');
   lines.push(`Desteklenen: ${manifest.python.supported}`);
   lines.push(`Torch CUDA indeksi: ${manifest.python.torchIndex} — ${manifest.python.torchPins.join(', ')}`);
+  lines.push(`Opsiyonel GPU ses ayırma indeksi: ${manifest.python.separatorTorchIndex} — requirements-separator-gpu.lock`);
   lines.push('');
   for (const lf of manifest.python.lockfiles) {
     if (!lf.present) { lines.push(`- \`${lf.file}\` — EKSİK`); continue; }

@@ -9,7 +9,7 @@ for (const name of ['altyazi_oku.py','kitap_ortak.py','arayuz.py','anlatici_ham.
 fs.writeFileSync(path.join(root,'dub-settings.json'), JSON.stringify({timingMode:'clip'}));
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
-let backgroundMode='ok', rejectPreparation;
+let backgroundMode='ok', rejectPreparation, backgroundRange;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
@@ -17,7 +17,9 @@ const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[na
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds) => { assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   setRate: async request=>({ok:request.rate===.8}),
-  prepareBackground: async ({output,onProcess})=>{
+  prepareBackground: async ({output,onProcess,range,status})=>{
+    backgroundRange=range;
+    status('separate_gpu');
     if (backgroundMode==='fail') throw new Error('fixture separation failed');
     if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
     fs.writeFileSync(output,'instrumental');
@@ -110,12 +112,15 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:.8})).ok,true);
     assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:Infinity})).ok,false);
     fs.unlinkSync(path.join(root,'dub-logs'));fs.mkdirSync(path.join(root,'dub-logs'));
-    assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true})).ok,true);
+    assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true,range:{start:600,end:1200}})).ok,true);
+    assert.deepEqual(backgroundRange,{start:600,end:1200},'background separation must receive only the selected ten minutes');
+    assert.ok(events.some(e=>e.id==='adaptive'&&e.type==='status'&&e.text.includes('GPU (CUDA)')));
     const adaptiveOutput=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
     fs.writeFileSync(adaptiveOutput,'audio');
     fs.writeFileSync(adaptiveOutput.replace(/\.wav$/,'.sync.json'),JSON.stringify({version:1,videoDuration:2,audioDuration:3,
       segments:[{v0:0,v1:2,a0:0,a1:3}]}));
     child.emit('close',0);
+    assert.equal(JSON.parse(fs.readFileSync(events.at(-1).logPath,'utf8')).settings.backgroundDevice,'gpu');
     assert.equal(events.at(-1).sync.audioDuration,3);assert.ok(events.at(-1).background.url.startsWith('file:'));
     assert.equal((await call('dub:latest')).output.sync.audioDuration,3);
     backgroundMode='fail';
