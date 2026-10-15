@@ -205,6 +205,7 @@
     else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
       stopTimer(event.elapsedSeconds);
+      if (event.type !== 'done' && !el('dubGeneratorProgress').hasAttribute('value')) el('dubGeneratorProgress').value = 0;
       logPath = event.logPath;
       el('dubGeneratorLog').classList.toggle('hidden', !logPath);
       if (event.logError) el('dubGeneratorDetails').textContent = event.logError;

@@ -26,6 +26,7 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
   onEvent({id:request.id,type:'cancelled',elapsedSeconds:3});
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruldu.');
+  assert.equal(el('dubGeneratorProgress').hasAttribute('value'),true,'stopped preparation must stop its indeterminate animation');
   assert.equal(el('dubGeneratorCancel').disabled,true);
   el('dubGeneratorStart').click();await tick();cancelOK=false;
   el('dubGeneratorCancel').click();await tick();
