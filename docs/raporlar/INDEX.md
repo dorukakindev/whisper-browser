@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 432 | [BROWSER_BUG_REPORT_432.md](BROWSER_BUG_REPORT_432.md) | Browser tema, menü ve dar görünüm düzeni |
 | 431 | [BROWSER_BUG_REPORT_431.md](BROWSER_BUG_REPORT_431.md) | Oynatıcı YouTube hesabı, tema ve ses seçenekleri |
 | 430 | [BROWSER_BUG_REPORT_430.md](BROWSER_BUG_REPORT_430.md) | Dış rapor407 doğrulaması ve geçerli bulguların düzeltilmesi |
 | 429 | [BROWSER_BUG_REPORT_429.md](BROWSER_BUG_REPORT_429.md) | RTX4070 SUPER CUDA ayırma, aralık ve durdurma |
