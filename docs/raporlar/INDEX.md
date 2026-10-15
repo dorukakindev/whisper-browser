@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 426 | [BROWSER_BUG_REPORT_426.md](BROWSER_BUG_REPORT_426.md) | Sayfa menüsünde reklam engelleyici Açık/Kapalı ve tercih koruması |
 | 425 | [BROWSER_BUG_REPORT_425.md](BROWSER_BUG_REPORT_425.md) | YouTube document-start ana dünya ve ilk reklam verisi koruması |
 | 424 | [BROWSER_BUG_REPORT_424.md](BROWSER_BUG_REPORT_424.md) | YouTube reklam betiği kapsamı, erken filtreler ve otomatik yenileme |
 | 423 | [BROWSER_BUG_REPORT_423.md](BROWSER_BUG_REPORT_423.md) | kesilmeyen konuşma, uyarlamalı video hızı ve arka plan katmanı |
