@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-15-0655.md](docs/devir/2026-10-15-0655.md) — rapor426: Sayfa menüsü reklam engelleyici Açık/Kapalı ve açık tercihinin korunması
+Güncel çalışma: [docs/devir/2026-10-15-0703.md](docs/devir/2026-10-15-0703.md) — rapor427: Browser Whisper ve çeviri için video başına zaman aralığı
+Önceki çalışma: [docs/devir/2026-10-15-0655.md](docs/devir/2026-10-15-0655.md) — rapor426: Sayfa menüsü reklam engelleyici Açık/Kapalı ve açık tercihinin korunması
 Önceki çalışma: [docs/devir/2026-10-15-0643.md](docs/devir/2026-10-15-0643.md) — rapor425: YouTube ilk reklam verisi için document-start main-world koruması
 Önceki çalışma: [docs/devir/2026-10-15-0627.md](docs/devir/2026-10-15-0627.md) — Devin için150 görevlik kod değiştirmeyen test paketi; ürün kodu aynı
 Önceki çalışma: [docs/devir/2026-10-15-0619.md](docs/devir/2026-10-15-0619.md) — rapor424: YouTube reklam betikleri, erken uygulama ve filtre yenileme
