@@ -395,7 +395,9 @@ function shuffle(items, random) {
     assert(/jobCancelSeq === startSeq/.test(startSlice),
       'spawn öncesi bekleyen iptal kontrolü yok');
     assert(/cancelled: true/.test(startSlice), 'iptal edilen başlatma cancelled döndürmüyor');
-    assert(/} finally \{\s*jobStarting = false;/.test(startSlice),
+    const fullStart = main.slice(main.indexOf("ipcMain.handle('transcribe:start'"), main.indexOf('// yt-dlp güncelleme —'));
+    assert(fullStart.indexOf('jobStarting = false') > fullStart.indexOf('activeJob = spawn'));
+    assert(/} finally \{\s*jobStarting = false;/.test(fullStart),
       'jobStarting finally ile temizlenmiyor — erken return bayrağı takılı bırakır');
 
     const cancelSlice = main.slice(main.indexOf("ipcMain.handle('transcribe:cancel'"),

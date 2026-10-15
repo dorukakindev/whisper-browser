@@ -8,6 +8,11 @@ const PDF_EXTENSIONS = new Set(['.pdf']);
 const MAX_PDF_BYTES = 300 * 1024 * 1024;
 
 function canonicalLocalPath(value) {
+  // Accept ordinary extended file paths, never device namespaces.
+  if (process.platform === 'win32' && typeof value === 'string') {
+    if (/^\\\\\?\\[a-z]:\\/i.test(value)) value = value.slice(4);
+    else if (/^\\\\\?\\UNC\\/i.test(value)) value = '\\\\' + value.slice(8);
+  }
   if (typeof value !== 'string' || !value || value.length > 32760 || /[\x00-\x1f]/.test(value)
       || !path.isAbsolute(value) || /^\\\\[?.]\\/.test(value)
       || (process.platform === 'win32' && value.slice(2).includes(':'))) {

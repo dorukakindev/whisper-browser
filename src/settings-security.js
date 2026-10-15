@@ -870,9 +870,19 @@ function withoutSecretEnv(baseEnv) {
   const env = { ...baseEnv };
   const secretNames = new Set([
     'WHISPER_HF_TOKEN', 'WHISPER_LLM_API_KEY', 'WHISPER_TRANSLATE_API_KEY',
+    'WHISPER_YT_REFRESH_TOKEN', 'WHISPER_YT_ACCESS_TOKEN',
+    'WHISPER_YT_CLIENT_SECRET', 'WHISPER_INVIDIOUS_PASSWORD',
   ]);
   for (const key of Object.keys(env)) {
     if (secretNames.has(key.toLocaleUpperCase('en-US'))) delete env[key];
+    // HTTPX expects bare IPv6 in NO_PROXY; preserve the bypass, not a proxy URL.
+    if (key.toUpperCase() === 'NO_PROXY' && typeof env[key] === 'string') {
+      env[key] = env[key].split(',').map(entry => {
+        const value = entry.trim();
+        const match = /^\[([^\]]+)\]$/.exec(value);
+        return match && require('node:net').isIP(match[1]) === 6 ? match[1] : value;
+      }).join(',');
+    }
   }
   return env;
 }

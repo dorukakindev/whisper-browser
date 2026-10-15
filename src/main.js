@@ -1539,7 +1539,11 @@ ipcMain.handle('media:download', async (_e, opts) => {
   const args = ['download'];
   pushBoundOption(args, '--url', mediaUrl.url);
   pushBoundOption(args, '--output-dir', outDir);
-  if (o.height) pushBoundOption(args, '--height', String(o.height));
+  if (o.height != null && o.height !== '') {
+    const height = Number(o.height);
+    if (!['number', 'string'].includes(typeof o.height) || !Number.isInteger(height) || height < 1 || height > 16384) return { ok: false, error: dt('Geçersiz video yüksekliği.', 'Invalid video height.') };
+    pushBoundOption(args, '--height', String(height));
+  }
   if (o.audioLang) pushBoundOption(args, '--audio-lang', o.audioLang);
   if (['chrome', 'edge', 'firefox', 'brave', 'vivaldi', 'opera'].includes(o.cookieBrowser)) {
     pushBoundOption(args, '--cookie-browser', o.cookieBrowser);
@@ -20761,9 +20765,6 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, busy: true, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
-  } finally {
-    jobStarting = false;
-  }
   // Yetkilendirme await'leri sirasinda transcribe:cancel calistiysa spawn'a
   // hic girme — devam etmek UI'da gorunmeyen sahipsiz bir surec birakirdi.
   if (jobCancelSeq === startSeq) {
@@ -20800,6 +20801,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     } catch (_) {}
   }
 
+  if (jobCancelSeq === startSeq) return { ok: false, cancelled: true, error: 'İş başlatılırken iptal edildi.' };
   const appDir = appResourceRoot();
   const scriptPath = path.join(appDir, 'backend', 'transcribe.py');
   const pythonPath = resolvePython();
@@ -21300,6 +21302,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
 
   startPowerBlocker();
   return { ok: true, jobId };
+  } finally {
+    jobStarting = false;
+  }
 });
 
 // yt-dlp güncelleme — YouTube indirme hatalarının başlıca nedeni eski yt-dlp sürümüdür

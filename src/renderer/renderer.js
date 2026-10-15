@@ -5259,14 +5259,14 @@ window.api.onEvent((event) => {
   // (done/error) sonra, exit gelmeden once suzulen ilerleme/segment olaylari
   // arayuze yaziyordu: is bitmis gorunurken ilerleme cubugu geri gidiyordu.
   // Oynatici ve AI isleri yukarida tuketildigi icin kapi onlari etkilemez.
-  if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
-  if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
   // Iptal istegi is bitmeye cok yakin geldiyse cikti YINE DE uretilmis olabilir;
   // kullaniciya "iptal edildi" demek yaniltici olurdu.
-  if (event.cancelTooLate) {
+  if (event.cancelTooLate || (event.type === 'done' && state.running && state.cancelled)) {
     logLine('İptal isteği işin bitişine yetişemedi; çıktılar üretildi.', 'warn');
     state.cancelled = false;
   }
+  if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
+  if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
   if (event.cleanupError) {
     logLine(`İptal sonrası temizlik tamamlanamadı: ${event.cleanupError}`, 'error');
   }
@@ -5562,7 +5562,7 @@ window.api.onEvent((event) => {
       // saniyordu. Ana surec artik exit olayini cancelled ile isaretliyor.
       // Çıkış kodu 130 = KeyboardInterrupt (Ctrl+C) sözleşmesi — harici
       // sonlandırmada cancelRequested bayrağı kurulmaz, koddan tanınır.
-      if (state.cancelled || event.cancelled || event.code === 130) {
+      if (!event.cancelTooLate && (state.cancelled || event.cancelled || event.code === 130)) {
         // Kullanıcı iptal etti — hata gibi gösterme
         state.cancelled = false;
         state.running = false;
