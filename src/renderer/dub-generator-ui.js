@@ -6,7 +6,7 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '';
-  let referenceBusy = false, rangeContextKey = null;
+  let referenceBusy = false, rangeContextKey = null, mediaContextKey = null;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
   function timecode(value) {
     const text = value.trim();
@@ -67,6 +67,11 @@
   function inheritSubtitleRange() {
     if (current || planning) return;
     const context = window.BrowserDubAudioUI?.context();
+    const mediaKey = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey]);
+    if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
+      srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
+    }
+    mediaContextKey = mediaKey;
     const range = context?.mode === 'browser' ? context.subtitleRange : null;
     const valid = range && Number.isFinite(range.start) && Number.isFinite(range.end)
       && range.start >= 0 && range.end > range.start && range.end <= 86400;

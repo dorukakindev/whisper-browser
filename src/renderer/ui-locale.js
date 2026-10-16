@@ -4,6 +4,14 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['İZLEME ALANI', 'WATCH'],
+    ['İzlemeye başla', 'Start watching'],
+    ['Bir video aç, bağlantı yapıştır veya kaldığın yerden devam et.', 'Open a video, paste a link, or pick up where you left off.'],
+    ['Video aç', 'Open video'],
+    ['Bilgisayarındaki dosyadan izle', 'Watch a file from your computer'],
+    ['Bağlantıyla izle', 'Watch a link'],
+    ['YouTube bağlantısı veya arama', 'YouTube link or search'],
+    ['Kaydettiklerin ve izleme geçmişin', 'Saved videos and watch history'],
     ['Üretilen sesi dinle', 'Listen to the generated voice'],
     ['Sesler klasörünü aç', 'Open voice files folder'],
     ['Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.', 'Audio is ready. Listen here or attach it to the video with Use audio.'],

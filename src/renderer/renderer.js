@@ -14359,6 +14359,7 @@ function runBrowserShortcut(key, shift = false) {
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'page-zoom') { const tab = browserTabState(event.tabId); if (tab) tab.browserZoom = event.zoom; if (event.tabId === player.browserActiveTabId) { updateBrowserZoomUi(event.zoom); scheduleBrowserBounds(); scheduleBrowserOverlaySync(); } return; }
   if (event.type === 'page-focus') {
     // Sayfa (ayrı webContents) odağı aldı: DOM'daki adres çubuğu hâlâ odaklı
     // görünür. Chrome gibi omnibox'ı bırak; yazılmamışsa gerçek adresi göster.
@@ -14374,8 +14375,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       syncBrowserAddressAction();
     }
     return;
-  }
-  if (event.type === 'permission-request') {
+  } if (event.type === 'permission-request') {
     if (player.workspaceMode === 'browser' && event.tabId === player.browserActiveTabId) showBrowserPermissionPrompt(event);
     else void window.api.respondBrowserPermission?.(event.requestId, 'block-once').catch(() => null);
     return;
@@ -32669,3 +32669,7 @@ $('browserWhisperRangeEnabled')?.addEventListener('change', syncBrowserWhisperRa
 $('browserWhisperRangeApply')?.addEventListener('click', applyBrowserWhisperRangeSettings);
 $$('[data-whisper-range-close]').forEach(button => button.addEventListener('click', () => closeManagedModal($('browserWhisperRangeDialog'))));
 // PLAYER_END
+
+$('stHomeOpenVideo')?.addEventListener('click', () => $('playerPickVideo')?.click());
+$('stHomeOpenUrl')?.addEventListener('click', () => $('stSearchInput')?.focus());
+$('stHomeOpenLibrary')?.addEventListener('click', () => { setPlayerSidebarCollapsed(false); setSideTab('library', { focusContent: true }); });

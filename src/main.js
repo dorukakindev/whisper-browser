@@ -4741,6 +4741,20 @@ function applyStoredBrowserZoom(tab, wc, rawUrl) {
   return zoom;
 }
 
+function changeBrowserPageZoom(tab, command, value) {
+  const wc = tab.view.webContents, current = Number(wc.getZoomFactor?.()) || 1;
+  const requested = Number(value);
+  if (command === 'zoom-set' && !Number.isFinite(requested)) return { ok: false, error: 'Geçersiz yakınlaştırma değeri.' };
+  const zoom = command === 'zoom-reset' ? 1 : command === 'zoom-set' ? requested : current + (command === 'zoom-in' ? .1 : -.1);
+  const roundedZoom = Math.round(Math.max(.5, Math.min(3, zoom)) * 10) / 10;
+  wc.setZoomFactor(roundedZoom); tab.zoom = roundedZoom;
+  const persisted = rememberBrowserZoom(wc.getURL(), roundedZoom);
+  const persistenceWarning = persisted.ok ? '' : persisted.reason === 'limit'
+    ? `Yakınlaştırma uygulandı ancak site ayarı sınırına ulaşıldığı için kaydedilemedi (${MAX_BROWSER_SITE_PROFILES}).`
+    : 'Yakınlaştırma uygulandı ancak site tercihi diske kaydedilemedi.';
+  return { ok: true, zoom: roundedZoom, persistenceWarning };
+}
+
 function readBrowserPlaces() {
   if (!browserPlacesCache) {
     const primary = browserPlacesPath();
@@ -15580,6 +15594,14 @@ ipcMain.handle('browser:permissions:respond', (event, request = {}) => {
 // This channel is reachable only from a WebContentsView registered as one of
 // our browser tabs. The URL is validated again in openBrowserLinkInNewTab;
 // renderer/main-window senders and arbitrary subframes cannot open tabs.
+if (typeof ipcMain.on === 'function') ipcMain.on('browser:zoom-wheel', (event, direction) => {
+  if (event.senderFrame !== event.sender.mainFrame || !['in', 'out'].includes(direction)) return;
+  const tab = browserTabForWebContents(event.sender);
+  if (!tab || tab.closing || !browserTabShouldBeVisible(tab)) return;
+  const result = changeBrowserPageZoom(tab, direction === 'in' ? 'zoom-in' : 'zoom-out');
+  sendBrowserEvent(tab, { type: 'page-zoom', ...result });
+});
+
 if (typeof ipcMain.on === 'function') ipcMain.on('browser:open-link', (event, payload) => {
   if (event.senderFrame !== event.sender.mainFrame) return;
   const tab = browserTabForWebContents(event.sender);
@@ -15987,22 +16009,8 @@ ipcMain.handle('browser:command', async (event, payload) => {
     } else if (command === 'find-stop') {
       tab.pageFind.stop();
     } else if (['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set'].includes(command)) {
-      const current = Number(wc.getZoomFactor?.()) || 1;
-      const requested = Number(value);
-      if (command === 'zoom-set' && !Number.isFinite(requested)) {
-        return { ok: false, error: 'Geçersiz yakınlaştırma değeri.' };
-      }
-      const zoom = command === 'zoom-reset' ? 1
-        : command === 'zoom-set' ? Math.max(0.5, Math.min(3, requested))
-          : Math.max(0.5, Math.min(3, current + (command === 'zoom-in' ? 0.1 : -0.1)));
-      const roundedZoom = Math.round(zoom * 10) / 10;
-      wc.setZoomFactor(roundedZoom);
-      tab.zoom = roundedZoom;
-      const persisted = rememberBrowserZoom(wc.getURL(), roundedZoom);
-      const persistenceWarning = persisted.ok ? '' : persisted.reason === 'limit'
-        ? `Yakınlaştırma uygulandı ancak site ayarı sınırına ulaşıldığı için kaydedilemedi (${MAX_BROWSER_SITE_PROFILES}).`
-        : 'Yakınlaştırma uygulandı ancak site tercihi diske kaydedilemedi.';
-      return { ok: true, ...browserEventContext(tab), zoom: roundedZoom, persistenceWarning, ...browserNavigationState() };
+      const result = changeBrowserPageZoom(tab, command, value);
+      return { ...result, ...browserEventContext(tab), ...browserNavigationState() };
     } else if (command === 'page-dark-mode') {
       return applyBrowserDarkMode(tab, value === true);
     } else if (command === 'page-youtube-style') {
