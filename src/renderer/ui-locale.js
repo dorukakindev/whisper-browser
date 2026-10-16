@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Yan panelleri aç/kapat', 'Show or hide side panels'],
     ['Videodan referans ses al', 'Capture a voice reference from video'],
     ['Tek konuşmacılı, müziksiz 3–30 saniye seçin. Hazırlanınca sesi dinleyip dökümü kontrol edin.', 'Select 3–30 seconds with one speaker and no music. Listen and check the transcript when ready.'],
     ['Referans sesi hazırla', 'Prepare voice reference'],

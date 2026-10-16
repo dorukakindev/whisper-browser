@@ -22890,7 +22890,7 @@ function syncResponsivePlayerLayout() {
   if (sidebarButton) {
     const shown = narrow ? takeover : sidebarIsVisible();
     sidebarButton.classList.toggle('active', shown);
-    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false'); $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   scheduleBrowserBounds();
@@ -22916,7 +22916,7 @@ function setViewMode(mode) {
   if (sidebarButton) {
     const shown = sidebarIsVisible();
     sidebarButton.classList.toggle('active', shown);
-    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false'); $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   try { localStorage.setItem('playerViewMode', mode); } catch (_) {}
@@ -25088,13 +25088,14 @@ function setPlayerSidebarCollapsed(collapsed) {
     const shown = sidebarIsVisible();
     button.classList.toggle('active', shown);
     button.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     button.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   if (next) setSettingsDrawer(false);
   else syncResponsivePlayerLayout();
   setTimeout(highlightCueRow, 80);
 }
-if ($('playerSidebarToggle')) {
+$('browserSidebarToggle')?.addEventListener('click', () => $('playerSidebarToggle')?.click()); if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
     if (window.matchMedia('(max-width: 1020px)').matches) {
       if (responsivePanelTakeoverActive()) {

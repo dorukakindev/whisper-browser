@@ -1634,3 +1634,8 @@ details.browser-translate-split.hidden { display: none !important; }
 /* Arama kutusunun büyük açılır-menü gölgesi koyu temada kirli bir hale bırakıyordu. */
 .browser-ntp-search { box-shadow: var(--elev-1); }
 .browser-ntp-search:focus-within { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* The toolbar is z30; settings opened from the icon rail must cover it,
+   including the sticky Back/Close header, rather than sit behind it. */
+.player-layer.workspace-browser.settings-open .player-side { z-index: 41; }
+#browserSidebarToggle { flex: 0 0 34px; }
