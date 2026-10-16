@@ -1639,3 +1639,5 @@ details.browser-translate-split.hidden { display: none !important; }
    including the sticky Back/Close header, rather than sit behind it. */
 .player-layer.workspace-browser.settings-open .player-side { z-index: 41; }
 #browserSidebarToggle { flex: 0 0 34px; }
+
+#dubGeneratedPreview { width: 100%; margin-block: 10px; }

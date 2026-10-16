@@ -4,6 +4,9 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Üretilen sesi dinle', 'Listen to the generated voice'],
+    ['Sesler klasörünü aç', 'Open voice files folder'],
+    ['Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.', 'Audio is ready. Listen here or attach it to the video with Use audio.'],
     ['Yan panelleri aç/kapat', 'Show or hide side panels'],
     ['Videodan referans ses al', 'Capture a voice reference from video'],
     ['Tek konuşmacılı, müziksiz 3–30 saniye seçin. Hazırlanınca sesi dinleyip dökümü kontrol edin.', 'Select 3–30 seconds with one speaker and no music. Listen and check the transcript when ready.'],

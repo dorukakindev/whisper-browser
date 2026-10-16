@@ -242,7 +242,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
     }
     const c = config();
-    return { ok: true, ...c, ready: [path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py'),path.join(c.engine, 'kitap_ortak.py'),
+    return { ok: true, ...c, storageRoot: voiceStorage(app).root, ready: [path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py'),path.join(c.engine, 'kitap_ortak.py'),
       path.join(c.engine, '.venv', 'Scripts', 'python.exe'), c.reference, c.transcript].every(p => fs.existsSync(p)) };
   }));
   ipcMain.handle('dub:start', guard(async (e, request = {}) => {

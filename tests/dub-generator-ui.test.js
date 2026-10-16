@@ -5,13 +5,15 @@ const root = path.join(__dirname, '..');
 const dom = new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'), {runScripts:'outside-only'});
 const w = dom.window, el = id => w.document.getElementById(id);
 let onEvent, request, cancelOK = true;
-let attached = false;
+let attached = false, opened;
 w.BrowserDubAudioUI = { context: () => ({ mode:'player', tabId:'player-video', mediaKey:'fixture',
   currentTime:42, backgroundSource:'fixture.mp4', visible:true, hasMedia:true }),
   attachGenerated: async (_file, context) => { attached = context.mode === 'player'; return true; } };
+w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
 w.syncBrowserOcclusion = () => {};
 w.api = {
-  dubConfig: async () => ({ok:true,ready:true,engine:'fixture',reference:'voice.wav',transcript:'voice.txt'}),
+  dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
+  openPath: async value => { opened=value; },
   latestDub: async () => ({ok:true}), selectFile: async () => 'test.srt',
   onDubEvent: callback => {onEvent=callback;},
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
@@ -41,8 +43,11 @@ const tick = () => new Promise(setImmediate);
   assert.match(el('dubGeneratorStatus').textContent,/doğrulanamadı/);
   assert.equal(el('dubGeneratorCancel').disabled,false);
   onEvent({id:request.id,type:'done',name:'fixture.wav',url:'fixture.wav'});await tick();
+  assert.equal(el('dubGeneratedPreview').getAttribute('src'),'fixture.wav');
+  assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),false);
   assert.equal(attached,true,'generated audio must attach to the local player');
   attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
+  el('dubStorageOpen').click();await tick();assert.equal(opened,'voice-folder');
   let rangeContext = { mode:'browser', tabId:'tab1', mediaId:'video1', subtitleRange:{start:300,end:600}, visible:true,hasMedia:true };
   w.BrowserDubAudioUI.context = () => rangeContext;
   el('browserDubGenerate').click();await tick();
@@ -56,6 +61,15 @@ const tick = () => new Promise(setImmediate);
   rangeContext={...rangeContext,subtitleRange:{start:310.125,end:620.5}};
   el('browserDubGenerate').click();await tick();
   assert.equal(el('dubRangeStart').value,'5:10.125');assert.equal(el('dubRangeEnd').value,'10:20.5');
+  w.dispatchEvent(new w.CustomEvent('voice-reference:busy',{detail:true}));
+  assert.equal(el('dubChooseSrt').disabled,true);assert.equal(el('dubRangeEnabled').disabled,true);
+  assert.equal(el('dubPlanPrepare').disabled,true);assert.equal(el('dubTextStudio').disabled,true);
+  w.dispatchEvent(new w.CustomEvent('voice-reference:busy',{detail:false}));
+  w.api.startDub=async()=>({ok:false,error:'fixture startup failure'});
+  el('dubGeneratorStart').click();await tick();
+  assert.equal(el('dubGeneratorProgress').hasAttribute('value'),true);
+  assert.equal(el('dubGeneratorCancel').disabled,true);
+  assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),true);
   dom.window.close();
   console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');
 })().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});
