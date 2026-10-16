@@ -14,6 +14,7 @@
   }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
+    subtitleRange: player.browserTracks.find(track => track.id === player.browserLoadedTrackId)?.clipRange || currentBrowserWhisperRange(),
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
     playbackRate: player.browserRate || 1, currentTime: player.browserTime,

@@ -5007,7 +5007,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       label: labelParts.join(' · '),
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
-      generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper',
+      generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',

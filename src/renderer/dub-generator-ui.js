@@ -6,7 +6,7 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '';
-  let referenceBusy = false;
+  let referenceBusy = false, rangeContextKey = null;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
   function timecode(value) {
     const text = value.trim();
@@ -62,7 +62,24 @@
     if (!current && !r.ready) status('Motor veya referans eksik; ses ve motor ayarlarını kontrol edin.');
     controls();
   }
+  function inheritSubtitleRange() {
+    if (current || planning) return;
+    const context = window.BrowserDubAudioUI?.context();
+    const range = context?.mode === 'browser' ? context.subtitleRange : null;
+    const valid = range && Number.isFinite(range.start) && Number.isFinite(range.end)
+      && range.start >= 0 && range.end > range.start && range.end <= 86400;
+    const key = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey, valid ? range : null]);
+    if (rangeContextKey === key) return;
+    const hadContext = rangeContextKey !== null; rangeContextKey = key;
+    if (!valid && !hadContext) return;
+    el('dubRangeEnabled').checked = !!valid;
+    const format = seconds => { const ms = Math.round(seconds * 1000), rest = (ms % 60000) / 1000; return `${Math.floor(ms / 60000)}:${rest < 10 ? '0' : ''}${rest}`; };
+    el('dubRangeStart').value = valid ? format(range.start) : '0:00';
+    el('dubRangeEnd').value = valid ? format(range.end) : '1:00';
+    invalidatePlan();
+  }
   async function open() {
+    inheritSubtitleRange();
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
     await configure();
