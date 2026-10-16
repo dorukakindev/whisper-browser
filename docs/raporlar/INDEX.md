@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 438 | [BROWSER_BUG_REPORT_438.md](BROWSER_BUG_REPORT_438.md) | Altyazı aralığının dublaja aktarılması |
 | 437 | [BROWSER_BUG_REPORT_437.md](BROWSER_BUG_REPORT_437.md) | Sesler girdi-çıktı-referans klasörleri |
 | 436 | [BROWSER_BUG_REPORT_436.md](BROWSER_BUG_REPORT_436.md) | Sağ panel düğmelerinin görünürlüğü |
 | 435 | [BROWSER_BUG_REPORT_435.md](BROWSER_BUG_REPORT_435.md) | Referans ses adlandırma |
