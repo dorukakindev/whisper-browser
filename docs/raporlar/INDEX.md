@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 436 | [BROWSER_BUG_REPORT_436.md](BROWSER_BUG_REPORT_436.md) | Sağ panel düğmelerinin görünürlüğü |
 | 435 | [BROWSER_BUG_REPORT_435.md](BROWSER_BUG_REPORT_435.md) | Referans ses adlandırma |
 | 434 | [BROWSER_BUG_REPORT_434.md](BROWSER_BUG_REPORT_434.md) | YouTube referans ses bağlantısı ve görünür hata nedeni |
 | 433 | [BROWSER_BUG_REPORT_433.md](BROWSER_BUG_REPORT_433.md) | APINEX sağlayıcısı ve videodan referans ses kütüphanesi |
