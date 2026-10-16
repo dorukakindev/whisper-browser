@@ -4,6 +4,8 @@
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
   let active = null, stopping = false, references = [], folder = '', applying = false;
+  const drafts = new Map();
+  const rememberDraft = () => { const item = selected(); if (item) drafts.set(item.id, { name: el('voiceReferenceName').value, text: el('voiceReferenceText').value }); };
   const t = value => window.UiLocale?.t(value) || value;
   const status = value => { el('voiceReferenceStatus').textContent = t(value); };
   const failure = error => {
@@ -32,8 +34,9 @@
     audio.pause();
     if (item) audio.src = item.url; else audio.removeAttribute('src');
     audio.classList.toggle('hidden', !item); audio.load();
-    el('voiceReferenceName').value = item?.name || '';
-    el('voiceReferenceText').value = item?.text || ''; controls();
+    const draft = item && drafts.get(item.id);
+    el('voiceReferenceName').value = draft?.name ?? item?.name ?? '';
+    el('voiceReferenceText').value = draft?.text ?? item?.text ?? ''; controls();
   }
   async function refresh(preferred) {
     const result = await api.listVoiceReferences().catch(() => null);
@@ -56,21 +59,21 @@
   el('playerVoiceReferenceOpen').addEventListener('click', () => open('playerDubGenerate'));
   panel.addEventListener('toggle', () => { if (panel.open && !active) void refresh(); });
   el('voiceReferenceSelect').addEventListener('change', show);
-  el('voiceReferenceName').addEventListener('input', controls);
+  el('voiceReferenceName').addEventListener('input', () => { rememberDraft(); controls(); });
   el('voiceReferenceRename').addEventListener('click', async () => {
     const item = selected(); if (!item || active || applying) return;
     applying = true; controls();
     try {
       const result = await api.renameVoiceReference({ id: item.id, name: el('voiceReferenceName').value });
       if (!result?.ok) { status('Referans adı kaydedilemedi.'); return; }
-      item.name = result.name; el('voiceReferenceName').value = result.name;
+      item.name = result.name; el('voiceReferenceName').value = result.name; rememberDraft();
       const option = el('voiceReferenceSelect').selectedOptions[0];
       if (option) option.textContent = result.name;
       status('Referans adı kaydedildi.');
     } catch (_) { status('Referans adı kaydedilemedi.'); }
     finally { applying = false; controls(); }
   });
-  el('voiceReferenceText').addEventListener('input', controls);
+  el('voiceReferenceText').addEventListener('input', () => { rememberDraft(); controls(); });
   el('voiceReferenceFolder').addEventListener('click', () => { if (folder) void api.openPath(folder); });
   const seconds = raw => {
     const value = raw.trim();
@@ -113,7 +116,7 @@
     try {
       const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value });
       if (!result?.ok) { status('Referans sesi uygulanamadı.'); return; }
-      item.text = el('voiceReferenceText').value;
+      item.text = el('voiceReferenceText').value; rememberDraft();
       window.dispatchEvent(new CustomEvent('voice-reference:changed'));
       status('Referans ses ve dökümü güncellendi.');
     } catch (_) { status('Referans sesi uygulanamadı.'); }

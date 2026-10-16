@@ -31,7 +31,13 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(renamed.id, entry.id);
   assert.equal(el('voiceReferenceSelect').selectedOptions[0].textContent, 'Türkçe sesim');
 
-  el('voiceReferenceText').value = 'Corrected.'; el('voiceReferenceUse').click(); await tick();
+  el('voiceReferenceText').value = 'Corrected.'; el('voiceReferenceText').dispatchEvent(new w.Event('input'));
+  el('voiceReferenceName').value = 'Unsaved name'; el('voiceReferenceName').dispatchEvent(new w.Event('input'));
+  el('voiceReferenceRecorder').open = true;
+  el('voiceReferenceRecorder').dispatchEvent(new w.Event('toggle')); await tick();
+  assert.equal(el('voiceReferenceText').value,'Corrected.','refresh preserves an unsaved transcript');
+  assert.equal(el('voiceReferenceName').value,'Unsaved name','refresh preserves an unsaved name');
+  el('voiceReferenceUse').click(); await tick();
   assert.equal(used.id, entry.id); assert.equal(used.text, 'Corrected.'); assert(changed);
   el('voiceReferencePrepare').click(); await tick(); el('voiceReferenceCancel').click(); await tick();
   assert.equal(el('voiceReferenceStatus').textContent, 'Durduruluyor…');

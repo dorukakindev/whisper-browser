@@ -14359,7 +14359,7 @@ function runBrowserShortcut(key, shift = false) {
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
-  if (event.type === 'page-zoom') { const tab = browserTabState(event.tabId); if (tab) tab.browserZoom = event.zoom; if (event.tabId === player.browserActiveTabId) { updateBrowserZoomUi(event.zoom); scheduleBrowserBounds(); scheduleBrowserOverlaySync(); } return; }
+  if (event.type === 'page-zoom') { const tab = browserTabState(event.tabId); if (!tab || !Number.isFinite(event.zoom) || (Number.isInteger(event.generation) && event.generation !== tab.generation)) return; tab.browserZoom = event.zoom; if (event.tabId === player.browserActiveTabId) { updateBrowserZoomUi(event.zoom); scheduleBrowserBounds(); scheduleBrowserOverlaySync(); } return; }
   if (event.type === 'page-focus') {
     // Sayfa (ayrı webContents) odağı aldı: DOM'daki adres çubuğu hâlâ odaklı
     // görünür. Chrome gibi omnibox'ı bırak; yazılmamışsa gerçek adresi göster.

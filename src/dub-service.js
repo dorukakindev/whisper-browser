@@ -88,9 +88,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const references = [];
     for (const id of fs.readdirSync(referencesRoot()).sort().reverse()) {
       try { references.push(referenceEntry(id)); } catch (_) {}
-      if (references.length === 100) break;
+
     }
     references.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    references.length = Math.min(references.length, 100);
     return { ok: true, folder: referencesRoot(), references, activeId: references.find(item => item.path === config().reference || path.join(app.getPath('userData'), 'Referans sesler', item.id, 'reference.wav') === config().reference)?.id || '' };
   }));
   function referenceName(raw, optional = false) {

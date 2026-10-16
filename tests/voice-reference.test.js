@@ -59,5 +59,15 @@ const tick = () => new Promise(setImmediate);
   assert.equal((await call('dub:references')).references.length, 1, 'cancelled output must not enter the library');
   mode = 'fail'; assert.equal((await call('dub:referencePrepare', request())).ok, false);
   assert.equal(service.running(), false);
+  let newest;
+  for (let index=0; index<105; index++) {
+    const id=index===104 ? '00000000-0000-4000-8000-000000000001' : `ffffffff-ffff-4fff-8fff-${String(index).padStart(12,'0')}`, folder=path.join(root,'Sesler','Ses referansları',id);
+    fs.mkdirSync(folder);fs.writeFileSync(path.join(folder,'reference.wav'),Buffer.alloc(100));
+    fs.writeFileSync(path.join(folder,'reference.txt'),'fixture');
+    fs.writeFileSync(path.join(folder,'reference.json'),JSON.stringify({name:String(index),createdAt:new Date(Date.UTC(2040,0,1,0,0,index)).toISOString()}));
+    newest=id;
+  }
+  const recent=await call('dub:references');
+  assert.equal(recent.references.length,100);assert.equal(recent.references[0].id,newest,'the newest reference must survive the library limit');
   console.log('voice-reference: authorization, range, library, transcript, busy lock, cancellation and failure passed');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => fs.rmSync(root, { recursive: true, force: true }));
