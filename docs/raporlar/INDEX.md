@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 440 | [BROWSER_BUG_REPORT_440.md](BROWSER_BUG_REPORT_440.md) | Oynatıcı ana sayfası, Ctrl+wheel ve ses bağlamı |
 | 439 | [BROWSER_BUG_REPORT_439.md](BROWSER_BUG_REPORT_439.md) | Ses önizlemesi ve durum kilidi hataları |
 | 438 | [BROWSER_BUG_REPORT_438.md](BROWSER_BUG_REPORT_438.md) | Altyazı aralığının dublaja aktarılması |
 | 437 | [BROWSER_BUG_REPORT_437.md](BROWSER_BUG_REPORT_437.md) | Sesler girdi-çıktı-referans klasörleri |
