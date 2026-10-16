@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 442 | [BROWSER_BUG_REPORT_442.md](BROWSER_BUG_REPORT_442.md) | Ses dosya seçimi ve ayar yanıtı yarışları |
 | 441 | [BROWSER_BUG_REPORT_441.md](BROWSER_BUG_REPORT_441.md) | Referans taslakları, son kayıtlar ve eski zoom olayları |
 | 440 | [BROWSER_BUG_REPORT_440.md](BROWSER_BUG_REPORT_440.md) | Oynatıcı ana sayfası, Ctrl+wheel ve ses bağlamı |
 | 439 | [BROWSER_BUG_REPORT_439.md](BROWSER_BUG_REPORT_439.md) | Ses önizlemesi ve durum kilidi hataları |

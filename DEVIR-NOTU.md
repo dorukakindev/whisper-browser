@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-16-1112.md](docs/devir/2026-10-16-1112.md) — rapor441: Referans taslakları, son kayıtlar ve eski zoom olayları
+Güncel çalışma: [docs/devir/2026-10-16-1115.md](docs/devir/2026-10-16-1115.md) — rapor442: Ses dosya seçimi ve geciken ayar yanıtları
+Önceki çalışma: [docs/devir/2026-10-16-1112.md](docs/devir/2026-10-16-1112.md) — rapor441: Referans taslakları, son kayıtlar ve eski zoom olayları
 Önceki çalışma: [docs/devir/2026-10-16-1106.md](docs/devir/2026-10-16-1106.md) — rapor440: Oynatıcı ana sayfası, Ctrl+wheel, ses bağlamı
 Önceki çalışma: [docs/devir/2026-10-16-0433.md](docs/devir/2026-10-16-0433.md) — rapor439: Ses önizlemesi ve üretim durumu düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-16-0430.md](docs/devir/2026-10-16-0430.md) — rapor438: Altyazı aralığını ses üretimine otomatik aktarma
