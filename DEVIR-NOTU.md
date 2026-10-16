@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-16-0430.md](docs/devir/2026-10-16-0430.md) — rapor438: Altyazı aralığını ses üretimine otomatik aktarma
+Güncel çalışma: [docs/devir/2026-10-16-0433.md](docs/devir/2026-10-16-0433.md) — rapor439: Ses önizlemesi ve üretim durumu düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-16-0430.md](docs/devir/2026-10-16-0430.md) — rapor438: Altyazı aralığını ses üretimine otomatik aktarma
 Önceki çalışma: [docs/devir/2026-10-16-0342.md](docs/devir/2026-10-16-0342.md) — rapor437: Downloads/Sesler girdi-çıktı-referans düzeni
 Önceki çalışma: [docs/devir/2026-10-16-0338.md](docs/devir/2026-10-16-0338.md) — rapor436: Sağ panel kontrollerinin görünürlüğü
 Önceki çalışma: [docs/devir/2026-10-15-2331.md](docs/devir/2026-10-15-2331.md) — rapor435: Referans ses adlandırma
