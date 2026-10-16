@@ -4,6 +4,7 @@
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
   let active = null, stopping = false, references = [], folder = '', applying = false;
+  let refreshSequence = 0;
   const drafts = new Map();
   const rememberDraft = () => { const item = selected(); if (item) drafts.set(item.id, { name: el('voiceReferenceName').value, text: el('voiceReferenceText').value }); };
   const t = value => window.UiLocale?.t(value) || value;
@@ -39,8 +40,10 @@
     el('voiceReferenceText').value = draft?.text ?? item?.text ?? ''; controls();
   }
   async function refresh(preferred) {
+    const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
-    if (!result?.ok) { status('Referans sesler okunamadı.'); return; }
+    if (sequence !== refreshSequence) return false;
+    if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } status('Referans sesler okunamadı.'); return false; }
     const prior = preferred || el('voiceReferenceSelect').value || result.activeId;
     folder = result.folder; references = result.references;
     el('voiceReferenceSelect').replaceChildren();
@@ -49,7 +52,9 @@
       option.setAttribute('data-ui-untranslated', ''); el('voiceReferenceSelect').append(option);
     }
     if (references.some(item => item.id === prior)) el('voiceReferenceSelect').value = prior;
+    if (preferred && !references.some(item => item.id === preferred)) el('voiceReferenceSelect').value = '';
     show();
+    return !preferred || !!selected();
   }
   function open(trigger) {
     el(trigger).click(); panel.open = true;
@@ -57,12 +62,12 @@
   }
   el('browserVoiceReferenceOpen').addEventListener('click', () => { el('browserTranslateMenu').open = false; open('browserDubGenerate'); });
   el('playerVoiceReferenceOpen').addEventListener('click', () => open('playerDubGenerate'));
-  panel.addEventListener('toggle', () => { if (panel.open && !active) void refresh(); });
+  panel.addEventListener('toggle', () => { if (panel.open && !active && !applying) void refresh(); });
   el('voiceReferenceSelect').addEventListener('change', show);
   el('voiceReferenceName').addEventListener('input', () => { rememberDraft(); controls(); });
   el('voiceReferenceRename').addEventListener('click', async () => {
     const item = selected(); if (!item || active || applying) return;
-    applying = true; controls();
+    applying = true; ++refreshSequence; controls();
     try {
       const result = await api.renameVoiceReference({ id: item.id, name: el('voiceReferenceName').value });
       if (!result?.ok) { status('Referans adı kaydedilemedi.'); return; }
@@ -97,8 +102,8 @@
         source: context.mode === 'player' ? context.backgroundSource : '',
         context: { tabId: context.tabId, generation: context.generation, mediaId: context.mediaId } });
       if (!result?.ok) { if (result?.cancelled) status('Durduruldu.'); else failure(result?.error); return; }
-      await refresh(result.reference.id);
-      status('Referans hazır. Dökümü kontrol edip Bu sesi kullan düğmesine basın.');
+      const loaded = await refresh(result.reference.id);
+      status(loaded ? 'Referans hazır. Dökümü kontrol edip Bu sesi kullan düğmesine basın.' : 'Ses üretildi ancak referans listesi yenilenemedi. Paneli yeniden açın.');
     } catch (_) { failure(); }
     finally {
       active = null; stopping = false; controls();
@@ -112,7 +117,7 @@
   });
   el('voiceReferenceUse').addEventListener('click', async () => {
     const item = selected(); if (!item || active) return;
-    applying = true; controls();
+    applying = true; ++refreshSequence; controls();
     try {
       const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value });
       if (!result?.ok) { status('Referans sesi uygulanamadı.'); return; }

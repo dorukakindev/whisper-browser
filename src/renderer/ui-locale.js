@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Ses üretildi ancak referans listesi yenilenemedi. Paneli yeniden açın.', 'Audio was created, but the reference list could not be refreshed. Reopen the panel.'],
     ['Video değişti; dosyayı yeniden seçin.', 'The video changed; select the file again.'],
     ['Dosya seçilemedi. Lütfen tekrar deneyin.', 'The file could not be selected. Please try again.'],
     ['İZLEME ALANI', 'WATCH'],

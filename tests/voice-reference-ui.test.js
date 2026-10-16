@@ -53,5 +53,17 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(el('voiceReferenceStatus').children.length, 0, 'error text is never HTML');
   el('voiceReferenceEnd').value = '2:00'; el('voiceReferencePrepare').click(); await tick();
   assert.match(el('voiceReferenceStatus').textContent, /3–30/);
+  el('voiceReferenceEnd').value='0:25';
+  w.api.listVoiceReferences=async()=>({ok:false});
+  el('voiceReferencePrepare').click();await tick();resolvePrepare({ok:true,reference:entry});await tick();
+  assert.match(el('voiceReferenceStatus').textContent,/liste/);
+  assert.equal(el('voiceReferenceUse').disabled,true,'a failed reload must not leave the previous voice ready to apply');
+  const pending=[];w.api.listVoiceReferences=()=>new Promise(resolve=>pending.push(resolve));
+  el('voiceReferenceRecorder').dispatchEvent(new w.Event('toggle'));await tick();
+  el('voiceReferenceRecorder').dispatchEvent(new w.Event('toggle'));await tick();
+  assert.equal(pending.length,2);
+  pending[1]({ok:true,references:[{...entry,id:'newest',name:'Newest'}],folder:'folder',activeId:'newest'});await tick();
+  pending[0]({ok:true,references:[entry],folder:'old-folder'});await tick();
+  assert.equal(el('voiceReferenceSelect').value,'newest','a late list response cannot replace newer references');
   console.log('voice-reference-ui: 5–25 range, GPU status, preview/use, transcript and confirmed cancellation passed');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => dom.window.close());
