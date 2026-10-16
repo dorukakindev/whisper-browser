@@ -4,6 +4,8 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Video değişti; dosyayı yeniden seçin.', 'The video changed; select the file again.'],
+    ['Dosya seçilemedi. Lütfen tekrar deneyin.', 'The file could not be selected. Please try again.'],
     ['İZLEME ALANI', 'WATCH'],
     ['İzlemeye başla', 'Start watching'],
     ['Bir video aç, bağlantı yapıştır veya kaldığın yerden devam et.', 'Open a video, paste a link, or pick up where you left off.'],

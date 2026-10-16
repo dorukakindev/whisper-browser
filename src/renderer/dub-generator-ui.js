@@ -5,7 +5,8 @@
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
-  let backgroundSource = '';
+  let backgroundSource = '', choosing = false, configSequence = 0;
+  const mediaIdentity = () => { const c = window.BrowserDubAudioUI?.context(); return JSON.stringify([c?.mode, c?.tabId, c?.mediaId || c?.mediaKey]); };
   let referenceBusy = false, rangeContextKey = null, mediaContextKey = null;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
   function timecode(value) {
@@ -37,9 +38,9 @@
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
-    const locked = !!current || referenceBusy || planning;
+    const locked = !!current || referenceBusy || planning || choosing;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode']) el(id).disabled = locked;
-    el('dubGeneratorStart').disabled = !!current || referenceBusy || planning || !srt || !cfg?.ready;
+    el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
     el('dubPlanPrepare').disabled = locked || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = locked || !plan;
     el('dubChooseSrt').disabled = locked;
@@ -52,8 +53,10 @@
     el('browserDubGenerate')?.classList.toggle('active', !!current);
   }
   async function configure(kind) {
+    const sequence = ++configSequence;
     const r = await window.api.dubConfig(kind).catch(() => null);
-    if (!r?.ok) { status('Ses üretimi başarısız oldu.'); return; }
+    if (sequence !== configSequence) return;
+    if (!r?.ok) { cfg = null; controls(); status('Ses üretimi başarısız oldu.'); return; }
     cfg = r;
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
@@ -117,13 +120,23 @@
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
-  el('dubChooseSrt').addEventListener('click', async () => {
-    const p = await window.api.selectFile('subtitle');
-    if (typeof p === 'string' && /\.srt$/i.test(p)) {
-      srt = p; plan = null; edits = {}; el('dubPlanGroup').replaceChildren(); showGroup();
-      el('dubSrtName').textContent = basename(p); status('Hazır'); controls();
-    } else if (p) status('Bir SRT altyazı dosyası seçin.');
-  });
+  async function chooseInput(kind) {
+    if (choosing || current || referenceBusy || planning) return;
+    const media = mediaIdentity(); choosing = true; controls();
+    try {
+      const result = kind === 'subtitle' ? await window.api.selectFile('subtitle') : await window.api.selectVideo();
+      if (media !== mediaIdentity()) { inheritSubtitleRange(); status('Video değişti; dosyayı yeniden seçin.'); return; }
+      if (kind === 'subtitle') {
+        if (typeof result === 'string' && /\.srt$/i.test(result)) {
+          srt = result; invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
+        } else if (result) status('Bir SRT altyazı dosyası seçin.');
+      } else if (Array.isArray(result) && typeof result[0] === 'string') {
+        backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
+      }
+    } catch (_) { status('Dosya seçilemedi. Lütfen tekrar deneyin.'); }
+    finally { choosing = false; controls(); }
+  }
+  el('dubChooseSrt').addEventListener('click', () => chooseInput('subtitle'));
   el('dubPlanPrepare').addEventListener('click', async () => {
     planning = true; controls();
     try {
@@ -146,10 +159,7 @@
   });
   el('dubPlanGroup').addEventListener('change', showGroup);
   el('dubKeepBackground').addEventListener('change',controls);
-  el('dubChooseBackground').addEventListener('click',async()=>{
-    const files=await window.api.selectVideo();
-    if (Array.isArray(files) && typeof files[0]==='string') { backgroundSource=files[0]; el('dubBackgroundName').textContent=basename(backgroundSource); }
-  });
+  el('dubChooseBackground').addEventListener('click', () => chooseInput('background'));
   el('dubBackgroundReset').addEventListener('click',()=>{backgroundSource='';el('dubBackgroundName').textContent='';});
   el('dubPlanApply').addEventListener('click', () => {
     const g = group(), text = el('dubPlanText').value.trim();
@@ -169,10 +179,14 @@
     finally { planning = false; controls(); }
   });
   for (const [id, kind] of [['dubChooseEngine','engine'], ['dubChooseVoice','reference'], ['dubChooseTranscript','transcript']]) {
-    el(id).addEventListener('click', () => configure(kind));
+    el(id).addEventListener('click', async () => {
+      if (choosing || current || referenceBusy || planning) return;
+      choosing = true; controls();
+      try { await configure(kind); } finally { choosing = false; controls(); }
+    });
   }
   el('dubGeneratorStart').addEventListener('click', async () => {
-    if (current || referenceBusy || planning || !srt || !cfg?.ready) return;
+    if (current || referenceBusy || planning || choosing || !srt || !cfg?.ready) return;
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
     current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: el('dubSampleOnly').checked };
