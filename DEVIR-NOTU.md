@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-16-0338.md](docs/devir/2026-10-16-0338.md) — rapor436: Sağ panel kontrollerinin görünürlüğü
+Güncel çalışma: [docs/devir/2026-10-16-0342.md](docs/devir/2026-10-16-0342.md) — rapor437: Downloads/Sesler girdi-çıktı-referans düzeni
+Önceki çalışma: [docs/devir/2026-10-16-0338.md](docs/devir/2026-10-16-0338.md) — rapor436: Sağ panel kontrollerinin görünürlüğü
 Önceki çalışma: [docs/devir/2026-10-15-2331.md](docs/devir/2026-10-15-2331.md) — rapor435: Referans ses adlandırma
 Önceki çalışma: [docs/devir/2026-10-15-2326.md](docs/devir/2026-10-15-2326.md) — rapor434: YouTube referans ses bağlantısı ve görünür hata nedeni
 Önceki çalışma: [docs/devir/2026-10-15-2253.md](docs/devir/2026-10-15-2253.md) — rapor433: APINEX ve videodan referans ses kütüphanesi
