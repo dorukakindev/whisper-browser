@@ -34,7 +34,7 @@ const tick = () => new Promise(setImmediate);
   assert.equal(library.references[0].name, 'Türkçe anlatıcı');
   assert.equal((await call('dub:referenceRename', { id: good.id, name: '  Yeni ses adı  ' })).ok, true);
   assert.equal((await call('dub:references')).references[0].name, 'Yeni ses adı');
-  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'Referans sesler', good.id, 'reference.json'), 'utf8'));
+  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'Sesler', 'Ses referansları', good.id, 'reference.json'), 'utf8'));
   assert.equal(metadata.createdAt, library.references[0].createdAt);
   for (const name of ['', ' ', 'x'.repeat(161), 'line\nname', 123]) {
     assert.equal((await call('dub:referenceRename', { id: good.id, name })).ok, false);

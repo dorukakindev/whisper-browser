@@ -17997,7 +17997,7 @@ const dubService = require('./dub-service').registerDubService({
       source = `https://www.youtube.com/watch?v=${videoId}`;
     }
     return require('./dub-background').prepareBackground({...options,source,appRoot:appResourceRoot(),
-      userData:app.getPath('userData'),downloadPython:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),
+      userData:app.getPath('userData'),cacheDir:require('./voice-storage').voiceStorage(app).input,downloadPython:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),
       spawn,environment:()=>withoutSecretEnv(process.env)});
   },
   setRate: async request => {

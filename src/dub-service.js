@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
 
@@ -56,9 +57,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   const guard = fn => async (e, ...args) => {
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
-    try { return await fn(e, ...args); } catch (error) { return { ok: false, error: error.message }; }
+    try { await storage(); return await fn(e, ...args); } catch (error) { return { ok: false, error: error.message }; }
   };
-  const referencesRoot = () => path.join(app.getPath('userData'), 'Referans sesler');
+  const referencesRoot = () => voiceStorage(app).references;
+  let storageReady;
+  async function storage() {
+    if (!storageReady) storageReady = prepareVoiceStorage(app).catch(error => { storageReady = null; throw error; });
+    return storageReady;
+  }
   function referencePaths(id) {
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id || '')) throw new Error('Invalid reference ID.');
     fs.mkdirSync(referencesRoot(), { recursive: true });
@@ -85,7 +91,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (references.length === 100) break;
     }
     references.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return { ok: true, folder: referencesRoot(), references, activeId: references.find(item => item.path === config().reference)?.id || '' };
+    return { ok: true, folder: referencesRoot(), references, activeId: references.find(item => item.path === config().reference || path.join(app.getPath('userData'), 'Referans sesler', item.id, 'reference.wav') === config().reference)?.id || '' };
   }));
   function referenceName(raw, optional = false) {
     if (raw == null && optional) return '';
@@ -195,7 +201,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true };
   }));
   ipcMain.handle('dub:latest', guard(async () => {
-    const root = path.join(app.getPath('userData'), 'dub-output');
+    const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');
     if (!fs.existsSync(logs)) return { ok: true, output: null };
     const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).map(n =>
@@ -205,7 +211,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
         if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
         const output = path.join(root, `${saved.id}.wav`);
-        if (path.resolve(saved.path || '') !== path.resolve(output) || !fs.existsSync(output)) continue;
+        if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !fs.existsSync(output)) continue;
         grantMedia(output);
         return { ok: true, output: { path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
@@ -264,7 +270,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
-      const outputDir = path.join(app.getPath('userData'), 'dub-output');
+      const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       if (fs.existsSync(output)) throw new Error('Bu işin ses çıktısı zaten var.');
@@ -278,7 +284,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         fs.writeFileSync(s.summaryPath, JSON.stringify({ id: s.id, startedAt: s.startedAt,
           result: 'running', sample: s.sample }, null, 2), 'utf8');
       } catch (error) { s.logError = error.message; }
-      const args = [script, srt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
+      const inputDir = path.join(voiceStorage(app).input, s.id);
+      fs.mkdirSync(inputDir, { recursive: true });
+      const inputSrt = path.join(inputDir, path.basename(srt));
+      fs.copyFileSync(srt, inputSrt, fs.constants.COPYFILE_EXCL);
+      const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
         '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
