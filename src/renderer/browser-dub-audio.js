@@ -87,7 +87,12 @@
     }
     async fail(message) { await this.remove(); this.error(message); }
     pauseAll() {
-      if (this.session) this.session.voiceWanted = this.session.backgroundWanted = false;
+      if (this.session) {
+        const s = this.session;
+        s.voiceWanted = s.backgroundWanted = false;
+        s.voiceEpoch = (s.voiceEpoch || 0) + 1; s.backgroundEpoch = (s.backgroundEpoch || 0) + 1;
+        s.playPending = s.backgroundPlayPending = false;
+      }
       this.audio.pause(); this.backgroundAudio?.pause();
     }
     syncBackground(s,time,rate,playing) {
@@ -96,13 +101,14 @@
       b.playbackRate=rate;
       if (Math.abs(b.currentTime-time)>.25) { try { b.currentTime=Math.max(0,time); } catch (_) {} }
       s.backgroundWanted = playing && time>=0 && time<b.duration;
-      if (!s.backgroundWanted) { b.pause();return; }
+      if (!s.backgroundWanted) { s.backgroundEpoch = (s.backgroundEpoch || 0)+1; s.backgroundPlayPending=false; b.pause();return; }
       if (b.paused && !s.backgroundPlayPending) {
         s.backgroundPlayPending=true;
+        const epoch = s.backgroundEpoch = (s.backgroundEpoch || 0)+1;
         Promise.resolve(b.play()).then(()=>{
-          if (this.session===s && (!s.backgroundWanted || !this.matches(s) || this.sample?.paused || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) b.pause();
-        }).catch(()=>{ if (this.session===s && s.backgroundWanted) void this.fail('Arka plan sesi başlatılamadı.'); })
-          .finally(()=>{s.backgroundPlayPending=false;});
+          if (this.session===s && (epoch===s.backgroundEpoch || !s.backgroundWanted) && (!s.backgroundWanted || !this.matches(s) || this.sample?.paused || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) b.pause();
+        }).catch(()=>{ if (this.session===s && epoch===s.backgroundEpoch && s.backgroundWanted) void this.fail('Arka plan sesi başlatılamadı.'); })
+          .finally(()=>{if(epoch===s.backgroundEpoch)s.backgroundPlayPending=false;});
       }
     }
     setBaseRate(rate) {
@@ -192,15 +198,16 @@
         try { a.currentTime = seek; } catch (_) { /* metadata not seekable yet */ }
       }
       s.voiceWanted = playing && target >= 0 && target < end;
-      if (!s.voiceWanted) { a.pause(); return; }
+      if (!s.voiceWanted) { s.voiceEpoch=(s.voiceEpoch || 0)+1; s.playPending=false; a.pause(); return; }
       if (a.paused && !s.playPending && a.readyState > 0) {
         s.playPending = true;
+        const epoch = s.voiceEpoch = (s.voiceEpoch || 0)+1;
         Promise.resolve(a.play()).then(() => {
-          if (this.session === s && (!s.voiceWanted || !this.matches(s) || this.sample?.paused
+          if (this.session === s && (epoch===s.voiceEpoch || !s.voiceWanted) && (!s.voiceWanted || !this.matches(s) || this.sample?.paused
               || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) a.pause();
         }).catch(() => {
-          if (this.session === s && s.voiceWanted) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
-        }).finally(() => { s.playPending = false; });
+          if (this.session === s && epoch===s.voiceEpoch && s.voiceWanted) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
+        }).finally(() => { if(epoch===s.voiceEpoch)s.playPending = false; });
       }
     }
   }

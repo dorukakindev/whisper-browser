@@ -130,3 +130,17 @@ test('completed voice migration does not resurrect files deleted from the destin
   const folders=await prepareVoiceStorage(app);const target=path.join(folders.references,'fixture.txt');fs.unlinkSync(target);await prepareVoiceStorage(app);assert.equal(fs.existsSync(target),false);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('late AbortError after pause/resume cannot destroy a newer play in the same dub session',async()=>{
+ const Dub=require('../src/renderer/browser-dub-audio'),pending=[];
+ const c={mode:'browser',tabId:'fixture',mediaKey:'fixture',generation:1};
+ const audio={readyState:4,paused:true,duration:100,currentTime:0,addEventListener(){},pause(){this.paused=true;},load(){},removeAttribute(){},play(){this.paused=false;return new Promise((resolve,reject)=>pending.push({resolve,reject}));}};
+ const dub=new Dub({audio,context:()=>c,mute:()=>({ok:true}),urls:{createObjectURL:()=> 'blob:fixture',revokeObjectURL(){}}});
+ try{
+  await dub.attach({name:'fixture'},c);dub.update({currentTime:3,paused:false});
+  dub.update({currentTime:3,paused:true});dub.update({currentTime:3,paused:false});assert.equal(pending.length,2);
+  pending[0].reject(Object.assign(Error('interrupted'),{name:'AbortError'}));await new Promise(setImmediate);
+  assert(dub.session);assert.equal(dub.session.playPending,true);assert.equal(audio.paused,false);
+  pending[1].resolve();await new Promise(setImmediate);assert.equal(dub.session.playPending,false);
+ }finally{await dub.remove();}
+});
