@@ -7,6 +7,8 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 448 | [BROWSER_BUG_REPORT_448.md](BROWSER_BUG_REPORT_448.md) | Rapor447 kritik iddialarının bağımsız doğrulaması |
+| 447 | [BROWSER_BUG_REPORT_447.md](BROWSER_BUG_REPORT_447.md) | Önceki çoklu alt sistem denetimi; bağımsız doğrulama rapor448 |
 | 446 | [BROWSER_BUG_REPORT_446.md](BROWSER_BUG_REPORT_446.md) | Güvenli dublaj/referans temizliği ve oynatma oturumu |
 | 445 | [BROWSER_BUG_REPORT_445.md](BROWSER_BUG_REPORT_445.md) | Dış ses paketi incelemesi; cleanup veri kaybı ve CSV |
 | 444 | [BROWSER_BUG_REPORT_444.md](BROWSER_BUG_REPORT_444.md) | Dış 407/408/409 paketleri; çeviri, canlı ses, oynatıcı |
