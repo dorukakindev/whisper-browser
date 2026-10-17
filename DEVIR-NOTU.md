@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
+Güncel çalışma: [docs/devir/2026-10-18-0252.md](docs/devir/2026-10-18-0252.md) — rapor453: Cache yazım yarışı, eski medya ve geciken ses işi yanıtları
+Önceki çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-17-1423.md](docs/devir/2026-10-17-1423.md) — rapor451: Kod-değiştirmeyen 50 görevlik çok derin bug taraması (npm test 11 dosya başarısız + doğrulanmış bulgular)
 Önceki çalışma: [docs/devir/2026-10-17-1256.md](docs/devir/2026-10-17-1256.md) — GitHub hesap seçimi düzeltildi, bekleyen yayın tamamlandı
 Önceki çalışma: [docs/devir/2026-10-17-1243.md](docs/devir/2026-10-17-1243.md) — rapor450: Doğrulanmış recovery, ses, çeviri ve altyazı düzeltmeleri
