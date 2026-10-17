@@ -17,14 +17,15 @@
     matches(s = this.session) {
       const c = this.context();
       return !!s && ['browser', 'player'].includes(c.mode) && c.mode === s.mode && c.visible !== false && c.tabId === s.tabId
-        && c.mediaKey === s.mediaKey && c.generation === s.generation;
+        && c.mediaKey === s.mediaKey && c.generation === s.generation && (c.mediaId || '') === (s.mediaId || '');
     }
     async attach(file, c) {
+      if (!c || !this.matches(c)) return false;
       const intent = ++this.intent;
       const priorMuted = this.session?.tabId === c.tabId ? this.session.priorMuted : c.priorMuted;
       const priorRate = this.session?.tabId === c.tabId && this.session.sync ? this.session.baseRate : c.playbackRate;
       await this.detachCurrent();
-      if (intent !== this.intent) return false;
+      if (intent !== this.intent || !this.matches(c)) return false;
       if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
       const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
       try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }

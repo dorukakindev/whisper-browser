@@ -67,7 +67,7 @@
   input.addEventListener('change', async () => {
     const c = chosenContext, current = context(), file = input.files?.[0];
     if (!file || !c || c.tabId !== current.tabId || c.mediaKey !== current.mediaKey
-        || c.generation !== current.generation || current.mode !== c.mode || !current.visible) return;
+        || c.generation !== current.generation || (c.mediaId || '') !== (current.mediaId || '') || current.mode !== c.mode || !current.visible) return;
     add.disabled = true;
     try {
       if (await controller.attach(file, { ...c, priorMuted: current.priorMuted })) {
@@ -103,7 +103,7 @@
     attachGenerated: async (file, expected) => {
       const c = context();
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
-          || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
+          || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
       if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });

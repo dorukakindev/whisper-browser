@@ -18020,7 +18020,7 @@ const dubService = require('./dub-service').registerDubService({
     else {
       const expected = request.backgroundTab || {};
       const tab = browserTabById(expected.tabId);
-      if (!tab || tab.generation !== expected.generation || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
+      if (!tab || tab.generation !== expected.generation || (expected.mediaId && expected.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
       const url = new URL(tab.view.webContents.getURL());
       const videoId = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})(?:\/|$)/)?.[1];
       if (url.protocol !== 'https:' || !['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname) || !/^[a-zA-Z0-9_-]{11}$/.test(videoId || '')) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');

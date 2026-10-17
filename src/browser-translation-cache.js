@@ -273,7 +273,10 @@ class PersistentTranslationCache {
     const dir = path.dirname(this.filePath);
     const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     const promises = this.fs.promises;
-    const pendingCount = this.pendingJournal.length;
+    // get() yeniden sıralarken pendingJournal dizisini değiştirebilir.
+    // Eski uzunluğa göre splice yeni bir set() kaydını silebiliyordu.
+    const compactedRows = this.pendingJournal;
+    this.pendingJournal = [];
     const payload = `${JSON.stringify({ version: 2, entries: [...this.map] })}\n`;
     try {
       if (promises) {
@@ -300,11 +303,10 @@ class PersistentTranslationCache {
       this.journalFlushes = 0;
       this.lastCompactAt = Date.now();
       this.baseFileWritten = true;
-      // Sıkıştırma başlangıcındaki bekleyen satırlar temel dosyaya yazıldı;
-      // yazma sürerken eklenenler dizide kalsın (bir sonraki journal turuna).
-      this.pendingJournal.splice(0, pendingCount);
+      // Yazma sürerken gelen satırlar ayrı dizide, sonraki flush için kalır.
       return { ok: true };
     } catch (error) {
+      this.pendingJournal = compactedRows.concat(this.pendingJournal);
       try {
         if (promises) await promises.unlink(temp);
         else if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp);

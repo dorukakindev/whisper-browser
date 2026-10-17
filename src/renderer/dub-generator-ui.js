@@ -138,16 +138,19 @@
   }
   el('dubChooseSrt').addEventListener('click', () => chooseInput('subtitle'));
   el('dubPlanPrepare').addEventListener('click', async () => {
+    if (planning || current || referenceBusy || choosing || !srt) return;
+    const media = mediaIdentity();
     planning = true; controls();
     try {
       const r = await window.api.planDub({ srt, range: selectedRange() });
+      if (media !== mediaIdentity()) { status('Video değişti; dosyayı yeniden seçin.'); return; }
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
         option.textContent = `${i + 1} · ${g.seconds.toFixed(1)} s · ${g.text.slice(0, 65)}`; el('dubPlanGroup').append(option); });
       showGroup(); status('Cümle grupları hazır');
     } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
-    finally { planning = false; controls(); }
+    finally { planning = false; inheritSubtitleRange(); controls(); }
   });
   function invalidatePlan() {
     plan = null; edits = {}; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
@@ -169,14 +172,17 @@
   });
   el('dubPlanReset').addEventListener('click', () => { const g = group(); if (g) delete edits[g.key]; showGroup(); });
   el('dubPlanShorten').addEventListener('click', async () => {
+    if (planning || current || referenceBusy || choosing) return;
     const g = group(); if (!g) return;
+    const media = mediaIdentity(), requestedPlan = plan;
     planning = true; controls(); status('Kısaltma önerisi hazırlanıyor…');
     try {
       const r = await window.api.shortenDub(g.key);
+      if (media !== mediaIdentity() || plan !== requestedPlan) { status('Video değişti; dosyayı yeniden seçin.'); return; }
       if (!r?.ok) throw new Error(r?.error || 'Uygun bir kısaltma alınamadı.');
       el('dubPlanText').value = r.text; status('Öneriyi kontrol edip Bu metni uygula düğmesine basın.');
     } catch (error) { el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.'); }
-    finally { planning = false; controls(); }
+    finally { planning = false; inheritSubtitleRange(); controls(); }
   });
   for (const [id, kind] of [['dubChooseEngine','engine'], ['dubChooseVoice','reference'], ['dubChooseTranscript','transcript']]) {
     el(id).addEventListener('click', async () => {
@@ -205,7 +211,7 @@
     const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
-      backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation} : null,
+      backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
@@ -214,10 +220,13 @@
     }
   });
   el('dubGeneratorCancel').addEventListener('click', async () => {
+    const pending = current;
+    if (!pending) return;
     el('dubGeneratorCancel').disabled = true;
-    if (current) current.stopping = true;
+    pending.stopping = true;
     status('Durduruluyor…');
     const r = await window.api.cancelDub().catch(() => null);
+    if (current !== pending) return;
     if (!r?.ok && current) { current.stopping = false; status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
