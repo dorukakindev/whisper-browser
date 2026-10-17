@@ -42,10 +42,26 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     }
     if (!s.sender.isDestroyed()) s.sender.send('dub:event', { id: s.id, type, ...data });
   }
+  function claimArtifacts(s, files) {
+    // Check the entire family BEFORE claiming any paths. A rejected duplicate
+    // must never make an earlier successful job's output eligible for cleanup.
+    if (files.some(file => fs.lstatSync(file, { throwIfNoEntry: false }))) throw new Error('Bu işin ses çıktısı zaten var.');
+    s.ownedArtifacts ||= new Set();
+    files.forEach(file => s.ownedArtifacts.add(file));
+  }
+  function cleanupArtifacts(s, files = s.ownedArtifacts || []) {
+    for (const file of files) {
+      if (!s.ownedArtifacts?.has(file)) continue;
+      try { fs.rmSync(file, { force: true }); s.ownedArtifacts.delete(file); }
+      catch (error) { (s.cleanupErrors ||= []).push({ file: path.basename(file), code: error.code || 'UNKNOWN' }); }
+    }
+  }
   function finish(s, type, data = {}) {
+    if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
-      progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null, ...data };
+      progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
+      cleanupErrors: s.cleanupErrors || [], ...data };
     summary.settings = s.settings || null;
     summary.metrics = s.metrics || null;
     if (s.summaryPath) {
@@ -131,7 +147,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       started: performance.now(), startedAt: new Date().toISOString(), settings: { kind: 'reference', range } };
     job = s;
     try {
-      fs.mkdirSync(p.folder, { recursive: true });
+      fs.mkdirSync(p.folder);
+      claimArtifacts(s, [p.reference, p.transcript, p.metadata, p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
       s.logPath = path.join(p.folder, 'events.ndjson'); s.summaryPath = path.join(p.folder, 'job.json');
       await prepareReference({ request, ...p, ...range, onProcess: proc => { s.proc = proc; },
         isCancelled: () => s.cancelled, status: stage => emit(s, 'reference_status', { stage }) });
@@ -274,7 +291,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
-      if (fs.existsSync(output)) throw new Error('Bu işin ses çıktısı zaten var.');
+      claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.partial.wav')]);
       fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
@@ -315,6 +332,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         try {
           if (typeof prepareBackground !== 'function') throw new Error('Arka plan ayırma kullanılamıyor.');
           const file = path.join(outputDir,`${s.id}-background.wav`);
+          const backgroundFiles = [file, file.replace(/\.wav$/i, '.partial.wav')];
+          claimArtifacts(s, backgroundFiles);
+          s.backgroundFiles = backgroundFiles;
           await prepareBackground({request,srt,range:s.range,output:file,
             onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:stage=>{
@@ -328,6 +348,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           grantMedia(file); background={url:pathToFileURL(file).href}; s.settings.keepBackground=true;
         } catch (error) {
           if (s.cancelled) throw error;
+          cleanupArtifacts(s, s.backgroundFiles || []);
           s.proc=null; s.settings.backgroundError=String(error.message).slice(0,600);
           emit(s,'warning',{text:'Arka plan ayırma başarısız; yalnız dublaj üretilecek.'});
         }
@@ -375,7 +396,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               const syncFile = output.replace(/\.wav$/i, '.sync.json');
               if (fs.statSync(syncFile).size > 2000000) throw new Error('map too large');
               sync = validateSync(JSON.parse(fs.readFileSync(syncFile, 'utf8')));
-            } catch (_) { finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.' }); return; }
+            } catch (_) {
+              // The WAV can still be recovered manually if only its sync map
+              // failed validation. Do not discard successfully generated audio.
+              s.ownedArtifacts?.delete(output);
+              finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.', recoverablePath: output }); return;
+            }
           }
           grantMedia(output);
           finish(s, 'done', { path: output, url: pathToFileURL(output).href,

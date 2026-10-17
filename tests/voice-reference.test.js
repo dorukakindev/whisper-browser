@@ -15,7 +15,7 @@ const service = registerDubService({ app, ipcMain: { handle: (name, fn) => { han
     preparation = options; options.status('transcribe_cuda');
     fs.writeFileSync(options.reference, Buffer.alloc(100)); fs.writeFileSync(options.transcript, 'Reference speech.');
     if (mode === 'hold') { options.onProcess({ exitCode: null }); await new Promise(resolve => { release = resolve; }); options.onProcess(null); }
-    if (mode === 'fail') throw new Error('fixture failure');
+    if (mode === 'fail') { fs.writeFileSync(options.metadata,'invalid');fs.writeFileSync(options.reference.replace(/\.wav$/,'.partial.wav'),'partial');throw new Error('fixture failure'); }
   } });
 const call = (name, request) => handlers[name]({ sender }, request);
 const request = () => ({ id: randomUUID(), range: { start: 5, end: 25 } });
@@ -57,7 +57,11 @@ const tick = () => new Promise(setImmediate);
   assert.equal((await call('dub:cancel')).ok, true); assert.equal(terminated, 1);
   release(); const stopped = await pending; assert.equal(stopped.cancelled, true); assert.equal(service.running(), false);
   assert.equal((await call('dub:references')).references.length, 1, 'cancelled output must not enter the library');
-  mode = 'fail'; assert.equal((await call('dub:referencePrepare', request())).ok, false);
+  const cancelledId=preparation.request.id;
+  for (const file of ['reference.wav','reference.txt','reference.json','reference.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Ses referansları',cancelledId,file)),false);
+  mode = 'fail'; const failed=request();assert.equal((await call('dub:referencePrepare', failed)).ok, false);
+  for (const file of ['reference.wav','reference.txt','reference.json','reference.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Ses referansları',failed.id,file)),false);
+  assert.equal(fs.readFileSync(result.reference.path).length,100,'existing reference must survive another failed job');
   assert.equal(service.running(), false);
   let newest;
   for (let index=0; index<105; index++) {

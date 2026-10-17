@@ -20,8 +20,8 @@ const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[na
   prepareBackground: async ({output,onProcess,range,status})=>{
     backgroundRange=range;
     status('separate_gpu');
-    if (backgroundMode==='fail') throw new Error('fixture separation failed');
-    if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
+    if (backgroundMode==='fail') { fs.writeFileSync(output,'incomplete'); fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial'); throw new Error('fixture separation failed'); }
+    if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{fs.writeFileSync(output,'incomplete');fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial');rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
     fs.writeFileSync(output,'instrumental');
   },
   spawn:(exe,args,opts)=>{
@@ -123,9 +123,36 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(JSON.parse(fs.readFileSync(events.at(-1).logPath,'utf8')).settings.backgroundDevice,'gpu');
     assert.equal(events.at(-1).sync.audioDuration,3);assert.ok(events.at(-1).background.url.startsWith('file:'));
     assert.equal((await call('dub:latest')).output.sync.audioDuration,3);
+    const preserved = [adaptiveOutput,adaptiveOutput.replace(/\.wav$/,'.sync.json'),adaptiveOutput.replace(/\.wav$/,'-background.wav')];
+    const preservedBytes = preserved.map(file=>fs.readFileSync(file));
+    assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true})).ok,false);
+    preserved.forEach((file,i)=>assert.deepEqual(fs.readFileSync(file),preservedBytes[i],'duplicate ID removed completed output'));
+    const orphan=path.join(root,'Sesler','Çıktı','orphan.sync.json');fs.writeFileSync(orphan,'keep');
+    assert.equal((await call('dub:start',{id:'orphan',srt})).ok,false);
+    assert.equal(fs.readFileSync(orphan,'utf8'),'keep');
+    assert.equal((await call('dub:start',{id:'partial-error',srt})).ok,true);
+    const failed=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    const failedFiles=[failed,failed.replace(/\.wav$/,'.sync.json'),failed.replace(/\.wav$/,'.partial.wav')];
+    failedFiles.forEach(file=>fs.writeFileSync(file,'partial'));
+    child.emit('close',1);failedFiles.forEach(file=>assert.equal(fs.existsSync(file),false));
+    assert.equal((await call('dub:start',{id:'cleanup-blocked',srt})).ok,true);
+    const blockedPartial=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1].replace(/\.wav$/,'.partial.wav');
+    fs.mkdirSync(blockedPartial);fs.writeFileSync(path.join(blockedPartial,'keep.txt'),'keep');
+    child.emit('close',1);
+    const cleanupSummary=JSON.parse(fs.readFileSync(events.at(-1).logPath,'utf8'));
+    assert.ok(cleanupSummary.cleanupErrors.some(item=>item.file==='cleanup-blocked.partial.wav'));
+    assert.equal(fs.readFileSync(path.join(blockedPartial,'keep.txt'),'utf8'),'keep','cleanup must never recurse into a directory');
+    assert.equal((await call('dub:start',{id:'bad-map',srt,timingMode:'video'})).ok,true);
+    const recoverable=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(recoverable,'recoverable audio');fs.writeFileSync(recoverable.replace(/\.wav$/,'.sync.json'),'invalid');
+    child.emit('close',0);
+    assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).recoverablePath,recoverable);
+    assert.equal(fs.readFileSync(recoverable,'utf8'),'recoverable audio');
+    assert.equal(fs.existsSync(recoverable.replace(/\.wav$/,'.sync.json')),false);
     backgroundMode='fail';
     assert.equal((await call('dub:start',{id:'voice-fallback',srt,timingMode:'clip',keepBackground:true})).ok,true);
     assert.ok(events.some(e=>e.id==='voice-fallback'&&e.type==='warning'));
+    for (const suffix of ['-background.wav','-background.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Çıktı','voice-fallback'+suffix)),false);
     fs.writeFileSync(calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1],'audio');child.emit('close',0);
     assert.equal(events.at(-1).type,'done');assert.equal(events.at(-1).background,null);
     backgroundMode='hold';
@@ -134,6 +161,7 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(service.running(),true);assert.equal((await call('dub:cancel')).ok,true);
     rejectPreparation(new Error('cancelled'));await preparing;
     assert.equal(events.at(-1).type,'cancelled');assert.equal(service.running(),false);
+    for (const suffix of ['-background.wav','-background.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Çıktı','cancel-background'+suffix)),false);
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

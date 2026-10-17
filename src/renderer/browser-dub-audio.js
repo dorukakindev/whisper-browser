@@ -5,7 +5,7 @@
     constructor({ audio, context, mute, changed = () => {}, error = () => {},
       now = () => Date.now(), urls = URL, setRate, backgroundAudio }) {
       Object.assign(this, { audio, context, mute, changed, error, now, urls, setRate, backgroundAudio });
-      this.session = null; this.sample = null; this.offset = 0; this.playPending = false;
+      this.session = null; this.sample = null; this.offset = 0;
       this.cleanup = Promise.resolve();
       audio.addEventListener('loadedmetadata', () => this.tick());
       audio.addEventListener('error', () => this.fail('Ses dosyası açılamadı. WAV veya MP3 deneyin.'));
@@ -89,12 +89,12 @@
       b.playbackRate=rate;
       if (Math.abs(b.currentTime-time)>.25) { try { b.currentTime=Math.max(0,time); } catch (_) {} }
       if (!playing || time<0 || time>=b.duration) { b.pause();return; }
-      if (b.paused && !this.backgroundPlayPending) {
-        this.backgroundPlayPending=true;
+      if (b.paused && !s.backgroundPlayPending) {
+        s.backgroundPlayPending=true;
         Promise.resolve(b.play()).then(()=>{
-          if (this.session!==s || !this.matches(s) || this.sample?.paused || this.sample?.adPlaying) b.pause();
+          if (this.session===s && (!this.matches(s) || this.sample?.paused || this.sample?.adPlaying)) b.pause();
         }).catch(()=>{ if (this.session===s) void this.fail('Arka plan sesi başlatılamadı.'); })
-          .finally(()=>{this.backgroundPlayPending=false;});
+          .finally(()=>{s.backgroundPlayPending=false;});
       }
     }
     setBaseRate(rate) {
@@ -184,14 +184,14 @@
         try { a.currentTime = seek; } catch (_) { /* metadata not seekable yet */ }
       }
       if (!playing || target < 0 || target >= end) { a.pause(); return; }
-      if (a.paused && !this.playPending && a.readyState > 0) {
-        this.playPending = true;
+      if (a.paused && !s.playPending && a.readyState > 0) {
+        s.playPending = true;
         Promise.resolve(a.play()).then(() => {
-          if (this.session !== s || !this.matches(s) || this.sample?.paused
-              || this.sample?.adPlaying || this.sample?.spinnerVisible) a.pause();
+          if (this.session === s && (!this.matches(s) || this.sample?.paused
+              || this.sample?.adPlaying || this.sample?.spinnerVisible)) a.pause();
         }).catch(() => {
           if (this.session === s) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
-        }).finally(() => { this.playPending = false; });
+        }).finally(() => { s.playPending = false; });
       }
     }
   }

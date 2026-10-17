@@ -121,5 +121,32 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio } = {}) {
   await blocked.dub.attach({ name: 'blocked.wav' }, blocked.c);
   blocked.dub.update({ currentTime: 5, paused: false }); await flush(); await flush();
   assert.equal(blocked.dub.session, null); assert.deepEqual(blocked.calls.at(-1), ['a', false]);
+  // Both channels must allow the new session to play while old promises
+  // are pending, and old finally callbacks must leave its pending state alone.
+  for (const channel of ['voice', 'background']) {
+    const background = { currentTime:0, duration:100, readyState:4, paused:true,
+      addEventListener() {}, pause() { this.paused=true; }, load() {}, removeAttribute() {},
+      play() { this.paused=false; return Promise.resolve(); } };
+    const f = fixture({ backgroundAudio: background });
+    const audio = channel === 'voice' ? f.audio : background;
+    const pending = [];
+    audio.play = () => { audio.paused=false; return new Promise((resolve,reject)=>pending.push({resolve,reject})); };
+    const file = name => ({name, ...(channel==='background' ? {background:{url:'file:///fixture.wav'}} : {})});
+    try {
+      await f.dub.attach(file('old.wav'),f.c);
+      f.dub.update({currentTime:4,paused:false});
+      assert.equal(pending.length,1);
+      await f.dub.attach(file('new.wav'),f.c);
+      audio.paused=true;
+      f.dub.update({currentTime:4,paused:false});
+      assert.equal(pending.length,2,channel+': old pending play blocked the new session');
+      pending[0].resolve(); await flush();
+      assert.equal(audio.paused,false,channel+': old resolution paused the new session');
+      const flag=channel==='voice'?'playPending':'backgroundPlayPending';
+      assert.equal(f.dub.session[flag],true,channel+': old finally cleared new pending state');
+      pending[1].resolve(); await flush();
+      assert.equal(f.dub.session[flag],false);
+    } finally { await f.dub.remove(); }
+  }
   console.log('browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });
