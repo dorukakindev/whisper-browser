@@ -26,6 +26,9 @@ const ctx = {
   useBrowserTrack: async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; },
 };
 vm.createContext(ctx);
+ctx.URL = URL;
+const endpointStart = code.indexOf('function translationEndpointReady(');
+vm.runInContext(code.slice(endpointStart, code.indexOf('\n}', endpointStart) + 2), ctx);
 function section(from, to) { const start = code.indexOf(from); assert(start >= 0); return code.slice(start, code.indexOf(to, start)); }
 vm.runInContext(section('function youtubeVideoId(', 'function mediaKeyFor('), ctx);
 vm.runInContext(section('function progressiveRanges(', 'async function startProgressiveChunk('), ctx);

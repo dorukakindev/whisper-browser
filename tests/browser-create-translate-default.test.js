@@ -47,6 +47,8 @@ const ctx = {
 };
 vm.createContext(ctx);
 vm.runInContext(section('function translationReadyForCreate(', 'function openTranslationKeySetup('), ctx);
+ctx.URL = URL;
+vm.runInContext(section('function translationEndpointReady(', '\n}') + '\n}', ctx);
 vm.runInContext(section('async function startProgressivePlayerTranscription(', '// "Altyazı oluştur"'), ctx);
 vm.runInContext(section("if ($('makeSubsBtn')) {\n  $('makeSubsBtn').addEventListener('click'", "if ($('playerJobCancel'))"), ctx);
 

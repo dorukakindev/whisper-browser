@@ -18,11 +18,15 @@ function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, time
     child.on('error', error => finish(new Error(`Medya aracı başlatılamadı: ${error.message}`)));
     child.stderr.on('data', chunk => { errorText = (errorText + chunk.toString()).slice(-1000); });
     child.stdout.on('data', chunk => {
+      if (settled) return;
       bytes += chunk.length;
       if (bytes > limit) { child.kill(); finish(new Error('Medya çıktısı izin verilen boyutu aştı.')); return; }
-      if (consume) consume(chunk); else chunks.push(chunk);
+      try { if (consume) consume(chunk); else chunks.push(chunk); }
+      catch (error) { child.kill(); finish(error); }
     });
-    child.on('close', code => finish(code === 0 ? null : new Error(errorText || 'Medya okunamadı.'), Buffer.concat(chunks)));
+    child.on('close', code => {
+      if (!settled) finish(code === 0 ? null : new Error(errorText || 'Medya okunamadı.'), Buffer.concat(chunks));
+    });
   });
 }
 

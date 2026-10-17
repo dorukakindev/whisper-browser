@@ -20755,6 +20755,22 @@ function recordJob(meta, event) {
 ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!options || typeof options !== 'object' || Array.isArray(options)) return { ok: false, error: 'Geçersiz iş seçenekleri.' };
+  // IPC ve geri yüklenen kuyruk, DOM kontrollerinin sayı kısıtlarını atlayabilir.
+  // NaN/Infinity argparse tarafından kabul edilse bile modelde geç hata verir.
+  const integerOptions = new Set(['batchSize', 'audioTrack', 'beamSize', 'bestOf',
+    'hardMaxChars', 'noRepeatNgramSize', 'vadMinSpeechMs', 'vadMinSilenceMs',
+    'vadSpeechPadMs', 'maxLineWidth', 'maxLines', 'maxChars', 'minSpeakers', 'maxSpeakers']);
+  for (const key of ['batchSize', 'audioTrack', 'beamSize', 'bestOf', 'vadThreshold',
+    'timingGap', 'hardMaxChars', 'continuationGap', 'incompleteGap', 'maxCps',
+    'temperature', 'patience', 'lengthPenalty', 'repetitionPenalty', 'noRepeatNgramSize',
+    'compressionRatioThreshold', 'logProbThreshold', 'noSpeechThreshold',
+    'vadMinSpeechMs', 'vadMinSilenceMs', 'vadSpeechPadMs', 'vadMaxSpeechS',
+    'maxLineWidth', 'maxLines', 'maxChars', 'minSpeakers', 'maxSpeakers']) {
+    if (options[key] !== undefined && (!Number.isFinite(options[key])
+        || (integerOptions.has(key) && !Number.isInteger(options[key])))) {
+      return { ok: false, error: `Geçersiz sayısal ayar / Invalid numeric setting: ${key}` };
+    }
+  }
   const folderDefaults = defaultMediaFolders(app.getPath('downloads'));
   const folderSettings = loadSettings();
   try {
@@ -20909,16 +20925,16 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.device) pushBoundOption(args, '--device', options.device);
   args.push('--snap-to-speech', options.snapToSpeech !== false ? 'true' : 'false');
   args.push('--fix-timings', options.fixTimings !== false ? 'true' : 'false');
-  if (options.maxCps) args.push('--max-cps', String(options.maxCps));
+  if (options.maxCps !== undefined) args.push('--max-cps', String(options.maxCps));
   args.push('--merge-short', options.mergeShort !== false ? 'true' : 'false');
   args.push('--merge-incomplete', options.mergeIncomplete !== false ? 'true' : 'false');
   args.push('--merge-continuation', options.mergeContinuation ? 'true' : 'false');
-  if (options.continuationGap) args.push('--continuation-gap', String(options.continuationGap));
+  if (options.continuationGap !== undefined) args.push('--continuation-gap', String(options.continuationGap));
   args.push('--fix-punctuation-collapse', options.fixPunctuationCollapse !== false ? 'true' : 'false');
   args.push('--fix-common-errors', options.fixCommonErrors !== false ? 'true' : 'false');
   args.push('--drop-repeated-hallucinations', options.dropRepeatedHallucinations !== false ? 'true' : 'false');
   args.push('--confidence-report', options.confidenceReport !== false ? 'true' : 'false');
-  if (options.incompleteGap) args.push('--incomplete-gap', String(options.incompleteGap));
+  if (options.incompleteGap !== undefined) args.push('--incomplete-gap', String(options.incompleteGap));
   args.push('--dedupe', options.dedupe !== false ? 'true' : 'false');
   if (options.computeType) pushBoundOption(args, '--compute-type', options.computeType);
   if (options.language) pushBoundOption(args, '--language', options.language);
@@ -20926,7 +20942,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.beamSize) args.push('--beam-size', String(options.beamSize));
   if (options.bestOf) args.push('--best-of', String(options.bestOf));
   args.push('--vad-filter', options.vadFilter ? 'true' : 'false');
-  if (options.vadThreshold) args.push('--vad-threshold', String(options.vadThreshold));
+  if (options.vadThreshold !== undefined) args.push('--vad-threshold', String(options.vadThreshold));
   args.push('--condition-on-previous', options.conditionOnPrevious ? 'true' : 'false');
   if (options.initialPrompt) pushBoundOption(args, '--initial-prompt', options.initialPrompt);
   if (options.formats) pushBoundOption(args, '--formats', options.formats);
@@ -20946,7 +20962,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (options.maxChars) args.push('--max-chars', String(options.maxChars));
   if (options.splitMode) pushBoundOption(args, '--split-mode', options.splitMode);
   if (options.wrapMode) pushBoundOption(args, '--wrap-mode', options.wrapMode);
-  if (options.timingGap) args.push('--timing-gap', String(options.timingGap));
+  if (options.timingGap !== undefined) args.push('--timing-gap', String(options.timingGap));
   if (options.hardMaxChars) args.push('--hard-max-chars', String(options.hardMaxChars));
 
   // Decoding ince ayarları

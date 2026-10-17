@@ -50,8 +50,15 @@ async function run() {
   assert.equal(w.document.getElementById('ad').style.display, 'none');
   assert.notEqual(w.document.getElementById('normal').style.display, 'none');
   const late = w.document.createElement('ytd-ad-slot-renderer');
-  w.document.body.appendChild(late);
-  await new Promise(resolve => setTimeout(resolve, 200));
+  await new Promise((resolve, reject) => {
+    const observer = new w.MutationObserver(() => {
+      if (late.style.display !== 'none') return;
+      clearTimeout(deadline); observer.disconnect(); resolve();
+    });
+    const deadline = setTimeout(() => { observer.disconnect(); reject(new Error('SPA ad was not hidden')); }, 2000);
+    observer.observe(late, { attributes: true, attributeFilter: ['style'] });
+    w.document.body.appendChild(late);
+  });
   assert.equal(late.style.display, 'none', 'SPA-added ad must be collapsed');
   const installedParse = w.JSON.parse;
   install({ enabled: true });

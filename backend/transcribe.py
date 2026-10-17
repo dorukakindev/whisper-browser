@@ -353,8 +353,9 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
     def progress_hook(d):
         if d.get("status") == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-            downloaded = d.get("downloaded_bytes", 0)
-            pct = (downloaded / total * 100) if total else 0
+            downloaded = d.get("downloaded_bytes") or 0
+            pct = (downloaded / total * 100) if total > 0 else 0
+            pct = min(100.0, max(0.0, pct)) if math.isfinite(pct) else 0.0
             emit(
                 "download_progress",
                 percent=round(pct, 1),
@@ -1845,11 +1846,20 @@ def validate_strict_srt_payload(payload, expected_entries):
     return True
 
 
+def validate_cue_time_range(start, end):
+    """Reject times that would serialize as a negative or empty cue interval."""
+    start, end = float(start), float(end)
+    if (not math.isfinite(start) or not math.isfinite(end) or start < 0
+            or round(end * 1000) <= round(start * 1000)):
+        raise ValueError("Invalid subtitle cue time range / Geçersiz altyazı zaman aralığı")
+
+
 def serialize_srt_strict(entries):
     """Cue'ları doğrulanmış, UTF-8 yazıma hazır standart SRT metnine çevir."""
     normalized = []
     blocks = []
     for index, (start, end, text) in enumerate(entries, 1):
+        validate_cue_time_range(start, end)
         body = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
         normalized.append((start, end, body))
         blocks.append(
@@ -1951,6 +1961,7 @@ def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr
     with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
+            validate_cue_time_range(start, end)
             wrapped = _decorate(vtt_escape_cue_text(wrap_text(text, max_line_width, max_lines, language=language,
                                                               wrap_mode=wrap_mode)), decorations, i - 1)
             f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")

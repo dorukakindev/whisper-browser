@@ -10,6 +10,7 @@ const SECRET_OPTION_KEYS = new Set([
   // girmemeli; kısa ve CamelCase anahtarlar regex'ten kaçabilir.
   'bearerToken', 'csrfToken', 'xsrfToken', 'privateKey', 'authToken',
   'sessionId', 'sid', 'sig', 'signature', 'oauthBearerToken',
+  'token', 'jwt', 'auth',
 ]);
 const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
 const TERMINAL_STATUS = new Set(['done', 'error']);
@@ -17,7 +18,7 @@ const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?
 
 function secretOptionKey(key) {
   return SECRET_OPTION_KEYS.has(key)
-    || /(?:^|[_-])(?:api[_-]?key|access[_-]?token|refresh[_-]?token|oauth[_-]?token|secret|password|passwd|authorization|cookie|credential)(?:$|[_-])/i.test(key)
+    || /(?:^|[_-])(?:token|jwt|auth|api[_-]?key|access[_-]?token|refresh[_-]?token|oauth[_-]?token|secret|password|passwd|authorization|cookie|credential)(?:$|[_-])/i.test(key)
     || /(?:ApiKey|AccessToken|RefreshToken|OauthToken|ClientSecret|Password|Authorization|Credential)$/i.test(key);
 }
 
