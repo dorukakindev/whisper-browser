@@ -48,3 +48,7 @@ Otomatik onay denetimi push+Git kimliğiyle CI API sorgusu birleşik komutunu, �
 Nihai yerel açılış tamamlandı: son kod6879626b ile normal start.bat12:45:04te PID6352/Whisper Altyazı ana penceresi doğrulandı, test env/boş profil kullanılmadı; pencere kullanıcı için açık bırakıldı. Bu yalnız uygulama açılışıdır, gerçek model/YouTube oturum doğrulaması değildir.
 
 Nihai push sınırı: son push GCM kimlik isteminde bekledi; yalnız bu denemenin17456/12:45:23 credential-manager süreci iptal edildi. Git Username okunamadı hatası verdi. GIT_TERMINAL_PROMPT=0/GCM_INTERACTIVE=never ile tek tekrar da kimlik yokluğunu doğruladı. Salt okunur uzak dal halen9f258219cee887cdd6f2e17d409eb288967fa8bd. Ana düzeltmeler GitHub'da; son aynı-session epoch kodu6879626b ve belge93d6f9062a71859806b1cc74412445fdbd0b2a7c henüz push edilmedi. Yerel uygulama6879626b ile çalışıyor. Kullanıcıdan mevcut Windows Git/GitHub oturumunu yenilemesi istendi; yetki yeniden sorulmadı. Bu ek açıklama da ayrı yerel belge commit'iyle kaydedilir; GitHub'a gitmiş sayılmaz.
+
+## Son yayın sonucu — 2026-10-17 12:56
+
+Önceki kimlik engeli çözüldü: kayıtlı dorukakindev hesabı varken Git x-access-token kullanıcı adını arıyordu. Repo kapsamındaki hesap seçimi düzeltildi. Son oynatma eki ve notlar dahil ee868113c9d29338fffc3c808207ff2d36261e7f push edildi, uzak eşitliği doğrulandı. Ayrıntı [1256 devir notunda](../devir/2026-10-17-1256.md). Şifre/token okunmadı veya raporlanmadı; ürün kodu tekrar değişmedi.
