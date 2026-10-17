@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-17-1423.md](docs/devir/2026-10-17-1423.md) — rapor451: Kod-değiştirmeyen 50 görevlik çok derin bug taraması (npm test 11 dosya başarısız + doğrulanmış bulgular)
+Güncel çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-17-1423.md](docs/devir/2026-10-17-1423.md) — rapor451: Kod-değiştirmeyen 50 görevlik çok derin bug taraması (npm test 11 dosya başarısız + doğrulanmış bulgular)
 Önceki çalışma: [docs/devir/2026-10-17-1256.md](docs/devir/2026-10-17-1256.md) — GitHub hesap seçimi düzeltildi, bekleyen yayın tamamlandı
 Önceki çalışma: [docs/devir/2026-10-17-1243.md](docs/devir/2026-10-17-1243.md) — rapor450: Doğrulanmış recovery, ses, çeviri ve altyazı düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-17-1228.md](docs/devir/2026-10-17-1228.md) — rapor449: Rapor447 tüm51 maddenin bağımsız değerlendirmesi
