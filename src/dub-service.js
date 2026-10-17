@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
+const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference }) {
@@ -121,7 +122,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
-    fs.writeFileSync(p.metadata, JSON.stringify({ ...meta, name }), 'utf8');
+    atomicWriteFileSync(p.metadata, JSON.stringify({ ...meta, name }), { encoding: 'utf8' });
     return { ok: true, name };
   }));
   ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
@@ -130,9 +131,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
     if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
     const p = referencePaths(request.id), c = config();
-    fs.writeFileSync(p.transcript, text, 'utf8');
+    atomicWriteFileSync(p.transcript, text, { encoding: 'utf8' });
     c.reference = p.reference; c.transcript = p.transcript;
-    fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
+    atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
     return { ok: true };
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
@@ -155,14 +156,22 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (s.cancelled) throw new Error('Cancelled.');
       const text = fs.readFileSync(p.transcript, 'utf8').trim();
       if (!text || text.length > 8000 || fs.statSync(p.reference).size < 44) throw new Error('No reference speech found.');
-      fs.writeFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), 'utf8');
+      atomicWriteFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), { encoding: 'utf8' });
       const reference = referenceEntry(request.id);
       finish(s, 'reference_ready');
       return { ok: true, reference };
     } catch (error) {
+      if (error.processActive && s.proc) {
+        s.keepOwner = true;
+        s.proc.once('close', () => {
+          finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message });
+          if (job === s) job = null;
+        });
+        return { ok: false, error: error.message };
+      }
       finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message });
       return { ok: false, cancelled: s.cancelled, error: error.message };
-    } finally { if (job === s) job = null; }
+    } finally { if (job === s && !s.keepOwner) job = null; }
   }));
   ipcMain.handle('dub:rate', guard(async (_e, request = {}) => {
     if (typeof setRate !== 'function' || !Number.isFinite(request.rate) || request.rate < .0625 || request.rate > 4
@@ -256,7 +265,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');
         }
-        fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
+        atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
       }
     }
     const c = config();
@@ -292,7 +301,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.partial.wav')]);
-      fs.writeFileSync(configPath(), JSON.stringify(c, null, 2), 'utf8');
+      atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });
@@ -305,7 +314,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const inputDir = path.join(voiceStorage(app).input, s.id);
       fs.mkdirSync(inputDir, { recursive: true });
       const inputSrt = path.join(inputDir, path.basename(srt));
-      fs.copyFileSync(srt, inputSrt, fs.constants.COPYFILE_EXCL);
+      if (fs.existsSync(inputSrt)) {
+        if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(fs.readFileSync(srt))) throw new Error('Bu işin girdi dosyası değişmiş.');
+      } else fs.copyFileSync(srt, inputSrt, fs.constants.COPYFILE_EXCL);
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
         '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
@@ -323,7 +334,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           if (!keys.has(key) || typeof text !== 'string' || !text.trim() || text.length > 1000) throw new Error('Geçersiz dublaj metni.');
         }
         const textPath = path.join(outputDir, `${s.id}-dub-text.json`);
-        fs.writeFileSync(textPath, JSON.stringify({ sourceHash: plan.sourceHash, edits }, null, 2), 'utf8');
+        claimArtifacts(s, [textPath]);
+        fs.writeFileSync(textPath, JSON.stringify({ sourceHash: plan.sourceHash, edits }, null, 2), { encoding: 'utf8', flag: 'wx' });
         args.push('--dub-text', textPath);
         s.settings.reviewedText = true;
       }
@@ -427,7 +439,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true };
   }
   ipcMain.handle('dub:cancel', guard(cancel));
-  app.on('before-quit', () => { void cancel(); });
+  let quitting = false;
+  app.on('before-quit', event => {
+    if (!job) return;
+    event?.preventDefault?.();
+    if (quitting) return;
+    quitting = true;
+    const finishQuit = () => { if (job) { setTimeout(finishQuit, 50).unref?.(); return; } quitting = false; app.quit?.(); };
+    void cancel().then(finishQuit).catch(() => { quitting = false; });
+  });
   return { running: () => !!job || !!textUI, cancel };
 }
 module.exports = { registerDubService };

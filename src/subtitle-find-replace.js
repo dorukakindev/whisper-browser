@@ -89,6 +89,8 @@
     const needle = foldSearchText(query, caseSensitive);
     if (!source || !needle) return [];
     const ranges = [];
+    let work = 0;
+    if (needle.length > 256 || source.length > 200000) throw new Error('SEARCH_LIMIT_EXCEEDED');
     // Hızlı yol: kod noktası başına katlama uzunluk koruyorsa (ortak durum —
     // NFKC birleşen im sınırı yoksa) metni bir kez katlayıp indexOf ile tara.
     // Her bulgu ayrıca pencere-katlama ile doğrulanır; ikisinin uyuşmadığı nadir
@@ -100,7 +102,7 @@
       for (;;) {
         const found = foldedSource.indexOf(needle, from);
         if (found < 0) break;
-        const end = found + needle.length;
+        let end = found + needle.length;
         if (foldSearchText(source.slice(found, end), caseSensitive) === needle) {
           if (!isClusterBoundary(source, found)) { from = found + 1; continue; }
           // Sona düşen im/seçici katmanı tabanla birlikte yutulur.
@@ -126,6 +128,8 @@
     while (startPoint < boundaries.length - 1) {
       let matched = null;
       for (let endPoint = startPoint + 1; endPoint < boundaries.length; endPoint++) {
+        work += boundaries[endPoint] - boundaries[startPoint];
+        if (work > 1000000) throw new Error('SEARCH_LIMIT_EXCEEDED');
         const candidate = foldSearchText(source.slice(boundaries[startPoint], boundaries[endPoint]),
           options.caseSensitive === true);
         if (candidate === needle) {

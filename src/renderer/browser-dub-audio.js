@@ -7,6 +7,7 @@
       Object.assign(this, { audio, context, mute, changed, error, now, urls, setRate, backgroundAudio });
       this.session = null; this.sample = null; this.offset = 0;
       this.cleanup = Promise.resolve();
+      this.intent = 0;
       audio.addEventListener('loadedmetadata', () => this.tick());
       audio.addEventListener('error', () => this.fail('Ses dosyası açılamadı. WAV veya MP3 deneyin.'));
       audio.addEventListener('ended', () => this.changed(this.session, 'Dublaj sona erdi'));
@@ -19,9 +20,11 @@
         && c.mediaKey === s.mediaKey && c.generation === s.generation;
     }
     async attach(file, c) {
+      const intent = ++this.intent;
       const priorMuted = this.session?.tabId === c.tabId ? this.session.priorMuted : c.priorMuted;
       const priorRate = this.session?.tabId === c.tabId && this.session.sync ? this.session.baseRate : c.playbackRate;
-      await this.remove();
+      await this.detachCurrent();
+      if (intent !== this.intent) return false;
       if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
       const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
       try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }
@@ -35,7 +38,7 @@
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
       s.desiredMuted = s.range ? !!priorMuted : true;
-      s.mutePromise = Promise.resolve(this.mute(s.tabId, s.desiredMuted)).then(result => {
+      s.mutePromise = Promise.resolve().then(() => this.mute(s.tabId, s.desiredMuted)).then(result => {
         s.muted = !!result?.ok && s.desiredMuted;
         return result;
       });
@@ -55,7 +58,8 @@
         return false;
       }
     }
-    async remove() {
+    remove() { ++this.intent; return this.detachCurrent(); }
+    async detachCurrent() {
       const s = this.session; this.session = null; this.sample = null;
       clearInterval(this.timer); this.timer = null;
       this.pauseAll(); this.audio.removeAttribute('src'); this.audio.load();
@@ -82,18 +86,22 @@
       return this.cleanup;
     }
     async fail(message) { await this.remove(); this.error(message); }
-    pauseAll() { this.audio.pause(); this.backgroundAudio?.pause(); }
+    pauseAll() {
+      if (this.session) this.session.voiceWanted = this.session.backgroundWanted = false;
+      this.audio.pause(); this.backgroundAudio?.pause();
+    }
     syncBackground(s,time,rate,playing) {
       const b=this.backgroundAudio;
       if (!s.background || !b || b.readyState<=0) return;
       b.playbackRate=rate;
       if (Math.abs(b.currentTime-time)>.25) { try { b.currentTime=Math.max(0,time); } catch (_) {} }
-      if (!playing || time<0 || time>=b.duration) { b.pause();return; }
+      s.backgroundWanted = playing && time>=0 && time<b.duration;
+      if (!s.backgroundWanted) { b.pause();return; }
       if (b.paused && !s.backgroundPlayPending) {
         s.backgroundPlayPending=true;
         Promise.resolve(b.play()).then(()=>{
-          if (this.session===s && (!this.matches(s) || this.sample?.paused || this.sample?.adPlaying)) b.pause();
-        }).catch(()=>{ if (this.session===s) void this.fail('Arka plan sesi başlatılamadı.'); })
+          if (this.session===s && (!s.backgroundWanted || !this.matches(s) || this.sample?.paused || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) b.pause();
+        }).catch(()=>{ if (this.session===s && s.backgroundWanted) void this.fail('Arka plan sesi başlatılamadı.'); })
           .finally(()=>{s.backgroundPlayPending=false;});
       }
     }
@@ -183,14 +191,15 @@
       if (a.readyState > 0 && Math.abs(a.currentTime - seek) > 0.25) {
         try { a.currentTime = seek; } catch (_) { /* metadata not seekable yet */ }
       }
-      if (!playing || target < 0 || target >= end) { a.pause(); return; }
+      s.voiceWanted = playing && target >= 0 && target < end;
+      if (!s.voiceWanted) { a.pause(); return; }
       if (a.paused && !s.playPending && a.readyState > 0) {
         s.playPending = true;
         Promise.resolve(a.play()).then(() => {
-          if (this.session === s && (!this.matches(s) || this.sample?.paused
-              || this.sample?.adPlaying || this.sample?.spinnerVisible)) a.pause();
+          if (this.session === s && (!s.voiceWanted || !this.matches(s) || this.sample?.paused
+              || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) a.pause();
         }).catch(() => {
-          if (this.session === s) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
+          if (this.session === s && s.voiceWanted) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
         }).finally(() => { s.playPending = false; });
       }
     }

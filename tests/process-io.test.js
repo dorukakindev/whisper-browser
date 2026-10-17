@@ -9,6 +9,9 @@ const { probeCommand } = require('../src/process-io');
   });
   assert.equal(line, 'ilk');
 
+  const stderrFlood = await probeCommand(process.execPath, ['-e', "process.stderr.write(Buffer.alloc(1024*1024,120),()=>console.log('READY'))"], {timeoutMs:2000});
+  assert.equal(stderrFlood, 'READY');
+
   const missing = await probeCommand('whisper-command-that-does-not-exist', [], { timeoutMs: 500 });
   assert.equal(missing, null);
 

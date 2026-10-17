@@ -122,12 +122,14 @@ contextBridge.exposeInMainWorld('api', {
   youtubeTvFullscreen: () => ipcRenderer.invoke('youtube-tv:fullscreen'),
   youtubeTvSignOut: () => ipcRenderer.invoke('youtube-tv:signout'),
   onYoutubeTvEvent: (listener) => {
-    ipcRenderer.on('youtube-tv:event', listener);
-    return () => ipcRenderer.removeListener('youtube-tv:event', listener);
+    const wrapped = (_event, payload) => listener(payload);
+    ipcRenderer.on('youtube-tv:event', wrapped);
+    return () => ipcRenderer.removeListener('youtube-tv:event', wrapped);
   },
   onYoutubeEvent: (listener) => {
-    ipcRenderer.on('youtube:event', listener);
-    return () => ipcRenderer.removeListener('youtube:event', listener);
+    const wrapped = (_event, payload) => listener(payload);
+    ipcRenderer.on('youtube:event', wrapped);
+    return () => ipcRenderer.removeListener('youtube:event', wrapped);
   },
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),

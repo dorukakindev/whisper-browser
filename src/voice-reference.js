@@ -11,9 +11,16 @@ function prepareVoiceReference({ source, start, end, reference, transcript, appR
   onProcess(child);
   return new Promise((resolve, reject) => {
     let pending = '', failure = '', finished = false, timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; Promise.resolve(terminate(child)).catch(() => {}); }, 10 * 60 * 1000);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      Promise.resolve().then(() => terminate(child)).catch(() => {});
+      try { child.kill?.('SIGKILL'); } catch (_) {}
+      const error = new Error('Reference preparation timed out.');
+      error.processActive = child.exitCode == null && child.signalCode == null;
+      done(error);
+    }, 10 * 60 * 1000);
     const done = error => {
-      if (finished) return; finished = true; clearTimeout(timer); onProcess(null);
+      if (finished) return; finished = true; clearTimeout(timer); if (!error?.processActive) onProcess(null);
       error ? reject(error) : resolve();
     };
     child.stdout.setEncoding('utf8'); child.stderr.resume();

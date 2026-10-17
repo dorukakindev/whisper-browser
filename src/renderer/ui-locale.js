@@ -4,6 +4,9 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Ses aktarımı yoğun; bir ses parçası atlandı.', 'Audio transfer is busy; an audio chunk was skipped.'],
+    ['Arama sınırı aşıldı. Daha kısa bir metin arayın.', 'Search limit exceeded. Search for shorter text.'],
+    ['geçersiz zaman', 'invalid timing'],
     ['Ses üretildi ancak referans listesi yenilenemedi. Paneli yeniden açın.', 'Audio was created, but the reference list could not be refreshed. Reopen the panel.'],
     ['Video değişti; dosyayı yeniden seçin.', 'The video changed; select the file again.'],
     ['Dosya seçilemedi. Lütfen tekrar deneyin.', 'The file could not be selected. Please try again.'],
@@ -3046,6 +3049,7 @@
   // Yalnız TR→EN: kaynak metni kod her zaman Türkçe üretir, TR'ye dönüşte
   // gözlemci saklanan özgün metni geri yazar.
   const patterns = [
+    [/^Canlı Whisper işlem hızı düzeldi \(RTF ([\d.]+)\); bekleyen ses parçaları işleniyor\.$/, 'Live Whisper processing speed improved (RTF $1); queued audio is still processing.'],
     [/^Genel değer: (.+)$/, (m, t) => `Global value: ${m[1] === 'Açık' ? 'On' : t(m[1])}`],
     // Madde 16–20 · izleme deneyimi
     [/^(\d+) eşleşen satır · (\d+) sadece A · (\d+) sadece B · ort\. kayma (\d+)ms$/, (m) => `${m[1]} matched cues · ${m[2]} only A · ${m[3]} only B · avg drift ${m[4]}ms`],

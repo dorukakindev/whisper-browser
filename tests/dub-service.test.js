@@ -47,6 +47,8 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(JSON.parse(fs.readFileSync(textPath,'utf8')).edits['1'],'Kısa metin.');
     assert.equal(fs.readFileSync(srt,'utf8'),'fixture');
     child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:'fixture-hash',edits:{'1':'Kısa metin.'}}})).ok,true,'failed job must be retryable with its unchanged input snapshot');
+    child.emit('close',1);
     assert.equal((await call('dub:start',{id:'bad-range',srt,range:{start:10,end:5}})).ok,false);
     assert.equal((await call('dub:start',{id:'ranged',srt,range:{start:20,end:30}})).ok,true);
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--range-start')+1],'20');

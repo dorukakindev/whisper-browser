@@ -18,6 +18,9 @@ function canonicalLocalPath(value) {
       || (process.platform === 'win32' && value.slice(2).includes(':'))) {
     throw new Error('Geçerli bir yerel dosya yolu gerekli.');
   }
+  if (process.platform === 'win32' && !/^(?:[a-z]:[\\/]|\\\\[^\\]+\\[^\\]+)/i.test(value)) {
+    throw new Error('Geçerli bir yerel dosya yolu gerekli.');
+  }
   const resolved = path.resolve(value);
   // Resolve aliases before checking extensions and permissions (symlink/ADS).
   if (fs.existsSync(resolved)) return fs.realpathSync(resolved);

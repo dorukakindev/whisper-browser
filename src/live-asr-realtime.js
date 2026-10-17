@@ -52,9 +52,9 @@ function createLiveAsrRealtimeMonitor(options = {}) {
         state.slowStreak = 0;
         if (state.warned) {
           state.warned = false;
-          return { level: 'info', message: `Canlı Whisper yeniden gerçek zamana yetişti (RTF ${rtf.toFixed(2)}).` };
+          return { level: 'info', message: `Canlı Whisper işlem hızı düzeldi (RTF ${rtf.toFixed(2)}); bekleyen ses parçaları işleniyor.` };
         }
-      }
+      } else state.slowStreak = 0;
     }
     if (state.skipped > state.skippedReported
         && (state.skippedReported === 0 || state.chunks % 10 === 0)) {

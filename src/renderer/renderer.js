@@ -11449,7 +11449,7 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
   player.browserLiveAsrCapture = capture;
   await context.audioWorklet.addModule('live-asr-worklet.js');
   if (player.browserLiveAsrCapture !== capture || !player.browserLiveAsrActive) { await context.close(); return; }
-  capture.node = new AudioWorkletNode(context, 'whisper-pcm-capture');
+  capture.node = new AudioWorkletNode(context, 'whisper-pcm-capture'); capture.node.port.postMessage({ type: 'configure' });
   capture.source = context.createMediaStreamSource(stream);
   capture.node.port.onmessage = ({ data }) => {
     if (data.type === 'flushed') { capture.resolveFlush?.(); return; }
@@ -11468,10 +11468,10 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
       }
       return;
     }
-    if (data.type !== 'chunk') return;
+    if (data.type === 'dropped' && data.reason === 'backpressure') setBrowserSignal('Ses aktarımı yoğun; bir ses parçası atlandı.', false); if (data.type !== 'chunk') return;
     capture.silentChunks = 0;
     capture.silenceWarned = false;
-    if (capture.pending.size >= 8) {
+    if (capture.pending.size >= 8) { capture.node.port.postMessage({ type: 'ack', id: data.id });
       setBrowserSignal('Canlı Whisper kuyruğu doldu; ses parçası atlandı. Daha küçük bir model seçin.', false);
       return;
     }
@@ -11482,7 +11482,7 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
       if (!result?.ok) setBrowserSignal(`Canlı Whisper: ${result?.error || 'Ses gönderilemedi.'}`, false);
     })();
     capture.pending.add(task);
-    task.finally(() => capture.pending.delete(task));
+    task.finally(() => { capture.pending.delete(task); capture.node.port.postMessage({ type: 'ack', id: data.id }); }).catch(() => {});
   };
   capture.node.onprocessorerror = () => stopBrowserLiveAsrCapture(true, 'Ses işleyicisi durdu; canlı Whisper yeniden başlatılmalı.');
   for (const track of stream.getAudioTracks()) track.addEventListener('ended', () => {
@@ -17417,7 +17417,7 @@ function renderTimelineIssues() {
   if (!issues.length) return;
   const byKind = {};
   for (const it of issues) (byKind[it.kind] ||= []).push(it.i);
-  for (const kind of ['empty', 'short', 'overlap', 'fast', 'lines']) {
+  for (const kind of ['empty', 'short', 'overlap', 'fast', 'lines', 'invalid']) {
     if (!byKind[kind]) continue;
     const chip = document.createElement('button');
     chip.type = 'button'; chip.className = 'timeline-issue-chip';
@@ -17433,7 +17433,7 @@ function renderTimelineIssues() {
     box.appendChild(fix);
   }
 }
-const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması' };
+const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması', invalid: 'geçersiz zaman' };
 function timelineJumpToIssue(kind) {
   const indices = timelineIssueList().filter((it) => it.kind === kind).map((it) => it.i);
   if (!indices.length) return;
@@ -22301,8 +22301,8 @@ function renderSubtitleFindMatches(searchGeneration, mediaGeneration) {
     caseSensitive: !!$('subtitleFindCase')?.checked,
     wholeWord: !!$('subtitleFindWhole')?.checked,
   };
-  const matches = subtitleFindReplace?.findLiteralMatches(
-    subtitleFindEntries(), query, options) || [];
+  let matches; try { matches = subtitleFindReplace?.findLiteralMatches(subtitleFindEntries(), query, options) || []; }
+  catch (_) { const box = $('subtitleFindResults'); if (box) box.textContent = 'Arama sınırı aşıldı. Daha kısa bir metin arayın.'; player.subtitleFindReplace.matches = []; player.subtitleFindReplace.selected = new Set(); return; }
   if (searchGeneration !== player.subtitleFindReplace.generation
       || mediaGeneration !== currentGeneration()) return;
   player.subtitleFindReplace.matches = matches;

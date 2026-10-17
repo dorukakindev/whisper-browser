@@ -15,6 +15,7 @@ const service = registerDubService({ app, ipcMain: { handle: (name, fn) => { han
     preparation = options; options.status('transcribe_cuda');
     fs.writeFileSync(options.reference, Buffer.alloc(100)); fs.writeFileSync(options.transcript, 'Reference speech.');
     if (mode === 'hold') { options.onProcess({ exitCode: null }); await new Promise(resolve => { release = resolve; }); options.onProcess(null); }
+    if (mode === 'timeout') { const proc=new EventEmitter(); options.onProcess(proc); preparation.proc=proc; throw Object.assign(new Error('timeout'),{processActive:true}); }
     if (mode === 'fail') { fs.writeFileSync(options.metadata,'invalid');fs.writeFileSync(options.reference.replace(/\.wav$/,'.partial.wav'),'partial');throw new Error('fixture failure'); }
   } });
 const call = (name, request) => handlers[name]({ sender }, request);
@@ -63,6 +64,11 @@ const tick = () => new Promise(setImmediate);
   for (const file of ['reference.wav','reference.txt','reference.json','reference.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Ses referansları',failed.id,file)),false);
   assert.equal(fs.readFileSync(result.reference.path).length,100,'existing reference must survive another failed job');
   assert.equal(service.running(), false);
+  mode='timeout';const timed=request();const timeout=await call('dub:referencePrepare',timed);
+  assert.equal(timeout.ok,false);assert.equal(service.running(),true,'live timed-out child must retain job ownership');
+  assert.equal(fs.existsSync(preparation.reference),true,'do not clean files while a child can still write');
+  preparation.proc.emit('close',1);assert.equal(service.running(),false);
+  assert.equal(fs.existsSync(preparation.reference),false);mode='ready';
   let newest;
   for (let index=0; index<105; index++) {
     const id=index===104 ? '00000000-0000-4000-8000-000000000001' : `ffffffff-ffff-4fff-8fff-${String(index).padStart(12,'0')}`, folder=path.join(root,'Sesler','Ses referansları',id);
