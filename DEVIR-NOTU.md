@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-16-1138.md](docs/devir/2026-10-16-1138.md) — rapor443: Referans listesi yenileme ve yanlış hazır durumu
+Güncel çalışma: [docs/devir/2026-10-17-0606.md](docs/devir/2026-10-17-0606.md) — rapor444: Dış bug paketleri, çeviri ve canlı ses düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-16-1138.md](docs/devir/2026-10-16-1138.md) — rapor443: Referans listesi yenileme ve yanlış hazır durumu
 Önceki çalışma: [docs/devir/2026-10-16-1115.md](docs/devir/2026-10-16-1115.md) — rapor442: Ses dosya seçimi ve geciken ayar yanıtları
 Önceki çalışma: [docs/devir/2026-10-16-1112.md](docs/devir/2026-10-16-1112.md) — rapor441: Referans taslakları, son kayıtlar ve eski zoom olayları
 Önceki çalışma: [docs/devir/2026-10-16-1106.md](docs/devir/2026-10-16-1106.md) — rapor440: Oynatıcı ana sayfası, Ctrl+wheel, ses bağlamı
