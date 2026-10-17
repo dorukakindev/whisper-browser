@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 451 | [BROWSER_BUG_REPORT_451.md](BROWSER_BUG_REPORT_451.md) | Kod-değiştirmeyen 50 görevlik çok derin tam-tarama: npm test 11 dosya başarısız envanteri + doğrulanmış (youtube-guard olay kaybı, NaN argv, VTT katı doğrulama, maxCps=0, negatif zaman, ≥24h) + güvenlik/uyum ve browser-zincir bulguları |
 | 450 | [BROWSER_BUG_REPORT_450.md](BROWSER_BUG_REPORT_450.md) | Recovery, ses, çeviri ve altyazı doğrulanmış hata düzeltmeleri |
 | 449 | [BROWSER_BUG_REPORT_449.md](BROWSER_BUG_REPORT_449.md) | Rapor447 tüm51 maddenin bağımsız değerlendirmesi |
 | 448 | [BROWSER_BUG_REPORT_448.md](BROWSER_BUG_REPORT_448.md) | Rapor447 kritik iddialarının bağımsız doğrulaması |
