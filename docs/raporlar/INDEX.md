@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 450 | [BROWSER_BUG_REPORT_450.md](BROWSER_BUG_REPORT_450.md) | Recovery, ses, çeviri ve altyazı doğrulanmış hata düzeltmeleri |
 | 449 | [BROWSER_BUG_REPORT_449.md](BROWSER_BUG_REPORT_449.md) | Rapor447 tüm51 maddenin bağımsız değerlendirmesi |
 | 448 | [BROWSER_BUG_REPORT_448.md](BROWSER_BUG_REPORT_448.md) | Rapor447 kritik iddialarının bağımsız doğrulaması |
 | 447 | [BROWSER_BUG_REPORT_447.md](BROWSER_BUG_REPORT_447.md) | Önceki çoklu alt sistem denetimi; bağımsız doğrulama rapor448 |

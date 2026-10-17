@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-17-1228.md](docs/devir/2026-10-17-1228.md) — rapor449: Rapor447 tüm51 maddenin bağımsız değerlendirmesi
+Güncel çalışma: [docs/devir/2026-10-17-1243.md](docs/devir/2026-10-17-1243.md) — rapor450: Doğrulanmış recovery, ses, çeviri ve altyazı düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-17-1228.md](docs/devir/2026-10-17-1228.md) — rapor449: Rapor447 tüm51 maddenin bağımsız değerlendirmesi
 Önceki çalışma: [docs/devir/2026-10-17-1105.md](docs/devir/2026-10-17-1105.md) — rapor448: Rapor447 kritik iddialarının bağımsız doğrulaması
 Önceki çalışma: [docs/devir/2026-10-17-1100.md](docs/devir/2026-10-17-1100.md) — rapor447: Vangu GPT-6.1 Sol destekli 5 alt sistem derin kod denetimi (51 bulgu)
 Önceki çalışma: [docs/devir/2026-10-17-0724.md](docs/devir/2026-10-17-0724.md) — rapor446: Güvenli ses temizliği ve oynatma oturumları

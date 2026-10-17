@@ -1,0 +1,48 @@
+# BROWSER_BUG_REPORT_450 — Doğrulanan447/448/449 hatalarının uygulanması
+
+Tarih:2026-10-17. Başlangıç bd92ba54cdc19f32a4673a294ce7a886ce83d0e5.
+Kod commit'leri:9f258219cee887cdd6f2e17d409eb288967fa8bd ve6879626b822445ef97039a6c5d8a94074cc87d5c (kesin bitiş kodu).
+Kullanıcı önceki doğrulanmış hataları da düzeltip canlıya almamızı istedi. Önceki raporlar korunur; aşağıdaki çalışma yeni uygulama/kanıttır. “51HIGH kapandı” iddiası değildir.
+
+## Uygulanan düzeltmeler
+
+| Rapor447 maddeleri | Uygulama |
+|---|---|
+| CAT1-01/02/04 | attach intent sonradan gelen remove/attach ile geçersizleşir; eşzamanlı açılış tek interval bırakır. Senkron mute throw Promise içine alınır, yarım session temizlenir. Ses ve background play epoch/pending/wanted session bazında; eski resolve/reject/finally yeni sesi veya aynı oturumdaki pause/resume niyetini bozamaz. |
+| CAT1-05/07/09/10/11/12 | Reviewed text claimArtifacts + wx ile korunur. Değişmeyen yetkili girdi snapshot'ı aynı ID tekrarında güvenli tekrar kullanılır; değişmiş içerik veya symlink reddedilir. Referans metadata/transcript ve config atomik yazılır. Timeout terminate beklemeden sonucu döndürür; hâlâ canlı child varsa servis sahipliği ve dosyalar close'a kadar korunur. before-quit iptali bekler, rejection yutulmadan işi korur. Başarılı legacy migration kaynakları marker ile kaydedilir; hedefte silinen veri yeniden doğmaz. |
+| CAT2-01/02/04/05/06/07/08/09/10/12 | YouTube callback'leri payload-only; TV çağıranı beraber güncellendi. Windows sürücüsüz kök yolu FS erişiminden önce reddedilir. Rollback başarısızlığında bak ve journal korunur; journal silinemezse committed marker kalır. Custom endpoint path case kimlikte korunur. Profile JSON içindeki tekil key değerleri serbest metinden de redakte edilir. HTTP/özel port bilinen HTTPS provider kapsamına girmez, prototype inherited adları key döndüremez. Probe stderr tüketilir; timeout/output limit process tree sonlandırmasını başlatır. Taskkill exit0 child watchdog'ını kaldırmaz, gerçek child close temizler. |
+| CAT3-01/03/04/05/06/07/09 | Learned ceiling ve başlangıç budget'ın pozitif minimumu;0 sınırsız ve atomik tek grup sözleşmesi korunur. Fuzzy cache serbest edit-distance sözcük eşliğini bırakır; normalize edilmiş eşdeğer tokenlar ve açık beş yazım varyantını kullanır. SQLite store transaction context'i hatada rollback yapar. Fazla probe body cancel edilir; reader lock bırakılır, body AbortError timeout sınıfına girer. IPv6 loopback tanınır. Planner history1000 ile, TM kayıt metni32000 karakterle sınırlı. |
+| CAT4-01/02/03/04/06/08 |64son chunk kimliği dedup edilir. Flush kısmi resampler toplam/ağırlığını sıfırlar. Eksik input veya50ms üstü input arası buffer sınırıdır. Canlı gerçek host configure mesajı ile Worklet PCM uçuşta4parça sınırına girer; renderer ack tamamlanınca kredi açılır; dolu portta yeni PCM atılır ve kullanıcı uyarılır. Stereo downmix güçlü ters faz iptalinde baskın kanalı kullanır. Yavaşlık sayacı orta hızda sıfırlanır, iyileşme bildirimi kuyruk boşaldı iddiasında bulunmaz. |
+| CAT5-01/02/03/04/05/06/07/08/09/10 | const->let; search query256/text200000/work1000000 sınırında exception, renderer kontrollü mesaj ve boş seçimle toparlanır. Intl.Segmenter görünür karakteri cue ortasında bölmez. Timeline birikimli en büyük end ile nested overlap bulur; invalid timing açık issue olur. Kurtarma imzası bütün metni de içeren çift32bit hash/v2 olur. Explicit bozuk output legacy complete/source'a düşmez; farklı sourceHash ile eşleşme reddedilir. Sayılar çoklukla tüketilir, ölçekli sayılarda işaret korunur; sözcükle ifade edilen aynı sayı ikinci kez kullanılamaz. |
+
+449 raporundaki29 D davranışı için ürün düzeltmesi uygulanmıştır. Buradaki testler şiddet/gerçek sağlayıcı/model kalitesi garantisi değildir. İlave koşullu maddelerde yukarıdaki dar davranışlar iyileştirildi.
+
+## Değiştirilmeyen sınırlar / açık maddeler
+
+CAT1-03 singleton controller'ın gelecekte birden çok instance/dispose tasarımı; CAT1-06 harici süreçlere karşı global dosya kilidi; CAT1-08 kilitli dosyalara otomatik retry/süpürme; CAT2-03 yetkili UNC dosyalarının senkron çözümleme maliyeti/SMB etkisi hâlâ sınırdır. UNC'yi tümden kapatmak kullanıcının seçtiği ağ dosyalarını bozacağından bu tur yapılmadı. CAT2-11 probe timeout sonuç döndürmeden önce bütün torunların kapanışını await etmiyor; tree kill/watchdog başlatır fakat OS kapanış kanıtı ayrıca gerekir. CAT3-02 büyük tek cümle grubunu bölmeme açık sözleşmesi; CAT3-08 nonempty yanıtla protokol probe etme (tam OK semantiği veya model token limiti eklenmedi); CAT4-05 daha gelişmiş resampling kalite ölçümü; CAT4-07 anlaşılır fısıltı/peak eşiği ayarı bu tur ürün hatası sayılmadı. Bunlar kapatılmış diye raporlanmaz.
+
+Yeni zaman imzası eski recovery kayıtlarıyla eşleşmeyebilir; yanlış içeriğe eski edit uygulamamak için bu bilinçli fail-closed değişimdir. Eski kayıtlar silinmez. Fuzzy vocabulary beş kontrollü yazım düzeltmesiyle sınırlıdır; bilinmeyen typo yeniden API isteği gerektirebilir. Aynı-ID retry yalnız byte olarak aynı girdiyle kabul edilir. Dosya silme loglarının ve önceki başarılı çıktının korunması446 davranışları sürer. Native HTMLMediaElement/OS/YouTube gerçek yarışları terminal fixture'ına eşit değildir.
+
+## Test kanıtı
+
+Yeni tests/report450-regressions.test.js21 davranış testi ve backend/test_report450.py4 test geçti. Eski kaynak kopyası bd92ba54 üstünde17bounded Node regresyonunun tümü kırmızı,4Python testi de kırmızıydı; mevcut kaynakta yeşil. Tüm21Node testini eski koda ilk uygulama20sn watchdog'a takıldı; güvenli bounded17 kontrolle tekrarlandı, eski kodda reference timeout testinin asılı kalması ayrıca önceden kanıtlanmıştı. Bu karşı örnek sırasında kişisel dosya/gerçek model kullanılmadı.
+
+29hedefli mevcut/yeni Node test dosyasının tamamı Windows'ta exit0: report450-regressions, browser-dub-audio, dub-service, voice-reference, voice-reference-process, voice-reference-ui, voice-storage, dub-background, dub-generator-ui, player-dub-ui, settings-security, provider-api-keys, provider-api-key-ui, preload-sandbox, translation-provider-probe, translation-number-gate, subtitle-sentence-layout, subtitle-output-contract, subtitle-find-replace, subtitle-find-replace-integration, timeline-issue-scan, browser-live-asr-pipeline, live-asr-audio-switch, live-asr-fallback, dom-innerhtml-ratchet, ui-locale, browser-report444, browser-translation-quality-loop, process-io. Son ek aynı-session epoch değişiminden sonra report450 ve browser-dub-audio tekrar geçti. Değişen dub-service/voice-reference testlerinin ek assertion'ları ayrı tekrar geçti.
+
+Settings-security23kontrol,44process-crash senaryosu dahil başarılı. İlk sandbox koşusunda child spawn engeli vardı; aynı testler yükseltilmiş izinle assertion değiştirmeden geçti. process-io'ya gerçek1MiB stderr child regresyonu eklendi. Process-lifecycle dosyasının Windows'a ilgili ilk6fixture'ı isolated kopyada geçti; dosyanın Linux/bash gerçek süreç kısmı Windows'ta çalıştırılmadı. Python test_report450(4), test_translation_memory(6), test_translate_planner(13) geçti. Yeni Python fixture ikinci sqlite connection'ı açık bıraktığı için Windows temp cleanup önce failed oldu; closing ile gerçek bağlantı kapatılarak düzeltildi, ürün assertion gevşetilmedi.
+
+Electron trusted bridge smoke geçti.26JS syntax, Python py_compile ve diff-check temiz. DOM ratchet satırları korunuyor, allowlist zayıflatılmadı. EN/TR yeni arama/aktarım/invalid timing metinleri ve RTF durumu eklendi. Görsel yerleşim/CSS değişmedi.
+
+## start.bat / yerel kullanıma alma
+
+Gerçek start.bat ayrı boş profilde açıldı. DOM: title Whisper Browser, ready complete, preload api true, locale en,665button, preloadErrors[]. İlk test araç denemeleri NODE_OPTIONS Windows slash ve erken Electron yükleme yüzünden başarısız oldu; yalnız ignored test bootstrap'ı düzeltilip tekrarlandı. Uygulama kaynaklarına bunları çözmek için test kancası eklenmedi. capturePage GPU açık ve kapalı denemelerinde UnknownVizError verdi; ekran görüntüsü/görsel doğrulama başarılı sayılmıyor. Özel profiller/loglar Git dışında.
+
+Sonra test değişkenleri temizlenerek normal start.bat kullanıcının uygulamasını açtı;12:42:17 Whisper Altyazı ana penceresi/süreç doğrulandı. Son epoch eki için yalnız bu çalışmanın açtığı PID/starttime eşleşen pencere normal CloseMainWindow ile kapatıldı ve exit doğrulandı; yeni kodla yeniden açılış teslimin son adımında yapılır. Kullanıcının başka uygulaması/süreci kapatılmadı. DRM onarımı otomatik başlatılmadı;H verildi.
+
+## Yayın/CI
+
+Kullanıcı açıkça canlıya al dediğinden önceki yerel-only inceleme commit'leri de push kapsamındadır. Kod9f258219 normal push ile mevcut GitHub dalına gönderildi ve uzak hash doğrulandı; son kod6879626b ve belgeler final push ile gider. Mevcut PR452 dalı korunur; master'a merge/force yapılmaz. Yerel ürün D:/Whisper Local kaynaklarından çalışır; bulut dağıtımı veya master merge iddiası yok.
+
+Otomatik onay denetimi push+Git kimliğiyle CI API sorgusu birleşik komutunu, önceki CI incelemesini bırak talimatı nedeniyle reddetti. Komut çalışmadı/kimlik okunmadı. Güvenli alternatif olarak yalnız push ve ls-remote yapıldı. CI/API incelenmedi ve CI yeşil iddiası yok. Tam npm test/gerçek CUDA/YouTube/loopback/DRM testi yapılmadı. Yeni paket/bağımlılık kurulmadı. İnceleme dosyalarında yer alan sağlayıcı/model iddiaları canlı dış servis doğrulaması değildir.
+
+Nihai yerel açılış tamamlandı: son kod6879626b ile normal start.bat12:45:04te PID6352/Whisper Altyazı ana penceresi doğrulandı, test env/boş profil kullanılmadı; pencere kullanıcı için açık bırakıldı. Bu yalnız uygulama açılışıdır, gerçek model/YouTube oturum doğrulaması değildir.
