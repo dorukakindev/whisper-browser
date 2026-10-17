@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 445 | [BROWSER_BUG_REPORT_445.md](BROWSER_BUG_REPORT_445.md) | Dış ses paketi incelemesi; cleanup veri kaybı ve CSV |
 | 444 | [BROWSER_BUG_REPORT_444.md](BROWSER_BUG_REPORT_444.md) | Dış 407/408/409 paketleri; çeviri, canlı ses, oynatıcı |
 | 443 | [BROWSER_BUG_REPORT_443.md](BROWSER_BUG_REPORT_443.md) | Referans liste yenileme ve yanlış hazır durumu |
 | 442 | [BROWSER_BUG_REPORT_442.md](BROWSER_BUG_REPORT_442.md) | Ses dosya seçimi ve ayar yanıtı yarışları |
