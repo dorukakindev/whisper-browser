@@ -217,7 +217,7 @@ def main():
                 if not text:
                     continue
                 start, end = bounds
-                emit("segment", start=offset + start * rate,
+                emit("segment", path=file_path, start=offset + start * rate,
                      end=offset + end * rate, text=text,
                      language=detected or getattr(info, "language", "") or "")
                 count += 1

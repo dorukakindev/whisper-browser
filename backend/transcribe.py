@@ -10194,6 +10194,8 @@ def main():
         args.llm_api_key = os.environ.get("WHISPER_LLM_API_KEY", "")
     if not args.translate_api_key:
         args.translate_api_key = os.environ.get("WHISPER_TRANSLATE_API_KEY", "")
+    from translation_auth import translation_api_key
+    args.translate_api_key = translation_api_key(args.translate_api_key, args.translate_base_url)
     # Anahtarlar okundu; ffmpeg/ffprobe gibi alt süreçlere miras kalmasınlar
     # (en-az-yetki ortam sözleşmesi, CLAUDE.md).
     for secret_env in ("WHISPER_HF_TOKEN", "WHISPER_LLM_API_KEY", "WHISPER_TRANSLATE_API_KEY"):

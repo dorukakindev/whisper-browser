@@ -375,7 +375,7 @@ function optsProblemInfo(opts) {
   if (a !== null && b !== null && b <= a) {
     return { message: 'Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.', fieldId: 'clipEnd' };
   }
-  if (opts.translate && !opts.translateApiKey) {
+  if (opts.translate && !translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
     return { message: 'Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri → API Key.', fieldId: 'translateApiKey' };
   }
   if (opts.diarize && !opts.hfToken) {
@@ -10761,7 +10761,7 @@ function attachBrowserCueIdentities(track, cues) {
     } else used.add(index);
     if (!identity) return cue;
     return { ...cue, cueId: identity.cueId || identity.id || cue.cueId,
-      sourceCueHash: identity.sourceCueHash || cue.sourceCueHash };
+      sourceCueHash: identity.sourceCueHash || cue.sourceCueHash, ...(identity.text === cue.text && identity.qualityWarning ? { qualityWarning: true, qualityIssues: identity.qualityIssues || [] } : {}) };
   });
 }
 
@@ -10886,7 +10886,7 @@ function mergeBrowserTranslationCues(target, cues, qualityIssues = null) {
     target.set(key, {
       id: `web-tr-${key}`, start: Number(cue.start) || 0,
       end: Number(cue.end) || Number(cue.start) || 0, text,
-      ...(flagged || cue?.qualityWarning ? { qualityWarning: true } : {}),
+      ...(flagged || cue?.qualityWarning ? { qualityWarning: true, qualityIssues: flagged ? qualityIssues : cue.qualityIssues || [] } : {}),
     });
   }
   return target;
@@ -11316,7 +11316,7 @@ function currentBrowserYoutubeUrl() {
 // kalıyordu. Yalnız kaynak isteyen için boş panelde "Yalnız altyazı" kalır.
 function translationReadyForCreate() {
   const key = $('translateApiKey');
-  return !!(key && String(key.value || '').trim());
+  return translationEndpointReady(key?.value, $('translateEndpointPreset')?.value === 'custom' ? $('translateBaseUrl')?.value : $('translateEndpointPreset')?.value);
 }
 
 function openTranslationKeySetup() {
@@ -19793,7 +19793,7 @@ async function aiChatSend(soru, translationTarget = null) {
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
   opts.chat = { question: q, history, context: chatContext };
   delete opts.youtube;
-  if (!opts.translateApiKey) {
+  if (!translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
     return;
   }
@@ -24143,9 +24143,9 @@ function watchBrowserVideoInPlayer() {
     return;
   }
   const ytKey = mediaKeyFor('youtube', url);
-  const seconds = Number(player.browserTime) || 0;
+  const seconds = Number(player.browserTime); player.pendingLibrarySeek = null;
   const intent = ++player.openIntent;
-  if (seconds > 2) {
+  if (Number.isFinite(seconds) && seconds >= 0 && (player.browserMediaSeen || seconds > 0)) {
     player.pendingLibrarySeek = { key: ytKey, generation: null, seconds };
   } else {
     const watch = watchItemByKey(ytKey);
@@ -32673,3 +32673,13 @@ $$('[data-whisper-range-close]').forEach(button => button.addEventListener('clic
 $('stHomeOpenVideo')?.addEventListener('click', () => $('playerPickVideo')?.click());
 $('stHomeOpenUrl')?.addEventListener('click', () => $('stSearchInput')?.focus());
 $('stHomeOpenLibrary')?.addEventListener('click', () => { setPlayerSidebarCollapsed(false); setSideTab('library', { focusContent: true }); });
+
+// Loopback endpoints can run without credentials; remote services still need a key.
+function translationEndpointReady(apiKey, endpoint) {
+  if (String(apiKey || '').trim()) return true;
+  try {
+    const url = new URL(String(endpoint || ''));
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+      && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  } catch (_) { return false; }
+}

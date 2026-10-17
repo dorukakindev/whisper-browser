@@ -6413,7 +6413,7 @@ function browserMangaTranslationConfig(overrides = {}) {
 function safeTranslationEndpoint(raw) {
   try {
     const url = new URL(String(raw || ''));
-    const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
     if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) return '';
     // Ayar sınırı userinfo'yu reddeder; burası renderer-canlı değerlerle de
     // çağrılabildiği için derinlik açısından yeniden soyulur.
@@ -9390,12 +9390,16 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
 function persistCompletedBrowserTranslation(tab, scheduler, config, context, options = {}) {
   if (!tab || tab.translationScheduler !== scheduler) return null;
   const partial = options && options.partial === true;
-  const cues = scheduler.snapshot().results.flatMap((result) => result.cues || []).map((cue, index) => ({
+  const cues = scheduler.snapshot().results.flatMap((result) => (result.cues || []).map((cue) => ({ ...cue,
+    qualityIssues: result.qualityIssues || cue.qualityIssues || [],
+    qualityWarning: !!(result.qualityIssues?.length || cue.qualityWarning),
+  }))).map((cue, index) => ({
     id: `web-tr-${String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, '')}`,
     cueId: String(cue.cueId ?? cue.id ?? index).replace(/^web-tr-/, ''),
     start: Number(cue.start) || 0,
     end: Number(cue.end) || Number(cue.start) || 0,
     text: String(cue.text || '').trim(),
+    qualityIssues: cue.qualityIssues, qualityWarning: cue.qualityWarning,
     // Birleşik balonda kapsanan ek kaynak kimliklerini taşı — yoksa kalıcı
     // bütünlük ikinci cue'yu hep "eksik" sayar.
     ...(Array.isArray(cue.coveredCueIds) && cue.coveredCueIds.length
@@ -9476,9 +9480,22 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
     publishBrowserDiagnostics();
   }
   try { job.proc.stdin.write(`${JSON.stringify({ type: 'stop' })}\n`); } catch (_) {}
-  setTimeout(() => {
-    terminateProcessTree(job.proc, { spawn });
-  }, 15000).unref?.();
+  job.lastProgressAt = Date.now();
+  const checkDrain = () => {
+    if (browserLiveAsr !== job) return;
+    // Accepted chunks may take much longer than 15 seconds on CPU. Only
+    // terminate a stalled drain; each completed chunk/segment renews it.
+    const graceMs = job.pendingChunks.size ? 120000 : 15000;
+    if (Date.now() - job.lastProgressAt >= graceMs) {
+      if (job.pendingChunks.size) sendBrowserEvent(job.tab, { type: 'live-asr-warning',
+        message: dt(`Canlı Whisper yanıt vermedi; ${job.pendingChunks.size} ses parçası tamamlanamadı.`,
+          `Live Whisper stopped responding; ${job.pendingChunks.size} audio chunks were not completed.`) });
+      terminateProcessTree(job.proc, { spawn });
+      return;
+    }
+    job.drainTimer = setTimeout(checkDrain, 15000); job.drainTimer.unref?.();
+  };
+  job.drainTimer = setTimeout(checkDrain, 15000); job.drainTimer.unref?.();
   sendBrowserEvent(job.tab, { type: 'live-asr-state', active: false, message: reason });
   return true;
 }
@@ -9511,7 +9528,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   const script = path.join(appResourceRoot(), 'backend', 'live_asr.py');
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
     const job = { id: randomUUID(), proc: null, tab, context, cues: [], nextCueId: 0, chunkFiles: new Set(), pendingChunks: new Map(), errorTail: '', ready: false, stopping: false, device, computeType, fellBackToCpu: false,
-    autoDetect: !(language && language !== 'auto'), audioSwitch: createLiveAsrAudioSwitch(),
+    autoDetect: !(language && language !== 'auto'), audioSwitch: createLiveAsrAudioSwitch(), liveChunkKey: {},
     realtime: createLiveAsrRealtimeMonitor({ model }) };
   const consumeLiveAsrLine = (line) => {
     let event;
@@ -9519,9 +9536,10 @@ function startBrowserLiveAsr(tab, options = {}) {
       if (!event) return;
     if (browserLiveAsr !== job) return;
     if (!event || typeof event !== 'object') return;
+    if (['ready', 'segment', 'chunk_done'].includes(event.type)) job.lastProgressAt = Date.now();
     if (event.type === 'ready') {
       job.ready = true;
-      sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
+      if (!job.stopping) sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
         message: `Canlı Whisper hazır · ${event.model}` });
     } else if (event.type === 'segment' && isCurrentBrowserContext(context)) {
       if (!Number.isFinite(event.start) || !Number.isFinite(event.end)
@@ -9534,7 +9552,7 @@ function startBrowserLiveAsr(tab, options = {}) {
       // ardışık parçalarda görülünce yeni streamKey'e geç — yeni sesin cue'ları
       // eski dilin izine karışmaz; tek seferlik yanlış algı izi bölmez.
       const switchState = job.autoDetect
-        ? job.audioSwitch.observe(event.language) : { action: 'stable', language: '', streamSeq: 1 };
+        ? job.audioSwitch.observe(event.language, event.path || job.liveChunkKey) : { action: 'stable', language: '', streamSeq: 1 };
       if (switchState.action === 'switch') {
         sendBrowserEvent(tab, { type: 'live-asr-warning',
           message: `Ses dili değişti (${switchState.language}) — canlı altyazı yeni izde sürüyor.` });
@@ -9552,6 +9570,7 @@ function startBrowserLiveAsr(tab, options = {}) {
         publishBrowserDiagnostics();
       }
     } else if (event.type === 'chunk_done') {
+      job.liveChunkKey = {};
       const filePath = String(event.path || '');
       // Yalnız bu iş için oluşturulmuş temp chunk dosyası silinir; kirlenmiş
       // bir stdout satırı keyfi-yol silme ilkeli üretmesin.
@@ -9625,6 +9644,7 @@ function startBrowserLiveAsr(tab, options = {}) {
       catch (_) {}
     }
     proc.on('close', () => {
+      clearTimeout(job.drainTimer);
       modelProcesses.delete(proc);
       for (const line of liveAsrLines.flush()) consumeLiveAsrLine(line);
       // Geri dönüşte kuyruktaki parçalar saklanır — CPU süreci açılınca
@@ -9740,7 +9760,8 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     sourceHash, sourceTrackId: String(meta.sourceTrackId || ''),
     provider: String(meta.provider || ''), model: String(meta.model || ''),
     cueIdentities: saved.document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
-      start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '' })),
+      start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '',
+      text: cue.text, qualityIssues: cue.qualityIssues, qualityWarning: cue.qualityWarning })),
   };
 }
 
@@ -9810,7 +9831,8 @@ function restorePersistedBrowserTracks(tab) {
             ? document.translationLanguages.slice(0, 200) : [],
           archivePath: archived?.ok ? archived.path : '',
           cueIdentities: document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
-            start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '' })),
+            start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '',
+            text: cue.text, qualityIssues: cue.qualityIssues, qualityWarning: cue.qualityWarning })),
           // Metadata'sız eski çeviri dosyaları geriye dönük uyumlulukla açılır;
           // kaynak kanıtı bulunan yeni varlıklar yalnız eşleşen kaynakta açılır.
           autoLoad: role === 'translation' && !restoredTranslation && hasSourceProof

@@ -767,8 +767,17 @@ class BrowserTranslationScheduler {
           armRetry();
         }
       }
-    }).finally(() => {
+    }).finally(async () => {
       const current = this.pending.get(sentence.id);
+      // The breaker skips in-flight candidates. Accept the triggering job
+      // before removing it, so whenIdle cannot leave its last cue missing.
+      const candidate = this.qualityCandidates.get(sentence.id);
+      if (current === job && this.qualityAutoLenient && candidate
+          && !this.results.has(sentence.id) && !controller.signal.aborted
+          && generation === this.generation) {
+        try { await this.commitResult(job, { ...candidate, cached: false }); }
+        catch (_) { /* Preserve the existing failure if the candidate is invalid. */ }
+      }
       if (current === job) this.pending.delete(sentence.id);
       this.pump();
     });

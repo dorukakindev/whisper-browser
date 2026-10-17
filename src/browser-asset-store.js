@@ -25,6 +25,10 @@ function normalizeCues(rawCues) {
     const sourceCueHash = String(cue && cue.sourceCueHash || '').replace(/[^a-f0-9]/gi, '').toLowerCase().slice(0, 64);
     if (cueId) normalized.cueId = cueId;
     if (sourceCueHash) normalized.sourceCueHash = sourceCueHash;
+    const qualityIssues = [...new Set((Array.isArray(cue?.qualityIssues) ? cue.qualityIssues : [])
+      .filter((item) => typeof item === 'string' && /^[a-z0-9_:-]{1,80}$/i.test(item)))].slice(0, 20);
+    if (qualityIssues.length) normalized.qualityIssues = qualityIssues;
+    if (cue?.qualityWarning === true || qualityIssues.length) normalized.qualityWarning = true;
     if (cue?.provenance && typeof cue.provenance === 'object') {
       normalized.provenance = {
         layer: String(cue.provenance.layer || 'unknown').slice(0, 40),

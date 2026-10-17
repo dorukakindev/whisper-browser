@@ -102,3 +102,13 @@ function check(name, cond, extra = '') {
 
 console.log(`live-asr-audio-switch: ${passed} PASS, ${failed} FAIL`);
 process.exit(failed ? 1 : 0);
+
+{
+  const s = createLiveAsrAudioSwitch();
+  s.observe('en', 'chunk-1');
+  for (let i = 0; i < 8; i++) assert.equal(s.observe('tr', 'chunk-2').streamSeq, 1);
+  const switched = s.observe('tr', 'chunk-3');
+  assert.equal(switched.action, 'switch');
+  assert.equal(switched.streamSeq, 2);
+  assert.equal(s.observe('tr', 'chunk-3').action, 'stable');
+}
