@@ -255,7 +255,7 @@
       "source": "Could you please sign here, sir?",
       "target": "Burayı imzalayabilir misiniz, efendim?",
       "defect": "Burayı imzalar mısın?",
-      "detection": "blocking",
+      "detection": "register",
       "register_markers": [
         "misiniz\\b",
         "efendim"

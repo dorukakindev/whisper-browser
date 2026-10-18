@@ -76,8 +76,9 @@ test('worklet: gerçek ses 16 kHz PCM16 chunk olarak doğru ofsetle gider', () =
 });
 
 test('reklam: saat senkronu reklam süresince paused=true gönderir', () => {
-  const helpers = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer-helpers.js'), 'utf8');
+  const helpers = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer-helpers.js'), 'utf8').replace(/\r\n/g, '\n');
   const start = helpers.indexOf('function syncBrowserLiveAsrClock()');
+  assert(start >= 0, 'syncBrowserLiveAsrClock function must exist');
   const body = helpers.slice(start, helpers.indexOf('\n}\n', start) + 2);
   const messages = [];
   const sandbox = {

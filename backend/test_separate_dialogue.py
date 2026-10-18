@@ -59,6 +59,19 @@ class SeparateDialogueContract(unittest.TestCase):
         self.assertNotIn('Traceback', proc.stdout)
         self.assertNotIn('File "', proc.stdout)
 
+    def test_non_utf8_windows_console_preserves_utf8_request_and_json_reply(self):
+        audio = '/nonexistent-dir/ışık-şarkı.wav'
+        payload = json.dumps({'operation': 'transcribe', 'audio': audio,
+                              'model': 'tiny', 'start': 0}, ensure_ascii=False).encode('utf-8')
+        env = {**os.environ, 'PYTHONIOENCODING': 'cp1252', 'HF_HUB_OFFLINE': '1'}
+        proc = subprocess.run([sys.executable, SCRIPT], input=payload,
+                              capture_output=True, env=env, timeout=10)
+        self.assertEqual(proc.returncode, 0, proc.stderr[:400])
+        body = json.loads(proc.stdout.decode('ascii'))
+        self.assertIs(body.get('ok'), False)
+        self.assertIn(audio, body['error'])
+        self.assertNotIn(b'Traceback', proc.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -133,7 +133,7 @@ async function realTreeTest() {
     terminateProcessTree(parent, { spawn });
     await bounded(closed);
     const deadline = Date.now() + 3000;
-    while (alive(grandchild) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+    while (alive(grandchild) && Date.now() < deadline) await new Promise(setImmediate);
     assert.equal(alive(grandchild), false, 'grandchild must not survive cancellation');
     passed++;
     console.log('  PASS  real host-platform parent/grandchild cancellation');

@@ -1,6 +1,8 @@
 """Özel ad/terim tutarlılık denetimi — eş-geçiş haritası + onaylı düzeltme."""
 
 import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, 'backend')
 
 from name_consistency import audit_name_consistency, apply_glossary_corrections
