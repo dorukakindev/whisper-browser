@@ -5,7 +5,8 @@
 Kullanıcının yenilediği AGENTS talimatıyla güncel uzak master'dan ayrı
 dal açıldı: `codex/subtitle-quality-audit470`.
 Taban: `5386420ed80464c46719d4fd3df56013e1e2e958`.
-Kod commit'i: `1f493ee51bdbeaab1b5c481e530ac71df99c5aa0`.
+Ürün düzeltmesi: `1f493ee51bdbeaab1b5c481e530ac71df99c5aa0`.
+Son kod/test commit'i: `543e187d83ce0ce5a1291b0820698e33e1593265`.
 
 ## 470-01 / Orta — Birebir kısa cue yanlışlıkla eksik sayılıyor
 
@@ -39,12 +40,28 @@ sayı/olumsuzluk gibi anlam kapılarının nonexact cue kapsamı genişletilmedi
 kontrol testi yeşil; düzeltmeden sonra dördü yeşil. Kontrol: tesadüfi kısa
 çakışma reddi, geçerli birleşik hedef kabulü. Var olan eşikler korunur.
 
-Yedi hedefli Node test dosyası geçti; komutlar devir notunda. Altın çeviri
+Sekiz hedefli Node test dosyası geçti; komutlar devir notunda. Altın çeviri
 CLI'sı 15 knownGood + 16 expectedRepairs örneğini sıfır blocking hata ile
 geçti. Windows'ta mevcut misc-exports-deadzone testi önce sandbox EPERM,
 normal yetkide spawn true ENOENT verdi. Güncel çalışma dalında zaten
 bulunan portable process.execPath yaklaşımı master tabanlı bu PR'a taşındı;
 yeni ürün bug'u diye sayılmadı. Testin 17 senaryosu sonra geçti.
+
+## 470-03 / Windows test altyapısı — Sahte başarılı, açık kalan süreç
+
+Windows CI39166863059, process-lifecycle testi "10 test" yazdıktan sonra
+ilerleyemedi. Canlı fixture Windows'ta bash/sleep başlatıp platform:'linux'
+ile sinyal gönderiyordu. /proc kontrolü Windows'ta dosya bulunamadığı için
+torun ölmüş gibi sonuç verirken gerçek sleep/pipe açık kalabiliyordu.
+Bu, Windows süreç iptalinin gerçekten doğrulanması da değildi.
+
+Fixture artık Node ile gerçek ana/torun süreç başlatır; üretim fonksiyonunu
+gerçek host platformunda çağırır (Windows taskkill, POSIX grup sinyali).
+Başlangıçta torunun yaşadığı, sonra ana sürecin kapandığı ve torunun da
+sonlandığı doğrulanır; süre sınırı ve finally temizliği vardır. Windows'ta
+yerel canlı koşum 10 testle yaklaşık 0.23 saniyede kapanarak geçti.
+Linux'ta öldürülmüş, henüz reap edilmemiş zombie aktif süreç sayılmaz.
+Bu bir test altyapısı hatasıdır; yeni üretim süreç iptali bug'u diye sayılmaz.
 
 Altın CLI'ya ilk --help çağrısı, araç bu seçeneği desteklemediğinden dosya
 adı sayılıp ENOENT verdi; doğru argümansız çalıştırma geçti. Bu düzenek
