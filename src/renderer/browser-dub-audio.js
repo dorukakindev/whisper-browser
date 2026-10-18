@@ -181,8 +181,11 @@
       this.syncBackground(s,localTime,rate,playing);
       if (s.sync) {
         const desired = Math.max(.0625, Math.min(4, s.baseRate / mapped.factor));
-        if (rate * mapped.factor > 16) { void this.fail('Bu bölümün zaman aralığı çok kısa; dublaj metnini kısaltın.'); return; }
+        if (desired * mapped.factor > 16) { void this.fail('Bu bölümün zaman aralığı çok kısa; dublaj metnini kısaltın.'); return; }
         this.videoRate(s, desired);
+        // The observed rate can still belong to the previous segment while
+        // the asynchronous video slowdown is pending. Keep the session alive.
+        if (rate * mapped.factor > 16) { this.pauseAll(); return; }
         a.playbackRate = Math.max(.0625, Math.min(16, rate * mapped.factor));
         if (Math.abs((s.factor || 1) - mapped.factor) > .01) {
           s.factor = mapped.factor;
