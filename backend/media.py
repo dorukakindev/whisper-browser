@@ -20,6 +20,8 @@ birleştiremez. Üç yol var:
 """
 
 import argparse
+import uuid
+from pipeline_control import _pid_is_alive
 import errno as _errno
 import json
 import os
@@ -337,6 +339,28 @@ def _mime_of(url):
         return ""
 
 
+def cleanup_stale_stream_temps(output_dir, now=None, pid_alive=None):
+    """Remove only old managed temp files whose recorded owner has exited."""
+    now = time.time() if now is None else now
+    pid_alive = pid_alive or _pid_is_alive
+    root = Path(output_dir).resolve()
+    removed = 0
+    for file in root.glob('*.invtmp-*'):
+        match = re.fullmatch(r'.+\.invtmp-([1-9]\d*)-[a-f0-9]{32}-(?:video|audio)', file.name)
+        if not match:
+            continue
+        try:
+            if file.is_symlink() or not file.is_file() or file.resolve().parent != root:
+                continue
+            if now - file.stat().st_mtime < 86400 or pid_alive(int(match.group(1))):
+                continue
+            file.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed
+
+
 def download_stream(video_url, audio_url, title, height, audio_lang, output_dir, video_id=""):
     """Invidious adaptive stream URL'lerini doğrudan indirip ffmpeg ile birleştirir.
 
@@ -384,15 +408,12 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
         ext = ".mp4"
     out_path = outdir / f"{name}{ext}"
 
-    # Eski kırık tmp dosyalarını süpür (kill -f ile ölen işler kalıntı bırakır)
-    for leftover in outdir.glob("*.invtmp-*"):
-        try:
-            leftover.unlink()
-        except OSError:
-            pass
-
-    video_tmp = outdir / f"{name}.invtmp-video"
-    audio_tmp = outdir / f"{name}.invtmp-audio"
+    # Only this invocation's files may be removed; another download can still
+    # be writing an invtmp file in the same output directory.
+    cleanup_stale_stream_temps(outdir)
+    token = f'{os.getpid()}-{uuid.uuid4().hex}'
+    video_tmp = outdir / f"{name}.invtmp-{token}-video"
+    audio_tmp = outdir / f"{name}.invtmp-{token}-audio"
 
     totals = [0, 0]
     gots = [0, 0]

@@ -152,6 +152,33 @@ test('accountList: token/secret sızdırmaz, sıra/aktif doğru', () => {
   }
 });
 
+test('persist: refresh grants survive restart without access tokens or ephemeral accounts', () => {
+  const accounts = {
+    saved: {refreshToken:'fixture-refresh',accessToken:'fixture-access',expiresAt:999,userName:'Fixture',authMode:'tv'},
+    temporary: {accessToken:'temporary-access',ephemeral:true,expiresAt:Date.now()+100000},
+  };
+  const persistent = yt.persistableAccounts(accounts);
+  assert.deepStrictEqual(Object.keys(persistent), ['saved']);
+  assert(!JSON.stringify(persistent).includes('fixture-access'));
+  assert(!JSON.stringify(persistent).includes('expiresAt'));
+  const restored = yt.migrateSecrets({accounts:JSON.stringify(persistent),active_id:'saved'});
+  assert.strictEqual(yt.activeAccount(restored.accounts, restored.activeId).refreshToken,'fixture-refresh');
+});
+
+test('main persist saves the exported account projection instead of silently failing', () => {
+  const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+  const source=fs.readFileSync(path.join(__dirname,'../src/main.js'),'utf8');
+  const start=source.indexOf('function persistYoutubeSession()'),end=source.indexOf('function restoreYoutubeSession()',start);
+  let saved;
+  vm.runInNewContext(source.slice(start,end)+';persistYoutubeSession()',{
+    ytAccounts:yt,youtubeSession:{accounts:{a:{refreshToken:'fixture',accessToken:'must-not-persist'}},activeId:'a'},
+    getYoutubeSessionStore:()=>({save:data=>{saved=data;}}),
+  });
+  assert(saved,'main persistence must reach the store');
+  assert.strictEqual(JSON.parse(saved.accounts).a.refreshToken,'fixture');
+  assert(!saved.accounts.includes('must-not-persist'));
+});
+
 for (const t of tests) {
   try { t.fn(); passed++; }
   catch (e) { console.error(`FAIL ${t.name}: ${e.message}`); }

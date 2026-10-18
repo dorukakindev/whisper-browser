@@ -266,3 +266,18 @@ test('kalite kesicisi: gevşek modda gereksizdir ve sayaç tutulmaz', async () =
   assert.equal(calls.length, 10, 'gevşek mod cümle başına tek istek yakar');
   assert.equal(scheduler.stateSnapshot([]).qualityAutoLenient, false);
 });
+
+test('quality breaker accepts its triggering candidate even with one attempt', async () => {
+  for (const maxConcurrent of [1, 4]) {
+    const { scheduler, cache, calls } = makeManyScheduler({ count: 4, isBad: () => true,
+      schedulerOptions: { maxAttempts: 1, maxConcurrent } });
+    scheduler.completeAll();
+    await scheduler.whenIdle();
+    const snapshot = scheduler.snapshot();
+    assert.equal(snapshot.completed, 4);
+    assert.equal(snapshot.failures.length, 0);
+    assert.equal(calls.length, 4);
+    assert.equal(cache.size, 0);
+    assert.ok(snapshot.results.every(result => result.qualityIssues.includes('number_mismatch')));
+  }
+});

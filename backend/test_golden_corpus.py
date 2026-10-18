@@ -357,7 +357,8 @@ class GoldenCorpusTests(unittest.TestCase):
                          f'bloklanması beklenen ama geçenler: {expected_blocked - blocked_ids}')
         self.assertEqual(passed_defects, expected_pass,
                          'danışman katman kusurları çıktıya geçer (belgelenen davranış)')
-        # A permanently defective provider stops at the zero-yield probe budget.
+        # A permanently defective provider must stop at the zero-yield probe
+        # budget, rather than retrying once for every remaining group.
         self.assertEqual(len(calls), golden_calls + T.TRANSLATION_RESCUE_PROBE_REQUESTS,
                          'zero-yield rescue must stop exactly at its declared probe budget')
         self.assertTrue(any('sonuç vermiyor' in warning.lower() for warning in warns),

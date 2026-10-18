@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 function electronBlockerClass() {
   // Paket modül yüklenirken ELECTRON_DISABLE_SECURITY_WARNINGS değerini değiştirir.
@@ -15,7 +16,7 @@ function electronBlockerClass() {
     if (previous === undefined) delete process.env[key]; else process.env[key] = previous;
   }
 }
-const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const MAX_RECENT_BLOCKED = 30;
 
@@ -75,7 +76,13 @@ async function readEngineCache(cachePath, fileSystem = fs.promises, now = Date.n
 
 async function writeEngineCache(cachePath, buffer, fileSystem = fs.promises) {
   await fileSystem.mkdir(path.dirname(cachePath), { recursive: true });
-  await fileSystem.writeFile(cachePath, buffer);
+  const temporary = `${cachePath}.${randomUUID()}.tmp`;
+  try {
+    await fileSystem.writeFile(temporary, buffer);
+    await fileSystem.rename(temporary, cachePath);
+  } finally {
+    await fileSystem.unlink(temporary).catch(() => {});
+  }
 }
 
 function fetchWithTimeout(fetchImpl, timeoutMs) {
@@ -84,7 +91,12 @@ function fetchWithTimeout(fetchImpl, timeoutMs) {
     const timer = setTimeout(() => controller.abort(new Error('Filtre listesi zaman aşımına uğradı.')), timeoutMs);
     timer.unref?.();
     try {
-      return await fetchImpl(url, { ...options, signal: controller.signal });
+      const response = await fetchImpl(url, { ...options, signal: controller.signal });
+      if (response.ok === false) throw new Error(`Filtre indirme HTTP ${response.status}`);
+      // Ghostery consumes text after fetch resolves. Keep the timeout alive
+      // through the body too; a stalled body must not hang the entire engine.
+      const body = typeof response.text === 'function' ? await response.text() : null;
+      return body === null ? response : { ok: true, text: async () => body };
     } finally {
       clearTimeout(timer);
     }
@@ -107,7 +119,8 @@ async function loadEngine({
   const cached = await readEngineCache(cachePath, fileSystem, now);
   if (cached && cached.ageMs <= cacheTtlMs) {
     try {
-      return { engine: Blocker.deserialize(cached.buffer), source: 'cache', stale: false };
+      return { engine: Blocker.deserialize(cached.buffer), source: 'cache', stale: false,
+        updatedAt: now - cached.ageMs };
     } catch (_) {
       // Sürüm değişmiş veya yarım kalmış önbellek yeniden oluşturulur.
     }
@@ -120,11 +133,12 @@ async function loadEngine({
     } catch (error) {
       logger.warn?.(`Reklam filtresi önbelleği yazılamadı: ${safeErrorMessage(error)}`);
     }
-    return { engine, source: 'network', stale: false };
+    return { engine, source: 'network', stale: false, updatedAt: now };
   } catch (error) {
     if (cached) {
       try {
-        return { engine: Blocker.deserialize(cached.buffer), source: 'cache', stale: true };
+        return { engine: Blocker.deserialize(cached.buffer), source: 'cache', stale: true,
+          updatedAt: now - cached.ageMs };
       } catch (_) {}
     }
     throw error;
@@ -142,6 +156,10 @@ function createBrowserAdblock(options = {}) {
   let error = '';
   let source = '';
   let stale = false;
+  let updatedAt = 0;
+  let refreshTimer = null;
+  let refreshPromise = null;
+  let firstActivation = true;
   let blocked = 0;
   let allowedBySite = 0;
   let recentBlocked = [];
@@ -166,6 +184,7 @@ function createBrowserAdblock(options = {}) {
     error,
     source,
     stale,
+    updatedAt,
     blocked,
     allowedBySite,
     recentBlocked: recentBlocked.map((entry) => ({ ...entry })),
@@ -215,13 +234,33 @@ function createBrowserAdblock(options = {}) {
           'Reklam engelleyici görsel filtresi bu sayfada uygulanamadı.');
       });
       engine.onInjectCosmeticFilters = (event, url, message) => {
-        const allowed=()=>!paused({url,webContentsId:event?.sender?.id,resourceType:'cosmetic'});
+        const frame = event?.senderFrame;
+        // Do not turn a late preload message into an injection in a new page.
+        const allowed=()=>requested && !paused({url,webContentsId:event?.sender?.id,resourceType:'cosmetic'})
+          && (!frame || (!frame.isDestroyed?.() && frame.url === url));
         if(!allowed()||!event?.sender||event.sender.isDestroyed())return;
         const sender=new Proxy(event.sender,{get(target,key){
-          if(key==='executeJavaScript'||key==='insertCSS')return (...args)=>schedule(target,key,args,allowed);
+          // WebContents.executeJavaScript waits for did-stop-loading. A
+          // scriptlet which wraps fetch/JSON must run in its sending frame
+          // while the document is loading, before later player requests.
+          if(key==='executeJavaScript')return (script,...args)=> {
+            // Resource dependencies declare functions/classes (e.g. JSONPath).
+            // A separate lexical scope prevents redeclarations and proxy
+            // recursion when several scriptlets use the same helper names.
+            const isolated = `(function () {\n${script}\n})();`;
+            if(typeof frame?.executeJavaScript!=='function')return schedule(target,key,[isolated,...args],allowed);
+            return Promise.resolve().then(()=>allowed() ? frame.executeJavaScript(isolated,...args) : undefined)
+              .catch((failure)=>reportCosmeticFailure(target,url,failure,
+                'Reklam engelleyici betiği bu sayfada uygulanamadı.'));
+          };
+          if(key==='insertCSS' && frame)return (...args)=>
+            Promise.resolve().then(()=>allowed() ? target.insertCSS(...args) : undefined)
+              .catch((failure)=>reportCosmeticFailure(target,url,failure,
+                'Reklam engelleyici görsel filtresi bu sayfada uygulanamadı.'));
+          if(key==='insertCSS')return (...args)=>schedule(target,key,args,allowed);
           const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
         }});
-        return Promise.resolve(original({sender,frameId:event.frameId,processId:event.processId},url,message))
+        return Promise.resolve(original({sender,senderFrame:frame,frameId:event.frameId,processId:event.processId},url,message))
           .catch((failure)=>reportCosmeticFailure(event.sender, url, failure,
             'Reklam engelleyici görsel filtre isteği tamamlanamadı.'));
       };
@@ -238,6 +277,7 @@ function createBrowserAdblock(options = {}) {
         engine = result.engine;
         source = result.source;
         stale = result.stale;
+        updatedAt = result.updatedAt;
         installSiteBypass();
         bindEvents();
         return engine;
@@ -246,10 +286,64 @@ function createBrowserAdblock(options = {}) {
     return loadPromise;
   };
 
+  const scheduleRefresh = () => {
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    if (!requested || !enabled) return;
+    const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+    const delay = stale ? 30 * 60 * 1000 : Math.max(60000, updatedAt + ttl - Date.now());
+    refreshTimer = setTimeout(() => { void refresh(); }, delay);
+    refreshTimer.unref?.();
+  };
+
+  const refresh = async () => {
+    if (!requested || !enabled) return snapshot(false);
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = (async () => {
+      try {
+        const result = await loadEngine({ ...options, cacheTtlMs: -1 });
+        if (!requested || !enabled) return snapshot(false);
+        if (result.stale) { stale = true; return snapshot(false); }
+        const previous = engine;
+        const targetSession = browserSession;
+        previous.disableBlockingInSession(targetSession);
+        try {
+          engine = result.engine;
+          eventBound = false;
+          siteBypassInstalled = false;
+          installSiteBypass();
+          bindEvents();
+          engine.enableBlockingInSession(targetSession);
+        }
+        catch (failure) {
+          try { engine.disableBlockingInSession(targetSession); } catch (_) {}
+          engine = previous;
+          previous.enableBlockingInSession(targetSession);
+          throw failure;
+        }
+        source = result.source;
+        updatedAt = result.updatedAt;
+        stale = false;
+        return snapshot(true);
+      } catch (failure) {
+        stale = true;
+        options.logger?.warn?.(`Reklam filtreleri yenilenemedi: ${safeErrorMessage(failure)}`);
+        return snapshot(false);
+      }
+    })();
+    try {
+      const result = await refreshPromise;
+      try { options.onStateChanged?.(result); } catch (_) {}
+      return result;
+    } finally { refreshPromise = null; scheduleRefresh(); }
+  };
+
   const setEnabled = async (session, nextEnabled) => {
     if (session) browserSession = session;
     requested = nextEnabled !== false;
     if (!requested) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
       const changed = enabled;
       if (enabled && engine && browserSession) {
         try { engine.disableBlockingInSession(browserSession); } catch (_) {}
@@ -284,6 +378,20 @@ function createBrowserAdblock(options = {}) {
         enabled = true;
         state = 'enabled';
         error = '';
+        // Registering a session preload only affects future documents. A cold
+        // filter download may finish after the user's first page has opened.
+        if (firstActivation) {
+          firstActivation = false;
+          for (const page of options.getOpenPages?.() || []) {
+            try {
+              const url = page.getURL();
+              if (!/^https?:\/\//i.test(url)) continue;
+              void Promise.resolve(loaded.onInjectCosmeticFilters?.({ sender: page,
+                senderFrame: page.mainFrame }, url)).catch(() => {});
+            } catch (_) {}
+          }
+        }
+        scheduleRefresh();
         return snapshot(true);
       } catch (loadError) {
         enabled = false;
@@ -303,6 +411,7 @@ function createBrowserAdblock(options = {}) {
   return {
     getState: () => snapshot(false),
     setEnabled,
+    refresh,
     waitUntilReady: async () => {
       if (requested && !enabled && state !== 'error') await setEnabled(browserSession, true);
       return snapshot(false);

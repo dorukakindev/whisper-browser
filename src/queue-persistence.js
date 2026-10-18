@@ -10,14 +10,20 @@ const SECRET_OPTION_KEYS = new Set([
   // girmemeli; kısa ve CamelCase anahtarlar regex'ten kaçabilir.
   'bearerToken', 'csrfToken', 'xsrfToken', 'privateKey', 'authToken',
   'sessionId', 'sid', 'sig', 'signature', 'oauthBearerToken',
+  'token', 'jwt', 'auth',
 ]);
 const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
 const TERMINAL_STATUS = new Set(['done', 'error']);
 const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 
 function secretOptionKey(key) {
+  // Recognize credential phrases inside compound names without treating every
+  // *Key or token* option (mediaKey, tokenBudget) as a credential.
+  const words = String(key).replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2');
   return SECRET_OPTION_KEYS.has(key)
-    || /(?:^|[_-])(?:api[_-]?key|access[_-]?token|refresh[_-]?token|oauth[_-]?token|secret|password|passwd|authorization|cookie|credential)(?:$|[_-])/i.test(key)
+    || /(?:^|[_-])(?:api[_-]?key|password[_-]?hash|server[_-]?key)(?:$|[_-])/i.test(words)
+    || /(?:^|[_-])(?:token|jwt|auth|api[_-]?key|access[_-]?token|refresh[_-]?token|oauth[_-]?token|secret|password|passwd|authorization|cookie|credential)(?:$|[_-])/i.test(key)
     || /(?:ApiKey|AccessToken|RefreshToken|OauthToken|ClientSecret|Password|Authorization|Credential)$/i.test(key);
 }
 
@@ -30,7 +36,7 @@ function sanitizeOptionUrl(value, key) {
     // Renderer işi yeniden başlatırken güncel UI değerini çalışma anında ekler.
     if (parsed.username || parsed.password) return undefined;
     for (const name of [...parsed.searchParams.keys()]) {
-      if (SENSITIVE_URL_PARAMS.test(name)) parsed.searchParams.delete(name);
+      if (SENSITIVE_URL_PARAMS.test(name) || secretOptionKey(name)) parsed.searchParams.delete(name);
     }
     return parsed.toString();
   } catch (_) {

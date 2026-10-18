@@ -10,8 +10,11 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     this.silence = 0;
     this.peak = 0;
     this.clock = null;
+    this.inFlight = new Set(); this.nextChunk = 0; this.maxPending = 0;
     this.port.onmessage = ({ data }) => {
       if (!data || typeof data !== 'object') return;
+      if (data.type === 'configure') { this.maxPending = 4; return; }
+      if (data.type === 'ack') { this.inFlight.delete(data.id); return; }
       if (data.type === 'flush') { this.flush(); this.clock = null; this.port.postMessage({ type: 'flushed' }); return; }
       if (data.type !== 'sync' || !Number.isFinite(data.time) || !Number.isFinite(data.contextTime)) return;
       // Ana süreç gözlenen hızı 16x'e dek raporlar; saat tahmini aynı aralığı
@@ -26,6 +29,7 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     };
   }
   flush() {
+    this.sum = 0; this.weight = 0;
     if (!this.length) return;
     const length = this.length, peak = this.peak;
     this.length = 0; this.silence = 0; this.peak = 0;
@@ -37,17 +41,34 @@ class WhisperPcmCapture extends AudioWorkletProcessor {
     // boşluğu): GPU'ya göndermek boşa iş ve sessizlik halüsinasyonu riskidir.
     // Ev sahibi art arda sessizlikte kullanıcıyı uyarır.
     if (peak < WhisperPcmCapture.SILENT_PEAK) { this.port.postMessage({ type: 'silent', samples: length, offset: this.offset }); return; }
+    if (this.maxPending && this.inFlight.size >= this.maxPending) { this.port.postMessage({ type: 'dropped', reason: 'backpressure', samples: length }); return; }
     const pcm = this.samples.slice(0, length);
-    this.port.postMessage({ type: 'chunk', pcm: pcm.buffer, offset: this.offset, rate: this.rate }, [pcm.buffer]);
+    const id = ++this.nextChunk;
+    if (this.maxPending) this.inFlight.add(id);
+    this.port.postMessage({ type: 'chunk', id, pcm: pcm.buffer, offset: this.offset, rate: this.rate }, [pcm.buffer]);
   }
   process(inputs) {
     const channels = inputs[0];
-    if (!channels?.length || !this.clock || this.clock.paused) return true;
+    if (!channels?.length) { this.flush(); this.lastInputTime = null; return true; }
+    if (!this.clock || this.clock.paused) return true;
+    if (this.lastInputTime != null && currentTime - this.lastInputTime > .05) this.flush();
+    this.lastInputTime = currentTime;
+    let strongest = channels[0], strongestEnergy = 0, mixEnergy = 0;
+    for (const channel of channels) {
+      let energy = 0; for (const value of channel) energy += value * value;
+      if (energy > strongestEnergy) { strongestEnergy = energy; strongest = channel; }
+    }
+    for (let i=0; i<channels[0].length; i++) {
+      let mix=0; for (const channel of channels) mix += channel[i] || 0;
+      mixEnergy += (mix/channels.length) ** 2;
+    }
+    const cancelPhase = channels.length > 1 && mixEnergy < strongestEnergy * .05;
     const ratio = sampleRate / 16000;
     for (let i = 0; i < channels[0].length; i++) {
       let sample = 0;
       for (const channel of channels) sample += channel[i] || 0;
       sample /= channels.length;
+      if (cancelPhase) sample = strongest[i] || 0;
       // Weighted box resampling also handles non-integer 44.1kHz input rates.
       let remaining = 1;
       while (remaining > 1e-8) {

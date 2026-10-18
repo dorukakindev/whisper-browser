@@ -118,12 +118,15 @@ const src = fs.readFileSync(require('path').join(__dirname, '../src/main.js'), '
 // mutlak olmadığı için göreli-yol kapısına takılır (burada doğrulanır);
 // Windows'ta path.isAbsolute onu mutlak sayar ve NAS altyazıları
 // BİLİNÇLİ kabul edilir (ağ paylaşımı yasal yerel kaynak). Her
-// platformda koşulsuz reddedilen yalnız `\\?\` ve `\\.\` önekleridir
-// (NT aygıt ad-uzamı — gerçek dosya yolu değil).
+// Windows genişletilmiş normal dosya yollarını kabul eder; aygıt ad-uzamı
+// (GLOBALROOT, \\.\) her platformda reddedilir.
 {
   const { canonicalLocalPath } = require('../src/local-file-access');
   assert.throws(() => canonicalLocalPath('goreli\\yol.srt'), /yerel dosya yolu/);
-  assert.throws(() => canonicalLocalPath('\\\\?\\C:\\a.srt'), null, '\\\\?\\ reddi');
+  if (process.platform === 'win32') {
+    assert.equal(canonicalLocalPath('\\\\?\\C:\\a.srt'), canonicalLocalPath('C:\\a.srt'));
+  } else assert.throws(() => canonicalLocalPath('\\\\?\\C:\\a.srt'));
+  assert.throws(() => canonicalLocalPath('\\\\?\\GLOBALROOT\\Device\\HarddiskVolume1\\a.srt'));
   assert.throws(() => canonicalLocalPath('\\\\.\\C:\\a.srt'), null, '\\\\.\\ reddi');
   if (process.platform !== 'win32') {
     assert.throws(() => canonicalLocalPath('\\\\sunucu\\paylas\\a.srt'), /yerel dosya yolu/,

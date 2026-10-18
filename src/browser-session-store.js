@@ -270,7 +270,7 @@ function normalizeBrowserSession(raw, options = {}) {
   const originalIds = new Set(normalized.map((tab) => tab.id).filter(Boolean));
   const deduped = normalized.map((tab, index) => {
     if (tab.id && !seenIds.has(tab.id)) { seenIds.add(tab.id); return tab; }
-    const base = tab.id || `restored-${index + 1}`;
+    const base = tab.id || `tab-restored-${index + 1}`;
     for (let n = tab.id ? 2 : 1; ; n += 1) {
       const suffix = n === 1 ? '' : `-dup${n}`;
       const candidate = base.slice(0, 128 - suffix.length) + suffix;
@@ -289,7 +289,7 @@ function normalizeBrowserSession(raw, options = {}) {
     tabs.unshift(active);
   }
   const splitSecondaryTabId = cleanString(source.splitSecondaryTabId, 128);
-  const resolvedActiveTabId = tabs.some((tab) => tab.id === activeTabId) ? activeTabId : (tabs[0] ? tabs[0].id : '');
+  const resolvedActiveTabId = tabs.some((tab) => tab.id === activeTabId) ? activeTabId : (tabs[0]?.id || '');
   return {
     version: BROWSER_SESSION_VERSION,
     restoreEnabled: source.restoreEnabled !== false,

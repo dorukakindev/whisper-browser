@@ -215,3 +215,11 @@ window.addEventListener('pagehide', (event) => {
   if (readingPositionTimer) clearTimeout(readingPositionTimer);
   readingPositionTimer = null;
 });
+
+// Handle only a real Ctrl+wheel gesture in the isolated world. Page scripts
+// cannot synthesize isTrusted; normal scrolling and application zoom stay intact.
+window.addEventListener('wheel', event => {
+  if (!event.isTrusted || !event.ctrlKey || event.altKey || event.metaKey || !Number.isFinite(event.deltaY) || !event.deltaY) return;
+  event.preventDefault();
+  ipcRenderer.send('browser:zoom-wheel', event.deltaY < 0 ? 'in' : 'out');
+}, { capture: true, passive: false });

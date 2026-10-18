@@ -68,11 +68,14 @@
 
   function selectOutputs(event, options = {}) {
     const explicit = outputDescriptors(event);
-    let items = explicit.length ? explicit : legacyDescriptors(event, options.fallbackRole || 'source');
+    const hasExplicit = Array.isArray(event?.outputs);
+    let items = hasExplicit ? explicit : legacyDescriptors(event, options.fallbackRole || 'source');
     const sourceIds = [...new Set(items.map((item) => item.sourceId).filter(Boolean))];
     if (sourceIds.length > 1) items = items.filter((item) => !item.sourceId || item.sourceId === sourceIds[0]);
+    const sourceHash = items.find(item => item.role === 'source' && item.sourceHash)?.sourceHash;
+    if (sourceHash) items = items.filter(item => !item.sourceHash || item.sourceHash === sourceHash);
     return {
-      explicit: explicit.length > 0,
+      explicit: hasExplicit,
       source: items.find((item) => item.role === 'source') || null,
       translation: items.find((item) => item.role === 'translation') || null,
       dual: items.find((item) => item.role === 'dual') || null,

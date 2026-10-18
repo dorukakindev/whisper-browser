@@ -1,7 +1,7 @@
 /**
  * Tüm testleri tek komutla çalıştırır:  npm test
  *
- * Node testleri (tests/*.test.js) + Python testleri (backend/test_transcribe.py).
+ * Node testleri (tests/*.test.js) + backend/ ve tests/ altındaki Python testleri.
  * Python yoksa test paketi eksik doğrulama bildirerek başarısız olur.
  */
 const { spawnSync } = require('child_process');
@@ -28,23 +28,19 @@ for (const f of fs.readdirSync(__dirname).filter((x) => x.endsWith('.test.js')).
 }
 
 // ---- Python testleri
-const python = require('./python-runtime').findTestPython();
+const { findTestPython, findPythonTestFiles } = require('./python-runtime');
+const python = findTestPython();
 const py = python ? { cmd: python, prefix: [] } : null;
 
 if (py) {
-  // backend/ altındaki TÜM test_*.py dosyaları otomatik keşfedilir — yeni bir Python
-  // testi eklendiğinde burayı güncellemek gerekmesin (eskiden yalnız test_transcribe.py
-  // koşuyordu ve eklenen testler sessizce atlanıyordu).
-  const backendDir = path.join(ROOT, 'backend');
-  const pyTests = fs.readdirSync(backendDir)
-    .filter((x) => x.startsWith('test_') && x.endsWith('.py'))
-    .sort();
+  const pyTests = findPythonTestFiles(ROOT);
   if (!pyTests.length) {
     console.log('\n=== Python testleri ===');
-    console.log('  (backend/ altında test_*.py bulunamadı)');
+    console.log('  (backend/ ve tests/ altında test_*.py bulunamadı)');
+    failed++;
   }
   for (const f of pyTests) {
-    run(`python backend/${f}`, py.cmd, [...py.prefix, path.join(backendDir, f)]);
+    run(`python ${f}`, py.cmd, [...py.prefix, path.join(ROOT, f)]);
   }
 } else {
   console.log('\n=== python backend/test_transcribe.py ===');
