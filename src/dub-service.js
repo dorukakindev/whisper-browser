@@ -371,7 +371,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           const backgroundFiles = [file, file.replace(/\.wav$/i, '.partial.wav')];
           claimArtifacts(s, backgroundFiles);
           s.backgroundFiles = backgroundFiles;
-          await prepareBackground({request,srt,range:s.range,output:file,
+          await prepareBackground({request,srt:inputSrt,range:s.range,output:file,
             onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:stage=>{
               if (stage === 'separate_gpu' || stage === 'separate_cpu') s.settings.backgroundDevice = stage.slice(9);
@@ -453,15 +453,23 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   async function cancel() {
     const s = job;
     if (!s) return { ok: true };
+    if (s.cancelPromise) return s.cancelPromise;
     s.cancelled = true;
     const proc = s.proc;
-    if (proc) {
-      try {
+    // UI cancellation and app shutdown can overlap. Share one attempt so a
+    // second termination failure cannot reset the first request's cancel flag.
+    s.cancelPromise = Promise.resolve().then(async () => {
+      if (proc) {
         const stopped = await terminate(proc);
         if (stopped === false && proc.exitCode == null && proc.signalCode == null) throw new Error('İptal isteği tamamlanamadı.');
-      } catch (error) { s.cancelled = false; throw error; }
-    }
-    return { ok: true };
+      }
+      return { ok: true };
+    }).catch(error => {
+      s.cancelled = false;
+      s.cancelPromise = null; // A failed stop remains retryable.
+      throw error;
+    });
+    return s.cancelPromise;
   }
   ipcMain.handle('dub:cancel', guard(cancel));
   let quitting = false;
