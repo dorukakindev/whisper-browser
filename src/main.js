@@ -4421,16 +4421,20 @@ function restoreBrowserSessionState() {
   browserSessionLoadWarning = [loaded.warning, interruptedWarning].filter(Boolean).join(' ');
   browserSessionRestoreEnabled = saved.restoreEnabled !== false;
   if (!browserSessionRestoreEnabled || !saved.tabs.length) return;
+  const restoredIds = new Map();
   for (const snapshot of saved.tabs) {
-    createBrowserTabRecord(snapshot);
+    const restored = createBrowserTabRecord(snapshot);
+    restoredIds.set(snapshot.id, restored.id);
     for (const slot of ['primaryFile', 'secondaryFile']) {
       const file = snapshot.subtitleSelection?.[slot];
       if (file) subtitleFileAccess.grant(file);
     }
   }
-  if (saved.activeTabId && browserTabs.has(saved.activeTabId)) browserActiveTabId = saved.activeTabId;
-  browserSplitSecondaryTabId = saved.splitSecondaryTabId && saved.splitSecondaryTabId !== browserActiveTabId
-    && browserTabs.has(saved.splitSecondaryTabId) ? saved.splitSecondaryTabId : '';
+  const activeId = restoredIds.get(saved.activeTabId);
+  const secondaryId = restoredIds.get(saved.splitSecondaryTabId);
+  if (activeId && browserTabs.has(activeId)) browserActiveTabId = activeId;
+  browserSplitSecondaryTabId = secondaryId && secondaryId !== browserActiveTabId
+    && browserTabs.has(secondaryId) ? secondaryId : '';
   browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(saved.splitRatio) || 0.5));
   // Açılışta önceki temiz kapanış kaydını çalışan-oturum işaretine çevir.
   // İşlem zorla kapanırsa bu false değeri bir sonraki açılışta kurtarma uyarısı üretir.
@@ -16512,23 +16516,34 @@ ipcMain.handle('browser:session:import', async (event) => {
       return { ok: false, error: 'Oturum paketi çok büyük (en fazla 64 MB).' };
     }
     const inspection = inspectBrowserSessionPackage(JSON.parse(await fs.promises.readFile(importPath, 'utf8')));
-    const warnings = [...inspection.warnings, ...importBrowserSessionVariants(inspection)];
-    destroyBrowserView();
-    browserSessionRestoreEnabled = inspection.session.restoreEnabled !== false;
+    const warnings = [...inspection.warnings];
     // Taşınabilir paket sitePermissions/siteTerminology taşımaz (dışa aktarımda
     // kasıtlı düşürülür); yerel kararları koruyup içe aktarılanı yaz — yoksa
     // oturum içe aktarmak kayıtlı site izinlerini ve terminolojiyi sessizce
     // siler.
     const existingPlaces = readBrowserPlaces();
-    writeBrowserPlaces({ ...inspection.places,
+    const placesSaved = writeBrowserPlaces({ ...inspection.places,
       sitePermissions: existingPlaces.sitePermissions,
       siteTerminology: existingPlaces.siteTerminology });
-    for (const snapshot of inspection.session.tabs) createBrowserTabRecord(snapshot);
-    browserActiveTabId = inspection.session.activeTabId && browserTabs.has(inspection.session.activeTabId)
-      ? inspection.session.activeTabId : (browserTabs.keys().next().value || '');
-    browserSplitSecondaryTabId = inspection.session.splitSecondaryTabId
-      && inspection.session.splitSecondaryTabId !== browserActiveTabId
-      && browserTabs.has(inspection.session.splitSecondaryTabId) ? inspection.session.splitSecondaryTabId : '';
+    if (!placesSaved) {
+      browserPlacesCache = existingPlaces;
+      browserPlacesDirty = true;
+      return { ok: false, error: dt('Oturum içe aktarılamadı: yer imleri ve geçmiş kaydedilemedi. Açık sekmeler korundu.',
+        'Session import failed: bookmarks and history could not be saved. Open tabs were preserved.') };
+    }
+    warnings.push(...importBrowserSessionVariants(inspection));
+    destroyBrowserView();
+    browserSessionRestoreEnabled = inspection.session.restoreEnabled !== false;
+    const restoredIds = new Map();
+    for (const snapshot of inspection.session.tabs) {
+      const restored = createBrowserTabRecord(snapshot);
+      restoredIds.set(snapshot.id, restored.id);
+    }
+    const activeId = restoredIds.get(inspection.session.activeTabId);
+    const secondaryId = restoredIds.get(inspection.session.splitSecondaryTabId);
+    browserActiveTabId = activeId && browserTabs.has(activeId) ? activeId : (browserTabs.keys().next().value || '');
+    browserSplitSecondaryTabId = secondaryId && secondaryId !== browserActiveTabId
+      && browserTabs.has(secondaryId) ? secondaryId : '';
     browserSplitRatio = Math.max(0.25, Math.min(0.75, Number(inspection.session.splitRatio) || 0.5));
     const active = activeBrowserTab();
     if (active) await activateBrowserTab(active.id);
