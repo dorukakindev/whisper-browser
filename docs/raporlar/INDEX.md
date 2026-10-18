@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 473 | [BROWSER_BUG_REPORT_473.md](BROWSER_BUG_REPORT_473.md) | Eksik altyazı önbelleği kayıtlarının gereksiz dosya sildirmesi |
 | 472 | [BROWSER_BUG_REPORT_472.md](BROWSER_BUG_REPORT_472.md) | Medya giriş borusu hatasında gereksiz bekleme |
 | 471 | [BROWSER_BUG_REPORT_471.md](BROWSER_BUG_REPORT_471.md) | Anlamsal arama worker null yanıt çökmesi ve sınırsız çıktı tamponu |
 | 470 | [BROWSER_BUG_REPORT_470.md](BROWSER_BUG_REPORT_470.md) | Exact kısa altyazılarda yanlış ret ve birleştirilmiş boş hedeflerde kaçan kalite denetimi |

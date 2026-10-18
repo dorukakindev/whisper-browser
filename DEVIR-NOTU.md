@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0102.md](docs/devir/2026-10-19-0102.md) — Rapor472: Medya pipe hata beklemesi
+Güncel çalışma: [docs/devir/2026-10-19-0101.md](docs/devir/2026-10-19-0101.md) — Rapor473: Eksik altyazı cache kayıtları
+Önceki çalışma: [docs/devir/2026-10-19-0102.md](docs/devir/2026-10-19-0102.md) — Rapor472: Medya pipe hata beklemesi
 Önceki çalışma: [docs/devir/2026-10-19-0051.md](docs/devir/2026-10-19-0051.md) — Rapor471: Anlamsal arama yanıt doğrulaması ve boyut sınırı
 Önceki çalışma: [docs/devir/2026-10-19-0007.md](docs/devir/2026-10-19-0007.md) — Rapor470: Kısa ve boş hedef altyazı kalite denetimi
 Önceki çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
