@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-1123.md](docs/devir/2026-10-18-1123.md) — Rapor468: Dublaj SRT ayırıcı ve biçimlendirme düzeltmeleri
+Güncel çalışma: [docs/devir/2026-10-18-1126.md](docs/devir/2026-10-18-1126.md) — Rapor469: Dublaj hız geçişinde erken iptal düzeltmesi
+Önceki çalışma: [docs/devir/2026-10-18-1123.md](docs/devir/2026-10-18-1123.md) — Rapor468: Dublaj SRT ayırıcı ve biçimlendirme düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-18-1115.md](docs/devir/2026-10-18-1115.md) — Rapor467: Rapor465 dublaj kodlaması, hash-route, kalite/bütünlük ve aralık sınırı düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-18-1037.md](docs/devir/2026-10-18-1037.md) — Kullanıcı onayıyla 464/465 raporları ve 466 düzeltmelerinin birlikte yayını
 Önceki çalışma: [docs/devir/2026-10-18-1035.md](docs/devir/2026-10-18-1035.md) — Rapor466: Rapor463 güvenlik, çeviri, TV kontrastı ve süreç/disk düzeltmeleri
