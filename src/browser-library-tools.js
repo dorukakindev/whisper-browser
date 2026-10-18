@@ -495,6 +495,7 @@ async function waitForMangaPosition(options = {}) {
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (isCanceled()) return { status: 'canceled', attempts: attempt };
     const result = await scan(attempt);
+    if (isCanceled()) return { status: 'canceled', attempts: attempt + 1 };
     if (result?.status === 'found' || result?.status === 'wrong-document') return { ...result, attempts: attempt + 1 };
     if (attempt + 1 < attempts) await sleep(Math.max(0, Number(options.delayMs) || 250));
   }

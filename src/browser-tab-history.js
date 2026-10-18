@@ -46,15 +46,15 @@ function normalizeClosedBrowserTab(snapshot) {
       ? snapshot.subtitleMode : 'source',
     targetLanguage: String(snapshot.targetLanguage || '').trim().toLowerCase().slice(0, 24),
     trackRefs: Array.isArray(snapshot.trackRefs)
-      ? snapshot.trackRefs.slice(0, 12).map((item) => ({ ...item })) : [],
+      ? snapshot.trackRefs.slice(0, 12).map((item) => structuredClone({ ...item })) : [],
     subtitleSelection: snapshot.subtitleSelection && typeof snapshot.subtitleSelection === 'object'
-      ? { ...snapshot.subtitleSelection } : null,
+      ? structuredClone({ ...snapshot.subtitleSelection }) : null,
     subtitleSyncRecords: Array.isArray(snapshot.subtitleSyncRecords)
-      ? snapshot.subtitleSyncRecords.slice(-500).map((item) => ({ ...item })) : [],
+      ? snapshot.subtitleSyncRecords.slice(-500).map((item) => structuredClone({ ...item })) : [],
     subtitleEdits: Array.isArray(snapshot.subtitleEdits)
-      ? snapshot.subtitleEdits.slice(-2000).map((item) => ({ ...item })) : [],
+      ? snapshot.subtitleEdits.slice(-2000).map((item) => structuredClone({ ...item })) : [],
     subtitleRecordQuarantine: Array.isArray(snapshot.subtitleRecordQuarantine)
-      ? snapshot.subtitleRecordQuarantine.slice(-100).map((item) => ({ ...item })) : [],
+      ? snapshot.subtitleRecordQuarantine.slice(-100).map((item) => structuredClone({ ...item })) : [],
   };
 }
 

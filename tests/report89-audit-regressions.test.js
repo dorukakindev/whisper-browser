@@ -60,7 +60,8 @@ test('transcript saati sonlu olmayan değerlerde bozuk metin üretmez', () => {
 
 test('geçerli Unicode alan adları URL standardıyla punycode origin olur', () => {
   assert.equal(permissionOrigin('https://bücher.example/path'), 'https://xn--bcher-kva.example');
-  assert.equal(permissionOrigin('https://xn--example-9ua.com'), '');
+  assert.equal(permissionOrigin('https://xn--example-9ua.com'), 'https://xn--example-9ua.com');
+  assert.equal(permissionOrigin('https://xn--%.com'), '');
 });
 
 test('ayar dışa aktarımı adında ek bulunan API anahtarı alanlarını da temizler', () => {

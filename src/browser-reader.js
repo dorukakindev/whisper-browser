@@ -3,6 +3,7 @@
 const READER_ACTIONS = new Set(['toggle', 'open', 'close', 'preferences']);
 
 function normalizeReaderPreferences(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
   return {
     fontSize: Math.max(16, Math.min(32, Number(raw.fontSize) || 20)),
     lineHeight: Math.max(1.35, Math.min(2.1, Number(raw.lineHeight) || 1.7)),
