@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 454 | [BROWSER_BUG_REPORT_454.md](BROWSER_BUG_REPORT_454.md) | Dublaj planı istek sahipliği, başarısız yenilemede eski plan, iptal/proc yarışı, SRT snapshot hash'i ve zaman parser'ı |
 | 453 | [BROWSER_BUG_REPORT_453.md](BROWSER_BUG_REPORT_453.md) | Cache sıkıştırmasında eşzamanlı kayıt kaybı; eski medya, arka plan kaynağı, iptal ve plan/kısaltma sonuçlarının bağlam doğrulaması |
 | 452 | [BROWSER_BUG_REPORT_452.md](BROWSER_BUG_REPORT_452.md) | Geniş inceleme: sayısal iş ayarları, sıfır değerleri, atomik SRT/VTT, kuyruk sırları, null indirme ilerlemesi ve medya önizleme iptali; 451 yanlış alarmlarının ayrılması |
 | 451 | [BROWSER_BUG_REPORT_451.md](BROWSER_BUG_REPORT_451.md) | Kod-değiştirmeyen 50 görevlik çok derin tam-tarama: npm test 11 dosya başarısız envanteri + doğrulanmış (youtube-guard olay kaybı, NaN argv, VTT katı doğrulama, maxCps=0, negatif zaman, ≥24h) + güvenlik/uyum ve browser-zincir bulguları |
