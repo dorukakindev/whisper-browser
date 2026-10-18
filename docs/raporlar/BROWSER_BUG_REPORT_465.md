@@ -17,7 +17,7 @@ medya geçici dosyaları, dublaj örnek planı ve PDF sayfa seçimi.
 - Hedefli testler: `subtitle-sentence-layout`, `settings-security`,
   `report456-regressions`, `browser-address-model`, `docs-index-integrity` → geçti.
 - **Nihai tam `npm test`:** 549 dosya, **0 kırmızı**, "Tüm testler geçti".
-- 8 yeni bulgu: 1 orta-yüksek, 3 orta, 2 düşük-orta, 2 düşük.
+- 8 yeni bulgu: 1 orta-yüksek, 2 orta, 2 düşük-orta, 3 düşük.
 - En önemlisi: **dublaj/SRT araçları yalnız UTF-8 okuyor**; cp1254/UTF-16 Türkçe
   altyazıda metin U+FFFD'ye dönüşüyor ve TTS bozuk metni seslendiriyor.
 
@@ -99,6 +99,7 @@ doğru okunuyor; dublaj yolu bu onarımı kullanmıyor. UTF-16 BOM'lu SRT de ayn
 Merhaba dünya. Çalışma
 
 parse_srt -> [(1000, 2000, 'Merhaba d[U+FFFD]nya. [U+FFFD]al[U+FFFD][U+FFFD]ma')]
+UTF-16LE BOM'lu aynı SRT -> []   (zaman satırı bile bulunamıyor)
 ```
 
 **Etki:** Türkçe eski altyazıyla dublaj planı/TTS bozuk metin üretir; kullanıcı
