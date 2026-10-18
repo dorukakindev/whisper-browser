@@ -108,10 +108,14 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
     worker = state;
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
+      if (worker !== state) return;
       state.buffer += chunk;
       let idx;
       while ((idx = state.buffer.indexOf('\n')) >= 0) {
         const line = state.buffer.slice(0, idx);
+        if (Buffer.byteLength(line, 'utf8') > 5 * 1024 * 1024) {
+          killWorker(new Error('Medya aracı çıktısı çok büyük.')); return;
+        }
         state.buffer = state.buffer.slice(idx + 1);
         const pending = state.pending.shift();
         if (!pending) continue;
@@ -120,9 +124,15 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
         let result;
         try { result = JSON.parse(line); }
         catch { pending.reject(new Error('Medya aracından geçersiz yanıt alındı.')); continue; }
+        if (!result || typeof result !== 'object' || Array.isArray(result) || typeof result.ok !== 'boolean') {
+          pending.reject(new Error('Medya aracından geçersiz yanıt alındı.')); continue;
+        }
         if (!result.ok) { pending.reject(new Error(result.error || 'Medya işlemi başarısız.')); continue; }
         delete result.ok;
         pending.resolve(result);
+      }
+      if (Buffer.byteLength(state.buffer, 'utf8') > 5 * 1024 * 1024) {
+        killWorker(new Error('Medya aracı çıktısı çok büyük.'));
       }
     });
     // Kapatılan işçinin close/error olayı daha sonra kurulan yeni işçiyi
