@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import logging
+import math
 import os
 import shutil
 import subprocess
@@ -9,6 +10,30 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from dub_plan import parse_srt
+
+
+def downloaded_sources(cache, source_key):
+    extensions = {'.webm', '.m4a', '.mp4', '.mp3', '.opus', '.ogg', '.aac', '.wav'}
+    candidates = []
+    for file in cache.glob(source_key + '.source.*'):
+        try:
+            if (file.suffix.lower() in extensions and not file.is_symlink()
+                    and file.is_file() and file.stat().st_size > 0):
+                candidates.append(file)
+        except OSError:
+            continue
+    return sorted(candidates)
+
+
+def valid_wav(file):
+    import soundfile as sf
+    try:
+        if not file.is_file() or file.is_symlink():
+            return False
+        info = sf.info(str(file))
+        return info.format in ('WAV', 'WAVEX', 'RF64') and info.frames > 0 and info.samplerate > 0
+    except (OSError, RuntimeError, ValueError):
+        return False
 
 
 def run(args):
@@ -28,8 +53,8 @@ def main():
     os.environ['PATH'] = str(Path(args.ffmpeg).parent) + os.pathsep + os.environ.get('PATH','')
     cues = parse_srt(args.srt)
     if not cues: raise ValueError('SRT bos.')
-    end = args.end if args.end is not None else cues[-1][1]/1000+2
-    if args.start < 0 or end <= args.start: raise ValueError('Gecersiz aralik.')
+    end = args.end if args.end is not None else max(cue[1] for cue in cues)/1000+2
+    if not math.isfinite(args.start) or not math.isfinite(end) or args.start < 0 or end <= args.start: raise ValueError('Gecersiz aralik.')
     cache = Path(args.cache); cache.mkdir(parents=True,exist_ok=True)
     source = args.source
     remote = urlparse(source)
@@ -39,13 +64,13 @@ def main():
             if remote.scheme != 'https' or remote.hostname not in ('youtube.com','www.youtube.com','m.youtube.com','youtu.be'):
                 raise ValueError('Yalniz secili YouTube videosu destekleniyor.')
             source_key = hashlib.sha256(source.encode()).hexdigest()[:24]
-            candidates = [f for f in cache.glob(source_key+'.source.*') if f.suffix not in ('.part','.ytdl','.tmp')]
+            candidates = downloaded_sources(cache, source_key)
             if not candidates:
                 print('DUB_BACKGROUND download',flush=True)
-                run([args.download_python,'-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--no-warnings',
+                run([args.download_python,'-m','yt_dlp','--ignore-config','--no-playlist','--no-progress','--no-warnings','--force-overwrites',
                      '--js-runtimes','node','--ffmpeg-location',str(Path(args.ffmpeg).parent),'--socket-timeout','30','--retries','3',
                      '-f','bestaudio','--output',str(cache/(source_key+'.source.%(ext)s')),'--',source])
-                candidates = [f for f in cache.glob(source_key+'.source.*') if f.suffix not in ('.part','.ytdl')]
+                candidates = downloaded_sources(cache, source_key)
             if not candidates: raise ValueError('YouTube sesi indirilemedi.')
             source = str(candidates[0])
     source = Path(source)
@@ -53,7 +78,7 @@ def main():
     identity = (str(source.resolve()),stat.st_size,stat.st_mtime_ns,args.start,end,'UVR_MDXNET_KARA_2.onnx')
     key = hashlib.sha256(repr(identity).encode()).hexdigest()[:24]
     stem = cache/(key+'-instrumental.wav')
-    if not stem.is_file():
+    if not valid_wav(stem):
         work = cache/key; work.mkdir(exist_ok=True)
         audio = work/'input.wav'
         print('DUB_BACKGROUND extract',flush=True)
@@ -71,6 +96,7 @@ def main():
         generated = Path(files[0])
         if not generated.is_absolute(): generated = work/generated
         if generated.resolve().parent != work.resolve(): raise ValueError('Gecersiz arka plan ciktisi.')
+        if not valid_wav(generated): raise ValueError('Arka plan araci gecerli bir WAV uretmedi.')
         temporary = stem.with_suffix('.partial.wav')
         shutil.copy2(generated,temporary); temporary.replace(stem)
     output = Path(args.output); output.parent.mkdir(parents=True,exist_ok=True)
