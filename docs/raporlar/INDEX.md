@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 467 | [BROWSER_BUG_REPORT_467.md](BROWSER_BUG_REPORT_467.md) | Rapor465 doğrulaması: dublaj kodlaması, hash-route arşivi, cache kalite serisi, yinelenen cue kapsamı, tamamlama ve PDF sınırı |
 | 466 | [BROWSER_BUG_REPORT_466.md](BROWSER_BUG_REPORT_466.md) | Rapor463 doğrulaması: endpoint/kasa izolasyonu, çeviri kapıları, aynı-dil çıktı, TV kontrastı, burn-in ve disk dayanıklılığı |
 | 465 | [BROWSER_BUG_REPORT_465.md](BROWSER_BUG_REPORT_465.md) | 463/464'ten bağımsız 50 görevlik ikinci tarama: dublajda cp1254/UTF-16 SRT bozulması, hash-route arşiv çakışması, cache-hit kalite kesicisi, yinelenen cue kimliği, adres tamamlama ofseti, geçici indirme kalıntıları, örnek dublaj düzenlemeleri, PDF aralık sınırı |
 | 464 | [BROWSER_BUG_REPORT_464.md](BROWSER_BUG_REPORT_464.md) | Daha derin koşulabilir denetim: 131 probe (Node fuzz 78 + Python 46 + gerçek-konuşma e2e 4 + npm test envanteri 1 + repro 2); Y-1 sıfır-süreli cue düşüşü (463-01 ek kanıtı + girici commit), Y-2 clean_text NUL/ZWNJ passthrough, Y-7 compound redaction artıkları, 459-Y-4 vm kontrat kapanışı |

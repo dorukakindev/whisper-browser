@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-1037.md](docs/devir/2026-10-18-1037.md) — Kullanıcı onayıyla 464/465 raporları ve 466 düzeltmelerinin birlikte yayını
+Güncel çalışma: [docs/devir/2026-10-18-1115.md](docs/devir/2026-10-18-1115.md) — Rapor467: Rapor465 dublaj kodlaması, hash-route, kalite/bütünlük ve aralık sınırı düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-18-1037.md](docs/devir/2026-10-18-1037.md) — Kullanıcı onayıyla 464/465 raporları ve 466 düzeltmelerinin birlikte yayını
 Önceki çalışma: [docs/devir/2026-10-18-1035.md](docs/devir/2026-10-18-1035.md) — Rapor466: Rapor463 güvenlik, çeviri, TV kontrastı ve süreç/disk düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-18-0630.md](docs/devir/2026-10-18-0630.md) — Rapor465: 463/464'ten bağımsız 50 görevlik ikinci tarama, 8 bulgu (dublaj kodlaması, arşiv hash-route, kalite kesicisi, bütünlük kimliği)
 Önceki çalışma: [docs/devir/2026-10-18-0615.md](docs/devir/2026-10-18-0615.md) — Rapor464: 131 koşulabilir probe ile daha derin denetim; tek kırmızı testin (sıfır-süreli cue) girici commit'i ve NUL/ZWNJ sızıntısı
