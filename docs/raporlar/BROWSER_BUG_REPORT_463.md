@@ -413,7 +413,7 @@ sonuçlu.
 wrap_text("这是一个测试句子" * 10, 20, 2, language="zh")
 -> tek satır, 80 karakter
 wrap_text("これは日本語のテストです。" * 5, 20, 2, language="ja")
--> tek satır, 75 karakter
+-> tek satır, 65 karakter
 ```
 
 **Etki:** Çince/Japonca/Tayca altyazıda satır genişliği sınırı uygulanmıyor; oynatıcıda
