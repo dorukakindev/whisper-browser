@@ -155,7 +155,7 @@ function renameCollection(items, previousName, nextName) {
   return (Array.isArray(items) ? items : []).map((item) => {
     const prefs = { ...(item.prefs || {}) };
     const collectionOrder = { ...(prefs.collectionOrder || {}) };
-    if (Object.prototype.hasOwnProperty.call(collectionOrder, previous)) {
+    if (previous !== next && Object.prototype.hasOwnProperty.call(collectionOrder, previous)) {
       collectionOrder[next] = collectionOrder[previous];
       delete collectionOrder[previous];
     }
@@ -173,9 +173,15 @@ function renameCollection(items, previousName, nextName) {
 
 function removeCollection(items, name) {
   const target = normalizeCollectionName(name);
-  return (Array.isArray(items) ? items : []).map((item) => ({
-    ...item, collections: (item.collections || []).map(normalizeCollectionName).filter((value) => value && value !== target),
-  }));
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const prefs = { ...(item.prefs || {}) };
+    if (prefs.collectionOrder && typeof prefs.collectionOrder === 'object') {
+      prefs.collectionOrder = { ...prefs.collectionOrder };
+      delete prefs.collectionOrder[target];
+    }
+    return { ...item, prefs,
+      collections: (item.collections || []).map(normalizeCollectionName).filter((value) => value && value !== target) };
+  });
 }
 
 function setCollectionMembership(items, keys, name, member) {

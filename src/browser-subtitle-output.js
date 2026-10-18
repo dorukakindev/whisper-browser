@@ -33,8 +33,9 @@ function cuesToAss(cues) {
 }
 
 function validateBrowserSubtitleDocument(text, format, expectedCues) {
-  const expected = normalizeCues(expectedCues).slice(0, 20000);
+  const expected = normalizeCues(expectedCues);
   const parsed = parseSubtitlePayload(String(text || ''), '', `subtitle.${format}`).cues;
+  if (expected.length > 20000) return { ok: false, error: 'En fazla 20000 altyazı bloğu dışa aktarılabilir.', cues: parsed };
   // Boşa-boş eşleşme başarı sayılmaz — kayıp ölçüm için anlamlı karşılaştırma
   // yoktur; sessiz "her şey yolunda" dönüşü kaybolan cue'ları gizlerdi.
   if (!expected.length) {
@@ -49,7 +50,7 @@ function validateBrowserSubtitleDocument(text, format, expectedCues) {
   if (!timingsMatch) return { ok: false, error: 'Altyazı zaman kodları doğrulanamadı.', cues: parsed };
   const normalizeText = (value) => {
     let normalized = String(value == null ? '' : value)
-      .replace(/\\N/g, '\n').replace(/\r\n?/g, '\n');
+      .replace(/\r\n?/g, '\n');
     if (format === 'ass') normalized = normalized.replace(/｛/g, '{').replace(/｝/g, '}');
     return normalized.normalize('NFC');
   };
@@ -61,7 +62,8 @@ function validateBrowserSubtitleDocument(text, format, expectedCues) {
 function buildBrowserSubtitleDocument(cues, requestedFormat = 'srt') {
   const format = OUTPUT_FORMATS.has(String(requestedFormat).toLowerCase())
     ? String(requestedFormat).toLowerCase() : 'srt';
-  const normalized = normalizeCues(cues).slice(0, 20000);
+  const normalized = normalizeCues(cues);
+  if (normalized.length > 20000) throw new Error('En fazla 20000 altyazı bloğu dışa aktarılabilir.');
   if (!normalized.length) throw new Error('Dışa aktarılacak altyazı yok.');
   const text = format === 'vtt' ? cuesToVtt(normalized)
     : format === 'ass' ? cuesToAss(normalized) : cuesToSrt(normalized);

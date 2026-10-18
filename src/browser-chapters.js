@@ -8,8 +8,9 @@
     const end = Number(raw?.end ?? raw?.endTime ?? raw?.end_time);
     const title = String(raw?.title || raw?.description || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 240);
     if (!Number.isFinite(start) || start < 0 || !title) return null;
+    const { end: _rawEnd, ...metadata } = raw;
     return {
-      ...raw,
+      ...metadata,
       start,
       ...(Number.isFinite(end) && end > start ? { end } : {}),
       title,

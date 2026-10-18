@@ -122,7 +122,7 @@ function stemNorm(value) {
 function pairEvidence(a, b) {
   const sizeA = Math.max(0, Number(a?.sizeBytes) || 0);
   const sizeB = Math.max(0, Number(b?.sizeBytes) || 0);
-  if (sizeA > 0 && sizeB > 0 && sizeA === sizeB) return 'strong';
+  if (sizeA > 0 && sizeB > 0) return sizeA === sizeB ? 'strong' : '';
   const durA = Math.max(0, Number(a?.duration) || 0);
   const durB = Math.max(0, Number(b?.duration) || 0);
   if (durA >= 60 && durB >= 60 && Math.abs(durA - durB) <= Math.max(1, Math.max(durA, durB) * 0.02)) return 'weak';
@@ -147,6 +147,8 @@ function findLibraryDuplicates(items) {
       let joined = false;
       for (const cluster of clusters) {
         const evidence = pairEvidence(cluster[0], item);
+        if (cluster.some(member => Number(member.sizeBytes) > 0 && Number(item.sizeBytes) > 0
+            && Number(member.sizeBytes) !== Number(item.sizeBytes))) continue;
         if (evidence) { cluster.push(item); joined = true; break; }
       }
       if (!joined) clusters.push([item]);

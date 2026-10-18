@@ -2398,6 +2398,7 @@
     ['Ses parçası en fazla 9 saniye olabilir.', 'An audio chunk may be at most 9 seconds.'],
     ['Ses parçası geçersiz.', 'Invalid audio chunk.'],
     ['Dışa aktarılacak altyazı yok.', 'No subtitles to export.'],
+    ['En fazla 20000 altyazı bloğu dışa aktarılabilir.', 'You can export up to 20000 subtitle cues.'],
     ['Geçerli bir sayfa ve A-B aralığı gerekli.', 'A valid page and A-B range are required.'],
     ['DRM korumalı servis akışı indirilemez veya klibe dönüştürülemez.', 'A DRM-protected service stream cannot be downloaded or clipped.'],
     ['Bu PDF dosyasının okunmasına izin verilsin mi?', 'Allow reading this PDF file?'],

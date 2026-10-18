@@ -10471,7 +10471,7 @@ function browserConfiguredSubtitlePath(tab, track = {}, role = 'source') {
 }
 
 function saveBrowserTrackToConfiguredFolder(tab, cues, track = {}, role = 'source') {
-  const normalized = normalizeCues(cues).slice(0, 20000);
+  const normalized = normalizeCues(cues);
   if (!normalized.length) return '';
   const outputPath = browserConfiguredSubtitlePath(tab, track, role);
   const document = buildBrowserSubtitleDocument(normalized, 'srt');
@@ -17568,8 +17568,9 @@ ipcMain.handle('browser:adapters:openFolder', async (event) => {
 
 ipcMain.handle('browser:subtitle:export', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const cues = normalizeCues(payload && payload.cues).slice(0, 20000);
+  const cues = normalizeCues(payload && payload.cues);
   if (!cues.length) return { ok: false, error: 'Dışa aktarılacak altyazı yok.' };
+  if (cues.length > 20000) return { ok: false, error: dt('En fazla 20000 altyazı bloğu dışa aktarılabilir.', 'You can export up to 20000 subtitle cues.') };
   const safeTitle = windowsSafeFileName(String(payload && payload.title || '').slice(0, 100), 'web-altyazi');
   const preferredFormat = ['srt', 'vtt', 'ass'].includes(payload && payload.format) ? payload.format : 'srt';
   const result = await dialog.showSaveDialog(mainWindow, {

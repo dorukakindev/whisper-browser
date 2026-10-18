@@ -64,7 +64,8 @@ function languageCode(value, fallback = 'tr') {
 
 function translationFor(translations, id) {
   if (translations instanceof Map) return translations.get(id);
-  if (translations && typeof translations === 'object' && !Array.isArray(translations)) return translations[id];
+  if (translations && typeof translations === 'object' && !Array.isArray(translations)
+      && Object.hasOwn(translations, id)) return translations[id];
   return '';
 }
 
@@ -155,6 +156,7 @@ function matchArchivedPage(record, rawBlocks) {
   const matches = [];
   const unmatchedRows = [];
   for (const row of rows) {
+    if (!normalizeText(row?.translation)) continue;
     const block = byId.get(String(row?.id || ''));
     if (block && block.source === normalizeText(row?.source) && !used.has(block.id)) {
       used.add(block.id);
