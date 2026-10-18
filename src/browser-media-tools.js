@@ -43,7 +43,7 @@ function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine =
       }
       finish(code === 0 ? null : new Error(errorText.trim() || Buffer.concat(output).toString('utf8').slice(0, 500) || 'Medya işlemi başarısız.'), Buffer.concat(output).toString('utf8') || errorText);
     });
-    child.stdin.on('error', () => {});
+    child.stdin.on('error', (error) => { child.kill(); finish(error); });
     child.stdin.end(input);
   });
 }
@@ -140,7 +140,7 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
     const retire = (error) => { if (worker === state) killWorker(error); };
     child.on('error', () => retire(new Error('Medya aracı başlatılamadı.')));
     child.on('close', () => retire(new Error('Medya aracı süreci kapandı.')));
-    child.stdin.on('error', () => {});
+    child.stdin.on('error', (error) => retire(error));
     // stderr'in tüketilmemesi dolan boruda çocuğu bloke eder (model indirme
     // logları vs.); son kısmı hata mesajlarına eklemek için sakla.
     state.stderrTail = '';
