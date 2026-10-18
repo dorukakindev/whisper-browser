@@ -75,6 +75,11 @@
   }
 
   function normalizePoint(raw) {
+    const validTime = (value) => typeof value === 'number'
+      || (typeof value === 'string' && value.trim() !== '');
+    if (!raw || !validTime(raw.sourceTime) || !validTime(raw.videoTime)) {
+      throw new TypeError('Eşleşme noktası geçersiz.');
+    }
     const sourceTime = Number(raw && raw.sourceTime);
     const videoTime = Number(raw && raw.videoTime);
     if (!Number.isFinite(sourceTime) || !Number.isFinite(videoTime) || sourceTime < 0 || videoTime < 0) {
@@ -199,6 +204,11 @@
     let skipped = 0;
     let invalidSkipped = 0;
     for (const cue of source) {
+      if (!cue || cue.start == null || cue.end == null
+          || !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))) {
+        invalidSkipped++;
+        continue;
+      }
       const start = sourceToVideoTime(cue.start, normalized);
       const end = sourceToVideoTime(cue.end, normalized);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
