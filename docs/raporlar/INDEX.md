@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 471 | [BROWSER_BUG_REPORT_471.md](BROWSER_BUG_REPORT_471.md) | Anlamsal arama worker null yanıt çökmesi ve sınırsız çıktı tamponu |
 | 470 | [BROWSER_BUG_REPORT_470.md](BROWSER_BUG_REPORT_470.md) | Exact kısa altyazılarda yanlış ret ve birleştirilmiş boş hedeflerde kaçan kalite denetimi |
 | 406 | [BROWSER_BUG_REPORT_406.md](BROWSER_BUG_REPORT_406.md) | oynatıcı işi çeviri aşamasında ilerleme çubuğu donuk — llm_progress yalnız 'translate' işinde işleniyordu, 'progressive' işe genişletildi |
 | 405 | [BROWSER_BUG_REPORT_405.md](BROWSER_BUG_REPORT_405.md) | canlı Whisper ve tarayıcı yaşam döngüsü derin denetimi — Türkçe %TEMP% yolu (stdin UTF-8), reklam sırasında yakalama, kırıntı/sessiz parça, "Altyazı M.K." süzgeci, dil kapısı, RTF uyarısı, mini oynatıcı close yarışı, Windows disk dolu iletisi |
