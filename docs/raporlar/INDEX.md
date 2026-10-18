@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 475 | [BROWSER_BUG_REPORT_475.md](BROWSER_BUG_REPORT_475.md) | Gizlilik, arşiv, koleksiyon, export ve chapter: 10 düzeltme |
 | 474 | [BROWSER_BUG_REPORT_474.md](BROWSER_BUG_REPORT_474.md) | Geniş tarama: 10 altyazı, senkron, sağlayıcı ve kütüphane hatası |
 | 473 | [BROWSER_BUG_REPORT_473.md](BROWSER_BUG_REPORT_473.md) | Eksik altyazı önbelleği kayıtlarının gereksiz dosya sildirmesi |
 | 472 | [BROWSER_BUG_REPORT_472.md](BROWSER_BUG_REPORT_472.md) | Medya giriş borusu hatasında gereksiz bekleme |

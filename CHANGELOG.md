@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed structured diagnostic and matrix-URL secret redaction, archive translation matching, conflicting-size duplicate groups, collection ordering, literal subtitle escape validation, oversized export truncation and invalid chapter end fields.
+
 - Fixed ten subtitle and library audit failures: strict UTF-8 export validation, invalid cue/sync point handling, duplicate target identity and Unicode names, root relinking, provider rows/file IDs, ASS download format and Brazilian Portuguese filtering.
 
 - Subtitle cache quota now discards missing entries before evicting existing files, preserving live cache files after external cleanup.
