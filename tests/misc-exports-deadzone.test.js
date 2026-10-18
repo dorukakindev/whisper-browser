@@ -287,15 +287,15 @@ async function t_runtime_and_manifest() {
 }
 
 async function t_pipeline_and_discovery() {
-  const done = spawn('true');
+  const done = spawn(process.execPath, ['-e', '']);
   await new Promise((r) => done.on('close', r));
   assert.strictEqual(await pipeline.waitForChildClose(done, 100), true, 'çıkmış çocuk → true');
-  const slow = spawn('sleep', ['5']);
+  const slow = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 5000)']);
   try {
     assert.strictEqual(await pipeline.waitForChildClose(slow, 40), false, 'timeout → false');
     assert.strictEqual(slow.listenerCount('close'), 0, 'dinleyici geri alındı');
   } finally { slow.kill('SIGKILL'); }
-  const quick = spawn('true');
+  const quick = spawn(process.execPath, ['-e', '']);
   assert.strictEqual(await pipeline.waitForChildClose(quick, 3000), true, 'kapanan → true');
   // readLimitedBytes
   await assert.rejects(() => discovery.readLimitedBytes({ headers: { get: () => '999' } }, 10), /çok büyük/);
