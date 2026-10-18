@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
-const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
+const { fsyncFile, fsyncDirectory, renameSyncResilient, atomicWriteFileSync } = require('./fsync-utils');
 const path = require('path');
 const { safePlaceUrl } = require('./browser-place-url');
 
@@ -42,7 +42,8 @@ function normalizeCues(rawCues) {
       };
     }
     return normalized;
-  }).filter((cue) => cue && cue.text && cue.end >= cue.start)
+  }).filter((cue) => cue && cue.text && Number.isFinite(cue.end * 1000)
+    && Math.round(cue.end * 1000) > Math.round(cue.start * 1000))
     .sort((a, b) => a.start - b.start || a.end - b.end).slice(-20000);
 }
 
@@ -155,14 +156,11 @@ class BrowserAssetStore {
       }
       const cues = normalizeCues(parsed.cues);
       if (!cues.length) return { ok: false, error: 'Altyazı varlığında geçerli blok yok.' };
-      // JSON sağlamken SRT'nin elle veya eski bir sweep tarafından silinmesi
-      // dışa aktarma yolunu ölü bırakmasın; türetilebilir dosyayı geri kur.
-      if (!this.fs.existsSync(paths.srtPath)) {
-        const tempSrt = `${paths.srtPath}.${process.pid}.${Date.now()}.tmp`;
-        this.fs.writeFileSync(tempSrt, `\uFEFF${cuesToSrt(cues)}`, 'utf8');
-        fsyncFile(tempSrt, this.fs);
-        renameSyncResilient(this.fs, tempSrt, paths.srtPath);
-        fsyncDirectory(paths.dir, this.fs);
+      // İçerik-adresli asset'in JSON'u kanoniktir; yarım kayıt veya sweep
+      // sonrası eksik/uyuşmayan türetilmiş SRT'yi geri kur. Kişisel SRT değil.
+      const expectedSrt = `\uFEFF${cuesToSrt(cues)}`;
+      if (!this.fs.existsSync(paths.srtPath) || this.fs.readFileSync(paths.srtPath, 'utf8') !== expectedSrt) {
+        atomicWriteFileSync(paths.srtPath, expectedSrt, { io: this.fs });
       }
       return { ok: true, document: { ...parsed, version: ASSET_VERSION, cues }, ...paths };
     } catch (error) {

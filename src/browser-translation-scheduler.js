@@ -20,7 +20,8 @@ function normalizeCues(rawCues) {
       speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
       protected: Boolean(cue?.protected) || protectedCue(cue || {}),
     };
-  }).filter((cue) => cue && cue.text && cue.end >= cue.start)
+  }).filter((cue) => cue && cue.text && Number.isFinite(cue.end * 1000)
+    && Math.round(cue.end * 1000) > Math.round(cue.start * 1000))
     .sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
