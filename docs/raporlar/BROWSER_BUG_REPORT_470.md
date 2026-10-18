@@ -6,7 +6,7 @@ Kullanıcının yenilediği AGENTS talimatıyla güncel uzak master'dan ayrı
 dal açıldı: `codex/subtitle-quality-audit470`.
 Taban: `5386420ed80464c46719d4fd3df56013e1e2e958`.
 Ürün düzeltmesi: `1f493ee51bdbeaab1b5c481e530ac71df99c5aa0`.
-Son kod/test commit'i: `543e187d83ce0ce5a1291b0820698e33e1593265`.
+Son kod/test commit'i: `1bce5420f9c2e5c4a165e8e51d647b5ef053781b`.
 
 ## 470-01 / Orta — Birebir kısa cue yanlışlıkla eksik sayılıyor
 
@@ -40,7 +40,7 @@ sayı/olumsuzluk gibi anlam kapılarının nonexact cue kapsamı genişletilmedi
 kontrol testi yeşil; düzeltmeden sonra dördü yeşil. Kontrol: tesadüfi kısa
 çakışma reddi, geçerli birleşik hedef kabulü. Var olan eşikler korunur.
 
-Sekiz hedefli Node test dosyası geçti; komutlar devir notunda. Altın çeviri
+On bir hedefli Node test dosyası geçti; komutlar devir notunda. Altın çeviri
 CLI'sı 15 knownGood + 16 expectedRepairs örneğini sıfır blocking hata ile
 geçti. Windows'ta mevcut misc-exports-deadzone testi önce sandbox EPERM,
 normal yetkide spawn true ENOENT verdi. Güncel çalışma dalında zaten
@@ -63,11 +63,50 @@ yerel canlı koşum 10 testle yaklaşık 0.23 saniyede kapanarak geçti.
 Linux'ta öldürülmüş, henüz reap edilmemiş zombie aktif süreç sayılmaz.
 Bu bir test altyapısı hatasıdır; yeni üretim süreç iptali bug'u diye sayılmaz.
 
+## 470-04 / Orta — Windows konuşma JSON protokolünde kodlama çökmesi
+
+Windows CI'da `backend/test_separate_dialogue.py` dört sözleşme hatası
+verdi. `separate_dialogue.py`, UTF-8 Node isteğini konsol kod sayfasıyla
+okuyor; hata yanıtındaki Türkçe metni ensure_ascii=False ile cp1252'ye
+yazmaya çalışırken hata işleyicisinin kendisi çökebiliyordu. Giriş açıkça
+UTF-8 okunur; başarı/hata JSON'u ASCII kaçışlarıyla yazılır. JSON.parse
+sonrası Türkçe metin birebir korunur. Eksik ses, modeli yüklemeden önce
+reddedilir; geçersiz dosya için gereksiz model indirme/yükleme önlenir.
+
+Yeni subprocess regresyonu PYTHONIOENCODING=cp1252 altında UTF-8 Türkçe
+dosya yolu gönderip tek JSON hata yanıtında özgün yolu doğrular. İlk eski
+kod koşumu eksik dosya için modele gitmeye çalışarak 10 sn timeout verdi;
+fixture son halinde HF_HUB_OFFLINE=1 kullanır, ağ/model bağımlılığı yoktur.
+Altı sözleşme testi düzeltmede geçti.
+
+## CI sonucunda bulunan eski test sözleşmeleri
+
+073a5178 Windows koşusu altı dosyada kırmızıydı; gerçek log arşivi okunup
+sebepler ayrıldı. Raw CI günlükleri Git'e eklenmedi.
+
+- Yeni gerçek süreç testine eklenen sabit 50 ms bekleme determinism
+  ratchet'ini 22/21 yapmıştı. Deadline içinde setImmediate ile gerçek
+  kapanış koşulu yoklanır; baseline değişmedi, 21/21 kontrolü geçti.
+- ASR fixture'ı CRLF kaynakta fonksiyon bitişini bulamıyordu. Satır sonu
+  normalize edilir ve başlangıcın bulunduğu ayrıca assert edilir.
+- innerHTML allowlist'indeki sekiz eski satır tam beş satır kaymıştı.
+  Enum/sayısal/escapeHtml ile kurulan aynı ifadeler kaynakta incelenip
+  yalnız konumları güncellendi. Yeni izin eklenmedi, güvenlik testi korundu.
+- test_name_consistency Türkçe PASS başlığı yazarken cp1252 ile çöküyordu;
+  yalnız test stdout'u UTF-8'e yapılandırıldı, cp1252 ortamında tekrar geçti.
+- adr-01 hitap kusuru zaten register katmanına aitti; güncel çalışma
+  dalındaki doğru sınıflandırma master tabanına taşındı. Diğer bozulan
+  beklenti tüm bozuk grupların yeniden ücretlenmesini istiyordu; gerçek
+  zero-yield kesicisinin ilan ettiği bütçe için tam eşitlik ve kullanıcı
+  uyarısı zorunluluğu getirildi. Ürün kalite kapıları gevşetilmedi.
+
 Altın CLI'ya ilk --help çağrısı, araç bu seçeneği desteklemediğinden dosya
 adı sayılıp ENOENT verdi; doğru argümansız çalıştırma geçti. Bu düzenek
 denemesi ürün hatası diye sayılmadı. Node syntax ve git diff kontrolü geçti.
 
-UI, GPU/model, canlı YouTube, start.bat ve tam npm test çalıştırılmadı.
+UI, GPU/model, canlı YouTube, start.bat ve yerel tam npm test çalıştırılmadı.
+Uzak tam paket çalıştırılıp yukarıdaki altı dosya hatası incelendi; son
+düzeltmelerden sonra Windows CI yeniden beklenir.
 Yeni paket, şema veya kullanıcı verisi değişikliği yok. Düzeltme kalite
 denetimi/karşılaştırma araçlarını etkiler; modelin çeviri kalitesini
 iyileştirdiği veya tüm çeviri hattını doğruladığı iddia edilmez.
