@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 457 | [BROWSER_BUG_REPORT_457.md](BROWSER_BUG_REPORT_457.md) | Kurtarmada boş/uzun kimlikler, active/split eşlemesi ve places yazım hatasında mevcut sekmeleri koruma |
 | 456 | [BROWSER_BUG_REPORT_456.md](BROWSER_BUG_REPORT_456.md) | Başarısız arşiv indeksi bellek tutarlılığı, sıfır süreli cue, kanonik JSON/SRT onarımı ve başarısız onarım tmp temizliği |
 | 455 | [BROWSER_BUG_REPORT_455.md](BROWSER_BUG_REPORT_455.md) | Arka plan sesinde boş/geçici indirme adayları, bozuk WAV önbelleği ve çıktı, örtüşen cue bitişi ve geçersiz aralıklar |
 | 454 | [BROWSER_BUG_REPORT_454.md](BROWSER_BUG_REPORT_454.md) | Dublaj planı istek sahipliği, başarısız yenilemede eski plan, iptal/proc yarışı, SRT snapshot hash'i ve zaman parser'ı |
