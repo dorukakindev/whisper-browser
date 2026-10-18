@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 458 | [BROWSER_BUG_REPORT_458.md](BROWSER_BUG_REPORT_458.md) | Shadow gözlemci sınırı sonrasında medya keşfi ve Python ses regresyonlarının ana test komutuna alınması |
 | 457 | [BROWSER_BUG_REPORT_457.md](BROWSER_BUG_REPORT_457.md) | Kurtarmada boş/uzun kimlikler, active/split eşlemesi ve places yazım hatasında mevcut sekmeleri koruma |
 | 456 | [BROWSER_BUG_REPORT_456.md](BROWSER_BUG_REPORT_456.md) | Başarısız arşiv indeksi bellek tutarlılığı, sıfır süreli cue, kanonik JSON/SRT onarımı ve başarısız onarım tmp temizliği |
 | 455 | [BROWSER_BUG_REPORT_455.md](BROWSER_BUG_REPORT_455.md) | Arka plan sesinde boş/geçici indirme adayları, bozuk WAV önbelleği ve çıktı, örtüşen cue bitişi ve geçersiz aralıklar |
