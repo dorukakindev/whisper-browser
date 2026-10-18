@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0615.md](docs/devir/2026-10-18-0615.md) — Rapor464: 131 koşulabilir probe ile daha derin denetim; tek kırmızı testin (sıfır-süreli cue) girici commit'i ve NUL/ZWNJ sızıntısı
+Güncel çalışma: [docs/devir/2026-10-18-0630.md](docs/devir/2026-10-18-0630.md) — Rapor465: 463/464'ten bağımsız 50 görevlik ikinci tarama, 8 bulgu (dublaj kodlaması, arşiv hash-route, kalite kesicisi, bütünlük kimliği)
+Önceki çalışma: [docs/devir/2026-10-18-0615.md](docs/devir/2026-10-18-0615.md) — Rapor464: 131 koşulabilir probe ile daha derin denetim; tek kırmızı testin (sıfır-süreli cue) girici commit'i ve NUL/ZWNJ sızıntısı
 Önceki çalışma: [docs/devir/2026-10-18-0550.md](docs/devir/2026-10-18-0550.md) — Rapor463: Kod değiştirmeyen 50 görevlik derin tarama, 16 bulgu ve npm test 1 kırmızı
 Önceki çalışma: [docs/devir/2026-10-18-0529.md](docs/devir/2026-10-18-0529.md) — Rapor462: Kısa örnekte gereksiz tam background ayırma ve eski ses kaydırma göstergesi
 Önceki çalışma: [docs/devir/2026-10-18-0525.md](docs/devir/2026-10-18-0525.md) — Rapor461: Rapor459 bağımsız doğrulaması ve bileşik sır alanlarında kuyruk filtresi

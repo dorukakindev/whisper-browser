@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 465 | [BROWSER_BUG_REPORT_465.md](BROWSER_BUG_REPORT_465.md) | 463/464'ten bağımsız 50 görevlik ikinci tarama: dublajda cp1254/UTF-16 SRT bozulması, hash-route arşiv çakışması, cache-hit kalite kesicisi, yinelenen cue kimliği, adres tamamlama ofseti, geçici indirme kalıntıları, örnek dublaj düzenlemeleri, PDF aralık sınırı |
 | 464 | [BROWSER_BUG_REPORT_464.md](BROWSER_BUG_REPORT_464.md) | Daha derin koşulabilir denetim: 131 probe (Node fuzz 78 + Python 46 + gerçek-konuşma e2e 4 + npm test envanteri 1 + repro 2); Y-1 sıfır-süreli cue düşüşü (463-01 ek kanıtı + girici commit), Y-2 clean_text NUL/ZWNJ passthrough, Y-7 compound redaction artıkları, 459-Y-4 vm kontrat kapanışı |
 | 463 | [BROWSER_BUG_REPORT_463.md](BROWSER_BUG_REPORT_463.md) | Kod değiştirmeyen 50 görevlik derin tarama: npm test 1 kırmızı, 16 bulgu (sıfır süreli cue, ayar importunda anahtar sızıntısı, tire/12-24 saat çeviri kapıları, TV açık tema kontrastı, burn-in yarışı) |
 | 462 | [BROWSER_BUG_REPORT_462.md](BROWSER_BUG_REPORT_462.md) | Kısa örnekte background ayırma kapsamı ve generated attach sonrasında ses kaydırma göstergesi |
