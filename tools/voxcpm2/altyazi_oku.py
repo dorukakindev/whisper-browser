@@ -334,7 +334,8 @@ def main(argv=None):
     except (OSError, ValueError) as exc:
         raise SystemExit(f"Referans dokumu okunamadi: {exc}")
 
-    cues = parse_srt(args.srt)
+    source_bytes = args.srt.read_bytes()
+    cues = parse_srt(args.srt, source_bytes)
     if not cues:
         raise SystemExit("SRT'de okunabilir satir yok.")
     if args.kaydir:
@@ -346,7 +347,7 @@ def main(argv=None):
     groups = make_groups(cues, args.range_start, args.range_end, args.limit, args.gruplama,
                          args.grup_max_karakter, args.grup_max_sn, args.grup_bosluk_ms)
     if args.dub_text:
-        apply_edits(groups, json.loads(args.dub_text.read_text(encoding='utf-8')), file_sha256(args.srt))
+        apply_edits(groups, json.loads(args.dub_text.read_text(encoding='utf-8')), hashlib.sha256(source_bytes).hexdigest())
     cues = [(g['start'], g['end'], g['text']) for g in groups]
     print(f"Plan: {len(source_cues)} altyazi satiri -> {len(groups)} {args.gruplama} grubu.", flush=True)
     if args.plan:

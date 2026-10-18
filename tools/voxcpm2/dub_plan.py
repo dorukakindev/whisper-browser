@@ -9,13 +9,14 @@ from dub_timing import sentence_plan
 
 TAG_RE = re.compile(r"<[^>]+>|\{[^}]*\}")
 TIME_RE = re.compile(
-    r"(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*"
-    r"(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})")
+    r"^[ \t]*(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})[ \t]*-->[ \t]*"
+    r"(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})(?=[ \t\n]|$)", re.MULTILINE)
 
 
-def parse_srt(path):
+def parse_srt(path, source_bytes=None):
     """SRT -> [(start_ms, end_ms, temiz_metin)]."""
-    text = Path(path).read_text(encoding="utf-8-sig", errors="replace")
+    data = Path(path).read_bytes() if source_bytes is None else source_bytes
+    text = data.decode("utf-8-sig", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
     cues = []
     for match in TIME_RE.finditer(text):
         fields = match.groups()
@@ -78,15 +79,17 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
 
 def plan(path, start=None, end=None):
     source = Path(path)
-    if source.stat().st_size > 2_000_000:
+    with source.open('rb') as handle:
+        source_bytes = handle.read(2_000_001)
+    if len(source_bytes) > 2_000_000:
         raise ValueError('SRT cok buyuk.')
-    groups = make_groups(parse_srt(source), start, end)
+    groups = make_groups(parse_srt(source, source_bytes), start, end)
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
         g['key'] = ','.join(map(str, g['source_ids']))
         g['seconds'] = (g['end'] - g['start']) / 1000
-    return {'sourceHash': hashlib.sha256(source.read_bytes()).hexdigest(), 'groups': groups}
+    return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups}
 
 if __name__ == '__main__':
     print(json.dumps(plan(sys.argv[1], *(map(float, sys.argv[2:4]))), ensure_ascii=True))

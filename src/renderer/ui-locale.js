@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Dublaj planı artık kullanılmıyor.', 'The dubbing plan is no longer in use.'],
     ['Ses aktarımı yoğun; bir ses parçası atlandı.', 'Audio transfer is busy; an audio chunk was skipped.'],
     ['Arama sınırı aşıldı. Daha kısa bir metin arayın.', 'Search limit exceeded. Search for shorter text.'],
     ['geçersiz zaman', 'invalid timing'],

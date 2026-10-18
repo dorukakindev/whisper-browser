@@ -12,6 +12,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   let job = null;
   let textUI = null;
   const plans = new Map();
+  const planning = new Map();
+  const planSenders = new WeakSet();
   function rangeOption(raw) {
     if (raw == null) return null;
     const { start, end } = raw;
@@ -180,7 +182,21 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   ipcMain.handle('dub:plan', guard(async (e, request = {}) => {
     if (job) throw new Error('Üretimin bitmesini bekleyin.');
+    const senderId = e.sender.id;
+    planning.get(senderId)?.cancel?.();
+    const attempt = {};
+    planning.set(senderId, attempt);
+    plans.delete(senderId);
+    if (!planSenders.has(e.sender) && typeof e.sender.once === 'function') {
+      planSenders.add(e.sender);
+      e.sender.once('destroyed', () => {
+        planning.get(senderId)?.cancel?.();
+        planning.delete(senderId); plans.delete(senderId);
+      });
+    }
+    try {
     const srt = await authorizeSubtitle(request.srt);
+    if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
     if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
     const c = config();
     const range = rangeOption(request.range);
@@ -191,17 +207,25 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
       let out = '', settled = false;
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
-      const timer = setTimeout(() => { void terminate(proc); finish(new Error('Dublaj planı zaman aşımına uğradı.')); }, 15000);
+      const stop = message => {
+        finish(new Error(message));
+        void Promise.resolve().then(() => terminate(proc)).catch(() => {});
+      };
+      attempt.cancel = () => stop('Dublaj planı artık kullanılmıyor.');
+      const timer = setTimeout(() => stop('Dublaj planı zaman aşımına uğradı.'), 15000);
       proc.stdout.setEncoding('utf8'); proc.stderr.resume();
-      proc.stdout.on('data', data => { out += data; if (out.length > 4000000) { void terminate(proc); finish(new Error('Dublaj planı çok büyük.')); } });
+      proc.stdout.on('data', data => { if (settled) return; out += data; if (out.length > 4000000) stop('Dublaj planı çok büyük.'); });
       proc.once('error', error => finish(error));
       proc.once('close', code => {
+        if (settled) return;
         if (code !== 0) return finish(new Error('SRT planı okunamadı.'));
         try { finish(null, JSON.parse(out)); } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
       });
     });
-    plans.set(e.sender.id, { srt, range, ...result });
+    if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
+    plans.set(senderId, { srt, range, ...result });
     return { ok: true, ...result };
+    } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
   ipcMain.handle('dub:shorten', guard(async (e, key) => {
     const group = plans.get(e.sender.id)?.groups.find(g => g.key === key);
@@ -430,10 +454,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const s = job;
     if (!s) return { ok: true };
     s.cancelled = true;
-    if (s.proc) {
+    const proc = s.proc;
+    if (proc) {
       try {
-        const stopped = await terminate(s.proc);
-        if (stopped === false && s.proc.exitCode == null && s.proc.signalCode == null) throw new Error('İptal isteği tamamlanamadı.');
+        const stopped = await terminate(proc);
+        if (stopped === false && proc.exitCode == null && proc.signalCode == null) throw new Error('İptal isteği tamamlanamadı.');
       } catch (error) { s.cancelled = false; throw error; }
     }
     return { ok: true };
