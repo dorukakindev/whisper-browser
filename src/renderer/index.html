@@ -29,6 +29,7 @@
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary btn-sm" id="openPlayer" title="Open the browser and player">BROWSER</button>
+        <button class="btn btn-secondary btn-sm" id="dubMainOpen" type="button">SRT → Ses</button>
         <button class="btn btn-secondary btn-sm catalog-entry" id="mediaCatalogOpen" data-media-catalog-open type="button" title="Open your movie and series library"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg><span>Media library</span></button>
         <label class="ui-locale-control"><span class="sr-only">Interface language</span><select id="uiLocale" aria-label="Interface language"><option value="en">EN</option><option value="tr">TR</option></select></label>
         <div class="gpu-badge" id="gpuBadge">
@@ -823,6 +824,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash" selected>4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -889,6 +891,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash">4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini</option>
                   <option value="https://api.deepseek.com">DeepSeek</option>
@@ -900,6 +903,7 @@
                 <span class="field-label">Manga modeli</span>
                 <input type="text" id="mangaModel" placeholder="Boşsa altyazı modeli kullanılır" list="translationModelSuggestions" />
                 <datalist id="translationModelSuggestions">
+                  <option value="free/deepseek-v4-pro-0813"></option>
                   <option value="gpt-5.4"></option>
                   <option value="gemini-3.8-flash"></option>
                 </datalist>
@@ -1280,6 +1284,22 @@
         <div id="playerTaskCenterList"></div>
       </section>
 
+      <div class="job-bar player-job-status hidden" id="playerJobBar" role="status" aria-live="polite">
+        <span id="playerJobText">Hazırlanıyor…</span>
+        <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
+        <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">Durdur</button>
+      </div>
+      <div class="browser-dub-strip hidden" id="browserDubStrip">
+        <strong>Dublaj</strong><span id="browserDubName" data-ui-untranslated></span>
+        <label>Ses düzeyi<input id="browserDubVolume" type="range" min="0" max="1" step="0.05" value="1" /></label>
+        <label id="browserDubBackgroundControls" class="hidden">Arka plan düzeyi<input id="browserDubBackgroundVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label title="Pozitif değer dublajı geciktirir">Ses kayması (sn)<input id="browserDubOffset" type="number" min="-60" max="60" step="0.1" value="0" /></label>
+        <button class="btn btn-ghost btn-sm" id="browserDubRemove" type="button">Sesi kaldır</button>
+        <span id="browserDubStatus" role="status" aria-live="polite"></span>
+      </div>
+      <input id="browserDubFile" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.opus" hidden />
+      <audio id="browserDubAudio" preload="auto" hidden></audio>
+      <audio id="browserDubBackground" preload="auto" hidden></audio>
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
@@ -1348,6 +1368,14 @@
               </button>
             </div>
             <div class="browser-toolbar-actions">
+              <button class="browser-dub-button" id="browserDubGenerate" type="button" title="SRT altyazısından kendi sesinle dublaj üret" aria-label="Altyazıdan ses üret">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6M8 5v14M12 8v8M16 3v18M20 9v6"/></svg>
+                <span>SRT → Ses</span>
+              </button>
+              <button class="browser-page-button browser-dub-button" id="browserDubAdd" type="button" title="Videonun sesi yerine yerel dublaj dosyası çal" aria-label="Dublaj sesi ekle">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>
+                <span>Ses ekle</span>
+              </button>
               <button class="btn-ghost browser-profile-chip hidden" id="browserProfileChip" type="button"
                 title="Bu sitede etkin olan ayar profilini göster" aria-label="Etkin tarayıcı profili">Genel profil</button>
               <details class="browser-translate-split browser-translate-menu" id="browserTranslateMenu">
@@ -1362,6 +1390,7 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7M16 14h1"/></svg></span>
                       <span class="browser-menu-label">Altyazı ve çeviri</span>
                     </button>
+                    <button type="button" role="menuitem" id="browserVoiceReferenceOpen">Videodan referans ses al</button>
                         <div class="browser-menu-separator" role="separator"></div>
                     <div class="browser-menu-group-label">Whisper altyazı</div>
                     <button type="button" id="browserWhisperSubtitlesMenu" role="menuitem" data-browser-proxy="browserWhisperSubtitles"
@@ -1369,11 +1398,16 @@
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8v8M16 8v8M5 11v2M19 11v2"/></svg></span>
                       <span class="browser-menu-label">Whisper ile altyazı çıkar</span>
                     </button>
+                    <div class="browser-whisper-action-row">
                     <button type="button" id="browserWhisperTranslateMenu" role="menuitem" data-browser-proxy="browserWhisperTranslate"
                       title="Açık YouTube videosunu Whisper ile yazıya çevir ve Türkçeye çevir">
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h8M8 3v2c0 4-2 7-5 9M6 10c1 2 3 4 6 5M14 10h6l-3 9M15.5 15h3"/></svg></span>
                       <span class="browser-menu-label">Whisper + çeviri</span>
                     </button>
+                    <button type="button" id="browserWhisperRangeSettings" role="menuitem" title="Whisper ve çeviri zaman aralığı" aria-label="Whisper ve çeviri zaman aralığı">
+                      <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></span>
+                    </button>
+                    </div>
                     <button type="button" role="menuitem" data-browser-proxy="browserMangaTranslate">
                       <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h10.5A3.5 3.5 0 0 1 19 7.5V18H8.5A3.5 3.5 0 0 1 5 14.5V4Z"/><path d="M9 9h6M9 12h4"/></svg></span>
                       <span class="browser-menu-label">Mangayı çevir</span>
@@ -1456,6 +1490,7 @@
                 <button type="button" id="browserZoomResetToolbar" title="Yakınlaştırmayı sıfırla (Ctrl+0)" aria-label="Yakınlaştırmayı sıfırla">100%</button>
                 <button type="button" id="browserZoomInToolbar" title="Yakınlaştır (Ctrl++)" aria-label="Sayfayı yakınlaştır">+</button>
               </div>
+              <button class="btn-icon browser-nav-button" id="browserSidebarToggle" type="button" title="Yan panelleri aç/kapat" aria-label="Yan panelleri aç/kapat" aria-controls="playerSide" aria-expanded="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 4v16"/></svg></button>
               <details class="browser-more" id="browserMoreMenu">
                 <summary class="btn-icon browser-place-button" title="Diğer tarayıcı araçları" aria-label="Diğer tarayıcı araçları">
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
@@ -1483,6 +1518,10 @@
                   </div>
                   <div class="browser-menu-separator"></div>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Sayfa</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
+                  <button type="button" id="browserAdblockMenuToggle" role="menuitemcheckbox" aria-checked="true" data-browser-proxy="browserAdblockQuick">
+                    <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Zm-1 12 6-6-1.4-1.4-4.6 4.6-2.6-2.6L7 11l4 4Z"/></svg></span>
+                    <span class="browser-menu-label" id="browserAdblockMenuLabel" data-ui-untranslated>Reklam engelleyici: Açık</span>
+                  </button>
                   <button type="button" role="menuitem" data-browser-proxy="browserReaderToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21V5.5ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21V5.5Z"/></svg></span>
                     <span class="browser-menu-label">Okuma görünümü</span>
@@ -2309,6 +2348,7 @@
                   </button>
                   <div class="st-suggest hidden" id="stSuggestBox" role="listbox" aria-label="Arama önerileri"></div>
                 </div>
+                <button class="st-mini-btn" id="stYoutubeAccounts" type="button" title="YouTube hesapları" aria-haspopup="dialog">Hesaplar</button>
                 <button class="st-icon-btn" id="stDisplayToggle" title="Kart görünümü ayarları" aria-label="Kart görünümü ayarları" aria-expanded="false" aria-haspopup="dialog">
                   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6"/></svg>
                 </button>
@@ -2376,6 +2416,14 @@
                 <button type="button" class="st-mini-btn" id="stTvClose">Kapat</button>
               </div>
 
+              <section class="st-home-intro" aria-labelledby="stHomeTitle">
+                <div class="st-home-copy"><span class="st-home-kicker">İZLEME ALANI</span><h2 id="stHomeTitle">İzlemeye başla</h2><p>Bir video aç, bağlantı yapıştır veya kaldığın yerden devam et.</p></div>
+                <div class="st-home-actions">
+                  <button type="button" id="stHomeOpenVideo"><strong>Video aç</strong><span>Bilgisayarındaki dosyadan izle</span></button>
+                  <button type="button" id="stHomeOpenUrl"><strong>Bağlantıyla izle</strong><span>YouTube bağlantısı veya arama</span></button>
+                  <button type="button" id="stHomeOpenLibrary"><strong>Kütüphane</strong><span>Kaydettiklerin ve izleme geçmişin</span></button>
+                </div>
+              </section>
               <div class="st-section-title" id="stSectionTitle">Ana sayfa</div>
 
               <div class="st-grid" id="stGrid">
@@ -2489,6 +2537,9 @@
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
                 <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
+                  <button type="button" class="pc-menu-item" id="playerDubAdd" role="menuitem"><span class="pc-menu-label">Ses ekle</span></button>
+                  <button type="button" class="pc-menu-item" id="playerDubGenerate" role="menuitem"><span class="pc-menu-label">Altyazıdan ses üret</span></button>
+                  <button type="button" class="pc-menu-item" id="playerVoiceReferenceOpen" role="menuitem"><span class="pc-menu-label">Videodan referans ses al</span></button>
                   <button type="button" class="pc-menu-item" id="abLoopBtn" role="menuitem"
                     title="A-B döngüsü: bir kez A, tekrar B, üçüncüde kapat" aria-label="A-B döngüsü noktalarını ayarla">
                     <span class="pc-menu-key" aria-hidden="true">A-B</span><span class="pc-menu-label">A-B döngüsü</span><span class="pc-menu-shortcut">B</span>
@@ -2891,11 +2942,6 @@
                 title="Altyazı başlangıç ve bitişlerini dalga biçimi üzerinde düzenle">Zaman çizgisi</button>
             </div>
             <div id="sentenceTools">
-            <div class="job-bar hidden" id="playerJobBar">
-              <span id="playerJobText">Hazırlanıyor…</span>
-              <div class="progress-track"><div class="progress-fill" id="playerJobFill"></div></div>
-              <button class="btn-icon player-job-cancel" id="playerJobCancel" title="İşi iptal et" aria-label="Altyazı işini iptal et">&times;</button>
-            </div>
             <div class="sentence-tools tool-row-nav">
               <div class="tool-seg" role="group" aria-label="Altyazı gezinme">
                 <button class="tool-button" id="cuePrevBtn" title="Önceki blok (A)"
@@ -3420,6 +3466,21 @@
     </div>
 
     <!-- UYGULAMA DIALOG'U — onay ve kısa metin girişi için ortak sahip -->
+    <div class="modal hidden" id="browserWhisperRangeDialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="browserWhisperRangeTitle">
+      <div class="modal-backdrop" data-whisper-range-close></div>
+      <div class="modal-content app-dialog-content" tabindex="-1">
+        <h3 id="browserWhisperRangeTitle">Whisper ve çeviri zaman aralığı</h3>
+        <p>Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.</p>
+        <label class="dub-generator-row"><input type="checkbox" id="browserWhisperRangeEnabled" />Yalnız seçilen zaman aralığını işle</label>
+        <div class="dub-generator-options">
+          <label for="browserWhisperRangeStart">Başlangıç (dk:sn)</label><input id="browserWhisperRangeStart" type="text" value="0:00" maxlength="16" data-ui-untranslated />
+          <label for="browserWhisperRangeEnd">Bitiş (dk:sn)</label><input id="browserWhisperRangeEnd" type="text" value="10:00" maxlength="16" data-ui-untranslated />
+        </div>
+        <p class="muted">Örnek: 0:00 → 10:00 ilk on dakikayı işler. Kapalıysa videonun tamamı işlenir.</p>
+        <p id="browserWhisperRangeError" role="alert" data-ui-untranslated></p>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost" data-whisper-range-close>Vazgeç</button><button type="button" class="btn btn-primary" id="browserWhisperRangeApply">Uygula</button></div>
+      </div>
+    </div>
     <div class="modal app-dialog hidden" id="appDialog" role="alertdialog" aria-modal="true"
       aria-labelledby="appDialogTitle" aria-describedby="appDialogDescription">
       <div class="modal-backdrop" data-dialog-cancel></div>
@@ -3507,13 +3568,10 @@
 <!-- YouTube OAuth modalı — SmartTube cihaz-kodu akışı (google.com/device) -->
 <div id="youtubeLoginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ytLoginTitle">
   <div class="modal-content yt-login-content">
+      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
+      <p class="small-muted">YouTube hesabını burada bağlayarak oynatıcıda aboneliklerini ve listelerini kullanabilirsin.</p>
     <!-- Görünüm 1: kullanıcının kendi OAuth istemcisi -->
     <div id="ytClientView">
-      <h3 id="ytLoginTitle">YouTube ile giriş</h3>
-      <div class="yt-tv-shortcut">
-        <button class="btn btn-primary" id="ytTvModeLogin" type="button">YouTube TV modunda giriş yap</button>
-        <p class="small-muted">Kurulum gerektirmez: YouTube'un kendi TV arayüzü açılır, ekrandaki kodu telefonda yt.be/activate adresine girersiniz. Altyazı ve çeviri araçları için oynatılan videoyu Ctrl+Shift+S ile uygulamaya devredebilirsiniz.</p>
-      </div>
       <p class="small-muted yt-own-client-head">Ya da uygulamanın kendi ızgarası için kendi OAuth istemcinizle:</p>
       <p class="small-muted">
         Kendi Google Cloud OAuth istemcinizi kaydedin: "Desktop app" tipi
@@ -3539,10 +3597,11 @@
     </div>
     <!-- Görünüm 2: giriş akışı seçimi — önerilen tarayıcı (loopback) veya TV cihaz kodu -->
     <div id="ytDeviceView" class="hidden">
-      <h3>YouTube ile giriş</h3>
+      <div id="ytCustomAuthOptions" class="hidden">
       <p class="small-muted">Masaüstü uygulamaları için Google'ın önerdiği yol: sistem tarayıcınızda Google onayı.</p>
       <button class="btn btn-primary" id="ytBrowserAuth" type="button">Tarayıcıda yetkilendir</button>
       <p class="small-muted yt-device-alt">Alternatif: Google Cloud'da "TVs and Limited Input" tipi istemciniz varsa cihaz koduyla giriş.</p>
+      </div>
       <button class="btn btn-secondary" id="ytDeviceCodeStart" type="button">Cihaz kodu üret</button>
       <div id="ytDeviceCodeBlock" class="hidden">
         <p class="small-muted">Telefonda QR'ı okut veya bilgisayarda aşağıdaki adresi açıp kodu gir:</p>
@@ -3572,15 +3631,94 @@
         <button class="btn btn-primary" id="ytLogoutConfirm">Oturumu kapat</button>
       </div>
     </div>
+    <details class="yt-tv-shortcut">
+      <summary>Ayrı YouTube TV penceresi</summary>
+      <p class="small-muted">TV oturumu ayrı tutulur; uygulamanın Hesaplar listesine eklenmez.</p>
+      <button class="btn btn-secondary" id="ytTvModeLogin" type="button">TV penceresini aç</button>
+    </details>
   </div>
 </div>
 
+<dialog class="dub-generator" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
+  <header><strong id="dubGeneratorTitle">Altyazıdan ses üret</strong><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></header>
+  <p>Türkçe SRT seçin. VoxCPM2 kayıtlı sesinizle cümle grupları halinde dublaj üretir.</p>
+  <button class="btn btn-ghost" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button>
+  <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
+  <details><summary>Ses ve motor ayarları</summary>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseVoice" type="button">Ses referansı</button><span id="dubVoiceName" data-ui-untranslated></span></div>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
+  </details>
+  <label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce kısa örnek üret (ilk 11 satır)</label>
+  <details id="voiceReferenceRecorder">
+    <summary>Videodan referans ses al</summary>
+    <p>Tek konuşmacılı, müziksiz 3–30 saniye seçin. Hazırlanınca sesi dinleyip dökümü kontrol edin.</p>
+    <div class="dub-generator-row">
+      <label for="voiceReferenceStart">Başlangıç (dk:sn)</label><input id="voiceReferenceStart" type="text" value="0:05" maxlength="16" data-ui-untranslated />
+      <label for="voiceReferenceEnd">Bitiş (dk:sn)</label><input id="voiceReferenceEnd" type="text" value="0:25" maxlength="16" data-ui-untranslated />
+    </div>
+    <div class="dub-generator-row"><button id="voiceReferencePrepare" type="button" class="btn btn-secondary">Referans sesi hazırla</button><button id="voiceReferenceCancel" type="button" class="btn btn-ghost" disabled>Durdur</button></div>
+    <p id="voiceReferenceStatus" role="status" aria-live="polite">Hazır</p>
+    <label for="voiceReferenceSelect">Referans sesler</label>
+    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select>
+    <label for="voiceReferenceName">Referans adı</label>
+    <div class="dub-generator-row"><input id="voiceReferenceName" type="text" maxlength="160" data-ui-untranslated /><button id="voiceReferenceRename" type="button" class="btn btn-secondary" disabled>Adı kaydet</button></div>
+    <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
+    <label for="voiceReferenceText">Referans dökümü</label>
+    <textarea id="voiceReferenceText" rows="3" maxlength="8000" data-ui-untranslated></textarea>
+    <div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div>
+  </details>
+  <label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
+  <div class="dub-generator-row dub-range-row">
+    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
+  </div>
+  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
+  <details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
+    <p>Orijinal SRT korunur. Kısaltma önerisini kontrol edip uygula; süreye sığması tahminidir.</p>
+    <button id="dubPlanPrepare" class="btn btn-secondary" type="button">Cümle planını hazırla</button>
+    <select id="dubPlanGroup" aria-label="Cümle grubu" data-ui-untranslated></select>
+    <p id="dubPlanInfo" data-ui-untranslated></p>
+    <label for="dubPlanOriginal">Orijinal metin</label>
+    <textarea id="dubPlanOriginal" rows="3" readonly data-ui-untranslated></textarea>
+    <label for="dubPlanText">Seslendirilecek metin önerisi</label>
+    <textarea id="dubPlanText" rows="3" maxlength="1000" data-ui-untranslated></textarea>
+    <button id="dubPlanShorten" class="btn btn-ghost" type="button">AI ile süreye göre kısalt</button>
+    <button id="dubPlanApply" class="btn btn-secondary" type="button">Bu metni uygula</button>
+    <button id="dubPlanReset" class="btn btn-ghost" type="button">Orijinale dön</button>
+  </details>
+  <div class="dub-generator-row"><label for="dubProfile">Ses kalitesi</label><select id="dubProfile"><option value="quality">Kaliteli (15 adım)</option><option value="fast">Hızlı (10 adım)</option></select></div>
+  <div class="dub-generator-row"><label for="dubConcurrency">Paralel üretim</label><select id="dubConcurrency"><option value="4">4 grup (az bellek)</option><option value="8">8 grup (daha fazla bellek)</option></select></div>
+  <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
+  <select id="dubTimingMode"><option value="video">Konuşmayı tam tut; videoyu yavaşlat</option><option value="clip">Video sabit; sığmayan konuşmayı kes</option></select>
+  <p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p>
+  <label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
+  <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
+  <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
+  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık videoyu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div>
+  <p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
+  <span id="dubGeneratorCount" data-ui-untranslated></span>
+  <p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
+  <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
+  <pre id="dubGeneratorDetails" data-ui-untranslated></pre>
+  <p id="dubGeneratedName" data-ui-untranslated></p>
+  <progress id="dubGeneratorProgress" max="100" value="0"></progress>
+  <audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio>
+  <button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button>
+  <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
+</dialog>
 <script src="../job-timing-helpers.js"></script>
 <script src="ui-locale.js"></script>
 <script src="status-copy.js"></script>
 <script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
+<script src="dub-sync-map.js"></script>
+<script src="browser-dub-audio.js"></script>
+<script src="browser-dub-ui.js"></script>
+<script src="dub-generator-ui.js"></script>
+<script src="voice-reference-ui.js"></script>
 <script src="media-catalog.js"></script>
 <script src="browser-features.js"></script>
 <script src="browser-analysis-tools.js"></script>

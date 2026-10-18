@@ -12,7 +12,24 @@ const normalizeLanguage = (value) => String(value || '').trim().toLowerCase().re
 
 function createLiveAsrAudioSwitch(minConsecutive = 2) {
   const state = { observedLanguage: '', pendingLanguage: '', pendingCount: 0, streamSeq: 1 };
-  function observe(rawLanguage) {
+  let lastChunk = null;
+  let lastResult = null;
+  const recent = new Map();
+  function observe(rawLanguage, chunkKey) {
+    if (chunkKey != null && recent.has(chunkKey)) return { ...recent.get(chunkKey), action: 'stable' };
+    if (chunkKey != null && chunkKey === lastChunk && lastResult) {
+      return { ...lastResult, action: 'stable' };
+    }
+    const result = observeLanguage(rawLanguage);
+    lastChunk = chunkKey;
+    lastResult = result;
+    if (chunkKey != null) {
+      recent.set(chunkKey, result);
+      if (recent.size > 64) recent.delete(recent.keys().next().value);
+    }
+    return result;
+  }
+  function observeLanguage(rawLanguage) {
     const seen = normalizeLanguage(rawLanguage);
     if (!seen) return { action: 'stable', language: state.observedLanguage, streamSeq: state.streamSeq };
     if (!state.observedLanguage) {

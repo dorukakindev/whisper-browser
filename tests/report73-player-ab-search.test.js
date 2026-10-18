@@ -230,7 +230,7 @@ test('R73-05: browserQuickHistory dirty durumda status geri bildirimi verir', ()
 // ---------- R73-06: zoom-set geçersiz değer zoom-out gibi davranmaz ----------
 const MAIN = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
 test('R73-06: zoom-set NaN fallback\'i artık zoom hesaplamıyor', () => {
-  const idx = MAIN.indexOf("['zoom-in', 'zoom-out', 'zoom-reset', 'zoom-set']");
+  const idx = MAIN.indexOf('function changeBrowserPageZoom(');
   assert.ok(idx > 0, 'zoom komut bloğu bulunamadı');
   const block = MAIN.slice(idx, MAIN.indexOf('wc.setZoomFactor', idx));
   assert.match(block, /zoom-set' && !Number\.isFinite\(requested\)/,

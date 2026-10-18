@@ -131,6 +131,7 @@ const ENDPOINT_PRESETS = new Set([
   'https://api.shuaiapi.com/v1', 'https://oai.sb/v1', 'https://api.oai.sb/v1',
   'https://cdn.shuaiapi.com/v1', 'https://api.openai.com/v1', 'https://api.deepseek.com',
   'https://codecraftapi.com/v1', 'https://4sapi.com/v1',
+  'https://api.apinex.bond/v1',
   'https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1',
   'https://generativelanguage.googleapis.com/v1beta/openai', 'custom',
 ]);
@@ -296,7 +297,10 @@ function endpointIdentity(group, { inherited = '', ui = null, uiKeys = null, def
     custom = custom || String(ui[uiKeys[1]] || '').trim();
   }
   preset = preset || defaultPreset;
-  if (preset === 'custom') return `custom:${custom.toLowerCase()}`;
+  if (preset === 'custom') {
+    try { const url = new URL(custom); return `custom:${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}${url.search}`; }
+    catch (_) { return `custom:${custom}`; }
+  }
   if (preset === 'inherit') return inherited;
   return preset ? `preset:${preset}` : '';
 }
@@ -548,11 +552,18 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
 }
 
 function collectSecretValues(settings) {
-  return [settings && settings.hfToken, settings && settings.translate && settings.translate.apiKey,
+  const values = [settings && settings.hfToken, settings && settings.translate && settings.translate.apiKey,
     settings && settings.translate && settings.translate.apiKeyProfiles,
     settings && settings.llm && settings.llm.apiKey, settings && settings.manga && settings.manga.apiKey,
     settings && settings.manga && settings.manga.apiKeyProfiles]
     .filter((value) => typeof value === 'string' && value);
+  for (const group of [settings?.translate, settings?.manga]) {
+    try {
+      const profiles = typeof group?.apiKeyProfiles === 'string' ? JSON.parse(group.apiKeyProfiles) : group?.apiKeyProfiles;
+      if (profiles && typeof profiles === 'object') values.push(...Object.values(profiles).filter(value => typeof value === 'string' && value));
+    } catch (_) {}
+  }
+  return values;
 }
 
 function collectAllSecretValues(value, found = []) {
@@ -761,6 +772,7 @@ function recoverJsonTransaction(journalPath, fsImpl = fs) {
   }
   validateTransactionJournal(journal, journalPath, fsImpl);
   const committed = fsImpl.existsSync(journal.marker);
+  let cleanupComplete = true;
   for (const record of [...journal.records].reverse()) {
     if (!committed) {
       if (fsImpl.existsSync(record.backup)) {
@@ -770,11 +782,14 @@ function recoverJsonTransaction(journalPath, fsImpl = fs) {
         fsImpl.unlinkSync(record.filePath);
       }
     }
-    try { if (fsImpl.existsSync(record.tmp)) fsImpl.unlinkSync(record.tmp); } catch (_) {}
-    try { if (fsImpl.existsSync(record.backup)) fsImpl.unlinkSync(record.backup); } catch (_) {}
+    try { if (fsImpl.existsSync(record.tmp)) fsImpl.unlinkSync(record.tmp); } catch (_) { cleanupComplete = false; }
+    try { if (fsImpl.existsSync(record.backup)) fsImpl.unlinkSync(record.backup); } catch (_) { cleanupComplete = false; }
   }
-  try { fsImpl.unlinkSync(journalPath); } catch (_) {}
-  try { if (fsImpl.existsSync(journal.marker)) fsImpl.unlinkSync(journal.marker); } catch (_) {}
+  if (cleanupComplete) {
+    try { fsImpl.unlinkSync(journalPath); } catch (_) { cleanupComplete = false; }
+    // A retained journal must retain its commit decision as well.
+    if (cleanupComplete) try { if (fsImpl.existsSync(journal.marker)) fsImpl.unlinkSync(journal.marker); } catch (_) {}
+  }
   return true;
 }
 
@@ -838,16 +853,19 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
     }
     fsImpl.writeFileSync(marker, 'committed', { encoding: 'utf8', flag: 'wx' });
   } catch (error) {
+    let rollbackComplete = true;
     for (const record of [...records].reverse()) {
-      try { if (record.installed && fsImpl.existsSync(record.filePath)) fsImpl.unlinkSync(record.filePath); } catch (_) {}
       try {
+        if (record.installed && fsImpl.existsSync(record.filePath)) fsImpl.unlinkSync(record.filePath);
         if (record.movedOriginal && fsImpl.existsSync(record.backup)) renameSyncResilient(fsImpl, record.backup, record.filePath);
-      } catch (_) {}
-      try { if (fsImpl.existsSync(record.tmp)) fsImpl.unlinkSync(record.tmp); } catch (_) {}
-      try { if (fsImpl.existsSync(record.backup)) fsImpl.unlinkSync(record.backup); } catch (_) {}
+      } catch (_) { rollbackComplete = false; }
+      try { if (fsImpl.existsSync(record.tmp)) fsImpl.unlinkSync(record.tmp); } catch (_) { rollbackComplete = false; }
+      // Never delete a backup whose restoration failed. Recovery needs it.
     }
-    try { if (fsImpl.existsSync(journalPath)) fsImpl.unlinkSync(journalPath); } catch (_) {}
-    try { if (fsImpl.existsSync(marker)) fsImpl.unlinkSync(marker); } catch (_) {}
+    if (rollbackComplete) {
+      try { if (fsImpl.existsSync(journalPath)) fsImpl.unlinkSync(journalPath); } catch (_) { rollbackComplete = false; }
+      if (rollbackComplete) try { if (fsImpl.existsSync(marker)) fsImpl.unlinkSync(marker); } catch (_) {}
+    }
     throw error;
   }
   // Tüm hedefler kurulduktan sonra kalan yedekleri temizlemek best-effort'tur.
@@ -870,9 +888,19 @@ function withoutSecretEnv(baseEnv) {
   const env = { ...baseEnv };
   const secretNames = new Set([
     'WHISPER_HF_TOKEN', 'WHISPER_LLM_API_KEY', 'WHISPER_TRANSLATE_API_KEY',
+    'WHISPER_YT_REFRESH_TOKEN', 'WHISPER_YT_ACCESS_TOKEN',
+    'WHISPER_YT_CLIENT_SECRET', 'WHISPER_INVIDIOUS_PASSWORD',
   ]);
   for (const key of Object.keys(env)) {
     if (secretNames.has(key.toLocaleUpperCase('en-US'))) delete env[key];
+    // HTTPX expects bare IPv6 in NO_PROXY; preserve the bypass, not a proxy URL.
+    if (key.toUpperCase() === 'NO_PROXY' && typeof env[key] === 'string') {
+      env[key] = env[key].split(',').map(entry => {
+        const value = entry.trim();
+        const match = /^\[([^\]]+)\]$/.exec(value);
+        return match && require('node:net').isIP(match[1]) === 6 ? match[1] : value;
+      }).join(',');
+    }
   }
   return env;
 }

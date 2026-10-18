@@ -1,0 +1,5 @@
+omnivoice==0.2.1
+transformers==5.19.0
+safetensors==0.8.0
+numpy==2.4.6
+soundfile==0.14.0

@@ -81,7 +81,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const liveStart = main.indexOf('function startBrowserLiveAsr(');
   const liveGuard = main.slice(liveStart, main.indexOf('  const settings = loadSettings();', liveStart)) + '\n}';
   assert.strictEqual(vm.runInNewContext(liveGuard + '\nstartBrowserLiveAsr({})', {
-    browserLiveAsr: null, activeJob: null, burninJob: {}, modelBenchmarkJob: null, modelProcesses: new Set(),
+    dubService: { running: () => false }, browserLiveAsr: null, activeJob: null, burninJob: {}, modelBenchmarkJob: null, modelProcesses: new Set(),
   }).ok, false);
 
   // BUG-181: invalid backend lines cannot pollute the live job or track store.
@@ -129,7 +129,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const navStart = renderer.indexOf("if ($('browserTabStrip')) $('browserTabStrip').addEventListener('keydown'");
   const nav = renderer.slice(navStart, renderer.indexOf("if ($('browserGo'))", navStart));
   const genericStart = renderer.indexOf('function setupRovingTablists()');
-  const generic = renderer.slice(genericStart, renderer.indexOf('// PLAYER_END', genericStart));
+  const generic = renderer.slice(genericStart, renderer.indexOf('setupRovingTablists();', genericStart) + 'setupRovingTablists();'.length);
   vm.runInNewContext(nav + generic, { $: () => strip, $$: () => [strip], document: { activeElement: tabs[0] },
     activateBrowserTabAndFocus: id => activations.push(id) });
   const event = { key: 'ArrowRight', defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };

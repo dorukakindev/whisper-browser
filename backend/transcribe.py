@@ -353,8 +353,9 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
     def progress_hook(d):
         if d.get("status") == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-            downloaded = d.get("downloaded_bytes", 0)
-            pct = (downloaded / total * 100) if total else 0
+            downloaded = d.get("downloaded_bytes") or 0
+            pct = (downloaded / total * 100) if total > 0 else 0
+            pct = min(100.0, max(0.0, pct)) if math.isfinite(pct) else 0.0
             emit(
                 "download_progress",
                 percent=round(pct, 1),
@@ -821,15 +822,47 @@ def text_ends_sentence(text):
     return not is_abbreviation(last_word, ordinal=False)
 
 
-def _flush_chunk(words):
+def _flush_chunk(words, segment_start=None, segment_end=None):
     if not words:
         return None
     # Bazı kelimelerin start/end'i None olabilir (faster-whisper nadiren); ilk geçerli
     # start ve son geçerli end'i kullan ki alt-parçalar segment geneline çökmesin.
-    start = next((w.start for w in words if w.start is not None), None)
-    end = next((w.end for w in reversed(words) if w.end is not None), None)
+    start = next((w.start for w in words if isinstance(w.start, (int, float)) and math.isfinite(w.start)), segment_start)
+    end = next((w.end for w in reversed(words) if isinstance(w.end, (int, float)) and math.isfinite(w.end)), segment_end)
+    if start is None or end is None:
+        return None
+    if segment_start is not None and segment_end is not None:
+        start = max(segment_start, min(segment_end, start))
+        end = max(start, min(segment_end, end))
     text = "".join(w.word for w in words).strip()
     return (start, end, text)
+
+
+def normalized_segment_words(segment, offset=0):
+    """One finite, segment-bounded word contract for normal and repair passes."""
+    start, end = segment.start, segment.end
+    if not all(isinstance(t, (int, float)) and math.isfinite(t) for t in (start, end)) or start < 0 or end <= start:
+        return []
+    rows, previous = [], start
+    for word in getattr(segment, 'words', None) or []:
+        ws, we = word.start, word.end
+        if not isinstance(ws, (int, float)) or not math.isfinite(ws): ws = previous
+        if not isinstance(we, (int, float)) or not math.isfinite(we): we = ws
+        ws = max(start, min(end, ws))
+        we = max(ws, min(end, we))
+        previous = we
+        probability = getattr(word, 'probability', 1.0)
+        if not isinstance(probability, (int, float)) or not math.isfinite(probability): probability = 0.0
+        rows.append({'word': word.word, 'start': round(ws + offset, 3), 'end': round(we + offset, 3),
+                     'probability': round(max(0.0, min(1.0, probability)), 3)})
+    return rows
+
+
+def words_in_accepted_ranges(words, ranges):
+    return [word for word in words if any(
+        (word['end'] > start and word['start'] < end)
+        or (word['start'] == word['end'] and start <= word['start'] < end)
+        for start, end in ranges)]
 
 
 def has_enough_punctuation(text):
@@ -1124,18 +1157,7 @@ def recover_punctuation_collapse(entries, all_words, model, wav_path, ffmpeg_pat
                         segment.text, getattr(segment, "avg_logprob", None),
                         getattr(segment, "no_speech_prob", None)):
                     continue
-                if getattr(segment, "words", None):
-                    _prev = segment.start
-                    for w in segment.words:
-                        ws = w.start if w.start is not None else _prev
-                        we = w.end if w.end is not None else ws
-                        _prev = we
-                        new_words.append({
-                            "word": w.word,
-                            "start": round(ws + base, 3),
-                            "end": round(we + base, 3),
-                            "probability": round(getattr(w, "probability", 1.0), 3),
-                        })
+                new_words.extend(normalized_segment_words(segment, base))
                 for s, e, text in segment_to_chunks(segment, args, language=language):
                     if s is None:
                         s = segment.start
@@ -1407,13 +1429,13 @@ def split_segment_by_timing(segment, min_gap=0.5, target_chars=110,
         many_words = len(current) >= max_words and current_chars >= target_chars
 
         if is_big_pause or is_conj_pause or too_long or many_words:
-            chunk = _flush_chunk(current)
+            chunk = _flush_chunk(current, segment.start, segment.end)
             if chunk:
                 chunks.append(chunk)
             current = []
             current_chars = 0
 
-    chunk = _flush_chunk(current)
+    chunk = _flush_chunk(current, segment.start, segment.end)
     if chunk:
         chunks.append(chunk)
 
@@ -1568,7 +1590,7 @@ def split_segment_sentence(segment, hard_max_chars=220, soft_max_chars=84, **kwa
     def flush_sentence(sent_words):
         # Tam cümle çok uzunsa doğal noktalardan alt bloklara ayır
         for piece in _split_long_sentence(sent_words, soft_max_chars, language):
-            chunk = _flush_chunk(piece)
+            chunk = _flush_chunk(piece, segment.start, segment.end)
             if chunk:
                 chunks.append(chunk)
 
@@ -1595,7 +1617,7 @@ def split_segment_sentence(segment, hard_max_chars=220, soft_max_chars=84, **kwa
                 cut_at = len(current) - 1
             head = current[: cut_at + 1]
             tail = current[cut_at + 1 :]
-            chunk = _flush_chunk(head)
+            chunk = _flush_chunk(head, segment.start, segment.end)
             if chunk:
                 chunks.append(chunk)
             current = list(tail)
@@ -1703,6 +1725,12 @@ def segment_to_chunks(segment, args, language=None):
     parçalarına ayırır. Ana döngü ve noktalama-onarım geçişi aynı mantığı kullansın diye
     ayrı fonksiyon.
     """
+    if not all(isinstance(t, (int, float)) and math.isfinite(t) for t in (segment.start, segment.end)) or segment.start < 0 or segment.end <= segment.start:
+        return []
+    words = getattr(segment, 'words', None) or []
+    if words and not any(isinstance(w.start, (int, float)) and math.isfinite(w.start)
+                         and isinstance(w.end, (int, float)) and math.isfinite(w.end) and w.end > w.start for w in words):
+        return [(segment.start, segment.end, segment.text.strip())]
     if args.split_mode == "sentence":
         # Önce noktalamayı kontrol et — yoksa zamanlama yedeğine geç
         if has_enough_punctuation(segment.text):
@@ -1755,13 +1783,13 @@ def split_segment_by_punctuation(segment, max_chars=84):
 
         too_long = current_text_len >= max_chars
         if ends_sentence or (ends_soft and current_text_len >= max_chars * 0.7) or too_long:
-            chunk = _flush_chunk(current_words)
+            chunk = _flush_chunk(current_words, segment.start, segment.end)
             if chunk:
                 chunks.append(chunk)
             current_words = []
             current_text_len = 0
 
-    chunk = _flush_chunk(current_words)
+    chunk = _flush_chunk(current_words, segment.start, segment.end)
     if chunk:
         chunks.append(chunk)
 
@@ -1818,11 +1846,20 @@ def validate_strict_srt_payload(payload, expected_entries):
     return True
 
 
+def validate_cue_time_range(start, end):
+    """Reject times that would serialize as a negative or empty cue interval."""
+    start, end = float(start), float(end)
+    if (not math.isfinite(start) or not math.isfinite(end) or start < 0
+            or round(end * 1000) <= round(start * 1000)):
+        raise ValueError("Invalid subtitle cue time range / Geçersiz altyazı zaman aralığı")
+
+
 def serialize_srt_strict(entries):
     """Cue'ları doğrulanmış, UTF-8 yazıma hazır standart SRT metnine çevir."""
     normalized = []
     blocks = []
     for index, (start, end, text) in enumerate(entries, 1):
+        validate_cue_time_range(start, end)
         body = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
         normalized.append((start, end, body))
         blocks.append(
@@ -1924,6 +1961,7 @@ def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr
     with atomic_text_writer(output_path, encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, (start, end, text) in enumerate(entries, 1):
+            validate_cue_time_range(start, end)
             wrapped = _decorate(vtt_escape_cue_text(wrap_text(text, max_line_width, max_lines, language=language,
                                                               wrap_mode=wrap_mode)), decorations, i - 1)
             f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")
@@ -2293,7 +2331,7 @@ def strip_html(text):
         return text
     # Önce etiketleri çıkar, sonra referansları tek geçişte çöz. Sayısal
     # Türkçe harfler kaybolmasın, &lt;...&gt; düz metni etiket sayılmasın.
-    return html.unescape(_HTML_TAG.sub(" ", text))
+    return _VTT_CHARREF.sub(_vtt_charref_rep, _HTML_TAG.sub(" ", text))
 
 
 def clean_text(text, language="tr"):
@@ -4946,12 +4984,29 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # düzeyini aşmaz. Senkron prob öncesinde açılır; ilk parça da kurtarma
     # gerektirebilir.
     rescue_pool = None
+    from concurrent.futures import wait, FIRST_COMPLETED
+
+    def emit_waiting_progress():
+        completed = counters["done"] + len(cached_idx) + len(precompleted_idx) + preserved_static
+        emit("llm_progress", percent=round(
+            (completed + counters["failed"]) / max(1, len(entries)) * 100.0, 1),
+            done=completed, failed=counters["failed"], total=len(entries),
+            stage="translate", waiting=True,
+            elapsed=round(time.time() - translation_metrics["started"], 1))
+
     try:
         rescue_pool = ThreadPoolExecutor(max_workers=max(1, args.translate_workers))
         probe = pack_next()
         if probe:
+            emit_waiting_progress()
             try:
-                record_chunk_result(probe, got=task(probe))
+                # Keep the one-request credential/quota gate, but report liveness
+                # while its provider response or recovery is pending.
+                with ThreadPoolExecutor(max_workers=1) as probe_pool:
+                    probe_future = probe_pool.submit(task, probe)
+                    while not wait([probe_future], timeout=5)[0]:
+                        emit_waiting_progress()
+                    record_chunk_result(probe, got=probe_future.result())
             except Exception as error:
                 fatal_reason = record_chunk_result(probe, error=error)
 
@@ -5003,7 +5058,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         with ThreadPoolExecutor(max_workers=max(1, args.translate_workers)) as ex:
             submit_available(ex)
             while inflight:
-                done_set, _pending = wait(inflight, return_when=FIRST_COMPLETED)
+                done_set, _pending = wait(inflight, timeout=5, return_when=FIRST_COMPLETED)
+                if not done_set:
+                    emit_waiting_progress()
                 for fut in done_set:
                     ch = inflight.pop(fut)
                     try:
@@ -7330,30 +7387,8 @@ def transcribe(args):
             # Kelime listesini toparla (diarization + JSON için global)
             # faster-whisper bazı tokenlarda start/end=None döndürebilir — None + offset
             # çökerdi; segment sınırlarına/komşuya düşerek koru.
-            segment_words = []
-            if getattr(segment, "words", None):
-                _prev_end = segment.start
-                for w in segment.words:
-                    ws = w.start if w.start is not None else _prev_end
-                    we = w.end if w.end is not None else ws
-                    if not math.isfinite(ws):
-                        ws = _prev_end
-                    if not math.isfinite(we):
-                        we = ws
-                    ws = max(segment.start, min(segment.end, ws))
-                    we = max(ws, min(segment.end, we))
-                    _prev_end = we
-                    probability = getattr(w, "probability", 1.0)
-                    if probability is None or not math.isfinite(probability):
-                        probability = 0.0
-                    word_row = {
-                        "word": w.word,
-                        "start": round(ws + time_offset, 3),
-                        "end": round(we + time_offset, 3),
-                        "probability": round(max(0.0, min(1.0, probability)), 3),
-                    }
-                    all_words.append(word_row)
-                    segment_words.append(word_row)
+            segment_words = normalized_segment_words(segment, time_offset)
+            accepted_ranges = []
 
             # Bölme stratejisi
             chunks = segment_to_chunks(segment, args, language=info.language)
@@ -7387,6 +7422,7 @@ def transcribe(args):
                 start += time_offset
                 end += time_offset
                 entries.append((start, end, cleaned))
+                accepted_ranges.append((start, end))
                 # Metrik bloğa start/end'iyle bağlanır: sonraki mutasyonlar
                 # (onarım, resume-birleştirme, sıralama, dedupe, yaygın-hata)
                 # entries'i kaydırınca paralel indeks bağı kırılıyordu; zaman
@@ -7413,6 +7449,7 @@ def transcribe(args):
                     compressionRatio=segment_metric["compression_ratio"],
                 )
 
+            all_words.extend(words_in_accepted_ranges(segment_words, accepted_ranges))
             # İlerleme yayını
             now = time.time()
             if now - last_emit > 0.25:
@@ -9271,8 +9308,16 @@ def parse_srt(text, vtt=False):
             if _VTT_META_BLOCK.match(lines[idx].strip()):
                 meta_lines.update(range(idx, end))
             idx = end
-    timing_indices = [i for i, line in enumerate(lines)
-                      if _SRT_TIMING.search(line) and i not in meta_lines]
+    timing_indices = []
+    for i, line in enumerate(lines):
+        if not _SRT_TIMING.search(line) or i in meta_lines:
+            continue
+        # Within an SRT body a literal time range is text. A new cue needs
+        # a separator/identifier; keep compact numbered SRT and VTT support.
+        if (vtt or not timing_indices or i == 0 or not lines[i - 1].strip()
+                or lines[i - 1].strip().isdigit()
+                or (i > 1 and not lines[i - 2].strip())):
+            timing_indices.append(i)
     for position, timing_idx in enumerate(timing_indices):
         m = _SRT_TIMING.search(lines[timing_idx])
         if not m:
@@ -10160,6 +10205,8 @@ def main():
         args.llm_api_key = os.environ.get("WHISPER_LLM_API_KEY", "")
     if not args.translate_api_key:
         args.translate_api_key = os.environ.get("WHISPER_TRANSLATE_API_KEY", "")
+    from translation_auth import translation_api_key
+    args.translate_api_key = translation_api_key(args.translate_api_key, args.translate_base_url)
     # Anahtarlar okundu; ffmpeg/ffprobe gibi alt süreçlere miras kalmasınlar
     # (en-az-yetki ortam sözleşmesi, CLAUDE.md).
     for secret_env in ("WHISPER_HF_TOKEN", "WHISPER_LLM_API_KEY", "WHISPER_TRANSLATE_API_KEY"):

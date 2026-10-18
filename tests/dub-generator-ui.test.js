@@ -1,0 +1,100 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), path = require('node:path');
+const { JSDOM } = require('jsdom');
+const root = path.join(__dirname, '..');
+const dom = new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'), {runScripts:'outside-only'});
+const w = dom.window, el = id => w.document.getElementById(id);
+let onEvent, request, cancelOK = true;
+let attached = false, opened;
+w.BrowserDubAudioUI = { context: () => ({ mode:'player', tabId:'player-video', mediaKey:'fixture',
+  currentTime:42, backgroundSource:'fixture.mp4', visible:true, hasMedia:true }),
+  attachGenerated: async (_file, context) => { attached = context.mode === 'player'; return true; } };
+w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
+w.syncBrowserOcclusion = () => {};
+w.api = {
+  dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
+  openPath: async value => { opened=value; },
+  latestDub: async () => ({ok:true}), selectFile: async () => 'test.srt',
+  onDubEvent: callback => {onEvent=callback;},
+  startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
+};
+el('dubGeneratorDialog').showModal = () => {el('dubGeneratorDialog').open=true;};
+w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+const tick = () => new Promise(setImmediate);
+(async()=>{
+  el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
+  el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
+  el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
+  el('dubChooseSrt').click();await tick();
+  el('dubRangeEnabled').checked=true;el('dubRangeStart').value='10:00';el('dubRangeEnd').value='20:00';el('dubKeepBackground').checked=true;
+  el('dubGeneratorStart').click();await tick();
+  assert.deepEqual(JSON.parse(JSON.stringify(request.range)),{start:600,end:1200});assert.equal(request.keepBackground,true);
+  assert.equal(request.backgroundSource,'fixture.mp4');
+  el('dubGeneratorCancel').click();await tick();
+  assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
+  onEvent({id:request.id,type:'status',text:'late progress'});
+  assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
+  onEvent({id:request.id,type:'cancelled',elapsedSeconds:3});
+  assert.equal(el('dubGeneratorStatus').textContent,'Durduruldu.');
+  assert.equal(el('dubGeneratorProgress').hasAttribute('value'),true,'stopped preparation must stop its indeterminate animation');
+  assert.equal(el('dubGeneratorCancel').disabled,true);
+  el('dubGeneratorStart').click();await tick();cancelOK=false;
+  el('dubGeneratorCancel').click();await tick();
+  assert.match(el('dubGeneratorStatus').textContent,/doğrulanamadı/);
+  assert.equal(el('dubGeneratorCancel').disabled,false);
+  onEvent({id:request.id,type:'done',name:'fixture.wav',url:'fixture.wav'});await tick();
+  assert.equal(el('dubGeneratedPreview').getAttribute('src'),'fixture.wav');
+  assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),false);
+  assert.equal(attached,true,'generated audio must attach to the local player');
+  attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
+  el('dubStorageOpen').click();await tick();assert.equal(opened,'voice-folder');
+  w.api.selectVideo=async()=>['previous-background.wav'];
+  el('dubChooseBackground').click();await tick();assert.equal(el('dubBackgroundName').textContent,'previous-background.wav');
+  let rangeContext = { mode:'browser', tabId:'tab1', mediaId:'video1', subtitleRange:{start:300,end:600}, visible:true,hasMedia:true };
+  w.BrowserDubAudioUI.context = () => rangeContext;
+  el('browserDubGenerate').click();await tick();
+  assert.equal(el('dubRangeEnabled').checked,true);
+  assert.equal(el('dubRangeStart').value,'5:00');assert.equal(el('dubRangeEnd').value,'10:00');
+  el('dubRangeStart').value='6:00';el('dubRangeStart').dispatchEvent(new w.Event('input'));
+  el('browserDubGenerate').click();await tick();
+  assert.equal(el('dubRangeStart').value,'6:00','manual adjustment survives reopening the same video');
+  rangeContext={...rangeContext,mediaId:'video2',subtitleRange:null};
+  el('browserDubGenerate').click();await tick();assert.equal(el('dubRangeEnabled').checked,false,'another video must not inherit the old interval');
+  rangeContext={...rangeContext,subtitleRange:{start:310.125,end:620.5}};
+  el('browserDubGenerate').click();await tick();
+  assert.equal(el('dubRangeStart').value,'5:10.125');assert.equal(el('dubRangeEnd').value,'10:20.5');
+  w.dispatchEvent(new w.CustomEvent('voice-reference:busy',{detail:true}));
+  assert.equal(el('dubChooseSrt').disabled,true);assert.equal(el('dubRangeEnabled').disabled,true);
+  assert.equal(el('dubPlanPrepare').disabled,true);assert.equal(el('dubTextStudio').disabled,true);
+  w.dispatchEvent(new w.CustomEvent('voice-reference:busy',{detail:false}));
+  assert.equal(el('dubBackgroundName').textContent,'');
+  assert.equal(el('dubSrtName').textContent,'—','video change clears stale subtitle input');
+  el('dubChooseSrt').click();await tick();
+  w.api.startDub=async()=>({ok:false,error:'fixture startup failure'});
+  el('dubGeneratorStart').click();await tick();
+  assert.equal(el('dubGeneratorProgress').hasAttribute('value'),true);
+  assert.equal(el('dubGeneratorCancel').disabled,true);
+  assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),true);
+  let releasePicker;
+  w.api.selectFile=()=>new Promise(resolve=>{releasePicker=resolve;});
+  el('dubChooseSrt').click();await tick();
+  assert.equal(el('dubGeneratorStart').disabled,true,'generation is locked while a picker is open');
+  rangeContext={...rangeContext,mediaId:'third-video'};
+  releasePicker('wrong-video.srt');await tick();
+  assert.equal(el('dubSrtName').textContent,'—');assert.match(el('dubGeneratorStatus').textContent,/Video değişti/);
+  w.api.selectFile=async()=>{throw new Error('fixture picker rejection');};
+  el('dubChooseSrt').click();await tick();
+  assert.match(el('dubGeneratorStatus').textContent,/Dosya seçilemedi/);assert.equal(el('dubChooseSrt').disabled,false);
+  const configs=[];
+  w.api.dubConfig=()=>new Promise(resolve=>configs.push(resolve));
+  el('browserDubGenerate').click();await tick();el('browserDubGenerate').click();await tick();
+  configs[1]({ok:true,ready:true,reference:'new.wav',transcript:'new.txt'});await tick();
+  configs[0]({ok:true,ready:true,reference:'old.wav',transcript:'old.txt'});await tick();
+  assert.equal(el('dubVoiceName').textContent,'new.wav','late config response cannot replace the latest selection');
+  w.api.selectFile=async()=> 'fresh.srt';el('dubChooseSrt').click();await tick();
+  assert.equal(el('dubGeneratorStart').disabled,false);
+  w.api.dubConfig=async()=>({ok:false});el('browserDubGenerate').click();await tick();
+  assert.equal(el('dubGeneratorStart').disabled,true,'failed settings refresh cannot retain stale ready state');
+  dom.window.close();
+  console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');
+})().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});

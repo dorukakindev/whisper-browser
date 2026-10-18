@@ -6,7 +6,7 @@ const MODEL_FAILURE_RE = /(?:model[^\n]{0,80}(?:not found|unavailable|unsupporte
 function isLoopbackEndpoint(endpoint) {
   try {
     const host = new URL(String(endpoint || '')).hostname.toLowerCase();
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
   } catch (_) {
     return false;
   }
@@ -47,6 +47,7 @@ function completionText(payload) {
 async function readLimitedText(response) {
   const declared = Number(response?.headers?.get?.('content-length'));
   if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel?.().catch(() => {});
     throw new RangeError('Provider response exceeds probe limit.');
   }
   if (response?.body?.getReader) {
@@ -54,7 +55,7 @@ async function readLimitedText(response) {
     const decoder = new TextDecoder();
     let bytes = 0;
     let text = '';
-    while (true) {
+    try { while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
@@ -65,6 +66,7 @@ async function readLimitedText(response) {
       text += decoder.decode(value, { stream: true });
     }
     return text + decoder.decode();
+    } finally { reader.releaseLock?.(); }
   }
   const buffer = await response.arrayBuffer();
   if (buffer.byteLength > MAX_RESPONSE_BYTES) throw new RangeError('Provider response exceeds probe limit.');
@@ -107,7 +109,10 @@ async function probeTranslationProvider({
     const latencyMs = Math.max(0, Date.now() - startedAt);
     let text;
     try { text = await readLimitedText(response); }
-    catch (_) { return { ok: false, code: 'invalid_response', status: response.status, latencyMs }; }
+    catch (error) {
+      await response.body?.cancel?.().catch(() => {});
+      return { ok: false, code: controller.signal.aborted || error?.name === 'AbortError' ? 'timeout' : 'invalid_response', status: response.status, latencyMs: Math.max(0, Date.now()-startedAt) };
+    }
     if (!response.ok) {
       return { ok: false, code: classifyProbeFailure(response.status, text), status: response.status, latencyMs };
     }

@@ -22,6 +22,23 @@ contextBridge.exposeInMainWorld('api', {
   },
   listMediaFolder: (filePath) => ipcRenderer.invoke('media:listFolder', filePath),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
+  dubConfig: (kind) => ipcRenderer.invoke('dub:config', kind),
+  listVoiceReferences: () => ipcRenderer.invoke('dub:references'),
+  prepareVoiceReference: request => ipcRenderer.invoke('dub:referencePrepare', request),
+  renameVoiceReference: request => ipcRenderer.invoke('dub:referenceRename', request),
+  useVoiceReference: request => ipcRenderer.invoke('dub:referenceUse', request),
+  startDub: (request) => ipcRenderer.invoke('dub:start', request),
+  openTextVoiceUI: () => ipcRenderer.invoke('dub:textUI'),
+  latestDub: () => ipcRenderer.invoke('dub:latest'),
+  planDub: (request) => ipcRenderer.invoke('dub:plan', request),
+  shortenDub: (key) => ipcRenderer.invoke('dub:shorten', key),
+  setDubVideoRate: (request) => ipcRenderer.invoke('dub:rate', request),
+  cancelDub: () => ipcRenderer.invoke('dub:cancel'),
+  onDubEvent: (cb) => {
+    const listener = (_e, value) => cb(value);
+    ipcRenderer.on('dub:event', listener);
+    return () => ipcRenderer.removeListener('dub:event', listener);
+  },
   selectInputFolder: () => ipcRenderer.invoke('dialog:openInputFolder'),
   selectFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
@@ -105,12 +122,14 @@ contextBridge.exposeInMainWorld('api', {
   youtubeTvFullscreen: () => ipcRenderer.invoke('youtube-tv:fullscreen'),
   youtubeTvSignOut: () => ipcRenderer.invoke('youtube-tv:signout'),
   onYoutubeTvEvent: (listener) => {
-    ipcRenderer.on('youtube-tv:event', listener);
-    return () => ipcRenderer.removeListener('youtube-tv:event', listener);
+    const wrapped = (_event, payload) => listener(payload);
+    ipcRenderer.on('youtube-tv:event', wrapped);
+    return () => ipcRenderer.removeListener('youtube-tv:event', wrapped);
   },
   onYoutubeEvent: (listener) => {
-    ipcRenderer.on('youtube:event', listener);
-    return () => ipcRenderer.removeListener('youtube:event', listener);
+    const wrapped = (_event, payload) => listener(payload);
+    ipcRenderer.on('youtube:event', wrapped);
+    return () => ipcRenderer.removeListener('youtube:event', wrapped);
   },
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
@@ -180,7 +199,7 @@ contextBridge.exposeInMainWorld('api', {
   toggleBrowserBookmark: (entry) => ipcRenderer.invoke('browser:places:toggleBookmark', entry),
   removeBrowserPlace: (kind, url) => ipcRenderer.invoke('browser:places:remove', kind, url),
   clearBrowserHistory: (scope = {}) => ipcRenderer.invoke('browser:places:clearHistory', scope && typeof scope === 'object' ? { site: scope.site || scope.url || '', before: Number(scope.before) || 0 } : {}),
-  muteBrowserTab: (tabId) => ipcRenderer.invoke('browser:tab:mute', tabId),
+  muteBrowserTab: (tabId, muted) => ipcRenderer.invoke('browser:tab:mute', tabId, muted),
   setBrowserBookmarkFolder: (url, folder) => ipcRenderer.invoke('browser:places:folder', url, folder),
   saveBrowserWorkspace: (name) => ipcRenderer.invoke('browser:workspace:save', name),
   openBrowserWorkspace: (name) => ipcRenderer.invoke('browser:workspace:open', name),

@@ -123,6 +123,8 @@ class AdaptivePlanner:
             self.workers = self.base_workers
         self.stats['chunk_history'].append(self.chunk_size)
         self.stats['worker_history'].append(self.workers)
+        for key in ('chunk_history', 'worker_history'):
+            del self.stats[key][:-1000]
 
     # ---- paketleme ---------------------------------------------------------
 
@@ -133,7 +135,8 @@ class AdaptivePlanner:
         parçaya tek başına konur. `size_of(group)` -> est token döndürmeli.
         """
         limit = self.chunk_size
-        cap = self.token_ceiling or self.token_budget
+        caps = [cap for cap in (self.token_ceiling, self.token_budget) if cap > 0]
+        cap = min(caps) if caps else 0
         chunk, cost, i = [], 0, pos
         while i < len(groups):
             group = groups[i]

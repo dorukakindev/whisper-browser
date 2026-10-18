@@ -21,6 +21,7 @@ function controllerBootstrap() {
     const appliedVideoFilters = new WeakMap();
     const explicitRateIntents = new WeakMap();
     const internalRateIntents = new WeakMap();
+    const dubRates = new WeakMap();
     let applyingRate = false;
     const profiles = ${JSON.stringify(AUDIO_PROFILES)};
     const audioLevelDb = ${audioLevelDb.toString()};
@@ -46,6 +47,7 @@ function controllerBootstrap() {
       restoreSilenceRate(item, graph);
     };
     const tickSilenceMonitor = (item, graph) => {
+      if (dubRates.has(item)) { graph.boosted = false; graph.silence = { quietMs:0, active:false }; return; }
       if (!item.isConnected || item.paused || item.ended || item.muted || item.volume === 0
           || graph.context.state !== 'running') {
         restoreSilenceRate(item, graph);
@@ -71,6 +73,8 @@ function controllerBootstrap() {
     };
 
     const releaseMedia = (item) => {
+      const dub = dubRates.get(item);
+      if (dub) { clearTimeout(dub.timer); dubRates.delete(item); try { setInternalRate(item, dub.baseRate); } catch (_) {} }
       media.delete(item);
       explicitRateIntents.delete(item);
       internalRateIntents.delete(item);
@@ -191,6 +195,11 @@ function controllerBootstrap() {
         appliedVideoFilters.set(item, item.style.filter);
       }
       applyAudioPreference(item);
+      const dub = dubRates.get(item);
+      if (dub) {
+        if (Math.abs(finite(item.playbackRate, 1) - dub.rate) > .001) setInternalRate(item, dub.rate);
+        return;
+      }
       if (playbackPreference.enforceRate && !audioGraphs.get(item)?.boosted
           && Math.abs(finite(item.playbackRate, 1) - playbackPreference.rate) > .01) {
         applyingRate = true;
@@ -320,14 +329,19 @@ function controllerBootstrap() {
       '.ytp-ad-text',
     ];
     const visibleElement = (selector) => {
-      const element = document.querySelector?.(selector) || null;
-      if (!element || element.isConnected === false) return null;
-      if (typeof element.getClientRects === 'function' && element.getClientRects().length === 0) return null;
-      if (typeof getComputedStyle === 'function') {
-        const style = getComputedStyle(element);
-        if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') return null;
+      const first = document.querySelector?.(selector);
+      if (!first) return null;
+      const matches = [first, ...(document.querySelectorAll?.(selector) || [])];
+      for (const element of matches) {
+        if (!element || element.isConnected === false) continue;
+        if (typeof element.getClientRects === 'function' && element.getClientRects().length === 0) continue;
+        if (typeof getComputedStyle === 'function') {
+          const style = getComputedStyle(element);
+          if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') continue;
+        }
+        return element;
       }
-      return element;
+      return null;
     };
     const firstVisible = (selectors) => {
       for (const selector of selectors) {
@@ -401,6 +415,26 @@ function controllerBootstrap() {
         const graph = audioGraphs.get(item);
         if (graph?.boosted) { graph.boosted = false; graph.silence = { quietMs: 0, active: false }; }
         item.playbackRate = next;
+        return true;
+      },
+      setDubRate(item, request) {
+        if (!item) return false;
+        const old = dubRates.get(item);
+        if (old) clearTimeout(old.timer);
+        dubRates.delete(item);
+        const baseRate = Math.max(.25, Math.min(4, finite(request.baseRate, 1)));
+        if (request.release) { setInternalRate(item, baseRate); return true; }
+        const state = { rate:Math.max(.0625, Math.min(4, finite(request.rate, 1))), baseRate,
+          source:item.currentSrc || item.src, timer:null };
+        const graph = audioGraphs.get(item);
+        if (graph) graph.boosted = false;
+        dubRates.set(item, state);
+        state.timer = setTimeout(() => {
+          if (dubRates.get(item) !== state) return;
+          dubRates.delete(item);
+          if (Math.abs(finite(item.playbackRate,1)-state.rate)<.001) { try { setInternalRate(item, baseRate); } catch (_) {} }
+        }, 3000);
+        setInternalRate(item, state.rate);
         return true;
       },
       configurePlayback(raw = {}) {
@@ -519,7 +553,7 @@ function buildBrowserMediaProbeScript() {
 function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
   const allowedCommands = new Set([
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
-    'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'loop',
+    'volume-relative', 'volume-set', 'frame-step', 'speed', 'dub-rate', 'fullscreen', 'pip', 'skipAd', 'loop',
   ]);
   // Bilinmeyen komutlar sayfa denetleyicisini kurmadan reddedilir. Ayrıca
   // JSON.stringify(Infinity) null ürettiği için sayısal komutlar finite olmalı.
@@ -529,6 +563,8 @@ function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
   const safeCommand = JSON.stringify(String(command || ''));
   const safeValue = JSON.stringify(Number(value) || 0);
   const safeDocToken = expectedDocToken ? JSON.stringify(String(expectedDocToken)) : 'null';
+  if (command === 'dub-rate' && (!value || !Number.isFinite(value.rate) || !Number.isFinite(value.baseRate))) return '(async () => false)()';
+  const safeDub = JSON.stringify(command === 'dub-rate' ? {rate:value.rate,baseRate:value.baseRate,release:value.release === true} : null);
   return `(async () => {
     const controller = ${controllerBootstrap()};
     // Probe ile komut arasında sayfa/çerçeve gezinmiş olabilir: token farklı
@@ -579,6 +615,8 @@ function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
       video.currentTime = Math.max(0, video.currentTime + ${safeValue});
     } else if (command === 'speed') {
       controller.setRate(video, Math.max(.25, Math.min(4, ${safeValue} || 1)));
+    } else if (command === 'dub-rate') {
+      controller.setDubRate(video, ${safeDub});
     } else if (command === 'fullscreen') {
       if (document.fullscreenElement) await document.exitFullscreen();
       else {

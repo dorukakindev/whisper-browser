@@ -12,6 +12,9 @@ assert.equal(translate('Choose a source', 'tr'), 'Kaynağını seç');
 assert.equal(translate('Some user subtitle text', 'en'), 'Some user subtitle text');
 assert.equal(translate('Media library', 'tr'), 'Arşiv');
 assert.equal(translate('BROWSER', 'tr'), 'BROWSER');
+assert.equal(translate('Çeviri oluşturuluyor · %42 · 106/252 blok · 3 eksik · Sağlayıcı yanıtı bekleniyor · 35 sn', 'en'),
+  'Translating · 42% · 106/252 blocks · 3 missing · Waiting for provider response · 35 s');
+assert.equal(translate('Altyazı hazırlanıyor · %80', 'en'), 'Generating subtitles · 80%');
 
 // R95: SmartTube giriş/abonelik paneli dinamik metinleri sözlükte olmalı
 for (const key of [

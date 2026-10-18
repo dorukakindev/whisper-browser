@@ -20,6 +20,9 @@ def separate(request):
 
 
 def transcribe(request):
+    audio = request.get('audio')
+    if not isinstance(audio, str) or not os.path.isfile(audio):
+        raise ValueError('Ses dosyası bulunamadı: ' + str(audio))
     from faster_whisper import WhisperModel
     model = WhisperModel(request.get('model', 'base'), device='cpu', compute_type='int8')
     segments, info = model.transcribe(request['audio'], beam_size=5, vad_filter=True,

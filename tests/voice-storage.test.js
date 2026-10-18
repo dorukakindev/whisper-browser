@@ -1,0 +1,20 @@
+const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { prepareVoiceStorage } = require('../src/voice-storage');
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-storage-'));
+const old = path.join(root,'profile'), downloads = path.join(root,'downloads');
+const app = { getPath: name => name === 'downloads' ? downloads : old };
+(async()=>{
+  for(const name of ['Referans sesler','dub-output','dub-background-cache']) fs.mkdirSync(path.join(old,name),{recursive:true});
+  fs.writeFileSync(path.join(old,'Referans sesler','fixture.txt'),'reference');
+  fs.writeFileSync(path.join(old,'dub-output','fixture.wav'),'old');
+  fs.writeFileSync(path.join(old,'dub-background-cache','source.m4a'),'download');
+  const dirs=await prepareVoiceStorage(app);
+  assert.equal(dirs.root,path.join(downloads,'Sesler'));
+  assert.equal(fs.readFileSync(path.join(dirs.references,'fixture.txt'),'utf8'),'reference');
+  assert.equal(fs.readFileSync(path.join(dirs.input,'Arka plan','source.m4a'),'utf8'),'download');
+  fs.writeFileSync(path.join(dirs.output,'fixture.wav'),'new');
+  await prepareVoiceStorage(app);
+  assert.equal(fs.readFileSync(path.join(dirs.output,'fixture.wav'),'utf8'),'new');
+  assert.equal(fs.readFileSync(path.join(old,'dub-output','fixture.wav'),'utf8'),'old');
+  console.log('voice-storage: Downloads layout, legacy copy and no overwrite passed');
+})().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>fs.rmSync(root,{recursive:true,force:true}));

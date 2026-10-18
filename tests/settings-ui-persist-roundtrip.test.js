@@ -45,6 +45,8 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - seri-bağlam deposu (bf* alanları seri adıyla geri yüklenir)
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
+  // Dubbing preferences persist through dub:config in dub-settings.json.
+  'dubProfile', 'dubConcurrency', 'dubTimingMode',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',
   'autoPauseCue', 'autoFollow', 'showSource', 'showTranslation', 'playerMergeCont', 'playerAudioLang',
@@ -67,6 +69,12 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  'browserWhisperRangeEnabled', 'browserWhisperRangeStart', 'browserWhisperRangeEnd',
+  // Per-video audio and reviewed text belong to the current dubbing job.
+  'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
+  'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText',
+  'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd', 'dubKeepBackground', 'browserDubBackgroundVolume',
+  'voiceReferenceName', 'voiceReferenceRecorder', 'voiceReferenceStart', 'voiceReferenceEnd', 'voiceReferenceSelect', 'voiceReferenceText',
   'aiChatText', 'aiContextPreview', 'appDialogInput', 'appMenu', 'appModeMenu', 'audioTrack',
   'browserAddress', 'browserAnalysisTools', 'browserCommandPaletteInput',
   'browserDiagnosticsFilter', 'browserDownloadsFilter', 'browserDownloadsSearch',

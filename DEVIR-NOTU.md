@@ -1,4 +1,56 @@
-Güncel çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
+Güncel çalışma: [docs/devir/2026-10-18-0311.md](docs/devir/2026-10-18-0311.md) — rapor456: Başarısız arşiv indeksi, sıfır süreli cue ve asset SRT tutarlılığı
+Önceki çalışma: [docs/devir/2026-10-18-0306.md](docs/devir/2026-10-18-0306.md) — rapor455: Arka plan sesinde boş/geçici indirme ve bozuk WAV önbelleği doğrulaması
+Önceki çalışma: [docs/devir/2026-10-18-0302.md](docs/devir/2026-10-18-0302.md) — rapor454: Plan süreçleri, iptal yarışı ve aynı SRT içeriğinden hash doğrulaması
+Önceki çalışma: [docs/devir/2026-10-18-0252.md](docs/devir/2026-10-18-0252.md) — rapor453: Cache yazım yarışı, eski medya ve geciken ses işi yanıtları
+Önceki çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-17-1423.md](docs/devir/2026-10-17-1423.md) — rapor451: Kod-değiştirmeyen 50 görevlik çok derin bug taraması (npm test 11 dosya başarısız + doğrulanmış bulgular)
+Önceki çalışma: [docs/devir/2026-10-17-1256.md](docs/devir/2026-10-17-1256.md) — GitHub hesap seçimi düzeltildi, bekleyen yayın tamamlandı
+Önceki çalışma: [docs/devir/2026-10-17-1243.md](docs/devir/2026-10-17-1243.md) — rapor450: Doğrulanmış recovery, ses, çeviri ve altyazı düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-17-1228.md](docs/devir/2026-10-17-1228.md) — rapor449: Rapor447 tüm51 maddenin bağımsız değerlendirmesi
+Önceki çalışma: [docs/devir/2026-10-17-1105.md](docs/devir/2026-10-17-1105.md) — rapor448: Rapor447 kritik iddialarının bağımsız doğrulaması
+Önceki çalışma: [docs/devir/2026-10-17-1100.md](docs/devir/2026-10-17-1100.md) — rapor447: Vangu GPT-6.1 Sol destekli 5 alt sistem derin kod denetimi (51 bulgu)
+Önceki çalışma: [docs/devir/2026-10-17-0724.md](docs/devir/2026-10-17-0724.md) — rapor446: Güvenli ses temizliği ve oynatma oturumları
+Önceki çalışma: [docs/devir/2026-10-17-0649.md](docs/devir/2026-10-17-0649.md) — rapor445: Dış ses yamasının incelemesi, veri kaybı regresyonu
+Önceki çalışma: [docs/devir/2026-10-17-0606.md](docs/devir/2026-10-17-0606.md) — rapor444: Dış bug paketleri, çeviri ve canlı ses düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-16-1138.md](docs/devir/2026-10-16-1138.md) — rapor443: Referans listesi yenileme ve yanlış hazır durumu
+Önceki çalışma: [docs/devir/2026-10-16-1115.md](docs/devir/2026-10-16-1115.md) — rapor442: Ses dosya seçimi ve geciken ayar yanıtları
+Önceki çalışma: [docs/devir/2026-10-16-1112.md](docs/devir/2026-10-16-1112.md) — rapor441: Referans taslakları, son kayıtlar ve eski zoom olayları
+Önceki çalışma: [docs/devir/2026-10-16-1106.md](docs/devir/2026-10-16-1106.md) — rapor440: Oynatıcı ana sayfası, Ctrl+wheel, ses bağlamı
+Önceki çalışma: [docs/devir/2026-10-16-0433.md](docs/devir/2026-10-16-0433.md) — rapor439: Ses önizlemesi ve üretim durumu düzeltmeleri
+Önceki çalışma: [docs/devir/2026-10-16-0430.md](docs/devir/2026-10-16-0430.md) — rapor438: Altyazı aralığını ses üretimine otomatik aktarma
+Önceki çalışma: [docs/devir/2026-10-16-0342.md](docs/devir/2026-10-16-0342.md) — rapor437: Downloads/Sesler girdi-çıktı-referans düzeni
+Önceki çalışma: [docs/devir/2026-10-16-0338.md](docs/devir/2026-10-16-0338.md) — rapor436: Sağ panel kontrollerinin görünürlüğü
+Önceki çalışma: [docs/devir/2026-10-15-2331.md](docs/devir/2026-10-15-2331.md) — rapor435: Referans ses adlandırma
+Önceki çalışma: [docs/devir/2026-10-15-2326.md](docs/devir/2026-10-15-2326.md) — rapor434: YouTube referans ses bağlantısı ve görünür hata nedeni
+Önceki çalışma: [docs/devir/2026-10-15-2253.md](docs/devir/2026-10-15-2253.md) — rapor433: APINEX ve videodan referans ses kütüphanesi
+Önceki çalışma: [docs/devir/2026-10-15-1041.md](docs/devir/2026-10-15-1041.md) — rapor432: Browser tema, menü ve dar görünüm düzeni
+Önceki çalışma: [docs/devir/2026-10-15-1032.md](docs/devir/2026-10-15-1032.md) — rapor431: Oynatıcı YouTube hesabı, tema ve ses seçenekleri
+Önceki çalışma: [docs/devir/2026-10-15-1006.md](docs/devir/2026-10-15-1006.md) — rapor430: Dış rapor407 doğrulaması; başlatma/iptal, parser, kelime verisi ve Windows yolları
+Önceki çalışma: [docs/devir/2026-10-15-0720.md](docs/devir/2026-10-15-0720.md) — rapor429: RTX4070 SUPER CUDA ayırma, seçili aralık ve görünür durdurma
+Önceki çalışma: [docs/devir/2026-10-15-0707.md](docs/devir/2026-10-15-0707.md) — rapor428: Arka plan ayırma önceki CPU ortamı, GPU desteği açıklaması
+Önceki çalışma: [docs/devir/2026-10-15-0703.md](docs/devir/2026-10-15-0703.md) — rapor427: Browser Whisper ve çeviri için video başına zaman aralığı
+Önceki çalışma: [docs/devir/2026-10-15-0655.md](docs/devir/2026-10-15-0655.md) — rapor426: Sayfa menüsü reklam engelleyici Açık/Kapalı ve açık tercihinin korunması
+Önceki çalışma: [docs/devir/2026-10-15-0643.md](docs/devir/2026-10-15-0643.md) — rapor425: YouTube ilk reklam verisi için document-start main-world koruması
+Önceki çalışma: [docs/devir/2026-10-15-0627.md](docs/devir/2026-10-15-0627.md) — Devin için150 görevlik kod değiştirmeyen test paketi; ürün kodu aynı
+Önceki çalışma: [docs/devir/2026-10-15-0619.md](docs/devir/2026-10-15-0619.md) — rapor424: YouTube reklam betikleri, erken uygulama ve filtre yenileme
+Önceki çalışma: [docs/devir/2026-10-15-0558.md](docs/devir/2026-10-15-0558.md) — rapor423: kesilmeyen konuşma için video yavaşlatma ve Audio Separator arka plan katmanı
+Önceki çalışma: [docs/devir/2026-10-15-0132.md](docs/devir/2026-10-15-0132.md) — rapor 422: seçilen aralık dublajı, kısa WAV, aralık dışında özgün ses; Windows CI sınırları
+Önceki çalışma: [docs/devir/2026-10-15-0113.md](docs/devir/2026-10-15-0113.md) — rapor 421: cümle sınırları ve onaylı ayrı dublaj metni; kısa CUDA doğrulaması
+Önceki çalışma: [docs/devir/2026-10-15-0059.md](docs/devir/2026-10-15-0059.md) — rapor 420: ayrı OmniVoice kurulumu ve gerçek Türkçe CUDA denemesi; 10sn hedef iyi, 6sn hedefte metin kaybı
+Önceki çalışma: [docs/devir/2026-10-15-0046.md](docs/devir/2026-10-15-0046.md) — rapor 419: alternatif GitHub ses/dublaj motorları; OmniVoice hedef süre ve ambiyans koruma araştırması
+Önceki çalışma: [docs/devir/2026-10-15-0041.md](docs/devir/2026-10-15-0041.md) — rapor 418: Sesi kullan, son çıktı erişimi ve bağımsız Metin/TXT stüdyosunu açma
+Önceki çalışma: [docs/devir/2026-10-14-1339.md](docs/devir/2026-10-14-1339.md) — rapor 417: 10/15 adım, 4/8 paralellik, akıllı zamanlama ve bağımsız ses önbelleği; gerçek CUDA ölçümü
+Önceki çalışma: [docs/devir/2026-10-14-1323.md](docs/devir/2026-10-14-1323.md) — rapor 416: VoxCPM2 hız/kalite araştırması; gereksiz tekrarlar ve zamanlama iyileştirmeleri
+Önceki çalışma: [docs/devir/2026-10-14-1232.md](docs/devir/2026-10-14-1232.md) — rapor 415: zamanlama taşmasında WAV üretimine devam; hazır 123 parçalık iş kurtarıldı
+Önceki çalışma: [docs/devir/2026-10-14-1211.md](docs/devir/2026-10-14-1211.md) — rapor 414: dublaj üretim süresi, kalıcı sonuç/ilerleme kayıtları ve kayıt açma
+Önceki çalışma: [docs/devir/2026-10-14-0905.md](docs/devir/2026-10-14-0905.md) — rapor 413: SRT → Ses arayüzü, ilerleme/iptal ve aynı browser videosuna çıktı bağlama
+Önceki çalışma: [docs/devir/2026-10-14-0812.md](docs/devir/2026-10-14-0812.md) — rapor 412: cümle gruplu dublaj ve doğru kırpma sayacı uygulandı; gerçek kısa üretim 11 cue→7 grup, 0 kırpma
+Önceki çalışma: [docs/devir/2026-10-14-0745.md](docs/devir/2026-10-14-0745.md) — rapor 411: kısa satır dublajında cümle grubu önerisi; dış araçta kırpma sayacının yanlış raporlanması
+Önceki çalışma: [docs/devir/2026-10-14-0705.md](docs/devir/2026-10-14-0705.md) — rapor 410: browser videosuna yerel dublaj sesi, saat takibi, ses/kayma kontrolü ve orijinal sesi geri yükleme
+Önceki çalışma: [docs/devir/2026-10-14-0155.md](docs/devir/2026-10-14-0155.md) — rapor 409: dar browser yerleşimi, okunur Durdur düğmesi ve uzun etiket kontrolü
+Önceki çalışma: [docs/devir/2026-10-14-0149.md](docs/devir/2026-10-14-0149.md) — rapor 408: tamamlanan 196 blokluk çıktı denetimi; zamanlar eşleşiyor, 12 kalite işaretinin birçoğu satır yerel yanlış pozitif
+Önceki çalışma: [docs/devir/2026-10-14-0131.md](docs/devir/2026-10-14-0131.md) — rapor 407: browser üstünde görünür çeviri ilerlemesi, blok sayıları ve sağlayıcı bekleme süresi; son işin süre tanısı
+Önceki çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
 Önceki çalışma: [docs/devir/2026-10-12-1850.md](docs/devir/2026-10-12-1850.md) — Claude v3 paketi: tek tıkta Whisper+çeviri, sayaç/verim çeviri döngü kesicileri (109→14 istek), scheduler otomatik-gevşek kesici, tasarım turu
 Önceki çalışma: [docs/devir/2026-10-06-1130.md](docs/devir/2026-10-06-1130.md) — rapor 405: canlı Whisper UTF-8 stdin (Türkçe %TEMP%), dil kapısı, halüsinasyon süzgeci, RTF izleyici, reklamda duraklatma, mini oynatıcı close yarışı, Windows disk dolu iletisi
 Önceki çalışma: [docs/devir/2026-10-06-1530.md](docs/devir/2026-10-06-1530.md) — browser yan paneli tasarım turu + ertelenmiş yeniden deneme (rapor 404)

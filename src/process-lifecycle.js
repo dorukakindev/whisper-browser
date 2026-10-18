@@ -42,7 +42,7 @@ function terminateProcessTree(proc, { spawn, platform = process.platform, onWarn
     };
     proc.once?.('close', cleanup);
     killer.once('error', () => { cleanup(); fallback(); });
-    killer.once('exit', (code) => { cleanup(); if (code !== 0) fallback(); });
+    killer.once('exit', (code) => { if (code !== 0) { cleanup(); fallback(); } });
   } catch (_) { fallback(); }
   return true;
 }

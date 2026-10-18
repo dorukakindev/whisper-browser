@@ -82,6 +82,26 @@ async function testN1() {
   assert.deepEqual(h.context.youtubeSession.accounts, {}, 'hayalet hesap satırı olmamalı');
 }
 
+async function testPlayerAccountLogin() {
+  const code = slice("ipcMain.handle('youtube:poll'", "ipcMain.handle('youtube:logout'");
+  const h = ipcHarness(code);
+  h.context._ytDevice = {deviceCode:'fixture',expiresAt:Date.now()+60000,interval:5,tv:true};
+  h.context.runYoutubeCommand = async args => {
+    assert.equal(args[0], 'poll');assert.equal(args[2], 'tv');
+    return {ok:true,data:{refresh_token:'fixture-refresh',access_token:'fixture-access',expires_in:3600,user_name:'Fixture',user_email:'fixture@example.invalid'}};
+  };
+  const result=await h.handlers['youtube:poll']({});
+  assert.equal(result.data.loggedIn,true);
+  assert.equal(h.context.youtubeSession.activeId,'fixture@example.invalid');
+  const saved=accounts.persistableAccounts(h.context.youtubeSession.accounts);
+  const restored=accounts.migrateSecrets({accounts:JSON.stringify(saved),active_id:h.context.youtubeSession.activeId});
+  assert.equal(accounts.activeAccount(restored.accounts,restored.activeId).authMode,'tv');
+  assert.equal(accounts.activeAccount(restored.accounts,restored.activeId).refreshToken,'fixture-refresh');
+  assert.equal(h.context.persisted.length,1);
+  assert(!JSON.stringify(result).includes('fixture-access'));
+  assert(!JSON.stringify(result).includes('fixture-refresh'));
+}
+
 async function testN3() {
   // youtube:accountRemove kesiti — 'youtube:poll' handler'ına kadar.
   const code = slice("ipcMain.handle('youtube:accountRemove'", "ipcMain.handle('youtube:poll'");
@@ -159,8 +179,24 @@ async function testN6() {
   assert.equal(calls[0], 'browse');
 }
 
+function testPlayerLoginChoice() {
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+  const start = renderer.indexOf('function _ytShowView(id)');
+  const end = renderer.indexOf('// Akış seçim ekranı', start);
+  const states = {};
+  const context = { _ytSavedClientId: '', $: (id) => ({ classList: { toggle: (name, hidden) => { states[id] = hidden; } } }) };
+  vm.createContext(context);
+  vm.runInContext(renderer.slice(start, end), context);
+  context._ytShowView('ytDeviceView');
+  assert.equal(states.ytDeviceView, false);
+  assert.equal(states.ytCustomAuthOptions, true, 'hazır kodla giriş kendi OAuth istemcisini istememeli');
+  context._ytSavedClientId = 'custom-client';
+  context._ytShowView('ytDeviceView');
+  assert.equal(states.ytCustomAuthOptions, false, 'özel istemcide tarayıcı akışı erişilebilir kalmalı');
+}
+
 (async () => {
-  const tests = [testN1, testN3, testN3_noSlot, testN6];
+  const tests = [testN1, testPlayerAccountLogin, testPlayerLoginChoice, testN3, testN3_noSlot, testN6];
   let passed = 0;
   for (const t of tests) {
     try { await t(); passed++; console.log(`PASS ${t.name}`); }

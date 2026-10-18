@@ -35,7 +35,9 @@ const pStart = rsrc.indexOf('function parseClipInput(');
 const pEnd = rsrc.indexOf('\n}', pStart) + 2;
 ok(pStart >= 0, 'parseClipInput bulunamadi');
 const optsProblem = new Function(
-  rsrc.slice(pStart, pEnd) + rsrc.slice(vStart, vEnd) + '; return optsProblem;')();
+  rsrc.slice(pStart, pEnd) + rsrc.slice(rsrc.indexOf('function translationEndpointReady('),
+    rsrc.indexOf('\n}', rsrc.indexOf('function translationEndpointReady(')) + 2)
+    + rsrc.slice(vStart, vEnd) + '; return optsProblem;')();
 
 const base = (extra) => Object.assign({ clipStart: '', clipEnd: '' }, extra);
 

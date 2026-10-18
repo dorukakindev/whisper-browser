@@ -886,7 +886,7 @@ to { opacity: 1; transform: none; }
   padding: 4px 9px;
   border-radius: var(--radius-sm);
   background: var(--osd-pill-bg);
-  color: var(--text);
+  color: var(--ink-bright);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -904,7 +904,7 @@ to { opacity: 1; transform: none; }
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   background: var(--osd-pill-bg);
-  color: var(--text);
+  color: var(--ink-bright);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -1440,6 +1440,12 @@ to { opacity: 1; transform: none; }
   border-radius: var(--radius-sm);
 }
 .job-bar .progress-track { flex: 1; }
+.player-job-status { flex: 0 0 auto; margin: 6px 12px; flex-wrap: wrap; }
+.player-job-status > span { flex: 1 1 260px; }
+.player-job-status .progress-track {
+  flex: 1 1 100px; height: 6px; overflow: hidden;
+  background: var(--bg-0); border-radius: var(--radius-sm);
+}
 .sentence-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sentence-tools .btn-icon { font-size: 15px; line-height: 1; }
 /* Metin tabanli kucuk dugmeler (A-B, ?) alt alta kirilmasin */
@@ -2698,12 +2704,17 @@ to { opacity: 1; transform: translateY(0); }
 .cue-confidence:hover,
 .cue-confidence:focus-visible { color: var(--ink-bright); border-color: #df7b65; background: rgba(196, 91, 72, .28); }
 .player-job-cancel.btn-icon {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  color: var(--text-muted);
+  width: auto;
+  min-width: 64px;
+  height: 32px;
+  padding: 0 10px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text);
   border-radius: 7px;
 }
+.player-job-cancel.btn-icon:hover { background: var(--bg-3); }
+.player-job-cancel.btn-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ai-time-link,
 .ai-source-link {
   display: inline-flex;
@@ -4331,9 +4342,9 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .browser-place-title, .browser-place-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-place-title { font-size: 11px; }
 .browser-place-url { margin-top: 3px; color: var(--text-muted); font-family: Consolas, "Cascadia Mono", monospace; font-size: 9px; }
-.browser-place-remove { flex: 0 0 26px; width: 26px; height: 26px; color: #c58a82; border-radius: var(--radius-xs); }
-.browser-place-remove:hover { color: #d89082; background: #2a1d1b; }
-.browser-place-folder { max-width: 88px; padding: 5px 7px; overflow: hidden; color: #b9a682; border: 1px solid #3a3327; border-radius: 6px; background: #201c16; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.browser-place-remove { flex: 0 0 26px; width: 26px; height: 26px; color: var(--danger); border-radius: var(--radius-xs); }
+.browser-place-remove:hover { color: var(--danger); background: var(--chrome-danger-soft); }
+.browser-place-folder { max-width: 88px; padding: 5px 7px; overflow: hidden; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .browser-workspaces { display: grid; gap: 7px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 10px; }
 .browser-diagnostics-toggle {
   width: auto;
@@ -7217,3 +7228,14 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .player-side.side-rail .side-tab .side-tab-ico svg { width: 17px; height: 17px; }
 .player-side.side-rail .side-tab-actions { flex-direction: column; gap: 4px; margin-left: 0; }
 .player-side.side-rail .side-tab-actions .side-tool { width: 32px; height: 32px; flex-basis: 32px; }
+/* Dubbing text remains readable inside the existing modal at narrow widths. */
+#dubTextEditor textarea, #dubPlanGroup { width: 100%; box-sizing: border-box; margin: 8px 0; }
+#dubTextEditor textarea { resize: vertical; min-height: 72px; color: var(--text); background: var(--bg); font: inherit; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.dub-range-row input { width: 100px; max-width: 100%; box-sizing: border-box; color: var(--text); background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit; }
+.dub-range-row { flex-wrap: wrap; }
+.browser-whisper-action-row { display: flex; align-items: center; gap: 4px; }
+.browser-whisper-action-row #browserWhisperTranslateMenu { flex: 1; min-width: 0; }
+.browser-whisper-action-row #browserWhisperRangeSettings { width: 36px; flex: 0 0 36px; justify-content: center; padding: 8px; }
+#browserWhisperRangeDialog .dub-generator-options { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 12px; margin: 16px 0; }
+#browserWhisperRangeDialog input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+#browserWhisperRangeError { color: var(--danger); }

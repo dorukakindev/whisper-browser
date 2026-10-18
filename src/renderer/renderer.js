@@ -375,7 +375,7 @@ function optsProblemInfo(opts) {
   if (a !== null && b !== null && b <= a) {
     return { message: 'Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.', fieldId: 'clipEnd' };
   }
-  if (opts.translate && !opts.translateApiKey) {
+  if (opts.translate && !translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
     return { message: 'Çeviri açık ama API anahtarı girilmemiş. Gelişmiş ayarlar → Çeviri → API Key.', fieldId: 'translateApiKey' };
   }
   if (opts.diarize && !opts.hfToken) {
@@ -3663,9 +3663,9 @@ function endpointPresetRecommendedModel(preset) {
   const endpoint = String(preset?.value || preset || '').trim().replace(/\/+$/, '');
   if (endpoint === 'https://codecraftapi.com/v1') return 'gemini-3.7-flash';
   if (endpoint === 'https://4sapi.com/v1') return 'gemini-3.8-flash';
+  if (endpoint === 'https://api.apinex.bond/v1') return 'free/deepseek-v4-pro-0813';
   return '';
 }
-
 function clearBrowserTranslationError(options = {}) {
   const previous = String(player.browserTranslationLastError || '').trim();
   player.browserTranslationLastError = '';
@@ -4106,6 +4106,7 @@ if ($('batchSize')) $('batchSize').addEventListener('input', updateGpuBadge);
 updateGpuBadge();
 
 document.addEventListener('ui-locale-change', () => {
+  syncBrowserAdblockMenu();
   updatePlayerMeta();
   if (!player.cues.length) renderCueList('');
   // Sekme şeridi observer'ın yok sayılan bölgesinde: 'New tab' etiketi ve
@@ -4748,6 +4749,14 @@ function playerJobEvent(event) {
   if (event.type === 'status' && event.text) {
     job.stage = event.text;
     txt.textContent = event.text;
+    // A new stage has its own progress; transcription's 100% is not translation's.
+    if (event.stage && job.progressStage !== event.stage) {
+      job.progressStage = event.stage;
+      job.percent = null;
+      job.completed = 0;
+      job.total = 0;
+      fill.style.width = '0%';
+    }
   }
   if (event.type === 'segment') {
     job.liveSource = mergeLiveCues(job.liveSource || [], liveSegments(event));
@@ -4818,7 +4827,10 @@ function playerJobEvent(event) {
     job.percent = Math.min(100, Math.max(0, Number(event.percent) || 0));
     player.translationRetryAvailable = failed;
     const phaseLabel = event.stage === 'translate' ? 'Çeviri oluşturuluyor' : 'LLM düzeltiyor';
-    txt.textContent = `${phaseLabel} · %${Number(event.percent || 0).toFixed(0)}${failed ? ` · ${failed} eksik` : ''}`;
+    txt.textContent = `${phaseLabel} · %${job.percent.toFixed(0)}${job.total ? ` · ${job.completed}/${job.total} blok` : ''}${failed ? ` · ${failed} eksik` : ''}`;
+    if (event.waiting) {
+      txt.textContent += ` · Sağlayıcı yanıtı bekleniyor · ${Math.max(0, Math.round(Number(event.elapsed) || 0))} sn`;
+    }
     job.stage = txt.textContent;
     fill.style.width = `${Math.min(100, Math.max(0, Number(event.percent) || 0))}%`;
     updateMakeTransState();
@@ -4995,7 +5007,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       label: labelParts.join(' · '),
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
-      generatedBy: item.generatedBy || job.generatedBy || 'whisper',
+      generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
@@ -5247,14 +5259,14 @@ window.api.onEvent((event) => {
   // (done/error) sonra, exit gelmeden once suzulen ilerleme/segment olaylari
   // arayuze yaziyordu: is bitmis gorunurken ilerleme cubugu geri gidiyordu.
   // Oynatici ve AI isleri yukarida tuketildigi icin kapi onlari etkilemez.
-  if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
-  if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
   // Iptal istegi is bitmeye cok yakin geldiyse cikti YINE DE uretilmis olabilir;
   // kullaniciya "iptal edildi" demek yaniltici olurdu.
-  if (event.cancelTooLate) {
+  if (event.cancelTooLate || (event.type === 'done' && state.running && state.cancelled)) {
     logLine('İptal isteği işin bitişine yetişemedi; çıktılar üretildi.', 'warn');
     state.cancelled = false;
   }
+  if (!RendererUiModel.shouldAcceptRunEvent(state, event.type)) return;
+  if (event.type === 'done' || event.type === 'error') state.awaitingExit = true;
   if (event.cleanupError) {
     logLine(`İptal sonrası temizlik tamamlanamadı: ${event.cleanupError}`, 'error');
   }
@@ -5550,7 +5562,7 @@ window.api.onEvent((event) => {
       // saniyordu. Ana surec artik exit olayini cancelled ile isaretliyor.
       // Çıkış kodu 130 = KeyboardInterrupt (Ctrl+C) sözleşmesi — harici
       // sonlandırmada cancelRequested bayrağı kurulmaz, koddan tanınır.
-      if (state.cancelled || event.cancelled || event.code === 130) {
+      if (!event.cancelTooLate && (state.cancelled || event.cancelled || event.code === 130)) {
         // Kullanıcı iptal etti — hata gibi gösterme
         state.cancelled = false;
         state.running = false;
@@ -6693,6 +6705,7 @@ function saveActiveBrowserTabWorkspace() {
 }
 
 function restoreActiveBrowserTabWorkspace(tab) {
+  window.BrowserDubAudioUI?.checkContext();
   if (browserQuickEditor && browserQuickEditor.tabId !== tab?.id) closeBrowserQuickEditor();
   if (!tab) return;
   player.browserSyncPreview = null;
@@ -6994,6 +7007,7 @@ if ($('browserFindInput')) {
 }
 
 function browserCommand(command, value, tabId = player.browserActiveTabId) {
+  if (command === 'speed' && tabId === player.browserActiveTabId) window.BrowserDubAudioUI?.setBaseRate?.(value);
   if (['play', 'pause', 'play-pause', 'seek', 'seek-relative'].includes(command)) {
     clearTimeout(player.shadowResumeTimer);
     player.shadowResumeTimer = null;
@@ -10747,7 +10761,7 @@ function attachBrowserCueIdentities(track, cues) {
     } else used.add(index);
     if (!identity) return cue;
     return { ...cue, cueId: identity.cueId || identity.id || cue.cueId,
-      sourceCueHash: identity.sourceCueHash || cue.sourceCueHash };
+      sourceCueHash: identity.sourceCueHash || cue.sourceCueHash, ...(identity.text === cue.text && identity.qualityWarning ? { qualityWarning: true, qualityIssues: identity.qualityIssues || [] } : {}) };
   });
 }
 
@@ -10872,7 +10886,7 @@ function mergeBrowserTranslationCues(target, cues, qualityIssues = null) {
     target.set(key, {
       id: `web-tr-${key}`, start: Number(cue.start) || 0,
       end: Number(cue.end) || Number(cue.start) || 0, text,
-      ...(flagged || cue?.qualityWarning ? { qualityWarning: true } : {}),
+      ...(flagged || cue?.qualityWarning ? { qualityWarning: true, qualityIssues: flagged ? qualityIssues : cue.qualityIssues || [] } : {}),
     });
   }
   return target;
@@ -11302,7 +11316,7 @@ function currentBrowserYoutubeUrl() {
 // kalıyordu. Yalnız kaynak isteyen için boş panelde "Yalnız altyazı" kalır.
 function translationReadyForCreate() {
   const key = $('translateApiKey');
-  return !!(key && String(key.value || '').trim());
+  return translationEndpointReady(key?.value, $('translateEndpointPreset')?.value === 'custom' ? $('translateBaseUrl')?.value : $('translateEndpointPreset')?.value);
 }
 
 function openTranslationKeySetup() {
@@ -11370,7 +11384,8 @@ async function startBrowserYoutubeWhisper(translate) {
     setBrowserSignal('Whisper işlemi için browser içinde bir YouTube video sayfası açın.', false);
     return;
   }
-  const reusableTranslation = translate ? player.browserTracks.find((track) =>
+  const clipRange = currentBrowserWhisperRange();
+  const reusableTranslation = translate && !clipRange ? player.browserTracks.find((track) =>
     track.generatedBy === 'whisper' && track.role === 'translation' && track.path
       && track.language === ($('translateTo')?.value || 'tr')
       && track.status === 'complete' && !Number(track.failed)) : null;
@@ -11383,7 +11398,7 @@ async function startBrowserYoutubeWhisper(translate) {
       { priority: 70, holdMs: 5000 });
     return;
   }
-  const reusableSource = player.browserTracks.find((track) =>
+  const reusableSource = !clipRange && player.browserTracks.find((track) =>
     track.generatedBy === 'whisper' && track.role === 'source' && track.path);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
@@ -11405,6 +11420,7 @@ async function startBrowserYoutubeWhisper(translate) {
   await startProgressivePlayerTranscription({
     browserYoutube: true,
     translateOverride: !!translate,
+    clipRange,
   });
 }
 
@@ -11433,7 +11449,7 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
   player.browserLiveAsrCapture = capture;
   await context.audioWorklet.addModule('live-asr-worklet.js');
   if (player.browserLiveAsrCapture !== capture || !player.browserLiveAsrActive) { await context.close(); return; }
-  capture.node = new AudioWorkletNode(context, 'whisper-pcm-capture');
+  capture.node = new AudioWorkletNode(context, 'whisper-pcm-capture'); capture.node.port.postMessage({ type: 'configure' });
   capture.source = context.createMediaStreamSource(stream);
   capture.node.port.onmessage = ({ data }) => {
     if (data.type === 'flushed') { capture.resolveFlush?.(); return; }
@@ -11452,10 +11468,10 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
       }
       return;
     }
-    if (data.type !== 'chunk') return;
+    if (data.type === 'dropped' && data.reason === 'backpressure') setBrowserSignal('Ses aktarımı yoğun; bir ses parçası atlandı.', false); if (data.type !== 'chunk') return;
     capture.silentChunks = 0;
     capture.silenceWarned = false;
-    if (capture.pending.size >= 8) {
+    if (capture.pending.size >= 8) { capture.node.port.postMessage({ type: 'ack', id: data.id });
       setBrowserSignal('Canlı Whisper kuyruğu doldu; ses parçası atlandı. Daha küçük bir model seçin.', false);
       return;
     }
@@ -11466,7 +11482,7 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
       if (!result?.ok) setBrowserSignal(`Canlı Whisper: ${result?.error || 'Ses gönderilemedi.'}`, false);
     })();
     capture.pending.add(task);
-    task.finally(() => capture.pending.delete(task));
+    task.finally(() => { capture.pending.delete(task); capture.node.port.postMessage({ type: 'ack', id: data.id }); }).catch(() => {});
   };
   capture.node.onprocessorerror = () => stopBrowserLiveAsrCapture(true, 'Ses işleyicisi durdu; canlı Whisper yeniden başlatılmalı.');
   for (const track of stream.getAudioTracks()) track.addEventListener('ended', () => {
@@ -12392,7 +12408,11 @@ function renderBrowserAdblockState(result = {}) {
   const knownState = typeof result.enabled === 'boolean';
   const enabled = knownState ? result.enabled : !!control?.checked;
   const busy = result.state === 'loading';
-  if (knownState && control) control.checked = enabled;
+  player.browserAdblockRuntime = { ...(player.browserAdblockRuntime || {}), ...result };
+  // The checkbox is the saved user intent. A loading/error snapshot can have
+  // enabled=false while requested=true; never persist that transient false.
+  if (control && typeof result.requested === 'boolean') control.checked = result.requested;
+  else if (knownState && !busy && result.state !== 'error' && control) control.checked = enabled;
   if (control) control.disabled = busy;
   if (quick) {
     quick.disabled = busy;
@@ -12408,6 +12428,7 @@ function renderBrowserAdblockState(result = {}) {
       quick.setAttribute('aria-label', 'Reklam koruması kapalı; ayarlarda hata ayrıntısı var');
     } else syncBrowserAdblockQuick();
   }
+  syncBrowserAdblockMenu();
   if (!status) return;
   if (result.state === 'loading') status.textContent = 'Reklam filtreleri hazırlanıyor…';
   else if (result.enabled) {
@@ -12450,11 +12471,29 @@ function syncBrowserAdblockQuick() {
   quick.setAttribute('aria-label', title);
   const label = quick.querySelector('.browser-adblock-label');
   if (label) label.textContent = uiText(globalOn && origin ? 'Bu sitede reklam koruması' : 'Reklam koruması');
+  syncBrowserAdblockMenu();
+}
+function syncBrowserAdblockMenu() {
+  const button = $('browserAdblockMenuToggle');
+  const label = $('browserAdblockMenuLabel');
+  if (!button || !label) return;
+  const runtime = player.browserAdblockRuntime || {};
+  const busy = !!$('browserAdblockEnabled')?.disabled || !!$('browserAdblockQuick')?.disabled;
+  const failed = runtime.state === 'error' || runtime.ok === false;
+  const enabled = browserAdblockSiteState().effective && runtime.enabled !== false && !failed;
+  label.textContent = uiText(busy ? 'Reklam engelleyici: Hazırlanıyor…'
+    : failed ? 'Reklam engelleyici: Hata · Tekrar dene'
+      : enabled ? 'Reklam engelleyici: Açık' : 'Reklam engelleyici: Kapalı');
+  button.disabled = busy;
+  button.setAttribute('aria-checked', busy ? 'mixed' : String(enabled));
+  button.title = failed ? uiText('Reklam filtreleri yüklenemedi. Tekrar denemek için tıklayın.')
+    : $('browserAdblockQuick')?.title || label.textContent;
 }
 async function toggleBrowserAdblockForSite() {
   const quick = $('browserAdblockQuick');
   const control = $('browserAdblockEnabled');
   if (!quick || !control || control.disabled || quick.disabled) return;
+  if (player.browserAdblockRuntime?.state === 'error') { await setBrowserAdblockEnabled(true); return; }
   const { globalOn, origin, host, siteOn } = browserAdblockSiteState();
   // Genel ayar kapalıysa site bazında açmak anlamsız: önce genel ayarı aç.
   // Site açık değilken (boş sekme) düğme genel anahtardır.
@@ -12472,6 +12511,7 @@ async function toggleBrowserAdblockForSite() {
     tab.siteOverrides = rest;
   }
   quick.disabled = true;
+  syncBrowserAdblockMenu();
   // Açarken alan silinir (genel ayarı devralır); kapatırken site profiline false yazılır.
   const result = await window.api.updateBrowserSiteProfile({
     tabId: player.browserActiveTabId, generation: tab.generation, origin,
@@ -12872,6 +12912,7 @@ async function showBrowserWorkspace(retry = 0) {
 }
 
 function setWorkspaceMode(mode, persist = true) {
+  if (mode !== player.workspaceMode) window.BrowserDubAudioUI?.stop();
   mode = mode === 'browser' ? 'browser' : 'player';
   const previousMode = player.workspaceMode;
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
@@ -14318,6 +14359,7 @@ function runBrowserShortcut(key, shift = false) {
 
 if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   if (!event || !event.type) return;
+  if (event.type === 'page-zoom') { const tab = browserTabState(event.tabId); if (!tab || !Number.isFinite(event.zoom) || (Number.isInteger(event.generation) && event.generation !== tab.generation)) return; tab.browserZoom = event.zoom; if (event.tabId === player.browserActiveTabId) { updateBrowserZoomUi(event.zoom); scheduleBrowserBounds(); scheduleBrowserOverlaySync(); } return; }
   if (event.type === 'page-focus') {
     // Sayfa (ayrı webContents) odağı aldı: DOM'daki adres çubuğu hâlâ odaklı
     // görünür. Chrome gibi omnibox'ı bırak; yazılmamışsa gerçek adresi göster.
@@ -14333,8 +14375,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       syncBrowserAddressAction();
     }
     return;
-  }
-  if (event.type === 'permission-request') {
+  } if (event.type === 'permission-request') {
     if (player.workspaceMode === 'browser' && event.tabId === player.browserActiveTabId) showBrowserPermissionPrompt(event);
     else void window.api.respondBrowserPermission?.(event.requestId, 'block-once').catch(() => null);
     return;
@@ -17376,7 +17417,7 @@ function renderTimelineIssues() {
   if (!issues.length) return;
   const byKind = {};
   for (const it of issues) (byKind[it.kind] ||= []).push(it.i);
-  for (const kind of ['empty', 'short', 'overlap', 'fast', 'lines']) {
+  for (const kind of ['empty', 'short', 'overlap', 'fast', 'lines', 'invalid']) {
     if (!byKind[kind]) continue;
     const chip = document.createElement('button');
     chip.type = 'button'; chip.className = 'timeline-issue-chip';
@@ -17392,7 +17433,7 @@ function renderTimelineIssues() {
     box.appendChild(fix);
   }
 }
-const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması' };
+const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması', invalid: 'geçersiz zaman' };
 function timelineJumpToIssue(kind) {
   const indices = timelineIssueList().filter((it) => it.kind === kind).map((it) => it.i);
   if (!indices.length) return;
@@ -19752,7 +19793,7 @@ async function aiChatSend(soru, translationTarget = null) {
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
   opts.chat = { question: q, history, context: chatContext };
   delete opts.youtube;
-  if (!opts.translateApiKey) {
+  if (!translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
     return;
   }
@@ -21087,6 +21128,7 @@ function setSubtitleModeMenuOpen(open) {
 }
 
 function setMediaKey(key) {
+  if (key !== player.mediaKey) window.BrowserDubAudioUI?.stop();
   // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
   // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
   closeTimeline();
@@ -22259,8 +22301,8 @@ function renderSubtitleFindMatches(searchGeneration, mediaGeneration) {
     caseSensitive: !!$('subtitleFindCase')?.checked,
     wholeWord: !!$('subtitleFindWhole')?.checked,
   };
-  const matches = subtitleFindReplace?.findLiteralMatches(
-    subtitleFindEntries(), query, options) || [];
+  let matches; try { matches = subtitleFindReplace?.findLiteralMatches(subtitleFindEntries(), query, options) || []; }
+  catch (_) { const box = $('subtitleFindResults'); if (box) box.textContent = 'Arama sınırı aşıldı. Daha kısa bir metin arayın.'; player.subtitleFindReplace.matches = []; player.subtitleFindReplace.selected = new Set(); return; }
   if (searchGeneration !== player.subtitleFindReplace.generation
       || mediaGeneration !== currentGeneration()) return;
   player.subtitleFindReplace.matches = matches;
@@ -22848,7 +22890,7 @@ function syncResponsivePlayerLayout() {
   if (sidebarButton) {
     const shown = narrow ? takeover : sidebarIsVisible();
     sidebarButton.classList.toggle('active', shown);
-    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false'); $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   scheduleBrowserBounds();
@@ -22874,7 +22916,7 @@ function setViewMode(mode) {
   if (sidebarButton) {
     const shown = sidebarIsVisible();
     sidebarButton.classList.toggle('active', shown);
-    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    sidebarButton.setAttribute('aria-pressed', shown ? 'true' : 'false'); $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     sidebarButton.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   try { localStorage.setItem('playerViewMode', mode); } catch (_) {}
@@ -24101,9 +24143,9 @@ function watchBrowserVideoInPlayer() {
     return;
   }
   const ytKey = mediaKeyFor('youtube', url);
-  const seconds = Number(player.browserTime) || 0;
+  const seconds = Number(player.browserTime); player.pendingLibrarySeek = null;
   const intent = ++player.openIntent;
-  if (seconds > 2) {
+  if (Number.isFinite(seconds) && seconds >= 0 && (player.browserMediaSeen || seconds > 0)) {
     player.pendingLibrarySeek = { key: ytKey, generation: null, seconds };
   } else {
     const watch = watchItemByKey(ytKey);
@@ -25046,13 +25088,14 @@ function setPlayerSidebarCollapsed(collapsed) {
     const shown = sidebarIsVisible();
     button.classList.toggle('active', shown);
     button.setAttribute('aria-pressed', shown ? 'true' : 'false');
+    $('browserSidebarToggle')?.setAttribute('aria-expanded', shown ? 'true' : 'false');
     button.title = shown ? 'Altyazı panelini gizle' : 'Altyazı panelini göster';
   }
   if (next) setSettingsDrawer(false);
   else syncResponsivePlayerLayout();
   setTimeout(highlightCueRow, 80);
 }
-if ($('playerSidebarToggle')) {
+$('browserSidebarToggle')?.addEventListener('click', () => $('playerSidebarToggle')?.click()); if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
     if (window.matchMedia('(max-width: 1020px)').matches) {
       if (responsivePanelTakeoverActive()) {
@@ -25298,13 +25341,14 @@ async function startProgressivePlayerTranscription(config = {}) {
   }
 
   const video = $('playerVideo');
-  const ranges = progressiveRanges(
+  const ranges = browserYoutube && config.clipRange ? [config.clipRange] : progressiveRanges(
     browserYoutube ? Number(player.browserDuration) : Number(video && video.duration),
     browserYoutube ? Number(player.browserTime) : Number(video && video.currentTime));
   // Her aşamalı çalışma kendi dosyasına yazar. Aynı başlıklı hazır bir .srt
   // artık ara bölüm veya son birkaç saniyelik iş tarafından ezilemez.
   opts.outputNameSuffix = `-whisper-${Date.now().toString(36)}`;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
+    clipRange: browserYoutube ? config.clipRange || null : null,
     startedAt: Date.now(), percent: 0,
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
     sourceFile: '', translationFile: '', awaitingExit: false,
@@ -25332,7 +25376,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   const actionLabel = opts.translate ? 'Whisper altyazı + çeviri' : 'Whisper altyazı';
   logLine(ranges.length > 1
     ? `${actionLabel} başlatıldı · ${ranges.length} aşama`
-    : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
+    : config.clipRange ? `${actionLabel} · ${config.clipRange.start}–${config.clipRange.end} sn`
+      : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
   if (browserYoutube) {
     setBrowserSignal(`${actionLabel} başlatıldı; çıktı bu YouTube sekmesine otomatik yüklenecek.`, true,
       { priority: 70, holdMs: 4000 });
@@ -31144,6 +31189,7 @@ let _ytBrowserFlow = false;   // loopback (tarayıcı) akışı sürüyor
 let _ytSavedClientId = '';    // istemci görünümüne dönüşte ID'yi geri doldurur (secret asla)
 
 function _ytShowView(id) {
+  $('ytCustomAuthOptions')?.classList.toggle('hidden', !_ytSavedClientId);
   ['ytClientView', 'ytDeviceView', 'ytLoggedView'].forEach((v) => {
     const el = $(v);
     if (el) el.classList.toggle('hidden', v !== id);
@@ -31495,6 +31541,7 @@ function initSmartTube() {
   // YouTube OAuth düğmeleri (cihaz-kodu akışı)
   const ytLoginBtn = $('stYtLoginBtn');
   if (ytLoginBtn) ytLoginBtn.addEventListener('click', openYoutubeLogin);
+  $('stYoutubeAccounts')?.addEventListener('click', openYoutubeLogin);
   const ytLogoutBtn = $('stYtLogoutBtn');
   if (ytLogoutBtn) ytLogoutBtn.addEventListener('click', openYoutubeLogin);
   // Oynatıcı panelindeki giriş düğmesi de aynı cihaz-kodu akışını açar.
@@ -32571,4 +32618,68 @@ function setupRovingTablists() {
 }
 
 setupRovingTablists();
+// Range choices belong to a video and session, never to all subsequent videos.
+function currentBrowserWhisperRange() {
+  const saved = player.browserWhisperRange;
+  return saved?.url === currentBrowserYoutubeUrl() ? saved.range : null;
+}
+function validateBrowserWhisperRange(enabled, startText, endText, duration) {
+  if (!enabled) return { range: null };
+  const start = parseClipInput(startText), end = parseClipInput(endText);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+    return { error: uiText('Geçerli bir başlangıç ve bitiş girin. Bitiş başlangıçtan büyük olmalı.') };
+  }
+  if (Number.isFinite(duration) && duration > 0 && (start >= duration || end > duration + 0.5)) {
+    return { error: uiText('Seçilen aralık video süresini aşıyor.') };
+  }
+  return { range: { start, end } };
+}
+function openBrowserWhisperRangeSettings() {
+  closeBrowserToolbarMenus();
+  const modal = $('browserWhisperRangeDialog');
+  modal.dataset.videoUrl = currentBrowserYoutubeUrl();
+  const range = currentBrowserWhisperRange();
+  $('browserWhisperRangeEnabled').checked = !!range;
+  $('browserWhisperRangeStart').value = range ? pSecToTime(range.start) : '0:00';
+  $('browserWhisperRangeEnd').value = range ? pSecToTime(range.end) : pSecToTime(Math.min(600, (!player.browserAdPlaying && Number(player.browserDuration)) || 600));
+  $('browserWhisperRangeError').textContent = '';
+  syncBrowserWhisperRangeFields();
+  openManagedModal(modal, $('browserWhisperRangeEnabled'), $('browserWhisperRangeSettings'));
+}
+function syncBrowserWhisperRangeFields() {
+  const disabled = !$('browserWhisperRangeEnabled').checked;
+  $('browserWhisperRangeStart').disabled = disabled;
+  $('browserWhisperRangeEnd').disabled = disabled;
+}
+function applyBrowserWhisperRangeSettings() {
+  const url = currentBrowserYoutubeUrl();
+  if (!url || url !== $('browserWhisperRangeDialog').dataset.videoUrl) {
+    $('browserWhisperRangeError').textContent = uiText('Önce bir YouTube videosu açın ve ayarları tekrar açın.');
+    return;
+  }
+  const result = validateBrowserWhisperRange($('browserWhisperRangeEnabled').checked,
+    $('browserWhisperRangeStart').value, $('browserWhisperRangeEnd').value, player.browserAdPlaying ? 0 : Number(player.browserDuration));
+  if (result.error) { $('browserWhisperRangeError').textContent = result.error; return; }
+  player.browserWhisperRange = { url, range: result.range };
+  closeManagedModal($('browserWhisperRangeDialog'));
+  setBrowserSignal(uiText(result.range ? 'Whisper ve çeviri seçilen zaman aralığını işleyecek.' : 'Whisper ve çeviri videonun tamamını işleyecek.'), true);
+}
+$('browserWhisperRangeSettings')?.addEventListener('click', openBrowserWhisperRangeSettings);
+$('browserWhisperRangeEnabled')?.addEventListener('change', syncBrowserWhisperRangeFields);
+$('browserWhisperRangeApply')?.addEventListener('click', applyBrowserWhisperRangeSettings);
+$$('[data-whisper-range-close]').forEach(button => button.addEventListener('click', () => closeManagedModal($('browserWhisperRangeDialog'))));
 // PLAYER_END
+
+$('stHomeOpenVideo')?.addEventListener('click', () => $('playerPickVideo')?.click());
+$('stHomeOpenUrl')?.addEventListener('click', () => $('stSearchInput')?.focus());
+$('stHomeOpenLibrary')?.addEventListener('click', () => { setPlayerSidebarCollapsed(false); setSideTab('library', { focusContent: true }); });
+
+// Loopback endpoints can run without credentials; remote services still need a key.
+function translationEndpointReady(apiKey, endpoint) {
+  if (String(apiKey || '').trim()) return true;
+  try {
+    const url = new URL(String(endpoint || ''));
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+      && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  } catch (_) { return false; }
+}

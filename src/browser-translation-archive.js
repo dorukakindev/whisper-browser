@@ -228,9 +228,11 @@ class BrowserTranslationArchive {
   _saveIndex(entry) {
     const index = this._readIndex();
     const previous = index.entries.find((item) => item.id === entry.id);
-    index.entries = [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT);
+    const next = { ...index,
+      entries: [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT) };
     this.ensure();
-    atomicWriteFileSync(this.indexPath, `${JSON.stringify(index, null, 2)}\n`, { io: this.fs });
+    atomicWriteFileSync(this.indexPath, `${JSON.stringify(next, null, 2)}\n`, { io: this.fs });
+    this.index = next;
     // Index atomik olarak yeni revizyona gectikten sonra yalniz ayni mantiksal
     // kaydin eski dosyalarini ve yalniz arsiv kokunun icinde sil.
     for (const field of ['jsonPath', 'displayPath']) {

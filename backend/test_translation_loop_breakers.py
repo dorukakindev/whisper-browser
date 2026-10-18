@@ -19,6 +19,9 @@ import os
 import sys
 import types
 import unittest
+from unittest.mock import patch
+import concurrent.futures
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -85,6 +88,30 @@ def run(entries, **args):
 
 
 class LoopBreakerTests(unittest.TestCase):
+    def test_slow_provider_reports_wait_without_extra_requests(self):
+        def slow_reply(payload):
+            time.sleep(0.06)
+            return good_reply(payload)
+
+        calls = install_provider(slow_reply)
+        events = []
+        real_wait = concurrent.futures.wait
+
+        def short_wait(futures, timeout=None, **kw):
+            return real_wait(futures, timeout=0.01 if timeout else timeout, **kw)
+
+        with patch.object(T, "emit", side_effect=lambda kind, **kw: events.append((kind, kw))), \
+                patch.object(concurrent.futures, "wait", side_effect=short_wait):
+            status, _ = run(entries_for(60), translate_workers=2)
+        waiting = [e for kind, e in events if kind == "llm_progress" and e.get("waiting")]
+        self.assertGreater(len(waiting), 2)
+        self.assertEqual(waiting[0]["done"], 0)
+        self.assertEqual(waiting[0]["percent"], 0)
+        self.assertTrue(any(e["done"] > 0 for e in waiting), "parallel batches never emitted heartbeat")
+        self.assertTrue(all(e["total"] == 60 and e["elapsed"] >= 0 for e in waiting))
+        self.assertEqual(len(calls), 3, "heartbeat created additional provider calls")
+        self.assertEqual(len(status["completed"]), 60)
+
     def test_systemic_failure_stops_main_packet_loop(self):
         calls = install_provider(lambda payload: {})   # her paket geçersiz
         status, warnings = run(entries_for(400))

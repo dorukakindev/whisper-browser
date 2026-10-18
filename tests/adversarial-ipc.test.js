@@ -270,7 +270,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       // transcribe:start başlatma yarışı koruması (R51-28/29): authorize
       // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
-      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubService: { running: () => false },
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       // transcribe:start spawn'dan önce backend/transcribe.py varlığını kontrol
       // eder (R317) — sahte appDir'a stub betik dosyası konur.
@@ -327,6 +327,21 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     assert.equal(emitted.at(-1).queueItemId, 11);
     assert.equal(emitted.at(-1).traceback, undefined);
     spawned[1].emit('close', 1);
+    let releaseProbe;
+    sandbox.resolveFfTool = () => 'ffprobe';
+    sandbox.probeCommand = () => new Promise(resolve => { releaseProbe = resolve; });
+    sandbox.diskFreeBytes = () => Infinity;
+    const pendingStart = sandbox.start({}, { input: 'fake.mp4' });
+    await new Promise(setImmediate);
+    assert.equal(sandbox.jobStarting, true, 'preflight must retain the start lock');
+    assert.equal((await sandbox.start({}, { input: 'second.mp4' })).busy, true);
+    sandbox.ipcMain = { handle: (_name, fn) => { sandbox.cancel = fn; } };
+    vm.runInContext(handlers.get('transcribe:cancel'), sandbox);
+    assert.equal((await sandbox.cancel({})).deferred, true);
+    releaseProbe('10');
+    assert.equal((await pendingStart).cancelled, true);
+    assert.equal(spawned.length, 2, 'cancelled preflight must never spawn');
+    assert.equal(sandbox.jobStarting, false);
   });
   await test('R58-08: explain işi altyazı girdisini medya yetkilendiricisine göndermez', async () => {
     // askExplain() player.subPath'i opts.input yapar; .srt medya
@@ -335,7 +350,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const context = {
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
-      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0,
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubService: { running: () => false },
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       // transcribe.py varlık kontrolü (R317) depo kökünden geçer.
       app: { getAppPath: () => path.join(__dirname, '..'), getPath: () => os.tmpdir() }, path, Buffer, fs,
