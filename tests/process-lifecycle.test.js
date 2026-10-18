@@ -82,30 +82,69 @@ test('POSIX: pid yoksa grup-kill atlanır', () => {
   assert.deepEqual(f.signals, ['SIGKILL']);
 });
 
-// Canlı doğrulama: detached grubun torun süreci iptalde yetim kalmaz.
-test('CANLI: detached grup-kill python torununu öldürür', () => {
-  const { spawnSync, execSync } = require('child_process');
-  const proc = require('child_process').spawn('bash', ['-c',
-    'sleep 300 & echo $! > /tmp/devin-m29-grandchild.pid; wait'], { detached: true });
-  const pid = proc.pid;
-  // Torunun başlaması için kısa bekleme
-  const started = Date.now();
-  while (Date.now() - started < 1500) {
-    try { require('fs').readFileSync('/tmp/devin-m29-grandchild.pid'); break; }
-    catch (_) { spawnSync('sleep', ['0.05']); }
-  }
-  terminateProcessTree(proc, { spawn: () => { throw new Error('no taskkill'); }, platform: 'linux' });
-  spawnSync('sleep', ['0.2']);
-  let grandchildAlive = true;
+// Real parent/grandchild probe uses the host platform, including taskkill on Windows.
+async function realTreeTest() {
+  const { spawn } = require('child_process');
+  const parentScript = `
+    const child = require('child_process').spawn(process.execPath,
+      ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+    child.once('spawn', () => console.log(child.pid));
+    child.once('error', error => { throw error; });
+    setInterval(() => {}, 1000);
+  `;
+  const parent = spawn(process.execPath, ['-e', parentScript], {
+    detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true,
+  });
+  let grandchild;
+  const closed = new Promise(resolve => parent.once('close', resolve));
+  const bounded = async promise => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Process-tree fixture timed out')), 10000);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const alive = pid => {
+    try {
+      process.kill(pid, 0);
+      // A killed Linux orphan can briefly remain as an inert zombie until reaped.
+      if (process.platform === 'linux'
+          && /\)\s+Z\b/.test(require('fs').readFileSync(`/proc/${pid}/stat`, 'utf8'))) return false;
+      return true;
+    } catch (error) {
+      if (['ESRCH', 'ENOENT'].includes(error.code)) return false;
+      throw error;
+    }
+  };
   try {
-    const gp = Number(require('fs').readFileSync('/tmp/devin-m29-grandchild.pid', 'utf8').trim());
-    process.kill(gp, 0);
-    const comm = require('fs').readFileSync(`/proc/${gp}/comm`, 'utf8').trim();
-    grandchildAlive = comm === 'sleep';
-  } catch (_) { grandchildAlive = false; }
-  try { process.kill(-pid, 0); } catch (_) {}
-  assert.equal(grandchildAlive, false, 'torun süreç yetim kalmamalı');
-  require('fs').rmSync('/tmp/devin-m29-grandchild.pid', { force: true });
-});
-console.log(`process-lifecycle: ${passed} test`);
-
+    await bounded(new Promise((resolve, reject) => {
+      let output = '';
+      parent.once('error', reject);
+      parent.stdout.on('data', chunk => {
+        output += chunk.toString();
+        if (!output.includes('\n')) return;
+        grandchild = Number(output.trim());
+        if (!Number.isSafeInteger(grandchild) || grandchild <= 0) reject(new Error('Invalid fixture PID'));
+        else resolve();
+      });
+    }));
+    assert.equal(alive(grandchild), true, 'grandchild must exist before cancellation');
+    terminateProcessTree(parent, { spawn });
+    await bounded(closed);
+    const deadline = Date.now() + 3000;
+    while (alive(grandchild) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(alive(grandchild), false, 'grandchild must not survive cancellation');
+    passed++;
+    console.log('  PASS  real host-platform parent/grandchild cancellation');
+  } finally {
+    terminateProcessTree(parent, { spawn });
+    if (parent.exitCode == null && parent.signalCode == null) parent.kill('SIGKILL');
+    if (grandchild && alive(grandchild)) {
+      try { process.kill(grandchild, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+    await bounded(closed);
+  }
+}
+realTreeTest().then(() => console.log(`process-lifecycle: ${passed} test`))
+  .catch(error => { console.error(error); process.exitCode = 1; });
