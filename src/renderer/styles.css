@@ -7112,6 +7112,8 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   --bg-sunken: var(--st-tv-rail);
   --bg-card: var(--st-tv-surface);
   --bg-elev: var(--st-tv-surface-2);
+  --bg-1: var(--st-tv-bg);
+  --accent-soft: var(--st-tv-surface-2);
   --fg: var(--st-tv-text);
   --muted: var(--st-tv-muted);
   --border: var(--st-tv-line);

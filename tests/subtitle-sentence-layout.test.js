@@ -91,7 +91,7 @@ async function run() {
   for (const fixture of fixtures) {
     const input = fixture.entries.map(([start, end, text], id) => ({ id: String(id), start, end, text }));
     const before = JSON.stringify(input);
-    assert.deepEqual(assembleCueSentences(input).map((s) => s.cueIds.map(Number)), fixture.groups, fixture.name);
+    assert.deepEqual(assembleCueSentences(input).map((s) => s.cueIds.map(Number)), fixture.schedulerGroups || fixture.groups, fixture.name);
     assert.equal(JSON.stringify(input), before, 'kaynak değişti');
   }
   assert.equal(assembleCueSentences(cues.map((c, i) => ({ ...c, speaker: i === 0 ? 'A' : 'B' }))).length, 2);

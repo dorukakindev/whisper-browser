@@ -657,9 +657,15 @@ test('bozuk ve yarım import, mevcut ayar dosyasını değiştirmeden başarıs�
 
 test('R51-08: içe aktarılan clearedSecretFields kasa anahtarını gizleyemez', () => {
   const existing = safeSettings();
+  // Keep endpoint identity constant: an actual endpoint change must clear
+  // local keys, independently of an untrusted imported clear-field list.
+  const endpoints = Object.fromEntries(['translate', 'llm', 'manga'].map(group => [group, {
+    endpointPreset: existing[group].endpointPreset, customBaseUrl: existing[group].customBaseUrl,
+  }]));
   // Kasa anahtarının yerel kayıt yolundaki hali: publicSettings sır içermez,
   // mevcut ayarlar anahtarı taşır. İçe aktarılan dosya silme işareti gönderiyor.
   const hostile = JSON.stringify({
+    ...endpoints,
     glossary: ['x'],
     clearedSecretFields: ['translate.apiKey', 'manga.apiKey', 'llm.apiKey', 'hfToken'],
   });
@@ -674,7 +680,7 @@ test('R51-08: içe aktarılan clearedSecretFields kasa anahtarını gizleyemez',
   // v3 yedek zarfı içinde de aynı koruma
   const bundledHostile = JSON.stringify({
     backupVersion: 3,
-    settings: { clearedSecretFields: ['translate.apiKey'] },
+    settings: { ...endpoints, clearedSecretFields: ['translate.apiKey'] },
   });
   const bundledImported = parseImportText(bundledHostile, existing);
   assert.strictEqual(bundledImported.settings.clearedSecretFields, undefined,

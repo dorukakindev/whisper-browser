@@ -8,7 +8,7 @@ function finiteNumber(value, fallback = 0) {
 }
 
 function normalizeCues(rawCues) {
-  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
+  const normalized = (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
     const start = Number(cue?.start);
     const end = Number(cue?.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
@@ -20,9 +20,21 @@ function normalizeCues(rawCues) {
       speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
       protected: Boolean(cue?.protected) || protectedCue(cue || {}),
     };
-  }).filter((cue) => cue && cue.text && Number.isFinite(cue.end * 1000)
-    && Math.round(cue.end * 1000) > Math.round(cue.start * 1000))
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+  });
+  const valid = [];
+  let barrier = false;
+  for (const cue of normalized) {
+    if (!cue || !cue.text || !Number.isFinite(cue.end * 1000)
+        || Math.round(cue.end * 1000) <= Math.round(cue.start * 1000)) {
+      if (valid.length) valid[valid.length - 1].protected = true;
+      barrier = true;
+      continue;
+    }
+    if (barrier) cue.protected = true;
+    barrier = false;
+    valid.push(cue);
+  }
+  return valid.sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 function sentenceIdFor(cues) {

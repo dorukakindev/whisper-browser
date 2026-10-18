@@ -20,6 +20,7 @@ birleştiremez. Üç yol var:
 """
 
 import argparse
+import uuid
 import errno as _errno
 import json
 import os
@@ -384,15 +385,11 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
         ext = ".mp4"
     out_path = outdir / f"{name}{ext}"
 
-    # Eski kırık tmp dosyalarını süpür (kill -f ile ölen işler kalıntı bırakır)
-    for leftover in outdir.glob("*.invtmp-*"):
-        try:
-            leftover.unlink()
-        except OSError:
-            pass
-
-    video_tmp = outdir / f"{name}.invtmp-video"
-    audio_tmp = outdir / f"{name}.invtmp-audio"
+    # Only this invocation's files may be removed; another download can still
+    # be writing an invtmp file in the same output directory.
+    token = uuid.uuid4().hex
+    video_tmp = outdir / f"{name}.invtmp-{token}-video"
+    audio_tmp = outdir / f"{name}.invtmp-{token}-audio"
 
     totals = [0, 0]
     gots = [0, 0]

@@ -3,7 +3,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 const { normalizeProviderModelProfiles, serializeProviderModelProfiles } = require('./provider-model-profiles');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
-const { renameSyncResilient } = require('./fsync-utils');
+const { renameSyncResilient, fsyncFile, fsyncDirectory } = require('./fsync-utils');
 
 const SETTINGS_VERSION = 3;
 const BACKUP_VERSION = 3;
@@ -548,6 +548,23 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   } else if (!allowSecrets && typeof existingSettings.hfToken === 'string') {
     clean.hfToken = existingSettings.hfToken;
   }
+  if (!allowSecrets) {
+    // This list is derived locally, never trusted from an imported backup.
+    // Otherwise the vault would restore an old key beside a new endpoint.
+    const cleared = new Set((Array.isArray(existingSettings.clearedSecretFields) ? existingSettings.clearedSecretFields : [])
+      .filter((field) => SECRET_FIELD_PATHS.includes(field)));
+    for (const [group, changed] of [
+      ['translate', cleanTranslateIdentity !== existingTranslateIdentity],
+      ['llm', endpointIdentity(clean.llm) !== endpointIdentity(existingSettings.llm)],
+      ['manga', endpointIdentity(clean.manga, mangaOpts(cleanTranslateIdentity))
+        !== endpointIdentity(existingSettings.manga, mangaOpts(existingTranslateIdentity))],
+    ]) {
+      if (changed) for (const field of SECRET_FIELD_PATHS) {
+        if (field.startsWith(`${group}.`)) cleared.add(field);
+      }
+    }
+    if (cleared.size) clean.clearedSecretFields = [...cleared];
+  }
   return clean;
 }
 
@@ -765,9 +782,9 @@ function recoverJsonTransaction(journalPath, fsImpl = fs) {
   assertSafeJsonFile(journalPath, fsImpl, { mustExist: true });
   let journal;
   try { journal = JSON.parse(fsImpl.readFileSync(journalPath, 'utf8')); } catch (_) {
-    // Commit, günlük tamamen yazıldıktan sonra başlar. Yarım günlük varsa
-    // hedeflere henüz dokunulmamıştır; mevcut ayarı okuyabilmek için günlüğü kaldır.
-    try { fsImpl.unlinkSync(journalPath); } catch (_) {}
+    // Preserve malformed recovery evidence instead of deleting it. New writes
+    // flush the journal before any target rename starts.
+    renameSyncResilient(fsImpl, journalPath, `${journalPath}.corrupt-${Date.now()}`);
     return false;
   }
   validateTransactionJournal(journal, journalPath, fsImpl);
@@ -837,12 +854,15 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
   try {
     for (const record of records) {
       fsImpl.writeFileSync(record.tmp, record.serialized, { encoding: 'utf8', flag: 'wx' });
+      fsyncFile(record.tmp, fsImpl);
     }
     fsImpl.writeFileSync(journalPath, JSON.stringify({
       version: 1,
       marker,
       records: records.map(({ filePath, tmp, backup, existed }) => ({ filePath, tmp, backup, existed })),
     }), { encoding: 'utf8', flag: 'wx' });
+    fsyncFile(journalPath, fsImpl);
+    fsyncDirectory(path.dirname(journalPath), fsImpl);
     for (const record of records) {
       if (record.existed) {
         renameSyncResilient(fsImpl, record.filePath, record.backup);
@@ -851,7 +871,10 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
       renameSyncResilient(fsImpl, record.tmp, record.filePath);
       record.installed = true;
     }
+    fsyncDirectory(path.dirname(journalPath), fsImpl);
     fsImpl.writeFileSync(marker, 'committed', { encoding: 'utf8', flag: 'wx' });
+    fsyncFile(marker, fsImpl);
+    fsyncDirectory(path.dirname(journalPath), fsImpl);
   } catch (error) {
     let rollbackComplete = true;
     for (const record of [...records].reverse()) {

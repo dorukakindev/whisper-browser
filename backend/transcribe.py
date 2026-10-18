@@ -3754,7 +3754,7 @@ def file_looks_turkish(entries, limit=40):
         if len(str(row[2] or "").strip()) >= 4
     ][:max(3, int(limit))]
     if len(lines) < 3:
-        return False
+        return bool(lines) and all(_line_looks_turkish(line) for line in lines)
     hits = sum(1 for line in lines if _line_looks_turkish(line))
     return hits / len(lines) >= 0.6
 
@@ -5739,6 +5739,9 @@ def merge_short_entries(entries, min_chars=16, min_dur=1.0, max_gap=0.6,
         # Boyle bir blok, onceki cumle TAMAMLANMIS olsa bile komsusuyla
         # birlestirilir - iki kisa cumleyi tek blokta gostermek standart
         # altyazi pratigi ve okunabilirligi artiriyor.
+        if txt.lstrip().startswith(("-", "—", "–", "[", "(", "♪", "*")) or prev[2].lstrip().startswith(("-", "—", "–", "[", "(", "♪", "*")):
+            out.append([s, e, txt])
+            continue
         flash = (e - s) < flash_dur
         prev_flash = (prev[1] - prev[0]) < flash_dur
         prev_ends_sentence = text_ends_sentence(prev[2])
@@ -8708,7 +8711,7 @@ def translate_existing_subtitle(args):
         warn_list.append(message)
         translation_status.update(
             completed=list(range(len(entries))), failed=[], failedReasons={},
-            lastError="same_language", skipped="same_language")
+            unchanged=list(range(len(entries))), lastError="same_language", skipped="same_language")
         translated = [(entry[0], entry[1],
                        existing_for(entry, index) or entry[2])
                       for index, entry in enumerate(entries)]
@@ -8765,6 +8768,10 @@ def translate_existing_subtitle(args):
         target_lang=target,
     )
     untranslated_indices = set(translation_report["translation_untranslated_indices"])
+    if same_language:
+        untranslated_indices.clear()
+        translation_report.update(translation_untranslated=0, translation_untranslated_indices=[],
+                                  translation_issue_indices=[], translation_issues=0)
     empty_translation_indices = set(translation_report["translation_empty_indices"])
     timing_mismatch_indices = set(translation_report["translation_timing_mismatch_indices"])
     # Bilinçli değişmeden kalan satırlar kalite 'başarısız' sayılmaz

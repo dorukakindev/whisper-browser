@@ -166,18 +166,25 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   if (turkishTarget) {
     // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
     // pairs; an altered minute remains a blocking mismatch.
-    const clocks = [...sourceForNumbers.matchAll(/(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)/gu)];
+    const clockPattern = /(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu;
+    const clockHour = match => match[3] && Number(match[1]) >= 1 && Number(match[1]) <= 12
+      ? Number(match[1]) % 12 + (match[3].toLowerCase() === 'p' ? 12 : 0) : Number(match[1]);
+    const clocks = [...sourceForNumbers.matchAll(clockPattern)];
     for (const clock of clocks) {
-      const hour = Number(clock[1]);
-      const equivalent = new RegExp(`(?<!\\d)0?${hour}[:.]${clock[2]}(?!\\d)`, 'u');
-      if (equivalent.test(targetForNumbers)) { targetForNumbers = targetForNumbers.replace(equivalent, ' '); continue; }
+      const hour = clockHour(clock);
+      const equivalent = [...targetForNumbers.matchAll(/(?<![\d:.])(\d{1,2})[:.]([0-5]\d)(?![\d:.])(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu)]
+        .find(match => clockHour(match) === hour && match[2] === clock[2]);
+      if (equivalent) {
+        targetForNumbers = targetForNumbers.slice(0, equivalent.index) + ' ' + targetForNumbers.slice(equivalent.index + equivalent[0].length);
+        continue;
+      }
       // toLocaleLowerCase('tr') uzunluğu korur (İ→i, I→ı); eşleşme konumu
       // özgün metinde de geçerlidir. JS /i bayrağı 'İ'yi 'i' ile eşlemez.
       const found = turkishClockMatch(targetForNumbers.toLocaleLowerCase('tr'), hour, Number(clock[2]));
       if (found) targetForNumbers = `${targetForNumbers.slice(0, found.index)} ${targetForNumbers.slice(found.end)}`;
       else issues.push('number_mismatch');
     }
-    sourceForNumbers = sourceForNumbers.replace(/(?<!\d)\d{1,2}:[0-5]\d(?!\d)/gu, ' ');
+    sourceForNumbers = sourceForNumbers.replace(clockPattern, ' ');
   }
   const sourceNumbers = numberTokens(sourceForNumbers);
   const translatedNumbers = numberTokens(targetForNumbers);

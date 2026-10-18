@@ -2548,7 +2548,7 @@ function notifySubtitleFileChanged(fullPath) {
     const stat = fs.statSync(fullPath);
     if (!mainWindow || mainWindow.isDestroyed()) return;
     // İçerik olayla gönderilir; çok büyük dosyada renderer ham okumaya düşer.
-    const content = stat.size <= 4 * 1024 * 1024 ? fs.readFileSync(fullPath, 'utf-8') : null;
+    const content = stat.size <= 4 * 1024 * 1024 ? decodeSubtitleBuffer(fs.readFileSync(fullPath)).text : null;
     mainWindow.webContents.send('subtitle:fileChanged', {
       path: fullPath, mtimeMs: stat.mtimeMs, size: stat.size, content,
     });
@@ -2899,7 +2899,11 @@ function writeQueueState(raw) {
   const target = queueStatePath();
   const snapshot = queueSnapshotForDisk(raw);
   try {
-    if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+    if (fs.existsSync(target)) {
+      let valid = false;
+      try { const parsed = JSON.parse(fs.readFileSync(target, 'utf8')); valid = !!parsed && typeof parsed === 'object' && !Array.isArray(parsed); } catch (_) {}
+      if (valid) fs.copyFileSync(target, `${target}.bak`);
+    }
     writeJsonAtomic(target, snapshot);
     return { ok: true, snapshot };
   } catch (error) {
@@ -3351,7 +3355,11 @@ function loadHistory() {
 function saveHistory(list, options = {}) {
   try {
     const target = historyPath();
-    if (!options.mirrorBackup && fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+    if (!options.mirrorBackup && fs.existsSync(target)) {
+      let valid = false;
+      try { valid = Array.isArray(JSON.parse(fs.readFileSync(target, 'utf8'))); } catch (_) {}
+      if (valid) fs.copyFileSync(target, `${target}.bak`);
+    }
     // Silme yazımlarında eski kayıtlar .bak'ta kalmasın (R83-34): güncel
     // liste önce yedeğe yazılır — ayna başarısızsa ana dosya hiç değişmez,
     // sahte başarı ve bellek/disk ayrışması olmaz (R86-03).
@@ -19795,7 +19803,9 @@ ipcMain.handle('settings:import', async (event) => {
     if (imported.settings) {
       entries.push({
         filePath: settingsPath(),
-        value: getSettingsSecretStore().forExport(imported.settings),
+        value: { ...getSettingsSecretStore().forExport(imported.settings),
+          ...(imported.settings.clearedSecretFields?.length
+            ? { clearedSecretFields: imported.settings.clearedSecretFields } : {}) },
       });
     }
     let importedBrowserPlaces = null;
@@ -20441,9 +20451,11 @@ let burninStartPending = false;
 ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob || burninStartPending) return { ok: false, error: 'Gömme zaten çalışıyor.' };
-  if (dubService.running() || activeJob || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (dubService.running() || activeJob || jobStarting || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
+  burninStartPending = true;
+  try {
   try {
     videoPath = await authorizeMediaFile(videoPath);
     subPath = await authorizeSubtitleFile(subPath);
@@ -20485,16 +20497,14 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     return { ok: false, error: `Altyazı gömme için hazırlanamadı: ${error.message}` };
   }
 
-  // İlk await öncesi kilidi al; iki IPC çağrısı aynı preflight penceresine giremesin.
-  burninStartPending = true;
+  // Preflight lock was taken before path authorization and remains held until
+  // the process owns the job or this handler exits through its finally block.
   // Toplam süreyi al (ilerleme yüzdesi için)
   let totalSec = 0;
   try {
     const probe = await probeCommand(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', videoPath]);
     totalSec = parseFloat(probe) || 0;
   } catch (_) {}
-  burninStartPending = false;
-
   const vf = ffSubtitlesArg(filterSubPath);
   const args = ['-y', '-i', videoPath, '-vf', vf, '-map', '0:v:0', '-map', '0:a?',
     '-map_metadata', '0', '-map_chapters', '0', ...burninAudioArgs(videoPath, outPath)];
@@ -20636,6 +20646,7 @@ ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = ''
     finish(code === 0, errTail.trim() || `ffmpeg çıkış kodu ${code}`);
   });
   return { ok: true };
+  } finally { burninStartPending = false; }
 });
 
 ipcMain.handle('burnin:cancel', (event) => {
