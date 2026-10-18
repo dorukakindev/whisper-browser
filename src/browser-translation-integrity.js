@@ -9,12 +9,32 @@ function cueIdentity(cue, index) {
   return normalizedId(value === undefined || value === null || value === '' ? 'index:' + index : value);
 }
 
+function sourceCueRows(source) {
+  const counts = new Map();
+  for (const [index, cue] of source.entries()) {
+    const id = cueIdentity(cue, index); counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const reserved = new Set(counts.keys());
+  return source.map((cue, index) => {
+    const originalId = cueIdentity(cue, index);
+    let id = originalId;
+    if (counts.get(id) > 1) {
+      id = `duplicate:${index}:${originalId}`;
+      while (reserved.has(id)) id = ':' + id;
+      reserved.add(id);
+    }
+    return { id, originalId, start: Number(cue?.start), end: Number(cue?.end) };
+  });
+}
+
 function cueIdsForStage(values, source) {
   const rows = values instanceof Map ? [...values.values()] : (Array.isArray(values) ? values : []);
-  const sourceRows = source.map((cue, index) => ({
-    id: cueIdentity(cue, index), start: Number(cue?.start), end: Number(cue?.end),
-  }));
-  const sourceIds = new Set(sourceRows.map((row) => row.id));
+  const sourceRows = sourceCueRows(source);
+  const byOriginalId = new Map();
+  for (const row of sourceRows) {
+    if (!byOriginalId.has(row.originalId)) byOriginalId.set(row.originalId, []);
+    byOriginalId.get(row.originalId).push(row);
+  }
   const ids = new Set();
   for (const [index, cue] of rows.entries()) {
     if (typeof cue?.text !== 'string' || !cue.text.trim()) continue;
@@ -24,17 +44,24 @@ function cueIdsForStage(values, source) {
       let covered = false;
       for (const value of cue.coveredCueIds) {
         const coveredId = normalizedId(value);
-        if (coveredId && sourceIds.has(coveredId)) { ids.add(coveredId); covered = true; }
+        const candidates = byOriginalId.get(coveredId) || [];
+        for (const row of candidates) {
+          if (candidates.length === 1 || (Number.isFinite(Number(cue.start)) && Number.isFinite(Number(cue.end))
+              && row.start >= Number(cue.start) - .05 && row.end <= Number(cue.end) + .1)) {
+            ids.add(row.id); covered = true;
+          }
+        }
       }
       if (covered) continue;
     }
     const explicit = cue?.cueId ?? cue?.id;
     const explicitId = normalizedId(explicit);
-    if (explicitId && sourceIds.has(explicitId)) { ids.add(explicitId); continue; }
+    const candidates = explicitId ? byOriginalId.get(explicitId) || [] : [];
+    if (candidates.length === 1) { ids.add(candidates[0].id); continue; }
     const start = Number(cue?.sourceStart ?? cue?.start);
     const end = Number(cue?.sourceEnd ?? cue?.end);
     if (Number.isFinite(start)) {
-      const match = sourceRows.find((row) => !ids.has(row.id) && Number.isFinite(row.start)
+      const match = (candidates.length ? candidates : sourceRows).find((row) => !ids.has(row.id) && Number.isFinite(row.start)
         && Math.abs(row.start - start) <= .05
         && (!Number.isFinite(end) || !Number.isFinite(row.end) || Math.abs(row.end - end) <= .1));
       if (match) { ids.add(match.id); continue; }
@@ -58,7 +85,7 @@ function summarizeTranslationIntegrity({
   fileCues = null, fileCueIds = null, displayedCues = null, displayedCueIds = null,
 } = {}) {
   const source = Array.isArray(sourceCues) ? sourceCues : [];
-  const sourceIds = new Set(source.map(cueIdentity));
+  const sourceIds = new Set(sourceCueRows(source).map(row => row.id));
   const translatedIds = cueIdsForStage(results, source);
   const fileObserved = Array.isArray(fileCues) || fileCueIds instanceof Set || Array.isArray(fileCueIds);
   const displayObserved = Array.isArray(displayedCues)

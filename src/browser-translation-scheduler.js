@@ -635,6 +635,7 @@ class BrowserTranslationScheduler {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
           if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
           this.stats.cacheHits += 1;
+          if (generation === this.generation && !controller.signal.aborted) this.consecutiveQualityFailures = 0;
           return { ...decoded, cached: true };
         }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }

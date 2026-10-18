@@ -6,6 +6,8 @@ import re
 import sys
 from pathlib import Path
 from dub_timing import sentence_plan
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
+from subtitle_text import decode_subtitle_bytes
 
 TAG_RE = re.compile(r"<[^>]+>|\{[^}]*\}")
 TIME_RE = re.compile(
@@ -16,7 +18,7 @@ TIME_RE = re.compile(
 def parse_srt(path, source_bytes=None):
     """SRT -> [(start_ms, end_ms, temiz_metin)]."""
     data = Path(path).read_bytes() if source_bytes is None else source_bytes
-    text = data.decode("utf-8-sig", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+    text = decode_subtitle_bytes(data)[0].replace("\r\n", "\n").replace("\r", "\n")
     cues = []
     for match in TIME_RE.finditer(text):
         fields = match.groups()
@@ -42,6 +44,8 @@ def apply_edits(groups, document, source_hash):
     if document.get('sourceHash') != source_hash:
         raise ValueError('SRT degisti; dublaj metnini yeniden hazirlayin.')
     edits = document.get('edits', {})
+    if set(edits) - {','.join(map(str, g['source_ids'])) for g in groups}:
+        print('DUB_WARNING sample_edits_unused', flush=True)
     # A sample uses only the first cues; remaining full-plan edits are ignored.
     for g in groups:
         key = ','.join(map(str, g['source_ids']))

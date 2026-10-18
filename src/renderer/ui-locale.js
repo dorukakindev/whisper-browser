@@ -94,6 +94,7 @@
     ['Türkçe SRT seçin. VoxCPM2 kayıtlı sesinizle cümle grupları halinde dublaj üretir.', 'Choose a Turkish SRT. VoxCPM2 generates sentence groups using your saved voice.'],
     ['Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.', 'Music is a separate layer; Use audio plays it alongside the dub.'],
     ['Arka plan ayırma başarısız; yalnız dublaj üretilecek.', 'Background separation failed; generating voice only.'],
+    ['Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.', 'Some reviewed edits were not applied to this short sample; generate the full audio to hear them all.'],
     ['Konuşma süreye sığmazsa', 'When speech does not fit'],
     ['Konuşmayı tam tut; videoyu yavaşlat', 'Keep full speech; slow down video'],
     ['Video sabit; sığmayan konuşmayı kes', 'Keep video speed; trim excess speech'],

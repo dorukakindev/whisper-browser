@@ -395,6 +395,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       let pending = '';
       function line(value) {
         s.tail = (s.tail + '\n' + value).slice(-6000);
+        if (value === 'DUB_WARNING sample_edits_unused') emit(s, 'warning', {
+          text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
         if (progress) { s.progress = { done: Number(progress[1]), total: Number(progress[2]) }; emit(s, 'progress', s.progress); }
         else if (/^Plan:/.test(value)) emit(s, 'status', { text: 'Cümle grupları hazır' });

@@ -6,6 +6,7 @@ const path = require('path');
 const { cuesToSrt, normalizeCues } = require('./browser-asset-store');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const { safePlaceUrl } = require('./browser-place-url');
 
 const ARCHIVE_VERSION = 1;
 const INDEX_LIMIT = 5000;
@@ -27,11 +28,11 @@ function normalizeText(value) {
 
 function canonicalPageUrl(raw) {
   try {
-    const url = new URL(String(raw || '').trim());
+    const url = new URL(safePlaceUrl(String(raw || '').trim()));
     if (!['http:', 'https:'].includes(url.protocol)) return '';
     url.username = '';
     url.password = '';
-    url.hash = '';
+    if (!/^#!?\//.test(url.hash)) url.hash = '';
     const kept = [...url.searchParams.entries()]
       .filter(([key]) => !TRACKING_QUERY.test(key) && !isSensitiveQuery(key))
       .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
