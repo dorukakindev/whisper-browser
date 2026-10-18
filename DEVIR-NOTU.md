@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0116.md](docs/devir/2026-10-19-0116.md) — Rapor476: Kurtarma ve süreç yaşamında 10 düzeltme
+Güncel çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
+Önceki çalışma: [docs/devir/2026-10-19-0116.md](docs/devir/2026-10-19-0116.md) — Rapor476: Kurtarma ve süreç yaşamında 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0110.md](docs/devir/2026-10-19-0110.md) — Rapor475: İkinci geniş tur, 10 ayrı düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0104.md](docs/devir/2026-10-19-0104.md) — Rapor474: Geniş tarama, 10 doğrulanmış düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0101.md](docs/devir/2026-10-19-0101.md) — Rapor473: Eksik altyazı cache kayıtları
@@ -757,3 +758,5 @@ veri kaybı). Varlık ≠ doğruluk. Her zaman çalıştırarak doğrula.
 ## Silinmemesi gerekenler
 - `trial/tum-testler` — B grubunun 52 test dosyasının tek kaynağı.
 - `codex/whard-*`, `codex/wl-*` dalları — modüllerin kaynağı.
+
+Önceki çalışma: [docs/devir/2026-10-02-1432.md](docs/devir/2026-10-02-1432.md) — PR441 tarihsel devir notu
