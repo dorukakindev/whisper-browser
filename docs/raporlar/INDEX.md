@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 468 | [BROWSER_BUG_REPORT_468.md](BROWSER_BUG_REPORT_468.md) | Dublajda boşluklu SRT ayırıcıları, HTML karakter kodları ve kelime içi stil etiketleri |
 | 467 | [BROWSER_BUG_REPORT_467.md](BROWSER_BUG_REPORT_467.md) | Rapor465 doğrulaması: dublaj kodlaması, hash-route arşivi, cache kalite serisi, yinelenen cue kapsamı, tamamlama ve PDF sınırı |
 | 466 | [BROWSER_BUG_REPORT_466.md](BROWSER_BUG_REPORT_466.md) | Rapor463 doğrulaması: endpoint/kasa izolasyonu, çeviri kapıları, aynı-dil çıktı, TV kontrastı, burn-in ve disk dayanıklılığı |
 | 465 | [BROWSER_BUG_REPORT_465.md](BROWSER_BUG_REPORT_465.md) | 463/464'ten bağımsız 50 görevlik ikinci tarama: dublajda cp1254/UTF-16 SRT bozulması, hash-route arşiv çakışması, cache-hit kalite kesicisi, yinelenen cue kimliği, adres tamamlama ofseti, geçici indirme kalıntıları, örnek dublaj düzenlemeleri, PDF aralık sınırı |
