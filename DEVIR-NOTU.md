@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0445.md](docs/devir/2026-10-18-0445.md) — rapor458: Shadow medya keşfi ve Python ses testlerinin ana komuta dahil edilmesi
+Güncel çalışma: [docs/devir/2026-10-18-0500.md](docs/devir/2026-10-18-0500.md) — rapor459: Kod-değiştirmeyen 50+ çalıştırılabilir probe turu (canonical case, asset normalize diverjansı, sır-liste boşlukları)
+Önceki çalışma: [docs/devir/2026-10-18-0445.md](docs/devir/2026-10-18-0445.md) — rapor458: Shadow medya keşfi ve Python ses testlerinin ana komuta dahil edilmesi
 Önceki çalışma: [docs/devir/2026-10-18-0405.md](docs/devir/2026-10-18-0405.md) — rapor457: Oturum kimlikleri, active/split kurtarma ve başarısız import'ta sekmeleri koruma
 Önceki çalışma: [docs/devir/2026-10-18-0311.md](docs/devir/2026-10-18-0311.md) — rapor456: Başarısız arşiv indeksi, sıfır süreli cue ve asset SRT tutarlılığı
 Önceki çalışma: [docs/devir/2026-10-18-0306.md](docs/devir/2026-10-18-0306.md) — rapor455: Arka plan sesinde boş/geçici indirme ve bozuk WAV önbelleği doğrulaması
