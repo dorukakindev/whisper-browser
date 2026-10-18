@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 460 | [BROWSER_BUG_REPORT_460.md](BROWSER_BUG_REPORT_460.md) | Çakışan dublaj iptal istekleri ve background/TTS ortak SRT kopyası |
 | 459 | [BROWSER_BUG_REPORT_459.md](BROWSER_BUG_REPORT_459.md) | Kod-değiştirmeyen 50+ (57) çalıştırılabilir probe turu: watch-canonical case çakışması, asset normalize diverjansı, sır-liste boşlukları ve sağlam davranış teyitleri |
 | 458 | [BROWSER_BUG_REPORT_458.md](BROWSER_BUG_REPORT_458.md) | Shadow gözlemci sınırı sonrasında medya keşfi ve Python ses regresyonlarının ana test komutuna alınması |
 | 457 | [BROWSER_BUG_REPORT_457.md](BROWSER_BUG_REPORT_457.md) | Kurtarmada boş/uzun kimlikler, active/split eşlemesi ve places yazım hatasında mevcut sekmeleri koruma |
