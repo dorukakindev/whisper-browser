@@ -1,5 +1,6 @@
 """Model-free SRT plan and separate reviewed dubbing text."""
 import hashlib
+import html
 import json
 import math
 import re
@@ -19,6 +20,8 @@ def parse_srt(path, source_bytes=None):
     """SRT -> [(start_ms, end_ms, temiz_metin)]."""
     data = Path(path).read_bytes() if source_bytes is None else source_bytes
     text = decode_subtitle_bytes(data)[0].replace("\r\n", "\n").replace("\r", "\n")
+    # SRT separators may contain spaces/tabs from subtitle editors.
+    text = re.sub(r'(?m)^[ \t]+$', '', text)
     cues = []
     for match in TIME_RE.finditer(text):
         fields = match.groups()
@@ -33,7 +36,9 @@ def parse_srt(path, source_bytes=None):
         if block_end < 0:
             block_end = len(text)
         body = text[line_end:block_end]
-        body = TAG_RE.sub(" ", body)
+        # Line-break tags separate words; inline styling must not split them.
+        body = re.sub(r'<br\b[^>]*>', ' ', body, flags=re.I)
+        body = html.unescape(TAG_RE.sub('', body))
         body = re.sub(r"\s+", " ", body).strip()
         if body and end > start:
             cues.append((start, end, body))
