@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0302.md](docs/devir/2026-10-18-0302.md) — rapor454: Plan süreçleri, iptal yarışı ve aynı SRT içeriğinden hash doğrulaması
+Güncel çalışma: [docs/devir/2026-10-18-0306.md](docs/devir/2026-10-18-0306.md) — rapor455: Arka plan sesinde boş/geçici indirme ve bozuk WAV önbelleği doğrulaması
+Önceki çalışma: [docs/devir/2026-10-18-0302.md](docs/devir/2026-10-18-0302.md) — rapor454: Plan süreçleri, iptal yarışı ve aynı SRT içeriğinden hash doğrulaması
 Önceki çalışma: [docs/devir/2026-10-18-0252.md](docs/devir/2026-10-18-0252.md) — rapor453: Cache yazım yarışı, eski medya ve geciken ses işi yanıtları
 Önceki çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
 Önceki çalışma: [docs/devir/2026-10-17-1423.md](docs/devir/2026-10-17-1423.md) — rapor451: Kod-değiştirmeyen 50 görevlik çok derin bug taraması (npm test 11 dosya başarısız + doğrulanmış bulgular)
