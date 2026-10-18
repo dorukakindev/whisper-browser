@@ -19,7 +19,7 @@ import prepare_background as background
 
 
 class BackgroundCacheTests(unittest.TestCase):
-    def execute(self, root, source, *, download=None, invalid_generated=False, cues=None, interval=None, real_extraction=False):
+    def execute(self, root, source, *, download=None, invalid_generated=False, cues=None, interval=None, real_extraction=False, limit=None):
         root = Path(root)
         srt = root / 'Türkçe.srt'
         srt.write_text(cues or '1\n00:00:00,000 --> 00:00:02,000\nSpeech.\n\n', encoding='utf-8-sig')
@@ -66,10 +66,49 @@ class BackgroundCacheTests(unittest.TestCase):
                 '--ffmpeg', 'ffmpeg-fixture', '--download-python', 'python-fixture']
         if interval:
             argv += ['--start', str(interval[0]), '--end', str(interval[1])]
+        if limit is not None:
+            argv += ['--limit', str(limit)]
         with patch.object(sys, 'argv', argv), patch.object(background, 'run', side_effect=run), \
                 patch.dict(sys.modules, modules), patch.dict('os.environ'), redirect_stdout(io.StringIO()):
             background.main()
         return output, calls
+
+    def sample_cues(self):
+        return '\n\n'.join(f'{i+1}\n00:00:{2*i:02d},000 --> 00:00:{2*i+1:02d},000\nLine {i+1}.'
+                           for i in range(20)) + '\n\n'
+
+    def test_short_sample_only_separates_first_eleven_cues_and_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'video.mp4'
+            source.write_bytes(b'fixture')
+            _, calls = self.execute(root, source, cues=self.sample_cues(), limit=11)
+            self.assertEqual(float(calls[0][calls[0].index('-t') + 1]), 23)
+
+    def test_short_sample_applies_limit_after_selected_range(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'video.mp4'
+            source.write_bytes(b'fixture')
+            _, calls = self.execute(root, source, cues=self.sample_cues(), interval=(10, 38), limit=11)
+            self.assertEqual(float(calls[0][calls[0].index('-ss') + 1]), 10)
+            self.assertEqual(float(calls[0][calls[0].index('-t') + 1]), 23)
+
+    def test_short_sample_does_not_separate_an_interval_without_subtitles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'video.mp4'
+            source.write_bytes(b'fixture')
+            with self.assertRaises(ValueError):
+                self.execute(root, source, cues=self.sample_cues(), interval=(60, 80), limit=11)
+
+    def test_short_sample_tail_never_extends_past_selected_end(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'video.mp4'
+            source.write_bytes(b'fixture')
+            _, calls = self.execute(root, source, cues=self.sample_cues(), interval=(10, 30), limit=11)
+            self.assertEqual(float(calls[0][calls[0].index('-t') + 1]), 20)
 
     def test_empty_download_cache_does_not_skip_a_fresh_download(self):
         with tempfile.TemporaryDirectory() as directory:

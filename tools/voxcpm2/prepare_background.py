@@ -49,12 +49,23 @@ def main():
         p.add_argument('--'+name, required=True)
     p.add_argument('--start',type=float,default=0)
     p.add_argument('--end',type=float)
+    p.add_argument('--limit',type=int,default=0)
     args = p.parse_args()
     os.environ['PATH'] = str(Path(args.ffmpeg).parent) + os.pathsep + os.environ.get('PATH','')
     cues = parse_srt(args.srt)
     if not cues: raise ValueError('SRT bos.')
     end = args.end if args.end is not None else max(cue[1] for cue in cues)/1000+2
     if not math.isfinite(args.start) or not math.isfinite(end) or args.start < 0 or end <= args.start: raise ValueError('Gecersiz aralik.')
+    if args.limit < 0:
+        raise ValueError('Gecersiz ornek siniri.')
+    if args.limit:
+        # Match dubbing: apply the selected time range before taking the first
+        # sample cues. Do not run source separation for the entire video just
+        # to preview eleven subtitle lines. Preserve original-time alignment.
+        selected = [cue for cue in cues if cue[1] > args.start * 1000 and cue[0] < end * 1000][:args.limit]
+        if not selected:
+            raise ValueError('Secilen aralikta altyazi yok.')
+        end = min(end, max(cue[1] for cue in selected) / 1000 + 2)
     cache = Path(args.cache); cache.mkdir(parents=True,exist_ok=True)
     source = args.source
     remote = urlparse(source)

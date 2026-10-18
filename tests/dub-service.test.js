@@ -9,7 +9,7 @@ for (const name of ['altyazi_oku.py','kitap_ortak.py','arayuz.py','anlatici_ham.
 fs.writeFileSync(path.join(root,'dub-settings.json'), JSON.stringify({timingMode:'clip'}));
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
-let backgroundMode='ok', rejectPreparation, backgroundRange;
+let backgroundMode='ok', rejectPreparation, backgroundRange, backgroundLimit;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
@@ -17,8 +17,9 @@ const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[na
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds) => { assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   setRate: async request=>({ok:request.rate===.8}),
-  prepareBackground: async ({output,onProcess,range,status})=>{
+  prepareBackground: async ({output,onProcess,range,status,limit})=>{
     backgroundRange=range;
+    backgroundLimit=limit;
     status('separate_gpu');
     if (backgroundMode==='fail') { fs.writeFileSync(output,'incomplete'); fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial'); throw new Error('fixture separation failed'); }
     if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{fs.writeFileSync(output,'incomplete');fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial');rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
@@ -115,6 +116,7 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:Infinity})).ok,false);
     fs.unlinkSync(path.join(root,'dub-logs'));fs.mkdirSync(path.join(root,'dub-logs'));
     assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true,range:{start:600,end:1200}})).ok,true);
+    assert.equal(backgroundLimit, 0, 'full production must not inherit a sample limit');
     assert.deepEqual(backgroundRange,{start:600,end:1200},'background separation must receive only the selected ten minutes');
     assert.ok(events.some(e=>e.id==='adaptive'&&e.type==='status'&&e.text.includes('GPU (CUDA)')));
     const adaptiveOutput=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
@@ -157,6 +159,10 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     for (const suffix of ['-background.wav','-background.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Çıktı','voice-fallback'+suffix)),false);
     fs.writeFileSync(calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1],'audio');child.emit('close',0);
     assert.equal(events.at(-1).type,'done');assert.equal(events.at(-1).background,null);
+    backgroundMode='ok';
+    assert.equal((await call('dub:start',{id:'background-sample',srt,sample:true,keepBackground:true})).ok,true);
+    assert.equal(backgroundLimit, 11, 'background and voice must use the same sample cue limit');
+    child.emit('close',1);
     backgroundMode='hold';
     const preparing=call('dub:start',{id:'cancel-background',srt,keepBackground:true});
     await new Promise(resolve=>setImmediate(resolve));

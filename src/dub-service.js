@@ -371,7 +371,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           const backgroundFiles = [file, file.replace(/\.wav$/i, '.partial.wav')];
           claimArtifacts(s, backgroundFiles);
           s.backgroundFiles = backgroundFiles;
-          await prepareBackground({request,srt:inputSrt,range:s.range,output:file,
+          await prepareBackground({request,srt:inputSrt,range:s.range,limit:s.sample ? 11 : 0,output:file,
             onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:stage=>{
               if (stage === 'separate_gpu' || stage === 'separate_cpu') s.settings.backgroundDevice = stage.slice(9);

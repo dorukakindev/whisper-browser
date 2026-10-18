@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-function prepareBackground({source,srt,range,output,appRoot,userData,cacheDir,downloadPython,ffmpeg,
+function prepareBackground({source,srt,range,limit=0,output,appRoot,userData,cacheDir,downloadPython,ffmpeg,
   spawn,environment,onProcess,status,isCancelled}) {
   const python = path.join(appRoot,'backend','separator-venv','Scripts','python.exe');
   if (!fs.existsSync(python)) throw new Error('Arka plan ayırma ortamı eksik; install-browser-extras.bat dosyasını çalıştırın.');
@@ -11,6 +11,7 @@ function prepareBackground({source,srt,range,output,appRoot,userData,cacheDir,do
     '--source',source,'--srt',srt,'--output',output,'--models',path.join(appRoot,'backend','separator-models'),
     '--cache',cacheDir ? path.join(cacheDir,'Arka plan') : path.join(userData,'dub-background-cache'),'--ffmpeg',ffmpeg,'--download-python',downloadPython];
   if (range) args.push('--start',String(range.start),'--end',String(range.end));
+  if (limit) args.push('--limit',String(limit));
   const torchLib = path.join(appRoot,'backend','separator-venv','Lib','site-packages','torch','lib');
   const env = {...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8',PATH:torchLib+path.delimiter+(process.env.PATH || '')};
   for (const key of Object.keys(env)) if (key!=='PATH' && key.toLowerCase()==='path') delete env[key];

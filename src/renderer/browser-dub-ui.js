@@ -105,6 +105,7 @@
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
           || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
+      byId('browserDubOffset').value = '0';
       if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });
       updateLocal();
