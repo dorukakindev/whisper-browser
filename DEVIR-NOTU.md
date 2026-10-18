@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0051.md](docs/devir/2026-10-19-0051.md) — Rapor471: Anlamsal arama yanıt doğrulaması ve boyut sınırı
+Güncel çalışma: [docs/devir/2026-10-19-0102.md](docs/devir/2026-10-19-0102.md) — Rapor472: Medya pipe hata beklemesi
+Önceki çalışma: [docs/devir/2026-10-19-0051.md](docs/devir/2026-10-19-0051.md) — Rapor471: Anlamsal arama yanıt doğrulaması ve boyut sınırı
 Önceki çalışma: [docs/devir/2026-10-19-0007.md](docs/devir/2026-10-19-0007.md) — Rapor470: Kısa ve boş hedef altyazı kalite denetimi
 Önceki çalışma: [docs/devir/2026-10-13-0005.md](docs/devir/2026-10-13-0005.md) — rapor 406: tek geçişli oynatıcı işinde çeviri ilerlemesi görünmüyordu; llm_progress artık progressive işte de çubuğu besliyor
 Önceki çalışma: [docs/devir/2026-10-12-1850.md](docs/devir/2026-10-12-1850.md) — Claude v3 paketi: tek tıkta Whisper+çeviri, sayaç/verim çeviri döngü kesicileri (109→14 istek), scheduler otomatik-gevşek kesici, tasarım turu
