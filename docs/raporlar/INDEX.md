@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 463 | [BROWSER_BUG_REPORT_463.md](BROWSER_BUG_REPORT_463.md) | Kod değiştirmeyen 50 görevlik derin tarama: npm test 1 kırmızı, 16 bulgu (sıfır süreli cue, ayar importunda anahtar sızıntısı, tire/12-24 saat çeviri kapıları, TV açık tema kontrastı, burn-in yarışı) |
 | 462 | [BROWSER_BUG_REPORT_462.md](BROWSER_BUG_REPORT_462.md) | Kısa örnekte background ayırma kapsamı ve generated attach sonrasında ses kaydırma göstergesi |
 | 461 | [BROWSER_BUG_REPORT_461.md](BROWSER_BUG_REPORT_461.md) | Rapor459 bağımsız doğrulaması; bileşik credential alanı ve URL sorgusunda kuyruk sanitizasyonu |
 | 460 | [BROWSER_BUG_REPORT_460.md](BROWSER_BUG_REPORT_460.md) | Çakışan dublaj iptal istekleri ve background/TTS ortak SRT kopyası |

@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0529.md](docs/devir/2026-10-18-0529.md) — Rapor462: Kısa örnekte gereksiz tam background ayırma ve eski ses kaydırma göstergesi
+Güncel çalışma: [docs/devir/2026-10-18-0550.md](docs/devir/2026-10-18-0550.md) — Rapor463: Kod değiştirmeyen 50 görevlik derin tarama, 16 bulgu ve npm test 1 kırmızı
+Önceki çalışma: [docs/devir/2026-10-18-0529.md](docs/devir/2026-10-18-0529.md) — Rapor462: Kısa örnekte gereksiz tam background ayırma ve eski ses kaydırma göstergesi
 Önceki çalışma: [docs/devir/2026-10-18-0525.md](docs/devir/2026-10-18-0525.md) — Rapor461: Rapor459 bağımsız doğrulaması ve bileşik sır alanlarında kuyruk filtresi
 Önceki çalışma: [docs/devir/2026-10-18-0522.md](docs/devir/2026-10-18-0522.md) — Kullanıcı onayıyla Rapor459 ve Rapor460 birlikte GitHub teslimi
 Önceki çalışma: [docs/devir/2026-10-18-0519.md](docs/devir/2026-10-18-0519.md) — rapor460: Çakışan dublaj iptalleri ve background/TTS ortak SRT snapshot'ı
