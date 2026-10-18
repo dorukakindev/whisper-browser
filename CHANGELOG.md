@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed ten subtitle and library audit failures: strict UTF-8 export validation, invalid cue/sync point handling, duplicate target identity and Unicode names, root relinking, provider rows/file IDs, ASS download format and Brazilian Portuguese filtering.
+
 - Subtitle cache quota now discards missing entries before evicting existing files, preserving live cache files after external cleanup.
 
 - Media tools now fail promptly on broken input pipes instead of waiting for the job timeout; semantic search restarts a clean worker on the next request.

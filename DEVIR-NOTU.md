@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0101.md](docs/devir/2026-10-19-0101.md) — Rapor473: Eksik altyazı cache kayıtları
+Güncel çalışma: [docs/devir/2026-10-19-0104.md](docs/devir/2026-10-19-0104.md) — Rapor474: Geniş tarama, 10 doğrulanmış düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0101.md](docs/devir/2026-10-19-0101.md) — Rapor473: Eksik altyazı cache kayıtları
 Önceki çalışma: [docs/devir/2026-10-19-0102.md](docs/devir/2026-10-19-0102.md) — Rapor472: Medya pipe hata beklemesi
 Önceki çalışma: [docs/devir/2026-10-19-0051.md](docs/devir/2026-10-19-0051.md) — Rapor471: Anlamsal arama yanıt doğrulaması ve boyut sınırı
 Önceki çalışma: [docs/devir/2026-10-19-0007.md](docs/devir/2026-10-19-0007.md) — Rapor470: Kısa ve boş hedef altyazı kalite denetimi
