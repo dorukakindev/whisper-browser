@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 462 | [BROWSER_BUG_REPORT_462.md](BROWSER_BUG_REPORT_462.md) | Kısa örnekte background ayırma kapsamı ve generated attach sonrasında ses kaydırma göstergesi |
 | 461 | [BROWSER_BUG_REPORT_461.md](BROWSER_BUG_REPORT_461.md) | Rapor459 bağımsız doğrulaması; bileşik credential alanı ve URL sorgusunda kuyruk sanitizasyonu |
 | 460 | [BROWSER_BUG_REPORT_460.md](BROWSER_BUG_REPORT_460.md) | Çakışan dublaj iptal istekleri ve background/TTS ortak SRT kopyası |
 | 459 | [BROWSER_BUG_REPORT_459.md](BROWSER_BUG_REPORT_459.md) | Kod-değiştirmeyen 50+ (57) çalıştırılabilir probe turu: watch-canonical case çakışması, asset normalize diverjansı, sır-liste boşlukları ve sağlam davranış teyitleri |
