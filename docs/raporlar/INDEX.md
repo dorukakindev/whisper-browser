@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 456 | [BROWSER_BUG_REPORT_456.md](BROWSER_BUG_REPORT_456.md) | Başarısız arşiv indeksi bellek tutarlılığı, sıfır süreli cue, kanonik JSON/SRT onarımı ve başarısız onarım tmp temizliği |
 | 455 | [BROWSER_BUG_REPORT_455.md](BROWSER_BUG_REPORT_455.md) | Arka plan sesinde boş/geçici indirme adayları, bozuk WAV önbelleği ve çıktı, örtüşen cue bitişi ve geçersiz aralıklar |
 | 454 | [BROWSER_BUG_REPORT_454.md](BROWSER_BUG_REPORT_454.md) | Dublaj planı istek sahipliği, başarısız yenilemede eski plan, iptal/proc yarışı, SRT snapshot hash'i ve zaman parser'ı |
 | 453 | [BROWSER_BUG_REPORT_453.md](BROWSER_BUG_REPORT_453.md) | Cache sıkıştırmasında eşzamanlı kayıt kaybı; eski medya, arka plan kaynağı, iptal ve plan/kısaltma sonuçlarının bağlam doğrulaması |

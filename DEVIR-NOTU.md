@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-18-0306.md](docs/devir/2026-10-18-0306.md) — rapor455: Arka plan sesinde boş/geçici indirme ve bozuk WAV önbelleği doğrulaması
+Güncel çalışma: [docs/devir/2026-10-18-0311.md](docs/devir/2026-10-18-0311.md) — rapor456: Başarısız arşiv indeksi, sıfır süreli cue ve asset SRT tutarlılığı
+Önceki çalışma: [docs/devir/2026-10-18-0306.md](docs/devir/2026-10-18-0306.md) — rapor455: Arka plan sesinde boş/geçici indirme ve bozuk WAV önbelleği doğrulaması
 Önceki çalışma: [docs/devir/2026-10-18-0302.md](docs/devir/2026-10-18-0302.md) — rapor454: Plan süreçleri, iptal yarışı ve aynı SRT içeriğinden hash doğrulaması
 Önceki çalışma: [docs/devir/2026-10-18-0252.md](docs/devir/2026-10-18-0252.md) — rapor453: Cache yazım yarışı, eski medya ve geciken ses işi yanıtları
 Önceki çalışma: [docs/devir/2026-10-18-0233.md](docs/devir/2026-10-18-0233.md) — rapor452: Geniş inceleme, doğrulanmış altı sorun grubu ve Windows test düzeltmeleri
