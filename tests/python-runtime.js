@@ -1,5 +1,6 @@
 'use strict';
 const path = require('node:path');
+const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
 // Windows Store takma adı bir Python yorumlayıcısı değildir. Aynı keşfi hem
@@ -21,4 +22,9 @@ function findTestPython({ root = path.resolve(__dirname, '..'), env = process.en
   }
   return null;
 }
-module.exports = { findTestPython };
+function findPythonTestFiles(root = path.resolve(__dirname, '..')) {
+  return ['backend', 'tests'].flatMap((directory) => fs.readdirSync(path.join(root, directory),
+    { withFileTypes: true }).filter((entry) => entry.isFile() && /^test_.*\.py$/.test(entry.name))
+    .map((entry) => `${directory}/${entry.name}`)).sort();
+}
+module.exports = { findTestPython, findPythonTestFiles };

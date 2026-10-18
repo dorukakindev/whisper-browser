@@ -272,7 +272,14 @@ function controllerBootstrap() {
     }
 
     const observeRoot = (root) => {
-      if (!root || observers.has(root) || observers.size >= 128) return;
+      if (!root || observers.has(root)) return;
+      if (observers.size >= 128) {
+        cleanupDetachedRoots();
+        if (observers.size >= 128) {
+          needsDiscoveryFallback = true;
+          return;
+        }
+      }
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) scan(node);
@@ -392,8 +399,18 @@ function controllerBootstrap() {
       target.muted = snapshot.muted;
       return true;
     };
+    // Keep observers bounded on component-heavy pages, but still discover media
+    // subsequently inserted into roots for which no observer slot was available.
+    let needsDiscoveryFallback = false;
+    let lastDiscoveryAt = -Infinity;
     const select = () => {
       cleanupDetachedRoots();
+      const now = Date.now();
+      if (needsDiscoveryFallback && (now - lastDiscoveryAt >= 1000 || now < lastDiscoveryAt)) {
+        lastDiscoveryAt = now;
+        needsDiscoveryFallback = false;
+        scan(document);
+      }
       for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
       return [...media].sort(compareMedia)[0] || null;
     };
