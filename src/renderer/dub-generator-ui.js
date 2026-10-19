@@ -6,6 +6,43 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
+  let lastRequest = null, lastReferenceQuality = null;
+  const results = new Map();
+  const resultOptions = new Map();
+  const t = text => window.UiLocale?.t(text) || text;
+  function qualityInfo() {
+    const row = results.get(el('dubQualityGroup').value);
+    const labels = {ready:'Hazır',review:'Dinleyerek kontrol edin',failed:'Üretilemedi; bu bölüm sessiz',
+      passed:'Metin doğrulandı',not_checked:'Metin denetlenmedi',unavailable:'Metin doğrulanamadı'};
+    el('dubQualityInfo').textContent = row ? [t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
+      row.rewritten ? t('Süreye göre düzenlendi') : ''].filter(Boolean).join(' · ') : '';
+  }
+  function showResults() {
+    const select = el('dubQualityGroup'), previous = select.value;
+    select.replaceChildren(); resultOptions.clear();
+    for (const row of [...results.values()].sort((a,b) => a.group - b.group)) {
+      const option = document.createElement('option'); option.value = row.key;
+      option.textContent = `${row.group} · ${t(row.status === 'failed' ? 'Üretilemedi; bu bölüm sessiz' : row.status === 'review' ? 'Dinleyerek kontrol edin' : 'Hazır')}`;
+      select.append(option);
+      resultOptions.set(row.key, option);
+    }
+    if (results.has(previous)) select.value = previous;
+    qualityInfo();
+    controls();
+  }
+  function updateResult(row) {
+    results.set(row.key, row);
+    let option = resultOptions.get(row.key);
+    if (!option) { option = document.createElement('option'); option.value = row.key;
+      el('dubQualityGroup').append(option); resultOptions.set(row.key, option); }
+    option.textContent = `${row.group} · ${t(row.status === 'failed' ? 'Üretilemedi; bu bölüm sessiz' : row.status === 'review' ? 'Dinleyerek kontrol edin' : 'Hazır')}`;
+    qualityInfo();
+  }
+  function referenceInfo(quality) {
+    lastReferenceQuality = quality;
+    const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
+    el('dubReferenceQuality').textContent = quality ? (quality.warnings || []).map(w => t(labels[w] || w)).join(' · ') || t('Referansın ses düzeyi uygun; konuşmacı ve müziği dinleyerek kontrol edin.') : '';
+  }
   const mediaIdentity = () => { const c = window.BrowserDubAudioUI?.context(); return JSON.stringify([c?.mode, c?.tabId, c?.mediaId || c?.mediaKey]); };
   let referenceBusy = false, rangeContextKey = null, mediaContextKey = null;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
@@ -39,7 +76,10 @@
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
     const locked = !!current || referenceBusy || planning || choosing;
-    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode']) el(id).disabled = locked;
+    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit']) el(id).disabled = locked;
+    el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
+    el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
+    el('dubQualityGroup').disabled = locked || !results.size;
     el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
     el('dubPlanPrepare').disabled = locked || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = locked || !plan;
@@ -61,6 +101,7 @@
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
+    if (!current) { el('dubVerification').value = r.verification || 'balanced'; el('dubAutoFit').checked = r.autoFit !== false; }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
     el('dubTranscriptName').textContent = basename(r.transcript);
@@ -73,6 +114,7 @@
     const mediaKey = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey]);
     if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
       srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
+      lastRequest = null; results.clear(); showResults();
     }
     mediaContextKey = mediaKey;
     const range = context?.mode === 'browser' ? context.subtitleRange : null;
@@ -103,7 +145,8 @@
       if (current || output || !r?.output) return;
       output = r.output; logPath = output.logPath; preview(output);
       el('dubGeneratorOutput').classList.remove('hidden');
-      el('dubGeneratorUse').classList.remove('hidden');
+      el('dubGeneratorUse').classList.toggle('hidden', output.sample === true);
+      results.clear(); for (const row of output.quality?.groups || []) results.set(row.key, row); showResults();
       el('dubGeneratorLog').classList.toggle('hidden', !logPath);
       el('dubGeneratedName').textContent = output.name;
       el('dubGeneratorProgress').value = 100;
@@ -128,7 +171,7 @@
       if (media !== mediaIdentity()) { inheritSubtitleRange(); status('Video değişti; dosyayı yeniden seçin.'); return; }
       if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
-          srt = result; invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
+          srt = result; lastRequest = null; results.clear(); showResults(); invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
@@ -153,7 +196,7 @@
     finally { planning = false; inheritSubtitleRange(); controls(); }
   });
   function invalidatePlan() {
-    plan = null; edits = {}; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
+    plan = null; edits = {}; lastRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
   for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
   el('dubRangeNow').addEventListener('click', () => {
@@ -191,11 +234,11 @@
       try { await configure(kind); } finally { choosing = false; controls(); }
     });
   }
-  el('dubGeneratorStart').addEventListener('click', async () => {
+  async function start(retry = false, forceGroups = []) {
     if (current || referenceBusy || planning || choosing || !srt || !cfg?.ready) return;
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
-    current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: el('dubSampleOnly').checked };
+    current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
     const pending = current;
     const started = performance.now();
     elapsed(0); stopTimer();
@@ -208,17 +251,26 @@
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
     status('Motor yükleniyor…'); controls();
-    const r = await window.api.startDub({ id: pending.id, srt, sample: pending.sample,
+    const payload = retry ? {...lastRequest, id:pending.id, forceGroups} : { id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
+      verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
-      timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits } : null }).catch(e => ({ ok:false,error:e.message }));
+      timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };
+    lastRequest = payload;
+    if (!retry) { results.clear(); showResults(); }
+    const r = await window.api.startDub(payload).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
       current = null; el('dubGeneratorProgress').value = 0; status('Ses üretimi başarısız oldu.');
       el('dubGeneratorDetails').textContent = r?.error || ''; controls();
     }
-  });
+  }
+  el('dubGeneratorStart').addEventListener('click', () => start());
+  el('dubRetryFailed').addEventListener('click', () => start(true));
+  el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
+  el('dubQualityGroup').addEventListener('change', qualityInfo);
+  document.addEventListener('ui-locale-change', () => { showResults(); referenceInfo(lastReferenceQuality); });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     const pending = current;
     if (!pending) return;
@@ -259,7 +311,10 @@
     if (event.type === 'progress') {
       status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
-    } else if (event.type === 'status') status(event.text);
+    } else if (event.type === 'group') updateResult(event.group);
+    else if (event.type === 'reference_quality') referenceInfo(event.quality);
+    else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
+    else if (event.type === 'status') status(event.text);
     else if (event.type === 'warning') el('dubGeneratorDetails').textContent=event.text;
     else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
@@ -271,11 +326,13 @@
       current = null; controls();
       if (event.type === 'done') {
         output = event; preview(output); el('dubGeneratorProgress').value = 100;
+        if (event.quality?.groups) { results.clear(); for (const row of event.quality.groups) results.set(row.key, row); showResults(); }
+        const needsReview = [...results.values()].some(row => row.status !== 'ready');
         el('dubGeneratedName').textContent = event.name;
         el('dubGeneratorOutput').classList.remove('hidden');
-        el('dubGeneratorUse').classList.remove('hidden');
-        status(job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.');
-        if (!job.sample && job.context?.hasMedia) {
+        el('dubGeneratorUse').classList.toggle('hidden', !!job.sample);
+        status(needsReview ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.' : job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.');
+        if (!job.sample && !needsReview && job.context?.hasMedia) {
           void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url, range:event.range, sync:event.sync, background:event.background }, job.context)
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });

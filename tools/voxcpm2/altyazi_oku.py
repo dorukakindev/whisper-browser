@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 import time
-import shutil
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -37,12 +37,12 @@ for _module_root in (str(ROOT), str(ENGINE_ROOT)):
         sys.path.remove(_module_root)
 sys.path.insert(0, str(ENGINE_ROOT))
 sys.path.insert(0, str(ROOT))
-from dub_timing import sentence_plan, available_window, placement_window, quality_retry, TimingOverflow
+from dub_timing import available_window, placement_window, quality_retry, TimingOverflow
 from dub_timing import fit_to_window as fit_audio
 from dub_timing import build_adaptive_timeline
 
 from kitap_ortak import (  # noqa: E402
-    MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, apply_durak, assess_chunk,
+    MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, assess_chunk,
     ensure_utf8_stdio, file_sha256, loudnorm_audio, prepare_audio,
     voice_label_for, write_manifest)
 from kitap_ortak import _install_with_fallback  # noqa: E402
@@ -84,6 +84,62 @@ if sys.platform == 'win32':
 
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
+from dub_quality import chunk_key, valid_audio, representative_groups, reference_quality, speech_check
+
+
+class SpeechVerifier:
+    def __init__(self, python):
+        self.python, self.proc, self.unavailable = python, None, False
+        self.lock = asyncio.Lock()
+
+    async def check(self, path, text):
+        if not self.python or self.unavailable:
+            return {'status': 'unavailable'}
+        async with self.lock:
+            try:
+                if self.proc is None:
+                    self.proc = await asyncio.create_subprocess_exec(str(self.python),
+                        str(ROOT.parents[1] / 'backend' / 'dub_verify.py'),
+                        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.DEVNULL,
+                        creationflags=NO_WINDOW)
+                self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
+                await self.proc.stdin.drain()
+                response = json.loads(await asyncio.wait_for(self.proc.stdout.readline(), 120))
+                if 'error' in response:
+                    raise ValueError('unavailable')
+                result = speech_check(text, response['text'])
+                return {'status': 'review' if result['review'] else 'passed', **result}
+            except (OSError, ValueError, asyncio.TimeoutError, KeyError, BrokenPipeError):
+                self.unavailable = True
+                print('DUB_WARNING verification_unavailable', flush=True)
+                return {'status': 'unavailable'}
+
+    async def close(self):
+        if self.proc and self.proc.returncode is None:
+            self.proc.terminate()
+            await self.proc.wait()
+
+
+async def rewrite_for_window(args, i, text, seconds, before='', after=''):
+    if not args.auto_fit or not args.rewrite_dir:
+        return text
+    request_id = uuid.uuid4().hex
+    response_path = args.rewrite_dir / (request_id + '.json')
+    print('DUB_REWRITE ' + json.dumps({'id': request_id, 'group': i + 1,
+        'text': text, 'seconds': min(30, seconds), 'before':before[-1500:], 'after':after[:1500]}), flush=True)
+    try:
+        for _ in range(500):
+            if response_path.is_file():
+                response = json.loads(response_path.read_text(encoding='utf-8'))
+                proposed = response.get('text')
+                if isinstance(proposed, str) and 0 < len(proposed) <= len(text):
+                    return proposed
+                return text
+            await asyncio.sleep(.1)
+        return text
+    finally:
+        response_path.unlink(missing_ok=True)
 
 
 def atempo_filters(ratio):
@@ -137,9 +193,11 @@ async def uret(args, cues, paths, prompt_text):
         reference_seconds = time.monotonic() - reference_began
         generation_began = time.monotonic()
 
+        # Recover completed pieces after OOM with a fresh, smaller server.
         sem = asyncio.Semaphore(args.eszamanli)
+        verifier = SpeechVerifier(args.verify_python)
         total = len(cues)
-        done = sum(1 for p in paths if p.is_file())
+        done = sum(1 for i, p in enumerate(paths) if p.is_file() and args.group_keys[i] not in args.force_groups)
         if done:
             print(f"[{done}/{total}] Kayitli satirlar kullaniliyor.", flush=True)
         cached = done
@@ -160,23 +218,89 @@ async def uret(args, cues, paths, prompt_text):
             nonlocal done
             async with sem:
                 tick = time.monotonic()
-                best, metric = await quality_retry(lambda seed: sentez(text, seed),
-                    lambda raw: assess_chunk(raw, sr, text)[0], args.seed + i,
-                    args.retry, args.request_timeout)
-                metric.update(group=i + 1, seconds=time.monotonic() - tick)
+                seed = args.group_seeds[i]
+                window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
+                temporary = path.with_suffix('.tmp.wav')
+                try:
+                    best, metric = await quality_retry(lambda n: sentez(text, n),
+                        lambda raw: assess_chunk(raw, sr, text)[0], seed,
+                        args.retry, args.request_timeout)
+                    wav = prepare_audio(best, sr)
+                    metric['rewritten'] = False
+                    # One bounded, duration-informed edit. Preserve the original
+                    # and accept the candidate only if it is valid and shorter.
+                    if len(wav) / sr > window * 1.15 and len(text) > 25:
+                        proposed = await rewrite_for_window(args, i, text, window,
+                            cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '')
+                        if proposed != text:
+                            try:
+                                candidate, extra = await quality_retry(lambda n: sentez(proposed, n),
+                                    lambda raw: assess_chunk(raw, sr, proposed)[0], seed + 17,
+                                    1, args.request_timeout)
+                                candidate = prepare_audio(candidate, sr)
+                                metric['attempts'] += extra['attempts']
+                                metric['retries'] += extra['attempts']
+                                if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
+                                    wav, text = candidate, proposed
+                                    metric['rewritten'] = True
+                            except (ValueError, asyncio.TimeoutError):
+                                pass
+                    sf.write(str(temporary), wav, sr, subtype='PCM_16')
+                    check = {'status': 'not_checked'}
+                    if args.verification == 'detailed' or (args.verification == 'balanced' and
+                            (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
+                        check = await verifier.check(temporary, text)
+                        if check['status'] == 'review':
+                            # Re-read with a different seed; never edit meaning
+                            # from an uncertain automatic transcript.
+                            candidate = prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr)
+                            if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
+                                second = temporary.with_name(temporary.stem + '-verify.wav')
+                                try:
+                                    sf.write(str(second), candidate, sr, subtype='PCM_16')
+                                    checked = await verifier.check(second, text)
+                                    if checked.get('similarity', 0) > check.get('similarity', 0) and not checked.get('missing_numbers'):
+                                        wav, check = candidate, checked
+                                        sf.write(str(temporary), wav, sr, subtype='PCM_16')
+                                finally:
+                                    second.unlink(missing_ok=True)
+                            metric['attempts'] += 1; metric['retries'] += 1
+                    temporary.replace(path)
+                    metric.update(verification=check, text=text, status='review' if
+                        metric['quality_score'] > 0 or check['status'] == 'review' else 'ready')
+                    path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                    args.force_groups.discard(args.group_keys[i])
+                except Exception as exc:
+                    if 'out of memory' in str(exc).lower() or 'cuda error' in str(exc).lower():
+                        raise
+                    # A failed piece is explicit and remains retryable. Keep
+                    # other successful pieces and still render a usable WAV.
+                    metric = {'attempts': args.retry + 1, 'retries': args.retry,
+                              'quality_score': None, 'status': 'failed', 'text': text,
+                              'verification': {'status': 'unavailable'}}
+                    if valid_audio(path, sf):
+                        metric['status'] = 'review'
+                    elif temporary.is_file() and valid_audio(temporary, sf):
+                        temporary.replace(path)
+                        metric['status'] = 'review'
+                    else:
+                        fallback = args.report_dir / f'failed_{i:04d}.wav'
+                        sf.write(str(fallback), np.zeros(max(1, round(window * sr)), dtype=np.float32), sr)
+                        paths[i] = fallback
+                    if metric['status'] == 'review':
+                        path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                finally:
+                    temporary.unlink(missing_ok=True)
+                metric.update(group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
                 results.append(metric)
-                if metric['quality_score'] > 0:
-                    print(f"UYARI: Grup {i + 1} kalite puani {metric['quality_score']:.2f}; en iyi deneme kullanildi.", flush=True)
-                wav = prepare_audio(best, sr)
-                temporary = path.with_suffix(".tmp.wav")
-                sf.write(str(temporary), wav, sr, subtype="PCM_16")
-                temporary.replace(path)
+                print('DUB_GROUP ' + json.dumps({k: metric[k] for k in
+                    ('group', 'key', 'status', 'verification', 'rewritten') if k in metric}), flush=True)
                 done += 1
-                print(f"[{done}/{total}] {text[:60]}", flush=True)
+                print(f"[{done}/{total}]", flush=True)
 
         tasks = [asyncio.ensure_future(gen(i, t, p))
                  for i, ((s, e, t), p) in enumerate(zip(cues, paths))
-                 if not p.is_file()]
+                 if not p.is_file() or args.group_keys[i] in args.force_groups]
         try:
             await asyncio.gather(*tasks)
         except BaseException:
@@ -184,6 +308,9 @@ async def uret(args, cues, paths, prompt_text):
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
+        finally:
+            await verifier.close()
+        args.group_results = results
         metrics = {'load_seconds': load_seconds, 'reference_seconds': reference_seconds,
                    'generation_seconds': time.monotonic() - generation_began,
                    'attempts': sum(r['attempts'] for r in results),
@@ -195,6 +322,20 @@ async def uret(args, cues, paths, prompt_text):
         return sr
     finally:
         await server.stop()
+
+
+def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
+    generate = generate or uret
+    while True:
+        original_paths = list(paths)
+        try:
+            return asyncio.run(generate(args, cues, paths, prompt_text))
+        except Exception as exc:
+            if args.eszamanli <= 1 or not any(term in str(exc).lower() for term in ('out of memory', 'cuda error')):
+                raise
+            args.eszamanli = max(1, args.eszamanli // 2)
+            paths[:] = original_paths
+            print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
 
 
 def build_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
@@ -295,6 +436,12 @@ def parse_args(argv=None):
     p.add_argument("--batch-tokens", type=int, default=2048)
     p.add_argument("--max-generate-length", type=int, default=1024)
     p.add_argument("--limit", type=int, default=0)
+    p.add_argument('--representative-preview', action='store_true')
+    p.add_argument('--verification', choices=('fast', 'balanced', 'detailed'), default='balanced')
+    p.add_argument('--verify-python', type=Path)
+    p.add_argument('--auto-fit', action='store_true')
+    p.add_argument('--rewrite-dir', type=Path)
+    p.add_argument('--force-groups', default='')
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
     p.add_argument("--gruplama", choices=("cumle", "satir"), default="cumle")
@@ -310,6 +457,9 @@ def parse_args(argv=None):
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
+    args.force_groups = set(filter(None, args.force_groups.split(';')))
+    if any(not re.fullmatch(r'\d+(?:,\d+)*', key) for key in args.force_groups):
+        p.error('Invalid group key.')
     if (args.range_start is None) != (args.range_end is None):
         p.error('Baslangic ve bitis birlikte gerekli.')
     if args.range_start is not None and args.video:
@@ -353,10 +503,19 @@ def main(argv=None):
     if not cues:
         raise SystemExit("Kaydirma sonrasinda okunabilir satir kalmadi.")
     source_cues = cues
-    groups = make_groups(cues, args.range_start, args.range_end, args.limit, args.gruplama,
+    groups = make_groups(cues, args.range_start, args.range_end, 0 if args.representative_preview else args.limit, args.gruplama,
                          args.grup_max_karakter, args.grup_max_sn, args.grup_bosluk_ms)
     if args.dub_text:
         apply_edits(groups, json.loads(args.dub_text.read_text(encoding='utf-8')), hashlib.sha256(source_bytes).hexdigest())
+    if args.representative_preview:
+        groups = representative_groups(groups)
+        args.range_start = args.range_end = None
+    args.group_keys = [','.join(map(str, g['source_ids'])) for g in groups]
+    if args.force_groups - set(args.group_keys):
+        raise ValueError('Selected group is outside the current plan.')
+    args.group_seeds = [args.seed + int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % 1000000000
+                       for key in args.group_keys]
+    args.group_results = []
     cues = [(g['start'], g['end'], g['text']) for g in groups]
     print(f"Plan: {len(source_cues)} altyazi satiri -> {len(groups)} {args.gruplama} grubu.", flush=True)
     if args.plan:
@@ -375,37 +534,37 @@ def main(argv=None):
         available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
 
     ref_hash = file_sha256(args.reference)
-    legacy_settings = ("dublaj-cumle-v2", MODEL_REVISION, ref_hash, args.steps, args.cfg,
-                args.seed, args.temperature, prompt_text or args.mode,
-                args.gruplama, args.max_hiz, args.bosluk_pay_ms, args.end_limit_ms,
-                args.max_model_len, args.batch_tokens, args.max_generate_length, cues)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v3", MODEL_REVISION, ref_hash, args.steps, args.cfg,
-                args.seed, args.temperature, prompt_text or args.mode,
-                args.retry, args.max_generate_length, [text for _, _, text in cues])
+    settings = ("dublaj-ses-v4", MODEL_REVISION, ref_hash, args.steps, args.cfg,
+                args.temperature, prompt_text or args.mode, args.max_generate_length,
+                args.verification)
+    # Run reports are separate from independently addressed speech pieces.
     run_hash = hashlib.sha256(repr(settings).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
     parts_dir.mkdir(parents=True, exist_ok=True)
-    paths = [parts_dir / f"cue_{i:04d}.wav" for i in range(1, len(cues) + 1)]
-    legacy_variants = [legacy_settings]
-    old_defaults = list(legacy_settings); old_defaults[9:12] = [1.15, 1000, args.end_limit_ms]
-    legacy_variants.append(tuple(old_defaults))
-    for old in legacy_variants:
-        old_hash = hashlib.sha256(repr(old).encode('utf-8')).hexdigest()[:16]
-        old_dir = parts_dir.parent / old_hash
-        for dest in paths:
-            src = old_dir / dest.name
-            if not dest.exists() and src.is_file():
-                info = sf.info(str(src))
-                if info.frames > 0: shutil.copy2(src, dest)
-    eksik = sum(1 for p in paths if not p.is_file())
+    args.report_dir = parts_dir
+    cache_dir = OUTPUT_ROOT / '_dub_chunks_v4'
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    paths = [cache_dir / (chunk_key(settings, text, seed) + '.wav')
+             for (_, _, text), seed in zip(cues, args.group_seeds)]
+    if args.auto_fit:
+        # A compact rewrite depends on available time, unlike ordinary speech.
+        paths = [cache_dir / (chunk_key(settings, [text, available_window(cues, i,
+            args.bosluk_pay_ms, args.end_limit_ms)], seed) + '.wav')
+            for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
+    for p in paths:
+        if p.exists() and not valid_audio(p, sf):
+            p.unlink()
+    eksik = sum(1 for i, p in enumerate(paths) if not p.is_file() or args.group_keys[i] in args.force_groups)
+    reference_audio, reference_rate = sf.read(str(args.reference), dtype='float32')
+    print('DUB_REFERENCE ' + json.dumps(reference_quality(reference_audio, reference_rate)), flush=True)
 
     start = time.time()
     if eksik:
         import torch
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA kullanilamiyor.")
-        sr = asyncio.run(uret(args, cues, paths, prompt_text))
+        sr = generate_with_fallback(args, cues, paths, prompt_text)
     else:
         sr = sf.info(str(paths[0])).samplerate
         print("Tum satirlar hazir; zaman cizelgesi kuruluyor.", flush=True)
@@ -413,6 +572,20 @@ def main(argv=None):
               'cached_groups': len(paths), 'generated_groups': 0,
               'steps': args.steps, 'concurrency': args.eszamanli}), flush=True)
 
+    group_results = []
+    failed = {r['group']: r for r in args.group_results if r['status'] in ('failed','review')}
+    for i, p in enumerate(paths):
+        try:
+            record = failed.get(i + 1) or json.loads(p.with_suffix('.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            record = {'status': 'ready', 'verification': {'status': 'not_checked'}}
+        record.update(group=i + 1, key=args.group_keys[i])
+        group_results.append(record)
+    cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
+    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten') if k in r}
+                     for r in group_results]
+    for row in public_groups:
+        print('DUB_GROUP ' + json.dumps(row), flush=True)
     timeline_cues = cues
     total_s = duration or (cues[-1][1] + 2000) / 1000.0
     if args.range_start is not None:
@@ -447,12 +620,19 @@ def main(argv=None):
     print(f"Dublaj WAV: {wav_path}", flush=True)
     if sync:
         wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
+    wav_path.with_suffix('.quality.json').write_text(json.dumps({'version': 1,
+        'verification': args.verification, 'groups': public_groups,
+        'preview': args.representative_preview,
+        'excerpts': [{'key': key, 'start': g.get('source_start', g['start']) / 1000,
+                      'end': g.get('source_end', g['end']) / 1000}
+                     for key, g in zip(args.group_keys, groups)]}), encoding='utf-8')
 
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
                 "video_offset_seconds": args.range_start or 0,
                 "grouping": args.gruplama, "timing": timing,
                 "duration": float(len(timeline) / sr),
                 "text": "\n".join(t for _, _, t in cues),
+                "original_text": "\n".join(g.get('original_text', g['text']) for g in groups),
                 "segments": [
                     {"i": i, "text": t, "start": timing['groups'][i]['start_seconds'],
                      "end": timing['groups'][i]['start_seconds'] + timing['groups'][i]['after_seconds'],

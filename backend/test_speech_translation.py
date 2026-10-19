@@ -36,6 +36,7 @@ class SpeechTranslationTests(unittest.TestCase):
         result, seen, _events, warnings = F._sentence_translate(F._SENTENCE_SOURCE, args)
         self.assertEqual(len(seen), 1, warnings)
         self.assertIn('SESLENDIRMEYE UYGUN', seen[0][1]['messages'][0]['content'])
+        self.assertIn('sentence_groups.duration', seen[0][1]['messages'][0]['content'])
         self.assertEqual([(s, e) for s, e, _ in result], [(s, e) for s, e, _ in F._SENTENCE_SOURCE])
         self.assertEqual([text for _, _, text in result], F._SENTENCE_PARTS)
 

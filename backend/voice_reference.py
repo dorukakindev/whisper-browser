@@ -155,6 +155,12 @@ def main():
     args = parser.parse_args()
     validate_range(args.start, args.end)
     extract_clip(args.source, args.start, args.end, args.output, args.ffmpeg)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2'))
+    from dub_quality import reference_quality
+    import soundfile as sf
+    audio, rate = sf.read(args.output, dtype='float32')
+    quality = reference_quality(audio, rate)
+    Path(args.output).with_name('reference-quality.json').write_text(json.dumps(quality), encoding='utf-8')
     transcribe_reference(args.output, args.transcript)
     print('VOICE_REFERENCE ready', flush=True)
 

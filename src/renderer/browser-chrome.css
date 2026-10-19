@@ -395,7 +395,10 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 #voiceReferenceRecorder input { width: 88px; }
 #voiceReferenceRecorder #voiceReferenceName { flex: 1 1 220px; width: auto; min-width: 0; }
 #voiceReferenceRecorder textarea { resize: vertical; }
-.dub-generator select { min-height: 34px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); color: var(--text); font: inherit; }
+.dub-generator select { max-width: 100%; min-height: 34px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); color: var(--text); font: inherit; }
+#dubQualityResults { margin-block: 14px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+#dubQualityResults > summary { cursor: pointer; }
+#dubQualityResults select { width: 100%; margin-top: 8px; }
 .dub-generator select:disabled { opacity: .65; }
 #browserDubName { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-dub-strip label { display: inline-flex; align-items: center; gap: 6px; }

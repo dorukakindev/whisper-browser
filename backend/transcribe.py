@@ -3385,7 +3385,9 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             ("- Ingilizce kelime sirasini kopyalama; Turkcede yuklem, ozne ve tamlamalari dogal yerlerine koy."
              if str(target_lang).lower().split('-')[0] in ('tr', 'tur')
              else "- Kaynak dilin kelime sirasini kopyalama; hedef dilin dogal soz dizimini kullan."),
-            "- Cumleyi toparla ama ozetleme veya kisaltma: bilgi, ad, sayi, olumsuzluk, kip ve karakterin tonunu koru.",
+            "- sentence_groups.duration saniye cinsinden konusma penceresidir. Hedef sureye uygun, kolay soylenen bir ifade sec; gereksiz dolgu ve yapay uzun tamlamalardan kacin.",
+            "- Bilgiyi ozetleme veya kisaltma; yalniz ayni anlami daha rahat soylenen bir ifadeyle aktar.",
+            "- Sure hedefi tahmindir; sigdirmak icin bilgi, ad, sayi, olumsuzluk, kip veya karakterin tonunu silme. Anlami korumak daha uzun ifade gerektirirse tam ceviriyi ver; oynatici yavaslayabilir.",
             "- Nefes ve duraklar icin dogal noktalama kullan; gereksiz uc nokta, tekrar veya yeni sahne/konusmaci etiketi ekleme.",
             "- TAM cumleyi kurduktan sonra mevcut sentence_groups ve ID sahipligi kurallarina gore items'a dagit.",
             "- ID ekleme, silme veya birlestirme; zaman kodlarini degistirme. Ayri sahne ve konusmacilari birlestirme.",
@@ -3586,7 +3588,7 @@ def translate_cache_key(text, args, target, source_lang=None,
     if bool(getattr(args, "translate_refine", False)):
         cache_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        cache_identity['speech_protocol'] = 'speech-v1'
+        cache_identity['speech_protocol'] = 'speech-v2-duration'
     raw = json.dumps(cache_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -4052,7 +4054,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     if bool(args.translate_refine):
         tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        tm_scope_identity['speech_protocol'] = 'speech-v1'
+        tm_scope_identity['speech_protocol'] = 'speech-v2-duration'
     tm_scope = json.dumps(tm_scope_identity, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):

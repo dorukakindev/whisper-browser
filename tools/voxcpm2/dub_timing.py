@@ -168,7 +168,7 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
     tail = max(0, round((total_s - video_cursor) * sr))
     if tail: chunks.append(np.zeros(tail, dtype=np.float32))
     audio = np.concatenate(chunks) if chunks else np.zeros(1, dtype=np.float32)
-    sync = {'version': 1, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
+    sync = {'version': 1, 'smooth': True, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
     timing = {'version': 3, 'accelerated_groups': sum(r['tempo'] > 1 for r in reports),
               'clipped_groups': 0, 'overflow_groups': 0,
               'stretched_groups': sum(r['stretch'] > 1.001 for r in reports), 'groups': reports}

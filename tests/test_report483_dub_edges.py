@@ -48,7 +48,8 @@ class DubEdgeTests(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2' / 'altyazi_oku.py'
         parse = next(n for n in ast.parse(source.read_text(encoding='utf-8')).body
                      if isinstance(n, ast.FunctionDef) and n.name == 'parse_args')
-        scope = {'Path': Path, 'argparse': argparse}
+        import re
+        scope = {'Path': Path, 'argparse': argparse, 're':re}
         exec(compile(ast.Module(body=[parse], type_ignores=[]), str(source), 'exec'), scope)
         with tempfile.TemporaryDirectory() as directory:
             srt, ref = Path(directory) / 'file.srt', Path(directory) / 'voice.wav'

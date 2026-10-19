@@ -48,7 +48,7 @@ const OTHER_STORE = new Set([
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
   'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
-  'dubProfile', 'dubConcurrency', 'dubTimingMode',
+  'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',
   'autoPauseCue', 'autoFollow', 'showSource', 'showTranslation', 'playerMergeCont', 'playerAudioLang',
@@ -74,7 +74,7 @@ const TRANSIENT = new Set([
   'browserWhisperRangeEnabled', 'browserWhisperRangeStart', 'browserWhisperRangeEnd',
   // Per-video audio and reviewed text belong to the current dubbing job.
   'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
-  'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText',
+  'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText', 'dubQualityResults', 'dubQualityGroup',
   'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd', 'dubKeepBackground', 'browserDubBackgroundVolume',
   'voiceReferenceName', 'voiceReferenceRecorder', 'voiceReferenceStart', 'voiceReferenceEnd', 'voiceReferenceSelect', 'voiceReferenceText',
   'aiChatText', 'aiContextPreview', 'appDialogInput', 'appMenu', 'appModeMenu', 'audioTrack',

@@ -38,6 +38,13 @@
     const draft = item && drafts.get(item.id);
     el('voiceReferenceName').value = draft?.name ?? item?.name ?? '';
     el('voiceReferenceText').value = draft?.text ?? item?.text ?? ''; controls();
+    const quality = item?.quality;
+    const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
+    el('voiceReferenceQuality').textContent = quality ? [
+      ...(quality.warnings || []).map(w => t(labels[w] || w)),
+      t('Ses düzeyi önerisi; müzik ve konuşmacıyı dinleyerek kontrol edin.'),
+      `${t('Kayıt içinde önerilen aralık')}: ${quality.suggested_start}–${quality.suggested_end} s`
+    ].join(' · ') : '';
   }
   async function refresh(preferred) {
     const sequence = ++refreshSequence;
