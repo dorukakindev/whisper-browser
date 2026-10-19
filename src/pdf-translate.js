@@ -367,8 +367,8 @@ function mergePdfLines(rawLines, options = {}) {
     const kindChanged = (previous.kind || 'body') !== (next.kind || 'body');
     // Tablo hücreleri atomiktir: aynı satırın hücreleri bile birleşmez.
     const tableBoundary = previous.kind === 'table' || next.kind === 'table';
-    const startsNewParagraph = !hyphenated && (columnChanged || splitRow || kindChanged
-      || tableBoundary || gap > paragraphGap || gap < -fallbackGap * 2);
+    const startsNewParagraph = columnChanged || splitRow || kindChanged || tableBoundary
+      || (!hyphenated && (gap > paragraphGap || gap < -fallbackGap * 2));
     if (startsNewParagraph) {
       paragraphs.push(paragraphFrom(current, pageNumber, paragraphs.length));
       current = [next];
@@ -660,16 +660,22 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
       model: state.model,
       endpoint: state.endpoint,
     });
-  const normalizedBlocks = blocks.map(normalizePdfBlock).filter(Boolean);
+  const checkedBlocks = blocks.map(normalizePdfBlock);
+  if (checkedBlocks.some((block, index) => !block && !(blocks[index] && typeof blocks[index] === 'object' && !Array.isArray(blocks[index])
+      && typeof (blocks[index].source ?? blocks[index].text) === 'string'
+      && !normalizeText(blocks[index].source ?? blocks[index].text)))) {
+    throw new TypeError('PDF çeviri bloğu geçersiz.');
+  }
+  const normalizedBlocks = checkedBlocks.filter(Boolean);
   if (blocks.length && !normalizedBlocks.length) throw new TypeError('PDF çeviri bloğu geçersiz.');
   // Madde 37 — yeniden işlemede kullanıcı düzeltmeleri korunur: aynı blok
   // kimliğindeki eski userText yeni sonuca taşınır.
   const previous = Array.isArray(normalized.pages?.[String(page)]) ? normalized.pages[String(page)] : [];
-  const previousEdits = new Map(previous.filter((block) => block?.userText).map((block) => [block.id, block.userText]));
+  const previousEdits = new Map(previous.filter((block) => block?.userText).map((block) => [block.id, block]));
   if (previousEdits.size) {
     for (const block of normalizedBlocks) {
       const kept = previousEdits.get(block.id);
-      if (kept && !block.userText) { block.userText = kept; block.edited = true; }
+      if (kept && kept.source === block.source && !block.userText) { block.userText = kept.userText; block.edited = true; }
     }
   }
   normalized.pages[String(page)] = normalizedBlocks;
@@ -738,11 +744,11 @@ function pdfHashFromFirstChunk(fileSize, firstChunk, lastChunk = null) {
   if (firstChunk.byteLength < plan.length) throw new TypeError('PDF karma verisi eksik.');
   const bytes = Buffer.from(firstChunk.buffer, firstChunk.byteOffset, Math.min(firstChunk.byteLength, plan.length));
   const hash = createHash('sha256').update(bytes);
-  if (lastChunk && plan.tailLength) {
-    const tailBytes = Buffer.from(
-      Buffer.isBuffer(lastChunk) ? lastChunk : lastChunk.buffer,
-      Buffer.isBuffer(lastChunk) ? 0 : lastChunk.byteOffset,
-      Math.min(lastChunk.byteLength, plan.tailLength));
+  if (lastChunk != null && plan.tailLength) {
+    if ((!Buffer.isBuffer(lastChunk) && !(lastChunk instanceof Uint8Array)) || lastChunk.byteLength < plan.tailLength) {
+      throw new TypeError('PDF karma kuyruk verisi eksik veya geçersiz.');
+    }
+    const tailBytes = Buffer.from(lastChunk.buffer, lastChunk.byteOffset, plan.tailLength);
     hash.update(tailBytes);
   }
   return `${plan.fileSize}:${hash.digest('hex')}`;

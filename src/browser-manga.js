@@ -71,13 +71,14 @@ function extractJsonPayload(text) {
 }
 
 function clampCoordinate(value) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null;
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.min(1000, Math.round(number))) : null;
 }
 
 function normalizeMangaBox(raw) {
   if (!Array.isArray(raw) || raw.length !== 4) return null;
-  const values = raw.map(clampCoordinate);
+  const values = Array.from(raw, clampCoordinate);
   if (values.some((value) => value === null)) return null;
   let [y1, x1, y2, x2] = values;
   if (y2 < y1) [y1, y2] = [y2, y1];
