@@ -45,7 +45,29 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install FFmpeg (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg --no-progress -y
+        shell: pwsh
+        run: |
+          # Chocolatey can return success after a transient feed failure and
+          # install zero packages. Verify executables rather than its exit code.
+          $ready = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            choco install ffmpeg --no-progress -y
+            $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + $env:Path
+            $ffmpegCommand = Get-Command ffmpeg -ErrorAction SilentlyContinue
+            $ffprobeCommand = Get-Command ffprobe -ErrorAction SilentlyContinue
+            if ($ffmpegCommand -and $ffprobeCommand) {
+              & $ffmpegCommand.Source -version
+              $encoderOK = $LASTEXITCODE -eq 0
+              & $ffprobeCommand.Source -version
+              if ($encoderOK -and $LASTEXITCODE -eq 0) {
+                $ready = $true
+                break
+              }
+            }
+          }
+          if (-not $ready) { throw 'FFmpeg/ffprobe installation did not produce working executables.' }
+          "WHISPER_TEST_FFMPEG=$($ffmpegCommand.Source)" >> $env:GITHUB_ENV
+          "WHISPER_TEST_FFPROBE=$($ffprobeCommand.Source)" >> $env:GITHUB_ENV
       - name: Install Electron runtime libraries (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get install -y xvfb libnss3 libgtk-3-0t64 libasound2t64 libgbm1 libxss1
@@ -54,8 +76,6 @@ jobs:
       - name: Run test suite
         env:
           WHISPER_TEST_PYTHON: python
-          WHISPER_TEST_FFMPEG: ffmpeg
-          WHISPER_TEST_FFPROBE: ffprobe
         run: npm test
       - name: Run Electron bridge smoke (Ubuntu)
         if: runner.os == 'Linux'

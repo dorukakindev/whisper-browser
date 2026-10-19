@@ -44,14 +44,14 @@ test('cancelled export terminates its owned process and removes only its own par
  try{
   const voice=path.join(root,'voice.wav'),keep=path.join(root,'keep.wav'),target=path.join(root,'export.wav');
   fs.writeFileSync(voice,'voice');fs.writeFileSync(keep,'preserve');
-  const handlers={},sender=new EventEmitter();sender.isDestroyed=()=>false;let child,partial;
+  const handlers={},sender=new EventEmitter();sender.isDestroyed=()=>false;let child,partial,notifySpawn;const spawned=new Promise(resolve=>{notifySpawn=resolve;});
   const svc=registerDubWorkspace({ipcMain:{handle:(n,f)=>handlers[n]=f},authorized:()=>true,owner:()=>null,
    dialog:{showSaveDialog:async()=>({filePath:target})},authorizeMedia:async p=>p,grantMedia:()=>{},
    python:()=>process.execPath,ffmpeg:()=> 'ffmpeg',
-   spawn:(_exe,args)=>{partial=args[args.indexOf('--output')+1];fs.writeFileSync(partial,'unfinished');child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();return child;},
+   spawn:(_exe,args)=>{partial=args[args.indexOf('--output')+1];fs.writeFileSync(partial,'unfinished');child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();notifySpawn();return child;},
    terminate:async proc=>{assert.equal(proc,child);proc.emit('close',1);return true;}});
   svc.register({path:voice});const operation=handlers['dub:workspaceExport']({sender},{path:voice,kind:'audio'});
-  for(let i=0;!child&&i<200;i++)await new Promise(resolve=>setTimeout(resolve,5));assert.ok(child);
+  await spawned;assert.ok(child);
   assert.equal((await handlers['dub:workspaceCancel']({sender:{}})).ok,false);
   assert.equal((await handlers['dub:workspaceCancel']({sender})).ok,true);
   const result=await operation;assert.equal(result.ok,false);assert.match(result.error,/Cancelled/);
