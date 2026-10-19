@@ -2,7 +2,7 @@
 
 2026-10-19, Windows. Kullanıcı yedi ses geliştirmesinin tamamını uygulamayı istedi.
 Başlangıç master: `957bbfe91edee709accb24624e9e945e7a7a2969`.
-Ürün kodu: `d3fb3a586101f24dff058520b31ce8fff737b2fb`.
+Ürün kodu: `84a8e3ef008f28bb1b2e5a395cf7759da36896d4`.
 PR456 hata tanı onarımı da `22415053` cherry-pick'i ile bu dala taşındı.
 
 ## Uygulananlar ve kanıt
@@ -61,3 +61,5 @@ Son görsel denetimde geri yüklenen kısa örneğin bağlama metni/koruması bc
 PR: https://github.com/dorukakindev/whisper-browser/pull/457 — son 0c511a3c kod onarımı seçili aralığın bitişini üretim öncesi süre hesabına taşır ve CLI temsil edici örnek adını tam çıktıdan ayırır. Timing12/generation3 tekrar geçti. Windows CI bekleniyor.
 
 Son sınır denetimi d3fb3a58: çok uzun tek SRT zaman penceresi kısa örnekte55sn ile sınırlandı; kaynak zamanları korunur, saatlerce sessizlik RAM ayırmaz. Quality4 tekrar geçti.
+
+ASR eşik denetimi84a8e3ef: benzerlik eşiği0,85; sayıların tekrar adedi, açık olumsuzluk kaybı ve sözcük döngüleri ayrıca kontrol edilir. Quality4/generation3 geçti. Gerçek örneğin iki ASR skoru1,000 olduğundan yeni eşiği de sağlıyor.
