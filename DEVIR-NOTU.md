@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-1248.md](docs/devir/2026-10-19-1248.md) — Rapor484: Ses hatası tanısı ve gerçek GPU kısa üretim
+Güncel çalışma: [docs/devir/2026-10-19-1259.md](docs/devir/2026-10-19-1259.md) — Rapor484 Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1248.md](docs/devir/2026-10-19-1248.md) — Rapor484: Ses hatası tanısı ve gerçek GPU kısa üretim
 Önceki çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
 Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
 Önceki çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı

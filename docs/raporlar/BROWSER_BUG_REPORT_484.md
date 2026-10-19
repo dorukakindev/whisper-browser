@@ -16,3 +16,5 @@ src/dub-service.js tamamlanma özeti motorun stdout/stderr çıktısını kalıc
 - Windows fatal exception, stdout ERROR/FATAL ve Python exception satırları hata önceliğiyle seçilir.
 
 Test: node tests/dub-service.test.js geçti; native crash, stdout ERROR, silent signal ve6000karakter sınırı kapsanır. node --check src/dub-service.js / git diff --check geçti. Hata tanısının onarımı eski üretimin kök nedenini geriye dönük kanıtlamaz; güncel kısa GPU üretiminin başarı kanıtı ayrı tutulur. CI sonucu devirde takip edilir. Yeni bağımlılık yok.
+
+Sonuç: HEAD240162df run39233066926 Windows job117995465137 başarılı (8m29s); tam paket, Electron bridge ve syntax geçti. Ayrıntı docs/devir/2026-10-19-1259.md. PR456 ana sürüme henüz birleştirilmedi.
