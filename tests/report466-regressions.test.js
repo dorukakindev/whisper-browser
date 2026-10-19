@@ -81,7 +81,7 @@ test('burn-in reserves preflight before authorization and releases it after fail
   const context = { ipcMain: { handle: (_name, fn) => { handler = fn; } },
     authorizedBrowserSender: () => true, burninJob: null, burninStartPending: false,
     jobStarting: false, activeJob: null, browserLiveAsr: null, modelBenchmarkJob: null,
-    modelProcesses: new Map(), dubService: { running: () => false },
+    modelProcesses: new Map(), dubWorkspace: { running: () => false }, dubService: { running: () => false },
     authorizeMediaFile: async value => { await gate; return value; },
     authorizeSubtitleFile: async () => { throw Error('fixture access rejected'); } };
   const start = main.indexOf("ipcMain.handle('burnin:start',");

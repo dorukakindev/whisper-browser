@@ -81,7 +81,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const liveStart = main.indexOf('function startBrowserLiveAsr(');
   const liveGuard = main.slice(liveStart, main.indexOf('  const settings = loadSettings();', liveStart)) + '\n}';
   assert.strictEqual(vm.runInNewContext(liveGuard + '\nstartBrowserLiveAsr({})', {
-    dubService: { running: () => false }, browserLiveAsr: null, activeJob: null, burninJob: {}, modelBenchmarkJob: null, modelProcesses: new Set(),
+    dubWorkspace: { running: () => false }, dubService: { running: () => false }, browserLiveAsr: null, activeJob: null, burninJob: {}, modelBenchmarkJob: null, modelProcesses: new Set(),
   }).ok, false);
 
   // BUG-181: invalid backend lines cannot pollute the live job or track store.
