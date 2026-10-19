@@ -56,7 +56,7 @@
     try{const r=await fn();if(r?.cancelled){note('İşlem iptal edildi.');return;}if(!r?.ok)throw new Error(r?.error||t('İşlem başarısız.'));
       if(r.output){setOutput(r.output);window.dispatchEvent(new CustomEvent('dub-workspace:loaded',{detail:r.output}));note('Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');}
       else {lastPath=r.path;el('dubWorkspaceReveal').classList.remove('hidden');note('Kaydedildi.');}
-    }catch(e){el('dubWorkspaceStatus').textContent=`${t('İşlem başarısız.')}: ${t(e.message)}`;}
+    }catch(e){if(e.message==='Cancelled.')note('İşlem iptal edildi.');else el('dubWorkspaceStatus').textContent=`${t('İşlem başarısız.')}: ${t(e.message)}`;}
     finally{busy=false;buttons();}
   }
   el('dubProjectOpen').addEventListener('click',()=>action(()=>window.api.openDubProject(),'Proje açılıyor…'));

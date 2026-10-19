@@ -4,6 +4,18 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ["Önce üretilen sesi veya kayıtlı dublaj projesini açın.", "Open a generated voice or a saved dubbing project first."],
+    ["Yeni proje adı seçin; mevcut projeler korunur.", "Choose a new project name; existing projects are preserved."],
+    ["Yeni çıktı adı seçin; mevcut dosyalar korunur.", "Choose a new output name; existing files are preserved."],
+    ["Proje zaten var.", "Project already exists."],
+    ["Geçersiz dublaj projesi.", "Invalid dubbing project."],
+    ["Geçersiz proje dosyası.", "Invalid project asset."],
+    ["Proje dosyası eksik veya bağlantı içeriyor.", "Missing or linked project asset."],
+    ["Geçersiz proje zaman aralığı.", "Invalid project range."],
+    ["Geçersiz dublaj zaman çizelgesi.", "Invalid dubbing timeline."],
+    ["Bu örnek tam video olarak dışa aktarılamaz.", "A preview cannot be exported as a full video."],
+    ["Zaman haritası geçersiz; sesi dışa aktarın veya yeniden üretin.", "The timing map is invalid; export audio or regenerate the voice."],
+    ["Dışa aktarma medya dosyası oluşturmadı.", "Export produced no media."],
     ['Projedeki videoyu oynatıcıda aç','Open the project video in the player'],
     ["Dublaj zaman çizelgesi ve proje", "Dubbing timeline and project"],
     ["Dublaj projesi aç", "Open dubbing project"],
