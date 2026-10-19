@@ -330,7 +330,7 @@
       if (event.logError) el('dubGeneratorDetails').textContent = event.logError;
       current = null; controls();
       if (event.type === 'done') {
-        output = event; window.DubWorkspaceUI?.setOutput(output); preview(output); el('dubGeneratorProgress').value = 100;
+        output = event; window.DubWorkspaceUI?.setOutput(output, job.context); preview(output); el('dubGeneratorProgress').value = 100;
         if (event.quality?.groups) { results.clear(); for (const row of event.quality.groups) results.set(row.key, row); showResults(); }
         const needsReview = [...results.values()].some(row => row.status !== 'ready');
         el('dubGeneratedName').textContent = event.name;

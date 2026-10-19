@@ -111,7 +111,14 @@
       if(c.mode==='player'){video.currentTime=seconds;return true;}
       try { const r=await browserCommand('seek',seconds);return r?.ok!==false; }catch(_){return false;}
     },
-    setMix: (mix,layers) => {
+    pauseSource: async expected => {
+      const c=context();
+      if(!expected||c.mode!==expected.mode||c.tabId!==expected.tabId||c.mediaKey!==expected.mediaKey||c.generation!==expected.generation||(c.mediaId||'')!==(expected.mediaId||''))return false;
+      if(c.mode==='player'){video.pause();return true;}
+      try{return (await browserCommand('pause'))?.ok!==false;}catch(_){return false;}
+    },
+    setMix: (mix,layers,expectedUrl) => {
+      if(expectedUrl && controller.session?.url!==expectedUrl)return;
       controller.setMix(mix,layers);
       const s=controller.session;
       if(s){for(const [key,id] of Object.entries({voice:'browserDubVolume',background:'browserDubBackgroundVolume',music:'browserDubMusicVolume',ambience:'browserDubAmbienceVolume'}))if(byId(id))byId(id).value=s.mix[key];
@@ -124,6 +131,7 @@
           || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
       window.BrowserDubAudioUI.setMix(file.mix || {});
+      window.dispatchEvent(new CustomEvent('dub-audio:attached',{detail:{url:file.url,context:c}}));
       byId('browserDubOffset').value = '0';
       if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });

@@ -41,8 +41,8 @@
     }
     if(!rows.length)el('dubTimelineInfo').textContent=t('Bu eski çıktıda cümle zamanları yok. Yeni üretimde zaman çizelgesi oluşur.');
   }
-  function setOutput(value){
-    stop();output=value;selected=null;context=window.BrowserDubAudioUI?.context();layers=value?.layers||{};mix=Model.mix(value?.mix);showMix();
+  function setOutput(value,expected){
+    stop();output=value;selected=null;context=expected||window.BrowserDubAudioUI?.context();layers=value?.layers||{};mix=Model.mix(value?.mix);showMix();
     try{rows=Model.groups(value?.quality?.groups||value?.rows||[]);}catch(_){rows=[];}
     if(value?.url)voice.src=value.url;
     for(const [key,a] of Object.entries(layerAudio)){const f=key==='background'?value?.background:layers[key];if(f?.url)a.src=f.url;else a.removeAttribute('src');a.load();}
@@ -70,11 +70,11 @@
     if(busy||generationBusy)return;busy=true;buttons();
     try{const chosen=await window.api.selectVideo();if(!Array.isArray(chosen)||!chosen[0])return;
       const r=await window.api.dubWorkspaceAsset(chosen[0]);if(!r?.ok)throw new Error(r?.error||'Invalid audio.');
-      stop();layers={...layers,[kind]:r.asset};layerAudio[kind].src=r.asset.url;layerAudio[kind].load();layerNames();window.BrowserDubAudioUI?.setMix(readMix(),layers);
+      stop();layers={...layers,[kind]:r.asset};layerAudio[kind].src=r.asset.url;layerAudio[kind].load();layerNames();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);
     }catch(e){note(e.message);}finally{busy=false;buttons();}
   }
   for(const kind of ['music','ambience'])el(kind==='music'?'dubMusicChoose':'dubAmbienceChoose').addEventListener('click',()=>chooseLayer(kind));
-  el('dubLayersReset').addEventListener('click',()=>{stop();layers={};for(const kind of ['music','ambience']){layerAudio[kind].removeAttribute('src');layerAudio[kind].load();}layerNames();window.BrowserDubAudioUI?.setMix(readMix(),layers);});
+  el('dubLayersReset').addEventListener('click',()=>{stop();layers={};for(const kind of ['music','ambience']){layerAudio[kind].removeAttribute('src');layerAudio[kind].load();}layerNames();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);});
   function sourceAt(time){
     if(!output?.sync)return {time,factor:1};
     let a=0,b=output.sync.videoDuration;
@@ -93,15 +93,16 @@
       if(a.paused && source.time<a.duration)void a.play().catch(()=>{stop();note('Arka plan sesi başlatılamadı.');});
     }
   }
-  for(const id of [...Object.values(controls),'dubMixDuck'])el(id).addEventListener('input',()=>{syncPreview();window.BrowserDubAudioUI?.setMix(readMix(),layers);});
+  for(const id of [...Object.values(controls),'dubMixDuck'])el(id).addEventListener('input',()=>{syncPreview();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);});
   el('dubMixPreview').addEventListener('click',()=>{if(!output)return;stop();window.BrowserDubAudioUI?.stop();voice.currentTime=selected?.audioStart||0;mixPlaying=true;void voice.play().catch(()=>{stop();note('Ses başlatılamadı.');});});
   el('dubMixStop').addEventListener('click',stop);
-  voice.addEventListener('play',()=>{clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
+  voice.addEventListener('play',()=>{void window.BrowserDubAudioUI?.pauseSource?.(context);window.BrowserDubAudioUI?.stop();clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
   voice.addEventListener('pause',()=>{clearInterval(previewTimer);previewTimer=null;for(const a of Object.values(layerAudio))a.pause();});
   voice.addEventListener('seeking',syncPreview);voice.addEventListener('ended',stop);
   el('dubGeneratorDialog').addEventListener('close',stop);
   window.addEventListener('beforeunload',stop);
   document.addEventListener('ui-locale-change',()=>{timeline();if(selected)choose(selected);});
+  window.addEventListener('dub-audio:attached',event=>{if(output?.url===event.detail?.url)context=event.detail.context;});
   window.addEventListener('dub-mix:changed',event=>{if(output?.url===event.detail?.url){mix=Model.mix(event.detail.mix);showMix();}});
   window.addEventListener('dub-generator:busy',event=>{if(generationBusy===!!event.detail)return;generationBusy=!!event.detail;buttons();});
   window.DubWorkspaceUI={setOutput,attachment};buttons();
