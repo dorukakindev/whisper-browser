@@ -156,8 +156,8 @@ test('mergeWatchItems: koleksiyon/altyazı/prefs birleşimi + oturum toplamı', 
   assert.equal(merged.prefs.a, 1); // hedef (saklanan kayıt) değeri korur
   assert.equal(merged.prefs.b, 2); // yalnız kaynakta olan alan eklenir
   assert.equal(merged.sessions.length, 2); // s1 kimliğe göre tekilleşti
-  assert.equal(merged.sessions.find((s) => s.id === 's1').watchSeconds, 10); // hedef kayıt otoritesi
-  assert.equal(merged.totalWatchSeconds, 15);
+  assert.equal(merged.sessions.find((s) => s.id === 's1').watchSeconds, 99); // aynı oturumun ilerlemiş kaydı korunur
+  assert.equal(merged.totalWatchSeconds, 104); // s1 tek kez + s2
 });
 
 test('mergeWatchItems: hedefe dönüşüm kimliği yoksa sourceKey zorunludur', () => {
