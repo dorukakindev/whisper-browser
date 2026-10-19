@@ -34,7 +34,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   function processFailure(stderr, tail = '') {
     const lines = (stderr + '\n' + tail).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    const fatal = [...new Set(lines.filter(line => /^[\w.]*(?:Error|Exception)\b/.test(line)))];
+    const fatal = [...new Set(lines.filter(line => /^(?:[\w.]*(?:Error|Exception)\b|(?:FATAL|ERROR)\b|Windows fatal exception:)/i.test(line)))];
     const plain = stderr.split(/\r?\n/).map(line => line.trim()).filter(line => line && line.length <= 400 && !/^(?:Traceback|File\s+"|UYARI\b|[~^])/.test(line)).slice(-1);
     const warnings = lines.filter(line => /^UYARI\b/.test(line));
     return (fatal.length ? fatal.slice(-3) : plain.length ? plain : warnings.slice(-3)).join('\n');
@@ -77,9 +77,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
       progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
+      exitSignal: s.exitSignal || null,
       cleanupErrors: s.cleanupErrors || [], ...data };
     summary.settings = s.settings || null;
     summary.metrics = s.metrics || null;
+    if (type === 'error') summary.diagnostics = {
+      stdoutTail: s.stdout || '', stderrTail: s.stderr || ''
+    };
     if (s.summaryPath) {
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
@@ -437,6 +441,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       emit(s, 'status', { text: 'Motor yükleniyor…' });
       const env = voiceEnvironment(c.engine);
+      // Flush output and report native crashes in this process and spawned GPU workers.
+      env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
       s.proc = spawn(python, args, { cwd: c.engine, env, windowsHide: true });
       let pending = '';
       function line(value) {
@@ -465,11 +471,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         }
       }
       s.proc.stdout.setEncoding('utf8'); s.proc.stderr.setEncoding('utf8');
-      s.proc.stdout.on('data', text => { pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
+      s.proc.stdout.on('data', text => { s.stdout = ((s.stdout || '') + text).slice(-6000); pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
       s.proc.stderr.on('data', text => { s.stderr = (s.stderr + text).slice(-6000); s.tail = (s.tail + text).slice(-6000); });
       s.proc.on('error', error => { s.spawnError = error.message; });
-      s.proc.on('close', code => {
+      s.proc.on('close', (code, signal) => {
         s.exitCode = code;
+        s.exitSignal = signal;
         if (pending) line(pending);
         if (job === s) job = null;
         if (s.cancelled) { finish(s, 'cancelled'); return; }
@@ -495,7 +502,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           // "TypeError: ..." or the plain message of a SystemExit. Show that
           // instead of the generic notice whenever stderr has something useful.
           const details = processFailure(s.stderr, s.tail);
-          finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });
+          finish(s, 'error', { error: s.spawnError || details || `Ses üretimi başarısız oldu. (exit=${code ?? 'null'}, signal=${signal || 'none'})` });
         }
       });
       return { ok: true, id: s.id };
