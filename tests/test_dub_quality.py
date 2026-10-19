@@ -31,6 +31,9 @@ class QualityTests(unittest.TestCase):
         self.assertLess(sample[-1]['end'],20000)
         self.assertEqual(groups[-1]['start'],1200000)
         self.assertEqual(sample[-1]['source_start'],1200000)
+        huge=Q.representative_groups([{'start':0,'end':86400000,'text':'Evet.','source_ids':[1]}])
+        self.assertEqual(huge[0]['end'],55000)
+        self.assertEqual(huge[0]['source_end'],86400000)
 
     def test_reference_warnings_and_valid_cache_audio(self):
         rate = 8000

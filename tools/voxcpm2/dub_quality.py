@@ -45,7 +45,9 @@ def representative_groups(groups, max_seconds=55):
         selected.append(dict(groups[i])); spent += duration(groups[i]) + .5
     cursor = 0
     for g in selected:
-        length = g['end'] - g['start']
+        # Malformed/very long cue windows must not turn a short preview into
+        # hours of allocated silence. Full speech can still stretch this clip.
+        length = min(g['end'] - g['start'], round(max_seconds * 1000))
         g['source_start'], g['source_end'] = g['start'], g['end']
         g['start'], g['end'] = cursor, cursor + length
         cursor += length + 500
