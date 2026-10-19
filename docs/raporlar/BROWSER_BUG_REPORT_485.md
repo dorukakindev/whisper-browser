@@ -2,7 +2,7 @@
 
 2026-10-19, Windows. Kullanıcı yedi ses geliştirmesinin tamamını uygulamayı istedi.
 Başlangıç master: `957bbfe91edee709accb24624e9e945e7a7a2969`.
-Ürün kodu: `bc82377b31feee3eb22ba5582420dabf577edc7e`.
+Ürün kodu: `0c511a3c63f9176c28f17c0bc25c173ac63ba57e`.
 PR456 hata tanı onarımı da `22415053` cherry-pick'i ile bu dala taşındı.
 
 ## Uygulananlar ve kanıt
@@ -57,3 +57,5 @@ Görsel: ayrı geçici headless Chrome profili, yerel dosya, TR/EN × koyu/açı
 - Yeni paket bağımlılığı/kurulum değişikliği yok. V4 cache ve .quality.json çıktı sözleşmesi eklendi. Yerel master ve kullanıcının açık uygulaması değiştirilmedi; bu dal incelemeye teslim edilir.
 
 Son görsel denetimde geri yüklenen kısa örneğin bağlama metni/koruması bc82377b ile tamamlandı. İki güncel Türkçe koyu yüzeyde kontrast0; sentetik ekranlar docs/images/dub-quality485.png ve dub-results485.png içinde, kişisel veri yok.
+
+PR: https://github.com/dorukakindev/whisper-browser/pull/457 — son 0c511a3c kod onarımı seçili aralığın bitişini üretim öncesi süre hesabına taşır ve CLI temsil edici örnek adını tam çıktıdan ayırır. Timing12/generation3 tekrar geçti. Windows CI bekleniyor.
