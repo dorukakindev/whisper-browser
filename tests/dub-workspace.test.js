@@ -39,3 +39,22 @@ test('mix and timeline validation are bounded; ducking attacks and releases arou
  assert.throws(()=>Model.groups([{...r,audioStart:NaN}]));
  const sync=validate({version:1,smooth:true,videoDuration:2,audioDuration:3,segments:[{v0:0,v1:2,a0:0,a1:3}]});assert.equal(sync.smooth,true);
 });
+test('cancelled export terminates its owned process and removes only its own partial output',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dub486-cancel-'));
+ try{
+  const voice=path.join(root,'voice.wav'),keep=path.join(root,'keep.wav'),target=path.join(root,'export.wav');
+  fs.writeFileSync(voice,'voice');fs.writeFileSync(keep,'preserve');
+  const handlers={},sender=new EventEmitter();sender.isDestroyed=()=>false;let child,partial;
+  const svc=registerDubWorkspace({ipcMain:{handle:(n,f)=>handlers[n]=f},authorized:()=>true,owner:()=>null,
+   dialog:{showSaveDialog:async()=>({filePath:target})},authorizeMedia:async p=>p,grantMedia:()=>{},
+   python:()=>process.execPath,ffmpeg:()=> 'ffmpeg',
+   spawn:(_exe,args)=>{partial=args[args.indexOf('--output')+1];fs.writeFileSync(partial,'unfinished');child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();return child;},
+   terminate:async proc=>{assert.equal(proc,child);proc.emit('close',1);return true;}});
+  svc.register({path:voice});const operation=handlers['dub:workspaceExport']({sender},{path:voice,kind:'audio'});
+  for(let i=0;!child&&i<200;i++)await new Promise(resolve=>setTimeout(resolve,5));assert.ok(child);
+  assert.equal((await handlers['dub:workspaceCancel']({sender:{}})).ok,false);
+  assert.equal((await handlers['dub:workspaceCancel']({sender})).ok,true);
+  const result=await operation;assert.equal(result.ok,false);assert.match(result.error,/Cancelled/);
+  assert.equal(fs.existsSync(partial),false);assert.equal(fs.existsSync(target),false);assert.equal(fs.readFileSync(keep,'utf8'),'preserve');assert.equal(svc.running(),false);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
