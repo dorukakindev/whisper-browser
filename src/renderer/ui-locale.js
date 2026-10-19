@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Seslendirmeye uygun çeviri', 'Translation for speech'],
     ['CSV okunamadı.', 'The CSV file could not be read.'],
     ['Dublaj planı artık kullanılmıyor.', 'The dubbing plan is no longer in use.'],
     ['Ses aktarımı yoğun; bir ses parçası atlandı.', 'Audio transfer is busy; an audio chunk was skipped.'],
@@ -480,6 +481,13 @@
     ['Whisper altyazı', 'Whisper subtitles'],
     ['Whisper ile altyazı çıkar', 'Transcribe with Whisper'],
     ['Whisper + çeviri', 'Whisper + translation'],
+    ['Whisper + seslendirmeye uygun çeviri', 'Whisper + translation for speech'],
+    ['Başlat', 'Start'],
+    ['Whisper seslendirme çevirisi', 'Whisper translation for speech'],
+    ['Zaman aralığını seç ve seslendirmeye uygun çeviri oluştur', 'Choose a time range and create a translation for speech'],
+    ['Seslendirmeye uygun çeviri (aynı geçiş; bloklar ve zamanlar korunur)', 'Translation for speech (same pass; cues and timing preserved)'],
+    ['Seslendirme modunda ikinci geçiş kapalıdır. Seçili çeviri modeli kullanılır; ek düzenleme çağrısı yapılmaz. Token tüketimi metne ve modele göre değişir.', 'Speech mode disables the second pass. Uses the selected translation model without an additional editing call. Token usage depends on the text and model.'],
+    ['Seçili çeviri modeliyle, ikinci geçiş olmadan seslendirmeye uygun çeviri hazırlanır. Cümleler bağlam içinde toparlanır; altyazı blokları ve zamanları korunur.', 'Creates a translation for speech using the selected model, without a second pass. Sentences use context while cue boundaries and timing stay unchanged.'],
     ['Mangayı çevir', 'Translate manga'],
     ['Görünüm', 'Appearance'],
     ['Yalnız çeviri', 'Translation only'],

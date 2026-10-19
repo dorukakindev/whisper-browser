@@ -117,6 +117,11 @@ test('ceviri yan ayarlari da gider', () => {
   assert(argValue(args, '--dual-subtitle') === 'true', 'dual yok');
 });
 
+test('seslendirme çeviri amacı backend argümanına ulaşır ve varsayılan kapalıdır', () => {
+  assert(argValue(build(base({ translateForSpeech: true })), '--translate-for-speech') === 'true');
+  assert(argValue(build(base({})), '--translate-for-speech') === 'false');
+});
+
 test('gevşek kabul yalnızca açıkken bayrak gönderir', () => {
   const on = build(base({ translate: true, translateLenient: true }));
   assert(argValue(on, '--translate-lenient') === 'true', '--translate-lenient yok');

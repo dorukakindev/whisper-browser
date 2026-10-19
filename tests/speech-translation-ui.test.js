@@ -1,0 +1,70 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { JSDOM } = require('jsdom');
+const doc = new JSDOM(fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8')).window.document;
+const source = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+const $ = id => doc.getElementById(id);
+const starts = [];
+let url = 'https://www.youtube.com/watch?v=abcdefghijk';
+const ctx = vm.createContext({ $, $$: selector => [...doc.querySelectorAll(selector)],
+  player: { browserDuration: 1000 }, uiText: text => text,
+  currentBrowserYoutubeUrl: () => url, closeBrowserToolbarMenus() {},
+  parseClipInput: value => /^\d+:\d{2}$/.test(value) ? value.split(':').map(Number).reduce((a,b) => a*60+b) : NaN,
+  pSecToTime: value => `${Math.floor(value/60)}:${String(Math.floor(value%60)).padStart(2,'0')}`,
+  openManagedModal: el => el.classList.remove('hidden'), closeManagedModal: el => el.classList.add('hidden'),
+  scheduleSave() {}, setBrowserSignal() {}, startBrowserYoutubeWhisper: (...args) => starts.push(args) });
+const start = source.indexOf('function currentBrowserWhisperRange(');
+vm.runInContext(source.slice(start, source.indexOf('// PLAYER_END', start)), ctx);
+assert($('translateForSpeech'));
+const { sanitizeSettings } = require('../src/settings-security');
+assert.equal(sanitizeSettings({ui: {translateForSpeech: true}}).ui.translateForSpeech, true);
+assert(source.includes("'translateRefine', 'translateForSpeech'"), 'speech preference must persist');
+$('browserWhisperRangeSettings').click();
+assert.equal($('browserWhisperRangeDialog').classList.contains('hidden'), false);
+assert.equal($('browserWhisperRangeApply').textContent, 'Uygula');
+assert($('browserWhisperRangeDialog').contains($('browserWhisperForSpeech')), 'speech setting belongs to the existing range dialog');
+$('browserWhisperForSpeech').checked = true;
+assert.equal($('browserWhisperSpeechHint').classList.contains('hidden'), false);
+$('browserWhisperRangeEnabled').checked = true;
+$('browserWhisperRangeStart').value = '2:00';
+$('browserWhisperRangeEnd').value = '5:00';
+$('browserWhisperRangeApply').click();
+assert.equal(starts.length, 0, 'applying settings must not start transcription');
+assert.equal($('translateForSpeech').checked, true);
+assert.deepEqual(JSON.parse(JSON.stringify(ctx.currentBrowserWhisperRange())), { start: 120, end: 300 });
+$('browserWhisperRangeSettings').click();
+assert.equal($('browserWhisperForSpeech').checked, true, 'reopening restores the saved speech preference');
+assert.equal($('browserWhisperRangeApply').textContent, 'Uygula');
+$('browserWhisperRangeApply').click();
+assert.equal(starts.length, 0, 'settings must not silently launch a job');
+$('browserWhisperRangeSettings').click();
+url = 'https://www.youtube.com/watch?v=otherVideo1';
+$('browserWhisperRangeApply').click();
+assert.equal(starts.length, 0, 'video changed while dialog was open');
+assert($('browserWhisperRangeError').textContent);
+ctx.state = {};
+ctx.glossaryCombined = () => [];
+ctx.resolveNetBudgetPreset = () => ({ translateWorkers: 4, dlRateKbps: 0 });
+const builder = source.indexOf('function buildOptsFromUI(');
+vm.runInContext(source.slice(builder, source.indexOf('function resolveNetBudgetPreset(', builder)), ctx);
+$('translateForSpeech').checked = true;
+$('llmPostprocess').checked = true;
+$('translateRefine').checked = true;
+$('translate').checked = true;
+let opts = ctx.buildOptsFromUI();
+assert.equal(opts.translateForSpeech, true);
+assert.equal(opts.translateRefine, false);
+assert.equal(opts.llmPostprocess, false);
+assert.equal($('translateRefine').checked, true, 'effective options must not overwrite saved preferences');
+const configureStart = source.indexOf('function configureSpeechTranslation(');
+vm.runInContext(source.slice(configureStart, source.indexOf('async function startBrowserYoutubeWhisper(', configureStart)), ctx);
+opts = ctx.configureSpeechTranslation(opts, false);
+assert.equal(opts.llmPostprocess, true, 'source-only action restores its own postprocess preference even when the global translation switch is on');
+$('translate').checked = false;
+opts = ctx.buildOptsFromUI();
+assert.equal(opts.translateForSpeech, false);
+assert.equal(opts.llmPostprocess, true, 'speech preference must not change a source-only transcription');
+console.log('speech-translation-ui: existing settings dialog, persistence, clip range, normal mode and stale video passed');

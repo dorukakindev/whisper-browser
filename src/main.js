@@ -21109,6 +21109,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   args.push('--translate-cache', options.translateCache !== false ? 'true' : 'false');
   pushBoundOption(args, '--cache-dir', path.join(app.getPath('userData'), 'cache'));
   args.push('--translate-refine', options.translateRefine ? 'true' : 'false');
+  args.push('--translate-for-speech', options.translateForSpeech === true ? 'true' : 'false');
   args.push('--dual-subtitle', options.dualSubtitle ? 'true' : 'false');
   if (options.audioPreprocess) pushBoundOption(args, '--audio-preprocess', options.audioPreprocess);
 

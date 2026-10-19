@@ -252,6 +252,7 @@ async function offerBurnInRecovery() {
 
 function buildOptsFromUI() {
   // Mevcut UI ayarlarından opts oluştur (single ve kuyruk için ortak)
+  const forSpeech = !!$('translateForSpeech')?.checked && ($('translate').checked || !!state.forceTranslate);
   return {
     model: $('model').value,
     engine: $('engine').value,
@@ -317,7 +318,7 @@ function buildOptsFromUI() {
     maxSpeakers: parseInt($('maxSpeakers').value, 10) || 0,
     labelSpeakers: $('labelSpeakers').checked,
     speakerMap: $('speakerMap').value.trim(),
-    llmPostprocess: $('llmPostprocess').checked,
+    llmPostprocess: !forSpeech && $('llmPostprocess').checked,
     llmApiKey: $('llmApiKey').value.trim(),
     // state.forceTranslate: kontrol cubugundaki tek-tik dugmesi. Kalici
     // ayari degistirmeden yalnizca o is icin ceviriyi acar.
@@ -337,7 +338,8 @@ function buildOptsFromUI() {
     dedupeCues: $('translateDedupe') ? $('translateDedupe').checked : true,
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
-    translateRefine: $('translateRefine').checked,
+    translateForSpeech: forSpeech,
+    translateRefine: !forSpeech && $('translateRefine').checked,
     translateLenient: $('translateLenient') ? $('translateLenient').checked : true,
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
@@ -3304,7 +3306,7 @@ const PERSIST_CHECKBOX_CONTROLS = [
   'fixTimings', 'snapToSpeech', 'mergeShort', 'mergeIncomplete', 'mergeContinuation', 'fixPunctuationCollapse', 'confidenceReport', 'fixCommonErrors', 'dropRepeatedHallucinations', 'syncFixFramerate', 'syncPiecewise', 'dedupe', 'langSuffix', 'vadFilter', 'conditionOnPrevious', 'temperatureFallback',
   'qualityReport', 'notifyOnDone', 'resume',
   'diarize', 'labelSpeakers',
-  'translate', 'translateKeepSource', 'translateRefine', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
+  'translate', 'translateKeepSource', 'translateRefine', 'translateForSpeech', 'translateLenient', 'translateCache', 'translateDedupe', 'dualSubtitle', 'watchEnabled',
   'primarySettingsOpen',
   'playerAutoNext', 'playerWordHighlight',
   'llmPostprocess', 'llmFixCensorship', 'llmFixHallucination',
@@ -4996,7 +4998,9 @@ function registerCompletedBrowserOutputs(outputs, job) {
     const seed = `${job.mediaKey}|${role}|${item.sourceHash || ''}|${item.language || ''}|${item.model || ''}|${item.path || ''}`;
     const id = role === 'source' ? sourceTrackId : `whisper-translation-${browserSubtitleSync.hashText(seed)}`;
     const language = String(item.language || (role === 'translation' ? $('translateTo')?.value || 'tr' : '')).toLowerCase();
-    const labelParts = [role === 'translation' ? 'Whisper çeviri' : 'Whisper altyazı'];
+    const forSpeech = role === 'translation' && !!(job.baseOpts?.translateForSpeech || job.translateForSpeech);
+    const labelParts = [role === 'translation'
+      ? (forSpeech ? 'Whisper seslendirme çevirisi' : 'Whisper çeviri') : 'Whisper altyazı'];
     if (language) labelParts.push(language.toUpperCase());
     if (item.model) labelParts.push(String(item.model));
     const track = {
@@ -5008,13 +5012,14 @@ function registerCompletedBrowserOutputs(outputs, job) {
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
+      forSpeech,
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
       completed: Math.max(0, Number(item.completed) || 0),
       failed: Math.max(0, Number(item.failed) || 0),
-      model: String(item.model || ''),
-      provider: String(item.provider || ''),
+      model: String(item.model || (forSpeech ? job.baseOpts?.translateModel || job.translateModel : '') || ''),
+      provider: String(item.provider || (forSpeech ? job.baseOpts?.translateBaseUrl || job.translateBaseUrl : '') || ''),
     };
     const index = player.browserTracks.findIndex((old) => old.id === id || old.path === item.path);
     if (index >= 0) player.browserTracks[index] = { ...player.browserTracks[index], ...track };
@@ -11375,7 +11380,24 @@ function updateBrowserWhisperActions() {
   syncSubtitlePrimaryAction();
 }
 
-async function startBrowserYoutubeWhisper(translate) {
+function configureSpeechTranslation(opts, enabled) {
+  if (opts.translateForSpeech && !enabled) {
+    // A source-only action overrides the global translation preference.
+    opts.translateRefine = !!$('translateRefine')?.checked;
+    opts.llmPostprocess = !!$('llmPostprocess')?.checked;
+  }
+  opts.translateForSpeech = !!enabled;
+  if (opts.translateForSpeech) {
+    opts.translateRefine = false;
+    opts.llmPostprocess = false;
+    opts.mergeContinuation = false;
+    opts.dedupeCues = false;
+    opts.translateVariantLabel = 'speech';
+  }
+  return opts;
+}
+
+async function startBrowserYoutubeWhisper(translate, config = {}) {
   if (state.running || state.queueRunning) return;
   const tabId = player.browserActiveTabId;
   const mediaKey = player.mediaKey;
@@ -11385,9 +11407,19 @@ async function startBrowserYoutubeWhisper(translate) {
     return;
   }
   const clipRange = currentBrowserWhisperRange();
-  const reusableTranslation = translate && !clipRange ? player.browserTracks.find((track) =>
-    track.generatedBy === 'whisper' && track.role === 'translation' && track.path
+  const forSpeech = !!translate && (config.forSpeech ?? !!$('translateForSpeech')?.checked);
+  const selectedModel = String($('translateModel')?.value || '').trim();
+  const selectedProvider = String($('translateEndpointPreset')?.value === 'custom'
+    ? $('translateBaseUrl')?.value || '' : $('translateEndpointPreset')?.value || '').replace(/\/+$/, '');
+  const sameRange = track => clipRange
+    ? track.clipRange?.start === clipRange.start && track.clipRange?.end === clipRange.end
+    : !track.clipRange;
+  const reusableTranslation = translate ? player.browserTracks.find((track) =>
+    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
       && track.language === ($('translateTo')?.value || 'tr')
+      && !!track.forSpeech === forSpeech
+      && (!forSpeech || ((!selectedModel || track.model === selectedModel)
+        && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)))
       && track.status === 'complete' && !Number(track.failed)) : null;
   if (reusableTranslation) {
     await useBrowserTrack(false, reusableTranslation.id);
@@ -11398,8 +11430,8 @@ async function startBrowserYoutubeWhisper(translate) {
       { priority: 70, holdMs: 5000 });
     return;
   }
-  const reusableSource = !clipRange && player.browserTracks.find((track) =>
-    track.generatedBy === 'whisper' && track.role === 'source' && track.path);
+  const reusableSource = player.browserTracks.find((track) =>
+    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'source' && track.path);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
     if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
@@ -11413,6 +11445,7 @@ async function startBrowserYoutubeWhisper(translate) {
     if ($('makeTransBtn') && !$('makeTransBtn').disabled) {
       setBrowserSignal('Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.', true,
         { priority: 70, holdMs: 5000 });
+      state.translateForSpeechOverride = forSpeech;
       $('makeTransBtn').click();
       return;
     }
@@ -11420,6 +11453,7 @@ async function startBrowserYoutubeWhisper(translate) {
   await startProgressivePlayerTranscription({
     browserYoutube: true,
     translateOverride: !!translate,
+    translateForSpeech: forSpeech,
     clipRange,
   });
 }
@@ -25325,6 +25359,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   if (Object.prototype.hasOwnProperty.call(config, 'translateOverride')) {
     opts.translate = !!config.translateOverride;
   }
+  configureSpeechTranslation(opts, opts.translate &&
+    (config.translateForSpeech ?? !!$('translateForSpeech')?.checked));
   // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
   // dosyada birlestirilir. Kullanici ana ekrandaki kalici format secimini kaybetmez.
   opts.formats = 'srt';
@@ -25547,6 +25583,7 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
 // hemen önce kurulur. Düğme erken çıkarsa bayraklar kalırsa sonraki sıradan
 // "Çevir" sessizce yalnız eski aralığı veya A/B modelini çeviriyordu.
 function clearPendingRetranslateIntent({ dropSnapshot = false } = {}) {
+  state.translateForSpeechOverride = null;
   state.forceRetranslate = false;
   state.translateCueRange = null;
   state.translateModelOverride = null;
@@ -25580,6 +25617,7 @@ if ($('makeTransBtn')) {
     const opts = buildOptsFromUI();
     opts.translateOnly = true;
     opts.translate = true;
+    configureSpeechTranslation(opts, state.translateForSpeechOverride ?? !!$('translateForSpeech')?.checked);
     opts.input = sourcePath;
     // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
     // eksik/başarısız olanları yeniden işler.
@@ -25592,7 +25630,8 @@ if ($('makeTransBtn')) {
     // kaynak dili çeviri sanıp eksik iş kuyruğunu yanlış dosyadan tamamlar.
     const existingTranslation = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) =>
-          track.id === player.browserLoadedTrackId2 && track.role === 'translation')?.path
+          track.id === player.browserLoadedTrackId2 && track.role === 'translation'
+          && !!track.forSpeech === !!opts.translateForSpeech)?.path
       : (player.subRole === 'translation' ? player.subPath
         : player.sub2Role === 'translation' ? player.sub2Path : '');
     if (existingTranslation && !state.forceRetranslate) opts.translateExisting = existingTranslation;
@@ -25623,6 +25662,9 @@ if ($('makeTransBtn')) {
     // itiyordu. Çeviri çıktısı done olayında ayrıca listeye eklenir.
     const previousOutputs = state.outputFiles.slice();
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
+      translateForSpeech: opts.translateForSpeech,
+      translateModel: opts.translateModel, translateBaseUrl: opts.translateBaseUrl,
+      clipRange: browserTrack?.clipRange ? { ...browserTrack.clipRange } : null,
       startedAt: Date.now(), percent: 0,
       workspaceMode: player.workspaceMode, browserTabId: player.workspaceMode === 'browser' ? player.browserActiveTabId : '',
       liveSource: sourceCues.slice(), liveTranslation: new Map(),
@@ -25639,6 +25681,7 @@ if ($('makeTransBtn')) {
       + `${opts.translateTo || 'tr'} · kaynak ${opts.language || 'otomatik'} · `
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
     const r = await startTranscribeSafe(opts);
+    state.translateForSpeechOverride = null;
     state.forceRetranslate = false;
     state.translateCueRange = null;
     state.translateModelOverride = null;
@@ -32638,6 +32681,7 @@ function openBrowserWhisperRangeSettings() {
   closeBrowserToolbarMenus();
   const modal = $('browserWhisperRangeDialog');
   modal.dataset.videoUrl = currentBrowserYoutubeUrl();
+  $('browserWhisperForSpeech').checked = !!$('translateForSpeech')?.checked;
   const range = currentBrowserWhisperRange();
   $('browserWhisperRangeEnabled').checked = !!range;
   $('browserWhisperRangeStart').value = range ? pSecToTime(range.start) : '0:00';
@@ -32661,10 +32705,12 @@ function applyBrowserWhisperRangeSettings() {
     $('browserWhisperRangeStart').value, $('browserWhisperRangeEnd').value, player.browserAdPlaying ? 0 : Number(player.browserDuration));
   if (result.error) { $('browserWhisperRangeError').textContent = result.error; return; }
   player.browserWhisperRange = { url, range: result.range };
+  $('translateForSpeech').checked = $('browserWhisperForSpeech').checked;
+  scheduleSave();
   closeManagedModal($('browserWhisperRangeDialog'));
   setBrowserSignal(uiText(result.range ? 'Whisper ve çeviri seçilen zaman aralığını işleyecek.' : 'Whisper ve çeviri videonun tamamını işleyecek.'), true);
 }
-$('browserWhisperRangeSettings')?.addEventListener('click', openBrowserWhisperRangeSettings);
+$('browserWhisperRangeSettings')?.addEventListener('click', () => openBrowserWhisperRangeSettings());
 $('browserWhisperRangeEnabled')?.addEventListener('change', syncBrowserWhisperRangeFields);
 $('browserWhisperRangeApply')?.addEventListener('click', applyBrowserWhisperRangeSettings);
 $$('[data-whisper-range-close]').forEach(button => button.addEventListener('click', () => closeManagedModal($('browserWhisperRangeDialog'))));

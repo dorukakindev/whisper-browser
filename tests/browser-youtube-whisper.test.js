@@ -177,5 +177,48 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.deepEqual(terminalActions, ['finish'], 'kalıcı çeviri hatasından sonra ikinci aralık başlatıldı');
   assert.equal(job.rangeIndex, 0);
 
-  console.log('Browser YouTube Whisper: URL, translation intent, reuse, tab race and permanent-error stop passed.');
+  ctx.state.running = false;
+  ctx.player.browserActiveTabId = 'a';
+  ctx.player.browserWhisperRange = null;
+  ctx.player.browserTracks = [{ id: 'normal', path: 'normal.srt', generatedBy: 'whisper',
+    role: 'translation', language: 'tr', status: 'complete' }];
+  const speechJobs = [];
+  ctx.startProgressiveChunk = async job => speechJobs.push(job);
+  ctx.buildOptsFromUI = () => ({ translateTo: 'tr', translateRefine: true,
+    llmPostprocess: true, mergeContinuation: true, dedupeCues: true });
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 1, 'ordinary ready translation was reused for speech');
+  const speech = speechJobs[0].baseOpts;
+  assert.equal(speech.translateForSpeech, true);
+  for (const field of ['translateRefine', 'llmPostprocess', 'mergeContinuation', 'dedupeCues']) assert.equal(speech[field], false);
+  ctx.state.running = false;
+  ctx.player.browserTracks = [{ id: 'speech', path: 'speech.srt', generatedBy: 'whisper',
+    role: 'translation', language: 'tr', status: 'complete', forSpeech: true }];
+  ctx.useBrowserTrack = async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; };
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 1, 'ready speech translation was regenerated');
+  ctx.player.browserWhisperRange = { url: ctx.currentBrowserYoutubeUrl(), range: { start: 120, end: 300 } };
+  ctx.player.browserTracks[0].generatedBy = 'whisper-range';
+  ctx.player.browserTracks[0].clipRange = { start: 120, end: 300 };
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 1, 'same completed range should not rerun Whisper or translation');
+  ctx.player.browserWhisperRange.range.end = 400;
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 2, 'different range incorrectly reused completed output');
+  assert.equal(speechJobs[1].ranges[0].end, 400);
+  ctx.state.running = false;
+  ctx.player.browserWhisperRange.range.end = 300;
+  node('translateModel').value = 'new-model';
+  node('translateEndpointPreset').value = 'custom';
+  node('translateBaseUrl').value = 'https://provider.example/v1/';
+  ctx.player.browserTracks[0].model = 'old-model';
+  ctx.player.browserTracks[0].provider = 'https://provider.example/v1';
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 3, 'speech output from another model was silently reused');
+  ctx.state.running = false;
+  ctx.player.browserTracks[0].model = 'new-model';
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 3, 'matching model/provider/range should reuse output');
+
+  console.log('Browser YouTube Whisper: URL, intent, mode-specific reuse, time range, race and stop passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
