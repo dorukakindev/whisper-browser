@@ -34,3 +34,7 @@ Yeni düğme/CSS/şema/bağımlılık/kurulum yok. Yeni CSV hata metni TR/EN sö
 Gerçek Windows start.bat, Electron UI/DPI, YouTube/provider/GPU/model denemesi
 yok; terminal fixture başarısı gerçek site veya görsel doğrulama değildir.
 Kullanıcı profili/ana checkout ve kişisel dosyalar değiştirilmedi.
+
+## CI sonucu — 06:34
+
+Run39194753922 HEAD383ca81 completed successfully. Windows job117875048651 (7m21s): tam npm test, Electron bridge ve syntax geçti. Ubuntu job117875048274 da başarılı. Son kayıt yalnız belgedir; ayrıntı docs/devir/2026-10-19-0634.md.
