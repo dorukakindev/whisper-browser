@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed malformed/nested note recovery, manga CSS positioning and perspective checks, PDF column/table hyphen merging, generated anchor whitespace, stale PDF user edits, partial malformed results and truncated hash-tail validation.
+
 - Fixed conflicting-size relink recommendations, regressing merged watch sessions, media stdin cleanup, destroyed-download terminal handling, overlapping cue pause logic, catalog episode/ID validation, poster picker orphans and missing live-ASR speed metrics.
 
 - Fixed overlapping subtitle comparison and literal brace changes, ambiguous automatic timing calibration, interrupted ASR language switching, conflicting track annotations, markup-based reading-speed false positives, English/full-video AI evidence coverage and unsafe watch-library URL identities.

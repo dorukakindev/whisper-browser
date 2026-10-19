@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0551.md](docs/devir/2026-10-19-0551.md) — Rapor479: Oynatma, medya yaşam döngüsü ve katalogda 10 yeni düzeltme
+Güncel çalışma: [docs/devir/2026-10-19-0601.md](docs/devir/2026-10-19-0601.md) — Rapor480: Not kurtarma, PDF ve mangada 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0551.md](docs/devir/2026-10-19-0551.md) — Rapor479: Oynatma, medya yaşam döngüsü ve katalogda 10 yeni düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0545.md](docs/devir/2026-10-19-0545.md) — Rapor478: Çeviri, senkron, AI kapsamı ve kütüphanede 10 yeni düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0538.md](docs/devir/2026-10-19-0538.md) — Rapor477: Ses, kaynak kuyruğu ve browser ayarlarında 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
