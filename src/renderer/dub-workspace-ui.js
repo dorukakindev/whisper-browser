@@ -60,7 +60,7 @@
     finally{busy=false;buttons();}
   }
   el('dubProjectOpen').addEventListener('click',()=>action(()=>window.api.openDubProject(),'Proje açılıyor…'));
-  el('dubProjectVideoOpen').addEventListener('click',()=>{if(!output?.video||busy)return;stop();window.BrowserDubAudioUI?.openProjectVideo(output.video.path,output.subtitle);context=window.BrowserDubAudioUI?.context();el('dubGeneratorDialog').close();});
+  el('dubProjectVideoOpen').addEventListener('click',()=>{if(!output?.video||busy)return;stop();window.BrowserDubAudioUI?.openProjectVideo(output.video.path,output.subtitle);context=window.BrowserDubAudioUI?.context();window.dispatchEvent(new CustomEvent('dub-workspace:media'));el('dubGeneratorDialog').close();});
   el('dubProjectSave').addEventListener('click',()=>{if(output)void action(()=>window.api.saveDubProject({path:output.path,mix:readMix(),layers,includeVideo:el('dubProjectVideo').checked}),'Proje kaydediliyor…');});
   el('dubWorkspaceExport').addEventListener('click',()=>{if(output)void action(()=>window.api.exportDubWorkspace({path:output.path,mix:readMix(),layers,kind:el('dubExportKind').value}),'Dışa aktarılıyor…');});
   el('dubWorkspaceCancel').addEventListener('click',async()=>{el('dubWorkspaceCancel').disabled=true;const r=await window.api.cancelDubWorkspace().catch(()=>null);note(r?.ok?'Durduruluyor…':'İptal doğrulanamadı; işlem izlenmeye devam ediyor.');if(!r?.ok)el('dubWorkspaceCancel').disabled=false;});

@@ -24,7 +24,7 @@ test('portable project owns its media and rejects path traversal, missing data a
   assert.equal(manifest.rows[0].text,row.text);assert.equal(manifest.mix.voice,.7);assert.equal(manifest.files.music,'music.wav');
   assert.ok(!JSON.stringify(manifest).includes(root),'project contains only relative asset names');
   fs.unlinkSync(files['voice.wav']);
-  const opened=await call('dub:projectOpen');assert.equal(opened.ok,true);assert.equal(opened.output.rows[0].audioEnd,3);assert.ok(opened.output.layers.music.url);assert.ok(opened.output.video.path.endsWith('source.mp4'));assert.equal(fs.readFileSync(opened.output.subtitle,'utf8').startsWith('\uFEFF'),true);
+  const opened=await call('dub:projectOpen');assert.equal(opened.ok,true);assert.equal(opened.output.rows[0].audioEnd,3);assert.equal(opened.output.sourceSubtitle,path.join(target,'subtitles.srt'));assert.ok(opened.output.layers.music.url);assert.ok(opened.output.video.path.endsWith('source.mp4'));assert.equal(fs.readFileSync(opened.output.subtitle,'utf8').startsWith('\uFEFF'),true);
   assert.equal((await call('dub:projectSave',{path:opened.output.path})).ok,false,'existing project never overwritten');
   manifest.files.voice='../background.wav';fs.writeFileSync(path.join(target,'project.json'),JSON.stringify(manifest));
   assert.equal((await call('dub:projectOpen')).ok,false,'relative escape denied');

@@ -18020,7 +18020,7 @@ const dubWorkspace = require('./dub-workspace').registerDubWorkspace({
   spawn, terminate: proc => terminateProcessTree(proc, {spawn}),
   python: resolvePython, ffmpeg: () => resolveFfTool('ffmpeg'), copy:dt,
   environment: () => withoutSecretEnv(process.env),
-  busy: () => dubService.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending,
+  busy: () => dubService.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
 });
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,

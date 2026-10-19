@@ -346,6 +346,10 @@
       else { status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || ''; }
     }
   });
+  window.addEventListener('dub-workspace:media', () => {
+    const c=window.BrowserDubAudioUI?.context();mediaContextKey=mediaIdentity();
+    rangeContextKey=JSON.stringify([c?.mode,c?.tabId,c?.mediaId||c?.mediaKey,null]);
+  });
   window.addEventListener('dub-workspace:loaded', event => {
     if(current || planning || referenceBusy || choosing) return;
     output=event.detail; preview(output); results.clear();
@@ -355,6 +359,8 @@
     el('dubGeneratorUse').classList.toggle('hidden',output.sample===true);
     // A project carries rendered media, not an executable engine request.
     srt=output.subtitle || ''; lastRequest=null; plan=null; edits={};
+    el('dubRangeEnabled').checked=!!output.range;
+    if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     el('dubSrtName').textContent=basename(srt); controls();
     status('Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
   });
