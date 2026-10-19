@@ -93,3 +93,10 @@ export edilebilir; tam video diye dışa aktarılmaz. Ranged export tüm40dk vid
 Son ürün kodu494a53bc2b6c56bc9e441b4136f181758d7a694c. Özgün SRT yeniden
 kayıtta korunur; proje range/context aktarımı sonraki panel açılışında kaybolmaz.
 Workspace/model iş kilitleri simetriktir. [1449 notu](../devir/2026-10-19-1449.md).
+
+## Kesin teslim — 16:11
+
+Son ürün/test kodu70590e46f1ca908a12ee5c3b56f87d899f576f23. Windows
+run39257003222/job118074701200 succeeded7m27s; tam paket, Electron bridge
+ve syntax geçti. Önceki FFmpeg503 boş kurulum ve sabit test beklemesi giderildi.
+[Son devir notu](../devir/2026-10-19-1611.md) komut/sonuç ve sınırları içerir.
