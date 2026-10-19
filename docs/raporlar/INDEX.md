@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 486 | [BROWSER_BUG_REPORT_486.md](BROWSER_BUG_REPORT_486.md) | Dublaj zaman çizelgesi, karıştırıcı, taşınabilir proje ve senkron dışa aktarma |
 | 485 | [BROWSER_BUG_REPORT_485.md](BROWSER_BUG_REPORT_485.md) | Süreye uygun dublaj, parça kurtarma ve kalite araçları |
 | 483 | [BROWSER_BUG_REPORT_483.md](BROWSER_BUG_REPORT_483.md) | Gönderilen ses/dublaj denetimini doğrulama ve onarım |
 | 482 | [BROWSER_BUG_REPORT_482.md](BROWSER_BUG_REPORT_482.md) | Seslendirmeye uygun çeviri: ana akış entegrasyonu |

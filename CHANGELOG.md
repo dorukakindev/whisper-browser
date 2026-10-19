@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added sentence-level dubbing timeline review, layered audio mixing with speech ducking, portable projects and synchronized WAV/MP4 exports with optional original audio track.
+
 - Added duration-aware speech translation and one bounded wording retry, smooth video timing maps, cached CPU speech verification profiles, voice reference level advice, independently cached pieces with selective regeneration and OOM fallback, and representative previews with explicit review results.
 
 - Hardened dubbing module resolution, simultaneous cue planning, bounded input/group validation, source preview consistency, recoverable audio timing maps, cold-start waits, subprocess diagnostics and voice studio startup reporting.
