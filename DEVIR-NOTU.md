@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
+Güncel çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
+Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
 Önceki çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı
 Önceki çalışma: [docs/devir/2026-10-19-1109.md](docs/devir/2026-10-19-1109.md) — Rapor483: Gönderilen ses/dublaj bulgularını doğrulama ve onarım
 Önceki çalışma: [docs/devir/2026-10-19-0747.md](docs/devir/2026-10-19-0747.md) — Rapor482: Seslendirmeye uygun çeviriyi mevcut ayar kutusuna geri alma

@@ -55,3 +55,5 @@ YouTube ve üretim start.bat açılışı denenmedi. Yeni bağımlılık/kurulum
 Ana checkout'taki yerel3 dosya+yeni test değişikliği teslimde saklanarak
 ana dal ff-only yapılacak; ilgisiz untracked dosyalar korunur. Kullanıcının
 ana sürüme alma talimatı Rapor482 özelliği için devam ediyor.
+
+Sonuç: run39223379392 HEAD5909c6c Windows ve Ubuntu başarılı. PR454 merge işlemi otomatik onay incelemesinde AGENTS kuralı gerekçesiyle yürütülmeden reddedildi; açık onay sorusu yanıtı bekleniyor. Ana dal/yerel ana kopya değişmedi. Ayrıntı docs/devir/2026-10-19-1142.md.
