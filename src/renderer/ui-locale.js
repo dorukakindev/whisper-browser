@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Metin seslendirme stüdyosu başlatılamadı.', 'The text-to-speech studio could not be started.'],
     ['Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.', 'Generation could not be stopped; the window stayed open. Try the Stop button again.'],
     ['Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.', 'Audio is ready, but the timing map is invalid. Video synchronization cannot be guaranteed.'],
     ['Ses ayarları yüklenemedi.', 'Voice settings could not be loaded.'],

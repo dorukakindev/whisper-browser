@@ -261,18 +261,27 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const text = await shorten(group.text, group.seconds);
     return { ok: true, text };
   }));
-  ipcMain.handle('dub:textUI', guard(async () => {
+  ipcMain.handle('dub:textUI', guard(async e => {
     if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (textUI) return { ok: true, alreadyOpen: true };
     const c = config();
     const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
     const script = path.join(c.engine, 'arayuz.py');
     if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
-    const proc = spawn(python, [script], { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true, stdio: 'ignore' });
+    const proc = spawn(python, [script], { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '', launched = false;
+    proc.stderr?.setEncoding?.('utf8');
+    proc.stderr?.on('data', data => { stderr = (stderr + data).slice(-6000); });
     textUI = proc;
-    proc.once('close', () => { if (textUI === proc) textUI = null; });
+    proc.once('close', code => {
+      if (textUI === proc) textUI = null;
+      if (launched && Number.isInteger(code) && code !== 0 && !e.sender.isDestroyed()) {
+        e.sender.send('dub:event', { id: 'text-studio', type: 'studio_error',
+          error: processFailure(stderr) || 'Metin seslendirme stüdyosu başlatılamadı.' });
+      }
+    });
     await new Promise((resolve, reject) => {
-      proc.once('spawn', resolve);
+      proc.once('spawn', () => { launched = true; resolve(); });
       proc.once('error', error => { if (textUI === proc) textUI = null; reject(error); });
     });
     proc.unref?.();

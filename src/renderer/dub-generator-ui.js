@@ -252,6 +252,7 @@
   });
   el('dubGeneratorLog').addEventListener('click', () => { if (logPath) void window.api.openPath(logPath); });
   window.api.onDubEvent(event => {
+    if (event.type === 'studio_error') { status(event.error || 'Metin seslendirme stüdyosu başlatılamadı.'); return; }
     const job = current;
     if (!job || event.id !== job.id) return;
     if (job.stopping && !['done','error','cancelled'].includes(event.type)) return;
