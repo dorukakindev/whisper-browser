@@ -4,8 +4,9 @@ const { JSDOM } = require('jsdom');
 const dom = new JSDOM(fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8'), { runScripts: 'outside-only' });
 const w = dom.window, el = id => w.document.getElementById(id);
 w.DubSyncMap = require('../src/renderer/dub-sync-map');
+w.DubWorkspaceModel = require('../src/renderer/dub-workspace-model');
 w.eval(fs.readFileSync(path.join(__dirname, '../src/renderer/browser-dub-audio.js'), 'utf8'));
-for (const id of ['playerVideo', 'browserDubAudio', 'browserDubBackground']) {
+for (const id of ['playerVideo', 'browserDubAudio', 'browserDubBackground','browserDubMusic','browserDubAmbience']) {
   const media = el(id);
   for (const [key, value] of Object.entries({ paused: true, readyState: 4, duration: 100 })) {
     Object.defineProperty(media, key, { value, writable: true });
@@ -44,6 +45,13 @@ const tick = () => new Promise(setImmediate);
   assert.equal(audio.currentTime, 40, 'new audio starts with zero offset');
   assert.equal(el('browserDubOffset').value, '0', 'offset control must match the newly attached audio');
   ui.stop(); await tick();
+  assert.equal(await ui.attachGenerated({name:'mixed.wav',url:'mixed.wav',mix:{voice:.6,background:.8,music:.5,ambience:.4,duck:true,duckAmount:.25},
+    background:{url:'bg.wav'},layers:{music:{url:'music.wav'},ambience:{url:'ambience.wav'}},
+    rows:[{key:'1',text:'Konuşma',sourceStart:0,sourceEnd:5,audioStart:0,audioEnd:5,status:'ready'}]},ui.context()),true);
+  video.currentTime=2;video.paused=false;video.dispatchEvent(new w.Event('play'));await tick();
+  assert.equal(audio.volume,.6);assert.equal(el('browserDubMusic').volume,.125);assert.equal(el('browserDubAmbience').volume,.1);
+  video.currentTime=7;video.dispatchEvent(new w.Event('timeupdate'));await tick();assert.equal(el('browserDubMusic').volume,.5);
+  ui.stop(); await tick();assert.equal(el('browserDubMusic').paused,true);assert.equal(el('browserDubAmbience').paused,true);
   assert.equal(video.muted, false); assert.equal(el('browserDubStrip').classList.contains('hidden'), true);
   w.player.mediaKey = 'other';
   assert.equal(await ui.attachGenerated({ name: 'wrong.wav', url: 'wrong.wav' }, expected), false);

@@ -605,6 +605,18 @@ def main(argv=None):
                                          overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
                                          end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
 
+    # Explicit video/audio coordinates make saved projects and review independent
+    # of the engine cache and of any current browser tab.
+    offset = args.range_start or 0
+    for i, row in enumerate(public_groups):
+        timing_row = timing['groups'][i]
+        source = groups[i]
+        row.update(text=cues[i][2], sourceStart=source.get('source_start', source['start']) / 1000,
+                   sourceEnd=source.get('source_end', source['end']) / 1000,
+                   audioStart=timing_row['start_seconds'],
+                   audioEnd=timing_row['start_seconds'] + timing_row['after_seconds'],
+                   stretch=timing_row.get('stretch', 1))
+
     stem = args.srt.stem
     sample_suffix = '_ornek_temsili' if args.representative_preview else (f"_ornek{args.limit}" if args.limit else "")
     wav_path = args.output or (OUTPUT_ROOT / f"{stem}_altyazi" /

@@ -22,7 +22,7 @@
   const notify = message => player.workspaceMode === 'player'
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
-    backgroundAudio: byId('browserDubBackground'),
+    backgroundAudio: byId('browserDubBackground'), musicAudio: byId('browserDubMusic'), ambienceAudio: byId('browserDubAmbience'),
     mute: (id, muted) => {
       if (id !== 'player-video') return window.api.muteBrowserTab(id, muted);
       video.muted = muted; return { ok: true };
@@ -37,6 +37,8 @@
       byId('browserDubName').textContent = s?.name || '';
       byId('browserDubStatus').textContent = message;
       byId('browserDubBackgroundControls').classList.toggle('hidden', !s?.background);
+      byId('browserDubMusicControls')?.classList.toggle('hidden', !s?.layers?.music);
+      byId('browserDubAmbienceControls')?.classList.toggle('hidden', !s?.layers?.ambience);
       add.classList.toggle('active', !!s);
       add.setAttribute('aria-pressed', String(!!s));
       byId('playerDubAdd')?.classList.toggle('active', !!s);
@@ -79,9 +81,13 @@
       }
     } finally { add.disabled = false; }
   });
+  const changeMix=value=>{controller.setMix(value);if(controller.session)window.dispatchEvent(new CustomEvent('dub-mix:changed',{detail:{url:controller.session.url,mix:controller.session.mix}}));};
   byId('browserDubRemove').addEventListener('click', () => void controller.remove());
-  byId('browserDubVolume').addEventListener('input', e => { audio.volume = Number(e.target.value); });
-  byId('browserDubBackgroundVolume').addEventListener('input', e => { byId('browserDubBackground').volume=Number(e.target.value); });
+  byId('browserDubVolume').addEventListener('input', e => { changeMix({voice:Number(e.target.value)}); });
+  byId('browserDubBackgroundVolume').addEventListener('input', e => { changeMix({background:Number(e.target.value)}); });
+  byId('browserDubMusicVolume')?.addEventListener('input',e=>changeMix({music:Number(e.target.value)}));
+  byId('browserDubAmbienceVolume')?.addEventListener('input',e=>changeMix({ambience:Number(e.target.value)}));
+  byId('browserDubDuck')?.addEventListener('change',e=>changeMix({duck:e.target.checked}));
   byId('browserDubBackground').volume=Number(byId('browserDubBackgroundVolume').value);
   byId('browserDubOffset').addEventListener('input', e => {
     controller.offset = Math.max(-60, Math.min(60, Number(e.target.value) || 0)); controller.tick();
@@ -99,12 +105,25 @@
   window.BrowserDubAudioUI = {
     stop: () => void controller.remove(), checkContext: () => controller.tick(),
     context,
+    seekSource: async (seconds, expected) => {
+      const c=context();
+      if(!Number.isFinite(seconds)||seconds<0||!c.hasMedia||!c.visible||!expected||c.mode!==expected.mode||c.tabId!==expected.tabId||c.mediaKey!==expected.mediaKey||c.generation!==expected.generation||(c.mediaId||'')!==(expected.mediaId||'')) return false;
+      if(c.mode==='player'){video.currentTime=seconds;return true;}
+      try { const r=await browserCommand('seek',seconds);return r?.ok!==false; }catch(_){return false;}
+    },
+    setMix: (mix,layers) => {
+      controller.setMix(mix,layers);
+      const s=controller.session;
+      if(s){for(const [key,id] of Object.entries({voice:'browserDubVolume',background:'browserDubBackgroundVolume',music:'browserDubMusicVolume',ambience:'browserDubAmbienceVolume'}))if(byId(id))byId(id).value=s.mix[key];
+        if(byId('browserDubDuck'))byId('browserDubDuck').checked=s.mix.duck;}
+    },
     setBaseRate: rate => controller.setBaseRate(rate),
     attachGenerated: async (file, expected) => {
       const c = context();
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
           || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
+      window.BrowserDubAudioUI.setMix(file.mix || {});
       byId('browserDubOffset').value = '0';
       if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
         playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });

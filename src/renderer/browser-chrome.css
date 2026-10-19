@@ -1670,3 +1670,23 @@ details.browser-translate-split.hidden { display: none !important; }
   .st-home-actions button { padding: 11px; }
   .st-home-actions span { display: none; }
 }
+.dub-timeline { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(170px, 230px); gap: 8px; overflow-x: auto; padding: 10px 2px; max-height: 180px; }
+.dub-timeline-block { text-align: left; color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; overflow: hidden; font: inherit; }
+.dub-timeline-block strong, .dub-timeline-block span { display: block; }
+.dub-timeline-block strong { font-size: 11px; margin-bottom: 8px; }
+.dub-timeline-block span { font-size: 12px; line-height: 1.5; max-height: 5.7em; overflow: hidden; }
+.dub-timeline-block[data-status="review"], .dub-timeline-block[data-status="failed"] { border-style: dashed; }
+.dub-timeline-block[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.dub-timeline-block:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#dubTimelineInfo { white-space: pre-wrap; overflow-wrap: anywhere; }
+#dubWorkspacePanel { margin-block: 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 14px; }
+#dubWorkspacePanel > summary { font-weight: 600; cursor: pointer; }
+#dubWorkspacePanel progress { width: 100%; }
+.dub-mixer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.dub-mixer-grid label { display: grid; gap: 6px; }
+.dub-mixer-grid input { width: 100%; }
+@media (max-width: 540px) { .dub-mixer-grid { grid-template-columns: 1fr; } }
+
+#dubWorkspacePanel input[type="range"] { accent-color: var(--accent); }
+#dubMixer > label { display: block; margin-block: 12px; }
+#dubMixer > label input[type="range"] { display: block; width: 100%; margin-top: 8px; }

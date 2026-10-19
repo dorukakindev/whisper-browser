@@ -1297,7 +1297,10 @@
       <div class="browser-dub-strip hidden" id="browserDubStrip">
         <strong>Dublaj</strong><span id="browserDubName" data-ui-untranslated></span>
         <label>Ses düzeyi<input id="browserDubVolume" type="range" min="0" max="1" step="0.05" value="1" /></label>
-        <label id="browserDubBackgroundControls" class="hidden">Arka plan düzeyi<input id="browserDubBackgroundVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label id="browserDubBackgroundControls" class="hidden">Müzik ve ortam (birlikte)<input id="browserDubBackgroundVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label id="browserDubMusicControls" class="hidden">Müzik<input id="browserDubMusicVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label id="browserDubAmbienceControls" class="hidden">Ortam<input id="browserDubAmbienceVolume" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label><input id="browserDubDuck" type="checkbox" checked />Konuşurken arka planı kıs</label>
         <label title="Pozitif değer dublajı geciktirir">Ses kayması (sn)<input id="browserDubOffset" type="number" min="-60" max="60" step="0.1" value="0" /></label>
         <button class="btn btn-ghost btn-sm" id="browserDubRemove" type="button">Sesi kaldır</button>
         <span id="browserDubStatus" role="status" aria-live="polite"></span>
@@ -1305,6 +1308,8 @@
       <input id="browserDubFile" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.opus" hidden />
       <audio id="browserDubAudio" preload="auto" hidden></audio>
       <audio id="browserDubBackground" preload="auto" hidden></audio>
+      <audio id="browserDubMusic" preload="auto" hidden></audio>
+      <audio id="browserDubAmbience" preload="auto" hidden></audio>
       <div class="player-body">
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
@@ -3710,6 +3715,36 @@
   <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
   <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
   <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık videoyu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div>
+  <details id="dubWorkspacePanel" open>
+    <summary>Dublaj zaman çizelgesi ve proje</summary>
+    <div class="dub-generator-row"><button id="dubProjectOpen" class="btn btn-secondary" type="button">Dublaj projesi aç</button><button id="dubProjectSave" class="btn btn-ghost" type="button" disabled>Taşınabilir proje kaydet</button></div>
+    <label><input id="dubProjectVideo" type="checkbox" />Projeye yerel videoyu da kopyala</label>
+    <p>Proje sesleri, altyazıyı, düzenlenen cümleleri ve zamanlamayı birlikte saklar. Açmak için proje klasöründeki project.json dosyasını seçin.</p>
+    <label for="dubTimelineFilter">Göster</label><select id="dubTimelineFilter"><option value="all">Bütün cümleler</option><option value="review">Kontrol gerekenler</option></select>
+    <div id="dubTimeline" class="dub-timeline" role="group" aria-label="Dublaj cümleleri"></div>
+    <p id="dubTimelineInfo" data-ui-untranslated></p>
+    <div class="dub-generator-row"><button id="dubTimelineVideo" class="btn btn-secondary" type="button" disabled>Videoda bu cümleye git</button><button id="dubTimelineListen" class="btn btn-ghost" type="button" disabled>Cümleyi dinle</button></div>
+    <details id="dubMixer"><summary>Ses karıştırıcı</summary>
+      <p>Otomatik ayırma müzik ve ortamı birlikte çıkarır. Ayrı kanallarınız varsa aşağıdan ekleyin. Ek dosyalarda zaman sıfır, seçilen video aralığının başlangıcıdır.</p>
+      <div class="dub-mixer-grid">
+        <label>Konuşma<input id="dubMixVoice" type="range" min="0" max="1" step="0.05" value="1" /></label>
+        <label>Müzik ve ortam (birlikte)<input id="dubMixBackground" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label>Müzik<input id="dubMixMusic" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+        <label>Ortam<input id="dubMixAmbience" type="range" min="0" max="1" step="0.05" value="0.75" /></label>
+      </div>
+      <label><input id="dubMixDuck" type="checkbox" checked />Konuşurken arka planı kıs</label>
+      <label>Kısılmış arka plan düzeyi<input id="dubMixDuckAmount" type="range" min="0" max="1" step="0.05" value="0.35" /></label>
+      <div class="dub-generator-row"><button id="dubMusicChoose" class="btn btn-ghost" type="button">Müzik dosyası ekle</button><button id="dubAmbienceChoose" class="btn btn-ghost" type="button">Ortam dosyası ekle</button><button id="dubLayersReset" class="btn btn-ghost" type="button">Ek kanalları kaldır</button></div>
+      <p id="dubLayerNames" data-ui-untranslated></p>
+      <button id="dubMixPreview" class="btn btn-secondary" type="button" disabled>Karışımı dinle</button><button id="dubMixStop" class="btn btn-ghost" type="button">Dinlemeyi durdur</button>
+      <audio id="dubMixBackgroundAudio" hidden></audio><audio id="dubMixMusicAudio" hidden></audio><audio id="dubMixAmbienceAudio" hidden></audio>
+    </details>
+    <label for="dubExportKind">Dışa aktarma</label><select id="dubExportKind"><option value="audio">Karışım sesi · WAV</option><option value="video">Dublajlı video · MP4</option><option value="dual">Orijinal + Türkçe ses parçalı video · MP4</option></select>
+    <p>Video çıktısı için aynı videonun yerel dosyasını seçin. Seçili aralık varsa yalnız o bölüm çıkarılır. Yavaşlatma ve ses karışımı çıktıya uygulanır.</p>
+    <div class="dub-generator-row"><button id="dubWorkspaceExport" class="btn btn-primary" type="button" disabled>Dışa aktar</button><button id="dubWorkspaceCancel" class="btn btn-ghost" type="button" disabled>İşlemi durdur</button><button id="dubWorkspaceReveal" class="btn btn-ghost hidden" type="button">Kaydedilen dosyayı aç</button></div>
+    <p id="dubWorkspaceStatus" role="status" aria-live="polite"></p>
+    <progress id="dubWorkspaceProgress" class="hidden"></progress>
+  </details>
   <p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
   <p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
@@ -3735,8 +3770,10 @@
 <script src="renderer-helpers.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
+<script src="dub-workspace-model.js"></script>
 <script src="browser-dub-audio.js"></script>
 <script src="browser-dub-ui.js"></script>
+<script src="dub-workspace-ui.js"></script>
 <script src="dub-generator-ui.js"></script>
 <script src="voice-reference-ui.js"></script>
 <script src="media-catalog.js"></script>

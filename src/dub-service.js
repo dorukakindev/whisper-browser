@@ -8,7 +8,7 @@ const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference, onOutput = output => output }) {
   let job = null;
   let textUI = null;
   const plans = new Map();
@@ -90,6 +90,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
     }
+    if (type === 'done' && data.path) onOutput(data);
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
       logPath: s.summaryPath || null, logError: s.logError || null });
   }
@@ -311,13 +312,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         grantMedia(output);
         let sync = null, syncInvalid = false;
         try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
-        return { ok: true, output: { path: output, url: pathToFileURL(output).href,
+        return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
           sync, syncInvalid, quality:saved.quality || null, sample:saved.sample === true,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
-            ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {url:pathToFileURL(file).href}; })() : null,
-          timing: saved.timing, logPath: entry.file } };
+            ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
+          timing: saved.timing, subtitle: saved.subtitle, logPath: entry.file }) };
       } catch (_) {}
     }
     return { ok: true, output: null };
@@ -451,7 +452,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               emit(s,'status',{text});
             }});
           if (s.cancelled) throw new Error('İptal edildi.');
-          grantMedia(file); background={url:pathToFileURL(file).href}; s.settings.keepBackground=true;
+          grantMedia(file); background={path:file,url:pathToFileURL(file).href}; s.settings.keepBackground=true;
         } catch (error) {
           if (s.cancelled) throw error;
           cleanupArtifacts(s, s.backgroundFiles || []);
@@ -561,7 +562,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             }
           } catch (_) {}
           finish(s, 'done', { path: output, url: pathToFileURL(output).href,
-            name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
+            subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as
           // "TypeError: ..." or the plain message of a SystemExit. Show that

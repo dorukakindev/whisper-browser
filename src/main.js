@@ -9528,7 +9528,7 @@ function sweepBrowserLiveAsrTemp() {
 
 function startBrowserLiveAsr(tab, options = {}) {
   if (browserLiveAsr) return { ok: false, error: 'Canlı Whisper zaten çalışıyor.' };
-  if (dubService.running() || activeJob || burninJob || burninStartPending || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
+  if (dubWorkspace.running() || dubService.running() || activeJob || burninJob || burninStartPending || modelBenchmarkJob || modelProcesses.size) return { ok: false, error: 'Başka bir model veya gömme işi çalışıyor ya da kapanıyor. Bitmesini bekleyin.' };
   if (!tab || tab.id !== browserActiveTabId) return { ok: false, error: 'Aktif tarayıcı sekmesi bulunamadı.' };
   const settings = loadSettings();
   const ui = settings.ui || {};
@@ -18013,11 +18013,20 @@ const MEDIA_EXTS = new Set([
 ]);
 const mediaFileAccess = new MediaFileAccess(MEDIA_EXTS);
 const dubRateTargets = new Map();
+const dubWorkspace = require('./dub-workspace').registerDubWorkspace({
+  app, ipcMain, authorized: authorizedBrowserSender, dialog, owner: () => mainWindow,
+  authorizeMedia: authorizeMediaFile, authorizeSubtitle: authorizeSubtitleFile,
+  grantMedia: file => mediaFileAccess.grant(file), grantSubtitle: file => subtitleFileAccess.grant(file),
+  spawn, terminate: proc => terminateProcessTree(proc, {spawn}),
+  python: resolvePython, ffmpeg: () => resolveFfTool('ffmpeg'), copy:dt,
+  environment: () => withoutSecretEnv(process.env),
+  busy: () => dubService.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending,
+});
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
-  authorizeSubtitle: authorizeSubtitleFile, spawn,
+  authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => dubWorkspace.register(output),
   terminate: proc => terminateProcessTree(proc, { spawn }),
-  busy: () => !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
+  busy: () => dubWorkspace.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
   grantMedia: file => mediaFileAccess.grant(file),
   environment: () => withoutSecretEnv(process.env),
   prepareReference: async options => {
@@ -20451,7 +20460,7 @@ let burninStartPending = false;
 ipcMain.handle('burnin:start', async (event, videoPath, subPath, recoveryId = '') => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (burninJob || burninStartPending) return { ok: false, error: 'Gömme zaten çalışıyor.' };
-  if (dubService.running() || activeJob || jobStarting || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (dubWorkspace.running() || dubService.running() || activeJob || jobStarting || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Başka bir model işi çalışıyor veya kapanıyor. Bitmesini bekleyin.' };
   }
   burninStartPending = true;
@@ -20813,7 +20822,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   // Asagidaki await'li yetkilendirme bolgesinde ikinci bir baslatma giremesin
   // (activeJob henuz null oldugundan eski kontrol bunu yakalayamaz) ve bu
   // aralikta gelen iptal spawn'dan once uygulanabilsin.
-  if (dubService.running() || activeJob || jobStarting || burninJob || burninStartPending
+  if (dubWorkspace.running() || dubService.running() || activeJob || jobStarting || burninJob || burninStartPending
       || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, busy: true, error: 'Başka bir iş çalışıyor veya başlatılıyor. Bitmesini bekleyin.' };
   }

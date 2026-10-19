@@ -1,10 +1,11 @@
 (function (root) {
   'use strict';
   const SyncMap = typeof module !== 'undefined' && module.exports ? require('./dub-sync-map') : root.DubSyncMap;
+  const Mix = typeof module !== 'undefined' && module.exports ? require('./dub-workspace-model') : root.DubWorkspaceModel;
   class BrowserDubAudio {
     constructor({ audio, context, mute, changed = () => {}, error = () => {},
-      now = () => Date.now(), urls = URL, setRate, backgroundAudio }) {
-      Object.assign(this, { audio, context, mute, changed, error, now, urls, setRate, backgroundAudio });
+      now = () => Date.now(), urls = URL, setRate, backgroundAudio, musicAudio, ambienceAudio }) {
+      Object.assign(this, { audio, context, mute, changed, error, now, urls, setRate, backgroundAudio, musicAudio, ambienceAudio });
       this.session = null; this.sample = null; this.offset = 0;
       this.cleanup = Promise.resolve();
       this.intent = 0;
@@ -12,7 +13,7 @@
       audio.addEventListener('error', () => this.fail('Ses dosyası açılamadı. WAV veya MP3 deneyin.'));
       audio.addEventListener('ended', () => this.changed(this.session, 'Dublaj sona erdi'));
       backgroundAudio?.addEventListener('loadedmetadata',()=>this.tick());
-      backgroundAudio?.addEventListener('error',()=>this.fail('Arka plan sesi açılamadı.'));
+      for(const a of [backgroundAudio,musicAudio,ambienceAudio]){a?.addEventListener('loadedmetadata',()=>this.tick());a?.addEventListener('error',()=>this.fail('Arka plan sesi açılamadı.'));}
     }
     matches(s = this.session) {
       const c = this.context();
@@ -30,7 +31,9 @@
       const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
       try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }
       if (s.sync && !this.setRate) return false;
-      s.background = file.background || null;
+      s.background = file.background || null; s.layers=file.layers || {};s.mix=Mix.mix(file.mix);
+      try{s.rows=Mix.groups(file.rows||[]);}catch(_){s.rows=[];}
+      if((s.layers.music&&!this.musicAudio)||(s.layers.ambience&&!this.ambienceAudio))return false;
       if (s.background && !this.backgroundAudio) return false;
       s.baseRate = Math.max(.25, Math.min(4, Number(priorRate) || 1));
       s.ratePromise = Promise.resolve(); s.rateAt = -Infinity;
@@ -52,6 +55,7 @@
         s.url = file.url || this.urls.createObjectURL(file);
         this.audio.src = s.url; this.audio.load();
         if (s.background) { this.backgroundAudio.src=s.background.url; this.backgroundAudio.load(); }
+        this.setMix(s.mix,s.layers,false);
         this.changed(s, 'Dublaj açık');
         return true;
       } catch (_) {
@@ -65,6 +69,7 @@
       clearInterval(this.timer); this.timer = null;
       this.pauseAll(); this.audio.removeAttribute('src'); this.audio.load();
       if (this.backgroundAudio) { this.backgroundAudio.removeAttribute('src'); this.backgroundAudio.load(); }
+      for(const a of [this.musicAudio,this.ambienceAudio])if(a){a.pause();a.removeAttribute('src');a.load();}
       if (s?.url && s.isBlob) this.urls.revokeObjectURL(s.url);
       this.changed(null, '');
       if (!s) return this.cleanup;
@@ -94,22 +99,38 @@
         s.voiceEpoch = (s.voiceEpoch || 0) + 1; s.backgroundEpoch = (s.backgroundEpoch || 0) + 1;
         s.playPending = s.backgroundPlayPending = false;
       }
-      this.audio.pause(); this.backgroundAudio?.pause();
+      this.audio.pause(); this.backgroundAudio?.pause(); this.musicAudio?.pause();this.ambienceAudio?.pause();
+      if(this.session)for(const key of ['music','ambience']){this.session[key+'Wanted']=false;this.session[key+'Epoch']=(this.session[key+'Epoch']||0)+1;this.session[key+'PlayPending']=false;}
     }
-    syncBackground(s,time,rate,playing) {
-      const b=this.backgroundAudio;
-      if (!s.background || !b || b.readyState<=0) return;
-      b.playbackRate=rate;
-      if (Math.abs(b.currentTime-time)>.25) { try { b.currentTime=Math.max(0,time); } catch (_) {} }
-      s.backgroundWanted = playing && time>=0 && time<b.duration;
-      if (!s.backgroundWanted) { s.backgroundEpoch = (s.backgroundEpoch || 0)+1; s.backgroundPlayPending=false; b.pause();return; }
-      if (b.paused && !s.backgroundPlayPending) {
-        s.backgroundPlayPending=true;
-        const epoch = s.backgroundEpoch = (s.backgroundEpoch || 0)+1;
-        Promise.resolve(b.play()).then(()=>{
-          if (this.session===s && (epoch===s.backgroundEpoch || !s.backgroundWanted) && (!s.backgroundWanted || !this.matches(s) || this.sample?.paused || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) b.pause();
-        }).catch(()=>{ if (this.session===s && epoch===s.backgroundEpoch && s.backgroundWanted) void this.fail('Arka plan sesi başlatılamadı.'); })
-          .finally(()=>{if(epoch===s.backgroundEpoch)s.backgroundPlayPending=false;});
+    setMix(value,layers,refresh=true) {
+      const s=this.session;if(!s)return;
+      s.mix=Mix.mix({...s.mix,...value});
+      if(layers){s.layers=layers;for(const key of ['music','ambience']){
+        const a=this[key+'Audio'];if(!a)continue;
+        const url=layers[key]?.url||'';
+        if((a.getAttribute?.('src')||a.src||'')!==url){a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
+      }this.changed(s,'Dublaj açık');}
+      this.audio.volume=s.mix.voice;if(refresh)this.tick();
+    }
+    syncBackground(s,time,rate,playing,target) {
+      const duck=s.mix.duck?1-(1-s.mix.duckAmount)*Mix.duckAt(s.rows,target):1;
+      for(const key of ['background','music','ambience']){
+        const b=this[key+'Audio'];
+        if(!(key==='background'?s.background:s.layers[key])||!b)continue;
+        b.volume=s.mix[key]*duck;
+        if(b.readyState<=0)continue;
+        b.playbackRate=rate;
+        if(Math.abs(b.currentTime-time)>.25){try{b.currentTime=Math.max(0,time);}catch(_){}}
+        const wanted=key+'Wanted',epochKey=key+'Epoch',pending=key+'PlayPending';
+        s[wanted]=playing&&time>=0&&time<b.duration;
+        if(!s[wanted]){s[epochKey]=(s[epochKey]||0)+1;s[pending]=false;b.pause();continue;}
+        if(b.paused&&!s[pending]){
+          s[pending]=true;const epoch=s[epochKey]=(s[epochKey]||0)+1;
+          Promise.resolve(b.play()).then(()=>{
+            if(this.session===s&&(epoch===s[epochKey]||!s[wanted])&&(!s[wanted]||!this.matches(s)||this.sample?.paused||this.sample?.adPlaying||this.sample?.spinnerVisible||this.now()-this.sample.at>2200))b.pause();
+          }).catch(()=>{if(this.session===s&&epoch===s[epochKey]&&s[wanted])void this.fail('Arka plan sesi başlatılamadı.');})
+            .finally(()=>{if(epoch===s[epochKey])s[pending]=false;});
+        }
       }
     }
     setBaseRate(rate) {
@@ -178,7 +199,8 @@
           this.pauseAll(); return;
         }
       }
-      this.syncBackground(s,localTime,rate,playing);
+      this.audio.volume=s.mix.voice;
+      this.syncBackground(s,localTime,rate,playing,target);
       if (s.sync) {
         const desired = Math.max(.0625, Math.min(4, s.baseRate / mapped.factor));
         if (desired * mapped.factor > 16) { void this.fail('Bu bölümün zaman aralığı çok kısa; dublaj metnini kısaltın.'); return; }
