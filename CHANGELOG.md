@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed ten voice/browser robustness issues: malformed voice settings and dubbing plans, Windows subprocess PATH preservation, scheduler resource deduplication/snapshot isolation/full dispatch, invalid profile field acceptance, IPv6 zoom migration, malformed model score history and missing closed-tab media defaults.
+
 - Fixed ten restore/lifecycle failures: Windows cancellation watchdog, restored tab IDs and split references, BOM sessions, null reader settings, nonfinite split bounds, malformed package variants, late manga cancellation, failed download admission cleanup and nested closed-tab snapshot isolation.
 
 - Fixed structured diagnostic and matrix-URL secret redaction, archive translation matching, conflicting-size duplicate groups, collection ordering, literal subtitle escape validation, oversized export truncation and invalid chapter end fields.

@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
+Güncel çalışma: [docs/devir/2026-10-19-0538.md](docs/devir/2026-10-19-0538.md) — Rapor477: Ses, kaynak kuyruğu ve browser ayarlarında 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
 Önceki çalışma: [docs/devir/2026-10-19-0116.md](docs/devir/2026-10-19-0116.md) — Rapor476: Kurtarma ve süreç yaşamında 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0110.md](docs/devir/2026-10-19-0110.md) — Rapor475: İkinci geniş tur, 10 ayrı düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0104.md](docs/devir/2026-10-19-0104.md) — Rapor474: Geniş tarama, 10 doğrulanmış düzeltme
