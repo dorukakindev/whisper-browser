@@ -80,7 +80,7 @@ def _fetch_json(url, timeout=10, session=True):
         req = Request(url, headers=headers)
         with urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
-    except (URLError, HTTPError, json.JSONDecodeError) as e:
+    except (URLError, HTTPError, TimeoutError, json.JSONDecodeError) as e:
         raise RuntimeError(f"Invidious isteği başarısız: {url} — {e}")
 
 

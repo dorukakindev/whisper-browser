@@ -265,7 +265,7 @@ _WEEKDAY_MONTH = frozenset(
 # "[distorted] Run!" ve "MAN: Hold your fire!" örneklerinde ilk gerçek kelime
 # cümle-ilk sayılmalı, özel ad değil.
 _LEADING_MARKERS = re.compile(
-    r"^(?:\s*(?:\[[^\[\]]{0,60}\]|\([^\(\)]{0,60}\)|[♪♫]+|[A-ZÇĞİÖŞÜ]{2,}:))+\s*")
+    r"^(?:\s*(?:\[[^\[\]]{0,60}\]|\([^\(\)]{0,60}\)|[♪♫]+|[-–—]+(?=\s)|[A-ZÇĞİÖŞÜ]{2,}:))+\s*")
 # Hedef parçada SDH "tür" araması: içerik yerelleşebilir ([GUNFIRE]→[SİLAH
 # SESLERİ]) ama işaret türü aynı cue'da kalmalı; işaretin bütünüyle düşmesi
 # (köşeli parantezsiz düz metin) kusurdur.
@@ -497,6 +497,8 @@ def _proper_names(text):
         if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
             continue
         lowered = candidate.lower().rstrip(".?!,;:…")
+        if lowered in {'celsius', 'fahrenheit'} and lowered in _unit_markers(text):
+            continue
         if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
                 or lowered in _NAME_STOPWORDS:
             continue
@@ -679,7 +681,22 @@ def _name_localized(name, translated):
     return False
 
 
-_CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)")
+_CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
+_CLOCK_TARGET = re.compile(r"(?<![\d:.])(\d{1,2})[:.]([0-5]\d)(?![\d:.])(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
+
+
+def _clock_hour(match):
+    hour = int(match.group(1))
+    period = match.group(3)
+    return hour % 12 + (12 if period.lower() == 'p' else 0) if period and 1 <= hour <= 12 else hour
+
+
+def _matching_clock(target, source_clock, allow_turkish=False):
+    hour, minute = _clock_hour(source_clock), source_clock.group(2)
+    for match in _CLOCK_TARGET.finditer(target):
+        if _clock_hour(match) == hour and match.group(2) == minute:
+            return match
+    return _turkish_clock_match(target, hour, minute) if allow_turkish else None
 # Metrik çevirisiyle değeri değişen birimler: 'He's 6 feet tall.' -> '1,83
 # boyunda.' gibi doğru dönüşüm sayı demirini tetikliyordu; hedefte herhangi
 # bir rakam varsa birim çevirisi kabul edilir, rakam yoksa sayı kaybı kalır.
@@ -751,16 +768,10 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
         target_numbers_text = str(translated)
         tr_target = str(target_lang or "").lower().split('-')[0] == 'tr'
         for clock in _CLOCK_SOURCE.finditer(source_numbers_text):
-            hour, minute = int(clock.group(1)), clock.group(2)
-            target_clock = re.search(
-                rf'(?<!\d)0?{hour}[:.]{clock.group(2)}(?!\d)', target_numbers_text)
+            target_clock = _matching_clock(target_numbers_text, clock, tr_target)
             if target_clock:
                 target_numbers_text = (target_numbers_text[:target_clock.start()]
                                        + ' ' + target_numbers_text[target_clock.end():])
-            elif tr_target and (word_match := _turkish_clock_match(
-                    target_numbers_text, hour, minute)):
-                target_numbers_text = (target_numbers_text[:word_match.start()]
-                                       + ' ' + target_numbers_text[word_match.end():])
             else:
                 return f"sayi_kaydi:{index}"
         source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
@@ -989,7 +1000,7 @@ _UNIT_PATTERNS = {
     'hour': re.compile(r'(?<!\w)(?:hours?|hrs?|saat\w*)(?!\w)', re.I),
     'minute': re.compile(r'(?<!\w)(?:minutes?|mins?|dakika\w*)(?!\w)', re.I),
     'second': re.compile(r'(?<!\w)(?:seconds?|secs?|saniye\w*)(?!\w)', re.I),
-    'celsius': re.compile(r'(?<!\w)(?:°\s*C|degrees?\s+Celsius|santigrat\w*)(?!\w)', re.I),
+    'celsius': re.compile(r'(?<!\w)(?:°\s*C|degrees?\s+Celsius|derece\s+santigrat\w*|santigrat\w*)(?!\w)', re.I),
 }
 # Kesik parça işaretleri: çeviri metninin gerçekten ortadan kesildiğini
 # kanıtlayan yapısal izler. Sarkan bağlaç, metnin tamamı soru ekinden ibaretse
@@ -1266,24 +1277,16 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         # 5:30 and 5.30 are the same clock time in these subtitles. Compare
         # whole clock expressions so a changed minute cannot pass as two
         # independently preserved number tokens.
-        clocks = list(re.finditer(r'(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)', source))
+        clocks = list(_CLOCK_SOURCE.finditer(source))
         for clock in clocks:
-            hour, minute = int(clock.group(1)), clock.group(2)
-            target_clock = re.search(
-                rf'(?<!\d)0?{hour}[:.]{minute}(?!\d)', translated_numbers_text)
+            target_clock = _matching_clock(translated_numbers_text, clock, True)
             if target_clock:
                 translated_numbers_text = (
                     translated_numbers_text[:target_clock.start()] + ' '
                     + translated_numbers_text[target_clock.end():])
-            elif (word_match := _turkish_clock_match(
-                    translated_numbers_text, hour, minute)):
-                translated_numbers_text = (
-                    translated_numbers_text[:word_match.start()] + ' '
-                    + translated_numbers_text[word_match.end():])
             else:
                 issues.append('number_mismatch')
-        source_numbers_text = re.sub(
-            r'(?<!\d)\d{1,2}:[0-5]\d(?!\d)', ' ', source_numbers_text)
+        source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
     missing = []
     for match in _NUMBER_TOKEN.finditer(source_numbers_text):
         token = _canonical_number(match.group(0))

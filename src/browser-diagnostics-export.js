@@ -1,6 +1,7 @@
 'use strict';
 
 const { redactCaptureUrl } = require('./browser-adapters');
+const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 
 const SUBTITLE_REDACTION = '[altyazı metni gizlendi]';
 const LOCAL_PATH_REDACTION = '[yol gizlendi]';
@@ -22,7 +23,11 @@ function sanitizeDiagnosticsSecrets(value) {
     if (typeof current === 'string') return redactBrowserDiagnosticsText(current, 2048);
     if (Array.isArray(current)) return current.map(visit);
     if (!current || typeof current !== 'object') return current;
-    return Object.fromEntries(Object.entries(current).map(([key, entry]) => [key, visit(entry)]));
+    return Object.fromEntries(Object.entries(current).map(([key, entry]) => {
+      const secret = /^(?:cookie|set-cookie)$/i.test(key) || startsWithSensitivePrefix(key)
+        || (isSensitiveKey(key) && !/^(?:code|state|nonce|expires?|expiration|exp|client[_-]?id|token[_-]?type)$/i.test(key));
+      return [key, secret ? '[gizlendi]' : visit(entry)];
+    }));
   }
   return visit(value);
 }

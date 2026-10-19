@@ -20,6 +20,9 @@ def separate(request):
 
 
 def transcribe(request):
+    audio = request.get('audio')
+    if not isinstance(audio, str) or not os.path.isfile(audio):
+        raise ValueError('Ses dosyası bulunamadı: ' + str(audio))
     from faster_whisper import WhisperModel
     model = WhisperModel(request.get('model', 'base'), device='cpu', compute_type='int8')
     segments, info = model.transcribe(request['audio'], beam_size=5, vad_filter=True,
@@ -31,9 +34,11 @@ def transcribe(request):
 
 if __name__ == '__main__':
     try:
+        # Node sends UTF-8 JSON regardless of the Windows console code page.
+        sys.stdin.reconfigure(encoding='utf-8')
         request = json.load(sys.stdin)
         with contextlib.redirect_stdout(sys.stderr):
             result = transcribe(request) if request.get('operation') == 'transcribe' else separate(request)
-        print(json.dumps({'ok': True, **result}, ensure_ascii=False))
+        print(json.dumps({'ok': True, **result}, ensure_ascii=True))
     except Exception as error:
-        print(json.dumps({'ok': False, 'error': 'Konuşma işlemi tamamlanamadı: ' + str(error)[:400]}, ensure_ascii=False))
+        print(json.dumps({'ok': False, 'error': 'Konuşma işlemi tamamlanamadı: ' + str(error)[:400]}, ensure_ascii=True))

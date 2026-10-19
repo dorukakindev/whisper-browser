@@ -43,7 +43,7 @@ for (const f of files) {
 const handledSet = new Set(handled);
 const mainOnSet = new Set(mainOn);
 
-const preloadFiles = ['preload.js', 'browser-preload.js', 'browser-mini-preload.js'];
+const preloadFiles = files.filter(f => /(?:^|-)preload\.js$/.test(f));
 let invoked = [], pSend = [], pOn = [];
 for (const f of preloadFiles) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');

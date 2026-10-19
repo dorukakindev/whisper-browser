@@ -70,26 +70,31 @@ function normalizeFsPath(value) {
   return String(value || '').replace(/\\/g, '/');
 }
 
+function normalizeRoot(value) {
+  const normalized = normalizeFsPath(String(value || '').trim());
+  return /^\/+$/u.test(normalized) ? '/' : normalized.replace(/\/+$/, '');
+}
+
 function looksLikeAbsoluteDir(value) {
   return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\') || value.startsWith('/');
 }
 
 function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
   const existsFn = typeof exists === 'function' ? exists : () => false;
-  const oldNorm = normalizeFsPath(String(oldPrefix || '').trim()).replace(/\/+$/, '');
-  const newNorm = normalizeFsPath(String(newPrefix || '').trim()).replace(/\/+$/, '');
+  const oldNorm = normalizeRoot(oldPrefix);
+  const newNorm = normalizeRoot(newPrefix);
   const rows = [];
   if (!oldNorm) return { rows, scanned: 0 };
-  const oldLower = oldNorm.toLowerCase();
+  const oldLower = (oldNorm.endsWith('/') ? oldNorm : oldNorm + '/').toLowerCase();
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.key !== 'string' || !item.key.startsWith('file:')) continue;
     const localPath = String(item.localPath || item.sourceRef || '');
     if (!localPath) continue;
     const pathNorm = normalizeFsPath(localPath);
     const lower = pathNorm.toLowerCase();
-    if (!(lower.length > oldLower.length && lower.startsWith(oldLower) && lower.charAt(oldLower.length) === '/')) continue;
-    const suffix = pathNorm.slice(oldNorm.length);
-    const candidate = newNorm ? newNorm + suffix : '';
+    if (!(lower.length > oldLower.length && lower.startsWith(oldLower))) continue;
+    const suffix = pathNorm.slice(oldLower.length);
+    const candidate = newNorm ? newNorm + (newNorm.endsWith('/') ? '' : '/') + suffix : '';
     let exists = false, ready = false;
     try { exists = !!existsFn(pathNorm); } catch (_) {}
     try { ready = !!candidate && !!existsFn(candidate); } catch (_) {}
@@ -111,13 +116,13 @@ function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
 // önizlemede karar verir; bulucu hiçbir şeyi otomatik birleştirmez.
 function stemNorm(value) {
   return normalizeFsPath(value).split('/').pop()
-    .replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    .replace(/\.[^.]+$/, '').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, '');
 }
 
 function pairEvidence(a, b) {
   const sizeA = Math.max(0, Number(a?.sizeBytes) || 0);
   const sizeB = Math.max(0, Number(b?.sizeBytes) || 0);
-  if (sizeA > 0 && sizeB > 0 && sizeA === sizeB) return 'strong';
+  if (sizeA > 0 && sizeB > 0) return sizeA === sizeB ? 'strong' : '';
   const durA = Math.max(0, Number(a?.duration) || 0);
   const durB = Math.max(0, Number(b?.duration) || 0);
   if (durA >= 60 && durB >= 60 && Math.abs(durA - durB) <= Math.max(1, Math.max(durA, durB) * 0.02)) return 'weak';
@@ -142,6 +147,8 @@ function findLibraryDuplicates(items) {
       let joined = false;
       for (const cluster of clusters) {
         const evidence = pairEvidence(cluster[0], item);
+        if (cluster.some(member => Number(member.sizeBytes) > 0 && Number(item.sizeBytes) > 0
+            && Number(member.sizeBytes) !== Number(item.sizeBytes))) continue;
         if (evidence) { cluster.push(item); joined = true; break; }
       }
       if (!joined) clusters.push([item]);
@@ -165,6 +172,12 @@ function mergeWatchItems(source, target) {
   const cmp = (a, b) => (authority(a)[0] - authority(b)[0]) || (authority(a)[1] - authority(b)[1]);
   const newest = [source, target].sort(cmp)[1] || target;
   const merged = { ...newest, key: target.key };
+  // Geçmiş en yeni kayıttan gelebilir; medya kimliği kullanıcının seçtiği
+  // hedefte kalır. Kaynak yolunu hedef anahtarla eşleştirme.
+  for (const field of ['localPath', 'sourceRef', 'url', 'type', 'service', 'contentId']) {
+    if (Object.hasOwn(target, field)) merged[field] = target[field];
+    else delete merged[field];
+  }
   const num = (it, field) => Math.max(0, Number(it?.[field]) || 0);
   merged.position = Math.max(num(source, 'position'), num(target, 'position'));
   merged.duration = Math.max(num(source, 'duration'), num(target, 'duration'));
@@ -198,7 +211,7 @@ function mergeWatchItems(source, target) {
 function collectMissingSources(items, root, exists) {
   const existsFn = typeof exists === 'function' ? exists : () => false;
   const out = [];
-  const rootNorm = normalizeFsPath(String(root || '')).replace(/\/+$/, '').toLowerCase();
+  const rootNorm = normalizeRoot(root).toLowerCase();
   if (!rootNorm) return out;
   for (const item of Array.isArray(items) ? items : []) {
     const sources = [];
@@ -212,7 +225,7 @@ function collectMissingSources(items, root, exists) {
     for (const [label, value] of sources) {
       if (typeof value !== 'string' || !value) continue;
       const valueNorm = normalizeFsPath(value).toLowerCase();
-      if (!valueNorm.startsWith(rootNorm + '/')) continue;
+      if (!valueNorm.startsWith(rootNorm.endsWith('/') ? rootNorm : rootNorm + '/')) continue;
       let missing = false;
       try { missing = !existsFn(value); } catch (_) { missing = true; }
       if (missing) out.push({ title: label, path: value });

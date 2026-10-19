@@ -1023,6 +1023,7 @@ function parsePdfPageSelectionInput(input, numPages) {
   const limit = Math.max(0, Math.trunc(Number(numPages) || 0));
   const text = String(input ?? '').trim();
   if (!text) return { pages: [], scope: 'all' };
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100000) return null;
   const pages = new Set();
   for (const part of text.split(',')) {
     const piece = part.trim();

@@ -55,11 +55,17 @@ def overlap_score(reference, candidate):
     return min(1.0, overlap / total)
 
 
-def align(payload):
-    import srt
-    import ffsubsync
-    from ffsubsync.ffsubsync import make_parser
+def drift_statistics(target, mapped):
+    shifts = sorted(max(abs(start - old[0]), abs(end - old[1]))
+                    for (start, end), old in zip(mapped, target))
+    return {"meanDrift": round(sum(shifts) / len(shifts), 3),
+            "p95Drift": round(shifts[max(0, math.ceil(len(shifts) * .95) - 1)], 3),
+            "maxDrift": round(shifts[-1], 3)}
 
+
+def align(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("Eşleme isteği geçersiz.")
     target = valid_cues(payload.get("targetCues"))
     # Ses-referansli kip: payload.audio (yerel medya yolu) verildiginde
     # ffsubsync altyaziyi dogrudan sesin VAD ritmiyle esler — fps/surum
@@ -72,6 +78,11 @@ def align(payload):
         reference = None
     else:
         reference = valid_cues(payload.get("referenceCues"))
+    # Invalid inputs should report their own error even without optional tools.
+    import srt
+    import ffsubsync
+    from ffsubsync.ffsubsync import make_parser
+
     def make_srt(cues, raw):
         from datetime import timedelta
         return srt.compose([srt.Subtitle(index=i + 1,
@@ -104,10 +115,10 @@ def align(payload):
     changed = sum(abs(start - old[0]) > .05 or abs(end - old[1]) > .05
         for (start, end), old in zip(mapped, target))
     if audio_mode:
-        mean_drift = sum(abs(start - old[0]) for (start, _), old in zip(mapped, target)) / len(target)
+        drift = drift_statistics(target, mapped)
         return {"times": mapped, "diagnostics": {"referenceCount": None,
             "targetCount": len(target), "changedCount": changed, "overlapBefore": None,
-            "overlapAfter": None, "confidence": "medium" if mean_drift < 30 else "low",
+            "overlapAfter": None, **drift, "confidence": "medium" if drift["maxDrift"] < 30 else "low",
             "autoApply": False, "method": "ffsubsync-audio-vad"}}
     before = overlap_score(reference, target)
     after = overlap_score(reference, mapped)

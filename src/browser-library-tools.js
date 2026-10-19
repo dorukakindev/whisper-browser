@@ -155,7 +155,7 @@ function renameCollection(items, previousName, nextName) {
   return (Array.isArray(items) ? items : []).map((item) => {
     const prefs = { ...(item.prefs || {}) };
     const collectionOrder = { ...(prefs.collectionOrder || {}) };
-    if (Object.prototype.hasOwnProperty.call(collectionOrder, previous)) {
+    if (previous !== next && Object.prototype.hasOwnProperty.call(collectionOrder, previous)) {
       collectionOrder[next] = collectionOrder[previous];
       delete collectionOrder[previous];
     }
@@ -173,9 +173,15 @@ function renameCollection(items, previousName, nextName) {
 
 function removeCollection(items, name) {
   const target = normalizeCollectionName(name);
-  return (Array.isArray(items) ? items : []).map((item) => ({
-    ...item, collections: (item.collections || []).map(normalizeCollectionName).filter((value) => value && value !== target),
-  }));
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const prefs = { ...(item.prefs || {}) };
+    if (prefs.collectionOrder && typeof prefs.collectionOrder === 'object') {
+      prefs.collectionOrder = { ...prefs.collectionOrder };
+      delete prefs.collectionOrder[target];
+    }
+    return { ...item, prefs,
+      collections: (item.collections || []).map(normalizeCollectionName).filter((value) => value && value !== target) };
+  });
 }
 
 function setCollectionMembership(items, keys, name, member) {
@@ -489,6 +495,7 @@ async function waitForMangaPosition(options = {}) {
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (isCanceled()) return { status: 'canceled', attempts: attempt };
     const result = await scan(attempt);
+    if (isCanceled()) return { status: 'canceled', attempts: attempt + 1 };
     if (result?.status === 'found' || result?.status === 'wrong-document') return { ...result, attempts: attempt + 1 };
     if (attempt + 1 < attempts) await sleep(Math.max(0, Number(options.delayMs) || 250));
   }

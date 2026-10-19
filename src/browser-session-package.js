@@ -71,6 +71,7 @@ function sanitizePlaces(raw = {}) {
 }
 
 function sanitizeVariant(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const mediaId = clean(raw.mediaId, 240);
   const trackId = safePortableValue(raw.trackId || raw.id, 180);
   const cues = normalizeCues(raw.cues);

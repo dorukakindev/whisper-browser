@@ -24,7 +24,8 @@
       const parts = segment.split(';');
       const kept = [parts[0]];
       for (const param of parts.slice(1)) {
-        const name = param.split('=')[0];
+        let name = param.split('=')[0];
+        try { name = decodeURIComponent(name); } catch (_) {}
         if (sensitive.test(name) || hasSensitivePrefix(name) || tracking.test(name)) continue;
         kept.push(param);
       }
@@ -50,7 +51,7 @@
       // Yalnız yönlendirme ve zaman bağlantıları kalıcıdır; OAuth fragmentleri değil.
       if (/^!?\//.test(hash)) {
         const mark = hash.indexOf('?');
-        const route = mark < 0 ? hash : hash.slice(0, mark);
+        const route = cleanPathParams(mark < 0 ? hash : hash.slice(0, mark));
         const query = mark < 0 ? '' : cleanQuery(new URLSearchParams(hash.slice(mark + 1))).toString();
         url.hash = route + (query ? '?' + query : '');
       } else if (/^(?:t|start)=\d+(?:[hms\d.]*)$/i.test(hash)) url.hash = hash;
@@ -74,7 +75,17 @@
       for (const key of [...url.searchParams.keys()]) {
         if (sensitive.test(key) || hasSensitivePrefix(key)) { url.searchParams.delete(key); changed = true; }
       }
-      const hash = url.hash.slice(1);
+      let hash = url.hash.slice(1);
+      if (/^!?\//.test(hash)) {
+        const queryAt = hash.indexOf('?');
+        const route = queryAt < 0 ? hash : hash.slice(0, queryAt);
+        const cleanedRoute = cleanPathParams(route);
+        if (cleanedRoute !== route) {
+          hash = cleanedRoute + (queryAt < 0 ? '' : hash.slice(queryAt));
+          url.hash = hash;
+          changed = true;
+        }
+      }
       const mark = hash.indexOf('?');
       const paramPart = mark >= 0 ? hash.slice(mark + 1)
         : (/^[^/].*=.*/.test(hash) ? hash : '');

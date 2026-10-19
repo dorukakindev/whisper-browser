@@ -62,8 +62,20 @@ test('D1–D4 sekme avatarı, soluklaşan başlık, × davranışı, hap adres a
   assert.match(renderer, /favicon\.replaceWith\(avatar\)/);
   assert.match(css, /\.browser-tab-avatar \{/);
   assert.match(css, /mask-image: linear-gradient\(to right, currentColor calc\(100% - 18px\), transparent\);/);
-  assert.match(css, /\.browser-tab:not\(\.active\):not\(:hover\):not\(:focus-within\) \.browser-tab-close \{ opacity: 0; \}/);
+  assert.match(css, /\.browser-tab:not\(\.active\):not\(:hover\):not\(:focus-within\) \.browser-tab-close \{ opacity: \.65; \}/);
   assert.match(css, /\.workspace-browser \.browser-address-wrap \{[^}]*border-radius: (?:999px|var\(--chrome-radius-pill\))/);
+});
+
+test('dar browser ses üretimi düğmesinde etiket gizlenince erişilebilir simge kalır', () => {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM(read('src/renderer/index.html'));
+  const button = dom.window.document.getElementById('browserDubGenerate');
+  assert(button.querySelector('svg[aria-hidden="true"]'));
+  assert.equal(button.querySelector('span').textContent, 'SRT → Ses');
+  assert(button.getAttribute('aria-label'));
+  assert.match(css, /\.browser-dub-button > span \{ display: none; \}/);
+  assert.match(css, /#browserPageTranslate \{ min-width: 34px; width: 34px;/);
+  dom.window.close();
 });
 
 test('B5 başlık güncellemesi favicon/avatarı silmez', () => {

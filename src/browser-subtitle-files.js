@@ -39,6 +39,14 @@ function createBrowserSubtitleFileStore(options = {}) {
       .filter(isOwnedFile)
       .map((item) => path.resolve(item).toLowerCase()));
     protectedSet.add(resolved.toLowerCase());
+    // Dışarıdan temizlenen dosyalar kotayı doldurup canlı dosyaları
+    // gereksiz yere sildirmesin. Kilit/izin hataları kaydı korur.
+    if (index.size > limit) {
+      for (const candidate of index.keys()) {
+        try { fs.statSync(candidate); }
+        catch (error) { if (error.code === 'ENOENT') index.delete(candidate); }
+      }
+    }
     let removed = 0;
     for (const [candidate] of [...index.entries()].sort((a, b) => a[1] - b[1])) {
       if (index.size <= limit) break;
@@ -47,7 +55,9 @@ function createBrowserSubtitleFileStore(options = {}) {
         fs.unlinkSync(candidate);
         index.delete(candidate);
         removed += 1;
-      } catch (_) {}
+      } catch (error) {
+        if (error.code === 'ENOENT') index.delete(candidate);
+      }
     }
     return { count: index.size, removed };
   }

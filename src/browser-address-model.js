@@ -80,6 +80,7 @@
   // map[i] = yoğun konum i'nin özgün metindeki [başlangıç, uzunluk] aralığı;
   // vurgu ve tamamlama ofsetleri bu haritayla özgün metne çevrilir.
   function foldSearchIndex(value) {
+    const original = String(value == null ? '' : value);
     const folded = foldSearchText(value);
     const dense = [];
     const map = [];
@@ -123,6 +124,19 @@
       // kaplar ama tek kayıt bırakırdı; ofset hizası için ikinci kayıt şart.
       if (w === 2) map.push([i, w]);
       i += w;
+    }
+    if (/[…‥]/u.test(original)) {
+      const originMap = [];
+      let offset = 0;
+      for (const character of original) {
+        for (let n = 0; n < foldSearchText(character).length; n++) originMap.push([offset, character.length]);
+        offset += character.length;
+      }
+      for (let n = 0; n < map.length; n++) {
+        const [start, length] = map[n];
+        const first = originMap[start], last = originMap[start + length - 1];
+        map[n] = [first[0], last[0] + last[1] - first[0]];
+      }
     }
     return { dense: dense.join(''), map };
   }
@@ -200,6 +214,10 @@
       const bare = idx.bare;
       if (!bare) continue;
       if (!idx.bareDense.startsWith(needle)) continue;
+      // Do not replace a typed dot while it covers only part of one expanded
+      // punctuation glyph (… -> ...). Wait until that glyph is fully matched.
+      if (needle.length < idx.bareMap.length
+          && idx.bareMap[needle.length]?.[0] === idx.bareMap[needle.length - 1]?.[0]) continue;
       const slash = bare.indexOf('/');
       const host = slash < 0 ? bare : bare.slice(0, slash);
       // Kesim adayın ÖZGÜN karakterleriyle yapılır (yoğun uzunluk değil):

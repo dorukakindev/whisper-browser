@@ -99,7 +99,7 @@ function evalAll(ctx) {
     section('function browserCeaCheckpointRoot(', 'function persistBrowserHlsCeaCheckpoint('),
     section('function invidiousSessionInstance(', 'function isLocalInvidiousInstance('),
     section('function watchLibraryForRenderer(', 'function foldWatchSearchText('),
-    section('function publishBrowserAdblockState(', '// Electron'),
+    section('function publishBrowserAdblockState(', '// A single synchronous, local policy read'),
     section('function writeBrowserPlacesAtomic(', 'function flushBrowserPlaces('),
     section('function writeBrowserPlaces(', 'function setBrowserPlaces('),
     section('function browserTabHasPage(', 'function browserTabShouldBeVisible('),

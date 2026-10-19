@@ -137,7 +137,11 @@ def fuzzy_semantically_compatible(source, candidate):
     same_initial_token = bool(
         source_tokens and candidate_tokens and source_tokens[0] == candidate_tokens[0]
     )
-    if not _near_typographic_tokens(source_tokens, candidate_tokens):
+    # Only reviewed spelling variants are cache-equivalent. Edit distance
+    # alone cannot distinguish real words such as patients and patents.
+    spelling = {"goverment": "government", "pakage": "package", "tomorow": "tomorrow",
+                "securty": "security", "passnger": "passenger"}
+    if tuple(spelling.get(t, t) for t in source_tokens) != tuple(spelling.get(t, t) for t in candidate_tokens):
         return False
     return bool(
         _number_signature(source) == _number_signature(candidate)
@@ -216,9 +220,10 @@ class TranslationMemory:
 
     def store(self, source, target, scope, context_fingerprint):
         source, target = str(source or "").strip(), str(target or "").strip()
-        if not source or not target or source.casefold() == target.casefold():
+        if (not source or not target or max(len(source), len(target)) > 32000
+                or source.casefold() == target.casefold()):
             return False
-        with self._lock:
+        with self._lock, self._conn:
             self._conn.execute(
                 "INSERT INTO tm(source,target,scope,context_key,created_at) VALUES(?,?,?,?,?) "
                 "ON CONFLICT(source,scope,context_key) DO UPDATE SET target=excluded.target,created_at=excluded.created_at",

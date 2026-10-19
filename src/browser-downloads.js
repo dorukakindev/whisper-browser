@@ -66,8 +66,18 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     }
     // Do not setSavePath: keep Electron's native save dialog and overwrite consent.
     const dl = dialogText || ((tr) => tr);
-    item.setSaveDialogOptions({ title: dl('İndirilen dosyayı kaydet', 'Save downloaded file'), buttonLabel: dl('Kaydet', 'Save') });
-    const row = { id, filename: String(item.getFilename() || 'Dosya').slice(0, 300),
+    let filename;
+    try {
+      item.setSaveDialogOptions({ title: dl('İndirilen dosyayı kaydet', 'Save downloaded file'), buttonLabel: dl('Kaydet', 'Save') });
+      filename = String(item.getFilename() || 'Dosya').slice(0, 300);
+    } catch (_) {
+      try { scheduler?.cancel(id); } catch (_) {}
+      event.preventDefault();
+      message = 'İndirme işlemi gerçekleştirilemedi.';
+      changed(true);
+      return;
+    }
+    const row = { id, filename,
       state: 'progressing', received: 0, total: 0, path: '', active: true,
       paused: false, canPause: true, canResume: false, createdAt: Date.now(), completedAt: 0 };
     records.set(id, row);

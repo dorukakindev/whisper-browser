@@ -7,6 +7,76 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 476 | [BROWSER_BUG_REPORT_476.md](BROWSER_BUG_REPORT_476.md) | Oturum, iptal, indirme ve snapshot: 10 düzeltme |
+| 475 | [BROWSER_BUG_REPORT_475.md](BROWSER_BUG_REPORT_475.md) | Gizlilik, arşiv, koleksiyon, export ve chapter: 10 düzeltme |
+| 474 | [BROWSER_BUG_REPORT_474.md](BROWSER_BUG_REPORT_474.md) | Geniş tarama: 10 altyazı, senkron, sağlayıcı ve kütüphane hatası |
+| 473 | [BROWSER_BUG_REPORT_473.md](BROWSER_BUG_REPORT_473.md) | Eksik altyazı önbelleği kayıtlarının gereksiz dosya sildirmesi |
+| 472 | [BROWSER_BUG_REPORT_472.md](BROWSER_BUG_REPORT_472.md) | Medya giriş borusu hatasında gereksiz bekleme |
+| 471 | [BROWSER_BUG_REPORT_471.md](BROWSER_BUG_REPORT_471.md) | Anlamsal arama worker null yanıt çökmesi ve sınırsız çıktı tamponu |
+| 470 | [BROWSER_BUG_REPORT_470.md](BROWSER_BUG_REPORT_470.md) | Exact kısa altyazılarda yanlış ret ve birleştirilmiş boş hedeflerde kaçan kalite denetimi |
+| 469 | [BROWSER_BUG_REPORT_469.md](BROWSER_BUG_REPORT_469.md) | Uyarlanabilir dublajda asenkron video yavaşlaması öncesi erken hız sınırı iptali |
+| 468 | [BROWSER_BUG_REPORT_468.md](BROWSER_BUG_REPORT_468.md) | Dublajda boşluklu SRT ayırıcıları, HTML karakter kodları ve kelime içi stil etiketleri |
+| 467 | [BROWSER_BUG_REPORT_467.md](BROWSER_BUG_REPORT_467.md) | Rapor465 doğrulaması: dublaj kodlaması, hash-route arşivi, cache kalite serisi, yinelenen cue kapsamı, tamamlama ve PDF sınırı |
+| 466 | [BROWSER_BUG_REPORT_466.md](BROWSER_BUG_REPORT_466.md) | Rapor463 doğrulaması: endpoint/kasa izolasyonu, çeviri kapıları, aynı-dil çıktı, TV kontrastı, burn-in ve disk dayanıklılığı |
+| 465 | [BROWSER_BUG_REPORT_465.md](BROWSER_BUG_REPORT_465.md) | 463/464'ten bağımsız 50 görevlik ikinci tarama: dublajda cp1254/UTF-16 SRT bozulması, hash-route arşiv çakışması, cache-hit kalite kesicisi, yinelenen cue kimliği, adres tamamlama ofseti, geçici indirme kalıntıları, örnek dublaj düzenlemeleri, PDF aralık sınırı |
+| 464 | [BROWSER_BUG_REPORT_464.md](BROWSER_BUG_REPORT_464.md) | Daha derin koşulabilir denetim: 131 probe (Node fuzz 78 + Python 46 + gerçek-konuşma e2e 4 + npm test envanteri 1 + repro 2); Y-1 sıfır-süreli cue düşüşü (463-01 ek kanıtı + girici commit), Y-2 clean_text NUL/ZWNJ passthrough, Y-7 compound redaction artıkları, 459-Y-4 vm kontrat kapanışı |
+| 463 | [BROWSER_BUG_REPORT_463.md](BROWSER_BUG_REPORT_463.md) | Kod değiştirmeyen 50 görevlik derin tarama: npm test 1 kırmızı, 16 bulgu (sıfır süreli cue, ayar importunda anahtar sızıntısı, tire/12-24 saat çeviri kapıları, TV açık tema kontrastı, burn-in yarışı) |
+| 462 | [BROWSER_BUG_REPORT_462.md](BROWSER_BUG_REPORT_462.md) | Kısa örnekte background ayırma kapsamı ve generated attach sonrasında ses kaydırma göstergesi |
+| 461 | [BROWSER_BUG_REPORT_461.md](BROWSER_BUG_REPORT_461.md) | Rapor459 bağımsız doğrulaması; bileşik credential alanı ve URL sorgusunda kuyruk sanitizasyonu |
+| 460 | [BROWSER_BUG_REPORT_460.md](BROWSER_BUG_REPORT_460.md) | Çakışan dublaj iptal istekleri ve background/TTS ortak SRT kopyası |
+| 459 | [BROWSER_BUG_REPORT_459.md](BROWSER_BUG_REPORT_459.md) | Kod-değiştirmeyen 50+ (57) çalıştırılabilir probe turu: watch-canonical case çakışması, asset normalize diverjansı, sır-liste boşlukları ve sağlam davranış teyitleri |
+| 458 | [BROWSER_BUG_REPORT_458.md](BROWSER_BUG_REPORT_458.md) | Shadow gözlemci sınırı sonrasında medya keşfi ve Python ses regresyonlarının ana test komutuna alınması |
+| 457 | [BROWSER_BUG_REPORT_457.md](BROWSER_BUG_REPORT_457.md) | Kurtarmada boş/uzun kimlikler, active/split eşlemesi ve places yazım hatasında mevcut sekmeleri koruma |
+| 456 | [BROWSER_BUG_REPORT_456.md](BROWSER_BUG_REPORT_456.md) | Başarısız arşiv indeksi bellek tutarlılığı, sıfır süreli cue, kanonik JSON/SRT onarımı ve başarısız onarım tmp temizliği |
+| 455 | [BROWSER_BUG_REPORT_455.md](BROWSER_BUG_REPORT_455.md) | Arka plan sesinde boş/geçici indirme adayları, bozuk WAV önbelleği ve çıktı, örtüşen cue bitişi ve geçersiz aralıklar |
+| 454 | [BROWSER_BUG_REPORT_454.md](BROWSER_BUG_REPORT_454.md) | Dublaj planı istek sahipliği, başarısız yenilemede eski plan, iptal/proc yarışı, SRT snapshot hash'i ve zaman parser'ı |
+| 453 | [BROWSER_BUG_REPORT_453.md](BROWSER_BUG_REPORT_453.md) | Cache sıkıştırmasında eşzamanlı kayıt kaybı; eski medya, arka plan kaynağı, iptal ve plan/kısaltma sonuçlarının bağlam doğrulaması |
+| 452 | [BROWSER_BUG_REPORT_452.md](BROWSER_BUG_REPORT_452.md) | Geniş inceleme: sayısal iş ayarları, sıfır değerleri, atomik SRT/VTT, kuyruk sırları, null indirme ilerlemesi ve medya önizleme iptali; 451 yanlış alarmlarının ayrılması |
+| 451 | [BROWSER_BUG_REPORT_451.md](BROWSER_BUG_REPORT_451.md) | Kod-değiştirmeyen 50 görevlik çok derin tam-tarama: npm test 11 dosya başarısız envanteri + doğrulanmış (youtube-guard olay kaybı, NaN argv, VTT katı doğrulama, maxCps=0, negatif zaman, ≥24h) + güvenlik/uyum ve browser-zincir bulguları |
+| 450 | [BROWSER_BUG_REPORT_450.md](BROWSER_BUG_REPORT_450.md) | Recovery, ses, çeviri ve altyazı doğrulanmış hata düzeltmeleri |
+| 449 | [BROWSER_BUG_REPORT_449.md](BROWSER_BUG_REPORT_449.md) | Rapor447 tüm51 maddenin bağımsız değerlendirmesi |
+| 448 | [BROWSER_BUG_REPORT_448.md](BROWSER_BUG_REPORT_448.md) | Rapor447 kritik iddialarının bağımsız doğrulaması |
+| 447 | [BROWSER_BUG_REPORT_447.md](BROWSER_BUG_REPORT_447.md) | Önceki çoklu alt sistem denetimi; bağımsız doğrulama rapor448 |
+| 446 | [BROWSER_BUG_REPORT_446.md](BROWSER_BUG_REPORT_446.md) | Güvenli dublaj/referans temizliği ve oynatma oturumu |
+| 445 | [BROWSER_BUG_REPORT_445.md](BROWSER_BUG_REPORT_445.md) | Dış ses paketi incelemesi; cleanup veri kaybı ve CSV |
+| 444 | [BROWSER_BUG_REPORT_444.md](BROWSER_BUG_REPORT_444.md) | Dış 407/408/409 paketleri; çeviri, canlı ses, oynatıcı |
+| 443 | [BROWSER_BUG_REPORT_443.md](BROWSER_BUG_REPORT_443.md) | Referans liste yenileme ve yanlış hazır durumu |
+| 442 | [BROWSER_BUG_REPORT_442.md](BROWSER_BUG_REPORT_442.md) | Ses dosya seçimi ve ayar yanıtı yarışları |
+| 441 | [BROWSER_BUG_REPORT_441.md](BROWSER_BUG_REPORT_441.md) | Referans taslakları, son kayıtlar ve eski zoom olayları |
+| 440 | [BROWSER_BUG_REPORT_440.md](BROWSER_BUG_REPORT_440.md) | Oynatıcı ana sayfası, Ctrl+wheel ve ses bağlamı |
+| 439 | [BROWSER_BUG_REPORT_439.md](BROWSER_BUG_REPORT_439.md) | Ses önizlemesi ve durum kilidi hataları |
+| 438 | [BROWSER_BUG_REPORT_438.md](BROWSER_BUG_REPORT_438.md) | Altyazı aralığının dublaja aktarılması |
+| 437 | [BROWSER_BUG_REPORT_437.md](BROWSER_BUG_REPORT_437.md) | Sesler girdi-çıktı-referans klasörleri |
+| 436 | [BROWSER_BUG_REPORT_436.md](BROWSER_BUG_REPORT_436.md) | Sağ panel düğmelerinin görünürlüğü |
+| 435 | [BROWSER_BUG_REPORT_435.md](BROWSER_BUG_REPORT_435.md) | Referans ses adlandırma |
+| 434 | [BROWSER_BUG_REPORT_434.md](BROWSER_BUG_REPORT_434.md) | YouTube referans ses bağlantısı ve görünür hata nedeni |
+| 433 | [BROWSER_BUG_REPORT_433.md](BROWSER_BUG_REPORT_433.md) | APINEX sağlayıcısı ve videodan referans ses kütüphanesi |
+| 432 | [BROWSER_BUG_REPORT_432.md](BROWSER_BUG_REPORT_432.md) | Browser tema, menü ve dar görünüm düzeni |
+| 431 | [BROWSER_BUG_REPORT_431.md](BROWSER_BUG_REPORT_431.md) | Oynatıcı YouTube hesabı, tema ve ses seçenekleri |
+| 430 | [BROWSER_BUG_REPORT_430.md](BROWSER_BUG_REPORT_430.md) | Dış rapor407 doğrulaması ve geçerli bulguların düzeltilmesi |
+| 429 | [BROWSER_BUG_REPORT_429.md](BROWSER_BUG_REPORT_429.md) | RTX4070 SUPER CUDA ayırma, aralık ve durdurma |
+| 428 | [BROWSER_BUG_REPORT_428.md](BROWSER_BUG_REPORT_428.md) | Arka plan ayırmada mevcut CPU ve GPU desteği |
+| 427 | [BROWSER_BUG_REPORT_427.md](BROWSER_BUG_REPORT_427.md) | Browser Whisper ve çeviri zaman aralığı seçimi |
+| 426 | [BROWSER_BUG_REPORT_426.md](BROWSER_BUG_REPORT_426.md) | Sayfa menüsünde reklam engelleyici Açık/Kapalı ve tercih koruması |
+| 425 | [BROWSER_BUG_REPORT_425.md](BROWSER_BUG_REPORT_425.md) | YouTube document-start ana dünya ve ilk reklam verisi koruması |
+| 424 | [BROWSER_BUG_REPORT_424.md](BROWSER_BUG_REPORT_424.md) | YouTube reklam betiği kapsamı, erken filtreler ve otomatik yenileme |
+| 423 | [BROWSER_BUG_REPORT_423.md](BROWSER_BUG_REPORT_423.md) | kesilmeyen konuşma, uyarlamalı video hızı ve arka plan katmanı |
+| 422 | [BROWSER_BUG_REPORT_422.md](BROWSER_BUG_REPORT_422.md) | seçilen aralık dublajı ve Windows CI sınırları |
+| 421 | [BROWSER_BUG_REPORT_421.md](BROWSER_BUG_REPORT_421.md) | Rapor 421 — Dublaj cümlesi ve süreye uygun metin |
+| 420 | [BROWSER_BUG_REPORT_420.md](BROWSER_BUG_REPORT_420.md) | Rapor 420 — Gerçek OmniVoice Türkçe/CUDA denemesi |
+| 419 | [BROWSER_BUG_REPORT_419.md](BROWSER_BUG_REPORT_419.md) | Rapor 419 — GitHub ses/dublaj ekosistemi incelemesi |
+| 418 | [BROWSER_BUG_REPORT_418.md](BROWSER_BUG_REPORT_418.md) | Rapor 418 — Sesi kullan ve metin/TXT stüdyosu erişimi |
+| 417 | [BROWSER_BUG_REPORT_417.md](BROWSER_BUG_REPORT_417.md) | Rapor 417 — Dublaj hız profilleri ve daha az konuşma kırpması |
+| 416 | [BROWSER_BUG_REPORT_416.md](BROWSER_BUG_REPORT_416.md) | Rapor 416 — VoxCPM2 hız ve dublaj kalitesi araştırması |
+| 415 | [BROWSER_BUG_REPORT_415.md](BROWSER_BUG_REPORT_415.md) | Rapor 415 — Taşma nedeniyle hazır dublajın tamamlanamaması |
+| 414 | [BROWSER_BUG_REPORT_414.md](BROWSER_BUG_REPORT_414.md) | Rapor 414 — Dublaj süre ve kalıcı kayıt eksikliği |
+| 413 | [BROWSER_BUG_REPORT_413.md](BROWSER_BUG_REPORT_413.md) | Rapor 413 — SRT'den ses üretme arayüzü |
+| 412 | [BROWSER_BUG_REPORT_412.md](BROWSER_BUG_REPORT_412.md) | Rapor 412 — VoxCPM2 cümle grupları ve doğru zamanlama raporu uygulandı |
+| 411 | [BROWSER_BUG_REPORT_411.md](BROWSER_BUG_REPORT_411.md) | Rapor 411 — Dublajın kısa satırlarda doğallığı ve kesilme sayacı |
+| 410 | [BROWSER_BUG_REPORT_410.md](BROWSER_BUG_REPORT_410.md) | Rapor 410 — Browser videosunda yerel dublaj sesi |
+| 409 | [BROWSER_BUG_REPORT_409.md](BROWSER_BUG_REPORT_409.md) | Rapor 409 — Küçük browser/oynatıcı tasarım turu |
+| 408 | [BROWSER_BUG_REPORT_408.md](BROWSER_BUG_REPORT_408.md) | Rapor 408 — Son tamamlanan Whisper + çeviri çıktısının denetimi |
+| 407 | [BROWSER_BUG_REPORT_407.md](BROWSER_BUG_REPORT_407.md) | Rapor 407 — Browser Whisper + çeviri ilerlemesi ve süre tanısı |
 | 406 | [BROWSER_BUG_REPORT_406.md](BROWSER_BUG_REPORT_406.md) | oynatıcı işi çeviri aşamasında ilerleme çubuğu donuk — llm_progress yalnız 'translate' işinde işleniyordu, 'progressive' işe genişletildi |
 | 405 | [BROWSER_BUG_REPORT_405.md](BROWSER_BUG_REPORT_405.md) | canlı Whisper ve tarayıcı yaşam döngüsü derin denetimi — Türkçe %TEMP% yolu (stdin UTF-8), reklam sırasında yakalama, kırıntı/sessiz parça, "Altyazı M.K." süzgeci, dil kapısı, RTF uyarısı, mini oynatıcı close yarışı, Windows disk dolu iletisi |
 | 404 | [BROWSER_BUG_REPORT_404.md](BROWSER_BUG_REPORT_404.md) | browser yan paneli tasarım turu — gizli Araçlar sekmesi, çift ikon, amber başlıklar, tipografi/yoğunluk, uyarılı çeviri işareti, ertelenmiş yeniden deneme hatası |

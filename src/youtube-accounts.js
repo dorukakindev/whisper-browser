@@ -151,5 +151,6 @@ module.exports = {
   upsertAccount,
   removeAccount,
   activeAccount,
+  persistableAccounts,
   accountList,
 };

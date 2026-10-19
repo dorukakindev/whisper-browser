@@ -8,7 +8,7 @@ function finiteNumber(value, fallback = 0) {
 }
 
 function normalizeCues(rawCues) {
-  return (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
+  const normalized = (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
     const start = Number(cue?.start);
     const end = Number(cue?.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
@@ -20,8 +20,21 @@ function normalizeCues(rawCues) {
       speaker: String(cue?.speaker || '').replace(/\s+/g, ' ').trim().slice(0, 80),
       protected: Boolean(cue?.protected) || protectedCue(cue || {}),
     };
-  }).filter((cue) => cue && cue.text && cue.end >= cue.start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+  });
+  const valid = [];
+  let barrier = false;
+  for (const cue of normalized) {
+    if (!cue || !cue.text || !Number.isFinite(cue.end * 1000)
+        || Math.round(cue.end * 1000) <= Math.round(cue.start * 1000)) {
+      if (valid.length) valid[valid.length - 1].protected = true;
+      barrier = true;
+      continue;
+    }
+    if (barrier) cue.protected = true;
+    barrier = false;
+    valid.push(cue);
+  }
+  return valid.sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 function sentenceIdFor(cues) {
@@ -622,6 +635,7 @@ class BrowserTranslationScheduler {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
           if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
           this.stats.cacheHits += 1;
+          if (generation === this.generation && !controller.signal.aborted) this.consecutiveQualityFailures = 0;
           return { ...decoded, cached: true };
         }
         catch (_) { /* Bozuk kayıt yeniden istenir; aynı hata önbellekten tekrarlanmaz. */ }
@@ -767,8 +781,17 @@ class BrowserTranslationScheduler {
           armRetry();
         }
       }
-    }).finally(() => {
+    }).finally(async () => {
       const current = this.pending.get(sentence.id);
+      // The breaker skips in-flight candidates. Accept the triggering job
+      // before removing it, so whenIdle cannot leave its last cue missing.
+      const candidate = this.qualityCandidates.get(sentence.id);
+      if (current === job && this.qualityAutoLenient && candidate
+          && !this.results.has(sentence.id) && !controller.signal.aborted
+          && generation === this.generation) {
+        try { await this.commitResult(job, { ...candidate, cached: false }); }
+        catch (_) { /* Preserve the existing failure if the candidate is invalid. */ }
+      }
       if (current === job) this.pending.delete(sentence.id);
       this.pump();
     });

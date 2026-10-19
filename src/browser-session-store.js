@@ -268,10 +268,12 @@ function normalizeBrowserSession(raw, options = {}) {
   // kimliği taşıyan özgün bir sekme varsa aktif/split başvuruları yanlış
   // sayfaya düşer — üretim tüm özgün kimlikleri de dışlar.
   const originalIds = new Set(normalized.map((tab) => tab.id).filter(Boolean));
-  const deduped = normalized.map((tab) => {
-    if (!tab.id || !seenIds.has(tab.id)) { if (tab.id) seenIds.add(tab.id); return tab; }
-    for (let n = 2; ; n += 1) {
-      const candidate = `${tab.id}-dup${n}`;
+  const deduped = normalized.map((tab, index) => {
+    if (tab.id && !seenIds.has(tab.id)) { seenIds.add(tab.id); return tab; }
+    const base = tab.id || `tab-restored-${index + 1}`;
+    for (let n = tab.id ? 2 : 1; ; n += 1) {
+      const suffix = n === 1 ? '' : `-dup${n}`;
+      const candidate = base.slice(0, 128 - suffix.length) + suffix;
       if (!seenIds.has(candidate) && !originalIds.has(candidate)) {
         seenIds.add(candidate); return { ...tab, id: candidate };
       }
@@ -287,11 +289,12 @@ function normalizeBrowserSession(raw, options = {}) {
     tabs.unshift(active);
   }
   const splitSecondaryTabId = cleanString(source.splitSecondaryTabId, 128);
+  const resolvedActiveTabId = tabs.some((tab) => tab.id === activeTabId) ? activeTabId : (tabs[0]?.id || '');
   return {
     version: BROWSER_SESSION_VERSION,
     restoreEnabled: source.restoreEnabled !== false,
-    activeTabId: tabs.some((tab) => tab.id === activeTabId) ? activeTabId : (tabs[0] ? tabs[0].id : ''),
-    splitSecondaryTabId: splitSecondaryTabId !== activeTabId && tabs.some((tab) => tab.id === splitSecondaryTabId)
+    activeTabId: resolvedActiveTabId,
+    splitSecondaryTabId: splitSecondaryTabId !== resolvedActiveTabId && tabs.some((tab) => tab.id === splitSecondaryTabId)
       ? splitSecondaryTabId : '',
     splitRatio: finiteNumber(source.splitRatio, 0.5, 0.25, 0.75),
     savedAt: finiteNumber(source.savedAt, Date.now(), 0),
@@ -308,7 +311,7 @@ function readBrowserSessionWithStatus(filePath, fsModule = fs) {
   let damaged = false;
   for (const candidate of [filePath, `${filePath}.bak`]) {
     try {
-      const parsed = JSON.parse(fsModule.readFileSync(candidate, 'utf8'));
+      const parsed = JSON.parse(fsModule.readFileSync(candidate, 'utf8').replace(/^\uFEFF/, ''));
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.tabs)) {
         damaged = true;
         continue;
@@ -353,7 +356,7 @@ function writeBrowserSessionAtomic(filePath, rawSession, fsModule = fs, options 
     fsyncFile(temp, fsModule);
     if (!options.mirrorBackup && fsModule.existsSync(filePath)) {
       try {
-        const previous = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
+        const previous = JSON.parse(fsModule.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
         if (previous && !Array.isArray(previous) && Array.isArray(previous.tabs)
           && (!previous.tabs.length || previous.tabs.some((tab) => normalizeSessionTab(tab)))) {
           fsModule.copyFileSync(filePath, `${filePath}.bak`);

@@ -71,6 +71,12 @@ function alignByOverlap(sourceCues, targetCues, minimumOverlapSeconds = 0.15) {
   const sortedTargets = target.map((cue, index) => ({ cue, index }))
     .sort((a, b) => Number(a.cue.start) - Number(b.cue.start)
       || Number(a.cue.end) - Number(b.cue.end) || a.index - b.index);
+  const exactTargets = new Map();
+  for (const row of sortedTargets) {
+    const key = timestampKey(row.cue);
+    if (!exactTargets.has(key)) exactTargets.set(key, []);
+    exactTargets.get(key).push(row);
+  }
   const sourceRows = source.map((cue, index) => ({ cue, index }))
     .sort((a, b) => Number(a.cue.start) - Number(b.cue.start)
       || Number(a.cue.end) - Number(b.cue.end) || a.index - b.index);
@@ -92,6 +98,16 @@ function alignByOverlap(sourceCues, targetCues, minimumOverlapSeconds = 0.15) {
       if (seconds >= threshold) {
         overlaps.push({ target: targetRow.cue, targetIndex: targetRow.index, seconds });
         coveredTargetIndexes.add(targetRow.index);
+      }
+    }
+    // The incidental-overlap threshold must not reject an exact, short cue.
+    // Keep the threshold for different timestamps; a tiny overlap alone is
+    // still insufficient evidence that a translation covers the source.
+    for (const row of exactTargets.get(timestampKey(sourceRow.cue)) || []) {
+      const seconds = cueOverlapSeconds(sourceRow.cue, row.cue);
+      if (seconds > 0 && seconds < threshold) {
+        overlaps.push({ target: row.cue, targetIndex: row.index, seconds });
+        coveredTargetIndexes.add(row.index);
       }
     }
     if (overlaps.length) coveredBySourceIndex.set(sourceRow.index, overlaps);
@@ -137,7 +153,7 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     missingTarget: coverage.missing.map(cueRef),
     extraTarget: coverage.extra.map(cueRef),
     nonExactTimestamp: aligned.missing.map(cueRef),
-    emptyTarget: [],
+    emptyTarget: target.filter(cue => !normalizeText(cue.text)).map(cueRef),
     sourceEcho: [],
     numberMismatch: [],
     negationReview: [],
@@ -163,7 +179,6 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     sourceCharacters += sourceText.length;
     targetCharacters += targetText.length;
     const ref = cueRef(pair.source);
-    if (!targetText) issues.emptyTarget.push(ref);
     if (echo(sourceText, targetText)) issues.sourceEcho.push(ref);
     const meaning = translationMeaningIssues(sourceText, targetText, options.targetLanguage || 'tr');
     if (meaning.includes('number_mismatch')) issues.numberMismatch.push(ref);

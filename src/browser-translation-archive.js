@@ -6,6 +6,7 @@ const path = require('path');
 const { cuesToSrt, normalizeCues } = require('./browser-asset-store');
 const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const { safePlaceUrl } = require('./browser-place-url');
 
 const ARCHIVE_VERSION = 1;
 const INDEX_LIMIT = 5000;
@@ -27,11 +28,11 @@ function normalizeText(value) {
 
 function canonicalPageUrl(raw) {
   try {
-    const url = new URL(String(raw || '').trim());
+    const url = new URL(safePlaceUrl(String(raw || '').trim()));
     if (!['http:', 'https:'].includes(url.protocol)) return '';
     url.username = '';
     url.password = '';
-    url.hash = '';
+    if (!/^#!?\//.test(url.hash)) url.hash = '';
     const kept = [...url.searchParams.entries()]
       .filter(([key]) => !TRACKING_QUERY.test(key) && !isSensitiveQuery(key))
       .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
@@ -64,7 +65,8 @@ function languageCode(value, fallback = 'tr') {
 
 function translationFor(translations, id) {
   if (translations instanceof Map) return translations.get(id);
-  if (translations && typeof translations === 'object' && !Array.isArray(translations)) return translations[id];
+  if (translations && typeof translations === 'object' && !Array.isArray(translations)
+      && Object.hasOwn(translations, id)) return translations[id];
   return '';
 }
 
@@ -155,6 +157,7 @@ function matchArchivedPage(record, rawBlocks) {
   const matches = [];
   const unmatchedRows = [];
   for (const row of rows) {
+    if (!normalizeText(row?.translation)) continue;
     const block = byId.get(String(row?.id || ''));
     if (block && block.source === normalizeText(row?.source) && !used.has(block.id)) {
       used.add(block.id);
@@ -228,9 +231,11 @@ class BrowserTranslationArchive {
   _saveIndex(entry) {
     const index = this._readIndex();
     const previous = index.entries.find((item) => item.id === entry.id);
-    index.entries = [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT);
+    const next = { ...index,
+      entries: [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT) };
     this.ensure();
-    atomicWriteFileSync(this.indexPath, `${JSON.stringify(index, null, 2)}\n`, { io: this.fs });
+    atomicWriteFileSync(this.indexPath, `${JSON.stringify(next, null, 2)}\n`, { io: this.fs });
+    this.index = next;
     // Index atomik olarak yeni revizyona gectikten sonra yalniz ayni mantiksal
     // kaydin eski dosyalarini ve yalniz arsiv kokunun icinde sil.
     for (const field of ['jsonPath', 'displayPath']) {

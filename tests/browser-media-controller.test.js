@@ -349,6 +349,21 @@ test('reklam sinyali yokken normal içerik reklam sayılmaz', () => {
   assert.equal(result.adRemaining, null);
 });
 
+asyncTest('gizli ilk Atla düğmesi görünür sonraki düğmeyi engellemez', async () => {
+  const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
+    clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15, muted: false, volume: 1 };
+  let clicks = 0;
+  const hidden = { isConnected: true, getClientRects: () => [] };
+  const visible = { ...visibleAdElement(), click: () => { clicks++; } };
+  const harness = mediaCommandHarness(video, { '.ytp-ad-skip-button': hidden });
+  harness.context.document.querySelectorAll = (selector) => selector === 'video,audio' ? [video]
+    : selector === '.ytp-ad-skip-button' ? [hidden, visible] : [];
+  const result = await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd', 0), harness.context);
+  assert.equal(result.adAction, 'clicked');
+  assert.equal(clicks, 1);
+  assert.equal(video.currentTime, 2, 'visible skip must win over seeking the ad');
+});
+
 test('açık reklam sayacı kalan saniyeye çevrilir', () => {
   const video = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
     clientWidth: 800, clientHeight: 450, currentTime: 2, duration: 15 };
@@ -475,6 +490,25 @@ test('Picture-in-Picture desteklenmiyorsa kullanıcıya açık hata döner', () 
   const script = buildBrowserMediaCommandScript('pip', 0);
   assert.match(script, /Picture-in-Picture desteklemiyor/);
   assert.match(script, /handled: false, error/);
+});
+
+asyncTest('dublaj hızı temel hız zorlamasıyla savaşmaz ve süre dolunca geri yüklenir', async () => {
+  const listeners={};let expired;
+  const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,
+    currentTime:2,duration:100,playbackRate:1,currentSrc:'same.mp4',style:{},
+    addEventListener(type,fn){listeners[type]=fn;}};
+  const h=mediaCommandHarness(video);
+  Object.assign(h.context,{setTimeout:fn=>{expired=fn;return 1;},clearTimeout:()=>{}});
+  await vm.runInNewContext(buildBrowserMediaPreferenceScript({rate:1,enforceRate:true}),h.context);
+  const result=await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  assert.equal(result.handled,true);assert.equal(video.playbackRate,.4);
+  video.playbackRate=1;listeners.ratechange();
+  assert.equal(video.playbackRate,.4);
+  expired();assert.equal(video.playbackRate,1);
+  await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  video.currentSrc='new.mp4';expired();assert.equal(video.playbackRate,1);
+  await vm.runInNewContext(buildBrowserMediaCommandScript('dub-rate',{rate:.4,baseRate:1}),h.context);
+  video.playbackRate=2;expired();assert.equal(video.playbackRate,2,'expired lease overwrote a newer user rate');
 });
 
 Promise.all(pending).then(() => console.log(`browser-media-controller: ${passed} test`)).catch((error) => {

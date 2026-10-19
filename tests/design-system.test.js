@@ -135,7 +135,11 @@ ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {
   assert.match(css, /a\s*\{[\s\S]*?color:\s*var\(--accent-hover\)/);
   assert.match(css, /\.browser-signal-kicker\s*\{[^}]*font-size:\s*10px/);
   assert.match(css, /\.browser-tab-close[\s\S]*?color:\s*var\(--text-muted\)/);
-  assert.match(css, /\.browser-place-remove\s*\{[^}]*color:\s*#c58a82/);
+  assert.match(css, /\.browser-place-remove\s*\{[^}]*color:\s*var\(--danger\)/);
+  assert.match(css, /\.browser-place-remove:hover\s*\{[^}]*background:\s*var\(--chrome-danger-soft\)/);
+  assert.match(css, /\.browser-place-folder\s*\{[^}]*color:\s*var\(--text-dim\)/);
+  assert.match(css, /\.sub-hidden-hint\s*\{[^}]*color:\s*var\(--ink-bright\)/);
+  assert.match(css, /\.learning-badge\s*\{[^}]*color:\s*var\(--ink-bright\)/);
   assert.match(css, /\.browser-error-surface code\s*\{[^}]*color:\s*var\(--text-muted\)/);
   assert(contrast('#1b160f', '#d5a35c') >= 4.5);
   assert(contrast('#fffaf0', '#985b1a') >= 4.5);

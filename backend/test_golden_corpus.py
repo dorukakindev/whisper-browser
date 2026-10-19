@@ -357,14 +357,12 @@ class GoldenCorpusTests(unittest.TestCase):
                          f'bloklanması beklenen ama geçenler: {expected_blocked - blocked_ids}')
         self.assertEqual(passed_defects, expected_pass,
                          'danışman katman kusurları çıktıya geçer (belgelenen davranış)')
-        groups_blocked = len(expected_blocked)
-        # Bloklanan her grup en az bir tekil kurtarma isteği üretir; sertleştirilmiş
-        # son deneme ise yapısal-hata devresi (MAX_STRUCTURAL_FAILURES=6) sınırına
-        # tabidir — reddeden sağlayıcıda ikinci turlar kesilir (R220/R221).
-        self.assertGreaterEqual(len(calls), golden_calls + groups_blocked,
-                                'bloklanan her grup en az bir tekil kurtarma isteği üretmeli')
-        self.assertLessEqual(len(calls), golden_calls + groups_blocked + 6,
-                             'son-deneme istekleri devre kesici sınırını aşmamalı')
+        # A permanently defective provider must stop at the zero-yield probe
+        # budget, rather than retrying once for every remaining group.
+        self.assertEqual(len(calls), golden_calls + T.TRANSLATION_RESCUE_PROBE_REQUESTS,
+                         'zero-yield rescue must stop exactly at its declared probe budget')
+        self.assertTrue(any('sonuç vermiyor' in warning.lower() for warning in warns),
+                        'the recovery yield stop must be visible to the user')
 
 
 if __name__ == '__main__':

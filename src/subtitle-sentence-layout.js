@@ -166,37 +166,49 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   if (turkishTarget) {
     // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
     // pairs; an altered minute remains a blocking mismatch.
-    const clocks = [...sourceForNumbers.matchAll(/(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)/gu)];
+    const clockPattern = /(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu;
+    const clockHour = match => match[3] && Number(match[1]) >= 1 && Number(match[1]) <= 12
+      ? Number(match[1]) % 12 + (match[3].toLowerCase() === 'p' ? 12 : 0) : Number(match[1]);
+    const clocks = [...sourceForNumbers.matchAll(clockPattern)];
     for (const clock of clocks) {
-      const hour = Number(clock[1]);
-      const equivalent = new RegExp(`(?<!\\d)0?${hour}[:.]${clock[2]}(?!\\d)`, 'u');
-      if (equivalent.test(targetForNumbers)) { targetForNumbers = targetForNumbers.replace(equivalent, ' '); continue; }
+      const hour = clockHour(clock);
+      const equivalent = [...targetForNumbers.matchAll(/(?<![\d:.])(\d{1,2})[:.]([0-5]\d)(?![\d:.])(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu)]
+        .find(match => clockHour(match) === hour && match[2] === clock[2]);
+      if (equivalent) {
+        targetForNumbers = targetForNumbers.slice(0, equivalent.index) + ' ' + targetForNumbers.slice(equivalent.index + equivalent[0].length);
+        continue;
+      }
       // toLocaleLowerCase('tr') uzunluğu korur (İ→i, I→ı); eşleşme konumu
       // özgün metinde de geçerlidir. JS /i bayrağı 'İ'yi 'i' ile eşlemez.
       const found = turkishClockMatch(targetForNumbers.toLocaleLowerCase('tr'), hour, Number(clock[2]));
       if (found) targetForNumbers = `${targetForNumbers.slice(0, found.index)} ${targetForNumbers.slice(found.end)}`;
       else issues.push('number_mismatch');
     }
-    sourceForNumbers = sourceForNumbers.replace(/(?<!\d)\d{1,2}:[0-5]\d(?!\d)/gu, ' ');
+    sourceForNumbers = sourceForNumbers.replace(clockPattern, ' ');
   }
   const sourceNumbers = numberTokens(sourceForNumbers);
   const translatedNumbers = numberTokens(targetForNumbers);
-  const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
+  const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<![\d-])(-?\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
     .map((match) => Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')]) : [];
   // Saat olarak eşlenen sözcükler ikinci kez başka bir kaynak sayıyı
   // karşılamasın: Python tarafı gibi kalan (saat çıkarılmış) metinde ara.
-  const normalizedTranslation = normalizeText(targetForNumbers).toLocaleLowerCase('tr');
+  let normalizedTranslation = normalizeText(targetForNumbers).toLocaleLowerCase('tr');
   if (sourceNumbers.some((token) => {
-    if (translatedNumbers.includes(token)) return false;
+    const direct = translatedNumbers.indexOf(token);
+    if (direct >= 0) { translatedNumbers.splice(direct, 1); return false; }
     const numeric = Number(token.replace(/^-|%$/g, ''));
-    if (!token.includes('%') && scaledNumbers.includes(numeric)) return false;
+    const scaled = token.includes('%') ? -1 : scaledNumbers.indexOf(Number(token));
+    if (scaled >= 0) { scaledNumbers.splice(scaled, 1); return false; }
     const words = turkishTarget && Number.isInteger(numeric) ? turkishIntegerWords(numeric)
       : turkishTarget && numeric % 1 === 0.5 ? `${turkishIntegerWords(Math.floor(numeric))} buçuk` : '';
     if (!words) return true;
     const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
     // "kırk beş" bileşik sayısında 'kırk' tek başına 40 sayılmaz; "iki üç gün"
     // gibi yaklaşık aralıkta ise iki ayrı sayı vardır (turkishNumberPhraseMatch).
-    return !turkishNumberPhraseMatch(normalizedTranslation, phrase);
+    const found = turkishNumberPhraseMatch(normalizedTranslation, phrase);
+    if (!found) return true;
+    normalizedTranslation = `${normalizedTranslation.slice(0,found.index)} ${normalizedTranslation.slice(found.end)}`;
+    return false;
   })) issues.push('number_mismatch');
   if (SOURCE_NEGATION.test(normalizeText(source).replace(/[‘’]/g, "'")) && !TARGET_NEGATION.test(normalizeText(translated))) {
     issues.push('negation_missing');
@@ -358,7 +370,7 @@ function fitTranslationParts(text, pieces) {
   // Japonca/Cince/Tayca gibi dillerde bosluga gore bolmek tek dev "kelime"
   // uretir ve cok-cue fallback'ini tumden kapatir. Grapheme dizisi metni
   // kayipsiz tutar; modelin verdigi dogrulanmis parts yine her zaman oncelikli.
-  const words = spaceless ? Array.from(normalized) : normalized.split(' ');
+  const words = spaceless ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(normalized), item => item.segment) : normalized.split(' ');
   const separator = spaceless ? '' : ' ';
   const count = pieces.length;
   if (!count || words.length < count) return null;

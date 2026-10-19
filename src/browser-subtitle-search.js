@@ -140,7 +140,8 @@ const ISO_639_2_TO_1 = {
 // sayılmamalı — sağlayıcılar varyantı ayrı altyazı olarak listeler.
 function langTag(value) {
   const parts = String(value || '').toLowerCase().trim().split(/[-_]/).filter(Boolean);
-  return { primary: ISO_639_2_TO_1[parts[0]] || parts[0] || '', variant: parts.slice(1).join('-') };
+  return { primary: ISO_639_2_TO_1[parts[0]] || parts[0] || '',
+    variant: parts.slice(1).join('-') || (parts[0] === 'pob' ? 'br' : '') };
 }
 
 function sameLanguage(a, b) {
@@ -212,15 +213,17 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
     payload = await request(`/subtitles?${params}`, { method: 'GET' }, config, signal);
     if (!Array.isArray(payload.data)) throw problem('OpenSubtitles arama yanıtı eksik.', 'INVALID_RESPONSE');
   }
-  const results = payload.data.map((item) => {
+  const results = payload.data.filter(item => item && typeof item === 'object' && !Array.isArray(item)).map((item) => {
     const a = item.attributes || {};
     const feature = a.feature_details || {};
     // fileId ve fileName AYNI dosya kaydından gelmeli — files[0] ID'sizse
     // ilk geçerli kayıtla isim birbirinden ayrılıyordu (yanlış dosya adı).
-    const file = a.files?.find((f) => Number.isSafeInteger(Number(f.file_id))) || a.files?.[0] || {};
+    const file = (Array.isArray(a.files) ? a.files : []).find(f => f
+      && (typeof f.file_id === 'number' || typeof f.file_id === 'string')
+      && Number.isSafeInteger(Number(f.file_id)) && Number(f.file_id) > 0) || {};
     return {
       id: String(item.id || a.subtitle_id || ''),
-      fileId: Number.isSafeInteger(Number(file.file_id)) ? file.file_id : null,
+      fileId: Number.isSafeInteger(Number(file.file_id)) && Number(file.file_id) > 0 ? file.file_id : null,
       title: feature.title || '',
       season: feature.season_number ?? null,
       episode: feature.episode_number ?? null,
@@ -271,7 +274,7 @@ async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   catch { throw problem('Stremio arama yanıtı okunamadı.', 'INVALID_RESPONSE'); }
   const rows = Array.isArray(payload?.subtitles) ? payload.subtitles : [];
   const wantedLang = langTag(target.language);
-  const results = rows.slice(0, 500).map((item, index) => {
+  const results = rows.slice(0, 500).filter(item => item && typeof item === 'object' && !Array.isArray(item)).map((item, index) => {
     const meta = (item && typeof item.m === 'object' && item.m) || {};
     const release = String(meta.release || meta.movieReleaseName || item.releaseName || '').slice(0, 300);
     const lang = String(item.lang || '').slice(0, 12);
@@ -354,7 +357,7 @@ async function downloadStremioSubtitle(url, config = {}, { signal, language } = 
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
   const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(url.split('/').pop() || '').replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
-  const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
+  const format = downloadedFormat(text);
   return { text, format, fileName: fileName || `subtitle-stremio.${format}` };
 }
 
@@ -362,6 +365,12 @@ async function downloadStremioSubtitle(url, config = {}, { signal, language } = 
 // arşivleri sık görülür) — strict UTF-8 yerine dil-ipuçlu esnek çözüm.
 // Geçerlilik kapısı karakter kümesi değil altyazı yapısıdır: zaman damgası
 // ' --> ' veya WEBVTT/ASS başlığı olmayan içerik reddedilir.
+function downloadedFormat(text) {
+  if (/^\s*WEBVTT(?:\s|$)/.test(text)) return 'vtt';
+  if (/^\s*\[(?:Script Info|V4\+? Styles)\]/i.test(text) || /^Dialogue:/m.test(text)) return 'ass';
+  return 'srt';
+}
+
 function decodeDownloadedSubtitle(bytes, language) {
   const { text } = decodeSubtitleBuffer(bytes, { language });
   const looksLikeSubtitle = /-->\s*\d{1,2}:\d{2}/.test(text)
@@ -403,7 +412,7 @@ async function downloadSubtitle({ fileId, url, provider, language }, config = {}
   const bytes = await boundedBody(response, MAX_TEXT_BYTES);
   const text = decodeDownloadedSubtitle(bytes, language);
   const fileName = String(payload.file_name || '').split(/[\\/]/).pop().replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120);
-  const format = text.startsWith('WEBVTT') ? 'vtt' : 'srt';
+  const format = downloadedFormat(text);
   return { text, format, fileName: fileName || `subtitle-${fileId}.${format}` };
 }
 

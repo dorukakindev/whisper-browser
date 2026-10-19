@@ -14,8 +14,9 @@ function normalizeCueText(value) {
 
 function validateSubtitleExport(expectedText, actualBuffer, filePath) {
   if (!Buffer.isBuffer(actualBuffer)) throw new TypeError('Dışa aktarılan altyazı okunamadı.');
-  const decoded = actualBuffer.toString('utf8');
-  if (decoded.includes('\uFFFD')) throw new Error('Dışa aktarılan altyazı geçerli UTF-8 değil.');
+  let decoded;
+  try { decoded = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(actualBuffer); }
+  catch { throw new Error('Dışa aktarılan altyazı geçerli UTF-8 değil.'); }
   const format = expectedFormat(filePath);
   const needsBom = format === 'srt' || format === 'ass';
   if (needsBom && !decoded.startsWith('\uFEFF')) throw new Error('SRT/ASS çıktısında UTF-8 BOM eksik.');

@@ -1,6 +1,7 @@
 'use strict';
 
 const { spawn } = require('child_process');
+const { terminateProcessTree } = require('./process-lifecycle');
 
 function probeCommand(command, args, options = {}) {
   const spawnImpl = options.spawnImpl || spawn;
@@ -17,7 +18,7 @@ function probeCommand(command, args, options = {}) {
       resolve(value);
     };
     const timer = setTimeout(() => {
-      try { if (child) child.kill(); } catch (_) {}
+      try { if (child) terminateProcessTree(child, { spawn: spawnImpl }); } catch (_) {}
       finish(null);
     }, timeoutMs);
     try {
@@ -27,10 +28,11 @@ function probeCommand(command, args, options = {}) {
       return;
     }
     child.on('error', () => finish(null));
+    child.stderr?.resume?.();
     if (child.stdout) child.stdout.on('data', (chunk) => {
       output += chunk;
       if (output.length > maxChars) {
-        try { child.kill(); } catch (_) {}
+        try { terminateProcessTree(child, { spawn: spawnImpl }); } catch (_) {}
         finish(null);
       }
     });

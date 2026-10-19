@@ -11,6 +11,7 @@
     'oai.sb': 'shuaiapi',
     'api.oai.sb': 'shuaiapi',
     'codecraftapi.com': 'codecraftapi',
+    'api.apinex.bond': 'apinex',
     '4sapi.com': '4sapi',
     '4sapi.org': '4sapi',
     '4sapi.cn': '4sapi',
@@ -37,7 +38,8 @@
     if (!raw) return '';
     try {
       const url = new URL(raw);
-      const known = HOST_SCOPES[url.hostname.toLowerCase()];
+      const known = url.protocol === 'https:' && !url.port && Object.hasOwn(HOST_SCOPES, url.hostname.toLowerCase())
+        ? HOST_SCOPES[url.hostname.toLowerCase()] : '';
       if (known) return `provider:${known}`;
       const pathname = url.pathname.replace(/\/+$/, '') || '/';
       return `endpoint:${url.protocol.toLowerCase()}//${url.host.toLowerCase()}${pathname}`.slice(0, 600);
@@ -80,7 +82,8 @@
   function providerKeyForScope(profiles, scope) {
     const id = String(scope || '').trim();
     if (!id || UNSAFE_PROFILE_SCOPES.has(id)) return '';
-    return normalizeProviderKeyProfiles(profiles)[id] || '';
+    const clean = normalizeProviderKeyProfiles(profiles);
+    return Object.hasOwn(clean, id) ? clean[id] : '';
   }
 
   return {

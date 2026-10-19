@@ -35,6 +35,7 @@ function harness(deviceSetting, spawnImpl) {
   const spawns = [];
   const sandbox = {
     browserLiveAsr: null,
+    dubService: { running: () => false },
     activeJob: null, burninJob: null, burninStartPending: null,
     modelBenchmarkJob: null, modelProcesses: new Set(),
     browserDiagnostics: null,
@@ -70,7 +71,7 @@ function harness(deviceSetting, spawnImpl) {
         flush() { const rest = buffer ? [buffer] : []; buffer = ''; return rest; },
       };
     },
-    setTimeout: (fn) => ({ unref() {} }),
+    setTimeout: (fn) => ({ fn, unref() {} }), clearTimeout: () => {},
     JSON, Object, Number, String, Math, Promise,
     dt: (tr, en) => en,
     createLiveAsrAudioSwitch: require('../src/live-asr-audio-switch').createLiveAsrAudioSwitch,
@@ -96,6 +97,39 @@ function tab() {
 }
 
 (async () => {
+  await test('R444: stop drains slow chunks, renews on progress and reports a stall', async () => {
+    const h = harness('cpu'); let now = 0, kills = 0;
+    h.sandbox.Date = { now: () => now };
+    h.sandbox.terminateProcessTree = () => { kills++; };
+    h.sandbox.startBrowserLiveAsr(tab(), {});
+    const job = h.sandbox.browserLiveAsr;
+    job.pendingChunks.set('fixture.wav', { offset: 0, rate: 1 });
+    h.sandbox.stopBrowserLiveAsr();
+    now = 16000; job.drainTimer.fn(); assert.equal(kills, 0);
+    now = 110000;
+    h.spawns[0].proc.stdout.emit('data', '{"type":"ready","model":"small"}\n');
+    assert.equal(h.events.filter(e => e.type === 'live-asr-state' && e.active).length, 1,
+      'late ready must not reactivate a stopped capture');
+    now = 125000; job.drainTimer.fn(); assert.equal(kills, 0, 'progress renews drain grace');
+    now = 231000; job.drainTimer.fn(); assert.equal(kills, 1);
+    assert.ok(h.events.some(e => e.type === 'live-asr-warning' && /1 audio chunks/.test(e.message)));
+    h.sandbox.browserLiveAsr = null;
+    job.drainTimer.fn(); assert.equal(kills, 1, 'stale timer must not kill another job');
+  });
+
+  await test('R444: multiple segments in one chunk cannot trigger a language switch', async () => {
+    const h = harness('cpu'), tracks = [];
+    h.sandbox.storeBrowserTrack = (cues, meta) => tracks.push(meta);
+    h.sandbox.startBrowserLiveAsr(tab(), {});
+    const send = (language, chunk) => h.spawns[0].proc.stdout.emit('data', JSON.stringify({
+      type: 'segment', path: chunk, start: 1, end: 2, text: 'fixture', language }) + '\n');
+    send('en', 'one'); send('tr', 'two'); send('tr', 'two');
+    assert.equal(new Set(tracks.map(t => t.streamKey)).size, 1);
+    send('tr', 'three'); send('tr', 'three');
+    assert.equal(new Set(tracks.map(t => t.streamKey)).size, 2);
+    assert.equal(h.events.filter(e => e.type === 'live-asr-warning' && /dili/.test(e.message)).length, 1);
+  });
+
   await test('CUDA yükleme hatası CPU/int8 ile tek seferlik yeniden dener', async () => {
     const { sandbox, events, spawns } = harness('cuda');
     const res = sandbox.startBrowserLiveAsr(tab(), {});

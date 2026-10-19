@@ -236,7 +236,7 @@
       void openTvMode();
     });
 
-    window.api?.onYoutubeTvEvent?.((_event, state) => renderTvState(state));
+    window.api?.onYoutubeTvEvent?.((state) => renderTvState(state));
     const snapshot = await window.api?.youtubeTvState?.().catch(() => null);
     if (snapshot?.ok) {
       agents = Array.isArray(snapshot.userAgents) ? snapshot.userAgents : [];
