@@ -10,13 +10,14 @@ fs.writeFileSync(path.join(root,'dub-settings.json'), JSON.stringify({timingMode
 const srt = path.join(root,'Türkçe.srt'); fs.writeFileSync(srt,'fixture');
 const fixtureHash = require('node:crypto').createHash('sha256').update('fixture').digest('hex');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
+let editContext;
 let backgroundMode='ok', rejectPreparation, backgroundRange, backgroundLimit;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
-  shorten: async (text, seconds) => { assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
+  shorten: async (text, seconds, context) => { editContext=context; assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   setRate: async request=>({ok:request.rate===.8}),
   prepareBackground: async ({output,onProcess,range,status,limit})=>{
     backgroundRange=range;
@@ -85,8 +86,10 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.ok(calls[0].args.includes('--limit')); assert.equal(calls[0].opts.env.HF_HUB_DISABLE_XET,'1');
     assert.ok(calls[0].args.includes('--verification'));
     const rewriteId='a'.repeat(32);
-    child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:rewriteId,text:'Uzun metin.',seconds:2})+'\n');
+    child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:rewriteId,text:'Uzun metin.',seconds:2,mode:'natural',measured:3.5})+'\n');
     await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(editContext.mode,'natural');assert.equal(editContext.measured,3.5);
+    assert.ok(calls[0].args.includes('--natural-speech'));
     const rewriteDir=calls[0].args[calls[0].args.indexOf('--rewrite-dir')+1];
     assert.equal(JSON.parse(fs.readFileSync(path.join(rewriteDir,rewriteId+'.json'),'utf8')).text,'Kısa metin.');
     child.stdout.emit('data','DUB_CONCURRENCY 2\n');

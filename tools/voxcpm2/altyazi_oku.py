@@ -84,6 +84,7 @@ if sys.platform == 'win32':
 
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
+from dub_finish import spoken_text, finish_audio, active_ranges
 from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check
 
 
@@ -92,7 +93,7 @@ class SpeechVerifier:
         self.python, self.proc, self.unavailable = python, None, False
         self.lock = asyncio.Lock()
 
-    async def check(self, path, text):
+    async def check(self, path, text, numeric_reference=None):
         if not self.python or self.unavailable:
             return {'status': 'unavailable'}
         async with self.lock:
@@ -108,7 +109,7 @@ class SpeechVerifier:
                 response = json.loads(await asyncio.wait_for(self.proc.stdout.readline(), 120))
                 if 'error' in response:
                     raise ValueError('unavailable')
-                result = speech_check(text, response['text'])
+                result = speech_check(text, response['text'], numeric_reference)
                 return {'status': 'review' if result['review'] else 'passed', **result}
             except (OSError, ValueError, asyncio.TimeoutError, KeyError, BrokenPipeError):
                 self.unavailable = True
@@ -121,19 +122,21 @@ class SpeechVerifier:
             await self.proc.wait()
 
 
-async def rewrite_for_window(args, i, text, seconds, before='', after=''):
-    if not args.auto_fit or not args.rewrite_dir:
+async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='fit', measured=None):
+    if not args.rewrite_dir or (mode == 'fit' and not args.auto_fit) or (mode == 'natural' and not getattr(args, 'natural_speech', False)):
+        return text
+    if len(text) > 1000:
         return text
     request_id = uuid.uuid4().hex
     response_path = args.rewrite_dir / (request_id + '.json')
     print('DUB_REWRITE ' + json.dumps({'id': request_id, 'group': i + 1,
-        'text': text, 'seconds': min(30, seconds), 'before':before[-1500:], 'after':after[:1500]}), flush=True)
+        'text': text, 'seconds': min(35, seconds), 'mode':mode, 'measured':measured, 'before':before[-1500:], 'after':after[:1500]}), flush=True)
     try:
         for _ in range(500):
             if response_path.is_file():
                 response = json.loads(response_path.read_text(encoding='utf-8'))
                 proposed = response.get('text')
-                if isinstance(proposed, str) and 0 < len(proposed) <= len(text):
+                if isinstance(proposed, str) and 0 < len(proposed) <= (min(1000, max(len(text), round(len(text)*1.25))) if mode == 'natural' else len(text)):
                     return proposed
                 return text
             await asyncio.sleep(.1)
@@ -219,29 +222,41 @@ async def uret(args, cues, paths, prompt_text):
             async with sem:
                 tick = time.monotonic()
                 seed = args.group_seeds[i]
+                original_text = text
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 try:
+                    if getattr(args, 'natural_speech', False) and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
+                        text = await rewrite_for_window(args, i, text, window,
+                            cues[i-1][2] if i else '', cues[i+1][2] if i+1 < len(cues) else '', mode='natural')
+                    editable_text = text
+                    text = spoken_text(text)
                     best, metric = await quality_retry(lambda n: sentez(text, n),
                         lambda raw: assess_chunk(raw, sr, text)[0], seed,
                         args.retry, args.request_timeout)
                     wav = prepare_audio(best, sr)
+                    metric['naturalEdited'] = editable_text != original_text
                     metric['rewritten'] = False
+                    wav, finishing = finish_audio(wav, sr)
+                    metric['finishing'] = finishing
+                    metric['measured_seconds'] = len(wav)/sr
                     # One bounded, duration-informed edit. Preserve the original
                     # and accept the candidate only if it is valid and shorter.
-                    if len(wav) / sr > window * 1.15 and len(text) > 25:
-                        proposed = await rewrite_for_window(args, i, text, window,
-                            cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '')
+                    if len(wav) / sr > window * 1.15 and len(text) > 25 and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
+                        proposed = await rewrite_for_window(args, i, editable_text, window,
+                            cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '', measured=len(wav)/sr)
+                        proposed = spoken_text(proposed)
                         if proposed != text:
                             try:
                                 candidate, extra = await quality_retry(lambda n: sentez(proposed, n),
                                     lambda raw: assess_chunk(raw, sr, proposed)[0], seed + 17,
                                     1, args.request_timeout)
-                                candidate = prepare_audio(candidate, sr)
+                                candidate, candidate_finishing = finish_audio(prepare_audio(candidate, sr), sr)
                                 metric['attempts'] += extra['attempts']
                                 metric['retries'] += extra['attempts']
                                 if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
                                     wav, text = candidate, proposed
+                                    metric['finishing'] = candidate_finishing
                                     metric['rewritten'] = True
                             except (ValueError, asyncio.TimeoutError):
                                 pass
@@ -249,24 +264,25 @@ async def uret(args, cues, paths, prompt_text):
                     check = {'status': 'not_checked'}
                     if args.verification == 'detailed' or (args.verification == 'balanced' and
                             (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
-                        check = await verifier.check(temporary, text)
+                        check = await verifier.check(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
                             # Re-read with a different seed; never edit meaning
                             # from an uncertain automatic transcript.
-                            candidate = prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr)
+                            candidate, candidate_finishing = finish_audio(prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr), sr)
                             if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                 second = temporary.with_name(temporary.stem + '-verify.wav')
                                 try:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
-                                    checked = await verifier.check(second, text)
+                                    checked = await verifier.check(second, text, numeric_reference=editable_text)
                                     if checked.get('similarity', 0) > check.get('similarity', 0) and not checked.get('missing_numbers'):
                                         wav, check = candidate, checked
+                                        metric['finishing'] = candidate_finishing
                                         sf.write(str(temporary), wav, sr, subtype='PCM_16')
                                 finally:
                                     second.unlink(missing_ok=True)
                             metric['attempts'] += 1; metric['retries'] += 1
                     temporary.replace(path)
-                    metric.update(verification=check, text=text, status='review' if
+                    metric.update(verification=check, text=text, final_seconds=len(wav)/sr, status='review' if
                         metric['quality_score'] > 0 or check['status'] == 'review' else 'ready')
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
@@ -294,7 +310,7 @@ async def uret(args, cues, paths, prompt_text):
                 metric.update(group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
                 results.append(metric)
                 print('DUB_GROUP ' + json.dumps({k: metric[k] for k in
-                    ('group', 'key', 'status', 'verification', 'rewritten') if k in metric}), flush=True)
+                    ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited') if k in metric}), flush=True)
                 done += 1
                 print(f"[{done}/{total}]", flush=True)
 
@@ -440,7 +456,9 @@ def parse_args(argv=None):
     p.add_argument('--verification', choices=('fast', 'balanced', 'detailed'), default='balanced')
     p.add_argument('--verify-python', type=Path)
     p.add_argument('--auto-fit', action='store_true')
+    p.add_argument('--natural-speech', action='store_true')
     p.add_argument('--rewrite-dir', type=Path)
+    p.add_argument('--editor-identity', default='')
     p.add_argument('--force-groups', default='')
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
@@ -516,6 +534,7 @@ def main(argv=None):
     args.group_seeds = [args.seed + int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % 1000000000
                        for key in args.group_keys]
     args.group_results = []
+    args.manual_groups = {','.join(map(str,g['source_ids'])) for g in groups if 'original_text' in g}
     cues = [(g['start'], g['end'], g['text']) for g in groups]
     print(f"Plan: {len(source_cues)} altyazi satiri -> {len(groups)} {args.gruplama} grubu.", flush=True)
     if args.plan:
@@ -536,7 +555,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v4", MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v5-finish2", args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.
@@ -548,7 +567,7 @@ def main(argv=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     paths = [cache_dir / (chunk_key(settings, text, seed) + '.wav')
              for (_, _, text), seed in zip(cues, args.group_seeds)]
-    if args.auto_fit:
+    if args.auto_fit or args.natural_speech:
         # A compact rewrite depends on available time, unlike ordinary speech.
         paths = [cache_dir / (chunk_key(settings, duration_identity(cues, i, available_window(cues, i,
             args.bosluk_pay_ms, args.end_limit_ms)), seed) + '.wav')
@@ -583,7 +602,7 @@ def main(argv=None):
         record.update(group=i + 1, key=args.group_keys[i])
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
-    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten') if k in r}
+    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited') if k in r}
                      for r in group_results]
     for row in public_groups:
         print('DUB_GROUP ' + json.dumps(row), flush=True)
@@ -611,7 +630,10 @@ def main(argv=None):
     for i, row in enumerate(public_groups):
         timing_row = timing['groups'][i]
         source = groups[i]
-        row.update(text=cues[i][2], sourceStart=source.get('source_start', source['start']) / 1000,
+        begin = timing_row['start_seconds']
+        row.update(displayText=source.get('original_text', source['text']),
+                   speechRanges=active_ranges(timeline[round(begin*sr):round((begin+timing_row['after_seconds'])*sr)], sr, begin),
+                   text=cues[i][2], sourceStart=source.get('source_start', source['start']) / 1000,
                    sourceEnd=source.get('source_end', source['end']) / 1000,
                    audioStart=timing_row['start_seconds'],
                    audioEnd=timing_row['start_seconds'] + timing_row['after_seconds'],

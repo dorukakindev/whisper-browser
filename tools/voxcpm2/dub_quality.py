@@ -7,14 +7,25 @@ from difflib import SequenceMatcher
 from collections import Counter
 
 import numpy as np
+from dub_finish import spoken_text
 
 
-def speech_check(expected, actual):
+def speech_check(expected, actual, numeric_reference=None):
     def words(text):
-        return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', text).casefold())
+        return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold())
     target, heard = words(expected), words(actual)
     similarity = SequenceMatcher(None, target, heard, autojunk=False).ratio()
-    missing_numbers = sorted((Counter(re.findall(r'\d+', expected)) - Counter(re.findall(r'\d+', actual))).elements())
+    # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
+    # Match complete normalized number phrases, consuming each occurrence once.
+    remaining = list(heard)
+    missing_numbers = []
+    for number in re.findall(r'\d+(?:[.,]\d+)*', expected if numeric_reference is None else numeric_reference):
+        phrase = words(number + ' kişi')[:-1]
+        found = next((i for i in range(len(remaining)-len(phrase)+1) if remaining[i:i+len(phrase)] == phrase), None)
+        if found is None:
+            missing_numbers.append(number)
+        else:
+            remaining[found:found+len(phrase)] = ['_consumed_'] * len(phrase)
     target_counts, heard_counts = Counter(target), Counter(heard)
     lost_negation = any(heard_counts[word] < count for word, count in target_counts.items()
                         if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))

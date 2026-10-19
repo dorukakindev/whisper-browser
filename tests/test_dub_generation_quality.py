@@ -18,6 +18,7 @@ import soundfile as sf
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2'))
 from dub_timing import quality_retry, available_window
 from dub_quality import valid_audio
+from dub_finish import spoken_text, finish_audio
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2' / 'altyazi_oku.py'
 
@@ -38,7 +39,7 @@ class Server:
 class Verifier:
     checks = []
     def __init__(self, *args): pass
-    async def check(self, path, text):
+    async def check(self, path, text, **kwargs):
         self.checks.append(text)
         return {'status':'passed','similarity':1,'review':False,'missing_numbers':[]}
     async def close(self): pass
@@ -66,14 +67,17 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong reference'):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
-    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast'):
+    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
-        async def rewrite(*args): return 'Short.'
+        self.rewrites=[]
+        async def rewrite(*args, **kwargs):
+            self.rewrites.append((args,kwargs))
+            return 'Short.'
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
             assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
-            available_window=available_window, valid_audio=valid_audio,
+            available_window=available_window, valid_audio=valid_audio, spoken_text=spoken_text, finish_audio=finish_audio,
             SpeechVerifier=Verifier, rewrite_for_window=rewrite)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
         ref = folder/'reference.wav'; ref.write_bytes(b'fixture')
@@ -82,7 +86,7 @@ class GenerationTests(unittest.TestCase):
             force_groups=set(),group_seeds=[42+i for i in range(len(texts))],
             group_keys=[str(i+1) for i in range(len(texts))],bosluk_pay_ms=0,end_limit_ms=None,
             retry=1,request_timeout=1,seed=42,temperature=.8,cfg=1.65,max_generate_length=1024,
-            verification=verification,auto_fit=auto_fit,report_dir=folder)
+            verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set())
         paths = [folder/f'{i}.wav' for i in range(len(texts))]
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}
@@ -110,10 +114,24 @@ class GenerationTests(unittest.TestCase):
             _,args,paths=self.run_generation(Path(d),server,['This is a deliberately long sentence.'],True,'detailed')
             self.assertEqual(server.calls,['This is a deliberately long sentence.','Short.'])
             record=json.loads(paths[0].with_suffix('.json').read_text())
+            self.assertEqual(self.rewrites[0][1]['measured'],2)
             self.assertTrue(record['rewritten'])
             self.assertEqual(record['text'],'Short.')
             self.assertEqual(Verifier.checks,['Short.'])
             self.assertEqual(sf.info(paths[0]).frames,4000)
 
+
+
+    def test_natural_second_pass_precedes_synthesis_but_manual_text_is_locked(self):
+        with tempfile.TemporaryDirectory() as d:
+            server=Server()
+            _,args,paths=self.run_generation(Path(d),server,['Written style sentence.'],natural=True)
+            self.assertEqual(server.calls,['Short.'])
+            self.assertEqual(self.rewrites[0][1]['mode'],'natural')
+        with tempfile.TemporaryDirectory() as d:
+            server=Server()
+            self.run_generation(Path(d),server,['Manually chosen wording must stay intact.'],auto_fit=True,natural=True,manual=True)
+            self.assertEqual(self.rewrites,[])
+            self.assertEqual(server.calls,['Manually chosen wording must stay intact.'])
 
 if __name__ == '__main__': unittest.main()

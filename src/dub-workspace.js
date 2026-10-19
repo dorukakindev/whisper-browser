@@ -63,9 +63,10 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       if(output.subtitle && fs.existsSync(output.subtitle)) {
         files.subtitle='subtitles.srt';await fsp.copyFile(await authorizeSubtitle(output.sourceSubtitle || output.subtitle),path.join(staging,files.subtitle));
         if(output.rows.length){
-          files.sourceSubtitle='subtitles.srt';files.subtitle='dub.srt';
+          files.sourceSubtitle='subtitles.srt';files.subtitle='dub.srt';files.spokenSubtitle='speech.srt';
           const tc=seconds=>{const ms=Math.round(seconds*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`;};
-          await fsp.writeFile(path.join(staging,files.subtitle),'\uFEFF'+output.rows.map((r,i)=>`${i+1}\n${tc(r.sourceStart)} --> ${tc(r.sourceEnd)}\n${r.text}\n`).join('\n'),'utf8');
+          await fsp.writeFile(path.join(staging,files.subtitle),'\uFEFF'+output.rows.map((r,i)=>`${i+1}\n${tc(r.sourceStart)} --> ${tc(r.sourceEnd)}\n${r.displayText || r.text}\n`).join('\n'),'utf8');
+          await fsp.writeFile(path.join(staging,files.spokenSubtitle),'\uFEFF'+output.rows.map((r,i)=>`${i+1}\n${tc(r.sourceStart)} --> ${tc(r.sourceEnd)}\n${r.text}\n`).join('\n'),'utf8');
         }
       }
       if(request.includeVideo===true){
@@ -93,24 +94,24 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       const choice=await dialog.showOpenDialog(owner(),{title:copy('Dublaj projesinin project.json dosyasını açın','Open dubbing project.json'),properties:['openFile'],filters:[{name:copy('Dublaj projesi','Dubbing project'),extensions:['json']}]});
       if(choice.canceled || !choice.filePaths?.length)return {ok:true,cancelled:true};
       const file=choice.filePaths[0], folder=fs.realpathSync(path.dirname(file));
-      if(fs.lstatSync(file).isSymbolicLink() || fs.statSync(file).size>4000000)throw new Error('Invalid dubbing project.');
+      if(fs.lstatSync(file).isSymbolicLink() || fs.statSync(file).size>16000000)throw new Error('Invalid dubbing project.');
       const value=JSON.parse(await fsp.readFile(file,'utf8'));
       if(value.format!=='whisper-dub-project' || value.version!==1 || !value.files || !value.files.voice)throw new Error('Invalid dubbing project.');
       const sync=validate(value.sync),rows=Model.groups(value.rows||[]),range=value.range;
       if(range && (!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start||range.end>86400))throw new Error('Invalid project range.');
       const loaded={};
-      for(const kind of ['voice','background','music','ambience','subtitle','sourceSubtitle','video']) if(value.files[kind]){
+      for(const kind of ['voice','background','music','ambience','subtitle','sourceSubtitle','spokenSubtitle','video']) if(value.files[kind]){
         const name=value.files[kind];
         if(typeof name!=='string' || path.basename(name)!==name || /[\\/:\x00-\x1f]/.test(name) || name==='.' || name==='..')throw new Error('Invalid project asset.');
         const target=path.join(folder,name);
         if(!fs.statSync(target).isFile() || fs.realpathSync(target)!==target)throw new Error('Missing or linked project asset.');
-        if(kind==='subtitle'||kind==='sourceSubtitle') {if(path.extname(name).toLowerCase()!=='.srt')throw new Error('Invalid subtitles.');grantSubtitle(target);loaded[kind]=target;}
+        if(kind==='subtitle'||kind==='sourceSubtitle'||kind==='spokenSubtitle') {if(path.extname(name).toLowerCase()!=='.srt')throw new Error('Invalid subtitles.');grantSubtitle(target);loaded[kind]=target;}
         else {if(!/\.(wav|mp3|flac|ogg|opus|m4a|aac|mp4|mkv|webm|mov|avi|m4v)$/i.test(name))throw new Error('Invalid media.');grantMedia(target);loaded[kind]={path:target,url:pathToFileURL(target).href,name};}
       }
       check(op);
       const output=register({path:loaded.voice.path,url:loaded.voice.url,name:String(value.name||'Dublaj.wav').slice(0,200),
         sync,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
-        background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
+        background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,spokenSubtitle:loaded.spokenSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
       return {ok:true,output};
     }finally{end(op);}
   }));

@@ -14,17 +14,24 @@
       if (!r || typeof r.key !== 'string' || r.key.length > 200 || typeof r.text !== 'string' || r.text.length > 16000
           || ![r.sourceStart,r.sourceEnd,r.audioStart,r.audioEnd].every(n => finite(n,0,172800))
           || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart) throw new Error('Invalid dubbing timeline.');
-      return {key:r.key,group:i+1,text:r.text,sourceStart:r.sourceStart,sourceEnd:r.sourceEnd,
+      let speechRanges;
+      if (Array.isArray(r.speechRanges) && r.speechRanges.length <= 100
+          && r.speechRanges.every((p,i,a) => Array.isArray(p) && p.length===2 && p.every(n=>finite(n,r.audioStart,r.audioEnd+.00001)) && p[1]>p[0] && (!i || p[0]>=a[i-1][1]))) speechRanges=r.speechRanges.map(p=>[...p]);
+      return {displayText:typeof r.displayText==='string' && r.displayText.length<=16000?r.displayText:r.text,
+        ...(speechRanges ? {speechRanges} : {}),key:r.key,group:i+1,text:r.text,sourceStart:r.sourceStart,sourceEnd:r.sourceEnd,
         audioStart:r.audioStart,audioEnd:r.audioEnd,status:['ready','review','failed'].includes(r.status)?r.status:'review',
-        stretch:finite(r.stretch,1,10000)?r.stretch:1,rewritten:r.rewritten===true,
+        stretch:finite(r.stretch,1,10000)?r.stretch:1,rewritten:r.rewritten===true,naturalEdited:r.naturalEdited===true,
         verification:{status:['passed','review','not_checked','unavailable'].includes(r.verification?.status)?r.verification.status:'not_checked'}};
     });
   }
   function duckAt(rows,time) {
     let envelope = 0;
     for (const r of rows || []) {
-      if (r.status === 'failed' || time < r.audioStart || time > r.audioEnd + .35) continue;
-      envelope = Math.max(envelope,Math.min(1,(time-r.audioStart)/.08,(r.audioEnd+.35-time)/.35));
+      if (r.status === 'failed') continue;
+      for (const [start,end] of r.speechRanges || [[r.audioStart,r.audioEnd]]) {
+        if(time<start || time>end+.35)continue;
+        envelope = Math.max(envelope,Math.min(1,(time-start)/.08,(end+.35-time)/.35));
+      }
     }
     return Math.max(0,envelope);
   }

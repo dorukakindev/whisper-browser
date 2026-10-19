@@ -15,7 +15,7 @@
     const labels = {ready:'Hazır',review:'Dinleyerek kontrol edin',failed:'Üretilemedi; bu bölüm sessiz',
       passed:'Metin doğrulandı',not_checked:'Metin denetlenmedi',unavailable:'Metin doğrulanamadı'};
     el('dubQualityInfo').textContent = row ? [t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
-      row.rewritten ? t('Süreye göre düzenlendi') : ''].filter(Boolean).join(' · ') : '';
+      row.rewritten ? t('Süreye göre düzenlendi') : row.naturalEdited ? t('Doğal konuşma için düzenlendi') : ''].filter(Boolean).join(' · ') : '';
   }
   function showResults() {
     const select = el('dubQualityGroup'), previous = select.value;
@@ -76,7 +76,7 @@
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
-    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit']) el(id).disabled = locked;
+    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
     el('dubQualityGroup').disabled = locked || !results.size;
@@ -102,7 +102,7 @@
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
-    if (!current) { el('dubVerification').value = r.verification || 'balanced'; el('dubAutoFit').checked = r.autoFit !== false; }
+    if (!current) { el('dubVerification').value = r.verification || 'balanced'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
     el('dubTranscriptName').textContent = basename(r.transcript);
@@ -258,7 +258,7 @@
     status('Motor yükleniyor…'); controls();
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups} : { id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
-      verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked,
+      verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked, naturalSpeech:el('dubNaturalSpeech').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };

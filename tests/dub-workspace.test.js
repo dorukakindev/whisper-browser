@@ -14,14 +14,17 @@ test('portable project owns its media and rejects path traversal, missing data a
    dialog:{showSaveDialog:async()=>({filePath:target}),showOpenDialog:async(_owner,opts)=>({filePaths:[opts.title.startsWith('Open ')?path.join(target,'project.json'):files['source.mp4']]})},
    authorizeMedia:async p=>{assert.ok(Object.values(files).includes(p)||p.startsWith(target));return p;},authorizeSubtitle:async p=>p,
    grantMedia:()=>{},grantSubtitle:()=>{}});
-  const row={key:'1',text:'Bir cümle.',sourceStart:10,sourceEnd:12,audioStart:0,audioEnd:3,status:'review',stretch:1.5};
+  const row={key:'1',text:'on iki kilometre.',displayText:'12 km.',speechRanges:[[0,1],[2,3]],sourceStart:10,sourceEnd:12,audioStart:0,audioEnd:3,status:'review',stretch:1.5};
   svc.register({path:files['voice.wav'],name:'Ses.wav',subtitle:files['subtitles.srt'],background:{path:files['background.wav']},quality:{groups:[row]}});
   const call=(n,r)=>handlers[n]({sender},r);
   allowed=false;assert.equal((await call('dub:projectSave',{path:files['voice.wav']})).ok,false);allowed=true;
   assert.equal((await call('dub:projectSave',{path:'unknown.wav'})).ok,false);
   assert.equal((await call('dub:projectSave',{path:files['voice.wav'],layers:{music:{path:files['music.wav']}},includeVideo:true,mix:{voice:.7}})).ok,true);
   const manifest=JSON.parse(fs.readFileSync(path.join(target,'project.json')));
-  assert.equal(manifest.rows[0].text,row.text);assert.equal(manifest.mix.voice,.7);assert.equal(manifest.files.music,'music.wav');
+  assert.equal(manifest.rows[0].text,row.text);assert.equal(manifest.rows[0].displayText,row.displayText);
+  assert.ok(fs.readFileSync(path.join(target,manifest.files.subtitle),'utf8').includes('12 km.'));
+  assert.ok(fs.readFileSync(path.join(target,manifest.files.spokenSubtitle),'utf8').includes('on iki kilometre.'));
+  assert.deepEqual(manifest.rows[0].speechRanges,row.speechRanges);assert.equal(manifest.mix.voice,.7);assert.equal(manifest.files.music,'music.wav');
   assert.ok(!JSON.stringify(manifest).includes(root),'project contains only relative asset names');
   fs.unlinkSync(files['voice.wav']);
   const opened=await call('dub:projectOpen');assert.equal(opened.ok,true);assert.equal(opened.output.rows[0].audioEnd,3);assert.equal(opened.output.sourceSubtitle,path.join(target,'subtitles.srt'));assert.ok(opened.output.layers.music.url);assert.ok(opened.output.video.path.endsWith('source.mp4'));assert.equal(fs.readFileSync(opened.output.subtitle,'utf8').startsWith('\uFEFF'),true);
@@ -58,3 +61,11 @@ test('cancelled export terminates its owned process and removes only its own par
   assert.equal(fs.existsSync(partial),false);assert.equal(fs.existsSync(target),false);assert.equal(fs.readFileSync(keep,'utf8'),'preserve');assert.equal(svc.running(),false);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+ test('speech activity ducks only actual utterances; subtitle text stays separate',()=>{
+ const row={key:'1',text:'on iki kilometre',displayText:'12 km',sourceStart:0,sourceEnd:3,audioStart:0,audioEnd:3,status:'ready',speechRanges:[[0,1],[2,3]]};
+ const r=Model.groups([row])[0];assert.equal(r.displayText,'12 km');assert.equal(r.text,'on iki kilometre');
+ assert.equal(Model.duckAt([r],1.6),0);assert.equal(Model.duckAt([r],2.5),1);
+ assert.equal(Model.duckAt(Model.groups([{...row,speechRanges:[]}]),.5),0);
+ assert.equal(Model.duckAt(Model.groups([{...row,speechRanges:[[9,10]]}]),.5),1,'invalid activity falls back to cue timing');
+ });

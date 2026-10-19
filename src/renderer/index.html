@@ -3706,8 +3706,10 @@
   <div class="dub-generator-row"><label for="dubConcurrency">Paralel üretim</label><select id="dubConcurrency"><option value="4">4 grup (az bellek)</option><option value="8">8 grup (daha fazla bellek)</option></select></div>
     <div class="dub-generator-row"><label for="dubVerification">Konuşma doğrulaması</label><select id="dubVerification"><option value="fast">Hızlı · ses denetimi</option><option value="balanced" selected>Dengeli · şüpheli bölümlerde metin denetimi</option><option value="detailed">Ayrıntılı · tüm bölümlerde metin denetimi</option></select></div>
     <p>Metin denetimi kayıtlı Whisper small modelini CPU ile kullanır; ek süre alır. Model yoksa doğrulanamadığı bildirilir.</p>
+    <label class="dub-generator-row"><input id="dubNaturalSpeech" type="checkbox" checked />Seslendirmeden önce doğal konuşma düzenlemesi yap</label>
+    <p>İkinci geçiş seçili AI sağlayıcısını kullanır; ek süre ve API kullanımı gerektirir. Altyazı korunur, okunacak metin ayrı kaydedilir. Elle uyguladığınız metin tekrar düzenlenmez.</p>
     <label class="dub-generator-row"><input id="dubAutoFit" type="checkbox" checked />Uzun konuşmayı AI ile süreye göre düzenle</label>
-    <p>Seçili çeviri sağlayıcısını kullanır. Anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p>
+    <p>Seçili çeviri sağlayıcısını kullanır. Gerçek okuma süresi ölçülür; anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p>
   <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
   <select id="dubTimingMode"><option value="video">Konuşmayı tam tut; videoyu yavaşlat</option><option value="clip">Video sabit; sığmayan konuşmayı kes</option></select>
   <p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p>

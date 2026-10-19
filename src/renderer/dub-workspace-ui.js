@@ -24,7 +24,7 @@
   function choose(row,seek=false){
     selected=row;
     for(const button of el('dubTimeline').children)button.setAttribute('aria-pressed',String(button.dataset.key===row.key));
-    el('dubTimelineInfo').textContent=`${row.sourceStart.toFixed(2)}–${row.sourceEnd.toFixed(2)} s · ${label(row)} · ${row.stretch.toFixed(2)}×\n${row.text}`;
+    el('dubTimelineInfo').textContent=`${row.sourceStart.toFixed(2)}–${row.sourceEnd.toFixed(2)} s · ${label(row)} · ${row.stretch.toFixed(2)}×\n${t('Altyazı')}: ${row.displayText}\n${t('Okunan metin')}: ${row.text}`;
     const select=el('dubQualityGroup');if([...select.options].some(o=>o.value===row.key)){select.value=row.key;select.dispatchEvent(new Event('change'));}
     if(seek)void window.BrowserDubAudioUI?.seekSource(row.sourceStart,context).then(ok=>{if(!ok)note('Video değişti; önce doğru videoyu açın.');});
     buttons();

@@ -82,8 +82,9 @@ def tempo_commands(sync, duration, target="warp"):
 
 
 def duck_expression(rows, amount):
-    terms = [f'max(0,min(1,min((t-{r["audioStart"]:.9f})/0.08,({r["audioEnd"]+.35:.9f}-t)/0.35)))'
-             for r in rows if r.get('status') != 'failed']
+    terms = [f'max(0,min(1,min((t-{start:.9f})/0.08,({end+.35:.9f}-t)/0.35)))'
+             for r in rows if r.get('status') != 'failed'
+             for start,end in r.get('speechRanges', [[r['audioStart'],r['audioEnd']]])]
     return f'(1-{1-amount:.9f}*{balanced(terms,"max")})'
 
 

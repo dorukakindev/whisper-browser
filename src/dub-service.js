@@ -8,7 +8,7 @@ const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference, onOutput = output => output }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareReference, onOutput = output => output }) {
   let job = null;
   let textUI = null;
   const plans = new Map();
@@ -48,7 +48,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
       verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'balanced',
-      autoFit: saved.autoFit !== false,
+      autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
@@ -361,12 +361,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const forceGroups = request.forceGroups ?? [];
       if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
+      c.naturalSpeech = request.naturalSpeech ?? c.naturalSpeech;
+      if (typeof c.naturalSpeech !== 'boolean') throw new Error('Invalid speech editing option.');
       if (typeof c.autoFit !== 'boolean') throw new Error('Invalid duration editing option.');
       if (!['clip','video'].includes(timingMode)) throw new Error('Geçersiz zamanlama modu.');
       if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
       c.profile = profile; c.concurrency = concurrency; c.timingMode = timingMode;
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
-      Object.assign(s.settings, { verification, autoFit:c.autoFit });
+      Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
@@ -414,9 +416,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (forceGroups.length) args.push('--force-groups', forceGroups.join(';'));
       if (request.sample === true) args.push('--limit', '11', '--representative-preview');
       const rewriteDir = path.join(inputDir, 'duration-edits');
-      if (c.autoFit && typeof shorten === 'function') {
+      if ((c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
         fs.mkdirSync(rewriteDir, {recursive:true});
-        args.push('--auto-fit', '--rewrite-dir', rewriteDir);
+        args.push('--rewrite-dir', rewriteDir);
+        args.push('--editor-identity', String(editorIdentity()).slice(0,128));
+        if (c.autoFit) args.push('--auto-fit');
+        if (c.naturalSpeech) args.push('--natural-speech');
       }
       if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
       if (request.dubText) {
@@ -469,23 +474,27 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const rewriteRequests = new Set();
       function line(value) {
         s.tail = (s.tail + '\n' + value).slice(-6000);
-        if (value.startsWith('DUB_REWRITE ') && c.autoFit && typeof shorten === 'function') {
+        if (value.startsWith('DUB_REWRITE ') && (c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
           try {
             const r = JSON.parse(value.slice(12));
-            if (!/^[a-f0-9]{32}$/.test(r.id) || rewriteRequests.has(r.id) || rewriteRequests.size >= 5000 ||
+            if (!/^[a-f0-9]{32}$/.test(r.id) || rewriteRequests.has(r.id) || rewriteRequests.size >= 10000 ||
                 typeof r.text !== 'string' || r.text.length > 8000 || !Number.isFinite(r.seconds) || r.seconds <= 0 || r.seconds > 35) return;
+            if ((r.mode === 'natural' && !c.naturalSpeech) || (r.mode !== 'natural' && !c.autoFit)) return;
             rewriteRequests.add(r.id);
             // Independent response files prevent concurrent groups exchanging
             // replies. Never let a cancelled job write a late response.
-            void Promise.resolve().then(() => shorten(r.text, r.seconds, {
+            void Promise.resolve().then(() => s.editorUnavailable ? r.text : shorten(r.text, r.seconds, {
+              mode:r.mode === 'natural' ? 'natural' : 'fit',
+              measured:Number.isFinite(r.measured) && r.measured > 0 && r.measured <= 600 ? r.measured : null,
               before:typeof r.before === 'string' ? r.before.slice(-1500) : '',
               after:typeof r.after === 'string' ? r.after.slice(0,1500) : ''
             })).then(text => {
               if (job === s && !s.cancelled) atomicWriteFileSync(path.join(rewriteDir, r.id + '.json'), JSON.stringify({text}), {encoding:'utf8'});
-            }).catch(() => {
+            }).catch(error => {
+              if(error.code==='DUB_EDITOR_UNAVAILABLE')s.editorUnavailable=true;
               if (job === s && !s.cancelled) {
                 try { atomicWriteFileSync(path.join(rewriteDir, r.id + '.json'), '{}', {encoding:'utf8'}); } catch (_) {}
-                emit(s, 'warning', {text:'Süreye göre düzenleme kullanılamadı; özgün metin korunuyor.'});
+                if(!s.editorWarning){s.editorWarning=true;emit(s, 'warning', {text:'AI konuşma düzenlemesi kullanılamadı; özgün metin korunuyor.'});}
               }
             });
           } catch (_) {}
@@ -556,7 +565,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           let quality = null;
           try {
             const qualityPath = output.replace(/\.wav$/i, '.quality.json');
-            if (fs.statSync(qualityPath).size <= 2000000) {
+            if (fs.statSync(qualityPath).size <= 16000000) {
               const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
               if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length <= 5000) quality = raw;
             }

@@ -48,7 +48,7 @@ const OTHER_STORE = new Set([
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
   'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
-  'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit',
+  'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',
   'autoPauseCue', 'autoFollow', 'showSource', 'showTranslation', 'playerMergeCont', 'playerAudioLang',
