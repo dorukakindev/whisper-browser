@@ -51,3 +51,5 @@ Beklenti 99 ve toplam 104 olarak güncellendi; ürün kodu geri alınmadı,
 test/eşik kaldırılmadı. Hedef prefs alanlarının otoritesi korunur; süre
 alanı ilerlemiş oturum verisidir. Hedefli 17 + Rapor479 10 test, syntax ve
 diff kontrolü geçti. Yeni Windows CI sonucu ayrıca takip edilir.
+
+Sonuç: run39193688823 HEAD062a521 Windows job117871738354 SUCCEEDED; tam npm test, Electron bridge ve syntax geçti. Ubuntu job117871738531: test_translate_rescue_scales_across_chunks_parallel AssertionError:31 açık. Ayrıntı: docs/devir/2026-10-19-0621.md. Bu son kayıt yalnız belgedir.
