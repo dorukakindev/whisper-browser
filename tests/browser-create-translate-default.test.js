@@ -46,6 +46,7 @@ const ctx = {
   logLine() {}, setBrowserSignal() {}, updatePlayerTaskCenter() {}, updateBrowserWhisperActions() {},
 };
 vm.createContext(ctx);
+vm.runInContext(section('function configureSpeechTranslation(', 'async function startBrowserYoutubeWhisper('), ctx);
 vm.runInContext(section('function translationReadyForCreate(', 'function openTranslationKeySetup('), ctx);
 ctx.URL = URL;
 vm.runInContext(section('function translationEndpointReady(', '\n}') + '\n}', ctx);
