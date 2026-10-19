@@ -29,12 +29,17 @@ function calibrateCueTimeline(referenceCues = [], candidateCues = [], options = 
     list.push({ cue, text, start });
     candidateByText.set(text, list);
   }
+  const referenceCounts = new Map();
+  for (const cue of referenceCues || []) {
+    const text = normalizeTimelineText(cue?.text);
+    if (text && Number.isFinite(Number(cue?.start))) referenceCounts.set(text, (referenceCounts.get(text) || 0) + 1);
+  }
   const samples = [];
   for (const cue of referenceCues || []) {
     const text = normalizeTimelineText(cue?.text);
     const start = Number(cue?.start);
     const matches = candidateByText.get(text) || [];
-    if (!text || !Number.isFinite(start) || matches.length !== 1) continue;
+    if (!text || !Number.isFinite(start) || matches.length !== 1 || referenceCounts.get(text) !== 1) continue;
     const offset = start - matches[0].start;
     if (Math.abs(offset) <= maxOffset) samples.push({ offset, textLength: text.length });
   }

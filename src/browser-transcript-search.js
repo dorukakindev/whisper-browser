@@ -35,6 +35,8 @@
   // 'tamamlamış' gibi ilgisiz çekimleri de pozitif sayıyordu (R86-05).
   // Kabul, açık çekimli biçim listesiyle sınırlıdır; fold() çıktısı ASCII'dir.
   const WHOLE_TRANSCRIPT_PHRASES = [
+    'entire video', 'whole video', 'full video', 'whole transcript', 'full transcript',
+    'entire transcript', 'from beginning to end', 'main idea', 'overall summary',
     'ana fikir', 'ana fikri', 'bastan sona', 'basindan sonuna', 'uctan uca',
     'tum transkript', 'butun transkript', 'tum video', 'butun video',
     'tum icerik', 'butun icerik', 'genel ozet', 'tam metin',
@@ -42,6 +44,7 @@
   const WHOLE_TRANSCRIPT_WORDS = new Set([
     // tamamı / tümü / bütünü çekimleri ('tamamen', 'tamamla', 'tamamlamış'
     // ve söylem belirteci tek başına 'tamam' bilinçli dışarıda).
+    'summarize', 'summarise', 'summary', 'overview',
     'tamami', 'tamamini', 'tamamin', 'tamamina', 'tamaminda',
     'tum', 'tumu', 'tumunu', 'tumun', 'tumunun', 'tumune', 'tumunde',
     'butun', 'butunu', 'butununu', 'butunun', 'butunune', 'butununde',
@@ -79,6 +82,8 @@
       return { row, score };
     }).sort((a, b) => b.score - a.score || a.row.index - b.row.index);
     const selected = new Set();
+    const distributed = [];
+    const limit = Math.max(6, Math.min(48, Math.floor(Number(options.limit) || 36)));
     const addWithNeighbors = (index, radius = 1) => {
       for (let i = Math.max(0, index - radius); i <= Math.min(rows.length - 1, index + radius); i++) {
         const row = rows[i];
@@ -88,20 +93,21 @@
       }
     };
     for (const hit of scored.slice(0, queryTokens.length ? 10 : 4)) addWithNeighbors(hit.row.index, 1);
-    if (wholeTranscriptIntent(question) && eligible.length) {
-      const samples = Math.min(16, eligible.length);
+    if (wholeTranscriptIntent(question) && pool.length) {
+      const samples = Math.min(16, pool.length, Math.max(2, Math.floor(limit / 2)));
       for (let sample = 0; sample < samples; sample++) {
-        const row = eligible[Math.min(eligible.length - 1, Math.floor(sample * eligible.length / samples))];
+        const row = pool[Math.round(sample * (pool.length - 1) / Math.max(1, samples - 1))];
         addWithNeighbors(row.index, 0);
+        distributed.push(row.index);
       }
     }
-    const limit = Math.max(6, Math.min(48, Number(options.limit) || 36));
     // Önce skora göre seç, sonra kronolojik göster — eski sürüm index sırasıyla
     // kesiyordu ve videonun sonundaki yüksek-skorlu isabetler düşüyordu.
     const scoreByIndex = new Map(scored.map(({ row, score }) => [row.index, score]));
-    const evidence = [...selected]
+    const ranked = [...selected]
       .sort((a, b) => (scoreByIndex.get(b) || 0) - (scoreByIndex.get(a) || 0) || a - b)
-      .slice(0, limit)
+      .filter(index => !distributed.includes(index));
+    const evidence = [...distributed, ...ranked.slice(0, Math.max(0, limit - distributed.length))]
       .sort((a, b) => a - b)
       .map((index) => {
       const row = rows[index];

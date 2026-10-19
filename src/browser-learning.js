@@ -12,7 +12,9 @@ function normalizeAnnotation(raw = {}) {
   const mediaId = String(raw.mediaId || '').slice(0, 240);
   const start = Math.max(0, Number(raw.start) || 0);
   const source = String(raw.source || '').trim().slice(0, 4000);
-  const fingerprint = crypto.createHash('sha1').update(`${mediaId}|${start}|${type}|${source}`, 'utf8').digest('hex').slice(0, 16);
+  const identity = `${mediaId}|${start}|${type}|${source}`;
+  const trackIdentity = raw.trackId || raw.cueId ? JSON.stringify([String(raw.trackId || ''), String(raw.cueId || '')]) : '';
+  const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity, 'utf8').digest('hex').slice(0, 16);
   const review = normalizeReviewState(raw);
   return {
     id: String(raw.id || `annotation:${fingerprint}`).slice(0, 180),
@@ -43,7 +45,9 @@ function normalizeAnnotation(raw = {}) {
 function matchingLearningAnnotation(annotations, type, raw = {}) {
   const target = normalizeAnnotation({ ...raw, type });
   const rows = (Array.isArray(annotations) ? annotations : []).filter((item) =>
-    item && item.type === target.type && item.mediaId === target.mediaId);
+    item && item.type === target.type && item.mediaId === target.mediaId
+    && !(target.trackId && item.trackId && item.trackId !== target.trackId)
+    && !(target.cueId && item.cueId && item.cueId !== target.cueId));
   const exact = rows.find((item) => item.id === target.id);
   if (exact) return exact;
   if (target.trackId && target.cueId) {
