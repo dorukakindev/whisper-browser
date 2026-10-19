@@ -84,7 +84,7 @@ if sys.platform == 'win32':
 
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
-from dub_quality import chunk_key, valid_audio, representative_groups, reference_quality, speech_check
+from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check
 
 
 class SpeechVerifier:
@@ -550,8 +550,8 @@ def main(argv=None):
              for (_, _, text), seed in zip(cues, args.group_seeds)]
     if args.auto_fit:
         # A compact rewrite depends on available time, unlike ordinary speech.
-        paths = [cache_dir / (chunk_key(settings, [text, available_window(cues, i,
-            args.bosluk_pay_ms, args.end_limit_ms)], seed) + '.wav')
+        paths = [cache_dir / (chunk_key(settings, duration_identity(cues, i, available_window(cues, i,
+            args.bosluk_pay_ms, args.end_limit_ms)), seed) + '.wav')
             for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     for p in paths:
         if p.exists() and not valid_audio(p, sf):

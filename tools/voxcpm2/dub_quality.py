@@ -30,6 +30,12 @@ def chunk_key(settings, text, seed):
                                     sort_keys=True).encode()).hexdigest()
 
 
+def duration_identity(cues, i, window):
+    return {'protocol': 'duration-edit-v1', 'text': cues[i][2], 'seconds': window,
+            'before': cues[i - 1][2][-1500:] if i else '',
+            'after': cues[i + 1][2][:1500] if i + 1 < len(cues) else ''}
+
+
 def valid_audio(path, sf):
     try:
         info = sf.info(str(path))

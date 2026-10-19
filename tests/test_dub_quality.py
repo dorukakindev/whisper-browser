@@ -24,6 +24,10 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(Q.chunk_key(identity,'Bir cümle.',42), Q.chunk_key(dict(reversed(list(identity.items()))),'Bir cümle.',42))
         self.assertNotEqual(Q.chunk_key(identity,'Bir cümle.',42), Q.chunk_key(identity,'Başka cümle.',42))
         self.assertNotEqual(Q.chunk_key(identity,'Bir cümle.',42), Q.chunk_key(identity,'Bir cümle.',43))
+        cues=[(0,1000,'Önce.'),(1000,2000,'O da geldi.'),(2000,3000,'Sonra.')]
+        before=Q.duration_identity(cues,1,1)
+        cues[0]=(0,1000,'Başka kişi.')
+        self.assertNotEqual(Q.chunk_key(identity,before,42),Q.chunk_key(identity,Q.duration_identity(cues,1,1),42))
 
     def test_preview_packs_far_apart_excerpts_without_losing_source_ids(self):
         groups = [{'start':0,'end':1000,'text':'Evet.','source_ids':[1]},
