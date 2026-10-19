@@ -43,7 +43,7 @@ function browserSiteOrigin(rawUrl) {
 }
 
 function normalizeProfileValue(field, value) {
-  const rule = PROFILE_FIELDS[field];
+  const rule = Object.prototype.hasOwnProperty.call(PROFILE_FIELDS, field) ? PROFILE_FIELDS[field] : null;
   if (!rule) return undefined;
   if (value === null || value === undefined) return undefined;
   if (rule.type === 'boolean') return value === true || value === false ? value : undefined;
@@ -91,7 +91,7 @@ function normalizeBrowserSiteProfiles(raw, legacyZooms = {}) {
   // kayıtları bir kez güvenli HTTPS origin anahtarına taşır.
   for (const [rawHost, rawZoom] of Object.entries(legacyZooms || {})) {
     const host = String(rawHost || '').trim().toLowerCase();
-    if (!/^[a-z0-9.-]{1,253}$/.test(host)) continue;
+    if (!/^(?:\[[0-9a-f:]+\]|[a-z0-9.-]{1,253})$/.test(host)) continue;
     const origin = browserSiteOrigin(`https://${host}`);
     const zoom = normalizeProfileValue('zoom', rawZoom);
     if (!origin || zoom === undefined) continue;
@@ -104,7 +104,7 @@ function normalizeBrowserSiteProfiles(raw, legacyZooms = {}) {
 function withBrowserSiteProfileField(rawProfiles, rawUrl, field, rawValue) {
   const profiles = normalizeBrowserSiteProfiles(rawProfiles);
   const origin = browserSiteOrigin(rawUrl);
-  if (!origin || !PROFILE_FIELDS[field]) return { ok: false, reason: 'invalid', origin, profiles };
+  if (!origin || !Object.prototype.hasOwnProperty.call(PROFILE_FIELDS, field)) return { ok: false, reason: 'invalid', origin, profiles };
   const current = { ...(profiles[origin] || {}) };
   if (rawValue === undefined || rawValue === null) delete current[field];
   else {
@@ -152,7 +152,7 @@ function normalizeBrowserPathProfiles(raw) {
 function withBrowserPathProfileField(rawProfiles, rawUrl, field, rawValue) {
   const profiles = normalizeBrowserPathProfiles(rawProfiles);
   const key = browserPathKey(rawUrl);
-  if (!key || key.endsWith('/') || !PROFILE_FIELDS[field]) return { ok: false, reason: 'invalid', key, profiles };
+  if (!key || key.endsWith('/') || !Object.prototype.hasOwnProperty.call(PROFILE_FIELDS, field)) return { ok: false, reason: 'invalid', key, profiles };
   const current = { ...(profiles[key] || {}) };
   if (rawValue === undefined || rawValue === null) delete current[field];
   else { const value = normalizeProfileValue(field, rawValue); if (value === undefined) return { ok: false, reason: 'invalid', key, profiles }; current[field] = value; }

@@ -24,16 +24,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   function voiceEnvironment(engine) {
     const env = { ...environment(), HF_HUB_DISABLE_XET: '1', VOXCPM_ROOT: engine };
     const torchLib = path.join(engine, '.venv', 'Lib', 'site-packages', 'torch', 'lib');
-    if (fs.existsSync(torchLib)) env.PATH = torchLib + path.delimiter + (env.PATH || env.Path || '');
+    const inheritedPath = Object.keys(env).find(key => key.toLowerCase() === 'path');
+    env.PATH = env.PATH ?? env[inheritedPath] ?? process.env.PATH ?? '';
+    if (fs.existsSync(torchLib)) env.PATH = torchLib + path.delimiter + env.PATH;
     for (const key of Object.keys(env)) if (key !== 'PATH' && key.toLowerCase() === 'path') delete env[key];
     return env;
   }
   function config() {
     let saved = {};
     try { saved = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch (_) {}
-    const engine = saved.engine || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
-    return { engine, reference: saved.reference || path.join(engine, 'anlatici_ham.wav'),
-      transcript: saved.transcript || path.join(engine, 'anlatici_ham.txt'),
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
+    const savedPath = key => typeof saved[key] === 'string' && saved[key].trim() && !saved[key].includes('\0') ? saved[key] : '';
+    const engine = savedPath('engine') || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
+    return { engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
+      transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
@@ -219,7 +223,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       proc.once('close', code => {
         if (settled) return;
         if (code !== 0) return finish(new Error('SRT planı okunamadı.'));
-        try { finish(null, JSON.parse(out)); } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
+        try {
+          const value = JSON.parse(out);
+          const keys = new Set();
+          if (!value || typeof value.sourceHash !== 'string' || !value.sourceHash
+              || value.sourceHash.length > 128 || !Array.isArray(value.groups)
+              || !value.groups.length || value.groups.length > 5000
+              || value.groups.some(group => {
+                if (!group || typeof group.key !== 'string' || !group.key || keys.has(group.key)
+                    || typeof group.text !== 'string' || !group.text.trim()
+                    || !Number.isFinite(group.seconds) || group.seconds <= 0) return true;
+                keys.add(group.key); return false;
+              })) throw new Error('invalid plan');
+          finish(null, { sourceHash: value.sourceHash, groups: value.groups });
+        } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
       });
     });
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');

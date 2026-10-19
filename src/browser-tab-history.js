@@ -7,6 +7,7 @@ const DEFAULT_CLOSED_TAB_LIMIT = 20;
 const MAX_MEDIA_TIME_SECONDS = 7 * 24 * 60 * 60;
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
