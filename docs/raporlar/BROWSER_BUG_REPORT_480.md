@@ -40,3 +40,14 @@ Tam npm test, start.bat/GUI/DPI, canlı site/model/GPU/OCR ve gerçek PDF/manga
 jsdom kullanıldı. Kişisel dosyalar, ana checkout ve açık uygulama korunuyor.
 Windows CI yeni kullanıcı talimatı gereği teslimde ayrıca kontrol edilir;
 sonuç görülmeden CI geçti iddiası yok. PR otomatik merge edilmez.
+
+## Windows CI takip düzeltmesi — 06:13
+
+39192838614 / Windows 117869165645 koşusu tam test paketinde yalnız
+`library-maintenance-21-25.test.js` nedeniyle kırmızıydı (1 dosya).
+Rapor479-02 aynı oturumun daha uzun izleme kaydını korurken eski fixture
+hedefteki 10 saniyenin kaynakta kayıtlı 99 saniyeyi ezmesini bekliyordu.
+Beklenti 99 ve toplam 104 olarak güncellendi; ürün kodu geri alınmadı,
+test/eşik kaldırılmadı. Hedef prefs alanlarının otoritesi korunur; süre
+alanı ilerlemiş oturum verisidir. Hedefli 17 + Rapor479 10 test, syntax ve
+diff kontrolü geçti. Yeni Windows CI sonucu ayrıca takip edilir.
