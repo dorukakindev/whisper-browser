@@ -528,7 +528,8 @@ def main(argv=None):
     duration = video_duration(args.video) if args.video else None
     if args.video and (duration is None or cues[-1][1] / 1000 > duration):
         raise SystemExit("Video suresi okunamadi veya altyazi videodan uzun; ses kesilmedi.")
-    args.end_limit_ms = duration * 1000 if duration is not None else None
+    args.end_limit_ms = duration * 1000 if duration is not None else (
+        args.range_end * 1000 if args.range_end is not None else None)
     # Check windows before loading the GPU model.
     for i in range(len(cues)):
         available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
@@ -605,7 +606,7 @@ def main(argv=None):
                                          end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
 
     stem = args.srt.stem
-    sample_suffix = f"_ornek{args.limit}" if args.limit else ""
+    sample_suffix = '_ornek_temsili' if args.representative_preview else (f"_ornek{args.limit}" if args.limit else "")
     wav_path = args.output or (OUTPUT_ROOT / f"{stem}_altyazi" /
                                f"{stem}_dublaj_{args.gruplama}_{voice_label_for(args.reference)}{sample_suffix}.wav")
     wav_path = Path(wav_path)
