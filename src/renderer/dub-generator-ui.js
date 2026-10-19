@@ -56,7 +56,7 @@
     const sequence = ++configSequence;
     const r = await window.api.dubConfig(kind).catch(() => null);
     if (sequence !== configSequence) return;
-    if (!r?.ok) { cfg = null; controls(); status('Ses üretimi başarısız oldu.'); return; }
+    if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
@@ -109,7 +109,7 @@
       el('dubGeneratorProgress').value = 100;
       elapsed(output.elapsedSeconds || 0);
       if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
-      status('Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
+      status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.' : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
     }
   }
   el('browserDubGenerate').addEventListener('click', open);

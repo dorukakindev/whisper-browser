@@ -4,6 +4,11 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.', 'Generation could not be stopped; the window stayed open. Try the Stop button again.'],
+    ['Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.', 'Audio is ready, but the timing map is invalid. Video synchronization cannot be guaranteed.'],
+    ['Ses ayarları yüklenemedi.', 'Voice settings could not be loaded.'],
+    ['SRT çok büyük.', 'The SRT file is too large.'],
+    ['SRT değişti; dublaj planını yeniden hazırlayın.', 'The SRT has changed; prepare the dubbing plan again.'],
     ['Seslendirmeye uygun çeviri', 'Translation for speech'],
     ['CSV okunamadı.', 'The CSV file could not be read.'],
     ['Dublaj planı artık kullanılmıyor.', 'The dubbing plan is no longer in use.'],

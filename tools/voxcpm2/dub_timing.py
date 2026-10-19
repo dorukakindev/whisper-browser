@@ -55,6 +55,13 @@ def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=
             raise ValueError(f"Gecersiz altyazi satiri: {i + 1}")
         if i and start < cues[i - 1][0]:
             raise ValueError("Altyazi zamanlari sirali olmali")
+        if groups and start == groups[-1]['start']:
+            # One narrator reads simultaneous cues in source order, retaining IDs.
+            g = groups[-1]
+            g['end'] = max(g['end'], end)
+            g['text'] += ' ' + text.strip()
+            g['source_ids'].append(i + 1)
+            continue
         split = mode == "satir" or not groups
         if groups and not split:
             g = groups[-1]

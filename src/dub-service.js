@@ -27,8 +27,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const inheritedPath = Object.keys(env).find(key => key.toLowerCase() === 'path');
     env.PATH = env.PATH ?? env[inheritedPath] ?? process.env.PATH ?? '';
     if (fs.existsSync(torchLib)) env.PATH = torchLib + path.delimiter + env.PATH;
+    const bundledTools = path.join(__dirname, '..', 'backend', 'bin');
+    if (fs.existsSync(bundledTools)) env.PATH = bundledTools + path.delimiter + env.PATH;
     for (const key of Object.keys(env)) if (key !== 'PATH' && key.toLowerCase() === 'path') delete env[key];
     return env;
+  }
+  function processFailure(stderr, tail = '') {
+    const lines = (stderr + '\n' + tail).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const fatal = [...new Set(lines.filter(line => /^[\w.]*(?:Error|Exception)\b/.test(line)))];
+    const plain = stderr.split(/\r?\n/).map(line => line.trim()).filter(line => line && line.length <= 400 && !/^(?:Traceback|File\s+"|UYARI\b|[~^])/.test(line)).slice(-1);
+    const warnings = lines.filter(line => /^UYARI\b/.test(line));
+    return (fatal.length ? fatal.slice(-3) : plain.length ? plain : warnings.slice(-3)).join('\n');
   }
   function config() {
     let saved = {};
@@ -209,7 +218,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt,
           ...(range ? [String(range.start), String(range.end)] : [])],
         { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
-      let out = '', settled = false;
+      let out = '', stderr = '', settled = false;
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
       const stop = message => {
         finish(new Error(message));
@@ -217,12 +226,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       };
       attempt.cancel = () => stop('Dublaj planı artık kullanılmıyor.');
       const timer = setTimeout(() => stop('Dublaj planı zaman aşımına uğradı.'), 15000);
-      proc.stdout.setEncoding('utf8'); proc.stderr.resume();
+      proc.stdout.setEncoding('utf8'); proc.stderr.setEncoding('utf8');
+      proc.stderr.on('data', data => { stderr = (stderr + data).slice(-6000); });
       proc.stdout.on('data', data => { if (settled) return; out += data; if (out.length > 4000000) stop('Dublaj planı çok büyük.'); });
       proc.once('error', error => finish(error));
       proc.once('close', code => {
         if (settled) return;
-        if (code !== 0) return finish(new Error('SRT planı okunamadı.'));
+        if (code !== 0) return finish(new Error(processFailure(stderr) || 'SRT planı okunamadı.'));
         try {
           const value = JSON.parse(out);
           const keys = new Set();
@@ -281,10 +291,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const output = path.join(root, `${saved.id}.wav`);
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !fs.existsSync(output)) continue;
         grantMedia(output);
+        let sync = null, syncInvalid = false;
+        try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
         return { ok: true, output: { path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
-          sync: validateSync(saved.sync),
+          sync, syncInvalid,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {url:pathToFileURL(file).href}; })() : null,
           timing: saved.timing, logPath: entry.file } };
@@ -317,7 +329,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
     if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
-    const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '',
+    const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
     job = s;
     try {
@@ -337,6 +349,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
+      if (fs.statSync(srt).size > 2000000) throw new Error('SRT çok büyük.');
+      const sourceBytes = fs.readFileSync(srt);
+      if (sourceBytes.length > 2000000) throw new Error('SRT çok büyük.');
+      const prepared = plans.get(e.sender.id);
+      if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)
+          && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
+        throw new Error('SRT değişti; dublaj planını yeniden hazırlayın.');
+      }
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
       const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
@@ -356,8 +376,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       fs.mkdirSync(inputDir, { recursive: true });
       const inputSrt = path.join(inputDir, path.basename(srt));
       if (fs.existsSync(inputSrt)) {
-        if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(fs.readFileSync(srt))) throw new Error('Bu işin girdi dosyası değişmiş.');
-      } else fs.copyFileSync(srt, inputSrt, fs.constants.COPYFILE_EXCL);
+        if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
+      } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
         '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
@@ -437,7 +457,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       s.proc.stdout.setEncoding('utf8'); s.proc.stderr.setEncoding('utf8');
       s.proc.stdout.on('data', text => { pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
-      s.proc.stderr.on('data', text => { s.tail = (s.tail + text).slice(-6000); });
+      s.proc.stderr.on('data', text => { s.stderr = (s.stderr + text).slice(-6000); s.tail = (s.tail + text).slice(-6000); });
       s.proc.on('error', error => { s.spawnError = error.message; });
       s.proc.on('close', code => {
         s.exitCode = code;
@@ -462,7 +482,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           finish(s, 'done', { path: output, url: pathToFileURL(output).href,
             name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.range, sync, background });
         } else {
-          const details = s.tail.split(/\r?\n/).filter(l => /^(ValueError|RuntimeError|UYARI|Error)/.test(l)).slice(-3).join('\n');
+          // Python reports the real cause on stderr: a traceback line such as
+          // "TypeError: ..." or the plain message of a SystemExit. Show that
+          // instead of the generic notice whenever stderr has something useful.
+          const details = processFailure(s.stderr, s.tail);
           finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });
         }
       });
@@ -498,7 +521,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (quitting) return;
     quitting = true;
     const finishQuit = () => { if (job) { setTimeout(finishQuit, 50).unref?.(); return; } quitting = false; app.quit?.(); };
-    void cancel().then(finishQuit).catch(() => { quitting = false; });
+    void cancel().then(finishQuit).catch(() => {
+      quitting = false;
+      if (job) emit(job, 'warning', { text: 'Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.' });
+    });
   });
   return { running: () => !!job || !!textUI, cancel };
 }
