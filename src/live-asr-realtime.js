@@ -32,7 +32,8 @@ function createLiveAsrRealtimeMonitor(options = {}) {
     state.chunks += 1;
     const skipped = Math.max(0, Math.trunc(Number(event.skipped) || 0));
     state.skipped += skipped;
-    const rtf = Number(event.rtf);
+    const validRtf = typeof event.rtf === 'number' || (typeof event.rtf === 'string' && event.rtf.trim() !== '');
+    const rtf = validRtf ? Number(event.rtf) : NaN;
     const audio = Number(event.audio_seconds);
     // Çok kısa parçada (<1 sn) sabit model ek yükü oranı şişirir; karar verme.
     if (Number.isFinite(rtf) && rtf >= 0 && (!Number.isFinite(audio) || audio >= 1)) {

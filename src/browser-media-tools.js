@@ -44,7 +44,8 @@ function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine =
       finish(code === 0 ? null : new Error(errorText.trim() || Buffer.concat(output).toString('utf8').slice(0, 500) || 'Medya işlemi başarısız.'), Buffer.concat(output).toString('utf8') || errorText);
     });
     child.stdin.on('error', (error) => { child.kill(); finish(error); });
-    child.stdin.end(input);
+    try { child.stdin.end(input); }
+    catch (error) { child.kill(); finish(error); }
   });
 }
 

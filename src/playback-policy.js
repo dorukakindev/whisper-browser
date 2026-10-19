@@ -37,7 +37,7 @@
       const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
         && currentTime >= cue.end && currentTime - cue.end < 1.5);
       if (ended) {
-        const continuingOverlap = cues.some((cue) => cue.id !== ended.id
+        const continuingOverlap = cues.some((cue) => cue !== ended
           && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
         if (!continuingOverlap) {
           const repeatCount = Math.max(2, Math.min(20, Math.round(Number(options.repeatCount) || 5)));
@@ -58,7 +58,7 @@
         // İki konuşmacının cue'ları örtüşüyorsa ilki bitti diye devam eden
         // konuşmanın ortasında durma. Tam sınırda başlayan bir sonraki cue ise
         // yeni bloktur ve kullanıcı devam ettirene kadar bekletilir.
-        const continuingOverlap = cues.some((cue) => cue.id !== ended.id
+        const continuingOverlap = cues.some((cue) => cue !== ended
           && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
         if (!continuingOverlap) return { type: 'pause-at-cue-end', cueId: ended.id };
       }
