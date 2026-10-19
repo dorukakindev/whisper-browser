@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Hardened dubbing module resolution, simultaneous cue planning, bounded input/group validation, source preview consistency, recoverable audio timing maps, cold-start waits, subprocess diagnostics and voice studio startup reporting.
+
+- Restored single-pass translation for speech in the existing browser Whisper translation range settings, with persisted preference, separate cache identity and preserved subtitle timing.
+
+- Fixed subscription CSV/OPML round trips and Unicode handles, RSS entity/CDATA text, shrinking library ranges, missing session defaults, malformed chapter starts, out-of-segment word timings and three-line subtitle warnings.
+
+- Fixed malformed/nested note recovery, manga CSS positioning and perspective checks, PDF column/table hyphen merging, generated anchor whitespace, stale PDF user edits, partial malformed results and truncated hash-tail validation.
+
+- Fixed conflicting-size relink recommendations, regressing merged watch sessions, media stdin cleanup, destroyed-download terminal handling, overlapping cue pause logic, catalog episode/ID validation, poster picker orphans and missing live-ASR speed metrics.
+
+- Fixed overlapping subtitle comparison and literal brace changes, ambiguous automatic timing calibration, interrupted ASR language switching, conflicting track annotations, markup-based reading-speed false positives, English/full-video AI evidence coverage and unsafe watch-library URL identities.
+
+- Fixed ten voice/browser robustness issues: malformed voice settings and dubbing plans, Windows subprocess PATH preservation, scheduler resource deduplication/snapshot isolation/full dispatch, invalid profile field acceptance, IPv6 zoom migration, malformed model score history and missing closed-tab media defaults.
+
 - Fixed ten restore/lifecycle failures: Windows cancellation watchdog, restored tab IDs and split references, BOM sessions, null reader settings, nonfinite split bounds, malformed package variants, late manga cancellation, failed download admission cleanup and nested closed-tab snapshot isolation.
 
 - Fixed structured diagnostic and matrix-URL secret redaction, archive translation matching, conflicting-size duplicate groups, collection ordering, literal subtitle escape validation, oversized export truncation and invalid chapter end fields.

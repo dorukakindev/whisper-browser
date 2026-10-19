@@ -59,9 +59,15 @@ function mangaImageContentRect(options) {
       cw = nw; ch = nh;
     }
   }
-  const pos = String(options.objectPosition || '50% 50%').trim().split(/\s+/);
+  const pos = String(options.objectPosition || '50% 50%').trim().toLowerCase().split(/\s+/);
+  if (pos.length === 1) {
+    if (['top', 'bottom'].includes(pos[0])) pos.unshift('center');
+    else pos.push('center');
+  } else if (['top', 'bottom'].includes(pos[0]) || ['left', 'right'].includes(pos[1])) {
+    [pos[0], pos[1]] = [pos[1], pos[0]];
+  }
   const left = mangaParsePosition(pos[0], ew, cw);
-  const top = mangaParsePosition(pos[1] || pos[0], eh, ch);
+  const top = mangaParsePosition(pos[1], eh, ch);
   return { left, top, width: cw, height: ch };
 }
 
@@ -87,6 +93,9 @@ function mangaAxisTransform(transform) {
     const v = m[1].split(',').map(Number);
     if (v.length !== 16 || v.some((n) => !Number.isFinite(n))) return { kind: 'arbitrary', swap: false, sx: 0, sy: 0 };
     // matrix3d sütun-öncelikli: screen_x = v0·x + v4·y + v12, screen_y = v1·x + v5·y + v13
+    if ([v[3], v[7], v[11]].some(value => Math.abs(value) > 1e-6) || Math.abs(v[15] - 1) > 1e-6) {
+      return { kind: 'arbitrary', swap: false, sx: 0, sy: 0 };
+    }
     a = v[0]; b = v[1]; c = v[4]; d = v[5];
   }
   const eps = 1e-6;

@@ -934,6 +934,11 @@
                 <span>İkinci geçiş: çeviriyi gözden geçir ve iyileştir (kalite artar, maliyet 2 katına çıkar)</span>
               </label>
               <label class="field switch-field field-full">
+                <input type="checkbox" id="translateForSpeech" />
+                <span>Seslendirmeye uygun çeviri (aynı geçiş; bloklar ve zamanlar korunur)</span>
+              </label>
+              <div class="hint field-full">Seslendirme modunda ikinci geçiş kapalıdır. Seçili çeviri modeli kullanılır; ek düzenleme çağrısı yapılmaz. Token tüketimi metne ve modele göre değişir.</div>
+              <label class="field switch-field field-full">
                 <input type="checkbox" id="translateKeepSource" checked />
                 <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
               </label>
@@ -3471,6 +3476,8 @@
       <div class="modal-content app-dialog-content" tabindex="-1">
         <h3 id="browserWhisperRangeTitle">Whisper ve çeviri zaman aralığı</h3>
         <p>Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.</p>
+        <label class="dub-generator-row"><input type="checkbox" id="browserWhisperForSpeech" />Seslendirmeye uygun çeviri</label>
+        <p id="browserWhisperSpeechHint" class="muted">Seçili çeviri modeliyle, ikinci geçiş olmadan seslendirmeye uygun çeviri hazırlanır. Cümleler bağlam içinde toparlanır; altyazı blokları ve zamanları korunur.</p>
         <label class="dub-generator-row"><input type="checkbox" id="browserWhisperRangeEnabled" />Yalnız seçilen zaman aralığını işle</label>
         <div class="dub-generator-options">
           <label for="browserWhisperRangeStart">Başlangıç (dk:sn)</label><input id="browserWhisperRangeStart" type="text" value="0:00" maxlength="16" data-ui-untranslated />

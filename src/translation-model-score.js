@@ -21,8 +21,15 @@
     return String(model || '').trim().toLowerCase().slice(0, 120);
   }
 
+  function validRuns(value) {
+    return (Array.isArray(value) ? value : []).filter(run => run && typeof run === 'object'
+      && Number.isFinite(run.batches) && run.batches > 0 && Number.isFinite(run.invalid)
+      && run.invalid >= 0 && run.invalid <= run.batches).slice(-MAX_RUNS);
+  }
+
   function recordRun(store, event, now = Date.now()) {
-    const next = store && typeof store === 'object' && !Array.isArray(store) ? { ...store } : {};
+    const next = Object.fromEntries(Object.entries(store && typeof store === 'object' && !Array.isArray(store) ? store : {})
+      .map(([key, runs]) => [key, validRuns(runs)]).filter(([, runs]) => runs.length));
     const key = modelKey(event?.model);
     const batches = Math.max(0, Math.floor(Number(event?.batches) || 0));
     if (!key || !batches) return next;
@@ -42,7 +49,7 @@
   }
 
   function summarize(store, model) {
-    const runs = Array.isArray(store?.[modelKey(model)]) ? store[modelKey(model)] : [];
+    const runs = validRuns(store?.[modelKey(model)]);
     const batches = runs.reduce((sum, run) => sum + (run.batches || 0), 0);
     const invalid = runs.reduce((sum, run) => sum + (run.invalid || 0), 0);
     const reasons = {};

@@ -12,6 +12,7 @@ const DEFAULT_MAX_NOTES = 50000;
 const MAX_FILE_BYTES = 32 * 1024 * 1024;
 
 function normalizeStoredAnnotation(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const normalized = normalizeAnnotation({
     ...raw,
     mediaId: raw.mediaId ?? raw.media_id,
@@ -76,7 +77,7 @@ class BrowserNoteStore {
     const rows = document ? document.annotations : [];
     for (const row of rows.slice(-this.maxNotes)) {
       const annotation = normalizeStoredAnnotation(row);
-      if (annotation.id && annotation.mediaId) this.annotations.set(annotation.id, annotation);
+      if (annotation?.id && annotation.mediaId) this.annotations.set(annotation.id, annotation);
     }
     this.loaded = true;
     if (this.recoveredFromBackup) {
@@ -94,7 +95,7 @@ class BrowserNoteStore {
     return {
       version: NOTE_STORE_VERSION,
       updatedAt: Date.now(),
-      annotations: [...this.annotations.values()]
+      annotations: structuredClone([...this.annotations.values()])
         .sort((a, b) => Number(a.createdAt) - Number(b.createdAt)),
     };
   }
@@ -149,18 +150,18 @@ class BrowserNoteStore {
     return [...this.annotations.values()]
       .filter((annotation) => !key || annotation.mediaId === key)
       .sort((a, b) => a.start - b.start || a.createdAt - b.createdAt)
-      .map((annotation) => ({ ...annotation }));
+      .map((annotation) => structuredClone(annotation));
   }
 
   get(id) {
     const annotation = this.annotations.get(String(id || ''));
-    return annotation ? { ...annotation } : null;
+    return annotation ? structuredClone(annotation) : null;
   }
 
   upsert(raw) {
     if (this.loadError) throw new Error(this.loadError);
     const annotation = normalizeStoredAnnotation(raw);
-    if (!annotation.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
+    if (!annotation?.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
     const previous = this.annotations.get(annotation.id);
     if (previous) {
       annotation.createdAt = previous.createdAt;
@@ -185,7 +186,7 @@ class BrowserNoteStore {
       }
       throw error;
     }
-    return { ...annotation };
+    return structuredClone(annotation);
   }
 
   remove(id) {
@@ -200,7 +201,7 @@ class BrowserNoteStore {
       if (!error || error.committed !== true) this.annotations.set(key, previous);
       throw error;
     }
-    return { ...previous };
+    return structuredClone(previous);
   }
 
   importMissing(rows) {
@@ -209,7 +210,7 @@ class BrowserNoteStore {
     const added = [];
     for (const raw of Array.isArray(rows) ? rows : []) {
       const annotation = normalizeStoredAnnotation(raw);
-      if (!annotation.id || !annotation.mediaId || this.annotations.has(annotation.id)) continue;
+      if (!annotation?.id || !annotation.mediaId || this.annotations.has(annotation.id)) continue;
       this.annotations.set(annotation.id, annotation);
       added.push(annotation.id);
       count++;
@@ -242,14 +243,14 @@ class BrowserNoteStore {
       ].join(' ')).includes(folded))
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, Math.max(1, Math.min(200, Number(limit) || 50)))
-      .map((annotation) => ({ ...annotation }));
+      .map((annotation) => structuredClone(annotation));
   }
 
   filter(filters = {}, limit = 500) {
     return filterResearchAnnotations([...this.annotations.values()], filters)
       .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
       .slice(0, Math.max(1, Math.min(5000, Number(limit) || 500)))
-      .map((annotation) => ({ ...annotation }));
+      .map((annotation) => structuredClone(annotation));
   }
 }
 

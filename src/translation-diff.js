@@ -8,9 +8,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const normalize = (text) => String(text || '').replace(/<[^>]+>|\{[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
+  const normalize = (text) => String(text || '').replace(/<[^>]+>|\{\\[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
 
   function matchBefore(before, cue) {
+    const cueId = cue.cueId ?? cue.id;
+    const identified = cueId == null ? [] : before.filter(item => (item.cueId ?? item.id) === cueId
+      && Math.min(cue.end, item.end) > Math.max(cue.start, item.start));
+    if (identified.length === 1) return identified[0];
     let best = null;
     let bestOverlap = 0;
     for (const item of before) {

@@ -97,6 +97,8 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorStart').disabled,false);
   w.api.dubConfig=async()=>({ok:false});el('browserDubGenerate').click();await tick();
   assert.equal(el('dubGeneratorStart').disabled,true,'failed settings refresh cannot retain stale ready state');
+  onEvent({id:'text-studio',type:'studio_error',error:'fixture studio failure'});
+  assert.equal(el('dubGeneratorStatus').textContent,'fixture studio failure');
   dom.window.close();
   console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');
 })().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});

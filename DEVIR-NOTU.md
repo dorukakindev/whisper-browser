@@ -1,4 +1,17 @@
-Güncel çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
+Güncel çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
+Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
+Önceki çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı
+Önceki çalışma: [docs/devir/2026-10-19-1109.md](docs/devir/2026-10-19-1109.md) — Rapor483: Gönderilen ses/dublaj bulgularını doğrulama ve onarım
+Önceki çalışma: [docs/devir/2026-10-19-0747.md](docs/devir/2026-10-19-0747.md) — Rapor482: Seslendirmeye uygun çeviriyi mevcut ayar kutusuna geri alma
+Önceki çalışma: [docs/devir/2026-10-19-0634.md](docs/devir/2026-10-19-0634.md) — Rapor481: Windows ve Ubuntu CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-0626.md](docs/devir/2026-10-19-0626.md) — Rapor481: Abonelik ve medya sınırlarında 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0621.md](docs/devir/2026-10-19-0621.md) — Rapor480 Windows CI başarılı, Ubuntu sınırı
+Önceki çalışma: [docs/devir/2026-10-19-0613.md](docs/devir/2026-10-19-0613.md) — Rapor480 Windows CI test sözleşmesi takibi
+Önceki çalışma: [docs/devir/2026-10-19-0601.md](docs/devir/2026-10-19-0601.md) — Rapor480: Not kurtarma, PDF ve mangada 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0551.md](docs/devir/2026-10-19-0551.md) — Rapor479: Oynatma, medya yaşam döngüsü ve katalogda 10 yeni düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0545.md](docs/devir/2026-10-19-0545.md) — Rapor478: Çeviri, senkron, AI kapsamı ve kütüphanede 10 yeni düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0538.md](docs/devir/2026-10-19-0538.md) — Rapor477: Ses, kaynak kuyruğu ve browser ayarlarında 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0122.md](docs/devir/2026-10-19-0122.md) — Önceki teslimlerle yetkili birleştirme
 Önceki çalışma: [docs/devir/2026-10-19-0116.md](docs/devir/2026-10-19-0116.md) — Rapor476: Kurtarma ve süreç yaşamında 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0110.md](docs/devir/2026-10-19-0110.md) — Rapor475: İkinci geniş tur, 10 ayrı düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0104.md](docs/devir/2026-10-19-0104.md) — Rapor474: Geniş tarama, 10 doğrulanmış düzeltme

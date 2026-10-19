@@ -57,7 +57,7 @@ function selectRelinkCandidates(item, candidates) {
   const top = ranked[0];
   const tied = ranked.filter((c) => c.score === top.score).length;
   // Tek güçlü eşleşme: boyut+benzer ad ya da aynı ad+uzantı — tek aday.
-  if (tied === 1 && top.score >= STRONG_SCORE) return { status: 'unique', ranked };
+  if (tied === 1 && top.score >= STRONG_SCORE && top.signals.size !== false) return { status: 'unique', ranked };
   return { status: 'ambiguous', ranked };
 }
 
@@ -195,7 +195,18 @@ function mergeWatchItems(source, target) {
   merged.prefs = { ...(source?.prefs || {}), ...(target?.prefs || {}) };
   const anon = [], byId = new Map();
   for (const session of [...(source?.sessions || []), ...(target?.sessions || [])]) {
-    if (session && session.id) byId.set(session.id, { ...(byId.get(session.id) || {}), ...session });
+    if (session && session.id) {
+      const previous = byId.get(session.id);
+      const next = { ...(previous || {}), ...session };
+      if (previous) {
+        next.watchSeconds = Math.max(num(previous, 'watchSeconds'), num(session, 'watchSeconds'));
+        next.endedAt = Math.max(num(previous, 'endedAt'), num(session, 'endedAt'));
+        const starts = [previous.startedAt, session.startedAt].filter(value => Number.isFinite(value) && value >= 0);
+        if (starts.length) next.startedAt = Math.min(...starts);
+        if (num(previous, 'endedAt') > num(session, 'endedAt')) next.endPosition = previous.endPosition;
+      }
+      byId.set(session.id, next);
+    }
     else if (session) anon.push({ ...session });
   }
   merged.sessions = [...anon, ...byId.values()].slice(-40);

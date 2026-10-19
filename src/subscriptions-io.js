@@ -9,13 +9,26 @@
 }(typeof self !== 'undefined' ? self : globalThis, function () {
   const UCID_RE = /UC[A-Za-z0-9_-]{20,24}/;
   const MAX_SUBS = 1000;
+  const HANDLE_RE = /^@[\p{L}\p{M}\p{N}._-]{2,40}$/u;
+
+  function decodeXmlAttribute(value) {
+    const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+    return value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (entity, key) => {
+      if (key[0] !== '#') return named[key.toLowerCase()];
+      const point = key[1].toLowerCase() === 'x' ? parseInt(key.slice(2), 16) : Number(key.slice(1));
+      return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : entity;
+    });
+  }
 
   function channelRefFromUrl(url) {
     const u = String(url || '').trim();
     const uc = u.match(UCID_RE);
     if (uc) return { authorId: uc[0] };
-    const handle = u.match(/youtube\.com\/@([A-Za-z0-9._-]{2,40})/i);
-    if (handle) return { handle: `@${handle[1]}` };
+    try {
+      const parsed = new URL(u);
+      const handle = decodeURIComponent(parsed.pathname).match(/^\/(@[^/]+)\/?$/)?.[1];
+      if (/^(?:www\.|m\.)?youtube\.com$/i.test(parsed.hostname) && handle && HANDLE_RE.test(handle)) return { handle };
+    } catch (_) {}
     const inv = u.match(/channel\/([A-Za-z0-9_-]{6,40})/i);
     if (inv) return { authorId: inv[1] };
     return null;
@@ -27,7 +40,7 @@
     let authorId = String(entry.authorId || entry.channelId || entry.ucid || '').trim();
     if (authorId && !/^[A-Za-z0-9_-]{2,40}$/.test(authorId)) authorId = '';
     let handle = String(entry.handle || '').trim();
-    if (handle && !/^@[A-Za-z0-9._-]{2,40}$/.test(handle)) handle = '';
+    if (handle && !HANDLE_RE.test(handle)) handle = '';
     const url = String(entry.url || '').trim().slice(0, 500);
     const ref = !authorId && !handle ? channelRefFromUrl(url) : null;
     const sub = {
@@ -87,8 +100,8 @@
     while ((m = re.exec(text))) {
       const tag = m[0];
       const attr = (name) => {
-        const a = tag.match(new RegExp(`${name}="([^"]*)"`, 'i'));
-        return a ? a[1] : '';
+        const a = tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, 'i'));
+        return a ? decodeXmlAttribute(a[2]) : '';
       };
       const url = attr('htmlUrl') || attr('xmlUrl') || attr('url');
       const ref = channelRefFromUrl(url);
@@ -100,8 +113,25 @@
 
   function parseCsv(text, fileName) {
     const subs = [];
-    for (const line of String(text).split(/\r?\n/)) {
-      const row = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    const rows = [];
+    let row = [], cell = '', quoted = false;
+    const input = String(text);
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      if (quoted) {
+        if (ch === '"' && input[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else cell += ch;
+      } else if (ch === '"' && !cell.trim()) quoted = true;
+      else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && input[i + 1] === '\n') i++;
+        row.push(cell.trim()); rows.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (quoted) return { ok: false, error: 'CSV okunamadı.' };
+    row.push(cell.trim()); rows.push(row);
+    for (const row of rows) {
       if (!row.length) continue;
       // "Kanal adı, https://youtube.com/channel/UC..." veya "UCid, url"
       const urlCell = row.find((c) => /https?:\/\//i.test(c)) || '';

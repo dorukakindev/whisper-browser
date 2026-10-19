@@ -83,15 +83,16 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
     records.set(id, row);
     live.set(id, item);
     message = '';
+    const nativeValue = (getter, fallback) => { try { return getter(); } catch (_) { return fallback; } };
     function read(state) {
       row.state = state;
-      row.received = bytes(item.getReceivedBytes());
-      row.total = bytes(item.getTotalBytes());
-      row.path = String(item.getSavePath() || '');
+      row.received = bytes(nativeValue(() => item.getReceivedBytes(), row.received));
+      row.total = bytes(nativeValue(() => item.getTotalBytes(), row.total));
+      row.path = String(nativeValue(() => item.getSavePath(), row.path) || '');
       if (row.path) row.filename = path.basename(row.path).slice(0, 300);
-      row.paused = row.active && !!item.isPaused?.();
+      row.paused = row.active && !!nativeValue(() => item.isPaused?.(), row.paused);
       row.canPause = row.active && !row.paused && state === 'progressing';
-      row.canResume = row.active && (row.paused || (state === 'interrupted' && item.canResume()));
+      row.canResume = row.active && (row.paused || (state === 'interrupted' && nativeValue(() => item.canResume(), false)));
     }
     function updated(_event, state) { read(state); changed(); }
     function done(_event, state) {

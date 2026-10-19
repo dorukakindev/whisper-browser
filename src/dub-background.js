@@ -13,7 +13,9 @@ function prepareBackground({source,srt,range,limit=0,output,appRoot,userData,cac
   if (range) args.push('--start',String(range.start),'--end',String(range.end));
   if (limit) args.push('--limit',String(limit));
   const torchLib = path.join(appRoot,'backend','separator-venv','Lib','site-packages','torch','lib');
-  const env = {...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8',PATH:torchLib+path.delimiter+(process.env.PATH || '')};
+  const env = {...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'};
+  const inheritedPath = Object.keys(env).find(key => key.toLowerCase() === 'path');
+  env.PATH = torchLib + path.delimiter + (env.PATH ?? env[inheritedPath] ?? process.env.PATH ?? '');
   for (const key of Object.keys(env)) if (key!=='PATH' && key.toLowerCase()==='path') delete env[key];
   return new Promise((resolve,reject) => {
     const child = spawn(python,args,{cwd:appRoot,env,windowsHide:true});

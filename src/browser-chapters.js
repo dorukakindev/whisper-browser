@@ -4,7 +4,9 @@
   else root.WhisperBrowserChapters = api;
 }(typeof globalThis !== 'undefined' ? globalThis : this, () => {
   function normalizeChapter(raw, source = 'native') {
-    const start = Number(raw?.start ?? raw?.startTime ?? raw?.start_time);
+    const startValue = raw?.start ?? raw?.startTime ?? raw?.start_time;
+    if (typeof startValue !== 'number' && (typeof startValue !== 'string' || !startValue.trim())) return null;
+    const start = Number(startValue);
     const end = Number(raw?.end ?? raw?.endTime ?? raw?.end_time);
     const title = String(raw?.title || raw?.description || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 240);
     if (!Number.isFinite(start) || start < 0 || !title) return null;

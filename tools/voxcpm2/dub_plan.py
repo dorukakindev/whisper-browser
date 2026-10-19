@@ -16,9 +16,23 @@ TIME_RE = re.compile(
     r"(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})(?=[ \t\n]|$)", re.MULTILINE)
 
 
+MAX_SOURCE_BYTES = 2_000_000
+MAX_GROUPS = 5000
+
+
+def read_source_bytes(path):
+    with Path(path).open('rb') as handle:
+        data = handle.read(MAX_SOURCE_BYTES + 1)
+    if len(data) > MAX_SOURCE_BYTES:
+        raise ValueError('SRT cok buyuk.')
+    return data
+
+
 def parse_srt(path, source_bytes=None):
     """SRT -> [(start_ms, end_ms, temiz_metin)]."""
-    data = Path(path).read_bytes() if source_bytes is None else source_bytes
+    data = read_source_bytes(path) if source_bytes is None else source_bytes
+    if len(data) > MAX_SOURCE_BYTES:
+        raise ValueError('SRT cok buyuk.')
     text = decode_subtitle_bytes(data)[0].replace("\r\n", "\n").replace("\r", "\n")
     # SRT separators may contain spaces/tabs from subtitle editors.
     text = re.sub(r'(?m)^[ \t]+$', '', text)
@@ -81,6 +95,8 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
     if not selected:
         raise ValueError('Secilen aralikta altyazi yok.')
     groups = sentence_plan(selected, mode, max_chars, max_seconds, max_gap_ms)
+    if len(groups) > MAX_GROUPS or any(len(g['text']) > 8000 for g in groups):
+        raise ValueError('SRT grup sayisi veya grup metni cok buyuk.')
     for g in groups:
         g['source_ids'] = [source_ids[i - 1] for i in g['source_ids']]
     return groups
@@ -88,10 +104,7 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
 
 def plan(path, start=None, end=None):
     source = Path(path)
-    with source.open('rb') as handle:
-        source_bytes = handle.read(2_000_001)
-    if len(source_bytes) > 2_000_000:
-        raise ValueError('SRT cok buyuk.')
+    source_bytes = read_source_bytes(source)
     groups = make_groups(parse_srt(source, source_bytes), start, end)
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')

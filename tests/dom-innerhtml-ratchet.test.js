@@ -37,24 +37,24 @@ const TOP_BOOLEAN_OP = /===|!==|==|!=|<=|>=|<|>|\binstanceof\b|\bin\b/;
 // Tekil, doğrulanmış lokal-değişken izinleri — dosya:satır + tam ifade.
 // Yalnız ifadenin ürettiği değerin kanıtlı güvenli olduğu durumlar.
 const ALLOWED = new Set([
-  'src/renderer/renderer.js:621::icon',                    // static SVG literal ternary
-  'src/renderer/renderer.js:1385::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
-  'src/renderer/renderer.js:1385::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
-  'src/renderer/renderer.js:1448::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
-  'src/renderer/renderer.js:1676::start',                  // formatTime() çıktısı
-  'src/renderer/renderer.js:1676::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:2907::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
-  'src/renderer/renderer.js:2907::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
-  'src/renderer/renderer.js:2907::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
-  'src/renderer/renderer.js:2907::notes',                  // recommendedHardwareConfig sabit literal notları
-  'src/renderer/renderer.js:16329::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:24320::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:24320::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:24320::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:24320::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:24320::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:24381::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:24381::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:623::icon',                    // static SVG literal ternary
+  'src/renderer/renderer.js:1387::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js:1387::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js:1450::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
+  'src/renderer/renderer.js:1678::start',                  // formatTime() çıktısı
+  'src/renderer/renderer.js:1678::end',                    // formatTime() çıktısı
+  'src/renderer/renderer.js:2909::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
+  'src/renderer/renderer.js:2909::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
+  'src/renderer/renderer.js:2909::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
+  'src/renderer/renderer.js:2909::notes',                  // recommendedHardwareConfig sabit literal notları
+  'src/renderer/renderer.js:16363::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js:24354::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js:24354::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js:24354::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js:24354::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js:24354::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js:24415::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js:24415::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
   'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 

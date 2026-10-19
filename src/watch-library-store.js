@@ -7,7 +7,7 @@ const DEFAULT_ITEM_LIMIT = 1000;
 const DEFAULT_TOMBSTONE_LIMIT = 2000;
 const DEFAULT_MAX_PATCH_BYTES = 128 * 1024;
 const DEFAULT_MAX_ITEM_BYTES = 256 * 1024;
-const SECRET_QUERY_KEY = /^(token|access[_-]?token|id[_-]?token|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+const SECRET_QUERY_KEY = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|api[_-]?key|client[_-]?secret|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 
 function isObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -26,6 +26,7 @@ function uniqueStrings(values) {
 function canonicalBrowserUrl(raw) {
   try {
     const url = new URL(String(raw || ''));
+    url.username = ''; url.password = '';
     for (const key of [...url.searchParams.keys()]) {
       if (SECRET_QUERY_KEY.test(key)) url.searchParams.delete(key);
     }
@@ -42,10 +43,12 @@ function youtubeId(raw) {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
-    if (host === 'youtu.be') return (url.pathname.split('/').filter(Boolean)[0] || '').slice(0, 11);
-    if (host.endsWith('youtube.com')) {
-      if (/^\/shorts\//.test(url.pathname)) return (url.pathname.split('/')[2] || '').slice(0, 11);
-      return (url.searchParams.get('v') || '').slice(0, 11);
+    if (!['https:', 'http:'].includes(url.protocol)) return '';
+    const validId = id => /^[A-Za-z0-9_-]{11}$/.test(id || '') ? id : '';
+    if (host === 'youtu.be') return validId(url.pathname.split('/').filter(Boolean)[0]);
+    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      if (/^\/shorts\//.test(url.pathname)) return validId(url.pathname.split('/')[2]);
+      return validId(url.searchParams.get('v'));
     }
   } catch (_) {}
   return '';
@@ -66,6 +69,14 @@ function canonicalWatchKey(raw) {
   }
   const id = youtubeId(key);
   return id ? `youtube:${id}` : key;
+}
+
+function safeLegacyKeys(values) {
+  return uniqueStrings(uniqueStrings(values).map(key => {
+    if (!key.startsWith('browser:')) return key;
+    const url = canonicalBrowserUrl(key.slice(8));
+    return url ? `browser:${url}` : '';
+  }));
 }
 
 function rememberLegacy(result, field, value) {
@@ -101,7 +112,7 @@ function normalizeItem(raw) {
   const key = canonicalWatchKey(raw.key);
   if (!key) return { item: null, reason: 'Kayıt anahtarı eksik veya geçersiz', raw };
   const result = { ...raw, key };
-  if (key !== raw.key) result.legacyKeys = uniqueStrings([...(raw.legacyKeys || []), raw.key]);
+  if (key !== raw.key || raw.legacyKeys) result.legacyKeys = safeLegacyKeys([...(Array.isArray(raw.legacyKeys) ? raw.legacyKeys : []), ...(key !== raw.key ? [raw.key] : [])]);
   normalizeStringArrayField(result, 'collections');
   normalizeStringArrayField(result, 'subtitlePaths');
   normalizeSessions(result);
@@ -202,7 +213,7 @@ function normalizeTombstone(raw) {
   const key = canonicalWatchKey(raw.key);
   if (!key) return null;
   const result = { ...raw, key, removedAt: Math.max(0, Number(raw.removedAt) || 0) };
-  if (key !== raw.key) result.legacyKeys = uniqueStrings([...(raw.legacyKeys || []), raw.key]);
+  if (key !== raw.key || raw.legacyKeys) result.legacyKeys = safeLegacyKeys([...(Array.isArray(raw.legacyKeys) ? raw.legacyKeys : []), ...(key !== raw.key ? [raw.key] : [])]);
   return result;
 }
 

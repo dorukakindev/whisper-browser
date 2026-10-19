@@ -23,8 +23,8 @@ function createResourceScheduler(limits = {}, hooks = {}) {
 
   function normalize(job) {
     if (!job || typeof job.id !== 'string' || !job.id) return null;
-    const classes = (Array.isArray(job.classes) ? job.classes : [])
-      .filter((name) => RESOURCE_CLASSES.includes(name));
+    const classes = [...new Set((Array.isArray(job.classes) ? job.classes : [])
+      .filter((name) => RESOURCE_CLASSES.includes(name)))];
     if (!classes.length) classes.push('cpu');
     return { id: job.id, classes,
       long: job.long === true,
@@ -109,7 +109,7 @@ function createResourceScheduler(limits = {}, hooks = {}) {
     if (!live && !queued) return false;
     if (live) { vacate(live); running.delete(id); }
     if (queued) pending.delete(id);
-    dispatch();
+    while (dispatch() !== null) {} // Fill every resource freed by a multi-class job.
     return true;
   }
 
@@ -127,11 +127,11 @@ function createResourceScheduler(limits = {}, hooks = {}) {
 
   function snapshot() {
     return {
-      running: [...running.values()].map((j) => ({ id: j.id, classes: j.classes,
+      running: [...running.values()].map((j) => ({ id: j.id, classes: j.classes.slice(),
         long: j.long, priority: j.priority })),
       queued: [...pending.values()]
         .sort((a, b) => (b.priority - a.priority) || (a.enqueuedAt - b.enqueuedAt))
-        .map((j) => ({ id: j.id, classes: j.classes, long: j.long, priority: j.priority })),
+        .map((j) => ({ id: j.id, classes: j.classes.slice(), long: j.long, priority: j.priority })),
       classes: Object.fromEntries(RESOURCE_CLASSES.map((name) => [name,
         { limit: classLimits[name], ...classUse[name] }])),
       next: (() => { const job = nextPending(); return job ? job.id : null; })(),

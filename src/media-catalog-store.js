@@ -59,6 +59,8 @@ function sourceOf(raw) {
 }
 function episodeOf(raw) {
   if (!raw || typeof raw !== 'object') return null;
+  const validNumber = value => typeof value === 'number' || (typeof value === 'string' && value.trim() !== '');
+  if (!validNumber(raw.season) || !validNumber(raw.number)) return null;
   const season = Number(raw.season), number = Number(raw.number);
   if (!Number.isSafeInteger(season) || season < 0 || season > 1000 ||
       !Number.isSafeInteger(number) || number < 1 || number > 10000) return null;
@@ -239,7 +241,8 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   function list() { return structuredClone(read().items); }
   function get(id) { const item = read().items.find((entry) => entry.id === id); return item ? structuredClone(item) : null; }
   function upsert(patch) {
-    const items = list(), index = items.findIndex((entry) => entry.id === patch?.id);
+    const items = list(), id = text(patch?.id, 120);
+    const index = items.findIndex((entry) => entry.id === id);
     const item = itemOf(patch, index >= 0 ? items[index] : null);
     if (index < 0) items.push(item); else items[index] = item;
     commit(items); return structuredClone(item);

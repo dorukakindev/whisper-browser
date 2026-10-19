@@ -7,11 +7,14 @@ const FEED_ENTRY_MAX = 200;
 const FIELD_MAX = 4000;
 
 function decodeXmlEntities(value) {
+  const named = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
   return String(value || '')
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
-    .replace(/&amp;/g, '&');
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>|&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (token, cdata, key) => {
+      if (cdata !== undefined) return cdata;
+      if (key[0] !== '#') return named[key.toLowerCase()];
+      const point = key[1].toLowerCase() === 'x' ? parseInt(key.slice(2), 16) : Number(key.slice(1));
+      return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : token;
+    });
 }
 
 // `<entry>…</entry>` içinden isimli etiketin ilk eşleşmesini al. İsim alanı

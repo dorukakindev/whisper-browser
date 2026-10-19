@@ -128,9 +128,9 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const image = imageFor(file);
           if (!image) throw new Error('En fazla 8 MB boyutunda geçerli bir afiş seçin.');
           const folder = path.join(userData(), 'catalog-posters'); fs.mkdirSync(folder, { recursive: true });
+          const previousPoster = found(input.id).posterPath; // Recheck after the asynchronous picker, before writing a file.
           const target = path.join(folder, randomUUID() + '.png');
           atomicWriteFileSync(target, nativeImage.createFromDataURL(image).toPNG(), { encoding: 'utf8' });
-          const previousPoster = found(input.id).posterPath;
           try {
             const saved = store().upsert({ id: input.id, posterPath: target });
             if (previousPoster && previousPoster !== target) removeOwnedPoster(previousPoster);

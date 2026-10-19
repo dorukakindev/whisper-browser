@@ -3259,9 +3259,24 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
+def speech_translation_args(args):
+    """Speech adaptation belongs to the translation pass, never a paid second pass."""
+    if not getattr(args, 'translate_for_speech', False):
+        return args
+    from copy import copy
+    result = copy(args)
+    result.translate_refine = False
+    result.llm_postprocess = False
+    result.merge_continuation = False
+    result.dedupe_cues = False
+    if not getattr(result, 'translate_variant_label', ''):
+        result.translate_variant_label = 'speech'
+    return result
+
+
 def build_translate_prompt(target_lang, source_lang, glossary_terms, register="documentary",
                            profanity="medium", max_cps=21, max_line_width=42,
-                           use_context=True, auto_glossary_terms=None, series_hint=""):
+                           use_context=True, auto_glossary_terms=None, series_hint="", for_speech=False):
     """Ceviri sistem promptu - ceviri hattindaki kurallarin damitilmis hali."""
     target_name = LANG_NAMES.get((target_lang or "tr").lower(), target_lang)
     source_code = (source_lang or "").lower()
@@ -3363,6 +3378,19 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Tek bloklu gruplarda da ayni bicimi kullan. Yorum, markdown, kod blogu YOK.",
         "- Hicbir blogu bos birakma veya atlama.",
     ]
+    if for_speech:
+        lines += [
+            "", "## SESLENDIRMEYE UYGUN CEVIRI (AYNI GECIS)",
+            "- Cumleyi komsu kaynak parcalariyla birlikte anla; hedef dilde sesli okunacak dogal bir konusma kur.",
+            ("- Ingilizce kelime sirasini kopyalama; Turkcede yuklem, ozne ve tamlamalari dogal yerlerine koy."
+             if str(target_lang).lower().split('-')[0] in ('tr', 'tur')
+             else "- Kaynak dilin kelime sirasini kopyalama; hedef dilin dogal soz dizimini kullan."),
+            "- Cumleyi toparla ama ozetleme veya kisaltma: bilgi, ad, sayi, olumsuzluk, kip ve karakterin tonunu koru.",
+            "- Nefes ve duraklar icin dogal noktalama kullan; gereksiz uc nokta, tekrar veya yeni sahne/konusmaci etiketi ekleme.",
+            "- TAM cumleyi kurduktan sonra mevcut sentence_groups ve ID sahipligi kurallarina gore items'a dagit.",
+            "- ID ekleme, silme veya birlestirme; zaman kodlarini degistirme. Ayri sahne ve konusmacilari birlestirme.",
+            "- Ek aciklama, alternatif metin veya ikinci duzeltme cevabi yazma; ayni JSON sozlesmesini kullan.",
+        ]
     return "\n".join(lines)
 
 
@@ -3557,6 +3585,8 @@ def translate_cache_key(text, args, target, source_lang=None,
     }
     if bool(getattr(args, "translate_refine", False)):
         cache_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
+    if bool(getattr(args, 'translate_for_speech', False)):
+        cache_identity['speech_protocol'] = 'speech-v1'
     raw = json.dumps(cache_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -3890,6 +3920,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     dosyasi hic yazilmiyordu - yani gecersiz API anahtarinda tek ciktiniz sahte bir
     ceviri oluyordu.
     """
+    args = speech_translation_args(args)
     if status_out is not None:
         status_out.clear()
         status_out.update(completed=[], failed=[], failedReasons={})
@@ -3941,6 +3972,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         max_cps=args.max_cps, max_line_width=args.max_line_width,
         auto_glossary_terms=auto_glossary_terms,
         series_hint=series_hint,
+        for_speech=bool(getattr(args, 'translate_for_speech', False)),
     )
     if series_hint:
         log(f"Dizi hafızası: {series_key[0]} için önceki bölüm kararları yüklendi.")
@@ -4019,6 +4051,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     }
     if bool(args.translate_refine):
         tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
+    if bool(getattr(args, 'translate_for_speech', False)):
+        tm_scope_identity['speech_protocol'] = 'speech-v1'
     tm_scope = json.dumps(tm_scope_identity, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):
@@ -8475,6 +8509,7 @@ def translate_existing_subtitle(args):
     metinler cevrilir ve secilen cikti bicimlerine yazilir. Onbellek burada da
     gecerli oldugundan ayni dosyayi tekrar cevirmek bedava.
     """
+    args = speech_translation_args(args)
     src_path = Path(args.input)
     if not src_path.exists():
         raise RuntimeError(f"Altyazi dosyasi bulunamadi: {src_path}")
@@ -8509,7 +8544,10 @@ def translate_existing_subtitle(args):
     # ret'lerinin kök nedeni — rapor 401 sınıf A) hem de çıktı altyazısı
     # kaynakla aynı karaoke ritminde kalır. Kaynak dosya değişmez.
     _roll_n0 = len(entries)
-    entries, _roll_stripped, _roll_dropped = dedupe_rolling_window_cues(entries)
+    if getattr(args, 'translate_for_speech', False):
+        _roll_stripped = _roll_dropped = 0
+    else:
+        entries, _roll_stripped, _roll_dropped = dedupe_rolling_window_cues(entries)
     if _roll_stripped or _roll_dropped:
         log(f"Rolling-window tekilleştirme: {_roll_stripped} ön ek ayıklandı, "
             f"{_roll_dropped} tekrar cue öncekine katlandı "
@@ -8585,6 +8623,7 @@ def translate_existing_subtitle(args):
             candidate = json.loads(meta_path.read_text(encoding="utf-8"))
             if (candidate.get("sourceHash") == source_hash
                     and candidate.get("targetLanguage") == target
+                    and bool(candidate.get('forSpeech', False)) == bool(getattr(args, 'translate_for_speech', False))
                     and (not candidate.get("sourceId")
                          or candidate.get("sourceId") == source_id)):
                 existing_meta = candidate
@@ -8625,7 +8664,7 @@ def translate_existing_subtitle(args):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]
-            elif not metadata_present and timeline_matches:
+            elif not metadata_present and timeline_matches and not getattr(args, 'translate_for_speech', False):
                 for index, (entry, old) in enumerate(zip(entries, old_entries)):
                     if (len(old) >= 3 and str(old[2]).strip()
                             and (not translation_is_source_echo(entry[2], old[2])
@@ -8905,6 +8944,7 @@ def translate_existing_subtitle(args):
                     "targetLanguage": target,
                     "model": str(getattr(args, "translate_model", "") or ""),
                     "provider": str(getattr(args, "translate_base_url", "") or ""),
+                    "forSpeech": bool(getattr(args, 'translate_for_speech', False)),
                     "cues": metadata_cues,
                 }, ensure_ascii=False, indent=2) + "\n"
                 metadata_path = Path(f"{out_path}.meta.json")
@@ -10026,6 +10066,8 @@ def main():
                         help="yt-dlp indirme hızı sınırı (byte/s); 0 = sınırsız")
     parser.add_argument("--translate-register", default="documentary",
                         choices=["documentary", "drama", "comedy", "action", "general"])
+    parser.add_argument('--translate-for-speech', type=lambda x: x.lower() == 'true', default=False,
+                        help='Seslendirmeye uygun dogal ceviri; ayni geciste, ID/zaman kodlarini koruyarak')
     parser.add_argument("--translate-profanity", default="medium",
                         choices=["soft", "medium", "explicit"])
     parser.add_argument("--merge-continuation", type=lambda x: x.lower() == "true",
@@ -10117,7 +10159,7 @@ def main():
     parser.add_argument("--smart-split", type=lambda x: x.lower() == "true", default=None,
                         help="(deprecated) --split-mode kullanın")
 
-    args = parser.parse_args()
+    args = speech_translation_args(parser.parse_args())
 
     if not args.input and not args.youtube and not args.chat:
         parser.error("--input veya --youtube gerekli")

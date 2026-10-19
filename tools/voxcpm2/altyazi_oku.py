@@ -29,9 +29,14 @@ ROOT = Path(__file__).resolve().parent
 ENGINE_ROOT = Path(os.environ.get("VOXCPM_ROOT", ROOT))
 if not (ENGINE_ROOT / "kitap_ortak.py").is_file():
     raise SystemExit("VoxCPM2 motoru bulunamadi. VOXCPM_ROOT ile motor klasorunu belirtin.")
+# Running this file as a script already leaves ROOT on sys.path but never at
+# index 0, so an unconditional ENGINE_ROOT insert let the engine folder's
+# older dub_plan.py shadow the copy in this folder. Keep ROOT first.
+for _module_root in (str(ROOT), str(ENGINE_ROOT)):
+    while _module_root in sys.path:
+        sys.path.remove(_module_root)
 sys.path.insert(0, str(ENGINE_ROOT))
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT))
 from dub_timing import sentence_plan, available_window, placement_window, quality_retry, TimingOverflow
 from dub_timing import fit_to_window as fit_audio
 from dub_timing import build_adaptive_timeline
@@ -78,7 +83,7 @@ if sys.platform == 'win32':
     _weight_loader.safe_open = _PreadWeights
 
 SAMPLE_RATE = 48000
-from dub_plan import parse_srt, apply_edits, make_groups
+from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
 
 
 def atempo_filters(ratio):
@@ -116,7 +121,10 @@ async def uret(args, cues, paths, prompt_text):
         max_model_len=args.max_model_len, gpu_memory_utilization=args.gpu_mem,
         enforce_eager=False)
     try:
-        await asyncio.wait_for(server.wait_for_ready(), timeout=120)
+        try:
+            await asyncio.wait_for(server.wait_for_ready(), timeout=args.ready_timeout)
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError(f"nano-vLLM sunucusu {args.ready_timeout} saniyede hazir olmadi; --ready-timeout ile beklemeyi artirin.") from exc
         load_seconds = time.monotonic() - began
         reference_began = time.monotonic()
         wav_bytes = Path(args.reference).read_bytes()
@@ -281,6 +289,7 @@ def parse_args(argv=None):
     p.add_argument("--eszamanli", type=int, default=4)
     p.add_argument("--retry", type=int, default=2)
     p.add_argument("--request-timeout", type=int, default=180)
+    p.add_argument("--ready-timeout", "--hazir-timeout", type=int, default=300)
     p.add_argument("--gpu-mem", type=float, default=0.8)
     p.add_argument("--max-model-len", type=int, default=2048)
     p.add_argument("--batch-tokens", type=int, default=2048)
@@ -316,7 +325,7 @@ def parse_args(argv=None):
     if not (1 <= args.grup_max_sn <= 30 and 40 <= args.grup_max_karakter <= 1000
             and 0 <= args.grup_bosluk_ms <= 3000 and 0 <= args.bosluk_pay_ms <= 3000
             and 0 <= args.erken_pay_ms <= 500 and 30 <= args.request_timeout <= 600
-            and args.limit >= 0):
+            and 30 <= args.ready_timeout <= 900 and args.limit >= 0):
         p.error("Gruplama/sure/limit secenekleri gecersiz.")
     if (args.eszamanli < 1 or args.max_model_len < 512 or args.batch_tokens < args.max_model_len
             or not 64 <= args.max_generate_length < args.max_model_len
@@ -334,7 +343,7 @@ def main(argv=None):
     except (OSError, ValueError) as exc:
         raise SystemExit(f"Referans dokumu okunamadi: {exc}")
 
-    source_bytes = args.srt.read_bytes()
+    source_bytes = read_source_bytes(args.srt)
     cues = parse_srt(args.srt, source_bytes)
     if not cues:
         raise SystemExit("SRT'de okunabilir satir yok.")
@@ -361,6 +370,9 @@ def main(argv=None):
     if args.video and (duration is None or cues[-1][1] / 1000 > duration):
         raise SystemExit("Video suresi okunamadi veya altyazi videodan uzun; ses kesilmedi.")
     args.end_limit_ms = duration * 1000 if duration is not None else None
+    # Check windows before loading the GPU model.
+    for i in range(len(cues)):
+        available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
 
     ref_hash = file_sha256(args.reference)
     legacy_settings = ("dublaj-cumle-v2", MODEL_REVISION, ref_hash, args.steps, args.cfg,

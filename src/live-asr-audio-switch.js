@@ -31,7 +31,10 @@ function createLiveAsrAudioSwitch(minConsecutive = 2) {
   }
   function observeLanguage(rawLanguage) {
     const seen = normalizeLanguage(rawLanguage);
-    if (!seen) return { action: 'stable', language: state.observedLanguage, streamSeq: state.streamSeq };
+    if (!seen) {
+      state.pendingLanguage = ''; state.pendingCount = 0;
+      return { action: 'stable', language: state.observedLanguage, streamSeq: state.streamSeq };
+    }
     if (!state.observedLanguage) {
       state.observedLanguage = seen;
       return { action: 'stable', language: seen, streamSeq: state.streamSeq };

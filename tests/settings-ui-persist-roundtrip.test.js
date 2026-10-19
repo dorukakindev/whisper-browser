@@ -45,6 +45,8 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - seri-bağlam deposu (bf* alanları seri adıyla geri yüklenir)
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
+  // Dialog draft mirrors the persisted translateForSpeech control on Apply.
+  'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
   'dubProfile', 'dubConcurrency', 'dubTimingMode',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',

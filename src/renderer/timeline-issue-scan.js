@@ -9,9 +9,14 @@
 
   // CPS şeridi: 0 → limit, 1 → limit*1.6 ve üzeri. drawTimeline renk dönüşümü
   // için 0..1 kesir döner; kırmızı eşiği ayrıca cpsLimit kontrolüyle çizilir.
+  function visibleText(value) {
+    return String(value || '').replace(/<br\s*\/?\s*>/gi, '\n')
+      .replace(/<\/?(?:i|b|u|s|font|c|v|ruby|rt|lang)(?:[\s.][^>]*|)>/gi, '')
+      .replace(/\{\\[^}]*\}/g, '');
+  }
   function cpsOf(cue) {
     const dur = Math.max(.05, (Number(cue?.end) || 0) - (Number(cue?.start) || 0));
-    return String(cue?.text || '').trim().length / dur;
+    return visibleText(cue?.text).trim().length / dur;
   }
   function cpsTier(cue, cpsLimit) {
     const limit = Number(cpsLimit) > 0 ? Number(cpsLimit) : 20;
@@ -35,14 +40,14 @@
       }
       const start = Number(c.start) || 0;
       const end = Number(c.end) || 0;
-      const text = String(c.text || '').trim();
+      const text = visibleText(c.text).trim();
       const dur = Math.max(0, end - start);
       if (!text) issues.push({ i, kind: 'empty' });
       else {
         if (dur < 1) issues.push({ i, kind: 'short' });
         if (text.length / Math.max(.1, dur) > cpsLimit) issues.push({ i, kind: 'fast' });
-        const lines = String(c.text).split('\n');
-        if (lines.length > 3 || lines.some((l) => l.length > lineLimit)) issues.push({ i, kind: 'lines' });
+        const lines = visibleText(c.text).split(/\r?\n/);
+        if (lines.length >= 3 || lines.some((l) => l.length > lineLimit)) issues.push({ i, kind: 'lines' });
       }
       if (previousEnd > start + .01) issues.push({ i, kind: 'overlap' });
       previousEnd = Math.max(previousEnd, end);

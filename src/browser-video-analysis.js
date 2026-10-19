@@ -23,8 +23,9 @@ function run(executable, args, input, signal, timeoutMs = 120000) {
     child.stdout.on('data', (chunk) => { count += chunk.length; if (count > 2 * 1024 * 1024) { child.kill(); finish(new Error('Video analiz çıktısı çok büyük.')); } else chunks.push(chunk); });
     child.stderr.on('data', (chunk) => { stderr = (stderr + chunk.toString('utf8')).slice(-2000); });
     child.on('close', (code) => finish(stopped || (code === 0 ? null : new Error(stderr || 'Video analiz aracı başarısız.')), Buffer.concat(chunks).toString('utf8')));
-    child.stdin.on('error', () => {});
-    child.stdin.end(input);
+    child.stdin.on('error', error => { child.kill(); finish(error); });
+    try { child.stdin.end(input); }
+    catch (error) { child.kill(); finish(error); }
   });
 }
 

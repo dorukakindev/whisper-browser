@@ -298,7 +298,7 @@ function textAnchorRestoreScript(rawAnchor) {
           if (anchor.positionStart >= cursor && anchor.positionStart <= next) {
             const element = textNode.parentElement?.closest?.('p, li, blockquote, figcaption, td, th, article, section, h1, h2, h3, h4, h5, h6, div');
             if (element && blocks.includes(element)) {
-              const text = String(element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 16000);
+              const text = String(element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 16000);
               const at = text.indexOf(exact);
               if (at >= 0) candidates.push({ element, at, score: 80, position: true });
             }
@@ -325,7 +325,7 @@ function textAnchorRestoreScript(rawAnchor) {
       candidates.push({ element, at, score });
     }
     if (!candidates.length && exact.length >= 8 && exact.length <= 320) {
-      const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+      const normalize = (value) => String(value || '').normalize('NFKC').replace(/\\s+/g, ' ').trim();
       const approximate = ${approximateAnchorMatch.toString()};
       let budget = 2000000;
       for (const element of blocks) {
