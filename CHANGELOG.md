@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Hardened dubbing module resolution, simultaneous cue planning, bounded input/group validation, source preview consistency, recoverable audio timing maps, cold-start waits, subprocess diagnostics and voice studio startup reporting.
+
 - Restored single-pass translation for speech in the existing browser Whisper translation range settings, with persisted preference, separate cache identity and preserved subtitle timing.
 
 - Fixed subscription CSV/OPML round trips and Unicode handles, RSS entity/CDATA text, shrinking library ranges, missing session defaults, malformed chapter starts, out-of-segment word timings and three-line subtitle warnings.
