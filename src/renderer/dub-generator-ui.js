@@ -152,7 +152,10 @@
       el('dubGeneratorProgress').value = 100;
       elapsed(output.elapsedSeconds || 0);
       if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
-      status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.' : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
+      status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
+        : output.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.'
+        : [...results.values()].some(row => row.status !== 'ready') ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.'
+        : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
     }
   }
   el('browserDubGenerate').addEventListener('click', open);
@@ -284,7 +287,7 @@
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
   el('dubGeneratorUse').addEventListener('click', async () => {
     const selected = output;
-    if (!selected) return;
+    if (!selected || selected.sample) return;
     const context = window.BrowserDubAudioUI?.context();
     if (!context?.tabId || !context.hasMedia || !context.visible) {
       status('Ses eklemek için önce bir video açın.'); return;
