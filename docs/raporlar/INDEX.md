@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 482 | [BROWSER_BUG_REPORT_482.md](BROWSER_BUG_REPORT_482.md) | Seslendirmeye uygun çeviri: ana akış entegrasyonu |
 | 481 | [BROWSER_BUG_REPORT_481.md](BROWSER_BUG_REPORT_481.md) | Abonelik metni ve medya zaman sınırlarında 10 düzeltme |
 | 480 | [BROWSER_BUG_REPORT_480.md](BROWSER_BUG_REPORT_480.md) | Not kurtarma, PDF ve manga: 10 düzeltme |
 | 479 | [BROWSER_BUG_REPORT_479.md](BROWSER_BUG_REPORT_479.md) | Oynatma, medya yaşam döngüsü ve katalog: 10 düzeltme |
