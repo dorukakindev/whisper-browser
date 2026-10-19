@@ -111,6 +111,7 @@
       if(c.mode==='player'){video.currentTime=seconds;return true;}
       try { const r=await browserCommand('seek',seconds);return r?.ok!==false; }catch(_){return false;}
     },
+    openProjectVideo: (file,subtitle) => {setWorkspaceMode('player',false);openPlayer({video:file,files:subtitle?[subtitle]:[]});},
     pauseSource: async expected => {
       const c=context();
       if(!expected||c.mode!==expected.mode||c.tabId!==expected.tabId||c.mediaKey!==expected.mediaKey||c.generation!==expected.generation||(c.mediaId||'')!==(expected.mediaId||''))return false;

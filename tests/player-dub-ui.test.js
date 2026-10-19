@@ -3,6 +3,7 @@ const fs = require('node:fs'), path = require('node:path');
 const { JSDOM } = require('jsdom');
 const dom = new JSDOM(fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8'), { runScripts: 'outside-only' });
 const w = dom.window, el = id => w.document.getElementById(id);
+w.Date.now = () => 10000; // The fixture clock must not advance between a media event and its assertions.
 w.DubSyncMap = require('../src/renderer/dub-sync-map');
 w.DubWorkspaceModel = require('../src/renderer/dub-workspace-model');
 w.eval(fs.readFileSync(path.join(__dirname, '../src/renderer/browser-dub-audio.js'), 'utf8'));

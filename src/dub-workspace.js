@@ -69,9 +69,13 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
         }
       }
       if(request.includeVideo===true){
-        const chosen=await dialog.showOpenDialog(owner(),{title:copy('Projeye eklenecek yerel videoyu seçin','Choose the local source video to include'),properties:['openFile'],filters:[{name:'Video',extensions:['mp4','mkv','webm','mov','avi','m4v']}]});
-        if(chosen.canceled)throw new Error('Cancelled.');
-        grantMedia(chosen.filePaths[0]);const media=await asset(chosen.filePaths[0]);files.video='source'+path.extname(media.path).toLowerCase();
+        let videoPath=output.video?.path;
+        if(!videoPath){
+          const chosen=await dialog.showOpenDialog(owner(),{title:copy('Projeye eklenecek yerel videoyu seçin','Choose the local source video to include'),properties:['openFile'],filters:[{name:'Video',extensions:['mp4','mkv','webm','mov','avi','m4v']}]});
+          if(chosen.canceled)throw new Error('Cancelled.');
+          grantMedia(chosen.filePaths[0]);videoPath=chosen.filePaths[0];
+        }
+        const media=await asset(videoPath);files.video='source'+path.extname(media.path).toLowerCase();
         await fsp.copyFile(media.path,path.join(staging,files.video));
       }
       const manifest={format:'whisper-dub-project',version:1,name:output.name,files,
@@ -119,9 +123,12 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
     try{
       let video=null;
       if(request.kind!=='audio'){
-        const choice=await dialog.showOpenDialog(owner(),{title:copy('Aynı videonun yerel dosyasını seçin','Choose the local source video (same video and timeline)'),properties:['openFile'],filters:[{name:'Video',extensions:['mp4','mkv','webm','mov','avi','m4v']}]});
-        if(choice.canceled)return {ok:true,cancelled:true};
-        grantMedia(choice.filePaths[0]);video=(await asset(choice.filePaths[0])).path;
+        if(output.video?.path)video=(await asset(output.video.path)).path;
+        else{
+          const choice=await dialog.showOpenDialog(owner(),{title:copy('Aynı videonun yerel dosyasını seçin','Choose the local source video (same video and timeline)'),properties:['openFile'],filters:[{name:'Video',extensions:['mp4','mkv','webm','mov','avi','m4v']}]});
+          if(choice.canceled)return {ok:true,cancelled:true};
+          grantMedia(choice.filePaths[0]);video=(await asset(choice.filePaths[0])).path;
+        }
       }
       const ext=request.kind==='audio'?'wav':'mp4';
       const choice=await dialog.showSaveDialog(owner(),{title:copy('Dublajı dışa aktar','Export dubbing'),defaultPath:'Dublaj.'+ext,filters:[{name:ext.toUpperCase(),extensions:[ext]}]});

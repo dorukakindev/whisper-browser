@@ -4,6 +4,7 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Projedeki videoyu oynatıcıda aç','Open the project video in the player'],
     ["Dublaj zaman çizelgesi ve proje", "Dubbing timeline and project"],
     ["Dublaj projesi aç", "Open dubbing project"],
     ["Taşınabilir proje kaydet", "Save portable project"],

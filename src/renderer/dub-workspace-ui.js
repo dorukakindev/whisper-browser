@@ -13,7 +13,7 @@
   function readMix(){for(const [key,id] of Object.entries(controls))mix[key]=Number(el(id).value);mix.duck=el('dubMixDuck').checked;mix=Model.mix(mix);return mix;}
   function showMix(){for(const [key,id] of Object.entries(controls))el(id).value=String(mix[key]);el('dubMixDuck').checked=mix.duck;}
   function buttons(){
-    for(const id of ['dubProjectOpen','dubProjectVideo','dubMusicChoose','dubAmbienceChoose','dubLayersReset','dubExportKind'])el(id).disabled=busy||generationBusy;
+    for(const id of ['dubProjectOpen','dubProjectVideoOpen','dubProjectVideo','dubMusicChoose','dubAmbienceChoose','dubLayersReset','dubExportKind'])el(id).disabled=busy||generationBusy;
     for(const id of ['dubProjectSave','dubWorkspaceExport','dubMixPreview'])el(id).disabled=busy||generationBusy||!output;
     el('dubTimelineListen').disabled=busy||!selected;el('dubTimelineVideo').disabled=busy||!selected;
     el('dubWorkspaceCancel').disabled=!busy;
@@ -46,6 +46,7 @@
     try{rows=Model.groups(value?.quality?.groups||value?.rows||[]);}catch(_){rows=[];}
     if(value?.url)voice.src=value.url;
     for(const [key,a] of Object.entries(layerAudio)){const f=key==='background'?value?.background:layers[key];if(f?.url)a.src=f.url;else a.removeAttribute('src');a.load();}
+    el('dubProjectVideoOpen').classList.toggle('hidden',!value?.video);el('dubProjectVideo').checked=!!value?.video;
     layerNames();timeline();buttons();if(rows.length)choose(rows[0]);
   }
   function layerNames(){el('dubLayerNames').textContent=Object.entries(layers).filter(([,v])=>v).map(([k,v])=>`${t(k==='music'?'Müzik':'Ortam')}: ${v.name||''}`).join(' · ');}
@@ -59,6 +60,7 @@
     finally{busy=false;buttons();}
   }
   el('dubProjectOpen').addEventListener('click',()=>action(()=>window.api.openDubProject(),'Proje açılıyor…'));
+  el('dubProjectVideoOpen').addEventListener('click',()=>{if(!output?.video||busy)return;stop();window.BrowserDubAudioUI?.openProjectVideo(output.video.path,output.subtitle);context=window.BrowserDubAudioUI?.context();el('dubGeneratorDialog').close();});
   el('dubProjectSave').addEventListener('click',()=>{if(output)void action(()=>window.api.saveDubProject({path:output.path,mix:readMix(),layers,includeVideo:el('dubProjectVideo').checked}),'Proje kaydediliyor…');});
   el('dubWorkspaceExport').addEventListener('click',()=>{if(output)void action(()=>window.api.exportDubWorkspace({path:output.path,mix:readMix(),layers,kind:el('dubExportKind').value}),'Dışa aktarılıyor…');});
   el('dubWorkspaceCancel').addEventListener('click',async()=>{el('dubWorkspaceCancel').disabled=true;const r=await window.api.cancelDubWorkspace().catch(()=>null);note(r?.ok?'Durduruluyor…':'İptal doğrulanamadı; işlem izlenmeye devam ediyor.');if(!r?.ok)el('dubWorkspaceCancel').disabled=false;});
