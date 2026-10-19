@@ -87,3 +87,9 @@ start.bat yeniden açılışı bu turda test edilmedi. Yavaşlatılmış arka pl
 ses export'u rubberband içeren FFmpeg ister. Önizleme örneği yalnız WAV olarak
 export edilebilir; tam video diye dışa aktarılmaz. Ranged export tüm40dk videoya
 10dk dublajı gömmek yerine seçilen10dk bölümü çıkarır; arayüz bunu açıklar.
+
+## Son kod eki — 14:49
+
+Son ürün kodu494a53bc2b6c56bc9e441b4136f181758d7a694c. Özgün SRT yeniden
+kayıtta korunur; proje range/context aktarımı sonraki panel açılışında kaybolmaz.
+Workspace/model iş kilitleri simetriktir. [1449 notu](../devir/2026-10-19-1449.md).
