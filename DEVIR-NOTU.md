@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-1109.md](docs/devir/2026-10-19-1109.md) — Rapor483: Gönderilen ses/dublaj bulgularını doğrulama ve onarım
+Güncel çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı
+Önceki çalışma: [docs/devir/2026-10-19-1109.md](docs/devir/2026-10-19-1109.md) — Rapor483: Gönderilen ses/dublaj bulgularını doğrulama ve onarım
 Önceki çalışma: [docs/devir/2026-10-19-0747.md](docs/devir/2026-10-19-0747.md) — Rapor482: Seslendirmeye uygun çeviriyi mevcut ayar kutusuna geri alma
 Önceki çalışma: [docs/devir/2026-10-19-0634.md](docs/devir/2026-10-19-0634.md) — Rapor481: Windows ve Ubuntu CI başarılı
 Önceki çalışma: [docs/devir/2026-10-19-0626.md](docs/devir/2026-10-19-0626.md) — Rapor481: Abonelik ve medya sınırlarında 10 düzeltme
