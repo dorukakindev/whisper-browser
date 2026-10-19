@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed subscription CSV/OPML round trips and Unicode handles, RSS entity/CDATA text, shrinking library ranges, missing session defaults, malformed chapter starts, out-of-segment word timings and three-line subtitle warnings.
+
 - Fixed malformed/nested note recovery, manga CSS positioning and perspective checks, PDF column/table hyphen merging, generated anchor whitespace, stale PDF user edits, partial malformed results and truncated hash-tail validation.
 
 - Fixed conflicting-size relink recommendations, regressing merged watch sessions, media stdin cleanup, destroyed-download terminal handling, overlapping cue pause logic, catalog episode/ID validation, poster picker orphans and missing live-ASR speed metrics.

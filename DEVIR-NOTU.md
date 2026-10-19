@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-0621.md](docs/devir/2026-10-19-0621.md) — Rapor480 Windows CI başarılı, Ubuntu sınırı
+Güncel çalışma: [docs/devir/2026-10-19-0626.md](docs/devir/2026-10-19-0626.md) — Rapor481: Abonelik ve medya sınırlarında 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-19-0621.md](docs/devir/2026-10-19-0621.md) — Rapor480 Windows CI başarılı, Ubuntu sınırı
 Önceki çalışma: [docs/devir/2026-10-19-0613.md](docs/devir/2026-10-19-0613.md) — Rapor480 Windows CI test sözleşmesi takibi
 Önceki çalışma: [docs/devir/2026-10-19-0601.md](docs/devir/2026-10-19-0601.md) — Rapor480: Not kurtarma, PDF ve mangada 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-19-0551.md](docs/devir/2026-10-19-0551.md) — Rapor479: Oynatma, medya yaşam döngüsü ve katalogda 10 yeni düzeltme
