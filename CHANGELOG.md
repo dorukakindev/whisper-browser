@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed conflicting-size relink recommendations, regressing merged watch sessions, media stdin cleanup, destroyed-download terminal handling, overlapping cue pause logic, catalog episode/ID validation, poster picker orphans and missing live-ASR speed metrics.
+
 - Fixed overlapping subtitle comparison and literal brace changes, ambiguous automatic timing calibration, interrupted ASR language switching, conflicting track annotations, markup-based reading-speed false positives, English/full-video AI evidence coverage and unsafe watch-library URL identities.
 
 - Fixed ten voice/browser robustness issues: malformed voice settings and dubbing plans, Windows subprocess PATH preservation, scheduler resource deduplication/snapshot isolation/full dispatch, invalid profile field acceptance, IPv6 zoom migration, malformed model score history and missing closed-tab media defaults.

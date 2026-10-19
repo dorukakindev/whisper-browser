@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 479 | [BROWSER_BUG_REPORT_479.md](BROWSER_BUG_REPORT_479.md) | Oynatma, medya yaşam döngüsü ve katalog: 10 düzeltme |
 | 478 | [BROWSER_BUG_REPORT_478.md](BROWSER_BUG_REPORT_478.md) | Çeviri, senkron, AI kapsamı ve kütüphane: 10 yeni düzeltme |
 | 477 | [BROWSER_BUG_REPORT_477.md](BROWSER_BUG_REPORT_477.md) | Ses, kaynak kuyruğu ve browser ayarlarında 10 düzeltme |
 | 476 | [BROWSER_BUG_REPORT_476.md](BROWSER_BUG_REPORT_476.md) | Oturum, iptal, indirme ve snapshot: 10 düzeltme |
