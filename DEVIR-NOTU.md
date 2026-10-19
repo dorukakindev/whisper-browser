@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-19-1326.md](docs/devir/2026-10-19-1326.md) — Süreye uygun dublaj, parça kurtarma, doğrulama ve temsil edici örnek
+Güncel çalışma: [docs/devir/2026-10-19-1349.md](docs/devir/2026-10-19-1349.md) — Dublaj geliştirmeleri Windows CI başarılı; PR457 incelemeye hazır
+Önceki çalışma: [docs/devir/2026-10-19-1326.md](docs/devir/2026-10-19-1326.md) — Süreye uygun dublaj, parça kurtarma, doğrulama ve temsil edici örnek
 Önceki çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
 Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
 Önceki çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı

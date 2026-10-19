@@ -2,8 +2,12 @@
 
 2026-10-19, Windows. Kullanıcı yedi ses geliştirmesinin tamamını uygulamayı istedi.
 Başlangıç master: `957bbfe91edee709accb24624e9e945e7a7a2969`.
-Ürün kodu: `84a8e3ef008f28bb1b2e5a395cf7759da36896d4`.
+Ürün kodu: `26c078dbe773ea3d67547d0ed769e90093776a92`.
 PR456 hata tanı onarımı da `22415053` cherry-pick'i ile bu dala taşındı.
+
+Son durum:26c078db ürün kodunda Windows CI39239199527/job118015722049 başarılı.
+Tam npm test, Windows Electron bridge ve syntax geçti;6m57s toplam.
+Kesin devir: [2026-10-19-1349](../devir/2026-10-19-1349.md).
 
 ## Uygulananlar ve kanıt
 
@@ -65,3 +69,7 @@ Son sınır denetimi d3fb3a58: çok uzun tek SRT zaman penceresi kısa örnekte5
 ASR eşik denetimi84a8e3ef: benzerlik eşiği0,85; sayıların tekrar adedi, açık olumsuzluk kaybı ve sözcük döngüleri ayrıca kontrol edilir. Quality4/generation3 geçti. Gerçek örneğin iki ASR skoru1,000 olduğundan yeni eşiği de sağlıyor.
 
 CI39238210079, HEADcb08d6c: coverage-map yeni backend/dub_verify.py için doğrudan test referansı bulamadı. Eşik/whitelist gevşetilmedi; a4c8b5a9f3bbc54ba8344c6123eda60c3b3caa89 ile backend/test_dub_verify.py eklendi. CPU/int8/local_files_only, NDJSON satır başına yanıt ve özel native hata gizliliği iki testte doğrulandı; coverage-map3 testi geçti. Ürün modülleri84a8e3ef ile aynı, yalnız test eklendi. Son Windows CI beklenir.
+
+Bağlam cache onarımı26c078db, otomatik kısaltmada komşu replikleri ses kimliğine ekler;
+aynı kısa ifade farklı bağlamda eski konuşmayı paylaşmaz. Quality4 testi ve son tam
+Windows CI geçti. Referans/gerçek ses dosyaları Git'e dahil değildir.
