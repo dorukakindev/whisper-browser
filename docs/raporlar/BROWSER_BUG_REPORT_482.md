@@ -66,3 +66,5 @@ beklenir, ardından PR ve yerel master güncellenir; doğrulanmadan başarı yok
 ## CI takibi
 
 Windows run39220882413 yeni browserWhisperForSpeech ayna kontrolü sınıflandırılmadığı için settings-ui-persist-roundtrip testinde düştü. Test9ddc0b97: OTHER_STORE listesinde persist kaynağı açıklanarak sınıflandırıldı; kalıcılık5 ve speech UI testi geçti. Ürün kodu değişmedi. Ayrıntı docs/devir/2026-10-19-1119.md.
+
+İkinci CI run39222024167 tam pakette tek kalan dosya: browser-create-translate-default ReferenceError configureSpeechTranslation.16b5e886 gerçek helper gövdesini izole VM bağlamına yükler; ürün kodu değişmez. İlgili4 dosya testi geçti; ayrıntı docs/devir/2026-10-19-1131.md.
