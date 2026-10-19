@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added duration-aware speech translation and one bounded wording retry, smooth video timing maps, cached CPU speech verification profiles, voice reference level advice, independently cached pieces with selective regeneration and OOM fallback, and representative previews with explicit review results.
+
 - Hardened dubbing module resolution, simultaneous cue planning, bounded input/group validation, source preview consistency, recoverable audio timing maps, cold-start waits, subprocess diagnostics and voice studio startup reporting.
 
 - Restored single-pass translation for speech in the existing browser Whisper translation range settings, with persisted preference, separate cache identity and preserved subtitle timing.
