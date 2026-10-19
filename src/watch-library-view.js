@@ -74,8 +74,8 @@
     const safeTotal = Math.max(0, Math.trunc(Number(total) || 0));
     const safeRowHeight = Math.max(1, Number(rowHeight) || NORMAL_ROW_HEIGHT);
     const extent = safeRowHeight + ROW_GAP;
-    const safeTop = Math.max(0, Number(scrollTop) || 0);
     const safeViewport = Math.max(safeRowHeight, Number(viewportHeight) || 600);
+    const safeTop = Math.min(Math.max(0, Number(scrollTop) || 0), Math.max(0, safeTotal * extent - safeViewport));
     let start = Math.max(0, Math.floor(safeTop / extent) - overscan);
     let end = Math.min(safeTotal, Math.ceil((safeTop + safeViewport) / extent) + overscan);
     if (pinnedIndex >= 0 && pinnedIndex < safeTotal

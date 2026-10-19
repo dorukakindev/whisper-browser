@@ -47,7 +47,7 @@
         if (dur < 1) issues.push({ i, kind: 'short' });
         if (text.length / Math.max(.1, dur) > cpsLimit) issues.push({ i, kind: 'fast' });
         const lines = visibleText(c.text).split(/\r?\n/);
-        if (lines.length > 3 || lines.some((l) => l.length > lineLimit)) issues.push({ i, kind: 'lines' });
+        if (lines.length >= 3 || lines.some((l) => l.length > lineLimit)) issues.push({ i, kind: 'lines' });
       }
       if (previousEnd > start + .01) issues.push({ i, kind: 'overlap' });
       previousEnd = Math.max(previousEnd, end);

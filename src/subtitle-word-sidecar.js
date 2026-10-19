@@ -29,8 +29,8 @@ function sanitizeWordSegments(payload) {
       if (!word.trim() || typeof wordStart !== 'number' || typeof wordEnd !== 'number'
           || !Number.isFinite(wordStart) || !Number.isFinite(wordEnd)
           || wordStart < 0 || wordEnd < wordStart
-          || wordEnd < start - 0.05 || wordStart > end + 0.05) continue;
-      const item = { word, start: wordStart, end: wordEnd };
+          || wordStart < start - 0.05 || wordEnd > end + 0.05) continue;
+      const item = { word, start: Math.min(end, Math.max(start, wordStart)), end: Math.min(end, Math.max(start, wordEnd)) };
       if (typeof rawWord.probability === 'number' && Number.isFinite(rawWord.probability)) {
         item.probability = rawWord.probability;
       }

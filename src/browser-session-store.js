@@ -28,6 +28,7 @@ function cleanIdentifier(value, max = 240) {
 }
 
 function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
