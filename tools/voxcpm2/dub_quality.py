@@ -4,6 +4,7 @@ import json
 import re
 import unicodedata
 from difflib import SequenceMatcher
+from collections import Counter
 
 import numpy as np
 
@@ -13,10 +14,15 @@ def speech_check(expected, actual):
         return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', text).casefold())
     target, heard = words(expected), words(actual)
     similarity = SequenceMatcher(None, target, heard, autojunk=False).ratio()
-    missing_numbers = sorted(set(re.findall(r'\d+', expected)) - set(re.findall(r'\d+', actual)))
+    missing_numbers = sorted((Counter(re.findall(r'\d+', expected)) - Counter(re.findall(r'\d+', actual))).elements())
+    target_counts, heard_counts = Counter(target), Counter(heard)
+    lost_negation = any(heard_counts[word] < count for word, count in target_counts.items()
+                        if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))
+    repetition = any(count > target_counts[word] + 1 for word, count in heard_counts.items())
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers,
-            'review': similarity < .65 or bool(missing_numbers) or not heard}
+            'lost_negation': lost_negation, 'repetition': repetition,
+            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or not heard}
 
 
 def chunk_key(settings, text, seed):

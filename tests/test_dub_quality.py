@@ -15,6 +15,9 @@ class QualityTests(unittest.TestCase):
         self.assertTrue(Q.speech_check('1938 yılında 12 kişi.', '1938 yılında kişi')['review'])
         self.assertTrue(Q.speech_check('Bu cümle tam okunmalı.', '')['review'])
         self.assertTrue(Q.speech_check('A B C D E F G H', 'A B')['review'])
+        self.assertTrue(Q.speech_check('12 kişi 12 gün bekledi.', '12 kişi gün bekledi.')['review'])
+        self.assertTrue(Q.speech_check('Bu açıklama hiçbir zaman doğru değil.', 'Bu açıklama hiçbir zaman doğru.')['review'])
+        self.assertTrue(Q.speech_check('Merhaba dünya.', 'Merhaba merhaba merhaba dünya.')['review'])
 
     def test_cache_key_is_independent_of_unrelated_cues(self):
         identity = {'steps':15,'reference':'hash','model':'revision'}
