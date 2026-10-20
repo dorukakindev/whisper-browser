@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-20-0732.md](docs/devir/2026-10-20-0732.md) — Rapor488: on doğrulanmış ses/oynatıcı ve proje hatası; Windows CI başarılı
+Güncel çalışma: [docs/devir/2026-10-20-0749.md](docs/devir/2026-10-20-0749.md) — Rapor489: arşiv, altyazı ve sekme kurtarmada 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-20-0732.md](docs/devir/2026-10-20-0732.md) — Rapor488: on doğrulanmış ses/oynatıcı ve proje hatası; Windows CI başarılı
 Önceki çalışma: [docs/devir/2026-10-19-1630.md](docs/devir/2026-10-19-1630.md) — Doğal konuşma, gerçek süre, iki metin ve ses son işlemi; Windows CI başarılı
 Önceki çalışma: [docs/devir/2026-10-19-1611.md](docs/devir/2026-10-19-1611.md) — Dublaj zaman çizelgesi/karıştırıcı/proje; Windows CI başarılı
 Önceki çalışma: [docs/devir/2026-10-19-1449.md](docs/devir/2026-10-19-1449.md) — Proje aralığı/özgün SRT korunuyor; Windows CI bekleniyor

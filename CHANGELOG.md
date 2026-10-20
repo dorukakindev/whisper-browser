@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed ten translation archive matching/path, subtitle completion counters, closed-tab recovery, calibration precision and cross-platform cache ownership bugs.
+
 - Fixed ten dubbing playback, portable project integrity, export-size and speech validation bugs, including stale preview playback and replaced audio layer races.
 
 - Added optional natural-speech polishing, measured-duration wording feedback, separate subtitle/spoken text, conservative Turkish reading forms, audio boundary finishing and activity-based background ducking; fixed equivalent-number speech verification.
