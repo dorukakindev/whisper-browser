@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 494 | [BROWSER_BUG_REPORT_494.md](BROWSER_BUG_REPORT_494.md) | Konuşma anlamı, çeviri/PDF cache kimliği, medya ve oynatmada 20 yeni onarım |
 | 493 | [BROWSER_BUG_REPORT_493.md](BROWSER_BUG_REPORT_493.md) | Ses anlamı, zaman haritası, iptal, oynatma ve kütüphanede 20 doğrulanmış onarım |
 | 492 | [BROWSER_BUG_REPORT_492.md](BROWSER_BUG_REPORT_492.md) | Çeviri, altyazı ayrıştırma, inceleme ve kurtarmada 20 doğrulanmış onarım |
 | 491 | [BROWSER_BUG_REPORT_491.md](BROWSER_BUG_REPORT_491.md) | Ses üretimi, retry/cache, verifier, önizleme ve kurtarmada 13 doğrulanmış onarım |
