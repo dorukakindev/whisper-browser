@@ -71,7 +71,8 @@ def _semantic_tokens(text):
 def _number_signature(text):
     # Kaynak varyantındaki 1.5/1,5 yazım farkını aynı sayı kabul et; rakamların
     # ve işaretin kendisi değişirse eşleşme yine reddedilir.
-    return tuple(re.sub(r"[.,]", ".", match.group(0)) for match in _NUMBER_RE.finditer(str(text or "")))
+    normalized = str(text or "").replace('\u2212', '-')
+    return tuple(re.sub(r"[.,]", ".", match.group(0)) for match in _NUMBER_RE.finditer(normalized))
 
 
 def _anchor_signature(tokens, vocabulary):

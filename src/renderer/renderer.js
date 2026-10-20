@@ -23498,6 +23498,7 @@ function browserTaskRow(job) {
   }
   return {
     ...descriptor,
+    ...descriptor.progress,
     rawJob: job,
     detail: descriptor.stage,
     actions,

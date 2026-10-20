@@ -37,7 +37,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
   function begin(e) {
     if(operation || busy())throw new Error('Wait for the current job to finish.');
     const op={sender:e.sender,cancelled:false,proc:null};op.finished=new Promise(resolve=>{op.finish=resolve;});operation=op;
-    op.destroyed=()=>{op.cancelled=true;if(op.proc)void Promise.resolve(terminate(op.proc)).catch(()=>{});};
+    op.destroyed=()=>{void cancel(op);};
     e.sender.once?.('destroyed',op.destroyed);return op;
   }
   function end(op){op.sender.removeListener?.('destroyed',op.destroyed);if(operation===op)operation=null;op.finish();}
@@ -80,7 +80,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
         await fsp.copyFile(media.path,path.join(staging,files.video));
       }
       const manifest={format:'whisper-dub-project',version:1,name:output.name,files,
-        sync:output.sync,range:output.range || null,sample:output.sample===true,rows:output.rows,
+        sync:output.sync,syncInvalid:output.syncInvalid===true,range:output.range || null,sample:output.sample===true,rows:output.rows,
         mix:Model.mix(request.mix ?? output.mix),settings:output.settings || null};
       check(op);await fsp.writeFile(path.join(staging,'project.json'),JSON.stringify(manifest,null,2),'utf8');
       // No overwrite: the unique staging directory is installed only at the end.
@@ -112,7 +112,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       check(op);
       for(const [kind,target] of pendingGrants){if(kind==='subtitle')grantSubtitle(target);else grantMedia(target);}
       const output=register({path:loaded.voice.path,url:loaded.voice.url,name:String(value.name||'Dublaj.wav').slice(0,200),
-        sync,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
+        sync,syncInvalid:value.syncInvalid===true,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
         background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,spokenSubtitle:loaded.spokenSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
       return {ok:true,output};
     }finally{end(op);}
@@ -162,10 +162,18 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       try{if(partial)await fsp.rm(partial,{force:true,maxRetries:5,retryDelay:100});if(temp)await fsp.rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:100});}finally{end(op);}
     }
   }));
-  async function cancel(op){
+  function cancel(op){
+    if(op.cancelPromise)return op.cancelPromise;
     op.cancelled=true;
-    if(op.proc && await terminate(op.proc)===false)return {ok:false};
-    return {ok:true};
+    op.cancelPromise=(async()=>{
+      try {
+        if(op.proc && await terminate(op.proc)===false){op.cancelled=false;return {ok:false};}
+        return {ok:true};
+      }catch(_){op.cancelled=false;return {ok:false};}
+    })();
+    const attempt=op.cancelPromise;
+    void attempt.then(result=>{if(!result.ok && op.cancelPromise===attempt)op.cancelPromise=null;});
+    return attempt;
   }
   ipcMain.handle('dub:workspaceCancel',guard(async(e)=>{
     if(!operation || operation.sender!==e.sender)return {ok:false};

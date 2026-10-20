@@ -30,13 +30,34 @@ def speech_check(expected, actual, numeric_reference=None):
         else:
             remaining[found:found+len(phrase)] = ['_consumed_'] * len(phrase)
     target_counts, heard_counts = Counter(target), Counter(heard)
-    lost_negation = any(heard_counts[word] < count for word, count in target_counts.items()
+    # Tokenization splits English contractions into don/t and can/t; preserve
+    # their negative meaning even when a single lost word barely changes ratio.
+    negative_forms = r"\b(?:[a-z]+n['’]t|cannot)\b"
+    contraction_loss = (len(re.findall(negative_forms, expected, re.I)) + target_counts['not']
+                        > len(re.findall(negative_forms, actual, re.I)) + heard_counts['not'])
+    # Minus signs disappear during ordinary word tokenization. Check each
+    # signed quantity against its spoken sign, rather than just word overlap.
+    reference = expected if numeric_reference is None else numeric_reference
+    signed_actual = re.sub(r'(?<![\w.,])[-−]\s*(\d+(?:[.,]\d+)*)',
+                           lambda m: ' eksi ' + m[1], actual)
+    signed_words = words(signed_actual)
+    sign_mismatch = False
+    for number in re.findall(r'(?<![\w.,])[-−]\s*(\d+(?:[.,]\d+)*)', reference):
+        phrase = words(number + ' kişi')[:-1]
+        found = next((i for i in range(len(signed_words)-len(phrase))
+                      if signed_words[i] in ('eksi', 'minus') and signed_words[i+1:i+1+len(phrase)] == phrase
+                      and (i+1+len(phrase)==len(signed_words) or signed_words[i+1+len(phrase)] not in number_words)), None)
+        if found is None:
+            sign_mismatch = True
+        else:
+            signed_words[found:found+1+len(phrase)] = ['_consumed_'] * (1+len(phrase))
+    lost_negation = contraction_loss or any(heard_counts[word] < count for word, count in target_counts.items()
                         if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))
     repetition = any(count > target_counts[word] + 1 for word, count in heard_counts.items())
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers,
-            'lost_negation': lost_negation, 'repetition': repetition,
-            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or not heard}
+            'lost_negation': lost_negation, 'repetition': repetition, 'sign_mismatch': sign_mismatch,
+            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or sign_mismatch or not heard}
 
 
 def chunk_key(settings, text, seed):

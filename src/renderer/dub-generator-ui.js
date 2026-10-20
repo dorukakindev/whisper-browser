@@ -146,7 +146,7 @@
       if (current || output || !r?.output) return;
       output = r.output; window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
       el('dubGeneratorOutput').classList.remove('hidden');
-      el('dubGeneratorUse').classList.toggle('hidden', output.sample === true);
+      el('dubGeneratorUse').classList.toggle('hidden', output.sample === true || output.syncInvalid === true);
       results.clear(); for (const row of output.quality?.groups || []) results.set(row.key, row); showResults();
       el('dubGeneratorLog').classList.toggle('hidden', !logPath);
       el('dubGeneratedName').textContent = output.name;
@@ -256,7 +256,8 @@
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
     status('Motor yükleniyor…'); controls();
-    const payload = retry ? {...lastRequest, id:pending.id, forceGroups} : { id: pending.id, srt, sample: pending.sample,
+    const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
+      dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
       verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked, naturalSpeech:el('dubNaturalSpeech').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
@@ -289,7 +290,7 @@
   el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
   el('dubGeneratorUse').addEventListener('click', async () => {
     const selected = output;
-    if (!selected || selected.sample) return;
+    if (!selected || selected.sample || selected.syncInvalid) return;
     const context = window.BrowserDubAudioUI?.context();
     if (!context?.tabId || !context.hasMedia || !context.visible) {
       status('Ses eklemek için önce bir video açın.'); return;
@@ -364,13 +365,14 @@
     for(const row of output.quality?.groups || []) results.set(row.key,row);
     showResults(); el('dubGeneratedName').textContent=output.name;
     el('dubGeneratorOutput').classList.remove('hidden');
-    el('dubGeneratorUse').classList.toggle('hidden',output.sample===true);
+    el('dubGeneratorUse').classList.toggle('hidden',output.sample===true || output.syncInvalid===true);
     // A project carries rendered media, not an executable engine request.
     srt=output.subtitle || ''; lastRequest=null; plan=null; edits={};
     el('dubRangeEnabled').checked=!!output.range;
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     el('dubSrtName').textContent=basename(srt); controls();
-    status('Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
+    status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
+      : 'Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
   });
   controls();
 })();

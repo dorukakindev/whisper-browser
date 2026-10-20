@@ -239,6 +239,12 @@ async def uret(args, cues, paths, prompt_text):
                 original_text = text
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
+                previous_metric = {}
+                if valid_audio(path, sf):
+                    try:
+                        previous_metric = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+                    except (OSError, ValueError):
+                        pass
                 try:
                     if getattr(args, 'natural_speech', False) and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
                         text = await rewrite_for_window(args, i, text, window,
@@ -288,7 +294,8 @@ async def uret(args, cues, paths, prompt_text):
                                 try:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
-                                    if checked.get('similarity', 0) > check.get('similarity', 0) and not checked.get('missing_numbers'):
+                                    if checked.get('similarity', 0) > check.get('similarity', 0) and not any(
+                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'repetition', 'sign_mismatch')):
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
                                         sf.write(str(temporary), wav, sr, subtype='PCM_16')
@@ -308,11 +315,14 @@ async def uret(args, cues, paths, prompt_text):
                     metric = {'attempts': args.retry + 1, 'retries': args.retry,
                               'quality_score': None, 'status': 'failed', 'text': text,
                               'verification': {'status': 'unavailable'}}
-                    if valid_audio(path, sf):
-                        metric['status'] = 'review'
-                    elif temporary.is_file() and valid_audio(temporary, sf):
+                    if temporary.is_file() and valid_audio(temporary, sf):
                         temporary.replace(path)
                         metric['status'] = 'review'
+                    elif valid_audio(path, sf):
+                        metric.update(previous_metric)
+                        metric['text'] = previous_metric.get('text', original_text)
+                        metric['status'] = 'review'
+                        metric['regenerationFailed'] = True
                     else:
                         fallback = args.report_dir / f'failed_{i:04d}.wav'
                         sf.write(str(fallback), np.zeros(max(1, round(window * sr)), dtype=np.float32), sr)

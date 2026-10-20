@@ -20,6 +20,9 @@
       return !!s && ['browser', 'player'].includes(c.mode) && c.mode === s.mode && c.visible !== false && c.tabId === s.tabId
         && c.mediaKey === s.mediaKey && c.generation === s.generation && (c.mediaId || '') === (s.mediaId || '');
     }
+    muteSession(s, muted) {
+      return s.mode === 'player' ? this.mute(s.tabId, muted, s) : this.mute(s.tabId, muted);
+    }
     async attach(file, c) {
       if (!c || !this.matches(c)) return false;
       const intent = ++this.intent;
@@ -42,7 +45,7 @@
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
       s.desiredMuted = s.range ? !!priorMuted : true;
-      s.mutePromise = Promise.resolve().then(() => this.mute(s.tabId, s.desiredMuted)).then(result => {
+      s.mutePromise = Promise.resolve().then(() => this.muteSession(s, s.desiredMuted)).then(result => {
         s.muted = !!result?.ok && s.desiredMuted;
         return result;
       });
@@ -77,14 +80,14 @@
         if (s.sync) {
           try {
             await s.ratePromise;
-            const result = await this.setRate({tabId:s.tabId,generation:s.generation,mediaId:s.mediaId||'',rate:s.baseRate,baseRate:s.baseRate,release:true});
+            const result = await this.setRate({tabId:s.tabId,mediaKey:s.mediaKey,generation:s.generation,mediaId:s.mediaId||'',rate:s.baseRate,baseRate:s.baseRate,release:true});
             if (!result?.ok) this.error('Video hızı geri yüklenemedi; hız ayarını kontrol edin.');
           } catch (_) { this.error('Video hızı geri yüklenemedi; hız ayarını kontrol edin.'); }
         }
         try {
           await s.mutePromise;
           if (s.muted) {
-            const restored = await this.mute(s.tabId, !!s.priorMuted);
+            const restored = await this.muteSession(s, !!s.priorMuted);
             if (!restored?.ok) this.error('Video sesi geri yüklenemedi; sekmenin ses düğmesini kullanın.');
           }
         } catch (_) { this.error('Video sesi geri yüklenemedi; sekmenin ses düğmesini kullanın.'); }
@@ -143,7 +146,7 @@
       const requestedAt=this.now();
       s.ratePromise = s.ratePromise.then(async () => {
         if (this.session !== s) return;
-        const result = await this.setRate({tabId:s.tabId,generation:s.generation,mediaId:s.mediaId||'',rate:desired,baseRate:s.baseRate,release});
+        const result = await this.setRate({tabId:s.tabId,mediaKey:s.mediaKey,generation:s.generation,mediaId:s.mediaId||'',rate:desired,baseRate:s.baseRate,release});
         if (!result?.ok) throw new Error('rate failed');
         if (this.session===s && this.sample) {
           const m=this.sample, observed=result.media || {};
@@ -164,7 +167,7 @@
       s.desiredMuted = desired;
       s.mutePromise = s.mutePromise.then(async () => {
         if (this.session !== s) return;
-        const result = await this.mute(s.tabId, desired);
+        const result = await this.muteSession(s, desired);
         if (!result?.ok) throw new Error('mute failed');
         s.muted = desired;
       }).then(() => { if (this.session === s) this.tick(); }).catch(() => {

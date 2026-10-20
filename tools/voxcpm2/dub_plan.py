@@ -37,7 +37,8 @@ def parse_srt(path, source_bytes=None):
     # SRT separators may contain spaces/tabs from subtitle editors.
     text = re.sub(r'(?m)^[ \t]+$', '', text)
     cues = []
-    for match in TIME_RE.finditer(text):
+    timings = list(TIME_RE.finditer(text))
+    for index, match in enumerate(timings):
         fields = match.groups()
         h1, m1, s1, ms1, h2, m2, s2, ms2 = (
             int(g.ljust(3, '0')) if i in (3, 7) else int(g) for i, g in enumerate(fields))
@@ -49,13 +50,24 @@ def parse_srt(path, source_bytes=None):
             line_end = len(text)
         if block_end < 0:
             block_end = len(text)
-        body = text[line_end:block_end]
+        if index + 1 < len(timings) and timings[index + 1].start() < block_end:
+            block_end = timings[index + 1].start()
+            # Recover compact SRT without reading the next cue's index aloud.
+            prefix = text[line_end:block_end]
+            header_end = max(0, match.start() - 1)
+            counter = text[text.rfind('\n', 0, header_end) + 1:header_end].strip()
+            following = re.search(r'\n[ \t]*(\d+)[ \t]*\n?$', prefix)
+            if counter.isdecimal() and len(counter) <= 10 and following and len(following[1]) <= 10 and int(following[1]) == int(counter) + 1:
+                prefix = prefix[:following.start()]
+            body = prefix
+        else:
+            body = text[line_end:block_end]
         # Line-break tags separate words; inline styling must not split them.
         body = re.sub(r'<br\b[^>]*>', ' ', body, flags=re.I)
         body = html.unescape(TAG_RE.sub('', body))
         body = re.sub(r"\s+", " ", body).strip()
-        if body and end > start:
-            cues.append((start, end, body))
+        if body and end >= start:
+            cues.append((start, max(start + 1, end), body))
     return cues
 
 

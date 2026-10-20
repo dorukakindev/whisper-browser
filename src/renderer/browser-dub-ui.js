@@ -23,12 +23,14 @@
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
     backgroundAudio: byId('browserDubBackground'), musicAudio: byId('browserDubMusic'), ambienceAudio: byId('browserDubAmbience'),
-    mute: (id, muted) => {
+    mute: (id, muted, expected) => {
       if (id !== 'player-video') return window.api.muteBrowserTab(id, muted);
+      if (expected && player.mediaKey !== expected.mediaKey) return { ok: true, skipped: true };
       video.muted = muted; return { ok: true };
     }, error: notify,
     setRate: request => {
       if (request.tabId !== 'player-video') return window.api.setDubVideoRate(request);
+      if (player.mediaKey !== request.mediaKey) return { ok: true, skipped: true };
       video.playbackRate = request.rate;
       return { ok: true, media: { currentTime: video.currentTime, playbackRate: video.playbackRate } };
     },

@@ -1,4 +1,5 @@
 const path = require('path');
+const { safePlaceUrl } = require('./browser-place-url');
 
 const WATCH_INDEX_VERSION = 4;
 
@@ -44,15 +45,11 @@ function selectPrunableTracks(rows, options = {}) {
 }
 
 function safePageIndexUrl(raw) {
-  try {
-    const parsed = new URL(String(raw || '').trim());
-    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
-    parsed.username = '';
-    parsed.password = '';
-    parsed.search = '';
-    parsed.hash = '';
-    return parsed.toString().slice(0, 4000);
-  } catch (_) { return ''; }
+  const safe = safePlaceUrl(String(raw || '').trim());
+  if (!safe || safe.length > 4000) return '';
+  const parsed = new URL(safe);
+  parsed.searchParams.sort();
+  return parsed.href;
 }
 
 class WatchIndex {
@@ -211,14 +208,24 @@ class WatchIndex {
   }
 
   transaction(fn) {
-    this.db.exec('BEGIN IMMEDIATE');
+    const depth = this.transactionDepth || 0;
+    const savepoint = `watch_tx_${depth}`;
+    this.db.exec(depth ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE');
+    this.transactionDepth = depth + 1;
     try {
       const result = fn();
-      this.db.exec('COMMIT');
+      this.db.exec(depth ? `RELEASE SAVEPOINT ${savepoint}` : 'COMMIT');
       return result;
     } catch (error) {
-      try { this.db.exec('ROLLBACK'); } catch (_) {}
+      try {
+        if (depth) {
+          this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+          this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        } else this.db.exec('ROLLBACK');
+      } catch (_) {}
       throw error;
+    } finally {
+      this.transactionDepth = depth;
     }
   }
 

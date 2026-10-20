@@ -189,6 +189,21 @@ class BrowserNoteStore {
     return structuredClone(annotation);
   }
 
+  updateBatch(rows) {
+    if (this.loadError) throw new Error(this.loadError);
+    const normalized = rows.map(normalizeStoredAnnotation);
+    if (normalized.some(row => !row?.id || !row.mediaId || !this.annotations.has(row.id))) {
+      throw new TypeError('Existing note and media identities are required.');
+    }
+    const previous = normalized.map(row => this.annotations.get(row.id));
+    for (const row of normalized) this.annotations.set(row.id, row);
+    try { if (normalized.length) this.flush({ mirrorBackup: true }); }
+    catch (error) {
+      if (!error?.committed) for (const row of previous) this.annotations.set(row.id, row);
+      throw error;
+    }
+  }
+
   remove(id) {
     if (this.loadError) throw new Error(this.loadError);
     const key = String(id || '');

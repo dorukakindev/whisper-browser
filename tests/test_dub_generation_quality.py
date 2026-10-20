@@ -68,18 +68,19 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong reference'):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
-    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False):
+    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
+                       verifier=None, rewrite_text='Short.'):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
         async def rewrite(*args, **kwargs):
             self.rewrites.append((args,kwargs))
-            return 'Short.'
+            return rewrite_text
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
             assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
             available_window=available_window, valid_audio=valid_audio, spoken_text=spoken_text, finish_audio=finish_audio,
-            SpeechVerifier=Verifier, rewrite_for_window=rewrite)
+            SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
         ref = folder/'reference.wav'; ref.write_bytes(b'fixture')
         args = SimpleNamespace(steps=15,eszamanli=2,batch_tokens=2048,max_model_len=2048,
@@ -95,6 +96,27 @@ class GenerationTests(unittest.TestCase):
         with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()):
             rate = asyncio.run(scope['uret'](args,cues,paths,'prompt'))
         return rate,args,paths
+
+    def test_493_10_more_similar_retry_must_not_lose_negation(self):
+        class MeaningVerifier(Verifier):
+            count = 0
+            async def check(self, *args, **kwargs):
+                self.count += 1
+                return {'status':'review','review':True,'similarity':.7 if self.count==1 else .95,
+                        'lost_negation':self.count>1,'missing_numbers':[]}
+        with tempfile.TemporaryDirectory() as d:
+            _,args,_=self.run_generation(Path(d),Server(),['Good.'],verification='detailed',verifier=MeaningVerifier)
+            self.assertFalse(args.group_results[0]['verification']['lost_negation'])
+
+    def test_493_11_failed_regeneration_keeps_text_of_retained_audio(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d)
+            self.run_generation(folder,Server(),['Original.'],natural=True)
+            server=Server();server.fail={'Different.'}
+            _,args,paths=self.run_generation(folder,server,['Original.'],natural=True,force=True,rewrite_text='Different.')
+            record=json.loads(paths[0].with_suffix('.json').read_text())
+            self.assertEqual(record['text'],'Short.')
+            self.assertEqual(record['status'],'review')
 
     def test_failure_retains_other_pieces_and_resume_generates_only_missing(self):
         with tempfile.TemporaryDirectory() as d:

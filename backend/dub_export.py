@@ -27,9 +27,9 @@ def map_time(sync, time):
             return time + delta, 1.0
         if time < s['v1']:
             span = s['v1']-s['v0']
-            stretch = max(1, (s['a1']-s['a0'])/span)
+            stretch = (s['a1']-s['a0'])/span
             x = (time-s['v0'])/span
-            if sync.get('smooth'):
+            if sync.get('smooth') and stretch >= 1:
                 return (s['a0']+span*(x+(stretch-1)*(x-math.sin(2*math.pi*x)/(2*math.pi))),
                         1+(stretch-1)*(1-math.cos(2*math.pi*x)))
             return s['a0']+(time-s['v0'])*stretch, stretch
@@ -39,17 +39,19 @@ def map_time(sync, time):
 
 def video_expression(sync):
     terms = []
+    previous_delta = 0
     for s in (sync or {}).get('segments', []):
         span = s['v1']-s['v0']
-        extra = max(0, (s['a1']-s['a0'])/span-1)
-        if extra < .000001:
-            continue
+        extra = (s['a1']-s['a0'])/span-1
+        offset = s['a0']-s['v0']-previous_delta
         start, stop = s['v0'], s['v1']
         x = f'(T-{start:.9f})'
         within = f'{extra:.12f}*{x}'
-        if sync.get('smooth'):
+        if sync.get('smooth') and extra >= 0:
             within = f'{extra:.12f}*({x}-{span:.9f}*sin(2*PI*{x}/{span:.9f})/(2*PI))'
-        terms.append(f'if(lt(T,{start:.9f}),0,if(lt(T,{stop:.9f}),{within},{extra*span:.9f}))')
+        delta = s['a1']-s['v1']
+        terms.append(f'if(lt(T,{start:.9f}),0,if(lt(T,{stop:.9f}),({offset:.12f}+{within}),{delta-previous_delta:.12f}))')
+        previous_delta = delta
     return f'(T+{balanced(terms)})/TB'
 
 
@@ -57,13 +59,18 @@ def tempo_commands(sync, duration, target="warp"):
     # Commands run on INPUT timestamps before rubberband. Midpoint derivatives
     # integrate the exact smooth map without changing pitch. Bound interval
     # expansion as well as wall time to avoid large errors in dense speech.
-    points = {0.0, duration}
+    windows = []
+    budget = 0
     for s in (sync or {}).get('segments', []):
         span = s['v1']-s['v0']
         peak = max(1, (s['a1']-s['a0'])/span)*2-1
         count = max(1, math.ceil(span*max(10, peak*10)))
-        if count > 200000:
+        budget += count + 1
+        if budget > 200000:
             raise ValueError('Timing window is too extreme to export safely.')
+        windows.append((s, span, count))
+    points = {0.0, duration}
+    for s, span, count in windows:
         for n in range(count+1):
             points.add(s['v0']+span*n/count)
     points = sorted(p for p in points if 0 <= p <= duration)
@@ -72,7 +79,9 @@ def tempo_commands(sync, duration, target="warp"):
     for a, b in zip(points, points[1:]):
         # Exact interval expansion ensures no accumulated timing drift.
         factor = (map_time(sync,b)[0]-map_time(sync,a)[0])/(b-a)
-        tempo = 1/max(1,factor)
+        if factor <= 0:
+            raise ValueError('Timing schedule is not increasing.')
+        tempo = 1/factor
         if tempo < .01:
             raise ValueError('Timing stretch is too large to export without losing sync.')
         if previous is None or abs(previous-tempo) > 1e-7:
@@ -146,7 +155,8 @@ def export(request, output, ffmpeg):
     mix = request['mix']
     graph.append(f'[0:a]aresample=48000,aformat=channel_layouts=stereo,volume={mix["voice"]}[voice]')
     outputs = ['[voice]']
-    stretched = sync and any(s['a1']-s['a0'] > s['v1']-s['v0']+.000001 for s in sync['segments'])
+    stretched = sync and any(abs((s['a1']-s['a0'])-(s['v1']-s['v0'])) > .000001
+                             or abs(s['a0']-s['v0']) > .000001 for s in sync['segments'])
     def warped(index, label):
         stem = f'[{index}:a]atrim=duration={duration},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo'
         if stretched:

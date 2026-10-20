@@ -18500,20 +18500,28 @@ async function relinkLibraryItem(oldKey, newPath) {
   const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
   const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
   if (collision) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
-  let previous, written = false;
+  let previous, written = false, notes, previousNotes = [], notesWritten = false;
   try {
     previous = loadWatchLibraryAll().slice();
     const index = watchIndex();
+    notes = ensureBrowserNotesReady();
+    previousNotes = notes.list(oldKey);
     const run = () => {
       const saved = watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
       if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
+      written = true;
       if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
       index?.renameMediaId(oldKey, newKey);
-      written = true;
+      notesWritten = previousNotes.length > 0;
+      if (notesWritten) notes.updateBatch(previousNotes.map(note => ({ ...note, mediaId: newKey, mediaUrl: target })));
     };
     if (index) index.transaction(run); else run();
     return { key: newKey, path: target };
   } catch (error) {
+    if (notesWritten) {
+      try { notes.updateBatch(previousNotes); }
+      catch (_) { error.message += ' Not bağlantıları geri yazılamadı.'; }
+    }
     const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     if (!restored) error.message += ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.';
     throw error;
@@ -18598,27 +18606,34 @@ ipcMain.handle('library:dupes-merge', (_event, request) => {
   const source = all.find((entry) => entry?.key === sourceKey);
   if (!target || !source) return { ok: false, error: 'Kütüphane kaydı bulunamadı.' };
   const merged = mergeWatchItems(source, target);
-  let previous, written = false;
+  let previous, written = false, notes, previousNotes = [], notesWritten = false;
   try {
     previous = all.slice();
     const index = watchIndex();
+    notes = ensureBrowserNotesReady();
+    previousNotes = notes.list(sourceKey);
     const run = () => {
       const saved = watchLibraryStore().upsert(merged);
       if (!saved) throw new Error('Birleştirilmiş kayıt yazılamadı.');
+      written = true;
       if (!watchLibraryStore().remove(sourceKey)) throw new Error('Kaynak kayıt kaldırılamadı.');
       index?.mergeMediaIds(sourceKey, targetKey);
-      try {
-        index?.upsertMedia({
+      index?.upsertMedia({
           id: merged.key, service: merged.type || '', title: merged.title || '', url: merged.sourceRef || '',
           duration: merged.duration, position: merged.position, completed: merged.completed,
           lastWatched: merged.lastWatched, prefs: merged.prefs,
-        });
-      } catch (_) {}
-      written = true;
+      });
+      notesWritten = previousNotes.length > 0;
+      if (notesWritten) notes.updateBatch(previousNotes.map(note => ({ ...note, mediaId: targetKey,
+        mediaTitle: merged.title || note.mediaTitle, mediaUrl: merged.sourceRef || note.mediaUrl })));
     };
     if (index) index.transaction(run); else run();
     return { ok: true, key: targetKey };
   } catch (error) {
+    if (notesWritten) {
+      try { notes.updateBatch(previousNotes); }
+      catch (_) { error.message += ' Not bağlantıları geri yazılamadı.'; }
+    }
     const restored = !written || saveWatchLibrary(previous, { restoreRemoved: true });
     return { ok: false, error: `${error.message}${restored ? '' : ' Kütüphane listesi geri yazılamadı; kayıtlar tutarsız kalabilir.'}` };
   }
