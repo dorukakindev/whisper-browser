@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed thirteen confirmed speech generation/retry, cache identity, verifier shutdown, preview ownership, WAV recovery and spoken-text preservation failures. Explicit regeneration now varies the selected acoustic seed.
+
 - Fixed twenty transcript evidence, synchronization/edit restore, media relink, playback, queue, session and audio-map edge cases.
 
 - Fixed ten translation archive matching/path, subtitle completion counters, closed-tab recovery, calibration precision and cross-platform cache ownership bugs.

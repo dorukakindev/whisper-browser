@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-20-1017.md](docs/devir/2026-10-20-1017.md) — Rapor490: 20 yeni doğrulanmış düzeltme
+Güncel çalışma: [docs/devir/2026-10-20-1044.md](docs/devir/2026-10-20-1044.md) — Rapor491: 13 önemli ses hatası; CI arkada, sayı doldurma yok
+Önceki çalışma: [docs/devir/2026-10-20-1017.md](docs/devir/2026-10-20-1017.md) — Rapor490: 20 yeni doğrulanmış düzeltme
 Önceki çalışma: [docs/devir/2026-10-20-0749.md](docs/devir/2026-10-20-0749.md) — Rapor489: arşiv, altyazı ve sekme kurtarmada 10 düzeltme
 Önceki çalışma: [docs/devir/2026-10-20-0732.md](docs/devir/2026-10-20-0732.md) — Rapor488: on doğrulanmış ses/oynatıcı ve proje hatası; Windows CI başarılı
 Önceki çalışma: [docs/devir/2026-10-19-1630.md](docs/devir/2026-10-19-1630.md) — Doğal konuşma, gerçek süre, iki metin ve ses son işlemi; Windows CI başarılı
