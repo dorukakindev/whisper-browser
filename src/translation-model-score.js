@@ -32,13 +32,13 @@
       .map(([key, runs]) => [key, validRuns(runs)]).filter(([, runs]) => runs.length));
     const key = modelKey(event?.model);
     const batches = Math.max(0, Math.floor(Number(event?.batches) || 0));
-    if (!key || !batches) return next;
+    if (!key || !Number.isSafeInteger(batches) || !batches) return next;
     const rejections = {};
     for (const [reason, count] of Object.entries(event?.rejections || {})) {
       if (/^[\w:.-]{1,64}$/.test(reason)) rejections[reason] = Math.max(0, Math.floor(Number(count) || 0));
     }
     const run = { at: now, batches, invalid: Math.min(batches, Math.max(0, Math.floor(Number(event?.invalid_batches) || 0))), rejections };
-    next[key] = [...(Array.isArray(next[key]) ? next[key] : []), run].slice(-MAX_RUNS);
+    Object.defineProperty(next, key, { value: [...(Array.isArray(next[key]) ? next[key] : []), run].slice(-MAX_RUNS), enumerable: true, writable: true, configurable: true });
     if (Object.keys(next).length > MAX_MODELS) {
       const newest = Object.entries(next)
         .sort(([, a], [, b]) => (b[b.length - 1]?.at || 0) - (a[a.length - 1]?.at || 0))

@@ -278,10 +278,10 @@ function appendResourceSample(series, sample, cap = RESOURCE_SERIES_CAP) {
   list.push({
     t: Number(s.t),
     stage: String(s.stage || ''),
-    sysMemPct: Number.isFinite(Number(s.sysMemPct)) ? Number(s.sysMemPct) : null,
-    gpuMemMb: Number.isFinite(Number(s.gpuMemMb)) ? Number(s.gpuMemMb) : null,
-    diskFreeMb: Number.isFinite(Number(s.diskFreeMb)) ? Number(s.diskFreeMb) : null,
-    cpuLoad: Number.isFinite(Number(s.cpuLoad)) ? Number(s.cpuLoad) : null,
+    sysMemPct: s.sysMemPct != null && Number.isFinite(Number(s.sysMemPct)) ? Number(s.sysMemPct) : null,
+    gpuMemMb: s.gpuMemMb != null && Number.isFinite(Number(s.gpuMemMb)) ? Number(s.gpuMemMb) : null,
+    diskFreeMb: s.diskFreeMb != null && Number.isFinite(Number(s.diskFreeMb)) ? Number(s.diskFreeMb) : null,
+    cpuLoad: s.cpuLoad != null && Number.isFinite(Number(s.cpuLoad)) ? Number(s.cpuLoad) : null,
   });
   return list.length > cap ? list.slice(list.length - cap) : list;
 }
@@ -289,7 +289,7 @@ function appendResourceSample(series, sample, cap = RESOURCE_SERIES_CAP) {
 // SVG polyline noktaları — renderer sparkline için.
 function resourceSparkPoints(series, key, width = 300, height = 40) {
   const list = (Array.isArray(series) ? series : [])
-    .filter((s) => Number.isFinite(Number(s[key])) && Number.isFinite(Number(s.t)));
+    .filter((s) => s[key] != null && Number.isFinite(Number(s[key])) && Number.isFinite(Number(s.t)));
   if (list.length < 2) return '';
   const tMin = list[0].t;
   const tSpan = Math.max(1e-6, list[list.length - 1].t - tMin);

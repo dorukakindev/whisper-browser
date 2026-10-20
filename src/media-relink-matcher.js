@@ -46,8 +46,14 @@ function candidateSignals(item, candidate) {
  * @returns {{status:'unique'|'ambiguous'|'none', ranked:[{path,sizeBytes,score,signals}]}}
  */
 function selectRelinkCandidates(item, candidates) {
+  const seen = new Set();
   const ranked = (Array.isArray(candidates) ? candidates : [])
     .filter((c) => c && typeof c.path === 'string' && c.path)
+    .filter((c) => {
+      const key = pathIdentity(c.path);
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    })
     .map((c) => ({ path: c.path, sizeBytes: Number(c.sizeBytes) || 0,
                    ...candidateSignals(item, c) }))
     .filter((c) => c.score >= LISTED_SCORE)
@@ -79,21 +85,32 @@ function looksLikeAbsoluteDir(value) {
   return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\') || value.startsWith('/');
 }
 
+function normalizedAbsolutePath(value) {
+  const windows = /^[a-zA-Z]:[\\/]/.test(value) || /^[/\\]{2}[^/\\]/.test(value);
+  return normalizeFsPath((windows ? path.win32 : path.posix).normalize(value));
+}
+
+function pathIdentity(value) {
+  const normalized = normalizedAbsolutePath(value);
+  return /^[a-zA-Z]:[\\/]/.test(value) || /^[/\\]{2}[^/\\]/.test(value) ? normalized.toLowerCase() : normalized;
+}
+
 function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
   const existsFn = typeof exists === 'function' ? exists : () => false;
-  const oldNorm = normalizeRoot(oldPrefix);
-  const newNorm = normalizeRoot(newPrefix);
+  if (!looksLikeAbsoluteDir(String(oldPrefix || '')) || (newPrefix && !looksLikeAbsoluteDir(String(newPrefix)))) return { rows: [], scanned: 0 };
+  const oldNorm = normalizeRoot(pathIdentity(String(oldPrefix)));
+  const newNorm = newPrefix ? normalizeRoot(normalizedAbsolutePath(String(newPrefix))) : '';
   const rows = [];
   if (!oldNorm) return { rows, scanned: 0 };
-  const oldLower = (oldNorm.endsWith('/') ? oldNorm : oldNorm + '/').toLowerCase();
+  const oldLower = oldNorm.endsWith('/') ? oldNorm : oldNorm + '/';
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.key !== 'string' || !item.key.startsWith('file:')) continue;
     const localPath = String(item.localPath || item.sourceRef || '');
     if (!localPath) continue;
     const pathNorm = normalizeFsPath(localPath);
-    const lower = pathNorm.toLowerCase();
+    const lower = pathIdentity(localPath);
     if (!(lower.length > oldLower.length && lower.startsWith(oldLower))) continue;
-    const suffix = pathNorm.slice(oldLower.length);
+    const suffix = normalizedAbsolutePath(localPath).slice(oldLower.length);
     const candidate = newNorm ? newNorm + (newNorm.endsWith('/') ? '' : '/') + suffix : '';
     let exists = false, ready = false;
     try { exists = !!existsFn(pathNorm); } catch (_) {}
@@ -120,8 +137,8 @@ function stemNorm(value) {
 }
 
 function pairEvidence(a, b) {
-  const sizeA = Math.max(0, Number(a?.sizeBytes) || 0);
-  const sizeB = Math.max(0, Number(b?.sizeBytes) || 0);
+  const sizeA = Number.isFinite(Number(a?.sizeBytes)) ? Math.max(0, Number(a?.sizeBytes)) : 0;
+  const sizeB = Number.isFinite(Number(b?.sizeBytes)) ? Math.max(0, Number(b?.sizeBytes)) : 0;
   if (sizeA > 0 && sizeB > 0) return sizeA === sizeB ? 'strong' : '';
   const durA = Math.max(0, Number(a?.duration) || 0);
   const durB = Math.max(0, Number(b?.duration) || 0);

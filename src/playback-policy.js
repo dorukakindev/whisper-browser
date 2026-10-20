@@ -21,11 +21,11 @@
   function playbackLearningAction(rawCues, time, previousTime, policy = 'normal', options = {}) {
     const cues = normalizeCueList(rawCues);
     const currentTime = Math.max(0, Number(time) || 0);
-    const previous = Number(previousTime);
+    const previous = previousTime == null || previousTime === '' || typeof previousTime === 'boolean' ? NaN : Number(previousTime);
     const baseRate = Math.max(0.25, Math.min(4, Number(options.baseRate) || 1));
     const gapRate = Math.max(baseRate, Math.min(4, Number(options.gapRate) || 2));
     const minGap = Math.max(0.5, Number(options.minGap) || 2);
-    const lead = Math.max(0, Math.min(1, Number(options.lead) || 0.15));
+    const lead = Math.max(0, Math.min(1, options.lead == null || !Number.isFinite(Number(options.lead)) ? 0.15 : Number(options.lead)));
     const active = cues.find((cue) => currentTime >= cue.start && currentTime < cue.end);
     const next = cues.find((cue) => cue.start > currentTime);
     // Büyük zaman sıçraması kullanıcı seek'idir; cue sonunu doğal oynatmayla

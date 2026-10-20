@@ -37,7 +37,7 @@
     if (!record) return { records: normalizeRecords(records), changed: false };
     const next = normalizeRecords(records);
     const index = next.findIndex(item => item.id === record.id);
-    if (index < 0) next.push(record);
+    if (index < 0) { if (next.length >= 500) next.shift(); next.push(record); }
     else next[index] = record;
     return { records: next, changed: true };
   }

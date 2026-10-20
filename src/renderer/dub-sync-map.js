@@ -24,8 +24,8 @@
     for (const s of sync.segments) {
       if (time < s.v0) return {time:time + delta, factor:1};
       if (time < s.v1) {
-        const span = s.v1 - s.v0, stretch = Math.max(1, (s.a1 - s.a0) / span);
-        if (sync.smooth) {
+        const span = s.v1 - s.v0, stretch = (s.a1 - s.a0) / span;
+        if (sync.smooth && stretch >= 1) {
           const x = (time - s.v0) / span, extra = stretch - 1;
           // Integral of the smooth speed curve preserves both endpoints and
           // the complete audio. Speed returns continuously to 1 at boundaries.

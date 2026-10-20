@@ -61,6 +61,7 @@
   }
 
   function sourceToVideoTime(sourceTime, transform) {
+    if (!isTimeValue(sourceTime)) throw new TypeError('Kaynak zamanı geçersiz.');
     const source = Number(sourceTime);
     if (!Number.isFinite(source)) throw new TypeError('Kaynak zamanı geçersiz.');
     const normalized = normalizeTransform(transform);
@@ -68,10 +69,15 @@
   }
 
   function videoToSourceTime(videoTime, transform) {
+    if (!isTimeValue(videoTime)) throw new TypeError('Video zamanı geçersiz.');
     const video = Number(videoTime);
     if (!Number.isFinite(video)) throw new TypeError('Video zamanı geçersiz.');
     const normalized = normalizeTransform(transform);
     return (video - normalized.offsetSeconds) / normalized.scale;
+  }
+
+  function isTimeValue(value) {
+    return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
   }
 
   function normalizePoint(raw) {
@@ -164,6 +170,7 @@
   }
 
   function createSyncRecord(raw) {
+    if (raw?.version != null && raw.version !== SYNC_RECORD_VERSION) throw new TypeError('Senkron kayıt sürümü desteklenmiyor.');
     const mediaId = clean(raw && raw.mediaId, 240);
     const sourceTrackId = clean(raw && raw.sourceTrackId, 180);
     const sourceHash = clean(raw && raw.sourceHash, 128);
@@ -209,8 +216,7 @@
     let skipped = 0;
     let invalidSkipped = 0;
     for (const cue of source) {
-      if (!cue || cue.start == null || cue.end == null
-          || !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))) {
+      if (!cue || !isTimeValue(cue.start) || !isTimeValue(cue.end)) {
         invalidSkipped++;
         continue;
       }
@@ -241,6 +247,7 @@
   }
 
   function createEditRecord(raw) {
+    if (raw?.version != null && raw.version !== EDIT_RECORD_VERSION) throw new TypeError('Altyazı düzeltme sürümü desteklenmiyor.');
     const timing = raw?.timingOverride;
     if (timing != null && (!Number.isFinite(timing.start) || !Number.isFinite(timing.end)
         || timing.start < 0 || timing.end - timing.start < .08)) {
@@ -287,6 +294,8 @@
     let item;
     try { item = createEditRecord(record); } catch (_) { return { ...modelCue }; }
     if (!recordFieldsMatch(item, context)) return { ...modelCue };
+    const baseTranslation = modelCue.userOverride != null && modelCue.baseTranslation != null
+      ? String(modelCue.baseTranslation) : String(modelCue?.text ?? '');
     return {
       ...modelCue,
       cueId: modelCue.cueId || context.cueId,
@@ -294,8 +303,8 @@
       ...(item.timingOverride ? { cueId: modelCue.cueId || context.cueId,
         sourceStart: modelCue.sourceStart ?? modelCue.start, sourceEnd: modelCue.sourceEnd ?? modelCue.end,
         start: item.timingOverride.start, end: item.timingOverride.end } : {}),
-      text: item.hasOverride ? item.userOverride : String(modelCue?.text ?? ''),
-      baseTranslation: String(modelCue?.text ?? ''),
+      text: item.hasOverride ? item.userOverride : baseTranslation,
+      baseTranslation,
       userOverride: item.hasOverride ? item.userOverride : null,
       userRevision: item.revision,
     };

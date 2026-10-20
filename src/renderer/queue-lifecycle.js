@@ -154,7 +154,7 @@
     let scheduled = false;
     let running = false;
     let rerun = false;
-    let rerunDelay = 0;
+    let rerunDelay = null;
 
     const arm = (delay) => {
       scheduled = true;
@@ -162,7 +162,7 @@
         scheduled = false;
         if (running) {
           rerun = true;
-          rerunDelay = Math.min(rerunDelay || delay, delay);
+          rerunDelay = rerunDelay == null ? delay : Math.min(rerunDelay, delay);
           return;
         }
         running = true;
@@ -173,7 +173,7 @@
           if (rerun) {
             const nextDelay = rerunDelay;
             rerun = false;
-            rerunDelay = 0;
+            rerunDelay = null;
             arm(nextDelay);
           }
         }
@@ -186,7 +186,7 @@
         if (running) {
           rerun = true;
           const normalized = Math.max(0, Number(delay) || 0);
-          rerunDelay = rerunDelay ? Math.min(rerunDelay, normalized) : normalized;
+          rerunDelay = rerunDelay == null ? normalized : Math.min(rerunDelay, normalized);
           return false;
         }
         arm(delay);
