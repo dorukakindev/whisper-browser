@@ -276,7 +276,7 @@ function parseTimedBlocks(body, timing = {}) {
     // NOTE may itself contain valid-looking timing examples. Remove metadata
     // blocks before the global timing scan used to recover separator-less SRT.
     clean = clean.split(/\n[ \t]*\n/).filter(block =>
-      !/^(?:NOTE(?:[ \t]|$)|STYLE[ \t]*(?:\n|$)|REGION[ \t]*(?:\n|$))/.test(block)).join('\n\n');
+      !/^(?:NOTE(?:[ \t\n]|$)|STYLE[ \t]*(?:\n|$)|REGION[ \t]*(?:\n|$))/.test(block)).join('\n\n');
   }
   const timestampMap = (clean.match(/X-TIMESTAMP-MAP\s*=\s*[^\n]*/i) || [])[0] || '';
   const localMatch = timestampMap.match(/LOCAL:([^,\s]+)/i);

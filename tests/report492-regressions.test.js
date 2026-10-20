@@ -158,8 +158,10 @@ test('492-12: a failed stop attempt allows the user to retry stopping the same l
 });
 
 test('492-13: WebVTT comments containing timestamps do not become spoken subtitles', () => {
-  const text = 'WEBVTT\n\nNOTE diagnostic example\n00:00:01.000 --> 00:00:02.000\nDo not translate this comment\n\n00:00:03.000 --> 00:00:05.000\nReal dialogue\n';
-  assert.deepEqual(subtitles.parseTimedBlocks(text).map(c => c.text), ['Real dialogue']);
+  for (const header of ['NOTE', 'NOTE diagnostic example']) {
+    const text = 'WEBVTT\n\n' + header + '\n00:00:01.000 --> 00:00:02.000\nDo not translate this comment\n\n00:00:03.000 --> 00:00:05.000\nReal dialogue\n';
+    assert.deepEqual(subtitles.parseTimedBlocks(text).map(c => c.text), ['Real dialogue']);
+  }
 });
 
 test('492-14: Persian/Arabic joining marks retain the same meaning when encoded as entities', () => {
