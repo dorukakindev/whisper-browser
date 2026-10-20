@@ -20,7 +20,7 @@ function median(values) {
 function calibrateCueTimeline(referenceCues = [], candidateCues = [], options = {}) {
   const maxOffset = Math.max(1, Number(options.maxOffsetSeconds) || 120);
   const tolerance = Math.max(0.05, Number(options.toleranceSeconds) || 0.4);
-  const time = value => (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) && Number(value)>=0 ? Number(value) : NaN;
+  const time = value => (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) ? Number(value) : NaN;
   const candidateByText = new Map();
   for (const cue of candidateCues || []) {
     const text = normalizeTimelineText(cue?.text);
