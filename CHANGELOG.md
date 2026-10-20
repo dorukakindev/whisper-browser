@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed twenty transcript evidence, synchronization/edit restore, media relink, playback, queue, session and audio-map edge cases.
+
 - Fixed ten translation archive matching/path, subtitle completion counters, closed-tab recovery, calibration precision and cross-platform cache ownership bugs.
 
 - Fixed ten dubbing playback, portable project integrity, export-size and speech validation bugs, including stale preview playback and replaced audio layer races.

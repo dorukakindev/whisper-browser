@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 490 | [BROWSER_BUG_REPORT_490.md](BROWSER_BUG_REPORT_490.md) | Transcript, senkron, relink, oynatma ve oturumda 20 yeni düzeltme |
 | 489 | [BROWSER_BUG_REPORT_489.md](BROWSER_BUG_REPORT_489.md) | Çeviri arşivi, altyazı sayaçları, sekme ve senkron/cache sınırlarında 10 düzeltme |
 | 488 | [BROWSER_BUG_REPORT_488.md](BROWSER_BUG_REPORT_488.md) | Ses oturumları, proje bütünlüğü ve sayı/anlam kontrolünde 10 düzeltme |
 | 487 | [BROWSER_BUG_REPORT_487.md](BROWSER_BUG_REPORT_487.md) | Doğal konuşma ikinci geçişi, gerçek süre, ayrı ses metni ve ses son işlemi |
