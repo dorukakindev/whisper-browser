@@ -17,11 +17,14 @@ def speech_check(expected, actual, numeric_reference=None):
     similarity = SequenceMatcher(None, target, heard, autojunk=False).ratio()
     # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
     # Match complete normalized number phrases, consuming each occurrence once.
+    number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
     remaining = list(heard)
     missing_numbers = []
     for number in re.findall(r'\d+(?:[.,]\d+)*', expected if numeric_reference is None else numeric_reference):
         phrase = words(number + ' kişi')[:-1]
-        found = next((i for i in range(len(remaining)-len(phrase)+1) if remaining[i:i+len(phrase)] == phrase), None)
+        found = next((i for i in range(len(remaining)-len(phrase)+1) if remaining[i:i+len(phrase)] == phrase
+                      and (i==0 or remaining[i-1] not in number_words)
+                      and (i+len(phrase)==len(remaining) or remaining[i+len(phrase)] not in number_words)), None)
         if found is None:
             missing_numbers.append(number)
         else:

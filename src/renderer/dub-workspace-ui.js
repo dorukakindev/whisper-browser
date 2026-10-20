@@ -7,9 +7,9 @@
   const layerAudio={background:el('dubMixBackgroundAudio'),music:el('dubMixMusicAudio'),ambience:el('dubMixAmbienceAudio')};
   const controls={voice:'dubMixVoice',background:'dubMixBackground',music:'dubMixMusic',ambience:'dubMixAmbience',duckAmount:'dubMixDuckAmount'};
   let generationBusy=false;
-  let rows=[],mixPlaying=false,previewTimer=null;
+  let rows=[],mixPlaying=false,previewTimer=null,playIntent=0,wantsPreview=false;
   const note=text=>{el('dubWorkspaceStatus').textContent=t(text);};
-  function stop(){mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
+  function stop(){++playIntent;wantsPreview=false;mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
   function readMix(){for(const [key,id] of Object.entries(controls))mix[key]=Number(el(id).value);mix.duck=el('dubMixDuck').checked;mix=Model.mix(mix);return mix;}
   function showMix(){for(const [key,id] of Object.entries(controls))el(id).value=String(mix[key]);el('dubMixDuck').checked=mix.duck;}
   function buttons(){
@@ -44,7 +44,8 @@
   function setOutput(value,expected){
     stop();output=value;selected=null;context=expected||window.BrowserDubAudioUI?.context();layers=value?.layers||{};mix=Model.mix(value?.mix);showMix();
     try{rows=Model.groups(value?.quality?.groups||value?.rows||[]);}catch(_){rows=[];}
-    if(value?.url)voice.src=value.url;
+    if(value?.url)voice.src=value.url;else voice.removeAttribute('src');voice.load();
+    lastPath='';el('dubWorkspaceReveal').classList.add('hidden');
     for(const [key,a] of Object.entries(layerAudio)){const f=key==='background'?value?.background:layers[key];if(f?.url)a.src=f.url;else a.removeAttribute('src');a.load();}
     el('dubProjectVideoOpen').classList.toggle('hidden',!value?.video);el('dubProjectVideo').checked=!!value?.video;
     layerNames();timeline();buttons();if(rows.length)choose(rows[0]);
@@ -67,7 +68,7 @@
   el('dubWorkspaceReveal').addEventListener('click',()=>{if(lastPath)void window.api.openPath(lastPath);});
   el('dubTimelineFilter').addEventListener('change',timeline);
   el('dubTimelineVideo').addEventListener('click',async()=>{if(selected && await window.BrowserDubAudioUI?.seekSource(selected.sourceStart,context))el('dubGeneratorDialog').close();else note('Video değişti; önce doğru videoyu açın.');});
-  el('dubTimelineListen').addEventListener('click',()=>{if(!selected)return;stop();voice.currentTime=selected.audioStart;limit=selected.audioEnd;void voice.play().catch(()=>note('Ses başlatılamadı.'));});
+  el('dubTimelineListen').addEventListener('click',()=>{if(!selected)return;stop();voice.currentTime=selected.audioStart;limit=selected.audioEnd;playPreview();});
   async function chooseLayer(kind){
     if(busy||generationBusy)return;busy=true;buttons();
     try{const chosen=await window.api.selectVideo();if(!Array.isArray(chosen)||!chosen[0])return;
@@ -83,6 +84,11 @@
     for(let i=0;i<36;i++){const mid=(a+b)/2;if(window.DubSyncMap.at(output.sync,mid).time<time)a=mid;else b=mid;}
     const local=(a+b)/2;return {time:local,factor:window.DubSyncMap.at(output.sync,local).factor};
   }
+  function playPreview(){
+    wantsPreview=true;const intent=++playIntent;
+    void Promise.resolve().then(()=>{if(intent===playIntent && wantsPreview)return voice.play();}).then(()=>{if(!wantsPreview)voice.pause();})
+      .catch(()=>{if(intent===playIntent){stop();note('Ses başlatılamadı.');}});
+  }
   function syncPreview(){
     const value=readMix();voice.volume=value.voice;
     if(limit!==null && voice.currentTime>=limit){stop();return;}
@@ -92,11 +98,11 @@
       a.volume=value[key]*duck;if(!a.getAttribute('src') || a.readyState<1)continue;
       a.playbackRate=Math.max(.0625,Math.min(16,voice.playbackRate/source.factor));
       if(Math.abs(a.currentTime-source.time)>.15)a.currentTime=source.time;
-      if(a.paused && source.time<a.duration)void a.play().catch(()=>{stop();note('Arka plan sesi başlatılamadı.');});
+      if(a.paused && source.time<a.duration){const intent=playIntent;void Promise.resolve().then(()=>a.play()).then(()=>{if(!mixPlaying)a.pause();}).catch(()=>{if(intent===playIntent){stop();note('Arka plan sesi başlatılamadı.');}});}
     }
   }
   for(const id of [...Object.values(controls),'dubMixDuck'])el(id).addEventListener('input',()=>{syncPreview();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);});
-  el('dubMixPreview').addEventListener('click',()=>{if(!output)return;stop();window.BrowserDubAudioUI?.stop();voice.currentTime=selected?.audioStart||0;mixPlaying=true;void voice.play().catch(()=>{stop();note('Ses başlatılamadı.');});});
+  el('dubMixPreview').addEventListener('click',()=>{if(!output)return;stop();window.BrowserDubAudioUI?.stop();voice.currentTime=selected?.audioStart||0;mixPlaying=true;playPreview();});
   el('dubMixStop').addEventListener('click',stop);
   voice.addEventListener('play',()=>{void window.BrowserDubAudioUI?.pauseSource?.(context);window.BrowserDubAudioUI?.stop();clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
   voice.addEventListener('pause',()=>{clearInterval(previewTimer);previewTimer=null;for(const a of Object.values(layerAudio))a.pause();});

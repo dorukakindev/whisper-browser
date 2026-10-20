@@ -56,7 +56,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       const target=choice.filePath.endsWith('.dubproject')?choice.filePath:choice.filePath+'.dubproject';
       if(fs.existsSync(target))throw new Error('Choose a new project name; existing projects are preserved.');
       staging=target+'.partial-'+randomUUID();await fsp.mkdir(staging);
-      const files={voice:'voice.wav'}, layers=await extras(request);
+      const files={voice:'voice.wav'}, layers=await extras({...request,layers:request.layers ?? output.layers});
       const source=await authorizeMedia(output.path);await fsp.copyFile(source,path.join(staging,files.voice));
       if(output.background?.path) {files.background='background.wav';await fsp.copyFile(await authorizeMedia(output.background.path),path.join(staging,files.background));}
       for(const kind of ['music','ambience']) if(layers[kind]){files[kind]=kind+path.extname(layers[kind].path).toLowerCase();await fsp.copyFile(layers[kind].path,path.join(staging,files[kind]));check(op);}
@@ -81,7 +81,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       }
       const manifest={format:'whisper-dub-project',version:1,name:output.name,files,
         sync:output.sync,range:output.range || null,sample:output.sample===true,rows:output.rows,
-        mix:Model.mix(request.mix),settings:output.settings || null};
+        mix:Model.mix(request.mix ?? output.mix),settings:output.settings || null};
       check(op);await fsp.writeFile(path.join(staging,'project.json'),JSON.stringify(manifest,null,2),'utf8');
       // No overwrite: the unique staging directory is installed only at the end.
       if(fs.existsSync(target))throw new Error('Project already exists.');
@@ -99,16 +99,18 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       if(value.format!=='whisper-dub-project' || value.version!==1 || !value.files || !value.files.voice)throw new Error('Invalid dubbing project.');
       const sync=validate(value.sync),rows=Model.groups(value.rows||[]),range=value.range;
       if(range && (!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start||range.end>86400))throw new Error('Invalid project range.');
-      const loaded={};
+      if(range && sync && Math.abs(range.end-range.start-sync.videoDuration)>.05)throw new Error('Invalid project range.');
+      const loaded={},pendingGrants=[];
       for(const kind of ['voice','background','music','ambience','subtitle','sourceSubtitle','spokenSubtitle','video']) if(value.files[kind]){
         const name=value.files[kind];
         if(typeof name!=='string' || path.basename(name)!==name || /[\\/:\x00-\x1f]/.test(name) || name==='.' || name==='..')throw new Error('Invalid project asset.');
         const target=path.join(folder,name);
         if(!fs.statSync(target).isFile() || fs.realpathSync(target)!==target)throw new Error('Missing or linked project asset.');
-        if(kind==='subtitle'||kind==='sourceSubtitle'||kind==='spokenSubtitle') {if(path.extname(name).toLowerCase()!=='.srt')throw new Error('Invalid subtitles.');grantSubtitle(target);loaded[kind]=target;}
-        else {if(!/\.(wav|mp3|flac|ogg|opus|m4a|aac|mp4|mkv|webm|mov|avi|m4v)$/i.test(name))throw new Error('Invalid media.');grantMedia(target);loaded[kind]={path:target,url:pathToFileURL(target).href,name};}
+        if(kind==='subtitle'||kind==='sourceSubtitle'||kind==='spokenSubtitle') {if(path.extname(name).toLowerCase()!=='.srt')throw new Error('Invalid subtitles.');pendingGrants.push(['subtitle',target]);loaded[kind]=target;}
+        else {if(!/\.(wav|mp3|flac|ogg|opus|m4a|aac|mp4|mkv|webm|mov|avi|m4v)$/i.test(name))throw new Error('Invalid media.');pendingGrants.push(['media',target]);loaded[kind]={path:target,url:pathToFileURL(target).href,name};}
       }
       check(op);
+      for(const [kind,target] of pendingGrants){if(kind==='subtitle')grantSubtitle(target);else grantMedia(target);}
       const output=register({path:loaded.voice.path,url:loaded.voice.url,name:String(value.name||'Dublaj.wav').slice(0,200),
         sync,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
         background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,spokenSubtitle:loaded.spokenSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
@@ -137,9 +139,9 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       const target=choice.filePath.toLowerCase().endsWith('.'+ext)?choice.filePath:choice.filePath+'.'+ext;
       // Preserve source media and previous exports even if a path is selected twice.
       if(fs.existsSync(target))throw new Error('Choose a new output name; existing files are preserved.');
-      const layers=await extras(request);check(op);
+      const layers=await extras({...request,layers:request.layers ?? output.layers});check(op);
       const cfg={voice:await authorizeMedia(output.path),video,kind:request.kind,sync:output.sync,range:output.range||null,
-        rows:output.rows,mix:Model.mix(request.mix),background:output.background?.path?await authorizeMedia(output.background.path):null,
+        rows:output.rows,mix:Model.mix(request.mix ?? output.mix),background:output.background?.path?await authorizeMedia(output.background.path):null,
         music:layers.music?.path||null,ambience:layers.ambience?.path||null};
       temp=await fsp.mkdtemp(path.join(os.tmpdir(),'whisper-dub-export-'));
       partial=path.join(path.dirname(target),'.dub-'+randomUUID()+'.partial.'+ext);

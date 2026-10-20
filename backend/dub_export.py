@@ -180,15 +180,21 @@ def export(request, output, ffmpeg):
     run(args)
 
 
+def load_request(file):
+    with Path(file).open('rb') as handle:
+        data=handle.read(16_000_001)
+    if len(data)>16_000_000:
+        raise ValueError('Export request too large.')
+    return json.loads(data.decode('utf-8'))
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--request',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--ffmpeg',required=True)
     args=parser.parse_args()
-    if Path(args.request).stat().st_size > 4000000:
-        raise ValueError('Export request too large.')
-    export(json.loads(Path(args.request).read_text(encoding='utf-8')),args.output,args.ffmpeg)
+    export(load_request(args.request),args.output,args.ffmpeg)
 
 
 if __name__=='__main__':

@@ -10,10 +10,13 @@
   }
   function groups(value) {
     if (!Array.isArray(value) || value.length > 5000) throw new Error('Invalid dubbing timeline.');
+    const keys=new Set();
     return value.map((r,i) => {
       if (!r || typeof r.key !== 'string' || r.key.length > 200 || typeof r.text !== 'string' || r.text.length > 16000
           || ![r.sourceStart,r.sourceEnd,r.audioStart,r.audioEnd].every(n => finite(n,0,172800))
           || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart) throw new Error('Invalid dubbing timeline.');
+      if(keys.has(r.key))throw new Error('Invalid dubbing timeline.');
+      keys.add(r.key);
       let speechRanges;
       if (Array.isArray(r.speechRanges) && r.speechRanges.length <= 100
           && r.speechRanges.every((p,i,a) => Array.isArray(p) && p.length===2 && p.every(n=>finite(n,r.audioStart,r.audioEnd+.00001)) && p[1]>p[0] && (!i || p[0]>=a[i-1][1]))) speechRanges=r.speechRanges.map(p=>[...p]);

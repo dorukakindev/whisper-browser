@@ -18,6 +18,8 @@ function safeShortening(source, proposed, {natural=false} = {}) {
   }
   // Retain repeated negation evidence and non-initial capitalized names.
   const words = text => text.toLocaleLowerCase('tr').match(/[\p{L}]+/gu) || [];
+  const negations = text => words(text).filter(w => /^(?:değil|yok|asla|hiç)/u.test(w)).sort();
+  if (JSON.stringify(negations(source)) !== JSON.stringify(negations(proposed))) return false;
   const target = words(proposed);
   for (const token of words(source).filter(w => /^(?:değil|yok|asla|hiç)/u.test(w))) {
     const i = target.indexOf(token); if (i < 0) return false; target.splice(i,1);

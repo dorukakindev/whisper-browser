@@ -108,7 +108,7 @@
       if(layers){s.layers=layers;for(const key of ['music','ambience']){
         const a=this[key+'Audio'];if(!a)continue;
         const url=layers[key]?.url||'';
-        if((a.getAttribute?.('src')||a.src||'')!==url){a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
+        if((a.getAttribute?.('src')||a.src||'')!==url){s[key+'Epoch']=(s[key+'Epoch']||0)+1;s[key+'PlayPending']=false;s[key+'Wanted']=false;a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
       }this.changed(s,'Dublaj açık');}
       this.audio.volume=s.mix.voice;if(refresh)this.tick();
     }

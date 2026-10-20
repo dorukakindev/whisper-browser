@@ -38,6 +38,13 @@ class FinishTests(unittest.TestCase):
         self.assertTrue(speech_check(spoken,'Doktor Kaya 13,5 kilometre yürüdü.',source)['review'])
         self.assertEqual(speech_check('12 kişi, 12 saat.', 'on iki kişi.', '12 kişi, 12 saat.')['missing_numbers'],['12'])
 
+    def test_number_phrases_do_not_match_inside_larger_values(self):
+        expected='iki kişi bugün bu uzun yoldan buraya kadar yürüyerek geldi'
+        actual='on iki kişi bugün bu uzun yoldan buraya kadar yürüyerek geldi'
+        result=speech_check(expected,actual,'2 kişi bugün bu uzun yoldan buraya kadar yürüyerek geldi')
+        self.assertTrue(result['review'])
+        self.assertEqual(result['missing_numbers'],['2'])
+
     def test_activity_excludes_long_pause_and_silence(self):
         sr=8000
         voice=np.ones(sr,dtype='float32')*.1

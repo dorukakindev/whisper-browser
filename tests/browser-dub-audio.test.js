@@ -17,7 +17,7 @@ assert.equal(handler({}, 'a', true).ok, true); assert.equal(actualMute, true);
 handler({}, 'a', true); assert.equal(actualMute, true);
 handler({}, 'a'); assert.equal(actualMute, false);
 authorized = false; assert.equal(handler({}, 'a', true).ok, false); assert.equal(actualMute, false);
-function fixture({ priorMuted = false, mute, setRate, backgroundAudio } = {}) {
+function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudio } = {}) {
   const calls = [], errors = [], revoked = [];
   const c = { mode: 'browser', tabId: 'a', mediaKey: 'video', generation: 1, priorMuted };
   const audio = { currentTime: 0, duration: 100, readyState: 4, paused: true,
@@ -27,7 +27,7 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio } = {}) {
   let clock = 10000;
   const dub = new Dub({ audio, context: () => c, now: () => clock,
     setRate,
-    backgroundAudio,
+    backgroundAudio, musicAudio,
     urls: { createObjectURL: () => 'blob:test', revokeObjectURL: u => revoked.push(u) },
     mute: mute || (async (...args) => { calls.push(args); return { ok: true }; }),
     error: e => errors.push(e) });
@@ -147,6 +147,19 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio } = {}) {
       pending[1].resolve(); await flush();
       assert.equal(f.dub.session[flag],false);
     } finally { await f.dub.remove(); }
+  }
+  {
+    let rejectOld;
+    const music={src:'',currentTime:0,duration:100,readyState:4,paused:true,
+      addEventListener(){},getAttribute(){return this.src;},load(){},removeAttribute(){this.src='';},
+      pause(){this.paused=true;},play(){this.paused=false;return this.src==='file:///old.wav'?new Promise((_r,reject)=>{rejectOld=reject;}):Promise.resolve();}};
+    const layers=fixture({musicAudio:music});
+    try{
+      await layers.dub.attach({url:'file:///voice.wav',layers:{music:{url:'file:///old.wav'}}},layers.c);
+      layers.dub.update({currentTime:1,paused:false,playbackRate:1});await flush();assert.ok(rejectOld);
+      layers.dub.setMix({}, {music:{url:'file:///new.wav'}});rejectOld(new Error('old aborted'));await flush();
+      assert.ok(layers.dub.session,'a replaced layer must not fail the new session');assert.deepEqual(layers.errors,[]);
+    }finally{await layers.dub.remove();}
   }
   console.log('browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

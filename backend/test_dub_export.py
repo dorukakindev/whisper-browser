@@ -12,6 +12,14 @@ import dub_export as E
 
 
 class DubExportTests(unittest.TestCase):
+    def test_large_portable_project_request_and_hard_limit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file=Path(folder)/'request.json'
+            file.write_text('{"rows":[]}'+' '*4_100_000,encoding='utf-8')
+            self.assertEqual(E.load_request(file),{'rows':[]})
+            file.write_bytes(b' '*16_000_001)
+            with self.assertRaisesRegex(ValueError,'too large'):E.load_request(file)
+
     def test_smooth_endpoints_and_pitch_preserving_schedule(self):
         sync={'version':1,'smooth':True,'videoDuration':3,'audioDuration':4,
               'segments':[{'v0':1,'v1':3,'a0':1,'a1':4}]}
