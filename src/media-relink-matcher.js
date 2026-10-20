@@ -97,7 +97,9 @@ function pathIdentity(value) {
 
 function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
   const existsFn = typeof exists === 'function' ? exists : () => false;
-  if (!looksLikeAbsoluteDir(String(oldPrefix || '')) || (newPrefix && !looksLikeAbsoluteDir(String(newPrefix)))) return { rows: [], scanned: 0 };
+  oldPrefix = String(oldPrefix || '').trim();
+  newPrefix = String(newPrefix || '').trim();
+  if (!looksLikeAbsoluteDir(oldPrefix) || (newPrefix && !looksLikeAbsoluteDir(newPrefix))) return { rows: [], scanned: 0 };
   const oldNorm = normalizeRoot(pathIdentity(String(oldPrefix)));
   const newNorm = newPrefix ? normalizeRoot(normalizedAbsolutePath(String(newPrefix))) : '';
   const rows = [];
