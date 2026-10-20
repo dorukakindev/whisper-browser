@@ -17,7 +17,7 @@ Rapor488'in ses oturumu/proje bulguları tekrar sayılmadı.
 | 489-05 | Subtitle output total/failed için Infinity veya “Infinity” sonsuz sayaç üretiyor, completed hesapları NaN olabiliyordu. | Negatif olmayan güvenli tamsayı sayacı; geçersiz girdiler0. Sonuçlarda nonfinite değer kalmaz. |
 | 489-06 | completed:null veya boş dizgi Number ile0 sayılıyordu; total10 failed2 olduğunda0/10 ve10 başarısız gösteriyordu. | Null/eksik/boş completed bildirilmemiş sayılır, total-failed=8 hesaplanır. Explicit0 korunur. |
 | 489-07 | Tek clone edilemeyen opsiyonel track/selection alanı tüm normalizeClosedBrowserTab'ı DataCloneError ile kesebiliyordu. | Optional obje güvenli clone edilir; bozuk alan atılır, geçerli track ve sekme URL'si korunur. Geçmişin bağımsız kopya sözleşmesi sürer. |
-| 489-08 | Otomatik kalibrasyonda start:null/boş/boolean Number ile0 oluyordu; uzun tek cümle sahte0→10sn kaydırmayı kabul ediyordu. | Yalnız sonlu, negatif olmayan sayı veya boş olmayan sayısal dizgi eşleşme kanıtıdır. Null zaman örneği artık kabul edilmez. |
+| 489-08 | Otomatik kalibrasyonda start:null/boş/boolean Number ile0 oluyordu; uzun tek cümle sahte0→10sn kaydırmayı kabul ediyordu. | Yalnız sonlu sayı veya boş olmayan sayısal dizgi eşleşme kanıtıdır. Null zaman örneği artık kabul edilmez. |
 | 489-09 | Çok noktalı senkron regresyonunda n*sum(x²)-sum(x)² büyük kaynak başlangıcında hassasiyet kaybediyordu.100000sn+0/1,1/2,2 ve gerçek4sn offset eski3,78982137;1e9 başlangıçta tümden sıfır varyans hatası. | Ana fit ve leave-one-out fit başlangıca/ortalamaya göre merkezlenir. İki örnekte scale1/offset4, sıfır residual. Bu sınır örneğidir; her normal kısa videoda görülen hata diye sunulmaz. |
 | 489-10 | Geçici altyazı cache'i bütün platformlarda yolu lowercase yapıyordu. POSIX /case/cache dosyası /case/Cache'e ait sayılıp limit budamasında silinebiliyordu. | pathKey Windows ayıracında case-insensitive, POSIX'te exact. Simüle POSIX fs testinde kardeş klasör dosyası index'e girmez ve unlink edilmez. Windows normal case davranışı sürer. |
 
@@ -38,7 +38,7 @@ Hedefli mevcut testler:
 - Değişen6JS + main/preload/renderer node --check ve git diff --check geçti.
 
 UI düzeni/etiketi değiştirilmedi; görsel test bu turda yapılmadı.
-Tam yerel paket CI hatası üzerine çalıştırıldı: 18 dosya kırmızı; biri kalibrasyon regresyonu, kalanlar eksik Python/Node test bağımlılıklarıyla ilgili ortam engelleri. Windows CI yeniden koşuyor.
+Tam yerel paket CI hatası üzerine çalıştırıldı: 18 dosya kırmızı; biri kalibrasyon regresyonu, kalanlar eksik Python/Node test bağımlılıklarıyla ilgili ortam engelleri. Son Windows CI sonucu aşağıdadır.
 Test silme/eşik gevşetme, paket/model indirme veya kurulum değişikliği yok.
 Gerçek YouTube/DRM/GPU/ücretli sağlayıcı ve kullanıcı profilinde start.bat akışı
 çalıştırılmadı. POSIX dosya sahipliği Windows üzerinde path.posix ve kontrollü fs
@@ -49,3 +49,7 @@ Ana Windows checkout master957bbfe9 ve kullanıcı untracked dosyaları korunur.
 ## CI takip düzeltmesi
 
 İlk Windows CI (39371626333/job/118460565572) timeline-oracle-fuzz uniform offset kontrolünde düştü: negatif ara zamanlar geçerli iken yeni zaman doğrulaması bunları reddediyordu. Sonlu negatif zamanlar korunarak düzeltildi; null/boş/bool reddi devam eder. Eşik/test değiştirilmedi. timeline-oracle-fuzz 12/12 (400 uniform senaryo dahil), kalibrasyon ve yeni 10 regresyon yeniden geçti. Son ürün commit: `4c26c4640539f930aceaef2772baa8c1e841ba58`.
+
+## Nihai Windows CI sonucu
+
+[Run 39373036831 / Windows job 118465098525](https://github.com/dorukakindev/whisper-browser/actions/runs/39373036831/job/118465098525) belge HEAD `92e92ce091ce500a0b66c1b4bf85ab1bc81f69b6`, ürün HEAD `4c26c4640539f930aceaef2772baa8c1e841ba58`: **başarısız**, 7dk39sn. Yeni 10 regresyon ve timeline-oracle-fuzz geçti. İki kırmızı: `tests/atomic-write-kill.test.js` yazım-başlama kapsamı 8/22; `backend/test_sentence_distribution.py` içindeki `test_translate_rescue_scales_across_chunks_parallel` AssertionError31. İkisi de bu turda değişmeyen zamanlamaya duyarlı kontrollerdir; kök nedenleri bu teslimde kesinleştirilmedi, ortam kaynaklı olduğu kanıtlanmış sayılmaz. Tam paket yeşil iddiası yok. CI bridge/syntax adımları paket yüzünden atlandı; yerel hedefli bridge/syntax başarıları geçerlidir. Açık sınır olarak bırakıldı; test/eşik silinmedi veya gevşetilmedi. Master merge edilmedi.
