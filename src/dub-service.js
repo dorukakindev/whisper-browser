@@ -74,7 +74,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       catch (error) { (s.cleanupErrors ||= []).push({ file: path.basename(file), code: error.code || 'UNKNOWN' }); }
     }
   }
+  function ownJob(s) {
+    job = s;
+    s.onDestroyed = () => { if (job === s) void cancel().catch(() => {}); };
+    s.sender.once?.('destroyed', s.onDestroyed);
+  }
   function finish(s, type, data = {}) {
+    s.sender.removeListener?.('destroyed', s.onDestroyed);
     if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
@@ -169,7 +175,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (typeof prepareReference !== 'function') throw new Error('Reference capture is unavailable.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false,
       started: performance.now(), startedAt: new Date().toISOString(), settings: { kind: 'reference', range } };
-    job = s;
+    ownJob(s);
     try {
       fs.mkdirSync(p.folder);
       claimArtifacts(s, [p.reference, p.transcript, p.metadata, path.join(p.folder, 'reference-quality.json'), p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
@@ -350,7 +356,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
-    job = s;
+    ownJob(s);
     try {
       const c = config();
       const profile = request.profile ?? c.profile;
@@ -558,7 +564,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               // The WAV can still be recovered manually if only its sync map
               // failed validation. Do not discard successfully generated audio.
               s.ownedArtifacts?.delete(output);
-              finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.', recoverablePath: output }); return;
+              grantMedia(output);
+              finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.', recoverablePath: output,
+                recoverableUrl: pathToFileURL(output).href, name: path.basename(output) }); return;
             }
           }
           grantMedia(output);

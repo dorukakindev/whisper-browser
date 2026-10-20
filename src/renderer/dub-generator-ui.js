@@ -343,7 +343,15 @@
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });
         }
       } else if (event.type === 'cancelled') status('Durduruldu.');
-      else { status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || ''; }
+      else {
+        status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || '';
+        if (event.recoverablePath && event.recoverableUrl) {
+          output = {path:event.recoverablePath,url:event.recoverableUrl,name:event.name,syncInvalid:true};
+          preview(output); el('dubGeneratedName').textContent = event.name || basename(output.path);
+          el('dubGeneratorOutput').classList.remove('hidden');
+          el('dubGeneratorUse').classList.add('hidden');
+        }
+      }
     }
   });
   window.addEventListener('dub-workspace:media', () => {

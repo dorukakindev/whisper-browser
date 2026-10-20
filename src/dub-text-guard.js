@@ -9,12 +9,15 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     remaining.splice(index, 1);
   }
   if (remaining.length) return false;
+  const signedNumbers = text => (text.match(/[+\-−]?\d+(?:[.,]\d+)*/g) || []).map(value => value.replace('−','-')).sort();
+  if (JSON.stringify(signedNumbers(source)) !== JSON.stringify(signedNumbers(proposed))) return false;
+  const containsName = name => new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?![\\p{L}\\p{N}_])`,'u').test(proposed);
   // Conservative evidence, not proof of semantic equivalence.
   for (const match of source.matchAll(/(?:^|\s)(değil\p{L}*|yok\p{L}*|asla|hiçbir|hiç)(?=\s|[.,!?;:]|$)/giu)) {
     if (!proposed.toLocaleLowerCase('tr').includes(match[1].toLocaleLowerCase('tr'))) return false;
   }
   for (const match of source.matchAll(/\p{Lu}[\p{L}]+(?=['’])/gu)) {
-    if (!proposed.includes(match[0])) return false;
+    if (!containsName(match[0])) return false;
   }
   // Retain repeated negation evidence and non-initial capitalized names.
   const words = text => text.toLocaleLowerCase('tr').match(/[\p{L}]+/gu) || [];
@@ -25,7 +28,7 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     const i = target.indexOf(token); if (i < 0) return false; target.splice(i,1);
   }
   for (const match of source.matchAll(/(?<![.!?]\s)(?<=\p{L}[,;:]?\s)\p{Lu}[\p{L}]+/gu)) {
-    if (!proposed.includes(match[0])) return false;
+    if (!containsName(match[0])) return false;
   }
   return true;
 }

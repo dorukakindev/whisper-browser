@@ -25,13 +25,14 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2' / 'altyazi_ok
 
 class Server:
     sample_rate = 8000
-    def __init__(self): self.calls = []; self.stopped = False; self.fail = set()
+    def __init__(self): self.calls = []; self.seeds = []; self.stopped = False; self.fail = set()
     async def wait_for_ready(self): pass
     async def encode_latents(self, *a): return None
     async def add_prompt(self, *a): return 'prompt'
     async def stop(self): self.stopped = True
     async def generate(self, text, **kwargs):
         self.calls.append(text)
+        self.seeds.append(kwargs['seed'])
         if text in self.fail: raise ValueError('controlled failure')
         yield np.ones(4000 if text == 'Short.' else 16000, dtype='float32')*.1
 
@@ -67,7 +68,7 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong reference'):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
-    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False):
+    def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -83,7 +84,7 @@ class GenerationTests(unittest.TestCase):
         ref = folder/'reference.wav'; ref.write_bytes(b'fixture')
         args = SimpleNamespace(steps=15,eszamanli=2,batch_tokens=2048,max_model_len=2048,
             gpu_mem=.8,ready_timeout=1,reference=ref,verify_python='fixture',
-            force_groups=set(),group_seeds=[42+i for i in range(len(texts))],
+            force_groups={'1'} if force else set(),regeneration_seed=123,group_seeds=[42+i for i in range(len(texts))],
             group_keys=[str(i+1) for i in range(len(texts))],bosluk_pay_ms=0,end_limit_ms=None,
             retry=1,request_timeout=1,seed=42,temperature=.8,cfg=1.65,max_generate_length=1024,
             verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set())
@@ -107,6 +108,14 @@ class GenerationTests(unittest.TestCase):
             _,args,_=self.run_generation(folder,second,['Good.','Broken.'])
             self.assertEqual(second.calls,['Broken.'])
             self.assertTrue(first.stopped and second.stopped)
+
+    def test_491_12_explicit_regeneration_requests_a_new_acoustic_seed(self):
+        with tempfile.TemporaryDirectory() as d:
+            server=Server();self.run_generation(Path(d),server,['Good.'],force=True)
+            self.assertEqual(server.seeds,[165])
+        with tempfile.TemporaryDirectory() as d:
+            server=Server();self.run_generation(Path(d),server,['Good.'])
+            self.assertEqual(server.seeds,[42])
 
     def test_duration_edit_keeps_actual_text_and_detailed_verification(self):
         with tempfile.TemporaryDirectory() as d:

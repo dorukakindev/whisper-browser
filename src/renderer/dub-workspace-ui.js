@@ -8,8 +8,10 @@
   const controls={voice:'dubMixVoice',background:'dubMixBackground',music:'dubMixMusic',ambience:'dubMixAmbience',duckAmount:'dubMixDuckAmount'};
   let generationBusy=false;
   let rows=[],mixPlaying=false,previewTimer=null,playIntent=0,wantsPreview=false;
+  const layerPending = new Map();
+  let operationSerial = 0;
   const note=text=>{el('dubWorkspaceStatus').textContent=t(text);};
-  function stop(){++playIntent;wantsPreview=false;mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
+  function stop(){++playIntent;layerPending.clear();wantsPreview=false;mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
   function readMix(){for(const [key,id] of Object.entries(controls))mix[key]=Number(el(id).value);mix.duck=el('dubMixDuck').checked;mix=Model.mix(mix);return mix;}
   function showMix(){for(const [key,id] of Object.entries(controls))el(id).value=String(mix[key]);el('dubMixDuck').checked=mix.duck;}
   function buttons(){
@@ -53,7 +55,7 @@
   function layerNames(){el('dubLayerNames').textContent=Object.entries(layers).filter(([,v])=>v).map(([k,v])=>`${t(k==='music'?'Müzik':'Ortam')}: ${v.name||''}`).join(' · ');}
   function attachment(value){return {mix:readMix(),layers,rows:value?.quality?.groups||value?.rows||[]};}
   async function action(fn,working){
-    if(busy||generationBusy)return;busy=true;stop();buttons();note(working);el('dubWorkspaceProgress').removeAttribute('value');
+    if(busy||generationBusy)return;busy=true;++operationSerial;stop();buttons();note(working);el('dubWorkspaceProgress').removeAttribute('value');
     try{const r=await fn();if(r?.cancelled){note('İşlem iptal edildi.');return;}if(!r?.ok)throw new Error(r?.error||t('İşlem başarısız.'));
       if(r.output){setOutput(r.output);window.dispatchEvent(new CustomEvent('dub-workspace:loaded',{detail:r.output}));note('Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');}
       else {lastPath=r.path;el('dubWorkspaceReveal').classList.remove('hidden');note('Kaydedildi.');}
@@ -64,15 +66,17 @@
   el('dubProjectVideoOpen').addEventListener('click',()=>{if(!output?.video||busy)return;stop();window.BrowserDubAudioUI?.openProjectVideo(output.video.path,output.subtitle);context=window.BrowserDubAudioUI?.context();window.dispatchEvent(new CustomEvent('dub-workspace:media'));el('dubGeneratorDialog').close();});
   el('dubProjectSave').addEventListener('click',()=>{if(output)void action(()=>window.api.saveDubProject({path:output.path,mix:readMix(),layers,includeVideo:el('dubProjectVideo').checked}),'Proje kaydediliyor…');});
   el('dubWorkspaceExport').addEventListener('click',()=>{if(output)void action(()=>window.api.exportDubWorkspace({path:output.path,mix:readMix(),layers,kind:el('dubExportKind').value}),'Dışa aktarılıyor…');});
-  el('dubWorkspaceCancel').addEventListener('click',async()=>{el('dubWorkspaceCancel').disabled=true;const r=await window.api.cancelDubWorkspace().catch(()=>null);note(r?.ok?'Durduruluyor…':'İptal doğrulanamadı; işlem izlenmeye devam ediyor.');if(!r?.ok)el('dubWorkspaceCancel').disabled=false;});
+  el('dubWorkspaceCancel').addEventListener('click',async()=>{const serial=operationSerial;el('dubWorkspaceCancel').disabled=true;const r=await window.api.cancelDubWorkspace().catch(()=>null);if(!busy||serial!==operationSerial)return;note(r?.ok?'Durduruluyor…':'İptal doğrulanamadı; işlem izlenmeye devam ediyor.');if(!r?.ok)el('dubWorkspaceCancel').disabled=false;});
   el('dubWorkspaceReveal').addEventListener('click',()=>{if(lastPath)void window.api.openPath(lastPath);});
   el('dubTimelineFilter').addEventListener('change',timeline);
   el('dubTimelineVideo').addEventListener('click',async()=>{if(selected && await window.BrowserDubAudioUI?.seekSource(selected.sourceStart,context))el('dubGeneratorDialog').close();else note('Video değişti; önce doğru videoyu açın.');});
   el('dubTimelineListen').addEventListener('click',()=>{if(!selected)return;stop();voice.currentTime=selected.audioStart;limit=selected.audioEnd;playPreview();});
   async function chooseLayer(kind){
     if(busy||generationBusy)return;busy=true;buttons();
-    try{const chosen=await window.api.selectVideo();if(!Array.isArray(chosen)||!chosen[0])return;
+    const expected=output;
+    try{const chosen=await window.api.selectVideo();if(output!==expected||!Array.isArray(chosen)||!chosen[0])return;
       const r=await window.api.dubWorkspaceAsset(chosen[0]);if(!r?.ok)throw new Error(r?.error||'Invalid audio.');
+      if(output!==expected)return;
       stop();layers={...layers,[kind]:r.asset};layerAudio[kind].src=r.asset.url;layerAudio[kind].load();layerNames();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);
     }catch(e){note(e.message);}finally{busy=false;buttons();}
   }
@@ -98,7 +102,13 @@
       a.volume=value[key]*duck;if(!a.getAttribute('src') || a.readyState<1)continue;
       a.playbackRate=Math.max(.0625,Math.min(16,voice.playbackRate/source.factor));
       if(Math.abs(a.currentTime-source.time)>.15)a.currentTime=source.time;
-      if(a.paused && source.time<a.duration){const intent=playIntent;void Promise.resolve().then(()=>a.play()).then(()=>{if(!mixPlaying)a.pause();}).catch(()=>{if(intent===playIntent){stop();note('Arka plan sesi başlatılamadı.');}});}
+      if(a.paused && source.time<a.duration && !layerPending.has(a)){
+        const pending={intent:playIntent,src:a.getAttribute('src')};layerPending.set(a,pending);
+        void Promise.resolve().then(()=>{if(pending.intent===playIntent&&mixPlaying&&!voice.paused&&a.getAttribute('src')===pending.src)return a.play();})
+          .then(()=>{if(!mixPlaying||voice.paused)a.pause();})
+          .catch(()=>{if(pending.intent===playIntent){stop();note('Arka plan sesi başlatılamadı.');}})
+          .finally(()=>{if(layerPending.get(a)===pending)layerPending.delete(a);});
+      }
     }
   }
   for(const id of [...Object.values(controls),'dubMixDuck'])el(id).addEventListener('input',()=>{syncPreview();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);});

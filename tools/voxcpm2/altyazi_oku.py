@@ -97,6 +97,8 @@ class SpeechVerifier:
         if not self.python or self.unavailable:
             return {'status': 'unavailable'}
         async with self.lock:
+            if self.unavailable:
+                return {'status': 'unavailable'}
             try:
                 if self.proc is None:
                     self.proc = await asyncio.create_subprocess_exec(str(self.python),
@@ -118,8 +120,18 @@ class SpeechVerifier:
 
     async def close(self):
         if self.proc and self.proc.returncode is None:
-            self.proc.terminate()
-            await self.proc.wait()
+            try:
+                self.proc.terminate()
+            except ProcessLookupError:
+                return
+            try:
+                await asyncio.wait_for(self.proc.wait(), 3)
+            except asyncio.TimeoutError:
+                try:
+                    self.proc.kill()
+                except ProcessLookupError:
+                    return
+                await asyncio.wait_for(self.proc.wait(), 3)
 
 
 async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='fit', measured=None):
@@ -222,6 +234,8 @@ async def uret(args, cues, paths, prompt_text):
             async with sem:
                 tick = time.monotonic()
                 seed = args.group_seeds[i]
+                if args.group_keys[i] in args.force_groups:
+                    seed = (seed + getattr(args, 'regeneration_seed', 0)) % 2147483647
                 original_text = text
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
@@ -533,6 +547,7 @@ def main(argv=None):
         raise ValueError('Selected group is outside the current plan.')
     args.group_seeds = [args.seed + int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % 1000000000
                        for key in args.group_keys]
+    args.regeneration_seed = uuid.uuid4().int % 1000000000 + 1 if args.force_groups else 0
     args.group_results = []
     args.manual_groups = {','.join(map(str,g['source_ids'])) for g in groups if 'original_text' in g}
     cues = [(g['start'], g['end'], g['text']) for g in groups]
@@ -555,7 +570,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v5-finish2", args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v6-fit-identity", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.

@@ -20,8 +20,18 @@ async def quality_retry(generate, assess, seed, retries=2, timeout=180):
     """Retry acoustic failures only; fitting duration is a separate operation."""
     best, best_score, attempts = None, math.inf, 0
     for attempt in range(retries + 1):
-        raw = await asyncio.wait_for(generate(seed + attempt * 100003), timeout)
         attempts += 1
+        try:
+            raw = await asyncio.wait_for(generate(seed + attempt * 100003), timeout)
+        except (asyncio.TimeoutError, OSError, RuntimeError, ValueError) as error:
+            if any(term in str(error).lower() for term in ('out of memory', 'cuda error')):
+                raise
+            # A later failed retry must not erase an already usable candidate.
+            if best is not None:
+                break
+            if attempt == retries:
+                raise
+            continue
         score = assess(raw)
         if math.isfinite(score) and score < best_score:
             best, best_score = raw, score
