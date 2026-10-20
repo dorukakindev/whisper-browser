@@ -31,6 +31,10 @@
         const bucket=Math.floor(record.base.start*500);
         matches=[-1,0,1].flatMap(offset=>byStart.get(bucket+offset)||[]).filter(({cue})=>
           Math.abs(cue.start-record.base.start)<.002&&Math.abs(cue.end-record.base.end)<.002);
+        if(matches.length>1){
+          const exact=matches.filter(({cue})=>equal(plain(cue),record.base));
+          if(exact.length===1)matches=exact;
+        }
       }
       if (matches.length !== 1) {
         // Dosyaya kaydedilmiş zaman düzeltmesi de yeniden açılabilmeli.

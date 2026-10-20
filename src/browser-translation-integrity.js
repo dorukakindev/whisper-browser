@@ -93,9 +93,9 @@ function summarizeTranslationIntegrity({
   const fileObserved = Array.isArray(fileCues) || fileCueIds instanceof Set || Array.isArray(fileCueIds);
   const displayObserved = Array.isArray(displayedCues)
     || displayedCueIds instanceof Set || Array.isArray(displayedCueIds);
-  const writtenIds = fileCueIds !== null ? normalizedIdSet(fileCueIds) : cueIdsForStage(fileCues, source);
+  const writtenIds = fileCueIds !== null ? new Set([...normalizedIdSet(fileCueIds)].filter(id=>sourceIds.has(id))) : cueIdsForStage(fileCues, source);
   const displayedIds = displayedCueIds !== null
-    ? normalizedIdSet(displayedCueIds) : cueIdsForStage(displayedCues, source);
+    ? new Set([...normalizedIdSet(displayedCueIds)].filter(id=>sourceIds.has(id))) : cueIdsForStage(displayedCues, source);
 
   const failures = Array.isArray(state?.failures) ? state.failures : [];
   const totalSentences = Math.max(0, Math.trunc(Number(state?.total) || 0));

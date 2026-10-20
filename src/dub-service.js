@@ -325,7 +325,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           sync, syncInvalid, quality:saved.quality || null, qualityUnavailable:saved.qualityUnavailable === true || !saved.quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
-          timing: saved.timing, subtitle: saved.subtitle, logPath: entry.file }) };
+          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
       } catch (_) {}
     }
     return { ok: true, output: null };
@@ -581,7 +581,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               }
             }
           } catch (_) {}
-          finish(s, 'done', { path: output, url: pathToFileURL(output).href, qualityUnavailable: !quality?.groups?.length,
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length,
             subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as

@@ -16,9 +16,9 @@
 
   function matchBefore(before, cue, used = new Set()) {
     const cueId = cue.cueId ?? cue.id;
-    const identified = cueId == null ? [] : before.filter(item => !used.has(item) && (item.cueId ?? item.id) === cueId
-      && Math.min(cue.end, item.end) > Math.max(cue.start, item.start));
+    const identified = cueId == null ? [] : before.filter(item => !used.has(item) && (item.cueId ?? item.id) === cueId);
     if (identified.length === 1) return identified[0];
+    if (cueId != null && before.some(item => (item.cueId ?? item.id) != null)) return null;
     let best = null;
     let bestOverlap = 0;
     for (const item of before) {

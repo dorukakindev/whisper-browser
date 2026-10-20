@@ -54,12 +54,39 @@ def speech_check(expected, actual, numeric_reference=None):
     lost_negation = contraction_loss or any(heard_counts[word] < count for word, count in target_counts.items()
                         if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))
     repetition = any(count > target_counts[word] + 1 for word, count in heard_counts.items())
+    # A duplicated phrase can be only a small fraction of a long sentence;
+    # global similarity and single-word counts otherwise both miss it.
+    for size in range(3, 7):
+        expected_phrases = Counter(tuple(target[i:i+size]) for i in range(len(target)-size+1))
+        for i in range(len(heard)-2*size+1):
+            phrase = tuple(heard[i:i+size])
+            if phrase == tuple(heard[i+size:i+2*size]) and expected_phrases[phrase] < 2:
+                repetition = True
+    english_negation = {'not', 'never', 'no', 'without'}
+    def negatives(text, counts):
+        return len(re.findall(negative_forms, text, re.I)) + sum(counts[w] for w in english_negation)
+    added_negation = negatives(actual, heard_counts) > negatives(expected, target_counts) or any(
+        heard_counts[word] > target_counts[word] for word in ('değil', 'yok', 'asla', 'hiç', 'hiçbir'))
+    unit_words = {'kilometre', 'kilogram', 'santimetre', 'milimetre', 'metre', 'gram', 'miligram', 'litre', 'mililitre', 'celsius', 'fahrenheit'}
+    unit_mismatch = any(target_counts[word] != heard_counts[word] for word in unit_words)
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
     missing_names = [name for name in names if not all(word in heard_counts for word in words(name))]
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers,
-            'lost_negation': lost_negation, 'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
-            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or sign_mismatch or bool(missing_names) or not heard}
+            'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,
+            'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
+            'review': similarity < .85 or bool(missing_numbers) or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
+
+
+def generation_status(score, verification):
+    return 'review' if score > 0 or verification.get('status') not in ('passed', 'not_checked') else 'ready'
+
+
+def apply_timing_quality(row, timing):
+    if timing.get('cut_frames', 0) > 0:
+        row['clipped'] = True
+        if row.get('status') != 'failed':
+            row['status'] = 'review'
 
 
 def chunk_key(settings, text, seed):
@@ -79,6 +106,8 @@ def cached_record(path):
         if (isinstance(record, dict) and record.get('status') in ('ready', 'review')
                 and isinstance(record.get('verification'), dict)
                 and isinstance(record.get('text'), str) and record['text'].strip()):
+            if record['verification'].get('status') not in ('passed', 'not_checked'):
+                record['status'] = 'review'
             return record
     except (OSError, ValueError):
         pass

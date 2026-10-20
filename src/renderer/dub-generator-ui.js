@@ -373,6 +373,7 @@
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     el('dubSrtName').textContent=basename(srt); controls();
     status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
+      : output.qualityUnavailable ? 'Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.'
       : 'Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
   });
   controls();

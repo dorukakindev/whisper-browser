@@ -14,7 +14,8 @@
     return value.map((r,i) => {
       if (!r || typeof r.key !== 'string' || r.key.length > 200 || typeof r.text !== 'string' || r.text.length > 16000
           || ![r.sourceStart,r.sourceEnd,r.audioStart,r.audioEnd].every(n => finite(n,0,172800))
-          || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart) throw new Error('Invalid dubbing timeline.');
+          || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart
+          || (r.audioEnd === r.audioStart && r.status !== 'failed')) throw new Error('Invalid dubbing timeline.');
       if(keys.has(r.key))throw new Error('Invalid dubbing timeline.');
       keys.add(r.key);
       let speechRanges;

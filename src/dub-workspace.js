@@ -81,7 +81,8 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       }
       const manifest={format:'whisper-dub-project',version:1,name:output.name,files,
         sync:output.sync,syncInvalid:output.syncInvalid===true,range:output.range || null,sample:output.sample===true,rows:output.rows,
-        mix:Model.mix(request.mix ?? output.mix),settings:output.settings || null};
+        mix:Model.mix(request.mix ?? output.mix),settings:output.settings || null,
+        qualityUnavailable:output.qualityUnavailable===true || !output.rows.length};
       check(op);await fsp.writeFile(path.join(staging,'project.json'),JSON.stringify(manifest,null,2),'utf8');
       // No overwrite: the unique staging directory is installed only at the end.
       if(fs.existsSync(target))throw new Error('Project already exists.');
@@ -113,6 +114,8 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       for(const [kind,target] of pendingGrants){if(kind==='subtitle')grantSubtitle(target);else grantMedia(target);}
       const output=register({path:loaded.voice.path,url:loaded.voice.url,name:String(value.name||'Dublaj.wav').slice(0,200),
         sync,syncInvalid:value.syncInvalid===true,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
+        qualityUnavailable:value.qualityUnavailable===true || !rows.length,
+        settings:value.settings && typeof value.settings==='object' && !Array.isArray(value.settings) ? value.settings : null,
         background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,spokenSubtitle:loaded.spokenSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
       return {ok:true,output};
     }finally{end(op);}

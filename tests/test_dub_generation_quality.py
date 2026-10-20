@@ -17,7 +17,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2'))
 from dub_timing import quality_retry, available_window
-from dub_quality import valid_audio
+from dub_quality import valid_audio, generation_status
 from dub_finish import spoken_text, finish_audio
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2' / 'altyazi_oku.py'
@@ -79,7 +79,7 @@ class GenerationTests(unittest.TestCase):
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
             assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
-            available_window=available_window, valid_audio=valid_audio, spoken_text=spoken_text, finish_audio=finish_audio,
+            available_window=available_window, valid_audio=valid_audio, generation_status=generation_status, spoken_text=spoken_text, finish_audio=finish_audio,
             SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
         ref = folder/'reference.wav'; ref.write_bytes(b'fixture')

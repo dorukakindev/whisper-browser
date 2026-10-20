@@ -56,7 +56,9 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
     f.advance(2300); f.dub.tick(); assert.equal(f.audio.paused, true);
     f.c.mediaKey = 'other'; f.dub.tick(); await flush();
     assert.equal(f.dub.session, null); assert.equal(f.audio.paused, true);
-    assert.deepEqual(f.calls, [['a', true], ['a', false]]);
+    // Ads/buffering release the original audio; valid resumed telemetry
+    // mutes it again, and stale telemetry releases it once more.
+    assert.deepEqual(f.calls, [['a', true], ['a', false], ['a', true], ['a', false]]);
     assert.deepEqual(f.revoked, ['blob:test']);
   } finally { await f.dub.remove(); }
   const muted = fixture({ priorMuted: true });

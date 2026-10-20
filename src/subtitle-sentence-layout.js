@@ -43,7 +43,13 @@ const NUMBER_TOKEN = /(?<![\p{L}\p{N}_])(?:(?:%|yüzde)\s*)?(?:[-−]|(?:eksi|mi
 const SOURCE_NEGATION = /\b(?:not|never|no|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b/iu;
 const TARGET_NEGATION = /(?<!\p{L})(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z|\p{L}{2,}mamış\p{L}*|\p{L}{2,}memiş\p{L}*|\p{L}{2,}mamalı\p{L}*|\p{L}{2,}memeli\p{L}*)(?!\p{L})/iu;
 function numberTokens(text) {
-  return [...String(text || '').matchAll(NUMBER_TOKEN)].map((match) => {
+  const scientific=[];
+  const rest=String(text || '').replace(/(?<![\p{L}\p{N}_])[+−-]?\d+(?:[.,]\d+)?e[+-]?\d+(?![\p{L}\p{N}_])/giu, value=>{
+    const n=Number(value.replace('−','-').replace(',','.'));
+    if(!Number.isFinite(n))return value;
+    scientific.push(String(n));return ' ';
+  });
+  return scientific.concat([...rest.matchAll(NUMBER_TOKEN)].map((match) => {
     const negative = /[-−]|eksi|minus/iu.test(match[0]);
     const percentage = /%|yüzde|percent/iu.test(match[0]);
     let token = match[0].replace(/[^\d.,]/g, '');
@@ -53,7 +59,7 @@ function numberTokens(text) {
     } else token = /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(',', '.');
     token = token.replace(/^0+(?=\d)/, '').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
     return `${negative ? '-' : ''}${token}${percentage ? '%' : ''}`;
-  });
+  }));
 }
 const TR_ONES = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
 const TR_TENS = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];

@@ -85,7 +85,7 @@ if sys.platform == 'win32':
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
 from dub_finish import spoken_text, finish_audio, active_ranges
-from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check, cached_record
+from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check, cached_record, generation_status, apply_timing_quality
 
 
 class SpeechVerifier:
@@ -305,7 +305,7 @@ async def uret(args, cues, paths, prompt_text):
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
                                     if checked.get('similarity', 0) > check.get('similarity', 0) and not any(
-                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'repetition', 'sign_mismatch', 'missing_names')):
+                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'added_negation', 'unit_mismatch', 'repetition', 'sign_mismatch', 'missing_names')):
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
                                         sf.write(str(temporary), wav, sr, subtype='PCM_16')
@@ -313,8 +313,8 @@ async def uret(args, cues, paths, prompt_text):
                                     second.unlink(missing_ok=True)
                             metric['attempts'] += 1; metric['retries'] += 1
                     temporary.replace(path)
-                    metric.update(verification=check, text=text, final_seconds=len(wav)/sr, status='review' if
-                        metric['quality_score'] > 0 or check['status'] == 'review' else 'ready')
+                    metric.update(verification=check, text=text, final_seconds=len(wav)/sr,
+                                  status=generation_status(metric['quality_score'], check))
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
                 except Exception as exc:
@@ -590,7 +590,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v6-fit-identity", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v7-meaning-checks", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.
@@ -661,6 +661,7 @@ def main(argv=None):
     offset = args.range_start or 0
     for i, row in enumerate(public_groups):
         timing_row = timing['groups'][i]
+        apply_timing_quality(row, timing_row)
         source = groups[i]
         begin = timing_row['start_seconds']
         row.update(displayText=source.get('original_text', source['text']),

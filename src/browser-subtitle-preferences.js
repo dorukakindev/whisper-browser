@@ -31,7 +31,7 @@ class BrowserSubtitlePreferences {
       subtitleSelection: normalized.subtitleSelection, subtitleMode: normalized.subtitleMode,
       subtitleSyncRecords: normalized.subtitleSyncRecords };
     if (!row.mediaId) return false;
-    if (persist && !Object.values(row.subtitleSelection || {}).some(Boolean) && !row.subtitleSyncRecords?.length) return this.remove(row.mediaId);
+    if (persist && row.subtitleMode !== 'off' && !Object.values(row.subtitleSelection || {}).some(Boolean) && !row.subtitleSyncRecords?.length) return this.remove(row.mediaId);
     const before = JSON.stringify(this.items.get(row.mediaId));
     if (before === JSON.stringify(row)) return false;
     const next = new Map(this.items); next.delete(row.mediaId); next.set(row.mediaId, row);

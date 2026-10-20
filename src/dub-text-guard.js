@@ -9,6 +9,15 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     remaining.splice(index, 1);
   }
   if (remaining.length) return false;
+  const percentages = text => (text.match(/(?:%|yüzde)\s*\d+(?:[.,]\d+)*|\d+(?:[.,]\d+)*\s*(?:%|percent\b)/giu) || [])
+    .map(v=>v.replace(/[^\d.,]/g,'')).sort();
+  if (JSON.stringify(percentages(source)) !== JSON.stringify(percentages(proposed))) return false;
+  const unitNames={kilometre:'km',kilogram:'kg',santimetre:'cm',milimetre:'mm',mililitre:'ml',miligram:'mg',metre:'m',gram:'g',litre:'l'};
+  const units = text => [...text.matchAll(/\d+(?:[.,]\d+)*\s*(kilometre|kilogram|santimetre|milimetre|mililitre|miligram|metre|gram|litre|km|kg|cm|mm|ml|mg|m|g|l|°c|°f)(?!\p{L})/giu)]
+    .map(m=>`${m[0].match(/^\d+(?:[.,]\d+)*/)[0]}:${unitNames[m[1].toLowerCase()] || m[1].toLowerCase()}`).sort();
+  if (JSON.stringify(units(source)) !== JSON.stringify(units(proposed))) return false;
+  const negativeVerbs = text => text.toLocaleLowerCase('tr').match(/\p{L}{2,}(?:m[ıiuü]yor\p{L}*|m[ae]y[ae]c[ae][kğ]\p{L}*|m[ae]z(?:[dt]\p{L}*|[ıiuü]\p{L}*)?)(?!\p{L})/gu) || [];
+  if (JSON.stringify(negativeVerbs(source).sort()) !== JSON.stringify(negativeVerbs(proposed).sort())) return false;
   const signedNumbers = text => (text.match(/[+\-−]?\d+(?:[.,]\d+)*/g) || []).map(value => value.replace('−','-')).sort();
   if (JSON.stringify(signedNumbers(source)) !== JSON.stringify(signedNumbers(proposed))) return false;
   const numericRelations = text => text.match(/\d+(?:[.,]\d+)*(?:\s*[:/–—-]\s*\d+(?:[.,]\d+)*)+/g)?.map(v=>v.replace(/\s/g,'')).sort() || [];

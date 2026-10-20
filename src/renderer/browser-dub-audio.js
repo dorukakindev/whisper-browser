@@ -182,7 +182,7 @@
       const m = this.sample, a = this.audio;
       if (!s.url || !m || this.now() - m.at > 2200 || m.adPlaying
           || m.spinnerVisible || (m.readyState !== undefined && m.readyState < 3)) {
-        if (s.range || s.sync || s.background) this.rangeMute(s, !!s.priorMuted);
+        this.rangeMute(s, !!s.priorMuted);
         if (s.sync) this.videoRate(s, s.baseRate, true);
         this.pauseAll(); return;
       }
