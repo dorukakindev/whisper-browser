@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed twenty verified dubbing speech/meaning, timing export, cancellation, progress and library persistence defects. Relinking and merging videos now preserve canonical notes; stale local dubbing callbacks cannot change a newly opened video.
+
 - Fixed twenty confirmed PDF translation, subtitle parsing, review matching, translation cache, provider recovery and process cancellation failures.
 
 - Fixed thirteen confirmed speech generation/retry, cache identity, verifier shutdown, preview ownership, WAV recovery and spoken-text preservation failures. Explicit regeneration now varies the selected acoustic seed.

@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-20-1105.md](docs/devir/2026-10-20-1105.md) — Rapor492: Çeviri, altyazı ve kurtarmada 20 doğrulanmış düzeltme; CI arkada
+Güncel çalışma: [docs/devir/2026-10-20-2000.md](docs/devir/2026-10-20-2000.md) — Rapor493: Ses, oynatma ve kütüphanede 20 doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-1105.md](docs/devir/2026-10-20-1105.md) — Rapor492: Çeviri, altyazı ve kurtarmada 20 doğrulanmış düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-20-1044.md](docs/devir/2026-10-20-1044.md) — Rapor491: 13 önemli ses hatası; CI arkada, sayı doldurma yok
 Önceki çalışma: [docs/devir/2026-10-20-1017.md](docs/devir/2026-10-20-1017.md) — Rapor490: 20 yeni doğrulanmış düzeltme
 Önceki çalışma: [docs/devir/2026-10-20-0749.md](docs/devir/2026-10-20-0749.md) — Rapor489: arşiv, altyazı ve sekme kurtarmada 10 düzeltme
