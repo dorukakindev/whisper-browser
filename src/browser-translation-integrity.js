@@ -57,6 +57,9 @@ function cueIdsForStage(values, source) {
     const explicit = cue?.cueId ?? cue?.id;
     const explicitId = normalizedId(explicit);
     const candidates = explicitId ? byOriginalId.get(explicitId) || [] : [];
+    // Timing fallback is only for outputs without an explicit source identity.
+    // A different track may have exactly the same timestamps.
+    if (explicitId && !candidates.length) continue;
     if (candidates.length === 1) { ids.add(candidates[0].id); continue; }
     const start = Number(cue?.sourceStart ?? cue?.start);
     const end = Number(cue?.sourceEnd ?? cue?.end);

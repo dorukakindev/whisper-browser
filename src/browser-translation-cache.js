@@ -20,6 +20,7 @@ class PersistentTranslationCache {
     // ulaşınca tek tam sıkıştırma yapılır.
     this.journalPath = `${this.filePath}.journal`;
     this.pendingJournal = [];
+    this.journalNeedsSeparator = false;
     this.journalBytes = 0;
     this.journalFlushes = 0;
     this.lastCompactAt = Date.now();
@@ -93,6 +94,7 @@ class PersistentTranslationCache {
         const stat = this.fs.statSync(this.journalPath);
         this.journalBytes = Number(stat?.size) || 0;
         const raw = String(this.fs.readFileSync(this.journalPath, 'utf8'));
+        this.journalNeedsSeparator = !!raw && !raw.endsWith('\n');
         // Sıkıştırma temel dosyayı yazıp sonra journal'ı siler; silme
         // başarısızsa kalan eski journal bir sonraki açılışta aynı
         // kayıtların bayat değerlerini yeni temelin üstüne uygular
@@ -221,7 +223,9 @@ class PersistentTranslationCache {
           // önce atomik olarak değiştir.
           const rows = this.pendingJournal;
           this.pendingJournal = [];
-          const lines = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
+          // A crash may leave an incomplete last JSON row. Separate the next
+          // append so that recovery can skip the torn row without losing it too.
+          const lines = (this.journalNeedsSeparator ? '\n' : '') + rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
           try {
             if (promises) {
               await promises.mkdir(dir, { recursive: true });
@@ -234,9 +238,11 @@ class PersistentTranslationCache {
             // Append başarısızsa satırları yeniden kuyrukla — kayıpları
             // sonraki flush'ta yeniden denenir; yoksa kayıtlar sessizce düşer.
             this.pendingJournal = rows.concat(this.pendingJournal);
+            this.journalNeedsSeparator = true;
             throw error;
           }
           this.journalBytes += Buffer.byteLength(lines, 'utf8');
+          this.journalNeedsSeparator = false;
           this.journalFlushes += 1;
           // .bak zinciri sıkıştırmalarda kurulur; ilk journal turunda yedek
           // henüz yoksa bozuk temel dosyadan geri dönüş imkânsız kalır — bir
@@ -300,6 +306,7 @@ class PersistentTranslationCache {
         try { this.fs.unlinkSync(this.journalPath); } catch (_) {}
       }
       this.journalBytes = 0;
+      this.journalNeedsSeparator = false;
       this.journalFlushes = 0;
       this.lastCompactAt = Date.now();
       this.baseFileWritten = true;

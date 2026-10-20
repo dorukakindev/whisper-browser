@@ -20,7 +20,7 @@ function decodeEntities(value) {
         || (codePoint >= 0x7F && codePoint <= 0x9F)) return '';
     // Entity kodlu bidi/sıfır-genişlik enjeksiyonu da (&#8238; = RLO)
     // temizlikten sonra metne sızmasın.
-    if ((codePoint >= 0x200B && codePoint <= 0x200F)
+    if (codePoint === 0x200B
         || (codePoint >= 0x202A && codePoint <= 0x202E)
         || (codePoint >= 0x2060 && codePoint <= 0x2064)
         || (codePoint >= 0x2066 && codePoint <= 0x2069)
@@ -77,12 +77,12 @@ function cleanCueText(value) {
   // IMSC ruby anotasyonunda rt okunuş/açıklama metnidir. Ana karakterlerle
   // birleşirse düz metinde sahte bir diyalog oluşur; ana ruby metnini koru.
   source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b(?:[^>]*[^/>])?>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
-  const decoded = decodeEntities(source.replace(/<br\s*\/?>/gi, '\n'));
+  const decoded = decodeEntities(source.replace(/<(?:[\w.-]+:)?br\s*\/?>/gi, '\n'));
   // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
 
   return decoded
-    .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
+    .replace(/<\/?(?:[\w.-]+:)?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
     .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\.[\w-]+)*(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(BIDI_SPOOF_RE, '')
@@ -271,7 +271,13 @@ function unwrapMpegTs(rawValue, state = null) {
 
 function parseTimedBlocks(body, timing = {}) {
   const out = [];
-  const clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  let clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  if (/^WEBVTT(?:[ \t\n]|$)/.test(clean)) {
+    // NOTE may itself contain valid-looking timing examples. Remove metadata
+    // blocks before the global timing scan used to recover separator-less SRT.
+    clean = clean.split(/\n[ \t]*\n/).filter(block =>
+      !/^(?:NOTE(?:[ \t]|$)|STYLE[ \t]*(?:\n|$)|REGION[ \t]*(?:\n|$))/.test(block)).join('\n\n');
+  }
   const timestampMap = (clean.match(/X-TIMESTAMP-MAP\s*=\s*[^\n]*/i) || [])[0] || '';
   const localMatch = timestampMap.match(/LOCAL:([^,\s]+)/i);
   const mpegMatch = timestampMap.match(/MPEGTS:(\d+)/i);
@@ -373,6 +379,7 @@ function parseAss(body) {
     const textIndex = eventFields.indexOf('text');
     const startIndex = eventFields.indexOf('start');
     const endIndex = eventFields.indexOf('end');
+    const nameIndex = eventFields.indexOf('name') >= 0 ? eventFields.indexOf('name') : eventFields.indexOf('actor');
     if (textIndex < 0 || startIndex < 0 || endIndex < 0 || rawFields.length <= textIndex) continue;
     const start = parseTime(rawFields[startIndex]);
     const end = parseTime(rawFields[endIndex]);
@@ -384,7 +391,8 @@ function parseAss(body) {
     const text = cleanedText
       .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ')
       .replace(/\\([{}])\u2060/g, '$1').replace(/\\\u2060/g, '\\');
-    if (start !== null) out.push({ start, end, text });
+    const speaker = nameIndex >= 0 ? cleanCueText(rawFields[nameIndex]).slice(0, 80) : '';
+    if (start !== null) out.push({ start, end, text, ...(speaker ? { speaker } : {}) });
   }
   return normalizeCues(out);
 }
@@ -1320,15 +1328,17 @@ function parseXml(body) {
       presentation: presentationFromTag(style[1]),
     });
   }
-  const resolveStyle = (ids, seen = new Set()) => {
+  const resolveStyle = (ids, seen = new Set(), budget = { remaining: 512 }) => {
     let resolved = {};
+    if (seen.size >= 64) return resolved;
     for (const id of String(ids || '').trim().split(/\s+/).filter(Boolean)) {
+      if (--budget.remaining < 0) break;
       if (seen.has(id)) continue;
       const definition = styleDefinitions.get(id);
       if (!definition) continue;
       const branch = new Set(seen); branch.add(id);
       resolved = mergePresentation(resolved,
-        resolveStyle(definition.references.join(' '), branch), definition.presentation);
+        resolveStyle(definition.references.join(' '), branch, budget), definition.presentation);
     }
     return resolved;
   };
@@ -1909,7 +1919,7 @@ function subtitleLanguage(response = {}) {
   if (header) return String(header).split(',')[0].trim();
   try {
     const u = new URL(response.url || '');
-    return u.searchParams.get('lang') || u.searchParams.get('language')
+    return u.searchParams.get('tlang') || u.searchParams.get('lang') || u.searchParams.get('language')
       || u.searchParams.get('locale') || u.searchParams.get('hl') || '';
   } catch (_) { return ''; }
 }

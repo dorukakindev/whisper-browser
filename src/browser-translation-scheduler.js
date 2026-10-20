@@ -61,8 +61,9 @@ function sentenceFromCues(cues) {
     text,
     cueIds: cues.map((cue) => cue.id),
     speaker: cues[0].speaker,
+    protected: cues.some((cue) => cue.protected),
     pieces: cues.map((cue) => ({ cueId: cue.id, text: cue.text, start: cue.start, end: cue.end,
-      speaker: cue.speaker })),
+      speaker: cue.speaker, protected: Boolean(cue.protected) })),
   };
 }
 
@@ -86,7 +87,7 @@ function joinCompleteTrackFragments(sentences, options) {
     const pieces = previous ? [...previous.pieces, ...sentence.pieces] : [];
     const gap = previous ? sentence.start - previous.end : Infinity;
     const joinedChars = pieces.reduce((sum, piece) => sum + normalizeText(piece.text).length + 1, 0);
-    if (previous && previous.speaker === sentence.speaker
+    if (previous && !previous.protected && !sentence.protected && previous.speaker === sentence.speaker
       && -0.05 <= gap && gap <= options.maxGap
       && sentence.end - previous.start <= options.maxDuration
       && pieces.length <= options.maxParts && joinedChars <= options.maxChars
@@ -520,6 +521,7 @@ class BrowserTranslationScheduler {
     // Yeniden deneme temiz bir sayfa açar: sayaç sıfırlanmazsa tek bir geçici
     // 503 devre kesiciyi hemen yeniden tetikleyip her şeyi tekrar düşürüyordu.
     this.consecutiveProviderFailures = 0;
+    this.consecutiveDefinitiveFailures = 0;
     // Devre kesici, hiç denenmemiş cümleleri de "başarısız" işaretler
     // (deferred). Onları kuyruğa itmek fiilen "tüm izi çevir" olurdu (200 cümlelik
     // izde 200 istek); onlar yalnız yeniden oynatma penceresine göre planlanır.
@@ -542,7 +544,7 @@ class BrowserTranslationScheduler {
     return failedIds.filter((id) => scheduled.has(id)).length;
   }
 
-  markUntriedAsProviderFailure(attemptedIds) {
+  markUntriedAsProviderFailure(attemptedIds, kind = 'transient') {
     for (const sentence of this.sentences) {
       if (this.results.has(sentence.id)) continue;
       const existing = this.failures.get(sentence.id);
@@ -552,6 +554,7 @@ class BrowserTranslationScheduler {
         terminal: true,
         retryAt: Infinity,
         error: this.providerFailure,
+        kind: existing?.kind || kind,
         ...(attempted ? {} : { deferred: true }),
       });
     }
@@ -659,7 +662,7 @@ class BrowserTranslationScheduler {
             gateError.candidate = { ...decoded };
             throw gateError;
           }
-          this.consecutiveQualityFailures = 0;
+          if (generation === this.generation && !controller.signal.aborted) this.consecutiveQualityFailures = 0;
           return { ...decoded, cached: false };
         });
     }).then((result) => this.commitResult(job, result)).catch(async (error) => {
@@ -713,7 +716,7 @@ class BrowserTranslationScheduler {
           if (this.consecutiveDefinitiveFailures >= this.providerFailureThreshold) {
             const tripError = new Error(
               `Çeviri sağlayıcısı arka arkaya ${this.consecutiveDefinitiveFailures} cümleyi kesin hata ile reddetti (${String(error?.message || error || '').slice(0, 120)}); kalan cümleler durduruldu.`);
-            this.tripProviderFailure(tripError);
+            this.tripProviderFailure(Object.assign(tripError, { definitive: true }));
             this.emitResult({
               sentenceId: sentence.id, error: this.providerFailure, attempt: 1,
               retryable: false, retrying: false, nextRetryMs: 0, cues: [],
@@ -887,7 +890,7 @@ class BrowserTranslationScheduler {
     this.providerFailure = String(error?.message || error || 'Çeviri sağlayıcısı modeli sunmuyor.');
     const attemptedIds = new Set([
       ...this.pending.keys(),
-      ...this.queue.map((sentence) => sentence.id),
+      ...[...this.failures].filter(([, failure]) => !failure.deferred).map(([id]) => id),
     ]);
     for (const job of this.pending.values()) job.controller.abort('Sağlayıcı modeli sunmuyor.');
     this.pending.clear();
@@ -896,7 +899,8 @@ class BrowserTranslationScheduler {
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
     this.queue = [];
-    this.markUntriedAsProviderFailure(attemptedIds);
+    this.markUntriedAsProviderFailure(attemptedIds,
+      error?.providerUnavailable || isDefinitiveTranslateError(error) ? 'definitive' : 'transient');
     this.emitState();
     this.resolveIdleIfNeeded();
   }

@@ -6490,6 +6490,10 @@ async function readJsonResponseLimited(response, maxBytes, label) {
 let browserGlossaryTruncationNotified = false;
 
 async function requestBrowserSentenceTranslationAtEndpoint(sentence, config, signal, endpointBase) {
+  const neighborRows = value => (Array.isArray(value) ? value : value ? [value] : [])
+    .map(row => typeof row === 'string' ? { text: row } : row || {});
+  sentence = { ...sentence, contextBefore: neighborRows(sentence.contextBefore),
+    contextAfter: neighborRows(sentence.contextAfter) };
   const { sentenceTranslationRequest, decodeSentenceTranslation, fitTranslationParts,
     sourceReviewHints, sentenceTranslationGenerationParameters,
     sentenceTranslationMessageRole } = require('./subtitle-sentence-layout');
@@ -7808,6 +7812,10 @@ async function translatePdfPageBlocks(document, pageRequest, config, job) {
   const results = new Map();
   const failures = new Map();
   const context = {
+    promptVersion: 'pdf-book-v2',
+    mediaIdentity: document?.pdfHash ? 'pdf:' + document.pdfHash : '',
+    trackIdentity: document?.pdfHash ? 'pdf-page:' + pageNumber : '',
+    provider: safeTranslationEndpoint(config.endpoint),
     targetLanguage: config.targetLanguage,
     model: config.model,
     style: `${config.register}:${config.profanity}:pdf-book`,

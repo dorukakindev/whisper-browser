@@ -8,17 +8,22 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const normalize = (text) => String(text || '').replace(/<[^>]+>|\{\\[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
+  const normalize = (text) => String(text || '')
+    .replace(/<\/?(?:b|i|u|s|font|c(?:\.[\w-]+)*|v|lang|ruby|rt)(?:\s+[^<>]*)?\s*>|\{\\[^}]*\}/gi, '')
+    .replace(/\s+/g, ' ').trim();
+  const identity = cue => cue?.cueId ?? cue?.id ?? null;
+  const identityMatches = (cue, row) => identity(cue) === (row.identity ?? null);
 
-  function matchBefore(before, cue) {
+  function matchBefore(before, cue, used = new Set()) {
     const cueId = cue.cueId ?? cue.id;
-    const identified = cueId == null ? [] : before.filter(item => (item.cueId ?? item.id) === cueId
+    const identified = cueId == null ? [] : before.filter(item => !used.has(item) && (item.cueId ?? item.id) === cueId
       && Math.min(cue.end, item.end) > Math.max(cue.start, item.start));
     if (identified.length === 1) return identified[0];
     let best = null;
     let bestOverlap = 0;
     for (const item of before) {
       if (item.start >= cue.end) break;
+      if (used.has(item)) continue;
       const overlap = Math.min(cue.end, item.end) - Math.max(cue.start, item.start);
       if (overlap > bestOverlap) { bestOverlap = overlap; best = item; }
     }
@@ -85,12 +90,12 @@
     const added = [];
     const used = new Set();
     after.forEach((cue, index) => {
-      const previous = matchBefore(before, cue);
-      if (!previous) { added.push({ index, start: cue.start, end: cue.end, text: cue.text }); return; }
+      const previous = matchBefore(before, cue, used);
+      if (!previous) { added.push({ index, start: cue.start, end: cue.end, text: cue.text, identity: identity(cue) }); return; }
       used.add(previous);
       if (normalize(previous.text) === normalize(cue.text)) return;
       if (changed.length < limit) {
-        changed.push({ index, start: cue.start, end: cue.end,
+        changed.push({ index, start: cue.start, end: cue.end, identity: identity(cue),
                        before: previous.text, after: cue.text,
                        parts: wordParts(previous.text, cue.text),
                        terms: changedTerms(previous.text, cue.text) });
@@ -104,12 +109,14 @@
   function diffTranslationCues(beforeCues, afterCues, { limit = 2000 } = {}) {
     const before = (Array.isArray(beforeCues) ? beforeCues : []).slice().sort((a, b) => a.start - b.start);
     const changes = [];
+    const used = new Set();
     (Array.isArray(afterCues) ? afterCues : []).forEach((cue, index) => {
       if (changes.length >= limit) return;
-      const previous = matchBefore(before, cue);
+      const previous = matchBefore(before, cue, used);
       if (!previous) return;
+      used.add(previous);
       if (normalize(previous.text) === normalize(cue.text)) return;
-      changes.push({ index, start: cue.start, end: cue.end, before: previous.text, after: cue.text });
+      changes.push({ index, start: cue.start, end: cue.end, before: previous.text, after: cue.text, identity: identity(cue) });
     });
     return changes;
   }
@@ -130,7 +137,7 @@
       && selectedIndexes.every((index) => {
         const cue = cues[index];
         const change = byIndex.get(index);
-        return Boolean(cue && change && cue.start === change.start && cue.end === change.end
+        return Boolean(cue && change && identityMatches(cue, change) && cue.start === change.start && cue.end === change.end
           && cue.text === change.after);
       });
   }
@@ -164,14 +171,18 @@
       const cue = cues[index];
       const change = byIndex.get(index);
       const added = (review?.added || []).find((item) => item.index === index);
-      return Boolean(cue && (change ? cue.start === change.start && cue.end === change.end && cue.text === change.after
-        : added ? cue.start === added.start && cue.end === added.end && cue.text === added.text : false));
+      return Boolean(cue && (change ? identityMatches(cue, change) && cue.start === change.start && cue.end === change.end && cue.text === change.after
+        : added ? identityMatches(cue, added) && cue.start === added.start && cue.end === added.end && cue.text === added.text : false));
     };
     const missing = review?.missing || [];
     return (selChanged || []).concat(selAdded || []).every(cueStillNew)
       && (selMissing || []).every((idx) => {
         const item = missing[idx];
-        return Boolean(item) && !cues.some((cue) => cue.start === item.start && cue.end === item.end);
+        if (!item) return false;
+        const restoredId = identity(item.cue);
+        return !cues.some((cue) => restoredId != null
+          ? identity(cue) === restoredId
+          : cue.start === item.start && cue.end === item.end && normalize(cue.text) === normalize(item.text));
       });
   }
 
