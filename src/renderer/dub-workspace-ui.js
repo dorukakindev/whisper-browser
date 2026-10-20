@@ -117,6 +117,7 @@
   voice.addEventListener('play',()=>{void window.BrowserDubAudioUI?.pauseSource?.(context);window.BrowserDubAudioUI?.stop();clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
   voice.addEventListener('pause',()=>{clearInterval(previewTimer);previewTimer=null;for(const a of Object.values(layerAudio))a.pause();});
   voice.addEventListener('seeking',syncPreview);voice.addEventListener('ended',stop);
+  for (const a of [voice, ...Object.values(layerAudio)]) a.addEventListener('error',()=>{stop();note(a===voice?'Ses başlatılamadı.':'Arka plan sesi başlatılamadı.');});
   el('dubGeneratorDialog').addEventListener('close',stop);
   window.addEventListener('beforeunload',stop);
   document.addEventListener('ui-locale-change',()=>{timeline();if(selected)choose(selected);});

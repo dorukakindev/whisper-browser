@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const { SENSITIVE_PARAM_RE, TRACKING_PARAM_RE } = require('./browser-place-url');
+const { SENSITIVE_PARAM_RE, TRACKING_PARAM_RE, cleanPathParams, cleanQuery } = require('./browser-place-url');
 
 const VOLATILE_STREAM_PARAM_RE = /^(?:expire|expires|expiration|sig|signature|token|auth|authorization|policy|key-pair-id|x-amz-.+|x-goog-.+|hdnts|hdnea|range|rn|rbuf|ms|mv|mt|ip|ipbits|start|end|segment|seq|sequence|n|frag|fragment|index|chunk|part|offset)$/i;
 
@@ -19,6 +19,14 @@ function normalizeBrowserUrl(rawUrl, maxLength = 16384) {
     // kimliğinin parçasıdır — sıyrılınca aynı hosttaki tüm videolar tek
     // mediaId'ye çöküyordu. Sıradan sayfa-içi fragment'ler yine atılır.
     if (!/^#!?\//.test(url.hash)) url.hash = '';
+    else {
+      const hash = url.hash.slice(1), mark = hash.indexOf('?');
+      const route = cleanPathParams(mark < 0 ? hash : hash.slice(0, mark));
+      const params = cleanQuery(new URLSearchParams(mark < 0 ? '' : hash.slice(mark + 1)));
+      params.sort(); url.hash = route + (params.size ? '?' + params : '');
+    }
+    url.pathname = cleanPathParams(url.pathname);
+    cleanQuery(url.searchParams);
     for (const key of [...url.searchParams.keys()]) {
       if (SENSITIVE_PARAM_RE.test(key) || TRACKING_PARAM_RE.test(key)) url.searchParams.delete(key);
     }
@@ -126,7 +134,7 @@ function serviceIdentity(url, hints = {}) {
     let id = hintedId;
     if (!id && keywordIdx >= 0) id = segments.slice(keywordIdx + 1).join('/');
     if (!id) id = firstMatch(url.pathname, [/\/([a-f0-9-]{16,})$/i]);
-    if (id) return { service: known[1], contentId: cleanPart(id, 180) };
+    if (id) return { service: known[1], contentId: id };
     return { service: known[1], contentId: '' };
   }
   return { service: hintedService || 'web', contentId: hintedId };
@@ -144,6 +152,8 @@ function normalizeStreamIdentityUrl(rawUrl) {
     url.password = '';
     url.hostname = url.hostname.toLowerCase();
     url.hash = '';
+    url.pathname = cleanPathParams(url.pathname);
+    cleanQuery(url.searchParams);
     for (const key of [...url.searchParams.keys()]) {
       if (SENSITIVE_PARAM_RE.test(key) || TRACKING_PARAM_RE.test(key)
           || VOLATILE_STREAM_PARAM_RE.test(key)) url.searchParams.delete(key);
@@ -173,7 +183,8 @@ function canonicalMediaIdentity(rawUrl, hints = {}) {
   const canonicalUrl = identityUrl.slice(0, 16384);
   const url = new URL(identityUrl);
   const identity = serviceIdentity(url, hints);
-  const contentId = cleanPart(identity.contentId, 180);
+  const fullContentId = String(identity.contentId || '');
+  const contentId = fullContentId.length > 180 ? fullContentId.slice(0, 150) + ':' + stableUrlHash(fullContentId) : cleanPart(fullContentId, 180);
   const service = cleanPart(identity.service || 'web', 48).toLowerCase();
   const key = contentId ? `${service}:${contentId}` : `${service}:url:${stableUrlHash(identityUrl)}`;
   return { key, service, contentId, canonicalUrl };

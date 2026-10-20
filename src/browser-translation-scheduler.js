@@ -157,6 +157,7 @@ function translationCacheKey(sentence, context = {}) {
     after: contextIdentity(sentence?.contextAfter),
     contextHash: String(sentence && sentence.contextHash || context.contextHash || ''),
     targetLanguage: String(context.targetLanguage || ''),
+    sourceLanguage: String(context.sourceLanguage || ''),
     model: String(context.model || ''),
     provider: String(context.provider || ''),
     style: String(context.style || ''),

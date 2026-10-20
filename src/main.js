@@ -7228,6 +7228,8 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   for (const item of memoryApplied) queueBrowserPageApply(tab, job, item);
   const context = {
     promptVersion: 'browser-page-v2',
+    provider: safeTranslationEndpoint(session.config.endpoint),
+    sourceLanguage: session.config.sourceLanguage,
     targetLanguage: session.config.targetLanguage,
     model: session.config.model,
     style: `${session.config.register}:${session.config.profanity}:web-page`,
@@ -7661,9 +7663,9 @@ function pdfTranslationDirectory() {
   return path.join(app.getPath('userData'), 'pdf-translations');
 }
 
-function pdfTranslationStatePath(pdfHash, endpoint) {
+function pdfTranslationStatePath(pdfHash, endpoint, model, targetLanguage) {
   return path.join(pdfTranslationDirectory(),
-    `${pdfTranslationStateFileStem(pdfHash, endpoint)}.json`);
+    `${pdfTranslationStateFileStem(pdfHash, endpoint, model, targetLanguage)}.json`);
 }
 
 function readPdfTranslationState(identity) {
@@ -7673,7 +7675,7 @@ function readPdfTranslationState(identity) {
 }
 
 function writePdfTranslationState(state) {
-  const target = pdfTranslationStatePath(state.pdfHash, state.endpoint);
+  const target = pdfTranslationStatePath(state.pdfHash, state.endpoint, state.model, state.targetLanguage);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   try { if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`); } catch (_) {}
   writeJsonAtomic(target, state);
@@ -7813,6 +7815,7 @@ async function translatePdfPageBlocks(document, pageRequest, config, job) {
   const failures = new Map();
   const context = {
     promptVersion: 'pdf-book-v2',
+    sourceLanguage: config.sourceLanguage,
     mediaIdentity: document?.pdfHash ? 'pdf:' + document.pdfHash : '',
     trackIdentity: document?.pdfHash ? 'pdf-page:' + pageNumber : '',
     provider: safeTranslationEndpoint(config.endpoint),
@@ -9326,6 +9329,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   const trackIdentity = tab.translationTrackId;
   const context = {
     promptVersion: 'browser-sentence-v4-turkish-review',
+    sourceLanguage: config.sourceLanguage,
     mediaIdentity,
     trackIdentity,
     sourceLineage: `${mediaIdentity}|${trackIdentity}`,

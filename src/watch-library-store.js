@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { safePlaceUrl } = require('./browser-place-url');
 const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const CURRENT_SCHEMA_VERSION = 3;
@@ -24,17 +25,7 @@ function uniqueStrings(values) {
 }
 
 function canonicalBrowserUrl(raw) {
-  try {
-    const url = new URL(String(raw || ''));
-    url.username = ''; url.password = '';
-    for (const key of [...url.searchParams.keys()]) {
-      if (SECRET_QUERY_KEY.test(key)) url.searchParams.delete(key);
-    }
-    url.hash = '';
-    return url.href;
-  } catch (_) {
-    return '';
-  }
+  return safePlaceUrl(raw);
 }
 
 function youtubeId(raw) {

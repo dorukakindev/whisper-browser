@@ -11,6 +11,12 @@ function safeShortening(source, proposed, {natural=false} = {}) {
   if (remaining.length) return false;
   const signedNumbers = text => (text.match(/[+\-−]?\d+(?:[.,]\d+)*/g) || []).map(value => value.replace('−','-')).sort();
   if (JSON.stringify(signedNumbers(source)) !== JSON.stringify(signedNumbers(proposed))) return false;
+  const numericRelations = text => text.match(/\d+(?:[.,]\d+)*(?:\s*[:/–—-]\s*\d+(?:[.,]\d+)*)+/g)?.map(v=>v.replace(/\s/g,'')).sort() || [];
+  if (JSON.stringify(numericRelations(source)) !== JSON.stringify(numericRelations(proposed))) return false;
+  const englishNegations = text => (text.toLowerCase().replace(/\bcannot\b/g,'can not').replace(/\bcan['’]t\b/g,'can not')
+    .replace(/\bwon['’]t\b/g,'will not').replace(/n['’]t\b/g,' not')
+    .match(/\b(?:not|no|never|without|neither|nor|nothing|nobody|cannot)\b/g) || []).sort();
+  if (JSON.stringify(englishNegations(source)) !== JSON.stringify(englishNegations(proposed))) return false;
   const containsName = name => new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?![\\p{L}\\p{N}_])`,'u').test(proposed);
   // Conservative evidence, not proof of semantic equivalence.
   for (const match of source.matchAll(/(?:^|\s)(değil\p{L}*|yok\p{L}*|asla|hiçbir|hiç)(?=\s|[.,!?;:]|$)/giu)) {

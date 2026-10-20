@@ -12,7 +12,7 @@ from dub_finish import spoken_text
 
 def speech_check(expected, actual, numeric_reference=None):
     def words(text):
-        return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold())
+        return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold().replace('i\u0307', 'i'))
     target, heard = words(expected), words(actual)
     similarity = SequenceMatcher(None, target, heard, autojunk=False).ratio()
     # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
@@ -54,10 +54,12 @@ def speech_check(expected, actual, numeric_reference=None):
     lost_negation = contraction_loss or any(heard_counts[word] < count for word, count in target_counts.items()
                         if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))
     repetition = any(count > target_counts[word] + 1 for word, count in heard_counts.items())
+    names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
+    missing_names = [name for name in names if not all(word in heard_counts for word in words(name))]
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers,
-            'lost_negation': lost_negation, 'repetition': repetition, 'sign_mismatch': sign_mismatch,
-            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or sign_mismatch or not heard}
+            'lost_negation': lost_negation, 'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
+            'review': similarity < .85 or bool(missing_numbers) or lost_negation or repetition or sign_mismatch or bool(missing_names) or not heard}
 
 
 def chunk_key(settings, text, seed):
@@ -65,10 +67,22 @@ def chunk_key(settings, text, seed):
                                     sort_keys=True).encode()).hexdigest()
 
 
-def duration_identity(cues, i, window):
-    return {'protocol': 'duration-edit-v1', 'text': cues[i][2], 'seconds': window,
+def duration_identity(cues, i, window, manual=False):
+    return {'protocol': 'duration-edit-v2', 'manual': bool(manual), 'text': cues[i][2], 'seconds': window,
             'before': cues[i - 1][2][-1500:] if i else '',
             'after': cues[i + 1][2][:1500] if i + 1 < len(cues) else ''}
+
+
+def cached_record(path):
+    try:
+        record = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+        if (isinstance(record, dict) and record.get('status') in ('ready', 'review')
+                and isinstance(record.get('verification'), dict)
+                and isinstance(record.get('text'), str) and record['text'].strip()):
+            return record
+    except (OSError, ValueError):
+        pass
+    return {'status': 'review', 'verification': {'status': 'unavailable'}}
 
 
 def valid_audio(path, sf):

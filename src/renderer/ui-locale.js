@@ -75,6 +75,7 @@
     ['Süreye göre düzenlendi', 'Adapted to the time window'],
     ['GPU belleği için paralel üretim azaltıldı.', 'Parallel generation was reduced to fit GPU memory.'],
     ['Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.', 'Audio is ready; review or regenerate the flagged pieces.'],
+    ['Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.', 'Audio is ready, but its quality report could not be read. Listen before attaching it to the video.'],
     ['Süreye göre düzenleme kullanılamadı; özgün metin korunuyor.', 'Duration editing was unavailable; the original text is retained.'],
     ['Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.', 'Speech verification was unavailable; listen and review the finished audio.'],
     ['Referans sesi çok kısık', 'The voice reference is too quiet'],

@@ -15951,6 +15951,7 @@ function applyPlaybackLearningPolicy(time, previousTime, paused, browserMode) {
     player.playbackPolicy,
     { baseRate: player.learningBaseRate, gapRate: Math.max(2, player.learningBaseRate), minGap: 2, lead: .15,
       lastShadowCueId: player.shadowPausedCueId, autoPause: player.autoPause,
+      paused, playbackRate: browserMode ? player.browserRate : $('playerVideo')?.playbackRate,
       loopCueId: player.loopCueId, completedRepeats: player.loopCueRepeats,
       repeatCount: Number($('playerCueRepeatCount')?.value) || 5 },
   );

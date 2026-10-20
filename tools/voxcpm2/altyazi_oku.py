@@ -85,7 +85,7 @@ if sys.platform == 'win32':
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
 from dub_finish import spoken_text, finish_audio, active_ranges
-from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check
+from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check, cached_record
 
 
 class SpeechVerifier:
@@ -147,14 +147,22 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
         for _ in range(500):
             if response_path.is_file():
                 response = json.loads(response_path.read_text(encoding='utf-8'))
+                if not isinstance(response, dict):
+                    return text
                 proposed = response.get('text')
                 if isinstance(proposed, str) and 0 < len(proposed) <= (min(1000, max(len(text), round(len(text)*1.25))) if mode == 'natural' else len(text)):
                     return proposed
                 return text
             await asyncio.sleep(.1)
         return text
+    except (OSError, ValueError, TypeError):
+        # Optional editing failure must never turn otherwise valid speech into silence.
+        return text
     finally:
-        response_path.unlink(missing_ok=True)
+        try:
+            response_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def atempo_filters(ratio):
@@ -243,6 +251,8 @@ async def uret(args, cues, paths, prompt_text):
                 if valid_audio(path, sf):
                     try:
                         previous_metric = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+                        if not isinstance(previous_metric, dict):
+                            previous_metric = {}
                     except (OSError, ValueError):
                         pass
                 try:
@@ -295,7 +305,7 @@ async def uret(args, cues, paths, prompt_text):
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
                                     if checked.get('similarity', 0) > check.get('similarity', 0) and not any(
-                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'repetition', 'sign_mismatch')):
+                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'repetition', 'sign_mismatch', 'missing_names')):
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
                                         sf.write(str(temporary), wav, sr, subtype='PCM_16')
@@ -570,7 +580,7 @@ def main(argv=None):
     print(f"{len(cues)} altyazi satiri; ilk satir {cues[0][0] / 1000:.1f} sn, "
           f"son satir {cues[-1][1] / 1000:.1f} sn.", flush=True)
     duration = video_duration(args.video) if args.video else None
-    if args.video and (duration is None or cues[-1][1] / 1000 > duration):
+    if args.video and (duration is None or max(e for _, e, _ in cues) / 1000 > duration):
         raise SystemExit("Video suresi okunamadi veya altyazi videodan uzun; ses kesilmedi.")
     args.end_limit_ms = duration * 1000 if duration is not None else (
         args.range_end * 1000 if args.range_end is not None else None)
@@ -595,7 +605,7 @@ def main(argv=None):
     if args.auto_fit or args.natural_speech:
         # A compact rewrite depends on available time, unlike ordinary speech.
         paths = [cache_dir / (chunk_key(settings, duration_identity(cues, i, available_window(cues, i,
-            args.bosluk_pay_ms, args.end_limit_ms)), seed) + '.wav')
+            args.bosluk_pay_ms, args.end_limit_ms), args.group_keys[i] in args.manual_groups), seed) + '.wav')
             for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     for p in paths:
         if p.exists() and not valid_audio(p, sf):
@@ -620,10 +630,7 @@ def main(argv=None):
     group_results = []
     failed = {r['group']: r for r in args.group_results if r['status'] in ('failed','review')}
     for i, p in enumerate(paths):
-        try:
-            record = failed.get(i + 1) or json.loads(p.with_suffix('.json').read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            record = {'status': 'ready', 'verification': {'status': 'not_checked'}}
+        record = failed.get(i + 1) or cached_record(p)
         record.update(group=i + 1, key=args.group_keys[i])
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
@@ -632,7 +639,7 @@ def main(argv=None):
     for row in public_groups:
         print('DUB_GROUP ' + json.dumps(row), flush=True)
     timeline_cues = cues
-    total_s = duration or (cues[-1][1] + 2000) / 1000.0
+    total_s = duration or (max(e for _, e, _ in cues) + 2000) / 1000.0
     if args.range_start is not None:
         offset_ms = round(args.range_start * 1000)
         timeline_cues = [(s - offset_ms, e - offset_ms, t) for s, e, t in cues]

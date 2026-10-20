@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
+const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
@@ -321,7 +322,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
-          sync, syncInvalid, quality:saved.quality || null, sample:saved.sample === true,
+          sync, syncInvalid, quality:saved.quality || null, qualityUnavailable:saved.qualityUnavailable === true || !saved.quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
           timing: saved.timing, subtitle: saved.subtitle, logPath: entry.file }) };
@@ -575,10 +576,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             const qualityPath = output.replace(/\.wav$/i, '.quality.json');
             if (fs.statSync(qualityPath).size <= 16000000) {
               const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
-              if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length <= 5000) quality = raw;
+              if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length && raw.groups.length <= 5000) {
+                validateGroups(raw.groups); quality = raw;
+              }
             }
           } catch (_) {}
-          finish(s, 'done', { path: output, url: pathToFileURL(output).href,
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href, qualityUnavailable: !quality?.groups?.length,
             subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as

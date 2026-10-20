@@ -111,5 +111,5 @@
       return result.length <= 8192 ? result : '';
     } catch (_) { return ''; }
   }
-  return { safePlaceUrl, redactUrlSensitiveParams, SENSITIVE_PARAM_RE: sensitive, TRACKING_PARAM_RE: tracking };
+  return { safePlaceUrl, redactUrlSensitiveParams, cleanPathParams, cleanQuery, SENSITIVE_PARAM_RE: sensitive, TRACKING_PARAM_RE: tracking };
 });
