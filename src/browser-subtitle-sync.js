@@ -117,12 +117,15 @@
       throw new RangeError('Eşleşme noktaları aynı veya birbirine çok yakın.');
     }
     const n = list.length;
-    let sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (const p of list) { sx += p.sourceTime; sy += p.videoTime; sxx += p.sourceTime * p.sourceTime; sxy += p.sourceTime * p.videoTime; }
-    const denom = n * sxx - sx * sx;
-    if (denom <= 0) throw new RangeError('Eşleşme noktaları aynı kaynak zamanında yığılmış.');
-    const scale = (n * sxy - sx * sy) / denom;
-    const offsetSeconds = (sy - scale * sx) / n;
+    // Center before squaring: large timeline origins otherwise cancel variance.
+    const originX=list[0].sourceTime,originY=list[0].videoTime;
+    const meanX=list.reduce((sum,p)=>sum+(p.sourceTime-originX),0)/n;
+    const meanY=list.reduce((sum,p)=>sum+(p.videoTime-originY),0)/n;
+    let variance=0,covariance=0;
+    for(const p of list){const dx=p.sourceTime-originX-meanX;variance+=dx*dx;covariance+=dx*(p.videoTime-originY-meanY);}
+    if(variance<=0)throw new RangeError('Eşleşme noktaları aynı kaynak zamanında yığılmış.');
+    const scale=covariance/variance;
+    const offsetSeconds=originY+meanY-scale*(originX+meanX);
     const transform = normalizeTransform({ scale, offsetSeconds });
     const residuals = list.map((p) => p.videoTime - (p.sourceTime * transform.scale + transform.offsetSeconds));
     const rmsError = Math.sqrt(residuals.reduce((sum, r) => sum + r * r, 0) / n);
@@ -132,12 +135,14 @@
     // belirgin büyükse outlier sayılır (3+ noktada anlamlı). Tek fit'in
     // RMS'i outlier tarafından şiştiği için onu gizleyemez.
     const fitOn = (subset) => {
-      let fsx = 0, fsy = 0, fsxx = 0, fsxy = 0;
-      for (const p of subset) { fsx += p.sourceTime; fsy += p.videoTime; fsxx += p.sourceTime * p.sourceTime; fsxy += p.sourceTime * p.videoTime; }
-      const fdenom = subset.length * fsxx - fsx * fsx;
-      if (fdenom <= 0) return null;
-      const fscale = (subset.length * fsxy - fsx * fsy) / fdenom;
-      return { scale: fscale, offset: (fsy - fscale * fsx) / subset.length };
+      const ox=subset[0].sourceTime,oy=subset[0].videoTime;
+      const mx=subset.reduce((sum,p)=>sum+(p.sourceTime-ox),0)/subset.length;
+      const my=subset.reduce((sum,p)=>sum+(p.videoTime-oy),0)/subset.length;
+      let variance=0,covariance=0;
+      for(const p of subset){const dx=p.sourceTime-ox-mx;variance+=dx*dx;covariance+=dx*(p.videoTime-oy-my);}
+      if(variance<=0)return null;
+      const scale=covariance/variance;
+      return {scale,offset:oy+my-scale*(ox+mx)};
     };
     const outliers = [];
     if (n >= 3) {

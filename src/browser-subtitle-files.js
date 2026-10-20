@@ -5,13 +5,14 @@ function createBrowserSubtitleFileStore(options = {}) {
   const path = options.path;
   if (!fs || !path) throw new TypeError('fs ve path bağımlılıkları gerekli.');
   const directory = path.resolve(String(options.directory || ''));
-  const directoryKey = directory.toLowerCase();
+  const pathKey = file => path.sep==='\\' ? file.toLowerCase() : file;
+  const directoryKey = pathKey(directory);
   const limit = Math.max(1, Math.floor(Number(options.limit) || 64));
   let entries = null;
 
   function isOwnedFile(file) {
     const resolved = path.resolve(String(file || ''));
-    return path.dirname(resolved).toLowerCase() === directoryKey
+    return pathKey(path.dirname(resolved)) === directoryKey
       && (/^web-.*\.srt$/i.test(path.basename(resolved))
         || /^[0-9a-f]{8}-[0-9a-f-]{27,}\.(?:srt|vtt|ass|ssa)$/i.test(path.basename(resolved)));
   }
@@ -37,8 +38,8 @@ function createBrowserSubtitleFileStore(options = {}) {
     index.set(resolved, Date.now());
     const protectedSet = new Set((Array.isArray(protectedFiles) ? protectedFiles : [])
       .filter(isOwnedFile)
-      .map((item) => path.resolve(item).toLowerCase()));
-    protectedSet.add(resolved.toLowerCase());
+      .map((item) => pathKey(path.resolve(item))));
+    protectedSet.add(pathKey(resolved));
     // Dışarıdan temizlenen dosyalar kotayı doldurup canlı dosyaları
     // gereksiz yere sildirmesin. Kilit/izin hataları kaydı korur.
     if (index.size > limit) {
@@ -50,7 +51,7 @@ function createBrowserSubtitleFileStore(options = {}) {
     let removed = 0;
     for (const [candidate] of [...index.entries()].sort((a, b) => a[1] - b[1])) {
       if (index.size <= limit) break;
-      if (protectedSet.has(candidate.toLowerCase())) continue;
+      if (protectedSet.has(pathKey(candidate))) continue;
       try {
         fs.unlinkSync(candidate);
         index.delete(candidate);

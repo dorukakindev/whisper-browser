@@ -16,11 +16,12 @@
     const path = typeof value.path === 'string' ? value.path.trim() : '';
     const role = typeof value.role === 'string' ? value.role.toLowerCase() : '';
     if (!path || !SUBTITLE_EXT.test(path) || !ROLES.has(role)) return null;
-    const total = Math.max(0, Math.floor(Number(value.total) || 0));
-    const hasCompleted = Number.isFinite(Number(value.completed));
-    let failed = Math.max(0, Math.floor(Number(value.failed) || 0));
+    const count = raw => {const n=Number(raw);return Number.isSafeInteger(n)&&n>=0?n:0;};
+    const total = count(value.total);
+    const hasCompleted = value.completed!==null && value.completed!==undefined && value.completed!=='' && Number.isFinite(Number(value.completed));
+    let failed = count(value.failed);
     let completed = hasCompleted
-      ? Math.max(0, Math.floor(Number(value.completed)))
+      ? count(value.completed)
       : Math.max(0, total - failed);
     if (total) {
       completed = Math.min(total, completed);

@@ -20,10 +20,11 @@ function median(values) {
 function calibrateCueTimeline(referenceCues = [], candidateCues = [], options = {}) {
   const maxOffset = Math.max(1, Number(options.maxOffsetSeconds) || 120);
   const tolerance = Math.max(0.05, Number(options.toleranceSeconds) || 0.4);
+  const time = value => (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) && Number(value)>=0 ? Number(value) : NaN;
   const candidateByText = new Map();
   for (const cue of candidateCues || []) {
     const text = normalizeTimelineText(cue?.text);
-    const start = Number(cue?.start);
+    const start = time(cue?.start);
     if (!text || !Number.isFinite(start)) continue;
     const list = candidateByText.get(text) || [];
     list.push({ cue, text, start });
@@ -32,12 +33,12 @@ function calibrateCueTimeline(referenceCues = [], candidateCues = [], options = 
   const referenceCounts = new Map();
   for (const cue of referenceCues || []) {
     const text = normalizeTimelineText(cue?.text);
-    if (text && Number.isFinite(Number(cue?.start))) referenceCounts.set(text, (referenceCounts.get(text) || 0) + 1);
+    if (text && Number.isFinite(time(cue?.start))) referenceCounts.set(text, (referenceCounts.get(text) || 0) + 1);
   }
   const samples = [];
   for (const cue of referenceCues || []) {
     const text = normalizeTimelineText(cue?.text);
-    const start = Number(cue?.start);
+    const start = time(cue?.start);
     const matches = candidateByText.get(text) || [];
     if (!text || !Number.isFinite(start) || matches.length !== 1 || referenceCounts.get(text) !== 1) continue;
     const offset = start - matches[0].start;

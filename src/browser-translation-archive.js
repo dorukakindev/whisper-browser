@@ -152,20 +152,22 @@ function matchArchivedPage(record, rawBlocks) {
     role: String(block?.role || '').toLowerCase().slice(0, 48), order,
   })).filter((block) => block.id && block.source);
   const rows = Array.isArray(record?.rows) ? record.rows : [];
-  const byId = new Map(blocks.map((block) => [block.id, block]));
+  const idCounts=new Map();for(const block of blocks)idCounts.set(block.id,(idCounts.get(block.id)||0)+1);
+  const uniqueBlocks=blocks.filter(block=>idCounts.get(block.id)===1);
+  const byId = new Map(uniqueBlocks.map((block) => [block.id, block]));
   const used = new Set();
   const matches = [];
   const unmatchedRows = [];
   for (const row of rows) {
     if (!normalizeText(row?.translation)) continue;
     const block = byId.get(String(row?.id || ''));
-    if (block && block.source === normalizeText(row?.source) && !used.has(block.id)) {
+    if (block && pageRowKey(block) === pageRowKey(row) && !used.has(block.id)) {
       used.add(block.id);
       matches.push({ id: block.id, translation: normalizeText(row.translation), source: block.source });
     } else unmatchedRows.push(row);
   }
   const queues = new Map();
-  for (const block of blocks) {
+  for (const block of uniqueBlocks) {
     if (used.has(block.id)) continue;
     const key = pageRowKey(block);
     if (!queues.has(key)) queues.set(key, []);
@@ -308,11 +310,13 @@ class BrowserTranslationArchive {
         const filePath = path.resolve(this.rootDir, String(entry.jsonPath || ''));
         if (!filePath.startsWith(this.rootDir + path.sep)) continue;
         const record = JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
-        if (record?.version !== ARCHIVE_VERSION || record.kind !== 'page' || record.url !== url) continue;
+        if (record?.version !== ARCHIVE_VERSION || record.kind !== 'page' || record.url !== url || record.targetLanguage !== targetLanguage) continue;
         const match = matchArchivedPage(record, raw.blocks);
         const minimum = record.rows.length <= 2 ? 1 : 2;
         if (match.matches.length < minimum || match.ratio < 0.5) continue;
-        const candidate = { entry, record, ...match, path: path.join(this.rootDir, entry.displayPath) };
+        const displayPath=path.resolve(this.rootDir,String(entry.displayPath||''));
+        if(path.dirname(displayPath)!==this.pageDir || path.extname(displayPath).toLowerCase()!=='.md')continue;
+        const candidate = { entry, record, ...match, path: displayPath };
         if (!best || candidate.matches.length > best.matches.length
             || (candidate.matches.length === best.matches.length && entry.updatedAt > best.entry.updatedAt)) best = candidate;
       } catch (_) {}
