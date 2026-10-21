@@ -48,7 +48,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const engine = savedPath('engine') || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
     return { engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
-      verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'balanced',
+      verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
       grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',

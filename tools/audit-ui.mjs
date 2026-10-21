@@ -58,7 +58,7 @@ function stageRenderer() {
     const noop = () => Promise.resolve(null);
     window.api = new Proxy({}, { get(_, key) {
       if (key === 'then') return undefined;
-      if (key === 'dubConfig') return () => Promise.resolve({ok:true,ready:true,reference:'demo-voice.wav',transcript:'demo-voice.txt',profile:'quality',concurrency:4,grouping:'akici',timingMode:'video',verification:'balanced',naturalSpeech:true,autoFit:true});
+      if (key === 'dubConfig') return () => Promise.resolve({ok:true,ready:true,reference:'demo-voice.wav',transcript:'demo-voice.txt',profile:'quality',concurrency:4,grouping:'akici',timingMode:'video',verification:'detailed',naturalSpeech:true,autoFit:true});
       if (key === 'selectFile') return () => Promise.resolve('demo-subtitles.tr.srt');
       if (typeof key === 'string' && /^on[A-Z]/.test(key)) return () => () => {};
       return noop;

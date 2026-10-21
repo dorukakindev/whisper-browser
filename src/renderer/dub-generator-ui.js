@@ -129,7 +129,7 @@
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
     if (!current && !plan) el('dubGrouping').value = r.grouping || 'akici';
-    if (!current) { el('dubVerification').value = r.verification || 'balanced'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
+    if (!current) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
     el('dubTranscriptName').textContent = basename(r.transcript);

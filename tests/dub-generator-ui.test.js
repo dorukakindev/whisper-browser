@@ -23,6 +23,10 @@ w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'
 const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
+  assert.equal(el('dubVerification').value,'detailed');
+  assert.equal(el('dubGrouping').value,'akici');
+  assert.equal(el('dubTimingMode').value,'video');
+  assert.equal(el('dubProfile').value,'quality');
   el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
   el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
   el('dubChooseSrt').click();await tick();
