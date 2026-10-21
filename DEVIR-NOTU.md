@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-21-0811.md](docs/devir/2026-10-21-0811.md) — Rapor496: Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış düzeltme; CI arkada
+Güncel çalışma: [docs/devir/2026-10-21-0819.md](docs/devir/2026-10-21-0819.md) — Kalıcı test tercihi: faydalı kısa kontroller, uzun testler ve CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0811.md](docs/devir/2026-10-21-0811.md) — Rapor496: Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-20-2042.md](docs/devir/2026-10-20-2042.md) — Rapor495: Konuşma anlamı, proje kurtarma ve altyazıda 20 doğrulanmış düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-20-2029.md](docs/devir/2026-10-20-2029.md) — Rapor494: Konuşma, çeviri ve oynatmada 20 yeni doğrulanmış düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-20-2000.md](docs/devir/2026-10-20-2000.md) — Rapor493: Ses, oynatma ve kütüphanede 20 doğrulanmış düzeltme; CI arkada

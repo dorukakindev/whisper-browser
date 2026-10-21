@@ -4,6 +4,8 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Yeni oturumda önce oku — kalıcı kullanıcı tercihleri
 
+- Kullanıcının 2026-10-21 test tercihi: Testlere yalnız somut faydası varsa zaman ayır. Değişen davranışı ve önemli veri/ses/iş kaybı risklerini doğrulayan kısa hedefli kontrolleri çalıştır; sayı artırmak için test yazma veya gereksiz tam paket tekrarları yapma. Uzun testler ve GitHub CI arka planda çalışsın; teslimi sonuçlarını beklemeye bağlama. Sonuçlar geldiğinde incele, bilinen başarısızlıkları düzelt veya açıkça bildir; görülmeyen sonucu başarılı diye sunma. Bu tercih testleri kapatma izni değildir.
+
 Sohbet geçmişi kaybolmuş olabilir. Çalışmaya başlamadan bu dosyayı, [YENI-BILGISAYAR.md](YENI-BILGISAYAR.md), [DEVIR-NOTU.md](DEVIR-NOTU.md) indeksindeki güncel notu ve konuyla ilgili önceki notları oku. Notlardaki başarılar tarihsel kanıttır; mevcut kodu ve ortamı ayrıca incele. Kullanıcının daha yeni talimatı bu kayıtlardan önceliklidir.
 
 - Doğru GitHub deposu **https://github.com/dorukakindev/whisper-browser**. Belgelerde/paket metadatasında bulunan `androiandot/whisper-altyazi` eski upstream bilgisidir; push hedefi olarak kullanma. Önce `git remote -v`, `git status --short`, dal ve HEAD'i kontrol et. Son teslim dalı `master` idi; her oturumda yeniden doğrula. Yeni dal gerekiyorsa `codex/` önekini kullan; kullanıcının mevcut çalışmasını kaybetme.
