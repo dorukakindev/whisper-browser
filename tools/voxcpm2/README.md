@@ -19,14 +19,14 @@ sağda geniş metin ve günlük, altta sabit üretim/dinleme çubuğu. Dar veya 
 DPI pencerede sol ayarlar kaydırılabilir. Otomatik, Hi-Fi ve dökümsüz basit
 klonlama; nano-vLLM veya uyumlu PyTorch motoru seçilebilir. Kelime vurgulu
 okuyucu isteğe bağlı son işlemdir; modelin kelime kelime ses ürettiği anlamına gelmez.
-600 karakterlik dengeli bloklar varsayılandır; 900/1200 ile uzun bağlam seçilebilir.
+300 karakterlik dengeli bloklar varsayılandır; 600/900/1200 ile uzun bağlam seçilebilir. Gerçek GPU karşılaştırmasında yaklaşık 400 karakterlik tek istek erken bitirebildi; uzunluk kalite garantisi değildir.
 Okuma planı v2 tam cümleleri birleştirir, çok uzun metinler güvenli sınırlarda parçalanır.
 Durak alanı saniye değil mevcut motorun durak **çarpanıdır**. Sayısal tercihler,
 klonlama/motor/parçalama/son işlem ve örnek seçimleri saklanır; varsayılan hizalama
 kapalıdır, açılırsa ek süre/model indirmesi gerekebilir. İşlenen özgün metin değişmez.
 
 Browser/oynatıcı **Konuşma gruplama → Akıcı konuşma blokları** varsayılanında,
-yakın kısa cümleler en fazla 550 karakter/24 saniyelik kaynak blokta birleştirilir.
+yakın kısa cümleler en fazla 280 karakter/18 saniyelik kaynak blokta birleştirilir.
 600 ms üzeri boşluk, çakışma ve görünen konuşmacı sınırı ayrı tutulur. Eski cümle
 grupları ve satır satır seçenekleri de vardır. Plan ve üretim aynı ayarları kullanır;
 eski plana ait düzenleme farklı gruplama ile uygulanamaz. İnce kelime zamanlaması
@@ -212,3 +212,18 @@ Kısa doğrulama: gerçek yerel11sn ses+sentetik müzik instrumental üretimi ve
 Bu, uzun YouTube videolarında kusursuz ayırma veya canlı Electron senkron kanıtı değildir.
 
 Kaynak: [Audio Separator](https://github.com/nomadkaraoke/python-audio-separator).
+
+
+## Yerel ses karşılaştırması
+
+Motorun Python'uyla `compare_prosody.py --text ornek.txt --reference ses.wav
+--transcript ses.txt --output yeni-karsilastirma` çalıştırılabilir. Önce
+VOXCPM_ROOT motor klasörünü göstermeli. Metin en fazla800 karakter ve her
+satırda tam cümle olmalı. İsteğe bağlı --verify-python uygulamanın backend
+Python yoludur (önbellekteki small Whisper gerekir). --only ile sentence,
+flowing, fixed-seed, cfg2-fixed veya single-context seçilebilir. Model yalnız
+önbellekten yüklenir; yeni model indirmez. İşlemGPU kullanır; aynı anda başka
+ses üretimi başlatmayın. Çıktı listen.html ve results.json'dur. Otomatik bir
+kazanan veya insan doğallığı puanı verilmez. Daha uzun bağlam her zaman daha
+iyi değildir; [gerçek deneme raporu](../../docs/raporlar/BROWSER_BUG_REPORT_504.md)
+metin atlayan tek-parça örneği ve kontrollü kurtarmayı açıklar.
