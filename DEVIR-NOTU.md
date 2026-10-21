@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-21-1847.md](docs/devir/2026-10-21-1847.md) — PR455–471 tamamı master’da; Windows ana kopya güncellendi
 Güncel çalışma: [docs/devir/2026-10-21-1838.md](docs/devir/2026-10-21-1838.md) — İsteğe bağlı kaynak anlatımı, güvenli koşullama ve araştırma raporları
 Güncel çalışma: [docs/devir/2026-10-21-1810.md](docs/devir/2026-10-21-1810.md) — Ses çevirisi editörü, yerel referans ve deneysel anlatım tonu
 Güncel çalışma: [docs/devir/2026-10-21-1651.md](docs/devir/2026-10-21-1651.md) — Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı
