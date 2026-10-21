@@ -61,6 +61,20 @@ class GenerationTests(unittest.TestCase):
             self.assertIsNone(server.prompt_id)
             self.assertEqual(Verifier.checks,['Good.'])
             self.assertEqual(args.group_results[0]['delivery'],delivery)
+
+    def test_unknown_auto_group_keeps_reference_only_conditioning(self):
+        class DeliveryServer(Server):
+            def __init__(self): super().__init__();self.prompts=[]
+            async def add_prompt(self,*_args): raise AssertionError('auto must not add a continuation prompt')
+            async def generate(self,text,**kwargs):
+                self.prompts.append(kwargs['prompt_id'])
+                async for part in super().generate(text,**kwargs): yield part
+        delivery={'energy':'high','variation':'varied','pauses':'normal'}
+        with tempfile.TemporaryDirectory() as d:
+            server=DeliveryServer()
+            self.run_generation(Path(d),server,['Good.','Uncertain.'],delivery=[delivery,None],automatic=True)
+            self.assertEqual(server.prompts,[None,None])
+            self.assertEqual(server.calls[1],'Uncertain.')
     def test_slow_video_mode_does_not_shorten_a_complete_translation(self):
         with tempfile.TemporaryDirectory() as temp:
             server=Server()
@@ -171,7 +185,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -193,6 +207,7 @@ class GenerationTests(unittest.TestCase):
             verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set(),timing_mode=timing_mode)
         paths = [folder/f'{i}.wav' for i in range(len(texts))]
         args.group_delivery=delivery or []
+        args.prosody_plan='fixture' if automatic else None
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}
         cues = [(i*1000,(i+1)*1000,text) for i,text in enumerate(texts)]

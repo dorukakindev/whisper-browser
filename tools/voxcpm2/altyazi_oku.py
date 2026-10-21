@@ -211,7 +211,8 @@ async def uret(args, cues, paths, prompt_text):
         wav_bytes = Path(args.reference).read_bytes()
         ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
         prompt_id = None
-        if prompt_text and getattr(args, 'expression', 'reference') == 'reference':
+        automatic_delivery = bool(getattr(args,'prosody_plan',None))
+        if prompt_text and getattr(args, 'expression', 'reference') == 'reference' and not automatic_delivery:
             prompt_id = await bounded_call(server.add_prompt(wav_bytes, "wav", prompt_text), args.ready_timeout)
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
         print("Referans hazir; uretim basliyor.", flush=True)
@@ -235,13 +236,18 @@ async def uret(args, cues, paths, prompt_text):
             instruction = delivery_instruction(delivery)
             async for part in server.generate(
                     instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
-                    prompt_id=None if instruction else prompt_id,
+                    prompt_id=None if instruction or automatic_delivery else prompt_id,
                     ref_audio_latents=ref_lat,
                     temperature=args.temperature,
                     cfg_value=args.cfg, seed=seed,
                     max_generate_length=args.max_generate_length):
                 pieces.append(np.asarray(part, dtype=np.float32).reshape(-1))
             return np.concatenate(pieces) if pieces else np.zeros(0, dtype=np.float32)
+
+        def finish_generated(audio):
+            prepared=prepare_audio(audio,sr)
+            return (finish_audio(prepared,sr,preserve_dynamics=True) if automatic_delivery
+                    else finish_audio(prepared,sr))
 
         async def gen(i, text, path):
             nonlocal done
@@ -277,7 +283,8 @@ async def uret(args, cues, paths, prompt_text):
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
                     metric['rewritten'] = False
-                    wav, finishing = finish_audio(wav, sr)
+                    wav, finishing = (finish_audio(wav,sr,preserve_dynamics=True) if automatic_delivery
+                                      else finish_audio(wav,sr))
                     metric['finishing'] = finishing
                     metric['measured_seconds'] = len(wav)/sr
                     # One bounded, duration-informed edit. Preserve the original
@@ -293,7 +300,7 @@ async def uret(args, cues, paths, prompt_text):
                                 candidate, extra = await quality_retry(lambda n: synthesize(proposed, n),
                                     lambda raw: assess_chunk(raw, sr, proposed)[0], seed + 17,
                                     1, args.request_timeout)
-                                candidate, candidate_finishing = finish_audio(prepare_audio(candidate, sr), sr)
+                                candidate, candidate_finishing = finish_generated(candidate)
                                 metric['attempts'] += extra['attempts']
                                 metric['retries'] += extra['attempts']
                                 if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
@@ -312,7 +319,7 @@ async def uret(args, cues, paths, prompt_text):
                             # from an uncertain automatic transcript.
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate, candidate_finishing = finish_audio(prepare_audio(await bounded_call(synthesize(text, seed + 200003), args.request_timeout), sr), sr)
+                                candidate, candidate_finishing = finish_generated(await bounded_call(synthesize(text, seed + 200003), args.request_timeout))
                                 if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
@@ -339,7 +346,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['attempts'] += 1
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
-                                synthesize, lambda raw, rate: finish_audio(prepare_audio(raw, rate), rate),
+                                synthesize, lambda raw, rate: finish_generated(raw),
                                 verifier.check, temporary, args.request_timeout, recovery_attempt)
                             if recovered is not None:
                                 wav, check, recovery = recovered
@@ -656,7 +663,10 @@ def main(argv=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     def group_settings(i):
         delivery=args.group_delivery[i]
-        return settings + (DELIVERY_VERSION,repr(sorted(delivery.items()))) if delivery else settings
+        if args.prosody_plan:
+            return settings + (DELIVERY_VERSION,'reference-only-preserve-dynamics-v1',
+                               repr(sorted(delivery.items())) if delivery else 'no-extra-guidance')
+        return settings
     paths = [cache_dir / (chunk_key(group_settings(i), text, seed) + '.wav')
              for i,((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     if args.auto_fit or args.natural_speech:

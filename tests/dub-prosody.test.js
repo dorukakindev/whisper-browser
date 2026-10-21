@@ -19,7 +19,8 @@ const options={source:'source.mp4',srt:'captions.srt',output:path.join(folder,'d
   assert.deepEqual(status,['1/3']);
   fs.writeFileSync(options.output,'{}');child.emit('close',0);await pending;assert.equal(proc,null);
   fs.unlinkSync(options.output);
-  const failed=prepareProsody(options);child.emit('close',1);await assert.rejects(failed);
+  const failed=prepareProsody(options);child.stdout.emit('data','DUB_PROSODY_ERROR MULTIPLE_AUDIO_TRACKS\n');
+  child.emit('close',1);await assert.rejects(failed,error=>error.code==='MULTIPLE_AUDIO_TRACKS');
   let cancelled=false;
   const stopped=prepareProsody({...options,isCancelled:()=>cancelled});cancelled=true;
   fs.writeFileSync(options.output,'{}');child.emit('close',0);await assert.rejects(stopped);

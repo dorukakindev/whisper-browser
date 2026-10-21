@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 import numpy as np
@@ -13,6 +14,17 @@ import prepare_prosody as P
 
 
 class ProsodyTests(unittest.TestCase):
+    def test_ambiguous_youtube_language_is_not_silently_analyzed(self):
+        class Downloader:
+            def __init__(self,*_a,**_kw): pass
+            def __enter__(self): return self
+            def __exit__(self,*_a): pass
+            def extract_info(self,*_a,**_kw):
+                return {'url':'https://cdn.invalid/audio','formats':[
+                    {'acodec':'opus','language':'en'},{'acodec':'opus','language':'tr'}]}
+        with patch.dict(sys.modules,{'yt_dlp':types.SimpleNamespace(YoutubeDL=Downloader)}):
+            with self.assertRaisesRegex(ValueError,'MULTIPLE_AUDIO_TRACKS'):
+                P.source_connection('https://www.youtube.com/watch?v=abcdefghijk')
     def test_silence_noise_steady_tone_and_clipping_are_unknown(self):
         rng=np.random.default_rng(42); t=np.arange(16000)/8000
         for audio in (np.zeros(16000),rng.normal(0,.02,16000),.2*np.sin(2*np.pi*160*t),np.ones(16000),np.array([np.nan]*16000)):

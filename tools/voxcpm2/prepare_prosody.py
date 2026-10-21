@@ -24,6 +24,12 @@ def source_connection(source):
     with yt_dlp.YoutubeDL({'quiet':True,'no_warnings':True,'noplaylist':True,'format':'bestaudio/best',
                           'socket_timeout':20,'retries':1,'js_runtimes':{'node':{}}}) as dl:
         info=dl.extract_info(source,download=False)
+    audio_languages={str(f.get('language')).lower() for f in info.get('formats',[])
+                     if f.get('acodec') not in (None,'none') and f.get('language')}
+    if len(audio_languages)>1:
+        # Without a selected track snapshot, do not silently analyze a dub in
+        # another language. Let the user supply the exact local audio instead.
+        raise ValueError('MULTIPLE_AUDIO_TRACKS')
     media=info.get('url','')
     if not media.startswith('https://'): raise ValueError('Audio unavailable')
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'backend'))
@@ -44,7 +50,7 @@ def main():
     groups=make_groups(parse_srt(args.srt,data),args.start,args.end,0,args.grouping,
                        280 if args.grouping=='akici' else 250,18 if args.grouping=='akici' else 12,600)
     if args.sample: groups=representative_groups(groups)
-    rows=[]
+    rows=[]; audio_hash=hashlib.sha256()
     with source_connection(args.source) as source:
         for i,g in enumerate(groups):
             start=g.get('source_start',g['start'])
@@ -56,15 +62,22 @@ def main():
             r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=90,
                              creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
             raw=r.stdout
+            audio_hash.update(str((start,end)).encode());audio_hash.update(raw)
             complete=len(raw)/(8000*4) >= max(.6,duration-.25)
             feature=features(np.frombuffer(raw,dtype='<f4')) if r.returncode==0 and complete and len(raw)%4==0 and len(raw)<=8000*40*4+4096 else None
             rows.append({'key':','.join(map(str,g['source_ids'])),'start':g['start'],'end':g['end'],
                          'source_start':start,'source_end':end,'features':feature})
             print('DUB_PROSODY '+str(i+1)+'/'+str(len(groups)),flush=True)
     result={'version':VERSION,'sourceHash':hashlib.sha256(data).hexdigest(),'strength':args.strength,
+            'timeUnit':'milliseconds','planTimeline':'packed-preview' if args.sample else 'source-video',
+            'sourceTimeline':'source-video','sampledAudioHash':audio_hash.hexdigest(),
             'groups':delivery_rows(rows,args.strength)}
     target=Path(args.output); temporary=target.with_suffix('.partial.json')
     temporary.write_text(json.dumps(result,allow_nan=False),encoding='utf-8');temporary.replace(target)
 
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    try: main()
+    except ValueError as error:
+        if str(error)=='MULTIPLE_AUDIO_TRACKS': print('DUB_PROSODY_ERROR MULTIPLE_AUDIO_TRACKS',flush=True)
+        raise

@@ -8,6 +8,15 @@ from dub_finish import spoken_text, finish_audio, active_ranges
 from dub_quality import speech_check
 
 class FinishTests(unittest.TestCase):
+    def test_auto_delivery_does_not_level_each_phrase_separately(self):
+        t=np.arange(8000)/8000
+        quiet=.02*np.sin(2*np.pi*150*t)
+        loud=quiet*5
+        a,info_a=finish_audio(quiet,8000,preserve_dynamics=True)
+        b,info_b=finish_audio(loud,8000,preserve_dynamics=True)
+        self.assertEqual(info_a['gain_db'],0)
+        self.assertEqual(info_b['gain_db'],0)
+        self.assertAlmostEqual(float(np.sqrt(np.mean(b*b))/np.sqrt(np.mean(a*a))),5,places=4)
     def test_separate_spoken_numbers_units_and_ambiguous_forms(self):
         original = 'Dr. Kaya 12,5 km ve 2026 yılını anlattı.'
         self.assertEqual(spoken_text(original),'Doktor Kaya on iki virgül beş kilometre ve iki bin yirmi altı yılını anlattı.')

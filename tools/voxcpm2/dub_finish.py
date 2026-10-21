@@ -42,7 +42,7 @@ def spoken_text(text):
     return re.sub(pattern, number, text)
 
 
-def finish_audio(audio, sr):
+def finish_audio(audio, sr, preserve_dynamics=False):
     """Remove only near-digital edge silence, retain 60 ms, bound gain to 3 dB."""
     wav = np.asarray(audio, dtype=np.float32).copy()
     if wav.ndim != 1 or sr <= 0 or not len(wav) or not np.isfinite(wav).all():
@@ -58,7 +58,7 @@ def finish_audio(audio, sr):
     levels = np.abs(wav)
     audible = wav[levels > max(.002, peak * .025)]
     rms = float(np.sqrt(np.mean(audible**2))) if len(audible) else 0
-    gain = min(10**(3/20), max(10**(-3/20), .1/rms)) if rms else 1
+    gain = 1 if preserve_dynamics else (min(10**(3/20), max(10**(-3/20), .1/rms)) if rms else 1)
     gain = min(gain, .97/max(peak, .000001))
     wav *= gain
     fade = min(round(sr * .003), len(wav)//2)

@@ -15,6 +15,7 @@ w.api = {
   dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
   openPath: async value => { opened=value; },
   latestDub: async () => ({ok:true}), selectFile: async () => 'test.srt',
+  selectVoiceReferenceSource: async()=>({ok:true,path:'analysis-source.wav'}),
   onDubEvent: callback => {onEvent=callback;},
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
 };
@@ -47,11 +48,14 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubReadySource').textContent,'test.srt');
   assert.equal(el('dubReadyRange').textContent,'10:00 → 20:00');
   el('dubExpression').value='warm';
+  el('dubChooseDeliverySource').click();await tick();
+  assert.equal(el('dubDeliverySourceName').textContent,'analysis-source.wav');
+  assert.equal(el('dubVoiceName').textContent,'voice.wav','analysis audio is not the cloned voice');
   el('dubGeneratorStart').click();await tick();
   assert.equal(request.expression,'warm');
   assert.equal(request.followDelivery,true);
   assert.equal(request.deliveryStrength,'balanced');
-  assert.equal(request.prosodySource,'fixture.mp4');
+  assert.equal(request.prosodySource,'analysis-source.wav');
   assert.equal(el('dubExpression').disabled,true);
   assert.deepEqual(JSON.parse(JSON.stringify(request.range)),{start:600,end:1200});assert.equal(request.keepBackground,true);
   assert.equal(request.grouping,'akici');

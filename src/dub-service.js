@@ -498,12 +498,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           if (!Array.isArray(delivery.groups)) throw new Error('Invalid delivery map');
           s.settings.deliveryAnalyzed = delivery.groups.length;
           s.settings.deliveryApplied = delivery.groups.filter(row=>row.delivery).length;
-          if (!s.settings.deliveryApplied) emit(s,'warning',{text:'Özgün seste güvenilir anlatım bulunamadı; referans tonu korunuyor.'});
+          if (!s.settings.deliveryApplied) emit(s,'warning',{text:'Özgün seste güvenilir anlatım bulunamadı; ek yönlendirme uygulanmıyor.'});
           args.push('--prosody-plan',file); s.settings.deliveryReport=path.basename(file);
         } catch (error) {
           if (s.cancelled) throw error;
           cleanupArtifacts(s,files); s.settings.deliveryFallback=true;
           emit(s,'warning',{text:'Özgün anlatım analiz edilemedi; referansın doğal tonuyla devam ediliyor.'});
+          if (error.code==='MULTIPLE_AUDIO_TRACKS') emit(s,'warning',{text:'Videoda birden fazla ses dili var. Doğru konuşmayı analiz etmek için yerel analiz sesini seçin.'});
         }
       }
       let background = null;

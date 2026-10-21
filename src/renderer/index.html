@@ -3744,7 +3744,8 @@
     <div class="dub-generator-row"><button id="voiceReferenceLocal" type="button" class="btn btn-secondary">Yerelden referans ses ekle</button><button id="voiceReferenceVideo" type="button" class="btn btn-ghost">Açık videoyu kullan</button><span id="voiceReferenceSourceName" data-ui-untranslated></span></div>
     <label class="dub-generator-row"><input id="dubFollowDelivery" type="checkbox" />Videodaki anlatımı takip et · deneysel</label>
     <label for="dubDeliveryStrength">Aktarım gücü</label><select id="dubDeliveryStrength" disabled><option value="gentle">Hafif</option><option value="balanced" selected>Dengeli</option><option value="strong">Belirgin</option></select>
-    <p>Özgün sesin enerji, perde hareketi ve durakları izlenir; kesin duygu etiketi çıkarılmaz. Müzik ve birden fazla konuşmacı yanıltabilir. Belirsiz bölümde referans tonu korunur.</p>
+    <div class="dub-generator-row"><button id="dubChooseDeliverySource" type="button" class="btn btn-ghost" disabled>Analiz için yerel ses seç</button><button id="dubResetDeliverySource" type="button" class="btn btn-ghost" disabled>Analizde açık videoyu kullan</button><span id="dubDeliverySourceName" data-ui-untranslated></span></div>
+    <p>Özgün sesin enerji, perde hareketi ve durakları izlenir; kesin duygu etiketi çıkarılmaz. Müzik ve birden fazla konuşmacı yanıltabilir. Belirsiz bölümde ek yönlendirme uygulanmaz.</p>
     <label for="dubExpression">Anlatım tonu</label><select id="dubExpression"><option value="reference">Referansın tonunu koru</option><option value="calm">Sakin anlatım · deneysel</option><option value="warm">Sıcak anlatım · deneysel</option><option value="lively">Canlı anlatım · deneysel</option></select>
     <p>En doğal duygu için aynı kişinin istediğiniz tonda konuştuğu temiz bir referans seçin. Deneysel tonlar ses kimliğini etkileyebilir; önce kısa örnek dinleyin.</p>
 <details id="voiceReferenceRecorder">

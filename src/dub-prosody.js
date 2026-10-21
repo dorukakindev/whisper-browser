@@ -12,7 +12,7 @@ function prepareProsody({ source, srt, output, range, sample, grouping, strength
   return new Promise((resolve,reject) => {
     const child = spawn(python,args,{cwd:appRoot,env:{...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'},windowsHide:true});
     onProcess(child);
-    let pending='', settled=false;
+    let pending='', settled=false, failureCode='';
     const done = error => { if (settled) return; settled=true; clearTimeout(timer); onProcess(null); error ? reject(error) : resolve(output); };
     const timer=setTimeout(() => {
       // Do not detach a live process from the owning job before it is stopped.
@@ -26,10 +26,16 @@ function prepareProsody({ source, srt, output, range, sample, grouping, strength
     child.stdout.setEncoding('utf8'); child.stderr.resume();
     child.stdout.on('data',text => {
       pending=(pending+text).slice(-4096); const lines=pending.split(/\r?\n/); pending=lines.pop();
-      for (const line of lines) if (/^DUB_PROSODY \d+\/\d+$/.test(line)) status(line.slice(12));
+      for (const line of lines) {
+        if (/^DUB_PROSODY \d+\/\d+$/.test(line)) status(line.slice(12));
+        if (line==='DUB_PROSODY_ERROR MULTIPLE_AUDIO_TRACKS') failureCode='MULTIPLE_AUDIO_TRACKS';
+      }
     });
     child.once('error',()=>done(new Error('Prosody worker could not start')));
-    child.once('close',code=>done(code===0 && !isCancelled() && fs.existsSync(output) ? null : new Error('Prosody source could not be analyzed')));
+    child.once('close',code=>{
+      const error=new Error('Prosody source could not be analyzed');error.code=failureCode;
+      done(code===0 && !isCancelled() && fs.existsSync(output) ? null : error);
+    });
   });
 }
 module.exports={prepareProsody};

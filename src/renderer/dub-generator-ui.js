@@ -6,6 +6,7 @@
   let timer = null, logPath = null;
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
+  let deliverySource = '';
   let lastRequest = null, lastReferenceQuality = null;
   const results = new Map();
   const resultOptions = new Map();
@@ -103,6 +104,7 @@
     el('dubGrouping').disabled = locked;
     el('dubFollowDelivery').disabled = locked;
     el('dubDeliveryStrength').disabled = locked || !el('dubFollowDelivery').checked;
+    el('dubChooseDeliverySource').disabled = el('dubResetDeliverySource').disabled = locked || !el('dubFollowDelivery').checked;
     el('dubExpression').disabled = locked || el('dubFollowDelivery').checked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
@@ -147,6 +149,7 @@
     const mediaKey = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey]);
     if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
       srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
+      deliverySource='';el('dubDeliverySourceName').textContent='';
       lastRequest = null; results.clear(); showResults();
     }
     mediaContextKey = mediaKey;
@@ -205,9 +208,14 @@
     if (choosing || current || referenceBusy || planning) return;
     const media = mediaIdentity(); choosing = true; controls();
     try {
-      const result = kind === 'subtitle' ? await window.api.selectFile('subtitle') : await window.api.selectVideo();
+      const result = kind === 'subtitle' ? await window.api.selectFile('subtitle')
+        : kind === 'delivery' ? await window.api.selectVoiceReferenceSource() : await window.api.selectVideo();
       if (media !== mediaIdentity()) { inheritSubtitleRange(); status('Video değişti; dosyayı yeniden seçin.'); return; }
-      if (kind === 'subtitle') {
+      if (kind === 'delivery') {
+        if (result?.ok && !result.cancelled && result.path) {
+          deliverySource=result.path;el('dubDeliverySourceName').textContent=basename(deliverySource);
+        }
+      } else if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
           srt = result; lastRequest = null; results.clear(); showResults(); invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
@@ -219,6 +227,8 @@
   }
   el('dubChooseSrt').addEventListener('click', () => chooseInput('subtitle'));
   el('dubFollowDelivery').addEventListener('change',controls);
+  el('dubChooseDeliverySource').addEventListener('click',()=>chooseInput('delivery'));
+  el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';});
   el('dubPlanPrepare').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing || !srt) return;
     const media = mediaIdentity();
@@ -314,7 +324,7 @@
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
       expression: el('dubExpression').value,
       followDelivery:el('dubFollowDelivery').checked, deliveryStrength:el('dubDeliveryStrength').value,
-      prosodySource: pending.context?.backgroundSource || '',
+      prosodySource: deliverySource || pending.context?.backgroundSource || '',
       verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked, naturalSpeech:el('dubNaturalSpeech').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
