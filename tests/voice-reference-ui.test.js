@@ -65,5 +65,16 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   pending[1]({ok:true,references:[{...entry,id:'newest',name:'Newest'}],folder:'folder',activeId:'newest'});await tick();
   pending[0]({ok:true,references:[entry],folder:'old-folder'});await tick();
   assert.equal(el('voiceReferenceSelect').value,'newest','a late list response cannot replace newer references');
+  w.BrowserDubAudioUI.context=()=>null;
+  w.api.selectVoiceReferenceSource=async()=>({ok:true,path:'C:\\Sesler\\benim-sesim.mp3'});
+  w.api.listVoiceReferences=async()=>({ok:true,references:[entry],folder:'folder'});
+  el('voiceReferenceLocal').click();await tick();
+  assert.equal(el('voiceReferenceSourceName').textContent,'benim-sesim.mp3');
+  el('voiceReferenceEnd').value='0:10';el('voiceReferencePrepare').click();await tick();
+  assert.equal(request.source,'C:\\Sesler\\benim-sesim.mp3','local audio does not require an open video');
+  assert.equal(request.range.start,0);assert.equal(request.range.end,10);
+  resolvePrepare({ok:true,reference:entry});await tick();
+  el('voiceReferenceUse').click();await tick();assert.equal(used.id,entry.id);
+  el('voiceReferenceVideo').click();await tick();assert.equal(el('voiceReferenceSourceName').textContent,'');
   console.log('voice-reference-ui: 5–25 range, GPU status, preview/use, transcript and confirmed cancellation passed');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => dom.window.close());

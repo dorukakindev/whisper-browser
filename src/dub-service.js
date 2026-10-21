@@ -51,6 +51,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'balanced',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
+      grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
   function emit(s, type, data = {}) {
@@ -205,6 +206,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       return { ok: false, cancelled: s.cancelled, error: error.message };
     } finally { if (job === s && !s.keepOwner) job = null; }
   }));
+  ipcMain.handle('dub:referenceSource', guard(async () => {
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const selected = await dialog.showOpenDialog(owner(), { properties: ['openFile'],
+      filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg', 'opus', 'aac', 'wma'] }] });
+    if (selected.canceled || !selected.filePaths[0]) return { ok: true, cancelled: true };
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const file = selected.filePaths[0];
+    if (!fs.statSync(file).isFile()) throw new Error('Invalid reference file.');
+    grantMedia(file);
+    return { ok: true, path: file };
+  }));
   ipcMain.handle('dub:rate', guard(async (_e, request = {}) => {
     if (typeof setRate !== 'function' || !Number.isFinite(request.rate) || request.rate < .0625 || request.rate > 4
         || !Number.isInteger(request.generation) || typeof request.tabId !== 'string') throw new Error('Geçersiz dublaj hız isteği.');
@@ -230,10 +242,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
     const c = config();
     const range = rangeOption(request.range);
+    const grouping = ['akici', 'cumle', 'satir'].includes(request.grouping) ? request.grouping : c.grouping;
     const result = await new Promise((resolve, reject) => {
       const proc = spawn(path.join(c.engine, '.venv', 'Scripts', 'python.exe'),
         [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt,
-          ...(range ? [String(range.start), String(range.end)] : [])],
+          ...(range ? [String(range.start), String(range.end)] : []), '--grouping', grouping],
         { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
       let out = '', stderr = '', settled = false;
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
@@ -267,8 +280,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
     });
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
-    plans.set(senderId, { srt, range, ...result });
-    return { ok: true, ...result };
+    plans.set(senderId, { srt, range, grouping, ...result });
+    return { ok: true, grouping, ...result };
     } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
   ipcMain.handle('dub:shorten', guard(async (e, key) => {
@@ -283,9 +296,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (textUI) return { ok: true, alreadyOpen: true };
     const c = config();
     const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
-    const script = path.join(c.engine, 'arayuz.py');
+    const script = path.join(__dirname, '..', 'tools', 'voxcpm2', 'text_studio.py');
     if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
-    const proc = spawn(python, [script], { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(python, [script, '--engine', c.engine, '--config', configPath(),
+      '--reference', c.reference, '--transcript', c.transcript, '--storage', voiceStorage(app).root],
+      { cwd: path.join(__dirname, '..'), env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '', launched = false;
     proc.stderr?.setEncoding?.('utf8');
     proc.stderr?.on('data', data => { stderr = (stderr + data).slice(-6000); });
@@ -379,8 +394,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!['clip','video'].includes(timingMode)) throw new Error('Geçersiz zamanlama modu.');
       if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
       c.profile = profile; c.concurrency = concurrency; c.timingMode = timingMode;
+      if (request.grouping !== undefined && !['akici', 'cumle', 'satir'].includes(request.grouping)) throw new Error('Dublaj planını yeniden hazırlayın.');
+      c.grouping = request.grouping ?? c.grouping;
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
+      s.settings.grouping = c.grouping;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
@@ -420,7 +438,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
+        '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '550' : '250',
+        '--grup-max-sn', c.grouping === 'akici' ? '24' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
@@ -438,7 +457,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
       if (request.dubText) {
         const plan = plans.get(e.sender.id);
-        if (!plan || plan.srt !== srt || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
+        if (!plan || plan.srt !== srt || plan.grouping !== c.grouping || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
         const edits = request.dubText.edits;
         if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
         const keys = new Set(plan.groups.map(g => g.key));

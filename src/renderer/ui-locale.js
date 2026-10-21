@@ -4,6 +4,17 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Konuşma gruplama', 'Speech grouping'],
+    ['Akıcı konuşma blokları (önerilen)', 'Flowing speech blocks (recommended)'],
+    ['Cümle grupları', 'Sentence groups'],
+    ['Her altyazı satırı ayrı', 'Each subtitle cue separately'],
+    ['Akıcı mod yakın kısa cümleleri birlikte seslendirir. Konuşmacı değişimi ve uzun sessizlikler korunur; altyazı zamanları kaybolmaz.', 'Flowing mode voices nearby short sentences together. Speaker changes, long pauses and subtitle timing are preserved.'],
+    ['Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?', 'Changing speech grouping will reset your dubbing text edits. Continue?'],
+    ['Video veya yerel sesten referans al', 'Create a voice reference from video or local audio'],
+    ['Yerel ses seç', 'Choose local audio'],
+    ['Yerel ses için başlangıç ve bitiş aralığını seçin. Ses hazırlanıp dökümü çıkarılır; Bu sesi kullan ile etkinleştirin.', 'Choose the start and end of your local audio sample. Prepare the voice and transcript, then activate it with Use this voice.'],
+    ['Yerel ses seçildi. Konuşma aralığını ayarlayıp Referans sesi hazırla düğmesine basın.', 'Local audio selected. Set the speech interval, then press Prepare voice reference.'],
+    ['Referans kaynağı açık video olarak seçildi.', 'The open video is selected as the reference source.'],
     ['Katalog kimlikleri tekrarlanıyor; veri korunuyor.', 'Duplicate library identifiers; existing data is preserved.'],
     ['Bölüm kimliği başka bir sezon veya bölüme bağlı.', 'The episode identifier belongs to a different season or episode.'],
     ["Önce üretilen sesi veya kayıtlı dublaj projesini açın.", "Open a generated voice or a saved dubbing project first."],

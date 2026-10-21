@@ -37,6 +37,7 @@ const call = (name,...args)=>handlers[name]({sender},...args);
 (async()=>{
   try {
     assert.equal((await call('dub:config')).ready,true);
+    assert.equal((await call('dub:config')).grouping,'akici');
     const pendingPlan = call('dub:plan', {srt});
     await new Promise(resolve => setImmediate(resolve));
     child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
@@ -62,6 +63,9 @@ const call = (name,...args)=>handlers[name]({sender},...args);
 
     assert.equal((await call('dub:start',{id:'bad-plan',srt,dubText:{sourceHash:'wrong',edits:{}}})).ok,false);
     assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:fixtureHash,edits:{'1':'Kısa metin.'}}})).ok,true);
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--gruplama')+1],'akici');
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--grup-max-karakter')+1],'550');
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--grup-max-sn')+1],'24');
     const textPath=calls.at(-1).args[calls.at(-1).args.indexOf('--dub-text')+1];
     assert.equal(JSON.parse(fs.readFileSync(textPath,'utf8')).edits['1'],'Kısa metin.');
     assert.equal(fs.readFileSync(srt,'utf8'),'fixture');
@@ -186,7 +190,9 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(events.at(-1).type,'done'); assert.ok(events.at(-1).logError, 'log failure must be reported without losing audio');
     assert.equal((await call('dub:textUI')).ok,true);
     assert.ok(calls.at(-1).exe.endsWith('pythonw.exe'));
-    assert.ok(calls.at(-1).args[0].endsWith('arayuz.py'));
+    assert.ok(calls.at(-1).args[0].endsWith('text_studio.py'));
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--engine')+1], engine);
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--config')+1], path.join(root,'dub-settings.json'));
     assert.equal((await call('dub:start',{id:'studio-busy',srt})).ok,false);
     child.stderr.emit('data','ModuleNotFoundError: studio import failed\n');
     child.emit('close',1); assert.equal(service.running(),false);

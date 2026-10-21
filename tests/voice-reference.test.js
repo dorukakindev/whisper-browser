@@ -6,10 +6,12 @@ const { registerDubService } = require('../src/dub-service');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-reference-'));
 const app = new EventEmitter(); app.getPath = () => root;
 let allowed = true, mode = 'ready', release, terminated = 0, preparation;
+let selectedAudio, pickerBusy = false;
 const handlers = {}, events = [];
 const sender = { isDestroyed: () => false, send: (_channel, event) => events.push(event) };
 const service = registerDubService({ app, ipcMain: { handle: (name, fn) => { handlers[name] = fn; } },
-  authorized: () => allowed, busy: () => false, environment: () => ({}), grantMedia: file => assert(fs.existsSync(file)),
+  authorized: () => allowed, busy: () => pickerBusy, environment: () => ({}), grantMedia: file => assert(fs.existsSync(file)),
+  owner:()=>null, dialog:{showOpenDialog:async()=>selectedAudio || {canceled:true,filePaths:[]}},
   terminate: async () => { terminated++; return true; },
   prepareReference: async options => {
     preparation = options; options.status('transcribe_cuda');
@@ -23,6 +25,10 @@ const request = () => ({ id: randomUUID(), range: { start: 5, end: 25 } });
 const tick = () => new Promise(setImmediate);
 (async () => {
   allowed = false; assert.equal((await call('dub:references')).ok, false); allowed = true;
+  assert.equal((await call('dub:referenceSource')).cancelled,true);
+  const localAudio=path.join(root,'yerel ses.mp3');fs.writeFileSync(localAudio,'fixture');selectedAudio={filePaths:[localAudio]};
+  assert.equal((await call('dub:referenceSource')).path,localAudio);
+  pickerBusy=true;assert.equal((await call('dub:referenceSource')).ok,false);pickerBusy=false;
   assert.equal((await call('dub:referencePrepare', { ...request(), range: { start: 5, end: 40 } })).ok, false);
   assert.equal((await call('dub:referencePrepare', { ...request(), id: '../outside' })).ok, false);
   const good = { ...request(), name: '  Türkçe anlatıcı  ' }, result = await call('dub:referencePrepare', good);

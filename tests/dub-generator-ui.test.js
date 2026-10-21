@@ -29,6 +29,7 @@ const tick = () => new Promise(setImmediate);
   el('dubRangeEnabled').checked=true;el('dubRangeStart').value='10:00';el('dubRangeEnd').value='20:00';el('dubKeepBackground').checked=true;
   el('dubGeneratorStart').click();await tick();
   assert.deepEqual(JSON.parse(JSON.stringify(request.range)),{start:600,end:1200});assert.equal(request.keepBackground,true);
+  assert.equal(request.grouping,'akici');
   onEvent({id:request.id,type:'warning',text:'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.'});
   assert.match(el('dubGeneratorDetails').textContent,/Kısa örnekte/);
   assert.equal(request.backgroundSource,'fixture.mp4');

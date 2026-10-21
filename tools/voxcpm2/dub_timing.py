@@ -57,7 +57,7 @@ def placement_window(cues, i, audio_seconds, previous_end_s, max_speed,
 
 def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=600):
     """Preserve every source cue; group only nearby, same-speaker text."""
-    if mode not in ("cumle", "satir"):
+    if mode not in ("cumle", "satir", "akici"):
         raise ValueError("Bilinmeyen gruplama modu")
     groups = []
     for i, (start, end, text) in enumerate(cues):
@@ -79,12 +79,14 @@ def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=
             abbreviation = bool(re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I))
             complete = bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
             speaker_boundary = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
+            previous_speaker = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', g['text']))
             split = (start - g['end'] > max_gap_ms or start < g['end'] or speaker_boundary
                      or len(g['text']) + len(text) + 1 > max_chars
                      or (max(end, g['end']) - g['start']) / 1000 > max_seconds
                      # Keep very short replies with their context; otherwise
                      # end a completed sentence before the next source cue.
-                     or (complete and len(text.strip()) >= 24))
+                     or (mode == 'akici' and previous_speaker)
+                     or (complete and (len(g['text']) >= 140 if mode == 'akici' else len(text.strip()) >= 24)))
         if split:
             groups.append({'start': start, 'end': end, 'text': text.strip(), 'source_ids': [i + 1]})
         else:

@@ -77,6 +77,7 @@
   function controls() {
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
+    el('dubGrouping').disabled = locked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
     el('dubQualityGroup').disabled = locked || !results.size;
@@ -102,6 +103,7 @@
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
+    if (!current && !plan) el('dubGrouping').value = r.grouping || 'akici';
     if (!current) { el('dubVerification').value = r.verification || 'balanced'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
@@ -191,7 +193,7 @@
     const media = mediaIdentity();
     planning = true; controls();
     try {
-      const r = await window.api.planDub({ srt, range: selectedRange() });
+      const r = await window.api.planDub({ srt, range: selectedRange(), grouping: el('dubGrouping').value });
       if (media !== mediaIdentity()) { status('Video değişti; dosyayı yeniden seçin.'); return; }
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
@@ -205,6 +207,12 @@
     plan = null; edits = {}; lastRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
   for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
+  el('dubGrouping').addEventListener('change', () => {
+    if (plan && Object.keys(edits).length && !window.confirm(window.UiLocale?.t('Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?') || 'Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?')) {
+      el('dubGrouping').value = plan.grouping || cfg?.grouping || 'akici'; return;
+    }
+    invalidatePlan();
+  });
   el('dubRangeNow').addEventListener('click', () => {
     el('dubRangeStart').value = String(Math.floor(Number(window.BrowserDubAudioUI?.context()?.currentTime) || 0));
     invalidatePlan();
@@ -259,7 +267,7 @@
     status('Motor yükleniyor…'); controls();
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
       dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
-      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value),
+      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
       verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked, naturalSpeech:el('dubNaturalSpeech').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,

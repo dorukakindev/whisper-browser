@@ -115,10 +115,17 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
     return groups
 
 
-def plan(path, start=None, end=None):
+def grouping_options(mode):
+    if mode not in ('cumle', 'satir', 'akici'):
+        raise ValueError('Gecersiz gruplama modu.')
+    return {'mode': mode, 'max_chars': 550 if mode == 'akici' else 250,
+            'max_seconds': 24 if mode == 'akici' else 12, 'max_gap_ms': 600}
+
+
+def plan(path, start=None, end=None, grouping='cumle'):
     source = Path(path)
     source_bytes = read_source_bytes(source)
-    groups = make_groups(parse_srt(source, source_bytes), start, end)
+    groups = make_groups(parse_srt(source, source_bytes), start, end, **grouping_options(grouping))
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
@@ -127,4 +134,11 @@ def plan(path, start=None, end=None):
     return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups}
 
 if __name__ == '__main__':
-    print(json.dumps(plan(sys.argv[1], *(map(float, sys.argv[2:4]))), ensure_ascii=True))
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('source')
+    parser.add_argument('start', nargs='?', type=float)
+    parser.add_argument('end', nargs='?', type=float)
+    parser.add_argument('--grouping', choices=('cumle', 'satir', 'akici'), default='cumle')
+    args = parser.parse_args()
+    print(json.dumps(plan(args.source, args.start, args.end, args.grouping), ensure_ascii=True))
