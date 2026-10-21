@@ -194,6 +194,11 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   ctx.state.running = false;
   ctx.player.browserTracks = [{ id: 'speech', path: 'speech.srt', generatedBy: 'whisper',
     role: 'translation', language: 'tr', status: 'complete', forSpeech: true }];
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length, 2, 'old speech prompt output bypassed the improved translation');
+  speechJobs.pop(); // Keep the remaining independent assertions on the original job index.
+  ctx.state.running = false;
+  ctx.player.browserTracks[0].speechProtocol = 'speech-v3-full-meaning';
   ctx.useBrowserTrack = async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; };
   await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
   assert.equal(speechJobs.length, 1, 'ready speech translation was regenerated');
