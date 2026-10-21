@@ -241,3 +241,20 @@ Anchor yerel ASR'dan geçmeden model yüklenmez. Referans asıl ses olarak
 korunur; çıktılar zincirlenmez. Sonuçlar JSON/listen.html, kişisel dosyalar
 Git'e konmamalı. Bu araç üretim varsayılanı seçmez; daha kısa ses doğallık
 kanıtı değildir. GPU kullanır; başka ses üretimiyle aynı anda çalıştırmayın.
+
+### Okuma hızını ve perdeyi ölçme
+
+`analyze_prosody.py --results karsilastirma/results.json --output yeni-olcum.json`
+önceki sabit bağlam deneyini CPU üzerinde inceler. `--pitch` eklenirse mevcut
+motor Python'undaki librosa ile pYIN hesaplanır; ana backend'e ek paket gerekmez.
+Bu seçenek daha yavaştır. Her WAV mono ve en çok30 saniye, en çok8 pasaj/4 aday
+olmalıdır. Dosyalar karşılaştırma klasöründe kalır, çıktı dosyası ezilmez.
+Ölçümler: kenar sessizliği dışındaki span üzerinden sözcük/saniye, aktif RMS,
+enerjiyle sessiz bulunan oran ve isteğe bağlı F0 medyanı/90–10 yüzdelik aralığı.
+F0 bir konuşmacı kimliği ölçümü değildir; otomatik doğallık puanı veya kazanan yok.
+Ses değiştirilmez, yüklenmez. Aynı metindeki örnekleri karşılaştırın; farklı
+cümlelerin hız/perde farkı tek başına kusur anlamına gelmez.
+
+Akıcı altyazı gruplamasında tamamlanmış cümle sınırları, istek sayısını azaltmaktan
+önce gelir. Gerektiğinde biraz daha fazla grup oluşabilir; süre/boyut sınırları
+korunur. Uzun ses kurtarmasında da uygun cümle sonu virgülden önce tercih edilir.
