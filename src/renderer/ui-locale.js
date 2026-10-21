@@ -277,6 +277,7 @@
     ['Kısa örnek hazır; tüm video için örnek seçimini kapatın.', 'Sample ready; disable the sample option for the full video.'],
     ['Motor yükleniyor…', 'Loading engine…'], ['Cümle grupları hazır', 'Sentence groups ready'],
     ['Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…', 'The voice engine stopped responding; restarting while preserving completed pieces…'],
+    ['Tamamlanan sesler kurtarıldı; üretilemeyen bölümler kalite raporunda işaretlendi.', 'Completed audio was recovered; missing sections are marked in the quality report.'],
     ['Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.', 'Voice engine shutdown timed out; its workers were checked.'],
     ['Ses üretiliyor…', 'Generating audio…'], ['Ses zaman çizelgesine yerleştiriliyor…', 'Placing audio on the timeline…'],
     ['Ses ekle', 'Add audio'],

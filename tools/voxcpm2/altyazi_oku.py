@@ -203,9 +203,9 @@ async def uret(args, cues, paths, prompt_text):
         enforce_eager=False)
     try:
         try:
-            await asyncio.wait_for(server.wait_for_ready(), timeout=args.ready_timeout)
-        except asyncio.TimeoutError as exc:
-            raise RuntimeError(f"nano-vLLM sunucusu {args.ready_timeout} saniyede hazir olmadi; --ready-timeout ile beklemeyi artirin.") from exc
+            await bounded_call(server.wait_for_ready(), args.ready_timeout)
+        except EngineStalled as exc:
+            raise EngineStalled(f"nano-vLLM sunucusu {args.ready_timeout} saniyede hazir olmadi.") from exc
         load_seconds = time.monotonic() - began
         reference_began = time.monotonic()
         wav_bytes = Path(args.reference).read_bytes()
@@ -400,6 +400,7 @@ async def uret(args, cues, paths, prompt_text):
 
 def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
     from dub_lifecycle import EngineStalled
+    from dub_resume import recover_completed
     generate = generate or uret
     restarts = 0
     while True:
@@ -414,7 +415,13 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
                 print('DUB_WARNING engine_restart', flush=True)
                 print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
                 continue
-            if args.eszamanli <= 1 or not any(term in str(exc).lower() for term in ('out of memory', 'cuda error')):
+            memory_error = any(term in str(exc).lower() for term in ('out of memory', 'cuda error'))
+            if isinstance(exc, EngineStalled) or (args.eszamanli <= 1 and memory_error):
+                paths[:] = original_paths
+                rate = recover_completed(args, cues, paths)
+                if rate is not None:
+                    return rate
+            if args.eszamanli <= 1 or not memory_error:
                 raise
             args.eszamanli = max(1, args.eszamanli // 2)
             paths[:] = original_paths

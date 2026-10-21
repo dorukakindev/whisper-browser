@@ -34,7 +34,7 @@ async def bounded_call(awaitable, timeout, cancel_grace=3):
 async def stop_server(server, timeout=15):
     try:
         await bounded_call(server.stop(), timeout)
-    except Exception:
+    except BaseException as error:
         # Only processes owned by this server, never a machine-wide Python kill.
         for worker in getattr(server, 'servers', []):
             proc = getattr(worker, 'process', None)
@@ -45,3 +45,5 @@ async def stop_server(server, timeout=15):
                     proc.kill()
                     await asyncio.to_thread(proc.join, 2)
         print('DUB_WARNING server_shutdown_timeout', flush=True)
+        if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
+            raise

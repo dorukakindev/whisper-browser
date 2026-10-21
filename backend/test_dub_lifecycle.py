@@ -61,5 +61,23 @@ class Lifecycle(unittest.TestCase):
         server=Server();asyncio.run(stop_server(server,.1))
         self.assertTrue(server.stopped)
 
+    def test_cancel_during_shutdown_stops_only_owned_worker_and_remains_cancelled(self):
+        class Process:
+            alive=True
+            def is_alive(self):return self.alive
+            def terminate(self):self.alive=False
+            def join(self,timeout):pass
+        process=Process()
+        class Server:
+            servers=[SimpleNamespace(process=process)]
+            async def stop(self):await asyncio.Event().wait()
+        async def run():
+            task=asyncio.create_task(stop_server(Server(),.1))
+            await asyncio.sleep(.001)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):await task
+        with contextlib.redirect_stdout(io.StringIO()):asyncio.run(run())
+        self.assertFalse(process.is_alive())
+
 
 if __name__=='__main__':unittest.main()
