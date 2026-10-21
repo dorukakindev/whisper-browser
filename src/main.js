@@ -197,6 +197,7 @@ const {
 const { rankBrowserMediaCandidates } = require('./browser-media');
 const {
   hasConfiguredWatchOutput,
+  isUsableWatchOutput,
   normalizeWatchOutputConfig,
   advanceWatchStability,
   watchOutputNames,
@@ -2672,7 +2673,7 @@ function scanWatchFolder() {
     if (!MEDIA_EXTS.has(ext)) continue;
     // Yanında altyazı varsa zaten işlenmiş say (tekrar tekrar çevirmesin)
     const hasOutput = hasConfiguredWatchOutput(
-      file, watchOutputConfig, fs.existsSync, outputEntriesFor(file));
+      file, watchOutputConfig, isUsableWatchOutput, outputEntriesFor(file));
     if (hasOutput) {
       watchSeen.set(file, { queued: true, hadOutput: true });
       continue;
@@ -2752,7 +2753,7 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
       if (ent.name.startsWith('.')) continue;
       const full = path.join(target, ent.name);
       if (ent.isFile() && MEDIA_EXTS.has(path.extname(full).slice(1).toLowerCase())) {
-        const hasOutput = hasConfiguredWatchOutput(full, watchOutputConfig, fs.existsSync);
+        const hasOutput = hasConfiguredWatchOutput(full, watchOutputConfig, isUsableWatchOutput);
         const size = hasOutput ? 0 : (() => { try { return fs.statSync(full).size; } catch (_) { return 0; } })();
         watchSeen.set(full, { size, stableCount: 0, queued: hasOutput, hadOutput: hasOutput });
       } else if (ent.isDirectory()) {
@@ -2760,7 +2761,7 @@ ipcMain.handle('watch:start', async (_e, dir, options) => {
           if (sub.name.startsWith('.')) continue;
           const nested = path.join(full, sub.name);
           if (sub.isFile() && MEDIA_EXTS.has(path.extname(nested).slice(1).toLowerCase())) {
-            const hasOutput = hasConfiguredWatchOutput(nested, watchOutputConfig, fs.existsSync);
+            const hasOutput = hasConfiguredWatchOutput(nested, watchOutputConfig, isUsableWatchOutput);
             const size = hasOutput ? 0 : (() => { try { return fs.statSync(nested).size; } catch (_) { return 0; } })();
             watchSeen.set(nested, { size, stableCount: 0, queued: hasOutput, hadOutput: hasOutput });
           }
@@ -2899,11 +2900,17 @@ function writeQueueState(raw) {
   const target = queueStatePath();
   const snapshot = queueSnapshotForDisk(raw);
   try {
-    if (fs.existsSync(target)) {
-      let valid = false;
-      try { const parsed = JSON.parse(fs.readFileSync(target, 'utf8')); valid = !!parsed && typeof parsed === 'object' && !Array.isArray(parsed); } catch (_) {}
-      if (valid) fs.copyFileSync(target, `${target}.bak`);
+    let valid = false;
+    for(const candidate of [target,`${target}.bak`]){
+      try {
+        if(!fs.existsSync(candidate))continue;
+        const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        const document=!!parsed && typeof parsed === 'object' && !Array.isArray(parsed);
+        if(candidate===target)valid=document;
+        if(document && parsed.version != null && parsed.version !== snapshot.version) return {ok:false,error:'Geçersiz kuyruk durumu.'};
+      } catch (_) {}
     }
+    if (valid) fs.copyFileSync(target, `${target}.bak`);
     writeJsonAtomic(target, snapshot);
     return { ok: true, snapshot };
   } catch (error) {
@@ -5973,14 +5980,16 @@ async function saveBrowserSelectionNote(tab, fallbackSelection = '') {
       || tab.view.webContents.isDestroyed()) throw new Error('Alıntı alınırken sekme veya sayfa değişti.');
   const exact = String(captured.anchor?.exact || fallbackSelection || '').trim();
   if (!exact) throw new Error('Seçili metin bulunamadı.');
-  let annotation = normalizeAnnotation({
-    type: 'quote', mediaId: documentId, source: exact, note: '', anchor: captured.anchor,
+  const noteRequest = {
+    type: 'quote', mediaId: documentId, source: exact, anchor: captured.anchor,
     mediaTitle: tab.view.webContents.getTitle() || tab.restoredTitle || 'Web alıntısı',
     mediaType: 'browser', mediaUrl: persistentBrowserMediaUrl(tab.view.webContents.getURL() || tab.restoredUrl || ''),
-  });
+  };
+  let annotation = normalizeAnnotation(noteRequest);
   const store = ensureBrowserNotesReady();
   if (store.loadError || store.migrationError) throw new Error(store.loadError || store.migrationError);
-  annotation = store.upsert(annotation);
+  const existing=matchingLearningAnnotation(store.list(documentId),'quote',annotation);
+  annotation = store.upsert({...noteRequest,...(existing ? {id:existing.id} : {})});
   try {
     const index = watchIndex();
     ensureIndexMediaForAnnotation(index, annotation);
@@ -18797,7 +18806,9 @@ ipcMain.handle('library:annotations:toggle', async (_event, request) => {
       savedAnnotation = removed;
       try { index?.removeAnnotation(existing?.id || annotation.id); } catch (_) {}
     } else {
-      savedAnnotation = store.upsert(annotation);
+      const existing=matchingLearningAnnotation(store.list(annotation.mediaId),annotation.type,annotation);
+      savedAnnotation = store.upsert({...request?.annotation,id:existing?.id || annotation.id,
+        mediaId:annotation.mediaId,mediaTitle:annotation.mediaTitle,mediaType:annotation.mediaType,mediaUrl:annotation.mediaUrl});
       try {
         ensureIndexMediaForAnnotation(index, savedAnnotation);
         index?.upsertAnnotation(savedAnnotation);
@@ -18826,7 +18837,7 @@ ipcMain.handle('browser:research:upsert', async (event, raw) => {
     if (!annotation.id || !annotation.mediaId) return { ok: false, error: 'Not ve medya kimliği gerekli.' };
     const store = ensureBrowserNotesReady();
     if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
-    const saved = store.upsert({ ...raw, ...annotation, updatedAt: Date.now() });
+    const saved = store.upsert({ ...raw, id:annotation.id,mediaId:annotation.mediaId,updatedAt: Date.now() });
     try { const index = watchIndex(); ensureIndexMediaForAnnotation(index, saved); index?.upsertAnnotation(saved); } catch (_) {}
     return { ok: true, annotation: saved };
   } catch (error) { return { ok: false, error: error.message }; }
@@ -19591,11 +19602,13 @@ ipcMain.handle('queue:save', (event, snapshot) => {
   }
   const validation = validateQueueOptions(snapshot);
   if (!validation.ok) return validation;
-  const merged = mergeQueueSnapshotForSave(
-    readQueueStateRaw(), snapshot, activeQueueItemId, queueTerminalGuards);
-  const result = writeQueueState(merged);
-  if (result.ok) releaseQueueTerminalGuards(merged.items, snapshot.items);
-  return result;
+  try {
+    const merged = mergeQueueSnapshotForSave(
+      readQueueStateRaw(), snapshot, activeQueueItemId, queueTerminalGuards);
+    const result = writeQueueState(merged);
+    if (result.ok) releaseQueueTerminalGuards(merged.items, snapshot.items);
+    return result;
+  } catch(error) { return {ok:false,error:error.message}; }
 });
 
 // ---- Ayarları dışa/içe aktar ----

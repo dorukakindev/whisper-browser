@@ -48,7 +48,10 @@ function youtubeId(raw) {
 function canonicalWatchKey(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return '';
   const key = raw.trim();
-  if (key.startsWith('file:')) return 'file:' + key.slice(5).replace(/\\/g, '/').toLowerCase();
+  if (key.startsWith('file:')) {
+    const file=key.slice(5),windows=/^[a-z]:[\\/]|^[/\\]{2}/i.test(file);
+    return 'file:' + (windows ? path.win32 : path.posix).normalize(file).replace(/\\/g, '/').toLowerCase();
+  }
   if (key.startsWith('browser:')) {
     const normalized = canonicalBrowserUrl(key.slice(8));
     return normalized ? `browser:${normalized}` : key;

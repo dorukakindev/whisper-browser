@@ -284,6 +284,7 @@ class WatchIndex {
     const old = this.db.prepare('SELECT * FROM media WHERE id = ?').get(source);
     if (!old) return null;
     this.transaction(() => {
+      if (this.getMedia(target)) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
       // foreign_keys = ON yalnizca ON DELETE CASCADE tanimli; ON UPDATE CASCADE
       // yok — once yeni satiri ac, cocuklari tas, sonra eski satiri sil.
       this.db.prepare(`
@@ -388,7 +389,7 @@ class WatchIndex {
       const usedIds = new Set();
       for (let index = 0; index < cues.length; index++) {
         const cue = cues[index] || {};
-        const baseId = String(cue.id ?? '').trim() || String(index);
+        const baseId = String(cue.cueId ?? cue.id ?? '').trim() || String(index);
         let cueId = baseId;
         let occurrence = 1;
         while (usedIds.has(cueId)) cueId = `${baseId}#${++occurrence}`;

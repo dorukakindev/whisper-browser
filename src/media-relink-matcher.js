@@ -230,7 +230,8 @@ function mergeWatchItems(source, target) {
   }
   merged.sessions = [...anon, ...byId.values()].slice(-40);
   merged.totalWatchSeconds = merged.sessions.reduce((n, s) => n + Math.max(0, Number(s?.watchSeconds) || 0), 0);
-  const size = Math.max(num(source, 'sizeBytes'), num(target, 'sizeBytes'));
+  // Size belongs to the selected target file, not the combined watch history.
+  const size = num(target, 'sizeBytes');
   if (size > 0) merged.sizeBytes = size; else delete merged.sizeBytes;
   return merged;
 }

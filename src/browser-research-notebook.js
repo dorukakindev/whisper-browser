@@ -1,4 +1,5 @@
 const SAFE_LINK_PROTOCOLS = new Set(['http:', 'https:']);
+const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 function normalizeResearchTags(value) {
   const source = Array.isArray(value) ? value : String(value || '').split(',');
@@ -98,13 +99,17 @@ function researchAnnotationsToMarkdown(rows, title = 'Whisper Local arastirma de
     lines.push(`## ${markdownEscape(row.mediaTitle || row.source || 'Adsiz not')}`, '');
     const meta = [row.type, row.status, Number.isFinite(Number(row.start)) ? `${Number(row.start).toFixed(3)} sn` : ''].filter(Boolean).join(' · ');
     if (meta) lines.push(markdownEscape(meta), '');
-    if (row.mediaUrl && /^https?:\/\//i.test(row.mediaUrl)) lines.push(`[Kaynak](${String(row.mediaUrl).replace(/\)/g, '%29')})`, '');
+    const sourceUrl=redactUrlSensitiveParams(row.mediaUrl || '');
+    if (sourceUrl) lines.push(`[Kaynak](${sourceUrl.replace(/\)/g, '%29')})`, '');
     if (row.source) lines.push('> ' + markdownEscape(row.source).replace(/\n/g, '\n> '), '');
     if (row.translation) lines.push(`**Ceviri:** ${markdownEscape(row.translation)}`, '');
     if (row.note) lines.push(markdownEscape(row.note), '');
     const tags = normalizeResearchTags(row.tags);
     if (tags.length) lines.push(`Etiketler: ${tags.map((tag) => `\`${tag.replace(/`/g, '')}\``).join(' ')}`, '');
-    for (const link of normalizeResearchLinks(row.links)) lines.push(`- [${markdownEscape(link.label || link.url)}](${link.url.replace(/\)/g, '%29')})`);
+    for (const link of normalizeResearchLinks(row.links)) {
+      const url=redactUrlSensitiveParams(link.url);
+      if(url)lines.push(`- [${markdownEscape(link.label || url)}](${url.replace(/\)/g, '%29')})`);
+    }
     if (row.links?.length) lines.push('');
   }
   return `${lines.join('\n').trim()}\n`;

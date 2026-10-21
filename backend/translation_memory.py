@@ -14,7 +14,7 @@ from pathlib import Path
 TM_SCHEMA_VERSION = 1
 
 _TOKEN_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
-_NUMBER_RE = re.compile(r"(?<!\w)[+-]?\d+(?:[.,]\d+)*(?!\w)", re.UNICODE)
+_NUMBER_RE = re.compile(r"(?<!\w)(?:%\s*)?[+-]?\d+(?:[.,]\d+)*(?:\s*%)?(?!\w)", re.UNICODE)
 _PUNCT = {",": ",", ";": ",", ":": ":", "?": "?", "!": "!", "(": "(", ")": ")",
           "[": "(", "]": ")", "-": "-", "–": "-", "—": "-", "…": ".", ".": "."}
 _CONTRACTIONS = {
@@ -63,16 +63,25 @@ def _tokens(text):
 
 def _semantic_tokens(text):
     expanded = []
-    for token in _tokens(text):
+    value = str(text or '')
+    for match in _TOKEN_RE.finditer(value):
+        token = _tokens(match.group())[0]
+        if token in _VOCAL_FILLERS:
+            # 'er' is a Turkish soldier/German pronoun; 'um' is a German
+            # preposition. Only explicit discourse punctuation disambiguates.
+            left, right = value[:match.start()].rstrip(), value[match.end():].lstrip()
+            if token not in {'er', 'um', 'ah'} or ((not left or left.endswith(',')) and right.startswith(',')):
+                continue
         expanded.extend(_CONTRACTIONS.get(token, (token,)))
-    return tuple(token for token in expanded if token not in _VOCAL_FILLERS)
+    return tuple(expanded)
 
 
 def _number_signature(text):
     # Kaynak varyantındaki 1.5/1,5 yazım farkını aynı sayı kabul et; rakamların
     # ve işaretin kendisi değişirse eşleşme yine reddedilir.
     normalized = str(text or "").replace('\u2212', '-')
-    return tuple(re.sub(r"[.,]", ".", match.group(0)) for match in _NUMBER_RE.finditer(normalized))
+    return tuple(re.sub(r"[.,]", ".", re.sub(r"[%\s]", "", match.group(0)))
+                 + ('%' if '%' in match.group(0) else '') for match in _NUMBER_RE.finditer(normalized))
 
 
 def _anchor_signature(tokens, vocabulary):
@@ -83,7 +92,7 @@ def _proper_name_signature(text, ignore_matching_first=False):
     names = []
     for index, match in enumerate(_TOKEN_RE.finditer(str(text or ""))):
         token = unicodedata.normalize("NFC", match.group(0).replace("’", "'"))
-        if index == 0 and (ignore_matching_first
+        if index == 0 and ((ignore_matching_first and not token.isupper())
                            or token.casefold() in _NON_NAME_SENTENCE_STARTS):
             continue
         if (len(token) > 1 and (token.isupper() or token[:1].isupper())
@@ -155,7 +164,8 @@ def fuzzy_semantically_compatible(source, candidate):
         and _proper_name_signature(source, same_initial_token)
         == _proper_name_signature(candidate, same_initial_token)
         and _semantic_punctuation_shape(source) == _semantic_punctuation_shape(candidate)
-        and str(source).rstrip().endswith("?") == str(candidate).rstrip().endswith("?")
+        and str(source).rstrip(" \t\r\n\"'”’»)]}").endswith("?")
+        == str(candidate).rstrip(" \t\r\n\"'”’»)]}").endswith("?")
     )
 
 
