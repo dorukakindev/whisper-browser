@@ -4,6 +4,8 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Katalog kimlikleri tekrarlanıyor; veri korunuyor.', 'Duplicate library identifiers; existing data is preserved.'],
+    ['Bölüm kimliği başka bir sezon veya bölüme bağlı.', 'The episode identifier belongs to a different season or episode.'],
     ["Önce üretilen sesi veya kayıtlı dublaj projesini açın.", "Open a generated voice or a saved dubbing project first."],
     ["Yeni proje adı seçin; mevcut projeler korunur.", "Choose a new project name; existing projects are preserved."],
     ["Yeni çıktı adı seçin; mevcut dosyalar korunur.", "Choose a new output name; existing files are preserved."],

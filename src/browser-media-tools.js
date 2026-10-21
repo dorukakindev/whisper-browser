@@ -4,12 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { withoutSecretEnv } = require('./settings-security');
+const { terminateProcessTree } = require('./process-lifecycle');
 
 function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine = null) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
     const env = { ...withoutSecretEnv(process.env), PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
-    const child = spawn(executable, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
+    const child = spawn(executable, args, { windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'], env });
     const output = []; let size = 0; let errorText = ''; let settled = false;
     let stderrRemainder = '';
     const finish = (error, value) => {
@@ -17,18 +18,22 @@ function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine =
       settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
       if (error) reject(error); else resolve(value);
     };
-    const abort = () => { child.kill(); finish(new Error('İşlem iptal edildi.')); };
-    const timer = setTimeout(() => { child.kill(); finish(new Error('İşlem zaman aşımına uğradı.')); }, timeoutMs);
+    const stop = () => { try { terminateProcessTree(child, { spawn }); } catch (_) {} };
+    const abort = () => { stop(); finish(new Error('İşlem iptal edildi.')); };
+    const timer = setTimeout(() => { stop(); finish(new Error('İşlem zaman aşımına uğradı.')); }, timeoutMs);
     signal?.addEventListener('abort', abort, { once: true });
     child.on('error', (error) => finish(new Error(`Medya aracı başlatılamadı: ${error.message}`)));
-    child.stdout.on('data', (chunk) => { size += chunk.length; if (size > 5 * 1024 * 1024) { child.kill(); finish(new Error('Medya aracı çıktısı çok büyük.')); } else output.push(chunk); });
+    child.stdout.on('data', (chunk) => { if (settled) return; size += chunk.length; if (size > 5 * 1024 * 1024) { stop(); finish(new Error('Medya aracı çıktısı çok büyük.')); } else output.push(chunk); });
+    child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
-      const text = chunk.toString('utf8');
+      if (settled) return;
+      const text = String(chunk);
       errorText = (errorText + text).slice(-100000);
       // showinfo pts_time gibi akan işaretler son-100KB arabelleğinden taşabilir;
       // tam satırlar kancaya anında iletilir.
       if (typeof onStderrLine === 'function') {
         stderrRemainder += text;
+        if (stderrRemainder.length > 1024 * 1024) { stop(); finish(new Error('Medya aracı çıktısı çok büyük.')); return; }
         let idx;
         while ((idx = stderrRemainder.indexOf('\n')) >= 0) {
           const line = stderrRemainder.slice(0, idx);
@@ -43,9 +48,9 @@ function run(executable, args, input, signal, timeoutMs = 120000, onStderrLine =
       }
       finish(code === 0 ? null : new Error(errorText.trim() || Buffer.concat(output).toString('utf8').slice(0, 500) || 'Medya işlemi başarısız.'), Buffer.concat(output).toString('utf8') || errorText);
     });
-    child.stdin.on('error', (error) => { child.kill(); finish(error); });
+    child.stdin.on('error', (error) => { stop(); finish(error); });
     try { child.stdin.end(input); }
-    catch (error) { child.kill(); finish(error); }
+    catch (error) { stop(); finish(error); }
   });
 }
 

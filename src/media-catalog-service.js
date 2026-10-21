@@ -96,7 +96,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (Array.isArray(raw.episodes)) {
             patch.episodes = raw.episodes.map(ep => ({
               id: ep.id, season: ep.season, number: ep.number, title: ep.title, watchStatus: ep.watchStatus, airDate: ep.airDate,
-              source: previous?.episodes?.find(old => old.id === ep.id)?.source || null,
+              source: previous?.episodes?.find(old => old.id === ep.id && old.season===Number(ep.season) && old.number===Number(ep.number))?.source || null,
             }));
           }
           return { ok: true, item: visible(store().upsert(patch)) };
@@ -118,7 +118,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const url = new URL(String(input.url || ''));
           if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Geçerli bir http/https video sayfası adresi girin.');
           const key = sourceKey({ type: 'browser', value: url.href });
-          const value = new URL(key.slice(8)); value.hash = url.hash;
+          const value = new URL(require('./browser-place-url').redactUrlSensitiveParams(url.href));
           return { ok: true, item: visible(patchSource(input.id, input.episodeId, { type: 'browser', value: value.href, watchKey: key })) };
         }
         case 'poster-file': {

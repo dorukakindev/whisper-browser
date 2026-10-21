@@ -308,8 +308,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');
     if (!fs.existsSync(logs)) return { ok: true, output: null };
-    const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).map(n =>
-      ({ file: path.join(logs, n), time: fs.statSync(path.join(logs, n)).mtimeMs })).sort((a,b) => b.time - a.time);
+    const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).flatMap(n => {
+      try { const file=path.join(logs,n),stat=fs.statSync(file);return stat.isFile() ? [{file,time:stat.mtimeMs}] : []; }
+      catch (_) { return []; }
+    }).sort((a,b) => b.time - a.time);
     for (const entry of candidates) {
       try {
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
@@ -319,10 +321,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         grantMedia(output);
         let sync = null, syncInvalid = false;
         try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
+        let quality = null;
+        try { if(saved.quality?.version===1 && saved.quality.groups?.length) quality={...saved.quality,groups:validateGroups(saved.quality.groups)}; } catch (_) {}
         return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
-          sync, syncInvalid, quality:saved.quality || null, qualityUnavailable:saved.qualityUnavailable === true || !saved.quality?.groups?.length, sample:saved.sample === true,
+          sync, syncInvalid, quality, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
           timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
@@ -340,6 +344,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           extensions: [kind === 'reference' ? 'wav' : 'txt'] }],
       });
       if (!selected.canceled && selected.filePaths[0]) {
+        if (job || textUI || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');

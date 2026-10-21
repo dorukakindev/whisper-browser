@@ -23,7 +23,7 @@ function sourceCueRows(source) {
       while (reserved.has(id)) id = ':' + id;
       reserved.add(id);
     }
-    return { id, originalId, start: Number(cue?.start), end: Number(cue?.end) };
+    return { id, originalId, start: Number(cue?.start), end: Number(cue?.end), sourceCueHash: cue?.sourceCueHash };
   });
 }
 
@@ -36,6 +36,8 @@ function cueIdsForStage(values, source) {
     byOriginalId.get(row.originalId).push(row);
   }
   const ids = new Set();
+  const time = value => (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) ? Number(value) : NaN;
+  const compatible = (row,cue) => !row.sourceCueHash || !cue.sourceCueHash || row.sourceCueHash===cue.sourceCueHash;
   for (const [index, cue] of rows.entries()) {
     if (typeof cue?.text !== 'string' || !cue.text.trim()) continue;
     // Kısa çeviri birkaç cue'yu tek balona birleştirdiğinde kapsanan kaynak
@@ -45,9 +47,14 @@ function cueIdsForStage(values, source) {
       for (const value of cue.coveredCueIds) {
         const coveredId = normalizedId(value);
         const candidates = byOriginalId.get(coveredId) || [];
-        for (const row of candidates) {
-          if (candidates.length === 1 || (Number.isFinite(Number(cue.start)) && Number.isFinite(Number(cue.end))
-              && row.start >= Number(cue.start) - .05 && row.end <= Number(cue.end) + .1)) {
+        const hashApplies = cue.coveredCueIds.length===1 || normalizedId(cue.cueId ?? cue.id)===coveredId;
+        const contained = candidates.filter(row=>(!hashApplies || compatible(row,cue)) &&
+          (candidates.length===1 || (Number.isFinite(time(cue.start)) && Number.isFinite(time(cue.end))
+            && row.start >= time(cue.start)-.05 && row.end <= time(cue.end)+.1)));
+        const timings = new Map();
+        for (const row of contained) { const key=`${row.start}:${row.end}`;timings.set(key,(timings.get(key)||0)+1); }
+        for (const row of contained) {
+          if (timings.get(`${row.start}:${row.end}`)===1) {
             ids.add(row.id); covered = true;
           }
         }
@@ -56,20 +63,22 @@ function cueIdsForStage(values, source) {
     }
     const explicit = cue?.cueId ?? cue?.id;
     const explicitId = normalizedId(explicit);
-    const candidates = explicitId ? byOriginalId.get(explicitId) || [] : [];
+    const candidates = explicitId ? (byOriginalId.get(explicitId) || []).filter(row=>compatible(row,cue)) : [];
     // Timing fallback is only for outputs without an explicit source identity.
     // A different track may have exactly the same timestamps.
     if (explicitId && !candidates.length) continue;
     if (candidates.length === 1) { ids.add(candidates[0].id); continue; }
-    const start = Number(cue?.sourceStart ?? cue?.start);
-    const end = Number(cue?.sourceEnd ?? cue?.end);
+    const start = time(cue?.sourceStart ?? cue?.start);
+    const end = time(cue?.sourceEnd ?? cue?.end);
     if (Number.isFinite(start)) {
-      const match = (candidates.length ? candidates : sourceRows).find((row) => !ids.has(row.id) && Number.isFinite(row.start)
+      const matches = (candidates.length ? candidates : sourceRows).filter((row) => !ids.has(row.id) && compatible(row,cue) && Number.isFinite(row.start)
         && Math.abs(row.start - start) <= .05
         && (!Number.isFinite(end) || !Number.isFinite(row.end) || Math.abs(row.end - end) <= .1));
+      const match = matches.length===1 ? matches[0] : null;
       if (match) { ids.add(match.id); continue; }
     }
-    if (!explicitId && !Number.isFinite(start) && sourceRows[index]) ids.add(sourceRows[index].id);
+    if (!explicitId && !Object.hasOwn(cue,'start') && !Object.hasOwn(cue,'sourceStart')
+        && sourceRows[index] && compatible(sourceRows[index],cue)) ids.add(sourceRows[index].id);
   }
   return ids;
 }

@@ -4,6 +4,7 @@ const { fsyncFile, fsyncFileBestEffort, fsyncDirectory, renameSyncResilient } = 
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
+const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 const STATUSES = new Set(['planned', 'watching', 'completed', 'unspecified']);
 const MAX_ITEMS = 10000;
@@ -44,13 +45,14 @@ function tmdbIdOf(value, kind) {
 function sourceOf(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const type = raw.type === 'local' ? 'local' : raw.type === 'browser' ? 'browser' : '';
-  const value = type === 'local' ? localPath(raw.value) : text(raw.value, 2048);
+  const value = type === 'local' ? localPath(raw.value) : redactUrlSensitiveParams(text(raw.value, 2048));
   if (!type || !value) return null;
   if (type === 'browser') {
     try { const url = new URL(value); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null; }
     catch { return null; }
   }
-  const watchKey = text(raw.watchKey, 2048) || canonicalWatchKey(type === 'local' ? `file:${value}` : `browser:${value}`);
+  const watchKey = type==='browser' ? canonicalWatchKey(`browser:${value}`)
+    : text(raw.watchKey, 2048) || canonicalWatchKey(`file:${value}`);
   const source = { type, value, watchKey };
   // Paket içe aktarımından gelen yerel yollar bu makinede kullanıcı seçiminden
   // geçmedi; oynatmadan önce bir kez dosya seçiciyle doğrulanır.
@@ -203,7 +205,9 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     const parsed = JSON.parse(bytes);
     if (parsed.version !== 1 || !Array.isArray(parsed.items) || parsed.items.length > MAX_ITEMS)
       fail('Katalog dosyası geçersiz; veri korunuyor.');
-    return { version: 1, items: parsed.items.map((item) => itemOf(item)) };
+    const items = parsed.items.map((item) => itemOf(item));
+    if (new Set(items.map(item=>item.id)).size !== items.length) fail('Katalog kimlikleri tekrarlanıyor; veri korunuyor.');
+    return { version: 1, items };
   }
   function read() {
     if (cache) return cache;
@@ -221,15 +225,22 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     }
     return cache;
   }
-  function commit(items) {
+  function commit(items, { mirrorBackup = false } = {}) {
     if (items.length > MAX_ITEMS) fail('Katalog kapasitesi doldu.');
+    for (const file of [filePath, backupPath]) {
+      let value;
+      try { value = JSON.parse(io.readFileSync(file,'utf8')); } catch (_) { continue; }
+      if (typeof value?.version === 'number' && value.version > 1) fail('Katalog dosyası geçersiz; veri korunuyor.');
+    }
     const next = { version: 1, items };
     io.mkdirSync(path.dirname(filePath), { recursive: true });
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
       io.writeFileSync(temp, JSON.stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
       fsyncFile(temp, io);
-      try {
+      if (mirrorBackup) {
+        io.copyFileSync(temp, backupPath); fsyncFile(backupPath, io);
+      } else try {
         parseEnvelope(io.readFileSync(filePath, 'utf8'));
         io.copyFileSync(filePath, backupPath);
         fsyncFileBestEffort(backupPath, io);
@@ -250,7 +261,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   function remove(id) {
     const items = list(), next = items.filter((item) => item.id !== id);
     if (next.length === items.length) return false;
-    commit(next); return true;
+    commit(next, { mirrorBackup: true }); return true;
   }
   function planImport(rawItems, { selectedIds } = {}) {
     if (!Array.isArray(rawItems) || rawItems.length > MAX_ITEMS) fail('İçe aktarım listesi geçersiz.');
@@ -266,6 +277,9 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
       const match = resolveImportIndexes(indexes, incoming);
       if (match.conflict) { report.conflicts.push({ id, title: incoming.title, reason: match.conflict }); continue; }
       if (match.target) {
+        const conflict = incoming.episodes.some(ep=>match.target.episodes.some(old=>old.id===ep.id
+          && (old.season!==ep.season || old.number!==ep.number)));
+        if (conflict) { report.conflicts.push({id,title:incoming.title,reason:'Bölüm kimliği başka bir sezon veya bölüme bağlı.'}); continue; }
         const index = indexes.indexById.get(match.target.id);
         indexes.unindexItem(match.target);
         items[index] = mergeRecord(match.target, incoming);
