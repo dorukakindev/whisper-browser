@@ -252,9 +252,18 @@ olmalıdır. Dosyalar karşılaştırma klasöründe kalır, çıktı dosyası e
 Ölçümler: kenar sessizliği dışındaki span üzerinden sözcük/saniye, aktif RMS,
 enerjiyle sessiz bulunan oran ve isteğe bağlı F0 medyanı/90–10 yüzdelik aralığı.
 F0 bir konuşmacı kimliği ölçümü değildir; otomatik doğallık puanı veya kazanan yok.
+Perde özeti en az500ms ve konuşma span'ının%10'u kadar güvenilir çerçeve ister;
+yetersizse medyan/aralık boş kalır ve kapsama ayrıca yazılır. Bu raporlama
+eşiğidir; ses üretimine müdahale etmez. Windows'ta JIT önbelleği sorununda
+yalnız analiz süreci için proje içinde ayrı `NUMBA_CACHE_DIR` kullanılabilir.
+İlk pYIN çağrısı derleme nedeniyle uzayabilir; motor paketleri değiştirilmez.
 Ses değiştirilmez, yüklenmez. Aynı metindeki örnekleri karşılaştırın; farklı
 cümlelerin hız/perde farkı tek başına kusur anlamına gelmez.
 
 Akıcı altyazı gruplamasında tamamlanmış cümle sınırları, istek sayısını azaltmaktan
 önce gelir. Gerektiğinde biraz daha fazla grup oluşabilir; süre/boyut sınırları
 korunur. Uzun ses kurtarmasında da uygun cümle sonu virgülden önce tercih edilir.
+
+Doğrulamalı yeniden okumada bütün anlam kontrollerini geçen aday seçilir.
+İsteğe bağlı ikinci deneme başarısızsa ilk kullanılabilir ses inceleme uyarısıyla
+korunur; üretimin başarılı olduğu iddia edilmez.

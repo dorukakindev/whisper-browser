@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 507 | [BROWSER_BUG_REPORT_507.md](BROWSER_BUG_REPORT_507.md) | Güvenilir ses seçimi ve derin araştırma |
 | 506 | [BROWSER_BUG_REPORT_506.md](BROWSER_BUG_REPORT_506.md) | Tam düşünce sınırları ve prosodi ölçümü |
 | 505 | [BROWSER_BUG_REPORT_505.md](BROWSER_BUG_REPORT_505.md) | Geniş kaynak araştırması, sabit bağlam ve konuşma bütünlüğü |
 | 504 | [BROWSER_BUG_REPORT_504.md](BROWSER_BUG_REPORT_504.md) | Gerçek GPU ile anlatım bağlamı ve konuşma kurtarması |

@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-21-1507.md](docs/devir/2026-10-21-1507.md) — Tam düşünce sınırları ve prosodi araştırması; perde analizi açık
+Güncel çalışma: [docs/devir/2026-10-21-1515.md](docs/devir/2026-10-21-1515.md) — Güvenilir ses adayı, ilk sesi koruma ve 150 kaynak envanteri
+Önceki çalışma: [docs/devir/2026-10-21-1507.md](docs/devir/2026-10-21-1507.md) — Tam düşünce sınırları ve prosodi araştırması; o turda perde analizi açıktı
 Önceki çalışma: [docs/devir/2026-10-21-1440.md](docs/devir/2026-10-21-1440.md) —121URL ses araştırması, sabit bağlam deneyi ve eksik okuma/durak onarımı
 Güncel çalışma: [docs/devir/2026-10-21-1420.md](docs/devir/2026-10-21-1420.md) — Gerçek GPU araştırması, dengeli bağlam ve konuşma kurtarması
 Güncel çalışma: [docs/devir/2026-10-21-1402.md](docs/devir/2026-10-21-1402.md) — Kalite odaklı ses varsayılanları
