@@ -23,6 +23,38 @@ class SpeechTranslationTests(unittest.TestCase):
         self.assertNotIn('Parcalari sure/max butcesine',speech)
         self.assertIn('karakter/saniye).',ordinary)
         self.assertIn('telgraf diline',speech)
+        self.assertNotIn('Yuklemi veya kalan anlami sonraki ID', speech)
+        self.assertIn('nesneyi yuklemden sonra yetim', speech)
+
+    def test_speech_groups_keep_long_thought_but_respect_scene_and_speaker(self):
+        entries = [(0, 11, 'We originally believed that ' + 'the evidence ' * 11),
+                   (11.1, 21, 'would support this conclusion ' + 'in every case ' * 9),
+                   (21.1, 26, 'but it did not.')]
+        original = list(entries)
+        speech = F._TrArgs(translate_for_speech=True)
+        self.assertEqual(T.translation_sentence_groups(entries, speech), [[0, 1, 2]])
+        self.assertGreater(len(T.translation_sentence_groups(entries, F._TrArgs())), 1)
+        self.assertEqual(T.translation_sentence_groups(entries, speech, {0:'A',1:'B',2:'B'}), [[0],[1,2]])
+        gap = [entries[0], (14, 21, entries[1][2]), entries[2]]
+        self.assertEqual(T.translation_sentence_groups(gap, speech), [[0],[1,2]])
+        self.assertEqual(entries, original)
+        # An unpunctuated monologue remains bounded; never consume the file.
+        long = [(i*3, i*3+2.9, 'a phrase without punctuation') for i in range(40)]
+        groups = T.translation_sentence_groups(long, speech)
+        self.assertTrue(all(len(g) <= 12 for g in groups))
+        self.assertEqual([i for g in groups for i in g], list(range(40)))
+
+    def test_speech_topic_context_is_bounded_read_only_and_part_of_cache(self):
+        args = F._TrArgs(translate_for_speech=True, translate_cache=False)
+        _, seen, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, args)
+        self.assertEqual(seen[0][0]['document_context'], ' '.join(e[2] for e in F._SENTENCE_SOURCE))
+        _, ordinary, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, F._TrArgs(translate_cache=False))
+        self.assertNotIn('document_context', ordinary[0][0])
+        first=T.translate_cache_key('A phrase.',args,'tr','en',document_context='brain science')
+        self.assertNotEqual(first,T.translate_cache_key('A phrase.',args,'tr','en',document_context='parliament'))
+        long=[(i*2,i*2+1.9,'a long introduction '*100) for i in range(2)]
+        _, bounded, _, _=F._sentence_translate(long,args)
+        self.assertTrue(all(len(p[0]['document_context'])<=1200 for p in bounded))
 
     def test_options_disable_paid_second_pass_without_mutating_preferences(self):
         saved = F._TrArgs(translate_for_speech=True, translate_refine=True,
