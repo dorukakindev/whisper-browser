@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 515 | [BROWSER_BUG_REPORT_515.md](BROWSER_BUG_REPORT_515.md) | Kodu değiştirmeden 53 hedefli bug testi: 3 gerçek ürün kusuru, 11 test altyapısı engeli |
 | 514 | [BROWSER_BUG_REPORT_514.md](BROWSER_BUG_REPORT_514.md) | Ses çevirisinde kaynakla eşleşmiş komşu taslaklar |
 | 513 | [BROWSER_BUG_REPORT_513.md](BROWSER_BUG_REPORT_513.md) | İsteğe bağlı kaynak anlatımı ve araştırma raporlarının doğrulanması |
 | 512 | [BROWSER_BUG_REPORT_512.md](BROWSER_BUG_REPORT_512.md) | Ses çevirisi editörü, görünür yerel referans ve anlatım tonu |
