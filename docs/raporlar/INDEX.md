@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 513 | [BROWSER_BUG_REPORT_513.md](BROWSER_BUG_REPORT_513.md) | İsteğe bağlı kaynak anlatımı ve araştırma raporlarının doğrulanması |
 | 512 | [BROWSER_BUG_REPORT_512.md](BROWSER_BUG_REPORT_512.md) | Ses çevirisi editörü, görünür yerel referans ve anlatım tonu |
 | 511 | [BROWSER_BUG_REPORT_511.md](BROWSER_BUG_REPORT_511.md) | Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı |
 | 510 | [BROWSER_BUG_REPORT_510.md](BROWSER_BUG_REPORT_510.md) | Ses çevirisinde tam anlam, kota ayrımı ve eski sonuç kullanımı |
