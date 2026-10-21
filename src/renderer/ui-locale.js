@@ -276,6 +276,8 @@
     ['Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.', 'Audio ready. You can choose this file using Add audio.'],
     ['Kısa örnek hazır; tüm video için örnek seçimini kapatın.', 'Sample ready; disable the sample option for the full video.'],
     ['Motor yükleniyor…', 'Loading engine…'], ['Cümle grupları hazır', 'Sentence groups ready'],
+    ['Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…', 'The voice engine stopped responding; restarting while preserving completed pieces…'],
+    ['Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.', 'Voice engine shutdown timed out; its workers were checked.'],
     ['Ses üretiliyor…', 'Generating audio…'], ['Ses zaman çizelgesine yerleştiriliyor…', 'Placing audio on the timeline…'],
     ['Ses ekle', 'Add audio'],
     ['Dublaj sesi ekle', 'Add dubbed audio'],

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from dub_lifecycle import bounded_call, EngineStalled
 
 
 class TimingOverflow(ValueError):
@@ -22,8 +23,10 @@ async def quality_retry(generate, assess, seed, retries=2, timeout=180):
     for attempt in range(retries + 1):
         attempts += 1
         try:
-            raw = await asyncio.wait_for(generate(seed + attempt * 100003), timeout)
+            raw = await bounded_call(generate(seed + attempt * 100003), timeout)
         except (asyncio.TimeoutError, OSError, RuntimeError, ValueError) as error:
+            if isinstance(error, EngineStalled):
+                raise
             if any(term in str(error).lower() for term in ('out of memory', 'cuda error')):
                 raise
             # A later failed retry must not erase an already usable candidate.

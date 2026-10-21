@@ -47,6 +47,28 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_stalled_last_request_keeps_completed_cache_for_same_reference(self):
+        from dub_lifecycle import EngineStalled
+        class Stalled(Server):
+            async def generate(self,text,**kwargs):
+                if text == 'Broken.':
+                    try:
+                        await asyncio.Event().wait()
+                    finally:
+                        await asyncio.Event().wait()  # Worker never acknowledges cancel.
+                async for part in super().generate(text,**kwargs):
+                    yield part
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp);server=Stalled()
+            with self.assertRaises(EngineStalled):
+                self.run_generation(folder,server,['Good.','Broken.'],request_timeout=.01)
+            self.assertTrue(server.stopped)
+            self.assertTrue(valid_audio(folder/'0.wav',sf))
+            replacement=Server()
+            _,args,paths=self.run_generation(folder,replacement,['Good.','Broken.'])
+            self.assertEqual(replacement.calls,['Broken.'])
+            self.assertTrue(all(valid_audio(p,sf) for p in paths))
+
     def test_retry_passes_all_gates_instead_of_chasing_token_similarity(self):
         for status, review, similarity, expected, extra in [
                 ('passed',False,.90,'passed',{}),
@@ -127,7 +149,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.'):
+                       verifier=None, rewrite_text='Short.', request_timeout=1):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -145,7 +167,7 @@ class GenerationTests(unittest.TestCase):
             gpu_mem=.8,ready_timeout=1,reference=ref,verify_python='fixture',
             force_groups={'1'} if force else set(),regeneration_seed=123,group_seeds=[42+i for i in range(len(texts))],
             group_keys=[str(i+1) for i in range(len(texts))],bosluk_pay_ms=0,end_limit_ms=None,
-            retry=1,request_timeout=1,seed=42,temperature=.8,cfg=1.65,max_generate_length=1024,
+            retry=1,request_timeout=request_timeout,seed=42,temperature=.8,cfg=1.65,max_generate_length=1024,
             verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set())
         paths = [folder/f'{i}.wav' for i in range(len(texts))]
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),

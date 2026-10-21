@@ -187,6 +187,7 @@ def video_duration(path):
 
 
 async def uret(args, cues, paths, prompt_text):
+    from dub_lifecycle import bounded_call, EngineStalled, stop_server
     from dub_recovery import recover_long_speech
     from huggingface_hub import snapshot_download
     from nanovllm_voxcpm import VoxCPM
@@ -208,10 +209,10 @@ async def uret(args, cues, paths, prompt_text):
         load_seconds = time.monotonic() - began
         reference_began = time.monotonic()
         wav_bytes = Path(args.reference).read_bytes()
-        ref_lat = await server.encode_latents(wav_bytes, "wav")
+        ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
         prompt_id = None
         if prompt_text:
-            prompt_id = await server.add_prompt(wav_bytes, "wav", prompt_text)
+            prompt_id = await bounded_call(server.add_prompt(wav_bytes, "wav", prompt_text), args.ready_timeout)
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
         print("Referans hazir; uretim basliyor.", flush=True)
         reference_seconds = time.monotonic() - reference_began
@@ -301,7 +302,7 @@ async def uret(args, cues, paths, prompt_text):
                             # from an uncertain automatic transcript.
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate, candidate_finishing = finish_audio(prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr), sr)
+                                candidate, candidate_finishing = finish_audio(prepare_audio(await bounded_call(sentez(text, seed + 200003), args.request_timeout), sr), sr)
                                 if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
@@ -341,7 +342,7 @@ async def uret(args, cues, paths, prompt_text):
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
                 except Exception as exc:
-                    if 'out of memory' in str(exc).lower() or 'cuda error' in str(exc).lower():
+                    if isinstance(exc, EngineStalled) or 'out of memory' in str(exc).lower() or 'cuda error' in str(exc).lower():
                         raise
                     # A failed piece is explicit and remains retryable. Keep
                     # other successful pieces and still render a usable WAV.
@@ -394,16 +395,25 @@ async def uret(args, cues, paths, prompt_text):
         print('DUB_METRICS ' + json.dumps({k: v for k, v in metrics.items() if k != 'groups'}), flush=True)
         return sr
     finally:
-        await server.stop()
+        await stop_server(server)
 
 
 def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
+    from dub_lifecycle import EngineStalled
     generate = generate or uret
+    restarts = 0
     while True:
         original_paths = list(paths)
         try:
             return asyncio.run(generate(args, cues, paths, prompt_text))
         except Exception as exc:
+            if isinstance(exc, EngineStalled) and restarts < 1:
+                restarts += 1
+                args.eszamanli = max(1, args.eszamanli // 2)
+                paths[:] = original_paths
+                print('DUB_WARNING engine_restart', flush=True)
+                print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
+                continue
             if args.eszamanli <= 1 or not any(term in str(exc).lower() for term in ('out of memory', 'cuda error')):
                 raise
             args.eszamanli = max(1, args.eszamanli // 2)

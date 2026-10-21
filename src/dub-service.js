@@ -545,6 +545,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           try { emit(s, 'reference_quality', {quality:JSON.parse(value.slice(14))}); } catch (_) {}
         }
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
+        if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
+          text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
+        if (value === 'DUB_WARNING server_shutdown_timeout') emit(s, 'warning', {
+          text: 'Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.' });
         if (value === 'DUB_WARNING sample_edits_unused') emit(s, 'warning', {
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);

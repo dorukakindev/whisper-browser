@@ -5,6 +5,7 @@ import re
 import numpy as np
 import soundfile as sf
 from dub_finish import join_pause_frames
+from dub_lifecycle import bounded_call
 
 
 def recovery_blocks(text, limit=260):
@@ -47,7 +48,7 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
     try:
         for block in blocks:
             on_attempt()
-            raw = await asyncio.wait_for(generate(block, seed+500003), timeout)
+            raw = await bounded_call(generate(block, seed+500003), timeout)
             wav, finished = finish(raw, sr)
             finishing.append(finished)
             sf.write(target, wav, sr, subtype='PCM_16')
