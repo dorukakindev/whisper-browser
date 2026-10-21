@@ -80,9 +80,11 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
     groups = []
     for run in runs:
         n = len(run)
-        # Lexicographic objective: fewer re-entries first; then prefer complete
-        # sentences and balanced sizes (avoids a long block + tiny final reply).
-        costs, ends = [(0, 0.0)]*(n+1), [0]*n
+        # Avoid a mid-sentence reset before minimizing request count. Packing
+        # six half-sentences into two requests can split a sentence in both;
+        # three complete requests preserve the intended phrasing instead.
+        # Size/duration/speaker limits still take precedence over this choice.
+        costs, ends = [(0, 0, 0.0)]*(n+1), [0]*n
         for i in range(n-1, -1, -1):
             best, size, stop = None, 0, run[i][1][1]
             for j in range(i, min(n, i+128)):
@@ -92,9 +94,9 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
                 if j > i and (size > max_chars or (stop-run[i][1][0])/1000 > max_seconds):
                     break
                 penalty = (size/max(1, max_chars))**2
-                if j+1 < n and not completed(cue[2]):
-                    penalty += 4
-                candidate = (1+costs[j+1][0], penalty+costs[j+1][1])
+                unfinished = int(j+1 < n and not completed(cue[2]))
+                candidate = (unfinished+costs[j+1][0], 1+costs[j+1][1],
+                             penalty+costs[j+1][2])
                 if best is None or candidate < best:
                     best, ends[i] = candidate, j+1
             costs[i] = best

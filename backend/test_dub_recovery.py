@@ -11,6 +11,13 @@ from dub_finish import finish_audio, join_pause_frames
 
 
 class Recovery(unittest.TestCase):
+    def test_recovery_prefers_sentence_end_to_nearer_comma(self):
+        first = 'Anlatının ilk düşüncesi burada tamamlanıyor. '
+        text = first + 'devam eden düşünce, ' + 'sözcük '*18
+        parts = recovery_blocks(text, 150)
+        self.assertEqual(parts[0], first.strip())
+        self.assertEqual(' '.join(parts), ' '.join(text.split()))
+
     def test_join_uses_punctuation_and_preserves_existing_breaths_and_pauses(self):
         sr = 8000
         voice = np.ones(sr, dtype=np.float32)*.1

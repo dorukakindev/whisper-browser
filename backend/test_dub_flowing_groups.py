@@ -8,6 +8,12 @@ from dub_plan import make_groups, grouping_options
 
 
 class FlowingGroups(unittest.TestCase):
+    def test_complete_thoughts_take_precedence_over_fewer_requests(self):
+        cues = [(i*2000, i*2000+1900, 'sözcük '*12 + ('.' if i%2 else ',')) for i in range(6)]
+        groups = make_groups(cues, **grouping_options('akici'))
+        self.assertEqual([g['source_ids'] for g in groups], [[1,2], [3,4], [5,6]])
+        self.assertTrue(all(g['text'].endswith('.') for g in groups))
+
     def test_balances_context_without_tiny_tail_or_early_sentence_resets(self):
         cues = [(i*3000, i*3000+2900, 'Bu cümle anlatının akışını kesmeden sonraki düşünceye bağlanıyor.') for i in range(8)]
         groups = make_groups(cues, **grouping_options('akici'))

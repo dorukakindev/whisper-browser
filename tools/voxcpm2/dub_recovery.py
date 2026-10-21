@@ -17,10 +17,14 @@ def recovery_blocks(text, limit=260):
     # Split near the middle to avoid a long first piece and a tiny last piece.
     midpoint = len(text)/2
     positions = [m.start() for m in re.finditer(r'\s+', text)]
-    preferred = [p for p in positions if text[:p].rstrip().endswith(('.', '!', '?', ';', ':', ','))
-                 and not re.search(r'\b(?:Dr|Prof|Mr|Mrs|Ms|Sn|vb|vs)\.$', text[:p], re.I)
-                 and len(text)*.2 <= p <= len(text)*.8]
-    cut = min(preferred or positions, key=lambda p: abs(p-midpoint), default=None)
+    def boundary_rank(p):
+        tail = text[:p].rstrip().rstrip('\"\u201d\u2019\u00bb)]')
+        abbreviation = re.search(r'(?:\b(?:Dr|Prof|Doç|Mr|Mrs|Ms|Sn|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I)
+        if tail.endswith(('.', '!', '?')) and not tail.endswith('...') and not abbreviation:
+            return 0
+        return 1 if tail.endswith((';', ':', ',')) else 2
+    central = [p for p in positions if len(text)*.2 <= p <= len(text)*.8]
+    cut = min(central or positions, key=lambda p: (boundary_rank(p), abs(p-midpoint)), default=None)
     if cut is None:  # An indivisible token is not damaged to meet a size target.
         return [text]
     return recovery_blocks(text[:cut].strip(), limit) + recovery_blocks(text[cut:].strip(), limit)
