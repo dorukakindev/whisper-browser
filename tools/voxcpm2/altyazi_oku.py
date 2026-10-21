@@ -306,7 +306,7 @@ async def uret(args, cues, paths, prompt_text):
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
                                     if checked.get('similarity', 0) > check.get('similarity', 0) and not any(
-                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'added_negation', 'unit_mismatch', 'repetition', 'sign_mismatch', 'missing_names')):
+                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'added_negation', 'unit_mismatch', 'repetition', 'sign_mismatch', 'missing_names', 'omission_spans', 'insertion_spans')):
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
                                         sf.write(str(temporary), wav, sr, subtype='PCM_16')
@@ -605,7 +605,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v9-verified-context-recovery", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v10-completion-guards", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.

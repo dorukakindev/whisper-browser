@@ -4,6 +4,7 @@ import re
 
 import numpy as np
 import soundfile as sf
+from dub_finish import join_pause_frames
 
 
 def recovery_blocks(text, limit=260):
@@ -38,7 +39,7 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
     if not 2 <= len(blocks) <= 8:
         return None
     target = temporary.with_name(temporary.stem+'-recovery.wav')
-    waves, finishing = [], []
+    waves, finishing, joins = [], [], []
     try:
         for block in blocks:
             on_attempt()
@@ -50,14 +51,17 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
             if check.get('status') != 'passed':
                 return None
             if waves:
-                waves.append(np.zeros(round(.08*sr), dtype=np.float32))
+                frames = join_pause_frames(waves[-1], wav, sr, blocks[len(finishing)-2])
+                joins.append(frames/sr)
+                waves.append(np.zeros(frames, dtype=np.float32))
             waves.append(wav)
         joined = np.concatenate(waves)
         sf.write(target, joined, sr, subtype='PCM_16')
         check = await verify(target, text, numeric_reference=numeric_reference)
         if check.get('status') != 'passed':
             return None
-        return joined, check, {'chunks': len(blocks), 'verified': True, 'finishing': finishing}
+        return joined, check, {'chunks': len(blocks), 'verified': True,
+                              'finishing': finishing, 'added_pauses_seconds': joins}
     except (ValueError, OSError, asyncio.TimeoutError):
         return None
     finally:

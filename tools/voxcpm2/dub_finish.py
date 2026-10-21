@@ -69,6 +69,27 @@ def finish_audio(audio, sr):
     return wav, {'trim_start_seconds':left/sr, 'trim_end_seconds':(len(audio)-right)/sr, 'gain_db':round(20*np.log10(gain),3)}
 
 
+def join_pause_frames(previous, following, sr, preceding_text):
+    """Add only missing quiet padding; never overlap speech or remove breaths.
+
+    These small punctuation-aware targets are joining defaults, not a model of
+    human prosody. Existing longer natural pauses are deliberately retained.
+    """
+    if sr <= 0:
+        raise ValueError('Invalid sample rate.')
+    tail = preceding_text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
+    target = .24 if tail.endswith(('?', '!')) else .22 if tail.endswith('.') else .18 if tail.endswith((';', ':')) else .12 if tail.endswith(',') else .08
+    def quiet_edge(wav, end):
+        wav = np.asarray(wav, dtype=np.float32)
+        if wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():
+            raise ValueError('Invalid speech join.')
+        edge = wav[-round(sr*.5):] if end else wav[:round(sr*.5)]
+        active = np.flatnonzero(np.abs(edge) > max(.0001, float(np.max(np.abs(wav)))*.001))
+        return (len(edge)-1-int(active[-1]) if end else int(active[0])) if len(active) else len(edge)
+    existing = quiet_edge(previous, True) + quiet_edge(following, False)
+    return max(0, round(sr*target)-existing)
+
+
 def active_ranges(audio, sr, offset=0):
     """Bounded energy-based speech activity; music/speaker classification is not claimed."""
     wav = np.asarray(audio, dtype=np.float32)

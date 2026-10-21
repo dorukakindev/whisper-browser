@@ -7,10 +7,24 @@ import unittest
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools/voxcpm2'))
 from dub_recovery import recovery_blocks, recover_long_speech
-from dub_finish import finish_audio
+from dub_finish import finish_audio, join_pause_frames
 
 
 class Recovery(unittest.TestCase):
+    def test_join_uses_punctuation_and_preserves_existing_breaths_and_pauses(self):
+        sr = 8000
+        voice = np.ones(sr, dtype=np.float32)*.1
+        # Finishing retains60ms on each side, so a comma needs no extra silence.
+        left = np.r_[voice, np.zeros(480)]
+        right = np.r_[np.zeros(480), voice]
+        self.assertEqual(join_pause_frames(left, right, sr, 'Bir ara,'), 0)
+        self.assertEqual(join_pause_frames(left, right, sr, 'Cümle bitti.'), 800)
+        breath = np.r_[voice, np.ones(100)*.003]
+        untouched = breath.copy()
+        self.assertGreater(join_pause_frames(breath, right, sr, 'Soru?'), 0)
+        np.testing.assert_array_equal(breath, untouched)
+        self.assertEqual(join_pause_frames(np.r_[voice,np.zeros(sr)], right, sr, 'Bitti.'), 0)
+
     def test_split_preserves_every_word_without_tiny_tail(self):
         text = 'Bir cümle bütünlüğü korunmalı. ' * 18
         parts = recovery_blocks(text)

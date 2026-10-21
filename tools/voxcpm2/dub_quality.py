@@ -14,7 +14,20 @@ def speech_check(expected, actual, numeric_reference=None):
     def words(text):
         return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold().replace('i\u0307', 'i'))
     target, heard = words(expected), words(actual)
-    similarity = SequenceMatcher(None, target, heard, autojunk=False).ratio()
+    alignment = SequenceMatcher(None, target, heard, autojunk=False)
+    similarity = alignment.ratio()
+    # A high overall similarity can hide an unfinished ending or a missing
+    # clause in a long block. Report sustained gaps separately from typos and
+    # ASR substitutions; these are review evidence, never automatic edits.
+    omissions, insertions = [], []
+    for tag, a0, a1, b0, b1 in alignment.get_opcodes():
+        if tag == 'equal':
+            continue
+        missing, added = a1-a0, b1-b0
+        if missing-added >= 4 or (len(target) >= 10 and missing-added >= 3 and (a0 == 0 or a1 == len(target))):
+            omissions.append({'start': a0, 'end': a1})
+        if added-missing >= 4:
+            insertions.append({'start': b0, 'end': b1})
     # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
     # Match complete normalized number phrases, consuming each occurrence once.
     number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
@@ -110,11 +123,12 @@ def speech_check(expected, actual, numeric_reference=None):
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
     missing_names = [name for name in names if not all(word in heard_counts for word in words(name))]
     # ASR is evidence for review, never permission to silently remove speech.
-    return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
+    return {'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
+            'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
             'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch,
             'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,
             'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
-            'review': similarity < .85 or bool(missing_numbers) or bool(added_numbers) or percentage_mismatch or semantic_mismatch or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
+            'review': similarity < .85 or bool(omissions) or bool(insertions) or bool(missing_numbers) or bool(added_numbers) or percentage_mismatch or semantic_mismatch or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
 
 
 def generation_status(score, verification):
