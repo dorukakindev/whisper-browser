@@ -9,7 +9,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/voxcpm2'))
 
 class StudioLayout(unittest.TestCase):
     def test_controls_and_editor_fit_the_window(self):
-        import tkinter as tk
+        try:
+            import tkinter as tk
+        except ImportError:
+            self.skipTest('Optional Tk desktop runtime is unavailable; layout was not exercised.')
         from text_studio_window import Studio
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
