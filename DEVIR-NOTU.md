@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-21-1626.md](docs/devir/2026-10-21-1626.md) — İkinci arızada kısmi ses kurtarma ve gerçek GPU/çıktı doğrulaması
+Güncel çalışma: [docs/devir/2026-10-21-1630.md](docs/devir/2026-10-21-1630.md) — Luna Player v1.3.9 kaynak incelemesi ve uyarlama önerileri
+Önceki çalışma: [docs/devir/2026-10-21-1626.md](docs/devir/2026-10-21-1626.md) — İkinci arızada kısmi ses kurtarma ve gerçek GPU/çıktı doğrulaması
 Önceki çalışma: [docs/devir/2026-10-21-1524.md](docs/devir/2026-10-21-1524.md) — Son grupta motor takılması, sınırlı iptal ve aynı referansla kurtarma
 Önceki çalışma: [docs/devir/2026-10-21-1515.md](docs/devir/2026-10-21-1515.md) — Güvenilir ses adayı, ilk sesi koruma ve 150 kaynak envanteri
 Önceki çalışma: [docs/devir/2026-10-21-1507.md](docs/devir/2026-10-21-1507.md) — Tam düşünce sınırları ve prosodi araştırması; o turda perde analizi açıktı
