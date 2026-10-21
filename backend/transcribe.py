@@ -3259,6 +3259,9 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v3-full-meaning'
+
+
 def speech_translation_args(args):
     """Speech adaptation belongs to the translation pass, never a paid second pass."""
     if not getattr(args, 'translate_for_speech', False):
@@ -3292,10 +3295,11 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Isim, sayi, olgu, olumsuzluk ve kime ait oldugu bilgisi asla kaybolmasin.",
         "",
         "## ALTYAZI TEKNIGI",
-        "- Sureye sigdir: kaynak uzunlugu degil, blogun SURESI belirler. Her blok icin verilen",
-        "  'max' karakter sinirini asmamaya calis (hedef {} karakter/saniye).".format(max_cps),
-        "- Satir basina yaklasik {} karakter; blok zaten cok satirliysa satirlari dengele.".format(
-            max_line_width),
+        *(["- Seslendirme cevirisinde karakter/saniye, gorsel satir uzunlugu ve items.max bir kisaltma hedefi DEGILDIR.",
+           "- Once eksiksiz ve dogal tam cumleyi kur. Okuma suresi ikincildir; oynatici gerekirse yavaslar."] if for_speech else [
+            "- Sureye sigdir: kaynak uzunlugu degil, blogun SURESI belirler. Her blok icin verilen",
+            "  'max' karakter sinirini asmamaya calis (hedef {} karakter/saniye).".format(max_cps),
+            "- Satir basina yaklasik {} karakter; blok zaten cok satirliysa satirlari dengele.".format(max_line_width)]),
         "- sentence_groups, uygulamanin zaman ve konusmaci sinirlarina gore kurdugu cumle haritasidir.",
         "- Once her grubun TAM kaynak cumlesini dogal bicimde cevir; sonra bu TAM ceviriyi",
         "  o grubun ID'lerine sirayla dagit. Kaynak parcalari tek tek cevirme; hedef dilin soz dizimini kullan.",
@@ -3312,7 +3316,8 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "  sozcukle BITIRME; ek veya baglac ortasindan kesme, dogal durak sec.",
         "- Ayni blok icinde iki cumle kaliyorsa ikinci cumleyi satir sonu (\\n) ile yeni",
         "  gorsel satirdan baslat; 'Cumle1. Cumle2' tek satira yapismasin.",
-        "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme.",
+        ("- Parcalari ID sahipligini koruyarak anlamli soz obeklerine bol; sirf sure veya uzunluk icin bilgi silme."
+         if for_speech else "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme."),
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
         "- Iki asamali dusun: once baglamdan ozne, zamir, zaman, hitap ve terimleri coz;",
@@ -3385,10 +3390,13 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             ("- Ingilizce kelime sirasini kopyalama; Turkcede yuklem, ozne ve tamlamalari dogal yerlerine koy."
              if str(target_lang).lower().split('-')[0] in ('tr', 'tur')
              else "- Kaynak dilin kelime sirasini kopyalama; hedef dilin dogal soz dizimini kullan."),
-            "- sentence_groups.duration saniye cinsinden konusma penceresidir. Hedef sureye uygun, kolay soylenen bir ifade sec; gereksiz dolgu ve yapay uzun tamlamalardan kacin.",
+            "- sentence_groups.duration yalniz zamanlama baglamidir; ceviriyi bu sureye zorla sigdirma veya telgraf diline cevirme.",
             "- Bilgiyi ozetleme veya kisaltma; yalniz ayni anlami daha rahat soylenen bir ifadeyle aktar.",
             "- Sure hedefi tahmindir; sigdirmak icin bilgi, ad, sayi, olumsuzluk, kip veya karakterin tonunu silme. Anlami korumak daha uzun ifade gerektirirse tam ceviriyi ver; oynatici yavaslayabilir.",
             "- Nefes ve duraklar icin dogal noktalama kullan; gereksiz uc nokta, tekrar veya yeni sahne/konusmaci etiketi ekleme.",
+            "- Turkce konusmada yerlesik fiil ve tamlamalari kullan; yabanci cumle iskeletini isim-fiil zincirleriyle kopyalama. Teknik terimleri gundeliklestirirken anlamini degistirme.",
+            "- Ozne, nesne, neden-sonuc, kosul, karsilastirma ve belirsizlik aynen korunsun. Anlasilmayan kaynak ifadesine eminmis gibi yeni bir anlam uydurma.",
+            "- Sirf daha samimi dursun diye argo, unlem, dolgu, hitap veya anlatıcı yorumu ekleme; kaynak anlatim tonunu koru.",
             "- TAM cumleyi kurduktan sonra mevcut sentence_groups ve ID sahipligi kurallarina gore items'a dagit.",
             "- ID ekleme, silme veya birlestirme; zaman kodlarini degistirme. Ayri sahne ve konusmacilari birlestirme.",
             "- Ek aciklama, alternatif metin veya ikinci duzeltme cevabi yazma; ayni JSON sozlesmesini kullan.",
@@ -3588,7 +3596,7 @@ def translate_cache_key(text, args, target, source_lang=None,
     if bool(getattr(args, "translate_refine", False)):
         cache_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        cache_identity['speech_protocol'] = 'speech-v2-duration'
+        cache_identity['speech_protocol'] = SPEECH_TRANSLATION_PROTOCOL
     raw = json.dumps(cache_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -4054,7 +4062,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     if bool(args.translate_refine):
         tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        tm_scope_identity['speech_protocol'] = 'speech-v2-duration'
+        tm_scope_identity['speech_protocol'] = SPEECH_TRANSLATION_PROTOCOL
     tm_scope = json.dumps(tm_scope_identity, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):
@@ -4135,7 +4143,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
         items = []
         for pos, index in enumerate(chunk_idx):
-            item = {"i": pos, "max": translation_char_budget(entries[index], args)}
+            item = {"i": pos}
+            if not getattr(args, 'translate_for_speech', False):
+                item['max'] = translation_char_budget(entries[index], args)
             if refine:
                 item.update(src=entries[index][2], tr=out_texts[index])
             else:
@@ -8626,6 +8636,8 @@ def translate_existing_subtitle(args):
             if (candidate.get("sourceHash") == source_hash
                     and candidate.get("targetLanguage") == target
                     and bool(candidate.get('forSpeech', False)) == bool(getattr(args, 'translate_for_speech', False))
+                    and (not getattr(args, 'translate_for_speech', False)
+                         or candidate.get('speechProtocol') == SPEECH_TRANSLATION_PROTOCOL)
                     and (not candidate.get("sourceId")
                          or candidate.get("sourceId") == source_id)):
                 existing_meta = candidate
@@ -8947,6 +8959,8 @@ def translate_existing_subtitle(args):
                     "model": str(getattr(args, "translate_model", "") or ""),
                     "provider": str(getattr(args, "translate_base_url", "") or ""),
                     "forSpeech": bool(getattr(args, 'translate_for_speech', False)),
+                    **({"speechProtocol": SPEECH_TRANSLATION_PROTOCOL}
+                       if getattr(args, 'translate_for_speech', False) else {}),
                     "cues": metadata_cues,
                 }, ensure_ascii=False, indent=2) + "\n"
                 metadata_path = Path(f"{out_path}.meta.json")

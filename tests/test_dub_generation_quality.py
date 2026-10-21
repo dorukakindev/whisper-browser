@@ -47,6 +47,14 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_slow_video_mode_does_not_shorten_a_complete_translation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            server=Server()
+            text='Bu tam cümlenin anlamı sırf kısa bir zaman aralığına sığdırmak için değiştirilmemeli.'
+            self.run_generation(Path(temp),server,[text],auto_fit=True,timing_mode='video')
+            self.assertEqual(server.calls,[text])
+            self.assertEqual(self.rewrites,[])
+
     def test_stalled_last_request_keeps_completed_cache_for_same_reference(self):
         from dub_lifecycle import EngineStalled
         class Stalled(Server):
@@ -149,7 +157,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip'):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -168,7 +176,7 @@ class GenerationTests(unittest.TestCase):
             force_groups={'1'} if force else set(),regeneration_seed=123,group_seeds=[42+i for i in range(len(texts))],
             group_keys=[str(i+1) for i in range(len(texts))],bosluk_pay_ms=0,end_limit_ms=None,
             retry=1,request_timeout=request_timeout,seed=42,temperature=.8,cfg=1.65,max_generate_length=1024,
-            verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set())
+            verification=verification,auto_fit=auto_fit,report_dir=folder, natural_speech=natural,manual_groups={'1'} if manual else set(),timing_mode=timing_mode)
         paths = [folder/f'{i}.wav' for i in range(len(texts))]
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}

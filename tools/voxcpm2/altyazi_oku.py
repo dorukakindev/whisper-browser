@@ -274,7 +274,9 @@ async def uret(args, cues, paths, prompt_text):
                     metric['measured_seconds'] = len(wav)/sr
                     # One bounded, duration-informed edit. Preserve the original
                     # and accept the candidate only if it is valid and shorter.
-                    if len(wav) / sr > window * 1.15 and len(text) > 25 and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
+                    if (getattr(args, 'timing_mode', 'clip') != 'video'
+                            and len(wav) / sr > window * 1.15 and len(text) > 25
+                            and args.group_keys[i] not in getattr(args, 'manual_groups', set())):
                         proposed = await rewrite_for_window(args, i, editable_text, window,
                             cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '', measured=len(wav)/sr)
                         proposed = spoken_text(proposed)
@@ -630,7 +632,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v12-verified-retry", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v13-preserve-video-text", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.

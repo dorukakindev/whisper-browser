@@ -19,6 +19,10 @@ class SpeechTranslationTests(unittest.TestCase):
                             'ID ekleme, silme veya birlestirme', 'Turkcede yuklem'):
             self.assertIn(instruction, speech)
         self.assertIn('GUVENILMEZ', speech)
+        self.assertNotIn('karakter/saniye).',speech)
+        self.assertNotIn('Parcalari sure/max butcesine',speech)
+        self.assertIn('karakter/saniye).',ordinary)
+        self.assertIn('telgraf diline',speech)
 
     def test_options_disable_paid_second_pass_without_mutating_preferences(self):
         saved = F._TrArgs(translate_for_speech=True, translate_refine=True,
@@ -39,6 +43,13 @@ class SpeechTranslationTests(unittest.TestCase):
         self.assertIn('sentence_groups.duration', seen[0][1]['messages'][0]['content'])
         self.assertEqual([(s, e) for s, e, _ in result], [(s, e) for s, e, _ in F._SENTENCE_SOURCE])
         self.assertEqual([text for _, _, text in result], F._SENTENCE_PARTS)
+        self.assertTrue(all('max' not in item for item in seen[0][0]['items']))
+
+    def test_old_speech_prompt_does_not_share_the_new_cache(self):
+        args=F._TrArgs(translate_for_speech=True)
+        current=T.translate_cache_key('Example.',args,'tr','en')
+        with patch.object(T,'SPEECH_TRANSLATION_PROTOCOL','speech-v2-duration'):
+            self.assertNotEqual(current,T.translate_cache_key('Example.',args,'tr','en'))
 
     def test_cache_separates_modes_and_identical_speech_run_makes_no_request(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -84,7 +95,15 @@ class SpeechTranslationTests(unittest.TestCase):
             expected = T.parse_subtitle_entries(source.read_text(encoding='utf-8-sig'), '.srt')
             actual = T.parse_subtitle_entries(speech.read_text(encoding='utf-8-sig'), '.srt')
             self.assertEqual([(s,e) for s,e,_ in actual], [(s,e) for s,e,_ in expected])
-            self.assertTrue(json.loads(Path(str(speech)+'.meta.json').read_text(encoding='utf-8'))['forSpeech'])
+            metadata=Path(str(speech)+'.meta.json')
+            value=json.loads(metadata.read_text(encoding='utf-8'))
+            self.assertTrue(value['forSpeech'])
+            self.assertEqual(value['speechProtocol'],T.SPEECH_TRANSLATION_PROTOCOL)
+            value['speechProtocol']='speech-v2-duration'
+            metadata.write_text(json.dumps(value),encoding='utf-8')
+            with patch.object(T,'llm_translate',side_effect=translate),patch.object(T,'emit'),patch.object(T,'log'):
+                T.translate_existing_subtitle(args(True,str(speech)))
+            self.assertEqual(seen[-1][1],{},'old speech metadata bypassed the new quality protocol')
 
 
 if __name__ == '__main__':
