@@ -10,6 +10,29 @@
   const results = new Map();
   const resultOptions = new Map();
   const t = text => window.UiLocale?.t(text) || text;
+  const presetSpecs = {
+    Balanced: {profile:'quality', concurrency:'4', grouping:'akici', verification:'balanced', timingMode:'video', naturalSpeech:true, autoFit:true},
+    Fast: {profile:'fast', concurrency:'4', grouping:'akici', verification:'fast', timingMode:'video', naturalSpeech:false, autoFit:false},
+    Careful: {profile:'quality', concurrency:'4', grouping:'akici', verification:'detailed', timingMode:'video', naturalSpeech:true, autoFit:true},
+  };
+  function refreshOverview() {
+    const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
+    source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
+    voice.textContent = cfg?.reference ? basename(cfg.reference) : t('Ses seçilmedi'); voice.dataset.ready = String(!!cfg?.ready);
+    range.textContent = !el('dubRangeEnabled').checked ? t('Altyazının tamamı') : `${el('dubRangeStart').value} → ${el('dubRangeEnd').value}`;
+    let selected = '';
+    for (const [name, settings] of Object.entries(presetSpecs)) {
+      const matches = Object.entries(settings).every(([key,value]) => typeof value === 'boolean'
+        ? el(`dub${key[0].toUpperCase()}${key.slice(1)}`).checked === value
+        : el(`dub${key[0].toUpperCase()}${key.slice(1)}`).value === value);
+      el(`dubPreset${name}`).setAttribute('aria-pressed', String(matches));
+      if (matches) selected = name;
+    }
+    el('dubPresetSummary').textContent = t(selected === 'Fast' ? 'Hızlı profil: AI düzenlemesi kapalı; ses denetimiyle kısa bekleme.'
+      : selected === 'Careful' ? 'Ayrıntılı profil: bütün parçalar metin denetiminden geçer; daha uzun sürer.'
+      : selected === 'Balanced' ? 'Dengeli profil: akıcı bloklar, 15 adım ve konuşmayı koruyan zamanlama.'
+      : 'Özel ayarlar etkin. Hazır profiller sesinizi ve seçili aralığı değiştirmez.');
+  }
   function qualityInfo() {
     const row = results.get(el('dubQualityGroup').value);
     const labels = {ready:'Hazır',review:'Dinleyerek kontrol edin',failed:'Üretilemedi; bu bölüm sessiz',
@@ -91,6 +114,8 @@
     for (const id of ['dubRangeStart', 'dubRangeEnd', 'dubRangeNow']) el(id).disabled = locked || !el('dubRangeEnabled').checked;
     el('dubGeneratorCancel').disabled = !current;
     el('dubTextStudio').disabled = locked;
+    for (const name of Object.keys(presetSpecs)) el(`dubPreset${name}`).disabled = locked;
+    refreshOverview();
     window.dispatchEvent(new CustomEvent('dub-generator:busy',{detail:!!current||referenceBusy||planning||choosing}));
     el('browserDubGenerate')?.classList.toggle('active', !!current);
   }
@@ -206,6 +231,19 @@
   function invalidatePlan() {
     plan = null; edits = {}; lastRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
+  for (const [name, settings] of Object.entries(presetSpecs)) el(`dubPreset${name}`).addEventListener('click', () => {
+    if (current || planning || choosing || referenceBusy || workspaceBusy) return;
+    if (plan && el('dubGrouping').value !== settings.grouping) {
+      if (Object.keys(edits).length && !window.confirm(t('Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?'))) return;
+      invalidatePlan();
+    }
+    for (const [key,value] of Object.entries(settings)) {
+      const input = el(`dub${key[0].toUpperCase()}${key.slice(1)}`);
+      if (typeof value === 'boolean') input.checked = value; else input.value = value;
+    }
+    controls();
+  });
+  for (const id of ['dubProfile','dubConcurrency','dubVerification','dubTimingMode','dubNaturalSpeech','dubAutoFit']) el(id).addEventListener('change', controls);
   for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
   el('dubGrouping').addEventListener('change', () => {
     if (plan && Object.keys(edits).length && !window.confirm(window.UiLocale?.t('Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?') || 'Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?')) {

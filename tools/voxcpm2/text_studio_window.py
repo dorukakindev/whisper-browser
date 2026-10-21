@@ -16,6 +16,11 @@ TEXT_SETTINGS = {'motor': 'nano', 'mode': 'auto', 'steps': 15, 'batch': 4, 'cfg'
                  'temperature': .8, 'pause': 1, 'max_chars': 600, 'seed': 42,
                  'normalize': True, 'align': False, 'polish': True,
                  'preview': False, 'preview_count': 2}
+PRESETS = {
+    'balanced': {'steps': 15, 'batch': 4, 'max_chars': 600, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
+    'book': {'steps': 15, 'batch': 4, 'max_chars': 900, 'cfg': 1.65, 'temperature': .8, 'pause': 1.5, 'normalize': True, 'polish': True, 'align': False},
+    'fast': {'steps': 10, 'batch': 4, 'max_chars': 600, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
+}
 
 
 class Studio:
@@ -42,6 +47,8 @@ class Studio:
         self.output = None; self.folder = None; self.started = 0
         self.events = queue.Queue(maxsize=3000); self.controls = []; self.references = {}
         self._style(); self._layout(); self._refresh_references()
+        self.vars['motor'].trace_add('write', lambda *_: self._engine_controls())
+        self._engine_controls()
         if args.transcript.is_file(): self._load(args.transcript, self.transcript)
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         self.root.bind('<Control-Return>', lambda _event: self.generate())
@@ -54,6 +61,7 @@ class Studio:
         style.configure('Card.TLabelframe', background='#182127', borderwidth=1, relief='solid')
         style.configure('Card.TLabelframe.Label', font=('Segoe UI', 11, 'bold'), foreground='#e5e9ed')
         style.configure('Muted.TLabel', foreground='#a8b4be')
+        style.configure('Subtitle.TLabel', foreground='#a8b4be', font=('Segoe UI', 10))
         style.configure('TButton', background='#303b43', foreground='#ffffff', padding=(10, 7))
         style.configure('Accent.TButton', background='#d5a35c', foreground='#151b20', font=('Segoe UI', 11, 'bold'))
         style.map('TButton', background=[('active', '#43515b'), ('disabled', '#263138')], foreground=[('disabled', '#85949e')])
@@ -86,6 +94,10 @@ class Studio:
         header = ttk.Frame(self.root, padding=(20, 13)); header.pack(fill='x')
         ttk.Label(header, text='Ses Stüdyosu', font=('Segoe UI', 19, 'bold')).pack(side='left')
         ttk.Label(header, text='VoxCPM2 · Kendi sesinle metin ve kitap / Text and narration', style='Muted.TLabel').pack(side='left', padx=20)
+        profiles = ttk.Frame(self.root, padding=(18, 0, 18, 12)); profiles.pack(fill='x')
+        ttk.Label(profiles, text='Hazır ayarlar / Presets', style='Muted.TLabel').pack(side='left', padx=(0, 12))
+        for key, label in [('balanced', 'Dengeli · önerilen / Balanced'), ('book', 'Kitap anlatımı / Narration'), ('fast', 'Hızlı deneme / Quick')]:
+            self._button(profiles, label, lambda name=key: self.apply_preset(name)).pack(side='left', padx=(0, 6))
         body = ttk.Frame(self.root, padding=(18, 0)); body.pack(fill='both', expand=True)
         rail = ttk.Frame(body, width=365); rail.pack(side='left', fill='y', padx=(0, 14)); rail.pack_propagate(False)
         canvas = tk.Canvas(rail, width=345, bg='#10161b', highlightthickness=0)
@@ -105,7 +117,9 @@ class Studio:
         self.voice_list = ttk.Combobox(voice, state='readonly', width=19)
         self.voice_list.grid(row=0, column=1, sticky='ew'); self.voice_list.bind('<<ComboboxSelected>>', self._select_saved)
         self.controls.append(self.voice_list)
-        self._button(voice, 'WAV seç / Browse', self.choose_reference).grid(row=1, column=0, columnspan=2, sticky='ew', pady=5)
+        self._button(voice, 'WAV seç / Browse', self.choose_reference).grid(row=1, column=0, sticky='ew', pady=5)
+        self.reference_listen = self._button(voice, 'Sesi dinle / Listen', self.listen_reference)
+        self.reference_listen.grid(row=1, column=1, sticky='ew', pady=5)
         self.reference_label = ttk.Label(voice, text='', style='Muted.TLabel', wraplength=300)
         self.reference_label.grid(row=2, column=0, columnspan=2, sticky='w')
         self.reference_label.configure(text=Path(self.vars['reference'].get()).name)
@@ -123,14 +137,19 @@ class Studio:
         for value, label in [('nano', 'Hızlı · nano-vLLM'), ('torch', 'Uyumlu · PyTorch')]:
             radio = ttk.Radiobutton(row, text=label, variable=self.vars['motor'], value=value)
             radio.pack(anchor='w'); self.controls.append(radio)
-        self._field(motor, 1, 'steps', 'Üretim adımı / Steps', [10, 15, 20, 25])
-        self._field(motor, 2, 'cfg', 'Referansa bağlılık / CFG', [1.3, 1.65, 2, 2.5])
-        self._field(motor, 3, 'temperature', 'Çeşitlilik / Temperature', [.6, .8, 1])
-        self._field(motor, 4, 'batch', 'Paralel parça / Batch', [1, 2, 4, 8, 16])
-        self._field(motor, 5, 'pause', 'Durak çarpanı / Pause', [.5, 1, 1.5, 1.8])
-        self._field(motor, 6, 'max_chars', 'Bütünlüklü parça / Characters', [300, 600, 900, 1200])
-        self._field(motor, 7, 'seed', 'Tekrarlanabilirlik / Seed')
-        self._button(motor, 'Motor klasörü / Engine folder', self.choose_engine).grid(row=8, column=0, columnspan=2, sticky='ew', pady=(6, 0))
+        self._field(motor, 1, 'steps', 'Kalite adımı / Steps', [10, 15, 20, 25])
+        self.batch_control = self._field(motor, 2, 'batch', 'Paralel parça / Batch', [1, 2, 4, 8, 16])
+        self._field(motor, 3, 'max_chars', 'Konuşma bloğu / Characters', [300, 600, 900, 1200])
+        self.advanced_open = tk.BooleanVar(value=False)
+        toggle = ttk.Checkbutton(motor, text='Gelişmiş ayarlar / Advanced', variable=self.advanced_open, command=self.toggle_advanced)
+        toggle.grid(row=4, column=0, columnspan=2, sticky='w', pady=(8, 0)); self.controls.append(toggle)
+        self.advanced = ttk.Frame(motor); self.advanced.grid(row=5, column=0, columnspan=2, sticky='ew'); self.advanced.columnconfigure(1, weight=1)
+        self._field(self.advanced, 0, 'cfg', 'Referansa bağlılık / CFG', [1.3, 1.65, 2, 2.5])
+        self.temperature_control = self._field(self.advanced, 1, 'temperature', 'Çeşitlilik / Temperature', [.6, .8, 1])
+        self._field(self.advanced, 2, 'pause', 'Durak çarpanı / Pause', [.5, 1, 1.5, 1.8])
+        self._field(self.advanced, 3, 'seed', 'Tekrarlanabilirlik / Seed')
+        self._button(self.advanced, 'Motor klasörü / Engine folder', self.choose_engine).grid(row=4, column=0, columnspan=2, sticky='ew', pady=(6, 0))
+        self.advanced.grid_remove()
 
         post = self._card(left, 'Son işlem / Finishing')
         for key, label in [('normalize', 'Ses yüksekliğini dengele / Normalize'), ('polish', 'Parça geçişlerini yumuşat / Smooth joins'),
@@ -158,9 +177,12 @@ class Studio:
         footer = ttk.Frame(self.root, padding=(18, 12)); footer.pack(fill='x')
         self.generate_button = ttk.Button(footer, text='Seslendir / Generate', command=self.generate, style='Accent.TButton')
         self.generate_button.pack(side='left', padx=(0, 12)); self.controls.append(self.generate_button)
+        self._button(footer, 'Kısa örnek / Preview', lambda: self.generate(True)).pack(side='left', padx=(0, 12))
         middle = ttk.Frame(footer); middle.pack(side='left', fill='x', expand=True)
         self.status = tk.StringVar(value='Metni yapıştır veya aç, sonra Seslendir / Ctrl+Enter')
-        ttk.Label(middle, textvariable=self.status, wraplength=570).pack(anchor='w')
+        status_label = ttk.Label(middle, textvariable=self.status, wraplength=400)
+        status_label.pack(anchor='w')
+        middle.bind('<Configure>', lambda event: status_label.configure(wraplength=max(120, event.width)))
         self.progress = ttk.Progressbar(middle, maximum=100); self.progress.pack(fill='x', pady=(4, 0))
         self.stop_button = ttk.Button(footer, text='Durdur / Stop', command=self.stop, state='disabled'); self.stop_button.pack(side='left', padx=8)
         self.listen_button = ttk.Button(footer, text='Sesi aç / Listen', command=self.listen, state='disabled'); self.listen_button.pack(side='left')
@@ -187,6 +209,28 @@ class Studio:
         chosen = next((label for label, file in self.references.items() if file == Path(self.vars['reference'].get())), '')
         self.voice_list.set(chosen)
 
+    def toggle_advanced(self):
+        if self.advanced_open.get(): self.advanced.grid()
+        else: self.advanced.grid_remove()
+
+    def _engine_controls(self):
+        unavailable = self.running or self.vars['motor'].get() == 'torch'
+        for widget in (self.batch_control, self.temperature_control): widget.configure(state='disabled' if unavailable else 'normal')
+        self.reference_listen.configure(state='disabled' if self.running or not Path(self.vars['reference'].get()).is_file() else 'normal')
+
+    def apply_preset(self, name):
+        if self.running: return
+        for key, value in PRESETS[name].items(): self.vars[key].set(value)
+        self.vars['preview'].set(False)
+        self._engine_controls()
+        self.status.set({'balanced':'Dengeli: 15 adım · 600 karakter · yumuşak geçiş / Balanced',
+                         'book':'Kitap: 900 karakter · doğal paragraf durakları / Narration',
+                         'fast':'Hızlı: 10 adım · önce kısa örnekle deneyin / Quick'}[name])
+
+    def listen_reference(self):
+        file = Path(self.vars['reference'].get())
+        if file.is_file(): os.startfile(file)
+
     def _select_saved(self, _event=None):
         file = self.references.get(self.voice_list.get())
         if file: self.set_reference(file)
@@ -195,6 +239,7 @@ class Studio:
         self.vars['reference'].set(str(file)); self.reference_label.configure(text=file.name)
         self.transcript.delete('1.0', 'end')
         if file.with_suffix('.txt').is_file(): self._load(file.with_suffix('.txt'), self.transcript)
+        self._engine_controls()
 
     def choose_reference(self):
         file = filedialog.askopenfilename(parent=self.root, filetypes=[('WAV voice', '*.wav')])
@@ -232,6 +277,7 @@ class Studio:
         for control in self.controls: control.configure(state='disabled' if locked else 'normal')
         if not locked: self.voice_list.configure(state='readonly')
         self.stop_button.configure(state='normal' if locked else 'disabled')
+        self._engine_controls()
 
     def publish(self, kind, value):
         while True:
@@ -240,12 +286,13 @@ class Studio:
                 try: self.events.get_nowait()
                 except queue.Empty: pass
 
-    def generate(self):
+    def generate(self, preview_override=None):
         if self.running: return
         body = self.text.get('1.0', 'end').strip(); prompt = self.transcript.get('1.0', 'end').strip()
         if not body or len(body) > 500_000 or len(prompt) > 8000:
             messagebox.showerror('Whisper Local', 'Metin veya döküm boyutunu kontrol edin. / Check text length.', parent=self.root); return
         settings = {key: variable.get() for key, variable in self.vars.items()}
+        if preview_override is not None: settings['preview'] = preview_override
         try:
             identifier = time.strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8]
             folder = self.args.storage / 'Girdi' / 'Metin' / identifier; folder.mkdir(parents=True)
@@ -258,7 +305,7 @@ class Studio:
             (folder / 'settings.json').write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding='utf-8')
             self.settings_file.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.settings_file.with_suffix('.' + uuid.uuid4().hex + '.tmp')
-            temporary.write_text(json.dumps({'version': 2, **{key: settings[key] for key in TEXT_SETTINGS}}), encoding='utf-8')
+            temporary.write_text(json.dumps({'version': 2, **{key: self.vars[key].get() for key in TEXT_SETTINGS}}), encoding='utf-8')
             os.replace(temporary, self.settings_file)
         except (OSError, ValueError) as error:
             messagebox.showerror('Whisper Local', str(error), parent=self.root); return

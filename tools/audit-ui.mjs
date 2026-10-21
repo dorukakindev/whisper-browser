@@ -26,6 +26,9 @@ const option = (name, fallback = '') => {
 };
 const OUT = path.resolve(option('--out', path.join(ROOT, 'tmp', 'ui-audit')));
 const STRICT = flag('--strict');
+const ONLY_SURFACE = option('--surface', '');
+const WIDTHS = option('--widths', '1400,1100,900').split(',').map(Number);
+if (!WIDTHS.length || WIDTHS.some(width => !Number.isInteger(width) || width < 320 || width > 3000)) throw new Error('Invalid --widths');
 
 function findBrowser() {
   const candidates = [option('--browser'), process.env.CHROME_PATH];
@@ -55,6 +58,8 @@ function stageRenderer() {
     const noop = () => Promise.resolve(null);
     window.api = new Proxy({}, { get(_, key) {
       if (key === 'then') return undefined;
+      if (key === 'dubConfig') return () => Promise.resolve({ok:true,ready:true,reference:'demo-voice.wav',transcript:'demo-voice.txt',profile:'quality',concurrency:4,grouping:'akici',timingMode:'video',verification:'balanced',naturalSpeech:true,autoFit:true});
+      if (key === 'selectFile') return () => Promise.resolve('demo-subtitles.tr.srt');
       if (typeof key === 'string' && /^on[A-Z]/.test(key)) return () => () => {};
       return noop;
     } });
@@ -122,6 +127,7 @@ const SURFACES = [
   ['settings-drawer', '#settingsDrawer', `document.getElementById('browserCommandPalette')?.classList.add('hidden'); try { setSettingsDrawer(true); } catch (_) { document.getElementById('settingsDrawer')?.classList.remove('hidden'); } document.querySelectorAll('#settingsDrawer details').forEach((d) => d.setAttribute('open', ''))`],
   ['player-mode', '#playerLayer', `try { setSettingsDrawer(false); } catch (_) {} document.getElementById('workspacePlayerMode')?.click()`],
   ['main-screen', 'body', `document.getElementById('playerLayer')?.classList.add('hidden')`],
+  ['voice-studio', '#dubGeneratorDialog', `document.getElementById('playerDubGenerate')?.click(); document.getElementById('dubChooseSrt')?.click()`],
 ];
 
 async function main() {
@@ -180,7 +186,8 @@ async function main() {
   const report = { browser, generatedAt: new Date().toISOString(), runs: [] };
   let failures = 0;
   try {
-    for (const width of [1400, 1100, 900]) {
+    if (ONLY_SURFACE && !SURFACES.some(([name]) => name === ONLY_SURFACE)) throw new Error('Unknown --surface');
+    for (const width of WIDTHS) {
       await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
       for (const locale of ['tr', 'en']) {
         await send('Page.navigate', { url }); await sleep(1500);
@@ -194,7 +201,7 @@ async function main() {
           }
           await evaluate(`document.documentElement.dataset.theme = '${theme}'`); await sleep(250);
           for (const [name, scope, prepare] of SURFACES) {
-            if (width !== 1400 && name !== 'browser-home') continue;
+            if (ONLY_SURFACE ? name !== ONLY_SURFACE : width !== 1400 && name !== 'browser-home') continue;
             if (prepare) { await evaluate(prepare); await sleep(200); }
             await evaluate(`window.__uiAuditScope = '${scope}'`);
             const problems = await evaluate(CONTRAST);
