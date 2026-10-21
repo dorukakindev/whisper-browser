@@ -227,3 +227,17 @@ ses üretimi başlatmayın. Çıktı listen.html ve results.json'dur. Otomatik b
 kazanan veya insan doğallığı puanı verilmez. Daha uzun bağlam her zaman daha
 iyi değildir; [gerçek deneme raporu](../../docs/raporlar/BROWSER_BUG_REPORT_504.md)
 metin atlayan tek-parça örneği ve kontrollü kurtarmayı açıklar.
+
+
+### Sabit anlatım bağlamını karşılaştırma (deney aracı)
+
+compare_continuity.py aynı metni orijinal prompt ve sabit onaylı bağlam ile
+karşılaştırır. Modelin kendi Python'u ve VOXCPM_ROOT gerekir. Argümanlar:
+--cases (JSON metin listesi,1–8 pasaj,her biri en çok300karakter),
+--anchor-audio (3–20sn mono WAV), --anchor-text (birebir TXT),
+--reference (asıl WAV), --transcript (asıl TXT), --verify-python
+(uygulama backend Python'u) ve --output (henüz var olmayan klasör).
+Anchor yerel ASR'dan geçmeden model yüklenmez. Referans asıl ses olarak
+korunur; çıktılar zincirlenmez. Sonuçlar JSON/listen.html, kişisel dosyalar
+Git'e konmamalı. Bu araç üretim varsayılanı seçmez; daha kısa ses doğallık
+kanıtı değildir. GPU kullanır; başka ses üretimiyle aynı anda çalıştırmayın.

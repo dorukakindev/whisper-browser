@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 505 | [BROWSER_BUG_REPORT_505.md](BROWSER_BUG_REPORT_505.md) | Geniş kaynak araştırması, sabit bağlam ve konuşma bütünlüğü |
 | 504 | [BROWSER_BUG_REPORT_504.md](BROWSER_BUG_REPORT_504.md) | Gerçek GPU ile anlatım bağlamı ve konuşma kurtarması |
 | 503 | [BROWSER_BUG_REPORT_503.md](BROWSER_BUG_REPORT_503.md) | Kalite odaklı ses varsayılanları |
 | 502 | [BROWSER_BUG_REPORT_502.md](BROWSER_BUG_REPORT_502.md) | Varsayılanları güçlü iki ses çalışma alanı |
