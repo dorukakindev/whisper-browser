@@ -2,6 +2,18 @@
 
 ## Bağımsız metin stüdyosu
 
+Stüdyonun üstünde **Dengeli / Kitap anlatımı / Hızlı deneme** hazır ayarları vardır.
+Mevcut ses, döküm, motor ve metin korunur. Gelişmiş ayarlar başta kapalıdır;
+CFG/temperature/durak/seed seçeneklerini oradan açın. **Kısa örnek** düğmesi
+yalnız o çalıştırmada örnek üretir; sonraki tam üretim seçiminizi değiştirmez.
+PyTorch'ta kullanılmayan batch/temperature alanları kapalı gösterilir.
+
+Browser/oynatıcı ses paneli etkin SRT/ses/aralığı üstte gösterir. Alt çubuk
+üretim/durdurma/sonucu kullanma eylemlerini görünür tutar. **Dengeli** normal
+üretim içindir; **Hızlı deneme** AI metin düzenlemesini kapatır, **Ayrıntılı kontrol**
+tüm gruplarda metin doğrulaması yapar ve daha uzun sürer. Bu profiller sesinizi,
+altyazınızı, aralığı veya isteğe bağlı müzik ayırma seçiminizi değiştirmez.
+
 Güncel stüdyo iki sütunludur: solda kayıtlı sesler/klonlama/motor/kalite/son işlem,
 sağda geniş metin ve günlük, altta sabit üretim/dinleme çubuğu. Dar veya yüksek
 DPI pencerede sol ayarlar kaydırılabilir. Otomatik, Hi-Fi ve dökümsüz basit

@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Redesigned the dubbing workspace with source/voice/range overview, bounded responsive cards, persistent actions and safe production presets; simplified desktop Voice Studio with narration presets and advanced settings.
+
 - Expanded Voice Studio with a two-column layout, saved voices, clone modes, engine selection, finishing and preview controls; added consistent flowing speech blocks to browser/player dubbing.
 
 - Added visible local audio reference preparation and a repository-owned standalone text/TXT voice studio, sharing the existing VoxCPM2 environment without launching the old external GUI.

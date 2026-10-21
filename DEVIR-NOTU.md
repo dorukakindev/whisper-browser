@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-21-1330.md](docs/devir/2026-10-21-1330.md) — Ses stüdyosu tasarımı, görünür ayarlar ve akıcı konuşma grupları
+Güncel çalışma: [docs/devir/2026-10-21-1348.md](docs/devir/2026-10-21-1348.md) — İki ses arayüzü, iyi varsayılanlar ve hazır profiller
+Önceki çalışma: [docs/devir/2026-10-21-1330.md](docs/devir/2026-10-21-1330.md) — Ses stüdyosu tasarımı, görünür ayarlar ve akıcı konuşma grupları
 Önceki çalışma: [docs/devir/2026-10-21-1305.md](docs/devir/2026-10-21-1305.md) — Yerel ses referansı ve bağımsız metin stüdyosu; o turda commit/push inceleme sınırında kaldı
 Önceki çalışma: [docs/devir/2026-10-21-0943.md](docs/devir/2026-10-21-0943.md) — Rapor499: Altyazı kimliği, Unicode ve kurtarmada 20 düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-21-0853.md](docs/devir/2026-10-21-0853.md) — Rapor498: Kurtarma, iptal ve çeviri bütünlüğünde 20 düzeltme; CI arkada
