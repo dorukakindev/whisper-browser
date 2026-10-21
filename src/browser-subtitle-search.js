@@ -253,8 +253,8 @@ async function searchSubtitles(target, config = {}, { signal } = {}) {
 async function searchStremioSubtitles(target, config = {}, { signal } = {}) {
   const imdbId = String(target.imdbId).trim().toLowerCase();
   const isSeries = target.season != null || target.episode != null;
-  const season = Number.isInteger(Number(target.season)) ? Number(target.season) : 1;
-  const episode = Number.isInteger(Number(target.episode)) ? Number(target.episode) : 1;
+  const season = target.season != null && Number.isInteger(Number(target.season)) ? Number(target.season) : 1;
+  const episode = target.episode != null && Number.isInteger(Number(target.episode)) ? Number(target.episode) : 1;
   const path = isSeries
     ? `/subtitles/series/${imdbId}:${season}:${episode}.json`
     : `/subtitles/movie/${imdbId}.json`;
@@ -378,6 +378,9 @@ function decodeDownloadedSubtitle(bytes, language) {
     || /^Dialogue:/m.test(text);
   if (!text.trim() || /\0/.test(text) || !looksLikeSubtitle) {
     throw problem('İndirilen dosya geçerli altyazı metni değil.', 'INVALID_SUBTITLE');
+  }
+  if (!require('./browser-subtitles').parseSubtitlePayload(text, '', `subtitle.${downloadedFormat(text)}`).cues.length) {
+    throw problem('İndirilen dosyada geçerli altyazı satırı yok.', 'INVALID_SUBTITLE');
   }
   return text;
 }

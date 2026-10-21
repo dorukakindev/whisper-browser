@@ -15,6 +15,7 @@ w.api = {
   dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
   openPath: async value => { opened=value; },
   latestDub: async () => ({ok:true}), selectFile: async () => 'test.srt',
+  selectVoiceReferenceSource: async()=>({ok:true,path:'analysis-source.wav'}),
   onDubEvent: callback => {onEvent=callback;},
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
 };
@@ -23,12 +24,42 @@ w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'
 const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
+  assert.equal(el('dubVerification').value,'detailed');
+  assert.equal(el('dubGrouping').value,'akici');
+  assert.equal(el('dubTimingMode').value,'video');
+  assert.equal(el('dubProfile').value,'quality');
+  assert.equal(el('dubExpression').value,'reference');
+  assert.equal(el('dubFollowDelivery').checked,false);
+  assert.equal(el('dubDeliveryStrength').disabled,true);
+  el('dubFollowDelivery').checked=true;el('dubFollowDelivery').dispatchEvent(new w.Event('change'));
+  assert.equal(el('dubExpression').disabled,true);
+  assert.equal(el('dubDeliveryStrength').disabled,false);
   el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
   el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
   el('dubChooseSrt').click();await tick();
   el('dubRangeEnabled').checked=true;el('dubRangeStart').value='10:00';el('dubRangeEnd').value='20:00';el('dubKeepBackground').checked=true;
+  el('dubPresetFast').click();await tick();
+  assert.equal(el('dubProfile').value,'fast');assert.equal(el('dubNaturalSpeech').checked,false);
+  assert.equal(el('dubPresetFast').getAttribute('aria-pressed'),'true');
+  assert.equal(el('dubRangeStart').value,'10:00');assert.equal(el('dubRangeEnd').value,'20:00');
+  assert.equal(el('dubKeepBackground').checked,true,'presets never alter optional audio separation');
+  el('dubPresetBalanced').click();await tick();
+  assert.equal(el('dubProfile').value,'quality');assert.equal(el('dubVerification').value,'balanced');
+  assert.equal(el('dubReadySource').textContent,'test.srt');
+  assert.equal(el('dubReadyRange').textContent,'10:00 → 20:00');
+  el('dubExpression').value='warm';
+  el('dubChooseDeliverySource').click();await tick();
+  assert.equal(el('dubDeliverySourceName').textContent,'analysis-source.wav');
+  assert.equal(el('dubVoiceName').textContent,'voice.wav','analysis audio is not the cloned voice');
   el('dubGeneratorStart').click();await tick();
+  assert.equal(request.expression,'warm');
+  assert.equal(request.followDelivery,true);
+  assert.equal(request.deliveryStrength,'balanced');
+  assert.equal(request.prosodySource,'analysis-source.wav');
+  assert.equal(el('dubExpression').disabled,true);
   assert.deepEqual(JSON.parse(JSON.stringify(request.range)),{start:600,end:1200});assert.equal(request.keepBackground,true);
+  assert.equal(request.grouping,'akici');
+  assert.equal(el('dubPresetBalanced').disabled,true,'presets cannot change a running job');
   onEvent({id:request.id,type:'warning',text:'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.'});
   assert.match(el('dubGeneratorDetails').textContent,/Kısa örnekte/);
   assert.equal(request.backgroundSource,'fixture.mp4');
@@ -44,11 +75,19 @@ const tick = () => new Promise(setImmediate);
   el('dubGeneratorCancel').click();await tick();
   assert.match(el('dubGeneratorStatus').textContent,/doğrulanamadı/);
   assert.equal(el('dubGeneratorCancel').disabled,false);
+  onEvent({id:request.id,type:'group',group:{group:1,key:'1,2',status:'ready',verification:{status:'passed'}}});
   onEvent({id:request.id,type:'done',name:'fixture.wav',url:'fixture.wav'});await tick();
   assert.equal(el('dubGeneratedPreview').getAttribute('src'),'fixture.wav');
   assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),false);
   assert.equal(attached,true,'generated audio must attach to the local player');
   attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
+  assert.equal(el('dubRegenerateGroup').disabled,false);
+  el('dubRegenerateGroup').click();await tick();
+  assert.deepEqual(Array.from(request.forceGroups),['1,2']);
+  onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review'}]}});await tick();
+  assert.match(el('dubGeneratorStatus').textContent,/işaretli parçaları/);
+  el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),[]);
+  onEvent({id:request.id,type:'error',error:'fixture stopped'});
   el('dubStorageOpen').click();await tick();assert.equal(opened,'voice-folder');
   w.api.selectVideo=async()=>['previous-background.wav'];
   el('dubChooseBackground').click();await tick();assert.equal(el('dubBackgroundName').textContent,'previous-background.wav');

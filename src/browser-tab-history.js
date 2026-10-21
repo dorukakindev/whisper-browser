@@ -12,6 +12,11 @@ function finiteNumber(value, fallback = 0, min = -Infinity, max = Infinity) {
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
 
+function cloneOptional(value) {
+  if(!value || typeof value!=='object' || Array.isArray(value))return null;
+  try{return structuredClone({...value});}catch(_){return null;}
+}
+
 function normalizeClosedBrowserTab(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return null;
   // OAuth callback parametreleri kapalı-sekme geçmişine ve diske yazılmaz;
@@ -32,6 +37,11 @@ function normalizeClosedBrowserTab(snapshot) {
     title: String(snapshot.title || '').trim().slice(0, 300),
     captureEnabled: snapshot.captureEnabled !== false,
     pinned: !!snapshot.pinned,
+    group: require('./browser-tab-layout').normalizeTabGroup(snapshot.group),
+    readerPreferences: require('./browser-reader').normalizeReaderPreferences(snapshot.readerPreferences),
+    keepAwake: snapshot.keepAwake === true,
+    compatibilityMode: snapshot.compatibilityMode === true,
+    mangaPosition: snapshot.mangaPosition ? require('./browser-library-tools').normalizeMangaPosition(snapshot.mangaPosition) : null,
     mediaId: String(snapshot.mediaId || '').slice(0, 300),
     service: String(snapshot.service || '').slice(0, 64),
     contentId: String(snapshot.contentId || '').slice(0, 300),
@@ -47,15 +57,15 @@ function normalizeClosedBrowserTab(snapshot) {
       ? snapshot.subtitleMode : 'source',
     targetLanguage: String(snapshot.targetLanguage || '').trim().toLowerCase().slice(0, 24),
     trackRefs: Array.isArray(snapshot.trackRefs)
-      ? snapshot.trackRefs.slice(0, 12).map((item) => structuredClone({ ...item })) : [],
+      ? snapshot.trackRefs.slice(0, 12).map(cloneOptional).filter(Boolean) : [],
     subtitleSelection: snapshot.subtitleSelection && typeof snapshot.subtitleSelection === 'object'
-      ? structuredClone({ ...snapshot.subtitleSelection }) : null,
+      ? cloneOptional(snapshot.subtitleSelection) : null,
     subtitleSyncRecords: Array.isArray(snapshot.subtitleSyncRecords)
-      ? snapshot.subtitleSyncRecords.slice(-500).map((item) => structuredClone({ ...item })) : [],
+      ? snapshot.subtitleSyncRecords.slice(-500).map(cloneOptional).filter(Boolean) : [],
     subtitleEdits: Array.isArray(snapshot.subtitleEdits)
-      ? snapshot.subtitleEdits.slice(-2000).map((item) => structuredClone({ ...item })) : [],
+      ? snapshot.subtitleEdits.slice(-2000).map(cloneOptional).filter(Boolean) : [],
     subtitleRecordQuarantine: Array.isArray(snapshot.subtitleRecordQuarantine)
-      ? snapshot.subtitleRecordQuarantine.slice(-100).map((item) => structuredClone({ ...item })) : [],
+      ? snapshot.subtitleRecordQuarantine.slice(-100).map(cloneOptional).filter(Boolean) : [],
   };
 }
 

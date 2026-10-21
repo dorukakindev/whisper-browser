@@ -6,9 +6,11 @@ import ast
 import json
 import math
 import asyncio
+import sys
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/voxcpm2'))
 spec = importlib.util.spec_from_file_location('dub_timing', Path(__file__).resolve().parents[1] / 'tools/voxcpm2/dub_timing.py')
 D = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(D)
@@ -78,7 +80,7 @@ class DubTimingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(D.quality_retry(invalid, lambda _: math.inf, 1))
         async def stalled(seed): await asyncio.sleep(1)
-        with self.assertRaises(asyncio.TimeoutError):
+        with self.assertRaises(D.EngineStalled):
             asyncio.run(D.quality_retry(stalled, lambda _: 0, 1, timeout=.01))
 
     def test_placement_borrows_silence_without_overlap_or_unnecessary_shift(self):

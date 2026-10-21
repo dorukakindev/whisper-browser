@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from dub_lifecycle import bounded_call, EngineStalled
 
 
 class TimingOverflow(ValueError):
@@ -20,8 +21,20 @@ async def quality_retry(generate, assess, seed, retries=2, timeout=180):
     """Retry acoustic failures only; fitting duration is a separate operation."""
     best, best_score, attempts = None, math.inf, 0
     for attempt in range(retries + 1):
-        raw = await asyncio.wait_for(generate(seed + attempt * 100003), timeout)
         attempts += 1
+        try:
+            raw = await bounded_call(generate(seed + attempt * 100003), timeout)
+        except (asyncio.TimeoutError, OSError, RuntimeError, ValueError) as error:
+            if isinstance(error, EngineStalled):
+                raise
+            if any(term in str(error).lower() for term in ('out of memory', 'cuda error')):
+                raise
+            # A later failed retry must not erase an already usable candidate.
+            if best is not None:
+                break
+            if attempt == retries:
+                raise
+            continue
         score = assess(raw)
         if math.isfinite(score) and score < best_score:
             best, best_score = raw, score
@@ -45,10 +58,73 @@ def placement_window(cues, i, audio_seconds, previous_end_s, max_speed,
     return start, stop
 
 
+def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
+    """Pack contiguous narration into few, balanced, sentence-aware requests.
+
+    Duration/size are hard limits between cues. A single source cue is never
+    truncated. At most 128 candidates per position bound dense-caption cost.
+    """
+    def speaker(text):
+        return bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
+
+    def completed(text):
+        tail = text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
+        abbreviation = re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I)
+        return bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
+
+    runs, run = [], []
+    for i, cue in enumerate(cues):
+        if run and (cue[0] < run[-1][1][1] or cue[0]-run[-1][1][1] > max_gap_ms
+                    or speaker(cue[2]) or speaker(run[-1][1][2])):
+            runs.append(run); run = []
+        run.append((i+1, cue))
+    if run:
+        runs.append(run)
+    groups = []
+    for run in runs:
+        n = len(run)
+        # Avoid a mid-sentence reset before minimizing request count. Packing
+        # six half-sentences into two requests can split a sentence in both;
+        # three complete requests preserve the intended phrasing instead.
+        # Size/duration/speaker limits still take precedence over this choice.
+        costs, ends = [(0, 0, 0.0)]*(n+1), [0]*n
+        for i in range(n-1, -1, -1):
+            best, size, stop = None, 0, run[i][1][1]
+            for j in range(i, min(n, i+128)):
+                cue = run[j][1]
+                size += len(cue[2].strip()) + (1 if j > i else 0)
+                stop = max(stop, cue[1])
+                if j > i and (size > max_chars or (stop-run[i][1][0])/1000 > max_seconds):
+                    break
+                penalty = (size/max(1, max_chars))**2
+                unfinished = int(j+1 < n and not completed(cue[2]))
+                candidate = (unfinished+costs[j+1][0], 1+costs[j+1][1],
+                             penalty+costs[j+1][2])
+                if best is None or candidate < best:
+                    best, ends[i] = candidate, j+1
+            costs[i] = best
+        i = 0
+        while i < n:
+            selected = run[i:ends[i]]
+            groups.append({'start': selected[0][1][0], 'end': max(c[1][1] for c in selected),
+                           'text': ' '.join(c[1][2].strip() for c in selected),
+                           'source_ids': [c[0] for c in selected]})
+            i = ends[i]
+    return groups
+
+
 def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=600):
     """Preserve every source cue; group only nearby, same-speaker text."""
-    if mode not in ("cumle", "satir"):
+    if mode not in ("cumle", "satir", "akici"):
         raise ValueError("Bilinmeyen gruplama modu")
+    if mode == 'akici':
+        for i, (start, end, text) in enumerate(cues):
+            if start < 0 or end <= start or not text.strip() or (i and start < cues[i-1][0]):
+                raise ValueError(f"Gecersiz altyazi satiri: {i+1}")
+        # Preserve the established simultaneous-cue convention rather than
+        # speaking overlapping captions in separate requests.
+        if not any(i and c[0] == cues[i-1][0] for i, c in enumerate(cues)):
+            return _balanced_flow(cues, max_chars, max_seconds, max_gap_ms)
     groups = []
     for i, (start, end, text) in enumerate(cues):
         if start < 0 or end <= start or not text.strip():
@@ -69,12 +145,14 @@ def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=
             abbreviation = bool(re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I))
             complete = bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
             speaker_boundary = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
+            previous_speaker = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', g['text']))
             split = (start - g['end'] > max_gap_ms or start < g['end'] or speaker_boundary
                      or len(g['text']) + len(text) + 1 > max_chars
                      or (max(end, g['end']) - g['start']) / 1000 > max_seconds
                      # Keep very short replies with their context; otherwise
                      # end a completed sentence before the next source cue.
-                     or (complete and len(text.strip()) >= 24))
+                     or (mode == 'akici' and previous_speaker)
+                     or (complete and (len(g['text']) >= 140 if mode == 'akici' else len(text.strip()) >= 24)))
         if split:
             groups.append({'start': start, 'end': end, 'text': text.strip(), 'source_ids': [i + 1]})
         else:
@@ -168,7 +246,7 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
     tail = max(0, round((total_s - video_cursor) * sr))
     if tail: chunks.append(np.zeros(tail, dtype=np.float32))
     audio = np.concatenate(chunks) if chunks else np.zeros(1, dtype=np.float32)
-    sync = {'version': 1, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
+    sync = {'version': 1, 'smooth': True, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
     timing = {'version': 3, 'accelerated_groups': sum(r['tempo'] > 1 for r in reports),
               'clipped_groups': 0, 'overflow_groups': 0,
               'stretched_groups': sum(r['stretch'] > 1.001 for r in reports), 'groups': reports}

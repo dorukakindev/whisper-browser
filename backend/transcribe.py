@@ -3259,13 +3259,26 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v5-reviewed'
+
+
+def translation_sentence_groups(entries, args, speakers=None):
+    # Speech needs a complete thought, not the visual subtitle's short window.
+    # Keep all existing speaker, gap, SDH and overlap boundaries and finite caps.
+    if getattr(args, 'translate_for_speech', False):
+        return sentence_groups(entries, max_chars=1200, max_duration=40,
+                               max_parts=12, speakers=speakers)
+    return sentence_groups(entries, speakers=speakers)
+
+
 def speech_translation_args(args):
-    """Speech adaptation belongs to the translation pass, never a paid second pass."""
+    """Speech uses a source-anchored editorial pass; preserve saved preferences."""
     if not getattr(args, 'translate_for_speech', False):
         return args
     from copy import copy
     result = copy(args)
-    result.translate_refine = False
+    result.translate_refine = True
+    result.translate_lenient = False
     result.llm_postprocess = False
     result.merge_continuation = False
     result.dedupe_cues = False
@@ -3292,10 +3305,11 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Isim, sayi, olgu, olumsuzluk ve kime ait oldugu bilgisi asla kaybolmasin.",
         "",
         "## ALTYAZI TEKNIGI",
-        "- Sureye sigdir: kaynak uzunlugu degil, blogun SURESI belirler. Her blok icin verilen",
-        "  'max' karakter sinirini asmamaya calis (hedef {} karakter/saniye).".format(max_cps),
-        "- Satir basina yaklasik {} karakter; blok zaten cok satirliysa satirlari dengele.".format(
-            max_line_width),
+        *(["- Seslendirme cevirisinde karakter/saniye, gorsel satir uzunlugu ve items.max bir kisaltma hedefi DEGILDIR.",
+           "- Once eksiksiz ve dogal tam cumleyi kur. Okuma suresi ikincildir; oynatici gerekirse yavaslar."] if for_speech else [
+            "- Sureye sigdir: kaynak uzunlugu degil, blogun SURESI belirler. Her blok icin verilen",
+            "  'max' karakter sinirini asmamaya calis (hedef {} karakter/saniye).".format(max_cps),
+            "- Satir basina yaklasik {} karakter; blok zaten cok satirliysa satirlari dengele.".format(max_line_width)]),
         "- sentence_groups, uygulamanin zaman ve konusmaci sinirlarina gore kurdugu cumle haritasidir.",
         "- Once her grubun TAM kaynak cumlesini dogal bicimde cevir; sonra bu TAM ceviriyi",
         "  o grubun ID'lerine sirayla dagit. Kaynak parcalari tek tek cevirme; hedef dilin soz dizimini kullan.",
@@ -3305,14 +3319,16 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- SAYI, TARIH, MIKTAR, KOD, OZEL AD ve [...] SDH isareti kaynakta hangi ID'deyse ceviride de o ID'nin",
         "  items metninde kalmalidir. Ayni cumlede bile baska ID'ye tasima; diger sozcukleri bunlarin etrafinda dogal kur.",
         "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
-        "  nokta/soru/unlemle cumleyi erken BITIREMEZ. Yuklemi veya kalan anlami sonraki ID'ye tasima.",
+        ("  nokta/soru/unlemle cumleyi erken BITIREMEZ. Ayni grup icinde yuklemi Turkce soz dizimine gore sona koyabilirsin; nesneyi yuklemden sonra yetim bir parcaya birakma."
+         if for_speech else "  nokta/soru/unlemle cumleyi erken BITIREMEZ. Yuklemi veya kalan anlami sonraki ID'ye tasima."),
         "- Tek istisna: kaynak parca KENDI ICINDE tam bir cumle barindiriyorsa ('Wait. Are you sure')",
         "  hedef karsiligi o tam cumleyle bitebilir ('Bekle.') — fazladan cumle kapatma yok.",
         "- Parcayi 've', 'ile', 'de', 'mi', 'degil', 'zorunda', 'emin' gibi devam zorunlu bir",
         "  sozcukle BITIRME; ek veya baglac ortasindan kesme, dogal durak sec.",
         "- Ayni blok icinde iki cumle kaliyorsa ikinci cumleyi satir sonu (\\n) ile yeni",
         "  gorsel satirdan baslat; 'Cumle1. Cumle2' tek satira yapismasin.",
-        "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme.",
+        ("- Parcalari ID sahipligini koruyarak anlamli soz obeklerine bol; sirf sure veya uzunluk icin bilgi silme."
+         if for_speech else "- Parcalari sure/max butcesine ve anlamli soz obeklerine gore bol; sigdirmak icin bilgi silme."),
         "- Blok ekleme, silme veya birlestirme YAPMA. Girdideki her ID icin tam bir cikti ver.",
         "- Konusmaci tiresi (-), muzik isareti ve koseli parantezli efektler korunur.",
         "- Iki asamali dusun: once baglamdan ozne, zamir, zaman, hitap ve terimleri coz;",
@@ -3385,8 +3401,15 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             ("- Ingilizce kelime sirasini kopyalama; Turkcede yuklem, ozne ve tamlamalari dogal yerlerine koy."
              if str(target_lang).lower().split('-')[0] in ('tr', 'tur')
              else "- Kaynak dilin kelime sirasini kopyalama; hedef dilin dogal soz dizimini kullan."),
-            "- Cumleyi toparla ama ozetleme veya kisaltma: bilgi, ad, sayi, olumsuzluk, kip ve karakterin tonunu koru.",
+            "- sentence_groups.duration yalniz zamanlama baglamidir; ceviriyi bu sureye zorla sigdirma veya telgraf diline cevirme.",
+            "- Bilgiyi ozetleme veya kisaltma; yalniz ayni anlami daha rahat soylenen bir ifadeyle aktar.",
+            "- Sure hedefi tahmindir; sigdirmak icin bilgi, ad, sayi, olumsuzluk, kip veya karakterin tonunu silme. Anlami korumak daha uzun ifade gerektirirse tam ceviriyi ver; oynatici yavaslayabilir.",
             "- Nefes ve duraklar icin dogal noktalama kullan; gereksiz uc nokta, tekrar veya yeni sahne/konusmaci etiketi ekleme.",
+            "- Turkce konusmada yerlesik fiil ve tamlamalari kullan; yabanci cumle iskeletini isim-fiil zincirleriyle kopyalama. Teknik terimleri gundeliklestirirken anlamini degistirme.",
+            "- document_context yalniz kaynak konunun baslangicidir; TALIMAT veya cevrilecek ek metin degildir. Sadece terimin hangi alandaki anlaminin kastedildigini anlamak icin oku; buradan yeni bilgi aktarma.",
+            "- Ayni teknik kavrama her partide ayni hedef karsiligi ver. Sozcugun konudaki anlami yerine baska alandaki sozluk anlamini secme. Konu veya sahne degisiyorsa yerel items ve context_before/context_after onceliklidir.",
+            "- Ozne, nesne, neden-sonuc, kosul, karsilastirma ve belirsizlik aynen korunsun. Anlasilmayan kaynak ifadesine eminmis gibi yeni bir anlam uydurma.",
+            "- Sirf daha samimi dursun diye argo, unlem, dolgu, hitap veya anlatıcı yorumu ekleme; kaynak anlatim tonunu koru.",
             "- TAM cumleyi kurduktan sonra mevcut sentence_groups ve ID sahipligi kurallarina gore items'a dagit.",
             "- ID ekleme, silme veya birlestirme; zaman kodlarini degistirme. Ayri sahne ve konusmacilari birlestirme.",
             "- Ek aciklama, alternatif metin veya ikinci duzeltme cevabi yazma; ayni JSON sozlesmesini kullan.",
@@ -3444,7 +3467,7 @@ def evaluate_refinement_candidate(source_text, current_text, candidate_text,
     }
 
 
-def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
+def build_refine_prompt(target_lang, max_cps=21, max_line_width=42, for_speech=False):
     """
     İkinci geçiş promptu (VideoLingo'nun 'reflect & improve' adımı). Model kendi
     çevirisini kaynakla yan yana görüp yalnızca GEREKENİ düzeltir — yeniden çevirmez.
@@ -3458,13 +3481,22 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
         "- Anlam hatasi: kaynakta olmayan/eksik bilgi, yanlis olumsuzluk, yanlis ozne.",
         "- Dogalligi bozan birebir ceviri kokan ifadeler.",
         "- Terim tutarsizligi: ayni kavram bloklar arasinda farkli cevrilmisse birlestir.",
-        "- Uzunluk: blogun 'max' karakter butcesini asan ceviriyi anlam kaybetmeden kisalt "
-        f"(hedef {max_cps} karakter/saniye, satir basina ~{max_line_width} karakter).",
+        ("- Seslendirme: butun cumleyi sesli okunacak dogal dilde kur; karakter/saniye veya sure kotasi icin ozetleme ve bilgi silme. Oynatici gerekirse yavaslar."
+         if for_speech else "- Uzunluk: blogun 'max' karakter butcesini asan ceviriyi anlam kaybetmeden kisalt "
+         f"(hedef {max_cps} karakter/saniye, satir basina ~{max_line_width} karakter)."),
         "- Yazim/noktalama hatalari.",
     ]
     if str(target_lang or "").lower().split("-")[0] == "tr":
         lines += ["", "## DOGAL TURKCE - ANLAMDAN YENIDEN KUR"]
-        lines += TURKISH_NATIVE_REFINE_RULES
+        lines += TURKISH_NATIVE_REFINE_RULES[:-1] if for_speech else TURKISH_NATIVE_REFINE_RULES
+    if for_speech:
+        lines += [
+            "", "## SESLENDIRME EDITORU",
+            "- Kaynagin TAM anlami ve ilk ceviri birlikte referanstir. Yalniz daha akici duyulsun diye olgu, kosul, belirsizlik veya anlatim tonunu degistirme.",
+            "- Once cumlenin tamamina bak; sonra ayni grup icinde Turkcenin dogal soz dizimine gore bol. Yuklemden sonra nesneyi kisa bir yetim parcaya birakma.",
+            "- document_context salt okunur kaynak konu baglamidir. terms_candidates diger gruplarda gorulen ADAY eslemlerdir, dogruluk kaniti degildir; kaynak ve yerel konuya gore denetle, yanlissa kullanma. Kullanici sozlugu onceliklidir.",
+            "- Teknik terimleri konu boyunca tutarli kullan; alan anlamini kontrol et. Zaten dogru ve dogal metni aynen onayla; yeni bilgi, dolgu veya dramatizasyon ekleme.",
+        ]
     lines += [
         "",
         "## NEYE DOKUNMA",
@@ -3472,9 +3504,11 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42):
         "- Ozel isimleri ve sozlukteki yazimlari koru.",
         "- Blok ekleme/silme/birlestirme YOK; her ID icin tam bir cikti ver.",
         "- sentence_groups kaynak ve ceviri cumlesinin TAM halidir. Anlami tek parcalari degil TAM grubu karsilastirarak denetle.",
-        "- GRUPLAR ARASINDA anlam tasima. Yalniz ayni grupta dogal soz dizimi ve sureye gore yeniden paylastir.",
+        ("- GRUPLAR ARASINDA anlam tasima. Yalniz ayni grupta tam anlami koruyarak dogal soz obeklerine paylastir."
+         if for_speech else "- GRUPLAR ARASINDA anlam tasima. Yalniz ayni grupta dogal soz dizimi ve sureye gore yeniden paylastir."),
         "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
-        "  nokta/soru/unlemle cumleyi erken BITIREMEZ; kalan anlami sonraki ID'ye tasima.",
+        ("  nokta/soru/unlemle cumleyi erken BITIREMEZ; ayni grup icinde yuklem sona gelebilir."
+         if for_speech else "  nokta/soru/unlemle cumleyi erken BITIREMEZ; kalan anlami sonraki ID'ye tasima."),
         "- context_before/context_after yalniz okunur kaynak baglamidir; ceviriye katma.",
         "- items icindeki istege bagli 'sp' konusmaci bilgisini zamir, sen/siz, hitap",
         "  ve ton denetiminde kullan; etiketi ceviriye ekleme veya ciktiya dondurme.",
@@ -3540,7 +3574,7 @@ def translation_char_budget(entry, args):
 
 def translate_cache_key(text, args, target, source_lang=None,
                         context_before=None, context_after=None, max_chars=None, group_shape=None,
-                        speaker_shape=None, auto_glossary_terms=None):
+                        speaker_shape=None, auto_glossary_terms=None, document_context=None):
     """Ayni metin + ayni ceviri AYARLARI + ayni sahne baglami -> ayni anahtar.
 
     Ceviri baglama gore uretiliyorsa onbellek de baglama gore ayrilmalidir.
@@ -3586,7 +3620,8 @@ def translate_cache_key(text, args, target, source_lang=None,
     if bool(getattr(args, "translate_refine", False)):
         cache_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        cache_identity['speech_protocol'] = 'speech-v1'
+        cache_identity['speech_protocol'] = SPEECH_TRANSLATION_PROTOCOL
+        cache_identity['document_context'] = nfc(document_context)
     raw = json.dumps(cache_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -3887,24 +3922,44 @@ def filter_series_memory_candidates(raw, source_text, target_text):
     """Yalnız kaynak ve kabul edilmiş hedefte kanıtlanan kalıcı kararları geçir."""
     if not isinstance(raw, dict):
         return {}
+    raw_terms = raw.get('terms')
+    raw_characters = raw.get('characters')
+    raw_addresses = raw.get('addresses')
     terms = {
         str(source): str(target)
-        for source, target in list((raw.get("terms") or {}).items())[:20]
+        for source, target in list((raw_terms if isinstance(raw_terms, dict) else {}).items())[:20]
+        if isinstance(source, str) and isinstance(target, str)
         if memory_phrase_present(source_text, source)
         and memory_phrase_present(target_text, target)
     }
     characters = [
-        item for item in (raw.get("characters") or [])[:12]
+        item for item in (raw_characters if isinstance(raw_characters, list) else [])[:12]
         if isinstance(item, dict)
         and memory_phrase_present(source_text, item.get("name", ""))
     ]
     addresses = [
-        item for item in (raw.get("addresses") or [])[:12]
+        item for item in (raw_addresses if isinstance(raw_addresses, list) else [])[:12]
         if isinstance(item, dict)
         and memory_phrase_present(source_text, item.get("a", ""))
         and memory_phrase_present(source_text, item.get("b", ""))
     ]
     return {"terms": terms, "characters": characters, "addresses": addresses}
+
+
+def speech_review_terms(candidates):
+    """Bounded, deterministic hints, not an authoritative generated glossary."""
+    result, seen = [], set()
+    for _index, _source, row in sorted(candidates, key=lambda item: item[0]):
+        for source, target in row.get('terms', {}).items():
+            source, target = normalized_text(source), normalized_text(target)
+            key = source.casefold()
+            if key in seen or not source or not target or max(len(source), len(target)) > 96:
+                continue
+            seen.add(key)
+            result.append({'source': source, 'target': target})
+            if len(result) == 24:
+                return result
+    return result
 
 
 def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=None,
@@ -3999,9 +4054,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
 
     CHUNK_SIZE = 20      # ceviride blok basina token yuksek - duzeltmeden kucuk tutulur
     out_texts = [e[2] for e in entries]
-    groups = sentence_groups(entries, speakers=speaker_map)
+    groups = translation_sentence_groups(entries, args, speakers=speaker_map)
+    # Read-only source context is stable across parallel batches. Never send
+    # a previously generated translation as authoritative terminology.
+    document_context = (' '.join(normalized_text(e[2]) for e in entries[:12])[:1200]
+                        if getattr(args, 'translate_for_speech', False) else '')
     group_at = {i: group for group in groups for i in group}
     records = {}
+    refined_idx = set()
     lock = threading.Lock()
     # 'Eksikleri tamamla' ve elle düzeltme akışlarında model dosyanın TAMAMINI
     # görür; zaten çevrilmiş konumlar uygulamada asla ezilmez ama bağlam/cümle
@@ -4052,7 +4112,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     if bool(args.translate_refine):
         tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
     if bool(getattr(args, 'translate_for_speech', False)):
-        tm_scope_identity['speech_protocol'] = 'speech-v1'
+        tm_scope_identity['speech_protocol'] = SPEECH_TRANSLATION_PROTOCOL
+        tm_scope_identity['document_context'] = document_context
     tm_scope = json.dumps(tm_scope_identity, ensure_ascii=False, sort_keys=True)
 
     def chunk_groups(indexes):
@@ -4097,7 +4158,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return translate_cache_key(source, args, target, source_lang, before, after,
                                    sum(budgets), group_shape=shape,
                                    speaker_shape=[speaker_map.get(i, "") for i in group],
-                                   auto_glossary_terms=auto_glossary_terms)
+                                   auto_glossary_terms=auto_glossary_terms,
+                                   document_context=document_context)
 
     def tm_context(group):
         before, after = source_context(group[0], group[-1])
@@ -4133,7 +4195,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
         items = []
         for pos, index in enumerate(chunk_idx):
-            item = {"i": pos, "max": translation_char_budget(entries[index], args)}
+            item = {"i": pos}
+            if not getattr(args, 'translate_for_speech', False):
+                item['max'] = translation_char_budget(entries[index], args)
             if refine:
                 item.update(src=entries[index][2], tr=out_texts[index])
             else:
@@ -4156,6 +4220,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 row['translation'] = ' '.join(out_texts[i] for i in group)
             mapped.append(row)
         payload = {"items": items, "sentence_groups": mapped}
+        if document_context:
+            payload['document_context'] = document_context
         before, after = source_context(chunk_idx[0], chunk_idx[-1])
         if before:
             payload['context_before'] = before
@@ -4208,8 +4274,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             records[group[0]] = record
             # 'refined: false' isabetler: 1. geçiş metni hazır ama 2. geçiş
             # henüz onaylamamış — çeviriyi ödemeden yalnız refine tekrarlanır.
-            if refine_enabled and isinstance(hit, dict) \
-                    and hit.get('refined') is False:
+            if refine_enabled and ((isinstance(hit, dict) and hit.get('refined') is False)
+                    or (getattr(args, 'translate_for_speech', False)
+                        and (not isinstance(hit, dict) or hit.get('refined') is not True))):
                 refine_pending_groups.append(group)
         else:
             pending_groups.append(group)
@@ -4239,6 +4306,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def stage_tm_rows(group):
         if not tm or len(group) != 1:
             return
+        if getattr(args, 'translate_for_speech', False) and not all(i in refined_idx for i in group):
+            return  # Never promote an unreviewed draft into speech fuzzy memory.
         index = group[0]
         # Kimlik/noktalama-benzek eko TM'e girmez: fuzzy eşleşme kaynağı
         # sonraki dosyalarda 'çeviri' diye döndürür (tüm kapıları atlatır).
@@ -4457,7 +4526,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     fatal_stop = {"error": None}
     translation_metrics = {
         "started": time.time(), "requests": 0, "batch_requests": 0,
-        "fallback_requests": 0, "invalid_batches": 0, "rejections": {},
+        "fallback_requests": 0, "refine_requests": 0, "invalid_batches": 0, "rejections": {},
         "prompt_chars": 0, "completion_chars": 0, "productive_batches": 0,
     }
 
@@ -4656,7 +4725,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 if not untrusted:
                     stage_group_cache(group)
                     stage_tm_rows(group)
-                    if series_memory and series_key:
+                    if (series_memory and series_key) or getattr(args, 'translate_for_speech', False):
                         candidates = filter_series_memory_candidates(
                             data.get("memory"), row['source'], record['text'])
                         if candidates:
@@ -4759,6 +4828,14 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             öldürüyor ve bu satırlar önbelleğe hiç yazılmadığı için her
             yeniden çalıştırmada aynı maliyetli döngü tekrarlanıyordu.
             Kabul edilen (precompleted dahil değil) blok sayısını döndürür."""
+            if getattr(args, 'translate_for_speech', False) and not all(
+                    line_keeps_source(entries[i][2], target, source_lang) for i in group):
+                # Repeated English prose is not a successful Turkish voice script.
+                # Keep the source visible as a failed cue, never cache it as ready.
+                with lock:
+                    for index in group:
+                        failure_by_index[index] = 'source_echo'
+                return 0
             with lock:
                 written = []
                 for index in group:
@@ -5151,7 +5228,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                  done=counters["done"], failed=counters["failed"],
                  total=len(entries), stage="translate")
         log(
-            "Çeviri istek özeti: {} toplu + {} kurtarma = {} istek; "
+            "Çeviri 1. geçiş istek özeti: {} toplu + {} kurtarma = {} istek; "
             "{} geçersiz toplu yanıt; {:.1f} sn.".format(
                 translation_metrics["batch_requests"],
                 translation_metrics["fallback_requests"],
@@ -5167,16 +5244,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         batch_count = translation_metrics["batch_requests"]
         invalid_count = translation_metrics["invalid_batches"]
         unhealthy = batch_count >= 2 and invalid_count / batch_count >= 0.25
-        emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
-             batches=batch_count, invalid_batches=invalid_count,
-             fallback_requests=translation_metrics["fallback_requests"],
-             requests=translation_metrics["requests"],
-             prompt_chars=translation_metrics["prompt_chars"],
-             completion_chars=translation_metrics["completion_chars"],
-             cache_hits=len(cached_idx) + len(precompleted_idx) + len(unchanged_idx),
-             elapsed=round(time.time() - translation_metrics["started"], 1),
-             unhealthy=unhealthy,
-             rejections=dict(sorted(translation_metrics["rejections"].items())))
+        def emit_translation_quality():
+            # One final event includes review traffic too; do not under-report
+            # speech's extra requests or append duplicate model scorecards.
+            emit("translation_quality", model=str(getattr(args, "translate_model", "") or ""),
+                 batches=batch_count, invalid_batches=invalid_count,
+                 fallback_requests=translation_metrics["fallback_requests"],
+                 refine_requests=translation_metrics["refine_requests"],
+                 requests=translation_metrics["requests"],
+                 prompt_chars=translation_metrics["prompt_chars"],
+                 completion_chars=translation_metrics["completion_chars"],
+                 cache_hits=len(cached_idx) + len(precompleted_idx) + len(unchanged_idx),
+                 elapsed=round(time.time() - translation_metrics["started"], 1),
+                 unhealthy=unhealthy,
+                 rejections=dict(sorted(translation_metrics["rejections"].items())))
         if unhealthy:
             msg = (f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
                    f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
@@ -5188,6 +5269,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 warn_list.append(msg)
 
         if counters["done"] == 0 and not cached_idx:
+            emit_translation_quality()
             # Tek blok bile cevrilemedi (gecersiz anahtar, kota, saglayici kesintisi).
             # out_texts hala KAYNAK metin; bunu donduren bir ceviri dosyasi yazmak
             # kullaniciyi yanıltir - basarisiz say.
@@ -5221,7 +5303,6 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # Model kendi çevirisini kaynakla yan yana görüp yalnızca hatalı olanları düzeltir.
         # Eksik/tutarsız grup yanıtında birinci geçiş korunur. Bu yapısal kontrol,
         # modelin anlamı gerçekten iyileştirdiğine dair bir garanti değildir.
-        refined_idx = set()
         # Prob/orta-koşu kalıcı hata sağlayıcının öldüğünü kanıtladıysa 2. geçiş
         # de aynı duvara çarpar — her paketi tekrar ücretlendirme. Prob hatası
         # kalıcı sınıf dışındaysa kalan parçalar zaten çalıştı (sağlayıcı yaşıyor)
@@ -5240,7 +5321,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 and not probe_fatal and fatal_stop["error"] is None:
             emit("status", stage="translate", text="Çeviri gözden geçiriliyor (2. geçiş)")
             log("Çeviri 2. geçiş (gözden geçir & iyileştir) başlıyor")
-            refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width)
+            speech_review = bool(getattr(args, 'translate_for_speech', False))
+            refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width,
+                                               for_speech=speech_review)
+            term_hints = speech_review_terms(memory_candidates) if speech_review else []
             if glossary_terms:
                 refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
             refined = list(out_texts)
@@ -5248,7 +5332,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             r_rejections = {}
 
             def refine_task(chunk_idx):
+                with lock:
+                    translation_metrics['requests'] += 1
+                    translation_metrics['refine_requests'] += 1
                 payload = translation_payload(chunk_idx, refine=True)
+                if term_hints:
+                    payload['terms_candidates'] = term_hints
                 resp, used_url = call_api_with(refine_prompt, payload)
                 content = (resp.choices[0].message.content or "").strip()
                 with lock:
@@ -5283,7 +5372,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         continue
                     assessment = evaluate_refinement_candidate(
                         row['source'], row['translation'], record['text'], target,
-                        sum(translation_char_budget(entries[i], args) for i in group))
+                        0 if speech_review else sum(translation_char_budget(entries[i], args) for i in group))
                     if not assessment["accepted"]:
                         for reason in assessment["reasons"]:
                             rejected[reason] = rejected.get(reason, 0) + len(group)
@@ -5329,6 +5418,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             if r_rejections:
                 details = ", ".join(f"{reason}={count}" for reason, count in sorted(r_rejections.items()))
                 log(f"2. geçiş kabul kapısı daha kötü adayları korudu: {details}", "warn")
+            log(f"Gözden geçirme isteği: {translation_metrics['refine_requests']}; "
+                f"çeviri ve gözden geçirme toplamı: {translation_metrics['requests']} istek.")
 
         # Başarılı çevirilerin son metinleri önbelleğe yazılır. Artımlı yazım
         # zaten yapıldı; burada 2. geçişle değişen grupların güncel hâlleri
@@ -5367,6 +5458,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 refined=not refine_enabled or all(i in refined_idx for i in group))
             stage_tm_rows(group)
         flush_cache_and_tm(force=True)
+        emit_translation_quality()
         if cache_added_total[0]:
             log(f"Ceviri onbellegine {cache_added_total[0]} blok eklendi.")
         if tm_staged_total[0]:
@@ -8624,6 +8716,8 @@ def translate_existing_subtitle(args):
             if (candidate.get("sourceHash") == source_hash
                     and candidate.get("targetLanguage") == target
                     and bool(candidate.get('forSpeech', False)) == bool(getattr(args, 'translate_for_speech', False))
+                    and (not getattr(args, 'translate_for_speech', False)
+                         or candidate.get('speechProtocol') == SPEECH_TRANSLATION_PROTOCOL)
                     and (not candidate.get("sourceId")
                          or candidate.get("sourceId") == source_id)):
                 existing_meta = candidate
@@ -8945,6 +9039,8 @@ def translate_existing_subtitle(args):
                     "model": str(getattr(args, "translate_model", "") or ""),
                     "provider": str(getattr(args, "translate_base_url", "") or ""),
                     "forSpeech": bool(getattr(args, 'translate_for_speech', False)),
+                    **({"speechProtocol": SPEECH_TRANSLATION_PROTOCOL}
+                       if getattr(args, 'translate_for_speech', False) else {}),
                     "cues": metadata_cues,
                 }, ensure_ascii=False, indent=2) + "\n"
                 metadata_path = Path(f"{out_path}.meta.json")

@@ -40,6 +40,7 @@ function portableSession(raw) {
 }
 
 function sanitizePlaces(raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
   const cleanEntries = (items) => (Array.isArray(items) ? items : []).map((item) => ({
     url: safePlaceUrl(item?.url),
     title: clean(item?.title, 240),
@@ -53,11 +54,13 @@ function sanitizePlaces(raw = {}) {
     activeTabId: clean(workspace?.activeTabId, 128),
     splitSecondaryTabId: clean(workspace?.splitSecondaryTabId, 128),
     splitRatio: Math.max(0.25, Math.min(0.75, Number(workspace?.splitRatio) || 0.5)),
-  })).map((workspace) => ({ ...workspace,
-    activeTabId: workspace.tabs.some((tab) => tab.id === workspace.activeTabId) ? workspace.activeTabId : (workspace.tabs[0]?.id || ''),
-    splitSecondaryTabId: workspace.tabs.some((tab) => tab.id === workspace.splitSecondaryTabId)
-      && workspace.splitSecondaryTabId !== workspace.activeTabId ? workspace.splitSecondaryTabId : '',
-  })).filter((workspace) => workspace.name && workspace.tabs.length).slice(0, 20);
+  })).map((workspace) => {
+    const activeTabId = workspace.tabs.some((tab) => tab.id === workspace.activeTabId) ? workspace.activeTabId : (workspace.tabs[0]?.id || '');
+    return { ...workspace, activeTabId,
+      splitSecondaryTabId: workspace.tabs.some((tab) => tab.id === workspace.splitSecondaryTabId)
+        && workspace.splitSecondaryTabId !== activeTabId ? workspace.splitSecondaryTabId : '',
+    };
+  }).filter((workspace) => workspace.name && workspace.tabs.length).slice(0, 20);
   const siteZooms = normalizeBrowserSiteZooms(raw.siteZooms);
   return {
     history: cleanEntries(raw.history),

@@ -1,0 +1,41 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+
+function prepareProsody({ source, srt, output, range, sample, grouping, strength, appRoot, python, ffmpeg,
+  spawn, terminate, environment, onProcess, status, isCancelled }) {
+  if (isCancelled()) throw new Error('Cancelled');
+  const args = [path.join(appRoot,'tools','voxcpm2','prepare_prosody.py'),'--source',source,'--srt',srt,
+    '--output',output,'--grouping',grouping,'--strength',strength,'--ffmpeg',ffmpeg];
+  if (range) args.push('--start',String(range.start),'--end',String(range.end));
+  if (sample) args.push('--sample');
+  return new Promise((resolve,reject) => {
+    const child = spawn(python,args,{cwd:appRoot,env:{...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'},windowsHide:true});
+    onProcess(child);
+    let pending='', settled=false, failureCode='';
+    const done = error => { if (settled) return; settled=true; clearTimeout(timer); onProcess(null); error ? reject(error) : resolve(output); };
+    const timer=setTimeout(() => {
+      // Do not detach a live process from the owning job before it is stopped.
+      Promise.resolve().then(()=>terminate(child)).then(stopped => {
+        if (stopped===false && child.exitCode==null && child.signalCode==null) {
+          status('stop_failed'); // Retain ownership; user may retry Stop.
+        } else done(new Error('Prosody analysis timed out'));
+      }).catch(()=>status('stop_failed'));
+    },30*60*1000);
+    timer.unref?.();
+    child.stdout.setEncoding('utf8'); child.stderr.resume();
+    child.stdout.on('data',text => {
+      pending=(pending+text).slice(-4096); const lines=pending.split(/\r?\n/); pending=lines.pop();
+      for (const line of lines) {
+        if (/^DUB_PROSODY \d+\/\d+$/.test(line)) status(line.slice(12));
+        if (line==='DUB_PROSODY_ERROR MULTIPLE_AUDIO_TRACKS') failureCode='MULTIPLE_AUDIO_TRACKS';
+      }
+    });
+    child.once('error',()=>done(new Error('Prosody worker could not start')));
+    child.once('close',code=>{
+      const error=new Error('Prosody source could not be analyzed');error.code=failureCode;
+      done(code===0 && !isCancelled() && fs.existsSync(output) ? null : error);
+    });
+  });
+}
+module.exports={prepareProsody};

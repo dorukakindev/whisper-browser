@@ -1,4 +1,6 @@
 const path = require('path');
+const { safePlaceUrl } = require('./browser-place-url');
+const { canonicalWatchKey } = require('./watch-library-store');
 
 const WATCH_INDEX_VERSION = 4;
 
@@ -44,15 +46,11 @@ function selectPrunableTracks(rows, options = {}) {
 }
 
 function safePageIndexUrl(raw) {
-  try {
-    const parsed = new URL(String(raw || '').trim());
-    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
-    parsed.username = '';
-    parsed.password = '';
-    parsed.search = '';
-    parsed.hash = '';
-    return parsed.toString().slice(0, 4000);
-  } catch (_) { return ''; }
+  const safe = safePlaceUrl(String(raw || '').trim());
+  if (!safe || safe.length > 4000) return '';
+  const parsed = new URL(safe);
+  parsed.searchParams.sort();
+  return parsed.href;
 }
 
 class WatchIndex {
@@ -211,14 +209,24 @@ class WatchIndex {
   }
 
   transaction(fn) {
-    this.db.exec('BEGIN IMMEDIATE');
+    const depth = this.transactionDepth || 0;
+    const savepoint = `watch_tx_${depth}`;
+    this.db.exec(depth ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE');
+    this.transactionDepth = depth + 1;
     try {
       const result = fn();
-      this.db.exec('COMMIT');
+      this.db.exec(depth ? `RELEASE SAVEPOINT ${savepoint}` : 'COMMIT');
       return result;
     } catch (error) {
-      try { this.db.exec('ROLLBACK'); } catch (_) {}
+      try {
+        if (depth) {
+          this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+          this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        } else this.db.exec('ROLLBACK');
+      } catch (_) {}
       throw error;
+    } finally {
+      this.transactionDepth = depth;
     }
   }
 
@@ -277,6 +285,7 @@ class WatchIndex {
     const old = this.db.prepare('SELECT * FROM media WHERE id = ?').get(source);
     if (!old) return null;
     this.transaction(() => {
+      if (this.getMedia(target)) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
       // foreign_keys = ON yalnizca ON DELETE CASCADE tanimli; ON UPDATE CASCADE
       // yok — once yeni satiri ac, cocuklari tas, sonra eski satiri sil.
       this.db.prepare(`
@@ -381,7 +390,7 @@ class WatchIndex {
       const usedIds = new Set();
       for (let index = 0; index < cues.length; index++) {
         const cue = cues[index] || {};
-        const baseId = String(cue.id ?? '').trim() || String(index);
+        const baseId = String(cue.cueId ?? cue.id ?? '').trim() || String(index);
         let cueId = baseId;
         let occurrence = 1;
         while (usedIds.has(cueId)) cueId = `${baseId}#${++occurrence}`;
@@ -518,6 +527,10 @@ class WatchIndex {
     this.transaction(() => {
       for (const item of Array.isArray(items) ? items : []) {
         if (!item || !item.key) continue;
+        for(const alias of Array.isArray(item.legacyKeys) ? item.legacyKeys : []){
+          if(typeof alias==='string' && alias.startsWith('file:') && alias!==item.key
+              && canonicalWatchKey(alias)===item.key)this.mergeMediaIds(alias,item.key);
+        }
         this.upsertMedia({
           id: item.key,
           service: item.type || '',

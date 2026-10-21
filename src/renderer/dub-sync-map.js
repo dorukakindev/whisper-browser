@@ -15,7 +15,8 @@
       return { v0:s.v0, v1:s.v1, a0:s.a0, a1:s.a1 };
     });
     if (Math.abs((value.audioDuration - lastA) - (value.videoDuration - lastV)) > .05) throw new Error('Geçersiz dublaj zaman haritası.');
-    return {version:1, videoDuration:value.videoDuration, audioDuration:value.audioDuration, segments};
+    return {version:1, videoDuration:value.videoDuration, audioDuration:value.audioDuration, segments,
+      ...(value.smooth === true ? {smooth:true} : {})};
   }
   function at(sync, time) {
     if (!sync) return {time, factor:1};
@@ -23,8 +24,15 @@
     for (const s of sync.segments) {
       if (time < s.v0) return {time:time + delta, factor:1};
       if (time < s.v1) {
-        const factor = Math.max(1, (s.a1 - s.a0) / (s.v1 - s.v0));
-        return {time:s.a0 + (time - s.v0) * factor, factor};
+        const span = s.v1 - s.v0, stretch = (s.a1 - s.a0) / span;
+        if (sync.smooth && stretch >= 1) {
+          const x = (time - s.v0) / span, extra = stretch - 1;
+          // Integral of the smooth speed curve preserves both endpoints and
+          // the complete audio. Speed returns continuously to 1 at boundaries.
+          return {time:s.a0 + span * (x + extra * (x - Math.sin(2 * Math.PI * x) / (2 * Math.PI))),
+            factor:1 + extra * (1 - Math.cos(2 * Math.PI * x))};
+        }
+        return {time:s.a0 + (time - s.v0) * stretch, factor:stretch};
       }
       delta = s.a1 - s.v1;
     }

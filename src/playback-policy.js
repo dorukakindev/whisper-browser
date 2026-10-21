@@ -21,21 +21,24 @@
   function playbackLearningAction(rawCues, time, previousTime, policy = 'normal', options = {}) {
     const cues = normalizeCueList(rawCues);
     const currentTime = Math.max(0, Number(time) || 0);
-    const previous = Number(previousTime);
+    const previous = previousTime == null || previousTime === '' || typeof previousTime === 'boolean' ? NaN : Number(previousTime);
     const baseRate = Math.max(0.25, Math.min(4, Number(options.baseRate) || 1));
+    if (options.paused) return { type: 'set-rate', rate: baseRate };
     const gapRate = Math.max(baseRate, Math.min(4, Number(options.gapRate) || 2));
     const minGap = Math.max(0.5, Number(options.minGap) || 2);
-    const lead = Math.max(0, Math.min(1, Number(options.lead) || 0.15));
+    const lead = Math.max(0, Math.min(1, options.lead == null || !Number.isFinite(Number(options.lead)) ? 0.15 : Number(options.lead)));
     const active = cues.find((cue) => currentTime >= cue.start && currentTime < cue.end);
     const next = cues.find((cue) => cue.start > currentTime);
     // Büyük zaman sıçraması kullanıcı seek'idir; cue sonunu doğal oynatmayla
     // geçti sanıp kullanıcıyı istemsiz duraklatma. Sınır 1.5 sn: tarayıcı
     // medya ölçümü 1000 ms aralıkla çalışır ve tam sınırda uyanan tick
     // delta≈1.0 üretip doğal ilerlemeyi yanlışlıkla seek sayıyordu (B83-04).
-    const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < 1.5;
+    const observedRate = Math.max(.0625, Math.min(16, Number(options.playbackRate) || 1));
+    const advanceLimit = 1.5 * Math.max(1, observedRate);
+    const naturalAdvance = Number.isFinite(previous) && currentTime >= previous && currentTime - previous < advanceLimit;
     if (policy === PLAYBACK_POLICIES.loopCue.id && naturalAdvance) {
       const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
-        && currentTime >= cue.end && currentTime - cue.end < 1.5);
+        && currentTime >= cue.end && currentTime - cue.end < advanceLimit);
       if (ended) {
         const continuingOverlap = cues.some((cue) => cue !== ended
           && currentTime >= cue.start && currentTime < cue.end && cue.start < ended.end);
@@ -53,7 +56,7 @@
     }
     if (options.autoPause && naturalAdvance) {
       const ended = cues.find((cue) => previous >= cue.start && previous < cue.end
-        && currentTime >= cue.end && currentTime - cue.end < 1.5);
+        && currentTime >= cue.end && currentTime - cue.end < advanceLimit);
       if (ended) {
         // İki konuşmacının cue'ları örtüşüyorsa ilki bitti diye devam eden
         // konuşmanın ortasında durma. Tam sınırda başlayan bir sonraki cue ise
@@ -64,7 +67,7 @@
       }
     }
     if (policy === PLAYBACK_POLICIES.shadowing.id && naturalAdvance && !active) {
-      const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < 1.5);
+      const ended = cues.find((cue) => previous < cue.end && currentTime >= cue.end && currentTime - cue.end < advanceLimit);
       if (ended && String(options.lastShadowCueId || '') !== ended.id) {
         const duration = Math.max(0.5, ended.end - ended.start);
         return { type: 'pause-for-shadowing', cueId: ended.id,

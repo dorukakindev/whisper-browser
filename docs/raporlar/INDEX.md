@@ -7,6 +7,35 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 513 | [BROWSER_BUG_REPORT_513.md](BROWSER_BUG_REPORT_513.md) | İsteğe bağlı kaynak anlatımı ve araştırma raporlarının doğrulanması |
+| 512 | [BROWSER_BUG_REPORT_512.md](BROWSER_BUG_REPORT_512.md) | Ses çevirisi editörü, görünür yerel referans ve anlatım tonu |
+| 511 | [BROWSER_BUG_REPORT_511.md](BROWSER_BUG_REPORT_511.md) | Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı |
+| 510 | [BROWSER_BUG_REPORT_510.md](BROWSER_BUG_REPORT_510.md) | Ses çevirisinde tam anlam, kota ayrımı ve eski sonuç kullanımı |
+| 509 | [BROWSER_BUG_REPORT_509.md](BROWSER_BUG_REPORT_509.md) | İkinci motor arızasında ses kurtarma ve gerçek GPU doğrulaması |
+| 508 | [BROWSER_BUG_REPORT_508.md](BROWSER_BUG_REPORT_508.md) | Son grupta motor takılması ve aynı referansla kurtarma |
+| 507 | [BROWSER_BUG_REPORT_507.md](BROWSER_BUG_REPORT_507.md) | Güvenilir ses seçimi ve derin araştırma |
+| 506 | [BROWSER_BUG_REPORT_506.md](BROWSER_BUG_REPORT_506.md) | Tam düşünce sınırları ve prosodi ölçümü |
+| 505 | [BROWSER_BUG_REPORT_505.md](BROWSER_BUG_REPORT_505.md) | Geniş kaynak araştırması, sabit bağlam ve konuşma bütünlüğü |
+| 504 | [BROWSER_BUG_REPORT_504.md](BROWSER_BUG_REPORT_504.md) | Gerçek GPU ile anlatım bağlamı ve konuşma kurtarması |
+| 503 | [BROWSER_BUG_REPORT_503.md](BROWSER_BUG_REPORT_503.md) | Kalite odaklı ses varsayılanları |
+| 502 | [BROWSER_BUG_REPORT_502.md](BROWSER_BUG_REPORT_502.md) | Varsayılanları güçlü iki ses çalışma alanı |
+| 501 | [BROWSER_BUG_REPORT_501.md](BROWSER_BUG_REPORT_501.md) | Ayarlı ses stüdyosu ve bütünlüklü konuşma blokları |
+| 500 | [BROWSER_BUG_REPORT_500.md](BROWSER_BUG_REPORT_500.md) | Yerel ses referansı ve bağımsız metin stüdyosu |
+| 499 | [BROWSER_BUG_REPORT_499.md](BROWSER_BUG_REPORT_499.md) | Altyazı kimliği, Unicode ve kurtarmada 20 doğrulanmış hata |
+| 498 | [BROWSER_BUG_REPORT_498.md](BROWSER_BUG_REPORT_498.md) | Kurtarma, iptal ve çeviri bütünlüğünde 20 doğrulanmış hata |
+| 497 | [BROWSER_BUG_REPORT_497.md](BROWSER_BUG_REPORT_497.md) | Ses anlamı, altyazı kimliği ve arşiv kaybında 20 doğrulanmış hata |
+| 496 | [BROWSER_BUG_REPORT_496.md](BROWSER_BUG_REPORT_496.md) | Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış hata |
+| 495 | [BROWSER_BUG_REPORT_495.md](BROWSER_BUG_REPORT_495.md) | Konuşma anlamı, proje kurtarma ve altyazıda 20 doğrulanmış hata |
+| 494 | [BROWSER_BUG_REPORT_494.md](BROWSER_BUG_REPORT_494.md) | Konuşma anlamı, çeviri/PDF cache kimliği, medya ve oynatmada 20 yeni onarım |
+| 493 | [BROWSER_BUG_REPORT_493.md](BROWSER_BUG_REPORT_493.md) | Ses anlamı, zaman haritası, iptal, oynatma ve kütüphanede 20 doğrulanmış onarım |
+| 492 | [BROWSER_BUG_REPORT_492.md](BROWSER_BUG_REPORT_492.md) | Çeviri, altyazı ayrıştırma, inceleme ve kurtarmada 20 doğrulanmış onarım |
+| 491 | [BROWSER_BUG_REPORT_491.md](BROWSER_BUG_REPORT_491.md) | Ses üretimi, retry/cache, verifier, önizleme ve kurtarmada 13 doğrulanmış onarım |
+| 490 | [BROWSER_BUG_REPORT_490.md](BROWSER_BUG_REPORT_490.md) | Transcript, senkron, relink, oynatma ve oturumda 20 yeni düzeltme |
+| 489 | [BROWSER_BUG_REPORT_489.md](BROWSER_BUG_REPORT_489.md) | Çeviri arşivi, altyazı sayaçları, sekme ve senkron/cache sınırlarında 10 düzeltme |
+| 488 | [BROWSER_BUG_REPORT_488.md](BROWSER_BUG_REPORT_488.md) | Ses oturumları, proje bütünlüğü ve sayı/anlam kontrolünde 10 düzeltme |
+| 487 | [BROWSER_BUG_REPORT_487.md](BROWSER_BUG_REPORT_487.md) | Doğal konuşma ikinci geçişi, gerçek süre, ayrı ses metni ve ses son işlemi |
+| 486 | [BROWSER_BUG_REPORT_486.md](BROWSER_BUG_REPORT_486.md) | Dublaj zaman çizelgesi, karıştırıcı, taşınabilir proje ve senkron dışa aktarma |
+| 485 | [BROWSER_BUG_REPORT_485.md](BROWSER_BUG_REPORT_485.md) | Süreye uygun dublaj, parça kurtarma ve kalite araçları |
 | 483 | [BROWSER_BUG_REPORT_483.md](BROWSER_BUG_REPORT_483.md) | Gönderilen ses/dublaj denetimini doğrulama ve onarım |
 | 482 | [BROWSER_BUG_REPORT_482.md](BROWSER_BUG_REPORT_482.md) | Seslendirmeye uygun çeviri: ana akış entegrasyonu |
 | 481 | [BROWSER_BUG_REPORT_481.md](BROWSER_BUG_REPORT_481.md) | Abonelik metni ve medya zaman sınırlarında 10 düzeltme |
@@ -463,3 +492,5 @@ tarih sırasıyla dosya adından okunur.
 | 391 | [BROWSER_BUG_REPORT_391.md](BROWSER_BUG_REPORT_391.md) | 50-kuyruk batch 8 — PDF/manga: çift-görünüm vurgusu, tablo belirsizliği, sayfa seçimi, manga OCR düzeltme + tek-bölge retranslate, düzeltme koruması |
 | 392 | [BROWSER_BUG_REPORT_392.md](BROWSER_BUG_REPORT_392.md) | 50-kuyruk batch 9+10 — veri koruma (yedekleme, dış-değişiklik, disk, çevrimdışı, kurtarma merkezi) + kurulum/sürüm (yükseltme yedeği, çevrimdışı manifest, güncelleme ön kontrolü, Windows rehberi, RC teslimi) |
 | 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |
+
+| 484 | [BROWSER_BUG_REPORT_484.md](BROWSER_BUG_REPORT_484.md) | Ses üretimi hata tanısı ve gerçek GPU kısa üretim doğrulaması |

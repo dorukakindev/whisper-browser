@@ -126,6 +126,7 @@ class SafeSecretStore {
     for (const candidate of [this.filePath, `${this.filePath}.bak`]) {
       if (!this.fs.existsSync(candidate)) continue;
       const loaded = this.loadFile(candidate);
+      if (loaded.unsupportedVersion) return loaded;
       // A parseable primary is authoritative, even for intentionally cleared
       // keys or partial decryption. Do not resurrect deleted keys from .bak.
       if (loaded.ok || loaded.partial || loaded.errors?.length) {
@@ -143,8 +144,9 @@ class SafeSecretStore {
       // YENİ bir sürümün yazdığı dosya tanınmaz biçim sayılır ve el sürülmez.
       const versionOk = parsed && typeof parsed.version === 'number'
         && parsed.version >= 1 && parsed.version <= SECRET_STORE_VERSION;
-      if (!versionOk || !parsed.entries || typeof parsed.entries !== 'object') {
-        return { ok: false, error: 'Güvenli anahtar deposu biçimi desteklenmiyor.', secrets: {} };
+      if (!versionOk || !parsed.entries || typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)) {
+        return { ok: false, unsupportedVersion: typeof parsed?.version === 'number' && parsed.version > SECRET_STORE_VERSION,
+          error: 'Güvenli anahtar deposu biçimi desteklenmiyor.', secrets: {} };
       }
       const secrets = {};
       const errors = [];
@@ -185,8 +187,8 @@ class SafeSecretStore {
     try {
       // Mevcut kasayı bir kez çöz: .bak aynası için de, üzerine yazılacak
       // çözülemeyen/bilinmeyen ham kayıtları korumak için de aynı sonuç kullanılır.
-      const existing = this.filePath && this.fs.existsSync(this.filePath)
-        ? this.loadFile(this.filePath) : null;
+      const existing = this.filePath ? this.load() : null;
+      if (existing && !existing.ok && !existing.partial && !Object.keys(existing.rawEntries || {}).length) return existing;
       for (const [field, raw] of Object.entries(existing?.rawEntries || {})) {
         const value = secrets && secrets[field];
         if (!(typeof value === 'string' && value) && !dropFields.has(field)) entries[field] = raw;
@@ -200,7 +202,7 @@ class SafeSecretStore {
       temp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${Date.now()}.tmp`);
       this.fs.mkdirSync(dir, { recursive: true });
       this.fs.writeFileSync(temp, `${JSON.stringify({ version: SECRET_STORE_VERSION, entries }, null, 2)}\n`, { encoding: 'utf8', flush: true });
-      if (existing?.ok) {
+      if (existing?.ok && !existing.recovered && this.fs.existsSync(this.filePath)) {
         this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
       }
       renameSyncResilient(this.fs, temp, this.filePath);

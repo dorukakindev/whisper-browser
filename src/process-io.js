@@ -30,6 +30,7 @@ function probeCommand(command, args, options = {}) {
     child.on('error', () => finish(null));
     child.stderr?.resume?.();
     if (child.stdout) child.stdout.on('data', (chunk) => {
+      if (settled) return;
       output += chunk;
       if (output.length > maxChars) {
         try { terminateProcessTree(child, { spawn: spawnImpl }); } catch (_) {}

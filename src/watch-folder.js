@@ -4,6 +4,11 @@ const path = require('path');
 
 const WATCH_FORMATS = new Set(['srt', 'vtt', 'txt', 'ass', 'json']);
 
+function isUsableWatchOutput(filePath) {
+  try { const stat=require('fs').statSync(filePath);return stat.isFile() && stat.size>0; }
+  catch (_) { return false; }
+}
+
 function normalizeWatchOutputConfig(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const formats = [...new Set(String(source.formats || 'srt')
@@ -52,13 +57,14 @@ function hasConfiguredWatchOutput(videoPath, config, exists = (filePath) => fals
     try { entries = require('fs').readdirSync(outputDir); } catch (_) { return false; }
   }
   return normalized.formats.every((format) => {
-    const exact = [stem, `${stem}.dual`, `${stem}.ceviri`, `${stem}.tr`, `${stem}.en`,
-      ...(normalized.translateTo ? [`${stem}.${normalized.translateTo}`] : [])]
+    const exact = (normalized.translateTo ? [`${stem}.${normalized.translateTo}`]
+      : [stem, `${stem}.dual`, `${stem}.ceviri`, `${stem}.tr`, `${stem}.en`])
       .map((name) => path.join(outputDir, `${name}.${format}`));
     if (exact.some(exists)) return true;
+    if (normalized.translateTo) return false;
     if (!normalized.langSuffix) return false;
     const pattern = new RegExp(`^${escapedStem}\\.[a-z]{2,3}(?:-[a-z]{2,4})?\\.${format}$`, 'i');
-    return entries.some((entry) => pattern.test(entry));
+    return entries.some((entry) => pattern.test(entry) && exists(path.join(outputDir,entry)));
   });
 }
 
@@ -80,6 +86,7 @@ function advanceWatchStability(prev, size, stableTicks) {
 
 module.exports = {
   WATCH_FORMATS,
+  isUsableWatchOutput,
   normalizeWatchOutputConfig,
   watchOutputNames,
   hasConfiguredWatchOutput,

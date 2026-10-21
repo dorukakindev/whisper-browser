@@ -5,10 +5,11 @@ const { pathToFileURL } = require('node:url');
 const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
+const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, setRate, prepareBackground, prepareReference }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
   let job = null;
   let textUI = null;
   const plans = new Map();
@@ -34,7 +35,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   function processFailure(stderr, tail = '') {
     const lines = (stderr + '\n' + tail).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    const fatal = [...new Set(lines.filter(line => /^[\w.]*(?:Error|Exception)\b/.test(line)))];
+    const fatal = [...new Set(lines.filter(line => /^(?:[\w.]*(?:Error|Exception)\b|(?:FATAL|ERROR)\b|Windows fatal exception:)/i.test(line)))];
     const plain = stderr.split(/\r?\n/).map(line => line.trim()).filter(line => line && line.length <= 400 && !/^(?:Traceback|File\s+"|UYARI\b|[~^])/.test(line)).slice(-1);
     const warnings = lines.filter(line => /^UYARI\b/.test(line));
     return (fatal.length ? fatal.slice(-3) : plain.length ? plain : warnings.slice(-3)).join('\n');
@@ -47,7 +48,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const engine = savedPath('engine') || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
     return { engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
+      verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
+      autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
+      expression: ['calm','warm','lively'].includes(saved.expression) ? saved.expression : 'reference',
+      followDelivery: saved.followDelivery === true,
+      deliveryStrength: ['gentle','strong'].includes(saved.deliveryStrength) ? saved.deliveryStrength : 'balanced',
+      grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
   function emit(s, type, data = {}) {
@@ -72,18 +79,29 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       catch (error) { (s.cleanupErrors ||= []).push({ file: path.basename(file), code: error.code || 'UNKNOWN' }); }
     }
   }
+  function ownJob(s) {
+    job = s;
+    s.onDestroyed = () => { if (job === s) void cancel().catch(() => {}); };
+    s.sender.once?.('destroyed', s.onDestroyed);
+  }
   function finish(s, type, data = {}) {
+    s.sender.removeListener?.('destroyed', s.onDestroyed);
     if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
       progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
+      exitSignal: s.exitSignal || null,
       cleanupErrors: s.cleanupErrors || [], ...data };
     summary.settings = s.settings || null;
     summary.metrics = s.metrics || null;
+    if (type === 'error') summary.diagnostics = {
+      stdoutTail: s.stdout || '', stderrTail: s.stderr || ''
+    };
     if (s.summaryPath) {
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
     }
+    if (type === 'done' && data.path) onOutput(data);
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
       logPath: s.summaryPath || null, logError: s.logError || null });
   }
@@ -113,7 +131,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     grantMedia(p.reference);
     return { id, name: String(meta.name || id).slice(0, 160), createdAt: String(meta.createdAt || ''), path: p.reference,
-      url: pathToFileURL(p.reference).href, text: fs.readFileSync(p.transcript, 'utf8'), folder: p.folder };
+      url: pathToFileURL(p.reference).href, text: fs.readFileSync(p.transcript, 'utf8'), folder: p.folder,
+      quality: meta.quality || null };
   }
   ipcMain.handle('dub:references', guard(async () => {
     fs.mkdirSync(referencesRoot(), { recursive: true });
@@ -161,17 +180,19 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (typeof prepareReference !== 'function') throw new Error('Reference capture is unavailable.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false,
       started: performance.now(), startedAt: new Date().toISOString(), settings: { kind: 'reference', range } };
-    job = s;
+    ownJob(s);
     try {
       fs.mkdirSync(p.folder);
-      claimArtifacts(s, [p.reference, p.transcript, p.metadata, p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
+      claimArtifacts(s, [p.reference, p.transcript, p.metadata, path.join(p.folder, 'reference-quality.json'), p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
       s.logPath = path.join(p.folder, 'events.ndjson'); s.summaryPath = path.join(p.folder, 'job.json');
       await prepareReference({ request, ...p, ...range, onProcess: proc => { s.proc = proc; },
         isCancelled: () => s.cancelled, status: stage => emit(s, 'reference_status', { stage }) });
       if (s.cancelled) throw new Error('Cancelled.');
       const text = fs.readFileSync(p.transcript, 'utf8').trim();
       if (!text || text.length > 8000 || fs.statSync(p.reference).size < 44) throw new Error('No reference speech found.');
-      atomicWriteFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt }), { encoding: 'utf8' });
+      let quality = null;
+      try { quality = JSON.parse(fs.readFileSync(path.join(p.folder, 'reference-quality.json'), 'utf8')); } catch (_) {}
+      atomicWriteFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt, quality }), { encoding: 'utf8' });
       const reference = referenceEntry(request.id);
       finish(s, 'reference_ready');
       return { ok: true, reference };
@@ -187,6 +208,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message });
       return { ok: false, cancelled: s.cancelled, error: error.message };
     } finally { if (job === s && !s.keepOwner) job = null; }
+  }));
+  ipcMain.handle('dub:referenceSource', guard(async () => {
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const selected = await dialog.showOpenDialog(owner(), { properties: ['openFile'],
+      filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg', 'opus', 'aac', 'wma'] }] });
+    if (selected.canceled || !selected.filePaths[0]) return { ok: true, cancelled: true };
+    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    const file = selected.filePaths[0];
+    if (!fs.statSync(file).isFile()) throw new Error('Invalid reference file.');
+    grantMedia(file);
+    return { ok: true, path: file };
   }));
   ipcMain.handle('dub:rate', guard(async (_e, request = {}) => {
     if (typeof setRate !== 'function' || !Number.isFinite(request.rate) || request.rate < .0625 || request.rate > 4
@@ -213,10 +245,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
     const c = config();
     const range = rangeOption(request.range);
+    const grouping = ['akici', 'cumle', 'satir'].includes(request.grouping) ? request.grouping : c.grouping;
     const result = await new Promise((resolve, reject) => {
       const proc = spawn(path.join(c.engine, '.venv', 'Scripts', 'python.exe'),
         [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt,
-          ...(range ? [String(range.start), String(range.end)] : [])],
+          ...(range ? [String(range.start), String(range.end)] : []), '--grouping', grouping],
         { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true });
       let out = '', stderr = '', settled = false;
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
@@ -250,8 +283,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
     });
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
-    plans.set(senderId, { srt, range, ...result });
-    return { ok: true, ...result };
+    plans.set(senderId, { srt, range, grouping, ...result });
+    return { ok: true, grouping, ...result };
     } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
   ipcMain.handle('dub:shorten', guard(async (e, key) => {
@@ -266,9 +299,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (textUI) return { ok: true, alreadyOpen: true };
     const c = config();
     const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
-    const script = path.join(c.engine, 'arayuz.py');
+    const script = path.join(__dirname, '..', 'tools', 'voxcpm2', 'text_studio.py');
     if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
-    const proc = spawn(python, [script], { cwd: c.engine, env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(python, [script, '--engine', c.engine, '--config', configPath(),
+      '--reference', c.reference, '--transcript', c.transcript, '--storage', voiceStorage(app).root],
+      { cwd: path.join(__dirname, '..'), env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '', launched = false;
     proc.stderr?.setEncoding?.('utf8');
     proc.stderr?.on('data', data => { stderr = (stderr + data).slice(-6000); });
@@ -291,8 +326,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');
     if (!fs.existsSync(logs)) return { ok: true, output: null };
-    const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).map(n =>
-      ({ file: path.join(logs, n), time: fs.statSync(path.join(logs, n)).mtimeMs })).sort((a,b) => b.time - a.time);
+    const candidates = fs.readdirSync(logs).filter(n => n.endsWith('.json')).flatMap(n => {
+      try { const file=path.join(logs,n),stat=fs.statSync(file);return stat.isFile() ? [{file,time:stat.mtimeMs}] : []; }
+      catch (_) { return []; }
+    }).sort((a,b) => b.time - a.time);
     for (const entry of candidates) {
       try {
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
@@ -302,13 +339,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         grantMedia(output);
         let sync = null, syncInvalid = false;
         try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
-        return { ok: true, output: { path: output, url: pathToFileURL(output).href,
+        let quality = null;
+        try { if(saved.quality?.version===1 && saved.quality.groups?.length) quality={...saved.quality,groups:validateGroups(saved.quality.groups)}; } catch (_) {}
+        return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
-          sync, syncInvalid,
+          sync, syncInvalid, quality, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
-            ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {url:pathToFileURL(file).href}; })() : null,
-          timing: saved.timing, logPath: entry.file } };
+            ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
+          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
       } catch (_) {}
     }
     return { ok: true, output: null };
@@ -323,6 +362,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           extensions: [kind === 'reference' ? 'wav' : 'txt'] }],
       });
       if (!selected.canceled && selected.filePaths[0]) {
+        if (job || textUI || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');
@@ -340,16 +380,35 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
-    job = s;
+    ownJob(s);
     try {
       const c = config();
       const profile = request.profile ?? c.profile;
       const concurrency = request.concurrency ?? c.concurrency;
       const timingMode = request.timingMode ?? c.timingMode;
+      const verification = request.verification ?? c.verification;
+      if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
+      const forceGroups = request.forceGroups ?? [];
+      if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
+      c.naturalSpeech = request.naturalSpeech ?? c.naturalSpeech;
+      if (typeof c.naturalSpeech !== 'boolean') throw new Error('Invalid speech editing option.');
+      if (typeof c.autoFit !== 'boolean') throw new Error('Invalid duration editing option.');
       if (!['clip','video'].includes(timingMode)) throw new Error('Geçersiz zamanlama modu.');
       if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
       c.profile = profile; c.concurrency = concurrency; c.timingMode = timingMode;
+      if (request.grouping !== undefined && !['akici', 'cumle', 'satir'].includes(request.grouping)) throw new Error('Dublaj planını yeniden hazırlayın.');
+      c.grouping = request.grouping ?? c.grouping;
+      c.expression = request.expression ?? c.expression;
+      if (!['reference','calm','warm','lively'].includes(c.expression)) throw new Error('Invalid expression profile.');
+      c.followDelivery = request.followDelivery ?? c.followDelivery;
+      c.deliveryStrength = request.deliveryStrength ?? c.deliveryStrength;
+      if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
+      Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
+      s.settings.grouping = c.grouping;
+      s.settings.expression = c.expression;
+      s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
@@ -370,7 +429,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
-      claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.partial.wav')]);
+      claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
+        output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav')]);
       atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
@@ -388,15 +448,27 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--gruplama', 'cumle', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
+        '--expression', c.followDelivery ? 'reference' : c.expression,
+        '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '280' : '250',
+        '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
-      if (request.sample === true) args.push('--limit', '11');
+      args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
+      if (forceGroups.length) args.push('--force-groups', forceGroups.join(';'));
+      if (request.sample === true) args.push('--limit', '11', '--representative-preview');
+      const rewriteDir = path.join(inputDir, 'duration-edits');
+      if ((c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
+        fs.mkdirSync(rewriteDir, {recursive:true});
+        args.push('--rewrite-dir', rewriteDir);
+        args.push('--editor-identity', String(editorIdentity()).slice(0,128));
+        if (c.autoFit) args.push('--auto-fit');
+        if (c.naturalSpeech) args.push('--natural-speech');
+      }
       if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
       if (request.dubText) {
         const plan = plans.get(e.sender.id);
-        if (!plan || plan.srt !== srt || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
+        if (!plan || plan.srt !== srt || plan.grouping !== c.grouping || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
         const edits = request.dubText.edits;
         if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
         const keys = new Set(plan.groups.map(g => g.key));
@@ -409,8 +481,34 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         args.push('--dub-text', textPath);
         s.settings.reviewedText = true;
       }
+      if (c.followDelivery) {
+        const file = path.join(outputDir,`${s.id}-delivery.json`);
+        const files = [file,file.replace(/\.json$/,'.partial.json')];
+        claimArtifacts(s,files);
+        try {
+          if (typeof prepareProsody !== 'function') throw new Error('Source delivery unavailable');
+          emit(s,'status',{text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
+          await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample,grouping:c.grouping,
+            strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
+            status:progress=>emit(s,'status',{text:progress==='stop_failed'
+              ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
+          if (s.cancelled) throw new Error('Cancelled');
+          if (fs.statSync(file).size > 2_000_000) throw new Error('Delivery map too large');
+          const delivery = JSON.parse(fs.readFileSync(file,'utf8'));
+          if (!Array.isArray(delivery.groups)) throw new Error('Invalid delivery map');
+          s.settings.deliveryAnalyzed = delivery.groups.length;
+          s.settings.deliveryApplied = delivery.groups.filter(row=>row.delivery).length;
+          if (!s.settings.deliveryApplied) emit(s,'warning',{text:'Özgün seste güvenilir anlatım bulunamadı; ek yönlendirme uygulanmıyor.'});
+          args.push('--prosody-plan',file); s.settings.deliveryReport=path.basename(file);
+        } catch (error) {
+          if (s.cancelled) throw error;
+          cleanupArtifacts(s,files); s.settings.deliveryFallback=true;
+          emit(s,'warning',{text:'Özgün anlatım analiz edilemedi; referansın doğal tonuyla devam ediliyor.'});
+          if (error.code==='MULTIPLE_AUDIO_TRACKS') emit(s,'warning',{text:'Videoda birden fazla ses dili var. Doğru konuşmayı analiz etmek için yerel analiz sesini seçin.'});
+        }
+      }
       let background = null;
-      if (request.keepBackground === true) {
+      if (request.keepBackground === true && !s.sample) {
         try {
           if (typeof prepareBackground !== 'function') throw new Error('Arka plan ayırma kullanılamıyor.');
           const file = path.join(outputDir,`${s.id}-background.wav`);
@@ -427,7 +525,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               emit(s,'status',{text});
             }});
           if (s.cancelled) throw new Error('İptal edildi.');
-          grantMedia(file); background={url:pathToFileURL(file).href}; s.settings.keepBackground=true;
+          grantMedia(file); background={path:file,url:pathToFileURL(file).href}; s.settings.keepBackground=true;
         } catch (error) {
           if (s.cancelled) throw error;
           cleanupArtifacts(s, s.backgroundFiles || []);
@@ -437,10 +535,59 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       emit(s, 'status', { text: 'Motor yükleniyor…' });
       const env = voiceEnvironment(c.engine);
+      // Flush output and report native crashes in this process and spawned GPU workers.
+      env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
       s.proc = spawn(python, args, { cwd: c.engine, env, windowsHide: true });
       let pending = '';
+      const rewriteRequests = new Set();
       function line(value) {
         s.tail = (s.tail + '\n' + value).slice(-6000);
+        if (value.startsWith('DUB_REWRITE ') && (c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
+          try {
+            const r = JSON.parse(value.slice(12));
+            if (!/^[a-f0-9]{32}$/.test(r.id) || rewriteRequests.has(r.id) || rewriteRequests.size >= 10000 ||
+                typeof r.text !== 'string' || r.text.length > 8000 || !Number.isFinite(r.seconds) || r.seconds <= 0 || r.seconds > 35) return;
+            if ((r.mode === 'natural' && !c.naturalSpeech) || (r.mode !== 'natural' && !c.autoFit)) return;
+            rewriteRequests.add(r.id);
+            // Independent response files prevent concurrent groups exchanging
+            // replies. Never let a cancelled job write a late response.
+            void Promise.resolve().then(() => s.editorUnavailable ? r.text : shorten(r.text, r.seconds, {
+              mode:r.mode === 'natural' ? 'natural' : 'fit',
+              measured:Number.isFinite(r.measured) && r.measured > 0 && r.measured <= 600 ? r.measured : null,
+              before:typeof r.before === 'string' ? r.before.slice(-1500) : '',
+              after:typeof r.after === 'string' ? r.after.slice(0,1500) : ''
+            })).then(text => {
+              if (job === s && !s.cancelled) atomicWriteFileSync(path.join(rewriteDir, r.id + '.json'), JSON.stringify({text}), {encoding:'utf8'});
+            }).catch(error => {
+              if(error.code==='DUB_EDITOR_UNAVAILABLE')s.editorUnavailable=true;
+              if (job === s && !s.cancelled) {
+                try { atomicWriteFileSync(path.join(rewriteDir, r.id + '.json'), '{}', {encoding:'utf8'}); } catch (_) {}
+                if(!s.editorWarning){s.editorWarning=true;emit(s, 'warning', {text:'AI konuşma düzenlemesi kullanılamadı; özgün metin korunuyor.'});}
+              }
+            });
+          } catch (_) {}
+          return;
+        }
+        if (value.startsWith('DUB_GROUP ')) {
+          try { const row = JSON.parse(value.slice(10));
+            if (Number.isInteger(row.group) && row.group > 0 && row.group <= 5000 && typeof row.key === 'string'
+                && ['ready','review','failed'].includes(row.status)) emit(s, 'group', {group:row});
+          } catch (_) {}
+        }
+        if (value.startsWith('DUB_CONCURRENCY ')) {
+          const parallel = Number(value.slice(16));
+          if ([1,2,4,8].includes(parallel)) { s.settings.concurrency = parallel; emit(s, 'concurrency', {concurrency:parallel}); }
+        }
+        if (value.startsWith('DUB_REFERENCE ')) {
+          try { emit(s, 'reference_quality', {quality:JSON.parse(value.slice(14))}); } catch (_) {}
+        }
+        if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
+        if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
+          text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
+        if (value === 'DUB_WARNING incomplete_audio') emit(s, 'warning', {
+          text: 'Tamamlanan sesler kurtarıldı; üretilemeyen bölümler kalite raporunda işaretlendi.' });
+        if (value === 'DUB_WARNING server_shutdown_timeout') emit(s, 'warning', {
+          text: 'Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.' });
         if (value === 'DUB_WARNING sample_edits_unused') emit(s, 'warning', {
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
@@ -465,11 +612,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         }
       }
       s.proc.stdout.setEncoding('utf8'); s.proc.stderr.setEncoding('utf8');
-      s.proc.stdout.on('data', text => { pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
+      s.proc.stdout.on('data', text => { s.stdout = ((s.stdout || '') + text).slice(-6000); pending = (pending + text).slice(-131072); const lines = pending.split(/\r?\n/); pending = lines.pop(); lines.forEach(line); });
       s.proc.stderr.on('data', text => { s.stderr = (s.stderr + text).slice(-6000); s.tail = (s.tail + text).slice(-6000); });
       s.proc.on('error', error => { s.spawnError = error.message; });
-      s.proc.on('close', code => {
+      s.proc.on('close', (code, signal) => {
         s.exitCode = code;
+        s.exitSignal = signal;
         if (pending) line(pending);
         if (job === s) job = null;
         if (s.cancelled) { finish(s, 'cancelled'); return; }
@@ -484,18 +632,30 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               // The WAV can still be recovered manually if only its sync map
               // failed validation. Do not discard successfully generated audio.
               s.ownedArtifacts?.delete(output);
-              finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.', recoverablePath: output }); return;
+              grantMedia(output);
+              finish(s, 'error', { error: 'Ses üretildi ancak dublaj zaman haritası okunamadı.', recoverablePath: output,
+                recoverableUrl: pathToFileURL(output).href, name: path.basename(output) }); return;
             }
           }
           grantMedia(output);
-          finish(s, 'done', { path: output, url: pathToFileURL(output).href,
-            name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.range, sync, background });
+          let quality = null;
+          try {
+            const qualityPath = output.replace(/\.wav$/i, '.quality.json');
+            if (fs.statSync(qualityPath).size <= 16000000) {
+              const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
+              if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length && raw.groups.length <= 5000) {
+                validateGroups(raw.groups); quality = raw;
+              }
+            }
+          } catch (_) {}
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length,
+            subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as
           // "TypeError: ..." or the plain message of a SystemExit. Show that
           // instead of the generic notice whenever stderr has something useful.
           const details = processFailure(s.stderr, s.tail);
-          finish(s, 'error', { error: s.spawnError || details || 'Ses üretimi başarısız oldu.' });
+          finish(s, 'error', { error: s.spawnError || details || `Ses üretimi başarısız oldu. (exit=${code ?? 'null'}, signal=${signal || 'none'})` });
         }
       });
       return { ok: true, id: s.id };

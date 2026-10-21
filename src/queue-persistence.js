@@ -15,6 +15,7 @@ const SECRET_OPTION_KEYS = new Set([
 const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
 const TERMINAL_STATUS = new Set(['done', 'error']);
 const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
+const { redactUrlSensitiveParams } = require('./browser-place-url');
 
 function secretOptionKey(key) {
   // Recognize credential phrases inside compound names without treating every
@@ -38,7 +39,7 @@ function sanitizeOptionUrl(value, key) {
     for (const name of [...parsed.searchParams.keys()]) {
       if (SENSITIVE_URL_PARAMS.test(name) || secretOptionKey(name)) parsed.searchParams.delete(name);
     }
-    return parsed.toString();
+    return redactUrlSensitiveParams(parsed.toString());
   } catch (_) {
     // URL olduğu söylenen ama ayrıştırılamayan değer güvenle saklanamaz.
     return undefined;
@@ -90,7 +91,8 @@ function validateQueueOptions(snapshot) {
   // (veya hiç yoksa) normalizeQueueSnapshot boş kuyruğa düşürür ve merge
   // diske boş yazarak mevcut kaydı siler — reddet.
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)
-      || !Array.isArray(snapshot.items)) {
+      || !Array.isArray(snapshot.items) || snapshot.items.length > MAX_QUEUE_ITEMS
+      || (snapshot.version != null && snapshot.version !== QUEUE_SNAPSHOT_VERSION)) {
     return { ok: false, error: 'Geçersiz kuyruk durumu.' };
   }
   for (const item of snapshot.items.slice(0, MAX_QUEUE_ITEMS)) {
@@ -108,6 +110,14 @@ function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = nul
   const protectedIds = new Set([...protectedTerminalIds]
     .map(Number).filter((id) => Number.isSafeInteger(id) && id > 0));
   const diskById = new Map(disk.items.map((item) => [item.id, item]));
+  const active=diskById.get(Number(activeQueueItemId));
+  if(active){
+    const item=incoming.items.find(item=>item.id===active.id);
+    if(!item){
+      if(incoming.items.length>=MAX_QUEUE_ITEMS)throw new Error('Geçersiz kuyruk durumu.');
+      incoming.items.push({...active});
+    }else if(active.status==='running')item.status='running';
+  }
   for (const item of incoming.items) {
     if (!protectedIds.has(item.id)) continue;
     const authoritative = diskById.get(item.id);

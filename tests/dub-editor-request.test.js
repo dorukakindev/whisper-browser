@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {editorMessages}=require('../src/dub-editor-request');
+const source='Bu görüşün doğru olduğunu söyleyemeyiz; sonuç henüz kesin değil.';
+const messages=editorMessages(source,1,{mode:'natural',measured:20,before:'Önceki.',after:'Sonraki.'});
+const natural=JSON.parse(messages[1].content);
+assert.equal(natural.text,source);
+for(const key of ['seconds','measuredSeconds','suggestedMaxWords']) assert(!(key in natural));
+assert.equal(natural.context_before,'Önceki.');
+assert(messages[0].content.includes('telgraf dili kullanma'));
+assert(messages[0].content.includes('zaten doğalsa aynen'));
+const fit=JSON.parse(editorMessages(source,2,{measured:4})[1].content);
+assert.equal(fit.seconds,2); assert.equal(fit.measuredSeconds,4);
+assert(fit.suggestedMaxWords>0);
+assert.equal(JSON.parse(editorMessages('x',1,{mode:'natural',before:'a'.repeat(5000)})[1].content).context_before.length,1500);
+console.log('dub-editor-request: natural editing has no duration quota; explicit fitting retains it');

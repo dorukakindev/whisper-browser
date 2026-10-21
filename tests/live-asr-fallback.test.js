@@ -35,7 +35,7 @@ function harness(deviceSetting, spawnImpl) {
   const spawns = [];
   const sandbox = {
     browserLiveAsr: null,
-    dubService: { running: () => false },
+    dubWorkspace: { running: () => false }, dubService: { running: () => false },
     activeJob: null, burninJob: null, burninStartPending: null,
     modelBenchmarkJob: null, modelProcesses: new Set(),
     browserDiagnostics: null,

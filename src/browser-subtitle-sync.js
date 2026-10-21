@@ -61,6 +61,7 @@
   }
 
   function sourceToVideoTime(sourceTime, transform) {
+    if (!isTimeValue(sourceTime)) throw new TypeError('Kaynak zamanı geçersiz.');
     const source = Number(sourceTime);
     if (!Number.isFinite(source)) throw new TypeError('Kaynak zamanı geçersiz.');
     const normalized = normalizeTransform(transform);
@@ -68,10 +69,15 @@
   }
 
   function videoToSourceTime(videoTime, transform) {
+    if (!isTimeValue(videoTime)) throw new TypeError('Video zamanı geçersiz.');
     const video = Number(videoTime);
     if (!Number.isFinite(video)) throw new TypeError('Video zamanı geçersiz.');
     const normalized = normalizeTransform(transform);
     return (video - normalized.offsetSeconds) / normalized.scale;
+  }
+
+  function isTimeValue(value) {
+    return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
   }
 
   function normalizePoint(raw) {
@@ -117,12 +123,15 @@
       throw new RangeError('Eşleşme noktaları aynı veya birbirine çok yakın.');
     }
     const n = list.length;
-    let sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (const p of list) { sx += p.sourceTime; sy += p.videoTime; sxx += p.sourceTime * p.sourceTime; sxy += p.sourceTime * p.videoTime; }
-    const denom = n * sxx - sx * sx;
-    if (denom <= 0) throw new RangeError('Eşleşme noktaları aynı kaynak zamanında yığılmış.');
-    const scale = (n * sxy - sx * sy) / denom;
-    const offsetSeconds = (sy - scale * sx) / n;
+    // Center before squaring: large timeline origins otherwise cancel variance.
+    const originX=list[0].sourceTime,originY=list[0].videoTime;
+    const meanX=list.reduce((sum,p)=>sum+(p.sourceTime-originX),0)/n;
+    const meanY=list.reduce((sum,p)=>sum+(p.videoTime-originY),0)/n;
+    let variance=0,covariance=0;
+    for(const p of list){const dx=p.sourceTime-originX-meanX;variance+=dx*dx;covariance+=dx*(p.videoTime-originY-meanY);}
+    if(variance<=0)throw new RangeError('Eşleşme noktaları aynı kaynak zamanında yığılmış.');
+    const scale=covariance/variance;
+    const offsetSeconds=originY+meanY-scale*(originX+meanX);
     const transform = normalizeTransform({ scale, offsetSeconds });
     const residuals = list.map((p) => p.videoTime - (p.sourceTime * transform.scale + transform.offsetSeconds));
     const rmsError = Math.sqrt(residuals.reduce((sum, r) => sum + r * r, 0) / n);
@@ -132,12 +141,14 @@
     // belirgin büyükse outlier sayılır (3+ noktada anlamlı). Tek fit'in
     // RMS'i outlier tarafından şiştiği için onu gizleyemez.
     const fitOn = (subset) => {
-      let fsx = 0, fsy = 0, fsxx = 0, fsxy = 0;
-      for (const p of subset) { fsx += p.sourceTime; fsy += p.videoTime; fsxx += p.sourceTime * p.sourceTime; fsxy += p.sourceTime * p.videoTime; }
-      const fdenom = subset.length * fsxx - fsx * fsx;
-      if (fdenom <= 0) return null;
-      const fscale = (subset.length * fsxy - fsx * fsy) / fdenom;
-      return { scale: fscale, offset: (fsy - fscale * fsx) / subset.length };
+      const ox=subset[0].sourceTime,oy=subset[0].videoTime;
+      const mx=subset.reduce((sum,p)=>sum+(p.sourceTime-ox),0)/subset.length;
+      const my=subset.reduce((sum,p)=>sum+(p.videoTime-oy),0)/subset.length;
+      let variance=0,covariance=0;
+      for(const p of subset){const dx=p.sourceTime-ox-mx;variance+=dx*dx;covariance+=dx*(p.videoTime-oy-my);}
+      if(variance<=0)return null;
+      const scale=covariance/variance;
+      return {scale,offset:oy+my-scale*(ox+mx)};
     };
     const outliers = [];
     if (n >= 3) {
@@ -159,6 +170,7 @@
   }
 
   function createSyncRecord(raw) {
+    if (raw?.version != null && raw.version !== SYNC_RECORD_VERSION) throw new TypeError('Senkron kayıt sürümü desteklenmiyor.');
     const mediaId = clean(raw && raw.mediaId, 240);
     const sourceTrackId = clean(raw && raw.sourceTrackId, 180);
     const sourceHash = clean(raw && raw.sourceHash, 128);
@@ -204,8 +216,7 @@
     let skipped = 0;
     let invalidSkipped = 0;
     for (const cue of source) {
-      if (!cue || cue.start == null || cue.end == null
-          || !Number.isFinite(Number(cue.start)) || !Number.isFinite(Number(cue.end))) {
+      if (!cue || !isTimeValue(cue.start) || !isTimeValue(cue.end)) {
         invalidSkipped++;
         continue;
       }
@@ -236,6 +247,7 @@
   }
 
   function createEditRecord(raw) {
+    if (raw?.version != null && raw.version !== EDIT_RECORD_VERSION) throw new TypeError('Altyazı düzeltme sürümü desteklenmiyor.');
     const timing = raw?.timingOverride;
     if (timing != null && (!Number.isFinite(timing.start) || !Number.isFinite(timing.end)
         || timing.start < 0 || timing.end - timing.start < .08)) {
@@ -282,6 +294,8 @@
     let item;
     try { item = createEditRecord(record); } catch (_) { return { ...modelCue }; }
     if (!recordFieldsMatch(item, context)) return { ...modelCue };
+    const baseTranslation = modelCue.userOverride != null && modelCue.baseTranslation != null
+      ? String(modelCue.baseTranslation) : String(modelCue?.text ?? '');
     return {
       ...modelCue,
       cueId: modelCue.cueId || context.cueId,
@@ -289,8 +303,8 @@
       ...(item.timingOverride ? { cueId: modelCue.cueId || context.cueId,
         sourceStart: modelCue.sourceStart ?? modelCue.start, sourceEnd: modelCue.sourceEnd ?? modelCue.end,
         start: item.timingOverride.start, end: item.timingOverride.end } : {}),
-      text: item.hasOverride ? item.userOverride : String(modelCue?.text ?? ''),
-      baseTranslation: String(modelCue?.text ?? ''),
+      text: item.hasOverride ? item.userOverride : baseTranslation,
+      baseTranslation,
       userOverride: item.hasOverride ? item.userOverride : null,
       userRevision: item.revision,
     };

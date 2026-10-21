@@ -37,8 +37,10 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-cache-'))
   ] }), 'utf8');
   const recoveredSchema = new PersistentTranslationCache(invalidSchema);
   assert.equal(recoveredSchema.get('a'), 'Yedekten geldi');
-  assert(fs.readdirSync(dir).some((name) => name.startsWith('invalid-schema.json.corrupt-')),
-    'geçerli JSON ama bozuk şema da yedek dönüşü için arşivlenmeli');
+  assert.equal(JSON.parse(fs.readFileSync(invalidSchema, 'utf8')).version, 99,
+    'gelecek sürüm bozuk veri değildir; asıl dosya yerinde korunmalı');
+  assert.equal(recoveredSchema.set('replacement', 'yazılmamalı'), false);
+  assert.equal((await recoveredSchema.flush()).ok, false);
 
   const expiredFile = path.join(dir, 'expired.json');
   fs.writeFileSync(expiredFile, JSON.stringify({ version: 2, entries: [

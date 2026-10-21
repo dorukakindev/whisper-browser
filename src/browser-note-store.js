@@ -31,7 +31,10 @@ function normalizeStoredAnnotation(raw = {}) {
 
 function validDocument(raw) {
   return !!raw && typeof raw === 'object' && !Array.isArray(raw)
-    && Number(raw.version) === NOTE_STORE_VERSION && Array.isArray(raw.annotations);
+    && Number(raw.version) === NOTE_STORE_VERSION && Array.isArray(raw.annotations)
+    && raw.annotations.every(row=>row && typeof row==='object' && !Array.isArray(row)
+      && typeof row.id==='string' && row.id.trim()
+      && typeof (row.mediaId ?? row.media_id)==='string' && (row.mediaId ?? row.media_id).trim());
 }
 
 class BrowserNoteStore {
@@ -160,9 +163,10 @@ class BrowserNoteStore {
 
   upsert(raw) {
     if (this.loadError) throw new Error(this.loadError);
-    const annotation = normalizeStoredAnnotation(raw);
-    if (!annotation?.id || !annotation.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
-    const previous = this.annotations.get(annotation.id);
+    const candidate = normalizeStoredAnnotation(raw);
+    if (!candidate?.id || !candidate.mediaId) throw new TypeError('Not ve medya kimliği gerekli.');
+    const previous = this.annotations.get(candidate.id);
+    const annotation = previous ? normalizeStoredAnnotation({...previous,...raw,id:previous.id}) : candidate;
     if (previous) {
       annotation.createdAt = previous.createdAt;
       // Model/altyazı katmanı kaynak ve çeviri bağlamını yenileyebilir; kullanıcı
@@ -187,6 +191,21 @@ class BrowserNoteStore {
       throw error;
     }
     return structuredClone(annotation);
+  }
+
+  updateBatch(rows) {
+    if (this.loadError) throw new Error(this.loadError);
+    const normalized = rows.map(normalizeStoredAnnotation);
+    if (normalized.some(row => !row?.id || !row.mediaId || !this.annotations.has(row.id))) {
+      throw new TypeError('Existing note and media identities are required.');
+    }
+    const previous = normalized.map(row => this.annotations.get(row.id));
+    for (const row of normalized) this.annotations.set(row.id, row);
+    try { if (normalized.length) this.flush({ mirrorBackup: true }); }
+    catch (error) {
+      if (!error?.committed) for (const row of previous) this.annotations.set(row.id, row);
+      throw error;
+    }
   }
 
   remove(id) {

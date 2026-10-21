@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { safePlaceUrl } = require('./browser-place-url');
 const { fsyncFile, fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
 
 const CURRENT_SCHEMA_VERSION = 3;
@@ -24,17 +25,7 @@ function uniqueStrings(values) {
 }
 
 function canonicalBrowserUrl(raw) {
-  try {
-    const url = new URL(String(raw || ''));
-    url.username = ''; url.password = '';
-    for (const key of [...url.searchParams.keys()]) {
-      if (SECRET_QUERY_KEY.test(key)) url.searchParams.delete(key);
-    }
-    url.hash = '';
-    return url.href;
-  } catch (_) {
-    return '';
-  }
+  return safePlaceUrl(raw);
 }
 
 function youtubeId(raw) {
@@ -57,7 +48,10 @@ function youtubeId(raw) {
 function canonicalWatchKey(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return '';
   const key = raw.trim();
-  if (key.startsWith('file:')) return 'file:' + key.slice(5).replace(/\\/g, '/').toLowerCase();
+  if (key.startsWith('file:')) {
+    const file=key.slice(5),windows=/^[a-z]:[\\/]|^[/\\]{2}/i.test(file);
+    return 'file:' + (windows ? path.win32 : path.posix).normalize(file).replace(/\\/g, '/').toLowerCase();
+  }
   if (key.startsWith('browser:')) {
     const normalized = canonicalBrowserUrl(key.slice(8));
     return normalized ? `browser:${normalized}` : key;

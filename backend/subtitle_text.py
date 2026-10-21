@@ -58,15 +58,39 @@ def decode_subtitle_bytes(raw):
     Ayrıca çift kodlanmış UTF-8 ve latin-1 okunmuş cp1254 izleri onarılır.
     Döner: (metin, kullanılan_kodlama, onarım_yapıldı_mı)
     """
-    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
-        try:
-            text = raw.decode("utf-16")
-            fixed, repaired = repair_mojibake(text)
-            fixed2, repaired2 = repair_cp1254_as_latin1(fixed)
-            endian = "utf-16le" if raw.startswith(b"\xff\xfe") else "utf-16be"
-            return fixed2, endian, (repaired or repaired2)
-        except UnicodeDecodeError:
-            pass
+    # UTF-32LE starts with the UTF-16LE BOM too; test the longest signature first.
+    # An explicit Unicode signature must never fall back to a legacy codec:
+    # that silently turns a truncated subtitle into spoken garbage.
+    unicode_encoding = None
+    for signature, encoding in ((b"\xef\xbb\xbf", "utf-8-sig"),
+                                (b"\xff\xfe\x00\x00", "utf-32"),
+                                (b"\x00\x00\xfe\xff", "utf-32"),
+                                (b"\xff\xfe", "utf-16"), (b"\xfe\xff", "utf-16")):
+        if raw.startswith(signature):
+            unicode_encoding = encoding
+            break
+    if unicode_encoding:
+        text = raw.decode(unicode_encoding)
+        fixed, repaired = repair_mojibake(text)
+        fixed2, repaired2 = repair_cp1254_as_latin1(fixed)
+        if unicode_encoding == "utf-8-sig":
+            return fixed2, unicode_encoding, (repaired or repaired2)
+        endian = "le" if raw.startswith(b"\xff\xfe") else "be"
+        return fixed2, unicode_encoding + endian, (repaired or repaired2)
+    # BOM-less UTF-16 subtitle headers contain alternating ASCII/NUL bytes.
+    # Require several such pairs and a valid subtitle timing/header signature.
+    if len(raw) >= 16 and len(raw) % 2 == 0:
+        sample = raw[:2048]
+        for encoding, parity in (("utf-16-le", 1), ("utf-16-be", 0)):
+            lane = sample[parity::2]
+            if lane.count(0) < max(4, len(lane) * .4):
+                continue
+            try:
+                text = raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+            if re.search(r"-->\s|^WEBVTT|\[Script Info\]", text, re.MULTILINE):
+                return text, encoding.replace("-le", "le").replace("-be", "be"), False
     for enc in ("utf-8-sig", "cp1254"):
         try:
             text = raw.decode(enc)

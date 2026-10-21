@@ -140,6 +140,24 @@ function repeatedTranslationGroups(matched) {
       cues: group.cues.slice(0, 20) }));
 }
 
+// Audit connected timing groups as complete speech, including merged/shifted
+// translations. Exact timestamp pairs alone skip their semantic checks.
+function semanticPairs(source, target, coverage) {
+  const parent=Array.from({length:source.length+target.length},(_,i)=>i);
+  const find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+  const indices=new Map(source.map((cue,i)=>[cue,i]));
+  for(const row of coverage.coveredSource)for(const overlap of row.overlaps){
+    parent[find(source.length+overlap.targetIndex)]=find(indices.get(row.source));
+  }
+  const groups=new Map();
+  const add=(side,cue,i)=>{const id=find(i);if(!groups.has(id))groups.set(id,{source:[],target:[]});groups.get(id)[side].push(cue);};
+  source.forEach((cue,i)=>add('source',cue,i));target.forEach((cue,i)=>add('target',cue,source.length+i));
+  const combine=rows=>({start:Math.min(...rows.map(c=>c.start)),end:Math.max(...rows.map(c=>c.end)),
+    text:rows.slice().sort((a,b)=>a.start-b.start||a.end-b.end).map(c=>c.text).join(' ')});
+  return [...groups.values()].filter(g=>g.source.length&&g.target.length)
+    .map(g=>({source:combine(g.source),target:combine(g.target)}));
+}
+
 function auditSubtitlePair(sourceCues, targetCues, options = {}) {
   const source = Array.isArray(sourceCues) ? sourceCues : [];
   const target = Array.isArray(targetCues) ? targetCues : [];
@@ -173,7 +191,7 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
   }
   let sourceCharacters = 0;
   let targetCharacters = 0;
-  for (const pair of aligned.matched) {
+  for (const pair of semanticPairs(source, target, coverage)) {
     const sourceText = normalizeText(pair.source.text);
     const targetText = normalizeText(pair.target.text);
     sourceCharacters += sourceText.length;

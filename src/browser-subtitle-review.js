@@ -30,11 +30,17 @@
       if(matches.length!==1){
         const bucket=Math.floor(record.base.start*500);
         matches=[-1,0,1].flatMap(offset=>byStart.get(bucket+offset)||[]).filter(({cue})=>
-          Math.abs(cue.start-record.base.start)<.002&&Math.abs(cue.end-record.base.end)<.002);
+          (!record.cueId || !(cue.cueId ?? cue.id) || String(cue.cueId ?? cue.id)===String(record.cueId))
+          &&Math.abs(cue.start-record.base.start)<.002&&Math.abs(cue.end-record.base.end)<.002);
+        if(matches.length>1){
+          const exact=matches.filter(({cue})=>equal(plain(cue),record.base));
+          if(exact.length===1)matches=exact;
+        }
       }
       if (matches.length !== 1) {
         // Dosyaya kaydedilmiş zaman düzeltmesi de yeniden açılabilmeli.
-        matches = byEdited.get(exactKey(record.edited))||[];
+        matches = (byEdited.get(exactKey(record.edited))||[]).filter(({cue})=>
+          !record.cueId || !(cue.cueId ?? cue.id) || String(cue.cueId ?? cue.id)===String(record.cueId));
       }
       if (matches.length !== 1) { conflicts.push({record,index:-1,reason:'Satır tekil eşleştirilemedi.'}); continue; }
       const {cue,index} = matches[0], incoming=plain(cue);
@@ -43,7 +49,7 @@
       if (!equal(incoming,record.base) && !equal(incoming,record.edited)) {
         conflicts.push({record,index,incoming,reason:'Site bu satırı değiştirdi.'});
       }
-      output[index]={...cue,...plain(record.edited),sourceStart:cue.start,sourceEnd:cue.end};
+      output[index]={...cue,...plain(record.edited),sourceStart:cue.sourceStart ?? cue.start,sourceEnd:cue.sourceEnd ?? cue.end};
     }
     return {cues:output.sort((a,b)=>a.start-b.start||a.end-b.end),conflicts};
   }

@@ -1,4 +1,41 @@
-Güncel çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
+Güncel çalışma: [docs/devir/2026-10-21-1838.md](docs/devir/2026-10-21-1838.md) — İsteğe bağlı kaynak anlatımı, güvenli koşullama ve araştırma raporları
+Güncel çalışma: [docs/devir/2026-10-21-1810.md](docs/devir/2026-10-21-1810.md) — Ses çevirisi editörü, yerel referans ve deneysel anlatım tonu
+Güncel çalışma: [docs/devir/2026-10-21-1651.md](docs/devir/2026-10-21-1651.md) — Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı
+Güncel çalışma: [docs/devir/2026-10-21-1641.md](docs/devir/2026-10-21-1641.md) — Ses çevirisinde tam anlam önceliği, kısaltma ayrımı ve eski sonuçları yenileme
+Önceki çalışma: [docs/devir/2026-10-21-1630.md](docs/devir/2026-10-21-1630.md) — Luna Player v1.3.9 kaynak incelemesi ve uyarlama önerileri
+Önceki çalışma: [docs/devir/2026-10-21-1626.md](docs/devir/2026-10-21-1626.md) — İkinci arızada kısmi ses kurtarma ve gerçek GPU/çıktı doğrulaması
+Önceki çalışma: [docs/devir/2026-10-21-1524.md](docs/devir/2026-10-21-1524.md) — Son grupta motor takılması, sınırlı iptal ve aynı referansla kurtarma
+Önceki çalışma: [docs/devir/2026-10-21-1515.md](docs/devir/2026-10-21-1515.md) — Güvenilir ses adayı, ilk sesi koruma ve 150 kaynak envanteri
+Önceki çalışma: [docs/devir/2026-10-21-1507.md](docs/devir/2026-10-21-1507.md) — Tam düşünce sınırları ve prosodi araştırması; o turda perde analizi açıktı
+Önceki çalışma: [docs/devir/2026-10-21-1440.md](docs/devir/2026-10-21-1440.md) —121URL ses araştırması, sabit bağlam deneyi ve eksik okuma/durak onarımı
+Güncel çalışma: [docs/devir/2026-10-21-1420.md](docs/devir/2026-10-21-1420.md) — Gerçek GPU araştırması, dengeli bağlam ve konuşma kurtarması
+Güncel çalışma: [docs/devir/2026-10-21-1402.md](docs/devir/2026-10-21-1402.md) — Kalite odaklı ses varsayılanları
+Güncel çalışma: [docs/devir/2026-10-21-1348.md](docs/devir/2026-10-21-1348.md) — İki ses arayüzü, iyi varsayılanlar ve hazır profiller
+Önceki çalışma: [docs/devir/2026-10-21-1330.md](docs/devir/2026-10-21-1330.md) — Ses stüdyosu tasarımı, görünür ayarlar ve akıcı konuşma grupları
+Önceki çalışma: [docs/devir/2026-10-21-1305.md](docs/devir/2026-10-21-1305.md) — Yerel ses referansı ve bağımsız metin stüdyosu; o turda commit/push inceleme sınırında kaldı
+Önceki çalışma: [docs/devir/2026-10-21-0943.md](docs/devir/2026-10-21-0943.md) — Rapor499: Altyazı kimliği, Unicode ve kurtarmada 20 düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0853.md](docs/devir/2026-10-21-0853.md) — Rapor498: Kurtarma, iptal ve çeviri bütünlüğünde 20 düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0840.md](docs/devir/2026-10-21-0840.md) — Rapor497: Ses anlamı, altyazı kimliği ve arşiv kaybında 20 düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0819.md](docs/devir/2026-10-21-0819.md) — Kalıcı test tercihi: faydalı kısa kontroller, uzun testler ve CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0811.md](docs/devir/2026-10-21-0811.md) — Rapor496: Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-2042.md](docs/devir/2026-10-20-2042.md) — Rapor495: Konuşma anlamı, proje kurtarma ve altyazıda 20 doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-2029.md](docs/devir/2026-10-20-2029.md) — Rapor494: Konuşma, çeviri ve oynatmada 20 yeni doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-2000.md](docs/devir/2026-10-20-2000.md) — Rapor493: Ses, oynatma ve kütüphanede 20 doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-1105.md](docs/devir/2026-10-20-1105.md) — Rapor492: Çeviri, altyazı ve kurtarmada 20 doğrulanmış düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-20-1044.md](docs/devir/2026-10-20-1044.md) — Rapor491: 13 önemli ses hatası; CI arkada, sayı doldurma yok
+Önceki çalışma: [docs/devir/2026-10-20-1017.md](docs/devir/2026-10-20-1017.md) — Rapor490: 20 yeni doğrulanmış düzeltme
+Önceki çalışma: [docs/devir/2026-10-20-0749.md](docs/devir/2026-10-20-0749.md) — Rapor489: arşiv, altyazı ve sekme kurtarmada 10 düzeltme
+Önceki çalışma: [docs/devir/2026-10-20-0732.md](docs/devir/2026-10-20-0732.md) — Rapor488: on doğrulanmış ses/oynatıcı ve proje hatası; Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1630.md](docs/devir/2026-10-19-1630.md) — Doğal konuşma, gerçek süre, iki metin ve ses son işlemi; Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1611.md](docs/devir/2026-10-19-1611.md) — Dublaj zaman çizelgesi/karıştırıcı/proje; Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1449.md](docs/devir/2026-10-19-1449.md) — Proje aralığı/özgün SRT korunuyor; Windows CI bekleniyor
+Önceki çalışma: [docs/devir/2026-10-19-1443.md](docs/devir/2026-10-19-1443.md) — Dublaj zaman çizelgesi, karıştırıcı ve taşınabilir proje; Windows CI bekleniyor
+Önceki çalışma: [docs/devir/2026-10-19-1349.md](docs/devir/2026-10-19-1349.md) — Dublaj geliştirmeleri Windows CI başarılı; PR457 incelemeye hazır
+Önceki çalışma: [docs/devir/2026-10-19-1326.md](docs/devir/2026-10-19-1326.md) — Süreye uygun dublaj, parça kurtarma, doğrulama ve temsil edici örnek
+Önceki çalışma: [docs/devir/2026-10-19-1259.md](docs/devir/2026-10-19-1259.md) — Rapor484 Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1248.md](docs/devir/2026-10-19-1248.md) — Rapor484: Ses hatası tanısı ve gerçek GPU kısa üretim
+Önceki çalışma: [docs/devir/2026-10-19-1219.md](docs/devir/2026-10-19-1219.md) — Kullanıcı onayıyla PR454 master’a birleştirildi; Windows ana kopya güncel
+Önceki çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
 Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
 Önceki çalışma: [docs/devir/2026-10-19-1119.md](docs/devir/2026-10-19-1119.md) — Seslendirme ayar envanteri CI onarımı
 Önceki çalışma: [docs/devir/2026-10-19-1109.md](docs/devir/2026-10-19-1109.md) — Rapor483: Gönderilen ses/dublaj bulgularını doğrulama ve onarım

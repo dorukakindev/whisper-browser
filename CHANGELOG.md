@@ -4,6 +4,44 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Dubbing failures retain bounded engine diagnostics and exit signals instead of losing the cause behind a generic notice.
+
+- Redesigned the dubbing workspace with source/voice/range overview, bounded responsive cards, persistent actions and safe production presets; simplified desktop Voice Studio with narration presets and advanced settings.
+
+- Expanded Voice Studio with a two-column layout, saved voices, clone modes, engine selection, finishing and preview controls; added consistent flowing speech blocks to browser/player dubbing.
+
+- Added visible local audio reference preparation and a repository-owned standalone text/TXT voice studio, sharing the existing VoxCPM2 environment without launching the old external GUI.
+
+- Fixed twenty verified subtitle identity, JSON caption-window, Unicode decoding, translation retry and recovery-state defects. Future preference/cache schemas are preserved rather than overwritten.
+
+- Fixed twenty verified media process, secret/library recovery, catalogue episode/source, closed-tab, translation-integrity and dubbing restore defects.
+
+- Fixed twenty verified dubbing meaning, percentage speech, quantity verification, subtitle identity/timing, portable project and page-translation archive data-loss defects.
+
+- Fixed twenty verified library, quotation identity, note recovery, queue persistence, watched-folder, HLS recovery and translation-memory defects. Existing note and subtitle links remain associated when Windows file aliases are normalized.
+
+- Fixed twenty verified speech meaning, quality status, portable project, subtitle preference, review, scientific quantity and download defects. Stale dubbing telemetry now restores the original audio preference.
+
+- Fixed twenty verified speech-meaning, manual voice cache, translation/PDF cache identity, media privacy, playback and preview failure bugs. Replacement audio now restores the original video sound outside its playable interval.
+
+- Fixed twenty verified dubbing speech/meaning, timing export, cancellation, progress and library persistence defects. Relinking and merging videos now preserve canonical notes; stale local dubbing callbacks cannot change a newly opened video.
+
+- Fixed twenty confirmed PDF translation, subtitle parsing, review matching, translation cache, provider recovery and process cancellation failures.
+
+- Fixed thirteen confirmed speech generation/retry, cache identity, verifier shutdown, preview ownership, WAV recovery and spoken-text preservation failures. Explicit regeneration now varies the selected acoustic seed.
+
+- Fixed twenty transcript evidence, synchronization/edit restore, media relink, playback, queue, session and audio-map edge cases.
+
+- Fixed ten translation archive matching/path, subtitle completion counters, closed-tab recovery, calibration precision and cross-platform cache ownership bugs.
+
+- Fixed ten dubbing playback, portable project integrity, export-size and speech validation bugs, including stale preview playback and replaced audio layer races.
+
+- Added optional natural-speech polishing, measured-duration wording feedback, separate subtitle/spoken text, conservative Turkish reading forms, audio boundary finishing and activity-based background ducking; fixed equivalent-number speech verification.
+
+- Added sentence-level dubbing timeline review, layered audio mixing with speech ducking, portable projects and synchronized WAV/MP4 exports with optional original audio track.
+
+- Added duration-aware speech translation and one bounded wording retry, smooth video timing maps, cached CPU speech verification profiles, voice reference level advice, independently cached pieces with selective regeneration and OOM fallback, and representative previews with explicit review results.
+
 - Hardened dubbing module resolution, simultaneous cue planning, bounded input/group validation, source preview consistency, recoverable audio timing maps, cold-start waits, subprocess diagnostics and voice studio startup reporting.
 
 - Restored single-pass translation for speech in the existing browser Whisper translation range settings, with persisted preference, separate cache identity and preserved subtitle timing.

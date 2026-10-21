@@ -21,8 +21,12 @@ function terminateProcessTree(proc, { spawn, platform = process.platform, onWarn
       try { if (group(-proc.pid, 'SIGKILL')) return; } catch (_) {}
     }
     try {
-      if (!proc.kill('SIGKILL')) onWarning('Süreç durdurulamadı; kapanması bekleniyor.');
-    } catch (_) { onWarning('Süreç durdurulamadı; kapanması bekleniyor.'); }
+      if (proc.kill('SIGKILL')) return;
+    } catch (_) {}
+    // No signal was delivered. Keep the live child owned by its caller, but
+    // allow another explicit stop attempt after the underlying failure clears.
+    proc._terminating = false;
+    onWarning('Süreç durdurulamadı; kapanması bekleniyor.');
   };
   if (platform !== 'win32' || !Number.isInteger(proc.pid) || proc.pid <= 0) {
     fallback();

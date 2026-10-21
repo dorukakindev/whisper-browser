@@ -10,7 +10,7 @@
   function progressOf({ completed = 0, total = 0, percent } = {}) {
     const done = Math.max(0, Number(completed) || 0);
     const count = Math.max(0, Number(total) || 0);
-    const explicit = Number(percent);
+    const explicit = percent == null || (typeof percent === 'string' && !percent.trim()) ? NaN : Number(percent);
     const value = Number.isFinite(explicit)
       ? clamp(explicit, 0, 100)
       : count > 0 ? clamp(done / count * 100, 0, 100) : null;

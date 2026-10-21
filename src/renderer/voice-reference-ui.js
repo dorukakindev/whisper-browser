@@ -4,6 +4,7 @@
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
   let active = null, stopping = false, references = [], folder = '', applying = false;
+  let localSource = '', selectingSource = false;
   let refreshSequence = 0;
   const drafts = new Map();
   const rememberDraft = () => { const item = selected(); if (item) drafts.set(item.id, { name: el('voiceReferenceName').value, text: el('voiceReferenceText').value }); };
@@ -22,10 +23,12 @@
   };
   const selected = () => references.find(item => item.id === el('voiceReferenceSelect').value);
   function controls() {
-    for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying;
+    for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying || selectingSource;
     el('voiceReferenceCancel').disabled = !active || stopping;
     const generating = !el('dubGeneratorCancel').disabled;
-    el('voiceReferencePrepare').disabled = !!active || applying || generating;
+    el('voiceReferencePrepare').disabled = !!active || applying || generating || selectingSource;
+    el('voiceReferenceLocal').disabled = !!active || applying || generating || selectingSource;
+    el('voiceReferenceVideo').disabled = !!active || applying || generating || selectingSource;
     el('voiceReferenceUse').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceText').value.trim();
     el('voiceReferenceRename').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceName').value.trim();
     el('voiceReferenceFolder').disabled = !folder;
@@ -38,6 +41,13 @@
     const draft = item && drafts.get(item.id);
     el('voiceReferenceName').value = draft?.name ?? item?.name ?? '';
     el('voiceReferenceText').value = draft?.text ?? item?.text ?? ''; controls();
+    const quality = item?.quality;
+    const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
+    el('voiceReferenceQuality').textContent = quality ? [
+      ...(quality.warnings || []).map(w => t(labels[w] || w)),
+      t('Ses düzeyi önerisi; müzik ve konuşmacıyı dinleyerek kontrol edin.'),
+      `${t('Kayıt içinde önerilen aralık')}: ${quality.suggested_start}–${quality.suggested_end} s`
+    ].join(' · ') : '';
   }
   async function refresh(preferred) {
     const sequence = ++refreshSequence;
@@ -85,10 +95,31 @@
     if (!/^\d+(?::[0-5]?\d){0,2}(?:\.\d{1,3})?$/.test(value)) throw new Error();
     return value.split(':').reduce((total, part) => total * 60 + Number(part), 0);
   };
+  el('voiceReferenceLocal').addEventListener('click', async () => {
+    if (active || applying || selectingSource) return;
+    selectingSource = true; controls();
+    try {
+      const result = await api.selectVoiceReferenceSource();
+      if (!result?.ok) { failure(result?.error); return; }
+      if (result.cancelled) return;
+      localSource = result.path;
+      panel.open = true;
+      el('voiceReferenceSourceName').textContent = localSource.split(/[\\/]/).pop();
+      el('voiceReferenceStart').value = '0:00'; el('voiceReferenceEnd').value = '0:20';
+      status('Yerel ses seçildi. Konuşma aralığını ayarlayıp Referans sesi hazırla düğmesine basın.');
+    } catch (error) { failure(error?.message); }
+    finally { selectingSource = false; controls(); }
+  });
+  el('voiceReferenceVideo').addEventListener('click', () => {
+    if (active || applying || selectingSource) return;
+    localSource = ''; el('voiceReferenceSourceName').textContent = '';
+    panel.open = true;
+    status('Referans kaynağı açık video olarak seçildi.');
+  });
   el('voiceReferencePrepare').addEventListener('click', async () => {
-    if (active) return;
+    if (active || applying || selectingSource) return;
     const context = window.BrowserDubAudioUI?.context();
-    if (!context?.hasMedia || !context.visible) { status('Ses eklemek için önce bir video açın.'); return; }
+    if (!localSource && (!context?.hasMedia || !context.visible)) { status('Ses eklemek için önce bir video açın.'); return; }
     let start, end;
     try {
       start = seconds(el('voiceReferenceStart').value); end = seconds(el('voiceReferenceEnd').value);
@@ -99,8 +130,8 @@
     status('Referans ses hazırlanıyor…');
     try {
       const result = await api.prepareVoiceReference({ id, name: el('voiceReferenceName').value.trim(), range: { start, end },
-        source: context.mode === 'player' ? context.backgroundSource : '',
-        context: { tabId: context.tabId, generation: context.generation, mediaId: context.mediaId } });
+        source: localSource || (context?.mode === 'player' ? context.backgroundSource : ''),
+        context: { tabId: context?.tabId, generation: context?.generation, mediaId: context?.mediaId } });
       if (!result?.ok) { if (result?.cancelled) status('Durduruldu.'); else failure(result?.error); return; }
       const loaded = await refresh(result.reference.id);
       status(loaded ? 'Referans hazır. Dökümü kontrol edip Bu sesi kullan düğmesine basın.' : 'Ses üretildi ancak referans listesi yenilenemedi. Paneli yeniden açın.');

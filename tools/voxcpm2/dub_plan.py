@@ -10,7 +10,7 @@ from dub_timing import sentence_plan
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from subtitle_text import decode_subtitle_bytes
 
-TAG_RE = re.compile(r"<[^>]+>|\{[^}]*\}")
+TAG_RE = re.compile(r"</?(?:b|i|u|s|strong|em|font|span|small|big|sub|sup)(?=[\s/>])[^>]*>|\{\\[^}]*\}", re.I)
 TIME_RE = re.compile(
     r"^[ \t]*(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})[ \t]*-->[ \t]*"
     r"(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})(?=[ \t\n]|$)", re.MULTILINE)
@@ -37,7 +37,8 @@ def parse_srt(path, source_bytes=None):
     # SRT separators may contain spaces/tabs from subtitle editors.
     text = re.sub(r'(?m)^[ \t]+$', '', text)
     cues = []
-    for match in TIME_RE.finditer(text):
+    timings = list(TIME_RE.finditer(text))
+    for index, match in enumerate(timings):
         fields = match.groups()
         h1, m1, s1, ms1, h2, m2, s2, ms2 = (
             int(g.ljust(3, '0')) if i in (3, 7) else int(g) for i, g in enumerate(fields))
@@ -49,13 +50,25 @@ def parse_srt(path, source_bytes=None):
             line_end = len(text)
         if block_end < 0:
             block_end = len(text)
-        body = text[line_end:block_end]
+        if index + 1 < len(timings) and timings[index + 1].start() < block_end:
+            block_end = timings[index + 1].start()
+            # Recover compact SRT without reading the next cue's index aloud.
+            prefix = text[line_end:block_end]
+            header_end = max(0, match.start() - 1)
+            counter = text[text.rfind('\n', 0, header_end) + 1:header_end].strip()
+            following = re.search(r'\n[ \t]*(\d+)[ \t]*\n?$', prefix)
+            if counter.isdecimal() and len(counter) <= 10 and following and len(following[1]) <= 10 and int(following[1]) == int(counter) + 1:
+                prefix = prefix[:following.start()]
+            body = prefix
+        else:
+            body = text[line_end:block_end]
         # Line-break tags separate words; inline styling must not split them.
         body = re.sub(r'<br\b[^>]*>', ' ', body, flags=re.I)
         body = html.unescape(TAG_RE.sub('', body))
+        body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', body)
         body = re.sub(r"\s+", " ", body).strip()
-        if body and end > start:
-            cues.append((start, end, body))
+        if body and end >= start:
+            cues.append((start, max(start + 1, end), body))
     return cues
 
 
@@ -102,10 +115,17 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
     return groups
 
 
-def plan(path, start=None, end=None):
+def grouping_options(mode):
+    if mode not in ('cumle', 'satir', 'akici'):
+        raise ValueError('Gecersiz gruplama modu.')
+    return {'mode': mode, 'max_chars': 280 if mode == 'akici' else 250,
+            'max_seconds': 18 if mode == 'akici' else 12, 'max_gap_ms': 600}
+
+
+def plan(path, start=None, end=None, grouping='cumle'):
     source = Path(path)
     source_bytes = read_source_bytes(source)
-    groups = make_groups(parse_srt(source, source_bytes), start, end)
+    groups = make_groups(parse_srt(source, source_bytes), start, end, **grouping_options(grouping))
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
@@ -114,4 +134,11 @@ def plan(path, start=None, end=None):
     return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups}
 
 if __name__ == '__main__':
-    print(json.dumps(plan(sys.argv[1], *(map(float, sys.argv[2:4]))), ensure_ascii=True))
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('source')
+    parser.add_argument('start', nargs='?', type=float)
+    parser.add_argument('end', nargs='?', type=float)
+    parser.add_argument('--grouping', choices=('cumle', 'satir', 'akici'), default='cumle')
+    args = parser.parse_args()
+    print(json.dumps(plan(args.source, args.start, args.end, args.grouping), ensure_ascii=True))

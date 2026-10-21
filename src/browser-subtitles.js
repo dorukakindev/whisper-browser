@@ -20,7 +20,7 @@ function decodeEntities(value) {
         || (codePoint >= 0x7F && codePoint <= 0x9F)) return '';
     // Entity kodlu bidi/sıfır-genişlik enjeksiyonu da (&#8238; = RLO)
     // temizlikten sonra metne sızmasın.
-    if ((codePoint >= 0x200B && codePoint <= 0x200F)
+    if (codePoint === 0x200B
         || (codePoint >= 0x202A && codePoint <= 0x202E)
         || (codePoint >= 0x2060 && codePoint <= 0x2064)
         || (codePoint >= 0x2066 && codePoint <= 0x2069)
@@ -77,12 +77,12 @@ function cleanCueText(value) {
   // IMSC ruby anotasyonunda rt okunuş/açıklama metnidir. Ana karakterlerle
   // birleşirse düz metinde sahte bir diyalog oluşur; ana ruby metnini koru.
   source = source.replace(/<(?:[\w.-]+:)?(?:rt|rp)\b(?:[^>]*[^/>])?>[\s\S]*?<\/(?:[\w.-]+:)?(?:rt|rp)\s*>/gi, '');
-  const decoded = decodeEntities(source.replace(/<br\s*\/?>/gi, '\n'));
+  const decoded = decodeEntities(source.replace(/<(?:[\w.-]+:)?br\s*\/?>/gi, '\n'));
   // Yalnız bilinen altyazı biçimlendirme etiketlerini kaldır. Genel <...>
   // deseni "5 < 10 ve 20 > 15" gibi gerçek diyalog parçalarını siliyordu.
 
   return decoded
-    .replace(/<\/?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
+    .replace(/<\/?(?:[\w.-]+:)?(?:b|i|u|s|strong|em|ruby|rt|font|span|small|big|sub|sup)(?:\s+[^<>]*?)?\s*\/?>/gi, '')
     .replace(/<\/?(?:c(?:\.[\w-]+)*|v(?:\.[\w-]+)*(?:\s+[^<>]*)?|lang(?:\s+[^<>]*)?)\s*>/gi, '')
     .replace(/<\d{1,3}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*>/g, '')
     .replace(BIDI_SPOOF_RE, '')
@@ -128,10 +128,12 @@ function cuePresentationCompatible(left, right) {
 }
 
 function normalizeCues(cues) {
-  const clean = (cues || []).map((cue) => ({
+  const isTime = value => typeof value === 'number' || (typeof value === 'string' && value.trim() !== '');
+  const clean = (Array.isArray(cues) ? cues : []).filter(cue => cue && typeof cue === 'object'
+    && isTime(cue.start)).map((cue) => ({
     ...cue,
     start: Number(cue.start),
-    end: Number(cue.end),
+    end: isTime(cue.end) ? Number(cue.end) : NaN,
     text: cleanCueText(cue.text),
   })).filter((cue) => Number.isFinite(cue.start) && cue.start >= 0 && cue.text)
     .sort((a, b) => a.start - b.start);
@@ -151,7 +153,9 @@ function normalizeCues(cues) {
   const deduped = [];
   for (const cue of clean) {
     const previous = deduped[deduped.length - 1];
+    const previousId = previous?.cueId ?? previous?.id, currentId = cue.cueId ?? cue.id;
     const rollingDuplicate = previous && cuePresentationCompatible(previous, cue) && cue.text === previous.text
+      && (previousId == null || currentId == null || previousId === currentId)
       && cue.start < previous.end && cue.start - previous.start <= 1.0;
     if (rollingDuplicate) {
       previous.end = Math.max(previous.end, cue.end);
@@ -271,7 +275,13 @@ function unwrapMpegTs(rawValue, state = null) {
 
 function parseTimedBlocks(body, timing = {}) {
   const out = [];
-  const clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  let clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  if (/^WEBVTT(?:[ \t\n]|$)/.test(clean)) {
+    // NOTE may itself contain valid-looking timing examples. Remove metadata
+    // blocks before the global timing scan used to recover separator-less SRT.
+    clean = clean.split(/\n[ \t]*\n/).filter(block =>
+      !/^(?:NOTE(?:[ \t\n]|$)|STYLE[ \t]*(?:\n|$)|REGION[ \t]*(?:\n|$))/.test(block)).join('\n\n');
+  }
   const timestampMap = (clean.match(/X-TIMESTAMP-MAP\s*=\s*[^\n]*/i) || [])[0] || '';
   const localMatch = timestampMap.match(/LOCAL:([^,\s]+)/i);
   const mpegMatch = timestampMap.match(/MPEGTS:(\d+)/i);
@@ -373,6 +383,7 @@ function parseAss(body) {
     const textIndex = eventFields.indexOf('text');
     const startIndex = eventFields.indexOf('start');
     const endIndex = eventFields.indexOf('end');
+    const nameIndex = eventFields.indexOf('name') >= 0 ? eventFields.indexOf('name') : eventFields.indexOf('actor');
     if (textIndex < 0 || startIndex < 0 || endIndex < 0 || rawFields.length <= textIndex) continue;
     const start = parseTime(rawFields[startIndex]);
     const end = parseTime(rawFields[endIndex]);
@@ -384,7 +395,8 @@ function parseAss(body) {
     const text = cleanedText
       .replace(/\\N/gi, '\n').replace(/\\h/gi, ' ')
       .replace(/\\([{}])\u2060/g, '$1').replace(/\\\u2060/g, '\\');
-    if (start !== null) out.push({ start, end, text });
+    const speaker = nameIndex >= 0 ? cleanCueText(rawFields[nameIndex]).slice(0, 80) : '';
+    if (start !== null) out.push({ start, end, text, ...(speaker ? { speaker } : {}) });
   }
   return normalizeCues(out);
 }
@@ -425,6 +437,9 @@ function parseSami(body) {
 
 function parseLrc(body) {
   const rows = [];
+  const offsets = [...String(body || '').matchAll(/\[offset\s*:\s*([+-]?\d+)\s*\]/gi)];
+  // LRC positive offset advances lyrics; negative offset delays them.
+  const offset = offsets.length ? -Number(offsets.at(-1)[1]) / 1000 : 0;
   for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
     const tagPattern = /\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
     const tags = [...line.matchAll(tagPattern)];
@@ -442,8 +457,9 @@ function parseLrc(body) {
     ...row,
     // LRC'nin son satırında bitiş damgası yoktur. Sıfıra düşürüp satırı
     // kaybetmek yerine okunabilir kısa bir varsayılan süre kullan.
-    end: rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5,
-  })).filter((row) => row.text));
+    start: Math.max(0, row.start + offset),
+    end: (rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5) + offset,
+  })).filter((row) => row.text && row.end > row.start));
 }
 
 const HLS_LANGUAGE_LABELS = {
@@ -1320,15 +1336,17 @@ function parseXml(body) {
       presentation: presentationFromTag(style[1]),
     });
   }
-  const resolveStyle = (ids, seen = new Set()) => {
+  const resolveStyle = (ids, seen = new Set(), budget = { remaining: 512 }) => {
     let resolved = {};
+    if (seen.size >= 64) return resolved;
     for (const id of String(ids || '').trim().split(/\s+/).filter(Boolean)) {
+      if (--budget.remaining < 0) break;
       if (seen.has(id)) continue;
       const definition = styleDefinitions.get(id);
       if (!definition) continue;
       const branch = new Set(seen); branch.add(id);
       resolved = mergePresentation(resolved,
-        resolveStyle(definition.references.join(' '), branch), definition.presentation);
+        resolveStyle(definition.references.join(' '), branch, budget), definition.presentation);
     }
     return resolved;
   };
@@ -1453,8 +1471,10 @@ function parseJson(body) {
   try { data = JSON.parse(body); } catch (_) { return []; }
   const events = Array.isArray(data && data.events) ? data.events : [];
   const out = [];
+  const windows = new Map();
   for (const event of events) {
-    const text = Array.isArray(event.segs) ? event.segs.map((seg) => seg.utf8 || '').join('')
+    if (!event || typeof event !== 'object') continue;
+    const text = Array.isArray(event.segs) ? event.segs.map((seg) => typeof seg?.utf8 === 'string' ? seg.utf8 : '').join('')
       : (event.text || event.utf8 || '');
     const start = Number(event.tStartMs ?? event.startMs ?? event.start);
     const duration = Number(event.dDurationMs ?? event.durationMs ?? event.duration);
@@ -1467,12 +1487,16 @@ function parseJson(body) {
     const end = d === null ? null : s + d;
     // YouTube json3 canlı altyazısında aAppend olayı önceki ekrandaki metnin
     // devamıdır. Ayrı cue üretmek kelimeleri böler ve çeviride tekrar yaratır.
-    if (event.aAppend && out.length) {
-      const previous = out[out.length - 1];
+    const windowId = String(event.wWinId ?? 'default');
+    if (event.aAppend && windows.has(windowId)) {
+      const previous = windows.get(windowId);
       previous.text += text;
       if (Number.isFinite(end)) previous.end = Math.max(Number(previous.end) || s, end);
     } else {
-      out.push({ start: s, end, text });
+      const cue = { start: s, end, text };
+      if (event.wWinId != null) cue.region = windowId;
+      out.push(cue);
+      windows.set(windowId, cue);
     }
   }
   if (out.length) return normalizeCues(out);
@@ -1495,7 +1519,13 @@ function parseJson(body) {
     if (Number.isFinite(duration) && /Ms$/i.test(durationKey)) duration /= 1000;
     if (!Number.isFinite(end)) end = Number.isFinite(duration) ? start + duration : null;
     const id = cue.id ?? cue.cueId ?? cue.identifier;
-    out.push({ ...(id === undefined || id === null ? {} : { id }), start, end, text });
+    const presentation = {};
+    for (const key of ['cueId', 'speaker', 'protected', 'sourceMode', 'captionMode', 'mode',
+      'region', 'line', 'lineAlign', 'position', 'positionAlign', 'size', 'align', 'displayAlign',
+      'writingMode', 'regionExtent', 'direction', 'unicodeBidi', 'discontinuity', 'language']) {
+      if (cue[key] !== undefined) presentation[key] = cue[key];
+    }
+    out.push({ ...presentation, ...(id === undefined || id === null ? {} : { id }), start, end, text });
   }
   return normalizeCues(out);
 }
@@ -1505,6 +1535,7 @@ function parseYoutubeCaptionMetadata(body, rawUrl = '') {
   try { data = JSON.parse(String(body || '')); } catch (_) {
     data = {};
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
   let params = null;
   try { params = new URL(String(rawUrl || '')).searchParams; } catch (_) {}
   const automatic = params?.get('kind') === 'asr'
@@ -1909,7 +1940,7 @@ function subtitleLanguage(response = {}) {
   if (header) return String(header).split(',')[0].trim();
   try {
     const u = new URL(response.url || '');
-    return u.searchParams.get('lang') || u.searchParams.get('language')
+    return u.searchParams.get('tlang') || u.searchParams.get('lang') || u.searchParams.get('language')
       || u.searchParams.get('locale') || u.searchParams.get('hl') || '';
   } catch (_) { return ''; }
 }

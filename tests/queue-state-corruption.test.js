@@ -69,7 +69,8 @@ const item = (o = {}) => ({ id: 1, type: 'file', input: 'a.mp4', ...o });
   const disk = normalizeQueueSnapshot({ items: [item({ id: 9, status: 'running' })] }, 9);
   const incoming = { items: [item({ id: 9, status: 'error', error: 'x' })], queueRunning: false };
   const merged = mergeQueueSnapshotForSave(disk, incoming, 9, []);
-  ok(merged.items[0].status === 'error', 'koruma listesiz gecikmiş yazı serbest');
+  ok(merged.items[0].status === 'running' && merged.currentQueueId === 9,
+    'ana süreçte aktif iş, terminal koruma listesinden bağımsız olarak korunur');
 }
 
 // --- terminal güncelleme ---

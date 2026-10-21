@@ -529,7 +529,8 @@ function normalizePdfBlock(block, index) {
   const translation = typeof block.translation === 'string'
     ? normalizeText(block.translation).slice(0, 24000) : '';
   const requestedStatus = String(block.status ?? '').toLowerCase();
-  const status = translation ? 'translated'
+  const userText = typeof block.userText === 'string' ? normalizeText(block.userText).slice(0, 24000) : '';
+  const status = translation || userText ? 'translated'
     : (requestedStatus === 'failed' ? 'failed' : requestedStatus === 'skipped' ? 'skipped' : 'pending');
   const normalized = {
     id: String(block.id ?? index).slice(0, 200),
@@ -550,7 +551,6 @@ function normalizePdfBlock(block, index) {
   }
   // Madde 37 — kullanıcı düzeltmesi: hedef metne elle yazılan userText
   // çevirinin üstünde gösterilir ve yeniden işlemelerde korunur.
-  const userText = typeof block.userText === 'string' ? normalizeText(block.userText).slice(0, 24000) : '';
   if (userText) { normalized.userText = userText; normalized.edited = true; }
   if (status === 'failed' && block.error != null) normalized.error = normalizeText(block.error).slice(0, 1000);
   return normalized;
@@ -586,9 +586,9 @@ function normalizePdfTranslationState(raw, identity) {
 
 /** State dosya adı: sağlayıcı kimliğini de kapsar — sağlayıcı değişimi
  *  ayrı durum dosyası üretir; öncekinin sayfa çevirileri korunur. */
-function pdfTranslationStateFileStem(pdfHash, endpoint) {
+function pdfTranslationStateFileStem(pdfHash, endpoint, model = '', targetLanguage = '') {
   return createHash('sha256')
-    .update(`${String(pdfHash || '')}|${String(endpoint || '')}`, 'utf8').digest('hex');
+    .update(JSON.stringify([String(pdfHash || ''), String(endpoint || ''), String(model || ''), String(targetLanguage || '')]), 'utf8').digest('hex');
 }
 
 /** Endpoint alanı eklenmeden önceki dosya adı — geriye dönük okuma yolu. */
@@ -602,10 +602,12 @@ function pdfTranslationStateLegacyFileStem(pdfHash) {
  *  gizleyemez). Uyumlu dosya yoksa taze durum döner. */
 function loadPdfTranslationState(directory, identity) {
   const normalized = normalizedIdentity(identity);
-  const primary = path.join(directory, `${pdfTranslationStateFileStem(normalized.pdfHash, normalized.endpoint)}.json`);
+  const primary = path.join(directory, `${pdfTranslationStateFileStem(normalized.pdfHash, normalized.endpoint, normalized.model, normalized.targetLanguage)}.json`);
+  const previous = path.join(directory, `${createHash('sha256').update(`${normalized.pdfHash}|${normalized.endpoint}`, 'utf8').digest('hex')}.json`);
+  const transitional = path.join(directory, `${pdfTranslationStateFileStem(normalized.pdfHash, normalized.endpoint)}.json`);
   // Endpoint alanı eklenmeden önce yazılmış dosyalar pdfHash-only anahtardaydı.
   const legacy = path.join(directory, `${pdfTranslationStateLegacyFileStem(normalized.pdfHash)}.json`);
-  for (const candidate of [primary, `${primary}.bak`, legacy, `${legacy}.bak`]) {
+  for (const candidate of [primary, `${primary}.bak`, previous, `${previous}.bak`, transitional, `${transitional}.bak`, legacy, `${legacy}.bak`]) {
     try {
       if (!fs.existsSync(candidate) || fs.statSync(candidate).size > 64 * 1024 * 1024) continue;
       const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
@@ -630,7 +632,7 @@ function loadPdfTranslationState(directory, identity) {
 }
 
 function isPdfPageComplete(blocks) {
-  return Array.isArray(blocks) && blocks.every((block) => block.status === 'translated' || block.status === 'skipped');
+  return Array.isArray(blocks) && blocks.every((block) => block.status === 'translated' || block.status === 'skipped' || Boolean(normalizeText(block.userText)));
 }
 
 function translatedPdfPages(state) {
@@ -675,7 +677,7 @@ function recordPdfPageTranslation(state, pageNumber, blocks) {
   if (previousEdits.size) {
     for (const block of normalizedBlocks) {
       const kept = previousEdits.get(block.id);
-      if (kept && kept.source === block.source && !block.userText) { block.userText = kept.userText; block.edited = true; }
+      if (kept && kept.source === block.source && !block.userText) { block.userText = kept.userText; block.edited = true; block.status = 'translated'; }
     }
   }
   normalized.pages[String(page)] = normalizedBlocks;
@@ -693,8 +695,8 @@ function applyPdfBlockEdit(state, pageNumber, blockId, userText) {
   if (index < 0) return null;
   const text = typeof userText === 'string' ? normalizeText(userText).slice(0, 24000) : '';
   const next = { ...blocks[index] };
-  if (text) { next.userText = text; next.edited = true; }
-  else { delete next.userText; delete next.edited; }
+  if (text) { next.userText = text; next.edited = true; next.status = 'translated'; }
+  else { delete next.userText; delete next.edited; next.status = next.translation ? 'translated' : next.error ? 'failed' : 'pending'; }
   blocks[index] = next;
   return next;
 }

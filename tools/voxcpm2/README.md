@@ -1,5 +1,57 @@
 # VoxCPM2 altyazı dublaj aracı
 
+## Bağımsız metin stüdyosu
+
+Stüdyonun üstünde **Dengeli / Kitap anlatımı / Hızlı deneme** hazır ayarları vardır.
+Mevcut ses, döküm, motor ve metin korunur. Gelişmiş ayarlar başta kapalıdır;
+CFG/temperature/durak/seed seçeneklerini oradan açın. **Kısa örnek** düğmesi
+yalnız o çalıştırmada örnek üretir; sonraki tam üretim seçiminizi değiştirmez.
+PyTorch'ta kullanılmayan batch/temperature alanları kapalı gösterilir.
+
+Browser/oynatıcı ses paneli etkin SRT/ses/aralığı üstte gösterir. Alt çubuk
+üretim/durdurma/sonucu kullanma eylemlerini görünür tutar. **Dengeli** normal
+üretim içindir; **Hızlı deneme** AI metin düzenlemesini kapatır, **Ayrıntılı kontrol**
+tüm gruplarda metin doğrulaması yapar ve daha uzun sürer. Bu profiller sesinizi,
+altyazınızı, aralığı veya isteğe bağlı müzik ayırma seçiminizi değiştirmez.
+
+Güncel stüdyo iki sütunludur: solda kayıtlı sesler/klonlama/motor/kalite/son işlem,
+sağda geniş metin ve günlük, altta sabit üretim/dinleme çubuğu. Dar veya yüksek
+DPI pencerede sol ayarlar kaydırılabilir. Otomatik, Hi-Fi ve dökümsüz basit
+klonlama; nano-vLLM veya uyumlu PyTorch motoru seçilebilir. Kelime vurgulu
+okuyucu isteğe bağlı son işlemdir; modelin kelime kelime ses ürettiği anlamına gelmez.
+300 karakterlik dengeli bloklar varsayılandır; 600/900/1200 ile uzun bağlam seçilebilir. Gerçek GPU karşılaştırmasında yaklaşık 400 karakterlik tek istek erken bitirebildi; uzunluk kalite garantisi değildir.
+Okuma planı v2 tam cümleleri birleştirir, çok uzun metinler güvenli sınırlarda parçalanır.
+Durak alanı saniye değil mevcut motorun durak **çarpanıdır**. Sayısal tercihler,
+klonlama/motor/parçalama/son işlem ve örnek seçimleri saklanır; varsayılan hizalama
+kapalıdır, açılırsa ek süre/model indirmesi gerekebilir. İşlenen özgün metin değişmez.
+
+Browser/oynatıcı **Konuşma gruplama → Akıcı konuşma blokları** varsayılanında,
+yakın kısa cümleler en fazla 280 karakter/18 saniyelik kaynak blokta birleştirilir.
+600 ms üzeri boşluk, çakışma ve görünen konuşmacı sınırı ayrı tutulur. Eski cümle
+grupları ve satır satır seçenekleri de vardır. Plan ve üretim aynı ayarları kullanır;
+eski plana ait düzenleme farklı gruplama ile uygulanamaz. İnce kelime zamanlaması
+garantisi yoktur; senkron blok düzeyindedir, video yavaşlatma haritası korunur.
+
+Whisper Local kökündeki `ses-studyosu.bat` dosyasını çift tıklayın. Ana Electron
+uygulaması gerekmeksizin metin yazabilir/TXT açabilir, WAV referansı ve birebir
+dökümünü seçebilir, adım/paralellik/CFG/sıcaklık/durak ayarlarını yapabilirsiniz.
+Arayüz bu repodaki `text_studio.py` dosyasıdır; masaüstündeki eski `arayuz.py`
+çalıştırılmaz veya değiştirilmez. Mevcut motorun `nanovllm_oku.py` okuyucusu ve
+venv/model dosyaları kullanılır; yeni model kurulmaz. Model ağırlıkları ve mevcut
+SRT dublaj hattı değiştirilmez. GPU CUDA gerekir.
+
+Girdi/metin/döküm/iş günlüğü `Downloads/Sesler/Girdi/Metin/<iş>/`, WAV çıktıları
+`Downloads/Sesler/Çıktı/` altındadır. Sayısal ayarlar ayrı `text-studio-settings.json`
+dosyasına kaydedilir; uygulamanın `dub-settings.json` dosyası ezilmez.
+Uygulama içindeki **Metin / TXT stüdyosunu aç** düğmesi de aynı arayüzü açar.
+Bağımsız açarken GPU kullanan başka bir üretimi kapatın; Electron içinden açılan
+stüdyo mevcut üretim kilidine katılır, bağımsız süreç ayrı GPU kilidi sağlamaz.
+
+Browser/oynatıcı referans panelinde **Yerel ses seç** ile WAV/MP3/FLAC/M4A vb.
+bir kaynak seçilir. 3–30 saniyelik aralığı ayarlayıp **Referans sesi hazırla**
+ve sonra **Bu sesi kullan** düğmesine basın. Kaynak dosya değiştirilmez;
+standart referans WAV ve otomatik döküm `Sesler/Ses referansları/` içine kaydedilir.
+
 Bu dosyalar Whisper uygulamasına TTS bağımlılığı eklemez. Mevcut VoxCPM2
 ortamını kullanan kanonik dublaj scriptleridir. Uygulama artık bu klasördeki scripti
 `VOXCPM_ROOT` ile seçilen dış motorla çalıştırır; eski dış scriptin kopyasına bağımlı değildir.
@@ -160,3 +212,58 @@ Kısa doğrulama: gerçek yerel11sn ses+sentetik müzik instrumental üretimi ve
 Bu, uzun YouTube videolarında kusursuz ayırma veya canlı Electron senkron kanıtı değildir.
 
 Kaynak: [Audio Separator](https://github.com/nomadkaraoke/python-audio-separator).
+
+
+## Yerel ses karşılaştırması
+
+Motorun Python'uyla `compare_prosody.py --text ornek.txt --reference ses.wav
+--transcript ses.txt --output yeni-karsilastirma` çalıştırılabilir. Önce
+VOXCPM_ROOT motor klasörünü göstermeli. Metin en fazla800 karakter ve her
+satırda tam cümle olmalı. İsteğe bağlı --verify-python uygulamanın backend
+Python yoludur (önbellekteki small Whisper gerekir). --only ile sentence,
+flowing, fixed-seed, cfg2-fixed veya single-context seçilebilir. Model yalnız
+önbellekten yüklenir; yeni model indirmez. İşlemGPU kullanır; aynı anda başka
+ses üretimi başlatmayın. Çıktı listen.html ve results.json'dur. Otomatik bir
+kazanan veya insan doğallığı puanı verilmez. Daha uzun bağlam her zaman daha
+iyi değildir; [gerçek deneme raporu](../../docs/raporlar/BROWSER_BUG_REPORT_504.md)
+metin atlayan tek-parça örneği ve kontrollü kurtarmayı açıklar.
+
+
+### Sabit anlatım bağlamını karşılaştırma (deney aracı)
+
+compare_continuity.py aynı metni orijinal prompt ve sabit onaylı bağlam ile
+karşılaştırır. Modelin kendi Python'u ve VOXCPM_ROOT gerekir. Argümanlar:
+--cases (JSON metin listesi,1–8 pasaj,her biri en çok300karakter),
+--anchor-audio (3–20sn mono WAV), --anchor-text (birebir TXT),
+--reference (asıl WAV), --transcript (asıl TXT), --verify-python
+(uygulama backend Python'u) ve --output (henüz var olmayan klasör).
+Anchor yerel ASR'dan geçmeden model yüklenmez. Referans asıl ses olarak
+korunur; çıktılar zincirlenmez. Sonuçlar JSON/listen.html, kişisel dosyalar
+Git'e konmamalı. Bu araç üretim varsayılanı seçmez; daha kısa ses doğallık
+kanıtı değildir. GPU kullanır; başka ses üretimiyle aynı anda çalıştırmayın.
+
+### Okuma hızını ve perdeyi ölçme
+
+`analyze_prosody.py --results karsilastirma/results.json --output yeni-olcum.json`
+önceki sabit bağlam deneyini CPU üzerinde inceler. `--pitch` eklenirse mevcut
+motor Python'undaki librosa ile pYIN hesaplanır; ana backend'e ek paket gerekmez.
+Bu seçenek daha yavaştır. Her WAV mono ve en çok30 saniye, en çok8 pasaj/4 aday
+olmalıdır. Dosyalar karşılaştırma klasöründe kalır, çıktı dosyası ezilmez.
+Ölçümler: kenar sessizliği dışındaki span üzerinden sözcük/saniye, aktif RMS,
+enerjiyle sessiz bulunan oran ve isteğe bağlı F0 medyanı/90–10 yüzdelik aralığı.
+F0 bir konuşmacı kimliği ölçümü değildir; otomatik doğallık puanı veya kazanan yok.
+Perde özeti en az500ms ve konuşma span'ının%10'u kadar güvenilir çerçeve ister;
+yetersizse medyan/aralık boş kalır ve kapsama ayrıca yazılır. Bu raporlama
+eşiğidir; ses üretimine müdahale etmez. Windows'ta JIT önbelleği sorununda
+yalnız analiz süreci için proje içinde ayrı `NUMBA_CACHE_DIR` kullanılabilir.
+İlk pYIN çağrısı derleme nedeniyle uzayabilir; motor paketleri değiştirilmez.
+Ses değiştirilmez, yüklenmez. Aynı metindeki örnekleri karşılaştırın; farklı
+cümlelerin hız/perde farkı tek başına kusur anlamına gelmez.
+
+Akıcı altyazı gruplamasında tamamlanmış cümle sınırları, istek sayısını azaltmaktan
+önce gelir. Gerektiğinde biraz daha fazla grup oluşabilir; süre/boyut sınırları
+korunur. Uzun ses kurtarmasında da uygun cümle sonu virgülden önce tercih edilir.
+
+Doğrulamalı yeniden okumada bütün anlam kontrollerini geçen aday seçilir.
+İsteğe bağlı ikinci deneme başarısızsa ilk kullanılabilir ses inceleme uyarısıyla
+korunur; üretimin başarılı olduğu iddia edilmez.

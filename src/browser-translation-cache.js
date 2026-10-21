@@ -20,6 +20,7 @@ class PersistentTranslationCache {
     // ulaşınca tek tam sıkıştırma yapılır.
     this.journalPath = `${this.filePath}.journal`;
     this.pendingJournal = [];
+    this.journalNeedsSeparator = false;
     this.journalBytes = 0;
     this.journalFlushes = 0;
     this.lastCompactAt = Date.now();
@@ -35,6 +36,10 @@ class PersistentTranslationCache {
     const loadFile = (filePath) => JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
     const parseCache = (filePath) => {
       const parsed = loadFile(filePath);
+      if (Number.isInteger(parsed?.version) && parsed.version > 2) {
+        this.readOnly = true;
+        throw new Error('Çeviri önbelleği şeması geçersiz.');
+      }
       // Geçerli JSON tek başına güvenilir cache anlamına gelmez. Şema bozuksa
       // sağlam .bak dosyasına düşebilmek için bunu açıkça hata olarak bildir.
       if (!parsed || ![1, 2].includes(parsed.version) || !Array.isArray(parsed.entries)) {
@@ -68,8 +73,9 @@ class PersistentTranslationCache {
         const primaryExists = this.fs.existsSync(this.filePath);
         try {
           parsed = parseCache(`${this.filePath}.bak`);
-          if (primaryExists) archiveCorrupt(this.filePath);
+          if (primaryExists && !this.readOnly) archiveCorrupt(this.filePath);
         } catch (backupError) {
+          if (this.readOnly) return;
           if (primaryExists) archiveCorrupt(this.filePath);
           archiveCorrupt(`${this.filePath}.bak`);
           throw backupError;
@@ -84,15 +90,18 @@ class PersistentTranslationCache {
             : { value: String(raw && raw.value || ''), updatedAt: Number(raw && raw.updatedAt) || 0 };
           return [String(key), record];
         })
-        .filter(([, record]) => record.value && now - record.updatedAt <= this.ttlMs)
+        .filter(([, record]) => record.value && Number.isFinite(record.updatedAt)
+          && record.updatedAt > 0 && record.updatedAt <= now + this.ttlMs && now - record.updatedAt <= this.ttlMs)
         .slice(-this.limit));
     } catch (_) { this.map = new Map(); }
+    if (this.readOnly) return;
     // Sona-eklenen artımlı kayıtları temel dosyanın üstüne tekrar uygula.
     try {
       if (this.fs.existsSync(this.journalPath)) {
         const stat = this.fs.statSync(this.journalPath);
         this.journalBytes = Number(stat?.size) || 0;
         const raw = String(this.fs.readFileSync(this.journalPath, 'utf8'));
+        this.journalNeedsSeparator = !!raw && !raw.endsWith('\n');
         // Sıkıştırma temel dosyayı yazıp sonra journal'ı siler; silme
         // başarısızsa kalan eski journal bir sonraki açılışta aynı
         // kayıtların bayat değerlerini yeni temelin üstüne uygular
@@ -107,7 +116,8 @@ class PersistentTranslationCache {
           try {
             const row = JSON.parse(line);
             const key = String(row?.k || '');
-            const updatedAt = Number(row?.t) || Date.now();
+            const updatedAt = Number(row?.t);
+            if (!Number.isFinite(updatedAt) || updatedAt <= 0 || updatedAt > Date.now() + this.ttlMs) continue;
             // `v` alanı olmayan/dizge olmayan bozuk satır mezar taşı sayılmaz —
             // aksi halde yarım satır sağlam bir temel kaydı siler.
             if (!key || typeof row.v !== 'string') continue;
@@ -172,6 +182,7 @@ class PersistentTranslationCache {
   }
 
   set(key, value) {
+    if (this.readOnly) return false;
     const normalized = String(key || '');
     if (!normalized || !String(value || '').trim()) return false;
     const record = { value: String(value), updatedAt: Date.now() };
@@ -207,6 +218,7 @@ class PersistentTranslationCache {
   async flush() {
     clearTimeout(this.timer);
     this.timer = null;
+    if (this.readOnly) return { ok: false, error: 'Çeviri önbelleği şeması geçersiz.' };
     if (this.flushPromise) return this.flushPromise;
     const dir = path.dirname(this.filePath);
     const promises = this.fs.promises;
@@ -221,7 +233,9 @@ class PersistentTranslationCache {
           // önce atomik olarak değiştir.
           const rows = this.pendingJournal;
           this.pendingJournal = [];
-          const lines = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
+          // A crash may leave an incomplete last JSON row. Separate the next
+          // append so that recovery can skip the torn row without losing it too.
+          const lines = (this.journalNeedsSeparator ? '\n' : '') + rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
           try {
             if (promises) {
               await promises.mkdir(dir, { recursive: true });
@@ -234,9 +248,11 @@ class PersistentTranslationCache {
             // Append başarısızsa satırları yeniden kuyrukla — kayıpları
             // sonraki flush'ta yeniden denenir; yoksa kayıtlar sessizce düşer.
             this.pendingJournal = rows.concat(this.pendingJournal);
+            this.journalNeedsSeparator = true;
             throw error;
           }
           this.journalBytes += Buffer.byteLength(lines, 'utf8');
+          this.journalNeedsSeparator = false;
           this.journalFlushes += 1;
           // .bak zinciri sıkıştırmalarda kurulur; ilk journal turunda yedek
           // henüz yoksa bozuk temel dosyadan geri dönüş imkânsız kalır — bir
@@ -270,6 +286,7 @@ class PersistentTranslationCache {
   }
 
   async compact() {
+    if (this.readOnly) return { ok: false, error: 'Çeviri önbelleği şeması geçersiz.' };
     const dir = path.dirname(this.filePath);
     const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     const promises = this.fs.promises;
@@ -300,6 +317,7 @@ class PersistentTranslationCache {
         try { this.fs.unlinkSync(this.journalPath); } catch (_) {}
       }
       this.journalBytes = 0;
+      this.journalNeedsSeparator = false;
       this.journalFlushes = 0;
       this.lastCompactAt = Date.now();
       this.baseFileWritten = true;

@@ -30,6 +30,7 @@
     const stability = {
       tracking: false,
       elapsedMs: 0,
+      stalledMs: 0,
       lastClockMs: null,
       lastMediaTime: null,
     };
@@ -41,6 +42,7 @@
     function resetStability() {
       stability.tracking = false;
       stability.elapsedMs = 0;
+      stability.stalledMs = 0;
       stability.lastClockMs = null;
       stability.lastMediaTime = null;
     }
@@ -105,6 +107,7 @@
       inFlight.media = null;
       stability.tracking = true;
       stability.elapsedMs = 0;
+      stability.stalledMs = 0;
       stability.lastClockMs = Number(clockMs);
       stability.lastMediaTime = Number(mediaTime);
       return true;
@@ -129,12 +132,15 @@
       // örneklenmesi ise ilerleme değildir ama önceki gerçek ilerlemeyi de silmez.
       if (wallDelta < 0 || mediaDelta < 0 || mediaDelta > plausibleJump) {
         stability.elapsedMs = 0;
+        stability.stalledMs = 0;
         stability.lastClockMs = now;
         stability.lastMediaTime = media;
         return { stable: false, reset: false };
       }
 
       if (wallDelta === 0 || mediaDelta === 0) {
+        if(mediaDelta===0)stability.stalledMs+=Math.max(0,wallDelta);
+        if(stability.stalledMs>=maxProgressGapMs)stability.elapsedMs=0;
         stability.lastClockMs = now;
         stability.lastMediaTime = media;
         return { stable: false, reset: false };
@@ -144,6 +150,7 @@
       // zamanı gerçekten ve makul ölçüde ilerlediyse bu aralığı körlemesine
       // sıfırlamak yerine medya ilerlemesiyle sınırlı süreyi say.
       const progressedMs = Math.min(wallDelta, (mediaDelta / rate) * 1000);
+      stability.stalledMs = 0;
       stability.elapsedMs += Math.max(0, progressedMs);
       stability.lastClockMs = now;
       stability.lastMediaTime = media;

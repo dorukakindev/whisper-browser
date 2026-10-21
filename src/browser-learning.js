@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { PLAYBACK_POLICIES, playbackLearningAction } = require('./playback-policy');
 const { normalizeTextAnchor } = require('./browser-library-tools');
+const { canonicalWatchKey } = require('./watch-library-store');
 const {
   normalizeResearchLinks,
   normalizeResearchTags,
@@ -9,12 +10,14 @@ const {
 
 function normalizeAnnotation(raw = {}) {
   const type = ['quote', 'word', 'note'].includes(raw.type) ? raw.type : 'note';
-  const mediaId = String(raw.mediaId || '').slice(0, 240);
+  const rawMediaId = String(raw.mediaId || '').slice(0, 240);
+  const mediaId = rawMediaId.startsWith('file:') ? canonicalWatchKey(rawMediaId) : rawMediaId;
   const start = Math.max(0, Number(raw.start) || 0);
   const source = String(raw.source || '').trim().slice(0, 4000);
   const identity = `${mediaId}|${start}|${type}|${source}`;
   const trackIdentity = raw.trackId || raw.cueId ? JSON.stringify([String(raw.trackId || ''), String(raw.cueId || '')]) : '';
-  const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity, 'utf8').digest('hex').slice(0, 16);
+  const anchor = normalizeTextAnchor(raw.anchor);
+  const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity + (anchor ? JSON.stringify(anchor) : ''), 'utf8').digest('hex').slice(0, 16);
   const review = normalizeReviewState(raw);
   return {
     id: String(raw.id || `annotation:${fingerprint}`).slice(0, 180),
@@ -35,7 +38,7 @@ function normalizeAnnotation(raw = {}) {
     mediaUrl: String(raw.mediaUrl || '').trim().slice(0, 2000),
     trackId: String(raw.trackId || '').trim().slice(0, 300),
     cueId: String(raw.cueId || '').trim().slice(0, 180),
-    anchor: normalizeTextAnchor(raw.anchor),
+    anchor,
     tags: normalizeResearchTags(raw.tags),
     links: normalizeResearchLinks(raw.links),
     ...review,
@@ -50,11 +53,16 @@ function matchingLearningAnnotation(annotations, type, raw = {}) {
     && !(target.cueId && item.cueId && item.cueId !== target.cueId));
   const exact = rows.find((item) => item.id === target.id);
   if (exact) return exact;
+  if (target.anchor) {
+    const signature=JSON.stringify(target.anchor);
+    const anchored=rows.filter(item=>JSON.stringify(normalizeTextAnchor(item.anchor))===signature);
+    return anchored.length===1 ? anchored[0] : null;
+  }
   if (target.trackId && target.cueId) {
     const identified = rows.find((item) => item.trackId === target.trackId && item.cueId === target.cueId);
     if (identified) return identified;
   }
-  const timed = rows.filter((item) => Math.abs(Number(item.start) - target.start) < .05);
+  const timed = rows.filter((item) => !item.anchor && Math.abs(Number(item.start) - target.start) < .05);
   return timed.length === 1 ? timed[0] : null;
 }
 

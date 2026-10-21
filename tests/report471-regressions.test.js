@@ -20,7 +20,7 @@ function fixture() {
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(source, 'utf8'), { module, exports: module.exports,
     require: name => name === 'node:child_process' ? { spawn } : name === './settings-security'
-      ? { withoutSecretEnv: value => value } : require(name),
+      ? { withoutSecretEnv: value => value } : require('node:module').createRequire(source)(name),
     __dirname: path.dirname(source), process: { env: {}, once() {} }, Buffer,
     setTimeout: () => ({ unref() {} }), clearTimeout() {},
   });

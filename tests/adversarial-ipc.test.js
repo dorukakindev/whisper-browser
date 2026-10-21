@@ -270,7 +270,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       // transcribe:start başlatma yarışı koruması (R51-28/29): authorize
       // await'leri sırasında gelen iptal bu sayaçlarla işaretlenir.
-      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubService: { running: () => false },
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubWorkspace: { running: () => false }, dubService: { running: () => false },
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       // transcribe:start spawn'dan önce backend/transcribe.py varlığını kontrol
       // eder (R317) — sahte appDir'a stub betik dosyası konur.
@@ -350,7 +350,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const context = {
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
-      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubService: { running: () => false },
+      jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubWorkspace: { running: () => false }, dubService: { running: () => false },
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: null,
       // transcribe.py varlık kontrolü (R317) depo kökünden geçer.
       app: { getAppPath: () => path.join(__dirname, '..'), getPath: () => os.tmpdir() }, path, Buffer, fs,

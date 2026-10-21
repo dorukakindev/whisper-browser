@@ -23,7 +23,8 @@
       : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
   function normalizedRows(cues) {
-    return (Array.isArray(cues) ? cues : []).map((cue, index) => ({
+    const validTime = value => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
+    return (Array.isArray(cues) ? cues : []).filter(cue => validTime(cue?.start) && validTime(cue?.end) && Number(cue.end) >= Number(cue.start)).map((cue, index) => ({
       index,
       start: Math.max(0, Number(cue?.start) || 0),
       end: Math.max(Math.max(0, Number(cue?.start) || 0), Number(cue?.end) || Number(cue?.start) || 0),
@@ -66,7 +67,7 @@
   function buildTranscriptEvidence(cues, question, options = {}) {
     const rows = normalizedRows(cues);
     const scope = ['nearby', 'watched', 'full'].includes(options.scope) ? options.scope : 'watched';
-    const position = Math.max(0, Number(options.position) || 0);
+    const position = Number.isFinite(Number(options.position)) ? Math.max(0, Number(options.position)) : 0;
     const eligible = scope === 'watched' ? rows.filter((row) => row.start <= position + 0.75) : rows;
     const pool = scope === 'nearby' ? eligible.filter((row) => Math.abs(row.start - position) <= 180) : eligible;
     const queryTokens = tokens(question);
