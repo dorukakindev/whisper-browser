@@ -9,7 +9,7 @@ const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareReference, onOutput = output => output }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
   let job = null;
   let textUI = null;
   const plans = new Map();
@@ -52,6 +52,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
       expression: ['calm','warm','lively'].includes(saved.expression) ? saved.expression : 'reference',
+      followDelivery: saved.followDelivery === true,
+      deliveryStrength: ['gentle','strong'].includes(saved.deliveryStrength) ? saved.deliveryStrength : 'balanced',
       grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
@@ -399,10 +401,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       c.grouping = request.grouping ?? c.grouping;
       c.expression = request.expression ?? c.expression;
       if (!['reference','calm','warm','lively'].includes(c.expression)) throw new Error('Invalid expression profile.');
+      c.followDelivery = request.followDelivery ?? c.followDelivery;
+      c.deliveryStrength = request.deliveryStrength ?? c.deliveryStrength;
+      if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
       s.settings.grouping = c.grouping;
       s.settings.expression = c.expression;
+      s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
@@ -442,7 +448,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--expression', c.expression,
+        '--expression', c.followDelivery ? 'reference' : c.expression,
         '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '280' : '250',
         '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
@@ -474,6 +480,31 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         fs.writeFileSync(textPath, JSON.stringify({ sourceHash: plan.sourceHash, edits }, null, 2), { encoding: 'utf8', flag: 'wx' });
         args.push('--dub-text', textPath);
         s.settings.reviewedText = true;
+      }
+      if (c.followDelivery) {
+        const file = path.join(outputDir,`${s.id}-delivery.json`);
+        const files = [file,file.replace(/\.json$/,'.partial.json')];
+        claimArtifacts(s,files);
+        try {
+          if (typeof prepareProsody !== 'function') throw new Error('Source delivery unavailable');
+          emit(s,'status',{text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
+          await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample,grouping:c.grouping,
+            strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
+            status:progress=>emit(s,'status',{text:progress==='stop_failed'
+              ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
+          if (s.cancelled) throw new Error('Cancelled');
+          if (fs.statSync(file).size > 2_000_000) throw new Error('Delivery map too large');
+          const delivery = JSON.parse(fs.readFileSync(file,'utf8'));
+          if (!Array.isArray(delivery.groups)) throw new Error('Invalid delivery map');
+          s.settings.deliveryAnalyzed = delivery.groups.length;
+          s.settings.deliveryApplied = delivery.groups.filter(row=>row.delivery).length;
+          if (!s.settings.deliveryApplied) emit(s,'warning',{text:'Özgün seste güvenilir anlatım bulunamadı; referans tonu korunuyor.'});
+          args.push('--prosody-plan',file); s.settings.deliveryReport=path.basename(file);
+        } catch (error) {
+          if (s.cancelled) throw error;
+          cleanupArtifacts(s,files); s.settings.deliveryFallback=true;
+          emit(s,'warning',{text:'Özgün anlatım analiz edilemedi; referansın doğal tonuyla devam ediliyor.'});
+        }
       }
       let background = null;
       if (request.keepBackground === true && !s.sample) {

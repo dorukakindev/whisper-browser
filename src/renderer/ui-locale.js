@@ -40,6 +40,15 @@
     ['Yerel ses seç', 'Choose local audio'],
     ['Yerelden referans ses ekle', 'Add local voice reference'],
     ['Anlatım tonu', 'Speaking style'],
+    ['Videodaki anlatımı takip et · deneysel', 'Follow video delivery · experimental'],
+    ['Aktarım gücü', 'Transfer strength'],
+    ['Hafif', 'Gentle'],
+    ['Belirgin', 'Strong'],
+    ['Özgün sesin enerji, perde hareketi ve durakları izlenir; kesin duygu etiketi çıkarılmaz. Müzik ve birden fazla konuşmacı yanıltabilir. Belirsiz bölümde referans tonu korunur.', 'Tracks source energy, pitch movement and pauses, without assigning emotion labels. Music and multiple speakers can mislead analysis. Uncertain sections keep the reference style.'],
+    ['Özgün konuşmanın anlatımı analiz ediliyor…', 'Analyzing original speech delivery…'],
+    ['Özgün anlatım analiz edilemedi; referansın doğal tonuyla devam ediliyor.', 'Source delivery could not be analyzed; continuing with the reference style.'],
+    ['Özgün seste güvenilir anlatım bulunamadı; referans tonu korunuyor.', 'No reliable source delivery found; keeping the reference style.'],
+    ['Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.', 'Analysis could not stop; try the Stop button again.'],
     ['Referansın tonunu koru', 'Keep reference style'],
     ['Sakin anlatım · deneysel', 'Calm delivery · experimental'],
     ['Sıcak anlatım · deneysel', 'Warm delivery · experimental'],
@@ -3203,6 +3212,7 @@
   // Yalnız TR→EN: kaynak metni kod her zaman Türkçe üretir, TR'ye dönüşte
   // gözlemci saklanan özgün metni geri yazar.
   const patterns = [
+    [/^Özgün anlatım analiz ediliyor · (\d+\/\d+)$/, m => `Analyzing source delivery · ${m[1]}`],
     [/^Canlı Whisper işlem hızı düzeldi \(RTF ([\d.]+)\); bekleyen ses parçaları işleniyor\.$/, 'Live Whisper processing speed improved (RTF $1); queued audio is still processing.'],
     [/^Genel değer: (.+)$/, (m, t) => `Global value: ${m[1] === 'Açık' ? 'On' : t(m[1])}`],
     // Madde 16–20 · izleme deneyimi

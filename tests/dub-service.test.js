@@ -12,6 +12,7 @@ const fixtureHash = require('node:crypto').createHash('sha256').update('fixture'
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
 let editContext;
 let backgroundMode='ok', rejectPreparation, backgroundRange, backgroundLimit;
+let prosodyMode='ok', prosodyOptions, rejectProsody;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
 const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
@@ -19,6 +20,15 @@ const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[na
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds, context) => { editContext=context; assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   setRate: async request=>({ok:request.rate===.8}),
+  prepareProsody: async options => {
+    prosodyOptions=options;
+    if(prosodyMode==='fail') throw new Error('unavailable');
+    if(prosodyMode==='hold') return new Promise((_resolve,reject)=>{
+      rejectProsody=reject;options.onProcess({exitCode:null,signalCode:null});
+      fs.writeFileSync(options.output.replace(/\.json$/,'.partial.json'),'partial');
+    });
+    fs.writeFileSync(options.output,JSON.stringify({groups:[]}));
+  },
   prepareBackground: async ({output,onProcess,range,status,limit})=>{
     backgroundRange=range;
     backgroundLimit=limit;
@@ -74,8 +84,12 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:fixtureHash,edits:{'1':'Kısa metin.'}}})).ok,true,'failed job must be retryable with its unchanged input snapshot');
     child.emit('close',1);
     assert.equal((await call('dub:start',{id:'bad-range',srt,range:{start:10,end:5}})).ok,false);
-    assert.equal((await call('dub:start',{id:'ranged',srt,expression:'warm',range:{start:20,end:30}})).ok,true);
-    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'warm');
+    assert.equal((await call('dub:start',{id:'ranged',srt,expression:'warm',followDelivery:true,range:{start:20,end:30}})).ok,true);
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'reference');
+    assert.equal(prosodyOptions.range.start,20);
+    assert.equal(prosodyOptions.range.end,30);
+    assert.equal(prosodyOptions.strength,'balanced');
+    assert(calls.at(-1).args.includes('--prosody-plan'));
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--range-start')+1],'20');
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--range-end')+1],'30');
     fs.writeFileSync(calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1],'audio');
@@ -87,7 +101,13 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal((await call('dub:start',{id:'../bad',srt})).ok,false);
     assert.equal((await call('dub:start',{id:'invalid-profile',srt,profile:'unsafe'})).ok,false);
     assert.equal((await call('dub:start',{id:'invalid-expression',srt,expression:'arbitrary'})).ok,false);
-    assert.equal((await call('dub:start',{id:'test',srt,sample:true})).ok,true);
+    prosodyMode='fail';
+    assert.equal((await call('dub:start',{id:'delivery-fallback',srt,followDelivery:true})).ok,true);
+    assert.equal(calls.at(-1).args.includes('--prosody-plan'),false);
+    assert(events.some(e=>e.type==='warning'&&e.text.includes('referansın doğal tonuyla')));
+    child.emit('close',1);prosodyMode='ok';
+    calls.length=0;
+    assert.equal((await call('dub:start',{id:'test',srt,followDelivery:false,sample:true})).ok,true);
     assert.equal(service.running(),true);
     assert.equal((await call('dub:start',{id:'second',srt})).ok,false);
     assert.ok(calls[0].args.includes('--limit')); assert.equal(calls[0].opts.env.HF_HUB_DISABLE_XET,'1');
@@ -259,6 +279,14 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     rejectPreparation(new Error('cancelled'));await preparing;
     assert.equal(events.at(-1).type,'cancelled');assert.equal(service.running(),false);
     for (const suffix of ['-background.wav','-background.partial.wav']) assert.equal(fs.existsSync(path.join(root,'Sesler','Çıktı','cancel-background'+suffix)),false);
+    prosodyMode='hold';const count=calls.length;
+    const analyzing=call('dub:start',{id:'cancel-delivery',srt,followDelivery:true});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(service.running(),true);assert.equal((await call('dub:cancel')).ok,true);
+    rejectProsody(new Error('cancelled'));await analyzing;
+    assert.equal(events.at(-1).type,'cancelled');assert.equal(service.running(),false);
+    assert.equal(calls.length,count,'cancelled analysis must not start TTS');
+    assert.equal(fs.existsSync(prosodyOptions.output.replace(/\.json$/,'.partial.json')),false);
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

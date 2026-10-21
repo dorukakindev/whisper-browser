@@ -18043,6 +18043,20 @@ const dubWorkspace = require('./dub-workspace').registerDubWorkspace({
   environment: () => withoutSecretEnv(process.env),
   busy: () => dubService.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
 });
+async function resolveDubSource(request) {
+    let source;
+    if (request.backgroundSource) source = await authorizeMediaFile(request.backgroundSource);
+    else {
+      const expected = request.backgroundTab || {};
+      const tab = browserTabById(expected.tabId);
+      if (!tab || tab.generation !== expected.generation || (expected.mediaId && expected.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
+      const url = new URL(tab.view.webContents.getURL());
+      const videoId = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})(?:\/|$)/)?.[1];
+      if (url.protocol !== 'https:' || !['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname) || !/^[a-zA-Z0-9_-]{11}$/.test(videoId || '')) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
+      source = `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    return source;
+}
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
   authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => dubWorkspace.register(output),
@@ -18068,18 +18082,14 @@ const dubService = require('./dub-service').registerDubService({
       appRoot: appResourceRoot(), python: resolvePython(), ffmpeg: resolveFfTool('ffmpeg'), spawn,
       terminate: proc => terminateProcessTree(proc, { spawn }), environment: () => withoutSecretEnv(process.env) });
   },
+  prepareProsody: async ({request,...options}) => {
+    const source = await resolveDubSource({backgroundSource:request.prosodySource,backgroundTab:request.backgroundTab});
+    return require('./dub-prosody').prepareProsody({...options,source,appRoot:appResourceRoot(),
+      python:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),spawn,
+      terminate:proc=>terminateProcessTree(proc,{spawn}),environment:()=>withoutSecretEnv(process.env)});
+  },
   prepareBackground: async ({request,...options}) => {
-    let source;
-    if (request.backgroundSource) source = await authorizeMediaFile(request.backgroundSource);
-    else {
-      const expected = request.backgroundTab || {};
-      const tab = browserTabById(expected.tabId);
-      if (!tab || tab.generation !== expected.generation || (expected.mediaId && expected.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
-      const url = new URL(tab.view.webContents.getURL());
-      const videoId = url.hostname === 'youtu.be' ? url.pathname.slice(1) : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})(?:\/|$)/)?.[1];
-      if (url.protocol !== 'https:' || !['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname) || !/^[a-zA-Z0-9_-]{11}$/.test(videoId || '')) throw new Error('Arka plan için YouTube videosunu açın veya yerel video seçin.');
-      source = `https://www.youtube.com/watch?v=${videoId}`;
-    }
+    const source = await resolveDubSource(request);
     return require('./dub-background').prepareBackground({...options,source,appRoot:appResourceRoot(),
       userData:app.getPath('userData'),cacheDir:require('./voice-storage').voiceStorage(app).input,downloadPython:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),
       spawn,environment:()=>withoutSecretEnv(process.env)});

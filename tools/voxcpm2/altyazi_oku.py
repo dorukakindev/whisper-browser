@@ -228,11 +228,14 @@ async def uret(args, cues, paths, prompt_text):
         cached = done
         results = []
 
-        async def sentez(chunk, seed):
+        async def sentez(chunk, seed, delivery=None):
             from dub_expression import synthesis_text
+            from dub_prosody import delivery_instruction
             pieces = []
+            instruction = delivery_instruction(delivery)
             async for part in server.generate(
-                    synthesis_text(chunk, getattr(args, 'expression', 'reference')), prompt_id=prompt_id,
+                    instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
+                    prompt_id=None if instruction else prompt_id,
                     ref_audio_latents=ref_lat,
                     temperature=args.temperature,
                     cfg_value=args.cfg, seed=seed,
@@ -248,6 +251,10 @@ async def uret(args, cues, paths, prompt_text):
                 if args.group_keys[i] in args.force_groups:
                     seed = (seed + getattr(args, 'regeneration_seed', 0)) % 2147483647
                 original_text = text
+                delivery = getattr(args,'group_delivery',[])
+                delivery = delivery[i] if i < len(delivery) else None
+                async def synthesize(chunk, seed):
+                    return await sentez(chunk,seed,delivery)
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 previous_metric = {}
@@ -264,7 +271,7 @@ async def uret(args, cues, paths, prompt_text):
                             cues[i-1][2] if i else '', cues[i+1][2] if i+1 < len(cues) else '', mode='natural')
                     editable_text = text
                     text = spoken_text(text)
-                    best, metric = await quality_retry(lambda n: sentez(text, n),
+                    best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_chunk(raw, sr, text)[0], seed,
                         args.retry, args.request_timeout)
                     wav = prepare_audio(best, sr)
@@ -283,7 +290,7 @@ async def uret(args, cues, paths, prompt_text):
                         proposed = spoken_text(proposed)
                         if proposed != text:
                             try:
-                                candidate, extra = await quality_retry(lambda n: sentez(proposed, n),
+                                candidate, extra = await quality_retry(lambda n: synthesize(proposed, n),
                                     lambda raw: assess_chunk(raw, sr, proposed)[0], seed + 17,
                                     1, args.request_timeout)
                                 candidate, candidate_finishing = finish_audio(prepare_audio(candidate, sr), sr)
@@ -305,7 +312,7 @@ async def uret(args, cues, paths, prompt_text):
                             # from an uncertain automatic transcript.
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate, candidate_finishing = finish_audio(prepare_audio(await bounded_call(sentez(text, seed + 200003), args.request_timeout), sr), sr)
+                                candidate, candidate_finishing = finish_audio(prepare_audio(await bounded_call(synthesize(text, seed + 200003), args.request_timeout), sr), sr)
                                 if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
@@ -332,7 +339,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['attempts'] += 1
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
-                                sentez, lambda raw, rate: finish_audio(prepare_audio(raw, rate), rate),
+                                synthesize, lambda raw, rate: finish_audio(prepare_audio(raw, rate), rate),
                                 verifier.check, temporary, args.request_timeout, recovery_attempt)
                             if recovered is not None:
                                 wav, check, recovery = recovered
@@ -340,7 +347,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
                     temporary.replace(path)
-                    metric.update(verification=check, text=text, final_seconds=len(wav)/sr,
+                    metric.update(verification=check, text=text, delivery=delivery, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
@@ -510,6 +517,7 @@ def parse_args(argv=None):
     p.add_argument("--transcript", type=Path)
     p.add_argument("--mode", choices=("auto", "hifi", "clone"), default="auto")
     p.add_argument('--expression', choices=('reference','calm','warm','lively'), default='reference')
+    p.add_argument('--prosody-plan',type=Path)
     p.add_argument("--video", type=Path, help="Dublajin gomulecegi video (opsiyonel)")
     p.add_argument("--steps", type=int, default=15)
     p.add_argument("--cfg", type=float, default=1.65)
@@ -606,6 +614,8 @@ def main(argv=None):
     if args.representative_preview:
         groups = representative_groups(groups)
         args.range_start = args.range_end = None
+    from dub_prosody import load_plan, VERSION as DELIVERY_VERSION
+    args.group_delivery = load_plan(args.prosody_plan,hashlib.sha256(source_bytes).hexdigest(),groups)
     args.group_keys = [','.join(map(str, g['source_ids'])) for g in groups]
     if args.force_groups - set(args.group_keys):
         raise ValueError('Selected group is outside the current plan.')
@@ -638,17 +648,20 @@ def main(argv=None):
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression)
     # Run reports are separate from independently addressed speech pieces.
-    run_hash = hashlib.sha256(repr(settings).encode("utf-8")).hexdigest()[:16]
+    run_hash = hashlib.sha256(repr((settings,args.group_delivery)).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
     parts_dir.mkdir(parents=True, exist_ok=True)
     args.report_dir = parts_dir
     cache_dir = OUTPUT_ROOT / '_dub_chunks_v4'
     cache_dir.mkdir(parents=True, exist_ok=True)
-    paths = [cache_dir / (chunk_key(settings, text, seed) + '.wav')
-             for (_, _, text), seed in zip(cues, args.group_seeds)]
+    def group_settings(i):
+        delivery=args.group_delivery[i]
+        return settings + (DELIVERY_VERSION,repr(sorted(delivery.items()))) if delivery else settings
+    paths = [cache_dir / (chunk_key(group_settings(i), text, seed) + '.wav')
+             for i,((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     if args.auto_fit or args.natural_speech:
         # A compact rewrite depends on available time, unlike ordinary speech.
-        paths = [cache_dir / (chunk_key(settings, duration_identity(cues, i, available_window(cues, i,
+        paths = [cache_dir / (chunk_key(group_settings(i), duration_identity(cues, i, available_window(cues, i,
             args.bosluk_pay_ms, args.end_limit_ms), args.group_keys[i] in args.manual_groups), seed) + '.wav')
             for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     for p in paths:
@@ -678,7 +691,7 @@ def main(argv=None):
         record.update(group=i + 1, key=args.group_keys[i])
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
-    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited') if k in r}
+    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'delivery') if k in r}
                      for r in group_results]
     for row in public_groups:
         print('DUB_GROUP ' + json.dumps(row), flush=True)
