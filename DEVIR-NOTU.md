@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-21-1916.md](docs/devir/2026-10-21-1916.md) — PR472 master'a alındı, Windows ana kopya güncellendi
 Güncel çalışma: [docs/devir/2026-10-21-1905.md](docs/devir/2026-10-21-1905.md) — Ses çevirisinde kaynakla eşleşmiş komşu bağlam
 Güncel çalışma: [docs/devir/2026-10-21-1847.md](docs/devir/2026-10-21-1847.md) — PR455–471 tamamı master’da; Windows ana kopya güncellendi
 Güncel çalışma: [docs/devir/2026-10-21-1838.md](docs/devir/2026-10-21-1838.md) — İsteğe bağlı kaynak anlatımı, güvenli koşullama ve araştırma raporları
