@@ -3259,7 +3259,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v5-reviewed'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v6-context-review'
 
 
 def translation_sentence_groups(entries, args, speakers=None):
@@ -3495,6 +3495,8 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42, for_speech=F
             "- Kaynagin TAM anlami ve ilk ceviri birlikte referanstir. Yalniz daha akici duyulsun diye olgu, kosul, belirsizlik veya anlatim tonunu degistirme.",
             "- Once cumlenin tamamina bak; sonra ayni grup icinde Turkcenin dogal soz dizimine gore bol. Yuklemden sonra nesneyi kisa bir yetim parcaya birakma.",
             "- document_context salt okunur kaynak konu baglamidir. terms_candidates diger gruplarda gorulen ADAY eslemlerdir, dogruluk kaniti degildir; kaynak ve yerel konuya gore denetle, yanlissa kullanma. Kullanici sozlugu onceliklidir.",
+            "- neighbor_drafts kaynakla eslesmis komsu ceviri TASLAKLARIDIR, onayli metin degildir. Sen/siz, anlatim zamani, zamir ve terim secimini kaynakla birlikte kontrol et; komsudaki hatayi kopyalama. Celisen terim adaylarinda ilk goruleni otomatik dogru sayma.",
+            "- Komsu baglami ciktiya tasima; yalniz items icindeki ID'leri yanitla. Iddia, alinti, varsayim, ironi ve konusmacinin tereddudunu ayni kesinlik derecesinde koru. Duyguyu yeni sifat veya unlem ekleyerek uydurma.",
             "- Teknik terimleri konu boyunca tutarli kullan; alan anlamini kontrol et. Zaten dogru ve dogal metni aynen onayla; yeni bilgi, dolgu veya dramatizasyon ekleme.",
         ]
     lines += [
@@ -3946,13 +3948,19 @@ def filter_series_memory_candidates(raw, source_text, target_text):
     return {"terms": terms, "characters": characters, "addresses": addresses}
 
 
-def speech_review_terms(candidates):
+def speech_review_terms(candidates, source_text=None, center=0):
     """Bounded, deterministic hints, not an authoritative generated glossary."""
     result, seen = [], set()
-    for _index, _source, row in sorted(candidates, key=lambda item: item[0]):
+    ordered = sorted(candidates, key=lambda item: (abs(item[0] - center), item[0])
+                     if source_text is not None else (item[0],))
+    for _index, _source, row in ordered:
         for source, target in row.get('terms', {}).items():
             source, target = normalized_text(source), normalized_text(target)
-            key = source.casefold()
+            # A long video's opening terms must not crowd out relevant later
+            # terminology. Keep competing translations visible to the reviewer.
+            if source_text is not None and not memory_phrase_present(source_text, source):
+                continue
+            key = (source.casefold(), target.casefold()) if source_text is not None else source.casefold()
             if key in seen or not source or not target or max(len(source), len(target)) > 96:
                 continue
             seen.add(key)
@@ -4129,7 +4137,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         log(f"Sahne bağlamı: {len(scene_breaks)} sahne sınırı "
             f"(sessizlik >= {SCENE_GAP:g} sn veya mekan işareti)")
 
-    def source_context(lo, hi):
+    def source_context_indexes(lo, hi):
         bound_lo, bound_hi = scene_context_bounds(
             scene_breaks, lo, hi, CONTEXT_LINES, len(entries))
         before = []
@@ -4138,7 +4146,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             neighbor_speaker = speaker_map.get(index)
             if left_speaker and neighbor_speaker and neighbor_speaker != left_speaker:
                 break
-            before.append(entries[index][2])
+            before.append(index)
         before.reverse()
         after = []
         right_speaker = speaker_map.get(hi)
@@ -4146,8 +4154,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             neighbor_speaker = speaker_map.get(index)
             if right_speaker and neighbor_speaker and neighbor_speaker != right_speaker:
                 break
-            after.append(entries[index][2])
+            after.append(index)
         return before, after
+
+    def source_context(lo, hi):
+        before, after = source_context_indexes(lo, hi)
+        return ([entries[i][2] for i in before], [entries[i][2] for i in after])
 
     def group_key(group):
         before, after = source_context(group[0], group[-1])
@@ -5324,7 +5336,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             speech_review = bool(getattr(args, 'translate_for_speech', False))
             refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width,
                                                for_speech=speech_review)
-            term_hints = speech_review_terms(memory_candidates) if speech_review else []
+            # Freeze the draft before concurrent review workers start: neighbors
+            # must not depend on which worker finishes first.
+            review_drafts = tuple(out_texts)
             if glossary_terms:
                 refine_prompt += "\n\n## SOZLUK (aynen koru)\n  " + ", ".join(glossary_terms)
             refined = list(out_texts)
@@ -5336,8 +5350,28 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     translation_metrics['requests'] += 1
                     translation_metrics['refine_requests'] += 1
                 payload = translation_payload(chunk_idx, refine=True)
-                if term_hints:
-                    payload['terms_candidates'] = term_hints
+                if speech_review:
+                    nearby = source_context_indexes(chunk_idx[0], chunk_idx[-1])
+                    paired = {}
+                    for side, indexes in zip(('before', 'after'), nearby):
+                        rows, size = [], 0
+                        # Prefer the closest context if the character cap is hit.
+                        for index in (reversed(indexes) if side == 'before' else indexes):
+                            src, tr = entries[index][2], review_drafts[index]
+                            if index not in done_idx or translation_is_source_echo(src, tr):
+                                continue
+                            cost = len(src) + len(tr)
+                            if size + cost > 2400:
+                                break
+                            rows.append({'source': src, 'translation': tr})
+                            size += cost
+                        paired[side] = list(reversed(rows)) if side == 'before' else rows
+                    if any(paired.values()):
+                        payload['neighbor_drafts'] = paired
+                    term_hints = speech_review_terms(memory_candidates,
+                        ' '.join(row['source'] for row in payload['sentence_groups']), chunk_idx[0])
+                    if term_hints:
+                        payload['terms_candidates'] = term_hints
                 resp, used_url = call_api_with(refine_prompt, payload)
                 content = (resp.choices[0].message.content or "").strip()
                 with lock:

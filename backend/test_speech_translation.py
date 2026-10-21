@@ -167,6 +167,41 @@ class SpeechTranslationTests(unittest.TestCase):
         self.assertEqual(status['failed'],[0])
         self.assertIn('source_echo',status['failedReasons']['0'])
 
+    def test_review_terms_follow_local_topic_and_expose_conflicts(self):
+        candidates = [(0, '', {'terms': {f'opening{i}': 'ilk konu' for i in range(30)}}),
+                      (80, '', {'terms': {'mind': 'zihin'}}),
+                      (81, '', {'terms': {'mind': 'akıl'}})]
+        hints = T.speech_review_terms(candidates, 'The mind adapts.', 81)
+        self.assertEqual(hints, [{'source': 'mind', 'target': 'akıl'},
+                                 {'source': 'mind', 'target': 'zihin'}])
+        self.assertEqual(T.speech_review_terms(candidates, 'A different topic.', 81), [])
+
+    def test_review_receives_frozen_bilingual_neighbors_and_respects_scene(self):
+        source = [(i * 3, i * 3 + 2, 'The evidence supports this explanation.') for i in range(3)]
+        draft = 'Kanıtlar bu açıklamayı destekliyor.'
+        final = 'Bulgular bu açıklamayı destekliyor.'
+        def answer(payload):
+            review = 'src' in payload['items'][0]
+            parts = {str(item['i']): final if review else draft for item in payload['items']}
+            return {'items': parts, 'sentences': {
+                str(g['ids'][0]): ' '.join(parts[str(i)] for i in g['ids'])
+                for g in payload['sentence_groups']}}
+        # One review group per request makes both sides of the context boundary
+        # observable, without a large fixture or live provider.
+        with patch.object(T, 'pack_sentence_groups', side_effect=lambda groups, *_: [list(g) for g in groups]):
+            result, calls, _, _ = F._sentence_translate(source,
+                F._TrArgs(translate_for_speech=True, translate_cache=False, translate_workers=1), answer)
+        reviews = [payload for payload, _ in calls if 'src' in payload['items'][0]]
+        middle = next(p for p in reviews if p['sentence_groups'][0]['start'] == 3)
+        self.assertEqual(middle['neighbor_drafts']['before'], [{'source': source[0][2], 'translation': draft}])
+        self.assertEqual(middle['neighbor_drafts']['after'], [{'source': source[2][2], 'translation': draft}])
+        self.assertEqual([row[2] for row in result], [final] * 3)
+        isolated = [(0, 2, source[0][2]), (30, 32, source[1][2])]
+        with patch.object(T, 'pack_sentence_groups', side_effect=lambda groups, *_: [list(g) for g in groups]):
+            _, calls, _, _ = F._sentence_translate(isolated,
+                F._TrArgs(translate_for_speech=True, translate_cache=False), answer)
+        self.assertTrue(all('neighbor_drafts' not in p for p, _ in calls))
+
     def test_old_speech_prompt_does_not_share_the_new_cache(self):
         args=F._TrArgs(translate_for_speech=True)
         current=T.translate_cache_key('Example.',args,'tr','en')
