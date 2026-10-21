@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fixed twenty verified dubbing meaning, percentage speech, quantity verification, subtitle identity/timing, portable project and page-translation archive data-loss defects.
+
 - Fixed twenty verified library, quotation identity, note recovery, queue persistence, watched-folder, HLS recovery and translation-memory defects. Existing note and subtitle links remain associated when Windows file aliases are normalized.
 
 - Fixed twenty verified speech meaning, quality status, portable project, subtitle preference, review, scientific quantity and download defects. Stale dubbing telemetry now restores the original audio preference.
