@@ -187,6 +187,7 @@ def video_duration(path):
 
 
 async def uret(args, cues, paths, prompt_text):
+    from dub_recovery import recover_long_speech
     from huggingface_hub import snapshot_download
     from nanovllm_voxcpm import VoxCPM
 
@@ -312,6 +313,20 @@ async def uret(args, cues, paths, prompt_text):
                                 finally:
                                     second.unlink(missing_ok=True)
                             metric['attempts'] += 1; metric['retries'] += 1
+                        if check['status'] == 'review':
+                            # Large one-pass requests can end early despite valid
+                            # audio. Repair content with bounded, verified blocks.
+                            def recovery_attempt():
+                                metric['attempts'] += 1
+                                metric['retries'] += 1
+                            recovered = await recover_long_speech(text, editable_text, seed, sr,
+                                sentez, lambda raw, rate: finish_audio(prepare_audio(raw, rate), rate),
+                                verifier.check, temporary, args.request_timeout, recovery_attempt)
+                            if recovered is not None:
+                                wav, check, recovery = recovered
+                                metric['recovery'] = recovery
+                                metric['finishing'] = {'parts': recovery['finishing']}
+                                sf.write(str(temporary), wav, sr, subtype='PCM_16')
                     temporary.replace(path)
                     metric.update(verification=check, text=text, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
@@ -590,7 +605,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v8-quantity-and-rewrite-guards", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v9-verified-context-recovery", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.

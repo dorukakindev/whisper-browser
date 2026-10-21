@@ -118,8 +118,8 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
 def grouping_options(mode):
     if mode not in ('cumle', 'satir', 'akici'):
         raise ValueError('Gecersiz gruplama modu.')
-    return {'mode': mode, 'max_chars': 550 if mode == 'akici' else 250,
-            'max_seconds': 24 if mode == 'akici' else 12, 'max_gap_ms': 600}
+    return {'mode': mode, 'max_chars': 280 if mode == 'akici' else 250,
+            'max_seconds': 18 if mode == 'akici' else 12, 'max_gap_ms': 600}
 
 
 def plan(path, start=None, end=None, grouping='cumle'):

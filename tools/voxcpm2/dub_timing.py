@@ -55,10 +55,71 @@ def placement_window(cues, i, audio_seconds, previous_end_s, max_speed,
     return start, stop
 
 
+def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
+    """Pack contiguous narration into few, balanced, sentence-aware requests.
+
+    Duration/size are hard limits between cues. A single source cue is never
+    truncated. At most 128 candidates per position bound dense-caption cost.
+    """
+    def speaker(text):
+        return bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
+
+    def completed(text):
+        tail = text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
+        abbreviation = re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I)
+        return bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
+
+    runs, run = [], []
+    for i, cue in enumerate(cues):
+        if run and (cue[0] < run[-1][1][1] or cue[0]-run[-1][1][1] > max_gap_ms
+                    or speaker(cue[2]) or speaker(run[-1][1][2])):
+            runs.append(run); run = []
+        run.append((i+1, cue))
+    if run:
+        runs.append(run)
+    groups = []
+    for run in runs:
+        n = len(run)
+        # Lexicographic objective: fewer re-entries first; then prefer complete
+        # sentences and balanced sizes (avoids a long block + tiny final reply).
+        costs, ends = [(0, 0.0)]*(n+1), [0]*n
+        for i in range(n-1, -1, -1):
+            best, size, stop = None, 0, run[i][1][1]
+            for j in range(i, min(n, i+128)):
+                cue = run[j][1]
+                size += len(cue[2].strip()) + (1 if j > i else 0)
+                stop = max(stop, cue[1])
+                if j > i and (size > max_chars or (stop-run[i][1][0])/1000 > max_seconds):
+                    break
+                penalty = (size/max(1, max_chars))**2
+                if j+1 < n and not completed(cue[2]):
+                    penalty += 4
+                candidate = (1+costs[j+1][0], penalty+costs[j+1][1])
+                if best is None or candidate < best:
+                    best, ends[i] = candidate, j+1
+            costs[i] = best
+        i = 0
+        while i < n:
+            selected = run[i:ends[i]]
+            groups.append({'start': selected[0][1][0], 'end': max(c[1][1] for c in selected),
+                           'text': ' '.join(c[1][2].strip() for c in selected),
+                           'source_ids': [c[0] for c in selected]})
+            i = ends[i]
+    return groups
+
+
 def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=600):
     """Preserve every source cue; group only nearby, same-speaker text."""
     if mode not in ("cumle", "satir", "akici"):
         raise ValueError("Bilinmeyen gruplama modu")
+    if mode == 'akici':
+        for i, (start, end, text) in enumerate(cues):
+            if start < 0 or end <= start or not text.strip() or (i and start < cues[i-1][0]):
+                raise ValueError(f"Gecersiz altyazi satiri: {i+1}")
+        # Preserve the established simultaneous-cue convention rather than
+        # speaking overlapping captions in separate requests.
+        if not any(i and c[0] == cues[i-1][0] for i, c in enumerate(cues)):
+            return _balanced_flow(cues, max_chars, max_seconds, max_gap_ms)
     groups = []
     for i, (start, end, text) in enumerate(cues):
         if start < 0 or end <= start or not text.strip():

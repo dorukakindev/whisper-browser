@@ -13,13 +13,13 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 TEXT_SETTINGS = {'motor': 'nano', 'mode': 'auto', 'steps': 15, 'batch': 4, 'cfg': 1.65,
-                 'temperature': .8, 'pause': 1, 'max_chars': 600, 'seed': 42,
+                 'temperature': .8, 'pause': 1, 'max_chars': 300, 'seed': 42,
                  'normalize': True, 'align': False, 'polish': True,
                  'preview': False, 'preview_count': 2}
 PRESETS = {
-    'balanced': {'steps': 15, 'batch': 4, 'max_chars': 600, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
-    'book': {'steps': 15, 'batch': 4, 'max_chars': 900, 'cfg': 1.65, 'temperature': .8, 'pause': 1.5, 'normalize': True, 'polish': True, 'align': False},
-    'fast': {'steps': 10, 'batch': 4, 'max_chars': 600, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
+    'balanced': {'steps': 15, 'batch': 4, 'max_chars': 300, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
+    'book': {'steps': 15, 'batch': 4, 'max_chars': 600, 'cfg': 1.65, 'temperature': .8, 'pause': 1.5, 'normalize': True, 'polish': True, 'align': False},
+    'fast': {'steps': 10, 'batch': 4, 'max_chars': 300, 'cfg': 1.65, 'temperature': .8, 'pause': 1, 'normalize': True, 'polish': True, 'align': False},
 }
 
 
@@ -168,7 +168,7 @@ class Studio:
         self.text = self._text(manuscript, 15)
         self.text.bind('<<Modified>>', self._count)
         self.count_label = ttk.Label(manuscript, text='0 karakter / characters', style='Muted.TLabel'); self.count_label.pack(anchor='w', pady=5)
-        ttk.Label(manuscript, text='Tam cümleler birlikte okunur; görsel satır kayması metni bölmez.\n600 karakter dengeli; 900 daha uzun bağlam. Kelime vurgusu yalnız oynatım içindir.\nComplete sentences share context. Word highlighting does not split speech.',
+        ttk.Label(manuscript, text='Tam cümleler birlikte okunur; görsel satır kayması metni bölmez.\n300 karakter dengeli; 600 daha uzun bağlam. Kelime vurgusu yalnız oynatım içindir.\nComplete sentences share context; 300 characters by default. Word highlighting does not split speech.',
                   style='Muted.TLabel', wraplength=680).pack(anchor='w')
         self.log_card = ttk.LabelFrame(right, text='İşlem günlüğü / Job log', padding=10, style='Card.TLabelframe')
         self.log_card.pack(fill='x', pady=(12, 0))
@@ -223,8 +223,8 @@ class Studio:
         for key, value in PRESETS[name].items(): self.vars[key].set(value)
         self.vars['preview'].set(False)
         self._engine_controls()
-        self.status.set({'balanced':'Dengeli: 15 adım · 600 karakter · yumuşak geçiş / Balanced',
-                         'book':'Kitap: 900 karakter · doğal paragraf durakları / Narration',
+        self.status.set({'balanced':'Dengeli: 15 adım · 300 karakter · yumuşak geçiş / Balanced',
+                         'book':'Kitap: 600 karakter · doğal paragraf durakları / Narration',
                          'fast':'Hızlı: 10 adım · önce kısa örnekle deneyin / Quick'}[name])
 
     def listen_reference(self):

@@ -52,7 +52,7 @@ def command(engine, reference, transcript, source, output, settings):
             or not .1 <= values['cfg'] <= 5 or not .1 <= values['temperature'] <= 2
             or not 0 <= values['pause'] <= 5):
         raise ValueError('Invalid voice settings / Ses ayarları geçersiz.')
-    max_chars = int(settings.get('max_chars', 600))
+    max_chars = int(settings.get('max_chars', 300))
     preview = int(settings.get('preview_count', 2)) if settings.get('preview', False) else 0
     seed = int(settings.get('seed', 42))
     if not 200 <= max_chars <= 1200 or not 0 <= preview <= 20 or not 0 <= seed <= 2147483647:

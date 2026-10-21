@@ -21,7 +21,7 @@ class StudioContract(unittest.TestCase):
             argv = studio.command(root, *files, root / 'çıktı.wav', settings)
             self.assertEqual(argv[0], str(python)); self.assertEqual(argv[argv.index('--mode')+1], 'hifi')
             self.assertEqual(argv[argv.index('--eszamanli')+1], '8')
-            self.assertEqual(argv[argv.index('--max-chars')+1], '600')
+            self.assertEqual(argv[argv.index('--max-chars')+1], '300')
             clone = studio.command(root, files[0], root/'absent.txt', files[2], root/'clone.wav', {**settings, 'mode':'clone', 'max_chars':900, 'preview':True,'preview_count':2,'normalize':False,'align':False})
             self.assertNotIn('--transcript', clone); self.assertIn('--no-align',clone); self.assertIn('--no-norm',clone)
             self.assertEqual(clone[clone.index('--limit')+1],'2')

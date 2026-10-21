@@ -47,6 +47,29 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_long_truncation_recovers_with_verified_smaller_contexts(self):
+        class TruncationVerifier(Verifier):
+            async def check(self, path, text, **kwargs):
+                return {'status': 'review' if len(text)>280 else 'passed',
+                        'similarity': .5 if len(text)>280 else 1}
+        # Combined recovery is longer text too: emulate ASR seeing all words
+        # only after it has received both successful smaller requests.
+        class RecoveryVerifier(TruncationVerifier):
+            good = 0
+            async def check(self, path, text, **kwargs):
+                if len(text)<=280:
+                    self.good += 1
+                if self.good >= 2:
+                    return {'status':'passed','similarity':1}
+                return await super().check(path, text, **kwargs)
+        with tempfile.TemporaryDirectory() as temp:
+            text = 'A complete sentence should retain its original meaning. ' * 7
+            server = Server()
+            _, args, _ = self.run_generation(Path(temp), server, [text], verification='detailed', verifier=RecoveryVerifier, manual=True)
+            self.assertTrue(args.group_results[0]['recovery']['verified'])
+            self.assertEqual(args.group_results[0]['verification']['status'], 'passed')
+            self.assertEqual(' '.join(server.calls[2:]), text.strip())
+
     def test_oom_restarts_with_smaller_batches_but_other_errors_do_not_loop(self):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.FunctionDef) and n.name == 'generate_with_fallback')

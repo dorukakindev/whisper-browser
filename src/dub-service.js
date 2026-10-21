@@ -438,8 +438,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
-        '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '550' : '250',
-        '--grup-max-sn', c.grouping === 'akici' ? '24' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
+        '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '280' : '250',
+        '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
