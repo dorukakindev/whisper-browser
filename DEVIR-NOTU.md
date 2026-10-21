@@ -1,4 +1,7 @@
-Güncel çalışma: [docs/devir/2026-10-21-0853.md](docs/devir/2026-10-21-0853.md) — Rapor498: Kurtarma, iptal ve çeviri bütünlüğünde 20 düzeltme; CI arkada
+Güncel çalışma: [docs/devir/2026-10-21-1330.md](docs/devir/2026-10-21-1330.md) — Ses stüdyosu tasarımı, görünür ayarlar ve akıcı konuşma grupları
+Önceki çalışma: [docs/devir/2026-10-21-1305.md](docs/devir/2026-10-21-1305.md) — Yerel ses referansı ve bağımsız metin stüdyosu; o turda commit/push inceleme sınırında kaldı
+Önceki çalışma: [docs/devir/2026-10-21-0943.md](docs/devir/2026-10-21-0943.md) — Rapor499: Altyazı kimliği, Unicode ve kurtarmada 20 düzeltme; CI arkada
+Önceki çalışma: [docs/devir/2026-10-21-0853.md](docs/devir/2026-10-21-0853.md) — Rapor498: Kurtarma, iptal ve çeviri bütünlüğünde 20 düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-21-0840.md](docs/devir/2026-10-21-0840.md) — Rapor497: Ses anlamı, altyazı kimliği ve arşiv kaybında 20 düzeltme; CI arkada
 Önceki çalışma: [docs/devir/2026-10-21-0819.md](docs/devir/2026-10-21-0819.md) — Kalıcı test tercihi: faydalı kısa kontroller, uzun testler ve CI arkada
 Önceki çalışma: [docs/devir/2026-10-21-0811.md](docs/devir/2026-10-21-0811.md) — Rapor496: Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış düzeltme; CI arkada

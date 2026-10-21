@@ -1,5 +1,45 @@
 # VoxCPM2 altyazı dublaj aracı
 
+## Bağımsız metin stüdyosu
+
+Güncel stüdyo iki sütunludur: solda kayıtlı sesler/klonlama/motor/kalite/son işlem,
+sağda geniş metin ve günlük, altta sabit üretim/dinleme çubuğu. Dar veya yüksek
+DPI pencerede sol ayarlar kaydırılabilir. Otomatik, Hi-Fi ve dökümsüz basit
+klonlama; nano-vLLM veya uyumlu PyTorch motoru seçilebilir. Kelime vurgulu
+okuyucu isteğe bağlı son işlemdir; modelin kelime kelime ses ürettiği anlamına gelmez.
+600 karakterlik dengeli bloklar varsayılandır; 900/1200 ile uzun bağlam seçilebilir.
+Okuma planı v2 tam cümleleri birleştirir, çok uzun metinler güvenli sınırlarda parçalanır.
+Durak alanı saniye değil mevcut motorun durak **çarpanıdır**. Sayısal tercihler,
+klonlama/motor/parçalama/son işlem ve örnek seçimleri saklanır; varsayılan hizalama
+kapalıdır, açılırsa ek süre/model indirmesi gerekebilir. İşlenen özgün metin değişmez.
+
+Browser/oynatıcı **Konuşma gruplama → Akıcı konuşma blokları** varsayılanında,
+yakın kısa cümleler en fazla 550 karakter/24 saniyelik kaynak blokta birleştirilir.
+600 ms üzeri boşluk, çakışma ve görünen konuşmacı sınırı ayrı tutulur. Eski cümle
+grupları ve satır satır seçenekleri de vardır. Plan ve üretim aynı ayarları kullanır;
+eski plana ait düzenleme farklı gruplama ile uygulanamaz. İnce kelime zamanlaması
+garantisi yoktur; senkron blok düzeyindedir, video yavaşlatma haritası korunur.
+
+Whisper Local kökündeki `ses-studyosu.bat` dosyasını çift tıklayın. Ana Electron
+uygulaması gerekmeksizin metin yazabilir/TXT açabilir, WAV referansı ve birebir
+dökümünü seçebilir, adım/paralellik/CFG/sıcaklık/durak ayarlarını yapabilirsiniz.
+Arayüz bu repodaki `text_studio.py` dosyasıdır; masaüstündeki eski `arayuz.py`
+çalıştırılmaz veya değiştirilmez. Mevcut motorun `nanovllm_oku.py` okuyucusu ve
+venv/model dosyaları kullanılır; yeni model kurulmaz. Model ağırlıkları ve mevcut
+SRT dublaj hattı değiştirilmez. GPU CUDA gerekir.
+
+Girdi/metin/döküm/iş günlüğü `Downloads/Sesler/Girdi/Metin/<iş>/`, WAV çıktıları
+`Downloads/Sesler/Çıktı/` altındadır. Sayısal ayarlar ayrı `text-studio-settings.json`
+dosyasına kaydedilir; uygulamanın `dub-settings.json` dosyası ezilmez.
+Uygulama içindeki **Metin / TXT stüdyosunu aç** düğmesi de aynı arayüzü açar.
+Bağımsız açarken GPU kullanan başka bir üretimi kapatın; Electron içinden açılan
+stüdyo mevcut üretim kilidine katılır, bağımsız süreç ayrı GPU kilidi sağlamaz.
+
+Browser/oynatıcı referans panelinde **Yerel ses seç** ile WAV/MP3/FLAC/M4A vb.
+bir kaynak seçilir. 3–30 saniyelik aralığı ayarlayıp **Referans sesi hazırla**
+ve sonra **Bu sesi kullan** düğmesine basın. Kaynak dosya değiştirilmez;
+standart referans WAV ve otomatik döküm `Sesler/Ses referansları/` içine kaydedilir.
+
 Bu dosyalar Whisper uygulamasına TTS bağımlılığı eklemez. Mevcut VoxCPM2
 ortamını kullanan kanonik dublaj scriptleridir. Uygulama artık bu klasördeki scripti
 `VOXCPM_ROOT` ile seçilen dış motorla çalıştırır; eski dış scriptin kopyasına bağımlı değildir.

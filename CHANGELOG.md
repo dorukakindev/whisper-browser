@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Expanded Voice Studio with a two-column layout, saved voices, clone modes, engine selection, finishing and preview controls; added consistent flowing speech blocks to browser/player dubbing.
+
+- Added visible local audio reference preparation and a repository-owned standalone text/TXT voice studio, sharing the existing VoxCPM2 environment without launching the old external GUI.
+
+- Fixed twenty verified subtitle identity, JSON caption-window, Unicode decoding, translation retry and recovery-state defects. Future preference/cache schemas are preserved rather than overwritten.
+
 - Fixed twenty verified media process, secret/library recovery, catalogue episode/source, closed-tab, translation-integrity and dubbing restore defects.
 
 - Fixed twenty verified dubbing meaning, percentage speech, quantity verification, subtitle identity/timing, portable project and page-translation archive data-loss defects.

@@ -7,6 +7,9 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 501 | [BROWSER_BUG_REPORT_501.md](BROWSER_BUG_REPORT_501.md) | Ayarlı ses stüdyosu ve bütünlüklü konuşma blokları |
+| 500 | [BROWSER_BUG_REPORT_500.md](BROWSER_BUG_REPORT_500.md) | Yerel ses referansı ve bağımsız metin stüdyosu |
+| 499 | [BROWSER_BUG_REPORT_499.md](BROWSER_BUG_REPORT_499.md) | Altyazı kimliği, Unicode ve kurtarmada 20 doğrulanmış hata |
 | 498 | [BROWSER_BUG_REPORT_498.md](BROWSER_BUG_REPORT_498.md) | Kurtarma, iptal ve çeviri bütünlüğünde 20 doğrulanmış hata |
 | 497 | [BROWSER_BUG_REPORT_497.md](BROWSER_BUG_REPORT_497.md) | Ses anlamı, altyazı kimliği ve arşiv kaybında 20 doğrulanmış hata |
 | 496 | [BROWSER_BUG_REPORT_496.md](BROWSER_BUG_REPORT_496.md) | Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış hata |
