@@ -128,10 +128,12 @@ function cuePresentationCompatible(left, right) {
 }
 
 function normalizeCues(cues) {
-  const clean = (cues || []).map((cue) => ({
+  const isTime = value => typeof value === 'number' || (typeof value === 'string' && value.trim() !== '');
+  const clean = (Array.isArray(cues) ? cues : []).filter(cue => cue && typeof cue === 'object'
+    && isTime(cue.start)).map((cue) => ({
     ...cue,
     start: Number(cue.start),
-    end: Number(cue.end),
+    end: isTime(cue.end) ? Number(cue.end) : NaN,
     text: cleanCueText(cue.text),
   })).filter((cue) => Number.isFinite(cue.start) && cue.start >= 0 && cue.text)
     .sort((a, b) => a.start - b.start);
@@ -1469,8 +1471,10 @@ function parseJson(body) {
   try { data = JSON.parse(body); } catch (_) { return []; }
   const events = Array.isArray(data && data.events) ? data.events : [];
   const out = [];
+  const windows = new Map();
   for (const event of events) {
-    const text = Array.isArray(event.segs) ? event.segs.map((seg) => seg.utf8 || '').join('')
+    if (!event || typeof event !== 'object') continue;
+    const text = Array.isArray(event.segs) ? event.segs.map((seg) => typeof seg?.utf8 === 'string' ? seg.utf8 : '').join('')
       : (event.text || event.utf8 || '');
     const start = Number(event.tStartMs ?? event.startMs ?? event.start);
     const duration = Number(event.dDurationMs ?? event.durationMs ?? event.duration);
@@ -1483,12 +1487,16 @@ function parseJson(body) {
     const end = d === null ? null : s + d;
     // YouTube json3 canlı altyazısında aAppend olayı önceki ekrandaki metnin
     // devamıdır. Ayrı cue üretmek kelimeleri böler ve çeviride tekrar yaratır.
-    if (event.aAppend && out.length) {
-      const previous = out[out.length - 1];
+    const windowId = String(event.wWinId ?? 'default');
+    if (event.aAppend && windows.has(windowId)) {
+      const previous = windows.get(windowId);
       previous.text += text;
       if (Number.isFinite(end)) previous.end = Math.max(Number(previous.end) || s, end);
     } else {
-      out.push({ start: s, end, text });
+      const cue = { start: s, end, text };
+      if (event.wWinId != null) cue.region = windowId;
+      out.push(cue);
+      windows.set(windowId, cue);
     }
   }
   if (out.length) return normalizeCues(out);
@@ -1511,7 +1519,13 @@ function parseJson(body) {
     if (Number.isFinite(duration) && /Ms$/i.test(durationKey)) duration /= 1000;
     if (!Number.isFinite(end)) end = Number.isFinite(duration) ? start + duration : null;
     const id = cue.id ?? cue.cueId ?? cue.identifier;
-    out.push({ ...(id === undefined || id === null ? {} : { id }), start, end, text });
+    const presentation = {};
+    for (const key of ['cueId', 'speaker', 'protected', 'sourceMode', 'captionMode', 'mode',
+      'region', 'line', 'lineAlign', 'position', 'positionAlign', 'size', 'align', 'displayAlign',
+      'writingMode', 'regionExtent', 'direction', 'unicodeBidi', 'discontinuity', 'language']) {
+      if (cue[key] !== undefined) presentation[key] = cue[key];
+    }
+    out.push({ ...presentation, ...(id === undefined || id === null ? {} : { id }), start, end, text });
   }
   return normalizeCues(out);
 }
@@ -1521,6 +1535,7 @@ function parseYoutubeCaptionMetadata(body, rawUrl = '') {
   try { data = JSON.parse(String(body || '')); } catch (_) {
     data = {};
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
   let params = null;
   try { params = new URL(String(rawUrl || '')).searchParams; } catch (_) {}
   const automatic = params?.get('kind') === 'asr'

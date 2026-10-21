@@ -5,28 +5,38 @@ class BrowserSubtitlePreferences {
   constructor({ read, readBackup, write, limit = 200 }) {
     this.write = write; this.limit = limit; this.items = new Map();
     this.recovery = '';
+    this.readOnly = false;
     try { this.load(read()); } catch (error) {
       try { this.load(readBackup?.()); this.recovery = 'backup'; }
       catch (_) { if (error.code !== 'ENOENT') this.recovery = 'unavailable'; }
     }
   }
   load(value) {
+    if (Number.isInteger(value?.version) && value.version > 1) this.readOnly = true;
     if (!value || value.version !== 1 || !Array.isArray(value.items)) throw Error('Geçersiz altyazı tercih dosyası');
-    if (value.items.some(row => !row?.mediaId || !row.subtitleSelection || !normalizeSessionTab({ ...row, id: 'preference' }))) {
+    const seen = new Set();
+    if (value.items.some(row => {
+      const normalized = normalizeSessionTab({ ...row, id: 'preference' });
+      if (!row?.mediaId || !normalized?.subtitleSelection || seen.has(normalized.mediaId)) return true;
+      seen.add(normalized.mediaId);
+      return false;
+    })) {
       throw Error('Geçersiz video altyazı tercihi');
     }
     for (const row of value.items) this.put(row, false);
   }
   remove(mediaId) {
+    if (this.readOnly) throw Error('Geçersiz altyazı tercih dosyası');
     if (!this.items.has(mediaId)) return false;
     const next = new Map(this.items); next.delete(mediaId);
     this.write({ version: 1, items: [...next.values()] });
     this.items = next; return true;
   }
   put(raw, persist = true) {
+    if (persist && this.readOnly) throw Error('Geçersiz altyazı tercih dosyası');
     if (!raw?.mediaId || !raw.subtitleSelection) return false;
     const normalized = normalizeSessionTab({ ...raw, id: 'preference' });
-    if (!normalized) return false;
+    if (!normalized?.subtitleSelection) return false;
     const row = { mediaId: normalized.mediaId, url: normalized.url,
       subtitleSelection: normalized.subtitleSelection, subtitleMode: normalized.subtitleMode,
       subtitleSyncRecords: normalized.subtitleSyncRecords };

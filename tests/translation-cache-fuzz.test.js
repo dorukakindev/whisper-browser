@@ -134,7 +134,11 @@ const invariantMap = (cache, label) => {
     const cache = new PersistentTranslationCache(file);
     invariantMap(cache, `schema i=${i}`);
     const archives = fs.readdirSync(dir).filter((n) => n.startsWith(path.basename(file) + '.corrupt-'));
-    assert(archives.length >= 1, `schema i=${i}: bozuk birincil .corrupt-* arşivine taşınmalı`);
+    if (body === '{"version":3,"entries":[]}') {
+      assert.equal(archives.length, 0, 'gelecek şema bozuk dosya sayılmaz');
+      assert.equal(fs.readFileSync(file, 'utf8'), body, 'gelecek sürüm yerinde korunmalı');
+      assert.equal(cache.set('replacement', 'blocked'), false, 'eski uygulama yeni şemayı yazamaz');
+    } else assert(archives.length >= 1, `schema i=${i}: bozuk birincil .corrupt-* arşivine taşınmalı`);
     if (withBackup) assert.equal(cache.get('rescued'), 'yedek', `schema i=${i}: .bak kurtarması`);
     else assert.equal(cache.map.size, 0, `schema i=${i}: ikisi de bozuksa boş başlamalı`);
     cases++;

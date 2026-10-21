@@ -71,9 +71,11 @@
     const explicit = outputDescriptors(event);
     const hasExplicit = Array.isArray(event?.outputs);
     let items = hasExplicit ? explicit : legacyDescriptors(event, options.fallbackRole || 'source');
+    const anchor = items.find(item => item.role === 'source') || items[0];
     const sourceIds = [...new Set(items.map((item) => item.sourceId).filter(Boolean))];
-    if (sourceIds.length > 1) items = items.filter((item) => !item.sourceId || item.sourceId === sourceIds[0]);
-    const sourceHash = items.find(item => item.role === 'source' && item.sourceHash)?.sourceHash;
+    if (sourceIds.length > 1) items = items.filter((item) => !item.sourceId || item.sourceId === (anchor?.sourceId || sourceIds[0]));
+    const sourceHash = items.find(item => item.role === 'source' && item.sourceHash)?.sourceHash
+      || items.find(item => item.sourceHash)?.sourceHash;
     if (sourceHash) items = items.filter(item => !item.sourceHash || item.sourceHash === sourceHash);
     return {
       explicit: hasExplicit,

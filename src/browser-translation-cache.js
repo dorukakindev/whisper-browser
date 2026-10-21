@@ -36,6 +36,10 @@ class PersistentTranslationCache {
     const loadFile = (filePath) => JSON.parse(this.fs.readFileSync(filePath, 'utf8'));
     const parseCache = (filePath) => {
       const parsed = loadFile(filePath);
+      if (Number.isInteger(parsed?.version) && parsed.version > 2) {
+        this.readOnly = true;
+        throw new Error('Çeviri önbelleği şeması geçersiz.');
+      }
       // Geçerli JSON tek başına güvenilir cache anlamına gelmez. Şema bozuksa
       // sağlam .bak dosyasına düşebilmek için bunu açıkça hata olarak bildir.
       if (!parsed || ![1, 2].includes(parsed.version) || !Array.isArray(parsed.entries)) {
@@ -69,8 +73,9 @@ class PersistentTranslationCache {
         const primaryExists = this.fs.existsSync(this.filePath);
         try {
           parsed = parseCache(`${this.filePath}.bak`);
-          if (primaryExists) archiveCorrupt(this.filePath);
+          if (primaryExists && !this.readOnly) archiveCorrupt(this.filePath);
         } catch (backupError) {
+          if (this.readOnly) return;
           if (primaryExists) archiveCorrupt(this.filePath);
           archiveCorrupt(`${this.filePath}.bak`);
           throw backupError;
@@ -85,9 +90,11 @@ class PersistentTranslationCache {
             : { value: String(raw && raw.value || ''), updatedAt: Number(raw && raw.updatedAt) || 0 };
           return [String(key), record];
         })
-        .filter(([, record]) => record.value && now - record.updatedAt <= this.ttlMs)
+        .filter(([, record]) => record.value && Number.isFinite(record.updatedAt)
+          && record.updatedAt > 0 && record.updatedAt <= now + this.ttlMs && now - record.updatedAt <= this.ttlMs)
         .slice(-this.limit));
     } catch (_) { this.map = new Map(); }
+    if (this.readOnly) return;
     // Sona-eklenen artımlı kayıtları temel dosyanın üstüne tekrar uygula.
     try {
       if (this.fs.existsSync(this.journalPath)) {
@@ -109,7 +116,8 @@ class PersistentTranslationCache {
           try {
             const row = JSON.parse(line);
             const key = String(row?.k || '');
-            const updatedAt = Number(row?.t) || Date.now();
+            const updatedAt = Number(row?.t);
+            if (!Number.isFinite(updatedAt) || updatedAt <= 0 || updatedAt > Date.now() + this.ttlMs) continue;
             // `v` alanı olmayan/dizge olmayan bozuk satır mezar taşı sayılmaz —
             // aksi halde yarım satır sağlam bir temel kaydı siler.
             if (!key || typeof row.v !== 'string') continue;
@@ -174,6 +182,7 @@ class PersistentTranslationCache {
   }
 
   set(key, value) {
+    if (this.readOnly) return false;
     const normalized = String(key || '');
     if (!normalized || !String(value || '').trim()) return false;
     const record = { value: String(value), updatedAt: Date.now() };
@@ -209,6 +218,7 @@ class PersistentTranslationCache {
   async flush() {
     clearTimeout(this.timer);
     this.timer = null;
+    if (this.readOnly) return { ok: false, error: 'Çeviri önbelleği şeması geçersiz.' };
     if (this.flushPromise) return this.flushPromise;
     const dir = path.dirname(this.filePath);
     const promises = this.fs.promises;
@@ -276,6 +286,7 @@ class PersistentTranslationCache {
   }
 
   async compact() {
+    if (this.readOnly) return { ok: false, error: 'Çeviri önbelleği şeması geçersiz.' };
     const dir = path.dirname(this.filePath);
     const temp = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     const promises = this.fs.promises;

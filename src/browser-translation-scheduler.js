@@ -9,11 +9,13 @@ function finiteNumber(value, fallback = 0) {
 
 function normalizeCues(rawCues) {
   const normalized = (Array.isArray(rawCues) ? rawCues : []).map((cue, index) => {
+    const isTime = value => typeof value === 'number' || (typeof value === 'string' && value.trim() !== '');
+    if (!isTime(cue?.start) || !isTime(cue?.end)) return null;
     const start = Number(cue?.start);
     const end = Number(cue?.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
     return {
-      id: String(cue && (cue.id ?? cue.index ?? index)),
+      id: String(cue && (cue.cueId ?? cue.id ?? cue.index ?? index)),
       start: Math.max(0, start),
       end: Math.max(0, end),
       text: String(cue && cue.text || '').replace(/\s+/g, ' ').trim(),
@@ -328,6 +330,7 @@ class BrowserTranslationScheduler {
     this.qualityCandidates = new Map();
     this.forceAccept = new Set();
     this.retryTimers = new Set();
+    this.retryTimerBySentence = new Map();
     this.inFlightByCacheKey = new Map();
     this.queue = [];
     this.playhead = 0;
@@ -397,7 +400,13 @@ class BrowserTranslationScheduler {
       this.pending.delete(id);
     }
     for (const id of this.results.keys()) if (!unchanged.has(id)) this.results.delete(id);
-    for (const id of this.failures.keys()) if (!unchanged.has(id)) this.failures.delete(id);
+    for (const id of this.failures.keys()) if (!unchanged.has(id)) {
+      const timer = this.retryTimerBySentence.get(id);
+      clearTimeout(timer);
+      this.retryTimers.delete(timer);
+      this.retryTimerBySentence.delete(id);
+      this.failures.delete(id);
+    }
     for (const id of this.qualityCandidates.keys()) if (!unchanged.has(id)) this.qualityCandidates.delete(id);
     for (const id of [...this.forceAccept]) if (!unchanged.has(id)) this.forceAccept.delete(id);
     this.sentences = next;
@@ -740,7 +749,7 @@ class BrowserTranslationScheduler {
           || forceAccept;
         const delay = Math.max(
           Math.min(this.retryMaxMs, this.retryBaseMs * (2 ** Math.max(0, attempts - 1))),
-          Number(error?.retryAfterMs) || 0);
+          Math.min(2147483647, Math.max(0, finiteNumber(error?.retryAfterMs))));
         const failure = {
           attempts,
           terminal,
@@ -776,10 +785,14 @@ class BrowserTranslationScheduler {
           const armRetry = () => {
             const timer = setTimeout(() => {
               this.retryTimers.delete(timer);
-              if (generation !== this.generation) { this.resolveIdleIfNeeded(); return; }
+              if (this.retryTimerBySentence.get(sentence.id) === timer) this.retryTimerBySentence.delete(sentence.id);
+              if (generation !== this.generation || this.failures.get(sentence.id) !== failure) {
+                this.resolveIdleIfNeeded(); return;
+              }
               if (Date.now() < failure.retryAt) { armRetry(); return; }
               this.updatePlayhead(this.playhead);
-            }, Math.max(1, failure.retryAt - Date.now()));
+            }, Math.min(2147483647, Math.max(1, failure.retryAt - Date.now())));
+            this.retryTimerBySentence.set(sentence.id, timer);
             this.retryTimers.add(timer);
           };
           armRetry();
@@ -877,6 +890,7 @@ class BrowserTranslationScheduler {
     this.inFlightByCacheKey.clear();
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
+    this.retryTimerBySentence.clear();
     this.failures.clear();
     this.qualityCandidates.clear();
     this.forceAccept.clear();
@@ -899,6 +913,7 @@ class BrowserTranslationScheduler {
     this.inFlightByCacheKey.clear();
     for (const timer of this.retryTimers) clearTimeout(timer);
     this.retryTimers.clear();
+    this.retryTimerBySentence.clear();
     this.queue = [];
     this.markUntriedAsProviderFailure(attemptedIds,
       error?.providerUnavailable || isDefinitiveTranslateError(error) ? 'definitive' : 'transient');
