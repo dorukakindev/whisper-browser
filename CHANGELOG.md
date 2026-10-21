@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Dubbing failures retain bounded engine diagnostics and exit signals instead of losing the cause behind a generic notice.
+
 - Redesigned the dubbing workspace with source/voice/range overview, bounded responsive cards, persistent actions and safe production presets; simplified desktop Voice Studio with narration presets and advanced settings.
 
 - Expanded Voice Studio with a two-column layout, saved voices, clone modes, engine selection, finishing and preview controls; added consistent flowing speech blocks to browser/player dubbing.

@@ -32,6 +32,8 @@ Güncel çalışma: [docs/devir/2026-10-21-1348.md](docs/devir/2026-10-21-1348.m
 Önceki çalışma: [docs/devir/2026-10-19-1443.md](docs/devir/2026-10-19-1443.md) — Dublaj zaman çizelgesi, karıştırıcı ve taşınabilir proje; Windows CI bekleniyor
 Önceki çalışma: [docs/devir/2026-10-19-1349.md](docs/devir/2026-10-19-1349.md) — Dublaj geliştirmeleri Windows CI başarılı; PR457 incelemeye hazır
 Önceki çalışma: [docs/devir/2026-10-19-1326.md](docs/devir/2026-10-19-1326.md) — Süreye uygun dublaj, parça kurtarma, doğrulama ve temsil edici örnek
+Önceki çalışma: [docs/devir/2026-10-19-1259.md](docs/devir/2026-10-19-1259.md) — Rapor484 Windows CI başarılı
+Önceki çalışma: [docs/devir/2026-10-19-1248.md](docs/devir/2026-10-19-1248.md) — Rapor484: Ses hatası tanısı ve gerçek GPU kısa üretim
 Önceki çalışma: [docs/devir/2026-10-19-1219.md](docs/devir/2026-10-19-1219.md) — Kullanıcı onayıyla PR454 master’a birleştirildi; Windows ana kopya güncel
 Önceki çalışma: [docs/devir/2026-10-19-1142.md](docs/devir/2026-10-19-1142.md) — Windows/Ubuntu CI başarılı; ana dal birleştirmesi otomatik onayda engellendi
 Önceki çalışma: [docs/devir/2026-10-19-1131.md](docs/devir/2026-10-19-1131.md) — İzole oynatıcı test bağlamını güncelleme
