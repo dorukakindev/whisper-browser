@@ -103,6 +103,7 @@
       if (!result?.ok) { failure(result?.error); return; }
       if (result.cancelled) return;
       localSource = result.path;
+      panel.open = true;
       el('voiceReferenceSourceName').textContent = localSource.split(/[\\/]/).pop();
       el('voiceReferenceStart').value = '0:00'; el('voiceReferenceEnd').value = '0:20';
       status('Yerel ses seçildi. Konuşma aralığını ayarlayıp Referans sesi hazırla düğmesine basın.');
@@ -112,6 +113,7 @@
   el('voiceReferenceVideo').addEventListener('click', () => {
     if (active || applying || selectingSource) return;
     localSource = ''; el('voiceReferenceSourceName').textContent = '';
+    panel.open = true;
     status('Referans kaynağı açık video olarak seçildi.');
   });
   el('voiceReferencePrepare').addEventListener('click', async () => {

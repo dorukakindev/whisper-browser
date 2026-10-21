@@ -56,26 +56,116 @@ class SpeechTranslationTests(unittest.TestCase):
         _, bounded, _, _=F._sentence_translate(long,args)
         self.assertTrue(all(len(p[0]['document_context'])<=1200 for p in bounded))
 
-    def test_options_disable_paid_second_pass_without_mutating_preferences(self):
+    def test_quality_review_is_enabled_without_mutating_preferences(self):
         saved = F._TrArgs(translate_for_speech=True, translate_refine=True,
                           llm_postprocess=True, merge_continuation=True, dedupe_cues=True)
         effective = T.speech_translation_args(saved)
-        for field in ('translate_refine', 'llm_postprocess', 'merge_continuation', 'dedupe_cues'):
+        self.assertTrue(effective.translate_refine)
+        self.assertFalse(effective.translate_lenient)
+        for field in ('llm_postprocess', 'merge_continuation', 'dedupe_cues'):
             self.assertFalse(getattr(effective, field))
             self.assertTrue(getattr(saved, field))
         self.assertEqual(effective.translate_variant_label, 'speech')
         normal = F._TrArgs()
         self.assertIs(T.speech_translation_args(normal), normal)
 
-    def test_one_translation_request_no_refine_and_exact_source_timings(self):
+    def test_translation_then_source_anchored_review_and_exact_source_timings(self):
         args = F._TrArgs(translate_for_speech=True, translate_refine=True, translate_cache=False)
-        result, seen, _events, warnings = F._sentence_translate(F._SENTENCE_SOURCE, args)
-        self.assertEqual(len(seen), 1, warnings)
+        result, seen, events, warnings = F._sentence_translate(F._SENTENCE_SOURCE, args)
+        self.assertEqual(len(seen), 2, warnings)
         self.assertIn('SESLENDIRMEYE UYGUN', seen[0][1]['messages'][0]['content'])
         self.assertIn('sentence_groups.duration', seen[0][1]['messages'][0]['content'])
         self.assertEqual([(s, e) for s, e, _ in result], [(s, e) for s, e, _ in F._SENTENCE_SOURCE])
         self.assertEqual([text for _, _, text in result], F._SENTENCE_PARTS)
         self.assertTrue(all('max' not in item for item in seen[0][0]['items']))
+        review, request = seen[1]
+        self.assertTrue(all('src' in i and 'tr' in i and 'max' not in i for i in review['items']))
+        self.assertIn('SESLENDIRME EDITORU',request['messages'][0]['content'])
+        self.assertNotIn('sure butcesini asmamali',request['messages'][0]['content'])
+        self.assertNotIn('karakter/saniye, satir basina',request['messages'][0]['content'])
+        self.assertEqual(review['sentence_groups'][0]['translation'],' '.join(F._SENTENCE_PARTS))
+        metrics=[v for kind,v in events if kind=='translation_quality']
+        self.assertEqual(len(metrics),1)
+        self.assertEqual(metrics[0]['requests'],2)
+        self.assertEqual(metrics[0]['refine_requests'],1)
+
+    def test_worse_review_keeps_the_draft(self):
+        source=[(0,2,'The price is $20.')]
+        def answer(payload):
+            review='src' in payload['items'][0]
+            text='Fiyat 30 dolar.' if review else 'Fiyat 20 dolar.'
+            return {'sentences':{'0':text},'items':{'0':text}}
+        result, seen, _, warnings=F._sentence_translate(source,
+            F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+        self.assertEqual(len(seen),2)
+        self.assertEqual(result[0][2],'Fiyat 20 dolar.')
+        self.assertTrue(any('1. geçiş' in w for w in warnings))
+
+    def test_review_accepts_natural_syntax_without_duration_compression(self):
+        source=[(0,1,'Please explain what we need to do'),(1,2,'before the delivery arrives.')]
+        draft=['Teslimattan önce gerekeni','anlatın.']
+        natural=['Teslimat gelmeden önce ne yapmamız','gerektiğini lütfen açıklayın.']
+        def answer(payload):
+            parts=natural if 'src' in payload['items'][0] else draft
+            return {'sentences':{'0':' '.join(parts)},'items':dict(zip(['0','1'],parts))}
+        result, seen, _, _=F._sentence_translate(source,
+            F._TrArgs(translate_for_speech=True,translate_cache=False,max_cps=10),answer)
+        self.assertEqual(len(seen),2)
+        self.assertEqual([e[2] for e in result],natural)
+        self.assertEqual([e[:2] for e in result],[e[:2] for e in source])
+
+    def test_review_transport_failure_keeps_the_draft(self):
+        def answer(payload):
+            if 'src' in payload['items'][0]:
+                raise RuntimeError('review unavailable')
+            return F._sentence_reply(payload)
+        result, _, _, warnings=F._sentence_translate(F._SENTENCE_SOURCE,
+            F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+        self.assertEqual([e[2] for e in result],F._SENTENCE_PARTS)
+        self.assertTrue(any('1. geçiş' in w for w in warnings))
+
+    def test_retry_reviews_cached_draft_without_paying_for_translation_again(self):
+        def unavailable(payload):
+            if 'src' in payload['items'][0]:
+                raise RuntimeError('review unavailable')
+            return F._sentence_reply(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            args=F._TrArgs(translate_for_speech=True,translate_cache=True,cache_dir=directory)
+            first,calls,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args,unavailable)
+            self.assertEqual(len(calls),2)
+            second,retry,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args)
+            self.assertEqual(len(retry),1)
+            self.assertTrue(all('src' in i for i in retry[0][0]['items']))
+            third,done,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args)
+            self.assertEqual(done,[])
+            self.assertEqual(first,second)
+            self.assertEqual(second,third)
+
+    def test_review_terms_are_deterministic_bounded_and_not_invented(self):
+        self.assertEqual(T.filter_series_memory_candidates({'terms':['bad'],'characters':3,'addresses':{}},'source','target'),{'terms':{},'characters':[],'addresses':[]})
+        safe=T.filter_series_memory_candidates({'terms':{'energy':'enerji','fiction':'uydurma'}},'energy','enerji')
+        self.assertEqual(safe['terms'],{'energy':'enerji'})
+        hints=T.speech_review_terms([(9,'',{'terms':{'energy':'güç'}}),(0,'',safe)])
+        self.assertEqual(hints,[{'source':'energy','target':'enerji'}])
+        many=[(0,'',{'terms':{str(i):'terim' for i in range(100)}})]
+        self.assertEqual(len(T.speech_review_terms(many)),24)
+
+    def test_repeated_untranslated_prose_is_not_marked_ready(self):
+        import types
+        status={}
+        class Client:
+            def __init__(self,**_kw): self.chat=types.SimpleNamespace(completions=self)
+            def create(self,**kwargs):
+                payload=json.loads(kwargs['messages'][-1]['content'])
+                items={str(i['i']):i['t'] for i in payload['items']}
+                sentences={str(g['ids'][0]):g['source'] for g in payload['sentence_groups']}
+                return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=json.dumps({'items':items,'sentences':sentences})))])
+        with F._fake_openai(Client), patch.object(T,'log'),patch.object(T,'emit'):
+            result=T.llm_translate([(0,4,'The machines need regular maintenance to function safely.')],
+                F._TrArgs(translate_for_speech=True,translate_lenient=True,translate_cache=False),[],source_lang='en',status_out=status)
+        self.assertEqual(status['completed'],[])
+        self.assertEqual(status['failed'],[0])
+        self.assertIn('source_echo',status['failedReasons']['0'])
 
     def test_old_speech_prompt_does_not_share_the_new_cache(self):
         args=F._TrArgs(translate_for_speech=True)
@@ -92,7 +182,7 @@ class SpeechTranslationTests(unittest.TestCase):
             normal, ordinary, _, _ = F._sentence_translate(F._SENTENCE_SOURCE,
                 F._TrArgs(translate_cache=True, cache_dir=directory))
             self.assertEqual(result, again)
-            self.assertEqual(len(first), 1)
+            self.assertEqual(len(first), 2)
             self.assertEqual(len(second), 0)
             self.assertEqual(len(ordinary), 1, 'speech cache leaked into normal translation/memory')
             key = T.translate_cache_key('Hello.', F._TrArgs(), 'tr', 'en')

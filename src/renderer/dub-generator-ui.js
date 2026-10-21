@@ -101,6 +101,7 @@
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
+    el('dubExpression').disabled = locked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
     el('dubQualityGroup').disabled = locked || !results.size;
@@ -128,6 +129,7 @@
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
+    if (!current) el('dubExpression').value = r.expression || 'reference';
     if (!current && !plan) el('dubGrouping').value = r.grouping || 'akici';
     if (!current) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
     el('dubEngineName').textContent = r.engine;
@@ -306,6 +308,7 @@
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
       dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
       profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
+      expression: el('dubExpression').value,
       verification:el('dubVerification').value, autoFit:el('dubAutoFit').checked, naturalSpeech:el('dubNaturalSpeech').checked,
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,

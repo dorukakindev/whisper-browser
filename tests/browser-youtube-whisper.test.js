@@ -190,7 +190,8 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(speechJobs.length, 1, 'ordinary ready translation was reused for speech');
   const speech = speechJobs[0].baseOpts;
   assert.equal(speech.translateForSpeech, true);
-  for (const field of ['translateRefine', 'llmPostprocess', 'mergeContinuation', 'dedupeCues']) assert.equal(speech[field], false);
+  assert.equal(speech.translateRefine, true);
+  for (const field of ['llmPostprocess', 'mergeContinuation', 'dedupeCues']) assert.equal(speech[field], false);
   ctx.state.running = false;
   ctx.player.browserTracks = [{ id: 'speech', path: 'speech.srt', generatedBy: 'whisper',
     role: 'translation', language: 'tr', status: 'complete', forSpeech: true }];
@@ -198,7 +199,7 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(speechJobs.length, 2, 'old speech prompt output bypassed the improved translation');
   speechJobs.pop(); // Keep the remaining independent assertions on the original job index.
   ctx.state.running = false;
-  ctx.player.browserTracks[0].speechProtocol = 'speech-v4-sentence-context';
+  ctx.player.browserTracks[0].speechProtocol = 'speech-v5-reviewed';
   ctx.useBrowserTrack = async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; };
   await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
   assert.equal(speechJobs.length, 1, 'ready speech translation was regenerated');

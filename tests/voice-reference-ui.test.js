@@ -69,6 +69,8 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   w.api.selectVoiceReferenceSource=async()=>({ok:true,path:'C:\\Sesler\\benim-sesim.mp3'});
   w.api.listVoiceReferences=async()=>({ok:true,references:[entry],folder:'folder'});
   el('voiceReferenceLocal').click();await tick();
+  assert.equal(el('voiceReferenceRecorder').open,true,'local selection opens preparation controls');
+  assert.equal(el('voiceReferenceLocal').closest('details'),null,'local picker stays visible outside collapsed settings');
   assert.equal(el('voiceReferenceSourceName').textContent,'benim-sesim.mp3');
   el('voiceReferenceEnd').value='0:10';el('voiceReferencePrepare').click();await tick();
   assert.equal(request.source,'C:\\Sesler\\benim-sesim.mp3','local audio does not require an open video');

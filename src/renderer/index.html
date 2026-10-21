@@ -935,9 +935,9 @@
               </label>
               <label class="field switch-field field-full">
                 <input type="checkbox" id="translateForSpeech" />
-                <span>Seslendirmeye uygun çeviri (aynı geçiş; bloklar ve zamanlar korunur)</span>
+                <span>Seslendirmeye uygun çeviri (doğallık kontrolü; zamanlar korunur)</span>
               </label>
-              <div class="hint field-full">Seslendirme modunda ikinci geçiş kapalıdır. Seçili çeviri modeli kullanılır; ek düzenleme çağrısı yapılmaz. Token tüketimi metne ve modele göre değişir.</div>
+              <div class="hint field-full">Seslendirme modunda kaynakla karşılaştırmalı doğallık kontrolü yapılır. Seçili modelle ek bir gözden geçirme geçişi çalışır; süre ve token tüketimi artar. Metin süreye sığdırmak için kısaltılmaz.</div>
               <label class="field switch-field field-full">
                 <input type="checkbox" id="translateKeepSource" checked />
                 <span>Kaynak dildeki altyazıyı da kaydet (kapalıysa yalnızca çeviri yazılır)</span>
@@ -3482,7 +3482,7 @@
         <h3 id="browserWhisperRangeTitle">Whisper ve çeviri zaman aralığı</h3>
         <p>Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.</p>
         <label class="dub-generator-row"><input type="checkbox" id="browserWhisperForSpeech" />Seslendirmeye uygun çeviri</label>
-        <p id="browserWhisperSpeechHint" class="muted">Seçili çeviri modeliyle, ikinci geçiş olmadan seslendirmeye uygun çeviri hazırlanır. Cümleler bağlam içinde toparlanır; altyazı blokları ve zamanları korunur.</p>
+        <p id="browserWhisperSpeechHint" class="muted">Cümleler bağlam içinde çevrilir, ardından kaynakla karşılaştırılarak doğal okunuş için gözden geçirilir. Bloklar ve zamanlar korunur. Ek kontrol süre ve token tüketimini artırır.</p>
         <label class="dub-generator-row"><input type="checkbox" id="browserWhisperRangeEnabled" />Yalnız seçilen zaman aralığını işle</label>
         <div class="dub-generator-options">
           <label for="browserWhisperRangeStart">Başlangıç (dk:sn)</label><input id="browserWhisperRangeStart" type="text" value="0:00" maxlength="16" data-ui-untranslated />
@@ -3741,9 +3741,11 @@
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseVoice" type="button">Ses referansı</button><span id="dubVoiceName" data-ui-untranslated></span></div>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
   </details>
+    <div class="dub-generator-row"><button id="voiceReferenceLocal" type="button" class="btn btn-secondary">Yerelden referans ses ekle</button><button id="voiceReferenceVideo" type="button" class="btn btn-ghost">Açık videoyu kullan</button><span id="voiceReferenceSourceName" data-ui-untranslated></span></div>
+    <label for="dubExpression">Anlatım tonu</label><select id="dubExpression"><option value="reference">Referansın tonunu koru</option><option value="calm">Sakin anlatım · deneysel</option><option value="warm">Sıcak anlatım · deneysel</option><option value="lively">Canlı anlatım · deneysel</option></select>
+    <p>En doğal duygu için aynı kişinin istediğiniz tonda konuştuğu temiz bir referans seçin. Deneysel tonlar ses kimliğini etkileyebilir; önce kısa örnek dinleyin.</p>
 <details id="voiceReferenceRecorder">
     <summary>Video veya yerel sesten referans al</summary>
-    <div class="dub-generator-row"><button id="voiceReferenceLocal" type="button" class="btn btn-secondary">Yerel ses seç</button><button id="voiceReferenceVideo" type="button" class="btn btn-ghost">Açık videoyu kullan</button><span id="voiceReferenceSourceName" data-ui-untranslated></span></div>
     <p>Yerel ses için başlangıç ve bitiş aralığını seçin. Ses hazırlanıp dökümü çıkarılır; Bu sesi kullan ile etkinleştirin.</p>
     <p>Tek konuşmacılı, müziksiz 3–30 saniye seçin. Hazırlanınca sesi dinleyip dökümü kontrol edin.</p>
     <div class="dub-generator-row">

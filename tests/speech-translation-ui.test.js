@@ -56,7 +56,7 @@ $('translateRefine').checked = true;
 $('translate').checked = true;
 let opts = ctx.buildOptsFromUI();
 assert.equal(opts.translateForSpeech, true);
-assert.equal(opts.translateRefine, false);
+assert.equal(opts.translateRefine, true);
 assert.equal(opts.llmPostprocess, false);
 assert.equal($('translateRefine').checked, true, 'effective options must not overwrite saved preferences');
 const configureStart = source.indexOf('function configureSpeechTranslation(');

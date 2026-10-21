@@ -339,8 +339,8 @@ function buildOptsFromUI() {
     translateProfanity: $('translateProfanity').value,
     translateKeepSource: $('translateKeepSource').checked,
     translateForSpeech: forSpeech,
-    translateRefine: !forSpeech && $('translateRefine').checked,
-    translateLenient: $('translateLenient') ? $('translateLenient').checked : true,
+    translateRefine: forSpeech || $('translateRefine').checked,
+    translateLenient: !forSpeech && ($('translateLenient') ? $('translateLenient').checked : true),
     dualSubtitle: $('dualSubtitle').checked,
     audioPreprocess: $('audioPreprocess').value,
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
@@ -5013,7 +5013,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
       forSpeech,
-      speechProtocol: forSpeech ? 'speech-v4-sentence-context' : '',
+      speechProtocol: forSpeech ? 'speech-v5-reviewed' : '',
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
@@ -11389,7 +11389,8 @@ function configureSpeechTranslation(opts, enabled) {
   }
   opts.translateForSpeech = !!enabled;
   if (opts.translateForSpeech) {
-    opts.translateRefine = false;
+    opts.translateRefine = true;
+    opts.translateLenient = false;
     opts.llmPostprocess = false;
     opts.mergeContinuation = false;
     opts.dedupeCues = false;
@@ -11419,7 +11420,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
       && track.language === ($('translateTo')?.value || 'tr')
       && !!track.forSpeech === forSpeech
-      && (!forSpeech || track.speechProtocol === 'speech-v4-sentence-context')
+      && (!forSpeech || track.speechProtocol === 'speech-v5-reviewed')
       && (!forSpeech || ((!selectedModel || track.model === selectedModel)
         && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)))
       && track.status === 'complete' && !Number(track.failed)) : null;

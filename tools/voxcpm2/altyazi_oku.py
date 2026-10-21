@@ -211,7 +211,7 @@ async def uret(args, cues, paths, prompt_text):
         wav_bytes = Path(args.reference).read_bytes()
         ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
         prompt_id = None
-        if prompt_text:
+        if prompt_text and getattr(args, 'expression', 'reference') == 'reference':
             prompt_id = await bounded_call(server.add_prompt(wav_bytes, "wav", prompt_text), args.ready_timeout)
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
         print("Referans hazir; uretim basliyor.", flush=True)
@@ -229,9 +229,10 @@ async def uret(args, cues, paths, prompt_text):
         results = []
 
         async def sentez(chunk, seed):
+            from dub_expression import synthesis_text
             pieces = []
             async for part in server.generate(
-                    chunk, prompt_id=prompt_id,
+                    synthesis_text(chunk, getattr(args, 'expression', 'reference')), prompt_id=prompt_id,
                     ref_audio_latents=ref_lat,
                     temperature=args.temperature,
                     cfg_value=args.cfg, seed=seed,
@@ -508,6 +509,7 @@ def parse_args(argv=None):
     p.add_argument("reference", nargs="?", type=Path, default=DEFAULT_REFERENCE)
     p.add_argument("--transcript", type=Path)
     p.add_argument("--mode", choices=("auto", "hifi", "clone"), default="auto")
+    p.add_argument('--expression', choices=('reference','calm','warm','lively'), default='reference')
     p.add_argument("--video", type=Path, help="Dublajin gomulecegi video (opsiyonel)")
     p.add_argument("--steps", type=int, default=15)
     p.add_argument("--cfg", type=float, default=1.65)
@@ -634,7 +636,7 @@ def main(argv=None):
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
     settings = ("dublaj-ses-v13-preserve-video-text", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
-                args.verification)
+                args.verification, args.expression)
     # Run reports are separate from independently addressed speech pieces.
     run_hash = hashlib.sha256(repr(settings).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash

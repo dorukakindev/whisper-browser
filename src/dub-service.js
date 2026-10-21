@@ -51,6 +51,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
+      expression: ['calm','warm','lively'].includes(saved.expression) ? saved.expression : 'reference',
       grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
@@ -396,9 +397,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       c.profile = profile; c.concurrency = concurrency; c.timingMode = timingMode;
       if (request.grouping !== undefined && !['akici', 'cumle', 'satir'].includes(request.grouping)) throw new Error('Dublaj planını yeniden hazırlayın.');
       c.grouping = request.grouping ?? c.grouping;
+      c.expression = request.expression ?? c.expression;
+      if (!['reference','calm','warm','lively'].includes(c.expression)) throw new Error('Invalid expression profile.');
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
       s.settings.grouping = c.grouping;
+      s.settings.expression = c.expression;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
@@ -438,6 +442,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (fs.realpathSync(inputSrt) !== path.resolve(inputSrt) || !fs.readFileSync(inputSrt).equals(sourceBytes)) throw new Error('Bu işin girdi dosyası değişmiş.');
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
+        '--expression', c.expression,
         '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '280' : '250',
         '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
