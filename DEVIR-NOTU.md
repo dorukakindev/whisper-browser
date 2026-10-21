@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-10-21-1524.md](docs/devir/2026-10-21-1524.md) — Son grupta motor takılması, sınırlı iptal ve aynı referansla kurtarma
+Güncel çalışma: [docs/devir/2026-10-21-1626.md](docs/devir/2026-10-21-1626.md) — İkinci arızada kısmi ses kurtarma ve gerçek GPU/çıktı doğrulaması
+Önceki çalışma: [docs/devir/2026-10-21-1524.md](docs/devir/2026-10-21-1524.md) — Son grupta motor takılması, sınırlı iptal ve aynı referansla kurtarma
 Önceki çalışma: [docs/devir/2026-10-21-1515.md](docs/devir/2026-10-21-1515.md) — Güvenilir ses adayı, ilk sesi koruma ve 150 kaynak envanteri
 Önceki çalışma: [docs/devir/2026-10-21-1507.md](docs/devir/2026-10-21-1507.md) — Tam düşünce sınırları ve prosodi araştırması; o turda perde analizi açıktı
 Önceki çalışma: [docs/devir/2026-10-21-1440.md](docs/devir/2026-10-21-1440.md) —121URL ses araştırması, sabit bağlam deneyi ve eksik okuma/durak onarımı
