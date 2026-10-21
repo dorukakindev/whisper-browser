@@ -6,10 +6,20 @@ import unittest
 
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools/voxcpm2'))
-from analyze_prosody import measure, analyze
+from analyze_prosody import measure, analyze, pitch_summary
 
 
 class ProsodyDiagnostics(unittest.TestCase):
+    def test_sparse_pitch_does_not_imply_reliable_voice_statistics(self):
+        for frames,span in [(10,8),(23,8),(50,10),(100,0)]:
+            summary=pitch_summary(np.full(frames,160),span)
+            self.assertFalse(summary['pitch_sufficient'])
+            self.assertIsNone(summary['f0_median_hz'])
+        result=pitch_summary(np.full(97,160),1)
+        self.assertTrue(result['pitch_sufficient'])
+        self.assertEqual(result['f0_median_hz'],160)
+        self.assertEqual(result['f0_range_90_10_semitones'],0)
+
     def test_rate_excludes_edge_silence_and_preserves_samples(self):
         sr = 8000
         voice = (.1*np.sin(2*np.pi*160*np.arange(sr)/sr)).astype('float32')

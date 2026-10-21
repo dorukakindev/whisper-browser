@@ -12,6 +12,27 @@ import numpy as np
 import soundfile as sf
 
 
+def pitch_summary(values, speech_span):
+    """Suppress summaries based on only a few apparently confident frames.
+
+    pYIN's10ms frame hop is fixed below. At least500ms and10% of the
+    speech span must be supported; silence-only input has no pitch summary.
+    This conservative reporting floor is not a calibrated quality gate.
+    """
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values) & (values > 0)]
+    sufficient = speech_span > 0 and len(values) >= max(50, int(np.ceil(speech_span*10)))
+    result = {'pitch_confident_frames': int(len(values)),
+              'pitch_span_coverage': round(min(1, len(values)*.01/speech_span),4) if speech_span > 0 else 0,
+              'pitch_sufficient': bool(sufficient),
+              'f0_median_hz': None, 'f0_range_90_10_semitones': None}
+    if sufficient:
+        semitones = 12*np.log2(values/55)
+        result['f0_median_hz'] = round(float(np.median(values)),3)
+        result['f0_range_90_10_semitones'] = round(float(np.percentile(semitones,90)-np.percentile(semitones,10)),3)
+    return result
+
+
 def measure(audio, sr, text, pitch=False):
     wav = np.asarray(audio, dtype=np.float32)
     if wav.ndim != 1 or not 8000 <= sr <= 192000 or not 0 < len(wav) <= 30*sr or not np.isfinite(wav).all():
@@ -36,14 +57,7 @@ def measure(audio, sr, text, pitch=False):
         # still contain octave errors. F0 is not a speaker-identity embedding.
         energy = librosa.feature.rms(y=y, frame_length=1024, hop_length=160)[0]
         valid = voiced & np.isfinite(f0) & (probability >= .5) & (energy > max(.002, float(energy.max())*.025))
-        values = f0[valid]
-        if len(values) >= 10:
-            semitones = 12*np.log2(values/55)
-            result['f0_median_hz'] = round(float(np.median(values)), 3)
-            result['f0_range_90_10_semitones'] = round(float(np.percentile(semitones,90)-np.percentile(semitones,10)), 3)
-        else:
-            result['f0_median_hz'] = result['f0_range_90_10_semitones'] = None
-        result['pitch_confident_frames'] = int(len(values))
+        result.update(pitch_summary(f0[valid], span))
     return result
 
 
@@ -77,7 +91,9 @@ def analyze(source, output, pitch=False):
     result = {'version': 1, 'pitch': bool(pitch), 'cases': rows,
               'pitch_settings': {'method': 'librosa.pyin', 'sample_rate': 16000,
                                  'fmin': 55, 'fmax': 550, 'frame_length': 1024,
-                                 'hop_length': 160, 'minimum_probability': .5} if pitch else None,
+                                 'hop_length': 160, 'minimum_probability': .5,
+                                 'minimum_confident_seconds': .5,
+                                 'minimum_span_coverage': .1} if pitch else None,
               'limitations': 'Energy activity and pYIN are diagnostics, not VAD, speaker similarity, MOS or a naturalness ranking. Rate includes internal pauses. Pitch range may include octave errors; speech style may legitimately vary.'}
     with output.open('x', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2, allow_nan=False)

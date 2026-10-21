@@ -47,6 +47,41 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_retry_passes_all_gates_instead_of_chasing_token_similarity(self):
+        for status, review, similarity, expected, extra in [
+                ('passed',False,.90,'passed',{}),
+                ('review',True,.99,'review',{'added_numbers':['17']}),
+                ('review',True,.99,'review',{'percentage_mismatch':True}),
+                ('review',True,.99,'review',{'semantic_mismatch':True}),
+                ('unavailable',False,1,'review',{})]:
+            class CandidateVerifier(Verifier):
+                count = 0
+                async def check(self,*args,**kwargs):
+                    self.count += 1
+                    return ({'status':'review','review':True,'similarity':.95,'missing_numbers':['12']}
+                            if self.count == 1 else {'status':status,'review':review,'similarity':similarity,**extra})
+            with self.subTest(status=status,extra=extra), tempfile.TemporaryDirectory() as temp:
+                _,args,_=self.run_generation(Path(temp),Server(),['Good.'],verification='detailed',verifier=CandidateVerifier)
+                self.assertEqual(args.group_results[0]['verification']['status'],expected)
+                self.assertEqual(args.group_results[0]['verification'].get('missing_numbers'),None if expected=='passed' else ['12'])
+
+    def test_optional_verification_retry_failure_preserves_first_audio(self):
+        class RejectVerifier(Verifier):
+            async def check(self,*args,**kwargs):
+                return {'status':'review','review':True,'similarity':.7}
+        class RetryFailure(Server):
+            async def generate(self,text,**kwargs):
+                if kwargs['seed'] == 200045:
+                    raise ValueError('controlled retry failure')
+                async for part in super().generate(text,**kwargs):
+                    yield part
+        with tempfile.TemporaryDirectory() as temp:
+            _,args,paths=self.run_generation(Path(temp),RetryFailure(),['Good.'],verification='detailed',verifier=RejectVerifier)
+            self.assertEqual(args.group_results[0]['status'],'review')
+            self.assertEqual(args.group_results[0]['verification_retry_error'],'ValueError')
+            self.assertEqual(sf.info(paths[0]).frames,16000)
+            self.assertFalse(list(Path(temp).glob('*-verify.wav')))
+
     def test_long_truncation_recovers_with_verified_smaller_contexts(self):
         class TruncationVerifier(Verifier):
             async def check(self, path, text, **kwargs):

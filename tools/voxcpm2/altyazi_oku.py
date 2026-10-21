@@ -299,19 +299,27 @@ async def uret(args, cues, paths, prompt_text):
                         if check['status'] == 'review':
                             # Re-read with a different seed; never edit meaning
                             # from an uncertain automatic transcript.
-                            candidate, candidate_finishing = finish_audio(prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr), sr)
-                            if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
-                                second = temporary.with_name(temporary.stem + '-verify.wav')
-                                try:
+                            second = temporary.with_name(temporary.stem + '-verify.wav')
+                            try:
+                                candidate, candidate_finishing = finish_audio(prepare_audio(await asyncio.wait_for(sentez(text, seed + 200003), args.request_timeout), sr), sr)
+                                if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
-                                    if checked.get('similarity', 0) > check.get('similarity', 0) and not any(
-                                            checked.get(k) for k in ('missing_numbers', 'lost_negation', 'added_negation', 'unit_mismatch', 'repetition', 'sign_mismatch', 'missing_names', 'omission_spans', 'insertion_spans')):
+                                    # The shared verifier owns all semantic gates.
+                                    # A passed retry beats a rejected candidate even
+                                    # when its raw token similarity is slightly lower.
+                                    if checked.get('status') == 'passed' and not checked.get('review', False):
+                                        # Promote the already written, checked WAV
+                                        # before changing its in-memory metadata.
+                                        second.replace(temporary)
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
-                                        sf.write(str(temporary), wav, sr, subtype='PCM_16')
-                                finally:
-                                    second.unlink(missing_ok=True)
+                            except (ValueError, OSError, asyncio.TimeoutError) as retry_error:
+                                # A failed optional retry must not erase the first
+                                # usable waveform. It remains explicitly for review.
+                                metric['verification_retry_error'] = type(retry_error).__name__
+                            finally:
+                                second.unlink(missing_ok=True)
                             metric['attempts'] += 1; metric['retries'] += 1
                         if check['status'] == 'review':
                             # Large one-pass requests can end early despite valid
@@ -605,7 +613,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v11-thought-boundaries", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v12-verified-retry", args.auto_fit, args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification)
     # Run reports are separate from independently addressed speech pieces.
