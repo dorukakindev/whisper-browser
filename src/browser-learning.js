@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { PLAYBACK_POLICIES, playbackLearningAction } = require('./playback-policy');
 const { normalizeTextAnchor } = require('./browser-library-tools');
+const { canonicalWatchKey } = require('./watch-library-store');
 const {
   normalizeResearchLinks,
   normalizeResearchTags,
@@ -9,7 +10,8 @@ const {
 
 function normalizeAnnotation(raw = {}) {
   const type = ['quote', 'word', 'note'].includes(raw.type) ? raw.type : 'note';
-  const mediaId = String(raw.mediaId || '').slice(0, 240);
+  const rawMediaId = String(raw.mediaId || '').slice(0, 240);
+  const mediaId = rawMediaId.startsWith('file:') ? canonicalWatchKey(rawMediaId) : rawMediaId;
   const start = Math.max(0, Number(raw.start) || 0);
   const source = String(raw.source || '').trim().slice(0, 4000);
   const identity = `${mediaId}|${start}|${type}|${source}`;

@@ -1,5 +1,6 @@
 const path = require('path');
 const { safePlaceUrl } = require('./browser-place-url');
+const { canonicalWatchKey } = require('./watch-library-store');
 
 const WATCH_INDEX_VERSION = 4;
 
@@ -526,6 +527,10 @@ class WatchIndex {
     this.transaction(() => {
       for (const item of Array.isArray(items) ? items : []) {
         if (!item || !item.key) continue;
+        for(const alias of Array.isArray(item.legacyKeys) ? item.legacyKeys : []){
+          if(typeof alias==='string' && alias.startsWith('file:') && alias!==item.key
+              && canonicalWatchKey(alias)===item.key)this.mergeMediaIds(alias,item.key);
+        }
         this.upsertMedia({
           id: item.key,
           service: item.type || '',

@@ -98,6 +98,13 @@ test('496-13 notebook Markdown exports redact source/link credentials',()=>{
 });
 test('496-14 Windows file key aliases resolve to one library identity',()=>{
  const S=mod('watch-library-store');assert.equal(S.canonicalWatchKey('file:C:\\Movies\\..\\Film.mp4'),S.canonicalWatchKey('file:C:/Film.mp4'));
+ const L=mod('browser-learning');assert.equal(L.normalizeAnnotation({mediaId:'file:C:\\Movies\\..\\Film.mp4'}).mediaId,'file:c:/film.mp4');
+ indexed(index=>{
+  const alias='file:C:/Movies/../Film.mp4',key='file:c:/film.mp4';
+  index.upsertMedia({id:alias});index.upsertTrack({id:'old-track',mediaId:alias});
+  index.migrateLegacyWatchLibrary([{key,legacyKeys:[alias]}]);
+  assert.equal(index.getTrack('old-track').media_id,key);assert.equal(index.getMedia(alias),null);
+ });
 });
 test('496-15 unreported HLS stalls cannot combine separate stable windows',()=>{
  const H=mod('hls-recovery').createHlsRecoveryState();H.sourceChanged('fixture');const attempt=H.beginRecovery('network');H.completeRecovery(attempt.token);H.playbackStarted(0,0);
