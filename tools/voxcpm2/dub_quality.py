@@ -30,6 +30,19 @@ def speech_check(expected, actual, numeric_reference=None):
         else:
             remaining[found:found+len(phrase)] = ['_consumed_'] * len(phrase)
     target_counts, heard_counts = Counter(target), Counter(heard)
+    # Number presence alone misses invented quantities and unit swaps.
+    remaining_expected = list(target)
+    added_numbers = []
+    for number in re.findall(r'\d+(?:[.,]\d+)*', actual):
+        phrase = words(number + ' kişi')[:-1]
+        found = next((i for i in range(len(remaining_expected)-len(phrase)+1)
+                      if remaining_expected[i:i+len(phrase)] == phrase
+                      and (i == 0 or remaining_expected[i-1] not in number_words)
+                      and (i+len(phrase) == len(remaining_expected) or remaining_expected[i+len(phrase)] not in number_words)), None)
+        if found is None:
+            added_numbers.append(number)
+        else:
+            remaining_expected[found:found+len(phrase)] = ['_consumed_'] * len(phrase)
     # Tokenization splits English contractions into don/t and can/t; preserve
     # their negative meaning even when a single lost word barely changes ratio.
     negative_forms = r"\b(?:[a-z]+n['’]t|cannot)\b"
@@ -69,13 +82,39 @@ def speech_check(expected, actual, numeric_reference=None):
         heard_counts[word] > target_counts[word] for word in ('değil', 'yok', 'asla', 'hiç', 'hiçbir'))
     unit_words = {'kilometre', 'kilogram', 'santimetre', 'milimetre', 'metre', 'gram', 'miligram', 'litre', 'mililitre', 'celsius', 'fahrenheit'}
     unit_mismatch = any(target_counts[word] != heard_counts[word] for word in unit_words)
+    def quantities(tokens):
+        result = []
+        for i, token in enumerate(tokens):
+            if token not in unit_words:
+                continue
+            j = i
+            while j and tokens[j-1] in number_words:
+                j -= 1
+            if j < i:
+                result.append((tuple(tokens[j:i]), token))
+        return Counter(result)
+    unit_mismatch = unit_mismatch or quantities(target) != quantities(heard)
+    percentage_mismatch = target_counts['yüzde'] != heard_counts['yüzde']
+    def meaning_evidence(text):
+        lower = text.casefold().replace('i\u0307', 'i')
+        patterns = {
+            'currency': r'[$€£₺¥]|\b(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)\b',
+            'past_negation': r'\b[^\W_]{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)[^\W_]*\b',
+            'modality': r'\b(?:[^\W_]*abilir[^\W_]*|[^\W_]*ebilir[^\W_]*|belki|muhtemelen|possibly|perhaps|might|may|must|should)\b',
+            'comparison': r'[<>≤≥≠]=?',
+        }
+        return {key: sorted(re.findall(pattern, lower)) for key, pattern in patterns.items()}
+    # Punctuation and acronym capitalization are not reliable ASR evidence;
+    # these gates are enforced before rewriting, not inferred from ASR casing.
+    semantic_mismatch = meaning_evidence(expected) != meaning_evidence(actual)
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
     missing_names = [name for name in names if not all(word in heard_counts for word in words(name))]
     # ASR is evidence for review, never permission to silently remove speech.
-    return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers,
+    return {'similarity': round(similarity, 4), 'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
+            'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch,
             'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,
             'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
-            'review': similarity < .85 or bool(missing_numbers) or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
+            'review': similarity < .85 or bool(missing_numbers) or bool(added_numbers) or percentage_mismatch or semantic_mismatch or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
 
 
 def generation_status(score, verification):

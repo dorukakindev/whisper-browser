@@ -1,6 +1,20 @@
 'use strict';
 function safeShortening(source, proposed, {natural=false} = {}) {
+  if (typeof source !== 'string') return false;
   if (typeof proposed !== 'string' || !proposed.trim() || proposed.length > (natural ? Math.max(source.length, Math.round(source.length*1.25)) : source.length) || proposed.length > 1000) return false;
+  const evidence = text => {
+    const lower = text.toLocaleLowerCase('tr');
+    const matches = pattern => (lower.match(pattern) || []).sort();
+    return {
+      currency: matches(/[$€£₺¥]|(?<!\p{L})(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)(?!\p{L})/gu),
+      question: (text.match(/[?？]/g) || []).length,
+      acronyms: (text.match(/(?<![\p{L}\p{N}])[A-ZÇĞİÖŞÜ]{2,}(?![\p{L}\p{N}])/gu) || []).sort(),
+      comparisons: matches(/[<>≤≥≠]=?/gu),
+      pastNegatives: matches(/(?<!\p{L})\p{L}{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)\p{L}*(?!\p{L})/gu),
+      modality: matches(/(?<!\p{L})(?:\p{L}*abilir\p{L}*|\p{L}*ebilir\p{L}*|belki|muhtemelen|possibly|perhaps|might|may|must|should)(?!\p{L})/gu),
+    };
+  };
+  if (JSON.stringify(evidence(source)) !== JSON.stringify(evidence(proposed))) return false;
   const numbers = text => text.match(/\d+(?:[.,]\d+)*/g) || [];
   const remaining = numbers(proposed);
   for (const value of numbers(source)) {

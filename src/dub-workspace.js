@@ -60,7 +60,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       const source=await authorizeMedia(output.path);await fsp.copyFile(source,path.join(staging,files.voice));
       if(output.background?.path) {files.background='background.wav';await fsp.copyFile(await authorizeMedia(output.background.path),path.join(staging,files.background));}
       for(const kind of ['music','ambience']) if(layers[kind]){files[kind]=kind+path.extname(layers[kind].path).toLowerCase();await fsp.copyFile(layers[kind].path,path.join(staging,files[kind]));check(op);}
-      if(output.subtitle && fs.existsSync(output.subtitle)) {
+      if(output.subtitle) {
         files.subtitle='subtitles.srt';await fsp.copyFile(await authorizeSubtitle(output.sourceSubtitle || output.subtitle),path.join(staging,files.subtitle));
         if(output.rows.length){
           files.sourceSubtitle='subtitles.srt';files.subtitle='dub.srt';files.spokenSubtitle='speech.srt';

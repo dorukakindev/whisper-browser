@@ -2,6 +2,7 @@
   'use strict';
   const finite = (n, a, b) => Number.isFinite(n) && n >= a && n <= b;
   function mix(value = {}) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) value = {};
     const result = {};
     for (const [key, fallback] of Object.entries({voice:1,background:.75,music:.75,ambience:.75,duckAmount:.35}))
       result[key] = finite(value[key],0,1) ? value[key] : fallback;

@@ -10,7 +10,7 @@ from dub_timing import sentence_plan
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from subtitle_text import decode_subtitle_bytes
 
-TAG_RE = re.compile(r"</?[A-Za-z][^>]*>|\{\\[^}]*\}")
+TAG_RE = re.compile(r"</?(?:b|i|u|s|strong|em|font|span|small|big|sub|sup)(?=[\s/>])[^>]*>|\{\\[^}]*\}", re.I)
 TIME_RE = re.compile(
     r"^[ \t]*(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})[ \t]*-->[ \t]*"
     r"(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})(?=[ \t\n]|$)", re.MULTILINE)
@@ -65,6 +65,7 @@ def parse_srt(path, source_bytes=None):
         # Line-break tags separate words; inline styling must not split them.
         body = re.sub(r'<br\b[^>]*>', ' ', body, flags=re.I)
         body = html.unescape(TAG_RE.sub('', body))
+        body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', body)
         body = re.sub(r"\s+", " ", body).strip()
         if body and end >= start:
             cues.append((start, max(start + 1, end), body))

@@ -151,7 +151,9 @@ function normalizeCues(cues) {
   const deduped = [];
   for (const cue of clean) {
     const previous = deduped[deduped.length - 1];
+    const previousId = previous?.cueId ?? previous?.id, currentId = cue.cueId ?? cue.id;
     const rollingDuplicate = previous && cuePresentationCompatible(previous, cue) && cue.text === previous.text
+      && (previousId == null || currentId == null || previousId === currentId)
       && cue.start < previous.end && cue.start - previous.start <= 1.0;
     if (rollingDuplicate) {
       previous.end = Math.max(previous.end, cue.end);
@@ -433,6 +435,9 @@ function parseSami(body) {
 
 function parseLrc(body) {
   const rows = [];
+  const offsets = [...String(body || '').matchAll(/\[offset\s*:\s*([+-]?\d+)\s*\]/gi)];
+  // LRC positive offset advances lyrics; negative offset delays them.
+  const offset = offsets.length ? -Number(offsets.at(-1)[1]) / 1000 : 0;
   for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
     const tagPattern = /\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
     const tags = [...line.matchAll(tagPattern)];
@@ -450,8 +455,9 @@ function parseLrc(body) {
     ...row,
     // LRC'nin son satırında bitiş damgası yoktur. Sıfıra düşürüp satırı
     // kaybetmek yerine okunabilir kısa bir varsayılan süre kullan.
-    end: rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5,
-  })).filter((row) => row.text));
+    start: Math.max(0, row.start + offset),
+    end: (rows[i + 1] ? Math.min(rows[i + 1].start, row.start + 7) : row.start + 5) + offset,
+  })).filter((row) => row.text && row.end > row.start));
 }
 
 const HLS_LANGUAGE_LABELS = {

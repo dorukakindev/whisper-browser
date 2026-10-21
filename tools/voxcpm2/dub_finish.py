@@ -27,6 +27,8 @@ def spoken_text(text):
     """Expand only unambiguous TR forms; leave dates, clocks, IDs and suffixes alone."""
     text = re.sub(r'\bDr\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Doktor', text)
     text = re.sub(r'\bProf\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Profesör', text)
+    text = re.sub(r'%\s*(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s*%',
+                  lambda m: 'yüzde ' + (m[1] or m[2]), text)
     units = {'km':'kilometre', 'kg':'kilogram', 'cm':'santimetre', 'mm':'milimetre', 'm':'metre', '°C':'derece Celsius'}
     text = re.sub(r'(?<=\d)\s*(km|kg|cm|mm|m|°C)(?!\w)', lambda m: ' ' + units[m[1]], text)
     # Avoid interpreting punctuation in a date/clock/version/phone as decimal.

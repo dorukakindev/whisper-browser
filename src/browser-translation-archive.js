@@ -149,7 +149,8 @@ function matchArchivedPage(record, rawBlocks) {
   const blocks = (Array.isArray(rawBlocks) ? rawBlocks : []).map((block, order) => ({
     id: String(block?.id || '').slice(0, 240), source: normalizeText(block?.text).slice(0, 12000),
     tag: String(block?.tag || '').toLowerCase().slice(0, 24),
-    role: String(block?.role || '').toLowerCase().slice(0, 48), order,
+    role: String(block?.role || '').toLowerCase().slice(0, 48),
+    section: normalizeText(block?.section).slice(0, 160), order,
   })).filter((block) => block.id && block.source);
   const rows = Array.isArray(record?.rows) ? record.rows : [];
   const idCounts=new Map();for(const block of blocks)idCounts.set(block.id,(idCounts.get(block.id)||0)+1);
@@ -158,10 +159,11 @@ function matchArchivedPage(record, rawBlocks) {
   const used = new Set();
   const matches = [];
   const unmatchedRows = [];
+  const sameSection = (block, row) => !block.section || !row.section || block.section === normalizeText(row.section);
   for (const row of rows) {
     if (!normalizeText(row?.translation)) continue;
     const block = byId.get(String(row?.id || ''));
-    if (block && pageRowKey(block) === pageRowKey(row) && !used.has(block.id)) {
+    if (block && pageRowKey(block) === pageRowKey(row) && sameSection(block,row) && !used.has(block.id)) {
       used.add(block.id);
       matches.push({ id: block.id, translation: normalizeText(row.translation), source: block.source });
     } else unmatchedRows.push(row);
@@ -175,7 +177,8 @@ function matchArchivedPage(record, rawBlocks) {
   }
   for (const row of unmatchedRows) {
     const queue = queues.get(pageRowKey(row));
-    const block = queue?.shift();
+    const index = queue?.findIndex(block=>sameSection(block,row)) ?? -1;
+    const block = index >= 0 ? queue.splice(index,1)[0] : null;
     const translation = normalizeText(row?.translation);
     if (!block || !translation) continue;
     used.add(block.id);
@@ -259,7 +262,10 @@ class BrowserTranslationArchive {
     const now = Date.now();
     const title = safeName(raw.title, 'Sayfa çevirisi');
     const scope = ['article', 'whole', 'selection'].includes(raw.scope) ? raw.scope : 'article';
-    const id = `page:${hash(`${url}|${targetLanguage}|${scope}`, 32)}`;
+    // Independent selections and partial snapshots must not erase the full
+    // saved article (nor a different selection from the same page).
+    const revision = scope === 'selection' || raw.complete !== true ? `|${hash(JSON.stringify(rows),32)}` : '';
+    const id = `page:${hash(`${url}|${targetLanguage}|${scope}${revision}`, 32)}`;
     const record = { version: ARCHIVE_VERSION, kind: 'page', id, url,
       originalUrl: url, title, targetLanguage,
       sourceLanguage: languageCode(raw.sourceLanguage, ''), model: String(raw.model || '').slice(0, 160),
