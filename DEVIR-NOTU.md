@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-21-1651.md](docs/devir/2026-10-21-1651.md) — Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı
 Güncel çalışma: [docs/devir/2026-10-21-1641.md](docs/devir/2026-10-21-1641.md) — Ses çevirisinde tam anlam önceliği, kısaltma ayrımı ve eski sonuçları yenileme
 Önceki çalışma: [docs/devir/2026-10-21-1630.md](docs/devir/2026-10-21-1630.md) — Luna Player v1.3.9 kaynak incelemesi ve uyarlama önerileri
 Önceki çalışma: [docs/devir/2026-10-21-1626.md](docs/devir/2026-10-21-1626.md) — İkinci arızada kısmi ses kurtarma ve gerçek GPU/çıktı doğrulaması

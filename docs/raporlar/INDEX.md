@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 511 | [BROWSER_BUG_REPORT_511.md](BROWSER_BUG_REPORT_511.md) | Gerçek çeviri düzeltmesi, tam cümle ve konu bağlamı |
 | 510 | [BROWSER_BUG_REPORT_510.md](BROWSER_BUG_REPORT_510.md) | Ses çevirisinde tam anlam, kota ayrımı ve eski sonuç kullanımı |
 | 509 | [BROWSER_BUG_REPORT_509.md](BROWSER_BUG_REPORT_509.md) | İkinci motor arızasında ses kurtarma ve gerçek GPU doğrulaması |
 | 508 | [BROWSER_BUG_REPORT_508.md](BROWSER_BUG_REPORT_508.md) | Son grupta motor takılması ve aynı referansla kurtarma |
