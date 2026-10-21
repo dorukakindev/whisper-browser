@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 498 | [BROWSER_BUG_REPORT_498.md](BROWSER_BUG_REPORT_498.md) | Kurtarma, iptal ve çeviri bütünlüğünde 20 doğrulanmış hata |
 | 497 | [BROWSER_BUG_REPORT_497.md](BROWSER_BUG_REPORT_497.md) | Ses anlamı, altyazı kimliği ve arşiv kaybında 20 doğrulanmış hata |
 | 496 | [BROWSER_BUG_REPORT_496.md](BROWSER_BUG_REPORT_496.md) | Kütüphane, not, kuyruk ve çeviri hafızasında 20 doğrulanmış hata |
 | 495 | [BROWSER_BUG_REPORT_495.md](BROWSER_BUG_REPORT_495.md) | Konuşma anlamı, proje kurtarma ve altyazıda 20 doğrulanmış hata |
