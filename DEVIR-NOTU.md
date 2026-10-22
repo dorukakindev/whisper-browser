@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-22-1514.md](docs/devir/2026-10-22-1514.md) — PR476 master ve Windows ana kopyaya alındı
 Güncel çalışma: [docs/devir/2026-10-22-1511.md](docs/devir/2026-10-22-1511.md) — Claude ses düzeltmeleri güvenli uyarlama, özgün cue kimliği ve ses kurtarma
 Güncel çalışma: [docs/devir/2026-10-22-1505.md](docs/devir/2026-10-22-1505.md) — Claude ses ZIP'i incelemesi; patch uygulanmadı, kimlik kayması doğrulandı
 Güncel çalışma: [docs/devir/2026-10-22-0623.md](docs/devir/2026-10-22-0623.md) — PR474 master ve Windows ana kopyada; önceki üç onarım dahil
