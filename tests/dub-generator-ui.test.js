@@ -37,6 +37,13 @@ const tick = () => new Promise(setImmediate);
   el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
   el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
   el('dubChooseSrt').click();await tick();
+  const planned = skipped => async value => ({ok:true,grouping:value.grouping,sourceHash:'plan-hash',skipped,
+    groups:[{key:'1',text:'Merhaba.',start:0,end:2000,seconds:2}]});
+  w.api.planDub = planned(3);el('dubPlanPrepare').click();await tick();
+  assert.match(el('dubGeneratorStatus').textContent,/3 ses-dışı altyazı satırı atlandı/,'skipped non-speech cues must be reported');
+  w.api.planDub = planned(0);el('dubPlanPrepare').click();await tick();
+  assert.equal(el('dubGeneratorStatus').textContent,'Cümle grupları hazır');
+  el('dubRangeEnabled').dispatchEvent(new w.Event('input'));// a range edit invalidates the plan
   el('dubRangeEnabled').checked=true;el('dubRangeStart').value='10:00';el('dubRangeEnd').value='20:00';el('dubKeepBackground').checked=true;
   el('dubPresetFast').click();await tick();
   assert.equal(el('dubProfile').value,'fast');assert.equal(el('dubNaturalSpeech').checked,false);
@@ -87,7 +94,12 @@ const tick = () => new Promise(setImmediate);
   onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review'}]}});await tick();
   assert.match(el('dubGeneratorStatus').textContent,/işaretli parçaları/);
   el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),[]);
-  onEvent({id:request.id,type:'error',error:'fixture stopped'});
+  attached=false;
+  onEvent({id:request.id,type:'error',error:'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
+    recoverablePath:'recovered.wav',recoverableUrl:'file:///recovered.wav',name:'recovered.wav'});await tick();
+  assert.equal(attached,false,'recovered audio is not quality approval or automatic attachment');
+  assert.equal(el('dubGeneratorUse').classList.contains('hidden'),true);
+  assert.equal(el('dubGeneratedPreview').getAttribute('src'),'file:///recovered.wav');
   el('dubStorageOpen').click();await tick();assert.equal(opened,'voice-folder');
   w.api.selectVideo=async()=>['previous-background.wav'];
   el('dubChooseBackground').click();await tick();assert.equal(el('dubBackgroundName').textContent,'previous-background.wav');

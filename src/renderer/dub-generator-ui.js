@@ -240,7 +240,9 @@
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
         option.textContent = `${i + 1} · ${g.seconds.toFixed(1)} s · ${g.text.slice(0, 65)}`; el('dubPlanGroup').append(option); });
-      showGroup(); status('Cümle grupları hazır');
+      showGroup();
+      // Non-speech cues (music, applause, sound effects) are not spoken; say so.
+      status(r.skipped > 0 ? `${t('Cümle grupları hazır')} · ${r.skipped} ${t('ses-dışı altyazı satırı atlandı')}` : 'Cümle grupları hazır');
     } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
     finally { planning = false; inheritSubtitleRange(); controls(); }
   });

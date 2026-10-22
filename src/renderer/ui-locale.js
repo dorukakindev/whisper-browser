@@ -295,6 +295,8 @@
     ['Ses hazır. Ses ekle düğmesinden bu dosyayı seçebilirsiniz.', 'Audio ready. You can choose this file using Add audio.'],
     ['Kısa örnek hazır; tüm video için örnek seçimini kapatın.', 'Sample ready; disable the sample option for the full video.'],
     ['Motor yükleniyor…', 'Loading engine…'], ['Cümle grupları hazır', 'Sentence groups ready'],
+    ['ses-dışı altyazı satırı atlandı', 'non-speech subtitle cues skipped'],
+    ['Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.', 'The audio file was recovered, but the engine failed. Listen before using it.'],
     ['Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…', 'The voice engine stopped responding; restarting while preserving completed pieces…'],
     ['Tamamlanan sesler kurtarıldı; üretilemeyen bölümler kalite raporunda işaretlendi.', 'Completed audio was recovered; missing sections are marked in the quality report.'],
     ['Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.', 'Voice engine shutdown timed out; its workers were checked.'],

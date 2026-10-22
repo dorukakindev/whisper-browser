@@ -32,6 +32,15 @@ def _key(value):
 # modül sabiti olduğu için bir kez önceden normalize edilir (P79-01).
 _SDH_NORMALIZED = frozenset(_key(term) for term in _SDH)
 _SDH_TERM_WORDS = [term.split() for term in _SDH_NORMALIZED]
+# Modifiers must go through the same normalization as the text they are matched
+# against. _key keeps the dotless 'ı', so a raw 'caliyor' never matched the real
+# word 'çalıyor': '[MÜZİK ÇALIYOR]' was recognised but '[Müzik çalıyor]' was not.
+_MODIFIERS = frozenset(_key(word) for word in (
+    "soft", "tense", "dramatic", "ominous", "distant", "quiet",
+    "loud", "upbeat", "background", "continues", "playing", "howling", "wailing",
+    "hafif", "gergin", "dramatik", "uğursuz", "uzak", "uzaktan",
+    "sessiz", "yüksek", "neşeli", "arka", "planda", "devam", "ediyor", "çalıyor", "çalar",
+    "ugursuz", "yuksek", "neseli", "caliyor", "calar"))
 
 
 def is_sdh_descriptor(value):
@@ -43,10 +52,7 @@ def is_sdh_descriptor(value):
         return True
     # Alt dize eşleşmesi tehlikelidir: [Brain] içindeki rain veya gerçek
     # [The music is wonderful] cümlesi ses etiketi değildir.
-    modifiers = {"soft", "tense", "dramatic", "ominous", "distant", "quiet",
-                 "loud", "upbeat", "background", "continues", "playing", "howling", "wailing",
-                 "hafif", "gergin", "dramatik", "ugursuz", "uzak", "uzaktan",
-                 "sessiz", "yuksek", "neseli", "arka", "planda", "devam", "ediyor", "caliyor"}
+    modifiers = _MODIFIERS
     words = key.split()
     if not 0 < len(words) <= 6:
         return False

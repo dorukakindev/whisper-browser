@@ -10,6 +10,19 @@ import soundfile as sf
 from dub_lifecycle import bounded_call, EngineStalled
 
 
+# A speaker turn starts with a dash, a [label], or a short NAME label ('JOHN:',
+# 'Dr. Kaya:', 'Anlatıcı:'). A name is made of capitalised words; any colon in the
+# first 25 characters used to count, so a narrator sentence such as 'Şöyle
+# düşünün: bir adam yürüyor' was cut out of its sentence as if someone new spoke.
+_LABEL_WORD = r"[A-ZÇĞİÖŞÜ][\wÇĞİÖŞÜçğıöşü.'’-]*"
+SPEAKER_TURN = re.compile(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|' + _LABEL_WORD
+                          + r'(?:(?:\s+(?:bin|bint|van|von|de|del|der|da|di))?\s+' + _LABEL_WORD + r'){0,2}:\s)')
+
+
+def is_speaker_turn(text):
+    return bool(SPEAKER_TURN.match(text))
+
+
 class TimingOverflow(ValueError):
     def __init__(self, report):
         self.report = report
@@ -65,7 +78,7 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
     truncated. At most 128 candidates per position bound dense-caption cost.
     """
     def speaker(text):
-        return bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
+        return is_speaker_turn(text)
 
     def completed(text):
         tail = text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
@@ -144,8 +157,8 @@ def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=
             tail = g['text'].rstrip('"\u201d\u2019\u00bb)]')
             abbreviation = bool(re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I))
             complete = bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
-            speaker_boundary = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', text))
-            previous_speaker = bool(re.match(r'^\s*(?:[-\u2013\u2014]\s|\[[^\]]+\]|[^:]{1,25}:\s)', g['text']))
+            speaker_boundary = is_speaker_turn(text)
+            previous_speaker = is_speaker_turn(g['text'])
             split = (start - g['end'] > max_gap_ms or start < g['end'] or speaker_boundary
                      or len(g['text']) + len(text) + 1 > max_chars
                      or (max(end, g['end']) - g['start']) / 1000 > max_seconds

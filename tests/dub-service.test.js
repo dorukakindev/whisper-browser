@@ -56,7 +56,22 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     await new Promise(resolve => setImmediate(resolve));
     child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
     child.emit('close',0);
-    assert.equal((await pendingPlan).sourceHash, fixtureHash);
+    const firstPlan = await pendingPlan;
+    assert.equal(firstPlan.sourceHash, fixtureHash);assert.equal(firstPlan.skipped,0,'older planners without a count report none');
+    const countedPlan = call('dub:plan', {srt});
+    await new Promise(resolve => setImmediate(resolve));
+    child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, skipped:3, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+    child.emit('close',0);
+    assert.equal((await countedPlan).skipped,3);
+    const badCount = call('dub:plan', {srt});
+    await new Promise(resolve => setImmediate(resolve));
+    child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, skipped:-5, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+    child.emit('close',0);
+    assert.equal((await badCount).skipped,0,'an invalid count from the worker is ignored');
+    const restoredPlan = call('dub:plan', {srt});
+    await new Promise(resolve => setImmediate(resolve));
+    child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+    child.emit('close',0);await restoredPlan;
     assert.equal((await call('dub:shorten','1')).text, 'Kısa metin.');
     assert.equal((await call('dub:shorten','999')).ok,false);
     fs.writeFileSync(srt,'changed after plan');
@@ -301,6 +316,34 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(events.at(-1).type,'cancelled');assert.equal(service.running(),false);
     assert.equal(calls.length,count,'cancelled analysis must not start TTS');
     assert.equal(fs.existsSync(prosodyOptions.output.replace(/\.json$/,'.partial.json')),false);
+    // B4: finished, verified audio survives a non-zero exit during engine shutdown...
+    prosodyMode='ok';
+    assert.equal((await call('dub:start',{id:'exit-after-done',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const finishedWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(finishedWav,wav);
+    child.stdout.emit('data','Tamamlandi: '+finishedWav+'\n');
+    child.stderr.emit('data','Windows fatal exception: access violation\n');
+    child.emit('close',3221225477,null);
+    assert.equal(events.at(-1).type,'error');assert.ok(fs.existsSync(finishedWav),'recoverable audio must not be deleted');
+    assert.equal(events.at(-1).recoverablePath,finishedWav);
+    assert.match(events.at(-1).error,/dinleyin/);
+    assert.equal(JSON.parse(fs.readFileSync(events.at(-1).logPath,'utf8')).settings.engineExitCode,3221225477);
+    // ...but a crash without the completion line is still a failure and is cleaned up,
+    assert.equal((await call('dub:start',{id:'crash-before-done',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const unfinishedWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(unfinishedWav,wav);child.emit('close',3221225477,null);
+    assert.equal(events.at(-1).type,'error');assert.equal(fs.existsSync(unfinishedWav),false);
+    // ...a completion line cannot vouch for a truncated file,
+    assert.equal((await call('dub:start',{id:'done-but-empty',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const truncatedWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(truncatedWav,'');child.stdout.emit('data','Tamamlandi: '+truncatedWav+'\n');child.emit('close',1,null);
+    assert.equal(events.at(-1).type,'error');assert.equal(fs.existsSync(truncatedWav),false);
+    // ...and video mode still demands a valid timing map (audio stays recoverable only).
+    assert.equal((await call('dub:start',{id:'done-bad-map',srt,timingMode:'video',followDelivery:false})).ok,true);
+    const badMapWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(badMapWav,wav);fs.writeFileSync(badMapWav.replace(/\.wav$/,'.sync.json'),'invalid');
+    child.stdout.emit('data','Tamamlandi: '+badMapWav+'\n');child.emit('close',1,null);
+    assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).recoverablePath,badMapWav);
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

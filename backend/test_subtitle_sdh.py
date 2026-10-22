@@ -102,5 +102,16 @@ class SubtitleSdhTests(unittest.TestCase):
                          "[Soft Power] A documentary")
 
 
+    def test_lowercase_turkish_modifier_with_dotless_i_is_recognised(self):
+        # '[MÜZİK ÇALIYOR]' matched but '[Müzik çalıyor]' did not: the modifier set
+        # was not normalized like the text (the dotless 'ı' survives _key).
+        for text in ("[Müzik çalıyor]", "[MÜZİK ÇALIYOR]", "(Arka planda müzik çalıyor)",
+                     "[Hafif müzik]", "[Müzik çalar]", "[Dramatik müzik]"):
+            self.assertTrue(is_structural_sdh_cue(text), text)
+        self.assertEqual(strip_sdh_descriptors("[Müzik çalıyor] Peki sonra?"), "Peki sonra?")
+        for text in ("[Çalar saat]", "[The music is wonderful]", "[Brain]"):
+            self.assertFalse(is_structural_sdh_cue(text), text)
+
+
 if __name__ == "__main__":
     unittest.main()

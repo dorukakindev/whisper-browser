@@ -25,6 +25,48 @@ class FinishTests(unittest.TestCase):
             self.assertEqual(spoken_text(value),value)
         self.assertEqual(spoken_text('0 kişi, 100 kişi ve 1000000 kişi.'),'sıfır kişi, yüz kişi ve bir milyon kişi.')
 
+    def test_numbers_that_end_a_clause_or_sentence_are_spoken(self):
+        self.assertEqual(spoken_text('Toplam 42.'),'Toplam kırk iki.')
+        self.assertEqual(spoken_text('Yaşı 25, boyu 180.'),'Yaşı yirmi beş, boyu yüz seksen.')
+        self.assertEqual(spoken_text('Sayfa 7; sonra 8: bitti'),'Sayfa yedi; sonra sekiz: bitti')
+        self.assertEqual(spoken_text('Oran %50.'),'Oran yüzde elli.')
+        # A mid-text period may be a Turkish ordinal marker; dates, clocks,
+        # versions, thousands separators and ranges are still left alone.
+        for value in ['3. sınıf', '2. Dünya Savaşı', '1.250 kişi', '2.0 sürümü', '10:30 civarı',
+                      "Saat 5'te", '5-7 kişi', '12.05.2026 tarihli']:
+            self.assertEqual(spoken_text(value),value)
+
+    def test_turkish_abbreviations_are_spoken_and_verified_as_words(self):
+        self.assertEqual(spoken_text('Elma, armut vb. meyveler vardı.'),'Elma, armut ve benzeri meyveler vardı.')
+        self.assertEqual(spoken_text('Kitaplar, defterler vb.'),'Kitaplar, defterler ve benzeri.')
+        self.assertEqual(spoken_text('Kitaplar vb. Sonra gitti.'),'Kitaplar ve benzeri. Sonra gitti.')
+        self.assertEqual(spoken_text('Örn. bu kitap; bkz. şu.'),'Örneğin bu kitap; bakınız şu.')
+        self.assertEqual(spoken_text('Sn. Yılmaz ve Doç. Kaya.'),'Sayın Yılmaz ve Doçent Kaya.')
+        # Ambiguous or non-abbreviation forms stay untouched.
+        for value in ['Messi vs. Ronaldo', 'vb.com adresi', 'sn. altı saniye', 'Doç. değil']:
+            self.assertEqual(spoken_text(value),value)
+        for source,heard in [('Elma, armut vb. meyveler vardı.','elma armut ve benzeri meyveler vardı'),
+                             ('Sn. Yılmaz geldi.','sayın yılmaz geldi'),('Doç. Kaya anlattı.','doçent kaya anlattı')]:
+            self.assertFalse(speech_check(spoken_text(source),heard,source)['review'],source)
+
+    def test_rates_and_currency_symbols_are_spoken_as_words(self):
+        self.assertEqual(spoken_text('100 km/h hızla, 20 m/s rüzgârla.'),
+                         'yüz kilometre bölü saat hızla, yirmi metre bölü saniye rüzgârla.')
+        self.assertEqual(spoken_text('Fiyatı 5$, ötekisi €12,5 ve ₺3.'),
+                         'Fiyatı beş dolar, ötekisi on iki virgül beş euro ve üç lira.')
+        self.assertEqual(spoken_text('$ simgesi ve € işareti'),'$ simgesi ve € işareti')
+        self.assertEqual(spoken_text('Bkz. Şekil 2.'), 'Bakınız Şekil iki.')
+        self.assertEqual(spoken_text('Örn. Ankara.'), 'Örneğin Ankara.')
+
+    def test_verification_does_not_flag_correctly_spoken_clause_final_numbers(self):
+        for source,heard in [('Toplam 42.','toplam kırk iki'),
+                             ('Yaşı 25, boyu 180.','yaşı yirmi beş boyu yüz seksen'),
+                             ('Bu işte sadece 3.','bu işte sadece üç'),
+                             ('Fiyatı 5$ oldu','fiyatı beş dolar oldu')]:
+            result=speech_check(spoken_text(source),heard,source)
+            self.assertFalse(result['review'],(source,result))
+        self.assertTrue(speech_check(spoken_text('Toplam 42.'),'toplam kırk üç','Toplam 42.')['review'])
+
     def test_finishing_preserves_quiet_tail_and_internal_pause(self):
         sr=10000
         tone=np.sin(np.arange(2000)*.15).astype('float32')*.1

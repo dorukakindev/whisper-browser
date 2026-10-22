@@ -9,6 +9,7 @@ from pathlib import Path
 from dub_timing import sentence_plan
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from subtitle_text import decode_subtitle_bytes
+from subtitle_sdh import is_structural_sdh_cue, strip_sdh_descriptors
 
 TAG_RE = re.compile(r"</?(?:b|i|u|s|strong|em|font|span|small|big|sub|sup)(?=[\s/>])[^>]*>|\{\\[^}]*\}", re.I)
 TIME_RE = re.compile(
@@ -18,6 +19,33 @@ TIME_RE = re.compile(
 
 MAX_SOURCE_BYTES = 2_000_000
 MAX_GROUPS = 5000
+MUSIC_SYMBOLS = re.compile(r'[♪♫♬♩]+')
+
+
+class SourceCues(list):
+    """Keep the old valid-cue ordinal through speech-only filtering.
+
+    Consumers still receive triples; group/edit/prosody identities must use
+    these original ordinals, never the filtered list positions.
+    """
+    def __init__(self):
+        super().__init__()
+        self.source_ids = []
+
+
+def speech_body(body):
+    """Keep what a narrator can say; drop sound and music annotations.
+
+    SDH labels such as [MÜZİK], (alkış), [Müzik çalıyor] or ♪ are not speech and
+    must never be read aloud. subtitle_sdh only recognises complete, known
+    descriptors, so genuine parenthetical speech is preserved. A cue left with
+    nothing pronounceable (no letter or digit) yields an empty body.
+    """
+    if not body or is_structural_sdh_cue(body):
+        return ''
+    body = MUSIC_SYMBOLS.sub(' ', strip_sdh_descriptors(body))
+    body = re.sub(r'\s+', ' ', body).strip()
+    return body if re.search(r'[^\W_]', body) else ''
 
 
 def read_source_bytes(path):
@@ -28,15 +56,20 @@ def read_source_bytes(path):
     return data
 
 
-def parse_srt(path, source_bytes=None):
-    """SRT -> [(start_ms, end_ms, temiz_metin)]."""
+def parse_srt(path, source_bytes=None, skipped=None):
+    """SRT -> [(start_ms, end_ms, temiz_metin)].
+
+    `skipped`, when a list, receives (start_ms, end_ms) of every cue dropped because
+    it only carried a sound/music annotation, so callers can report it.
+    """
     data = read_source_bytes(path) if source_bytes is None else source_bytes
     if len(data) > MAX_SOURCE_BYTES:
         raise ValueError('SRT cok buyuk.')
     text = decode_subtitle_bytes(data)[0].replace("\r\n", "\n").replace("\r", "\n")
     # SRT separators may contain spaces/tabs from subtitle editors.
     text = re.sub(r'(?m)^[ \t]+$', '', text)
-    cues = []
+    cues = SourceCues()
+    source_ordinal = 0
     timings = list(TIME_RE.finditer(text))
     for index, match in enumerate(timings):
         fields = match.groups()
@@ -66,9 +99,15 @@ def parse_srt(path, source_bytes=None):
         body = re.sub(r'<br\b[^>]*>', ' ', body, flags=re.I)
         body = html.unescape(TAG_RE.sub('', body))
         body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', body)
-        body = re.sub(r"\s+", " ", body).strip()
+        raw_body = re.sub(r"\s+", " ", body).strip()
+        if raw_body and end >= start:
+            source_ordinal += 1
+        body = speech_body(raw_body)
+        if raw_body and not body and skipped is not None and end >= start:
+            skipped.append((start, end))
         if body and end >= start:
             cues.append((start, max(start + 1, end), body))
+            cues.source_ids.append(source_ordinal)
     return cues
 
 
@@ -102,7 +141,8 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
             if e <= start * 1000 or s >= end * 1000:
                 continue
             s, e = max(s, round(start * 1000)), min(e, round(end * 1000))
-        selected.append((s, e, text)); source_ids.append(i + 1)
+        selected.append((s, e, text))
+        source_ids.append(cues.source_ids[i] if isinstance(cues, SourceCues) else i + 1)
         if limit and len(selected) >= limit:
             break
     if not selected:
@@ -115,6 +155,17 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
     return groups
 
 
+def shift_cues(cues, offset):
+    """Shift time without renumbering surviving speech/edit identities."""
+    result = SourceCues()
+    ids = cues.source_ids if isinstance(cues, SourceCues) else range(1, len(cues) + 1)
+    for source_id, (start, end, text) in zip(ids, cues):
+        if start + offset >= 0:
+            result.append((start + offset, end + offset, text))
+            result.source_ids.append(source_id)
+    return result
+
+
 def grouping_options(mode):
     if mode not in ('cumle', 'satir', 'akici'):
         raise ValueError('Gecersiz gruplama modu.')
@@ -125,13 +176,15 @@ def grouping_options(mode):
 def plan(path, start=None, end=None, grouping='cumle'):
     source = Path(path)
     source_bytes = read_source_bytes(source)
-    groups = make_groups(parse_srt(source, source_bytes), start, end, **grouping_options(grouping))
+    skipped = []
+    groups = make_groups(parse_srt(source, source_bytes, skipped), start, end, **grouping_options(grouping))
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
         g['key'] = ','.join(map(str, g['source_ids']))
         g['seconds'] = (g['end'] - g['start']) / 1000
-    return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups}
+    return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups,
+            'skipped': len(skipped)}
 
 if __name__ == '__main__':
     import argparse
