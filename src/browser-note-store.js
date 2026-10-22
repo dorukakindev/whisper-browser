@@ -29,12 +29,16 @@ function normalizeStoredAnnotation(raw = {}) {
   };
 }
 
-function validDocument(raw) {
+function validRow(row) {
+  return !!row && typeof row === 'object' && !Array.isArray(row)
+    && typeof row.id === 'string' && !!row.id.trim()
+    && typeof (row.mediaId ?? row.media_id) === 'string' && !!(row.mediaId ?? row.media_id).trim();
+}
+
+function validDocument(raw, partial = false) {
   return !!raw && typeof raw === 'object' && !Array.isArray(raw)
     && Number(raw.version) === NOTE_STORE_VERSION && Array.isArray(raw.annotations)
-    && raw.annotations.every(row=>row && typeof row==='object' && !Array.isArray(row)
-      && typeof row.id==='string' && row.id.trim()
-      && typeof (row.mediaId ?? row.media_id)==='string' && (row.mediaId ?? row.media_id).trim());
+    && (partial ? raw.annotations.some(validRow) : raw.annotations.every(validRow));
 }
 
 class BrowserNoteStore {
@@ -53,12 +57,12 @@ class BrowserNoteStore {
     this.load();
   }
 
-  readDocument(candidate) {
+  readDocument(candidate, partial = false) {
     if (!this.io.existsSync(candidate)) return null;
     const stat = this.io.statSync(candidate);
     if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return null;
     const parsed = JSON.parse(this.io.readFileSync(candidate, 'utf8'));
-    return validDocument(parsed) ? parsed : null;
+    return validDocument(parsed, partial) ? parsed : null;
   }
 
   load() {
@@ -73,12 +77,23 @@ class BrowserNoteStore {
         this.recoveredFromBackup = !!document;
       } catch (_) {}
     }
+    // Prefer an intact backup. If neither file is intact, salvage identified
+    // rows without accepting a wholly malformed document as an empty store.
+    if (!document) {
+      for (const candidate of [this.filePath, this.backupPath]) {
+        try {
+          document = this.readDocument(candidate, true);
+          if (document) break;
+        } catch (_) {}
+      }
+    }
     if (!document && (hadPrimary || hadBackup)) {
       this.loadError = 'Not deposu ve yedeği doğrulanamadı; dosyalar korunarak yazma durduruldu.';
     }
     this.needsLegacyImport = !document;
     const rows = document ? document.annotations : [];
     for (const row of rows.slice(-this.maxNotes)) {
+      if (!validRow(row)) continue;
       const annotation = normalizeStoredAnnotation(row);
       if (annotation?.id && annotation.mediaId) this.annotations.set(annotation.id, annotation);
     }

@@ -182,7 +182,11 @@
       const m = this.sample, a = this.audio;
       if (!s.url || !m || this.now() - m.at > 2200 || m.adPlaying
           || m.spinnerVisible || (m.readyState !== undefined && m.readyState < 3)) {
-        this.rangeMute(s, !!s.priorMuted);
+        // Browser telemetry gaps release the original stream. A local full
+        // replacement must stay muted until removal, including its first tick.
+        if (s.mode !== 'player' || s.range || s.sync || s.background) {
+          this.rangeMute(s, !!s.priorMuted);
+        }
         if (s.sync) this.videoRate(s, s.baseRate, true);
         this.pauseAll(); return;
       }
