@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 520 | [BROWSER_BUG_REPORT_520.md](BROWSER_BUG_REPORT_520.md) | Claude ses düzeltmeleri: özgün cue kimliği, konuşma metni ve güvenli kurtarma |
 | 519 | [BROWSER_BUG_REPORT_519.md](BROWSER_BUG_REPORT_519.md) | Claude Web ses teslimi doğrulaması ve grup kimliği kayması |
 | 518 | [BROWSER_BUG_REPORT_518.md](BROWSER_BUG_REPORT_518.md) | Yedi yeni ses ve kalıcılık hatası, önceki üç onarımla bütünleşik teslim |
 | 517 | [BROWSER_BUG_REPORT_517.md](BROWSER_BUG_REPORT_517.md) | Yerel dublaj sessizleme, not kurtarma ve arşiv revizyonları |
