@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-22-0829.md](docs/devir/2026-10-22-0829.md) — NBW Sonnet ve Shuai Sol canlı çeviri karşılaştırması, ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-22-0623.md](docs/devir/2026-10-22-0623.md) — PR474 master ve Windows ana kopyada; önceki üç onarım dahil
 Güncel çalışma: [docs/devir/2026-10-22-0620.md](docs/devir/2026-10-22-0620.md) — Yedi yeni hata ve önceki üç onarımla ana sürüm teslimi
 Güncel çalışma: [docs/devir/2026-10-22-0606.md](docs/devir/2026-10-22-0606.md) — Rapor515/516 ürün düzeltmeleri
