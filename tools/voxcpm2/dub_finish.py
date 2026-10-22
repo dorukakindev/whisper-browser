@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v2-numbers-currency'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v3-signed-quantities'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -27,6 +27,10 @@ def integer_words(number):
 
 def spoken_text(text):
     """Expand only unambiguous TR forms; leave dates, clocks, IDs and suffixes alone."""
+    # Unary signs are speech, whereas dates, ranges and identifiers are not.
+    text = re.sub(r'(?<![\w.,:/+\-−])([-−+])\s*(\d+(?:,\d+)?)'
+                  r'(?![\w/+\-−]|[.,:](?=\d)|[’\']\w)',
+                  lambda m: ('eksi ' if m[1] in '-−' else 'artı ') + m[2], text)
     text = re.sub(r'\bDr\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Doktor', text)
     text = re.sub(r'\bProf\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Profesör', text)
     text = re.sub(r'\bDoç\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Doçent', text)

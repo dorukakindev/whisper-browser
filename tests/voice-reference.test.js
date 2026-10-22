@@ -15,7 +15,7 @@ const service = registerDubService({ app, ipcMain: { handle: (name, fn) => { han
   terminate: async () => { terminated++; return true; },
   prepareReference: async options => {
     preparation = options; options.status('transcribe_cuda');
-    fs.writeFileSync(options.reference, Buffer.alloc(100)); fs.writeFileSync(options.transcript, 'Reference speech.');
+    fs.writeFileSync(options.reference, require('./helpers/wav-fixture')()); fs.writeFileSync(options.transcript, 'Reference speech.');
     if (mode === 'hold') { options.onProcess({ exitCode: null }); await new Promise(resolve => { release = resolve; }); options.onProcess(null); }
     if (mode === 'timeout') { const proc=new EventEmitter(); options.onProcess(proc); preparation.proc=proc; throw Object.assign(new Error('timeout'),{processActive:true}); }
     if (mode === 'fail') { fs.writeFileSync(options.metadata,'invalid');fs.writeFileSync(options.reference.replace(/\.wav$/,'.partial.wav'),'partial');throw new Error('fixture failure'); }
@@ -78,7 +78,7 @@ const tick = () => new Promise(setImmediate);
   let newest;
   for (let index=0; index<105; index++) {
     const id=index===104 ? '00000000-0000-4000-8000-000000000001' : `ffffffff-ffff-4fff-8fff-${String(index).padStart(12,'0')}`, folder=path.join(root,'Sesler','Ses referansları',id);
-    fs.mkdirSync(folder);fs.writeFileSync(path.join(folder,'reference.wav'),Buffer.alloc(100));
+    fs.mkdirSync(folder);fs.writeFileSync(path.join(folder,'reference.wav'),require('./helpers/wav-fixture')());
     fs.writeFileSync(path.join(folder,'reference.txt'),'fixture');
     fs.writeFileSync(path.join(folder,'reference.json'),JSON.stringify({name:String(index),createdAt:new Date(Date.UTC(2040,0,1,0,0,index)).toISOString()}));
     newest=id;

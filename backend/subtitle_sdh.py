@@ -99,7 +99,7 @@ def strip_sdh_descriptors(text):
                     spans.append((start, index + 1))
                 start = None
     for start, end in reversed(spans):
-        value = value[:start] + value[end:]
+        value = value[:start] + " " + value[end:]
     value = re.sub(r"[ \t]+", " ", value)
     return value.strip()
 
@@ -205,7 +205,7 @@ def restore_sdh_markers(source_text, translated_text):
     # Belirsiz tanınan hedef etiketleri kaldırıp tüm kaynak anlamlarını koru.
     body = text
     for start, end in reversed(target_spans):
-        body = body[:start] + body[end:]
+        body = body[:start] + " " + body[end:]
     body = re.sub(r"[ \t]+", " ", body).strip()
     ordered = [target[matched[i]] if i in matched else marker
                for i, marker in enumerate(removed)]

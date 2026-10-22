@@ -6,9 +6,18 @@ class BrowserSubtitlePreferences {
     this.write = write; this.limit = limit; this.items = new Map();
     this.recovery = '';
     this.readOnly = false;
-    try { this.load(read()); } catch (error) {
-      try { this.load(readBackup?.()); this.recovery = 'backup'; }
-      catch (_) { if (error.code !== 'ENOENT') this.recovery = 'unavailable'; }
+    let original, readFailed = false;
+    try {
+      try { original = read(); } catch (error) { readFailed = error.code !== 'ENOENT'; throw error; }
+      this.load(original);
+    } catch (_) {
+      let backup, backupReadFailed = false;
+      try {
+        try { backup = readBackup?.(); } catch (error) { backupReadFailed = error.code !== 'ENOENT'; throw error; }
+        this.load(backup); this.recovery = 'backup';
+      } catch (_) {
+        if (original != null || readFailed || backup != null || backupReadFailed) { this.recovery = 'unavailable'; this.readOnly = true; }
+      }
     }
   }
   load(value) {
