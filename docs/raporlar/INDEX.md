@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 518 | [BROWSER_BUG_REPORT_518.md](BROWSER_BUG_REPORT_518.md) | Yedi yeni ses ve kalıcılık hatası, önceki üç onarımla bütünleşik teslim |
 | 517 | [BROWSER_BUG_REPORT_517.md](BROWSER_BUG_REPORT_517.md) | Yerel dublaj sessizleme, not kurtarma ve arşiv revizyonları |
 | 515 | [BROWSER_BUG_REPORT_515.md](BROWSER_BUG_REPORT_515.md) | Kodu değiştirmeden 53 hedefli bug testi: 3 gerçek ürün kusuru, 11 test altyapısı engeli |
 | 514 | [BROWSER_BUG_REPORT_514.md](BROWSER_BUG_REPORT_514.md) | Ses çevirisinde kaynakla eşleşmiş komşu taslaklar |
