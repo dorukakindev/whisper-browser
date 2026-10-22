@@ -33,6 +33,14 @@ const tick = () => new Promise(setImmediate);
   assert(selected); assert.equal(el('playerMore').open, false);
   const expected = ui.context();
   assert.equal(expected.backgroundSource, 'fixture.mp4');
+  // 518-02: manually attached audio must inherit the visible volume control.
+  el('browserDubVolume').value='0.23';
+  w.URL.createObjectURL=()=> 'blob:manual';w.URL.revokeObjectURL=()=>{};
+  Object.defineProperty(el('browserDubFile'),'files',{value:[new w.File(['voice'],'manual.wav')],configurable:true});
+  el('browserDubFile').dispatchEvent(new w.Event('change'));await tick();await tick();
+  video.currentTime=1;video.dispatchEvent(new w.Event('timeupdate'));await tick();
+  assert.equal(audio.volume,.23);
+  ui.stop();await tick();
   assert.equal(await ui.attachGenerated({ name: 'voice.wav', url: 'fixture.wav' }, expected), true);
   assert.equal(video.muted, true);
   video.currentTime = 20; video.paused = false; video.dispatchEvent(new w.Event('play')); await tick();

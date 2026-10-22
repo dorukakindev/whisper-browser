@@ -130,7 +130,7 @@
         if(b.paused&&!s[pending]){
           s[pending]=true;const epoch=s[epochKey]=(s[epochKey]||0)+1;
           Promise.resolve(b.play()).then(()=>{
-            if(this.session===s&&(epoch===s[epochKey]||!s[wanted])&&(!s[wanted]||!this.matches(s)||this.sample?.paused||this.sample?.adPlaying||this.sample?.spinnerVisible||this.now()-this.sample.at>2200))b.pause();
+            if(!this.session || (this.session===s&&(epoch===s[epochKey]||!s[wanted])&&(!s[wanted]||!this.matches(s)||this.sample?.paused||this.sample?.adPlaying||this.sample?.spinnerVisible||this.now()-this.sample.at>2200)))b.pause();
           }).catch(()=>{if(this.session===s&&epoch===s[epochKey]&&s[wanted])void this.fail('Arka plan sesi başlatılamadı.');})
             .finally(()=>{if(epoch===s[epochKey])s[pending]=false;});
         }
@@ -236,8 +236,8 @@
         s.playPending = true;
         const epoch = s.voiceEpoch = (s.voiceEpoch || 0)+1;
         Promise.resolve(a.play()).then(() => {
-          if (this.session === s && (epoch===s.voiceEpoch || !s.voiceWanted) && (!s.voiceWanted || !this.matches(s) || this.sample?.paused
-              || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200)) a.pause();
+          if (!this.session || (this.session === s && (epoch===s.voiceEpoch || !s.voiceWanted) && (!s.voiceWanted || !this.matches(s) || this.sample?.paused
+              || this.sample?.adPlaying || this.sample?.spinnerVisible || this.now()-this.sample.at>2200))) a.pause();
         }).catch(() => {
           if (this.session === s && epoch===s.voiceEpoch && s.voiceWanted) void this.fail('Dublaj başlatılamadı; video sesi geri açıldı.');
         }).finally(() => { if(epoch===s.voiceEpoch)s.playPending = false; });

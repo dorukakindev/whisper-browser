@@ -218,10 +218,12 @@ class BrowserTranslationArchive {
     if (this.index) return this.index;
     try {
       const parsed = JSON.parse(this.fs.readFileSync(this.indexPath, 'utf8'));
-      this.index = parsed?.version === ARCHIVE_VERSION && Array.isArray(parsed.entries)
-        ? { version: ARCHIVE_VERSION, entries: parsed.entries.filter((entry) => entry && typeof entry === 'object').slice(0, INDEX_LIMIT) }
-        : { version: ARCHIVE_VERSION, entries: [] };
-    } catch (_) { this.index = { version: ARCHIVE_VERSION, entries: [] }; }
+      if (parsed?.version !== ARCHIVE_VERSION || !Array.isArray(parsed.entries)) throw new Error('Invalid translation archive index.');
+      this.index = { version: ARCHIVE_VERSION, entries: parsed.entries.filter((entry) => entry && typeof entry === 'object').slice(0, INDEX_LIMIT) };
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error('Translation archive index could not be read; existing files were preserved.');
+      this.index = { version: ARCHIVE_VERSION, entries: [] };
+    }
     return this.index;
   }
 
@@ -257,6 +259,7 @@ class BrowserTranslationArchive {
   }
 
   savePage(raw = {}) {
+    this._readIndex(); // Validate before writing new archive files.
     const url = canonicalPageUrl(raw.url);
     const targetLanguage = languageCode(raw.targetLanguage);
     const rows = normalizePageRows(raw.blocks, raw.translations);
@@ -336,6 +339,7 @@ class BrowserTranslationArchive {
   }
 
   saveSubtitle(raw = {}) {
+    this._readIndex();
     const cues = normalizeCues(raw.cues);
     const mediaId = String(raw.mediaId || '').slice(0, 300);
     if (!mediaId || !cues.length) return { ok: false, error: 'Arşivlenecek altyazı çevirisi yok.' };
@@ -352,7 +356,7 @@ class BrowserTranslationArchive {
     const record = { version: ARCHIVE_VERSION, kind: 'subtitle', id, mediaId,
       url: canonicalPageUrl(raw.url), title, targetLanguage,
       sourceHash, trackId, model: String(raw.model || '').slice(0, 160),
-      provider: String(raw.provider || '').slice(0, 300), createdAt: Number(raw.createdAt) || now,
+      provider: safePlaceUrl(raw.provider || ''), createdAt: Number(raw.createdAt) || now,
       updatedAt: now, cueCount: cues.length, cues };
     this._writeText(path.join(this.subtitleDir, srtName), `\uFEFF${cuesToSrt(cues)}`);
     this._writeText(path.join(this.subtitleDir, jsonName), `${JSON.stringify(record, null, 2)}\n`);

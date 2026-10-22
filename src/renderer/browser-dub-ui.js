@@ -75,7 +75,10 @@
     add.disabled = true;
     try {
       if (await controller.attach(file, { ...c, priorMuted: current.priorMuted })) {
-        audio.volume = Number(byId('browserDubVolume').value);
+        controller.setMix({voice:Number(byId('browserDubVolume').value),
+          background:Number(byId('browserDubBackgroundVolume').value),
+          music:Number(byId('browserDubMusicVolume').value),ambience:Number(byId('browserDubAmbienceVolume').value),
+          duck:byId('browserDubDuck').checked});
         byId('browserDubOffset').value = '0';
         if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,
           playbackRate: player.browserRate, adPlaying: player.browserAdPlaying });
