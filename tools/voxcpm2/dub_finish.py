@@ -2,6 +2,8 @@
 import re
 import numpy as np
 
+SPOKEN_TEXT_VERSION = 'tr-spoken-v2-numbers-currency'
+
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
 
@@ -27,12 +29,38 @@ def spoken_text(text):
     """Expand only unambiguous TR forms; leave dates, clocks, IDs and suffixes alone."""
     text = re.sub(r'\bDr\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Doktor', text)
     text = re.sub(r'\bProf\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Profesör', text)
+    text = re.sub(r'\bDoç\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Doçent', text)
+    text = re.sub(r'\bSn\.(?=\s+[A-ZÇĞİÖŞÜ])', 'Sayın', text)
+    # 'vs.' is deliberately absent: 'vesaire' in Turkish text, 'versus' in translated content.
+    words = {'vb': 've benzeri', 'bkz': 'bakınız', 'örn': 'örneğin'}
+    def abbreviation(match):
+        spoken = words[match[1].casefold()]
+        if match[1][0].isupper():
+            spoken = spoken[0].upper() + spoken[1:]
+        # Keep the full stop only when it also ends the sentence.
+        following = match.string[match.end():]
+        final = re.match(r'[\s"”’»)\]]*$', following) or (
+            match[1].casefold() == 'vb' and re.match(r'\s+[A-ZÇĞİÖŞÜ]', following))
+        return spoken + ('.' if final else '')
+    text = re.sub(r'(?<![\w.])(vb|bkz|örn)\.(?!\w)', abbreviation, text, flags=re.I)
     text = re.sub(r'%\s*(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s*%',
                   lambda m: 'yüzde ' + (m[1] or m[2]), text)
-    units = {'km':'kilometre', 'kg':'kilogram', 'cm':'santimetre', 'mm':'milimetre', 'm':'metre', '°C':'derece Celsius'}
-    text = re.sub(r'(?<=\d)\s*(km|kg|cm|mm|m|°C)(?!\w)', lambda m: ' ' + units[m[1]], text)
+    # Rates are spoken as a unit pair; a bare '/h' or '/s' would be read as letters.
+    units = {'km/h':'kilometre bölü saat', 'm/s':'metre bölü saniye', 'km':'kilometre', 'kg':'kilogram',
+             'cm':'santimetre', 'mm':'milimetre', 'm':'metre', '°C':'derece Celsius'}
+    text = re.sub(r'(?<=\d)\s*(km/h|m/s|km|kg|cm|mm|m|°C)(?!\w)', lambda m: ' ' + units[m[1]], text)
+    # A currency symbol is not reliably read by the engine; the spoken form is
+    # always 'amount + currency name' in Turkish, whichever side the symbol is on.
+    currency = {'$':'dolar', '€':'euro', '£':'sterlin', '₺':'lira'}
+    text = re.sub(r'([$€£₺])\s?(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s?([$€£₺])',
+                  lambda m: f"{m[2] or m[3]} {currency[m[1] or m[4]]}", text)
     # Avoid interpreting punctuation in a date/clock/version/phone as decimal.
-    pattern = r'(?<![\w\d.,:/+\-])\d{1,9}(?:,\d{1,3})?(?![\w\d.,:/\-]|[\'’]\w)'
+    # A number that ends a sentence or clause ('Toplam 42.', 'yaşı 25, boyu 180')
+    # is still a number: sentence punctuation only blocks it when a digit/word
+    # follows it, and a mid-text period stays ambiguous with a Turkish ordinal
+    # ('3. sınıf', '2. Dünya Savaşı'), so only a final period is accepted.
+    pattern = (r'(?<![\w\d.,:/+\-])\d{1,9}(?:,\d{1,3})?'
+               r'(?![\w/\-]|\.(?![\s"”’»)\]]*$)|[,:;](?=\w)|[\'’]\w)')
     def number(match):
         value = match[0]
         if value.startswith('0') and len(value.split(',')[0]) > 1:

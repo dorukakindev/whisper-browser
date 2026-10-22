@@ -109,7 +109,8 @@ def speech_check(expected, actual, numeric_reference=None):
     unit_mismatch = unit_mismatch or quantities(target) != quantities(heard)
     percentage_mismatch = target_counts['yüzde'] != heard_counts['yüzde']
     def meaning_evidence(text):
-        lower = text.casefold().replace('i\u0307', 'i')
+        # Compare the spoken form: '$5' is read, and transcribed, as 'beş dolar'.
+        lower = spoken_text(text).casefold().replace('i\u0307', 'i')
         patterns = {
             'currency': r'[$€£₺¥]|\b(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)\b',
             'past_negation': r'\b[^\W_]{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)[^\W_]*\b',

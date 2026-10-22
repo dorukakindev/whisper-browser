@@ -279,7 +279,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
                     || !Number.isFinite(group.seconds) || group.seconds <= 0) return true;
                 keys.add(group.key); return false;
               })) throw new Error('invalid plan');
-          finish(null, { sourceHash: value.sourceHash, groups: value.groups });
+          const skipped = Number.isInteger(value.skipped) && value.skipped >= 0 && value.skipped <= 1000000 ? value.skipped : 0;
+          finish(null, { sourceHash: value.sourceHash, groups: value.groups, skipped });
         } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
       });
     });
@@ -543,6 +544,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const rewriteRequests = new Set();
       function line(value) {
         s.tail = (s.tail + '\n' + value).slice(-6000);
+        // Evidence for recovering a file, never proof of acoustic quality.
+        if (value.startsWith('Tamamlandi: ') && path.resolve(value.slice(12).trim()) === path.resolve(output)) s.completedMarker = true;
         if (value.startsWith('DUB_REWRITE ') && (c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
           try {
             const r = JSON.parse(value.slice(12));
@@ -622,7 +625,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (pending) line(pending);
         if (job === s) job = null;
         if (s.cancelled) { finish(s, 'cancelled'); return; }
-        if (code === 0 && validVoiceOutput(output)) {
+        // Recover completed media after a non-zero exit, but keep the error
+        // diagnosis and prevent automatic attachment / successful latest reuse.
+        const finishedBeforeExitFailure = code !== 0 && s.completedMarker === true;
+        if ((code === 0 || finishedBeforeExitFailure) && validVoiceOutput(output)) {
           let sync = null;
           if (timingMode === 'video') {
             try {
@@ -650,6 +656,18 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               }
             }
           } catch (_) {}
+          if (finishedBeforeExitFailure) {
+            s.settings.engineExitCode = code ?? null;
+            for (const file of [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json')]) {
+              s.ownedArtifacts?.delete(file);
+            }
+            finish(s, 'error', {
+              error: 'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
+              recoverablePath: output, recoverableUrl: pathToFileURL(output).href, name: path.basename(output),
+              diagnostics: processFailure(s.stderr, s.tail), qualityUnavailable: true,
+            });
+            return;
+          }
           finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length,
             subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {

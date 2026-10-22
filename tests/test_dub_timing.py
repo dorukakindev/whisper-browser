@@ -156,6 +156,25 @@ class DubTimingTests(unittest.TestCase):
         self.assertEqual(report['cut_frames'], 0)
         self.assertEqual(report['silence_trim_frames'], 80)
 
+    def test_a_colon_inside_narration_is_not_a_speaker_change(self):
+        from dub_timing import sentence_plan, is_speaker_turn
+        narration = [(0, 3000, 'Önemli olan şu kadar basit görünüyor ve'),
+                     (3100, 6000, 'Şöyle düşünün: bir adam yürüyor'),
+                     (6100, 9000, 've sonra birden duruyor.')]
+        for mode in ('akici', 'cumle'):
+            groups = sentence_plan(narration, mode, 280, 18, 600)
+            self.assertEqual([g['source_ids'] for g in groups], [[1, 2, 3]], mode)
+        self.assertEqual(len(sentence_plan(narration, 'satir', 280, 18, 600)), 3, 'line mode keeps one group per cue')
+        for text in ['Kitabın temel iddiası şuydu: bilinç', 'Sonuç olarak şunu söyledi: evet', 'Saat 5:30 civarı', 'Julian Jaynes şunu yazdı: bir']:
+            self.assertFalse(is_speaker_turn(text), text)
+
+    def test_real_speaker_labels_still_split_turns(self):
+        from dub_timing import sentence_plan, is_speaker_turn
+        for text in ['JOHN: Merhaba', 'Dr. Kaya: Bugün', 'Prof. Demir: Dinliyorum', 'Anlatıcı: Ve', '- Evet.', '[Kadın] Hayır.', 'Mary Ann Smith: Hi', 'Ahmet bin Ali: Merhaba.', 'Ludwig van Beethoven: Evet.']:
+            self.assertTrue(is_speaker_turn(text), text)
+        dialogue = [(0, 2000, 'JOHN: Merhaba, nasılsın?'), (2100, 4000, 'MARY: İyiyim, teşekkürler.'), (4100, 6000, 'JOHN: Güzel.')]
+        self.assertEqual([g['source_ids'] for g in sentence_plan(dialogue, 'akici', 280, 18, 600)], [[1], [2], [3]])
+
 
 if __name__ == '__main__':
     unittest.main()

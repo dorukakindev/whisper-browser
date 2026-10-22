@@ -11386,6 +11386,9 @@ function configureSpeechTranslation(opts, enabled) {
     // A source-only action overrides the global translation preference.
     opts.translateRefine = !!$('translateRefine')?.checked;
     opts.llmPostprocess = !!$('llmPostprocess')?.checked;
+    // buildOptsFromUI forces strict mode while the speech preference is on; a
+    // normal translation must follow its own lenient preference again.
+    opts.translateLenient = $('translateLenient') ? $('translateLenient').checked : true;
   }
   opts.translateForSpeech = !!enabled;
   if (opts.translateForSpeech) {

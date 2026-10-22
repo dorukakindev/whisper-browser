@@ -83,8 +83,8 @@ if sys.platform == 'win32':
     _weight_loader.safe_open = _PreadWeights
 
 SAMPLE_RATE = 48000
-from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes
-from dub_finish import spoken_text, finish_audio, active_ranges
+from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes, shift_cues
+from dub_finish import spoken_text, finish_audio, active_ranges, SPOKEN_TEXT_VERSION
 from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check, cached_record, generation_status, apply_timing_quality
 
 
@@ -609,8 +609,7 @@ def main(argv=None):
     if not cues:
         raise SystemExit("SRT'de okunabilir satir yok.")
     if args.kaydir:
-        cues = [(s + args.kaydir, e + args.kaydir, t) for s, e, t in cues]
-        cues = [c for c in cues if c[0] >= 0]
+        cues = shift_cues(cues, args.kaydir)
     if not cues:
         raise SystemExit("Kaydirma sonrasinda okunabilir satir kalmadi.")
     source_cues = cues
@@ -653,7 +652,7 @@ def main(argv=None):
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
     settings = ("dublaj-ses-v13-preserve-video-text", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
-                args.verification, args.expression)
+                args.verification, args.expression, SPOKEN_TEXT_VERSION)
     # Run reports are separate from independently addressed speech pieces.
     run_hash = hashlib.sha256(repr((settings,args.group_delivery)).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
