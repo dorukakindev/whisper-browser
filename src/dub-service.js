@@ -7,6 +7,7 @@ const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const { validVoiceOutput } = require('./voice-output');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
@@ -335,7 +336,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
         if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
         const output = path.join(root, `${saved.id}.wav`);
-        if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !fs.existsSync(output)) continue;
+        if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
         grantMedia(output);
         let sync = null, syncInvalid = false;
         try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
@@ -621,13 +622,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (pending) line(pending);
         if (job === s) job = null;
         if (s.cancelled) { finish(s, 'cancelled'); return; }
-        if (code === 0 && fs.existsSync(output)) {
+        if (code === 0 && validVoiceOutput(output)) {
           let sync = null;
           if (timingMode === 'video') {
             try {
               const syncFile = output.replace(/\.wav$/i, '.sync.json');
               if (fs.statSync(syncFile).size > 2000000) throw new Error('map too large');
               sync = validateSync(JSON.parse(fs.readFileSync(syncFile, 'utf8')));
+              if (!sync) throw new Error('missing map');
             } catch (_) {
               // The WAV can still be recovered manually if only its sync map
               // failed validation. Do not discard successfully generated audio.

@@ -78,7 +78,9 @@ function safeMeta(raw = {}) {
     // Boş bırakılması eski varlıklarla geriye dönük uyumludur.
     sourceHash: String(raw.sourceHash || '').replace(/[^a-f0-9]/gi, '').slice(0, 64),
     sourceTrackId: String(raw.sourceTrackId || '').slice(0, 180),
-    provider: String(raw.provider || '').slice(0, 240),
+    provider: safePlaceUrl(raw.provider || ''),
+    forSpeech: raw.forSpeech === true,
+    speechProtocol: raw.forSpeech === true ? String(raw.speechProtocol || '').slice(0, 80) : '',
     model: String(raw.model || '').slice(0, 120),
     automatic: raw.automatic === true,
     translatedByService: raw.translatedByService === true,
@@ -162,7 +164,7 @@ class BrowserAssetStore {
       if (!this.fs.existsSync(paths.srtPath) || this.fs.readFileSync(paths.srtPath, 'utf8') !== expectedSrt) {
         atomicWriteFileSync(paths.srtPath, expectedSrt, { io: this.fs });
       }
-      return { ok: true, document: { ...parsed, version: ASSET_VERSION, cues }, ...paths };
+      return { ok: true, document: { ...parsed, ...safeMeta(parsed), version: ASSET_VERSION, cues }, ...paths };
     } catch (error) {
       return { ok: false, error: error.message };
     }

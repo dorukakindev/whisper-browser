@@ -9761,6 +9761,7 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     mediaId, trackId: track.id, language: track.language, label: track.label,
     role, source, cues, sourceHash,
     sourceTrackId: meta.sourceTrackId || '', provider: meta.provider || '', model: meta.model || '',
+    forSpeech: meta.forSpeech === true, speechProtocol: meta.speechProtocol || '',
   });
   if (!saved.ok) return track;
   const indexedTrackId = `${mediaId}|${track.id}`;
@@ -9776,7 +9777,7 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
     index?.upsertTrack({
       id: indexedTrackId, mediaId, role, language: track.language,
       label: track.label, source, hash: saved.assetId.split(':')[1], assetPath: saved.assetId,
-      model: meta.model || '', provider: meta.provider || '', sourceTrackId: meta.sourceTrackId || '',
+      model: meta.model || '', provider: saved.document.provider, sourceTrackId: meta.sourceTrackId || '',
     });
     index?.replaceTrackCues(indexedTrackId, cues);
     if (previous?.asset_path && previous.asset_path !== saved.assetId) {
@@ -9791,7 +9792,8 @@ function persistBrowserTrack(tab, track, cues, meta = {}) {
   return {
     ...track, role, path: saved.srtPath, assetId: saved.assetId, persisted: true,
     sourceHash, sourceTrackId: String(meta.sourceTrackId || ''),
-    provider: String(meta.provider || ''), model: String(meta.model || ''),
+    provider: saved.document.provider, model: String(meta.model || ''),
+    forSpeech: saved.document.forSpeech, speechProtocol: saved.document.speechProtocol,
     cueIdentities: saved.document.cues.map((cue) => ({ id: cue.id, cueId: cue.cueId || '',
       start: cue.start, end: cue.end, sourceCueHash: cue.sourceCueHash || '',
       text: cue.text, qualityIssues: cue.qualityIssues, qualityWarning: cue.qualityWarning })),
@@ -9858,6 +9860,7 @@ function restorePersistedBrowserTracks(tab) {
           role,
           sourceHash: document.sourceHash || '', sourceTrackId: document.sourceTrackId || '',
           provider: document.provider || '', model: document.model || '', sourceMismatch,
+          forSpeech: document.forSpeech === true, speechProtocol: document.speechProtocol || '',
           automatic: document.automatic === true,
           translatedByService: document.translatedByService === true,
           translationLanguages: Array.isArray(document.translationLanguages)

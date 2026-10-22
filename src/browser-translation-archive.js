@@ -218,10 +218,12 @@ class BrowserTranslationArchive {
     if (this.index) return this.index;
     try {
       const parsed = JSON.parse(this.fs.readFileSync(this.indexPath, 'utf8'));
-      this.index = parsed?.version === ARCHIVE_VERSION && Array.isArray(parsed.entries)
-        ? { version: ARCHIVE_VERSION, entries: parsed.entries.filter((entry) => entry && typeof entry === 'object').slice(0, INDEX_LIMIT) }
-        : { version: ARCHIVE_VERSION, entries: [] };
-    } catch (_) { this.index = { version: ARCHIVE_VERSION, entries: [] }; }
+      if (parsed?.version !== ARCHIVE_VERSION || !Array.isArray(parsed.entries)) throw new Error('Invalid translation archive index.');
+      this.index = { version: ARCHIVE_VERSION, entries: parsed.entries.filter((entry) => entry && typeof entry === 'object').slice(0, INDEX_LIMIT) };
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error('Translation archive index could not be read; existing files were preserved.');
+      this.index = { version: ARCHIVE_VERSION, entries: [] };
+    }
     return this.index;
   }
 
@@ -235,18 +237,20 @@ class BrowserTranslationArchive {
 
   _saveIndex(entry) {
     const index = this._readIndex();
-    const previous = index.entries.find((item) => item.id === entry.id);
     const next = { ...index,
       entries: [entry, ...index.entries.filter((item) => item.id !== entry.id)].slice(0, INDEX_LIMIT) };
     this.ensure();
     atomicWriteFileSync(this.indexPath, `${JSON.stringify(next, null, 2)}\n`, { io: this.fs });
     this.index = next;
-    // Index atomik olarak yeni revizyona gectikten sonra yalniz ayni mantiksal
-    // kaydin eski dosyalarini ve yalniz arsiv kokunun icinde sil.
-    for (const field of ['jsonPath', 'displayPath']) {
+    // Only after committing the index, collect superseded/evicted files.
+    // A path still referenced by another entry must never be removed.
+    const retained = new Set(next.entries.flatMap(item => [item.jsonPath, item.displayPath])
+      .filter(Boolean).map(relative => path.resolve(this.rootDir, relative)));
+    for (const previous of index.entries) for (const field of ['jsonPath', 'displayPath']) {
       const relative = String(previous?.[field] || '');
-      if (!relative || relative === entry[field]) continue;
+      if (!relative) continue;
       const target = path.resolve(this.rootDir, relative);
+      if (retained.has(target)) continue;
       const parent = path.dirname(target);
       if (!target.startsWith(this.rootDir + path.sep)
           || ![this.pageDir, this.subtitleDir].includes(parent)) continue;
@@ -255,6 +259,7 @@ class BrowserTranslationArchive {
   }
 
   savePage(raw = {}) {
+    this._readIndex(); // Validate before writing new archive files.
     const url = canonicalPageUrl(raw.url);
     const targetLanguage = languageCode(raw.targetLanguage);
     const rows = normalizePageRows(raw.blocks, raw.translations);
@@ -264,7 +269,10 @@ class BrowserTranslationArchive {
     const scope = ['article', 'whole', 'selection'].includes(raw.scope) ? raw.scope : 'article';
     // Independent selections and partial snapshots must not erase the full
     // saved article (nor a different selection from the same page).
-    const revision = scope === 'selection' || raw.complete !== true ? `|${hash(JSON.stringify(rows),32)}` : '';
+    // Updating the translation of the same source selection is a revision,
+    // not a new selection. Keep distinct source snapshots independently.
+    const revision = scope === 'selection' || raw.complete !== true
+      ? `|${hash(JSON.stringify(rows.map(({ translation, ...source }) => source)),32)}` : '';
     const id = `page:${hash(`${url}|${targetLanguage}|${scope}${revision}`, 32)}`;
     const record = { version: ARCHIVE_VERSION, kind: 'page', id, url,
       originalUrl: url, title, targetLanguage,
@@ -331,6 +339,7 @@ class BrowserTranslationArchive {
   }
 
   saveSubtitle(raw = {}) {
+    this._readIndex();
     const cues = normalizeCues(raw.cues);
     const mediaId = String(raw.mediaId || '').slice(0, 300);
     if (!mediaId || !cues.length) return { ok: false, error: 'Arşivlenecek altyazı çevirisi yok.' };
@@ -347,7 +356,7 @@ class BrowserTranslationArchive {
     const record = { version: ARCHIVE_VERSION, kind: 'subtitle', id, mediaId,
       url: canonicalPageUrl(raw.url), title, targetLanguage,
       sourceHash, trackId, model: String(raw.model || '').slice(0, 160),
-      provider: String(raw.provider || '').slice(0, 300), createdAt: Number(raw.createdAt) || now,
+      provider: safePlaceUrl(raw.provider || ''), createdAt: Number(raw.createdAt) || now,
       updatedAt: now, cueCount: cues.length, cues };
     this._writeText(path.join(this.subtitleDir, srtName), `\uFEFF${cuesToSrt(cues)}`);
     this._writeText(path.join(this.subtitleDir, jsonName), `${JSON.stringify(record, null, 2)}\n`);
