@@ -29,7 +29,7 @@ function appResourceRoot() {
 const { checkpointId: ceaCheckpointId, saveCeaCheckpoint, loadCeaCheckpoint,
   clearCeaCheckpoint } = require('./browser-cea-checkpoint');
 const { defaultMediaFolders, withDefaultMediaFolders } = require('./media-folders');
-const { terminateProcessTree } = require('./process-lifecycle');
+const { terminateProcessTree, terminateProcessTreeAndWait } = require('./process-lifecycle');
 const { createProcessTerminalLatch, isValidOutputNameSuffix } = require('./renderer/queue-lifecycle');
 const { createIdempotentCancel, recoverOutputTransactions } = require('./pipeline-job');
 const { createWatchLibraryStore } = require('./watch-library-store');
@@ -18063,7 +18063,7 @@ async function resolveDubSource(request) {
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
   authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => dubWorkspace.register(output),
-  terminate: proc => terminateProcessTree(proc, { spawn }),
+  terminate: proc => terminateProcessTreeAndWait(proc, { spawn }),
   busy: () => dubWorkspace.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
   grantMedia: file => mediaFileAccess.grant(file),
   environment: () => withoutSecretEnv(process.env),
@@ -18095,7 +18095,7 @@ const dubService = require('./dub-service').registerDubService({
     const source = await resolveDubSource(request);
     return require('./dub-background').prepareBackground({...options,source,appRoot:appResourceRoot(),
       userData:app.getPath('userData'),cacheDir:require('./voice-storage').voiceStorage(app).input,downloadPython:resolvePython(),ffmpeg:resolveFfTool('ffmpeg'),
-      spawn,environment:()=>withoutSecretEnv(process.env)});
+      spawn,terminate:proc=>terminateProcessTree(proc,{spawn}),environment:()=>withoutSecretEnv(process.env)});
   },
   setRate: async request => {
     const tab = browserTabById(request.tabId);

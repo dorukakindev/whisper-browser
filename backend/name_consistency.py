@@ -9,6 +9,7 @@ hedef metne uygular. Kaynak metin ve zaman damgaları hiç değişmez.
 
 import re
 import unicodedata
+from difflib import SequenceMatcher
 
 _NAME_TOKEN = re.compile(r"[^\W\d_][\w'’\-]*", re.UNICODE)
 
@@ -50,7 +51,19 @@ def _name_occurs(name, source_text):
     needle = unicodedata.normalize("NFC", str(name or ""))
     if not needle:
         return False
-    return _canon(needle) in _canon(src)
+    return bool(re.search(r"(?<!\w)" + re.escape(_canon(needle)) + r"(?!\w)", _canon(src)))
+
+
+def _plausible_variant(name, variant):
+    # Co-occurrence alone cannot associate every capitalized word in the same
+    # subtitle with this name (Sherlock and Watson must remain different people).
+    def tokens(value):
+        value = unicodedata.normalize("NFKD", _canon(value)).replace("ı", "i")
+        value = "".join(c for c in value if not unicodedata.combining(c))
+        return re.findall(r"[^\W_]+", value)
+    left, right = tokens(name), tokens(variant)
+    return len(left) == len(right) and all(SequenceMatcher(None, a, b).ratio() >= .65
+                                         for a, b in zip(left, right))
 
 
 def audit_name_consistency(entries, out_texts, names=None, min_occurrences=2):
@@ -77,6 +90,8 @@ def audit_name_consistency(entries, out_texts, names=None, min_occurrences=2):
             if _name_occurs(name, target):
                 variants.add(str(name))
             for variant in variants:
+                if not _plausible_variant(name, variant):
+                    continue
                 # Hedef satırdaki her büyük harfli öbek aday değildir; yalnız
                 # kaynak adla eş-geçiş gücü olanlar sonradan seçilir.
                 row["variants"][variant] = row["variants"].get(variant, 0) + 1
@@ -93,7 +108,7 @@ def audit_name_consistency(entries, out_texts, names=None, min_occurrences=2):
         # beraberlikte kaynakla özdeş biçim önerilir (adı olduğu gibi tutmak
         # genelde doğru kanonik seçimdir)
         suggestion = max(strong.items(),
-                         key=lambda kv: (kv[0] == name, kv[1], kv[0]))[0]
+                         key=lambda kv: (kv[1], kv[0] == name, kv[0]))[0]
         report.append({"name": name, "occurrences": occurrences,
                        "variants": dict(sorted(strong.items(),
                                                key=lambda kv: -kv[1])),
@@ -112,6 +127,8 @@ def apply_glossary_corrections(entries, out_texts, decisions, report=None):
     biçimlerden türetilir. Zamanlar ve kaynak metin aynen korunur.
     """
     variants_by_name = {}
+    if report is None:
+        report = audit_name_consistency(entries, out_texts, list(decisions or {}))
     for row in report or []:
         variants_by_name[row["name"]] = set(row["variants"])
     new_texts = list(out_texts)
@@ -120,7 +137,7 @@ def apply_glossary_corrections(entries, out_texts, decisions, report=None):
         chosen = str(chosen or "").strip()
         if not chosen:
             continue
-        allowed = variants_by_name.get(name)
+        allowed = variants_by_name.get(name, {str(name)})
         for index in range(min(len(entries), len(new_texts))):
             if not _name_occurs(name, entries[index][2]):
                 continue
@@ -136,7 +153,7 @@ def apply_glossary_corrections(entries, out_texts, decisions, report=None):
                     continue
                 pattern = re.compile(r"(?<![\w'’\-])" + re.escape(variant)
                                      + r"(?![\w'’\-])", re.UNICODE)
-                replaced, count = pattern.subn(chosen, target)
+                replaced, count = pattern.subn(lambda _match: chosen, target)
                 if count:
                     target = replaced
                     fixed += count

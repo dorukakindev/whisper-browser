@@ -592,10 +592,9 @@ def test_name_near_miss_swap_rejected():
     import sentence_translation as ST
     issue = ST.part_anchor_issue(["Lawson won the case."], ["Larson davayı kazandı."], "tr")
     assert issue and "ozel_ad" in issue, issue
-    # orta-cümle benzer-yazım (yalın yanlış ad yakalanır; 'Larson'la' ekli
-    # biçimi 'Lizbon'dan' yerelleştirmesiyle ayrıştırılamaz — belgelenmiş sınır)
+    # Wrong inflected names are rejected; known locations use explicit local forms.
     assert ST.part_anchor_issue(["He met Lawson there."], ["Larson geldi."], "tr")
-    assert not ST.part_anchor_issue(["He met Lawson there."], ["Larson'la buluştu."], "tr")
+    assert ST.part_anchor_issue(["He met Lawson there."], ["Larson'la buluştu."], "tr"), "inflected wrong names must also be rejected"
     # meşru çekim / transliterasyon / normal metin
     assert not ST.part_anchor_issue(["He met Lawson there."], ["Lawson'la buluştu."], "tr")
     assert not ST.part_anchor_issue(["Persephone descended."], ["Persefone yeraltına indi."], "tr")

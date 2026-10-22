@@ -6,7 +6,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-SENTENCE_PROTOCOL_VERSION = 3
+SENTENCE_PROTOCOL_VERSION = 4
 _BOUNDARY = re.compile(r'(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)', re.I)
 _END = re.compile(r'[.!?…。！？][\"\'”’)}\]]*$')
 _CONTINUATION_END = re.compile(
@@ -365,31 +365,20 @@ def _name_preserved(name, translated):
     aranır. Kök karşılaştırması kanon biçimdedir: sistematik transliterasyon
     ('Persefone'↔'Persephone') ve çekim mutasyonları ('Ahmed'i'↔'Ahmet')
     geçer, bulanık yakınlık geçmez — 'Larson' 'Lawson' sayılmaz. Unvan
-    çekimi gibi apostrofsuz biçimler ('Majesty'→'Majesteleri') büyük harfli
-    hedef tokenında ≥%70 ortak önekle kabul edilir.
+    çekimleri kapalı yerelleştirme sözlüğünde ele alınır; benzer önek bir
+    kişinin başka biri olduğunu gizleyemez.
     """
     translated = str(translated or '')
-    if name in translated:
+    if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", translated):
         return True
     for match in _NAME_INFLECTED.finditer(translated):
         stem = match.group(1)
         if len(stem) >= 3 and _same_name(stem, name):
             return True
-    # Ekli kökte uyumlu yerelleştirme toleransı ('Lizbon'dan'↔'Lisbon'):
-    # kanon biçimde ≤2 edit. 'Larson'↔'Lawson' gibi farklı-ad takası ekli
-    # kökte ayırt edilemez — sınır raporda belgelenir.
-    for match in _NAME_INFLECTED.finditer(translated):
-        stem = match.group(1)
-        if (len(stem) >= 3 and stem[:2].lower() == name[:2].lower()
-                and _edit_distance(_canon_name(stem), _canon_name(name)) <= 2):
-            return True
-    threshold = math.ceil(len(name) * 0.7)
+    # Canonical transliteration and explicit apostrophe inflection are enough;
+    # arbitrary edit/prefix tolerance turns Annette into Ann and Larson into Lawson.
     for match in _NAME_CAPITALIZED.finditer(translated):
-        token = match.group(0)
-        if _same_name(token, name):
-            return True
-        if len(token) >= len(name) \
-                and _common_prefix_len(token, name) >= threshold:
+        if _same_name(match.group(0), name):
             return True
     # Büyük-küçük harf duyarsız tarama: kaynak altyazıda orta-cümle
     # büyük harfli yazılan ortak isimler ("a young Backpacker") hedefte
@@ -502,7 +491,9 @@ def _proper_names(text):
         if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
                 or lowered in _NAME_STOPWORDS:
             continue
-        sentence_initial = index == 0 or sentence_ended(" ".join(words[:index]))
+        # A new quoted sentence has its own initial word, not a proper name.
+        quote_initial = word.startswith(('"', "“", "‘", "«")) and lowered in _INITIAL_STOPWORDS
+        sentence_initial = index == 0 or quote_initial or sentence_ended(" ".join(words[:index]))
         if not sentence_initial and len(candidate.rstrip(".?!,;:…")) >= 2:
             names.append(candidate.rstrip(".?!,;:…"))
     return names
@@ -583,6 +574,7 @@ def _near_name_token(name, translated):
 # reddediyordu; yerel karşılık setindeyse korunmuş sayılır. Gerçek ad
 # takası (Lawson->Larson) bu listede olmadığı için yine yakalanır.
 _LOCALIZED_NAME_EQUIVALENTS_RAW = {
+    "majesty": ("majesteleri",),
     "germany": ("almanya",), "german": ("alman",), "deutschland": ("almanya",),
     "netherlands": ("hollanda",), "holland": ("hollanda",),
     "dutch": ("hollanda", "flamanca"),

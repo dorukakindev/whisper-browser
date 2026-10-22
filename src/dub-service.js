@@ -129,6 +129,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!fs.statSync(file).isFile() || fs.realpathSync(file) !== path.resolve(file)) throw new Error('Invalid reference file.');
     }
     if (fs.statSync(p.transcript).size > 32000 || fs.statSync(p.metadata).size > 4000) throw new Error('Invalid reference metadata.');
+    if (!validVoiceOutput(p.reference)) throw new Error('Invalid reference audio.');
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     grantMedia(p.reference);
     return { id, name: String(meta.name || id).slice(0, 160), createdAt: String(meta.createdAt || ''), path: p.reference,
@@ -190,7 +191,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         isCancelled: () => s.cancelled, status: stage => emit(s, 'reference_status', { stage }) });
       if (s.cancelled) throw new Error('Cancelled.');
       const text = fs.readFileSync(p.transcript, 'utf8').trim();
-      if (!text || text.length > 8000 || fs.statSync(p.reference).size < 44) throw new Error('No reference speech found.');
+      if (!text || text.length > 8000 || !validVoiceOutput(p.reference)) throw new Error('No reference speech found.');
       let quality = null;
       try { quality = JSON.parse(fs.readFileSync(path.join(p.folder, 'reference-quality.json'), 'utf8')); } catch (_) {}
       atomicWriteFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt, quality }), { encoding: 'utf8' });

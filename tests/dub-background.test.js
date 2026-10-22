@@ -12,7 +12,7 @@ fs.mkdirSync(path.join(root,'backend/separator-venv/Scripts'),{recursive:true});
   assert.equal(args[args.indexOf('--limit')+1], '11', 'sample limit must reach the background CLI');
   assert.equal(args[args.indexOf('--start')+1],'600');assert.equal(args[args.indexOf('--end')+1],'1200');assert.equal(owned,child);
   child.stdout.emit('data','DUB_BACKGROUND separate_gpu\n');assert.deepEqual(stages,['separate_gpu']);
-  fs.writeFileSync(options.output,'audio');child.emit('close',0);assert.equal(await ready,options.output);assert.equal(owned,null);
+  fs.writeFileSync(options.output,require('./helpers/wav-fixture')());child.emit('close',0);assert.equal(await ready,options.output);assert.equal(owned,null);
   const stopped=prepareBackground(options);child.emit('close',1);await assert.rejects(stopped,/ayrıştırılamadı/);assert.equal(owned,null);
   assert.throws(()=>prepareBackground({...options,isCancelled:()=>true}),/İptal/);
   console.log('dub-background: bounded range, GPU status and process ownership passed');

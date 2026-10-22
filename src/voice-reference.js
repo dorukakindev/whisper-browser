@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { validVoiceOutput } = require('./voice-output');
 
 function prepareVoiceReference({ source, start, end, reference, transcript, appRoot, python, ffmpeg,
   spawn, terminate, environment, onProcess, status, isCancelled }) {
@@ -35,7 +36,7 @@ function prepareVoiceReference({ source, start, end, reference, transcript, appR
       }
     });
     child.once('error', () => done(new Error('Reference process could not start.')));
-    child.once('close', code => done(code === 0 && !timedOut && fs.existsSync(reference) && fs.existsSync(transcript)
+    child.once('close', code => done(code === 0 && !timedOut && !isCancelled() && validVoiceOutput(reference) && fs.existsSync(transcript)
       ? null : new Error(timedOut ? 'Reference preparation timed out.' : failure || 'Reference preparation failed. Select clear speech and check the source.')));
   });
 }

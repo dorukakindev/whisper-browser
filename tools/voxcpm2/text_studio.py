@@ -26,9 +26,12 @@ def defaults():
             saved = {}
     except (OSError, ValueError):
         saved = {}
-    args.engine = args.engine or Path(saved.get('engine') or Path.home() / 'Desktop' / 'Ses' / 'VoxCPM2')
-    args.reference = args.reference or Path(saved.get('reference') or args.engine / 'anlatici_ham.wav')
-    args.transcript = args.transcript or Path(saved.get('transcript') or args.engine / 'anlatici_ham.txt')
+    def saved_path(key, fallback):
+        value = saved.get(key)
+        return Path(value) if isinstance(value, str) and value.strip() and '\0' not in value else fallback
+    args.engine = args.engine or saved_path('engine', Path.home() / 'Desktop' / 'Ses' / 'VoxCPM2')
+    args.reference = args.reference or saved_path('reference', args.engine / 'anlatici_ham.wav')
+    args.transcript = args.transcript or saved_path('transcript', args.engine / 'anlatici_ham.txt')
     return args
 
 
@@ -40,7 +43,7 @@ def command(engine, reference, transcript, source, output, settings):
     if motor not in ('nano', 'torch') or mode not in ('auto', 'hifi', 'clone'):
         raise ValueError('Invalid engine or cloning mode / Motor veya klonlama modu geçersiz.')
     reader = engine / ('nanovllm_oku.py' if motor == 'nano' else 'kitap_voxcpm.py')
-    prompt = transcript.is_file() and bool(transcript.read_text(encoding='utf-8-sig').strip())
+    prompt = mode != 'clone' and transcript.is_file() and bool(transcript.read_text(encoding='utf-8-sig').strip())
     if mode == 'hifi' and not prompt:
         raise ValueError('Hi-Fi requires an exact transcript / Hi-Fi için birebir döküm gerekli.')
     for file in (python, reader, reference, source):
@@ -55,7 +58,7 @@ def command(engine, reference, transcript, source, output, settings):
     max_chars = int(settings.get('max_chars', 300))
     preview = int(settings.get('preview_count', 2)) if settings.get('preview', False) else 0
     seed = int(settings.get('seed', 42))
-    if not 200 <= max_chars <= 1200 or not 0 <= preview <= 20 or not 0 <= seed <= 2147483647:
+    if not 200 <= max_chars <= 1200 or not (1 <= preview <= 20 if settings.get('preview', False) else preview == 0) or not 0 <= seed <= 2147483647:
         raise ValueError('Invalid grouping or preview settings / Gruplama veya örnek ayarı geçersiz.')
     argv = [str(python), '-u', str(reader), str(source), str(reference), '--mode', mode,
             '--steps', str(int(values['steps'])), '--cfg', str(values['cfg']),

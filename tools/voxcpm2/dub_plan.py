@@ -160,8 +160,8 @@ def shift_cues(cues, offset):
     result = SourceCues()
     ids = cues.source_ids if isinstance(cues, SourceCues) else range(1, len(cues) + 1)
     for source_id, (start, end, text) in zip(ids, cues):
-        if start + offset >= 0:
-            result.append((start + offset, end + offset, text))
+        if end + offset > 0:
+            result.append((max(0, start + offset), end + offset, text))
             result.source_ids.append(source_id)
     return result
 
