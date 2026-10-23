@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-23-0922.md](docs/devir/2026-10-23-0922.md) — Rapor522: son güvenilirlik incelemesi, beş ürün kökü ve CI bakımı
 Güncel çalışma: [docs/devir/2026-10-23-0245.md](docs/devir/2026-10-23-0245.md) — PR477 master ve Windows ana kopyaya alındı
 Güncel çalışma: [docs/devir/2026-10-23-0242.md](docs/devir/2026-10-23-0242.md) — Rapor521: on altı ses ve çeviri güvenilirliği düzeltmesi
 Güncel çalışma: [docs/devir/2026-10-22-1514.md](docs/devir/2026-10-22-1514.md) — PR476 master ve Windows ana kopyaya alındı

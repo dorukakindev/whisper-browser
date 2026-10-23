@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 522 | [BROWSER_BUG_REPORT_522.md](BROWSER_BUG_REPORT_522.md) | Son güvenilirlik incelemesi: beş ürün kökü, CI bakımı ve kaynak araştırması |
 | 521 | [BROWSER_BUG_REPORT_521.md](BROWSER_BUG_REPORT_521.md) | On altı ses, çeviri anlamı ve süreç sahipliği düzeltmesi |
 | 520 | [BROWSER_BUG_REPORT_520.md](BROWSER_BUG_REPORT_520.md) | Claude ses düzeltmeleri: özgün cue kimliği, konuşma metni ve güvenli kurtarma |
 | 519 | [BROWSER_BUG_REPORT_519.md](BROWSER_BUG_REPORT_519.md) | Claude Web ses teslimi doğrulaması ve grup kimliği kayması |
