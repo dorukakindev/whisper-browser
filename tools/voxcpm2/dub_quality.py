@@ -114,6 +114,8 @@ def speech_check(expected, actual, numeric_reference=None):
         patterns = {
             'currency': r'[$€£₺¥]|\b(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)\b',
             'past_negation': r'\b[^\W_]{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)[^\W_]*\b',
+            # Long blocks can have >95% similarity after reversing an instruction.
+            'negative_instruction': r'\b[^\W_]{2,}(?:m[ae]y[ıiuü]n(?:[ıiuü]z)?|m[ae]m[ae]l[ıi][^\W_]*)\b',
             'modality': r'\b(?:[^\W_]*abilir[^\W_]*|[^\W_]*ebilir[^\W_]*|belki|muhtemelen|possibly|perhaps|might|may|must|should)\b',
             'comparison': r'[<>≤≥≠]=?',
         }

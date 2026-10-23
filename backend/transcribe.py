@@ -163,8 +163,19 @@ def translation_artifact_path(output_dir, stem, target, fmt, *, partial=False,
     return Path(output_dir) / ".".join(parts)
 
 
+def translation_output_labels(args, stem, qualifiers=()):
+    """Share normal/speech variant names between both translation entry points."""
+    target = (args.translate_to or 'tr').lower()
+    label = '.'.join([target, *qualifiers])
+    variant = re.sub(r"[^A-Za-z0-9_-]+", "", str(getattr(args, 'translate_variant_label', '') or ''))
+    if variant:
+        label += '.' + variant
+    return label, f'{stem}.{label}' if variant else stem
+
+
 def cleanup_owned_partial_translation_artifacts(output_dir, stem, target,
-                                                source_hash, source_id=""):
+                                                source_hash, source_id="", *,
+                                                target_language=None, dual_stem=None):
     """Aynı kaynak işe ait bayat partial çıktıları güvenli biçimde kaldır."""
     root = Path(output_dir)
     if not root.is_dir() or not source_hash:
@@ -195,7 +206,7 @@ def cleanup_owned_partial_translation_artifacts(output_dir, stem, target,
         except (OSError, ValueError, json.JSONDecodeError):
             continue
         if (metadata.get("sourceHash") != source_hash
-                or metadata.get("targetLanguage") != target
+                or metadata.get("targetLanguage") != (target_language or target)
                 or (metadata.get("sourceId") and source_id
                     and metadata.get("sourceId") != source_id)):
             continue
@@ -211,7 +222,7 @@ def cleanup_owned_partial_translation_artifacts(output_dir, stem, target,
                 # göstermemeli; kalan artık sonraki tamamlamada yeniden denenir.
                 pass
     if verified_owner:
-        dual_path = root / f"{stem}.dual.partial.srt"
+        dual_path = root / f"{dual_stem or stem}.dual.partial.srt"
         try:
             if dual_path.exists():
                 dual_path.unlink()
@@ -8015,6 +8026,7 @@ def transcribe(args):
                 "yazildi (aksi halde hic cikti olusmazdi).", "warn")
             warn_list.append("Yalnizca JSON secili oldugundan ceviri dosyasi olusmadi; "
                              "kaynak JSON yazildi. Ceviri icin srt/vtt/ass da secin.")
+        target_label, dual_stem = translation_output_labels(args, base_name)
         for fmt in formats:
             fmt = fmt.strip().lower()
             out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
@@ -8062,14 +8074,14 @@ def transcribe(args):
                 if fmt == "json":
                     continue
                 tr_path = translation_artifact_path(
-                    output_dir, base_name, (args.translate_to or "tr").lower(), fmt,
+                    output_dir, base_name, target_label, fmt,
                     partial=translation_failed_count > 0,
                 )
                 # Kaynak dil = hedef dil ise (ve dil eki aciksa) iki yol AYNI olur;
                 # ceviri kaynagin uzerine yazardi. Ayirt edici ek koy.
                 if write_source and tr_path == out_path:
                     tr_path = translation_artifact_path(
-                        output_dir, base_name, (args.translate_to or "tr").lower(), fmt,
+                        output_dir, base_name, target_label, fmt,
                         partial=translation_failed_count > 0, qualifier="ceviri",
                     )
                     log(f"Kaynak ve ceviri ayni ada denk geldi - ceviri {tr_path.name} "
@@ -8094,8 +8106,8 @@ def transcribe(args):
         if translated and args.dual_subtitle:
             try:
                 dual_path = output_dir / (
-                    f"{base_name}.dual.partial.srt" if translation_failed_count
-                    else f"{base_name}.dual.srt"
+                    f"{dual_stem}.dual.partial.srt" if translation_failed_count
+                    else f"{dual_stem}.dual.srt"
                 )
                 dual_source = (label_entries_for_text_output(entries, speakers_map)
                                if args.label_speakers and speakers_map else entries)
@@ -8962,10 +8974,7 @@ def translate_existing_subtitle(args):
     # "film.en.srt" -> "film.tr.srt"; "film.srt" -> "film.tr.srt";
     # "film.en.forced.srt" -> "film.tr.forced.srt"; "Dune.Part.Two.srt" -> "Dune.Part.Two.tr.srt"
     stem, qualifiers = split_subtitle_language_suffix(src_path.stem)
-    target_label = ".".join([target, *qualifiers])
-    _variant_label = re.sub(r"[^A-Za-z0-9_-]+", "", str(getattr(args, "translate_variant_label", "") or ""))
-    if _variant_label:
-        target_label = f"{target_label}.{_variant_label}"
+    target_label, dual_stem = translation_output_labels(args, stem, qualifiers)
     requested = []
     for fmt in str(getattr(args, "formats", "srt") or "srt").split(","):
         fmt = fmt.strip().lower()
@@ -9092,7 +9101,7 @@ def translate_existing_subtitle(args):
 
     if args.dual_subtitle:
         dual_path = out_dir / (
-            f"{stem}.dual.partial.srt" if partial_result else f"{stem}.dual.srt"
+            f"{dual_stem}.dual.partial.srt" if partial_result else f"{dual_stem}.dual.srt"
         )
         stage_required_output(dual_path, lambda staged: write_dual_srt(
             entries, translated, staged,
@@ -9117,7 +9126,8 @@ def translate_existing_subtitle(args):
     output_tx.commit()
     if not partial_result:
         removed_partial = cleanup_owned_partial_translation_artifacts(
-            out_dir, stem, target_label, source_hash, source_id)
+            out_dir, stem, target_label, source_hash, source_id,
+            target_language=target, dual_stem=dual_stem)
         if removed_partial:
             log(f"Tamamlanan işe ait {len(removed_partial)} eski kısmi çıktı temizlendi.",
                 "success")
