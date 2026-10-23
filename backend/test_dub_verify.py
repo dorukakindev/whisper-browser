@@ -11,6 +11,17 @@ import dub_verify
 
 
 class VerifierTests(unittest.TestCase):
+    def test_declared_turkish_avoids_short_clip_language_guess_without_text_prompt(self):
+        rows,calls=self.run_worker(json.dumps({'path':'Kısa.wav','language':'tr'})+'\n')
+        self.assertEqual(rows,[{'text':'Merhaba dünya.'}])
+        self.assertEqual(calls[1][1]['language'],'tr')
+        self.assertNotIn('initial_prompt',calls[1][1])
+        # Reject unsupported protocol values and keep the next request usable.
+        rows,calls=self.run_worker(json.dumps({'path':'bad.wav','language':['tr']})+'\n'+
+                                  json.dumps({'path':'good.wav'})+'\n')
+        self.assertEqual(rows,[{'error':'verification_unavailable'},{'text':'Merhaba dünya.'}])
+        self.assertEqual(calls[1][0],'good.wav')
+
     def run_worker(self, source):
         calls=[]
         class Model:

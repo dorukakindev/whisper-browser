@@ -9,6 +9,10 @@ function cueIdentity(cue, index) {
   return normalizedId(value === undefined || value === null || value === '' ? 'index:' + index : value);
 }
 
+function time(value) {
+  return (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) ? Number(value) : NaN;
+}
+
 function sourceCueRows(source) {
   const counts = new Map();
   for (const [index, cue] of source.entries()) {
@@ -23,7 +27,7 @@ function sourceCueRows(source) {
       while (reserved.has(id)) id = ':' + id;
       reserved.add(id);
     }
-    return { id, originalId, start: Number(cue?.start), end: Number(cue?.end), sourceCueHash: cue?.sourceCueHash };
+    return { id, originalId, start: time(cue?.start), end: time(cue?.end), sourceCueHash: cue?.sourceCueHash };
   });
 }
 
@@ -36,7 +40,6 @@ function cueIdsForStage(values, source) {
     byOriginalId.get(row.originalId).push(row);
   }
   const ids = new Set();
-  const time = value => (typeof value==='number' || (typeof value==='string' && value.trim())) && Number.isFinite(Number(value)) ? Number(value) : NaN;
   const compatible = (row,cue) => !row.sourceCueHash || !cue.sourceCueHash || row.sourceCueHash===cue.sourceCueHash;
   for (const [index, cue] of rows.entries()) {
     if (typeof cue?.text !== 'string' || !cue.text.trim()) continue;
@@ -49,8 +52,9 @@ function cueIdsForStage(values, source) {
         const candidates = byOriginalId.get(coveredId) || [];
         const hashApplies = cue.coveredCueIds.length===1 || normalizedId(cue.cueId ?? cue.id)===coveredId;
         const contained = candidates.filter(row=>(!hashApplies || compatible(row,cue)) &&
-          ((!Number.isFinite(time(cue.start)) || !Number.isFinite(time(cue.end)))
-            ? candidates.length===1
+          ((!Number.isFinite(time(cue.start)) || !Number.isFinite(time(cue.end))
+              || !Number.isFinite(row.start) || !Number.isFinite(row.end))
+            ? candidates.length===1 // Legacy identity-only sources have no bounds to compare.
             : row.start >= time(cue.start)-.05 && row.end <= time(cue.end)+.1));
         const timings = new Map();
         for (const row of contained) { const key=`${row.start}:${row.end}`;timings.set(key,(timings.get(key)||0)+1); }

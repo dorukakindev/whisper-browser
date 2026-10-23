@@ -11,6 +11,30 @@ from dub_finish import finish_audio, join_pause_frames
 
 
 class Recovery(unittest.TestCase):
+    def test_530_tiny_or_excessive_repairs_never_start_the_engine(self):
+        async def generate(*args):
+            raise AssertionError('unbounded or word-sized repair must not synthesize')
+        async def verify(*args, **kwargs):
+            raise AssertionError('skipped repair must not verify')
+        texts = ['Kısa cümle.', 'uzunsözcük' * 22, 'sözcük ' * 1600]
+        with tempfile.TemporaryDirectory() as folder:
+            for text in texts:
+                result = asyncio.run(recover_long_speech(text, text, 42, 8000,
+                    generate, finish_audio, verify, Path(folder)/'original.wav', 1))
+                self.assertIsNone(result)
+
+    def test_530_contradictory_review_never_approves_repaired_audio(self):
+        text = 'Cümle doğal bir sesle ve eksiksiz okunmalıdır. ' * 9
+        async def generate(*args):
+            return np.ones(8000, dtype=np.float32)*.1
+        async def verify(*args, **kwargs):
+            return {'status': 'passed', 'review': True}
+        with tempfile.TemporaryDirectory() as folder:
+            result = asyncio.run(recover_long_speech(text, text, 42, 8000,
+                generate, finish_audio, verify, Path(folder)/'original.wav', 1))
+            self.assertIsNone(result)
+            self.assertFalse(list(Path(folder).glob('*recovery.wav')))
+
     def test_recovery_prefers_sentence_end_to_nearer_comma(self):
         first = 'Anlatının ilk düşüncesi burada tamamlanıyor. '
         text = first + 'devam eden düşünce, ' + 'sözcük '*18

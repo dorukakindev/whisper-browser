@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import io
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -47,6 +48,19 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_531_no_reliable_delivery_keeps_hifi_prompt_for_entire_session(self):
+        class PromptServer(Server):
+            def __init__(self):super().__init__();self.prompts=[]
+            async def generate(self,text,**kwargs):
+                self.prompts.append(kwargs['prompt_id'])
+                async for part in super().generate(text,**kwargs):yield part
+        with tempfile.TemporaryDirectory() as folder:
+            server=PromptServer()
+            self.run_generation(Path(folder),server,['Good.','Uncertain.'],
+                automatic=True,delivery=[None,None])
+            self.assertEqual(server.prompts,['prompt','prompt'])
+            self.assertIn('DUB_WARNING delivery_unavailable',self.generation_log)
+
     def test_delivery_tag_is_not_verification_text_and_uses_reference_only(self):
         class DeliveryServer(Server):
             async def generate(self,text,**kwargs):
@@ -227,7 +241,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False,assess=None,prepare=None):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -236,9 +250,9 @@ class GenerationTests(unittest.TestCase):
             return rewrite_text
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
-            assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
+            assess_chunk=assess or (lambda *a:(0,{})), prepare_audio=prepare or (lambda audio, rate:audio),
             available_window=available_window, valid_audio=valid_audio, generation_status=generation_status, spoken_text=spoken_text, finish_audio=finish_audio,
-            SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite)
+            SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite, math=math)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
         ref = folder/'reference.wav'; ref.write_bytes(b'fixture')
         args = SimpleNamespace(steps=15,eszamanli=2,batch_tokens=2048,max_model_len=2048,
@@ -253,7 +267,7 @@ class GenerationTests(unittest.TestCase):
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}
         cues = [(i*1000,(i+1)*1000,text) for i,text in enumerate(texts)]
-        with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()):
+        with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()) as log:
             if fallback:
                 node = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                             if isinstance(n, ast.FunctionDef) and n.name == 'generate_with_fallback')
@@ -261,6 +275,7 @@ class GenerationTests(unittest.TestCase):
                 rate = scope['generate_with_fallback'](args, cues, paths, 'prompt', scope['uret'])
             else:
                 rate = asyncio.run(scope['uret'](args,cues,paths,'prompt'))
+        self.generation_log=log.getvalue()
         return rate,args,paths
 
     def test_493_10_more_similar_retry_must_not_lose_negation(self):
@@ -283,6 +298,121 @@ class GenerationTests(unittest.TestCase):
             record=json.loads(paths[0].with_suffix('.json').read_text())
             self.assertEqual(record['text'],'Short.')
             self.assertEqual(record['status'],'review')
+
+    def test_acoustic_retry_stall_preserves_a_completed_candidate_before_restart(self):
+        class StalledRetry(Server):
+            async def generate(self,text,**kwargs):
+                if kwargs['seed'] >= 100000:
+                    await asyncio.Event().wait()
+                async for part in super().generate(text,**kwargs): yield part
+        with tempfile.TemporaryDirectory() as temp:
+            _,args,paths=self.run_generation(Path(temp),StalledRetry(),['Good.'],
+                request_timeout=.01,fallback=True,assess=lambda *a:(1,{}))
+            self.assertEqual(sf.info(paths[0]).frames,16000)
+            self.assertEqual(args.group_results[0]['status'],'review')
+            self.assertEqual(args.group_results[0]['recoveryReason'],'acoustic_retry_interrupted')
+            self.assertFalse(list(Path(temp).glob('*.tmp.wav')))
+
+    def test_activity_reports_actual_synthesis_and_verification_without_private_text(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.run_generation(Path(folder),Server(),['Private sentence.'],verification='detailed')
+            rows=[json.loads(line.removeprefix('DUB_ACTIVITY ')) for line in self.generation_log.splitlines() if line.startswith('DUB_ACTIVITY ')]
+            self.assertEqual([row['stage'] for row in rows],['generate','verify'])
+            self.assertEqual([row['attempt'] for row in rows],[1,1])
+            self.assertTrue(all(row['group']==1 and row['total']==1 for row in rows))
+            self.assertNotIn('Private',''.join(json.dumps(row) for row in rows))
+            self.assertIn('DUB_PHASE reference',self.generation_log)
+            self.assertIn('DUB_PHASE verification_cleanup',self.generation_log)
+
+    def test_530_promoted_retry_uses_its_own_acoustic_score(self):
+        class Improved(Server):
+            async def generate(self, text, **kwargs):
+                async for part in super().generate(text, **kwargs):
+                    yield part * (2 if kwargs['seed'] == 200045 or text == 'Short.' else 1)
+        class RetryVerifier(Verifier):
+            count = 0
+            async def check(self, *args, **kwargs):
+                self.count += 1
+                return {'status': 'review' if self.count == 1 else 'passed'}
+        for fit in (False, True):
+            with self.subTest(fit=fit), tempfile.TemporaryDirectory() as folder:
+                _, args, paths = self.run_generation(Path(folder), Improved(),
+                    ['A complete sentence with the original meaning.'], auto_fit=fit,
+                    verification='detailed', verifier=RetryVerifier if not fit else Verifier,
+                    assess=lambda raw, *_: (int(float(raw.max()) < .15), {}))
+                row = args.group_results[0]
+                self.assertEqual(row['quality_score'], 0)
+                self.assertEqual(row['status'], 'ready')
+                self.assertEqual(json.loads(paths[0].with_suffix('.json').read_text())['quality_score'], 0)
+
+    def test_530_verification_retry_cannot_hide_raw_defects_with_finishing(self):
+        class ClippedRetry(Server):
+            async def generate(self, text, **kwargs):
+                async for part in super().generate(text, **kwargs):
+                    yield part * (10 if kwargs['seed'] == 200045 else 1)
+        class RetryVerifier(Verifier):
+            count = 0
+            async def check(self, *args, **kwargs):
+                self.count += 1
+                return {'status': 'review' if self.count == 1 else 'passed', 'checks': self.count}
+        with tempfile.TemporaryDirectory() as folder:
+            _, args, _ = self.run_generation(Path(folder), ClippedRetry(), ['Good.'],
+                verification='detailed', verifier=RetryVerifier,
+                assess=lambda raw, *_: (5 if float(raw.max()) >= .9 else 0, {}),
+                prepare=lambda raw, _: np.clip(raw, -.2, .2))
+            self.assertEqual(args.group_results[0]['status'], 'review')
+            self.assertEqual(args.group_results[0]['verification']['checks'], 1)
+
+    def test_530_normal_length_missing_speech_and_acoustic_defects_can_recover(self):
+        text = ('Bu anlatının ilk düşüncesi burada anlamı korunarak tamamlanıyor. '
+                'İkinci düşünce aynı anlatıcının sesiyle eksiksiz biçimde devam ediyor. '
+                'Son cümlede de açıklamanın bütün sözcükleri korunarak okunuyor.')
+        self.assertLessEqual(len(text), 280)
+        class RepairServer(Server):
+            async def generate(self, text, **kwargs):
+                async for part in super().generate(text, **kwargs):
+                    yield part * (2 if kwargs['seed'] >= 500000 else 1)
+        for acoustic in (False, True):
+            class RepairVerifier(Verifier):
+                count = 0
+                async def check(self, path, expected, **kwargs):
+                    self.count += 1
+                    return {'status': 'review' if not acoustic and self.count <= 2 else 'passed'}
+            with self.subTest(acoustic=acoustic), tempfile.TemporaryDirectory() as folder:
+                server = RepairServer()
+                _, args, paths = self.run_generation(Path(folder), server, [text],
+                    verification='balanced' if acoustic else 'detailed', verifier=RepairVerifier,
+                    assess=lambda raw, *_: (int(acoustic and float(raw.max()) < .15), {}))
+                row = args.group_results[0]
+                self.assertEqual(row['status'], 'ready')
+                self.assertEqual(row['quality_score'], 0)
+                self.assertTrue(row['recovery']['verified'])
+                self.assertTrue(row['recovery']['acoustic_checked'])
+                repaired = server.calls[2:]
+                self.assertEqual(' '.join(repaired), text)
+                self.assertTrue(all(len(part.split()) >= 4 for part in repaired))
+                self.assertTrue(valid_audio(paths[0], sf))
+                self.assertFalse(list(Path(folder).glob('*recovery.wav')))
+
+    def test_530_healthy_group_stays_whole_and_rejected_repair_keeps_original_audio(self):
+        text = ('Bu anlatının ilk düşüncesi burada anlamı korunarak tamamlanıyor. '
+                'İkinci düşünce aynı anlatıcının sesiyle eksiksiz biçimde devam ediyor. '
+                'Son cümlede de açıklamanın bütün sözcükleri korunarak okunuyor.')
+        class RejectWhole(Verifier):
+            async def check(self, path, expected, **kwargs):
+                return {'status': 'review' if expected == text else 'passed'}
+        for rejected in (False, True):
+            with self.subTest(rejected=rejected), tempfile.TemporaryDirectory() as folder:
+                server = Server()
+                _, args, paths = self.run_generation(Path(folder), server, [text],
+                    verification='detailed', verifier=RejectWhole if rejected else Verifier)
+                row = args.group_results[0]
+                self.assertEqual(row['status'], 'review' if rejected else 'ready')
+                self.assertNotIn('recovery', row)
+                self.assertEqual(sf.info(paths[0]).frames, 16000)
+                self.assertFalse(list(Path(folder).glob('*recovery.wav')))
+                if not rejected:
+                    self.assertEqual(server.calls, [text])
 
     def test_failure_retains_other_pieces_and_resume_generates_only_missing(self):
         with tempfile.TemporaryDirectory() as d:

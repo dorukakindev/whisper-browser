@@ -93,6 +93,16 @@ class DubPlanRegressionTests(unittest.TestCase):
         self.assertEqual(shifted.source_ids, [4])
         self.assertEqual(dub_plan.make_groups(shifted, mode='satir')[0]['source_ids'], [4])
 
+    def test_reversed_speech_timing_is_reported_instead_of_silently_losing_a_sentence(self):
+        payload=('1\n00:00:00,000 --> 00:00:01,000\nFirst sentence.\n\n'
+                 '2\n00:00:04,000 --> 00:00:03,000\nDo not drop this sentence.\n\n'
+                 '3\n00:00:05,000 --> 00:00:06,000\nLast sentence.\n\n').encode()
+        with self.assertRaisesRegex(ValueError,'cue 2: end precedes start'):
+            dub_plan.parse_srt('fixture.srt',payload)
+        # Zero-duration cues are still preserved by the existing repair rule.
+        cues=dub_plan.parse_srt('fixture.srt',payload.replace(b'00:00:03,000',b'00:00:04,000'))
+        self.assertEqual(len(cues),3);self.assertIn('Do not drop',cues[1][2]);self.assertEqual(cues.source_ids,[1,2,3])
+
     def test_bom_windows_newlines_and_subsecond_timestamps_still_parse(self):
         payload = '\ufeff1\r\n00:00:00,1 --> 00:00:01,25\r\nTürkçe ışık.\r\n\r\n'.encode('utf-8')
         self.assertEqual(dub_plan.parse_srt('unread-file.srt', payload), [(100, 1250, 'Türkçe ışık.')])

@@ -30,7 +30,7 @@ class TimingOverflow(ValueError):
                          "Ses kesilmedi; raporu inceleyin veya acikca --tasarsa kirp secin.")
 
 
-async def quality_retry(generate, assess, seed, retries=2, timeout=180):
+async def quality_retry(generate, assess, seed, retries=2, timeout=180, on_candidate=None):
     """Retry acoustic failures only; fitting duration is a separate operation."""
     best, best_score, attempts = None, math.inf, 0
     for attempt in range(retries + 1):
@@ -51,6 +51,8 @@ async def quality_retry(generate, assess, seed, retries=2, timeout=180):
         score = assess(raw)
         if math.isfinite(score) and score < best_score:
             best, best_score = raw, score
+            if on_candidate is not None:
+                on_candidate(raw, {'attempts': attempts, 'retries': attempts - 1, 'quality_score': score})
         if score == 0:
             break
     if best is None:

@@ -7,6 +7,10 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 531 | [BROWSER_BUG_REPORT_531.md](BROWSER_BUG_REPORT_531.md) | Dublaj dinamiği, Hi-Fi geri dönüşü, anlatım niyeti ve gerçek GPU denemesi |
+| 530 | [BROWSER_BUG_REPORT_530.md](BROWSER_BUG_REPORT_530.md) | Ham ses denetimi, kabul edilen adayın puanı ve kısa gruplarda güvenli onarım |
+| 529 | [BROWSER_BUG_REPORT_529.md](BROWSER_BUG_REPORT_529.md) | Canlı ses aşamaları, işaretli parçaları toplu üretme ve önceki sesi koruma |
+| 528 | [BROWSER_BUG_REPORT_528.md](BROWSER_BUG_REPORT_528.md) | Ses adayını kurtarma, son işlem sınırları, iptal tekrarı ve birleşik çeviri regresyonu |
 | 527 | [BROWSER_BUG_REPORT_527.md](BROWSER_BUG_REPORT_527.md) | On altı ses, çeviri, proje sahipliği ve altyazı uyumluluğu onarımı |
 | 526 | [BROWSER_BUG_REPORT_526.md](BROWSER_BUG_REPORT_526.md) | Motor kesintisinde gerçek sesi koruma, işaretli miktar denetimi ve kaynak araştırması |
 | 525 | [BROWSER_BUG_REPORT_525.md](BROWSER_BUG_REPORT_525.md) | Eksik çeviride kilitli cümle bütünlüğü ve konuşmayı koruyan tempo geri dönüşü |

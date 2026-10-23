@@ -50,7 +50,7 @@ def main():
     groups=make_groups(parse_srt(args.srt,data),args.start,args.end,0,args.grouping,
                        280 if args.grouping=='akici' else 250,18 if args.grouping=='akici' else 12,600)
     if args.sample: groups=representative_groups(groups)
-    rows=[]; audio_hash=hashlib.sha256()
+    rows=[]; audio_hash=hashlib.sha256(); consecutive_failures=0
     with source_connection(args.source) as source:
         for i,g in enumerate(groups):
             start=g.get('source_start',g['start'])
@@ -59,12 +59,20 @@ def main():
             if duration <= 0: continue
             cmd=[args.ffmpeg,'-nostdin','-hide_banner','-loglevel','error','-ss',str(start/1000),'-i',source,
                  '-t',str(duration),'-vn','-ac','1','-ar','8000','-f','f32le','pipe:1']
-            r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=90,
-                             creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-            raw=r.stdout
+            raw=b''; feature=None; decoded=False
+            if consecutive_failures < 3:
+                try:
+                    r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=90,
+                                     creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                    raw=r.stdout
+                    complete=len(raw)/(8000*4) >= max(.6,duration-.25)
+                    if r.returncode==0 and complete and len(raw)%4==0 and len(raw)<=8000*40*4+4096:
+                        decoded=True
+                        feature=features(np.frombuffer(raw,dtype='<f4'))
+                except (OSError, subprocess.TimeoutExpired):
+                    pass  # One bad excerpt must not discard earlier good analysis.
+                consecutive_failures = 0 if decoded else consecutive_failures+1
             audio_hash.update(str((start,end)).encode());audio_hash.update(raw)
-            complete=len(raw)/(8000*4) >= max(.6,duration-.25)
-            feature=features(np.frombuffer(raw,dtype='<f4')) if r.returncode==0 and complete and len(raw)%4==0 and len(raw)<=8000*40*4+4096 else None
             rows.append({'key':','.join(map(str,g['source_ids'])),'start':g['start'],'end':g['end'],
                          'source_start':start,'source_end':end,'features':feature})
             print('DUB_PROSODY '+str(i+1)+'/'+str(len(groups)),flush=True)

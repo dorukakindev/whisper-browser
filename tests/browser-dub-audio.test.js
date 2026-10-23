@@ -163,5 +163,20 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
       assert.ok(layers.dub.session,'a replaced layer must not fail the new session');assert.deepEqual(layers.errors,[]);
     }finally{await layers.dub.remove();}
   }
+  // An instrumental track ending early must never truncate the narration.
+  for (const duration of [3, 120]) {
+    const bg={...f.audio,currentTime:0,duration,paused:true};
+    const track=fixture({backgroundAudio:bg});
+    try {
+      await track.dub.attach({name:'full-voice.wav',background:{url:'file:///bed.wav'}},track.c);
+      track.dub.update({currentTime:20,paused:false});await flush();await flush();
+      assert.equal(track.audio.paused,false,'short background stopped full voice');
+      assert.equal(track.audio.currentTime,20);assert.equal(track.dub.session.muted,true);
+      if(duration<20)assert.equal(bg.paused,true);
+      track.dub.update({currentTime:101,paused:false});await flush();
+      assert.equal(track.audio.paused,true);assert.equal(bg.paused,true);
+      assert.equal(track.calls.at(-1)[1],false,'voice end restores original regardless of long bed');
+    } finally {await track.dub.remove();}
+  }
   console.log('browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

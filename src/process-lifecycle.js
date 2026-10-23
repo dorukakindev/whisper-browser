@@ -52,13 +52,15 @@ function terminateProcessTree(proc, { spawn, platform = process.platform, onWarn
 }
 
 const confirmedClosed = new WeakSet();
+const closeWaits = new WeakMap();
 
 // A UI Stop button needs confirmed closure, not merely a spawned taskkill.
 // Failure leaves the owning job live and permits another explicit Stop request.
 function terminateProcessTreeAndWait(proc, options = {}) {
   if (!proc || confirmedClosed.has(proc)) return Promise.resolve(true);
+  if (closeWaits.has(proc)) return closeWaits.get(proc);
   const waitMs = Number.isFinite(options.waitMs) ? Math.max(1, options.waitMs) : 6500;
-  return new Promise(resolve => {
+  const waiting = new Promise(resolve => {
     let timer, settled = false;
     const finish = value => {
       if (settled) return;
@@ -66,7 +68,12 @@ function terminateProcessTreeAndWait(proc, options = {}) {
     };
     const onClose = () => { confirmedClosed.add(proc); finish(true); };
     proc.once?.('close', onClose);
-    timer = setTimeout(() => finish(false), waitMs);
+    timer = setTimeout(() => {
+      // A signal request may succeed without an observed close. Do not leave
+      // the owner permanently unable to send another explicit stop request.
+      if (proc.exitCode == null && proc.signalCode == null) proc._terminating = false;
+      finish(false);
+    }, waitMs);
     try {
       // An exited child may still have inherited stdout/stderr open. Only
       // close confirms that the owner can finish; never infer it from exitCode.
@@ -76,6 +83,9 @@ function terminateProcessTreeAndWait(proc, options = {}) {
       }
     } catch (_) { finish(false); }
   });
+  closeWaits.set(proc, waiting);
+  void waiting.then(() => { if (closeWaits.get(proc) === waiting) closeWaits.delete(proc); });
+  return waiting;
 }
 
 module.exports = { terminateProcessTree, terminateProcessTreeAndWait };
