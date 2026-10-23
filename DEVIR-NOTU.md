@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-0137.md](docs/devir/2026-10-24-0137.md) — Rapor531: dublaj doğallığı araştırması, anlatım dinamiği ve GPU denemesi
 Güncel çalışma: [docs/devir/2026-10-24-0115.md](docs/devir/2026-10-24-0115.md) — Rapor530: ham ses denetimi ve başarısız cümle gruplarında güvenli onarım
 Güncel çalışma: [docs/devir/2026-10-23-2330.md](docs/devir/2026-10-23-2330.md) — Rapor529: canlı ses aşaması, toplu yeniden üretim ve eski çıktıyı koruma
 Güncel çalışma: [docs/devir/2026-10-23-2316.md](docs/devir/2026-10-23-2316.md) — Rapor528: derin ses kurtarma, son işlem ve CI regresyonu onarımı

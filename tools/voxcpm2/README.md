@@ -32,6 +32,17 @@ grupları ve satır satır seçenekleri de vardır. Plan ve üretim aynı ayarla
 eski plana ait düzenleme farklı gruplama ile uygulanamaz. İnce kelime zamanlaması
 garantisi yoktur; senkron blok düzeyindedir, video yavaşlatma haritası korunur.
 
+Son ses dengeleme, R128 ölçümünden sonra tüm dosyaya aynı kazancı uygular;
+sessiz anlatım ile vurgulu bölüm arasındaki farkı sıkıştırmaz. Hedef yaklaşık
+−20 LUFS'tur; −2 dBTP tepe payı bunu engelliyorsa daha düşük genel seviye
+korunur. Kaynak anlatımını izle açıkken hiçbir aralık güvenilir ölçülemezse
+uyarı verilir ve mevcut Hi-Fi referans dökümü kullanılmaya devam eder.
+Türkçe SRT denetimi dili yeniden tahmin etmek yerine Türkçe olarak yapılır;
+bağımsız CLI'de `--verify-language auto` varsayılanı korunur.
+Metin düzenleyici soru/ünlem niyetini korur, cümle ortasındaki bir parçayı
+komşu cümlelerden bilgi ekleyerek tamamlamaz. Bunlar sözcük bütünlüğü ve
+anlatım korumalarıdır; insan dublajıyla ayırt edilemezlik garantisi değildir.
+
 Whisper Local kökündeki `ses-studyosu.bat` dosyasını çift tıklayın. Ana Electron
 uygulaması gerekmeksizin metin yazabilir/TXT açabilir, WAV referansı ve birebir
 dökümünü seçebilir, adım/paralellik/CFG/sıcaklık/durak ayarlarını yapabilirsiniz.
