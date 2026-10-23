@@ -12,7 +12,7 @@ function prepareProsody({ source, srt, output, range, sample, grouping, strength
   return new Promise((resolve,reject) => {
     const child = spawn(python,args,{cwd:appRoot,env:{...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'},windowsHide:true});
     onProcess(child);
-    let pending='', settled=false, timedOut=false, failureCode='';
+    let pending='', settled=false, timedOut=false, failureCode='', workerError=false;
     const done = error => { if (settled) return; settled=true; clearTimeoutFn(timer); onProcess(null); error ? reject(error) : resolve(output); };
     const timer=setTimeoutFn(() => {
       timedOut=true;
@@ -32,10 +32,11 @@ function prepareProsody({ source, srt, output, range, sample, grouping, strength
         if (line==='DUB_PROSODY_ERROR MULTIPLE_AUDIO_TRACKS') failureCode='MULTIPLE_AUDIO_TRACKS';
       }
     });
-    child.once('error',()=>done(new Error('Prosody worker could not start')));
+    // Keep the live worker owned after kill/send failures; close is final.
+    child.on('error',()=>{workerError=true;});
     child.once('close',code=>{
-      const error=new Error(timedOut ? 'Prosody analysis timed out' : 'Prosody source could not be analyzed');error.code=failureCode;
-      done(code===0 && !timedOut && !isCancelled() && fs.existsSync(output) ? null : error);
+      const error=new Error(timedOut ? 'Prosody analysis timed out' : workerError ? 'Prosody worker failed' : 'Prosody source could not be analyzed');error.code=failureCode;
+      done(code===0 && !workerError && !timedOut && !isCancelled() && fs.existsSync(output) ? null : error);
     });
   });
 }

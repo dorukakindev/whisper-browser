@@ -21,6 +21,11 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(request.context.generation, 3); assert.equal(el('voiceReferenceUse').disabled, true);
   progress({ id: request.id, type: 'reference_status', stage: 'transcribe_cuda' });
   assert.match(el('voiceReferenceStatus').textContent, /GPU/);
+  progress({ id: request.id, type: 'reference_status', stage: 'stopping' });
+  assert.equal(el('voiceReferenceStatus').textContent, 'Durduruluyor…');
+  progress({ id: request.id, type: 'reference_status', stage: 'stop_failed' });
+  assert.match(el('voiceReferenceStatus').textContent, /İptal doğrulanamadı/);
+  assert.equal(el('voiceReferenceCancel').disabled, false, 'failed timeout Stop remains retryable');
   resolvePrepare({ ok: true, reference: entry }); await tick();
   assert.match(el('voiceReferenceStatus').textContent, /Referans hazır/);
   assert.equal(el('voiceReferenceUse').disabled, false);
