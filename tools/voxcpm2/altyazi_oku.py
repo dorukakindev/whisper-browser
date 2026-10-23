@@ -343,6 +343,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += extra['attempts']
                                 if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
                                     wav, text = candidate, proposed
+                                    metric['quality_score'] = extra['quality_score']
                                     metric['finishing'] = candidate_finishing
                                     metric['rewritten'] = True
                             except (ValueError, asyncio.TimeoutError):
@@ -357,8 +358,12 @@ async def uret(args, cues, paths, prompt_text):
                             # from an uncertain automatic transcript.
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate, candidate_finishing = finish_generated(await bounded_call(synthesize(text, seed + 200003), args.request_timeout))
-                                if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
+                                raw = await bounded_call(synthesize(text, seed + 200003), args.request_timeout)
+                                # Finishing attenuates peaks and trims padding;
+                                # it must not hide raw clipping or stuck tails.
+                                candidate_score = assess_chunk(raw, sr, text)[0]
+                                if math.isfinite(candidate_score) and candidate_score <= metric['quality_score']:
+                                    candidate, candidate_finishing = finish_generated(raw)
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verify_audio(second, text, numeric_reference=editable_text)
                                     # The shared verifier owns all semantic gates.
@@ -369,6 +374,7 @@ async def uret(args, cues, paths, prompt_text):
                                         # before changing its in-memory metadata.
                                         second.replace(temporary)
                                         wav, check = candidate, checked
+                                        metric['quality_score'] = candidate_score
                                         metric['finishing'] = candidate_finishing
                             except (ValueError, OSError, asyncio.TimeoutError) as retry_error:
                                 # A failed optional retry must not erase the first
@@ -377,9 +383,11 @@ async def uret(args, cues, paths, prompt_text):
                             finally:
                                 second.unlink(missing_ok=True)
                             metric['attempts'] += 1; metric['retries'] += 1
-                        if check['status'] == 'review':
-                            # Large one-pass requests can end early despite valid
-                            # audio. Repair content with bounded, verified blocks.
+                        if (check['status'] == 'review' or
+                                (check['status'] == 'passed' and metric['quality_score'] > 0)):
+                            # Repair persistently bad speech, including ordinary
+                            # length groups and acoustically bad but correct words.
+                            # Healthy full-context speech never takes this path.
                             def recovery_attempt():
                                 metric['attempts'] += 1
                                 metric['retries'] += 1
@@ -390,6 +398,7 @@ async def uret(args, cues, paths, prompt_text):
                             if recovered is not None:
                                 wav, check, recovery = recovered
                                 metric['recovery'] = recovery
+                                metric['quality_score'] = 0
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
                     temporary.replace(path)
@@ -714,7 +723,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v16-verified-repair", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression, SPOKEN_TEXT_VERSION)
     # Run reports are separate from independently addressed speech pieces.

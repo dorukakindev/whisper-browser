@@ -1,4 +1,4 @@
-"""Bounded content recovery after ASR rejects a long utterance twice."""
+"""Bounded content/acoustic repair after full-context speech retries fail."""
 import asyncio
 import math
 import re
@@ -39,10 +39,13 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
     Same reference conditioning is supplied by generate's caller for every part.
     Do not chain generated audio back into the next prompt: errors would propagate.
     """
-    if len(text) <= 280:
+    # Default flowing groups are at most280 characters; they can lose words
+    # too. Only failed groups are split, and never into tiny word-sized clips.
+    if len(text) <= 140 or len(text.split()) < 12:
         return None
-    blocks = recovery_blocks(text)
-    if not 2 <= len(blocks) <= 8:
+    blocks = recovery_blocks(text, limit=min(260, max(140, math.ceil(len(text)/2))))
+    if (not 2 <= len(blocks) <= 8 or
+            any(len(block) < 40 or len(block.split()) < 4 for block in blocks)):
         return None
     target = temporary.with_name(temporary.stem+'-recovery.wav')
     waves, finishing, joins = [], [], []
@@ -61,7 +64,7 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
             finishing.append(finished)
             sf.write(target, wav, sr, subtype='PCM_16')
             check = await verify(target, block, numeric_reference=block)
-            if check.get('status') != 'passed':
+            if check.get('status') != 'passed' or check.get('review', False):
                 return None
             if waves:
                 frames = join_pause_frames(waves[-1], wav, sr, blocks[len(finishing)-2])
@@ -71,9 +74,10 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
         joined = np.concatenate(waves)
         sf.write(target, joined, sr, subtype='PCM_16')
         check = await verify(target, text, numeric_reference=numeric_reference)
-        if check.get('status') != 'passed':
+        if check.get('status') != 'passed' or check.get('review', False):
             return None
         return joined, check, {'chunks': len(blocks), 'verified': True,
+                              'acoustic_checked': assess is not None,
                               'finishing': finishing, 'added_pauses_seconds': joins}
     except (ValueError, OSError, asyncio.TimeoutError):
         return None
