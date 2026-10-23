@@ -56,7 +56,7 @@ test('518-06 empty, header-only, fake and truncated WAV cannot be successful out
  const file=path.join(temp(t),'voice.wav'),wav=Buffer.alloc(48);
  wav.write('RIFF');wav.writeUInt32LE(40,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);
  wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(24000,24);wav.writeUInt16LE(2,32);
- wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(4,40);
+ wav.writeUInt32LE(48000,28);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(4,40);
  for(const bytes of [Buffer.alloc(0),wav.subarray(0,44),Buffer.alloc(100),wav.subarray(0,46)]){
   fs.writeFileSync(file,bytes);assert.equal(validVoiceOutput(file),false);
  }

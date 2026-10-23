@@ -16,6 +16,10 @@ test('requiredPackageFiles: her dosya depoda mevcut ve ignore kalıbına takılm
   assert.ok(required.length > 50, `liste şüpheli kısa: ${required.length}`);
   const missing = required.filter((rel) => !fs.existsSync(path.join(ROOT, rel)));
   assert.deepEqual(missing, []);
+  assert.deepEqual(required.filter(rel => !fs.statSync(path.join(ROOT, rel)).isFile()), []);
+  for (const rel of ['tools/voxcpm2/altyazi_oku.py', 'tools/voxcpm2/dub_finish.py', 'tools/voxcpm2/dub_recovery.py']) {
+    assert.ok(required.includes(rel), `${rel} must be checked as a file`);
+  }
   const ignored = required.filter((rel) => manifest.isIgnored(rel));
   assert.deepEqual(ignored, [], `paket ignore kalıbı gerekli dosya yutuyor: ${ignored.join(', ')}`);
 });

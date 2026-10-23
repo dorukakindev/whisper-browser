@@ -341,14 +341,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
         grantMedia(output);
         let sync = null, syncInvalid = false;
-        try { sync = validateSync(saved.sync); } catch (_) { syncInvalid = true; }
+        try { sync = validateSync(saved.sync); if (saved.settings?.timingMode === 'video' && !sync) syncInvalid = true; } catch (_) { syncInvalid = true; }
         let quality = null;
         try { if(saved.quality?.version===1 && saved.quality.groups?.length) quality={...saved.quality,groups:validateGroups(saved.quality.groups)}; } catch (_) {}
+        if (quality?.groups?.every(row => row.status === 'failed')) continue;
         return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
           sync, syncInvalid, quality, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
-          background: saved.background && fs.existsSync(path.join(root,`${saved.id}-background.wav`))
+          background: saved.background && validVoiceOutput(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
           timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
       } catch (_) {}
@@ -657,13 +658,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               }
             }
           } catch (_) {}
-          if (finishedBeforeExitFailure) {
+          const noSpeechProduced = quality?.groups?.length > 0 && quality.groups.every(row => row.status === 'failed');
+          if (finishedBeforeExitFailure || noSpeechProduced) {
             s.settings.engineExitCode = code ?? null;
             for (const file of [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json')]) {
               s.ownedArtifacts?.delete(file);
             }
             finish(s, 'error', {
-              error: 'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
+              error: noSpeechProduced ? 'Hiçbir konuşma parçası üretilemedi; tanı dosyası korundu. Üretim kaydını kontrol edip yeniden deneyin.'
+                : 'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
               recoverablePath: output, recoverableUrl: pathToFileURL(output).href, name: path.basename(output),
               diagnostics: processFailure(s.stderr, s.tail), qualityUnavailable: true,
             });
@@ -693,7 +696,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     s.cancelPromise = Promise.resolve().then(async () => {
       if (proc) {
         const stopped = await terminate(proc);
-        if (stopped === false && proc.exitCode == null && proc.signalCode == null) throw new Error('İptal isteği tamamlanamadı.');
+        if (stopped === false) throw new Error('İptal isteği tamamlanamadı.');
       }
       return { ok: true };
     }).catch(error => {

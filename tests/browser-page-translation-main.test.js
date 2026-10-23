@@ -51,7 +51,7 @@ class FakeScheduler {
     main.indexOf('const pdfDocuments = new Map();'));
   const events = [];
   const context = {
-    AbortController, Map, Set, Number, String, Math, Promise, setTimeout, clearTimeout,
+    URL, AbortController, Map, Set, Number, String, Math, Promise, setTimeout, clearTimeout,
     createHash: crypto.createHash,
     canonicalPageUrl: archive.canonicalPageUrl,
     canonicalPageSite: archive.canonicalPageSite,
@@ -84,6 +84,7 @@ class FakeScheduler {
     loadSettings: () => ({ ui: {} }),
   };
   vm.createContext(context);
+  vm.runInContext(main.slice(main.indexOf('function safeTranslationEndpoint('), main.indexOf('function browserTranslationConfigProblem(')), context);
   vm.runInContext(`${source}\nthis.runBlocks = runBrowserPageTranslationBlocks;\nthis.completion = pageTranslationCompletion;\nthis.pageUrl = browserPageUrl;`, context);
   vm.runInContext(pageActionSource, context);
 

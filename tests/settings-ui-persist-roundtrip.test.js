@@ -48,6 +48,7 @@ const OTHER_STORE = new Set([
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
   'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
+  'dubGrouping', 'dubFollowDelivery', 'dubDeliveryStrength', 'dubExpression',
   'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',
@@ -71,6 +72,7 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  'dubAdvancedSettings', 'dubEngineSettings', // details disclosure state, not synthesis settings
   'browserWhisperRangeEnabled', 'browserWhisperRangeStart', 'browserWhisperRangeEnd',
   // Per-video audio and reviewed text belong to the current dubbing job.
   'dubWorkspacePanel','dubProjectVideo','dubTimelineFilter','dubMixer','dubMixVoice','dubMixBackground','dubMixMusic','dubMixAmbience','dubMixDuck','dubMixDuckAmount','dubExportKind','browserDubMusicVolume','browserDubAmbienceVolume','browserDubDuck',

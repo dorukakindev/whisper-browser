@@ -176,8 +176,12 @@ function requiredPackageFiles(root) {
     if (/\.bat$/i.test(entry)) {
       files.add(entry);
       const src = fs.readFileSync(path.join(root, entry), 'utf8');
-      for (const m of src.matchAll(/tools[\\/]([A-Za-z0-9_.-]+)/g)) {
-        files.add(`tools/${m[1]}`);
+      for (const m of src.matchAll(/tools[\\/]([A-Za-z0-9_.-]+(?:[\\/][A-Za-z0-9_.-]+)*)/g)) {
+        const rel = `tools/${m[1].replace(/\\/g, '/')}`;
+        const absolute = path.join(root, rel);
+        if (fs.existsSync(absolute) && fs.statSync(absolute).isDirectory()) {
+          for (const file of walkDir(root, rel)) if (/\.(?:py|js|json|bat)$/i.test(file)) files.add(file);
+        } else files.add(rel);
       }
     }
   }
@@ -204,6 +208,10 @@ function requiredPackageFiles(root) {
 
   // Dize referansıyla yüklenenler (worklet, değişken-yollu spawn).
   for (const rel of EXTRA_FILES) files.add(rel);
+  // VoxCPM scripts import sibling helpers outside the backend closure.
+  for (const rel of walkDir(root, 'tools/voxcpm2')) {
+    if (/\.py$/i.test(rel) && !rel.split('/').includes('__pycache__')) files.add(rel);
+  }
 
   // Backend giriş betikleri + yerel import kapanışı.
   for (const rel of pythonClosure(root, BACKEND_ENTRYPOINTS)) files.add(rel);

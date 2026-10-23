@@ -6,9 +6,9 @@ function temp(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'r479-'));t.aft
 function loadMedia(name,{endThrows=false}={}){
  const children=[],timers=new Set(),source=path.join(__dirname,'../src',name),module={exports:{}};
  const spawn=()=>{const c=new EventEmitter();for(const k of ['stdin','stdout','stderr']){c[k]=new EventEmitter();c[k].setEncoding=()=>{};}
-  c.stdin.end=()=>{if(endThrows)throw Error('fixture write failure');};c.kill=()=>{c.killed=true;};children.push(c);return c;};
+  c.stdin.end=()=>{if(endThrows)throw Error('fixture write failure');};c.kill=()=>{c.killed=true;return true;};children.push(c);return c;};
  vm.runInNewContext(fs.readFileSync(source,'utf8')+'\nmodule.exports.__run = run;',{
-  module,exports:module.exports,require:n=>n==='node:child_process'?{spawn}:n==='./settings-security'?{withoutSecretEnv:v=>v}:require(n),
+  module,exports:module.exports,require:n=>n==='node:child_process'?{spawn}:n==='./settings-security'?{withoutSecretEnv:v=>v}:n==='./process-lifecycle'?require('../src/process-lifecycle'):require(n),
   __dirname:path.dirname(source),Buffer,process:{env:{},once(){}},
   setTimeout:()=>{const x={unref(){}};timers.add(x);return x;},clearTimeout:x=>timers.delete(x)});
  return {...module.exports,children,timers};

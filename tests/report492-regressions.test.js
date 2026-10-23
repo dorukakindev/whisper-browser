@@ -152,7 +152,7 @@ test('492-12: a failed stop attempt allows the user to retry stopping the same l
   const child = { pid: 1, exitCode: null, signalCode: null, kill() { calls++; return false; } };
   const options = { platform: 'linux', killFn() { throw Error('not a process group'); } };
   terminateProcessTree(child, options);
-  assert.equal(terminateProcessTree(child, options), true);
+  assert.equal(terminateProcessTree(child, options), false, 'failed signal delivery is not a confirmed stop');
   assert.equal(calls, 2);
   assert.equal(child.exitCode, null);
 });

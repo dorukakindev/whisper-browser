@@ -296,6 +296,7 @@
     ['Kısa örnek hazır; tüm video için örnek seçimini kapatın.', 'Sample ready; disable the sample option for the full video.'],
     ['Motor yükleniyor…', 'Loading engine…'], ['Cümle grupları hazır', 'Sentence groups ready'],
     ['ses-dışı altyazı satırı atlandı', 'non-speech subtitle cues skipped'],
+    ['Hiçbir konuşma parçası üretilemedi; tanı dosyası korundu. Üretim kaydını kontrol edip yeniden deneyin.', 'No speech segments were generated; the diagnostic file was kept. Check the generation log and retry.'],
     ['Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.', 'The audio file was recovered, but the engine failed. Listen before using it.'],
     ['Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…', 'The voice engine stopped responding; restarting while preserving completed pieces…'],
     ['Tamamlanan sesler kurtarıldı; üretilemeyen bölümler kalite raporunda işaretlendi.', 'Completed audio was recovered; missing sections are marked in the quality report.'],
