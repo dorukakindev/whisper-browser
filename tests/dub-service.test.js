@@ -147,6 +147,8 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     assert.equal(calls[0].args[calls[0].args.indexOf('--tasarsa')+1], 'kirp');
     assert.equal(calls[0].args[calls[0].args.indexOf('--steps')+1], '15');
     assert.equal(calls[0].args[calls[0].args.indexOf('--eszamanli')+1], '4');
+    child.stdout.emit('data', 'DUB_WARNING tempo_fallback\n');
+    assert(events.some(e=>e.type==='warning' && /konuşma kesilmeden korundu/.test(e.text)));
     child.stdout.emit('data','[2/7] private subtitle text\n');
     assert.deepEqual(events.at(-1),{id:'test',type:'progress',done:2,total:7});
     child.stdout.emit('data','Zamanlama: 2 grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.\nSes: 2.0 dk | Islem: 1.1 dk\n');

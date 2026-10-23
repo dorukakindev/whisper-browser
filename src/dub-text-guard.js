@@ -30,7 +30,7 @@ function safeShortening(source, proposed, {natural=false} = {}) {
   const units = text => [...text.matchAll(/\d+(?:[.,]\d+)*\s*(kilometre|kilogram|santimetre|milimetre|mililitre|miligram|metre|gram|litre|km|kg|cm|mm|ml|mg|m|g|l|°c|°f)(?!\p{L})/giu)]
     .map(m=>`${m[0].match(/^\d+(?:[.,]\d+)*/)[0]}:${unitNames[m[1].toLowerCase()] || m[1].toLowerCase()}`).sort();
   if (JSON.stringify(units(source)) !== JSON.stringify(units(proposed))) return false;
-  const negativeVerbs = text => text.toLocaleLowerCase('tr').match(/\p{L}{2,}(?:m[ıiuü]yor\p{L}*|m[ae]y[ae]c[ae][kğ]\p{L}*|m[ae]z(?:[dt]\p{L}*|[ıiuü]\p{L}*)?)(?!\p{L})/gu) || [];
+  const negativeVerbs = text => text.toLocaleLowerCase('tr').match(/\p{L}{2,}(?:m[ıiuü]yor\p{L}*|m[ae]y[ae]c[ae][kğ]\p{L}*|m[ae]z(?:[dt]\p{L}*|[ıiuü]\p{L}*)?|m[ae]y[ıiuü]n(?:[ıiuü]z)?|m[ae]m[ae]l[ıi]\p{L}*)(?!\p{L})/gu) || [];
   if (JSON.stringify(negativeVerbs(source).sort()) !== JSON.stringify(negativeVerbs(proposed).sort())) return false;
   const signedNumbers = text => (text.match(/[+\-−]?\d+(?:[.,]\d+)*/g) || []).map(value => value.replace('−','-')).sort();
   if (JSON.stringify(signedNumbers(source)) !== JSON.stringify(signedNumbers(proposed))) return false;

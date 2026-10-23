@@ -1,3 +1,7 @@
+Güncel çalışma: [docs/devir/2026-10-23-1356.md](docs/devir/2026-10-23-1356.md) — Rapor526: kesintide gerçek sesi koruma, sayısal anlam ve kaynak araştırması
+Güncel çalışma: [docs/devir/2026-10-23-1342.md](docs/devir/2026-10-23-1342.md) — Rapor525: kilitli çeviri bütünlüğü ve tam konuşmayı koruyan zamanlama
+Güncel çalışma: [docs/devir/2026-10-23-1316.md](docs/devir/2026-10-23-1316.md) — Rapor524: Whisper→ses çevirisi→SRT→TTS geçişleri ve olumsuzluk koruması
+Güncel çalışma: [docs/devir/2026-10-23-1259.md](docs/devir/2026-10-23-1259.md) — Rapor523: ses hazırlama kapanış sahipliği ve referans zaman aşımı
 Güncel çalışma: [docs/devir/2026-10-23-0929.md](docs/devir/2026-10-23-0929.md) — PR478 güvenli birleştirme ve Windows ana kopya güncellemesi
 Güncel çalışma: [docs/devir/2026-10-23-0922.md](docs/devir/2026-10-23-0922.md) — Rapor522: son güvenilirlik incelemesi, beş ürün kökü ve CI bakımı
 Güncel çalışma: [docs/devir/2026-10-23-0245.md](docs/devir/2026-10-23-0245.md) — PR477 master ve Windows ana kopyaya alındı

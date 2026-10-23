@@ -163,7 +163,7 @@
   api.onDubEvent(event => {
     if (event.id !== active) { controls(); return; }
     if (event.type !== 'reference_status' || stopping) return;
-    const stages = { download: 'Video sesi alınıyor…', extract: 'Seçilen aralık kesiliyor…',
+    const stages = { stopping: 'Durduruluyor…', stop_failed: 'İptal doğrulanamadı; işlem izlenmeye devam ediyor.', download: 'Video sesi alınıyor…', extract: 'Seçilen aralık kesiliyor…',
       transcribe_cuda: 'Referans dökümü hazırlanıyor · GPU…', transcribe_cpu: 'Referans dökümü hazırlanıyor · CPU…' };
     if (stages[event.stage]) status(stages[event.stage]);
   });

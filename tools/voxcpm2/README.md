@@ -267,3 +267,12 @@ korunur. Uzun ses kurtarmasında da uygun cümle sonu virgülden önce tercih ed
 Doğrulamalı yeniden okumada bütün anlam kontrollerini geçen aday seçilir.
 İsteğe bağlı ikinci deneme başarısızsa ilk kullanılabilir ses inceleme uyarısıyla
 korunur; üretimin başarılı olduğu iddia edilmez.
+
+
+Doğrulama/uzun içerik kurtarması sırasında motor takılsa veya task iptal edilse
+bile önceden yazılmış gerçek ses review olarak korunur; motorun aynı koşumdaki
+tekrar denemesi sürer. İptal başarılı üretime çevrilmez. Kurtarılan küçük parçalar
+ASR'ye ek olarak normal üretimin ham akustik denetiminden de geçer. İşaretli
+miktarlar (artı/eksi) ve without kaybı ayrıca kontrol edilir; aynı aralık/tarih
+metninin geri okunması gereksiz sayı hatası sayılmaz. Yeni denetim eski zayıf
+onayları devralmamak için v15 parça kimliği kullanır; eski sesler silinmez.

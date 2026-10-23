@@ -21,7 +21,7 @@ function prepareBackground({source,srt,range,limit=0,output,appRoot,userData,cac
   return new Promise((resolve,reject) => {
     const child = spawn(python,args,{cwd:appRoot,env,windowsHide:true});
     onProcess(child);
-    let pending='', tail='', settled=false, timedOut=false;
+    let pending='', tail='', settled=false, timedOut=false, workerError=false;
     const finish = error => { if (settled) return; settled=true; clearTimeoutFn(timer); onProcess(null); error ? reject(error) : resolve(output); };
     const timer = setTimeoutFn(() => {
       timedOut = true;
@@ -37,8 +37,9 @@ function prepareBackground({source,srt,range,limit=0,output,appRoot,userData,cac
       pending=(pending+text).slice(-16384); const lines=pending.split(/\r?\n/); pending=lines.pop();
       for (const line of lines) if (line.startsWith('DUB_BACKGROUND ')) status(line.slice(15).trim());
     });
-    child.once('error',()=>finish(new Error('Arka plan aracı başlatılamadı.')));
-    child.once('close',code=>finish(code===0 && !timedOut && !isCancelled() && validVoiceOutput(output) ? null : new Error('Arka plan ayrıştırılamadı. '+tail.trim().split(/\r?\n/).at(-1)?.slice(0,500))));
+    // A failed kill/send does not mean that the process has closed.
+    child.on('error',()=>{workerError=true;});
+    child.once('close',code=>finish(code===0 && !workerError && !timedOut && !isCancelled() && validVoiceOutput(output) ? null : new Error('Arka plan ayrıştırılamadı. '+tail.trim().split(/\r?\n/).at(-1)?.slice(0,500))));
   });
 }
 module.exports={prepareBackground};

@@ -4,24 +4,26 @@ const path = require('node:path');
 const { validVoiceOutput } = require('./voice-output');
 
 function prepareVoiceReference({ source, start, end, reference, transcript, appRoot, python, ffmpeg,
-  spawn, terminate, environment, onProcess, status, isCancelled }) {
+  spawn, terminate, environment, onProcess, status, isCancelled, setTimeoutFn=setTimeout, clearTimeoutFn=clearTimeout }) {
   if (isCancelled()) throw new Error('Cancelled.');
   const child = spawn(python, [path.join(appRoot, 'backend', 'voice_reference.py'), '--source', source,
     '--start', String(start), '--end', String(end), '--output', reference, '--transcript', transcript,
     '--ffmpeg', ffmpeg], { cwd: appRoot, env: { ...environment(), PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }, windowsHide: true });
   onProcess(child);
   return new Promise((resolve, reject) => {
-    let pending = '', failure = '', finished = false, timedOut = false;
-    const timer = setTimeout(() => {
+    let pending = '', failure = '', finished = false, timedOut = false, workerError = false;
+    const timer = setTimeoutFn(() => {
       timedOut = true;
-      Promise.resolve().then(() => terminate(child)).catch(() => {});
-      try { child.kill?.('SIGKILL'); } catch (_) {}
-      const error = new Error('Reference preparation timed out.');
-      error.processActive = child.exitCode == null && child.signalCode == null;
-      done(error);
+      status('stopping');
+      // Killing just the parent can orphan ffmpeg/yt-dlp before taskkill /T
+      // reaches them. Keep ownership until close, including failed stops.
+      Promise.resolve().then(() => terminate(child)).then(stopped => {
+        if (!finished && stopped === false) status('stop_failed');
+      }).catch(() => { if (!finished) status('stop_failed'); });
     }, 10 * 60 * 1000);
+    timer.unref?.();
     const done = error => {
-      if (finished) return; finished = true; clearTimeout(timer); if (!error?.processActive) onProcess(null);
+      if (finished) return; finished = true; clearTimeoutFn(timer); onProcess(null);
       error ? reject(error) : resolve();
     };
     child.stdout.setEncoding('utf8'); child.stderr.resume();
@@ -29,15 +31,16 @@ function prepareVoiceReference({ source, start, end, reference, transcript, appR
       pending = (pending + text).slice(-16384);
       const lines = pending.split(/\r?\n/); pending = lines.pop();
       for (const line of lines) {
-        if (line.startsWith('VOICE_REFERENCE ')) status(line.slice(16).trim());
+        if (!timedOut && !workerError && line.startsWith('VOICE_REFERENCE ')) status(line.slice(16).trim());
         if (line.startsWith('VOICE_REFERENCE_ERROR ')) {
           try { const value = JSON.parse(line.slice(22)); if (typeof value === 'string') failure = value.slice(0, 500); } catch (_) {}
         }
       }
     });
-    child.once('error', () => done(new Error('Reference process could not start.')));
-    child.once('close', code => done(code === 0 && !timedOut && !isCancelled() && validVoiceOutput(reference) && fs.existsSync(transcript)
-      ? null : new Error(timedOut ? 'Reference preparation timed out.' : failure || 'Reference preparation failed. Select clear speech and check the source.')));
+    // An error can mean a failed kill/send while the worker is still alive.
+    child.on('error', () => { workerError = true; });
+    child.once('close', code => done(code === 0 && !workerError && !timedOut && !isCancelled() && validVoiceOutput(reference) && fs.existsSync(transcript)
+      ? null : new Error(timedOut ? 'Reference preparation timed out.' : failure || (workerError ? 'Reference process failed.' : '') || 'Reference preparation failed. Select clear speech and check the source.')));
   });
 }
 module.exports = { prepareVoiceReference };

@@ -33,7 +33,12 @@ def speech_check(expected, actual, numeric_reference=None):
     number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
     remaining = list(heard)
     missing_numbers = []
-    for number in re.findall(r'\d+(?:[.,]\d+)*', expected if numeric_reference is None else numeric_reference):
+    reference = expected if numeric_reference is None else numeric_reference
+    # Dates/ranges/IDs deliberately remain unexpanded in spoken_text. An exact
+    # normalized transcript already proves their presence; converting isolated
+    # fragments ('5-10' -> 'beş', 'on') would falsely reject the unchanged text.
+    numbers_to_check = [] if words(reference) == heard else re.findall(r'\d+(?:[.,]\d+)*', reference)
+    for number in numbers_to_check:
         phrase = words(number + ' kişi')[:-1]
         found = next((i for i in range(len(remaining)-len(phrase)+1) if remaining[i:i+len(phrase)] == phrase
                       and (i==0 or remaining[i-1] not in number_words)
@@ -46,7 +51,7 @@ def speech_check(expected, actual, numeric_reference=None):
     # Number presence alone misses invented quantities and unit swaps.
     remaining_expected = list(target)
     added_numbers = []
-    for number in re.findall(r'\d+(?:[.,]\d+)*', actual):
+    for number in ([] if target == heard else re.findall(r'\d+(?:[.,]\d+)*', actual)):
         phrase = words(number + ' kişi')[:-1]
         found = next((i for i in range(len(remaining_expected)-len(phrase)+1)
                       if remaining_expected[i:i+len(phrase)] == phrase
@@ -61,24 +66,26 @@ def speech_check(expected, actual, numeric_reference=None):
     negative_forms = r"\b(?:[a-z]+n['’]t|cannot)\b"
     contraction_loss = (len(re.findall(negative_forms, expected, re.I)) + target_counts['not']
                         > len(re.findall(negative_forms, actual, re.I)) + heard_counts['not'])
-    # Minus signs disappear during ordinary word tokenization. Check each
-    # signed quantity against its spoken sign, rather than just word overlap.
-    reference = expected if numeric_reference is None else numeric_reference
-    signed_actual = re.sub(r'(?<![\w.,])[-−]\s*(\d+(?:[.,]\d+)*)',
-                           lambda m: ' eksi ' + m[1], actual)
-    signed_words = words(signed_actual)
-    sign_mismatch = False
-    for number in re.findall(r'(?<![\w.,])[-−]\s*(\d+(?:[.,]\d+)*)', reference):
-        phrase = words(number + ' kişi')[:-1]
-        found = next((i for i in range(len(signed_words)-len(phrase))
-                      if signed_words[i] in ('eksi', 'minus') and signed_words[i+1:i+1+len(phrase)] == phrase
-                      and (i+1+len(phrase)==len(signed_words) or signed_words[i+1+len(phrase)] not in number_words)), None)
-        if found is None:
-            sign_mismatch = True
-        else:
-            signed_words[found:found+1+len(phrase)] = ['_consumed_'] * (1+len(phrase))
+    # Check both directions: a newly invented minus sign or a lost plus sign
+    # can reverse a quantity while leaving >95% of a long narration unchanged.
+    # Canonicalize written signs and spoken TR/EN signs, preserving order and multiplicity.
+    def signed_quantities(text):
+        signed = re.sub(r'(?<![\w.,])([+\-−])\s*(\d+(?:[.,]\d+)*)',
+                        lambda m: (' eksi ' if m[1] in '-−' else ' artı ') + m[2], text)
+        tokens = words(signed)
+        quantities = []
+        for i, token in enumerate(tokens):
+            if token not in ('eksi', 'minus', 'artı', 'plus'):
+                continue
+            stop = i + 1
+            while stop < len(tokens) and (tokens[stop] in number_words or tokens[stop].isdecimal()):
+                stop += 1
+            if stop > i + 1:
+                quantities.append(('-' if token in ('eksi', 'minus') else '+', tuple(tokens[i+1:stop])))
+        return tuple(quantities)
+    sign_mismatch = signed_quantities(reference) != signed_quantities(actual)
     lost_negation = contraction_loss or any(heard_counts[word] < count for word, count in target_counts.items()
-                        if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no'))
+                        if word.startswith(('değil', 'yok', 'asla', 'hiç')) or word in ('not', 'never', 'no', 'without'))
     repetition = any(count > target_counts[word] + 1 for word, count in heard_counts.items())
     # A duplicated phrase can be only a small fraction of a long sentence;
     # global similarity and single-word counts otherwise both miss it.
@@ -114,6 +121,8 @@ def speech_check(expected, actual, numeric_reference=None):
         patterns = {
             'currency': r'[$€£₺¥]|\b(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)\b',
             'past_negation': r'\b[^\W_]{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)[^\W_]*\b',
+            # Long blocks can have >95% similarity after reversing an instruction.
+            'negative_instruction': r'\b[^\W_]{2,}(?:m[ae]y[ıiuü]n(?:[ıiuü]z)?|m[ae]m[ae]l[ıi][^\W_]*)\b',
             'modality': r'\b(?:[^\W_]*abilir[^\W_]*|[^\W_]*ebilir[^\W_]*|belki|muhtemelen|possibly|perhaps|might|may|must|should)\b',
             'comparison': r'[<>≤≥≠]=?',
         }
@@ -137,6 +146,10 @@ def generation_status(score, verification):
 
 
 def apply_timing_quality(row, timing):
+    if timing.get('tempo_error'):
+        row['tempoFallback'] = True
+        if row.get('status') != 'failed':
+            row['status'] = 'review'
     if timing.get('cut_frames', 0) > 0:
         row['clipped'] = True
         if row.get('status') != 'failed':

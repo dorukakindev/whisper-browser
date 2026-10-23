@@ -103,11 +103,14 @@ test('live monitor requires consecutive slow results and does not claim backlog 
 test('interleaved duplicate chunks cannot change language evidence twice',()=>{
  const s=require('../src/live-asr-audio-switch').createLiveAsrAudioSwitch();s.observe('en','a');s.observe('tr','b');s.observe('en','c');s.observe('tr','b');assert.equal(s.snapshot().pendingCount,0);
 });
-test('reference timeout settles even if termination never resolves',async()=>{
- let timer;const module={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(root,'src/voice-reference.js'),'utf8'),{module,require:name=>name==='node:fs'?fs:path,setTimeout:fn=>{timer=fn;return 1;},clearTimeout(){}});
+test('reference timeout retains ownership until close even if termination never resolves',async()=>{
+ let timer;const module={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(root,'src/voice-reference.js'),'utf8'),{module,require:require('node:module').createRequire(path.join(root,'src/voice-reference.js')),setTimeout:fn=>{timer=fn;return 1;},clearTimeout(){}});
  const child=new EventEmitter();child.stdout=new EventEmitter();child.stdout.setEncoding=()=>{};child.stderr={resume(){}};child.kill=()=>false;let owner;
  const promise=module.exports.prepareVoiceReference({source:'fixture',start:0,end:3,reference:'unused',transcript:'unused',appRoot:root,python:'fixture',ffmpeg:'fixture',spawn:()=>child,terminate:()=>new Promise(()=>{}),environment:()=>({}),onProcess:p=>owner=p,status(){},isCancelled:()=>false});
- timer();await assert.rejects(promise,error=>error.processActive===true);assert.equal(owner,child);
+ let settled=false;promise.then(()=>{settled=true;},()=>{settled=true;});
+ try { timer();await new Promise(setImmediate);assert.equal(settled,false);assert.equal(owner,child); }
+ finally { child.emit('close',0); }
+ await assert.rejects(promise,/timed out/);assert.equal(owner,null);
 });
 
 test('concurrent dub attach and remove keep exactly one owner and clean up synchronous mute failures',async()=>{

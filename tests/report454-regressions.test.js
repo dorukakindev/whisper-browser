@@ -62,10 +62,15 @@ test('a failed replacement plan cannot leave the previous plan available for sho
 
 test('cancellation tracks its captured process even if background completion clears ownership', async () => {
   const prepared = deferred(), entered = deferred(); let options;
-  const child = { exitCode: null, signalCode: null };
+  const child = new EventEmitter(); child.pid = 123; child.exitCode = child.signalCode = null;
   const f = fixture({
     prepareBackground: async value => { options = value; value.onProcess(child); entered.resolve(); await prepared.promise; },
-    terminate: async () => { child.exitCode = 0; options.onProcess(null); return false; },
+    terminate: async proc => {
+      assert.equal(proc, child, 'stop targets the captured worker, not a later onProcess value');
+      const stopped = require('../src/process-lifecycle').terminateProcessTreeAndWait(proc, {platform:'linux',killFn:()=>true});
+      child.exitCode = 0; options.onProcess(null); child.emit('close', 0);
+      return stopped;
+    },
   });
   try {
     const pending = f.call('dub:start', { id: 'cancel-race', srt: f.srt, keepBackground: true });
