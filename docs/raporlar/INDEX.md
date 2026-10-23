@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 526 | [BROWSER_BUG_REPORT_526.md](BROWSER_BUG_REPORT_526.md) | Motor kesintisinde gerçek sesi koruma, işaretli miktar denetimi ve kaynak araştırması |
 | 525 | [BROWSER_BUG_REPORT_525.md](BROWSER_BUG_REPORT_525.md) | Eksik çeviride kilitli cümle bütünlüğü ve konuşmayı koruyan tempo geri dönüşü |
 | 524 | [BROWSER_BUG_REPORT_524.md](BROWSER_BUG_REPORT_524.md) | Whisper–ses çevirisi çıktı ayrımı, partial temizliği ve olumsuz talimat koruması |
 | 523 | [BROWSER_BUG_REPORT_523.md](BROWSER_BUG_REPORT_523.md) | Referans zaman aşımı, hazırlama worker sahipliği ve iptal testi sözleşmesi |
