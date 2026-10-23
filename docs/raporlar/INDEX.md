@@ -7,6 +7,7 @@ tarih sırasıyla dosya adından okunur.
 
 | No | Rapor | Başlık |
 |---|---|---|
+| 530 | [BROWSER_BUG_REPORT_530.md](BROWSER_BUG_REPORT_530.md) | Ham ses denetimi, kabul edilen adayın puanı ve kısa gruplarda güvenli onarım |
 | 529 | [BROWSER_BUG_REPORT_529.md](BROWSER_BUG_REPORT_529.md) | Canlı ses aşamaları, işaretli parçaları toplu üretme ve önceki sesi koruma |
 | 528 | [BROWSER_BUG_REPORT_528.md](BROWSER_BUG_REPORT_528.md) | Ses adayını kurtarma, son işlem sınırları, iptal tekrarı ve birleşik çeviri regresyonu |
 | 527 | [BROWSER_BUG_REPORT_527.md](BROWSER_BUG_REPORT_527.md) | On altı ses, çeviri, proje sahipliği ve altyazı uyumluluğu onarımı |
