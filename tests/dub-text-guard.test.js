@@ -13,3 +13,8 @@ assert.equal(safe('Bugün Ankara soğuk.', 'Bugün hava soğuk.', {natural:true}
 assert.equal(safe('12 kişi, 12 saat bekledi.', '12 kişi bekledi.', {natural:true}),false);
 
 assert.equal(safe('Bu sonuç kesin doğrudur.', 'Bu sonuç doğru değil.', {natural:true}),false,'added negation reverses meaning');
+for (const natural of [false,true]) {
+  assert.equal(safe('Harika! Bunu başardık!', 'Harika. Başardık.', {natural}),false,'do not flatten explicit emphasis');
+  assert.equal(safe('Bu sonuç henüz kesinleşmedi.', 'Sonuç kesinleşmedi!', {natural}),false,'do not invent emphatic delivery');
+  assert.equal(safe('Harika! Bunu başardık!', 'Harika! Başardık!', {natural}),true);
+}

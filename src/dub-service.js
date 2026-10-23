@@ -460,7 +460,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
-      args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
+      args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'), '--verify-language', 'tr');
       if (forceGroups.length === 1) args.push('--force-groups', forceGroups[0]);
       else if (forceGroups.length) {
         // Windows has a command-line length limit; bulk selections stay in
@@ -617,6 +617,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (value === 'DUB_WARNING normalization_skipped') emit(s, 'warning', {text:'Ses dengeleme tamamlanamadı; üretilen özgün ses korundu.'});
         if (value === 'DUB_WARNING verification_shutdown_failed') emit(s, 'warning', {text:'Konuşma doğrulayıcısı kapatılamadı; üretilen ses korunuyor.'});
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
+        if (value === 'DUB_WARNING delivery_unavailable') emit(s, 'warning', {text:'Kaynak anlatımı yeterince güvenilir ölçülemedi; referans sesin anlatımı korunuyor.'});
         if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
           text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
         if (value === 'DUB_WARNING tempo_fallback') emit(s, 'warning', {

@@ -89,8 +89,9 @@ from dub_quality import chunk_key, duration_identity, valid_audio, representativ
 
 
 class SpeechVerifier:
-    def __init__(self, python):
+    def __init__(self, python, language=None):
         self.python, self.proc, self.unavailable = python, None, False
+        self.language = None if language in (None, 'auto') else language
         self.lock = asyncio.Lock()
 
     async def check(self, path, text, numeric_reference=None):
@@ -107,7 +108,10 @@ class SpeechVerifier:
                         stderr=asyncio.subprocess.DEVNULL,
                         creationflags=NO_WINDOW)
                 async def exchange():
-                    self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
+                    request = {'path': str(path)}
+                    if self.language:
+                        request['language'] = self.language
+                    self.proc.stdin.write((json.dumps(request) + '\n').encode())
                     await self.proc.stdin.drain()
                     return await self.proc.stdout.readline()
                 response = json.loads(await asyncio.wait_for(exchange(), 120))
@@ -227,7 +231,11 @@ async def uret(args, cues, paths, prompt_text):
         print('DUB_PHASE reference', flush=True)
         ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
         prompt_id = None
-        automatic_delivery = bool(getattr(args,'prosody_plan',None))
+        automatic_delivery = bool(getattr(args,'prosody_plan',None)) and any(getattr(args,'group_delivery',[]))
+        if getattr(args,'prosody_plan',None) and not automatic_delivery:
+            # With no reliable evidence, retain one consistent Hi-Fi prompt
+            # for the whole run rather than silently lose its vocal detail.
+            print('DUB_WARNING delivery_unavailable', flush=True)
         if prompt_text and getattr(args, 'expression', 'reference') == 'reference' and not automatic_delivery:
             prompt_id = await bounded_call(server.add_prompt(wav_bytes, "wav", prompt_text), args.ready_timeout)
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
@@ -237,7 +245,7 @@ async def uret(args, cues, paths, prompt_text):
 
         # Recover completed pieces after OOM with a fresh, smaller server.
         sem = asyncio.Semaphore(args.eszamanli)
-        verifier = SpeechVerifier(args.verify_python)
+        verifier = SpeechVerifier(args.verify_python, getattr(args,'verify_language',None))
         total = len(cues)
         done = sum(1 for i, p in enumerate(paths) if p.is_file() and args.group_keys[i] not in args.force_groups)
         if done:
@@ -618,6 +626,7 @@ def parse_args(argv=None):
     p.add_argument('--representative-preview', action='store_true')
     p.add_argument('--verification', choices=('fast', 'balanced', 'detailed'), default='balanced')
     p.add_argument('--verify-python', type=Path)
+    p.add_argument('--verify-language', choices=('auto','tr'), default='auto')
     p.add_argument('--auto-fit', action='store_true')
     p.add_argument('--natural-speech', action='store_true')
     p.add_argument('--rewrite-dir', type=Path)
@@ -723,9 +732,9 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v16-verified-repair", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v17-performance-preservation", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
-                args.verification, args.expression, SPOKEN_TEXT_VERSION)
+                args.verification, args.expression, SPOKEN_TEXT_VERSION, getattr(args,'verify_language','auto'))
     # Run reports are separate from independently addressed speech pieces.
     run_hash = hashlib.sha256(repr((settings,args.group_delivery)).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash

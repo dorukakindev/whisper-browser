@@ -9,6 +9,8 @@ for(const key of ['seconds','measuredSeconds','suggestedMaxWords']) assert(!(key
 assert.equal(natural.context_before,'Önceki.');
 assert(messages[0].content.includes('telgraf dili kullanma'));
 assert(messages[0].content.includes('zaten doğalsa aynen'));
+assert(messages[0].content.includes('soru/ünlem işaretlerini silme'));
+assert(messages[0].content.includes('komşulardan ekleyerek tamamlama'));
 const fit=JSON.parse(editorMessages(source,2,{measured:4})[1].content);
 assert.equal(fit.seconds,2); assert.equal(fit.measuredSeconds,4);
 assert(fit.suggestedMaxWords>0);

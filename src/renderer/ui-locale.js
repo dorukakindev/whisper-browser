@@ -146,6 +146,7 @@
     ['Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.', 'Audio is ready, but its quality report could not be read. Listen before attaching it to the video.'],
     ['Süreye göre düzenleme kullanılamadı; özgün metin korunuyor.', 'Duration editing was unavailable; the original text is retained.'],
     ['Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.', 'Speech verification was unavailable; listen and review the finished audio.'],
+    ['Kaynak anlatımı yeterince güvenilir ölçülemedi; referans sesin anlatımı korunuyor.', 'Source delivery could not be measured reliably; the reference delivery is preserved.'],
     ['Referans sesi çok kısık', 'The voice reference is too quiet'],
     ['Referansta ses patlaması var', 'The voice reference contains clipping'],
     ['Referansta uzun sessizlik var', 'The voice reference contains long silence'],

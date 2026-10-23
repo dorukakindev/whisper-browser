@@ -48,6 +48,19 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_531_no_reliable_delivery_keeps_hifi_prompt_for_entire_session(self):
+        class PromptServer(Server):
+            def __init__(self):super().__init__();self.prompts=[]
+            async def generate(self,text,**kwargs):
+                self.prompts.append(kwargs['prompt_id'])
+                async for part in super().generate(text,**kwargs):yield part
+        with tempfile.TemporaryDirectory() as folder:
+            server=PromptServer()
+            self.run_generation(Path(folder),server,['Good.','Uncertain.'],
+                automatic=True,delivery=[None,None])
+            self.assertEqual(server.prompts,['prompt','prompt'])
+            self.assertIn('DUB_WARNING delivery_unavailable',self.generation_log)
+
     def test_delivery_tag_is_not_verification_text_and_uses_reference_only(self):
         class DeliveryServer(Server):
             async def generate(self,text,**kwargs):

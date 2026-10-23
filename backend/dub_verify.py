@@ -11,8 +11,12 @@ def main():
     for line in sys.stdin:
         try:
             request = json.loads(line)
+            language = request.get('language')
+            if language not in (None, 'tr'):
+                raise ValueError('Unsupported verifier language')
             segments, _ = model.transcribe(request['path'], beam_size=3,
-                condition_on_previous_text=False, vad_filter=True)
+                condition_on_previous_text=False, vad_filter=True,
+                **({'language':language} if language else {}))
             text = ' '.join(s.text.strip() for s in segments)
             print(json.dumps({'text': text}, ensure_ascii=True), flush=True)
         except Exception:

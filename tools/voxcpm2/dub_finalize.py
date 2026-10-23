@@ -1,4 +1,4 @@
-"""Optional, bounded loudness normalization; keep the completed WAV on failure."""
+"""Bounded constant-gain loudness adjustment preserving expressive dynamics."""
 import json
 import math
 import os
@@ -27,14 +27,17 @@ def normalize_audio(path, run=None):
         text = probe.stderr or ''
         begin, end = text.rfind('{'), text.rfind('}')
         stats = json.loads(text[begin:end+1])
-        names = ('input_i', 'input_tp', 'input_lra', 'input_thresh', 'target_offset')
+        names = ('input_i', 'input_tp')
         if not all(math.isfinite(float(stats[name])) for name in names):
             return False  # Silence / undefined measurements must not replace speech.
-        measured = (':measured_I={input_i}:measured_TP={input_tp}'
-                    ':measured_LRA={input_lra}:measured_thresh={input_thresh}'
-                    ':offset={target_offset}:linear=true').format(**stats)
+        # linear=true can silently revert to dynamic compression when source
+        # LRA or true peak exceeds the target. Preserve the performance instead:
+        # measure with R128, then apply one fixed gain to the whole recording.
+        # True-peak headroom wins if -20 LUFS cannot be reached without limiting.
+        gain_db = min(-20.0-float(stats['input_i']), -2.0-float(stats['input_tp']))
+        adjustment = f'volume={gain_db:.6f}dB:precision=double'
         result = run(['ffmpeg', '-hide_banner', '-nostdin', '-y', '-i', str(path),
-                      '-af', spec + measured, '-ar', str(info.samplerate), '-c:a',
+                      '-af', adjustment, '-ar', str(info.samplerate), '-c:a',
                       'pcm_s16le', str(temporary)], **options)
         if result.returncode != 0:
             return False
