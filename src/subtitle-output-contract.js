@@ -28,8 +28,8 @@
       failed = Math.min(total, Math.max(failed, total - completed));
       completed = Math.min(completed, total - failed);
     } else {
+      // Missing totals cannot erase explicit failure evidence.
       completed = 0;
-      failed = 0;
     }
     const status = value.status === 'partial' || failed > 0
       || (total > 0 && completed < total) ? 'partial' : 'complete';

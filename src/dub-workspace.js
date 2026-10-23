@@ -15,6 +15,9 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
     if (!output?.path) return output;
     const saved={...output,sync:validate(output.sync),mix:Model.mix(output.mix)};
     try { saved.rows=Model.groups(output.quality?.groups || output.rows || []); } catch (_) { saved.rows=[]; }
+    if (output.quality) saved.quality={...output.quality,groups:saved.rows};
+    saved.qualityUnavailable=output.qualityUnavailable===true || !saved.rows.length;
+    saved.syncInvalid=output.syncInvalid===true || (output.settings?.timingMode==='video' && !saved.sync);
     outputs.set(saved.path,saved);
     if(outputs.size>100) outputs.delete(outputs.keys().next().value);
     return saved;
@@ -53,7 +56,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       const choice=await dialog.showSaveDialog(owner(),{title:copy('Taşınabilir dublaj projesi kaydet','Save portable dubbing project'),defaultPath:'Dublaj.dubproject',filters:[{name:copy('Dublaj proje klasörü','Dubbing project folder'),extensions:['dubproject']}]});
       if(choice.canceled || !choice.filePath)return {ok:true,cancelled:true};
       check(op);
-      const target=choice.filePath.endsWith('.dubproject')?choice.filePath:choice.filePath+'.dubproject';
+      const target=choice.filePath.toLowerCase().endsWith('.dubproject')?choice.filePath:choice.filePath+'.dubproject';
       if(fs.existsSync(target))throw new Error('Choose a new project name; existing projects are preserved.');
       staging=target+'.partial-'+randomUUID();await fsp.mkdir(staging);
       const files={voice:'voice.wav'}, layers=await extras({...request,layers:request.layers ?? output.layers});
@@ -96,7 +99,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       if(choice.canceled || !choice.filePaths?.length)return {ok:true,cancelled:true};
       const file=choice.filePaths[0], folder=fs.realpathSync(path.dirname(file));
       if(fs.lstatSync(file).isSymbolicLink() || fs.statSync(file).size>16000000)throw new Error('Invalid dubbing project.');
-      const value=JSON.parse(await fsp.readFile(file,'utf8'));
+      const value=JSON.parse((await fsp.readFile(file,'utf8')).replace(/^\uFEFF/,''));
       if(value.format!=='whisper-dub-project' || value.version!==1 || !value.files || !value.files.voice)throw new Error('Invalid dubbing project.');
       const sync=validate(value.sync),rows=Model.groups(value.rows||[]),range=value.range;
       if(range && (!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start||range.end>86400))throw new Error('Invalid project range.');
@@ -113,7 +116,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       check(op);
       for(const [kind,target] of pendingGrants){if(kind==='subtitle')grantSubtitle(target);else grantMedia(target);}
       const output=register({path:loaded.voice.path,url:loaded.voice.url,name:String(value.name||'Dublaj.wav').slice(0,200),
-        sync,syncInvalid:value.syncInvalid===true,range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
+        sync,syncInvalid:value.syncInvalid===true || (value.settings?.timingMode==='video' && !sync),range,sample:value.sample===true,rows,quality:{version:1,groups:rows},mix:Model.mix(value.mix),
         qualityUnavailable:value.qualityUnavailable===true || !rows.length,
         settings:value.settings && typeof value.settings==='object' && !Array.isArray(value.settings) ? value.settings : null,
         background:loaded.background,subtitle:loaded.subtitle,sourceSubtitle:loaded.sourceSubtitle,spokenSubtitle:loaded.spokenSubtitle,layers:{music:loaded.music,ambience:loaded.ambience},video:loaded.video});
@@ -155,7 +158,11 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
           {cwd:temp,env:{...environment(),PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'},windowsHide:true});
         op.proc=child;let tail='';
         child.stdout?.on('data',()=>{});child.stderr?.on('data',text=>{tail=(tail+text).slice(-2000);});
-        child.once('error',reject);child.once('close',code=>code===0?resolve():reject(new Error(op.cancelled?'Cancelled.':tail.trim().slice(-1200)||'Export failed.')));
+        let workerError;
+        // A runtime error is not proof that the child exited. Retain ownership
+        // and partial files until close; keep listening for subsequent errors.
+        child.on('error',error=>{workerError=error;});
+        child.once('close',code=>code===0 && !workerError?resolve():reject(new Error(op.cancelled?'Cancelled.':workerError?.message||tail.trim().slice(-1200)||'Export failed.')));
       });
       check(op);if(!fs.statSync(partial).size)throw new Error('Export produced no media.');
       // link is an exclusive install, preventing a concurrent overwrite race.

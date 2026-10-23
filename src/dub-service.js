@@ -656,7 +656,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             if (fs.statSync(qualityPath).size <= 16000000) {
               const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
               if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length && raw.groups.length <= 5000) {
-                validateGroups(raw.groups); quality = raw;
+                const checked = validateGroups(raw.groups);
+                quality = {...raw, groups: raw.groups.map((row, i) => ({...row, ...checked[i]}))};
               }
             }
           } catch (_) {}

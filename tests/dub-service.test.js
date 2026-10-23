@@ -375,6 +375,18 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     fs.writeFileSync(badMapWav,wav);fs.writeFileSync(badMapWav.replace(/\.wav$/,'.sync.json'),'invalid');
     child.stdout.emit('data','Tamamlandi: '+badMapWav+'\n');child.emit('close',1,null);
     assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).recoverablePath,badMapWav);
+    assert.equal((await call('dub:start',{id:'quality-rejected',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const rejectedQualityWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(rejectedQualityWav,wav);
+    fs.writeFileSync(rejectedQualityWav.replace(/\.wav$/,'.quality.json'),JSON.stringify({version:1,groups:[{
+      key:'1',group:1,text:'Kontrol gerekli.',sourceStart:0,sourceEnd:1,audioStart:0,audioEnd:1,
+      status:'ready',verification:{status:'review',review:true,missing_numbers:['12']}
+    }]}));
+    child.emit('close',0);
+    assert.equal(events.at(-1).type,'done');
+    assert.equal(events.at(-1).quality.groups[0].status,'review','normalized verification must reach the renderer');
+    assert.deepEqual(events.at(-1).quality.groups[0].verification.missing_numbers,['12']);
+    assert.equal((await call('dub:latest')).output.quality.groups[0].status,'review','reopen must not restore a rejected ready state');
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
