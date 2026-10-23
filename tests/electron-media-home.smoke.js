@@ -1,0 +1,113 @@
+'use strict';
+// Real Electron/main/preload, synthetic local media and an isolated profile.
+const { app, BrowserWindow, dialog, nativeImage } = require('electron');
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const { findMediaTool } = require('./media-runtime');
+const root = path.resolve(__dirname, '..');
+const out = path.join(root, '.uiprev', 'media-home-smoke', `${Date.now()}-${process.pid}`);
+fs.mkdirSync(out, { recursive: true });
+const video = path.join(out, 'Türkçe film.mp4');
+const ffmpeg = findMediaTool('ffmpeg');
+assert(ffmpeg, 'ffmpeg is required for the local playback regression');
+const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x1c3344:s=320x180:d=8', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', video], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+assert.equal(made.status, 0, made.stderr);
+process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, 'profile');
+app.setAppPath(root);
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+const consoleErrors = [];
+require('../src/main.js');
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function until(fn, label) {
+  const deadline = Date.now() + 25000;
+  while (Date.now() < deadline) { if (await fn()) return; await wait(100); }
+  throw new Error(`Timed out: ${label}`);
+}
+app.whenReady().then(async () => {
+  let win;
+  await until(() => { win = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('index.html') && !w.webContents.isLoading()); return win; }, 'main window');
+  win.webContents.setBackgroundThrottling(false);
+  win.webContents.on('console-message', (_event, ...args) => { if (args[0] === 3) consoleErrors.push(String(args[1])); });
+  const run = code => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
+  await until(() => run('return !!window.MediaCatalogUI && document.body.classList.contains("media-home-active")'), 'home ready');
+  await run('await initialSettingsReady;return true');
+  win.setContentSize(1440, 1000);
+  await run('window.UiLocale.set("tr",false);applyUiTheme("dark");return true');
+  await wait(250);
+  fs.writeFileSync(path.join(out, 'home-empty-tr.png'), (await win.webContents.capturePage()).toPNG());
+  assert(await run('return document.querySelector(".mh-hero h1").textContent.includes("hikâyeye")'));
+  assert.equal(await run('window.homeStartClicks=0;document.getElementById("startBtn").addEventListener("click",e=>{homeStartClicks++;e.stopImmediatePropagation();e.preventDefault();},true);document.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));return homeStartClicks'), 0);
+  await run('document.querySelector("#mediaHome .mh-actions button:nth-child(2)").click();return true');
+  assert(await run('return !document.body.classList.contains("media-home-active") && getComputedStyle(document.querySelector(".app-main")).display!=="none"'));
+  assert.equal(await run('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));return homeStartClicks'), 1);
+  await run('document.getElementById("youtubeUrl").value="https://example.com/preserve";document.getElementById("mediaHomeBack").click();return true');
+  assert(await run('return document.getElementById("youtubeUrl").value==="https://example.com/preserve"'));
+  // Catalog data uses the existing main-process contract; no private user library.
+  const film = await run('return window.api.mediaCatalog({action:"save",item:{title:"Kuzeyin Hikâyesi",year:"2026",kind:"film",synopsis:"Sentetik kütüphane kaydı. Altyazı ve dublaj araçları mevcut oynatıcıda korunur.",watchStatus:"planned",favorite:true}})');
+  assert.equal(film.ok, true, film.error);
+  const series = await run('return window.api.mediaCatalog({action:"save",item:{title:"Gece Arşivi",kind:"series",year:"2025",episodes:[]}})');
+  assert.equal(series.ok, true);
+  const poster = path.join(out, 'synthetic-poster.png');
+  // A solid synthetic image, not a copyrighted film poster or personal artwork.
+  const rgba = Buffer.alloc(300 * 450 * 4);
+  for (let i = 0; i < rgba.length; i += 4) { rgba[i] = 55; rgba[i + 1] = 88; rgba[i + 2] = 110; rgba[i + 3] = 255; }
+  fs.writeFileSync(poster, nativeImage.createFromBitmap(rgba, { width: 300, height: 450 }).toPNG());
+  const originalPicker = dialog.showOpenDialog;
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [poster] });
+  try { assert.equal((await run(`return window.api.mediaCatalog({action:'poster-file',id:${JSON.stringify(film.item.id)}})`)).ok, true); }
+  finally { dialog.showOpenDialog = originalPicker; }
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [video] });
+  try { assert.equal((await run(`return window.api.mediaCatalog({action:'source-file',id:${JSON.stringify(film.item.id)}})`)).ok, true); }
+  finally { dialog.showOpenDialog = originalPicker; }
+  const local = await run(`const r=await window.api.mediaCatalog({action:'play',id:${JSON.stringify(film.item.id)}});if(!r.ok)throw Error(r.error);return r.watchItem`);
+  assert.equal((await run(`return window.api.updateWatchItem({...${JSON.stringify(local)},title:'Kuzeyin Hikâyesi',position:2,duration:8,lastWatched:Date.now()})`)).ok, true);
+  await run(`await window.MediaCatalogUI.open({id:${JSON.stringify(film.item.id)}});return true`);
+  assert(await run('return document.getElementById("mediaCatalogDialog").open && document.querySelector(".mc-detail h3").textContent==="Kuzeyin Hikâyesi"'));
+  await run('document.getElementById("mediaCatalogDialog").close();return true');
+  await until(() => run('return [...document.querySelectorAll(".mh-card-title")].some(n=>n.textContent==="Kuzeyin Hikâyesi")'), 'catalog refresh');
+  await run('[...document.querySelectorAll(".mh-card")].find(n=>n.title==="Kuzeyin Hikâyesi")?.scrollIntoView({block:"center"});return true');
+  await until(() => run('return !!document.querySelector(".mh-card img")'), 'poster');
+  await until(() => run('return document.querySelector(".mh-hero h1").textContent==="Kuzeyin Hikâyesi"'), 'featured media');
+  await run('document.querySelector(".mh-hero .mh-primary").click();return true');
+  await until(() => run('const v=document.getElementById("playerVideo");return !document.getElementById("playerLayer").classList.contains("hidden") && v.readyState>=2 && v.currentSrc.includes("mp4")'), 'real local playback');
+  await until(() => run('return document.getElementById("playerVideo").currentTime>=1.5'), 'resume position');
+  await run('document.getElementById("playerBack").click();return true');
+  await until(() => run('return !document.getElementById("mediaHome").inert'), 'local player return');
+  const results = [];
+  win.showInactive();
+  for (const [width, height, language, theme] of [[1440,1000,'tr','dark'],[940,780,'en','light'],[680,900,'tr','dark']]) {
+    win.setMinimumSize(400, 500); win.setContentSize(width, height);
+    await run(`window.UiLocale.set(${JSON.stringify(language)},false);applyUiTheme(${JSON.stringify(theme)});return true`);
+    await run('window.scrollTo(0,0);return true');
+    win.webContents.invalidate();
+    await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');
+    await wait(400);
+    const measure = await run('return {width:innerWidth,scroll:document.documentElement.scrollWidth,title:document.querySelector(".mh-hero h1").textContent,home:document.body.classList.contains("media-home-active"),inert:document.getElementById("mediaHome").inert,layer:getComputedStyle(document.getElementById("playerLayer")).display}');
+    assert(measure.scroll <= measure.width + 1, JSON.stringify(measure));
+    assert.equal(measure.inert, false);
+    assert.equal(measure.layer, 'none');
+    results.push({ ...measure, language, theme });
+    fs.writeFileSync(path.join(out, `home-${width}-${language}-${theme}.png`), (await win.webContents.capturePage()).toPNG());
+  }
+  await run('document.querySelector("[data-home-page=films]").click();document.getElementById("mhSearch").value="kuzeyin";document.getElementById("mhSearch").dispatchEvent(new Event("input"));return true');
+  assert.equal(await run('return document.querySelectorAll(".mh-card").length'), 1);
+  await run('document.querySelector(".mh-card").click();return true');
+  await until(() => run('return document.getElementById("mediaCatalogDialog").open && !!document.querySelector(".mc-detail")'), 'card details');
+  await run('document.getElementById("mediaCatalogDialog").close();return true');
+  await run('document.querySelector("#mediaHome .mh-actions button").click();return true');
+  await until(() => run('return !document.getElementById("playerLayer").classList.contains("hidden")'), 'existing browser');
+  assert(await run('return document.getElementById("mediaHome").inert'));
+  await run('document.getElementById("playerBack").click();return true');
+  await until(() => run('return !document.getElementById("mediaHome").inert'), 'return home');
+  await run('document.querySelector("#mediaHome .mh-actions button:nth-child(3)").click();return true');
+  await until(() => run('return document.getElementById("dubGeneratorDialog").open'), 'existing dub dialog');
+  await run('document.getElementById("dubGeneratorDialog").close();return true');
+  assert.deepEqual(consoleErrors.filter(text => /uncaught|referenceerror|typeerror/i.test(text)), []);
+  fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ results, consoleErrors }, null, 2));
+  console.log(JSON.stringify({ ok: true, out, results }));
+  app.exit(0);
+}).catch(error => { console.error(error); app.exit(1); });

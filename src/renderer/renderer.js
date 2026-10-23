@@ -5811,6 +5811,8 @@ document.addEventListener('keydown', (e) => {
   // Oynatıcı açıkken kısayollar oynatıcıya aittir (Esc işi iptal etmesin)
   const pl = $('playerLayer');
   if (pl && !pl.classList.contains('hidden')) return;
+  // The media home must not start/cancel the hidden transcription workspace.
+  if (document.body.classList.contains('media-home-active')) return;
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     if (!state.running) $('startBtn').click();

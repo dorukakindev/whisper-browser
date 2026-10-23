@@ -710,12 +710,19 @@
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
-  for (const openButton of openButtons) openButton.addEventListener('click', async () => {
+  async function open(options = {}) {
     if (dialog.open) return;
-    state.session++; state.busy = false; state.opener = openButton;
+    state.session++; state.busy = false; state.opener = options.opener || document.activeElement;
+    const sessionId = state.session;
+    if (['movie', 'series', 'watchlist'].includes(options.section)) state.section = options.section;
     dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
-    state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus(); await reload();
-  });
+    state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus();
+    if (!await reload() || sessionId !== state.session || !dialog.open) return;
+    if (options.id && find(options.id)) show(options.id);
+    else if (options.mode === 'folder') await previewImport('folder-preview');
+  }
+  window.MediaCatalogUI = Object.freeze({ open });
+  for (const openButton of openButtons) openButton.addEventListener('click', () => { void open({ opener: openButton }); });
   document.addEventListener('ui-locale-change', () => { if (dialog.open) render(); });
   dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
