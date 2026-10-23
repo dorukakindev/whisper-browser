@@ -1763,3 +1763,6 @@ details.browser-translate-split.hidden { display: none !important; }
 #dubWorkspacePanel input[type="range"] { accent-color: var(--accent); }
 #dubMixer > label { display: block; margin-block: 12px; }
 #dubMixer > label input[type="range"] { display: block; width: 100%; margin-top: 8px; }
+
+.dub-job-activity { margin: 6px 0; font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.dub-job-activity:empty { display: none; }

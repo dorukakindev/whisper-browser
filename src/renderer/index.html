@@ -3701,7 +3701,7 @@
 <details id="dubQualityResults"><summary>Parça sonuçları ve yeniden üretim</summary>
       <label for="dubQualityGroup">Üretim parçası</label><select id="dubQualityGroup" data-ui-untranslated></select>
       <p id="dubQualityInfo" role="status"></p>
-      <div class="dub-generator-row"><button id="dubRetryFailed" class="btn btn-secondary" type="button" disabled>Eksik parçaları tamamla</button><button id="dubRegenerateGroup" class="btn btn-ghost" type="button" disabled>Seçili parçayı yeniden üret</button></div>
+      <div class="dub-generator-row"><button id="dubRetryFailed" class="btn btn-secondary" type="button" disabled>Eksik parçaları tamamla</button><button id="dubRetryReview" class="btn btn-secondary" type="button" disabled>İşaretli parçaları yeniden üret</button><button id="dubRegenerateGroup" class="btn btn-ghost" type="button" disabled>Seçili parçayı yeniden üret</button></div>
       <p>Hazır parçalar önbellekten alınır. Değiştirdiğiniz cümleler ayrı üretilir; bütün ses yeniden hesaplanmaz.</p>
     </details>
 <details id="dubWorkspacePanel">
@@ -3775,12 +3775,13 @@
   <footer class="dub-studio-footer">
 <div class="dub-job-status"><p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
-  </div><div class="dub-job-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
+  </div><p id="dubGeneratorActivity" class="dub-job-activity" data-ui-untranslated></p><div class="dub-job-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
   </div><pre id="dubGeneratorDetails" data-ui-untranslated></pre>
     <p id="dubReferenceQuality" role="status"></p>
 <p id="dubGeneratedName" data-ui-untranslated></p>
   <progress id="dubGeneratorProgress" max="100" value="0"></progress>
+  <p id="dubPreviousOutputNote" class="hidden">Yeni üretim sürüyor; önceki ses aşağıda korunuyor.</p>
   <audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio>
 
   <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>

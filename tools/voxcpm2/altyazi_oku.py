@@ -224,6 +224,7 @@ async def uret(args, cues, paths, prompt_text):
         load_seconds = time.monotonic() - began
         reference_began = time.monotonic()
         wav_bytes = Path(args.reference).read_bytes()
+        print('DUB_PHASE reference', flush=True)
         ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
         prompt_id = None
         automatic_delivery = bool(getattr(args,'prosody_plan',None))
@@ -274,8 +275,18 @@ async def uret(args, cues, paths, prompt_text):
                 original_text = text
                 delivery = getattr(args,'group_delivery',[])
                 delivery = delivery[i] if i < len(delivery) else None
+                attempt = 0
+                def activity(stage):
+                    print('DUB_ACTIVITY ' + json.dumps({'group':i+1,'total':total,
+                          'stage':stage,'attempt':attempt}), flush=True)
                 async def synthesize(chunk, seed):
+                    nonlocal attempt
+                    attempt += 1
+                    activity('generate')
                     return await sentez(chunk,seed,delivery)
+                async def verify_audio(path, text, numeric_reference=None):
+                    activity('verify')
+                    return await verifier.check(path,text,numeric_reference=numeric_reference)
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 previous_metric = {}
@@ -289,6 +300,7 @@ async def uret(args, cues, paths, prompt_text):
                 metric, check = {}, {'status': 'not_checked'}
                 try:
                     if getattr(args, 'natural_speech', False) and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
+                        activity('rewrite')
                         text = await rewrite_for_window(args, i, text, window,
                             cues[i-1][2] if i else '', cues[i+1][2] if i+1 < len(cues) else '', mode='natural')
                     editable_text = text
@@ -314,9 +326,10 @@ async def uret(args, cues, paths, prompt_text):
                     metric['measured_seconds'] = len(wav)/sr
                     # One bounded, duration-informed edit. Preserve the original
                     # and accept the candidate only if it is valid and shorter.
-                    if (getattr(args, 'timing_mode', 'clip') != 'video'
+                    if (args.auto_fit and getattr(args, 'timing_mode', 'clip') != 'video'
                             and len(wav) / sr > window * 1.15 and len(text) > 25
                             and args.group_keys[i] not in getattr(args, 'manual_groups', set())):
+                        activity('rewrite')
                         proposed = await rewrite_for_window(args, i, editable_text, window,
                             cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '', measured=len(wav)/sr)
                         proposed = spoken_text(proposed)
@@ -338,7 +351,7 @@ async def uret(args, cues, paths, prompt_text):
                     check = {'status': 'not_checked'}
                     if args.verification == 'detailed' or (args.verification == 'balanced' and
                             (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
-                        check = await verifier.check(temporary, text, numeric_reference=editable_text)
+                        check = await verify_audio(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
                             # Re-read with a different seed; never edit meaning
                             # from an uncertain automatic transcript.
@@ -347,7 +360,7 @@ async def uret(args, cues, paths, prompt_text):
                                 candidate, candidate_finishing = finish_generated(await bounded_call(synthesize(text, seed + 200003), args.request_timeout))
                                 if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
-                                    checked = await verifier.check(second, text, numeric_reference=editable_text)
+                                    checked = await verify_audio(second, text, numeric_reference=editable_text)
                                     # The shared verifier owns all semantic gates.
                                     # A passed retry beats a rejected candidate even
                                     # when its raw token similarity is slightly lower.
@@ -372,7 +385,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
                                 synthesize, lambda raw, rate: finish_generated(raw),
-                                verifier.check, temporary, args.request_timeout, recovery_attempt,
+                                verify_audio, temporary, args.request_timeout, recovery_attempt,
                                 assess=lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
                             if recovered is not None:
                                 wav, check, recovery = recovered
@@ -447,6 +460,7 @@ async def uret(args, cues, paths, prompt_text):
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
         finally:
+            print('DUB_PHASE verification_cleanup', flush=True)
             await verifier.close()
         args.group_results = results
         metrics = {'load_seconds': load_seconds, 'reference_seconds': reference_seconds,
@@ -600,6 +614,7 @@ def parse_args(argv=None):
     p.add_argument('--rewrite-dir', type=Path)
     p.add_argument('--editor-identity', default='')
     p.add_argument('--force-groups', default='')
+    p.add_argument('--force-groups-file', type=Path)
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
     p.add_argument("--gruplama", choices=("cumle", "satir", "akici"), default="cumle")
@@ -615,9 +630,11 @@ def parse_args(argv=None):
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
-    args.force_groups = set(filter(None, args.force_groups.split(';')))
-    if any(not re.fullmatch(r'\d+(?:,\d+)*', key) for key in args.force_groups):
-        p.error('Invalid group key.')
+    from dub_requests import force_group_keys
+    try:
+        args.force_groups = force_group_keys(args.force_groups, args.force_groups_file)
+    except (OSError, ValueError, TypeError) as error:
+        p.error(str(error))
     if (args.range_start is None) != (args.range_end is None):
         p.error('Baslangic ve bitis birlikte gerekli.')
     if args.range_start is not None and args.video:
@@ -759,6 +776,7 @@ def main(argv=None):
         total_s = args.range_end - args.range_start
         args.end_limit_ms = total_s * 1000
     sync = None
+    print('DUB_PHASE timeline', flush=True)
     if args.timing_mode == 'video':
         timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
             args.max_hiz, parts_dir, args.bosluk_pay_ms)
@@ -792,6 +810,7 @@ def main(argv=None):
     wav_path = Path(wav_path)
     wav_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = wav_path.with_suffix(".tmp.wav")
+    print('DUB_PHASE writing', flush=True)
     sf.write(str(tmp), timeline, sr, subtype="PCM_16")
     wav_path = _install_with_fallback(tmp, wav_path)
     if not args.no_norm:

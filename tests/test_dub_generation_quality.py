@@ -253,7 +253,7 @@ class GenerationTests(unittest.TestCase):
         modules = {'huggingface_hub':SimpleNamespace(snapshot_download=lambda *a,**k:'fixture'),
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}
         cues = [(i*1000,(i+1)*1000,text) for i,text in enumerate(texts)]
-        with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()):
+        with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()) as log:
             if fallback:
                 node = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                             if isinstance(n, ast.FunctionDef) and n.name == 'generate_with_fallback')
@@ -261,6 +261,7 @@ class GenerationTests(unittest.TestCase):
                 rate = scope['generate_with_fallback'](args, cues, paths, 'prompt', scope['uret'])
             else:
                 rate = asyncio.run(scope['uret'](args,cues,paths,'prompt'))
+        self.generation_log=log.getvalue()
         return rate,args,paths
 
     def test_493_10_more_similar_retry_must_not_lose_negation(self):
@@ -297,6 +298,17 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(args.group_results[0]['status'],'review')
             self.assertEqual(args.group_results[0]['recoveryReason'],'acoustic_retry_interrupted')
             self.assertFalse(list(Path(temp).glob('*.tmp.wav')))
+
+    def test_activity_reports_actual_synthesis_and_verification_without_private_text(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.run_generation(Path(folder),Server(),['Private sentence.'],verification='detailed')
+            rows=[json.loads(line.removeprefix('DUB_ACTIVITY ')) for line in self.generation_log.splitlines() if line.startswith('DUB_ACTIVITY ')]
+            self.assertEqual([row['stage'] for row in rows],['generate','verify'])
+            self.assertEqual([row['attempt'] for row in rows],[1,1])
+            self.assertTrue(all(row['group']==1 and row['total']==1 for row in rows))
+            self.assertNotIn('Private',''.join(json.dumps(row) for row in rows))
+            self.assertIn('DUB_PHASE reference',self.generation_log)
+            self.assertIn('DUB_PHASE verification_cleanup',self.generation_log)
 
     def test_failure_retains_other_pieces_and_resume_generates_only_missing(self):
         with tempfile.TemporaryDirectory() as d:

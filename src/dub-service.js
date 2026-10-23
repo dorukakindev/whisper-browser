@@ -393,7 +393,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const verification = request.verification ?? c.verification;
       if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
       const forceGroups = request.forceGroups ?? [];
-      if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      if (!Array.isArray(forceGroups) || forceGroups.length > 5000 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      if (forceGroups.join(';').length > 80000) throw new Error('Regeneration selection is too large.');
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
       c.naturalSpeech = request.naturalSpeech ?? c.naturalSpeech;
       if (typeof c.naturalSpeech !== 'boolean') throw new Error('Invalid speech editing option.');
@@ -410,6 +411,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
+      s.settings.regeneratedGroups = new Set(forceGroups).size;
       s.settings.grouping = c.grouping;
       s.settings.expression = c.expression;
       s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;
@@ -459,7 +461,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
       args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
-      if (forceGroups.length) args.push('--force-groups', forceGroups.join(';'));
+      if (forceGroups.length === 1) args.push('--force-groups', forceGroups[0]);
+      else if (forceGroups.length) {
+        // Windows has a command-line length limit; bulk selections stay in
+        // an owned, bounded JSON file instead of a very long argv string.
+        const forceFile = path.join(inputDir,'force-groups.json');
+        claimArtifacts(s,[forceFile]);
+        fs.writeFileSync(forceFile,JSON.stringify([...new Set(forceGroups)]),{encoding:'utf8',flag:'wx'});
+        args.push('--force-groups-file',forceFile);
+      }
       if (request.sample === true) args.push('--limit', '11', '--representative-preview');
       const rewriteDir = path.join(inputDir, 'duration-edits');
       if ((c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
@@ -574,6 +584,22 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           } catch (_) {}
           return;
         }
+        if (value.startsWith('DUB_ACTIVITY ')) {
+          try { const raw=JSON.parse(value.slice(13));
+            if (Number.isInteger(raw.group) && raw.group>0 && raw.group<=5000
+                && Number.isInteger(raw.total) && raw.total>=raw.group && raw.total<=5000
+                && ['generate','verify','rewrite'].includes(raw.stage)
+                && Number.isInteger(raw.attempt) && raw.attempt>=0 && raw.attempt<=50) {
+              emit(s,'activity',{group:raw.group,total:raw.total,stage:raw.stage,attempt:raw.attempt});
+            }
+          } catch (_) {}
+          return;
+        }
+        if (value.startsWith('DUB_PHASE ')) {
+          const phase=value.slice(10);
+          if (['reference','verification_cleanup','timeline','writing'].includes(phase)) emit(s,'phase',{phase});
+          return;
+        }
         if (value.startsWith('DUB_GROUP ')) {
           try { const row = JSON.parse(value.slice(10));
             if (Number.isInteger(row.group) && row.group > 0 && row.group <= 5000 && typeof row.key === 'string'
@@ -587,7 +613,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (value.startsWith('DUB_REFERENCE ')) {
           try { emit(s, 'reference_quality', {quality:JSON.parse(value.slice(14))}); } catch (_) {}
         }
-        if (value === 'DUB_FINALIZE normalization') emit(s, 'status', {text:'Ses yüksekliği dengeleniyor…'});
+        if (value === 'DUB_FINALIZE normalization') { emit(s,'phase',{phase:'normalization'}); emit(s, 'status', {text:'Ses yüksekliği dengeleniyor…'}); }
         if (value === 'DUB_WARNING normalization_skipped') emit(s, 'warning', {text:'Ses dengeleme tamamlanamadı; üretilen özgün ses korundu.'});
         if (value === 'DUB_WARNING verification_shutdown_failed') emit(s, 'warning', {text:'Konuşma doğrulayıcısı kapatılamadı; üretilen ses korunuyor.'});
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
