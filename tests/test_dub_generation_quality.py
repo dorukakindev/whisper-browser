@@ -227,7 +227,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False,assess=None):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -236,7 +236,7 @@ class GenerationTests(unittest.TestCase):
             return rewrite_text
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
-            assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
+            assess_chunk=assess or (lambda *a:(0,{})), prepare_audio=lambda audio, rate:audio,
             available_window=available_window, valid_audio=valid_audio, generation_status=generation_status, spoken_text=spoken_text, finish_audio=finish_audio,
             SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
@@ -283,6 +283,20 @@ class GenerationTests(unittest.TestCase):
             record=json.loads(paths[0].with_suffix('.json').read_text())
             self.assertEqual(record['text'],'Short.')
             self.assertEqual(record['status'],'review')
+
+    def test_acoustic_retry_stall_preserves_a_completed_candidate_before_restart(self):
+        class StalledRetry(Server):
+            async def generate(self,text,**kwargs):
+                if kwargs['seed'] >= 100000:
+                    await asyncio.Event().wait()
+                async for part in super().generate(text,**kwargs): yield part
+        with tempfile.TemporaryDirectory() as temp:
+            _,args,paths=self.run_generation(Path(temp),StalledRetry(),['Good.'],
+                request_timeout=.01,fallback=True,assess=lambda *a:(1,{}))
+            self.assertEqual(sf.info(paths[0]).frames,16000)
+            self.assertEqual(args.group_results[0]['status'],'review')
+            self.assertEqual(args.group_results[0]['recoveryReason'],'acoustic_retry_interrupted')
+            self.assertFalse(list(Path(temp).glob('*.tmp.wav')))
 
     def test_failure_retains_other_pieces_and_resume_generates_only_missing(self):
         with tempfile.TemporaryDirectory() as d:

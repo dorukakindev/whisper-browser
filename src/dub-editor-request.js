@@ -13,4 +13,12 @@ function editorMessages(text, seconds, context = {}) {
   return [{role:'system',content:system},{role:'user',content:JSON.stringify(payload)}];
 }
 
-module.exports = {editorMessages};
+function editorText(response) {
+  const choice = response?.choices?.[0];
+  // A syntactically valid prefix can still have lost the rest of its meaning.
+  // Never approve known truncation/filter/tool results as a spoken rewrite.
+  if (response?.error || ['length','max_tokens','content_filter','tool_calls','function_call'].includes(choice?.finish_reason)) return '';
+  return typeof choice?.message?.content === 'string' ? choice.message.content.trim() : '';
+}
+
+module.exports = {editorMessages, editorText};

@@ -376,6 +376,10 @@ const call = (name,...args)=>handlers[name]({sender},...args);
     child.stdout.emit('data','Tamamlandi: '+badMapWav+'\n');child.emit('close',1,null);
     assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).recoverablePath,badMapWav);
     assert.equal((await call('dub:start',{id:'quality-rejected',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    child.stdout.emit('data','DUB_FINALIZE normalization\n');
+    assert.equal(events.at(-1).type,'status');assert.match(events.at(-1).text,/dengeleniyor/);
+    child.stdout.emit('data','DUB_WARNING normalization_skipped\n');
+    assert.equal(events.at(-1).type,'warning');assert.match(events.at(-1).text,/korundu/);
     const rejectedQualityWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
     fs.writeFileSync(rejectedQualityWav,wav);
     fs.writeFileSync(rejectedQualityWav.replace(/\.wav$/,'.quality.json'),JSON.stringify({version:1,groups:[{

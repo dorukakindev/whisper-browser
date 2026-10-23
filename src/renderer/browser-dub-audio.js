@@ -198,7 +198,7 @@
       const mapped = SyncMap.at(s.sync, localTime);
       const target = mapped.time;
       if (s.range || s.sync || s.background || Number.isFinite(a.duration) || this.offset) {
-        const stop = s.range?.end ?? s.sync?.videoDuration ?? (s.background && Number.isFinite(this.backgroundAudio?.duration) ? this.backgroundAudio.duration : Number.isFinite(a.duration) ? a.duration : Infinity);
+        const stop = s.range?.end ?? s.sync?.videoDuration ?? (Number.isFinite(a.duration) ? a.duration : Infinity);
         const inside = videoTime >= (s.range?.start || 0) && videoTime < stop && a.readyState > 0;
         this.rangeMute(s, inside || !!s.priorMuted);
         if (!inside || !s.muted) {

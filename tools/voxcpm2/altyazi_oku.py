@@ -43,7 +43,7 @@ from dub_timing import build_adaptive_timeline
 
 from kitap_ortak import (  # noqa: E402
     MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, assess_chunk,
-    ensure_utf8_stdio, file_sha256, loudnorm_audio, prepare_audio,
+    ensure_utf8_stdio, file_sha256, prepare_audio,
     voice_label_for, write_manifest)
 from kitap_ortak import _install_with_fallback  # noqa: E402
 
@@ -127,14 +127,24 @@ class SpeechVerifier:
                 self.proc.terminate()
             except ProcessLookupError:
                 return
+            except OSError:
+                pass  # Escalate to kill if terminate could not be sent.
             try:
                 await asyncio.wait_for(self.proc.wait(), 3)
-            except asyncio.TimeoutError:
+            except (OSError, asyncio.TimeoutError):
                 try:
                     self.proc.kill()
                 except ProcessLookupError:
                     return
-                await asyncio.wait_for(self.proc.wait(), 3)
+                except OSError:
+                    print('DUB_WARNING verification_shutdown_failed', flush=True)
+                    return
+                try:
+                    await asyncio.wait_for(self.proc.wait(), 3)
+                except (OSError, asyncio.TimeoutError):
+                    # Optional verifier cleanup must not discard finished speech
+                    # or mask the engine failure that triggers cache recovery.
+                    print('DUB_WARNING verification_shutdown_failed', flush=True)
 
 
 async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='fit', measured=None):
@@ -283,9 +293,18 @@ async def uret(args, cues, paths, prompt_text):
                             cues[i-1][2] if i else '', cues[i+1][2] if i+1 < len(cues) else '', mode='natural')
                     editable_text = text
                     text = spoken_text(text)
+                    def checkpoint(raw, candidate_metric):
+                        # A later acoustic retry can stall before quality_retry
+                        # returns. Save actual completed speech before taking
+                        # that risk; interrupted checkpoints remain review-only.
+                        prepared, finishing = finish_generated(raw)
+                        sf.write(str(temporary), prepared, sr, subtype='PCM_16')
+                        metric.update(candidate_metric, finishing=finishing,
+                                      naturalEdited=editable_text != original_text,
+                                      candidateCheckpoint=True)
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_chunk(raw, sr, text)[0], seed,
-                        args.retry, args.request_timeout)
+                        args.retry, args.request_timeout, on_candidate=checkpoint)
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
                     metric['rewritten'] = False
@@ -376,7 +395,8 @@ async def uret(args, cues, paths, prompt_text):
                         if temporary.is_file() and valid_audio(temporary, sf):
                             try:
                                 metric.update(status='review', verification=check, text=text,
-                                              recoveryReason='verification_interrupted',
+                                              recoveryReason=('acoustic_retry_interrupted' if metric.get('candidateCheckpoint')
+                                                              else 'verification_interrupted'),
                                               final_seconds=sf.info(temporary).frames/sr)
                                 # Invalidate any earlier ready record before
                                 # replacing its waveform. If metadata I/O fails,
@@ -775,9 +795,10 @@ def main(argv=None):
     sf.write(str(tmp), timeline, sr, subtype="PCM_16")
     wav_path = _install_with_fallback(tmp, wav_path)
     if not args.no_norm:
-        normed = loudnorm_audio(wav_path)
-        if normed:
-            wav_path = Path(normed)
+        from dub_finalize import normalize_audio
+        print('DUB_FINALIZE normalization', flush=True)
+        if not normalize_audio(wav_path):
+            print('DUB_WARNING normalization_skipped', flush=True)
     print(f"Dublaj WAV: {wav_path}", flush=True)
     if sync:
         wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')

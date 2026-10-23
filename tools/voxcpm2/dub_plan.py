@@ -103,6 +103,8 @@ def parse_srt(path, source_bytes=None, skipped=None):
         if raw_body and end >= start:
             source_ordinal += 1
         body = speech_body(raw_body)
+        if body and end < start:
+            raise ValueError(f'Invalid subtitle timing at cue {index + 1}: end precedes start. Fix the subtitle timing before dubbing.')
         if raw_body and not body and skipped is not None and end >= start:
             skipped.append((start, end))
         if body and end >= start:

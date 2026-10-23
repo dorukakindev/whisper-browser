@@ -18124,7 +18124,7 @@ const dubService = require('./dub-service').registerDubService({
   },
   editorIdentity: () => {
     const c = browserTranslationConfig();
-    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v3-full-meaning'])).digest('hex');
+    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v4-complete-response'])).digest('hex');
   },
   shorten: async (text, seconds, context = {}) => {
     const config = browserTranslationConfig();
@@ -18139,7 +18139,7 @@ const dubService = require('./dub-service').registerDubService({
     });
     if (!response.ok) throw Object.assign(new Error(`Dublaj metni servisi: HTTP ${response.status}`), {code:'DUB_EDITOR_UNAVAILABLE'});
     const data = JSON.parse((await readResponseBufferLimited(response, 32768)).toString('utf8'));
-    const proposed = data.choices?.[0]?.message?.content?.trim();
+    const proposed = require('./dub-editor-request').editorText(data);
     if (!require('./dub-text-guard').safeShortening(text, proposed, {natural})) throw new Error('Uygun bir kısaltma alınamadı.');
     return proposed;
   },

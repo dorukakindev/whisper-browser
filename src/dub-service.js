@@ -434,7 +434,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
-        output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav')]);
+        output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav'), output.replace(/\.wav$/i, '.norm.tmp.wav')]);
       atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
@@ -587,6 +587,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (value.startsWith('DUB_REFERENCE ')) {
           try { emit(s, 'reference_quality', {quality:JSON.parse(value.slice(14))}); } catch (_) {}
         }
+        if (value === 'DUB_FINALIZE normalization') emit(s, 'status', {text:'Ses yüksekliği dengeleniyor…'});
+        if (value === 'DUB_WARNING normalization_skipped') emit(s, 'warning', {text:'Ses dengeleme tamamlanamadı; üretilen özgün ses korundu.'});
+        if (value === 'DUB_WARNING verification_shutdown_failed') emit(s, 'warning', {text:'Konuşma doğrulayıcısı kapatılamadı; üretilen ses korunuyor.'});
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
         if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
           text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
