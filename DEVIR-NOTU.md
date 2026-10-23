@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-23-2248.md](docs/devir/2026-10-23-2248.md) — Rapor527: on altı ses, çeviri ve proje güvenilirliği onarımı
 Güncel çalışma: [docs/devir/2026-10-23-1401.md](docs/devir/2026-10-23-1401.md) — PR479 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-23-1356.md](docs/devir/2026-10-23-1356.md) — Rapor526: kesintide gerçek sesi koruma, sayısal anlam ve kaynak araştırması
 Güncel çalışma: [docs/devir/2026-10-23-1342.md](docs/devir/2026-10-23-1342.md) — Rapor525: kilitli çeviri bütünlüğü ve tam konuşmayı koruyan zamanlama
