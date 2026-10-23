@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-0212.md](docs/devir/2026-10-24-0212.md) — Luna tarzı medya ana sayfası; mevcut browser ve ses sistemi korunur
 Güncel çalışma: [docs/devir/2026-10-23-2251.md](docs/devir/2026-10-23-2251.md) — PR480 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-23-2248.md](docs/devir/2026-10-23-2248.md) — Rapor527: on altı ses, çeviri ve proje güvenilirliği onarımı
 Güncel çalışma: [docs/devir/2026-10-23-1401.md](docs/devir/2026-10-23-1401.md) — PR479 ana sürüm ve Windows ana kopya teslimi
