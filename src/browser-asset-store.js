@@ -19,7 +19,7 @@ function normalizeCues(rawCues) {
       id: String(cue && (cue.id ?? cue.index ?? index)).slice(0, 180),
       start: Math.max(0, start),
       end: Math.max(0, end),
-      text: String(cue && cue.text || '').replace(/\r\n/g, '\n').trim().slice(0, 12000),
+      text: String(cue && cue.text || '').replace(/\r\n?/g, '\n').trim().slice(0, 12000),
     };
     const cueId = String(cue && cue.cueId || '').replace(/^web-tr-/, '').slice(0, 180);
     const sourceCueHash = String(cue && cue.sourceCueHash || '').replace(/[^a-f0-9]/gi, '').toLowerCase().slice(0, 64);

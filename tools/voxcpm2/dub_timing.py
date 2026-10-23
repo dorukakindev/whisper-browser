@@ -186,9 +186,21 @@ def available_window(cues, i, extra_ms=1000, limit_ms=None):
     return (stop - start) / 1000
 
 
+def tempo_filter(ratio):
+    """Keep every atempo stage <=2: larger single steps can skip speech samples."""
+    if not math.isfinite(ratio) or ratio < 1:
+        raise ValueError('Invalid tempo.')
+    stages = []
+    while ratio > 2:
+        stages.append('atempo=2.000000')
+        ratio /= 2
+    stages.append(f'atempo={ratio:.6f}')
+    return ','.join(stages)
+
+
 def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
     """Return audio AND metrics; clipping requires explicit opt-in."""
-    if sr <= 0 or window_s <= 0 or max_speed < 1 or overflow not in ('hata', 'kirp', 'uzat'):
+    if not all(math.isfinite(n) for n in (sr, window_s, max_speed)) or sr <= 0 or window_s <= 0 or max_speed < 1 or overflow not in ('hata', 'kirp', 'uzat'):
         raise ValueError("Gecersiz zamanlama secenegi")
     wav = np.asarray(wav, dtype=np.float32)
     before = len(wav) / sr
@@ -202,7 +214,7 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
             try:
                 sf.write(str(src), wav, sr, subtype='PCM_16')
                 result = subprocess.run(['ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', str(src),
-                    '-af', f'atempo={tempo:.6f}', str(dst)], capture_output=True,
+                    '-af', tempo_filter(tempo), str(dst)], capture_output=True,
                     timeout=max(30., min(180., before * 3)),
                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 if result.returncode:

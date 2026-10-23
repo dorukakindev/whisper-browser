@@ -18,7 +18,7 @@ function escapeAssText(value) {
     // İşaretçi, üçüncü taraf bozuk ASS içindeki sıradan \\{ dizilerinden
     // ayırarak kendi çıktımızı birebir geri okuyabilmemizi sağlar.
     .replace(/\{/g, '\\{⁠').replace(/\}/g, '\\}⁠')
-    .replace(/\r?\n/g, '\\N');
+    .replace(/\r\n?/g, '\n').replace(/\n/g, '\\N');
 }
 
 function cuesToAss(cues) {

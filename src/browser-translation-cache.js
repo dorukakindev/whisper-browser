@@ -222,7 +222,7 @@ class PersistentTranslationCache {
     if (this.flushPromise) return this.flushPromise;
     const dir = path.dirname(this.filePath);
     const promises = this.fs.promises;
-    this.flushPromise = (async () => {
+    this.flushPromise = Promise.resolve().then(async () => {
       const flushedVersion = this.version;
       try {
         // 1) Artımlı kayıtlar: yalnız değişen satırlar journal'ın sonuna.
@@ -281,7 +281,7 @@ class PersistentTranslationCache {
         // yeni sürümü ayrı ve birleştirilebilir bir yazım olarak planla.
         if (flushedVersion !== this.version) this.scheduleFlush();
       }
-    })();
+    });
     return this.flushPromise;
   }
 

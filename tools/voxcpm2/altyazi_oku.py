@@ -106,10 +106,13 @@ class SpeechVerifier:
                         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
                         creationflags=NO_WINDOW)
-                self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
-                await self.proc.stdin.drain()
-                response = json.loads(await asyncio.wait_for(self.proc.stdout.readline(), 120))
-                if 'error' in response:
+                async def exchange():
+                    self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
+                    await self.proc.stdin.drain()
+                    return await self.proc.stdout.readline()
+                response = json.loads(await asyncio.wait_for(exchange(), 120))
+                if (not isinstance(response, dict) or 'error' in response
+                        or not isinstance(response.get('text'), str)):
                     raise ValueError('unavailable')
                 result = speech_check(text, response['text'], numeric_reference)
                 return {'status': 'review' if result['review'] else 'passed', **result}
@@ -176,13 +179,15 @@ def atempo_filters(ratio):
 
 
 def video_duration(path):
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True, creationflags=NO_WINDOW)
     try:
-        return float(out.stdout.strip())
-    except ValueError:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, encoding='utf-8', errors='replace',
+            timeout=30, creationflags=NO_WINDOW)
+        duration = float(out.stdout.strip())
+        return duration if out.returncode == 0 and math.isfinite(duration) and duration > 0 else None
+    except (ValueError, OSError, subprocess.TimeoutExpired):
         return None
 
 

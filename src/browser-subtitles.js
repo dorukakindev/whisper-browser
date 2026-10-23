@@ -67,7 +67,7 @@ function decodeEntities(value) {
 }
 
 function cleanCueText(value) {
-  let source = String(value || '');
+  let source = String(value || '').replace(/\r\n?/g, '\n');
   // Eksik kapanışlı ASS etiketlerinde `\{\\[^}]*\}` regex'i O(n²) olabilir.
   // Kapanış yoksa metni olduğu gibi bırak; geçerli blokları mevcut temizleyici
   // ile kaldır.
@@ -275,7 +275,7 @@ function unwrapMpegTs(rawValue, state = null) {
 
 function parseTimedBlocks(body, timing = {}) {
   const out = [];
-  let clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  let clean = String(body || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   if (/^WEBVTT(?:[ \t\n]|$)/.test(clean)) {
     // NOTE may itself contain valid-looking timing examples. Remove metadata
     // blocks before the global timing scan used to recover separator-less SRT.
@@ -366,7 +366,7 @@ function parseAss(body) {
   const out = [];
   let eventFields = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
   let inEvents = false;
-  for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
+  for (const line of String(body || '').replace(/\r\n?/g, '\n').split('\n')) {
     const section = line.match(/^\s*\[([^\]]+)\]\s*$/);
     if (section) {
       inEvents = section[1].trim().toLowerCase() === 'events';
@@ -440,7 +440,7 @@ function parseLrc(body) {
   const offsets = [...String(body || '').matchAll(/\[offset\s*:\s*([+-]?\d+)\s*\]/gi)];
   // LRC positive offset advances lyrics; negative offset delays them.
   const offset = offsets.length ? -Number(offsets.at(-1)[1]) / 1000 : 0;
-  for (const line of String(body || '').replace(/\r/g, '').split('\n')) {
+  for (const line of String(body || '').replace(/\r\n?/g, '\n').split('\n')) {
     const tagPattern = /\[(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
     const tags = [...line.matchAll(tagPattern)];
     // Bir satırda birden çok zaman etiketi boşlukla ayrılabilir:
