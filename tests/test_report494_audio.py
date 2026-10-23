@@ -18,13 +18,13 @@ SOURCE = (ROOT/'tools'/'voxcpm2'/'altyazi_oku.py').read_text(encoding='utf-8')
 
 class Report494(unittest.TestCase):
     def test_494_01_manual_lock_changes_real_generated_cache_path(self):
-        start=SOURCE.index('    paths = [cache_dir / (chunk_key(settings, text, seed)')
+        start=SOURCE.index('    paths = [cache_dir / (chunk_key(group_settings(i), text, seed)')
         end=SOURCE.index('    for p in paths:', start)
         code=inspect.cleandoc(SOURCE[start:end])
         def paths(manual):
             args=SimpleNamespace(auto_fit=True,natural_speech=True,group_keys=['1'],manual_groups=manual,
                 group_seeds=[42],bosluk_pay_ms=0,end_limit_ms=None)
-            scope=dict(args=args,cues=[(0,1000,'Original.')],cache_dir=Path('cache'),settings=('fixture',),
+            scope=dict(group_settings=lambda i:('fixture',),args=args,cues=[(0,1000,'Original.')],cache_dir=Path('cache'),settings=('fixture',),
                 chunk_key=Q.chunk_key,duration_identity=Q.duration_identity,available_window=lambda *a:1)
             exec(code, scope)
             return scope['paths']

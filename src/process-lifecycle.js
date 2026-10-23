@@ -51,25 +51,30 @@ function terminateProcessTree(proc, { spawn, platform = process.platform, onWarn
   return true;
 }
 
+const confirmedClosed = new WeakSet();
+
 // A UI Stop button needs confirmed closure, not merely a spawned taskkill.
 // Failure leaves the owning job live and permits another explicit Stop request.
 function terminateProcessTreeAndWait(proc, options = {}) {
-  if (!proc || proc.exitCode != null || proc.signalCode != null) return Promise.resolve(true);
+  if (!proc || confirmedClosed.has(proc)) return Promise.resolve(true);
   const waitMs = Number.isFinite(options.waitMs) ? Math.max(1, options.waitMs) : 6500;
   return new Promise(resolve => {
     let timer, settled = false;
-    const closed = () => proc.exitCode != null || proc.signalCode != null;
     const finish = value => {
       if (settled) return;
       settled = true; clearTimeout(timer); proc.removeListener?.('close', onClose); resolve(value);
     };
-    const onClose = () => finish(true);
+    const onClose = () => { confirmedClosed.add(proc); finish(true); };
     proc.once?.('close', onClose);
-    timer = setTimeout(() => finish(closed()), waitMs);
+    timer = setTimeout(() => finish(false), waitMs);
     try {
-      const requested = terminateProcessTree(proc, options);
-      if (!requested && !proc._terminating) finish(closed());
-    } catch (_) { finish(closed()); }
+      // An exited child may still have inherited stdout/stderr open. Only
+      // close confirms that the owner can finish; never infer it from exitCode.
+      if (proc.exitCode == null && proc.signalCode == null) {
+        const requested = terminateProcessTree(proc, options);
+        if (!requested && !proc._terminating) finish(false);
+      }
+    } catch (_) { finish(false); }
   });
 }
 

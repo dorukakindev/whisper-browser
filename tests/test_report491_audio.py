@@ -28,8 +28,8 @@ class AudioRegressions(unittest.TestCase):
     def test_491_01_fit_setting_changes_speech_cache_identity(self):
         assignment=next(n for n in ast.walk(ast.parse(SCRIPT.read_text(encoding='utf-8'))) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='settings' for t in n.targets))
         def identity(fit):
-            args=SimpleNamespace(auto_fit=fit,natural_speech=True,editor_identity='model',steps=15,cfg=1.65,temperature=.8,mode='hifi',max_generate_length=1024,verification='fast')
-            return eval(compile(ast.Expression(assignment.value),str(SCRIPT),'eval'),{'args':args,'MODEL_REVISION':'rev','ref_hash':'ref','prompt_text':'prompt'})
+            args=SimpleNamespace(auto_fit=fit,timing_mode='clip',expression='reference',natural_speech=True,editor_identity='model',steps=15,cfg=1.65,temperature=.8,mode='hifi',max_generate_length=1024,verification='fast')
+            return eval(compile(ast.Expression(assignment.value),str(SCRIPT),'eval'),{'args':args,'MODEL_REVISION':'rev','ref_hash':'ref','prompt_text':'prompt','SPOKEN_TEXT_VERSION':'fixture'})
         self.assertNotEqual(identity(True),identity(False))
 
     def test_491_02_failed_retry_cannot_erase_an_existing_candidate(self):

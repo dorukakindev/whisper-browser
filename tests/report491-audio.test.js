@@ -55,7 +55,7 @@ test('491-08 renderer destruction terminates its owned GPU job',async t=>{
  assert.equal(f.kills(),1);assert.equal(f.svc.running(),false);assert.equal(f.sender.listenerCount('destroyed'),0);
 });
 test('491-09 sync failure preserves an authorized playable recovery output',async t=>{
- const f=service(t);await f.start();fs.writeFileSync(f.output(),'generated voice');f.child().emit('close',0);
+ const f=service(t);await f.start();fs.writeFileSync(f.output(),require('./helpers/wav-fixture')());f.child().emit('close',0);
  const error=f.events.at(-1);assert.equal(error.type,'error');assert.equal(fs.existsSync(error.recoverablePath),true);
  assert.ok(f.grants.includes(error.recoverablePath));assert.match(error.recoverableUrl,/^file:/);
  const dom=new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'),{runScripts:'outside-only'});t.after(()=>dom.window.close());

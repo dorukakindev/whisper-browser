@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
 const { EventEmitter } = require('events');
-const { terminateProcessTree } = require('../src/process-lifecycle');
+const { terminateProcessTree, terminateProcessTreeAndWait } = require('../src/process-lifecycle');
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log(`  PASS  ${name}`); }
 function fixture(pid = 42) {
@@ -130,7 +130,7 @@ async function realTreeTest() {
       });
     }));
     assert.equal(alive(grandchild), true, 'grandchild must exist before cancellation');
-    terminateProcessTree(parent, { spawn });
+    assert.equal(await bounded(terminateProcessTreeAndWait(parent, { spawn })), true);
     await bounded(closed);
     const deadline = Date.now() + 3000;
     while (alive(grandchild) && Date.now() < deadline) await new Promise(setImmediate);

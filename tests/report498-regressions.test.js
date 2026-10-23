@@ -121,7 +121,7 @@ test('498-18 a file picker cannot change voice settings after generation starts'
  assert.equal((await d.call('dub:start',{id:'active',srt:d.srt})).ok,true);
  finish({filePaths:[path.join(dir,'other.wav')]});assert.equal((await pending).ok,false);d.proc().emit('close',1);
 }));
-function savedOutput(dir){const folder=path.join(dir,'Sesler/Çıktı');fs.mkdirSync(folder,{recursive:true});const output=path.join(folder,'saved.wav');fs.writeFileSync(output,'fixture');const logs=path.join(dir,'dub-logs');fs.mkdirSync(logs);const log=path.join(logs,'saved.json');return {output,logs,log};}
+function savedOutput(dir){const folder=path.join(dir,'Sesler/Çıktı');fs.mkdirSync(folder,{recursive:true});const output=path.join(folder,'saved.wav');fs.writeFileSync(output,require('./helpers/wav-fixture')());const logs=path.join(dir,'dub-logs');fs.mkdirSync(logs);const log=path.join(logs,'saved.json');return {output,logs,log};}
 test('498-19 restored dubbing must validate saved quality rows before claiming readiness',()=>temp(async dir=>{
  const d=await dubbing(dir),f=savedOutput(dir);write(f.log,{id:'saved',result:'done',path:f.output,quality:{version:1,groups:[{key:'1',status:'ready'}]}});
  const result=await d.call('dub:latest');assert.equal(result.output.qualityUnavailable,true);assert.equal(result.output.quality,null);

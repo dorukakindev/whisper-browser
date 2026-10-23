@@ -445,6 +445,8 @@ test('oynatıcıdaki her düğmenin yüklenen renderer modüllerinde karşılı�
   // bağlanmış olmalı. Delegasyonu "ölü" saymak yanlış alarm üretir.
   const wired = (m) => {
     const [tag, id] = [m[0], m[1]];
+    if (/^dubPreset(?:Balanced|Fast|Careful)$/.test(id)
+        && loadedScripts.includes("el(`dubPreset${name}`).addEventListener('click'")) return true;
     if (new RegExp(`['"]${id}['"]`).test(loadedScripts)) return true;
     const hooks = [...tag.matchAll(/\sdata-([a-z-]+?)(?:=|\s|>)/g)].map((d) => d[1]);
     return hooks.some((h) => loadedScripts.includes(`data-${h}`) || loadedScripts.includes(camel(h)));

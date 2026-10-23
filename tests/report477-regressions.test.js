@@ -44,7 +44,7 @@ test('477-02: configured Windows Path survives both voice subprocess paths', asy
   const exe=path.join(root,'backend/separator-venv/Scripts/python.exe');
   fs.mkdirSync(path.dirname(exe),{recursive:true});fs.writeFileSync(exe,'fixture');
   let spawned, options;
-  const output=path.join(root,'out.wav');fs.writeFileSync(output,'fixture');
+  const output=path.join(root,'out.wav');fs.writeFileSync(output,require('./helpers/wav-fixture')());
   const ready=require('../src/dub-background').prepareBackground({appRoot:root,userData:root,source:'x',srt:'x',output,
     ffmpeg:'ffmpeg',downloadPython:'python',environment:()=>({Path:'configured-tools'}),
     isCancelled:()=>false,onProcess:()=>{},status:()=>{},spawn:(_exe,_args,opts)=>{options=opts;spawned=childProcess();return spawned;}});

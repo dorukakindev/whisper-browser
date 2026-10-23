@@ -74,7 +74,7 @@ test('495-11 downloaded subtitle headers without cues are rejected',async()=>{
 class Audio {constructor(){this.paused=true;this.readyState=4;this.duration=10;this.currentTime=0;this.playbackRate=1;}addEventListener(){}load(){}removeAttribute(){}pause(){this.paused=true;}play(){this.paused=false;return Promise.resolve();}}
 test('495-12 stale browser telemetry restores original sound while dubbing pauses',async()=>{
  const C=mod('renderer/browser-dub-audio'),a=new Audio();let clock=0,muted=false;
- const c={mode:'player',tabId:'p',mediaKey:'fixture',priorMuted:false};
+ const c={mode:'browser',tabId:'p',mediaKey:'fixture',priorMuted:false};
  const controller=new C({audio:a,context:()=>c,now:()=>clock,mute:async(_id,v)=>{muted=v;return {ok:true};}});
  try{await controller.attach({url:'file:///voice.wav'},c);controller.update({currentTime:2,paused:false});await new Promise(setImmediate);
   assert.equal(muted,true);clock=3000;controller.tick();await new Promise(setImmediate);assert.equal(muted,false);

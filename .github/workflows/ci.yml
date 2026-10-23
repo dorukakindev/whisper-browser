@@ -30,7 +30,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.13.0'
+          # FTS5 is compiled into Node 22.16+; 22.13 silently lacked required search support.
+          node-version: '22'
           cache: npm
       - uses: actions/setup-python@v5
         with:

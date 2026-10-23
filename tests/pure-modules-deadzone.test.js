@@ -162,7 +162,7 @@ async function t_catalog() {
   assert.strictEqual(r.personal, '8.5');
   // sourceOf kapıları
   assert.strictEqual(cat.sourceOf({ type: 'browser', value: 'javascript:x' }), null);
-  assert.strictEqual(cat.sourceOf({ type: 'browser', value: 'http://u:p@h/p' }), null, 'kimlikli URL reddedilir');
+  assert.strictEqual(cat.sourceOf({ type: 'browser', value: 'http://u:p@h/p' }).value, 'http://h/p', 'catalog source keeps the public URL, never userinfo');
   const src = cat.sourceOf({ type: 'browser', value: 'https://v.example/w' });
   assert.strictEqual(src.type, 'browser');
   assert.ok(src.watchKey);

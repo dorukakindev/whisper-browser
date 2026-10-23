@@ -1,35 +1,35 @@
 #!/usr/bin/env node
 'use strict';
 
-// Windows paketinin kanonik kaynak listesi ve packager ignore kalıpları.
-// Üç tüketici paylaşır:
-//   - tools/package-windows.js: packager sonrası listedeki her dosyanın
-//     çıktıda varlığını doğrular (ignore-listesi kayması = derhal build hatası).
-//   - src/main.js: açılışta BOOT_CRITICAL dosyalar eksikse pencere boş/
-//     yarım açılmasın diye erken hata diyaloğu gösterir.
+// Windows paketinin kanonik kaynak listesi ve packager ignore kalÄ±plarÄ±.
+// ÃœÃ§ tÃ¼ketici paylaÅŸÄ±r:
+//   - tools/package-windows.js: packager sonrasÄ± listedeki her dosyanÄ±n
+//     Ã§Ä±ktÄ±da varlÄ±ÄŸÄ±nÄ± doÄŸrular (ignore-listesi kaymasÄ± = derhal build hatasÄ±).
+//   - src/main.js: aÃ§Ä±lÄ±ÅŸta BOOT_CRITICAL dosyalar eksikse pencere boÅŸ/
+//     yarÄ±m aÃ§Ä±lmasÄ±n diye erken hata diyaloÄŸu gÃ¶sterir.
 //   - tests/package-integrity.test.js: listede olup depoda olmayan ya da
-//     ignore kalıplarına takılan dosya varsa test kırmızı olur.
+//     ignore kalÄ±plarÄ±na takÄ±lan dosya varsa test kÄ±rmÄ±zÄ± olur.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-// tools/package-windows.js içindeki @electron/packager `ignore` değeri.
-// Burada tek kaynak tutulur; paketleme betiği ve testler aynı diziyi okur.
+// tools/package-windows.js iÃ§indeki @electron/packager `ignore` deÄŸeri.
+// Burada tek kaynak tutulur; paketleme betiÄŸi ve testler aynÄ± diziyi okur.
 const PACKAGER_IGNORE = [
   /^\/(?:\.git|\.github|\.claude|\.agents|\.context_cache|\.uiprev|scratch|artifacts|tests|benchmarks|quality|design-system)(?:\/|$)/,
   /^\/docs\/(?:devir|raporlar)(?:\/|$)/,
   /^\/backend\/(?:venv|\.venv|\.venv-installing-[^/]+|\.venv-backup-[^/]+|separator-venv|separator-models|bin|__pycache__)(?:\/|$)/,
   /^\/(?:BROWSER|PROGRAM|BUG|DEEP_ANALYSIS|YOUTUBE_REKLAM_ENGELLEME)[^/]*\.md$/,
-  // Çalışma oturumu notları ve iç tasarım sözleşmeleri kullanıcı paketine
-  // girmez; kullanıcıya açık belgeler (README, KURULUM, PRIVACY, SUPPORT,
-  // lisans bildirimleri) pakette kalır. tools/ hariç tutulur çünkü paket
-  // içi install.bat, tools/install-orchestrator.js'i çağırır.
+  // Ã‡alÄ±ÅŸma oturumu notlarÄ± ve iÃ§ tasarÄ±m sÃ¶zleÅŸmeleri kullanÄ±cÄ± paketine
+  // girmez; kullanÄ±cÄ±ya aÃ§Ä±k belgeler (README, KURULUM, PRIVACY, SUPPORT,
+  // lisans bildirimleri) pakette kalÄ±r. tools/ hariÃ§ tutulur Ã§Ã¼nkÃ¼ paket
+  // iÃ§i install.bat, tools/install-orchestrator.js'i Ã§aÄŸÄ±rÄ±r.
   /^\/(?:AGENTS|CLAUDE|DEVIR-NOTU|YENI-BILGISAYAR|DESIGN|UI-DESIGN-SYSTEM|UX-CONTRACT|CODE_OF_CONDUCT|CONTRIBUTING|DRM-KURULUM)\.md$/,
   /^\/(?:settings|window-state|premium-ui)\.json$/,
 ];
 
-// Açılışta pencereyi anlamlı kılan en küçük küme. Bunlardan biri eksikse
-// uygulama zaten çalışamaz; diyalog olmadan boş/kırık pencere açılırdı.
+// AÃ§Ä±lÄ±ÅŸta pencereyi anlamlÄ± kÄ±lan en kÃ¼Ã§Ã¼k kÃ¼me. Bunlardan biri eksikse
+// uygulama zaten Ã§alÄ±ÅŸamaz; diyalog olmadan boÅŸ/kÄ±rÄ±k pencere aÃ§Ä±lÄ±rdÄ±.
 const BOOT_CRITICAL = [
   'src/main.js',
   'src/preload.js',
@@ -43,8 +43,8 @@ const BOOT_CRITICAL = [
   'src/renderer/styles.css',
 ];
 
-// main.js'in subprocess olarak çağırdığı Python giriş betikleri. Yerel
-// import zinciri (ör. transcribe → ndjson_utils) aşağıda transitif eklenir.
+// main.js'in subprocess olarak Ã§aÄŸÄ±rdÄ±ÄŸÄ± Python giriÅŸ betikleri. Yerel
+// import zinciri (Ã¶r. transcribe â†’ ndjson_utils) aÅŸaÄŸÄ±da transitif eklenir.
 const BACKEND_ENTRYPOINTS = [
   'transcribe.py',
   'media.py',
@@ -64,8 +64,8 @@ const BACKEND_ENTRYPOINTS = [
   'workspace_video_package.py',
 ];
 
-// require() veya path.join(__dirname, ...) kalıbıyla yakalanamayan dosyalar
-// (audioWorklet.addModule dizgesi, iki adımlı yol değişkeniyle spawn vb.).
+// require() veya path.join(__dirname, ...) kalÄ±bÄ±yla yakalanamayan dosyalar
+// (audioWorklet.addModule dizgesi, iki adÄ±mlÄ± yol deÄŸiÅŸkeniyle spawn vb.).
 const EXTRA_FILES = [
   'tools/voxcpm2/altyazi_oku.py',
   'tools/voxcpm2/dub_plan.py',
@@ -83,9 +83,9 @@ function isIgnored(repoPath) {
   return PACKAGER_IGNORE.some((re) => re.test(normalized));
 }
 
-// Bir kaynak dosyanın require('./x') / require('../x') çağrılarının yerel
-// kapanışı. Yalnız repo içi göreli yollar izlenir; modül yoksa atlanır
-// (eksik dosya zaten aşağıdaki varlık kontrolüne takılır).
+// Bir kaynak dosyanÄ±n require('./x') / require('../x') Ã§aÄŸrÄ±larÄ±nÄ±n yerel
+// kapanÄ±ÅŸÄ±. YalnÄ±z repo iÃ§i gÃ¶reli yollar izlenir; modÃ¼l yoksa atlanÄ±r
+// (eksik dosya zaten aÅŸaÄŸÄ±daki varlÄ±k kontrolÃ¼ne takÄ±lÄ±r).
 function requireClosure(root, entries) {
   const seen = new Set();
   const stack = [...entries];
@@ -103,7 +103,7 @@ function requireClosure(root, entries) {
       if (!path.posix.extname(target)) target += '.js';
       if (fs.existsSync(path.join(root, target))) stack.push(target);
     }
-    // preload/loadFile/spawn gibi require dışı dize referansları da yakala:
+    // preload/loadFile/spawn gibi require dÄ±ÅŸÄ± dize referanslarÄ± da yakala:
     // `preload: path.join(__dirname, 'x.js')`,
     // `loadFile(path.join(__dirname, 'renderer', 'x.html'))`,
     // `path.join(__dirname, '..', 'backend', 'x.py')`.
@@ -116,8 +116,8 @@ function requireClosure(root, entries) {
   return out;
 }
 
-// HTML dosyasındaki <script src>/<link href> yerel referanslarının kapanışı.
-// http/data/# ve javascript: URL'leri sayılmaz.
+// HTML dosyasÄ±ndaki <script src>/<link href> yerel referanslarÄ±nÄ±n kapanÄ±ÅŸÄ±.
+// http/data/# ve javascript: URL'leri sayÄ±lmaz.
 function htmlRefs(root, htmlRel) {
   const abs = path.join(root, htmlRel);
   if (!fs.existsSync(abs)) return [];
@@ -144,7 +144,7 @@ function walkDir(root, relDir) {
   return out;
 }
 
-// Python giriş betiklerinin backend-içi yerel import kapanışı
+// Python giriÅŸ betiklerinin backend-iÃ§i yerel import kapanÄ±ÅŸÄ±
 // (`import x` / `from x import ...`, `backend/x.py` varsa).
 function pythonClosure(root, entries) {
   const seen = new Set();
@@ -166,28 +166,32 @@ function pythonClosure(root, entries) {
   return out;
 }
 
-// Paketin içermesi gereken tüm dosyalar (depo-kökü göreli, '/' ayracı).
+// Paketin iÃ§ermesi gereken tÃ¼m dosyalar (depo-kÃ¶kÃ¼ gÃ¶reli, '/' ayracÄ±).
 function requiredPackageFiles(root) {
   const files = new Set();
 
-  // Kök çalışma dosyaları: package.json + tüm .bat + bat'ların çağırdığı tools.
+  // KÃ¶k Ã§alÄ±ÅŸma dosyalarÄ±: package.json + tÃ¼m .bat + bat'larÄ±n Ã§aÄŸÄ±rdÄ±ÄŸÄ± tools.
   files.add('package.json');
   for (const entry of fs.readdirSync(root)) {
     if (/\.bat$/i.test(entry)) {
       files.add(entry);
       const src = fs.readFileSync(path.join(root, entry), 'utf8');
-      for (const m of src.matchAll(/tools[\\/]([A-Za-z0-9_.-]+)/g)) {
-        files.add(`tools/${m[1]}`);
+      for (const m of src.matchAll(/tools[\\/]([A-Za-z0-9_.-]+(?:[\\/][A-Za-z0-9_.-]+)*)/g)) {
+        const rel = `tools/${m[1].replace(/\\/g, '/')}`;
+        const absolute = path.join(root, rel);
+        if (fs.existsSync(absolute) && fs.statSync(absolute).isDirectory()) {
+          for (const file of walkDir(root, rel)) if (/\.(?:py|js|json|bat)$/i.test(file)) files.add(file);
+        } else files.add(rel);
       }
     }
   }
 
-  // Ana süreç + preload'lar + onların require/dize-referans kapanışı.
+  // Ana sÃ¼reÃ§ + preload'lar + onlarÄ±n require/dize-referans kapanÄ±ÅŸÄ±.
   const jsClosure = requireClosure(root, BOOT_CRITICAL.filter((f) => f.endsWith('.js')));
   for (const rel of jsClosure) files.add(rel);
 
-  // Backend giriş betikleri + JS tarafında referans edilen betikler
-  // (path.join ile spawn edilenler dahil) + yerel import kapanışı.
+  // Backend giriÅŸ betikleri + JS tarafÄ±nda referans edilen betikler
+  // (path.join ile spawn edilenler dahil) + yerel import kapanÄ±ÅŸÄ±.
   const extraPyEntries = jsClosure
     .filter((rel) => rel.startsWith('backend/') && rel.endsWith('.py'))
     .map((rel) => rel.slice('backend/'.length));
@@ -195,32 +199,36 @@ function requiredPackageFiles(root) {
     files.add(rel);
   }
 
-  // Renderer HTML girişleri + script/link referansları + vendor ağacı.
+  // Renderer HTML giriÅŸleri + script/link referanslarÄ± + vendor aÄŸacÄ±.
   for (const html of ['src/renderer/index.html', 'src/renderer/browser-mini.html']) {
     files.add(html);
     for (const ref of htmlRefs(root, html)) files.add(ref);
   }
   for (const rel of walkDir(root, 'src/renderer/vendor')) files.add(rel);
 
-  // Dize referansıyla yüklenenler (worklet, değişken-yollu spawn).
+  // Dize referansÄ±yla yÃ¼klenenler (worklet, deÄŸiÅŸken-yollu spawn).
   for (const rel of EXTRA_FILES) files.add(rel);
+  // VoxCPM scripts import sibling helpers outside the backend closure.
+  for (const rel of walkDir(root, 'tools/voxcpm2')) {
+    if (/\.py$/i.test(rel) && !rel.split('/').includes('__pycache__')) files.add(rel);
+  }
 
-  // Backend giriş betikleri + yerel import kapanışı.
+  // Backend giriÅŸ betikleri + yerel import kapanÄ±ÅŸÄ±.
   for (const rel of pythonClosure(root, BACKEND_ENTRYPOINTS)) files.add(rel);
 
   return [...files].sort();
 }
 
-// Paket çıktı dizininde gerekli dosyaları doğrular; eksikleri döndürür.
+// Paket Ã§Ä±ktÄ± dizininde gerekli dosyalarÄ± doÄŸrular; eksikleri dÃ¶ndÃ¼rÃ¼r.
 function missingInTarget(target, root) {
   return requiredPackageFiles(root).filter((rel) => !fs.existsSync(path.join(target, 'resources', 'app', ...rel.split('/'))));
 }
 
-// Tekrarlanabilir paket: aynı kaynak ağacı aynı parmak izini üretmeli.
-// Kanonik dosya listesinin içerik hash'i + paketleme girdileri
-// (package.json/lock, Electron sürümü, ignore kalıpları) tek SHA-256'da
-// birleşir — iki üretim arasındaki gerçek fark bu alanla karşılaştırılır
-// (createdAt gibi zamanla değişen provenance alanları hariç tutulur).
+// Tekrarlanabilir paket: aynÄ± kaynak aÄŸacÄ± aynÄ± parmak izini Ã¼retmeli.
+// Kanonik dosya listesinin iÃ§erik hash'i + paketleme girdileri
+// (package.json/lock, Electron sÃ¼rÃ¼mÃ¼, ignore kalÄ±plarÄ±) tek SHA-256'da
+// birleÅŸir â€” iki Ã¼retim arasÄ±ndaki gerÃ§ek fark bu alanla karÅŸÄ±laÅŸtÄ±rÄ±lÄ±r
+// (createdAt gibi zamanla deÄŸiÅŸen provenance alanlarÄ± hariÃ§ tutulur).
 function packageInputSha256(root, electronVersion = '') {
   const { createHash } = require('node:crypto');
   const hash = createHash('sha256');
