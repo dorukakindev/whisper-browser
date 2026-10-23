@@ -12,7 +12,7 @@ class StudioContract(unittest.TestCase):
     def test_reader_argv_paths_settings_and_validation(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'Ses Türkçe'; root.mkdir()
-            python = root / '.venv/Scripts/python.exe'; python.parent.mkdir(parents=True); python.touch()
+            python = root / '.venv' / ('Scripts/python.exe' if studio.os.name == 'nt' else 'bin/python'); python.parent.mkdir(parents=True); python.touch()
             (root / 'nanovllm_oku.py').touch()
             files = [root / name for name in ('referans.wav', 'döküm.txt', 'metin.txt')]
             for file in files: file.touch()

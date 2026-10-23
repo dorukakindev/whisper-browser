@@ -590,6 +590,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
         if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
           text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
+        if (value === 'DUB_WARNING tempo_fallback') emit(s, 'warning', {
+          text: 'Ses hızlandırılamadı; konuşma kesilmeden korundu. Video daha yavaş oynatılabilir.' });
         if (value === 'DUB_WARNING incomplete_audio') emit(s, 'warning', {
           text: 'Tamamlanan sesler kurtarıldı; üretilemeyen bölümler kalite raporunda işaretlendi.' });
         if (value === 'DUB_WARNING server_shutdown_timeout') emit(s, 'warning', {

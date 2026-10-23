@@ -139,6 +139,10 @@ def generation_status(score, verification):
 
 
 def apply_timing_quality(row, timing):
+    if timing.get('tempo_error'):
+        row['tempoFallback'] = True
+        if row.get('status') != 'failed':
+            row['status'] = 'review'
     if timing.get('cut_frames', 0) > 0:
         row['clipped'] = True
         if row.get('status') != 'failed':

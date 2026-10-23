@@ -201,15 +201,24 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
             src, dst = Path(tmp_dir) / f'fit_{tag}_src.wav', Path(tmp_dir) / f'fit_{tag}.wav'
             try:
                 sf.write(str(src), wav, sr, subtype='PCM_16')
-                result = subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', str(src),
+                result = subprocess.run(['ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', str(src),
                     '-af', f'atempo={tempo:.6f}', str(dst)], capture_output=True,
+                    timeout=max(30., min(180., before * 3)),
                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 if result.returncode:
                     raise RuntimeError("FFmpeg tempo islemi basarisiz")
-                wav, rate = sf.read(str(dst), dtype='float32')
-                if rate != sr:
-                    raise RuntimeError("Tempo islemi ornek hizini degistirdi")
+                fitted, rate = sf.read(str(dst), dtype='float32')
+                if rate != sr or fitted.ndim != 1 or not len(fitted) or not np.isfinite(fitted).all():
+                    raise RuntimeError("Tempo islemi gecersiz ses uretti")
+                wav = fitted
                 report['tempo'] = tempo
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+                if overflow != 'uzat':
+                    raise  # Fixed/strict timing must never silently overflow.
+                # Adaptive video can slow down instead. Keep every original
+                # sample; mark the fallback for review rather than lose all audio.
+                report['tempo_error'] = 'timeout' if isinstance(error, subprocess.TimeoutExpired) else 'conversion_failed'
+                print('DUB_WARNING tempo_fallback', flush=True)
             finally:
                 src.unlink(missing_ok=True); dst.unlink(missing_ok=True)
     frames = max(1, int(window_s * sr))
