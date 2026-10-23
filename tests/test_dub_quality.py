@@ -19,6 +19,34 @@ class QualityTests(unittest.TestCase):
         self.assertTrue(Q.speech_check('Bu açıklama hiçbir zaman doğru değil.', 'Bu açıklama hiçbir zaman doğru.')['review'])
         self.assertTrue(Q.speech_check('Merhaba dünya.', 'Merhaba merhaba merhaba dünya.')['review'])
 
+    def test_signed_quantities_and_without_cannot_reverse_long_narration(self):
+        before = ('Bu ölçüm sonuçları karşılaştırırken laboratuvar kaydında ayrıntılarıyla '
+                  'korunmalıdır ve rapor sonunda ayrıca kontrol edilmelidir. '
+                  'Deneyin koşulları ilgili belgede açık biçimde anlatılırken her değer kaynak kaydıyla birlikte sunulacaktır. ')
+        for source, heard in [('+5 derece Celsius', '-5 derece Celsius'),
+                              ('5 derece Celsius', 'eksi beş derece Celsius'),
+                              ('artı beş derece Celsius', 'beş derece Celsius'),
+                              ('eksi beş ve eksi beş', 'eksi beş ve beş'),
+                              ('artı beş ve eksi beş', 'eksi beş ve artı beş')]:
+            with self.subTest(source=source, heard=heard):
+                result = Q.speech_check(before+source, before+heard)
+                self.assertGreater(result['similarity'], .85)
+                self.assertTrue(result['sign_mismatch'])
+                self.assertTrue(result['review'])
+        for source, heard in [('+5 derece Celsius', 'artı beş derece Celsius'),
+                              ('-5 derece Celsius', 'eksi beş derece Celsius'),
+                              ('eksi beş derece Celsius', '-5 derece Celsius'),
+                              ('5-10 kişi bekledi', '5-10 kişi bekledi'),
+                              ('Saat 12:30 ve 23/10/2026.', 'Saat 12:30 ve 23/10/2026.')]:
+            self.assertFalse(Q.speech_check(source, heard)['review'], (source, heard))
+        self.assertTrue(Q.speech_check('5-10 kişi bekledi', '5-20 kişi bekledi')['review'])
+        # The original numeric reference is authoritative after an optional edit.
+        self.assertTrue(Q.speech_check('Kişi bekledi.', 'Kişi bekledi.', '12 kişi bekledi.')['review'])
+        result = Q.speech_check(before+'without opening the main valve', before+'opening the main valve')
+        self.assertGreater(result['similarity'], .85)
+        self.assertTrue(result['lost_negation'])
+        self.assertTrue(result['review'])
+
     def test_cache_key_is_independent_of_unrelated_cues(self):
         identity = {'steps':15,'reference':'hash','model':'revision'}
         self.assertEqual(Q.chunk_key(identity,'Bir cümle.',42), Q.chunk_key(dict(reversed(list(identity.items()))),'Bir cümle.',42))

@@ -39,6 +39,38 @@ class Recovery(unittest.TestCase):
         self.assertTrue(all(len(p) <= 260 for p in parts))
         self.assertGreaterEqual(min(map(len, parts)), 80)
 
+    def test_recovery_checks_raw_acoustics_before_finishing_or_asr(self):
+        text = 'Cümle doğal bir sesle ve eksiksiz okunmalıdır. ' * 9
+        async def run(folder, score):
+            checked, finished, verified = [], [], []
+            async def generate(part, seed):
+                return np.ones(8000, dtype=np.float32)
+            def assess(raw, rate, part):
+                self.assertEqual(float(raw.max()), 1.)
+                self.assertEqual(rate, 8000)
+                checked.append(part)
+                return score
+            def finish(raw, rate):
+                finished.append(1)
+                return finish_audio(raw, rate)
+            async def verify(*args, **kwargs):
+                verified.append(1)
+                return {'status': 'passed'}
+            result = await recover_long_speech(text, text, 42, 8000, generate, finish,
+                verify, folder/'original.wav', 1, assess=assess)
+            self.assertTrue(checked)
+            if score > 0:
+                self.assertIsNone(result)
+                self.assertFalse(finished)
+                self.assertFalse(verified)
+            else:
+                self.assertIsNotNone(result)
+                self.assertEqual(len(finished), len(checked))
+            self.assertFalse((folder/'original-recovery.wav').exists())
+        with tempfile.TemporaryDirectory() as temp:
+            for score in (3., float('inf'), 0.):
+                asyncio.run(run(Path(temp), score))
+
     def test_repair_requires_piece_and_whole_verification_and_cleans_temporary(self):
         text = 'Cümle doğal bir sesle ve eksiksiz okunmalıdır. ' * 9
         async def run(folder, rejected):

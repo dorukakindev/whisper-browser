@@ -271,6 +271,7 @@ async def uret(args, cues, paths, prompt_text):
                             previous_metric = {}
                     except (OSError, ValueError):
                         pass
+                metric, check = {}, {'status': 'not_checked'}
                 try:
                     if getattr(args, 'natural_speech', False) and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
                         text = await rewrite_for_window(args, i, text, window,
@@ -347,7 +348,8 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
                                 synthesize, lambda raw, rate: finish_generated(raw),
-                                verifier.check, temporary, args.request_timeout, recovery_attempt)
+                                verifier.check, temporary, args.request_timeout, recovery_attempt,
+                                assess=lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
                             if recovered is not None:
                                 wav, check, recovery = recovered
                                 metric['recovery'] = recovery
@@ -358,8 +360,28 @@ async def uret(args, cues, paths, prompt_text):
                                   status=generation_status(metric['quality_score'], check))
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
-                except Exception as exc:
-                    if isinstance(exc, EngineStalled) or 'out of memory' in str(exc).lower() or 'cuda error' in str(exc).lower():
+                except (Exception, asyncio.CancelledError) as exc:
+                    if (isinstance(exc, (EngineStalled, asyncio.CancelledError))
+                            or 'out of memory' in str(exc).lower() or 'cuda error' in str(exc).lower()):
+                        # A later optional verification/recovery can stall after
+                        # the first usable candidate was written. Keep that real
+                        # speech before restarting/cancelling the engine; never
+                        # label an interrupted candidate ready. Force a fresh
+                        # attempt on restart, with this WAV as the last resort.
+                        if temporary.is_file() and valid_audio(temporary, sf):
+                            try:
+                                metric.update(status='review', verification=check, text=text,
+                                              recoveryReason='verification_interrupted',
+                                              final_seconds=sf.info(temporary).frames/sr)
+                                # Invalidate any earlier ready record before
+                                # replacing its waveform. If metadata I/O fails,
+                                # cached_record must fail closed to review.
+                                path.with_suffix('.json').unlink(missing_ok=True)
+                                temporary.replace(path)
+                                args.force_groups.add(args.group_keys[i])
+                                path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                            except (OSError, ValueError):
+                                pass  # Preserve the original engine failure.
                         raise
                     # A failed piece is explicit and remains retryable. Keep
                     # other successful pieces and still render a usable WAV.
@@ -650,7 +672,7 @@ def main(argv=None):
 
     ref_hash = file_sha256(args.reference)
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
-    settings = ("dublaj-ses-v14-negative-instructions", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
+    settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression, SPOKEN_TEXT_VERSION)
     # Run reports are separate from independently addressed speech pieces.

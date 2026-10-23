@@ -140,6 +140,48 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(sf.info(paths[0]).frames,16000)
             self.assertFalse(list(Path(temp).glob('*-verify.wav')))
 
+    def test_interrupted_verification_keeps_real_speech_through_engine_restarts(self):
+        from dub_lifecycle import EngineStalled
+        class RejectVerifier(Verifier):
+            async def check(self, *args, **kwargs):
+                return {'status': 'review', 'review': True, 'similarity': .7}
+        for failure in (EngineStalled('controlled stall'), RuntimeError('CUDA out of memory')):
+            class RetryFailure(Server):
+                async def generate(self, text, **kwargs):
+                    if kwargs['seed'] >= 200000:
+                        raise failure
+                    async for part in super().generate(text, **kwargs):
+                        yield part
+            with self.subTest(failure=type(failure).__name__), tempfile.TemporaryDirectory() as temp:
+                _, args, paths = self.run_generation(Path(temp), RetryFailure(), ['Good.'],
+                    verification='detailed', verifier=RejectVerifier, fallback=True)
+                self.assertEqual(sf.info(paths[0]).frames, 16000)
+                self.assertEqual(args.group_results[0]['status'], 'review')
+                self.assertEqual(args.group_results[0]['recoveryReason'], 'verification_interrupted')
+                self.assertTrue(args.group_results[0]['regenerationFailed'])
+                self.assertFalse(list(Path(temp).glob('*.tmp.wav')))
+
+    def test_cancelled_optional_verification_preserves_candidate_but_propagates_cancel(self):
+        class RejectVerifier(Verifier):
+            async def check(self, *args, **kwargs):
+                return {'status': 'review', 'review': True, 'similarity': .7}
+        class CancelRetry(Server):
+            async def generate(self, text, **kwargs):
+                if kwargs['seed'] >= 200000:
+                    raise asyncio.CancelledError()
+                async for part in super().generate(text, **kwargs):
+                    yield part
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(asyncio.CancelledError):
+                self.run_generation(Path(temp), CancelRetry(), ['Good.'],
+                    verification='detailed', verifier=RejectVerifier)
+            path = Path(temp)/'0.wav'
+            self.assertEqual(sf.info(path).frames, 16000)
+            record = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+            self.assertEqual(record['status'], 'review')
+            self.assertEqual(record['verification']['status'], 'review')
+            self.assertFalse(list(Path(temp).glob('*.tmp.wav')))
+
     def test_long_truncation_recovers_with_verified_smaller_contexts(self):
         class TruncationVerifier(Verifier):
             async def check(self, path, text, **kwargs):
@@ -185,7 +227,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -212,7 +254,13 @@ class GenerationTests(unittest.TestCase):
                    'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *a,**k:server))}
         cues = [(i*1000,(i+1)*1000,text) for i,text in enumerate(texts)]
         with patch.dict(sys.modules,modules), contextlib.redirect_stdout(io.StringIO()):
-            rate = asyncio.run(scope['uret'](args,cues,paths,'prompt'))
+            if fallback:
+                node = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
+                            if isinstance(n, ast.FunctionDef) and n.name == 'generate_with_fallback')
+                exec(compile(ast.Module(body=[node], type_ignores=[]), str(SCRIPT), 'exec'), scope)
+                rate = scope['generate_with_fallback'](args, cues, paths, 'prompt', scope['uret'])
+            else:
+                rate = asyncio.run(scope['uret'](args,cues,paths,'prompt'))
         return rate,args,paths
 
     def test_493_10_more_similar_retry_must_not_lose_negation(self):

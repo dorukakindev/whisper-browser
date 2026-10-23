@@ -1,5 +1,6 @@
 """Bounded content recovery after ASR rejects a long utterance twice."""
 import asyncio
+import math
 import re
 
 import numpy as np
@@ -32,7 +33,7 @@ def recovery_blocks(text, limit=260):
 
 
 async def recover_long_speech(text, numeric_reference, seed, sr, generate, finish,
-                              verify, temporary, timeout, on_attempt=lambda: None):
+                              verify, temporary, timeout, on_attempt=lambda: None, *, assess=None):
     """Return a fully checked repair or None; retain the caller's original audio.
 
     Same reference conditioning is supplied by generate's caller for every part.
@@ -49,6 +50,13 @@ async def recover_long_speech(text, numeric_reference, seed, sr, generate, finis
         for block in blocks:
             on_attempt()
             raw = await bounded_call(generate(block, seed+500003), timeout)
+            # Correct words alone cannot approve clipping, bursts or a stalled
+            # acoustic tail. Apply the same raw-audio gate as ordinary synthesis
+            # before finishing can attenuate peaks and hide that evidence.
+            if assess is not None:
+                score = assess(raw, sr, block)
+                if not math.isfinite(score) or score > 0:
+                    return None
             wav, finished = finish(raw, sr)
             finishing.append(finished)
             sf.write(target, wav, sr, subtype='PCM_16')
