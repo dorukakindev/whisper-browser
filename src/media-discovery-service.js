@@ -17,6 +17,7 @@ function normalizeMeta(row, kind) {
     poster: imageUrl(row.poster), backdrop: imageUrl(row.background), synopsis: text(row.description, 4000),
     genres: (Array.isArray(row.genres) ? row.genres : []).slice(0, 20).map(value => text(value, 80)),
     cast: (Array.isArray(row.cast) ? row.cast : []).slice(0, 15).map(value => text(value, 120)),
+    directors: (Array.isArray(row.director)?row.director:typeof row.director==='string'?[row.director]:[]).slice(0,10).map(value=>text(value,120)),
     rating: Number.isFinite(Number(row.imdbRating)) && Number(row.imdbRating) > 0 && Number(row.imdbRating) <= 10 ? Number(row.imdbRating) : null,
     runtime: Number.parseInt(row.runtime, 10) > 0 ? Math.min(10000, Number.parseInt(row.runtime, 10)) : null };
 }
@@ -106,13 +107,16 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         const library = catalogStore().list(), seeds = recommendationSeeds(library), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
         const aliases = { 'Bilim-Kurgu': 'Sci-Fi', 'Bilim Kurgu': 'Sci-Fi', 'Dram': 'Drama', 'Komedi': 'Comedy', 'Aksiyon': 'Action', 'Gerilim': 'Thriller', 'Korku': 'Horror', 'Belgesel': 'Documentary', 'Animasyon': 'Animation', 'Macera': 'Adventure', 'Romantik': 'Romance' };
         const selected = new Map();
+        let genreProfile=[];
+        try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}
+        for(const row of genreProfile.filter(row=>row.average>=3.5&&row.count>=2).sort((a,b)=>b.count*(b.average-2.5)-a.count*(a.average-2.5))){const genre=aliases[row.name]||row.name;if(GENRES.includes(genre))selected.set(genre,{genre:row.name,count:row.count,average:row.average});}
         for (const seed of seeds) for (const name of seed.genres || []) { const genre = aliases[name] || name; if (GENRES.includes(genre) && !selected.has(genre)) selected.set(genre, seed.title); }
         if (!selected.size) return { ok: true, rows: [], needsRatings: true };
         const results = await Promise.allSettled([...selected].slice(0, 3).map(async ([genre, seed]) => ({ seed, rows: (await list({ kind: input.kind, genre })).rows })));
         const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...row, because: result.value.seed }); }
+          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...row, ...(typeof result.value.seed==='string'?{because:result.value.seed}:{profileBecause:result.value.seed}) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: rows.slice(0, 60), needsRatings: false };
@@ -136,7 +140,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         let posterPath;
         if (posterBytes) { posterPath = path.join(userData(), 'catalog-posters', randomUUID() + '.png'); atomicWriteFileSync(posterPath, posterBytes); }
         let saved;
-        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, imdbId: row.providerId, genres: row.genres, cast: row.cast, runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: 'planned', ...(posterPath ? { posterPath } : {}) }); }
+        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, imdbId: row.providerId, genres: row.genres, cast: row.cast, directors:row.directors,runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: 'planned', ...(posterPath ? { posterPath } : {}) }); }
         catch (error) { if (posterPath) { try { fs.unlinkSync(posterPath); } catch {} } throw error; }
         return { ok: true, item: saved, existing: false };
       }

@@ -218,11 +218,12 @@
     if (!snapshot.stations.length && !snapshot.podcasts.length) root.append(el('p', 'mh-empty', t('Add a direct radio stream or a podcast feed. Episodes keep their listening position.', 'Doğrudan radyo yayını veya podcast beslemesi ekle. Bölümlerin dinleme konumu korunur.')));
   }
   function taste(root) {
-    root.append(btn(t('Import Letterboxd CSV', 'Letterboxd CSV içe aktar'), async () => {
+    root.append(btn(t('Import Letterboxd CSV / ZIP', 'Letterboxd CSV / ZIP içe aktar'), async () => {
       const preview = await api('letterboxd-preview'); if (!preview) return;
       const description = t(`${preview.count} rows: ${preview.matches} existing matches, ${preview.newTitles} new titles, ${preview.ambiguous.length} ambiguous. ${preview.preserved} personal ratings will be preserved. No source files will change.`, `${preview.count} satır: ${preview.matches} mevcut eşleşme, ${preview.newTitles} yeni yapım, ${preview.ambiguous.length} belirsiz. ${preview.preserved} kişisel puan korunacak. Kaynak dosyalar değişmez.`);
       if (await form(t('Review import', 'İçe aktarmayı incele'), [], description, t('Apply import', 'İçe aktar'))) { await task('letterboxd-apply', { token: preview.token }); document.dispatchEvent(new CustomEvent('media-library-changed')); }
     }));
+    if(window.MediaTasteUI){window.MediaTasteUI.mount(root,snapshot.taste);return;}
     const taste = snapshot.taste;
     root.append(el('p', 'mh-empty', t(`${taste.titles} imported titles; ${taste.rated} rated. Average: ${taste.average === null ? '—' : taste.average.toFixed(1)}/5.`, `${taste.titles} içe aktarılan yapım; ${taste.rated} puanlı. Ortalama: ${taste.average === null ? '—' : taste.average.toFixed(1)}/5.`)));
     if (taste.decades.length) root.append(el('p', '', t('Most rated decades: ', 'En çok puanlanan dönemler: ') + taste.decades.map(([year, count]) => `${year} (${count})`).join(', ')));

@@ -176,7 +176,24 @@ def letterboxd(data):
         if rating is not None and (not 0 <= rating <= 5 or rating * 2 != int(rating * 2)):
             rating = None
         year = row.get('Year', '')
+        review = row.get('Review') or row.get('review') or ''
+        class ReviewText(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.parts = []
+                self.skip = 0
+            def handle_starttag(self, tag, attrs):
+                if tag in ('script', 'style'): self.skip += 1
+                elif tag in ('p', 'br', 'div'): self.parts.append('\n')
+            def handle_endtag(self, tag):
+                if tag in ('script', 'style') and self.skip: self.skip -= 1
+            def handle_data(self, text):
+                if not self.skip: self.parts.append(text)
+        plain = ReviewText(); plain.feed(review[:48000])
         rows.append(dict(title=title[:500], year=year if year.isdigit() and len(year) == 4 else '', rating=rating,
+                         review=''.join(plain.parts).strip()[:12000],
+                         tags=[value.strip()[:100] for value in (row.get('Tags') or '').split(',') if value.strip()][:30],
+                         liked=str(row.get('Liked') or '').lower() in ('yes','true','1'),
                          watchedDate=(row.get('Watched Date') or row.get('WatchedDate') or '')[:10],
                          uri=(row.get('Letterboxd URI') or row.get('LetterboxdURI') or '')[:2048]))
         if len(rows) > 10000:
@@ -184,6 +201,31 @@ def letterboxd(data):
     if not rows:
         raise ValueError('No Name/Title column or no titles in CSV.')
     return dict(rows=rows)
+
+
+def letterboxd_archive(file):
+    """Read selected CSV entries in memory; never extract archive paths."""
+    merged = {}; reviews = []
+    with zipfile.ZipFile(file) as archive:
+        selected = [entry for entry in archive.infolist() if posixpath.basename(entry.filename).lower() in ('ratings.csv','diary.csv','reviews.csv','watched.csv')]
+        if not selected or len(selected) > 12 or sum(entry.file_size for entry in selected) > 20_000_000:
+            raise ValueError('Unsupported or oversized Letterboxd ZIP.')
+        for entry in selected:
+            if entry.file_size > 5_000_000 or entry.flag_bits & 1:
+                raise ValueError('Oversized or encrypted Letterboxd CSV.')
+            for row in letterboxd(archive.read(entry))['rows']:
+                if row['review']: reviews.append(row.copy())
+                key = (row['title'].casefold(), row['year'])
+                old = merged.get(key, {})
+                row['review'] = row['review'] or old.get('review', '')
+                row['rating'] = row['rating'] if row['rating'] is not None else old.get('rating')
+                row['watchedDate'] = row['watchedDate'] or old.get('watchedDate', '')
+                row['liked'] = row['liked'] or old.get('liked', False)
+                row['tags'] = list(dict.fromkeys([*old.get('tags', []), *row['tags']]))[:30]
+                merged[key] = {**old, **row}
+                if len(merged) > 10000:
+                    raise ValueError('Letterboxd ZIP exceeds 10,000 titles.')
+    return dict(rows=list(merged.values()), reviews=reviews[:10000])
 
 
 if __name__ == '__main__':
@@ -195,8 +237,11 @@ if __name__ == '__main__':
         elif action == 'rss':
             result = rss(base64.b64decode(request['data'], validate=True) if 'data' in request else request['text'].encode('utf-8'))
         elif action == 'letterboxd':
-            with open(request['path'], 'rb') as source:
-                result = letterboxd(source.read(5_000_001))
+            if request['path'].lower().endswith('.zip'):
+                result = letterboxd_archive(request['path'])
+            else:
+                with open(request['path'], 'rb') as source:
+                    result = letterboxd(source.read(5_000_001))
         else:
             raise ValueError('Unsupported parser action.')
         print(json.dumps(result, ensure_ascii=False, allow_nan=False))

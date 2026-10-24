@@ -8,6 +8,7 @@ const RESOURCE_SOAK_MODE = typeof process !== 'undefined'
 contextBridge.exposeInMainWorld('api', {
   updateAssistant: value => ipcRenderer.send('assistant:update', value),
   onAssistantCommand: listener => ipcRenderer.on('assistant:command', (_event, packet) => listener(packet)),
+  onAssistantVisibility: listener => ipcRenderer.on('assistant:visibility',(_event,packet)=>listener(packet)),
   resourceSoakMode: RESOURCE_SOAK_MODE,
   browserLimits: Object.freeze({ maxTabs: MAX_SESSION_TABS }),
   // Sürüklenen File nesnesinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
@@ -59,6 +60,10 @@ contextBridge.exposeInMainWorld('api', {
   mediaCatalog: (request) => ipcRenderer.invoke('media-catalog:request', request),
   mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),
   mediaDiscovery: request => ipcRenderer.invoke('media-discovery:request', request),
+  mediaTorrents: request => ipcRenderer.invoke('media-torrents:request',request),
+  mediaHub: request => ipcRenderer.invoke('media-hub:request',request),
+  nativePlayer: request => ipcRenderer.invoke('native-player:request',request),
+  onNativePlayer: listener => ipcRenderer.on('native-player:event',(_event,payload)=>listener(payload)),
   updateWatchItem: (item) => ipcRenderer.invoke('library:upsert', item),
   removeWatchItem: (key) => ipcRenderer.invoke('library:remove', key),
   saveWatchItemBeforeClose: (item) => ipcRenderer.sendSync('library:upsert-before-close', item),

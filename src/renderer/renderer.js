@@ -4727,6 +4727,7 @@ function playerJobEvent(event) {
       player.chatHistory.push({ role: 'user', content: job.chatQuestion });
     }
     player.chatHistory.push({ role: 'assistant', content: event.text });
+    document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text:event.text,context:job.chatContext}}));
     if (player.chatHistory.length > 128) player.chatHistory.splice(0, player.chatHistory.length - 128);
     job.running = false;
     job.awaitingExit = true;
@@ -18675,9 +18676,9 @@ function currentWatchPatch(completed) {
   const automaticCompleted = !!completed || watchCompletionReached(position, duration);
   const patch = {
     key: player.mediaKey,
-    type: browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
+    type: player.mediaKey.startsWith('torrent:')?'torrent':player.mediaKey.startsWith('stream:')?'stream':browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
     title: $('playerTitle') ? $('playerTitle').textContent : '',
-    sourceRef: browserMode ? browserPlaceKey(player.browserPageUrl) : player.mediaKey.startsWith('youtube:')
+    sourceRef: player.mediaKey.startsWith('torrent:')?player.mediaKey:player.mediaKey.startsWith('stream:')?browserPlaceKey(player.originalUrl):browserMode ? browserPlaceKey(player.browserPageUrl) : player.mediaKey.startsWith('youtube:')
       ? ((player.ytInfo && player.ytInfo.sourceUrl) || player.originalUrl || '')
       : player.localPath,
     localPath: player.localPath || '',
@@ -19381,6 +19382,8 @@ async function loadSelectedEmbeddedSubtitle() {
 
 async function openWatchLibraryItem(item, seconds) {
   if (!item) return;
+  if(item.type==='torrent'){await window.MediaHubUI.reopenTorrent(item,seconds);return;}
+  if(item.type==='stream'){const r=await window.api.mediaHub({action:'network',url:item.sourceRef});if(!r?.ok)throw Error(r?.error||'Stream unavailable');await window.MediaHubUI.playStream(r,seconds);return;}
   if (item.type === 'browser') {
     $('playerLayer').classList.remove('hidden');
     setWorkspaceMode('browser');
@@ -20392,13 +20395,20 @@ async function capturePlayerFrame() {
     return;
   }
   const v = $('playerVideo');
-  if (!v || !v.videoWidth) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }
+  let frame=v;
+  if(window.NativePlayerUI?.active()){
+    const key=player.mediaKey,generation=player.generation;
+    const result=await window.api.nativePlayer({action:'snapshot',key,generation});
+    if(!result?.ok||player.mediaKey!==key||player.generation!==generation){osd(result?.error||'Video değişti; yeniden dene.');return;}
+    frame=new Image();frame.src=result.image;await frame.decode();
+  }
+  if (!v || !(frame.naturalWidth || v.videoWidth)) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }
   const c = document.createElement('canvas');
-  c.width = v.videoWidth;
-  c.height = v.videoHeight;
+  c.width = frame.naturalWidth || v.videoWidth;
+  c.height = frame.naturalHeight || v.videoHeight;
   const ctx = c.getContext('2d');
   try {
-    ctx.drawImage(v, 0, 0, c.width, c.height);
+    ctx.drawImage(frame, 0, 0, c.width, c.height);
   } catch (err) {
     logLine(`Ekran görüntüsü alınamadı: ${(err && err.message) || 'video karesi okunamadı'}`, 'error');
     return;
@@ -21459,6 +21469,7 @@ function syncPlayerSourceQuick() {
 }
 
 function setPlayerSource(src, title, key, meta) {
+  if(window.NativePlayerUI?.busy())void window.NativePlayerUI.stop();
   const video = $('playerVideo');
   if (!video) return;
   setWorkspaceMode('player');
@@ -21467,7 +21478,7 @@ function setPlayerSource(src, title, key, meta) {
   // Yerel yol AYRICA saklanir: 'Altyazi olustur' bunu kullanir. Eskiden
   // state.lastJobVideo'ya dusuyordu ve o ONCEKI ise ait olabiliyordu -
   // oynaticida B videosu acikken A transkribe edilebilirdi.
-  player.localPath = (meta && meta.localPath) || player.localPath || '';
+  player.localPath = meta && Object.prototype.hasOwnProperty.call(meta,'localPath') ? meta.localPath : (player.localPath || '');
   updateSeriesChip();
   syncPlayerSourceQuick();
   syncSubtitlePrimaryAction();
@@ -21527,6 +21538,7 @@ function destroyHls(preserveRecovery = false) {
 // setMediaKey -> resetMediaBoundState onlari siliyordu: kullanici bolumleri
 // goruyor, "Izle"ye basinca kayboluyorlardi.
 function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false) {
+  if(window.NativePlayerUI?.busy())void window.NativePlayerUI.stop();
   setWorkspaceMode('player');
   const video = $('playerVideo');
   if (!video) return false;

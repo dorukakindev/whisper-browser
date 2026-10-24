@@ -93,6 +93,7 @@ function itemOf(raw, old = null) {
     originalTitle: text(raw.originalTitle ?? old?.originalTitle, 300),
     genres: (Array.isArray(raw.genres ?? old?.genres) ? raw.genres ?? old.genres : []).slice(0, 30).map(v => text(v, 80)),
     cast: (Array.isArray(raw.cast ?? old?.cast) ? raw.cast ?? old.cast : []).slice(0, 20).map(v => text(v, 120)),
+    directors: (Array.isArray(raw.directors ?? old?.directors) ? raw.directors ?? old.directors : []).slice(0,10).map(v=>text(v,120)),
     runtime: Number(raw.runtime ?? old?.runtime) > 0 ? Math.min(10000, Number(raw.runtime ?? old?.runtime)) : null,
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),

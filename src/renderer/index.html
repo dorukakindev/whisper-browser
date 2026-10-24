@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' https: whisper-pdf:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https: whisper-media:; connect-src 'self' https: whisper-pdf: whisper-media:" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="browser-chrome.css" />
@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="media-shelf.css" />
   <link rel="stylesheet" href="media-discovery.css" />
   <link rel="stylesheet" href="media-experience.css" />
+  <link rel="stylesheet" href="media-taste.css" />
+  <link rel="stylesheet" href="media-hub.css" />
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -2553,6 +2555,7 @@
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
                 <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
+                  <button type="button" class="pc-menu-item" id="playerMediaCenter" role="menuitem" data-ui-untranslated>Playback, scenes &amp; sources</button>
                   <button type="button" class="pc-menu-item" id="playerDubAdd" role="menuitem"><span class="pc-menu-label">Ses ekle</span></button>
                   <button type="button" class="pc-menu-item" id="playerDubGenerate" role="menuitem"><span class="pc-menu-label">Altyazıdan ses üret</span></button>
                   <button type="button" class="pc-menu-item" id="playerVoiceReferenceOpen" role="menuitem"><span class="pc-menu-label">Videodan referans ses al</span></button>
@@ -3814,9 +3817,12 @@
 <script src="smarttube-tv.js"></script>
 <script src="media-home-model.js"></script>
 <script src="media-shelf-ui.js"></script>
+<script src="media-taste-ui.js"></script>
 <script src="media-discovery-ui.js"></script>
 <script src="media-home.js"></script>
 <script src="global-assistant.js"></script>
 <script src="media-experience.js"></script>
+<script src="native-player-ui.js"></script>
+<script src="media-hub-ui.js"></script>
 </body>
 </html>

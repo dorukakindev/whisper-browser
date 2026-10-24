@@ -49,7 +49,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (!ownView(event) || !packet || typeof packet !== 'object') return;
     const action = packet.action;
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
-    if (action === 'toggle') { expanded = !expanded; layout(); if (!expanded) window.webContents.focus(); return; }
+    if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
     if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion'].includes(action)) return;
     window.webContents.send('assistant:command', { action, text: String(packet.text || '').slice(0, 16000) });

@@ -284,7 +284,7 @@
     const workflow = $('div', 'mx-actions');
     workflow.append(button(english()?'Play & prepare voice':'Oynat ve ses hazırlığını aç', async () => {
       if (catalogType(item) === 'series') {
-        const next = (item.episodes || []).find(ep => ep.source && !ep.progress?.completed);
+        const next = [...(item.episodes || [])].sort((a,b)=>Number(a.season)-Number(b.season)||Number(a.number)-Number(b.number)).find(ep => ep.source && !ep.progress?.completed && ep.watchStatus!=='completed');
         if (!next) { feedback(english()?'Link an episode source first.':'Önce bir bölüm kaynağı bağlayın.', true); return; }
         if (await play(item, next.id)) window.MediaExperience?.openVoice();
       } else if (await play(item)) window.MediaExperience?.openVoice();
@@ -301,6 +301,7 @@
         const top = $('div', 'mc-episode-head'); top.append($('strong', '', `S${episode.season ?? 1} ${english() ? 'E' : 'B'}${episode.number || 1} · ${episode.title || (english() ? 'Episode' : 'Bölüm')}`), $('span', 'mc-muted', episode.progress?.completed ? t('İzlendi') : episode.progress?.position > 0 ? (english() ? 'In progress' : 'Devam ediyor') : t(statusLabels[episode.watchStatus] || statusLabels.unspecified)));
         const controls = $('div', 'mc-episode-actions');
         controls.append(button('Oynat', () => play(item, episode.id), 'mc-primary'), button('Düzenle', () => editEpisode(item, episode)));
+        controls.append(button(english()?'Voice preparation':'Ses hazırlığı',async()=>{if(await play(item,episode.id))await window.MediaExperience?.openVoice();}),button(episode.watchStatus==='completed'?(english()?'Mark unwatched':'İzlenmedi işaretle'):(english()?'Mark watched':'İzlendi işaretle'),async()=>{const r=await api('save',{item:{id:item.id,episodes:item.episodes.map(ep=>({...ep,watchStatus:ep.id===episode.id?(ep.watchStatus==='completed'?'planned':'completed'):ep.watchStatus}))}});if(r){await reload();render();}}));
         row.append(top, controls, sourceControls(item, episode)); list.append(row);
       }
       body.append(list);
@@ -341,6 +342,8 @@
       formField('Başlık', draft.title, value => { draft.title = value; }, { required: true, maxLength: 200 }),
       formField('Yıl', draft.year, value => { draft.year = value; }, { type: 'number', min: 1888, max: 2100 }),
       formField('Konu', draft.synopsis, value => { draft.synopsis = value; }, { multiline: true, maxLength: 4000 }),
+      formField(english()?'Genres (comma separated)':'Türler (virgülle ayır)',(draft.genres||[]).join(', '),value=>{draft.genres=value.split(',').map(v=>v.trim()).filter(Boolean);},{maxLength:1000}),
+      formField(english()?'Directors (comma separated)':'Yönetmenler (virgülle ayır)',(draft.directors||[]).join(', '),value=>{draft.directors=value.split(',').map(v=>v.trim()).filter(Boolean);},{maxLength:1000}),
       formField('IMDb kimliği', draft.imdbId, value => { draft.imdbId = value; }, { maxLength: 24 }),
       formField('TMDb kimliği', draft.tmdbId, value => { draft.tmdbId = value; }, { maxLength: 24 }),
       formField('Kişisel puan / not', draft.ratings?.personal || '', value => { draft.ratings.personal = value; }, { maxLength: 24 }),

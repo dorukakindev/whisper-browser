@@ -76,6 +76,7 @@
       card.append(image(row.poster, 'mh-art'), el('span', 'mh-card-title', row.title),
         el('span', 'mh-card-meta', [row.year, row.rating ? `★ ${row.rating}` : '', row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
+      if(row.profileBecause){const r=row.profileBecause;card.append(el('span','md-reason',t(`${r.genre} · ${r.count} ratings, ${r.average.toFixed(1)}/5`,`${r.genre} · ${r.count} puan, ${r.average.toFixed(1)}/5`)));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       grid.append(card);
     }

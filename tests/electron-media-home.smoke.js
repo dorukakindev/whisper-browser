@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const { findMediaTool } = require('./media-runtime');
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, '.uiprev', 'media-home-smoke', `${Date.now()}-${process.pid}`);
@@ -20,6 +21,12 @@ assert.equal(made.status, 0, made.stderr);
 const madeAudio = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-metadata', 'title=Akşam Şarkısı', '-metadata', 'artist=İstanbul', '-metadata', 'album=Deneme', music], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
 assert.equal(madeAudio.status, 0, madeAudio.stderr);
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, 'profile');
+let torrentFixture;
+if(process.env.WHISPER_TORRENT_TEST==='1'){
+  function encode(v){if(Buffer.isBuffer(v))return Buffer.concat([Buffer.from(v.length+':'),v]);if(typeof v==='string')return encode(Buffer.from(v));if(typeof v==='number')return Buffer.from('i'+v+'e');return Buffer.concat([Buffer.from('d'),...Object.keys(v).sort().flatMap(k=>[encode(k),encode(v[k])]),Buffer.from('e')]);}
+  const bytes=fs.readFileSync(video),info={length:bytes.length,name:'fixture.mp4','piece length':262144,pieces:crypto.createHash('sha1').update(bytes).digest()},hash=crypto.createHash('sha1').update(encode(info)).digest('hex');
+  const metadata=path.join(out,'fixture.torrent'),folder=path.join(process.env.WHISPER_RESOURCE_SOAK_USER_DATA,'torrent-media',hash);fs.mkdirSync(folder,{recursive:true});fs.writeFileSync(path.join(folder,'fixture.mp4'),bytes);fs.writeFileSync(metadata,encode({info}));torrentFixture={hash,metadata};
+}
 app.setAppPath(root);
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -86,6 +93,23 @@ app.whenReady().then(async () => {
   await run('document.querySelector(".mh-hero .mh-primary").click();return true');
   await until(() => run('const v=document.getElementById("playerVideo");return !document.getElementById("playerLayer").classList.contains("hidden") && v.readyState>=2 && v.currentSrc.includes("mp4")'), 'real local playback');
   await until(() => run('return document.getElementById("playerVideo").currentTime>=1.5'), 'resume position');
+  if(process.env.WHISPER_NATIVE_TEST==='1'){
+    const started=await run('return window.NativePlayerUI.start()');
+    assert(started,await run('return document.getElementById("playerOsd")?.textContent || "Native startup failed"'));
+    await until(()=>run('return window.NativePlayerUI.state().duration>0'),'native mpv duration');
+    assert(await run('return window.NativePlayerUI.active() && document.getElementById("playerVideo").duration>0'),'Native facade reports real playback state');
+    await run('document.getElementById("playerVideo").pause();document.getElementById("playerVideo").currentTime=3;return true');
+    await until(()=>run('return Math.abs(window.NativePlayerUI.state().time-3)<.4'),'native seek');
+    const frame=await run('return window.api.nativePlayer({action:"snapshot",key:player.mediaKey,generation:player.generation})');
+    assert(frame.ok && frame.image.startsWith('data:image/png;base64,'),'Native decoded frame can be captured for overlay composition');
+    fs.writeFileSync(path.join(out,'native-decoded-frame.png'),Buffer.from(frame.image.split(',')[1],'base64'));
+    const host=BrowserWindow.getAllWindows().find(w=>w.getParentWindow()===win);assert(host,'Native host belongs to the main window');const oldWindow=win.getBounds(),oldHost=host.getBounds();win.setPosition(oldWindow.x+20,oldWindow.y+10);await wait(250);assert(Math.abs(host.getBounds().x-oldHost.x-20)<=2,'Native video follows its owner window');win.setBounds(oldWindow);
+    win.webContents.send('assistant:visibility',{expanded:true});
+    await until(()=>run('return [...document.getElementById("playerVideo").parentElement.querySelectorAll("img")].some(img=>img.src.startsWith("data:image/png"))'),'Native frame behind assistant');
+    win.webContents.send('assistant:visibility',{expanded:false});
+    await run('await window.NativePlayerUI.stop();return true');
+    assert.equal(await run('return window.NativePlayerUI.active()'),false,'Return to original Chromium controls');
+  }
   await run('document.getElementById("playerVideo").pause();syncPlayerSpeedControl(1.25);document.getElementById("playerVideo").playbackRate=1.25;return true');
   dialog.showOpenDialog = async () => ({ canceled:false, filePaths:[subtitle] });
   try { assert.equal(await run('return window.api.selectFile("subtitle")'),subtitle); } finally { dialog.showOpenDialog=originalPicker; }
@@ -103,6 +127,11 @@ app.whenReady().then(async () => {
   await run('document.getElementById("browserDubOffset").value="0.2";document.getElementById("browserDubOffset").dispatchEvent(new Event("input"));await flushWatchState(false,false);return true');
   const savedVoice = await run('return captureWatchPrefs()');
   assert.equal(savedVoice.dubPlayback.id, picked.output.playbackAsset.id); assert.equal(savedVoice.muted,false); assert.equal(savedVoice.speed,1.25); assert.equal(savedVoice.dubPlayback.offset,.2);
+  if(process.env.WHISPER_NATIVE_TEST==='1'){
+    assert(await run('return window.NativePlayerUI.start()'),'Native engine can take over a dubbed video');
+    assert.equal(await run('return captureWatchPrefs().dubPlayback.id'),picked.output.playbackAsset.id,'Dub attachment survives native takeover');
+    await run('await window.NativePlayerUI.stop();return true');
+  }
   await run('await window.BrowserDubAudioUI.stop();return true');
   assert(await run('await restoreWatchProfile(player.mediaKey);return !document.getElementById("browserDubStrip").classList.contains("hidden")'), 'Watch profile restores the saved voice through the existing playback flow');
   assert.equal(await run('return window.BrowserDubAudioUI.snapshot().offset'), .2);
@@ -176,7 +205,7 @@ app.whenReady().then(async () => {
   await run('document.querySelector(".ms-reader header").lastElementChild.click();return true');
   await until(() => run('return !document.querySelector(".ms-reader")'), 'close reader');
   assert.equal((await run('return window.api.mediaShelf({action:"list"})')).books[0].bookmarks.length, 1);
-  const ratings = path.join(out, 'ratings.csv'); fs.writeFileSync(ratings, 'Name,Year,Rating\nKuzeyin Hikâyesi,2026,4.5\nYeni Film,2024,4\n');
+  const ratings = path.join(out, 'ratings.csv'); fs.writeFileSync(ratings, 'Name,Year,Rating,Review\nKuzeyin Hikâyesi,2026,4.5,Hikaye çok güçlü ve oyunculuk etkileyici.\nYeni Film,2024,4,Müzik ve görsel anlatım harika.\n');
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [ratings] });
   try {
     await run('document.querySelector("[data-home-page=taste]").click();return true');
@@ -187,6 +216,56 @@ app.whenReady().then(async () => {
     await run('document.querySelector(".ms-dialog form").requestSubmit();return true');
     await until(async () => (await run('return window.api.mediaCatalog({action:"list"})')).items.length === 3, 'confirmed CSV import');
   } finally { dialog.showOpenDialog = originalPicker; }
+  await until(()=>run('return !!document.querySelector(".mt-profile") && document.querySelectorAll(".mt-review").length===2'),'review taste profile');
+  const taste=await run('return (await window.api.mediaShelf({action:"list"})).taste');
+  assert.equal(taste.reviewCount,2);assert.equal(taste.rated,2);
+  const analysis={version:1,summary:'Fixture evidence-based review analysis.',insights:[{aspect:'story',direction:'likes',reason:'The review explicitly praises the story.',evidence:[{id:taste.reviews.find(r=>r.title==='Kuzeyin Hikâyesi').id,quote:'Hikaye çok güçlü'}]}]};
+  assert((await run(`return window.api.mediaShelf({action:"taste-analysis",analysis:${JSON.stringify(analysis)}})`)).ok,'Verified review quote accepted');
+  const forged={...analysis,insights:[{...analysis.insights[0],evidence:[{id:analysis.insights[0].evidence[0].id,quote:'This is not in the review'}]}]};
+  assert.equal((await run(`return window.api.mediaShelf({action:"taste-analysis",analysis:${JSON.stringify(forged)}})`)).ok,false,'Invented review quote rejected');
+  assert(await run('return globalAssistantContext().type==="taste-profile"'),'Assistant recognizes profile context');
+  await run('document.getElementById("mediaHome").scrollTop=0;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');await wait(250);
+  fs.writeFileSync(path.join(out,'taste-profile-tr.png'),(await win.webContents.capturePage()).toPNG());
+  for(const [width,locale,theme]of [[940,'en','light'],[680,'tr','dark']]){
+    win.setContentSize(width,900);await run(`window.UiLocale.set(${JSON.stringify(locale)},false);applyUiTheme(${JSON.stringify(theme)});return true`);await until(()=>run('return !!document.querySelector(".mt-profile")'),'responsive profile');await wait(200);
+    assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'),'Profile has no horizontal overflow');fs.writeFileSync(path.join(out,`taste-profile-${width}-${locale}.png`),(await win.webContents.capturePage()).toPNG());
+  }
+  win.setContentSize(1440,1000);await run('window.UiLocale.set("tr",false);applyUiTheme("dark");return true');await wait(250);
+  await run('window.MediaHubUI.open();return true');
+  assert(await run('return document.getElementById("mediaHubDialog").open && document.querySelectorAll(".mhx-tile").length===3'),'Unified media opening choices');
+  await wait(250);fs.writeFileSync(path.join(out,'media-open-tr.png'),(await win.webContents.capturePage()).toPNG());
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[out]});let folder;
+  try{folder=await run('return window.api.mediaHub({action:"folder-add"})');}finally{dialog.showOpenDialog=originalPicker;}
+  assert(folder.ok && folder.folder.files.some(row=>row.name==='Türkçe film.mp4'),JSON.stringify({ok:folder.ok,error:folder.error}));
+  const folderFile=folder.folder.files.find(row=>row.name==='Türkçe film.mp4');
+  assert((await run(`return window.api.mediaHub({action:"folder-play",folderId:${JSON.stringify(folder.folder.id)},id:${JSON.stringify(folderFile.id)}})`)).ok,'Only a known selected folder file can be played');
+  assert.equal((await run(`return window.api.mediaHub({action:"folder-play",folderId:${JSON.stringify(folder.folder.id)},id:"../../secret"})`)).ok,false,'Unknown folder path is rejected');
+  const oldFile=path.join(out,'Moved fixture.mp4'),newFolder=path.join(out,'Relocated');fs.copyFileSync(video,oldFile);fs.mkdirSync(newFolder);const newFile=path.join(newFolder,path.basename(oldFile));
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[oldFile]});try{assert((await run(`return window.api.mediaCatalog({action:'source-file',id:${JSON.stringify(film.item.id)}})`)).ok);}finally{dialog.showOpenDialog=originalPicker;}
+  const moving=await run(`return (await window.api.mediaCatalog({action:'play',id:${JSON.stringify(film.item.id)}})).watchItem`);
+  assert((await run(`return window.api.updateWatchItem({...${JSON.stringify(moving)},position:3,duration:8,prefs:${JSON.stringify(savedVoice)}})`)).ok);
+  fs.renameSync(oldFile,newFile);
+  const relink=await run(`return window.api.mediaHub({action:'relink-preview',folderId:${JSON.stringify(folder.folder.id)}})`);assert(relink.ok&&relink.patches.some(r=>r.old===oldFile),'Moved source has a reviewable exact match');
+  const applied=await run(`return window.api.mediaHub({action:'relink-apply',token:${JSON.stringify(relink.token)}})`);assert(applied.ok,JSON.stringify(applied));
+  const after=await run(`return (await window.api.mediaCatalog({action:'play',id:${JSON.stringify(film.item.id)}})).watchItem`);assert.equal(after.localPath,fs.realpathSync(newFile));assert.equal(after.position,3);assert.equal(after.prefs.dubPlayback.id,picked.output.playbackAsset.id,'Relinking preserves saved voice attachment');
+  const scenes=await run(`return window.api.mediaHub({action:'scenes',path:${JSON.stringify(video)},duration:8})`);assert(scenes.ok&&scenes.rows.length===12,JSON.stringify({ok:scenes.ok,error:scenes.error}));assert(scenes.rows.every(r=>r.image.startsWith('data:image/jpeg;base64,')&&r.at>=0&&r.at<8),'Real ffmpeg timeline thumbnails');
+  await run(`return window.api.mediaHub({action:"folder-remove",folderId:${JSON.stringify(folder.folder.id)}})`);
+  await run('document.getElementById("mediaHubDialog").close();return true');
+  if(torrentFixture){
+    dialog.showOpenDialog=async()=>({canceled:false,filePaths:[torrentFixture.metadata]});let preview;try{preview=await run('return window.api.mediaTorrents({action:"preview",file:true})');}finally{dialog.showOpenDialog=originalPicker;}
+    assert(preview.ok,JSON.stringify(preview));const stream=await run(`return window.api.mediaTorrents({action:'play',token:${JSON.stringify(preview.token)},index:0})`);assert(stream.ok,JSON.stringify(stream));
+    await run(`await window.MediaHubUI.playStream(${JSON.stringify(stream)},4);return true`);
+    await until(()=>run('return document.getElementById("playerVideo").readyState>=2 && document.getElementById("playerVideo").currentSrc.startsWith("whisper-media:")'),'real Electron torrent playback');
+    await until(()=>run('return document.getElementById("playerVideo").currentTime>=3.5'),'torrent resume seek');
+    assert(await run(`return player.mediaKey===${JSON.stringify(stream.key)} && !!player.localPath && player.localPath.endsWith('fixture.mp4')`),'Verified complete torrent is available to existing Whisper flow');
+    await run('document.getElementById("playerVideo").pause();window.MediaHubUI.open("player");return true');await wait(250);fs.writeFileSync(path.join(out,'torrent-playback-tr.png'),(await win.webContents.capturePage()).toPNG());await run('document.getElementById("mediaHubDialog").close();return true');
+    if(process.env.WHISPER_NATIVE_TEST==='1'){
+      assert(await run('return window.NativePlayerUI.start()'),'Native torrent playback uses authenticated private stream');
+      assert(await run('const v=document.getElementById("playerVideo").getBoundingClientRect(),c=document.getElementById("playerControls").getBoundingClientRect();return v.height>100 && v.bottom<=c.top+2'),'Native surface leaves controls visible and clickable');
+      if(process.env.WHISPER_NATIVE_VISUAL==='1'){win.setTitle('Whisper isolated native visual check');win.show();console.log('NATIVE_VISUAL_READY');await wait(60000);}
+      await run('await window.NativePlayerUI.stop();return true');
+    }
+  }
   assert.deepEqual(consoleErrors.filter(text => /uncaught|referenceerror|typeerror/i.test(text)), []);
   fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ results, consoleErrors }, null, 2));
   console.log(JSON.stringify({ ok: true, out, results }));

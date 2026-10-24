@@ -65,11 +65,8 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     return row;
   };
   function publicState(data) {
-    const { diary, ...rest } = data;
-    const rated = diary.filter(row => Number(row.rating) > 0);
-    const years = new Map();
-    rated.forEach(row => { if (row.year) { const decade = `${Math.floor(Number(row.year) / 10) * 10}s`; years.set(decade, (years.get(decade) || 0) + 1); } });
-    return { ...rest, taste: { titles: diary.length, rated: rated.length, average: rated.length ? rated.reduce((sum, row) => sum + row.rating, 0) / rated.length : null, decades: [...years].sort((a, b) => b[1] - a[1]).slice(0, 5) } };
+    const { diary, reviews:privateReviews, ...rest } = data;
+    return { ...rest, taste: require('./media-taste').profile(diary,catalogStore().list(),data.tasteProfile || {},Array.isArray(data.reviews)?data.reviews:[]) };
   }
   async function importMusic(input) {
     if (active) throw Error('An import is already running.');
@@ -203,12 +200,12 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           save(data); return { ok: true }; // Source files are never removed.
         }
         case 'letterboxd-preview': {
-          const files = await choose(['csv']); if (!files.length) return { ok: false, canceled: true };
+          const files = await choose(['csv','zip']); if (!files.length) return { ok: false, canceled: true };
           const parsed = await parser({ action: 'letterboxd', path: files[0] });
           const catalog = catalogStore();
           const plan = csvPlan(parsed.rows, catalog.list()), token = randomUUID();
-          imports.clear(); imports.set(token, { rows: parsed.rows, expires: Date.now() + 600000 });
-          return { ok: true, token, count: parsed.rows.length, matches: plan.planned.length, newTitles: plan.added.length, ambiguous: plan.ambiguous, preserved: plan.planned.filter(row => row.preserved).length };
+          imports.clear(); imports.set(token, { rows: parsed.rows, reviews:parsed.reviews || parsed.rows.filter(row=>row.review),expires: Date.now() + 600000 });
+          return { ok: true, token, count: parsed.rows.length, reviews:(parsed.reviews || parsed.rows.filter(row=>row.review)).length,matches: plan.planned.length, newTitles: plan.added.length, ambiguous: plan.ambiguous, preserved: plan.planned.filter(row => row.preserved).length };
         }
         case 'letterboxd-apply': {
           const prepared = imports.get(input.token); imports.delete(input.token);
@@ -218,12 +215,19 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const patches = plan.planned.map(row => ({ id: row.id, ratings: { personal: row.preserved ? catalog.get(row.id).ratings.personal : row.rating === null ? null : String(row.rating) } }));
           // Preserve existing personal scores. New ratings belong to the user, not the site's aggregate.
           const data = load();
-          catalog.upsertMany([...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(row.rating) } }))]);
+          const catalogPatches=[...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(row.rating) } }))];
           const merged = new Map(data.diary.map(row => [`${row.title}|${row.year}`, row]));
-          prepared.rows.forEach(row => { const key = `${row.title}|${row.year}`, old = merged.get(key); merged.set(key, { ...old, ...row, rating: row.rating ?? old?.rating ?? null, watchedDate: row.watchedDate || old?.watchedDate || '' }); });
-          data.diary = [...merged.values()].slice(-10000); save(data);
+          prepared.rows.forEach(row => { const key = `${row.title}|${row.year}`, old = merged.get(key); merged.set(key, { ...old, ...row, review:row.review || old?.review || '',rating: row.rating ?? old?.rating ?? null, watchedDate: row.watchedDate || old?.watchedDate || '' }); });
+          data.diary = [...merged.values()].slice(-10000);
+          const reviews=new Map((Array.isArray(data.reviews)?data.reviews:[]).map(row=>[require('./media-taste').reviewId(row),row]));
+          for(const row of prepared.reviews || [])reviews.set(require('./media-taste').reviewId(row),row);
+          data.reviews=[...reviews.values()].slice(-10000);
+          if(Buffer.byteLength(JSON.stringify(data))>16_000_000)throw Error('Media shelf exceeds 16 MB; import a smaller review export.');
+          catalog.upsertMany(catalogPatches);save(data);
           return { ok: true, matched: plan.planned.length, added: plan.added.length, skipped: plan.ambiguous.length };
         }
+        case 'taste-preferences': { const data=load(); data.tasteProfile={...data.tasteProfile,...require('./media-taste').preferences(input.preferences)};save(data);return {ok:true}; }
+        case 'taste-analysis': { const data=load(); const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis}; }
         default: throw Error('Unsupported media shelf action.');
       }
     } catch (error) { return { ok: false, error: error.message }; }

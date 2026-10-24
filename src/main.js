@@ -540,7 +540,7 @@ protocol?.registerSchemesAsPrivileged?.([{
 }, {
   scheme: 'whisper-assets',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true },
-}]);
+}, {scheme:'whisper-media',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true,stream:true}}]);
 // Bu Electron tercihi app.ready öncesinde uygulanmalıdır; çalışma sırasında
 // değiştirilen ayar sonraki açılışta geçerli olur. Python/CUDA'yı etkilemez.
 // Varsayılan açık: yalnız açıkça kaydedilmiş false hızlandırmayı kapatır.
@@ -21670,7 +21670,10 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   dialogText: dt,
 });
 
-require('./media-catalog-service').registerMediaCatalogService({
+const mediaTorrents = require('./media-torrents').registerMediaTorrents({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,protocol,grantMedia:file=>mediaFileAccess.grant(file),
+  enginePath:()=>process.env.WHISPER_TORRENT_TEST==='1'&&process.env.WHISPER_RQBIT_PATH ? process.env.WHISPER_RQBIT_PATH : path.join(app.getPath('userData'),'media-engines','rqbit.exe')});
+require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents});
+const mediaCatalogService = require('./media-catalog-service').registerMediaCatalogService({
   mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob
@@ -21680,3 +21683,5 @@ require('./media-catalog-service').registerMediaCatalogService({
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
+require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
+  relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});

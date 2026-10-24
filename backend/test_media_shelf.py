@@ -3,7 +3,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from media_shelf import read_book, letterboxd, rss
+from media_shelf import read_book, letterboxd, letterboxd_archive, rss
 
 
 class ShelfParsingTests(unittest.TestCase):
@@ -55,6 +55,21 @@ class ShelfParsingTests(unittest.TestCase):
             for encoding in ['cp1254', 'utf-16']:
                 file.write_bytes('Şimdi güzel bir öykü.'.encode(encoding))
                 self.assertEqual(read_book(file)['chapters'][0]['text'], 'Şimdi güzel bir öykü.')
+
+    def test_review_zip_preserves_repeat_reviews_and_metadata_without_extraction(self):
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, 'w') as output:
+            output.writestr('reviews.csv', 'Name,Year,Review,Tags,Liked,Watched Date\nÖykü,2024,<p>İlk yorum</p><script>secret()</script>,sound,Yes,2026-01-01\nÖykü,2024,<p>İkinci yorum</p>,story,,2026-02-01\n')
+            output.writestr('ratings.csv', 'Name,Year,Rating\nÖykü,2024,4.5\n')
+            output.writestr('../../never-extracted.txt', 'irrelevant')
+        archive.seek(0)
+        result = letterboxd_archive(archive)
+        self.assertEqual(len(result['rows']), 1)
+        self.assertEqual(len(result['reviews']), 2)
+        self.assertNotIn('secret', result['reviews'][0]['review'])
+        self.assertEqual(result['rows'][0]['rating'], 4.5)
+        self.assertTrue(result['rows'][0]['liked'])
+        self.assertEqual(result['rows'][0]['tags'], ['sound', 'story'])
 
 
 if __name__ == '__main__':

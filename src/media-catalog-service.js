@@ -97,7 +97,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const raw = input.item || input.patch || {};
           const previous = raw.id ? found(raw.id) : null;
           // Native seçici veya kayıtlı içe aktarım dışında renderer dosya yolu veremez.
-          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite']
+          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite','genres','directors']
             .filter(key => Object.hasOwn(raw, key)).map(key => [key, raw[key]]));
           if (raw.ratings && typeof raw.ratings === 'object') patch.ratings = { ...(previous?.ratings || {}), personal: raw.ratings.personal };
           if (Array.isArray(raw.episodes)) {
@@ -216,5 +216,6 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       return { ok: false, error: message };
     }
   });
+  return {store};
 }
 module.exports = { registerMediaCatalogService };

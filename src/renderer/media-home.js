@@ -213,7 +213,7 @@
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
     } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
       const titles = { books: t('Books', 'Kitaplar'), music: t('Music', 'Müzik'), radio: t('Radio & podcasts', 'Radyo ve podcast'), taste: 'Letterboxd' };
-      content.append(el('h1', 'mh-page-title', titles[state.page]));
+      if(state.page!=='taste')content.append(el('h1', 'mh-page-title', titles[state.page]));
       const shelf = el('section', 'ms-shelf'); content.append(shelf); window.MediaShelfUI.mount(shelf, state.page, state.query);
     } else {
       const titles = { home: t('Search results', 'Arama sonuçları'), recent: t('Recently played', 'Son oynatılanlar'), films: t('Films', 'Filmler'), series: t('Series', 'Diziler'), music: t('Music & audio', 'Müzik ve ses'), web: t('Web videos', 'Web videoları'), books: t('Search results', 'Arama sonuçları') };
@@ -253,13 +253,13 @@
       mode.setAttribute('aria-pressed', String(key === (['music', 'radio'].includes(state.page) ? 'music' : state.page === 'books' ? 'books' : 'film'))); modes.append(mode);
     }
     const actions = el('div', 'mh-actions');
-    actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo'), 'mh-action mh-primary'));
+    actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open media', 'Medya aç'), () => window.MediaHubUI?.open(), 'mh-action mh-primary'));
     actions.append(button(t('Activity', 'İşlemler'), () => window.MediaExperience?.openTasks()));
     const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
     locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', 'Letterboxd'], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false'); if (key === 'home') control.id = 'mhHome'; nav.append(control);
     }
