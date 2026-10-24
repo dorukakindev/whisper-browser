@@ -105,3 +105,7 @@ test('A late backup folder picker cannot re-enable a disabled schedule; future t
     assert.equal(fs.readdirSync(dir).filter(n=>n.endsWith('.wbp')).length,0);
   }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Blocked Letterboxd access reports the fallback and releases the request lock',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-blocked-')),close=[];try{const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},owner:()=>null,dialog:{},authorized:()=>true,catalogStore:()=>({get:()=>({id:'film'})}),fetchImpl:async()=>({ok:false,status:403})});for(const id of ['one','two']){const result=await service.handle({}, {action:'reviews-fetch',itemId:'film',id,url:'https://letterboxd.com/film/example/reviews/'});assert.equal(result.ok,false);assert.match(result.error,/403/);assert.match(result.error,/paste or import/);assert.doesNotMatch(result.error,/already running/);}}finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});

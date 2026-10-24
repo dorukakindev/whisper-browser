@@ -40,7 +40,7 @@ function profile(diary, catalog, saved = {}, reviewEntries = []) {
     decades:[...years].sort((a,b)=>b[1]-a[1]),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).slice(-24),
     favorites:[...rated].sort((a,b)=>b.rating-a.rating).slice(0,12).map(row=>({title:row.title,year:row.year,rating:row.rating})),
     metadataMatched:diary.filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
-    preferences:preferences(supplied?saved:{weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))}),analysis:saved.analysis || null };
+    preferencesConfigured:supplied,preferences:preferences(supplied?saved:{weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))}),analysis:saved.analysis || null };
 }
 function validateAnalysis(raw, diary) {
   const reviews=new Map(diary.filter(row=>row.review).map(row=>[reviewId(row),String(row.review)]));

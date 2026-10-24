@@ -9,6 +9,27 @@ function reviewRows(raw) {
   const parsed=rows.slice(0,100).map((row,i)=>({id:text(row.id,80)||String(i+1),author:text(row.author,120),text:text(row.text,4000),spoiler:!!row.spoiler})).filter(r=>r.text.length>=8);
   if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
 }
+function reviewSample(reviews, limit=4500) {
+ const selected=[];let truncated=0;
+ for(const row of reviews){
+   if(selected.length>=20)break;
+   let candidate={...row};const remaining=limit-JSON.stringify(selected).length-JSON.stringify({...candidate,text:''}).length-4;
+   if(remaining<80)continue;
+   // Count JSON escaping, not just source characters, so previews are complete and bounded.
+   if(JSON.stringify([...selected,candidate]).length>limit){let lo=0,hi=candidate.text.length;while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(JSON.stringify([...selected,{...candidate,text:candidate.text.slice(0,mid)}]).length<=limit)lo=mid;else hi=mid-1;}if(lo<80)continue;candidate.text=candidate.text.slice(0,lo);truncated++;}
+   selected.push(candidate);
+ }
+ return {reviews:selected,omitted:reviews.length-selected.length,truncated};
+}
+function decisionEvidence(item,reviews,taste={}) {
+ const configured=taste.preferencesConfigured===true;
+ const profile={preferencesConfigured:configured,preferences:configured?{weights:taste.preferences?.weights||{},avoid:taste.preferences?.avoid||[],note:String(taste.preferences?.note||'').slice(0,600)}:null,
+   acceptedAnalysis:taste.analysis?{summary:String(taste.analysis.summary||'').slice(0,400),insights:(taste.analysis.insights||[]).slice(0,3).map(row=>({aspect:row.aspect,direction:row.direction,reason:String(row.reason||'').slice(0,120)}))}:null};
+ const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,reviews:[],profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
+ const overhead=JSON.stringify(result).length;
+ const sample=reviewSample(reviews,Math.max(100,Math.min(4500,7700-overhead)));
+ result.reviews=sample.reviews;return {evidence:result,sample};
+}
 function verifyDecision(raw, reviews) {
   if (!raw || !Array.isArray(raw.points) || !raw.points.length || raw.points.length>16) throw Error('Analysis needs 1–16 supported points.');
   return {summary:text(raw.summary,3000), fit:text(raw.fit,2000), points:raw.points.map(row=>{
@@ -43,5 +64,5 @@ function tonight(items, history=[], options={}) {
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
 
-return Object.freeze({reviewRows,verifyDecision,tonight});
+return Object.freeze({reviewRows,reviewSample,decisionEvidence,verifyDecision,tonight});
 });
