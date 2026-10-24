@@ -19854,7 +19854,7 @@ async function cancelAiChat(message='İptal edildi.'){
 async function aiChatSend(soru, translationTarget = null) {
   const q = String(soru || '').trim();
   if (!q) return;
-  if (aiChatPreparing||state.running || state.queueRunning||player.job?.awaitingExit) {
+  if (aiChatPreparing||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
   }
@@ -19863,6 +19863,7 @@ async function aiChatSend(soru, translationTarget = null) {
     try{await window.AssistantWorkspace.prepare();}catch(error){aiChatAdd('ai',error.message,'ai-msg-err');return;}finally{if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
     if(loading.cancelled||loading.scope!==aiSourceScope())return;
   }
+  if (!translationTarget && await window.AssistantPageCommands?.handle(q)) return;
   const opts = buildOptsFromUI();
   opts.translate = true;                      // anahtar dogrulamasi icin
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
@@ -24632,38 +24633,49 @@ function applyBrowserPageTranslationState(event = {}) {
   if (event.message) setBrowserSignal(event.message, event.state !== 'error', { priority: event.state === 'error' ? 90 : 45 });
   if (event.archivePath) void refreshBrowserPageHistory(true);
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
+  document.dispatchEvent(new Event('browser-page-translation-changed'));
 }
 
-async function handleBrowserPageTranslationAction() {
+async function handleBrowserPageTranslationAction({ensureVisible = false, targetLanguage, isCancelled = () => false} = {}) {
   if (!player.browserActiveTabId || !player.browserPageUrl) {
-    setBrowserSignal('Sayfa çevirisi için önce bir web sayfası açın.', false); return;
+    const error = 'Sayfa çevirisi için önce bir web sayfası açın.'; setBrowserSignal(error, false); return {ok:false,error};
   }
   if (player.browserPageTranslateBusy) {
-    await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null); return;
+    if (ensureVisible) return {ok:true,running:true};
+    return await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
   }
-  if (player.browserPageTranslated > 0) {
-    const result = await window.api.toggleBrowserPageTranslation?.(player.browserActiveTabId, !player.browserPageVisible).catch(() => null);
+  let matchingLanguage=true;
+  if(ensureVisible&&targetLanguage&&player.browserPageTranslated>0){
+    const tabId=player.browserActiveTabId,generation=browserTabState()?.generation;
+    const context=await window.api.getBrowserPageContext(tabId).catch(()=>null);
+    if(isCancelled()||player.browserActiveTabId!==tabId||browserTabState()?.generation!==generation)return {ok:false,stale:true};
+    if(!context?.ok)return {ok:false,error:context?.error||(window.UiLocale?.get?.()==='tr'?'Sayfa bağlamı okunamadı.':'Page context is unavailable.')};
+    matchingLanguage=context.translationLanguage===targetLanguage;
+  }
+  if (player.browserPageTranslated > 0 && matchingLanguage) {
+    const result = await window.api.toggleBrowserPageTranslation?.(player.browserActiveTabId, ensureVisible || !player.browserPageVisible).catch(() => null);
     if (!result?.ok) setBrowserSignal(result?.error || 'Sayfa çevirisi görünürlüğü değiştirilemedi.', false);
-    return;
+    return result?.ok ? {...result,shown:true} : result;
   }
   const jobTabId = player.browserActiveTabId;
   const jobGeneration = browserTabState()?.generation;
   const profile = effectiveBrowserProfile().values;
   const jobOptions = {
-    targetLanguage: profile.pageTargetLanguage ?? 'tr',
+    targetLanguage: targetLanguage || profile.pageTargetLanguage || 'tr',
     mode: profile.pageMode ?? 'bilingual',
     view: player.browserPageView === 'original' ? (profile.pageMode === 'replace' ? 'translation' : 'both') : player.browserPageView,
     scope: player.browserPageScope || 'article', autoContinue: player.browserPageAutoContinue !== false,
     workers: 2,
     ...(typeof loadBrowserPagePrefs === 'function' ? loadBrowserPagePrefs() : { lockedTerms: [], excludedSections: [], excludedSelectors: [], pageCharacterBudget: 0 }),
   };
-  if (!await saveAppSettings()) return;
-  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
+  if (!await saveAppSettings()) return {ok:false,error:window.UiLocale?.get?.()==='tr'?'Ayarlar kaydedilemedi.':'Settings could not be saved.'};
+  if (isCancelled() || player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return {ok:false,stale:true};
   applyBrowserPageTranslationState({ state: 'running', translated: 0, completion: null });
   const result = await window.api.startBrowserPageTranslation?.(jobTabId, jobOptions)
     .catch((error) => ({ ok: false, error: error.message }));
-  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return;
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return {ok:false,stale:true};
   if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
+  return result;
 }
 
 $('browserPageTranslate')?.addEventListener('click', handleBrowserPageTranslationAction);

@@ -19,7 +19,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
   function layout() {
     if (disposed || window.isDestroyed()) return;
     const [w, h] = window.getContentSize();
-    const width = expanded ? Math.min(large ? 780 : 460, Math.max(160, w - 24)) : 64;
+    const width = expanded ? Math.min(large ? 780 : 480, Math.max(160, w - 24)) : 64;
     const bottom = 24 + Math.min(Math.max(0, Number(snapshot.bottomInset) || 0), h / 2);
     const height = expanded ? Math.min(large ? 850 : 720, Math.max(150, h - bottom - 40)) : 64;
     view.setBounds({ x: Math.max(0, w - width - 16), y: Math.max(38, h - height - bottom), width, height });
@@ -35,7 +35,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
       sourceToken:String(value.sourceToken||'').slice(0,8000),
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
-      transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
+      pageContext:!!value.pageContext,transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
       receipt:value.receipt&&typeof value.receipt==='object'?{id:String(value.receipt.id||'').slice(0,80),accepted:!!value.receipt.accepted,message:String(value.receipt.message||'').slice(0,1200)}:null,
       conversation: String(value.conversation || '').slice(0,8000),
       pinScope:String(value.pinScope||value.conversation||'').slice(0,8000),activeThread:String(value.activeThread||'').slice(0,100),
@@ -44,7 +44,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry,
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
-      suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
+      suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), direct:!!row.direct, label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
         id:String(row.id||'').slice(0,100),status:String(row.status||'').slice(0,20),
         actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),kind:String(a.kind||'').slice(0,60),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],

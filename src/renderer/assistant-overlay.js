@@ -25,19 +25,19 @@
   $('find').oninput=filter;
   $('pinned').onclick=()=>{onlyPinned=!onlyPinned;$('pinned').setAttribute('aria-pressed',String(onlyPinned));filter();};
   $('export').onclick=()=>{const content=(snapshot.messages||[]).map(r=>'## '+(r.role==='user'?'You':'Assistant')+'\n\n'+r.text).join('\n\n');if(content)action('export',content);};
-  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f'&&opened){event.preventDefault();$('find').focus();}});
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f'&&opened){event.preventDefault();$('conversationMenu').open=true;$('find').focus();}});
   $('reviewCancel').onclick = () => { reviewing = null; $('review').hidden = true; };
   $('reviewConfirm').onclick = () => { if (reviewing && !busy) action(reviewing.action,reviewing.id); reviewing = null; $('review').hidden = true; };
   function toggle() { opened = !opened; $('panel').hidden = !opened; $('bubble').hidden = opened; action('toggle'); if (opened) $('text').focus(); }
   $('bubble').onclick = toggle; $('close').onclick = toggle;
   $('expand').onclick = () => action('expand');
   for (const name of ['cancel','retry']) $(name).onclick=()=>action(name);
-  $('clear').onclick=()=>{reviewing={action:'clear'};$('reviewText').textContent=snapshot.locale==='tr'?'Mevcut sohbet geçmişi temizlenecek. Sabitlenen notların korunur.':'This clears the current chat history. Pinned notes are kept.';$('review').hidden=false;$('reviewConfirm').focus();};
+  $('clear').onclick=()=>{reviewing={action:'clear'};$('reviewText').textContent=snapshot.locale==='tr'?'Mevcut sohbet geçmişi temizlenecek. Sabitlenen notların korunur.':'This clears the current chat history. Pinned notes are kept.';$('conversationMenu').open=false;$('review').hidden=false;$('reviewConfirm').focus();};
   $('scope').onchange = () => action('scope', $('scope').value);
   function send() { const text = $('text').value.trim(); if (!text || busy || pending || snapshot.blocked) return; pending={text,id:'q-'+Date.now()+'-'+(++requestSequence),sourceToken:snapshot.sourceToken};action('send',text,{requestId:pending.id});$('send').disabled=true;showStatus(snapshot.locale==='tr'?'Soru gönderiliyor…':'Sending question…'); }
   $('form').onsubmit = event => { event.preventDefault(); send(); };
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); toggle(); } });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else if(!$('review').hidden){$('reviewCancel').click();$('text').focus();}else toggle(); } });
   window.assistant.subscribe(value => {
     const nextConversation=value.conversation||value.sourceToken||'';
     const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
@@ -45,13 +45,13 @@
     if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||value.draft||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}
     else if(!firstThread&&snapshot.sourceToken&&snapshot.sourceToken!==value.sourceToken){rememberDraft();pending=null;showStatus(value.locale==='tr'?'Kaynak güncellendi; taslağın korundu.':'Source updated; your draft was kept.');}
     snapshot=value;
-    const threadKey=JSON.stringify([value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
+    const threadKey=JSON.stringify([value.locale,value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
     $('workspaceError').textContent=value.workspaceError||'';
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;
     $('threads').setAttribute('aria-label',t('Conversation','Sohbet'));$('newThread').textContent=t('New','Yeni');$('threadSettings').textContent=t('Manage','Yönet');$('threadNameLabel').textContent=t('Conversation name','Sohbet adı');$('renameThread').textContent=t('Save name','Adı kaydet');$('deleteThread').textContent=t('Delete conversation','Sohbeti sil');
     $('find').placeholder=t('Search conversation','Konuşmada ara');$('find').setAttribute('aria-label',$('find').placeholder);$('pinned').textContent=t('Pinned','Sabitlenen');$('export').textContent=t('Export','Dışa aktar');
-    $('sourceLabel').textContent=t('Source & model','Kaynak ve model');$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
+    $('sourceLabel').textContent=(value.transcriptScope?t('Video & subtitles','Video ve altyazı'):value.pageContext?t('Web page','Web sayfası'):t('Selected source','Seçili kaynak'))+' · '+(value.model||t('Source & model','Kaynak ve model'));$('conversationMenuLabel').title=t('Conversation tools','Sohbet araçları');$('conversationMenuLabel').setAttribute('aria-label',$('conversationMenuLabel').title);$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
     $('title').textContent = t('Assistant', 'Asistan'); $('context').textContent = value.context || '';
     $('bubble').setAttribute('aria-label', t('Open assistant', 'Asistanı aç')); $('bubble').title = $('title').textContent;
     $('expand').title = t('Expand / restore', 'Genişlet / geri al'); $('expand').setAttribute('aria-label', $('expand').title);
@@ -59,32 +59,32 @@
     for (const [id, en, turkish] of [['send','Send','Gönder'],['cancel','Cancel','İptal'],['retry','Retry','Yeniden dene'],['clear','Clear','Temizle']]) $(id).textContent = t(en, turkish);
     $('text').placeholder = t('Ask a question…', 'Sorunu yaz…'); $('text').setAttribute('aria-label', t('Question', 'Soru'));
     [...$('scope').options].forEach((option, i) => { option.textContent = t(['Nearby','Watched','Full transcript'][i], ['Yakın satırlar','İzlenen bölüm','Tüm altyazı'][i]); });
-    $('hint').textContent = value.transcriptScope===false?t('Uses your existing provider and only the selected context.','Mevcut sağlayıcını ve yalnız seçili bağlamı kullanır.'):t('Uses your existing provider and selected subtitle scope.','Mevcut sağlayıcını ve seçili altyazı kapsamını kullanır.');
+    $('hint').textContent = t('Enter to send · Shift + Enter for a new line','Enter: gönder · Shift + Enter: yeni satır');
     $('reviewConfirm').textContent = t('Continue', 'Devam et'); $('reviewCancel').textContent = t('Cancel','Vazgeç');
     const nextSuggestions = JSON.stringify(value.suggestions || []);
     if (nextSuggestions !== suggestionKey) {
       suggestionKey = nextSuggestions; $('suggestions').replaceChildren(); reviewing = null; $('review').hidden = true;
       for (const row of value.suggestions || []) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;
-        button.onclick = () => { reviewing = {action:'suggestion',id:row.id}; $('reviewText').textContent = row.review; $('review').hidden = false; $('reviewConfirm').focus(); };
+        button.onclick = () => { if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} reviewing = {action:'suggestion',id:row.id}; $('reviewText').textContent = row.review; $('review').hidden = false; $('reviewConfirm').focus(); };
         $('suggestions').append(button);
       }
     }
     $('reviewConfirm').disabled = !!value.busy;
-    busy = !!value.busy;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !busy || value.canCancel===false; $('retry').hidden = !value.retry || busy;
+    busy = !!value.busy;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !busy || value.canCancel===false; $('retry').hidden = !value.retry || busy;
     $('scope').value = value.scope || 'watched';
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}
       showStatus(value.receipt.message||'',!value.receipt.accepted);pending=null;$('send').disabled=busy||!!value.blocked;
     }
     if(value.blocked&&!pending){$('delivery').dataset.blocked='true';showStatus(t('Another task is running. Your question stays in the draft.','Başka bir iş çalışıyor. Sorun taslakta kalır.'));}else if(!value.blocked&&$('delivery').dataset.blocked==='true'){$('delivery').dataset.blocked='false';if(!value.receipt?.message)showStatus('');}
-    const key = JSON.stringify([value.locale, value.conversation, value.messages]);
+    const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
     const log = $('log'), previousScroll=log.scrollTop,bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
     log.replaceChildren();
-    if (!value.messages?.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = t('Ask about your video, subtitles, translation or the current page.', 'Video, altyazı, çeviri veya bulunduğun sayfa hakkında sor.'); log.append(empty); }
+    if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const eyebrow=document.createElement('small'),heading=document.createElement('h2'),detail=document.createElement('p');eyebrow.textContent=t('YOUR SOURCE, IN FOCUS','KAYNAĞIN, ODAKTA');heading.textContent=value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(eyebrow,heading,detail);log.append(empty); }
     for (const row of value.messages || []) {
-      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
+      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;const role=document.createElement('span');role.className='message-role';role.textContent=row.role==='user'?t('YOU','SEN'):t('ASSISTANT','ASİSTAN');node.append(role);renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
       const actions=document.createElement('div');actions.className='message-actions';
       const addAction=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;actions.append(b);return b;};
       addAction(t('Copy','Kopyala'),()=>action('copy',row.text));
@@ -111,5 +111,6 @@
   $('threadSettings').onclick=()=>{$('threadEditor').hidden=!$('threadEditor').hidden;$('threadSettings').setAttribute('aria-expanded',String(!$('threadEditor').hidden));};
   $('renameThread').onclick=()=>action('rename-thread',$('threadName').value);
   $('deleteThread').onclick=()=>{reviewing={action:'delete-thread'};$('reviewText').textContent=snapshot.locale==='tr'?'Bu sohbet kalıcı olarak silinecek. Diğer sohbetler ve sabitlenen notlar korunur.':'This conversation will be permanently deleted. Other chats and pinned notes are kept.';$('review').hidden=false;};
+  document.addEventListener('click',event=>{if(!$('conversationMenu').contains(event.target))$('conversationMenu').open=false;});
   action('ready');
 })();

@@ -7423,7 +7423,10 @@ async function startBrowserPageTranslation(tab, options = {}) {
   // sonuçlanmasını bekle. Gezinme başında enstrümantasyon fail-closed olarak
   // askıdadır; aksi halde otomatik çeviri Cloudflare kontrolünden önce DOM'a
   // müdahale edip korumayı yeniden tetikleyebilir.
+  const startGeneration=tab.generation;
+  const cancelled=()=>tab.generation!==startGeneration||(options.startEpoch!==undefined&&options.startEpoch!==tab.pageStartEpoch);
   const safety = await prepareBrowserPageInstrumentation(tab);
+  if(cancelled())return {ok:false,stale:true,error:'Sayfa çevirisi isteği iptal edildi veya kaynak değişti.'};
   if (safety.compatibilityMode || tab.compatibilityMode) {
     return { ok: false, error: 'Bu sekmede uyumluluk modu açık. Sayfa çevirisi için önce uyumluluk modunu kapatın.' };
   }
@@ -7443,6 +7446,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
   }
   if (!config.apiKey) return { ok: false, error: 'Sayfa çevirisi için Ayarlar bölümünde bir çeviri API anahtarı gerekli.' };
   if (!options.incremental) await stopBrowserPageTranslation(tab, true);
+  if(cancelled())return {ok:false,stale:true,error:'Sayfa çevirisi isteği iptal edildi veya kaynak değişti.'};
   const session = options.session || tab.pageTranslateSession || {
     generation: tab.generation,
     config,
@@ -16993,7 +16997,9 @@ ipcMain.handle('browser:page:start', async (event, request) => {
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi zaten çalışıyor.' };
   try {
+    const startEpoch=tab.pageStartEpoch=(Number(tab.pageStartEpoch)||0)+1;
     return await startBrowserPageTranslation(tab, {
+      startEpoch,
       targetLanguage: request?.targetLanguage,
       mode: request?.mode,
       workers: request?.workers,
@@ -17066,9 +17072,11 @@ ipcMain.handle('browser:page:context', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request?.tabId);
   if (!tab || !tab.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  const generation=tab.generation, pageUrl=tab.view.webContents.getURL();
   const [result] = await executeBrowserTrustedMain(tab.view, pageContextScript({ maxBlocks: 80, maxCharacters: 14000 })).catch(() => []);
+  if(tab.generation!==generation||!tab.view||tab.view.webContents.isDestroyed()||tab.view.webContents.getURL()!==pageUrl)return {ok:false,stale:true,error:'Sayfa bağlamı okunurken kaynak değişti.'};
   if (!result?.ok) return { ok: false, stale: true, error: 'Sayfa bağlamı okunamadı.' };
-  return { ok: true, ...result };
+  return { ok: true, ...result, translationLanguage:tab.pageTranslateSession?.config?.targetLanguage||'' };
 });
 
 ipcMain.handle('browser:page:reveal', async (event, request) => {
@@ -17234,6 +17242,7 @@ ipcMain.handle('browser:page:clear', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request?.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
+  tab.pageStartEpoch=(Number(tab.pageStartEpoch)||0)+1;
   await stopBrowserPageTranslation(tab, true);
   if (request?.clearMemory === true) await executeBrowserTrustedMain(tab.view, pageMemoryClearScript()).catch(() => []);
   sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'idle', translated: 0, visible: false, completion: null });

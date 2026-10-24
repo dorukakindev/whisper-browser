@@ -55,3 +55,7 @@ test('Thread creation acknowledgement, branch controls, source cards and safe st
   ui.$('newThread').click();assert.equal(ui.commands.at(-1).action,'new-thread');
  }finally{ui.dom.window.close();}
 });
+
+test('Conversation tools stay discoverable by keyboard; Escape closes tools before the assistant',()=>{
+ const ui=overlay();try{ui.snapshot({locale:'tr'});assert.equal(ui.$('threads').options[0].textContent,'İlk sohbet');ui.snapshot({pageContext:true,transcriptScope:false,suggestions:[{id:'page',label:'Translate page',direct:true}]});ui.$('bubble').click();ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true}));assert(ui.$('conversationMenu').open);assert.equal(ui.w.document.activeElement,ui.$('find'));ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(!ui.$('conversationMenu').open);assert(!ui.$('panel').hidden);ui.$('suggestions').querySelector('button').click();assert.equal(ui.commands.at(-1).action,'suggestion');assert(ui.$('review').hidden);assert.match(ui.$('log').textContent,/Read. Understand. Explore/);}finally{ui.w.close();}
+});

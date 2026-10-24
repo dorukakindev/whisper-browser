@@ -13,8 +13,11 @@
     timer = setTimeout(() => {
       const tr = window.UiLocale?.get?.() === 'tr';
       const global = globalAssistantContext();
+      const pageContext=!global&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
+      const transcriptScope=!global&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
+      const pageTask=window.AssistantPageCommands?.status();
       const context = global ? (global.title || global.heading || (global.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
-        : ($('playerTitle')?.textContent || (tr ? 'Açık video / sayfa' : 'Current video / page'));
+        : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
       const scope = aiSourceScope(),workspace=window.AssistantWorkspace?.snapshot(),threadId=workspace?.current?.id||'';
       const pinScope=global?JSON.stringify(['global',global.workspace,global.page,global.id,global.chapter]):JSON.stringify([player.workspaceMode,player.mediaKey]);
@@ -25,14 +28,15 @@
       const summary = selection?.workspace === 'media-selection'
         ? (tr ? 'Verilen yapım bilgilerini veya bölüm alıntısını özetle. Eserin tamamını okuduğunu ya da izlediğini iddia etme.' : 'Summarize only the provided metadata or chapter excerpt. Do not claim to have read or watched the full work.')
         : (tr ? 'Sağlanan altyazı veya sayfa bağlamını kısaca özetle; eksik kaynağı açıkça belirt.' : 'Briefly summarize the supplied subtitle or page context. State when source material is missing.');
-      const entries = [{ kind:'summary', label:tr?'Kaynağı özetle':'Summarize source', prompt:summary },
+      const entries = [{ kind:'summary', label:pageContext?(tr?'Sayfayı özetle':'Summarize page'):(tr?'Kaynağı özetle':'Summarize source'), prompt:summary },
+        ...(pageContext?[{kind:'page-translate',label:tr?'Sayfayı Türkçeye çevir':'Translate page to Turkish',prompt:'Bu sayfayı Türkçeye çevir.'}]:[]),
         {kind:'explain',label:tr?'Daha anlaşılır açıkla':'Explain clearly',prompt:tr?'Yalnız sağlanan bağlamı sade ve anlaşılır Türkçeyle açıkla. Videoda altyazı varsa seçili kapsam içindeki konuşmayı esas al. Eksik kanıtı belirt; eser hakkında bilgi uydurma.':'Explain only the supplied context in clear language. For a captioned video use the selected transcript scope. State missing evidence; do not invent knowledge of the work.'},
-        ...(!global?[{kind:'translation',label:tr?'Çeviriyi değerlendir':'Review translation',prompt:tr?'Yalnız sağlanan kaynak ve çeviri altyazılarını karşılaştır. Anlam kaybı, özel ad ve sayı sorunlarını örnekleriyle belirt. Yeterli eşleşen satır yoksa açıkça söyle. Dosyaları değiştirme; önerilerini açıkla.':'Compare only the supplied source and translated subtitles. Explain meaning loss, proper-name and numeric issues with examples. State when matching evidence is insufficient. Do not modify files; explain suggested improvements.'}]:[]),
-        ...(selection?.workspace === 'media-selection' ? [] : [{ kind:'voice', label:tr?'Seslendirme hazırla':'Prepare voice' }]), { kind:'tasks', label:tr?'İşlem merkezi':'Activity' }];
+        ...(transcriptScope?[{kind:'translation',label:tr?'Çeviriyi değerlendir':'Review translation',prompt:tr?'Yalnız sağlanan kaynak ve çeviri altyazılarını karşılaştır. Anlam kaybı, özel ad ve sayı sorunlarını örnekleriyle belirt. Yeterli eşleşen satır yoksa açıkça söyle. Dosyaları değiştirme; önerilerini açıkla.':'Compare only the supplied source and translated subtitles. Explain meaning loss, proper-name and numeric issues with examples. State when matching evidence is insufficient. Do not modify files; explain suggested improvements.'}]:[]),
+        ...(!global&&!pageContext?[{ kind:'voice', label:tr?'Seslendirme hazırla':'Prepare voice' }]:[]), ...(!pageContext?[{ kind:'tasks', label:tr?'İşlem merkezi':'Activity' }]:[])];
       const specs = entries.map(row => {
         const id = `${suggestionSequence}:${row.kind}`;
         suggestions.set(id, { ...row, scope });
-        return { id, label:row.label, review: `${tr?'Kaynak':'Source'}: ${context}\n${['summary','explain','translation'].includes(row.kind) ? `${tr?'Model':'Model'}: ${opts.translateModel || opts.llmModel || (tr?'Mevcut AI ayarı':'Current AI setting')}\n${tr?'Seçili bağlam mevcut sağlayıcıya gönderilir.':'Selected context will be sent to your current provider.'}` : row.kind==='voice' ? (tr?'Mevcut ses penceresi açılır. SRT, referans ses ve zaman aralığını incelemeden üretim başlamaz.':'Opens the existing voice window. Review SRT, reference and time range before starting production.') : (tr?'Çalışan işleri ve kontrollerini gösterir; iş başlatmaz.':'Shows existing jobs and controls; does not start a job.')}` };
+        return { id, label:row.label, direct:['summary','explain','page-translate'].includes(row.kind), review: `${tr?'Kaynak':'Source'}: ${context}\n${['summary','explain','translation'].includes(row.kind) ? `${tr?'Model':'Model'}: ${opts.translateModel || opts.llmModel || (tr?'Mevcut AI ayarı':'Current AI setting')}\n${tr?'Seçili bağlam mevcut sağlayıcıya gönderilir.':'Selected context will be sent to your current provider.'}` : row.kind==='voice' ? (tr?'Mevcut ses penceresi açılır. SRT, referans ses ve zaman aralığını incelemeden üretim başlamaz.':'Opens the existing voice window. Review SRT, reference and time range before starting production.') : (tr?'Çalışan işleri ve kontrollerini gösterir; iş başlatmaz.':'Shows existing jobs and controls; does not start a job.')}` };
       });
       proposedActions.clear();
       function decorate(row){
@@ -48,13 +52,13 @@
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:opts.translateModel||opts.llmModel||'',
-        transcriptScope:!global,blocked:!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
-        canCancel:!!(aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
-        sourceDescription:global ? [({'book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[global.type]||(global.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),global.chapter||'',global.excerpt||global.synopsis||global.note||'',tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (tr?'Açık video veya sayfa. Altyazı kapsamını aşağıdan seçebilirsin. Sayfa metni soru gönderilirken alınır; bu panel görüntüden video analizi yapmaz.':'Current video or page. Choose the subtitle scope below. Page text is collected when sending a question; this panel does not analyze video pixels.'),
+        pageContext,transcriptScope,blocked:!!(window.AssistantPageCommands?.busy()&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
+        canCancel:!!(pageTask || aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
+        sourceDescription:global ? [({'book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[global.type]||(global.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),global.chapter||'',global.excerpt||global.synopsis||global.note||'',tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
         // Pins are read-only notes; unlike live job scopes they survive source generations.
-        conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
+        conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!pageTask || !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         retry: !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: messages,
       });
@@ -62,11 +66,15 @@
   }
   async function sendQuestion(packet){
     const before=new Set(document.querySelectorAll('#aiChatLog .ai-msg'));
+    const source=aiSourceScope();
+    const acceptedNow=()=>{if(source!==aiSourceScope())return;const added=[...document.querySelectorAll('#aiChatLog .ai-msg-user')].filter(node=>!before.has(node)&&node._sourceScope===source);if(added.some(node=>node.textContent===String(packet.text||'').trim())){receipt={id:packet.requestId,accepted:true,message:''};publish();}};
+    const observer=new MutationObserver(acceptedNow);observer.observe($('aiChatLog'),{childList:true,subtree:true});
     try{await aiChatSend(String(packet.text||'').slice(0,16000));
       const added=[...document.querySelectorAll('#aiChatLog .ai-msg')].filter(node=>!before.has(node)&&node._sourceScope===aiSourceScope());
       const accepted=added.some(node=>node.classList.contains('ai-msg-user')&&node.textContent===String(packet.text||'').trim());
       receipt={id:packet.requestId,accepted,message:accepted?'':(added.find(node=>node.classList.contains('ai-msg-err'))?.textContent || (window.UiLocale?.get?.()==='tr'?'Soru gönderilemedi. Metnin korundu; sağlayıcı ayarını veya çalışan işleri kontrol et.':'The question was not sent. Your draft is kept; check provider settings or running tasks.'))};
     }catch(error){receipt={id:packet.requestId,accepted:false,message:error.message};}
+    finally{observer.disconnect();}
     publish();
   }
   async function applyProposal(proposal){
@@ -85,10 +93,10 @@
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if (packet.action === 'send') void sendQuestion(packet);
-    else if (packet.action === 'cancel') {if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
+    else if (packet.action === 'cancel') {if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') {
-      if(aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
+      if(window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
       for(const node of document.querySelectorAll('#aiChatLog .ai-msg'))if(node._sourceScope===aiSourceScope())node.remove();
       if(player.chatHistoryScope===aiSourceScope()){player.chatHistory=[];player.chatHistoryScope=null;}
       if(aiChatRetryPacket?.scope===aiSourceScope())aiChatRetryPacket=null;
@@ -100,7 +108,7 @@
     else if (packet.action === 'suggestion') {
       const row = suggestions.get(packet.text);
       if (row?.scope !== aiSourceScope()) { publish(); return; }
-      if (['summary','explain','translation'].includes(row.kind)) void aiChatSend(row.prompt);
+      if (['summary','explain','translation','page-translate'].includes(row.kind)) void aiChatSend(row.prompt);
       else if (row.kind === 'voice') window.MediaExperience?.openVoice();
       else if (row.kind === 'tasks') window.MediaExperience?.openTasks();
     }
@@ -119,5 +127,7 @@
   document.addEventListener('ui-locale-change', publish);
   document.addEventListener('media-context-changed', publish);
   document.addEventListener('assistant-workspace-changed',publish);
+  document.addEventListener('assistant-page-task-changed',publish);
+  document.addEventListener('browser-page-translation-changed',publish);
   publish();
 })();
