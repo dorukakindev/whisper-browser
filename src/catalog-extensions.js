@@ -17,17 +17,18 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
     if (!row || row.sender !== event.sender.id || row.type !== type || Date.now() - row.created > 900000) throw new Error('Önizleme sona erdi; yeniden başlatın.');
     return row;
   }
-  return async function handle(event, input) {
+  return async function handle(event, input, context = {}) {
+    const signal=context.signal;signal?.throwIfAborted();
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
       case 'metadata-complete-missing':{
-        const current=item();if(current.posterPath&&current.synopsis&&current.genres?.length)return {ok:true,skipped:true,item:visible(current)};
+        const current=item(),hasPoster=!!current.posterPath&&fs.existsSync(current.posterPath);if(hasPoster&&current.synopsis&&current.genres?.length&&current.directors?.length&&current.runtime)return {ok:true,skipped:true,item:visible(current)};
         const credential=metadataSettings().apiKey;if(!credential)throw new Error('Önce Ayarlar → Film bilgileri ve afişler bölümüne TMDB anahtarını kaydedin.');
-        const providerId=await client.resolve(current,credential);
+        const providerId=await client.resolve(current,credential,{automatic:context.automatic===true,signal});
         if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');
-        const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential});
-        const fields=['synopsis','genres','cast','runtime','originalTitle','year'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!current.posterPath)fields.push('poster');
-        return handle(event,{action:'metadata-apply',token:preview.token,fields});
+        const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential},context);
+        const fields=['synopsis','genres','cast','runtime','originalTitle','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!hasPoster)fields.push('poster');
+        return handle(event,{action:'metadata-apply',token:preview.token,fields},context);
       }
       case 'folder-preview': {
         const choice = await dialog.showOpenDialog(owner(), { title: dl('Film ve dizi klasörünü seç', 'Choose a movies & series folder'), properties: ['openDirectory'] });
@@ -48,7 +49,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
       }
       case 'metadata-search': return { ok: true, results: await client.search(item(), (input.credential||metadataSettings().apiKey), input.query) };
       case 'metadata-preview': {
-        const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey));
+        const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey),signal);
         return { ok: true, ...data, token: remember(event, { type: 'metadata', id: current.id, before: JSON.stringify(current), ...data }) };
       }
       case 'metadata-apply': {
@@ -56,9 +57,9 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (JSON.stringify(current) !== data.before) throw new Error('Eser önizleme sırasında değişti; yeniden eşleştirin.');
         const fields = Array.isArray(input.fields) ? input.fields : [];
         const patch = { id: current.id, tmdbId: data.patch.tmdbId };
-        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime']) if (fields.includes(key)) patch[key] = data.patch[key];
+        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key)) patch[key] = data.patch[key];
         if (fields.includes('poster') && data.poster) {
-          const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: AbortSignal.timeout(20000), redirect: 'error' });
+          const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000), redirect: 'error' });
           if (!response.ok) throw new Error('Afiş indirilemedi; seçimi kaldırıp yeniden deneyin.');
           const buffer = await readLimitedBytes(response, 8e6, 'Afiş');
           const image = nativeImage.createFromBuffer(buffer); if (image.isEmpty()) throw new Error('Afiş biçimi geçersiz.');
@@ -68,6 +69,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           atomicWriteFileSync(patch.posterPath, image.resize({ width: 500 }).toPNG());
         }
         try {
+          signal?.throwIfAborted();
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
           const previousPoster = current.posterPath;
           const saved = store().upsert(patch);

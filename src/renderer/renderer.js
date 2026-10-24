@@ -3228,6 +3228,7 @@ async function saveAppSettings() {
   for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey']) {
     if ($(id)) $(id).dataset.secretEdited = 'false';
   }
+  document.dispatchEvent(new Event('metadata-settings-saved'));
   return true;
 }
 

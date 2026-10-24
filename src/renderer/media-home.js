@@ -180,7 +180,7 @@
     return node;
   }
   function card(item) {
-    const node = button('', () => item.key ? playWatch(item) : catalog({ id: item.id }), 'mh-card');
+    const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card');
     node.dataset.homeItem = item.key || item.id;
     node.title = String(item.title || t('Untitled', 'Başlıksız'));
     node.append(art(item, 'mh-art'), el('span', 'mh-card-title', node.title));
@@ -253,7 +253,7 @@
         el('p', '', featured ? (featured.synopsis || (model.progress(featured).position ? t(`Continue from ${minutes(model.progress(featured).position)}. Subtitles and voice tools are ready in the player.`, `${minutes(model.progress(featured).position)} konumundan devam et. Altyazı ve ses araçların oynatıcıda hazır.`) : t('Open this title from your library.', 'Kütüphanendeki bu yapımı aç.'))) : t('Your films, series and listening, together. Add your media or open a video in the browser.', 'Filmlerin, dizilerin ve dinlediklerin bir arada. Medyanı ekle veya browserda bir video aç.')));
       const actions = el('div', 'mh-actions');
       actions.append(button(featured ? (model.progress(featured).resume ? t('Continue watching', 'İzlemeye devam et') : t('Open', 'Aç')) : t('Open a file', 'Dosya aç'), () => featured ? play(featured) : click('playerPickVideo'), 'mh-action mh-primary'),
-        button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => catalog(featured?.id ? { id: featured.id } : { mode: 'folder' })));
+        button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => featured?.id ? window.MediaTitleUI.open(featured.id) : catalog({mode:'folder'})));
       copy.append(actions); if (featured && model.progress(featured).duration) copy.append(progress(featured));
       hero.append(copy, art(featured, 'mh-hero-art')); content.append(hero);
       if (continuing.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), continuing, { wide: true, more: () => page('recent') }));
@@ -325,10 +325,11 @@
     let searchTimer;
     search.addEventListener('input', () => { state.query = search.value; state.limit = 48; clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); }); searchWrap.append(search); nav.append(searchWrap);
     const content = el('main', 'mh-content'); content.id = 'mhContent';
-    header.append(brand, modes, nav, actions); host.append(header, content); renderContent();
+    header.append(brand, modes, nav, actions); const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();
   }
-  async function refresh() {
+  async function refresh({metadata=true}={}) {
+    const scroll=host.scrollTop;
     const request = ++state.request;
     const results = await Promise.allSettled([
       Promise.resolve().then(() => window.api.mediaCatalog({ action: 'list' })),
@@ -340,8 +341,36 @@
     state.error = catalogResult?.ok && history ? '' : t('Some library data could not be loaded. Open the library to retry.', 'Bazı kütüphane verileri yüklenemedi. Yeniden denemek için kütüphaneyi açın.');
     state.data = model.snapshot(catalogResult?.ok ? catalogResult.items : state.data.items, history || state.data.watch);
     state.loaded = true;
-    if (state.active) renderContent();
+    if (state.active) {renderContent();host.scrollTop=scroll;}
+    if(metadata)void initialSettingsReady.then(()=>syncMetadata('start'));
   }
+  let metadataState={},metadataTimer,metadataBusy=false,metadataPending='',metadataVersion=0;
+  function drawMetadata(target){
+    if(!target)return;target.replaceChildren();const job=metadataState;
+    target.hidden=!job.configured||(!job.running&&!job.total&&!job.issue);
+    if(target.hidden)return;
+    const text=el('div');const message=job.running?t(`Updating film information · ${job.done}/${job.total}`,`Film bilgileri güncelleniyor · ${job.done}/${job.total}`):job.stopped?t('Artwork update stopped','Afiş güncellemesi durduruldu'):t(`${job.updated||0} titles updated`,`${job.updated||0} yapım güncellendi`);
+    const detail=job.issue==='auth'?t('TMDB credential rejected. Check Settings.','TMDB anahtarı reddedildi. Ayarları kontrol et.'):job.issue==='rate'?t('TMDB rate limit reached. Retry later.','TMDB istek sınırı. Daha sonra yeniden dene.'):job.running?job.current:job.unmatched?t(`${job.unmatched} titles need manual matching.`,`${job.unmatched} yapım elle eşleştirilmeli.`):job.failed?t(`${job.failed} could not be retrieved. Retry when connected.`,`${job.failed} yapım alınamadı. Bağlantını kontrol edip yeniden dene.`):t('Your ratings and watch progress were kept.','Kişisel puanların ve izleme ilerlemen korundu.');
+    const combined=!job.running&&job.issue!=='auth'&&job.issue!=='rate'?[job.unmatched?t(`${job.unmatched} need manual matching.`,`${job.unmatched} yapım elle eşleştirilmeli.`):'',job.failed?t(`${job.failed} could not be retrieved.`,`${job.failed} yapım alınamadı.`):'',job.noPoster?t(`${job.noPoster} have no TMDB poster.`,`${job.noPoster} yapımın TMDB afişi yok.`):''].filter(Boolean).join(' '):'';
+    text.append(el('strong','',message),el('small','',combined||detail||''));text.setAttribute('role','status');target.append(text);
+    if(job.running){const progress=el('progress');progress.max=job.total;progress.value=job.done;progress.setAttribute('aria-label',message);target.append(progress,button(t('Stop','Durdur'),()=>syncMetadata('cancel')));}
+    else target.append(button(t('Refresh missing info','Eksik bilgileri yenile'),()=>syncMetadata('retry')));
+    if(job.unmatched||job.issue==='auth')target.append(button(t('Review matches','Eşleşmeleri incele'),()=>window.AppSettingsUI.open('metadata')));
+  }
+  async function syncMetadata(mode='status'){
+    if(metadataBusy){if(mode!=='status')metadataPending=mode;return;}
+    metadataBusy=true;clearTimeout(metadataTimer);
+    try{
+      const result=await window.api.mediaCatalog({action:'metadata-sync',mode:mode==='retry'?'start':mode,retry:mode==='retry'});
+      if(!result?.ok)return;metadataState=result;drawMetadata(document.getElementById('mhMetadataStatus'));
+      document.dispatchEvent(new CustomEvent('metadata-job-change',{detail:result}));
+      if(result.version!==metadataVersion){metadataVersion=result.version;posters.clear();document.dispatchEvent(new Event('media-metadata-updated'));await refresh({metadata:false});}
+      if(result.running)metadataTimer=setTimeout(()=>void syncMetadata(),1200);
+    }catch{ /* Other library operations remain usable while offline. */ }
+    finally{metadataBusy=false;if(metadataPending){const pending=metadataPending;metadataPending='';void syncMetadata(pending);}}
+  }
+  window.MetadataArtworkUI=Object.freeze({status:()=>({...metadataState}),draw:drawMetadata,start:()=>syncMetadata('retry'),stop:()=>syncMetadata('cancel')});
+  document.addEventListener('metadata-settings-saved',()=>void syncMetadata('start'));
   document.getElementById('mediaHomeBack')?.addEventListener('click', () => void perform(returnHome));
   document.getElementById('browserMediaHome')?.addEventListener('click', () => void perform(returnHome));
   document.getElementById('mediaCatalogDialog')?.addEventListener('close', () => { posters.clear(); if (state.active) void refresh(); });

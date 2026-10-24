@@ -30,7 +30,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   function visible(item, history = watchItems()) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    return { ...row, hasPoster: !!posterPath, progress: progress(row.source, history),
+    return { ...row, hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(row.source, history),
       episodes: (row.episodes || []).map(ep => ({ ...ep, progress: progress(ep.source, history) })) };
   }
   function found(id) {
@@ -50,16 +50,16 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     const result = await dialog.showOpenDialog(owner(), { title: label, properties: ['openFile'], filters: [{ name: label, extensions }] });
     return result.canceled ? null : result.filePaths?.[0] || null;
   }
-  function imageFor(filePath) {
+  function imageFor(filePath, width = 240) {
     if (!filePath) return '';
     try {
       const real = fs.realpathSync(filePath), stat = fs.statSync(real);
       if (!stat.isFile() || stat.size > 8 * 1024 * 1024 || !/\.(png|jpe?g|webp|avif)$/i.test(real)) return '';
-      const key = `${real}|${stat.mtimeMs}|${stat.size}`;
+      const key = `${real}|${stat.mtimeMs}|${stat.size}|${width}`;
       if (posterCache.has(key)) return posterCache.get(key);
       const img = nativeImage.createFromPath(real);
       if (img.isEmpty()) return '';
-      const image = img.resize({ width: 240, quality: 'good' }).toDataURL();
+      const image = img.resize({ width, quality: 'good' }).toDataURL();
       if (image.length > 2 * 1024 * 1024) return '';
       posterCache.set(key, image);
       if (posterCache.size > 100) posterCache.delete(posterCache.keys().next().value);
@@ -82,10 +82,24 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
   const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText, metadataSettings });
+  const metadataSync = require('./catalog-metadata-sync').createMetadataSync({store,settings:metadataSettings,userData,
+    complete:(id,signal)=>extension({sender:{id:-1}},{action:'metadata-complete-missing',id},{automatic:true,signal})});
+  const backgrounds=new Map();
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};
     try {
+      if(input.action==='metadata-sync')return {ok:true,...(input.mode==='cancel'?metadataSync.cancel():input.mode==='status'?metadataSync.snapshot():metadataSync.start({retry:input.retry===true}))};
+      if(input.action==='backdrop'){
+        const item=found(input.id);if(!item.backdrop)return {ok:true,image:''};
+        if(backgrounds.has(item.backdrop))return {ok:true,image:backgrounds.get(item.backdrop)};
+        const response=await fetch('https://image.tmdb.org/t/p/w1280'+item.backdrop,{signal:AbortSignal.timeout(20000),redirect:'error'});
+        if(!response.ok)throw Error('Arka plan görseli alınamadı.');
+        const buffer=await require('./catalog-discovery').readLimitedBytes(response,8e6,'Görsel');
+        const image=nativeImage.createFromBuffer(buffer);if(image.isEmpty())throw Error('Görsel biçimi geçersiz.');
+        const data=image.resize({width:1280}).toDataURL();backgrounds.set(item.backdrop,data);while(backgrounds.size>8)backgrounds.delete(backgrounds.keys().next().value);
+        return {ok:true,image:data};
+      }
       const extra = await extension(event, input); if (extra) return extra;
       switch (input.action) {
         case 'list': {
@@ -145,7 +159,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           }
           catch (error) { fs.unlinkSync(target); throw error; }
         }
-        case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath) };
+        case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath,input.large===true?500:240) };
         case 'play': {
           const item = found(input.id);
           const episode = input.episodeId ? item.episodes.find(ep => ep.id === input.episodeId) : null;
@@ -216,6 +230,6 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       return { ok: false, error: message };
     }
   });
-  return {store};
+  return {store,metadataSync};
 }
 module.exports = { registerMediaCatalogService };
