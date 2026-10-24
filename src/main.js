@@ -8997,36 +8997,49 @@ async function applyBrowserYoutubeStyle(tab, options = {}) {
   if (!wc || wc.isDestroyed()) return { ok: false, error: 'Tarayıcı sayfası bulunamadı.' };
   const requestSeq = (Number(tab.youtubeStyleRequestSeq) || 0) + 1;
   tab.youtubeStyleRequestSeq = requestSeq;
-  const appearance = options?.appearance !== false;
-  const hideShorts = options?.hideShorts !== false;
-  const signature = `${appearance ? '1' : '0'}:${hideShorts ? '1' : '0'}`;
-  const enabled = isYoutubePageUrl(wc.getURL()) && (appearance || hideShorts);
-  if (enabled && tab.youtubeStyleCssKey && tab.youtubeStyleGeneration === tab.generation
-      && tab.youtubeStyleSignature === signature) {
-    return { ok: true, enabled: true, unchanged: true };
-  }
-  if (tab.youtubeStyleCssKey) {
-    await wc.removeInsertedCSS(tab.youtubeStyleCssKey).catch(() => {});
-    tab.youtubeStyleCssKey = '';
-  }
-  tab.youtubeStyleGeneration = -1;
-  tab.youtubeStyleSignature = '';
-  if (!enabled) return { ok: true, enabled: false };
   const generation = tab.generation;
+  // A replacement must finish removing its old sheet before another one can install.
+  const previous = tab.youtubeStylePending || Promise.resolve();
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  tab.youtubeStylePending = pending;
+  await previous.catch(() => {});
   try {
-    const key = await wc.insertCSS(youtubeStyleCss({ appearance, hideShorts }), { cssOrigin: 'user' });
-    if (tab.youtubeStyleRequestSeq !== requestSeq || tab.generation !== generation
-        || tab.view?.webContents !== wc || wc.isDestroyed() || !isYoutubePageUrl(wc.getURL())) {
-      await wc.removeInsertedCSS(key).catch(() => {});
-      return { ok: false, stale: true, error: 'Sayfa değiştiği için eski YouTube görünümü kaldırıldı.' };
+    if(tab.youtubeStyleRequestSeq !== requestSeq || tab.generation !== generation || tab.view?.webContents !== wc || wc.isDestroyed())return {ok:false,stale:true};
+    const appearance = options?.appearance !== false;
+    const hideShorts = options?.hideShorts !== false;
+    const theme = options?.theme === 'light' ? 'light' : 'dark';
+    const signature = `${appearance ? '1' : '0'}:${hideShorts ? '1' : '0'}:${theme}`;
+    const enabled = isYoutubePageUrl(wc.getURL()) && (appearance || hideShorts);
+    if (enabled && tab.youtubeStyleCssKey && tab.youtubeStyleGeneration === tab.generation
+        && tab.youtubeStyleSignature === signature) {
+      return { ok: true, enabled: true, unchanged: true };
     }
-    tab.youtubeStyleCssKey = key;
-    tab.youtubeStyleGeneration = generation;
-    tab.youtubeStyleSignature = signature;
-    return { ok: true, enabled: true };
-  } catch (error) {
-    return { ok: false, error: `YouTube görünümü uygulanamadı: ${error.message}` };
-  }
+    if (tab.youtubeStyleCssKey) {
+      const oldKey = tab.youtubeStyleCssKey;
+      tab.youtubeStyleCssKey = '';
+      await wc.removeInsertedCSS(oldKey).catch(() => {});
+    }
+    tab.youtubeStyleGeneration = -1;
+    tab.youtubeStyleSignature = '';
+    if (!enabled) return { ok: true, enabled: false };
+    try {
+      // This Electron build leaves user-origin rules effective after removeInsertedCSS.
+      // Author origin + scoped !important declarations remains removable (real smoke).
+      const key = await wc.insertCSS(youtubeStyleCss({ appearance, hideShorts, theme }), { cssOrigin: 'author' });
+      if (tab.youtubeStyleRequestSeq !== requestSeq || tab.generation !== generation
+          || tab.view?.webContents !== wc || wc.isDestroyed() || !isYoutubePageUrl(wc.getURL())) {
+        await wc.removeInsertedCSS(key).catch(() => {});
+        return { ok: false, stale: true, error: 'Sayfa değiştiği için eski YouTube görünümü kaldırıldı.' };
+      }
+      tab.youtubeStyleCssKey = key;
+      tab.youtubeStyleGeneration = generation;
+      tab.youtubeStyleSignature = signature;
+      return { ok: true, enabled: true };
+    } catch (error) {
+      return { ok: false, error: `YouTube görünümü uygulanamadı: ${error.message}` };
+    }
+  } finally { release(); if(tab.youtubeStylePending === pending)tab.youtubeStylePending = null; }
 }
 // B10 — kullanıcı onaylı kozmetik gizleme kuralları: kaynak başına kalıcı
 // seçiciler, her yükleme sonrası yeniden uygulanır. Geçici seçim gizlemesi

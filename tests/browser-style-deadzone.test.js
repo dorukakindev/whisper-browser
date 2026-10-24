@@ -178,7 +178,7 @@ async function t_youtube_style() {
   ctx.__tab = tab;
   r = await vm.runInContext('applyBrowserYoutubeStyle(__tab, {appearance:true, hideShorts:true})', ctx);
   assert.strictEqual(r.enabled, true);
-  assert.strictEqual(tab.youtubeStyleSignature, '1:1');
+  assert.strictEqual(tab.youtubeStyleSignature, '1:1:dark');
   calls.css.length = 0;
   r = await vm.runInContext('applyBrowserYoutubeStyle(__tab, {appearance:true, hideShorts:true})', ctx);
   assert.strictEqual(r.unchanged, true, 'aynı signature tekrar CSS kurdu');
@@ -186,7 +186,10 @@ async function t_youtube_style() {
   // signature değişti → eski kaldırılır
   r = await vm.runInContext('applyBrowserYoutubeStyle(__tab, {appearance:true, hideShorts:false})', ctx);
   assert.strictEqual(calls.removedCss[0], 'yk-1');
-  assert.strictEqual(tab.youtubeStyleSignature, '1:0');
+  assert.strictEqual(tab.youtubeStyleSignature, '1:0:dark');
+  r = await vm.runInContext('applyBrowserYoutubeStyle(__tab, {appearance:true, hideShorts:false, theme:"light"})', ctx);
+  assert.strictEqual(tab.youtubeStyleSignature, '1:0:light');
+  assert.strictEqual(r.enabled, true, 'theme change must reinstall the page style');
   // seq yarışı: insert sonrası seq değişirse css kaldırılıp stale döner
   const wc = mkWc('https://youtube.com/v');
   tab = { id: 't', view: { webContents: wc }, generation: 1, youtubeStyleRequestSeq: 0 };

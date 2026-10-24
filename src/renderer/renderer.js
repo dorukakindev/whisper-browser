@@ -3437,6 +3437,7 @@ function applyUiTheme(mode = $('uiTheme')?.value || 'system') {
   document.documentElement.dataset.themeMode = normalized;
   // Windows başlık şeridi (titleBarOverlay) renderer yüzeyini izlesin.
   window.api?.notifyThemeChanged?.(resolved);
+  document.dispatchEvent(new CustomEvent('ui-theme-change', {detail:{theme:resolved}}));
 }
 $('uiTheme')?.addEventListener('change', (event) => applyUiTheme(event.target.value));
 themeMedia.addEventListener?.('change', () => {
@@ -12149,6 +12150,7 @@ function scheduleBrowserYoutubeStyleSync() {
     browserCommand('page-youtube-style', {
       appearance: $('browserYoutubeAppearance')?.checked !== false,
       hideShorts: $('browserYoutubeHideShorts')?.checked !== false,
+      theme: effectiveBrowserProfile().values.darkMode === true ? 'dark' : document.documentElement.dataset.theme,
     }).then((result) => {
       if (!result?.ok && !result?.stale) setBrowserSignal(result?.error || 'YouTube görünümü uygulanamadı.', false);
     }).catch(() => {});
@@ -13359,6 +13361,7 @@ for (const id of ['browserRateFightback', 'browserPreservesPitch', 'browserNorma
 $('browserDarkMode')?.addEventListener('change', scheduleBrowserDarkModeSync);
 $('browserYoutubeAppearance')?.addEventListener('change', scheduleBrowserYoutubeStyleSync);
 $('browserYoutubeHideShorts')?.addEventListener('change', scheduleBrowserYoutubeStyleSync);
+document.addEventListener('ui-theme-change',scheduleBrowserYoutubeStyleSync);
 $('browserPageIndexEnabled')?.addEventListener('change', async (event) => {
   const requested = event.target.checked === true;
   const result = await window.api.setBrowserPageIndexEnabled?.(requested)
