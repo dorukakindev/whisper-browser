@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_533.md](BROWSER_BUG_REPORT_533.md) — Ana sayfadan ortak API ve uygulama Ayarları.
+
 - [BROWSER_BUG_REPORT_532.md](BROWSER_BUG_REPORT_532.md) — Gerçek GPT-5.4 mini değerlendirmesi, aktarılan olumsuzluk ve işlem kartı onarımları.
 
 - [BROWSER_BUG_REPORT_531.md](BROWSER_BUG_REPORT_531.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı asistan.

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-2003.md](docs/devir/2026-10-24-2003.md) — Ana sayfadan doğrudan API/sağlayıcı ve uygulama Ayarları
 Güncel çalışma: [docs/devir/2026-10-24-1950.md](docs/devir/2026-10-24-1950.md) — Gerçek GPT-5.4 mini denemesi: anlam kapsamı ve gerçek işlem kartları
 Güncel çalışma: [docs/devir/2026-10-24-1929.md](docs/devir/2026-10-24-1929.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı ortak asistan
 Güncel çalışma: [docs/devir/2026-10-24-1853.md](docs/devir/2026-10-24-1853.md) — Asistan için yedi GitHub deposunda doğrudan kod/uyarlama araştırması
