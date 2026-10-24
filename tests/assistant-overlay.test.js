@@ -30,7 +30,7 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   ipcMain.emit('assistant:action', overlay, { action: 'toggle' });
   assert(view.bounds.width > 300 && view.bounds.width < 680);
   ipcMain.emit('assistant:action', overlay, { action: 'send', text: 'question' });
-  assert.deepEqual(sent.at(-1), { channel: 'assistant:command', value: { action: 'send', text: 'question' } });
+  assert.deepEqual(sent.at(-1), { channel: 'assistant:command', value: { action: 'send', sourceToken:'',requestId:'',text: 'question' } });
   window.emit('closed');
   assert.equal(ipcMain.listenerCount('assistant:update'), 0);
   assert.equal(ipcMain.listenerCount('assistant:action'), 0);

@@ -19793,6 +19793,7 @@ function aiChatAdd(role, text, cls) {
   if (bos) bos.classList.add('hidden');
   const d = document.createElement('div');
   d.className = `ai-msg ai-msg-${role}${cls ? ' ' + cls : ''}`;
+  d._sourceScope = aiSourceScope();
   if (role === 'ai' && !cls?.includes('is-loading')) renderAiText(d, text);
   else d.textContent = text;
   log.appendChild(d);
