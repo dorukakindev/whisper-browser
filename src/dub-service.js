@@ -157,14 +157,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return name;
   }
   ipcMain.handle('dub:referenceRename', guard(async (_e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     atomicWriteFileSync(p.metadata, JSON.stringify({ ...meta, name }), { encoding: 'utf8' });
     return { ok: true, name };
   }));
   ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const entry = referenceEntry(request.id);
     const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
     if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
@@ -175,7 +175,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true };
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name, true);
     const range = rangeOption(request.range);
     if (!range || range.end - range.start < 3 || range.end - range.start > 30) throw new Error('Select 3–30 seconds.');
@@ -214,11 +214,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     } finally { if (job === s && !s.keepOwner) job = null; }
   }));
   ipcMain.handle('dub:referenceSource', guard(async () => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const selected = await dialog.showOpenDialog(owner(), { properties: ['openFile'],
       filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg', 'opus', 'aac', 'wma'] }] });
     if (selected.canceled || !selected.filePaths[0]) return { ok: true, cancelled: true };
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const file = selected.filePaths[0];
     if (!fs.statSync(file).isFile()) throw new Error('Invalid reference file.');
     grantMedia(file);
@@ -300,13 +300,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, text };
   }));
   ipcMain.handle('dub:textUI', guard(async e => {
-    if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (textUI) return { ok: true, alreadyOpen: true };
     const c = config();
     const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
     const script = path.join(__dirname, '..', 'tools', 'voxcpm2', 'text_studio.py');
     if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
-    await warmEngine.release();
+    releasingEngine=true;
+    try{await warmEngine.release();}finally{releasingEngine=false;}
     const proc = spawn(python, [script, '--engine', c.engine, '--config', configPath(),
       '--reference', c.reference, '--transcript', c.transcript, '--storage', voiceStorage(app).root],
       { cwd: path.join(__dirname, '..'), env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -371,7 +372,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           extensions: [kind === 'reference' ? 'wav' : 'txt'] }],
       });
       if (!selected.canceled && selected.filePaths[0]) {
-        if (job || textUI || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
+        if (job || textUI || releasingEngine || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');
@@ -385,7 +386,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   ipcMain.handle('dub:start', guard(async (e, request = {}) => {
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
-    if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
@@ -736,6 +737,6 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (job) emit(job, 'warning', { text: 'Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.' });
     });
   });
-  return { running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
+  return { running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
 }
 module.exports = { registerDubService };

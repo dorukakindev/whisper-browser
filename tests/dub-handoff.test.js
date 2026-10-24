@@ -1,0 +1,14 @@
+ 'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{EventEmitter}=require('node:events'),{PassThrough}=require('node:stream');
+const tick=()=>new Promise(r=>setImmediate(r));
+test('A new dub cannot take ownership while idle-engine memory is being handed to Whisper',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dub-handoff-')),engine=path.join(root,'engine'),srt=path.join(root,'sample.srt'),handlers={},hosts=[];let releaseStop,hold=false;
+ fs.mkdirSync(path.join(engine,'.venv','Scripts'),{recursive:true});for(const p of ['kitap_ortak.py','.venv/Scripts/python.exe','reference.wav','reference.txt'])fs.writeFileSync(path.join(engine,p),'fixture');fs.writeFileSync(srt,'1\n00:00:00,000 --> 00:00:02,000\nMerhaba.\n');fs.writeFileSync(path.join(root,'dub-settings.json'),JSON.stringify({engine,reference:path.join(engine,'reference.wav'),transcript:path.join(engine,'reference.txt'),autoFit:false,naturalSpeech:false,timingMode:'clip'}));
+ const app=new EventEmitter();app.getPath=()=>root;const sender=Object.assign(new EventEmitter(),{id:1,isDestroyed:()=>false,send:()=>{}});
+ const service=require('../src/dub-service').registerDubService({app,ipcMain:{handle:(name,fn)=>handlers[name]=fn},dialog:{},owner:()=>null,authorized:()=>true,authorizeSubtitle:async p=>p,environment:()=>({}),grantMedia:()=>{},busy:()=>false,spawn:()=>{const proc=Object.assign(new EventEmitter(),{pid:100+hosts.length,exitCode:null,signalCode:null,stdin:new PassThrough(),stdout:new PassThrough(),stderr:new PassThrough()});proc.stdin.on('data',b=>proc.request=JSON.parse(String(b)));hosts.push(proc);return proc;},terminate:proc=>{const finish=()=>{proc.exitCode=1;proc.emit('close',1,null);return true;};if(hold)return new Promise(resolve=>releaseStop=()=>{hold=false;resolve(finish());});return finish();}});
+ const call=(id)=>handlers['dub:start']({sender},{id,srt,keepEngine:true,timingMode:'clip',autoFit:false,naturalSpeech:false});
+ try{assert((await call('initial')).ok);await tick();let host=hosts.at(-1);host.stdout.write('DUB_WORKER_DONE '+JSON.stringify({id:host.request.id,code:1})+'\n');await tick();assert(!service.running());
+ hold=true;const handoff=service.releaseIdle();await tick();const competing=call('racing');await tick();await tick();const claimed=fs.existsSync(path.join(root,'Sesler','Girdi','racing'));
+ releaseStop();await handoff;const response=await competing;await tick();if(response.ok){host=hosts.at(-1);host.stdout.write('DUB_WORKER_DONE '+JSON.stringify({id:host.request.id,code:1})+'\n');await tick();}await service.releaseIdle();assert.equal(claimed,false,'New job wrote an input before the handoff finished');assert.equal(response.ok,false,'A competing start must be rejected during handoff');
+ }finally{hold=false;releaseStop?.();await service.releaseIdle();fs.rmSync(root,{recursive:true,force:true});}
+});

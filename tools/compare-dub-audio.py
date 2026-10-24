@@ -7,7 +7,9 @@ import numpy as np
 import soundfile as sf
 
 def describe(file):
-    audio,rate=sf.read(file,dtype='float32',always_2d=True)
+    # Python opens Unicode Windows paths reliably; pass libsndfile a file object.
+    with file.open('rb') as stream:
+        audio,rate=sf.read(stream,dtype='float32',always_2d=True)
     mono=audio.mean(axis=1)
     hop=max(1,int(rate*.02));frames=len(mono)//hop
     energy=np.sqrt(np.mean(mono[:frames*hop].reshape(frames,hop)**2,axis=1)) if frames else np.zeros(0)
