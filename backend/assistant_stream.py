@@ -148,8 +148,6 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
                 checkpoint()
                 if not getattr(chunk, "choices", None):
                     continue
-                if getattr(chunk.choices[0], "finish_reason", None) in ("length", "content_filter"):
-                    raise RuntimeError("Provider ended the answer before completion (length or content_filter).")
                 delta = chunk.choices[0].delta
                 fragment = getattr(delta, "content", None)
                 if isinstance(fragment, str) and fragment:
@@ -169,6 +167,8 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
                         call["arguments"] += getattr(function, "arguments", None) or ""
                     if len(call["arguments"]) > 6000 or len(call["name"]) > 100 or len(call["id"]) > 200:
                         raise RuntimeError("Tool arguments exceed the allowed size.")
+                if getattr(chunk.choices[0], "finish_reason", None) in ("length", "content_filter"):
+                    raise RuntimeError("Provider ended the answer before completion (length or content_filter).")
             if buffered:
                 emit("chat_delta", text=buffered)
             round_text = "".join(pieces)
