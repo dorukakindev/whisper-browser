@@ -14,7 +14,7 @@ function fixture(overrides = {}) {
     const file = path.join(engine, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'fixture');
   }
   const srt = path.join(root, 'Türkçe.srt'); fs.writeFileSync(srt, 'original subtitle');
-  fs.writeFileSync(path.join(root, 'dub-settings.json'), JSON.stringify({ timingMode: 'clip' }));
+  fs.writeFileSync(path.join(root, 'dub-settings.json'), JSON.stringify({ timingMode: 'clip', keepEngine: false }));
   const app = new EventEmitter(); app.getPath = () => root;
   const handlers = {}, children = [], events = [];
   const sender = { id: 7, isDestroyed: () => false, send: (_channel, event) => events.push(event) };

@@ -45,10 +45,12 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - seri-bağlam deposu (bf* alanları seri adıyla geri yüklenir)
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
+  // TMDB controls persist through tmdb:config, separately from transcription settings.
+  'tmdbApiKey', 'tmdbLanguage', 'tmdbWatchRegion',
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
   'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
-  'dubGrouping', 'dubFollowDelivery', 'dubDeliveryStrength', 'dubExpression',
+  'dubKeepEngine', 'dubGrouping', 'dubFollowDelivery', 'dubDeliveryStrength', 'dubExpression',
   'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
   'wordLookupSource', 'ambientMode', 'holdSpeedOn',

@@ -7,6 +7,7 @@ import inspect
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 from types import SimpleNamespace
@@ -36,7 +37,7 @@ class Report494(unittest.TestCase):
             def respond(line, **kwargs):
                 request=json.loads(line.removeprefix('DUB_REWRITE '))
                 (Path(folder)/(request['id']+'.json')).write_text('{torn',encoding='utf-8')
-            scope=dict(asyncio=asyncio,uuid=uuid,json=json,print=respond)
+            scope=dict(asyncio=asyncio,uuid=uuid,json=json,time=time,print=respond)
             exec(compile(ast.Module(body=[node],type_ignores=[]),'rewrite','exec'),scope)
             args=SimpleNamespace(rewrite_dir=Path(folder),auto_fit=True,natural_speech=True)
             self.assertEqual(asyncio.run(scope['rewrite_for_window'](args,0,'Original.',1)),'Original.')
