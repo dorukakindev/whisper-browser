@@ -1555,7 +1555,11 @@ test('web videosu konumu izleme kütüphanesine yazılır ve geri açılır', ()
   const patchBody = js.slice(patchStart, js.indexOf('async function flushWatchState', patchStart));
   assert(/key\.startsWith\('browser:'\)|mediaKey\.startsWith\('browser:'\)/.test(patchBody),
     'web medya anahtarı izleme kaydında tanınmıyor');
-  assert(/type:\s*browserMode \? 'browser'/.test(patchBody), 'web kayıt türü kütüphaneye yazılmıyor');
+  const typeExpression=/type:\s*([^\r\n]+),/.exec(patchBody)?.[1];assert(typeExpression,'kayıt türü ifadesi yok');
+  const vm=require('node:vm');
+  for(const [key,mode,expected]of [['browser:https://example.com',true,'browser'],['torrent:hash:0',false,'torrent'],['stream:hash',false,'stream'],['file:c:/film.mp4',false,'local']]){
+    assert(vm.runInNewContext(typeExpression,{player:{mediaKey:key},browserMode:mode})===expected,`${expected} kayıt türü korunmuyor`);
+  }
   const openStart = js.indexOf('function openWatchLibraryItem');
   const openBody = js.slice(openStart, js.indexOf('function openHistoryItem', openStart));
   assert(/item\.type === 'browser'/.test(openBody), 'web kütüphane kaydı yeniden açılamıyor');
@@ -2087,7 +2091,7 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
     startBtn: { click: mainRec('startBtn') },
   };
   const mainCtx = vm.createContext({
-    document: { addEventListener: (t, fn) => { if (t === 'keydown') mainCtx.__h = fn; } },
+    document: { body:mkEl(),addEventListener: (t, fn) => { if (t === 'keydown') mainCtx.__h = fn; } },
     $: (id) => mainElements[id] ?? mkEl(),
     _activeModal: null,
     state: { running: true, queueRunning: false },

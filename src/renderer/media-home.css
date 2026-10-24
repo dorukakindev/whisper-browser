@@ -139,6 +139,11 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-modes button:hover:not([aria-pressed="true"]) { color: var(--text); background: var(--bg-2); }
 .mh-page-title { font-size: 28px; letter-spacing: -.7px; margin: 6px 0 25px; }
 .mh-empty-hero { min-height: 280px; }
+.mh-session{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:24px;padding:20px 24px;border:1px solid var(--border-strong);border-radius:14px;background:var(--bg-1)}
+.mh-session>div:first-child{display:grid;gap:7px;min-width:0}.mh-session strong{font-size:17px;overflow-wrap:anywhere}.mh-session small{color:var(--accent);font-size:12px}.mh-session p{margin:0;color:var(--text-dim);font-size:12px}.mh-session-actions{display:flex;gap:8px;flex-shrink:0}
+.player-media-home{display:inline-flex;width:auto;height:34px;align-items:center;gap:7px;flex-shrink:0;border:1px solid var(--border);background:var(--bg-2);color:var(--text);border-radius:999px;padding:8px 12px;font:600 12px 'IBM Plex Sans',sans-serif;cursor:pointer;-webkit-app-region:no-drag}
+.player-media-home:hover{border-color:var(--accent)}.player-media-home:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.workspace-browser .player-media-home{display:none}
+@media(max-width:900px){.mh-session{align-items:stretch;flex-direction:column;gap:16px;padding:18px}.mh-session-actions{flex-wrap:wrap}.player-media-home>span{display:none}.player-media-home{padding:8px}}
 .mh-empty-hero .mh-hero-copy { width: 100%; }
 .mh-empty-hero .mh-hero-art { display: none; }
 .mh-nav { padding: 4px; }

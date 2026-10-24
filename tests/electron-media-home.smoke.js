@@ -127,6 +127,14 @@ app.whenReady().then(async () => {
   await run('document.getElementById("browserDubOffset").value="0.2";document.getElementById("browserDubOffset").dispatchEvent(new Event("input"));await flushWatchState(false,false);return true');
   const savedVoice = await run('return captureWatchPrefs()');
   assert.equal(savedVoice.dubPlayback.id, picked.output.playbackAsset.id); assert.equal(savedVoice.muted,false); assert.equal(savedVoice.speed,1.25); assert.equal(savedVoice.dubPlayback.offset,.2);
+  const parkedVideo=await run('document.getElementById("playerVideo").pause();return {key:player.mediaKey,generation:player.generation,title:document.getElementById("playerTitle").textContent,cues:JSON.stringify(player.cues),src:document.getElementById("playerVideo").currentSrc,time:document.getElementById("playerVideo").currentTime}');
+  await run('document.getElementById("playerBack").click();return true');
+  await until(()=>run('return !document.getElementById("mediaHome").inert && !!document.getElementById("mhResumeWorkspace")'),'parked player session');
+  await wait(400);assert(await run('return document.getElementById("playerVideo").paused && document.getElementById("browserDubAudio").paused'),'Parked video and voice are silent');
+  fs.writeFileSync(path.join(out,'parked-session-tr.png'),(await win.webContents.capturePage()).toPNG());
+  await run('document.getElementById("mhResumeWorkspace").click();return true');
+  await until(()=>run('return !!window.BrowserDubAudioUI.snapshot() && !document.getElementById("playerLayer").classList.contains("hidden")'),'resume parked voice');
+  const resumed=await run('return {key:player.mediaKey,generation:player.generation,title:document.getElementById("playerTitle").textContent,cues:JSON.stringify(player.cues),src:document.getElementById("playerVideo").currentSrc,time:document.getElementById("playerVideo").currentTime}');assert.deepEqual(resumed,parkedVideo,'Return keeps actual media, title, generation, subtitles and position');assert.equal(await run('return window.BrowserDubAudioUI.snapshot().id'),picked.output.playbackAsset.id);assert.equal(await run('return window.BrowserDubAudioUI.snapshot().offset'),.2);
   if(process.env.WHISPER_NATIVE_TEST==='1'){
     assert(await run('return window.NativePlayerUI.start()'),'Native engine can take over a dubbed video');
     assert.equal(await run('return captureWatchPrefs().dubPlayback.id'),picked.output.playbackAsset.id,'Dub attachment survives native takeover');

@@ -22786,6 +22786,9 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  if(window.MediaHomeUI&&!$('playerLayer').classList.contains('hidden')){
+    void window.MediaHomeUI.returnHome().catch(error=>logLine(error.message,'error'));return;
+  }
   // Tam ekran/PiP'teyken Backspace ile kapatınca pencere siyah tam ekranda kalıyordu.
   const doc = globalThis.document;
   if (doc?.fullscreenElement) doc.exitFullscreen?.().catch(() => {});

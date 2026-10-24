@@ -47,22 +47,49 @@
     if (active) { void refresh(); document.getElementById('mhHome')?.focus(); }
     else document.getElementById('openPlayer')?.focus();
   }
+  let returningHome=false,resuming=false,parked=null;
   async function returnHome() {
-    if(layer && !layer.classList.contains('hidden')){
-      const intent=++player.openIntent;
-      document.getElementById('playerVideo')?.pause();
-      if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
-      if(document.pictureInPictureElement)await document.exitPictureInPicture().catch(()=>{});
-      await flushWatchState(false,true);
-      if(intent!==player.openIntent)return;
-      closeBrowserFind(false);closeBrowserTransientPanels();
-      await window.api.hideBrowser();
-      if(intent!==player.openIntent)return;
-      disconnectBrowserBoundsObserver();
-      layer.classList.add('hidden');
-    }
-    if(state.page==='discover')window.MediaDiscoveryUI?.leave();
-    state.page='home';state.query='';renderShell();setHome(true);
+    if(returningHome)return;returningHome=true;
+    try{
+      if(layer && !layer.classList.contains('hidden')){
+        const intent=++player.openIntent;
+        const mode=player.workspaceMode,key=player.mediaKey,tabId=player.browserActiveTabId;
+        if(mode==='browser'&&tabId)await browserCommand('pause',undefined,tabId);
+        if(intent!==player.openIntent)return;
+        document.getElementById('playerVideo')?.pause();
+        const voice=window.BrowserDubAudioUI?.snapshot();
+        await window.BrowserDubAudioUI?.stop();
+        if(intent!==player.openIntent)return;
+        if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
+        if(document.pictureInPictureElement)await document.exitPictureInPicture().catch(()=>{});
+        await flushWatchState(false,true);
+        if(intent!==player.openIntent)return;
+        closeBrowserFind(false);closeBrowserTransientPanels();
+        await window.api.hideBrowser();
+        if(intent!==player.openIntent)return;
+        disconnectBrowserBoundsObserver();
+        parked={mode,key,tabId,title:document.getElementById('playerTitle')?.textContent||t('Open workspace','Açık çalışma alanı'),
+          position:mode==='browser'?player.browserTime:document.getElementById('playerVideo').currentTime,
+          subtitle:mode==='browser'?player.browserTracks?.length>0:player.cues?.length>0,
+          voice};
+        layer.classList.add('hidden');
+      }
+      if(state.page==='discover')window.MediaDiscoveryUI?.leave();
+      state.page='home';state.query='';renderShell();setHome(true);
+    }finally{returningHome=false;}
+  }
+  async function resumeWorkspace(){
+    if(!parked)return;
+    const target=parked;
+    if(target.key!==player.mediaKey||(target.mode==='browser'&&target.tabId!==player.browserActiveTabId)){parked=null;renderContent();return;}
+    if(resuming)return;resuming=true;
+    try{
+      layer.classList.remove('hidden');setWorkspaceMode(target.mode,false);
+      document.getElementById('playerTitle').textContent=target.title;
+      if(target.voice)await window.BrowserDubAudioUI?.restore(target.voice,target.key);
+      if(target.mode!=='browser')document.getElementById('playerBack')?.focus();
+    }finally{resuming=false;}
+    // Explicit return restores the workspace; playback remains paused until Play.
   }
   let wasPlayerOpen = !layer?.classList.contains('hidden');
   function syncLayer() {
@@ -204,9 +231,17 @@
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     state.render++; posterQueue = []; posterObserver.disconnect();
     content.replaceChildren();
+    if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error) report(state.error, true);
     else if (!state.loaded) report(t('Loading your library…', 'Kütüphanen yükleniyor…'));
+    if(parked){
+      const session=el('section','mh-session');session.id='mhOpenSession';
+      const text=el('div');text.append(el('small','',t('Open session · paused','Açık oturum · duraklatıldı')),el('strong','',parked.title),el('p','',[
+        parked.mode==='browser'?'Browser':t('Player','Oynatıcı'),Number.isFinite(parked.position)?minutes(parked.position):'',parked.subtitle?t('Subtitles ready','Altyazı hazır'):'',parked.voice?t('Voice attached','Dublaj bağlı'):''].filter(Boolean).join(' · ')));
+      const actions=el('div','mh-session-actions');const back=button(t('Return to session','Oturuma dön'),resumeWorkspace,'mh-action mh-primary');back.id='mhResumeWorkspace';
+      actions.append(back,button(t('Voice preparation','Ses hazırlığı'),async()=>{await resumeWorkspace();if(!layer.classList.contains('hidden'))await window.MediaExperience?.openVoice();}));session.append(text,actions);content.append(session);
+    }
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));
     if (state.page === 'home' && !state.query) {
@@ -264,6 +299,7 @@
     const browserHome=document.getElementById('browserMediaHome');
     if(browserHome){const label=t('Home','Ana sayfa');browserHome.querySelector('span').textContent=label;browserHome.setAttribute('aria-label',label);browserHome.title=t('Media home — your tabs stay open','Medya ana sayfası — sekmelerin açık kalır');}
     const menuHome=document.getElementById('browserMediaHomeMenuLabel');if(menuHome)menuHome.textContent=t('Home','Ana sayfa');
+    const playerHome=document.getElementById('playerBack');if(playerHome){playerHome.querySelector('span').textContent=t('Home','Ana sayfa');playerHome.title=t('Media home — keep this session','Medya ana sayfası — oturumu koru');playerHome.setAttribute('aria-label',t('Home','Ana sayfa'));}
     host.replaceChildren(el('div', 'mh-titlebar'));
     const header = el('header', 'mh-header'), brand = el('div', 'mh-brand');
     brand.title = 'Whisper Browser'; brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
@@ -312,4 +348,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
+  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace});
 })();

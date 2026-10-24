@@ -2,6 +2,8 @@
 const { app, BrowserWindow, session, nativeImage } = require('electron');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
+const {spawnSync}=require('node:child_process');
+const {findMediaTool}=require('./media-runtime');
 const root = path.resolve(__dirname, '..'), live = process.env.WHISPER_DISCOVERY_LIVE === '1';
 const out = path.join(root, '.uiprev', 'media-discovery', `${Date.now()}-${process.pid}-${live ? 'live' : 'fixture'}`);
 const profile = path.join(out, 'profile'); fs.mkdirSync(profile, { recursive: true });
@@ -164,7 +166,8 @@ app.whenReady().then(async () => {
     await assist('document.getElementById("close").click();return true');
   }
   const article = '<!doctype html><title>Assistant native fixture</title><body style="background:#315343;color:white"><nav>NOISY NAVIGATION</nav><article><h1>Reading a film scene</h1>' + Array.from({length:8},(_,i)=>`<p>Section ${i+1}: A director builds a scene from dialogue, movement and the relationships between the people in it. Careful subtitles preserve the intention of each sentence while allowing viewers enough time to follow what happens. A balanced translation also makes natural dubbing possible without interrupting the flow of the original performance.</p>`).join('') + '<img src="javascript:alert(1)" onerror="window.readerInjected=true"><a href="javascript:alert(2)">Bad link</a></article><aside>UNRELATED SIDEBAR</aside></body>';
-  session.fromPartition('persist:whisper-browser').protocol.handle('https', () => new Response(article, { headers: { 'content-type': 'text/html' } }));
+  const clip=path.join(out,'browser-home-video.mp4'),made=spawnSync(findMediaTool('ffmpeg'),['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','color=c=0x315343:s=320x180:d=10','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',clip],{windowsHide:true,encoding:'utf8',timeout:15000});assert.equal(made.status,0,made.stderr);
+  session.fromPartition('persist:whisper-browser').protocol.handle('https', request => new URL(request.url).pathname==='/fixture.mp4'?new Response(fs.readFileSync(clip),{headers:{'content-type':'video/mp4'}}):new Response(article, { headers: { 'content-type': 'text/html' } }));
   await run('document.getElementById("openPlayer").click();setWorkspaceMode("browser",false);await createBrowserTab();await navigateBrowser("https://assistant-fixture.example/");return true');
   await until(() => win.contentView.children.some(view => view !== assistant && view.webContents?.getURL().startsWith('https://assistant-fixture.example/')), 'actual native browser');
   assert.equal(win.contentView.children.at(-1), assistant, 'Assistant stays above newly created native browser');
@@ -186,15 +189,20 @@ app.whenReady().then(async () => {
   await assist('document.getElementById("close").click();return true');
   const kept=await run('return {tab:player.browserActiveTabId,cues:JSON.stringify(player.cues),running:state.running}');
   await browserView.webContents.executeJavaScript('window.homeReturnSentinel=42');
+  await browserView.webContents.executeJavaScript('const v=document.createElement("video");v.id="homePauseFixture";v.src="https://assistant-fixture.example/fixture.mp4";v.muted=true;v.loop=true;document.body.append(v);');
+  await until(()=>browserView.webContents.executeJavaScript('document.getElementById("homePauseFixture").readyState>=2'),'real browser home video');
   for(const [width,locale]of [[1440,'tr'],[680,'en']]){
     win.setContentSize(width,900);await run(`window.UiLocale.set(${JSON.stringify(locale)},false);return true`);await wait(200);
     assert(await run('const n=document.getElementById("browserMediaHome"),r=n.getBoundingClientRect();return r.width>=32 && r.height>=28 && r.left>=0 && r.right<=innerWidth'),'Home control remains visible in browser toolbar');
     await wait(150);fs.writeFileSync(path.join(out,`browser-home-${width}-${locale}.png`),(await win.webContents.capturePage()).toPNG());
+    await browserView.webContents.executeJavaScript('document.getElementById("homePauseFixture").play()');
+    await until(()=>browserView.webContents.executeJavaScript('!document.getElementById("homePauseFixture").paused'),'browser video starts');
     await run('document.getElementById("browserMediaHome").click();return true');
     await until(()=>run('return document.body.classList.contains("media-home-active") && !document.getElementById("mediaHome").inert && document.getElementById("playerLayer").classList.contains("hidden")'),'browser return to media home');
     assert.equal(browserView.getVisible(),false,'Native browser cannot cover media home');
+    assert(await browserView.webContents.executeJavaScript('document.getElementById("homePauseFixture").paused'),'Returning home pauses the real browser video');
     const after=await run('return {tab:player.browserActiveTabId,cues:JSON.stringify(player.cues),running:state.running}');assert.deepEqual(after,kept,'Home keeps selected tab, captions and job state');
-    await run('document.getElementById("openPlayer").click();return true');
+    await run('document.getElementById("mhResumeWorkspace").click();return true');
     await until(()=>browserView.getVisible(),'same browser view resumes');
     assert.equal(await browserView.webContents.executeJavaScript('window.homeReturnSentinel'),42,'Home does not close or reload the tab');
   }
