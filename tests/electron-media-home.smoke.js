@@ -97,6 +97,8 @@ app.whenReady().then(async () => {
     const started=await run('return window.NativePlayerUI.start()');
     assert(started,await run('return document.getElementById("playerOsd")?.textContent || "Native startup failed"'));
     await until(()=>run('return window.NativePlayerUI.state().duration>0'),'native mpv duration');
+    await run('await window.MediaListening.configure({film:"night",music:"off",voice:"dialogue"});await window.MediaListening.configure({film:"off",music:"off",voice:"dialogue"});return true');
+    assert.equal((await run('return window.NativePlayerUI.command("profile","arbitrary-filter")')).ok,false,'Only fixed listening filters are accepted');
     assert(await run('return window.NativePlayerUI.active() && document.getElementById("playerVideo").duration>0'),'Native facade reports real playback state');
     await run('document.getElementById("playerVideo").pause();document.getElementById("playerVideo").currentTime=3;return true');
     await until(()=>run('return Math.abs(window.NativePlayerUI.state().time-3)<.4'),'native seek');

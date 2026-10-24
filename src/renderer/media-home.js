@@ -310,6 +310,7 @@
     }
     const actions = el('div', 'mh-actions');
     actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open media', 'Medya aç'), () => window.MediaHubUI?.open(), 'mh-action mh-primary'));
+    actions.append(button(t('Tonight', 'Bu akşam'), () => window.MediaToolsUI?.open('tonight')), button(t('Library care', 'Arşiv bakımı'), () => window.MediaToolsUI?.open('health')));
     actions.append(button(t('Activity', 'İşlemler'), () => window.MediaExperience?.openTasks()));
     const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
@@ -348,5 +349,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace});
+  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace,openStudio});
 })();

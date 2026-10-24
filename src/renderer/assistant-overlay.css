@@ -39,3 +39,5 @@ html[data-theme=light] #panel{background:#fafafa}
 html[data-theme=light] textarea,html[data-theme=light] select,html[data-theme=light] button:not(#send):not(#bubble),html[data-theme=light] .user{background:#e9e9ed;color:#18181b}
 html[data-theme=light] #context,html[data-theme=light] #hint,html[data-theme=light] .empty{color:#55555f}
 #panel{color-scheme:dark}html[data-theme=light] #panel{color-scheme:light}
+
+#conversationTools{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid #7774}#find{flex:1;min-width:110px;width:140px;background:transparent;color:inherit;border:1px solid #7777;border-radius:8px;padding:8px;font:inherit;font-size:12px}#conversationTools button{min-width:0;font-size:11px;padding:6px;min-height:34px}#conversationTools [aria-pressed=true]{border-color:#e8701a}#findCount{font-size:11px;align-self:center}.message-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.message-actions button{font-size:11px;min-height:30px;min-width:0;padding:4px 8px}.message[data-pinned=true]{border-left:2px solid #e8701a;padding-left:12px}

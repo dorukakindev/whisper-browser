@@ -1,0 +1,68 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const tools=require('../src/media-tools-service'), model=require('../src/renderer/media-tools-model');
+test('Review evidence keeps IDs after spoiler filtering, rejects fabricated quotes and duplicate IDs',()=>{
+  for(const api of [tools,model]){
+    const rows=api.reviewRows(JSON.stringify([{id:'2',text:'The acting is wonderful.'}]));assert.equal(rows[0].id,'2');
+    assert.equal(api.verifyDecision({points:[{id:'2',quote:'acting is wonderful',reason:'Acting'}]},rows).points.length,1);
+    assert.throws(()=>api.verifyDecision({points:[{id:'2',quote:'invented praise'}]},rows),/verified/);
+    assert.throws(()=>api.reviewRows(JSON.stringify([{id:'1',text:'First full review'},{id:'1',text:'Second full review'}])),/unique/);
+    assert.throws(()=>api.reviewRows('x'.repeat(120001)),/120,000/);
+  }
+});
+test('Tonight excludes completed/imported/unknown durations under a time limit and sorts numeric episodes',()=>{
+  const src={type:'local',value:'film.mp4',watchKey:'film'};
+  const items=[{id:'a',kind:'film',title:'Comedy',runtime:90,genres:['Comedy'],source:src},{id:'b',kind:'film',title:'Unknown',source:{...src,watchKey:'b'}},{id:'c',kind:'film',title:'Imported',runtime:50,source:{...src,imported:true}},{id:'s',kind:'series',title:'Series',episodes:[{id:'10',season:1,number:10,source:{...src,watchKey:'e10'}},{id:'2',season:1,number:2,source:{...src,watchKey:'e2'}}]}];
+  assert.deepEqual(tools.tonight(items,[],{minutes:100}).map(r=>r.itemId),['a']);
+  assert.equal(tools.tonight(items,[],{}).find(r=>r.itemId==='s').episodeId,'2');
+  assert(!tools.tonight(items,[{key:'film',completed:true}],{}).some(r=>r.itemId==='a'));
+  assert.deepEqual(tools.tonight(items,[],{mood:'light'}),model.tonight(items,[],{mood:'light'}));
+});
+test('Service isolates callers, keeps feedback and analyses separate, exports new roots without credentials',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-tools-')),picked=path.join(dir,'backup.wbp'),handlers=new Map(),close=[];
+  try{
+    const svc=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle:(k,fn)=>handlers.set(k,fn)},authorized:e=>e?.trusted===true,owner:()=>null,catalogStore:()=>({get:id=>id==='film'?{id,title:'Fixture'}:null,list:()=>[]}),dialog:{showSaveDialog:async()=>({filePath:picked}),showOpenDialog:async()=>({canceled:true})},ffprobe:()=>'',fetchImpl:()=>{throw Error('No live requests');}});
+    const call=(action,values={})=>svc.handle({trusted:true},{action,...values});
+    assert.equal((await svc.handle({}, {action:'audio-get'})).ok,false);
+    assert.equal((await call('reviews-fetch',{itemId:'film',id:'req',url:'https://127.0.0.1/film/x/reviews/'})).ok,false);
+    assert.equal((await call('feedback-save',{itemId:'film',reaction:'like',note:'My own note.'})).ok,true);
+    assert.equal((await call('decision-save',{itemId:'film',reviews:[{id:'5',text:'Excellent acting throughout.'}],analysis:{summary:'Acting',points:[{id:'5',quote:'Excellent acting',reason:'Evidence'}]}})).ok,true);
+    const value=(await call('decision-get',{itemId:'film'})).value;assert.equal(value.feedback.note,'My own note.');assert.equal(value.history.length,1);
+    fs.writeFileSync(path.join(dir,'media-shelf.json'),JSON.stringify({version:1,music:[],books:[],stations:[],podcasts:[],playlists:[],diary:[]}));fs.writeFileSync(path.join(dir,'settings.json'),'SECRET_API_KEY');
+    assert.equal((await call('backup-export')).ok,true);const pkg=require('../src/workspace-package').readPackage(picked);assert(pkg.files.some(r=>r.name==='media-shelf.json'));assert(pkg.files.some(r=>r.name==='media-enrichment.json'));assert(!JSON.stringify(pkg).includes('SECRET_API_KEY'));assert(!pkg.files.some(r=>r.name==='settings.json'));
+    const scope=require('../src/workspace-package').describePackage(pkg,dir);assert.equal(scope.titleDecisions,1);assert(scope.changes.unchanged>=2);
+  }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('Restored followed folders are paused; a corrupt new media file cannot partly restore prior records',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-restore-'));try{
+    const pkg=require('../src/workspace-package'),encode=(name,value)=>({name,data:Buffer.from(JSON.stringify(value)).toString('base64')});
+    pkg.restorePackage(dir,{format:'whisper-workspace',version:1,created:new Date().toISOString(),sourceRoot:'{{ROOT}}',mappings:[],files:[encode('media-folder-watches.json',[{id:'f',path:'C:\\Films',enabled:true}])]});
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir,'media-folder-watches.json')))[0].enabled,false);
+    assert.throws(()=>pkg.restorePackage(dir,{format:'whisper-workspace',version:1,sourceRoot:'{{ROOT}}',mappings:[],files:[encode('media-enrichment.json',{version:7})]}),/Invalid media notes/);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('Public review reader decodes split UTF-8 and cancellation cannot leave an active request',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-reader-')),close=[];let fetches=0;
+  try{
+    const html=Buffer.from('<div class="body-text js-review-body"><p>İstanbul’da oyunculuk güçlü ve özgün.</p></div>');
+    const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},owner:()=>null,dialog:{},authorized:()=>true,catalogStore:()=>({get:()=>({id:'film'})}),fetchImpl:async(url,options)=>{
+      fetches++;assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');assert(!options.headers?.Authorization);
+      if(fetches===1)return {ok:true,body:(async function*(){for(let i=0;i<html.length;i++)yield html.subarray(i,i+1);})()};
+      return new Promise((_,reject)=>options.signal.addEventListener('abort',()=>reject(Object.assign(Error('cancelled'),{name:'AbortError'})),{once:true}));
+    }});
+    const response=await service.handle({}, {action:'reviews-fetch',itemId:'film',id:'first',url:'https://letterboxd.com/film/example/reviews/'});assert.equal(response.ok,true);assert.match(response.reviews[0].text,/İstanbul’da oyunculuk güçlü/);
+    const pending=service.handle({}, {action:'reviews-fetch',itemId:'film',id:'second',url:'https://letterboxd.com/film/example/reviews/'});await new Promise(r=>setImmediate(r));await service.handle({}, {action:'reviews-stop',id:'second'});assert.equal((await pending).ok,false);
+    assert.equal((await service.handle({}, {action:'audio-get'})).ok,true);
+  }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('Automatic backups retain seven owned files and leave unrelated files untouched',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-auto-')),backups=path.join(dir,'backups'),close=[];fs.mkdirSync(backups);
+  try{
+    for(let day=1;day<=8;day++)fs.writeFileSync(path.join(backups,`whisper-auto-2025-01-0${day}T00-00-00-000Z.wbp`),'owned fixture');
+    fs.writeFileSync(path.join(backups,'my-personal-backup.wbp'),'must remain');
+    const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,catalogStore:()=>({}),dialog:{showOpenDialog:async()=>({filePaths:[backups]})}});
+    const result=await service.handle({}, {action:'backup-schedule',every:'daily'});assert.equal(result.ok,true);assert(result.value.last>0);
+    assert.equal(fs.readdirSync(backups).filter(n=>n.startsWith('whisper-auto-')).length,7);assert.equal(fs.readFileSync(path.join(backups,'my-personal-backup.wbp'),'utf8'),'must remain');
+    assert.equal((await service.handle({}, {action:'backup-schedule',every:'off'})).ok,true);assert.equal((await service.handle({}, {action:'backup-status'})).value.every,'off');
+  }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});

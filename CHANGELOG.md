@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added title-specific review sampling and evidence-checked personal-fit analysis through the existing assistant, plus separate after-watching feedback and analysis history.
+- Added an explained time/mood picker for local library titles, cancellable library health scans with full duplicate hashes and embedded-subtitle checks, and expanded workspace backups with restore counts and optional daily/weekly retention.
+- Added assistant search, persisted source-scoped pins, copy/code-copy, edit-as-new-question and Markdown/text export. Added separate native film/music and dubbed-voice listening profiles; preserved the normal Chromium video audio path.
+
 - Added a paused open-session strip on media home with direct return and voice preparation. Browser videos pause on home navigation; local playback retains its source, subtitle view and voice descriptor instead of clearing them on exit.
 
 - Matched YouTube home, expanded/mini guide, search, filters and Browser chrome to the Luna media palette with bundled fonts and light-theme support; preserved native feed layout and fixed appearance toggle removal on the tested Electron build.

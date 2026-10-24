@@ -33,6 +33,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (!owner(event) || !value || typeof value !== 'object') return;
     snapshot = {
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
+      conversation: String(value.conversation || '').slice(0,4000),
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry,
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
@@ -51,8 +52,8 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion'].includes(action)) return;
-    window.webContents.send('assistant:command', { action, text: String(packet.text || '').slice(0, 16000) });
+    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export'].includes(action)) return;
+    window.webContents.send('assistant:command', { action, text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   ipcMain.on('assistant:update', update);
   ipcMain.on('assistant:action', command);

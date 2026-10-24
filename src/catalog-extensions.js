@@ -95,7 +95,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const data = await require('./workspace-video-package').read(result.filePaths[0], pythonPath());
         // Madde 33: geri yükleme onayından önce paket kapsamını göster —
         // bölüm/kayıt sayıları meta düzeyinde (içerik değil).
-        const scope = require('./workspace-package').describePackage(data);
+        const scope = require('./workspace-package').describePackage(data, userData());
         // Kuyruk maddesi 25 — paketteki mutlak ortam yollarından bu
         // bilgisayarda bulunamayanları kök bazında göster; kullanıcı her
         // köke yeni hedef seçebilir ve eşleme geri yüklemede uygulanır.

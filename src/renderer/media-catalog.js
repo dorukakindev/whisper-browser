@@ -259,6 +259,7 @@
     if (item.genres?.length || item.runtime) text.append($('p', 'mc-muted', [...(item.genres || []), item.runtime ? `${item.runtime} ${english() ? 'min' : 'dk'}` : ''].filter(Boolean).join(' · ')));
     if (item.cast?.length) text.append($('p', 'mc-muted', item.cast.join(', ')));
     const actions = $('div', 'mc-detail-actions');
+    actions.append(button(english()?'Reviews & personal fit':'Yorumlar ve bana uygunluğu', () => window.MediaToolsUI?.open('decision',item)));
     actions.append(button('Bilgileri eşleştir', () => { state.metadataQuery = item.title; state.metadataResults = []; state.metadata = null; state.seasonData = null; state.mode = 'metadata'; render(); }));
     actions.append(button('Düzenle', () => edit(item)), button('Afiş seç', async () => { const result = await api('poster-file', { id: item.id }); if (result) { posterCache.delete(String(item.id)); if (!await reload()) return; show(item.id); } }));
     if (catalogType(item) === 'movie') actions.append(button(item.progress?.position > 0 && !item.progress?.completed ? 'Kaldığın yerden devam et' : 'Oynat', () => play(item), 'mc-primary'));
@@ -481,6 +482,11 @@
       const scope = state.packageData.scope;
       if (scope) {
         const parts = [];
+        if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
+        if(scope.titleDecisions)parts.push(`${scope.titleDecisions} ${english()?'title reviews':'yapım yorumu'}`);
+        if(scope.watchedFolders)parts.push(`${scope.watchedFolders} ${english()?'folders (restored paused)':'klasör (takip kapalı yüklenir)'}`);
+        if(scope.torrents)parts.push(`${scope.torrents} torrent`);
+        if(scope.changes)body.append($('p','mc-muted',english()?`Files: ${scope.changes.added} new, ${scope.changes.changed} different, ${scope.changes.unchanged} identical. Existing files absent from the package are kept.`:`Dosyalar: ${scope.changes.added} yeni, ${scope.changes.changed} farklı, ${scope.changes.unchanged} aynı. Pakette olmayan mevcut dosyalar korunur.`));
         if (scope.mediaItems) parts.push(`${scope.mediaItems} eser${scope.mediaEpisodes ? ` (${scope.mediaEpisodes} bölüm)` : ''}`);
         if (scope.watchItems) parts.push(`${scope.watchItems} izleme kaydı`);
         if (scope.notes) parts.push(`${scope.notes} not`);
@@ -730,7 +736,7 @@
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
   async function open(options = {}) {
-    if (dialog.open) return;
+    if (dialog.open) { if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; }
     state.session++; state.busy = false; state.opener = options.opener || document.activeElement;
     const sessionId = state.session;
     if (['movie', 'series', 'watchlist'].includes(options.section)) state.section = options.section;
@@ -738,11 +744,12 @@
     state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus();
     if (!await reload() || sessionId !== state.session || !dialog.open) return;
     if (options.id && find(options.id)) show(options.id);
+    else if (options.mode === 'package') { state.mode='package';render(); }
     else if (options.mode === 'folder') await previewImport('folder-preview');
   }
-  window.MediaCatalogUI = Object.freeze({ open });
+  window.MediaCatalogUI = Object.freeze({ open, close });
   for (const openButton of openButtons) openButton.addEventListener('click', () => { void open({ opener: openButton }); });
   document.addEventListener('ui-locale-change', () => { if (dialog.open) render(); });
-  dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
+  dialog.addEventListener('close', () => { if (dialog.open) { if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; } state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
 })();

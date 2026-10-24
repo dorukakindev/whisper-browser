@@ -21690,11 +21690,12 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob
-    && !browserHlsCeaFullCaptureJob && !browserExtras?.hasJobs(),
+    && !browserHlsCeaFullCaptureJob && !browserExtras?.hasJobs() && !dubService.running(),
   ipcMain, dialog, nativeImage, owner: () => mainWindow, authorized: authorizedBrowserSender,
   userData: () => app.getPath('userData'), pythonPath: resolvePython,
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
+require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,ffprobe:()=>resolveFfTool('ffprobe')});
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});

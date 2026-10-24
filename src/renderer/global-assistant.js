@@ -34,7 +34,7 @@
         suggestions: specs,
         scope: $('aiTranscriptScope')?.value,
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
-        context, busy: !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
+        conversation: aiSourceScope(), context, busy: !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         retry: !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: [...document.querySelectorAll('#aiChatLog .ai-msg')].map(node => ({ role: node.classList.contains('ai-msg-user') ? 'user' : 'ai', text: node.textContent,
           links: [...node.querySelectorAll('.ai-time-link,.ai-source-link')].slice(0, 40).map(button => {
@@ -47,7 +47,9 @@
   }
   window.api.onAssistantCommand(packet => {
     if (!packet || typeof packet !== 'object') return;
-    if (packet.action === 'send') void aiChatSend(String(packet.text || '').slice(0, 16000));
+    if (packet.action === 'copy') void window.api.copyText(String(packet.text || ''));
+    else if (packet.action === 'export') void window.api.mediaTools({action:'assistant-export',text:packet.text}).then(r=>{if(!r?.ok)osd(r?.error||'Export failed.');else if(!r.canceled)osd(trMessage());function trMessage(){return window.UiLocale?.get?.()==='tr'?'Konuşma kaydedildi.':'Conversation saved.';}});
+    else if (packet.action === 'send') void aiChatSend(String(packet.text || '').slice(0, 16000));
     else if (packet.action === 'cancel') $('aiChatCancel')?.click();
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') $('aiChatClear')?.click();
