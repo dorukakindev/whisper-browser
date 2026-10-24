@@ -183,5 +183,20 @@ app.whenReady().then(async () => {
   assert.equal(await browserView.webContents.executeJavaScript('document.querySelector("nav").textContent'), 'NOISY NAVIGATION', 'Live DOM was not rewritten');
   assert.equal(await browserView.webContents.executeJavaScript('!!window.readerInjected'), false);
   await run('return window.api.setBrowserReader(player.browserActiveTabId,"close")');
+  await assist('document.getElementById("close").click();return true');
+  const kept=await run('return {tab:player.browserActiveTabId,cues:JSON.stringify(player.cues),running:state.running}');
+  await browserView.webContents.executeJavaScript('window.homeReturnSentinel=42');
+  for(const [width,locale]of [[1440,'tr'],[680,'en']]){
+    win.setContentSize(width,900);await run(`window.UiLocale.set(${JSON.stringify(locale)},false);return true`);await wait(200);
+    assert(await run('const n=document.getElementById("browserMediaHome"),r=n.getBoundingClientRect();return r.width>=32 && r.height>=28 && r.left>=0 && r.right<=innerWidth'),'Home control remains visible in browser toolbar');
+    await wait(150);fs.writeFileSync(path.join(out,`browser-home-${width}-${locale}.png`),(await win.webContents.capturePage()).toPNG());
+    await run('document.getElementById("browserMediaHome").click();return true');
+    await until(()=>run('return document.body.classList.contains("media-home-active") && !document.getElementById("mediaHome").inert && document.getElementById("playerLayer").classList.contains("hidden")'),'browser return to media home');
+    assert.equal(browserView.getVisible(),false,'Native browser cannot cover media home');
+    const after=await run('return {tab:player.browserActiveTabId,cues:JSON.stringify(player.cues),running:state.running}');assert.deepEqual(after,kept,'Home keeps selected tab, captions and job state');
+    await run('document.getElementById("openPlayer").click();return true');
+    await until(()=>browserView.getVisible(),'same browser view resumes');
+    assert.equal(await browserView.webContents.executeJavaScript('window.homeReturnSentinel'),42,'Home does not close or reload the tab');
+  }
   console.log(JSON.stringify({ ok: true, live, out, title, results })); app.exit(0);
 }).catch(error => { console.error(error); app.exit(1); });

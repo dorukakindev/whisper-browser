@@ -47,6 +47,23 @@
     if (active) { void refresh(); document.getElementById('mhHome')?.focus(); }
     else document.getElementById('openPlayer')?.focus();
   }
+  async function returnHome() {
+    if(layer && !layer.classList.contains('hidden')){
+      const intent=++player.openIntent;
+      document.getElementById('playerVideo')?.pause();
+      if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
+      if(document.pictureInPictureElement)await document.exitPictureInPicture().catch(()=>{});
+      await flushWatchState(false,true);
+      if(intent!==player.openIntent)return;
+      closeBrowserFind(false);closeBrowserTransientPanels();
+      await window.api.hideBrowser();
+      if(intent!==player.openIntent)return;
+      disconnectBrowserBoundsObserver();
+      layer.classList.add('hidden');
+    }
+    if(state.page==='discover')window.MediaDiscoveryUI?.leave();
+    state.page='home';state.query='';renderShell();setHome(true);
+  }
   let wasPlayerOpen = !layer?.classList.contains('hidden');
   function syncLayer() {
     const open = !!layer && !layer.classList.contains('hidden');
@@ -244,6 +261,9 @@
     host.setAttribute('aria-label', t('Media home', 'Medya ana sayfası'));
     const back = document.getElementById('mediaHomeBack');
     if (back) back.textContent = t('Home', 'Ana sayfa');
+    const browserHome=document.getElementById('browserMediaHome');
+    if(browserHome){const label=t('Home','Ana sayfa');browserHome.querySelector('span').textContent=label;browserHome.setAttribute('aria-label',label);browserHome.title=t('Media home — your tabs stay open','Medya ana sayfası — sekmelerin açık kalır');}
+    const menuHome=document.getElementById('browserMediaHomeMenuLabel');if(menuHome)menuHome.textContent=t('Home','Ana sayfa');
     host.replaceChildren(el('div', 'mh-titlebar'));
     const header = el('header', 'mh-header'), brand = el('div', 'mh-brand');
     brand.title = 'Whisper Browser'; brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
@@ -285,7 +305,8 @@
     state.loaded = true;
     if (state.active) renderContent();
   }
-  document.getElementById('mediaHomeBack')?.addEventListener('click', () => setHome(true));
+  document.getElementById('mediaHomeBack')?.addEventListener('click', () => void perform(returnHome));
+  document.getElementById('browserMediaHome')?.addEventListener('click', () => void perform(returnHome));
   document.getElementById('mediaCatalogDialog')?.addEventListener('close', () => { posters.clear(); if (state.active) void refresh(); });
   document.addEventListener('ui-locale-change', renderShell);
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
