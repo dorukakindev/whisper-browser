@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-2231.md](docs/devir/2026-10-24-2231.md) — WebView2 derin araştırma ve gerçek Ancient Origins motor karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-24-2210.md](docs/devir/2026-10-24-2210.md) — Cloudflare ve gerçek Edge/Chrome köprüsü seçenek araştırması
 Güncel çalışma: [docs/devir/2026-10-24-2121.md](docs/devir/2026-10-24-2121.md) — Story/Konu için Türkçeye çevir düğmesi
 Güncel çalışma: [docs/devir/2026-10-24-2110.md](docs/devir/2026-10-24-2110.md) — Otomatik TMDB afişleri ve zengin film sayfası
