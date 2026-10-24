@@ -27,7 +27,7 @@
     return node;
   }
   async function details(row) {
-    const dialog = el('dialog', 'md-detail'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
+    const dialog = el('dialog', 'md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
     const close = btn('×', () => dialog.close(), 'md-close'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
     const placeholder = el('p', 'md-status', t('Loading details…', 'Ayrıntılar yükleniyor…')); placeholder.setAttribute('role', 'status'); dialog.append(close, placeholder);
     const opener = document.activeElement; document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();

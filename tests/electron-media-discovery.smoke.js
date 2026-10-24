@@ -37,6 +37,13 @@ app.whenReady().then(async () => {
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'discover list');
   const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-heading h1")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ"),sora:document.fonts.check(\'600 32px Sora\',"Keşfet")}');
   assert(fonts.plex && fonts.sora, JSON.stringify(fonts)); assert(fonts.heading.includes('Sora'));
+  const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor');
+  const hover = await run('const r=document.querySelectorAll(".md-tab")[1].getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}');
+  win.webContents.sendInputEvent({ type: 'mouseMove', ...hover }); await wait(100);
+  assert.notEqual(await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor'), beforeHover, 'Actual renderer pointer hover feedback');
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 45 });
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+  assert(await run('return document.activeElement!==document.body && getComputedStyle(document.activeElement).outlineStyle!=="none"'), 'Keyboard focus remains visible');
   await wait(500); fs.writeFileSync(path.join(out, 'discover-1920-tr.png'), (await win.webContents.capturePage()).toPNG());
   if (!live) {
     await run('document.querySelector(".md-more").click();return true');

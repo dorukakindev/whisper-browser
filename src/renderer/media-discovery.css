@@ -4,6 +4,8 @@
 .md-tabs { display: flex; gap: 7px; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
 .md-tab { padding: 11px 19px; color: var(--text-dim); border: 0; border-radius: 999px; background: transparent; font-weight: 600; }
 .md-tab[aria-pressed="true"] { color: var(--text); background: var(--bg-3); }
+.md-tab:hover:not([aria-pressed="true"]) { color: var(--text); background: var(--bg-2); }
+.md-close:hover { background: var(--bg-3); border-color: var(--border-strong); }
 .md-filters { display: flex; align-items: flex-end; gap: 13px; flex-wrap: wrap; margin-bottom: 25px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-1); }
 .md-field { display: flex; flex-direction: column; gap: 8px; color: var(--text-dim); font-size: 12px; min-width: 135px; }
 .md-field input, .md-field select { color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; min-height: 40px; }

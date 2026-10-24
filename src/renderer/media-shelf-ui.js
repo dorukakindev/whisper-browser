@@ -6,7 +6,7 @@
   let view = null, generation = 0, snapshot = null, current = null, queue = [], queueIndex = 0, hls = null;
   const selected = new Set();
   const audio = el('audio'); audio.controls = true; audio.preload = 'metadata'; audio.id = 'mediaShelfAudio';
-  const dock = el('section', 'ms-dock hidden'); dock.dataset.uiUntranslated = ''; dock.setAttribute('aria-label', t('Music player', 'Müzik oynatıcı'));
+  const dock = el('section', 'ms-dock media-surface hidden'); dock.dataset.uiUntranslated = ''; dock.setAttribute('aria-label', t('Music player', 'Müzik oynatıcı'));
   const dockTitle = el('strong'), dockStatus = el('span', 'ms-status'); dockStatus.setAttribute('role', 'status');
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
@@ -62,7 +62,7 @@
   }
   function form(title, fields, description = '', applyLabel = t('Save', 'Kaydet')) {
     return new Promise(resolve => {
-      const dialog = el('dialog', 'ms-dialog'); dialog.dataset.uiUntranslated = '';
+      const dialog = el('dialog', 'ms-dialog media-surface'); dialog.dataset.uiUntranslated = '';
       const body = el('form'); body.method = 'dialog'; const heading = el('h2', '', title); heading.id = 'msFormTitle'; dialog.setAttribute('aria-labelledby', heading.id); body.append(heading);
       if (description) body.append(el('p', '', description));
       const controls = {};
@@ -159,7 +159,7 @@
   async function openBook(row) {
     const book = await api('book-open', { id: row.id });
     if (book.format === 'pdf') { document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player'); await openPdfReader(book.path); return; }
-    const dialog = el('dialog', 'ms-reader'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
+    const dialog = el('dialog', 'ms-reader media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
     const header = el('header'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
     let index = Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
