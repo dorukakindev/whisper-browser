@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1311.md](docs/devir/2026-10-24-1311.md) — Bağlamlı asistan, dublajla devam, ortak işlemler ve Keşfet tercihleri
 Güncel çalışma: [docs/devir/2026-10-24-1237.md](docs/devir/2026-10-24-1237.md) — Global native asistan, Keşfet kaydırması ve Defuddle okuyucu
 Güncel çalışma: [docs/devir/2026-10-24-1202.md](docs/devir/2026-10-24-1202.md) — Gerçek film/dizi Keşfet, Luna fontları ve tasarım becerileri
 Güncel çalışma: [docs/devir/2026-10-24-1137.md](docs/devir/2026-10-24-1137.md) — Luna görünümü, müzik/kitap/podcast/Letterboxd ve tıklanabilir önizleme
