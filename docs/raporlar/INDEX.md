@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+Araştırma: [ASSISTANT_REPO_RESEARCH_2026-10-24.md](ASSISTANT_REPO_RESEARCH_2026-10-24.md) — asistan için alınabilir GitHub modülleri.
+
 - [BROWSER_BUG_REPORT_530.md](BROWSER_BUG_REPORT_530.md) — ortak asistanın kaynak/taslak/gönderim güveni ve arayüz geliştirmeleri.
 
 - [BROWSER_BUG_REPORT_529.md](BROWSER_BUG_REPORT_529.md) — kalan süreli izleme önerisi, yorum taslağı ve async sayfa koruması.
