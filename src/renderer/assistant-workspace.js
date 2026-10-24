@@ -4,7 +4,7 @@
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const uid=()=>crypto.randomUUID();
  const changed=()=>document.dispatchEvent(new CustomEvent('assistant-workspace-changed'));
- function key(){const global=globalAssistantContext();return global?JSON.stringify(['global',global.workspace,global.page,global.id,global.chapter]):JSON.stringify([player.workspaceMode,player.mediaKey]);}
+ function key(){return window.AssistantSourceContext.conversation(player,globalAssistantContext());}
  async function request(action,sourceKey,values={}){const r=await window.api.assistantThreads({action,sourceKey,...values});if(!r?.ok)throw Error(r?.error||t('Conversation could not be saved.','Sohbet kaydedilemedi.'));return r;}
  function restoreLog(){
   const thread=current(),scope=aiSourceScope(),log=document.getElementById('aiChatLog');if(!log)return;

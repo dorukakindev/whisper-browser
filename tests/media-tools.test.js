@@ -113,3 +113,10 @@ test('Blocked Letterboxd access reports the fallback and releases the request lo
 test('Browser review bridge is caller-authorized and returns exact title-match status without exposing raw page HTML',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-browser-')),close=[];let reads=0;try{const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},owner:()=>null,dialog:{},authorized:e=>e.trusted,catalogStore:()=>({get:()=>({id:'film',kind:'film',title:'Film',year:2020,tmdbId:'movie:42'})}),readOpenReviews:async()=>{reads++;return {reviews:[{id:'1',text:'Exact source review text.'}],identity:{title:'Other',year:2021,tmdbId:'movie:99'},url:'https://letterboxd.com/film/other/reviews/'};}});assert.equal((await service.handle({}, {action:'reviews-browser',itemId:'film'})).ok,false);assert.equal(reads,0);const result=await service.handle({trusted:true},{action:'reviews-browser',itemId:'film'});assert(result.ok);assert.equal(result.match.state,'mismatch');assert.equal(result.html,undefined);}finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('A review analysis cannot be saved against a different film identity after rematching',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'decision-identity-'));let item={id:'film',kind:'film',title:'Original',year:1999,tmdbId:'movie:1'};
+ try{const service=tools.registerMediaTools({app:{getPath:()=>dir,on:()=>{}},ipcMain:{handle:()=>{}},authorized:()=>true,owner:()=>null,catalogStore:()=>({get:()=>item,list:()=>[item]}),dialog:{}});const snapshot={...item};item={...item,title:'Other film',year:2001,tmdbId:'movie:2'};
+ const result=await service.handle({},{action:'decision-save',itemId:'film',itemIdentity:snapshot,reviews:[{id:'1',text:'Strong acting throughout.'}],analysis:{points:[{id:'1',quote:'Strong acting',reason:'Supported'}]}});assert.equal(result.ok,false);assert.match(result.error,/identity changed/);assert.equal((await service.handle({},{action:'decision-get',itemId:'film'})).value.history,undefined);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

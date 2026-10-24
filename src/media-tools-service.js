@@ -136,9 +136,9 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='decision-get'){known(input.itemId);const data=read();return {ok:true,value:(Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{})};}
       if(['decision-save','feedback-save'].includes(action)){
-        known(input.itemId);const data=read(),previous=Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{};
+        const selected=known(input.itemId);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{};
         if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[input.itemId]={...previous,feedback};}
-        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews);data.titles[input.itemId]={...previous,history:[{analysis,reviews},...(previous.history||[])].slice(0,8)};}
+        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews);data.titles[input.itemId]={...previous,history:[{analysis,reviews,identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId}},...(previous.history||[])].slice(0,8)};}
         save(data);return {ok:true,value:data.titles[input.itemId]};
       }
       if(action==='backup-export'){

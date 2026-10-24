@@ -66,6 +66,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (JSON.stringify(current) !== data.before) throw new Error('Eser önizleme sırasında değişti; yeniden eşleştirin.');
         const fields = Array.isArray(input.fields) ? input.fields : [];
         const patch = { id: current.id, tmdbId: data.patch.tmdbId };
+        const replacing=!!current.tmdbId&&current.tmdbId!==data.patch.tmdbId;
+        if(replacing&&input.replaceIdentity!==true)throw new Error('Farklı yapım eşleşmesini yeniden önizleyip onaylayın.');
+        if(replacing){for(const key of ['originalTitle','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes'])patch[key]=Array.isArray(current[key])?[]:'';patch.ratings={...current.ratings,imdb:null,letterboxd:null};patch.posterPath='';patch.synopsisTr='';patch.synopsisTrSource='';}
+
         for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key)) patch[key] = data.patch[key];
         if (fields.includes('poster') && data.poster) {
           const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000), redirect: 'error' });
@@ -82,7 +86,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
           const previousPoster = current.posterPath;
           const saved = store().upsert(patch);
-          if (patch.posterPath && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
+          if ((patch.posterPath || replacing) && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
           previews.delete(input.token); return { ok: true, item: visible(saved) };
         } catch (error) { if (patch.posterPath) { try { fs.unlinkSync(patch.posterPath); } catch {} } throw error; }
       }

@@ -19592,9 +19592,7 @@ function globalAssistantContext() {
     note: 'No active video is attached. Do not infer contents of a previously opened video.' };
 }
 function aiSourceScope() {
-  const global = globalAssistantContext();
-  if (global) return JSON.stringify(['global', global.workspace, global.page, global.id, global.chapter]);
-  return JSON.stringify([player.workspaceMode,player.mediaKey,player.generation,player.browserActiveTabId]);
+  return window.AssistantSourceContext.scope(player, globalAssistantContext(), player.workspaceMode === 'browser' ? browserTabState() : null);
 }
 function aiVideoRows() {
   const roles=browserSubtitleRoleCues();
@@ -19886,13 +19884,14 @@ async function aiChatSend(soru, translationTarget = null) {
     const page = await Promise.race([Promise.resolve().then(()=>window.api.getBrowserPageContext(requestedPageTabId)).catch(() => null),
       new Promise(resolve=>{timer=setTimeout(()=>resolve(null),4000);})]);
     clearTimeout(timer);
-    if (page?.ok) chatContext.page = {
+    if (page?.ok && page.url && window.AssistantSourceContext.pageKey(page.url) === window.AssistantSourceContext.pageKey(player.browserPageUrl)) chatContext.page = {
       title: String(page.title || '').slice(0, 300),
       url: String(page.url || '').slice(0, 1000),
       blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 80) : [],
       characters: Number(page.characters) || 0,
     };
-    if (page?.ok) chatSourceTabId = requestedPageTabId;
+    if (chatContext.page) chatSourceTabId = requestedPageTabId;
+    else chatContext.pageUnavailable = 'Page text could not be read for this request. Do not infer page contents or claim to have summarized the page.';
   }
   if(aiChatPreparing===preparing)aiChatPreparing=null;
   updateAiChatActions();

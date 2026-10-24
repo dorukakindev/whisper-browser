@@ -45,7 +45,7 @@
     const edit=button(t('Manage title','Yapımı yönet'),()=>management());header.append(back,edit);dialog.append(header);
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
     if(item.backdrop)image('backdrop',backdrop,version);
-    const content=el('div','mtd-hero-content'),poster=el('div','mtd-poster');if(item.hasPoster)image('poster',poster,version,{large:true});else poster.append(el('span','',t('Poster pending','Afiş hazırlanıyor')));content.append(poster);
+    const content=el('div','mtd-hero-content'),poster=el('div','mtd-poster');if(item.hasPoster)image('poster',poster,version,{large:true});else poster.append(el('span','',item.tmdbId?t('No poster available','Afiş bulunamadı'):t('Match a title for artwork','Afiş için yapımı eşleştir')));content.append(poster);
     const copy=el('div','mtd-copy');copy.append(el('span','mtd-kind',item.kind==='series'?t('Series','Dizi'):t('Film','Film')));
     const heading=el('h1','',item.title);heading.id='mediaTitleHeading';copy.append(heading);
     if(item.originalTitle&&item.originalTitle!==item.title)copy.append(el('p','mtd-original',item.originalTitle));

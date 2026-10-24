@@ -438,19 +438,23 @@
     const results = $('div', 'mc-import-list');
     for (const row of state.metadataResults) results.append(button(`${row.title} · ${row.date || 'Tarih yok'}`, async () => {
       const result = await api('metadata-preview', { id: item.id, providerId: row.id, credential: state.credential });
-      if (result) { state.metadata = result; state.metadataFields = new Set(['title', 'year', 'synopsis', 'genres', 'cast', 'runtime', 'imdbId', 'originalTitle', 'poster'].filter(key => key === 'poster' ? !item.hasPoster : Array.isArray(item[key]) ? !item[key].length : !item[key])); render(); }
+      if (result) { state.metadata = result; state.metadataFields = new Set(['title','year','synopsis','genres','cast','runtime','imdbId','originalTitle','directors','tagline','backdrop','tmdbRating','tmdbVotes','poster'].filter(key => item.tmdbId && item.tmdbId !== result.patch.tmdbId || (key === 'poster' ? !item.hasPoster : Array.isArray(item[key]) ? !item[key].length : !item[key]))); render(); }
     }));
     body.append(results);
     if (state.metadata) {
-      const data = state.metadata; body.append($('h4', '', 'Uygulanacak alanları seçin'));
-      const labels = { title: 'Başlık', originalTitle: 'Özgün başlık', year: 'Yıl', synopsis: 'Konu', imdbId: 'IMDb kimliği', genres: 'Türler', cast: 'Oyuncular', runtime: 'Süre', poster: 'Afiş' };
+      const data = state.metadata, replacing=!!item.tmdbId&&item.tmdbId!==data.patch.tmdbId;
+      body.append($('h4', '', english()?'Review the match before applying':'Uygulamadan önce eşleşmeyi incele'));
+      const comparison=$('div','mc-match-comparison');for(const [caption,title,year,description]of [[english()?'Current library title':'Kütüphanedeki mevcut yapım',item.title,item.year,item.synopsis],[english()?'Selected TMDB title':'Seçilen TMDB yapımı',data.patch.title,data.patch.year,data.patch.synopsis]]){const card=$('section');card.append($('small','mc-muted',caption),$('strong','',title+(year?' · '+year:'')),$('p','mc-muted',description|| (english()?'No summary available.':'Konu bilgisi yok.')));comparison.append(card);}body.append(comparison);
+      if(replacing)body.append($('p','mc-muted',english()?'A different TMDB title was selected. All available metadata is selected for replacement. Unchecked provider fields and the old poster are cleared to prevent mixed film information. Your video sources, progress, personal rating and favorites stay.':'Farklı bir TMDB yapımı seçildi. Yeni bilgiler değiştirme için seçili. İşareti kaldırılan sağlayıcı alanları ve eski afiş temizlenir; iki filmin bilgileri karışmaz. Video kaynakları, ilerleme, kişisel puan ve favorilerin korunur.'));
+      const labels = english() ? {title:'Title',originalTitle:'Original title',year:'Year',synopsis:'Story',imdbId:'IMDb ID',genres:'Genres',cast:'Cast',runtime:'Runtime',poster:'Poster',directors:'Director / creator',tagline:'Tagline',backdrop:'Backdrop',tmdbRating:'TMDB rating',tmdbVotes:'TMDB votes'} : { title: 'Başlık', originalTitle: 'Özgün başlık', year: 'Yıl', synopsis: 'Konu', imdbId: 'IMDb kimliği', genres: 'Türler', cast: 'Oyuncular', runtime: 'Süre', poster: 'Afiş', directors:'Yönetmen / yaratıcı', tagline:'Slogan', backdrop:'Arka plan', tmdbRating:'TMDB puanı', tmdbVotes:'TMDB oy sayısı' };
+      const fieldList=$('div','mc-match-fields');body.append(fieldList);
       for (const [key, label] of Object.entries(labels)) {
         const row = $('label', 'mc-check'); const check = $('input'); check.type = 'checkbox'; check.checked = state.metadataFields.has(key); check.disabled = state.busy;
         check.addEventListener('change', () => { if (check.checked) state.metadataFields.add(key); else state.metadataFields.delete(key); });
-        row.append(check, $('span', '', `${label}: ${key === 'poster' ? data.poster ? 'Yeni afiş indirilecek' : 'Afiş yok' : Array.isArray(data.patch[key]) ? data.patch[key].join(', ') : data.patch[key] ?? 'Bilgi yok'}`)); body.append(row);
+        row.append(check, $('span', '', `${label}: ${key === 'poster' ? data.poster ? (english()?'New poster will be downloaded':'Yeni afiş indirilecek') : (english()?'No poster available':'Afiş yok') : Array.isArray(data.patch[key]) ? data.patch[key].join(', ') : data.patch[key] ?? (english()?'No information':'Bilgi yok')}`)); fieldList.append(row);
       }
-      body.append($('p', 'mc-muted', 'Yalnız boş alanlar başlangıçta seçilidir. Dolu bir alanı seçerseniz mevcut değer değişir. TMDB kimliği bağlanır; kişisel puan, favori ve izleme durumu korunur.'), button('Seçili bilgileri uygula', async () => {
-        const result = await api('metadata-apply', { token: data.token, fields: [...state.metadataFields] });
+      body.append($('p', 'mc-muted', replacing?(english()?'Review the new title and the selected fields, then apply. Personal data stays.':'Yeni yapımı ve seçili alanları inceleyip uygula. Kişisel verilerin korunur.'):'Yalnız boş alanlar başlangıçta seçilidir. Dolu bir alanı seçerseniz mevcut değer değişir. TMDB kimliği bağlanır; kişisel puan, favori ve izleme durumu korunur.'), button('Seçili bilgileri uygula', async () => {
+        const result = await api('metadata-apply', { token: data.token, fields: [...state.metadataFields], replaceIdentity:replacing });
         if (result) { posterCache.delete(String(item.id)); state.metadata = null; if (await reload()) show(item.id); }
       }, 'mc-primary'));
     }

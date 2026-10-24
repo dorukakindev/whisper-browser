@@ -16,6 +16,14 @@
     Fast: {profile:'fast', concurrency:'4', grouping:'akici', verification:'fast', timingMode:'video', naturalSpeech:false, autoFit:false},
     Careful: {profile:'quality', concurrency:'4', grouping:'akici', verification:'detailed', timingMode:'video', naturalSpeech:true, autoFit:true},
   };
+  function generationError(value) {
+    const message=String(value||'');
+    if(!/(?:KV cache calculation|no safe memory budget|CUDA.{0,30}out of memory|CUDA OOM)/i.test(message))return message;
+    const advice=window.UiLocale?.get?.()==='en'
+      ? 'A safe GPU memory budget could not be allocated. Finish another GPU job or close a GPU-heavy application, then retry with fewer parallel groups. Changing the voice reference is not required.'
+      : 'GPU için güvenli bellek bütçesi ayrılamadı. Diğer GPU işinin bitmesini bekleyin veya GPU kullanan ağır uygulamayı kapatıp daha az paralel grupla yeniden deneyin. Referans sesi değiştirmeniz gerekmiyor.';
+    return advice+'\n\n'+message;
+  }
   function refreshOverview() {
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
@@ -348,7 +356,7 @@
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
       current = null; el('dubGeneratorProgress').value = 0; status('Ses üretimi başarısız oldu.');
-      el('dubGeneratorDetails').textContent = r?.error || ''; controls();
+      el('dubGeneratorDetails').textContent = generationError(r?.error); controls();
     }
   }
   el('dubGeneratorStart').addEventListener('click', () => start());
@@ -424,7 +432,7 @@
         }
       } else if (event.type === 'cancelled') status('Durduruldu.');
       else {
-        status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = event.error || '';
+        status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = generationError(event.error);
         if (event.recoverablePath && event.recoverableUrl) {
           output = {path:event.recoverablePath,url:event.recoverableUrl,name:event.name,syncInvalid:true};
           preview(output); el('dubGeneratedName').textContent = event.name || basename(output.path);

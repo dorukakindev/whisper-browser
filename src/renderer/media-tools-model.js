@@ -21,6 +21,11 @@ function reviewSample(reviews, limit=4500) {
  }
  return {reviews:selected,omitted:reviews.length-selected.length,truncated};
 }
+function reviewAssessment(reviews, points=[]) {
+ const normalize=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
+ const unique=new Set(reviews.map(r=>normalize(r.text))),quoted=new Set(points.filter(p=>reviews.some(r=>r.id===p.id)).map(p=>normalize(reviews.find(r=>r.id===p.id).text)));
+ return {total:reviews.length,distinct:unique.size,duplicates:reviews.length-unique.size,quoted:quoted.size,limited:unique.size<5};
+}
 function decisionEvidence(item,reviews,taste={}) {
  const configured=taste.preferencesConfigured===true;
  const profile={preferencesConfigured:configured,preferences:configured?{weights:taste.preferences?.weights||{},avoid:taste.preferences?.avoid||[],note:String(taste.preferences?.note||'').slice(0,600)}:null,
@@ -64,5 +69,5 @@ function tonight(items, history=[], options={}) {
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
 
-return Object.freeze({reviewRows,reviewSample,decisionEvidence,verifyDecision,tonight});
+return Object.freeze({reviewRows,reviewSample,reviewAssessment,decisionEvidence,verifyDecision,tonight});
 });

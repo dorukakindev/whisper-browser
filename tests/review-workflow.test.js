@@ -31,3 +31,15 @@ test('Interrupted analysis keeps partial received text and exposes a retry inste
 test('Leaving a reading panel cancels its request and rejects a late result without replacing the old sample',async()=>{
  const u=ui();let release;try{u.draft.reviews='Previous sample remains';u.w.api.mediaTools=async packet=>packet.action==='reviews-stop'?{ok:true}:new Promise(r=>release=r);u.click('Use reviews from open Browser page');await u.wait();assert.equal(u.draft.attempt.state,'reading');u.w.MediaReviewDecision.leave();assert.equal(u.draft.attempt.state,'stopped');release({ok:true,reviews:[{id:'1',text:'Late result must not overwrite existing text.'}]});await u.wait();assert.equal(u.draft.reviews,'Previous sample remains');}finally{u.w.close();}
 });
+
+test('Editing a previewed sample or spoiler selection requires a fresh preview before any AI request',async()=>{
+ const u=ui();let sent=0;try{u.click('Use reviews from open Browser page');await u.wait();u.click('Preview & analyze');await u.wait();u.w.aiChatSend=async()=>{sent++;};const raw=u.w.document.querySelector('[name=review-text]');raw.value='A completely new review with a different opinion.';raw.dispatchEvent(new u.w.Event('input'));u.click('Send this sample');await u.wait();assert.equal(sent,0);assert.match(u.draft.attempt.error,/sample changed/);assert.match(u.draft.reviews,/completely new/);
+ }finally{u.w.close();}
+});
+test('Evidence assessment counts duplicate opinions once and separates exact quotes from general consensus',()=>{
+ const model=require('../src/renderer/media-tools-model');const rows=[{id:'1',text:'Strong acting throughout.'},{id:'2',text:'  Strong   ACTING throughout.  '},{id:'3',text:'The ending felt slow.'}];const assessment=model.reviewAssessment(rows,[{id:'1'},{id:'2'}]);assert.deepEqual(assessment,{total:3,distinct:2,duplicates:1,quoted:1,limited:true});
+});
+
+test('A late browser fetch cannot overwrite text edited while reading',async()=>{
+ const u=ui();let release;try{u.w.api.mediaTools=()=>new Promise(r=>release=r);u.click('Use reviews from open Browser page');await u.wait();const raw=u.w.document.querySelector('[name=review-text]');raw.value='My edited review must remain.';raw.dispatchEvent(new u.w.Event('input'));release({ok:true,reviews:[{id:'1',text:'Late browser sample with an unrelated opinion.'}]});await u.wait();assert.equal(raw.value,'My edited review must remain.');assert.equal(u.draft.reviews,raw.value);assert.match(u.draft.attempt.error,/edits were kept/);}finally{u.w.close();}
+});

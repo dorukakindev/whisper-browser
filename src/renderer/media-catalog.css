@@ -70,3 +70,11 @@
 .mc-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
 .mc-feedback { margin: 0; padding: 9px 26px; border-bottom: 1px solid var(--border); color: var(--accent); }
 @media (max-width: 680px) { #mediaCatalogDialog { width: calc(100vw - 12px); height: calc(100vh - 12px); } .mc-header, .mc-content { padding-left: 16px; padding-right: 16px; } .mc-nav { padding: 0 16px; gap: 18px; } .mc-detail-hero { grid-template-columns: 110px 1fr; gap: 15px; } .mc-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 10px; } .mc-form form { grid-template-columns: 1fr; } }
+
+/* Reviewed identity changes share the catalog's existing surfaces. */
+.mc-match-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.mc-match-comparison>section{min-width:0;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--bg-1)}
+.mc-match-comparison>section:last-child{border-color:var(--accent)}
+.mc-match-comparison small,.mc-match-comparison strong{display:block;overflow-wrap:anywhere}.mc-match-comparison strong{font-size:16px;line-height:1.5;margin-top:8px}.mc-match-comparison p{font-size:13px;line-height:1.7;max-height:120px;overflow:auto;white-space:pre-wrap}
+.mc-match-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px}.mc-match-fields .mc-check{min-width:0;align-items:flex-start;padding:10px 0;margin:0}.mc-match-fields .mc-check span{overflow-wrap:anywhere;font-size:13px;line-height:1.6}.mc-match-fields input{flex-shrink:0;margin-top:3px}
+@media(max-width:700px){.mc-match-comparison,.mc-match-fields{grid-template-columns:1fr}.mc-match-comparison p{max-height:90px}}
