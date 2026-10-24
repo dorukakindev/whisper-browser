@@ -60,6 +60,15 @@ class StreamTests(unittest.TestCase):
         self.assertEqual(len(client.requests), 1)
         self.assertEqual(''.join(e['text'] for e in events), 'Keep this answer')
 
+    def test_token_limit_keeps_partial_without_false_completion(self):
+        ending = chunk()
+        ending.choices[0].finish_reason = 'length'
+        client, events = Client([chunk('Received prefix'), ending]), []
+        with self.assertRaises(PartialAnswerError):
+            stream_answer(client, [{'role': 'system', 'content': 'Fixture'}], {}, lambda k, **p: events.append(p), lambda: None)
+        self.assertEqual(len(client.requests), 1)
+        self.assertEqual(''.join(e['text'] for e in events), 'Received prefix')
+
     def test_tool_and_stream_compatibility(self):
         client = Client(Unsupported('tools unsupported'), Unsupported('stream unsupported'), NS(choices=[NS(message=NS(content='Fallback'))]))
         result, _ = self.run_answer(client, {'enabled': True, 'rows': [{'id': 'U0', 'start': 1, 'end': 2, 'text': 'hello'}]})

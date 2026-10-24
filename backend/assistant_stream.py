@@ -127,6 +127,8 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
                 if not answer:
                     raise RuntimeError("Provider returned an empty response.")
                 emit("chat_delta", text=answer)
+                if getattr(response.choices[0], "finish_reason", None) in ("length", "content_filter"):
+                    raise PartialAnswerError("The provider stopped an incomplete answer; received text was kept.")
                 return answer, [], []
             except Exception as error:
                 if answer:
@@ -146,6 +148,8 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
                 checkpoint()
                 if not getattr(chunk, "choices", None):
                     continue
+                if getattr(chunk.choices[0], "finish_reason", None) in ("length", "content_filter"):
+                    raise RuntimeError("Provider ended the answer before completion (length or content_filter).")
                 delta = chunk.choices[0].delta
                 fragment = getattr(delta, "content", None)
                 if isinstance(fragment, str) and fragment:
