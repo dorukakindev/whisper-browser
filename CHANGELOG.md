@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Hardened media health scanning: skip unverified imported sources, hash each distinct resolved file once, distinguish unreadable/missing sources and expose comparison progress. Reopening media tools raises the existing modal; late folder selection cannot re-enable disabled automatic backups.
+
 - Added title-specific review sampling and evidence-checked personal-fit analysis through the existing assistant, plus separate after-watching feedback and analysis history.
 - Added an explained time/mood picker for local library titles, cancellable library health scans with full duplicate hashes and embedded-subtitle checks, and expanded workspace backups with restore counts and optional daily/weekly retention.
 - Added assistant search, persisted source-scoped pins, copy/code-copy, edit-as-new-question and Markdown/text export. Added separate native film/music and dubbed-voice listening profiles; preserved the normal Chromium video audio path.

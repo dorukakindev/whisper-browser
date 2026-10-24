@@ -42,16 +42,16 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
-  let scan=null, backingUp=false;const jobs=new Map();
+  let scan=null, backingUp=false,scheduleIntent=0;const jobs=new Map();
   const scheduleFile=()=>path.join(root(),'media-backup-schedule.json');
   let schedule={every:'off',dir:'',last:0,error:''};
-  try{if(fs.existsSync(scheduleFile())&&fs.statSync(scheduleFile()).size<8192){const raw=JSON.parse(fs.readFileSync(scheduleFile(),'utf8'));if(['off','daily','weekly'].includes(raw.every)&&typeof raw.dir==='string')schedule={...schedule,...raw};}}catch{}
+  try{if(fs.existsSync(scheduleFile())&&fs.statSync(scheduleFile()).size<8192){const raw=JSON.parse(fs.readFileSync(scheduleFile(),'utf8'));if(['off','daily','weekly'].includes(raw.every)&&typeof raw.dir==='string')schedule={every:raw.every,dir:raw.dir.slice(0,4000),last:Number.isFinite(raw.last)&&raw.last>0&&raw.last<=Date.now()?raw.last:0,error:''};}}catch{}
   const saveSchedule=()=>atomicWriteFileSync(scheduleFile(),JSON.stringify(schedule));
   async function autoBackup(){
     if(backingUp||schedule.every==='off'||!schedule.dir||Date.now()-schedule.last<(schedule.every==='weekly'?7:1)*86400000)return;
     backingUp=true;
     try{const dir=await fs.promises.realpath(schedule.dir);const name='whisper-auto-'+new Date().toISOString().replace(/[:.]/g,'-')+'.wbp';require('./workspace-package').exportPackage(root(),path.join(dir,name));
-      const names=(await fs.promises.readdir(dir)).filter(n=>/^whisper-auto-\d{4}-\d\d-\d\dT[\dT-Z-]+\.wbp$/.test(n)).sort().reverse();
+      const names=(await fs.promises.readdir(dir)).filter(n=>/^whisper-auto-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.wbp$/.test(n)).sort().reverse();
       for(const old of names.slice(7)){const target=path.join(dir,old);const stat=await fs.promises.lstat(target);if(stat.isFile()&&!stat.isSymbolicLink())await fs.promises.unlink(target);}
       schedule.last=Date.now();schedule.error='';
     }catch(e){schedule.error=e.message;}finally{backingUp=false;try{saveSchedule();}catch(e){schedule.error=e.message;}}
@@ -62,23 +62,39 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
   const known = id=>{const item=catalogStore().get(id);if(!item)throw Error('Choose a library title first.');return item;};
   async function health(job) {
     const rows=[], hashes=new Map(), items=catalogStore().list();
+    job.phase='inspect';job.hashed=0;job.hashTotal=0;
     const all=items.flatMap(item=>[{...item,source:item.source},...(item.episodes||[]).map(ep=>({...ep,title:item.title+' · '+ep.title,source:ep.source}))]).filter(r=>r.source?.type==='local');
     job.total=all.length;
     for(const row of all){
       if(job.cancel.signal.aborted)break;
       const source=row.source.value, facts={id:row.id,title:row.title,path:source,issues:[]};
+      if(row.source.imported){facts.issues.push('unverified');rows.push(facts);job.done++;job.rows=rows.slice();continue;}
       if(!items.some(item=>(item.imdbId||item.tmdbId)&&(item.source?.value===source||item.episodes?.some(ep=>ep.source?.value===source))))facts.issues.push('unmatched');
       try {
         const stat=await fs.promises.stat(source);if(!stat.isFile())throw Error('not a file');
         if(/(?:^|[ ._-])sample(?:[ ._-]|$)/i.test(path.basename(source)))facts.issues.push('sample');
         // Full SHA-256 for same-size candidates only; streaming, cancellable, no deletion.
-        const group=hashes.get(stat.size)||[];group.push(facts);hashes.set(stat.size,group);
+        const real=await fs.promises.realpath(source),identity=process.platform==='win32'?real.toLowerCase():real;
+        const group=hashes.get(stat.size)||[];let candidate=group.find(r=>r.identity===identity);if(!candidate){candidate={path:real,identity,rows:[]};group.push(candidate);}candidate.rows.push(facts);hashes.set(stat.size,group);
         const stem=path.basename(source,path.extname(source));const side=(await fs.promises.readdir(path.dirname(source))).some(name=>name.toLowerCase().startsWith(stem.toLowerCase()+'.')&&/\.(srt|ass|ssa|vtt)$/i.test(name));
         if(!side){try{const probe=JSON.parse(await run(ffprobe(),['-v','error','-select_streams','s','-show_entries','stream=index','-of','json',source],undefined,job.cancel.signal,12000));if(!probe.streams?.length)facts.issues.push('no-subtitles');}catch(e){if(job.cancel.signal.aborted)break;facts.issues.push('probe-failed');}}
-      } catch {facts.issues.push('missing');}
+      } catch(error) {facts.issues.push(['ENOENT','ENOTDIR'].includes(error.code)?'missing':'probe-failed');}
       rows.push(facts);job.done++;job.rows=rows.slice();await new Promise(resolve=>setImmediate(resolve));
     }
-    for(const group of hashes.values())if(group.length>1){const digest=new Map();for(const row of group){if(job.cancel.signal.aborted)break;try{const hash=createHash('sha256');for await(const chunk of fs.createReadStream(row.path,{signal:job.cancel.signal}))hash.update(chunk);const key=hash.digest('hex'),same=digest.get(key);if(same&&same.path!==row.path){same.issues.push('duplicate');row.issues.push('duplicate');}else digest.set(key,row);}catch{if(!job.cancel.signal.aborted)row.issues.push('probe-failed');}}}
+    const candidates=[...hashes.values()].filter(group=>group.length>1);
+    job.phase='hash';job.hashTotal=candidates.reduce((n,group)=>n+group.length,0);
+    for(const group of candidates){
+      const digest=new Map();
+      for(const candidate of group){
+        if(job.cancel.signal.aborted)break;
+        try{const hash=createHash('sha256');for await(const chunk of fs.createReadStream(candidate.path,{signal:job.cancel.signal}))hash.update(chunk);
+          const key=hash.digest('hex'),same=digest.get(key);
+          if(same){for(const row of [...same.rows,...candidate.rows])if(!row.issues.includes('duplicate'))row.issues.push('duplicate');}else digest.set(key,candidate);
+        }catch{if(!job.cancel.signal.aborted)for(const row of candidate.rows)row.issues.push('probe-failed');}
+        if(!job.cancel.signal.aborted)job.hashed++;
+      }
+      if(job.cancel.signal.aborted)break;
+    }
     job.rows=rows;job.state=job.cancel.signal.aborted?'cancelled':'done';
   }
   const handle=async(event,input={})=>{
@@ -90,12 +106,14 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       if(action==='backup-status')return {ok:true,value:{...schedule}};
       if(action==='backup-schedule'){
         if(!['off','daily','weekly'].includes(input.every))throw Error('Invalid backup interval.');
+        if(backingUp)throw Error('A backup is being written. Wait until it finishes before changing its schedule.');const intent=++scheduleIntent;
         if(input.every==='off'){schedule.every='off';saveSchedule();return {ok:true};}
-        const selected=await dialog.showOpenDialog(owner(),{properties:['openDirectory']});if(selected.canceled)return {ok:true,canceled:true};
-        schedule={every:input.every,dir:await fs.promises.realpath(selected.filePaths[0]),last:0,error:''};saveSchedule();await autoBackup();return {ok:true,value:{...schedule}};
+        const selected=await dialog.showOpenDialog(owner(),{properties:['openDirectory']});if(selected.canceled||intent!==scheduleIntent)return {ok:true,canceled:true};
+        const directory=await fs.promises.realpath(selected.filePaths[0]);if(intent!==scheduleIntent)return {ok:true,canceled:true};if(backingUp)throw Error('A backup started while choosing a folder. Try again after it finishes.');if(!(await fs.promises.stat(directory)).isDirectory())throw Error('Choose a backup directory.');if(intent!==scheduleIntent)return {ok:true,canceled:true};if(backingUp)throw Error('A backup started while validating the folder. Try again after it finishes.');
+        schedule={every:input.every,dir:directory,last:0,error:''};saveSchedule();await autoBackup();return {ok:true,value:{...schedule}};
       }
       if(action==='health-start'){if(scan?.state==='running')return {ok:true,id:scan.id};const job={id:randomUUID(),cancel:new AbortController(),state:'running',done:0,total:0,rows:[]};scan=job;void health(job).catch(e=>{job.state='failed';job.error=e.message;});return {ok:true,id:job.id};}
-      if(action==='health-status'||action==='health-stop'){if(scan?.id!==input.id)throw Error('Scan expired.');if(action==='health-stop')scan.cancel.abort();return {ok:true,id:scan.id,state:scan.state,done:scan.done,total:scan.total,rows:scan.rows,error:scan.error};}
+      if(action==='health-status'||action==='health-stop'){if(scan?.id!==input.id)throw Error('Scan expired.');if(action==='health-stop')scan.cancel.abort();return {ok:true,id:scan.id,state:scan.state,done:scan.done,total:scan.total,phase:scan.phase,hashed:scan.hashed,hashTotal:scan.hashTotal,rows:scan.rows,error:scan.error};}
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
       if(action==='reviews-fetch'){

@@ -66,3 +66,29 @@ test('Automatic backups retain seven owned files and leave unrelated files untou
     assert.equal((await service.handle({}, {action:'backup-schedule',every:'off'})).ok,true);assert.equal((await service.handle({}, {action:'backup-status'})).value.every,'off');
   }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
 });
+test('Health scan skips unverified imports and compares distinct physical files once',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-health-')),close=[];
+  try{
+    const a=path.join(dir,'a.mp4'),b=path.join(dir,'b.mp4');for(const file of [a,b]){fs.writeFileSync(file,'same contents');fs.writeFileSync(file.replace('.mp4','.tr.srt'),'subtitle');}
+    const row=(id,value,imported=false)=>({id,title:id,imdbId:'tt1234567',source:{type:'local',value,imported}});
+    const items=[row('a',a),row('alias',a),row('b',b),row('unverified',path.join(dir,'not-approved.mp4'),true),row('missing',path.join(dir,'gone.mp4')),row('directory',dir)];
+    const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,dialog:{},catalogStore:()=>({list:()=>items})});
+    const started=await service.handle({}, {action:'health-start'});let result;
+    const deadline=Date.now()+3000;do{result=await service.handle({}, {action:'health-status',id:started.id});if(result.state!=='running')break;await new Promise(r=>setTimeout(r,10));}while(Date.now()<deadline);
+    assert.equal(result.state,'done');assert.equal(result.done,6);assert.equal(result.hashTotal,2,'Alias record must not trigger a third full-file hash');assert.equal(result.hashed,2);
+    for(const id of ['a','alias','b'])assert.deepEqual(result.rows.find(r=>r.id===id).issues,['duplicate']);
+    assert.deepEqual(result.rows.find(r=>r.id==='unverified').issues,['unverified']);assert(result.rows.find(r=>r.id==='missing').issues.includes('missing'));assert.deepEqual(result.rows.find(r=>r.id==='directory').issues,['probe-failed']);
+  }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('A late backup folder picker cannot re-enable a disabled schedule; future timestamps recover',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-schedule-')),close=[];let finishPicker;
+  try{
+    fs.writeFileSync(path.join(dir,'media-backup-schedule.json'),JSON.stringify({every:'daily',dir,last:Date.now()+86400000000}));
+    const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,catalogStore:()=>({}),dialog:{showOpenDialog:()=>new Promise(resolve=>{finishPicker=resolve;})}});
+    assert.equal((await service.handle({}, {action:'backup-status'})).value.last,0);
+    const pending=service.handle({}, {action:'backup-schedule',every:'weekly'});
+    await service.handle({}, {action:'backup-schedule',every:'off'});finishPicker({filePaths:[dir]});assert.equal((await pending).canceled,true);
+    assert.equal((await service.handle({}, {action:'backup-status'})).value.every,'off');
+    assert.equal(fs.readdirSync(dir).filter(n=>n.endsWith('.wbp')).length,0);
+  }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});
