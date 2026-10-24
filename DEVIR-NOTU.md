@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-2042.md](docs/devir/2026-10-24-2042.md) — Sade üst çubuk ve güvenli TMDB bilgi/afiş ayarları
 Güncel çalışma: [docs/devir/2026-10-24-2025.md](docs/devir/2026-10-24-2025.md) — Ayarlarda model listesi ve doğru kayıt/bağlantı durumu
 Güncel çalışma: [docs/devir/2026-10-24-2003.md](docs/devir/2026-10-24-2003.md) — Ana sayfadan doğrudan API/sağlayıcı ve uygulama Ayarları
 Güncel çalışma: [docs/devir/2026-10-24-1950.md](docs/devir/2026-10-24-1950.md) — Gerçek GPT-5.4 mini denemesi: anlam kapsamı ve gerçek işlem kartları
