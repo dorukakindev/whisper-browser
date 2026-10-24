@@ -21691,6 +21691,7 @@ const mediaTorrents = require('./media-torrents').registerMediaTorrents({app,ipc
   enginePath:()=>process.env.WHISPER_TORRENT_TEST==='1'&&process.env.WHISPER_RQBIT_PATH ? process.env.WHISPER_RQBIT_PATH : path.join(app.getPath('userData'),'media-engines','rqbit.exe')});
 require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents});
 const mediaCatalogService = require('./media-catalog-service').registerMediaCatalogService({
+  metadataSettings:()=>loadSettings().tmdb||{},
   mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob

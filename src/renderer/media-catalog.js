@@ -428,8 +428,8 @@
     const item = find(state.selected), body = $('div', 'mc-content mc-form');
     if (!item) return renderList();
     body.append(button('← Eser ayrıntısına dön', () => show(item.id)), $('h3', '', 'Eser bilgilerini eşleştir'),
-      $('p', 'mc-muted', 'TMDB başlık araması ve seçili sezon bilgileri çevrimiçi alınır. Erişim belirteci yalnız bu katalog oturumunda tutulur.'));
-    body.append(formField('TMDB API okuma erişim belirteci', state.credential, value => { state.credential = value; }, { type: 'password', maxLength: 4096 }));
+      $('p', 'mc-muted', 'TMDB başlık, afiş ve sezon bilgileri çevrimiçi alınır. Ayarlar içindeki kayıtlı TMDB anahtarın kullanılır; aşağıya yalnız bu oturum için farklı anahtar da girebilirsin.'));
+    body.append(formField('TMDB anahtarı (isteğe bağlı oturum değişikliği)', state.credential, value => { state.credential = value; }, { type: 'password', maxLength: 4096 }));
     const secret = body.querySelector('input[type=password]'); secret.autocomplete = 'off';
     body.append(button('Belirteci göster / gizle', () => { secret.type = secret.type === 'password' ? 'text' : 'password'; }));
     body.append(formField('Aranacak başlık', state.metadataQuery, value => { state.metadataQuery = value; }, { maxLength: 200 }),
@@ -748,9 +748,10 @@
     else if (options.mode === 'package') { state.mode='package';render(); }
     else if (options.mode === 'folder') await previewImport('folder-preview');
   }
-  window.MediaCatalogUI = Object.freeze({ open, close });
+  async function openMetadata(id){await open({id});if(!dialog.open||state.selected!==id)return;const item=find(id);if(!item)return;state.metadataQuery=item.title;state.metadataResults=[];state.metadata=null;state.seasonData=null;state.mode='metadata';render();}
+  window.MediaCatalogUI = Object.freeze({ open, close, openMetadata });
   for (const openButton of openButtons) openButton.addEventListener('click', () => { void open({ opener: openButton }); });
   document.addEventListener('ui-locale-change', () => { if (dialog.open) render(); });
-  dialog.addEventListener('close', () => { if (dialog.open) { if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; } state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
+  dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });
 })();

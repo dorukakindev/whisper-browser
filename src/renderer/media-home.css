@@ -84,7 +84,7 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-action.mh-primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
 .mh-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .mh-locale { padding: 9px; border-radius: 999px; color: var(--text); background: var(--bg-1); border: 1px solid var(--border); }
-.mh-nav { display: flex; align-items: center; gap: 5px; overflow-x: auto; padding: 0; flex: 1; min-width: 300px; }
+.mh-nav { display: flex; align-items: center; gap: 5px; flex-wrap:wrap; padding: 0; flex: 1; min-width: 0; }
 .mh-nav button { color: var(--text-dim); background: transparent; border: 0; border-radius: 999px; padding: 10px 11px; white-space: nowrap; font-size: 14px; }
 .mh-nav button[aria-current="page"] { color: var(--text); background: var(--bg-3); }
 .mh-nav button:hover { color: var(--text); }
@@ -157,3 +157,5 @@ html[data-theme="light"] .mh-hero-art::after { background: linear-gradient(90deg
 .mh-card-meta { font-variant-numeric: tabular-nums; }
 .media-home img { outline: 1px solid rgba(255,255,255,.1); outline-offset: -1px; }
 html[data-theme="light"] .media-home img { outline-color: rgba(0,0,0,.1); }
+
+.mh-settings-icon{width:40px;height:40px;padding:8px;display:grid;place-items:center;flex-shrink:0}.mh-settings-icon svg{width:22px;height:22px}.mh-more{position:relative}.mh-more>summary{cursor:pointer;list-style:none;font:600 13px 'IBM Plex Sans',sans-serif;min-height:40px;display:flex;align-items:center}.mh-more>summary::-webkit-details-marker{display:none}.mh-more-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:20;min-width:200px;max-height:60vh;overflow:auto;padding:8px;border:1px solid var(--border-strong);border-radius:12px;background:var(--bg-1);box-shadow:0 10px 30px #0006;display:grid;gap:4px}.mh-more-menu button{text-align:left;border:0;border-radius:8px;background:transparent}.mh-header .mh-search{flex:1;min-width:130px}.mh-header .mh-actions{flex-wrap:nowrap}.mh-header .mh-nav{overflow:visible}.mh-more:focus-within>summary{border-color:var(--accent)}

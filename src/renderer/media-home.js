@@ -309,13 +309,12 @@
       mode.setAttribute('aria-pressed', String(key === (['music', 'radio'].includes(state.page) ? 'music' : state.page === 'books' ? 'books' : 'film'))); modes.append(mode);
     }
     const actions = el('div', 'mh-actions');
-    actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open media', 'Medya aç'), () => window.MediaHubUI?.open(), 'mh-action mh-primary'));
-    actions.append(button(t('Tonight', 'Bu akşam'), () => window.MediaToolsUI?.open('tonight')), button(t('Library care', 'Arşiv bakımı'), () => window.MediaToolsUI?.open('health')));
-    actions.append(button(t('Activity', 'İşlemler'), () => window.MediaExperience?.openTasks()));
-    const settings=button(t('Settings','Ayarlar'),()=>window.AppSettingsUI.open());settings.id='mhSettings';settings.title=t('AI providers and application settings','AI sağlayıcıları ve uygulama ayarları');actions.append(settings);
-    const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
-    for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
-    locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);
+    actions.append(button('Browser', openBrowser),button(t('Open media','Medya aç'),()=>window.MediaHubUI?.open(),'mh-action mh-primary'));
+    const more=el('details','mh-more'),trigger=el('summary','mh-action',t('Tools','Araçlar'));more.append(trigger);const menu=el('div','mh-more-menu');
+    for(const [label,run]of [[t('Studio','Stüdyo'),openStudio],[t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],[t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],[t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],[t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]])menu.append(button(label,()=>{more.open=false;return run();}));more.append(menu);actions.append(more);
+    const settings=button('',()=>window.AppSettingsUI.open());settings.id='mhSettings';settings.classList.add('mh-settings-icon');settings.title=t('Settings','Ayarlar');settings.setAttribute('aria-label',settings.title);
+    const gear=document.createElementNS('http://www.w3.org/2000/svg','svg');gear.setAttribute('viewBox','0 0 24 24');gear.setAttribute('aria-hidden','true');gear.setAttribute('fill','none');gear.setAttribute('stroke','currentColor');gear.setAttribute('stroke-width','1.6');
+    const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
     for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
@@ -346,6 +345,8 @@
   document.getElementById('mediaHomeBack')?.addEventListener('click', () => void perform(returnHome));
   document.getElementById('browserMediaHome')?.addEventListener('click', () => void perform(returnHome));
   document.getElementById('mediaCatalogDialog')?.addEventListener('close', () => { posters.clear(); if (state.active) void refresh(); });
+  document.addEventListener('pointerdown',event=>{for(const menu of host.querySelectorAll('.mh-more[open]'))if(!menu.contains(event.target))menu.open=false;});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const menu of host.querySelectorAll('.mh-more[open]'))menu.open=false;});
   document.addEventListener('ui-locale-change', renderShell);
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.

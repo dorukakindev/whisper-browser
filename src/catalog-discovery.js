@@ -51,19 +51,27 @@ async function readTextLimited(response, maxBytes) {
   return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
 }
 
-function createMetadataClient(fetchImpl = fetch) {
+function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
   async function request(route, token, params = {}) {
-    if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Yalnız bu oturumda kullanılır.');
+    if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Ayarlar → Film bilgileri ve afişler bölümünden kaydedebilirsiniz.');
     const url = new URL('https://api.themoviedb.org/3/' + route);
-    url.search = new URLSearchParams({ language: 'tr-TR', ...params }).toString();
+    const locale=language();url.search = new URLSearchParams({ language:/^[a-z]{2}-[A-Z]{2}$/.test(locale)?locale:'tr-TR', ...params, ...(/^[a-f0-9]{32}$/i.test(token)?{api_key:token}:{}) }).toString();
     let response;
-    try { response = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(20000) }); }
+    try { response = await fetchImpl(url, { headers: /^[a-f0-9]{32}$/i.test(token)?{}:{ Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(20000) }); }
     catch { throw new Error('TMDB bağlantısı kurulamadı; yeniden deneyin.'); }
     if (!response.ok) throw new Error(response.status === 401 ? 'TMDB erişim belirteci geçersiz.' : response.status === 429 ? 'TMDB istek sınırına ulaşıldı; daha sonra deneyin.' : 'TMDB bilgileri alınamadı.');
     const text = await readTextLimited(response, 4e6);
     return JSON.parse(text);
   }
   return {
+    async resolve(item,token){
+      const kind=item.kind==='series'?'tv':'movie',known=new RegExp('^'+kind+':(\\d+)$').exec(item.tmdbId||'');
+      if(known)return Number(known[1]);
+      if(!/^tt\d{5,12}$/.test(item.imdbId||''))throw new Error('Önce yapımı TMDB veya IMDb kimliğiyle eşleştirin.');
+      const data=await request('find/'+item.imdbId,token,{external_source:'imdb_id'}),rows=data[kind==='tv'?'tv_results':'movie_results']||[];
+      if(rows.length!==1||!Number.isSafeInteger(rows[0].id)||rows[0].id<1)throw new Error('Kimlik tek bir yapımla eşleşmedi; elle eşleştirin.');
+      return rows[0].id;
+    },
     async search(item, token, query) {
       const kind = item.kind === 'series' ? 'tv' : 'movie';
       const data = await request(`search/${kind}`, token, { query: String(query || item.title).slice(0, 200), include_adult: 'false' });

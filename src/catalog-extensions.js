@@ -4,9 +4,9 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
 const { atomicWriteFileSync } = require('./fsync-utils');
-function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText }) {
+function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText, metadataSettings = () => ({}) }) {
   const dl = dialogText || ((tr) => tr);
-  const client = createMetadataClient(), previews = new Map();
+  const client = createMetadataClient(undefined,{language:()=>metadataSettings().language||'tr-TR'}), previews = new Map();
   function remember(event, data) {
     for (const [key, row] of previews) if (Date.now() - row.created > 900000) previews.delete(key);
     if (previews.size >= 4) previews.delete(previews.keys().next().value);
@@ -20,6 +20,15 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
   return async function handle(event, input) {
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
+      case 'metadata-complete-missing':{
+        const current=item();if(current.posterPath&&current.synopsis&&current.genres?.length)return {ok:true,skipped:true,item:visible(current)};
+        const credential=metadataSettings().apiKey;if(!credential)throw new Error('Önce Ayarlar → Film bilgileri ve afişler bölümüne TMDB anahtarını kaydedin.');
+        const providerId=await client.resolve(current,credential);
+        if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');
+        const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential});
+        const fields=['synopsis','genres','cast','runtime','originalTitle','year'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!current.posterPath)fields.push('poster');
+        return handle(event,{action:'metadata-apply',token:preview.token,fields});
+      }
       case 'folder-preview': {
         const choice = await dialog.showOpenDialog(owner(), { title: dl('Film ve dizi klasörünü seç', 'Choose a movies & series folder'), properties: ['openDirectory'] });
         if (choice.canceled || !choice.filePaths?.[0]) return { ok: false, canceled: true };
@@ -37,9 +46,9 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (!Array.isArray(input.ids) || !input.ids.length) throw new Error('En az bir kayıt seçin.');
         const summary = store().mergeImport(data.items, { selectedIds: input.ids }); previews.delete(input.token); return { ok: true, summary };
       }
-      case 'metadata-search': return { ok: true, results: await client.search(item(), input.credential, input.query) };
+      case 'metadata-search': return { ok: true, results: await client.search(item(), (input.credential||metadataSettings().apiKey), input.query) };
       case 'metadata-preview': {
-        const current = item(), data = await client.detail(current, Number(input.providerId), input.credential);
+        const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey));
         return { ok: true, ...data, token: remember(event, { type: 'metadata', id: current.id, before: JSON.stringify(current), ...data }) };
       }
       case 'metadata-apply': {
@@ -67,7 +76,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         } catch (error) { if (patch.posterPath) { try { fs.unlinkSync(patch.posterPath); } catch {} } throw error; }
       }
       case 'season-preview': {
-        const current = item(), episodes = await client.season(current, Number(input.season), input.credential);
+        const current = item(), episodes = await client.season(current, Number(input.season), (input.credential||metadataSettings().apiKey));
         return { ok: true, episodes, token: remember(event, { type: 'season', id: current.id, before: JSON.stringify(current), episodes }) };
       }
       case 'season-apply': {

@@ -3198,7 +3198,7 @@ async function testSelectedTranslationProvider() {
 }
 
 document.addEventListener('change', (event) => {
-  if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey'].includes(event.target.id)) {
+  if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey'].includes(event.target.id)) {
     event.target.dataset.secretEdited = 'true';
   }
 }, true);
@@ -3225,7 +3225,7 @@ async function saveAppSettings() {
   _settingsSaveWarningShown = false;
   providerApiKeyProfilesEdited.translate = false;
   providerApiKeyProfilesEdited.manga = false;
-  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey']) {
+  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey']) {
     if ($(id)) $(id).dataset.secretEdited = 'false';
   }
   return true;
@@ -3237,6 +3237,7 @@ function appSettingsPayload() {
   return {
     glossary,
     projectGlossaries,
+    tmdb:{...secretSettingPatch('tmdbApiKey'),language:$('tmdbLanguage')?.value||'tr-TR'},
     ...secretSettingPatch('hfToken', 'hfToken'),
     inputDir: state.inputDir || '',
     outputDir: state.outputDir || '',
@@ -3813,6 +3814,7 @@ $('translateRemoveModel')?.addEventListener('click', async () => {
   await saveAppSettings();
 });
 $('translateProbeBtn')?.addEventListener('click', testSelectedTranslationProvider);
+for(const id of ['tmdbApiKey','tmdbLanguage'])$(id)?.addEventListener('change',()=>void saveAppSettings());
 ['llmApiKey', 'llmBaseUrl', 'llmModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
@@ -3835,6 +3837,7 @@ const initialSettingsReady = (async () => {
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       projectGlossaries = (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries))
         ? s.projectGlossaries : {};
+      if(s.tmdb){$('tmdbApiKey').value=s.tmdb.apiKey||'';$('tmdbLanguage').value=s.tmdb.language||'tr-TR';}
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
       state.outputDir = s.outputDir || null;
