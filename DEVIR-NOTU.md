@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1642.md](docs/devir/2026-10-24-1642.md) — Sessiz ana sayfa ve altyazı/dublajı koruyan açık oturuma dönüş
 Güncel çalışma: [docs/devir/2026-10-24-1602.md](docs/devir/2026-10-24-1602.md) — Canlı YouTube ana sayfa/sol menü Luna teması ve geri alınabilir stil
 Güncel çalışma: [docs/devir/2026-10-24-1538.md](docs/devir/2026-10-24-1538.md) — Browser’dan sekmeleri koruyarak görünür ana sayfa dönüşü
 Güncel çalışma: [docs/devir/2026-10-24-1529.md](docs/devir/2026-10-24-1529.md) — Yorumlu zevk profili, birleşik medya merkezi, torrent ve opsiyonel gömülü mpv

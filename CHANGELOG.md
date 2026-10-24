@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added a paused open-session strip on media home with direct return and voice preparation. Browser videos pause on home navigation; local playback retains its source, subtitle view and voice descriptor instead of clearing them on exit.
+
 - Matched YouTube home, expanded/mini guide, search, filters and Browser chrome to the Luna media palette with bundled fonts and light-theme support; preserved native feed layout and fixed appearance toggle removal on the tested Electron build.
 
 - Added a visible Browser-to-media-home control and application-menu shortcut. Returning home hides the native browser while preserving its tabs, loaded page and subtitle state.
