@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https:; connect-src 'self' https: whisper-pdf:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https: whisper-media:; connect-src 'self' https: whisper-pdf: whisper-media:" />
   <title>Whisper Altyazı</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="browser-chrome.css" />
@@ -11,8 +11,23 @@
   <link rel="stylesheet" href="browser-video-analysis.css" />
   <link rel="stylesheet" href="browser-series-context.css" />
   <link rel="stylesheet" href="media-catalog.css" />
+  <link rel="stylesheet" href="media-home.css" />
+  <link rel="stylesheet" href="media-title.css" />
+  <link rel="stylesheet" href="app-settings.css" />
+  <link rel="stylesheet" href="media-shelf.css" />
+  <link rel="stylesheet" href="media-discovery.css" />
+  <link rel="stylesheet" href="media-experience.css" />
+  <link rel="stylesheet" href="media-taste.css" />
+  <link rel="stylesheet" href="media-hub.css" />
+  <link rel="stylesheet" href="media-tools.css" />
 </head>
 <body>
+  <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
+  <div id="tmdbSettingsPool" class="hidden">
+    <label class="field field-full"><span class="field-label">TMDB API Read Access Token / API Key</span><input id="tmdbApiKey" type="password" autocomplete="off" spellcheck="false" /></label>
+    <label class="field"><span class="field-label">Metadata language / Bilgi dili</span><select id="tmdbLanguage"><option value="tr-TR">Türkçe</option><option value="en-US">English</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option></select></label>
+<label class="field"><span class="field-label">Watch country / İzleme ülkesi</span><select id="tmdbWatchRegion"><option value="TR">TR</option><option value="US">US</option><option value="GB">GB</option><option value="DE">DE</option><option value="FR">FR</option><option value="ES">ES</option><option value="IT">IT</option><option value="NL">NL</option><option value="CA">CA</option><option value="AU">AU</option><option value="JP">JP</option><option value="KR">KR</option><option value="IN">IN</option><option value="BR">BR</option></select></label>
+  </div>
   <div class="app">
     <!-- HEADER -->
     <header class="app-header">
@@ -28,6 +43,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="mediaHomeBack" type="button">Home</button>
         <button class="btn btn-secondary btn-sm" id="openPlayer" title="Open the browser and player">BROWSER</button>
         <button class="btn btn-secondary btn-sm" id="dubMainOpen" type="button">SRT → Ses</button>
         <button class="btn btn-secondary btn-sm catalog-entry" id="mediaCatalogOpen" data-media-catalog-open type="button" title="Open your movie and series library"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4m-4 6h4m10-6h4m-4 6h4"/></svg><span>Media library</span></button>
@@ -1181,6 +1197,7 @@
             <span class="app-mode-mark" aria-hidden="true">W</span>
           </summary>
           <div class="browser-menu-popover app-mode-popover" role="menu" aria-label="Uygulama geçişi">
+            <button type="button" role="menuitem" data-browser-proxy="browserMediaHome" data-ui-untranslated><span class="browser-menu-label" id="browserMediaHomeMenuLabel">Home</span></button>
             <div class="browser-menu-group-label">Çalışma alanı</div>
             <button type="button" role="menuitemradio" data-browser-proxy="workspacePlayerMode" aria-checked="true">
               <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></span>
@@ -1196,8 +1213,8 @@
             </button>
           </div>
         </details>
-        <button class="btn-icon player-back-button" id="playerBack" title="Oynatıcıdan çık (Backspace)" aria-label="Oynatıcıdan çık">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        <button class="btn-icon player-back-button player-media-home" id="playerBack" data-ui-untranslated title="Home" aria-label="Home">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg><span>Home</span>
         </button>
         <div class="browser-tabbar" aria-label="Tarayıcı sekme alanı">
           <div class="browser-tab-strip" id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"></div>
@@ -1314,6 +1331,7 @@
         <section class="browser-workspace hidden" id="browserWorkspace" aria-label="Tarayıcı izleme alanı">
           <div class="browser-toolbar">
             <div class="browser-nav" role="group" aria-label="Tarayıcı gezinme">
+              <button class="btn-icon browser-nav-button browser-media-home" id="browserMediaHome" type="button" data-ui-untranslated title="Home" aria-label="Home"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg><span>Home</span></button>
               <button class="btn-icon browser-nav-button" id="browserBack" type="button" title="Geri" disabled
                 aria-label="Geri"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg></button>
               <button class="btn-icon browser-nav-button" id="browserForward" type="button" title="İleri" disabled
@@ -2547,6 +2565,7 @@
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
                 <div class="player-more-menu" role="menu" aria-label="Diğer oynatma seçenekleri">
+                  <button type="button" class="pc-menu-item" id="playerMediaCenter" role="menuitem" data-ui-untranslated>Playback, scenes &amp; sources</button>
                   <button type="button" class="pc-menu-item" id="playerDubAdd" role="menuitem"><span class="pc-menu-label">Ses ekle</span></button>
                   <button type="button" class="pc-menu-item" id="playerDubGenerate" role="menuitem"><span class="pc-menu-label">Altyazıdan ses üret</span></button>
                   <button type="button" class="pc-menu-item" id="playerVoiceReferenceOpen" role="menuitem"><span class="pc-menu-label">Videodan referans ses al</span></button>
@@ -3532,6 +3551,8 @@
   <script src="../browser-subtitle-sync.js"></script>
   <script src="../browser-subtitle-review.js"></script>
   <script src="../browser-ai-context.js"></script>
+  <script src="../assistant-page-command.js"></script>
+  <script src="../assistant-media-command.js"></script>
   <script src="../browser-site-profiles.js"></script>
   <script src="../browser-automation-rules.js"></script>
   <script src="../browser-workflow-recorder.js"></script>
@@ -3651,7 +3672,7 @@
   </div>
 </div>
 
-<dialog class="dub-generator dub-studio" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
+<dialog class="dub-generator dub-studio media-surface" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
   <header class="dub-studio-header"><div><span class="dub-eyebrow">VoxCPM2 · Dublaj stüdyosu</span><h2 id="dubGeneratorTitle">Altyazıdan ses üret</h2><p>Altyazını seç, sesini ayarla ve videoyla senkron dublaj üret.</p></div><div class="dub-header-actions"><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
   <div class="dub-readiness" role="group" aria-label="Üretim hazırlığı"><div><small>Altyazı</small><strong id="dubReadySource" data-ui-untranslated>—</strong></div><div><small>Etkin ses</small><strong id="dubReadyVoice" data-ui-untranslated>—</strong></div><div><small>Seslendirilecek bölüm</small><strong id="dubReadyRange" data-ui-untranslated>—</strong></div></div>
   <div class="dub-studio-scroll"><div class="dub-studio-grid"><main class="dub-studio-main">
@@ -3791,6 +3812,7 @@
 <script src="status-copy.js"></script>
 <script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
+<script src="../assistant-source-context.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
 <script src="dub-workspace-model.js"></script>
@@ -3806,5 +3828,24 @@
 <script src="browser-dialogue.js"></script>
 <script src="browser-series-context.js"></script>
 <script src="smarttube-tv.js"></script>
+<script src="media-home-model.js"></script>
+<script src="media-shelf-ui.js"></script>
+<script src="media-taste-ui.js"></script>
+<script src="media-discovery-ui.js"></script>
+<script src="app-settings-ui.js"></script>
+<script src="title-discovery.js"></script>
+<script src="media-title.js"></script>
+<script src="media-home.js"></script>
+<script src="assistant-workspace.js"></script>
+<script src="assistant-page-commands.js"></script>
+<script src="assistant-media-commands.js"></script>
+<script src="global-assistant.js"></script>
+<script src="media-experience.js"></script>
+<script src="native-player-ui.js"></script>
+<script src="media-hub-ui.js"></script>
+<script src="media-tools-model.js"></script>
+<script src="review-decision-ui.js"></script>
+<script src="media-tools-ui.js"></script>
+<script src="media-listening.js"></script>
 </body>
 </html>

@@ -10,6 +10,7 @@ const DEFAULT_SECRET_FIELDS = Object.freeze([
   'translate.apiKeyProfiles',
   'manga.apiKey',
   'manga.apiKeyProfiles',
+  'tmdb.apiKey',
 ]);
 
 function cloneJson(value) {

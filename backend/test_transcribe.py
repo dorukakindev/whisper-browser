@@ -2759,6 +2759,9 @@ def _capture_chat(payload):
 
         def create(self, model=None, messages=None, temperature=None, **kw):
             kutu["messages"] = messages
+            if kw.get("stream"):
+                from types import SimpleNamespace as N
+                return iter([N(choices=[N(delta=N(content="SAHTE CEVAP", tool_calls=[]))])])
             return Resp("SAHTE CEVAP")
 
     p = _chat_payload_file(payload, "whisper-chat-test.json")

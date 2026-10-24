@@ -17,8 +17,12 @@ assert.equal(isYoutubePageUrl('https://youtube.com.evil.example/watch'), false);
 assert.equal(isYoutubePageUrl('javascript:alert(1)'), false);
 assert.equal(isYoutubePageUrl('not a url'), false);
 assert.match(YOUTUBE_APPEARANCE_CSS, /ytd-masthead#masthead/);
-assert.match(YOUTUBE_APPEARANCE_CSS, /grid-template-columns:\s*repeat\(5/);
-assert.match(YOUTUBE_APPEARANCE_CSS, /@media \(max-width: 860px\)/);
+assert.match(YOUTUBE_APPEARANCE_CSS, /--wb-yt-accent:\s*#e8701a/);
+assert.doesNotMatch(YOUTUBE_APPEARANCE_CSS, /grid-template-columns|translateY|\.ytp-play-progress/,
+  'Theme must preserve native feed layout, hover video hitboxes and video progress controls');
+assert.match(YOUTUBE_APPEARANCE_CSS, /ytd-mini-guide-entry-renderer/);
+assert.match(youtubeStyleCss({theme:'light'}),/--wb-yt-bg:#f1ede5/);
+assert.match(youtubeStyleCss({theme:'dark'}),/data:font\/woff2;base64,/);
 assert.match(YOUTUBE_HIDE_SHORTS_CSS, /ytd-reel-shelf-renderer/);
 assert.match(YOUTUBE_HIDE_SHORTS_CSS, /a\[href\*="\/shorts\/"\]/);
 assert.doesNotMatch(YOUTUBE_HIDE_SHORTS_CSS, /ytd-promoted|player-ads|ad-slot/i,
@@ -33,7 +37,7 @@ const renderer = fs.readFileSync(path.join(root, 'src/renderer/renderer.js'), 'u
 const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
 const registry = fs.readFileSync(path.join(root, 'src/browser-settings-registry.js'), 'utf8');
 assert.match(main, /command === 'page-youtube-style'/);
-assert.match(main, /removeInsertedCSS\(tab\.youtubeStyleCssKey\)/);
+assert.match(main, /removeInsertedCSS\(oldKey\)/);
 assert.match(main, /youtubeStyleRequestSeq !== requestSeq/);
 assert.match(main, /!isYoutubePageUrl\(wc\.getURL\(\)\)/);
 assert.match(renderer, /scheduleBrowserYoutubeStyleSync\(\)/);
@@ -43,4 +47,4 @@ assert.match(html, /id="browserYoutubeHideShorts" checked/);
 assert.match(registry, /id: 'browserYoutubeAppearance'/);
 assert.match(registry, /id: 'browserYoutubeHideShorts'/);
 
-console.log('browser-youtube-style: 25 test');
+console.log('browser-youtube-style: host isolation, independent toggles, Luna palette and native layout guards passed');

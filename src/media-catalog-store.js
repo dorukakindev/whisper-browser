@@ -93,7 +93,14 @@ function itemOf(raw, old = null) {
     originalTitle: text(raw.originalTitle ?? old?.originalTitle, 300),
     genres: (Array.isArray(raw.genres ?? old?.genres) ? raw.genres ?? old.genres : []).slice(0, 30).map(v => text(v, 80)),
     cast: (Array.isArray(raw.cast ?? old?.cast) ? raw.cast ?? old.cast : []).slice(0, 20).map(v => text(v, 120)),
+    directors: (Array.isArray(raw.directors ?? old?.directors) ? raw.directors ?? old.directors : []).slice(0,10).map(v=>text(v,120)),
     runtime: Number(raw.runtime ?? old?.runtime) > 0 ? Math.min(10000, Number(raw.runtime ?? old?.runtime)) : null,
+    tagline: text(raw.tagline ?? old?.tagline, 500),
+    backdrop: /^\/[a-zA-Z0-9._-]+$/.test(raw.backdrop ?? old?.backdrop ?? '') ? (raw.backdrop ?? old.backdrop) : '',
+    tmdbRating: Number(raw.tmdbRating ?? old?.tmdbRating) > 0 ? Math.min(10,Number(raw.tmdbRating ?? old?.tmdbRating)) : null,
+    tmdbVotes: Math.max(0,Math.min(1e9,Math.floor(Number(raw.tmdbVotes ?? old?.tmdbVotes)||0))),
+    synopsisTr: text(raw.synopsisTr ?? old?.synopsisTr, 12000),
+    synopsisTrSource: /^[a-f0-9]{64}$/.test(raw.synopsisTrSource ?? old?.synopsisTrSource ?? '') ? (raw.synopsisTrSource ?? old.synopsisTrSource) : '',
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',
@@ -258,6 +265,18 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (index < 0) items.push(item); else items[index] = item;
     commit(items); return structuredClone(item);
   }
+  function upsertMany(patches) {
+    if (!Array.isArray(patches) || patches.length > MAX_ITEMS) fail('Geçersiz toplu katalog güncellemesi.');
+    const items = list(), positions = new Map(items.map((item, index) => [item.id, index]));
+    for (const patch of patches) {
+      const index = positions.get(text(patch?.id, 120));
+      const item = itemOf(patch, index === undefined ? null : items[index]);
+      if (index === undefined) { positions.set(item.id, items.length); items.push(item); }
+      else items[index] = item;
+    }
+    if (patches.length) commit(items);
+    return structuredClone(items);
+  }
   function remove(id) {
     const items = list(), next = items.filter((item) => item.id !== id);
     if (next.length === items.length) return false;
@@ -303,6 +322,6 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (planned.report.added.length || planned.report.updated.length) commit(planned.items);
     return planned.report;
   }
-  return { list, get, upsert, remove, previewImport, mergeImport };
+  return { list, get, upsert, upsertMany, remove, previewImport, mergeImport };
 }
 module.exports = { createMediaCatalogStore, itemOf, sourceOf, posterPath, ratingsOf, imdbIdOf, tmdbIdOf };

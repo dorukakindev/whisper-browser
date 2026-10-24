@@ -6,6 +6,9 @@ const RESOURCE_SOAK_MODE = typeof process !== 'undefined'
   && process.env && process.env.WHISPER_RESOURCE_SOAK === '1';
 
 contextBridge.exposeInMainWorld('api', {
+  updateAssistant: value => ipcRenderer.send('assistant:update', value),
+  onAssistantCommand: listener => ipcRenderer.on('assistant:command', (_event, packet) => listener(packet)),
+  onAssistantVisibility: listener => ipcRenderer.on('assistant:visibility',(_event,packet)=>listener(packet)),
   resourceSoakMode: RESOURCE_SOAK_MODE,
   browserLimits: Object.freeze({ maxTabs: MAX_SESSION_TABS }),
   // Sürüklenen File nesnesinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)
@@ -35,7 +38,9 @@ contextBridge.exposeInMainWorld('api', {
   exportDubWorkspace: request => ipcRenderer.invoke('dub:workspaceExport', request),
   cancelDubWorkspace: () => ipcRenderer.invoke('dub:workspaceCancel'),
   dubWorkspaceAsset: file => ipcRenderer.invoke('dub:workspaceAsset', file),
-  latestDub: () => ipcRenderer.invoke('dub:latest'),
+  latestDub: id => ipcRenderer.invoke('dub:latest', id),
+  choosePlaybackAudio: () => ipcRenderer.invoke('dub:choosePlaybackAudio'),
+  restorePlaybackAudio: id => ipcRenderer.invoke('dub:restorePlaybackAudio', id),
   planDub: (request) => ipcRenderer.invoke('dub:plan', request),
   shortenDub: (key) => ipcRenderer.invoke('dub:shorten', key),
   setDubVideoRate: (request) => ipcRenderer.invoke('dub:rate', request),
@@ -53,6 +58,14 @@ contextBridge.exposeInMainWorld('api', {
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   listWatchLibrary: () => ipcRenderer.invoke('library:list'),
   mediaCatalog: (request) => ipcRenderer.invoke('media-catalog:request', request),
+  mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),
+  mediaDiscovery: request => ipcRenderer.invoke('media-discovery:request', request),
+  mediaTorrents: request => ipcRenderer.invoke('media-torrents:request',request),
+  assistantThreads: request => ipcRenderer.invoke('assistant-threads:request',request),
+  mediaTools: request => ipcRenderer.invoke('media-tools:request', request),
+  mediaHub: request => ipcRenderer.invoke('media-hub:request',request),
+  nativePlayer: request => ipcRenderer.invoke('native-player:request',request),
+  onNativePlayer: listener => ipcRenderer.on('native-player:event',(_event,payload)=>listener(payload)),
   updateWatchItem: (item) => ipcRenderer.invoke('library:upsert', item),
   removeWatchItem: (key) => ipcRenderer.invoke('library:remove', key),
   saveWatchItemBeforeClose: (item) => ipcRenderer.sendSync('library:upsert-before-close', item),
@@ -297,6 +310,7 @@ contextBridge.exposeInMainWorld('api', {
   netBudget: (budget) => ipcRenderer.invoke('network:budget', { budget }),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   testTranslationProvider: (payload) => ipcRenderer.invoke('translation:probe', payload),
+  listTranslationProviderModels: payload => ipcRenderer.invoke('translation:probe', {...payload,mode:'models'}),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
   notifyUiLocale: (locale) => ipcRenderer.send('app:ui-locale', locale),

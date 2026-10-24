@@ -142,7 +142,9 @@ function initializeProviderModelProfiles(settingsGroup = {}) {
   renderProviderModelChoices();
 }
 
+let translationProbeGeneration=0;
 function resetTranslationProviderProbe() {
+  translationProbeGeneration++;
   const output = $('translateProbeStatus');
   if (!output) return;
   output.dataset.state = 'idle';

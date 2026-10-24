@@ -1,3 +1,32 @@
+Güncel çalışma: [docs/devir/2026-10-25-0138.md](docs/devir/2026-10-25-0138.md) — Beş alanda sağlamlaştırma ve gerçek dublaj/oynatma denemesi
+Güncel çalışma: [docs/devir/2026-10-25-0114.md](docs/devir/2026-10-25-0114.md) — Açık Letterboxd yorumları ve beş asistan/analiz geliştirmesi
+Güncel çalışma: [docs/devir/2026-10-25-0048.md](docs/devir/2026-10-25-0048.md) — Letterboxd yorumları ve kanıta dayalı kişisel uygunluk
+Güncel çalışma: [docs/devir/2026-10-24-2312.md](docs/devir/2026-10-24-2312.md) — Yeni Luna push’larından izleme ülkesi, benzer yapımlar ve yorum arama
+Güncel çalışma: [docs/devir/2026-10-24-2256.md](docs/devir/2026-10-24-2256.md) — Sayfayı gerçekten çeviren ve yeniden tasarlanan asistan
+Güncel çalışma: [docs/devir/2026-10-24-2231.md](docs/devir/2026-10-24-2231.md) — WebView2 derin araştırma ve gerçek Ancient Origins motor karşılaştırması
+Güncel çalışma: [docs/devir/2026-10-24-2210.md](docs/devir/2026-10-24-2210.md) — Cloudflare ve gerçek Edge/Chrome köprüsü seçenek araştırması
+Güncel çalışma: [docs/devir/2026-10-24-2121.md](docs/devir/2026-10-24-2121.md) — Story/Konu için Türkçeye çevir düğmesi
+Güncel çalışma: [docs/devir/2026-10-24-2110.md](docs/devir/2026-10-24-2110.md) — Otomatik TMDB afişleri ve zengin film sayfası
+Güncel çalışma: [docs/devir/2026-10-24-2042.md](docs/devir/2026-10-24-2042.md) — Sade üst çubuk ve güvenli TMDB bilgi/afiş ayarları
+Güncel çalışma: [docs/devir/2026-10-24-2025.md](docs/devir/2026-10-24-2025.md) — Ayarlarda model listesi ve doğru kayıt/bağlantı durumu
+Güncel çalışma: [docs/devir/2026-10-24-2003.md](docs/devir/2026-10-24-2003.md) — Ana sayfadan doğrudan API/sağlayıcı ve uygulama Ayarları
+Güncel çalışma: [docs/devir/2026-10-24-1950.md](docs/devir/2026-10-24-1950.md) — Gerçek GPT-5.4 mini denemesi: anlam kapsamı ve gerçek işlem kartları
+Güncel çalışma: [docs/devir/2026-10-24-1929.md](docs/devir/2026-10-24-1929.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı ortak asistan
+Güncel çalışma: [docs/devir/2026-10-24-1853.md](docs/devir/2026-10-24-1853.md) — Asistan için yedi GitHub deposunda doğrudan kod/uyarlama araştırması
+Güncel çalışma: [docs/devir/2026-10-24-1846.md](docs/devir/2026-10-24-1846.md) — Rapor530: kaynak korumalı güçlü asistan, taslaklar ve okunaklı yanıtlar
+Güncel çalışma: [docs/devir/2026-10-24-1830.md](docs/devir/2026-10-24-1830.md) — Rapor529: kalan süreli Bu akşam ve kaybolmayan yorum taslakları
+Güncel çalışma: [docs/devir/2026-10-24-1810.md](docs/devir/2026-10-24-1810.md) — Rapor528: arşiv taraması, yedek sıklığı ve gerçek modal/odak onarımları
+Güncel çalışma: [docs/devir/2026-10-24-1718.md](docs/devir/2026-10-24-1718.md) — Yapım yorumları, Bu akşam, arşiv/yedekleme, asistan ve dinleme profilleri
+Güncel çalışma: [docs/devir/2026-10-24-1649.md](docs/devir/2026-10-24-1649.md) — Luna güncel beta kaynaklarından sonraki özellik karşılaştırması
+Güncel çalışma: [docs/devir/2026-10-24-1642.md](docs/devir/2026-10-24-1642.md) — Sessiz ana sayfa ve altyazı/dublajı koruyan açık oturuma dönüş
+Güncel çalışma: [docs/devir/2026-10-24-1602.md](docs/devir/2026-10-24-1602.md) — Canlı YouTube ana sayfa/sol menü Luna teması ve geri alınabilir stil
+Güncel çalışma: [docs/devir/2026-10-24-1538.md](docs/devir/2026-10-24-1538.md) — Browser’dan sekmeleri koruyarak görünür ana sayfa dönüşü
+Güncel çalışma: [docs/devir/2026-10-24-1529.md](docs/devir/2026-10-24-1529.md) — Yorumlu zevk profili, birleşik medya merkezi, torrent ve opsiyonel gömülü mpv
+Güncel çalışma: [docs/devir/2026-10-24-1311.md](docs/devir/2026-10-24-1311.md) — Bağlamlı asistan, dublajla devam, ortak işlemler ve Keşfet tercihleri
+Güncel çalışma: [docs/devir/2026-10-24-1237.md](docs/devir/2026-10-24-1237.md) — Global native asistan, Keşfet kaydırması ve Defuddle okuyucu
+Güncel çalışma: [docs/devir/2026-10-24-1202.md](docs/devir/2026-10-24-1202.md) — Gerçek film/dizi Keşfet, Luna fontları ve tasarım becerileri
+Güncel çalışma: [docs/devir/2026-10-24-1137.md](docs/devir/2026-10-24-1137.md) — Luna görünümü, müzik/kitap/podcast/Letterboxd ve tıklanabilir önizleme
+Güncel çalışma: [docs/devir/2026-10-24-0212.md](docs/devir/2026-10-24-0212.md) — Luna tarzı medya ana sayfası; mevcut browser ve ses sistemi korunur
 Güncel çalışma: [docs/devir/2026-10-23-2251.md](docs/devir/2026-10-23-2251.md) — PR480 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-23-2248.md](docs/devir/2026-10-23-2248.md) — Rapor527: on altı ses, çeviri ve proje güvenilirliği onarımı
 Güncel çalışma: [docs/devir/2026-10-23-1401.md](docs/devir/2026-10-23-1401.md) — PR479 ana sürüm ve Windows ana kopya teslimi

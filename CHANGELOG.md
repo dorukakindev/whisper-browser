@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Improved the floating assistant with explicit source/model details, source-scoped commands and visible messages, per-source in-memory question drafts, and send receipts that preserve rejected questions or edits made during sending.
+- Added safe heading/list/code rendering, clearer busy/error states, a latest-reply shortcut, source-specific clear confirmation and explain/translation-review actions. Preserved the existing AI provider, subtitle scope and job safety boundaries.
+
+- Made Tonight suggestions use remaining playback time and the newest matching watch record, with resume labels and retained filters. Kept unsaved title-review feedback, review URL and spoiler settings across tool navigation while the app remains open, and guarded stale asynchronous result updates.
+
+- Hardened media health scanning: skip unverified imported sources, hash each distinct resolved file once, distinguish unreadable/missing sources and expose comparison progress. Reopening media tools raises the existing modal; late folder selection cannot re-enable disabled automatic backups.
+
+- Added title-specific review sampling and evidence-checked personal-fit analysis through the existing assistant, plus separate after-watching feedback and analysis history.
+- Added an explained time/mood picker for local library titles, cancellable library health scans with full duplicate hashes and embedded-subtitle checks, and expanded workspace backups with restore counts and optional daily/weekly retention.
+- Added assistant search, persisted source-scoped pins, copy/code-copy, edit-as-new-question and Markdown/text export. Added separate native film/music and dubbed-voice listening profiles; preserved the normal Chromium video audio path.
+
+- Added a paused open-session strip on media home with direct return and voice preparation. Browser videos pause on home navigation; local playback retains its source, subtitle view and voice descriptor instead of clearing them on exit.
+
+- Matched YouTube home, expanded/mini guide, search, filters and Browser chrome to the Luna media palette with bundled fonts and light-theme support; preserved native feed layout and fixed appearance toggle removal on the tested Electron build.
+
+- Added a visible Browser-to-media-home control and application-menu shortcut. Returning home hides the native browser while preserving its tabs, loaded page and subtitle state.
+
+- Added a unified media center with watched folders, reviewed source relinking, filename-based version groups, direct streams, optional rqbit torrent streaming and embedded mpv playback using the existing subtitle/dubbing controls.
+- Expanded Letterboxd import to review CSV/export ZIP, evidence-checked optional AI review analysis, editable taste preferences and genre/director statistics with explained discovery recommendations.
+
 - Dubbing failures retain bounded engine diagnostics and exit signals instead of losing the cause behind a generic notice.
 
 - Redesigned the dubbing workspace with source/voice/range overview, bounded responsive cards, persistent actions and safe production presets; simplified desktop Voice Studio with narration presets and advanced settings.

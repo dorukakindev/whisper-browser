@@ -23,6 +23,8 @@ class ChatReliabilityTests(unittest.TestCase):
                 item = replies.pop(0)
                 if isinstance(item, Exception):
                     raise item
+                if kw.get("stream"):
+                    return iter([types.SimpleNamespace(choices=[types.SimpleNamespace(delta=types.SimpleNamespace(content=item, tool_calls=[]))])])
                 return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=item))])
 
         with tempfile.TemporaryDirectory() as folder:
@@ -39,12 +41,13 @@ class ChatReliabilityTests(unittest.TestCase):
     def test_answer_citations_and_modality_rules(self):
         calls, events, settings, error = self.invoke(['Merhaba [T1]'])
         self.assertIsNone(error)
-        self.assertEqual([event[0] for event in events], ['chat', 'done'])
+        self.assertEqual([event[0] for event in events], ['chat_delta', 'chat', 'done'])
         self.assertEqual(settings[0]['timeout'], 30)
         self.assertEqual(settings[0]['max_retries'], 0)
         prompt = calls[0]['messages'][0]['content']
         self.assertIn('Goruntu, kare veya ses verilmedi', prompt)
         self.assertIn('[T1]', prompt)
+        self.assertIn("bunu 'kasaba terk edilmedi' diye gercek dunya olgusuna donusturme", prompt)
 
     def test_auth_error_is_not_retried_or_exposed(self):
         calls, events, _, error = self.invoke([RuntimeError('401 invalid_api_key provider-private-text')])
@@ -57,7 +60,7 @@ class ChatReliabilityTests(unittest.TestCase):
         calls, events, _, error = self.invoke([TimeoutError('timed out'), 'Yanıt [T1]'])
         self.assertIsNone(error)
         self.assertEqual(len(calls), 2)
-        self.assertEqual(events[0][0], 'chat')
+        self.assertEqual(events[0][0], 'chat_delta')
 
     def test_empty_reply_does_not_emit_success(self):
         _, events, _, error = self.invoke([''] * 8)
@@ -70,7 +73,7 @@ class ChatReliabilityTests(unittest.TestCase):
                 raise T.PipelineCancelled('llm', 'after')
         calls, events, _, error = self.invoke(['Geç yanıt'], checkpoint)
         self.assertIsInstance(error, T.PipelineCancelled)
-        self.assertFalse(events)
+        self.assertEqual([kind for kind, _ in events], ['chat_delta'], 'Already streamed text is kept but no successful final event may follow cancellation')
         self.assertEqual(len(calls), 1)
 
 

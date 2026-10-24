@@ -4,9 +4,9 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
 const { atomicWriteFileSync } = require('./fsync-utils');
-function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText }) {
+function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText, metadataSettings = () => ({}) }) {
   const dl = dialogText || ((tr) => tr);
-  const client = createMetadataClient(), previews = new Map();
+  const client = createMetadataClient(undefined,{language:()=>metadataSettings().language||'tr-TR'}), previews = new Map();
   function remember(event, data) {
     for (const [key, row] of previews) if (Date.now() - row.created > 900000) previews.delete(key);
     if (previews.size >= 4) previews.delete(previews.keys().next().value);
@@ -17,9 +17,19 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
     if (!row || row.sender !== event.sender.id || row.type !== type || Date.now() - row.created > 900000) throw new Error('Önizleme sona erdi; yeniden başlatın.');
     return row;
   }
-  return async function handle(event, input) {
+  return async function handle(event, input, context = {}) {
+    const signal=context.signal;signal?.throwIfAborted();
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
+      case 'metadata-complete-missing':{
+        const current=item(),hasPoster=!!current.posterPath&&fs.existsSync(current.posterPath);if(hasPoster&&current.synopsis&&current.genres?.length&&current.directors?.length&&current.runtime)return {ok:true,skipped:true,item:visible(current)};
+        const credential=metadataSettings().apiKey;if(!credential)throw new Error('Önce Ayarlar → Film bilgileri ve afişler bölümüne TMDB anahtarını kaydedin.');
+        const providerId=await client.resolve(current,credential,{automatic:context.automatic===true,signal});
+        if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');
+        const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential},context);
+        const fields=['synopsis','genres','cast','runtime','originalTitle','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!hasPoster)fields.push('poster');
+        return handle(event,{action:'metadata-apply',token:preview.token,fields},context);
+      }
       case 'folder-preview': {
         const choice = await dialog.showOpenDialog(owner(), { title: dl('Film ve dizi klasörünü seç', 'Choose a movies & series folder'), properties: ['openDirectory'] });
         if (choice.canceled || !choice.filePaths?.[0]) return { ok: false, canceled: true };
@@ -37,9 +47,18 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (!Array.isArray(input.ids) || !input.ids.length) throw new Error('En az bir kayıt seçin.');
         const summary = store().mergeImport(data.items, { selectedIds: input.ids }); previews.delete(input.token); return { ok: true, summary };
       }
-      case 'metadata-search': return { ok: true, results: await client.search(item(), input.credential, input.query) };
+      case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal)};
+      case 'metadata-recommendations': return {ok:true,...await client.recommendations(item(),metadataSettings().apiKey,input.page??1,signal)};
+      case 'metadata-add-recommendation':{
+        if(!['film','series'].includes(input.kind)||!Number.isSafeInteger(input.providerId)||input.providerId<1)throw new Error('Öneri kimliği geçersiz.');
+        const tmdbId=(input.kind==='series'?'tv':'movie')+':'+input.providerId;
+        const find=()=>store().list().find(row=>row.tmdbId===tmdbId&&row.kind===input.kind);let existing=find();if(existing)return {ok:true,item:visible(existing),existing:true};
+        const data=await client.detail({kind:input.kind},input.providerId,metadataSettings().apiKey,signal);existing=find();
+        return {ok:true,item:visible(existing||store().upsert({...data.patch,kind:input.kind,watchStatus:'planned'})),existing:!!existing};
+      }
+      case 'metadata-search': return { ok: true, results: await client.search(item(), (input.credential||metadataSettings().apiKey), input.query) };
       case 'metadata-preview': {
-        const current = item(), data = await client.detail(current, Number(input.providerId), input.credential);
+        const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey),signal);
         return { ok: true, ...data, token: remember(event, { type: 'metadata', id: current.id, before: JSON.stringify(current), ...data }) };
       }
       case 'metadata-apply': {
@@ -47,9 +66,13 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (JSON.stringify(current) !== data.before) throw new Error('Eser önizleme sırasında değişti; yeniden eşleştirin.');
         const fields = Array.isArray(input.fields) ? input.fields : [];
         const patch = { id: current.id, tmdbId: data.patch.tmdbId };
-        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime']) if (fields.includes(key)) patch[key] = data.patch[key];
+        const replacing=!!current.tmdbId&&current.tmdbId!==data.patch.tmdbId;
+        if(replacing&&input.replaceIdentity!==true)throw new Error('Farklı yapım eşleşmesini yeniden önizleyip onaylayın.');
+        if(replacing){for(const key of ['originalTitle','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes'])patch[key]=Array.isArray(current[key])?[]:'';patch.ratings={...current.ratings,imdb:null,letterboxd:null};patch.posterPath='';patch.synopsisTr='';patch.synopsisTrSource='';}
+
+        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key)) patch[key] = data.patch[key];
         if (fields.includes('poster') && data.poster) {
-          const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: AbortSignal.timeout(20000), redirect: 'error' });
+          const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000), redirect: 'error' });
           if (!response.ok) throw new Error('Afiş indirilemedi; seçimi kaldırıp yeniden deneyin.');
           const buffer = await readLimitedBytes(response, 8e6, 'Afiş');
           const image = nativeImage.createFromBuffer(buffer); if (image.isEmpty()) throw new Error('Afiş biçimi geçersiz.');
@@ -59,15 +82,16 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           atomicWriteFileSync(patch.posterPath, image.resize({ width: 500 }).toPNG());
         }
         try {
+          signal?.throwIfAborted();
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
           const previousPoster = current.posterPath;
           const saved = store().upsert(patch);
-          if (patch.posterPath && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
+          if ((patch.posterPath || replacing) && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
           previews.delete(input.token); return { ok: true, item: visible(saved) };
         } catch (error) { if (patch.posterPath) { try { fs.unlinkSync(patch.posterPath); } catch {} } throw error; }
       }
       case 'season-preview': {
-        const current = item(), episodes = await client.season(current, Number(input.season), input.credential);
+        const current = item(), episodes = await client.season(current, Number(input.season), (input.credential||metadataSettings().apiKey));
         return { ok: true, episodes, token: remember(event, { type: 'season', id: current.id, before: JSON.stringify(current), episodes }) };
       }
       case 'season-apply': {
@@ -95,7 +119,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const data = await require('./workspace-video-package').read(result.filePaths[0], pythonPath());
         // Madde 33: geri yükleme onayından önce paket kapsamını göster —
         // bölüm/kayıt sayıları meta düzeyinde (içerik değil).
-        const scope = require('./workspace-package').describePackage(data);
+        const scope = require('./workspace-package').describePackage(data, userData());
         // Kuyruk maddesi 25 — paketteki mutlak ortam yollarından bu
         // bilgisayarda bulunamayanları kök bazında göster; kullanıcı her
         // köke yeni hedef seçebilir ve eşleme geri yüklemede uygulanır.

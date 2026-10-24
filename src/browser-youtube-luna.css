@@ -1,0 +1,101 @@
+/* YouTube-only theme. Keep native navigation, feed layout and media controls. */
+html {
+  color-scheme: dark !important;
+  --wb-yt-bg: #080809;
+  --wb-yt-panel: #111113;
+  --wb-yt-raised: #18181b;
+  --wb-yt-hover: #252529;
+  --wb-yt-line: #28282d;
+  --wb-yt-strong: #44444b;
+  --wb-yt-text: #f3f3f5;
+  --wb-yt-muted: #a5a5af;
+  --wb-yt-accent: #e8701a;
+  --wb-yt-accent-ink: #18100b;
+  --wb-yt-soft: rgba(232,112,26,.13);
+  --yt-spec-base-background: var(--wb-yt-bg) !important;
+  --yt-spec-raised-background: var(--wb-yt-panel) !important;
+  --yt-spec-menu-background: var(--wb-yt-raised) !important;
+  --yt-spec-general-background-a: var(--wb-yt-bg) !important;
+  --yt-spec-general-background-b: var(--wb-yt-panel) !important;
+  --yt-spec-general-background-c: var(--wb-yt-raised) !important;
+  --yt-spec-text-primary: var(--wb-yt-text) !important;
+  --yt-spec-text-secondary: var(--wb-yt-muted) !important;
+  --yt-spec-brand-background-primary: var(--wb-yt-bg) !important;
+  --yt-spec-brand-background-solid: var(--wb-yt-panel) !important;
+  --yt-spec-brand-button-background: var(--wb-yt-accent) !important;
+  --yt-spec-call-to-action: var(--wb-yt-accent) !important;
+  --yt-spec-badge-chip-background: var(--wb-yt-raised) !important;
+  --yt-spec-10-percent-layer: var(--wb-yt-hover) !important;
+  --yt-spec-touch-response: var(--wb-yt-hover) !important;
+  --yt-spec-outline: var(--wb-yt-line) !important;
+  --ytd-searchbox-background: var(--wb-yt-panel) !important;
+  --ytd-searchbox-text-color: var(--wb-yt-text) !important;
+  --ytd-searchbox-border-color: var(--wb-yt-strong) !important;
+  --ytd-searchbox-legacy-border-color: var(--wb-yt-strong) !important;
+  --ytd-searchbox-legacy-button-color: var(--wb-yt-raised) !important;
+}
+html, body, ytd-app {background:var(--wb-yt-bg) !important;color:var(--wb-yt-text) !important;font-family:'Whisper Media Sans','Segoe UI',Arial,sans-serif !important}
+ytd-app, ytd-masthead, ytd-guide-renderer, ytd-mini-guide-renderer, tp-yt-app-drawer, ytd-popup-container {
+  --yt-spec-text-primary:var(--wb-yt-text) !important;--yt-spec-text-secondary:var(--wb-yt-muted) !important;
+  --yt-spec-base-background:var(--wb-yt-bg) !important;--yt-spec-raised-background:var(--wb-yt-panel) !important;
+  --yt-spec-menu-background:var(--wb-yt-raised) !important;--yt-spec-10-percent-layer:var(--wb-yt-hover) !important;
+}
+ytd-masthead#masthead {background:var(--wb-yt-bg) !important;border-bottom:1px solid var(--wb-yt-line) !important;box-shadow:none !important}
+ytd-masthead #guide-button, ytd-masthead #buttons, ytd-masthead #country-code {color:var(--wb-yt-text) !important}
+#guide-button yt-icon, ytd-masthead yt-icon-button {color:var(--wb-yt-text) !important}
+#guide-button svg path {fill:var(--wb-yt-text) !important}
+ytd-masthead #voice-search-button button {background:var(--wb-yt-panel) !important;color:var(--wb-yt-text) !important}
+ytd-masthead #voice-search-button yt-icon, ytd-masthead #voice-search-button svg path {color:var(--wb-yt-text) !important;fill:var(--wb-yt-text) !important}
+ytd-topbar-logo-renderer [id^="youtube-paths"], ytd-logo [id^="youtube-paths"] {fill:var(--wb-yt-text) !important}
+/* Expanded and mini guide, drawer, sticky filters and their faded edges. */
+tp-yt-app-drawer #guide-inner-content, #guide-content.ytd-app,
+ytd-guide-renderer, ytd-mini-guide-renderer {background:var(--wb-yt-bg) !important;border-inline-end:1px solid var(--wb-yt-line) !important}
+ytd-guide-section-renderer {border-color:var(--wb-yt-line) !important}
+ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer {background:transparent !important}
+ytd-guide-entry-renderer #endpoint, ytd-mini-guide-entry-renderer #endpoint {border-radius:12px !important;color:var(--wb-yt-muted) !important;font-family:'Whisper Media Sans','Segoe UI',sans-serif !important}
+ytd-guide-entry-renderer #endpoint yt-formatted-string, ytd-mini-guide-entry-renderer #endpoint yt-formatted-string,
+ytd-mini-guide-entry-renderer #endpoint .title {color:inherit !important;font-family:inherit !important}
+ytd-guide-signin-promo-renderer, ytd-guide-signin-promo-renderer yt-formatted-string {color:var(--wb-yt-muted) !important}
+ytd-guide-entry-renderer #endpoint {margin-inline:10px !important;padding-inline:12px !important;width:auto !important}
+ytd-guide-entry-renderer[selected] #endpoint,
+ytd-guide-entry-renderer[active] #endpoint,
+ytd-guide-entry-renderer #endpoint[aria-current=page],
+ytd-mini-guide-entry-renderer[is-active] #endpoint,
+ytd-mini-guide-entry-renderer #endpoint[aria-current=page] {background:var(--wb-yt-soft) !important;color:var(--wb-yt-accent) !important;font-weight:600 !important}
+ytd-guide-entry-renderer #endpoint:hover, ytd-mini-guide-entry-renderer #endpoint:hover {background:var(--wb-yt-hover) !important;color:var(--wb-yt-text) !important}
+ytd-guide-entry-renderer #endpoint yt-icon, ytd-mini-guide-entry-renderer #endpoint yt-icon {color:inherit !important;fill:currentColor !important}
+ytd-guide-section-renderer #guide-section-title {color:var(--wb-yt-text) !important;font-family:'Whisper Media Sans','Segoe UI',sans-serif !important;font-weight:600 !important}
+ytd-feed-filter-chip-bar-renderer, ytd-feed-filter-chip-bar-renderer #chips-wrapper,
+#chips-wrapper.ytd-rich-grid-renderer {background:var(--wb-yt-bg) !important}
+yt-chip-cloud-renderer {--yt-endpoint-color:var(--wb-yt-text) !important;--ytd-chip-cloud-background:var(--wb-yt-bg) !important}
+yt-chip-cloud-chip-renderer {background:var(--wb-yt-raised) !important;color:var(--wb-yt-muted) !important;border:1px solid var(--wb-yt-line) !important;border-radius:999px !important;font-family:'Whisper Media Sans','Segoe UI',sans-serif !important}
+yt-chip-cloud-chip-renderer[selected], yt-chip-cloud-chip-renderer[aria-selected=true] {background:var(--wb-yt-accent) !important;color:var(--wb-yt-accent-ink) !important;border-color:var(--wb-yt-accent) !important}
+yt-chip-cloud-chip-renderer:hover:not([selected]) {background:var(--wb-yt-hover) !important;color:var(--wb-yt-text) !important}
+/* Both legacy search and current web search view models. */
+ytd-searchbox #container, #search-form.ytd-searchbox,
+.ytSearchboxComponentInputBox {background:var(--wb-yt-panel) !important;border-color:var(--wb-yt-strong) !important;box-shadow:none !important}
+ytd-searchbox input, .ytSearchboxComponentInput {color:var(--wb-yt-text) !important;background:transparent !important;font-family:'Whisper Media Sans','Segoe UI',sans-serif !important}
+ytd-searchbox #container:focus-within, .ytSearchboxComponentInputBox:focus-within {border-color:var(--wb-yt-accent) !important;box-shadow:0 0 0 1px var(--wb-yt-accent) !important}
+#search-icon-legacy, .ytSearchboxComponentSearchButton {background:var(--wb-yt-raised) !important;border-color:var(--wb-yt-strong) !important;color:var(--wb-yt-text) !important}
+/* Preserve feed DOM/row widths: YouTube owns responsive layout and virtualized rows. */
+ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-video-renderer,
+yt-lockup-view-model {border-radius:16px !important}
+ytd-thumbnail, yt-thumbnail-view-model, .ytThumbnailViewModelImage {border-radius:14px !important}
+#video-title, #video-title-link, .yt-lockup-metadata-view-model__title,
+.yt-content-metadata-view-model__metadata-text {font-family:'Whisper Media Sans','Segoe UI',Arial,sans-serif !important}
+#video-title, #video-title-link, .yt-lockup-metadata-view-model__title {color:var(--wb-yt-text) !important;font-weight:600 !important;line-height:1.45 !important}
+#metadata-line, .ytd-video-meta-block, .yt-content-metadata-view-model__metadata-row {color:var(--wb-yt-muted) !important}
+ytd-menu-popup-renderer, tp-yt-paper-dialog, ytd-multi-page-menu-renderer,
+yt-sheet-view-model {background:var(--wb-yt-panel) !important;color:var(--wb-yt-text) !important;border:1px solid var(--wb-yt-strong) !important;border-radius:16px !important;box-shadow:0 14px 40px rgba(0,0,0,.24) !important}
+ytd-feed-nudge-renderer, ytd-feed-nudge-renderer > *, ytd-feed-nudge-renderer #content-wrapper, ytd-feed-nudge-renderer #content, ytd-feed-nudge-renderer #container {background:var(--wb-yt-panel) !important;border-color:var(--wb-yt-line) !important;border-radius:16px !important}
+ytd-feed-nudge-renderer #title {color:var(--wb-yt-text) !important}
+ytd-feed-nudge-renderer #subtitle {color:var(--wb-yt-muted) !important}
+/* Keyboard focus remains visible without changing video controls or icon fonts. */
+ytd-guide-renderer a:focus-visible, ytd-mini-guide-renderer a:focus-visible,
+ytd-rich-item-renderer a:focus-visible, yt-chip-cloud-chip-renderer:focus-visible,
+ytd-masthead button:focus-visible {outline:2px solid var(--wb-yt-accent) !important;outline-offset:2px !important}
+html {scrollbar-color:var(--wb-yt-strong) var(--wb-yt-bg)}
+::-webkit-scrollbar {width:10px;height:10px}
+::-webkit-scrollbar-track {background:var(--wb-yt-bg)}
+::-webkit-scrollbar-thumb {background:var(--wb-yt-strong);border:2px solid var(--wb-yt-bg);border-radius:20px}
+@media(prefers-reduced-motion:reduce){ytd-rich-item-renderer,yt-lockup-view-model{transition:none !important}}

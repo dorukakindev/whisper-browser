@@ -1,0 +1,41 @@
+.ms-shelf { min-height: 240px; }
+.ms-dialog, .ms-reader, .ms-dock { font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; }
+.ms-status { color: var(--text-dim); line-height: 1.6; font-size: 13px; white-space: pre-wrap; }
+.ms-status:empty { display: none; }
+.ms-status.mh-error { color: var(--danger); }
+.ms-track-list { margin-top: 22px; }
+.ms-track { display: flex; align-items: center; gap: 15px; padding: 13px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.ms-track > div { flex: 1; min-width: 0; }
+.ms-track strong { overflow-wrap: anywhere; font-weight: 550; }
+.ms-track > strong { flex: 1; }
+.ms-track small { display: block; color: var(--text-dim); margin-top: 5px; }
+.ms-track input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+.ms-time { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 13px; }
+.ms-book-grid { margin-top: 25px; }
+.ms-book-placeholder { color: var(--text-dim); font-size: 17px; }
+.ms-podcast { padding: 18px 0; border-bottom: 1px solid var(--border); }
+.ms-podcast summary { cursor: pointer; font-weight: 600; padding: 9px 0; }
+.ms-dock { position: fixed; inset: auto 0 0; z-index: 500; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 13px 25px; background: var(--bg-1); border-top: 1px solid var(--border-strong); box-shadow: 0 -10px 35px rgba(0,0,0,.22); color: var(--text); }
+.ms-dock > strong { max-width: 250px; min-width: 100px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-dock audio { flex: 2; min-width: 230px; height: 40px; }
+.ms-dock select, .ms-dialog input { color: var(--text); background: var(--bg-2); padding: 10px; border: 1px solid var(--border-strong); border-radius: 8px; }
+.ms-dock .ms-status { flex: 1 0 100%; margin: 0; }
+body.media-shelf-playing .mh-content { padding-bottom: 150px; }
+body.media-shelf-player-open .ms-dock { display: none; }
+.ms-dialog { margin: auto; width: min(560px, calc(100vw - 35px)); max-height: 85vh; overflow: auto; padding: 28px; border: 1px solid var(--border-strong); border-radius: 15px; background: var(--bg-1); color: var(--text); }
+.ms-dialog::backdrop, .ms-reader::backdrop { background: rgba(0,0,0,.78); }
+.ms-dialog h2 { font-size: 23px; margin-bottom: 20px; }
+.ms-dialog p { color: var(--text-dim); line-height: 1.7; }
+.ms-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; font-size: 14px; }
+.ms-dialog .mh-actions { margin-top: 24px; justify-content: flex-end; }
+.ms-reader { margin: auto; width: min(1200px, calc(100vw - 35px)); height: min(940px, calc(100vh - 65px)); padding: 0; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-1); color: var(--text); overflow: hidden; }
+.ms-reader[open] { display: flex; flex-direction: column; }
+.ms-reader header { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 18px; border-bottom: 1px solid var(--border); }
+.ms-reader header > strong { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-reader select { color: var(--text); background: var(--bg-2); max-width: 200px; border: 1px solid var(--border); border-radius: 6px; padding: 9px; }
+.ms-reader input[type="range"] { width: 90px; accent-color: var(--accent); }
+.ms-prose { overflow: auto; min-height: 0; padding: 35px max(25px, calc((100% - 75ch)/2)); font-family: Georgia, 'Times New Roman', serif; font-size: 20px; line-height: 1.85; white-space: pre-wrap; flex: 1; overscroll-behavior: contain; }
+.ms-prose p { margin: 0 0 1.2em; overflow-wrap: anywhere; font-weight: 400; }
+.ms-reader > .ms-status { padding: 0 18px; }
+.ms-dialog :focus-visible, .ms-reader :focus-visible, .ms-dock :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media(max-width:700px) { .ms-track { flex-wrap: wrap; gap: 9px; } .ms-track > div { flex-basis: 55%; } .ms-dock { padding: 10px; gap: 8px; } .ms-dock audio { order: 3; flex: 1 0 100%; } .ms-reader { width: calc(100vw - 15px); height: calc(100vh - 20px); } .ms-reader header { gap: 6px; } .ms-reader header > strong { flex: 1 0 100%; max-width: none; } }

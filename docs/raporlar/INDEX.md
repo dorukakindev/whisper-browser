@@ -1,5 +1,40 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_542.md](BROWSER_BUG_REPORT_542.md) — Sayfaya özel asistan, kanıtlı yorum, güvenli film eşleşmesi ve gerçek GPU/oynatma turu.
+- [BROWSER_BUG_REPORT_541.md](BROWSER_BUG_REPORT_541.md) — Açık browser yorumları, film eşleşmesi, okunabilir analiz ve gerçek asistan araçları.
+
+- [BROWSER_BUG_REPORT_540.md](BROWSER_BUG_REPORT_540.md) — Letterboxd okuyucu, örnek/profil kanıtı ve gerçek model doğrulaması.
+
+- [BROWSER_BUG_REPORT_539.md](BROWSER_BUG_REPORT_539.md) — Yeni Luna kaynaklarından ülkeye göre izleme, benzer yapımlar ve yorum arama.
+
+- [BROWSER_BUG_REPORT_538.md](BROWSER_BUG_REPORT_538.md) — Gerçek sayfa çeviri komutları ve kaynağa uygun native asistan.
+
+- [BROWSER_BUG_REPORT_537.md](BROWSER_BUG_REPORT_537.md) — Story/Konu için Türkçeye çevir ve özgün özet geçişi.
+
+- [BROWSER_BUG_REPORT_536.md](BROWSER_BUG_REPORT_536.md) — Otomatik TMDB afişleri, güvenli eşleştirme ve zengin film sayfası.
+
+- [BROWSER_BUG_REPORT_535.md](BROWSER_BUG_REPORT_535.md) — Sade üst çubuk, tek ayar simgesi ve TMDB bilgi/afiş bağlantısı.
+
+- [BROWSER_BUG_REPORT_534.md](BROWSER_BUG_REPORT_534.md) — Ayarlarda sağlayıcı model listesi, anahtar yönetimi ve eski sonuç onarımları.
+
+- [BROWSER_BUG_REPORT_533.md](BROWSER_BUG_REPORT_533.md) — Ana sayfadan ortak API ve uygulama Ayarları.
+
+- [BROWSER_BUG_REPORT_532.md](BROWSER_BUG_REPORT_532.md) — Gerçek GPT-5.4 mini değerlendirmesi, aktarılan olumsuzluk ve işlem kartı onarımları.
+
+- [BROWSER_BUG_REPORT_531.md](BROWSER_BUG_REPORT_531.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı asistan.
+
+Araştırma: [ASSISTANT_REPO_RESEARCH_2026-10-24.md](ASSISTANT_REPO_RESEARCH_2026-10-24.md) — asistan için alınabilir GitHub modülleri.
+
+- [BROWSER_BUG_REPORT_530.md](BROWSER_BUG_REPORT_530.md) — ortak asistanın kaynak/taslak/gönderim güveni ve arayüz geliştirmeleri.
+
+- [BROWSER_BUG_REPORT_529.md](BROWSER_BUG_REPORT_529.md) — kalan süreli izleme önerisi, yorum taslağı ve async sayfa koruması.
+
+- [BROWSER_BUG_REPORT_528.md](BROWSER_BUG_REPORT_528.md) — medya arşiv taraması, yedek sıklığı ve modal/odak doğruluğu.
+
+Özellik/kanıt raporu: [LUNA_MEDIA_TOOLS_2026-10-24.md](LUNA_MEDIA_TOOLS_2026-10-24.md) — yapım kararları, arşiv sağlığı, yedekleme ve ortak asistan/dinleme araçları.
+
+Özellik/kanıt raporu: [LUNA_ADVANCED_MEDIA_2026-10-24.md](LUNA_ADVANCED_MEDIA_2026-10-24.md) — yorumlu zevk profili ve birleşik medya oynatma.
+
 `docs/raporlar/` altındaki numaralı denetim/bug raporlarının indeksi.
 Yeni rapor eklendiğinde bu dosyayı güncelle (AGENTS.md sayacıyla birlikte).
 Klasörde ayrıca numarasız denetim/plan/kanıt belgeleri de bulunur; onlar

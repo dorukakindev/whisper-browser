@@ -223,7 +223,7 @@
     if (!result) return;
     const watchItem = result.watchItem;
     if (!watchItem || typeof window.openMediaCatalogPlayback !== 'function') { feedback('Oynatma köprüsü kullanılamıyor.', true); return; }
-    try { await window.openMediaCatalogPlayback(watchItem); if (sessionId === state.session && dialog.open) close(); }
+    try { await window.openMediaCatalogPlayback(watchItem); if (sessionId === state.session && dialog.open) close(); return true; }
     catch (error) { if (sessionId === state.session && dialog.open) feedback(error?.message || 'Oynatma başlatılamadı.', true); }
   }
   async function source(item, episodeId, kind) {
@@ -248,6 +248,7 @@
   }
   function renderDetail() {
     const item = find(state.selected); if (!item) { state.mode = 'list'; return renderList(); }
+    window.MediaExperience?.setContext(dialog, { id: item.id, type: 'library-title', title: item.title, synopsis: item.synopsis });
     const body = $('div', 'mc-content mc-detail'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'));
     const hero = $('div', 'mc-detail-hero'); hero.append(poster(item, 'mc-detail-poster'));
     const text = $('div'); text.append($('span', 'mc-eyebrow', `${t(typeLabels[catalogType(item)])} · ${item.year || t('Yıl belirtilmedi')}`), $('h3', '', item.title || t('Adsız yapım')));
@@ -258,6 +259,7 @@
     if (item.genres?.length || item.runtime) text.append($('p', 'mc-muted', [...(item.genres || []), item.runtime ? `${item.runtime} ${english() ? 'min' : 'dk'}` : ''].filter(Boolean).join(' · ')));
     if (item.cast?.length) text.append($('p', 'mc-muted', item.cast.join(', ')));
     const actions = $('div', 'mc-detail-actions');
+    actions.append(button(english()?'Reviews & personal fit':'Yorumlar ve bana uygunluğu', () => window.MediaToolsUI?.open('decision',item)));
     actions.append(button('Bilgileri eşleştir', () => { state.metadataQuery = item.title; state.metadataResults = []; state.metadata = null; state.seasonData = null; state.mode = 'metadata'; render(); }));
     actions.append(button('Düzenle', () => edit(item)), button('Afiş seç', async () => { const result = await api('poster-file', { id: item.id }); if (result) { posterCache.delete(String(item.id)); if (!await reload()) return; show(item.id); } }));
     if (catalogType(item) === 'movie') actions.append(button(item.progress?.position > 0 && !item.progress?.completed ? 'Kaldığın yerden devam et' : 'Oynat', () => play(item), 'mc-primary'));
@@ -274,6 +276,21 @@
     if (state.removeId === item.id) actions.append(button('Vazgeç', () => { state.removeId = null; render(); }));
     text.append(actions); hero.append(text); body.append(hero);
     if (state.removeId === item.id) body.append($('p', 'mc-danger-note', 'Bu yapımı silmek üzeresiniz. Silme işlemini onaylayın veya vazgeçin.'));
+    const assets = $('section', 'mx-assets'); assets.append($('h4', '', english() ? 'Watch in Turkish' : 'Türkçe izleme hazırlığı'));
+    const info = item.progress?.assets || {}, badges = $('div', 'mx-badges');
+    for (const value of [info.subtitles ? `${info.subtitles} ${english()?'subtitle file(s)':'altyazı dosyası'}` : (english()?'No saved subtitles':'Kayıtlı altyazı yok'),
+      info.translation ? (english()?'Translation linked':'Çeviri bağlı') : (english()?'Translation not linked':'Çeviri bağlı değil'),
+      info.dub ? (english()?'Dub remembered':'Dublaj kayıtlı') : (english()?'Dub not linked':'Dublaj bağlı değil')]) badges.append($('span', '', value));
+    assets.append(badges, $('p', '', english() ? 'Open your source, then review subtitles, voice and time range. Production uses your existing Whisper and voice settings.' : 'Kaynağı aç, ardından altyazı, ses ve zaman aralığını gözden geçir. Üretim mevcut Whisper ve ses ayarlarını kullanır.'));
+    const workflow = $('div', 'mx-actions');
+    workflow.append(button(english()?'Play & prepare voice':'Oynat ve ses hazırlığını aç', async () => {
+      if (catalogType(item) === 'series') {
+        const next = [...(item.episodes || [])].sort((a,b)=>Number(a.season)-Number(b.season)||Number(a.number)-Number(b.number)).find(ep => ep.source && !ep.progress?.completed && ep.watchStatus!=='completed');
+        if (!next) { feedback(english()?'Link an episode source first.':'Önce bir bölüm kaynağı bağlayın.', true); return; }
+        if (await play(item, next.id)) window.MediaExperience?.openVoice();
+      } else if (await play(item)) window.MediaExperience?.openVoice();
+    }, 'mc-primary'));
+    workflow.append(button(english()?'Activity':'İşlem merkezi', () => window.MediaExperience?.openTasks())); assets.append(workflow); body.append(assets);
     body.append(sourceControls(item));
     if (catalogType(item) === 'series') {
       const heading = $('div', 'mc-section-heading'); heading.append($('h4', '', 'Bölümler'), button('Bölüm ekle', () => editEpisode(item)));
@@ -285,6 +302,7 @@
         const top = $('div', 'mc-episode-head'); top.append($('strong', '', `S${episode.season ?? 1} ${english() ? 'E' : 'B'}${episode.number || 1} · ${episode.title || (english() ? 'Episode' : 'Bölüm')}`), $('span', 'mc-muted', episode.progress?.completed ? t('İzlendi') : episode.progress?.position > 0 ? (english() ? 'In progress' : 'Devam ediyor') : t(statusLabels[episode.watchStatus] || statusLabels.unspecified)));
         const controls = $('div', 'mc-episode-actions');
         controls.append(button('Oynat', () => play(item, episode.id), 'mc-primary'), button('Düzenle', () => editEpisode(item, episode)));
+        controls.append(button(english()?'Voice preparation':'Ses hazırlığı',async()=>{if(await play(item,episode.id))await window.MediaExperience?.openVoice();}),button(episode.watchStatus==='completed'?(english()?'Mark unwatched':'İzlenmedi işaretle'):(english()?'Mark watched':'İzlendi işaretle'),async()=>{const r=await api('save',{item:{id:item.id,episodes:item.episodes.map(ep=>({...ep,watchStatus:ep.id===episode.id?(ep.watchStatus==='completed'?'planned':'completed'):ep.watchStatus}))}});if(r){await reload();render();}}));
         row.append(top, controls, sourceControls(item, episode)); list.append(row);
       }
       body.append(list);
@@ -325,6 +343,8 @@
       formField('Başlık', draft.title, value => { draft.title = value; }, { required: true, maxLength: 200 }),
       formField('Yıl', draft.year, value => { draft.year = value; }, { type: 'number', min: 1888, max: 2100 }),
       formField('Konu', draft.synopsis, value => { draft.synopsis = value; }, { multiline: true, maxLength: 4000 }),
+      formField(english()?'Genres (comma separated)':'Türler (virgülle ayır)',(draft.genres||[]).join(', '),value=>{draft.genres=value.split(',').map(v=>v.trim()).filter(Boolean);},{maxLength:1000}),
+      formField(english()?'Directors (comma separated)':'Yönetmenler (virgülle ayır)',(draft.directors||[]).join(', '),value=>{draft.directors=value.split(',').map(v=>v.trim()).filter(Boolean);},{maxLength:1000}),
       formField('IMDb kimliği', draft.imdbId, value => { draft.imdbId = value; }, { maxLength: 24 }),
       formField('TMDb kimliği', draft.tmdbId, value => { draft.tmdbId = value; }, { maxLength: 24 }),
       formField('Kişisel puan / not', draft.ratings?.personal || '', value => { draft.ratings.personal = value; }, { maxLength: 24 }),
@@ -408,8 +428,8 @@
     const item = find(state.selected), body = $('div', 'mc-content mc-form');
     if (!item) return renderList();
     body.append(button('← Eser ayrıntısına dön', () => show(item.id)), $('h3', '', 'Eser bilgilerini eşleştir'),
-      $('p', 'mc-muted', 'TMDB başlık araması ve seçili sezon bilgileri çevrimiçi alınır. Erişim belirteci yalnız bu katalog oturumunda tutulur.'));
-    body.append(formField('TMDB API okuma erişim belirteci', state.credential, value => { state.credential = value; }, { type: 'password', maxLength: 4096 }));
+      $('p', 'mc-muted', 'TMDB başlık, afiş ve sezon bilgileri çevrimiçi alınır. Ayarlar içindeki kayıtlı TMDB anahtarın kullanılır; aşağıya yalnız bu oturum için farklı anahtar da girebilirsin.'));
+    body.append(formField('TMDB anahtarı (isteğe bağlı oturum değişikliği)', state.credential, value => { state.credential = value; }, { type: 'password', maxLength: 4096 }));
     const secret = body.querySelector('input[type=password]'); secret.autocomplete = 'off';
     body.append(button('Belirteci göster / gizle', () => { secret.type = secret.type === 'password' ? 'text' : 'password'; }));
     body.append(formField('Aranacak başlık', state.metadataQuery, value => { state.metadataQuery = value; }, { maxLength: 200 }),
@@ -418,19 +438,23 @@
     const results = $('div', 'mc-import-list');
     for (const row of state.metadataResults) results.append(button(`${row.title} · ${row.date || 'Tarih yok'}`, async () => {
       const result = await api('metadata-preview', { id: item.id, providerId: row.id, credential: state.credential });
-      if (result) { state.metadata = result; state.metadataFields = new Set(['title', 'year', 'synopsis', 'genres', 'cast', 'runtime', 'imdbId', 'originalTitle', 'poster'].filter(key => key === 'poster' ? !item.hasPoster : Array.isArray(item[key]) ? !item[key].length : !item[key])); render(); }
+      if (result) { state.metadata = result; state.metadataFields = new Set(['title','year','synopsis','genres','cast','runtime','imdbId','originalTitle','directors','tagline','backdrop','tmdbRating','tmdbVotes','poster'].filter(key => item.tmdbId && item.tmdbId !== result.patch.tmdbId || (key === 'poster' ? !item.hasPoster : Array.isArray(item[key]) ? !item[key].length : !item[key]))); render(); }
     }));
     body.append(results);
     if (state.metadata) {
-      const data = state.metadata; body.append($('h4', '', 'Uygulanacak alanları seçin'));
-      const labels = { title: 'Başlık', originalTitle: 'Özgün başlık', year: 'Yıl', synopsis: 'Konu', imdbId: 'IMDb kimliği', genres: 'Türler', cast: 'Oyuncular', runtime: 'Süre', poster: 'Afiş' };
+      const data = state.metadata, replacing=!!item.tmdbId&&item.tmdbId!==data.patch.tmdbId;
+      body.append($('h4', '', english()?'Review the match before applying':'Uygulamadan önce eşleşmeyi incele'));
+      const comparison=$('div','mc-match-comparison');for(const [caption,title,year,description]of [[english()?'Current library title':'Kütüphanedeki mevcut yapım',item.title,item.year,item.synopsis],[english()?'Selected TMDB title':'Seçilen TMDB yapımı',data.patch.title,data.patch.year,data.patch.synopsis]]){const card=$('section');card.append($('small','mc-muted',caption),$('strong','',title+(year?' · '+year:'')),$('p','mc-muted',description|| (english()?'No summary available.':'Konu bilgisi yok.')));comparison.append(card);}body.append(comparison);
+      if(replacing)body.append($('p','mc-muted',english()?'A different TMDB title was selected. All available metadata is selected for replacement. Unchecked provider fields and the old poster are cleared to prevent mixed film information. Your video sources, progress, personal rating and favorites stay.':'Farklı bir TMDB yapımı seçildi. Yeni bilgiler değiştirme için seçili. İşareti kaldırılan sağlayıcı alanları ve eski afiş temizlenir; iki filmin bilgileri karışmaz. Video kaynakları, ilerleme, kişisel puan ve favorilerin korunur.'));
+      const labels = english() ? {title:'Title',originalTitle:'Original title',year:'Year',synopsis:'Story',imdbId:'IMDb ID',genres:'Genres',cast:'Cast',runtime:'Runtime',poster:'Poster',directors:'Director / creator',tagline:'Tagline',backdrop:'Backdrop',tmdbRating:'TMDB rating',tmdbVotes:'TMDB votes'} : { title: 'Başlık', originalTitle: 'Özgün başlık', year: 'Yıl', synopsis: 'Konu', imdbId: 'IMDb kimliği', genres: 'Türler', cast: 'Oyuncular', runtime: 'Süre', poster: 'Afiş', directors:'Yönetmen / yaratıcı', tagline:'Slogan', backdrop:'Arka plan', tmdbRating:'TMDB puanı', tmdbVotes:'TMDB oy sayısı' };
+      const fieldList=$('div','mc-match-fields');body.append(fieldList);
       for (const [key, label] of Object.entries(labels)) {
         const row = $('label', 'mc-check'); const check = $('input'); check.type = 'checkbox'; check.checked = state.metadataFields.has(key); check.disabled = state.busy;
         check.addEventListener('change', () => { if (check.checked) state.metadataFields.add(key); else state.metadataFields.delete(key); });
-        row.append(check, $('span', '', `${label}: ${key === 'poster' ? data.poster ? 'Yeni afiş indirilecek' : 'Afiş yok' : Array.isArray(data.patch[key]) ? data.patch[key].join(', ') : data.patch[key] ?? 'Bilgi yok'}`)); body.append(row);
+        row.append(check, $('span', '', `${label}: ${key === 'poster' ? data.poster ? (english()?'New poster will be downloaded':'Yeni afiş indirilecek') : (english()?'No poster available':'Afiş yok') : Array.isArray(data.patch[key]) ? data.patch[key].join(', ') : data.patch[key] ?? (english()?'No information':'Bilgi yok')}`)); fieldList.append(row);
       }
-      body.append($('p', 'mc-muted', 'Yalnız boş alanlar başlangıçta seçilidir. Dolu bir alanı seçerseniz mevcut değer değişir. TMDB kimliği bağlanır; kişisel puan, favori ve izleme durumu korunur.'), button('Seçili bilgileri uygula', async () => {
-        const result = await api('metadata-apply', { token: data.token, fields: [...state.metadataFields] });
+      body.append($('p', 'mc-muted', replacing?(english()?'Review the new title and the selected fields, then apply. Personal data stays.':'Yeni yapımı ve seçili alanları inceleyip uygula. Kişisel verilerin korunur.'):'Yalnız boş alanlar başlangıçta seçilidir. Dolu bir alanı seçerseniz mevcut değer değişir. TMDB kimliği bağlanır; kişisel puan, favori ve izleme durumu korunur.'), button('Seçili bilgileri uygula', async () => {
+        const result = await api('metadata-apply', { token: data.token, fields: [...state.metadataFields], replaceIdentity:replacing });
         if (result) { posterCache.delete(String(item.id)); state.metadata = null; if (await reload()) show(item.id); }
       }, 'mc-primary'));
     }
@@ -462,6 +486,12 @@
       const scope = state.packageData.scope;
       if (scope) {
         const parts = [];
+        if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
+        if(scope.assistantConversations)parts.push(`${scope.assistantConversations} ${english()?'assistant conversations (includes messages)':'asistan sohbeti (mesajlar dahil)'}`);
+        if(scope.titleDecisions)parts.push(`${scope.titleDecisions} ${english()?'title reviews':'yapım yorumu'}`);
+        if(scope.watchedFolders)parts.push(`${scope.watchedFolders} ${english()?'folders (restored paused)':'klasör (takip kapalı yüklenir)'}`);
+        if(scope.torrents)parts.push(`${scope.torrents} torrent`);
+        if(scope.changes)body.append($('p','mc-muted',english()?`Files: ${scope.changes.added} new, ${scope.changes.changed} different, ${scope.changes.unchanged} identical. Existing files absent from the package are kept.`:`Dosyalar: ${scope.changes.added} yeni, ${scope.changes.changed} farklı, ${scope.changes.unchanged} aynı. Pakette olmayan mevcut dosyalar korunur.`));
         if (scope.mediaItems) parts.push(`${scope.mediaItems} eser${scope.mediaEpisodes ? ` (${scope.mediaEpisodes} bölüm)` : ''}`);
         if (scope.watchItems) parts.push(`${scope.watchItems} izleme kaydı`);
         if (scope.notes) parts.push(`${scope.notes} not`);
@@ -710,12 +740,21 @@
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
-  for (const openButton of openButtons) openButton.addEventListener('click', async () => {
-    if (dialog.open) return;
-    state.session++; state.busy = false; state.opener = openButton;
+  async function open(options = {}) {
+    if (dialog.open) { if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; }
+    state.session++; state.busy = false; state.opener = options.opener || document.activeElement;
+    const sessionId = state.session;
+    if (['movie', 'series', 'watchlist'].includes(options.section)) state.section = options.section;
     dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
-    state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus(); await reload();
-  });
+    state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus();
+    if (!await reload() || sessionId !== state.session || !dialog.open) return;
+    if (options.id && find(options.id)) show(options.id);
+    else if (options.mode === 'package') { state.mode='package';render(); }
+    else if (options.mode === 'folder') await previewImport('folder-preview');
+  }
+  async function openMetadata(id){await open({id});if(!dialog.open||state.selected!==id)return;const item=find(id);if(!item)return;state.metadataQuery=item.title;state.metadataResults=[];state.metadata=null;state.seasonData=null;state.mode='metadata';render();}
+  window.MediaCatalogUI = Object.freeze({ open, close, openMetadata });
+  for (const openButton of openButtons) openButton.addEventListener('click', () => { void open({ opener: openButton }); });
   document.addEventListener('ui-locale-change', () => { if (dialog.open) render(); });
   dialog.addEventListener('close', () => { if (dialog.open) return; state.session++; state.busy = false; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); posterObserver.disconnect(); state.credential = ''; cancelImport(); cancelPreviewTokens(); state.mode = 'list'; state.selected = null; state.removeId = null; state.opener?.focus(); });
   dialog.addEventListener('keydown', event => { event.stopPropagation(); });

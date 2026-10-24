@@ -44,9 +44,9 @@ function completionText(payload) {
   return '';
 }
 
-async function readLimitedText(response) {
+async function readLimitedText(response, limit = MAX_RESPONSE_BYTES) {
   const declared = Number(response?.headers?.get?.('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+  if (Number.isFinite(declared) && declared > limit) {
     await response.body?.cancel?.().catch(() => {});
     throw new RangeError('Provider response exceeds probe limit.');
   }
@@ -59,7 +59,7 @@ async function readLimitedText(response) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > MAX_RESPONSE_BYTES) {
+      if (bytes > limit) {
         await reader.cancel().catch(() => {});
         throw new RangeError('Provider response exceeds probe limit.');
       }
@@ -69,8 +69,29 @@ async function readLimitedText(response) {
     } finally { reader.releaseLock?.(); }
   }
   const buffer = await response.arrayBuffer();
-  if (buffer.byteLength > MAX_RESPONSE_BYTES) throw new RangeError('Provider response exceeds probe limit.');
+  if (buffer.byteLength > limit) throw new RangeError('Provider response exceeds probe limit.');
   return new TextDecoder().decode(buffer);
+}
+
+async function listTranslationProviderModels({ endpoint, apiKey = '', fetchImpl = globalThis.fetch, timeoutMs = 15000 } = {}) {
+  const key=String(apiKey||'').trim();
+  if(!isSafeProbeEndpoint(endpoint)||(!key&&!isLoopbackEndpoint(endpoint))||key.length>10000||/[\u0000-\u001f\u007f]/u.test(key)||typeof fetchImpl!=='function')return {ok:false,code:'invalid_config',models:[]};
+  const url=new URL(endpoint);
+  // A model list must use the selected origin/path, never follow a redirect with credentials.
+  if(url.search||url.hash)return {ok:false,code:'invalid_config',models:[]};
+  url.pathname=url.pathname.replace(/\/+$/,'').replace(/\/chat\/completions$/i,'').replace(/\/models$/i,'')+'/models';
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),Math.max(1000,Math.min(30000,Number(timeoutMs)||15000)));
+  timeout.unref?.();
+  try{
+    const response=await fetchImpl(url.href,{method:'GET',headers:{Accept:'application/json',...(key?{Authorization:`Bearer ${key}`}:{})},redirect:'error',signal:controller.signal});
+    const body=await readLimitedText(response,512*1024);
+    if(!response.ok)return {ok:false,code:classifyProbeFailure(response.status,body),status:response.status,models:[]};
+    const payload=JSON.parse(body);
+    if(!Array.isArray(payload.data))return {ok:false,code:'invalid_response',models:[]};
+    const models=[...new Set(payload.data.slice(0,2000).map(row=>row?.id).filter(id=>typeof id==='string'&&id.trim()===id&&id.length>0&&id.length<=300&&!/[\u0000-\u001f\u007f]/u.test(id)&&!/^sk-/i.test(id)&&(!key||!id.includes(key))))].sort().slice(0,1000);
+    return {ok:true,models,limited:payload.data.length>1000||!!payload.has_more};
+  }catch(error){return {ok:false,code:controller.signal.aborted||error?.name==='AbortError'?'timeout':error instanceof SyntaxError||error instanceof RangeError?'invalid_response':'network',models:[]};}
+  finally{clearTimeout(timeout);}
 }
 
 async function probeTranslationProvider({
@@ -141,4 +162,5 @@ module.exports = {
   isLoopbackEndpoint,
   isSafeProbeEndpoint,
   probeTranslationProvider,
+  listTranslationProviderModels,
 };

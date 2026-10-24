@@ -51,34 +51,90 @@ async function readTextLimited(response, maxBytes) {
   return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
 }
 
-function createMetadataClient(fetchImpl = fetch) {
-  async function request(route, token, params = {}) {
-    if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Yalnız bu oturumda kullanılır.');
+function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
+  async function request(route, token, params = {}, signal) {
+    if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Ayarlar → Film bilgileri ve afişler bölümünden kaydedebilirsiniz.');
     const url = new URL('https://api.themoviedb.org/3/' + route);
-    url.search = new URLSearchParams({ language: 'tr-TR', ...params }).toString();
+    const locale=language();url.search = new URLSearchParams({ language:/^[a-z]{2}-[A-Z]{2}$/.test(locale)?locale:'tr-TR', ...params, ...(/^[a-f0-9]{32}$/i.test(token)?{api_key:token}:{}) }).toString();
     let response;
-    try { response = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(20000) }); }
+    try { response = await fetchImpl(url, { headers: /^[a-f0-9]{32}$/i.test(token)?{}:{ Authorization: `Bearer ${token}` }, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) }); }
     catch { throw new Error('TMDB bağlantısı kurulamadı; yeniden deneyin.'); }
-    if (!response.ok) throw new Error(response.status === 401 ? 'TMDB erişim belirteci geçersiz.' : response.status === 429 ? 'TMDB istek sınırına ulaşıldı; daha sonra deneyin.' : 'TMDB bilgileri alınamadı.');
+    if (!response.ok) throw Object.assign(new Error(response.status === 401 ? 'TMDB erişim belirteci geçersiz.' : response.status === 429 ? 'TMDB istek sınırına ulaşıldı; daha sonra deneyin.' : 'TMDB bilgileri alınamadı.'), {status:response.status});
     const text = await readTextLimited(response, 4e6);
     return JSON.parse(text);
   }
+  const extraCache=new Map();
+  const identity=item=>{const kind=item.kind==='series'?'tv':'movie',match=new RegExp('^'+kind+':(\\d+)$').exec(item.tmdbId||'');if(!match||!Number.isSafeInteger(Number(match[1]))||Number(match[1])<1)throw new Error('Önce yapımı TMDB ile eşleştirin.');return {kind,id:Number(match[1])};};
+  async function cached(route,token,params={},signal){
+    const key=hash(JSON.stringify([route,token,language(),params]));const old=extraCache.get(key);if(old&&Date.now()-old.time<600000)return structuredClone(old.value);
+    const value=await request(route,token,params,signal);if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time:Date.now(),value});return structuredClone(value);
+  }
   return {
+    async watchProviders(item,token,region='TR',signal){
+      if(!/^[A-Z]{2}$/.test(region))throw new Error('İzleme ülkesi geçersiz.');
+      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/watch/providers`,token,{},signal),country=data.results?.[region];
+      const groups={};for(const mode of ['flatrate','free','ads','rent','buy']){
+        const seen=new Set();groups[mode]=(Array.isArray(country?.[mode])?country[mode]:[]).filter(p=>Number.isSafeInteger(p.provider_id)&&p.provider_id>0&&typeof p.provider_name==='string'&&p.provider_name.trim()&&!seen.has(p.provider_id)&&seen.add(p.provider_id)).slice(0,40).map(p=>({id:p.provider_id,name:p.provider_name.trim().slice(0,100)}));
+      }
+      return {region,groups,url:`https://www.themoviedb.org/${kind}/${id}/watch?locale=${region}`,attribution:'JustWatch via TMDB'};
+    },
+    async recommendations(item,token,page=1,signal){
+      if(!Number.isInteger(page)||page<1||page>10)throw new Error('Öneri sayfası geçersiz.');
+      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/recommendations`,token,{page:String(page)},signal),seen=new Set();
+      const rows=(Array.isArray(data.results)?data.results:[]).filter(r=>r.adult!==true&&Number.isSafeInteger(r.id)&&r.id>0&&r.id!==id&&!seen.has(r.id)&&seen.add(r.id)).map(r=>({id:r.id,tmdbId:kind+':'+r.id,kind:item.kind==='series'?'series':'film',title:String(r.title||r.name||'').slice(0,300),year:Number(String(r.release_date||r.first_air_date||'').slice(0,4))||null,synopsis:String(r.overview||'').slice(0,3000)})).filter(r=>r.title.trim()).slice(0,20);
+      return {rows,nextPage:page<Math.min(10,Number(data.total_pages)||1)?page+1:null};
+    },
+    async resolve(item, token, {automatic = false, signal} = {}) {
+      const kind = item.kind === 'series' ? 'tv' : 'movie';
+      const known = new RegExp('^' + kind + ':(\\d+)$').exec(item.tmdbId || '');
+      if (known && Number.isSafeInteger(Number(known[1]))) return Number(known[1]);
+      if (/^tt\d{5,12}$/.test(item.imdbId || '')) {
+        const data = await request('find/' + item.imdbId, token, {external_source:'imdb_id'}, signal);
+        const rows = data[kind === 'tv' ? 'tv_results' : 'movie_results'] || [];
+        if (rows.length === 1 && Number.isSafeInteger(rows[0].id) && rows[0].id > 0) return rows[0].id;
+        throw Object.assign(new Error('Kimlik tek bir yapımla eşleşmedi; elle eşleştirin.'), {code:'ambiguous'});
+      }
+      if (!automatic) throw new Error('Önce yapımı TMDB veya IMDb kimliğiyle eşleştirin.');
+      // A supplied year must match exactly; without a year the complete search
+      // must still contain exactly one exact title, never the first popular hit.
+      const hasYear=Number.isInteger(item.year)&&item.year>=1880;
+      const fold = value => String(value || '').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/ı/g,'i').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+      const names = [...new Set([item.title, item.originalTitle].filter(Boolean))];
+      const matches = new Set();
+      // Imported English aliases disappear from Turkish search result labels.
+      // Search both display languages, then hydrate details in the user's locale.
+      const locales=[...new Set(['en-US',language()])];
+      for (const query of names) for (const locale of locales) {
+        const data = await request('search/' + kind, token, {language:locale,query:query.slice(0,200), include_adult:'false', ...(hasYear?{[kind==='tv'?'first_air_date_year':'primary_release_year']:String(item.year)}:{})}, signal);
+        if (Number(data.total_pages) > 1) throw Object.assign(new Error('Birden fazla sonuç sayfası var; elle eşleştirin.'), {code:'ambiguous'});
+        for (const row of data.results || []) {
+          const year = Number(String(row.release_date || row.first_air_date || '').slice(0,4));
+          if ((!hasYear || year === item.year) && Number.isSafeInteger(row.id) && row.id > 0 &&
+              [row.title,row.name,row.original_title,row.original_name].some(title => title && names.some(name=>fold(name)===fold(title)))) matches.add(row.id);
+        }
+      }
+      if (matches.size !== 1) throw Object.assign(new Error('Başlık ve yıl tek bir yapımla eşleşmedi; elle eşleştirin.'), {code:'ambiguous'});
+      return [...matches][0];
+    },
     async search(item, token, query) {
       const kind = item.kind === 'series' ? 'tv' : 'movie';
       const data = await request(`search/${kind}`, token, { query: String(query || item.title).slice(0, 200), include_adult: 'false' });
       return (data.results || []).slice(0, 20).map(row => ({ id: row.id, title: row.title || row.name,
         date: row.release_date || row.first_air_date || '', synopsis: row.overview || '' }));
     },
-    async detail(item, id, token) {
+    async detail(item, id, token, signal) {
       if (!Number.isSafeInteger(id) || id < 1) throw new Error('Eser kimliği geçersiz.');
       const kind = item.kind === 'series' ? 'tv' : 'movie';
-      const data = await request(`${kind}/${id}`, token, { append_to_response: 'credits,external_ids' });
+      const data = await request(`${kind}/${id}`, token, { append_to_response: 'credits,external_ids' }, signal);
+      if(!data.overview && language()!=='en-US'){const fallback=await request(`${kind}/${id}`,token,{language:'en-US'},signal);data.overview=fallback.overview||'';}
       const patch = { title: data.title || data.name, originalTitle: data.original_title || data.original_name,
         year: Number(String(data.release_date || data.first_air_date || '').slice(0, 4)) || null,
         synopsis: data.overview || '', tmdbId: `${kind}:${id}`, imdbId: data.imdb_id || data.external_ids?.imdb_id || '',
         genres: (data.genres || []).map(g => g.name), cast: (data.credits?.cast || []).slice(0, 12).map(p => p.name),
-        runtime: data.runtime || data.episode_run_time?.[0] || null };
+        runtime: data.runtime || data.episode_run_time?.[0] || null,
+        directors: (data.credits?.crew || []).filter(p=>p.job==='Director').map(p=>p.name).concat((data.created_by||[]).map(p=>p.name)).slice(0,10),
+        tagline: data.tagline || '', tmdbRating: Number(data.vote_average)||null, tmdbVotes: Number(data.vote_count)||0,
+        backdrop: /^\/[a-zA-Z0-9._-]+$/.test(data.backdrop_path || '') ? data.backdrop_path : '' };
       return { patch, poster: /^\/[a-zA-Z0-9._-]+$/.test(data.poster_path || '') ? data.poster_path : '',
         seasons: (data.seasons || []).map(s => ({ number: s.season_number, count: s.episode_count })) };
     },

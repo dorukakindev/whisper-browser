@@ -5,8 +5,22 @@
   const add = byId('browserDubAdd'), strip = byId('browserDubStrip');
   if (!audio || !input || !add) return;
   const video = byId('playerVideo');
+  const remembered = new Map();
+  function remember(value) {
+    remembered.set(player.mediaKey, value);
+    if (remembered.size > 100) remembered.delete(remembered.keys().next().value);
+    document.dispatchEvent(new CustomEvent('media-playback-preferences-changed'));
+  }
+  function snapshot() {
+    if (controller.session?.playbackAsset) {
+      const value = { ...controller.session.playbackAsset, offset: controller.offset, mix: controller.session.mix };
+      remembered.set(controller.session.mediaKey, value); return value;
+    }
+    return remembered.get(player.mediaKey);
+  }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
+    generation: player.generation,
     priorMuted: video.muted, playbackRate: video.playbackRate,
     currentTime: video.currentTime, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
@@ -25,12 +39,12 @@
     backgroundAudio: byId('browserDubBackground'), musicAudio: byId('browserDubMusic'), ambienceAudio: byId('browserDubAmbience'),
     mute: (id, muted, expected) => {
       if (id !== 'player-video') return window.api.muteBrowserTab(id, muted);
-      if (expected && player.mediaKey !== expected.mediaKey) return { ok: true, skipped: true };
+      if (expected && (player.mediaKey !== expected.mediaKey || player.generation !== expected.generation)) return { ok: true, skipped: true };
       video.muted = muted; return { ok: true };
     }, error: notify,
     setRate: request => {
       if (request.tabId !== 'player-video') return window.api.setDubVideoRate(request);
-      if (player.mediaKey !== request.mediaKey) return { ok: true, skipped: true };
+      if (player.mediaKey !== request.mediaKey || player.generation !== request.generation) return { ok: true, skipped: true };
       video.playbackRate = request.rate;
       return { ok: true, media: { currentTime: video.currentTime, playbackRate: video.playbackRate } };
     },
@@ -47,13 +61,24 @@
       scheduleBrowserBounds();
     } });
   let chosenContext = null;
-  function chooseAudio() {
+  let choosingAudio = false;
+  async function chooseAudio() {
+    if (choosingAudio) return;
     byId('playerMore').open = false;
     const c = context();
     if (!c.tabId || !c.hasMedia) {
       notify('Ses eklemek için önce bir video açın.'); return;
     }
-    chosenContext = c; input.value = ''; input.click();
+    if (!window.api.choosePlaybackAudio) { chosenContext = c; input.value = ''; input.click(); return; }
+    choosingAudio = true; add.disabled = true;
+    if (byId('playerDubAdd')) byId('playerDubAdd').disabled = true;
+    try {
+      const result = await window.api.choosePlaybackAudio();
+      if (result?.canceled) return;
+      if (!result?.ok || !result.output) { notify(result?.error || 'Ses açılamadı.'); return; }
+      await window.BrowserDubAudioUI.attachGenerated(result.output, c);
+    } catch (error) { notify(error.message || 'Ses açılamadı.'); }
+    finally { choosingAudio = false; add.disabled = false; if (byId('playerDubAdd')) byId('playerDubAdd').disabled = false; }
   }
   add.addEventListener('click', chooseAudio);
   byId('playerDubAdd')?.addEventListener('click', chooseAudio);
@@ -86,8 +111,11 @@
       }
     } finally { add.disabled = false; }
   });
-  const changeMix=value=>{controller.setMix(value);if(controller.session)window.dispatchEvent(new CustomEvent('dub-mix:changed',{detail:{url:controller.session.url,mix:controller.session.mix}}));};
-  byId('browserDubRemove').addEventListener('click', () => void controller.remove());
+  const changeMix=value=>{controller.setMix(value);if(controller.session){remember(snapshot());window.dispatchEvent(new CustomEvent('dub-mix:changed',{detail:{url:controller.session.url,mix:controller.session.mix}}));}};
+  byId('browserDubRemove').addEventListener('click', () => {
+    if (controller.session) controller.session.playbackAsset = null;
+    remember(null); void controller.remove();
+  });
   byId('browserDubVolume').addEventListener('input', e => { changeMix({voice:Number(e.target.value)}); });
   byId('browserDubBackgroundVolume').addEventListener('input', e => { changeMix({background:Number(e.target.value)}); });
   byId('browserDubMusicVolume')?.addEventListener('input',e=>changeMix({music:Number(e.target.value)}));
@@ -96,6 +124,7 @@
   byId('browserDubBackground').volume=Number(byId('browserDubBackgroundVolume').value);
   byId('browserDubOffset').addEventListener('input', e => {
     controller.offset = Math.max(-60, Math.min(60, Number(e.target.value) || 0)); controller.tick();
+    if (controller.session) remember(snapshot());
   });
   window.api.onBrowserEvent?.(event => {
     const s = controller.session;
@@ -108,7 +137,27 @@
     if (event.type === 'tab-audio' && event.tabMuted === false && s.desiredMuted) void controller.remove();
   });
   window.BrowserDubAudioUI = {
-    stop: () => void controller.remove(), checkContext: () => controller.tick(),
+    snapshot,
+    originalPlayback: () => controller.matches() ? { muted: controller.session.priorMuted, speed: controller.session.baseRate } : null,
+    restore: async (saved, expectedKey) => {
+      if (!saved || !['local', 'generated'].includes(saved.kind) || typeof saved.id !== 'string') return false;
+      remembered.set(expectedKey, saved);
+      const expected = context();
+      if (expected.mediaKey !== expectedKey || !expected.visible || !expected.hasMedia) return false;
+      const result = await Promise.resolve().then(() => saved.kind === 'local' ? window.api.restorePlaybackAudio(saved.id) : window.api.latestDub(saved.id)).catch(() => null);
+      if (!result?.ok || !result.output || result.output.syncInvalid) {
+        notify(window.UiLocale?.get?.()==='tr' ? 'Kayıtlı dublaj bulunamadı; özgün ses korunuyor.' : 'Saved dub unavailable; original audio is preserved.'); return false;
+      }
+      const file = result.output;
+      if (saved.kind === 'generated') file.rows = file.quality?.groups || [];
+      if (!await window.BrowserDubAudioUI.attachGenerated({ ...file, mix: saved.mix }, expected)) return false;
+      if (!controller.matches() || controller.session?.generation !== expected.generation || controller.session?.url !== file.url) return false;
+      controller.session.playbackAsset = { kind: saved.kind, id: saved.id };
+      controller.offset = Math.max(-60, Math.min(60, Number(saved.offset) || 0));
+      byId('browserDubOffset').value = controller.offset;
+      remember(snapshot()); controller.tick(); return true;
+    },
+    stop: () => { if (controller.session) remember(snapshot()); return controller.remove(); }, checkContext: () => controller.tick(),
     context,
     seekSource: async (seconds, expected) => {
       const c=context();
@@ -136,7 +185,10 @@
       if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
           || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
       if (!await controller.attach(file, c)) return false;
+      const id = file.id || (()=>{ try { return decodeURIComponent(new URL(file.url).pathname.split('/').pop()).replace(/\.wav$/i,''); } catch { return ''; } })();
+      controller.session.playbackAsset = file.playbackAsset || (/^[a-zA-Z0-9-]{1,80}$/.test(id) && !file.playbackAsset ? { kind: 'generated', id } : null);
       window.BrowserDubAudioUI.setMix(file.mix || {});
+      remember(controller.session.playbackAsset ? snapshot() : null);
       window.dispatchEvent(new CustomEvent('dub-audio:attached',{detail:{url:file.url,context:c}}));
       byId('browserDubOffset').value = '0';
       if (c.mode === 'browser') controller.update({ currentTime: player.browserTime, paused: player.browserPaused,

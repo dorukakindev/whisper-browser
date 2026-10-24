@@ -12,6 +12,7 @@ const { validVoiceOutput } = require('./voice-output');
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
   let job = null;
+  require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
   let textUI = null;
   const plans = new Map();
   const planning = new Map();
@@ -325,7 +326,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     proc.unref?.();
     return { ok: true };
   }));
-  ipcMain.handle('dub:latest', guard(async () => {
+  ipcMain.handle('dub:latest', guard(async (_event, requestedId) => {
+    if (requestedId !== undefined && !/^[a-zA-Z0-9-]{1,80}$/.test(requestedId)) return { ok: false, error: 'Invalid voice identity.' };
     const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');
     if (!fs.existsSync(logs)) return { ok: true, output: null };
@@ -337,6 +339,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       try {
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
         if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
+        if (requestedId && saved.id !== requestedId) continue;
         const output = path.join(root, `${saved.id}.wav`);
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
         grantMedia(output);
@@ -345,7 +348,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         let quality = null;
         try { if(saved.quality?.version===1 && saved.quality.groups?.length) quality={...saved.quality,groups:validateGroups(saved.quality.groups)}; } catch (_) {}
         if (quality?.groups?.every(row => row.status === 'failed')) continue;
-        return { ok: true, output: onOutput({ path: output, url: pathToFileURL(output).href,
+        return { ok: true, output: onOutput({ id: saved.id, path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
           sync, syncInvalid, quality, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,

@@ -139,6 +139,7 @@ const ENDPOINT_PRESETS = new Set([
 const SECRET_FIELD_PATHS = Object.freeze([
   'hfToken', 'llm.apiKey', 'translate.apiKey', 'translate.apiKeyProfiles',
   'manga.apiKey', 'manga.apiKeyProfiles',
+  'tmdb.apiKey',
 ]);
 
 class SettingsValidationError extends Error {
@@ -506,6 +507,12 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
     }
   }
   const cleanTranslateIdentity = endpointIdentity(clean.translate, nextTranslateOpts);
+  if(Object.prototype.hasOwnProperty.call(input,'tmdb')){
+    const value=input.tmdb;if(!value||typeof value!=='object'||Array.isArray(value))throw new SettingsValidationError('TMDB ayarı geçersiz.');
+    clean.tmdb={language:/^[a-z]{2}-[A-Z]{2}$/.test(value.language||'')?value.language:'tr-TR',watchRegion:/^[A-Z]{2}$/.test(value.watchRegion||'')?value.watchRegion:(existingSettings.tmdb?.watchRegion||'TR')};
+    if(allowSecrets&&Object.prototype.hasOwnProperty.call(value,'apiKey'))clean.tmdb.apiKey=boundedString(value.apiKey,'TMDB anahtarı',4096).trim();
+    else if(typeof existingSettings.tmdb?.apiKey==='string')clean.tmdb.apiKey=existingSettings.tmdb.apiKey;
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'llm')) {
     clean.llm = sanitizeEndpointGroup(input.llm, 'LLM', allowSecrets, existingSettings.llm, {
       nextIdentity: {}, previousIdentity: {},
@@ -572,7 +579,7 @@ function collectSecretValues(settings) {
   const values = [settings && settings.hfToken, settings && settings.translate && settings.translate.apiKey,
     settings && settings.translate && settings.translate.apiKeyProfiles,
     settings && settings.llm && settings.llm.apiKey, settings && settings.manga && settings.manga.apiKey,
-    settings && settings.manga && settings.manga.apiKeyProfiles]
+    settings && settings.manga && settings.manga.apiKeyProfiles, settings?.tmdb?.apiKey]
     .filter((value) => typeof value === 'string' && value);
   for (const group of [settings?.translate, settings?.manga]) {
     try {

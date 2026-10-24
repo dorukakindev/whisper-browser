@@ -6,11 +6,16 @@ const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
 
 function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userData, pythonPath,
-  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText }) {
+  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText, mediaShelf, metadataSettings = () => ({}), translateSynopsis }) {
   let catalog;
   const previews = new Map();
   const posterCache = new Map();
   const store = () => catalog ||= require('./media-catalog-store').createMediaCatalogStore({ filePath: path.join(userData(), 'media-catalog.json') });
+  if (mediaShelf) require('./media-shelf-service').registerMediaShelf({
+    ipcMain, dialog, owner, authorized, userData, pythonPath, inspectMedia, grantMedia, nativeImage,
+    catalogStore: store, ...mediaShelf,
+  });
+  if (mediaShelf) require('./media-discovery-service').registerMediaDiscovery({ ipcMain, authorized, userData, nativeImage, catalogStore: store });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
     ? 'file:' + source.value : 'browser:' + source.value) : '';
   const historyIndex = history => new Map((Array.isArray(history) ? history : [])
@@ -18,12 +23,14 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const progress = (source, history) => {
     const found = history instanceof Map ? history.get(sourceKey(source))
       : (Array.isArray(history) ? history.find(item => canonicalWatchKey(item.key) === sourceKey(source)) : null);
-    return found ? { position: Number(found.position) || 0, duration: Number(found.duration) || 0, completed: !!found.completed } : null;
+    return found ? { position: Number(found.position) || 0, duration: Number(found.duration) || 0, completed: !!found.completed,
+      assets: { subtitles: (found.subtitlePaths || []).length, translation: !!(found.prefs?.secondSubPath || found.prefs?.selectedSubRole === 'translation'),
+        dub: !!found.prefs?.dubPlayback, speed: Number(found.prefs?.speed) || 1 } } : null;
   };
   function visible(item, history = watchItems()) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    return { ...row, hasPoster: !!posterPath, progress: progress(row.source, history),
+    return { ...row, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(row.source, history),
       episodes: (row.episodes || []).map(ep => ({ ...ep, progress: progress(ep.source, history) })) };
   }
   function found(id) {
@@ -43,16 +50,16 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     const result = await dialog.showOpenDialog(owner(), { title: label, properties: ['openFile'], filters: [{ name: label, extensions }] });
     return result.canceled ? null : result.filePaths?.[0] || null;
   }
-  function imageFor(filePath) {
+  function imageFor(filePath, width = 240) {
     if (!filePath) return '';
     try {
       const real = fs.realpathSync(filePath), stat = fs.statSync(real);
       if (!stat.isFile() || stat.size > 8 * 1024 * 1024 || !/\.(png|jpe?g|webp|avif)$/i.test(real)) return '';
-      const key = `${real}|${stat.mtimeMs}|${stat.size}`;
+      const key = `${real}|${stat.mtimeMs}|${stat.size}|${width}`;
       if (posterCache.has(key)) return posterCache.get(key);
       const img = nativeImage.createFromPath(real);
       if (img.isEmpty()) return '';
-      const image = img.resize({ width: 240, quality: 'good' }).toDataURL();
+      const image = img.resize({ width, quality: 'good' }).toDataURL();
       if (image.length > 2 * 1024 * 1024) return '';
       posterCache.set(key, image);
       if (posterCache.size > 100) posterCache.delete(posterCache.keys().next().value);
@@ -74,11 +81,28 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!item.episodes.some(ep => ep.id === episodeId)) throw new Error('Bölüm bulunamadı.');
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
-  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText });
+  const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText, metadataSettings });
+  const metadataSync = require('./catalog-metadata-sync').createMetadataSync({store,settings:metadataSettings,userData,
+    complete:(id,signal)=>extension({sender:{id:-1}},{action:'metadata-complete-missing',id},{automatic:true,signal})});
+  const synopsisTranslation=require('./catalog-synopsis').createSynopsisTranslation({store,translate:translateSynopsis});
+  const backgrounds=new Map();
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};
     try {
+      if(input.action==='synopsis-stop')return synopsisTranslation.stop(input.id,input.token);
+      if(input.action==='synopsis-translate'){const result=await synopsisTranslation.start(input.id,input.token);return result.item?{...result,item:visible(result.item)}:result;}
+      if(input.action==='metadata-sync')return {ok:true,...(input.mode==='cancel'?metadataSync.cancel():input.mode==='status'?metadataSync.snapshot():metadataSync.start({retry:input.retry===true}))};
+      if(input.action==='backdrop'){
+        const item=found(input.id);if(!item.backdrop)return {ok:true,image:''};
+        if(backgrounds.has(item.backdrop))return {ok:true,image:backgrounds.get(item.backdrop)};
+        const response=await fetch('https://image.tmdb.org/t/p/w1280'+item.backdrop,{signal:AbortSignal.timeout(20000),redirect:'error'});
+        if(!response.ok)throw Error('Arka plan görseli alınamadı.');
+        const buffer=await require('./catalog-discovery').readLimitedBytes(response,8e6,'Görsel');
+        const image=nativeImage.createFromBuffer(buffer);if(image.isEmpty())throw Error('Görsel biçimi geçersiz.');
+        const data=image.resize({width:1280}).toDataURL();backgrounds.set(item.backdrop,data);while(backgrounds.size>8)backgrounds.delete(backgrounds.keys().next().value);
+        return {ok:true,image:data};
+      }
       const extra = await extension(event, input); if (extra) return extra;
       switch (input.action) {
         case 'list': {
@@ -90,7 +114,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const raw = input.item || input.patch || {};
           const previous = raw.id ? found(raw.id) : null;
           // Native seçici veya kayıtlı içe aktarım dışında renderer dosya yolu veremez.
-          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite']
+          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite','genres','directors']
             .filter(key => Object.hasOwn(raw, key)).map(key => [key, raw[key]]));
           if (raw.ratings && typeof raw.ratings === 'object') patch.ratings = { ...(previous?.ratings || {}), personal: raw.ratings.personal };
           if (Array.isArray(raw.episodes)) {
@@ -138,7 +162,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           }
           catch (error) { fs.unlinkSync(target); throw error; }
         }
-        case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath) };
+        case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath,input.large===true?500:240) };
         case 'play': {
           const item = found(input.id);
           const episode = input.episodeId ? item.episodes.find(ep => ep.id === input.episodeId) : null;
@@ -209,5 +233,6 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       return { ok: false, error: message };
     }
   });
+  return {store,metadataSync};
 }
 module.exports = { registerMediaCatalogService };
