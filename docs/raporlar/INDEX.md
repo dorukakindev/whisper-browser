@@ -1,5 +1,6 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_542.md](BROWSER_BUG_REPORT_542.md) — Sayfaya özel asistan, kanıtlı yorum, güvenli film eşleşmesi ve gerçek GPU/oynatma turu.
 - [BROWSER_BUG_REPORT_541.md](BROWSER_BUG_REPORT_541.md) — Açık browser yorumları, film eşleşmesi, okunabilir analiz ve gerçek asistan araçları.
 
 - [BROWSER_BUG_REPORT_540.md](BROWSER_BUG_REPORT_540.md) — Letterboxd okuyucu, örnek/profil kanıtı ve gerçek model doğrulaması.

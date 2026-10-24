@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0138.md](docs/devir/2026-10-25-0138.md) — Beş alanda sağlamlaştırma ve gerçek dublaj/oynatma denemesi
 Güncel çalışma: [docs/devir/2026-10-25-0114.md](docs/devir/2026-10-25-0114.md) — Açık Letterboxd yorumları ve beş asistan/analiz geliştirmesi
 Güncel çalışma: [docs/devir/2026-10-25-0048.md](docs/devir/2026-10-25-0048.md) — Letterboxd yorumları ve kanıta dayalı kişisel uygunluk
 Güncel çalışma: [docs/devir/2026-10-24-2312.md](docs/devir/2026-10-24-2312.md) — Yeni Luna push’larından izleme ülkesi, benzer yapımlar ve yorum arama
