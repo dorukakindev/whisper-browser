@@ -3170,6 +3170,7 @@ async function testSelectedTranslationProvider() {
     output.textContent = providerSettingText('Önce API anahtarı ve model girin.');
     return;
   }
+  const generation=++translationProbeGeneration;
   button.disabled = true;
   output.dataset.state = 'testing';
   output.textContent = providerSettingText('Sağlayıcı test ediliyor…');
@@ -3180,6 +3181,7 @@ async function testSelectedTranslationProvider() {
       model,
       apiKey,
     });
+    if(generation!==translationProbeGeneration)return;
     const latency = Number(result?.latencyMs) > 0 ? ` · ${Math.round(result.latencyMs)} ms` : '';
     const status = Number(result?.status) > 0 ? ` · HTTP ${Math.trunc(result.status)}` : '';
     output.dataset.state = result?.ok ? 'success' : 'error';
@@ -3187,6 +3189,7 @@ async function testSelectedTranslationProvider() {
       ? providerSettingText('Bağlantı ve model çalışıyor.')
       : translationProbeMessage(result)) + status + latency;
   } catch (_) {
+    if(generation!==translationProbeGeneration)return;
     output.dataset.state = 'error';
     output.textContent = providerSettingText('Test isteği gönderilemedi.');
   } finally {

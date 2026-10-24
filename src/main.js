@@ -42,7 +42,7 @@ const { classifyTranslationHttpFailure } = require('./browser-translation-provid
 const browserOmnibox = require('./browser-omnibox');
 const { buildBrowserContextMenuModel } = require('./browser-context-menu');
 const { BrowserReadingList } = require('./browser-reading-list');
-const { probeTranslationProvider } = require('./translation-provider-probe');
+const { probeTranslationProvider, listTranslationProviderModels } = require('./translation-provider-probe');
 const {
   isYoutubePlayerResponseUrl,
   pruneYoutubePlayerResponseBody,
@@ -19541,9 +19541,13 @@ ipcMain.handle('translation:probe', async (event, request = {}) => {
   const endpoint = safeTranslationEndpoint(endpointInput);
   const model = String(request.model || '').normalize('NFC').trim();
   const apiKey = String(request.apiKey || '').trim();
-  if (!endpoint || !model || model.length > 300 || /[\u0000-\u001f\u007f]/u.test(model)
+  if (!endpoint || (request.mode!=='models'&&!model) || model.length > 300 || /[\u0000-\u001f\u007f]/u.test(model)
       || apiKey.length > 10000 || /[\u0000-\u001f\u007f]/u.test(apiKey)) {
     return { ok: false, code: 'invalid_config', status: 0, latencyMs: 0 };
+  }
+  if(request.mode==='models'){
+    try{const selected=new URL(String(endpointInput));if(selected.username||selected.password||selected.search||selected.hash)return {ok:false,code:'invalid_config',models:[]};}catch{return {ok:false,code:'invalid_config',models:[]};}
+    return listTranslationProviderModels({endpoint,apiKey,timeoutMs:15000});
   }
   return probeTranslationProvider({ endpoint, model, apiKey, timeoutMs: 15000 });
 });

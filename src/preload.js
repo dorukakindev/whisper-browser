@@ -310,6 +310,7 @@ contextBridge.exposeInMainWorld('api', {
   netBudget: (budget) => ipcRenderer.invoke('network:budget', { budget }),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   testTranslationProvider: (payload) => ipcRenderer.invoke('translation:probe', payload),
+  listTranslationProviderModels: payload => ipcRenderer.invoke('translation:probe', {...payload,mode:'models'}),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   saveSettingsSync: (s) => ipcRenderer.sendSync('settings:saveSync', s),
   notifyUiLocale: (locale) => ipcRenderer.send('app:ui-locale', locale),

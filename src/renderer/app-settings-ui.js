@@ -1,7 +1,8 @@
 (() => {
   'use strict';
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
-  let dialog,active='ai',borrowed=[],opener;
+  let dialog,active='ai',borrowed=[],opener,viewGeneration=0,editGeneration=0,modelsGeneration=0;
+  const $=id=>document.getElementById(id);
   const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
   const button=(text,fn)=>{const n=el('button','mh-action',text);n.type='button';n.onclick=fn;return n;};
   function restore(){for(const {node,marker}of borrowed){if(marker.parentNode)marker.replaceWith(node);}borrowed=[];}
@@ -11,18 +12,67 @@
     for(const id of ids){const control=document.getElementById(id),node=control?.closest('.field')||control?.closest('label');if(!node||moved.has(node))continue;moved.add(node);const marker=document.createComment('settings-home:'+id);node.before(marker);borrowed.push({node,marker});grid.append(node);}
   }
   function section(parent,title,copy,ids){const box=el('section','aps-section');box.append(el('h2','',title),el('p','aps-copy',copy));if(ids)fields(box,ids);parent.append(box);return box;}
-  function cleanup(current){if(dialog!==current){current.remove();return;}mask();restore();current.remove();dialog=null;void syncBrowserOcclusion();const target=opener?.isConnected?opener:document.getElementById('mhSettings');target?.focus({preventScroll:true});}
+  function cleanup(current){if(dialog!==current){current.remove();return;}viewGeneration++;modelsGeneration++;mask();restore();current.remove();dialog=null;void syncBrowserOcclusion();const target=opener?.isConnected?opener:document.getElementById('mhSettings');target?.focus({preventScroll:true});}
   function close(){const current=dialog;if(!current)return;current.close();cleanup(current);}
   function openStudioSection(id){close();window.MediaHomeUI?.openStudio();const control=document.getElementById(id);if(control){for(let node=control.parentElement;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;control.scrollIntoView({block:'center'});control.focus({preventScroll:true});}}
+  function providerSnapshot(){const prefix=active==='manga'?'manga':active==='cleanup'?'llm':'translate';return {prefix,preset:$(prefix+'EndpointPreset')?.value||'',url:$(prefix+'BaseUrl')?.value.trim()||'',key:$(prefix+'ApiKey')?.value.trim()||'',model:$(prefix+'Model')?.value.trim()||''};}
+  function summary(parent){
+    const node=el('div','aps-provider-summary');node.id='appProviderSummary';node.setAttribute('aria-live','polite');parent.prepend(node);updateSummary();
+  }
+  function updateSummary(){
+    const node=$('appProviderSummary');if(!node)return;node.replaceChildren();const config=providerSnapshot();
+    let endpoint=config.preset==='custom'?config.url:config.preset,url;try{url=new URL(endpoint);}catch{}
+    const inherited=config.preset==='inherit';
+    const name=$(config.prefix+'EndpointPreset')?.selectedOptions[0]?.textContent||t('Provider','Sağlayıcı');
+    const line=el('div');line.append(el('strong','',name),el('small','',inherited?t('Uses the shared subtitle provider','Ortak altyazı sağlayıcısını kullanır'):[config.model||t('No model selected','Model seçilmedi'),url?.hostname||t('URL required','URL gerekli')].join(' · ')));node.append(line);
+    const local=url&&['localhost','127.0.0.1','[::1]'].includes(url.hostname);const ready=inherited||!!(url&&!url.username&&!url.password&&!url.search&&!url.hash&&(url.protocol==='https:'||url.protocol==='http:'&&local)&&config.model&&(config.key||local));
+    node.append(el('span','aps-setup-state',inherited?t('Shared settings · not tested here','Ortak ayar · burada test edilmedi'):ready?t('Configured · test separately','Yapılandırılmış · ayrıca test et'):t('Setup incomplete','Kurulum eksik')));
+    const hint=$('appEndpointHint');if(hint){hint.replaceChildren();if(config.preset==='custom'&&url){
+      if(url.username||url.password||url.search||url.hash)hint.textContent=t('Use a base URL without credentials, query parameters or fragments.','Kimlik bilgisi, sorgu parametresi veya parça içermeyen bir base URL kullan.');
+      else if(/\/(chat\/completions|models)\/?$/i.test(url.pathname)){const info=el('span','',t('This looks like a request URL. Use the API base path instead.','Bu bir istek adresine benziyor. Bunun yerine API kök yolunu kullan.'));const fix=button(t('Use base URL','Base URL kullan'),()=>{const current=providerSnapshot();if(current.prefix!==config.prefix||current.url!==config.url)return;const clean=new URL(config.url);clean.pathname=clean.pathname.replace(/\/(chat\/completions|models)\/?$/i,'');$(config.prefix+'BaseUrl').value=clean.href.replace(/\/$/,'');$(config.prefix+'BaseUrl').dispatchEvent(new Event('change',{bubbles:true}));});hint.append(info,fix);}
+    }}
+  }
+  function keyTools(parent){
+    const config=providerSnapshot(),row=el('div','aps-key-actions'),remove=button(t('Remove this provider’s key','Bu sağlayıcının anahtarını kaldır'),()=>{
+      const expected=providerSnapshot(),review=el('div','aps-key-review');review.setAttribute('role','group');review.append(el('p','aps-copy',t('Remove the key for the currently selected provider? Other providers are kept.','Seçili sağlayıcının anahtarı kaldırılsın mı? Diğer sağlayıcılar korunur.')));
+      review.append(button(t('Keep key','Anahtarı tut'),()=>review.remove()),button(t('Remove key','Anahtarı kaldır'),()=>{const current=providerSnapshot();if(current.prefix!==expected.prefix||current.preset!==expected.preset||current.url!==expected.url||current.key!==expected.key){review.remove();return;}const input=$(config.prefix+'ApiKey');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));review.remove();remove.disabled=true;}));row.querySelector('.aps-key-review')?.remove();row.append(review);
+    });remove.id='appRemoveKey';remove.disabled=!config.key;row.append(remove);parent.append(row);
+    const hint=el('div','aps-endpoint-hint');hint.id='appEndpointHint';hint.setAttribute('role','status');parent.append(hint);updateSummary();
+  }
+  function modelBrowser(parent){
+    const box=el('section','aps-model-browser');box.append(el('h3','',t('Available models','Sağlayıcıdaki modeller')),el('p','aps-copy',t('Fetch IDs from this provider. Listing a model does not verify chat, vision or tool support. Manual model entry stays available.','Model kimliklerini bu sağlayıcıdan getir. Listede görünmesi sohbet, görsel veya araç desteğini doğrulamaz. Elle model girişi kullanılabilir.')));
+    const fetchButton=button(t('Fetch models','Modelleri getir'),async()=>{
+      const config=providerSnapshot(),ticket=++modelsGeneration,view=viewGeneration;fetchButton.disabled=true;status.textContent=t('Fetching model list…','Model listesi alınıyor…');
+      try{const result=await window.api.listTranslationProviderModels({endpointPreset:config.preset,customBaseUrl:config.url,apiKey:config.key});
+        if(ticket!==modelsGeneration||view!==viewGeneration||!dialog?.open)return;
+        if(!result?.ok){status.textContent=t('Could not load models. Manual entry is available. ','Modeller alınamadı. Elle giriş yapabilirsin. ')+translationProbeMessage(result);return;}
+        ids=Array.isArray(result.models)?result.models:[];filter.disabled=!ids.length;select.disabled=!ids.length;filter.value='';render();status.textContent=ids.length?t(`${ids.length} models received${result.limited?' (limited list)':''}. Select one to use it.`,`${ids.length} model alındı${result.limited?' (sınırlı liste)':''}. Kullanmak için birini seç.`):t('The provider returned no model IDs. Enter the model manually.','Sağlayıcı model kimliği döndürmedi. Modeli elle yaz.');
+      }catch{if(ticket===modelsGeneration&&view===viewGeneration)status.textContent=t('Could not load models. Enter the model manually.','Modeller alınamadı. Modeli elle yaz.');}
+      finally{if(fetchButton.isConnected)fetchButton.disabled=false;}
+    });fetchButton.id='appFetchModels';const status=el('p','aps-copy');status.id='appModelListStatus';status.setAttribute('role','status');let ids=[];
+    const filter=el('input');filter.type='search';filter.id='appModelFilter';filter.placeholder=t('Filter model IDs','Model kimliklerinde ara');filter.setAttribute('aria-label',filter.placeholder);filter.disabled=true;
+    const select=el('select');select.id='appRemoteModels';select.setAttribute('aria-label',t('Models returned by this provider','Sağlayıcının döndürdüğü modeller'));select.disabled=true;
+    const render=()=>{const matches=ids.filter(id=>id.toLowerCase().includes(filter.value.toLowerCase()));select.replaceChildren(el('option','',t('Choose a model…','Model seç…')));select.options[0].value='';for(const id of matches){const option=el('option','',id);option.value=id;select.append(option);}};
+    render();filter.oninput=render;select.onchange=()=>{if(!select.value)return;const input=$('translateModel');input.value=select.value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));};box.append(fetchButton,status,filter,select);parent.append(box);
+  }
+  function changed(event){
+    if(!dialog?.contains(event.target)||event.target.closest('.aps-model-browser,.aps-nav,.aps-key-review')||!event.target.id)return;
+    editGeneration++;const status=$('appSettingsStatus');if(status){status.textContent=t('Settings changed. Use Save to confirm the storage result.','Ayarlar değişti. Kayıt sonucunu doğrulamak için Kaydet’i kullan.');status.classList.remove('aps-error');}
+    updateSummary();const remove=$('appRemoveKey');if(remove)remove.disabled=!providerSnapshot().key;
+    if(/(?:EndpointPreset|BaseUrl|ApiKey)$/.test(event.target.id)){modelsGeneration++;for(const id of ['appModelFilter','appRemoteModels'])if($(id))$(id).disabled=true;if($('appRemoteModels')){$('appRemoteModels').replaceChildren(el('option','',t('Fetch again for this provider','Bu sağlayıcı için yeniden getir')));}const status=$('appModelListStatus');if(status)status.textContent=t('Provider details changed. Fetch the model list again.','Sağlayıcı bilgileri değişti. Model listesini yeniden getir.');}
+  }
   function draw(){
-    if(!dialog)return;restore();dialog.replaceChildren();dialog.setAttribute('aria-label',t('Settings','Ayarlar'));
+    if(!dialog)return;viewGeneration++;modelsGeneration++;restore();dialog.replaceChildren();dialog.setAttribute('aria-label',t('Settings','Ayarlar'));
     const header=el('header','aps-header'),copy=el('div');copy.append(el('h1','',t('Settings','Ayarlar')),el('p','aps-copy',t('Your providers, your models, one workspace.','Sağlayıcıların, modellerin, tek çalışma alanı.')));const exit=button('×',close);exit.id='appSettingsClose';exit.setAttribute('aria-label',t('Close settings','Ayarları kapat'));header.append(copy,exit);dialog.append(header);
     const layout=el('div','aps-layout'),nav=el('nav','aps-nav');nav.setAttribute('aria-label',t('Settings sections','Ayar bölümleri'));layout.append(nav);dialog.append(layout);
-    for(const [id,en,tr]of [['ai','Assistant & translation','Asistan ve çeviri'],['manga','Image translation','Görsel çeviri'],['cleanup','Text cleanup','Metin düzeltme'],['general','Appearance & tools','Görünüm ve araçlar']]){const item=button(t(en,tr),()=>{mask();active=id;draw();dialog.querySelector(`[data-app-settings="${id}"]`)?.focus();});item.dataset.appSettings=id;item.setAttribute('aria-current',active===id?'page':'false');nav.append(item);}
+    const find=el('input');find.type='search';find.id='appSettingsSearch';find.placeholder=t('Find a setting','Ayar ara');find.setAttribute('aria-label',find.placeholder);nav.append(find);
+    for(const [id,en,tr,terms]of [['ai','Assistant & translation','Asistan ve çeviri','api openai provider model çeviri asistan anahtar'],['manga','Image translation','Görsel çeviri','manga image görsel'],['cleanup','Text cleanup','Metin düzeltme','llm cleanup düzeltme'],['general','Appearance & tools','Görünüm ve araçlar','theme tema dil language voice ses whisper backup yedek']]){const item=button(t(en,tr),()=>{mask();active=id;draw();dialog.querySelector(`[data-app-settings="${id}"]`)?.focus();});item.dataset.appSettings=id;item.dataset.search=(en+' '+tr+' '+terms).toLocaleLowerCase();item.setAttribute('aria-current',active===id?'page':'false');nav.append(item);}
+    const noMatches=el('p','aps-copy');noMatches.id='appSettingsNoMatches';noMatches.classList.add('hidden');nav.append(noMatches);find.oninput=()=>{let count=0;for(const n of nav.querySelectorAll('[data-app-settings]')){const match=n.dataset.search.includes(find.value.toLocaleLowerCase().trim());n.classList.toggle('hidden',!match);if(match)count++;}noMatches.classList.toggle('hidden',count>0);noMatches.textContent=t('No matching section','Eşleşen bölüm yok');};find.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();nav.querySelector('[data-app-settings]:not(.hidden)')?.click();}};
     const main=el('main','aps-content');layout.append(main);
-    if(active==='ai')section(main,t('Assistant & subtitle translation','Asistan ve altyazı çevirisi'),t('The assistant and subtitle translation share this provider and model. Changing provider restores that provider’s saved key. A test request is sent only when you press its button.','Asistan ve altyazı çevirisi bu sağlayıcıyı ve modeli paylaşır. Sağlayıcı değişince o sağlayıcının kayıtlı anahtarı gelir. Test isteği yalnız düğmesine bastığında gönderilir.'),['translateEndpointPreset','translateModel','translateApiKey','translateBaseUrl','translateSavedModel','translateProbeBtn','translateTo']);
+    if(active==='ai'){section(main,t('Assistant & subtitle translation','Asistan ve altyazı çevirisi'),t('The assistant and subtitle translation share this provider and model. Provider keys stay separate. Requests are sent only when you choose Fetch models or Test.','Asistan ve altyazı çevirisi bu sağlayıcıyı ve modeli paylaşır. Sağlayıcı anahtarları ayrı tutulur. İstekler yalnız Modelleri getir veya Test’i seçtiğinde gönderilir.'),['translateEndpointPreset','translateModel','translateApiKey','translateBaseUrl']);summary(main);keyTools(main);modelBrowser(main);fields(main,['translateSavedModel','translateProbeBtn','translateTo']);}
     if(active==='manga')section(main,t('Image & manga translation','Görsel ve manga çevirisi'),t('Use the shared provider or choose a separate image-capable model.','Ortak sağlayıcıyı kullanabilir veya görsel destekleyen ayrı bir model seçebilirsin.'),['mangaEndpointPreset','mangaModel','mangaApiKey','mangaBaseUrl']);
     if(active==='cleanup')section(main,t('Transcription text cleanup','Transkripsiyon metin düzeltme'),t('Optional cleanup uses its own provider. This does not replace the assistant provider above.','İsteğe bağlı metin düzeltme ayrı sağlayıcı kullanır. Asistanın yukarıdaki sağlayıcısını değiştirmez.'),['llmPostprocess','llmEndpointPreset','llmModel','llmApiKey','llmBaseUrl']);
+    if(active==='manga'||active==='cleanup'){summary(main);keyTools(main);}
     if(active==='general'){
       const appearance=section(main,t('Appearance','Görünüm'),t('Use the existing application theme and language settings.','Uygulamanın mevcut tema ve dil ayarlarını kullan.'),['uiTheme','uiLocale']);
       const tools=section(main,t('Whisper, voice & workspace','Whisper, ses ve çalışma alanı'),t('Open the existing detailed tools with your current settings intact.','Mevcut ayrıntılı araçları, ayarların korunarak aç.'));
@@ -30,7 +80,7 @@
       actions.append(button(t('Whisper settings','Whisper ayarları'),()=>openStudioSection('model')),button(t('Translation options','Çeviri seçenekleri'),()=>openStudioSection('translate')),button(t('Voice studio','Ses stüdyosu'),()=>{close();document.getElementById('dubMainOpen')?.click();}),button(t('Backup & workspace','Yedekleme ve çalışma alanı'),()=>{close();window.MediaToolsUI?.open('backup');}));
     }
     const footer=el('footer','aps-footer'),status=el('p','aps-copy');status.id='appSettingsStatus';status.setAttribute('role','status');status.textContent=t('These are the existing settings. Changes use the same secure credential storage.','Bunlar mevcut ayarların. Değişiklikler aynı güvenli anahtar deposunu kullanır.');
-    const save=button(t('Save settings','Ayarları kaydet'),async()=>{save.disabled=true;try{const ok=await saveAppSettings();if(!dialog?.open)return;status.textContent=ok?t('Settings saved.','Ayarlar kaydedildi.'):t('Could not save securely. Check the application log.','Güvenli kayıt yapılamadı. Uygulama günlüğünü kontrol et.');status.classList.toggle('aps-error',!ok);}catch{status.textContent=t('Could not save settings.','Ayarlar kaydedilemedi.');status.classList.add('aps-error');}finally{save.disabled=false;}});save.id='appSettingsSave';save.classList.add('mh-primary');footer.append(status,save);dialog.append(footer);
+    const save=button(t('Save settings','Ayarları kaydet'),async()=>{const edit=editGeneration,view=viewGeneration;save.disabled=true;status.textContent=t('Saving securely…','Güvenli kaydediliyor…');try{const ok=await saveAppSettings();if(!dialog?.open||view!==viewGeneration||edit!==editGeneration)return;status.textContent=ok?t('Settings saved.','Ayarlar kaydedildi.'):t('Could not save securely. Check the application log.','Güvenli kayıt yapılamadı. Uygulama günlüğünü kontrol et.');status.classList.toggle('aps-error',!ok);}catch{if(view===viewGeneration&&edit===editGeneration){status.textContent=t('Could not save settings.','Ayarlar kaydedilemedi.');status.classList.add('aps-error');}}finally{save.disabled=false;}});save.id='appSettingsSave';save.classList.add('mh-primary');footer.append(status,save);dialog.append(footer);
   }
   async function open(page='ai'){
     await initialSettingsReady;
@@ -38,6 +88,7 @@
     active=['ai','manga','cleanup','general'].includes(page)?page:'ai';opener=document.activeElement;
     const current=el('dialog','aps-dialog media-surface');current.id='appSettingsDialog';current.dataset.uiUntranslated='';dialog=current;
     current.addEventListener('close',()=>cleanup(current));
+    current.addEventListener('input',changed);current.addEventListener('change',changed);
     document.body.append(current);try{draw();current.showModal();window.MediaExperience?.setContext(current,{id:'application-settings',type:'media-tool',title:t('Application settings','Uygulama ayarları'),note:'Credential input values are private and are not assistant context.'});void syncBrowserOcclusion();current.querySelector('[aria-current="page"]')?.focus();}catch(error){restore();current.remove();dialog=null;throw error;}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open)draw();});
