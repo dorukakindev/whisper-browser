@@ -4,12 +4,13 @@
  const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
  const jobs=new Map();let leaveReader=null;
  const api=async(action,values={})=>{const r=await window.api.mediaTools({action,...values});if(!r?.ok)throw Error(r?.error||t('The action failed.','İşlem başarısız oldu.'));return r;};
+ const prose=value=>String(value||'').replace(/preferencesConfigured\s*=\s*false/gi,t('no explicit preferences saved','kayıtlı açık tercih bulunmaması')).replace(/preferencesConfigured\s*=\s*true/gi,t('saved explicit preferences','kayıtlı açık tercihler'));
  function resultView(parent,analysis,reviews){
-  const summary=el('section','mrv-summary');summary.append(el('h2','',t('What the reviews agree on','Ortak görüşler')),el('p','',analysis.summary));parent.append(summary);
-  const fit=el('section','mrv-fit');fit.append(el('h2','',t('How it fits your taste','Sana ne kadar uygun?')),el('p','',analysis.fit||t('Not enough personal evidence.','Kişisel kanıt yeterli değil.')));parent.append(fit);
+  const summary=el('section','mrv-summary');summary.append(el('h2','',t('What the reviews agree on','Ortak görüşler')),el('p','',prose(analysis.summary)));parent.append(summary);
+  const fit=el('section','mrv-fit');fit.append(el('h2','',t('How it fits your taste','Sana ne kadar uygun?')),el('p','',prose(analysis.fit)||t('Not enough personal evidence.','Kişisel kanıt yeterli değil.')));parent.append(fit);
   const columns=el('div','mrv-opinions');for(const [kind,en,tr]of [['praise','What is praised','Neler övülüyor?'],['criticism','What is criticized','Neler eleştiriliyor?'],['debate','Where opinions differ','Nerede ayrışıyorlar?']]){
    const points=analysis.points.filter(row=>row.kind===kind);if(!points.length)continue;const section=el('section');section.append(el('h3','',t(en,tr)));
-   for(const point of points){const card=el('article','mrv-point');card.append(el('p','',point.reason));const quote=el('details','mrv-evidence'),review=reviews.find(r=>r.id===point.id);quote.append(el('summary','',t('Source review ','Kaynak yorum ')+point.id+(review?.author?' · '+review.author:'')),el('blockquote','',point.quote));card.append(quote);section.append(card);}columns.append(section);
+   for(const point of points){const card=el('article','mrv-point');card.append(el('p','',prose(point.reason)));const quote=el('details','mrv-evidence'),review=reviews.find(r=>r.id===point.id);quote.append(el('summary','',t('Source review ','Kaynak yorum ')+point.id+(review?.author?' · '+review.author:'')),el('blockquote','',point.quote));card.append(quote);section.append(card);}columns.append(section);
   }parent.append(columns);
  }
  function mount(body,item,saved,draft,{current,redraw,status}){
