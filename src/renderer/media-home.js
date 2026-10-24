@@ -312,6 +312,7 @@
     actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open media', 'Medya aç'), () => window.MediaHubUI?.open(), 'mh-action mh-primary'));
     actions.append(button(t('Tonight', 'Bu akşam'), () => window.MediaToolsUI?.open('tonight')), button(t('Library care', 'Arşiv bakımı'), () => window.MediaToolsUI?.open('health')));
     actions.append(button(t('Activity', 'İşlemler'), () => window.MediaExperience?.openTasks()));
+    const settings=button(t('Settings','Ayarlar'),()=>window.AppSettingsUI.open());settings.id='mhSettings';settings.title=t('AI providers and application settings','AI sağlayıcıları ve uygulama ayarları');actions.append(settings);
     const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
     locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);
