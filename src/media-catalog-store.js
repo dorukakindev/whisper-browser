@@ -258,6 +258,18 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (index < 0) items.push(item); else items[index] = item;
     commit(items); return structuredClone(item);
   }
+  function upsertMany(patches) {
+    if (!Array.isArray(patches) || patches.length > MAX_ITEMS) fail('Geçersiz toplu katalog güncellemesi.');
+    const items = list(), positions = new Map(items.map((item, index) => [item.id, index]));
+    for (const patch of patches) {
+      const index = positions.get(text(patch?.id, 120));
+      const item = itemOf(patch, index === undefined ? null : items[index]);
+      if (index === undefined) { positions.set(item.id, items.length); items.push(item); }
+      else items[index] = item;
+    }
+    if (patches.length) commit(items);
+    return structuredClone(items);
+  }
   function remove(id) {
     const items = list(), next = items.filter((item) => item.id !== id);
     if (next.length === items.length) return false;
@@ -303,6 +315,6 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (planned.report.added.length || planned.report.updated.length) commit(planned.items);
     return planned.report;
   }
-  return { list, get, upsert, remove, previewImport, mergeImport };
+  return { list, get, upsert, upsertMany, remove, previewImport, mergeImport };
 }
 module.exports = { createMediaCatalogStore, itemOf, sourceOf, posterPath, ratingsOf, imdbIdOf, tmdbIdOf };

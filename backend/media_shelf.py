@@ -1,0 +1,205 @@
+"""Bounded, offline EPUB/RSS/Letterboxd parsing. Never extracts archive paths."""
+import base64
+import csv
+import io
+import json
+import os
+import posixpath
+import sys
+import zipfile
+import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
+from urllib.parse import unquote, urlsplit
+
+
+def xml(data):
+    if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
+        raise ValueError('DTD/entity declarations are not supported.')
+    return ET.fromstring(data)
+
+
+def local(tag):
+    return tag.rsplit('}', 1)[-1]
+
+
+def text(node):
+    return ''.join(node.itertext()).strip() if node is not None else ''
+
+
+def first(node, name):
+    return next((n for n in node.iter() if local(n.tag) == name and text(n)), None)
+
+
+class Prose(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts, self.skip = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('script', 'style', 'noscript'):
+            self.skip += 1
+        if tag in ('p', 'div', 'br', 'h1', 'h2', 'h3', 'li') and not self.skip:
+            self.parts.append('\n\n')
+
+    def handle_endtag(self, tag):
+        if tag in ('script', 'style', 'noscript') and self.skip:
+            self.skip -= 1
+        if tag in ('p', 'div', 'h1', 'h2', 'h3', 'li') and not self.skip:
+            self.parts.append('\n\n')
+
+    def handle_data(self, data):
+        if not self.skip:
+            self.parts.append(data)
+
+    def value(self):
+        return '\n\n'.join(' '.join(p.split()) for p in ''.join(self.parts).split('\n\n') if p.strip())
+
+
+def decode(data):
+    if data.startswith((b'\xff\xfe', b'\xfe\xff')):
+        return data.decode('utf-16')
+    try:
+        return data.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return data.decode('cp1254')
+
+
+def read_book(file):
+    if os.path.getsize(file) > 150 * 1024 * 1024:
+        raise ValueError('Book is too large (150 MB maximum).')
+    name = os.path.splitext(os.path.basename(file))[0]
+    ext = os.path.splitext(file)[1].lower()
+    if ext == '.pdf':
+        return dict(title=name, author='', format='pdf', chapters=[])
+    if ext == '.txt':
+        with open(file, 'rb') as source:
+            data = source.read(2_000_001)
+        if len(data) > 2_000_000:
+            raise ValueError('Text is too large (2 MB maximum).')
+        return dict(title=name, author='', format='txt', chapters=[dict(title=name, text=decode(data))])
+    if ext != '.epub':
+        raise ValueError('Unsupported book format.')
+    with zipfile.ZipFile(file) as archive:
+        infos = archive.infolist()
+        if len(infos) > 5000 or sum(i.file_size for i in infos) > 150 * 1024 * 1024:
+            raise ValueError('EPUB archive exceeds limits.')
+        names = [i.filename for i in infos]
+        if len(set(names)) != len(names):
+            raise ValueError('Duplicate EPUB archive entries.')
+
+        def read(entry, limit=3_000_000):
+            info = archive.getinfo(entry)
+            if info.file_size > limit or info.flag_bits & 1:
+                raise ValueError('EPUB resource is too large or encrypted.')
+            return archive.read(info)
+
+        def relative(base, href):
+            if urlsplit(href).scheme or href.startswith(('/', '\\')):
+                raise ValueError('External EPUB resource is not supported.')
+            target = posixpath.normpath(posixpath.join(base, unquote(href.split('#')[0])))
+            if target == '..' or target.startswith('../') or '\\' in target:
+                raise ValueError('Unsafe EPUB resource path.')
+            return target
+
+        container = xml(read('META-INF/container.xml'))
+        rootfile = next((n.attrib.get('full-path') for n in container.iter() if local(n.tag) == 'rootfile'), '')
+        rootfile = relative('', rootfile or '')
+        package = xml(read(rootfile))
+        base = posixpath.dirname(rootfile)
+        manifest = {n.attrib['id']: n for n in package.iter() if local(n.tag) == 'item' and 'id' in n.attrib}
+        chapters, size = [], 0
+        for ref in (n for n in package.iter() if local(n.tag) == 'itemref'):
+            item = manifest.get(ref.attrib.get('idref'))
+            if item is None or ref.attrib.get('linear') == 'no':
+                continue
+            content = read(relative(base, item.attrib.get('href', '')))
+            parser = Prose()
+            parser.feed(decode(content))
+            prose = parser.value()
+            size += len(prose)
+            if size > 900_000 or len(chapters) >= 1000:
+                raise ValueError('EPUB text exceeds reader limits.')
+            if prose:
+                chapters.append(dict(title=prose.split('\n')[0][:120], text=prose))
+        if not chapters:
+            raise ValueError('No readable EPUB chapters; DRM/fixed-layout books are not supported.')
+        cover = ''
+        cover_id = next((n.attrib.get('content') for n in package.iter() if local(n.tag) == 'meta' and n.attrib.get('name') == 'cover'), None)
+        candidate = next((n for n in manifest.values() if 'cover-image' in n.attrib.get('properties', '').split()), None)
+        if candidate is None:
+            candidate = manifest.get(cover_id)
+        if candidate is not None and candidate.attrib.get('media-type') in ('image/jpeg', 'image/png', 'image/webp'):
+            entry = relative(base, candidate.attrib.get('href', ''))
+            if archive.getinfo(entry).file_size <= 250_000:
+                data = read(entry, 250_000)
+                cover = 'data:' + candidate.attrib['media-type'] + ';base64,' + base64.b64encode(data).decode('ascii')
+        return dict(title=text(first(package, 'title')) or name, author=text(first(package, 'creator')), format='epub', chapters=chapters, cover=cover)
+
+
+def rss(data):
+    if len(data) > 2_000_000:
+        raise ValueError('Feed is too large.')
+    root = xml(data)
+    channel = next((n for n in root if local(n.tag) == 'channel'), root)
+    entries = []
+    for item in list(channel):
+        if local(item.tag) not in ('item', 'entry'):
+            continue
+        enclosure = next((n for n in item if local(n.tag) == 'enclosure' or (local(n.tag) == 'link' and n.attrib.get('rel') == 'enclosure')), None)
+        if enclosure is None:
+            continue
+        url = enclosure.attrib.get('url') or enclosure.attrib.get('href') or ''
+        if urlsplit(url).scheme not in ('http', 'https'):
+            continue
+        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100]))
+        if len(entries) >= 200:
+            break
+    if not entries:
+        raise ValueError('No audio/video enclosures found in RSS/Atom feed.')
+    return dict(title=text(first(channel, 'title'))[:500], episodes=entries)
+
+
+def letterboxd(data):
+    if len(data) > 5_000_000:
+        raise ValueError('Letterboxd CSV exceeds 5 MB.')
+    reader = csv.DictReader(io.StringIO(decode(data)))
+    rows = []
+    for row in reader:
+        title = row.get('Name') or row.get('Title')
+        if not title:
+            continue
+        rating = row.get('Rating') or ''
+        try:
+            rating = float(rating) if rating else None
+        except ValueError:
+            rating = None
+        if rating is not None and (not 0 <= rating <= 5 or rating * 2 != int(rating * 2)):
+            rating = None
+        year = row.get('Year', '')
+        rows.append(dict(title=title[:500], year=year if year.isdigit() and len(year) == 4 else '', rating=rating,
+                         watchedDate=(row.get('Watched Date') or row.get('WatchedDate') or '')[:10],
+                         uri=(row.get('Letterboxd URI') or row.get('LetterboxdURI') or '')[:2048]))
+        if len(rows) > 10000:
+            raise ValueError('Letterboxd CSV exceeds 10,000 titles.')
+    if not rows:
+        raise ValueError('No Name/Title column or no titles in CSV.')
+    return dict(rows=rows)
+
+
+if __name__ == '__main__':
+    try:
+        request = json.load(sys.stdin)
+        action = request.get('action')
+        if action == 'book':
+            result = read_book(request['path'])
+        elif action == 'rss':
+            result = rss(base64.b64decode(request['data'], validate=True) if 'data' in request else request['text'].encode('utf-8'))
+        elif action == 'letterboxd':
+            with open(request['path'], 'rb') as source:
+                result = letterboxd(source.read(5_000_001))
+        else:
+            raise ValueError('Unsupported parser action.')
+        print(json.dumps(result, ensure_ascii=False, allow_nan=False))
+    except Exception as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

@@ -10,10 +10,13 @@ const root = path.resolve(__dirname, '..');
 const out = path.join(root, '.uiprev', 'media-home-smoke', `${Date.now()}-${process.pid}`);
 fs.mkdirSync(out, { recursive: true });
 const video = path.join(out, 'Türkçe film.mp4');
+const music = path.join(out, 'Örnek müzik.m4a');
 const ffmpeg = findMediaTool('ffmpeg');
 assert(ffmpeg, 'ffmpeg is required for the local playback regression');
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x1c3344:s=320x180:d=8', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', video], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
 assert.equal(made.status, 0, made.stderr);
+const madeAudio = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-metadata', 'title=Akşam Şarkısı', '-metadata', 'artist=İstanbul', '-metadata', 'album=Deneme', music], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+assert.equal(madeAudio.status, 0, madeAudio.stderr);
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, 'profile');
 app.setAppPath(root);
 app.commandLine.appendSwitch('disable-gpu');
@@ -39,7 +42,7 @@ app.whenReady().then(async () => {
   await run('window.UiLocale.set("tr",false);applyUiTheme("dark");return true');
   await wait(250);
   fs.writeFileSync(path.join(out, 'home-empty-tr.png'), (await win.webContents.capturePage()).toPNG());
-  assert(await run('return document.querySelector(".mh-hero h1").textContent.includes("hikâyeye")'));
+  assert(await run('return document.querySelector(".mh-hero h1").textContent.includes("kütüphaneni")'));
   assert.equal(await run('window.homeStartClicks=0;document.getElementById("startBtn").addEventListener("click",e=>{homeStartClicks++;e.stopImmediatePropagation();e.preventDefault();},true);document.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));return homeStartClicks'), 0);
   await run('document.querySelector("#mediaHome .mh-actions button:nth-child(2)").click();return true');
   assert(await run('return !document.body.classList.contains("media-home-active") && getComputedStyle(document.querySelector(".app-main")).display!=="none"'));
@@ -79,7 +82,7 @@ app.whenReady().then(async () => {
   await until(() => run('return !document.getElementById("mediaHome").inert'), 'local player return');
   const results = [];
   win.showInactive();
-  for (const [width, height, language, theme] of [[1440,1000,'tr','dark'],[940,780,'en','light'],[680,900,'tr','dark']]) {
+  for (const [width, height, language, theme] of [[1920,1080,'tr','dark'],[1440,1000,'tr','dark'],[940,780,'en','light'],[680,900,'tr','dark']]) {
     win.setMinimumSize(400, 500); win.setContentSize(width, height);
     await run(`window.UiLocale.set(${JSON.stringify(language)},false);applyUiTheme(${JSON.stringify(theme)});return true`);
     await run('window.scrollTo(0,0);return true');
@@ -106,6 +109,46 @@ app.whenReady().then(async () => {
   await run('document.querySelector("#mediaHome .mh-actions button:nth-child(3)").click();return true');
   await until(() => run('return document.getElementById("dubGeneratorDialog").open'), 'existing dub dialog');
   await run('document.getElementById("dubGeneratorDialog").close();return true');
+  // Add real tagged audio through the new main boundary, then use the rendered music page.
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [music] });
+  try { const added = await run('return window.api.mediaShelf({action:"music-import"})'); assert.equal(added.ok, true, added.error); assert.equal(added.added, 1); }
+  finally { dialog.showOpenDialog = originalPicker; }
+  await run('document.getElementById("mhSearch").value="";document.getElementById("mhSearch").dispatchEvent(new Event("input"));document.querySelector("[data-home-mode=music]").click();return true');
+  await until(() => run('return document.querySelector(".ms-track strong")?.textContent==="Akşam Şarkısı"'), 'tagged music');
+  assert(await run('return document.querySelector(".ms-track small").textContent.includes("İstanbul")'));
+  await run('document.querySelector(".ms-track button").click();return true');
+  await until(() => run('return document.getElementById("mediaShelfAudio").readyState>=2'), 'audio playback');
+  await run('document.querySelector(".ms-track input").click();const b=[...document.querySelectorAll(".ms-shelf button")].find(b=>b.textContent.includes("çalma listesi oluştur"));b.click();return true');
+  await until(() => run('return !!document.querySelector(".ms-dialog[open] input")'), 'playlist form');
+  await run('document.querySelector(".ms-dialog input").value="Gece listesi";document.querySelector(".ms-dialog form").requestSubmit();return true');
+  await until(() => run('return [...document.querySelectorAll(".ms-shelf button")].some(b=>b.textContent.includes("Gece listesi"))'), 'saved playlist');
+  win.setContentSize(1440, 1000); await wait(250); fs.writeFileSync(path.join(out, 'music-tr.png'), (await win.webContents.capturePage()).toPNG());
+  const book = path.join(out, 'Kitap.txt'); fs.writeFileSync(book, 'Birinci paragraf.\n\nİkinci paragraf.\n\n<script>Bu düz metindir.</script>');
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [book] });
+  try { const added = await run('return window.api.mediaShelf({action:"book-import"})'); assert.equal(added.ok, true, added.error); }
+  finally { dialog.showOpenDialog = originalPicker; }
+  await run('document.querySelector("[data-home-mode=books]").click();return true');
+  await until(() => run('return !!document.querySelector(".ms-book-grid .mh-card")'), 'book shelf');
+  await run('document.querySelector(".ms-book-grid .mh-card").click();return true');
+  await until(() => run('return !!document.querySelector(".ms-reader[open] .ms-prose")'), 'book reader');
+  assert(await run('return document.querySelector(".ms-prose").textContent.includes("<script>") && !document.querySelector(".ms-prose script")'));
+  await run('[...document.querySelectorAll(".ms-reader header button")].find(b=>b.textContent.includes("Yer imi")).click();return true');
+  await until(() => run('return document.querySelector(".ms-reader .ms-status").textContent==="Kaydedildi."'), 'saved bookmark');
+  fs.writeFileSync(path.join(out, 'reader-tr.png'), (await win.webContents.capturePage()).toPNG());
+  await run('document.querySelector(".ms-reader header").lastElementChild.click();return true');
+  await until(() => run('return !document.querySelector(".ms-reader")'), 'close reader');
+  assert.equal((await run('return window.api.mediaShelf({action:"list"})')).books[0].bookmarks.length, 1);
+  const ratings = path.join(out, 'ratings.csv'); fs.writeFileSync(ratings, 'Name,Year,Rating\nKuzeyin Hikâyesi,2026,4.5\nYeni Film,2024,4\n');
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [ratings] });
+  try {
+    await run('document.querySelector("[data-home-page=taste]").click();return true');
+    await until(() => run('return document.querySelector(".ms-shelf button")?.textContent.includes("CSV")'), 'Letterboxd page');
+    await run('document.querySelector(".ms-shelf button").click();return true');
+    await until(() => run('return !!document.querySelector(".ms-dialog[open]")'), 'import preview');
+    assert.equal((await run('return window.api.mediaCatalog({action:"list"})')).items.length, 2, 'Preview does not add films');
+    await run('document.querySelector(".ms-dialog form").requestSubmit();return true');
+    await until(async () => (await run('return window.api.mediaCatalog({action:"list"})')).items.length === 3, 'confirmed CSV import');
+  } finally { dialog.showOpenDialog = originalPicker; }
   assert.deepEqual(consoleErrors.filter(text => /uncaught|referenceerror|typeerror/i.test(text)), []);
   fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ results, consoleErrors }, null, 2));
   console.log(JSON.stringify({ ok: true, out, results }));

@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('api', {
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   listWatchLibrary: () => ipcRenderer.invoke('library:list'),
   mediaCatalog: (request) => ipcRenderer.invoke('media-catalog:request', request),
+  mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),
   updateWatchItem: (item) => ipcRenderer.invoke('library:upsert', item),
   removeWatchItem: (key) => ipcRenderer.invoke('library:remove', key),
   saveWatchItemBeforeClose: (item) => ipcRenderer.sendSync('library:upsert-before-close', item),

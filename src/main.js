@@ -21667,6 +21667,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
 });
 
 require('./media-catalog-service').registerMediaCatalogService({
+  mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob
     && !browserHlsCeaFullCaptureJob && !browserExtras?.hasJobs(),

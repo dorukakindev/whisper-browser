@@ -90,7 +90,10 @@
     } finally { state.busy = false; }
   }
   const play = item => item.key ? playWatch(item) : playCatalog(item);
-  const minutes = value => `${Math.floor(Math.max(0, Number(value) || 0) / 60)} ${t('min', 'dk')}`;
+  const minutes = value => {
+    const seconds = Math.floor(Math.max(0, Number(value) || 0));
+    return seconds < 60 ? `0:${String(seconds).padStart(2, '0')}` : `${Math.floor(seconds / 60)} ${t('min', 'dk')}`;
+  };
   function progress(item) {
     const p = model.progress(item), bar = el('progress', 'mh-progress');
     bar.max = 100; bar.value = p.percent;
@@ -172,6 +175,7 @@
   function page(value) {
     state.page = value; state.limit = 48; state.filter = 'all';
     host.querySelectorAll('[data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === value ? 'page' : 'false'));
+    host.querySelectorAll('[data-home-mode]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.homeMode === (['music', 'radio'].includes(value) ? 'music' : value === 'books' ? 'books' : 'film'))));
     renderContent();
   }
   function renderContent() {
@@ -187,8 +191,9 @@
     if (state.page === 'home' && !state.query) {
       const featured = continuing.find(item => model.medium(item) === 'video') || items.find(item => item.source) || continuing[0] || items[0];
       const hero = el('section', 'mh-hero'), copy = el('div', 'mh-hero-copy');
+      if (!featured) hero.classList.add('mh-empty-hero');
       copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
-        el('h1', '', featured?.title || t('Make room for a good story.', 'Güzel bir hikâyeye yer aç.')),
+        el('h1', '', featured?.title || t('Your media library starts here.', 'Medya kütüphaneni oluştur.')),
         el('p', '', featured ? (featured.synopsis || (model.progress(featured).position ? t(`Continue from ${minutes(model.progress(featured).position)}. Subtitles and voice tools are ready in the player.`, `${minutes(model.progress(featured).position)} konumundan devam et. Altyazı ve ses araçların oynatıcıda hazır.`) : t('Open this title from your library.', 'Kütüphanendeki bu yapımı aç.'))) : t('Your films, series and listening, together. Add your media or open a video in the browser.', 'Filmlerin, dizilerin ve dinlediklerin bir arada. Medyanı ekle veya browserda bir video aç.')));
       const actions = el('div', 'mh-actions');
       actions.append(button(featured ? (model.progress(featured).resume ? t('Continue watching', 'İzlemeye devam et') : t('Open', 'Aç')) : t('Open a file', 'Dosya aç'), () => featured ? play(featured) : click('playerPickVideo'), 'mh-action mh-primary'),
@@ -200,10 +205,10 @@
       if (items.some(item => item.kind !== 'series')) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series'), { more: () => page('films') }));
       if (!items.length && state.loaded) content.append(tool(t('Build your library', 'Kütüphaneni oluştur'), t('Scan a folder, review the matches, then add films and series with their posters and progress.', 'Bir klasörü tara, eşleşmeleri incele; film ve dizilerini afişleri ve ilerlemeleriyle ekle.'), t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
       content.append(tools());
-    } else if (state.page === 'books' && !state.query) {
-      content.append(el('h1', '', t('Reading & narration', 'Okuma ve seslendirme')),
-        el('p', 'mh-empty', t('Open a PDF in the existing reader, or listen to text in your voice studio.', 'Mevcut okuyucuda PDF aç veya ses stüdyosunda metnini dinle.')),
-        button(t('Open PDF', 'PDF aç'), async () => { openBrowser(); setWorkspaceMode('player'); await openPdfReader(); }), tools());
+    } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
+      const titles = { books: t('Books', 'Kitaplar'), music: t('Music', 'Müzik'), radio: t('Radio & podcasts', 'Radyo ve podcast'), taste: 'Letterboxd' };
+      content.append(el('h1', 'mh-page-title', titles[state.page]));
+      const shelf = el('section', 'ms-shelf'); content.append(shelf); window.MediaShelfUI.mount(shelf, state.page, state.query);
     } else {
       const titles = { home: t('Search results', 'Arama sonuçları'), recent: t('Recently played', 'Son oynatılanlar'), films: t('Films', 'Filmler'), series: t('Series', 'Diziler'), music: t('Music & audio', 'Müzik ve ses'), web: t('Web videos', 'Web videoları'), books: t('Search results', 'Arama sonuçları') };
       const isHistory = ['recent', 'music', 'web'].includes(state.page);
@@ -233,23 +238,29 @@
     const back = document.getElementById('mediaHomeBack');
     if (back) back.textContent = t('Home', 'Ana sayfa');
     host.replaceChildren(el('div', 'mh-titlebar'));
-    const header = el('header', 'mh-header'), brand = el('div', 'mh-brand'), text = el('div', '', 'Whisper');
-    text.append(el('small', '', t('Media & voice', 'Medya ve ses'))); brand.append(icon(), text);
+    const header = el('header', 'mh-header'), brand = el('div', 'mh-brand');
+    brand.title = 'Whisper Browser'; brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
+    const modes = el('div', 'mh-modes'); modes.setAttribute('aria-label', t('Media type', 'Medya türü'));
+    for (const [key, label, target] of [['film', t('Film', 'Film'), 'home'], ['music', t('Music', 'Müzik'), 'music'], ['books', t('Books', 'Kitaplar'), 'books']]) {
+      const mode = button(label, () => page(target)); mode.dataset.homeMode = key;
+      mode.setAttribute('aria-pressed', String(key === (['music', 'radio'].includes(state.page) ? 'music' : state.page === 'books' ? 'books' : 'film'))); modes.append(mode);
+    }
     const actions = el('div', 'mh-actions');
     actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo'), 'mh-action mh-primary'));
     const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
-    locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale); header.append(brand, actions);
+    locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['music', t('Music', 'Müzik')], ['books', t('Reading', 'Okuma')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', 'Letterboxd'], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false'); if (key === 'home') control.id = 'mhHome'; nav.append(control);
     }
     const searchWrap = el('label', 'mh-search'), search = el('input'); search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
-    search.addEventListener('input', () => { state.query = search.value; state.limit = 48; renderContent(); }); searchWrap.append(search); nav.append(searchWrap);
+    let searchTimer;
+    search.addEventListener('input', () => { state.query = search.value; state.limit = 48; clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); }); searchWrap.append(search); nav.append(searchWrap);
     const content = el('main', 'mh-content'); content.id = 'mhContent';
-    host.append(header, nav, content); renderContent();
+    header.append(brand, modes, nav, actions); host.append(header, content); renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();
   }
   async function refresh() {
@@ -269,6 +280,7 @@
   document.getElementById('mediaHomeBack')?.addEventListener('click', () => setHome(true));
   document.getElementById('mediaCatalogDialog')?.addEventListener('close', () => { posters.clear(); if (state.active) void refresh(); });
   document.addEventListener('ui-locale-change', renderShell);
+  document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
 })();

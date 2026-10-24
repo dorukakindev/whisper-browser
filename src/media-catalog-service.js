@@ -6,11 +6,15 @@ const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
 
 function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userData, pythonPath,
-  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText }) {
+  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText, mediaShelf }) {
   let catalog;
   const previews = new Map();
   const posterCache = new Map();
   const store = () => catalog ||= require('./media-catalog-store').createMediaCatalogStore({ filePath: path.join(userData(), 'media-catalog.json') });
+  if (mediaShelf) require('./media-shelf-service').registerMediaShelf({
+    ipcMain, dialog, owner, authorized, userData, pythonPath, inspectMedia, grantMedia, nativeImage,
+    catalogStore: store, ...mediaShelf,
+  });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
     ? 'file:' + source.value : 'browser:' + source.value) : '';
   const historyIndex = history => new Map((Array.isArray(history) ? history : [])
