@@ -86,6 +86,7 @@ class StreamTests(unittest.TestCase):
         self.assertEqual(evidence, [row])
         self.assertEqual(client.requests[1]['messages'][-1]['role'], 'tool')
         self.assertIn('proposed', client.requests[2]['messages'][-1]['content'])
+        self.assertIn('Writing a function name or JSON in the answer does not create a card', client.requests[0]['messages'][0]['content'])
 
     def test_invalid_sources_and_unknown_tools_never_execute(self):
         pool = clean_pool([{'id': 'U1', 'start': 1, 'end': 2, 'text': 'yes'}, {'id': 'U2', 'start': float('inf'), 'end': 9}])

@@ -47,6 +47,7 @@ class ChatReliabilityTests(unittest.TestCase):
         prompt = calls[0]['messages'][0]['content']
         self.assertIn('Goruntu, kare veya ses verilmedi', prompt)
         self.assertIn('[T1]', prompt)
+        self.assertIn("bunu 'kasaba terk edilmedi' diye gercek dunya olgusuna donusturme", prompt)
 
     def test_auth_error_is_not_retried_or_exposed(self):
         calls, events, _, error = self.invoke([RuntimeError('401 invalid_api_key provider-private-text')])

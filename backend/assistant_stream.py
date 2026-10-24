@@ -110,7 +110,7 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
     current_time = _number(context.get("time")) or 0
     history = list(messages)
     if use_tools:
-        history[0] = {**history[0], "content": history[0]["content"] + "\nUse subtitle tools when exact evidence is needed. Search may use paraphrases or translated keywords. Cite real returned IDs as [U123]. Proposed UI actions are not executed until the user applies a card. Never claim to have analyzed audio or images. Search is keyword based over a bounded pool, which may be sampled on very long videos; do not claim exhaustive coverage."}
+        history[0] = {**history[0], "content": history[0]["content"] + "\nUse subtitle tools when exact evidence is needed. Search may use paraphrases or translated keywords. Cite real returned IDs as [U123]. Proposed UI actions are not executed until the user applies a card. If the user requests a supported action or action card, invoke its function after resolving a real source ID. Writing a function name or JSON in the answer does not create a card. Never claim a card was created unless its tool result says proposed. Never claim to have analyzed audio or images. Search is keyword based over a bounded pool, which may be sampled on very long videos; do not claim exhaustive coverage."}
     for round_index in range(4):
         checkpoint()
         options = {**kwargs, "messages": history, "stream": True}
