@@ -3,10 +3,29 @@
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node;};
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
-  let dialog,selected,opener,generation=0,item;
+  let dialog,selected,opener,generation=0,item,storyJob;
+  const originalStories=new Set();
   async function request(action,options={}){const result=await window.api.mediaCatalog({action,id:selected,...options});if(result?.canceled)return result;if(!result?.ok)throw Error(result?.error||t('Could not complete this action.','İşlem tamamlanamadı.'));return result;}
   function button(label,run,primary=false){const node=el('button','mh-action'+(primary?' mh-primary':''),label);node.type='button';node.onclick=async()=>{if(node.disabled)return;node.disabled=true;const current=dialog;try{await run();}catch(error){if(current===dialog&&dialog?.open){const status=dialog.querySelector('[role=status]');status.textContent=error.message;status.classList.add('mtd-error');}}finally{node.disabled=false;}};return node;}
-  function close(){dialog?.close();}
+  function cancelStory(owner){const job=storyJob;if(!job||job.owner!==owner)return;storyJob=null;void window.api.mediaCatalog({action:'synopsis-stop',id:job.id,token:job.token}).catch(()=>{});}
+  function close(){cancelStory(dialog);dialog?.close();}
+  function story(main){
+    const section=el('section','mtd-story'),heading=el('div','mtd-story-heading');heading.append(el('h2','',t('Story','Konu')));
+    const translated=!!item.synopsisTr&&!originalStories.has(item.id),running=storyJob?.id===item.id&&storyJob.owner===dialog;
+    section.setAttribute('aria-busy',String(!!running));
+    if(item.synopsis){
+      if(running){const pending=el('span','mtd-story-state',t('Translating…','Çevriliyor…'));pending.setAttribute('role','status');heading.append(pending,button(t('Stop','Durdur'),()=>{cancelStory(dialog);draw(++generation);}));}
+      else if(item.synopsisTr){const toggle=button(translated?t('Show original','Özgününü göster'):t('Show Turkish','Türkçesini göster'),()=>{if(translated)originalStories.add(item.id);else originalStories.delete(item.id);draw(++generation);});toggle.dataset.titleAction='story';toggle.dataset.storyToggle='';heading.append(toggle);}
+      else{const translate=button(t('Translate to Turkish','Türkçeye çevir'),async()=>{
+        const job={id:item.id,token:crypto.randomUUID(),owner:dialog};storyJob=job;draw(++generation);
+        try{const result=await request('synopsis-translate',{id:job.id,token:job.token});if(result.canceled)return;if(dialog!==job.owner||!dialog?.open||selected!==job.id||storyJob!==job)return;item=result.item;originalStories.delete(job.id);}
+        finally{if(storyJob===job){storyJob=null;if(dialog===job.owner&&dialog?.open)draw(++generation);}}
+      });translate.dataset.titleAction='story';translate.dataset.storyTranslate='';heading.append(translate);}
+    }
+    section.append(heading,el('p','mtd-synopsis',translated?item.synopsisTr:item.synopsis||t('The summary will appear here when TMDB matching finishes.','TMDB eşleştirmesi tamamlandığında konu özeti burada görünecek.')));
+    if(translated)section.append(el('small','mtd-story-state',t('Turkish · AI translation','Türkçe · AI çevirisi')));
+    main.append(section);
+  }
   function management(metadata=false){const id=selected;close();const run=metadata?window.MediaCatalogUI.openMetadata(id):window.MediaCatalogUI.open({id});void Promise.resolve(run).then(()=>{document.getElementById('mediaCatalogDialog')?.addEventListener('close',()=>void open(id),{once:true});});}
   async function play(episodeId,voice=false){
     const current=dialog,id=selected;const result=await request('play',{episodeId});
@@ -41,7 +60,7 @@
     copy.append(actions);content.append(copy);hero.append(content);dialog.append(hero);
     const status=el('p','mtd-status');status.setAttribute('role','status');dialog.append(status);
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');
-    main.append(el('h2','',t('Story','Konu')),el('p','mtd-synopsis',item.synopsis||t('The summary will appear here when TMDB matching finishes.','TMDB eşleştirmesi tamamlandığında konu özeti burada görünecek.')));
+    story(main);
     if(item.cast?.length){main.append(el('h2','',t('Cast','Oyuncular')));const cast=el('div','mtd-cast');for(const name of item.cast)cast.append(el('span','',name));main.append(cast);}
     const review=el('section','mtd-review');review.append(el('h2','',t('Is this for you?','Bana uygun mu?')),el('p','',t('Read reviews and compare this title with your taste profile.','Yorumları incele, yapımı zevk profilinle karşılaştır.')),button(t('Reviews & personal fit','Yorumlar ve bana uygunluğu'),()=>window.MediaToolsUI?.open('decision',item)));main.append(review);
     const info=el('dl');for(const [label,value]of [[t('Director / creator','Yönetmen / yaratıcı'),(item.directors||[]).join(', ')],[t('Original title','Özgün adı'),item.originalTitle],[t('Watch status','İzleme durumu'),({planned:t('Watchlist','İzleme listesi'),watching:t('Watching','İzleniyor'),completed:t('Watched','İzlendi')})[item.watchStatus]]])if(value)info.append(el('dt','',label),el('dd','',value));aside.append(info);
@@ -59,7 +78,7 @@
   async function open(id){
     if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;opener=document.activeElement;
     const current=el('dialog','mtd-dialog media-surface');current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
-    const origin=opener;current.addEventListener('close',()=>{current.remove();if(dialog===current){generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
+    const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     document.body.append(current);current.showModal();void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
     try{await reload();current.querySelector('header button')?.focus({preventScroll:true});}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
   }

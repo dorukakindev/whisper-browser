@@ -99,6 +99,8 @@ function itemOf(raw, old = null) {
     backdrop: /^\/[a-zA-Z0-9._-]+$/.test(raw.backdrop ?? old?.backdrop ?? '') ? (raw.backdrop ?? old.backdrop) : '',
     tmdbRating: Number(raw.tmdbRating ?? old?.tmdbRating) > 0 ? Math.min(10,Number(raw.tmdbRating ?? old?.tmdbRating)) : null,
     tmdbVotes: Math.max(0,Math.min(1e9,Math.floor(Number(raw.tmdbVotes ?? old?.tmdbVotes)||0))),
+    synopsisTr: text(raw.synopsisTr ?? old?.synopsisTr, 12000),
+    synopsisTrSource: /^[a-f0-9]{64}$/.test(raw.synopsisTrSource ?? old?.synopsisTrSource ?? '') ? (raw.synopsisTrSource ?? old.synopsisTrSource) : '',
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',

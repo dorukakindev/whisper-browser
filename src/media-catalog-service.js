@@ -6,7 +6,7 @@ const { randomUUID } = require('node:crypto');
 const { canonicalWatchKey } = require('./watch-library-store');
 
 function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userData, pythonPath,
-  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText, mediaShelf, metadataSettings = () => ({}) }) {
+  inspectMedia, grantMedia, watchItems, nativeImage, restart, canRestore, dialogText, mediaShelf, metadataSettings = () => ({}), translateSynopsis }) {
   let catalog;
   const previews = new Map();
   const posterCache = new Map();
@@ -30,7 +30,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   function visible(item, history = watchItems()) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    return { ...row, hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(row.source, history),
+    return { ...row, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(row.source, history),
       episodes: (row.episodes || []).map(ep => ({ ...ep, progress: progress(ep.source, history) })) };
   }
   function found(id) {
@@ -84,11 +84,14 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText, metadataSettings });
   const metadataSync = require('./catalog-metadata-sync').createMetadataSync({store,settings:metadataSettings,userData,
     complete:(id,signal)=>extension({sender:{id:-1}},{action:'metadata-complete-missing',id},{automatic:true,signal})});
+  const synopsisTranslation=require('./catalog-synopsis').createSynopsisTranslation({store,translate:translateSynopsis});
   const backgrounds=new Map();
   ipcMain.handle('media-catalog:request', async (event, request) => {
     if (!authorized(event)) return { ok: false, error: 'Yetkisiz istek.' };
     const input = request && typeof request === 'object' ? request : {};
     try {
+      if(input.action==='synopsis-stop')return synopsisTranslation.stop(input.id,input.token);
+      if(input.action==='synopsis-translate'){const result=await synopsisTranslation.start(input.id,input.token);return result.item?{...result,item:visible(result.item)}:result;}
       if(input.action==='metadata-sync')return {ok:true,...(input.mode==='cancel'?metadataSync.cancel():input.mode==='status'?metadataSync.snapshot():metadataSync.start({retry:input.retry===true}))};
       if(input.action==='backdrop'){
         const item=found(input.id);if(!item.backdrop)return {ok:true,image:''};
