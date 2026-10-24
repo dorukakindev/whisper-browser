@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_538.md](BROWSER_BUG_REPORT_538.md) — Gerçek sayfa çeviri komutları ve kaynağa uygun native asistan.
+
 - [BROWSER_BUG_REPORT_537.md](BROWSER_BUG_REPORT_537.md) — Story/Konu için Türkçeye çevir ve özgün özet geçişi.
 
 - [BROWSER_BUG_REPORT_536.md](BROWSER_BUG_REPORT_536.md) — Otomatik TMDB afişleri, güvenli eşleştirme ve zengin film sayfası.
