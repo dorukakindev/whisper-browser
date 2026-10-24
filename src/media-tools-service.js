@@ -46,7 +46,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,fetchImpl=fetch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -122,6 +122,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='health-start'){if(scan?.state==='running')return {ok:true,id:scan.id};const job={id:randomUUID(),cancel:new AbortController(),state:'running',done:0,total:0,rows:[]};scan=job;void health(job).catch(e=>{job.state='failed';job.error=e.message;});return {ok:true,id:job.id};}
       if(action==='health-status'||action==='health-stop'){if(scan?.id!==input.id)throw Error('Scan expired.');if(action==='health-stop')scan.cancel.abort();return {ok:true,id:scan.id,state:scan.state,done:scan.done,total:scan.total,phase:scan.phase,hashed:scan.hashed,hashTotal:scan.hashTotal,rows:scan.rows,error:scan.error};}
+      if(action==='reviews-browser'){known(input.itemId);if(!readOpenReviews)throw Error('Browser review reading is unavailable.');const result=await readOpenReviews();return {ok:true,...result,match:require('./letterboxd-reviews').matchFilm(known(input.itemId),result.identity)};}
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
       if(action==='reviews-fetch'){
@@ -130,7 +131,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         try{const response=await fetchImpl(url.href,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]),redirect:'error',credentials:'omit'});if(!response.ok)throw Error(response.status===403?'Letterboxd returned HTTP 403. Automatic access is unavailable; open the page normally, then paste or import reviews.':'Review site returned HTTP '+response.status+'. Paste or import reviews instead.');let html='',bytes=0;const decoder=new TextDecoder();for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>3000000)throw Error('Review page too large.');html+=decoder.decode(chunk,{stream:true});if(html.length>3000000)throw Error('Review page too large.');}
           html+=decoder.decode();controller.signal.throwIfAborted();
           const parsed=require('./letterboxd-reviews').parseLetterboxdReviews(html);
-          if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href};
+          if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href,match:require('./letterboxd-reviews').matchFilm(known(input.itemId),parsed.identity)};
         }finally{jobs.delete(id);}
       }
       if(action==='decision-get'){known(input.itemId);const data=read();return {ok:true,value:(Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{})};}

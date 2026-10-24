@@ -15,7 +15,7 @@
       const global = globalAssistantContext();
       const pageContext=!global&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const transcriptScope=!global&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
-      const pageTask=window.AssistantPageCommands?.status();
+      const pageTask=window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
       const context = global ? (global.title || global.heading || (global.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
@@ -52,7 +52,7 @@
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:opts.translateModel||opts.llmModel||'',
-        pageContext,transcriptScope,blocked:!!(window.AssistantPageCommands?.busy()&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
+        pageContext,transcriptScope,blocked:!!((window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
         canCancel:!!(pageTask || aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
         sourceDescription:global ? [({'book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[global.type]||(global.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),global.chapter||'',global.excerpt||global.synopsis||global.note||'',tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
@@ -93,10 +93,10 @@
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if (packet.action === 'send') void sendQuestion(packet);
-    else if (packet.action === 'cancel') {if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
+    else if (packet.action === 'cancel') {if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') {
-      if(window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
+      if(window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
       for(const node of document.querySelectorAll('#aiChatLog .ai-msg'))if(node._sourceScope===aiSourceScope())node.remove();
       if(player.chatHistoryScope===aiSourceScope()){player.chatHistory=[];player.chatHistoryScope=null;}
       if(aiChatRetryPacket?.scope===aiSourceScope())aiChatRetryPacket=null;
@@ -128,6 +128,7 @@
   document.addEventListener('media-context-changed', publish);
   document.addEventListener('assistant-workspace-changed',publish);
   document.addEventListener('assistant-page-task-changed',publish);
+  document.addEventListener('assistant-media-task-changed',publish);
   document.addEventListener('browser-page-translation-changed',publish);
   publish();
 })();

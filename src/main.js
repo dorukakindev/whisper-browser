@@ -21718,6 +21718,6 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   dialogText: dt,
 });
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
-require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,ffprobe:()=>resolveFfTool('ffprobe')});
+require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:()=>require('./letterboxd-reviews').readBrowserReviews({getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain})});
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});

@@ -81,7 +81,7 @@
   if(current()){player.chatHistory=history(current());player.chatHistoryScope=aiSourceScope();}else{player.chatHistory=[];player.chatHistoryScope=null;}
   restoreLog();changed();
  }
- function stateGlobalBusy(){return !!(window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit);}
+ function stateGlobalBusy(){return !!(window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit);}
  function clear(){const thread=current();if(thread){thread.messages=[];thread.headId=null;void persist(thread);changed();}}
  function toolContext(){
   if(globalAssistantContext())return null;

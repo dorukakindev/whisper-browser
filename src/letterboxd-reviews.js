@@ -23,6 +23,45 @@ function parseLetterboxdReviews(input){
   const row={id:String(rows.length+1),text,author,spoiler};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
  }
  const meta=[...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]);const title=meta.find(tag=>attr(tag,'property')==='og:title');
- return {reviews:rows,limited,pageTitle:plain(title?attr(title,'content'):(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]||'')).slice(0,300)};
+ const pageTitle=plain(title?attr(title,'content'):(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]||'')).slice(0,300);
+ const yearText=meta.find(tag=>/^(?:og:release_date|video:release_date)$/.test(attr(tag,'property')));
+ const headline=/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1]||'';
+ const heading=plain(headline), labelled=pageTitle.replace(/^(?:Reviews of|Review of)\s+/i,'').replace(/\s*[•|]\s*Letterboxd.*$/i,'').trim();
+ const years=/\((18\d{2}|19\d{2}|20\d{2})\)/.exec(labelled),year=Number((yearText&&attr(yearText,'content').slice(0,4))||years?.[1])||null;
+ const name=(labelled.replace(/\s*\((?:18|19|20)\d{2}\).*$/,'').trim()||heading).slice(0,300);
+ const tmdb=/(?:data-tmdb-id|data-film-tmdb-id)=["'](\d+)["']/i.exec(html)?.[1]||/themoviedb\.org\/movie\/(\d+)/i.exec(html)?.[1]||'';
+ return {reviews:rows,limited,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:''}};
 }
-module.exports={parseLetterboxdReviews,decode};
+function matchFilm(item,identity={}){
+ const fold=v=>String(v||'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+ const known=String(item.tmdbId||''),remote=String(identity.tmdbId||'');
+ if(item.kind==='series')return {state:'mismatch',reason:'film-vs-series'};
+ if(known&&remote&&known!==remote)return {state:'mismatch',reason:'tmdb-id'};
+ if(item.year&&identity.year&&Number(item.year)!==Number(identity.year))return {state:'mismatch',reason:'year'};
+ if(known&&remote&&known===remote)return {state:'matched',reason:'tmdb-id'};
+ const names=[item.title,item.originalTitle].filter(Boolean).map(fold),name=fold(identity.title);
+ if(name&&names.includes(name)&&item.year&&identity.year)return {state:'matched',reason:'title-year'};
+ if(name&&identity.year&&names.length&&!names.includes(name))return {state:'mismatch',reason:'title'};
+ return {state:'unverified',reason:'missing-identity'};
+}
+function publicFilmUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/film\/[a-z0-9-]+\/(?:reviews\/)?$/.test(u.pathname)?u.href:null;}catch{return null;}}
+// Only review cards and public film metadata are copied, never forms, cookies or scripts.
+function reviewPageScript(){return `(()=>{
+ if(document.querySelector('#challenge-running,#challenge-stage,#challenge-form')||/just a moment|access denied|security check/i.test(document.title))return {blocked:true};
+ const host=document.createElement('section');
+ for(const n of document.querySelectorAll('meta[property="og:title"],meta[property="og:release_date"],meta[property="video:release_date"],h1'))host.append(n.cloneNode(true));
+ const tmdb=document.querySelector('[data-tmdb-id],[data-film-tmdb-id]');if(tmdb){const n=document.createElement('div');n.setAttribute('data-tmdb-id',tmdb.getAttribute('data-tmdb-id')||tmdb.getAttribute('data-film-tmdb-id'));host.append(n);}
+ for(const link of document.querySelectorAll('a[href*="themoviedb.org/movie/"]')){const n=document.createElement('a');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
+ const seen=new Set();for(const body of [...document.querySelectorAll('.js-review-body')].slice(0,50)){const card=body.closest('article,li')||body;if(seen.has(card))continue;seen.add(card);const copy=card.cloneNode(true);for(const n of copy.querySelectorAll('script,style,template,input,textarea,select,form,iframe,button,img'))n.remove();host.append(copy);if(host.outerHTML.length>3000000)return {tooLarge:true};}
+ return {url:location.href,title:document.title,html:host.outerHTML};})()`;}
+async function readBrowserReviews({getTab,execute}){
+ const tab=getTab();if(!tab?.view||tab.view.webContents.isDestroyed())throw Error('Open a Letterboxd film reviews page in Browser first.');
+ const url=publicFilmUrl(tab.view.webContents.getURL());if(!url)throw Error('The active Browser tab must be a public Letterboxd film reviews page.');
+ const generation=tab.generation;const [data]=await execute(tab.view,reviewPageScript());
+ if(getTab()!==tab||tab.generation!==generation||tab.view.webContents.isDestroyed()||tab.view.webContents.getURL()!==url)throw Error('The source changed while reading reviews. Try again on the intended page.');
+ if(data?.blocked)throw Error('Finish the site verification in Browser first.');if(data?.tooLarge)throw Error('The open review page is too large.');
+ if(!data||data.url!==url||typeof data.html!=='string')throw Error('The open review page could not be read.');
+ const result=parseLetterboxdReviews(data.html);if(!result.reviews.length)throw Error('No loaded public reviews found. Load the reviews normally, or paste/import them.');
+ return {...result,url,origin:'browser'};
+}
+module.exports={parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPageScript,readBrowserReviews};
