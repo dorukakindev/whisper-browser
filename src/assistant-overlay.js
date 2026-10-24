@@ -33,18 +33,23 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (!owner(event) || !value || typeof value !== 'object') return;
     snapshot = {
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
-      sourceToken:String(value.sourceToken||'').slice(0,4000),
+      sourceToken:String(value.sourceToken||'').slice(0,8000),
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
       transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
       receipt:value.receipt&&typeof value.receipt==='object'?{id:String(value.receipt.id||'').slice(0,80),accepted:!!value.receipt.accepted,message:String(value.receipt.message||'').slice(0,1200)}:null,
-      conversation: String(value.conversation || '').slice(0,4000),
+      conversation: String(value.conversation || '').slice(0,8000),
+      pinScope:String(value.pinScope||value.conversation||'').slice(0,8000),activeThread:String(value.activeThread||'').slice(0,100),
+      workspaceError:String(value.workspaceError||'').slice(0,1200),draft:String(value.draft||'').slice(0,16000),
+      threads:Array.isArray(value.threads)?value.threads.slice(0,20).map(row=>({id:String(row.id||'').slice(0,100),title:String(row.title||'').slice(0,200)})):[],
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry,
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
       suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
+        id:String(row.id||'').slice(0,100),status:String(row.status||'').slice(0,20),
+        actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),kind:String(a.kind||'').slice(0,60),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],
         role: row.role === 'user' ? 'user' : 'ai',loading:!!row.loading,error:!!row.error,text: String(row.text || '').slice(0, 32000),
-        links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 64), label: String(link.label || '').slice(0, 80) })) : [],
+        links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 200),excerpt:String(link.excerpt||'').slice(0,1200),translation:String(link.translation||'').slice(0,1200), label: String(link.label || '').slice(0, 80) })) : [],
       })) : [],
     };
     if (!view.webContents.isDestroyed()) view.webContents.send('assistant:snapshot', snapshot);
@@ -56,8 +61,8 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export'].includes(action)) return;
-    window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,4000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
+    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool'].includes(action)) return;
+    window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   ipcMain.on('assistant:update', update);
   ipcMain.on('assistant:action', command);

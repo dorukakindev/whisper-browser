@@ -8628,7 +8628,8 @@ def chat_about_video(args):
     history = payload.get("history") or []
     history = [m for m in history if m.get("role") in ("user", "assistant")][-8:]
 
-    context = payload.get("context") or {}
+    context = dict(payload.get("context") or {})
+    tools_context = context.pop("assistant_tools", None)
     user_content = json.dumps({"baglam": context, "soru": soru}, ensure_ascii=False)
 
     messages = [{"role": chat_instruction_role(args.translate_model), "content": build_chat_prompt(
@@ -8643,12 +8644,12 @@ def chat_about_video(args):
         try:
             cancellation_checkpoint("llm", "before")
             client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=30, max_retries=0)
-            resp = call_api_with_retry(lambda: client.chat.completions.create(
-                model=args.translate_model, messages=messages, **chat_generation_kwargs(args.translate_model),
-            ), attempts=3)
-            answer = (resp.choices[0].message.content or "").strip()
-            if not answer:
-                raise RuntimeError("Model bos cevap dondu")
+            from assistant_stream import stream_answer, PartialAnswerError
+            answer, actions, evidence = call_api_with_retry(lambda: stream_answer(client, messages,
+                {"model": args.translate_model, **chat_generation_kwargs(args.translate_model)},
+                emit, lambda: cancellation_checkpoint("llm", "during"), tools_context), attempts=3)
+            if actions or evidence:
+                emit("assistant_evidence", actions=actions, evidence=evidence)
             cancellation_checkpoint("llm", "after")
             emit("chat", text=answer)
             emit("done", files=[], segments=0, warnings=[])
@@ -8656,6 +8657,9 @@ def chat_about_video(args):
         except PipelineCancelled:
             raise
         except Exception as e:
+            from assistant_stream import PartialAnswerError
+            if isinstance(e, PartialAnswerError):
+                raise
             last_err = e
             if route_error_is_fatal(e):
                 break

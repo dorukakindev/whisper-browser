@@ -483,6 +483,7 @@
       if (scope) {
         const parts = [];
         if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
+        if(scope.assistantConversations)parts.push(`${scope.assistantConversations} ${english()?'assistant conversations (includes messages)':'asistan sohbeti (mesajlar dahil)'}`);
         if(scope.titleDecisions)parts.push(`${scope.titleDecisions} ${english()?'title reviews':'yapım yorumu'}`);
         if(scope.watchedFolders)parts.push(`${scope.watchedFolders} ${english()?'folders (restored paused)':'klasör (takip kapalı yüklenir)'}`);
         if(scope.torrents)parts.push(`${scope.torrents} torrent`);

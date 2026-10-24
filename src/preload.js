@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('api', {
   mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),
   mediaDiscovery: request => ipcRenderer.invoke('media-discovery:request', request),
   mediaTorrents: request => ipcRenderer.invoke('media-torrents:request',request),
+  assistantThreads: request => ipcRenderer.invoke('assistant-threads:request',request),
   mediaTools: request => ipcRenderer.invoke('media-tools:request', request),
   mediaHub: request => ipcRenderer.invoke('media-hub:request',request),
   nativePlayer: request => ipcRenderer.invoke('native-player:request',request),

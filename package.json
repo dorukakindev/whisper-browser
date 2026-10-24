@@ -21,7 +21,8 @@
     "audit:subtitle-golden": "node tools/audit-subtitle-golden.js",
     "audit:subtitle-external-sdh": "node tools/audit-subtitle-external-sdh.js",
     "audit:ui": "node tools/audit-ui.mjs",
-    "smoke:ui": "node tools/ui-smoke.mjs"
+    "smoke:ui": "node tools/ui-smoke.mjs",
+    "build:assistant-remend": "node tools/build-assistant-remend.js"
   },
   "author": "dorukakindev and Whisper Browser contributors",
   "license": "MIT",
@@ -43,7 +44,8 @@
     "darkreader": "4.9.133",
     "hls.js": "^1.7.3",
     "mux.js": "6.3.0",
-    "pdfjs-dist": "6.3.289"
+    "pdfjs-dist": "6.3.289",
+    "remend": "1.4.0"
   },
   "keywords": [
     "whisper",

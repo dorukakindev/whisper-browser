@@ -10,15 +10,17 @@
   const showStatus=(message,error=false)=>{$('delivery').textContent=message;$('delivery').classList.toggle('error',error);};
   $('latest').onclick=()=>{$('log').scrollTop=$('log').scrollHeight;$('latest').hidden=true;};
   $('log').onscroll=()=>{$('latest').hidden=$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
-  function renderText(node,text){
+  function renderText(node,text,streaming=false){
+    if(streaming&&window.AssistantRemend?.default)text=window.AssistantRemend.default(String(text||''));
+    const inline=(node,value)=>{for(const part of value.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g)){if(!part)continue;let tag=part.startsWith('**')&&part.endsWith('**')?'strong':part.startsWith('`')&&part.endsWith('`')?'code':part.startsWith('*')&&part.endsWith('*')?'em':null;if(tag){const child=document.createElement(tag);child.textContent=part.slice(tag==='strong'?2:1,tag==='strong'?-2:-1);node.append(child);}else node.append(document.createTextNode(part));}};
     const blocks=String(text||'').split(/(```[\s\S]*?(?:```|$))/g);
-    for(const block of blocks){if(!block)continue;if(block.startsWith('```')){const pre=document.createElement('pre'),code=document.createElement('code');code.textContent=block.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');pre.append(code);node.append(pre);}else{for(const line of block.split('\n')){if(!line){node.append(document.createElement('br'));continue;}const heading=/^#{1,3}\s+/.test(line),list=/^\s*[-*]\s+/.test(line);const p=document.createElement(heading?'h3':'p');if(list)p.className='answer-list';p.textContent=line.replace(/^#{1,3}\s+/,'').replace(/^\s*[-*]\s+/,'• ');node.append(p);}}}
+    for(const block of blocks){if(!block)continue;if(block.startsWith('```')){const pre=document.createElement('pre'),code=document.createElement('code');code.textContent=block.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');pre.append(code);node.append(pre);}else{for(const line of block.split('\n')){if(!line){node.append(document.createElement('br'));continue;}const heading=/^#{1,3}\s+/.test(line),list=/^\s*[-*]\s+/.test(line);const p=document.createElement(heading?'h3':'p');if(list)p.className='answer-list';inline(p,line.replace(/^#{1,3}\s+/,'').replace(/^\s*[-*]\s+/,'• '));node.append(p);}}}
   }
   try{const saved=JSON.parse(localStorage.getItem('assistant-pins-v1')||'[]');if(Array.isArray(saved))pins=saved.filter(x=>x&&typeof x.scope==='string'&&typeof x.text==='string').slice(-100);}catch{}
-  const isPinned=row=>pins.some(p=>p.scope===snapshot.conversation&&p.text===row.text);
+  const isPinned=row=>pins.some(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&p.text===row.text);
   const filter=()=>{
     for(const n of $('log').querySelectorAll('[data-archived]'))n.remove();
-    if(onlyPinned)for(const saved of pins.filter(p=>p.scope===snapshot.conversation&&!snapshot.messages?.some(r=>r.text===p.text))){const n=document.createElement('div');n.className='message ai';n.dataset.pinned='true';n.dataset.archived='true';n.textContent=saved.text;n._searchText=saved.text;const actions=document.createElement('div');actions.className='message-actions';const copy=document.createElement('button');copy.textContent=snapshot.locale==='tr'?'Kopyala':'Copy';copy.onclick=()=>action('copy',saved.text);const remove=document.createElement('button');remove.textContent=snapshot.locale==='tr'?'Sabitlemeyi kaldır':'Unpin';remove.onclick=()=>{pins=pins.filter(p=>p!==saved);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}filter();};actions.append(copy,remove);n.append(actions);$('log').append(n);}
+    if(onlyPinned)for(const saved of pins.filter(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&!snapshot.messages?.some(r=>r.text===p.text))){const n=document.createElement('div');n.className='message ai';n.dataset.pinned='true';n.dataset.archived='true';n.textContent=saved.text;n._searchText=saved.text;const actions=document.createElement('div');actions.className='message-actions';const copy=document.createElement('button');copy.textContent=snapshot.locale==='tr'?'Kopyala':'Copy';copy.onclick=()=>action('copy',saved.text);const remove=document.createElement('button');remove.textContent=snapshot.locale==='tr'?'Sabitlemeyi kaldır':'Unpin';remove.onclick=()=>{pins=pins.filter(p=>p!==saved);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}filter();};actions.append(copy,remove);n.append(actions);$('log').append(n);}
     let count=0;for(const n of $('log').querySelectorAll('.message')){n.hidden=!!($('find').value&&!(n._searchText||n.textContent).toLocaleLowerCase().includes($('find').value.toLocaleLowerCase()))||(onlyPinned&&n.dataset.pinned!=='true');if(!n.hidden)count++;}$('findCount').textContent=$('find').value||onlyPinned?String(count):'';};
   $('find').oninput=filter;
   $('pinned').onclick=()=>{onlyPinned=!onlyPinned;$('pinned').setAttribute('aria-pressed',String(onlyPinned));filter();};
@@ -38,11 +40,16 @@
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); toggle(); } });
   window.assistant.subscribe(value => {
     const nextConversation=value.conversation||value.sourceToken||'';
-    if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}
-    else if(snapshot.sourceToken&&snapshot.sourceToken!==value.sourceToken){rememberDraft();pending=null;showStatus(value.locale==='tr'?'Kaynak güncellendi; taslağın korundu.':'Source updated; your draft was kept.');}
+    const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
+    if(firstThread){drafts.delete(conversation);conversation=nextConversation;pending.sourceToken=value.sourceToken;}
+    if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||value.draft||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}
+    else if(!firstThread&&snapshot.sourceToken&&snapshot.sourceToken!==value.sourceToken){rememberDraft();pending=null;showStatus(value.locale==='tr'?'Kaynak güncellendi; taslağın korundu.':'Source updated; your draft was kept.');}
     snapshot=value;
+    const threadKey=JSON.stringify([value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
+    $('workspaceError').textContent=value.workspaceError||'';
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;
+    $('threads').setAttribute('aria-label',t('Conversation','Sohbet'));$('newThread').textContent=t('New','Yeni');$('threadSettings').textContent=t('Manage','Yönet');$('threadNameLabel').textContent=t('Conversation name','Sohbet adı');$('renameThread').textContent=t('Save name','Adı kaydet');$('deleteThread').textContent=t('Delete conversation','Sohbeti sil');
     $('find').placeholder=t('Search conversation','Konuşmada ara');$('find').setAttribute('aria-label',$('find').placeholder);$('pinned').textContent=t('Pinned','Sabitlenen');$('export').textContent=t('Export','Dışa aktar');
     $('sourceLabel').textContent=t('Source & model','Kaynak ve model');$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
     $('title').textContent = t('Assistant', 'Asistan'); $('context').textContent = value.context || '';
@@ -64,7 +71,7 @@
       }
     }
     $('reviewConfirm').disabled = !!value.busy;
-    busy = !!value.busy; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !busy || value.canCancel===false; $('retry').hidden = !value.retry || busy;
+    busy = !!value.busy;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !busy || value.canCancel===false; $('retry').hidden = !value.retry || busy;
     $('scope').value = value.scope || 'watched';
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}
@@ -77,24 +84,32 @@
     log.replaceChildren();
     if (!value.messages?.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = t('Ask about your video, subtitles, translation or the current page.', 'Video, altyazı, çeviri veya bulunduğun sayfa hakkında sor.'); log.append(empty); }
     for (const row of value.messages || []) {
-      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;renderText(node,row.text);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
+      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
       const actions=document.createElement('div');actions.className='message-actions';
       const addAction=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;actions.append(b);return b;};
       addAction(t('Copy','Kopyala'),()=>action('copy',row.text));
-      const pin=addAction(isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle'),()=>{if(isPinned(row))pins=pins.filter(p=>p.scope!==value.conversation||p.text!==row.text);else pins=[...pins,{scope:value.conversation,text:row.text}].slice(-100);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}node.dataset.pinned=String(isPinned(row));pin.textContent=isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle');filter();});
+      const pin=addAction(isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle'),()=>{if(isPinned(row))pins=pins.filter(p=>p.scope!==(value.pinScope||value.conversation)||p.text!==row.text);else pins=[...pins,{scope:value.pinScope||value.conversation,text:row.text}].slice(-100);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}node.dataset.pinned=String(isPinned(row));pin.textContent=isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle');filter();});
+      if(row.id&&!row.loading)addAction(t('Branch from here','Buradan dallandır'),()=>action('branch',row.id));
+      if(row.status==='stopped'||row.status==='failed'){const status=document.createElement('small');status.className='answer-status';status.textContent=row.status==='stopped'?t('Stopped — partial answer kept','Durduruldu — kısmi yanıt korundu'):t('Interrupted — received text kept','Kesildi — alınan metin korundu');node.append(status);}
       if(row.role==='user')addAction(t('Edit as new question','Yeni soru olarak düzenle'),()=>{$('text').value=row.text;rememberDraft();$('text').focus();});
       const code=[...row.text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(m=>m[1]).join('\n\n');if(code)addAction(t('Copy code','Kodu kopyala'),()=>action('copy',code));
       if(!row.loading)node.append(actions);
       if (row.links?.length) {
         const sources = document.createElement('div'); sources.className = 'sources';
-        for (const link of row.links) { const button = document.createElement('button'); button.textContent = link.label; button.onclick = () => action('citation', link.id); sources.append(button); }
+        for (const link of row.links) { const button = document.createElement('button'); button.textContent = link.label; button.onclick = () => action('citation', link.id);if(link.excerpt){const card=document.createElement('div');card.className='source-card';const excerpt=document.createElement('p');excerpt.textContent=link.excerpt;card.append(button,excerpt);if(link.translation){const translated=document.createElement('small');translated.textContent=link.translation;card.append(translated);}sources.append(card);}else sources.append(button); }
         node.append(sources);
       }
+      for(const proposed of row.actions||[]){const card=document.createElement('div');card.className='tool-card';const title=document.createElement('strong');title.textContent=t(({seek_to_time:'Jump to this scene',preview_translation_change:'Translation suggestion',open_voice_preparation:'Prepare voice'})[proposed.kind]||'Suggested action',({seek_to_time:'Bu sahneye git',preview_translation_change:'Çeviri önerisi',open_voice_preparation:'Sesi hazırla'})[proposed.kind]||'Önerilen işlem');const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');const apply=document.createElement('button');apply.textContent=proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');apply.disabled=busy;apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.');$('review').hidden=false;};card.append(title,detail,apply);node.append(card);}
       log.append(node);
     }
     filter();
     if (bottom) log.scrollTop = log.scrollHeight;else log.scrollTop=previousScroll;
     $('latest').hidden=bottom;
   });
+  $('threads').onchange=()=>action('select-thread',$('threads').value);
+  $('newThread').onclick=()=>action('new-thread');
+  $('threadSettings').onclick=()=>{$('threadEditor').hidden=!$('threadEditor').hidden;$('threadSettings').setAttribute('aria-expanded',String(!$('threadEditor').hidden));};
+  $('renameThread').onclick=()=>action('rename-thread',$('threadName').value);
+  $('deleteThread').onclick=()=>{reviewing={action:'delete-thread'};$('reviewText').textContent=snapshot.locale==='tr'?'Bu sohbet kalıcı olarak silinecek. Diğer sohbetler ve sabitlenen notlar korunur.':'This conversation will be permanently deleted. Other chats and pinned notes are kept.';$('review').hidden=false;};
   action('ready');
 })();

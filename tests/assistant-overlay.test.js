@@ -24,8 +24,9 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   ipcMain.emit('assistant:action', overlay, { action: 'openFile', text: 'secret' });
   ipcMain.emit('assistant:update', foreign, { messages: [{ text: 'spoofed' }] });
   assert.equal(sent.length, 0);
-  ipcMain.emit('assistant:update', parent, { apiKey: 'not-forwarded', locale: 'tr', scope: 'full', messages: [{ role: 'user', text: '<img onerror=bad>' }] });
+  ipcMain.emit('assistant:update', parent, { apiKey: 'not-forwarded', locale: 'tr', scope: 'full',pinScope:'media',activeThread:'one',threads:[{id:'one',title:'First'}],messages: [{id:'reply', role: 'user', text: '<img onerror=bad>',links:[{id:'x'.repeat(85),excerpt:'verified'}],actions:[{id:'proposal',kind:'seek_to_time'}]}] });
   assert.equal(sent[0].value.apiKey, undefined);
+  assert.equal(sent[0].value.activeThread,'one');assert.equal(sent[0].value.pinScope,'media');assert.equal(sent[0].value.messages[0].links[0].id.length,85);
   assert.equal(sent[0].value.messages[0].text, '<img onerror=bad>', 'Rendered as text by the view, never HTML');
   ipcMain.emit('assistant:action', overlay, { action: 'toggle' });
   assert(view.bounds.width > 300 && view.bounds.width < 680);

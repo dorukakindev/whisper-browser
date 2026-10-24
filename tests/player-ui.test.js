@@ -1327,7 +1327,7 @@ test('AI sayfa kaynakları tıklanınca ilgili paragrafa gidiyor', () => {
   const end = js.indexOf('function aiChatAdd', start);
   const block = js.slice(start, end);
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
-  assert(block.includes('\\[((?:S|T)\\d{1,5})\\]'), 'AI kaynak kimliği ayrıştırılmıyor');
+  assert(block.includes('\\[((?:S|T|U)\\d{1,5})\\]'), 'AI kaynak kimliği ayrıştırılmıyor');
   assert(/className = [^\n]*'ai-source-link'/.test(block), 'AI kaynak düğmesi üretilmiyor');
   assert(/revealBrowserPageContext\(tabId, sourceId\)/.test(block), 'kaynak paragraf IPC çağrısı yok');
   assert(/\.ai-source-link/.test(css), 'AI kaynak bağlantısı stili yok');

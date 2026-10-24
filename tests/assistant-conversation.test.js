@@ -41,3 +41,17 @@ test('Parent bridge rejects stale source commands and receipts acknowledge only 
   listener({action:'send',text:'B question',sourceToken:'B',requestId:'B-request'});await wait();listener({action:'clear',sourceToken:'B'});await wait();assert.equal(last.messages.length,0);assert.equal(w.document.querySelectorAll('#aiChatLog .ai-msg').length,1,'Clearing B keeps A messages');
  }finally{w.close();}
 });
+
+test('Thread creation acknowledgement, branch controls, source cards and safe streaming Markdown',()=>{
+ const ui=overlay();try{
+  ui.w.eval(fs.readFileSync(path.join(root,'vendor/assistant-remend.js'),'utf8'));
+  ui.snapshot({pinScope:'A'});ui.$('text').value='First question';ui.$('form').dispatchEvent(new ui.w.Event('submit',{cancelable:true}));const sent=ui.commands.at(-1);
+  ui.snapshot({pinScope:'A',conversation:'A|thread:one',sourceToken:'A:1|thread:one',activeThread:'one',threads:[{id:'one',title:'First question'}],receipt:{id:sent.meta.requestId,accepted:true},messages:[{id:'answer',role:'ai',text:'**Streaming',loading:true}]});
+  assert.equal(ui.$('text').value,'','Creating the first thread must not lose the matching send acknowledgement');assert.equal(ui.w.document.querySelector('.message strong').textContent,'Streaming');
+  ui.snapshot({pinScope:'A',conversation:'A|thread:one',sourceToken:'A:1|thread:one',activeThread:'one',threads:[{id:'one',title:'First question'}],messages:[{id:'answer',role:'ai',text:'Answer',links:[{id:'source-card',label:'1:30',excerpt:'Real source line',translation:'Gerçek kaynak'}],actions:[{id:'proposal',kind:'seek_to_time',excerpt:'Real source line'}]}]});
+  assert.equal(ui.$('threads').value,'one');assert.match(ui.w.document.querySelector('.source-card').textContent,/Real source line/);
+  ui.w.document.querySelector('.tool-card button').click();assert(!ui.commands.some(c=>c.action==='apply-tool'));ui.$('reviewConfirm').click();assert.equal(ui.commands.at(-1).action,'apply-tool');
+  [...ui.w.document.querySelectorAll('.message-actions button')].find(b=>b.textContent.includes('Branch')).click();assert.equal(ui.commands.at(-1).action,'branch');
+  ui.$('newThread').click();assert.equal(ui.commands.at(-1).action,'new-thread');
+ }finally{ui.dom.window.close();}
+});

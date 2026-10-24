@@ -5,7 +5,7 @@ const { gzipSync, gunzipSync } = require('node:zlib');
 const { randomUUID, createHash } = require('node:crypto');
 const { renameSyncResilient } = require('./fsync-utils');
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
-  'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
+  'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
 const LIMIT = 256 * 1024 * 1024;
 // Meşru paket JSON'ları ~10 seviye içindedir; özyinelemeli gezginlerin yığın
@@ -202,6 +202,7 @@ function restorePackage(root, data, videoMappings = []) {
       if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);
       if (file.name === 'media-folder-watches.json') { if(!Array.isArray(parsed)||parsed.length>30||parsed.some(r=>!r||typeof r.id!=='string'||typeof r.path!=='string'||r.path.length>4000))throw Error('Invalid folder list.');parsed=parsed.map(row=>({...row,enabled:false})); }
       if (file.name === 'media-shelf.json') { if(parsed.version!==1||['music','books','stations','podcasts','playlists','diary'].some(k=>!Array.isArray(parsed[k])||parsed[k].length>20000||parsed[k].some(r=>!r||typeof r!=='object'||Array.isArray(r))))throw Error('Invalid media shelf.'); }
+      if(file.name==='assistant-conversations.json')parsed=require('./assistant-thread-store').validateEnvelope(parsed);
       if (file.name === 'media-enrichment.json') {
         if(parsed.version!==1||!parsed.titles||typeof parsed.titles!=='object'||Array.isArray(parsed.titles)||Object.keys(parsed.titles).length>10000) throw Error('Invalid media notes.');
         for(const row of Object.values(parsed.titles)) {if(!row||typeof row!=='object'||row.history&&(!Array.isArray(row.history)||row.history.length>8))throw Error('Invalid title notes.');for(const entry of row.history||[]){if(!Array.isArray(entry.reviews)||entry.reviews.length>100)throw Error('Invalid saved reviews.');require('./media-tools-service').verifyDecision(entry.analysis,entry.reviews);}}
@@ -278,6 +279,7 @@ function describePackage(data, root = null) {
   const shelf = json('media-shelf.json');
   if(shelf) summary.shelfRecords=['music','books','stations','podcasts','playlists','diary','reviews'].reduce((n,k)=>n+(Array.isArray(shelf[k])?shelf[k].length:0),0);
   const enriched=json('media-enrichment.json');if(enriched?.titles)summary.titleDecisions=Object.keys(enriched.titles).length;
+  const chats=json('assistant-conversations.json');if(Array.isArray(chats?.threads))summary.assistantConversations=chats.threads.length;
   const folders=json('media-folder-watches.json');if(Array.isArray(folders))summary.watchedFolders=folders.length;
   const torrents=json('torrent-library.json');if(Array.isArray(torrents))summary.torrents=torrents.length;
   if(root){summary.changes={added:0,changed:0,unchanged:0};for(const file of files){const target=path.join(root,file.name);let same=false;if(fs.existsSync(target)&&!fs.lstatSync(target).isSymbolicLink()&&fs.statSync(target).size<16e6)same=fs.readFileSync(target).equals(Buffer.from(file.data,'base64'));summary.changes[!fs.existsSync(target)?'added':same?'unchanged':'changed']++;}}
