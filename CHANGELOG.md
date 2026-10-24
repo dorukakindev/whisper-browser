@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Matched YouTube home, expanded/mini guide, search, filters and Browser chrome to the Luna media palette with bundled fonts and light-theme support; preserved native feed layout and fixed appearance toggle removal on the tested Electron build.
+
 - Added a visible Browser-to-media-home control and application-menu shortcut. Returning home hides the native browser while preserving its tabs, loaded page and subtitle state.
 
 - Added a unified media center with watched folders, reviewed source relinking, filename-based version groups, direct streams, optional rqbit torrent streaming and embedded mpv playback using the existing subtitle/dubbing controls.
