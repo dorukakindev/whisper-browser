@@ -1,4 +1,5 @@
 .ms-shelf { min-height: 240px; }
+.ms-dialog, .ms-reader, .ms-dock { font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; }
 .ms-status { color: var(--text-dim); line-height: 1.6; font-size: 13px; white-space: pre-wrap; }
 .ms-status:empty { display: none; }
 .ms-status.mh-error { color: var(--danger); }

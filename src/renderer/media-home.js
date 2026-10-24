@@ -205,6 +205,8 @@
       if (items.some(item => item.kind !== 'series')) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series'), { more: () => page('films') }));
       if (!items.length && state.loaded) content.append(tool(t('Build your library', 'Kütüphaneni oluştur'), t('Scan a folder, review the matches, then add films and series with their posters and progress.', 'Bir klasörü tara, eşleşmeleri incele; film ve dizilerini afişleri ve ilerlemeleriyle ekle.'), t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
       content.append(tools());
+    } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
+      const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
     } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
       const titles = { books: t('Books', 'Kitaplar'), music: t('Music', 'Müzik'), radio: t('Radio & podcasts', 'Radyo ve podcast'), taste: 'Letterboxd' };
       content.append(el('h1', 'mh-page-title', titles[state.page]));
@@ -251,7 +253,7 @@
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
     locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', 'Letterboxd'], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', 'Letterboxd'], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false'); if (key === 'home') control.id = 'mhHome'; nav.append(control);
     }
