@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1846.md](docs/devir/2026-10-24-1846.md) — Rapor530: kaynak korumalı güçlü asistan, taslaklar ve okunaklı yanıtlar
 Güncel çalışma: [docs/devir/2026-10-24-1830.md](docs/devir/2026-10-24-1830.md) — Rapor529: kalan süreli Bu akşam ve kaybolmayan yorum taslakları
 Güncel çalışma: [docs/devir/2026-10-24-1810.md](docs/devir/2026-10-24-1810.md) — Rapor528: arşiv taraması, yedek sıklığı ve gerçek modal/odak onarımları
 Güncel çalışma: [docs/devir/2026-10-24-1718.md](docs/devir/2026-10-24-1718.md) — Yapım yorumları, Bu akşam, arşiv/yedekleme, asistan ve dinleme profilleri
