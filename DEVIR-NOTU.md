@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1929.md](docs/devir/2026-10-24-1929.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı ortak asistan
 Güncel çalışma: [docs/devir/2026-10-24-1853.md](docs/devir/2026-10-24-1853.md) — Asistan için yedi GitHub deposunda doğrudan kod/uyarlama araştırması
 Güncel çalışma: [docs/devir/2026-10-24-1846.md](docs/devir/2026-10-24-1846.md) — Rapor530: kaynak korumalı güçlü asistan, taslaklar ve okunaklı yanıtlar
 Güncel çalışma: [docs/devir/2026-10-24-1830.md](docs/devir/2026-10-24-1830.md) — Rapor529: kalan süreli Bu akşam ve kaybolmayan yorum taslakları

@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_531.md](BROWSER_BUG_REPORT_531.md) — Harici API ile akışlı, kalıcı/dallı ve kaynak araçlı asistan.
+
 Araştırma: [ASSISTANT_REPO_RESEARCH_2026-10-24.md](ASSISTANT_REPO_RESEARCH_2026-10-24.md) — asistan için alınabilir GitHub modülleri.
 
 - [BROWSER_BUG_REPORT_530.md](BROWSER_BUG_REPORT_530.md) — ortak asistanın kaynak/taslak/gönderim güveni ve arayüz geliştirmeleri.
