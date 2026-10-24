@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-2312.md](docs/devir/2026-10-24-2312.md) — Yeni Luna push’larından izleme ülkesi, benzer yapımlar ve yorum arama
 Güncel çalışma: [docs/devir/2026-10-24-2256.md](docs/devir/2026-10-24-2256.md) — Sayfayı gerçekten çeviren ve yeniden tasarlanan asistan
 Güncel çalışma: [docs/devir/2026-10-24-2231.md](docs/devir/2026-10-24-2231.md) — WebView2 derin araştırma ve gerçek Ancient Origins motor karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-24-2210.md](docs/devir/2026-10-24-2210.md) — Cloudflare ve gerçek Edge/Chrome köprüsü seçenek araştırması
