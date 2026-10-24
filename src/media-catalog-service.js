@@ -23,7 +23,9 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const progress = (source, history) => {
     const found = history instanceof Map ? history.get(sourceKey(source))
       : (Array.isArray(history) ? history.find(item => canonicalWatchKey(item.key) === sourceKey(source)) : null);
-    return found ? { position: Number(found.position) || 0, duration: Number(found.duration) || 0, completed: !!found.completed } : null;
+    return found ? { position: Number(found.position) || 0, duration: Number(found.duration) || 0, completed: !!found.completed,
+      assets: { subtitles: (found.subtitlePaths || []).length, translation: !!(found.prefs?.secondSubPath || found.prefs?.selectedSubRole === 'translation'),
+        dub: !!found.prefs?.dubPlayback, speed: Number(found.prefs?.speed) || 1 } } : null;
   };
   function visible(item, history = watchItems()) {
     if (!item) return null;

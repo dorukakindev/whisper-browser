@@ -201,6 +201,17 @@
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
+  window.DubGeneratorUI = Object.freeze({ prepareCurrent: async () => {
+    const identity = mediaIdentity();
+    const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
+    await open();
+    if (identity !== mediaIdentity() || current || planning || srt) return;
+    if (typeof candidate === 'string' && /\.srt$/i.test(candidate) && /^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) {
+      srt = candidate; lastRequest = null; results.clear(); showResults(); invalidatePlan();
+      el('dubSrtName').textContent = basename(candidate); refreshOverview();
+      status('Hazır');
+    }
+  } });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });

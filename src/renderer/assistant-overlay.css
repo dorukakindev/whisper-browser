@@ -10,7 +10,7 @@ button:disabled{opacity:.5;cursor:default}
 [hidden]{display:none!important}
 #bubble{height:56px;width:56px;border-radius:50%;background:#e8701a;color:#18100b;border:1px solid #ff9d57;box-shadow:0 2px 6px #0005}
 #bubble svg{width:27px;height:27px}
-#panel{height:100%;background:#111113;border:1px solid #44444b;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 6px #0004}
+#panel{height:100%;background:#111113;border:1px solid #44444b;border-radius:18px;overflow-y:auto;display:flex;flex-direction:column;box-shadow:0 2px 6px #0004}
 header{display:flex;gap:6px;align-items:center;padding:14px;border-bottom:1px solid #28282d}
 header>div{min-width:0;flex:1}
 strong{font-size:17px}
@@ -22,6 +22,12 @@ strong{font-size:17px}
 .sources button{font-size:12px;padding:4px 10px}
 .empty{color:#a5a5af;line-height:1.7}
 #tools{display:flex;gap:8px;justify-content:space-between;padding:8px 14px}
+#suggestions{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px}
+#suggestions button{font-size:12px;min-height:34px;padding:5px 10px}
+#review{margin:10px 14px;padding:12px;background:rgba(128,128,128,.09);border:1px solid #7775;border-radius:12px;max-height:180px;overflow:auto}
+#review p{white-space:pre-wrap;font-size:12px;line-height:1.6;margin:0 0 10px}
+#review button{font-size:12px;margin-right:6px}
+@media(max-height:550px){#review{max-height:110px;flex-shrink:0}header{padding:10px}textarea{min-height:58px}#suggestions button{min-height:30px}}
 select{max-width:65%;background:#18181b;color:inherit;border:1px solid #44444b;border-radius:9px;padding:6px}
 #form{padding:8px 14px}
 textarea{width:100%;resize:none;min-height:76px;max-height:160px;background:#18181b;color:inherit;border:1px solid #44444b;border-radius:12px;padding:12px;line-height:1.5}
@@ -32,3 +38,4 @@ html[data-theme=light] body{color:#18181b}
 html[data-theme=light] #panel{background:#fafafa}
 html[data-theme=light] textarea,html[data-theme=light] select,html[data-theme=light] button:not(#send):not(#bubble),html[data-theme=light] .user{background:#e9e9ed;color:#18181b}
 html[data-theme=light] #context,html[data-theme=light] #hint,html[data-theme=light] .empty{color:#55555f}
+#panel{color-scheme:dark}html[data-theme=light] #panel{color-scheme:light}

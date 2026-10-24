@@ -36,6 +36,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry,
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
+      suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 4).map(row => ({ id:String(row.id || '').slice(0, 100), label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
         role: row.role === 'user' ? 'user' : 'ai', text: String(row.text || '').slice(0, 32000),
         links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 64), label: String(link.label || '').slice(0, 80) })) : [],
@@ -50,7 +51,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
     if (action === 'toggle') { expanded = !expanded; layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation'].includes(action)) return;
+    if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion'].includes(action)) return;
     window.webContents.send('assistant:command', { action, text: String(packet.text || '').slice(0, 16000) });
   }
   ipcMain.on('assistant:update', update);

@@ -18608,11 +18608,14 @@ function steppedPlaybackRate(options, currentRate, direction) {
 function captureWatchPrefs() {
   const video = $('playerVideo');
   const browserMode = player.workspaceMode === 'browser';
+  const dubOriginal = window.BrowserDubAudioUI?.originalPlayback();
+  const dubSnapshot = window.BrowserDubAudioUI?.snapshot();
   return {
     // Geçici hız (basılı tutma / boşluk hızlandırma) yerine kullanıcının seçtiği hız.
-    speed: browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1)),
+    speed: dubOriginal?.speed || (browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1))),
+    dubPlayback: dubSnapshot === undefined ? (watchItemByKey(player.mediaKey)?.prefs?.dubPlayback || null) : dubSnapshot,
     volume: browserMode ? player.browserVolume : (video ? video.volume : 1),
-    muted: browserMode ? player.browserMuted : (video ? video.muted : false),
+    muted: dubOriginal ? dubOriginal.muted : browserMode ? player.browserMuted : (video ? video.muted : false),
     viewMode: player.viewMode,
     offset: player.offset,
     offset2: player.offset2,
@@ -18844,6 +18847,9 @@ async function restoreWatchProfile(key) {
   }
   applySavedLanguagePrefs();
   updateSeriesChip();
+  if (prefs.dubPlayback && !staleGeneration(gen) && player.mediaKey === key) {
+    await window.BrowserDubAudioUI?.restore(prefs.dubPlayback, key);
+  }
 }
 
 function makeWatchAction(label, action, key, extra) {
@@ -19545,6 +19551,8 @@ function subtitleContextLanguage(role) {
 }
 
 function globalAssistantContext() {
+  const selection = window.MediaExperience?.context();
+  if (selection) return selection;
   if (!$('playerLayer')?.classList.contains('hidden')) return null;
   const home = document.body.classList.contains('media-home-active');
   return { workspace: home ? 'media-library' : 'subtitle-studio',
@@ -19554,7 +19562,7 @@ function globalAssistantContext() {
 }
 function aiSourceScope() {
   const global = globalAssistantContext();
-  if (global) return JSON.stringify(['global', global.workspace, global.page]);
+  if (global) return JSON.stringify(['global', global.workspace, global.page, global.id, global.chapter]);
   return JSON.stringify([player.workspaceMode,player.mediaKey,player.generation,player.browserActiveTabId]);
 }
 function aiVideoRows() {
@@ -23528,20 +23536,20 @@ function browserTaskRow(job) {
   };
 }
 
-function updatePlayerTaskCenter({ refresh = true } = {}) {
+function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
   updateBrowserWhisperActions();
   if (refresh) scheduleBrowserUnifiedJobsRefresh();
   const localRows = playerTaskSnapshot();
   const localLabels = new Set(localRows.map((row) => row.label));
   const browserRows = (player.browserJobs || []).map(browserTaskRow)
     .filter((row) => !(row.rawJob.tabId === player.browserActiveTabId && localLabels.has(row.label)));
-  const rows = [...localRows, ...browserRows];
+  const rows = [...localRows, ...browserRows, ...(window.MediaExperience?.taskRows() || [])];
   const badge = $('playerTaskBadge');
   if (badge) {
     badge.textContent = String(rows.length);
     badge.classList.toggle('hidden', rows.length < 1);
   }
-  const list = $('playerTaskCenterList');
+  const list = listTarget || $('playerTaskCenterList');
   if (!list) return;
   list.replaceChildren();
   if (!rows.length) {
@@ -23564,7 +23572,7 @@ function updatePlayerTaskCenter({ refresh = true } = {}) {
     const stateLabel = document.createElement('span'); stateLabel.className = 'player-task-state';
     // Ham TR yazılır; observer EN'e çevirir ve orijinali kaydeder — iş
     // sürerken dil değiştirilince gidiş-dönüş kayıpsız olur.
-    stateLabel.textContent = progress.percent !== null ? `${progress.percent.toFixed(0)}%`
+    stateLabel.textContent = row.state === 'done' ? interfaceChoice('Tamamlandı', 'Completed') : row.state === 'cancelled' ? interfaceChoice('Durduruldu', 'Cancelled') : row.state === 'failed' ? interfaceChoice('Başarısız', 'Failed') : progress.percent !== null ? `${progress.percent.toFixed(0)}%`
       : row.recoverable ? 'Yarım kaldı'
         : (row.state === 'paused' || row.status === 'paused') ? 'Duraklatıldı' : 'İşleniyor';
     titleLine.append(label, stateLabel);

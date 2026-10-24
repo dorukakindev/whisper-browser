@@ -11,6 +11,8 @@ const out = path.join(root, '.uiprev', 'media-home-smoke', `${Date.now()}-${proc
 fs.mkdirSync(out, { recursive: true });
 const video = path.join(out, 'Türkçe film.mp4');
 const music = path.join(out, 'Örnek müzik.m4a');
+const subtitle = path.join(out, 'Türkçe çeviri.tr.srt');
+fs.writeFileSync(subtitle,'\ufeff1\n00:00:00,500 --> 00:00:03,000\nBu gerçek ses üretmeyen sentetik bir altyazıdır.\n','utf8');
 const ffmpeg = findMediaTool('ffmpeg');
 assert(ffmpeg, 'ffmpeg is required for the local playback regression');
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x1c3344:s=320x180:d=8', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', video], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
@@ -70,6 +72,12 @@ app.whenReady().then(async () => {
   assert.equal((await run(`return window.api.updateWatchItem({...${JSON.stringify(local)},title:'Kuzeyin Hikâyesi',position:2,duration:8,lastWatched:Date.now()})`)).ok, true);
   await run(`await window.MediaCatalogUI.open({id:${JSON.stringify(film.item.id)}});return true`);
   assert(await run('return document.getElementById("mediaCatalogDialog").open && document.querySelector(".mc-detail h3").textContent==="Kuzeyin Hikâyesi"'));
+  assert(await run('return globalAssistantContext().type==="library-title" && globalAssistantContext().title==="Kuzeyin Hikâyesi" && !!document.querySelector(".mx-assets")'), 'Selected title is explicit assistant context and has language preparation status');
+  await run('document.querySelector(".mx-assets").scrollIntoView({block:"center"});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(250);
+  fs.writeFileSync(path.join(out,'title-language-workflow-tr.png'),(await win.webContents.capturePage()).toPNG());
+  await run('window.MediaExperience.openTasks();return true');
+  assert(await run('return document.getElementById("globalTaskCenter").open && document.getElementById("globalTaskList").textContent.length>0'), 'Global task center is reachable over catalog');
+  await run('document.getElementById("globalTaskCenter").close();return true');
   await run('document.getElementById("mediaCatalogDialog").close();return true');
   await until(() => run('return [...document.querySelectorAll(".mh-card-title")].some(n=>n.textContent==="Kuzeyin Hikâyesi")'), 'catalog refresh');
   await run('[...document.querySelectorAll(".mh-card")].find(n=>n.title==="Kuzeyin Hikâyesi")?.scrollIntoView({block:"center"});return true');
@@ -78,6 +86,35 @@ app.whenReady().then(async () => {
   await run('document.querySelector(".mh-hero .mh-primary").click();return true');
   await until(() => run('const v=document.getElementById("playerVideo");return !document.getElementById("playerLayer").classList.contains("hidden") && v.readyState>=2 && v.currentSrc.includes("mp4")'), 'real local playback');
   await until(() => run('return document.getElementById("playerVideo").currentTime>=1.5'), 'resume position');
+  await run('document.getElementById("playerVideo").pause();syncPlayerSpeedControl(1.25);document.getElementById("playerVideo").playbackRate=1.25;return true');
+  dialog.showOpenDialog = async () => ({ canceled:false, filePaths:[subtitle] });
+  try { assert.equal(await run('return window.api.selectFile("subtitle")'),subtitle); } finally { dialog.showOpenDialog=originalPicker; }
+  await run(`addSubtitleOption(${JSON.stringify(subtitle)},'',{role:"translation"});document.getElementById("playerSubSelect").value=${JSON.stringify(subtitle)};await loadSubtitle(${JSON.stringify(subtitle)},false,{role:"translation"});window.testProtectedWhisperOptions=JSON.stringify(buildOptsFromUI());await window.MediaExperience.openVoice();return true`);
+  const voiceReview = await run('return {open:document.getElementById("dubGeneratorDialog").open,name:document.getElementById("dubSrtName").textContent,role:player.subRole,running:state.running,optionsEqual:window.testProtectedWhisperOptions===JSON.stringify(buildOptsFromUI())}');
+  assert(voiceReview.open && voiceReview.name.includes('Türkçe çeviri') && !voiceReview.running && voiceReview.optionsEqual,JSON.stringify(voiceReview));
+  await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(250);
+  fs.writeFileSync(path.join(out,'voice-preparation-tr.png'),(await win.webContents.capturePage()).toPNG());
+  await run('document.getElementById("dubGeneratorDialog").close();return true');
+  dialog.showOpenDialog = async () => ({ canceled:false, filePaths:[music] });
+  let picked;
+  try { picked = await run('return window.api.choosePlaybackAudio()'); } finally { dialog.showOpenDialog=originalPicker; }
+  assert(picked.ok && picked.output.playbackAsset.kind==='local', JSON.stringify(picked));
+  assert(await run(`return window.BrowserDubAudioUI.attachGenerated(${JSON.stringify(picked.output)},window.BrowserDubAudioUI.context())`));
+  await run('document.getElementById("browserDubOffset").value="0.2";document.getElementById("browserDubOffset").dispatchEvent(new Event("input"));await flushWatchState(false,false);return true');
+  const savedVoice = await run('return captureWatchPrefs()');
+  assert.equal(savedVoice.dubPlayback.id, picked.output.playbackAsset.id); assert.equal(savedVoice.muted,false); assert.equal(savedVoice.speed,1.25); assert.equal(savedVoice.dubPlayback.offset,.2);
+  await run('await window.BrowserDubAudioUI.stop();return true');
+  assert(await run('await restoreWatchProfile(player.mediaKey);return !document.getElementById("browserDubStrip").classList.contains("hidden")'), 'Watch profile restores the saved voice through the existing playback flow');
+  assert.equal(await run('return window.BrowserDubAudioUI.snapshot().offset'), .2);
+  await run('await window.BrowserDubAudioUI.stop();return true');
+  const absent = music + '.temporarily-missing'; fs.renameSync(music,absent);
+  try {
+    assert.equal(await run(`return window.BrowserDubAudioUI.restore(${JSON.stringify(savedVoice.dubPlayback)},player.mediaKey)`),false,'Missing saved voice does not select another asset');
+    assert.equal(await run('return document.getElementById("playerVideo").muted'),false,'Missing attachment preserves original audio');
+  } finally { fs.renameSync(absent,music); }
+  assert.equal((await run('return window.api.restorePlaybackAudio("../../arbitrary")')).ok,false, 'Arbitrary path cannot become a restored voice');
+  await run('document.getElementById("browserDubRemove").click();await new Promise(r=>setTimeout(r,50));await flushWatchState(false,false);return true');
+  assert.equal(await run('return captureWatchPrefs().dubPlayback'),null,'Removing the dub clears remembered attachment');
   await run('document.getElementById("playerBack").click();return true');
   await until(() => run('return !document.getElementById("mediaHome").inert'), 'local player return');
   const results = [];
@@ -135,6 +172,7 @@ app.whenReady().then(async () => {
   await run('[...document.querySelectorAll(".ms-reader header button")].find(b=>b.textContent.includes("Yer imi")).click();return true');
   await until(() => run('return document.querySelector(".ms-reader .ms-status").textContent==="Kaydedildi."'), 'saved bookmark');
   fs.writeFileSync(path.join(out, 'reader-tr.png'), (await win.webContents.capturePage()).toPNG());
+  assert(await run('return globalAssistantContext().type==="book-chapter" && globalAssistantContext().excerpt.length<=8000'), 'Book assistant receives only selected chapter excerpt');
   await run('document.querySelector(".ms-reader header").lastElementChild.click();return true');
   await until(() => run('return !document.querySelector(".ms-reader")'), 'close reader');
   assert.equal((await run('return window.api.mediaShelf({action:"list"})')).books[0].bookmarks.length, 1);

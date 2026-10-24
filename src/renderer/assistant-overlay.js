@@ -2,6 +2,9 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let opened = false, lastMessages = '', busy = false, pending = '';
+  let suggestionKey = '', reviewing = '';
+  $('reviewCancel').onclick = () => { reviewing = ''; $('review').hidden = true; };
+  $('reviewConfirm').onclick = () => { if (reviewing && !busy) window.assistant.action('suggestion', reviewing); reviewing = ''; $('review').hidden = true; };
   function toggle() { opened = !opened; $('panel').hidden = !opened; $('bubble').hidden = opened; window.assistant.action('toggle'); if (opened) $('text').focus(); }
   $('bubble').onclick = toggle; $('close').onclick = toggle;
   $('expand').onclick = () => window.assistant.action('expand');
@@ -22,6 +25,17 @@
     $('text').placeholder = t('Ask a question…', 'Sorunu yaz…'); $('text').setAttribute('aria-label', t('Question', 'Soru'));
     [...$('scope').options].forEach((option, i) => { option.textContent = t(['Nearby','Watched','Full transcript'][i], ['Yakın satırlar','İzlenen bölüm','Tüm altyazı'][i]); });
     $('hint').textContent = t('Uses your existing AI provider and subtitle context.', 'Mevcut AI sağlayıcını ve altyazı bağlamını kullanır.');
+    $('reviewConfirm').textContent = t('Continue', 'Devam et'); $('reviewCancel').textContent = t('Cancel','Vazgeç');
+    const nextSuggestions = JSON.stringify(value.suggestions || []);
+    if (nextSuggestions !== suggestionKey) {
+      suggestionKey = nextSuggestions; $('suggestions').replaceChildren(); reviewing = ''; $('review').hidden = true;
+      for (const row of value.suggestions || []) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;
+        button.onclick = () => { reviewing = row.id; $('reviewText').textContent = row.review; $('review').hidden = false; $('reviewConfirm').focus(); };
+        $('suggestions').append(button);
+      }
+    }
+    $('reviewConfirm').disabled = !!value.busy;
     busy = !!value.busy; $('send').disabled = busy; $('clear').disabled = busy; $('cancel').hidden = !busy; $('retry').hidden = !value.retry || busy;
     $('scope').value = value.scope || 'watched';
     if (pending) {

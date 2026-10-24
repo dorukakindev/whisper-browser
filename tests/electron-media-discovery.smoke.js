@@ -62,6 +62,14 @@ app.whenReady().then(async () => {
   await until(() => assist('return !!document.querySelector(".sources button")'), 'verified source actions mirrored');
   await assist('document.querySelector(".sources button").click();return true');
   await until(() => run('return window.testAssistantCitation===true'), 'citation routed through original guarded controller');
+  await until(() => assist('return document.querySelectorAll("#suggestions button").length===3'), 'context actions');
+  const questionBeforeReview = await run('return window.testAssistantChat.question');
+  await assist('document.querySelector("#suggestions button").click();return true');
+  assert(await assist('return !document.getElementById("review").hidden && document.getElementById("reviewText").textContent.includes("Kaynak")'), 'Source is visible before provider action');
+  await wait(250); fs.writeFileSync(path.join(out,'assistant-action-review-tr.png'),(await assistant.webContents.capturePage()).toPNG());
+  assert.equal(await run('return window.testAssistantChat.question'),questionBeforeReview,'Opening review does not send a request');
+  await assist('document.getElementById("reviewConfirm").click();return true');
+  await until(() => run('return window.testAssistantChat.question!=="Fixture global assistant question"'), 'Confirmed summary reuses existing chat pipeline');
   await run('startTranscribeSafe=window.testAssistantStart;translationEndpointReady=window.testAssistantReady;return true');
   await assist('document.getElementById("close").click();return true');
   const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-heading h1")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ"),sora:document.fonts.check(\'600 32px Sora\',"Keşfet")}');
@@ -96,10 +104,12 @@ app.whenReady().then(async () => {
   const title = await run('const card=document.querySelector(".md-card");const title=card.querySelector(".mh-card-title").textContent;card.click();return title');
   await until(() => run('return !!document.querySelector(".md-detail-body h2")'), 'details');
   assert.equal(await run('return document.querySelector(".md-detail h2").textContent'), title);
+  assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
   await until(() => run('return document.getElementById("mediaCatalogDialog").open && !!document.querySelector(".mc-detail")'), 'watchlist record');
+  assert(await run('return !!document.querySelector(".mc-detail .mx-assets") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
   assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'), 2);
   await run('document.getElementById("mediaCatalogDialog").close();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'return discovery');
@@ -107,6 +117,36 @@ app.whenReady().then(async () => {
   await run('document.querySelectorAll(".md-tab")[1].click();return true');
   await until(() => run('return !!document.querySelector(".md-reason")'), 'explained personal recommendations');
   assert(await run('return [...document.querySelectorAll(".md-reason")].every(n=>n.textContent.includes("Liked seed"))'));
+  if (!live) {
+    const beforeCount=await run('return document.querySelectorAll(".md-card").length');
+    await run('document.querySelector(".md-card").click();return true');
+    await until(()=>run('return !!document.querySelector(".md-detail-body")'),'preference detail');
+    await run('[...document.querySelectorAll(".md-detail button")].find(n=>n.textContent==="İlgilenmiyorum").click();return true');
+    await until(()=>run(`return document.querySelectorAll(".md-card").length===${beforeCount-1}`),'hide unwanted recommendation');
+    await run('document.querySelectorAll(".md-tab")[2].click();return true');
+    await until(()=>run('return document.querySelectorAll(".md-card").length===1'),'persisted preference list');
+    await run('document.querySelector(".md-card").click();return true');
+    await until(()=>run('return !!document.querySelector(".md-detail-body")'),'undo detail');
+    await run('[...document.querySelectorAll(".md-detail button")].find(n=>n.textContent==="Tercihi geri al").click();return true');
+    await until(()=>run('return document.querySelectorAll(".md-card").length===0'),'undo removes preference');
+    await run('document.querySelectorAll(".md-tab")[1].click();return true');
+    await until(()=>run(`return document.querySelectorAll(".md-card").length===${beforeCount}`),'undo restores personal recommendation');
+    await run('document.getElementById("mediaHome").scrollTop=350;return true'); await wait(150);
+    await run('document.querySelector("[data-home-page=films]").click();document.querySelector("[data-home-page=discover]").click();return true');
+    await until(()=>run('return document.getElementById("mediaHome").scrollTop>=300'),'discovery scroll survives page return');
+    assert(await run('return document.querySelectorAll(".md-tab")[1].getAttribute("aria-pressed")==="true"'),'discovery filter survives page return');
+    await run('document.getElementById("mediaHome").scrollTop=0;return true');
+  }
+  win.webContents.send('dub:event',{id:'fixture-task',type:'status',text:'Background separation — fixture'});
+  await until(()=>run('return window.MediaExperience.taskRows().some(row=>row.id==="dub:fixture-task")'),'voice task registry');
+  await run('window.MediaExperience.openTasks();return true');
+  assert(await run('return document.getElementById("globalTaskList").textContent.includes("Background separation")'),'background stage visible globally');
+  await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); win.webContents.invalidate(); await wait(300);
+  fs.writeFileSync(path.join(out,'global-activity-tr.png'),(await win.webContents.capturePage()).toPNG());
+  await run('document.getElementById("globalTaskCenter").close();return true');
+  assert(await run('return window.MediaExperience.taskRows().some(row=>row.state==="running")'),'closing activity does not cancel work');
+  win.webContents.send('dub:event',{id:'fixture-task',type:'cancelled'});
+  await until(()=>run('return window.MediaExperience.taskRows().some(row=>row.state==="cancelled")'),'terminal task state');
   await wait(200); fs.writeFileSync(path.join(out, 'discover-personal-tr.png'), (await win.webContents.capturePage()).toPNG());
   const results = [];
   for (const [width, height, locale, theme] of [[940,780,'en','light'],[680,900,'tr','dark']]) {

@@ -37,11 +37,20 @@
     catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${error.message}`; return; }
     if (!dialog.open) return;
     const item = result.item, body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
+    window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h2', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
     const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
     content.append(el('p', 'md-synopsis', item.synopsis || t('No synopsis is available for this title.', 'Bu yapımın açıklaması henüz yok.')));
     if (item.cast.length) content.append(el('p', 'md-cast', `${t('Cast', 'Oyuncular')}: ${item.cast.join(', ')}`));
     const actions = el('div', 'mh-actions');
+    for (const [value, label] of [['watched', t('Already watched', 'İzledim')], ['hidden', t('Not interested', 'İlgilenmiyorum')], ['none', t('Undo preference', 'Tercihi geri al')]]) {
+      if (value === 'none' && !row.feedback) continue;
+      actions.append(btn(label, async () => {
+        await api('feedback', { id: row.providerId, kind: row.kind, title: row.title, state: value });
+        state.rows = state.rows.filter(item => item.providerId !== row.providerId || item.kind !== row.kind);
+        dialog.close(); cards(); status(t('Preference saved. Undo it in Preferences.', 'Tercih kaydedildi. Tercihler bölümünden geri alabilirsin.'));
+      }));
+    }
     const add = btn(result.catalogId ? t('Open in library', 'Kütüphanede aç') : t('Add to watchlist', 'İzleneceklere ekle'), async () => {
       add.disabled = true;
       try {
@@ -67,12 +76,13 @@
       card.append(image(row.poster, 'mh-art'), el('span', 'mh-card-title', row.title),
         el('span', 'mh-card-meta', [row.year, row.rating ? `★ ${row.rating}` : '', row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
+      if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       grid.append(card);
     }
-    if (!state.rows.length && !state.busy) grid.append(el('p', 'mh-empty', state.tab === 'personal'
+    if (!state.rows.length && !state.busy) grid.append(el('p', 'mh-empty', state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
       ? t('Mark favorite titles with genres in your library to get explained recommendations.', 'Gerekçeli öneriler için kütüphanende türleri bulunan yapımları favorile.')
       : t('No titles matched these filters.', 'Bu filtrelerle eşleşen yapım yok.')));
-    const more = state.root.querySelector('.md-more'); more.hidden = state.tab === 'personal' || state.next === null || state.rows.length >= 300; more.disabled = state.busy;
+    const more = state.root.querySelector('.md-more'); more.hidden = state.tab !== 'browse' || state.next === null || state.rows.length >= 300; more.disabled = state.busy;
     state.root.querySelectorAll('[data-discovery-control]').forEach(node => { node.disabled = state.busy; });
   }
   async function load(append = false) {
@@ -80,7 +90,7 @@
     if (!root?.isConnected) return;
     state.busy = true; status(t('Loading titles…', 'Yapımlar yükleniyor…')); cards();
     try {
-      const result = await api(state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, skip: append ? state.next : 0 });
+      const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, skip: append ? state.next : 0 });
       if (request !== state.request || root !== state.root || !root.isConnected) return;
       const unique = new Map((append ? state.rows : []).map(row => [`${row.kind}:${row.providerId}`, row]));
       result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;
@@ -94,7 +104,7 @@
     const root = state.root; root.replaceChildren();
     const heading = el('div', 'md-heading'); heading.append(el('h1', '', t('Discover', 'Keşfet')), el('p', '', t('New stories. A place to find your next film or series.', 'Yeni hikâyeler. Sıradaki film veya dizini bul.'))); root.append(heading);
     const tabs = el('div', 'md-tabs'); tabs.setAttribute('aria-label', t('Discovery section', 'Keşfet bölümü'));
-    for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')]]) {
+    for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')], ['preferences', t('Preferences', 'Tercihler')]]) {
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'md-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
     root.append(tabs);
@@ -119,5 +129,13 @@
     const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(false), 'mh-text-button'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     root.append(statusNode, grid, footer); cards();
   }
-  window.MediaDiscoveryUI = Object.freeze({ mount(root) { state.root = root; state.busy = false; draw(); void load(); } });
+  let savedScroll = 0, restoringScroll = false;
+  const leave = () => { if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
+  document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
+  window.MediaDiscoveryUI = Object.freeze({ leave, mount(root) {
+    const targetScroll = savedScroll; restoringScroll = true;
+    const hadRows = state.rows.length > 0 && !state.busy; state.root = root; state.busy = false; draw();
+    requestAnimationFrame(() => { if (root === state.root && root.isConnected && hadRows) document.getElementById('mediaHome').scrollTop = targetScroll; requestAnimationFrame(() => { restoringScroll = false; }); });
+    if (!hadRows) void load();
+  } });
 })();

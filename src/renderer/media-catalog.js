@@ -223,7 +223,7 @@
     if (!result) return;
     const watchItem = result.watchItem;
     if (!watchItem || typeof window.openMediaCatalogPlayback !== 'function') { feedback('Oynatma köprüsü kullanılamıyor.', true); return; }
-    try { await window.openMediaCatalogPlayback(watchItem); if (sessionId === state.session && dialog.open) close(); }
+    try { await window.openMediaCatalogPlayback(watchItem); if (sessionId === state.session && dialog.open) close(); return true; }
     catch (error) { if (sessionId === state.session && dialog.open) feedback(error?.message || 'Oynatma başlatılamadı.', true); }
   }
   async function source(item, episodeId, kind) {
@@ -248,6 +248,7 @@
   }
   function renderDetail() {
     const item = find(state.selected); if (!item) { state.mode = 'list'; return renderList(); }
+    window.MediaExperience?.setContext(dialog, { id: item.id, type: 'library-title', title: item.title, synopsis: item.synopsis });
     const body = $('div', 'mc-content mc-detail'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }, 'mc-back'));
     const hero = $('div', 'mc-detail-hero'); hero.append(poster(item, 'mc-detail-poster'));
     const text = $('div'); text.append($('span', 'mc-eyebrow', `${t(typeLabels[catalogType(item)])} · ${item.year || t('Yıl belirtilmedi')}`), $('h3', '', item.title || t('Adsız yapım')));
@@ -274,6 +275,21 @@
     if (state.removeId === item.id) actions.append(button('Vazgeç', () => { state.removeId = null; render(); }));
     text.append(actions); hero.append(text); body.append(hero);
     if (state.removeId === item.id) body.append($('p', 'mc-danger-note', 'Bu yapımı silmek üzeresiniz. Silme işlemini onaylayın veya vazgeçin.'));
+    const assets = $('section', 'mx-assets'); assets.append($('h4', '', english() ? 'Watch in Turkish' : 'Türkçe izleme hazırlığı'));
+    const info = item.progress?.assets || {}, badges = $('div', 'mx-badges');
+    for (const value of [info.subtitles ? `${info.subtitles} ${english()?'subtitle file(s)':'altyazı dosyası'}` : (english()?'No saved subtitles':'Kayıtlı altyazı yok'),
+      info.translation ? (english()?'Translation linked':'Çeviri bağlı') : (english()?'Translation not linked':'Çeviri bağlı değil'),
+      info.dub ? (english()?'Dub remembered':'Dublaj kayıtlı') : (english()?'Dub not linked':'Dublaj bağlı değil')]) badges.append($('span', '', value));
+    assets.append(badges, $('p', '', english() ? 'Open your source, then review subtitles, voice and time range. Production uses your existing Whisper and voice settings.' : 'Kaynağı aç, ardından altyazı, ses ve zaman aralığını gözden geçir. Üretim mevcut Whisper ve ses ayarlarını kullanır.'));
+    const workflow = $('div', 'mx-actions');
+    workflow.append(button(english()?'Play & prepare voice':'Oynat ve ses hazırlığını aç', async () => {
+      if (catalogType(item) === 'series') {
+        const next = (item.episodes || []).find(ep => ep.source && !ep.progress?.completed);
+        if (!next) { feedback(english()?'Link an episode source first.':'Önce bir bölüm kaynağı bağlayın.', true); return; }
+        if (await play(item, next.id)) window.MediaExperience?.openVoice();
+      } else if (await play(item)) window.MediaExperience?.openVoice();
+    }, 'mc-primary'));
+    workflow.append(button(english()?'Activity':'İşlem merkezi', () => window.MediaExperience?.openTasks())); assets.append(workflow); body.append(assets);
     body.append(sourceControls(item));
     if (catalogType(item) === 'series') {
       const heading = $('div', 'mc-section-heading'); heading.append($('h4', '', 'Bölümler'), button('Bölüm ekle', () => editEpisode(item)));

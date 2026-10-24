@@ -25,6 +25,14 @@ function recommendationSeeds(items) {
 }
 function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, nativeImage, fetchImpl = fetch, now = () => Date.now() }) {
   const cache = new Map(), loading = new Map();
+  const feedbackFile = () => path.join(userData(), 'media-discovery-feedback.json');
+  function feedback() {
+    if (!userData || !fs.existsSync(feedbackFile())) return {};
+    if (fs.statSync(feedbackFile()).size > 2_000_000) throw Error('Discovery preferences are too large.');
+    const value = JSON.parse(fs.readFileSync(feedbackFile(), 'utf8'));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid discovery preferences.');
+    return value;
+  }
   let active = 0;
   async function officialFetch(url, hosts, timeout = 15000) {
     const signal = AbortSignal.timeout(timeout);
@@ -78,10 +86,21 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
   ipcMain.handle('media-discovery:request', async (event, input = {}) => {
     if (!authorized(event)) return { ok: false, error: 'Unauthorized request.' };
     try {
+      if (input.action === 'feedback-list') return { ok: true, rows: Object.values(feedback()).slice(-2000).reverse(), nextSkip: null };
+      if (input.action === 'feedback') {
+        if (!/^tt\d{7,12}$/.test(input.id || '') || !['film','series'].includes(input.kind) || !['hidden','watched','none'].includes(input.state)) throw Error('Invalid discovery preference.');
+        const rows = feedback(), key = `${input.kind}:${input.id}`;
+        if (input.state === 'none') delete rows[key];
+        else rows[key] = { providerId:input.id, kind:input.kind, title:text(input.title,500) || input.id, feedback:input.state, at:now() };
+        if (Object.keys(rows).length > 2000) throw Error('Discovery preference limit reached.');
+        atomicWriteFileSync(feedbackFile(), JSON.stringify(rows));
+        return { ok:true };
+      }
       if (input.action === 'list') {
         const result = await list(input);
+        const preferences = feedback();
         const owned = new Map(catalogStore().list().filter(row => row.imdbId).map(row => [row.imdbId, row.id]));
-        return { ok: true, ...result, rows: result.rows.map(row => ({ ...row, catalogId: owned.get(row.providerId) || null })), genres: GENRES };
+        return { ok: true, ...result, rows: result.rows.filter(row => !preferences[`${row.kind}:${row.providerId}`]).map(row => ({ ...row, catalogId: owned.get(row.providerId) || null })), genres: GENRES };
       }
       if (input.action === 'personal') {
         const library = catalogStore().list(), seeds = recommendationSeeds(library), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
@@ -90,10 +109,10 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         for (const seed of seeds) for (const name of seed.genres || []) { const genre = aliases[name] || name; if (GENRES.includes(genre) && !selected.has(genre)) selected.set(genre, seed.title); }
         if (!selected.size) return { ok: true, rows: [], needsRatings: true };
         const results = await Promise.allSettled([...selected].slice(0, 3).map(async ([genre, seed]) => ({ seed, rows: (await list({ kind: input.kind, genre })).rows })));
-        const seen = new Set(), rows = [];
+        const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key)) { seen.add(key); rows.push({ ...row, because: result.value.seed }); }
+          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...row, because: result.value.seed }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: rows.slice(0, 60), needsRatings: false };

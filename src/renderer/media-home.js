@@ -173,6 +173,7 @@
     return node;
   }
   function page(value) {
+    if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     state.page = value; state.limit = 48; state.filter = 'all';
     host.dataset.page = value;
     host.scrollTop = 0;
@@ -182,6 +183,7 @@
   }
   function renderContent() {
     const content = document.getElementById('mhContent'); if (!content) return;
+    if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     state.render++; posterQueue = []; posterObserver.disconnect();
     content.replaceChildren();
@@ -238,6 +240,7 @@
   }
   function renderShell() {
     const focused = document.activeElement?.id;
+    if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     host.setAttribute('aria-label', t('Media home', 'Medya ana sayfası'));
     const back = document.getElementById('mediaHomeBack');
     if (back) back.textContent = t('Home', 'Ana sayfa');
@@ -251,6 +254,7 @@
     }
     const actions = el('div', 'mh-actions');
     actions.append(button('Browser', openBrowser), button(t('Studio', 'Stüdyo'), openStudio), button(t('Subtitle → voice', 'Altyazı → ses'), () => click('dubMainOpen')), button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo'), 'mh-action mh-primary'));
+    actions.append(button(t('Activity', 'İşlemler'), () => window.MediaExperience?.openTasks()));
     const locale = el('select', 'mh-locale'); locale.id = 'mhLocale'; locale.setAttribute('aria-label', t('Interface language', 'Arayüz dili'));
     for (const value of ['en', 'tr']) { const option = el('option', '', value.toUpperCase()); option.value = value; locale.append(option); }
     locale.value = english() ? 'en' : 'tr'; locale.addEventListener('change', () => window.UiLocale?.set(locale.value)); actions.append(locale);

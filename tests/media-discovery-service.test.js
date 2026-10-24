@@ -17,7 +17,7 @@ test('fixed provider routes, caching, personal exclusions and idempotent watchli
     catalog.upsert({ title: 'Liked', kind: 'film', imdbId: 'tt1234567', favorite: true, genres: ['Drama'], ratings: { personal: '4.5' } });
     const calls = [], handlers = new Map();
     const rows = [{ id: 'tt1234567', name: 'Liked', genres: ['Drama'] }, { id: 'tt1234568', name: 'New', genres: ['Drama'], poster: 'https://images.metahub.space/poster/small/tt1234568/img', description: 'A fixture.' }];
-    registerMediaDiscovery({ ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, authorized: e => e.allowed, catalogStore: () => catalog,
+    registerMediaDiscovery({ ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, authorized: e => e.allowed, catalogStore: () => catalog, userData:()=>dir,
       fetchImpl: async (url, options) => { calls.push({ url, options }); return new Response(JSON.stringify(url.includes('/meta/') ? { meta: rows[1] } : { metas: rows })); } });
     const handler = handlers.get('media-discovery:request'), api = (action, rest = {}) => handler({ allowed: true }, { action, ...rest });
     assert.equal((await handler({ allowed: false }, { action: 'list' })).ok, false); assert.equal(calls.length, 0);
@@ -26,6 +26,13 @@ test('fixed provider routes, caching, personal exclusions and idempotent watchli
     assert(calls[0].url.startsWith('https://v3-cinemeta.strem.io/catalog/movie/top/')); assert(calls[0].url.includes('skip=0'));
     assert.equal(calls[0].options.credentials, 'omit'); assert.equal(calls[0].options.redirect, 'manual');
     const personal = await api('personal'); assert.equal(personal.rows.length, 1); assert.equal(personal.rows[0].because, 'Liked');
+    assert((await api('feedback',{id:'tt1234568',kind:'film',title:'New',state:'hidden'})).ok);
+    assert.equal((await api('personal')).rows.length,0,'Not interested excludes personal recommendations');
+    assert.equal((await api('list')).rows.some(row=>row.providerId==='tt1234568'),false,'Preference also hides browsing recommendations');
+    assert.equal((await api('feedback-list')).rows[0].feedback,'hidden');
+    assert((await api('feedback',{id:'tt1234568',kind:'film',state:'none'})).ok);
+    assert.equal((await api('personal')).rows.length,1,'Undo restores eligibility without changing library');
+    assert.equal((await api('feedback',{id:'../../secret',kind:'film',state:'watched'})).ok,false);
     assert.equal((await api('detail', { kind: 'film', id: 'tt1234568' })).item.title, 'New');
     assert.equal(catalog.list().length, 1, 'Browsing and detail must not add records');
     const [one, two] = await Promise.all([api('add', { kind: 'film', id: 'tt1234568' }), api('add', { kind: 'film', id: 'tt1234568' })]);
