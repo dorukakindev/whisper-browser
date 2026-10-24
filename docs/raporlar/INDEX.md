@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_540.md](BROWSER_BUG_REPORT_540.md) — Letterboxd okuyucu, örnek/profil kanıtı ve gerçek model doğrulaması.
+
 - [BROWSER_BUG_REPORT_539.md](BROWSER_BUG_REPORT_539.md) — Yeni Luna kaynaklarından ülkeye göre izleme, benzer yapımlar ve yorum arama.
 
 - [BROWSER_BUG_REPORT_538.md](BROWSER_BUG_REPORT_538.md) — Gerçek sayfa çeviri komutları ve kaynağa uygun native asistan.
