@@ -20,16 +20,24 @@ function verifyDecision(raw, reviews) {
 function tonight(items, history=[], options={}) {
   const max=Math.max(0,Math.min(300,Number(options.minutes)||0));
   const moods={tense:/thriller|crime|horror|gerilim|suç|korku/i,light:/comedy|family|komedi|aile/i,deep:/drama|documentary|belgesel/i,epic:/adventure|fantasy|science fiction|macera|fantastik|bilim/i,heart:/romance|romantik/i};
-  const seen=new Map(history.map(r=>[r.key,r])); const recent=new Set(options.recent||[]);
+  const normalize=key=>String(key||'').startsWith('file:')?String(key).replace(/\\/g,'/').toLowerCase():String(key||'');
+  const seen=new Map();for(const row of history){const key=normalize(row.key);if(!seen.has(key)||Number(row.lastWatched||0)>Number(seen.get(key).lastWatched||0))seen.set(key,row);}
+  const watched=source=>source?seen.get(normalize(source.watchKey||'file:'+source.value)):null;
+  const recent=new Set(options.recent||[]);
   const rows=[];
   for (const item of items) {
-    const episode=item.kind==='series'?[...(item.episodes||[])].sort((a,b)=>a.season-b.season||a.number-b.number).find(ep=>ep.source&&ep.watchStatus!=='completed'&&!seen.get(ep.source.watchKey)?.completed):null;
+    const episode=item.kind==='series'?[...(item.episodes||[])].sort((a,b)=>a.season-b.season||a.number-b.number).find(ep=>ep.source&&ep.watchStatus!=='completed'&&!watched(ep.source)?.completed):null;
     const source=episode?.source || (item.kind==='film'?item.source:null);
-    if (!source || source.type!=='local' || source.imported || item.watchStatus==='completed' || seen.get(source.watchKey)?.completed) continue;
-    const runtime=Number(episode?0:item.runtime)||Number(seen.get(source.watchKey)?.duration)/60||0;
-    if (max && (!runtime || runtime>max)) continue;
+    if (!source || source.type!=='local' || source.imported || item.watchStatus==='completed' || watched(source)?.completed) continue;
+    const progress=watched(source),number=value=>Number.isFinite(Number(value))&&Number(value)>0?Number(value):0;
+    const duration=number(progress?.duration)||number(episode?0:item.runtime)*60;
+    const position=Math.min(duration||Infinity,number(progress?.position));
+    const remaining=duration?Math.max(0,duration-position):0;
+    if(duration&&remaining===0)continue;
+    if (max && (!remaining || remaining>max*60)) continue;
+    const runtime=duration/60;
     const mood=!!moods[options.mood]?.test((item.genres||[]).join(' '));
-    rows.push({itemId:item.id,episodeId:episode?.id||'',title:item.title,year:item.year,runtime:Math.round(runtime),episode:episode?`S${episode.season} E${episode.number}`:'',mood,
+    rows.push({itemId:item.id,episodeId:episode?.id||'',title:item.title,year:item.year,runtime:Math.ceil(runtime),remaining:Math.ceil(remaining/60),position,duration,episode:episode?`S${episode.season} E${episode.number}`:'',mood,
       score:(mood?5:0)+(episode?2:0)+(item.favorite?1:0)-(recent.has(item.id)?10:0),source:source.value});
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);

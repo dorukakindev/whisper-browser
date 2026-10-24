@@ -18,6 +18,19 @@ test('Tonight excludes completed/imported/unknown durations under a time limit a
   assert(!tools.tonight(items,[{key:'film',completed:true}],{}).some(r=>r.itemId==='a'));
   assert.deepEqual(tools.tonight(items,[],{mood:'light'}),model.tonight(items,[],{mood:'light'}));
 });
+test('Tonight budgets remaining playback time and matches Windows history with the newest record',()=>{
+  const items=[{id:'long',kind:'film',title:'Long film',runtime:150,source:{type:'local',value:'C:\\Films\\Long.mp4'}},
+    {id:'unknown',kind:'film',title:'Unknown',source:{type:'local',value:'C:\\Films\\Unknown.mp4'}}];
+  const history=[{key:'file:c:/films/long.mp4',duration:7200,position:4200,lastWatched:20},
+    {key:'file:C:\\Films\\Long.mp4',duration:9000,position:0,lastWatched:10}];
+  for(const api of [tools,model]){
+    const rows=api.tonight(items,history,{minutes:50});assert.equal(rows.length,1);assert.equal(rows[0].itemId,'long');
+    assert.equal(rows[0].remaining,50);assert.equal(rows[0].runtime,120,'Actual observed duration takes precedence over catalog estimate');assert.equal(rows[0].position,4200);
+    assert.equal(api.tonight(items,history,{minutes:49}).length,0);
+    assert.equal(api.tonight(items,[{...history[0],position:7200}],{minutes:50}).length,0,'No zero-minute completed candidates');
+    assert.equal(api.tonight(items,[{...history[0],duration:Infinity,position:NaN}],{minutes:50}).length,0,'Nonfinite progress cannot manufacture a short remaining duration');
+  }
+});
 test('Service isolates callers, keeps feedback and analyses separate, exports new roots without credentials',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'media-tools-')),picked=path.join(dir,'backup.wbp'),handlers=new Map(),close=[];
   try{

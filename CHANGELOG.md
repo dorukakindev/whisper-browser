@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Made Tonight suggestions use remaining playback time and the newest matching watch record, with resume labels and retained filters. Kept unsaved title-review feedback, review URL and spoiler settings across tool navigation while the app remains open, and guarded stale asynchronous result updates.
+
 - Hardened media health scanning: skip unverified imported sources, hash each distinct resolved file once, distinguish unreadable/missing sources and expose comparison progress. Reopening media tools raises the existing modal; late folder selection cannot re-enable disabled automatic backups.
 
 - Added title-specific review sampling and evidence-checked personal-fit analysis through the existing assistant, plus separate after-watching feedback and analysis history.
