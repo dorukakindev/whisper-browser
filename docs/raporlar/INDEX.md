@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_529.md](BROWSER_BUG_REPORT_529.md) — kalan süreli izleme önerisi, yorum taslağı ve async sayfa koruması.
+
 - [BROWSER_BUG_REPORT_528.md](BROWSER_BUG_REPORT_528.md) — medya arşiv taraması, yedek sıklığı ve modal/odak doğruluğu.
 
 Özellik/kanıt raporu: [LUNA_MEDIA_TOOLS_2026-10-24.md](LUNA_MEDIA_TOOLS_2026-10-24.md) — yapım kararları, arşiv sağlığı, yedekleme ve ortak asistan/dinleme araçları.
