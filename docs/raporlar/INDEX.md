@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_536.md](BROWSER_BUG_REPORT_536.md) — Otomatik TMDB afişleri, güvenli eşleştirme ve zengin film sayfası.
+
 - [BROWSER_BUG_REPORT_535.md](BROWSER_BUG_REPORT_535.md) — Sade üst çubuk, tek ayar simgesi ve TMDB bilgi/afiş bağlantısı.
 
 - [BROWSER_BUG_REPORT_534.md](BROWSER_BUG_REPORT_534.md) — Ayarlarda sağlayıcı model listesi, anahtar yönetimi ve eski sonuç onarımları.
