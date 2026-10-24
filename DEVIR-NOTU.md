@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1538.md](docs/devir/2026-10-24-1538.md) — Browser’dan sekmeleri koruyarak görünür ana sayfa dönüşü
 Güncel çalışma: [docs/devir/2026-10-24-1529.md](docs/devir/2026-10-24-1529.md) — Yorumlu zevk profili, birleşik medya merkezi, torrent ve opsiyonel gömülü mpv
 Güncel çalışma: [docs/devir/2026-10-24-1311.md](docs/devir/2026-10-24-1311.md) — Bağlamlı asistan, dublajla devam, ortak işlemler ve Keşfet tercihleri
 Güncel çalışma: [docs/devir/2026-10-24-1237.md](docs/devir/2026-10-24-1237.md) — Global native asistan, Keşfet kaydırması ve Defuddle okuyucu

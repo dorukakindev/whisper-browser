@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added a visible Browser-to-media-home control and application-menu shortcut. Returning home hides the native browser while preserving its tabs, loaded page and subtitle state.
+
 - Added a unified media center with watched folders, reviewed source relinking, filename-based version groups, direct streams, optional rqbit torrent streaming and embedded mpv playback using the existing subtitle/dubbing controls.
 - Expanded Letterboxd import to review CSV/export ZIP, evidence-checked optional AI review analysis, editable taste preferences and genre/director statistics with explained discovery recommendations.
 
