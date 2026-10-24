@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+Özellik/kanıt raporu: [LUNA_ADVANCED_MEDIA_2026-10-24.md](LUNA_ADVANCED_MEDIA_2026-10-24.md) — yorumlu zevk profili ve birleşik medya oynatma.
+
 `docs/raporlar/` altındaki numaralı denetim/bug raporlarının indeksi.
 Yeni rapor eklendiğinde bu dosyayı güncelle (AGENTS.md sayacıyla birlikte).
 Klasörde ayrıca numarasız denetim/plan/kanıt belgeleri de bulunur; onlar

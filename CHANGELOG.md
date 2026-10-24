@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added a unified media center with watched folders, reviewed source relinking, filename-based version groups, direct streams, optional rqbit torrent streaming and embedded mpv playback using the existing subtitle/dubbing controls.
+- Expanded Letterboxd import to review CSV/export ZIP, evidence-checked optional AI review analysis, editable taste preferences and genre/director statistics with explained discovery recommendations.
+
 - Dubbing failures retain bounded engine diagnostics and exit signals instead of losing the cause behind a generic notice.
 
 - Redesigned the dubbing workspace with source/voice/range overview, bounded responsive cards, persistent actions and safe production presets; simplified desktop Voice Studio with narration presets and advanced settings.
