@@ -63,7 +63,27 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
     const text = await readTextLimited(response, 4e6);
     return JSON.parse(text);
   }
+  const extraCache=new Map();
+  const identity=item=>{const kind=item.kind==='series'?'tv':'movie',match=new RegExp('^'+kind+':(\\d+)$').exec(item.tmdbId||'');if(!match||!Number.isSafeInteger(Number(match[1]))||Number(match[1])<1)throw new Error('Önce yapımı TMDB ile eşleştirin.');return {kind,id:Number(match[1])};};
+  async function cached(route,token,params={},signal){
+    const key=hash(JSON.stringify([route,token,language(),params]));const old=extraCache.get(key);if(old&&Date.now()-old.time<600000)return structuredClone(old.value);
+    const value=await request(route,token,params,signal);if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time:Date.now(),value});return structuredClone(value);
+  }
   return {
+    async watchProviders(item,token,region='TR',signal){
+      if(!/^[A-Z]{2}$/.test(region))throw new Error('İzleme ülkesi geçersiz.');
+      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/watch/providers`,token,{},signal),country=data.results?.[region];
+      const groups={};for(const mode of ['flatrate','free','ads','rent','buy']){
+        const seen=new Set();groups[mode]=(Array.isArray(country?.[mode])?country[mode]:[]).filter(p=>Number.isSafeInteger(p.provider_id)&&p.provider_id>0&&typeof p.provider_name==='string'&&p.provider_name.trim()&&!seen.has(p.provider_id)&&seen.add(p.provider_id)).slice(0,40).map(p=>({id:p.provider_id,name:p.provider_name.trim().slice(0,100)}));
+      }
+      return {region,groups,url:`https://www.themoviedb.org/${kind}/${id}/watch?locale=${region}`,attribution:'JustWatch via TMDB'};
+    },
+    async recommendations(item,token,page=1,signal){
+      if(!Number.isInteger(page)||page<1||page>10)throw new Error('Öneri sayfası geçersiz.');
+      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/recommendations`,token,{page:String(page)},signal),seen=new Set();
+      const rows=(Array.isArray(data.results)?data.results:[]).filter(r=>r.adult!==true&&Number.isSafeInteger(r.id)&&r.id>0&&r.id!==id&&!seen.has(r.id)&&seen.add(r.id)).map(r=>({id:r.id,tmdbId:kind+':'+r.id,kind:item.kind==='series'?'series':'film',title:String(r.title||r.name||'').slice(0,300),year:Number(String(r.release_date||r.first_air_date||'').slice(0,4))||null,synopsis:String(r.overview||'').slice(0,3000)})).filter(r=>r.title.trim()).slice(0,20);
+      return {rows,nextPage:page<Math.min(10,Number(data.total_pages)||1)?page+1:null};
+    },
     async resolve(item, token, {automatic = false, signal} = {}) {
       const kind = item.kind === 'series' ? 'tv' : 'movie';
       const known = new RegExp('^' + kind + ':(\\d+)$').exec(item.tmdbId || '');

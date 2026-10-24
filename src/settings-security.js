@@ -509,7 +509,7 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   const cleanTranslateIdentity = endpointIdentity(clean.translate, nextTranslateOpts);
   if(Object.prototype.hasOwnProperty.call(input,'tmdb')){
     const value=input.tmdb;if(!value||typeof value!=='object'||Array.isArray(value))throw new SettingsValidationError('TMDB ayarı geçersiz.');
-    clean.tmdb={language:/^[a-z]{2}-[A-Z]{2}$/.test(value.language||'')?value.language:'tr-TR'};
+    clean.tmdb={language:/^[a-z]{2}-[A-Z]{2}$/.test(value.language||'')?value.language:'tr-TR',watchRegion:/^[A-Z]{2}$/.test(value.watchRegion||'')?value.watchRegion:(existingSettings.tmdb?.watchRegion||'TR')};
     if(allowSecrets&&Object.prototype.hasOwnProperty.call(value,'apiKey'))clean.tmdb.apiKey=boundedString(value.apiKey,'TMDB anahtarı',4096).trim();
     else if(typeof existingSettings.tmdb?.apiKey==='string')clean.tmdb.apiKey=existingSettings.tmdb.apiKey;
   }

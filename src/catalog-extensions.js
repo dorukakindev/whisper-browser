@@ -47,6 +47,15 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (!Array.isArray(input.ids) || !input.ids.length) throw new Error('En az bir kayıt seçin.');
         const summary = store().mergeImport(data.items, { selectedIds: input.ids }); previews.delete(input.token); return { ok: true, summary };
       }
+      case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal)};
+      case 'metadata-recommendations': return {ok:true,...await client.recommendations(item(),metadataSettings().apiKey,input.page??1,signal)};
+      case 'metadata-add-recommendation':{
+        if(!['film','series'].includes(input.kind)||!Number.isSafeInteger(input.providerId)||input.providerId<1)throw new Error('Öneri kimliği geçersiz.');
+        const tmdbId=(input.kind==='series'?'tv':'movie')+':'+input.providerId;
+        const find=()=>store().list().find(row=>row.tmdbId===tmdbId&&row.kind===input.kind);let existing=find();if(existing)return {ok:true,item:visible(existing),existing:true};
+        const data=await client.detail({kind:input.kind},input.providerId,metadataSettings().apiKey,signal);existing=find();
+        return {ok:true,item:visible(existing||store().upsert({...data.patch,kind:input.kind,watchStatus:'planned'})),existing:!!existing};
+      }
       case 'metadata-search': return { ok: true, results: await client.search(item(), (input.credential||metadataSettings().apiKey), input.query) };
       case 'metadata-preview': {
         const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey),signal);

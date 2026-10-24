@@ -3238,7 +3238,7 @@ function appSettingsPayload() {
   return {
     glossary,
     projectGlossaries,
-    tmdb:{...secretSettingPatch('tmdbApiKey'),language:$('tmdbLanguage')?.value||'tr-TR'},
+    tmdb:{...secretSettingPatch('tmdbApiKey'),language:$('tmdbLanguage')?.value||'tr-TR',watchRegion:$('tmdbWatchRegion')?.value||'TR'},
     ...secretSettingPatch('hfToken', 'hfToken'),
     inputDir: state.inputDir || '',
     outputDir: state.outputDir || '',
@@ -3815,7 +3815,7 @@ $('translateRemoveModel')?.addEventListener('click', async () => {
   await saveAppSettings();
 });
 $('translateProbeBtn')?.addEventListener('click', testSelectedTranslationProvider);
-for(const id of ['tmdbApiKey','tmdbLanguage'])$(id)?.addEventListener('change',()=>void saveAppSettings());
+for(const id of ['tmdbApiKey','tmdbLanguage','tmdbWatchRegion'])$(id)?.addEventListener('change',()=>void saveAppSettings());
 ['llmApiKey', 'llmBaseUrl', 'llmModel'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('change', saveAppSettings);
@@ -3838,7 +3838,7 @@ const initialSettingsReady = (async () => {
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       projectGlossaries = (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries))
         ? s.projectGlossaries : {};
-      if(s.tmdb){$('tmdbApiKey').value=s.tmdb.apiKey||'';$('tmdbLanguage').value=s.tmdb.language||'tr-TR';}
+      if(s.tmdb){$('tmdbApiKey').value=s.tmdb.apiKey||'';$('tmdbLanguage').value=s.tmdb.language||'tr-TR';const region=/^[A-Z]{2}$/.test(s.tmdb.watchRegion||'')?s.tmdb.watchRegion:'TR';const regionSelect=$('tmdbWatchRegion');if(![...regionSelect.options].some(option=>option.value===region)){const option=document.createElement('option');option.value=region;option.textContent=region;regionSelect.append(option);}regionSelect.value=region;}
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
       state.outputDir = s.outputDir || null;
