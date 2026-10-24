@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0225.md](docs/devir/2026-10-25-0225.md) — Dublaj süreleri, sıcak motor, GPU kapasitesi ve kurtarma
 Güncel çalışma: [docs/devir/2026-10-25-0147.md](docs/devir/2026-10-25-0147.md) — PR482 master ve Windows ana program teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0138.md](docs/devir/2026-10-25-0138.md) — Beş alanda sağlamlaştırma ve gerçek dublaj/oynatma denemesi
 Güncel çalışma: [docs/devir/2026-10-25-0114.md](docs/devir/2026-10-25-0114.md) — Açık Letterboxd yorumları ve beş asistan/analiz geliştirmesi
