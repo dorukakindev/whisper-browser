@@ -34,7 +34,8 @@
         suggestions: specs,
         scope: $('aiTranscriptScope')?.value,
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
-        conversation: aiSourceScope(), context, busy: !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
+        // Pins are read-only notes; unlike live job scopes they survive source generations.
+        conversation: global ? JSON.stringify(['global',global.workspace,global.page,global.id,global.chapter]) : JSON.stringify([player.workspaceMode,player.mediaKey]), context, busy: !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         retry: !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: [...document.querySelectorAll('#aiChatLog .ai-msg')].map(node => ({ role: node.classList.contains('ai-msg-user') ? 'user' : 'ai', text: node.textContent,
           links: [...node.querySelectorAll('.ai-time-link,.ai-source-link')].slice(0, 40).map(button => {
