@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1718.md](docs/devir/2026-10-24-1718.md) — Yapım yorumları, Bu akşam, arşiv/yedekleme, asistan ve dinleme profilleri
 Güncel çalışma: [docs/devir/2026-10-24-1649.md](docs/devir/2026-10-24-1649.md) — Luna güncel beta kaynaklarından sonraki özellik karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-24-1642.md](docs/devir/2026-10-24-1642.md) — Sessiz ana sayfa ve altyazı/dublajı koruyan açık oturuma dönüş
 Güncel çalışma: [docs/devir/2026-10-24-1602.md](docs/devir/2026-10-24-1602.md) — Canlı YouTube ana sayfa/sol menü Luna teması ve geri alınabilir stil

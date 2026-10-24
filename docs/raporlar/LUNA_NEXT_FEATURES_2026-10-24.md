@@ -34,3 +34,7 @@ Tüm yollar https://github.com/Nothingman333/Luna-Player/blob/v1.6.7/app/src/ al
 - PlaybackExtras.tsx, playbackExtrasModel.ts
 
 Bizde karşılaştırılanlar: src/workspace-package.js, src/renderer/media-home.js, src/renderer/assistant-overlay.js, src/renderer/global-assistant.js ve 24 Ekim 1529/1642 devir notları. Kişisel medya, gerçek dış yorum servisi ve canlı sağlayıcı çağrısı kullanılmadı. Ürün kodu değişmedi; ürün testi gerekmiyor.
+
+## Uygulama güncellemesi — 24 Ekim 2026, 17:18
+
+Altı öncelik bağımsız kodla eklendi. [Kullanım, gerçek kapsam ve Windows kanıtları](LUNA_MEDIA_TOOLS_2026-10-24.md). Önceki maddeler araştırma anını anlatır; uygulanmış özellikleri yeniden eksik saymayın. Özellikle normal Chromium video ses yolu, canlı yorum sitesi/model kalitesi ve yedek dışı WAV/medya dosyası sınırları teslim raporunda açık.

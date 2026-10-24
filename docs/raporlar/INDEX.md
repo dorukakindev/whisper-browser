@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+Özellik/kanıt raporu: [LUNA_MEDIA_TOOLS_2026-10-24.md](LUNA_MEDIA_TOOLS_2026-10-24.md) — yapım kararları, arşiv sağlığı, yedekleme ve ortak asistan/dinleme araçları.
+
 Özellik/kanıt raporu: [LUNA_ADVANCED_MEDIA_2026-10-24.md](LUNA_ADVANCED_MEDIA_2026-10-24.md) — yorumlu zevk profili ve birleşik medya oynatma.
 
 `docs/raporlar/` altındaki numaralı denetim/bug raporlarının indeksi.
