@@ -205,6 +205,19 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(args.group_results[0]['verification']['status'], 'passed')
             self.assertEqual(' '.join(server.calls[2:]), text.strip())
 
+    def test_stalled_last_group_restart_does_not_repeat_the_same_acoustic_seed(self):
+        from dub_lifecycle import EngineStalled
+        function=next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body if isinstance(n,ast.FunctionDef) and n.name=='generate_with_fallback')
+        scope={'asyncio':asyncio};exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)
+        args=SimpleNamespace(eszamanli=4,group_seeds=[42],group_keys=['1'],force_groups=set())
+        seen=[]
+        async def generate(args,cues,paths,prompt):
+            seen.append((args.eszamanli,args.group_seeds[0]))
+            if len(seen)==1:raise EngineStalled('last group timeout')
+            return 8000
+        self.assertEqual(scope['generate_with_fallback'](args,[],[],None,generate),8000)
+        self.assertEqual(seen,[(4,42),(2,100045)])
+
     def test_oom_restarts_with_smaller_batches_but_other_errors_do_not_loop(self):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.FunctionDef) and n.name == 'generate_with_fallback')

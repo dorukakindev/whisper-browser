@@ -48,7 +48,7 @@ function service(t){
   busy:()=>false,environment:()=>({PATH:''}),grantMedia:p=>grants.push(p),
   spawn:(_p,args)=>{output=args[args.indexOf('--output')+1];child=new EventEmitter();child.exitCode=null;child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdout.setEncoding=child.stderr.setEncoding=()=>{};return child;},
   terminate:async p=>{kills++;p.exitCode=1;p.emit('close',1);return true;}});
- return {svc,sender,events,grants,start:()=>handlers['dub:start']({sender},{id:'fixture',srt}),child:()=>child,output:()=>output,kills:()=>kills};
+ return {svc,sender,events,grants,start:()=>handlers['dub:start']({sender},{id:'fixture',srt,keepEngine:false}),child:()=>child,output:()=>output,kills:()=>kills};
 }
 test('491-08 renderer destruction terminates its owned GPU job',async t=>{
  const f=service(t);assert.equal((await f.start()).ok,true);f.sender.emit('destroyed');await tick();

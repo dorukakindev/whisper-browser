@@ -110,7 +110,9 @@ class SpeechVerifier:
                     self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
                     await self.proc.stdin.drain()
                     return await self.proc.stdout.readline()
-                response = json.loads(await asyncio.wait_for(exchange(), 120))
+                from contextlib import nullcontext
+                with self.phases.measure('verification') if getattr(self,'phases',None) else nullcontext():
+                    response = json.loads(await asyncio.wait_for(exchange(), 120))
                 if (not isinstance(response, dict) or 'error' in response
                         or not isinstance(response.get('text'), str)):
                     raise ValueError('unavailable')
@@ -144,6 +146,7 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
         return text
     request_id = uuid.uuid4().hex
     response_path = args.rewrite_dir / (request_id + '.json')
+    rewrite_started=time.monotonic()
     print('DUB_REWRITE ' + json.dumps({'id': request_id, 'group': i + 1,
         'text': text, 'seconds': min(35, seconds), 'mode':mode, 'measured':measured, 'before':before[-1500:], 'after':after[:1500]}), flush=True)
     try:
@@ -162,6 +165,8 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
         # Optional editing failure must never turn otherwise valid speech into silence.
         return text
     finally:
+        if getattr(args,'phases',None):
+            args.phases.seconds['text_edit']=args.phases.seconds.get('text_edit',0)+time.monotonic()-rewrite_started
         try:
             response_path.unlink(missing_ok=True)
         except OSError:
@@ -194,6 +199,7 @@ def video_duration(path):
 async def uret(args, cues, paths, prompt_text):
     from dub_lifecycle import bounded_call, EngineStalled, stop_server
     from dub_recovery import recover_long_speech
+    from dub_runtime import measured
     from huggingface_hub import snapshot_download
     from nanovllm_voxcpm import VoxCPM
 
@@ -201,24 +207,33 @@ async def uret(args, cues, paths, prompt_text):
                                    local_files_only=True)
     print("nano-vLLM sunucusu aciliyor...", flush=True)
     began = time.monotonic()
-    server = VoxCPM.from_pretrained(
-        model_path, devices=[0], inference_timesteps=args.steps,
-        max_num_seqs=max(args.eszamanli, 1), max_num_batched_tokens=args.batch_tokens,
-        max_model_len=args.max_model_len, gpu_memory_utilization=args.gpu_mem,
-        enforce_eager=False)
+    runtime=getattr(args,'runtime',None)
+    server=None
+    successful=False
     try:
-        try:
-            await bounded_call(server.wait_for_ready(), args.ready_timeout)
-        except EngineStalled as exc:
-            raise EngineStalled(f"nano-vLLM sunucusu {args.ready_timeout} saniyede hazir olmadi.") from exc
+        with measured(args,'model_load'):
+            if runtime:
+                server=await runtime.acquire(args,model_path,VoxCPM.from_pretrained,None,None)
+            else:
+                from dub_runtime import choose_capacity
+                budget=args.gpu_mem
+                if getattr(args,'auto_capacity',False): _,budget=choose_capacity(args)
+                server = VoxCPM.from_pretrained(model_path, devices=[0], inference_timesteps=args.steps,
+                    max_num_seqs=max(args.eszamanli,1),max_num_batched_tokens=args.batch_tokens,
+                    max_model_len=args.max_model_len,gpu_memory_utilization=budget,enforce_eager=False)
+                await bounded_call(server.wait_for_ready(),args.ready_timeout)
         load_seconds = time.monotonic() - began
         reference_began = time.monotonic()
-        wav_bytes = Path(args.reference).read_bytes()
-        ref_lat = await bounded_call(server.encode_latents(wav_bytes, "wav"), args.ready_timeout)
-        prompt_id = None
         automatic_delivery = bool(getattr(args,'prosody_plan',None))
-        if prompt_text and getattr(args, 'expression', 'reference') == 'reference' and not automatic_delivery:
-            prompt_id = await bounded_call(server.add_prompt(wav_bytes, "wav", prompt_text), args.ready_timeout)
+        with measured(args,'reference'):
+            wav_bytes = getattr(args,'reference_bytes',None)
+            if wav_bytes is None: wav_bytes=Path(args.reference).read_bytes()
+            reference_prompt=prompt_text if getattr(args,'expression','reference')=='reference' and not automatic_delivery else None
+            if runtime:
+                ref_lat,prompt_id=await runtime.prepare_reference(args,wav_bytes,reference_prompt)
+            else:
+                ref_lat=await bounded_call(server.encode_latents(wav_bytes,'wav'),args.ready_timeout)
+                prompt_id=await bounded_call(server.add_prompt(wav_bytes,'wav',reference_prompt),args.ready_timeout) if reference_prompt else None
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
         print("Referans hazir; uretim basliyor.", flush=True)
         reference_seconds = time.monotonic() - reference_began
@@ -226,7 +241,8 @@ async def uret(args, cues, paths, prompt_text):
 
         # Recover completed pieces after OOM with a fresh, smaller server.
         sem = asyncio.Semaphore(args.eszamanli)
-        verifier = SpeechVerifier(args.verify_python)
+        verifier = await runtime.get_verifier(args.verify_python,SpeechVerifier) if runtime else SpeechVerifier(args.verify_python)
+        verifier.phases=getattr(args,'phases',None)
         total = len(cues)
         done = sum(1 for i, p in enumerate(paths) if p.is_file() and args.group_keys[i] not in args.force_groups)
         if done:
@@ -239,14 +255,15 @@ async def uret(args, cues, paths, prompt_text):
             from dub_prosody import delivery_instruction
             pieces = []
             instruction = delivery_instruction(delivery)
-            async for part in server.generate(
-                    instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
-                    prompt_id=None if instruction or automatic_delivery else prompt_id,
-                    ref_audio_latents=ref_lat,
-                    temperature=args.temperature,
-                    cfg_value=args.cfg, seed=seed,
-                    max_generate_length=args.max_generate_length):
-                pieces.append(np.asarray(part, dtype=np.float32).reshape(-1))
+            with measured(args,'synthesis'):
+                async for part in server.generate(
+                        instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
+                        prompt_id=None if instruction or automatic_delivery else prompt_id,
+                        ref_audio_latents=ref_lat,
+                        temperature=args.temperature,
+                        cfg_value=args.cfg, seed=seed,
+                        max_generate_length=args.max_generate_length):
+                    pieces.append(np.asarray(part, dtype=np.float32).reshape(-1))
             return np.concatenate(pieces) if pieces else np.zeros(0, dtype=np.float32)
 
         def finish_generated(audio):
@@ -409,7 +426,7 @@ async def uret(args, cues, paths, prompt_text):
                         path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                 finally:
                     temporary.unlink(missing_ok=True)
-                metric.update(group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
+                metric.update(seed=seed,group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
                 results.append(metric)
                 print('DUB_GROUP ' + json.dumps({k: metric[k] for k in
                     ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited') if k in metric}), flush=True)
@@ -427,7 +444,7 @@ async def uret(args, cues, paths, prompt_text):
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
         finally:
-            await verifier.close()
+            if not runtime: await verifier.close()
         args.group_results = results
         metrics = {'load_seconds': load_seconds, 'reference_seconds': reference_seconds,
                    'generation_seconds': time.monotonic() - generation_began,
@@ -437,12 +454,17 @@ async def uret(args, cues, paths, prompt_text):
                    'concurrency': args.eszamanli, 'groups': sorted(results, key=lambda r: r['group'])}
         paths[0].parent.joinpath('generation_report.json').write_text(json.dumps(metrics, indent=2), encoding='utf-8')
         print('DUB_METRICS ' + json.dumps({k: v for k, v in metrics.items() if k != 'groups'}), flush=True)
+        successful=True
         return sr
     finally:
-        await stop_server(server)
+        if runtime:
+            if not successful: await runtime.reset()
+        elif server is not None:
+            await stop_server(server)
 
 
 def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
+    import json
     from dub_lifecycle import EngineStalled
     from dub_resume import recover_completed
     generate = generate or uret
@@ -450,16 +472,21 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
     while True:
         original_paths = list(paths)
         try:
-            return asyncio.run(generate(args, cues, paths, prompt_text))
+            runtime=getattr(args,'runtime',None)
+            return runtime.run(generate(args,cues,paths,prompt_text)) if runtime else asyncio.run(generate(args, cues, paths, prompt_text))
         except Exception as exc:
+            print('DUB_FAILURE '+json.dumps({'kind':type(exc).__name__,'message':str(exc)[-1500:]}),flush=True)
             if isinstance(exc, EngineStalled) and restarts < 1:
                 restarts += 1
                 args.eszamanli = max(1, args.eszamanli // 2)
+                args.requested_concurrency=args.eszamanli
+                if hasattr(args,'group_seeds'):
+                    args.group_seeds=[(seed+100003)%2147483647 for seed in args.group_seeds]
                 paths[:] = original_paths
                 print('DUB_WARNING engine_restart', flush=True)
                 print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
                 continue
-            memory_error = any(term in str(exc).lower() for term in ('out of memory', 'cuda error'))
+            memory_error = any(term in str(exc).lower() for term in ('out of memory', 'cuda error', 'kv cache calculation', 'no safe memory budget', 'gpu memory busy'))
             if isinstance(exc, EngineStalled) or (args.eszamanli <= 1 and memory_error):
                 paths[:] = original_paths
                 rate = recover_completed(args, cues, paths)
@@ -468,6 +495,7 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
             if args.eszamanli <= 1 or not memory_error:
                 raise
             args.eszamanli = max(1, args.eszamanli // 2)
+            args.requested_concurrency=args.eszamanli
             paths[:] = original_paths
             print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
 
@@ -622,10 +650,16 @@ def parse_args(argv=None):
     return args
 
 
-def main(argv=None):
+def main(argv=None, runtime=None):
     from kitap_voxcpm import resolve_prompt_text
 
     args = parse_args(argv)
+    from dub_runtime import Phases, measured
+    args.phases=Phases()
+    args.auto_capacity=True
+    args.runtime=runtime
+    args.reference_bytes=args.reference.read_bytes()
+    args.requested_concurrency=args.eszamanli
     try:
         prompt_text = resolve_prompt_text(args.reference, args.mode, args.transcript)
     except (OSError, ValueError) as exc:
@@ -675,7 +709,7 @@ def main(argv=None):
     for i in range(len(cues)):
         available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
 
-    ref_hash = file_sha256(args.reference)
+    ref_hash = hashlib.sha256(args.reference_bytes).hexdigest()
     # Audio identity excludes timing and batch capacity; changing tempo reuses speech.
     settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
@@ -704,11 +738,14 @@ def main(argv=None):
         if p.exists() and not valid_audio(p, sf):
             p.unlink()
     eksik = sum(1 for i, p in enumerate(paths) if not p.is_file() or args.group_keys[i] in args.force_groups)
-    reference_audio, reference_rate = sf.read(str(args.reference), dtype='float32')
+    import io
+    reference_audio, reference_rate = sf.read(io.BytesIO(args.reference_bytes), dtype='float32')
     print('DUB_REFERENCE ' + json.dumps(reference_quality(reference_audio, reference_rate)), flush=True)
 
     start = time.time()
     if eksik:
+        args.eszamanli=min(args.eszamanli,eksik)
+        args.requested_concurrency=args.eszamanli
         import torch
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA kullanilamiyor.")
@@ -739,6 +776,7 @@ def main(argv=None):
         total_s = args.range_end - args.range_start
         args.end_limit_ms = total_s * 1000
     sync = None
+    placement_began=time.monotonic()
     if args.timing_mode == 'video':
         timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
             args.max_hiz, parts_dir, args.bosluk_pay_ms)
@@ -749,6 +787,7 @@ def main(argv=None):
                                          overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
                                          end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
 
+    args.phases.seconds['placement']=time.monotonic()-placement_began
     # Explicit video/audio coordinates make saved projects and review independent
     # of the engine cache and of any current browser tab.
     offset = args.range_start or 0
@@ -772,6 +811,7 @@ def main(argv=None):
     wav_path = Path(wav_path)
     wav_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = wav_path.with_suffix(".tmp.wav")
+    write_began=time.monotonic()
     sf.write(str(tmp), timeline, sr, subtype="PCM_16")
     wav_path = _install_with_fallback(tmp, wav_path)
     if not args.no_norm:
@@ -800,6 +840,10 @@ def main(argv=None):
                      "file": str(paths[i]), "pause_ms": 0, "source_ids": groups[i]['source_ids']}
                     for i, (s, e, t) in enumerate(cues)]}
     write_manifest(wav_path, manifest)
+    args.phases.seconds['file_write']=time.monotonic()-write_began
+    phase_report=args.phases.snapshot()
+    wav_path.with_suffix('.performance.json').write_text(json.dumps(phase_report,indent=2),encoding='utf-8')
+    print('DUB_PHASES '+json.dumps(phase_report),flush=True)
 
     if args.video:
         mp4 = wav_path.with_name(wav_path.stem + "_dublajli.mp4")

@@ -11,7 +11,8 @@ const { validVoiceOutput } = require('./voice-output');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
-  let job = null;
+  let job = null, releasingEngine=false;
+  const warmEngine=require('./dub-engine-worker').createDubEngineWorker({spawn,terminate});
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
   let textUI = null;
   const plans = new Map();
@@ -48,7 +49,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
     const savedPath = key => typeof saved[key] === 'string' && saved[key].trim() && !saved[key].includes('\0') ? saved[key] : '';
     const engine = savedPath('engine') || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
-    return { engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
+    return { keepEngine:saved.keepEngine !== false, engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
       verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
@@ -91,7 +92,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
       elapsedSeconds: (performance.now() - s.started) / 1000, result: type,
-      progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
+      phases:s.phases||{}, progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
       exitSignal: s.exitSignal || null,
       cleanupErrors: s.cleanupErrors || [], ...data };
     summary.settings = s.settings || null;
@@ -156,14 +157,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return name;
   }
   ipcMain.handle('dub:referenceRename', guard(async (_e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     atomicWriteFileSync(p.metadata, JSON.stringify({ ...meta, name }), { encoding: 'utf8' });
     return { ok: true, name };
   }));
   ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const entry = referenceEntry(request.id);
     const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
     if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
@@ -174,7 +175,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true };
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name, true);
     const range = rangeOption(request.range);
     if (!range || range.end - range.start < 3 || range.end - range.start > 30) throw new Error('Select 3–30 seconds.');
@@ -213,11 +214,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     } finally { if (job === s && !s.keepOwner) job = null; }
   }));
   ipcMain.handle('dub:referenceSource', guard(async () => {
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const selected = await dialog.showOpenDialog(owner(), { properties: ['openFile'],
       filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg', 'opus', 'aac', 'wma'] }] });
     if (selected.canceled || !selected.filePaths[0]) return { ok: true, cancelled: true };
-    if (job || textUI || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const file = selected.filePaths[0];
     if (!fs.statSync(file).isFile()) throw new Error('Invalid reference file.');
     grantMedia(file);
@@ -299,12 +300,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, text };
   }));
   ipcMain.handle('dub:textUI', guard(async e => {
-    if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (textUI) return { ok: true, alreadyOpen: true };
     const c = config();
     const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
     const script = path.join(__dirname, '..', 'tools', 'voxcpm2', 'text_studio.py');
     if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
+    releasingEngine=true;
+    try{await warmEngine.release();}finally{releasingEngine=false;}
     const proc = spawn(python, [script, '--engine', c.engine, '--config', configPath(),
       '--reference', c.reference, '--transcript', c.transcript, '--storage', voiceStorage(app).root],
       { cwd: path.join(__dirname, '..'), env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -369,7 +372,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           extensions: [kind === 'reference' ? 'wav' : 'txt'] }],
       });
       if (!selected.canceled && selected.filePaths[0]) {
-        if (job || textUI || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
+        if (job || textUI || releasingEngine || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');
@@ -383,7 +386,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   ipcMain.handle('dub:start', guard(async (e, request = {}) => {
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
-    if (job || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
@@ -397,6 +400,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
       const forceGroups = request.forceGroups ?? [];
       if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      if(request.keepEngine!==undefined&&typeof request.keepEngine!=='boolean')throw Error('Invalid engine keep-ready option.');
+      c.keepEngine=request.keepEngine??c.keepEngine;
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
       c.naturalSpeech = request.naturalSpeech ?? c.naturalSpeech;
       if (typeof c.naturalSpeech !== 'boolean') throw new Error('Invalid speech editing option.');
@@ -437,7 +442,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       fs.mkdirSync(outputDir, { recursive: true });
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
-        output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav')]);
+        output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav'), output.replace(/\.wav$/i, '.performance.json')]);
       atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
@@ -544,10 +549,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const env = voiceEnvironment(c.engine);
       // Flush output and report native crashes in this process and spawned GPU workers.
       env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
-      s.proc = spawn(python, args, { cwd: c.engine, env, windowsHide: true });
+      s.proc = c.keepEngine ? await warmEngine.start(python,args,{cwd:c.engine,env,windowsHide:true}) : (await warmEngine.release(),spawn(python,args,{cwd:c.engine,env,windowsHide:true}));
       let pending = '';
       const rewriteRequests = new Set();
       function line(value) {
+        if(value.startsWith('DUB_FAILURE ')){try{const failure=JSON.parse(value.slice(12));emit(s,'warning',{text:String(failure.message||failure.kind).slice(0,1500)});}catch(_){}return;}
+        if(value.startsWith('DUB_STAGE ')||value.startsWith('DUB_PHASES ')){
+          try{const raw=JSON.parse(value.slice(value.startsWith('DUB_STAGE ')?10:11));const phases=raw.stage?{[raw.stage+'_seconds']:raw.seconds}:raw;const allowed=['model_load','reference','synthesis','verification','text_edit','placement','file_write','wall'].map(key=>key+'_seconds');s.phases={...(s.phases||{}),...Object.fromEntries(Object.entries(phases).filter(([key,n])=>allowed.includes(key)&&Number.isFinite(n)&&n>=0))};emit(s,'phases',{phases:s.phases});}catch(_){}return;
+        }
+        if(value.startsWith('DUB_ENGINE ')||value.startsWith('DUB_REFERENCE_CACHE ')||value.startsWith('DUB_CAPACITY ')){
+          try{const data=JSON.parse(value.slice(value.indexOf(' ')+1));emit(s,'engine',{kind:value.split(' ')[0],...data});}catch(_){}return;
+        }
         s.tail = (s.tail + '\n' + value).slice(-6000);
         // Evidence for recovering a file, never proof of acoustic quality.
         if (value.startsWith('Tamamlandi: ') && path.resolve(value.slice(12).trim()) === path.resolve(output)) s.completedMarker = true;
@@ -715,16 +727,16 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   ipcMain.handle('dub:cancel', guard(cancel));
   let quitting = false;
   app.on('before-quit', event => {
-    if (!job) return;
+    if (!job) { if(warmEngine.running()){event?.preventDefault?.();if(quitting)return;quitting=true;void warmEngine.release().then(()=>{quitting=false;app.quit?.();}).catch(()=>{quitting=false;});}return; }
     event?.preventDefault?.();
     if (quitting) return;
     quitting = true;
-    const finishQuit = () => { if (job) { setTimeout(finishQuit, 50).unref?.(); return; } quitting = false; app.quit?.(); };
+    const finishQuit = () => { if (job) { setTimeout(finishQuit, 50).unref?.(); return; } void warmEngine.release().then(()=>{quitting=false;app.quit?.();}).catch(()=>{quitting=false;}); };
     void cancel().then(finishQuit).catch(() => {
       quitting = false;
       if (job) emit(job, 'warning', { text: 'Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.' });
     });
   });
-  return { running: () => !!job || !!textUI, cancel };
+  return { running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
 }
 module.exports = { registerDubService };
