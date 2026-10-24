@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_528.md](BROWSER_BUG_REPORT_528.md) — medya arşiv taraması, yedek sıklığı ve modal/odak doğruluğu.
+
 Özellik/kanıt raporu: [LUNA_MEDIA_TOOLS_2026-10-24.md](LUNA_MEDIA_TOOLS_2026-10-24.md) — yapım kararları, arşiv sağlığı, yedekleme ve ortak asistan/dinleme araçları.
 
 Özellik/kanıt raporu: [LUNA_ADVANCED_MEDIA_2026-10-24.md](LUNA_ADVANCED_MEDIA_2026-10-24.md) — yorumlu zevk profili ve birleşik medya oynatma.

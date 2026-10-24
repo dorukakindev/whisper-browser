@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-24-1810.md](docs/devir/2026-10-24-1810.md) — Rapor528: arşiv taraması, yedek sıklığı ve gerçek modal/odak onarımları
 Güncel çalışma: [docs/devir/2026-10-24-1718.md](docs/devir/2026-10-24-1718.md) — Yapım yorumları, Bu akşam, arşiv/yedekleme, asistan ve dinleme profilleri
 Güncel çalışma: [docs/devir/2026-10-24-1649.md](docs/devir/2026-10-24-1649.md) — Luna güncel beta kaynaklarından sonraki özellik karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-24-1642.md](docs/devir/2026-10-24-1642.md) — Sessiz ana sayfa ve altyazı/dublajı koruyan açık oturuma dönüş
