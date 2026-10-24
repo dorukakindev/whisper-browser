@@ -4,6 +4,7 @@
   const modal = el('dubGeneratorDialog');
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
+  let runtimePhases={},runtimeError='';
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
   let deliverySource = '';
@@ -18,12 +19,15 @@
   };
   function generationError(value) {
     const message=String(value||'');
-    if(!/(?:KV cache calculation|no safe memory budget|CUDA.{0,30}out of memory|CUDA OOM)/i.test(message))return message;
+    if(!/(?:GPU memory busy|KV cache calculation|no safe memory budget|CUDA.{0,30}out of memory|CUDA OOM)/i.test(message))return message;
     const advice=window.UiLocale?.get?.()==='en'
       ? 'A safe GPU memory budget could not be allocated. Finish another GPU job or close a GPU-heavy application, then retry with fewer parallel groups. Changing the voice reference is not required.'
       : 'GPU için güvenli bellek bütçesi ayrılamadı. Diğer GPU işinin bitmesini bekleyin veya GPU kullanan ağır uygulamayı kapatıp daha az paralel grupla yeniden deneyin. Referans sesi değiştirmeniz gerekmiyor.';
     return advice+'\n\n'+message;
   }
+  function runtimeLabels(){const en=window.UiLocale?.get?.()==='en';el('dubKeepEngineLabel').textContent=en?'Keep the engine ready for 60 seconds after production':'Üretimden sonra motoru 60 saniye hazır tut';el('dubRuntimeHint').textContent=en?'GPU memory determines actual parallel capacity. Disabling keep-ready releases the previous engine when the next job starts; an idle engine closes automatically.':'Gerçek paralellik GPU belleğine göre belirlenir. Hazır tutmayı kapatınca önceki motor sonraki iş başlarken bırakılır; boşta kalan motor otomatik kapanır.';phaseSummary(runtimePhases);if(runtimeError)el('dubGeneratorDetails').textContent=generationError(runtimeError);}
+  function phaseSummary(phases){runtimePhases=phases;const en=window.UiLocale?.get?.()==='en',labels={model_load:en?'Model':'Model',reference:en?'Reference':'Referans',synthesis:en?'Speech':'Ses',verification:en?'Verification':'Doğrulama',text_edit:en?'Text editing':'Metin düzenleme',placement:en?'Timing':'Zamanlama',file_write:en?'File writing':'Dosya yazımı',wall:en?'Total elapsed':'Geçen toplam'};el('dubPhaseSummary').textContent=Object.entries(labels).filter(([key])=>Number.isFinite(phases[key+'_seconds'])).map(([key,label])=>label+': '+phases[key+'_seconds'].toFixed(1)+' '+(en?'s':'sn')).join(' · ');}
+  runtimeLabels();document.addEventListener('ui-locale-change',runtimeLabels);
   function refreshOverview() {
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
@@ -108,7 +112,7 @@
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
-    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
+    for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubKeepEngine', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
     el('dubFollowDelivery').disabled = locked;
     el('dubDeliveryStrength').disabled = locked || !el('dubFollowDelivery').checked;
@@ -138,6 +142,7 @@
     if (sequence !== configSequence) return;
     if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
+    if(!current)el('dubKeepEngine').checked=r.keepEngine!==false;
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
     if (!current) el('dubTimingMode').value = r.timingMode || 'video';
@@ -339,10 +344,11 @@
     el('dubGeneratorDetails').textContent = ''; el('dubGeneratorCount').textContent = '';
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
+    runtimePhases={};runtimeError='';el('dubPhaseSummary').textContent='';
     status('Motor yükleniyor…'); controls();
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
       dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
-      profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
+      keepEngine:el('dubKeepEngine').checked, profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
       expression: el('dubExpression').value,
       followDelivery:el('dubFollowDelivery').checked, deliveryStrength:el('dubDeliveryStrength').value,
       prosodySource: deliverySource || pending.context?.backgroundSource || '',
@@ -405,6 +411,8 @@
       status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
     } else if (event.type === 'group') updateResult(event.group);
+    else if(event.type==='phases')phaseSummary(event.phases);
+    else if(event.type==='engine'){if(event.kind==='DUB_ENGINE'&&event.reused)status(window.UiLocale?.get?.()==='en'?'Using the ready voice engine…':'Hazır ses motoru kullanılıyor…');if(event.kind==='DUB_CAPACITY')el('dubGeneratorDetails').textContent=(window.UiLocale?.get?.()==='en'?'GPU free memory: ':'GPU boş bellek: ')+event.freeMiB+' MiB · '+event.concurrency+' / '+event.requested;}
     else if (event.type === 'reference_quality') referenceInfo(event.quality);
     else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
     else if (event.type === 'status') status(event.text);
@@ -432,7 +440,7 @@
         }
       } else if (event.type === 'cancelled') status('Durduruldu.');
       else {
-        status('Ses üretimi başarısız oldu.'); el('dubGeneratorDetails').textContent = generationError(event.error);
+        status('Ses üretimi başarısız oldu.'); runtimeError=event.error||'';el('dubGeneratorDetails').textContent = generationError(runtimeError);
         if (event.recoverablePath && event.recoverableUrl) {
           output = {path:event.recoverablePath,url:event.recoverableUrl,name:event.name,syncInvalid:true};
           preview(output); el('dubGeneratedName').textContent = event.name || basename(output.path);

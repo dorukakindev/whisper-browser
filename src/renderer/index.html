@@ -3693,6 +3693,8 @@
       <p id="dubPresetSummary" role="status"></p>
 <div class="dub-generator-row"><label for="dubProfile">Ses kalitesi</label><select id="dubProfile"><option value="quality">Kaliteli (15 adım)</option><option value="fast">Hızlı (10 adım)</option></select></div>
   <div class="dub-generator-row"><label for="dubConcurrency">Paralel üretim</label><select id="dubConcurrency"><option value="4">4 grup (az bellek)</option><option value="8">8 grup (daha fazla bellek)</option></select></div>
+  <label class="dub-check" data-ui-untranslated><input type="checkbox" id="dubKeepEngine" checked><span id="dubKeepEngineLabel"></span></label>
+  <p id="dubRuntimeHint" data-ui-untranslated></p>
   <div class="dub-generator-row"><label for="dubGrouping">Konuşma gruplama</label><select id="dubGrouping"><option value="akici">Akıcı konuşma blokları (önerilen)</option><option value="cumle">Cümle grupları</option><option value="satir">Her altyazı satırı ayrı</option></select></div>
   <p>Akıcı mod yakın kısa cümleleri birlikte seslendirir. Konuşmacı değişimi ve uzun sessizlikler korunur; altyazı zamanları kaybolmaz.</p>
 <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
@@ -3798,7 +3800,7 @@
   <span id="dubGeneratorCount" data-ui-untranslated></span>
   </div><div class="dub-job-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
-  </div><pre id="dubGeneratorDetails" data-ui-untranslated></pre>
+  </div><p id="dubPhaseSummary" role="status" data-ui-untranslated></p><pre id="dubGeneratorDetails" data-ui-untranslated></pre>
     <p id="dubReferenceQuality" role="status"></p>
 <p id="dubGeneratedName" data-ui-untranslated></p>
   <progress id="dubGeneratorProgress" max="100" value="0"></progress>

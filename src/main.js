@@ -17662,6 +17662,8 @@ ipcMain.handle('browser:network:setOnline', (event, online) => {
 
 ipcMain.handle('browser:liveAsr:start', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if(dubService.running())return {ok:false,error:'Voice generation is active.'};
+  try{await dubService.releaseIdle();}catch(error){return {ok:false,error:error.message};}
   const tab = activeRequestedBrowserTab(request && request.tabId);
   return startBrowserLiveAsr(tab, request || {});
 });
@@ -19396,7 +19398,7 @@ ipcMain.handle('models:delete', async (event, input = {}) => {
 
 ipcMain.handle('models:benchmark', async (event, options = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (dubService.running() || activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'GPU kullanan başka bir iş çalışırken benchmark başlatılamaz.' };
   }
   const picked = await dialog.showOpenDialog(mainWindow, {
@@ -19406,9 +19408,10 @@ ipcMain.handle('models:benchmark', async (event, options = {}) => {
   });
   if (picked.canceled || !picked.filePaths[0]) return { ok: false, canceled: true };
   // The native dialog yields; a different request may have acquired the GPU.
-  if (activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
+  if (dubService.running() || activeJob || burninJob || burninStartPending || browserLiveAsr || modelBenchmarkJob || modelProcesses.size) {
     return { ok: false, error: 'Dosya seçimi sırasında başka bir model veya gömme işi başladı.' };
   }
+  try{await dubService.releaseIdle();}catch(error){return {ok:false,error:error.message};}
   const settings = loadSettings();
   const ui = settings.ui || {};
   const requestedModel = String(options.model || ui.model || 'small');
@@ -20916,6 +20919,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   jobStarting = true;
   const startSeq = ++jobStartSeq;
   try {
+  await dubService.releaseIdle();
   if (options.youtube) {
     const youtubeUrl = decideUrlPolicy(options.youtube, 'renderer-external');
     if (youtubeUrl.action !== 'external' || !['http:', 'https:'].includes(youtubeUrl.protocol)

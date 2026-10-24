@@ -1,0 +1,113 @@
+"""Private process-local timing and bounded warm-engine ownership."""
+import asyncio
+from contextlib import contextmanager, nullcontext
+import hashlib
+import json
+import time
+
+class Phases:
+    def __init__(self, clock=time.monotonic):
+        self.clock, self.started, self.seconds = clock, clock(), {}
+    @contextmanager
+    def measure(self, name):
+        began = self.clock()
+        try:
+            yield
+        finally:
+            self.seconds[name] = self.seconds.get(name, 0) + max(0, self.clock()-began)
+            print('DUB_STAGE '+json.dumps({'stage':name,'seconds':round(self.seconds[name],4)}), flush=True)
+    def snapshot(self):
+        return {**{key+'_seconds':round(value,4) for key,value in self.seconds.items()},
+                'wall_seconds':round(self.clock()-self.started,4)}
+
+def measured(args, name):
+    meter=getattr(args,'phases',None)
+    return meter.measure(name) if meter else nullcontext()
+
+def capacity(free, total, requested, maximum=.8):
+    """Conservative cold-start advisory; never override engine KV safety checks."""
+    if total<=0 or free<0 or free>total:
+        return requested, maximum
+    gib=1024**3
+    usable=max(0,free-.6*gib)
+    parallel=8 if usable>=10*gib else 4 if usable>=8*gib else 2 if usable>=6.5*gib else 1
+    # This is an upper fraction of total VRAM, not a fraction of free VRAM.
+    # Too small a fraction can put the model itself above its KV-cache budget.
+    budget=min(maximum,max(.1,usable/total))
+    return min(requested,parallel),round(budget,3)
+
+def choose_capacity(args):
+    import torch
+    free,total=torch.cuda.mem_get_info()
+    requested=getattr(args,'requested_concurrency',args.eszamanli)
+    parallel,budget=capacity(free,total,requested,args.gpu_mem)
+    if free<5.5*1024**3:
+        raise RuntimeError('GPU memory busy: less than 5.5 GiB free; finish another GPU job and retry. The reference is unchanged.')
+    args.eszamanli=parallel
+    print('DUB_CAPACITY '+json.dumps({'requested':requested,'concurrency':parallel,'freeMiB':round(free/1024**2),'totalMiB':round(total/1024**2),'budget':budget}),flush=True)
+    print('DUB_CONCURRENCY '+str(parallel),flush=True)
+    return parallel,budget
+
+class EngineSession:
+    def __init__(self):
+        self.loop=asyncio.new_event_loop()
+        self.server=None
+        self.key=None
+        self.reference=None
+        self.loaded=None
+        self.verifier=None
+        self.verifier_python=None
+    def run(self, coroutine):
+        return self.loop.run_until_complete(coroutine)
+    async def acquire(self, args, model, factory, ref_bytes, prompt):
+        from dub_lifecycle import bounded_call
+        requested=getattr(args,'requested_concurrency',args.eszamanli)
+        key=(model,args.steps,args.batch_tokens,args.max_model_len,args.gpu_mem)
+        if self.server is not None and self.key==key:
+            args.eszamanli=min(requested,self.loaded['concurrency'])
+            print('DUB_ENGINE '+json.dumps({'reused':True,'concurrency':args.eszamanli}),flush=True)
+            return self.server
+        await self.reset()
+        parallel,budget=choose_capacity(args)
+        self.server=factory(model,devices=[0],inference_timesteps=args.steps,max_num_seqs=parallel,
+            max_num_batched_tokens=args.batch_tokens,max_model_len=args.max_model_len,
+            gpu_memory_utilization=budget,enforce_eager=False)
+        self.key=key
+        self.loaded={'concurrency':parallel}
+        await bounded_call(self.server.wait_for_ready(),args.ready_timeout)
+        print('DUB_ENGINE '+json.dumps({'reused':False,'concurrency':parallel}),flush=True)
+        return self.server
+    async def prepare_reference(self,args,wav,prompt):
+        from dub_lifecycle import bounded_call
+        key=(hashlib.sha256(wav).hexdigest(),prompt)
+        if self.reference and self.reference[0]==key:
+            print('DUB_REFERENCE_CACHE '+json.dumps({'reused':True}),flush=True)
+            return self.reference[1:]
+        if self.reference and self.reference[2]:
+            await bounded_call(self.server.remove_prompt(self.reference[2]),args.ready_timeout)
+        self.reference=None
+        lat=await bounded_call(self.server.encode_latents(wav,'wav'),args.ready_timeout)
+        pid=await bounded_call(self.server.add_prompt(wav,'wav',prompt),args.ready_timeout) if prompt else None
+        self.reference=(key,lat,pid)
+        print('DUB_REFERENCE_CACHE '+json.dumps({'reused':False}),flush=True)
+        return lat,pid
+    async def get_verifier(self, python, factory):
+        if self.verifier is not None and (self.verifier_python!=str(python) or getattr(self.verifier,'unavailable',False)):
+            await self.verifier.close()
+            self.verifier=None
+        if self.verifier is None:
+            self.verifier=factory(python)
+            self.verifier_python=str(python)
+        return self.verifier
+    async def reset(self):
+        from dub_lifecycle import stop_server
+        server=self.server
+        self.server=None;self.key=None;self.reference=None;self.loaded=None
+        verifier=self.verifier;self.verifier=None;self.verifier_python=None
+        try:
+            if verifier is not None: await verifier.close()
+        finally:
+            if server is not None: await stop_server(server)
+    def close(self):
+        try:self.run(self.reset())
+        finally:self.loop.close()
