@@ -174,6 +174,8 @@
   }
   function page(value) {
     state.page = value; state.limit = 48; state.filter = 'all';
+    host.dataset.page = value;
+    host.scrollTop = 0;
     host.querySelectorAll('[data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === value ? 'page' : 'false'));
     host.querySelectorAll('[data-home-mode]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.homeMode === (['music', 'radio'].includes(value) ? 'music' : value === 'books' ? 'books' : 'film'))));
     renderContent();

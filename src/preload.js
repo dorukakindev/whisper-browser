@@ -6,6 +6,8 @@ const RESOURCE_SOAK_MODE = typeof process !== 'undefined'
   && process.env && process.env.WHISPER_RESOURCE_SOAK === '1';
 
 contextBridge.exposeInMainWorld('api', {
+  updateAssistant: value => ipcRenderer.send('assistant:update', value),
+  onAssistantCommand: listener => ipcRenderer.on('assistant:command', (_event, packet) => listener(packet)),
   resourceSoakMode: RESOURCE_SOAK_MODE,
   browserLimits: Object.freeze({ maxTabs: MAX_SESSION_TABS }),
   // Sürüklenen File nesnesinden gerçek disk yolu (Electron 32+'da file.path kaldırıldı)

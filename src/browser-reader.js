@@ -1,6 +1,8 @@
 // Guvenilir isolated world, uzak sayfanin HTML'ini yeniden calistirmadan
 // yalniz okunabilir metin ve medya dugumlerini bir okuma katmanina kopyalar.
 const READER_ACTIONS = new Set(['toggle', 'open', 'close', 'preferences']);
+const DEFUDDLE_SOURCE = require('node:fs').readFileSync(require('node:path').join(__dirname, 'vendor', 'defuddle', 'defuddle.js'), 'utf8');
+const buildDefuddleBootstrapScript = () => `(() => { if (typeof globalThis.Defuddle !== 'function') { ${DEFUDDLE_SOURCE} } return true; })()`;
 
 function normalizeReaderPreferences(raw = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
@@ -62,13 +64,25 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     const nativeRoot = roots[0] || document.body;
     const nativeStats = statRows.find((row) => row.native) || statRows[0];
     const bestStats = measured[0] || nativeStats;
-    const candidate = bestStats && bestStats.score >= Math.round((nativeStats?.score || 1) * 1.15) && bestStats.textLength >= (nativeStats?.textLength || 0)
+    let candidate = bestStats && bestStats.score >= Math.round((nativeStats?.score || 1) * 1.15) && bestStats.textLength >= (nativeStats?.textLength || 0)
       ? bestStats.root : nativeRoot;
     if (!candidate) return { ok: false, active: false, error: 'Okunabilir sayfa govdesi bulunamadi.' };
+    let extractor = candidate === nativeRoot ? 'native' : 'readability-heuristic';
+    try {
+      if (document.body?.textContent?.length <= 2000000 && document.getElementsByTagName('*').length <= 30000) {
+        // Run only on an inert clone. Never change the live video/page DOM or
+        // fetch third-party transcripts, and always sanitize the resulting HTML.
+        const parsed = new globalThis.Defuddle(document.cloneNode(true), { url: location.href, useAsync: false, removeHiddenElements: false, removeSmallImages: false, includeReplies: false }).parse();
+        const cleaned = new DOMParser().parseFromString(String(parsed.content || ''), 'text/html').body;
+        const originalParagraphs = [...candidate.querySelectorAll('p')].filter(p => !p.closest('nav,aside,footer,header')).reduce((sum, p) => sum + (p.textContent || '').length, 0);
+        const minimum = Math.max(180, Math.min(2000, originalParagraphs * .6));
+        if ((cleaned.textContent || '').trim().length >= minimum) { candidate = cleaned; extractor = 'defuddle-0.19.5'; }
+      }
+    } catch (_) { /* Existing bounded extractor is the fallback. */ }
     const title = String(document.querySelector('h1')?.textContent || document.title || '').trim().slice(0, 500);
     const byline = String(document.querySelector('[rel="author"],.byline,.author,[itemprop="author"]')?.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 300);
     const allowed = new Set(['P','H1','H2','H3','H4','BLOCKQUOTE','PRE','CODE','UL','OL','LI','FIGURE','FIGCAPTION','IMG','A','EM','STRONG','B','I','HR']);
-    const ignored = new Set(['SCRIPT','STYLE','NOSCRIPT','TEMPLATE','SVG','IFRAME','OBJECT','EMBED','HEAD']);
+    const ignored = new Set(['SCRIPT','STYLE','NOSCRIPT','TEMPLATE','SVG','IFRAME','OBJECT','EMBED','HEAD','NAV','ASIDE','FOOTER','FORM']);
     const safeUrl = (value, kind) => { try { const url = new URL(String(value || ''), location.href); if (url.protocol === 'https:' || url.protocol === 'http:' || (kind === 'image' && url.protocol === 'data:' && /^data:image\\//i.test(url.href))) return url.href; } catch (_) {} return ''; };
     const copy = (node, depth = 0) => {
       if (!node || depth > 80) return null;
@@ -86,7 +100,7 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
       return element;
     };
     const article = copy(candidate);
-    const textLength = String(candidate.innerText || '').trim().length;
+    const textLength = String(candidate.innerText || candidate.textContent || '').trim().length;
     if (!article || textLength < 180) return { ok: false, active: false, error: 'Yeterli makale metni bulunamadi; okuma gorunumu en az 180 karakterlik metin ister.' };
     const normalizeHeading = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
     const copiedTitle = article.querySelector?.('h1');
@@ -138,7 +152,7 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
     const state = { fontSize: requested.fontSize, lineHeight: requested.lineHeight, width: requested.width };
     const apply = () => { shell.style.setProperty('--reader-font', state.fontSize + 'px'); shell.style.setProperty('--reader-line', String(state.lineHeight)); shell.style.setProperty('--reader-width', state.width + 'px'); };
     const snapshot = () => ({ ok: true, active: true, title, textLength, headings: headings.length,
-      extractor: candidate === nativeRoot ? 'native' : 'readability-heuristic',
+      extractor,
       readerComparison: { native: nativeStats ? { ...nativeStats, root: undefined } : null,
         selected: bestStats ? { ...bestStats, root: undefined } : null,
         candidates: measured.slice(0, 8).map(({ root, ...row }) => row) },
@@ -158,4 +172,4 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
   })()`;
 }
 
-module.exports = { buildBrowserReaderScript, normalizeReaderPreferences, scoreReaderCandidate, chooseReaderCandidate };
+module.exports = { buildBrowserReaderScript, buildDefuddleBootstrapScript, normalizeReaderPreferences, scoreReaderCandidate, chooseReaderCandidate };

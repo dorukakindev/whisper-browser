@@ -19544,7 +19544,17 @@ function subtitleContextLanguage(role) {
     || langFromPath(channel.path) || '').toUpperCase();
 }
 
+function globalAssistantContext() {
+  if (!$('playerLayer')?.classList.contains('hidden')) return null;
+  const home = document.body.classList.contains('media-home-active');
+  return { workspace: home ? 'media-library' : 'subtitle-studio',
+    page: home ? ($('mediaHome')?.dataset.page || 'home') : 'studio',
+    heading: home ? ($('mhContent')?.querySelector('h1,h2')?.textContent || '') : '',
+    note: 'No active video is attached. Do not infer contents of a previously opened video.' };
+}
 function aiSourceScope() {
+  const global = globalAssistantContext();
+  if (global) return JSON.stringify(['global', global.workspace, global.page]);
   return JSON.stringify([player.workspaceMode,player.mediaKey,player.generation,player.browserActiveTabId]);
 }
 function aiVideoRows() {
@@ -19557,6 +19567,8 @@ function aiVideoRows() {
   return source.map((cue,index)=>({...cue,translation:translated[index]||''}));
 }
 function aiChatContext() {
+  const global = globalAssistantContext();
+  if (global) return global;
   if(player.workspaceMode==='browser')return {
     ...window.BrowserAiContext.context(aiVideoRows(),player.browserTime,$('aiTranscriptScope')?.value),
     video:$('playerTitle')?.textContent||'',
@@ -19596,6 +19608,7 @@ function aiChatContext() {
 }
 
 function aiTranscriptEvidence(question) {
+  if (globalAssistantContext()) return null;
   if (!window.BrowserTranscriptSearch?.buildTranscriptEvidence) return null;
   if(player.workspaceMode==='browser')return window.BrowserTranscriptSearch.buildTranscriptEvidence(aiVideoRows(),question,{
     scope:$('aiTranscriptScope')?.value||'watched',position:player.browserTime,limit:40,
@@ -19816,7 +19829,7 @@ async function aiChatSend(soru, translationTarget = null) {
   const preparing={scope:sourceScope,cancelled:false};
   aiChatPreparing=preparing;updateAiChatActions();
   let chatSourceTabId = '';
-  if (player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.getBrowserPageContext) {
+  if (!globalAssistantContext() && player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.getBrowserPageContext) {
     const requestedPageTabId = player.browserActiveTabId;
     let timer;
     const page = await Promise.race([Promise.resolve().then(()=>window.api.getBrowserPageContext(requestedPageTabId)).catch(() => null),

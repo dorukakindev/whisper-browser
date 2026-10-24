@@ -64,12 +64,12 @@
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
 /* Scoped media shell: player, browser and studio styles remain independent. */
-body.media-home-active { height: auto; min-height: 100vh; overflow: auto; }
+body.media-home-active { height: 100vh; overflow: hidden; }
 body.media-home-active > .app > .app-header,
 body.media-home-active > .app > .app-main { display: none; }
 body.media-home-active > .app { min-height: 0; height: 0; }
 html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .media-surface { --bg-0: #080809; --bg-1: #111113; --bg-2: #18181b; --bg-3: #252529; --border: #28282d; --border-strong: #44444b; --text: #f3f3f5; --text-dim: #a5a5af; --text-muted: #90909b; --accent: #e8701a; --accent-hover: #fb8b36; --accent-contrast: #18100b; }
-.media-home { color: var(--text); background: var(--bg-0); min-height: 100vh; font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; }
+.media-home { color: var(--text); background: var(--bg-0); height: 100vh; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; }
 .mh-titlebar { height: var(--window-controls-safe-height, 38px); -webkit-app-region: drag; border-bottom: 1px solid var(--border); }
 .mh-header { display: flex; align-items: center; gap: 12px; padding: 16px 32px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .mh-brand { display: flex; align-items: center; gap: 8px; margin-right: 3px; font-size: 19px; font-weight: 650; letter-spacing: -.5px; }

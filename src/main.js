@@ -264,7 +264,7 @@ const { browserProtectionMessage, browserTabProtectionReasons, browserTabUnloadD
   groupBrowserProcessMetrics, normalizeBrowserPageResourceMetrics,
   summarizeBrowserResourceBudgets, updateBrowserPlaybackState } = require('./browser-tab-resources');
 const { browserShortcutForInput } = require('./browser-command-palette');
-const { buildBrowserReaderScript, normalizeReaderPreferences } = require('./browser-reader');
+const { buildBrowserReaderScript, buildDefuddleBootstrapScript, normalizeReaderPreferences } = require('./browser-reader');
 const { researchAnnotationsToMarkdown, scheduleReview } = require('./browser-research-notebook');
 const {
   SUPPORTED_BROWSER_PERMISSIONS,
@@ -582,6 +582,7 @@ if (!hasSingleInstanceLock) {
   });
 }
 let mainWindow;
+let assistantOverlay;
 let mainWindowClosing = false;
 // Kapanista renderer'in son izleme kaydini yazmasi icin verilen sure. Sinirsiz
 // beklemek uygulamayi kilitler; hic beklememek son ilerlemeyi kaybettirir.
@@ -13404,6 +13405,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   view.setBackgroundColor('#ffffff');
   view.setVisible(false);
   mainWindow.contentView.addChildView(view);
+  assistantOverlay?.raise();
   // Yeni view bounds'suz tam pencere kaplıyor; setVisible(false) Windows'ta
   // HWND'i işaretçi testinden düşürmediği için boş-sekme yüzeyi ölüyordu.
   // Layout gösterene dek ekran dışına taşı.
@@ -14968,6 +14970,7 @@ function createWindow() {
 
   if (st && st.maximized) mainWindow.maximize();
 
+  assistantOverlay = require('./assistant-overlay').createAssistantOverlay({ window: mainWindow, WebContentsView, ipcMain });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindowClosing = false;
   browserSessionFinalizedForQuit = false;
@@ -15602,6 +15605,7 @@ ipcMain.handle('browser:reader', async (event, request = {}) => {
       : 'Sayfanın güvenli biçimde hazır olması bekleniyor; biraz sonra yeniden deneyin.' };
   }
   const preferences = normalizeReaderPreferences(request.preferences || tab.readerPreferences);
+  if (action === 'open' || action === 'toggle') await executeBrowserTrustedMain(tab.view, buildDefuddleBootstrapScript()).catch(() => []);
   const [result] = await executeBrowserTrustedMain(tab.view, buildBrowserReaderScript(action, preferences)).catch(() => []);
   if (!result?.ok) return { ok: false, error: result?.error || 'Okuma görünümü oluşturulamadı.' };
   tab.readerActive = !!result.active;
