@@ -5,7 +5,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 | ID | Durum | Kullanıcıya sağlanacak sonuç | Tamamlanma kanıtı |
 |---|---|---|---|
 | P01 | Tamamlandı | Raf okuyucusundaki açık bölümü açık bir eylemle sesli üretimde aç; üretimden kitaba dön. | EPUB kaynak kimliği/spine veya doğrulanmış PDF sayfası eşleşir; kaynak değişmiş/eksikse yanlış bölüme sessiz geçiş yapılmaz. EskiN39. |
-| P02 | Bekliyor | Takipli okuyucuda sayfa/pasaj yer imi; yer iminden doğru bölüm ve ses konumuna dön. | Kalıcı kitap/bölüm/metin kimliği, bölüm değişimi ve metin düzenlemesinde eski konumun dürüst gösterimi. EskiN37. |
+| P02 | Tamamlandı | Takipli okuyucuda sayfa/pasaj yer imi; yer iminden doğru bölüm ve ses konumuna dön. | Kalıcı kitap/bölüm/metin kimliği, bölüm değişimi ve metin düzenlemesinde eski konumun dürüst gösterimi. EskiN37. |
 | P03 | Bekliyor | PDF'den gelen bölünmüş sözcükleri isteğe bağlı hazırlama önizlemesinde ele al. | Değişiklikler önce/sonra gösterilir, tek tek seçilebilir; özel ad/kısaltma/sayısal aralık korunur; özgün PDF değişmez. EskiN32. |
 | P04 | Bekliyor | Aynı metnin ses denemelerini karşılaştırıp uygun denemeyi seç. | Önceki çıktı silinmez; farklı metin sürümü güncelmiş gibi onaylanmaz; karşılaştırma ve seçim dinleme UI'ından yapılır. EskiN30. |
 | P05 | Bekliyor | Üretim öncesi güncel konuşma gruplarını ve metindeki değişiklikleri görünür yap. | Kaynak/plan kimliği sabittir; eski key başka parçayı hedeflemez; önbellek tekrar kullanımı ölçülmeden kesin sayı/hız vaat edilmez. EskiN41/N43 ve mevcut onarımların devamı. |
@@ -27,3 +27,6 @@ Eski `NIGHT_WORK_2026-10-25.md` tarihsel kanıt ve kalan düşük öncelikli iş
 
 ## P01 kanıtı —12:11
 Ürün4ab4677a58f1bba4f5e256ddd58183b048665dab/Rapor568.9hedefliPASS/nativeWindowsgerçekEPUBikinci bölümgidişdönüş+PDFpage2exit0görüntüincelendi; GPU otomatikbaşlamaz. BulunanmainwriterimportvekitaplararasıvoicePrefs hatasıdadüzeldi. Size/mtimekaynak kontrolü; eski kaynakkimliğiyokvedüzenlenmişmetin eşleştirilmez. Sonraki P02 yerimi/gerçekkonum ve metinsürümü; P03hazırlamaönizlemesi. P02–P10henüztamamdeğil.
+
+## P02 kanıtı — 12:34
+Ürün `6579a715f68e27af78879cae95b9ea32dc262295`, Rapor569. 18 hedefli PASS; ayrı profilde native Windows exit0 (`.uiprev/book-reliability549-1792920743462`), gerçek pasaj seçimi/bölüm dönüşü/yeni ses grup başlangıcı/metin değişimi. Görüntüler incelendi. Yeni bağımlılık yok; opsiyonel bookmarks alanı. Gerçek GPU/TTS/canlı API doğrulanmadı. Sıradaki P03 hazırlama önizlemesi, ardından P04 ses denemeleri; P03–P10 açık.

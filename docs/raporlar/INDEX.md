@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_569.md](BROWSER_BUG_REPORT_569.md) — Pasaj yer imi, gerçek ses konumu ve sürüm kontrolü.
+
 - [BROWSER_BUG_REPORT_568.md](BROWSER_BUG_REPORT_568.md) — Kaynak bölüm/üretim bağlantısı ve iki gerçek bütünleşme onarımı.
 
 - [BROWSER_BUG_REPORT_567.md](BROWSER_BUG_REPORT_567.md) — Üretim projesine güvenli kapak ve EPUB kaynak kimliği aktarımı.
