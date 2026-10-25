@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_571.md](BROWSER_BUG_REPORT_571.md) — Metin kimliğiyle ses denemelerini karşılaştırma ve seçme.
+
 - [BROWSER_BUG_REPORT_570.md](BROWSER_BUG_REPORT_570.md) — Seçerek PDF seslendirme metni hazırlama ve bayat önizleme engeli.
 
 - [BROWSER_BUG_REPORT_569.md](BROWSER_BUG_REPORT_569.md) — Pasaj yer imi, gerçek ses konumu ve sürüm kontrolü.

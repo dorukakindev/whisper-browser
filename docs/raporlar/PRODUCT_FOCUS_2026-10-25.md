@@ -7,7 +7,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 | P01 | Tamamlandı | Raf okuyucusundaki açık bölümü açık bir eylemle sesli üretimde aç; üretimden kitaba dön. | EPUB kaynak kimliği/spine veya doğrulanmış PDF sayfası eşleşir; kaynak değişmiş/eksikse yanlış bölüme sessiz geçiş yapılmaz. EskiN39. |
 | P02 | Tamamlandı | Takipli okuyucuda sayfa/pasaj yer imi; yer iminden doğru bölüm ve ses konumuna dön. | Kalıcı kitap/bölüm/metin kimliği, bölüm değişimi ve metin düzenlemesinde eski konumun dürüst gösterimi. EskiN37. |
 | P03 | Tamamlandı | PDF'den gelen bölünmüş sözcükleri isteğe bağlı hazırlama önizlemesinde ele al. | Değişiklikler önce/sonra gösterilir, tek tek seçilebilir; özel ad/kısaltma/sayısal aralık korunur; özgün PDF değişmez. EskiN32. |
-| P04 | Bekliyor | Aynı metnin ses denemelerini karşılaştırıp uygun denemeyi seç. | Önceki çıktı silinmez; farklı metin sürümü güncelmiş gibi onaylanmaz; karşılaştırma ve seçim dinleme UI'ından yapılır. EskiN30. |
+| P04 | Tamamlandı | Aynı metnin ses denemelerini karşılaştırıp uygun denemeyi seç. | Önceki çıktı silinmez; farklı metin sürümü güncelmiş gibi onaylanmaz; karşılaştırma ve seçim dinleme UI'ından yapılır. EskiN30. |
 | P05 | Bekliyor | Üretim öncesi güncel konuşma gruplarını ve metindeki değişiklikleri görünür yap. | Kaynak/plan kimliği sabittir; eski key başka parçayı hedeflemez; önbellek tekrar kullanımı ölçülmeden kesin sayı/hız vaat edilmez. EskiN41/N43 ve mevcut onarımların devamı. |
 | P06 | Bekliyor | Kalite ve iş durumlarını anlaşılır EN/TR etiketleriyle göster. | Ham review/failed kodları yerine açık etiket; dil değişince kullanıcı metni çevrilmez; durdurma/timeout/gerçek hata ayrımı korunur. EskiN45. |
 | P07 | Bekliyor | Dar ekran ve yüksek DPI'da okuyucu/kalite/üretim düğmelerini erişilebilir tut. |800px ve125% kontrolü, klavye odak sırası, iç içe kaydırma ve düğme örtüşmesi için gerçek görüntü/etkileşim. EskiN29/N33. |
@@ -33,3 +33,6 @@ Eski `NIGHT_WORK_2026-10-25.md` tarihsel kanıt ve kalan düşük öncelikli iş
 
 ## P03 kanıtı — 12:37
 Ürün `c5777ab4cd967c29ece8a8ba112c64d734c6f7a4`, Rapor570. PDF bölüm editöründe seçimsiz öneriler, tek tek birleştirme/tire koruma, bayat snapshot engeli ve taslak geri alma. 8 hedefli PASS; Windows native exit0 `.uiprev/book-reliability549-1792920999543`, gerçek UI kaydet/geri al ve kaynak PDF SHA256 değişmezliği. Görüntü incelendi. Sözlük/özel ad tanıma değildir; büyük harfli sözcükler ve sayılar önerilmez. Sıradaki P04 ses denemelerini karşılaştırma; P04–P10 açık.
+
+## P04 kanıtı — 12:49
+Ürün `60009a2bf4f13bde4554469387dd829514243b7d`, Rapor571. Ses denemesi metadata kimlikleri, iki kayıt karşılaştırması, tek ses çalma, eski metni seçme engeli ve eski dosyaları silmeden açık seçim. 16 hedefli PASS; Windows native exit0 `.uiprev/book-reliability549-1792921687459`, gerçek kontrollü WAV/UI seçimi ve geri seçim; görüntü incelendi. Son eksik-dosya ayrımı hizmet testinde tekrar geçti. Aktif + yakın 30 metadata, daha eski dosyalar korunur; eski sahipsiz WAV geçmişi tahmin edilmez. Gerçek TTS/GPU henüz sınanmadı. Sıradaki P05 güncel grup planı; P05–P10 açık.
