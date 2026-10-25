@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_545.md](BROWSER_BUG_REPORT_545.md) — Konuşma bütünlüğü, uzun tek cue ve iki dakikalık gerçek ses karşılaştırması.
+
 - [BROWSER_BUG_REPORT_544.md](BROWSER_BUG_REPORT_544.md) — Üç gerçek GPU tekrarı, iptal/devam, Whisper devri ve iki onarım.
 
 - [BROWSER_BUG_REPORT_543.md](BROWSER_BUG_REPORT_543.md) — Dublaj aşama süreleri, sınırlı sıcak motor, GPU kapasitesi ve gerçek karşılaştırmalar.
