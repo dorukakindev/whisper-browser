@@ -1,4 +1,4 @@
-- [Rapor 587](BROWSER_BUG_REPORT_587.md) — Aynı sahnede çeviri, telaffuz ve eski/yeni dublaj karşılaştırması
+- [Rapor 588](BROWSER_BUG_REPORT_588.md) — Aynı sahnede çeviri, telaffuz ve eski/yeni dublaj karşılaştırması
 - [Rapor 586](BROWSER_BUG_REPORT_586.md) — Videoya bağlı dublaj ve yalnız sese uygulanan telaffuz sözlüğü
 # BROWSER_BUG_REPORT dizini
 

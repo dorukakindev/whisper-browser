@@ -1,4 +1,4 @@
-# Rapor587 — Aynı sahnede çeviri, telaffuz ve onarım karşılaştırması
+# Rapor588 — Aynı sahnede çeviri, telaffuz ve onarım karşılaştırması
 
 25 Ekim 2026. Repo https://github.com/dorukakindev/whisper-browser; dal `codex/dub-scene587`. Başlangıç master `263d72c9c619630b9e193fd50cdbb8c0a32e1264`; bitiş ürün `bb6283e78f25826b3640c5479cec8b0d66458996`. Kullanıcı gerçek kısa sahne üzerinden beş çalışma alanını onayladı. Ana kopyadaki üç kişisel belge değişikliği ve untracked dosyalara dokunulmadı. Bu tur master'a merge yapılmadı.
 
