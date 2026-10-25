@@ -1,3 +1,4 @@
+- [Rapor 586](BROWSER_BUG_REPORT_586.md) — Videoya bağlı dublaj ve yalnız sese uygulanan telaffuz sözlüğü
 # BROWSER_BUG_REPORT dizini
 
 - [BROWSER_BUG_REPORT_585.md](BROWSER_BUG_REPORT_585.md) — Gerçek GPU dört ses A/B, tek grup onarımı ve dar çeviri/ASR yanlış alarm düzeltmeleri.
