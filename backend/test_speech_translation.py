@@ -11,6 +11,19 @@ T = F.T
 
 
 class SpeechTranslationTests(unittest.TestCase):
+    def test_delivery_contract_is_source_anchored_in_both_speech_passes(self):
+        initial = T.build_translate_prompt('tr', 'en', [], for_speech=True)
+        review = T.build_refine_prompt('tr', for_speech=True)
+        for prompt in (initial, review):
+            self.assertIn('retorik soru', prompt)
+            self.assertIn('anlamli tekrar', prompt)
+        self.assertNotIn('retorik soru', T.build_translate_prompt('tr', 'en', []))
+        self.assertNotIn('retorik soru', T.build_refine_prompt('tr'))
+        args = F._TrArgs(translate_for_speech=True)
+        current = T.translate_cache_key('Wait... why?', args, 'tr', 'en')
+        with patch.object(T, 'SPEECH_TRANSLATION_PROTOCOL', 'speech-v6-context-review'):
+            self.assertNotEqual(current, T.translate_cache_key('Wait... why?', args, 'tr', 'en'))
+
     def test_speech_prompt_preserves_contract_and_is_opt_in(self):
         ordinary = T.build_translate_prompt('tr', 'en', [])
         speech = T.build_translate_prompt('tr', 'en', [], for_speech=True)
@@ -150,6 +163,13 @@ class SpeechTranslationTests(unittest.TestCase):
         many=[(0,'',{'terms':{str(i):'terim' for i in range(100)}})]
         self.assertEqual(len(T.speech_review_terms(many)),24)
 
+    def test_capitalized_spoken_replies_are_not_mistaken_for_names(self):
+        for text in ('Thank You.', 'THANK YOU!', 'Come On!', 'ALL RIGHT.', 'Hello.'):
+            self.assertFalse(T.line_keeps_source(text, 'tr', 'en'), text)
+            self.assertTrue(T.translation_is_source_echo(text, text), text)
+        for text in ('New York', 'NASA ESA', 'Boeing 747', 'COVID-19'):
+            self.assertFalse(T.translation_is_source_echo(text, text), text)
+
     def test_repeated_untranslated_prose_is_not_marked_ready(self):
         import types
         status={}
@@ -160,12 +180,14 @@ class SpeechTranslationTests(unittest.TestCase):
                 items={str(i['i']):i['t'] for i in payload['items']}
                 sentences={str(g['ids'][0]):g['source'] for g in payload['sentence_groups']}
                 return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=json.dumps({'items':items,'sentences':sentences})))])
-        with F._fake_openai(Client), patch.object(T,'log'),patch.object(T,'emit'):
-            result=T.llm_translate([(0,4,'The machines need regular maintenance to function safely.')],
-                F._TrArgs(translate_for_speech=True,translate_lenient=True,translate_cache=False),[],source_lang='en',status_out=status)
-        self.assertEqual(status['completed'],[])
-        self.assertEqual(status['failed'],[0])
-        self.assertIn('source_echo',status['failedReasons']['0'])
+        for source in ('The machines need regular maintenance to function safely.', 'Thank You.', 'THANK YOU!'):
+            status = {}
+            with F._fake_openai(Client), patch.object(T,'log'),patch.object(T,'emit'):
+                result=T.llm_translate([(0,4,source)],
+                    F._TrArgs(translate_for_speech=True,translate_lenient=True,translate_cache=False),[],source_lang='en',status_out=status)
+            self.assertEqual(status['completed'],[])
+            self.assertEqual(status['failed'],[0])
+            self.assertIn('source_echo',status['failedReasons']['0'])
 
     def test_review_terms_follow_local_topic_and_expose_conflicts(self):
         candidates = [(0, '', {'terms': {f'opening{i}': 'ilk konu' for i in range(30)}}),

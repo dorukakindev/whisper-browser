@@ -394,13 +394,23 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     ownJob(s);
     try {
       const c = config();
+      const defaultReference = { reference: c.reference, transcript: c.transcript };
+      if (request.referenceId) {
+        const entry = referenceEntry(request.referenceId);
+        if (!entry.text.trim() || entry.text.length > 8000) throw Error('Check the reference transcript.');
+        const selected = referencePaths(entry.id);
+        c.reference = selected.reference; c.transcript = selected.transcript;
+      }
       const profile = request.profile ?? c.profile;
       const concurrency = request.concurrency ?? c.concurrency;
       const timingMode = request.timingMode ?? c.timingMode;
       const verification = request.verification ?? c.verification;
       if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
       const forceGroups = request.forceGroups ?? [];
-      if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      // Video UI forces one group; a book's explicit Regenerate chapter action forces
+      // its bounded chapter plan. Keep Windows command-line size bounded as well.
+      const forceLimit=request.narration===true?1000:1;
+      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>12000) throw new Error('Invalid group key.');
       if(request.keepEngine!==undefined&&typeof request.keepEngine!=='boolean')throw Error('Invalid engine keep-ready option.');
       c.keepEngine=request.keepEngine??c.keepEngine;
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
@@ -444,7 +454,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
         output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav'), output.replace(/\.wav$/i, '.performance.json')]);
-      atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
+      if (request.narration !== true) atomicWriteFileSync(configPath(), JSON.stringify({ ...c, ...defaultReference }, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });
@@ -547,7 +557,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           emit(s,'warning',{text:'Arka plan ayırma başarısız; yalnız dublaj üretilecek.'});
         }
       }
-      emit(s, 'status', { text: 'Motor yükleniyor…' });
+      emit(s, 'status', { stage: 'model_load', text: 'Motor yükleniyor…' });
       const env = voiceEnvironment(c.engine);
       // Flush output and report native crashes in this process and spawned GPU workers.
       env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
@@ -555,6 +565,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       let pending = '';
       const rewriteRequests = new Set();
       function line(value) {
+        if(value.startsWith('DUB_ACTIVITY ')){
+          try{const data=JSON.parse(value.slice(13));const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{stage:data.stage,text:labels[data.stage]});}catch(_){}return;
+        }
+        if(value==='DUB_WARNING normalization_unavailable')emit(s,'warning',{text:'Ses dengeleme tamamlanamadı; üretilen konuşma korundu.'});
+
         if(value.startsWith('DUB_FAILURE ')){try{const failure=JSON.parse(value.slice(12));emit(s,'warning',{text:String(failure.message||failure.kind).slice(0,1500)});}catch(_){}return;}
         if(value.startsWith('DUB_STAGE ')||value.startsWith('DUB_PHASES ')){
           try{const raw=JSON.parse(value.slice(value.startsWith('DUB_STAGE ')?10:11));const phases=raw.stage?{[raw.stage+'_seconds']:raw.seconds}:raw;const allowed=['model_load','reference','synthesis','verification','text_edit','placement','file_write','wall'].map(key=>key+'_seconds');s.phases={...(s.phases||{}),...Object.fromEntries(Object.entries(phases).filter(([key,n])=>allowed.includes(key)&&Number.isFinite(n)&&n>=0))};emit(s,'phases',{phases:s.phases});}catch(_){}return;
@@ -606,7 +621,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         }
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
         if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
-          text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
+          stage: 'engine_restart', text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
         if (value === 'DUB_WARNING tempo_fallback') emit(s, 'warning', {
           text: 'Ses hızlandırılamadı; konuşma kesilmeden korundu. Video daha yavaş oynatılabilir.' });
         if (value === 'DUB_WARNING incomplete_audio') emit(s, 'warning', {
@@ -617,9 +632,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
         if (progress) { s.progress = { done: Number(progress[1]), total: Number(progress[2]) }; emit(s, 'progress', s.progress); }
-        else if (/^Plan:/.test(value)) emit(s, 'status', { text: 'Cümle grupları hazır' });
-        else if (/Referans hazir/.test(value)) emit(s, 'status', { text: 'Ses üretiliyor…' });
-        else if (/^Zamanlama:/.test(value)) emit(s, 'status', { text: 'Ses zaman çizelgesine yerleştiriliyor…' });
+        else if (/^Plan:/.test(value)) emit(s, 'status', { stage: 'plan', text: 'Cümle grupları hazır' });
+        else if (/Referans hazir/.test(value)) emit(s, 'status', { stage: 'synthesis', text: 'Ses üretiliyor…' });
+        else if (/^Zamanlama:/.test(value)) emit(s, 'status', { stage: 'placement', text: 'Ses zaman çizelgesine yerleştiriliyor…' });
         if (/^(Zamanlama:|Ses:.*Islem:)/.test(value)) emit(s, 'statistics', { text: value.slice(0, 1000) });
         if (value.startsWith('DUB_METRICS ')) {
           try {

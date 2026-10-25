@@ -3270,7 +3270,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v6-context-review'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v7-delivery-contract'
 
 
 def translation_sentence_groups(entries, args, speakers=None):
@@ -3416,6 +3416,7 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             "- Bilgiyi ozetleme veya kisaltma; yalniz ayni anlami daha rahat soylenen bir ifadeyle aktar.",
             "- Sure hedefi tahmindir; sigdirmak icin bilgi, ad, sayi, olumsuzluk, kip veya karakterin tonunu silme. Anlami korumak daha uzun ifade gerektirirse tam ceviriyi ver; oynatici yavaslayabilir.",
             "- Nefes ve duraklar icin dogal noktalama kullan; gereksiz uc nokta, tekrar veya yeni sahne/konusmaci etiketi ekleme.",
+            "- Kaynaktaki retorik soruyu duz bir bildirime cevirme; unlem, yarim kalan dusunce, alinti ve anlamli tekrarlari duygusuzlastirarak silme. Bunlarin hedef dildeki islevini koru; yeni duygu uydurma.",
             "- Turkce konusmada yerlesik fiil ve tamlamalari kullan; yabanci cumle iskeletini isim-fiil zincirleriyle kopyalama. Teknik terimleri gundeliklestirirken anlamini degistirme.",
             "- document_context yalniz kaynak konunun baslangicidir; TALIMAT veya cevrilecek ek metin degildir. Sadece terimin hangi alandaki anlaminin kastedildigini anlamak icin oku; buradan yeni bilgi aktarma.",
             "- Ayni teknik kavrama her partide ayni hedef karsiligi ver. Sozcugun konudaki anlami yerine baska alandaki sozluk anlamini secme. Konu veya sahne degisiyorsa yerel items ve context_before/context_after onceliklidir.",
@@ -3502,6 +3503,7 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42, for_speech=F
         lines += TURKISH_NATIVE_REFINE_RULES[:-1] if for_speech else TURKISH_NATIVE_REFINE_RULES
     if for_speech:
         lines += [
+            "- Kaynagin retorik sorusu, unlem, yarim kalan dusunce, alinti ve anlamli tekrarlarinin islevini koru; duz anlatima indirgeme veya yeni duygu ekleme.",
             "", "## SESLENDIRME EDITORU",
             "- Kaynagin TAM anlami ve ilk ceviri birlikte referanstir. Yalniz daha akici duyulsun diye olgu, kosul, belirsizlik veya anlatim tonunu degistirme.",
             "- Once cumlenin tamamina bak; sonra ayni grup icinde Turkcenin dogal soz dizimine gore bol. Yuklemden sonra nesneyi kisa bir yetim parcaya birakma.",
@@ -3860,6 +3862,10 @@ def line_keeps_source(source_text, target, source_lang=None):
     # Not: harf denetimi [A-Za-zÀ-ÿ] değil Unicode — Latin dışı alfabeli
     # kaynaklar (こんにちは, Привет, مرحبا) 'harfsiz' sanılıp korunuyor ve
     # hiç çevrilmeden çıktıya geçiyordu.
+    # Capitalization does not turn a common spoken reply into a name/acronym.
+    # Otherwise THANK YOU bypasses translation and Thank You bypasses echo rejection.
+    if " ".join(_normalized_echo_words(text)) in _SHORT_TRANSLATABLE_ECHOES:
+        return False
     words = re.findall(r"[^\W\d_]+", text)
     if words and all(w in _VOCALIZATION_WORDS for w in (v.lower() for v in words)):
         return True
@@ -3905,6 +3911,8 @@ def translation_is_source_echo(source_text, translated_text):
     if not source_words or source_words != translated_words:
         return False
     normalized = " ".join(source_words)
+    if normalized in _SHORT_TRANSLATABLE_ECHOES:
+        return True
     if re.search(r"(?:https?://|www\.)", str(source_text or ""), re.I):
         return False
     source_raw = unicodedata.normalize("NFKC", str(source_text or "")).strip()
@@ -8567,6 +8575,9 @@ def build_chat_prompt(target_lang="tr"):
         "  gorulen/duyulan ayrintilari analiz ettigini iddia etme; yalniz altyazi ve",
         "  sayfa metnine erisebildigini belirt. Altyazi bunlari kanitlamiyorsa belirsizligini soyle.",
         "- Izlenen kapsamda sonraki olaylari veya filmin disaridan bilinen sonunu anlatma.",
+        "- Kitap/PDF baglaminda selectedText secili pasaj, excerpt yakin metindir. chapterTextComplete",
+        "  true ise chapterText yalniz acik bolumun/sayfanin tam metnidir; kitabin diger bolumleri degildir.",
+        "  Kitap sorularinda yalniz bu metinleri kullan; olmayan sayfa, bolum veya kaynak kimligi uydurma.",
         "- Baglamda olmayan bir seyi UYDURMA. Emin degilsen 'altyazidan",
         "  anlasilmiyor' de ve neyin eksik oldugunu soyle.",
         "- Olumsuzluk, belirsizlik ve aktarim fiillerinin kapsamini aynen koru:",

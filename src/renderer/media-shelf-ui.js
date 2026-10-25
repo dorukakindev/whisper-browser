@@ -31,7 +31,7 @@
     else dockStatus.textContent = message;
   }
   async function api(action, payload = {}) {
-    const result = await window.api.mediaShelf({ action, ...payload });
+    const result = await window.api.mediaShelf({ action, locale:window.UiLocale?.get?.(), ...payload });
     if (result?.canceled) return null;
     if (!result?.ok) throw Error(result?.error || t('Operation failed.', 'İşlem başarısız.'));
     return result;
@@ -156,21 +156,38 @@
       snapshot.playlists.forEach(row => { const line = el('div', 'ms-track'); line.append(btn(`${row.name} (${row.tracks.length})`, () => listen(row.tracks.map(id => snapshot.music.find(item => item.id === id)).filter(Boolean).map(row => ({ ...row, kind: 'music' })))), btn(t('Remove', 'Kaldır'), () => forget('playlists', row), 'mh-text-button')); playlists.append(line); }); root.append(playlists);
     }
   }
-  async function openBook(row) {
-    const book = await api('book-open', { id: row.id });
-    if (book.format === 'pdf') { document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player'); await openPdfReader(book.path); return; }
+  async function openPdfPage(file, pageNumber = 1) {
+    document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player');
+    const previous = player.pdfReader;
+    await openPdfReader(file);
+    if (!player.pdfReader || player.pdfReader === previous || !Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > player.pdfReader.pdf.numPages) throw Error(t('The source page could not be opened.', 'Kaynak sayfa açılamadı.'));
+    const input = document.getElementById('pdfReaderPage'); input.value = String(pageNumber); input.dispatchEvent(new Event('change'));
+  }
+  async function openBook(row, focus = null) {
+    const book = await api('book-open', { id: row.id, ...(focus ? { expectedSource: focus } : {}) });
+    if (book.format === 'pdf') { await openPdfPage(book.path, focus?.pageNumber || 1); return; }
+    let focusIndex = null;
+    if (focus) {
+      focusIndex = focus.index;
+      const c = book.chapters[focusIndex];
+      if (!Number.isInteger(focusIndex) || !c || (focus.sourceId && (c.sourceId !== focus.sourceId || c.sourceSpineIndex !== focus.sourceSpineIndex))) throw Error(t('The source chapter could not be matched.', 'Kaynak bölüm eşleştirilemedi.'));
+    }
     const dialog = el('dialog', 'ms-reader media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
     const header = el('header'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
-    let index = Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
+    let index = focusIndex ?? Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
     const prose = el('article', 'ms-prose'); prose.tabIndex = 0;
+    window.MediaExperience?.bindPassage(prose, ({ text, offset, selectedText }) => {
+      if (!dialog.open) return;
+      window.MediaExperience.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: text.slice(Math.max(0, offset - 1500), Math.max(0, offset - 1500) + 8000), selectedText });
+    });
     const position = () => ({ chapter: index, scroll: prose.scrollHeight > prose.clientHeight ? prose.scrollTop / (prose.scrollHeight - prose.clientHeight) : 0 });
     const save = () => api('book-progress', { id: book.id, ...position() }).catch(error => { readerStatus.textContent = error.message; return false; });
     const readerStatus = el('p', 'ms-status'); readerStatus.setAttribute('role', 'status');
     function show(next, scroll = 0) {
       index = Math.max(0, Math.min(book.chapters.length - 1, next)); chapters.value = index; prose.replaceChildren();
       book.chapters[index].text.split(/\n\s*\n/).forEach(paragraph => prose.append(el('p', '', paragraph)));
-      window.MediaExperience?.setContext(dialog, { id: book.id, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
+      window.MediaExperience?.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
       requestAnimationFrame(() => { prose.scrollTop = scroll * Math.max(0, prose.scrollHeight - prose.clientHeight); });
     }
     chapters.addEventListener('change', async () => { await save(); show(+chapters.value); });
@@ -183,23 +200,60 @@
       const selection = window.getSelection(), quote = selection && prose.contains(selection.anchorNode) ? selection.toString().slice(0, 2000) : '';
       const mark = { ...position(), quote }; await api('book-progress', { id: book.id, ...mark, bookmark: true });
       book.bookmarks.push(mark); const opt = el('option', '', quote || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = book.bookmarks.length - 1; marks.append(opt); readerStatus.textContent = t('Saved.', 'Kaydedildi.');
-    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
+    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), async () => {
+      if (await save() === false) return;
+      const c = book.chapters[index];
+      const result = await window.api.mediaWorkflows({ action:'book-from-shelf', locale:window.UiLocale?.get?.(), shelfId:book.id, sourceChapter:{index,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime} });
+      if (!result?.ok) { readerStatus.textContent=result?.error || t('Voice production could not be opened.', 'Sesli üretim açılamadı.'); return; }
+      if (!dialog.open) return;
+      await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});
+      dialog.close();
+    }), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
     header.lastChild.setAttribute('aria-label', t('Close reader', 'Okuyucuyu kapat'));
-    dialog.append(header, readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
+    header.lastChild.classList.add('ms-reader-close');
+    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(dialog,{t,isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
-    dialog.addEventListener('close', () => { clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });
+    dialog.addEventListener('close', () => { disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });
   }
   function books(root) {
     root.append(btn(t('Add EPUB / PDF / TXT', 'EPUB / PDF / TXT ekle'), () => task('book-import')));
-    const grid = el('div', 'mh-grid ms-book-grid');
+    const grid = el('div', 'mh-grid ms-book-grid'), audioSlots = new Map();
     const rows = snapshot.books.filter(row => `${row.title} ${row.author}`.toLocaleLowerCase().includes(view.query.toLocaleLowerCase()));
     rows.slice(0, 300).forEach(row => {
       const node = btn('', () => openBook(row), 'mh-card'), cover = el('div', 'mh-art');
       if (/^data:image\/(?:png|jpeg|webp);base64,/i.test(row.cover || '')) { const img = el('img'); img.src = row.cover; img.alt = ''; img.loading = 'lazy'; cover.append(img); } else cover.append(el('span', 'ms-book-placeholder', row.format.toUpperCase()));
-      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase())); const shell = el('div'); shell.append(node, btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button')); grid.append(shell);
+      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase()));
+      const shell = el('div'), actions = el('div', 'ms-book-actions'), audioSlot = el('div', 'ms-book-audiobook');
+      actions.append(audioSlot,btn(t('Voice production','Sesli üretim'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);await window.MediaWorkflowsUI.openProject(r.project.id);}),btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button'));
+      shell.append(node, actions); audioSlots.set(row.id, audioSlot); grid.append(shell);
     });
     root.append(grid); if (!rows.length) root.append(el('p', 'mh-empty', t('Add books to keep covers, reading position, bookmarks and quotes together. EPUB opens as a safe text reader; fixed-layout/DRM content is not supported.', 'Kapakları, okuma konumunu, yer imlerini ve alıntıları bir arada tutmak için kitap ekle. EPUB güvenli metin okuyucuda açılır; sabit düzen/DRM içeriği desteklenmez.')));
+    if (audioSlots.size) void loadAudiobooks(audioSlots, generation);
+  }
+  async function loadAudiobooks(slots, mine) {
+    try {
+      const result = await window.api.mediaWorkflows({ action: 'book-audiobooks', shelfIds: [...slots.keys()] });
+      if (mine !== generation || !result?.ok) return;
+      for (const info of result.audiobooks) {
+        const slot = slots.get(info.shelfId);
+        if (!slot?.isConnected) continue;
+        const play = btn(t('Listen to M4B', "M4B’yi dinle"), async () => {
+          const opened = await window.api.mediaWorkflows({ action: 'book-audiobook', id: info.projectId, exportId: info.id });
+          if (!opened?.ok) throw Error(opened?.error || t('Audiobook unavailable.', 'Sesli kitap kullanılamıyor.'));
+          if (mine !== generation || !slot.isConnected) return;
+          await openLocalMedia(opened.path, 0);
+        }, 'mh-action mh-primary');
+        play.disabled = !info.available;
+        play.title = info.name;
+        const meta = el('small', 'ms-status', t(`${info.chapters} chapters`, `${info.chapters} bölüm`));
+        if (!info.available) meta.textContent += t(' · File moved or changed', ' · Dosya taşınmış veya değişmiş');
+        else if (!info.current) meta.textContent += t(' · Earlier text version', ' · Önceki metin sürümü');
+        slot.append(play, meta);
+      }
+    } catch (error) {
+      if (mine === generation) status(error.message, true);
+    }
   }
   function radio(root) {
     const controls = el('div', 'mh-filterbar');
@@ -238,7 +292,7 @@
     const first = sleep.options[0]; if (first) first.textContent = t('Sleep timer off', 'Uyku zamanlayıcısı kapalı');
     speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));
   });
-  window.MediaShelfUI = Object.freeze({ mount(root, page, query = '') {
+  window.MediaShelfUI = Object.freeze({ openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
     view = { root, page, query, busy: false }; ++generation;
     const loading = el('p', 'ms-status'); loading.setAttribute('role', 'status'); root.replaceChildren(loading);
     void reload().catch(error => status(error.message, true));

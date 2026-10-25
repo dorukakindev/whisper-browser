@@ -90,6 +90,23 @@ const tick = () => new Promise(setImmediate);
   assert.equal(attached,true,'generated audio must attach to the local player');
   attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
   assert.equal(el('dubRegenerateGroup').disabled,false);
+  // Group preview must wait for media metadata, and a closing dialog cancels that pending seek.
+  const audio=el('dubGeneratedPreview');let played=0,readyState=0;
+  Object.defineProperty(audio,'readyState',{get:()=>readyState,configurable:true});
+  Object.defineProperty(audio,'duration',{get:()=>10,configurable:true});
+  audio.play=async()=>{played++;};
+  const groupListen=[...w.document.querySelectorAll('button')].find(n=>n.textContent==='Bu grubu dinle');
+  onEvent({id:request.id,type:'group',group:{group:1,key:'1,2',status:'ready',audioStart:2,audioEnd:4}});
+  // Group events after done are intentionally ignored; install ranges through a fresh completed output.
+  el('dubRegenerateGroup').click();await tick();
+  onEvent({id:request.id,type:'done',name:'range.wav',path:'range.wav',url:'range.wav',quality:{groups:[{group:1,key:'1,2',status:'ready',audioStart:2,audioEnd:4}]}});await tick();
+  groupListen.click();await tick();assert.equal(played,0);
+  readyState=1;audio.dispatchEvent(new w.Event('loadedmetadata'));await tick();assert.equal(played,1);assert.equal(audio.currentTime,2);
+  audio.currentTime=4;audio.dispatchEvent(new w.Event('timeupdate'));
+  readyState=0;groupListen.click();await tick();el('dubGeneratorDialog').open=false;el('dubGeneratorDialog').dispatchEvent(new w.Event('close'));
+  readyState=1;audio.dispatchEvent(new w.Event('loadedmetadata'));await tick();assert.equal(played,1,'closing cancels a pending metadata play');
+  el('dubGeneratorDialog').open=true;
+
   el('dubRegenerateGroup').click();await tick();
   assert.deepEqual(Array.from(request.forceGroups),['1,2']);
   onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review'}]}});await tick();

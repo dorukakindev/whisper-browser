@@ -801,6 +801,7 @@ async function extractPdfReaderPage(pageNumber) {
   };
   for (const item of items) {
     const text = String(item.str || '').trim(); if (!text) continue;
+    if(lines.length && Math.abs(lines.at(-1).y-(item.transform?.[5]||0)) > Math.max(lines.at(-1).height,item.height||1)*1.8)flushLines();
     lines.push({ text, x: item.transform?.[4] || 0, y: item.transform?.[5] || 0, width: item.width || 0, height: item.height || 1 });
     if (item.hasEOL) flushLines();
   }
@@ -960,6 +961,7 @@ function renderPdfTranslation(pageNumber, blocks) {
     pair.addEventListener('dblclick', () => editPdfBlockPair(pageNumber, block, pair).catch((error) => logLine(error?.message || error, 'error')));
     entry.translation.appendChild(pair);
   }
+  window.PdfReaderExperience?.render(pageNumber);
 }
 
 // Madde 36/37 — çift tıklanan çiftin hedefini düzeltme diyaloğu; boş

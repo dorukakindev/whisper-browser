@@ -12,15 +12,16 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       const tr = window.UiLocale?.get?.() === 'tr';
-      const global = globalAssistantContext();
-      const pageContext=!global&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
-      const transcriptScope=!global&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
+      const selectionContext = globalAssistantContext();
+      const bookDescription=selectionContext?.chapterTextComplete?[tr?'Tam bölüm/sayfa metni':'Complete chapter/page text',selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+selectionContext.chapterText.length,selectionContext.excerpt?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
+      const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
+      const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
       const pageTask=window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
-      const context = global ? (global.title || global.heading || (global.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
+      const context = selectionContext ? (selectionContext.title || selectionContext.heading || (selectionContext.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
       const scope = aiSourceScope(),workspace=window.AssistantWorkspace?.snapshot(),threadId=workspace?.current?.id||'';
-      const pinScope=global?JSON.stringify(['global',global.workspace,global.page,global.id,global.chapter]):JSON.stringify([player.workspaceMode,player.mediaKey]);
+      const pinScope=selectionContext?JSON.stringify(['selectionContext',selectionContext.workspace,selectionContext.page,selectionContext.id,selectionContext.chapter]):JSON.stringify([player.workspaceMode,player.mediaKey]);
       if (scope !== suggestionScope) { suggestionScope = scope; ++suggestionSequence; }
       suggestions.clear();
       const opts = buildOptsFromUI();
@@ -32,7 +33,7 @@
         ...(pageContext?[{kind:'page-translate',label:tr?'Sayfayı Türkçeye çevir':'Translate page to Turkish',prompt:'Bu sayfayı Türkçeye çevir.'}]:[]),
         {kind:'explain',label:tr?'Daha anlaşılır açıkla':'Explain clearly',prompt:tr?'Yalnız sağlanan bağlamı sade ve anlaşılır Türkçeyle açıkla. Videoda altyazı varsa seçili kapsam içindeki konuşmayı esas al. Eksik kanıtı belirt; eser hakkında bilgi uydurma.':'Explain only the supplied context in clear language. For a captioned video use the selected transcript scope. State missing evidence; do not invent knowledge of the work.'},
         ...(transcriptScope?[{kind:'translation',label:tr?'Çeviriyi değerlendir':'Review translation',prompt:tr?'Yalnız sağlanan kaynak ve çeviri altyazılarını karşılaştır. Anlam kaybı, özel ad ve sayı sorunlarını örnekleriyle belirt. Yeterli eşleşen satır yoksa açıkça söyle. Dosyaları değiştirme; önerilerini açıkla.':'Compare only the supplied source and translated subtitles. Explain meaning loss, proper-name and numeric issues with examples. State when matching evidence is insufficient. Do not modify files; explain suggested improvements.'}]:[]),
-        ...(!global&&!pageContext?[{ kind:'voice', label:tr?'Seslendirme hazırla':'Prepare voice' }]:[]), ...(!pageContext?[{ kind:'tasks', label:tr?'İşlem merkezi':'Activity' }]:[])];
+        ...(!selectionContext&&!pageContext?[{ kind:'voice', label:tr?'Seslendirme hazırla':'Prepare voice' }]:[]), ...(!pageContext?[{ kind:'tasks', label:tr?'İşlem merkezi':'Activity' }]:[])];
       const specs = entries.map(row => {
         const id = `${suggestionSequence}:${row.kind}`;
         suggestions.set(id, { ...row, scope });
@@ -50,17 +51,19 @@
         messages.push({role:node.classList.contains('ai-msg-user')?'user':'ai',text:node.textContent,loading:node.classList.contains('is-loading'),error:node.classList.contains('ai-msg-err'),links:[...node.querySelectorAll('.ai-time-link,.ai-source-link')].slice(0,40).map(button=>{if(!linkIds.has(button))linkIds.set(button,String(++nextLink));const id=linkIds.get(button);links.set(id,button);return {id,label:button.textContent};})});
       }
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
+        palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:opts.translateModel||opts.llmModel||'',
         pageContext,transcriptScope,blocked:!!((window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
         canCancel:!!(pageTask || aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
-        sourceDescription:global ? [({'book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[global.type]||(global.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),global.chapter||'',global.excerpt||global.synopsis||global.note||'',tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
+        sourceDescription:selectionContext ? [({'book-page':tr?'Açık PDF sayfası':'Current PDF page','book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[selectionContext.type]||(selectionContext.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),selectionContext.chapter||'',(selectionContext.selectedText?((tr?'Seçili pasaj: ':'Selected passage: ')+selectionContext.selectedText):selectionContext.excerpt||selectionContext.synopsis||selectionContext.note||''),tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
         // Pins are read-only notes; unlike live job scopes they survive source generations.
         conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!pageTask || !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         retry: !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: messages,
+        ...(bookDescription?{sourceDescription:bookDescription}:{}),
       });
     }, 50);
   }

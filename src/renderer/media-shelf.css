@@ -12,6 +12,10 @@
 .ms-track input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
 .ms-time { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 13px; }
 .ms-book-grid { margin-top: 25px; }
+.ms-book-actions { display: grid; gap: 7px; margin-top: 12px; }
+.ms-book-audiobook:empty { display: none; }
+.ms-book-audiobook .mh-action { width: 100%; }
+.ms-book-audiobook small { display: block; margin-top: 5px; overflow-wrap: anywhere; }
 .ms-book-placeholder { color: var(--text-dim); font-size: 17px; }
 .ms-podcast { padding: 18px 0; border-bottom: 1px solid var(--border); }
 .ms-podcast summary { cursor: pointer; font-weight: 600; padding: 9px 0; }
@@ -31,6 +35,8 @@ body.media-shelf-player-open .ms-dock { display: none; }
 .ms-reader { margin: auto; width: min(1200px, calc(100vw - 35px)); height: min(940px, calc(100vh - 65px)); padding: 0; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-1); color: var(--text); overflow: hidden; }
 .ms-reader[open] { display: flex; flex-direction: column; }
 .ms-reader header { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 18px; border-bottom: 1px solid var(--border); }
+.ms-reader header { position: relative; padding-right: 66px; }
+.ms-reader .ms-reader-close { position: absolute; right: 16px; top: 16px; width: 36px; height: 36px; padding: 0; }
 .ms-reader header > strong { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ms-reader select { color: var(--text); background: var(--bg-2); max-width: 200px; border: 1px solid var(--border); border-radius: 6px; padding: 9px; }
 .ms-reader input[type="range"] { width: 90px; accent-color: var(--accent); }

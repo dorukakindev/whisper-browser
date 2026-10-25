@@ -92,6 +92,7 @@ withStore((store) => {
     entries.push(plan.entry.id);
   }
   assert.equal(store.list().length, INDEX_LIMIT);
+  assert.equal(fs.readdirSync(path.dirname(store.indexPath)).filter(n=>n.endsWith(".mhtml")).length,INDEX_LIMIT,"evicted entries must not leave owned archive files");
 });
 
 // --- IPC + preload + renderer bağlantıları ---

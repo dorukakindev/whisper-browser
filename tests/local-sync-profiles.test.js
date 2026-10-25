@@ -33,6 +33,8 @@ function mkCtx(overrides = {}) {
   const el = (id) => (elements[id] ||= { value: '', textContent: '', classList: { toggle() {}, add() {}, remove() {} } });
   const ctx = {
     console: { log() {} },
+    window: {},
+    watchItemByKey: () => null,
     $: (id) => el(id),
     player: {
       workspaceMode: 'player',

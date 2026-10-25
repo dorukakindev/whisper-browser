@@ -14,3 +14,7 @@ assert.equal(fit.seconds,2); assert.equal(fit.measuredSeconds,4);
 assert(fit.suggestedMaxWords>0);
 assert.equal(JSON.parse(editorMessages('x',1,{mode:'natural',before:'a'.repeat(5000)})[1].content).context_before.length,1500);
 console.log('dub-editor-request: natural editing has no duration quota; explicit fitting retains it');
+
+assert.match(natural.delivery_contract,/anlamlı tekrarlar/);
+assert.match(messages[0].content,/anlamlı tekrarlar/);
+assert(!('delivery_contract' in fit));

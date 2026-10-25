@@ -8,7 +8,7 @@ function createDubEngineWorker({spawn,terminate,idleMs=60000}){
  const finish=(run,code,signal=null)=>{
   if(active!==run)return;active=null;run.exitCode=code;run.signalCode=signal;
   run.stdout.end();run.stderr.end();run.emit('close',code,signal);
-  if(host&&host.exitCode==null&&!closing){timer=setTimeout(()=>void release().catch(()=>{}),idleMs);timer.unref?.();}
+  if(host&&!active&&host.exitCode==null&&!closing){const idleHost=host;timer=setTimeout(()=>{if(host===idleHost&&!active)void release().catch(()=>{});},idleMs);timer.unref?.();}
  };
  async function release(){
   clearTimeout(timer);if(closing)return closing;if(!host)return true;
@@ -31,14 +31,23 @@ function createDubEngineWorker({spawn,terminate,idleMs=60000}){
      else active?.stdout.write(line+'\n');
     }
    });
-   proc.stderr.on('data',chunk=>active?.stderr.write(chunk));
-   proc.once('error',error=>{if(active){const run=active;run.emit('error',error);finish(run,1);}if(host===proc){host=null;key='';}});
-   proc.once('close',(code,signal)=>{if(host!==proc)return;host=null;key='';if(active)finish(active,code??1,signal);});
-   proc.stdin.on('error',error=>{if(active){active.stderr.write(error.message+'\n');void release().catch(()=>{});}});
+   proc.stderr.on('data',chunk=>{if(host===proc)active?.stderr.write(chunk);});
+   proc.once('error',error=>{
+    if(host!==proc)return;
+    const run=active;host=null;key='';
+    // spawn ENOENT can arrive on nextTick before callers can subscribe after await start().
+    setImmediate(()=>{if(!run||active!==run)return;run.stderr.write(error.message+'\n');if(run.listenerCount('error'))run.emit('error',error);finish(run,1);});
+   });
+   proc.once('close',(code,signal)=>{if(host!==proc)return;host=null;key='';const run=active;if(run)setImmediate(()=>finish(run,code??1,signal));});
+   proc.stdin.on('error',error=>{if(host===proc&&active){active.stderr.write(error.message+'\n');void release().catch(()=>{});}});
   }
-  const run=new EventEmitter();run.stdout=new PassThrough();run.stderr=new PassThrough();run.pid=host.pid;run.exitCode=null;run.signalCode=null;run.workerId=String(++serial);run.kill=signal=>host?.kill(signal);active=run;
+  const run=new EventEmitter();run.stdout=new PassThrough();run.stderr=new PassThrough();run.pid=host.pid;run.exitCode=null;run.signalCode=null;run.workerId=String(++serial);const ownedHost=host;run.kill=signal=>active===run&&host===ownedHost?ownedHost.kill(signal):false;active=run;
   // Callers attach their listeners immediately after awaiting start.
-  setImmediate(()=>{if(active!==run||!host)return;host.stdin.write(JSON.stringify({id:run.workerId,args:args.slice(1)})+'\n');});
+  setImmediate(()=>{
+   if(active!==run||host!==ownedHost)return;
+   try{ownedHost.stdin.write(JSON.stringify({id:run.workerId,args:args.slice(1)})+'\n');}
+   catch(error){run.stderr.write(error.message+'\n');if(run.listenerCount('error'))run.emit('error',error);void release().catch(()=>{});}
+  });
   return run;
  }
  return {start,release,running:()=>!!host};

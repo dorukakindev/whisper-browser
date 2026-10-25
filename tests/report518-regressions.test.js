@@ -27,9 +27,9 @@ test('518-01 late play completion cannot restart removed voice or background',as
 test('518-03 speech translation identity survives asset persistence',t=>{
  const store=new BrowserAssetStore({rootDir:temp(t)});
  const saved=store.putTrack({mediaId:'movie',trackId:'speech',role:'translation',forSpeech:true,
-  speechProtocol:'speech-v6-context-review',cues:[{start:0,end:2,text:'Tam bir cümle.'}]});
+  speechProtocol:'speech-v7-delivery-contract',cues:[{start:0,end:2,text:'Tam bir cümle.'}]});
  const loaded=store.getTrack(saved.assetId);assert.equal(loaded.ok,true);
- assert.equal(loaded.document.forSpeech,true);assert.equal(loaded.document.speechProtocol,'speech-v6-context-review');
+ assert.equal(loaded.document.forSpeech,true);assert.equal(loaded.document.speechProtocol,'speech-v7-delivery-contract');
 });
 test('518-04 credentials cannot enter persisted provider metadata',t=>{
  const root=temp(t),provider='https://user:password@example.test/v1?api_key=secret&region=eu';

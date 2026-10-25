@@ -1,8 +1,76 @@
 # BROWSER_BUG_REPORT dizini
 
-- [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) ? Kodu de?i?tirmeden 100 hedefli gece testi: 98 PASS, 2 test s?zle?mesi kaymas?.
+- [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) — Ana dalın bağımsız 100 hedefli gece testi; özgün kayıt korunur.
+
+- [BROWSER_BUG_REPORT_579.md](BROWSER_BUG_REPORT_579.md) — YouTube devam thumbnail'leri, Keşfet konu çevirisi/Letterboxd ve ana kopya ayrımı.
+
+- [BROWSER_BUG_REPORT_578.md](BROWSER_BUG_REPORT_578.md) — Gerçek GPU dublaj kabulü, son WAV bütünlüğü ve normalizasyon süre ayrımı.
+
+- [BROWSER_BUG_REPORT_577.md](BROWSER_BUG_REPORT_577.md) — Gerçek dublaj kabul aracı ve meşgul GPU nedeniyle açık kalan P10.
+
+- [BROWSER_BUG_REPORT_576.md](BROWSER_BUG_REPORT_576.md) — Tam bölüm/sayfa ve seçili pasajla kaynak bağlı asistan eylemleri.
+
+- [BROWSER_BUG_REPORT_575.md](BROWSER_BUG_REPORT_575.md) —100bölüm dışa aktarmada kaynak iyileştirmesi ve reader yaşam döngüsü ölçümü.
+
+- [BROWSER_BUG_REPORT_574.md](BROWSER_BUG_REPORT_574.md) — Dar ekran kitap düzeni, klavye ve gerçek PDF kaydırma doğrulaması.
+
+- [BROWSER_BUG_REPORT_573.md](BROWSER_BUG_REPORT_573.md) — Kitap üretiminde doğru hata/durdurma ve EN/TR kalite aşamaları.
+
+- [BROWSER_BUG_REPORT_572.md](BROWSER_BUG_REPORT_572.md) — Gerçek planlayıcıyla güncel grup önizlemesi ve kaynak kimliği.
+
+- [BROWSER_BUG_REPORT_571.md](BROWSER_BUG_REPORT_571.md) — Metin kimliğiyle ses denemelerini karşılaştırma ve seçme.
+
+- [BROWSER_BUG_REPORT_570.md](BROWSER_BUG_REPORT_570.md) — Seçerek PDF seslendirme metni hazırlama ve bayat önizleme engeli.
+
+- [BROWSER_BUG_REPORT_569.md](BROWSER_BUG_REPORT_569.md) — Pasaj yer imi, gerçek ses konumu ve sürüm kontrolü.
+
+- [BROWSER_BUG_REPORT_568.md](BROWSER_BUG_REPORT_568.md) — Kaynak bölüm/üretim bağlantısı ve iki gerçek bütünleşme onarımı.
+
+- [BROWSER_BUG_REPORT_567.md](BROWSER_BUG_REPORT_567.md) — Üretim projesine güvenli kapak ve EPUB kaynak kimliği aktarımı.
+
+- [BROWSER_BUG_REPORT_566.md](BROWSER_BUG_REPORT_566.md) — Kitap referansının genel dublaj ayarlarına sızmasını önleme.
+
+- [BROWSER_BUG_REPORT_565.md](BROWSER_BUG_REPORT_565.md) — Metadata öncesi seek, konum kaydı ve PDF klavye oynatma.
+
+- [BROWSER_BUG_REPORT_564.md](BROWSER_BUG_REPORT_564.md) — Kitapta seçili pasajı ve yakın bağlamı asistana verme.
+
+- [BROWSER_BUG_REPORT_563.md](BROWSER_BUG_REPORT_563.md) — PDF sayı ayrımları, kutu sınırları ve görünür vurgu sayısı.
+
+- [BROWSER_BUG_REPORT_562.md](BROWSER_BUG_REPORT_562.md) — Kalıcı M4B çıktı kaydı ve kitap rafından açma.
+
+- [BROWSER_BUG_REPORT_561.md](BROWSER_BUG_REPORT_561.md) — Düzenleme sonrası eski kalite grubu numarasını üretime taşımama.
+
+- [BROWSER_BUG_REPORT_560.md](BROWSER_BUG_REPORT_560.md) — Eski PDF yükleme/çizim sonucunun yeni okuyucuya karışmasını önleme.
+
+- [BROWSER_BUG_REPORT_559.md](BROWSER_BUG_REPORT_559.md) — Çok parçalı kitap bölümünün yeniden seslendirilmesi.
+
+- [BROWSER_BUG_REPORT_558.md](BROWSER_BUG_REPORT_558.md) — Kitap metin arama, doğru chapter taslağı ve asistan bağlamı.
+
+- [BROWSER_BUG_REPORT_557.md](BROWSER_BUG_REPORT_557.md) — Son aşamada bounded normalizasyon ve gerçek aşama durumları.
+
+- [BROWSER_BUG_REPORT_556.md](BROWSER_BUG_REPORT_556.md) — Gerçek ENOENT iş olayları ve sıcak motor sahipliği.
+
+- [BROWSER_BUG_REPORT_555.md](BROWSER_BUG_REPORT_555.md) — Thank You/THANK YOU replikleri özel ad istisnasıyla çeviriyi atlamaz.
+
+- [BROWSER_BUG_REPORT_554.md](BROWSER_BUG_REPORT_554.md) — Yeni video kendi mute/hız ayarını korur.
+
+- [BROWSER_BUG_REPORT_553.md](BROWSER_BUG_REPORT_553.md) — Okuyucuda gezinme/kayıt yarışları ve Review dinleme/onay kimliği.
+
+- [BROWSER_BUG_REPORT_552.md](BROWSER_BUG_REPORT_552.md) — Dublaj grup dinlemede metadata bekleme ve bayat oynatma iptali.
+
+- [BROWSER_BUG_REPORT_551.md](BROWSER_BUG_REPORT_551.md) — M4B süre/boyut/boş alan önizlemesi, gerçek ilerleme ve FFmpeg kapanışlı iptal.
+
+- [BROWSER_BUG_REPORT_550.md](BROWSER_BUG_REPORT_550.md) — Gece ilk paket: tema/dil, dinleyici yaşam döngüsü ve doğrulama sözleşmeleri.
+
+- [BROWSER_BUG_REPORT_549.md](BROWSER_BUG_REPORT_549.md) — Kitap kurtarma/Review/yedek/M4B, PDF vurgu ve birleşik teslim.
+- [Gece çalışma havuzu — 50 madde](NIGHT_WORK_2026-10-25.md)
+
+- [BROWSER_BUG_REPORT_548.md](BROWSER_BUG_REPORT_548.md) — Dış önerilerin kaynak koduyla doğrulanması ve öncelik değerlendirmesi.
+
+- [BROWSER_BUG_REPORT_580.md](BROWSER_BUG_REPORT_580.md) — Gerçek PDF okuyucu tasarımı, sayfa bağlamı ve aynı ekranda ses.
 
 - [BROWSER_BUG_REPORT_546.md](BROWSER_BUG_REPORT_546.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve sezon araçları.
+- [BROWSER_BUG_REPORT_545.md](BROWSER_BUG_REPORT_545.md) — Konuşma bütünlüğü, uzun tek cue ve iki dakikalık gerçek ses karşılaştırması.
 
 - [BROWSER_BUG_REPORT_544.md](BROWSER_BUG_REPORT_544.md) — Üç gerçek GPU tekrarı, iptal/devam, Whisper devri ve iki onarım.
 

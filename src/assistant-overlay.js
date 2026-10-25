@@ -32,6 +32,8 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
   function update(event, value) {
     if (!owner(event) || !value || typeof value !== 'object') return;
     snapshot = {
+      opened:expanded,
+      palette:Object.fromEntries(['surface','raised','hover','line','strong','text','muted','accent'].flatMap(key=>/^#[a-f0-9]{6}$/i.test(value.palette?.[key]||'')?[[key,value.palette[key]]]:[])),
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
       sourceToken:String(value.sourceToken||'').slice(0,8000),
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
@@ -64,13 +66,19 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (!['send', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
-  ipcMain.on('assistant:update', update);
-  ipcMain.on('assistant:action', command);
+  const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };
+  const showHandler=(event,...args)=>{if(!owner(event))return;show(event,...args);};
+  const updateHandler=(event,...args)=>{if(!owner(event))return;update(event,...args);};
+  const commandHandler=(event,...args)=>{if(!ownView(event))return;command(event,...args);};
+  ipcMain.on('assistant:show', showHandler);
+  ipcMain.on('assistant:update', updateHandler);
+  ipcMain.on('assistant:action', commandHandler);
   window.on('resize', layout); window.on('enter-full-screen', layout); window.on('leave-full-screen', layout);
   view.webContents.on('did-finish-load', () => { layout(); view.webContents.send('assistant:snapshot', snapshot); });
   window.once('closed', () => {
     disposed = true;
-    ipcMain.removeListener('assistant:update', update); ipcMain.removeListener('assistant:action', command);
+    ipcMain.removeListener('assistant:show', showHandler);
+    ipcMain.removeListener('assistant:update', updateHandler); ipcMain.removeListener('assistant:action', commandHandler);
     if (!view.webContents.isDestroyed()) view.webContents.close();
   });
   window.contentView.addChildView(view); layout();

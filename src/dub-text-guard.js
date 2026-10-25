@@ -8,6 +8,10 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     return {
       currency: matches(/[$€£₺¥]|(?<!\p{L})(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)(?!\p{L})/gu),
       question: (text.match(/[?？]/g) || []).length,
+      // The editor must not turn an exclamation or an unfinished thought into
+      // neutral narration. Normalize the two common ellipsis spellings only.
+      exclamation: (text.match(/[!！]/g) || []).length,
+      hesitation: (text.replace(/\.{3,}/g, '…').match(/…/g) || []).length,
       acronyms: (text.match(/(?<![\p{L}\p{N}])[A-ZÇĞİÖŞÜ]{2,}(?![\p{L}\p{N}])/gu) || []).sort(),
       comparisons: matches(/[<>≤≥≠]=?/gu),
       pastNegatives: matches(/(?<!\p{L})\p{L}{2,}m[ae](?:d[ıiuü]|m[ıiuü]ş)\p{L}*(?!\p{L})/gu),

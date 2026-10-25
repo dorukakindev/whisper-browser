@@ -180,7 +180,8 @@
     invalidatePlan();
   }
   function preview(file) {
-    const audio = el('dubGeneratedPreview'); audio.pause();
+    stopGroupPreview();
+    const audio = el('dubGeneratedPreview');
     if (file?.url) audio.src = file.url; else audio.removeAttribute('src');
     audio.classList.toggle('hidden', !file?.url); audio.load();
   }
@@ -368,7 +369,48 @@
   el('dubGeneratorStart').addEventListener('click', () => start());
   el('dubRetryFailed').addEventListener('click', () => start(true));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
-  el('dubQualityGroup').addEventListener('change', qualityInfo);
+  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();el('dubPlanText').focus();}});
+  const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.textContent=t('Bu grubu dinle');el('dubQualityInfo').after(listenGroup);
+  let rangeEnd=null, groupPlayGeneration=0, cancelGroupMetadata=null;
+  const groupAudio=el('dubGeneratedPreview');
+  function stopGroupPreview() {
+    groupPlayGeneration++;rangeEnd=null;
+    cancelGroupMetadata?.();cancelGroupMetadata=null;
+    groupAudio.pause();
+  }
+  function metadataReady() {
+    if(groupAudio.readyState>=1)return Promise.resolve(true);
+    return new Promise(resolve=>{
+      let timer;
+      const finish=value=>{clearTimeout(timer);groupAudio.removeEventListener('loadedmetadata',ready);groupAudio.removeEventListener('error',failed);if(cancelGroupMetadata===cancel)cancelGroupMetadata=null;resolve(value);};
+      const ready=()=>finish(true),failed=()=>finish(false),cancel=()=>finish(false);
+      cancelGroupMetadata=cancel;
+      groupAudio.addEventListener('loadedmetadata',ready,{once:true});groupAudio.addEventListener('error',failed,{once:true});
+      timer=setTimeout(failed,10000);
+    });
+  }
+  groupAudio.addEventListener('timeupdate',()=>{if(rangeEnd!==null&&groupAudio.currentTime>=rangeEnd){groupAudio.pause();rangeEnd=null;}});
+  groupAudio.addEventListener('emptied',stopGroupPreview);
+  groupAudio.addEventListener('ended',()=>{rangeEnd=null;});
+  groupAudio.addEventListener('error',stopGroupPreview);
+  listenGroup.onclick=async()=>{
+    if(current||workspaceBusy)return;
+    stopGroupPreview();
+    const row=results.get(el('dubQualityGroup').value),source=output;
+    if(!source?.url||!Number.isFinite(row?.audioStart)||!Number.isFinite(row?.audioEnd)||row.audioStart<0||row.audioEnd<=row.audioStart){status('Önce üretimi tamamlayın.');return;}
+    const generation=groupPlayGeneration;
+    if(!await metadataReady())return;
+    if(generation!==groupPlayGeneration||output!==source||!modal.open||current||workspaceBusy)return;
+    if(!Number.isFinite(groupAudio.duration)||row.audioStart>=groupAudio.duration){status('Ses aralığı bu dosyada bulunamadı.');return;}
+    try {
+      rangeEnd=Math.min(row.audioEnd,groupAudio.duration);groupAudio.currentTime=row.audioStart;
+      await groupAudio.play();
+    } catch(error){if(generation===groupPlayGeneration){rangeEnd=null;status(error.message);}}
+  };
+  modal.addEventListener('close',stopGroupPreview);
+  el('dubQualityGroup').addEventListener('change',stopGroupPreview);
+
+
   document.addEventListener('ui-locale-change', () => { showResults(); referenceInfo(lastReferenceQuality); });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     const pending = current;

@@ -24,8 +24,14 @@ function normalizeMeta(row, kind) {
 function recommendationSeeds(items) {
   return items.filter(item => item.favorite || Number(item.ratings?.personal) >= 3.5).slice(0, 20);
 }
-function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, nativeImage, fetchImpl = fetch, now = () => Date.now() }) {
+function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, nativeImage, translateSynopsis, fetchImpl = fetch, now = () => Date.now() }) {
   const cache = new Map(), loading = new Map();
+  const previews = new Map(), cancelledPreviews = new Set();
+  const previewTranslation = require('./catalog-synopsis').createSynopsisTranslation({
+    store: () => ({get: id => previews.get(id), upsert: patch => {
+      const item = {...previews.get(patch.id), ...patch}; previews.set(patch.id, item); return item;
+    }}), translate: translateSynopsis,
+  });
   const feedbackFile = () => path.join(userData(), 'media-discovery-feedback.json');
   function feedback() {
     if (!userData || !fs.existsSync(feedbackFile())) return {};
@@ -121,13 +127,26 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: rows.slice(0, 60), needsRatings: false };
       }
-      if (input.action === 'detail' || input.action === 'add') {
+      if (input.action === 'detail' || input.action === 'add' || input.action === 'synopsis-translate' || input.action === 'synopsis-stop') {
         if (!/^tt\d{7,12}$/.test(input.id || '') || !['film', 'series'].includes(input.kind)) throw Error('Invalid title identity.');
+        const previewId = `${input.kind}:${input.id}`;
+        const requestKey = `${previewId}:${input.token}`;
+        if (input.action === 'synopsis-stop') {
+          if(typeof input.token!=='string'||!/^[-a-zA-Z0-9]{8,100}$/.test(input.token))throw Error('Invalid translation token.');
+          cancelledPreviews.add(requestKey);while(cancelledPreviews.size>100)cancelledPreviews.delete(cancelledPreviews.values().next().value);
+          return previewTranslation.stop(previewId, input.token);
+        }
         const kind = input.kind === 'series' ? 'series' : 'movie';
         const data = await request(`meta/${kind}/${input.id}.json`), row = normalizeMeta(data.meta, kind);
         if (!row) throw Error('Title metadata is unavailable.');
         const catalog = catalogStore();
         const existing = catalog.list().find(item => item.imdbId === row.providerId && item.kind === row.kind);
+        if (input.action === 'synopsis-translate') {
+          if(cancelledPreviews.has(requestKey))return {ok:false,canceled:true};
+          if (previews.get(previewId)?.synopsis !== row.synopsis) previews.set(previewId, {...row, id: previewId});
+          while (previews.size > 24) previews.delete(previews.keys().next().value);
+          return await previewTranslation.start(previewId, input.token);
+        }
         if (input.action === 'detail') return { ok: true, item: row, catalogId: existing?.id || null };
         if (existing) return { ok: true, item: existing, existing: true };
         let posterBytes = null;

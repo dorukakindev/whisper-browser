@@ -57,6 +57,9 @@ test('allowed(): hesap/anahtar dosya adları açıkça reddedilir', () => {
       '.env', 'cookies.dat', 'watch-index.db', 'window-state.json']) {
     assert.equal(allowed(name), false, `allowed(${name}) true olmamalı`);
   }
+  assert.equal(allowed('OkumaListesi/index.json'),true);
+  assert.equal(allowed('OkumaListesi/article.mhtml'),true);
+  assert.equal(allowed('OkumaListesi/../secret.json'),false);
   assert.equal(allowed('watch-library.json'), true);
   assert.equal(allowed('browser-subtitles/x.srt'), true);
 });

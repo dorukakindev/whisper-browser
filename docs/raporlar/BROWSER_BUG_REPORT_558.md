@@ -1,0 +1,18 @@
+# Rapor558 — Kitap arama, bölüm taslağı ve asistanın doğru sayfası
+
+2026-10-25 07:15 Europe/Istanbul. Repo https://github.com/dorukakindev/whisper-browser; codex/book-reliability549/PR487. Başlangıç02025a2e378ba9cb4e2e310b2b28a70cd09331c5; ürün bitiş **aac2e27f1b4927d204849c61cd93f84548a9aeac**.
+
+## Doğrudan kullanım
+
+- Kitap üretim editörü/okuyucusunda metin arama: bölüm başlık/sıra ve alıntı sonuçları, seçilince ilgili düzenleyici ve tam özgün metin seçimi. En az2karakter, en fazla80sonuç/1000bölüm, bölüm başına100k kaynak; her bölüm arasında UI'a kontrol geri verilir. Literal arama; query HTML/regex çalışmaz. NFKC/Türkçe harf ve birleşik işaret dönüşümü özgün UTF16 başlangıç/bitişlerini korur. Arama sürerken yeni query/proje/kapalı ekran iptal; metin sonradan değişmişse yanlış ofsetle seçim yerine yeniden arama uyarısı. Bu PDF OCR/standalone tüm belge indekslemesi değildir; mevcut kitap projesinin düzenlenen bölüm metnidir.
+- **Gerçek native hatası:** saveDraft, ekrandaki textarea eski bölüme aitken değişmiş globalchapter'ı kullanıyordu. Chapter2 arama sonucuna gidince textarea Chapter1 içeriğini gösterdi; screenshot/assert ile doğrulandı. Textarea artık proje+bölüm kimliği taşır, saveDraft o kimlikle kayıt yapar; başka kitabın taslağına sızmaz. Native tekrar doğruChapter2seçimini doğruladı.
+- Reader önceki editörün asistan bağlamını bırakıyordu; readChapter sonunda doğru bölümün kaynak metni güncellenir. Editor input da güncel taslak ve imleç çevresini aktarır. Bölüm kimliği projeid:index olur; aynı başlıklı iki bölüm aynı sohbet sanılmaz. Shelf EPUB/TXT okuyucu da index kimliği taşır. Kaynak sınırlı8kmetindir, kitabın tamamını bildiği iddiası yok.
+- AssistantSourceContext.scope artık excerpt'in hash+uzunluk imzasını içerir; metin değişirse devam eden eski yanıt geçersizleşir. Ham metin scope anahtarına girmez. Aynı bölümde conversation anahtarı değişmez, sohbet geçmişi korunur; farklı bölüm ayrı kimlik alır.
+
+## Dosyalar ve kanıt
+
+`src/book-text-search.js`: dependency-free UMD literal/Unicode/ofset/yield araması. `src/renderer/index.html`: self script yükleme. `src/renderer/media-workflows-ui.js`: arama UI, doğru textarea taslağı, editör/reader bağlamı. `src/renderer/media-workflows.css`: tema tokenları, dar input, scroll sonuç listesi/klavye focus; sabit renk yok. `src/renderer/media-shelf-ui.js`: bölüm index kimliği. `src/assistant-source-context.js`: excerpt imzası. `tests/book-text-search.test.js`, `tests/reader-navigation-races.test.js`: Unicode/sonuç sınırı/iptal/asistan kimliği ve yanlış chaptera draft kaydının reddi. `tests/electron-book-reliability.smoke.js`: gerçek arama sonucu/selected substring/reader sonraki sayfa asistan excerpti.
+
+İlk hedef9dosya24PASS; son sözleşme8dosya20PASS (`tmp/final558b.log`), farklı örtüşen kümelerdir toplama sayısı diye sunulmaz. Syntax/diff geçti. Son nativeWindowsElectron exit0 `.uiprev/book-reliability549-1792901694265`; aramaChapter2seçimi ve reader sayfa2assistant excerpti, mevcutPDF/Review/M4B, darkTR/lightEN akışı. `.uiprev/book-reliability549-1792901639169/book-search-tr-dark.png` görsel incelendi, UItemayla uyumlu. İlk native deneme yanlış taslak nedeniyle kırmızıydı ve gerçek kodla düzeltildi; eşik gevşetilmedi.
+
+Yeni dependency/kurulum/şema yok. Güncel ephemeral sourceScope imzası değişir; aynıbölüm sohbet conversationı korunur, önceki yanlış ortakchapter geçmişi otomatik taşınmaz. GPU/liveAI/kişiselstart.bat/YouTube/CI beklenmedi. Gerçek sağlayıcı yanıtı yerine asistanın aktarılacak doğru bağlamı doğrulandı. Fixed-sleep26>21 ve sporadikReview açık. Yedek bakımına dönülmedi; master'a merge yok. N38 proje içi arama tamam; N36/N39/N46 ilgili kapsam ilerledi ama tümü tamam sayılmaz.

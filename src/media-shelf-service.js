@@ -156,9 +156,13 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'book-open': {
           const row = found(load(), 'books', input.id);
           if (path.extname(row.path).slice(1).toLowerCase() !== row.format) throw Error('Book format changed; re-import it.');
+          const before = fs.statSync(row.path);
+          if (input.expectedSource && (input.expectedSource.sourceSize !== before.size || input.expectedSource.sourceMtime !== before.mtimeMs)) throw Error('Source book changed; reopen it / Kaynak kitap değişti; yeniden açın.');
           const book = await parser({ action: 'book', path: row.path });
+          const after = fs.statSync(row.path);
+          if (before.size !== after.size || before.mtimeMs !== after.mtimeMs) throw Error('Source book changed while opening; try again / Kaynak kitap açılırken değişti; yeniden deneyin.');
           if (row.format === 'pdf') grantPdf(row.path);
-          return { ok: true, ...row, chapters: book.chapters };
+          return { ok: true, ...row, chapters: book.chapters, sourceSize: after.size, sourceMtime: after.mtimeMs };
         }
         case 'book-progress': {
           const data = load(), row = found(data, 'books', input.id);
@@ -230,7 +234,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'taste-analysis': { const data=load(); const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis}; }
         default: throw Error('Unsupported media shelf action.');
       }
-    } catch (error) { return { ok: false, error: error.message }; }
+    } catch (error) { const parts=String(error.message).split(' / ');return { ok: false, error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
 module.exports = { registerMediaShelf, csvPlan, urlOf };

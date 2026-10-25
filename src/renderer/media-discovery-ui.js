@@ -27,11 +27,12 @@
     return node;
   }
   async function details(row) {
+    let translationToken = null;
     const dialog = el('dialog', 'md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
     const close = btn('×', () => dialog.close(), 'md-close'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
     const placeholder = el('p', 'md-status', t('Loading details…', 'Ayrıntılar yükleniyor…')); placeholder.setAttribute('role', 'status'); dialog.append(close, placeholder);
     const opener = document.activeElement; document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
-    dialog.addEventListener('close', () => { dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
+    dialog.addEventListener('close', () => { if(translationToken)void window.api.mediaDiscovery({action:'synopsis-stop',kind:row.kind,id:row.providerId,token:translationToken}).catch(()=>{});dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
     let result;
     try { result = await api('detail', { kind: row.kind, id: row.providerId }); }
     catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${error.message}`; return; }
@@ -40,7 +41,16 @@
     window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h2', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
     const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
-    content.append(el('p', 'md-synopsis', item.synopsis || t('No synopsis is available for this title.', 'Bu yapımın açıklaması henüz yok.')));
+    const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
+    storyHeading.append(el('h3','',t('Story','Konu')));
+    if(item.synopsis){let translated='',showOriginal=false;const translate=btn(t('Translate to Turkish','Türkçeye çevir'),async()=>{
+      if(translated){showOriginal=!showOriginal;synopsis.textContent=showOriginal?item.synopsis:translated;translate.textContent=showOriginal?t('Show Turkish','Türkçesini göster'):t('Show original','Özgününü göster');return;}
+      translate.disabled=true;translationToken=crypto.randomUUID();const token=translationToken;placeholder.textContent=t('Translating the story…','Konu çevriliyor…');
+      try{const r=await window.api.mediaDiscovery({action:'synopsis-translate',kind:row.kind,id:row.providerId,token});if(!dialog.open||translationToken!==token)return;if(!r?.ok)throw Error(r?.error||t('Translation stopped.','Çeviri durduruldu.'));translated=r.item.synopsisTr;synopsis.textContent=translated;translate.textContent=t('Show original','Özgününü göster');placeholder.textContent=t('Turkish · AI translation','Türkçe · AI çevirisi');}
+      catch(error){if(dialog.open)placeholder.textContent=error.message;}
+      finally{if(translationToken===token)translationToken=null;if(dialog.open)translate.disabled=false;}
+    });translate.dataset.discoveryAction='translate';storyHeading.append(translate);}
+    content.append(storyHeading,synopsis);
     if (item.cast.length) content.append(el('p', 'md-cast', `${t('Cast', 'Oyuncular')}: ${item.cast.join(', ')}`));
     const actions = el('div', 'mh-actions');
     for (const [value, label] of [['watched', t('Already watched', 'İzledim')], ['hidden', t('Not interested', 'İlgilenmiyorum')], ['none', t('Undo preference', 'Tercihi geri al')]]) {
@@ -65,6 +75,13 @@
       document.getElementById('browserAddress').value = `https://www.imdb.com/title/${item.providerId}/`;
       await navigateBrowserFromAddress();
     }));
+    const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
+      reviews.disabled=true;
+      try{const saved=await api('add',{kind:item.kind,id:item.providerId});if(!dialog.open)return;result.catalogId=saved.item.id;document.dispatchEvent(new Event('media-library-changed'));await window.MediaToolsUI.open('decision',saved.item);}
+      catch(error){if(dialog.open)placeholder.textContent=error.message;}
+      finally{if(dialog.open)reviews.disabled=false;}
+    });reviews.dataset.discoveryAction='reviews';actions.append(reviews);
+    content.append(el('small','md-provider',t('Review analysis saves this title to your watchlist and opens the Letterboxd import tools. No video is downloaded.','Yorum analizi yapımı izleneceklere kaydeder ve Letterboxd yorum alma araçlarını açar. Video indirilmez.')));
     content.append(actions, el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));
     placeholder.textContent = ''; body.append(image(item.poster || row.poster, 'md-detail-poster'), content); dialog.append(body);
   }

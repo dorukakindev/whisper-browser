@@ -1,6 +1,43 @@
-G?ncel ?al??ma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) ? Kodu de?i?tirmeden 100 hedefli gece testi: 98 PASS, 2 test s?zle?mesi kaymas?
+Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Ana dalın bağımsız 100 hedefli gece testi (Rapor547)
+Güncel çalışma: [docs/devir/2026-10-25-1719.md](docs/devir/2026-10-25-1719.md) — Devam thumbnail'leri ve Keşfet çeviri/Letterboxd; ana kopya henüz eski
+Güncel çalışma: [docs/devir/2026-10-25-1709.md](docs/devir/2026-10-25-1709.md) — Gerçek GPU dublaj kabulü ve aşama süreleri; P01–P10 kanıt denetimi
+Güncel çalışma: [docs/devir/2026-10-25-1626.md](docs/devir/2026-10-25-1626.md) — Gerçek dublaj kabul aracı; P10 GPU meşgul olduğu için açık
+Güncel çalışma: [docs/devir/2026-10-25-1615.md](docs/devir/2026-10-25-1615.md) — P09 kaynak/snapshot bağlı kitap asistanı eylemleri
+Güncel çalışma: [docs/devir/2026-10-25-1331.md](docs/devir/2026-10-25-1331.md) — P08100bölüm M4B kaynak iyileştirmesi ve reader ölçümü
+Güncel çalışma: [docs/devir/2026-10-25-1314.md](docs/devir/2026-10-25-1314.md) — P07 dar ekran düzeni ve gerçek klavye/PDF kaydırma ölçümü
+Güncel çalışma: [docs/devir/2026-10-25-1305.md](docs/devir/2026-10-25-1305.md) — P06 kalite/aşama etiketleri ve doğru hata/durdurma durumu
+Güncel çalışma: [docs/devir/2026-10-25-1255.md](docs/devir/2026-10-25-1255.md) — P05 güncel konuşma grubu planı ve üretim snapshot doğrulaması
+Güncel çalışma: [docs/devir/2026-10-25-1249.md](docs/devir/2026-10-25-1249.md) — P04 ses denemelerini karşılaştırıp seçme
+Güncel çalışma: [docs/devir/2026-10-25-1237.md](docs/devir/2026-10-25-1237.md) — P03 seçerek PDF seslendirme metni hazırlama
+Güncel çalışma: [docs/devir/2026-10-25-1234.md](docs/devir/2026-10-25-1234.md) — P02 pasaj yer imi ve ses sürümüne güvenli dönüş
+Güncel çalışma: [docs/devir/2026-10-25-1211.md](docs/devir/2026-10-25-1211.md) — P01 kaynak bölüm ile sesli üretim arasında çift yönlü geçiş
+Güncel çalışma: [docs/devir/2026-10-25-1154.md](docs/devir/2026-10-25-1154.md) — P01–P10 yeni aktif ürün geliştirme hedefi
+Güncel çalışma: [docs/devir/2026-10-25-1147.md](docs/devir/2026-10-25-1147.md) — EPUB kapak/bölüm kimliği ve güncel teslim kapsamı
+Güncel çalışma: [docs/devir/2026-10-25-1139.md](docs/devir/2026-10-25-1139.md) — Kitaba özel ses ve genel dublaj ayarlarının ayrılması
+Güncel çalışma: [docs/devir/2026-10-25-0756.md](docs/devir/2026-10-25-0756.md) — Görsel kontrolde normal pause iptalini sessiz ele alma
+Güncel çalışma: [docs/devir/2026-10-25-0754.md](docs/devir/2026-10-25-0754.md) — Okuyucu metadata/seek ve kalan konumun korunması
+Güncel çalışma: [docs/devir/2026-10-25-0746.md](docs/devir/2026-10-25-0746.md) — Kitap asistanında seçili pasaj ve yakın metin bağlamı
+Güncel çalışma: [docs/devir/2026-10-25-0742.md](docs/devir/2026-10-25-0742.md) — PDF vurgusunda sayı anlamı ve görünür kutu doğruluğu
+Güncel çalışma: [docs/devir/2026-10-25-0737.md](docs/devir/2026-10-25-0737.md) — M4B çıktısını kitap rafından dinleme
+Güncel çalışma: [docs/devir/2026-10-25-0731.md](docs/devir/2026-10-25-0731.md) — Düzenlenmiş kitap metninde doğru grup yenilemesi
+Güncel çalışma: [docs/devir/2026-10-25-0724.md](docs/devir/2026-10-25-0724.md) — PDF sayfa çizimi ve yakınlaştırmada oturum sahipliği
+Güncel çalışma: [docs/devir/2026-10-25-0720.md](docs/devir/2026-10-25-0720.md) — Çok parçalı kitap bölümünü yeniden üretme
+Güncel çalışma: [docs/devir/2026-10-25-0715.md](docs/devir/2026-10-25-0715.md) — Kitap arama, yanlış bölüme draft ve doğru asistan bağlamı
+Güncel çalışma: [docs/devir/2026-10-25-0708.md](docs/devir/2026-10-25-0708.md) — Dublaj son aşama görünürlüğü ve süre sınırlı normalizasyon
+Güncel çalışma: [docs/devir/2026-10-25-0704.md](docs/devir/2026-10-25-0704.md) — Sıcak motor başlatma hatası, eski iş ve idle sahipliği
+Güncel çalışma: [docs/devir/2026-10-25-0701.md](docs/devir/2026-10-25-0701.md) — Büyük harfli repliğin çevrilmeden başarı sayılmasını önleme
+Güncel çalışma: [docs/devir/2026-10-25-0658.md](docs/devir/2026-10-25-0658.md) — Yeni videoya eski dublaj mute/hız ayarının sızmasını önleme
+Güncel çalışma: [docs/devir/2026-10-25-0656.md](docs/devir/2026-10-25-0656.md) — Okuyucuda bayat yanıt/draft ve Review grup dinleme
+Güncel çalışma: [docs/devir/2026-10-25-0653.md](docs/devir/2026-10-25-0653.md) — Yedek paketini erteleme, gerçek kullanım önceliği ve dublaj grup dinleme
+Güncel çalışma: [docs/devir/2026-10-25-0642.md](docs/devir/2026-10-25-0642.md) — Kapsamlı devam hedefi, 39 maddelik paketleme ve 08:17/08:20 uyanışları
+Güncel çalışma: [docs/devir/2026-10-25-0615.md](docs/devir/2026-10-25-0615.md) — M4B çıktı önizlemesi, disk alanı, ilerleme ve gerçek süreç iptali
+Güncel çalışma: [docs/devir/2026-10-25-0524.md](docs/devir/2026-10-25-0524.md) — Gece ilk paket: tema, dil, asistan yaşam döngüsü ve doğrulama
+Güncel çalışma: [docs/devir/2026-10-25-0510.md](docs/devir/2026-10-25-0510.md) — Kitap güvenilirliği, birleşik teslim ve 50 maddelik gece havuzu
+Güncel çalışma: [docs/devir/2026-10-25-0445.md](docs/devir/2026-10-25-0445.md) — Dış önerilerin kodla karşılaştırılması; ürün kodu değişmedi
+Güncel çalışma: [docs/devir/2026-10-25-0431.md](docs/devir/2026-10-25-0431.md) — PDF okuyucu tasarımı, sayfayı anlayan asistan ve aynı ekranda ses
 Güncel çalışma: [docs/devir/2026-10-25-0414.md](docs/devir/2026-10-25-0414.md) — PR485 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0410.md](docs/devir/2026-10-25-0410.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve üretim araçları
+Güncel çalışma: [docs/devir/2026-10-25-0311.md](docs/devir/2026-10-25-0311.md) — Dublajda konuşma bütünlüğü, uzun satır ve ham ses kontrolü
 Güncel çalışma: [docs/devir/2026-10-25-0256.md](docs/devir/2026-10-25-0256.md) — PR483 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0253.md](docs/devir/2026-10-25-0253.md) — Gerçek dublaj kabul turu, GPU devir kilidi ve Unicode A/B
 Güncel çalışma: [docs/devir/2026-10-25-0225.md](docs/devir/2026-10-25-0225.md) — Dublaj süreleri, sıcak motor, GPU kapasitesi ve kurtarma

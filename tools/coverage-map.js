@@ -15,6 +15,7 @@ const SRC_DIRS = [
 const TEST_GLOBS = [
   { dir: 'tests', re: /\.test\.js$/, exclude: /^coverage-map\.test\.js$/ },
   { dir: 'backend', re: /^test_.*\.py$/ },
+  { dir: 'tests', re: /^test_.*\.py$/ },
 ];
 
 function listFiles(rel, re, excludeRe) {

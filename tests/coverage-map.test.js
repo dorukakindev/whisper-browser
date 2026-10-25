@@ -37,6 +37,11 @@ describe('R328-3: modül-bazlı kapsam haritası', () => {
     );
   });
 
+  it('tests altındaki Python içe aktarımları da gerçek kapsam kaynağıdır', () => {
+    const row = rows.find(r => r.module === 'backend/assistant_stream.py');
+    assert.ok(row.direct.includes('tests/test_assistant_stream.py'));
+  });
+
   it('require/import-edilen modül oranı gerilemez', () => {
     // Eşik mevcut seviyeye sabitlendi (2026-10-01: 170/181) — yeni test
     // referansı kaybedilirse ratchet sessizce düşmesin.

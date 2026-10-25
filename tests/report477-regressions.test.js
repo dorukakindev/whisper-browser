@@ -38,7 +38,9 @@ test('477-02: configured Windows Path survives both voice subprocess paths', asy
   await new Promise(setImmediate);
   f.calls[0].child.stdout.emit('data',JSON.stringify({sourceHash:'fixture',groups:[{key:'1',text:'Merhaba',seconds:1}]}));
   f.calls[0].child.emit('close',0);await pending;
-  assert.equal(f.calls[0].options.env.PATH,'configured-tools');
+  assert.equal(f.calls[0].options.env.PATH.split(path.delimiter).at(-1),'configured-tools');
+  assert.equal(f.calls[0].options.env.Path,undefined);
+  assert(f.calls[0].options.env.PATH.split(path.delimiter).slice(0,-1).every(p=>path.isAbsolute(p)&&/(?:bin|Scripts|lib)$/i.test(p)),'only bundled tool directories precede configured PATH');
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'report477-background-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const exe=path.join(root,'backend/separator-venv/Scripts/python.exe');

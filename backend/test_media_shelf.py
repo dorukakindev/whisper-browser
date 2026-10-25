@@ -24,6 +24,10 @@ class ShelfParsingTests(unittest.TestCase):
             self.assertIn('&lt;', book['chapters'][0]['text'])
             self.assertNotIn('alert', book['chapters'][0]['text'])
             self.assertIn('Birinci', book['chapters'][1]['text'])
+            self.assertEqual([c['sourceSpineIndex'] for c in book['chapters']], [0, 1])
+            self.assertNotEqual(book['chapters'][0]['sourceId'], book['chapters'][1]['sourceId'])
+            again = read_book(self.epub(folder))
+            self.assertEqual([c['sourceId'] for c in book['chapters']], [c['sourceId'] for c in again['chapters']])
 
     def test_archive_traversal_is_rejected_without_extracting(self):
         with tempfile.TemporaryDirectory() as folder:

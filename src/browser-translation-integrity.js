@@ -49,7 +49,7 @@ function cueIdsForStage(values, source) {
         const candidates = byOriginalId.get(coveredId) || [];
         const hashApplies = cue.coveredCueIds.length===1 || normalizedId(cue.cueId ?? cue.id)===coveredId;
         const contained = candidates.filter(row=>(!hashApplies || compatible(row,cue)) &&
-          ((!Number.isFinite(time(cue.start)) || !Number.isFinite(time(cue.end)))
+          ((!Number.isFinite(row.start)||!Number.isFinite(row.end)||!Number.isFinite(time(cue.start)) || !Number.isFinite(time(cue.end)))
             ? candidates.length===1
             : row.start >= time(cue.start)-.05 && row.end <= time(cue.end)+.1));
         const timings = new Map();

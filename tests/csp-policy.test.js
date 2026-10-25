@@ -28,8 +28,8 @@ function cspOf(doc) {
 
 describe('R326-1: CSP politikası denetimi', () => {
   const csp = cspOf(html);
-  it('connect-src self + https: (hls.js) + whisper-pdf — başka izin yok', () => {
-    assert.deepEqual(csp['connect-src'], ["'self'", 'https:', 'whisper-pdf:']);
+  it('connect-src only self, HTTPS, authorized PDF and media protocols', () => {
+    assert.deepEqual(csp['connect-src'], ["'self'", 'https:', 'whisper-pdf:', 'whisper-media:']);
   });
   it('script-src katı self (unsafe-inline/eval yok)', () => {
     assert.deepEqual(csp['script-src'], ["'self'"]);

@@ -15,7 +15,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     ipcMain, dialog, owner, authorized, userData, pythonPath, inspectMedia, grantMedia, nativeImage,
     catalogStore: store, ...mediaShelf,
   });
-  if (mediaShelf) require('./media-discovery-service').registerMediaDiscovery({ ipcMain, authorized, userData, nativeImage, catalogStore: store });
+  if (mediaShelf) require('./media-discovery-service').registerMediaDiscovery({ ipcMain, authorized, userData, nativeImage, catalogStore: store, translateSynopsis });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
     ? 'file:' + source.value : 'browser:' + source.value) : '';
   const historyIndex = history => new Map((Array.isArray(history) ? history : [])

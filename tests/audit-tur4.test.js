@@ -36,6 +36,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
     const ctx = {
       authorizedBrowserSender: () => true, activeJob: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       modelBenchmarkJob: null, modelProcesses: new Set(), mainWindow: {},
+      dubService: { running: () => false, releaseIdle: async () => {} },
       dialog: { showOpenDialog: async () => ({ filePaths: ['synthetic.mp4'] }) },
       loadSettings: () => ({}), KNOWN_MODELS: ['small'], app: { getAppPath: () => '/synthetic' },
       appResourceRoot: () => '/synthetic',
@@ -170,6 +171,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const history = Array.from({ length: 100 }, (_, i) => ({ role: 'user', content: String(i) }));
   const chat = vm.runInNewContext(chatCode + '\naiChatSend', {
     state: {}, player: { chatHistory: history }, buildOptsFromUI: () => ({}), aiChatContext: () => ({}),
+    window: {}, globalAssistantContext: () => null,
     aiTranscriptEvidence: () => null,
     aiChatPreparing:null,aiSourceScope:()=> 'scope',updateAiChatActions(){},
   });

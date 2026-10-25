@@ -1,5 +1,37 @@
 # VoxCPM2 altyazı dublaj aracı
 
+## Elle gerçek ses kabulü
+
+`accept_dub.py` normal test paketinde model başlatmaz. Argümansız çalıştırma
+yalnız ilk GPU'nun durumunu okur. Saf compute işi, eksik süreç envanteri veya
+8 GiB'den az boş bellek varsa `blocked_gpu` ve çıkış kodu2 döner; dosya oluşturmaz,
+başka süreci durdurmaz. Bu kontrol GPU rezervasyonu değildir; üretim sırasında
+başka GPU işi başlatmayın. WDDM masaüstü `C+G` süreçleri model işi sayılmaz.
+
+Gerçek deneme için **motorun mevcut venv Python'u** ile açık `--run`,
+`--engine`, `--reference`, `--transcript` ve `--verify-python` yolları gerekir.
+Referans size ait/izinli temiz ses, döküm birebir olmalıdır. Örnek:
+
+```powershell
+& $enginePython tools/voxcpm2/accept_dub.py --run --engine $engineRoot --reference $ownVoice --transcript $ownTranscript --verify-python $backendPython
+```
+
+Değişkenler mevcut yerel dosyalara işaret etmelidir. İki sabit Türkçe blok;
+15 adım/CFG1.65/temperature0.8/seed42, akıcı gruplama, uyarlamalı video
+zamanlaması ve ayrıntılı CPU ASR kontrolü kullanılır. Model indirilmez;
+çevrimdışı mevcut ağırlıklar ve mevcut `small` doğrulayıcı gereklidir.
+Her çalıştırma yeni `tmp/real-dub-accept-*` alanına cache/WAV/özel günlük ve
+`acceptance.json` kaydeder; kişisel motorun eski çıktıları kullanılmaz/değişmez.
+Araç yalnız gerçek üretimden sonra aşama sürelerini, WAV süresini ve grup
+doğrulamalarını raporlar. Birleştirme/normalizasyon sonrası son WAV da ayrı CPU
+ASR'den geçirilir; son dosyada sözcük kaybı, sessizlik, geçersiz örnek veya
+dijital kırpılma kabulü geçirmez. Dengeleme süresi `normalization_seconds`,
+WAV/yan dosya yazımı `file_write_seconds` olarak ayrılır.
+`produced_needs_listening` dinleme gerektirir:
+ASR eşleşmesi doğal ton/duygu kalitesi garantisi değildir. İnceleme gerektiren
+çıktı exit3 döner; hata/eksik doğrulayıcı başarı sayılmaz. `--run` üretim yolu
+GPU uygun değilken doğrulanmış gibi sunulmamalıdır.
+
 ## Bağımsız metin stüdyosu
 
 Stüdyonun üstünde **Dengeli / Kitap anlatımı / Hızlı deneme** hazır ayarları vardır.

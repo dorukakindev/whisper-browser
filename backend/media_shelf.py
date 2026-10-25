@@ -3,6 +3,7 @@ import base64
 import csv
 import io
 import json
+import hashlib
 import os
 import posixpath
 import sys
@@ -108,11 +109,12 @@ def read_book(file):
         base = posixpath.dirname(rootfile)
         manifest = {n.attrib['id']: n for n in package.iter() if local(n.tag) == 'item' and 'id' in n.attrib}
         chapters, size = [], 0
-        for ref in (n for n in package.iter() if local(n.tag) == 'itemref'):
+        for spine_index, ref in enumerate(n for n in package.iter() if local(n.tag) == 'itemref'):
             item = manifest.get(ref.attrib.get('idref'))
             if item is None or ref.attrib.get('linear') == 'no':
                 continue
-            content = read(relative(base, item.attrib.get('href', '')))
+            entry = relative(base, item.attrib.get('href', ''))
+            content = read(entry)
             parser = Prose()
             parser.feed(decode(content))
             prose = parser.value()
@@ -120,7 +122,8 @@ def read_book(file):
             if size > 900_000 or len(chapters) >= 1000:
                 raise ValueError('EPUB text exceeds reader limits.')
             if prose:
-                chapters.append(dict(title=prose.split('\n')[0][:120], text=prose))
+                chapters.append(dict(title=prose.split('\n')[0][:120], text=prose,
+                                     sourceId=hashlib.sha256(entry.encode('utf-8')).hexdigest(), sourceSpineIndex=spine_index))
         if not chapters:
             raise ValueError('No readable EPUB chapters; DRM/fixed-layout books are not supported.')
         cover = ''

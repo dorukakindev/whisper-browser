@@ -347,7 +347,7 @@ const { createBrowserSessionPackage, inspectBrowserSessionPackage } = require('.
 const { WatchIndex } = require('./watch-index');
 const { collectTrackAssetRefs, pruneAndSweepTracks } = require('./browser-asset-gc');
 const { writeJsonAtomic: writeAtomicJson, writeMirroredJsonAtomic } = require('./atomic-json');
-const { fsyncDirectory, renameSyncResilient } = require('./fsync-utils');
+const { fsyncDirectory, renameSyncResilient, atomicWriteFileSync } = require('./fsync-utils');
 const { runBrowserPageIndexCapture } = require('./browser-page-index');
 const { BrowserNoteStore } = require('./browser-note-store');
 const { validateSubtitleExport } = require('./subtitle-export-validation');
@@ -18154,7 +18154,7 @@ const dubService = require('./dub-service').registerDubService({
   },
   editorIdentity: () => {
     const c = browserTranslationConfig();
-    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v3-full-meaning'])).digest('hex');
+    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v4-delivery-contract'])).digest('hex');
   },
   shorten: async (text, seconds, context = {}) => {
     const config = browserTranslationConfig();
@@ -21723,7 +21723,7 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
-mediaWorkflows = require('./media-workflows').registerMediaWorkflows({grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
+mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunning:()=>dubService.running(),resolveShelfBook:id=>{const f=path.join(app.getPath('userData'),'media-shelf.json');if(!fs.existsSync(f)||fs.statSync(f).size>16000000)return null;const d=JSON.parse(fs.readFileSync(f,'utf8'));return d.books?.find(b=>b.id===id)||null;},linkShelfBook:(id,projectId)=>{const f=path.join(app.getPath('userData'),'media-shelf.json');const d=JSON.parse(fs.readFileSync(f,'utf8')),row=d.books?.find(b=>b.id===id);if(!row)throw Error('Book missing.');row.productionProjectId=projectId;atomicWriteFileSync(f,JSON.stringify(d),{encoding:'utf8'});},resolvePdf:hash=>{const d=pdfDocumentByHash(hash);return d&&inspectPdfDocument(d.filePath).pdfHash===hash?d:null;},grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
   python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
   resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
