@@ -11,7 +11,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 | P05 | Tamamlandı | Üretim öncesi güncel konuşma gruplarını ve metindeki değişiklikleri görünür yap. | Kaynak/plan kimliği sabittir; eski key başka parçayı hedeflemez; önbellek tekrar kullanımı ölçülmeden kesin sayı/hız vaat edilmez. EskiN41/N43 ve mevcut onarımların devamı. |
 | P06 | Tamamlandı | Kalite ve iş durumlarını anlaşılır EN/TR etiketleriyle göster. | Ham review/failed kodları yerine açık etiket; dil değişince kullanıcı metni çevrilmez; durdurma/timeout/gerçek hata ayrımı korunur. EskiN45. |
 | P07 | Tamamlandı | Dar ekran ve yüksek DPI'da okuyucu/kalite/üretim düğmelerini erişilebilir tut. |800px ve125% kontrolü, klavye odak sırası, iç içe kaydırma ve düğme örtüşmesi için gerçek görüntü/etkileşim. EskiN29/N33. |
-| P08 | Bekliyor | Uzun kitap export'u ve tekrar aç/kapat kullanımında gerçek kaynak maliyetini ölçüp gerekirse düzelt. |100bölüm M4B'de argv/süre/bellek/süreç tanıtıcısı; okuyucu tekrarlarında listener/süreç kapanışı; sayı tek başına bug sayılmaz. EskiN10/N15/N46. |
+| P08 | Tamamlandı | Uzun kitap export'u ve tekrar aç/kapat kullanımında gerçek kaynak maliyetini ölçüp gerekirse düzelt. |100bölüm M4B'de argv/süre/bellek/süreç tanıtıcısı; okuyucu tekrarlarında listener/süreç kapanışı; sayı tek başına bug sayılmaz. EskiN10/N15/N46. |
 | P09 | Bekliyor | Seçili pasajı açıklama/özetleme gibi asistan eylemlerini doğru kitap bağlamıyla kolaylaştır. | Komutun kaynağı görünür; başka sayfa/kitap/önceki seçim kullanılmaz; sayfa çevirisi gibi mevcut araçlar gerektiğinde çağrılır. Mevcut seçili pasaj bağlamı tekrardan yazılmaz. |
 | P10 | Bekliyor | Uygun boş GPU'da kısa gerçek dublaj örneğiyle son ses/kelime bütünlüğünü ve aşama sürelerini kontrol et. | Aynı kısa metin/referansla kayıtlı ayarlar, gerçek çıktı ve süre/eksik okuma kanıtı; kişisel iş kesilmez. GPU/başvuru sesi uygun değilse açık engel kaydedilir, mock gerçek kalite diye sunulmaz. |
 
@@ -45,3 +45,6 @@ Eski `NIGHT_WORK_2026-10-25.md` tarihsel kanıt ve kalan düşük öncelikli iş
 
 ## P07 kanıtı — 13:14
 Ürün `4b8c42e207b12043b9c12e5e16552a07c31a12f9`, Rapor574. Dar ekranda tek sütun/tam genişlik editör, akışlı kalite/işlem alanı ve odak stilleri. Windows native exit0 `.uiprev/book-reliability549-1792923217450`:800×900/%100 ve%125, gerçek640×720viewport/DPR1,25; altı ekranda48 kaydırma sonrası hit ölçümü, taşma0; gerçekTab ve PDFfaretekerleği. Görüntüler incelendi;14 hedefli PASS. OS DPI/çoklu monitör değil; normal uygulama min940 değişmedi. Sıradaki P08 100bölüm/kaynak ölçümü; P08–P10 açık.
+
+## P08 kanıtı —13:31
+Ürün `e80ebdefcfe293e59d46a74e27e113cf9366c1db`, Rapor575. Gerçek100×1sn PCM→M4B/tamdecode/100başlık; aynı WAV formatlarında ardışık yol:206→21thread,1417→258handle,argv224→28; farklıformat fallback ve gerçekiptal temizliği geçti. Süre4,66→4,45sn tek koşum, genel hız garantisi değil.14 hedefli PASS; nativeWindows exit0 `.uiprev/book-reliability549-1792924009107`:12reader döngüsünde DOM/listener sabit, kapalıreader kaynakları temiz. Gerçek TTS/GPU değil. Sıradaki P09 kitap asistanı eylemleri ve P10 gerçek kısa dublaj; açık kalanlar bunlar.

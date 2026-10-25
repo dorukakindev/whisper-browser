@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1331.md](docs/devir/2026-10-25-1331.md) — P08100bölüm M4B kaynak iyileştirmesi ve reader ölçümü
 Güncel çalışma: [docs/devir/2026-10-25-1314.md](docs/devir/2026-10-25-1314.md) — P07 dar ekran düzeni ve gerçek klavye/PDF kaydırma ölçümü
 Güncel çalışma: [docs/devir/2026-10-25-1305.md](docs/devir/2026-10-25-1305.md) — P06 kalite/aşama etiketleri ve doğru hata/durdurma durumu
 Güncel çalışma: [docs/devir/2026-10-25-1255.md](docs/devir/2026-10-25-1255.md) — P05 güncel konuşma grubu planı ve üretim snapshot doğrulaması
