@@ -3,30 +3,110 @@
   else root.PdfSpokenMap = factory();
 })(typeof window === "object" ? window : globalThis, () => {
   "use strict";
-  const fold = (s) =>
+  const normalize = (s) =>
     String(s || "")
       .normalize("NFKC")
-      .toLocaleLowerCase("tr")
-      .replace(/[^\p{L}\p{N}]/gu, "");
+      .toLocaleLowerCase("tr");
+  function fold(source) {
+    let text = "";
+    const offsets = [];
+    for (let i = 0; i < source.length; ) {
+      const char = String.fromCodePoint(source.codePointAt(i));
+      let keep = /[\p{L}\p{N}]/u.test(char);
+      if (!keep && /[.,:/+\-−–]/u.test(char)) {
+        let before = i - 1,
+          after = i + char.length;
+        while (before >= 0 && /\s/u.test(source[before])) before--;
+        while (after < source.length && /\s/u.test(source[after])) after++;
+        const nextDigit = /\p{N}/u.test(source[after] || "");
+        keep =
+          nextDigit &&
+          (/[+\-−–]/u.test(char) || /\p{N}/u.test(source[before] || ""));
+      }
+      if (keep) {
+        const value = /[−–]/u.test(char) ? "-" : char;
+        text += value;
+        for (let j = 0; j < value.length; j++) offsets.push(i);
+      }
+      i += char.length;
+    }
+    return { text, offsets };
+  }
   function match(items, groups) {
-    let text = "",
+    let source = "",
       spans = [],
       cursor = 0;
     for (const [i, item] of items.entries()) {
-      const value = fold(item.str);
-      spans.push({ start: text.length, end: text.length + value.length, i });
-      text += value;
+      const value = normalize(item.str);
+      spans.push({
+        start: source.length,
+        end: source.length + value.length,
+        i,
+      });
+      source += value;
     }
+    const { text, offsets } = fold(source);
     return groups.map((group) => {
-      const value = fold(group.text);
+      const value = fold(normalize(group.text)).text;
       if (value.length < 6) return [];
-      const start = text.indexOf(value, cursor);
+      let start = text.indexOf(value, cursor);
+      const numericEdge = /[\p{N}.,:/+\-]/u;
+      while (
+        start >= 0 &&
+        ((/^[+\-]?\p{N}/u.test(value) &&
+          start > 0 &&
+          numericEdge.test(text[start - 1])) ||
+          (/\p{N}$/u.test(value) &&
+            numericEdge.test(text[start + value.length] || "")))
+      )
+        start = text.indexOf(value, start + 1);
       if (start < 0) return [];
       cursor = start + value.length;
+      const sourceStart = offsets[start],
+        sourceEnd = offsets[cursor - 1] + 1;
       return spans
-        .filter((s) => s.end > start && s.start < cursor)
+        .filter((s) => s.end > sourceStart && s.start < sourceEnd)
         .map((s) => s.i);
     });
+  }
+  function rect(item, viewport) {
+    const m = item.transform,
+      matrix = viewport.transform;
+    if (
+      !m ||
+      !matrix ||
+      ![
+        ...m,
+        ...matrix,
+        item.width,
+        item.height,
+        viewport.width,
+        viewport.height,
+      ].every(Number.isFinite) ||
+      Math.abs(m[1]) > 0.01 ||
+      Math.abs(m[2]) > 0.01 ||
+      item.width <= 0 ||
+      item.height <= 0 ||
+      viewport.width <= 0 ||
+      viewport.height <= 0
+    )
+      return null;
+    const points = [
+      [m[4], m[5]],
+      [m[4] + item.width, m[5]],
+      [m[4], m[5] + item.height],
+      [m[4] + item.width, m[5] + item.height],
+    ].map(([x, y]) => [
+      matrix[0] * x + matrix[2] * y + matrix[4],
+      matrix[1] * x + matrix[3] * y + matrix[5],
+    ]);
+    const left = Math.max(0, Math.min(...points.map((p) => p[0]))),
+      top = Math.max(0, Math.min(...points.map((p) => p[1]))),
+      right = Math.min(viewport.width, Math.max(...points.map((p) => p[0]))),
+      bottom = Math.min(viewport.height, Math.max(...points.map((p) => p[1])));
+    return right > left && bottom > top
+      ? { left, top, width: right - left, height: bottom - top }
+      : null;
   }
   function mount(container, canvas, items, viewport, groups, audio) {
     container.querySelector(".pdf-text-map")?.replaceWith(canvas);
@@ -38,27 +118,9 @@
       boxes = [];
     for (const [group, indices] of matches.entries())
       for (const i of indices) {
-        const item = items[i],
-          m = item.transform;
-        if (!m || Math.abs(m[1]) > 0.01 || Math.abs(m[2]) > 0.01) continue;
-        const matrix = viewport.transform,
-          x = m[4],
-          y = m[5],
-          w = item.width,
-          h = Math.max(1, item.height);
-        const points = [
-          [x, y],
-          [x + w, y],
-          [x, y + h],
-          [x + w, y + h],
-        ].map(([x, y]) => [
-          matrix[0] * x + matrix[2] * y + matrix[4],
-          matrix[1] * x + matrix[3] * y + matrix[5],
-        ]);
-        const left = Math.min(...points.map((p) => p[0])),
-          top = Math.min(...points.map((p) => p[1])),
-          width = Math.max(...points.map((p) => p[0])) - left,
-          height = Math.max(...points.map((p) => p[1])) - top;
+        const box = rect(items[i], viewport);
+        if (!box) continue;
+        const { left, top, width, height } = box;
         const b = document.createElement("button");
         b.type = "button";
         b.className = "pdf-speech-box";
@@ -88,7 +150,7 @@
     audio.addEventListener("timeupdate", update);
     update();
     return {
-      matched: matches.filter((m) => m.length).length,
+      matched: new Set(boxes.map((b) => b.dataset.group)).size,
       total: groups.length,
       dispose() {
         for (const b of boxes) b.classList.remove("pdf-active-box");
@@ -96,5 +158,5 @@
       },
     };
   }
-  return { match, mount };
+  return { match, mount, rect };
 });
