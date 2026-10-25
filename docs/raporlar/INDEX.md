@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_566.md](BROWSER_BUG_REPORT_566.md) — Kitap referansının genel dublaj ayarlarına sızmasını önleme.
+
 - [BROWSER_BUG_REPORT_565.md](BROWSER_BUG_REPORT_565.md) — Metadata öncesi seek, konum kaydı ve PDF klavye oynatma.
 
 - [BROWSER_BUG_REPORT_564.md](BROWSER_BUG_REPORT_564.md) — Kitapta seçili pasajı ve yakın bağlamı asistana verme.

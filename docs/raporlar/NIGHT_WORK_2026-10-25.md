@@ -32,7 +32,7 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N22 | Bekliyor | capture kaydetme hatasını uygulama genel günlüğü ve proje durumunda göster. | Sessiz catch yerine kurtarılabilir çıktı konumu, özel veri redaksiyonu. |
 | N23 | Bekliyor | Yedek alma/restore ile eşzamanlı üretimin tutarlı snapshotını sağla. | Üretilen WAV/manifest aynı kimlikte; yarım dosya onaylanmaz. |
 | N24 | Bekliyor | Proje açıldığında yarım iş varsa kurtarma önerisi göster. | Kendiliğinden GPU başlatmaz; kullanıcı denetimi ve açıklama. |
-| N25 | Bekliyor | Kitap bazlı referans seçiminin genel dublaj sesiyle etkisini açık göster. | Yanlış referans/döküm sessizce kullanılmaz. |
+| N25 | Tamamlandı | Kitap bazlı referans seçiminin genel dublaj sesiyle etkisini açık göster. | Yanlış referans/döküm sessizce kullanılmaz. |
 | N26 | Tamamlandı | Hazır M4B çıktısını bağlı kitap rafı kartından aç. | Çıktı kaydı/source yetkisi ve eksik dosyada anlaşılır eylem. |
 | N27 | Bekliyor | Proje kopyalamayı metin/ayar kopyası olarak ekle. | Kaynak proje korunur; büyük sesleri kopyalama açık seçenek olur. |
 | N28 | Bekliyor | Proje klasörünü güvenli Aç eylemiyle erişilebilir yap. | Yalnız uygulamanın doğrulanmış proje kökü açılır. |
@@ -126,3 +126,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:54 — Rapor565/ürünab41ccdd4f57900cc85969391600d8aa6c58c3d3: okuyucuda metadataöncesi seçilenseek kayıtlıkonumlaezilmez, unloadsonrası0konumkaydıönlenir, bekleyenlistener/timer kapanır.16hedef+CSP5PASS/nativeWindowsPDFkutusuReturn/char ilegerçekgrup1sseek/play vePDF/M4Bexit0; N35tamam,N42/N46readerilerledi. Sonraki N25refkapsamı,N32tireseçeneği,N40EPUBkimliği,N15fan-in; yedekbakımı yok.
 
 07:56 — Rapor565görselek/ürün5b6578bee5d338e686260a239620bba4c35e06fe: pause'ın beklenenAbortError'ı uyarıgöstermiyor; gerçekNotAllowedError korunuyor. Controller5PASS/nativeWindows4148121exit0/sonPDFgörüntüsütemiz. Diğerplanaynı;N25/N32/N40/N15, yedekbakımı yok.
+
+11:39 — Rapor566/ürüna5f4f44fb79701bca54ecf8eb6aa0acfa9223a99: N25tamam, kayıtlıkitapsesiseçimi/genisteğireferenceId ileişeözel; globalreferans/döküm veanlatım configyazımıizole, eksikrefsessizfallbackyok. UIgenel/kitapsesiadıaçık.4hedefPASS/native4431541exit0görüntüincelendi. Sonraki N32/N40/N15; yedekbakımı yok. Kullanıcıdevam dedi;11:55uyanışı aynıaktifhedefiçoğaltmaz.
