@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_585.md](BROWSER_BUG_REPORT_585.md) — Gerçek GPU dört ses A/B, tek grup onarımı ve dar çeviri/ASR yanlış alarm düzeltmeleri.
+
 - [BROWSER_BUG_REPORT_584.md](BROWSER_BUG_REPORT_584.md) — Okuyucu konumu/takip, Letterboxd sayfa ekleme, etkin grup ve asistan eylemleri.
 
 - [BROWSER_BUG_REPORT_583.md](BROWSER_BUG_REPORT_583.md) — Letterboxd Browser dönüşü, sonuçlara dönüş, kitap rafı ve zevk testi.
