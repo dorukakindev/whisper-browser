@@ -1,4 +1,5 @@
 - [Rapor 588](BROWSER_BUG_REPORT_588.md) — Aynı sahnede çeviri, telaffuz ve eski/yeni dublaj karşılaştırması
+- [Rapor 588](BROWSER_BUG_REPORT_588.md) — Okuma-yalnız bug taraması ve test triyajı: 7 başarısız test, en önemli dublaj cache bulgusu, yerelleştirme/CSS/determinizm/kapsam kaymaları.
 - [Rapor 587](BROWSER_BUG_REPORT_587.md) — Kod geliştirme ve teknik borç yol haritası: 22 öncelikli madde, nedenleri, kod işaretleri ve kabul testleri.
 - [Rapor 586](BROWSER_BUG_REPORT_586.md) — Videoya bağlı dublaj ve yalnız sese uygulanan telaffuz sözlüğü
 # BROWSER_BUG_REPORT dizini
