@@ -67,7 +67,7 @@
         const catalogId = result.catalogId || (await api('add', { kind: item.kind, id: item.providerId })).item.id;
         result.catalogId = catalogId; dialog.close();
         document.dispatchEvent(new CustomEvent('media-library-changed'));
-        await window.MediaCatalogUI.open({ id: catalogId, opener });
+        await window.MediaTitleUI.open(catalogId);
       } catch (error) { placeholder.textContent = error.message; add.disabled = false; }
     }, 'mh-action mh-primary');
     actions.append(add, btn(t('IMDb page', 'IMDb sayfası'), async () => {
