@@ -1,3 +1,4 @@
+G?ncel ?al??ma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) ? Kodu de?i?tirmeden 100 hedefli gece testi: 98 PASS, 2 test s?zle?mesi kaymas?
 Güncel çalışma: [docs/devir/2026-10-25-0414.md](docs/devir/2026-10-25-0414.md) — PR485 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0410.md](docs/devir/2026-10-25-0410.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve üretim araçları
 Güncel çalışma: [docs/devir/2026-10-25-0256.md](docs/devir/2026-10-25-0256.md) — PR483 ana sürüm ve Windows ana kopya teslimi
