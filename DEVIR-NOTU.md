@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1255.md](docs/devir/2026-10-25-1255.md) — P05 güncel konuşma grubu planı ve üretim snapshot doğrulaması
 Güncel çalışma: [docs/devir/2026-10-25-1249.md](docs/devir/2026-10-25-1249.md) — P04 ses denemelerini karşılaştırıp seçme
 Güncel çalışma: [docs/devir/2026-10-25-1237.md](docs/devir/2026-10-25-1237.md) — P03 seçerek PDF seslendirme metni hazırlama
 Güncel çalışma: [docs/devir/2026-10-25-1234.md](docs/devir/2026-10-25-1234.md) — P02 pasaj yer imi ve ses sürümüne güvenli dönüş
