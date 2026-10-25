@@ -946,6 +946,10 @@
                 id: project.id,
                 chapters: [...selected],
               });
+              if (!r.canceled) {
+                project = (await call("book-open", { id: project.id })).project;
+                await books();
+              }
               status(r.path || "");
             } finally {
               off();
@@ -957,6 +961,17 @@
         },
       ),
     );
+    if (project.audiobook)
+      buttons.append(
+        button(t("Listen to M4B", "M4B’yi dinle"), async () => {
+          const r = await call("book-audiobook", {
+            id: project.id,
+            exportId: project.audiobook.id,
+          });
+          dialog.close();
+          await openLocalMedia(r.path, 0);
+        }),
+      );
     if (c.groups?.some((g) => g.status !== "ready")) {
       const review = el("details", "mw-review");
       review.open = true;

@@ -160,11 +160,49 @@ function registerMediaWorkflows({
   const clean = (d) => ({
     ...d,
     source: undefined,
+    audiobook: d.audiobook ? { ...d.audiobook, path: undefined } : undefined,
     chapters: d.chapters.map((c) => ({
       ...c,
       output: c.output ? path.basename(c.output) : null,
     })),
   });
+  function audiobookInfo(d) {
+    const a = d.audiobook;
+    if (
+      !a ||
+      !idOK(a.id) ||
+      typeof a.path !== "string" ||
+      !path.isAbsolute(a.path) ||
+      !/\.m4b$/i.test(a.path) ||
+      !Array.isArray(a.chapters) ||
+      !a.chapters.length ||
+      a.chapters.length > 1000
+    )
+      return null;
+    let available = false;
+    try {
+      const stat = fs.lstatSync(a.path);
+      available =
+        stat.isFile() &&
+        !stat.isSymbolicLink() &&
+        stat.size === a.size &&
+        stat.mtimeMs === a.mtimeMs;
+    } catch {}
+    return {
+      id: a.id,
+      projectId: d.id,
+      shelfId: d.shelfBookId || null,
+      name: path.basename(a.path),
+      chapters: a.chapters.length,
+      seconds: a.seconds,
+      available,
+      current: a.chapters.every(
+        (c) =>
+          d.chapters[c.chapter]?.textHash === c.textHash &&
+          hash(d.chapters[c.chapter]?.text || "") === c.textHash,
+      ),
+    };
+  }
   async function parser(request) {
     return JSON.parse(
       await runTool(
@@ -820,6 +858,36 @@ function registerMediaWorkflows({
         }
         case "book-open":
           return { ok: true, project: clean(load(r.id)) };
+        case "book-audiobooks": {
+          if (
+            !Array.isArray(r.shelfIds) ||
+            r.shelfIds.length > 300 ||
+            r.shelfIds.some((id) => typeof id !== "string" || id.length > 120)
+          )
+            throw Error("Invalid book selection.");
+          const audiobooks = [];
+          for (const shelfId of new Set(r.shelfIds)) {
+            try {
+              const shelf = resolveShelfBook?.(shelfId);
+              if (!shelf?.productionProjectId) continue;
+              const d = load(shelf.productionProjectId);
+              if (d.shelfBookId !== shelfId || d.archived) continue;
+              const info = audiobookInfo(d);
+              if (info) audiobooks.push(info);
+            } catch {}
+          }
+          return { ok: true, audiobooks };
+        }
+        case "book-audiobook": {
+          const d = load(r.id),
+            info = audiobookInfo(d);
+          if (!info?.available || (r.exportId && r.exportId !== info.id))
+            throw Error(
+              "Audiobook moved or changed; export it again / Sesli kitap taşınmış veya değişmiş; yeniden dışa aktarın.",
+            );
+          grantMedia(d.audiobook.path);
+          return { ok: true, path: d.audiobook.path, ...info };
+        }
         case "book-save": {
           const d = load(r.id),
             c = d.chapters[r.chapter];
@@ -1176,6 +1244,21 @@ function registerMediaWorkflows({
             if (exportController.signal.aborted)
               throw Error("Export cancelled.");
             fs.renameSync(temp, pick.filePath);
+            const stat = fs.statSync(pick.filePath),
+              latest = load(d.id);
+            latest.audiobook = {
+              id: randomUUID(),
+              path: path.resolve(pick.filePath),
+              size: stat.size,
+              mtimeMs: stat.mtimeMs,
+              seconds: cursor,
+              createdAt: new Date().toISOString(),
+              chapters: indices.map((chapter) => ({
+                chapter,
+                textHash: d.chapters[chapter].textHash,
+              })),
+            };
+            save(latest);
             grantMedia(pick.filePath);
             emit(e.sender, {
               type: "progress",

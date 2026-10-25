@@ -166,6 +166,101 @@ test("M4B preview preserves order, uses probed durations and reports unknown/low
   assert(!fs.readdirSync(f.root).some((n) => n.startsWith(".audiobook-")));
 });
 
+test("completed M4B is linked to its shelf book with selection, revision and file identity", async (t) => {
+  let linked;
+  const granted = [];
+  const f = await fixture(t, {
+    resolveShelfBook: (id) =>
+      id === "shelf-book" ? { productionProjectId: linked } : null,
+    grantMedia: (p) => granted.push(p),
+  });
+  linked = f.id;
+  const manifest = path.join(
+    voiceStorage({ getPath: () => f.root }).input,
+    "Kitap projeleri",
+    f.id,
+    "project.json",
+  );
+  const project = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  project.shelfBookId = "shelf-book";
+  fs.writeFileSync(manifest, JSON.stringify(project));
+  assert.equal((await f.call("book-audiobook", { id: f.id })).ok, false);
+  assert((await f.call("book-export", { id: f.id, chapters: [1] })).ok);
+  const opened = await f.call("book-open", { id: f.id });
+  assert.equal(
+    opened.project.audiobook.path,
+    undefined,
+    "project metadata does not expose the output path",
+  );
+  assert.deepEqual(
+    opened.project.audiobook.chapters.map((c) => c.chapter),
+    [1],
+  );
+  const exportId = opened.project.audiobook.id;
+  const listing = await f.call("book-audiobooks", {
+    shelfIds: ["shelf-book", "unknown"],
+  });
+  assert.equal(listing.audiobooks.length, 1);
+  assert.equal(
+    listing.audiobooks[0].chapters,
+    1,
+    "a partial export is not presented as the whole book",
+  );
+  assert.equal(listing.audiobooks[0].current, true);
+  assert.equal(listing.audiobooks[0].available, true);
+  assert.equal(listing.audiobooks[0].path, undefined);
+  assert.equal(
+    (await f.call("book-audiobook", { id: f.id, exportId: "old" })).ok,
+    false,
+  );
+  const play = await f.call("book-audiobook", { id: f.id, exportId });
+  assert(play.ok, play.error);
+  assert.equal(play.path, f.target);
+  assert.equal(granted.at(-1), f.target);
+  assert(
+    (
+      await f.call("book-save", {
+        id: f.id,
+        chapter: 1,
+        text: "Edited after export.",
+      })
+    ).ok,
+  );
+  assert.equal(
+    (await f.call("book-audiobooks", { shelfIds: ["shelf-book"] }))
+      .audiobooks[0].current,
+    false,
+  );
+  assert.equal(
+    (await f.call("book-audiobook", { id: f.id, exportId })).ok,
+    true,
+    "an explicitly labelled earlier export stays playable",
+  );
+  fs.writeFileSync(f.target, "replacement file");
+  assert.equal(
+    (await f.call("book-audiobook", { id: f.id, exportId })).ok,
+    false,
+  );
+  assert.equal(
+    (await f.call("book-audiobooks", { shelfIds: ["shelf-book"] }))
+      .audiobooks[0].available,
+    false,
+  );
+  fs.unlinkSync(f.target);
+  assert.equal(
+    (await f.call("book-audiobook", { id: f.id, exportId })).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await f.call("book-audiobooks", {
+        shelfIds: Array(301).fill("shelf-book"),
+      })
+    ).ok,
+    false,
+  );
+});
+
 test(
   "real Windows/POSIX ffmpeg cancellation confirms process close before export cleanup",
   { timeout: 25000 },

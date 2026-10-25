@@ -12,6 +12,10 @@
 .ms-track input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
 .ms-time { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 13px; }
 .ms-book-grid { margin-top: 25px; }
+.ms-book-actions { display: grid; gap: 7px; margin-top: 12px; }
+.ms-book-audiobook:empty { display: none; }
+.ms-book-audiobook .mh-action { width: 100%; }
+.ms-book-audiobook small { display: block; margin-top: 5px; overflow-wrap: anywhere; }
 .ms-book-placeholder { color: var(--text-dim); font-size: 17px; }
 .ms-podcast { padding: 18px 0; border-bottom: 1px solid var(--border); }
 .ms-podcast summary { cursor: pointer; font-weight: 600; padding: 9px 0; }

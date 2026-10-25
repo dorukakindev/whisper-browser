@@ -192,14 +192,42 @@
   }
   function books(root) {
     root.append(btn(t('Add EPUB / PDF / TXT', 'EPUB / PDF / TXT ekle'), () => task('book-import')));
-    const grid = el('div', 'mh-grid ms-book-grid');
+    const grid = el('div', 'mh-grid ms-book-grid'), audioSlots = new Map();
     const rows = snapshot.books.filter(row => `${row.title} ${row.author}`.toLocaleLowerCase().includes(view.query.toLocaleLowerCase()));
     rows.slice(0, 300).forEach(row => {
       const node = btn('', () => openBook(row), 'mh-card'), cover = el('div', 'mh-art');
       if (/^data:image\/(?:png|jpeg|webp);base64,/i.test(row.cover || '')) { const img = el('img'); img.src = row.cover; img.alt = ''; img.loading = 'lazy'; cover.append(img); } else cover.append(el('span', 'ms-book-placeholder', row.format.toUpperCase()));
-      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase())); const shell = el('div'); shell.append(node,btn(t('Voice production','Sesli üretim'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);await window.MediaWorkflowsUI.openProject(r.project.id);})); shell.append(btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button')); grid.append(shell);
+      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase()));
+      const shell = el('div'), actions = el('div', 'ms-book-actions'), audioSlot = el('div', 'ms-book-audiobook');
+      actions.append(audioSlot,btn(t('Voice production','Sesli üretim'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);await window.MediaWorkflowsUI.openProject(r.project.id);}),btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button'));
+      shell.append(node, actions); audioSlots.set(row.id, audioSlot); grid.append(shell);
     });
     root.append(grid); if (!rows.length) root.append(el('p', 'mh-empty', t('Add books to keep covers, reading position, bookmarks and quotes together. EPUB opens as a safe text reader; fixed-layout/DRM content is not supported.', 'Kapakları, okuma konumunu, yer imlerini ve alıntıları bir arada tutmak için kitap ekle. EPUB güvenli metin okuyucuda açılır; sabit düzen/DRM içeriği desteklenmez.')));
+    if (audioSlots.size) void loadAudiobooks(audioSlots, generation);
+  }
+  async function loadAudiobooks(slots, mine) {
+    try {
+      const result = await window.api.mediaWorkflows({ action: 'book-audiobooks', shelfIds: [...slots.keys()] });
+      if (mine !== generation || !result?.ok) return;
+      for (const info of result.audiobooks) {
+        const slot = slots.get(info.shelfId);
+        if (!slot?.isConnected) continue;
+        const play = btn(t('Listen to M4B', "M4B’yi dinle"), async () => {
+          const opened = await window.api.mediaWorkflows({ action: 'book-audiobook', id: info.projectId, exportId: info.id });
+          if (!opened?.ok) throw Error(opened?.error || t('Audiobook unavailable.', 'Sesli kitap kullanılamıyor.'));
+          if (mine !== generation || !slot.isConnected) return;
+          await openLocalMedia(opened.path, 0);
+        }, 'mh-action mh-primary');
+        play.disabled = !info.available;
+        play.title = info.name;
+        const meta = el('small', 'ms-status', t(`${info.chapters} chapters`, `${info.chapters} bölüm`));
+        if (!info.available) meta.textContent += t(' · File moved or changed', ' · Dosya taşınmış veya değişmiş');
+        else if (!info.current) meta.textContent += t(' · Earlier text version', ' · Önceki metin sürümü');
+        slot.append(play, meta);
+      }
+    } catch (error) {
+      if (mine === generation) status(error.message, true);
+    }
   }
   function radio(root) {
     const controls = el('div', 'mh-filterbar');

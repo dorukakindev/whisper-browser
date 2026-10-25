@@ -442,6 +442,83 @@ app
     await run(
       'document.getElementById("mediaWorkflowsDialog").close();return true',
     );
+    // A completed partial audiobook must be reachable from the real shelf card.
+    const projectFile = path.join(
+      require("../src/voice-storage").voiceStorage(app).input,
+      "Kitap projeleri",
+      id,
+      "project.json",
+    );
+    const shelfProject = JSON.parse(fs.readFileSync(projectFile, "utf8"));
+    shelfProject.shelfBookId = "fixture-shelf";
+    fs.writeFileSync(projectFile, JSON.stringify(shelfProject));
+    fs.writeFileSync(
+      path.join(app.getPath("userData"), "media-shelf.json"),
+      JSON.stringify({
+        version: 1,
+        music: [],
+        stations: [],
+        podcasts: [],
+        playlists: [],
+        diary: [],
+        books: [
+          {
+            id: "fixture-shelf",
+            title: "Okuma denemesi",
+            author: "Controlled PDF",
+            format: "pdf",
+            path: source,
+            productionProjectId: id,
+          },
+        ],
+      }),
+    );
+    win.setContentSize(1200, 900);
+    await run(
+      'const root=document.createElement("section");root.id="audiobookShelfTest";root.className="media-surface";Object.assign(root.style,{position:"fixed",inset:"0",zIndex:"2000",padding:"32px",overflow:"auto",background:"var(--bg-1)"});document.body.append(root);MediaShelfUI.mount(root,"books");return true',
+    );
+    await until(
+      () =>
+        run(
+          'return !!document.querySelector("#audiobookShelfTest .ms-book-audiobook button")',
+        ),
+      "shelf audiobook action",
+    );
+    assert.match(
+      await run(
+        'return document.querySelector(".ms-book-audiobook small").textContent',
+      ),
+      /2 chapters/,
+    );
+    await capture("audiobook-shelf-en-light.png");
+    await run(
+      'UiLocale.set("tr",false);applyUiTheme("dark");MediaShelfUI.mount(document.getElementById("audiobookShelfTest"),"books");return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector("#audiobookShelfTest .ms-book-audiobook button")?.textContent.includes("dinle")',
+        ),
+      "Turkish shelf audiobook action",
+    );
+    await capture("audiobook-shelf-tr-dark.png");
+    await run(
+      'document.querySelector("#audiobookShelfTest .ms-book-audiobook button").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.getElementById("playerVideoPath").textContent.includes("selected-pages.m4b")',
+        ),
+      "M4B opened in application player",
+    );
+    await until(
+      () => run('return document.getElementById("playerVideo").readyState>=2'),
+      "real M4B decoded",
+    );
+    await run(
+      'document.getElementById("playerVideo").pause();document.getElementById("audiobookShelfTest").remove();return true',
+    );
     fs.writeFileSync(
       path.join(out, "results.json"),
       JSON.stringify(
