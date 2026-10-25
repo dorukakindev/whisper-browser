@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_561.md](BROWSER_BUG_REPORT_561.md) — Düzenleme sonrası eski kalite grubu numarasını üretime taşımama.
+
 - [BROWSER_BUG_REPORT_560.md](BROWSER_BUG_REPORT_560.md) — Eski PDF yükleme/çizim sonucunun yeni okuyucuya karışmasını önleme.
 
 - [BROWSER_BUG_REPORT_559.md](BROWSER_BUG_REPORT_559.md) — Çok parçalı kitap bölümünün yeniden seslendirilmesi.
