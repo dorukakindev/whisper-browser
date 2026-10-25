@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1929.md](docs/devir/2026-10-25-1929.md) — PR489 ana sürüm ve Windows ana programa alındı
 Güncel çalışma: [docs/devir/2026-10-25-1925.md](docs/devir/2026-10-25-1925.md) — Okuyucu konumu, yorum sayfaları, bekleyen dublaj grubu ve asistan eylemleri
 Güncel çalışma: [docs/devir/2026-10-25-1855.md](docs/devir/2026-10-25-1855.md) — PR488 ana sürüm ve Windows ana programa alındı
 Güncel çalışma: [docs/devir/2026-10-25-1851.md](docs/devir/2026-10-25-1851.md) — Letterboxd Browser dönüşü, kitap eylemleri ve isteğe bağlı zevk testi
