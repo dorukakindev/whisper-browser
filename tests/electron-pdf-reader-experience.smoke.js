@@ -147,7 +147,7 @@ app
     assert(context.excerpt.includes("controlled PDF"));
     assert(context.selectedText);
     await run('document.getElementById("pdfNext").click();return true');
-    await wait(350);
+    await until(()=>run('return PdfReaderExperience.context()?.page===2'),'next page rendered');
     const next = await run("return aiChatContext()");
     assert.equal(next.page, 2);
     assert.equal(next.selectedText, "");
@@ -185,7 +185,7 @@ app
       }),
     );
     await run(
-      'document.getElementById("pdfVoiceOpen").click();document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";return true',
+      'await aiChatSend("Bu sayfayı seslendir");if(document.getElementById("pdfVoiceFrom").value!=="2"||document.getElementById("pdfVoiceTo").value!=="2")throw Error("Wrong assistant page range");document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";return true',
     );
     await capture("voice-range.png");
     await run(
@@ -287,7 +287,10 @@ app
     await wait(100);
     win.setContentSize(1440, 1000);
     await capture("inline-listening.png");
-    await run('document.getElementById("pdfVoiceAudio").pause();return true');
+    await run('const a=document.getElementById("pdfVoiceAudio");a.currentTime=1.25;document.getElementById("pdfNext").click();return true');
+    await until(async()=>{const r=await run('return window.api.mediaWorkflows({action:"book-open",id:'+JSON.stringify(project.id)+'})');return r.project?.chapters[0].position>=1.2;},'position saved during page navigation');
+    assert.equal(await run('return document.getElementById("pdfVoiceAudio").paused'),true);
+
     await run(
       'document.getElementById("mediaWorkflowsDialog")?.close();setPdfReaderView("reading");return true',
     );
@@ -307,6 +310,11 @@ app
     await run('document.getElementById("pdfReaderClose").click();return true');
     assert.equal(await run("return PdfReaderExperience.context()"), null);
     await capture("player-after-close.png");
+    const txt=path.join(out,'Chapter source.txt');fs.writeFileSync(txt,'An actual local chapter for the narration settings command.');dialog.showOpenDialog=async()=>({canceled:false,filePaths:[txt]});
+    const imported=await run('return window.api.mediaShelf({action:"book-import"})');assert(imported.ok,imported.error);
+    await run('await MediaShelfUI.openBook('+JSON.stringify(imported.id)+');return true');await capture('text-reader-command.png');win.setMinimumSize(640,600);win.setContentSize(800,900);await capture('text-reader-narrow.png');const textBounds=await run('const n=document.querySelector(".ms-prose"),p=n.querySelector("p");return {client:n.clientWidth,scroll:n.scrollWidth,width:n.getBoundingClientRect().width,paragraph:p.getBoundingClientRect().width,whiteSpace:getComputedStyle(p).whiteSpace}');fs.writeFileSync(path.join(out,'text-bounds.json'),JSON.stringify(textBounds));assert(textBounds.scroll<=textBounds.client+1,JSON.stringify(textBounds));assert(await run('const r=document.querySelector(".ms-reader");return r.scrollWidth<=r.clientWidth+1'));await run('document.querySelector(".ms-reader-tools").open=true;return true');await capture('text-reader-tools.png');await run('document.querySelector(".ms-reader-tools").open=false;return true');win.setContentSize(1440,1000);
+    await run('await aiChatSend("Bu bölümü seslendir");return true');await until(()=>run('return !!document.querySelector("#mediaWorkflowsDialog[open]")'),'chapter command opens production');assert(!await run('return !!document.querySelector(".ms-reader[open]")'));await run('document.getElementById("mediaWorkflowsDialog").close();return true');
+
     await run("closePlayer();return true");
     await capture("home.png");
     await run("AppSettingsUI.open();return true");

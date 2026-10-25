@@ -2233,6 +2233,7 @@
             <label>Okunacak metin <select id="pdfVoiceText"><option value="source">Orijinal metin</option><option value="translation">Çeviri metni</option></select></label>
             <button class="btn btn-primary btn-sm" id="pdfVoicePrepare" type="button">Seçili sayfaları seslendirmeye hazırla</button>
             <button class="btn btn-secondary btn-sm" id="pdfVoiceListen" type="button" disabled>Hazır sesi bu sayfada dinle</button>
+            <label class="pdf-voice-follow" data-ui-untranslated><input id="pdfVoiceFollow" type="checkbox" checked><span id="pdfVoiceFollowLabel">Follow spoken text</span></label>
             <audio id="pdfVoiceAudio" class="hidden" controls preload="metadata" aria-label="Sayfa seslendirmesi"></audio>
             <span id="pdfVoiceStatus" role="status"></span>
           </div>
@@ -3821,6 +3822,7 @@
   <footer class="dub-studio-footer">
 <div class="dub-job-status"><p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
+  <span id="dubGeneratorActivity" data-ui-untranslated aria-live="polite"></span>
   </div><div class="dub-job-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
   </div><p id="dubPhaseSummary" role="status" data-ui-untranslated></p><pre id="dubGeneratorDetails" data-ui-untranslated></pre>

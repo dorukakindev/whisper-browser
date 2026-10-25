@@ -196,22 +196,31 @@
     const noMark = el('option', '', t('Bookmarks & quotes', 'Yer imleri ve alıntılar')); noMark.value = ''; marks.append(noMark);
     (book.bookmarks || []).forEach((mark, at) => { const opt = el('option', '', mark.quote || `${t('Chapter', 'Bölüm')} ${mark.chapter + 1}`); opt.value = at; marks.append(opt); });
     marks.addEventListener('change', async () => { if (marks.value === '') return; const mark = book.bookmarks[+marks.value]; await save(); show(mark.chapter, mark.scroll); });
+    const narrateChapter=async()=>{
+      const sourceIndex=index;
+      if(await save()===false)return false;
+      if(!dialog.open||index!==sourceIndex)throw Error(t('The chapter changed; ask again from the current chapter.','Bölüm değişti; güncel bölümden yeniden iste.'));
+      const c=book.chapters[sourceIndex];
+      const result=await window.api.mediaWorkflows({action:'book-from-shelf',locale:window.UiLocale?.get?.(),shelfId:book.id,sourceChapter:{index:sourceIndex,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime}});
+      if(!result?.ok)throw Error(result?.error||t('Voice production could not be opened.','Sesli üretim açılamadı.'));
+      if(!dialog.open||index!==sourceIndex)throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
+      await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});dialog.close();return true;
+    };
     header.append(el('strong', '', book.title), chapters, font, marks, btn(t('Bookmark / quote', 'Yer imi / alıntı'), async () => {
       const selection = window.getSelection(), quote = selection && prose.contains(selection.anchorNode) ? selection.toString().slice(0, 2000) : '';
       const mark = { ...position(), quote }; await api('book-progress', { id: book.id, ...mark, bookmark: true });
       book.bookmarks.push(mark); const opt = el('option', '', quote || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = book.bookmarks.length - 1; marks.append(opt); readerStatus.textContent = t('Saved.', 'Kaydedildi.');
-    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), async () => {
-      if (await save() === false) return;
-      const c = book.chapters[index];
-      const result = await window.api.mediaWorkflows({ action:'book-from-shelf', locale:window.UiLocale?.get?.(), shelfId:book.id, sourceChapter:{index,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime} });
-      if (!result?.ok) { readerStatus.textContent=result?.error || t('Voice production could not be opened.', 'Sesli üretim açılamadı.'); return; }
-      if (!dialog.open) return;
-      await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});
-      dialog.close();
-    }), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
+    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), narrateChapter), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
     header.lastChild.setAttribute('aria-label', t('Close reader', 'Okuyucuyu kapat'));
     header.lastChild.classList.add('ms-reader-close');
-    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(dialog,{t,isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
+    const tools=el('details','ms-reader-tools'),summary=el('summary','mh-action',t('Reading tools','Okuma araçları')),toolPanel=el('div','ms-reader-tool-panel');
+    for(const [control,label]of [[font,t('Text size','Yazı boyutu')],[marks,t('Bookmarks & quotes','Yer imleri ve alıntılar')]]){const wrap=el('label','',label);wrap.append(control);toolPanel.append(wrap);}
+    for(const button of [...header.querySelectorAll('button')]){
+      if([t('Bookmark / quote','Yer imi / alıntı'),t('Copy chapter','Bölümü kopyala'),t('Voice studio','Ses stüdyosu')].includes(button.textContent))toolPanel.append(button);
+      else if(button.textContent===t('Open chapter in voice production','Bölümü sesli üretimde aç')){button.textContent=t('Narrate chapter','Bölümü seslendir');button.classList.add('mh-primary');}
+    }
+    tools.append(summary,toolPanel);header.insertBefore(tools,header.lastElementChild);toolPanel.addEventListener('click',e=>{if(e.target.closest('button'))tools.open=false;});
+    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(dialog,{t,onNarrate:narrateChapter,isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
     dialog.addEventListener('close', () => { disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });

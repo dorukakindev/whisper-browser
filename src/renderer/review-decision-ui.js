@@ -24,7 +24,7 @@
   const actions=el('div','mtx-actions');source.append(actions);
   const autoControls=el('div','mrv-auto-controls'),sampleLabel=el('label','mtx-field'),sampleCount=el('select');sampleCount.name='letterboxd-sample-count';
   for(const value of [12,24,48]){const option=el('option','',value+' '+t('reviews','yorum'));option.value=String(value);sampleCount.append(option);}sampleCount.value=String([12,24,48].includes(draft.sampleCount)?draft.sampleCount:24);sampleCount.onchange=()=>{draft.sampleCount=Number(sampleCount.value);};sampleLabel.append(el('span','',t('Automatic review sample','Otomatik yorum örneği')),sampleCount);autoControls.append(sampleLabel);source.insertBefore(autoControls,actions);
-  const appendPages=el('input');appendPages.type='checkbox';const appendLabel=el('label','mtx-field',t('Add the next loaded page to this sample (up to 100 reviews)','Sonraki yüklü sayfayı bu örneğe ekle (en fazla 100 yorum)'));appendLabel.prepend(appendPages);source.append(appendLabel);
+  const appendPages=el('input');appendPages.type='checkbox';appendPages.checked=!!draft.appendPages;appendPages.onchange=()=>draft.appendPages=appendPages.checked;const appendLabel=el('label','mtx-field',t('Add the next loaded page to this sample (up to 100 reviews)','Sonraki yüklü sayfayı bu örneğe ekle (en fazla 100 yorum)'));appendLabel.prepend(appendPages);source.append(appendLabel);
   const rawLabel=el('label','mtx-field'),raw=el('textarea');raw.name='review-text';raw.rows=6;raw.maxLength=120000;raw.value=draft.reviews||'';rawLabel.append(el('span','',t('Review text · paste or edit','Yorum metni · yapıştır veya düzenle')),raw);source.append(rawLabel);
   const spoilerLabel=el('label','mtx-field'),spoiler=el('input');spoiler.type='checkbox';spoiler.name='review-spoilers';spoiler.checked=!!draft.spoiler;spoilerLabel.append(el('span','',t('Include spoiler reviews','Spoiler içeren yorumları dahil et')),spoiler);source.append(spoilerLabel);
   const output=el('section','mrv-output');let fetching=false,fetchRequest='',readVersion=0;
@@ -32,9 +32,10 @@
   const setState=(state,message='',error='')=>{draft.attempt={...draft.attempt,state,message,error};renderJob();};
   function button(text,fn,primary=false){const n=el('button','mh-action'+(primary?' mh-primary':''),text);n.type='button';n.onclick=async()=>{if(n.disabled)return;n.disabled=true;try{await fn();}catch(error){if(current())setState('failed','',error.message);}finally{n.disabled=false;}};return n;}
   function renderProvenance(){
-   const meta=draft.source;provenance.replaceChildren();if(!meta)return;
+   const meta=draft.source;provenance.replaceChildren();if(!meta)return;if(meta.identity)meta.match=window.LetterboxdReviews.matchFilm(item,meta.identity);
    const state=meta.match?.state||'unverified';provenance.dataset.state=state;
    const labels={matched:t('Film match verified','Yapım eşleşmesi doğrulandı'),mismatch:t('Different film or year — choose the correct source','Farklı yapım veya yıl — doğru kaynağı seç'),unverified:t('Film identity is incomplete — check the title and year','Yapım kimliği eksik — adı ve yılı kontrol et')};
+   if(meta.pages?.length>1)provenance.append(el('small','',t('Source pages: ','Kaynak sayfa: ')+meta.pages.length));
    provenance.append(el('strong','',labels[state]),el('span','',[meta.identity?.title||meta.pageTitle,meta.identity?.year,meta.url].filter(Boolean).join(' · ')));
   }
   function renderJob(){
@@ -53,14 +54,15 @@
   }
   function fill(result){
    if(appendPages.checked&&raw.value.trim()){
-    if(result.match?.state!=='matched'||draft.source?.match?.state!=='matched')throw Error(t('Verify both pages match this film before combining.','Birleştirmeden önce iki sayfanın da bu filmle eşleşmesi doğrulanmalı.'));
+    if(result.match?.state!=='matched'||window.LetterboxdReviews.matchFilm(item,draft.source?.identity).state!=='matched')throw Error(t('Verify both pages match this film before combining.','Birleştirmeden önce iki sayfanın da bu filmle eşleşmesi doğrulanmalı.'));
     let previous;try{previous=JSON.parse(raw.value);}catch{throw Error(t('Import or load a structured review sample first.','Önce yapılandırılmış yorum örneği yükle.'));}
     if(!Array.isArray(previous))throw Error('Invalid sample.');const seen=new Set(),merged=[];for(const row of [...previous,...result.reviews]){const key=String(row.author||'')+'\n'+String(row.text||'');if(!seen.has(key)){seen.add(key);merged.push({...row,id:'R'+(merged.length+1)});}}
     if(merged.length>100||JSON.stringify(merged).length>120000)throw Error(t('Combined sample is too large; keep this sample or start a new one.','Birleşik örnek çok büyük; mevcut örneği koru veya yeni örnek başlat.'));
     result={...result,reviews:merged};
    }
+   const sourcePages=[...new Set([...(appendPages.checked?(draft.source?.pages||[draft.source?.url]):[]),result.url].filter(Boolean))].slice(-100);
    delete draft.result;
-   raw.value=JSON.stringify(result.reviews);draft.reviews=raw.value;draft.source={identity:result.identity,pageTitle:result.pageTitle,url:result.url,match:result.match,limited:result.limited};if(result.url){url.value=result.url;draft.url=result.url;}renderProvenance();setState('ready',result.reviews.length+' '+t('reviews loaded. This is a selected sample, not a consensus.','yorum yüklendi. Bu seçilmiş bir örnektir; ortak kanaat sayılmaz.')+(result.pages?' · '+result.pages+' '+t('pages','sayfa'):'')+(result.partial?' · '+t('Partial result: ','Kısmi sonuç: ')+result.warning:''));
+   raw.value=JSON.stringify(result.reviews);draft.reviews=raw.value;draft.source={pages:sourcePages,identity:result.identity,pageTitle:result.pageTitle,url:result.url,match:result.match,limited:result.limited};if(result.url){url.value=result.url;draft.url=result.url;}renderProvenance();setState('ready',result.reviews.length+' '+t('reviews loaded. This is a selected sample, not a consensus.','yorum yüklendi. Bu seçilmiş bir örnektir; ortak kanaat sayılmaz.')+(result.pages?' · '+result.pages+' '+t('pages','sayfa'):'')+(result.partial?' · '+t('Partial result: ','Kısmi sonuç: ')+result.warning:''));
   }
   async function read(action){
    if(fetching)return;const version=++readVersion,startingInput=raw.value;fetching=true;fetchRequest='review-'+crypto.randomUUID();setState('reading');

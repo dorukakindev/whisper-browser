@@ -16,7 +16,9 @@
    if(intent.question&&!window.AssistantMediaIntent.selectedRequest(intent.question,item.title))throw Error(t('This command can use the selected title only. Open the intended film page first.','Bu komut yalnız seçili yapımı kullanabilir. Önce istediğin film sayfasını aç.'));
    const guard=()=>{if(task.cancelled||!current(task))throw Error(t('The selection changed or the command was cancelled.','Seçim değişti veya komut iptal edildi.'));};guard();
    const request=async(action,values={})=>{const r=await window.api.mediaCatalog({action,id:item.id,...values});if(!r?.ok)throw Error(r?.error||t('The action failed.','İşlem başarısız oldu.'));return r;};
-   if(intent.kind==='watchlist'){
+   if(intent.kind==='reviews'){
+    window.MediaToolsUI.open('decision',item);message=t('Opened reviews and personal-fit analysis for ','Yorum ve kişisel uygunluk panelini açtım: ')+item.title+'\n'+t('Load and review a source sample before sending it for analysis. This command did not fetch reviews or call AI.','Analize göndermeden önce kaynak örneğini yükleyip incele. Bu komut yorum indirmedi veya AI çağırmadı.');
+   }else if(intent.kind==='watchlist'){
     if(item.watchStatus==='watching'||item.watchStatus==='completed')message=t('This title is already being watched or marked watched. Its status was kept.','Bu yapım izleniyor veya izlendi olarak kayıtlı. Mevcut durumu korudum.');
     else{await request('save',{item:{id:item.id,watchStatus:'planned'}});message=t('Added to your watchlist: ','İzleme listene eklendi: ')+item.title;document.dispatchEvent(new Event('media-library-changed'));}
    }else if(intent.kind==='similar'){
