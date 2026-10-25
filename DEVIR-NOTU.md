@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0756.md](docs/devir/2026-10-25-0756.md) — Görsel kontrolde normal pause iptalini sessiz ele alma
 Güncel çalışma: [docs/devir/2026-10-25-0754.md](docs/devir/2026-10-25-0754.md) — Okuyucu metadata/seek ve kalan konumun korunması
 Güncel çalışma: [docs/devir/2026-10-25-0746.md](docs/devir/2026-10-25-0746.md) — Kitap asistanında seçili pasaj ve yakın metin bağlamı
 Güncel çalışma: [docs/devir/2026-10-25-0742.md](docs/devir/2026-10-25-0742.md) — PDF vurgusunda sayı anlamı ve görünür kutu doğruluğu

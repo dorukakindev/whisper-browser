@@ -124,3 +124,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:46 — Rapor564/ürünb55689bc916bfe9ae807b5b30da8ca6bcaa6f309: N47 kitap bağlamı selectedText4k+yakınexcerpt8k; seçimi değiştirince bayatyanıtengeli/samechapterhistory.12hedefPASS/nativeWindowsDOMRange>gerçekaiChatContext>sonrakisayfaseçimtemizliği exit0 ve görüntüincelendi. LiveAIyanıtkalitesi doğrulanmadı; otomatikscrollmetnitakibi yok. Sonraki metadata/seek/konum,N25refkapsamı,N35kututıklama; yedekbakımı yok.
 
 07:54 — Rapor565/ürünab41ccdd4f57900cc85969391600d8aa6c58c3d3: okuyucuda metadataöncesi seçilenseek kayıtlıkonumlaezilmez, unloadsonrası0konumkaydıönlenir, bekleyenlistener/timer kapanır.16hedef+CSP5PASS/nativeWindowsPDFkutusuReturn/char ilegerçekgrup1sseek/play vePDF/M4Bexit0; N35tamam,N42/N46readerilerledi. Sonraki N25refkapsamı,N32tireseçeneği,N40EPUBkimliği,N15fan-in; yedekbakımı yok.
+
+07:56 — Rapor565görselek/ürün5b6578bee5d338e686260a239620bba4c35e06fe: pause'ın beklenenAbortError'ı uyarıgöstermiyor; gerçekNotAllowedError korunuyor. Controller5PASS/nativeWindows4148121exit0/sonPDFgörüntüsütemiz. Diğerplanaynı;N25/N32/N40/N15, yedekbakımı yok.
