@@ -13,7 +13,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 | P07 | Tamamlandı | Dar ekran ve yüksek DPI'da okuyucu/kalite/üretim düğmelerini erişilebilir tut. |800px ve125% kontrolü, klavye odak sırası, iç içe kaydırma ve düğme örtüşmesi için gerçek görüntü/etkileşim. EskiN29/N33. |
 | P08 | Tamamlandı | Uzun kitap export'u ve tekrar aç/kapat kullanımında gerçek kaynak maliyetini ölçüp gerekirse düzelt. |100bölüm M4B'de argv/süre/bellek/süreç tanıtıcısı; okuyucu tekrarlarında listener/süreç kapanışı; sayı tek başına bug sayılmaz. EskiN10/N15/N46. |
 | P09 | Tamamlandı | Seçili pasajı açıklama/özetleme gibi asistan eylemlerini doğru kitap bağlamıyla kolaylaştır. | Komutun kaynağı görünür; başka sayfa/kitap/önceki seçim kullanılmaz; sayfa çevirisi gibi mevcut araçlar gerektiğinde çağrılır. Mevcut seçili pasaj bağlamı tekrardan yazılmaz. |
-| P10 | Bekliyor | Uygun boş GPU'da kısa gerçek dublaj örneğiyle son ses/kelime bütünlüğünü ve aşama sürelerini kontrol et. | Aynı kısa metin/referansla kayıtlı ayarlar, gerçek çıktı ve süre/eksik okuma kanıtı; kişisel iş kesilmez. GPU/başvuru sesi uygun değilse açık engel kaydedilir, mock gerçek kalite diye sunulmaz. |
+| P10 | Açık — GPU meşgul | Uygun boş GPU'da kısa gerçek dublaj örneğiyle son ses/kelime bütünlüğünü ve aşama sürelerini kontrol et. | Rapor577: ayrı eğitim işi/5476MiB boş; üretim başlatılmadı. Gerçek kabul aracı ve engel kapısı hazır, gerçek ses/kelime/ton henüz doğrulanmadı. |
 
 ## Yürütme ve teslim
 

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1626.md](docs/devir/2026-10-25-1626.md) — Gerçek dublaj kabul aracı; P10 GPU meşgul olduğu için açık
 Güncel çalışma: [docs/devir/2026-10-25-1615.md](docs/devir/2026-10-25-1615.md) — P09 kaynak/snapshot bağlı kitap asistanı eylemleri
 Güncel çalışma: [docs/devir/2026-10-25-1331.md](docs/devir/2026-10-25-1331.md) — P08100bölüm M4B kaynak iyileştirmesi ve reader ölçümü
 Güncel çalışma: [docs/devir/2026-10-25-1314.md](docs/devir/2026-10-25-1314.md) — P07 dar ekran düzeni ve gerçek klavye/PDF kaydırma ölçümü

@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_577.md](BROWSER_BUG_REPORT_577.md) — Gerçek dublaj kabul aracı ve meşgul GPU nedeniyle açık kalan P10.
+
 - [BROWSER_BUG_REPORT_576.md](BROWSER_BUG_REPORT_576.md) — Tam bölüm/sayfa ve seçili pasajla kaynak bağlı asistan eylemleri.
 
 - [BROWSER_BUG_REPORT_575.md](BROWSER_BUG_REPORT_575.md) —100bölüm dışa aktarmada kaynak iyileştirmesi ve reader yaşam döngüsü ölçümü.
