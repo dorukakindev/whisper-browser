@@ -1,8 +1,8 @@
 # Gece çalışma listesi — 2026-10-25
 
-Kullanıcı talebi: mevcut paket tamamlandıktan sonra sabaha kadar50 somut geliştirme belirle ve çalış. Bu bir **iş havuzu**, tamamlanmış50 bulgu veya sabaha teslim garantisi değildir. Başlangıç: codex/book-reliability549. Mevcut paket Rapor549 ile teslim edilir; aşağıdakiler yeni gece kapsamıdır. Kalıcı sınırlar: kısa faydalı hedefli test, mevcut tema, veri/ses korunması, ana dala otomatik merge yok. Ücretli API/kişisel profil kullanılmaz. Doğrulanmayan başarı yazılmaz.09:00 Europe/Istanbul sonrası yeni işe başlanmaz; sonuç/kalan raporu yazılır.
+Kullanıcı talebi: mevcut paket tamamlandıktan sonra sabaha kadar50 somut geliştirme belirle ve çalış. Bu bir **iş havuzu**, tamamlanmış50 bulgu veya sabaha teslim garantisi değildir. Başlangıç: codex/book-reliability549. Mevcut paket Rapor549 ile teslim edilir; aşağıdakiler yeni gece kapsamıdır. Kalıcı sınırlar: kısa faydalı hedefli test, mevcut tema, veri/ses korunması, ana dala otomatik merge yok. Ücretli API/kişisel profil kullanılmaz. Doğrulanmayan başarı yazılmaz.Son kullanıcı talebi eski 09:00 sınırını kaldırdı: 08:17 sonrası yararlı iş ve bütçe oldukça kapsamlı devam edilir; aşağıdaki güncel protokol önceliklidir.
 
-Heartbeat: Gece kitap ve dublaj geliştirmeleri, bu sohbete bağlı saatlik ve4koşumla sınırlı; uygulama kapalı/cihaz çevrimdışı olduğunda kesintisiz çalışma garantisi yoktur. Görev prompt'u sabah09:00 sınırını taşır. Otomasyon kimliği: gece-kitap-ve-dublaj-geli-tirmeleri.
+Heartbeat: 25 Ekim 2026 Europe/Istanbul **08:17 ilk devam, 08:20 yedek deneme**. Aynı sohbette iki tarihli uyanış; ikinci uyanış çalışan işi yeniden başlatmaz. Eski saatlik dört koşum değiştirildi. Otomasyon kimliği `gece-kitap-ve-dublaj-geli-tirmeleri`. Cihaz/uygulama kapalıysa veya hesap limiti hâlâ doluysa başlama garantisi yoktur.08:20 de başarısız olursa başarı iddiası üretilmez.
 
 Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanıtlanmadı. Gerçek katkı yoksa sırf sayıyı doldurmak için değişiklik yapılmaz. İlgisiz, spekülatif veya pahalı iş ertelenip nedeni yazılır. Her teslimde commit/test/kanıt bağlantısı eklenir.
 
@@ -66,3 +66,27 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 05:24 — [Rapor550](BROWSER_BUG_REPORT_550.md), kod2c217ab974797f609132aeebe653d75f7d9eb54e. N03–N09 ilk kapsamı tamamlandı (7madde); N09 mevcut8testin doğrulanması ve kapsam tarayıcısı düzeltmesi, yeni model özelliği değildir. N01 yerel21kırmızı sınıflandı,20dosya hedefli yeşil; uzakCI sonucu beklenmediği için İnceleniyor. Açık fixed-sleep26>21 eşiği değiştirilmedi. N02 E2E46kontrolPASS, takılma kanıtlanmadı; varsayımsal ürün kodu eklenmedi. Windows native book/PDF+bridge exit0; açık/koyu görüntüler incelendi. N10 ve N11–N50 sıradaki havuz;50tamamlandı denmez.
 
 06:15 — [Rapor551](BROWSER_BUG_REPORT_551.md), kod55d92c9d36a6be5499d4624a35f85c26b9da2387. N11–N14 tamamlandı; toplam11 maddenin ilk kabul kapsamı tamam. Süre/tahminiAAC/boşalan/bölüm sırası özetlenir, gerçek hedef alanı kontrol edilir, FFmpeg ilerlemesi gösterilir. Gerçek Windows FFmpeg iptalinde child close, eski hedef ve temp/metadata/lock doğrulandı.45 hedefli test PASS; native Windows PDF/Review/2chapterM4B ve EN/TR açık/koyu önizleme exit0. N15 gerçek100bölüm fan-in ölçümü, N10 ve sonraki kitap yedek/reader işleri açık. Tam paket/CI beklenmedi; fixed-sleep26>21 bilinen açık devam ediyor.
+
+## Güncel uzun çalışma protokolü — 06:42
+
+Kullanıcı üç-beş maddeyle bırakılmamasını, yenilenen bütçenin kapsamlı işe ayrılmasını ve hedef olarak sürdürülmesini açıkça istedi. Bu talep önceki09:00 kesimini geçersiz kılar. İşe08:17'den önce yeniden başlanmayacak; şimdi yapılan yalnız bu plan/otomasyon kaydıdır.08:20 yedek deneme,1saat45dakikalık yenilenme payına karşılık gelir.
+
+11 madde ilk kabul kapsamıyla tamamlandı. **39 kalan/inceleme maddesi** vardır; bunların hepsi yeni hata değildir. N01/N02/N10 gibi doğrulama işleri ürün bugı uydurularak sayılmaz. Mevcut sağlam kod, test veya kullanıcı verisi sırf çıktı sayısını artırmak için değiştirilmez.
+
+| Paket | Maddeler | Somut teslim odağı |
+|---|---|---|
+| A | N15, N16, N17, N18, N23 | Büyük M4B fan-in ölçümü; yedekte boyut/dosya/kapsam önizlemesi ve seçili proje; bozuk paket geri alma ve üretimle tutarlı snapshot. Ölçülmeyen hız kazancı iddiası yok. |
+| B | N19, N20, N21, N22, N24, N25 | Eksik PDF/ref durumları; kimliği doğrulayarak kaynak yeniden bağlama; yarım iş kurtarma önerileri ve bayat/çoklu günlükler; ses kaydetme hatasını görünür kılma; proje sesinin kapsamını açıklama. |
+| C | N26, N27, N28, N29, N30, N40 | Kitap rafından M4B; güvenli proje kopyası/klasör açma/arşiv yönetimi; önceki ses sürümü ve EPUB başlık/kapak/bölüm kimliğini koruma. Büyük dosya kopyası örtük olmaz. |
+| D | N31, N32, N33, N34, N35, N36, N37, N38, N39 | PDF kutu/rotation/Unicode eşlemesi; güvenli tire hazırlama; dar ekran ve klavye; gerçek kutudan seek; doğru dil/ses kimliği; yer imi, arama ve raf konumu eşlemesi. Çevrilmiş metne sahte birebir vurgu yok. |
+| E | N41, N42, N43, N44, N45, N46 | Yalnız değişen grubu üretme; metadata gelmeden aralık dinleme; kalite-plan kimliği; başarısız/sessiz sesi ready kabul etmeme; EN/TR durumlar ve tekrarlı reader aç/kapat temizliği. |
+| F | N47, N48, N49, N50, N01, N02, N10 | Gerçek Letterboxd rotaları/kaynak izi; MHTML disk/cleanup; sezon no-clobber fault injection; CI ve süreç/listener sahipliği; gerçek koşul/event beklemeleri. CI beklemek durma gerekçesi değil. |
+
+### Devam ve durma koşulları
+
+1.08:17'de etkin hedef yoksa, kullanıcının açık isteği kapsamında kalan doğrulanmış işlerin tamamlanması için hedef başlat. Sayısal token bütçesi uydurma. Etkin hedef varsa ikinci hedef oluşturma.08:20 uyanışı aynı hedefe devam eder; eşzamanlı ikinci iş/checkout/üretim başlatmaz.
+2. Bir paket sonu yalnız kontrol ve teslim noktasıdır. İlgili kısa kontrolleri yap; ürün ve belge commitlerini ayır, normal push ve uzak hash doğrulaması yap; ardından **sonraki yararlı işe devam et**. Üç-beş değişiklik veya tek PR güncellemesi tüm hedefin tamamı sayılmaz. Kullanıcıdan rutin yeniden izin istenmez.
+3. Başkasının değişikliklerini katma; mevcut PR487/dal uygunsa kullan. Master'a otomatik merge yok. Kişisel uygulamayı kapatma; gerçek hesap/ücretli API kullanma. UI değişince ayrı profilde gerçek görüntü gör; test eşiklerini düşürme.
+4. Bütçe, somut inceleme/uygulama/anlamlı kanıta ayrılır. Yapay araştırma sayısı, aynı testi gereksiz tekrar, dolgu belge/bug üretimi yok. Gerekli araştırma varsa birincil kaynak ve lisans uyumluluğu korunur.
+5. Gerçek engel oluşursa bağımsız yararlı işe geç. Bütün kalan işler tamamlanmış/kanıtla gereksiz/engelli olduğunda veya hesap/çalışma sınırı ilerlemeyi durdurduğunda kesin devam noktası, commit ve çalıştırılmayan kontroller kaydedilir. Görülmeyen sonuç yeşil denmez; kota tamamen tüketilmiş gibi gösterilmez.
+6. Tamamlanmış görevin kabul kapsamı, kullanım ve sınırları listede tutulur. Bir yerin çalışmadığı gösterilmemişse varsayımsal onarım yapılmaz. Limitten sonra otomatik çalışmanın garanti edilemediği açık tutulur; uygulama ve bilgisayar açık olmalıdır.
