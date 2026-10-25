@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-2218.md](docs/devir/2026-10-25-2218.md) — PR491 ana programda; sürekli master birleştirme yetkisi kaydedildi
 Güncel çalışma: [docs/devir/2026-10-25-2213.md](docs/devir/2026-10-25-2213.md) — Aynı sahnede eski/yeni ses, telaffuz sırası ve çeviri miktar denetimi
 Güncel çalışma: [docs/devir/2026-10-25-2054.md](docs/devir/2026-10-25-2054.md) — PR490 ve ses iyileştirmeleri ana sürüme, kişisel dosyalar korunarak alındı
 Güncel çalışma: [docs/devir/2026-10-25-2050.md](docs/devir/2026-10-25-2050.md) — Videoya bağlı hazır dublaj, telaffuz sözlüğü ve görünür kalite geçişi
