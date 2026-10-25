@@ -21,6 +21,23 @@
   function matches(item, query) { return fold(`${item?.title || ''} ${item?.year || ''} ${item?.synopsis || ''}`).includes(fold(query).trim()); }
   const normalizedKey = key => String(key || '').startsWith('file:')
     ? String(key).replace(/\\/g, '/').toLowerCase() : String(key || '');
+  function thumbnail(item) {
+    for (let value of [item?.key, item?.sourceRef, item?.url]) {
+      if (typeof value !== 'string') continue;
+      const direct = value.startsWith('youtube:');
+      value = value.replace(/^(?:browser|youtube):/, '');
+      let id = direct && /^[\w-]{11}$/.test(value) ? value : '';
+      if (!id) try {
+        const u = new URL(value), host = u.hostname.toLowerCase().replace(/^www\./, '');
+        if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password) continue;
+        if (host === 'youtu.be') id = u.pathname.split('/')[1];
+        else if (host === 'youtube.com' || host.endsWith('.youtube.com'))
+          id = /^\/(?:shorts|embed|live)\//.test(u.pathname) ? u.pathname.split('/')[2] : u.searchParams.get('v');
+      } catch {}
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id || '')) return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+    return '';
+  }
   function snapshot(catalog, history) {
     const items = Array.isArray(catalog) ? catalog.filter(row => row && typeof row.id === 'string') : [];
     const bySource = new Map();
@@ -39,5 +56,5 @@
     }).sort((a, b) => number(b.lastWatched) - number(a.lastWatched));
     return { items, watch, continuing: watch.filter(row => progress(row).resume) };
   }
-  return Object.freeze({ progress, medium, matches, snapshot });
+  return Object.freeze({ progress, medium, matches, snapshot, thumbnail });
 });

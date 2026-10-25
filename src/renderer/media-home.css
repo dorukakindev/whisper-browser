@@ -118,6 +118,7 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-wide .mh-art { aspect-ratio: 16 / 9; }
 .mh-art svg { width: 38px; height: 38px; color: var(--text-muted); }
 .mh-art img { width: 100%; height: 100%; object-fit: cover; }
+.mh-art .mh-remote-thumbnail, .mh-hero-art .mh-remote-thumbnail { position: absolute; inset: 0; }
 .mh-card-title { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mh-card-meta { display: block; color: var(--text-dim); font-size: 12px; line-height: 1.5; }
 .mh-progress { width: 100%; height: 3px; border: 0; background: var(--bg-3); accent-color: var(--accent); display: block; }

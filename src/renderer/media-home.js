@@ -177,6 +177,13 @@
     if (item?.hasPoster && item.id) {
       node.dataset.homePoster = item.id;
       queueMicrotask(() => { if (node.isConnected) posterObserver.observe(node); });
+    } else {
+      const src = model.thumbnail(item);
+      if (src) {
+        const image = el('img', 'mh-remote-thumbnail'); image.alt = ''; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+        image.onload = () => { if (node.isConnected) node.replaceChildren(image); };
+        image.onerror = () => image.remove(); node.append(image); image.src = src;
+      }
     }
     return node;
   }

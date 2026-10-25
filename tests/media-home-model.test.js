@@ -41,3 +41,9 @@ test('resume rows borrow existing catalog artwork without changing saved paths o
 });
 
 test('exported M4B audiobooks stay in the audio category',()=>{assert.equal(model.medium({type:'local',sourceRef:'C:/Books/Kitap.m4b'}),'music');});
+test('YouTube resume artwork derives only from a validated video identity',()=>{
+  for(const item of [{key:'youtube:abcdefghijk'},{key:'browser:https://www.youtube.com/watch?v=abcdefghijk&t=2'},{sourceRef:'https://youtu.be/abcdefghijk'},{url:'https://m.youtube.com/shorts/abcdefghijk'}])
+    assert.equal(model.thumbnail(item),'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg');
+  for(const url of ['https://youtube.com.evil.example/watch?v=abcdefghijk','https://user:password@youtube.com/watch?v=abcdefghijk','file:///abcdefghijk','abcdefghijk','https://youtube.com/watch?v=../../secret'])
+    assert.equal(model.thumbnail({sourceRef:url}),'');
+});
