@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_576.md](BROWSER_BUG_REPORT_576.md) — Tam bölüm/sayfa ve seçili pasajla kaynak bağlı asistan eylemleri.
+
 - [BROWSER_BUG_REPORT_575.md](BROWSER_BUG_REPORT_575.md) —100bölüm dışa aktarmada kaynak iyileştirmesi ve reader yaşam döngüsü ölçümü.
 
 - [BROWSER_BUG_REPORT_574.md](BROWSER_BUG_REPORT_574.md) — Dar ekran kitap düzeni, klavye ve gerçek PDF kaydırma doğrulaması.
