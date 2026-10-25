@@ -1,5 +1,8 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_549.md](BROWSER_BUG_REPORT_549.md) — Kitap kurtarma/Review/yedek/M4B, PDF vurgu ve birleşik teslim.
+- [Gece çalışma havuzu — 50 madde](NIGHT_WORK_2026-10-25.md)
+
 - [BROWSER_BUG_REPORT_548.md](BROWSER_BUG_REPORT_548.md) — Dış önerilerin kaynak koduyla doğrulanması ve öncelik değerlendirmesi.
 
 - [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) — Gerçek PDF okuyucu tasarımı, sayfa bağlamı ve aynı ekranda ses.
