@@ -6,7 +6,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 |---|---|---|---|
 | P01 | Tamamlandı | Raf okuyucusundaki açık bölümü açık bir eylemle sesli üretimde aç; üretimden kitaba dön. | EPUB kaynak kimliği/spine veya doğrulanmış PDF sayfası eşleşir; kaynak değişmiş/eksikse yanlış bölüme sessiz geçiş yapılmaz. EskiN39. |
 | P02 | Tamamlandı | Takipli okuyucuda sayfa/pasaj yer imi; yer iminden doğru bölüm ve ses konumuna dön. | Kalıcı kitap/bölüm/metin kimliği, bölüm değişimi ve metin düzenlemesinde eski konumun dürüst gösterimi. EskiN37. |
-| P03 | Bekliyor | PDF'den gelen bölünmüş sözcükleri isteğe bağlı hazırlama önizlemesinde ele al. | Değişiklikler önce/sonra gösterilir, tek tek seçilebilir; özel ad/kısaltma/sayısal aralık korunur; özgün PDF değişmez. EskiN32. |
+| P03 | Tamamlandı | PDF'den gelen bölünmüş sözcükleri isteğe bağlı hazırlama önizlemesinde ele al. | Değişiklikler önce/sonra gösterilir, tek tek seçilebilir; özel ad/kısaltma/sayısal aralık korunur; özgün PDF değişmez. EskiN32. |
 | P04 | Bekliyor | Aynı metnin ses denemelerini karşılaştırıp uygun denemeyi seç. | Önceki çıktı silinmez; farklı metin sürümü güncelmiş gibi onaylanmaz; karşılaştırma ve seçim dinleme UI'ından yapılır. EskiN30. |
 | P05 | Bekliyor | Üretim öncesi güncel konuşma gruplarını ve metindeki değişiklikleri görünür yap. | Kaynak/plan kimliği sabittir; eski key başka parçayı hedeflemez; önbellek tekrar kullanımı ölçülmeden kesin sayı/hız vaat edilmez. EskiN41/N43 ve mevcut onarımların devamı. |
 | P06 | Bekliyor | Kalite ve iş durumlarını anlaşılır EN/TR etiketleriyle göster. | Ham review/failed kodları yerine açık etiket; dil değişince kullanıcı metni çevrilmez; durdurma/timeout/gerçek hata ayrımı korunur. EskiN45. |
@@ -30,3 +30,6 @@ Eski `NIGHT_WORK_2026-10-25.md` tarihsel kanıt ve kalan düşük öncelikli iş
 
 ## P02 kanıtı — 12:34
 Ürün `6579a715f68e27af78879cae95b9ea32dc262295`, Rapor569. 18 hedefli PASS; ayrı profilde native Windows exit0 (`.uiprev/book-reliability549-1792920743462`), gerçek pasaj seçimi/bölüm dönüşü/yeni ses grup başlangıcı/metin değişimi. Görüntüler incelendi. Yeni bağımlılık yok; opsiyonel bookmarks alanı. Gerçek GPU/TTS/canlı API doğrulanmadı. Sıradaki P03 hazırlama önizlemesi, ardından P04 ses denemeleri; P03–P10 açık.
+
+## P03 kanıtı — 12:37
+Ürün `c5777ab4cd967c29ece8a8ba112c64d734c6f7a4`, Rapor570. PDF bölüm editöründe seçimsiz öneriler, tek tek birleştirme/tire koruma, bayat snapshot engeli ve taslak geri alma. 8 hedefli PASS; Windows native exit0 `.uiprev/book-reliability549-1792920999543`, gerçek UI kaydet/geri al ve kaynak PDF SHA256 değişmezliği. Görüntü incelendi. Sözlük/özel ad tanıma değildir; büyük harfli sözcükler ve sayılar önerilmez. Sıradaki P04 ses denemelerini karşılaştırma; P04–P10 açık.
