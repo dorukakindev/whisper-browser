@@ -11,6 +11,34 @@ const start = source.indexOf("  async function generate(");
 const end = source.indexOf("  async function seasons(", start);
 assert(start >= 0 && end > start);
 
+test("switching books resets unspecified voice settings instead of inheriting the previous book", async () => {
+  const a = source.indexOf("  async function books()"),
+    b = source.indexOf("    saveDraft();", a);
+  assert(a >= 0 && b > a);
+  for (const preferences of [
+    undefined,
+    { profile: "fast" },
+    { referenceId: "chosen" },
+  ]) {
+    const ctx = {
+      voicePrefs: {
+        profile: "fast",
+        concurrency: 8,
+        verification: "fast",
+        referenceId: "old",
+      },
+      prefsProject: "old",
+      project: { id: "new", voicePreferences: preferences },
+    };
+    vm.createContext(ctx);
+    vm.runInContext(source.slice(a, b) + "}", ctx);
+    await ctx.books();
+    assert.equal(ctx.voicePrefs.referenceId, preferences?.referenceId || "");
+    assert.equal(ctx.voicePrefs.concurrency, 4);
+    assert.equal(ctx.voicePrefs.verification, "detailed");
+  }
+});
+
 test("chapter regeneration forces its complete fresh plan; group regeneration forces only that group", async () => {
   for (const kind of ["chapter", "group", "edited-group"]) {
     const force = kind === "chapter",

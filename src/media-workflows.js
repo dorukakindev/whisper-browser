@@ -245,6 +245,8 @@ function registerMediaWorkflows({
             throw Error(
               "Source book changed; archive the older production project before importing the changed book.",
             );
+          if (shelf.productionProjectId !== d.id)
+            linkShelfBook?.(shelf.id, d.id);
           return { ok: true, project: clean(d) };
         }
       }
@@ -590,9 +592,13 @@ function registerMediaWorkflows({
       )
         throw Error("Export in progress / Dışa aktarma sürüyor.");
       if (
-        ["book-save", "book-prepare", "book-listen", "book-progress"].includes(
-          r.action,
-        ) &&
+        [
+          "book-save",
+          "book-prepare",
+          "book-listen",
+          "book-progress",
+          "book-source",
+        ].includes(r.action) &&
         (!Number.isInteger(r.chapter) || r.chapter < 0 || r.chapter >= 1000)
       )
         throw Error("Invalid chapter index.");
@@ -696,8 +702,56 @@ function registerMediaWorkflows({
         }
         case "book-import":
           return await bookImport();
-        case "book-from-shelf":
-          return await bookImport(r.shelfId);
+        case "book-from-shelf": {
+          if (r.sourceChapter) {
+            const shelf = resolveShelfBook?.(r.shelfId);
+            if (!shelf) throw Error("Book not found in library.");
+            const info = fs.statSync(shelf.path);
+            if (
+              info.size !== r.sourceChapter.sourceSize ||
+              info.mtimeMs !== r.sourceChapter.sourceMtime
+            )
+              throw Error(
+                "Source book changed; reopen it / Kaynak kitap değişti; yeniden açın.",
+              );
+          }
+          const result = await bookImport(r.shelfId);
+          if (r.sourceChapter && result.project)
+            result.focusChapter = require("./book-chapter-link").focusChapter(
+              result.project,
+              r.sourceChapter,
+            );
+          return result;
+        }
+        case "book-source": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter],
+            shelf = resolveShelfBook?.(d.shelfBookId);
+          if (
+            !c ||
+            !shelf ||
+            !d.source ||
+            fs.realpathSync(shelf.path) !== fs.realpathSync(d.source)
+          )
+            throw Error("Source book is unavailable / Kaynak kitap kullanılamıyor.");
+          const info = fs.statSync(d.source);
+          if (info.size !== d.sourceSize || info.mtimeMs !== d.sourceMtime)
+            throw Error(
+              "Source book changed; reopen it / Kaynak kitap değişti; yeniden açın.",
+            );
+          return {
+            ok: true,
+            shelfId: d.shelfBookId,
+            sourceChapter: {
+              index: c.id,
+              sourceId: c.sourceId,
+              sourceSpineIndex: c.sourceSpineIndex,
+              pageNumber: c.pageNumber,
+              sourceSize: info.size,
+              sourceMtime: info.mtimeMs,
+            },
+          };
+        }
         case "book-rename": {
           const d = load(r.id);
           if (

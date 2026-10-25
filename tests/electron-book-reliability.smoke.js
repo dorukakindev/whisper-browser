@@ -541,7 +541,27 @@ app
     );
     assert(bounds.scroll <= bounds.client + 3, JSON.stringify(bounds));
     await run(
-      'document.getElementById("mediaWorkflowsDialog").close();UiLocale.set("en",false);applyUiTheme("light");MediaWorkflowsUI.open("resources");return true',
+      '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Editöre dön").click();return true',
+    );
+    await until(
+      () => run('return !!document.querySelector(".mw-editor textarea")'),
+      "return to second-page editor",
+    );
+    await run(
+      '[...document.querySelectorAll(".mw-editor button")].find(n=>n.textContent==="Kaynak bölüme dön").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.getElementById("pdfReaderPage").value==="2"&&!document.getElementById("pdfReader").classList.contains("hidden")&&!document.getElementById("mediaWorkflowsDialog")',
+        ),
+      "production chapter returns to actual original PDF page2",
+    );
+    assert.equal(await run("return globalAssistantContext().page"), 2);
+    await capture("production-return-to-pdf-page2.png");
+    await run('document.getElementById("pdfReaderClose").click();return true');
+    await run(
+      'UiLocale.set("en",false);applyUiTheme("light");MediaWorkflowsUI.open("resources");return true',
     );
     await wait(250);
     await capture("resources-en-light.png");
@@ -625,6 +645,102 @@ app
     await run(
       'document.getElementById("playerVideo").pause();document.getElementById("audiobookShelfTest").remove();return true',
     );
+    // Real EPUB reader -> second production chapter -> same source chapter.
+    const python = require("./python-runtime").findTestPython();
+    require("node:child_process").execFileSync(
+      python,
+      [
+        "-c",
+        "import sys;sys.path.insert(0,'backend');from test_media_shelf import ShelfParsingTests;ShelfParsingTests().epub(sys.argv[1])",
+        out,
+      ],
+      { cwd: root, windowsHide: true },
+    );
+    const epubFile = path.join(out, "Öykü.epub"),
+      shelfFile = path.join(app.getPath("userData"), "media-shelf.json"),
+      shelfData = JSON.parse(fs.readFileSync(shelfFile, "utf8"));
+    shelfData.books.push({
+      id: "fixture-epub",
+      title: "İstanbul & Öykü",
+      author: "Yazar",
+      format: "epub",
+      path: epubFile,
+      chapter: 0,
+      scroll: 0,
+      bookmarks: [],
+    });
+    fs.writeFileSync(shelfFile, JSON.stringify(shelfData));
+    await run('await MediaShelfUI.openBook("fixture-epub");return true');
+    await run(
+      'const s=document.querySelector(\'.ms-reader select[aria-label="Bölüm"]\');s.value="1";s.dispatchEvent(new Event("change"));return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector(".ms-prose")?.textContent.includes("Birinci")',
+        ),
+      "EPUB second chapter displayed",
+    );
+    await run(
+      '[...document.querySelectorAll(".ms-reader button")].find(n=>n.textContent==="Bölümü sesli üretimde aç").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector(".mw-editor textarea")?.dataset.chapter==="1"',
+        ),
+      "EPUB source identity opens second production chapter",
+    ).catch(async (error) => {
+      error.message +=
+        " " +
+        JSON.stringify(
+          await run(
+            'return {readerStatus:document.querySelector(".ms-reader .ms-status")?.textContent,status:document.querySelector(".mw-status")?.textContent,chapter:document.querySelector(".mw-editor textarea")?.dataset.chapter,open:[...document.querySelectorAll("dialog[open]")].map(n=>n.className)}',
+          ),
+        );
+      throw error;
+    });
+    assert.match(
+      await run('return document.querySelector(".mw-editor textarea").value'),
+      /Birinci/,
+    );
+    assert.equal(
+      await run(
+        "return document.querySelector('select[aria-label=\"Kayıtlı referans sesler\"]').value",
+      ),
+      "",
+      "the new book must not inherit the previous book's reference",
+    );
+    assert.deepEqual(
+      await run(
+        'return [...document.querySelectorAll(".mw-chapter input:checked")].map(n=>Number(n.dataset.chapter))',
+      ),
+      [1],
+    );
+    assert.equal(
+      retryRequests.length,
+      1,
+      "opening a chapter does not generate speech automatically",
+    );
+    await capture("epub-source-to-production-tr-dark.png");
+    await run(
+      '[...document.querySelectorAll(".mw-editor button")].find(n=>n.textContent==="Kaynak bölüme dön").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector(\'.ms-reader[open] select[aria-label="Bölüm"]\')?.value==="1"',
+        ),
+      "production returns to the same EPUB chapter",
+    );
+    assert.match(
+      await run(
+        'return document.querySelector(".ms-reader[open] .ms-prose").textContent',
+      ),
+      /Birinci/,
+    );
+    await capture("epub-return-to-source-tr-dark.png");
+    await run('document.querySelector(".ms-reader[open]").close();return true');
     fs.writeFileSync(
       path.join(out, "results.json"),
       JSON.stringify(

@@ -269,11 +269,13 @@
     if (project && prefsProject !== project.id) {
       Object.assign(
         voicePrefs,
-        project.voicePreferences || {
+        {
           profile: "quality",
           concurrency: 4,
           verification: "detailed",
+          referenceId: "",
         },
+        project.voicePreferences || {},
       );
       prefsProject = project.id;
     }
@@ -1027,6 +1029,30 @@
           });
           dialog.close();
           await openLocalMedia(r.path, 0);
+        }),
+      );
+    if (project.shelfBookId || project.format === "pdf")
+      buttons.append(
+        button(t("Back to source chapter", "Kaynak bölüme dön"), async () => {
+          await saveChapter();
+          const previous = dialog;
+          if (project.format === "pdf") {
+            const source = await call("book-pdf", { id: project.id });
+            await window.MediaShelfUI.openPdfPage(
+              source.path,
+              c.pageNumber || 1,
+            );
+          } else {
+            const source = await call("book-source", {
+              id: project.id,
+              chapter,
+            });
+            await window.MediaShelfUI.openBook(
+              source.shelfId,
+              source.sourceChapter,
+            );
+          }
+          previous?.close();
         }),
       );
     if (c.groups?.some((g) => g.status !== "ready")) {
@@ -2021,12 +2047,23 @@
   }
   window.MediaWorkflowsUI = Object.freeze({
     open,
-    openProject: async (id) => {
+    openProject: async (id, focus = {}) => {
       if (busy) throw Error("Busy / Meşgul");
       await saveChapter();
-      project = (await call("book-open", { id })).project;
-      chapter = 0;
-      selected = new Set(project.selectedChapters || [0]);
+      const next = (await call("book-open", { id })).project;
+      const target = focus.chapter ?? 0;
+      if (
+        !Number.isInteger(target) ||
+        target < 0 ||
+        target >= next.chapters.length
+      )
+        throw Error(t("Invalid chapter.", "Bölüm geçersiz."));
+      project = next;
+      chapter = target;
+      selected = focus.selectChapter
+        ? new Set([target])
+        : new Set(project.selectedChapters || [0]);
+      if (focus.selectChapter) saveSelection();
       if (dialog?.open) dialog.close();
       open();
     },

@@ -63,6 +63,12 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
     );
     const shelf=await call('book-from-shelf',{shelfId:'shelf-one'});assert(shelf.ok,shelf.error);assert.equal(shelf.project.shelfBookId,'shelf-one');
     const shelfAgain=await call('book-from-shelf',{shelfId:'shelf-one'});assert.equal(shelfAgain.project.id,shelf.project.id);assert(grants.some(g=>g?.shelf==='shelf-one'));
+    const signature=fs.statSync(source), sourceChapter={index:0,text:shelf.project.chapters[0].text,sourceSize:signature.size,sourceMtime:signature.mtimeMs};
+    const focused=await call('book-from-shelf',{shelfId:'shelf-one',sourceChapter});assert(focused.ok,focused.error);assert.equal(focused.focusChapter,0);
+    assert.equal((await call('book-from-shelf',{shelfId:'shelf-one',sourceChapter:{...sourceChapter,text:'Different source'}})).ok,false);
+    assert.equal((await call('book-from-shelf',{shelfId:'shelf-one',sourceChapter:{...sourceChapter,sourceSize:signature.size+1}})).ok,false);
+    const returned=await call('book-source',{id:shelf.project.id,chapter:0});assert(returned.ok,returned.error);assert.equal(returned.sourceChapter.index,0);assert.equal(returned.shelfId,'shelf-one');
+    assert.equal((await call('book-source',{id:shelf.project.id,chapter:-1})).ok,false);
     const imported = await call("book-import");
     assert(imported.ok, imported.error);
     const id = imported.project.id;
@@ -122,6 +128,8 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
       fs.readFileSync(source, "utf8"),
       "Birinci bölümün bütün sözcüklerini ve anlamını koruyalım. Henüz sonucu bilmiyoruz.",
     );
+    fs.appendFileSync(source," Changed outside the app.");
+    assert.equal((await call("book-source",{id:shelf.project.id,chapter:0})).ok,false,"returning must reject a changed source file");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

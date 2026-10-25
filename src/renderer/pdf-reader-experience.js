@@ -305,7 +305,8 @@
       if (player.pdfReader !== r) return;
       voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
       $("pdfVoiceListen").disabled = false;
-      await window.MediaWorkflowsUI.openProject(id);
+      const focus = pages.findIndex(p => p.pageNumber === r.currentPage);
+      await window.MediaWorkflowsUI.openProject(id, focus >= 0 ? { chapter: focus } : {});
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",

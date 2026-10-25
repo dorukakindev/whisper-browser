@@ -31,7 +31,7 @@
     else dockStatus.textContent = message;
   }
   async function api(action, payload = {}) {
-    const result = await window.api.mediaShelf({ action, ...payload });
+    const result = await window.api.mediaShelf({ action, locale:window.UiLocale?.get?.(), ...payload });
     if (result?.canceled) return null;
     if (!result?.ok) throw Error(result?.error || t('Operation failed.', 'İşlem başarısız.'));
     return result;
@@ -156,13 +156,26 @@
       snapshot.playlists.forEach(row => { const line = el('div', 'ms-track'); line.append(btn(`${row.name} (${row.tracks.length})`, () => listen(row.tracks.map(id => snapshot.music.find(item => item.id === id)).filter(Boolean).map(row => ({ ...row, kind: 'music' })))), btn(t('Remove', 'Kaldır'), () => forget('playlists', row), 'mh-text-button')); playlists.append(line); }); root.append(playlists);
     }
   }
-  async function openBook(row) {
-    const book = await api('book-open', { id: row.id });
-    if (book.format === 'pdf') { document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player'); await openPdfReader(book.path); return; }
+  async function openPdfPage(file, pageNumber = 1) {
+    document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player');
+    const previous = player.pdfReader;
+    await openPdfReader(file);
+    if (!player.pdfReader || player.pdfReader === previous || !Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > player.pdfReader.pdf.numPages) throw Error(t('The source page could not be opened.', 'Kaynak sayfa açılamadı.'));
+    const input = document.getElementById('pdfReaderPage'); input.value = String(pageNumber); input.dispatchEvent(new Event('change'));
+  }
+  async function openBook(row, focus = null) {
+    const book = await api('book-open', { id: row.id, ...(focus ? { expectedSource: focus } : {}) });
+    if (book.format === 'pdf') { await openPdfPage(book.path, focus?.pageNumber || 1); return; }
+    let focusIndex = null;
+    if (focus) {
+      focusIndex = focus.index;
+      const c = book.chapters[focusIndex];
+      if (!Number.isInteger(focusIndex) || !c || (focus.sourceId && (c.sourceId !== focus.sourceId || c.sourceSpineIndex !== focus.sourceSpineIndex))) throw Error(t('The source chapter could not be matched.', 'Kaynak bölüm eşleştirilemedi.'));
+    }
     const dialog = el('dialog', 'ms-reader media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
     const header = el('header'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
-    let index = Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
+    let index = focusIndex ?? Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
     const prose = el('article', 'ms-prose'); prose.tabIndex = 0;
     window.MediaExperience?.bindPassage(prose, ({ text, offset, selectedText }) => {
       if (!dialog.open) return;
@@ -187,8 +200,17 @@
       const selection = window.getSelection(), quote = selection && prose.contains(selection.anchorNode) ? selection.toString().slice(0, 2000) : '';
       const mark = { ...position(), quote }; await api('book-progress', { id: book.id, ...mark, bookmark: true });
       book.bookmarks.push(mark); const opt = el('option', '', quote || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = book.bookmarks.length - 1; marks.append(opt); readerStatus.textContent = t('Saved.', 'Kaydedildi.');
-    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
+    }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), async () => {
+      if (await save() === false) return;
+      const c = book.chapters[index];
+      const result = await window.api.mediaWorkflows({ action:'book-from-shelf', locale:window.UiLocale?.get?.(), shelfId:book.id, sourceChapter:{index,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime} });
+      if (!result?.ok) { readerStatus.textContent=result?.error || t('Voice production could not be opened.', 'Sesli üretim açılamadı.'); return; }
+      if (!dialog.open) return;
+      await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});
+      dialog.close();
+    }), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
     header.lastChild.setAttribute('aria-label', t('Close reader', 'Okuyucuyu kapat'));
+    header.lastChild.classList.add('ms-reader-close');
     dialog.append(header, readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
@@ -270,7 +292,7 @@
     const first = sleep.options[0]; if (first) first.textContent = t('Sleep timer off', 'Uyku zamanlayıcısı kapalı');
     speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));
   });
-  window.MediaShelfUI = Object.freeze({ mount(root, page, query = '') {
+  window.MediaShelfUI = Object.freeze({ openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
     view = { root, page, query, busy: false }; ++generation;
     const loading = el('p', 'ms-status'); loading.setAttribute('role', 'status'); root.replaceChildren(loading);
     void reload().catch(error => status(error.message, true));
