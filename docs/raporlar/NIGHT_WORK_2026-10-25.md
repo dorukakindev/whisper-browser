@@ -23,35 +23,35 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N13 | Tamamlandı | Gerçek uzun FFmpeg M4B işi iptalini Windows süreç testiyle doğrula. | Alt süreç kapanır, geçici dosyalar silinir, önceki hedef korunur. |
 | N14 | Tamamlandı | M4B encoding için gerçek ilerleme olaylarını ekle. | stderr/progress ayrımı, çıktı tüketimi ve bounded event hızı. |
 | N15 | Bekliyor | 100 bölümlü M4B fan-in dosya tanıtıcısı/bellek etkisini ölç. | Ölçülürse bounded concat planı; spekülatif hız iddiası yok. |
-| N16 | Bekliyor | Kitap yedeği için dosya sayısı/boyut/kapsam önizlemesi ekle. | Paket öncesi neyin dahil olmadığı görünür. |
-| N17 | Bekliyor | Bütün projeler yerine seçili proje yedeği destekle. | Büyük seslerde256MiB sınırını güvenle yönet; bütün RAM okuma artmasın. |
-| N18 | Bekliyor | Kitap yedeğinde checksum/bozuk JSON/yarım kopya rollback testlerini genişlet. | Hatalı paket hiçbir mevcut projeyi değiştirmez. |
-| N19 | Bekliyor | Geri yüklenen kitapta eksik özgün PDF ve referans durumunu açık göster. | Restore başarılı ifadesi eksik kaynak varlığını gizlemez. |
-| N20 | Bekliyor | Geri yüklenen projeye kullanıcı seçimiyle özgün kitap yeniden bağla. | Metin/sayfa kimliği eşleşmeden yanlış PDF bağlanmaz. |
-| N21 | Bekliyor | Kurtarmada birden fazla iş günlüğü ve bayat metin durumunu görünürleştir. | Yanlış tamamlanma kaydı otomatik seçilmez. |
-| N22 | Bekliyor | capture kaydetme hatasını uygulama genel günlüğü ve proje durumunda göster. | Sessiz catch yerine kurtarılabilir çıktı konumu, özel veri redaksiyonu. |
-| N23 | Bekliyor | Yedek alma/restore ile eşzamanlı üretimin tutarlı snapshotını sağla. | Üretilen WAV/manifest aynı kimlikte; yarım dosya onaylanmaz. |
-| N24 | Bekliyor | Proje açıldığında yarım iş varsa kurtarma önerisi göster. | Kendiliğinden GPU başlatmaz; kullanıcı denetimi ve açıklama. |
+| N16 | Ertelendi | Kitap yedeği için dosya sayısı/boyut/kapsam önizlemesi ekle. | Paket öncesi neyin dahil olmadığı görünür. |
+| N17 | Ertelendi | Bütün projeler yerine seçili proje yedeği destekle. | Büyük seslerde256MiB sınırını güvenle yönet; bütün RAM okuma artmasın. |
+| N18 | Ertelendi | Kitap yedeğinde checksum/bozuk JSON/yarım kopya rollback testlerini genişlet. | Hatalı paket hiçbir mevcut projeyi değiştirmez. |
+| N19 | Ertelendi | Geri yüklenen kitapta eksik özgün PDF ve referans durumunu açık göster. | Restore başarılı ifadesi eksik kaynak varlığını gizlemez. |
+| N20 | Ertelendi | Geri yüklenen projeye kullanıcı seçimiyle özgün kitap yeniden bağla. | Metin/sayfa kimliği eşleşmeden yanlış PDF bağlanmaz. |
+| N21 | Ertelendi | Kurtarmada birden fazla iş günlüğü ve bayat metin durumunu görünürleştir. | Yanlış tamamlanma kaydı otomatik seçilmez. |
+| N22 | Ertelendi | capture kaydetme hatasını uygulama genel günlüğü ve proje durumunda göster. | Sessiz catch yerine kurtarılabilir çıktı konumu, özel veri redaksiyonu. |
+| N23 | Ertelendi | Yedek alma/restore ile eşzamanlı üretimin tutarlı snapshotını sağla. | Üretilen WAV/manifest aynı kimlikte; yarım dosya onaylanmaz. |
+| N24 | Ertelendi | Proje açıldığında yarım iş varsa kurtarma önerisi göster. | Kendiliğinden GPU başlatmaz; kullanıcı denetimi ve açıklama. |
 | N25 | Tamamlandı | Kitap bazlı referans seçiminin genel dublaj sesiyle etkisini açık göster. | Yanlış referans/döküm sessizce kullanılmaz. |
 | N26 | Tamamlandı | Hazır M4B çıktısını bağlı kitap rafı kartından aç. | Çıktı kaydı/source yetkisi ve eksik dosyada anlaşılır eylem. |
-| N27 | Bekliyor | Proje kopyalamayı metin/ayar kopyası olarak ekle. | Kaynak proje korunur; büyük sesleri kopyalama açık seçenek olur. |
-| N28 | Bekliyor | Proje klasörünü güvenli Aç eylemiyle erişilebilir yap. | Yalnız uygulamanın doğrulanmış proje kökü açılır. |
+| N27 | Ertelendi | Proje kopyalamayı metin/ayar kopyası olarak ekle. | Kaynak proje korunur; büyük sesleri kopyalama açık seçenek olur. |
+| N28 | Ertelendi | Proje klasörünü güvenli Aç eylemiyle erişilebilir yap. | Yalnız uygulamanın doğrulanmış proje kökü açılır. |
 | N29 | Bekliyor | Arşivlenmiş proje yönetimini dar ekran ve klavyeyle doğrula. | Dosya silinmez, geri alma görünür ve isimler okunur. |
 | N30 | Bekliyor | Bölüm önceki ses sürümünü seçme ihtiyacını proje geçmişiyle ele al. | Eski WAV korunur; aktif metin hash eşleşmeden hazır sayılmaz. |
-| N31 | Bekliyor | Uzun/dolu PDF sayfasında özgün vurgu koordinatlarını sınır/rotation testleriyle doğrula. | Kutular canvas içinde; dönük metin desteklenmiyorsa açıkça atlanır. |
+| N31 | Tamamlandı | Uzun/dolu PDF sayfasında özgün vurgu koordinatlarını sınır/rotation testleriyle doğrula. | Kutular canvas içinde; dönük metin desteklenmiyorsa açıkça atlanır. |
 | N32 | Bekliyor | PDF satır sonu tirelerini güvenli ve geri alınabilir hazırlama seçeneğiyle ele al. | Özel ad/kısaltma/sayısal aralık bozulmaz; özgün metin korunur. |
 | N33 | Bekliyor | Reader minimum genişliğinin900px altındaki düğme erişimine etkisini incele. | Gerekirse sadece okuyucu düzeni; genel pencere davranışı izinsiz bozma. |
-| N34 | Bekliyor | Türkçe I/İ/ı ve birleşen Unicode işaretlerinde vurgu eşlemesini sınayarak düzelt. | Yanlış sözcük vurgusu yerine açık eşleşmeme durumu. |
+| N34 | Tamamlandı | Türkçe I/İ/ı ve birleşen Unicode işaretlerinde vurgu eşlemesini sınayarak düzelt. | Yanlış sözcük vurgusu yerine açık eşleşmeme durumu. |
 | N35 | Tamamlandı | Özgün PDF vurgusuna tıklayarak seek işini native E2E ile sınama. | Doğru grubun gerçek başlangıç zamanı, klavye erişimi. |
 | N36 | Bekliyor | Çeviri/orijinal metin değişince ses kaynağı ve vurgu kimliğini koru. | Farklı diller arasında sahte birebir hizalama yapılmaz. |
 | N37 | Bekliyor | PDF okuma görünümünde sayfa/alıntı yer imi ekle veya mevcut raf yer imlerine bağla. | Kalıcı kaynak kimliği; orijinal belge değişmez. |
 | N38 | Tamamlandı | Kitap içinde sınırlı tam metin arama ve sayfa/bölüme gitme ekle. | Büyük kitapta UI bloklanmaz; asistan bağlamı doğru sayfaya geçer. |
 | N39 | Bekliyor | Raf okuma konumuyla üretim bölümüne açık eşleme eylemi ekle. | Sessiz otomatik yanlış konum taşıma yok. |
-| N40 | Bekliyor | EPUB başlık/kapak/bölüm kimliğinin üretim projesine aktarımını tamamla. | Güvenli HTML/metin ayrımı; kitap biçimi kaybolmaz. |
+| N40 | Tamamlandı | EPUB başlık/kapak/bölüm kimliğinin üretim projesine aktarımını tamamla. | Güvenli HTML/metin ayrımı; kitap biçimi kaybolmaz. |
 | N41 | Bekliyor | Review metni düzenlendikten sonra yalnız değişen grubun yenilenmesini sınama. | Metin/plan key değişimi eski başka grubu zorla üretmez. |
 | N42 | Bekliyor | Dublaj Bu grubu dinle için metadata yüklenmeden tıklama ve aralık sonunu doğrula. | Çift oynatma/NaN seek yok; kaynak değişince ses durur. |
 | N43 | Bekliyor | Kalite listesinden metin planına eşlemeyi kaynak key/sıra değişiminde sağlamlaştır. | Eksik key yanlış satıra atlamaz. |
-| N44 | Bekliyor | Failed/sessiz grupların manuel ready kabulüne karşı negatif test ekle. | Yalnız oynatılabilir review ve açık kullanıcı onayı. |
+| N44 | Tamamlandı | Failed/sessiz grupların manuel ready kabulüne karşı negatif test ekle. | Yalnız oynatılabilir review ve açık kullanıcı onayı. |
 | N45 | Bekliyor | Yeni kalite/durum metinlerinde EN/TR dinamik dil geçişini tamamla. | Kullanıcı metni çevrilmez; ham durum kodu yerine anlaşılır etiket. |
 | N46 | Bekliyor | Kitap reader/source değişirken eski ses ve bütün listenerların kapanışını ölç. | Tekrarlı aç/kapat sonrası dinleyici/iş sayısı artmaz. |
 | N47 | Bekliyor | Letterboxd gerçek public pagination/sıralama rotalarını resmî sayfalardan doğrula. | Test sentetik URL kabulünü gerçek site desteği diye sunma. |
@@ -128,3 +128,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:56 — Rapor565görselek/ürün5b6578bee5d338e686260a239620bba4c35e06fe: pause'ın beklenenAbortError'ı uyarıgöstermiyor; gerçekNotAllowedError korunuyor. Controller5PASS/nativeWindows4148121exit0/sonPDFgörüntüsütemiz. Diğerplanaynı;N25/N32/N40/N15, yedekbakımı yok.
 
 11:39 — Rapor566/ürüna5f4f44fb79701bca54ecf8eb6aa0acfa9223a99: N25tamam, kayıtlıkitapsesiseçimi/genisteğireferenceId ileişeözel; globalreferans/döküm veanlatım configyazımıizole, eksikrefsessizfallbackyok. UIgenel/kitapsesiadıaçık.4hedefPASS/native4431541exit0görüntüincelendi. Sonraki N32/N40/N15; yedekbakımı yok. Kullanıcıdevam dedi;11:55uyanışı aynıaktifhedefiçoğaltmaz.
+
+11:47 — Rapor567/ürünf2c731d5641b174221cd095f4c2df38d0a2e97a0: N40yeniimporttamam, güvenlikapak+kararlıEPUBsourceId/spine; başlık/yazar/sıra zatenkorunuyordu. Node3/Python7/native7883633exit0kapakgörüntüsüincelendi. N31/N34R563veN44R549/553kanıtıylatamamişaretlendi; backupbakım11maddeertelendi. DÜZELTME: eski N47 kitapbağlamıreferansı numarahatasıydı; asılN47Letterboxdcanlırotadoğrulaması hâlâbekliyor, kitapalıntıbağlamıekiş. Sonraki N39/N32/N15,11:55aynıaktifhedefteçoğaltmadan devam.

@@ -1,0 +1,9 @@
+# 567 — EPUB metadata ve kapak
+
+İnceleme: başlık/yazar/EPUB biçimi ve spine okuma sırası zaten aktarılıyordu, yeniden yazılmadı. Kapak üretim projesine alınmıyordu; kaynak bölümün kararlı kimliği de parser çıktısında bulunmuyordu. Yeni importlar güvenli PNG/JPEG/WebP dataURL kapağını en fazla350000 karakterle alır; SVG/uzak URL'ler gösterilmez. Özet mevcut tema tokenlarıyla küçük kapak gösterir; bozuk görsel kaldırılır.
+
+EPUB parser canonical arşiv içi kaynak yolunun SHA256 kimliğini ve orijinal spine sırasını verir; üretim projesi bunları korur. Kaynak/HTML metni ses olarak düzenlenmeye devam eder; bölüm metni ve kullanıcı düzenlemeleri değiştirilmez. Bu, kaynak bölümle açık eşleme için temeldir; raf okuma konumunu kendiliğinden üretime taşıma eklenmedi. Eski projeler otomatik yeniden parse edilmez. Aynı kaynak dosyasına tekrar spine referansı gelirse sourceId aynı, sourceSpineIndex farklıdır.
+
+Node3 hedefli sonuç ve gerçek EPUB parser7 Python testi geçti; syntax/py_compile/diff temiz. Servis metadata testi kontrollü parser cevabıdır; gerçek EPUB sıra/Unicode/script temizliği ve kararlı kimlik Python ZIP fixture'ında doğrulanır. NativeWindows `.uiprev/book-reliability549-1792917883633` exit0; kontrollü canvas kapağı proje özetinde yüklenip görüntüsü incelendi, mevcut PDF/Review/asistan/M4B senaryoları geçti. Native EPUB import uçtan uca veya gerçek TTS/GPU/liveAPI/kişiselstart.bat/CI doğrulaması değildir.
+
+Yeni bağımlılık/kurulum yok. Version1 projede opsiyonel cover ve chapter.sourceId/sourceSpineIndex; eski projeler geçerli. N40 yeni import kabulü tamam. N31/N34 Rapor563, N44 Rapor549/553 negatif kanıtlarıyla tabloda tamam olarak işaretlendi. Önceki eklerde N47'nin kitap asistanı diye anılması numara hatasıydı: N47 asıl Letterboxd gerçek rota doğrulamasıdır ve hâlâ bekliyor; kitap pasajı ek geliştirmedir, N47 tamamlanmış sayılmaz.
