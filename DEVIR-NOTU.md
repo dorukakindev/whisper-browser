@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0653.md](docs/devir/2026-10-25-0653.md) — Yedek paketini erteleme, gerçek kullanım önceliği ve dublaj grup dinleme
 Güncel çalışma: [docs/devir/2026-10-25-0642.md](docs/devir/2026-10-25-0642.md) — Kapsamlı devam hedefi, 39 maddelik paketleme ve 08:17/08:20 uyanışları
 Güncel çalışma: [docs/devir/2026-10-25-0615.md](docs/devir/2026-10-25-0615.md) — M4B çıktı önizlemesi, disk alanı, ilerleme ve gerçek süreç iptali
 Güncel çalışma: [docs/devir/2026-10-25-0524.md](docs/devir/2026-10-25-0524.md) — Gece ilk paket: tema, dil, asistan yaşam döngüsü ve doğrulama

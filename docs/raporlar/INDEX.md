@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_552.md](BROWSER_BUG_REPORT_552.md) — Dublaj grup dinlemede metadata bekleme ve bayat oynatma iptali.
+
 - [BROWSER_BUG_REPORT_551.md](BROWSER_BUG_REPORT_551.md) — M4B süre/boyut/boş alan önizlemesi, gerçek ilerleme ve FFmpeg kapanışlı iptal.
 
 - [BROWSER_BUG_REPORT_550.md](BROWSER_BUG_REPORT_550.md) — Gece ilk paket: tema/dil, dinleyici yaşam döngüsü ve doğrulama sözleşmeleri.
