@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-0200.md](docs/devir/2026-10-26-0200.md) — Claude için güncel10MBkaynak paketi ve12alanlı derin denetim görevi
 Güncel çalışma: [docs/devir/2026-10-26-0156.md](docs/devir/2026-10-26-0156.md) — Claude ara-v3 test kayıtları incelendi; ürün kodu değiştirilmedi
 Güncel çalışma: [docs/devir/2026-10-26-0151.md](docs/devir/2026-10-26-0151.md) — PR495 ana programda; ayar ve kitap arayüzü düzenlendi
 Güncel çalışma: [docs/devir/2026-10-26-0149.md](docs/devir/2026-10-26-0149.md) — Dar ayarlar, EPUB ve sesli kitap arayüzü sadeleştirildi
