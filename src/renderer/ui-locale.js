@@ -4,6 +4,14 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Bu grup neden işaretlendi?', 'Why is this group flagged?'],
+    ['Seslendirilen metni takip et', 'Follow spoken text'],
+    ['Önceki grubu dinle', 'Listen to previous group'],
+    ['Yeni grubu dinle', 'Listen to new group'],
+    ['Telaffuz sözlüğü', 'Pronunciation dictionary'],
+    ['Telaffuzları kaydet', 'Save pronunciations'],
+    ['Newton = Nyutın', 'Newton = Nyutın'],
+    ['Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.', 'One case-sensitive entry per line: Newton = Nyutın. Applies only to generated speech; subtitles stay unchanged.'],
     ['VoxCPM2 · Dublaj stüdyosu', 'VoxCPM2 · Dubbing studio'],
     ['Altyazını seç, sesini ayarla ve videoyla senkron dublaj üret.', 'Choose subtitles, set your voice and create synchronized dubbing.'],
     ['Üretim hazırlığı', 'Production readiness'],

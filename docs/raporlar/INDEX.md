@@ -1,3 +1,4 @@
+- [Rapor 589](BROWSER_BUG_REPORT_589.md) — Rapor587 incelemesi ve kırmızı test köklerinin ayrıştırılması
 - [Rapor 588](BROWSER_BUG_REPORT_588.md) — Aynı sahnede çeviri, telaffuz ve eski/yeni dublaj karşılaştırması
 - [Rapor 588](BROWSER_BUG_REPORT_588.md) — Okuma-yalnız bug taraması ve test triyajı: 7 başarısız test, en önemli dublaj cache bulgusu, yerelleştirme/CSS/determinizm/kapsam kaymaları.
 - [Rapor 587](BROWSER_BUG_REPORT_587.md) — Kod geliştirme ve teknik borç yol haritası: 22 öncelikli madde, nedenleri, kod işaretleri ve kabul testleri.
@@ -142,7 +143,7 @@ tarih sırasıyla dosya adından okunur.
 | 519 | [BROWSER_BUG_REPORT_519.md](BROWSER_BUG_REPORT_519.md) | Claude Web ses teslimi doğrulaması ve grup kimliği kayması |
 | 518 | [BROWSER_BUG_REPORT_518.md](BROWSER_BUG_REPORT_518.md) | Yedi yeni ses ve kalıcılık hatası, önceki üç onarımla bütünleşik teslim |
 | 517 | [BROWSER_BUG_REPORT_517.md](BROWSER_BUG_REPORT_517.md) | Yerel dublaj sessizleme, not kurtarma ve arşiv revizyonları |
-| 516 | [BROWSER_BUG_REPORT_516.md](BROWSER_BUG_REPORT_516.md) | Yalnız gece denetimi: 1395 satırlık gerçek davranış koşumu (temel 703 + 692 batarya eki), yeni bug 0, B515-01 köküne 6 tekrar (R-DUP) |
+| 516 | Yerel Rapor516 (dosya Git teslimine dahil değil) | Yalnız gece denetimi: 1395 satırlık gerçek davranış koşumu (temel 703 + 692 batarya eki), yeni bug 0, B515-01 köküne 6 tekrar (R-DUP) |
 | 515 | [BROWSER_BUG_REPORT_515.md](BROWSER_BUG_REPORT_515.md) | Kodu değiştirmeden 53 hedefli bug testi: 3 gerçek ürün kusuru, 11 test altyapısı engeli |
 | 514 | [BROWSER_BUG_REPORT_514.md](BROWSER_BUG_REPORT_514.md) | Ses çevirisinde kaynakla eşleşmiş komşu taslaklar |
 | 513 | [BROWSER_BUG_REPORT_513.md](BROWSER_BUG_REPORT_513.md) | İsteğe bağlı kaynak anlatımı ve araştırma raporlarının doğrulanması |

@@ -50,6 +50,8 @@ const OTHER_STORE = new Set([
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
   'browserWhisperForSpeech',
   // Dubbing preferences persist through dub:config in dub-settings.json.
+  // Explicit save uses dub:pronunciations, not transcription scheduleSave.
+  'dubPronunciations',
   'dubKeepEngine', 'dubGrouping', 'dubFollowDelivery', 'dubDeliveryStrength', 'dubExpression',
   'dubProfile', 'dubConcurrency', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech',
   'subColor', 'subBgOpacity', 'subOutline', 'subFont', 'subWeight', 'subDualLayout',
@@ -74,6 +76,8 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  // Reader-only follow toggle; quality evidence is a disclosure, not a setting.
+  'pdfVoiceFollow', 'dubQualityEvidence',
   // PDF narration range/source are per-open-reader draft values, reset by PdfReaderExperience.opened.
   'pdfVoiceFrom', 'pdfVoiceTo', 'pdfVoiceText',
   'dubAdvancedSettings', 'dubEngineSettings', // details disclosure state, not synthesis settings

@@ -2233,7 +2233,7 @@
             <label>Okunacak metin <select id="pdfVoiceText"><option value="source">Orijinal metin</option><option value="translation">Çeviri metni</option></select></label>
             <button class="btn btn-primary btn-sm" id="pdfVoicePrepare" type="button">Seçili sayfaları seslendirmeye hazırla</button>
             <button class="btn btn-secondary btn-sm" id="pdfVoiceListen" type="button" disabled>Hazır sesi bu sayfada dinle</button>
-            <label class="pdf-voice-follow" data-ui-untranslated><input id="pdfVoiceFollow" type="checkbox" checked><span id="pdfVoiceFollowLabel">Follow spoken text</span></label>
+            <label class="pdf-voice-follow" data-ui-untranslated><input id="pdfVoiceFollow" type="checkbox" checked><span id="pdfVoiceFollowLabel">Seslendirilen metni takip et</span></label>
             <audio id="pdfVoiceAudio" class="hidden" controls preload="metadata" aria-label="Sayfa seslendirmesi"></audio>
             <span id="pdfVoiceStatus" role="status"></span>
           </div>
@@ -3748,8 +3748,8 @@
 <details id="dubQualityResults"><summary>Parça sonuçları ve yeniden üretim</summary>
       <label for="dubQualityGroup">Üretim parçası</label><select id="dubQualityGroup" data-ui-untranslated></select>
       <p id="dubQualityInfo" role="status"></p>
-      <div class="dub-group-comparison" data-ui-untranslated><div id="dubListenActions" class="dub-generator-row"><button id="dubListenPrevious" class="btn btn-ghost btn-sm" type="button" hidden>Listen to previous group</button></div><audio id="dubPreviousPreview" controls preload="none" class="hidden"></audio></div>
-      <details id="dubQualityEvidence" class="dub-quality-evidence" data-ui-untranslated hidden><summary id="dubQualityEvidenceTitle">Why is this group flagged?</summary><p id="dubQualityReasons"></p><blockquote id="dubQualityExpected"></blockquote></details>
+      <div class="dub-group-comparison" data-ui-untranslated><div id="dubListenActions" class="dub-generator-row"><button id="dubListenPrevious" class="btn btn-ghost btn-sm" type="button" hidden>Önceki grubu dinle</button></div><audio id="dubPreviousPreview" controls preload="none" class="hidden"></audio></div>
+      <details id="dubQualityEvidence" class="dub-quality-evidence" data-ui-untranslated hidden><summary id="dubQualityEvidenceTitle">Bu grup neden işaretlendi?</summary><p id="dubQualityReasons"></p><blockquote id="dubQualityExpected"></blockquote></details>
       <div class="dub-generator-row"><button id="dubRetryFailed" class="btn btn-secondary" type="button" disabled>Eksik parçaları tamamla</button><button id="dubRegenerateGroup" class="btn btn-ghost" type="button" disabled>Seçili parçayı yeniden üret</button></div>
       <p>Hazır parçalar önbellekten alınır. Değiştirdiğiniz cümleler ayrı üretilir; bütün ses yeniden hesaplanmaz.</p>
     </details>
@@ -3787,10 +3787,10 @@
   </main><aside class="dub-studio-side" aria-label="Ses ve arka plan"><section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="3"></span><h3>Referans ses</h3></div><p>Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.</p>
 <details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
     <section class="dub-pronunciations" data-ui-untranslated>
-      <h4 id="dubPronunciationTitle">Pronunciation dictionary</h4>
-      <p id="dubPronunciationHelp">One case-sensitive entry per line: Newton = Nyutın. Applies only to generated speech; subtitles stay unchanged.</p>
-      <textarea id="dubPronunciations" rows="4" aria-labelledby="dubPronunciationTitle" placeholder="Newton = Nyutın"></textarea>
-      <button class="btn btn-ghost" id="dubPronunciationSave" type="button">Save pronunciations</button>
+      <h4 id="dubPronunciationTitle">Telaffuz sözlüğü</h4>
+      <p id="dubPronunciationHelp" data-ui-untranslated>Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.</p>
+      <textarea id="dubPronunciations" data-ui-untranslated rows="4" aria-labelledby="dubPronunciationTitle" placeholder="Newton = Nyutın"></textarea>
+      <button class="btn btn-ghost" id="dubPronunciationSave" type="button">Telaffuzları kaydet</button>
       <p id="dubPronunciationStatus" role="status"></p>
     </section>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>

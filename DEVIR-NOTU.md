@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-2232.md](docs/devir/2026-10-25-2232.md) — Rapor587 incelemesi ve ayrıştırılan test/yerelleştirme onarımları
 Güncel çalışma: [docs/devir/2026-10-25-2218.md](docs/devir/2026-10-25-2218.md) — PR491 ana programda; sürekli master birleştirme yetkisi kaydedildi
 Güncel çalışma: [docs/devir/2026-10-25-2213.md](docs/devir/2026-10-25-2213.md) — Aynı sahnede eski/yeni ses, telaffuz sırası ve çeviri miktar denetimi
 Güncel çalışma: [docs/devir/2026-10-25-2235.md](docs/devir/2026-10-25-2235.md) — Okuma-yalnız bug taraması ve test triyajı (Rapor588)
@@ -95,8 +96,8 @@ Güncel çalışma: [docs/devir/2026-10-23-1259.md](docs/devir/2026-10-23-1259.m
 Güncel çalışma: [docs/devir/2026-10-23-0929.md](docs/devir/2026-10-23-0929.md) — PR478 güvenli birleştirme ve Windows ana kopya güncellemesi
 Güncel çalışma: [docs/devir/2026-10-23-0922.md](docs/devir/2026-10-23-0922.md) — Rapor522: son güvenilirlik incelemesi, beş ürün kökü ve CI bakımı
 Güncel çalışma: [docs/devir/2026-10-23-0245.md](docs/devir/2026-10-23-0245.md) — PR477 master ve Windows ana kopyaya alındı
-Güncel çalışma: [docs/devir/2026-10-22-0548.md](docs/devir/2026-10-22-0548.md) — Gece "1000 daha" batarya eki: +692 sözleşme senaryosu (toplam 1395), yeni bug 0, kod değişmedi
-Güncel çalışma: [docs/devir/2026-10-21-2339.md](docs/devir/2026-10-21-2339.md) — Gece yalnız denetimi: 703 satır koşum, yeni bug 0, B515-01 köküne 6 tekrar (R-DUP)
+Güncel çalışma: Yerel kanıt notu `2026-10-22-0548.md` (Git teslimine dahil değil) — Gece "1000 daha" batarya eki: +692 sözleşme senaryosu (toplam 1395), yeni bug 0, kod değişmedi
+Güncel çalışma: Yerel kanıt notu `2026-10-21-2339.md` (Git teslimine dahil değil) — Gece yalnız denetimi: 703 satır koşum, yeni bug 0, B515-01 köküne 6 tekrar (R-DUP)
 Güncel çalışma: [docs/devir/2026-10-23-0242.md](docs/devir/2026-10-23-0242.md) — Rapor521: on altı ses ve çeviri güvenilirliği düzeltmesi
 Güncel çalışma: [docs/devir/2026-10-22-1514.md](docs/devir/2026-10-22-1514.md) — PR476 master ve Windows ana kopyaya alındı
 Güncel çalışma: [docs/devir/2026-10-22-1511.md](docs/devir/2026-10-22-1511.md) — Claude ses düzeltmeleri güvenli uyarlama, özgün cue kimliği ve ses kurtarma
