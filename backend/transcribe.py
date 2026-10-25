@@ -3862,6 +3862,10 @@ def line_keeps_source(source_text, target, source_lang=None):
     # Not: harf denetimi [A-Za-zÀ-ÿ] değil Unicode — Latin dışı alfabeli
     # kaynaklar (こんにちは, Привет, مرحبا) 'harfsiz' sanılıp korunuyor ve
     # hiç çevrilmeden çıktıya geçiyordu.
+    # Capitalization does not turn a common spoken reply into a name/acronym.
+    # Otherwise THANK YOU bypasses translation and Thank You bypasses echo rejection.
+    if " ".join(_normalized_echo_words(text)) in _SHORT_TRANSLATABLE_ECHOES:
+        return False
     words = re.findall(r"[^\W\d_]+", text)
     if words and all(w in _VOCALIZATION_WORDS for w in (v.lower() for v in words)):
         return True
@@ -3907,6 +3911,8 @@ def translation_is_source_echo(source_text, translated_text):
     if not source_words or source_words != translated_words:
         return False
     normalized = " ".join(source_words)
+    if normalized in _SHORT_TRANSLATABLE_ECHOES:
+        return True
     if re.search(r"(?:https?://|www\.)", str(source_text or ""), re.I):
         return False
     source_raw = unicodedata.normalize("NFKC", str(source_text or "")).strip()
