@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-2237.md](docs/devir/2026-10-25-2237.md) — PR492 ana programda; kırmızı test kökleri ve rapor çakışması onarıldı
 Güncel çalışma: [docs/devir/2026-10-25-2232.md](docs/devir/2026-10-25-2232.md) — Rapor587 incelemesi ve ayrıştırılan test/yerelleştirme onarımları
 Güncel çalışma: [docs/devir/2026-10-25-2218.md](docs/devir/2026-10-25-2218.md) — PR491 ana programda; sürekli master birleştirme yetkisi kaydedildi
 Güncel çalışma: [docs/devir/2026-10-25-2213.md](docs/devir/2026-10-25-2213.md) — Aynı sahnede eski/yeni ses, telaffuz sırası ve çeviri miktar denetimi
