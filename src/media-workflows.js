@@ -699,6 +699,7 @@ function registerMediaWorkflows({
             g.status !== "review" ||
             !Number.isFinite(g.start) ||
             !Number.isFinite(g.end) ||
+            g.start < 0 ||
             g.end <= g.start
           )
             throw Error("Only playable review groups can be acknowledged.");
@@ -706,7 +707,9 @@ function registerMediaWorkflows({
             path.dirname(file(d.id)),
             path.basename(c.output),
           );
-          if (!fs.statSync(audio).isFile()) throw Error("Audio missing.");
+          const audioStat = fs.lstatSync(audio);
+          if (!audioStat.isFile() || audioStat.isSymbolicLink())
+            throw Error("Audio missing.");
           g.status = "ready";
           g.manualApproval = {
             at: new Date().toISOString(),

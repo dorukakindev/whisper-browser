@@ -83,6 +83,9 @@
     });
   }
   const drafts = new Map();
+  let saveRequest = 0,
+    readerRequest = 0,
+    stopReviewPreview = null;
   let prefsProject = null;
   function status(message) {
     const node = dialog?.querySelector(".mw-status");
@@ -104,6 +107,8 @@
     return n;
   }
   function clearBody() {
+    stopReviewPreview?.();
+    stopReviewPreview = null;
     for (const a of dialog.querySelectorAll("audio")) a.pause();
     void closeReader();
     const body = dialog.querySelector(".mw-body");
@@ -124,11 +129,24 @@
   async function saveChapter() {
     saveDraft();
     if (!project) return;
-    const text = drafts.get(`${project.id}:${chapter}`);
+    const original = project,
+      projectId = project.id,
+      index = chapter;
+    const key = `${projectId}:${index}`,
+      text = drafts.get(key),
+      input = dialog?.querySelector("textarea[data-chapter]");
     if (text !== undefined) {
-      const r = await call("book-save", { id: project.id, chapter, text });
-      project = r.project;
-      drafts.delete(`${project.id}:${chapter}`);
+      const request = ++saveRequest;
+      const r = await call("book-save", {
+        id: projectId,
+        chapter: index,
+        text,
+      });
+      if (project === original && request === saveRequest) project = r.project;
+      // Typing or changing chapters while IPC is pending must not delete the new draft.
+      if (input?.isConnected && input.value !== text)
+        drafts.set(key, input.value);
+      else if (drafts.get(key) === text) drafts.delete(key);
     }
   }
   async function books() {
@@ -832,7 +850,18 @@
       audio.controls = true;
       audio.preload = "metadata";
       review.append(audio);
-      let end = null;
+      let end = null,
+        playRequest = 0;
+      const reviewProjectId = project.id,
+        reviewChapter = chapter;
+      stopReviewPreview = () => {
+        playRequest++;
+        end = null;
+        audio.onloadedmetadata = null;
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      };
       audio.ontimeupdate = () => {
         if (end !== null && audio.currentTime >= end) {
           audio.pause();
@@ -847,13 +876,60 @@
         );
         row.append(
           button(t("Listen to group", "Grubu dinle"), async () => {
-            const r = await call("book-listen", { id: project.id, chapter });
-            audio.src = pathToFileUrl(r.path);
+            const request = ++playRequest;
+            audio.pause();
+            end = null;
+            if (
+              !Number.isFinite(g.start) ||
+              !Number.isFinite(g.end) ||
+              g.start < 0 ||
+              g.end <= g.start
+            )
+              throw Error(
+                t(
+                  "This group has no playable audio range.",
+                  "Bu grubun dinlenebilir ses aralığı yok.",
+                ),
+              );
+            const r = await call("book-listen", {
+              id: reviewProjectId,
+              chapter: reviewChapter,
+            });
+            if (
+              request !== playRequest ||
+              !audio.isConnected ||
+              !dialog?.open ||
+              project?.id !== reviewProjectId ||
+              chapter !== reviewChapter
+            )
+              return;
             audio.onloadedmetadata = () => {
-              audio.currentTime = g.start || 0;
-              end = g.end;
-              void audio.play().catch((e) => status(e.message));
+              if (
+                request !== playRequest ||
+                !audio.isConnected ||
+                !dialog?.open
+              )
+                return;
+              if (
+                !Number.isFinite(audio.duration) ||
+                g.start >= audio.duration
+              ) {
+                status(
+                  t(
+                    "This group has no playable audio range.",
+                    "Bu grubun dinlenebilir ses aralığı yok.",
+                  ),
+                );
+                return;
+              }
+              audio.currentTime = g.start;
+              end = Math.min(g.end, audio.duration);
+              void audio.play().catch((e) => {
+                if (request === playRequest) status(e.message);
+              });
             };
+            audio.src = pathToFileUrl(r.path);
+            audio.load();
           }),
           button(t("Edit this passage", "Bu metni düzenle"), () => {
             const index = textarea.value.indexOf(g.text || "");
@@ -879,6 +955,9 @@
           button(
             t("I listened — approve this group", "Dinledim — bu grubu onayla"),
             async () => {
+              const approvalProject = project.id,
+                approvalChapter = chapter,
+                approvalOutput = c.output;
               if (
                 await ask({
                   title: t("Approve this audio?", "Bu ses onaylansın mı?"),
@@ -889,10 +968,17 @@
                   confirmLabel: t("Approve", "Onayla"),
                 })
               ) {
+                if (
+                  !dialog?.open ||
+                  project?.id !== approvalProject ||
+                  chapter !== approvalChapter ||
+                  project.chapters[approvalChapter]?.output !== approvalOutput
+                )
+                  return;
                 project = (
                   await call("book-approve", {
-                    id: project.id,
-                    chapter,
+                    id: approvalProject,
+                    chapter: approvalChapter,
                     key: g.key,
                   })
                 ).project;
@@ -923,11 +1009,15 @@
     readerGeneration = 0,
     readerResize = null;
   async function readChapter(next = chapter, autoplay = false) {
+    const request = ++readerRequest,
+      projectId = project?.id;
     await saveChapter();
-    const projectId = project.id,
-      current = next,
+    if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
+      return;
+    const current = next,
       result = await call("book-listen", { id: projectId, chapter: current });
-    if (!dialog?.open || project.id !== projectId) return;
+    if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
+      return;
     chapter = current;
     const body = clearBody(),
       generation = readerGeneration,
@@ -984,6 +1074,12 @@
       follow = true,
       lastSaved = 0;
     audio.onloadedmetadata = () => {
+      if (
+        generation !== readerGeneration ||
+        !audio.isConnected ||
+        !dialog?.open
+      )
+        return;
       if (result.position > 0 && result.position < audio.duration - 1)
         audio.currentTime = result.position;
       if (autoplay) void audio.play().catch((e) => status(e.message));
@@ -1003,6 +1099,13 @@
     });
     audio.onended = async () => {
       await persist();
+      if (
+        generation !== readerGeneration ||
+        !audio.isConnected ||
+        !dialog?.open ||
+        project?.id !== projectId
+      )
+        return;
       const nextIndex = [...selected]
         .sort((a, b) => a - b)
         .find((i) => i > current);
@@ -1178,6 +1281,7 @@
     }
   }
   async function closeReader() {
+    readerRequest++;
     readerPdfMap?.dispose();
     readerPdfMap = null;
     readerGeneration++;
@@ -1644,6 +1748,8 @@
     signal.setAttribute("role", "status");
     d.append(header, nav, signal, el("main", "mw-body"));
     d.onclose = () => {
+      stopReviewPreview?.();
+      stopReviewPreview = null;
       for (const a of d.querySelectorAll("audio")) a.pause();
       if (busy) {
         stopRequested = true;
