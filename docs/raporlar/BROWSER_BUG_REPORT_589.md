@@ -1,0 +1,38 @@
+# Rapor589 — Rapor587 incelemesi ve kırmızı testlerin ayrıştırılması
+
+25 Ekim2026. Repo https://github.com/dorukakindev/whisper-browser; başlangıç master `c2cbcf061a8ba8a79f25a03c47c513ac35b69ae6`, dal `codex/audit589`, bitiş ürün/test `73b0270e3f4456893f2300785b28be6db3ed48c5` (önceki ürün commit’i `db128406afe9fbb8b42c96a2137403d8dadc14ed`).
+
+## Raporun yorumu
+
+Rapor587 açıkça22maddeli bir yol haritasıdır,22doğrulanmış ürün hatası değildir. Birleşik iş snapshot'ı, bütün depolar için migrasyon, üç büyük dosyayı modüllere ayırma, tüm IPC kanallarını yeniden sarma gibi öneriler faydalı olabilir; tek başlarına gerçekleşmiş veri kaybı veya güvenlik açığı kanıtı sağlamaz. Bu tur bunlar topluca uygulanmış gibi gösterilmez. Bildirilen kırmızıların güncel nedenlerine ve temiz checkout belge bütünlüğüne odaklanıldı. Özgün koşumun tam günlüğü paylaşılmadığı için ilk sekiz dosyanın birebir aynı liste olduğu varsayılmadı.
+
+| Başarısız dosya | Kök neden / yapılan işlem |
+|---|---|
+| `ci-determinism-ratchet.test.js` | Uyku sayısı27, mevcut sınır21. Menü testindeki5adet0ms uyku MutationObserver/promise kuyruğunu boşaltan `setImmediate` ile; geç arama cevabı testindeki180ms uyku da sonuç promise'larının tamamlanmasını izleyen event-loop turuyla değiştirildi.27→21; baseline yükseltilmedi. İlgili davranış testleri geçti. |
+| `coverage-map.test.js` | `src/book-voice-takes.js` dolaylı entegrasyon testi vardı, doğrudan davranış kanıtı yoktu. Yeni unit test gerçek dosya/hash ile eski metne ait sesi seçmeyi, değişmiş sesi açmayı ve path traversal'ı reddetmeyi doğrular. Mevcut238satırlık entegrasyon testi korunur; whitelist genişletilmedi. |
+| `css-hardcoded-colors.test.js` | Açık tema seçili altyazı/sekme dört yeni sabit amber rengi sınırı424→428aşıyordu. Mevcut `--accent` ile aynı opaklıkları kullanan `color-mix` yapıldı; sayaç424/424. Tasarım sistemi korunur. |
+| `i18n-coverage.test.js` | Sözlük yardım metni ve örneği EN/TR envanterinde yoktu. Örnek kullanıcı verisi olarak korunurken arayüz yardım/başlık/düğme çevirileri eklendi. |
+| `reader-navigation-races.test.js` | Üretim `readChapter()` kodunun çağırdığı `status()` testin VM bağlamında eksikti. Üretimde işlev tanımlı; gerçek uygulama ReferenceError'ı doğrulanmadı. Test bağlamına noop eklendi; mevcut geç cevap/kapanma invariantları aynen geçti. |
+| `settings-ui-persist-roundtrip.test.js` | Yeni3kontrol sınıflandırılmamıştı. `dubPronunciations` explicit `dub:pronunciations` kaydı; `pdfVoiceFollow` yalnız okuyucu oturumu; `dubQualityEvidence` yalnız disclosure olarak belgelenip sınıflandırıldı. Ayar depolarını rastgele değiştirme veya kapıyı kapatma yok. |
+| `ui-locale.test.js` | Yeni sözlük/kalite/önceki grup ve spoken-follow HTML metinleri statik TR→EN sözleşmesini izlemiyordu. HTML kaynakları mevcut uygulama geleneğiyle TR anahtarlarına alındı; aynı EN/TR sözlükte karşılıkları eklendi. Sözlük anahtar tekilliği testi geçti. Runtime varsayılan EN korunur. |
+| `tests/test_dub_generation_quality.py` | Bildirilen `test_stalled_last_request_keeps_completed_cache_for_same_reference` tek başına tekrar kırmızıydı. Sağlam tek `Good.` isteği bile10mslimit altında EngineStalled oluyordu: henüz tamamlanmış WAV yoktu. Bu, tamamlanmış dosyanın silindiği kanıtı değildir. Kontrollü fixture sağlam WAV diske kurulana dek üretim işini çalıştırır; bundan sonra takılan iş için gerçek `bounded_call`10mszaman aşımı/iptal yolunu kullanır. Hazır fixture kurulamazsa2snüst sınırla test başarısız olur. Üretim timeout'u/iptal/kurtarma kodu değiştirilmedi.19test geçti; sağlam ses korunur, aynı referansla yeniden başlatınca yalnız `Broken.` üretilir. |
+
+Ek temiz checkout hatası: `docs-index-integrity.test.js` Git'e hiç eklenmemiş iki eski devir notu ve Rapor516'ya yönelen bağlantıları reddediyordu. Ana kişisel kopyada bu dosyalar bulunduğundan hata gizlenebiliyordu. Belgeler yayımlanmamış yerel kanıt olarak etiketlendi; özel notlar/ham dosyalar Git'e alınmadı, indeks testi gevşetilmedi. Yerel dosyalar silinmez. Ana kopyada gerektiğinde yerel rapor indeks kaydı kişisel diff olarak tutulur.
+
+| `tests/test_report495_audio.py` | Güncel kodda ek bulunan kırmızı: AST ile alınan metadata update ifadesine `display_speech` fixture alanı verilmemişti. Özgün/gösterim ve okunuş alanları ayrılarak test bağlamı tamamlandı; verification unavailable iken review kalması ve iki metnin ayrı korunması birlikte doğrulandı.5test geçti. |
+
+## İnceleme ve doğrulama sınırları
+
+Tam paket, adı bilinmeyen yedi kırmızıyı ayırmak için **bir kez** `node tests/run-all.js` ile `tmp/audit589-suite.log` günlüğüne çalıştırıldı. Üzerinde düzeltmeler devam ederken ilerlediği için bu günlük tek bir değişmez commit'in nihai yeşil kanıtı değildir. Daha önce kırmızı çalışmış bölümler geriye dönük yeşil sayılmaz. Her ayrıştırılmış dosya son kodda hedefli tekrar koşuldu ve geçti. Yeni tam-suite tekrarı sırf yeşil etiketi için yapılmadı. Koşum695dosya/exit1/9kırmızı ile bitti. Daha sonra her9dosyanın son kodda hedefli tekrarı geçti; dublaj generation testi de bağımsız kırmızıdan19PASS’a döndü. Değişiklikler sırasında ilerleyen tam koşumdaki bazı Python bölümleri zaten düzeltilmiş kodu okumuştu; bu nedenle bu sayı başlangıç master için birebir baz ölçümü değildir. Toplam10ayrı dosya kökü (dokuz tam-koşum dosyası + ayrıca doğrulanmış generation testi) ayrıştırıldı.
+
+Ek hedefli kontroller: orijinal kitap denemesi entegrasyon testi, yeni hash/metin koruma unit testi, menü ve arama davranışları, yerelleştirme tekillik testi, dublaj UI, syntax/diff geçti. Native Windows Electron ayrı profilinde exit0: `.uiprev/dub-runtime/1792956456481-11008`; koyuTR/açıkEN/%125 görüntüsü incelendi. Kontrol edilen GPU-bellek hata metni fixture'dır; yeni gerçek GPU üretimi veya insan doğallık değerlendirmesi değildir.
+
+`npm test` içindeki mevcut offline manifest testi çalışma kopyasının `docs/OFFLINE-MANIFEST.md` dosyasını yeniden üretti. Başlangıçta temiz olan teslim worktree'sindeki bu test çıktısı commit kapsamına alınmadı ve olduğu gibi çalışma ağacında bırakıldı; ana kopyadaki kullanıcının ayrı manifest değişikliği korunur. İlk yeni unit-test fixture'ında seçme isteğinin `textHash` alanı eksikti; test doğru istek sözleşmesiyle düzeltildi. Orijinal entegrasyon testi yanlışlıkla kısa unit testle değiştirilmişti; commit öncesi orijinal dosya birebir geri yüklendi, yeni test ayrı dosyaya alındı. Yanlış adla çağrılan olmayan PDF testi doğrulama sayılmadı; gerçek native test kullanıldı.
+
+## Yol haritasının kalanları
+
+1–5: birleşik durum/migrasyon/atomik yazım/IPC geniş değişimleri için ayrı repro gerekir; bu tur kanıtlanmamış.6–10: mevcut kalite korpusu, scopedcache, görev sınırları ve gerçek ses kanıtları Rapor585/588'de mevcut; bu testkurtarma sorunu gerçek ses kaybı diye genellenmedi.11: ağ hata sınıflandırması ayrı kabul işi.12–14: büyük refactor gerekçesi dosya büyüklüğüdür, acil bug kanıtı değildir.15/17/19/20: gerçek performans/erişilebilirlik/temiz kurulum/bağımlılık kabulü ayrı ortam gerektirir; tamamlandı denmedi.16/18/21/22: yerelleştirme ve test/envanter/teslim hijyeninde bu tur somut onarımlar yapıldı; bütün22maddenin bitişi iddia edilmez.
+
+Manifesti HEAD içeriğiyle değiştirme önerisi otomatik güvenlik denetiminde olası kullanıcı değişikliği kaybı riskiyle reddedildi; bu işlem uygulanmadı, alternatif olarak dosya korunup commit dışı bırakıldı.
+
+Yeni bağımlılık yok. start.bat/install.bat/package/lock ve üretim GPU parametreleri aynı. Kişisel uygulama kapatılmadı. CI açık kalır, uzun sonucu beklenmez. Kullanıcının sürekli talimatı uyarınca hedefli kontrollerden geçen paket PR ile master'a ve Windows ana kopyaya alınacaktır; gerçekleşen kimlik ayrı teslim notunda kayıtlı olacaktır.
