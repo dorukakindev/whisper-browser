@@ -966,6 +966,14 @@
           "",
           t("Speech groups to review", "Kontrol edilecek konuşma grupları"),
         ),
+        el(
+          "p",
+          "mw-muted",
+          t(
+            "After text edits, speech groups are rebuilt. Unchanged cached audio is reused when possible; old group numbers are not reused.",
+            "Metni düzenlediğinde konuşma grupları yeniden kurulur. Değişmeyen önbellek sesi mümkün olduğunda kullanılır; eski grup numaraları kullanılmaz.",
+          ),
+        ),
       );
       const audio = el("audio");
       audio.controls = true;
@@ -1069,8 +1077,10 @@
           button(
             t("Regenerate only this group", "Yalnız bu grubu yeniden üret"),
             async () => {
+              if (project?.id !== reviewProjectId || chapter !== reviewChapter)
+                return;
               selected = new Set([chapter]);
-              await generate(false, [g.key]);
+              await generate(false, { key: g.key, output: c.output });
             },
           ),
           button(
@@ -1442,7 +1452,7 @@
     } catch {}
   }
   let stopRequested = false;
-  async function generate(force = false, forcedKeys = null) {
+  async function generate(force = false, retryGroup = null) {
     if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
     if (!selected.size) throw Error(t("Select chapters.", "Bölüm seç."));
     busy = true;
@@ -1475,10 +1485,17 @@
         const prep = await call("book-prepare", {
           id: projectId,
           chapter: indices[i],
+          ...(retryGroup ? { retryGroup } : {}),
         });
         const request = prep.request;
         Object.assign(request, voicePrefs);
-        if (forcedKeys) request.forceGroups = forcedKeys;
+        if (prep.replanned)
+          status(
+            t(
+              "Text changed: rebuilding speech groups; unchanged cached audio is reused when possible.",
+              "Metin değişti: konuşma grupları yeniden planlanıyor; değişmeyen önbellek sesi mümkün olduğunda kullanılır.",
+            ),
+          );
         if (force) {
           const plan = await window.api.planDub({
             srt: request.srt,

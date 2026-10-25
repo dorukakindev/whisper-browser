@@ -841,6 +841,26 @@ function registerMediaWorkflows({
           const d = load(r.id),
             c = d.chapters[r.chapter];
           if (!c) throw Error("Choose a chapter.");
+          const audioMatchesText = c.textHash === hash(c.text);
+          let retryGroups;
+          if (r.retryGroup !== undefined) {
+            const retry = r.retryGroup;
+            if (
+              !retry ||
+              typeof retry.key !== "string" ||
+              typeof retry.output !== "string" ||
+              !c.output ||
+              path.basename(c.output) !== retry.output ||
+              !c.groups?.some((g) => g.key === retry.key)
+            )
+              throw Error(
+                "The reviewed audio changed; reopen this chapter / İncelenen ses değişti; bölümü yeniden açın.",
+              );
+            // An edited chapter is rechunked. Its old ordinal can now name an
+            // unrelated passage. Let the fresh text/cache identities determine
+            // the changed audio, rather than forcing an obsolete group number.
+            retryGroups = audioMatchesText ? [retry.key] : [];
+          }
           const srt = path.join(
             path.dirname(file(d.id)),
             `chapter-${c.id}-${hash(c.text).slice(0, 16)}.srt`,
@@ -858,6 +878,7 @@ function registerMediaWorkflows({
           while (pending.size > 50) pending.delete(pending.keys().next().value);
           return {
             ok: true,
+            replanned: r.retryGroup !== undefined && !audioMatchesText,
             request: {
               id: jobId,
               srt,
@@ -869,14 +890,15 @@ function registerMediaWorkflows({
               verification: "detailed",
               keepEngine: true,
               forceGroups:
-                c.status === "review" && c.textHash === hash(c.text)
+                retryGroups ??
+                (c.status === "review" && audioMatchesText
                   ? (c.groups || [])
                       .filter(
                         (g) =>
                           g.status !== "ready" && typeof g.key === "string",
                       )
                       .map((g) => g.key)
-                  : [],
+                  : []),
             },
           };
         }

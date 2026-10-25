@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require("electron"),
+const { app, BrowserWindow, dialog, ipcMain } = require("electron"),
   fs = require("node:fs"),
   path = require("node:path"),
   assert = require("node:assert/strict");
@@ -214,6 +214,72 @@ app
     await until(
       () => run('return !!document.querySelector(".mw-review-group")'),
       "review controls",
+    );
+    // Exercise the actual renderer/preload request after editing the chapter.
+    // Stop at the engine boundary: no real GPU/model generation in this fixture.
+    const retryRequests = [];
+    ipcMain.removeHandler("dub:start");
+    ipcMain.handle("dub:start", async (_event, request) => {
+      retryRequests.push(request);
+      return { ok: false, error: "Controlled retry request captured" };
+    });
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value="New introduction. "+n.value;n.dispatchEvent(new Event("input"));[...document.querySelectorAll(".mw-review-group button")].find(n=>n.textContent.includes("Yalnız")).click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector(".mw-status")?.textContent.includes("Controlled retry request captured")',
+        ),
+      "edited group retry reached engine boundary",
+    );
+    assert.equal(retryRequests.length, 1);
+    assert.deepEqual(
+      retryRequests[0].forceGroups,
+      [],
+      "old group ordinals must not survive edited source",
+    );
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value=' +
+        JSON.stringify(imported.project.chapters[0].text) +
+        ';n.dispatchEvent(new Event("input"));return true',
+    );
+    const restoredText = await run(
+      'return window.api.mediaWorkflows({action:"book-save",id:' +
+        JSON.stringify(id) +
+        ",chapter:0,text:" +
+        JSON.stringify(imported.project.chapters[0].text) +
+        "})",
+    );
+    assert(restoredText.ok, restoredText.error);
+    const resetReview = await run(
+      'return window.api.mediaWorkflows({action:"book-prepare",id:' +
+        JSON.stringify(id) +
+        ",chapter:0})",
+    );
+    service.capture({
+      id: resetReview.request.id,
+      path: wav,
+      quality: {
+        groups: [
+          {
+            key: "review-one",
+            status: "review",
+            displayText: imported.project.chapters[0].text,
+            audioStart: 0,
+            audioEnd: 4,
+          },
+        ],
+      },
+    });
+    await run(
+      "await MediaWorkflowsUI.openProject(" +
+        JSON.stringify(id) +
+        ");return true",
+    );
+    await until(
+      () => run('return !!document.querySelector(".mw-review-group")'),
+      "review controls restored after retry probe",
     );
     await capture("review-before.png");
     await run(
