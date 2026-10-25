@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-0125.md](docs/devir/2026-10-26-0125.md) — PR494 ana programda; devam gezinmesi ve yeni PDF düzeni
 Güncel çalışma: [docs/devir/2026-10-26-0123.md](docs/devir/2026-10-26-0123.md) — Devam alanına oklar, sade Keşfet ve kompakt PDF okuma arayüzü
 Güncel çalışma: [docs/devir/2026-10-26-0111.md](docs/devir/2026-10-26-0111.md) — Claude nihai denetimi gerçek kodla karşılaştırıldı; somut bulgular doğrulandı
 Güncel çalışma: [docs/devir/2026-10-25-2341.md](docs/devir/2026-10-25-2341.md) — Claude araştırma taslakları kabul incelemesi; patch uygulanmadı
