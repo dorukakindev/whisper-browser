@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_583.md](BROWSER_BUG_REPORT_583.md) — Letterboxd Browser dönüşü, sonuçlara dönüş, kitap rafı ve zevk testi.
+
 - [BROWSER_BUG_REPORT_582.md](BROWSER_BUG_REPORT_582.md) — Kaynaklara ayrılmış arama, açık onlinefilm/dizi ve TMDB görsel galerisi.
 
 - [BROWSER_BUG_REPORT_581.md](BROWSER_BUG_REPORT_581.md) — Luna1.9.2 karşılaştırması; kimlikli Letterboxd örneği ve Keşfet tam film sayfası.
