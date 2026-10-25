@@ -23,6 +23,8 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   ipcMain.emit('assistant:action', foreign, { action: 'send', text: 'unauthorized' });
   ipcMain.emit('assistant:action', overlay, { action: 'openFile', text: 'secret' });
   ipcMain.emit('assistant:update', foreign, { messages: [{ text: 'spoofed' }] });
+  ipcMain.emit('assistant:update', {sender:window.webContents,senderFrame:{}}, {messages:[{text:'subframe spoof'}]});
+  ipcMain.emit('assistant:action', {sender:view.webContents,senderFrame:{}}, {action:'send',text:'subframe spoof'});
   assert.equal(sent.length, 0);
   ipcMain.emit('assistant:update', parent, { apiKey: 'not-forwarded',palette:{accent:'#d5a35c',text:'url(secret)'}, locale: 'tr', scope: 'full',pinScope:'media',activeThread:'one',threads:[{id:'one',title:'First'}],messages: [{id:'reply', role: 'user', text: '<img onerror=bad>',links:[{id:'x'.repeat(85),excerpt:'verified'}],actions:[{id:'proposal',kind:'seek_to_time'}]}] });
   assert.equal(sent[0].value.apiKey, undefined);

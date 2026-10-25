@@ -11,6 +11,19 @@ T = F.T
 
 
 class SpeechTranslationTests(unittest.TestCase):
+    def test_delivery_contract_is_source_anchored_in_both_speech_passes(self):
+        initial = T.build_translate_prompt('tr', 'en', [], for_speech=True)
+        review = T.build_refine_prompt('tr', for_speech=True)
+        for prompt in (initial, review):
+            self.assertIn('retorik soru', prompt)
+            self.assertIn('anlamli tekrar', prompt)
+        self.assertNotIn('retorik soru', T.build_translate_prompt('tr', 'en', []))
+        self.assertNotIn('retorik soru', T.build_refine_prompt('tr'))
+        args = F._TrArgs(translate_for_speech=True)
+        current = T.translate_cache_key('Wait... why?', args, 'tr', 'en')
+        with patch.object(T, 'SPEECH_TRANSLATION_PROTOCOL', 'speech-v6-context-review'):
+            self.assertNotEqual(current, T.translate_cache_key('Wait... why?', args, 'tr', 'en'))
+
     def test_speech_prompt_preserves_contract_and_is_opt_in(self):
         ordinary = T.build_translate_prompt('tr', 'en', [])
         speech = T.build_translate_prompt('tr', 'en', [], for_speech=True)

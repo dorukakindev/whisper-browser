@@ -47,6 +47,36 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_clipped_verification_retry_cannot_pass_after_peak_finishing(self):
+        class ClippedRetry(Server):
+            async def generate(self, text, **kwargs):
+                yield np.ones(16000, dtype='float32') * (1 if kwargs['seed'] == 200045 else .1)
+        class PassedSecond(Verifier):
+            def __init__(self, *_): self.count = 0
+            async def check(self, *_args, **_kwargs):
+                self.count += 1
+                return {'status':'review' if self.count == 1 else 'passed', 'review':self.count == 1}
+        with tempfile.TemporaryDirectory() as folder:
+            _, args, paths = self.run_generation(Path(folder), ClippedRetry(), ['Good.'],
+                verification='detailed', verifier=PassedSecond,
+                assessor=lambda raw, *_: (int(np.max(np.abs(raw)) >= .999), {}))
+            self.assertEqual(args.group_results[0]['status'], 'review')
+            self.assertLess(float(np.max(np.abs(sf.read(paths[0])[0]))), .2)
+
+    def test_oversized_source_cue_is_bounded_before_first_model_request(self):
+        text = 'Bu cümlede bütün ayrıntıları birlikte değerlendirmeye devam ediyoruz. ' * 9
+        with tempfile.TemporaryDirectory() as folder:
+            server = Server()
+            Verifier.checks.clear()
+            _, args, paths = self.run_generation(Path(folder), server, [text], verification='detailed', timing_mode='video')
+            self.assertGreater(len(server.calls), 1)
+            self.assertTrue(all(len(part) <= 420 for part in server.calls))
+            self.assertEqual(' '.join(server.calls).split(), text.split())
+            self.assertEqual(Verifier.checks, [text])
+            self.assertEqual(args.group_results[0]['key'], '1')
+            self.assertEqual(args.group_results[0]['status'], 'ready')
+            self.assertTrue(paths[0].is_file())
+
     def test_delivery_tag_is_not_verification_text_and_uses_reference_only(self):
         class DeliveryServer(Server):
             async def generate(self,text,**kwargs):
@@ -240,7 +270,7 @@ class GenerationTests(unittest.TestCase):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
-                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False):
+                       verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False,assessor=None):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body
                         if isinstance(n, ast.AsyncFunctionDef) and n.name == 'uret')
         self.rewrites=[]
@@ -249,7 +279,7 @@ class GenerationTests(unittest.TestCase):
             return rewrite_text
         scope = dict(asyncio=asyncio, np=np, sf=sf, Path=Path, time=time, json=json,
             MODEL_ID='fixture', MODEL_REVISION='fixture', SAMPLE_RATE=48000, quality_retry=quality_retry,
-            assess_chunk=lambda *a:(0,{}), prepare_audio=lambda audio, rate:audio,
+            assess_chunk=assessor or (lambda *a:(0,{})), prepare_audio=lambda audio, rate:audio,
             available_window=available_window, valid_audio=valid_audio, generation_status=generation_status, spoken_text=spoken_text, finish_audio=finish_audio,
             SpeechVerifier=verifier or Verifier, rewrite_for_window=rewrite)
         exec(compile(ast.Module(body=[function],type_ignores=[]),str(SCRIPT),'exec'),scope)

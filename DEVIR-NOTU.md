@@ -2,6 +2,7 @@ Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.m
 Güncel çalışma: [docs/devir/2026-10-25-0431.md](docs/devir/2026-10-25-0431.md) — PDF okuyucu tasarımı, sayfayı anlayan asistan ve aynı ekranda ses
 Güncel çalışma: [docs/devir/2026-10-25-0414.md](docs/devir/2026-10-25-0414.md) — PR485 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0410.md](docs/devir/2026-10-25-0410.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve üretim araçları
+Güncel çalışma: [docs/devir/2026-10-25-0311.md](docs/devir/2026-10-25-0311.md) — Dublajda konuşma bütünlüğü, uzun satır ve ham ses kontrolü
 Güncel çalışma: [docs/devir/2026-10-25-0256.md](docs/devir/2026-10-25-0256.md) — PR483 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0253.md](docs/devir/2026-10-25-0253.md) — Gerçek dublaj kabul turu, GPU devir kilidi ve Unicode A/B
 Güncel çalışma: [docs/devir/2026-10-25-0225.md](docs/devir/2026-10-25-0225.md) — Dublaj süreleri, sıcak motor, GPU kapasitesi ve kurtarma
