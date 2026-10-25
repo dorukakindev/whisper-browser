@@ -1,0 +1,269 @@
+"use strict";
+const test = require("node:test"),
+  assert = require("node:assert/strict"),
+  fs = require("node:fs"),
+  os = require("node:os"),
+  path = require("node:path"),
+  vm = require("node:vm");
+const { EventEmitter } = require("node:events"),
+  { createRequire } = require("node:module");
+const { registerMediaWorkflows } = require("../src/media-workflows"),
+  { voiceStorage } = require("../src/voice-storage");
+const { findMediaTool } = require("./media-runtime");
+function wav(seconds = 2) {
+  const rate = 24000,
+    b = Buffer.alloc(44 + rate * 2 * seconds);
+  b.write("RIFF");
+  b.writeUInt32LE(b.length - 8, 4);
+  b.write("WAVEfmt ", 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24);
+  b.writeUInt32LE(rate * 2, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write("data", 36);
+  b.writeUInt32LE(b.length - 44, 40);
+  for (let i = 0; i < rate * seconds; i++)
+    b.writeInt16LE(
+      Math.round(Math.sin((i / rate) * 440 * Math.PI * 2) * 4000),
+      44 + i * 2,
+    );
+  return b;
+}
+async function fixture(t, options = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "book-export551-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const app = new EventEmitter();
+  app.getPath = () => root;
+  const source = path.join(root, "book.pdf");
+  fs.writeFileSync(source, "controlled source");
+  const target = path.join(root, "existing.m4b"),
+    events = [];
+  fs.writeFileSync(target, "keep original");
+  const sender = Object.assign(new EventEmitter(), {
+    id: 1,
+    isDestroyed: () => false,
+    send: (channel, event) => events.push(event),
+  });
+  let handler,
+    encoded = 0,
+    disk = "room";
+  const service = registerMediaWorkflows({
+    app,
+    ipcMain: { handle: (_, fn) => (handler = fn) },
+    authorized: (e) => e.sender === sender,
+    owner: () => null,
+    resolvePdf: () => ({ filePath: source, title: "Kitap" }),
+    grantSubtitle() {},
+    grantMedia() {},
+    dialog: { showSaveDialog: async () => ({ filePath: target }) },
+    ffprobe: () => "probe",
+    ffmpeg: () => "encode",
+    statfs: () => {
+      if (disk === "unknown") throw Error("unavailable");
+      return { bavail: disk === "full" ? 0n : 1000000n, bsize: 4096n };
+    },
+    runTool: async (tool, args, _input, _signal, _timeout, onLine, flags) => {
+      if (tool === "probe") return "2";
+      encoded++;
+      assert.equal(flags.waitForCloseOnCancel, true);
+      for (let i = 0; i < 1000; i++) onLine("out_time_us=1000000");
+      onLine("out_time_us=bad");
+      fs.writeFileSync(args.at(-1), "complete AAC fixture");
+      return "";
+    },
+    ...options,
+  });
+  const call = (action, data = {}) => handler({ sender }, { action, ...data });
+  const imported = await call("book-from-reader", {
+    pdfHash: "approved",
+    numPages: 2,
+    pages: [
+      { pageNumber: 1, text: "First controlled chapter." },
+      { pageNumber: 2, text: "Second controlled chapter." },
+    ],
+  });
+  assert(imported.ok, imported.error);
+  const id = imported.project.id;
+  fs.mkdirSync(voiceStorage(app).output, { recursive: true });
+  for (let chapter = 0; chapter < 2; chapter++) {
+    const prepared = await call("book-prepare", { id, chapter });
+    assert(prepared.ok, prepared.error);
+    const output = path.join(
+      voiceStorage(app).output,
+      prepared.request.id + ".wav",
+    );
+    fs.writeFileSync(output, wav(options.fixtureSeconds || 2));
+    service.capture({
+      id: prepared.request.id,
+      path: output,
+      quality: {
+        groups: [
+          {
+            key: "group",
+            status: "ready",
+            displayText: imported.project.chapters[chapter].text,
+            audioStart: 0,
+            audioEnd: options.fixtureSeconds || 2,
+          },
+        ],
+      },
+    });
+  }
+  return {
+    root,
+    target,
+    id,
+    call,
+    events,
+    sender,
+    setDisk: (value) => (disk = value),
+    encoded: () => encoded,
+  };
+}
+test("M4B preview preserves order, uses probed durations and reports unknown/low disk without overwriting", async (t) => {
+  const f = await fixture(t),
+    preview = await f.call("book-export-preview", {
+      id: f.id,
+      chapters: [1, 0, 1],
+    });
+  assert(preview.ok, preview.error);
+  assert.deepEqual(
+    preview.chapters.map((r) => r.chapter),
+    [0, 1],
+  );
+  assert.equal(preview.seconds, 4);
+  assert(preview.estimatedBytes > 80000);
+  assert(preview.freeBytes > 0);
+  assert.equal(f.encoded(), 0);
+  assert.equal(fs.readFileSync(f.target, "utf8"), "keep original");
+  f.setDisk("full");
+  const refused = await f.call("book-export", { id: f.id, chapters: [0] });
+  assert.equal(refused.ok, false);
+  assert.match(refused.error, /free space/);
+  assert.equal(f.encoded(), 0);
+  assert.equal(fs.readFileSync(f.target, "utf8"), "keep original");
+  f.setDisk("unknown");
+  assert.equal(
+    (await f.call("book-export-preview", { id: f.id, chapters: [0] }))
+      .freeBytes,
+    null,
+  );
+  const exported = await f.call("book-export", { id: f.id, chapters: [0] });
+  assert(exported.ok, exported.error);
+  assert.equal(f.encoded(), 1);
+  assert.equal(fs.readFileSync(f.target, "utf8"), "complete AAC fixture");
+  const progress = f.events.filter((e) => Number.isFinite(e.percent));
+  assert(progress.length < 10, "throttled progress, no event flood");
+  assert.deepEqual(
+    progress.map((e) => e.percent),
+    [0, 50, 100],
+  );
+  assert(progress.every((e) => e.projectId === f.id));
+  assert.equal(f.sender.listenerCount("destroyed"), 0);
+  assert(!fs.readdirSync(f.root).some((n) => n.startsWith(".audiobook-")));
+});
+
+test(
+  "real Windows/POSIX ffmpeg cancellation confirms process close before export cleanup",
+  { timeout: 25000 },
+  async (t) => {
+    const ffmpeg = findMediaTool("ffmpeg"),
+      ffprobe = findMediaTool("ffprobe");
+    assert(ffmpeg && ffprobe, "ffmpeg/ffprobe required for real cancellation");
+    const source = require.resolve("../src/browser-media-tools"),
+      nativeRequire = createRequire(source),
+      cp = require("node:child_process"),
+      children = [];
+    const mod = { exports: {} };
+    vm.runInNewContext(fs.readFileSync(source, "utf8"), {
+      module: mod,
+      exports: mod.exports,
+      __dirname: path.dirname(source),
+      require: (name) =>
+        name === "node:child_process"
+          ? {
+              ...cp,
+              spawn: (...args) => {
+                const c = cp.spawn(...args);
+                children.push(c);
+                c.once("close", () => (c.confirmedClosed = true));
+                return c;
+              },
+            }
+          : nativeRequire(name),
+      Buffer,
+      process,
+      setTimeout,
+      clearTimeout,
+    });
+    let started;
+    const ready = new Promise((resolve) => (started = resolve));
+    const f = await fixture(t, {
+      fixtureSeconds: 30,
+      ffmpeg: () => ffmpeg,
+      ffprobe: () => ffprobe,
+      runTool: (tool, args, input, signal, timeout, onLine, flags) => {
+        const real = args.includes("-filter_complex")
+          ? (() => {
+              const a = args.slice();
+              a.splice(a.indexOf("-i"), 0, "-re");
+              return a;
+            })()
+          : args;
+        return mod.exports.run(
+          tool,
+          real,
+          input,
+          signal,
+          timeout,
+          (line) => {
+            onLine?.(line);
+            if (/^out_time_us=[1-9]/.test(line)) started();
+          },
+          flags,
+        );
+      },
+    });
+    const pending = f.call("book-export", { id: f.id, chapters: [0] });
+    await ready;
+    assert.equal(
+      (
+        await f.call("book-save", {
+          id: f.id,
+          chapter: 0,
+          text: "cannot change during export",
+        })
+      ).ok,
+      false,
+    );
+    assert((await f.call("cancel")).ok);
+    const result = await pending;
+    assert.equal(result.ok, false);
+    assert.equal(fs.readFileSync(f.target, "utf8"), "keep original");
+    const encoder = children.find((c) =>
+      c.spawnargs.includes("-filter_complex"),
+    );
+    assert(encoder);
+    assert.equal(
+      encoder.confirmedClosed,
+      true,
+      "no cleanup/lock release before ffmpeg close",
+    );
+    assert(encoder.exitCode !== null || encoder.signalCode !== null);
+    assert(!fs.readdirSync(f.root).some((n) => n.startsWith(".audiobook-")));
+    assert.equal(f.sender.listenerCount("destroyed"), 0);
+    assert(
+      !fs
+        .readdirSync(
+          path.join(f.root, "Sesler", "Girdi", "Kitap projeleri", f.id),
+        )
+        .some((n) => n.startsWith("export-")),
+    );
+    assert(
+      (await f.call("book-rename", { id: f.id, title: "Lock released" })).ok,
+    );
+  },
+);

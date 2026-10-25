@@ -603,3 +603,14 @@ dialog.mw-dialog::backdrop {
 .mw-management .mw-setting input {
   margin: 0;
 }
+
+/* Export information is a readable summary, with chapter detail on demand. */
+.mw-export-preview { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 12px; }
+.mw-export-preview h3 { font-size: 16px; margin: 0 0 14px; }
+.mw-export-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 0 0 18px; }
+.mw-export-metrics dt { color: var(--text-dim); font-size: 12px; margin-bottom: 5px; }
+.mw-export-metrics dd { margin: 0; font-size: 17px; font-variant-numeric: tabular-nums; color: var(--text); }
+.mw-export-preview details { margin-bottom: 14px; }
+.mw-export-preview li { padding: 4px 0; overflow-wrap: anywhere; }
+.mw-export-progress { width: 100%; accent-color: var(--accent); height: 8px; margin-bottom: 14px; }
+@media (max-width: 700px) { .mw-export-metrics { grid-template-columns: 1fr; } }

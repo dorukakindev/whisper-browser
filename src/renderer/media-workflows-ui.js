@@ -654,6 +654,17 @@
         ),
       ),
     );
+    const exportPreview = el("section", "mw-export-preview");
+    exportPreview.hidden = true;
+    exportPreview.setAttribute("aria-live", "polite");
+    const exportProgress = el("progress", "mw-export-progress");
+    exportProgress.max = 100;
+    exportProgress.value = 0;
+    exportProgress.hidden = true;
+    exportProgress.setAttribute(
+      "aria-label",
+      t("Audiobook export progress", "Sesli kitap dışa aktarma ilerlemesi"),
+    );
     const buttons = el("div", "mw-actions mw-transport");
     buttons.append(
       button(t("Save text", "Metni kaydet"), saveChapter),
@@ -663,7 +674,14 @@
         true,
       ),
       button(t("Stop", "Durdur"), async () => {
+        if (!busy && !job) return;
         stopRequested = true;
+        status(
+          t(
+            "Stopping… waiting for the active tool to close.",
+            "Durduruluyor… çalışan aracın kapanması bekleniyor.",
+          ),
+        );
         if (job) await window.api.cancelDub();
         else await call("cancel");
       }),
@@ -678,12 +696,90 @@
           await generate(true);
         },
       ),
+      button(t("Preview M4B export", "M4B çıktı bilgisi"), async () => {
+        if (busy)
+          throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
+        busy = true;
+        stopRequested = false;
+        const previewProjectId = project.id;
+        try {
+          await saveChapter();
+          status(t("Checking selected audio…", "Seçili sesler denetleniyor…"));
+          const r = await call("book-export-preview", {
+            id: previewProjectId,
+            chapters: [...selected],
+          });
+          if (project?.id !== previewProjectId || !exportPreview.isConnected)
+            return;
+          const duration = (seconds) => {
+            const n = Math.round(seconds);
+            return `${Math.floor(n / 3600)}:${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+          };
+          exportPreview.replaceChildren(
+            el("h3", "", t("Selected audiobook", "Seçili sesli kitap")),
+          );
+          const metrics = el("dl", "mw-export-metrics");
+          for (const [label, value] of [
+            [t("Chapters", "Bölümler"), String(r.chapters.length)],
+            [t("Total duration", "Toplam süre"), duration(r.seconds)],
+            [
+              t("Estimated AAC size", "Tahmini AAC boyutu"),
+              `${(r.estimatedBytes / 1048576).toFixed(1)} MiB`,
+            ],
+            [
+              t("Output-folder free space", "Çıktı klasöründeki boş alan"),
+              r.freeBytes === null
+                ? t("Unavailable", "Ölçülemedi")
+                : `${(r.freeBytes / 1073741824).toFixed(1)} GiB`,
+            ],
+          ]) {
+            const item = el("div");
+            item.append(el("dt", "", label), el("dd", "", value));
+            metrics.append(item);
+          }
+          const details = el("details"),
+            list = el("ol");
+          details.append(
+            el(
+              "summary",
+              "",
+              t("Chapter order and duration", "Bölüm sırası ve süreleri"),
+            ),
+          );
+          for (const row of r.chapters)
+            list.append(
+              el("li", "", `${row.title} · ${duration(row.seconds)}`),
+            );
+          details.append(list);
+          exportPreview.append(
+            metrics,
+            details,
+            el(
+              "p",
+              "mw-muted",
+              t(
+                "Size is estimated at 160 kb/s AAC. The selected destination is checked again when saving.",
+                "Boyut 160 kb/sn AAC için tahminidir. Kaydederken seçilen hedefin boş alanı yeniden denetlenir.",
+              ),
+            ),
+          );
+          exportPreview.hidden = false;
+          exportPreview.scrollIntoView?.({
+            block: "nearest",
+            behavior: "auto",
+          });
+          status("");
+        } finally {
+          busy = false;
+        }
+      }),
       button(
         t("Export selected as M4B", "Seçilileri M4B olarak kaydet"),
         async () => {
           if (busy)
             throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
           busy = true;
+          stopRequested = false;
           try {
             await saveChapter();
             status(
@@ -694,10 +790,17 @@
             );
             const off = window.api.onMediaWorkflow((event) => {
               if (
+                !stopRequested &&
                 event.type === "progress" &&
+                event.projectId === project.id &&
                 String(event.text || "").startsWith("M4B:")
-              )
+              ) {
                 status(event.text);
+                exportProgress.hidden = false;
+                if (Number.isFinite(event.percent))
+                  exportProgress.value = event.percent;
+                else exportProgress.removeAttribute("value");
+              }
             });
             try {
               const r = await call("book-export", {
@@ -707,6 +810,7 @@
               status(r.path || "");
             } finally {
               off();
+              exportProgress.hidden = true;
             }
           } finally {
             busy = false;
@@ -802,7 +906,7 @@
       edit.insertBefore(review, textarea);
       textarea.style.height = "180px";
     }
-    edit.append(buttons);
+    edit.append(buttons, exportProgress, exportPreview);
     split.append(list, edit);
     body.append(split);
     window.MediaExperience?.setContext(dialog, {

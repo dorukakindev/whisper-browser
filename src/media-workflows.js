@@ -119,6 +119,7 @@ function registerMediaWorkflows({
   resolvePdf,
   runTool = run,
   voiceRunning = () => false,
+  statfs = fs.statfsSync,
   resolveShelfBook,
   linkShelfBook,
 }) {
@@ -937,6 +938,7 @@ function registerMediaWorkflows({
             position: c.position || 0,
           };
         }
+        case "book-export-preview":
         case "book-export": {
           if (exportLocks.has(r.id) || controllers.has(e.sender.id))
             throw Error("A workflow is running.");
@@ -945,6 +947,22 @@ function registerMediaWorkflows({
           e.sender.once?.("destroyed", abortExport);
           controllers.set(e.sender.id, exportController);
           exportLocks.add(r.id);
+          const diskFree = (directory) => {
+            try {
+              const info = statfs(directory, { bigint: true });
+              const bytes = BigInt(info.bavail) * BigInt(info.bsize);
+              return bytes >= 0n
+                ? Number(
+                    bytes > BigInt(Number.MAX_SAFE_INTEGER)
+                      ? BigInt(Number.MAX_SAFE_INTEGER)
+                      : bytes,
+                  )
+                : null;
+            } catch {
+              return null;
+            }
+          };
+          let meta, temp;
           try {
             const d = load(r.id);
             if (
@@ -970,35 +988,29 @@ function registerMediaWorkflows({
               throw Error(
                 "Selected chapters need ready, current speech / Seçili bölümlerin güncel ve onaylı sesi gerekli.",
               );
-            const pick = await dialog.showSaveDialog(owner(), {
-              defaultPath: path.join(
-                voiceStorage(app).output,
-                `${d.title.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100)}.m4b`,
-              ),
-              filters: [{ name: "Audiobook", extensions: ["m4b"] }],
-            });
-            if (pick.canceled) return { ok: true, canceled: true };
-            if (!/\.m4b$/i.test(pick.filePath)) pick.filePath += ".m4b";
             const dir = path.dirname(file(d.id)),
-              meta = path.join(dir, "export-" + randomUUID() + ".txt"),
-              temp = path.join(
-                path.dirname(pick.filePath),
-                ".audiobook-" + randomUUID() + ".m4b",
+              files = chapters.map((c) =>
+                path.join(dir, path.basename(c.output)),
               );
+            for (const f of files) {
+              const st = fs.lstatSync(f);
+              if (st.isSymbolicLink() || !st.isFile())
+                throw Error("Invalid chapter audio.");
+            }
+            const escape = (value) =>
+              String(value || "").replace(/[\\=;#\n\r]/g, " ");
+            let cursor = 0,
+              metadata = `;FFMETADATA1\ntitle=${escape(d.title)}\nartist=${escape(d.author)}\n`;
+            const rows = [];
             emit(e.sender, {
               type: "progress",
+              projectId: d.id,
+              stage: "probe",
               text: "M4B: checking audio / Ses denetleniyor",
             });
-            let cursor = 0,
-              metadata = ";FFMETADATA1\n";
-            const escape = (s) => String(s).replace(/[\\=;#\n\r]/g, " ");
-            metadata += `title=${escape(d.title)}\nartist=${escape(d.author)}\n`;
-            const files = chapters.map((c) =>
-              path.join(dir, path.basename(c.output)),
-            );
-            if (files.some((f) => fs.lstatSync(f).isSymbolicLink()))
-              throw Error("Symbolic audio paths are not supported.");
             for (let i = 0; i < files.length; i++) {
+              if (exportController.signal.aborted)
+                throw Error("Export cancelled.");
               const seconds = Number(
                 (
                   await runTool(
@@ -1015,62 +1027,155 @@ function registerMediaWorkflows({
                     "",
                     exportController.signal,
                     15000,
+                    null,
+                    { waitForCloseOnCancel: true },
                   )
                 ).trim(),
               );
-              if (!Number.isFinite(seconds) || seconds <= 0)
+              if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 172800)
                 throw Error("Invalid chapter audio.");
               metadata += `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(cursor * 1000)}\nEND=${Math.round((cursor + seconds) * 1000)}\ntitle=${escape(chapters[i].title)}\n`;
+              rows.push({
+                chapter: indices[i],
+                title: chapters[i].title,
+                seconds,
+              });
               cursor += seconds;
             }
+            // AAC target bitrate plus a small container allowance; never an exact size promise.
+            const estimatedBytes =
+              Math.ceil(((cursor * 160000) / 8) * 1.03) + 1024 * 1024;
+            if (exportController.signal.aborted)
+              throw Error("Export cancelled.");
+            if (r.action === "book-export-preview")
+              return {
+                ok: true,
+                chapters: rows,
+                seconds: cursor,
+                estimatedBytes,
+                bitrate: 160000,
+                freeBytes: diskFree(voiceStorage(app).output),
+              };
+            const pick = await dialog.showSaveDialog(owner(), {
+              defaultPath: path.join(
+                voiceStorage(app).output,
+                `${d.title.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100)}.m4b`,
+              ),
+              filters: [{ name: "Audiobook", extensions: ["m4b"] }],
+            });
+            if (pick.canceled) return { ok: true, canceled: true };
+            if (exportController.signal.aborted)
+              throw Error("Export cancelled.");
+            if (!/\.m4b$/i.test(pick.filePath)) pick.filePath += ".m4b";
+            const freeBytes = diskFree(path.dirname(pick.filePath));
+            if (freeBytes !== null && freeBytes < estimatedBytes)
+              throw Error(
+                "Not enough free space for the estimated audiobook / Tahmini sesli kitap için yeterli boş alan yok.",
+              );
+            meta = path.join(dir, "export-" + randomUUID() + ".txt");
+            temp = path.join(
+              path.dirname(pick.filePath),
+              ".audiobook-" + randomUUID() + ".m4b",
+            );
             atomicWriteFileSync(meta, metadata);
-            try {
-              if (exportController.signal.aborted)
-                throw Error("Export cancelled.");
+            let lastUpdate = 0,
+              lastPercent = 0;
+            const reportProgress = (line) => {
+              const match = /^out_time_us=(\d+)\s*$/.exec(line);
+              if (!match) return;
+              const rawSeconds = Number(match[1]) / 1000000;
+              if (!Number.isFinite(rawSeconds)) return;
+              const seconds = Math.min(cursor, rawSeconds);
+              const percent = Math.max(
+                  lastPercent,
+                  Math.min(99, Math.floor((seconds / cursor) * 100)),
+                ),
+                now = Date.now();
+              if (now - lastUpdate < 250) return;
+              lastUpdate = now;
+              lastPercent = percent;
               emit(e.sender, {
                 type: "progress",
-                text: "M4B: encoding / Kodlanıyor",
+                projectId: d.id,
+                stage: "encoding",
+                percent,
+                processedSeconds: seconds,
+                totalSeconds: cursor,
+                text: `M4B: ${percent}%`,
               });
-              await runTool(
-                ffmpeg(),
-                [
-                  "-nostdin",
-                  "-y",
-                  ...files.flatMap((f) => ["-i", f]),
-                  "-i",
-                  meta,
-                  "-filter_complex",
-                  files.map((_, i) => `[${i}:a]`).join("") +
-                    `concat=n=${files.length}:v=0:a=1[a]`,
-                  "-map",
-                  "[a]",
-                  "-map_metadata",
-                  String(files.length),
-                  "-map_chapters",
-                  String(files.length),
-                  "-c:a",
-                  "aac",
-                  "-b:a",
-                  "160k",
-                  temp,
-                ],
-                "",
-                exportController.signal,
-                600000,
-              );
-              if (exportController.signal.aborted)
-                throw Error("Export cancelled.");
-              fs.renameSync(temp, pick.filePath);
-              grantMedia(pick.filePath);
-              return { ok: true, path: pick.filePath };
-            } finally {
-              for (const f of [temp, meta]) fs.rmSync(f, { force: true });
-            }
+            };
+            emit(e.sender, {
+              type: "progress",
+              projectId: d.id,
+              stage: "encoding",
+              percent: 0,
+              totalSeconds: cursor,
+              text: "M4B: 0%",
+            });
+            await runTool(
+              ffmpeg(),
+              [
+                "-nostdin",
+                "-y",
+                "-loglevel",
+                "error",
+                "-nostats",
+                "-stats_period",
+                "0.5",
+                "-progress",
+                "pipe:2",
+                ...files.flatMap((f) => ["-i", f]),
+                "-i",
+                meta,
+                "-filter_complex",
+                files.map((_, i) => `[${i}:a]`).join("") +
+                  `concat=n=${files.length}:v=0:a=1[a]`,
+                "-map",
+                "[a]",
+                "-map_metadata",
+                String(files.length),
+                "-map_chapters",
+                String(files.length),
+                "-c:a",
+                "aac",
+                "-b:a",
+                "160k",
+                temp,
+              ],
+              "",
+              exportController.signal,
+              600000,
+              reportProgress,
+              { waitForCloseOnCancel: true },
+            );
+            if (exportController.signal.aborted)
+              throw Error("Export cancelled.");
+            fs.renameSync(temp, pick.filePath);
+            grantMedia(pick.filePath);
+            emit(e.sender, {
+              type: "progress",
+              projectId: d.id,
+              stage: "complete",
+              percent: 100,
+              processedSeconds: cursor,
+              totalSeconds: cursor,
+              text: "M4B: 100%",
+            });
+            return { ok: true, path: pick.filePath };
+          } catch (error) {
+            if (exportController.signal.aborted)
+              throw Error("Export cancelled / Dışa aktarma iptal edildi.");
+            throw error;
           } finally {
-            e.sender.removeListener?.("destroyed", abortExport);
-            exportLocks.delete(r.id);
-            if (controllers.get(e.sender.id) === exportController)
-              controllers.delete(e.sender.id);
+            try {
+              for (const f of [temp, meta])
+                if (f) fs.rmSync(f, { force: true });
+            } finally {
+              e.sender.removeListener?.("destroyed", abortExport);
+              exportLocks.delete(r.id);
+              if (controllers.get(e.sender.id) === exportController)
+                controllers.delete(e.sender.id);
+            }
           }
         }
         case "batch-sync":

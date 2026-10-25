@@ -226,6 +226,46 @@ app
     assert(approved.project.chapters[0].groups[0].manualApproval.audioHash);
     await run('document.querySelector(".mw-management").open=true;return true');
     await capture("management.png");
+    await run(
+      'document.querySelector(".mw-management").open=false;[...document.querySelectorAll("button")].find(n=>n.textContent==="M4B çıktı bilgisi").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return !!document.querySelector(".mw-export-preview:not([hidden]) dl")',
+        ),
+      "M4B summary",
+    );
+    const summary = await run(
+      'return document.querySelector(".mw-export-preview").textContent',
+    );
+    assert.match(summary, /Tahmini AAC boyutu/);
+    await capture("m4b-preview-tr-dark.png");
+    await run('UiLocale.set("en",false);applyUiTheme("light");return true');
+    await run(
+      "await MediaWorkflowsUI.openProject(" +
+        JSON.stringify(id) +
+        ");return true",
+    );
+    await until(
+      () =>
+        run(
+          'return [...document.querySelectorAll("button")].some(n=>n.textContent==="Preview M4B export")',
+        ),
+      "English preview button",
+    );
+    await run(
+      '[...document.querySelectorAll("button")].find(n=>n.textContent==="Preview M4B export").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return !!document.querySelector(".mw-export-preview:not([hidden]) dl")',
+        ),
+      "English M4B summary",
+    );
+    await capture("m4b-preview-en-light.png");
+    await run('UiLocale.set("tr",false);applyUiTheme("dark");return true');
     const exported = await run(
       'return window.api.mediaWorkflows({action:"book-export",id:' +
         JSON.stringify(id) +
