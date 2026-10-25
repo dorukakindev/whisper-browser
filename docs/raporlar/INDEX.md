@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_551.md](BROWSER_BUG_REPORT_551.md) — M4B süre/boyut/boş alan önizlemesi, gerçek ilerleme ve FFmpeg kapanışlı iptal.
+
 - [BROWSER_BUG_REPORT_550.md](BROWSER_BUG_REPORT_550.md) — Gece ilk paket: tema/dil, dinleyici yaşam döngüsü ve doğrulama sözleşmeleri.
 
 - [BROWSER_BUG_REPORT_549.md](BROWSER_BUG_REPORT_549.md) — Kitap kurtarma/Review/yedek/M4B, PDF vurgu ve birleşik teslim.

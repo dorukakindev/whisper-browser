@@ -18,10 +18,10 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N08 | Tamamlandı | native-player için açma/kapatma/yanlış yol sınır testlerini tamamla. | Native oynatma yapılmadıysa açık sınır; sahte GPU iddiası yok. |
 | N09 | Tamamlandı | assistant_stream.py için iptal ve bağlantı kesilmesi testini tamamla. | Anahtar/redaksiyon korunur; gerçek ücretli istek gerekmez. |
 | N10 | Bekliyor | Interval ratchet eski toplamını gerçek sahiplik/temizlik yaşam döngüsüyle incele. | Sayı tek başına sızıntı sayılmaz; tekrarlı aç/kapat ölçümü. |
-| N11 | Bekliyor | M4B export öncesi seçili bölüm/toplam süre/tahmini çıktı boyutu göster. | FFprobe gerçek süre; AAC tahmini olduğu belirtilir. |
-| N12 | Bekliyor | M4B hedef sürücü boş alanını güvenilir statfs ile önizle. | Belirsiz disk bilgisinde dürüst durum, önceki dosyaya zarar yok. |
-| N13 | Bekliyor | Gerçek uzun FFmpeg M4B işi iptalini Windows süreç testiyle doğrula. | Alt süreç kapanır, geçici dosyalar silinir, önceki hedef korunur. |
-| N14 | Bekliyor | M4B encoding için gerçek ilerleme olaylarını ekle. | stderr/progress ayrımı, çıktı tüketimi ve bounded event hızı. |
+| N11 | Tamamlandı | M4B export öncesi seçili bölüm/toplam süre/tahmini çıktı boyutu göster. | FFprobe gerçek süre; AAC tahmini olduğu belirtilir. |
+| N12 | Tamamlandı | M4B hedef sürücü boş alanını güvenilir statfs ile önizle. | Belirsiz disk bilgisinde dürüst durum, önceki dosyaya zarar yok. |
+| N13 | Tamamlandı | Gerçek uzun FFmpeg M4B işi iptalini Windows süreç testiyle doğrula. | Alt süreç kapanır, geçici dosyalar silinir, önceki hedef korunur. |
+| N14 | Tamamlandı | M4B encoding için gerçek ilerleme olaylarını ekle. | stderr/progress ayrımı, çıktı tüketimi ve bounded event hızı. |
 | N15 | Bekliyor | 100 bölümlü M4B fan-in dosya tanıtıcısı/bellek etkisini ölç. | Ölçülürse bounded concat planı; spekülatif hız iddiası yok. |
 | N16 | Bekliyor | Kitap yedeği için dosya sayısı/boyut/kapsam önizlemesi ekle. | Paket öncesi neyin dahil olmadığı görünür. |
 | N17 | Bekliyor | Bütün projeler yerine seçili proje yedeği destekle. | Büyük seslerde256MiB sınırını güvenle yönet; bütün RAM okuma artmasın. |
@@ -64,3 +64,5 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 05:10 — Liste oluşturuldu;50madde henüz tamamlanmadı. Mevcut full549.log arka planda devam ediyor; bilinen envanter/CSP/renk hataları Rapor549 içinde açık. İlk gece adımı son koşumun bitip bitmediğini denetlemek; aynı uzun testi gereksiz yeniden başlatma.
 
 05:24 — [Rapor550](BROWSER_BUG_REPORT_550.md), kod2c217ab974797f609132aeebe653d75f7d9eb54e. N03–N09 ilk kapsamı tamamlandı (7madde); N09 mevcut8testin doğrulanması ve kapsam tarayıcısı düzeltmesi, yeni model özelliği değildir. N01 yerel21kırmızı sınıflandı,20dosya hedefli yeşil; uzakCI sonucu beklenmediği için İnceleniyor. Açık fixed-sleep26>21 eşiği değiştirilmedi. N02 E2E46kontrolPASS, takılma kanıtlanmadı; varsayımsal ürün kodu eklenmedi. Windows native book/PDF+bridge exit0; açık/koyu görüntüler incelendi. N10 ve N11–N50 sıradaki havuz;50tamamlandı denmez.
+
+06:15 — [Rapor551](BROWSER_BUG_REPORT_551.md), kod55d92c9d36a6be5499d4624a35f85c26b9da2387. N11–N14 tamamlandı; toplam11 maddenin ilk kabul kapsamı tamam. Süre/tahminiAAC/boşalan/bölüm sırası özetlenir, gerçek hedef alanı kontrol edilir, FFmpeg ilerlemesi gösterilir. Gerçek Windows FFmpeg iptalinde child close, eski hedef ve temp/metadata/lock doğrulandı.45 hedefli test PASS; native Windows PDF/Review/2chapterM4B ve EN/TR açık/koyu önizleme exit0. N15 gerçek100bölüm fan-in ölçümü, N10 ve sonraki kitap yedek/reader işleri açık. Tam paket/CI beklenmedi; fixed-sleep26>21 bilinen açık devam ediyor.
