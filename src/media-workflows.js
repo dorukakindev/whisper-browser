@@ -305,6 +305,14 @@ function registerMediaWorkflows({
       id: randomUUID(),
       title: book.title,
       author: book.author || "",
+      cover:
+        typeof (shelf?.cover || book.cover) === "string" &&
+        (shelf?.cover || book.cover).length <= 350000 &&
+        /^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/]+={0,2}$/.test(
+          shelf?.cover || book.cover,
+        )
+          ? shelf?.cover || book.cover
+          : "",
       shelfBookId: shelf?.id || null,
       created: new Date().toISOString(),
       format: book.format,
@@ -316,6 +324,16 @@ function registerMediaWorkflows({
         id: i,
         title: c.title || String(i + 1),
         pageNumber: c.pageNumber || null,
+        sourceId:
+          typeof c.sourceId === "string" && /^[a-f0-9]{64}$/.test(c.sourceId)
+            ? c.sourceId
+            : null,
+        sourceSpineIndex:
+          Number.isInteger(c.sourceSpineIndex) &&
+          c.sourceSpineIndex >= 0 &&
+          c.sourceSpineIndex < 5000
+            ? c.sourceSpineIndex
+            : null,
         text: c.text,
         status: "pending",
       })),

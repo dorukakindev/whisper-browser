@@ -146,6 +146,18 @@ app
         44 + i * 2,
       );
     fs.writeFileSync(wav, bytes);
+    const coverData = await run(
+      'const c=document.createElement("canvas");c.width=180;c.height=260;const x=c.getContext("2d");x.fillStyle="#b78243";x.fillRect(0,0,180,260);x.fillStyle="#211c18";x.font="bold 23px Georgia";x.fillText("Okuma",20,65);x.fillText("denemesi",20,95);x.fillRect(20,124,140,2);x.font="15px Georgia";x.fillText("Kitap örneği",20,225);return c.toDataURL("image/png")',
+    );
+    const metadataFile = path.join(
+      require("../src/voice-storage").voiceStorage(app).input,
+      "Kitap projeleri",
+      id,
+      "project.json",
+    );
+    const metadata = JSON.parse(fs.readFileSync(metadataFile, "utf8"));
+    metadata.cover = coverData;
+    fs.writeFileSync(metadataFile, JSON.stringify(metadata));
     const bookReferenceId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
     const refFolder = path.join(
       require("../src/voice-storage").voiceStorage(app).references,
@@ -229,6 +241,13 @@ app
     await until(
       () => run('return !!document.querySelector(".mw-review-group")'),
       "review controls",
+    );
+    await until(
+      () =>
+        run(
+          'const image=document.querySelector(".mw-book-cover");return image?.complete&&image.naturalWidth>0',
+        ),
+      "book cover in production summary",
     );
     const originalDefault = await run("return window.api.dubConfig()");
     await run(

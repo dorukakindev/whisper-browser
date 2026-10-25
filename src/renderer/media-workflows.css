@@ -194,9 +194,12 @@ dialog.mw-dialog::backdrop {
 }
 .mw-summary {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
   padding: 8px 0 16px;
 }
+.mw-book-cover { width: 74px; height: 104px; flex: 0 0 74px; object-fit: cover; border: 1px solid var(--border); border-radius: 6px; }
+.mw-summary > div { min-width: 0; overflow-wrap: anywhere; }
 .mw-summary h2 {
   font-size: 22px;
   margin: 0;

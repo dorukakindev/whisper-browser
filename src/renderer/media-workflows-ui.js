@@ -498,6 +498,19 @@
         }),
       );
     managementBody.append(projectActions);
+    if (
+      typeof project.cover === "string" &&
+      project.cover.length <= 350000 &&
+      /^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/]+={0,2}$/.test(
+        project.cover,
+      )
+    ) {
+      const cover = el("img", "mw-book-cover");
+      cover.src = project.cover;
+      cover.alt = "";
+      cover.onerror = () => cover.remove();
+      summary.append(cover);
+    }
     summary.append(bookCopy);
     body.append(summary);
     const settings = el("details", "mw-voice-settings"),
