@@ -45,7 +45,7 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N35 | Bekliyor | Özgün PDF vurgusuna tıklayarak seek işini native E2E ile sınama. | Doğru grubun gerçek başlangıç zamanı, klavye erişimi. |
 | N36 | Bekliyor | Çeviri/orijinal metin değişince ses kaynağı ve vurgu kimliğini koru. | Farklı diller arasında sahte birebir hizalama yapılmaz. |
 | N37 | Bekliyor | PDF okuma görünümünde sayfa/alıntı yer imi ekle veya mevcut raf yer imlerine bağla. | Kalıcı kaynak kimliği; orijinal belge değişmez. |
-| N38 | Bekliyor | Kitap içinde sınırlı tam metin arama ve sayfa/bölüme gitme ekle. | Büyük kitapta UI bloklanmaz; asistan bağlamı doğru sayfaya geçer. |
+| N38 | Tamamlandı | Kitap içinde sınırlı tam metin arama ve sayfa/bölüme gitme ekle. | Büyük kitapta UI bloklanmaz; asistan bağlamı doğru sayfaya geçer. |
 | N39 | Bekliyor | Raf okuma konumuyla üretim bölümüne açık eşleme eylemi ekle. | Sessiz otomatik yanlış konum taşıma yok. |
 | N40 | Bekliyor | EPUB başlık/kapak/bölüm kimliğinin üretim projesine aktarımını tamamla. | Güvenli HTML/metin ayrımı; kitap biçimi kaybolmaz. |
 | N41 | Bekliyor | Review metni düzenlendikten sonra yalnız değişen grubun yenilenmesini sınama. | Metin/plan key değişimi eski başka grubu zorla üretmez. |
@@ -108,3 +108,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:04 — Rapor556/kod36183c627a5a568865df467c0489fc118d98e534. Gerçek missingPython ENOENT kontrolsüz hata yerine aboneye işhatası/kapanış; eskihost/işkill/idle ve senkronpipe yolları korundu.4hedefdosya9PASS. Sonparça şikâyetinin tamamı çözüldü denmez; sıradaki repo altyazi_oku adaptöründe verification/shutdown timeout akışı. Bakım/yedek yok;11:55 soncheckpointten devam.
 
 07:08 — Rapor557/kod70baed90e8c7c029b22c16249d00d7e716d105bc: sonparçadan sonra sınırsız loudnorm yerine süre sınırı/özgünses fallback; gerçek verifier/placement/filewrite/normalizasyon stage. Python3gerçekFFmpeg+4lifecycle+3resume veNode8PASS; nativeWindowsdurum görüntüsü incelendi. Son61/61 sorunlarının tamamı çözüldü iddiası yok. Sonraki PDF/asistan görünürsayfa ve kalite-plan kimliği.
+
+07:15 — Rapor558/kodaac2e27f1b4927d204849c61cd93f84548a9aeac. N38projeiçi arama/Unicodeofset/80sonuç/yield tamam. Nativeeski textareanın yeni bölüm taslağına sızması düzeldi. Reader/shelf/editor asistanı doğruchapter/güncelexcerpt; excerpthash bayatcevabı geçersizkılar. Sonhedef20PASS; nativeWindowsarama/PDF/Review/M4Bexit0. N36/N39/N46 kalan kapsam açık, yedekbakımı yok.11:55 aktif hedefin soncheckpointinden devam.

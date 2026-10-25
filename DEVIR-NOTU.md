@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0715.md](docs/devir/2026-10-25-0715.md) — Kitap arama, yanlış bölüme draft ve doğru asistan bağlamı
 Güncel çalışma: [docs/devir/2026-10-25-0708.md](docs/devir/2026-10-25-0708.md) — Dublaj son aşama görünürlüğü ve süre sınırlı normalizasyon
 Güncel çalışma: [docs/devir/2026-10-25-0704.md](docs/devir/2026-10-25-0704.md) — Sıcak motor başlatma hatası, eski iş ve idle sahipliği
 Güncel çalışma: [docs/devir/2026-10-25-0701.md](docs/devir/2026-10-25-0701.md) — Büyük harfli repliğin çevrilmeden başarı sayılmasını önleme
