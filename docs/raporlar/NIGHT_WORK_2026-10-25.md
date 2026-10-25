@@ -8,15 +8,15 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 
 | ID | Durum | Somut iş | Kabul koşulu |
 |---|---|---|---|
-| N01 | Bekliyor | CI sonuçlarını güncel kaynak ve mevcut full549.log ile sınıflandır; tarihsel hata ile yeni regresyonu ayır. | Somut her kırmızı için kök neden/komut ve kapsam kaydı. |
-| N02 | Bekliyor | Uzun veya takılan yerel sağlayıcı E2E testinin süreç/port kapanışını sınırla. | Gerçek süreç ağacı temizlenir; ürün testi silinmez. |
-| N03 | Bekliyor | DOM sink ratchet satırlarına taşınmadan bağımsız kararlı tanımlama ekle. | Kaçışsız yeni sink hâlâ kırmızı; sırf satır taşınması izin boşluğu yaratmaz. |
-| N04 | Bekliyor | CSP testindeki whisper-media sözleşmesini gerçek protokol izinleriyle karşılaştır. | Gerekli protokol izinli, keyfi protokol/ağ izinleri reddedilir. |
-| N05 | Bekliyor | Privileged scheme envanterinin mevcut protokollerini güvenlik kontrolüyle güncelle. | İnceleme kanıtı ve negatif yetki testleri; kör allowlist genişletme yok. |
-| N06 | Bekliyor | Mevcut sabit renk ihlallerini en sık kullanılan yüzeylerden tema tokenlarına taşı. | Açık/koyu görüntü ve kontrast kontrolü; eşik gevşetilmez. |
-| N07 | Bekliyor | assistant-overlay-preload için gerçek frame/mesaj sözleşmesi testi ekle. | Yetkisiz gönderici, eksik payload ve listener kapanışı. |
-| N08 | Bekliyor | native-player için açma/kapatma/yanlış yol sınır testlerini tamamla. | Native oynatma yapılmadıysa açık sınır; sahte GPU iddiası yok. |
-| N09 | Bekliyor | assistant_stream.py için iptal ve bağlantı kesilmesi testini tamamla. | Anahtar/redaksiyon korunur; gerçek ücretli istek gerekmez. |
+| N01 | İnceleniyor | CI sonuçlarını güncel kaynak ve mevcut full549.log ile sınıflandır; tarihsel hata ile yeni regresyonu ayır. | Somut her kırmızı için kök neden/komut ve kapsam kaydı. |
+| N02 | Kanıtlanmadı | Uzun veya takılan yerel sağlayıcı E2E testinin süreç/port kapanışını sınırla. | Gerçek süreç ağacı temizlenir; ürün testi silinmez. |
+| N03 | Tamamlandı | DOM sink ratchet satırlarına taşınmadan bağımsız kararlı tanımlama ekle. | Kaçışsız yeni sink hâlâ kırmızı; sırf satır taşınması izin boşluğu yaratmaz. |
+| N04 | Tamamlandı | CSP testindeki whisper-media sözleşmesini gerçek protokol izinleriyle karşılaştır. | Gerekli protokol izinli, keyfi protokol/ağ izinleri reddedilir. |
+| N05 | Tamamlandı | Privileged scheme envanterinin mevcut protokollerini güvenlik kontrolüyle güncelle. | İnceleme kanıtı ve negatif yetki testleri; kör allowlist genişletme yok. |
+| N06 | Tamamlandı | Mevcut sabit renk ihlallerini en sık kullanılan yüzeylerden tema tokenlarına taşı. | Açık/koyu görüntü ve kontrast kontrolü; eşik gevşetilmez. |
+| N07 | Tamamlandı | assistant-overlay-preload için gerçek frame/mesaj sözleşmesi testi ekle. | Yetkisiz gönderici, eksik payload ve listener kapanışı. |
+| N08 | Tamamlandı | native-player için açma/kapatma/yanlış yol sınır testlerini tamamla. | Native oynatma yapılmadıysa açık sınır; sahte GPU iddiası yok. |
+| N09 | Tamamlandı | assistant_stream.py için iptal ve bağlantı kesilmesi testini tamamla. | Anahtar/redaksiyon korunur; gerçek ücretli istek gerekmez. |
 | N10 | Bekliyor | Interval ratchet eski toplamını gerçek sahiplik/temizlik yaşam döngüsüyle incele. | Sayı tek başına sızıntı sayılmaz; tekrarlı aç/kapat ölçümü. |
 | N11 | Bekliyor | M4B export öncesi seçili bölüm/toplam süre/tahmini çıktı boyutu göster. | FFprobe gerçek süre; AAC tahmini olduğu belirtilir. |
 | N12 | Bekliyor | M4B hedef sürücü boş alanını güvenilir statfs ile önizle. | Belirsiz disk bilgisinde dürüst durum, önceki dosyaya zarar yok. |
@@ -62,3 +62,5 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 ## Çalışma günlüğü
 
 05:10 — Liste oluşturuldu;50madde henüz tamamlanmadı. Mevcut full549.log arka planda devam ediyor; bilinen envanter/CSP/renk hataları Rapor549 içinde açık. İlk gece adımı son koşumun bitip bitmediğini denetlemek; aynı uzun testi gereksiz yeniden başlatma.
+
+05:24 — [Rapor550](BROWSER_BUG_REPORT_550.md), kod2c217ab974797f609132aeebe653d75f7d9eb54e. N03–N09 ilk kapsamı tamamlandı (7madde); N09 mevcut8testin doğrulanması ve kapsam tarayıcısı düzeltmesi, yeni model özelliği değildir. N01 yerel21kırmızı sınıflandı,20dosya hedefli yeşil; uzakCI sonucu beklenmediği için İnceleniyor. Açık fixed-sleep26>21 eşiği değiştirilmedi. N02 E2E46kontrolPASS, takılma kanıtlanmadı; varsayımsal ürün kodu eklenmedi. Windows native book/PDF+bridge exit0; açık/koyu görüntüler incelendi. N10 ve N11–N50 sıradaki havuz;50tamamlandı denmez.

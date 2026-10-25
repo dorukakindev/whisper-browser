@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0524.md](docs/devir/2026-10-25-0524.md) — Gece ilk paket: tema, dil, asistan yaşam döngüsü ve doğrulama
 Güncel çalışma: [docs/devir/2026-10-25-0510.md](docs/devir/2026-10-25-0510.md) — Kitap güvenilirliği, birleşik teslim ve 50 maddelik gece havuzu
 Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Dış önerilerin kodla karşılaştırılması; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-25-0431.md](docs/devir/2026-10-25-0431.md) — PDF okuyucu tasarımı, sayfayı anlayan asistan ve aynı ekranda ses
