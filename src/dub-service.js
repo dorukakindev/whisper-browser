@@ -394,6 +394,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     ownJob(s);
     try {
       const c = config();
+      const defaultReference = { reference: c.reference, transcript: c.transcript };
+      if (request.referenceId) {
+        const entry = referenceEntry(request.referenceId);
+        if (!entry.text.trim() || entry.text.length > 8000) throw Error('Check the reference transcript.');
+        const selected = referencePaths(entry.id);
+        c.reference = selected.reference; c.transcript = selected.transcript;
+      }
       const profile = request.profile ?? c.profile;
       const concurrency = request.concurrency ?? c.concurrency;
       const timingMode = request.timingMode ?? c.timingMode;
@@ -447,7 +454,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
         output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav'), output.replace(/\.wav$/i, '.performance.json')]);
-      atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
+      if (request.narration !== true) atomicWriteFileSync(configPath(), JSON.stringify({ ...c, ...defaultReference }, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });

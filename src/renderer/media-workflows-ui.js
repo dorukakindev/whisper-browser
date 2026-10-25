@@ -509,31 +509,40 @@
     settings.append(settingsTitle);
     const settingsBody = el("div", "mw-actions");
     const config = await window.api.dubConfig();
+    let defaultReferenceName =
+      config.reference?.split(/[\\/]/).pop() || t("Not selected", "Seçilmedi");
+    const defaultLabel = () =>
+      t("App default: ", "Uygulama varsayılanı: ") + defaultReferenceName;
     const referenceName = el(
       "span",
       "mw-muted",
-      t("Reference: ", "Referans: ") +
-        (config.reference?.split(/[\\/]/).pop() ||
-          t("Not selected", "Seçilmedi")),
+      voicePrefs.referenceId
+        ? t("Book voice: saved reference", "Bu kitabın sesi: kayıtlı referans")
+        : defaultLabel(),
     );
     settingsBody.append(
       referenceName,
-      button(t("Choose local reference", "Yerel referans seç"), async () => {
-        if (busy) throw Error("Busy / Meşgul");
-        const r = await window.api.dubConfig("reference");
-        if (r.ok) {
-          referenceName.textContent =
-            t("Reference: ", "Referans: ") + r.reference.split(/[\\/]/).pop();
-          voicePrefs.referenceId = "";
-          await call("book-preferences", {
-            id: project.id,
-            preferences: voicePrefs,
-          });
-        }
-      }),
+      button(
+        t("Change app default voice", "Uygulama varsayılan sesini değiştir"),
+        async () => {
+          if (busy) throw Error("Busy / Meşgul");
+          const r = await window.api.dubConfig("reference");
+          if (r.ok) {
+            defaultReferenceName = r.reference.split(/[\\/]/).pop();
+            if (!voicePrefs.referenceId)
+              referenceName.textContent = defaultLabel();
+            status(
+              t(
+                "App default voice updated.",
+                "Uygulama varsayılan sesi güncellendi.",
+              ),
+            );
+          }
+        },
+      ),
     );
     const references = await window.api.listVoiceReferences().catch(() => null);
-    if (references?.references?.length) {
+    if (references?.ok) {
       const saved = el("select");
       saved.setAttribute(
         "aria-label",
@@ -542,7 +551,7 @@
       const first = el(
         "option",
         "",
-        t("Choose saved voice", "Kayıtlı ses seç"),
+        t("Use app default voice", "Uygulama varsayılan sesini kullan"),
       );
       first.value = "";
       saved.append(first);
@@ -551,30 +560,59 @@
         o.value = ref.id;
         saved.append(o);
       }
+      if (
+        voicePrefs.referenceId &&
+        !references.references.some((ref) => ref.id === voicePrefs.referenceId)
+      ) {
+        const missing = el(
+          "option",
+          "",
+          t("Saved voice unavailable", "Kayıtlı ses bulunamadı"),
+        );
+        missing.value = voicePrefs.referenceId;
+        saved.append(missing);
+      }
       saved.value = voicePrefs.referenceId || "";
+      if (voicePrefs.referenceId)
+        referenceName.textContent =
+          t("Book voice: ", "Bu kitabın sesi: ") +
+          saved.selectedOptions[0].textContent;
       saved.onchange = async () => {
-        if (!saved.value) return;
+        const previous = voicePrefs.referenceId || "";
         try {
           if (busy) throw Error("Busy / Meşgul");
-          const used = await window.api.useVoiceReference({ id: saved.value });
-          if (!used.ok) throw Error(used.error);
-          referenceName.textContent =
-            t("Reference: ", "Referans: ") +
-            saved.selectedOptions[0].textContent;
-          voicePrefs.referenceId = saved.value;
           await call("book-preferences", {
             id: project.id,
-            preferences: voicePrefs,
+            preferences: { ...voicePrefs, referenceId: saved.value },
           });
+          voicePrefs.referenceId = saved.value;
+          referenceName.textContent = saved.value
+            ? t("Book voice: ", "Bu kitabın sesi: ") +
+              saved.selectedOptions[0].textContent
+            : defaultLabel();
         } catch (e) {
+          saved.value = previous;
           status(e.message);
         }
       };
       settingsBody.append(saved);
     }
     settingsBody.append(
+      el(
+        "p",
+        "mw-muted",
+        t(
+          "Saved voices apply only to this book. Local voice and transcript controls change the app default used by books without a saved voice.",
+          "Kayıtlı ses seçimi yalnız bu kitaba uygulanır. Yerel ses ve döküm düğmeleri, kayıtlı ses seçmeyen kitapların kullandığı uygulama varsayılanını değiştirir.",
+        ),
+      ),
+    );
+    settingsBody.append(
       button(
-        t("Choose exact reference transcript", "Birebir referans dökümünü seç"),
+        t(
+          "Change app default transcript",
+          "Uygulama varsayılan dökümünü değiştir",
+        ),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
           const r = await window.api.dubConfig("transcript");
@@ -1515,17 +1553,6 @@
       throw error;
     }
     stopRequested = false;
-    if (voicePrefs.referenceId) {
-      try {
-        const used = await window.api.useVoiceReference({
-          id: voicePrefs.referenceId,
-        });
-        if (!used.ok) throw Error(used.error);
-      } catch (e) {
-        busy = false;
-        throw e;
-      }
-    }
     const projectId = project.id,
       indices = [...selected].sort((a, b) => a - b);
     try {

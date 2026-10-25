@@ -146,6 +146,21 @@ app
         44 + i * 2,
       );
     fs.writeFileSync(wav, bytes);
+    const bookReferenceId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const refFolder = path.join(
+      require("../src/voice-storage").voiceStorage(app).references,
+      bookReferenceId,
+    );
+    fs.mkdirSync(refFolder, { recursive: true });
+    fs.writeFileSync(path.join(refFolder, "reference.wav"), bytes);
+    fs.writeFileSync(
+      path.join(refFolder, "reference.txt"),
+      "Controlled reference transcript.",
+    );
+    fs.writeFileSync(
+      path.join(refFolder, "reference.json"),
+      JSON.stringify({ name: "Deneme kitap sesi", createdAt: "2026-10-25" }),
+    );
     service.capture({
       id: prep.request.id,
       path: wav,
@@ -215,6 +230,33 @@ app
       () => run('return !!document.querySelector(".mw-review-group")'),
       "review controls",
     );
+    const originalDefault = await run("return window.api.dubConfig()");
+    await run(
+      'document.querySelector(".mw-voice-settings").open=true;const select=document.querySelector(\'select[aria-label="Kayıtlı referans sesler"]\');select.value=' +
+        JSON.stringify(bookReferenceId) +
+        ';select.dispatchEvent(new Event("change"));return true',
+    );
+    await until(
+      async () =>
+        (
+          await run(
+            'return window.api.mediaWorkflows({action:"book-open",id:' +
+              JSON.stringify(id) +
+              "})",
+          )
+        ).project.voicePreferences?.referenceId === bookReferenceId,
+      "book reference persisted without global use",
+    );
+    assert.equal(
+      (await run("return window.api.dubConfig()")).reference,
+      originalDefault.reference,
+    );
+    assert(
+      await run(
+        'return document.querySelector(".mw-voice-settings").textContent.includes("Bu kitabın sesi: Deneme kitap sesi")',
+      ),
+    );
+    await capture("book-reference-tr-dark.png");
     // Exercise the actual renderer/preload request after editing the chapter.
     // Stop at the engine boundary: no real GPU/model generation in this fixture.
     const retryRequests = [];
@@ -234,6 +276,7 @@ app
       "edited group retry reached engine boundary",
     );
     assert.equal(retryRequests.length, 1);
+    assert.equal(retryRequests[0].referenceId, bookReferenceId);
     assert.deepEqual(
       retryRequests[0].forceGroups,
       [],

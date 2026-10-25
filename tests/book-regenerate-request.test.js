@@ -28,7 +28,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       busy: false,
       selected: new Set([0]),
       project,
-      voicePrefs: {},
+      voicePrefs: { referenceId: "book-reference" },
       stopRequested: false,
       job: null,
       dialog: { open: false },
@@ -76,6 +76,11 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       force ? ["1,2", "3"] : edited ? [] : ["3"],
     );
     assert.equal(request.narration, true);
+    assert.equal(
+      request.referenceId,
+      "book-reference",
+      "book reference is sent with this job, without changing the app default",
+    );
     assert.equal(plans, force ? 1 : 0);
     assert.equal(removed, 1);
     assert.equal(ctx.busy, false);
