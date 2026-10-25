@@ -35,8 +35,10 @@ class Report495(unittest.TestCase):
   node=next(n for n in ast.walk(ast.parse(SOURCE)) if isinstance(n,ast.Expr) and isinstance(n.value,ast.Call)
    and isinstance(n.value.func,ast.Attribute) and n.value.func.attr=='update'
    and {'verification','final_seconds','status'} <= {k.arg for k in n.value.keywords})
-  metric={'quality_score':0};scope=dict(delivery=None,metric=metric,check={'status':'unavailable'},text='Speech',wav=[0],sr=1,
+  metric={'quality_score':0};scope=dict(delivery=None,metric=metric,check={'status':'unavailable'},text='Nyutin',display_speech='Newton',wav=[0],sr=1,
    generation_status=getattr(Q,'generation_status',lambda score,check:'ready'))
   exec(compile(ast.Module(body=[node],type_ignores=[]),'status','exec'),scope)
   self.assertEqual(metric['status'],'review')
+  self.assertEqual(metric['text'],'Newton')
+  self.assertEqual(metric['pronunciationText'],'Nyutin')
 if __name__=='__main__':unittest.main()
