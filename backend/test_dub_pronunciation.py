@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools' / 'voxcpm2'))
-from dub_pronunciation import normalize, apply, cache_identity
+from dub_pronunciation import normalize, apply, cache_identity, render
 
 
 class PronunciationTests(unittest.TestCase):
@@ -30,6 +30,11 @@ class PronunciationTests(unittest.TestCase):
         self.assertEqual(cache_identity(('old',),'Diğer grup.',entries),('old',))
         self.assertEqual(cache_identity(('old',),'Newton konuştu.',[]),('old',))
         self.assertNotEqual(cache_identity(('old',),'Newton konuştu.',entries),('old',))
+
+    def test_dictionary_precedes_default_expansion(self):
+        entries=normalize([{'from':'Dr. Newton','to':'Doktor Nyutın'},
+                           {'from':'Nyutın','to':'OTHER'}])
+        self.assertEqual(render('Dr. Newton 5 kitap aldı.',entries),'Doktor Nyutın beş kitap aldı.')
 
 
 if __name__ == '__main__': unittest.main()

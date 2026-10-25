@@ -4,6 +4,7 @@
   const modal = el('dubGeneratorDialog');
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
+  let previousOutput=null,previousMedia=null,previousRangeEnd=null;
   let runtimePhases={},runtimeError='';
   const activeGroups=new Map();
   function showActivity(){const en=window.UiLocale?.get?.()==='en';el('dubGeneratorActivity').textContent=[...activeGroups.values()].map(g=>(en?'Group ':'Grup ')+g.group+' · '+(en?'attempt ':'deneme ')+g.attempt+' · '+Math.floor(g.elapsed)+' / '+g.limit+' s').join(' | ');}
@@ -55,6 +56,10 @@
     el('dubQualityInfo').textContent = row ? [t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
       row.rewritten ? t('Süreye göre düzenlendi') : row.naturalEdited ? t('Doğal konuşma için düzenlendi') : ''].filter(Boolean).join(' · ') : '';
     const evidence=el('dubQualityEvidence');evidence.hidden=!row;
+    const previous=previousOutput?.quality?.groups?.find(value=>value.key===row?.key);
+    el('dubListenPrevious').hidden=!!current||!output||!previousOutput||previousMedia!==mediaIdentity()||previousOutput.url===output.url||!Number.isFinite(previous?.audioStart)||!Number.isFinite(previous?.audioEnd)||previous.audioEnd<=previous.audioStart;
+    el('dubListenPrevious').textContent=window.UiLocale?.get?.()==='en'?'Listen to previous group':'Önceki grubu dinle';
+    const currentButton=el('dubListenCurrent');if(currentButton)currentButton.textContent=el('dubListenPrevious').hidden?t('Bu grubu dinle'):(window.UiLocale?.get?.()==='en'?'Listen to new group':'Yeni grubu dinle');
     const en=window.UiLocale?.get?.()==='en';
     el('dubQualityEvidenceTitle').textContent=en?'Why is this group flagged?':'Bu grup neden işaretlendi?';
     const v=row?.verification||{},reasons=[];
@@ -140,7 +145,7 @@
     el('dubRangeEnabled').disabled = locked;
     for (const id of ['dubRangeStart', 'dubRangeEnd', 'dubRangeNow']) el(id).disabled = locked || !el('dubRangeEnabled').checked;
     el('dubGeneratorCancel').disabled = !current;
-    el('dubTextStudio').disabled = locked;
+    el('dubTextStudio').disabled = locked; el('dubListenPrevious').disabled=locked;
     el('dubPronunciations').disabled = locked; el('dubPronunciationSave').disabled = locked;
     for (const name of Object.keys(presetSpecs)) el(`dubPreset${name}`).disabled = locked;
     refreshOverview();
@@ -199,7 +204,7 @@
       srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
       deliverySource='';el('dubDeliverySourceName').textContent='';
       lastRequest = null; results.clear(); showResults();
-      output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
+      resetComparison(); output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
       el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
     mediaContextKey = mediaKey;
@@ -381,6 +386,7 @@
     elapsed(0); stopTimer();activeGroups.clear();showActivity();
     timer = setInterval(() => elapsed((performance.now() - started) / 1000), 1000);
     logPath = null; el('dubGeneratorLog').classList.add('hidden');
+    if(output?.url){if(lastRequest?.srt===srt){previousOutput=output;previousMedia=mediaIdentity();}else resetComparison();}
     output = null; window.DubWorkspaceUI?.setOutput(null); preview(null); el('dubGeneratorOutput').classList.add('hidden');
     el('dubGeneratedName').textContent = '';
     el('dubGeneratorUse').classList.add('hidden');
@@ -413,22 +419,24 @@
   el('dubRetryFailed').addEventListener('click', () => start(true));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
   el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').focus();el('dubPlanText').scrollIntoView?.({block:'center'});}});
-  const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.textContent=t('Bu grubu dinle');el('dubQualityInfo').after(listenGroup);
+  const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.id='dubListenCurrent';listenGroup.textContent=t('Bu grubu dinle');el('dubListenActions').prepend(listenGroup);
   let rangeEnd=null, groupPlayGeneration=0, cancelGroupMetadata=null;
+  const previousAudio=el('dubPreviousPreview');
+  function resetComparison(){stopGroupPreview();previousOutput=null;previousMedia=null;previousAudio.removeAttribute('src');previousAudio.classList.add('hidden');el('dubListenPrevious').hidden=true;}
   const groupAudio=el('dubGeneratedPreview');
   function stopGroupPreview() {
-    groupPlayGeneration++;rangeEnd=null;
+    groupPlayGeneration++;rangeEnd=null;previousRangeEnd=null;previousAudio.pause();previousAudio.classList.add('hidden');
     cancelGroupMetadata?.();cancelGroupMetadata=null;
     groupAudio.pause();
   }
-  function metadataReady() {
-    if(groupAudio.readyState>=1)return Promise.resolve(true);
+  function metadataReady(audio=groupAudio) {
+    if(audio.readyState>=1)return Promise.resolve(true);
     return new Promise(resolve=>{
       let timer;
-      const finish=value=>{clearTimeout(timer);groupAudio.removeEventListener('loadedmetadata',ready);groupAudio.removeEventListener('error',failed);if(cancelGroupMetadata===cancel)cancelGroupMetadata=null;resolve(value);};
+      const finish=value=>{clearTimeout(timer);audio.removeEventListener('loadedmetadata',ready);audio.removeEventListener('error',failed);if(cancelGroupMetadata===cancel)cancelGroupMetadata=null;resolve(value);};
       const ready=()=>finish(true),failed=()=>finish(false),cancel=()=>finish(false);
       cancelGroupMetadata=cancel;
-      groupAudio.addEventListener('loadedmetadata',ready,{once:true});groupAudio.addEventListener('error',failed,{once:true});
+      audio.addEventListener('loadedmetadata',ready,{once:true});audio.addEventListener('error',failed,{once:true});
       timer=setTimeout(failed,10000);
     });
   }
@@ -450,6 +458,21 @@
       await groupAudio.play();
     } catch(error){if(generation===groupPlayGeneration){rangeEnd=null;status(error.message);}}
   };
+  el('dubListenPrevious').addEventListener('click',async()=>{
+    if(current||workspaceBusy||previousMedia!==mediaIdentity())return;
+    stopGroupPreview();const source=previousOutput,row=source?.quality?.groups?.find(value=>value.key===el('dubQualityGroup').value),latest=output;
+    if(!source?.url||!latest||!Number.isFinite(row?.audioStart)||!Number.isFinite(row?.audioEnd)||row.audioStart<0||row.audioEnd<=row.audioStart)return;
+    const generation=groupPlayGeneration;
+    if(previousAudio.getAttribute('src')!==source.url){previousAudio.src=source.url;previousAudio.load();}
+    if(!await metadataReady(previousAudio))return;
+    if(generation!==groupPlayGeneration||previousOutput!==source||output!==latest||!modal.open||current)return;
+    if(!Number.isFinite(previousAudio.duration)||row.audioStart>=previousAudio.duration)return;
+    previousRangeEnd=Math.min(row.audioEnd,previousAudio.duration);previousAudio.currentTime=row.audioStart;previousAudio.classList.remove('hidden');
+    try{await previousAudio.play();}catch(error){if(generation===groupPlayGeneration){previousRangeEnd=null;status(error.message);}}
+  });
+  previousAudio.addEventListener('timeupdate',()=>{if(previousRangeEnd!==null&&previousAudio.currentTime>=previousRangeEnd){previousAudio.pause();previousRangeEnd=null;}});
+  previousAudio.addEventListener('error',stopGroupPreview);
+  previousAudio.addEventListener('ended',()=>{previousRangeEnd=null;});
   modal.addEventListener('close',stopGroupPreview);
   el('dubQualityGroup').addEventListener('change',stopGroupPreview);
 
@@ -543,7 +566,7 @@
   });
   window.addEventListener('dub-workspace:loaded', event => {
     if(current || planning || referenceBusy || choosing) return;
-    output=event.detail; preview(output); results.clear();
+    resetComparison();output=event.detail; preview(output); results.clear();
     for(const row of output.quality?.groups || []) results.set(row.key,row);
     showResults(); el('dubGeneratedName').textContent=output.name;
     el('dubGeneratorOutput').classList.remove('hidden');

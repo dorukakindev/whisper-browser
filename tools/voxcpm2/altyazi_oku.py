@@ -252,10 +252,10 @@ async def uret(args, cues, paths, prompt_text):
         cached = done
         results = []
 
-        from dub_pronunciation import apply as pronounce
+        from dub_pronunciation import render as render_pronunciation
         dictionary = getattr(args, 'pronunciations', [])
         async def verify_pronunciation(audio_path, text, numeric_reference=None):
-            return await verifier.check(audio_path, pronounce(text, dictionary), numeric_reference=numeric_reference)
+            return await verifier.check(audio_path, text, numeric_reference=numeric_reference)
 
         async def sentez(chunk, seed, delivery=None):
             from dub_expression import synthesis_text
@@ -292,7 +292,6 @@ async def uret(args, cues, paths, prompt_text):
                 synthesis_attempt = 0
                 async def synthesize(chunk, seed):
                     nonlocal synthesis_attempt
-                    chunk = pronounce(chunk, dictionary)
                     from dub_activity import observe
                     from dub_utterance import synthesize_utterance
                     synthesis_attempt += 1
@@ -303,7 +302,7 @@ async def uret(args, cues, paths, prompt_text):
                     raw_scores[id(raw)] = score
                     return raw
                 def assess_generated(raw, chunk):
-                    return max(raw_scores.get(id(raw), 0), assess_chunk(raw, sr, pronounce(chunk, dictionary))[0])
+                    return max(raw_scores.get(id(raw), 0), assess_chunk(raw, sr, chunk)[0])
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 previous_metric = {}
@@ -315,12 +314,14 @@ async def uret(args, cues, paths, prompt_text):
                     except (OSError, ValueError):
                         pass
                 metric, check = {}, {'status': 'not_checked'}
+                display_speech = spoken_text(text)
                 try:
                     if getattr(args, 'natural_speech', False) and args.group_keys[i] not in getattr(args, 'manual_groups', set()):
                         text = await rewrite_for_window(args, i, text, window,
                             cues[i-1][2] if i else '', cues[i+1][2] if i+1 < len(cues) else '', mode='natural')
                     editable_text = text
-                    text = spoken_text(text)
+                    display_speech = spoken_text(text)
+                    text = render_pronunciation(text, dictionary)
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_generated(raw, text), seed,
                         args.retry, args.request_timeout)
@@ -338,7 +339,8 @@ async def uret(args, cues, paths, prompt_text):
                             and args.group_keys[i] not in getattr(args, 'manual_groups', set())):
                         proposed = await rewrite_for_window(args, i, editable_text, window,
                             cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '', measured=len(wav)/sr)
-                        proposed = spoken_text(proposed)
+                        proposed_display = spoken_text(proposed)
+                        proposed = render_pronunciation(proposed, dictionary)
                         if proposed != text:
                             try:
                                 candidate, extra = await quality_retry(lambda n: synthesize(proposed, n),
@@ -349,6 +351,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += extra['attempts']
                                 if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
                                     wav, text = candidate, proposed
+                                    display_speech = proposed_display
                                     metric['finishing'] = candidate_finishing
                                     metric['rewritten'] = True
                             except (ValueError, asyncio.TimeoutError):
@@ -401,7 +404,8 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
                     temporary.replace(path)
-                    metric.update(verification=check, text=text, delivery=delivery, final_seconds=len(wav)/sr,
+                    metric.update(verification=check, text=display_speech, pronunciationText=text,
+                                  delivery=delivery, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
                     path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
                     args.force_groups.discard(args.group_keys[i])
@@ -415,7 +419,7 @@ async def uret(args, cues, paths, prompt_text):
                         # attempt on restart, with this WAV as the last resort.
                         if temporary.is_file() and valid_audio(temporary, sf):
                             try:
-                                metric.update(status='review', verification=check, text=text,
+                                metric.update(status='review', verification=check, text=display_speech, pronunciationText=text,
                                               recoveryReason='verification_interrupted',
                                               final_seconds=sf.info(temporary).frames/sr)
                                 # Invalidate any earlier ready record before

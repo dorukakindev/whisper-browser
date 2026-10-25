@@ -330,3 +330,22 @@ ASR işaretleri doğallık puanı değildir; otomatik kazanan seçilmez ve uygul
 varsayılanları değiştirilmez. Sorunlu gruplar mevcut stüdyodaki seçili parça yeniden
 üretimiyle ayrı onarılabilir. Yeni sayı karşılaştırması `elli bin`, `50.000` ve
 `50 bin` eşdeğerliğini denetler; yanlış miktarı veya ek tekrarı kabul etmez.
+
+### Aynı sahnede onarım öncesi/sonrası
+
+Stüdyoda bir grubu yeniden ürettikten sonra sonuçlar bölümündeki **Önceki grubu
+dinle** düğmesi aynı kaynağın önceki ses aralığını çalar. **Bu grubu dinle** yeni
+çıktıyı çalar. Karşılaştırma aynı açık oturum/kaynak içindir; kaynak değişince
+temizlenir, kalıcı bir sürüm arşivi oluşturmaz.
+
+Hazır iki WAV ve `.quality.json`/`.sync.json` yan dosyalarını, aynı kaynağın SRT'si
+ve yerel video kesitiyle yan yana incelemek için:
+
+`backend\venv\Scripts\python.exe tools\voxcpm2\review_scene.py --before eski.wav --after yeni.wav --video sahne.mp4 --source-srt kaynak.srt --output tmp\yeni-sahne`
+
+Çıktı klasörü yeni olmalı. `index.html` yerel oynatma, `review.json` çeviri kapıları,
+dalga biçimi, komşu grup ses yüksekliği ve senkron haritası kanıtlarını içerir.
+Her sürüm kendi zaman haritasıyla oynar. Dosyalar yalnız yerelde kalır; sesleri,
+videoyu ve raporu Git'e koymayın. Model/ücretli API çalıştırmaz. Bu kontroller duygu,
+doğallık veya insan kulağıyla kalite tercihi değildir. Kaynak ses kapalıdır;
+konuşmacı sesini koruyan müzik karışımı bu araçta yapılmaz.

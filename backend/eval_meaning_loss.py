@@ -25,7 +25,8 @@ CORPUS = os.path.join(os.path.dirname(__file__),
 
 
 def evaluate(corpus_path=CORPUS, verbose=False):
-    data = json.load(open(corpus_path, encoding='utf-8'))
+    with open(corpus_path, encoding='utf-8') as file:
+        data = json.load(file)
     rows = []
     for case in data['cases']:
         src, cand = case['src'], case['cand']
