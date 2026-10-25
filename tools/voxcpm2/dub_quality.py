@@ -11,9 +11,33 @@ from dub_finish import spoken_text
 
 
 def speech_check(expected, actual, numeric_reference=None):
+    case_suffix=r'(?:e|a|ye|ya|i|ı|u|ü|yi|yı|yu|yü|ın|in|un|ün|nın|nin|nun|nün|dan|den|tan|ten|da|de|ta|te|la|le|yla|yle)'
+    name_cases=re.findall(r"\b([A-ZÇĞİÖŞÜ][a-zçğıöşü]+)['’]("+case_suffix+r')\b',expected)
     def words(text):
+        for name,suffix in name_cases:
+            text=re.sub(r'\b'+re.escape(name)+r"['’]?"+re.escape(suffix)+r'\b',
+                        name+suffix,text,flags=re.I)
         return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold().replace('i\u0307', 'i'))
-    target, heard = words(expected), words(actual)
+    target = words(expected)
+    # ASR may print the spoken "elli bin" as "50.000". Only interpret a
+    # dotted thousands spelling when that exact whole quantity is present in
+    # the expected spoken text. Do not reinterpret arbitrary dates/decimals.
+    number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
+    def expected_quantity(digits):
+        phrase = words(digits + ' kişi')[:-1]
+        return any(target[i:i+len(phrase)] == phrase
+                    and (i == 0 or target[i-1] not in number_words)
+                    and (i+len(phrase) == len(target) or target[i+len(phrase)] not in number_words)
+                    for i in range(len(target)-len(phrase)+1))
+    def grouped_number(match):
+        digits = match.group(0).replace('.', '')
+        return digits if expected_quantity(digits) else match.group(0)
+    actual = re.sub(r'(?<![\w.,])\d{1,3}(?:\.\d{3})+(?![\w.,])', grouped_number, actual)
+    def mixed_number(match):
+        digits=str(int(match[1])*{'bin':1000,'milyon':1000000,'milyar':1000000000}[match[2].casefold()])
+        return digits
+    actual=re.sub(r'(?<![\w.,])(\d{1,3})\s+(bin|milyon|milyar)\b',mixed_number,actual,flags=re.I)
+    heard = words(actual)
     alignment = SequenceMatcher(None, target, heard, autojunk=False)
     similarity = alignment.ratio()
     # A high overall similarity can hide an unfinished ending or a missing
@@ -30,7 +54,6 @@ def speech_check(expected, actual, numeric_reference=None):
             insertions.append({'start': b0, 'end': b1})
     # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
     # Match complete normalized number phrases, consuming each occurrence once.
-    number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
     remaining = list(heard)
     missing_numbers = []
     reference = expected if numeric_reference is None else numeric_reference
@@ -131,7 +154,16 @@ def speech_check(expected, actual, numeric_reference=None):
     # these gates are enforced before rewriting, not inferred from ASR casing.
     semantic_mismatch = meaning_evidence(expected) != meaning_evidence(actual)
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
-    missing_names = [name for name in names if not all(word in heard_counts for word in words(name))]
+    def name_heard(name):
+        if all(word in heard_counts for word in words(name)):
+            return True
+        # ASR often omits the Turkish apostrophe: Venüs'e -> Venüse.
+        # Require the exact expected root AND case ending; no fuzzy name matching.
+        for suffix in re.findall(r'\b'+re.escape(name)+r"['’]("+case_suffix+r')\b',expected):
+            if all(word in heard_counts for word in words(name+suffix)):
+                return True
+        return False
+    missing_names = [name for name in names if not name_heard(name)]
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
             'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
