@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0658.md](docs/devir/2026-10-25-0658.md) — Yeni videoya eski dublaj mute/hız ayarının sızmasını önleme
 Güncel çalışma: [docs/devir/2026-10-25-0656.md](docs/devir/2026-10-25-0656.md) — Okuyucuda bayat yanıt/draft ve Review grup dinleme
 Güncel çalışma: [docs/devir/2026-10-25-0653.md](docs/devir/2026-10-25-0653.md) — Yedek paketini erteleme, gerçek kullanım önceliği ve dublaj grup dinleme
 Güncel çalışma: [docs/devir/2026-10-25-0642.md](docs/devir/2026-10-25-0642.md) — Kapsamlı devam hedefi, 39 maddelik paketleme ve 08:17/08:20 uyanışları

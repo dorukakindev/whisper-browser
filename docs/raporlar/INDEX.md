@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_554.md](BROWSER_BUG_REPORT_554.md) — Yeni video kendi mute/hız ayarını korur.
+
 - [BROWSER_BUG_REPORT_553.md](BROWSER_BUG_REPORT_553.md) — Okuyucuda gezinme/kayıt yarışları ve Review dinleme/onay kimliği.
 
 - [BROWSER_BUG_REPORT_552.md](BROWSER_BUG_REPORT_552.md) — Dublaj grup dinlemede metadata bekleme ve bayat oynatma iptali.
