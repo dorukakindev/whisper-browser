@@ -400,7 +400,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const verification = request.verification ?? c.verification;
       if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
       const forceGroups = request.forceGroups ?? [];
-      if (!Array.isArray(forceGroups) || forceGroups.length > 1 || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key))) throw new Error('Invalid group key.');
+      // Video UI forces one group; a book's explicit Regenerate chapter action forces
+      // its bounded chapter plan. Keep Windows command-line size bounded as well.
+      const forceLimit=request.narration===true?1000:1;
+      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>12000) throw new Error('Invalid group key.');
       if(request.keepEngine!==undefined&&typeof request.keepEngine!=='boolean')throw Error('Invalid engine keep-ready option.');
       c.keepEngine=request.keepEngine??c.keepEngine;
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;

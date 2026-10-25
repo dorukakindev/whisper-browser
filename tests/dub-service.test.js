@@ -101,6 +101,12 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     child.emit('close',1);
     assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:fixtureHash,edits:{'1':'Kısa metin.'}}})).ok,true,'failed job must be retryable with its unchanged input snapshot');
     child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'many-video-forced',srt,forceGroups:['1','2']})).ok,false);
+    assert.equal((await call('dub:start',{id:'many-book-forced',srt,narration:true,forceGroups:['1','2']})).ok,true,'a whole book chapter can contain more than one group');
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--force-groups')+1],'1;2');
+    assert(calls.at(-1).args.includes('--narration'));child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'excessive-book-forced',srt,narration:true,forceGroups:Array.from({length:1001},(_,i)=>String(i))})).ok,false);
+    assert.equal((await call('dub:start',{id:'oversized-book-forced',srt,narration:true,forceGroups:Array.from({length:10},()=>Array(900).fill('1').join(','))})).ok,false,'group arguments must remain bounded on Windows');
     assert.equal((await call('dub:start',{id:'bad-range',srt,range:{start:10,end:5}})).ok,false);
     assert.equal((await call('dub:start',{id:'ranged',srt,expression:'warm',followDelivery:true,range:{start:20,end:30}})).ok,true);
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'reference');
