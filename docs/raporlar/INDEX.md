@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_548.md](BROWSER_BUG_REPORT_548.md) — Dış önerilerin kaynak koduyla doğrulanması ve öncelik değerlendirmesi.
+
 - [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) — Gerçek PDF okuyucu tasarımı, sayfa bağlamı ve aynı ekranda ses.
 
 - [BROWSER_BUG_REPORT_546.md](BROWSER_BUG_REPORT_546.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve sezon araçları.

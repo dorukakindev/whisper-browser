@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Dış önerilerin kodla karşılaştırılması; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-25-0431.md](docs/devir/2026-10-25-0431.md) — PDF okuyucu tasarımı, sayfayı anlayan asistan ve aynı ekranda ses
 Güncel çalışma: [docs/devir/2026-10-25-0414.md](docs/devir/2026-10-25-0414.md) — PR485 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0410.md](docs/devir/2026-10-25-0410.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve üretim araçları
