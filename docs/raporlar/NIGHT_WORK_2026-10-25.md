@@ -42,7 +42,7 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N32 | Bekliyor | PDF satır sonu tirelerini güvenli ve geri alınabilir hazırlama seçeneğiyle ele al. | Özel ad/kısaltma/sayısal aralık bozulmaz; özgün metin korunur. |
 | N33 | Bekliyor | Reader minimum genişliğinin900px altındaki düğme erişimine etkisini incele. | Gerekirse sadece okuyucu düzeni; genel pencere davranışı izinsiz bozma. |
 | N34 | Bekliyor | Türkçe I/İ/ı ve birleşen Unicode işaretlerinde vurgu eşlemesini sınayarak düzelt. | Yanlış sözcük vurgusu yerine açık eşleşmeme durumu. |
-| N35 | Bekliyor | Özgün PDF vurgusuna tıklayarak seek işini native E2E ile sınama. | Doğru grubun gerçek başlangıç zamanı, klavye erişimi. |
+| N35 | Tamamlandı | Özgün PDF vurgusuna tıklayarak seek işini native E2E ile sınama. | Doğru grubun gerçek başlangıç zamanı, klavye erişimi. |
 | N36 | Bekliyor | Çeviri/orijinal metin değişince ses kaynağı ve vurgu kimliğini koru. | Farklı diller arasında sahte birebir hizalama yapılmaz. |
 | N37 | Bekliyor | PDF okuma görünümünde sayfa/alıntı yer imi ekle veya mevcut raf yer imlerine bağla. | Kalıcı kaynak kimliği; orijinal belge değişmez. |
 | N38 | Tamamlandı | Kitap içinde sınırlı tam metin arama ve sayfa/bölüme gitme ekle. | Büyük kitapta UI bloklanmaz; asistan bağlamı doğru sayfaya geçer. |
@@ -122,3 +122,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:42 — Rapor563/ürünaaf84b75957869eb39367f44d9a5b3f53cd1c91c: N31/N34 PDF sayıanlamı/Unicode/konum ve görünürkutu sayısı. Eski1.5=15/-20=20/1/10=110falsematchrepro düzeldi; ayırıcı farklıitem'da da korunur. Kutuclip/rotasyonsafkontroller,11hedefPASS/nativeWindowsPDF+M4Bexit0 görüntüincelendi. BütünPDFtürleri kanıtlanmadı; sonraki reader metadata/konum ve seçiliparagrafaasistan, yedekbakımı yok.
 
 07:46 — Rapor564/ürünb55689bc916bfe9ae807b5b30da8ca6bcaa6f309: N47 kitap bağlamı selectedText4k+yakınexcerpt8k; seçimi değiştirince bayatyanıtengeli/samechapterhistory.12hedefPASS/nativeWindowsDOMRange>gerçekaiChatContext>sonrakisayfaseçimtemizliği exit0 ve görüntüincelendi. LiveAIyanıtkalitesi doğrulanmadı; otomatikscrollmetnitakibi yok. Sonraki metadata/seek/konum,N25refkapsamı,N35kututıklama; yedekbakımı yok.
+
+07:54 — Rapor565/ürünab41ccdd4f57900cc85969391600d8aa6c58c3d3: okuyucuda metadataöncesi seçilenseek kayıtlıkonumlaezilmez, unloadsonrası0konumkaydıönlenir, bekleyenlistener/timer kapanır.16hedef+CSP5PASS/nativeWindowsPDFkutusuReturn/char ilegerçekgrup1sseek/play vePDF/M4Bexit0; N35tamam,N42/N46readerilerledi. Sonraki N25refkapsamı,N32tireseçeneği,N40EPUBkimliği,N15fan-in; yedekbakımı yok.
