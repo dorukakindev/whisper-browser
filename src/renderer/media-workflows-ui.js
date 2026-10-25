@@ -1289,6 +1289,11 @@
     );
     if (project.format === "pdf") {
       layout.prepend(page);
+      const isCurrentPage = () =>
+        generation === readerGeneration &&
+        dialog?.open &&
+        project?.id === projectId &&
+        page.isConnected;
       page.append(
         el(
           "p",
@@ -1297,35 +1302,36 @@
         ),
       );
       try {
-        const source = await call("book-pdf", { id: projectId }),
-          opened = await window.api.openPdf(source.path);
+        const source = await call("book-pdf", { id: projectId });
+        if (!isCurrentPage()) return;
+        const opened = await window.api.openPdf(source.path);
+        if (!isCurrentPage()) return;
         if (!opened.ok) throw Error(opened.error);
         const pdfjs = await getPdfJs(),
           response = await fetch(opened.fileUrl);
-        if (generation !== readerGeneration || !dialog?.open) return;
+        if (!isCurrentPage()) return;
         if (!response.ok) throw Error("PDF unavailable.");
+        const data = new Uint8Array(await response.arrayBuffer());
+        if (!isCurrentPage()) return;
         const task = pdfjs.getDocument({
-          data: new Uint8Array(await response.arrayBuffer()),
+          data,
           isEvalSupported: false,
           useSystemFonts: true,
         });
         readerTask = task;
         const doc = await task.promise;
-        if (
-          generation !== readerGeneration ||
-          !dialog?.open ||
-          project.id !== projectId ||
-          !page.isConnected
-        ) {
+        if (!isCurrentPage()) {
           await task.destroy();
           return;
         }
         const number = result.pageNumber || 1,
           p = await doc.getPage(number);
+        if (!isCurrentPage()) return;
         const canvas = el("canvas"),
           controls = el("div", "mw-actions"),
           zoom = el("select");
         const pageText = await p.getTextContent();
+        if (!isCurrentPage()) return;
 
         zoom.setAttribute("aria-label", t("PDF zoom", "PDF yakınlaştırma"));
         const fit = el("option", "", t("Fit width", "Genişliğe sığdır"));
@@ -1337,8 +1343,16 @@
           zoom.append(o);
         }
         zoom.value = "fit";
+        let drawRequest = 0;
         const draw = async () => {
-          readerRender?.cancel();
+          if (!isCurrentPage()) return;
+          const request = ++drawRequest;
+          const previous = readerRender;
+          previous?.cancel();
+          try {
+            await previous?.promise;
+          } catch {}
+          if (!isCurrentPage() || request !== drawRequest) return;
           const viewport = p.getViewport({
               scale:
                 zoom.value === "fit"
@@ -1354,13 +1368,15 @@
           canvas.height = Math.round(viewport.height * ratio);
           canvas.style.width = viewport.width + "px";
           canvas.style.height = viewport.height + "px";
-          readerRender = p.render({
+          const render = p.render({
             canvasContext: canvas.getContext("2d"),
             viewport,
             transform: ratio === 1 ? null : [ratio, 0, 0, ratio, 0, 0],
           });
+          readerRender = render;
           try {
-            await readerRender.promise;
+            await render.promise;
+            if (!isCurrentPage() || request !== drawRequest) return;
             readerPdfMap?.dispose();
             readerPdfMap = window.PdfSpokenMap?.mount(
               page,
@@ -1378,7 +1394,12 @@
                 ),
               );
           } catch (e) {
-            if (e.name !== "RenderingCancelledException") status(e.message);
+            if (
+              isCurrentPage() &&
+              request === drawRequest &&
+              e.name !== "RenderingCancelledException"
+            )
+              status(e.message);
           }
         };
         zoom.onchange = () => void draw();
@@ -1388,12 +1409,14 @@
         );
         page.replaceChildren(controls, canvas);
         await draw();
+        if (!isCurrentPage()) return;
         readerResize = new ResizeObserver(() => {
           if (zoom.value === "fit" && page.isConnected) void draw();
         });
         readerResize.observe(page);
       } catch (e) {
-        page.replaceChildren(el("p", "mw-muted", e.message));
+        if (isCurrentPage())
+          page.replaceChildren(el("p", "mw-muted", e.message));
       }
     }
   }
