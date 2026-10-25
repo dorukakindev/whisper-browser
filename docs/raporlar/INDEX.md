@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_553.md](BROWSER_BUG_REPORT_553.md) — Okuyucuda gezinme/kayıt yarışları ve Review dinleme/onay kimliği.
+
 - [BROWSER_BUG_REPORT_552.md](BROWSER_BUG_REPORT_552.md) — Dublaj grup dinlemede metadata bekleme ve bayat oynatma iptali.
 
 - [BROWSER_BUG_REPORT_551.md](BROWSER_BUG_REPORT_551.md) — M4B süre/boyut/boş alan önizlemesi, gerçek ilerleme ve FFmpeg kapanışlı iptal.
