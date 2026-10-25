@@ -106,3 +106,28 @@ test("last reader navigation wins when listen IPC replies arrive out of order; c
   await e;
   assert.deepEqual(rendered, [2, 4]);
 });
+
+test("draft save follows the rendered textarea identity, not a just-changed chapter selector", () => {
+  const drafts = new Map(),
+    input = {
+      dataset: { chapter: "0", projectId: "book" },
+      value: "First chapter only",
+    };
+  const ctx = {
+    drafts,
+    project: { id: "book", chapters: [{}, {}] },
+    chapter: 1,
+    dialog: { querySelector: () => input },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(
+    slice("  function saveDraft()", "  async function saveChapter()"),
+    ctx,
+  );
+  ctx.saveDraft();
+  assert.equal(drafts.get("book:0"), "First chapter only");
+  assert.equal(drafts.has("book:1"), false);
+  ctx.project = { id: "other", chapters: [{}] };
+  ctx.saveDraft();
+  assert.equal(drafts.has("other:0"), false);
+});

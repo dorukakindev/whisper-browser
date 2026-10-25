@@ -87,6 +87,29 @@ app
       () => run('return !!document.querySelector(".mw-range")'),
       "range",
     );
+    const query = imported.project.chapters[1].text.slice(0, 22);
+    await run(
+      'const f=document.querySelector(".mw-search-form");f.querySelector("input").value=' +
+        JSON.stringify(query) +
+        ";f.requestSubmit();return true",
+    );
+    await until(
+      () => run('return document.querySelectorAll(".mw-search-hit").length>0'),
+      "book search results",
+    );
+    await capture("book-search-tr-dark.png");
+    await run('document.querySelector(".mw-search-hit").click();return true');
+    await until(
+      () =>
+        run(
+          "return MediaExperience.context()?.id===" + JSON.stringify(id + ":1"),
+        ),
+      "search chapter context",
+    );
+    const searchSelection = await run(
+      'const n=document.querySelector("textarea[data-chapter]");return n.value.slice(n.selectionStart,n.selectionEnd)',
+    );
+    assert.equal(searchSelection, query);
     await run(
       'const inputs=document.querySelectorAll(".mw-range input");inputs[0].value="2";inputs[1].value="3";document.querySelector(".mw-range button").click();return true',
     );
@@ -322,6 +345,22 @@ app
     );
     assert(pdfBox.inside);
     await capture("reader-tr-dark.png");
+    await run(
+      '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Sonraki sayfa / bölüm").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          "return MediaExperience.context()?.id===" + JSON.stringify(id + ":1"),
+        ),
+      "reader second page assistant context",
+    );
+    assert.match(
+      await run("return MediaExperience.context().excerpt"),
+      /Chapter 2/,
+    );
+    await capture("reader-page2-context.png");
+
     win.setContentSize(800, 800);
     await wait(200);
     await capture("reader-narrow.png");

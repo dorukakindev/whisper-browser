@@ -124,7 +124,15 @@
   }
   function saveDraft() {
     const input = dialog?.querySelector("textarea[data-chapter]");
-    if (project && input) drafts.set(`${project.id}:${chapter}`, input.value);
+    if (project && input && input.dataset.projectId === project.id) {
+      const index = Number(input.dataset.chapter);
+      if (
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < project.chapters.length
+      )
+        drafts.set(`${project.id}:${index}`, input.value);
+    }
   }
   async function saveChapter() {
     saveDraft();
@@ -148,6 +156,113 @@
         drafts.set(key, input.value);
       else if (drafts.get(key) === text) drafts.delete(key);
     }
+  }
+  function bookContext(index, text, offset = 0) {
+    const c = project?.chapters[index];
+    if (!c || !dialog?.open) return;
+    window.MediaExperience?.setContext(dialog, {
+      id: `${project.id}:${index}`,
+      type: "book-chapter",
+      title: project.title,
+      chapter: c.title,
+      excerpt: String(text || "").slice(
+        Math.max(0, offset - 1500),
+        Math.max(0, offset - 1500) + 8000,
+      ),
+    });
+  }
+  function mountBookSearch(parent) {
+    const ownerId = project.id,
+      box = el("section", "mw-book-search"),
+      form = el("form", "mw-search-form"),
+      input = el("input"),
+      submit = el("button", "mh-action", t("Find passage", "Metin bul")),
+      summary = el("p", "mw-muted"),
+      results = el("div", "mw-search-results");
+    input.type = "search";
+    input.maxLength = 160;
+    input.placeholder = t("Search all chapters…", "Bütün bölümlerde ara…");
+    input.setAttribute(
+      "aria-label",
+      t("Search book text", "Kitap metninde ara"),
+    );
+    submit.type = "submit";
+    summary.setAttribute("role", "status");
+    results.setAttribute("aria-label", t("Search results", "Arama sonuçları"));
+    form.append(input, submit);
+    box.append(form, summary, results);
+    parent.append(box);
+    let sequence = 0;
+    input.oninput = () => {
+      sequence++;
+      results.replaceChildren();
+      summary.textContent = "";
+    };
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      const request = ++sequence;
+      saveDraft();
+      results.replaceChildren();
+      if (input.value.trim().length < 2) {
+        summary.textContent = t(
+          "Enter at least two characters.",
+          "En az iki karakter yaz.",
+        );
+        return;
+      }
+      summary.textContent = t("Searching…", "Aranıyor…");
+      const valid = () =>
+        request === sequence && box.isConnected && project?.id === ownerId;
+      const chapters = project.chapters.map((c, i) => ({
+        ...c,
+        text: drafts.get(`${ownerId}:${i}`) ?? c.text,
+      }));
+      const found = await window.BookTextSearch.search(chapters, input.value, {
+        isCurrent: valid,
+      });
+      if (!valid() || found.cancelled) return;
+      summary.textContent = found.matches.length
+        ? `${found.matches.length}${found.truncated ? "+" : ""} ` +
+          t(
+            "matches. Open a result in the text editor.",
+            "eşleşme. Sonucu metin düzenleyicide aç.",
+          )
+        : t("No matches.", "Eşleşme yok.");
+      for (const hit of found.matches) {
+        const c = chapters[hit.chapter],
+          row = button(c.title + " — " + hit.excerpt, async () => {
+            if (!valid()) return;
+            const latest =
+              drafts.get(`${ownerId}:${hit.chapter}`) ??
+              project.chapters[hit.chapter].text;
+            if (latest !== c.text) {
+              status(
+                t("Text changed; search again.", "Metin değişti; yeniden ara."),
+              );
+              return;
+            }
+            await saveChapter();
+            if (project?.id !== ownerId) return;
+            chapter = hit.chapter;
+            await books();
+            if (project?.id !== ownerId) return;
+            const text = dialog?.querySelector("textarea[data-chapter]");
+            if (!text) return;
+            if (text.value !== c.text) {
+              status(
+                t("Text changed; search again.", "Metin değişti; yeniden ara."),
+              );
+              return;
+            }
+            text.focus();
+            text.setSelectionRange(hit.start, hit.end);
+            text.scrollIntoView({ block: "center" });
+            bookContext(hit.chapter, text.value, hit.start);
+          });
+        row.classList.add("mw-search-hit");
+        results.append(row);
+      }
+    };
   }
   async function books() {
     if (project && prefsProject !== project.id) {
@@ -600,6 +715,7 @@
       }),
     );
     body.append(range);
+    mountBookSearch(body);
     const split = el("div", "mw-book"),
       list = el("aside", "mw-chapters");
     list.setAttribute("aria-label", t("Chapters", "Bölümler"));
@@ -653,14 +769,19 @@
     edit.append(el("h2", "", c.title));
     const textarea = el("textarea");
     textarea.dataset.chapter = String(chapter);
+    textarea.dataset.projectId = project.id;
     textarea.value = drafts.get(`${project.id}:${chapter}`) ?? c.text;
     textarea.maxLength = 100000;
     textarea.setAttribute(
       "aria-label",
       t("Reviewed chapter text", "Gözden geçirilmiş bölüm metni"),
     );
-    textarea.oninput = () =>
-      drafts.set(`${project.id}:${chapter}`, textarea.value);
+    const draftKey = `${project.id}:${chapter}`,
+      contextChapter = chapter;
+    textarea.oninput = () => {
+      drafts.set(draftKey, textarea.value);
+      bookContext(contextChapter, textarea.value, textarea.selectionStart || 0);
+    };
     edit.append(
       textarea,
       el(
@@ -995,13 +1116,7 @@
     edit.append(buttons, exportProgress, exportPreview);
     split.append(list, edit);
     body.append(split);
-    window.MediaExperience?.setContext(dialog, {
-      id: project.id,
-      type: "book-chapter",
-      title: project.title,
-      chapter: c.title,
-      excerpt: c.text.slice(0, 8000),
-    });
+    bookContext(chapter, textarea.value);
   }
   let readerPdfMap = null;
   let readerTask = null,
@@ -1160,6 +1275,8 @@
     head.append(followButton, font);
     body.append(head, audio, layout);
     layout.append(prose);
+    bookContext(current, project.chapters[current].text);
+    mountBookSearch(body);
     body.append(
       el(
         "p",

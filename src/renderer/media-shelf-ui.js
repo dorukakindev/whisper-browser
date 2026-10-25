@@ -170,7 +170,7 @@
     function show(next, scroll = 0) {
       index = Math.max(0, Math.min(book.chapters.length - 1, next)); chapters.value = index; prose.replaceChildren();
       book.chapters[index].text.split(/\n\s*\n/).forEach(paragraph => prose.append(el('p', '', paragraph)));
-      window.MediaExperience?.setContext(dialog, { id: book.id, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
+      window.MediaExperience?.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
       requestAnimationFrame(() => { prose.scrollTop = scroll * Math.max(0, prose.scrollHeight - prose.clientHeight); });
     }
     chapters.addEventListener('change', async () => { await save(); show(+chapters.value); });
