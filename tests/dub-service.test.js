@@ -140,6 +140,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.ok(calls[0].args.includes('--natural-speech'));
     const rewriteDir=calls[0].args[calls[0].args.indexOf('--rewrite-dir')+1];
     assert.equal(JSON.parse(fs.readFileSync(path.join(rewriteDir,rewriteId+'.json'),'utf8')).text,'Kısa metin.');
+    child.stdout.emit('data','DUB_ACTIVITY {"stage":"verification"}\n');assert.equal(events.at(-1).type,'status');assert.match(events.at(-1).text,/doğrulanıyor/);
+    child.stdout.emit('data','DUB_ACTIVITY {"stage":"normalization"}\n');assert.match(events.at(-1).text,/dengeleniyor/);
+    child.stdout.emit('data','DUB_WARNING normalization_unavailable\n');assert.equal(events.at(-1).type,'warning');assert.match(events.at(-1).text,/konuşma korundu/);
     child.stdout.emit('data','DUB_CONCURRENCY 2\n');
     assert.equal(events.at(-1).concurrency,2);
     child.stdout.emit('data','DUB_GROUP {"group":1,"key":"1","status":"review","verification":{"status":"review"}}\n');

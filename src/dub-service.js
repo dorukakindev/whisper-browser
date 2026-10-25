@@ -555,6 +555,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       let pending = '';
       const rewriteRequests = new Set();
       function line(value) {
+        if(value.startsWith('DUB_ACTIVITY ')){
+          try{const data=JSON.parse(value.slice(13));const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{text:labels[data.stage]});}catch(_){}return;
+        }
+        if(value==='DUB_WARNING normalization_unavailable')emit(s,'warning',{text:'Ses dengeleme tamamlanamadı; üretilen konuşma korundu.'});
+
         if(value.startsWith('DUB_FAILURE ')){try{const failure=JSON.parse(value.slice(12));emit(s,'warning',{text:String(failure.message||failure.kind).slice(0,1500)});}catch(_){}return;}
         if(value.startsWith('DUB_STAGE ')||value.startsWith('DUB_PHASES ')){
           try{const raw=JSON.parse(value.slice(value.startsWith('DUB_STAGE ')?10:11));const phases=raw.stage?{[raw.stage+'_seconds']:raw.seconds}:raw;const allowed=['model_load','reference','synthesis','verification','text_edit','placement','file_write','wall'].map(key=>key+'_seconds');s.phases={...(s.phases||{}),...Object.fromEntries(Object.entries(phases).filter(([key,n])=>allowed.includes(key)&&Number.isFinite(n)&&n>=0))};emit(s,'phases',{phases:s.phases});}catch(_){}return;

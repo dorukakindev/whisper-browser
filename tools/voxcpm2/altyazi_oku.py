@@ -43,9 +43,10 @@ from dub_timing import build_adaptive_timeline
 
 from kitap_ortak import (  # noqa: E402
     MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, assess_chunk,
-    ensure_utf8_stdio, file_sha256, loudnorm_audio, prepare_audio,
+    ensure_utf8_stdio, file_sha256, prepare_audio,
     voice_label_for, write_manifest)
 from kitap_ortak import _install_with_fallback  # noqa: E402
+from dub_normalize import loudnorm_audio
 
 ensure_utf8_stdio()
 
@@ -111,6 +112,7 @@ class SpeechVerifier:
                     await self.proc.stdin.drain()
                     return await self.proc.stdout.readline()
                 from contextlib import nullcontext
+                print('DUB_ACTIVITY '+json.dumps({'stage':'verification'}),flush=True)
                 with self.phases.measure('verification') if getattr(self,'phases',None) else nullcontext():
                     response = json.loads(await asyncio.wait_for(exchange(), 120))
                 if (not isinstance(response, dict) or 'error' in response
@@ -793,6 +795,7 @@ def main(argv=None, runtime=None):
         total_s = args.range_end - args.range_start
         args.end_limit_ms = total_s * 1000
     sync = None
+    print('DUB_ACTIVITY '+json.dumps({'stage':'placement'}),flush=True)
     placement_began=time.monotonic()
     if args.narration:
         from dub_timing import build_narration_timeline
@@ -831,13 +834,17 @@ def main(argv=None, runtime=None):
     wav_path = Path(wav_path)
     wav_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = wav_path.with_suffix(".tmp.wav")
+    print('DUB_ACTIVITY '+json.dumps({'stage':'file_write'}),flush=True)
     write_began=time.monotonic()
     sf.write(str(tmp), timeline, sr, subtype="PCM_16")
     wav_path = _install_with_fallback(tmp, wav_path)
     if not args.no_norm:
+        print('DUB_ACTIVITY '+json.dumps({'stage':'normalization'}),flush=True)
         normed = loudnorm_audio(wav_path)
         if normed:
             wav_path = Path(normed)
+        else:
+            print('DUB_WARNING normalization_unavailable',flush=True)
     print(f"Dublaj WAV: {wav_path}", flush=True)
     if sync:
         wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
