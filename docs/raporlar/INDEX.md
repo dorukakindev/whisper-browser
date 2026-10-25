@@ -1,3 +1,4 @@
+- [Rapor 596](BROWSER_BUG_REPORT_596.md) — Claude ara-v3: 777 dosya sonucunun ham günlüklerle ayrıştırılması
 - [Rapor 595](BROWSER_BUG_REPORT_595.md) — Dar ayarlar, EPUB ve sesli kitap dinleme ekranlarında gereksiz kalıcı bölümler sadeleştirildi
 - [Rapor 594](BROWSER_BUG_REPORT_594.md) — Devam kartı gezinmesi, sade Keşfet ve yeniden düzenlenen PDF okuyucu
 - [Rapor 593](BROWSER_BUG_REPORT_593.md) — Claude nihai denetiminin bağımsız teyidi; anahtar devri, anlam ve SRT/sayı sorunları
