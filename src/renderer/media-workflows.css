@@ -671,3 +671,23 @@ dialog.mw-dialog::backdrop {
   .mw-transport { position: static; }
   .mw-review { max-height: none; overflow: visible; }
 }
+
+/* Listening uses the book as its title and keeps editing/season tools out of the way. */
+.mw-dialog:has(.mw-reading)>header { padding-block:16px 12px; }
+.mw-dialog:has(.mw-reading)>header h1 { font-size:20px;overflow-wrap:anywhere; }
+.mw-dialog:has(.mw-reading)>header .mw-muted,
+.mw-dialog:has(.mw-reading)>nav { display:none; }
+.mw-status:empty { display:none; }
+.mw-reading-head { gap:10px; }
+.mw-reading-head>h2 { font-size:16px;min-width:80px; }
+.mw-reader-tools { position:relative;flex:0 0 auto; }
+.mw-reader-tools>summary { cursor:pointer;list-style:none; }
+.mw-reader-tools>summary::-webkit-details-marker { display:none; }
+.mw-reader-tools-panel { position:absolute;z-index:8;right:0;top:calc(100% + 10px);width:min(390px,calc(100vw - 80px));max-height:55vh;overflow:auto;overscroll-behavior:contain;padding:18px;background:var(--bg-1);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 36px #0004; }
+.mw-reader-tools-panel .mw-bookmarks { margin:12px 0 0;padding:12px 0 0;border-bottom:0; }
+.mw-reader-tools-panel .mw-actions { display:grid;gap:8px; }
+.mw-reader-tools-panel .mw-bookmarks select { min-width:0;width:100%; }
+.mw-reader-tools-panel input[type=range] { width:100%;accent-color:var(--accent); }
+.mw-reader-tools-panel button { text-align:left; }
+.mw-reader-tools>summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+@media(max-width:760px){.mw-reading-head{gap:8px}.mw-reading-head>.book-assistant-compact{margin-left:auto}.mw-reader-tools-panel{width:min(350px,calc(100vw - 80px))}}

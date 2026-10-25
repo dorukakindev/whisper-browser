@@ -120,7 +120,7 @@ app
       await run(
         "const root=document.querySelector(" +
           JSON.stringify(selector) +
-          ');[...root.querySelectorAll("button")].find(b=>b.textContent.includes(' +
+          ');if(root.tagName==="DETAILS"&&!root.open)root.querySelector("summary").click();[...root.querySelectorAll("button")].find(b=>b.textContent.includes(' +
           JSON.stringify(kind) +
           ")).click();return true",
       );
@@ -337,6 +337,18 @@ app
     assert.equal(epub.context.id, book.id + ":1");
     assert(epub.context.chapterText.trim());
     await finish();
+
+    assert(await run('return !document.querySelector(".ms-reader>.book-assistant-actions") && !document.querySelector(".ms-reader .book-assistant-compact").open'));
+    await run('document.querySelector(".ms-reader .book-assistant-compact>summary").click();return true');
+    assert(await run('return document.querySelector(".ms-reader .book-assistant-compact").open'));
+    await capture(win.webContents, "epub-assistant-menu-tr.png");
+    win.setMinimumSize(640,600);win.setContentSize(800,800);
+    await capture(win.webContents,"epub-assistant-narrow-tr.png");
+    assert(await run('const b=document.querySelector(".ms-reader .book-assistant-panel").getBoundingClientRect();return b.left>=0 && b.right<=innerWidth && b.bottom<=innerHeight'));
+    win.setContentSize(1440,1000);
+
+    await run('document.querySelector(".ms-reader .book-assistant-compact").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
+    assert(await run('return !!document.querySelector(".ms-reader[open]") && !document.querySelector(".ms-reader .book-assistant-compact").open'));
     await capture(win.webContents, "epub-chapter-actions-tr.png");
     fs.writeFileSync(
       path.join(out, "result.json"),

@@ -147,6 +147,8 @@
     void closeReader();
     const body = dialog.querySelector(".mw-body");
     body.replaceChildren();
+    const title = dialog.querySelector('header h1');
+    if (title) title.textContent = t('Production workspace', 'Üretim çalışma alanı');
     return body;
   }
   function saveSelection() {
@@ -885,7 +887,7 @@
           chapter === contextChapter,
       });
     stopBookAssistant = window.BookAssistantUI?.mount(edit, {
-      t,
+      t, compact: true,
       isBusy: () => busy,
       isCurrent: () =>
         textarea.isConnected &&
@@ -1520,10 +1522,14 @@
       t("Reading font size", "Okuma yazı boyutu"),
     );
     font.oninput = () => (prose.style.fontSize = font.value + "px");
-    head.append(followButton, font);
+    const tools = el('details', 'mw-reader-tools'), toolPanel = el('div', 'mw-reader-tools-panel');
+    const fontLabel = el('label', 'mw-setting', t('Reading font size', 'Okuma yazı boyutu')); fontLabel.append(font);
+    toolPanel.append(fontLabel); tools.append(el('summary', 'mh-action', t('Reading tools', 'Okuma araçları')), toolPanel);
+    head.append(followButton, tools);
     body.append(head, audio);
-    stopBookAssistant = window.BookAssistantUI?.mount(body, {
-      t,
+    const title = dialog.querySelector('header h1'); if (title) title.textContent = project.title || t('Audiobook', 'Sesli kitap');
+    stopBookAssistant = window.BookAssistantUI?.mount(head, {
+      t, compact: true,
       isBusy: () => busy,
       isCurrent: () =>
         generation === readerGeneration &&
@@ -1543,7 +1549,7 @@
         };
       },
     });
-    window.BookBookmarksUI?.mount(body, {
+    window.BookBookmarksUI?.mount(toolPanel, {
       id: projectId,
       chapter: current,
       audio,
@@ -2224,6 +2230,9 @@
     const signal = el("p", "mw-status");
     signal.setAttribute("role", "status");
     d.append(header, nav, signal, el("main", "mw-body"));
+    d.addEventListener('toggle', event => { const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open&&opened.matches('.mw-reader-tools,.book-assistant-compact'))for(const menu of d.querySelectorAll('.mw-reader-tools[open],.book-assistant-compact[open]'))if(menu!==opened)menu.open=false; },true);
+    d.addEventListener('pointerdown',event=>{for(const menu of d.querySelectorAll('.mw-reader-tools[open],.book-assistant-compact[open]'))if(!menu.contains(event.target))menu.open=false;});
+    d.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=d.querySelector('.mw-reader-tools[open],.book-assistant-compact[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();}},true);
     d.onclose = () => {
       stopBookAssistant?.();
       stopBookAssistant = null;

@@ -48,7 +48,11 @@ app.whenReady().then(async()=>{
  await run("document.querySelector('[data-app-settings=general]').click();return true");assert(await run("return !!document.querySelector('#appSettingsDialog #uiTheme') && !!document.querySelector('#appSettingsDialog #uiLocale')"));
  await run("document.getElementById('uiLocale').value='en';document.getElementById('uiLocale').dispatchEvent(new Event('change',{bubbles:true}));document.getElementById('uiTheme').value='light';document.getElementById('uiTheme').dispatchEvent(new Event('change',{bubbles:true}));return true");
  await until(()=>run("return document.documentElement.dataset.theme==='light' && document.querySelector('#appSettingsDialog h1').textContent==='Settings'"),'live appearance controls');
- win.setMinimumSize(0,0);win.setContentSize(720,680);await wait(150);await run("document.querySelector('[data-app-settings=ai]').click();return true");await capture('settings-ai-light-en-compact');
+ win.setMinimumSize(0,0);win.setContentSize(720,680);await wait(150);await run("document.querySelector('[data-app-settings=ai]').click();return true");assert(await run('const nav=document.querySelector(".aps-nav");return nav.scrollWidth<=nav.clientWidth+1 && getComputedStyle(document.getElementById("appSettingsSection")).display!=="none"'));
+ await run('const n=document.getElementById("appSettingsSection");n.value="general";n.dispatchEvent(new Event("change"));return true');
+ assert(await run('return !!document.querySelector("#appSettingsDialog #uiTheme") && document.activeElement.id==="appSettingsSection"'));
+ await run('const n=document.getElementById("appSettingsSection");n.value="ai";n.dispatchEvent(new Event("change"));return true');
+ await capture('settings-ai-light-en-compact');
  await run("document.getElementById('appRemoveKey').click();document.querySelectorAll('.aps-key-review button')[1].click();return true");
  await until(()=>run("return document.getElementById('translateApiKey').value===''"),'key removed');
  await until(()=>run("return (async()=>{const settings=await window.api.loadSettings();return !settings.translate.apiKey;})()"),'removed key saved');

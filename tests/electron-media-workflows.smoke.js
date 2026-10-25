@@ -203,6 +203,13 @@ app
         'return !!document.querySelector(".mw-spoken[aria-current=true]")',
       ),
     );
+
+    assert(await run('return getComputedStyle(document.querySelector(".mw-dialog>nav")).display==="none" && !document.querySelector(".mw-body>.book-assistant-actions") && !document.querySelector(".mw-body>.mw-bookmarks")'));
+    await run('document.querySelector(".mw-reader-tools>summary").click();return true');
+    assert(await run('return document.querySelector(".mw-reader-tools").open && !!document.querySelector(".mw-reader-tools .mw-bookmarks select")'));
+    await capture("reading-tools-tr.png");
+    await run('document.querySelector(".mw-reader-tools").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
+    assert(await run('return document.getElementById("mediaWorkflowsDialog").open && !document.querySelector(".mw-reader-tools").open'));
     await capture("reader-tr-dark.png");
     win.setContentSize(800, 800);
     await wait(200);
@@ -211,6 +218,10 @@ app
       'const d=document.getElementById("mediaWorkflowsDialog");return {scroll:d.scrollWidth,client:d.clientWidth}',
     );
     assert(bounds.scroll <= bounds.client + 3, JSON.stringify(bounds));
+    await run('document.querySelector(".mw-reading-head button").click();return true');
+    await until(()=>run('return !!document.querySelector(".mw-editor textarea")'),'back to editor after compact reading');
+    assert(await run('return getComputedStyle(document.querySelector(".mw-dialog>nav")).display!=="none" && document.querySelector(".mw-dialog>header h1").textContent.includes("Üretim")'));
+
     await run(
       'document.getElementById("mediaWorkflowsDialog").close();UiLocale.set("en",false);applyUiTheme("light");MediaWorkflowsUI.open("resources");return true',
     );
