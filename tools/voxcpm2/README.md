@@ -349,3 +349,33 @@ Her sürüm kendi zaman haritasıyla oynar. Dosyalar yalnız yerelde kalır; ses
 videoyu ve raporu Git'e koymayın. Model/ücretli API çalıştırmaz. Bu kontroller duygu,
 doğallık veya insan kulağıyla kalite tercihi değildir. Kaynak ses kapalıdır;
 konuşmacı sesini koruyan müzik karışımı bu araçta yapılmaz.
+
+### Gerçek telaffuz ve yoğun konuşma kabulü
+
+`accept_voice_scenarios.py` varsayılan olarak yalnız GPU uygunluğunu bildirir.
+`--run` ile mevcut `--engine`, `--reference`, `--transcript`, `--verify-python`,
+`--srt`, `--pronunciations` ve yeni `--output` klasörü gerekir. Üç dakikaya kadar
+yerel sahnede sözlüğün en az bir ifadeyi gerçekten değiştirmesi zorunludur.
+`--density 2` ikinci denemede zaman aralıklarını yarıya indirir, sözcükleri
+korur; motor video-yavaşlatma haritasıyla konuşmayı tam tutar.15adım/CFG1,65/
+temperature0,8/seed42/parallel2 kullanılır; uygulama varsayılanları değişmez.
+Model/özel referans indirilmez veya kopyalanmaz. Özel log/ses/cache yalnız yeni
+çıktı klasöründedir. Son WAV ayrıca CPU ile doğrulanır. Review durumunda exit3,
+GPU meşgulse exit2; WAV oluşması tek başına kabul başarısı değildir.
+
+`measure_background.py --speech bilinen-konusma.wav --music bilinen-muzik.wav
+--separated ayrilan.wav --start 5 --end 15` yalnız bilinen, hizalı test
+katmanlarında konuşma/müzik izdüşüm değişimini ve kalan enerjiyi ölçer. Bu
+değerler tüm müzikler için ayırma kalitesi veya insan dinleme puanı değildir.
+Kaynak gerçek hayatta ayrık bilinmiyorsa bu araçla “kalite skoru” üretilmez.
+
+`node_modules\.bin\electron.cmd tests/electron-real-dub-scene.accept.js --scene=yerel-sonuc-klasoru`
+gerçek dense-video.mp4/dense-scene.wav ve yan dosyalarıyla üretim
+`BrowserDubAudio` denetleyicisinin video hızı, ses senkronu, müzik ducking,
+duraklatma ve hız geri yükleme davranışını ölçer. Gerekli known-music.wav
+kontrollü test katmanıdır; ses dışarı verilmez. Normal `npm test` kapsamına
+dahil değildir; sonuçlar yeni yerel profil/kanıt dosyalarında kalır.
+
+Sözlük ses metnini değiştirdiğinde kalite kartı artık **Üretimde kullanılan
+okunuş** satırını gösterir; kaynak altyazı ayrı kalır. Bu bilgi taşınabilir
+dublaj projesi kaydında da korunur. ASR review işaretleri gizlenmez.

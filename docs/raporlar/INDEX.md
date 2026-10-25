@@ -1,3 +1,4 @@
+- [Rapor 591](BROWSER_BUG_REPORT_591.md) — Gerçek GPU telaffuz, yoğun sahne, ses onarımı ve müzik ayrıştırma kabulü
 - [Rapor 589](BROWSER_BUG_REPORT_589.md) — Rapor587 incelemesi ve kırmızı test köklerinin ayrıştırılması
 - [Rapor 588](BROWSER_BUG_REPORT_588.md) — Aynı sahnede çeviri, telaffuz ve eski/yeni dublaj karşılaştırması
 - [Rapor 590](BROWSER_BUG_REPORT_590.md) — Okuma-yalnız bug taraması ve test triyajı: 7 başarısız test, en önemli dublaj cache bulgusu, yerelleştirme/CSS/determinizm/kapsam kaymaları.

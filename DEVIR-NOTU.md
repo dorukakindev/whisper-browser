@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-2303.md](docs/devir/2026-10-25-2303.md) — Gerçek GPU telaffuz, yoğun sahne, tek grup onarımı ve müzik kabulü
 Güncel çalışma: [docs/devir/2026-10-25-2237.md](docs/devir/2026-10-25-2237.md) — PR492 ana programda; kırmızı test kökleri ve rapor çakışması onarıldı
 Güncel çalışma: [docs/devir/2026-10-25-2232.md](docs/devir/2026-10-25-2232.md) — Rapor587 incelemesi ve ayrıştırılan test/yerelleştirme onarımları
 Güncel çalışma: [docs/devir/2026-10-25-2218.md](docs/devir/2026-10-25-2218.md) — PR491 ana programda; sürekli master birleştirme yetkisi kaydedildi
