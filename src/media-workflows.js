@@ -986,7 +986,13 @@ function registerMediaWorkflows({
             throw Error("Invalid chapter text.");
           if (c.text !== r.text) {
             c.text = r.text;
-            c.status = "pending";
+            c.status =
+              c.output && c.textHash === hash(c.text)
+                ? c.groups?.length &&
+                  c.groups.every((g) => g.status === "ready")
+                  ? "ready"
+                  : "review"
+                : "pending";
           }
           save(d);
           return { ok: true, project: clean(d) };

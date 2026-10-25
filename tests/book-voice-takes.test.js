@@ -181,6 +181,16 @@ test("voice takes persist, preserve review state and refuse stale text, changed 
       .textMatches,
     false,
   );
+  const restored = await call("book-save", {
+    id,
+    chapter: 0,
+    text: "A current chapter.",
+  });
+  assert.equal(
+    restored.project.chapters[0].status,
+    "review",
+    "undoing text edits restores the matching audio's actual review state, not a false pending/ready status",
+  );
   fs.writeFileSync(firstPath, "changed current audio");
   assert.match(
     (await call("book-take-listen", { id, chapter: 0, takeId: first })).error,
