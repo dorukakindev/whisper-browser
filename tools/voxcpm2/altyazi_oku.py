@@ -281,8 +281,16 @@ async def uret(args, cues, paths, prompt_text):
                 original_text = text
                 delivery = getattr(args,'group_delivery',[])
                 delivery = delivery[i] if i < len(delivery) else None
+                raw_scores = {}
                 async def synthesize(chunk, seed):
-                    return await sentez(chunk,seed,delivery)
+                    from dub_utterance import synthesize_utterance
+                    raw, score = await synthesize_utterance(chunk, seed, sr,
+                        lambda part, value: sentez(part, value, delivery),
+                        lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
+                    raw_scores[id(raw)] = score
+                    return raw
+                def assess_generated(raw, chunk):
+                    return max(raw_scores.get(id(raw), 0), assess_chunk(raw, sr, chunk)[0])
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 previous_metric = {}
@@ -301,7 +309,7 @@ async def uret(args, cues, paths, prompt_text):
                     editable_text = text
                     text = spoken_text(text)
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
-                        lambda raw: assess_chunk(raw, sr, text)[0], seed,
+                        lambda raw: assess_generated(raw, text), seed,
                         args.retry, args.request_timeout)
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
@@ -321,7 +329,7 @@ async def uret(args, cues, paths, prompt_text):
                         if proposed != text:
                             try:
                                 candidate, extra = await quality_retry(lambda n: synthesize(proposed, n),
-                                    lambda raw: assess_chunk(raw, sr, proposed)[0], seed + 17,
+                                    lambda raw: assess_generated(raw, proposed), seed + 17,
                                     1, args.request_timeout)
                                 candidate, candidate_finishing = finish_generated(candidate)
                                 metric['attempts'] += extra['attempts']
@@ -342,8 +350,10 @@ async def uret(args, cues, paths, prompt_text):
                             # from an uncertain automatic transcript.
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate, candidate_finishing = finish_generated(await bounded_call(synthesize(text, seed + 200003), args.request_timeout))
-                                if len(candidate) and assess_chunk(candidate, sr, text)[0] <= metric['quality_score']:
+                                candidate_raw = await bounded_call(synthesize(text, seed + 200003), args.request_timeout)
+                                candidate_score = assess_generated(candidate_raw, text)
+                                candidate, candidate_finishing = finish_generated(candidate_raw)
+                                if len(candidate) and candidate_score <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verifier.check(second, text, numeric_reference=editable_text)
                                     # The shared verifier owns all semantic gates.
@@ -714,8 +724,13 @@ def main(argv=None, runtime=None):
     settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression, SPOKEN_TEXT_VERSION)
-    # Run reports are separate from independently addressed speech pieces.
-    run_hash = hashlib.sha256(repr((settings,args.group_delivery)).encode("utf-8")).hexdigest()[:16]
+    from dub_utterance import utterance_blocks, MAX_CHARS, VERSION as UTTERANCE_VERSION
+    bounded_groups = [len(utterance_blocks(text)) > 1
+                      or (args.natural_speech and len(text) > MAX_CHARS / 1.25)
+                      for _, _, text in cues]
+    # Keep old reports as well as old speech when the long-cue method changes.
+    run_identity = (settings, args.group_delivery) + ((UTTERANCE_VERSION,) if any(bounded_groups) else ())
+    run_hash = hashlib.sha256(repr(run_identity).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
     parts_dir.mkdir(parents=True, exist_ok=True)
     args.report_dir = parts_dir
@@ -723,10 +738,11 @@ def main(argv=None, runtime=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     def group_settings(i):
         delivery=args.group_delivery[i]
+        identity = settings + (UTTERANCE_VERSION,) if bounded_groups[i] else settings
         if args.prosody_plan:
-            return settings + (DELIVERY_VERSION,'reference-only-preserve-dynamics-v1',
+            return identity + (DELIVERY_VERSION,'reference-only-preserve-dynamics-v1',
                                repr(sorted(delivery.items())) if delivery else 'no-extra-guidance')
-        return settings
+        return identity
     paths = [cache_dir / (chunk_key(group_settings(i), text, seed) + '.wav')
              for i,((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     if args.auto_fit or args.natural_speech:

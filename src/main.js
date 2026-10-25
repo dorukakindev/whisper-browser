@@ -18153,7 +18153,7 @@ const dubService = require('./dub-service').registerDubService({
   },
   editorIdentity: () => {
     const c = browserTranslationConfig();
-    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v3-full-meaning'])).digest('hex');
+    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v4-delivery-contract'])).digest('hex');
   },
   shorten: async (text, seconds, context = {}) => {
     const config = browserTranslationConfig();

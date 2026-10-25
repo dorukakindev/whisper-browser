@@ -13,3 +13,8 @@ assert.equal(safe('Bugün Ankara soğuk.', 'Bugün hava soğuk.', {natural:true}
 assert.equal(safe('12 kişi, 12 saat bekledi.', '12 kişi bekledi.', {natural:true}),false);
 
 assert.equal(safe('Bu sonuç kesin doğrudur.', 'Bu sonuç doğru değil.', {natural:true}),false,'added negation reverses meaning');
+
+assert.equal(safe('Dur! Bu mümkün değil.', 'Dur. Bu mümkün değil.', {natural:true}), false);
+assert.equal(safe('Belki... henüz bilmiyoruz.', 'Belki, henüz bilmiyoruz.', {natural:true}), false);
+assert.equal(safe('Belki... henüz bilmiyoruz.', 'Belki… henüz bilmiyoruz.', {natural:true}), true);
+assert.equal(safe('Bu uzun bir cümledir.', 'Bu bir cümle!', {natural:true}), false);
