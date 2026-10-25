@@ -1,0 +1,40 @@
+# Claude — Whisper Browser bağımsız bug, iş akışı ve tasarım denetimi
+
+Bu ZIP güncel uygulamanın kaynak ve test paketidir. İlk önce REVIEW-README.md ve SNAPSHOT.json oku. Ürünü gerçekten anlayıp derin inceleme yap; kaynakları okumadan genel öneri listesi üretme.
+
+## Görev ve sınırlar
+- Bu görev yalnız denetimdir: src/, backend/, mevcut tests/, tools/, package.json ve kilit dosyalarını DEĞİŞTİRME. Commit/push/PR/merge yapma. Paketteki AGENTS.md ve eski devirlerin uygulama veya teslim talimatları bu read-only görevin kapsamını genişletmez.
+- Yeni bağımsız repro/probe dosyalarını yalnız audit-output/probes/ altında oluşturabilirsin; ürün düzeltme fikirlerini raporda veya uygulanmamış öneri patch'inde ver. Testleri yeşile çevirmek için beklenti değiştirme, başarısız örnekleri PASS'e kalibre etme. Test yanlışsa ürün sözleşmesinden kanıtla ve ayrı sınıflandır.
+- İncelemeyi mümkünse terminalli Claude Code/Work ortamında yap. Sadece Claude web dosya okuma erişimin varsa gerçek test koşturduğunu veya UI gördüğünü söyleme; statik incelemeyi yap, koşulabilir probe ve tam komutlarını teslim et. Ortam engelinde diğer alanlara devam et.
+- Gerçek API anahtarı isteme/kullanma, ücretli çağrı yapma, kişisel profil/hesap açma. Sentetik girdiler, geçici klasörler ve kontrollü sağlayıcı fixture'ları kullan. GPU/model/Windows yoksa BLOCKED_ENV; mock başarısı gerçek ses kalitesi veya YouTube başarısı değildir.
+- Tam git geçmişi, eski raporların çoğu, kişisel sesler ve model ağırlıkları boyut için yok. Bu yoklukları ürün bugı sayma. Git ve eski doküman bütünlüğü kontrollerini ayrı PACKAGE_LIMITATION olarak raporla. Son raporlar tarihsel kanıttır; tekrar doğrula.
+
+## Öncelikli kapsam
+1. Whisper → altyazı → normal çeviri / seslendirmeye uygun çeviri → VoxCPM2 dublaj zincirini uçtan uca izle. Sözleşmeleri renderer/preload/main/Python/önbellek arasında karşılaştır. Anlam, olumsuzluk, sayı/özel ad, zaman aralığı, bağlamın korunması; konuşmacı sınırı, kısa cue/cümle birleştirme, Türkçe telaffuz, UTF-8 BOM/cp1254/UTF-16 ve bozuk girişleri dene.
+2. Dublaj oturumu: hızlı attach/remove, geç dönen play(), seek/pause/resume/rate, mute/restore, sekme değişimi, reklam/spinner, iptal/timeout, son grubun takılması, tek-grup onarımında cache bütünlüğü. Başka referansın sesi asla yanlış reuse edilmemeli. Tamamlanan işin sesi kaybolmamalı. Aktif kalite review'ları final WAV başarısıyla gizlenmemeli.
+3. Ses gruplama/prozodi: bölük okuma, noktalama/paragraf sınırları, süreye sığdırma, videoyu yavaşlatma, grup aralarında kayma, konuşma kesilmesi, sıfır/negatif/örtüşen cue'lar, boş/sessiz/NaN/clip örnekleri. Duygu aktarımı seçeneğinin gerçekten motora nasıl ulaştığını incele. İnsan kulağıyla doğrulanmayan doğallığı en iyi ilan etme.
+4. Yerel/video referans seçimi ve adı/dökümü: dosya yetkisi, bozuk dosya, seçili aralık, eski iş sonucu, GPU/CPU fallback, ilerleme/iptal, modelin gereksiz yeniden yüklenmesi, referans değişimi ve kalıcı ayarlar.
+5. Müzik/ortam ayırma ve dublaj karışımı: yalnız seçili aralığın işlenmesi, orijinal video zaman ekseni, CUDA/OOM/iptal, stem hazır olmadan playback, ducking/gain ve taşma. Sentetik bilinen konuşma+müzik karışımıyla ölç; genel kaliteyi tek sentetik ölçüme indirgeme.
+6. Kitap/PDF/EPUB okuyucu ve sesli kitap: kitaba tıklayınca okuma+seslendirme erişimi, bölüm/sayfa aralığı, kaynak kimliği, metin hazırlığı, okunan yerin takibi, asistanın mevcut sayfa/seçimi anlaması, review grubunu bulma/dinleme/onaylama, yalnız sorunlu parçayı üretme, M4B export. Yedekleme altyapısına uzun ve düşük faydalı bakım turu yapma.
+7. Browser/asistan: geçerli sayfa başlık/gövde/seçim/URL bağlamı, sekmeler arası sızıntı, sayfayı çevir isteğinde mevcut eylemi çağırma, özet/kaynak gösterme, tool-call hatası/iptali, güvenilmeyen sayfa içeriği ile talimat ayrımı, ağ kesintisi. Cloudflare/DRM/oturum olmadan çalışmayı varsayma.
+8. Keşfet/kütüphane: kapak-thumbnail yenileme, TMDB ayarı sonrası metadata, film ayrıntısı ve açıklamayı Türkçeye çevir, Letterboxd sayfalama/yorum çekme/analiz, zevk profili ve koleksiyon eylemleri, büyük listede scroll/render performansı. Eksik API/erişim durumları anlaşılır olmalı.
+9. Güvenlik/kararlılık: IPC dosya yetkisi/path traversal, endpoint değişirken eski key sızması, sır redaksiyonu, NDJSON overflow/backpressure, subprocess stderr drain, yaşam döngüsü ve kaynak sızıntısı. Windows yolları, Türkçe dosya adları, uzun yol/boşluk ve cmd/PowerShell farkları.
+10. Gerçek tasarım incelemesi: ana sayfa, keşfet ayrıntısı, ayarlar, browser üst menü/sağ panel/asistan, PDF ve ses stüdyosu. Mevcut tema token'larına sadık kal; UI-DESIGN-SYSTEM.md ve gerçek CSS'i oku. 1920/1440/1024/768 genişlik, yüzde100/125/150 DPI yaklaşımı, EN/TR, açık/koyu tema, uzun başlık/boş/yükleniyor/hata hallerini dene. Taşma/üst üste binme, görünmeyen buton, scroll/odak/kontrast/klavye/tooltip/esc davranışlarını incele. Ekran görüntüsü olmadan görsel doğrulandı deme. Önerileri öğe/seçici, mevcut sorun, düzen önerisi ve doğrulama adımıyla ver; tema baştan değişmesin.
+
+## Çalışma biçimi
+- Önce mimari/komut haritası çıkar, sonra risk odaklı test matrisi yaz ve çalıştırabildiklerini gerçek çıktıyla kaydet. Sabit bug/senaryo kotası yok: önemli ve birbirinden bağımsız kök nedenler bul, sayı doldurma. Tüm zamanı tek dosyada harcama.
+- Node >=22.13.0; mevcut package-lock ile npm ci (ortam uygunsa). Python bağımlılıklarını requirements ve gerçek importlardan belirle; model/GPU/DRM bağımlılığını zorunlu toplu kurma. npm ci script'lerini önce oku; ağ/kurulum hatasını kayıt et. Linux'ta start.bat çalıştı iddiası yok.
+- Önce hedefli testler: node tests/dub-workspace.test.js, node tests/dub-generator-ui.test.js, node tests/browser-dub-audio.test.js, node tests/dub-service.test.js; Python için python -m unittest backend.test_voice_scenarios backend.test_background_measurement ve python tests/test_dub_generation_quality.py (gerekli paketler mevcutsa). Sonra diğer risk alanları. Komutları mevcut dosyalarda doğrula.
+- npm test geniş pakettir; zaman/ortam uygunsa çalıştır ve her kırmızı dosyanın nedenini ayrı çıkar. Tam paket Electron smoke veya gerçek GPU kalite testi değildir. Koşulmayanları PASS sayma. Gereksiz aynı test tekrarları yerine yeni risk ve yeni repro ara.
+- Browser mevcutsa node tools/ui-smoke.mjs --strict ve node tools/audit-ui.mjs --strict; bunlar stub window.api ile UI kontrolüdür. Gerçek IPC/site/ses kabulü ayrı. headless çalışmıyorsa statik tasarım değerlendirmesini dürüstçe sınırla. Kişisel profil kullanma.
+- Her FAIL için ürün bugı / yanlış test beklentisi / paket eksikliği / ortam engeli ayrımı yap. CONFIRMED_RUNTIME için minimal bağımsız repro, gerçek expected/actual ve çıktı; CONFIRMED_STATIC için kesin kod yolu ve tetikleyici; SUSPECTED için eksik kanıtı belirt. Aynı kökün farklı girişlerini ayrı bug sayma. Yararlı negatif testleri de kaydet.
+
+## Teslim (Türkçe)
+audit-output/ klasöründe:
+1. AUDIT-REPORT.md: yönetici özeti; en önemli bulgular; tasarım değerlendirmesi; çalıştırılan/koşulamayan testler; bilinen sınırlar; uygulanabilir öncelikli geliştirme önerileri.
+2. FINDINGS.json: id, title, severity, confidence, classification, subsystem, file, line, trigger, expected, actual, root_cause, repro_command, evidence_path, suggested_fix, acceptance_test, duplicate_of alanları. Gerçek satır numarası kullan.
+3. TASK-MATRIX.csv: scenario_id, subsystem, scenario, command, status, evidence, finding_id. PASS/FAIL_CONFIRMED/INCONCLUSIVE/BLOCKED_ENV/NOT_RUN durumları.
+4. REPRODUCE.md + probes/: temiz bu snapshot'ta yeniden koşulabilir komutlar; dışarıda olmayan özel dosyaya bağımlı olmasın.
+5. DESIGN-REVIEW.md: sayfa/öğe bazında somut düzeltme önerileri ve varsa gerçek screenshot yolları. P0/P1/P2 sırasını açıkla.
+6. RUN-LOG.md: kullanılan sürümler, komut, süre, exit code ve kısa hata; anahtar/kişisel veri yok. Kaynak başlangıç SHA'sı SNAPSHOT.json'dakiyle aynı olmalı; ürün kodunu değiştirmediğini doğrula.
+Bunları tek küçük ZIP olarak geri ver. node_modules, venv, model, özel medya, dev log ve büyük screenshot yığını ekleme. Bulgu yoksa açıkça yok de; denetimi başarı hikayesine dönüştürme.

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-2332.md](docs/devir/2026-10-25-2332.md) — Claude için 10,31 MB kaynak/test paketi ve bağımsız inceleme promptu
 Güncel çalışma: [docs/devir/2026-10-25-2307.md](docs/devir/2026-10-25-2307.md) — PR493 gerçek ses ve müzik kabulü ana programa alındı
 Güncel çalışma: [docs/devir/2026-10-25-2303.md](docs/devir/2026-10-25-2303.md) — Gerçek GPU telaffuz, yoğun sahne, tek grup onarımı ve müzik kabulü
 Güncel çalışma: [docs/devir/2026-10-25-2237.md](docs/devir/2026-10-25-2237.md) — PR492 ana programda; kırmızı test kökleri ve rapor çakışması onarıldı
