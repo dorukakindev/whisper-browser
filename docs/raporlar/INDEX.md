@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_556.md](BROWSER_BUG_REPORT_556.md) — Gerçek ENOENT iş olayları ve sıcak motor sahipliği.
+
 - [BROWSER_BUG_REPORT_555.md](BROWSER_BUG_REPORT_555.md) — Thank You/THANK YOU replikleri özel ad istisnasıyla çeviriyi atlamaz.
 
 - [BROWSER_BUG_REPORT_554.md](BROWSER_BUG_REPORT_554.md) — Yeni video kendi mute/hız ayarını korur.

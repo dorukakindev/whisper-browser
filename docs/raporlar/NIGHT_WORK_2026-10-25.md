@@ -104,3 +104,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 06:58 — Rapor554/kod929df08481bee5593cde434613a5c4302a2aadcc: browser dublaj replacement yeni videoya önceki mute/hız ayarını sızdırmaz.4hedefdosya8PASS; gerçekYouTube denenmedi. Sıradaki doğrudan kullanım: konuşma çevirisi anlam/akıcılık ve son parça timeout. Yedek bakım yok.
 
 07:01 — Rapor555/koda076b1ab9b5f8047715caa2c5da2204282fa0ce4: büyük harfli kısa repliklerin kaynak-yankısı/otomatik koruma kaçağı kapandı;18speech+5anlam+3sayı ve2eskihedefPASS, canlıAPI yok. Sonraki: sıcak motor sahipliği ve son-parça bekleme; yedek/kurtarma bakımına dönme.
+
+07:04 — Rapor556/kod36183c627a5a568865df467c0489fc118d98e534. Gerçek missingPython ENOENT kontrolsüz hata yerine aboneye işhatası/kapanış; eskihost/işkill/idle ve senkronpipe yolları korundu.4hedefdosya9PASS. Sonparça şikâyetinin tamamı çözüldü denmez; sıradaki repo altyazi_oku adaptöründe verification/shutdown timeout akışı. Bakım/yedek yok;11:55 soncheckpointten devam.
