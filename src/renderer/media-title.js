@@ -57,6 +57,7 @@
     if(item.source||next){const first=button(next?t('Play next episode','Sıradaki bölümü oynat'):item.progress?.position&&!item.progress.completed?t('Continue watching','İzlemeye devam et'):t('Play film','Filmi oynat'),()=>play(next?.id),true);first.dataset.titleAction='play';actions.append(first,button(t('Watch in Turkish','Türkçe izleme hazırlığı'),()=>play(next?.id,true)));}
     else actions.append(button(t('Choose video file','Video dosyası seç'),async()=>{const r=await request('source-file',{});if(!r.canceled)await reload();},true));
     const favorite=button(item.favorite?t('Saved to favorites','Favorilere eklendi'):t('Add to favorites','Favorilere ekle'),async()=>{await request('save',{item:{id:selected,favorite:!item.favorite}});await reload();document.dispatchEvent(new Event('media-library-changed'));});favorite.setAttribute('aria-pressed',String(item.favorite));favorite.dataset.titleAction='favorite';actions.append(favorite);
+    window.TitleGalleryUI?.mount(actions,item);
     copy.append(actions);content.append(copy);hero.append(content);dialog.append(hero);
     const status=el('p','mtd-status');status.setAttribute('role','status');dialog.append(status);
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');

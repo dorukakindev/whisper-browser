@@ -334,7 +334,10 @@
     const searchWrap = el('label', 'mh-search'), search = el('input'); search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
     let searchTimer;
-    search.addEventListener('input', () => { state.query = search.value; state.limit = 48; clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); }); searchWrap.append(search); nav.append(searchWrap);
+    search.addEventListener('input', () => { state.query = search.value; state.limit = 48; clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); });
+    search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void window.MediaSearchUI.open(search.value);}});
+    const searchAll=button('',()=>window.MediaSearchUI.open(search.value),'mh-search-all');searchAll.setAttribute('aria-label',t('Search all media sources','Tüm medya kaynaklarında ara'));searchAll.title=t('Search all sources · Enter','Tüm kaynaklarda ara · Enter');
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0');svg.append(path);searchAll.append(svg);searchWrap.append(search,searchAll);nav.append(searchWrap);
     const content = el('main', 'mh-content'); content.id = 'mhContent';
     header.append(brand, modes, nav, actions); const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();

@@ -70,6 +70,14 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
     const value=await request(route,token,params,signal);if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time:Date.now(),value});return structuredClone(value);
   }
   return {
+    async images(item,token,signal){
+      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/images`,token,{include_image_language:'null,en,tr'},signal),seen=new Set(),rows=[];
+      for(const [type,source]of [['backdrop',data.backdrops],['poster',data.posters]])for(const image of (Array.isArray(source)?source:[]).slice(0,type==='backdrop'?80:20)){
+        if(!/^\/[a-zA-Z0-9._-]+$/.test(image.file_path||'')||seen.has(image.file_path))continue;
+        seen.add(image.file_path);rows.push({type,url:'https://image.tmdb.org/t/p/w1280'+image.file_path,thumbnail:'https://image.tmdb.org/t/p/w185'+image.file_path});
+      }
+      return {rows,attribution:'TMDB'};
+    },
     async watchProviders(item,token,region='TR',signal){
       if(!/^[A-Z]{2}$/.test(region))throw new Error('İzleme ülkesi geçersiz.');
       const {kind,id}=identity(item),data=await cached(`${kind}/${id}/watch/providers`,token,{},signal),country=data.results?.[region];
