@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0746.md](docs/devir/2026-10-25-0746.md) — Kitap asistanında seçili pasaj ve yakın metin bağlamı
 Güncel çalışma: [docs/devir/2026-10-25-0742.md](docs/devir/2026-10-25-0742.md) — PDF vurgusunda sayı anlamı ve görünür kutu doğruluğu
 Güncel çalışma: [docs/devir/2026-10-25-0737.md](docs/devir/2026-10-25-0737.md) — M4B çıktısını kitap rafından dinleme
 Güncel çalışma: [docs/devir/2026-10-25-0731.md](docs/devir/2026-10-25-0731.md) — Düzenlenmiş kitap metninde doğru grup yenilemesi

@@ -1,0 +1,9 @@
+# 564 — Kitapta seçili pasaj bağlamı
+
+Kitap üretim editörü, takipli okuyucu ve EPUB/TXT raf okuyucusu artık kendi metin alanındaki seçimi asistana ayrı `selectedText` alanında verir. Alıntı4000 karakterle, çevre metni8000 karakterle sınırlıdır. Uzun bir bölümün ilerisinde seçim yapıldığında excerpt başlangıcı seçime yaklaştırılır; yalnız ilk8000 karaktere takılmaz. Kaynak açıklaması EN/TR **Seçili pasaj** der. Sayfa/bölüm değişiminde eski seçim temizlenir; başka panelin seçimi alınmaz.
+
+`AssistantSourceContext.scope` seçili metin imzasını da içerir. Önceden aynı excerpt içindeki farklı bir seçim, bekleyen yanıtın kaynağını değiştirmiyordu; bu hem yeni kitap seçimine hem mevcut PDF reader selectedText alanına uygulanır. Aynı bölümün conversation kimliği korunur. Alıntının kendisi scope anahtarına yazılmaz, yalnız hash/uzunluk gider. Sağlanan metin zaten güvenilmeyen içerik notuyla sunulur; kitap metnindeki talimatlar uygulama komutu kabul edilmez.
+
+Doğrulama:4 hedef dosyada12 sonuç geçti; >8000 konum, Unicode ofset,4000 alıntı/8000 excerpt sınırı, başka element/kapalı owner, scope ve sohbet geçmişi. NativeWindows `.uiprev/book-reliability549-1792903588444` exit0: gerçek DOM Range ile okuyucuda pasaj seçildi, gerçek `aiChatContext()` içindeki alıntı/bölüm/excerpt doğrulandı, sonraki sayfada selectedText boştu. PDF seçili metin görüntüsü incelendi; M4B decode/Review senaryoları da geçti. Canlı modele ücretli istek yapılmadı; yanıt kalitesi veya tüm asistan eylemleri doğrulandı denmez.
+
+Kullanım: editörde veya okuyucuda metni seç; mevcut asistan baloncuğundan seçtiğin pasaj hakkında soru sor. Sadece kaydırma yapıldığında bütün görünür metnin otomatik izlendiği iddia edilmez. Yeni bağımlılık, kalıcı şema veya global selectionchange dinleyicisi yok. Dinleyiciler yalnız bağlı metin elementinde; kapalı/ayrılmış metin context yayımlayamaz.
