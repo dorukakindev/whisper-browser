@@ -74,11 +74,12 @@
   source.append(el('p','mtx-muted',t('Automatic lookup uses the saved TMDB/IMDb film identity, up to four public pages. No AI request is sent until you review the sample.','Otomatik arama kayıtlı TMDB/IMDb film kimliğini ve en fazla dört açık sayfayı kullanır. Örneği incelemeden AI isteği gönderilmez.')));
   if(find.dataset.unavailable!=='true')actions.append(button(t('Open this film in Browser','Bu filmi Browser’da aç'),async()=>{
     const match=/^movie:([1-9]\d*)$/.exec(item.tmdbId||'');const address='https://letterboxd.com/'+(match?'tmdb/'+match[1]:'imdb/'+item.imdbId)+'/';
-    document.getElementById('mediaToolsDialog')?.close();document.querySelector('.md-detail[open]')?.close();window.MediaTitleUI?.close();document.getElementById('openPlayer').click();document.getElementById('browserAddress').value=address;await navigateBrowserFromAddress();
+    document.getElementById('mediaToolsDialog')?.close();document.querySelector('.md-detail[open]')?.close();window.MediaTitleUI?.close();document.querySelector('.mhs-dialog[open]')?.close();document.getElementById('openPlayer').click();document.getElementById('browserAddress').value=address;await navigateBrowserFromAddress();window.MediaToolsUI.reviewBrowserHandoff(item);
   }));
   const manual=el('details','mrv-manual'),manualHeading=el('summary','',t('Manual sources, spoiler options & sample editor','Elle kaynak, spoiler seçenekleri ve örnek düzenleyici')),manualActions=el('div','mtx-actions');manual.append(manualHeading);
   for(const n of [...actions.querySelectorAll('button')]){n.dataset.reviewSourceAction='';if(n!==find&&!n.textContent.includes(t('Open this film in Browser','Bu filmi Browser’da aç')))manualActions.append(n);}
   manual.append(label,manualActions,appendLabel,rawLabel,spoilerLabel);source.append(manual);
+  if(draft.resumeBrowser){delete draft.resumeBrowser;manual.open=true;queueMicrotask(()=>{if(current())void read('reviews-browser');});}
   source.append(el('p','mtx-muted',t('If automatic access is blocked, load the film reviews normally in the app Browser and use the loaded page. Paste/import stays available.','Otomatik erişim engellenirse film yorumlarını uygulamanın Browser bölümünde normal açıp yüklü sayfayı kullan. Yapıştırma ve içe aktarma da kullanılabilir.')));
   url.oninput=()=>draft.url=url.value;raw.oninput=()=>{draft.reviews=raw.value;delete draft.source;renderProvenance();};spoiler.onchange=()=>draft.spoiler=spoiler.checked;
   const sampleInput=()=>JSON.stringify([raw.value,spoiler.checked]);

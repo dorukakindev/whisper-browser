@@ -16,8 +16,8 @@
       else if(kind==='remote')try{const u=new URL(item.poster);if(u.protocol==='https:'&&!u.username&&!u.password&&['images.metahub.space','image.tmdb.org'].includes(u.hostname))art=u.href;}catch{}
       if(art){button.prepend(slot);queueMicrotask(()=>drawArt(slot,art));}else if(kind==='titles'&&item.hasPoster){button.prepend(slot);artQueue.push({slot,id:item.id});queueMicrotask(pumpArt);}
       button.onclick=async()=>{button.disabled=true;try{
-        if(kind==='remote'){const r=await window.api.mediaDiscovery({action:'add',kind:item.kind,id:item.providerId});if(!current())return;if(!r?.ok)throw Error(r?.error||t('Could not add title.','Yapım eklenemedi.'));dialog.close();document.dispatchEvent(new Event('media-library-changed'));await window.MediaTitleUI.open(r.item.id);}
-        else if(kind==='titles'){dialog.close();await window.MediaTitleUI.open(item.id);}
+        if(kind==='remote'){const r=await window.api.mediaDiscovery({action:'add',kind:item.kind,id:item.providerId});if(!current())return;if(!r?.ok)throw Error(r?.error||t('Could not add title.','Yapım eklenemedi.'));document.dispatchEvent(new Event('media-library-changed'));await window.MediaTitleUI.open(r.item.id);}
+        else if(kind==='titles'){await window.MediaTitleUI.open(item.id);}
         else if(kind==='books'){dialog.close();await window.MediaShelfUI.openBook(item.id);}
         else if(kind==='music'){const r=await window.api.mediaShelf({action:'music-play',id:item.id});if(!current())return;if(!r?.ok)throw Error(r?.error||'Audio unavailable');dialog.close();await openLocalMedia(r.path);}
         else{dialog.close();await openWatchLibraryItem(item,Number(item.position)||0);}

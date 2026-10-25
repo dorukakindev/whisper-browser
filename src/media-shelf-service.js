@@ -230,6 +230,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           catalog.upsertMany(catalogPatches);save(data);
           return { ok: true, matched: plan.planned.length, added: plan.added.length, skipped: plan.ambiguous.length };
         }
+        case 'taste-quiz': {const data=load(),quiz=input.quiz===null?null:require('./taste-quiz').validate(input.quiz);data.tasteProfile={...data.tasteProfile,quiz};save(data);return {ok:true,taste:publicState(data).taste};}
         case 'taste-preferences': { const data=load(); data.tasteProfile={...data.tasteProfile,...require('./media-taste').preferences(input.preferences)};save(data);return {ok:true}; }
         case 'taste-analysis': { const data=load(); const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis}; }
         default: throw Error('Unsupported media shelf action.');

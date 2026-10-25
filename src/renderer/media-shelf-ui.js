@@ -225,7 +225,10 @@
       if (/^data:image\/(?:png|jpeg|webp);base64,/i.test(row.cover || '')) { const img = el('img'); img.src = row.cover; img.alt = ''; img.loading = 'lazy'; cover.append(img); } else cover.append(el('span', 'ms-book-placeholder', row.format.toUpperCase()));
       node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase()));
       const shell = el('div'), actions = el('div', 'ms-book-actions'), audioSlot = el('div', 'ms-book-audiobook');
-      actions.append(audioSlot,btn(t('Voice production','Sesli üretim'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);await window.MediaWorkflowsUI.openProject(r.project.id);}),btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button'));
+      audioSlot.append(el('small','ms-status',t('No finished audiobook yet','Henüz hazır sesli kitap yok')));
+      const read=btn(t('Read','Oku'),()=>openBook(row),'mh-action mh-primary');read.dataset.bookAction='read';
+      const narrate=btn(t('Narrate','Seslendir'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);if(!shell.isConnected)return;await window.MediaWorkflowsUI.openProject(r.project.id);},'mh-action');narrate.dataset.bookAction='narrate';
+      actions.append(read,narrate,audioSlot,btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button'));
       shell.append(node, actions); audioSlots.set(row.id, audioSlot); grid.append(shell);
     });
     root.append(grid); if (!rows.length) root.append(el('p', 'mh-empty', t('Add books to keep covers, reading position, bookmarks and quotes together. EPUB opens as a safe text reader; fixed-layout/DRM content is not supported.', 'Kapakları, okuma konumunu, yer imlerini ve alıntıları bir arada tutmak için kitap ekle. EPUB güvenli metin okuyucuda açılır; sabit düzen/DRM içeriği desteklenmez.')));
@@ -249,7 +252,8 @@
         const meta = el('small', 'ms-status', t(`${info.chapters} chapters`, `${info.chapters} bölüm`));
         if (!info.available) meta.textContent += t(' · File moved or changed', ' · Dosya taşınmış veya değişmiş');
         else if (!info.current) meta.textContent += t(' · Earlier text version', ' · Önceki metin sürümü');
-        slot.append(play, meta);
+        if(!slot.querySelector('button'))slot.replaceChildren();
+        play.dataset.bookAction='listen';slot.append(play, meta);
       }
     } catch (error) {
       if (mine === generation) status(error.message, true);

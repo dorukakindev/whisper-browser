@@ -41,7 +41,7 @@
   function draw(version){
     const scroll=dialog.scrollTop;const focused=dialog.contains(document.activeElement)?document.activeElement?.dataset.titleAction:null;
     const form=dialog.querySelector('.mtd-personal');const draft=form?.dataset.titleId===item.id?{status:form.querySelector('select').value,rating:form.querySelector('input').value}:null;
-    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
+    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(document.querySelector('.mhs-dialog[open]')?t('← Back to results','← Sonuçlara dön'):t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
     const edit=button(t('Manage title','Yapımı yönet'),()=>management());header.append(back,edit);dialog.append(header);
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
     if(item.backdrop)image('backdrop',backdrop,version);

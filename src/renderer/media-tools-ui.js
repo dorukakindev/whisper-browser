@@ -61,5 +61,13 @@
     box.append(button(t('Save listening profiles','Dinleme profillerini kaydet'),async()=>{const saved=await request('audio-save',{value:Object.fromEntries(Object.entries(fields).map(([k,f])=>[k,f.input.value]))});await window.MediaListening?.configure(saved.value);status(t('Listening profiles applied. Browser sites keep their existing site profile.','Dinleme profilleri uygulandı. Browser sitelerinde mevcut site profili korunur.'));},true));body.append(box);
   }
   document.addEventListener('ui-locale-change',()=>{if(modal?.open&&page==='decision')void draw();});
-  window.MediaToolsUI=Object.freeze({open});
+  function reviewBrowserHandoff(item){
+    document.getElementById('reviewBrowserReturn')?.remove();
+    const bar=el('aside','mrv-browser-return');bar.id='reviewBrowserReturn';bar.dataset.uiUntranslated='';
+    const copy=el('span','',t('Load the film reviews, then bring the visible sample back.','Film yorumlarını aç; ardından görünür örneği filme getir.'));
+    const use=el('button','mh-action mh-primary',t('Bring reviews to film','Yorumları filme getir')),dismiss=el('button','mh-action','×');use.type=dismiss.type='button';dismiss.setAttribute('aria-label',t('Dismiss review return','Yorum dönüşünü kapat'));dismiss.onclick=()=>{bar.remove();void syncBrowserOcclusion();};
+    use.title=item.title;use.onclick=async()=>{if(use.disabled)return;use.disabled=true;try{const r=await window.api.mediaCatalog({action:'list'});if(!r?.ok)throw Error(r?.error||t('Library unavailable','Kütüphaneye ulaşılamadı'));if(!bar.isConnected)return;const fresh=r.items.find(row=>row.id===item.id);if(!fresh||fresh.tmdbId!==item.tmdbId||fresh.imdbId!==item.imdbId)throw Error(t('Film identity changed. Open its reviews again from the library.','Film kimliği değişmiş. Yorumlarını kütüphaneden yeniden aç.'));draftFor(item.id).resumeBrowser=true;bar.remove();open('decision',fresh);}catch(e){copy.textContent=e.message;}finally{use.disabled=false;void syncBrowserOcclusion();}};
+    bar.append(copy,use,dismiss);document.querySelector('#browserWorkspace .browser-toolbar')?.append(bar);void syncBrowserOcclusion();
+  }
+  window.MediaToolsUI=Object.freeze({open,reviewBrowserHandoff});
 })();

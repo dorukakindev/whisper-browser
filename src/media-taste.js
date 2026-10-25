@@ -36,11 +36,12 @@ function profile(diary, catalog, saved = {}, reviewEntries = []) {
   const mentions=ASPECTS.map(aspect=>({aspect,count:reviews.filter(row=>fold(row.text).match(lexicon[aspect])).length,
     evidence:reviews.filter(row=>fold(row.text).match(lexicon[aspect])).slice(0,6).map(row=>({id:row.id,title:row.title,text:row.text.slice(0,600)}))}));
   const supplied=Object.keys(saved.weights || {}).length>0;
-  return {titles:diary.length,rated:rated.length,average,distribution,genres:ranking('genres'),directors:ranking('directors'),
+  const result={titles:diary.length,rated:rated.length,average,distribution,genres:ranking('genres'),directors:ranking('directors'),
     decades:[...years].sort((a,b)=>b[1]-a[1]),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).slice(-24),
     favorites:[...rated].sort((a,b)=>b.rating-a.rating).slice(0,12).map(row=>({title:row.title,year:row.year,rating:row.rating})),
     metadataMatched:diary.filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
     preferencesConfigured:supplied,preferences:preferences(supplied?saved:{weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))}),analysis:saved.analysis || null };
+  const quiz=require('./taste-quiz');result.quiz=quiz.restore(saved.quiz);result.quizPicks=result.quiz?quiz.recommend(result.quiz,catalog,result):[];return result;
 }
 function validateAnalysis(raw, diary) {
   const reviews=new Map(diary.filter(row=>row.review).map(row=>[reviewId(row),String(row.review)]));
