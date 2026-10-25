@@ -1031,6 +1031,8 @@
     ['Sesli oku', 'Read aloud'],
     ['Bu grubu dinle', 'Listen to this group'],
     ['Hazır sesi bu sayfada dinle', 'Listen to ready audio on this page'],
+    ['Pasaj araçları', 'Passage tools'],
+    ['Ana sayfaya dön', 'Back to home'],
     ['Çeviri ve dışa aktarma', 'Translation & export'],
     ['Başlangıç sayfası', 'First page'],
     ['Bitiş sayfası', 'Last page'],

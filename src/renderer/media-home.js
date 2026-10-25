@@ -5,7 +5,7 @@
   if (!host || !model || !window.api) return; // A failed shell must leave the studio usable.
   const layer = document.getElementById('playerLayer');
   const state = { page: 'home', query: '', filter: 'all', limit: 48, active: true,
-    data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '' };
+    data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '' };
   let virtualDisposers=[];
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
@@ -246,7 +246,7 @@
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error) report(state.error, true);
     else if (!state.loaded) report(t('Loading your library…', 'Kütüphanen yükleniyor…'));
-    if(parked){
+    if(parked && state.page === 'home'){
       const session=el('section','mh-session');session.id='mhOpenSession';
       const text=el('div');text.append(el('small','',t('Open session · paused','Açık oturum · duraklatıldı')),el('strong','',parked.title),el('p','',[
         parked.mode==='browser'?'Browser':t('Player','Oynatıcı'),Number.isFinite(parked.position)?minutes(parked.position):'',parked.subtitle?t('Subtitles ready','Altyazı hazır'):'',parked.voice?t('Voice attached','Dublaj bağlı'):''].filter(Boolean).join(' · ')));
@@ -256,17 +256,41 @@
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));
     if (state.page === 'home' && !state.query) {
-      const featured = continuing.find(item => model.medium(item) === 'video') || items.find(item => item.source) || continuing[0] || items[0];
+      const candidates = continuing.length ? continuing : items.filter(item => item.source);
+      if (!candidates.length && items[0]) candidates.push(items[0]);
+      const keyOf = item => item?.key || item?.id || '';
+      let featuredIndex = candidates.findIndex(item => keyOf(item) === state.featuredKey);
+      if (featuredIndex < 0) featuredIndex = Math.max(0, candidates.findIndex(item => model.medium(item) === 'video'));
       const hero = el('section', 'mh-hero'), copy = el('div', 'mh-hero-copy');
-      if (!featured) hero.classList.add('mh-empty-hero');
-      copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
-        el('h1', '', featured?.title || t('Your media library starts here.', 'Medya kütüphaneni oluştur.')),
-        el('p', '', featured ? (featured.synopsis || (model.progress(featured).position ? t(`Continue from ${minutes(model.progress(featured).position)}. Subtitles and voice tools are ready in the player.`, `${minutes(model.progress(featured).position)} konumundan devam et. Altyazı ve ses araçların oynatıcıda hazır.`) : t('Open this title from your library.', 'Kütüphanendeki bu yapımı aç.'))) : t('Your films, series and listening, together. Add your media or open a video in the browser.', 'Filmlerin, dizilerin ve dinlediklerin bir arada. Medyanı ekle veya browserda bir video aç.')));
-      const actions = el('div', 'mh-actions');
-      actions.append(button(featured ? (model.progress(featured).resume ? t('Continue watching', 'İzlemeye devam et') : t('Open', 'Aç')) : t('Open a file', 'Dosya aç'), () => featured ? play(featured) : click('playerPickVideo'), 'mh-action mh-primary'),
-        button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => featured?.id ? window.MediaTitleUI.open(featured.id) : catalog({mode:'folder'})));
-      copy.append(actions); if (featured && model.progress(featured).duration) copy.append(progress(featured));
-      hero.append(copy, art(featured, 'mh-hero-art')); content.append(hero);
+      const controls = el('div', 'mh-hero-navigation');
+      controls.setAttribute('role', 'group');
+      controls.setAttribute('aria-label', t('Continue watching carousel', 'Kaldığın yerden gezinme'));
+      const count = el('output', 'mh-hero-count'); count.setAttribute('aria-live', 'polite');
+      function arrow(label, direction) {
+        const node = button('', () => { featuredIndex = (featuredIndex + direction + candidates.length) % candidates.length; drawFeatured(); node.focus({preventScroll:true}); }, 'mh-hero-arrow');
+        node.setAttribute('aria-label', label); node.title = label;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('aria-hidden','true');
+        const path = document.createElementNS(svg.namespaceURI,'path');
+        path.setAttribute('d', direction < 0 ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'); svg.append(path); node.append(svg); return node;
+      }
+      controls.append(arrow(t('Previous title', 'Önceki içerik'), -1), count, arrow(t('Next title', 'Sonraki içerik'), 1));
+      controls.hidden = candidates.length < 2;
+      function drawFeatured() {
+        const featured = candidates[featuredIndex]; state.featuredKey = keyOf(featured);
+        copy.replaceChildren(); hero.querySelectorAll('[data-home-poster]').forEach(node => posterObserver.unobserve(node));
+        hero.classList.toggle('mh-empty-hero', !featured);
+        copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
+          el('h1', '', featured?.title || t('Your media library starts here.', 'Medya kütüphaneni oluştur.')),
+          el('p', '', featured ? (featured.synopsis || (model.progress(featured).position ? t(`Continue from ${minutes(model.progress(featured).position)}. Subtitles and voice tools are ready in the player.`, `${minutes(model.progress(featured).position)} konumundan devam et. Altyazı ve ses araçların oynatıcıda hazır.`) : t('Open this title from your library.', 'Kütüphanendeki bu yapımı aç.'))) : t('Your films, series and listening, together. Add your media or open a video in the browser.', 'Filmlerin, dizilerin ve dinlediklerin bir arada. Medyanı ekle veya browserda bir video aç.')));
+        const actions = el('div', 'mh-actions');
+        actions.append(button(featured ? (model.progress(featured).resume ? t('Continue watching', 'İzlemeye devam et') : t('Open', 'Aç')) : t('Open a file', 'Dosya aç'), () => featured ? play(featured) : click('playerPickVideo'), 'mh-action mh-primary'),
+          button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => featured?.id ? window.MediaTitleUI.open(featured.id) : catalog({mode:'folder'})));
+        copy.append(actions); if (featured && model.progress(featured).duration) copy.append(progress(featured));
+        count.textContent = `${featuredIndex + 1} / ${candidates.length}`;
+        hero.replaceChildren(copy, art(featured, 'mh-hero-art'), controls);
+      }
+      drawFeatured(); content.append(hero);
       if (continuing.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), continuing, { wide: true, more: () => page('recent') }));
       if (items.some(item => item.kind === 'series')) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series'), { more: () => page('series') }));
       if (items.some(item => item.kind !== 'series')) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series'), { more: () => page('films') }));

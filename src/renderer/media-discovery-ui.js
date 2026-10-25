@@ -120,7 +120,7 @@
   }
   function draw() {
     const root = state.root; root.replaceChildren();
-    const heading = el('div', 'md-heading'); heading.append(el('h1', '', t('Discover', 'Keşfet')), el('p', '', t('New stories. A place to find your next film or series.', 'Yeni hikâyeler. Sıradaki film veya dizini bul.'))); root.append(heading);
+    root.setAttribute('aria-label', t('Discover', 'Keşfet'));
     const tabs = el('div', 'md-tabs'); tabs.setAttribute('aria-label', t('Discovery section', 'Keşfet bölümü'));
     for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')], ['preferences', t('Preferences', 'Tercihler')]]) {
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'md-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);

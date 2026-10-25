@@ -10,6 +10,8 @@ process.env.WHISPER_RESOURCE_SOAK_USER_DATA = profile;
 app.setPath("downloads", out);
 app.setAppPath(root);
 app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
 const source = path.join(out, "Okuma denemesi.pdf");
 function makePdf() {
   const objects = [
@@ -102,8 +104,13 @@ app
     }, "window");
     const run = (code) =>
       win.webContents.executeJavaScript("(async()=>{" + code + "})()", true);
+    win.webContents.setBackgroundThrottling(false);
     const capture = async (name) => {
+      win.show(); win.moveTop(); win.focus();
+      await run('await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');
       await wait(350);
+      const state=await run('return {theme:document.documentElement.dataset.theme,locale:UiLocale.get(),mode:player.pdfReader?.viewMode,width:innerWidth}');
+      fs.writeFileSync(path.join(out,name+'.state.json'),JSON.stringify(state));
       for (let i = 0; i < 3; i++) {
         try {
           fs.writeFileSync(
@@ -136,8 +143,29 @@ app
       ),
     );
     await capture("reading-tr-dark.png");
+    const layout=await run('const pages=document.getElementById("pdfReaderPages").getBoundingClientRect(),reader=document.getElementById("pdfReader").getBoundingClientRect();return {top:pages.top-reader.top,available:pages.height,total:reader.height,duplicateHead:getComputedStyle(document.querySelector(".player-head")).display};');
+    assert(layout.available>layout.total*.7,JSON.stringify(layout));
+    assert.equal(layout.duplicateHead,'none');
+    await run('document.querySelector("#pdfAssistantTools summary").click();return true');
+    assert(await run('return document.getElementById("pdfAssistantTools").open'));
+    await capture("passage-tools-tr.png");
+    await run('document.getElementById("pdfAssistantTools").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
+    assert(await run('return !document.getElementById("pdfAssistantTools").open && !!player.pdfReader'));
+    await run('document.querySelector("#pdfTranslateTools summary").click();return true');
+    await capture("translation-tools-tr.png");
+    await run('document.getElementById("pdfTranslateTools").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
+
     await run('setPdfReaderView("both");return true');
     await capture("parallel-tr-dark.png");
+    win.setMinimumSize(800,600);win.setContentSize(1024,768);
+    await capture("reader-laptop-tr.png");
+    assert(await run('return document.getElementById("pdfReaderPages").clientHeight>innerHeight*.65'));
+    await run('UiLocale.set("en",false);applyUiTheme("light");setPdfReaderView("source");return true');
+    assert(await run('return UiLocale.get()==="en" && document.documentElement.dataset.theme==="light" && player.pdfReader.viewMode==="source"'));
+    await capture("reader-laptop-en-light.png");
+    assert(await run('return document.getElementById("pdfReader").scrollWidth<=innerWidth+1'));
+    win.setContentSize(1440,1000);await run('UiLocale.set("tr",false);applyUiTheme("dark");return true');
+
     await run(
       'setPdfReaderView("reading");const p=document.querySelector(".pdf-page-prose p");const range=document.createRange();range.selectNodeContents(p);const s=window.getSelection();s.removeAllRanges();s.addRange(range);return true',
     );
@@ -304,9 +332,14 @@ app
     await run('UiLocale.set("en",false);applyUiTheme("light");return true');
     await capture("reading-en-light.png");
     await run(
-      'document.querySelector(".pdf-reader-tools").open=true;return true',
+      'document.getElementById("pdfTranslateTools").open=true;return true',
     );
     await capture("translation-menu-en.png");
+    await run('await MediaHomeUI.returnHome();return true');
+    assert.equal(await run('return PdfReaderExperience.context()'),null,'hidden reader cannot remain assistant context on home');
+    assert(await run('return document.getElementById("pdfVoiceAudio").paused'));
+    await run('await MediaHomeUI.resumeWorkspace();return true');
+    assert(await run('return !!PdfReaderExperience.context()'));
     await run('document.getElementById("pdfReaderClose").click();return true');
     assert.equal(await run("return PdfReaderExperience.context()"), null);
     await capture("player-after-close.png");

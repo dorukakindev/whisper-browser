@@ -1,7 +1,4 @@
-.md-heading { margin: 5px 0 25px; }
-.md-heading h1 { font-size: 32px; font-weight: 650; letter-spacing: -1px; margin: 0 0 10px; }
-.md-heading p { color: var(--text-dim); max-width: 65ch; line-height: 1.6; }
-.md-tabs { display: flex; gap: 7px; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+.md-tabs { display: flex; gap: 7px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 .md-tab { padding: 11px 19px; color: var(--text-dim); border: 0; border-radius: 999px; background: transparent; font-weight: 600; }
 .md-tab[aria-pressed="true"] { color: var(--text); background: var(--bg-3); }
 .md-tab:hover:not([aria-pressed="true"]) { color: var(--text); background: var(--bg-2); }
@@ -19,9 +16,7 @@
 .md-reason { display: block; color: var(--accent); margin-top: 7px; font-size: 12px; line-height: 1.5; }
 .md-art-empty { background: var(--bg-2); }
 .md-art-empty::after { content: attr(data-placeholder); color: var(--text-dim); font-size: 12px; }
-.md-heading h1, .md-detail h2 { font-family: 'Sora', 'IBM Plex Sans', sans-serif; font-weight: 600; }
-.md-heading h1, .md-detail h2 { text-wrap: balance; }
-.md-heading p { text-wrap: pretty; }
+.md-detail h2 { font-family: 'Sora', 'IBM Plex Sans', sans-serif; font-weight: 600; text-wrap: balance; }
 .md-meta { font-variant-numeric: tabular-nums; }
 .md-close { min-width: 40px; min-height: 40px; }
 .md-detail-poster img { outline: 1px solid rgba(255,255,255,.1); outline-offset: -1px; }

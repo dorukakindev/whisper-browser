@@ -27,10 +27,22 @@ app.whenReady().then(async()=>{
   async function shot(name){await wait(250);for(let i=0;i<3;i++)try{fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());return;}catch(e){if(i===2)throw e;await wait(300);}}
   await run('await initialSettingsReady;UiLocale.set("tr",false);applyUiTheme("dark");return true');
   const saved=await run('return window.api.updateWatchItem({key:"youtube:abcdefghijk",type:"youtube",sourceRef:"https://www.youtube.com/watch?v=abcdefghijk",title:"Devam edilen video",position:60,duration:600,lastWatched:Date.now()})');assert(saved.ok,saved.error);
+  assert((await run('return window.api.updateWatchItem({key:"youtube:abcdefghij2",type:"youtube",sourceRef:"https://www.youtube.com/watch?v=abcdefghij2",title:"İkinci devam kaydı",position:120,duration:900,lastWatched:Date.now()+1})')).ok);
   await run('document.dispatchEvent(new Event("media-library-changed"));return true');
   await until(()=>run('return [...document.querySelectorAll(".mh-hero-art img,.mh-wide img")].filter(n=>n.naturalWidth>0).length>=2'),'YouTube hero and rail thumbnails');await shot('home-thumbnails-tr');
+  const firstTitle=await run('return document.querySelector(".mh-hero h1").textContent');
+  await run('document.querySelector(".mh-hero-navigation button:last-child").click();return true');
+  assert.notEqual(await run('return document.querySelector(".mh-hero h1").textContent'),firstTitle);
+  assert(await run('return document.activeElement===document.querySelector(".mh-hero-navigation button:last-child")'));
+  await shot('home-next-tr');
+  await run('document.querySelector(".mh-hero-navigation button:first-child").click();return true');
+  assert.equal(await run('return document.querySelector(".mh-hero h1").textContent'),firstTitle);
+  await run('await openPlayer();await MediaHomeUI.returnHome();return true');
+  assert(await run('return !!document.getElementById("mhOpenSession")'));
   await run('document.querySelector("[data-home-page=discover]").click();return true');
   await until(()=>run('return !!document.querySelector(".md-card")'),'discovery');
+  assert(await run('return !document.getElementById("mhOpenSession") && !document.querySelector(".md-heading")'));
+  await shot('discover-compact-tr');
   await run('document.querySelector(".md-card").click();return true');
   await until(()=>run('return !!document.querySelector("[data-discovery-action=translate]")'),'translation control');
   await run('document.querySelector("[data-discovery-action=translate]").click();return true');

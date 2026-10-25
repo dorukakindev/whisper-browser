@@ -25077,6 +25077,7 @@ async function openPdfReader(filePath = '') {
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
   if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
+  if (viewMode === 'both' && !Object.values(opened.state?.pages || {}).some(rows => Array.isArray(rows) && rows.length)) viewMode = 'source';
   $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();
   $('pdfReader').classList.remove('hidden'); $('playerStage')?.classList.add('hidden'); $('browserWorkspace')?.classList.add('hidden');
   setPdfReaderView(viewMode);
