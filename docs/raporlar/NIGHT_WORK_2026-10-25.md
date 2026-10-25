@@ -102,3 +102,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 06:56 — Rapor553/kod18630529c54c793ad2dae3b7bfeb41c6b4aae122. N36/N42/N44/N46 ilgili kitap okuyucu yollarına somut onarım/negatif kanıt eklendi; tam kapsamı bitti sayılmaz. Hızlı gezinmede son istek, save yanıtında proje/bölüm/draft, Review metadata ve onay kimliği korundu.19hedefliPASS, nativeWindowsPDF/Review/M4B exit0. Sporadik approval timeout kesin kök açık. Sonraki: browser-dub-audio session yarışları/kalite-plan kimliği/çeviri anlamı; yedek bakımı yok.
 
 06:58 — Rapor554/kod929df08481bee5593cde434613a5c4302a2aadcc: browser dublaj replacement yeni videoya önceki mute/hız ayarını sızdırmaz.4hedefdosya8PASS; gerçekYouTube denenmedi. Sıradaki doğrudan kullanım: konuşma çevirisi anlam/akıcılık ve son parça timeout. Yedek bakım yok.
+
+07:01 — Rapor555/koda076b1ab9b5f8047715caa2c5da2204282fa0ce4: büyük harfli kısa repliklerin kaynak-yankısı/otomatik koruma kaçağı kapandı;18speech+5anlam+3sayı ve2eskihedefPASS, canlıAPI yok. Sonraki: sıcak motor sahipliği ve son-parça bekleme; yedek/kurtarma bakımına dönme.
