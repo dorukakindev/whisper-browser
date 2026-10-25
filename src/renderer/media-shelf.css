@@ -59,9 +59,12 @@ body.media-shelf-player-open .ms-dock { display: none; }
 .ms-reader-tools { position:relative;margin-left:auto; }
 .ms-reader-tools>summary { cursor:pointer;list-style:none; }
 .ms-reader-tools>summary::-webkit-details-marker { display:none; }
-.ms-reader-tool-panel { position:absolute;z-index:2;right:0;top:calc(100% + 10px);width:min(340px,calc(100vw - 80px));padding:18px;box-sizing:border-box;background:var(--bg-1);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 36px rgb(0 0 0 / .25); }
+.ms-reader-tool-panel { position:absolute;z-index:8;right:0;top:calc(100% + 10px);width:min(340px,calc(100vw - 80px));max-height:55vh;overflow:auto;overscroll-behavior:contain;padding:18px;box-sizing:border-box;background:var(--bg-1);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 36px rgb(0 0 0 / .25); }
 .ms-reader-tools[open] .ms-reader-tool-panel { display:grid;gap:12px; }
 .ms-reader-tool-panel label { display:grid;gap:8px;font-size:12px;color:var(--text-dim); }
 .ms-reader .ms-reader-tool-panel input[type=range],.ms-reader .ms-reader-tool-panel select { width:100%;max-width:none;box-sizing:border-box; }
 .ms-reader header>select { flex:1;min-width:100px; }
 @media(max-width:700px){.ms-reader header>strong {flex-basis:100%;max-width:100%;}.ms-reader header {gap:8px;padding:14px 58px 14px 14px;}.ms-reader-tools {margin-left:0;}.ms-reader-tool-panel {left:0;right:auto;}}
+
+.ms-reader header>.book-assistant-compact { margin-left:0; }
+.ms-reader header>.book-assistant-compact .book-assistant-panel { text-align:left; }
