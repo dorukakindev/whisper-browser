@@ -7,7 +7,7 @@ const { run } = require('./browser-media-tools');
 const { readLimitedBytes } = require('./catalog-discovery');
 const { safePlaceUrl } = require('./browser-place-url');
 const text = (v, n = 500) => typeof v === 'string' ? v.trim().slice(0, n) : '';
-const audio = /\.(mp3|wav|m4a|aac|flac|ogg|opus|wma)$/i;
+const audio = /\.(mp3|wav|m4a|m4b|aac|flac|ogg|opus|wma)$/i;
 const fileKey = file => createHash('sha256').update(process.platform === 'win32' ? file.toLowerCase() : file).digest('hex').slice(0, 32);
 function urlOf(value) {
   const url = new URL(text(value, 4096));
@@ -87,7 +87,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           }
         };
         await walk(result.filePaths[0], 0);
-      } else files = await choose(['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'], true);
+      } else files = await choose(['mp3', 'wav', 'm4a', 'm4b', 'aac', 'flac', 'ogg', 'opus', 'wma'], true);
       if (!files.length) return { ok: false, canceled: true };
       if (files.length > 500) throw Error('Select at most 500 files per import.');
       const rows = [], warnings = []; let index = 0;

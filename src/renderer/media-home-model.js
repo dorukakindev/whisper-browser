@@ -5,7 +5,7 @@
   else root.MediaHomeModel = model;
 })(typeof window === 'object' ? window : globalThis, () => {
   'use strict';
-  const audio = /\.(mp3|wav|m4a|aac|flac|ogg|opus|wma)(?:[?#]|$)/i;
+  const audio = /\.(mp3|wav|m4a|m4b|aac|flac|ogg|opus|wma)(?:[?#]|$)/i;
   const number = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
   function progress(item) {
     const p = item?.progress || item || {};

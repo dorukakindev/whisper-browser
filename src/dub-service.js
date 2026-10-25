@@ -104,7 +104,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
     }
-    if (type === 'done' && data.path) onOutput(data);
+    if (type === 'done' && data.path) onOutput({...data,id:s.id});
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
       logPath: s.summaryPath || null, logError: s.logError || null });
   }
@@ -374,6 +374,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!selected.canceled && selected.filePaths[0]) {
         if (job || textUI || releasingEngine || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
+        if(kind==='reference')c.transcript=selected.filePaths[0].replace(/\.wav$/i,'.txt');
         if (kind === 'engine') {
           c.reference = path.join(c.engine, 'anlatici_ham.wav'); c.transcript = path.join(c.engine, 'anlatici_ham.txt');
         }
@@ -466,6 +467,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       args.push('--timing-mode', timingMode);
+      if(request.narration===true)args.push('--narration');
       args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
       if (forceGroups.length) args.push('--force-groups', forceGroups.join(';'));
       if (request.sample === true) args.push('--limit', '11', '--representative-preview');
@@ -649,7 +651,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const finishedBeforeExitFailure = code !== 0 && s.completedMarker === true;
         if ((code === 0 || finishedBeforeExitFailure) && validVoiceOutput(output)) {
           let sync = null;
-          if (timingMode === 'video') {
+          if (timingMode === 'video' && request.narration !== true) {
             try {
               const syncFile = output.replace(/\.wav$/i, '.sync.json');
               if (fs.statSync(syncFile).size > 2000000) throw new Error('map too large');

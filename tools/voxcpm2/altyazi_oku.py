@@ -619,6 +619,7 @@ def parse_args(argv=None):
     p.add_argument("--tasarsa", choices=("hata", "kirp"), default="kirp")
     p.add_argument("--range-start", type=float)
     p.add_argument("--timing-mode", choices=('clip', 'video'), default='clip')
+    p.add_argument("--narration", action="store_true")
     p.add_argument("--range-end", type=float)
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
@@ -777,7 +778,10 @@ def main(argv=None, runtime=None):
         args.end_limit_ms = total_s * 1000
     sync = None
     placement_began=time.monotonic()
-    if args.timing_mode == 'video':
+    if args.narration:
+        from dub_timing import build_narration_timeline
+        timeline, timing = build_narration_timeline(timeline_cues, paths, sr)
+    elif args.timing_mode == 'video':
         timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
             args.max_hiz, parts_dir, args.bosluk_pay_ms)
         (parts_dir / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')

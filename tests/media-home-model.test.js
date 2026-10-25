@@ -39,3 +39,5 @@ test('resume rows borrow existing catalog artwork without changing saved paths o
   assert.equal(result.watch[0].title, 'My title');
   assert.equal(history[0].id, undefined);
 });
+
+test('exported M4B audiobooks stay in the audio category',()=>{assert.equal(model.medium({type:'local',sourceRef:'C:/Books/Kitap.m4b'}),'music');});

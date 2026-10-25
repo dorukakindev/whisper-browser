@@ -9224,7 +9224,7 @@ function renderBrowserDownloads() {
     row.buttons.pause.classList.toggle('hidden', !item.canPause);
     row.buttons.cancel.classList.toggle('hidden', !item.active);
     row.buttons.resume.classList.toggle('hidden', !item.canResume);
-    const playable = /\.(?:mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|aac|flac|ogg|opus|wma)$/i.test(item.path || '');
+    const playable = /\.(?:mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|m4b|aac|flac|ogg|opus|wma)$/i.test(item.path || '');
     row.buttons['open-player'].classList.toggle('hidden', item.state !== 'completed' || !playable);
     row.buttons.reveal.classList.toggle('hidden', item.state !== 'completed' || !item.path);
     row.buttons.clear.classList.toggle('hidden', !!item.active);
@@ -19889,6 +19889,9 @@ async function aiChatSend(soru, translationTarget = null) {
       url: String(page.url || '').slice(0, 1000),
       blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 80) : [],
       characters: Number(page.characters) || 0,
+      selectedText:String(page.selectedText||'').slice(0,4000),
+      availableActions:Array.isArray(page.availableActions)?page.availableActions.slice(0,8):[],
+      contentTrust:'untrusted-page-content',truncated:!!page.truncated,
     };
     if (chatContext.page) chatSourceTabId = requestedPageTabId;
     else chatContext.pageUnavailable = 'Page text could not be read for this request. Do not infer page contents or claim to have summarized the page.';

@@ -6,6 +6,7 @@
   const layer = document.getElementById('playerLayer');
   const state = { page: 'home', query: '', filter: 'all', limit: 48, active: true,
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '' };
+  let virtualDisposers=[];
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
   const el = (tag, cls, text) => {
@@ -181,6 +182,7 @@
   }
   function card(item) {
     const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card');
+    node.dispose=()=>node.querySelectorAll('[data-home-poster]').forEach(image=>posterObserver.unobserve(image));
     node.dataset.homeItem = item.key || item.id;
     node.title = String(item.title || t('Untitled', 'Başlıksız'));
     node.append(art(item, 'mh-art'), el('span', 'mh-card-title', node.title));
@@ -195,10 +197,11 @@
     heading.append(el('h2', '', title));
     if (options.more) heading.append(button(t('View all', 'Tümünü gör'), options.more, 'mh-text-button'));
     const grid = el('div', options.grid ? 'mh-grid' : `mh-rail${options.wide ? ' mh-wide' : ''}`);
-    rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
+    if(options.grid&&rows.length>100&&window.MediaVirtualGrid){queueMicrotask(()=>{if(grid.isConnected)virtualDisposers.push(window.MediaVirtualGrid.mount(grid,rows,card,host));});}
+    else rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
     node.append(heading, grid);
     if (!rows.length) node.append(el('p', 'mh-empty', t('No matching items yet.', 'Henüz eşleşen öğe yok.')));
-    if (options.grid && rows.length > state.limit) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
+    if (options.grid && rows.length > state.limit && rows.length<=100) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
     return node;
   }
   function tool(title, description, label, callback) {
@@ -229,6 +232,7 @@
     const content = document.getElementById('mhContent'); if (!content) return;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
+    virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
     content.replaceChildren();
     if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
@@ -311,7 +315,7 @@
     const actions = el('div', 'mh-actions');
     actions.append(button('Browser', openBrowser),button(t('Open media','Medya aç'),()=>window.MediaHubUI?.open(),'mh-action mh-primary'));
     const more=el('details','mh-more'),trigger=el('summary','mh-action',t('Tools','Araçlar'));more.append(trigger);const menu=el('div','mh-more-menu');
-    for(const [label,run]of [[t('Studio','Stüdyo'),openStudio],[t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],[t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],[t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],[t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]])menu.append(button(label,()=>{more.open=false;return run();}));more.append(menu);actions.append(more);
+    for(const [label,run]of [[t('Production workspace','Üretim çalışma alanı'),()=>window.MediaWorkflowsUI.open()],[t('Studio','Stüdyo'),openStudio],[t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],[t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],[t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],[t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]])menu.append(button(label,()=>{more.open=false;return run();}));more.append(menu);actions.append(more);
     const settings=button('',()=>window.AppSettingsUI.open());settings.id='mhSettings';settings.classList.add('mh-settings-icon');settings.title=t('Settings','Ayarlar');settings.setAttribute('aria-label',settings.title);
     const gear=document.createElementNS('http://www.w3.org/2000/svg','svg');gear.setAttribute('viewBox','0 0 24 24');gear.setAttribute('aria-hidden','true');gear.setAttribute('fill','none');gear.setAttribute('stroke','currentColor');gear.setAttribute('stroke-width','1.6');
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);

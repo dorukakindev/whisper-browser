@@ -86,7 +86,7 @@ def detect_intro(request):
     current = features[0]
     candidates = []
     window = 16  # 8.192 saniye
-    for reference in features[1:]:
+    for reference_index, reference in enumerate(features[1:], 1):
         if min(len(current), len(reference)) < window:
             continue
         similarity = current @ reference.T
@@ -108,7 +108,7 @@ def detect_intro(request):
             seconds = 0.512
             candidates.append({"start": round(i * seconds, 2), "end": round((i + length) * seconds, 2),
                                "referenceStart": round(j * seconds, 2), "referenceEnd": round((j + length) * seconds, 2),
-                               "score": round(score, 3)})
+                               "score": round(score, 3), "referenceIndex": reference_index})
     candidates.sort(key=lambda row: -row["score"])
     return {"candidates": candidates, "diagnostics": {"referenceCount": len(files) - 1, "method": "Yerel spektral ses eşleştirme", "suggestOnly": True, "autoSkip": False}}
 
