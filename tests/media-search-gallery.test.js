@@ -20,7 +20,7 @@ test('typing keeps online lookup explicit and late online responses cannot repla
     w.eval(fs.readFileSync(require.resolve('../src/renderer/media-search-ui'),'utf8'));await w.MediaSearchUI.open('Witness');assert.equal(pending.length,0);
     const button=w.document.querySelector('.mhs-dialog>.mh-action');button.click();await new Promise(r=>setImmediate(r));assert.equal(pending.length,2);assert.equal(pending[0].input.query,'Witness');
     const input=w.document.querySelector('input');input.value='Changed';input.dispatchEvent(new w.Event('input'));
-    for(const job of pending)job.resolve({ok:true,rows:[{providerId:'tt1234567',title:'Late old result',kind:job.input.kind}]});await new Promise(r=>setTimeout(r,180));
+    for(const job of pending)job.resolve({ok:true,rows:[{providerId:'tt1234567',title:'Late old result',kind:job.input.kind}]});await new Promise(setImmediate);
     assert.equal(w.document.querySelector('.mhs-remote').textContent,'');assert(!w.document.querySelector('.mhs-dialog').textContent.includes('Late old result'));
     w.document.querySelector('.mhs-dialog header button').click();assert(!w.document.querySelector('.mhs-dialog'));
   }finally{w.close();}

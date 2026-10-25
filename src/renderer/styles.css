@@ -6903,8 +6903,8 @@ html[data-theme="light"] .player-layer .cue-card.active .cue-card-time { color: 
 html[data-theme="light"] .player-layer .cue-card.active .cue-word:hover,
 html[data-theme="light"] .player-layer .cue-card.active .cue-word.is-picked { color: var(--accent); }
 html[data-theme="light"] .player-layer .cue-card.active {
-  background: linear-gradient(90deg, rgba(127, 76, 21, .12), rgba(127, 76, 21, .03));
-  border-color: rgba(127, 76, 21, .32);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent) 3%, transparent));
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
   border-left-color: var(--accent);
 }
 html[data-theme="light"] .player-layer .side-heading-title { color: var(--text); }
@@ -6912,7 +6912,7 @@ html[data-theme="light"] .player-layer .lang-chip { color: var(--text-dim); }
 html[data-theme="light"] .player-layer .side-tab.active {
   color: var(--accent);
   background: var(--accent-soft);
-  border-color: rgba(127, 76, 21, .32);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 html[data-theme="light"] .player-layer .tool-button,
 html[data-theme="light"] .player-layer .tool-button-quiet,

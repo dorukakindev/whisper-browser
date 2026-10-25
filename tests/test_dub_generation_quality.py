@@ -126,8 +126,20 @@ class GenerationTests(unittest.TestCase):
                     yield part
         with tempfile.TemporaryDirectory() as temp:
             folder=Path(temp);server=Stalled()
-            with self.assertRaises(EngineStalled):
-                self.run_generation(folder,server,['Good.','Broken.'],request_timeout=.01)
+            from dub_lifecycle import bounded_call as real_bound
+            async def controlled_bound(awaitable, timeout, cancel_grace=3):
+                # Production still owns the timeout/cancellation path. Only
+                # start the tiny stall deadline after healthy work is durable.
+                task=asyncio.ensure_future(awaitable)
+                deadline=asyncio.get_running_loop().time()+2
+                while not task.done() and not valid_audio(folder/'0.wav',sf):
+                    if asyncio.get_running_loop().time()>deadline:
+                        task.cancel()
+                        raise AssertionError('Healthy fixture failed to install its cache before the controlled stall')
+                    await asyncio.sleep(0)
+                return await real_bound(task, .01 if not task.done() else timeout, cancel_grace=.01)
+            with patch('dub_timing.bounded_call',controlled_bound), self.assertRaises(EngineStalled):
+                self.run_generation(folder,server,['Good.','Broken.'])
             self.assertTrue(server.stopped)
             self.assertTrue(valid_audio(folder/'0.wav',sf))
             replacement=Server()

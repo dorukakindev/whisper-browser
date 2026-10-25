@@ -67,6 +67,7 @@ test("last reader navigation wins when listen IPC replies arrive out of order; c
     rendered = [];
   const ctx = {
     readerRequest: 0,
+    status: () => {},
     project: { id: "one" },
     chapter: 0,
     dialog: { open: true },

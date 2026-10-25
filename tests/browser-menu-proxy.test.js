@@ -207,16 +207,16 @@ function sliceFunction(source, signature) {
     '"izle" hem "gizle" hem "Oynatıcıda izle" öğelerini eşleştirir');
   assert.ok(emptyRow.classList.contains('hidden'));
   doc.getElementById('mWatch').setAttribute('aria-disabled', 'true');
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(setImmediate);
   assert.deepEqual(visibleItems().map((el) => el.id), ['mHide'],
     'sonradan devre dışı kalan öğe gizlenir, diğer eşleşme kalır');
   doc.getElementById('mHide').setAttribute('aria-disabled', 'true');
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(setImmediate);
   assert.equal(visibleItems().length, 0, 'tüm eşleşmeler devre dışı kalınca sıfırlanır');
   assert.ok(!emptyRow.classList.contains('hidden'), 'durum değişince boş durum devreye girer');
   doc.getElementById('mWatch').removeAttribute('aria-disabled');
   doc.getElementById('mHide').removeAttribute('aria-disabled');
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(setImmediate);
   assert.deepEqual(visibleItems().map((el) => el.id), ['mHide', 'mWatch'],
     'tekrar aktif olunca sonuç geri döner');
 
@@ -227,13 +227,13 @@ function sliceFunction(source, signature) {
   assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
     'vekil öğe hedefi aktifken eşleşir');
   doc.getElementById('extReader').setAttribute('disabled', '');
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(setImmediate);
   assert.equal(doc.getElementById('mReader').getAttribute('aria-disabled'), 'true',
     'hedef devre dışı kalınca vekil öğeye yansıtılır');
   assert.equal(visibleItems().length, 0, 'devre dışı vekil arama sonucunda gizlenir');
   assert.ok(!emptyRow.classList.contains('hidden'), 'vekil düşünce boş durum görünür');
   doc.getElementById('extReader').removeAttribute('disabled');
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(setImmediate);
   assert.deepEqual(visibleItems().map((el) => el.id), ['mReader'],
     'hedef geri açılınca vekil sonuç geri döner');
 
