@@ -437,6 +437,11 @@ app
     await run(
       'const a=document.querySelector(".mw-body audio");a.pause();a.currentTime=1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
+    assert.equal(
+      await run('return document.querySelector(".mw-status").textContent'),
+      "",
+      "a normal user pause must not show an AbortError",
+    );
     const selectedPassage = await run(
       'const prose=document.querySelector(".mw-reading-text"),n=prose.querySelector(".mw-spoken").firstChild,quote="controlled PDF reading sample",start=n.textContent.indexOf(quote),range=document.createRange();range.setStart(n,start);range.setEnd(n,start+quote.length);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);prose.dispatchEvent(new Event("pointerup",{bubbles:true}));return {quote,context:aiChatContext(),scope:aiSourceScope()};',
     );

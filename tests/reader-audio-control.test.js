@@ -98,6 +98,34 @@ test("closing a reader cancels pending metadata promptly, and timeout releases w
   assert.equal(timed.count(), 0);
 });
 
+test("user pause during pending play is quiet, while genuine playback refusal is reported", async () => {
+  const audio = new Audio(),
+    errors = [];
+  audio.metadata();
+  let reject;
+  audio.play = () =>
+    new Promise((_resolve, fail) => {
+      reject = fail;
+    });
+  const control = create(audio, {
+    onError: (error) => errors.push(error.name),
+  });
+  const pending = control.playFrom(1);
+  await Promise.resolve();
+  audio.paused = true;
+  reject(
+    Object.assign(Error("play interrupted by pause"), { name: "AbortError" }),
+  );
+  assert.equal(await pending, false);
+  assert.deepEqual(errors, []);
+  const refused = control.playFrom(2);
+  await Promise.resolve();
+  reject(Object.assign(Error("playback denied"), { name: "NotAllowedError" }));
+  await refused;
+  assert.deepEqual(errors, ["NotAllowedError"]);
+  control.dispose();
+});
+
 test("reader close saves the actual position before unloading, never the reset zero", async () => {
   const fs = require("node:fs"),
     vm = require("node:vm");

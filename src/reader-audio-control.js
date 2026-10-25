@@ -68,6 +68,7 @@
         if (!current()) audio.pause();
         return current() && request === sequence;
       } catch (error) {
+        if (error?.name === "AbortError" && audio.paused) return false;
         if (current() && request === sequence) onError(error);
         return false;
       }
