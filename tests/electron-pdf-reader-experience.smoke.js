@@ -281,7 +281,7 @@ app
     await run(
       'const a=document.getElementById("pdfVoiceAudio");a.currentTime=.1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
-    assert(await run('return !!document.querySelector(".pdf-active-speech")'));
+    assert(await run('return !!document.querySelector(".pdf-active-speech")'),JSON.stringify(await run('return {status:document.getElementById("pdfVoiceStatus").textContent,time:document.getElementById("pdfVoiceAudio").currentTime,page:player.pdfReader.currentPage,groups:document.querySelectorAll(".pdf-spoken-group").length};')));
     assert(await run('return !document.querySelector("dialog[open]")'));
     win.setContentSize(1441, 1000);
     await wait(100);

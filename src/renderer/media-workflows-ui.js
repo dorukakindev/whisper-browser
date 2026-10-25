@@ -30,7 +30,60 @@
     concurrency: 4,
     verification: "detailed",
   };
+  function ask({
+    title,
+    description = "",
+    inputLabel = "",
+    inputValue = "",
+    confirmLabel,
+  }) {
+    return new Promise((resolve) => {
+      const d = el("dialog", "mw-confirm media-surface"),
+        form = el("form"),
+        h = el("h2", "", title),
+        p = el("p", "", description),
+        input = el("input"),
+        actions = el("div", "mw-actions");
+      form.method = "dialog";
+      input.value = inputValue;
+      input.maxLength = 300;
+      let value = false;
+      const cancel = el("button", "mh-action", t("Cancel", "Vazgeç")),
+        ok = el(
+          "button",
+          "mh-action mh-primary",
+          confirmLabel || t("Confirm", "Onayla"),
+        );
+      cancel.type = "button";
+      cancel.onclick = () => d.close();
+      ok.type = "submit";
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        value = inputLabel ? input.value : true;
+        d.close();
+      };
+      form.append(h, p);
+      if (inputLabel) {
+        const label = el("label", "mw-setting", inputLabel);
+        label.append(input);
+        form.append(label);
+      }
+      actions.append(cancel, ok);
+      form.append(actions);
+      d.append(form);
+      d.onclose = () => {
+        d.remove();
+        void syncBrowserOcclusion();
+        resolve(value);
+      };
+      document.body.append(d);
+      d.showModal();
+      void syncBrowserOcclusion();
+      (inputLabel ? input : cancel).focus();
+    });
+  }
   const drafts = new Map();
+  let prefsProject = null;
   function status(message) {
     const node = dialog?.querySelector(".mw-status");
     if (node) node.textContent = message;
@@ -51,6 +104,7 @@
     return n;
   }
   function clearBody() {
+    for (const a of dialog.querySelectorAll("audio")) a.pause();
     void closeReader();
     const body = dialog.querySelector(".mw-body");
     body.replaceChildren();
@@ -78,9 +132,26 @@
     }
   }
   async function books() {
+    if (project && prefsProject !== project.id) {
+      Object.assign(
+        voicePrefs,
+        project.voicePreferences || {
+          profile: "quality",
+          concurrency: 4,
+          verification: "detailed",
+        },
+      );
+      prefsProject = project.id;
+    }
     saveDraft();
     const body = clearBody();
     const actions = el("div", "mw-actions");
+    const management = el("details", "mw-management"),
+      managementBody = el("div", "mw-management-body");
+    management.append(
+      el("summary", "", t("Project & backup tools", "Proje ve yedek araçları")),
+      managementBody,
+    );
     actions.append(
       button(
         t("Import EPUB / PDF / TXT", "EPUB / PDF / TXT ekle"),
@@ -96,6 +167,59 @@
           }
         },
         true,
+      ),
+    );
+    const backupAudio = el("input");
+    backupAudio.type = "checkbox";
+    const backupLabel = el(
+      "label",
+      "mw-setting",
+      t(
+        "Include generated audio in book backup (up to 256 MiB)",
+        "Kitap yedeğine üretilen sesleri dahil et (en fazla 256 MiB)",
+      ),
+    );
+    backupLabel.prepend(backupAudio);
+    managementBody.append(
+      el(
+        "p",
+        "mw-muted",
+        t(
+          "Book backup includes edited text and optional generated audio. Original books, reference voices and account keys are excluded.",
+          "Kitap yedeği düzenlenmiş metinleri ve isteğe bağlı üretilen sesleri içerir. Özgün kitaplar, referans sesleri ve hesap anahtarları dahil değildir.",
+        ),
+      ),
+      backupLabel,
+      button(
+        t("Back up book projects", "Kitap projelerini yedekle"),
+        async () => {
+          const r = await call("book-backup", {
+            includeAudio: backupAudio.checked,
+          });
+          if (!r.canceled)
+            status(
+              t(
+                "Book projects backed up. Original PDFs/EPUBs and reference voices are not included.",
+                "Kitap projeleri yedeklendi. Özgün PDF/EPUB ve referans sesleri dahil değildir.",
+              ),
+            );
+        },
+      ),
+      button(
+        t("Restore book backup", "Kitap yedeğini geri yükle"),
+        async () => {
+          const r = await call("book-restore");
+          if (!r.canceled) {
+            await books();
+            status(
+              `${r.count} ` +
+                t(
+                  "projects restored as new copies.",
+                  "proje yeni kopya olarak geri yüklendi.",
+                ),
+            );
+          }
+        },
       ),
     );
     const listing = await call("book-list");
@@ -127,7 +251,35 @@
         status(e.message);
       }
     };
-    actions.append(choose);
+    actions.append(choose, management);
+    managementBody.append(
+      button(t("Archived projects", "Arşivlenmiş projeler"), async () => {
+        const r = await call("book-list", { archived: true }),
+          archived = r.projects.filter((p) => p.archived);
+        managementBody.querySelector(".mw-archived")?.remove();
+        const list = el("div", "mw-archived");
+        if (!archived.length)
+          list.append(
+            el(
+              "p",
+              "mw-muted",
+              t("No archived projects.", "Arşivlenmiş proje yok."),
+            ),
+          );
+        for (const p of archived) {
+          const row = el("div", "mw-actions");
+          row.append(
+            el("span", "", p.title),
+            button(t("Restore", "Geri al"), async () => {
+              await call("book-archive", { id: p.id, archived: false });
+              await books();
+            }),
+          );
+          list.append(row);
+        }
+        managementBody.append(list);
+      }),
+    );
     body.append(actions);
     if (!project) {
       body.append(
@@ -158,6 +310,60 @@
           .join(" · "),
       ),
     );
+    const projectActions = el("div", "mw-actions");
+    projectActions.append(
+      button(t("Rename project", "Projeyi yeniden adlandır"), async () => {
+        const name = await ask({
+          title: t("Project name", "Proje adı"),
+          inputLabel: t("Name", "Ad"),
+          inputValue: project.title,
+          confirmLabel: t("Save", "Kaydet"),
+        });
+        if (name !== false) {
+          project = (await call("book-rename", { id: project.id, title: name }))
+            .project;
+          await books();
+        }
+      }),
+      button(
+        t("Check interrupted production", "Yarım üretimi denetle"),
+        async () => {
+          const r = await call("book-recover", { id: project.id });
+          project = r.project;
+          await books();
+          status(
+            `${r.recovered} ` +
+              t("outputs recovered. ", "çıktı kurtarıldı. ") +
+              r.notices.join(" · "),
+          );
+        },
+      ),
+      button(t("Archive project", "Projeyi arşivle"), async () => {
+        if (
+          await ask({
+            title: t("Archive project?", "Proje arşivlensin mi?"),
+            description: t(
+              "Files are kept. The project can be restored from the archive.",
+              "Dosyalar korunur; arşivden geri alınabilir.",
+            ),
+            confirmLabel: t("Archive", "Arşivle"),
+          })
+        ) {
+          await call("book-archive", { id: project.id });
+          project = null;
+          await books();
+        }
+      }),
+    );
+    if (project.shelfBookId)
+      projectActions.append(
+        button(t("Open book library", "Kitap rafını aç"), () => {
+          dialog.close();
+          void window.MediaHomeUI.returnHome();
+          document.querySelector('[data-home-mode="books"]')?.click();
+        }),
+      );
+    managementBody.append(projectActions);
     summary.append(bookCopy);
     body.append(summary);
     const settings = el("details", "mw-voice-settings"),
@@ -181,9 +387,15 @@
       button(t("Choose local reference", "Yerel referans seç"), async () => {
         if (busy) throw Error("Busy / Meşgul");
         const r = await window.api.dubConfig("reference");
-        if (r.ok)
+        if (r.ok) {
           referenceName.textContent =
             t("Reference: ", "Referans: ") + r.reference.split(/[\\/]/).pop();
+          voicePrefs.referenceId = "";
+          await call("book-preferences", {
+            id: project.id,
+            preferences: voicePrefs,
+          });
+        }
       }),
     );
     const references = await window.api.listVoiceReferences().catch(() => null);
@@ -205,6 +417,7 @@
         o.value = ref.id;
         saved.append(o);
       }
+      saved.value = voicePrefs.referenceId || "";
       saved.onchange = async () => {
         if (!saved.value) return;
         try {
@@ -214,6 +427,11 @@
           referenceName.textContent =
             t("Reference: ", "Referans: ") +
             saved.selectedOptions[0].textContent;
+          voicePrefs.referenceId = saved.value;
+          await call("book-preferences", {
+            id: project.id,
+            preferences: voicePrefs,
+          });
         } catch (e) {
           status(e.message);
         }
@@ -279,9 +497,14 @@
         input.append(o);
       }
       input.value = voicePrefs[key];
-      input.onchange = () =>
-        (voicePrefs[key] =
-          key === "concurrency" ? Number(input.value) : input.value);
+      input.onchange = () => {
+        voicePrefs[key] =
+          key === "concurrency" ? Number(input.value) : input.value;
+        void call("book-preferences", {
+          id: project.id,
+          preferences: voicePrefs,
+        }).catch((e) => status(e.message));
+      };
       wrap.append(input);
       settingsBody.append(wrap);
     }
@@ -442,6 +665,7 @@
       button(t("Stop", "Durdur"), async () => {
         stopRequested = true;
         if (job) await window.api.cancelDub();
+        else await call("cancel");
       }),
       button(t("Read & listen", "Dinle ve takip et"), () => readChapter()),
       button(
@@ -457,15 +681,127 @@
       button(
         t("Export selected as M4B", "Seçilileri M4B olarak kaydet"),
         async () => {
-          await saveChapter();
-          const r = await call("book-export", {
-            id: project.id,
-            chapters: [...selected],
-          });
-          status(r.path || "");
+          if (busy)
+            throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
+          busy = true;
+          try {
+            await saveChapter();
+            status(
+              t(
+                "Preparing M4B… Stop cancels export.",
+                "M4B hazırlanıyor… Durdur dışa aktarmayı iptal eder.",
+              ),
+            );
+            const off = window.api.onMediaWorkflow((event) => {
+              if (
+                event.type === "progress" &&
+                String(event.text || "").startsWith("M4B:")
+              )
+                status(event.text);
+            });
+            try {
+              const r = await call("book-export", {
+                id: project.id,
+                chapters: [...selected],
+              });
+              status(r.path || "");
+            } finally {
+              off();
+            }
+          } finally {
+            busy = false;
+          }
         },
       ),
     );
+    if (c.groups?.some((g) => g.status !== "ready")) {
+      const review = el("details", "mw-review");
+      review.open = true;
+      review.append(
+        el(
+          "summary",
+          "",
+          t("Speech groups to review", "Kontrol edilecek konuşma grupları"),
+        ),
+      );
+      const audio = el("audio");
+      audio.controls = true;
+      audio.preload = "metadata";
+      review.append(audio);
+      let end = null;
+      audio.ontimeupdate = () => {
+        if (end !== null && audio.currentTime >= end) {
+          audio.pause();
+          end = null;
+        }
+      };
+      for (const g of c.groups.filter((g) => g.status !== "ready")) {
+        const row = el("div", "mw-review-group");
+        row.append(
+          el("p", "", g.text || t("Missing speech", "Eksik konuşma")),
+          el("small", "", g.status),
+        );
+        row.append(
+          button(t("Listen to group", "Grubu dinle"), async () => {
+            const r = await call("book-listen", { id: project.id, chapter });
+            audio.src = pathToFileUrl(r.path);
+            audio.onloadedmetadata = () => {
+              audio.currentTime = g.start || 0;
+              end = g.end;
+              void audio.play().catch((e) => status(e.message));
+            };
+          }),
+          button(t("Edit this passage", "Bu metni düzenle"), () => {
+            const index = textarea.value.indexOf(g.text || "");
+            textarea.focus();
+            if (index >= 0)
+              textarea.setSelectionRange(index, index + (g.text || "").length);
+            else
+              status(
+                t(
+                  "The source text has changed; edit this chapter and regenerate it.",
+                  "Kaynak metin değişti; bölümü düzenleyip yeniden üret.",
+                ),
+              );
+            textarea.scrollIntoView({ block: "nearest" });
+          }),
+          button(
+            t("Regenerate only this group", "Yalnız bu grubu yeniden üret"),
+            async () => {
+              selected = new Set([chapter]);
+              await generate(false, [g.key]);
+            },
+          ),
+          button(
+            t("I listened — approve this group", "Dinledim — bu grubu onayla"),
+            async () => {
+              if (
+                await ask({
+                  title: t("Approve this audio?", "Bu ses onaylansın mı?"),
+                  description: t(
+                    "Only approve after listening. This records your acceptance; it does not mean automatic ASR passed.",
+                    "Yalnız dinledikten sonra onayla. Bu, kullanıcı kabulünü kaydeder; otomatik doğrulamanın geçtiği anlamına gelmez.",
+                  ),
+                  confirmLabel: t("Approve", "Onayla"),
+                })
+              ) {
+                project = (
+                  await call("book-approve", {
+                    id: project.id,
+                    chapter,
+                    key: g.key,
+                  })
+                ).project;
+                await books();
+              }
+            },
+          ),
+        );
+        review.append(row);
+      }
+      edit.insertBefore(review, textarea);
+      textarea.style.height = "180px";
+    }
     edit.append(buttons);
     split.append(list, edit);
     body.append(split);
@@ -477,6 +813,7 @@
       excerpt: c.text.slice(0, 8000),
     });
   }
+  let readerPdfMap = null;
   let readerTask = null,
     readerRender = null,
     readerGeneration = 0,
@@ -664,6 +1001,8 @@
         const canvas = el("canvas"),
           controls = el("div", "mw-actions"),
           zoom = el("select");
+        const pageText = await p.getTextContent();
+
         zoom.setAttribute("aria-label", t("PDF zoom", "PDF yakınlaştırma"));
         const fit = el("option", "", t("Fit width", "Genişliğe sığdır"));
         fit.value = "fit";
@@ -698,6 +1037,22 @@
           });
           try {
             await readerRender.promise;
+            readerPdfMap?.dispose();
+            readerPdfMap = window.PdfSpokenMap?.mount(
+              page,
+              canvas,
+              pageText.items,
+              viewport,
+              rows,
+              audio,
+            );
+            if (readerPdfMap && readerPdfMap.matched < readerPdfMap.total)
+              status(
+                t(
+                  "PDF highlight is shown only for exact source-text matches. Translated or edited passages may not align.",
+                  "PDF vurgusu yalnız kaynak metinle tam eşleşen gruplarda gösterilir. Çevrilmiş veya düzenlenmiş metin eşleşmeyebilir.",
+                ),
+              );
           } catch (e) {
             if (e.name !== "RenderingCancelledException") status(e.message);
           }
@@ -719,6 +1074,8 @@
     }
   }
   async function closeReader() {
+    readerPdfMap?.dispose();
+    readerPdfMap = null;
     readerGeneration++;
     readerResize?.disconnect();
     readerResize = null;
@@ -737,7 +1094,7 @@
     } catch {}
   }
   let stopRequested = false;
-  async function generate(force = false) {
+  async function generate(force = false, forcedKeys = null) {
     if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
     if (!selected.size) throw Error(t("Select chapters.", "Bölüm seç."));
     busy = true;
@@ -748,6 +1105,17 @@
       throw error;
     }
     stopRequested = false;
+    if (voicePrefs.referenceId) {
+      try {
+        const used = await window.api.useVoiceReference({
+          id: voicePrefs.referenceId,
+        });
+        if (!used.ok) throw Error(used.error);
+      } catch (e) {
+        busy = false;
+        throw e;
+      }
+    }
     const projectId = project.id,
       indices = [...selected].sort((a, b) => a - b);
     try {
@@ -762,6 +1130,7 @@
         });
         const request = prep.request;
         Object.assign(request, voicePrefs);
+        if (forcedKeys) request.forceGroups = forcedKeys;
         if (force) {
           const plan = await window.api.planDub({
             srt: request.srt,
@@ -1171,6 +1540,7 @@
     signal.setAttribute("role", "status");
     d.append(header, nav, signal, el("main", "mw-body"));
     d.onclose = () => {
+      for (const a of d.querySelectorAll("audio")) a.pause();
       if (busy) {
         stopRequested = true;
         if (job) void window.api.cancelDub();

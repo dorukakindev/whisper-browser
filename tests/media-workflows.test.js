@@ -39,6 +39,8 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
     python: () => python,
     grantSubtitle: (p) => grants.push(p),
     resources: () => ({ processes: [] }),
+    resolveShelfBook:id=>id==="shelf-one"?{id,path:source}:null,
+    linkShelfBook:(id,project)=>grants.push({shelf:id,project}),
     resolvePdf: id => id === "approved-hash" ? {filePath:source,title:"Approved PDF"} : null,
   });
   const call = (action, r = {}) =>
@@ -59,6 +61,8 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
       ).ok,
       false,
     );
+    const shelf=await call('book-from-shelf',{shelfId:'shelf-one'});assert(shelf.ok,shelf.error);assert.equal(shelf.project.shelfBookId,'shelf-one');
+    const shelfAgain=await call('book-from-shelf',{shelfId:'shelf-one'});assert.equal(shelfAgain.project.id,shelf.project.id);assert(grants.some(g=>g?.shelf==='shelf-one'));
     const imported = await call("book-import");
     assert(imported.ok, imported.error);
     const id = imported.project.id;

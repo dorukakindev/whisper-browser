@@ -6,7 +6,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const { renameSyncResilient } = require('./fsync-utils');
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
   'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
-const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits']);
+const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits', 'OkumaListesi']);
 const LIMIT = 256 * 1024 * 1024;
 // Meşru paket JSON'ları ~10 seviye içindedir; özyinelemeli gezginlerin yığın
 // sınırının çok altında, kurcalanmış girdiyi temiz hataya çeviren tavan.
@@ -27,7 +27,7 @@ function storageValues(values) {
 }
 function allowed(name) {
   return typeof name === 'string' && !name.includes('\\') && !name.includes(':') && !name.split('/').some(p => !p || p === '.' || p === '..') &&
-    (ROOTS.has(name) || (DIRS.has(name.split('/')[0]) && /\.(srt|vtt|ass|ssa|jsonl?|png|jpg|jpeg|webp|ttf|otf|woff2?)$/i.test(name)));
+    (ROOTS.has(name) || (DIRS.has(name.split('/')[0]) && /\.(srt|vtt|ass|ssa|jsonl?|png|jpg|jpeg|webp|ttf|otf|woff2?|mhtml)$/i.test(name)));
 }
 function rewrite(value, mappings) {
   // Yalnız bütün bir yol veya o yolun altındaki bir dosya yeniden eşlenir.

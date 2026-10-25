@@ -368,7 +368,12 @@
   el('dubGeneratorStart').addEventListener('click', () => start());
   el('dubRetryFailed').addEventListener('click', () => start(true));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
-  el('dubQualityGroup').addEventListener('change', qualityInfo);
+  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();el('dubPlanText').focus();}});
+  const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.textContent=t('Bu grubu dinle');el('dubQualityInfo').after(listenGroup);
+  let rangeEnd=null;const groupAudio=el('dubGeneratedPreview');groupAudio.addEventListener('timeupdate',()=>{if(rangeEnd!==null&&groupAudio.currentTime>=rangeEnd){groupAudio.pause();rangeEnd=null;}});
+  listenGroup.onclick=()=>{if(current||workspaceBusy)return;const row=results.get(el('dubQualityGroup').value);if(!output?.path||!Number.isFinite(row?.audioStart)||!Number.isFinite(row?.audioEnd)){status('Önce üretimi tamamlayın.');return;}rangeEnd=row.audioEnd;groupAudio.currentTime=row.audioStart;void groupAudio.play().catch(e=>status(e.message));};
+  modal.addEventListener('close',()=>{rangeEnd=null;});
+
   document.addEventListener('ui-locale-change', () => { showResults(); referenceInfo(lastReferenceQuality); });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     const pending = current;

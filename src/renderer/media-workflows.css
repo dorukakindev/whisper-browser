@@ -484,3 +484,122 @@ dialog.mw-dialog::backdrop {
     overflow-wrap: anywhere;
   }
 }
+
+.mw-review {
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+  margin-top: 18px;
+}
+.mw-review audio {
+  width: min(100%, 500px);
+  height: 40px;
+}
+.mw-review-group {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mw-review-group p {
+  flex: 1 0 100%;
+  margin: 0 0 8px;
+  line-height: 1.7;
+}
+.mw-review-group small {
+  color: var(--text-muted);
+}
+.mw-summary .mw-actions {
+  margin-top: 12px;
+}
+
+.mw-management {
+  flex: 1 1 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.mw-management summary {
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.mw-management-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 0;
+  align-items: center;
+}
+.mw-management-body > p,
+.mw-management-body > .mw-setting,
+.mw-management-body > .mw-actions,
+.mw-management-body > .mw-archived {
+  grid-column: 1/-1;
+}
+.mw-confirm {
+  width: min(500px, calc(100vw - 40px));
+  max-height: 80vh;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px;
+  background: var(--bg-1);
+  color: var(--text);
+}
+.mw-confirm::backdrop {
+  background: #0008;
+}
+.mw-confirm h2 {
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+.mw-confirm p {
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+.mw-confirm .mw-actions {
+  margin-top: 22px;
+  justify-content: flex-end;
+}
+.mw-confirm input {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-0);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.mw-review {
+  max-height: 280px;
+  overflow: auto;
+  margin: 8px 0 16px;
+  padding: 12px 0;
+}
+.mw-review summary {
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.mw-review-group {
+  padding: 10px 0;
+}
+.mw-review-group .mh-action {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.mw-review-group p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.mw-management .mw-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row;
+}
+.mw-management .mw-setting input {
+  margin: 0;
+}

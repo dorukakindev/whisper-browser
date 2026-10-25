@@ -51,6 +51,7 @@ class BrowserReadingList {
 
   _writeIndex(entries) {
     this.ensure();
+    const previous=this._readIndex();
     const trimmed = entries.slice(0, INDEX_LIMIT);
     const target = this.indexPath;
     const temp = `${target}.tmp`;
@@ -62,6 +63,10 @@ class BrowserReadingList {
     } finally {
       try { if (this.fs.existsSync(temp)) this.fs.unlinkSync(temp); } catch (_) {}
     }
+    this.cleanupWarnings=[];
+    const retained=new Set(trimmed.map(e=>e.fileName));
+    const removed=[...entries.slice(INDEX_LIMIT),...previous.filter(e=>!retained.has(e.fileName))];
+    for(const row of removed){const old=this._safeFilePath(row.fileName);if(old&&!retained.has(row.fileName))try{if(this.fs.lstatSync(old).isFile())this.fs.unlinkSync(old);}catch(e){if(e.code!=='ENOENT')this.cleanupWarnings.push(row.fileName);}}
     return trimmed;
   }
 
@@ -107,7 +112,7 @@ class BrowserReadingList {
     const entries = this._readIndex().filter((item) => item.id !== entry.id);
     entries.unshift({ ...entry });
     this._writeIndex(entries);
-    return { ok: true, entry: { ...entry } };
+    return { ok: true, entry: { ...entry }, cleanupWarnings:this.cleanupWarnings||[] };
   }
 
   get(rawId) {

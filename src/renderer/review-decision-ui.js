@@ -22,6 +22,7 @@
   const provenance=el('p','mrv-provenance');provenance.setAttribute('role','status');source.append(provenance);
   const label=el('label','mtx-field'),url=el('input');url.type='url';url.name='letterboxd-reviews-url';url.maxLength=2000;url.autocomplete='off';url.value=draft.url||'https://letterboxd.com/film/';label.append(el('span','',t('Letterboxd film reviews URL','Letterboxd film yorumları adresi')),url);source.append(label);
   const actions=el('div','mtx-actions');source.append(actions);
+  const appendPages=el('input');appendPages.type='checkbox';const appendLabel=el('label','mtx-field',t('Add the next loaded page to this sample (up to 100 reviews)','Sonraki yüklü sayfayı bu örneğe ekle (en fazla 100 yorum)'));appendLabel.prepend(appendPages);source.append(appendLabel);
   const rawLabel=el('label','mtx-field'),raw=el('textarea');raw.name='review-text';raw.rows=6;raw.maxLength=120000;raw.value=draft.reviews||'';rawLabel.append(el('span','',t('Review text · paste or edit','Yorum metni · yapıştır veya düzenle')),raw);source.append(rawLabel);
   const spoilerLabel=el('label','mtx-field'),spoiler=el('input');spoiler.type='checkbox';spoiler.name='review-spoilers';spoiler.checked=!!draft.spoiler;spoilerLabel.append(el('span','',t('Include spoiler reviews','Spoiler içeren yorumları dahil et')),spoiler);source.append(spoilerLabel);
   const output=el('section','mrv-output');let fetching=false,fetchRequest='',readVersion=0;
@@ -49,6 +50,14 @@
    const controls=el('div','mtx-actions');controls.append(button(t('Verify quotes & save','Alıntıları doğrula ve kaydet'),async()=>{await api('decision-save',{itemId:item.id,reviews,analysis,itemIdentity:item});delete draft.result;setState('saved');if(current())redraw();},true),button(t('Discard analysis','Analizi kaydetme'),()=>{delete draft.result;output.replaceChildren();setState('ready');}));output.append(controls);
   }
   function fill(result){
+   if(appendPages.checked&&raw.value.trim()){
+    if(result.match?.state!=='matched'||draft.source?.match?.state!=='matched')throw Error(t('Verify both pages match this film before combining.','Birleştirmeden önce iki sayfanın da bu filmle eşleşmesi doğrulanmalı.'));
+    let previous;try{previous=JSON.parse(raw.value);}catch{throw Error(t('Import or load a structured review sample first.','Önce yapılandırılmış yorum örneği yükle.'));}
+    if(!Array.isArray(previous))throw Error('Invalid sample.');const seen=new Set(),merged=[];for(const row of [...previous,...result.reviews]){const key=String(row.author||'')+'\n'+String(row.text||'');if(!seen.has(key)){seen.add(key);merged.push({...row,id:'R'+(merged.length+1)});}}
+    if(merged.length>100||JSON.stringify(merged).length>120000)throw Error(t('Combined sample is too large; keep this sample or start a new one.','Birleşik örnek çok büyük; mevcut örneği koru veya yeni örnek başlat.'));
+    result={...result,reviews:merged};
+   }
+   delete draft.result;
    raw.value=JSON.stringify(result.reviews);draft.reviews=raw.value;draft.source={identity:result.identity,pageTitle:result.pageTitle,url:result.url,match:result.match,limited:result.limited};if(result.url){url.value=result.url;draft.url=result.url;}renderProvenance();setState('ready',result.reviews.length+' '+t('reviews loaded. One page is a sample, not a consensus.','yorum yüklendi. Bir sayfa bir örnektir; ortak kanaat sayılmaz.'));
   }
   async function read(action){
@@ -57,7 +66,7 @@
    catch(error){if(version===readVersion&&current())setState('failed','',error.message);}
    finally{if(version===readVersion){fetching=false;fetchRequest='';if(!current()&&draft.attempt?.state==='reading')draft.attempt={state:'stopped',message:t('The review panel changed; the previous sample was kept.','Yorum paneli değişti; önceki örnek korundu.')};renderJob();}}
   }
-  actions.append(button(t('Use reviews from open Browser page','Açık Browser sayfasındaki yorumları kullan'),()=>read('reviews-browser'),true),button(t('Fetch public page','Açık sayfayı getir'),()=>read('reviews-fetch')),button(t('Import TXT / JSON','TXT / JSON içe aktar'),async()=>{const result=await api('reviews-file');if(!result.canceled&&current())fill(result);}),button(t('Open page ↗','Sayfayı aç ↗'),async()=>{const u=new URL(url.value);if(u.protocol!=='https:'||u.hostname!=='letterboxd.com'||u.username||u.password||u.port||u.search||u.hash||!/^\/film\/[a-z0-9-]+\/(?:reviews\/)?$/.test(u.pathname))throw Error(t('Enter a public film reviews URL.','Açık film yorumları adresini gir.'));await window.api.openExternal(u.href);}));
+  actions.append(button(t('Use reviews from open Browser page','Açık Browser sayfasındaki yorumları kullan'),()=>read('reviews-browser'),true),button(t('Fetch public page','Açık sayfayı getir'),()=>read('reviews-fetch')),button(t('Import TXT / JSON','TXT / JSON içe aktar'),async()=>{const result=await api('reviews-file');if(!result.canceled&&current())fill(result);}),button(t('Open page ↗','Sayfayı aç ↗'),async()=>{const u=new URL(url.value);if(!window.LetterboxdReviews.publicFilmUrl(u.href))throw Error(t('Enter a public film reviews URL.','Açık film yorumları adresini gir.'));await window.api.openExternal(u.href);}));
   source.append(el('p','mtx-muted',t('If automatic access is blocked, load the film reviews normally in the app Browser and use the loaded page. Paste/import stays available.','Otomatik erişim engellenirse film yorumlarını uygulamanın Browser bölümünde normal açıp yüklü sayfayı kullan. Yapıştırma ve içe aktarma da kullanılabilir.')));
   url.oninput=()=>draft.url=url.value;raw.oninput=()=>{draft.reviews=raw.value;delete draft.source;renderProvenance();};spoiler.onchange=()=>draft.spoiler=spoiler.checked;
   const sampleInput=()=>JSON.stringify([raw.value,spoiler.checked]);

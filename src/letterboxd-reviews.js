@@ -1,3 +1,4 @@
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.LetterboxdReviews=factory();})(typeof window==='object'?window:globalThis,()=>{
  'use strict';
 // Bounded public-page text extraction only. No script, resource or embedded URL is executed.
 function decode(value){const names={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',ndash:'–',mdash:'—'};return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,(entity,key)=>{if(key[0]!=='#')return names[key.toLowerCase()]??entity;const n=key[1].toLowerCase()==='x'?parseInt(key.slice(2),16):Number(key.slice(1));return Number.isInteger(n)&&n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'�';});}
@@ -44,7 +45,7 @@ function matchFilm(item,identity={}){
  if(name&&identity.year&&names.length&&!names.includes(name))return {state:'mismatch',reason:'title'};
  return {state:'unverified',reason:'missing-identity'};
 }
-function publicFilmUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/film\/[a-z0-9-]+\/(?:reviews\/)?$/.test(u.pathname)?u.href:null;}catch{return null;}}
+function publicFilmUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.hash&&[...u.searchParams.keys()].every(k=>k==='page')&&u.searchParams.getAll('page').length<=1&&(!u.search||/^[1-9]\d{0,3}$/.test(u.searchParams.get('page')))&&/^\/film\/[a-z0-9-]+\/(?:reviews\/(?:by\/(?:activity|added|rating|rating-lowest|rating-highest|popular|review-popular)\/)?(?:page\/[1-9]\d{0,3}\/)?)?$/.test(u.pathname)?u.href:null;}catch{return null;}}
 // Only review cards and public film metadata are copied, never forms, cookies or scripts.
 function reviewPageScript(){return `(()=>{
  if(document.querySelector('#challenge-running,#challenge-stage,#challenge-form')||/just a moment|access denied|security check/i.test(document.title))return {blocked:true};
@@ -64,4 +65,5 @@ async function readBrowserReviews({getTab,execute}){
  const result=parseLetterboxdReviews(data.html);if(!result.reviews.length)throw Error('No loaded public reviews found. Load the reviews normally, or paste/import them.');
  return {...result,url,origin:'browser'};
 }
-module.exports={parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPageScript,readBrowserReviews};
+return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPageScript,readBrowserReviews};
+});

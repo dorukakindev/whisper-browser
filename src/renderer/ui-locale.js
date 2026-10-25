@@ -1007,6 +1007,7 @@
     ['Okuma', 'Reading'],
     ['Sayfayı asistana sor', 'Ask about this page'],
     ['Sesli oku', 'Read aloud'],
+    ['Bu grubu dinle', 'Listen to this group'],
     ['Hazır sesi bu sayfada dinle', 'Listen to ready audio on this page'],
     ['Çeviri ve dışa aktarma', 'Translation & export'],
     ['Başlangıç sayfası', 'First page'],

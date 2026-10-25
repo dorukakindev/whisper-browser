@@ -197,7 +197,7 @@
     rows.slice(0, 300).forEach(row => {
       const node = btn('', () => openBook(row), 'mh-card'), cover = el('div', 'mh-art');
       if (/^data:image\/(?:png|jpeg|webp);base64,/i.test(row.cover || '')) { const img = el('img'); img.src = row.cover; img.alt = ''; img.loading = 'lazy'; cover.append(img); } else cover.append(el('span', 'ms-book-placeholder', row.format.toUpperCase()));
-      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase())); const shell = el('div'); shell.append(node, btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button')); grid.append(shell);
+      node.append(cover, el('span', 'mh-card-title', row.title), el('span', 'mh-card-meta', row.author || row.format.toUpperCase())); const shell = el('div'); shell.append(node,btn(t('Voice production','Sesli üretim'),async()=>{const r=await window.api.mediaWorkflows({action:'book-from-shelf',shelfId:row.id});if(!r.ok)throw Error(r.error);await window.MediaWorkflowsUI.openProject(r.project.id);})); shell.append(btn(t('Remove', 'Kaldır'), () => forget('books', row), 'mh-text-button')); grid.append(shell);
     });
     root.append(grid); if (!rows.length) root.append(el('p', 'mh-empty', t('Add books to keep covers, reading position, bookmarks and quotes together. EPUB opens as a safe text reader; fixed-layout/DRM content is not supported.', 'Kapakları, okuma konumunu, yer imlerini ve alıntıları bir arada tutmak için kitap ekle. EPUB güvenli metin okuyucuda açılır; sabit düzen/DRM içeriği desteklenmez.')));
   }

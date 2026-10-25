@@ -117,7 +117,12 @@ function registerMediaWorkflows({
   resources,
   grantPdf,
   resolvePdf,
+  runTool = run,
+  voiceRunning = () => false,
+  resolveShelfBook,
+  linkShelfBook,
 }) {
+  const exportLocks = new Set();
   const pending = new Map(),
     plans = new Map(),
     controllers = new Map();
@@ -161,7 +166,7 @@ function registerMediaWorkflows({
   });
   async function parser(request) {
     return JSON.parse(
-      await run(
+      await runTool(
         python(),
         [path.join(__dirname, "..", "backend", "media_shelf.py")],
         JSON.stringify(request),
@@ -170,13 +175,41 @@ function registerMediaWorkflows({
       ),
     );
   }
-  async function bookImport() {
-    const selected = await dialog.showOpenDialog(owner(), {
-      properties: ["openFile"],
-      filters: [{ name: "Books", extensions: ["epub", "pdf", "txt"] }],
-    });
+  async function bookImport(shelfId) {
+    const shelf = shelfId ? resolveShelfBook?.(shelfId) : null;
+    if (shelfId && !shelf) throw Error("Book not found in library.");
+    const selected = shelf
+      ? { filePaths: [shelf.path] }
+      : await dialog.showOpenDialog(owner(), {
+          properties: ["openFile"],
+          filters: [{ name: "Books", extensions: ["epub", "pdf", "txt"] }],
+        });
     if (selected.canceled) return { ok: true, canceled: true };
+    if (
+      shelf &&
+      (!path.isAbsolute(shelf.path) ||
+        /^[\\/]{2}/.test(shelf.path) ||
+        ![".pdf", ".epub", ".txt"].includes(
+          path.extname(shelf.path).toLowerCase(),
+        ))
+    )
+      throw Error("Select a local book file again before starting production.");
     const source = fs.realpathSync(selected.filePaths[0]);
+    if (shelf) {
+      for (const id of fs.existsSync(root())
+        ? fs.readdirSync(root()).filter(idOK)
+        : []) {
+        const d = load(id);
+        if (d.shelfBookId === shelf.id && !d.archived) {
+          const info = fs.statSync(source);
+          if (info.size !== d.sourceSize || info.mtimeMs !== d.sourceMtime)
+            throw Error(
+              "Source book changed; archive the older production project before importing the changed book.",
+            );
+          return { ok: true, project: clean(d) };
+        }
+      }
+    }
     let book;
     if (path.extname(source).toLowerCase() === ".pdf") {
       if (fs.statSync(source).size > 100 * 1024 * 1024)
@@ -233,6 +266,7 @@ function registerMediaWorkflows({
       id: randomUUID(),
       title: book.title,
       author: book.author || "",
+      shelfBookId: shelf?.id || null,
       created: new Date().toISOString(),
       format: book.format,
       numPages: book.numPages || null,
@@ -248,6 +282,7 @@ function registerMediaWorkflows({
       })),
     };
     save(project);
+    if (shelf) linkShelfBook?.(shelf.id, project.id);
     return { ok: true, project: clean(project) };
   }
   function capture(output) {
@@ -283,6 +318,8 @@ function registerMediaWorkflows({
           ? "ready"
           : "review";
       c.voiceSettings = output.settings || {};
+      c.activeJob = null;
+      c.lastOutputId = output.id;
       save(d);
     } catch (error) {
       app.emit?.("media-workflow-error", error.message);
@@ -470,6 +507,32 @@ function registerMediaWorkflows({
     if (!authorized(e)) return { ok: false, error: "Unauthorized." };
     try {
       if (
+        voiceRunning() &&
+        [
+          "book-save",
+          "book-prepare",
+          "book-approve",
+          "book-archive",
+          "book-restore",
+          "book-recover",
+        ].includes(r.action)
+      )
+        throw Error("Voice production is running / Ses üretimi sürüyor.");
+      if (
+        r.id &&
+        exportLocks.has(r.id) &&
+        [
+          "book-save",
+          "book-prepare",
+          "book-approve",
+          "book-rename",
+          "book-archive",
+          "book-preferences",
+          "book-recover",
+        ].includes(r.action)
+      )
+        throw Error("Export in progress / Dışa aktarma sürüyor.");
+      if (
         ["book-save", "book-prepare", "book-listen", "book-progress"].includes(
           r.action,
         ) &&
@@ -540,8 +603,190 @@ function registerMediaWorkflows({
           save(d);
           return { ok: true, project: clean(d) };
         }
+        case "book-backup": {
+          if (controllers.has(e.sender.id))
+            throw Error("Finish the running workflow first.");
+          const pick = await dialog.showSaveDialog(owner(), {
+            defaultPath: path.join(
+              voiceStorage(app).output,
+              "book-projects.wbb",
+            ),
+            filters: [{ name: "Book projects", extensions: ["wbb"] }],
+          });
+          if (pick.canceled) return { ok: true, canceled: true };
+          return {
+            ok: true,
+            ...require("./book-project-backup").exportBooks(
+              root(),
+              pick.filePath,
+              r.includeAudio === true,
+            ),
+          };
+        }
+        case "book-restore": {
+          const pick = await dialog.showOpenDialog(owner(), {
+            properties: ["openFile"],
+            filters: [{ name: "Book projects", extensions: ["wbb"] }],
+          });
+          if (pick.canceled) return { ok: true, canceled: true };
+          return {
+            ok: true,
+            ...require("./book-project-backup").importBooks(
+              root(),
+              pick.filePaths[0],
+            ),
+          };
+        }
         case "book-import":
           return await bookImport();
+        case "book-from-shelf":
+          return await bookImport(r.shelfId);
+        case "book-rename": {
+          const d = load(r.id);
+          if (
+            typeof r.title !== "string" ||
+            !r.title.trim() ||
+            r.title.length > 300
+          )
+            throw Error("Invalid title.");
+          d.title = r.title.trim();
+          save(d);
+          return { ok: true, project: clean(d) };
+        }
+        case "book-archive": {
+          const d = load(r.id);
+
+          d.archived = r.archived !== false;
+          save(d);
+          return { ok: true };
+        }
+        case "book-preferences": {
+          const d = load(r.id),
+            v = r.preferences;
+          if (
+            !v ||
+            !["fast", "quality"].includes(v.profile) ||
+            ![1, 2, 4, 8].includes(v.concurrency) ||
+            !["fast", "balanced", "detailed"].includes(v.verification)
+          )
+            throw Error("Invalid voice preferences.");
+          d.voicePreferences = {
+            profile: v.profile,
+            concurrency: v.concurrency,
+            verification: v.verification,
+            referenceId:
+              typeof v.referenceId === "string"
+                ? v.referenceId.slice(0, 100)
+                : "",
+          };
+          save(d);
+          return { ok: true };
+        }
+        case "book-approve": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter];
+          if (
+            !c ||
+            c.textHash !== hash(c.text) ||
+            !c.output ||
+            typeof r.key !== "string"
+          )
+            throw Error("Current audio required.");
+          const g = c.groups?.find((g) => g.key === r.key);
+          if (
+            !g ||
+            g.status !== "review" ||
+            !Number.isFinite(g.start) ||
+            !Number.isFinite(g.end) ||
+            g.end <= g.start
+          )
+            throw Error("Only playable review groups can be acknowledged.");
+          const audio = path.join(
+            path.dirname(file(d.id)),
+            path.basename(c.output),
+          );
+          if (!fs.statSync(audio).isFile()) throw Error("Audio missing.");
+          g.status = "ready";
+          g.manualApproval = {
+            at: new Date().toISOString(),
+            textHash: c.textHash,
+            audioHash: fileDigest(audio),
+          };
+          c.status = c.groups.every((g) => g.status === "ready")
+            ? "ready"
+            : "review";
+          save(d);
+          return { ok: true, project: clean(d) };
+        }
+        case "book-recover": {
+          const d = load(r.id);
+          let recovered = 0;
+          const notices = [];
+          for (const initial of d.chapters) {
+            const current = load(d.id),
+              c = current.chapters[initial.id];
+            const a = c.activeJob;
+            if (!a) continue;
+            if (a.textHash !== hash(c.text)) {
+              notices.push(c.title + ": text changed");
+              continue;
+            }
+            const dir = path.join(app.getPath("userData"), "dub-logs");
+            const logs = fs.existsSync(dir)
+              ? fs
+                  .readdirSync(dir)
+                  .filter(
+                    (n) => n.startsWith(a.id + "-") && n.endsWith(".json"),
+                  )
+                  .sort()
+                  .reverse()
+              : [];
+            const log = logs[0] && path.join(dir, logs[0]);
+            if (!log || fs.statSync(log).size > 6000000) {
+              notices.push(c.title + ": no completion log; resume using cache");
+              continue;
+            }
+            const result = JSON.parse(fs.readFileSync(log, "utf8"));
+            if (
+              result.id === a.id &&
+              ["error", "cancelled"].includes(result.result)
+            ) {
+              c.activeJob = null;
+              save(current);
+              notices.push(c.title + ": stopped; cached speech kept");
+              continue;
+            }
+            const expected = path.join(voiceStorage(app).output, a.id + ".wav");
+            if (
+              result.id !== a.id ||
+              result.result !== "done" ||
+              result.path !== expected ||
+              !result.quality?.groups?.length ||
+              !fs.existsSync(expected) ||
+              fs.lstatSync(expected).isSymbolicLink() ||
+              !fs.statSync(expected).isFile()
+            ) {
+              notices.push(c.title + ": incomplete; resume using cache");
+              continue;
+            }
+            const fd = fs.openSync(expected, "r"),
+              header = Buffer.alloc(12);
+            try {
+              fs.readSync(fd, header, 0, 12, 0);
+            } finally {
+              fs.closeSync(fd);
+            }
+            if (
+              header.toString("ascii", 0, 4) !== "RIFF" ||
+              header.toString("ascii", 8, 12) !== "WAVE"
+            )
+              throw Error("Invalid recovered WAV.");
+            pending.set(a.id, { id: d.id, chapter: c.id, hash: a.textHash });
+            capture({ ...result, id: a.id });
+            if (!load(d.id).chapters[c.id].activeJob) recovered++;
+          }
+          return { ok: true, recovered, notices, project: clean(load(r.id)) };
+        }
         case "book-list": {
           fs.mkdirSync(root(), { recursive: true });
           return {
@@ -553,7 +798,16 @@ function registerMediaWorkflows({
               .flatMap((id) => {
                 try {
                   const d = load(id);
-                  return [{ id, title: d.title, chapters: d.chapters.length }];
+                  return d.archived && !r.archived
+                    ? []
+                    : [
+                        {
+                          id,
+                          title: d.title,
+                          chapters: d.chapters.length,
+                          archived: !!d.archived,
+                        },
+                      ];
                 } catch {
                   return [];
                 }
@@ -591,6 +845,12 @@ function registerMediaWorkflows({
           grantSubtitle(srt);
           const jobId = "book-" + randomUUID();
           pending.set(jobId, { id: d.id, chapter: c.id, hash: hash(c.text) });
+          c.activeJob = {
+            id: jobId,
+            textHash: hash(c.text),
+            startedAt: new Date().toISOString(),
+          };
+          save(d);
           while (pending.size > 50) pending.delete(pending.keys().next().value);
           return {
             ok: true,
@@ -678,113 +938,139 @@ function registerMediaWorkflows({
           };
         }
         case "book-export": {
-          const d = load(r.id);
-          if (
-            !Array.isArray(r.chapters) ||
-            !r.chapters.length ||
-            r.chapters.length > 100
-          )
-            throw Error("Choose 1–100 chapters.");
-          if (
-            r.chapters.some((i) => !Number.isInteger(i) || i < 0 || i >= 1000)
-          )
-            throw Error("Invalid chapter selection.");
-          const indices = [...new Set(r.chapters)].sort((a, b) => a - b),
-            chapters = indices.map((i) => d.chapters[i]);
-          if (
-            chapters.some(
-              (c) =>
-                !c?.output ||
-                c.status !== "ready" ||
-                c.textHash !== hash(c.text),
-            )
-          )
-            throw Error(
-              "Selected chapters need ready, current speech / Seçili bölümlerin güncel ve onaylı sesi gerekli.",
-            );
-          const pick = await dialog.showSaveDialog(owner(), {
-            defaultPath: path.join(
-              voiceStorage(app).output,
-              `${d.title.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100)}.m4b`,
-            ),
-            filters: [{ name: "Audiobook", extensions: ["m4b"] }],
-          });
-          if (pick.canceled) return { ok: true, canceled: true };
-          if (!/\.m4b$/i.test(pick.filePath)) pick.filePath += ".m4b";
-          const dir = path.dirname(file(d.id)),
-            meta = path.join(dir, "export-" + randomUUID() + ".txt"),
-            temp = path.join(
-              path.dirname(pick.filePath),
-              ".audiobook-" + randomUUID() + ".m4b",
-            );
-          let cursor = 0,
-            metadata = ";FFMETADATA1\n";
-          const escape = (s) => String(s).replace(/[\\=;#\n\r]/g, " ");
-          metadata += `title=${escape(d.title)}\nartist=${escape(d.author)}\n`;
-          const files = chapters.map((c) =>
-            path.join(dir, path.basename(c.output)),
-          );
-          if (files.some((f) => fs.lstatSync(f).isSymbolicLink()))
-            throw Error("Symbolic audio paths are not supported.");
-          for (let i = 0; i < files.length; i++) {
-            const seconds = Number(
-              (
-                await run(
-                  ffprobe(),
-                  [
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "format=duration",
-                    "-of",
-                    "csv=p=0",
-                    files[i],
-                  ],
-                  "",
-                  null,
-                  15000,
-                )
-              ).trim(),
-            );
-            if (!Number.isFinite(seconds) || seconds <= 0)
-              throw Error("Invalid chapter audio.");
-            metadata += `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(cursor * 1000)}\nEND=${Math.round((cursor + seconds) * 1000)}\ntitle=${escape(chapters[i].title)}\n`;
-            cursor += seconds;
-          }
-          atomicWriteFileSync(meta, metadata);
+          if (exportLocks.has(r.id) || controllers.has(e.sender.id))
+            throw Error("A workflow is running.");
+          const exportController = new AbortController();
+          const abortExport = () => exportController.abort();
+          e.sender.once?.("destroyed", abortExport);
+          controllers.set(e.sender.id, exportController);
+          exportLocks.add(r.id);
           try {
-            await run(
-              ffmpeg(),
-              [
-                "-nostdin",
-                "-y",
-                ...files.flatMap((f) => ["-i", f]),
-                "-i",
-                meta,
-                "-filter_complex",
-                files.map((_, i) => `[${i}:a]`).join("") +
-                  `concat=n=${files.length}:v=0:a=1[a]`,
-                "-map",
-                "[a]",
-                "-map_metadata",
-                String(files.length),
-                "-map_chapters",
-                String(files.length),
-                "-c:a",
-                "aac",
-                "-b:a",
-                "160k",
-                temp,
-              ],
-              "",
-              null,
-              600000,
+            const d = load(r.id);
+            if (
+              !Array.isArray(r.chapters) ||
+              !r.chapters.length ||
+              r.chapters.length > 100
+            )
+              throw Error("Choose 1–100 chapters.");
+            if (
+              r.chapters.some((i) => !Number.isInteger(i) || i < 0 || i >= 1000)
+            )
+              throw Error("Invalid chapter selection.");
+            const indices = [...new Set(r.chapters)].sort((a, b) => a - b),
+              chapters = indices.map((i) => d.chapters[i]);
+            if (
+              chapters.some(
+                (c) =>
+                  !c?.output ||
+                  c.status !== "ready" ||
+                  c.textHash !== hash(c.text),
+              )
+            )
+              throw Error(
+                "Selected chapters need ready, current speech / Seçili bölümlerin güncel ve onaylı sesi gerekli.",
+              );
+            const pick = await dialog.showSaveDialog(owner(), {
+              defaultPath: path.join(
+                voiceStorage(app).output,
+                `${d.title.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100)}.m4b`,
+              ),
+              filters: [{ name: "Audiobook", extensions: ["m4b"] }],
+            });
+            if (pick.canceled) return { ok: true, canceled: true };
+            if (!/\.m4b$/i.test(pick.filePath)) pick.filePath += ".m4b";
+            const dir = path.dirname(file(d.id)),
+              meta = path.join(dir, "export-" + randomUUID() + ".txt"),
+              temp = path.join(
+                path.dirname(pick.filePath),
+                ".audiobook-" + randomUUID() + ".m4b",
+              );
+            emit(e.sender, {
+              type: "progress",
+              text: "M4B: checking audio / Ses denetleniyor",
+            });
+            let cursor = 0,
+              metadata = ";FFMETADATA1\n";
+            const escape = (s) => String(s).replace(/[\\=;#\n\r]/g, " ");
+            metadata += `title=${escape(d.title)}\nartist=${escape(d.author)}\n`;
+            const files = chapters.map((c) =>
+              path.join(dir, path.basename(c.output)),
             );
-            fs.renameSync(temp, pick.filePath);
-            grantMedia(pick.filePath);
-            return { ok: true, path: pick.filePath };
+            if (files.some((f) => fs.lstatSync(f).isSymbolicLink()))
+              throw Error("Symbolic audio paths are not supported.");
+            for (let i = 0; i < files.length; i++) {
+              const seconds = Number(
+                (
+                  await runTool(
+                    ffprobe(),
+                    [
+                      "-v",
+                      "error",
+                      "-show_entries",
+                      "format=duration",
+                      "-of",
+                      "csv=p=0",
+                      files[i],
+                    ],
+                    "",
+                    exportController.signal,
+                    15000,
+                  )
+                ).trim(),
+              );
+              if (!Number.isFinite(seconds) || seconds <= 0)
+                throw Error("Invalid chapter audio.");
+              metadata += `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(cursor * 1000)}\nEND=${Math.round((cursor + seconds) * 1000)}\ntitle=${escape(chapters[i].title)}\n`;
+              cursor += seconds;
+            }
+            atomicWriteFileSync(meta, metadata);
+            try {
+              if (exportController.signal.aborted)
+                throw Error("Export cancelled.");
+              emit(e.sender, {
+                type: "progress",
+                text: "M4B: encoding / Kodlanıyor",
+              });
+              await runTool(
+                ffmpeg(),
+                [
+                  "-nostdin",
+                  "-y",
+                  ...files.flatMap((f) => ["-i", f]),
+                  "-i",
+                  meta,
+                  "-filter_complex",
+                  files.map((_, i) => `[${i}:a]`).join("") +
+                    `concat=n=${files.length}:v=0:a=1[a]`,
+                  "-map",
+                  "[a]",
+                  "-map_metadata",
+                  String(files.length),
+                  "-map_chapters",
+                  String(files.length),
+                  "-c:a",
+                  "aac",
+                  "-b:a",
+                  "160k",
+                  temp,
+                ],
+                "",
+                exportController.signal,
+                600000,
+              );
+              if (exportController.signal.aborted)
+                throw Error("Export cancelled.");
+              fs.renameSync(temp, pick.filePath);
+              grantMedia(pick.filePath);
+              return { ok: true, path: pick.filePath };
+            } finally {
+              for (const f of [temp, meta]) fs.rmSync(f, { force: true });
+            }
           } finally {
-            for (const f of [temp, meta]) fs.rmSync(f, { force: true });
+            e.sender.removeListener?.("destroyed", abortExport);
+            exportLocks.delete(r.id);
+            if (controllers.get(e.sender.id) === exportController)
+              controllers.delete(e.sender.id);
           }
         }
         case "batch-sync":
@@ -847,7 +1133,33 @@ function registerMediaWorkflows({
                       .join("\n"),
                   { encoding: "utf8", flag: "wx" },
                 );
-                fs.linkSync(temp, target);
+                try {
+                  fs.linkSync(temp, target);
+                } catch (error) {
+                  if (
+                    !["EPERM", "ENOTSUP", "EOPNOTSUPP", "EXDEV"].includes(
+                      error.code,
+                    )
+                  )
+                    throw error;
+                  let fd = null,
+                    owned = false;
+                  try {
+                    fd = fs.openSync(target, "wx");
+                    owned = true;
+                    fs.writeFileSync(fd, fs.readFileSync(temp));
+                    fs.fsyncSync(fd);
+                  } catch (e) {
+                    if (fd !== null) {
+                      fs.closeSync(fd);
+                      fd = null;
+                    }
+                    if (owned) fs.rmSync(target, { force: true });
+                    throw e;
+                  } finally {
+                    if (fd !== null) fs.closeSync(fd);
+                  }
+                }
                 written.push(target);
               } finally {
                 fs.rmSync(temp, { force: true });

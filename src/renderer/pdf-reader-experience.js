@@ -7,10 +7,12 @@
     preparing = false;
   const playerCopy = new Map();
   const projects = new Map();
+  let pdfMap = null;
   let voice = null,
     voiceToken = 0,
     lastSpoken = -1;
   function stopVoice() {
+    pdfMap?.dispose();pdfMap=null;
     voiceToken++;
     const a = $("pdfVoiceAudio");
     a.pause();
@@ -385,6 +387,8 @@
             audio.duration || 0,
           );
       };
+      const pageEntry=r.pages.get(r.currentPage),sourceCanvas=pageEntry.article.querySelector('.pdf-page-source canvas');
+      if(sourceCanvas){const original=await r.pdf.getPage(r.currentPage);if(token!==voiceToken||player.pdfReader!==r)return;pdfMap=window.PdfSpokenMap?.mount(pageEntry.article.querySelector('.pdf-page-source'),sourceCanvas,pageEntry.items,original.getViewport({scale:r.scale}),groups,audio);}
       audio.ontimeupdate = () => {
         if (token !== voiceToken) return;
         const i = groups.findIndex(
