@@ -116,6 +116,7 @@ function registerMediaWorkflows({
   inspectMedia,
   resources,
   grantPdf,
+  resolvePdf,
 }) {
   const pending = new Map(),
     plans = new Map(),
@@ -476,6 +477,69 @@ function registerMediaWorkflows({
       )
         throw Error("Invalid chapter index.");
       switch (r.action) {
+        case "book-from-reader": {
+          const document = resolvePdf?.(r.pdfHash);
+          if (!document)
+            throw Error(
+              "Reopen the authorized PDF / Onaylı PDF'yi yeniden açın.",
+            );
+          if (
+            !Number.isSafeInteger(r.numPages) ||
+            r.numPages < 1 ||
+            r.numPages > 1000
+          )
+            throw Error("Invalid page count.");
+          if (
+            !Array.isArray(r.pages) ||
+            !r.pages.length ||
+            r.pages.length > 100
+          )
+            throw Error("Choose 1–100 pages / 1–100 sayfa seçin.");
+          const seen = new Set();
+          let length = 0;
+          const chapters = r.pages.map((row, i) => {
+            if (
+              !Number.isSafeInteger(row.pageNumber) ||
+              row.pageNumber < 1 ||
+              row.pageNumber > r.numPages ||
+              seen.has(row.pageNumber) ||
+              typeof row.text !== "string" ||
+              !row.text.trim() ||
+              row.text.length > 100000
+            )
+              throw Error("Invalid reading page.");
+            seen.add(row.pageNumber);
+            length += row.text.length;
+            if (length > 900000) throw Error("PDF text too large.");
+            return {
+              id: i,
+              title: `Page / Sayfa ${row.pageNumber}`,
+              pageNumber: row.pageNumber,
+              text: row.text,
+              status: "pending",
+            };
+          });
+          fs.mkdirSync(root(), { recursive: true });
+          if (fs.readdirSync(root()).filter(idOK).length >= 100)
+            throw Error("The project library is limited to 100 books.");
+          const stat = fs.statSync(document.filePath);
+          const d = {
+            version: 1,
+            id: randomUUID(),
+            title: document.title,
+            author: "",
+            created: new Date().toISOString(),
+            format: "pdf",
+            numPages: r.numPages,
+            source: document.filePath,
+            sourceSize: stat.size,
+            sourceMtime: stat.mtimeMs,
+            selectedChapters: chapters.map((c) => c.id),
+            chapters,
+          };
+          save(d);
+          return { ok: true, project: clean(d) };
+        }
         case "book-import":
           return await bookImport();
         case "book-list": {

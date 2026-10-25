@@ -19584,6 +19584,8 @@ function subtitleContextLanguage(role) {
 function globalAssistantContext() {
   const selection = window.MediaExperience?.context();
   if (selection) return selection;
+  const pdfContext = window.PdfReaderExperience?.context();
+  if (pdfContext) return pdfContext;
   if (!$('playerLayer')?.classList.contains('hidden')) return null;
   const home = document.body.classList.contains('media-home-active');
   return { workspace: home ? 'media-library' : 'subtitle-studio',
@@ -24809,10 +24811,10 @@ function updatePdfReaderProgress() {
 }
 
 function setPdfReaderView(mode = 'both') {
-  const next = ['source', 'both', 'translation'].includes(mode) ? mode : 'both';
+  const next = ['reading', 'source', 'both', 'translation'].includes(mode) ? mode : 'both';
   const reader = $('pdfReader');
   if (reader) {
-    reader.classList.remove('mode-source', 'mode-both', 'mode-translation');
+    reader.classList.remove('mode-reading', 'mode-source', 'mode-both', 'mode-translation');
     reader.classList.add(`mode-${next}`);
   }
   if (player.pdfReader) player.pdfReader.viewMode = next;
@@ -24822,6 +24824,7 @@ function setPdfReaderView(mode = 'both') {
     button.setAttribute('aria-checked', active ? 'true' : 'false');
   });
   try { localStorage.setItem('whisper-local.pdf-view', next); } catch (_) {}
+  window.PdfReaderExperience?.refresh();
 }
 
 
@@ -24871,6 +24874,7 @@ async function renderPdfReaderPage(pageNumber) {
     const saved = reader.state?.pages?.[String(pageNumber)];
     if (Array.isArray(saved)) renderPdfTranslation(pageNumber, saved);
     if (entry.ocr) renderPdfOcrNote(pageNumber, entry);
+    window.PdfReaderExperience?.render(pageNumber);
   } catch (error) {
     article?.remove();
     if (player.pdfReader === reader && (reader.renderGeneration || 0) === generation) {
@@ -24913,7 +24917,7 @@ async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
     ? [...new Set((Array.isArray(explicitPages) ? explicitPages : []).map(Number)
       .filter((page) => Number.isSafeInteger(page) && page >= 1 && page <= count))].sort((a, b) => a - b)
     : all ? Array.from({ length: count }, (_, i) => i + 1)
-    : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page <= Math.min(count, (reader.currentPage || 1) + 2));
+    : [...reader.pages.keys()].sort((a, b) => a - b).filter((page) => page >= (reader.currentPage || 1) && page <= Math.min(count, (reader.currentPage || 1) + 2));
   if (!pages.length) { reader.translating = false; return; }
   // İş başlamadan kapsamı göster: sayfa sayısı ve ilk birkaç sayfa önizlemesi.
   pdfReaderSetStatus(interfaceChoice(
@@ -25060,8 +25064,8 @@ async function openPdfReader(filePath = '') {
     setBrowserSignal(`PDF okunamadı: ${error.message}`, false);
     return;
   }
-  let viewMode = 'both';
-  try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'both'; } catch (_) {}
+  let viewMode = 'reading';
+  try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'reading'; } catch (_) {}
   // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
   // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
   if (player.pdfReader) $('pdfReaderClose')?.click();
@@ -25077,10 +25081,11 @@ async function openPdfReader(filePath = '') {
     await renderPdfReaderPage(pageNumber);
   }
   const root = $('pdfReaderPages'); root.onscroll = () => {
-    const page = [...readerPagesForVisibility()].sort((a, b) => Math.abs(a.top) - Math.abs(b.top))[0];
+    const page = [...readerPagesForVisibility()].filter(p=>p.visible>0).sort((a, b) => b.visible-a.visible || Math.abs(a.top)-Math.abs(b.top))[0];
     if (page) {
       player.pdfReader.currentPage = page.number;
       if ($('pdfReaderPage')) $('pdfReaderPage').value = String(page.number);
+      window.PdfReaderExperience?.changed();
     }
   };
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
@@ -25095,12 +25100,13 @@ async function openPdfReader(filePath = '') {
       }), { root, rootMargin: '800px' });
   }
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
+  window.PdfReaderExperience?.opened();
   syncBrowserOcclusion();
 }
 
 function readerPagesForVisibility() {
   const root = $('pdfReaderPages'); if (!root) return [];
-  return [...root.querySelectorAll('.pdf-page')].map((node) => ({ number: Number(node.dataset.page), top: node.getBoundingClientRect().top - root.getBoundingClientRect().top }));
+  return [...root.querySelectorAll('.pdf-page')].map((node) => {const bounds=node.getBoundingClientRect(),viewport=root.getBoundingClientRect();return {number:Number(node.dataset.page),top:bounds.top-viewport.top,visible:Math.max(0,Math.min(bounds.bottom,viewport.bottom)-Math.max(bounds.top,viewport.top))};});
 }
 
 $('pdfReaderOpen')?.addEventListener('click', () => openPdfReader());
@@ -25124,6 +25130,7 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   const root = $('pdfReaderPages');
   if (root) { root.onscroll = null; root.replaceChildren(); }
   player.pdfReader = null;
+  window.PdfReaderExperience?.closed();
   $('pdfReader')?.classList.add('hidden'); $('playerStage')?.classList.remove('hidden');
   // Tarayıcı modunda açılırken #browserWorkspace gizleniyordu; kapanışta geri
   // açılmadığı için sayfa alanı mod değişene kadar boş kalıyordu.
@@ -25161,6 +25168,7 @@ function setPdfReaderZoom(nextScale) {
   const next = Math.min(2.5, Math.max(.5, Number(nextScale) || 1));
   if (Math.abs(next - reader.scale) < .001) return;
   reader.scale = next;
+  $('pdfReader').style.setProperty('--pdf-reader-font', `${20*next}px`);
   reader.renderGeneration = (reader.renderGeneration || 0) + 1;
   reader.observer?.disconnect();
   reader.rendered.clear();

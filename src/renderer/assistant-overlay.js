@@ -39,12 +39,15 @@
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else if(!$('review').hidden){$('reviewCancel').click();$('text').focus();}else toggle(); } });
   window.assistant.subscribe(value => {
+    if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened)$('text').focus();}
     const nextConversation=value.conversation||value.sourceToken||'';
     const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
     if(firstThread){drafts.delete(conversation);conversation=nextConversation;pending.sourceToken=value.sourceToken;}
     if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||value.draft||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}
     else if(!firstThread&&snapshot.sourceToken&&snapshot.sourceToken!==value.sourceToken){rememberDraft();pending=null;showStatus(value.locale==='tr'?'Kaynak güncellendi; taslağın korundu.':'Source updated; your draft was kept.');}
     snapshot=value;
+    for(const key of ['surface','raised','hover','line','strong','text','muted','accent']){const color=value.palette?.[key];if(/^#[a-f0-9]{6}$/i.test(color||''))document.documentElement.style.setProperty('--'+key,color);else document.documentElement.style.removeProperty('--'+key);}
+    const accent=value.palette?.accent;if(/^#[a-f0-9]{6}$/i.test(accent||'')){const rgb=[1,3,5].map(i=>parseInt(accent.slice(i,i+2),16)/255).map(c=>c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4));document.documentElement.style.setProperty('--accent-text',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#18100b':'#ffffff');}else document.documentElement.style.removeProperty('--accent-text');
     const threadKey=JSON.stringify([value.locale,value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
     $('workspaceError').textContent=value.workspaceError||'';
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;

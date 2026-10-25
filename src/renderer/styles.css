@@ -2258,7 +2258,7 @@ to { opacity: 1; transform: translateY(0); }
 .pdf-view-modes {
   min-width: 230px;
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 3px !important;
   margin: 0 !important;
   padding: 3px;

@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="media-hub.css" />
   <link rel="stylesheet" href="media-tools.css" />
 <link rel="stylesheet" href="media-workflows.css">
+<link rel="stylesheet" href="pdf-reader.css">
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -2195,16 +2196,27 @@
 
         <section class="pdf-reader hidden" id="pdfReader" aria-label="PDF kitap okuyucu">
           <header class="pdf-reader-toolbar">
-            <div><strong id="pdfReaderTitle">PDF kitap</strong><span id="pdfReaderStatus" role="status" aria-live="polite">Hazır</span><span class="pdf-reader-progress" id="pdfReaderProgress" aria-label="Çevrilen sayfa ilerlemesi">0/0 sayfa</span></div>
+            <div class="pdf-reader-heading"><div><strong id="pdfReaderTitle">PDF kitap</strong><span id="pdfReaderStatus" role="status" aria-live="polite">Hazır</span><span class="pdf-reader-progress" id="pdfReaderProgress" aria-label="Çevrilen sayfa ilerlemesi">0/0 sayfa</span></div></div>
+            <div class="pdf-reader-primary-actions">
+              <button class="btn btn-secondary btn-sm" id="pdfAskAssistant" type="button">Sayfayı asistana sor</button>
+              <button class="btn btn-primary btn-sm" id="pdfVoiceOpen" type="button">Sesli oku</button>
+              <button class="btn-icon" id="pdfReaderClose" type="button" title="PDF okuyucuyu kapat" aria-label="PDF okuyucuyu kapat">×</button>
+            </div>
+          </header>
+          <nav class="pdf-reader-controls" aria-label="Okuma araçları">
             <div class="pdf-view-modes" id="pdfViewModes" role="radiogroup" aria-label="PDF okuma görünümü">
+              <button type="button" data-pdf-view="reading" role="radio" aria-checked="false">Okuma</button>
               <button type="button" data-pdf-view="source" role="radio" aria-checked="false">Orijinal</button>
               <button type="button" data-pdf-view="both" role="radio" aria-checked="true">Yan yana</button>
               <button type="button" data-pdf-view="translation" role="radio" aria-checked="false">Çeviri</button>
             </div>
+            <div class="pdf-reader-navigation"><button class="btn btn-ghost btn-sm" id="pdfPrevious" type="button" aria-label="Önceki sayfa">‹</button>
             <label>Sayfa <input id="pdfReaderPage" type="number" min="1" value="1" aria-label="PDF sayfa numarası" /></label>
             <button class="btn btn-ghost btn-sm" id="pdfZoomOut" type="button" aria-label="Uzaklaştır">−</button>
             <output id="pdfZoomValue">%100</output>
             <button class="btn btn-ghost btn-sm" id="pdfZoomIn" type="button" aria-label="Yakınlaştır">+</button>
+<button class="btn btn-ghost btn-sm" id="pdfNext" type="button" aria-label="Sonraki sayfa">›</button><span id="pdfPageTotal"></span></div>
+            <details class="pdf-reader-tools"><summary>Çeviri ve dışa aktarma</summary><div class="pdf-reader-tools-content">
             <select id="pdfTargetLanguage" aria-label="PDF hedef dili"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select>
             <button class="btn btn-primary btn-sm" id="pdfTranslateVisible" type="button" title="Görünen sayfayı ve sonraki iki sayfayı çevirir">Bu sayfadan çevir</button>
             <button class="btn btn-secondary btn-sm" id="pdfTranslateAll" type="button">Tüm kitabı çevir</button>
@@ -2212,8 +2224,17 @@
             <button class="btn btn-ghost btn-sm" id="pdfTranslateCancel" type="button" disabled>İptal</button>
             <select id="pdfExportFormat" aria-label="PDF dışa aktarma biçimi"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option></select>
             <button class="btn btn-ghost btn-sm" id="pdfExport" type="button">Dışa aktar</button>
-            <button class="btn-icon" id="pdfReaderClose" type="button" title="PDF okuyucuyu kapat" aria-label="PDF okuyucuyu kapat">×</button>
-          </header>
+            </div></details>
+          </nav>
+          <div class="pdf-reader-voice hidden" id="pdfVoicePanel">
+            <label>Başlangıç sayfası <input id="pdfVoiceFrom" type="number" min="1" value="1"></label>
+            <label>Bitiş sayfası <input id="pdfVoiceTo" type="number" min="1" value="1"></label>
+            <label>Okunacak metin <select id="pdfVoiceText"><option value="source">Orijinal metin</option><option value="translation">Çeviri metni</option></select></label>
+            <button class="btn btn-primary btn-sm" id="pdfVoicePrepare" type="button">Seçili sayfaları seslendirmeye hazırla</button>
+            <button class="btn btn-secondary btn-sm" id="pdfVoiceListen" type="button" disabled>Hazır sesi bu sayfada dinle</button>
+            <audio id="pdfVoiceAudio" class="hidden" controls preload="metadata" aria-label="Sayfa seslendirmesi"></audio>
+            <span id="pdfVoiceStatus" role="status"></span>
+          </div>
           <div class="pdf-reader-pages" id="pdfReaderPages"></div>
         </section>
 
@@ -3844,6 +3865,7 @@
 <script src="assistant-workspace.js"></script>
 <script src="assistant-page-commands.js"></script>
 <script src="assistant-media-commands.js"></script>
+<script src="pdf-reader-experience.js"></script>
 <script src="global-assistant.js"></script>
 <script src="media-experience.js"></script>
 <script src="native-player-ui.js"></script>

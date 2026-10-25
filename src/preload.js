@@ -6,6 +6,7 @@ const RESOURCE_SOAK_MODE = typeof process !== 'undefined'
   && process.env && process.env.WHISPER_RESOURCE_SOAK === '1';
 
 contextBridge.exposeInMainWorld('api', {
+  showAssistant: () => ipcRenderer.send('assistant:show'),
   updateAssistant: value => ipcRenderer.send('assistant:update', value),
   onAssistantCommand: listener => ipcRenderer.on('assistant:command', (_event, packet) => listener(packet)),
   onAssistantVisibility: listener => ipcRenderer.on('assistant:visibility',(_event,packet)=>listener(packet)),

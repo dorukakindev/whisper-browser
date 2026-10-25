@@ -39,11 +39,18 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
     python: () => python,
     grantSubtitle: (p) => grants.push(p),
     resources: () => ({ processes: [] }),
+    resolvePdf: id => id === "approved-hash" ? {filePath:source,title:"Approved PDF"} : null,
   });
   const call = (action, r = {}) =>
     handlers["media-workflows:request"]({ sender }, { action, ...r });
   try {
+    assert.equal((await call('book-from-reader',{pdfHash:'unknown',numPages:3,pages:[{pageNumber:2,text:'Text'}]})).ok,false);
+    assert.equal((await call('book-from-reader',{pdfHash:'approved-hash',numPages:3,pages:[{pageNumber:4,text:'Text'}]})).ok,false);
+    assert.equal((await call('book-from-reader',{pdfHash:'approved-hash',numPages:3,pages:[{pageNumber:2,text:'One'},{pageNumber:2,text:'Duplicate'}]})).ok,false);
+    const selectedBook=await call('book-from-reader',{pdfHash:'approved-hash',numPages:3,pages:[{pageNumber:2,text:'Türkçe ikinci sayfa.'},{pageNumber:3,text:'Üçüncü sayfa.'}]});
+    assert(selectedBook.ok);assert.deepEqual(selectedBook.project.selectedChapters,[0,1]);assert.deepEqual(selectedBook.project.chapters.map(c=>c.pageNumber),[2,3]);assert.equal(selectedBook.project.source,undefined);
     assert.equal(
+
       (
         await handlers["media-workflows:request"](
           { sender: {} },

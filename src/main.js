@@ -21723,7 +21723,7 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
-mediaWorkflows = require('./media-workflows').registerMediaWorkflows({grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
+mediaWorkflows = require('./media-workflows').registerMediaWorkflows({resolvePdf:hash=>{const d=pdfDocumentByHash(hash);return d&&inspectPdfDocument(d.filePath).pdfHash===hash?d:null;},grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
   python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
   resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
