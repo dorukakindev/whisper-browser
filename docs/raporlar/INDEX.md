@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_573.md](BROWSER_BUG_REPORT_573.md) — Kitap üretiminde doğru hata/durdurma ve EN/TR kalite aşamaları.
+
 - [BROWSER_BUG_REPORT_572.md](BROWSER_BUG_REPORT_572.md) — Gerçek planlayıcıyla güncel grup önizlemesi ve kaynak kimliği.
 
 - [BROWSER_BUG_REPORT_571.md](BROWSER_BUG_REPORT_571.md) — Metin kimliğiyle ses denemelerini karşılaştırma ve seçme.
