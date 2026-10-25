@@ -164,6 +164,10 @@
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
     let index = Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
     const prose = el('article', 'ms-prose'); prose.tabIndex = 0;
+    window.MediaExperience?.bindPassage(prose, ({ text, offset, selectedText }) => {
+      if (!dialog.open) return;
+      window.MediaExperience.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: text.slice(Math.max(0, offset - 1500), Math.max(0, offset - 1500) + 8000), selectedText });
+    });
     const position = () => ({ chapter: index, scroll: prose.scrollHeight > prose.clientHeight ? prose.scrollTop / (prose.scrollHeight - prose.clientHeight) : 0 });
     const save = () => api('book-progress', { id: book.id, ...position() }).catch(error => { readerStatus.textContent = error.message; return false; });
     const readerStatus = el('p', 'ms-status'); readerStatus.setAttribute('role', 'status');

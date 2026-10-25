@@ -157,7 +157,7 @@
       else if (drafts.get(key) === text) drafts.delete(key);
     }
   }
-  function bookContext(index, text, offset = 0) {
+  function bookContext(index, text, offset = 0, selectedText = "") {
     const c = project?.chapters[index];
     if (!c || !dialog?.open) return;
     window.MediaExperience?.setContext(dialog, {
@@ -165,6 +165,7 @@
       type: "book-chapter",
       title: project.title,
       chapter: c.title,
+      selectedText,
       excerpt: String(text || "").slice(
         Math.max(0, offset - 1500),
         Math.max(0, offset - 1500) + 8000,
@@ -782,6 +783,11 @@
       drafts.set(draftKey, textarea.value);
       bookContext(contextChapter, textarea.value, textarea.selectionStart || 0);
     };
+    window.MediaExperience?.bindPassage(
+      textarea,
+      ({ text, offset, selectedText }) =>
+        bookContext(contextChapter, text, offset, selectedText),
+    );
     edit.append(
       textarea,
       el(
@@ -1301,6 +1307,11 @@
     body.append(head, audio, layout);
     layout.append(prose);
     bookContext(current, project.chapters[current].text);
+    window.MediaExperience?.bindPassage(
+      prose,
+      ({ text, offset, selectedText }) =>
+        bookContext(current, text, offset, selectedText),
+    );
     mountBookSearch(body);
     body.append(
       el(

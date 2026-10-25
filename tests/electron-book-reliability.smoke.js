@@ -410,6 +410,13 @@ app
       'const b=document.querySelector(".pdf-active-box").getBoundingClientRect(),c=document.querySelector(".mw-pdf canvas").getBoundingClientRect();return {inside:b.left>=c.left-2&&b.right<=c.right+2&&b.top>=c.top-2&&b.bottom<=c.bottom+2};',
     );
     assert(pdfBox.inside);
+    const selectedPassage = await run(
+      'const prose=document.querySelector(".mw-reading-text"),n=prose.querySelector(".mw-spoken").firstChild,quote="controlled PDF reading sample",start=n.textContent.indexOf(quote),range=document.createRange();range.setStart(n,start);range.setEnd(n,start+quote.length);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);prose.dispatchEvent(new Event("pointerup",{bubbles:true}));return {quote,context:aiChatContext(),scope:aiSourceScope()};',
+    );
+    assert.equal(selectedPassage.context.selectedText, selectedPassage.quote);
+    assert(selectedPassage.context.excerpt.includes(selectedPassage.quote));
+    assert.equal(selectedPassage.context.id, id + ":0");
+    assert.equal(selectedPassage.context.type, "book-chapter");
     await capture("reader-tr-dark.png");
     await run(
       '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Sonraki sayfa / bölüm").click();return true',
@@ -424,6 +431,11 @@ app
     assert.match(
       await run("return MediaExperience.context().excerpt"),
       /Chapter 2/,
+    );
+    assert.equal(
+      await run("return aiChatContext().selectedText"),
+      "",
+      "the previous page's quote must not leak into the next chapter",
     );
     await capture("reader-page2-context.png");
 
