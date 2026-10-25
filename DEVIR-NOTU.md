@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-0151.md](docs/devir/2026-10-26-0151.md) — PR495 ana programda; ayar ve kitap arayüzü düzenlendi
 Güncel çalışma: [docs/devir/2026-10-26-0149.md](docs/devir/2026-10-26-0149.md) — Dar ayarlar, EPUB ve sesli kitap arayüzü sadeleştirildi
 Güncel çalışma: [docs/devir/2026-10-26-0125.md](docs/devir/2026-10-26-0125.md) — PR494 ana programda; devam gezinmesi ve yeni PDF düzeni
 Güncel çalışma: [docs/devir/2026-10-26-0123.md](docs/devir/2026-10-26-0123.md) — Devam alanına oklar, sade Keşfet ve kompakt PDF okuma arayüzü
