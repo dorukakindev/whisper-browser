@@ -566,7 +566,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const rewriteRequests = new Set();
       function line(value) {
         if(value.startsWith('DUB_ACTIVITY ')){
-          try{const data=JSON.parse(value.slice(13));const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{stage:data.stage,text:labels[data.stage]});}catch(_){}return;
+          try{const data=JSON.parse(value.slice(13));const activity=require('./dub-activity').activity(data);if(activity)emit(s,'activity',activity);const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{stage:data.stage,text:labels[data.stage]});}catch(_){}return;
         }
         if(value==='DUB_WARNING normalization_unavailable')emit(s,'warning',{text:'Ses dengeleme tamamlanamadı; üretilen konuşma korundu.'});
 

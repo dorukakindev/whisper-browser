@@ -19855,7 +19855,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
-  if (aiChatPreparing||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
+  if (aiChatPreparing||window.BookAssistantUI?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
   }
@@ -19864,6 +19864,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
     try{await window.AssistantWorkspace.prepare();}catch(error){aiChatAdd('ai',error.message,'ai-msg-err');return;}finally{if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
     if(loading.cancelled||loading.scope!==aiSourceScope())return;
   }
+  if (expectedScope===null && !translationTarget && await window.BookAssistantUI?.handle(q)) return;
   if (expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
   if (expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;

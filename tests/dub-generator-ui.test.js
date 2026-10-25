@@ -60,6 +60,8 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubVoiceName').textContent,'voice.wav','analysis audio is not the cloned voice');
   el('dubGeneratorStart').click();await tick();
   assert.equal(request.expression,'warm');assert.equal(request.keepEngine,true);
+  onEvent({id:request.id,type:'activity',group:61,attempt:2,elapsed:30,limit:180});assert.match(el('dubGeneratorActivity').textContent,/61.*2.*30.*180/);
+  onEvent({id:request.id,type:'group',group:{group:61,key:'61',status:'review'}});assert.equal(el('dubGeneratorActivity').textContent,'');
   onEvent({id:request.id,type:'phases',phases:{model_load_seconds:2.25,reference_seconds:.5,synthesis_seconds:3,verification_seconds:1}});assert.match(el('dubPhaseSummary').textContent,/Model: 2.3/);assert.match(el('dubPhaseSummary').textContent,/Doğrulama: 1.0/);
   assert.equal(request.followDelivery,true);
   assert.equal(request.deliveryStrength,'balanced');

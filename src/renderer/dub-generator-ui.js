@@ -5,6 +5,8 @@
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
   let runtimePhases={},runtimeError='';
+  const activeGroups=new Map();
+  function showActivity(){const en=window.UiLocale?.get?.()==='en';el('dubGeneratorActivity').textContent=[...activeGroups.values()].map(g=>(en?'Group ':'Grup ')+g.group+' · '+(en?'attempt ':'deneme ')+g.attempt+' · '+Math.floor(g.elapsed)+' / '+g.limit+' s').join(' | ');}
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
   let deliverySource = '';
@@ -336,7 +338,7 @@
     current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
     const pending = current;
     const started = performance.now();
-    elapsed(0); stopTimer();
+    elapsed(0); stopTimer();activeGroups.clear();showActivity();
     timer = setInterval(() => elapsed((performance.now() - started) / 1000), 1000);
     logPath = null; el('dubGeneratorLog').classList.add('hidden');
     output = null; window.DubWorkspaceUI?.setOutput(null); preview(null); el('dubGeneratorOutput').classList.add('hidden');
@@ -452,15 +454,17 @@
     if (event.type === 'progress') {
       status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
       el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
-    } else if (event.type === 'group') updateResult(event.group);
+    } else if(event.type==='activity'){if(Number.isInteger(event.group)&&event.group>0&&(activeGroups.size<8||activeGroups.has(event.group))){activeGroups.set(event.group,event);showActivity();}}
+    else if (event.type === 'group') {activeGroups.delete(event.group.group);showActivity();updateResult(event.group);}
     else if(event.type==='phases')phaseSummary(event.phases);
     else if(event.type==='engine'){if(event.kind==='DUB_ENGINE'&&event.reused)status(window.UiLocale?.get?.()==='en'?'Using the ready voice engine…':'Hazır ses motoru kullanılıyor…');if(event.kind==='DUB_CAPACITY')el('dubGeneratorDetails').textContent=(window.UiLocale?.get?.()==='en'?'GPU free memory: ':'GPU boş bellek: ')+event.freeMiB+' MiB · '+event.concurrency+' / '+event.requested;}
     else if (event.type === 'reference_quality') referenceInfo(event.quality);
     else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
-    else if (event.type === 'status') status(event.text);
+    else if (event.type === 'status') {if(event.stage==='engine_restart'){activeGroups.clear();showActivity();}status(event.text);}
     else if (event.type === 'warning') el('dubGeneratorDetails').textContent=event.text;
     else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
+      activeGroups.clear();showActivity();
       stopTimer(event.elapsedSeconds);
       if (event.type !== 'done' && !el('dubGeneratorProgress').hasAttribute('value')) el('dubGeneratorProgress').value = 0;
       logPath = event.logPath;

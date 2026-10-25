@@ -12,7 +12,10 @@
   let voice = null,
     voiceToken = 0,
     lastSpoken = -1;
+  let playbackProgress = null;
   function stopVoice() {
+    const progress=playbackProgress;playbackProgress=null;
+    if(progress)void progress.save($("pdfVoiceAudio").currentTime);
     pdfMap?.dispose();
     pdfMap = null;
     voiceToken++;
@@ -155,6 +158,7 @@
     changed(true);
   }
   function refresh() {
+    $("pdfVoiceFollowLabel").textContent=t("Konuşulan metni takip et", "Follow spoken text");
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
   function opened() {
@@ -163,6 +167,7 @@
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
+      onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
         !$("pdfReader").classList.contains("hidden"),
@@ -454,23 +459,25 @@
             "pdf-active-speech",
             Number(span.dataset.spoken) === i,
           );
-        prose
+        if ($("pdfVoiceFollow").checked) prose
           .querySelector(".pdf-active-speech")
           ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
       };
-      audio.onpause = () => {
-        if (token === voiceToken)
-          void window.api
-            .mediaWorkflows({
+      let lastSaved=-1;
+      const progress={save:async position=>{
+        if(!Number.isFinite(position)||position<0||position===lastSaved)return;
+        lastSaved=position;
+        try{const saved=await window.api.mediaWorkflows({
               action: "book-progress",
               id: v.id,
               chapter: index,
-              position: audio.currentTime,
+              position,
               outputId: result.outputId,
               textHash: result.textHash,
-            })
-            .catch(() => {});
-      };
+            });if(!saved?.ok)lastSaved=-1;}catch{lastSaved=-1;}
+      }};
+      playbackProgress=progress;
+      audio.onpause = () => {if(token===voiceToken)void progress.save(audio.currentTime);};
       status.textContent = t(
         "Vurgu sesin gerçek konuşma gruplarını izler; oynatmak için sesi başlat.",
         "Highlight follows actual speech groups. Start audio to listen.",

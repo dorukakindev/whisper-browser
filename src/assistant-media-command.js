@@ -3,6 +3,7 @@
  function match(value){
   const q=String(value||'').normalize('NFKC').toLocaleLowerCase('tr').replace(/[’']/g,"'").trim();if(!q||q.length>240||/["“”`]/.test(q)||/(?:nasıl|neden|why|how|ekleme(?:yin)?|eklemey|bulma|arama|don't|do not)/u.test(q))return null;
   if(/(?:izleme listem[eia]|izleme listesi|watchlist)/u.test(q)&&/(?:ekle(?:yebilir|r misin|sene)?|add|save)/u.test(q))return /(?:bu film|bu dizi|bu yapım|bunu|this|selected|\bit\b)/u.test(q)?{kind:'watchlist'}:null;
+  if(/(?:bu film|bu dizi|bu yapım|bunu|this (?:film|movie|show|title))/u.test(q)&&/(?:yorumlarımla karşılaştır|zevk(?:imle| profilimle) karşılaştır|compare.*(?:my reviews|my taste))/u.test(q))return {kind:'reviews',question:q};
   if(/(?:benzer(?:lerini|leri|lerini de| yapım(?:ları)?| film(?:leri)?)|similar (?:titles|movies|films|shows))/u.test(q)&&/(?:bul|göster|ara|find|show|search)/u.test(q))return {kind:'similar',question:q};
   if(/(?:nerede izlenir|nereden izleyebilirim|nerede izleyebilirim|hangi platform|where (?:can i|to) watch|watch providers)/u.test(q)){
    const countries=[['TR',/türkiye|turkey|türkiye’de|turkish/u],['US',/amerika|birleşik devlet|united states|usa/u],['GB',/ingiltere|united kingdom|uk/u],['DE',/almanya|germany/u],['FR',/fransa|france/u],['IT',/italya|italy/u],['ES',/ispanya|spain/u],['NL',/hollanda|netherlands/u],['CA',/kanada|canada/u],['AU',/avustralya|australia/u],['JP',/japonya|japan/u],['KR',/güney kore|south korea/u],['IN',/hindistan|india/u],['BR',/brezilya|brazil/u]];

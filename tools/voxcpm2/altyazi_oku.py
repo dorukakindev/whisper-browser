@@ -284,11 +284,16 @@ async def uret(args, cues, paths, prompt_text):
                 delivery = getattr(args,'group_delivery',[])
                 delivery = delivery[i] if i < len(delivery) else None
                 raw_scores = {}
+                synthesis_attempt = 0
                 async def synthesize(chunk, seed):
+                    nonlocal synthesis_attempt
+                    from dub_activity import observe
                     from dub_utterance import synthesize_utterance
-                    raw, score = await synthesize_utterance(chunk, seed, sr,
+                    synthesis_attempt += 1
+                    raw, score = await observe(synthesize_utterance(chunk, seed, sr,
                         lambda part, value: sentez(part, value, delivery),
-                        lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
+                        lambda raw, rate, part: assess_chunk(raw, rate, part)[0]),
+                        group=i+1, attempt=synthesis_attempt, limit=args.request_timeout)
                     raw_scores[id(raw)] = score
                     return raw
                 def assess_generated(raw, chunk):
