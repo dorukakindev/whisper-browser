@@ -39,3 +39,4 @@
 .dub-pronunciations h4{margin:0 0 8px}
 .dub-pronunciations p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .dub-pronunciations textarea{display:block;width:100%;box-sizing:border-box;resize:vertical;min-height:100px;margin-block:10px;padding:12px;border:1px solid var(--border-strong);border-radius:10px;color:var(--text);background:var(--bg-0);font:inherit}
+.dub-group-comparison audio{display:block;width:100%;margin-block:12px}.dub-group-comparison audio.hidden{display:none}

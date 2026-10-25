@@ -1358,11 +1358,25 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
     (-mAm, -sIz, -mayabilir, belki, zorunda, aorist, optative dahil) yoksa
     kayıp sayılır. Korpus ölçümü 58 doğru çeviride 0 yanlış-ret verdi.
     """
-    return [issue for issue in translation_meaning_issues(
-        source_text, translated_text, target_lang)
-        if issue in ('number_mismatch', 'truncated_fragment',
-                     'negation_missing', 'modal_missing',
-                     'modal_certainty_flip', 'modal_weakened')]
+    issues = translation_meaning_issues(source_text, translated_text, target_lang)
+    blocking = [issue for issue in issues
+                if issue in ('number_mismatch', 'truncated_fragment',
+                             'negation_missing', 'modal_missing',
+                             'modal_certainty_flip', 'modal_weakened')]
+    # A single unchanged explicit quantity cannot silently change its unit or
+    # currency (60 miles -> 60 km). Do not reject actual conversions, multiple
+    # quantities or explicit equivalence statements using this narrow proof.
+    source, target = normalized_text(source_text), normalized_text(translated_text)
+    numbers = _number_tokens(source)
+    conversion = re.search(r'\b(?:convert\w*|equivalent|exchange|equals?|parity|dönüş\w*|çevril\w*|eşdeğer\w*|parite\w*)\b', source + ' ' + target, re.I)
+    if len(numbers) == 1 and numbers == _number_tokens(target) and not conversion:
+        for issue, original, changed in (
+                ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
+                 _semantic_markers(target, _CURRENCY_PATTERNS)),
+                ('unit_mismatch', _unit_markers(source), _unit_markers(target))):
+            if issue in issues and len(original) == 1 and len(changed) == 1 and original != changed:
+                blocking.append(issue)
+    return blocking
 
 
 def sentence_groups(entries, max_gap=1.2, max_chars=280, max_duration=12, max_parts=6,

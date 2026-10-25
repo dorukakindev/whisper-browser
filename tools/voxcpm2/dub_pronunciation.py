@@ -42,4 +42,11 @@ def apply(text, entries):
 
 def cache_identity(identity, text, entries):
     pronounced = apply(text, entries)
-    return identity + ('speech-pronunciation-v1', pronounced) if pronounced != text else identity
+    return identity + ('speech-pronunciation-v2-before-normalization', pronounced) if pronounced != text else identity
+
+
+def render(text, entries):
+    # User phrases must match before Dr./Prof./quantities are expanded. Apply
+    # the dictionary exactly once, including when recovery divides the result.
+    from dub_finish import spoken_text
+    return spoken_text(apply(text, entries))

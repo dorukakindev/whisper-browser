@@ -29,7 +29,8 @@ class MeaningLossCorpusTests(unittest.TestCase):
         cls.metrics = report(cls.rows)
 
     def test_corpus_shape_and_license(self):
-        data = json.load(open(CORPUS, encoding='utf-8'))
+        with open(CORPUS, encoding='utf-8') as file:
+            data = json.load(file)
         cases = data['cases']
         self.assertEqual(len(cases), 120)
         self.assertIn('CC0', data['meta']['license'])
@@ -49,13 +50,12 @@ class MeaningLossCorpusTests(unittest.TestCase):
         self.assertEqual(allm['accept_flagged_meaning'], 0)
 
     def test_gatable_rejects_all_blocked(self):
-        """Yapısal olarak kanıtlanabilir 44 kusurun 41'i blocking'de yakalanır;
-        kalan 3 (para/birim dönüşümsüz takas) tanıda kalır — bilinen sınır."""
+        """Yapısal olarak kanıtlanabilir 44 kusur blocking kapısında yakalanır."""
         allm = self.metrics['totals']['ALL']
         self.assertEqual(allm['reject_gatable'], 44)
-        self.assertEqual(allm['false_accept_blocking_gatable'], 3)
-        # blocking'den sızan 21 satır = 3 dönüşümsüz takas + 18 argo/hitap kör noktası
-        self.assertEqual(allm['false_accept_blocking'], 21)
+        self.assertEqual(allm['false_accept_blocking_gatable'], 0)
+        # Kalan 18 satır: yapısal kanıtı olmayan argo/hitap kör noktaları.
+        self.assertEqual(allm['false_accept_blocking'], 18)
         self.assertEqual(allm['false_accept_meaning'], 18)
 
     def test_per_category_pin(self):
@@ -65,8 +65,8 @@ class MeaningLossCorpusTests(unittest.TestCase):
         for cat in ('olumsuzluk', 'ihtimal', 'zorunluluk'):
             self.assertEqual(m[cat]['false_accept_blocking'], 0, cat)
             self.assertEqual(m[cat]['false_reject'], 0, cat)
-        # sayi: 3 dönüşümsüz takas blocking'den geçer (currency/unit tanıda)
-        self.assertEqual(m['sayi']['false_accept_blocking'], 3)
+        # Sayı ve dönüşümsüz para/birim takasları blocking'de yakalanır.
+        self.assertEqual(m['sayi']['false_accept_blocking'], 0)
         self.assertEqual(m['sayi']['false_accept_meaning'], 0)
         # argo/hitap: gatable=false — yapısal kanıt yok, bilinen kör nokta
         self.assertEqual(m['argo']['false_accept_meaning'], 10)
