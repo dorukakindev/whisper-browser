@@ -87,6 +87,100 @@ app
       () => run('return !!document.querySelector(".mw-range")'),
       "range",
     );
+    const originalPdfDigest = require("node:crypto")
+        .createHash("sha256")
+        .update(fs.readFileSync(source))
+        .digest("hex"),
+      preparationText =
+        "Bu cüm-\nlenin ola-\nğan sesi. Anka-\nra 10-\n20 e-posta.";
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value=' +
+        JSON.stringify(preparationText) +
+        ';n.dispatchEvent(new Event("input"));const d=document.querySelector(".mw-text-preparation");d.open=true;d.querySelector("button").click();return true',
+    );
+    assert.equal(
+      await run(
+        'return document.querySelectorAll(".mw-text-suggestion").length',
+      ),
+      2,
+    );
+    assert(
+      await run(
+        'return document.querySelectorAll(".mw-text-preparation button")[1].disabled',
+      ),
+    );
+    await run(
+      'const s=document.querySelector(".mw-text-suggestion select");s.value="join";s.dispatchEvent(new Event("change"));document.querySelector(".mw-text-preparation").scrollIntoView({block:"center"});return true',
+    );
+    await capture("text-preparation-tr-dark.png");
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value+=" Sonraki düzenleme.";n.dispatchEvent(new Event("input"));return true',
+    );
+    assert(
+      await run(
+        'return document.querySelectorAll(".mw-text-preparation button")[1].disabled',
+      ),
+      "stale preview cannot overwrite a new edit",
+    );
+    await run(
+      'const d=document.querySelector(".mw-text-preparation");d.querySelector("button").click();const s=d.querySelector("select");s.value="join";s.dispatchEvent(new Event("change"));d.querySelectorAll("button")[1].click();return true',
+    );
+    const preparedText =
+      preparationText.replace("cüm-\nlenin", "cümlenin") +
+      " Sonraki düzenleme.";
+    assert.equal(
+      await run(
+        'return document.querySelector("textarea[data-chapter]").value',
+      ),
+      preparedText,
+    );
+    await run(
+      '[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Metni kaydet").click();return true',
+    );
+    await until(
+      async () =>
+        (
+          await run(
+            'return window.api.mediaWorkflows({action:"book-open",id:' +
+              JSON.stringify(id) +
+              "})",
+          )
+        ).project.chapters[0].text === preparedText,
+      "prepared text saved through real UI",
+    );
+    await run(
+      'document.querySelectorAll(".mw-text-preparation button")[2].click();return true',
+    );
+    assert.equal(
+      await run(
+        'return document.querySelector("textarea[data-chapter]").value',
+      ),
+      preparationText + " Sonraki düzenleme.",
+    );
+    assert.equal(
+      require("node:crypto")
+        .createHash("sha256")
+        .update(fs.readFileSync(source))
+        .digest("hex"),
+      originalPdfDigest,
+      "source PDF unchanged",
+    );
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value=' +
+        JSON.stringify(imported.project.chapters[0].text) +
+        ';n.dispatchEvent(new Event("input"));[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Metni kaydet").click();return true',
+    );
+    await until(
+      async () =>
+        (
+          await run(
+            'return window.api.mediaWorkflows({action:"book-open",id:' +
+              JSON.stringify(id) +
+              "})",
+          )
+        ).project.chapters[0].text === imported.project.chapters[0].text,
+      "restore controlled text after preparation",
+    );
     const query = imported.project.chapters[1].text.slice(0, 22);
     await run(
       'const f=document.querySelector(".mw-search-form");f.querySelector("input").value=' +

@@ -852,6 +852,16 @@
         ),
       ),
     );
+    if (project.format === "pdf")
+      window.BookTextPreparationUI?.mount(edit, {
+        input: textarea,
+        t,
+        isCurrent: () =>
+          textarea.isConnected &&
+          dialog?.open &&
+          project?.id === textarea.dataset.projectId &&
+          chapter === contextChapter,
+      });
     const exportPreview = el("section", "mw-export-preview");
     exportPreview.hidden = true;
     exportPreview.setAttribute("aria-live", "polite");
