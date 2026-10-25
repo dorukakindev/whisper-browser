@@ -26,8 +26,9 @@
     async attach(file, c) {
       if (!c || !this.matches(c)) return false;
       const intent = ++this.intent;
-      const priorMuted = this.session?.tabId === c.tabId ? this.session.priorMuted : c.priorMuted;
-      const priorRate = this.session?.tabId === c.tabId && this.session.sync ? this.session.baseRate : c.playbackRate;
+      const sameMedia = this.matches(this.session);
+      const priorMuted = sameMedia ? this.session.priorMuted : c.priorMuted;
+      const priorRate = sameMedia && this.session.sync ? this.session.baseRate : c.playbackRate;
       await this.detachCurrent();
       if (intent !== this.intent || !this.matches(c)) return false;
       if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;

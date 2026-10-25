@@ -108,6 +108,15 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
   await replaced.dub.attach({ name: 'second.wav' }, replaced.c);
   await replaced.dub.remove();
   assert.deepEqual(replaced.calls.at(-1), ['a', false], 'replacement forgot original tab mute');
+  const changedMedia=fixture({setRate:async()=>({ok:true})});
+  try {
+    await changedMedia.dub.attach({url:'file:///old.wav',sync:{version:1,videoDuration:100,audioDuration:100,segments:[{v0:0,v1:100,a0:0,a1:100}]}},changedMedia.c);
+    changedMedia.c.mediaKey='next-video';changedMedia.c.generation=2;changedMedia.c.priorMuted=true;changedMedia.c.playbackRate=1.75;
+    assert.equal(await changedMedia.dub.attach({url:'file:///new.wav',sync:{version:1,videoDuration:100,audioDuration:100,segments:[{v0:0,v1:100,a0:0,a1:100}]}},changedMedia.c),true);
+    assert.equal(changedMedia.dub.session.priorMuted,true,'same tab with a new video keeps its own mute setting');
+    assert.equal(changedMedia.dub.session.baseRate,1.75,'new video does not inherit the previous video rate');
+    await changedMedia.dub.remove();assert.equal(changedMedia.calls.at(-1)[1],true);
+  } finally {await changedMedia.dub.remove();}
   const failed = fixture({ mute: async () => ({ ok: false }) });
   assert.equal(await failed.dub.attach({ name: 'test.wav' }, failed.c), false);
   assert.equal(failed.dub.session, null); assert.equal(failed.errors.length, 1);
