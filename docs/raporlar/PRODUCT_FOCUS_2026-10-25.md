@@ -4,7 +4,7 @@ Kullanıcı25 Ekim2026'da yeni çalışma hedefi belirlememi istedi. Bu plan yen
 
 | ID | Durum | Kullanıcıya sağlanacak sonuç | Tamamlanma kanıtı |
 |---|---|---|---|
-| P01 | Bekliyor | Raf okuyucusundaki açık bölümü açık bir eylemle sesli üretimde aç; üretimden kitaba dön. | EPUB kaynak kimliği/spine veya doğrulanmış PDF sayfası eşleşir; kaynak değişmiş/eksikse yanlış bölüme sessiz geçiş yapılmaz. EskiN39. |
+| P01 | Tamamlandı | Raf okuyucusundaki açık bölümü açık bir eylemle sesli üretimde aç; üretimden kitaba dön. | EPUB kaynak kimliği/spine veya doğrulanmış PDF sayfası eşleşir; kaynak değişmiş/eksikse yanlış bölüme sessiz geçiş yapılmaz. EskiN39. |
 | P02 | Bekliyor | Takipli okuyucuda sayfa/pasaj yer imi; yer iminden doğru bölüm ve ses konumuna dön. | Kalıcı kitap/bölüm/metin kimliği, bölüm değişimi ve metin düzenlemesinde eski konumun dürüst gösterimi. EskiN37. |
 | P03 | Bekliyor | PDF'den gelen bölünmüş sözcükleri isteğe bağlı hazırlama önizlemesinde ele al. | Değişiklikler önce/sonra gösterilir, tek tek seçilebilir; özel ad/kısaltma/sayısal aralık korunur; özgün PDF değişmez. EskiN32. |
 | P04 | Bekliyor | Aynı metnin ses denemelerini karşılaştırıp uygun denemeyi seç. | Önceki çıktı silinmez; farklı metin sürümü güncelmiş gibi onaylanmaz; karşılaştırma ve seçim dinleme UI'ından yapılır. EskiN30. |
@@ -24,3 +24,6 @@ Kısa hedefli kontroller; UI'da mevcut tema ve gerçek Windows görüntüsü. T�
 Eski `NIGHT_WORK_2026-10-25.md` tarihsel kanıt ve kalan düşük öncelikli işler olarak korunur; onun bitmiş satırları yeniden yapılmaz. Özellikle eskiN47 Letterboxd gerçek rota doğrulamasıdır; kitap asistanıyla karıştırılmaz. Bu hedef bitince kapsam baştan kanıtla denetlenir; yalnız kolay maddelerin bitmesi tüm hedefin tamamlandığı anlamına gelmez.
 
 25 Ekim11:55 devam uyanışı aynı aktif hedefi çoğaltmadan son kontrol noktasını kullanmalıdır; yeni paralel iş/oturum başlatılmaz. Günlük durum gerekmiyorsa sessiz kal, anlamlı teslim veya gerçek engelde bildir.
+
+## P01 kanıtı —12:11
+Ürün4ab4677a58f1bba4f5e256ddd58183b048665dab/Rapor568.9hedefliPASS/nativeWindowsgerçekEPUBikinci bölümgidişdönüş+PDFpage2exit0görüntüincelendi; GPU otomatikbaşlamaz. BulunanmainwriterimportvekitaplararasıvoicePrefs hatasıdadüzeldi. Size/mtimekaynak kontrolü; eski kaynakkimliğiyokvedüzenlenmişmetin eşleştirilmez. Sonraki P02 yerimi/gerçekkonum ve metinsürümü; P03hazırlamaönizlemesi. P02–P10henüztamamdeğil.

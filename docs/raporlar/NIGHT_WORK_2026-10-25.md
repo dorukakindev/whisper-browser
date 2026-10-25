@@ -46,7 +46,7 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N36 | Bekliyor | Çeviri/orijinal metin değişince ses kaynağı ve vurgu kimliğini koru. | Farklı diller arasında sahte birebir hizalama yapılmaz. |
 | N37 | Bekliyor | PDF okuma görünümünde sayfa/alıntı yer imi ekle veya mevcut raf yer imlerine bağla. | Kalıcı kaynak kimliği; orijinal belge değişmez. |
 | N38 | Tamamlandı | Kitap içinde sınırlı tam metin arama ve sayfa/bölüme gitme ekle. | Büyük kitapta UI bloklanmaz; asistan bağlamı doğru sayfaya geçer. |
-| N39 | Bekliyor | Raf okuma konumuyla üretim bölümüne açık eşleme eylemi ekle. | Sessiz otomatik yanlış konum taşıma yok. |
+| N39 | Tamamlandı | Raf okuma konumuyla üretim bölümüne açık eşleme eylemi ekle. | Sessiz otomatik yanlış konum taşıma yok. |
 | N40 | Tamamlandı | EPUB başlık/kapak/bölüm kimliğinin üretim projesine aktarımını tamamla. | Güvenli HTML/metin ayrımı; kitap biçimi kaybolmaz. |
 | N41 | Bekliyor | Review metni düzenlendikten sonra yalnız değişen grubun yenilenmesini sınama. | Metin/plan key değişimi eski başka grubu zorla üretmez. |
 | N42 | Bekliyor | Dublaj Bu grubu dinle için metadata yüklenmeden tıklama ve aralık sonunu doğrula. | Çift oynatma/NaN seek yok; kaynak değişince ses durur. |

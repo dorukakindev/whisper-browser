@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1211.md](docs/devir/2026-10-25-1211.md) — P01 kaynak bölüm ile sesli üretim arasında çift yönlü geçiş
 Güncel çalışma: [docs/devir/2026-10-25-1154.md](docs/devir/2026-10-25-1154.md) — P01–P10 yeni aktif ürün geliştirme hedefi
 Güncel çalışma: [docs/devir/2026-10-25-1147.md](docs/devir/2026-10-25-1147.md) — EPUB kapak/bölüm kimliği ve güncel teslim kapsamı
 Güncel çalışma: [docs/devir/2026-10-25-1139.md](docs/devir/2026-10-25-1139.md) — Kitaba özel ses ve genel dublaj ayarlarının ayrılması
