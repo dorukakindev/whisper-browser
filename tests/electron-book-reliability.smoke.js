@@ -181,6 +181,71 @@ app
         ).project.chapters[0].text === imported.project.chapters[0].text,
       "restore controlled text after preparation",
     );
+    const planProjectFile = path.join(
+        require("../src/voice-storage").voiceStorage(app).input,
+        "Kitap projeleri",
+        id,
+        "project.json",
+      ),
+      beforePlanProject = fs.readFileSync(planProjectFile),
+      planText =
+        "Bu bölümün konuşma planı güncel taslak üzerinden hazırlanır. Ses üretimi henüz başlamaz. ".repeat(
+          12,
+        );
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value=' +
+        JSON.stringify(planText) +
+        ';n.dispatchEvent(new Event("input"));const d=document.querySelector(".mw-production-plan");d.open=true;d.querySelector("button").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelectorAll(".mw-plan-group").length>1&&!document.querySelector(".mw-production-plan button").disabled',
+        ),
+      "actual model-free chapter plan through native UI",
+    );
+    assert.deepEqual(
+      fs.readFileSync(planProjectFile),
+      beforePlanProject,
+      "UI planning does not save draft or create a generation job",
+    );
+    assert(
+      await run(
+        "return !!BookProductionPlanUI.getPreview(" +
+          JSON.stringify(id) +
+          ",0," +
+          JSON.stringify(planText) +
+          ")",
+      ),
+      "current preview snapshot stored for generation",
+    );
+    await run(
+      'document.querySelector(".mw-production-plan").scrollIntoView({block:"center"});return true',
+    );
+    await capture("production-plan-tr-dark.png");
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value+=" Yeni cümle.";n.dispatchEvent(new Event("input"));return true',
+    );
+    assert.equal(
+      await run('return document.querySelectorAll(".mw-plan-group").length'),
+      0,
+      "old group keys disappear after editing",
+    );
+    assert.equal(
+      await run(
+        "return BookProductionPlanUI.getPreview(" +
+          JSON.stringify(id) +
+          ",0," +
+          JSON.stringify(planText) +
+          ") || null",
+      ),
+      null,
+    );
+    await run(
+      'const n=document.querySelector("textarea[data-chapter]");n.value=' +
+        JSON.stringify(imported.project.chapters[0].text) +
+        ';n.dispatchEvent(new Event("input"));return true',
+    );
     const query = imported.project.chapters[1].text.slice(0, 22);
     await run(
       'const f=document.querySelector(".mw-search-form");f.querySelector("input").value=' +

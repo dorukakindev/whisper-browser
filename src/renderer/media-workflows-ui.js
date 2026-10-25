@@ -865,6 +865,19 @@
           project?.id === textarea.dataset.projectId &&
           chapter === contextChapter,
       });
+    window.BookProductionPlanUI?.mount(edit, {
+      id: project.id,
+      chapter: contextChapter,
+      input: textarea,
+      call,
+      t,
+      isBusy: () => busy,
+      isCurrent: () =>
+        textarea.isConnected &&
+        dialog?.open &&
+        project?.id === textarea.dataset.projectId &&
+        chapter === contextChapter,
+    });
     stopTakePreview = window.BookVoiceTakesUI?.mount(edit, {
       id: project.id,
       chapter: contextChapter,
@@ -1715,6 +1728,11 @@
         const prep = await call("book-prepare", {
           id: projectId,
           chapter: indices[i],
+          preview: window.BookProductionPlanUI?.getPreview(
+            projectId,
+            indices[i],
+            project.chapters[indices[i]].text,
+          ),
           ...(retryGroup ? { retryGroup } : {}),
         });
         const request = prep.request;

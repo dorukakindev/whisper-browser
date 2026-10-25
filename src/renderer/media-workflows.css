@@ -629,6 +629,13 @@ dialog.mw-dialog::backdrop {
 .mw-text-preparation [hidden] { display: none; }
 .mw-voice-takes { border: 1px solid var(--border); border-radius: 12px; margin: 12px 0 20px; padding: 14px 16px; }
 .mw-voice-takes summary { cursor: pointer; font-weight: 600; }
+.mw-production-plan { border: 1px solid var(--border); border-radius: 12px; margin: 12px 0 20px; padding: 14px 16px; }
+.mw-production-plan summary { cursor: pointer; font-weight: 600; }
+.mw-plan-groups { max-height: 360px; overflow: auto; overscroll-behavior: contain; }
+.mw-plan-group { border-top: 1px solid var(--border); padding: 12px 0; }
+.mw-plan-group h4 { font-size: 14px; margin: 0 0 4px; }
+.mw-plan-group small { color: var(--text-dim); }
+.mw-plan-group p, .mw-plan-groups details p { line-height: 1.65; overflow-wrap: anywhere; }
 .mw-voice-takes [hidden] { display: none; }
 .mw-voice-takes select { flex: 1 1 100%; min-width: 0; width: 100%; padding: 10px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
 .mw-take-players { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }

@@ -603,6 +603,7 @@ function registerMediaWorkflows({
           "book-save",
           "book-prepare",
           "book-listen",
+          "book-plan-source",
           "book-progress",
           "book-source",
           "book-mark-add",
@@ -990,10 +991,49 @@ function registerMediaWorkflows({
           save(d);
           return { ok: true, project: clean(d) };
         }
+        case "book-plan-source": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter],
+            text = r.text ?? c?.text;
+          if (
+            !c ||
+            typeof text !== "string" ||
+            !text.trim() ||
+            text.length > 100000
+          )
+            throw Error("Invalid chapter text.");
+          const textHash = hash(text),
+            content = chapterSrt(text),
+            srt = path.join(
+              path.dirname(file(d.id)),
+              `chapter-${c.id}-${textHash.slice(0, 16)}.srt`,
+            );
+          atomicWriteFileSync(srt, content);
+          grantSubtitle(srt);
+          return {
+            ok: true,
+            srt,
+            textHash,
+            sourceHash: hash(content),
+            grouping: "akici",
+            previousGroups: c.groups || [],
+            previousTextHash: c.textHash || null,
+          };
+        }
         case "book-prepare": {
           const d = load(r.id),
             c = d.chapters[r.chapter];
           if (!c) throw Error("Choose a chapter.");
+          if (
+            r.preview !== undefined &&
+            (!r.preview ||
+              r.preview.textHash !== hash(c.text) ||
+              r.preview.sourceHash !== hash(chapterSrt(c.text)) ||
+              r.preview.grouping !== "akici")
+          )
+            throw Error(
+              "Text or plan changed; preview again / Metin veya plan değişti; yeniden önizleyin.",
+            );
           const audioMatchesText = c.textHash === hash(c.text);
           let retryGroups;
           if (r.retryGroup !== undefined) {

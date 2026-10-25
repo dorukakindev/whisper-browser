@@ -52,6 +52,11 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       id: "book",
       chapters: [{ title: "Chapter", output: "done.wav", status: "ready" }],
     };
+    const preview = {
+      textHash: "current-text",
+      sourceHash: "current-source",
+      grouping: "akici",
+    };
     const ctx = {
       busy: false,
       selected: new Set([0]),
@@ -65,6 +70,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       saveChapter: async () => {},
       call: async (name, value) => {
         if (name !== "book-prepare") return { project };
+        assert.deepEqual(value.preview, preview);
         assert.deepEqual(value.retryGroup, force ? undefined : retry);
         return {
           replanned: edited,
@@ -77,6 +83,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
         };
       },
       window: {
+        BookProductionPlanUI: { getPreview: () => preview },
         api: {
           planDub: async () => {
             plans++;
