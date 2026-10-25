@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_559.md](BROWSER_BUG_REPORT_559.md) — Çok parçalı kitap bölümünün yeniden seslendirilmesi.
+
 - [BROWSER_BUG_REPORT_558.md](BROWSER_BUG_REPORT_558.md) — Kitap metin arama, doğru chapter taslağı ve asistan bağlamı.
 
 - [BROWSER_BUG_REPORT_557.md](BROWSER_BUG_REPORT_557.md) — Son aşamada bounded normalizasyon ve gerçek aşama durumları.

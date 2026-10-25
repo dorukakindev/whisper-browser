@@ -2,7 +2,7 @@
 
 Kullanıcı talebi: mevcut paket tamamlandıktan sonra sabaha kadar50 somut geliştirme belirle ve çalış. Bu bir **iş havuzu**, tamamlanmış50 bulgu veya sabaha teslim garantisi değildir. Başlangıç: codex/book-reliability549. Mevcut paket Rapor549 ile teslim edilir; aşağıdakiler yeni gece kapsamıdır. Kalıcı sınırlar: kısa faydalı hedefli test, mevcut tema, veri/ses korunması, ana dala otomatik merge yok. Ücretli API/kişisel profil kullanılmaz. Doğrulanmayan başarı yazılmaz.Son kullanıcı talebi eski 09:00 sınırını kaldırdı: 08:17 sonrası yararlı iş ve bütçe oldukça kapsamlı devam edilir; aşağıdaki güncel protokol önceliklidir.
 
-Heartbeat: 25 Ekim 2026 Europe/Istanbul **08:17 ilk devam, 08:20 yedek deneme**. Aynı sohbette iki tarihli uyanış; ikinci uyanış çalışan işi yeniden başlatmaz. Eski saatlik dört koşum değiştirildi. Otomasyon kimliği `gece-kitap-ve-dublaj-geli-tirmeleri`. Cihaz/uygulama kapalıysa veya hesap limiti hâlâ doluysa başlama garantisi yoktur.08:20 de başarısız olursa başarı iddiası üretilmez.
+Güncel heartbeat: 25 Ekim 2026 Europe/Istanbul **11:55**, tek devam uyanışı. Kullanıcı limit yenilendiği için şimdi çalışmaya izin verdi; eski 08:17/08:20 bekleme planı geçersizdir. Otomasyon kimliği `gece-kitap-ve-dublaj-geli-tirmeleri`. Uyanış aynı aktif işi çoğaltmadan son kontrol noktasından sürdürür. Cihaz/uygulama kapalıysa veya hesap limiti doluysa başlama garantisi yoktur.
 
 Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanıtlanmadı. Gerçek katkı yoksa sırf sayıyı doldurmak için değişiklik yapılmaz. İlgisiz, spekülatif veya pahalı iş ertelenip nedeni yazılır. Her teslimde commit/test/kanıt bağlantısı eklenir.
 
@@ -110,3 +110,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:08 — Rapor557/kod70baed90e8c7c029b22c16249d00d7e716d105bc: sonparçadan sonra sınırsız loudnorm yerine süre sınırı/özgünses fallback; gerçek verifier/placement/filewrite/normalizasyon stage. Python3gerçekFFmpeg+4lifecycle+3resume veNode8PASS; nativeWindowsdurum görüntüsü incelendi. Son61/61 sorunlarının tamamı çözüldü iddiası yok. Sonraki PDF/asistan görünürsayfa ve kalite-plan kimliği.
 
 07:15 — Rapor558/kodaac2e27f1b4927d204849c61cd93f84548a9aeac. N38projeiçi arama/Unicodeofset/80sonuç/yield tamam. Nativeeski textareanın yeni bölüm taslağına sızması düzeldi. Reader/shelf/editor asistanı doğruchapter/güncelexcerpt; excerpthash bayatcevabı geçersizkılar. Sonhedef20PASS; nativeWindowsarama/PDF/Review/M4Bexit0. N36/N39/N46 kalan kapsam açık, yedekbakımı yok.11:55 aktif hedefin soncheckpointinden devam.
+
+07:20 — Rapor559/ürün505cf7fdf70be64cab7ea0f3c4bdaa42bcd4bce3: çok parçalı kitap bölümü yeniden üretme tek-grup servis sınırından kurtarıldı; normal video ve Windows argüman boyutu sınırları korunur. UI istek/servis kontrolleri6PASS. Sonraki: kalite grubunun güncel metin-plan kimliği ve reader sesli gezinme; henüz doğrulanmış hata sayılmaz. Yedek bakımı ertelendi;11:55 devam.
