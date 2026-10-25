@@ -6,6 +6,9 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const { createHash } = require('node:crypto');
+const siteHashes = new Map();
+const fingerprint = rhs => createHash('sha256').update(rhs.replace(/\r\n/g, '\n')).digest('hex');
 
 let pass = 0;
 function test(name, fn) {
@@ -34,28 +37,29 @@ const SAFE_NUMERIC_CALL = /^\s*[\w.$?\[\]()\s]+\.(toFixed|toLocaleString|toPreci
 // Bütünü boolean üreten üst-düzey operatörler — operandlar DOM'a çıkmaz.
 const TOP_BOOLEAN_OP = /===|!==|==|!=|<=|>=|<|>|\binstanceof\b|\bin\b/;
 
-// Tekil, doğrulanmış lokal-değişken izinleri — dosya:satır + tam ifade.
+// Tekil, doğrulanmış izinler: dosya + RHS SHA-256 + tam ifade.
+// Satır kayması izni bozmaz; RHS değişimi veya yinelenen sink yeniden inceleme ister.
 // Yalnız ifadenin ürettiği değerin kanıtlı güvenli olduğu durumlar.
 const ALLOWED = new Set([
-  'src/renderer/renderer.js:623::icon',                    // static SVG literal ternary
-  'src/renderer/renderer.js:1387::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
-  'src/renderer/renderer.js:1387::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
-  'src/renderer/renderer.js:1450::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
-  'src/renderer/renderer.js:1678::start',                  // formatTime() çıktısı
-  'src/renderer/renderer.js:1678::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js:2909::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
-  'src/renderer/renderer.js:2909::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
-  'src/renderer/renderer.js:2909::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
-  'src/renderer/renderer.js:2909::notes',                  // recommendedHardwareConfig sabit literal notları
-  'src/renderer/renderer.js:16370::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
-  'src/renderer/renderer.js:24362::totalBlocks',           // Number(...) || 0
-  'src/renderer/renderer.js:24362::apiBlocks',             // Number(...) || 0
-  'src/renderer/renderer.js:24362::memoryBlocks',          // Number(...) || 0
-  'src/renderer/renderer.js:24362::excludedBlocks',        // Number(...) || 0
-  'src/renderer/renderer.js:24362::pendingBlocks',         // Number(...) || 0
-  'src/renderer/renderer.js:24423::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
-  'src/renderer/renderer.js:24423::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
-  'src/browser-page-translate.js:1057::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
+  'src/renderer/renderer.js@780adb2e9a45a3c9e8598b3e89d369a7e921208c20390e8355cbb1ebf3a70db2::icon',                    // static SVG literal ternary
+  'src/renderer/renderer.js@852bfcaa5e9f84ec2366436b0cecfe67b6315fdacc2c069ae23773279a584100::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js@852bfcaa5e9f84ec2366436b0cecfe67b6315fdacc2c069ae23773279a584100::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
+  'src/renderer/renderer.js@2490ff4f91be4d81181795fb9b6732b5f3c27d91a86ff6e5605086367920c697::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
+  'src/renderer/renderer.js@9726e39ff5a00a321cd077d7bd6ebae82c563cecda3d08c064f62b5ad97f40f8::start',                  // formatTime() çıktısı
+  'src/renderer/renderer.js@9726e39ff5a00a321cd077d7bd6ebae82c563cecda3d08c064f62b5ad97f40f8::end',                    // formatTime() çıktısı
+  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
+  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
+  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
+  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::notes',                  // recommendedHardwareConfig sabit literal notları
+  'src/renderer/renderer.js@7745a8acc3a6d9b0f4e5911f71b37eda4d3323f8bead7c67404c9cb26b8bbb1f::emptyKind',             // 'tracks'|'no-media'|'none' enum — attribute bağlamında güvenli
+  'src/renderer/renderer.js@48d93fc01bea401499b522492a6c11b065b837333b664e8a398da475e2861c86::totalBlocks',           // Number(...) || 0
+  'src/renderer/renderer.js@48d93fc01bea401499b522492a6c11b065b837333b664e8a398da475e2861c86::apiBlocks',             // Number(...) || 0
+  'src/renderer/renderer.js@48d93fc01bea401499b522492a6c11b065b837333b664e8a398da475e2861c86::memoryBlocks',          // Number(...) || 0
+  'src/renderer/renderer.js@48d93fc01bea401499b522492a6c11b065b837333b664e8a398da475e2861c86::excludedBlocks',        // Number(...) || 0
+  'src/renderer/renderer.js@48d93fc01bea401499b522492a6c11b065b837333b664e8a398da475e2861c86::pendingBlocks',         // Number(...) || 0
+  'src/renderer/renderer.js@25c6e876cf7473cb631519874f2d430f909de5054e477da20dbe732aeb102b74::completionHtml',        // aynı kapsamda kaçışlı kurulan yerel
+  'src/renderer/renderer.js@25c6e876cf7473cb631519874f2d430f909de5054e477da20dbe732aeb102b74::sectionHtml',           // aynı kapsamda kaçışlı kurulan yerel
+  'src/browser-page-translate.js@fa3006eab719b41acbb64e3e2af0077288b782f45307c1852dc8e46e6ff00b8f::toolsMarkup',       // sabit literal — araç düğmeleri işaretlemesi
 ]);
 
 function topLevelSplit(e) {
@@ -133,7 +137,7 @@ function checkOperand(rel, siteLine, raw, out, depth = 0, collect = null) {
   const e = raw.trim();
   if (!e || depth > 8) { if (depth > 8) out.push(`${rel}:${siteLine} → aşırı iç içe: ${e.slice(0, 80)}`); return; }
   if (collect) collect.push(e);
-  if (ALLOWED.has(`${rel}:${siteLine}::${e}`)) return;
+  if (ALLOWED.has(`${rel}@${siteHashes.get(`${rel}:${siteLine}`)}::${e}`)) return;
   if (SAFE_LITERAL_FULL.test(e) || SAFE_MEMBER_FULL.test(e)
     || SAFE_MEMBER_KNOWN.test(e) || SAFE_NUMERIC_FULL.test(e) || SAFE_NUMERIC_CALL.test(e)) return;
   if (/^'(?:[^'\\]|\\.)*'$/s.test(e) || /^"(?:[^"\\]|\\.)*"$/s.test(e)) return;
@@ -275,7 +279,10 @@ for (const rel of FILES) {
   const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
   const sites = innerHtmlSites(src);
   coverage[rel] = sites.length;
-  for (const site of sites) scanSnippet(rel, site.line, site.rhs, violations);
+  for (const site of sites) {
+    siteHashes.set(`${rel}:${site.line}`, fingerprint(site.rhs));
+    scanSnippet(rel, site.line, site.rhs, violations);
+  }
 }
 
 test('innerHTML sink envanteri ≥30 ve tüm enterpolasyonlar güvenli', () => {
@@ -291,16 +298,35 @@ test('izin listesi girdileri kaynakta hâlâ karşılık buluyor', () => {
   for (const key of ALLOWED) {
     const splitAt = key.lastIndexOf('::');
     const expr = key.slice(splitAt + 2);
-    const [rel, line] = key.slice(0, splitAt).split(/:(?!.*:)/);
-    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-    const sites = innerHtmlSites(src);
-    const found = sites.some((s) => {
-      if (s.line !== Number(line)) return false;
-      const collected = [];
-      scanSnippet(rel, s.line, s.rhs, [], 0, collected);
-      return collected.includes(expr);
-    });
+    const [rel, hash] = key.slice(0, splitAt).split('@');
+    const sites = innerHtmlSites(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
+    const matches = sites.filter(site => fingerprint(site.rhs) === hash);
+    const collected = [];
+    if (matches.length === 1) scanSnippet(rel, matches[0].line, matches[0].rhs, [], 0, collected);
+    const found = matches.length === 1 && collected.includes(expr);
     if (!found) stale.push(key);
   }
-  assert(stale.length === 0, `bayat izin girdisi — satır/ifade taşındı:\n  ${stale.join('\n  ')}`);
+  assert(stale.length === 0, `izinli sink değişti, silindi veya çoğaldı:\n  ${stale.join('\n  ')}`);
+});
+
+// Mutation checks: line drift is harmless, unreviewed markup is never allowed.
+test('satır kayması izinleri genişletmez; değiştirilmiş ve kaçışsız sink reddedilir', () => {
+  const key = [...ALLOWED][0], split = key.lastIndexOf('::');
+  const [rel, hash] = key.slice(0, split).split('@'), expr = key.slice(split + 2);
+  const site = innerHtmlSites(fs.readFileSync(path.join(ROOT, rel), 'utf8')).find(s => fingerprint(s.rhs) === hash);
+  const shifted = innerHtmlSites('\n\nnode.innerHTML = ' + site.rhs + ';')[0];
+  const synthetic = 'fixture/shifted';
+  // Use the same reviewed file identity with a different line, as a source insertion does.
+  const line = 900000;
+  siteHashes.set(`${rel}:${line}`, fingerprint(shifted.rhs));
+  const accepted = []; scanSnippet(rel, line, shifted.rhs, accepted);
+  assert.deepEqual(accepted, []);
+  siteHashes.set(`${rel}:${line}`, fingerprint(site.rhs + ' + userInput'));
+  const changed = []; checkOperand(rel, line, expr, changed);
+  assert(changed.length > 0);
+  const unescaped = []; scanSnippet(synthetic, 1, '`<p>${userInput}</p>`', unescaped);
+  assert(unescaped.length > 0);
+  const escaped = []; scanSnippet(synthetic, 1, '`<p>${escapeHtml(userInput)}</p>`', escaped);
+  assert.deepEqual(escaped, []);
+  siteHashes.delete(`${rel}:${line}`);
 });

@@ -67,15 +67,18 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };
-  ipcMain.on('assistant:show', show);
-  ipcMain.on('assistant:update', update);
-  ipcMain.on('assistant:action', command);
+  const showHandler=(event,...args)=>{if(!owner(event))return;show(event,...args);};
+  const updateHandler=(event,...args)=>{if(!owner(event))return;update(event,...args);};
+  const commandHandler=(event,...args)=>{if(!ownView(event))return;command(event,...args);};
+  ipcMain.on('assistant:show', showHandler);
+  ipcMain.on('assistant:update', updateHandler);
+  ipcMain.on('assistant:action', commandHandler);
   window.on('resize', layout); window.on('enter-full-screen', layout); window.on('leave-full-screen', layout);
   view.webContents.on('did-finish-load', () => { layout(); view.webContents.send('assistant:snapshot', snapshot); });
   window.once('closed', () => {
     disposed = true;
-    ipcMain.removeListener('assistant:show', show);
-    ipcMain.removeListener('assistant:update', update); ipcMain.removeListener('assistant:action', command);
+    ipcMain.removeListener('assistant:show', showHandler);
+    ipcMain.removeListener('assistant:update', updateHandler); ipcMain.removeListener('assistant:action', commandHandler);
     if (!view.webContents.isDestroyed()) view.webContents.close();
   });
   window.contentView.addChildView(view); layout();

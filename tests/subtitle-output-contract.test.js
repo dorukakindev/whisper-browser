@@ -165,6 +165,8 @@ vm.runInContext(renderer.slice(start, end), ctx);
   assert.equal(taskCtx.playerTaskSnapshot().length, 0, 'bitmiş iş aktif rozetinde kaldı');
 
   const prefsCtx = {
+    window: {},
+    watchItemByKey: () => null,
     player: { workspaceMode: 'local', subPath: 'C:\\out\\film.tr.srt', sub2Path: 'C:\\out\\film.en.srt',
       subRole: 'translation', sub2Role: 'source', viewMode: 'default', offset: 0,
       autoPause: false, playbackPolicy: 'normal', autoFollow: true, mergeCont: false,

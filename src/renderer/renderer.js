@@ -20445,7 +20445,7 @@ async function capturePlayerFrame() {
   if(window.NativePlayerUI?.active()){
     const key=player.mediaKey,generation=player.generation;
     const result=await window.api.nativePlayer({action:'snapshot',key,generation});
-    if(!result?.ok||player.mediaKey!==key||player.generation!==generation){osd(result?.error||'Video değişti; yeniden dene.');return;}
+    if(!result?.ok||player.mediaKey!==key||player.generation!==generation){osd(result?.error||'Video değişti; yeniden deneyin.');return;}
     frame=new Image();frame.src=result.image;await frame.decode();
   }
   if (!v || !(frame.naturalWidth || v.videoWidth)) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }

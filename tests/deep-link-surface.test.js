@@ -52,13 +52,13 @@ assert(!/app\.on\(['"]open-url['"]/.test(main),
     `bağlamı belirsiz process.argv erişimi: ${offending.map((i) => main.slice(i - 40, i + 40).replace(/\s+/g, ' ')).join(' | ')}`);
 }
 
-// 5) İç ayrıcalıklı şemalar yalnızca izinli ikisiyle sınırlı kalır —
-//    registerSchemesAsPrivileged bloğuna üçüncü şema eklenemez.
+// 5) İç ayrıcalıklı şemalar yalnızca denetlenmiş üçlüyle sınırlı kalır —
+//    whisper-media yalnız grant edilmiş dosyaları döndürür; OS deep-link değildir.
 {
   const start = main.indexOf('registerSchemesAsPrivileged');
   const end = main.indexOf(']);', start);
   const schemes = [...main.slice(start, end).matchAll(/scheme:\s*['"]([\w-]+)['"]/g)].map(m => m[1]);
-  assert.deepStrictEqual(schemes.sort(), ['whisper-assets', 'whisper-pdf'],
+  assert.deepStrictEqual(schemes.sort(), ['whisper-assets', 'whisper-media', 'whisper-pdf'],
     'ayrıcalıklı şema listesi değişti — yeni iç protokol inceleme ister');
   // corsEnabled/fetch yetkileri genişlemesin: her ikisinde de zaten var;
   // yeni ayrıcalık anahtarları (örn. allowServiceWorkers) kilit altında.

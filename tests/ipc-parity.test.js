@@ -29,11 +29,11 @@ let sent = [];
 const sources = {};
 for (const f of files) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');
-  const h = grab(/ipcMain\.handle\(\s*'([^']+)'/g, src);
-  const o = grab(/ipcMain\.on\(\s*'([^']+)'/g, src);
+  const h = grab(/ipcMain\.handle\(\s*['"]([^'"]+)['"]/g, src);
+  const o = grab(/ipcMain\.on\(\s*['"]([^'"]+)['"]/g, src);
   // wc.send / webContents.send = main→renderer; ipcRenderer.send renderer→main.
   // Preload dosyalarındaki `ipcRenderer.send` burada sayılmaz (aşağıda ayrı).
-  const s = f.includes('preload') ? [] : grab(/\.send\(\s*'([^']+)'/g, src);
+  const s = f.includes('preload') ? [] : grab(/\.send\(\s*['"]([^'"]+)['"]/g, src);
   for (const c of h) sources[`handle:${c}`] = f;
   for (const c of o) sources[`on:${c}`] = f;
   handled.push(...h);
@@ -47,11 +47,11 @@ const preloadFiles = files.filter(f => /(?:^|-)preload\.js$/.test(f));
 let invoked = [], pSend = [], pOn = [];
 for (const f of preloadFiles) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');
-  invoked.push(...grab(/ipcRenderer\.invoke\(\s*'([^']+)'/g, src));
+  invoked.push(...grab(/ipcRenderer\.invoke\(\s*['"]([^'"]+)['"]/g, src));
   // sendSync de ipcMain.on'a düşer — yalnız `send` aramak senkron kanalları
   // (queue:saveSync, settings:saveSync, library:upsert-before-close) kör eder.
-  pSend.push(...grab(/ipcRenderer\.send(?:Sync)?\(\s*'([^']+)'/g, src));
-  pOn.push(...grab(/ipcRenderer\.on\(\s*'([^']+)'/g, src));
+  pSend.push(...grab(/ipcRenderer\.send(?:Sync)?\(\s*['"]([^'"]+)['"]/g, src));
+  pOn.push(...grab(/ipcRenderer\.on\(\s*['"]([^'"]+)['"]/g, src));
 }
 const pOnSet = new Set(pOn);
 
@@ -77,7 +77,7 @@ assert.deepStrictEqual([...new Set(dup)], [], `çifte kayıtlı handle kanallar�
 
 // 5) Guard ratchet — guard'dan önce parametre özellik erişimi sayısı artmasın.
 const mainSrc = fs.readFileSync(path.join(SRC, 'main.js'), 'utf8');
-const pat = /ipcMain\.handle\(\s*'([^']+)'\s*,\s*async?\s*\(([^)]*)\)\s*=>\s*\{/g;
+const pat = /ipcMain\.handle\(\s*['"]([^'"]+)['"]\s*,\s*async?\s*\(([^)]*)\)\s*=>\s*\{/g;
 let unguarded = 0;
 for (const m of mainSrc.matchAll(pat)) {
   const params = m[2].split(',').map((x) => x.trim()).filter(Boolean);
@@ -131,13 +131,18 @@ assert.deepStrictEqual(GUARDLESS_SIDE_EFFECT, [],
 //    yardımcılar (authorizedBrowserSender, browserDiscoveryFrameAllowed), veya
 //    el sıkışmada bekleyen kayda karşı denetim (pending.<alan> / .get(...)).
 const ON_UNVERIFIED = [];
-const onPat = /ipcMain\.on\(\s*'([^']+)'/g;
+const onPat = /ipcMain\.on\(\s*['"]([^'"]+)['"]/g;
 const ON_VERIFY = /\bsenderFrame\b|\bsender\b\s*(?:!==|===)|\bauthorized\w*\(|\bbrowserDiscoveryFrameAllowed\b|\bpending\w*\s*(?:\.|=\s*[\w.]+\.get\(|!==|===)/;
 for (const f of files) {
   const src = fs.readFileSync(path.join(SRC, f), 'utf8');
   for (const m of src.matchAll(onPat)) {
-    const head = src.slice(m.index + m[0].length, m.index + m[0].length + 500);
-    if (!ON_VERIFY.test(head)) ON_UNVERIFIED.push(`${f}:${m[1]}`);
+    let head = src.slice(m.index + m[0].length, m.index + m[0].length + 500);
+    const named=/^\s*,\s*([A-Za-z_$][\w$]*)\s*\)/.exec(head);
+    if (named) {
+      const declaration = new RegExp('(?:const|let)\\s+' + named[1] + '\\s*=|function\\s+' + named[1] + '\\s*\\(').exec(src);
+      head = declaration ? src.slice(declaration.index, declaration.index + 500) : '';
+    }
+    if (!ON_VERIFY.test(head)&&!(/if\(!owner\(event\)\)return/.test(head)&&/const owner = event => event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame/.test(src))&&!(/if\(!ownView\(event\)\)return/.test(head)&&/const ownView = event => event.sender === view.webContents && event.senderFrame === view.webContents.mainFrame/.test(src))) ON_UNVERIFIED.push(`${f}:${m[1]}`);
   }
 }
 assert.deepStrictEqual(ON_UNVERIFIED, [],

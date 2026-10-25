@@ -74,6 +74,8 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  // PDF narration range/source are per-open-reader draft values, reset by PdfReaderExperience.opened.
+  'pdfVoiceFrom', 'pdfVoiceTo', 'pdfVoiceText',
   'dubAdvancedSettings', 'dubEngineSettings', // details disclosure state, not synthesis settings
   'browserWhisperRangeEnabled', 'browserWhisperRangeStart', 'browserWhisperRangeEnd',
   // Per-video audio and reviewed text belong to the current dubbing job.

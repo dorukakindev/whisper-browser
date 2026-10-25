@@ -37,7 +37,7 @@ assert.match(html, /<html lang="en">/);
 assert.match(html, /id="openPlayer"[^>]*>BROWSER<\/button>/);
 assert.match(html, /id="uiLocale"/);
 assert.match(html, /id="playerUiLocale"/);
-assert.match(html, /<script src="ui-locale\.js"><\/script>\s*<script src="status-copy\.js"><\/script>\s*<script src="timeline-issue-scan\.js"><\/script>\s*<script src="renderer-helpers\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
+assert.match(html, /<script src="ui-locale\.js"><\/script>\s*<script src="status-copy\.js"><\/script>\s*<script src="timeline-issue-scan\.js"><\/script>\s*<script src="renderer-helpers\.js"><\/script>\s*<script src="\.\.\/assistant-source-context\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
 const localized = new Map(entries);
 const staticCopy = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
 // HTML entity'leri sözlük anahtarlarıyla eşleşmesi için çözülür (&lt;ad&gt; → <ad>).
@@ -63,6 +63,10 @@ for (const match of staticCopy.matchAll(/(?:title|aria-label|placeholder)="([^"]
 // dosya adları, URL'ler, örnek değerler. Türkçe bir dizgi buraya eklenemez —
 // sözlüğe girilmeli.
 const NEUTRAL = [
+  // ISO region codes and navigation glyphs are language neutral. The media
+  // shell owns localization of its data-ui-untranslated labels.
+  'AU', 'BR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IN', 'IT', 'JP', 'KR', 'NL', 'US',
+  'Home', 'Media home', 'Playback, scenes & sources', '‹', '›',
   '%', '%100', '%50', '%7', '%86', '+', '+100 ms',
   ', .', '----', '-1.0', '.', '.bak', '.comments\n.recommendations', '/',
   '0', '0%', '0.0', '0.00', '0.30', '0.5×', '0.50', '0.60', '0.75×', '0:00', '0:00 / 0:00',
