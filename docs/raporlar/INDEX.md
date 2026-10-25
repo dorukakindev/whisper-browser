@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) — Ana dalın bağımsız 100 hedefli gece testi; özgün kayıt korunur.
+
 - [BROWSER_BUG_REPORT_579.md](BROWSER_BUG_REPORT_579.md) — YouTube devam thumbnail'leri, Keşfet konu çevirisi/Letterboxd ve ana kopya ayrımı.
 
 - [BROWSER_BUG_REPORT_578.md](BROWSER_BUG_REPORT_578.md) — Gerçek GPU dublaj kabulü, son WAV bütünlüğü ve normalizasyon süre ayrımı.
@@ -65,7 +67,7 @@
 
 - [BROWSER_BUG_REPORT_548.md](BROWSER_BUG_REPORT_548.md) — Dış önerilerin kaynak koduyla doğrulanması ve öncelik değerlendirmesi.
 
-- [BROWSER_BUG_REPORT_547.md](BROWSER_BUG_REPORT_547.md) — Gerçek PDF okuyucu tasarımı, sayfa bağlamı ve aynı ekranda ses.
+- [BROWSER_BUG_REPORT_580.md](BROWSER_BUG_REPORT_580.md) — Gerçek PDF okuyucu tasarımı, sayfa bağlamı ve aynı ekranda ses.
 
 - [BROWSER_BUG_REPORT_546.md](BROWSER_BUG_REPORT_546.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve sezon araçları.
 - [BROWSER_BUG_REPORT_545.md](BROWSER_BUG_REPORT_545.md) — Konuşma bütünlüğü, uzun tek cue ve iki dakikalık gerçek ses karşılaştırması.

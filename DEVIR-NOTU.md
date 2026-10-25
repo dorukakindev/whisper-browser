@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Ana dalın bağımsız 100 hedefli gece testi (Rapor547)
 Güncel çalışma: [docs/devir/2026-10-25-1719.md](docs/devir/2026-10-25-1719.md) — Devam thumbnail'leri ve Keşfet çeviri/Letterboxd; ana kopya henüz eski
 Güncel çalışma: [docs/devir/2026-10-25-1709.md](docs/devir/2026-10-25-1709.md) — Gerçek GPU dublaj kabulü ve aşama süreleri; P01–P10 kanıt denetimi
 Güncel çalışma: [docs/devir/2026-10-25-1626.md](docs/devir/2026-10-25-1626.md) — Gerçek dublaj kabul aracı; P10 GPU meşgul olduğu için açık
@@ -32,7 +33,7 @@ Güncel çalışma: [docs/devir/2026-10-25-0642.md](docs/devir/2026-10-25-0642.m
 Güncel çalışma: [docs/devir/2026-10-25-0615.md](docs/devir/2026-10-25-0615.md) — M4B çıktı önizlemesi, disk alanı, ilerleme ve gerçek süreç iptali
 Güncel çalışma: [docs/devir/2026-10-25-0524.md](docs/devir/2026-10-25-0524.md) — Gece ilk paket: tema, dil, asistan yaşam döngüsü ve doğrulama
 Güncel çalışma: [docs/devir/2026-10-25-0510.md](docs/devir/2026-10-25-0510.md) — Kitap güvenilirliği, birleşik teslim ve 50 maddelik gece havuzu
-Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Dış önerilerin kodla karşılaştırılması; ürün kodu değişmedi
+Güncel çalışma: [docs/devir/2026-10-25-0445.md](docs/devir/2026-10-25-0445.md) — Dış önerilerin kodla karşılaştırılması; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-25-0431.md](docs/devir/2026-10-25-0431.md) — PDF okuyucu tasarımı, sayfayı anlayan asistan ve aynı ekranda ses
 Güncel çalışma: [docs/devir/2026-10-25-0414.md](docs/devir/2026-10-25-0414.md) — PR485 ana sürüm ve Windows ana kopya teslimi
 Güncel çalışma: [docs/devir/2026-10-25-0410.md](docs/devir/2026-10-25-0410.md) — Seçili sayfalı sesli kitap, takipli PDF okuyucu ve üretim araçları
