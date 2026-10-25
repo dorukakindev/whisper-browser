@@ -1,5 +1,6 @@
 Güncel çalışma: [docs/devir/2026-10-25-2218.md](docs/devir/2026-10-25-2218.md) — PR491 ana programda; sürekli master birleştirme yetkisi kaydedildi
 Güncel çalışma: [docs/devir/2026-10-25-2213.md](docs/devir/2026-10-25-2213.md) — Aynı sahnede eski/yeni ses, telaffuz sırası ve çeviri miktar denetimi
+Güncel çalışma: [docs/devir/2026-10-25-2219.md](docs/devir/2026-10-25-2219.md) — Kod geliştirme ve teknik borç yol haritası (Rapor587), tam suite exit1/8 kırmızı notu
 Güncel çalışma: [docs/devir/2026-10-25-2054.md](docs/devir/2026-10-25-2054.md) — PR490 ve ses iyileştirmeleri ana sürüme, kişisel dosyalar korunarak alındı
 Güncel çalışma: [docs/devir/2026-10-25-2050.md](docs/devir/2026-10-25-2050.md) — Videoya bağlı hazır dublaj, telaffuz sözlüğü ve görünür kalite geçişi
 Güncel çalışma: [docs/devir/2026-10-25-2015.md](docs/devir/2026-10-25-2015.md) — Gerçek GPU video/kitap A/B ve doğrulanmış çeviri/ASR kalite düzeltmeleri
@@ -10,7 +11,7 @@ Güncel çalışma: [docs/devir/2026-10-25-1851.md](docs/devir/2026-10-25-1851.m
 Güncel çalışma: [docs/devir/2026-10-25-1836.md](docs/devir/2026-10-25-1836.md) — Kaynaklara ayrılmış arama, açık çevrimiçi sonuçlar ve TMDB galeri
 Güncel çalışma: [docs/devir/2026-10-25-1748.md](docs/devir/2026-10-25-1748.md) — Güncel Luna karşılaştırması, otomatik Letterboxd örneği ve tam Keşfet ayrıntısı
 Güncel çalışma: [docs/devir/2026-10-25-1726.md](docs/devir/2026-10-25-1726.md) — PR487 master ve Windows ana kopyaya güvenle alındı
-Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Ana dalın bağımsız 100 hedefli gece testi (Rapor547)
+Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Kodu değiştirmeden 100 hedefli gece testi: 98 PASS, 2 test sözleşmesi kayması
 Güncel çalışma: [docs/devir/2026-10-25-1719.md](docs/devir/2026-10-25-1719.md) — Devam thumbnail'leri ve Keşfet çeviri/Letterboxd; ana kopya henüz eski
 Güncel çalışma: [docs/devir/2026-10-25-1709.md](docs/devir/2026-10-25-1709.md) — Gerçek GPU dublaj kabulü ve aşama süreleri; P01–P10 kanıt denetimi
 Güncel çalışma: [docs/devir/2026-10-25-1626.md](docs/devir/2026-10-25-1626.md) — Gerçek dublaj kabul aracı; P10 GPU meşgul olduğu için açık
@@ -93,6 +94,8 @@ Güncel çalışma: [docs/devir/2026-10-23-1259.md](docs/devir/2026-10-23-1259.m
 Güncel çalışma: [docs/devir/2026-10-23-0929.md](docs/devir/2026-10-23-0929.md) — PR478 güvenli birleştirme ve Windows ana kopya güncellemesi
 Güncel çalışma: [docs/devir/2026-10-23-0922.md](docs/devir/2026-10-23-0922.md) — Rapor522: son güvenilirlik incelemesi, beş ürün kökü ve CI bakımı
 Güncel çalışma: [docs/devir/2026-10-23-0245.md](docs/devir/2026-10-23-0245.md) — PR477 master ve Windows ana kopyaya alındı
+Güncel çalışma: [docs/devir/2026-10-22-0548.md](docs/devir/2026-10-22-0548.md) — Gece "1000 daha" batarya eki: +692 sözleşme senaryosu (toplam 1395), yeni bug 0, kod değişmedi
+Güncel çalışma: [docs/devir/2026-10-21-2339.md](docs/devir/2026-10-21-2339.md) — Gece yalnız denetimi: 703 satır koşum, yeni bug 0, B515-01 köküne 6 tekrar (R-DUP)
 Güncel çalışma: [docs/devir/2026-10-23-0242.md](docs/devir/2026-10-23-0242.md) — Rapor521: on altı ses ve çeviri güvenilirliği düzeltmesi
 Güncel çalışma: [docs/devir/2026-10-22-1514.md](docs/devir/2026-10-22-1514.md) — PR476 master ve Windows ana kopyaya alındı
 Güncel çalışma: [docs/devir/2026-10-22-1511.md](docs/devir/2026-10-22-1511.md) — Claude ses düzeltmeleri güvenli uyarlama, özgün cue kimliği ve ses kurtarma
