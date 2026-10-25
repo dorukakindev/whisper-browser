@@ -77,13 +77,16 @@
 }
 .mw-chapter {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 5px 8px;
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
 .mw-chapter button {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
   text-align: left;
   border: 0;
   padding: 6px;
@@ -136,6 +139,10 @@
 }
 .mw-dialog button:focus-visible,
 .mw-dialog textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mw-dialog :is(input, select, summary, [tabindex="0"]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -384,6 +391,11 @@ dialog.mw-dialog::backdrop {
   box-shadow: inset 0 -2px var(--accent);
 }
 @media (max-width: 1000px) {
+  .mw-book { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .mw-chapters { max-height: 160px; border-right: 0; border-bottom: 1px solid var(--border); padding-right: 0; }
+  .mw-dialog > header { padding: 18px 20px 12px; gap: 16px; }
+  .mw-dialog > nav { padding: 0 20px 12px; }
+  .mw-body { padding: 0 20px 20px; }
   .mw-reading {
     flex-direction: column;
     max-height: none;
@@ -654,3 +666,8 @@ dialog.mw-dialog::backdrop {
 .mw-search-results { display: grid; gap: 6px; max-height: 260px; overflow: auto; }
 .mw-search-hit { text-align: left; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 .mw-search-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 1000px) {
+  /* A wrapped action dock must not cover the chapter on narrow displays. */
+  .mw-transport { position: static; }
+  .mw-review { max-height: none; overflow: visible; }
+}

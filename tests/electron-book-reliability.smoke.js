@@ -67,11 +67,69 @@ app
     };
     const run = (code) =>
       win.webContents.executeJavaScript("(async()=>{" + code + "})()", true);
+    const layoutChecks = [];
+    async function auditNarrow(name, selector) {
+      const expectedWidth = Math.round(
+        win.getContentSize()[0] / win.webContents.getZoomFactor(),
+      );
+      await until(
+        () => run("return Math.abs(innerWidth-" + expectedWidth + ")<=1"),
+        "zoom layout settled",
+      );
+      const measured = await run(
+        'const d=document.querySelector("dialog.mw-dialog"),body=d.querySelector(".mw-body"),checks=[];for(const n of d.querySelectorAll(' +
+          JSON.stringify(selector) +
+          ')){if(!n.getClientRects().length)continue;n.scrollIntoView({block:"center",inline:"nearest"});const r=n.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);checks.push({text:(n.textContent||n.getAttribute("aria-label")||n.tagName).slice(0,70),left:r.left,right:r.right,top:r.top,bottom:r.bottom,hit:!!hit&&(n===hit||n.contains(hit))});}return {viewport:[innerWidth,innerHeight],dpr:devicePixelRatio,dialogOverflow:d.scrollWidth-d.clientWidth,bodyOverflow:body.scrollWidth-body.clientWidth,checks}',
+      );
+      layoutChecks.push({
+        name,
+        zoom: win.webContents.getZoomFactor(),
+        contentSize: win.getContentSize(),
+        ...measured,
+      });
+      fs.writeFileSync(
+        path.join(out, "narrow-layout.json"),
+        JSON.stringify(layoutChecks, null, 2),
+      );
+      await capture(name + ".png");
+      assert(
+        measured.dialogOverflow <= 1,
+        name + ": dialog must not overflow horizontally",
+      );
+      assert(
+        measured.bodyOverflow <= 1,
+        name + ": body must not overflow horizontally",
+      );
+      assert(
+        measured.checks.every(
+          (c) =>
+            c.left >= 0 &&
+            c.right <= measured.viewport[0] + 1 &&
+            c.top >= 0 &&
+            c.bottom <= measured.viewport[1] + 1 &&
+            c.hit,
+        ),
+        name + ": scrolled controls must remain visible and pointer-accessible",
+      );
+      return measured;
+    }
+    async function checkCompact(name, selector) {
+      win.setContentSize(800, 900);
+      win.webContents.setZoomFactor(1.25);
+      await auditNarrow(name, selector);
+      win.webContents.setZoomFactor(1);
+      win.setContentSize(1440, 1000);
+      await until(
+        () => run("return innerWidth===1440"),
+        "wide layout restored",
+      );
+    }
     await until(() => run("return !!window.MediaWorkflowsUI"), "UI");
     await run(
       'await initialSettingsReady;UiLocale.set("tr",false);applyUiTheme("dark");return true',
     );
     win.setContentSize(1440, 1000);
+    win.setMinimumSize(640, 400);
     const imported = await run(
       'return window.api.mediaWorkflows({action:"book-import"})',
     );
@@ -113,6 +171,10 @@ app
       'const s=document.querySelector(".mw-text-suggestion select");s.value="join";s.dispatchEvent(new Event("change"));document.querySelector(".mw-text-preparation").scrollIntoView({block:"center"});return true',
     );
     await capture("text-preparation-tr-dark.png");
+    await checkCompact(
+      "preparation-800-1.25",
+      ".mw-text-preparation button,.mw-text-suggestion select",
+    );
     await run(
       'const n=document.querySelector("textarea[data-chapter]");n.value+=" Sonraki düzenleme.";n.dispatchEvent(new Event("input"));return true',
     );
@@ -223,6 +285,10 @@ app
       'document.querySelector(".mw-production-plan").scrollIntoView({block:"center"});return true',
     );
     await capture("production-plan-tr-dark.png");
+    await checkCompact(
+      "plan-800-1.25",
+      ".mw-production-plan button,.mw-plan-group p",
+    );
     await run(
       'const n=document.querySelector("textarea[data-chapter]");n.value+=" Yeni cümle.";n.dispatchEvent(new Event("input"));return true',
     );
@@ -594,6 +660,38 @@ app
       "review controls restored after retry probe",
     );
     await capture("review-before.png");
+    win.setMinimumSize(640, 400);
+    for (const zoom of [1, 1.25]) {
+      win.setContentSize(800, 900);
+      win.webContents.setZoomFactor(zoom);
+      await until(() => run("return innerWidth<810"), "narrow viewport");
+      await auditNarrow(
+        "review-800-" + zoom,
+        ".mw-review-group button,.mw-transport button",
+      );
+      await run(
+        'document.querySelector(".mw-review-group button").focus();return true',
+      );
+      win.webContents.focus();
+      win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Tab" });
+      win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
+      await until(
+        () =>
+          run(
+            'return document.activeElement?.textContent==="Bu metni düzenle"',
+          ),
+        "review keyboard focus order",
+      );
+      assert(
+        await run(
+          'const n=document.activeElement,r=n.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return (hit===n||n.contains(hit))&&getComputedStyle(n).outlineStyle!=="none"',
+        ),
+        "keyboard focus must not be covered",
+      );
+      await capture("review-focus-800-" + zoom + ".png");
+    }
+    win.webContents.setZoomFactor(1);
+    win.setContentSize(1440, 1000);
     await run(
       '[...document.querySelectorAll(".mw-review-group button")].find(n=>n.textContent.includes("Dinledim")).click();return true',
     );
@@ -718,6 +816,38 @@ app
       'const a=document.querySelector(".mw-body audio");a.currentTime=1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
     assert(await run('return !!document.querySelector(".pdf-active-box")'));
+    win.setContentSize(800, 900);
+    win.webContents.setZoomFactor(1.25);
+    await auditNarrow(
+      "reader-800-1.25",
+      ".mw-reading-head button,.mw-bookmarks button,.mw-spoken",
+    );
+    const wheelPoint = await run(
+      'const p=document.querySelector(".mw-pdf"),s=p.querySelector("select");s.value="2";s.dispatchEvent(new Event("change"));p.scrollIntoView({block:"center"});p.scrollTop=0;const r=p.getBoundingClientRect();return {x:(r.left+r.right)/2,y:Math.max(r.top+80,Math.min(innerHeight-70,r.bottom-30))}',
+    );
+    await until(
+      () =>
+        run(
+          'const p=document.querySelector(".mw-pdf");return p.scrollHeight>p.clientHeight+100',
+        ),
+      "zoomed PDF has scrollable content",
+    );
+    win.webContents.sendInputEvent({
+      type: "mouseWheel",
+      x: Math.round(wheelPoint.x * 1.25),
+      y: Math.round(wheelPoint.y * 1.25),
+      deltaX: 0,
+      deltaY: -280,
+    });
+    await until(
+      () => run('return document.querySelector(".mw-pdf").scrollTop>0'),
+      "native wheel scrolls the PDF pane at 125 percent",
+    );
+    await run(
+      'const s=document.querySelector(".mw-pdf select");s.value="fit";s.dispatchEvent(new Event("change"));return true',
+    );
+    win.webContents.setZoomFactor(1);
+    win.setContentSize(1440, 1000);
     const pdfBox = await run(
       'const b=document.querySelector(".pdf-active-box").getBoundingClientRect(),c=document.querySelector(".mw-pdf canvas").getBoundingClientRect();return {inside:b.left>=c.left-2&&b.right<=c.right+2&&b.top>=c.top-2&&b.bottom<=c.bottom+2};',
     );
@@ -925,6 +1055,10 @@ app
       'for(const a of document.querySelectorAll(".mw-voice-takes audio"))a.pause();return true',
     );
     await capture("voice-takes-tr-dark.png");
+    await checkCompact(
+      "voice-takes-800-1.25",
+      ".mw-voice-takes select,.mw-voice-takes button,.mw-voice-takes audio",
+    );
     await run(
       '[...document.querySelectorAll(".mw-voice-takes button")].find(n=>n.textContent==="Bu denemeyi kullan").click();return true',
     );
