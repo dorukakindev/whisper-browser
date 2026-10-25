@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_579.md](BROWSER_BUG_REPORT_579.md) — YouTube devam thumbnail'leri, Keşfet konu çevirisi/Letterboxd ve ana kopya ayrımı.
+
 - [BROWSER_BUG_REPORT_578.md](BROWSER_BUG_REPORT_578.md) — Gerçek GPU dublaj kabulü, son WAV bütünlüğü ve normalizasyon süre ayrımı.
 
 - [BROWSER_BUG_REPORT_577.md](BROWSER_BUG_REPORT_577.md) — Gerçek dublaj kabul aracı ve meşgul GPU nedeniyle açık kalan P10.

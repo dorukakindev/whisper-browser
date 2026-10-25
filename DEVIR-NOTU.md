@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1719.md](docs/devir/2026-10-25-1719.md) — Devam thumbnail'leri ve Keşfet çeviri/Letterboxd; ana kopya henüz eski
 Güncel çalışma: [docs/devir/2026-10-25-1709.md](docs/devir/2026-10-25-1709.md) — Gerçek GPU dublaj kabulü ve aşama süreleri; P01–P10 kanıt denetimi
 Güncel çalışma: [docs/devir/2026-10-25-1626.md](docs/devir/2026-10-25-1626.md) — Gerçek dublaj kabul aracı; P10 GPU meşgul olduğu için açık
 Güncel çalışma: [docs/devir/2026-10-25-1615.md](docs/devir/2026-10-25-1615.md) — P09 kaynak/snapshot bağlı kitap asistanı eylemleri
