@@ -14,7 +14,7 @@
  }
  function excerptKey(value){let hash=2166136261;const text=String(value||'').slice(0,8000);for(let i=0;i<text.length;i++)hash=Math.imul(hash^text.charCodeAt(i),16777619);return (hash>>>0).toString(16)+'-'+text.length;}
  function scope(player,selection,tab){
-  if(selection)return JSON.stringify(['global',selection.workspace,selection.page,selection.id,selection.catalogId,selection.chapter,selection.title,selection.synopsis,excerptKey(selection.excerpt),excerptKey(selection.selectedText)]);
+  if(selection){const parts=['global',selection.workspace,selection.page,selection.id,selection.catalogId,selection.chapter,selection.title,selection.synopsis,excerptKey(selection.excerpt),excerptKey(selection.selectedText)];if(selection.chapterRevision)parts.push(selection.chapterRevision);return JSON.stringify(parts);}
   return JSON.stringify([player.workspaceMode,player.mediaKey,player.generation,player.browserActiveTabId,player.workspaceMode==='browser'?tab?.generation:null,player.workspaceMode==='browser'?pageKey(player.browserPageUrl):null]);
  }
  return Object.freeze({pageKey,conversation,scope});

@@ -13,6 +13,7 @@
     timer = setTimeout(() => {
       const tr = window.UiLocale?.get?.() === 'tr';
       const selectionContext = globalAssistantContext();
+      const bookDescription=selectionContext?.chapterTextComplete?[tr?'Tam bölüm/sayfa metni':'Complete chapter/page text',selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+selectionContext.chapterText.length,selectionContext.excerpt?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
       const pageTask=window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
@@ -62,6 +63,7 @@
         conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!pageTask || !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         retry: !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: messages,
+        ...(bookDescription?{sourceDescription:bookDescription}:{}),
       });
     }, 50);
   }

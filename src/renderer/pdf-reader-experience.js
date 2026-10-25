@@ -8,11 +8,13 @@
   const playerCopy = new Map();
   const projects = new Map();
   let pdfMap = null;
+  let stopBookAssistant = null;
   let voice = null,
     voiceToken = 0,
     lastSpoken = -1;
   function stopVoice() {
-    pdfMap?.dispose();pdfMap=null;
+    pdfMap?.dispose();
+    pdfMap = null;
     voiceToken++;
     const a = $("pdfVoiceAudio");
     a.pause();
@@ -156,6 +158,36 @@
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
   function opened() {
+    stopBookAssistant?.();
+    $("pdfBookAssistant").replaceChildren();
+    const owner = player.pdfReader;
+    stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
+      t: (en, tr) => t(tr, en),
+      isCurrent: () =>
+        player.pdfReader === owner &&
+        !$("pdfReader").classList.contains("hidden"),
+      getSource: (kind) => {
+        const base = context();
+        if (!base) return null;
+        const original = rows(owner, base.page)
+            .map((b) => b.source || "")
+            .join("\n\n"),
+          translation = translations(owner, base.page)
+            .map((b) => b.userText || b.translation || "")
+            .join("\n\n");
+        const selected = base.selectedText;
+        return {
+          ...base,
+          text:
+            kind === "explain" &&
+            selected &&
+            !original.includes(selected) &&
+            translation.includes(selected)
+              ? translation
+              : original,
+        };
+      },
+    });
     selectedText = "";
     selectionPage = 0;
     lastPage = "";
@@ -188,6 +220,9 @@
     changed(true);
   }
   function closed() {
+    stopBookAssistant?.();
+    stopBookAssistant = null;
+    $("pdfBookAssistant").replaceChildren();
     stopVoice();
     voice = null;
     selectedText = "";
@@ -305,8 +340,11 @@
       if (player.pdfReader !== r) return;
       voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
       $("pdfVoiceListen").disabled = false;
-      const focus = pages.findIndex(p => p.pageNumber === r.currentPage);
-      await window.MediaWorkflowsUI.openProject(id, focus >= 0 ? { chapter: focus } : {});
+      const focus = pages.findIndex((p) => p.pageNumber === r.currentPage);
+      await window.MediaWorkflowsUI.openProject(
+        id,
+        focus >= 0 ? { chapter: focus } : {},
+      );
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",
@@ -388,8 +426,22 @@
             audio.duration || 0,
           );
       };
-      const pageEntry=r.pages.get(r.currentPage),sourceCanvas=pageEntry.article.querySelector('.pdf-page-source canvas');
-      if(sourceCanvas){const original=await r.pdf.getPage(r.currentPage);if(token!==voiceToken||player.pdfReader!==r)return;pdfMap=window.PdfSpokenMap?.mount(pageEntry.article.querySelector('.pdf-page-source'),sourceCanvas,pageEntry.items,original.getViewport({scale:r.scale}),groups,audio);}
+      const pageEntry = r.pages.get(r.currentPage),
+        sourceCanvas = pageEntry.article.querySelector(
+          ".pdf-page-source canvas",
+        );
+      if (sourceCanvas) {
+        const original = await r.pdf.getPage(r.currentPage);
+        if (token !== voiceToken || player.pdfReader !== r) return;
+        pdfMap = window.PdfSpokenMap?.mount(
+          pageEntry.article.querySelector(".pdf-page-source"),
+          sourceCanvas,
+          pageEntry.items,
+          original.getViewport({ scale: r.scale }),
+          groups,
+          audio,
+        );
+      }
       audio.ontimeupdate = () => {
         if (token !== voiceToken) return;
         const i = groups.findIndex(

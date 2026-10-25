@@ -86,7 +86,8 @@
   let saveRequest = 0,
     readerRequest = 0,
     stopReviewPreview = null,
-    stopTakePreview = null;
+    stopTakePreview = null,
+    stopBookAssistant = null;
   let prefsProject = null;
   function status(message) {
     const node = dialog?.querySelector(".mw-status");
@@ -136,6 +137,8 @@
     return n;
   }
   function clearBody() {
+    stopBookAssistant?.();
+    stopBookAssistant = null;
     stopTakePreview?.();
     stopTakePreview = null;
     stopReviewPreview?.();
@@ -881,6 +884,29 @@
           project?.id === textarea.dataset.projectId &&
           chapter === contextChapter,
       });
+    stopBookAssistant = window.BookAssistantUI?.mount(edit, {
+      t,
+      isBusy: () => busy,
+      isCurrent: () =>
+        textarea.isConnected &&
+        dialog?.open &&
+        project?.id === textarea.dataset.projectId &&
+        chapter === contextChapter,
+      getSource: () => {
+        const base = window.MediaExperience?.context(),
+          id = textarea.dataset.projectId + ":" + contextChapter;
+        return {
+          id,
+          type: "book-chapter",
+          title: project?.title,
+          chapter: c.title,
+          text: textarea.value,
+          selectedText: base?.id === id ? base.selectedText : "",
+          excerpt:
+            base?.id === id ? base.excerpt : textarea.value.slice(0, 8000),
+        };
+      },
+    });
     window.BookProductionPlanUI?.mount(edit, {
       id: project.id,
       chapter: contextChapter,
@@ -1496,6 +1522,27 @@
     font.oninput = () => (prose.style.fontSize = font.value + "px");
     head.append(followButton, font);
     body.append(head, audio);
+    stopBookAssistant = window.BookAssistantUI?.mount(body, {
+      t,
+      isBusy: () => busy,
+      isCurrent: () =>
+        generation === readerGeneration &&
+        dialog?.open &&
+        project?.id === projectId,
+      getSource: () => {
+        const base = window.MediaExperience?.context(),
+          id = projectId + ":" + current;
+        return {
+          id,
+          type: "book-chapter",
+          title: project?.title,
+          chapter: project?.chapters[current]?.title,
+          text: project?.chapters[current]?.text || "",
+          selectedText: base?.id === id ? base.selectedText : "",
+          excerpt: base?.id === id ? base.excerpt : "",
+        };
+      },
+    });
     window.BookBookmarksUI?.mount(body, {
       id: projectId,
       chapter: current,
@@ -2178,6 +2225,8 @@
     signal.setAttribute("role", "status");
     d.append(header, nav, signal, el("main", "mw-body"));
     d.onclose = () => {
+      stopBookAssistant?.();
+      stopBookAssistant = null;
       stopTakePreview?.();
       stopTakePreview = null;
       stopReviewPreview?.();

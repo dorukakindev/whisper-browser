@@ -19583,9 +19583,9 @@ function subtitleContextLanguage(role) {
 
 function globalAssistantContext() {
   const selection = window.MediaExperience?.context();
-  if (selection) return selection;
+  if (selection) return window.BookAssistantUI?.context(selection) || selection;
   const pdfContext = window.PdfReaderExperience?.context();
-  if (pdfContext) return pdfContext;
+  if (pdfContext) return window.BookAssistantUI?.context(pdfContext) || pdfContext;
   if (!$('playerLayer')?.classList.contains('hidden')) return null;
   const home = document.body.classList.contains('media-home-active');
   return { workspace: home ? 'media-library' : 'subtitle-studio',
@@ -19851,7 +19851,8 @@ async function cancelAiChat(message='İptal edildi.'){
   window.AssistantWorkspace?.finish(job,job.streamText||'', 'stopped');
   updateAiChatActions();
 }
-async function aiChatSend(soru, translationTarget = null) {
+async function aiChatSend(soru, translationTarget = null, expectedScope = null) {
+  if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
   if (aiChatPreparing||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
@@ -19863,8 +19864,9 @@ async function aiChatSend(soru, translationTarget = null) {
     try{await window.AssistantWorkspace.prepare();}catch(error){aiChatAdd('ai',error.message,'ai-msg-err');return;}finally{if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
     if(loading.cancelled||loading.scope!==aiSourceScope())return;
   }
-  if (!translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
-  if (!translationTarget && await window.AssistantPageCommands?.handle(q)) return;
+  if (expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
+  if (expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
+  if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const opts = buildOptsFromUI();
   opts.translate = true;                      // anahtar dogrulamasi icin
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
