@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1855.md](docs/devir/2026-10-25-1855.md) — PR488 ana sürüm ve Windows ana programa alındı
 Güncel çalışma: [docs/devir/2026-10-25-1851.md](docs/devir/2026-10-25-1851.md) — Letterboxd Browser dönüşü, kitap eylemleri ve isteğe bağlı zevk testi
 Güncel çalışma: [docs/devir/2026-10-25-1836.md](docs/devir/2026-10-25-1836.md) — Kaynaklara ayrılmış arama, açık çevrimiçi sonuçlar ve TMDB galeri
 Güncel çalışma: [docs/devir/2026-10-25-1748.md](docs/devir/2026-10-25-1748.md) — Güncel Luna karşılaştırması, otomatik Letterboxd örneği ve tam Keşfet ayrıntısı
