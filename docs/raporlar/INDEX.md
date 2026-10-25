@@ -1,3 +1,4 @@
+- [Rapor 594](BROWSER_BUG_REPORT_594.md) — Devam kartı gezinmesi, sade Keşfet ve yeniden düzenlenen PDF okuyucu
 - [Rapor 593](BROWSER_BUG_REPORT_593.md) — Claude nihai denetiminin bağımsız teyidi; anahtar devri, anlam ve SRT/sayı sorunları
 - [Rapor 592](BROWSER_BUG_REPORT_592.md) — Claude taslak paketinin bağımsız incelemesi;32test ve6taslak kabul sorunu
 - [Rapor 591](BROWSER_BUG_REPORT_591.md) — Gerçek GPU telaffuz, yoğun sahne, ses onarımı ve müzik ayrıştırma kabulü
