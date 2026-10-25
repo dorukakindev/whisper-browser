@@ -1,0 +1,26 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{JSDOM}=require('jsdom');
+const root=path.resolve(__dirname,'..');
+const dom=new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'),{runScripts:'outside-only'});
+const w=dom.window,el=id=>w.document.getElementById(id),tick=()=>new Promise(setImmediate);
+let source='first',resolveLatest,queries=[];
+w.BrowserDubAudioUI={context:()=>({mode:'browser',tabId:'tab',mediaKey:source,source,visible:true,hasMedia:true})};
+w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
+w.syncBrowserOcclusion=()=>{};
+w.api={dubConfig:async()=>({ok:true,ready:true,reference:'voice.wav'}),onDubEvent:()=>{},latestDub:async query=>{queries.push(query);return new Promise(resolve=>resolveLatest=resolve);}};
+el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
+w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+(async()=>{
+  el('browserDubGenerate').click();await tick();assert.equal(queries[0].source,'first');
+  source='second';resolveLatest({ok:true,output:{name:'Wrong video',url:'file:///wrong.wav'}});await tick();
+  assert.equal(el('dubGeneratedPreview').getAttribute('src'),null);
+  el('browserDubGenerate').click();await tick();assert.equal(queries[1].source,'second');
+  resolveLatest({ok:true,output:{name:'Correct video',url:'file:///right.wav',range:{start:300,end:600},quality:{groups:[]}}});await tick();
+  assert.equal(el('dubGeneratedName').textContent,'Correct video');
+  assert.equal(el('dubRangeEnabled').checked,true);assert.equal(el('dubRangeStart').value,'5:00');assert.equal(el('dubRangeEnd').value,'10:00');
+  source='third';el('browserDubGenerate').click();await tick();
+  assert.equal(el('dubGeneratedPreview').getAttribute('src'),null);
+  resolveLatest({ok:true,output:null});await tick();
+  assert(el('dubGeneratorUse').classList.contains('hidden'));
+  console.log('Scoped ready audio, range restoration and late-response race passed');
+})().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>w.close());

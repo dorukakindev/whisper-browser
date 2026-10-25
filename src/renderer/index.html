@@ -3785,6 +3785,13 @@
   </details></section>
   </main><aside class="dub-studio-side" aria-label="Ses ve arka plan"><section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="3"></span><h3>Referans ses</h3></div><p>Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.</p>
 <details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
+    <section class="dub-pronunciations" data-ui-untranslated>
+      <h4 id="dubPronunciationTitle">Pronunciation dictionary</h4>
+      <p id="dubPronunciationHelp">One case-sensitive entry per line: Newton = Nyutın. Applies only to generated speech; subtitles stay unchanged.</p>
+      <textarea id="dubPronunciations" rows="4" aria-labelledby="dubPronunciationTitle" placeholder="Newton = Nyutın"></textarea>
+      <button class="btn btn-ghost" id="dubPronunciationSave" type="button">Save pronunciations</button>
+      <p id="dubPronunciationStatus" role="status"></p>
+    </section>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseVoice" type="button">Ses referansı</button><span id="dubVoiceName" data-ui-untranslated></span></div>
     <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>

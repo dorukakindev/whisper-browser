@@ -50,6 +50,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
 (async()=>{
   try {
     assert.equal((await call('dub:config')).ready,true);
+    assert.equal((await call('dub:pronunciations',[{from:'Newton',to:'Nyutin'}])).ok,true);
+    assert.deepEqual((await call('dub:config')).pronunciations,[{from:'Newton',to:'Nyutin'}]);
+    assert.equal((await call('dub:pronunciations',[{from:'12',to:'x'}])).ok,false);
     assert.equal((await call('dub:config')).grouping,'akici');
     assert.equal((await call('dub:config')).expression,'reference');
     const bookReferenceId='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -125,8 +128,11 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:start',{id:'excessive-book-forced',srt,narration:true,forceGroups:Array.from({length:1001},(_,i)=>String(i))})).ok,false);
     assert.equal((await call('dub:start',{id:'oversized-book-forced',srt,narration:true,forceGroups:Array.from({length:10},()=>Array(900).fill('1').join(','))})).ok,false,'group arguments must remain bounded on Windows');
     assert.equal((await call('dub:start',{id:'bad-range',srt,range:{start:10,end:5}})).ok,false);
-    assert.equal((await call('dub:start',{id:'ranged',srt,expression:'warm',followDelivery:true,range:{start:20,end:30}})).ok,true);
+    assert.equal((await call('dub:start',{id:'ranged',source:'https://youtube.com/watch?v=abcdefghijk',srt,expression:'warm',followDelivery:true,range:{start:20,end:30}})).ok,true);
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'reference');
+    assert.equal((await call('dub:pronunciations',[])).ok,false);
+    const dictionaryFile=calls.at(-1).args[calls.at(-1).args.indexOf('--pronunciations')+1];
+    assert.deepEqual(JSON.parse(fs.readFileSync(dictionaryFile,'utf8')),[{from:'Newton',to:'Nyutin'}]);
     assert.equal(prosodyOptions.range.start,20);
     assert.equal(prosodyOptions.range.end,30);
     assert.equal(prosodyOptions.strength,'balanced');
@@ -138,6 +144,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.deepEqual(events.at(-1).range,{start:20,end:30});
     assert.deepEqual((await call('dub:latest')).output.range,{start:20,end:30});
     assert.equal((await call('dub:latest','ranged')).output.id,'ranged');
+    assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk?t=5'})).output.id,'ranged');
+    assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901'})).output,null);
+    assert.equal((await call('dub:latest',{source:''})).output,null);
     assert.equal((await call('dub:latest','not-the-requested-voice')).output,null,'Missing identity must not silently select another video voice');
     assert.equal((await call('dub:latest','../../secret')).ok,false);
     calls.length=0;

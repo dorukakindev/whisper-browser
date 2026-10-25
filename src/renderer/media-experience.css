@@ -35,3 +35,7 @@
 .dub-quality-evidence { margin:10px 0;border:1px solid var(--border);border-radius:10px;padding:12px; }
 .dub-quality-evidence summary { cursor:pointer;font-weight:600; }.dub-quality-evidence p,.dub-quality-evidence blockquote { font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere; }
 .dub-quality-evidence blockquote { margin:12px 0 0;padding-left:12px;border-left:2px solid var(--accent);color:var(--text-dim); }
+.dub-pronunciations{margin-block:16px;padding-block:12px;border-block:1px solid var(--border)}
+.dub-pronunciations h4{margin:0 0 8px}
+.dub-pronunciations p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.dub-pronunciations textarea{display:block;width:100%;box-sizing:border-box;resize:vertical;min-height:100px;margin-block:10px;padding:12px;border:1px solid var(--border-strong);border-radius:10px;color:var(--text);background:var(--bg-0);font:inherit}

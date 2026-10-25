@@ -8,6 +8,8 @@ const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
 const { validVoiceOutput } = require('./voice-output');
+const {normalize: normalizePronunciations} = require('./dub-pronunciation');
+const {identity: sourceIdentity} = require('./dub-source-identity');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
@@ -49,7 +51,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
     const savedPath = key => typeof saved[key] === 'string' && saved[key].trim() && !saved[key].includes('\0') ? saved[key] : '';
     const engine = savedPath('engine') || path.join(app.getPath('desktop'), 'Ses', 'VoxCPM2');
-    return { keepEngine:saved.keepEngine !== false, engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
+    let pronunciations=[]; try { pronunciations=normalizePronunciations(saved.pronunciations || []); } catch (_) {}
+    return { pronunciations, keepEngine:saved.keepEngine !== false, engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
       verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
@@ -95,6 +98,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       phases:s.phases||{}, progress: s.progress || null, sample: s.sample, exitCode: s.exitCode ?? null,
       exitSignal: s.exitSignal || null,
       cleanupErrors: s.cleanupErrors || [], ...data };
+    summary.sourceIdentity = s.sourceIdentity || null;
     summary.settings = s.settings || null;
     summary.metrics = s.metrics || null;
     if (type === 'error') summary.diagnostics = {
@@ -330,6 +334,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true };
   }));
   ipcMain.handle('dub:latest', guard(async (_event, requestedId) => {
+    const scoped = requestedId && typeof requestedId === 'object';
+    const source = scoped ? sourceIdentity(requestedId.source) : null;
+    if (scoped && !source) return {ok:true,output:null};
+    if (scoped) requestedId = undefined;
     if (requestedId !== undefined && !/^[a-zA-Z0-9-]{1,80}$/.test(requestedId)) return { ok: false, error: 'Invalid voice identity.' };
     const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');
@@ -343,6 +351,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const saved = JSON.parse(fs.readFileSync(entry.file, 'utf8'));
         if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
         if (requestedId && saved.id !== requestedId) continue;
+        if (source && saved.sourceIdentity !== source) continue;
         const output = path.join(root, `${saved.id}.wav`);
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
         grantMedia(output);
@@ -361,6 +370,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       } catch (_) {}
     }
     return { ok: true, output: null };
+  }));
+  ipcMain.handle('dub:pronunciations', guard(async (_event, entries) => {
+    if (job || textUI || releasingEngine || busy()) throw new Error('Finish the active voice job before saving pronunciations.');
+    const c=config(); c.pronunciations=normalizePronunciations(entries);
+    atomicWriteFileSync(configPath(), JSON.stringify(c,null,2), {encoding:'utf8'});
+    return {ok:true,pronunciations:c.pronunciations};
   }));
   ipcMain.handle('dub:config', guard(async (_e, kind) => {
     if (kind) {
@@ -427,6 +442,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       c.followDelivery = request.followDelivery ?? c.followDelivery;
       c.deliveryStrength = request.deliveryStrength ?? c.deliveryStrength;
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
+      s.sourceIdentity = sourceIdentity(request.source);
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
       s.settings.grouping = c.grouping;
@@ -476,6 +492,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
+      if (c.pronunciations.length) {
+        const file=output.replace(/\.wav$/i,'.pronunciations.json');
+        claimArtifacts(s,[file]);
+        fs.writeFileSync(file,JSON.stringify(c.pronunciations),{encoding:'utf8',flag:'wx'});
+        args.push('--pronunciations',file);
+        s.settings.pronunciationEntries=c.pronunciations.length;
+      }
       args.push('--timing-mode', timingMode);
       if(request.narration===true)args.push('--narration');
       args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
