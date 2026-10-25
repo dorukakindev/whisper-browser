@@ -5,6 +5,7 @@ const { randomUUID, createHash } = require("node:crypto");
 const { atomicWriteFileSync } = require("./fsync-utils");
 const { voiceStorage } = require("./voice-storage");
 const { run } = require("./browser-media-tools");
+const voiceTakes = require("./book-voice-takes");
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const idOK = (id) => typeof id === "string" && /^[a-f0-9-]{36}$/.test(id);
 const stamp = (seconds) => {
@@ -361,6 +362,7 @@ function registerMediaWorkflows({
         fs.copyFileSync(output.path, target, fs.constants.COPYFILE_EXCL);
       else if (fileDigest(target) !== fileDigest(output.path))
         throw Error("Chapter output collision.");
+      voiceTakes.preservePrevious(folder, c, fileDigest);
       if (c.output !== target) c.position = 0;
       c.output = target;
       c.textHash = p.hash;
@@ -380,6 +382,8 @@ function registerMediaWorkflows({
       c.voiceSettings = output.settings || {};
       c.activeJob = null;
       c.lastOutputId = output.id;
+      c.capturedAt = new Date().toISOString();
+      voiceTakes.remember(folder, c, fileDigest);
       save(d);
     } catch (error) {
       app.emit?.("media-workflow-error", error.message);
@@ -572,6 +576,7 @@ function registerMediaWorkflows({
           "book-save",
           "book-prepare",
           "book-approve",
+          "book-take-select",
           "book-archive",
           "book-restore",
           "book-recover",
@@ -585,6 +590,7 @@ function registerMediaWorkflows({
           "book-save",
           "book-prepare",
           "book-approve",
+          "book-take-select",
           "book-rename",
           "book-archive",
           "book-preferences",
@@ -600,6 +606,9 @@ function registerMediaWorkflows({
           "book-progress",
           "book-source",
           "book-mark-add",
+          "book-takes",
+          "book-take-listen",
+          "book-take-select",
         ].includes(r.action) &&
         (!Number.isInteger(r.chapter) || r.chapter < 0 || r.chapter >= 1000)
       )
@@ -1082,6 +1091,41 @@ function registerMediaWorkflows({
           c.position = r.position;
           save(d);
           return { ok: true };
+        }
+        case "book-takes": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter];
+          if (!c) throw Error("Choose a chapter.");
+          return { ok: true, ...voiceTakes.list(path.dirname(file(d.id)), c) };
+        }
+        case "book-take-listen": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter];
+          if (!c) throw Error("Choose a chapter.");
+          const opened = voiceTakes.open(
+            path.dirname(file(d.id)),
+            c,
+            r.takeId,
+            fileDigest,
+          );
+          grantMedia(opened.path);
+          return {
+            ok: true,
+            path: opened.path,
+            textMatches: opened.take.textHash === hash(c.text),
+          };
+        }
+        case "book-take-select": {
+          const d = load(r.id),
+            c = d.chapters[r.chapter];
+          if (!c) throw Error("Choose a chapter.");
+          voiceTakes.select(path.dirname(file(d.id)), c, r, fileDigest);
+          // An idle selection invalidates any prepared but unstarted request.
+          for (const [id, item] of pending)
+            if (item.id === d.id && item.chapter === c.id) pending.delete(id);
+          c.activeJob = null;
+          save(d);
+          return { ok: true, project: clean(d) };
         }
         case "book-mark-list":
           return {

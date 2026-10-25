@@ -716,6 +716,125 @@ app
       await run('return document.querySelector(".mw-status").textContent'),
       /grubunun başı/,
     );
+    const comparisonList = await run(
+      'return window.api.mediaWorkflows({action:"book-takes",id:' +
+        JSON.stringify(id) +
+        ",chapter:0})",
+    );
+    const newerTake = comparisonList.takes.find((t) => t.current),
+      olderTake = comparisonList.takes.find((t) => !t.current && t.textMatches);
+    assert(
+      newerTake && olderTake,
+      "two real WAV takes available for comparison",
+    );
+    await run(
+      '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Editöre dön").click();return true',
+    );
+    await until(
+      () => run('return !!document.querySelector(".mw-voice-takes")'),
+      "comparison panel mounted",
+    );
+    await run(
+      'document.querySelector(".mw-voice-takes").open=true;return true',
+    );
+    await until(
+      () =>
+        run(
+          'const s=document.querySelector(".mw-voice-takes select");return s?.options.length>=2&&!s.disabled',
+        ),
+      "comparison list loaded",
+    );
+    await run(
+      'const d=document.querySelector(".mw-voice-takes"),s=d.querySelector("select");s.value=' +
+        JSON.stringify(olderTake.id) +
+        ';s.dispatchEvent(new Event("change"));[...d.querySelectorAll("button")].find(n=>n.textContent==="Karşılaştırmayı aç").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return [...document.querySelectorAll(".mw-take-players audio")].every(a=>a.readyState>=1)',
+        ),
+      "both real WAV players loaded",
+    );
+    await run(
+      'const d=document.querySelector(".mw-voice-takes");d.scrollIntoView({block:"center"});const a=d.querySelectorAll("audio");await a[0].play();await a[1].play();return true',
+    );
+    assert(
+      await run(
+        'const a=document.querySelectorAll(".mw-voice-takes audio");return a[0].paused&&!a[1].paused',
+      ),
+      "comparison prevents simultaneous playback",
+    );
+    await run(
+      'for(const a of document.querySelectorAll(".mw-voice-takes audio"))a.pause();return true',
+    );
+    await capture("voice-takes-tr-dark.png");
+    await run(
+      '[...document.querySelectorAll(".mw-voice-takes button")].find(n=>n.textContent==="Bu denemeyi kullan").click();return true',
+    );
+    await until(
+      async () =>
+        (
+          await run(
+            'return window.api.mediaWorkflows({action:"book-open",id:' +
+              JSON.stringify(id) +
+              "})",
+          )
+        ).project.chapters[0].output === olderTake.id,
+      "old take selected through real UI",
+    );
+    await until(
+      () => run('return !!document.querySelector(".mw-voice-takes")'),
+      "comparison editor after selection",
+    );
+    await run(
+      'document.querySelector(".mw-voice-takes").open=true;return true',
+    );
+    await until(
+      () =>
+        run(
+          'const s=document.querySelector(".mw-voice-takes select");return s?.options.length>=2&&!s.disabled',
+        ),
+      "comparison list after selection",
+    );
+    await run(
+      'const d=document.querySelector(".mw-voice-takes"),s=d.querySelector("select");s.value=' +
+        JSON.stringify(newerTake.id) +
+        ';s.dispatchEvent(new Event("change"));[...d.querySelectorAll("button")].find(n=>n.textContent==="Bu denemeyi kullan").click();return true',
+    );
+    await until(
+      async () =>
+        (
+          await run(
+            'return window.api.mediaWorkflows({action:"book-open",id:' +
+              JSON.stringify(id) +
+              "})",
+          )
+        ).project.chapters[0].output === newerTake.id,
+      "newer take restored through real UI",
+    );
+    const keptFiles = await run(
+      'return window.api.mediaWorkflows({action:"book-take-listen",id:' +
+        JSON.stringify(id) +
+        ",chapter:0,takeId:" +
+        JSON.stringify(olderTake.id) +
+        "})",
+    );
+    assert(
+      fs.existsSync(keptFiles.path),
+      "previous audio retained after switching",
+    );
+    await until(
+      () => run('return !!document.querySelector("textarea[data-chapter]")'),
+      "editor ready for reader",
+    );
+    await run(
+      '[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Dinle ve takip et").click();return true',
+    );
+    await until(
+      () => run('return !!document.querySelector(".mw-bookmarks select")'),
+      "reader restored after comparing takes",
+    );
     await run(
       'return window.api.mediaWorkflows({action:"book-save",id:' +
         JSON.stringify(id) +

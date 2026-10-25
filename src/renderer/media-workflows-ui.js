@@ -85,7 +85,8 @@
   const drafts = new Map();
   let saveRequest = 0,
     readerRequest = 0,
-    stopReviewPreview = null;
+    stopReviewPreview = null,
+    stopTakePreview = null;
   let prefsProject = null;
   function status(message) {
     const node = dialog?.querySelector(".mw-status");
@@ -107,6 +108,8 @@
     return n;
   }
   function clearBody() {
+    stopTakePreview?.();
+    stopTakePreview = null;
     stopReviewPreview?.();
     stopReviewPreview = null;
     for (const a of dialog.querySelectorAll("audio")) a.pause();
@@ -862,6 +865,33 @@
           project?.id === textarea.dataset.projectId &&
           chapter === contextChapter,
       });
+    stopTakePreview = window.BookVoiceTakesUI?.mount(edit, {
+      id: project.id,
+      chapter: contextChapter,
+      call,
+      t,
+      url: pathToFileUrl,
+      isCurrent: () =>
+        textarea.isConnected &&
+        dialog?.open &&
+        project?.id === textarea.dataset.projectId &&
+        chapter === contextChapter,
+      beforeSelect: async () => {
+        if (busy)
+          throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
+        await saveChapter();
+      },
+      onSelected: async (updated) => {
+        project = updated;
+        await books();
+        status(
+          t(
+            "Voice take selected. Earlier recordings were kept.",
+            "Ses denemesi seçildi. Önceki kayıtlar korundu.",
+          ),
+        );
+      },
+    });
     const exportPreview = el("section", "mw-export-preview");
     exportPreview.hidden = true;
     exportPreview.setAttribute("aria-live", "polite");
@@ -2105,6 +2135,8 @@
     signal.setAttribute("role", "status");
     d.append(header, nav, signal, el("main", "mw-body"));
     d.onclose = () => {
+      stopTakePreview?.();
+      stopTakePreview = null;
       stopReviewPreview?.();
       stopReviewPreview = null;
       for (const a of d.querySelectorAll("audio")) a.pause();
