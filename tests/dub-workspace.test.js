@@ -4,6 +4,13 @@ const {EventEmitter}=require('node:events');
 const {registerDubWorkspace}=require('../src/dub-workspace');
 const Model=require('../src/renderer/dub-workspace-model');
 const {validate}=require('../src/renderer/dub-sync-map');
+
+test('pronunciation evidence survives timeline validation without replacing subtitle text',()=>{
+ const row={key:'1',text:'Doktor Newton konuştu.',displayText:'Dr. Newton konuştu.',pronunciationText:'Doktor Nyutin konuştu.',sourceStart:0,sourceEnd:3,audioStart:0,audioEnd:3,status:'review'};
+ const restored=Model.groups([row])[0];
+ assert.equal(restored.text,row.text);assert.equal(restored.displayText,row.displayText);assert.equal(restored.pronunciationText,row.pronunciationText);
+ for(const value of ['x'.repeat(16001),'bad\0text'])assert.throws(()=>Model.groups([{...row,pronunciationText:value}]));
+});
 test('portable project owns its media and rejects path traversal, missing data and unauthorized IPC',async()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dub486-'));
  try{
@@ -14,14 +21,14 @@ test('portable project owns its media and rejects path traversal, missing data a
    dialog:{showSaveDialog:async()=>({filePath:target}),showOpenDialog:async(_owner,opts)=>({filePaths:[opts.title.startsWith('Open ')?path.join(target,'project.json'):files['source.mp4']]})},
    authorizeMedia:async p=>{assert.ok(Object.values(files).includes(p)||p.startsWith(target));return p;},authorizeSubtitle:async p=>p,
    grantMedia:()=>{},grantSubtitle:()=>{}});
-  const row={key:'1',text:'on iki kilometre.',displayText:'12 km.',speechRanges:[[0,1],[2,3]],sourceStart:10,sourceEnd:12,audioStart:0,audioEnd:3,status:'review',stretch:1.5};
+  const row={key:'1',text:'on iki kilometre.',displayText:'12 km.',pronunciationText:'Doktor Nyutin on iki kilometre.',speechRanges:[[0,1],[2,3]],sourceStart:10,sourceEnd:12,audioStart:0,audioEnd:3,status:'review',stretch:1.5};
   svc.register({path:files['voice.wav'],name:'Ses.wav',subtitle:files['subtitles.srt'],background:{path:files['background.wav']},quality:{groups:[row]}});
   const call=(n,r)=>handlers[n]({sender},r);
   allowed=false;assert.equal((await call('dub:projectSave',{path:files['voice.wav']})).ok,false);allowed=true;
   assert.equal((await call('dub:projectSave',{path:'unknown.wav'})).ok,false);
   assert.equal((await call('dub:projectSave',{path:files['voice.wav'],layers:{music:{path:files['music.wav']}},includeVideo:true,mix:{voice:.7}})).ok,true);
   const manifest=JSON.parse(fs.readFileSync(path.join(target,'project.json')));
-  assert.equal(manifest.rows[0].text,row.text);assert.equal(manifest.rows[0].displayText,row.displayText);
+  assert.equal(manifest.rows[0].text,row.text);assert.equal(manifest.rows[0].displayText,row.displayText);assert.equal(manifest.rows[0].pronunciationText,row.pronunciationText);
   assert.ok(fs.readFileSync(path.join(target,manifest.files.subtitle),'utf8').includes('12 km.'));
   assert.ok(fs.readFileSync(path.join(target,manifest.files.spokenSubtitle),'utf8').includes('on iki kilometre.'));
   assert.deepEqual(manifest.rows[0].speechRanges,row.speechRanges);assert.equal(manifest.mix.voice,.7);assert.equal(manifest.files.music,'music.wav');

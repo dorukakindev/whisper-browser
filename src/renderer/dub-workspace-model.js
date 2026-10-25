@@ -19,6 +19,7 @@
     const keys=new Set();
     return value.map((r,i) => {
       if (!r || typeof r.key !== 'string' || !r.key.trim() || r.key.length > 200 || !safeText(r.text) || (r.displayText !== undefined && !safeText(r.displayText))
+          || (r.pronunciationText !== undefined && !safeText(r.pronunciationText))
           || ![r.sourceStart,r.sourceEnd,r.audioStart,r.audioEnd].every(n => finite(n,0,172800))
           || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart
           || (r.audioEnd === r.audioStart && r.status !== 'failed')) throw new Error('Invalid dubbing timeline.');
@@ -32,6 +33,7 @@
       const status = r.status === 'failed' ? 'failed' : r.status !== 'ready'
         || ['review','unavailable'].includes(verificationStatus) || r.verification?.review === true ? 'review' : 'ready';
       return {displayText:typeof r.displayText==='string' && r.displayText.length<=16000?r.displayText:r.text,
+        ...(typeof r.pronunciationText==='string' ? {pronunciationText:r.pronunciationText} : {}),
         ...(speechRanges ? {speechRanges} : {}),key:r.key,group:i+1,text:r.text,sourceStart:r.sourceStart,sourceEnd:r.sourceEnd,
         audioStart:r.audioStart,audioEnd:r.audioEnd,status,
         stretch:finite(r.stretch,1,10000)?r.stretch:1,rewritten:r.rewritten===true,naturalEdited:r.naturalEdited===true,

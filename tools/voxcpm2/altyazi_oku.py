@@ -805,6 +805,10 @@ def main(argv=None, runtime=None):
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
     public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'delivery') if k in r}
                      for r in group_results]
+    for row,record in zip(public_groups,group_results):
+        spoken=record.get('pronunciationText')
+        if isinstance(spoken,str) and spoken != record.get('text'):
+            row['pronunciationText']=spoken
     for row in public_groups:
         print('DUB_GROUP ' + json.dumps(row), flush=True)
     timeline_cues = cues

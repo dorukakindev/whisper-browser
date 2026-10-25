@@ -67,6 +67,9 @@
     for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length)reasons.push(label[en?0:1]);
     el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.');
     el('dubQualityExpected').textContent=String(row?.text||row?.displayText||'').slice(0,8000);
+    const pronunciation=typeof row?.pronunciationText==='string'?row.pronunciationText.slice(0,8000):'';
+    el('dubQualityPronunciation').hidden=!pronunciation||pronunciation===row?.text;
+    el('dubQualityPronunciation').textContent=pronunciation?(en?'Pronunciation used for synthesis: ':'Üretimde kullanılan okunuş: ')+pronunciation:'';
   }
   function showResults() {
     const select = el('dubQualityGroup'), previous = select.value;
