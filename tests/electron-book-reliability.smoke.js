@@ -511,6 +511,25 @@ app
     assert(selectedPassage.context.excerpt.includes(selectedPassage.quote));
     assert.equal(selectedPassage.context.id, id + ":0");
     assert.equal(selectedPassage.context.type, "book-chapter");
+    await run(
+      'const a=document.querySelector(".mw-body audio");a.currentTime=1.25;[...document.querySelectorAll(".mw-bookmarks button")].find(n=>n.textContent==="Pasaj yer imi ekle").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          'return document.querySelector(".mw-bookmarks select")?.options.length===2&&!document.querySelector(".mw-bookmarks select").disabled',
+        ),
+      "audio passage bookmark saved",
+    );
+    const savedBookmark = (
+      await run(
+        'return window.api.mediaWorkflows({action:"book-mark-list",id:' +
+          JSON.stringify(id) +
+          "})",
+      )
+    ).bookmarks[0];
+    assert.equal(savedBookmark.quote, selectedPassage.quote);
+    assert.equal(savedBookmark.position, 1.25);
     await capture("reader-tr-dark.png");
     await run(
       '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Sonraki sayfa / bölüm").click();return true',
@@ -532,6 +551,118 @@ app
       "the previous page's quote must not leak into the next chapter",
     );
     await capture("reader-page2-context.png");
+    await run(
+      'return window.api.mediaWorkflows({action:"book-progress",id:' +
+        JSON.stringify(id) +
+        ",chapter:0,position:0})",
+    );
+    await until(
+      () =>
+        run(
+          'return !![...document.querySelector(".mw-bookmarks select").options].find(n=>n.value===' +
+            JSON.stringify(savedBookmark.id) +
+            ")",
+        ),
+      "bookmark visible from another chapter",
+    );
+    await run(
+      'const s=document.querySelector(".mw-bookmarks select");s.value=' +
+        JSON.stringify(savedBookmark.id) +
+        ';s.dispatchEvent(new Event("change"));return true',
+    );
+    await until(
+      () =>
+        run(
+          'const a=document.querySelector(".mw-body audio");return MediaExperience.context()?.id===' +
+            JSON.stringify(id + ":0") +
+            "&&a&&!a.paused&&a.currentTime>=1.25&&a.currentTime<1.9",
+        ),
+      "bookmark navigates to exact chapter and saved audio time",
+    );
+    await run('document.querySelector(".mw-body audio").pause();return true');
+    const retake = path.join(out, "bookmark-retake.wav"),
+      retakeBytes = Buffer.from(bytes);
+    retakeBytes.writeInt16LE(123, 44);
+    fs.writeFileSync(retake, retakeBytes);
+    const retakeJob = await run(
+      'return window.api.mediaWorkflows({action:"book-prepare",id:' +
+        JSON.stringify(id) +
+        ",chapter:0})",
+    );
+    service.capture({
+      id: retakeJob.request.id,
+      path: retake,
+      quality: {
+        groups: [
+          {
+            key: "review-one",
+            status: "ready",
+            displayText: imported.project.chapters[0].text,
+            audioStart: 2,
+            audioEnd: 4,
+          },
+        ],
+      },
+    });
+    await run(
+      'const s=document.querySelector(".mw-bookmarks select");s.value=' +
+        JSON.stringify(savedBookmark.id) +
+        ';s.dispatchEvent(new Event("change"));return true',
+    );
+    await until(
+      () =>
+        run(
+          'const a=document.querySelector(".mw-body audio");return a&&!a.paused&&a.currentTime>=2&&a.currentTime<2.8',
+        ),
+      "new audio maps bookmark to verified group start instead of stale seconds",
+    );
+    await run('document.querySelector(".mw-body audio").pause();return true');
+    await capture("bookmark-remapped-tr-dark.png");
+    assert.match(
+      await run('return document.querySelector(".mw-status").textContent'),
+      /grubunun başı/,
+    );
+    await run(
+      'return window.api.mediaWorkflows({action:"book-save",id:' +
+        JSON.stringify(id) +
+        ',chapter:0,text:"Changed chapter text after bookmark."})',
+    );
+    await until(
+      () =>
+        run('return !document.querySelector(".mw-bookmarks select").disabled'),
+      "bookmark controls ready",
+    );
+    await run(
+      'const s=document.querySelector(".mw-bookmarks select");s.value=' +
+        JSON.stringify(savedBookmark.id) +
+        ';s.dispatchEvent(new Event("change"));return true',
+    );
+    await until(
+      () =>
+        run(
+          'return [...document.querySelectorAll(".mw-bookmarks button")].some(n=>!n.hidden&&n.textContent==="Bölüm metnini aç")',
+        ),
+      "changed-text bookmark does not silently seek",
+    );
+    assert(await run('return document.querySelector(".mw-body audio").paused'));
+    await capture("bookmark-stale-text-tr-dark.png");
+    await run(
+      'return window.api.mediaWorkflows({action:"book-save",id:' +
+        JSON.stringify(id) +
+        ",chapter:0,text:" +
+        JSON.stringify(imported.project.chapters[0].text) +
+        "})",
+    );
+    await run(
+      '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Sonraki sayfa / bölüm").click();return true',
+    );
+    await until(
+      () =>
+        run(
+          "return MediaExperience.context()?.id===" + JSON.stringify(id + ":1"),
+        ),
+      "return to second reader page after bookmark checks",
+    );
 
     win.setContentSize(800, 800);
     await wait(200);

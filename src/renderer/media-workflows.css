@@ -312,6 +312,11 @@ dialog.mw-dialog::backdrop {
   width: 100%;
   margin-bottom: 20px;
 }
+.mw-bookmarks { margin: 0 0 18px; padding: 12px 0; border-block: 1px solid var(--border); }
+.mw-bookmarks select { min-width: 180px; max-width: 100%; flex: 1 1 260px; background: var(--bg-0); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.mw-bookmarks p:empty { display: none; }
+.mw-bookmarks [hidden] { display: none; }
+.mw-bookmark-quote { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-dim); line-height: 1.6; }
 .mw-reading {
   display: flex;
   gap: 24px;

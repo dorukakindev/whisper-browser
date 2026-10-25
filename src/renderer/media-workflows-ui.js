@@ -1232,7 +1232,7 @@
     readerRender = null,
     readerGeneration = 0,
     readerResize = null;
-  async function readChapter(next = chapter, autoplay = false) {
+  async function readChapter(next = chapter, autoplay = false, resume = null) {
     const request = ++readerRequest,
       projectId = project?.id;
     await saveChapter();
@@ -1242,7 +1242,19 @@
       result = await call("book-listen", { id: projectId, chapter: current });
     if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
       return;
+    if (
+      resume &&
+      (result.outputId !== resume.outputId ||
+        result.textHash !== resume.textHash)
+    )
+      throw Error(
+        t(
+          "Audio changed; select the bookmark again.",
+          "Ses değişti; yer imini yeniden seç.",
+        ),
+      );
     chapter = current;
+    status("");
     const body = clearBody(),
       generation = readerGeneration,
       head = el("div", "mw-reading-head");
@@ -1325,7 +1337,16 @@
         id: projectId,
         chapter: current,
         position: audio.currentTime || 0,
-      }).catch((e) => status(e.message));
+        outputId: result.outputId,
+        textHash: result.textHash,
+      }).catch((e) => {
+        if (
+          generation === readerGeneration &&
+          dialog?.open &&
+          project?.id === projectId
+        )
+          status(e.message);
+      });
     };
     audio.onpause = persist;
     const saveInterval = () => {
@@ -1404,8 +1425,54 @@
     );
     font.oninput = () => (prose.style.fontSize = font.value + "px");
     head.append(followButton, font);
-    body.append(head, audio, layout);
+    body.append(head, audio);
+    window.BookBookmarksUI?.mount(body, {
+      id: projectId,
+      chapter: current,
+      audio,
+      prose,
+      outputId: result.outputId,
+      textHash: result.textHash,
+      activeId: resume?.id || "",
+      call,
+      t,
+      isCurrent: () =>
+        generation === readerGeneration &&
+        dialog?.open &&
+        project?.id === projectId,
+      navigate: async (mark) => {
+        const opened = await readChapter(mark.chapter, false, mark);
+        if (
+          opened &&
+          dialog?.open &&
+          project?.id === projectId &&
+          chapter === mark.chapter
+        )
+          status(
+            mark.state === "audio-remapped"
+              ? t(
+                  "Audio changed: opened the matching speech group start.",
+                  "Ses yenilendi: eşleşen konuşma grubunun başı açıldı.",
+                )
+              : t("Bookmark opened.", "Yer imi açıldı."),
+          );
+      },
+      openText: async (target) => {
+        const result = await call("book-open", { id: projectId });
+        if (
+          generation !== readerGeneration ||
+          !dialog?.open ||
+          project?.id !== projectId
+        )
+          return;
+        project = result.project;
+        chapter = target;
+        await books();
+      },
+    });
+    body.append(layout);
     layout.append(prose);
+    if (resume) void playback.playFrom(resume.position);
     bookContext(current, project.chapters[current].text);
     window.MediaExperience?.bindPassage(
       prose,
@@ -1556,6 +1623,11 @@
           page.replaceChildren(el("p", "mw-muted", e.message));
       }
     }
+    return (
+      generation === readerGeneration &&
+      dialog?.open &&
+      project?.id === projectId
+    );
   }
   async function closeReader() {
     readerRequest++;

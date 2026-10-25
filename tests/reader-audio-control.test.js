@@ -154,6 +154,7 @@ test("reader close saves the actual position before unloading, never the reset z
   const ctx = {
     audio,
     projectId: "book",
+    result: { outputId: "audio.wav", textHash: "source" },
     current: 0,
     lastSaved: 0,
     playback: { dispose() {} },

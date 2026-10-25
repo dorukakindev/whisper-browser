@@ -414,6 +414,8 @@
               id: v.id,
               chapter: index,
               position: audio.currentTime,
+              outputId: result.outputId,
+              textHash: result.textHash,
             })
             .catch(() => {});
       };

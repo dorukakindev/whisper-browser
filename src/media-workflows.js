@@ -361,6 +361,7 @@ function registerMediaWorkflows({
         fs.copyFileSync(output.path, target, fs.constants.COPYFILE_EXCL);
       else if (fileDigest(target) !== fileDigest(output.path))
         throw Error("Chapter output collision.");
+      if (c.output !== target) c.position = 0;
       c.output = target;
       c.textHash = p.hash;
       c.groups =
@@ -598,6 +599,7 @@ function registerMediaWorkflows({
           "book-listen",
           "book-progress",
           "book-source",
+          "book-mark-add",
         ].includes(r.action) &&
         (!Number.isInteger(r.chapter) || r.chapter < 0 || r.chapter >= 1000)
       )
@@ -733,7 +735,9 @@ function registerMediaWorkflows({
             !d.source ||
             fs.realpathSync(shelf.path) !== fs.realpathSync(d.source)
           )
-            throw Error("Source book is unavailable / Kaynak kitap kullanılamıyor.");
+            throw Error(
+              "Source book is unavailable / Kaynak kitap kullanılamıyor.",
+            );
           const info = fs.statSync(d.source);
           if (info.size !== d.sourceSize || info.mtimeMs !== d.sourceMtime)
             throw Error(
@@ -1066,7 +1070,42 @@ function registerMediaWorkflows({
             r.position > 172800
           )
             throw Error("Invalid reading position.");
+          if (
+            (r.outputId !== undefined &&
+              path.basename(c.output || "") !== r.outputId) ||
+            (r.textHash !== undefined &&
+              (c.textHash !== r.textHash || hash(c.text) !== r.textHash))
+          )
+            throw Error(
+              "Audio changed; reopen this chapter / Ses değişti; bölümü yeniden açın.",
+            );
           c.position = r.position;
+          save(d);
+          return { ok: true };
+        }
+        case "book-mark-list":
+          return {
+            ok: true,
+            bookmarks: require("./book-bookmarks").list(load(r.id)),
+          };
+        case "book-mark-open":
+          return {
+            ok: true,
+            bookmark: require("./book-bookmarks").open(load(r.id), r.markId),
+          };
+        case "book-mark-add": {
+          const d = load(r.id),
+            bookmark = require("./book-bookmarks").add(d, r);
+          if (Buffer.byteLength(JSON.stringify(d), "utf8") > 6000000)
+            throw Error(
+              "Project is too large for another bookmark / Proje yeni yer imi için fazla büyük.",
+            );
+          save(d);
+          return { ok: true, bookmark };
+        }
+        case "book-mark-remove": {
+          const d = load(r.id);
+          require("./book-bookmarks").remove(d, r.markId);
           save(d);
           return { ok: true };
         }
@@ -1101,6 +1140,8 @@ function registerMediaWorkflows({
             chapter: c.title,
             pageNumber: c.pageNumber || null,
             position: c.position || 0,
+            outputId: path.basename(c.output),
+            textHash: c.textHash,
           };
         }
         case "book-export-preview":
