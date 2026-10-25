@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_578.md](BROWSER_BUG_REPORT_578.md) — Gerçek GPU dublaj kabulü, son WAV bütünlüğü ve normalizasyon süre ayrımı.
+
 - [BROWSER_BUG_REPORT_577.md](BROWSER_BUG_REPORT_577.md) — Gerçek dublaj kabul aracı ve meşgul GPU nedeniyle açık kalan P10.
 
 - [BROWSER_BUG_REPORT_576.md](BROWSER_BUG_REPORT_576.md) — Tam bölüm/sayfa ve seçili pasajla kaynak bağlı asistan eylemleri.
