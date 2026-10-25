@@ -12,7 +12,7 @@ app.whenReady().then(async()=>{session.defaultSession.protocol.handle('https',()
   const book=await run('return window.api.mediaShelf({action:"book-import"})');assert(book.ok,book.error);
   await run('await window.api.updateWatchItem({key:"youtube:abcdefghijk",type:"youtube",sourceRef:"https://www.youtube.com/watch?v=abcdefghijk",title:"Witness history",position:60,duration:600,lastWatched:Date.now()});document.dispatchEvent(new Event("media-library-changed"));return true');
   await run('document.getElementById("mhSearch").value="Witness";document.getElementById("mhSearch").dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}));return true');
-  await until(()=>run('return document.querySelectorAll(".mhs-results section").length===3'),'source groups');await shot('search-local-tr');
+  await until(()=>run('return document.querySelectorAll(".mhs-results section").length===3'),'source groups');await until(()=>run('return [...document.querySelectorAll(".mhs-results img")].some(n=>n.naturalWidth>0)'), 'search thumbnail actually loaded');await shot('search-local-tr');
   assert(await run('return [...document.querySelectorAll(".mhs-results h3")].some(n=>n.textContent.includes("Kitaplar"))'));
   await run('document.querySelector(".mhs-dialog>.mh-action").click();return true');
   await until(()=>run('return document.querySelectorAll(".mhs-remote section").length===2'),'explicit online search');await shot('search-online-tr');
