@@ -159,7 +159,9 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         let posterPath;
         if (posterBytes) { posterPath = path.join(userData(), 'catalog-posters', randomUUID() + '.png'); atomicWriteFileSync(posterPath, posterBytes); }
         let saved;
-        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, imdbId: row.providerId, genres: row.genres, cast: row.cast, directors:row.directors,runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: 'planned', ...(posterPath ? { posterPath } : {}) }); }
+        const translatedPreview=previews.get(previewId),translation=translatedPreview?.synopsis===row.synopsis&&translatedPreview.synopsisTr
+          ? {synopsisTr:translatedPreview.synopsisTr,synopsisTrSource:translatedPreview.synopsisTrSource}:{};
+        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, ...translation, imdbId: row.providerId, genres: row.genres, cast: row.cast, directors:row.directors,runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: 'planned', ...(posterPath ? { posterPath } : {}) }); }
         catch (error) { if (posterPath) { try { fs.unlinkSync(posterPath); } catch {} } throw error; }
         return { ok: true, item: saved, existing: false };
       }

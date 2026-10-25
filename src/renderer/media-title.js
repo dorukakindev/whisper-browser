@@ -41,7 +41,7 @@
   function draw(version){
     const scroll=dialog.scrollTop;const focused=dialog.contains(document.activeElement)?document.activeElement?.dataset.titleAction:null;
     const form=dialog.querySelector('.mtd-personal');const draft=form?.dataset.titleId===item.id?{status:form.querySelector('select').value,rating:form.querySelector('input').value}:null;
-    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
+    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(document.querySelector('.mhs-dialog[open]')?t('← Back to results','← Sonuçlara dön'):t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
     const edit=button(t('Manage title','Yapımı yönet'),()=>management());header.append(back,edit);dialog.append(header);
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
     if(item.backdrop)image('backdrop',backdrop,version);
@@ -57,6 +57,7 @@
     if(item.source||next){const first=button(next?t('Play next episode','Sıradaki bölümü oynat'):item.progress?.position&&!item.progress.completed?t('Continue watching','İzlemeye devam et'):t('Play film','Filmi oynat'),()=>play(next?.id),true);first.dataset.titleAction='play';actions.append(first,button(t('Watch in Turkish','Türkçe izleme hazırlığı'),()=>play(next?.id,true)));}
     else actions.append(button(t('Choose video file','Video dosyası seç'),async()=>{const r=await request('source-file',{});if(!r.canceled)await reload();},true));
     const favorite=button(item.favorite?t('Saved to favorites','Favorilere eklendi'):t('Add to favorites','Favorilere ekle'),async()=>{await request('save',{item:{id:selected,favorite:!item.favorite}});await reload();document.dispatchEvent(new Event('media-library-changed'));});favorite.setAttribute('aria-pressed',String(item.favorite));favorite.dataset.titleAction='favorite';actions.append(favorite);
+    window.TitleGalleryUI?.mount(actions,item);
     copy.append(actions);content.append(copy);hero.append(content);dialog.append(hero);
     const status=el('p','mtd-status');status.setAttribute('role','status');dialog.append(status);
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');

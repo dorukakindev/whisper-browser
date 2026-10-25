@@ -48,6 +48,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const summary = store().mergeImport(data.items, { selectedIds: input.ids }); previews.delete(input.token); return { ok: true, summary };
       }
       case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal)};
+      case 'metadata-images': return {ok:true,...await client.images(item(),metadataSettings().apiKey,signal)};
       case 'metadata-recommendations': return {ok:true,...await client.recommendations(item(),metadataSettings().apiKey,input.page??1,signal)};
       case 'metadata-add-recommendation':{
         if(!['film','series'].includes(input.kind)||!Number.isSafeInteger(input.providerId)||input.providerId<1)throw new Error('Öneri kimliği geçersiz.');

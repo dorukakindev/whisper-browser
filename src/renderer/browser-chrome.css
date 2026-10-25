@@ -1773,3 +1773,7 @@ details.browser-translate-split.hidden { display: none !important; }
 #dubWorkspacePanel input[type="range"] { accent-color: var(--accent); }
 #dubMixer > label { display: block; margin-block: 12px; }
 #dubMixer > label input[type="range"] { display: block; width: 100%; margin-top: 8px; }
+
+/* The review handoff occupies toolbar space, never overlays the native page. */
+.browser-toolbar > .mrv-browser-return { grid-row: 3; grid-column: 1 / -1; }
+.player-layer.browser-chrome-collapsed .browser-workspace:has(.mrv-browser-return) { grid-template-rows: auto minmax(0, 1fr); }

@@ -125,6 +125,13 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       if(action==='reviews-browser'){known(input.itemId);if(!readOpenReviews)throw Error('Browser review reading is unavailable.');const result=await readOpenReviews();return {ok:true,...result,match:require('./letterboxd-reviews').matchFilm(known(input.itemId),result.identity)};}
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
+      if(action==='reviews-auto'){
+        const item=known(input.itemId);if(jobs.size)throw Error('A review request is already running.');
+        const id=text(input.id,80);if(!id)throw Error('Request ID required.');const controller=new AbortController();jobs.set(id,controller);
+        const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
+        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=known(input.itemId);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
+        finally{jobs.delete(id);}
+      }
       if(action==='reviews-fetch'){
         known(input.itemId);const allowedUrl=require('./letterboxd-reviews').publicFilmUrl(input.url);if(!allowedUrl)throw Error('Use a public Letterboxd reviews URL.');const url=new URL(allowedUrl);
         if(jobs.size)throw Error('A review request is already running.');const id=text(input.id,80);if(!id)throw Error('Request ID required.');const controller=new AbortController();jobs.set(id,controller);

@@ -7,7 +7,13 @@ fs.mkdirSync(out,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=p
 const image=nativeImage.createFromBitmap(Buffer.from([120,80,40,255,90,60,30,255,90,60,30,255,120,80,40,255]),{width:2,height:2}).resize({width:640,height:360}).toPNG();
 const meta={id:'tt1234567',name:'Witness',description:'A witness does not claim certainty.',poster:'https://images.metahub.space/poster/fixture',genres:['Drama'],cast:['Actor'],releaseInfo:'2026'};
 const originalFetch=global.fetch;
-global.fetch=async(url,options)=>String(url).includes('cinemeta')?new Response(JSON.stringify(String(url).includes('/meta/')?{meta}:{metas:[meta]})):String(url).startsWith('https://images.metahub.space/')?new Response(image):originalFetch(url,options);
+global.fetch=async(url,options)=>{
+  if(String(url).startsWith('https://letterboxd.com/')){
+    if(String(url).includes('/imdb/'))return new Response(null,{status:302,headers:{location:'/film/witness/'}});
+    return new Response('<meta property="og:title" content="Witness (2026) • Letterboxd">'+Array.from({length:12},(_,i)=>'<article><div class="js-review-body">Review '+i+': a thoughtful account of uncertainty and responsibility.</div></article>').join(''));
+  }
+  return String(url).includes('cinemeta')?new Response(JSON.stringify(String(url).includes('/meta/')?{meta}:{metas:[meta]})):String(url).startsWith('https://images.metahub.space/')?new Response(image):originalFetch(url,options);
+};
 const discovery=require('../src/media-discovery-service'),register=discovery.registerMediaDiscovery;
 discovery.registerMediaDiscovery=options=>register({...options,translateSynopsis:async()=> 'Bir tanık kesinlik iddia etmiyor.'});
 const pdf=path.join(out,'book.pdf');fs.writeFileSync(pdf,require('./helpers/pdf-fixture')());dialog.showOpenDialog=async()=>({canceled:false,filePaths:[pdf]});
@@ -34,8 +40,17 @@ app.whenReady().then(async()=>{
   assert.equal(await run('return document.querySelector(".md-synopsis").textContent'),meta.description);
   await run('document.querySelector("[data-discovery-action=reviews]").click();return true');
   await until(()=>run('return !!document.querySelector("input[name=letterboxd-reviews-url]")'),'Letterboxd review tools');
-  assert(await run('return [...document.querySelectorAll("#mediaToolsDialog button")].some(n=>n.textContent.includes("Açık sayfayı getir"))'));await shot('letterboxd-tools-tr');
-  await run('document.getElementById("mediaToolsDialog").close();document.querySelector(".md-detail").close();await openPlayer();await openPdfReader();return true');
+  assert(await run('return [...document.querySelectorAll("#mediaToolsDialog button")].some(n=>n.textContent.includes("Açık sayfayı getir"))'));
+  await run('document.querySelector("select[name=letterboxd-sample-count]").value="12";document.querySelector("[data-review-action=auto]").click();return true');
+  await until(()=>run('return document.querySelector(".mrv-job").dataset.state==="ready"'),'automatic identifier review sample');
+  assert.equal(await run('return JSON.parse(document.querySelector("textarea[name=review-text]").value).length'),12);
+  assert(await run('return document.querySelector("input[name=letterboxd-reviews-url]").value==="https://letterboxd.com/film/witness/reviews/by/activity/"'));
+  await shot('letterboxd-tools-tr');
+  win.setMinimumSize(640,600);win.setContentSize(800,900);await shot('letterboxd-tools-narrow-tr');assert.equal(await run('return innerWidth'),800);assert(await run('return document.getElementById("mediaToolsDialog").scrollWidth<=document.getElementById("mediaToolsDialog").clientWidth+1'));win.setContentSize(1440,1000);
+  await run('document.getElementById("mediaToolsDialog").close();[...document.querySelectorAll(".md-detail .mh-primary")][0].click();return true');
+  await until(()=>run('return !!document.getElementById("mediaTitleHeading")'),'discovery opens full title instead of management form');
+  assert.equal(await run('return document.querySelector(".mtd-synopsis").textContent'),'Bir tanık kesinlik iddia etmiyor.','translation is retained when this source enters the library');await shot('discovery-full-details-tr');
+  await run('MediaTitleUI.close();await openPlayer();await openPdfReader();return true');
   await until(()=>run('return player.pdfReader?.pages.get(1)?.article?.dataset.state==="ready"'),'PDF');
   await run('document.getElementById("pdfVoiceOpen").click();return true');
   assert(await run('const n=document.getElementById("pdfVoicePanel"),b=document.getElementById("pdfVoiceOpen");return !n.classList.contains("hidden")&&b.getBoundingClientRect().width>0'));

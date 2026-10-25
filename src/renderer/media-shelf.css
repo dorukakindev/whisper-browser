@@ -13,6 +13,13 @@
 .ms-time { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 13px; }
 .ms-book-grid { margin-top: 25px; }
 .ms-book-actions { display: grid; gap: 7px; margin-top: 12px; }
+.ms-book-actions { grid-template-columns: 1fr 1fr; align-items: start; }
+.ms-book-audiobook,.ms-book-actions>.mh-text-button { grid-column: 1 / -1; }
+.ms-book-audiobook { display: grid; gap: 5px; min-height: 2em; }
+.ms-book-actions .mh-action { min-width: 0; white-space: normal; }
+.mrv-browser-return { flex:none; display:flex; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--bg-1); color:var(--text); font-size:13px; }
+.mrv-browser-return>span { flex:1; min-width:0; }.mrv-browser-return .mh-action { flex:none; }
+@media(max-width:800px){.mrv-browser-return {flex-wrap:wrap;}.mrv-browser-return>span {flex-basis:100%;}}
 .ms-book-audiobook:empty { display: none; }
 .ms-book-audiobook .mh-action { width: 100%; }
 .ms-book-audiobook small { display: block; margin-top: 5px; overflow-wrap: anywhere; }
