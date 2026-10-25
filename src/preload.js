@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   listMediaFolder: (filePath) => ipcRenderer.invoke('media:listFolder', filePath),
   selectFile: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
+  saveDubPronunciations: entries => ipcRenderer.invoke('dub:pronunciations', entries),
   dubConfig: (kind) => ipcRenderer.invoke('dub:config', kind),
   listVoiceReferences: () => ipcRenderer.invoke('dub:references'),
   prepareVoiceReference: request => ipcRenderer.invoke('dub:referencePrepare', request),

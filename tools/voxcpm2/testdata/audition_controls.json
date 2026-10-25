@@ -1,0 +1,532 @@
+{
+  "version": 1,
+  "license_notes": "English government speech source: NASA public-use record. Turkish control translation and book prose authored for this comparison, no private reference or media included.",
+  "video": {
+    "source_url": "https://ntrs.nasa.gov/citations/19940010921",
+    "video_clip_start": 102.6,
+    "clip_seconds": 125.0,
+    "translation_method": "Manually reviewed Turkish control; not an API translation quality result",
+    "cues": [
+      {
+        "start": 0.0,
+        "end": 5.0,
+        "source": "No man can fully grasp how far and how fast we have come,",
+        "translation": "Ne kadar yol aldığımızı ve ne kadar hızlı ilerlediğimizi hiç kimse tam olarak kavrayamaz."
+      },
+      {
+        "start": 6.0,
+        "end": 11.0,
+        "source": "but condense, if you will, the 50,000 years",
+        "translation": "Ama dilerseniz insanlığın elli bin yıllık"
+      },
+      {
+        "start": 11.0,
+        "end": 15.0,
+        "source": "of man's recorded history in a time span",
+        "translation": "kayıtlı tarihini yaklaşık yarım yüzyıllık"
+      },
+      {
+        "start": 15.0,
+        "end": 17.0,
+        "source": "of about a half a century.",
+        "translation": "bir zaman dilimine sığdıralım."
+      },
+      {
+        "start": 17.0,
+        "end": 21.0,
+        "source": "Stated in these terms, we know very little",
+        "translation": "Bu ölçekte, ilk kırk yıl hakkında"
+      },
+      {
+        "start": 21.0,
+        "end": 25.0,
+        "source": "about the first 40 years, except at the end of them,",
+        "translation": "bildiklerimiz çok azdır. Bildiğimiz, bu dönemin sonunda"
+      },
+      {
+        "start": 25.0,
+        "end": 28.0,
+        "source": "advanced men had learned to use the skins of animals",
+        "translation": "gelişmiş insanların örtünmek için"
+      },
+      {
+        "start": 28.0,
+        "end": 30.0,
+        "source": "to cover them.",
+        "translation": "hayvan derilerini kullanmayı öğrendiğidir."
+      },
+      {
+        "start": 30.0,
+        "end": 34.0,
+        "source": "Then about 10 years ago, under this standard,",
+        "translation": "Yine bu ölçekte, yaklaşık on yıl önce"
+      },
+      {
+        "start": 34.0,
+        "end": 39.0,
+        "source": "man emerged from his caves to construct other kinds of shelter.",
+        "translation": "insan mağarasından çıkıp başka barınaklar yapmaya başladı."
+      },
+      {
+        "start": 39.0,
+        "end": 43.0,
+        "source": "Only five years ago, man learned to write",
+        "translation": "Daha beş yıl önce yazmayı"
+      },
+      {
+        "start": 43.0,
+        "end": 46.0,
+        "source": "and use a cart with wheels.",
+        "translation": "ve tekerlekli arabayı kullanmayı öğrendi."
+      },
+      {
+        "start": 46.0,
+        "end": 50.0,
+        "source": "Christianity began less than two years ago.",
+        "translation": "Hristiyanlık iki yıldan kısa bir süre önce doğdu."
+      },
+      {
+        "start": 50.0,
+        "end": 53.0,
+        "source": "The printing press came this year,",
+        "translation": "Matbaa bu yıl ortaya çıktı."
+      },
+      {
+        "start": 53.0,
+        "end": 56.0,
+        "source": "and then less than two months ago,",
+        "translation": "Sonra, iki aydan daha kısa bir süre önce,"
+      },
+      {
+        "start": 56.0,
+        "end": 60.0,
+        "source": "during this whole 50-year span of human history,",
+        "translation": "insanlık tarihini kapsayan bu elli yıllık dilimde,"
+      },
+      {
+        "start": 60.0,
+        "end": 64.0,
+        "source": "the steam engine provided a new source of power.",
+        "translation": "buhar makinesi yeni bir güç kaynağı sağladı."
+      },
+      {
+        "start": 64.0,
+        "end": 67.0,
+        "source": "Newton explored the meaning of gravity.",
+        "translation": "Newton yer çekiminin anlamını araştırdı."
+      },
+      {
+        "start": 67.0,
+        "end": 71.0,
+        "source": "Last month, electric lights and telephones",
+        "translation": "Geçen ay elektrikli aydınlatma, telefon,"
+      },
+      {
+        "start": 71.0,
+        "end": 75.0,
+        "source": "and automobiles and airplanes became available.",
+        "translation": "otomobil ve uçak hayatımıza girdi."
+      },
+      {
+        "start": 75.0,
+        "end": 79.0,
+        "source": "Only last week did we develop penicillin",
+        "translation": "Daha geçen hafta penisilini,"
+      },
+      {
+        "start": 79.0,
+        "end": 82.0,
+        "source": "and television and nuclear power.",
+        "translation": "televizyonu ve nükleer enerjiyi geliştirdik."
+      },
+      {
+        "start": 82.0,
+        "end": 86.0,
+        "source": "And now, if America's new spacecraft succeeds",
+        "translation": "Ve şimdi, Amerika'nın yeni uzay aracı"
+      },
+      {
+        "start": 86.0,
+        "end": 88.0,
+        "source": "in reaching Venus,",
+        "translation": "Venüs'e ulaşmayı başarırsa,"
+      },
+      {
+        "start": 88.0,
+        "end": 91.0,
+        "source": "we will have literally reached the stars",
+        "translation": "bu gece yarısından önce kelimenin tam anlamıyla"
+      },
+      {
+        "start": 91.0,
+        "end": 93.0,
+        "source": "before midnight tonight.",
+        "translation": "yıldızlara ulaşmış olacağız."
+      },
+      {
+        "start": 93.0,
+        "end": 96.0,
+        "source": "This is a breathtaking pace,",
+        "translation": "Bu baş döndürücü bir hız."
+      },
+      {
+        "start": 96.0,
+        "end": 99.0,
+        "source": "and such a pace cannot help,",
+        "translation": "Böylesine bir hız,"
+      },
+      {
+        "start": 99.0,
+        "end": 103.0,
+        "source": "but create new ills as it dispels old.",
+        "translation": "eski sorunları giderirken yeni sorunlar da yaratır."
+      },
+      {
+        "start": 103.0,
+        "end": 107.0,
+        "source": "New ignorance, new problems, new dangers,",
+        "translation": "Yeni bilinmezlikler, yeni sorunlar, yeni tehlikeler..."
+      },
+      {
+        "start": 107.0,
+        "end": 110.0,
+        "source": "surely the opening vistas of space,",
+        "translation": "Uzayın açtığı yeni ufuklar,"
+      },
+      {
+        "start": 110.0,
+        "end": 114.0,
+        "source": "promised high costs and hardships,",
+        "translation": "büyük kazanımların yanı sıra yüksek maliyetler"
+      },
+      {
+        "start": 114.0,
+        "end": 116.0,
+        "source": "as well as high reward.",
+        "translation": "ve zorluklar da vaat ediyor."
+      },
+      {
+        "start": 116.0,
+        "end": 119.0,
+        "source": "So it is not surprising",
+        "translation": "Bu yüzden bazılarının"
+      },
+      {
+        "start": 119.0,
+        "end": 122.0,
+        "source": "that some would have us stay where we are",
+        "translation": "olduğumuz yerde biraz daha kalıp"
+      },
+      {
+        "start": 122.0,
+        "end": 125.0,
+        "source": "a little longer to rest, to wait.",
+        "translation": "dinlenmemizi ve beklememizi istemesi şaşırtıcı değil."
+      }
+    ]
+  },
+  "book": {
+    "title": "Yol ve Kıyı — özgün karşılaştırma metni",
+    "pages": [
+      "Sabahın erken saatlerinde kasabanın yolları henüz boştu. Deniz, kıyıdaki eski kütüphanenin kapısını açarken içeriden tanıdık bir kâğıt kokusu geldi. Dün akşam masanın üstünde bıraktığı kitap yerinde duruyordu; fakat arasına koyduğu mavi ayraç artık görünmüyordu. Önce buna önem vermedi. Pencereyi araladı, sandalyeyi çekti ve okumaya başladı. Birkaç satır sonra durdu. Bu cümleyi daha önce okumuş muydu? Kelimeler tanıdıktı, ama anlattıkları şey bambaşka geliyordu. Belki değişen kitap değildi. Belki de insan, aynı satıra her dönüşünde yanında başka bir hayat getiriyordu. Deniz elindeki kalemi masaya bıraktı. Acele etmeyecekti. Dışarıda bir tekne yavaşça limandan ayrılırken o da sayfanın başına döndü. Bu kez yalnızca ne söylendiğine değil, cümlelerin arasında bırakılan sessizliğe de dikkat etti. Bazı düşünceler, insan onları hemen açıklamaya çalışmadığında daha iyi anlaşılıyordu.",
+      "Öğleye doğru kapı çaldı. Gelen, yıllardır aynı sokakta yaşayan yaşlı saatçiydi. Elinde küçük bir kutu taşıyordu. Kutunun içinden durmuş bir cep saati çıkardı ve gülümseyerek masaya koydu. Bunu onarmaya gelmedim, dedi. Sadece sesini hatırlamak istiyorum. Deniz ne söyleyeceğini bilemedi. Çalışmayan bir saatin sesi nasıl hatırlanırdı? Saatçi cevap beklemiyordu. Pencerenin yanına oturdu, denize baktı ve çocukluğunda bu sesi her gece duyduğunu anlattı. O zamanlar saatin hiç durmayacağını düşünürmüş. Şimdi ise durmasını, geçmişin yok olmasıyla karıştırmamayı öğreniyormuş. Deniz bir bardak su getirdi. İkisi bir süre konuşmadan oturdu. Sokaktan geçen bisikletin zili, uzaktaki martılar ve duvardaki başka bir saatin düzenli tıkırtısı duyuldu. Sessizlik, hiçbir şeyin olmadığı bir boşluk değildi. Dikkat edince içinde pek çok ses bulunuyordu. Saatçi kutuyu kapatırken, bugün bana iyi geldi, dedi. Deniz de aynı şeyi düşünüyordu.",
+      "Akşam olduğunda kütüphanenin ışıkları birer birer söndü. Deniz, sabah aradığı mavi ayracı defterinin içinde buldu. Küçük bir gülümsemeyle onu kitabın arasına yerleştirdi. Gün boyunca büyük bir olay yaşanmamıştı. Hiçbir sorun bütünüyle çözülmemiş, hiçbir soru son cevabını bulmamıştı. Yine de sabahkinden farklı hissediyordu. Bazen ilerlemek, daha çok iş bitirmek anlamına gelmiyordu. Bazen bir konuşmayı yarıda kesmemek, bir cümleyi aceleyle geçmemek ya da birinin susmasına izin vermek de ilerlemekti. Kapıyı kilitledi ve kıyı yoluna çıktı. Hava serinlemişti. Limandaki teknelerin ışıkları suyun üzerinde ince çizgiler oluşturuyordu. Yarın kitabı kaldığı yerden açacaktı; fakat şimdi eve dönme zamanıydı. Yolun sonunda durup bir kez arkasına baktı. Kütüphanenin penceresi karanlıktı. Deniz, okuduğu son cümleyi içinden tekrarladı ve yürümeye devam etti."
+    ],
+    "rows": [
+      {
+        "page": 1,
+        "start": 0,
+        "end": 3.1818181818181817,
+        "text": "Sabahın erken saatlerinde kasabanın yolları henüz boştu."
+      },
+      {
+        "page": 1,
+        "start": 3.4318181818181817,
+        "end": 8.886363636363637,
+        "text": "Deniz, kıyıdaki eski kütüphanenin kapısını açarken içeriden tanıdık bir kâğıt kokusu geldi."
+      },
+      {
+        "page": 1,
+        "start": 9.136363636363637,
+        "end": 15.954545454545453,
+        "text": "Dün akşam masanın üstünde bıraktığı kitap yerinde duruyordu; fakat arasına koyduğu mavi ayraç artık görünmüyordu."
+      },
+      {
+        "page": 1,
+        "start": 16.204545454545453,
+        "end": 19.204545454545453,
+        "text": "Önce buna önem vermedi."
+      },
+      {
+        "page": 1,
+        "start": 19.454545454545453,
+        "end": 22.636363636363633,
+        "text": "Pencereyi araladı, sandalyeyi çekti ve okumaya başladı."
+      },
+      {
+        "page": 1,
+        "start": 22.886363636363633,
+        "end": 25.886363636363633,
+        "text": "Birkaç satır sonra durdu."
+      },
+      {
+        "page": 1,
+        "start": 26.136363636363633,
+        "end": 29.136363636363633,
+        "text": "Bu cümleyi daha önce okumuş muydu?"
+      },
+      {
+        "page": 1,
+        "start": 29.386363636363633,
+        "end": 32.56818181818181,
+        "text": "Kelimeler tanıdıktı, ama anlattıkları şey bambaşka geliyordu."
+      },
+      {
+        "page": 1,
+        "start": 32.81818181818181,
+        "end": 35.81818181818181,
+        "text": "Belki değişen kitap değildi."
+      },
+      {
+        "page": 1,
+        "start": 36.06818181818181,
+        "end": 41.522727272727266,
+        "text": "Belki de insan, aynı satıra her dönüşünde yanında başka bir hayat getiriyordu."
+      },
+      {
+        "page": 1,
+        "start": 41.772727272727266,
+        "end": 44.772727272727266,
+        "text": "Deniz elindeki kalemi masaya bıraktı."
+      },
+      {
+        "page": 1,
+        "start": 45.022727272727266,
+        "end": 48.022727272727266,
+        "text": "Acele etmeyecekti."
+      },
+      {
+        "page": 1,
+        "start": 48.272727272727266,
+        "end": 53.272727272727266,
+        "text": "Dışarıda bir tekne yavaşça limandan ayrılırken o da sayfanın başına döndü."
+      },
+      {
+        "page": 1,
+        "start": 53.522727272727266,
+        "end": 59.43181818181817,
+        "text": "Bu kez yalnızca ne söylendiğine değil, cümlelerin arasında bırakılan sessizliğe de dikkat etti."
+      },
+      {
+        "page": 1,
+        "start": 59.68181818181817,
+        "end": 64.22727272727272,
+        "text": "Bazı düşünceler, insan onları hemen açıklamaya çalışmadığında daha iyi anlaşılıyordu."
+      },
+      {
+        "page": 2,
+        "start": 64.47727272727272,
+        "end": 67.47727272727272,
+        "text": "Öğleye doğru kapı çaldı."
+      },
+      {
+        "page": 2,
+        "start": 67.72727272727272,
+        "end": 70.9090909090909,
+        "text": "Gelen, yıllardır aynı sokakta yaşayan yaşlı saatçiydi."
+      },
+      {
+        "page": 2,
+        "start": 71.1590909090909,
+        "end": 74.1590909090909,
+        "text": "Elinde küçük bir kutu taşıyordu."
+      },
+      {
+        "page": 2,
+        "start": 74.4090909090909,
+        "end": 79.4090909090909,
+        "text": "Kutunun içinden durmuş bir cep saati çıkardı ve gülümseyerek masaya koydu."
+      },
+      {
+        "page": 2,
+        "start": 79.6590909090909,
+        "end": 82.6590909090909,
+        "text": "Bunu onarmaya gelmedim, dedi."
+      },
+      {
+        "page": 2,
+        "start": 82.9090909090909,
+        "end": 85.9090909090909,
+        "text": "Sadece sesini hatırlamak istiyorum."
+      },
+      {
+        "page": 2,
+        "start": 86.1590909090909,
+        "end": 89.1590909090909,
+        "text": "Deniz ne söyleyeceğini bilemedi."
+      },
+      {
+        "page": 2,
+        "start": 89.4090909090909,
+        "end": 92.4090909090909,
+        "text": "Çalışmayan bir saatin sesi nasıl hatırlanırdı?"
+      },
+      {
+        "page": 2,
+        "start": 92.6590909090909,
+        "end": 95.6590909090909,
+        "text": "Saatçi cevap beklemiyordu."
+      },
+      {
+        "page": 2,
+        "start": 95.9090909090909,
+        "end": 101.81818181818181,
+        "text": "Pencerenin yanına oturdu, denize baktı ve çocukluğunda bu sesi her gece duyduğunu anlattı."
+      },
+      {
+        "page": 2,
+        "start": 102.06818181818181,
+        "end": 105.06818181818181,
+        "text": "O zamanlar saatin hiç durmayacağını düşünürmüş."
+      },
+      {
+        "page": 2,
+        "start": 105.31818181818181,
+        "end": 108.95454545454545,
+        "text": "Şimdi ise durmasını, geçmişin yok olmasıyla karıştırmamayı öğreniyormuş."
+      },
+      {
+        "page": 2,
+        "start": 109.20454545454545,
+        "end": 112.20454545454545,
+        "text": "Deniz bir bardak su getirdi."
+      },
+      {
+        "page": 2,
+        "start": 112.45454545454545,
+        "end": 115.45454545454545,
+        "text": "İkisi bir süre konuşmadan oturdu."
+      },
+      {
+        "page": 2,
+        "start": 115.70454545454545,
+        "end": 122.06818181818181,
+        "text": "Sokaktan geçen bisikletin zili, uzaktaki martılar ve duvardaki başka bir saatin düzenli tıkırtısı duyuldu."
+      },
+      {
+        "page": 2,
+        "start": 122.31818181818181,
+        "end": 125.5,
+        "text": "Sessizlik, hiçbir şeyin olmadığı bir boşluk değildi."
+      },
+      {
+        "page": 2,
+        "start": 125.75,
+        "end": 128.9318181818182,
+        "text": "Dikkat edince içinde pek çok ses bulunuyordu."
+      },
+      {
+        "page": 2,
+        "start": 129.1818181818182,
+        "end": 132.8181818181818,
+        "text": "Saatçi kutuyu kapatırken, bugün bana iyi geldi, dedi."
+      },
+      {
+        "page": 2,
+        "start": 133.0681818181818,
+        "end": 136.0681818181818,
+        "text": "Deniz de aynı şeyi düşünüyordu."
+      },
+      {
+        "page": 3,
+        "start": 136.3181818181818,
+        "end": 139.5,
+        "text": "Akşam olduğunda kütüphanenin ışıkları birer birer söndü."
+      },
+      {
+        "page": 3,
+        "start": 139.75,
+        "end": 143.38636363636363,
+        "text": "Deniz, sabah aradığı mavi ayracı defterinin içinde buldu."
+      },
+      {
+        "page": 3,
+        "start": 143.63636363636363,
+        "end": 146.8181818181818,
+        "text": "Küçük bir gülümsemeyle onu kitabın arasına yerleştirdi."
+      },
+      {
+        "page": 3,
+        "start": 147.0681818181818,
+        "end": 150.0681818181818,
+        "text": "Gün boyunca büyük bir olay yaşanmamıştı."
+      },
+      {
+        "page": 3,
+        "start": 150.3181818181818,
+        "end": 154.4090909090909,
+        "text": "Hiçbir sorun bütünüyle çözülmemiş, hiçbir soru son cevabını bulmamıştı."
+      },
+      {
+        "page": 3,
+        "start": 154.6590909090909,
+        "end": 157.6590909090909,
+        "text": "Yine de sabahkinden farklı hissediyordu."
+      },
+      {
+        "page": 3,
+        "start": 157.9090909090909,
+        "end": 161.54545454545453,
+        "text": "Bazen ilerlemek, daha çok iş bitirmek anlamına gelmiyordu."
+      },
+      {
+        "page": 3,
+        "start": 161.79545454545453,
+        "end": 169.52272727272725,
+        "text": "Bazen bir konuşmayı yarıda kesmemek, bir cümleyi aceleyle geçmemek ya da birinin susmasına izin vermek de ilerlemekti."
+      },
+      {
+        "page": 3,
+        "start": 169.77272727272725,
+        "end": 172.77272727272725,
+        "text": "Kapıyı kilitledi ve kıyı yoluna çıktı."
+      },
+      {
+        "page": 3,
+        "start": 173.02272727272725,
+        "end": 176.02272727272725,
+        "text": "Hava serinlemişti."
+      },
+      {
+        "page": 3,
+        "start": 176.27272727272725,
+        "end": 179.90909090909088,
+        "text": "Limandaki teknelerin ışıkları suyun üzerinde ince çizgiler oluşturuyordu."
+      },
+      {
+        "page": 3,
+        "start": 180.15909090909088,
+        "end": 184.7045454545454,
+        "text": "Yarın kitabı kaldığı yerden açacaktı; fakat şimdi eve dönme zamanıydı."
+      },
+      {
+        "page": 3,
+        "start": 184.9545454545454,
+        "end": 188.1363636363636,
+        "text": "Yolun sonunda durup bir kez arkasına baktı."
+      },
+      {
+        "page": 3,
+        "start": 188.3863636363636,
+        "end": 191.3863636363636,
+        "text": "Kütüphanenin penceresi karanlıktı."
+      },
+      {
+        "page": 3,
+        "start": 191.6363636363636,
+        "end": 196.18181818181813,
+        "text": "Deniz, okuduğu son cümleyi içinden tekrarladı ve yürümeye devam etti."
+      }
+    ]
+  }
+}

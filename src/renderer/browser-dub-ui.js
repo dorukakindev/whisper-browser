@@ -20,13 +20,14 @@
   }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
+    source: player.localPath || player.mediaKey || '',
     generation: player.generation,
     priorMuted: video.muted, playbackRate: video.playbackRate,
     currentTime: video.currentTime, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
     visible: !byId('playerLayer').classList.contains('hidden'),
   }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
-    mediaKey: player.mediaKey, generation: browserTabState()?.generation,
+    mediaKey: player.mediaKey, source: player.browserPageUrl || player.mediaKey || '', generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
     subtitleRange: player.browserTracks.find(track => track.id === player.browserLoadedTrackId)?.clipRange || currentBrowserWhisperRange(),
     priorMuted: !!browserTabState()?.tabMuted,

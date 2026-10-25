@@ -308,3 +308,25 @@ ASR'ye ek olarak normal üretimin ham akustik denetiminden de geçer. İşaretli
 miktarlar (artı/eksi) ve without kaybı ayrıca kontrol edilir; aynı aralık/tarih
 metninin geri okunması gereksiz sayı hatası sayılmaz. Yeni denetim eski zayıf
 onayları devralmamak için v15 parça kimliği kullanır; eski sesler silinmez.
+
+### Gerçek ses A/B karşılaştırması (isteğe bağlı)
+
+`audition.py --prepare-controls <yeni-klasör>` kamuya açık NASA konuşmasının
+gözden geçirilmiş kontrol altyazılarını ve üç kısa sayfalık özgün kitap metnini
+hazırlar. Video indirmez, GPU/model çalıştırmaz. Kaynak ve kırpma bilgisi
+`sources.json` içindedir; bu metin ücretli API çevirisinin kalite kanıtı değildir.
+
+Motorun Python'u ile `audition.py --run --engine <motor> --reference <izinli.wav>
+--transcript <döküm.txt> --verify-python <backend-python> --srt <video.tr.srt>
+--book-srt <book.srt> --output <yeni-sonuç-klasörü>` üretim hattında akıcı ve kısa
+gruplamayı karşılaştırır. Çalıştırmadan önce GPU uygunluğu kontrol edilir; aygıt
+rezerve edilemez. Yerel hazır model kullanılır, indirme/ücretli API çağrısı yoktur.
+Üretim ve doğrulama günlükleri yalnız sonuç klasöründedir. Özel referans kopyalanmaz;
+sesleri, önbellekleri ve ham günlükleri Git'e eklemeyin.
+
+`listen.html` kör dinleme için tarafsız örnek numaraları; `results.json` gerçek
+ayarlar, süreler ve doğrulama işaretleri içerir. Son WAV ayrıca çözümlenir.
+ASR işaretleri doğallık puanı değildir; otomatik kazanan seçilmez ve uygulama
+varsayılanları değiştirilmez. Sorunlu gruplar mevcut stüdyodaki seçili parça yeniden
+üretimiyle ayrı onarılabilir. Yeni sayı karşılaştırması `elli bin`, `50.000` ve
+`50 bin` eşdeğerliğini denetler; yanlış miktarı veya ek tekrarı kabul etmez.

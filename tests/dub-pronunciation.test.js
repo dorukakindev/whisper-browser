@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {normalize}=require('../src/dub-pronunciation');
+const {identity}=require('../src/dub-source-identity');
+assert.deepEqual(normalize([{from:' Newton ',to:'Nyutın'}]),[{from:'Newton',to:'Nyutın'}]);
+for(const entries of [[{from:'123',to:'x'}],[{from:'Newton',to:'x'},{from:'Newton',to:'y'}],[{from:'name\nfoo',to:'x'}],Array(101).fill({from:'a',to:'b'})]) assert.throws(()=>normalize(entries));
+assert.equal(identity('https://www.youtube.com/watch?v=abcdefghijk&t=20'),identity('https://youtu.be/abcdefghijk'));
+assert.notEqual(identity('https://youtube.com/watch?v=abcdefghijk'),identity('https://youtube.com/watch?v=12345678901'));
+assert.equal(identity('C:\\Media\\Film.mp4'),identity('c:/media/film.mp4'));
+assert.notEqual(identity('https://example.com/#/1'),identity('https://example.com/#/2'));
+assert.equal(identity(null),null);assert.throws(()=>identity({}));
+assert.match(identity('https://example.com/?token=PRIVATE'),/^[a-f0-9]{64}$/);
+console.log('Pronunciation validation and private stable media identity passed');

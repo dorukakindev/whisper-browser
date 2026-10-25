@@ -1296,10 +1296,21 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     # Altyazı kaynaklarında kıvırcık kesme (’) düz kesmeye katlanır; aksi
     # halde "can’t/won’t" biçimleri kaynak işaret listesinden düşer.
     src_norm = source.replace('’', "'")
-    if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(src_norm) \
+    # "cannot help but create" is affirmative inevitability, not "cannot create".
+    # Require a known following verb; "cannot help, but I can listen" remains negative.
+    idiom = re.compile(r"\b(?:cannot|can't|can\s+not)\s+help\s*,?\s+but\s+"
+                       r"(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|"
+                       r"admire|worry|remember|agree|suspect|be|fall|marvel)\b)", re.I)
+    negation_source = idiom.sub(' ', src_norm)
+    if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
             and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
     modal_source = _NEGATED_MODAL.sub(' ', src_norm)
+    if lang == 'tr' and re.search(r'\b(?:ister(?:ler)?|istiyor\w*|istedi\w*|istemesi|istemeleri|arzu eder\w*|arzuluyor\w*)\b', translated, re.I):
+        # Volition: "some would have us stay" -> "bazıları kalmamızı ister".
+        # Do not erase other modals, or a bare conditional "would stay".
+        modal_source = re.sub(r'\bwould\s+have\s+(?:us|you|them|me|him|her)\s+',
+                              ' ', modal_source, flags=re.I)
     if lang in _MODAL_TARGET_LANGS and _SOURCE_MODAL.search(modal_source) \
             and not _TARGET_MODAL.search(translated):
         issues.append('modal_missing')

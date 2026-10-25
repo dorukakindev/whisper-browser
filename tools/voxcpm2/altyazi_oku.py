@@ -252,6 +252,11 @@ async def uret(args, cues, paths, prompt_text):
         cached = done
         results = []
 
+        from dub_pronunciation import apply as pronounce
+        dictionary = getattr(args, 'pronunciations', [])
+        async def verify_pronunciation(audio_path, text, numeric_reference=None):
+            return await verifier.check(audio_path, pronounce(text, dictionary), numeric_reference=numeric_reference)
+
         async def sentez(chunk, seed, delivery=None):
             from dub_expression import synthesis_text
             from dub_prosody import delivery_instruction
@@ -287,6 +292,7 @@ async def uret(args, cues, paths, prompt_text):
                 synthesis_attempt = 0
                 async def synthesize(chunk, seed):
                     nonlocal synthesis_attempt
+                    chunk = pronounce(chunk, dictionary)
                     from dub_activity import observe
                     from dub_utterance import synthesize_utterance
                     synthesis_attempt += 1
@@ -297,7 +303,7 @@ async def uret(args, cues, paths, prompt_text):
                     raw_scores[id(raw)] = score
                     return raw
                 def assess_generated(raw, chunk):
-                    return max(raw_scores.get(id(raw), 0), assess_chunk(raw, sr, chunk)[0])
+                    return max(raw_scores.get(id(raw), 0), assess_chunk(raw, sr, pronounce(chunk, dictionary))[0])
                 window = available_window(cues, i, args.bosluk_pay_ms, args.end_limit_ms)
                 temporary = path.with_suffix('.tmp.wav')
                 previous_metric = {}
@@ -351,7 +357,7 @@ async def uret(args, cues, paths, prompt_text):
                     check = {'status': 'not_checked'}
                     if args.verification == 'detailed' or (args.verification == 'balanced' and
                             (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
-                        check = await verifier.check(temporary, text, numeric_reference=editable_text)
+                        check = await verify_pronunciation(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
                             # Re-read with a different seed; never edit meaning
                             # from an uncertain automatic transcript.
@@ -362,7 +368,7 @@ async def uret(args, cues, paths, prompt_text):
                                 candidate, candidate_finishing = finish_generated(candidate_raw)
                                 if len(candidate) and candidate_score <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
-                                    checked = await verifier.check(second, text, numeric_reference=editable_text)
+                                    checked = await verify_pronunciation(second, text, numeric_reference=editable_text)
                                     # The shared verifier owns all semantic gates.
                                     # A passed retry beats a rejected candidate even
                                     # when its raw token similarity is slightly lower.
@@ -387,7 +393,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
                                 synthesize, lambda raw, rate: finish_generated(raw),
-                                verifier.check, temporary, args.request_timeout, recovery_attempt,
+                                verify_pronunciation, temporary, args.request_timeout, recovery_attempt,
                                 assess=lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
                             if recovered is not None:
                                 wav, check, recovery = recovered
@@ -597,6 +603,7 @@ def parse_args(argv=None):
     p.add_argument("--mode", choices=("auto", "hifi", "clone"), default="auto")
     p.add_argument('--expression', choices=('reference','calm','warm','lively'), default='reference')
     p.add_argument('--prosody-plan',type=Path)
+    p.add_argument('--pronunciations',type=Path)
     p.add_argument("--video", type=Path, help="Dublajin gomulecegi video (opsiyonel)")
     p.add_argument("--steps", type=int, default=15)
     p.add_argument("--cfg", type=float, default=1.65)
@@ -641,6 +648,8 @@ def parse_args(argv=None):
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
+    from dub_pronunciation import load
+    args.pronunciations = load(args.pronunciations)
     args.force_groups = set(filter(None, args.force_groups.split(';')))
     if any(not re.fullmatch(r'\d+(?:,\d+)*', key) for key in args.force_groups):
         p.error('Invalid group key.')
@@ -747,6 +756,8 @@ def main(argv=None, runtime=None):
     def group_settings(i):
         delivery=args.group_delivery[i]
         identity = settings + (UTTERANCE_VERSION,) if bounded_groups[i] else settings
+        from dub_pronunciation import cache_identity
+        identity = cache_identity(identity, cues[i][2], getattr(args, 'pronunciations', []))
         if args.prosody_plan:
             return identity + (DELIVERY_VERSION,'reference-only-preserve-dynamics-v1',
                                repr(sorted(delivery.items())) if delivery else 'no-extra-guidance')

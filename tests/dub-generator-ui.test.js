@@ -5,7 +5,7 @@ const root = path.join(__dirname, '..');
 const dom = new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'), {runScripts:'outside-only'});
 const w = dom.window, el = id => w.document.getElementById(id);
 let onEvent, request, cancelOK = true;
-let attached = false, opened;
+let attached = false, opened, latestQuery, savedDictionary;
 w.BrowserDubAudioUI = { context: () => ({ mode:'player', tabId:'player-video', mediaKey:'fixture',
   currentTime:42, backgroundSource:'fixture.mp4', visible:true, hasMedia:true }),
   attachGenerated: async (_file, context) => { attached = context.mode === 'player'; return true; } };
@@ -14,7 +14,8 @@ w.syncBrowserOcclusion = () => {};
 w.api = {
   dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
   openPath: async value => { opened=value; },
-  latestDub: async () => ({ok:true}), selectFile: async () => 'test.srt',
+  latestDub: async value => {latestQuery=value;return {ok:true};},
+  saveDubPronunciations: async entries=>{savedDictionary=entries;return {ok:true,pronunciations:entries};}, selectFile: async () => 'test.srt',
   selectVoiceReferenceSource: async()=>({ok:true,path:'analysis-source.wav'}),
   onDubEvent: callback => {onEvent=callback;},
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
@@ -24,6 +25,9 @@ w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'
 const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
+  assert.equal(latestQuery.source,'fixture');
+  el('dubPronunciations').value='Newton = Nyutin';el('dubPronunciationSave').click();await tick();
+  assert.equal(savedDictionary[0].to,'Nyutin');assert.match(el('dubPronunciationStatus').textContent,/Saved|Kaydedildi/);
   assert.equal(el('dubVerification').value,'detailed');
   assert.equal(el('dubGrouping').value,'akici');
   assert.equal(el('dubTimingMode').value,'video');
@@ -61,7 +65,7 @@ const tick = () => new Promise(setImmediate);
   el('dubGeneratorStart').click();await tick();
   assert.equal(request.expression,'warm');assert.equal(request.keepEngine,true);
   onEvent({id:request.id,type:'activity',group:61,attempt:2,elapsed:30,limit:180});assert.match(el('dubGeneratorActivity').textContent,/61.*2.*30.*180/);
-  onEvent({id:request.id,type:'group',group:{group:61,key:'61',status:'review'}});assert.equal(el('dubGeneratorActivity').textContent,'');
+  onEvent({id:request.id,type:'group',group:{group:61,key:'61',status:'review',text:'Kontrol edilecek güvenli metin.',verification:{status:'review',missing_numbers:['50.000'],missing_names:['Venüs']}}});assert.equal(el('dubGeneratorActivity').textContent,'');assert.match(el('dubQualityReasons').textContent,/sayı/i);assert.match(el('dubQualityReasons').textContent,/ad/i);assert.equal(el('dubQualityExpected').textContent,'Kontrol edilecek güvenli metin.');
   onEvent({id:request.id,type:'phases',phases:{model_load_seconds:2.25,reference_seconds:.5,synthesis_seconds:3,verification_seconds:1}});assert.match(el('dubPhaseSummary').textContent,/Model: 2.3/);assert.match(el('dubPhaseSummary').textContent,/Doğrulama: 1.0/);
   assert.equal(request.followDelivery,true);
   assert.equal(request.deliveryStrength,'balanced');
@@ -92,6 +96,12 @@ const tick = () => new Promise(setImmediate);
   assert.equal(attached,true,'generated audio must attach to the local player');
   attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
   assert.equal(el('dubRegenerateGroup').disabled,false);
+  w.api.planDub=async()=>({ok:true,sourceHash:'plan-hash',groups:[{key:'1,2',text:'Merhaba.',seconds:2}]});
+  el('dubPlanPrepare').click();await tick();
+  for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')n.open=false;
+  el('dubQualityGroup').value='1,2';el('dubQualityGroup').dispatchEvent(new w.Event('change'));
+  for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')assert.equal(n.open,true,'quality selection reveals the matching editor');
+
   // Group preview must wait for media metadata, and a closing dialog cancels that pending seek.
   const audio=el('dubGeneratedPreview');let played=0,readyState=0;
   Object.defineProperty(audio,'readyState',{get:()=>readyState,configurable:true});

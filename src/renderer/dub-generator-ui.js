@@ -54,6 +54,14 @@
       passed:'Metin doğrulandı',not_checked:'Metin denetlenmedi',unavailable:'Metin doğrulanamadı'};
     el('dubQualityInfo').textContent = row ? [t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
       row.rewritten ? t('Süreye göre düzenlendi') : row.naturalEdited ? t('Doğal konuşma için düzenlendi') : ''].filter(Boolean).join(' · ') : '';
+    const evidence=el('dubQualityEvidence');evidence.hidden=!row;
+    const en=window.UiLocale?.get?.()==='en';
+    el('dubQualityEvidenceTitle').textContent=en?'Why is this group flagged?':'Bu grup neden işaretlendi?';
+    const v=row?.verification||{},reasons=[];
+    for(const [flag,label]of [['lost_negation',['Negation','Olumsuzluk']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Units','Birim']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
+    for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length)reasons.push(label[en?0:1]);
+    el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.');
+    el('dubQualityExpected').textContent=String(row?.text||row?.displayText||'').slice(0,8000);
   }
   function showResults() {
     const select = el('dubQualityGroup'), previous = select.value;
@@ -133,17 +141,42 @@
     for (const id of ['dubRangeStart', 'dubRangeEnd', 'dubRangeNow']) el(id).disabled = locked || !el('dubRangeEnabled').checked;
     el('dubGeneratorCancel').disabled = !current;
     el('dubTextStudio').disabled = locked;
+    el('dubPronunciations').disabled = locked; el('dubPronunciationSave').disabled = locked;
     for (const name of Object.keys(presetSpecs)) el(`dubPreset${name}`).disabled = locked;
     refreshOverview();
     window.dispatchEvent(new CustomEvent('dub-generator:busy',{detail:!!current||referenceBusy||planning||choosing}));
     el('browserDubGenerate')?.classList.toggle('active', !!current);
   }
+  const pronunciationLabels = () => {
+    const en = document.documentElement.lang !== 'tr';
+    el('dubPronunciationTitle').textContent = en ? 'Pronunciation dictionary' : 'Telaffuz sözlüğü';
+    el('dubPronunciationHelp').textContent = en ? 'One case-sensitive entry per line: Newton = Nyutın. Applies only to speech; subtitles stay unchanged.' : 'Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.';
+    el('dubPronunciationSave').textContent = en ? 'Save pronunciations' : 'Telaffuzları kaydet';
+    if (el('dubPronunciationStatus').dataset.saved) el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
+  };
+  el('dubPronunciationSave').addEventListener('click', async () => {
+    if (current || planning || referenceBusy || choosing || workspaceBusy) return;
+    const en = document.documentElement.lang !== 'tr';
+    try {
+      const entries=el('dubPronunciations').value.split(/\r?\n/).filter(line=>line.trim()).map(line=>{
+        const index=line.indexOf('=');
+        if(index<1) throw new Error(en?'Use: word = pronunciation':'Biçim: sözcük = okunuş');
+        return {from:line.slice(0,index).trim(),to:line.slice(index+1).trim()};
+      });
+      const result=await window.api.saveDubPronunciations(entries);
+      if(!result?.ok) throw new Error(result?.error || 'Save failed');
+      cfg.pronunciations=result.pronunciations; el('dubPronunciationStatus').dataset.saved='true';
+      el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
+    } catch(error) {delete el('dubPronunciationStatus').dataset.saved;el('dubPronunciationStatus').textContent=error.message;}
+  });
   async function configure(kind) {
+    pronunciationLabels();
     const sequence = ++configSequence;
     const r = await window.api.dubConfig(kind).catch(() => null);
     if (sequence !== configSequence) return;
     if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
+    if (!current) el('dubPronunciations').value = (r.pronunciations || []).map(row => `${row.from} = ${row.to}`).join('\n');
     if(!current)el('dubKeepEngine').checked=r.keepEngine!==false;
     el('dubStorageOpen').disabled = !r.storageRoot;
     if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
@@ -166,6 +199,8 @@
       srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
       deliverySource='';el('dubDeliverySourceName').textContent='';
       lastRequest = null; results.clear(); showResults();
+      output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
+      el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
     mediaContextKey = mediaKey;
     const range = context?.mode === 'browser' ? context.subtitleRange : null;
@@ -191,11 +226,16 @@
     inheritSubtitleRange();
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
+    const openedMedia=mediaIdentity();
     await configure();
+    if (openedMedia !== mediaIdentity()) return;
     if (!current && !output) {
-      const r = await window.api.latestDub().catch(() => null);
-      if (current || output || !r?.output) return;
-      output = r.output; window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
+      const r = await window.api.latestDub({source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''}).catch(() => null);
+      if (openedMedia !== mediaIdentity() || current || output || !r?.output) return;
+      output = r.output;
+      el('dubRangeEnabled').checked=!!output.range;
+      if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
+      controls(); window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
       el('dubGeneratorOutput').classList.remove('hidden');
       el('dubGeneratorUse').classList.toggle('hidden', output.sample === true || output.syncInvalid === true);
       results.clear(); for (const row of output.quality?.groups || []) results.set(row.key, row); showResults();
@@ -359,6 +399,7 @@
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };
+    payload.source = pending.context?.source || pending.context?.mediaKey || '';
     lastRequest = payload;
     if (!retry) { results.clear(); showResults(); }
     const r = await window.api.startDub(payload).catch(e => ({ ok:false,error:e.message }));
@@ -371,7 +412,7 @@
   el('dubGeneratorStart').addEventListener('click', () => start());
   el('dubRetryFailed').addEventListener('click', () => start(true));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
-  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();el('dubPlanText').focus();}});
+  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').focus();el('dubPlanText').scrollIntoView?.({block:'center'});}});
   const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.textContent=t('Bu grubu dinle');el('dubQualityInfo').after(listenGroup);
   let rangeEnd=null, groupPlayGeneration=0, cancelGroupMetadata=null;
   const groupAudio=el('dubGeneratedPreview');
@@ -413,7 +454,7 @@
   el('dubQualityGroup').addEventListener('change',stopGroupPreview);
 
 
-  document.addEventListener('ui-locale-change', () => { showResults(); referenceInfo(lastReferenceQuality); });
+  document.addEventListener('ui-locale-change', () => { pronunciationLabels(); showResults(); referenceInfo(lastReferenceQuality); });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     const pending = current;
     if (!pending) return;
