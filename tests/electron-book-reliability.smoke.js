@@ -853,6 +853,88 @@ app
     );
     assert(pdfBox.inside);
     await run(
+      '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Editöre dön").click();return true',
+    );
+    await until(
+      () => run('return !!document.querySelector("textarea[data-chapter]")'),
+      "lifecycle baseline editor",
+    );
+    const lifecycle = [];
+    const lifecycleStart = performance.now();
+    win.webContents.debugger.attach("1.3");
+    try {
+      async function memorySample(iteration) {
+        await win.webContents.debugger.sendCommand(
+          "HeapProfiler.collectGarbage",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await win.webContents.debugger.sendCommand(
+          "HeapProfiler.collectGarbage",
+        );
+        const dom = await win.webContents.debugger.sendCommand(
+            "Memory.getDOMCounters",
+          ),
+          heap = await win.webContents.debugger.sendCommand(
+            "Runtime.getHeapUsage",
+          ),
+          proc = app
+            .getAppMetrics()
+            .find((p) => p.pid === win.webContents.getOSProcessId());
+        lifecycle.push({
+          iteration,
+          dom,
+          heapUsedBytes: heap.usedSize,
+          workingSetKiB: proc?.memory.workingSetSize,
+        });
+      }
+      await memorySample(0);
+      for (let iteration = 1; iteration <= 12; iteration++) {
+        await run(
+          '[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Dinle ve takip et").click();return true',
+        );
+        await until(
+          () => run('return !!document.querySelector(".pdf-speech-box")'),
+          "lifecycle PDF reader opened",
+        );
+        await run(
+          '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Editöre dön").click();return true',
+        );
+        await until(
+          () =>
+            run('return !!document.querySelector("textarea[data-chapter]")'),
+          "lifecycle editor restored",
+        );
+        assert(
+          await run(
+            'return !document.querySelector(".mw-pdf canvas")&&!document.querySelector(".mw-body audio[src]")',
+          ),
+          "closed reader leaves no canvas or loaded audio source",
+        );
+        if ([2, 6, 12].includes(iteration)) await memorySample(iteration);
+      }
+      fs.writeFileSync(
+        path.join(out, "reader-lifecycle.json"),
+        JSON.stringify(
+          {
+            cycles: 12,
+            wallMs: performance.now() - lifecycleStart,
+            samples: lifecycle,
+          },
+          null,
+          2,
+        ),
+      );
+    } finally {
+      win.webContents.debugger.detach();
+    }
+    await run(
+      '[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Dinle ve takip et").click();return true',
+    );
+    await until(
+      () => run('return !!document.querySelector(".pdf-speech-box")'),
+      "reader restored after lifecycle measurement",
+    );
+    await run(
       'const a=document.querySelector(".mw-body audio");a.pause();a.currentTime=2.5;document.querySelector(".pdf-speech-box").focus();return true',
     );
     win.focus();

@@ -1258,7 +1258,7 @@ function registerMediaWorkflows({
               return null;
             }
           };
-          let meta, temp;
+          let meta, temp, concatList;
           try {
             const d = load(r.id);
             if (
@@ -1374,6 +1374,14 @@ function registerMediaWorkflows({
               ".audiobook-" + randomUUID() + ".m4b",
             );
             atomicWriteFileSync(meta, metadata);
+            const playlist = require("./book-export-inputs").streamList(files);
+            if (playlist) {
+              concatList = path.join(
+                dir,
+                "export-" + randomUUID() + ".ffconcat",
+              );
+              atomicWriteFileSync(concatList, playlist);
+            }
             let lastUpdate = 0,
               lastPercent = 0;
             const reportProgress = (line) => {
@@ -1420,18 +1428,24 @@ function registerMediaWorkflows({
                 "0.5",
                 "-progress",
                 "pipe:2",
-                ...files.flatMap((f) => ["-i", f]),
+                ...(concatList
+                  ? ["-f", "concat", "-safe", "0", "-i", concatList]
+                  : files.flatMap((f) => ["-i", f])),
                 "-i",
                 meta,
-                "-filter_complex",
-                files.map((_, i) => `[${i}:a]`).join("") +
-                  `concat=n=${files.length}:v=0:a=1[a]`,
+                ...(!concatList
+                  ? [
+                      "-filter_complex",
+                      files.map((_, i) => `[${i}:a]`).join("") +
+                        `concat=n=${files.length}:v=0:a=1[a]`,
+                    ]
+                  : []),
                 "-map",
-                "[a]",
+                concatList ? "0:a:0" : "[a]",
                 "-map_metadata",
-                String(files.length),
+                String(concatList ? 1 : files.length),
                 "-map_chapters",
-                String(files.length),
+                String(concatList ? 1 : files.length),
                 "-c:a",
                 "aac",
                 "-b:a",
@@ -1479,7 +1493,7 @@ function registerMediaWorkflows({
             throw error;
           } finally {
             try {
-              for (const f of [temp, meta])
+              for (const f of [temp, meta, concatList])
                 if (f) fs.rmSync(f, { force: true });
             } finally {
               e.sender.removeListener?.("destroyed", abortExport);

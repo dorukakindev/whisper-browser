@@ -10,9 +10,8 @@ const { EventEmitter } = require("node:events"),
 const { registerMediaWorkflows } = require("../src/media-workflows"),
   { voiceStorage } = require("../src/voice-storage");
 const { findMediaTool } = require("./media-runtime");
-function wav(seconds = 2) {
-  const rate = 24000,
-    b = Buffer.alloc(44 + rate * 2 * seconds);
+function wav(seconds = 2, rate = 24000) {
+  const b = Buffer.alloc(44 + rate * 2 * seconds);
   b.write("RIFF");
   b.writeUInt32LE(b.length - 8, 4);
   b.write("WAVEfmt ", 8);
@@ -95,7 +94,13 @@ async function fixture(t, options = {}) {
       voiceStorage(app).output,
       prepared.request.id + ".wav",
     );
-    fs.writeFileSync(output, wav(options.fixtureSeconds || 2));
+    fs.writeFileSync(
+      output,
+      wav(
+        options.fixtureSeconds || 2,
+        options.fixtureRates?.[chapter] || 24000,
+      ),
+    );
     service.capture({
       id: prepared.request.id,
       path: output,
@@ -301,7 +306,7 @@ test(
       ffmpeg: () => ffmpeg,
       ffprobe: () => ffprobe,
       runTool: (tool, args, input, signal, timeout, onLine, flags) => {
-        const real = args.includes("-filter_complex")
+        const real = args.includes("-progress")
           ? (() => {
               const a = args.slice();
               a.splice(a.indexOf("-i"), 0, "-re");
@@ -322,7 +327,7 @@ test(
         );
       },
     });
-    const pending = f.call("book-export", { id: f.id, chapters: [0] });
+    const pending = f.call("book-export", { id: f.id, chapters: [0, 1] });
     await ready;
     assert.equal(
       (
@@ -338,9 +343,7 @@ test(
     const result = await pending;
     assert.equal(result.ok, false);
     assert.equal(fs.readFileSync(f.target, "utf8"), "keep original");
-    const encoder = children.find((c) =>
-      c.spawnargs.includes("-filter_complex"),
-    );
+    const encoder = children.find((c) => c.spawnargs.includes("-progress"));
     assert(encoder);
     assert.equal(
       encoder.confirmedClosed,
@@ -350,6 +353,14 @@ test(
     assert(encoder.exitCode !== null || encoder.signalCode !== null);
     assert(!fs.readdirSync(f.root).some((n) => n.startsWith(".audiobook-")));
     assert.equal(f.sender.listenerCount("destroyed"), 0);
+    const dir = path.join(
+      voiceStorage({ getPath: () => f.root }).input,
+      "Kitap projeleri",
+      f.id,
+    );
+    assert(
+      !fs.readdirSync(dir).some((n) => /^export-.*\.(txt|ffconcat)$/.test(n)),
+    );
     assert(
       !fs
         .readdirSync(
@@ -362,3 +373,54 @@ test(
     );
   },
 );
+
+test("mixed-rate chapter export retains real resampling, ordered metadata and complete decoded duration", async (t) => {
+  const ffmpeg = findMediaTool("ffmpeg"),
+    ffprobe = findMediaTool("ffprobe"),
+    { run } = require("../src/browser-media-tools"),
+    commands = [];
+  assert(ffmpeg && ffprobe);
+  const f = await fixture(t, {
+    fixtureSeconds: 1,
+    fixtureRates: [24000, 48000],
+    ffmpeg: () => ffmpeg,
+    ffprobe: () => ffprobe,
+    runTool: (...args) => {
+      commands.push(args[1]);
+      return run(...args);
+    },
+  });
+  const result = await f.call("book-export", { id: f.id, chapters: [1, 0] });
+  assert(result.ok, result.error);
+  assert(
+    commands.some((a) => a.includes("-filter_complex")),
+    "unlike formats must not use the stream playlist",
+  );
+  const metadata = JSON.parse(
+    await run(
+      ffprobe,
+      [
+        "-v",
+        "error",
+        "-show_chapters",
+        "-show_format",
+        "-of",
+        "json",
+        f.target,
+      ],
+      "",
+      undefined,
+      15000,
+    ),
+  );
+  assert.equal(metadata.chapters.length, 2);
+  assert.equal(metadata.chapters[0].tags.title, "Page / Sayfa 1");
+  assert(Math.abs(Number(metadata.format.duration) - 2) < 0.1);
+  await run(
+    ffmpeg,
+    ["-v", "error", "-i", f.target, "-f", "null", "-"],
+    "",
+    undefined,
+    15000,
+  );
+});
