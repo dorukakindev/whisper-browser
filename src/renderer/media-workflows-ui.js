@@ -1149,7 +1149,8 @@
     body.append(split);
     bookContext(chapter, textarea.value);
   }
-  let readerPdfMap = null;
+  let readerPdfMap = null,
+    readerAudioCleanup = null;
   let readerTask = null,
     readerRender = null,
     readerGeneration = 0,
@@ -1199,14 +1200,31 @@
     const rows = result.groups.length
       ? result.groups
       : [{ text: project.chapters[current].text, start: 0, end: Infinity }];
+    const playback = window.ReaderAudioControl.create(audio, {
+      position: result.position,
+      autoplay,
+      isCurrent: () =>
+        generation === readerGeneration && audio.isConnected && dialog?.open,
+      onError: (error) => status(error.message),
+      errors: {
+        timeout: t(
+          "Audio metadata timed out. Try this passage again.",
+          "Ses bilgisi zaman aşımına uğradı. Parçayı yeniden dene.",
+        ),
+        unavailable: t("Audio could not be loaded.", "Ses yüklenemedi."),
+        range: t(
+          "This passage has no playable audio range.",
+          "Bu parçanın dinlenebilir ses aralığı yok.",
+        ),
+      },
+    });
     for (const [i, row] of rows.entries()) {
       const span = el("span", "mw-spoken", row.text + " ");
       span.dataset.spokenIndex = String(i);
       span.tabIndex = 0;
       span.title = t("Play from here", "Buradan dinle");
       span.onclick = () => {
-        audio.currentTime = row.start;
-        void audio.play().catch((e) => status(e.message));
+        void playback.playFrom(row.start);
       };
       span.onkeydown = (e) => {
         if (e.key === "Enter") {
@@ -1219,30 +1237,35 @@
     let last = -1,
       follow = true,
       lastSaved = 0;
-    audio.onloadedmetadata = () => {
+    const persist = () => {
       if (
-        generation !== readerGeneration ||
-        !audio.isConnected ||
-        !dialog?.open
+        audio.readyState < 1 ||
+        !Number.isFinite(audio.duration) ||
+        !Number.isFinite(audio.currentTime)
       )
-        return;
-      if (result.position > 0 && result.position < audio.duration - 1)
-        audio.currentTime = result.position;
-      if (autoplay) void audio.play().catch((e) => status(e.message));
-    };
-    const persist = () =>
-      call("book-progress", {
+        return Promise.resolve();
+      return call("book-progress", {
         id: projectId,
         chapter: current,
         position: audio.currentTime || 0,
       }).catch((e) => status(e.message));
+    };
     audio.onpause = persist;
-    audio.addEventListener("timeupdate", () => {
+    const saveInterval = () => {
       if (Date.now() - lastSaved > 10000) {
         lastSaved = Date.now();
         void persist();
       }
-    });
+    };
+    audio.addEventListener("timeupdate", saveInterval);
+    readerAudioCleanup = () => {
+      void persist();
+      playback.dispose();
+      audio.onpause = null;
+      audio.onended = null;
+      audio.ontimeupdate = null;
+      audio.removeEventListener("timeupdate", saveInterval);
+    };
     audio.onended = async () => {
       await persist();
       if (
@@ -1421,6 +1444,7 @@
               viewport,
               rows,
               audio,
+              playback.playFrom,
             );
             if (readerPdfMap && readerPdfMap.matched < readerPdfMap.total)
               status(
@@ -1458,6 +1482,8 @@
   }
   async function closeReader() {
     readerRequest++;
+    readerAudioCleanup?.();
+    readerAudioCleanup = null;
     readerPdfMap?.dispose();
     readerPdfMap = null;
     readerGeneration++;

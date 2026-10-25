@@ -108,7 +108,7 @@
       ? { left, top, width: right - left, height: bottom - top }
       : null;
   }
-  function mount(container, canvas, items, viewport, groups, audio) {
+  function mount(container, canvas, items, viewport, groups, audio, onSeek) {
     container.querySelector(".pdf-text-map")?.replaceWith(canvas);
     const wrapper = document.createElement("div");
     wrapper.className = "pdf-text-map";
@@ -134,6 +134,10 @@
           height: (height / viewport.height) * 100 + "%",
         });
         b.onclick = () => {
+          if (onSeek) {
+            void onSeek(groups[group].start);
+            return;
+          }
           audio.currentTime = groups[group].start;
           void audio.play().catch(() => {});
         };

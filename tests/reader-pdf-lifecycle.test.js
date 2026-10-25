@@ -44,6 +44,7 @@ function fixture({ textGate, renderGate } = {}) {
       setAttribute() {},
       removeAttribute() {},
       addEventListener() {},
+      removeEventListener() {},
       querySelector() {
         return null;
       },
@@ -117,6 +118,7 @@ function fixture({ textGate, renderGate } = {}) {
       observe() {}
     },
     window: {
+      ReaderAudioControl: require("../src/reader-audio-control"),
       api: { openPdf: async () => ({ ok: true, fileUrl: "fixture.pdf" }) },
       PdfSpokenMap: {
         mount: () => {

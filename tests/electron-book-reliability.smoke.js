@@ -266,7 +266,7 @@ app
             key: "review-one",
             status: "review",
             displayText: imported.project.chapters[0].text,
-            audioStart: 0,
+            audioStart: 1,
             audioEnd: 4,
           },
         ],
@@ -410,6 +410,33 @@ app
       'const b=document.querySelector(".pdf-active-box").getBoundingClientRect(),c=document.querySelector(".mw-pdf canvas").getBoundingClientRect();return {inside:b.left>=c.left-2&&b.right<=c.right+2&&b.top>=c.top-2&&b.bottom<=c.bottom+2};',
     );
     assert(pdfBox.inside);
+    await run(
+      'const a=document.querySelector(".mw-body audio");a.pause();a.currentTime=2.5;document.querySelector(".pdf-speech-box").focus();return true',
+    );
+    win.focus();
+    win.webContents.focus();
+    win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+    win.webContents.sendInputEvent({ type: "char", keyCode: "\r" });
+    win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+    await until(
+      () =>
+        run(
+          'const a=document.querySelector(".mw-body audio");return !a.paused&&a.currentTime>=1&&a.currentTime<1.5',
+        ),
+      "PDF highlight keyboard seeks to actual nonzero group start",
+    ).catch(async (error) => {
+      error.message +=
+        " " +
+        JSON.stringify(
+          await run(
+            'const a=document.querySelector(".mw-body audio");return {paused:a?.paused,time:a?.currentTime,ready:a?.readyState,status:document.querySelector(".mw-status")?.textContent,active:document.activeElement?.outerHTML.slice(0,250)}',
+          ),
+        );
+      throw error;
+    });
+    await run(
+      'const a=document.querySelector(".mw-body audio");a.pause();a.currentTime=1;a.dispatchEvent(new Event("timeupdate"));return true',
+    );
     const selectedPassage = await run(
       'const prose=document.querySelector(".mw-reading-text"),n=prose.querySelector(".mw-spoken").firstChild,quote="controlled PDF reading sample",start=n.textContent.indexOf(quote),range=document.createRange();range.setStart(n,start);range.setEnd(n,start+quote.length);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);prose.dispatchEvent(new Event("pointerup",{bubbles:true}));return {quote,context:aiChatContext(),scope:aiSourceScope()};',
     );
