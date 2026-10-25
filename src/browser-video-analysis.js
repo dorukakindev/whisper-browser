@@ -79,21 +79,24 @@ function createBrowserVideoAnalysis({ pythonPath, ffmpegPath, ffprobePath } = {}
         return await python({ operation: 'ocrRange', frames, start, end, interval, crop }, signal);
       } finally { fs.rmSync(temp, { recursive: true, force: true }); }
     },
-    async detectIntro({ videoPaths, maxScanSeconds = 90 } = {}, { signal } = {}) {
+    async detectIntro({ videoPaths, maxScanSeconds = 90, fromEnd = false } = {}, { signal } = {}) {
       checkTools();
       if (!Array.isArray(videoPaths) || videoPaths.length < 2 || videoPaths.length > 4 || !Number.isFinite(maxScanSeconds) || maxScanSeconds < 15 || maxScanSeconds > 120) throw new Error('Intro için 2–4 yerel video ve 15–120 saniyelik tarama gerekir.');
       videoPaths.forEach(checkVideo);
       if (new Set(videoPaths.map(file => fs.realpathSync(file).toLowerCase())).size !== videoPaths.length) throw new Error('Intro karşılaştırması için farklı videolar gerekir.');
       const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-intro-'));
       try {
-        const audioFiles = [];
+        const audioFiles = [], offsets = [];
         for (const [index, file] of videoPaths.entries()) {
+          const offset=fromEnd?Math.max(0,(await duration(file,signal))-maxScanSeconds):0;offsets.push(offset);
           const wav = path.join(temp, `audio-${index}.wav`);
-          await run(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-t', String(maxScanSeconds), '-i', file,
+          await run(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-ss', String(offset), '-t', String(maxScanSeconds), '-i', file,
             '-vn', '-ac', '1', '-ar', '8000', '-c:a', 'pcm_s16le', '-y', wav], '', signal, 60000);
           audioFiles.push(wav);
         }
-        return await python({ operation: 'detectIntro', audioFiles }, signal);
+        const result=await python({ operation: 'detectIntro', audioFiles }, signal);
+        result.candidates=result.candidates.map(row=>({...row,start:row.start+offsets[0],end:row.end+offsets[0],referenceStart:row.referenceStart+offsets[row.referenceIndex||1],referenceEnd:row.referenceEnd+offsets[row.referenceIndex||1]}));
+        result.diagnostics.fromEnd=!!fromEnd;return result;
       } finally { fs.rmSync(temp, { recursive: true, force: true }); }
     },
   };

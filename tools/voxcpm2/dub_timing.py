@@ -285,3 +285,22 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
               'clipped_groups': 0, 'overflow_groups': 0,
               'stretched_groups': sum(r['stretch'] > 1.001 for r in reports), 'groups': reports}
     return audio, timing, sync
+
+
+def build_narration_timeline(cues, paths, sr):
+    """Continuous book narration, retaining breaths and source group identities."""
+    from dub_finish import join_pause_frames
+    pieces, rows, cursor = [], [], 0
+    for i, (cue, file) in enumerate(zip(cues, paths)):
+        wav, rate = sf.read(str(file), dtype='float32')
+        if rate != sr or wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():
+            raise ValueError('Invalid narration audio.')
+        if pieces:
+            gap = join_pause_frames(pieces[-1], wav, sr, cues[i-1][2])
+            pieces.append(np.zeros(gap, dtype=np.float32)); cursor += gap
+        rows.append({'start_seconds':cursor/sr, 'after_seconds':len(wav)/sr,
+                     'before_seconds':len(wav)/sr, 'tempo':1., 'cut_frames':0,
+                     'overrun_seconds':0., 'stretch':1.})
+        pieces.append(wav); cursor += len(wav)
+    return np.concatenate(pieces), {'groups':rows, 'accelerated_groups':0,
+        'clipped_groups':0, 'overflow_groups':0, 'mode':'narration'}

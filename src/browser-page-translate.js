@@ -784,7 +784,7 @@ function pageContextScript(options = {}) {
     state.refs.clear();
     const rows = [];
     const seen = new Set();
-    let used = 0;
+    let used = 0, truncated=false;
     let roots = [];
     try { roots = [...document.querySelectorAll('article,main,[role="main"]')]; } catch (_) {}
     if (!roots.length && document.body) roots = [document.body];
@@ -793,7 +793,8 @@ function pageContextScript(options = {}) {
       try { elements.push(...root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,button,a,pre,code,[role="heading"]')); } catch (_) {}
     }
     for (const element of elements) {
-      if (rows.length >= maxBlocks || !visible(element)) continue;
+      if (rows.length >= maxBlocks) {truncated=true;break;}
+      if (!visible(element)) continue;
       try { if (element.matches(blocked) || element.closest?.(blocked)) continue; } catch (_) {}
       const tag = String(element.tagName || '').toLowerCase();
       // p/li/pre içinde zaten taşınan iç code düğümünü ikinci kez ekleme.
@@ -803,21 +804,28 @@ function pageContextScript(options = {}) {
       const text = normalize(element.textContent || '').slice(0,
         tag === 'pre' || tag === 'code' ? 600 : 2000);
       if (text.length < 2 || seen.has(text) || /^[\\p{P}\\p{S}\\p{N}\\s]+$/u.test(text)) continue;
-      if (used + text.length > maxCharacters) break;
+      if (used + text.length > maxCharacters) {truncated=true;break;}
       seen.add(text); used += text.length;
       const id = 'S' + (rows.length + 1);
       state.refs.set(id, element);
       rows.push({ id, kind: /^h[1-6]$/i.test(element.tagName || '') || element.getAttribute?.('role') === 'heading' ? 'heading' : 'text', text });
     }
     if (!rows.length) {
-      const fallback = normalize(document.body?.innerText || '').slice(0, maxCharacters);
+      const inert=document.body?.cloneNode(true);
+      inert?.querySelectorAll(blocked).forEach(node=>node.remove());
+      const fallback = normalize(inert?.textContent || '').slice(0, maxCharacters);
       if (fallback) {
         state.refs.set('S1', document.body);
         rows.push({ id: 'S1', kind: 'text', text: fallback });
         used = fallback.length;
       }
     }
-    return { ok: true, title: normalize(document.title || '').slice(0, 300), url: String(location.origin || '') + String(location.pathname || ''), blocks: rows, characters: used };
+    let selectedText='';
+    try { const selection=window.getSelection();const anchor=selection?.anchorNode;const parent=anchor?.nodeType===1?anchor:anchor?.parentElement;
+      if(parent&&!parent.closest(blocked)&&selection.rangeCount){const fragment=selection.getRangeAt(0).cloneContents();fragment.querySelectorAll?.(blocked).forEach(node=>node.remove());selectedText=normalize(fragment.textContent).slice(0,4000);} } catch(_){}
+    return { ok: true, version:2, title: normalize(document.title || '').slice(0, 300), url: String(location.origin || '') + String(location.pathname || ''), blocks: rows, characters: used,
+      selectedText,articleText:rows.map(row=>row.text).join('\\n').slice(0,maxCharacters),
+      contentTrust:'untrusted-page-content',truncated:truncated||used>=maxCharacters||rows.length>=maxBlocks };
   })()`;
 }
 

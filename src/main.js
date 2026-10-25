@@ -17076,7 +17076,7 @@ ipcMain.handle('browser:page:context', async (event, request) => {
   const [result] = await executeBrowserTrustedMain(tab.view, pageContextScript({ maxBlocks: 80, maxCharacters: 14000 })).catch(() => []);
   if(tab.generation!==generation||!tab.view||tab.view.webContents.isDestroyed()||tab.view.webContents.getURL()!==pageUrl)return {ok:false,stale:true,error:'Sayfa bağlamı okunurken kaynak değişti.'};
   if (!result?.ok) return { ok: false, stale: true, error: 'Sayfa bağlamı okunamadı.' };
-  return { ok: true, ...result, translationLanguage:tab.pageTranslateSession?.config?.targetLanguage||'' };
+  return { ok: true, ...result, source:{tabId:tab.id,generation,pageUrl:result.url},availableActions:['summarize_page','translate_page','explain_selection',...(tab.pageTranslateSession?['restore_page']:[])],translationLanguage:tab.pageTranslateSession?.config?.targetLanguage||'' };
 });
 
 ipcMain.handle('browser:page:reveal', async (event, request) => {
@@ -18062,9 +18062,10 @@ ipcMain.handle('dialog:openFile', async (_event, kind) => {
 
 const MEDIA_EXTS = new Set([
   'mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'wmv', 'm4v', 'ts', '3gp',
-  'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma'
+  'mp3', 'wav', 'm4a', 'm4b', 'aac', 'flac', 'ogg', 'opus', 'wma'
 ]);
 const mediaFileAccess = new MediaFileAccess(MEDIA_EXTS);
+let mediaWorkflows;
 const dubRateTargets = new Map();
 const dubWorkspace = require('./dub-workspace').registerDubWorkspace({
   app, ipcMain, authorized: authorizedBrowserSender, dialog, owner: () => mainWindow,
@@ -18091,7 +18092,7 @@ async function resolveDubSource(request) {
 }
 const dubService = require('./dub-service').registerDubService({
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
-  authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => dubWorkspace.register(output),
+  authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => { mediaWorkflows?.capture(output); return dubWorkspace.register(output); },
   terminate: proc => terminateProcessTreeAndWait(proc, { spawn }),
   busy: () => dubWorkspace.running() || !!activeJob || jobStarting || !!burninJob || burninStartPending || !!browserLiveAsr || !!modelBenchmarkJob || modelProcesses.size > 0,
   grantMedia: file => mediaFileAccess.grant(file),
@@ -20181,6 +20182,7 @@ ipcMain.handle('media:waveform', async (_event, filePath) => {
 // iş serileştirilir ve 90 sn'de iptal edilir. Renderer'a data URL gider
 // (img-src CSP'de file: izni yok).
 const seekPreviewCache = new Map();
+function rememberSeekPreview(key,value){seekPreviewCache.delete(key);seekPreviewCache.set(key,value);const bytes=()=>[...seekPreviewCache.values()].reduce((n,row)=>n+Buffer.byteLength(row.image||''),0);while(seekPreviewCache.size>8||bytes()>24*1024*1024)seekPreviewCache.delete(seekPreviewCache.keys().next().value);return value;}
 const SEEK_PREVIEW_COLS = 10, SEEK_PREVIEW_ROWS = 10, SEEK_PREVIEW_FRAME_W = 160;
 ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -20198,7 +20200,7 @@ ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
   // maliyeti arasındaki denge.
   const frames = Math.max(1, Math.min(maxFrames, Math.ceil(duration / 2)));
   const key = createHash('sha256')
-    .update(`${path.resolve(filePath)}|${stat.mtimeMs}|${stat.size}|${frames}`)
+    .update(`${path.resolve(filePath)}|${stat.mtimeMs}|${stat.size}|${frames}|${duration}`)
     .digest('hex').slice(0, 24);
   if (seekPreviewCache.has(key)) return seekPreviewCache.get(key);
   const dir = path.join(app.getPath('userData'), 'seek-previews');
@@ -20218,7 +20220,7 @@ ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
   };
   if (fs.existsSync(outPath)) {
     const cached = loadSprite();
-    if (cached.ok) { seekPreviewCache.set(key, cached); return cached; }
+    if (cached.ok) { rememberSeekPreview(key, cached); return cached; }
     removeFileQuietly(outPath);
   }
   fs.mkdirSync(dir, { recursive: true });
@@ -20259,7 +20261,7 @@ ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
       finish({ ok: false, error: 'Kare önizleme oluşturulamadı.' });
     });
   });
-  if (result.ok) seekPreviewCache.set(key, result);
+  if (result.ok) rememberSeekPreview(key, result);
   return result;
 });
 
@@ -21721,6 +21723,11 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
+mediaWorkflows = require('./media-workflows').registerMediaWorkflows({grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
+  python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
+  grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
+  resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
+    caches:{seekSprites:seekPreviewCache.size},voiceBusy:dubService.running()})});
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
 require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:()=>require('./letterboxd-reviews').readBrowserReviews({getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain})});
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
