@@ -557,7 +557,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           emit(s,'warning',{text:'Arka plan ayırma başarısız; yalnız dublaj üretilecek.'});
         }
       }
-      emit(s, 'status', { text: 'Motor yükleniyor…' });
+      emit(s, 'status', { stage: 'model_load', text: 'Motor yükleniyor…' });
       const env = voiceEnvironment(c.engine);
       // Flush output and report native crashes in this process and spawned GPU workers.
       env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
@@ -566,7 +566,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const rewriteRequests = new Set();
       function line(value) {
         if(value.startsWith('DUB_ACTIVITY ')){
-          try{const data=JSON.parse(value.slice(13));const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{text:labels[data.stage]});}catch(_){}return;
+          try{const data=JSON.parse(value.slice(13));const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{stage:data.stage,text:labels[data.stage]});}catch(_){}return;
         }
         if(value==='DUB_WARNING normalization_unavailable')emit(s,'warning',{text:'Ses dengeleme tamamlanamadı; üretilen konuşma korundu.'});
 
@@ -621,7 +621,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         }
         if (value === 'DUB_WARNING verification_unavailable') emit(s, 'warning', {text:'Konuşma doğrulaması kullanılamadı; ses hazır olduğunda dinleyerek kontrol edin.'});
         if (value === 'DUB_WARNING engine_restart') emit(s, 'status', {
-          text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
+          stage: 'engine_restart', text: 'Ses motoru yanıt vermedi; tamamlanan parçalar korunarak yeniden başlatılıyor…' });
         if (value === 'DUB_WARNING tempo_fallback') emit(s, 'warning', {
           text: 'Ses hızlandırılamadı; konuşma kesilmeden korundu. Video daha yavaş oynatılabilir.' });
         if (value === 'DUB_WARNING incomplete_audio') emit(s, 'warning', {
@@ -632,9 +632,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
         if (progress) { s.progress = { done: Number(progress[1]), total: Number(progress[2]) }; emit(s, 'progress', s.progress); }
-        else if (/^Plan:/.test(value)) emit(s, 'status', { text: 'Cümle grupları hazır' });
-        else if (/Referans hazir/.test(value)) emit(s, 'status', { text: 'Ses üretiliyor…' });
-        else if (/^Zamanlama:/.test(value)) emit(s, 'status', { text: 'Ses zaman çizelgesine yerleştiriliyor…' });
+        else if (/^Plan:/.test(value)) emit(s, 'status', { stage: 'plan', text: 'Cümle grupları hazır' });
+        else if (/Referans hazir/.test(value)) emit(s, 'status', { stage: 'synthesis', text: 'Ses üretiliyor…' });
+        else if (/^Zamanlama:/.test(value)) emit(s, 'status', { stage: 'placement', text: 'Ses zaman çizelgesine yerleştiriliyor…' });
         if (/^(Zamanlama:|Ses:.*Islem:)/.test(value)) emit(s, 'statistics', { text: value.slice(0, 1000) });
         if (value.startsWith('DUB_METRICS ')) {
           try {

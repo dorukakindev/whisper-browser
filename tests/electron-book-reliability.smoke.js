@@ -409,6 +409,30 @@ app
       "book cover in production summary",
     );
     const originalDefault = await run("return window.api.dubConfig()");
+    const beforeLocaleText = await run(
+      'return document.querySelector("textarea[data-chapter]").value',
+    );
+    assert.equal(
+      await run(
+        'return document.querySelector(".mw-review-group [data-workflow-status]").textContent',
+      ),
+      "Kontrol edilmeli",
+    );
+    await run('UiLocale.set("en",false);return true');
+    assert.equal(
+      await run(
+        'return document.querySelector(".mw-review-group [data-workflow-status]").textContent',
+      ),
+      "Needs review",
+    );
+    assert.equal(
+      await run(
+        'return document.querySelector("textarea[data-chapter]").value',
+      ),
+      beforeLocaleText,
+      "changing interface language must not translate chapter data",
+    );
+    await run('UiLocale.set("tr",false);return true');
     await run(
       'document.querySelector(".mw-voice-settings").open=true;const select=document.querySelector(\'select[aria-label="Kayıtlı referans sesler"]\');select.value=' +
         JSON.stringify(bookReferenceId) +
@@ -438,8 +462,21 @@ app
     // Exercise the actual renderer/preload request after editing the chapter.
     // Stop at the engine boundary: no real GPU/model generation in this fixture.
     const retryRequests = [];
+    let terminalOutcome = null,
+      releaseTerminal = null;
     ipcMain.removeHandler("dub:start");
     ipcMain.handle("dub:start", async (_event, request) => {
+      if (terminalOutcome) {
+        const outcome = { ...terminalOutcome };
+        _event.sender.send("dub:event", {
+          id: request.id,
+          type: "status",
+          stage: "verification",
+        });
+        releaseTerminal = () =>
+          _event.sender.send("dub:event", { id: request.id, ...outcome });
+        return { ok: true };
+      }
       retryRequests.push(request);
       return { ok: false, error: "Controlled retry request captured" };
     });
@@ -473,6 +510,60 @@ app
         "})",
     );
     assert(restoredText.ok, restoredText.error);
+    for (const outcome of [
+      { type: "error" },
+      { type: "error", error: "Engine timeout at 60/61" },
+      { type: "cancelled" },
+    ]) {
+      terminalOutcome = outcome;
+      releaseTerminal = null;
+      await run(
+        '[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Seçili bölümleri seslendir").click();return true',
+      );
+      await until(
+        () => !!releaseTerminal,
+        "controlled generation terminal gate",
+      );
+      await until(
+        () =>
+          run(
+            'return document.querySelector(".mw-status").textContent.includes("Konuşma doğrulanıyor")',
+          ),
+        "verification stage visible in book production",
+      );
+      if (outcome.type === "error" && !outcome.error) {
+        await run('UiLocale.set("en",false);return true');
+        assert.match(
+          await run('return document.querySelector(".mw-status").textContent'),
+          /Checking speech/,
+        );
+        await run('UiLocale.set("tr",false);return true');
+      }
+      releaseTerminal();
+      const expected =
+        outcome.type === "cancelled"
+          ? "Durduruldu"
+          : outcome.error
+            ? "zaman aşımına"
+            : "başarısız";
+      await until(
+        () =>
+          run(
+            'const n=document.querySelector(".mw-status"),b=[...document.querySelectorAll(".mw-transport button")].find(n=>n.textContent==="Seçili bölümleri seslendir");return n.textContent.includes(' +
+              JSON.stringify(expected) +
+              ")&&b&&!b.disabled",
+          ),
+        "distinct controlled terminal state",
+      );
+      if (outcome.type === "error" && !outcome.error)
+        assert.doesNotMatch(
+          await run('return document.querySelector(".mw-status").textContent'),
+          /Durduruldu/,
+        );
+    }
+    terminalOutcome = null;
+    releaseTerminal = null;
+    await capture("workflow-error-states-tr-dark.png");
     const resetReview = await run(
       'return window.api.mediaWorkflows({action:"book-prepare",id:' +
         JSON.stringify(id) +

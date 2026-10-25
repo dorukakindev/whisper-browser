@@ -90,8 +90,36 @@
   let prefsProject = null;
   function status(message) {
     const node = dialog?.querySelector(".mw-status");
-    if (node) node.textContent = message;
+    if (node) {
+      delete node.dataset.workflowStage;
+      delete node.dataset.workflowPrefix;
+      node.textContent = message;
+    }
   }
+  function workflowStage(stage, prefix = "") {
+    const node = dialog?.querySelector(".mw-status");
+    if (!node) return;
+    node.dataset.workflowStage = stage;
+    node.dataset.workflowPrefix = prefix;
+    node.textContent = prefix + window.BookWorkflowStatus.stage(stage, t);
+  }
+  function qualityStatus(code) {
+    const node = el("small", "", window.BookWorkflowStatus.label(code, t));
+    node.dataset.workflowStatus = code;
+    return node;
+  }
+  document.addEventListener("ui-locale-change", () => {
+    if (!dialog?.open) return;
+    for (const node of dialog.querySelectorAll("[data-workflow-status]"))
+      node.textContent = window.BookWorkflowStatus.label(
+        node.dataset.workflowStatus,
+        t,
+      );
+    for (const node of dialog.querySelectorAll("[data-workflow-stage]"))
+      node.textContent =
+        (node.dataset.workflowPrefix || "") +
+        window.BookWorkflowStatus.stage(node.dataset.workflowStage, t);
+  });
   function button(text, fn, primary = false) {
     const n = el("button", "mh-action" + (primary ? " mh-primary" : ""), text);
     n.type = "button";
@@ -806,19 +834,7 @@
         await books();
       });
       link.setAttribute("aria-current", c.id === chapter ? "true" : "false");
-      row.append(
-        check,
-        link,
-        el(
-          "small",
-          "",
-          c.status === "ready"
-            ? t("Ready", "Hazır")
-            : c.status === "review"
-              ? t("Review", "Kontrol et")
-              : t("Pending", "Bekliyor"),
-        ),
-      );
+      row.append(check, link, qualityStatus(c.status));
       list.append(row);
     }
     const edit = el("section", "mw-editor"),
@@ -1152,7 +1168,7 @@
         const row = el("div", "mw-review-group");
         row.append(
           el("p", "", g.text || t("Missing speech", "Eksik konuşma")),
-          el("small", "", g.status),
+          qualityStatus(g.status),
         );
         row.append(
           button(t("Listen to group", "Grubu dinle"), async () => {
@@ -1314,6 +1330,7 @@
     head.append(
       button(t("Back to editor", "Editöre dön"), async () => {
         await closeReader();
+        status("");
         await books();
       }),
       el(
@@ -1762,23 +1779,24 @@
           const off = window.api.onDubEvent((event) => {
             if (event.id !== request.id) return;
             if (event.type === "progress")
-              status(
-                `${i + 1}/${indices.length} · ${event.done || event.current || 0}/${event.total || "…"}`,
+              workflowStage(
+                "synthesis",
+                `${i + 1}/${indices.length} · ${event.done ?? event.current ?? 0}/${event.total ?? "…"} · `,
               );
+            if (event.type === "status") {
+              if (event.stage)
+                workflowStage(event.stage, `${i + 1}/${indices.length} · `);
+              else
+                status(
+                  `${i + 1}/${indices.length} · ${event.text || t("Working…", "İşleniyor…")}`,
+                );
+            }
             if (["done", "error", "cancelled"].includes(event.type)) {
               off();
               job = null;
               event.type === "done"
                 ? resolve(event)
-                : reject(
-                    Error(
-                      event.error ||
-                        t(
-                          "Stopped. Completed chapters are kept.",
-                          "Durduruldu. Tamamlanan bölümler korundu.",
-                        ),
-                    ),
-                  );
+                : reject(Error(window.BookWorkflowStatus.terminal(event, t)));
             }
           });
           window.api
@@ -1787,7 +1805,14 @@
               if (!r?.ok) {
                 off();
                 job = null;
-                reject(Error(r?.error || "Voice generation failed."));
+                reject(
+                  Error(
+                    window.BookWorkflowStatus.terminal(
+                      { type: "error", error: r?.error },
+                      t,
+                    ),
+                  ),
+                );
               }
             })
             .catch((e) => {

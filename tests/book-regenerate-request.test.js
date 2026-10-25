@@ -83,6 +83,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
         };
       },
       window: {
+        BookWorkflowStatus: require("../src/book-workflow-status"),
         BookProductionPlanUI: { getPreview: () => preview },
         api: {
           planDub: async () => {
