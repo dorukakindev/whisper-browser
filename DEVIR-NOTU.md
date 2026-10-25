@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-1836.md](docs/devir/2026-10-25-1836.md) — Kaynaklara ayrılmış arama, açık çevrimiçi sonuçlar ve TMDB galeri
 Güncel çalışma: [docs/devir/2026-10-25-1748.md](docs/devir/2026-10-25-1748.md) — Güncel Luna karşılaştırması, otomatik Letterboxd örneği ve tam Keşfet ayrıntısı
 Güncel çalışma: [docs/devir/2026-10-25-1726.md](docs/devir/2026-10-25-1726.md) — PR487 master ve Windows ana kopyaya güvenle alındı
 Güncel çalışma: [docs/devir/2026-10-25-0444.md](docs/devir/2026-10-25-0444.md) — Ana dalın bağımsız 100 hedefli gece testi (Rapor547)
