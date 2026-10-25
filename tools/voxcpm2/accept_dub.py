@@ -54,6 +54,35 @@ def inspect_gpu():
     return readiness(result.stdout)
 
 
+def verify_final(wav, python, expected, *, runner=subprocess.run):
+    """Verify the installed final waveform, not only its pre-placement parts."""
+    import numpy as np
+    import soundfile as sf
+    from dub_quality import speech_check
+    began = time.monotonic()
+    audio, rate = sf.read(wav, dtype="float32")
+    finite = bool(np.isfinite(audio).all())
+    peak = float(np.max(np.abs(audio))) if audio.size and finite else None
+    clipped = float(np.mean(np.abs(audio) >= .999)) if audio.size and finite else None
+    check = {"status": "unavailable"}
+    try:
+        reply = runner([str(python), str(ROOT / "backend/dub_verify.py")],
+            input=json.dumps({"path": str(wav)}) + "\n", capture_output=True,
+            text=True, encoding="utf-8", timeout=120,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        data = json.loads(reply.stdout.strip()) if reply.returncode == 0 else {}
+        if isinstance(data, dict) and isinstance(data.get("text"), str):
+            result = speech_check(expected, data["text"])
+            check = {"status": "review" if result["review"] else "passed", **result}
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    return {"seconds": round(time.monotonic()-began, 3), "verification": check,
+            "frames": len(audio), "sample_rate": rate, "finite": finite,
+            "peak": peak, "clipped_fraction": clipped,
+            "passed": bool(audio.size) and finite and peak is not None and peak > 0
+                and clipped == 0 and check["status"] == "passed"}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run", action="store_true")
@@ -105,14 +134,16 @@ def main(argv=None):
     phases = json.loads(wav.with_suffix(".performance.json").read_text(encoding="utf-8"))
     groups = quality.get("groups", [])
     checks = [g.get("verification", {}).get("status") for g in groups]
+    expected = " ".join(text for _, _, text in reader.parse_srt(source))
+    final = verify_final(wav, args.verify_python, expected)
     result = {"status": "produced_needs_listening", "run_directory": str(output),
               "wall_seconds": round(time.monotonic()-began, 3),
               "wav_seconds": info.duration, "sample_rate": info.samplerate,
               "frames": info.frames, "group_count": len(groups),
-              "verification": checks, "phases": phases,
+              "verification": checks, "phases": phases, "final_waveform": final,
               "integrity_evidence_passed": len(groups) == 2 and info.frames > 0
                   and all(x == "passed" for x in checks)
-                  and all(g.get("status") == "ready" for g in groups)}
+                  and all(g.get("status") == "ready" for g in groups) and final["passed"]}
     (output / "acceptance.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=True))
     return 0 if result["integrity_evidence_passed"] else 3

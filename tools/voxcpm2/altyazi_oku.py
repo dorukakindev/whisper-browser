@@ -838,13 +838,16 @@ def main(argv=None, runtime=None):
     write_began=time.monotonic()
     sf.write(str(tmp), timeline, sr, subtype="PCM_16")
     wav_path = _install_with_fallback(tmp, wav_path)
+    audio_write_seconds=time.monotonic()-write_began
     if not args.no_norm:
         print('DUB_ACTIVITY '+json.dumps({'stage':'normalization'}),flush=True)
-        normed = loudnorm_audio(wav_path)
+        with measured(args, 'normalization'):
+            normed = loudnorm_audio(wav_path)
         if normed:
             wav_path = Path(normed)
         else:
             print('DUB_WARNING normalization_unavailable',flush=True)
+    write_began=time.monotonic()
     print(f"Dublaj WAV: {wav_path}", flush=True)
     if sync:
         wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
@@ -867,7 +870,7 @@ def main(argv=None, runtime=None):
                      "file": str(paths[i]), "pause_ms": 0, "source_ids": groups[i]['source_ids']}
                     for i, (s, e, t) in enumerate(cues)]}
     write_manifest(wav_path, manifest)
-    args.phases.seconds['file_write']=time.monotonic()-write_began
+    args.phases.seconds['file_write']=audio_write_seconds+time.monotonic()-write_began
     phase_report=args.phases.snapshot()
     wav_path.with_suffix('.performance.json').write_text(json.dumps(phase_report,indent=2),encoding='utf-8')
     print('DUB_PHASES '+json.dumps(phase_report),flush=True)

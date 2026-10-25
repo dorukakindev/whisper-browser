@@ -23,7 +23,11 @@ zamanlaması ve ayrıntılı CPU ASR kontrolü kullanılır. Model indirilmez;
 Her çalıştırma yeni `tmp/real-dub-accept-*` alanına cache/WAV/özel günlük ve
 `acceptance.json` kaydeder; kişisel motorun eski çıktıları kullanılmaz/değişmez.
 Araç yalnız gerçek üretimden sonra aşama sürelerini, WAV süresini ve grup
-doğrulamalarını raporlar. `produced_needs_listening` dinleme gerektirir:
+doğrulamalarını raporlar. Birleştirme/normalizasyon sonrası son WAV da ayrı CPU
+ASR'den geçirilir; son dosyada sözcük kaybı, sessizlik, geçersiz örnek veya
+dijital kırpılma kabulü geçirmez. Dengeleme süresi `normalization_seconds`,
+WAV/yan dosya yazımı `file_write_seconds` olarak ayrılır.
+`produced_needs_listening` dinleme gerektirir:
 ASR eşleşmesi doğal ton/duygu kalitesi garantisi değildir. İnceleme gerektiren
 çıktı exit3 döner; hata/eksik doğrulayıcı başarı sayılmaz. `--run` üretim yolu
 GPU uygun değilken doğrulanmış gibi sunulmamalıdır.
