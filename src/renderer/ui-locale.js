@@ -1013,6 +1013,7 @@
     ['Watch country / İzleme ülkesi', 'Watch country'],
     ['Bilgi dili', 'Metadata language'],
     ['Film bilgi ayarları', 'Film metadata settings'],
+    ['Ses aralığı bu dosyada bulunamadı.', 'The audio range was not found in this file.'],
     ['TMDB API okuma belirteci / API anahtarı', 'TMDB API Read Access Token / API Key'],
     ['Sayfayı asistana sor', 'Ask about this page'],
     ['Sesli oku', 'Read aloud'],
