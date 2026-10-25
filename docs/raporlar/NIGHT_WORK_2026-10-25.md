@@ -33,7 +33,7 @@ Her madde için durum: Bekliyor / İnceleniyor / Tamamlandı / Ertelendi / Kanı
 | N23 | Bekliyor | Yedek alma/restore ile eşzamanlı üretimin tutarlı snapshotını sağla. | Üretilen WAV/manifest aynı kimlikte; yarım dosya onaylanmaz. |
 | N24 | Bekliyor | Proje açıldığında yarım iş varsa kurtarma önerisi göster. | Kendiliğinden GPU başlatmaz; kullanıcı denetimi ve açıklama. |
 | N25 | Bekliyor | Kitap bazlı referans seçiminin genel dublaj sesiyle etkisini açık göster. | Yanlış referans/döküm sessizce kullanılmaz. |
-| N26 | Bekliyor | Hazır M4B çıktısını bağlı kitap rafı kartından aç. | Çıktı kaydı/source yetkisi ve eksik dosyada anlaşılır eylem. |
+| N26 | Tamamlandı | Hazır M4B çıktısını bağlı kitap rafı kartından aç. | Çıktı kaydı/source yetkisi ve eksik dosyada anlaşılır eylem. |
 | N27 | Bekliyor | Proje kopyalamayı metin/ayar kopyası olarak ekle. | Kaynak proje korunur; büyük sesleri kopyalama açık seçenek olur. |
 | N28 | Bekliyor | Proje klasörünü güvenli Aç eylemiyle erişilebilir yap. | Yalnız uygulamanın doğrulanmış proje kökü açılır. |
 | N29 | Bekliyor | Arşivlenmiş proje yönetimini dar ekran ve klavyeyle doğrula. | Dosya silinmez, geri alma görünür ve isimler okunur. |
@@ -116,3 +116,5 @@ Rapor552: N42'nin dublaj stüdyosu kısmı düzeltildi ve hedefli doğrulandı; 
 07:24 — Rapor560/ürünfef21e120269078b57a0085bc948c4c5530efa7e: bayatPDF metin/çizim sonucu yeni reader state'ine karışmaz; zoom önceki render kapanışını bekler. Aynıtest eski kaynakta3FAIL/yeni4PASS; toplam9hedefPASS, gerçekWindowsPDF/Review/M4Bexit0 ve görünüm incelendi. N36/N39reader yaşam döngüsü ilerledi; tüm liste bitmedi. Sonraki kalite grubu kimliği/metadata/paragraf bağlamı; yedekbakımı yok.
 
 07:31 — Rapor561/üründdeda9e45238c3f3ff2107a89676074cf2ca8506: N41/N43 eski kalite anahtarı güvenliği düzeldi. Aynımetinde seçiligrup; değişenmetinde eskiordinal yerine güncelplan/cache. Bayatçıktı/bilinmeyengrup işoluşturmadanred.10hedefPASS, native edit>düğme>IPC isteği forceGroups[] ve PDF/Review/M4Bexit0. Model/cacheverimi doğrulanmadı; yeniden gruplamada tekgrupgarantisi yok. Sonraki reader metadata/seek/konum ve asistanpasajı; yedekbakımı yok.
+
+07:37 — Rapor562/ürün04d013431e7ca2c55e1ae9153c8bcd2c0fb44753: N26tamam. YeniM4B çıktısı proje/raf bağlantılı, kapsadığıbölümsayısı/eski metinsürümü/eksikdosya durumu; raf veüretimden oynatıcıya açılır.11hedefPASS/nativeWindowsgerçekFFmpeg+rafdüğmesi+M4Bdecodeexit0, iki tema/dil görüntüsü incelendi. Eskiçıktılar otomatikaranmaz; birkez export, TTStekrarüretimgerekmez. Sonraki reader metadata/seek/konum ve pasaj asistanı; yedekbakımı yok.

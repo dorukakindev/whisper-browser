@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-25-0737.md](docs/devir/2026-10-25-0737.md) — M4B çıktısını kitap rafından dinleme
 Güncel çalışma: [docs/devir/2026-10-25-0731.md](docs/devir/2026-10-25-0731.md) — Düzenlenmiş kitap metninde doğru grup yenilemesi
 Güncel çalışma: [docs/devir/2026-10-25-0724.md](docs/devir/2026-10-25-0724.md) — PDF sayfa çizimi ve yakınlaştırmada oturum sahipliği
 Güncel çalışma: [docs/devir/2026-10-25-0720.md](docs/devir/2026-10-25-0720.md) — Çok parçalı kitap bölümünü yeniden üretme

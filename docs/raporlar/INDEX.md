@@ -1,5 +1,7 @@
 # BROWSER_BUG_REPORT dizini
 
+- [BROWSER_BUG_REPORT_562.md](BROWSER_BUG_REPORT_562.md) — Kalıcı M4B çıktı kaydı ve kitap rafından açma.
+
 - [BROWSER_BUG_REPORT_561.md](BROWSER_BUG_REPORT_561.md) — Düzenleme sonrası eski kalite grubu numarasını üretime taşımama.
 
 - [BROWSER_BUG_REPORT_560.md](BROWSER_BUG_REPORT_560.md) — Eski PDF yükleme/çizim sonucunun yeni okuyucuya karışmasını önleme.
