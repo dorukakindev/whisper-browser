@@ -37,7 +37,7 @@
   }
   function context() {
     const r = player.pdfReader;
-    if (!r || $("pdfReader")?.classList.contains("hidden")) return null;
+    if (!r || $("pdfReader")?.classList.contains("hidden") || $("playerLayer")?.classList.contains("hidden")) return null;
     const page = r.currentPage || 1,
       original = rows(r, page)
         .map((b) => b.source || "")
@@ -167,7 +167,7 @@
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
-      onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
+      onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
         !$("pdfReader").classList.contains("hidden"),
@@ -220,6 +220,8 @@
       $(id).value = String(r.currentPage);
     }
     $("pdfVoicePanel").classList.add("hidden");
+    $("pdfVoiceOpen").setAttribute("aria-expanded", "false");
+    for (const id of ["pdfAssistantTools", "pdfTranslateTools"]) $(id).open = false;
     $("pdfVoiceStatus").textContent = "";
     refresh();
     changed(true);
@@ -247,6 +249,20 @@
     input.dispatchEvent(new Event("change"));
     changed(true);
   }
+  $("pdfReaderHome").onclick = () => { stopVoice(); void window.MediaHomeUI?.returnHome(); };
+  for (const details of document.querySelectorAll('.pdf-reader-tools')) {
+    details.addEventListener('toggle', () => {
+      if (details.open) for (const other of document.querySelectorAll('.pdf-reader-tools')) if (other !== details) other.open = false;
+    });
+  }
+  document.addEventListener('pointerdown', event => {
+    for (const details of document.querySelectorAll('.pdf-reader-tools[open]')) if (!details.contains(event.target)) details.open = false;
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !player.pdfReader || document.querySelector('dialog[open]')) return;
+    const menu = document.querySelector('.pdf-reader-tools[open]');
+    if (menu) { menu.open = false; menu.querySelector('summary').focus(); event.stopImmediatePropagation(); event.preventDefault(); }
+  }, true);
   $("pdfPrevious").onclick = () => move(-1);
   $("pdfNext").onclick = () => move(1);
   $("pdfAskAssistant").onclick = () => {
@@ -258,6 +274,7 @@
     if (!r) return;
     const panel = $("pdfVoicePanel");
     panel.classList.toggle("hidden");
+    $("pdfVoiceOpen").setAttribute("aria-expanded", String(!panel.classList.contains("hidden")));
     if (!panel.classList.contains("hidden")) {
       for (const id of ["pdfVoiceFrom", "pdfVoiceTo"])
         $(id).value = String(r.currentPage);

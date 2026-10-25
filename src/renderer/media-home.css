@@ -104,6 +104,14 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-hero-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,8,9,.96), rgba(8,8,9,.76) 34%, rgba(8,8,9,.08) 85%); }
 .mh-hero-meta { display: block; color: var(--accent); font-size: 13px; margin-bottom: 15px; }
 .mh-hero-copy > .mh-progress { margin-top: 20px; max-width: 480px; }
+.mh-hero-navigation { position: absolute; right: 24px; bottom: 22px; display: flex; align-items: center; gap: 12px; z-index: 2; }
+.mh-hero-navigation[hidden] { display: none; }
+.mh-hero-arrow { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid var(--border-strong); border-radius: 50%; background: var(--bg-1); color: var(--text); }
+.mh-hero-arrow:hover { border-color: var(--accent); background: var(--bg-3); }
+.mh-hero-arrow svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mh-hero-count { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+@media(max-width:700px) { .mh-hero-copy { padding-bottom: 78px; } .mh-hero-navigation { right: 20px; bottom: 18px; } }
+
 .mh-section { margin-top: 28px; }
 .mh-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
 .mh-section h2 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.4px; }

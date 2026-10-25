@@ -2194,12 +2194,13 @@
           </section>
         </section>
 
-        <section class="pdf-reader hidden" id="pdfReader" aria-label="PDF kitap okuyucu">
+        <section class="pdf-reader media-surface hidden" id="pdfReader" aria-label="PDF kitap okuyucu">
           <header class="pdf-reader-toolbar">
-            <div class="pdf-reader-heading"><div><strong id="pdfReaderTitle">PDF kitap</strong><span id="pdfReaderStatus" role="status" aria-live="polite">Hazır</span><span class="pdf-reader-progress" id="pdfReaderProgress" aria-label="Çevrilen sayfa ilerlemesi">0/0 sayfa</span></div></div>
+            <button class="pdf-reader-home" id="pdfReaderHome" type="button" title="Ana sayfaya dön" aria-label="Ana sayfaya dön"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg></button>
+            <div class="pdf-reader-heading"><div><strong id="pdfReaderTitle">PDF kitap</strong><div class="pdf-reader-status-line"><span id="pdfReaderStatus" role="status" aria-live="polite">Hazır</span><span class="pdf-reader-progress" id="pdfReaderProgress" aria-label="Çevrilen sayfa ilerlemesi">0/0 sayfa</span></div></div></div>
             <div class="pdf-reader-primary-actions">
               <button class="btn btn-secondary btn-sm" id="pdfAskAssistant" type="button">Sayfayı asistana sor</button>
-              <button class="btn btn-primary btn-sm" id="pdfVoiceOpen" type="button">Sesli oku</button>
+              <button class="btn btn-primary btn-sm" id="pdfVoiceOpen" type="button" aria-controls="pdfVoicePanel" aria-expanded="false">Sesli oku</button>
               <button class="btn-icon" id="pdfReaderClose" type="button" title="PDF okuyucuyu kapat" aria-label="PDF okuyucuyu kapat">×</button>
             </div>
           </header>
@@ -2212,11 +2213,13 @@
             </div>
             <div class="pdf-reader-navigation"><button class="btn btn-ghost btn-sm" id="pdfPrevious" type="button" aria-label="Önceki sayfa">‹</button>
             <label>Sayfa <input id="pdfReaderPage" type="number" min="1" value="1" aria-label="PDF sayfa numarası" /></label>
-            <button class="btn btn-ghost btn-sm" id="pdfZoomOut" type="button" aria-label="Uzaklaştır">−</button>
+            <span id="pdfPageTotal"></span><button class="btn btn-ghost btn-sm" id="pdfNext" type="button" aria-label="Sonraki sayfa">›</button></div>
+            <div class="pdf-reader-zoom"><button class="btn btn-ghost btn-sm" id="pdfZoomOut" type="button" aria-label="Uzaklaştır">−</button>
             <output id="pdfZoomValue">%100</output>
             <button class="btn btn-ghost btn-sm" id="pdfZoomIn" type="button" aria-label="Yakınlaştır">+</button>
-<button class="btn btn-ghost btn-sm" id="pdfNext" type="button" aria-label="Sonraki sayfa">›</button><span id="pdfPageTotal"></span></div>
-            <details class="pdf-reader-tools"><summary>Çeviri ve dışa aktarma</summary><div class="pdf-reader-tools-content">
+</div>
+            <div class="pdf-reader-more-tools"><details class="pdf-reader-tools" id="pdfAssistantTools"><summary>Pasaj araçları</summary><div class="pdf-reader-tools-content" id="pdfBookAssistant"></div></details>
+            <details class="pdf-reader-tools" id="pdfTranslateTools"><summary>Çeviri ve dışa aktarma</summary><div class="pdf-reader-tools-content">
             <select id="pdfTargetLanguage" aria-label="PDF hedef dili"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select>
             <button class="btn btn-primary btn-sm" id="pdfTranslateVisible" type="button" title="Görünen sayfayı ve sonraki iki sayfayı çevirir">Bu sayfadan çevir</button>
             <button class="btn btn-secondary btn-sm" id="pdfTranslateAll" type="button">Tüm kitabı çevir</button>
@@ -2224,9 +2227,8 @@
             <button class="btn btn-ghost btn-sm" id="pdfTranslateCancel" type="button" disabled>İptal</button>
             <select id="pdfExportFormat" aria-label="PDF dışa aktarma biçimi"><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option></select>
             <button class="btn btn-ghost btn-sm" id="pdfExport" type="button">Dışa aktar</button>
-            </div></details>
+            </div></details></div>
           </nav>
-          <div id="pdfBookAssistant"></div>
           <div class="pdf-reader-voice hidden" id="pdfVoicePanel">
             <label>Başlangıç sayfası <input id="pdfVoiceFrom" type="number" min="1" value="1"></label>
             <label>Bitiş sayfası <input id="pdfVoiceTo" type="number" min="1" value="1"></label>
