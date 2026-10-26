@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1909.md](docs/devir/2026-10-26-1909.md) — Tasarım denetimi değerlendirmesi; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-26-1858.md](docs/devir/2026-10-26-1858.md) — Task03 kitap/PDF/EPUB ve ses bütünlüğü
 Güncel çalışma: [docs/devir/2026-10-26-1832.md](docs/devir/2026-10-26-1832.md) — Task02 doğrulama, çeviri ve asistan web araması
 Güncel çalışma: [docs/devir/2026-10-26-1721.md](docs/devir/2026-10-26-1721.md) — YouTube CORS/tekrarlı reklam atlama ve Task02 ön triyaj
