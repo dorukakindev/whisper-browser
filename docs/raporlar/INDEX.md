@@ -1,3 +1,4 @@
+- [Rapor 607](BROWSER_BUG_REPORT_607.md) — Claude read-only kaynak paketi ve dört ayrı gömülü global görev
 - [Rapor 606](BROWSER_BUG_REPORT_606.md) — Dört bulgu onarımı; altyazı arama, kalite/aralık analizi, biçim ve ağ sahipliği
 - [Rapor 605](BROWSER_BUG_REPORT_605.md) — Görev04INTERIM:ülke/kasa/UIbulguları ve hazırpatchsınırları
 - [Rapor 604](BROWSER_BUG_REPORT_604.md) — Entegrasyon paketi karşılaştırması;alınacaklar,zatenvarolanlar ve paket kusurları
