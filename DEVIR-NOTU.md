@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-2147.md](docs/devir/2026-10-26-2147.md) — Claude için ayrıntılı asistan araştırma kaynak paketi
 Güncel çalışma: [docs/devir/2026-10-26-2019.md](docs/devir/2026-10-26-2019.md) — Ortak hareket, etkileşim cilası ve yüklenme durumları
 Güncel çalışma: [docs/devir/2026-10-26-1947.md](docs/devir/2026-10-26-1947.md) — Geniş UI matrisi ve üç doğrulanmış tasarım onarımı
 Güncel çalışma: [docs/devir/2026-10-26-1909.md](docs/devir/2026-10-26-1909.md) — Tasarım denetimi değerlendirmesi; ürün kodu değişmedi

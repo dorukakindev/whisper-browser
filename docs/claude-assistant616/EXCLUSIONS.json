@@ -1,0 +1,4 @@
+{
+  "policy": "Only tracked source from Git HEAD. No git history, user data, keys, profiles, logs, dependencies, model weights. Most historical docs and large/binary files omitted.",
+  "files": []
+}
