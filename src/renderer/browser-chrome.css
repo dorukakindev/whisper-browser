@@ -1,6 +1,7 @@
 /* ===== Browser chrome — tek dosya (Adim 4.3) ===== */
 /* R120 §4.9 tasarım tokenlari */
 :root {
+  --tab-avatar-text: #fff;
   --chrome-radius-chip: 6px;
   --chrome-radius-control: 10px;
   --chrome-radius-card: 14px;
@@ -1290,8 +1291,8 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
   width: 16px; height: 16px; flex: 0 0 16px;
   display: inline-grid; place-items: center;
   border-radius: 5px;
-  color: var(--accent-contrast);
-  background: hsl(var(--avatar-hue, 30) 42% 40%);
+  color: var(--tab-avatar-text);
+  background: hsl(var(--avatar-hue, 30) 42% 28%);
   font-size: 10px; font-weight: 700; line-height: 1;
 }
 .browser-tab-avatar.is-blank { color: var(--text-muted); background: var(--bg-3); font-weight: 500; }
