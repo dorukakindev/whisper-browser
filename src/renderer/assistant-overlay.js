@@ -28,6 +28,22 @@
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f'&&opened){event.preventDefault();$('conversationMenu').open=true;$('find').focus();}});
   $('reviewCancel').onclick = () => { reviewing = null; $('review').hidden = true; };
   $('reviewConfirm').onclick = () => { if (reviewing && !busy) action(reviewing.action,reviewing.id); reviewing = null; $('review').hidden = true; };
+  let jobsKey='';
+  function renderJobs(value){
+    const rows=(value.jobs||[]).slice(0,6),key=JSON.stringify([value.locale,rows]);if(key===jobsKey)return;jobsKey=key;
+    $('jobs').hidden=!rows.length;const tr=value.locale==='tr',active=(value.jobs||[]).filter(row=>['running','cancelling'].includes(row.state)).length;
+    $('jobsLabel').textContent=(tr?'İşler':'Jobs')+(active?' · '+active+(tr?' çalışıyor':' active'):tr?' · son işlemler':' · recent');
+    $('jobRows').replaceChildren();for(const row of rows){
+      const item=document.createElement('div');item.className='assistant-job';
+      const copy=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('small');
+      title.textContent=({transcription:tr?'Whisper':'Whisper',translation:tr?'Çeviri':'Translation',voice:tr?'Ses üretimi':'Voice generation',reference:tr?'Referans ses':'Reference voice','legacy-chat':tr?'Eski sohbet':'Legacy chat'})[row.kind]||row.kind;
+      detail.textContent=(({running:tr?'Çalışıyor':'Running',cancelling:tr?'Durduruluyor':'Stopping',completed:tr?'Tamamlandı':'Completed',failed:tr?'Başarısız — işlem kaydını aç':'Failed — open the job log',stopped:tr?'Durduruldu':'Stopped'})[row.state]||row.state)+(row.percent!==null?' · '+Math.round(row.percent)+'%':'')+(['running','cancelling'].includes(row.state)&&row.stage&&row.stage!=='starting'?' · '+(({download:tr?'İndirme':'Download',transcribe:tr?'Transkripsiyon':'Transcription',translate:tr?'Çeviri':'Translation',model_load:tr?'Model yükleniyor':'Loading model',verification:tr?'Ses kontrolü':'Voice verification',file_write:tr?'Dosya yazılıyor':'Writing file'})[row.stage]||row.stage):'');copy.append(title,detail);item.append(copy);
+      if(row.percent!==null){const progress=document.createElement('progress');progress.max=100;progress.value=row.percent;progress.setAttribute('aria-label',title.textContent);copy.append(progress);}
+      if(row.stopFailed){const warning=document.createElement('small');warning.textContent=tr?'Durdurma doğrulanamadı; yeniden deneyebilirsin.':'Stop was not confirmed; you can retry.';copy.append(warning);}
+      if(row.cancellable){const stop=document.createElement('button');stop.type='button';stop.textContent=tr?'Durdur':'Stop';stop.onclick=()=>action('cancel-job',row.id);item.append(stop);}
+      $('jobRows').append(item);
+    }
+  }
   function toggle() { opened = !opened; $('panel').hidden = !opened; $('bubble').hidden = opened; action('toggle'); if (opened) $('text').focus(); }
   $('bubble').onclick = toggle; $('close').onclick = toggle;
   $('expand').onclick = () => action('expand');
@@ -76,13 +92,14 @@
       }
     }
     $('reviewConfirm').disabled = !!value.busy;
-    busy = !!value.busy;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !busy || value.canCancel===false; $('retry').hidden = !value.retry || busy;
+    busy = !!value.busy;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !value.canCancel; $('retry').hidden = !value.retry || busy;
     $('scope').value = value.scope || 'watched';
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}
       showStatus(value.receipt.message||'',!value.receipt.accepted);pending=null;$('send').disabled=busy||!!value.blocked;
     }
     if(value.blocked&&!pending){$('delivery').dataset.blocked='true';showStatus(t('Another task is running. Your question stays in the draft.','Başka bir iş çalışıyor. Sorun taslakta kalır.'));}else if(!value.blocked&&$('delivery').dataset.blocked==='true'){$('delivery').dataset.blocked='false';if(!value.receipt?.message)showStatus('');}
+    renderJobs(value);
     const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
     const log = $('log'), previousScroll=log.scrollTop,bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;

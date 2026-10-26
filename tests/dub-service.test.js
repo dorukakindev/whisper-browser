@@ -13,12 +13,13 @@ wav.writeUInt32LE(16,16); wav.writeUInt16LE(1,20); wav.writeUInt16LE(1,22); wav.
 wav.writeUInt32LE(48000,28); wav.writeUInt16LE(2,32); wav.writeUInt16LE(16,34); wav.write('data',36); wav.writeUInt32LE(4,40);
 const fixtureHash = require('node:crypto').createHash('sha256').update('fixture').digest('hex');
 const handlers = {}, events = [], calls = []; let child, allowed = true, killOK = true;
+const observedJobs=[];
 let editContext;
 let backgroundMode='ok', rejectPreparation, backgroundRange, backgroundLimit;
 let prosodyMode='ok', prosodyOptions, rejectProsody;
 const app = new EventEmitter(); app.getPath = name => name === 'desktop' ? desktop : root;
 const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e) };
-const service = registerDubService({ app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
+const service = registerDubService({ observeJob:(session,event,cancel)=>observedJobs.push({id:session.id,type:event.type,cancel}), app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds, context) => { editContext=context; assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
@@ -429,6 +430,8 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(events.at(-1).quality.groups[0].status,'review','normalized verification must reach the renderer');
     assert.deepEqual(events.at(-1).quality.groups[0].verification.missing_numbers,['12']);
     assert.equal((await call('dub:latest')).output.quality.groups[0].status,'review','reopen must not restore a rejected ready state');
+    assert(observedJobs.some(row=>row.type==='start'&&typeof row.cancel==='function'),'Owned voice job exposes an exact cancellation callback');
+    assert(observedJobs.some(row=>['done','cancelled','error'].includes(row.type)),'Voice terminal event reaches job observer');
     console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

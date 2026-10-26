@@ -3,7 +3,7 @@
 const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','assistant-video',Date.now()+'-'+process.pid);
 fs.mkdirSync(out,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');
-app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');require('../src/main');
+app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');app.commandLine.appendSwitch('disable-renderer-backgrounding');require('../src/main');
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await wait(80);}throw Error('Timed out: '+label);}
 app.whenReady().then(async()=>{
@@ -12,7 +12,8 @@ app.whenReady().then(async()=>{
  await until(()=>parent('return !!window.AssistantVideoCommands'),'video adapter');
  const view=win.contentView.children.find(row=>row.webContents?.getURL().includes('assistant-overlay.html'));assert(view);
  const run=code=>view.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
- win.setContentSize(1440,1000);win.showInactive();
+ // Force a visible compositor surface for native capture on Windows.
+ win.setContentSize(1440,1000);win.show();win.webContents.focus();
  await parent(`await initialSettingsReady;window.UiLocale.set('tr',false);applyUiTheme('dark');
   document.body.classList.remove('media-home-active');document.getElementById('playerLayer').classList.remove('hidden');
   player.workspaceMode='browser';player.mediaKey='browser:assistant-video-fixture';player.generation++;
@@ -25,7 +26,7 @@ app.whenReady().then(async()=>{
  await until(()=>run("return document.getElementById('suggestions').textContent.includes('Yalnız Whisper')"),'video actions');
  await run("document.getElementById('bubble').click();return true");
  async function capture(name){
-  await run('await document.fonts.ready;return true');await wait(500);
+  await run('await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true');await wait(500);
   const bounds=await run("return {width:innerWidth,scroll:document.documentElement.scrollWidth,height:innerHeight,send:document.getElementById('send').getBoundingClientRect().bottom,log:document.getElementById('log').clientHeight,headerTop:document.querySelector('header').getBoundingClientRect().top,scrollY,theme:document.documentElement.dataset.theme,lang:document.documentElement.lang,surface:getComputedStyle(document.getElementById('panel')).backgroundColor}");
   assert(bounds.scroll<=bounds.width+1&&bounds.send<=bounds.height&&bounds.log>70&&bounds.headerTop>=0&&bounds.scrollY===0,JSON.stringify(bounds));
   fs.writeFileSync(path.join(out,name+'.png'),(await view.webContents.capturePage()).toPNG());return bounds;

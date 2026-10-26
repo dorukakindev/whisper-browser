@@ -1,12 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
 const {register}=require('../src/assistant-agent-service');
-function fixture(fetchImpl){
+function fixture(fetchImpl,extras={}){
  const ipcMain=new EventEmitter(),handlers=new Map(),app=new EventEmitter(),events=[];
  ipcMain.handle=(name,fn)=>handlers.set(name,fn);
  const sender=new EventEmitter();sender.id=7;sender.isDestroyed=()=>false;sender.send=(name,value)=>events.push({name,value});
  const event={sender,senderFrame:'main'},state={valid:true};
- const service=register({app,ipcMain,authorized:e=>e.sender===sender&&e.senderFrame==='main',getConfig:()=>({endpoint:'https://fixture.example/v1',model:'fixture'}),validateOwner:()=>state.valid,fetchImpl});
+ const service=register({app,ipcMain,authorized:e=>e.sender===sender&&e.senderFrame==='main',getConfig:()=>({endpoint:'https://fixture.example/v1',model:'fixture'}),validateOwner:()=>state.valid,fetchImpl,...extras});
  const owner={kind:'video',owner:'source-A',thread:'thread-A',tabId:'A',generation:1,tracks:[]};
  return {handlers,app,sender,event,events,state,service,owner,call:(name,data,e=event)=>handlers.get('assistant:'+name)(e,data)};
 }
@@ -35,4 +35,16 @@ test('Cancellation affects only the matching request and clears the active sessi
  await h.call('agentCancel',{requestId:'another'});assert.equal(aborts,0);
  await h.call('agentCancel',{requestId:'request-A'});assert.equal((await result).cancelled,true);assert.equal(aborts,1);assert.equal(h.service.sessions.size,0);
  h.app.emit('will-quit');
+});
+
+
+test('Main job tools use authoritative IDs and refuse a stale stop proposal after replacement',async()=>{
+ const jobs=require('../src/assistant-jobs').createJobs();let stops=0;
+ const id=jobs.start({cancel:async()=>{stops++;return {ok:true};}});let step=0;
+ const h=fixture(async()=>++step===1?reply({role:'assistant',content:null,tool_calls:[{id:'status',function:{name:'get_job_status',arguments:'{}'}},{id:'stop',function:{name:'cancel_job',arguments:JSON.stringify({job_id:id})}}]}):reply({role:'assistant',content:'Stop proposed.'}),{getJobs:jobs.snapshot,cancelJob:jobs.cancel});
+ assert((await h.call('agentRun',{requestId:'status-request',question:'Stop this job',owner:h.owner})).ok);
+ assert(!h.events.some(row=>row.value.type==='action'),'Status and stop are main-owned; no renderer status RPC');
+ const proposal=h.events.find(row=>row.value.type==='proposal').value.action;
+ jobs.update(id,{type:'done'});jobs.start({cancel:async()=>{stops++;return {ok:true};}});
+ assert.equal((await h.call('agentApply',{proposalId:proposal.proposalId,owner:h.owner})).ok,false);assert.equal(stops,0);h.app.emit('will-quit');
 });

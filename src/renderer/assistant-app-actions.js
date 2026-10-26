@@ -19,7 +19,7 @@
   if(Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>Date.now()>=deadline||!current(owner);
-  if(name==='get_job_status')return {status:'completed',snapshot:true,running:!!(state.running||state.queueRunning),kind:player.job?.kind||'',percent:Number(player.job?.percent)||0,stage:String(player.job?.stage||'').slice(0,200)};
+  if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
    if(Object.hasOwn(args,'start')){
