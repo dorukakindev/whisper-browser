@@ -1,3 +1,4 @@
+- [Rapor 610](BROWSER_BUG_REPORT_610.md) — YouTube0:00 takılma kökü,adblock açık kabul ve Task02 ön inceleme
 - [Rapor 609](BROWSER_BUG_REPORT_609.md) — Sahne notları,seçili çeviri,geri alınabilir zaman önerileri ve uyumlu medya
 - [Rapor 608](BROWSER_BUG_REPORT_608.md) — Dış repo önerileriyle güncel kaynak karşılaştırması
 - [Rapor 607](BROWSER_BUG_REPORT_607.md) — Claude read-only kaynak paketi ve dört ayrı gömülü global görev

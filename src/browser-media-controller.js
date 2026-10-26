@@ -12,6 +12,7 @@ function controllerBootstrap() {
     const media = new Set();
     const observers = new Map();
     let adAudioSnapshot = null;
+    const adAttempts = new WeakMap();
     let playbackPreference = { rate: 1, enforceRate: false, preservesPitch: true,
       brightness: 1, contrast: 1, normalizeAudio: false, silenceSpeedEnabled: false,
       silenceSpeedRate: 3, silenceThresholdDb: -45, audioProfile: 'off' };
@@ -425,6 +426,43 @@ function controllerBootstrap() {
       },
       findAdSkipButton() { return detectAd().skipButton; },
       muteForAd(item) { return muteForAd(item); },
+      skipAd(item) {
+        const ad = detectAd();
+        if (!ad.adPlaying) { adAttempts.delete(item); return { handled: false }; }
+        const duration = Number(item.duration);
+        let contentDuration = NaN;
+        try { contentDuration = Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds); } catch (_) {}
+        const isContent = Number.isFinite(contentDuration) && contentDuration > 0
+          && Number.isFinite(duration) && Math.abs(duration - contentDuration) < 2;
+        // An ad class can outlive its media. Never seek/mute the actual content
+        // or an unknown/long stream just because an overlay still exists.
+        const safeAdMedia = Number.isFinite(duration) && duration > 0 && duration <= 180 && !isContent;
+        const button = ad.skipButton;
+        if (!button && !safeAdMedia) {
+          restoreAdAudioIfEnded(item, false);
+          return { handled: false, adAction: 'waiting' };
+        }
+        const source = String(item.currentSrc || item.src || '');
+        let attempt = adAttempts.get(item);
+        if (!attempt || attempt.source !== source || attempt.duration !== duration) {
+          attempt = { source, duration, seeked: false, clicks: 0, lastClick: -Infinity };
+          adAttempts.set(item, attempt);
+        }
+        if (button) {
+          if (attempt.clicks >= 3 || Date.now() - attempt.lastClick < 1500)
+            return { handled: false, adAction: 'waiting' };
+          attempt.lastClick = Date.now(); attempt.clicks++;
+          muteForAd(item); button.click();
+          return { handled: true, adAction: 'clicked' };
+        }
+        if (attempt.seeked || finite(item.currentTime) >= duration - .1)
+          return { handled: false, adAction: 'waiting' };
+        // One seek per ad media identity. Repeated probes cannot continuously
+        // seek to duration and keep YouTube in its buffering/ended transition.
+        attempt.seeked = true;
+        muteForAd(item); item.currentTime = duration;
+        return { handled: true, adAction: 'seeked' };
+      },
       setRate(item, rate) {
         if (!item) return false;
         const next = Math.max(.25, Math.min(4, finite(rate, 1)));
@@ -474,6 +512,7 @@ function controllerBootstrap() {
         if (!item) return null;
         const ad = detectAd();
         restoreAdAudioIfEnded(item, ad.adPlaying);
+        if (!ad.adPlaying) adAttempts.delete(item);
         let totalVideoFrames = null;
         try {
           const quality = typeof item.getVideoPlaybackQuality === 'function'
@@ -600,19 +639,9 @@ function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
     if (command === 'skipAd') {
       const ad = controller.adState();
       if (!ad.adPlaying) return { handled: false };
-      controller.muteForAd(video);
-      let adAction = 'muted';
-      const skipButton = controller.findAdSkipButton();
-      if (skipButton) {
-        skipButton.click();
-        adAction = 'clicked';
-      } else {
-        const duration = Number(video.duration);
-        if (Number.isFinite(duration) && duration > 0) {
-          video.currentTime = duration;
-          adAction = 'seeked';
-        }
-      }
+      const action = controller.skipAd(video);
+      if (!action.handled) return action;
+      const adAction = action.adAction;
       return { handled: true, currentTime: finite(video.currentTime),
         playbackRate: finite(video.playbackRate, 1), paused: !!video.paused,
         volume: finite(video.volume), muted: !!video.muted,
