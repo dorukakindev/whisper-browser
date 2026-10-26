@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-2332.md](docs/devir/2026-10-26-2332.md) — Asistan P01: YouTube komutları, sağlayıcı ve native UI; sekiz paket planı
 Güncel çalışma: [docs/devir/2026-10-26-2251.md](docs/devir/2026-10-26-2251.md) — Claude asistan paketleri karşılaştırması ve bağımsız teyit
 Güncel çalışma: [docs/devir/2026-10-26-2147.md](docs/devir/2026-10-26-2147.md) — Claude için ayrıntılı asistan araştırma kaynak paketi
 Güncel çalışma: [docs/devir/2026-10-26-2019.md](docs/devir/2026-10-26-2019.md) — Ortak hareket, etkileşim cilası ve yüklenme durumları
