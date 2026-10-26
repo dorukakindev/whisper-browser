@@ -39,7 +39,8 @@ def capacity(free, total, requested, maximum=.8):
 def choose_capacity(args):
     import torch
     free,total=torch.cuda.mem_get_info()
-    requested=getattr(args,'requested_concurrency',args.eszamanli)
+    # Sıcak motor sonraki işler için de boyutlanır: kullanıcının yapılandırdığı eşzamanlılık esas alınır, bu işin eksik-grup sınırı değil.
+    requested=getattr(args,'configured_concurrency',getattr(args,'requested_concurrency',args.eszamanli))
     parallel,budget=capacity(free,total,requested,args.gpu_mem)
     if free<5.5*1024**3:
         raise RuntimeError('GPU memory busy: less than 5.5 GiB free; finish another GPU job and retry. The reference is unchanged.')
@@ -57,6 +58,7 @@ class EngineSession:
         self.loaded=None
         self.verifier=None
         self.verifier_python=None
+        self.stuck_verifiers=[]
     def run(self, coroutine):
         return self.loop.run_until_complete(coroutine)
     async def acquire(self, args, model, factory, ref_bytes, prompt):
@@ -68,7 +70,11 @@ class EngineSession:
             print('DUB_ENGINE '+json.dumps({'reused':True,'concurrency':args.eszamanli}),flush=True)
             return self.server
         await self.reset()
+        if self.stuck_verifiers:
+            from dub_lifecycle import EngineStalled
+            raise EngineStalled('Verifier cleanup is pending; completed speech remains recoverable.')
         parallel,budget=choose_capacity(args)
+        args.eszamanli=min(parallel,requested)   # bu işin kabul sınırı (tek kuyruk için kısılmış) korunur; sunucu tam kapasiteyle yüklenir
         self.server=factory(model,devices=[0],inference_timesteps=args.steps,max_num_seqs=parallel,
             max_num_batched_tokens=args.batch_tokens,max_model_len=args.max_model_len,
             gpu_memory_utilization=budget,enforce_eager=False)
@@ -104,8 +110,14 @@ class EngineSession:
         server=self.server
         self.server=None;self.key=None;self.reference=None;self.loaded=None
         verifier=self.verifier;self.verifier=None;self.verifier_python=None
+        pending=([verifier] if verifier is not None else [])+list(self.stuck_verifiers);self.stuck_verifiers=[]
         try:
-            if verifier is not None: await verifier.close()
+            for item in pending:
+                try: await item.close()
+                except Exception as error:
+                    # Kapanışı doğrulanamayan doğrulayıcı sahipsiz bırakılmaz; sonraki reset/close yeniden dener ve özgün hata maskelenmez.
+                    self.stuck_verifiers.append(item)
+                    print('DUB_WARNING verifier_close_failed '+type(error).__name__,flush=True)
         finally:
             if server is not None: await stop_server(server)
     def close(self):

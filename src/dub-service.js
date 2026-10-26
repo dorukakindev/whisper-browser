@@ -584,7 +584,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const env = voiceEnvironment(c.engine);
       // Flush output and report native crashes in this process and spawned GPU workers.
       env.PYTHONUNBUFFERED = '1'; env.PYTHONFAULTHANDLER = '1';
-      s.proc = c.keepEngine ? await warmEngine.start(python,args,{cwd:c.engine,env,windowsHide:true}) : (await warmEngine.release(),spawn(python,args,{cwd:c.engine,env,windowsHide:true}));
+      // Motor serbest bırakılırken/başlatılırken s.proc henüz yoktur; bu pencerede gelen iptal kaybolmamalıdır.
+      const startControl = { isCancelled: () => s.cancelled };
+      s.startPhase = new Promise(resolve => { s.startPhaseDone = resolve; });
+      try {
+        if (c.keepEngine) s.proc = await warmEngine.start(python,args,{cwd:c.engine,env,windowsHide:true},startControl);
+        else {
+          await warmEngine.release();
+          if (s.cancelled) throw Object.assign(new Error('İptal edildi.'), { code:'DUB_START_CANCELLED' });
+          s.proc = spawn(python,args,{cwd:c.engine,env,windowsHide:true});
+        }
+      } finally { s.startPhaseDone(); }
       let pending = '';
       const rewriteRequests = new Set();
       function line(value) {
@@ -740,18 +750,26 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           finish(s, 'error', { error: s.spawnError || details || `Ses üretimi başarısız oldu. (exit=${code ?? 'null'}, signal=${signal || 'none'})` });
         }
       });
+      // start() döndükten sonra gelen iptal: çalışan run'ı durdur (kapanış yukarıdaki close işleyicisinden 'cancelled' olur).
+      // cancel() waits for startPhase and then terminates the assigned run.
       return { ok: true, id: s.id };
-    } catch (error) { if (job === s) job = null; finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message }); throw error; }
+    } catch (error) {
+      if (job === s) job = null;
+      if (error.code === 'DUB_START_CANCELLED') { finish(s, 'cancelled'); return { ok: false, cancelled: true, error: 'İptal edildi.' }; }
+      finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message }); throw error;
+    }
   }));
   async function cancel() {
     const s = job;
     if (!s) return { ok: true };
     if (s.cancelPromise) return s.cancelPromise;
     s.cancelled = true;
-    const proc = s.proc;
     // UI cancellation and app shutdown can overlap. Share one attempt so a
     // second termination failure cannot reset the first request's cancel flag.
     s.cancelPromise = Promise.resolve().then(async () => {
+      if (s.startPhase) await s.startPhase;
+      if (job !== s) return { ok: true };
+      const proc = s.proc;
       if (proc) {
         const stopped = await terminate(proc);
         if (stopped === false) throw new Error('İptal isteği tamamlanamadı.');

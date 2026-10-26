@@ -281,6 +281,25 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong reference'):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
+    def test_metadata_write_failure_cannot_attach_old_ready_to_new_wave(self):
+        from dub_quality import cached_record
+        class Different(Server):
+            async def generate(self, *args, **kwargs):
+                async for part in super().generate(*args, **kwargs): yield part*2
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp)
+            self.run_generation(folder,Server(),['Original.'])
+            before=(folder/'0.wav').read_bytes()
+            original=Path.write_text
+            def disk_full(path, *args, **kwargs):
+                if path.name.startswith('0.json'): raise OSError('disk full')
+                return original(path,*args,**kwargs)
+            with patch.object(Path,'write_text',disk_full), self.assertRaises(OSError):
+                self.run_generation(folder,Different(),['Original.'],force=True)
+            self.assertNotEqual((folder/'0.wav').read_bytes(),before)
+            self.assertEqual(cached_record(folder/'0.wav')['status'],'review')
+            self.assertFalse(list(folder.glob('*.json.tmp')))
+
     def run_generation(self, folder, server, texts, auto_fit=False, verification='fast', natural=False, manual=False, force=False,
                        verifier=None, rewrite_text='Short.', request_timeout=1, timing_mode='clip',delivery=None,automatic=False,fallback=False,assessor=None):
         function = next(n for n in ast.parse(SCRIPT.read_text(encoding='utf-8')).body

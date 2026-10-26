@@ -13,7 +13,7 @@
       audio.addEventListener('error', () => this.fail('Ses dosyası açılamadı. WAV veya MP3 deneyin.'));
       audio.addEventListener('ended', () => this.changed(this.session, 'Dublaj sona erdi'));
       backgroundAudio?.addEventListener('loadedmetadata',()=>this.tick());
-      for(const a of [backgroundAudio,musicAudio,ambienceAudio]){a?.addEventListener('loadedmetadata',()=>this.tick());a?.addEventListener('error',()=>this.fail('Arka plan sesi açılamadı.'));}
+      for(const a of [backgroundAudio,musicAudio,ambienceAudio]){a?.addEventListener('loadedmetadata',()=>this.tick());a?.addEventListener('error',()=>this.layerFailed(a));}
     }
     matches(s = this.session) {
       const c = this.context();
@@ -106,13 +106,21 @@
       this.audio.pause(); this.backgroundAudio?.pause(); this.musicAudio?.pause();this.ambienceAudio?.pause();
       if(this.session)for(const key of ['music','ambience']){this.session[key+'Wanted']=false;this.session[key+'Epoch']=(this.session[key+'Epoch']||0)+1;this.session[key+'PlayPending']=false;}
     }
+    // İsteğe bağlı katman (arka plan/müzik/ambiyans) çökerse yalnız o katman kapatılır; dublaj sesi ve oturum sürer.
+    layerFailed(el) {
+      const s=this.session;if(!s)return;
+      const key=el===this.backgroundAudio?'background':el===this.musicAudio?'music':el===this.ambienceAudio?'ambience':null;
+      if(!key||s[key+'Failed'])return;
+      s[key+'Failed']=true;s[key+'Wanted']=false;s[key+'Epoch']=(s[key+'Epoch']||0)+1;s[key+'PlayPending']=false;try{el.pause();}catch(_){}
+      this.error(root.UiLocale?.get?.()==='tr'?'Arka plan sesi başlatılamadı; dublaj sesi devam ediyor.':'Background audio could not start; dubbed voice continues.');
+    }
     setMix(value,layers,refresh=true) {
       const s=this.session;if(!s)return;
       s.mix=Mix.mix({...s.mix,...value});
       if(layers){s.layers=layers;for(const key of ['music','ambience']){
         const a=this[key+'Audio'];if(!a)continue;
         const url=layers[key]?.url||'';
-        if((a.getAttribute?.('src')||a.src||'')!==url){s[key+'Epoch']=(s[key+'Epoch']||0)+1;s[key+'PlayPending']=false;s[key+'Wanted']=false;a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
+        if((a.getAttribute?.('src')||a.src||'')!==url){s[key+'Failed']=false;s[key+'Epoch']=(s[key+'Epoch']||0)+1;s[key+'PlayPending']=false;s[key+'Wanted']=false;a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
       }this.changed(s,'Dublaj açık');}
       this.audio.volume=s.mix.voice;if(refresh)this.tick();
     }
@@ -121,6 +129,7 @@
       for(const key of ['background','music','ambience']){
         const b=this[key+'Audio'];
         if(!(key==='background'?s.background:s.layers[key])||!b)continue;
+        if(s[key+'Failed']){b.pause();continue;}
         b.volume=s.mix[key]*duck;
         if(b.readyState<=0)continue;
         b.playbackRate=rate;
@@ -132,7 +141,7 @@
           s[pending]=true;const epoch=s[epochKey]=(s[epochKey]||0)+1;
           Promise.resolve(b.play()).then(()=>{
             if(!this.session || (this.session===s&&(epoch===s[epochKey]||!s[wanted])&&(!s[wanted]||!this.matches(s)||this.sample?.paused||this.sample?.adPlaying||this.sample?.spinnerVisible||this.now()-this.sample.at>2200)))b.pause();
-          }).catch(()=>{if(this.session===s&&epoch===s[epochKey]&&s[wanted])void this.fail('Arka plan sesi başlatılamadı.');})
+          }).catch(()=>{if(this.session===s&&epoch===s[epochKey]&&s[wanted])this.layerFailed(b);})
             .finally(()=>{if(epoch===s[epochKey])s[pending]=false;});
         }
       }

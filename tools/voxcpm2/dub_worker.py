@@ -1,5 +1,6 @@
 """Owned stdin worker. No network listener, credentials or arbitrary imports."""
 import json
+from contextlib import redirect_stderr
 import multiprocessing
 import sys
 import traceback
@@ -30,6 +31,20 @@ def read_request(stream):
     return request
 
 
+
+class RequestStderr:
+    """Bounded Python diagnostic tail, also forwarded to the host stderr pipe."""
+    def __init__(self, stream):
+        self.stream, self.tail = stream, ''
+    def write(self, value):
+        self.tail = (self.tail + value)[-32768:]
+        return self.stream.write(value)
+    def flush(self):
+        return self.stream.flush()
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
 def main():
     # Windows pipes otherwise decode JSON paths with the locale code page.
     sys.stdin.reconfigure(encoding='utf-8',errors='strict')
@@ -45,21 +60,26 @@ def main():
                 return 1  # A request without a trustworthy id cannot be acknowledged.
             if request is None or request.get('shutdown') is True:
                 break
-            code=0
-            try:
-                argv=request['args']
-                if not isinstance(argv,list) or not all(isinstance(x,str) for x in argv):
-                    raise ValueError('Invalid worker request')
-                code=reader.main(argv,runtime=runtime) or 0
-            except BaseException as error:
-                traceback.print_exc(file=sys.stderr)
+            # Her işin stderr'i çerçevelenir; Node tarafı geç gelen stderr'i yanlış işe yazmaz ve DONE'dan önce END'i bekler.
+            print('DUB_WORKER_STDERR_BEGIN '+request['id'], file=sys.stderr, flush=True)
+            diagnostics = RequestStderr(sys.stderr)
+            with redirect_stderr(diagnostics):
+                code=0
                 try:
-                    runtime.run(runtime.reset())
-                except BaseException:
+                    argv=request['args']
+                    if not isinstance(argv,list) or not all(isinstance(x,str) for x in argv):
+                        raise ValueError('Invalid worker request')
+                    code=reader.main(argv,runtime=runtime) or 0
+                except BaseException as error:
                     traceback.print_exc(file=sys.stderr)
-                    return 1  # Never accept another job on an unreset engine.
-                code=error.code if isinstance(error,SystemExit) and isinstance(error.code,int) else 1
-            print('DUB_WORKER_DONE '+json.dumps({'id':request['id'],'code':code}),flush=True)
+                    try:
+                        runtime.run(runtime.reset())
+                    except BaseException:
+                        traceback.print_exc(file=sys.stderr)
+                        return 1  # Never accept another job on an unreset engine.
+                    code=error.code if isinstance(error,SystemExit) and isinstance(error.code,int) else 1
+            print('DUB_WORKER_STDERR_END '+request['id'], file=sys.stderr, flush=True)
+            print('DUB_WORKER_DONE '+json.dumps({'id':request['id'],'code':code,'stderr':diagnostics.tail}),flush=True)
     finally:
         runtime.close()
 

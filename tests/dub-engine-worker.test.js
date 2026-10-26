@@ -62,3 +62,23 @@ test('A confirmed stop settles active work even if close arrives after terminate
  const run=await worker.start('python',['/r/altyazi_oku.py'],{cwd:'engine',env:{}});let closes=0;run.on('close',()=>closes++);await tick();
  await worker.release();assert.equal(closes,1);host.emit('close',1,null);await tick();assert.equal(closes,1);assert.equal(worker.running(),false);
 });
+
+test('live host errors keep ownership and repeated error events remain handled',async()=>{
+ const {worker,hosts}=setup(),options={cwd:'engine',env:{}};
+ const run=await worker.start('python',['/r/altyazi_oku.py','a'],options);await tick();
+ hosts[0].emit('error',Error('EPERM'));hosts[0].emit('error',Error('EPERM again'));
+ assert.equal(worker.running(),true);assert.equal(run.exitCode,null);
+ await assert.rejects(worker.start('python',['/r/altyazi_oku.py','b'],options),/busy/);assert.equal(hosts.length,1);await worker.release();
+});
+test('host zero exit without per-request DONE is a failure',async()=>{
+ const {worker,hosts}=setup();const run=await worker.start('python',['/r/altyazi_oku.py','a'],{cwd:'e',env:{}});await tick();
+ const done=new Promise(r=>run.once('close',r));hosts[0].exitCode=0;hosts[0].emit('close',0,null);assert.equal(await done,1);
+});
+test('DONE diagnostic tail works even before the first stderr BEGIN and never contaminates a successor',async()=>{
+ const {worker,hosts}=setup(),options={cwd:'e',env:{}};
+ const a=await worker.start('python',['/r/altyazi_oku.py','a'],options);await tick();let ae='';a.stderr.on('data',x=>ae+=x);
+ hosts[0].stdout.write('DUB_WORKER_DONE '+JSON.stringify({id:a.workerId,code:1,stderr:'Traceback: failure in A\n'})+'\n');assert.equal(a.exitCode,1);assert.match(ae,/failure in A/);
+ const b=await worker.start('python',['/r/altyazi_oku.py','b'],options);await tick();let be='';b.stderr.on('data',x=>be+=x);
+ hosts[0].stderr.write('DUB_WORKER_STDERR_BEGIN '+a.workerId+'\nTraceback: failure in A\nDUB_WORKER_STDERR_END '+a.workerId+'\n');
+ assert.equal(be,'');hosts[0].stdout.write('DUB_WORKER_DONE '+JSON.stringify({id:b.workerId,code:0,stderr:''})+'\n');assert.equal(b.exitCode,0);await worker.release();
+});
