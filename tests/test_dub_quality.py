@@ -72,7 +72,7 @@ class QualityTests(unittest.TestCase):
 
     def test_long_speech_cannot_hide_negative_verb_flip(self):
         prefix='Bu uzun anlatımın ayrıntılarını ve sonuçlarını şimdi hep birlikte dikkatle değerlendirelim. '
-        for source,heard in [('Ben gitmem.','Ben giderim.'),('Bunu okuyamam.','Bunu okurum.'),('Böyle olmasın.','Böyle olsun.')]:
+        for source,heard in [('Ben gitmem.','Ben giderim.'),('Bunu okuyamam.','Bunu okurum.'),('Böyle olmasın.','Böyle olsun.'),('Gelmeden gitti.','Gelip gitti.'),('Gelmeksizin gitti.','Gelip gitti.'),('Gelmeyince gitti.','Gelince gitti.')]:
             result=Q.speech_check(prefix+source,prefix+heard)
             self.assertTrue(result['semantic_mismatch'])
             self.assertTrue(result['review'])
