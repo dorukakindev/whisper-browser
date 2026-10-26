@@ -81,6 +81,10 @@ const workflowModule = require("../src/media-workflows"),
   register = workflowModule.registerMediaWorkflows;
 let service;
 workflowModule.registerMediaWorkflows = (args) => (service = register(args));
+const {ipcMain}=require('electron');
+let prepareTextHandler;
+const originalHandle=ipcMain.handle.bind(ipcMain);
+ipcMain.handle=(channel,handler)=>{if(channel==='pdf:prepareText')prepareTextHandler=handler;return originalHandle(channel,handler)};
 require("../src/main");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, label) {
@@ -142,6 +146,29 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
+    const layoutProbe = await run(`
+      const hash=player.pdfReader.pdfHash;
+      const invalid=await window.api.preparePdfText({pdfHash:'missing',pages:[]});
+      const items=[];
+      for(let row=0;row<2;row++)for(let col=0;col<3;col++)items.push({str:['First','Second','Third'][col]+' column '+(row?'ends here.':'starts here'),width:125+row*5,height:10,transform:[1,0,0,10,40+col*180,680-row*15]});
+      const result=await window.api.preparePdfText({pdfHash:hash,pages:[{pageNumber:1,pageHeight:800,pageWidth:600,items}]});
+      const oversized=await window.api.preparePdfText({pdfHash:hash,pages:[{pageNumber:1,items:Array(8001).fill({str:'x'})}]});
+      return {invalid:invalid.ok,oversized:oversized.ok,result};
+    `);
+    assert.equal(layoutProbe.invalid,false);assert.equal(layoutProbe.oversized,false);
+    assert(layoutProbe.result.ok,layoutProbe.result.error);
+    const ordered=layoutProbe.result.pages[0].blocks.map(b=>b.source).join(' ');
+    assert(ordered.indexOf('First column ends')<ordered.indexOf('Second column starts'));
+    assert(ordered.indexOf('Second column ends')<ordered.indexOf('Third column starts'));
+    ipcMain.removeHandler('pdf:prepareText');
+    originalHandle('pdf:prepareText',async()=>({ok:false,error:'controlled layout failure'}));
+    try {
+      const fallback=await run('player.pdfReader.pages.delete(2);const blocks=await extractPdfReaderPage(2);return {text:blocks.map(b=>b.source).join(" "),warning:player.pdfReader.pages.get(2).layoutWarning,status:document.getElementById("pdfReaderStatus").textContent}');
+      assert(fallback.text.includes('controlled PDF'));assert.equal(fallback.warning,'controlled layout failure');assert(fallback.status.includes('kontrol et'));
+    } finally {
+      ipcMain.removeHandler('pdf:prepareText');originalHandle('pdf:prepareText',prepareTextHandler);
+      await run('player.pdfReader.pages.delete(2);return true');
+    }
     await capture("reading-tr-dark.png");
     const layout=await run('const pages=document.getElementById("pdfReaderPages").getBoundingClientRect(),reader=document.getElementById("pdfReader").getBoundingClientRect();return {top:pages.top-reader.top,available:pages.height,total:reader.height,duplicateHead:getComputedStyle(document.querySelector(".player-head")).display};');
     assert(layout.available>layout.total*.7,JSON.stringify(layout));

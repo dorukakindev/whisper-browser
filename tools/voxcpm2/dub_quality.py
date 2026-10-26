@@ -23,12 +23,16 @@ def lexical_negatives(text):
 
 def speech_check(expected, actual, numeric_reference=None):
     case_suffix=r'(?:e|a|ye|ya|i|ı|u|ü|yi|yı|yu|yü|ın|in|un|ün|nın|nin|nun|nün|dan|den|tan|ten|da|de|ta|te|la|le|yla|yle)'
-    name_cases=re.findall(r"\b([A-ZÇĞİÖŞÜ][a-zçğıöşü]+)['’]("+case_suffix+r')\b',expected)
+    name_cases=re.findall(r"\b((?:[A-ZÇĞİÖŞÜ]{2,}|[A-ZÇĞİÖŞÜ][a-zçğıöşü]+))['’]("+case_suffix+r')\b',expected)
     def words(text):
         for name,suffix in name_cases:
             text=re.sub(r'\b'+re.escape(name)+r"['’]?"+re.escape(suffix)+r'\b',
                         name+suffix,text,flags=re.I)
-        return re.findall(r"[^\W_]+", unicodedata.normalize('NFKC', spoken_text(text)).casefold().replace('i\u0307', 'i'))
+        normalized = unicodedata.normalize('NFKC', spoken_text(text))
+        # A Turkish-letter word establishes local casing without changing
+        # English 'I' or Latin acronyms throughout a mixed-language block.
+        normalized = re.sub(r'[^\W_]+', lambda m: m[0].replace('I','ı').replace('İ','i') if re.search('[çğıöşüÇĞİÖŞÜ]',m[0]) else m[0], normalized)
+        return re.findall(r"[^\W_]+", normalized.casefold().replace('i\u0307', 'i'))
     target = words(expected)
     # ASR may print the spoken "elli bin" as "50.000". Only interpret a
     # dotted thousands spelling when that exact whole quantity is present in
@@ -49,6 +53,15 @@ def speech_check(expected, actual, numeric_reference=None):
         return digits
     actual=re.sub(r'(?<![\w.,])(\d{1,3})\s+(bin|milyon|milyar)\b',mixed_number,actual,flags=re.I)
     heard = words(actual)
+    def spoken_quantities(tokens):
+        rows=[]; current=[]
+        for token in [*tokens, '']:
+            if token in number_words: current.append(token)
+            else:
+                if current and current != ['bir']: rows.append(tuple(current))
+                current=[]
+        return Counter(rows)
+    spoken_number_mismatch = spoken_quantities(target) != spoken_quantities(heard)
     alignment = SequenceMatcher(None, target, heard, autojunk=False)
     similarity = alignment.ratio()
     # A high overall similarity can hide an unfinished ending or a missing
@@ -179,10 +192,10 @@ def speech_check(expected, actual, numeric_reference=None):
     # ASR is evidence for review, never permission to silently remove speech.
     return {'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
             'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
-            'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch,
+            'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch, 'spoken_number_mismatch': spoken_number_mismatch,
             'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,
             'repetition': repetition, 'sign_mismatch': sign_mismatch, 'missing_names': missing_names,
-            'review': similarity < .85 or bool(omissions) or bool(insertions) or bool(missing_numbers) or bool(added_numbers) or percentage_mismatch or semantic_mismatch or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
+            'review': spoken_number_mismatch or similarity < .85 or bool(omissions) or bool(insertions) or bool(missing_numbers) or bool(added_numbers) or percentage_mismatch or semantic_mismatch or lost_negation or added_negation or unit_mismatch or repetition or sign_mismatch or bool(missing_names) or not heard}
 
 
 def generation_status(score, verification):

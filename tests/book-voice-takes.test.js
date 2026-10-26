@@ -22,7 +22,7 @@ test("voice takes persist, preserve review state and refuse stale text, changed 
     ipcMain: { handle: (name, fn) => (handlers[name] = fn) },
     authorized: (e) => e.sender === sender,
     owner: () => null,
-    resolvePdf: () => ({ filePath: source, title: "Book" }),
+    resolvePdf: () => ({ filePath: source, numPages: 1, title: "Book" }),
     grantSubtitle() {},
     grantMedia() {},
     voiceRunning: () => running,

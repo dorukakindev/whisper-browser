@@ -876,6 +876,14 @@
         ),
       ),
     );
+    if (c.pdfPreparation) {
+      const notice = el("p", "mw-muted", t(
+        `PDF text follows the detected reading order; ${c.pdfPreparation.removedMarginLines || 0} marginal lines removed. Review the text before narration.`,
+        `PDF metni algılanan okuma sırasını izler; ${c.pdfPreparation.removedMarginLines || 0} kenar satırı çıkarıldı. Seslendirmeden önce metni kontrol et.`,
+      ));
+      notice.dataset.pdfPreparation = "true";
+      edit.append(notice);
+    }
     if (project.format === "pdf")
       window.BookTextPreparationUI?.mount(edit, {
         input: textarea,

@@ -17887,6 +17887,15 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
+// Layout preparation is model-free and keeps the authorized document scope.
+ipcMain.handle('pdf:prepareText', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Unauthorized PDF request.' };
+  const document = pdfDocumentByHash(request?.pdfHash);
+  if (!document) return { ok: false, error: 'Reopen the authorized PDF / Onaylı PDFyi yeniden açın.' };
+  try { return { ok: true, pages: preparePdfPageRequests(request.pages) }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
+
 ipcMain.handle('pdf:state', async (event, request = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const document = pdfDocumentByHash(request.pdfHash);

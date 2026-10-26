@@ -42,7 +42,7 @@ test("persisted book job recovers after service restart, manual review stays aud
     authorized: (e) => e.sender === sender,
     owner: () => null,
     resolvePdf: (id) =>
-      id === "approved" ? { filePath: source, title: "Kitap" } : null,
+      id === "approved" ? { filePath: source, numPages: 2, title: "Kitap" } : null,
     grantSubtitle() {},
     grantMedia() {},
     ffprobe: () => "probe",

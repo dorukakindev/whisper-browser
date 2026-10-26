@@ -256,6 +256,7 @@ contextBridge.exposeInMainWorld('api', {
   exportBrowserPageTranslation: (tabId, format) => ipcRenderer.invoke('browser:page:export', { tabId, format }),
   openPdf: (filePath = '') => ipcRenderer.invoke('pdf:open', { filePath }),
   getPdfState: (pdfHash, targetLanguage, model) => ipcRenderer.invoke('pdf:state', { pdfHash, targetLanguage, model }),
+  preparePdfText: (payload) => ipcRenderer.invoke('pdf:prepareText', payload),
   translatePdfPages: (payload) => ipcRenderer.invoke('pdf:translatePages', payload),
   cancelPdfTranslation: (pdfHash) => ipcRenderer.invoke('pdf:cancel', { pdfHash }),
   exportPdfTranslation: (pdfHash, format, targetLanguage, model) => ipcRenderer.invoke('pdf:export', { pdfHash, format, targetLanguage, model }),
