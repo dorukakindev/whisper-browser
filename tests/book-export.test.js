@@ -424,3 +424,17 @@ test("mixed-rate chapter export retains real resampling, ordered metadata and co
     15000,
   );
 });
+
+test("real M4B metadata preserves reserved characters and chapter-marker text",{timeout:20000},async(t)=>{
+ const ffmpeg=findMediaTool("ffmpeg"),ffprobe=findMediaTool("ffprobe");assert(ffmpeg&&ffprobe);
+ const f=await fixture(t,{ffmpeg:()=>ffmpeg,ffprobe:()=>ffprobe,runTool:require("../src/browser-media-tools").run});
+ const file=path.join(voiceStorage({getPath:()=>f.root}).input,"Kitap projeleri",f.id,"project.json");
+ const d=JSON.parse(fs.readFileSync(file,"utf8"));
+ d.title='AC=DC; #1\\Kitap\nİkinci satır 😀';d.author='Yazar\\Soyadı; #=Ali';
+ d.chapters[0].title='Giriş = Başlangıç; x';d.chapters[1].title='Bölüm #2\n[CHAPTER]\nSTART=0';
+ fs.writeFileSync(file,JSON.stringify(d));
+ const result=await f.call("book-export",{id:f.id,chapters:[0,1]});assert(result.ok,result.error);
+ const raw=require("node:child_process").execFileSync(ffprobe,["-v","error","-show_format","-show_chapters","-of","json",f.target],{encoding:"utf8",windowsHide:true});
+ const actual=JSON.parse(raw);assert.equal(actual.format.tags.title,d.title);assert.equal(actual.format.tags.artist,d.author);
+ assert.equal(actual.chapters.length,2);assert.deepEqual(actual.chapters.map(c=>c.tags.title),d.chapters.map(c=>c.title));
+});

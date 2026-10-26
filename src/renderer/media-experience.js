@@ -12,6 +12,7 @@
       title: String(value.title || '').slice(0, 500), synopsis: String(value.synopsis || '').slice(0, 4000),
       chapter: String(value.chapter || '').slice(0, 500), excerpt: String(value.excerpt || '').slice(0, 8000),
       selectedText: String(value.selectedText || '').slice(0, 4000),
+      selectedTextTruncated: value.selectedTextTruncated === true || String(value.selectedText || '').length > 4000,
     }); changed();
     if (!owner.dataset.contextObserved) { owner.dataset.contextObserved = '1'; owner.addEventListener('close', changed); }
   }
@@ -29,7 +30,7 @@
       if (typeof element.value === 'string' && Number.isInteger(element.selectionStart)) {
         text = element.value;
         offset = element.selectionStart;
-        selectedText = text.slice(offset, element.selectionEnd).slice(0, 4000);
+        selectedText = text.slice(offset, element.selectionEnd).slice(0, 4001);
       } else {
         const selection = window.getSelection();
         if (!selection?.rangeCount || !element.contains(selection.anchorNode) || !element.contains(selection.focusNode)) return;
@@ -38,7 +39,7 @@
         prefix.setEnd(range.startContainer, range.startOffset);
         text = element.textContent || '';
         offset = prefix.toString().length;
-        selectedText = selection.isCollapsed ? '' : selection.toString().slice(0, 4000);
+        selectedText = selection.isCollapsed ? '' : selection.toString().slice(0, 4001);
       }
       onChange({ text, offset, selectedText });
     };

@@ -21,9 +21,12 @@
       throw Error(
         t("Readable book text is required.", "Okunabilir kitap metni gerekli."),
       );
-    const selected = String(source.selectedText || "")
-      .trim()
-      .slice(0, 4000);
+    const selected = String(source.selectedText || "").trim();
+    if (kind === "explain" && (selected.length > 4000 || source.selectedTextTruncated === true))
+      throw Error(t(
+        "Select a shorter passage (up to 4,000 characters); nothing was sent.",
+        "Daha kısa bir pasaj seç (en fazla 4.000 karakter); hiçbir metin gönderilmedi.",
+      ));
     if (
       kind === "explain" &&
       (!selected || !normalized(source.text).includes(normalized(selected)))
@@ -83,6 +86,7 @@
       a.chapter === b.chapter &&
       a.text === b.text &&
       String(a.selectedText || "") === String(b.selectedText || "")
+      && !!a.selectedTextTruncated === !!b.selectedTextTruncated
     );
   }
   return Object.freeze({ prepare, same });

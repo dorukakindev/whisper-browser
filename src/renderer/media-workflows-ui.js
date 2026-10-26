@@ -904,6 +904,7 @@
           chapter: c.title,
           text: textarea.value,
           selectedText: base?.id === id ? base.selectedText : "",
+          selectedTextTruncated: base?.id === id && base.selectedTextTruncated === true,
           excerpt:
             base?.id === id ? base.excerpt : textarea.value.slice(0, 8000),
         };
@@ -1545,6 +1546,7 @@
           chapter: project?.chapters[current]?.title,
           text: project?.chapters[current]?.text || "",
           selectedText: base?.id === id ? base.selectedText : "",
+          selectedTextTruncated: base?.id === id && base.selectedTextTruncated === true,
           excerpt: base?.id === id ? base.excerpt : "",
         };
       },

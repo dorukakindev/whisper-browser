@@ -136,6 +136,15 @@ app
         JSON.stringify(draft) +
         ';n.dispatchEvent(new Event("input"));return true',
     );
+    // The real passage bridge must carry truncation evidence to the action;
+    // a 5200-character selection must never become an unnoticed 4000-char ask.
+    await run('const n=document.querySelector("textarea[data-chapter]");n.focus();n.setSelectionRange(0,5200);n.dispatchEvent(new Event("select"));const r=document.querySelector(".mw-body .book-assistant-actions");if(r.tagName==="DETAILS")r.open=true;[...r.querySelectorAll("button")].find(b=>b.textContent.includes("Seçili pasajı açıkla")).click();return true');
+    await until(()=>run('return document.querySelector(".mw-body .book-assistant-note").textContent.includes("4.000")'),"oversize selection notice");
+    assert.equal(await run('return bookRequests.length'),0);
+    await run('document.querySelector(".mw-body .book-assistant-actions").scrollIntoView({block:"center"});return true');
+    await run('const n=document.querySelector(".mw-body .book-assistant-note");n.scrollIntoView({block:"center"});if(n.getBoundingClientRect().height<1)throw Error("selection warning hidden");return true');
+    await capture(win.webContents,"book-selection-limit-tr.png");
+    await run('const n=document.querySelector("textarea[data-chapter]");n.setSelectionRange(0,0);n.dispatchEvent(new Event("select"));return true');
     const summary = await requestFrom(
       ".mw-body .book-assistant-actions",
       "Bölümü özetle",
