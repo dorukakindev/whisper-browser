@@ -8,7 +8,7 @@ test('Tools depend on real source availability; video actions do not require cap
  assert(names({kind:'book',hasSubtitles:false}).includes('get_source_context'));
  assert(!names({kind:'book',hasSubtitles:false}).includes('start_whisper'));
  assert(names({kind:'page'}).includes('translate_page'));
- assert.equal(new Set(registry.list({kind:'video',hasSubtitles:true}).map(row=>row.name)).size,19);
+ assert.equal(new Set(registry.list({kind:'video',hasSubtitles:true}).map(row=>row.name)).size,29);
 });
 test('Arguments reject unknown actions, secret fields, wrong types and partial ranges',()=>{
  for(const [name,args] of [['shell',{command:'anything'}],['start_whisper',{translate:'true'}],['start_whisper',{translate:true,start:3}],['start_whisper',{translate:true,start:10,end:2}],['open_settings',{section:'ai',apiKey:'never'}],['translate_page',{target_language:'../bad'}]])assert.throws(()=>registry.validate(name,args,{kind:'video',hasSubtitles:true}));

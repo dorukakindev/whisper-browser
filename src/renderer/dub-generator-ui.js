@@ -177,22 +177,22 @@
       el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
     } catch(error) {delete el('dubPronunciationStatus').dataset.saved;el('dubPronunciationStatus').textContent=error.message;}
   });
-  async function configure(kind) {
+  async function configure(kind, preserveOptions = false) {
     pronunciationLabels();
     const sequence = ++configSequence;
     const r = await window.api.dubConfig(kind).catch(() => null);
     if (sequence !== configSequence) return;
     if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
-    if (!current) el('dubPronunciations').value = (r.pronunciations || []).map(row => `${row.from} = ${row.to}`).join('\n');
-    if(!current)el('dubKeepEngine').checked=r.keepEngine!==false;
+    if (!current && !preserveOptions) el('dubPronunciations').value = (r.pronunciations || []).map(row => `${row.from} = ${row.to}`).join('\n');
+    if(!current && !preserveOptions)el('dubKeepEngine').checked=r.keepEngine!==false;
     el('dubStorageOpen').disabled = !r.storageRoot;
-    if (!current) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
-    if (!current) el('dubTimingMode').value = r.timingMode || 'video';
-    if (!current) el('dubExpression').value = r.expression || 'reference';
-    if (!current) { el('dubFollowDelivery').checked = r.followDelivery === true; el('dubDeliveryStrength').value = r.deliveryStrength || 'balanced'; }
-    if (!current && !plan) el('dubGrouping').value = r.grouping || 'akici';
-    if (!current) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
+    if (!current && !preserveOptions) { el('dubProfile').value = r.profile || 'quality'; el('dubConcurrency').value = String(r.concurrency || 4); }
+    if (!current && !preserveOptions) el('dubTimingMode').value = r.timingMode || 'video';
+    if (!current && !preserveOptions) el('dubExpression').value = r.expression || 'reference';
+    if (!current && !preserveOptions) { el('dubFollowDelivery').checked = r.followDelivery === true; el('dubDeliveryStrength').value = r.deliveryStrength || 'balanced'; }
+    if (!current && !preserveOptions && !plan) el('dubGrouping').value = r.grouping || 'akici';
+    if (!current && !preserveOptions) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
     el('dubEngineName').textContent = r.engine;
     el('dubVoiceName').textContent = basename(r.reference);
     el('dubTranscriptName').textContent = basename(r.transcript);
@@ -261,7 +261,7 @@
   }
   el('browserDubGenerate').addEventListener('click', open);
   window.addEventListener('dub-workspace:busy', event => { workspaceBusy=!!event.detail; controls(); });
-  window.addEventListener('voice-reference:changed', () => { void configure(); });
+  window.addEventListener('voice-reference:changed', () => { void configure(undefined,true); });
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
@@ -275,7 +275,7 @@
       el('dubSrtName').textContent = basename(candidate); refreshOverview();
       status('Hazır');
     }
-  } });
+  }, assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
@@ -304,7 +304,7 @@
   el('dubFollowDelivery').addEventListener('change',controls);
   el('dubChooseDeliverySource').addEventListener('click',()=>chooseInput('delivery'));
   el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';});
-  el('dubPlanPrepare').addEventListener('click', async () => {
+  async function preparePlan() {
     if (planning || current || referenceBusy || choosing || !srt) return;
     const media = mediaIdentity();
     planning = true; controls();
@@ -320,7 +320,8 @@
       status(r.skipped > 0 ? `${t('Cümle grupları hazır')} · ${r.skipped} ${t('ses-dışı altyazı satırı atlandı')}` : 'Cümle grupları hazır');
     } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
     finally { planning = false; inheritSubtitleRange(); controls(); }
-  });
+  }
+  el('dubPlanPrepare').addEventListener('click',()=>void preparePlan());
   function invalidatePlan() {
     plan = null; edits = {}; lastRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
@@ -417,6 +418,7 @@
       current = null; el('dubGeneratorProgress').value = 0; status('Ses üretimi başarısız oldu.');
       el('dubGeneratorDetails').textContent = generationError(r?.error); controls();
     }
+    return {ok:!!r?.ok,id:pending.id};
   }
   el('dubGeneratorStart').addEventListener('click', () => start());
   el('dubRetryFailed').addEventListener('click', () => start(true));
@@ -447,7 +449,7 @@
   groupAudio.addEventListener('emptied',stopGroupPreview);
   groupAudio.addEventListener('ended',()=>{rangeEnd=null;});
   groupAudio.addEventListener('error',stopGroupPreview);
-  listenGroup.onclick=async()=>{
+  async function listenSelectedGroup(){
     if(current||workspaceBusy)return;
     stopGroupPreview();
     const row=results.get(el('dubQualityGroup').value),source=output;
@@ -458,9 +460,11 @@
     if(!Number.isFinite(groupAudio.duration)||row.audioStart>=groupAudio.duration){status('Ses aralığı bu dosyada bulunamadı.');return;}
     try {
       rangeEnd=Math.min(row.audioEnd,groupAudio.duration);groupAudio.currentTime=row.audioStart;
-      await groupAudio.play();
+      await groupAudio.play();return true;
     } catch(error){if(generation===groupPlayGeneration){rangeEnd=null;status(error.message);}}
-  };
+    return false;
+  }
+  listenGroup.onclick=()=>void listenSelectedGroup();
   el('dubListenPrevious').addEventListener('click',async()=>{
     if(current||workspaceBusy||previousMedia!==mediaIdentity())return;
     stopGroupPreview();const source=previousOutput,row=source?.quality?.groups?.find(value=>value.key===el('dubQualityGroup').value),latest=output;
@@ -583,5 +587,52 @@
       : output.qualityUnavailable ? 'Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.'
       : 'Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
   });
+
+  function voiceSettings(){return {profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
+  function voiceState(){
+    let range=null,invalidRange=false;try{range=selectedRange();}catch(_){invalidRange=true;}
+    const groups=[...results.values()].sort((a,b)=>Number(a.status==='ready')-Number(b.status==='ready')||a.group-b.group);
+    return {opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
+      settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
+      output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
+      counts:{total:groups.length,review:groups.filter(row=>row.status==='review').length,failed:groups.filter(row=>row.status==='failed').length},
+      groups:groups.slice(0,30).map(row=>({id:row.key,number:row.group,status:row.status,text:String(row.text||row.displayText||'').slice(0,220),verification:String(row.verification?.status||'not_checked')})),groupsTruncated:groups.length>30};
+  }
+  async function ensureVoice(isCancelled){
+    if(!modal.open)await window.DubGeneratorUI.prepareCurrent();else if(!cfg)await configure();
+    if(isCancelled())throw Error('The source changed / Kaynak değişti.');
+    if(current||referenceBusy||planning||choosing||workspaceBusy)throw Error('Voice controls are busy / Ses kontrolleri meşgul.');
+  }
+  async function voiceConfigure(args,isCancelled){
+    await ensureVoice(isCancelled);
+    const values={profile:'dubProfile',concurrency:'dubConcurrency',grouping:'dubGrouping',verification:'dubVerification',timingMode:'dubTimingMode',expression:'dubExpression',deliveryStrength:'dubDeliveryStrength'};
+    const checks={keepBackground:'dubKeepBackground',followDelivery:'dubFollowDelivery',sample:'dubSampleOnly'};
+    for(const [key,id] of Object.entries(values))if(args[key]!==undefined)el(id).value=String(args[key]);
+    for(const [key,id] of Object.entries(checks))if(args[key]!==undefined)el(id).checked=args[key];
+    if(args.start!==undefined){el('dubRangeEnabled').checked=true;el('dubRangeStart').value=String(args.start);el('dubRangeEnd').value=String(args.end);}
+    if(args.grouping!==undefined||args.start!==undefined)invalidatePlan();controls();refreshOverview();return {ok:true};
+  }
+  async function voiceStart(args,isCancelled){
+    await ensureVoice(isCancelled);if(args.sample!==undefined)el('dubSampleOnly').checked=args.sample;
+    if(!srt||!cfg?.ready)return {ok:false};return start();
+  }
+  async function voiceGroup(args,isCancelled){
+    await ensureVoice(isCancelled);const row=results.get(args.group_id);if(!row)return {ok:false};
+    if(args.operation==='open'&&!plan){await preparePlan();if(isCancelled())return {ok:false};}
+    el('dubQualityGroup').value=args.group_id;el('dubQualityGroup').dispatchEvent(new Event('change'));
+    if(args.operation==='regenerate'){if(!lastRequest)return {ok:false};return start(true,[args.group_id]);}
+    if(args.operation==='listen')return {ok:await listenSelectedGroup()===true};
+    return {ok:!!plan?.groups.some(group=>group.key===args.group_id)};
+  }
+  async function voiceUse(id,isCancelled){
+    await ensureVoice(isCancelled);const selected=output,context=window.BrowserDubAudioUI?.context();
+    if(!selected||selected.id!==id||selected.sample||selected.syncInvalid||!context?.hasMedia||!context.visible)return {ok:false};
+    // A source+ID query proves both against the main log, rather than trusting
+    // a renderer/project's most recently displayed output from another video.
+    const proof=await window.api.latestDub({id,source:context.source||context.mediaKey});
+    if(isCancelled()||output!==selected||!proof?.ok||proof.output?.id!==id||proof.output.sample||proof.output.syncInvalid)return {ok:false};
+    el('dubGeneratedPreview').pause();
+    return {ok:await window.BrowserDubAudioUI.attachGenerated({...proof.output,...window.DubWorkspaceUI?.attachment(selected)},context)===true};
+  }
   controls();
 })();

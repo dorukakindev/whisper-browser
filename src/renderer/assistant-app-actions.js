@@ -9,6 +9,7 @@
   return contract.clean({kind,owner:aiSourceScope(),thread:window.AssistantWorkspace?.activeId()||'',tabId:tab?.id||'',generation:tab?.generation||0,
    pageKey:tab?window.AssistantSourceContext.pageKey(url):'',title:selection?.title||player.browserPageTitle||document.getElementById('playerTitle')?.textContent||'',
    time:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
+   hasMedia:!selection&&!!window.BrowserDubAudioUI?.context()?.hasMedia&&!!window.BrowserDubAudioUI?.context()?.visible,voiceStudio:!!document.getElementById('dubGeneratorDialog')?.open,
    hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
    range:kind==='video'?currentBrowserWhisperRange():null,
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
@@ -19,6 +20,7 @@
   if(Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>Date.now()>=deadline||!current(owner);
+  if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));

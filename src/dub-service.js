@@ -339,7 +339,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const scoped = requestedId && typeof requestedId === 'object';
     const source = scoped ? sourceIdentity(requestedId.source) : null;
     if (scoped && !source) return {ok:true,output:null};
-    if (scoped) requestedId = undefined;
+    if (scoped) requestedId = requestedId.id;
     if (requestedId !== undefined && !/^[a-zA-Z0-9-]{1,80}$/.test(requestedId)) return { ok: false, error: 'Invalid voice identity.' };
     const root = voiceStorage(app).output;
     const logs = path.join(app.getPath('userData'), 'dub-logs');

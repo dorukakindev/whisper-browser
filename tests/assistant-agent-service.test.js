@@ -63,3 +63,13 @@ test('Web research returns actual sources in a canonical trailing section',async
  let count=0;const h=fixture(async()=>++count===1?reply({role:'assistant',tool_calls:[{id:'web',function:{name:'research_web',arguments:'{"query":"Who is the author?"}'}}]}):reply({role:'assistant',content:'Answer.'}),{researchWeb:async()=>({text:'Supported fact.',sources:[{title:'Official source',url:'https://example.com/fact'},{title:'private',url:'http://localhost/private'}]})});
  const result=await h.call('agentRun',{requestId:'web-A',question:'Look it up',owner:h.owner,locale:'en'});assert(result.ok);assert(result.text.includes('Web sources:\n[W1] Official source\nhttps://example.com/fact'));assert(!result.text.includes('localhost'));h.app.emit('will-quit');
 });
+
+
+test('Voice proposals require real reference, group and output identities before a card exists',async()=>{
+ for(const [name,args,proven] of [['set_voice_reference',{reference_id:'voice-A'},true],['set_voice_reference',{reference_id:'guessed'},false],['voice_group',{group_id:'g1',operation:'listen'},true],['voice_group',{group_id:'guessed',operation:'regenerate'},false],['use_generated_voice',{output_id:'out-A'},true],['use_generated_voice',{output_id:'guessed'},false]]){
+  let count=0;const h=fixture(async()=>++count===1?reply({role:'assistant',tool_calls:[{id:'voice',function:{name,arguments:JSON.stringify(args)}}]}):reply({role:'assistant',content:'Checked.'}));
+  const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:value.name==='list_voice_references'?{status:'completed',references:[{id:'voice-A',name:'My voice'}]}:{status:'completed',voice:{busy:false,subtitleReady:true,ready:true,groups:[{id:'g1',number:1}],output:{id:'out-A',sample:false,syncInvalid:false}}}}));};
+  assert((await h.call('agentRun',{requestId:'voice-check',question:'Use this voice',owner:h.owner})).ok);
+  assert.equal(h.events.some(row=>row.value.type==='proposal'),proven,name+' '+JSON.stringify(args));assert(h.events.filter(row=>row.value.type==='action').every(row=>['list_voice_references','get_voice_status'].includes(row.value.name)));h.app.emit('will-quit');
+ }
+});
