@@ -165,9 +165,10 @@ app
     try {
       const fallback=await run('player.pdfReader.pages.delete(2);const blocks=await extractPdfReaderPage(2);return {text:blocks.map(b=>b.source).join(" "),warning:player.pdfReader.pages.get(2).layoutWarning,status:document.getElementById("pdfReaderStatus").textContent}');
       assert(fallback.text.includes('controlled PDF'));assert.equal(fallback.warning,'controlled layout failure');assert(fallback.status.includes('kontrol et'));
+      await capture('layout-fallback-warning.png');
     } finally {
       ipcMain.removeHandler('pdf:prepareText');originalHandle('pdf:prepareText',prepareTextHandler);
-      await run('player.pdfReader.pages.delete(2);return true');
+      await run('player.pdfReader.pages.delete(2);pdfReaderSetStatus(interfaceChoice("Hazır","Ready"));return true');
     }
     await capture("reading-tr-dark.png");
     const layout=await run('const pages=document.getElementById("pdfReaderPages").getBoundingClientRect(),reader=document.getElementById("pdfReader").getBoundingClientRect();return {top:pages.top-reader.top,available:pages.height,total:reader.height,duplicateHead:getComputedStyle(document.querySelector(".player-head")).display};');
