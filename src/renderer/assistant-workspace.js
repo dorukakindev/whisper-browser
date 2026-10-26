@@ -81,7 +81,7 @@
   if(current()){player.chatHistory=history(current());player.chatHistoryScope=aiSourceScope();}else{player.chatHistory=[];player.chatHistoryScope=null;}
   restoreLog();changed();
  }
- function stateGlobalBusy(){return !!(window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit);}
+ function stateGlobalBusy(){return !!(window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)));}
  function actionResult(proposalId,result){
   for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
    const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;

@@ -356,7 +356,9 @@ function shuffle(items, random) {
     assert(html.indexOf('queue-lifecycle.js') < html.indexOf('renderer.js'));
     assert(/startTranscribeSafe\(opts, requestedJobId/.test(renderer));
     assert(/eventMatchesActiveJob\(state, event\)/.test(renderer));
-    assert(/const sendJobEvent = \(event\) => sendEvent\(\{ \.\.\.event, jobId \}\)/.test(main));
+    const eventAdapter=main.slice(main.indexOf('const sendJobEvent = (event)'),main.indexOf('const jobResourceSampler ='));
+    assert(eventAdapter.includes('assistantJobs.update(assistantJobId,event)'), 'main-owned snapshot must receive the same job event');
+    assert(/sendEvent\(\{ \.\.\.event, jobId \}\)/.test(eventAdapter), 'renderer event must retain its original jobId');
     const killBody = main.slice(main.indexOf('function killActiveJob()'), main.indexOf('// ---- Kalıcı ayarlar'));
     assert(/lifecycle\.requestCancel\(\)/.test(killBody), 'app-close kill yolu lifecycle iptalini işaretlemiyor');
   });

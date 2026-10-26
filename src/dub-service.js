@@ -12,7 +12,7 @@ const {normalize: normalizePronunciations} = require('./dub-pronunciation');
 const {identity: sourceIdentity} = require('./dub-source-identity');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
   let job = null, releasingEngine=false;
   const warmEngine=require('./dub-engine-worker').createDubEngineWorker({spawn,terminate});
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
@@ -69,6 +69,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       try { fs.appendFileSync(s.logPath, JSON.stringify(record) + '\n', 'utf8'); }
       catch (error) { s.logError = error.message; }
     }
+    observeJob(s,{type,...data});
     if (!s.sender.isDestroyed()) s.sender.send('dub:event', { id: s.id, type, ...data });
   }
   function claimArtifacts(s, files) {
@@ -87,6 +88,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   function ownJob(s) {
     job = s;
+    observeJob(s,{type:'start'},()=>job===s?cancel():Promise.resolve({ok:false}));
     s.onDestroyed = () => { if (job === s) void cancel().catch(() => {}); };
     s.sender.once?.('destroyed', s.onDestroyed);
   }

@@ -752,6 +752,10 @@ function setTaskbarProgress(value) {
   }
 }
 
+const assistantJobs = require('./assistant-jobs').createJobs({changed:snapshot=>{
+  if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('assistant:jobsEvent',snapshot);
+}});
+
 function sendEvent(payload) {
   for (const file of Array.isArray(payload?.files) ? payload.files : []) subtitleFileAccess.grant(file);
   // Pencere iş çalışırken kapatılmış olabilir — yok edilmiş pencereye göndermeye çalışma
@@ -18099,7 +18103,12 @@ async function resolveDubSource(request) {
     }
     return source;
 }
+const dubAssistantJobs=new WeakMap();
 const dubService = require('./dub-service').registerDubService({
+  observeJob:(session,event,cancel)=>{
+    if(event.type==='start')dubAssistantJobs.set(session,assistantJobs.start({kind:session.settings?.kind==='reference'?'reference':'voice',cancel}));
+    else {const id=dubAssistantJobs.get(session);if(id)assistantJobs.update(id,event);}
+  },
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
   authorizeSubtitle: authorizeSubtitleFile, spawn, onOutput: output => { mediaWorkflows?.capture(output); return dubWorkspace.register(output); },
   terminate: proc => terminateProcessTreeAndWait(proc, { spawn }),
@@ -20120,7 +20129,9 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
 require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=browserTranslationConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
+require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
+  getJobs:()=>assistantJobs.snapshot(),cancelJob:id=>assistantJobs.cancel(id),
   getConfig:()=>{const config=browserTranslationConfig();const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};},
   validateOwner:owner=>{
     if(!['page','video'].includes(owner.kind))return true;
@@ -21358,7 +21369,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const lifecycle = createProcessTerminalLatch(jobId);
   activeJobLatch = lifecycle;
   activeTranscriptionJobId = jobId;
-  const sendJobEvent = (event) => sendEvent({ ...event, jobId });
+  const assistantJobId=assistantJobs.start({kind:options.chat?'legacy-chat':options.translateOnly?'translation':'transcription',cancel:()=>{
+    if(activeJob!==job)return {ok:false};killActiveJob();return {ok:true};
+  }});
+  const sendJobEvent = (event) => {assistantJobs.update(assistantJobId,event);sendEvent({ ...event, jobId });};
 
   const jobResourceSampler = startJobResourceSampler({ sendJobEvent, outputDir: pipelineOutputDir });
 

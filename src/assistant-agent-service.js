@@ -4,7 +4,7 @@ const registry=require('./assistant-capabilities'),manifest=require('./assistant
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 
-function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch}){
+function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false})}){
  const sessions=new Map(),proposals=new Map(),pending=new Map();
  const emit=(sender,packet)=>{if(!sender.isDestroyed())sender.send('assistant:agentEvent',packet);};
  function requireOwner(owner){if(!owner.owner||!owner.thread||!validateOwner(owner))throw Error('The source changed / Kaynak değişti.');}
@@ -41,6 +41,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const execute=async(name,args)=>{
     controller.signal.throwIfAborted();requireOwner(owner);const entry=registry.get(name);
     if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. The application already has book, dubbing, library and settings screens; broader assistant control of those existing screens comes in later packages. Do not claim those application features are missing.'};
+    if(name==='get_job_status')return getJobs();
     if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000)};
     if(name==='list_subtitle_tracks')return {tracks:owner.tracks};
     if(name==='search_subtitles'||name==='get_current_subtitle'){
@@ -50,6 +51,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});return {matches,scope:'Only the supplied subtitle pool was searched.'};
     }
     if(entry.policy==='proposal'){
+     if(name==='cancel_job'&&!getJobs().jobs.some(row=>row.id===args.job_id&&row.cancellable))throw Error('Job is no longer cancellable.');
      if(['seek_to_time','preview_translation_change'].includes(name)&&!sourcePool.some(row=>row.id===args.source_id))throw Error('Unknown source subtitle ID.');
      if(name==='translate_captions'&&!owner.tracks.some(row=>row.id===args.track_id&&row.role==='source'))throw Error('Unknown source track ID.');
      for(const [key,row] of proposals)if(row.expires<Date.now())proposals.delete(key);
@@ -81,7 +83,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const current=manifest.clean(input.owner);if(row.expires<Date.now()||!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
    requireOwner(current);registry.validate(row.name,row.args,current);proposals.delete(input.proposalId);
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
-   try{return {ok:true,result:await requestRenderer(event.sender,current,row.name,row.args,controller.signal)};}finally{clearTimeout(timer);}
+   try{if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}return {ok:true,result:await requestRenderer(event.sender,current,row.name,row.args,controller.signal)};}finally{clearTimeout(timer);}
   }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}
  });
  app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort();for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});

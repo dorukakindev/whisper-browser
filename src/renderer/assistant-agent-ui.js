@@ -1,13 +1,13 @@
 (() => {
  'use strict';
  if(!window.api?.assistantAgentRun||!window.api.onAssistantAgentEvent)return;
- let pending=null;
+ let pending=null,retryPacket=null;
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const errorText=value=>{const parts=String(value||'').split(' / ');return window.UiLocale?.get?.()==='tr'&&parts[1]?parts[1]:parts[0];};
  const changed=()=>{updateAiChatActions();document.dispatchEvent(new Event('assistant-agent-changed'));};
  const status=()=>pending&&window.AssistantAppActions.current(pending.owner)?pending:null;
  async function send(question,context,history,scope){
-  if(pending)return;
+  if(pending)return;retryPacket=null;
   const task={id:crypto.randomUUID(),scope,owner:window.AssistantAppActions.snapshot(),text:'',actions:[],evidence:[]};
   aiChatAdd('user',question);
   task.job={chatQuestion:question,chatContext:context,sourceScope:scope,bubble:aiChatAdd('ai',t('Connecting to your assistant…','Asistana bağlanılıyor…'),'is-loading')};
@@ -26,6 +26,7 @@
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
+  if(!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner};
   if(pending===task)pending=null;changed();
  }
  const unsubscribe=window.api.onAssistantAgentEvent(packet=>{
@@ -64,7 +65,9 @@
   if(result.status==='failed')throw Error(result.error||t('Action failed.','İşlem başarısız oldu.'));
   return result;
  }
- window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending,cancel,apply});
+ const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
+ async function retry(){if(!canRetry()||pending)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope);}
+ window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending,cancel,apply,canRetry,retry});
  document.addEventListener('media-context-changed',()=>{if(pending&&!window.AssistantAppActions.current(pending.owner))void cancel();});
  window.addEventListener('pagehide',()=>{unsubscribe?.();if(pending)void window.api.assistantAgentCancel({requestId:pending.id});});
 })();
