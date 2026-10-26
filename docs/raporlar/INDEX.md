@@ -1,3 +1,4 @@
+- [Rapor 613](BROWSER_BUG_REPORT_613.md) — Paylaşılan tasarım kontrol noktasının bağımsız değerlendirmesi; ürün değişmedi
 - [Rapor 612](BROWSER_BUG_REPORT_612.md) — Task03 kitap/PDF/EPUB, review ve ses bütünlüğü onarımları
 - [Rapor 611](BROWSER_BUG_REPORT_611.md) — Task02 karar tablosu, çeviri kapıları ve kaynaklı asistan web araması
 - [Rapor 610](BROWSER_BUG_REPORT_610.md) — YouTube0:00 takılma kökü,adblock açık kabul ve Task02 ön inceleme
