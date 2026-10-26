@@ -100,7 +100,7 @@
     }
     if(value.blocked&&!pending){$('delivery').dataset.blocked='true';showStatus(t('Another task is running. Your question stays in the draft.','Başka bir iş çalışıyor. Sorun taslakta kalır.'));}else if(!value.blocked&&$('delivery').dataset.blocked==='true'){$('delivery').dataset.blocked='false';if(!value.receipt?.message)showStatus('');}
     renderJobs(value);
-    const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.messages]);
+    const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.busy, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
     const log = $('log'), previousScroll=log.scrollTop,bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
     log.replaceChildren();
@@ -130,6 +130,8 @@
         apply.disabled=busy||!!proposed.resultStatus;
         apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.'));$('review').hidden=false;};
         card.append(title,detail,apply);
+        if(proposed.canContinue){const next=document.createElement('button');next.className='flow-continue';next.textContent=proposed.waiting?t('Check job & continue','İşi kontrol et ve devam et'):t('Continue with result','Sonuçla devam et');next.disabled=busy;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
+
         if(proposed.resultText){const receipt=document.createElement('p');receipt.className='action-receipt';receipt.setAttribute('role','status');receipt.textContent=proposed.resultText;card.append(receipt);}
         node.append(card);
       }

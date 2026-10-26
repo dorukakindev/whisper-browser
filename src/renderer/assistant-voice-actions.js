@@ -1,8 +1,8 @@
 (() => {
  'use strict';
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
- async function execute(name,args,owner,{deadline=Infinity}={}){
-  const stale=()=>Date.now()>=deadline||!window.AssistantAppActions.current(owner);
+ async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false}={}){
+  const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   const ui=window.DubGeneratorUI?.assistant;
   if(name==='get_voice_status')return {status:'completed',voice:ui?.state()||{opened:false},attached:!!window.BrowserDubAudioUI?.originalPlayback(),note:t('Only selected settings and bounded check results; the model has not listened to this audio.','Yalnız seçili ayarlar ve sınırlı kontrol sonuçlarıdır; model bu sesi dinlemedi.')};
@@ -27,7 +27,7 @@
   else if(name==='use_generated_voice'){result=await ui.use(args.output_id,stale);note=t('The matching generated voice is attached to this video.','Bu videoya ait üretilen ses bağlandı.');}
   if(stale())throw Error(t('The source changed. The previous job remains in Jobs.','Kaynak değişti. Önceki iş İşler bölümünde izlenebilir.'));
   if(!result?.ok)throw Error(t('Voice action was not confirmed. Check the existing voice panel.','Ses işlemi doğrulanamadı. Mevcut ses panelini kontrol et.'));
-  return {status:name==='start_voice_generation'||name==='voice_group'&&args.operation==='regenerate'?'accepted':'completed',note};
+  return {jobId:result.id,status:name==='start_voice_generation'||name==='voice_group'&&args.operation==='regenerate'?'accepted':'completed',note};
  }
  window.AssistantVoiceActions=Object.freeze({execute});
 })();

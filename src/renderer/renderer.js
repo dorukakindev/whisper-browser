@@ -4427,6 +4427,7 @@ async function startProgressiveChunk(job) {
     : 'Altyazı hazırlanıyor…';
   const result = await startTranscribeSafe(opts);
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if(result?.ok&&job.ranges.length===1)job.backendJobId=result.jobId;
   if (!result || !result.ok) {
     job.running = false;
     job.failed = true;
@@ -25866,7 +25867,7 @@ async function startPlayerSubtitleTranslation(config = {}) {
       if (bar) bar.classList.add('hidden');
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
-    return {ok:!!r?.ok,error:r?.error,job:r?.ok?translationJob:null};
+    return {ok:!!r?.ok,error:r?.error,jobId:r?.jobId,job:r?.ok?translationJob:null};
 }
 if ($('makeTransBtn')) $('makeTransBtn').addEventListener('click',()=>void startPlayerSubtitleTranslation());
 

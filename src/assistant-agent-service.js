@@ -4,14 +4,15 @@ const registry=require('./assistant-capabilities'),manifest=require('./assistant
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 
-function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false}),probeVideo=async()=>({ok:false}),researchWeb=async()=>({})}){
+function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false}),probeVideo=async()=>({ok:false}),resolveJobId=()=>null,researchWeb=async()=>({})}){
+ const flows=require('./assistant-flows').createFlows({getJobs}),applications=new Map();
  const sessions=new Map(),proposals=new Map(),pending=new Map(),captionProbes=new Map();
  const emit=(sender,packet)=>{if(!sender.isDestroyed())sender.send('assistant:agentEvent',packet);};
  function requireOwner(owner){if(!owner.owner||!owner.thread||!validateOwner(owner))throw Error('The source changed / Kaynak değişti.');}
  function requestRenderer(sender,owner,name,args,signal){
   requireOwner(owner);const callId=randomUUID(),budget=['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(name)?120000:name==='translate_video_captions'?100000:30000;
   return new Promise((resolve,reject)=>{
-   const abort=()=>finish(null,Error('Assistant action cancelled / Asistan işlemi iptal edildi.'));
+   const abort=()=>{emit(sender,{type:'action-cancel',callId});finish(null,Error('Assistant action cancelled / Asistan işlemi iptal edildi.'));};
    const timer=setTimeout(()=>finish(null,Error('Application action timed out / Uygulama işlemi zaman aşımına uğradı.')),budget);
    const finish=(value,error)=>{if(!pending.has(callId))return;pending.delete(callId);clearTimeout(timer);signal?.removeEventListener('abort',abort);error?reject(error):resolve(value);};
    pending.set(callId,{sender,finish});signal?.addEventListener('abort',abort,{once:true});
@@ -29,13 +30,16 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  });
  ipcMain.handle('assistant:agentRun',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant request.'};
-  if(sessions.has(event.sender.id))return {ok:false,error:'Assistant is already running / Asistan zaten çalışıyor.'};
+  if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Assistant is already running / Asistan zaten çalışıyor.'};
   let controller,session,timer,stop;
   try{
    if(!identifier(input.requestId)||typeof input.question!=='string'||!input.question.trim()||input.question.length>16000||JSON.stringify(input).length>4*1024*1024)throw Error('Invalid assistant request.');
    const owner=manifest.clean(input.owner);requireOwner(owner);
+   const resumed=input.continuationId?flows.resume(input.continuationId,event.sender.id,owner):null;
+   if(resumed?.waiting)return {ok:true,waiting:true,text:resumed.text};
+   const flow=resumed?.flow||flows.start(event.sender.id,owner,input.question);
    const sourcePool=manifest.pool(input.pool);owner.hasSubtitles=sourcePool.length>0;
-   controller=new AbortController();session={id:input.requestId,controller,owner};sessions.set(event.sender.id,session);
+   controller=new AbortController();session={id:input.requestId,controller,owner,flow};sessions.set(event.sender.id,session);
    stop=()=>controller.abort();event.sender.once('destroyed',stop);timer=setTimeout(stop,120000);
    const evidence=new Map();
    const execute=async(name,args)=>{
@@ -47,7 +51,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      const languages=available.sort((a,b)=>Number(a.auto)-Number(b.auto)||Number(!/^(?:en|tr)(?:-|$)/.test(a.code))-Number(!/^(?:en|tr)(?:-|$)/.test(b.code))).slice(0,80).map(row=>({id:'yt-'+(row.auto?'auto':'manual')+':'+row.code,language:row.code,automatic:row.auto===true}));
      captionProbes.set(event.sender.id,{owner,languages,expires:Date.now()+300000});return {languages,truncated:available.length>languages.length,note:'Choose a listed caption ID. No captions means Whisper must be explicitly requested; it was not started.'};
     }
-    if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. The application already has book, dubbing, library and settings screens; broader assistant control of those existing screens comes in later packages. Do not claim those application features are missing.'};
+    if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. Book, dubbing, library and normal settings tools are source/domain dependent. Do not claim unlisted controls or access to secrets, files, arbitrary browser automation or the full book.'};
     if(name==='research_web'){const result=await researchWeb(args.query,controller.signal);const sources=(result.sources||[]).filter(row=>require('./assistant-web-research').safeSource(row.url)).slice(0,10);session.webSources=sources;return {text:result.text,sources};}
     if(name==='get_job_status')return getJobs();
     if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000)};
@@ -59,6 +63,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});return {matches,scope:'Only the supplied subtitle pool was searched.'};
     }
     if(entry.policy==='proposal'){
+     if(flows.repeated(flow,name,args))return {status:'completed',note:'This exact step already ran in this flow. Read current status; do not repeat it.'};
      if(name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,owner)||!probe.languages.some(row=>row.id===args.caption_id))throw Error('Probe this video first and select a real caption ID.');}
      if(name==='cancel_job'&&!getJobs().jobs.some(row=>row.id===args.job_id&&row.cancellable))throw Error('Job is no longer cancellable.');
      if(['seek_to_time','preview_translation_change','open_subtitle_editor'].includes(name)&&!sourcePool.some(row=>row.id===args.source_id))throw Error('Unknown source subtitle ID.');
@@ -74,13 +79,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(name==='apply_library_collection'){const state=await requestRenderer(event.sender,owner,'get_collection_plan',{plan_id:args.plan_id},controller.signal);if(!state.plan)throw Error('Collection plan unavailable.');collectionIdentity=JSON.stringify(state.plan);summary=(state.plan.member===false?(input.locale==='tr'?'Üyelikten çıkar: ':'Remove membership: '):(input.locale==='tr'?'Üyeliğe ekle: ':'Add membership: '))+state.plan.name+' · '+state.plan.items.map(row=>row.title).join(', ').slice(0,1200);}
      controller.signal.throwIfAborted();requireOwner(owner);
      const action={kind:'app_action',proposalId,tool:name,label,summary};
-     proposals.set(proposalId,{sender:event.sender,owner,name,args,libraryIdentity,collectionIdentity,expires:Date.now()+10*60*1000});
+     proposals.set(proposalId,{sender:event.sender,owner,name,args,flow,libraryIdentity,collectionIdentity,expires:Date.now()+10*60*1000});
      emit(event.sender,{type:'proposal',requestId:session.id,action});
      return {status:'proposed',label,proposalId,note:'A real action card was created. It has not run; the user may apply it.'};
     }
     return requestRenderer(event.sender,owner,name,args,controller.signal);
    };
-   const result=await provider.run({question:input.question,history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config:getConfig(),signal:controller.signal,fetchImpl,
+   const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config:getConfig(),signal:controller.signal,fetchImpl,
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});
    controller.signal.throwIfAborted();
@@ -91,10 +96,11 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  });
  ipcMain.handle('assistant:agentCancel',(event,input={})=>{
   if(!authorized(event))return {ok:false};const session=sessions.get(event.sender.id);
-  if(session&&session.id===input.requestId)session.controller.abort();return {ok:true};
+  if(session&&session.id===input.requestId)session.controller.abort();const applying=applications.get(event.sender.id);if(applying?.id===input.requestId)applying.controller.abort();return {ok:true};
  });
  ipcMain.handle('assistant:agentApply',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
+  if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Another assistant action is running / Başka asistan işlemi sürüyor.'};
   const row=proposals.get(input.proposalId);if(!row||row.sender!==event.sender)return {ok:false,error:'This action expired; ask again / Öneri eskidi; yeniden iste.'};
   try{
    const current=manifest.clean(input.owner);if(row.expires<Date.now()||!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
@@ -102,10 +108,11 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    if(row.name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,current)||!probe.languages.some(item=>item.id===row.args.caption_id))throw Error('Caption selection expired. Probe again.');}
    proposals.delete(input.proposalId);
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(row.name)?120000:row.name==='translate_video_captions'?100000:30000);
-   try{if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}return {ok:true,result:await requestRenderer(event.sender,current,row.name,row.args,controller.signal)};}finally{clearTimeout(timer);}
+   applications.set(event.sender.id,{id:input.proposalId,controller});
+   try{if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const result=await requestRenderer(event.sender,current,row.name,row.args,controller.signal);const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);applications.delete(event.sender.id);}
   }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}
  });
- app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort();for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});
- return {sessions,proposals};
+ app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort();for(const row of applications.values())row.controller.abort();for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});
+ return {sessions,proposals,flows,applications};
 }
 module.exports={register};

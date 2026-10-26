@@ -2293,7 +2293,7 @@
     }
     if(name==='start_book_narration'||name==='book_chapter'&&args.operation==='regenerate'){
       // Keep the existing workflow running, but acknowledge only an actual startDub acceptance.
-      const expected=p.id;return new Promise((resolve,reject)=>{let accepted=false;const control={isCancelled:()=>!dialog?.open||project?.id!==expected||(!accepted&&stale()),onAccepted:()=>{if(!accepted){accepted=true;resolve({status:'accepted',note:t('The first voice job was accepted. Follow production progress; quality is not yet verified.','İlk ses işi kabul edildi. Üretim ilerlemesini takip et; kalite henüz doğrulanmadı.')});}}};generate(name==='book_chapter',null,control).then(()=>{if(!accepted)reject(Error('No voice job was accepted.'));}).catch(error=>{status(error.message);if(!accepted)reject(error);});});
+      const expected=p.id;return new Promise((resolve,reject)=>{let accepted=false;const control={isCancelled:()=>!dialog?.open||project?.id!==expected||(!accepted&&stale()),onAccepted:acceptedId=>{if(!accepted){accepted=true;resolve({status:'accepted',jobId:selected.size===1?acceptedId:undefined,note:t('The first voice job was accepted. Follow production progress; quality is not yet verified.','İlk ses işi kabul edildi. Üretim ilerlemesini takip et; kalite henüz doğrulanmadı.')});}}};generate(name==='book_chapter',null,control).then(()=>{if(!accepted)reject(Error('No voice job was accepted.'));}).catch(error=>{status(error.message);if(!accepted)reject(error);});});
     }
     throw Error('Book action unavailable.');
   }

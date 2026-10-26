@@ -752,6 +752,8 @@ function setTaskbarProgress(value) {
   }
 }
 
+const assistantJobLinks=new Map();
+function linkAssistantJob(external,id){if(external){assistantJobLinks.set(external,id);while(assistantJobLinks.size>100)assistantJobLinks.delete(assistantJobLinks.keys().next().value);}}
 const assistantJobs = require('./assistant-jobs').createJobs({changed:snapshot=>{
   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('assistant:jobsEvent',snapshot);
 }});
@@ -18147,7 +18149,7 @@ async function resolveDubSource(request) {
 const dubAssistantJobs=new WeakMap();
 const dubService = require('./dub-service').registerDubService({
   observeJob:(session,event,cancel)=>{
-    if(event.type==='start')dubAssistantJobs.set(session,assistantJobs.start({kind:session.settings?.kind==='reference'?'reference':'voice',cancel}));
+    if(event.type==='start'){const id=assistantJobs.start({kind:session.settings?.kind==='reference'?'reference':'voice',cancel});dubAssistantJobs.set(session,id);linkAssistantJob(session.id,id);}
     else {const id=dubAssistantJobs.get(session);if(id)assistantJobs.update(id,event);}
   },
   app, ipcMain, dialog, owner: () => mainWindow, authorized: authorizedBrowserSender,
@@ -20172,7 +20174,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=browserTranslationConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
 require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
-  getJobs:()=>assistantJobs.snapshot(),cancelJob:id=>assistantJobs.cancel(id),
+  getJobs:()=>assistantJobs.snapshot(),resolveJobId:id=>assistantJobLinks.get(id),cancelJob:id=>assistantJobs.cancel(id),
   researchWeb:(query,signal)=>{const config=browserTranslationConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
   probeVideo:async(owner,signal)=>{
     const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
@@ -21424,6 +21426,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const assistantJobId=assistantJobs.start({kind:options.chat?'legacy-chat':options.translateOnly?'translation':'transcription',cancel:()=>{
     if(activeJob!==job)return {ok:false};killActiveJob();return {ok:true};
   }});
+  linkAssistantJob(jobId,assistantJobId);
   const sendJobEvent = (event) => {assistantJobs.update(assistantJobId,event);sendEvent({ ...event, jobId });};
 
   const jobResourceSampler = startJobResourceSampler({ sendJobEvent, outputDir: pipelineOutputDir });
