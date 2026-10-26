@@ -1,3 +1,4 @@
+- [Rapor 604](BROWSER_BUG_REPORT_604.md) — Entegrasyon paketi karşılaştırması;alınacaklar,zatenvarolanlar ve paket kusurları
 - [Rapor 603](BROWSER_BUG_REPORT_603.md) — 30kabul maddesi:PDF narasyonu,sayı/ASR/editör anlam kanıtı
 - [Rapor 602](BROWSER_BUG_REPORT_602.md) — Task01:9ses kökü; sıcak iptal, süreç/tanı sahipliği, cache bütünlüğü ve katman onarımları
 - [Rapor 601](BROWSER_BUG_REPORT_601.md) — Claude checkpoint:7doğrulanmış kök onarıldı; sütun ve sayı kapısı eksikleri açık
