@@ -49,7 +49,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), direct:!!row.direct, label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
         id:String(row.id||'').slice(0,100),status:String(row.status||'').slice(0,20),
-        actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),kind:String(a.kind||'').slice(0,60),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],
+        actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),kind:String(a.kind||'').slice(0,60),label:String(a.label||'').slice(0,120),resultStatus:String(a.resultStatus||'').slice(0,20),resultText:String(a.resultText||'').slice(0,500),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],
         role: row.role === 'user' ? 'user' : 'ai',loading:!!row.loading,error:!!row.error,text: String(row.text || '').slice(0, 32000),
         links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 200),excerpt:String(link.excerpt||'').slice(0,1200),translation:String(link.translation||'').slice(0,1200), label: String(link.label || '').slice(0, 80) })) : [],
       })) : [],

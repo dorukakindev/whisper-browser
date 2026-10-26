@@ -19750,8 +19750,8 @@ function renderAiChatContext(context, frozen = false) {
 
 function aiChatCtxLabel() {
   updateAiChatActions();
-  const frozenJob = player.job?.kind === 'chat' && player.job?.chatContext
-    && (player.job.running || player.job.awaitingExit) ? player.job : null;
+  const frozenJob = window.AssistantAgentUI?.status()?.job || (player.job?.kind === 'chat' && player.job?.chatContext
+    && (player.job.running || player.job.awaitingExit) ? player.job : null);
   renderAiChatContext(frozenJob ? frozenJob.chatContext : aiChatContext(), !!frozenJob);
 }
 
@@ -19868,7 +19868,7 @@ function aiChatAdd(role, text, cls) {
 let aiChatPreparing=null;
 let aiChatRetryPacket=null;
 function updateAiChatActions(){
-  const busy=!!window.AssistantVideoCommands?.status()||!!aiChatPreparing||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit));
+  const busy=!!window.AssistantAgentUI?.status()||!!window.AssistantVideoCommands?.status()||!!aiChatPreparing||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit));
   if($('aiChatSend'))$('aiChatSend').disabled=busy;
   $('aiChatCancel')?.classList.toggle('hidden',!busy);
   $('aiChatRetry')?.classList.toggle('hidden',busy||!aiChatRetryPacket||aiChatRetryPacket.scope!==aiSourceScope());
@@ -19878,6 +19878,7 @@ function retryAiChat(job){
   updateAiChatActions();
 }
 async function cancelAiChat(message='İptal edildi.'){
+  if(window.AssistantAgentUI?.status()){await window.AssistantAgentUI.cancel();return;}
   if(window.AssistantVideoCommands?.status()){await window.AssistantVideoCommands.cancel();return;}
   if(aiChatPreparing){if(aiChatPreparing.web)void window.api.cancelWebResearch();aiChatPreparing.cancelled=true;aiChatPreparing=null;updateAiChatActions();return;}
   const job=player.job;if(job?.kind!=='chat'||(!job.running&&!job.awaitingExit))return;
@@ -19891,7 +19892,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
-  if (aiChatPreparing||window.BookAssistantUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
+  if (window.AssistantAgentUI?.busy()||aiChatPreparing||window.BookAssistantUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
   }
@@ -19946,6 +19947,11 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   delete opts.youtube;
   if (!translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
     aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
+    return;
+  }
+
+  if (!translationTarget && expectedScope === null && window.AssistantAgentUI?.send) {
+    await window.AssistantAgentUI.send(q, chatContext, history, sourceScope);
     return;
   }
 
@@ -32936,7 +32942,7 @@ function offerCompatibleMedia(){
 }
 
 async function aiWebResearch(question){
- const q=String(question||'').trim();if(!q)return;if(aiChatPreparing||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit){aiChatAdd('ai',interfaceChoice('Önce çalışan işi bitir.','Wait for the running job.'),'ai-msg-err');return;}
+ const q=String(question||'').trim();if(!q)return;if(window.AssistantAgentUI?.busy()||aiChatPreparing||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit){aiChatAdd('ai',interfaceChoice('Önce çalışan işi bitir.','Wait for the running job.'),'ai-msg-err');return;}
  const scope=aiSourceScope(),loading={scope,cancelled:false,web:true};aiChatPreparing=loading;updateAiChatActions();try{await window.AssistantWorkspace?.prepare();}catch(error){if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();aiChatAdd('ai',error.message,'ai-msg-err');return;}if(loading.cancelled||scope!==aiSourceScope()){if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();return;}aiChatAdd('user',q);const job={chatQuestion:q,chatContext:{},bubble:aiChatAdd('ai',interfaceChoice('Web kaynakları araştırılıyor…','Searching web sources…'),'is-loading')};window.AssistantWorkspace?.begin(job);updateAiChatActions();let status='complete',text='';
  try{const result=await window.api.webResearch(q);if(loading.cancelled||scope!==aiSourceScope()){status='stopped';text=interfaceChoice('Web araması durduruldu veya kaynak değişti.','Web research stopped or source changed.');return;}if(!result.ok)throw Error(result.error);text=interfaceChoice('İnternet araştırması','Web research')+'\n\n'+result.text+'\n\n'+interfaceChoice('Web kaynakları:','Web sources:')+'\n'+result.sources.map((row,i)=>'[W'+(i+1)+'] '+row.title+'\n'+row.url).join('\n');}
  catch(error){status='failed';text=error.message;}

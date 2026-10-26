@@ -1,0 +1,41 @@
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AssistantContextManifest=api;})(typeof globalThis!=='undefined'?globalThis:this,()=>{
+ 'use strict';
+ const text=(value,max=1000)=>typeof value==='string'?value.replace(/\0/g,'').slice(0,max):'';
+ function clean(raw={}){
+  const kind=['video','page','book','library','studio'].includes(raw.kind)?raw.kind:'studio';
+  return {version:1,kind,owner:text(raw.owner,8000),thread:text(raw.thread,100),tabId:text(raw.tabId,200),generation:Number.isSafeInteger(raw.generation)?raw.generation:0,
+   title:text(raw.title,300),pageKey:text(raw.pageKey,100),time:Number.isFinite(raw.time)?Math.max(0,raw.time):0,
+   hasSubtitles:raw.hasSubtitles===true,
+   range:raw.range&&Number.isFinite(raw.range.start)&&Number.isFinite(raw.range.end)&&raw.range.start>=0&&raw.range.end>raw.range.start?{start:raw.range.start,end:raw.range.end}:null,
+   tracks:(Array.isArray(raw.tracks)?raw.tracks:[]).slice(0,60).filter(row=>row&&typeof row.id==='string').map(row=>({id:text(row.id,200),role:row.role==='translation'?'translation':'source',language:text(row.language,24),partial:row.partial===true}))};
+ }
+ function same(left,right){return !!left&&!!right&&['kind','owner','thread','tabId','generation','pageKey'].every(key=>left[key]===right[key])&&left.range?.start===right.range?.start&&left.range?.end===right.range?.end;}
+ function publicContext(raw){const {owner,thread,tabId,generation,pageKey,...safe}=clean(raw);return safe;}
+ function sourceText(context={},budget=24000){
+  const safe={};
+  for(const key of ['video','title','workspace','type','chapter','chapterText','chapterTextComplete','selectedText','excerpt','synopsis','note','pageUnavailable','zaman','cumle','mevcut_ceviri','not','sinir']){
+   const limit=key==='chapterText'?16000:key==='excerpt'?8000:4000;
+   const value=context[key];if(typeof value==='string'){safe[key]=text(value,limit);if(value.length>limit)safe.sourceTruncated=true;}else if(typeof value==='boolean')safe[key]=value;
+  }
+  if(typeof context.chapterText==='string'&&context.chapterText.length>16000)safe.chapterTextComplete=false;
+  for(const key of ['onceki','sonraki'])if(Array.isArray(context[key]))safe[key]=context[key].slice(0,8).map(row=>({zaman:text(row.zaman,30),metin:text(row.metin,1200)}));
+  if(context.hedef)safe.hedef={zaman:text(context.hedef.zaman,30),metin:text(context.hedef.metin,1200),baslangic:Number(context.hedef.baslangic)||0,bitis:Number(context.hedef.bitis)||0};
+  if(context.diller)safe.diller={kaynak:text(context.diller.kaynak,30),ceviri:text(context.diller.ceviri,30)};
+  if(context.page&&typeof context.page==='object')safe.page={title:text(context.page.title,300),selectedText:text(context.page.selectedText,3000),truncated:!!context.page.truncated,
+   blocks:(Array.isArray(context.page.blocks)?context.page.blocks:[]).slice(0,40).map(row=>({id:text(row.id,40),text:text(row.text,400)}))};
+  if(context.transcript_evidence?.evidence)safe.evidence=context.transcript_evidence.evidence.slice(0,12).map(row=>({id:text(row.id,40),start:Number(row.baslangic??row.start)||0,text:text(row.metin??row.text,500),translation:text(row.ceviri??row.translation,500)}));
+  // Preserve valid JSON while bounding the source budget; never slice serialized JSON.
+  while(JSON.stringify(safe).length>budget){
+   safe.sourceTruncated=true;
+   if(safe.page?.blocks.length){safe.page.blocks.pop();safe.page.truncated=true;}
+   else if(safe.chapterText?.length>1000){safe.chapterText=safe.chapterText.slice(0,-1000);safe.chapterTextComplete=false;}
+   else if(safe.evidence?.length)safe.evidence.pop();
+   else if(safe.onceki?.length)safe.onceki.shift();
+   else if(safe.sonraki?.length)safe.sonraki.pop();
+   else {const key=Object.keys(safe).filter(key=>typeof safe[key]==='string').sort((a,b)=>safe[b].length-safe[a].length)[0];if(!key||!safe[key].length)break;safe[key]=safe[key].slice(0,Math.max(0,safe[key].length-1000));}
+  }
+  return safe;
+ }
+ function pool(raw){const seen=new Set();return (Array.isArray(raw)?raw:[]).slice(0,3100).filter(row=>row&&/^U\d+$/.test(row.id)&&!seen.has(row.id)&&Number.isFinite(row.start)&&Number.isFinite(row.end)&&row.start>=0&&row.end>=row.start&&(seen.add(row.id)||true)).map(row=>({id:row.id,start:row.start,end:row.end,text:text(row.text,700),translation:text(row.translation,700)}));}
+ return Object.freeze({clean,same,publicContext,sourceText,pool});
+});

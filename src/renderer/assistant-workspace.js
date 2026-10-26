@@ -81,7 +81,14 @@
   if(current()){player.chatHistory=history(current());player.chatHistoryScope=aiSourceScope();}else{player.chatHistory=[];player.chatHistoryScope=null;}
   restoreLog();changed();
  }
- function stateGlobalBusy(){return !!(window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit);}
+ function stateGlobalBusy(){return !!(window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.running||player.job?.awaitingExit);}
+ function actionResult(proposalId,result){
+  for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
+   const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;
+   action.resultStatus=['accepted','completed','failed','stopped'].includes(result?.status)?result.status:'failed';
+   action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
+  }
+ }
  function clear(){const thread=current();if(thread){thread.messages=[];thread.headId=null;void persist(thread);changed();}}
  function toolContext(){
   if(globalAssistantContext())return null;
@@ -92,7 +99,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,partial,evidence,finish,command,clear,toolContext,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,partial,evidence,finish,command,clear,toolContext,actionResult,activeId:()=>current()?.id||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{clearTimeout(flushTimer);});
 })();

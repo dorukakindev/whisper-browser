@@ -1,5 +1,6 @@
 'use strict';
-// Real Windows parent, native panel and persistent IPC. NDJSON/model output is a controlled fixture.
+// Explicit legacy NDJSON compatibility (still used by structured translation/book requests).
+// The default main-process agent is covered by electron-assistant-agent.smoke.js with real local HTTP.
 const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','assistant-stream',Date.now()+'-'+process.pid);
 fs.mkdirSync(out,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');
@@ -13,7 +14,7 @@ app.whenReady().then(async()=>{
  const view=win.contentView.children.find(v=>v.webContents?.getURL().includes('assistant-overlay.html'));assert(view);
  const run=code=>view.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
  win.setContentSize(1440,1000);win.showInactive();
- await parent(`await initialSettingsReady;window.UiLocale.set('tr',false);applyUiTheme('dark');
+ await parent(`await initialSettingsReady;window.AssistantAgentUI=null;window.UiLocale.set('tr',false);applyUiTheme('dark');
    document.body.classList.remove('media-home-active');document.getElementById('playerLayer').classList.remove('hidden');
    player.workspaceMode='player';player.mediaKey='fixture:assistant-stream';player.generation++;player.cues=[{start:90,end:94,text:'İstanbul sahnesinin gerçek test altyazısı.'}];
    document.getElementById('playerTitle').textContent='Kontrollü asistan videosu';translationEndpointReady=()=>true;

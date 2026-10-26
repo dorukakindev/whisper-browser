@@ -29,9 +29,16 @@ function evidenceOf(raw){
 }
 function actionsOf(raw){
   if(!Array.isArray(raw))return [];
-  return raw.slice(0,8).filter(row=>row&&['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))
-    .map(row=>({kind:row.kind,source:evidenceOf(row.source?[row.source]:[])[0]||null,translation:text(row.translation,2000)}))
-    .filter(row=>row.kind==='open_voice_preparation'||row.source);
+  return raw.slice(0,8).flatMap(row=>{
+    if(row?.kind==='app_action'){
+      if(!id(row.proposalId)||require('./assistant-capabilities').get(row.tool)?.policy!=='proposal')return [];
+      return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),
+        resultStatus:['accepted','completed','failed','stopped'].includes(row.resultStatus)?row.resultStatus:'',resultText:text(row.resultText,500)}];
+    }
+    if(!row||!['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))return [];
+    const result={kind:row.kind,source:evidenceOf(row.source?[row.source]:[])[0]||null,translation:text(row.translation,2000)};
+    return result.kind==='open_voice_preparation'||result.source?[result]:[];
+  });
 }
 function cleanThread(raw){
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
