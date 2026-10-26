@@ -91,7 +91,7 @@ test('OCR yalnız metin katmanı boşken çalışır (items.length kapısı)', (
 
 test('OCR sonucu entry.ocr ile sayfa kaydına işlenir', () => {
   const m = HELPERS.match(/async function extractPdfReaderPage[\s\S]*?^}/m);
-  assert.ok(/ocr,\s*article: null/.test(m[0]), 'ocr alanı entry\'ye yazılmıyor');
+  assert.ok(/ocr,\s*(?:layoutWarning,\s*)?article: null/.test(m[0]), 'ocr alanı entry\'ye yazılmıyor');
 });
 
 test('ocrPdfPage önce yetenek durumunu sorgular', () => {

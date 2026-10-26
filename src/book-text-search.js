@@ -9,7 +9,7 @@
       ends = [];
     let text = "";
     const normalized = source.normalize("NFKC"),
-      lowered = normalized.toLocaleLowerCase("tr");
+      lowered = normalized.toLocaleLowerCase("tr").replace(/ı/g,"i");
     if (normalized === source && lowered.length === source.length) {
       for (let i = 0; i < lowered.length; i++) {
         const c = /\s/u.test(lowered[i]) ? " " : lowered[i];
@@ -23,7 +23,7 @@
       }
     } else {
       for (const match of source.matchAll(/\P{M}\p{M}*|\p{M}+/gu)) {
-        const part = match[0].normalize("NFKC").toLocaleLowerCase("tr");
+        const part = match[0].normalize("NFKC").toLocaleLowerCase("tr").replace(/ı/g,"i");
         for (let i = 0; i < part.length; i++) {
           const c = /\s/u.test(part[i]) ? " " : part[i];
           if (c === " " && text.endsWith(" ")) {
@@ -58,7 +58,7 @@
     ) {
       if (!isCurrent())
         return { matches: [], truncated: false, cancelled: true };
-      const source = String(chapters[chapter]?.text || "").slice(0, 100000),
+      const source = String(chapters[chapter]?.text || ""),
         body = folded(source);
       let at = 0;
       while ((at = body.text.indexOf(needle, at)) !== -1) {
@@ -78,7 +78,7 @@
       }
       await yieldTask();
     }
-    return { matches, truncated: false, cancelled: !isCurrent() };
+    return { matches, truncated: chapters.length > 1000, cancelled: !isCurrent() };
   }
   return Object.freeze({ search });
 });

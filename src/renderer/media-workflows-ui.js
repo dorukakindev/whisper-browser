@@ -849,7 +849,7 @@
     textarea.dataset.chapter = String(chapter);
     textarea.dataset.projectId = project.id;
     textarea.value = drafts.get(`${project.id}:${chapter}`) ?? c.text;
-    textarea.maxLength = 100000;
+    textarea.maxLength = 900000;
     textarea.setAttribute(
       "aria-label",
       t("Reviewed chapter text", "Gözden geçirilmiş bölüm metni"),
@@ -876,6 +876,7 @@
         ),
       ),
     );
+    if (c.qualityMissing) edit.append(el('p','mw-muted',t('Automatic verification is missing. Listen to the complete review group before approving it, or regenerate the chapter.','Otomatik doğrulama eksik. Onaylamadan önce inceleme grubunun tamamını dinle veya bölümü yeniden üret.')));
     if (c.pdfPreparation) {
       const notice = el("p", "mw-muted", t(
         `PDF text follows the detected reading order; ${c.pdfPreparation.removedMarginLines || 0} marginal lines removed. Review the text before narration.`,

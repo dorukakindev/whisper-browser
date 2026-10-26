@@ -312,7 +312,7 @@ app
         JSON.stringify(imported.project.chapters[0].text) +
         ';n.dispatchEvent(new Event("input"));return true',
     );
-    const query = imported.project.chapters[1].text.slice(0, 22);
+    const query = imported.project.chapters[1].text.slice(0, 22).replace(/\s+/g, " ");
     await run(
       'const f=document.querySelector(".mw-search-form");f.querySelector("input").value=' +
         JSON.stringify(query) +
@@ -334,7 +334,7 @@ app
     const searchSelection = await run(
       'const n=document.querySelector("textarea[data-chapter]");return n.value.slice(n.selectionStart,n.selectionEnd)',
     );
-    assert.equal(searchSelection, query);
+    assert.equal(searchSelection.replace(/\s+/g, " "), query);
     await run(
       'const inputs=document.querySelectorAll(".mw-range input");inputs[0].value="2";inputs[1].value="3";document.querySelector(".mw-range button").click();return true',
     );

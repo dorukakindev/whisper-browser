@@ -32,25 +32,38 @@ def first(node, name):
 
 
 class Prose(HTMLParser):
+    BLOCKS = frozenset('p div br h1 h2 h3 h4 h5 h6 li td th tr blockquote dt dd figcaption aside'.split())
+    VOID = frozenset('br hr img meta link input source wbr area base col embed param track'.split())
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.parts, self.skip = [], 0
+        self.parts, self.stack = [], []
 
     def handle_starttag(self, tag, attrs):
-        if tag in ('script', 'style', 'noscript'):
-            self.skip += 1
-        if tag in ('p', 'div', 'br', 'h1', 'h2', 'h3', 'li') and not self.skip:
+        attributes = dict(attrs)
+        types = set(attributes.get('epub:type', '').split())
+        hidden = tag in ('head', 'title', 'script', 'style', 'noscript', 'nav') or 'noteref' in types
+        suppressed = hidden or (self.stack[-1][1] if self.stack else False)
+        if not suppressed and tag in self.BLOCKS:
             self.parts.append('\n\n')
+        if tag not in self.VOID:
+            self.stack.append((tag, suppressed))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.VOID: self.handle_endtag(tag)
 
     def handle_endtag(self, tag):
-        if tag in ('script', 'style', 'noscript') and self.skip:
-            self.skip -= 1
-        if tag in ('p', 'div', 'h1', 'h2', 'h3', 'li') and not self.skip:
+        suppressed = self.stack[-1][1] if self.stack else False
+        for index in range(len(self.stack)-1,-1,-1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                break
+        if not suppressed and tag in self.BLOCKS:
             self.parts.append('\n\n')
 
     def handle_data(self, data):
-        if not self.skip:
-            self.parts.append(data)
+        if not self.stack or not self.stack[-1][1]: self.parts.append(data)
 
     def value(self):
         return '\n\n'.join(' '.join(p.split()) for p in ''.join(self.parts).split('\n\n') if p.strip())
