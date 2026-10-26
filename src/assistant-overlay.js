@@ -37,7 +37,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
       sourceToken:String(value.sourceToken||'').slice(0,8000),
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
-      pageContext:!!value.pageContext,transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
+      pageContext:!!value.pageContext,videoContext:!!value.videoContext,transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
       receipt:value.receipt&&typeof value.receipt==='object'?{id:String(value.receipt.id||'').slice(0,80),accepted:!!value.receipt.accepted,message:String(value.receipt.message||'').slice(0,1200)}:null,
       conversation: String(value.conversation || '').slice(0,8000),
       pinScope:String(value.pinScope||value.conversation||'').slice(0,8000),activeThread:String(value.activeThread||'').slice(0,100),

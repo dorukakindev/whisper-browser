@@ -1,0 +1,26 @@
+# Asistan uygulama planı — sekiz teslim paketi
+
+Kullanıcı, 45 maddelik kapsamın tamamını onayladı ve kaliteyi korumak için paketli teslim istedi. Bu belge sonraki turlarda kapsamın unutulmaması içindir. Tamamlanmayan paket bitmiş sayılmaz. Her paket mevcut işlevler üzerinden uygulanır, ilgili kısa kontroller ve gerçek arayüz kontrolünden sonra PR ile master'a alınır. Uzun CI beklenmez; başarısız sonuç gizlenmez.
+
+| Paket | Önceki 45 maddelik listedeki karşılığı | Somut kapsam ve kabul | Durum |
+|---|---|---|---|
+| P01 — Video komutları ve sağlayıcı akışı | 4, 20, 21; 19/42/43/45'in ilk kullanımı | Açık YouTube videosunda mevcut yakalanmış altyazıyı çevir, yalnız Whisper, Whisper+çeviri; Whisper aralığı, gerçek başlatma/yükleme sonucu, ilerleme/iptal; tekrarlı araç adı ve opaque metadata onarımı. Koyu/açık Windows baloncuk kontrolü. | Ürün commit'i `33036ef7`; hedefli kabul geçti. [Rapor 618](BROWSER_BUG_REPORT_618.md). |
+| P02 — Ortak yetenek ve eylem altyapısı | 1–3, 5–13 | Gerçek UI/preload/handler envanteri; CapabilityRegistry ve AppActions; kaynak manifesti ve yürütmeden önce sahiplik kontrolü; alan bazlı araç seçimi, uygulama yardımı; sağlayıcı yetenek kontrolü ve model araç döngüsü. SDK/main/utilityProcess seçimi kısa paketleme/iptal denemesiyle. Anahtarlar modele açılmaz. | Sıradaki paket. P01'in açık komut adaptörü buraya bağlanacak; bütün program ajanı henüz yok. |
+| P03 — Sohbet ve iş yönetimi | 14–17, 44 | Sohbeti uzun iş kilidinden ayırma; main servisinin yetkili iş kimliği/durumu; snapshot/olaylarla renderer'a bağlanma; doğru işe iptal, kısmi sonuç, hata ve desteklenen yeniden deneme; işlem geçmişi. Bir iş çalışırken soru sorabilme kabulü. | Bekliyor. Genel yedekleme projesine genişletilmeyecek. |
+| P04 — Altyazı, sayfa ve araştırma | 18, 19, 22–28 | YouTube dil/probe/indirme; mevcut iz yoksa açık alternatif; dil ve aralık argümanlarını iş bazında uygulama; ses için çeviri; altyazı yükleme/düzenleme; sayfayı doğrudan çevirme; seçili metin ve kaynaklı araştırma; video anına gitme. Baseline kalite testindeki iki kırmızı burada triyaj edilir. | Bekliyor. Mevcut sayfa/araştırma işlevleri yeniden yazılmaz. |
+| P05 — Dublaj ve referans ses | 29–33 | Mevcut dublaj/yerel referans/video kesiti/müzik/tempo/duygu seçeneklerini tipli eylemlere bağlama; sorunlu grubu aç/dinle/yeniden üret; çıktıyı doğru videoda kullan ve özgün sese dön. Gerçek ses doğrulaması yapılmayan sonuç kalite başarısı sayılmaz. | Bekliyor. |
+| P06 — PDF ve kitap | 34, 35 | Açık sayfa/bölüm/pasaj bağlamı; sayfa ve bölüm aralığıyla seslendirme; önizleme/review/yeniden üretim/dışa aktarma. Kaynak kimliği ve sayfa metni doğrulanır; bütün kitap okunmuş gibi davranılmaz. | Bekliyor. |
+| P07 — Kütüphane, keşfet ve ayarlar | 36–40 | Arama/filtre/yapım ayrıntısı, zevk profili, koleksiyon planı ve uygulama; açıklama çevirisi, Letterboxd kaynak örneği ve analiz; mevcut browser/oynatıcı kontrolleri; doğrulanan normal ayar şeması ve geri alma. Dosya silme/ezme ile rutin yeni çıktı ayrılır. | Bekliyor. |
+| P08 — Birleşik akış ve son tasarım kabulü | 41–43, 45 | Birden çok adımlı işler yalnız gerçek önceki sonuçlarla devam eder; hata ve iptal propagasyonu; tek baloncuk/ortak durum; bağlama uygun kısayollar; dar ekran/klavye/hareket/EN-TR; uçtan uca negatif/race kabulü ve ana sürüm teslimi. | Bekliyor. Önceki paketlerin tamamlandığını varsaymaz. |
+
+## P01'in açık sınırları
+
+- Bu sürümde eylemler yalnız kullanıcının açık komutuyla eşleşir; model tarafından genel program aracı seçimi P02'dedir. Sayfa/altyazı içeriği komut sayılmaz.
+- Mevcut altyazı yolu o sekmede yakalanmış bir kaynak izi kullanır. Henüz yakalanmamış YouTube altyazısını probe edip indirme P04'tedir. Kaynak yoksa sessizce Whisper başlatılmaz.
+- Whisper için `05:00–10:00`, `5 ile 10 dakika` ve dakika uçları desteklenir. Belirsiz/geçersiz aralık tam video işlemine dönüşmez.
+- Kayıtlı hedeften farklı bir dil istenirse uygulanmış gibi davranılmaz; ayarı değiştirme yönlendirmesi verilir. İş bazında dil seçimi P04'tedir.
+- Mevcut yakalanmış izi zaman aralığıyla veya ses için çevirme bu adaptörde henüz sunulmaz; ilgili mevcut kontroller açıkça önerilir. Whisper+çeviri mevcut ses için çeviri ayarını kullanabilir.
+- Genel sohbet hâlâ mevcut iş kilidini kullanır; P03 bunu ayrıştıracak. Kullanıcı uygulaması kapatılmaz; kodu görmek için yeniden açılması gerekir.
+- Gerçek sağlayıcı/GPU/YouTube kalitesi bu paketin kontrollü UI testleriyle kanıtlanmış sayılmaz.
+
+MCP, genel web otomasyonu, çoklu model karşılaştırması ve sesle komut, temel kapsamı bloke etmeyen ayrı değerlendirme adaylarıdır. Kullanıcının Luna tarzı yüzen baloncuğu korunur; dock varsayılan yapılmaz. Yeni bağımlılık ancak somut uyumluluk ve lisans ihtiyacıyla seçilir.

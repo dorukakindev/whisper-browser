@@ -101,6 +101,27 @@ def _unsupported(error, parameter):
     return getattr(error, "status_code", None) in (400, 404, 422) and parameter in str(error).lower()
 
 
+def _stream_part(previous, fragment):
+    """Accept both incremental and cumulative provider deltas for IDs/names."""
+    fragment = str(fragment or "")
+    if not fragment or previous == fragment:
+        return previous
+    if fragment.startswith(previous):
+        return fragment
+    return previous + fragment
+
+
+def _provider_fields(value):
+    """Retain opaque provider tool fields for the next completion round."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if callable(getattr(value, "model_dump", None)):
+        return value.model_dump(exclude_none=True, exclude_unset=True)
+    return vars(value) if hasattr(value, "__dict__") else {}
+
+
 def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None):
     """Never retry a provider call once any answer delta has been delivered."""
     context = tools_context if isinstance(tools_context, dict) else {}
@@ -159,13 +180,19 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
                 for item in getattr(delta, "tool_calls", None) or []:
                     if len(calls) >= 8 and item.index not in calls:
                         raise RuntimeError("Too many tool calls.")
-                    call = calls.setdefault(item.index, {"id": "", "name": "", "arguments": ""})
-                    call["id"] += getattr(item, "id", None) or ""
+                    call = calls.setdefault(item.index, {"id": "", "name": "", "arguments": "", "extra": {}, "function_extra": {}})
+                    call["id"] = _stream_part(call["id"], getattr(item, "id", None))
+                    fields = _provider_fields(item)
+                    call["extra"].update({key: value for key, value in fields.items()
+                                          if key not in ("index", "id", "type", "function") and value is not None})
                     function = getattr(item, "function", None)
                     if function:
-                        call["name"] += getattr(function, "name", None) or ""
+                        call["name"] = _stream_part(call["name"], getattr(function, "name", None))
                         call["arguments"] += getattr(function, "arguments", None) or ""
-                    if len(call["arguments"]) > 6000 or len(call["name"]) > 100 or len(call["id"]) > 200:
+                        call["function_extra"].update({key: value for key, value in _provider_fields(function).items()
+                                                       if key not in ("name", "arguments") and value is not None})
+                    if (len(call["arguments"]) > 6000 or len(call["name"]) > 100 or len(call["id"]) > 200
+                            or len(json.dumps([call["extra"], call["function_extra"]], ensure_ascii=False, default=str)) > 8000):
                         raise RuntimeError("Tool arguments exceed the allowed size.")
                 if getattr(chunk.choices[0], "finish_reason", None) in ("length", "content_filter"):
                     raise RuntimeError("Provider ended the answer before completion (length or content_filter).")
@@ -195,7 +222,8 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
         encoded = []
         for index, call in calls.items():
             call["id"] = call["id"] or f"call_{round_index}_{index}"
-            encoded.append({"id": call["id"], "type": "function", "function": {"name": call["name"], "arguments": call["arguments"]}})
+            encoded.append({"id": call["id"], "type": "function", **call["extra"],
+                            "function": {"name": call["name"], "arguments": call["arguments"], **call["function_extra"]}})
         history.append({"role": "assistant", "content": round_text or None, "tool_calls": encoded})
         for call in calls.values():
             try:

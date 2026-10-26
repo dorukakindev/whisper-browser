@@ -4429,6 +4429,7 @@ async function startProgressiveChunk(job) {
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
   if (!result || !result.ok) {
     job.running = false;
+    job.failed = true;
     state.running = false;
     $('startBtn').classList.remove('hidden');
     $('cancelBtn').classList.add('hidden');
@@ -4478,6 +4479,10 @@ async function finishProgressiveJob(job) {
   const loaded = await attachCompletedJobSubtitles(terminalEvent, job);
   job.loading = false;
   if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  job.assistantOutcome = { loaded: !!loaded.loaded, sourceCount: source.length,
+    translationCount: translated.length, reason: loaded.reason || '',
+    translationStopped: !!job.translationTerminal?.stopProgressive,
+    translationSkipped: job.translationTerminal?.skipped || '' };
   job.running = false;
   state.running = false;
   state.forceTranslate = false;
@@ -4674,6 +4679,7 @@ function playerJobEvent(event) {
     job.running = false;
     job.awaitingExit = false;
     job.exitSeen = true;
+    job.failed = true;
     state.running = false;
     state.aiJob = false;
     state.cancelled = false;
@@ -4916,6 +4922,10 @@ function playerJobEvent(event) {
     job.loading = true;
     job.stage = 'Oynatıcıya yükleniyor';
     void attachCompletedJobSubtitles(event, job).then((result) => {
+      if (isTranslateJob) job.assistantOutcome = { loaded: !!result.loaded,
+        sourceCount: job.liveSource?.length || 0,
+        translationCount: translationCompleted || job.liveTranslation?.size || 0,
+        translationStopped: translationPartial, reason: result.reason || '' };
       if (isSyncJob && result.loaded) {
         player.offset = 0;
         player.offset2 = 0;
@@ -4981,6 +4991,7 @@ function playerJobEvent(event) {
     bar.classList.add('hidden');
     retryAiChat(job);
   } else if (event.type === 'error') {
+    job.failed = true;
     if (state.abCollect) {
       // Madde 13 — A/B varyant işi başarısız oldu: bekleyen promise'i çöz yoksa
       // runAbCompare sonsuza dek bekler.
@@ -10556,7 +10567,8 @@ async function waitForBrowserTrackStable(trackId, prepareSeq, quietMs = 1200, ma
   return latest;
 }
 
-async function useBrowserTrack(translate, requestedTrackId = '') {
+async function useBrowserTrack(translate, requestedTrackId = '', config = {}) {
+  if (config.isCancelled?.()) return { ok: false, cancelled: true };
   let track = requestedTrackId
     ? player.browserTracks.find((item) => item.id === requestedTrackId)
     : browserTrackSelection();
@@ -10623,7 +10635,8 @@ async function useBrowserTrack(translate, requestedTrackId = '') {
   addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
   $('playerSubSelect').value = track.path;
   await loadSubtitle(track.path);
-  if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
+  if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)
+      || config.isCancelled?.()) return { ok: false, cancelled: true };
   player.browserLoadedTrackId = track.id;
   rememberBrowserTrackUse(track);
   setPlayerSidebarCollapsed(false);
@@ -11437,6 +11450,7 @@ function configureSpeechTranslation(opts, enabled) {
 }
 
 async function startBrowserYoutubeWhisper(translate, config = {}) {
+  if (config.isCancelled?.()) return { ok: false, cancelled: true };
   if (state.running || state.queueRunning) return;
   const tabId = player.browserActiveTabId;
   const mediaKey = player.mediaKey;
@@ -11464,38 +11478,44 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   if (reusableTranslation) {
     await useBrowserTrack(false, reusableTranslation.id);
     if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
+        || config.isCancelled?.()
         || (player.subPath !== reusableTranslation.path && player.sub2Path !== reusableTranslation.path)) return;
     setSubtitleMode('translation', false);
     setBrowserSignal('Bu video için hazırlanmış Whisper çevirisi bulundu ve yeniden işlem yapılmadan yüklendi.', true,
       { priority: 70, holdMs: 5000 });
-    return;
+    return { ok: true, reused: true, trackId: reusableTranslation.id, path: reusableTranslation.path };
   }
   const reusableSource = player.browserTracks.find((track) =>
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'source' && track.path);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
     if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
-        || player.subPath !== reusableSource.path) return;
+        || config.isCancelled?.() || player.subPath !== reusableSource.path) return;
     if (!translate) {
       setSubtitleMode('source', false);
       setBrowserSignal('Bu video için hazırlanmış Whisper altyazısı bulundu ve yeniden işlem yapılmadan yüklendi.', true,
         { priority: 70, holdMs: 5000 });
-      return;
+      return { ok: true, reused: true, trackId: reusableSource.id, path: reusableSource.path };
     }
     if ($('makeTransBtn') && !$('makeTransBtn').disabled) {
       setBrowserSignal('Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.', true,
         { priority: 70, holdMs: 5000 });
       state.translateForSpeechOverride = forSpeech;
+      const previousJob = player.job;
       $('makeTransBtn').click();
-      return;
+      return { ok: !!player.job && player.job !== previousJob, job: player.job !== previousJob ? player.job : null };
     }
   }
+  if (config.isCancelled?.()) return { ok: false, cancelled: true };
+  const previousJob = player.job;
   await startProgressivePlayerTranscription({
     browserYoutube: true,
     translateOverride: !!translate,
     translateForSpeech: forSpeech,
     clipRange,
   });
+  return { ok: !!player.job && player.job !== previousJob && !player.job.failed,
+    job: player.job !== previousJob ? player.job : null };
 }
 
 async function exportBrowserAbClip() {
@@ -14532,6 +14552,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     const tab = browserTabState(event.tabId);
     if (!tab || !player.browserTabEventGate.accept(event)) return;
     tab.generation = Math.max(Number(tab.generation) || 0, Number(event.generation) || 0);
+    if (event.type === 'translation-state') document.dispatchEvent(new CustomEvent('assistant-video-translation-state',
+      { detail: { tabId: tab.id, generation: tab.generation, trackId: event.trackId, progress: event.state || {} } }));
     if (event.tabId !== player.browserActiveTabId || player.workspaceMode !== 'browser') {
       if (event.type === 'navigation') {
         const mediaChanged = tab.mediaId && event.mediaId
@@ -19846,7 +19868,7 @@ function aiChatAdd(role, text, cls) {
 let aiChatPreparing=null;
 let aiChatRetryPacket=null;
 function updateAiChatActions(){
-  const busy=!!aiChatPreparing||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit));
+  const busy=!!window.AssistantVideoCommands?.status()||!!aiChatPreparing||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit));
   if($('aiChatSend'))$('aiChatSend').disabled=busy;
   $('aiChatCancel')?.classList.toggle('hidden',!busy);
   $('aiChatRetry')?.classList.toggle('hidden',busy||!aiChatRetryPacket||aiChatRetryPacket.scope!==aiSourceScope());
@@ -19856,6 +19878,7 @@ function retryAiChat(job){
   updateAiChatActions();
 }
 async function cancelAiChat(message='İptal edildi.'){
+  if(window.AssistantVideoCommands?.status()){await window.AssistantVideoCommands.cancel();return;}
   if(aiChatPreparing){if(aiChatPreparing.web)void window.api.cancelWebResearch();aiChatPreparing.cancelled=true;aiChatPreparing=null;updateAiChatActions();return;}
   const job=player.job;if(job?.kind!=='chat'||(!job.running&&!job.awaitingExit))return;
   clearTimeout(job.chatTimer);retryAiChat(job);
@@ -19868,7 +19891,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
-  if (aiChatPreparing||window.BookAssistantUI?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
+  if (aiChatPreparing||window.BookAssistantUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running || state.queueRunning||player.job?.awaitingExit) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
   }
@@ -19878,6 +19901,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
     if(loading.cancelled||loading.scope!==aiSourceScope())return;
   }
   if (expectedScope===null && !translationTarget && await window.BookAssistantUI?.handle(q)) return;
+  if (expectedScope===null && !translationTarget && await window.AssistantVideoCommands?.handle(q)) return;
   if (expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
   if (expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
