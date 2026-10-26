@@ -121,6 +121,31 @@ function textItemsToLines(items, options = {}) {
   const measuredLeft = Math.min(...geometries.map((item) => item.x));
   const measuredRight = Math.max(...geometries.map((item) => item.x + item.width));
   const pageWidth = pageWidthFrom(options) || Math.max(0, measuredRight - Math.min(0, measuredLeft));
+  // Learn narrow vertical gutters from repeated whitespace; an absolute 6%
+  // threshold interleaves ordinary justified newspaper/book columns.
+  const narrow = [];
+  for (const [row, group] of groups.entries()) {
+    group.items.sort((a,b)=>a.x-b.x || a.index-b.index);
+    const gaps = group.items.slice(1).map((item,i)=>({left:group.items[i].x+group.items[i].width,right:item.x,height:Math.max(item.height,group.items[i].height)})).filter(g=>g.right>g.left);
+    for (const gap of gaps) if (gap.right-gap.left >= Math.max(6,gap.height*.75)) narrow.push({...gap,row,mid:(gap.left+gap.right)/2});
+  }
+  const learned = [];
+  const needed = Math.max(3,Math.ceil(groups.length*.65));
+  const narrowClusters=[];
+  const narrowTolerance=Math.max(2,pageWidth*.004);
+  for(const gap of narrow.sort((a,b)=>a.mid-b.mid)) {
+    let cluster=narrowClusters.at(-1);
+    if(!cluster || gap.mid-cluster[0].mid>narrowTolerance){cluster=[];narrowClusters.push(cluster);}
+    cluster.push(gap);
+  }
+  const candidates=narrowClusters.map(values=>({values,support:new Set(values.map(g=>g.row)).size}))
+    .filter(c=>c.support>=needed).sort((a,b)=>b.support-a.support).slice(0,8);
+  for(const candidate of candidates) {
+    const x=median(candidate.values.map(g=>g.mid));
+    const crossing=groups.filter(g=>g.items.some(i=>i.x<x && i.x+i.width>x)).length;
+    if(crossing>groups.length*.15 || learned.some(v=>Math.abs(v-x)<Math.max(4,pageWidth*.01)))continue;
+    learned.push(x);
+  }
   const lines = [];
   const gutters = [];
   for (const [groupIndex, line] of groups.entries()) {
@@ -132,7 +157,7 @@ function textItemsToLines(items, options = {}) {
       const gap = previous ? item.x - (previous.x + previous.width) : 0;
       const splitGap = Math.max(pageWidth * 0.06,
         Math.max(previous?.height || 0, item.height) * 3);
-      if (previous && gap > splitGap) fragments.push([]);
+      if (previous && (gap > splitGap || learned.some(x=>previous.x+previous.width < x && item.x > x))) fragments.push([]);
       fragments.at(-1).push(item);
     }
     for (const [partIndex, fragment] of fragments.entries()) {
@@ -381,7 +406,10 @@ function mergePdfLines(rawLines, options = {}) {
       continue;
     }
     if (hyphenated) {
-      previous.text = previous.text.replace(/[-\u00ad\u2010]\s*$/u, '');
+      const leftWord = previous.text.match(/([\p{L}\p{M}\p{N}]+)[-\u00ad\u2010]\s*$/u)?.[1] || '';
+      const nextWord = next.text.trim().split(/\s/u)[0] || '';
+      const keepHyphen = !/\u00ad\s*$/u.test(previous.text) && (/[\p{Lu}\p{N}]/u.test(leftWord) || /^[\p{Lu}\p{N}]/u.test(nextWord) || /^(?:well|self|e)$/iu.test(leftWord));
+      previous.text = previous.text.replace(/[-\u00ad\u2010]\s*$/u, keepHyphen ? '-' : '');
       next.text = next.text.replace(/^\s+/u, '');
       next.joinWithoutSpace = true;
       current.push(next);

@@ -1,0 +1,26 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{EventEmitter}=require('node:events'),{randomUUID}=require('node:crypto');
+const {registerMediaWorkflows}=require('../src/media-workflows'),{voiceStorage}=require('../src/voice-storage'),{wavDuration}=require('../src/wav-duration'),{search}=require('../src/book-text-search');
+function pcm(){const b=Buffer.alloc(44+48000);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(24000,24);b.writeUInt32LE(48000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(48000,40);return b;}
+function fixture(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'book-audit612-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));const app=new EventEmitter();app.getPath=()=>root;const source=path.join(root,'Öykü.pdf');fs.writeFileSync(source,'authorized fixture');const sender=Object.assign(new EventEmitter(),{id:1,isDestroyed:()=>false,send(){}});let handler;const service=registerMediaWorkflows({app,ipcMain:{handle:(_,fn)=>handler=fn},authorized:e=>e.sender===sender,owner:()=>null,resolvePdf:()=>({filePath:source,numPages:100,title:'Book'}),grantSubtitle(){},dialog:{showSaveDialog:async()=>({filePath:path.join(root,'output.m4b')})},ffmpeg:()=>{throw Error('must reject before encoder');},ffprobe:()=>{throw Error('must reject before probing');}});const call=(action,data={})=>handler({sender},{action,...data});const projects=path.join(voiceStorage(app).input,'Kitap projeleri');return{root,service,call,projects,storage:voiceStorage(app)};}
+test('corrupt and archived projects cannot block unrelated imports; save refuses an unloadable project',async t=>{
+ const f=fixture(t),first=await f.call('book-from-reader',{pdfHash:'x',numPages:100,pages:[{pageNumber:1,text:'Source prose.'}]});assert(first.ok,first.error);
+ const bad=path.join(f.projects,randomUUID());fs.mkdirSync(bad);fs.writeFileSync(path.join(bad,'project.json'),'{bad');
+ for(let i=0;i<100;i++){const id=randomUUID(),dir=path.join(f.projects,id);fs.mkdirSync(dir);fs.writeFileSync(path.join(dir,'project.json'),JSON.stringify({...first.project,id,archived:true}));}
+ const next=await f.call('book-from-reader',{pdfHash:'x',numPages:100,pages:[{pageNumber:2,text:'Unrelated prose.'}]});assert(next.ok,next.error);
+ const file=path.join(f.projects,next.project.id,'project.json'),saved=JSON.parse(fs.readFileSync(file));saved.chapters=Array.from({length:65},(_,id)=>({id,title:String(id),text:'a'.repeat(90000),status:'pending'}));fs.writeFileSync(file,JSON.stringify(saved));const before=fs.readFileSync(file);assert(before.length<6000000);
+ const rejected=await f.call('book-save',{id:saved.id,chapter:0,text:'b'.repeat(900000)});assert.equal(rejected.ok,false);assert.match(rejected.error,/large|büyük/);assert.deepEqual(fs.readFileSync(file),before);assert.equal((await f.call('book-open',{id:saved.id})).ok,true);
+});
+test('missing quality is playable review; changed approved WAV is rejected and stale markers clear',async t=>{
+ const f=fixture(t),r=await f.call('book-from-reader',{pdfHash:'x',numPages:100,pages:[{pageNumber:1,text:'Complete narration prose.'}]});const id=r.project.id;
+ const p=await f.call('book-prepare',{id,chapter:0});fs.mkdirSync(f.storage.output,{recursive:true});const audio=path.join(f.storage.output,p.request.id+'.wav');fs.writeFileSync(audio,pcm());assert.equal(wavDuration(audio),1);
+ f.service.capture({id:p.request.id,path:audio,quality:null});let c=(await f.call('book-open',{id})).project.chapters[0];assert.equal(c.status,'review');assert.equal(c.groups.length,1);assert.equal(c.groups[0].end,1);assert.equal((await f.call('book-approve',{id,chapter:0,key:'0'})).ok,true);
+ const stored=path.join(f.projects,id,c.output);const changed=fs.readFileSync(stored);changed[45]=42;fs.writeFileSync(stored,changed);
+ const exportResult=await f.call('book-export',{id,chapters:[0]});assert.equal(exportResult.ok,false);assert.match(exportResult.error,/audio changed|ses değişti|sesi değişti/);
+ const second=await f.call('book-prepare',{id,chapter:0});await f.call('book-save',{id,chapter:0,text:'Edited prose.'});f.service.capture({id:second.request.id,path:audio,quality:null});c=(await f.call('book-open',{id})).project.chapters[0];assert.equal(c.activeJob,null);assert.equal((await f.call('book-recover',{id})).notices.length,0);
+});
+test('large imported chapters can be edited/planned and full-text search keeps exact Unicode offsets',async t=>{
+ const f=fixture(t),text='Long paragraph. '.repeat(10000)+'Inside İstanbul Isparta needle';const r=await f.call('book-from-reader',{pdfHash:'x',numPages:100,pages:[{pageNumber:1,text}]});assert(r.ok,r.error);
+ assert.equal((await f.call('book-save',{id:r.project.id,chapter:0,text})).ok,true);assert.equal((await f.call('book-plan-source',{id:r.project.id,chapter:0,text})).ok,true);
+ for(const query of ['inside','istanbul','isparta','needle']){const result=await search([{text}],query);assert(result.matches.length);const hit=result.matches[0];assert.equal(text.slice(hit.start,hit.end).toLocaleLowerCase('tr').replace(/ı/g,'i'),query);assert(hit.start>100000);}
+});

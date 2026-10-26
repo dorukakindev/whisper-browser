@@ -38,6 +38,7 @@ function current(c) {
     groups: c.groups || [],
     status: ready(c.groups),
     voiceSettings: c.voiceSettings || {},
+    qualityMissing: c.qualityMissing === true,
     lastOutputId: c.lastOutputId || null,
   };
 }
@@ -164,6 +165,7 @@ function select(folder, c, request, digest) {
   c.output = chosen.path;
   c.textHash = chosen.take.textHash;
   c.groups = chosen.take.groups;
+  c.qualityMissing = chosen.take.qualityMissing === true;
   c.status = ready(c.groups);
   c.position = 0;
   c.voiceSettings = chosen.take.voiceSettings || {};

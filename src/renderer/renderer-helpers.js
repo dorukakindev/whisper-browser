@@ -820,11 +820,22 @@ async function extractPdfReaderPage(pageNumber) {
   let layoutWarning = "";
   if (items.length && window.api.preparePdfText) {
     try {
-      const prepared = await window.api.preparePdfText({ pdfHash: reader.pdfHash,
-        pages: [{ pageNumber, items, pageHeight, pageWidth, viewportTransform: pageViewport.transform, blocks }] });
+      const pages=[{pageNumber,items,pageHeight,pageWidth,viewportTransform:pageViewport.transform,blocks}];
+      // Margin repetition requires adjacent pages; one-page extraction cannot
+      // distinguish a running header from real prose. Keep only this page's result.
+      for(const number of [pageNumber-1,pageNumber+1]) {
+        if(number<1 || !Number.isInteger(reader.pdf.numPages) || number>reader.pdf.numPages)continue;
+        const cached=reader.pages.get(number);
+        if(cached?.items?.length){pages.push({pageNumber:number,items:cached.items,pageHeight:cached.pageHeight,pageWidth:cached.pageWidth,viewportTransform:cached.viewportTransform,blocks:cached.blocks});continue;}
+        const adjacent=await reader.pdf.getPage(number),content=await adjacent.getTextContent(),viewport=adjacent.getViewport({scale:1});
+        if(player.pdfReader!==reader)return null;
+        if(content.items?.length)pages.push({pageNumber:number,items:content.items,pageHeight:viewport.height,pageWidth:viewport.width,viewportTransform:viewport.transform,blocks:[]});
+      }
+      const prepared = await window.api.preparePdfText({ pdfHash: reader.pdfHash, pages });
       if (player.pdfReader !== reader) return null;
-      if (!prepared?.ok || !Array.isArray(prepared.pages?.[0]?.blocks) || (!prepared.pages[0].blocks.length && items.some(item => item.str.trim()))) throw Error(prepared?.error || "PDF layout unavailable");
-      blocks = prepared.pages[0].blocks;
+      const currentPage=prepared?.pages?.find(row=>row.pageNumber===pageNumber);
+      if (!prepared?.ok || !Array.isArray(currentPage?.blocks)) throw Error(prepared?.error || "PDF layout unavailable");
+      blocks = currentPage.blocks;
     } catch (error) {
       if (player.pdfReader !== reader) return null;
       layoutWarning = String(error?.message || error);

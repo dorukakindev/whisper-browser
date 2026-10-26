@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
   function preview(text) {
-    if (typeof text !== "string" || text.length > 100000)
+    if (typeof text !== "string" || text.length > 900000)
       throw Error("Invalid chapter text / Bölüm metni geçersiz.");
     // Only lowercase word fragments; names, acronyms, numeric ranges and
     // paragraph boundaries need human editing rather than a guessed repair.

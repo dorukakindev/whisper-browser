@@ -80,7 +80,7 @@ function fixture({ textGate, renderGate } = {}) {
     readerResize: null,
     project: { id: "pdf", format: "pdf", chapters: [{ text: "Chapter one" }] },
     chapter: 0,
-    dialog: { open: true },
+    dialog: { open: true, querySelector: () => null },
     selected: new Set([0]),
     saveChapter: async () => {},
     call: async (name) =>

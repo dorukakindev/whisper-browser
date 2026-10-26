@@ -60,7 +60,7 @@ function fileDigest(file) {
   }
 }
 function workflowMessage(message, locale) {
-  if (locale !== "tr") return String(message).split(" / ")[0];
+  if (locale !== "tr") return message === "PDF text too large." ? "PDF text too large; select smaller page ranges from the reader." : String(message).split(" / ")[0];
   const parts = String(message).split(" / ");
   if (parts.length > 1) return parts.slice(1).join(" / ");
   const tr = {
@@ -68,7 +68,7 @@ function workflowMessage(message, locale) {
     "Project too large.": "Proje kaydı çok büyük.",
     "PDF exceeds 100 MB.": "PDF 100 MB sınırını aşıyor.",
     "PDF exceeds 1000 pages.": "PDF 1000 sayfa sınırını aşıyor.",
-    "PDF text too large.": "PDF metni çok büyük.",
+    "PDF text too large.": "PDF metni çok büyük; okuyucudan daha küçük sayfa aralıkları seçin.",
     "The project library is limited to 100 books.":
       "En fazla 100 kitap projesi saklanabilir.",
     "Chapter output collision.": "Bölüm ses dosyasında çakışma var.",
@@ -133,6 +133,9 @@ function registerMediaWorkflows({
     if (!idOK(id)) throw Error("Invalid project.");
     return path.join(root(), id, "project.json");
   };
+  function activeProjectCount() {
+    return (fs.existsSync(root()) ? fs.readdirSync(root()).filter(idOK) : []).filter(id=>{try{return !load(id).archived;}catch{return false;}}).length;
+  }
   function load(id) {
     const p = file(id);
     if (fs.statSync(p).size > 6000000) throw Error("Project too large.");
@@ -156,7 +159,9 @@ function registerMediaWorkflows({
   }
   const save = (d) => {
     fs.mkdirSync(path.dirname(file(d.id)), { recursive: true });
-    atomicWriteFileSync(file(d.id), JSON.stringify(d));
+    const serialized = JSON.stringify(d);
+    if (Buffer.byteLength(serialized,"utf8") > 6000000) throw Error("Project too large.");
+    atomicWriteFileSync(file(d.id), serialized);
   };
   const clean = (d) => ({
     ...d,
@@ -222,7 +227,7 @@ function registerMediaWorkflows({
     const info = fs.statSync(source);
     const identity = value => process.platform === "win32" ? value.toLowerCase() : value;
     for (const id of fs.existsSync(root()) ? fs.readdirSync(root()).filter(idOK) : []) {
-      const d = load(id);
+      let d; try { d = load(id); } catch { continue; }
       if (d.archived || typeof d.source !== "string" || identity(d.source) !== identity(source)
           || d.sourceSize !== info.size || d.sourceMtime !== info.mtimeMs
           || d.format !== book.format || (d.numPages || null) !== (book.numPages || null)
@@ -334,7 +339,7 @@ function registerMediaWorkflows({
     const reused = reuseBook(source, book, shelf);
     if (reused) return reused;
     fs.mkdirSync(root(), { recursive: true });
-    if (fs.readdirSync(root()).filter(idOK).length >= 100)
+    if (activeProjectCount() >= 100)
       throw Error("The project library is limited to 100 books.");
     const project = {
       version: 1,
@@ -386,7 +391,10 @@ function registerMediaWorkflows({
     try {
       const d = load(p.id),
         c = d.chapters[p.chapter];
-      if (hash(c.text) !== p.hash) return;
+      if (hash(c.text) !== p.hash) {
+        if(c.activeJob?.id === output.id){c.activeJob=null;save(d);}
+        return;
+      }
       const folder = path.dirname(file(d.id)),
         target = path.join(
           folder,
@@ -408,6 +416,13 @@ function registerMediaWorkflows({
           key: g.key,
           status: g.status,
         })) || [];
+      // Missing verification is never a silent pass. Offer the full, playable
+      // chapter as an explicit listen-and-approve review group.
+      if (!c.groups.length) {
+        const duration = require('./wav-duration').wavDuration(target);
+        c.groups=[{text:c.text,start:0,end:duration,key:'0',status:'review'}];
+        c.qualityMissing=true;
+      } else c.qualityMissing=false;
       c.status =
         output.quality?.groups?.length &&
         output.quality.groups.every((g) => g.status === "ready")
@@ -680,7 +695,7 @@ function registerMediaWorkflows({
               seen.has(row.pageNumber) ||
               typeof row.text !== "string" ||
               !row.text.trim() ||
-              row.text.length > 100000
+              row.text.length > 900000
             )
               throw Error("Invalid reading page.");
             seen.add(row.pageNumber);
@@ -699,7 +714,7 @@ function registerMediaWorkflows({
           });
           if (reused) return reused;
           fs.mkdirSync(root(), { recursive: true });
-          if (fs.readdirSync(root()).filter(idOK).length >= 100)
+          if (activeProjectCount() >= 100)
             throw Error("The project library is limited to 100 books.");
           const stat = fs.statSync(document.filePath);
           const d = {
@@ -780,12 +795,9 @@ function registerMediaWorkflows({
           const d = load(r.id),
             c = d.chapters[r.chapter],
             shelf = resolveShelfBook?.(d.shelfBookId);
-          if (
-            !c ||
-            !shelf ||
-            !d.source ||
-            fs.realpathSync(shelf.path) !== fs.realpathSync(d.source)
-          )
+          let sourceAvailable=false;
+          try{sourceAvailable=!!(c && shelf && d.source && fs.realpathSync(shelf.path)===fs.realpathSync(d.source));}catch(error){if(!['ENOENT','EACCES','EPERM'].includes(error.code))throw error;}
+          if (!sourceAvailable)
             throw Error(
               "Source book is unavailable / Kaynak kitap kullanılamıyor.",
             );
@@ -898,6 +910,7 @@ function registerMediaWorkflows({
             if (!a) continue;
             if (a.textHash !== hash(c.text)) {
               notices.push(c.title + ": text changed");
+              c.activeJob=null;save(current);
               continue;
             }
             const dir = path.join(app.getPath("userData"), "dub-logs");
@@ -963,7 +976,6 @@ function registerMediaWorkflows({
             projects: fs
               .readdirSync(root())
               .filter(idOK)
-              .slice(0, 100)
               .flatMap((id) => {
                 try {
                   const d = load(id);
@@ -980,7 +992,7 @@ function registerMediaWorkflows({
                 } catch {
                   return [];
                 }
-              }),
+              }).slice(0,100),
           };
         }
         case "book-open":
@@ -1022,7 +1034,7 @@ function registerMediaWorkflows({
             !c ||
             typeof r.text !== "string" ||
             !r.text.trim() ||
-            r.text.length > 100000
+            r.text.length > 900000
           )
             throw Error("Invalid chapter text.");
           if (c.text !== r.text) {
@@ -1046,7 +1058,7 @@ function registerMediaWorkflows({
             !c ||
             typeof text !== "string" ||
             !text.trim() ||
-            text.length > 100000
+            text.length > 900000
           )
             throw Error("Invalid chapter text.");
           const textHash = hash(text),
@@ -1333,6 +1345,13 @@ function registerMediaWorkflows({
               const st = fs.lstatSync(f);
               if (st.isSymbolicLink() || !st.isFile())
                 throw Error("Invalid chapter audio.");
+            }
+            for(let i=0;i<chapters.length;i++) {
+              const digest=fileDigest(files[i]);
+              const namedHash=path.basename(files[i]).match(/^\d+-[a-f0-9]{16}-([a-f0-9]{16})\.wav$/)?.[1];
+              if(namedHash && !digest.startsWith(namedHash)) throw Error('Chapter audio changed; regenerate it / Bölüm sesi değişti; yeniden üretin.');
+              for(const group of chapters[i].groups || []) if(group.manualApproval && (group.manualApproval.audioHash!==digest || group.manualApproval.textHash!==chapters[i].textHash))
+                throw Error('Approved audio changed; review it again / Onaylı ses değişti; yeniden kontrol edin.');
             }
             const escape = (value) =>
               String(value || "").replace(/\r\n?/g, "\n").replace(/[\\=;#\n]/g, (character) => "\\" + character);
