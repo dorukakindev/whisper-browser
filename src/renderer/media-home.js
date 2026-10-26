@@ -227,6 +227,7 @@
     return node;
   }
   function page(value) {
+    const changed = state.page !== value;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     state.page = value; state.limit = 48; state.filter = 'all';
     host.dataset.page = value;
@@ -234,6 +235,7 @@
     host.querySelectorAll('[data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === value ? 'page' : 'false'));
     host.querySelectorAll('[data-home-mode]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.homeMode === (['music', 'radio'].includes(value) ? 'music' : value === 'books' ? 'books' : 'film'))));
     renderContent();
+    if (changed) window.UiMotion?.reveal(document.getElementById('mhContent'), 'page');
   }
   function renderContent() {
     const content = document.getElementById('mhContent'); if (!content) return;
@@ -278,7 +280,7 @@
       controls.hidden = candidates.length < 2;
       function drawFeatured() {
         const featured = candidates[featuredIndex]; state.featuredKey = keyOf(featured);
-        copy.replaceChildren(); hero.querySelectorAll('[data-home-poster]').forEach(node => posterObserver.unobserve(node));
+        window.UiMotion?.reveal(copy, 'section'); copy.replaceChildren(); hero.querySelectorAll('[data-home-poster]').forEach(node => posterObserver.unobserve(node));
         hero.classList.toggle('mh-empty-hero', !featured);
         copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
           el('h1', '', featured?.title || t('Your media library starts here.', 'Medya kütüphaneni oluştur.')),

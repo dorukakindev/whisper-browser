@@ -87,7 +87,15 @@
   }
   function cards() {
     const grid = state.root?.querySelector('.md-grid'); if (!grid) return;
+    grid.setAttribute('aria-busy', String(state.busy));
     grid.replaceChildren();
+    if (state.busy && !state.rows.length) {
+      for (let i = 0; i < 6; i++) {
+        const tile = el('div', 'md-skeleton'); tile.setAttribute('aria-hidden', 'true');
+        tile.append(el('span', 'md-skeleton-art'), el('span', 'md-skeleton-line'), el('span', 'md-skeleton-line'));
+        grid.append(tile);
+      }
+    }
     for (const row of state.rows) {
       const card = btn('', () => details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;
       card.append(image(row.poster, 'mh-art'), el('span', 'mh-card-title', row.title),

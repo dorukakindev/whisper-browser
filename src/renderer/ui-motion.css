@@ -1,0 +1,79 @@
+/* Shared interaction layer. Existing palettes and native view bounds are retained. */
+:root {
+  --ui-motion-quick: 100ms;
+  --ui-motion-control: 150ms;
+  --ui-motion-surface: 180ms;
+  --ui-motion-ease: cubic-bezier(.2, .8, .2, 1);
+  --ui-elevation: var(--elev-2, 0 8px 24px rgb(0 0 0 / .22));
+}
+
+:is(.media-home, .media-surface, .player-layer) :is(.mh-action, .mh-text-button,
+  .md-tab, .tool-button, .btn, .btn-icon, .browser-nav-button),
+.app :is(.btn, .link-btn),
+.mh-nav button, .mh-mode button, .mh-more > summary {
+  transition: background-color var(--ui-motion-control), border-color var(--ui-motion-control),
+    color var(--ui-motion-control), box-shadow var(--ui-motion-control), scale var(--ui-motion-quick);
+}
+:is(.media-home, .media-surface, .player-layer) :is(.mh-action, .tool-button, .btn, .btn-icon):active:not(:disabled),
+.mh-more > summary:active { scale: .96; }
+
+.mh-card .mh-art {
+  transition: translate var(--ui-motion-surface) var(--ui-motion-ease),
+    border-color var(--ui-motion-control), box-shadow var(--ui-motion-control);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mh-card:hover .mh-art { translate: 0 -3px; box-shadow: var(--elev-2); }
+}
+.mh-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 9px; }
+.mh-card-title { line-height: 1.45; }
+.mh-hero h1, .mtd-copy h1, .md-detail h2 { text-wrap: balance; }
+.md-detail p, .mtd-story p, .aps-copy { text-wrap: pretty; }
+.mh-progress, .mh-hero-count, .dub-progress, .mw-status { font-variant-numeric: tabular-nums; }
+
+:is(.media-surface, .media-home) :is(input, select, textarea) {
+  transition: border-color var(--ui-motion-control), box-shadow var(--ui-motion-control);
+}
+:is(.media-surface, .media-home) :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+.mh-more-menu, .browser-menu-popover, .conversation-menu-content { box-shadow: var(--ui-elevation); }
+
+.assistant-surface button {
+  transition: background-color var(--ui-motion-control), border-color var(--ui-motion-control),
+    color var(--ui-motion-control), scale var(--ui-motion-quick);
+}
+.assistant-surface #form button { min-height: 36px; }
+.assistant-surface :is(#close, #expand) { min-width: 40px; min-height: 40px; }
+.assistant-surface #send:active:not(:disabled) { scale: .96; }
+
+/* Entry only: do not defer close(), hidden, focus return or native webview occlusion. */
+dialog.media-surface[open], dialog.md-detail[open],
+.mh-more[open] > .mh-more-menu,
+details[open] > .browser-menu-popover,
+.conversation-menu-content {
+  transition: opacity var(--ui-motion-surface) var(--ui-motion-ease);
+}
+@starting-style {
+  dialog.media-surface[open], dialog.md-detail[open],
+  .mh-more[open] > .mh-more-menu,
+  details[open] > .browser-menu-popover,
+  details[open] > .conversation-menu-content { opacity: .55; }
+}
+
+.md-skeleton { min-width: 0; pointer-events: none; }
+.md-skeleton-art { display: block; aspect-ratio: 2 / 3; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--bg-2); }
+.md-skeleton-line { display: block; width: 75%; height: 10px; border-radius: 5px;
+  background: var(--bg-3); margin-top: 14px; }
+.md-skeleton-line:last-child { width: 40%; height: 8px; margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.media-home, .media-surface, .player-layer, .app) :is(button, summary, input, select, textarea),
+  .mh-card .mh-art, dialog.media-surface[open], dialog.md-detail[open],
+  .mh-more-menu, .browser-menu-popover, .conversation-menu-content {
+    transition: none !important;
+    scale: none !important;
+    translate: none !important;
+  }
+  .assistant-surface button { transition: none !important; scale: none !important; }
+}

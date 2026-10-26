@@ -40,7 +40,7 @@
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else if(!$('review').hidden){$('reviewCancel').click();$('text').focus();}else toggle(); } });
   window.assistant.subscribe(value => {
-    if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened)$('text').focus();}
+    if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened){$('text').focus();window.UiMotion?.reveal($('panel'),'panel');}}
     const nextConversation=value.conversation||value.sourceToken||'';
     const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
     if(firstThread){drafts.delete(conversation);conversation=nextConversation;pending.sourceToken=value.sourceToken;}

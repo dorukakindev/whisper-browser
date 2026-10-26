@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-2019.md](docs/devir/2026-10-26-2019.md) — Ortak hareket, etkileşim cilası ve yüklenme durumları
 Güncel çalışma: [docs/devir/2026-10-26-1947.md](docs/devir/2026-10-26-1947.md) — Geniş UI matrisi ve üç doğrulanmış tasarım onarımı
 Güncel çalışma: [docs/devir/2026-10-26-1909.md](docs/devir/2026-10-26-1909.md) — Tasarım denetimi değerlendirmesi; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-10-26-1858.md](docs/devir/2026-10-26-1858.md) — Task03 kitap/PDF/EPUB ve ses bütünlüğü
