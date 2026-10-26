@@ -511,6 +511,42 @@ asyncTest('dublaj hızı temel hız zorlamasıyla savaşmaz ve süre dolunca ger
   video.playbackRate=2;expired();assert.equal(video.playbackRate,2,'expired lease overwrote a newer user rate');
 });
 
+
+asyncTest('R610: repeated ad skip seeks once per media and resumes after a new ad identity', async()=>{
+ let seeks=0,time=1;const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,duration:15,volume:.6,muted:false,currentSrc:'https://example.test/ad1'};
+ Object.defineProperty(video,'currentTime',{get:()=>time,set:v=>{seeks++;time=v;}});
+ const h=mediaCommandHarness(video,{'.html5-video-player.ad-showing':visibleAdElement()});
+ const script=buildBrowserMediaCommandScript('skipAd',0);
+ assert.equal((await vm.runInNewContext(script,h.context)).adAction,'seeked');
+ for(let i=0;i<10;i++)await vm.runInNewContext(script,h.context);
+ assert.equal(seeks,1);
+ video.currentSrc='https://example.test/ad2';time=0;
+ assert.equal((await vm.runInNewContext(script,h.context)).adAction,'seeked');assert.equal(seeks,2);
+});
+asyncTest('R610: stale ad overlay must not seek or mute long content or known short content',async()=>{
+ for(const duration of [4854,NaN,Infinity,70]){
+  const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,currentTime:0,duration,volume:.8,muted:false};
+  const h=mediaCommandHarness(video,{'.html5-video-player.ad-showing':visibleAdElement()});
+  if(duration===70)h.context.window.ytInitialPlayerResponse={videoDetails:{lengthSeconds:'70'}};
+  const r=await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd',0),h.context);
+  assert.equal(r.handled,false);assert.equal(video.currentTime,0);assert.equal(video.muted,false);
+ }
+});
+asyncTest('R610: repeated visible skip button commands are bounded',async()=>{
+ let clicks=0;const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,currentTime:0,duration:15,volume:1,muted:false};
+ const h=mediaCommandHarness(video,{'.ytp-ad-skip-button':{...visibleAdElement(),click:()=>clicks++}});
+ for(let i=0;i<10;i++)await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd',0),h.context);
+ assert.equal(clicks,1);assert.equal(video.currentTime,0);
+});
+
+asyncTest('R610: ad-to-content transition restores auto-muted audio even if ad class is stale',async()=>{
+ const video={isConnected:true,tagName:'VIDEO',paused:false,ended:false,clientWidth:800,clientHeight:450,currentTime:1,duration:15,volume:.4,muted:false};
+ const h=mediaCommandHarness(video,{'.html5-video-player.ad-showing':visibleAdElement()});
+ await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd',0),h.context);assert.equal(video.muted,true);
+ video.duration=4854;video.currentTime=0;
+ const r=await vm.runInNewContext(buildBrowserMediaCommandScript('skipAd',0),h.context);
+ assert.equal(r.handled,false);assert.equal(video.currentTime,0);assert.equal(video.muted,false);assert.equal(video.volume,.4);
+});
 Promise.all(pending).then(() => console.log(`browser-media-controller: ${passed} test`)).catch((error) => {
   console.error(error.stack || error);
   process.exitCode = 1;

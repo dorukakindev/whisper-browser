@@ -3918,19 +3918,10 @@ function installYoutubeStreamHeaders(ses = session.defaultSession) {
   youtubeHeaderSessions.add(ses);
   const mux = require("./session-webrequest-mux").sessionMux(ses);
   mux.set("youtube", "onBeforeSendHeaders", YT_MEDIA_FILTER, (details, callback) => {
-    const headers = { ...details.requestHeaders };
-    headers.Origin = 'https://www.youtube.com';
-    headers.Referer = 'https://www.youtube.com/';
-    callback({ requestHeaders: headers });
+    callback({ requestHeaders: require('./youtube-stream-headers').requestHeaders(details.requestHeaders) });
   });
   mux.set("youtube", "onHeadersReceived", YT_MEDIA_FILTER, (details, callback) => {
-    const headers = { ...details.responseHeaders };
-    headers['Access-Control-Allow-Origin'] = ['*'];
-    headers['Access-Control-Allow-Headers'] = ['*'];
-    // Chromium bu kaynağı çapraz-origin okumaktan alıkoyuyordu
-    delete headers['Cross-Origin-Resource-Policy'];
-    delete headers['cross-origin-resource-policy'];
-    callback({ responseHeaders: headers });
+    callback({ responseHeaders: require('./youtube-stream-headers').responseHeaders(details.responseHeaders) });
   });
 }
 
@@ -11950,7 +11941,9 @@ async function handleYoutubePlayerResponsePaused(wc, tab, params, sessionId = ''
       || tab.view !== browserView || tab.compatibilityMode
       || sessionId
       || !isYoutubePlayerResponseUrl(params?.request?.url)
-      || !Number.isFinite(Number(params?.responseStatusCode))) {
+      || !Number.isFinite(Number(params?.responseStatusCode))
+      || Number(params.responseStatusCode) < 200 || Number(params.responseStatusCode) >= 300
+      || params.responseErrorReason) {
     await continueOriginal();
     return;
   }
