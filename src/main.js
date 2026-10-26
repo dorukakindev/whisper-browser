@@ -3714,7 +3714,7 @@ function watchLibraryForRenderer() {
 }
 
 function foldWatchSearchText(value) {
-  return String(value || '').normalize('NFKC').toLocaleLowerCase('tr-TR');
+  return String(value || '').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr-TR').replace(/ı/g,'i');
 }
 
 // Kutuphane aramasi her altyazi dosyasini ana surecte okur. 10k kayitla bu
@@ -3912,15 +3912,18 @@ function saveWindowState() {
 // Kapsam bilinçli olarak DAR: yalnızca googlevideo host'ları.
 const YT_MEDIA_FILTER = { urls: ['https://*.googlevideo.com/*'] };
 
-function installYoutubeStreamHeaders() {
-  const ses = session.defaultSession;
-  ses.webRequest.onBeforeSendHeaders(YT_MEDIA_FILTER, (details, callback) => {
+const youtubeHeaderSessions = new WeakSet();
+function installYoutubeStreamHeaders(ses = session.defaultSession) {
+  if (youtubeHeaderSessions.has(ses)) return;
+  youtubeHeaderSessions.add(ses);
+  const mux = require("./session-webrequest-mux").sessionMux(ses);
+  mux.set("youtube", "onBeforeSendHeaders", YT_MEDIA_FILTER, (details, callback) => {
     const headers = { ...details.requestHeaders };
     headers.Origin = 'https://www.youtube.com';
     headers.Referer = 'https://www.youtube.com/';
     callback({ requestHeaders: headers });
   });
-  ses.webRequest.onHeadersReceived(YT_MEDIA_FILTER, (details, callback) => {
+  mux.set("youtube", "onHeadersReceived", YT_MEDIA_FILTER, (details, callback) => {
     const headers = { ...details.responseHeaders };
     headers['Access-Control-Allow-Origin'] = ['*'];
     headers['Access-Control-Allow-Headers'] = ['*'];
@@ -4010,6 +4013,7 @@ ipcMain.on('browser:youtube-guard:policy', event => {
 
 async function configureBrowserAdblock(enabled) {
   const browserSession = session.fromPartition(BROWSER_PARTITION, { cache: true });
+  installYoutubeStreamHeaders(browserSession);
   const result = await ensureBrowserAdblockController().setEnabled(browserSession, enabled);
   publishBrowserAdblockState(result);
   refreshBrowserYoutubeGuards();
@@ -20122,6 +20126,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
+require('./media-analysis').registerMediaAnalysis({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,ffmpeg:()=>resolveFfTool('ffmpeg')});
 const waveformCache = new Map();
 ipcMain.handle('media:waveform', async (_event, filePath) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };

@@ -144,7 +144,7 @@ test('R51-43: yardımcı alt süreç modülleri sır-env temizliğini atlayamaz'
   ];
   for (const name of helpers) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'src', name), 'utf8');
-    const spawnCalls = [...source.matchAll(/\bspawn\s*\(/g)]
+    const spawnCalls = [...source.matchAll(/\b(?:spawn|spawnImpl)\s*\(/g)]
       .filter((m) => !/require\('node:child_process'\)/.test(source.slice(Math.max(0, m.index - 80), m.index)));
     assert.ok(spawnCalls.length > 0, `${name}: spawn çağrısı bulunamadı`);
     assert.match(source, /require\('\.\/settings-security'\)/, `${name}: withoutSecretEnv içe aktarılmamış`);

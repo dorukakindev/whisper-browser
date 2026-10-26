@@ -406,7 +406,8 @@ class WatchIndex {
   }
 
   searchCues(query, limit = 50) {
-    const match = ftsQuery(query);
+    const words=String(query||'').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/ı/g,'i').match(/[\p{L}\p{N}_'-]+/gu)||[];
+    const match=words.slice(0,12).map(word=>{let alternatives=[''],positions=0;for(const ch of word){const choices=ch==='i'&&positions++<6?['i','ı']:[ch];alternatives=alternatives.flatMap(prefix=>choices.map(value=>prefix+value));}return '('+alternatives.map(value=>'"'+value+'"*').join(' OR ')+')';}).join(' AND ');
     if (!match) return [];
     return this.db.prepare(`
       SELECT m.id AS media_id, m.service, m.title, m.url,

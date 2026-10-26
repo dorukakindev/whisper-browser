@@ -2,7 +2,7 @@
   'use strict';
   const t = (en, tr) => window.UiLocale?.get?.() === 'tr' ? tr : en;
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
-  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false };
+  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(error.message, true))); return node;
@@ -97,7 +97,7 @@
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       grid.append(card);
     }
-    if (!state.rows.length && !state.busy) grid.append(el('p', 'mh-empty', state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
+    if (!state.rows.length && !state.busy && !state.loadError) grid.append(el('p', 'mh-empty', state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
       ? t('Mark favorite titles with genres in your library to get explained recommendations.', 'Gerekçeli öneriler için kütüphanende türleri bulunan yapımları favorile.')
       : t('No titles matched these filters.', 'Bu filtrelerle eşleşen yapım yok.')));
     const more = state.root.querySelector('.md-more'); more.hidden = state.tab !== 'browse' || state.next === null || state.rows.length >= 300; more.disabled = state.busy;
@@ -106,7 +106,7 @@
   async function load(append = false) {
     const root = state.root, request = ++state.request;
     if (!root?.isConnected) return;
-    state.busy = true; status(t('Loading titles…', 'Yapımlar yükleniyor…')); cards();
+    state.loadError = false; state.busy = true; status(t('Loading titles…', 'Yapımlar yükleniyor…')); cards();
     try {
       const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, skip: append ? state.next : 0 });
       if (request !== state.request || root !== state.root || !root.isConnected) return;
@@ -115,7 +115,10 @@
       status(result.needsRatings ? t('Add favorites and genre metadata in the library first.', 'Önce kütüphanede favori ve tür bilgisi ekle.') : '');
     } catch (error) {
       if (request !== state.request || root !== state.root || !root.isConnected) return;
-      status(t(`Could not refresh discovery. ${error.message} Use Retry; your library is unchanged.`, `Keşfet yenilenemedi. ${error.message} Yeniden dene; kütüphanen değişmedi.`), true);
+      state.loadError = true; state.next = null;
+      const timeout = /timeout|timed out|abort/i.test(String(error.message));
+      status(timeout ? t('Discovery timed out. Retry; your library is unchanged.', 'Keşfet isteği zaman aşımına uğradı. Yeniden dene; kütüphanen değişmedi.')
+        : t('Discovery could not be reached. Check your connection and retry; your library is unchanged.', 'Keşfet kaynağına ulaşılamadı. Bağlantını kontrol edip yeniden dene; kütüphanen değişmedi.'), true);
     } finally { if (request === state.request && root === state.root && root.isConnected) { state.busy = false; cards(); } }
   }
   function draw() {
@@ -144,7 +147,7 @@
     } else filters.addEventListener('submit', event => event.preventDefault());
     root.append(filters);
     const statusNode = el('p', 'md-status'); statusNode.setAttribute('role', 'status'); const grid = el('div', 'md-grid');
-    const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(false), 'mh-text-button'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
+    const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(false), 'mh-action'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     root.append(statusNode, grid, footer); cards();
   }
   let savedScroll = 0, restoringScroll = false;

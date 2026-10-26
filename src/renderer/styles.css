@@ -7241,3 +7241,14 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 #browserWhisperRangeDialog .dub-generator-options { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 12px; margin: 16px 0; }
 #browserWhisperRangeDialog input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
 #browserWhisperRangeError { color: var(--danger); }
+
+.timeline-analysis{display:flex;flex-wrap:wrap;gap:10px;padding:10px 14px;border-top:1px solid var(--border)}.timeline-analysis label{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:12px}.timeline-analysis input{width:86px}.timeline-analysis input,.timeline-analysis select{background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px;min-height:32px}
+
+/* Analysis is an optional drawer section, never an overlay over timeline cues. */
+.timeline-drawer{display:flex;flex-direction:column;max-height:min(660px,72vh);overflow:auto;overscroll-behavior:contain}
+.timeline-drawer>.timeline-head,.timeline-drawer>.timeline-toolbar{flex-shrink:0}.timeline-toolbar{flex-wrap:wrap}
+.timeline-analysis-panel{border-bottom:1px solid var(--border);padding:10px 0}.timeline-analysis-panel>summary{cursor:pointer;color:var(--text);font-size:12px;min-height:26px;display:list-item;margin-left:16px}.timeline-analysis-panel>p{color:var(--text-dim);font-size:11px;line-height:1.6;margin:8px 12px}
+.timeline-analysis{padding:10px 0;border:0}.timeline-drawer>.timeline-canvas-wrap{flex:0 0 168px;min-height:168px}
+.timeline-drawer>.timeline-issues{position:static;max-width:none;margin-top:8px;flex-shrink:0}.timeline-issues.hidden{display:none}
+.timeline-help{left:10px;right:10px;text-align:right;line-height:1.4}
+.timeline-analysis-panel:focus-within{border-color:var(--border-strong)}
