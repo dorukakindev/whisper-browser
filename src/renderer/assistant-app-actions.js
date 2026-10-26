@@ -20,6 +20,7 @@
   if(Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>Date.now()>=deadline||!current(owner);
+  if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='start_whisper'){

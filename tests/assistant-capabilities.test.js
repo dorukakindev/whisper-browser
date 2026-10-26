@@ -22,3 +22,11 @@ test('Manifest drops private fields and bounds source material without producing
  assert(JSON.stringify(text).length<=10000);assert(!JSON.stringify(text).includes('secret'));assert.doesNotThrow(()=>JSON.parse(JSON.stringify(text)));
  const a=manifest.clean(raw);assert(manifest.same(a,manifest.clean(raw)));assert(!manifest.same(a,manifest.clean({...raw,generation:8})));
 });
+
+
+test('Book tools are source-bound and accept only integer ordered page/chapter ranges',()=>{
+ const names=registry.list({kind:'book'}).map(row=>row.name);assert(names.includes('prepare_book_narration'));assert(names.includes('export_book_audio'));assert(!registry.list({kind:'video'}).some(row=>row.domain==='book'));
+ for(const args of [{from:1.5,to:2},{from:3,to:2},{from:0,to:1},{from:1,to:2,path:'private'}])assert.throws(()=>registry.validate('prepare_book_narration',args,{kind:'book'}));
+ assert.deepEqual(registry.validate('prepare_book_narration',{from:2,to:5,text:'translation'},{kind:'book'}),{from:2,to:5,text:'translation'});
+ assert(!registry.list({kind:'book'}).some(row=>/approve/.test(row.name)));
+});

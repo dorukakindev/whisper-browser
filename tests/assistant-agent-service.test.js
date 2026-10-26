@@ -73,3 +73,11 @@ test('Voice proposals require real reference, group and output identities before
   assert.equal(h.events.some(row=>row.value.type==='proposal'),proven,name+' '+JSON.stringify(args));assert(h.events.filter(row=>row.value.type==='action').every(row=>['list_voice_references','get_voice_status'].includes(row.value.name)));h.app.emit('will-quit');
  }
 });
+
+
+test('Book mutation cards require the current reader/production and do not start a job on model request',async()=>{
+ for(const [name,args,context,expected] of [['prepare_book_narration',{from:2,to:3},{reader:{canPrepare:true,source:{title:'Book'}}},true],['start_book_narration',{}, {production:null},false],['start_book_narration',{}, {production:{busy:true}},false],['start_book_narration',{}, {production:{busy:false,title:'Book'}},true]]){
+  let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'book',function:{name,arguments:JSON.stringify(args)}}]}):reply({role:'assistant',content:'Checked.'}));const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',...context}}));};
+  assert((await h.call('agentRun',{requestId:'book-check',question:'Narrate',owner:{...h.owner,kind:'book'}})).ok);assert.equal(h.events.some(row=>row.value.type==='proposal'),expected);assert(h.events.filter(row=>row.value.type==='action').every(row=>row.value.name==='get_book_context'));h.app.emit('will-quit');
+ }
+});
