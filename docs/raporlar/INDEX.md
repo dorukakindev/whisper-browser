@@ -1,3 +1,4 @@
+- [Rapor 617](BROWSER_BUG_REPORT_617.md) — İki Claude asistan araştırma paketinin bağımsız değerlendirmesi; iki sentetik kusur teyidi
 - [Rapor 616](BROWSER_BUG_REPORT_616.md) — Claude için kaynaklı asistan mimarisi araştırma ve şartname paketi
 - [Rapor 615](BROWSER_BUG_REPORT_615.md) — Ortak hareket/etkileşim sistemi, yüklenme yerleşimi ve Windows görsel doğrulaması
 - [Rapor 614](BROWSER_BUG_REPORT_614.md) — Geniş arayüz matrisi, gerçek Windows okuyucu kontrolü ve üç tasarım onarımı
