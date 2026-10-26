@@ -86,7 +86,7 @@ if sys.platform == 'win32':
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes, shift_cues
 from dub_finish import spoken_text, finish_audio, active_ranges, SPOKEN_TEXT_VERSION
-from dub_quality import chunk_key, duration_identity, valid_audio, representative_groups, reference_quality, speech_check, cached_record, generation_status, apply_timing_quality
+from dub_quality import chunk_key, duration_identity, valid_audio, matches_recorded_duration, representative_groups, reference_quality, speech_check, cached_record, generation_status, apply_timing_quality
 
 
 class SpeechVerifier:
@@ -403,11 +403,20 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['recovery'] = recovery
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
-                    temporary.replace(path)
                     metric.update(verification=check, text=display_speech, pronunciationText=text,
                                   delivery=delivery, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
-                    path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                    sidecar = path.with_suffix('.json')
+                    # Eski kayıt yeni dalga biçimine ait değildir: önce geçersiz kıl, WAV'ı yerleştir, kaydı atomik yaz.
+                    # Kayıt yazılamazsa cached_record fail-closed (review) döner; eski 'ready' kaydı yeni sese yapışmaz.
+                    sidecar.unlink(missing_ok=True)
+                    temporary.replace(path)
+                    staged = sidecar.with_name(sidecar.name + '.tmp')
+                    try:
+                        staged.write_text(json.dumps(metric), encoding='utf-8')
+                        staged.replace(sidecar)
+                    finally:
+                        staged.unlink(missing_ok=True)
                     args.force_groups.discard(args.group_keys[i])
                 except (Exception, asyncio.CancelledError) as exc:
                     if (isinstance(exc, (EngineStalled, asyncio.CancelledError))
@@ -485,7 +494,10 @@ async def uret(args, cues, paths, prompt_text):
         return sr
     finally:
         if runtime:
-            if not successful: await runtime.reset()
+            if not successful:
+                try: await runtime.reset()
+                except Exception as reset_error:   # reset hatası özgün (örn. EngineStalled) hatayı maskelememeli
+                    print('DUB_WARNING engine_reset_failed '+type(reset_error).__name__,flush=True)
         elif server is not None:
             await stop_server(server)
 
@@ -507,6 +519,7 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
                 restarts += 1
                 args.eszamanli = max(1, args.eszamanli // 2)
                 args.requested_concurrency=args.eszamanli
+                args.configured_concurrency=args.eszamanli
                 if hasattr(args,'group_seeds'):
                     args.group_seeds=[(seed+100003)%2147483647 for seed in args.group_seeds]
                 paths[:] = original_paths
@@ -523,6 +536,7 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
                 raise
             args.eszamanli = max(1, args.eszamanli // 2)
             args.requested_concurrency=args.eszamanli
+            args.configured_concurrency=args.eszamanli
             paths[:] = original_paths
             print('DUB_CONCURRENCY ' + str(args.eszamanli), flush=True)
 
@@ -691,6 +705,7 @@ def main(argv=None, runtime=None):
     args.runtime=runtime
     args.reference_bytes=args.reference.read_bytes()
     args.requested_concurrency=args.eszamanli
+    args.configured_concurrency=args.eszamanli
     try:
         prompt_text = resolve_prompt_text(args.reference, args.mode, args.transcript)
     except (OSError, ValueError) as exc:
@@ -774,7 +789,7 @@ def main(argv=None, runtime=None):
             args.bosluk_pay_ms, args.end_limit_ms), args.group_keys[i] in args.manual_groups), seed) + '.wav')
             for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     for p in paths:
-        if p.exists() and not valid_audio(p, sf):
+        if p.exists() and not (valid_audio(p, sf) and matches_recorded_duration(p, sf)):
             p.unlink()
     eksik = sum(1 for i, p in enumerate(paths) if not p.is_file() or args.group_keys[i] in args.force_groups)
     import io

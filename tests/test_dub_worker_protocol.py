@@ -44,4 +44,22 @@ class MainTests(unittest.TestCase):
         self.assertTrue(runtime.closed)
         self.assertNotIn('DUB_WORKER_DONE',output.getvalue())
 
+    def test_done_contains_bounded_request_diagnostic_tail(self):
+        class Stream(io.StringIO):
+            def reconfigure(self, **kwargs): pass
+        class Runtime:
+            def reset(self): return None
+            def run(self, value): pass
+            def close(self): pass
+        def reader(*args, **kwargs):
+            sys.stderr.write('x'*40000+'\nRequest failure')
+            raise ValueError('controlled failure')
+        output=io.StringIO()
+        with patch.dict(sys.modules,{'altyazi_oku':types.SimpleNamespace(main=reader),'dub_runtime':types.SimpleNamespace(EngineSession=Runtime)}),patch.object(sys,'stdin',Stream('{"id":"1","args":[]}\n')),patch.object(sys,'stdout',output),patch.object(sys,'stderr',io.StringIO()):
+            dub_worker.main()
+        done=json.loads(next(line[16:] for line in output.getvalue().splitlines() if line.startswith('DUB_WORKER_DONE ')))
+        self.assertEqual(done['id'],'1');self.assertEqual(done['code'],1)
+        self.assertLessEqual(len(done['stderr']),32768)
+        self.assertIn('controlled failure',done['stderr'])
+
 if __name__=='__main__':unittest.main()

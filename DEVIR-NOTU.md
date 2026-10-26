@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1438.md](docs/devir/2026-10-26-1438.md) — Task01ses denetimi;9gerçek kök onarıldı ve Windows/gerçek soundfile ile sınandı
 Güncel çalışma: [docs/devir/2026-10-26-1357.md](docs/devir/2026-10-26-1357.md) — PR500 ana programda;checkpoint bulguları ve7doğrulanmış onarım
 Güncel çalışma: [docs/devir/2026-10-26-1355.md](docs/devir/2026-10-26-1355.md) — Claude checkpoint incelemesi;7kök onarım ve açık PDF/sayı sınırları
 Güncel çalışma: [docs/devir/2026-10-26-1326.md](docs/devir/2026-10-26-1326.md) — PR499 ana programda;30maddelik ürün teslimi ve kişisel dosya koruması

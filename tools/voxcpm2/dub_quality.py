@@ -244,6 +244,28 @@ def valid_audio(path, sf):
         return False
 
 
+def matches_recorded_duration(path, sf):
+    """Do not reuse a shortened WAV under a previously verified duration.
+
+    Missing/unreadable metadata remains review-only through cached_record.
+    Existing duration fields must be finite positive numbers, not booleans.
+    """
+    try:
+        record = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return True
+    if not isinstance(record, dict) or 'final_seconds' not in record:
+        return True
+    expected = record['final_seconds']
+    if isinstance(expected, bool) or not isinstance(expected, (int, float)) or not math.isfinite(expected) or expected <= 0:
+        return False
+    try:
+        info = sf.info(str(path))
+        return abs(info.frames - expected * info.samplerate) <= max(2.0, info.samplerate * .001)
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
 def representative_groups(groups, max_seconds=55):
     """Choose short, long and dense speech; pack excerpts without huge silence."""
     if not isinstance(max_seconds, (int, float)) or not math.isfinite(max_seconds) or max_seconds <= 0:
