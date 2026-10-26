@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-0349.md](docs/devir/2026-10-26-0349.md) — 50 maddelik ürün kapsamı: ses cache ve sıcak motor güvenilirliği
 Güncel çalışma: [docs/devir/2026-10-26-0330.md](docs/devir/2026-10-26-0330.md) — PR496 ana programda; sağlayıcı/ses korumaları ve Windows akış onarımları
 Güncel çalışma: [docs/devir/2026-10-26-0326.md](docs/devir/2026-10-26-0326.md) — Sağlayıcı/ses metni güvenliği ve Windows arayüz akışları düzeltildi
 Güncel çalışma: [docs/devir/2026-10-26-0200.md](docs/devir/2026-10-26-0200.md) — Claude için güncel10MBkaynak paketi ve12alanlı derin denetim görevi
