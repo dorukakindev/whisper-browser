@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1721.md](docs/devir/2026-10-26-1721.md) — YouTube CORS/tekrarlı reklam atlama ve Task02 ön triyaj
 Güncel çalışma: [docs/devir/2026-10-26-1656.md](docs/devir/2026-10-26-1656.md) — Sahne bağlamı,zaman önizlemesi ve codec oynatma desteği
 Güncel çalışma: [docs/devir/2026-10-26-1638.md](docs/devir/2026-10-26-1638.md) — Dış repo önerilerinde mevcut,kısmi ve önerilen ürün alanları
 Güncel çalışma: [docs/devir/2026-10-26-1625.md](docs/devir/2026-10-26-1625.md) — Claude için dört bağımsız read-only denetim paketi
