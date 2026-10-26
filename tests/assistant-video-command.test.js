@@ -49,9 +49,8 @@ test('Whisper only passes the selected range and never requests translation',asy
 test('Absent source captions never silently fall back to Whisper',async()=>{
  const h=harness();try{
   h.w.player.browserTracks=[];
-  await h.w.AssistantVideoCommands.handle('Videonun altyazısını çevir');
-  assert.equal(h.calls.length,0);assert.equal(h.done[0].status,'failed');
-  assert.match(h.done[0].text,/Whisper \+ çeviri/);
+  assert.equal(await h.w.AssistantVideoCommands.handle('Videonun altyazısını çevir'),false,'Delegate to the caption-probe tool loop, never to Whisper');
+  assert.equal(h.calls.length,0);assert.equal(h.done.length,0);
  }finally{h.dom.window.close();}
 });
 
@@ -66,7 +65,7 @@ test('Cancellation during caption preparation prevents a late start',async()=>{
 });
 
 test('Unresolved ranges and a different target cannot silently run the full video or wrong language',async()=>{
- for(const question of ['Whisper videonun 5 dakikasını çevir','Whisper 03:99–04:30 altyazı çıkar','Videonun altyazısını İngilizceye çevir']){
+ for(const question of ['Whisper videonun 5 dakikasını çevir','Whisper 03:99–04:30 altyazı çıkar']){
   const h=harness();try{
    await h.w.AssistantVideoCommands.handle(question);
    assert.equal(h.calls.length,0,question);assert.equal(h.done[0].status,'failed',question);
@@ -92,3 +91,9 @@ test('A confirmed translation stop clears its running identity and keeps finishe
   assert.equal(h.w.player.cues2[0].text,'Hazır çeviri');assert.equal(h.w.AssistantVideoCommands.busy(),false);
  }finally{h.dom.window.close();}
 });
+
+ test('Per-job caption language/range/speech requests delegate without changing saved settings',async()=>{
+  for(const q of ['Videonun altyazısını İngilizceye çevir','Videonun altyazısını 00:05–00:25 arasında çevir','Videonun altyazısını dublaj için çevir']){
+   const h=harness();try{assert.equal(await h.w.AssistantVideoCommands.handle(q),false);assert.equal(h.calls.length,0);assert.equal(h.w.document.getElementById('translateTo').value,'tr');}finally{h.dom.window.close();}
+  }
+ });

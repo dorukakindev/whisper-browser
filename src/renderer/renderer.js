@@ -11459,7 +11459,8 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     setBrowserSignal('Whisper işlemi için browser içinde bir YouTube video sayfası açın.', false);
     return;
   }
-  const clipRange = currentBrowserWhisperRange();
+  const clipRange = Object.hasOwn(config,'clipRange')?config.clipRange:currentBrowserWhisperRange();
+  const targetLanguage=config.targetLanguage||$('translateTo')?.value||'tr';
   const forSpeech = !!translate && (config.forSpeech ?? !!$('translateForSpeech')?.checked);
   const selectedModel = String($('translateModel')?.value || '').trim();
   const selectedProvider = String($('translateEndpointPreset')?.value === 'custom'
@@ -11469,7 +11470,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     : !track.clipRange;
   const reusableTranslation = translate ? player.browserTracks.find((track) =>
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
-      && track.language === ($('translateTo')?.value || 'tr')
+      && track.language === targetLanguage
       && !!track.forSpeech === forSpeech
       && (!forSpeech || track.speechProtocol === 'speech-v7-delivery-contract')
       && (!forSpeech || ((!selectedModel || track.model === selectedModel)
@@ -11500,10 +11501,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     if ($('makeTransBtn') && !$('makeTransBtn').disabled) {
       setBrowserSignal('Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.', true,
         { priority: 70, holdMs: 5000 });
-      state.translateForSpeechOverride = forSpeech;
-      const previousJob = player.job;
-      $('makeTransBtn').click();
-      return { ok: !!player.job && player.job !== previousJob, job: player.job !== previousJob ? player.job : null };
+      return startPlayerSubtitleTranslation({forSpeech,targetLanguage,range:clipRange,isCancelled:config.isCancelled});
     }
   }
   if (config.isCancelled?.()) return { ok: false, cancelled: true };
@@ -11512,6 +11510,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     browserYoutube: true,
     translateOverride: !!translate,
     translateForSpeech: forSpeech,
+    targetLanguage,
     clipRange,
   });
   return { ok: !!player.job && player.job !== previousJob && !player.job.failed,
@@ -25519,6 +25518,7 @@ async function startProgressivePlayerTranscription(config = {}) {
   if (Object.prototype.hasOwnProperty.call(config, 'translateOverride')) {
     opts.translate = !!config.translateOverride;
   }
+  if(config.targetLanguage)opts.translateTo=config.targetLanguage;
   configureSpeechTranslation(opts, opts.translate &&
     (config.translateForSpeech ?? !!$('translateForSpeech')?.checked));
   // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
@@ -25753,8 +25753,8 @@ function clearPendingRetranslateIntent({ dropSnapshot = false } = {}) {
   if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
 }
 
-if ($('makeTransBtn')) {
-  $('makeTransBtn').addEventListener('click', async () => {
+async function startPlayerSubtitleTranslation(config = {}) {
+    if(config.isCancelled?.())return {ok:false,cancelled:true};
     if (state.running || state.queueRunning) {
       // Çalışan işin kendi fark anlık görüntüsü korunur; yalnız bu tıklamanın
       // taşıdığı niyet düşürülür.
@@ -25778,7 +25778,13 @@ if ($('makeTransBtn')) {
     const opts = buildOptsFromUI();
     opts.translateOnly = true;
     opts.translate = true;
-    configureSpeechTranslation(opts, state.translateForSpeechOverride ?? !!$('translateForSpeech')?.checked);
+    if(config.targetLanguage)opts.translateTo=config.targetLanguage;
+    if(config.range){
+      if(!sourceCues.some(cue=>cue.end>config.range.start&&cue.start<config.range.end))return {ok:false,error:'No subtitles in the selected range / Seçili aralıkta altyazı yok.'};
+      opts.translateCueRange=config.range.start+':'+config.range.end;
+      opts.translateVariantLabel='assistant-'+(opts.translateTo||'tr');
+    }
+    configureSpeechTranslation(opts, config.forSpeech ?? state.translateForSpeechOverride ?? !!$('translateForSpeech')?.checked);
     opts.input = sourcePath;
     // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
     // eksik/başarısız olanları yeniden işler.
@@ -25792,13 +25798,13 @@ if ($('makeTransBtn')) {
     const existingTranslation = player.workspaceMode === 'browser'
       ? player.browserTracks.find((track) =>
           track.id === player.browserLoadedTrackId2 && track.role === 'translation'
-          && !!track.forSpeech === !!opts.translateForSpeech)?.path
+          && !!track.forSpeech === !!opts.translateForSpeech && track.language===opts.translateTo)?.path
       : (player.subRole === 'translation' ? player.subPath
         : player.sub2Role === 'translation' ? player.sub2Path : '');
-    if (existingTranslation && !state.forceRetranslate) opts.translateExisting = existingTranslation;
+    if (existingTranslation && !state.forceRetranslate && (!config.targetLanguage || config.targetLanguage===$('translateTo').value)) opts.translateExisting = existingTranslation;
     // Aralık-kısıtlı yeniden çeviri: yalnız bu saniye aralığıyla kesişen
     // bloklar yeniden üretilir; aralık dışı mevcut çeviri/kaynakla korunur.
-    if (state.translateCueRange) {
+    if (state.translateCueRange && !config.range) {
       opts.translateCueRange = state.translateCueRange;
       if (state.translateSceneContext) opts.sceneContext = state.translateSceneContext;
       if (!opts.translateExisting && existingTranslation) opts.translateExisting = existingTranslation;
@@ -25809,13 +25815,14 @@ if ($('makeTransBtn')) {
     // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa
     // repliklerde yanlış anlam ve hitap seçimine yol açıyordu.
-    if (browserLanguage) opts.language = browserLanguage;
+    if (browserLanguage || config.sourceLanguage) opts.language = config.sourceLanguage || browserLanguage;
     const problem = optsProblem(opts);
     if (problem) {
       clearPendingRetranslateIntent({ dropSnapshot: true });
       logLine(problem, 'error'); setSettingsDrawer(true); return;
     }
 
+    if(config.isCancelled?.())return {ok:false,cancelled:true};
     state.running = true;
     state.cancelled = false;
     // Yalnızca çeviri işi mevcut kaynak altyazıyı kullanır. Burada outputFiles'ı
@@ -25826,7 +25833,7 @@ if ($('makeTransBtn')) {
     player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
       translateForSpeech: opts.translateForSpeech,
       translateModel: opts.translateModel, translateBaseUrl: opts.translateBaseUrl,
-      clipRange: browserTrack?.clipRange ? { ...browserTrack.clipRange } : null,
+      clipRange: config.range?{...config.range}:browserTrack?.clipRange ? { ...browserTrack.clipRange } : null,
       startedAt: Date.now(), percent: 0,
       workspaceMode: player.workspaceMode, browserTabId: player.workspaceMode === 'browser' ? player.browserActiveTabId : '',
       liveSource: sourceCues.slice(), liveTranslation: new Map(),
@@ -25842,6 +25849,7 @@ if ($('makeTransBtn')) {
     logLine(`Çeviri başlatıldı: ${sourcePath.split(/[\\/]/).pop()} → `
       + `${opts.translateTo || 'tr'} · kaynak ${opts.language || 'otomatik'} · `
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
+    const translationJob=player.job;
     const r = await startTranscribeSafe(opts);
     state.translateForSpeechOverride = null;
     state.forceRetranslate = false;
@@ -25858,8 +25866,9 @@ if ($('makeTransBtn')) {
       if (bar) bar.classList.add('hidden');
       logLine(`Çeviri başlatılamadı: ${(r && r.error) || 'bilinmeyen hata'}`, 'error');
     }
-  });
+    return {ok:!!r?.ok,error:r?.error,job:r?.ok?translationJob:null};
 }
+if ($('makeTransBtn')) $('makeTransBtn').addEventListener('click',()=>void startPlayerSubtitleTranslation());
 
 if ($('retranslateAllBtn')) {
   $('retranslateAllBtn').addEventListener('click', async () => {

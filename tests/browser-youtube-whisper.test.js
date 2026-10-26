@@ -18,6 +18,7 @@ const ctx = {
   player: { workspaceMode: 'browser', mediaKey: 'browser:youtube:abcdefghijk', browserActiveTabId: 'a',
     browserPageUrl: 'https://www.youtube.com/watch?v=abcdefghijk&list=ignored', browserTracks: [],
     browserDuration: 1800, browserTime: 800, subPath: '', sub2Path: '' },
+  startPlayerSubtitleTranslation:async config=>{node('makeTransBtn').click();ctx.translationRequest=config;ctx.player.job={kind:'translate'};return {ok:true,job:ctx.player.job};},
   state: {}, $: node, browserTabState: () => ({ id: 'a', service: 'youtube' }),
   buildOptsFromUI: () => ({ input: 'old.mp4', translate: true, translateTo: 'tr' }),
   optsProblem: () => '', logLine() {}, setBrowserSignal() {}, setSubtitleMode() {},

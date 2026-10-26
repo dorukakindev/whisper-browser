@@ -78,6 +78,10 @@
  async function handle(question){
   const intent=window.AssistantVideoIntent?.match(question);
   if(!intent)return false;
+  if(intent.kind==='translate-track'){
+   const target=effectiveBrowserProfile().values.targetLanguage||'tr';
+   if(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==target||!player.browserTracks.some(row=>row.role==='source'&&row.path))return false;
+  }
   if(pending)return true;
   const tab=browserTabState(),url=typeof globalAssistantContext==='function'&&globalAssistantContext()?'':currentBrowserYoutubeUrl();
   const task={intent,scope:aiSourceScope(),tabId:tab?.id||'',generation:tab?.generation,url,thread:window.AssistantWorkspace?.activeId(),cancelled:false};
@@ -90,7 +94,7 @@
    if(!url||!task.tabId)throw Error(t('Open a YouTube video in the browser first.','Önce browser içinde bir YouTube videosu aç.'));
    if(intent.rangeInvalid||intent.rangeUnresolved)throw Error(t('Specify a valid interval, for example 05:00–10:00. The whole video was not started.','Geçerli bir aralık belirt; örneğin 05:00–10:00. Videonun tamamı başlatılmadı.'));
    const configuredTarget=intent.kind==='translate-track'?effectiveBrowserProfile().values.targetLanguage||'tr':document.getElementById('translateTo')?.value||'tr';
-   if(intent.kind!=='whisper-only'&&intent.targetLanguage&&intent.targetLanguage!==configuredTarget)
+   if(intent.kind==='translate-track'&&intent.targetLanguage&&intent.targetLanguage!==configuredTarget)
     throw Error(t('The saved target language is ','Kayıtlı hedef dil ')+configuredTarget+t('. Change the translation target in settings, then retry.','. Çeviri ayarlarından hedef dili değiştirip yeniden dene.'));
    if(intent.kind==='translate-track'){
     if(intent.forSpeech)throw Error(t('Use the subtitle translation controls for speech-ready translation of an existing track.','Mevcut altyazının seslendirmeye uygun çevirisi için altyazı çeviri kontrollerini kullan.'));
@@ -118,7 +122,7 @@
     }
     if(!owner(task))throw Error(t('The video changed before Whisper could start.','Whisper başlamadan video değişti.'));
     task.range=range;
-    const receipt=await startBrowserYoutubeWhisper(intent.kind==='whisper-translate',{forSpeech:intent.forSpeech||undefined,isCancelled:()=>task.cancelled||!owner(task)});
+    const receipt=await startBrowserYoutubeWhisper(intent.kind==='whisper-translate',{forSpeech:intent.forSpeech||undefined,targetLanguage:intent.targetLanguage||undefined,isCancelled:()=>task.cancelled||!owner(task)});
     const engineJob=receipt?.job;
     if(task.cancelled){
      if(owner(task)&&engineJob?.browserTabId===task.tabId){task.engineJob=engineJob;followWhisper(task,engineJob);task.cancelled=false;await cancel();}

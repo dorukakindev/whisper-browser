@@ -23,22 +23,16 @@
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
    if(Object.hasOwn(args,'start')){
-    const checked=validateBrowserWhisperRange(true,pSecToTime(args.start),pSecToTime(args.end),player.browserAdPlaying?0:Number(player.browserDuration));
+    const checked=validateBrowserWhisperRange(true,String(args.start),String(args.end),player.browserAdPlaying?0:Number(player.browserDuration));
     if(checked.error)throw Error(checked.error);player.browserWhisperRange={url:currentBrowserYoutubeUrl(),range:checked.range};
    }
    const executionOwner=snapshot();
-   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,isCancelled:()=>Date.now()>=deadline||!current(executionOwner)});
+   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,isCancelled:()=>Date.now()>=deadline||!current(executionOwner)});
    if(!result?.ok)throw Error(t('Whisper was not confirmed as started.','Whisper başlangıcı doğrulanamadı.'));
    return {status:result.reused?'completed':'accepted',reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the video job panel.','Medya işi kabul edildi. İlerlemeyi video işlem panelinden izle.')};
   }
-  if(name==='translate_captions'){
-   const track=player.browserTracks.find(row=>row.id===args.track_id&&row.role!=='translation');
-   if(!track)throw Error(t('The source track no longer exists.','Kaynak altyazı artık bulunamıyor.'));
-   if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
-   const result=await useBrowserTrack(true,track.id,{isCancelled:stale});
-   if(!result?.ok)throw Error(result?.error||t('Caption translation was not confirmed as started.','Altyazı çevirisi başlangıcı doğrulanamadı.'));
-   return {status:'accepted',note:t('Caption translation was accepted. Follow progress in the subtitle panel.','Altyazı çevirisi kabul edildi. İlerlemeyi altyazı panelinden izle.')};
-  }
+  if(['translate_captions','translate_video_captions'].includes(name))return window.AssistantCaptionActions.translate(args,owner,{deadline});
+  if(name==='load_caption_track'){const result=await useBrowserTrack(false,args.track_id,{isCancelled:stale});if(!result?.ok||stale())throw Error(t('Subtitle load was not confirmed.','Altyazı yüklenmesi doğrulanamadı.'));return {status:'completed',note:t('Subtitles loaded; no translation started.','Altyazı yüklendi; çeviri başlamadı.')};}
   if(name==='translate_page'){
    // The existing page service owns progress/cancellation. Do not hold the agent RPC until all blocks finish.
    void handleBrowserPageTranslationAction({ensureVisible:true,targetLanguage:args.target_language,isCancelled:stale}).then(result=>{
@@ -54,6 +48,14 @@
   }
   const pool=contract.pool(window.AssistantWorkspace?.toolContext()?.rows),source=pool.find(row=>row.id===args.source_id);
   if(!source)throw Error(t('The source subtitle is no longer in scope.','Kaynak altyazı artık seçili kapsamda değil.'));
+  if(name==='open_subtitle_editor'){
+   if(player.workspaceMode==='browser'){
+    const descriptors=subtitleFindDescriptors();let target;
+    for(const descriptor of descriptors){const index=descriptor.cues.findIndex(row=>row.start===source.start&&row.end===source.end&&row.text===source.text);if(index>=0){target={channel:descriptor.channel,index};break;}}
+    if(!target)throw Error(t('The original subtitle changed.','Kaynak altyazı değişti.'));openBrowserQuickEditor(false,target);if(!browserQuickEditor?.rows?.length)throw Error(t('The editor could not open.','Düzenleyici açılamadı.'));
+   }else{const index=player.cues.findIndex(row=>row.start===source.start&&row.end===source.end&&row.text===source.text);if(index<0)throw Error('Subtitle changed.');player.activeIdx=index;openCueEditor(false);if(!player.cueEditTarget)throw Error(t('The editor could not open.','Düzenleyici açılamadı.'));}
+   return {status:'completed',note:t('Subtitle editor opened. Nothing was saved.','Altyazı düzenleyicisi açıldı. Dosya kaydedilmedi.')};
+  }
   if(name==='seek_to_time'){
    if(player.workspaceMode==='browser'){const result=await browserCommand('seek',source.start);if(!result?.ok)throw Error(result?.error||t('Playback jump failed.','Zamana gidilemedi.'));}
    else document.getElementById('playerVideo').currentTime=subtitleVideoTime(source.start,false);
