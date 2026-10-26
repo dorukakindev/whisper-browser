@@ -48,3 +48,18 @@ test('Main job tools use authoritative IDs and refuse a stale stop proposal afte
  jobs.update(id,{type:'done'});jobs.start({cancel:async()=>{stops++;return {ok:true};}});
  assert.equal((await h.call('agentApply',{proposalId:proposal.proposalId,owner:h.owner})).ok,false);assert.equal(stops,0);h.app.emit('will-quit');
 });
+test('Caption probe selects proven manual/automatic IDs and stale source cannot create an action',async()=>{
+ let step=0,seen;
+ const h=fixture(async(_,options)=>{seen=JSON.parse(options.body);return ++step===1?reply({role:'assistant',tool_calls:[{id:'probe',function:{name:'probe_video_captions',arguments:'{}'}}]}):step===2?reply({role:'assistant',tool_calls:[{id:'select',function:{name:'translate_video_captions',arguments:JSON.stringify({caption_id:'yt-manual:en',target_language:'de',start:5,end:25,forSpeech:true})}}]}):reply({role:'assistant',content:'Proposed manual captions.'});},{probeVideo:async()=>({ok:true,data:{subtitleLangs:[{code:'en',auto:false},{code:'ja',auto:true}]}})});
+ assert((await h.call('agentRun',{requestId:'captions-A',question:'Translate captions',owner:h.owner})).ok);
+ assert(seen.messages.some(row=>row.role==='tool'&&row.content.includes('yt-auto:ja')));assert.equal(h.events.filter(row=>row.value.type==='proposal').length,1);assert(!h.events.some(row=>row.value.type==='action'));
+ const action=h.events.find(row=>row.value.type==='proposal').value.action;assert.equal((await h.call('agentApply',{proposalId:action.proposalId,owner:{...h.owner,generation:2}})).ok,false);h.app.emit('will-quit');
+});
+test('A guessed caption ID without a source probe cannot create a download card',async()=>{
+ let count=0;const h=fixture(async()=>++count===1?reply({role:'assistant',tool_calls:[{id:'bad',function:{name:'translate_video_captions',arguments:'{"caption_id":"yt-manual:invented"}'}}]}):reply({role:'assistant',content:'Probe required.'}));
+ assert((await h.call('agentRun',{requestId:'guess-A',question:'Translate',owner:h.owner})).ok);assert(!h.events.some(row=>row.value.type==='proposal'));h.app.emit('will-quit');
+});
+test('Web research returns actual sources in a canonical trailing section',async()=>{
+ let count=0;const h=fixture(async()=>++count===1?reply({role:'assistant',tool_calls:[{id:'web',function:{name:'research_web',arguments:'{"query":"Who is the author?"}'}}]}):reply({role:'assistant',content:'Answer.'}),{researchWeb:async()=>({text:'Supported fact.',sources:[{title:'Official source',url:'https://example.com/fact'},{title:'private',url:'http://localhost/private'}]})});
+ const result=await h.call('agentRun',{requestId:'web-A',question:'Look it up',owner:h.owner,locale:'en'});assert(result.ok);assert(result.text.includes('Web sources:\n[W1] Official source\nhttps://example.com/fact'));assert(!result.text.includes('localhost'));h.app.emit('will-quit');
+});

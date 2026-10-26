@@ -141,7 +141,7 @@ test('main.js: gevşek ayar bağlı, kısmi kayıt yapılır, ağ dönüşü yal
 
 test('renderer: erken çıkan yeniden çeviri bayrakları sonraki "Çevir"e sızmaz', () => {
   const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
-  const handler = renderer.slice(renderer.indexOf("$('makeTransBtn').addEventListener('click'"),
+  const handler = renderer.slice(renderer.indexOf("async function startPlayerSubtitleTranslation("),
     renderer.indexOf('opts.translateOnly = true;'));
   const runningGuard = handler.slice(0, handler.indexOf('Zaten bir iş çalışıyor'));
   assert.match(runningGuard, /clearPendingRetranslateIntent\(\)/);
@@ -153,7 +153,7 @@ test('renderer: erken çıkan yeniden çeviri bayrakları sonraki "Çevir"e sız
     'çalışan iş varken anlık görüntü ezilmemeli');
   // Davranış: yardımcı bayrakları ve A/B bekleyicisini sıfırlar.
   const fnSource = renderer.slice(renderer.indexOf('function clearPendingRetranslateIntent('),
-    renderer.indexOf("if ($('makeTransBtn')) {"));
+    renderer.indexOf("async function startPlayerSubtitleTranslation("));
   const state = { forceRetranslate: true, translateCueRange: '1:2', translateModelOverride: 'x',
     translateVariantLabel: 'ab-a', retranslateSnapshot: { cues: [] }, abCollect: null };
   let resolved = 'no';

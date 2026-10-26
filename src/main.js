@@ -756,6 +756,21 @@ const assistantJobs = require('./assistant-jobs').createJobs({changed:snapshot=>
   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('assistant:jobsEvent',snapshot);
 }});
 
+function observeAssistantCaptionJob(tab,scheduler,state){
+  const busy=Number(state.pending||0)+Number(state.queued||0)+Number(state.retrying||0)>0;
+  const current=assistantJobs.snapshot().jobs.find(row=>row.id===tab.assistantCaptionJob);
+  if(busy&&(!current||!['running','cancelling'].includes(current.state))){
+    const id=assistantJobs.start({kind:'captions',cancel:()=>{
+      if(tab.translationScheduler!==scheduler)return {ok:false};tab.translationScheduler=null;
+      scheduler.cancelAll('User stopped this caption job.');assistantJobs.update(id,{type:'cancelled'});return {ok:true};
+    }});tab.assistantCaptionJob=id;
+  }
+  const id=tab.assistantCaptionJob;if(!id)return;
+  if(state.completed>0)assistantJobs.update(id,{type:'segment'});
+  assistantJobs.update(id,{type:'progress',stage:state.paused?'waiting':'translation',done:Number(state.completed)||0,total:Number(state.total)||0});
+  if(!busy&&state.total>0&&state.completed+state.failed>=state.total)assistantJobs.update(id,{type:state.failed?'error':'done'});
+}
+
 function sendEvent(payload) {
   for (const file of Array.isArray(payload?.files) ? payload.files : []) subtitleFileAccess.grant(file);
   // Pencere iş çalışırken kapatılmış olabilir — yok edilmiş pencereye göndermeye çalışma
@@ -1044,6 +1059,9 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     // invidious:cancel yalnız kendi indirmesini öldürür (K1).
     proc.jobTag = jobTag || kind;
     mediaJobs[kind] = proc;
+    let mediaAssistantCancelled=false;
+    const mediaAssistantJobId=['probe','subs'].includes(kind)?assistantJobs.start({kind:kind==='probe'?'caption-probe':'caption-download',cancel:()=>{if(mediaJobs[kind]!==proc)return {ok:false};mediaAssistantCancelled=true;terminateProcessTree(proc,{spawn});return {ok:true};}}):null;
+    proc.assistantJobId=mediaAssistantJobId;
     let result = null;
     let errText = '';
     let stderrTail = '';
@@ -1053,6 +1071,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      if(mediaAssistantJobId)assistantJobs.update(mediaAssistantJobId,{type:value.ok?'done':mediaAssistantCancelled?'cancelled':'error'});
       if (timeoutTimer) clearTimeout(timeoutTimer);
       resolve(value);
     };
@@ -6180,6 +6199,7 @@ function invalidateBrowserTabSubtitles(tab) {
   browserExtras?.cancel(tab);
   // Önce sahipliği bırak: cancelAll eşzamanlı onState yayımlayabilir.
   const scheduler = tab.translationScheduler;
+  assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
   tab.translationScheduler = null;
   scheduler?.cancelAll('Sayfa değişti.');
   tab.translationResults = new Map();
@@ -6207,6 +6227,7 @@ function resetBrowserCaptureState(options = {}) {
   if (currentTab) currentTab.discoveryProbeTimer = null;
   if (options.cancelTranslation && currentTab?.translationScheduler) {
     currentTab.translationScheduler.cancelAll('Sayfa değişti.');
+    assistantJobs.update(currentTab.assistantCaptionJob,{type:'cancelled'});
     currentTab.translationScheduler = null;
     currentTab.translationResults = new Map();
     currentTab.translationSourceCues = [];
@@ -7155,7 +7176,12 @@ function scheduleArchivedBrowserPageTranslationRestore(tab, delay = 350) {
   return true;
 }
 
-async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options = {}) {
+async function runBrowserPageTranslationBlocks(tab,rawBlocks,session,options={}){
+  const trace={};
+  try{return await runBrowserPageTranslationBlocksCore(tab,rawBlocks,session,options,trace);}
+  catch(error){assistantJobs.update(trace.id,{type:'error'});throw error;}
+}
+async function runBrowserPageTranslationBlocksCore(tab, rawBlocks, session, options = {}, trace = {}) {
   const normalized = normalizePageBlocks(rawBlocks);
   const retryIds = new Set(Array.isArray(options.retryIds) ? options.retryIds.map(String) : []);
   const previousIds = new Set(session.blocks.keys());
@@ -7238,6 +7264,11 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   tab.pageTranslateJob?.controller.abort('Yeni sayfa çevirisi başladı.');
   tab.pageTranslateJob?.scheduler?.cancelAll('Yeni sayfa çevirisi başladı.');
   tab.pageTranslateJob = job;
+  job.assistantJobId=assistantJobs.start({kind:'page-translation',cancel:async()=>{
+    if(tab.pageTranslateJob!==job)return {ok:false};await stopBrowserPageTranslation(tab,false);return {ok:true};
+  }});
+  trace.id=job.assistantJobId;
+  controller.signal.addEventListener('abort',()=>assistantJobs.update(job.assistantJobId,{type:'cancelled'}),{once:true});
   for (const item of memoryApplied) queueBrowserPageApply(tab, job, item);
   const context = {
     promptVersion: 'browser-page-v2',
@@ -7330,6 +7361,8 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
     onState: (state) => {
       if (!pageTranslationJobIsCurrent(tab, job)) return;
       const completion = pageTranslationCompletion(session);
+      assistantJobs.update(job.assistantJobId,{type:'progress',stage:state.paused?'waiting':'translation',done:browserPageTranslatedCount(session),total:session.blocks.size});
+      if(browserPageTranslatedCount(session)>0)assistantJobs.update(job.assistantJobId,{type:'segment'});
       tab.pageTranslateCompletion = completion;
       const paused = state.paused === true;
       session.pausedReason = paused ? (session.userPaused ? 'Kullanıcı tarafından duraklatıldı.' : 'Ağ bağlantısı bekleniyor.') : '';
@@ -7415,6 +7448,7 @@ async function runBrowserPageTranslationBlocks(tab, rawBlocks, session, options 
   const archived = persistBrowserPageTranslationArchive(tab, session);
   persistBrowserPageSiteTerminology(tab, session);
   if (archived?.ok) result.archivePath = archived.path;
+  assistantJobs.update(job.assistantJobId,{type:result.ok&&!retryFailureDetails.length?'done':'error'});
   sendBrowserEvent(tab, { type: 'page-translate-done', state: failed || completion.pending ? 'partial' : 'ready', ...result });
   return result;
 }
@@ -9341,6 +9375,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
   }
   if (config.seriesContext) config.glossary = [...config.seriesContext.terms, ...config.glossary];
   config.terminologyMap = config.terminologyEnabled ? createTerminologyMap(options.terminologyOptions || {}) : null;
+  assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
   tab.translationScheduler?.cancelAll('Yeni çeviri oturumu başladı.');
   tab.translationTrackId = requestedTrackId.slice(0, 180);
   tab.translationSourceCues = cues;
@@ -9403,6 +9438,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     },
     onState: (state) => {
       if (isCurrent()) {
+        observeAssistantCaptionJob(tab,scheduler,state);
         updateBrowserTranslationDiagnostics(tab, state);
         sendBrowserEvent(tab, { type: 'translation-state',
           state: { ...state, sourceComplete: tab.translationSourceComplete !== false },
@@ -13773,7 +13809,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     stopBrowserManga(tab, false);
     stopBrowserPageTranslation(tab, false);
     tab.translationScheduler?.cancelAll('Sekme işlemi sona erdi.');
-    tab.translationScheduler = null;
+    assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
+  tab.translationScheduler = null;
     // Hata listesi silindi ama renderer'daki yeniden-denenebilir sayısı kalırdı;
     // 'Başarısızları yeniden dene' düğmesi boş listeyle etkin görünmesin.
     sendBrowserEvent(tab, { type: 'manga-state', state: 'idle', translated: 0, visible: false, retryable: 0 });
@@ -14177,6 +14214,7 @@ function destroyBrowserTab(tab) {
   stopBrowserManga(tab, false);
   stopBrowserPageTranslation(tab, false);
   tab.translationScheduler?.cancelAll('Sekme kapatıldı.');
+  assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
   tab.translationScheduler = null;
   if (browserLiveAsr?.tab === tab) stopBrowserLiveAsr('Sekme kapatıldığı için canlı Whisper durduruldu.');
   detachBrowserDebugger(tab.view);
@@ -15202,7 +15240,8 @@ app.on('before-quit', (event) => {
   for (const tab of browserTabs.values()) cancelBrowserPermissionRequestsForTab(tab, 'Uygulama kapatıldığı için izin isteği engellendi.');
   for (const tab of browserTabs.values()) {
     tab.translationScheduler?.cancelAll('Uygulama kapatılıyor.');
-    tab.translationScheduler = null;
+    assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
+  tab.translationScheduler = null;
     stopBrowserPageTranslation(tab, false);
   }
   for (const job of pdfTranslationJobs.values()) {
@@ -16045,6 +16084,7 @@ async function unloadBrowserTab(rawId) {
   stopBrowserManga(tab, false);
   stopBrowserPageTranslation(tab, false);
   tab.translationScheduler?.cancelAll('Sekme bellekten boşaltıldı.');
+  assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
   tab.translationScheduler = null;
   tab.translationResults = new Map(); tab.translationSourceCues = [];
   tab.mangaPages?.clear?.();
@@ -17615,6 +17655,7 @@ ipcMain.handle('browser:translation:stop', async (event, request) => {
   const tab = activeRequestedBrowserTab(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   tab.translationScheduler?.cancelAll('Kullanıcı durdurdu.');
+  assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
   tab.translationScheduler = null;
   return { ok: true };
 });
@@ -20132,6 +20173,17 @@ require('./assistant-web-research').register({app,ipcMain,authorized:authorizedB
 require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
   getJobs:()=>assistantJobs.snapshot(),cancelJob:id=>assistantJobs.cancel(id),
+  researchWeb:(query,signal)=>{const config=browserTranslationConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
+  probeVideo:async(owner,signal)=>{
+    const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
+    const parsed=new URL(url);if(parsed.protocol!=='https:'||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(parsed.hostname))throw Error('Open a YouTube video.');
+    signal.throwIfAborted();if(mediaJobs.probe)return {ok:false,error:'A video probe is already running.'};
+    const args=['probe'];pushBoundOption(args,'--url',url);
+    const cookies=loadSettings().ui?.youtubeCookieBrowser;if(['chrome','edge','firefox','brave','vivaldi','opera'].includes(cookies))pushBoundOption(args,'--cookie-browser',cookies);
+    const result=runMediaCommand(args,null,'probe','assistant-caption-probe'),proc=mediaJobs.probe;
+    const cancel=()=>{if(proc&&mediaJobs.probe===proc)void assistantJobs.cancel(proc.assistantJobId);};
+    signal.addEventListener('abort',cancel,{once:true});try{return await result;}finally{signal.removeEventListener('abort',cancel);}
+  },
   getConfig:()=>{const config=browserTranslationConfig();const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};},
   validateOwner:owner=>{
     if(!['page','video'].includes(owner.kind))return true;
@@ -21203,9 +21255,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!options.chat && options.translateOnly && options.translateCueRange) {
     // 'BASLANGIC:BITIS' saniye — backend yalnız aralıkla kesişen cue'ları yeniden çevirir.
     const cueRange = String(options.translateCueRange).trim();
-    if (/^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(cueRange)) {
-      pushBoundOption(args, '--translate-cue-range', cueRange);
-    }
+    const bounds=cueRange.split(':').map(Number);
+    if(!/^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(cueRange)||bounds[1]<=bounds[0])return {ok:false,error:'Invalid subtitle translation range / Geçersiz altyazı çeviri aralığı.'};
+    pushBoundOption(args, '--translate-cue-range', cueRange);
   }
   if (!options.chat && options.translateOnly && options.translateVariantLabel) {
     // A/B varyant çıktıları yüklü çeviriyi ezmesin diye dosya adına etiket.

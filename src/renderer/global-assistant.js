@@ -49,7 +49,7 @@
       function decorate(row){
         const result={...row,role:row.role==='assistant'?'ai':row.role,loading:row.status==='streaming'||!!row.loading,error:['failed','stopped'].includes(row.status)||!!row.error};
         result.links=(row.evidence||[]).slice(0,40).map((e,index)=>{const id='e:'+threadId+':'+row.id+':'+index;links.set(id,{evidence:e});return {id,label:Math.floor(e.start/60)+':'+String(Math.floor(e.start%60)).padStart(2,'0'),excerpt:e.text,translation:e.translation||''};});
-        if(/Web sources:|Web kaynakları:/.test(row.text||''))for(const [index,match] of [...String(row.text).matchAll(/https?:\/\/[^\s<>]+/g)].slice(0,10).entries()){const id='w:'+threadId+':'+row.id+':'+index;links.set(id,{external:match[0]});result.links.push({id,label:match[0]});}
+        if(/Web sources:|Web kaynakları:/.test(row.text||''))for(const [index,match] of [...String(row.text).split(/Web sources:|Web kaynakları:/).at(-1).matchAll(/https?:\/\/[^\s<>]+/g)].slice(0,10).entries()){const id='w:'+threadId+':'+row.id+':'+index;links.set(id,{external:match[0]});result.links.push({id,label:match[0]});}
         result.actions=(row.actions||[]).map((action,index)=>{const id='p:'+threadId+':'+row.id+':'+index;proposedActions.set(id,action);return {id,kind:action.kind,label:action.label||'',excerpt:action.kind==='app_action'?action.summary||'':action.source?.text||'',translation:action.translation||'',resultStatus:action.resultStatus||'',resultText:action.resultText||'',time:action.source?.start};});return result;
       }
       const messages=(workspace?.current?.messages||[]).map(decorate);

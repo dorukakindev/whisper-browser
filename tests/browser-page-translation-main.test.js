@@ -51,6 +51,7 @@ class FakeScheduler {
     main.indexOf('const pdfDocuments = new Map();'));
   const events = [];
   const context = {
+    assistantJobs:require('../src/assistant-jobs').createJobs(),
     URL, AbortController, Map, Set, Number, String, Math, Promise, setTimeout, clearTimeout,
     createHash: crypto.createHash,
     canonicalPageUrl: archive.canonicalPageUrl,
@@ -194,5 +195,7 @@ class FakeScheduler {
     total: 1, translated: 0, failed: 0, excluded: 1, pending: 0, budgetReached: false,
     characters: block.text.length, apiCharacters: 0, budget: 1000, layoutWarnings: 0,
   });
+  assert(context.assistantJobs.snapshot().jobs.some(row=>row.kind==='page-translation'&&row.state==='completed'),'completed page work reaches the authoritative job history');
+  assert(context.assistantJobs.snapshot().jobs.some(row=>row.kind==='page-translation'&&row.state==='failed'),'failed page work is never reported completed');
   console.log('browser-page-translation-main: kayıpsız bölüm yenileme, API bütçesi ve dışlama sayımı geçti');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
