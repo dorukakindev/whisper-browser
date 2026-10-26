@@ -339,7 +339,7 @@ function createBrowserAdblock(options = {}) {
   };
 
   const setEnabled = async (session, nextEnabled) => {
-    if (session) browserSession = session;
+    if (session) browserSession = session.webRequest ? require("./session-webrequest-mux").ownedSession(session) : session;
     requested = nextEnabled !== false;
     if (!requested) {
       clearTimeout(refreshTimer);

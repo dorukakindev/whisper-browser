@@ -206,6 +206,19 @@ class SafeSecretStore {
       if (existing?.ok && !existing.recovered && this.fs.existsSync(this.filePath)) {
         this.fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
       }
+      // Explicit deletions also sanitize the recovery mirror before commit.
+      // Failure leaves the primary untouched and is reported to the caller.
+      const backup = `${this.filePath}.bak`;
+      if (dropFields.size && this.fs.existsSync(backup)) {
+        const mirror = JSON.parse(this.fs.readFileSync(backup, 'utf8'));
+        if (mirror.version !== SECRET_STORE_VERSION || !mirror.entries || typeof mirror.entries !== 'object') throw Error('Invalid secret recovery mirror.');
+        for (const field of dropFields) delete mirror.entries[field];
+        const backupTemp = temp + '.bak';
+        try {
+          this.fs.writeFileSync(backupTemp, JSON.stringify(mirror), { encoding: 'utf8', flush: true });
+          renameSyncResilient(this.fs, backupTemp, backup);
+        } finally { if (this.fs.existsSync(backupTemp)) this.fs.unlinkSync(backupTemp); }
+      }
       renameSyncResilient(this.fs, temp, this.filePath);
       return { ok: true, stored: Object.keys(entries) };
     } catch (error) {

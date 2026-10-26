@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { SENTENCE_PROTOCOL_VERSION, normalizeText, protectedCue, sentenceEnded,
-  decodeSentenceTranslation, fitTranslationParts, translationBlockingIssues } = require('./subtitle-sentence-layout');
+  decodeSentenceTranslation, fitTranslationParts, translationBlockingIssues, markupPreserved } = require('./subtitle-sentence-layout');
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -646,7 +646,7 @@ class BrowserTranslationScheduler {
       if (cached !== undefined && cached !== null && cached !== '') {
         try {
           const decoded = decodeSentenceTranslation(cached, sentence.pieces.length, this.requireSentenceParts);
-          if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
+          if (translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage).length || decoded.parts?.some((text,i)=>!markupPreserved(sentence.pieces[i]?.text,text))) throw new Error('Önbellek çevirisi anlam kalite kapısından geçmedi.');
           this.stats.cacheHits += 1;
           if (generation === this.generation && !controller.signal.aborted) this.consecutiveQualityFailures = 0;
           return { ...decoded, cached: true };
@@ -662,11 +662,12 @@ class BrowserTranslationScheduler {
           // metin çeviriymiş gibi yayınlanır ve oturum "tamam" sayar.
           if (Array.isArray(value?.failedIds) && value.failedIds.length) decoded.failedIds = value.failedIds;
           const qualityIssues = translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage);
+          if(decoded.parts?.some((text,i)=>!markupPreserved(sentence.pieces[i]?.text,text))&&!qualityIssues.includes('markup_mismatch'))qualityIssues.push('markup_mismatch');
           if (qualityIssues.length) {
             // Gevşek modda veya elle son denemede kapı reddetmez; metin
             // uyarıyla yazılır ve commitResult önbelleğe almaz.
             if (this.lenient || forceAccept || this.qualityAutoLenient) return { ...decoded, cached: false, qualityIssues };
-            const gateError = new Error('Çeviri sayısal bilgiyi korumadı.');
+            const gateError = new Error(qualityIssues.includes('markup_mismatch')?'Çeviri biçim etiketlerini korumadı.':'Çeviri sayısal bilgiyi korumadı.');
             gateError.qualityGate = true;
             gateError.qualityIssues = qualityIssues;
             gateError.candidate = { ...decoded };

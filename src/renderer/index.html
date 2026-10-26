@@ -3456,6 +3456,19 @@
             <button class="tool-button tool-button-primary" id="timelineSave">Kopya olarak kaydet</button>
           </div>
         </div>
+        <details class="timeline-analysis-panel" data-ui-untranslated>
+          <summary data-en="Quality & interval analysis" data-tr="Kalite ve aralık incelemesi">Kalite ve aralık incelemesi</summary>
+          <div class="timeline-group timeline-analysis" data-ui-untranslated aria-label="Subtitle checks and media analysis">
+            <label><span data-en="Quality profile" data-tr="Kalite profili">Kalite profili</span>
+              <select id="timelineQcProfile"><option value="custom">Custom / Özel</option><option value="tr-dialogue">TR · Dialogue / Diyalog · 17 CPS</option><option value="tr-children">TR · Children / Çocuk · 13 CPS</option><option value="tr-sdh">TR · SDH · 20 CPS</option></select></label>
+            <label>FPS <select id="timelineQcFps"><option>24</option><option>25</option><option>30</option><option>50</option><option>60</option></select></label>
+            <label><span data-en="From (seconds)" data-tr="Başlangıç (saniye)">Başlangıç (saniye)</span><input id="timelineAnalysisFrom" type="number" min="0" step="0.1" value="0"></label>
+            <label><span data-en="To (seconds)" data-tr="Bitiş (saniye)">Bitiş (saniye)</span><input id="timelineAnalysisTo" type="number" min="0" step="0.1" value="120"></label>
+            <label><span data-en="Audio track" data-tr="Ses izi">Ses izi</span> <input id="timelineAnalysisTrack" type="number" min="0" max="31" value="0"></label>
+            <button class="tool-button" id="timelineAnalyze">Dalga biçimi ve kesimleri incele</button><button class="tool-button" id="timelineAnalyzeCancel" disabled>İptal</button>
+          </div>
+          <p data-en="Local media only · up to 30 minutes · audio tracks start at 0. Suggestions do not change subtitles." data-tr="Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.">Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.</p>
+        </details>
         <div class="timeline-canvas-wrap">
           <canvas id="timelineCanvas" tabindex="0" aria-label="Altyazı zamanlaması: yukarı/aşağı ile blok seç, sağ/sol ile 100 ms kaydır, Enter ile oynatma konumuna git"></canvas>
           <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür. Shift+tık ile yeniden çeviri için aralık seçin.</div>
@@ -3463,8 +3476,8 @@
             <span id="timelineRangeText"></span>
             <button type="button" id="timelineRangeClear" aria-label="Aralık seçimini temizle">×</button>
           </div>
-          <div class="timeline-issues hidden" id="timelineIssues" role="group" aria-label="Altyazı sorunları"></div>
         </div>
+          <div class="timeline-issues hidden" id="timelineIssues" role="group" aria-label="Altyazı sorunları"></div>
       </section>
     </div>
 

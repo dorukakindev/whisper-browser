@@ -17263,6 +17263,7 @@ function drawTimeline() {
     ctx.fillText(pSecToTime(t), x + 4, 13);
   }
 
+  for(const cut of player.timeline.analysis?.shots||[]){if(cut<view.start||cut>view.start+span)continue;const x=(cut-view.start)/span*w;ctx.strokeStyle=getComputedStyle(canvas).getPropertyValue('--accent')||'#d5a35c';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
   // Gerçek yerel dalga biçimi. YouTube akışında dosya yoksa blok yoğunluğu yine görünür.
   const points = player.timeline.waveform;
   if (points.length) {
@@ -17271,7 +17272,8 @@ function drawTimeline() {
     for (let px = 0; px < w; px++) {
       const t = view.start + px / w * span;
       const idx = Math.max(0, Math.min(points.length - 1,
-        Math.floor(t / Math.max(.01, player.timeline.waveformDuration) * points.length)));
+        Math.floor((t-(player.timeline.waveformStart||0)) / Math.max(.01, player.timeline.waveformDuration) * points.length)));
+      if(t<(player.timeline.waveformStart||0)||t>(player.timeline.waveformStart||0)+player.timeline.waveformDuration)continue;
       const amp = points[idx] * 38;
       if (px === 0) ctx.moveTo(px, 52 - amp); else ctx.lineTo(px, 52 - amp);
       ctx.lineTo(px, 52 + amp);
@@ -17380,6 +17382,7 @@ async function openTimeline() {
     if (staleGeneration(waveformGen) || player.localPath !== waveformPath) return;
     player.timeline.loading = false;
     if (result && result.ok && player.timeline.open) {
+      player.timeline.waveformStart = 0;
       player.timeline.waveform = result.points || [];
       player.timeline.waveformDuration = result.duration || 0;
       $('timelineStatus').textContent = 'Dalga biçimi hazır — bir bloğu seçip sürükleyin';
@@ -17476,6 +17479,7 @@ async function saveTimelineCopy() {
 // adımında çalışır.
 function timelineIssueList() {
   return globalThis.TimelineIssueScan.scan(player.cues, {
+    profile: $("timelineQcProfile")?.value || "custom", fps: Number($("timelineQcFps")?.value)||24, shots: player.timeline.analysis?.shots || [],
     cpsLimit: Number($('maxCps')?.value) || 20,
     lineLimit: Number($('maxLineWidth')?.value) || 80,
   });
@@ -17489,12 +17493,13 @@ function renderTimelineIssues() {
   if (!issues.length) return;
   const byKind = {};
   for (const it of issues) (byKind[it.kind] ||= []).push(it.i);
-  for (const kind of ['empty', 'short', 'overlap', 'fast', 'lines', 'invalid']) {
+  for (const kind of globalThis.TimelineIssueScan.KINDS) {
     if (!byKind[kind]) continue;
     const chip = document.createElement('button');
     chip.type = 'button'; chip.className = 'timeline-issue-chip';
     chip.dataset.kind = kind;
-    chip.textContent = `${byKind[kind].length} ${TIMELINE_ISSUE_LABELS[kind]}`;
+    chip.textContent = `${byKind[kind].length} ${interfaceChoice(TIMELINE_ISSUE_LABELS[kind],({empty:'empty text',short:'too short',overlap:'overlap',fast:'fast reading',lines:'line length',invalid:'invalid time',long:'long display',gap:'short frame gap',shot:'crosses scene cut'})[kind])}`;
+    chip.title=interfaceChoice('İnceleme önerisidir; tıklamak satıra gider, kaynak dosyayı değiştirmez.','Review suggestion; clicking jumps to the cue and does not change the source file.');
     box.appendChild(chip);
   }
   if (byKind.empty) {
@@ -17505,7 +17510,7 @@ function renderTimelineIssues() {
     box.appendChild(fix);
   }
 }
-const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması', invalid: 'geçersiz zaman' };
+const TIMELINE_ISSUE_LABELS = { empty: 'boş metin', short: 'çok kısa', overlap: 'çakışma', fast: 'hızlı okuma', lines: 'satır kırılması', invalid: 'geçersiz zaman',long:'uzun gösterim',gap:'kısa kare aralığı',shot:'sahne kesimini aşıyor' };
 function timelineJumpToIssue(kind) {
   const indices = timelineIssueList().filter((it) => it.kind === kind).map((it) => it.i);
   if (!indices.length) return;
@@ -21020,6 +21025,9 @@ function resetMediaBoundState(options = {}) {
   player.mediaRelinkOffered = '';
   updateMakeTransState();
   if ($('aiChatText')) { $('aiChatText').value = ''; autoGrowChatBox(); }
+  player.timeline.analysis=null;
+  player.timeline.waveformStart=0;
+  void window.api.cancelMediaAnalysis?.();
   player.timeline.waveform = [];
   player.timeline.waveformDuration = 0;
   player.timeline.selected = -1;
@@ -32843,3 +32851,30 @@ function translationEndpointReady(apiKey, endpoint) {
       && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   } catch (_) { return false; }
 }
+
+for(const id of ['timelineQcProfile','timelineQcFps'])$(id)?.addEventListener('change',renderTimelineIssues);
+
+$('timelineAnalyze')?.addEventListener('click',async()=>{
+ const file=player.localPath,generation=currentGeneration();
+ if(!file){$('timelineStatus').textContent=interfaceChoice('Bu inceleme için yerel video/ses aç.','Open local video/audio for this analysis.');return;}
+ const button=$('timelineAnalyze'),cancel=$('timelineAnalyzeCancel');button.disabled=true;cancel.disabled=false;
+ $('timelineStatus').textContent=interfaceChoice('Seçili aralık inceleniyor…','Analyzing selected interval…');
+ try{const result=await window.api.analyzeMedia({file,start:Number($('timelineAnalysisFrom').value),end:Number($('timelineAnalysisTo').value),track:Number($('timelineAnalysisTrack')?.value)||0});
+  if(staleGeneration(generation)||file!==player.localPath)return;
+  if(!result.ok)throw Error(result.code==='cancelled'?interfaceChoice('İnceleme iptal edildi.','Analysis cancelled.'):result.code==='timeout'?interfaceChoice('İnceleme zaman aşımına uğradı; daha kısa aralık seç.','Analysis timed out; choose a shorter interval.'):result.error);
+  player.timeline.analysis=result;
+  if(result.waveform){player.timeline.waveform=result.waveform.points;player.timeline.waveformDuration=result.waveform.duration;player.timeline.waveformStart=result.waveform.start;}
+  $('timelineStatus').textContent=interfaceChoice(`${result.shots.length} kesim bulundu.${result.warnings.length?' Bazı veriler alınamadı; ses izini ve dosyayı kontrol et.':''}`,`${result.shots.length} cuts found.${result.warnings.length?' Some data unavailable; check audio track and file.':''}`);drawTimeline();renderTimelineIssues();
+ }catch(error){if(!staleGeneration(generation))$('timelineStatus').textContent=error.message;}
+ finally{button.disabled=false;cancel.disabled=true;}
+});
+$('timelineAnalyzeCancel')?.addEventListener('click',()=>{void window.api.cancelMediaAnalysis();});
+
+function localizeIntegrationControls(){
+ const options=$('timelineQcProfile')?.options;if(options){options[0].textContent=interfaceChoice('Özel','Custom');options[1].textContent=interfaceChoice('TR · Diyalog · 17 CPS','TR · Dialogue · 17 CPS');options[2].textContent=interfaceChoice('TR · Çocuk · 13 CPS','TR · Children · 13 CPS');options[3].textContent='TR · SDH · 20 CPS';}
+ for(const node of document.querySelectorAll('.timeline-analysis-panel [data-en]'))node.textContent=interfaceChoice(node.dataset.tr,node.dataset.en);
+ if($('timelineAnalyze'))$('timelineAnalyze').textContent=interfaceChoice('Dalga biçimi ve kesimleri incele','Analyze waveform & cuts');
+ if($('timelineAnalyzeCancel'))$('timelineAnalyzeCancel').textContent=interfaceChoice('İptal','Cancel');
+ renderTimelineIssues();
+}
+document.addEventListener('ui-locale-change',localizeIntegrationControls);localizeIntegrationControls();

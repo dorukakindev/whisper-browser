@@ -797,6 +797,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
         sdh_kind = _sdh_issue(source, translated)
         if sdh_kind:
             return f"sdh_kaydi:{index}:{sdh_kind}"
+        if not markup_preserved(source, translated):
+            return f'etiket_kaydi:{index}'
         for name in _proper_names(str(source)):
             if _name_preserved(name, str(translated)) \
                     or _name_localized(name, str(translated)):
@@ -1422,6 +1424,14 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     return issues
 
 
+def markup_preserved(source, translated):
+    pattern = re.compile(r'<\/?(?:i|b|u|s|font|c|v|ruby|rt|lang)(?:[\s.][^>]*|)>|\{\\[^}]*\}|♪', re.I)
+    def tokens(value):
+        return [re.sub(r'^<(\/?)([a-z]+)', lambda m: '<'+m[1]+m[2].lower(), tag, flags=re.I) if tag.startswith('<') else tag for tag in pattern.findall(str(value or ''))]
+    source_tags = tokens(source)
+    return not source_tags or source_tags == tokens(translated)
+
+
 def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
     """Otomatik reddi kesin kayıplara uygula: yapısal (number_mismatch,
     truncated_fragment) ve anlamsal (negation_missing, modal_missing,
@@ -1433,8 +1443,9 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
     kayıp sayılır. Korpus ölçümü 58 doğru çeviride 0 yanlış-ret verdi.
     """
     issues = translation_meaning_issues(source_text, translated_text, target_lang)
+    if not markup_preserved(source_text, translated_text): issues.append('markup_mismatch')
     blocking = [issue for issue in issues
-                if issue in ('number_mismatch', 'truncated_fragment',
+                if issue in ('markup_mismatch', 'number_mismatch', 'truncated_fragment',
                              'negation_missing', 'modal_missing',
                              'modal_certainty_flip', 'modal_weakened')]
     # A single unchanged explicit quantity cannot silently change its unit or

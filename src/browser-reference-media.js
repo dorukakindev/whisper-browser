@@ -4,7 +4,7 @@ const { StringDecoder } = require('node:string_decoder');
 const { terminateProcessTreeAndWait } = require('./process-lifecycle');
 const { withoutSecretEnv } = require('./settings-security');
 
-function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, timeout = 120000, consume,
+function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, timeout = 120000, consume, consumeStderr,
   spawnImpl = spawn, terminate = terminateProcessTreeAndWait } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
@@ -32,7 +32,7 @@ function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, time
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
     child.on('error', error => finish(new Error(`Medya aracı başlatılamadı: ${error.message}`)));
-    child.stderr.on('data', chunk => { errorText = (errorText + decoder.write(chunk)).slice(-1000); });
+    child.stderr.on('data', chunk => { const text=decoder.write(chunk);errorText=(errorText+text).slice(-1000);try{consumeStderr?.(text);}catch(error){stop(error);} });
     child.stdout.on('data', chunk => {
       if (settled || stopping) return;
       bytes += chunk.length;
@@ -41,7 +41,8 @@ function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, time
       catch (error) { stop(error); }
     });
     child.on('close', code => {
-      errorText = (errorText + decoder.end()).slice(-1000);
+      const tail=decoder.end();errorText = (errorText + tail).slice(-1000);
+      try{consumeStderr?.(tail);}catch(error){return finish(error);}
       if (!settled) finish(stopping ? stopError : code === 0 ? null : new Error(errorText || 'Medya okunamadı.'), Buffer.concat(chunks));
     });
   });

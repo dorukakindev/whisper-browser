@@ -3314,6 +3314,7 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Kelime kelime CEVIRME. Konusmacinin ne demek istedigini anla, hedef dilde",
         "  dogal bicimde soyle. Soylenmemis bir fikri EKLEME.",
         "- Isim, sayi, olgu, olumsuzluk ve kime ait oldugu bilgisi asla kaybolmasin.",
+        "- Kaynakta HTML/ASS bicim etiketleri veya ♪ varsa, her parcada ayni sirada ve eksiksiz koru; etiketleri cevirme.",
         "",
         "## ALTYAZI TEKNIGI",
         *(["- Seslendirme cevirisinde karakter/saniye, gorsel satir uzunlugu ve items.max bir kisaltma hedefi DEGILDIR.",
