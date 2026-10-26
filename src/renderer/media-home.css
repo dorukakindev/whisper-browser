@@ -120,7 +120,7 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-rail { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(150px, 12vw, 185px); grid-template-rows: auto; gap: 18px; overflow-x: auto; padding: 3px 3px 15px; }
 .mh-rail.mh-wide { grid-auto-columns: clamp(230px, 22vw, 320px); }
 .mh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 22px; }
-.mh-card { min-width: 0; text-align: left; padding: 0; color: var(--text); background: transparent; border: 0; }
+.mh-card { display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; text-align: left; padding: 0; color: var(--text); background: transparent; border: 0; }
 .mh-card:hover .mh-art { border-color: var(--accent); }
 .mh-art { position: relative; aspect-ratio: 2 / 3; border-radius: 9px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--border); display: grid; place-items: center; }
 .mh-wide .mh-art { aspect-ratio: 16 / 9; }
