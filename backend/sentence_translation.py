@@ -112,6 +112,7 @@ def sentence_end_count(text, language=None):
     ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
                if not _numeric_separator(text, match, ordinals)
+               and not re.match(r'[A-Za-z]\.', text[match.end():])
                and sentence_ended(text[:match.end()]))
 
 
@@ -126,6 +127,7 @@ def internal_sentence_end_count(text, language=None):
     ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
                if not _numeric_separator(text, match, ordinals)
+               and not re.match(r'[A-Za-z]\.', text[match.end():])
                and sentence_ended(text[:match.end()])
                and normalized_text(text[match.end():]))
 
@@ -369,6 +371,9 @@ def _name_preserved(name, translated):
     kişinin başka biri olduğunu gizleyemez.
     """
     translated = str(translated or '')
+    source_inflection = _NAME_INFLECTED.fullmatch(str(name).strip(".!?,;:"))
+    if source_inflection:
+        name = source_inflection.group(1)
     if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", translated):
         return True
     for match in _NAME_INFLECTED.finditer(translated):
@@ -400,6 +405,7 @@ _INITIAL_STOPWORDS = frozenset(
     "the a an this that these those it its he she we they you i me my our "
     "your his her their there here but so and or nor if then than when "
     "while because since as for to in on at by with from of about over "
+    "hello hi hey goodbye saat doctor police hotel professor radio taxi let's "
     "under again once already now still just also not no yes who what "
     "which where why how mr mrs ms dr st "
     "zero one two three four five six seven eight nine ten eleven twelve "
@@ -489,6 +495,14 @@ def _proper_names(text):
         if not _NAME_TOKEN.match(candidate) or not candidate[0].isupper():
             continue
         lowered = candidate.lower().rstrip(".?!,;:…")
+        if re.fullmatch(r"(?:i|he|she|it|we|they|you|that|there|here|what|who|how|where|when|let)['’](?:m|ll|ve|d|s|re)", lowered):
+            continue
+        if re.fullmatch(r"(?:don|doesn|didn|can|couldn|won|wouldn|shouldn|mustn|isn|aren|wasn|weren|hasn|haven|hadn|needn)['’]t", lowered):
+            continue
+        explicit_name = _NAME_INFLECTED.fullmatch(candidate.rstrip(".?!,;:…"))
+        if explicit_name:
+            candidate = explicit_name.group(1)
+            lowered = candidate.lower()
         if lowered in {'celsius', 'fahrenheit'} and lowered in _unit_markers(text):
             continue
         if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
@@ -497,7 +511,7 @@ def _proper_names(text):
         # A new quoted sentence has its own initial word, not a proper name.
         quote_initial = word.startswith(('"', "“", "‘", "«")) and lowered in _INITIAL_STOPWORDS
         sentence_initial = index == 0 or quote_initial or sentence_ended(" ".join(words[:index]))
-        if not sentence_initial and len(candidate.rstrip(".?!,;:…")) >= 2:
+        if (not sentence_initial or explicit_name) and len(candidate.rstrip(".?!,;:…")) >= 2:
             names.append(candidate.rstrip(".?!,;:…"))
     return names
 
@@ -676,8 +690,8 @@ def _name_localized(name, translated):
     return False
 
 
-_CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
-_CLOCK_TARGET = re.compile(r"(?<![\d:.])(\d{1,2})[:.]([0-5]\d)(?![\d:.])(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
+_CLOCK_SOURCE = re.compile(r"(?<!\d)(\d{1,2})[:h]([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
+_CLOCK_TARGET = re.compile(r"(?<![\d:.])(\d{1,2})[:.h]([0-5]\d)(?!\d|[.:]\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?", re.I)
 
 
 def _clock_hour(match):
@@ -689,7 +703,9 @@ def _clock_hour(match):
 def _matching_clock(target, source_clock, allow_turkish=False):
     hour, minute = _clock_hour(source_clock), source_clock.group(2)
     for match in _CLOCK_TARGET.finditer(target):
-        if _clock_hour(match) == hour and match.group(2) == minute:
+        target_hour = _clock_hour(match)
+        if allow_turkish and hour >= 12 and target_hour == hour % 12 and re.search(r'(?i)\b(?:akşam|öğleden sonra|gece)\s*$', target[:match.start()]): target_hour += 12
+        if target_hour == hour and match.group(2) == minute:
             return match
     return _turkish_clock_match(target, hour, minute) if allow_turkish else None
 # Metrik çevirisiyle değeri değişen birimler: 'He's 6 feet tall.' -> '1,83
@@ -717,18 +733,36 @@ def _bound_to_convertible_unit(source_text, match):
     return bool(_CONVERTIBLE_UNIT_BEFORE.search(source_text[:match.start()]))
 
 
-def _canonical_number(token):
-    token = str(token).replace('%', '')
+def _metric_conversion(source, match, translated, target_lang):
+    units = {'kg': 1000, 'kilograms': 1000, 'kilogram': 1000, 'g': 1, 'gram': 1, 'grams': 1, 'km': 1000, 'kilometers': 1000, 'm': 1, 'metre': 1, 'meters': 1}
+    source_unit = re.match(r"\s*(kg|kilograms?|g|grams?|km|kilometers?|m|metre|meters)(?!\w)", source[match.end():], re.I)
+    if not source_unit: return False
+    mass = source_unit[1].lower() in ('kg','kilogram','kilograms','g','gram','grams')
+    value = float(_canonical_number(match[0])) * units[source_unit[1].lower()]
+    for row in re.finditer(r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(kg|kilograms?|g|grams?|km|kilometers?|m|metre|meters)(?!\w)", translated, re.I):
+        if mass != (row[2].lower() in ('kg','kilogram','kilograms','g','gram','grams')): continue
+        if math.isclose(value, float(_canonical_number(row[1],target_lang))*units[row[2].lower()],rel_tol=1e-9): return True
+    return False
+
+
+def _canonical_number(token, language=None):
+    from decimal import Decimal, InvalidOperation
+    token = str(token).replace('%', '').replace('−', '-').replace('$', '').replace('€', '').replace('£', '').replace('₺', '').replace(' ', '')
     if '.' in token and ',' in token:
         decimal = '.' if token.rfind('.') > token.rfind(',') else ','
-        grouping = ',' if decimal == '.' else '.'
-        return token.replace(grouping, '').replace(decimal, '.')
-    if re.fullmatch(r'\d{1,3}(?:[.,]\d{3})+', token):
-        return token.replace('.', '').replace(',', '')
-    return token.replace(',', '.')
+        token = token.replace(',' if decimal == '.' else '.', '').replace(decimal, '.')
+    elif re.fullmatch(r'[+-]?\d{1,3}(?:[.,]\d{3})+', token) and not re.match(r'^[+-]?0[.,]', token) and not (str(language or '').split('-')[0] in ('en',) and '.' in token) and not (str(language or '').split('-')[0] in ('tr','de','fr') and ',' in token):
+        token = token.replace('.', '').replace(',', '')
+    else:
+        token = token.replace(',', '.')
+    # Pure leading-zero identifiers remain literal; decimal trailing zeros do not.
+    if '.' in token:
+        try: return format(Decimal(token).normalize(), 'f')
+        except InvalidOperation: pass
+    return token[1:] if token.startswith('+') else token
 
 
-def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
+def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_lang=None):
     """Sayı/para/birim/tarih/SDH/özel adın kaynak ID'sinden başka cue'ya kaymasını yakala.
 
     Model gruba bütün cümle kurarken bilgiyi doğal yerleşim için başka ID'ye
@@ -759,7 +793,7 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
         # '10:30' saat ifadeleri sayı tokenı olarak iki parçaya düşer ve hedefin
         # '10.30' / 'dokuzu çeyrek geçe' gibi doğal biçimleriyle eşleşemez;
         # translation_meaning_issues'daki saat mantığı buraya da uygulanır.
-        source_numbers_text = str(source)
+        source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", str(source))
         target_numbers_text = str(translated)
         tr_target = str(target_lang or "").lower().split('-')[0] == 'tr'
         for clock in _CLOCK_SOURCE.finditer(source_numbers_text):
@@ -772,7 +806,10 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
         source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
         target_has_digit = bool(re.search(r"\d", target_numbers_text))
         for match in _NUMBER_TOKEN.finditer(source_numbers_text):
-            token = _canonical_number(match.group(0))
+            token = _canonical_number(match.group(0), source_lang)
+            scale = re.match(r'\s+(hundred|thousand|million|billion)(?!\w)', source_numbers_text[match.end():], re.I)
+            if scale and tr_target:
+                token = format(float(token) * {'hundred':100,'thousand':1000,'million':1000000,'billion':1000000000}[scale[1].lower()], '.15g')
             if skip_last_number and token:
                 words = normalized_text(source).rstrip(',;:').split()
                 if words and words[-1].startswith(match.group(0)):
@@ -782,6 +819,7 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
                 if words and words[0].startswith(match.group(0)):
                     continue
             if not _number_preserved(token, target_numbers_text, target_lang):
+                if _metric_conversion(source_numbers_text, match, target_numbers_text, target_lang): continue
                 if target_has_digit and _bound_to_convertible_unit(
                         source_numbers_text, match):
                     continue
@@ -792,7 +830,10 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr"):
             if not _semantic_markers(source, patterns).issubset(
                     _semantic_markers(translated, patterns)):
                 return f"{issue}_kaydi:{index}"
-        if not _unit_markers(source).issubset(_unit_markers(translated)):
+        missing_units = _unit_markers(source) - _unit_markers(translated)
+        if _CLOCK_SOURCE.search(re.sub(r'(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)',r'\1:\2',str(source))): missing_units.discard('hour')
+        metric_ok = any(_metric_conversion(source_numbers_text, number, str(translated), target_lang) for number in _NUMBER_TOKEN.finditer(source_numbers_text))
+        if missing_units and not (metric_ok and len(_unit_markers(source)) == 1):
             return f"unit_kaydi:{index}"
         sdh_kind = _sdh_issue(source, translated)
         if sdh_kind:
@@ -833,9 +874,12 @@ def insert_sentence_breaks(text):
     cursor = 0
     for match in _END_RUN.finditer(text):
         end = match.end()
-        if _numeric_separator(text, match):
+        if _numeric_separator(text, match) or re.match(r"[A-Za-z]\.", text[end:]):
             continue
-        if not normalized_text(text[end:]):
+        tail = re.sub(r"^(?:\s*(?:</[a-z][^>]*>|♪|♫|[\"'”’)}\]]))+", "", text[end:], flags=re.I)
+        if not normalized_text(tail):
+            continue
+        if re.match(r"^\s*(?:</[a-z][^>]*>|♪|♫)", text[end:], re.I):
             continue
         if sentence_ended(text[:end]):
             out.append(text[cursor:end] + "\n")
@@ -863,9 +907,9 @@ def sentence_ended(text):
     return not (initialism or initial or (last.endswith('.') and last[:-1].lower() in ABBREVIATIONS))
 
 
-_NUMBER_TOKEN = re.compile(r'(?<![\w])(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(?:%)?(?![\w])')
+_NUMBER_TOKEN = re.compile(r'(?<![\w])(?:[-−+]\s*[$€£₺]?\s*)?(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)(?:%)?(?![\w])')
 _SOURCE_NEGATION = re.compile(
-    r"\b(?:not|never|no|none|nobody|nothing|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't|needn't|daren't|shan't|ain't)\b",
+    r"\b(?:not|never|no|none|nobody|nothing|impossible|unable|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't|needn't|daren't|shan't|ain't)\b",
     re.I,
 )
 _TARGET_NEGATION = re.compile(
@@ -897,7 +941,7 @@ _TARGET_NEGATION = re.compile(
     # Çıplak -mA olumsuz emir/istek (kıpırdama, yapma, gitme, konuşma).
     # Mastar/isim homografisi (konuşma='konuşma dili') kabul edilir: emir
     # biçimi altyazı diyaloğunda baskın ve kanıtsız bırakmak kesin yanlış-ret üretir.
-    r"|\b\w{2,}m[ae]\b",
+    r"|\b(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda)m[ae]\b",
     re.I,
 )
 
@@ -1043,8 +1087,8 @@ def _semantic_markers(text, patterns):
     return {name for name, pattern in patterns.items() if pattern.search(str(text or ''))}
 
 
-def _number_tokens(text):
-    return [_canonical_number(token) for token in _NUMBER_TOKEN.findall(str(text or ''))]
+def _number_tokens(text, language=None):
+    return [_canonical_number(token, language) for token in _NUMBER_TOKEN.findall(str(text or ''))]
 
 
 _TR_ONES = ('sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
@@ -1235,7 +1279,7 @@ def _turkish_clock_match(translated, hour, minute):
 
 
 def _number_preserved(token, translated, target_lang):
-    if token in _number_tokens(translated):
+    if _number_match(token, translated, target_lang):
         return True
     if str(target_lang or '').lower().split('-')[0] != 'tr':
         return False
@@ -1249,7 +1293,7 @@ def _number_preserved(token, translated, target_lang):
             r'(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',
             translated, re.I):
         multiplier = {'bin': 1000, 'milyon': 1000000, 'milyar': 1000000000}[scale.lower()]
-        if float(coefficient.replace(',', '.')) * multiplier == value:
+        if math.isclose(float(coefficient.replace(',', '.')) * multiplier, value, rel_tol=1e-12, abs_tol=1e-9):
             return True
     words = (_turkish_integer_words(int(value)) if value.is_integer()
              else f'{_turkish_integer_words(int(value))} buçuk'
@@ -1292,13 +1336,23 @@ def _english_quantity_value(phrase):
 
 def _number_match(token, translated, target_lang):
     """Locate one whole occurrence; callers consume its span before retrying."""
+    if str(token).startswith('-'):
+        absolute = str(token)[1:]
+        for negative in re.finditer(r'(?i)\b(?:eksi|minus)\s+([^.!?;]+)', translated):
+            found = _number_match(absolute, negative[1], target_lang)
+            if found and found.start() == 0:
+                return re.compile(re.escape(translated[negative.start():negative.start(1)+found.end()])).match(translated, negative.start())
     scales = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',translated,re.I)) if str(target_lang).lower().split('-')[0]=='tr' else []
     for match in scales:
         value = float(match[1].replace(',','.')) * {'bin':1000,'milyon':1000000,'milyar':1000000000}[match[2].lower()]
-        if value == float(token): return match
+        if math.isclose(value, float(token), rel_tol=1e-12, abs_tol=1e-9): return match
     for match in _NUMBER_TOKEN.finditer(translated):
         if any(row.start() <= match.start() < row.end() for row in scales): continue
-        if _canonical_number(match[0]) == token: return match
+        if _canonical_number(match[0], target_lang) == token: return match
+    if str(target_lang).lower().split('-')[0]=='en':
+        for match in _EN_EXACT_PATTERN.finditer(translated):
+            if _english_quantity_value(match[0]) == token: return match
+        return None
     if str(target_lang).lower().split('-')[0]!='tr': return None
     try: value=float(token)
     except ValueError: return None
@@ -1316,7 +1370,7 @@ def _number_match(token, translated, target_lang):
     return None
 
 
-def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
+def translation_meaning_issues(source_text, translated_text, target_lang='tr', source_lang=None):
     """Bariz sayı/olumsuzluk kaybını anlamsal kalite kapısı olarak bildirir.
 
     Bu bir dilbilgisi puanı değildir; yalnızca güvenilir biçimde korunması
@@ -1327,13 +1381,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     translated = normalized_text(translated_text)
     issues = []
     source_numbers_text, translated_numbers_text = source, translated
-    if str(target_lang or '').lower().split('-')[0] == 'tr':
+    source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", source_numbers_text)
+
+    if _CLOCK_SOURCE.search(source_numbers_text):
         # 5:30 and 5.30 are the same clock time in these subtitles. Compare
         # whole clock expressions so a changed minute cannot pass as two
         # independently preserved number tokens.
-        clocks = list(_CLOCK_SOURCE.finditer(source))
+        clocks = list(_CLOCK_SOURCE.finditer(source_numbers_text))
         for clock in clocks:
-            target_clock = _matching_clock(translated_numbers_text, clock, True)
+            target_clock = _matching_clock(translated_numbers_text, clock, str(target_lang).lower().split('-')[0]=='tr')
             if target_clock:
                 translated_numbers_text = (
                     translated_numbers_text[:target_clock.start()] + ' '
@@ -1341,30 +1397,42 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
             else:
                 issues.append('number_mismatch')
         source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
+    for pair in re.finditer(r'(?<!\w)(\d+)\s*[-:/]\s*(\d+)(?!\w)', source_numbers_text):
+        if '-' in pair[0] and not re.search(r'(?i)\b(?:score|won|lost|win|beat|ratio|skor|kazandı|oran)\b', source):
+            continue
+        if not re.search(r'(?<!\w)'+re.escape(pair[1])+r'\s*[-:/]\s*'+re.escape(pair[2])+r'(?!\w)', translated_numbers_text):
+            issues.append('number_mismatch')
     missing = []
     # A coefficient and its English scale form one quantity, not two mentions.
     turkish_target = str(target_lang or '').lower().split('-')[0] == 'tr'
     mixed = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(hundred|thousand|million|billion)(?!\w)', source_numbers_text, re.I)) if turkish_target else []
     def covered(match):
         return any(row.start() <= match.start() < row.end() for row in mixed)
-    mentions = [(match.start(), _canonical_number(match[0]), match) for match in _NUMBER_TOKEN.finditer(source_numbers_text) if not covered(match)]
+    mentions = [(match.start(), _canonical_number(match[0], source_lang), match) for match in _NUMBER_TOKEN.finditer(source_numbers_text) if not covered(match)]
     for match in mixed:
-        value = float(_canonical_number(match[1])) * {'hundred':100,'thousand':1000,'million':1000000,'billion':1000000000}[match[2].lower()]
+        value = float(_canonical_number(match[1], source_lang)) * {'hundred':100,'thousand':1000,'million':1000000,'billion':1000000000}[match[2].lower()]
         if math.isfinite(value): mentions.append((match.start(), format(value, '.15g'), match))
     # Bare "one" is often a pronoun/indefinite article; do not invent a quantity.
     for match in (_EN_EXACT_PATTERN.finditer(source_numbers_text) if turkish_target else []):
         if covered(match) or match[0].lower() == 'one': continue
         token = _english_quantity_value(match[0])
         if token is not None: mentions.append((match.start(), token, match))
+    if str(source_lang or '').split('-')[0] == 'tr' and str(target_lang or '').split('-')[0] == 'en':
+        # Only explicit quantity contexts; 'altı' can also mean 'underneath'.
+        tr_values = dict(zip(_TR_ONES, range(10)))
+        tr_values.update(zip(_TR_TENS[1:], range(10,100,10)))
+        for match in re.finditer(r'(?i)(?<!\w)('+'|'.join(tr_values)+r')(?=\s+(?:kişi|adet|elma|gün|saat|dakika|kitap|çocuk|araba)(?!\w))', source_numbers_text):
+            mentions.append((match.start(),str(tr_values[match[1].casefold()]),match))
     for _,token,match in sorted(mentions,key=lambda row:row[0]):
         found = _number_match(token, translated_numbers_text, target_lang)
         if found:
-            translated_numbers_text = translated_numbers_text[:found.start()] + ' '*(found.end()-found.start()) + translated_numbers_text[found.end():]
+            translated_numbers_text = translated_numbers_text[:found.start()] + 'x'*(found.end()-found.start()) + translated_numbers_text[found.end():]
             continue
         # Keep established explicit-unit conversions; do not reuse an exact
         # quantity occurrence to satisfy another source mention.
         if re.search(r'\d', translated_numbers_text) and _bound_to_convertible_unit(source_numbers_text, match):
             continue
+        if _metric_conversion(source_numbers_text, match, translated_numbers_text, target_lang): continue
         missing.append(token)
     if missing and 'number_mismatch' not in issues:
         issues.append('number_mismatch')
@@ -1381,6 +1449,12 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
             and not _TARGET_NEGATION.search(translated):
         issues.append('negation_missing')
+    target_negative = bool(_TARGET_NEGATION.search(translated)) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
+    source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and bool(_TARGET_NEGATION.search(source)))
+    if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _TARGET_NEGATION.search(source) and not target_negative:
+        issues.append('negation_missing')
+    if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b", source, re.I):
+        issues.append('negation_added')
     modal_source = _NEGATED_MODAL.sub(' ', src_norm)
     if lang == 'tr' and re.search(r'\b(?:ister(?:ler)?|istiyor\w*|istedi\w*|istemesi|istemeleri|arzu eder\w*|arzuluyor\w*)\b', translated, re.I):
         # Volition: "some would have us stay" -> "bazıları kalmamızı ister".
@@ -1401,6 +1475,9 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
         if _SOURCE_NECESSITY.search(modal_source) \
                 and not _TARGET_NECESSITY.search(translated):
             issues.append('modal_weakened')
+    if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr':
+        if re.search(r'(?i)\b(?:zorunda\w*|mecbur\w*|gerekli|gerekiyor)\b', source) and not re.search(r'(?i)\b(?:must|have to|has to|need to|required|obliged|forced)\b', translated): issues.append('modal_weakened')
+        if re.search(r'(?i)\b(?:belki|muhtemelen|olabilir)\b', source) and not re.search(r'(?i)\b(?:may|might|could|perhaps|maybe|possibly|probably)\b', translated): issues.append('modal_certainty_flip')
     marker_checks = [
         ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
          _semantic_markers(translated, _CURRENCY_PATTERNS)),
@@ -1432,7 +1509,7 @@ def markup_preserved(source, translated):
     return not source_tags or source_tags == tokens(translated)
 
 
-def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
+def translation_blocking_issues(source_text, translated_text, target_lang='tr', source_lang=None):
     """Otomatik reddi kesin kayıplara uygula: yapısal (number_mismatch,
     truncated_fragment) ve anlamsal (negation_missing, modal_missing,
     modal_certainty_flip, modal_weakened) kapılar.
@@ -1442,11 +1519,11 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr'):
     (-mAm, -sIz, -mayabilir, belki, zorunda, aorist, optative dahil) yoksa
     kayıp sayılır. Korpus ölçümü 58 doğru çeviride 0 yanlış-ret verdi.
     """
-    issues = translation_meaning_issues(source_text, translated_text, target_lang)
+    issues = translation_meaning_issues(source_text, translated_text, target_lang, source_lang)
     if not markup_preserved(source_text, translated_text): issues.append('markup_mismatch')
     blocking = [issue for issue in issues
                 if issue in ('markup_mismatch', 'number_mismatch', 'truncated_fragment',
-                             'negation_missing', 'modal_missing',
+                             'negation_missing', 'negation_added', 'modal_missing',
                              'modal_certainty_flip', 'modal_weakened')]
     # A single unchanged explicit quantity cannot silently change its unit or
     # currency (60 miles -> 60 km). Do not reject actual conversions, multiple

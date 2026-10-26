@@ -43,6 +43,7 @@
       function decorate(row){
         const result={...row,role:row.role==='assistant'?'ai':row.role,loading:row.status==='streaming'||!!row.loading,error:['failed','stopped'].includes(row.status)||!!row.error};
         result.links=(row.evidence||[]).slice(0,40).map((e,index)=>{const id='e:'+threadId+':'+row.id+':'+index;links.set(id,{evidence:e});return {id,label:Math.floor(e.start/60)+':'+String(Math.floor(e.start%60)).padStart(2,'0'),excerpt:e.text,translation:e.translation||''};});
+        if(/Web sources:|Web kaynakları:/.test(row.text||''))for(const [index,match] of [...String(row.text).matchAll(/https?:\/\/[^\s<>]+/g)].slice(0,10).entries()){const id='w:'+threadId+':'+row.id+':'+index;links.set(id,{external:match[0]});result.links.push({id,label:match[0]});}
         result.actions=(row.actions||[]).map((action,index)=>{const id='p:'+threadId+':'+row.id+':'+index;proposedActions.set(id,action);return {id,kind:action.kind,excerpt:action.source?.text||'',translation:action.translation||'',time:action.source?.start};});return result;
       }
       const messages=(workspace?.current?.messages||[]).map(decorate);
@@ -72,7 +73,7 @@
     const source=aiSourceScope();
     const acceptedNow=()=>{if(source!==aiSourceScope())return;const added=[...document.querySelectorAll('#aiChatLog .ai-msg-user')].filter(node=>!before.has(node)&&node._sourceScope===source);if(added.some(node=>node.textContent===String(packet.text||'').trim())){receipt={id:packet.requestId,accepted:true,message:''};publish();}};
     const observer=new MutationObserver(acceptedNow);observer.observe($('aiChatLog'),{childList:true,subtree:true});
-    try{await aiChatSend(String(packet.text||'').slice(0,16000));
+    try{await (packet.action==='web-search'?aiWebResearch:aiChatSend)(String(packet.text||'').slice(0,16000));
       const added=[...document.querySelectorAll('#aiChatLog .ai-msg')].filter(node=>!before.has(node)&&node._sourceScope===aiSourceScope());
       const accepted=added.some(node=>node.classList.contains('ai-msg-user')&&node.textContent===String(packet.text||'').trim());
       receipt={id:packet.requestId,accepted,message:accepted?'':(added.find(node=>node.classList.contains('ai-msg-err'))?.textContent || (window.UiLocale?.get?.()==='tr'?'Soru gönderilemedi. Metnin korundu; sağlayıcı ayarını veya çalışan işleri kontrol et.':'The question was not sent. Your draft is kept; check provider settings or running tasks.'))};
@@ -89,13 +90,13 @@
   }
   window.api.onAssistantCommand(packet => {
     if (!packet || typeof packet !== 'object') return;
-    const scoped=['send','cancel','retry','clear','citation','suggestion','scope','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool'].includes(packet.action);
-    if(scoped&&(!packet.sourceToken||packet.sourceToken!==commandToken())){if(packet.action==='send')receipt={id:packet.requestId,accepted:false,message:window.UiLocale?.get?.()==='tr'?'Kaynak değişti. Sorun gönderilmedi; metnin taslakta korundu.':'The source changed. Your question was not sent; the draft was kept.'};publish();return;}
+    const scoped=['send','web-search','cancel','retry','clear','citation','suggestion','scope','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool'].includes(packet.action);
+    if(scoped&&(!packet.sourceToken||packet.sourceToken!==commandToken())){if(packet.action==='send'||packet.action==='web-search')receipt={id:packet.requestId,accepted:false,message:window.UiLocale?.get?.()==='tr'?'Kaynak değişti. Sorun gönderilmedi; metnin taslakta korundu.':'The source changed. Your question was not sent; the draft was kept.'};publish();return;}
     if (packet.action === 'copy') void window.api.copyText(String(packet.text || ''));
     else if (packet.action === 'export') void window.api.mediaTools({action:'assistant-export',text:packet.text}).then(r=>{if(!r?.ok)osd(r?.error||'Export failed.');else if(!r.canceled)osd(trMessage());function trMessage(){return window.UiLocale?.get?.()==='tr'?'Konuşma kaydedildi.':'Conversation saved.';}});
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}
-    else if (packet.action === 'send') void sendQuestion(packet);
+    else if (packet.action === 'send' || packet.action === 'web-search') void sendQuestion(packet);
     else if (packet.action === 'cancel') {if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') {
@@ -107,7 +108,7 @@
       window.AssistantWorkspace?.clear();
       if(!document.querySelector('#aiChatLog .ai-msg'))$('aiChatEmpty')?.classList.remove('hidden');
     }
-    else if (packet.action === 'citation') {const target=links.get(packet.text);if(target?.evidence)void applyProposal({kind:'seek_to_time',source:target.evidence}).catch(error=>{toolNotice=error.message;publish();});else target?.click();}
+    else if (packet.action === 'citation') {const target=links.get(packet.text);if(target?.external)void window.api.openExternal(target.external);else if(target?.evidence)void applyProposal({kind:'seek_to_time',source:target.evidence}).catch(error=>{toolNotice=error.message;publish();});else target?.click();}
     else if (packet.action === 'suggestion') {
       const row = suggestions.get(packet.text);
       if (row?.scope !== aiSourceScope()) { publish(); return; }

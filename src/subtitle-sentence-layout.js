@@ -40,8 +40,8 @@ function sentenceEnded(text) {
 }
 
 const NUMBER_TOKEN = /(?<![\p{L}\p{N}_])(?:(?:%|yüzde)\s*)?(?:[-−]|(?:eksi|minus)\s+)?(?:%\s*)?\d+(?:[.,]\d+)*(?:\s*(?:%|percent\b))?(?![\p{L}\p{N}_])/giu;
-const SOURCE_NEGATION = /\b(?:not|never|no|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b/iu;
-const TARGET_NEGATION = /(?<!\p{L})(?:değil|degil|yok|hiç|hic|asla|kimse|hiçbir|hicbir|olmadan|yoksa|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z|\p{L}{2,}mamış\p{L}*|\p{L}{2,}memiş\p{L}*|\p{L}{2,}mamalı\p{L}*|\p{L}{2,}memeli\p{L}*)(?!\p{L})/iu;
+const SOURCE_NEGATION = /\b(?:not|never|no|none|nobody|nothing|impossible|unable|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b/iu;
+const TARGET_NEGATION = /(?<!\p{L})(?:değil\p{L}*|degil\p{L}*|yok\p{L}*|hiç|hic|asla|kimse\p{L}*|hiçbir\p{L}*|hicbir\p{L}*|olmadan|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z\p{L}*|\p{L}{2,}m[ae]y?[ae]c[ae][kğ]\p{L}*|\p{L}{2,}m[ae]mış\p{L}*|\p{L}{2,}memiş\p{L}*|\p{L}{2,}m[ae]m|\p{L}{2,}m[ae]y?[ae]bilir\p{L}*|\p{L}{2,}s[ıiuü]z\p{L}*|\p{L}{2,}m[ae]y[ıiuü]?n[ıiuü]?z?|(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda)m[ae])(?!\p{L})/iu;
 function numberTokens(text) {
   const scientific=[];
   const rest=String(text || '').replace(/(?<![\p{L}\p{N}_])[+−-]?\d+(?:[.,]\d+)?e[+-]?\d+(?![\p{L}\p{N}_])/giu, value=>{
@@ -56,7 +56,7 @@ function numberTokens(text) {
     if (token.includes('.') && token.includes(',')) {
       const decimal = token.lastIndexOf('.') > token.lastIndexOf(',') ? '.' : ',';
       token = token.replace(decimal === '.' ? /,/g : /\./g, '').replace(',', '.');
-    } else token = /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(',', '.');
+    } else token = /^\d{1,3}(?:[.,]\d{3})+$/u.test(token) && !/^0[.,]/u.test(token) ? token.replace(/[.,]/g, '') : token.replace(',', '.');
     token = token.replace(/^0+(?=\d)/, '').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
     return `${negative ? '-' : ''}${token}${percentage ? '%' : ''}`;
   }));
@@ -169,16 +169,16 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
   let sourceForNumbers = String(source || '');
   let targetForNumbers = String(translated || '');
-  if (turkishTarget) {
+  {
     // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
     // pairs; an altered minute remains a blocking mismatch.
-    const clockPattern = /(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu;
+    const clockPattern = /(?<!\d)(\d{1,2})[:h]([0-5]\d)(?!\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu;
     const clockHour = match => match[3] && Number(match[1]) >= 1 && Number(match[1]) <= 12
       ? Number(match[1]) % 12 + (match[3].toLowerCase() === 'p' ? 12 : 0) : Number(match[1]);
     const clocks = [...sourceForNumbers.matchAll(clockPattern)];
     for (const clock of clocks) {
       const hour = clockHour(clock);
-      const equivalent = [...targetForNumbers.matchAll(/(?<![\d:.])(\d{1,2})[:.]([0-5]\d)(?![\d:.])(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu)]
+      const equivalent = [...targetForNumbers.matchAll(/(?<![\d:.])(\d{1,2})[:.h]([0-5]\d)(?!\d|[.:]\d)(?:\s*([ap])\.?\s*m\.?(?!\w))?/giu)]
         .find(match => clockHour(match) === hour && match[2] === clock[2]);
       if (equivalent) {
         targetForNumbers = targetForNumbers.slice(0, equivalent.index) + ' ' + targetForNumbers.slice(equivalent.index + equivalent[0].length);
@@ -186,7 +186,7 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
       }
       // toLocaleLowerCase('tr') uzunluğu korur (İ→i, I→ı); eşleşme konumu
       // özgün metinde de geçerlidir. JS /i bayrağı 'İ'yi 'i' ile eşlemez.
-      const found = turkishClockMatch(targetForNumbers.toLocaleLowerCase('tr'), hour, Number(clock[2]));
+      const found = turkishTarget && turkishClockMatch(targetForNumbers.toLocaleLowerCase('tr'), hour, Number(clock[2]));
       if (found) targetForNumbers = `${targetForNumbers.slice(0, found.index)} ${targetForNumbers.slice(found.end)}`;
       else issues.push('number_mismatch');
     }
@@ -216,8 +216,19 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     normalizedTranslation = `${normalizedTranslation.slice(0,found.index)} ${normalizedTranslation.slice(found.end)}`;
     return false;
   })) issues.push('number_mismatch');
-  if (SOURCE_NEGATION.test(normalizeText(source).replace(/[‘’]/g, "'")) && !TARGET_NEGATION.test(normalizeText(translated))) {
+  const negationSource=normalizeText(source).replace(/[‘’]/g,"'").replace(/\b(?:cannot|can't|can\s+not)\s+help\s*,?\s+but\s+(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|admire|worry|remember|agree|suspect|be|fall|marvel)\b)/giu,' ');
+  const hasTargetNegation=String(targetLanguage).split('-')[0]==='en'?SOURCE_NEGATION.test(normalizeText(translated).replace(/[‘’]/g,"'")):TARGET_NEGATION.test(normalizeText(translated));
+  if (SOURCE_NEGATION.test(negationSource) && !hasTargetNegation) {
     issues.push('negation_missing');
+  }
+  const lang=String(targetLanguage||'tr').toLowerCase().split('-')[0];
+  if(lang==='tr' && TARGET_NEGATION.test(normalizeText(translated)) && !SOURCE_NEGATION.test(negationSource) && normalizeText(source).split(' ').length<=12 && !/[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b/iu.test(source)) issues.push('negation_added');
+  if (lang === 'tr') {
+    const modalSource = negationSource.replace(/\b(?:must(?:n't| not)|needn't|should(?:n't| not)|cannot|can't)\b/giu, ' ');
+    const necessity = /\b(?:must|have to|has to|need to|required to)\b/iu.test(modalSource);
+    const uncertainty = /\b(?:might|perhaps|maybe|possibly|probably)\b/iu.test(negationSource);
+    if (necessity && !/(?<!\p{L})(?:\p{L}+m[ae]l[ıi]\p{L}*|gerek\p{L}*|zorunda\p{L}*|mecbur\p{L}*|şart)(?!\p{L})/iu.test(translated)) issues.push('modal_weakened');
+    if (uncertainty && !/(?<!\p{L})(?:belki|muhtemel\p{L}*|olası\p{L}*|mümkün\p{L}*|ihtimal\p{L}*|galiba|sanırım|\p{L}+bilir\p{L}*)(?!\p{L})/iu.test(translated)) issues.push('modal_certainty_flip');
   }
   return issues;
 }
@@ -230,7 +241,7 @@ function markupPreserved(source, translated) {
   return JSON.stringify(a.map(canonical))===JSON.stringify(b.map(canonical));
 }
 function translationBlockingIssues(source, translated, targetLanguage = 'tr') {
-  const issues=translationMeaningIssues(source, translated, targetLanguage).filter(issue => issue === 'number_mismatch');
+  const issues=translationMeaningIssues(source, translated, targetLanguage).filter(issue => issue === 'number_mismatch' || issue === 'negation_missing' || issue === 'negation_added' || issue === 'modal_weakened' || issue === 'modal_certainty_flip');
   if (!markupPreserved(source,translated)) issues.push('markup_mismatch');
   return issues;
 }
