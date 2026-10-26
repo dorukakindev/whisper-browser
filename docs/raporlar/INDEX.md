@@ -1,3 +1,4 @@
+- [Rapor 600](BROWSER_BUG_REPORT_600.md) — 30 kabul maddesi; referans iptali, ses metni ve altyazı/asistan bütünlüğü
 - [Rapor 599](BROWSER_BUG_REPORT_599.md) — Aynı içerikli Claude ara paketleri; kalan zarf-fiil ve sıfırla başlayan sayı düzeltmeleri
 - [Rapor 598](BROWSER_BUG_REPORT_598.md) — 50 maddelik kapsam: cache ses doğrulaması, sıcak motor, SRT ve asistan iyileştirmeleri
 - [Rapor 597](BROWSER_BUG_REPORT_597.md) — Sağlayıcı anahtarı, olumsuzluk, SRT ve sayı koruması; Windows dar ekran ve galeri onarımları
