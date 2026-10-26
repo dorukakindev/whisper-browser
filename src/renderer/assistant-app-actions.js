@@ -5,7 +5,7 @@
  function snapshot(){
   const selection=globalAssistantContext(),tab=player.workspaceMode==='browser'?browserTabState():null;
   const url=player.browserPageUrl||'';
-  const kind=selection?String(selection.type||'').startsWith('book')?'book':selection.workspace==='media-library'||selection.type==='library-title'?'library':'studio':currentBrowserYoutubeUrl()?'video':tab&&/^https?:/i.test(url)?'page':'studio';
+  const kind=selection?String(selection.type||'').startsWith('book')?'book':selection.workspace==='media-library'||['library-title','discovery-title','taste-profile','collection-plan'].includes(selection.type)?'library':'studio':currentBrowserYoutubeUrl()?'video':tab&&/^https?:/i.test(url)?'page':'studio';
   return contract.clean({kind,owner:aiSourceScope(),thread:window.AssistantWorkspace?.activeId()||'',tabId:tab?.id||'',generation:tab?.generation||0,
    pageKey:tab?window.AssistantSourceContext.pageKey(url):'',title:selection?.title||player.browserPageTitle||document.getElementById('playerTitle')?.textContent||'',
    time:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
@@ -20,6 +20,7 @@
   if(Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>Date.now()>=deadline||!current(owner);
+  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
