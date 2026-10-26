@@ -104,7 +104,18 @@
         for (const link of row.links) { const button = document.createElement('button'); button.textContent = link.label; button.onclick = () => action('citation', link.id);if(link.excerpt){const card=document.createElement('div');card.className='source-card';const excerpt=document.createElement('p');excerpt.textContent=link.excerpt;card.append(button,excerpt);if(link.translation){const translated=document.createElement('small');translated.textContent=link.translation;card.append(translated);}sources.append(card);}else sources.append(button); }
         node.append(sources);
       }
-      for(const proposed of row.actions||[]){const card=document.createElement('div');card.className='tool-card';const title=document.createElement('strong');title.textContent=t(({seek_to_time:'Jump to this scene',preview_translation_change:'Translation suggestion',open_voice_preparation:'Prepare voice'})[proposed.kind]||'Suggested action',({seek_to_time:'Bu sahneye git',preview_translation_change:'Çeviri önerisi',open_voice_preparation:'Sesi hazırla'})[proposed.kind]||'Önerilen işlem');const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');const apply=document.createElement('button');apply.textContent=proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');apply.disabled=busy;apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.');$('review').hidden=false;};card.append(title,detail,apply);node.append(card);}
+      for(const proposed of row.actions||[]){
+        const card=document.createElement('div');card.className='tool-card';
+        const title=document.createElement('strong');title.textContent=proposed.kind==='app_action'?proposed.label||t('Application action','Uygulama işlemi'):t(({seek_to_time:'Jump to this scene',preview_translation_change:'Translation suggestion',open_voice_preparation:'Prepare voice'})[proposed.kind]||'Suggested action',({seek_to_time:'Bu sahneye git',preview_translation_change:'Çeviri önerisi',open_voice_preparation:'Sesi hazırla'})[proposed.kind]||'Önerilen işlem');
+        const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');
+        const apply=document.createElement('button');
+        apply.textContent=proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
+        apply.disabled=busy||!!proposed.resultStatus;
+        apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.'));$('review').hidden=false;};
+        card.append(title,detail,apply);
+        if(proposed.resultText){const receipt=document.createElement('p');receipt.className='action-receipt';receipt.setAttribute('role','status');receipt.textContent=proposed.resultText;card.append(receipt);}
+        node.append(card);
+      }
       log.append(node);
     }
     filter();

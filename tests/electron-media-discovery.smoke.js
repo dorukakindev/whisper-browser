@@ -58,7 +58,7 @@ app.whenReady().then(async () => {
   await assist('document.getElementById("bubble").click();return true');
   assert.equal(await assist('return document.getElementById("text").value'), 'unsent draft');
   await wait(200); fs.writeFileSync(path.join(out, 'floating-assistant-tr.png'), (await assistant.webContents.capturePage()).toPNG());
-  await run('window.testAssistantStart=startTranscribeSafe;window.testAssistantReady=translationEndpointReady;translationEndpointReady=()=>true;startTranscribeSafe=async opts=>{window.testAssistantChat=opts.chat;return {ok:false,error:"Controlled provider unavailable"}};return true');
+  await run('window.testAssistantAgent=window.AssistantAgentUI;window.testAssistantReady=translationEndpointReady;translationEndpointReady=()=>true;window.AssistantAgentUI={...window.AssistantAgentUI,send:async(question,context)=>{window.testAssistantChat={question,context};aiChatAdd("user",question);aiChatAdd("ai","Controlled provider unavailable","ai-msg-err");}};return true');
   await assist('document.getElementById("text").value="Fixture global assistant question";document.getElementById("form").requestSubmit();return true');
   await until(() => run('return window.testAssistantChat?.question==="Fixture global assistant question"'), 'native send reaches existing chat controller');
   assert(await run('return window.testAssistantChat.context.workspace==="media-library" && !window.testAssistantChat.context.transcript_evidence && window.testAssistantChat.context.page==="discover"'), 'Home request has no old video / browser data');
@@ -74,13 +74,16 @@ app.whenReady().then(async () => {
   assert(await assist('return document.getElementById("review").hidden'), 'Direct summary does not require a second confirmation');
   await wait(250); fs.writeFileSync(path.join(out,'assistant-direct-summary-tr.png'),(await assistant.webContents.capturePage()).toPNG());
   await until(() => run('return window.testAssistantChat.question!=="Fixture global assistant question"'), 'Direct summary reuses existing chat pipeline');
-  await run('startTranscribeSafe=window.testAssistantStart;translationEndpointReady=window.testAssistantReady;return true');
+  await run('window.AssistantAgentUI=window.testAssistantAgent;translationEndpointReady=window.testAssistantReady;return true');
   await assist('document.getElementById("close").click();return true');
   assert(await run('return !document.querySelector(".md-heading")'), 'Discover omits redundant heading');
   const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-tab")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ")}');
   assert(fonts.plex, JSON.stringify(fonts)); assert(fonts.heading.includes('IBM Plex Sans'));
   const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor');
   const hover = await run('const r=document.querySelectorAll(".md-tab")[1].getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}');
+  // Native assistant focus may still belong to its WebContentsView after minimizing.
+  // Electron input injection requires the target WebContents to be focused.
+  win.focus(); win.webContents.focus();
   win.webContents.sendInputEvent({ type: 'mouseMove', ...hover }); await wait(100);
   assert.notEqual(await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor'), beforeHover, 'Actual renderer pointer hover feedback');
   win.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 45 });

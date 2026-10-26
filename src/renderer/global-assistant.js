@@ -17,7 +17,7 @@
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const videoContext=pageContext&&!!currentBrowserYoutubeUrl();
       const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
-      const pageTask=window.AssistantVideoCommands?.status()||window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
+      const pageTask=window.AssistantAgentUI?.status()||window.AssistantVideoCommands?.status()||window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
       const context = selectionContext ? (selectionContext.title || selectionContext.heading || (selectionContext.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
@@ -50,7 +50,7 @@
         const result={...row,role:row.role==='assistant'?'ai':row.role,loading:row.status==='streaming'||!!row.loading,error:['failed','stopped'].includes(row.status)||!!row.error};
         result.links=(row.evidence||[]).slice(0,40).map((e,index)=>{const id='e:'+threadId+':'+row.id+':'+index;links.set(id,{evidence:e});return {id,label:Math.floor(e.start/60)+':'+String(Math.floor(e.start%60)).padStart(2,'0'),excerpt:e.text,translation:e.translation||''};});
         if(/Web sources:|Web kaynakları:/.test(row.text||''))for(const [index,match] of [...String(row.text).matchAll(/https?:\/\/[^\s<>]+/g)].slice(0,10).entries()){const id='w:'+threadId+':'+row.id+':'+index;links.set(id,{external:match[0]});result.links.push({id,label:match[0]});}
-        result.actions=(row.actions||[]).map((action,index)=>{const id='p:'+threadId+':'+row.id+':'+index;proposedActions.set(id,action);return {id,kind:action.kind,excerpt:action.source?.text||'',translation:action.translation||'',time:action.source?.start};});return result;
+        result.actions=(row.actions||[]).map((action,index)=>{const id='p:'+threadId+':'+row.id+':'+index;proposedActions.set(id,action);return {id,kind:action.kind,label:action.label||'',excerpt:action.kind==='app_action'?action.summary||'':action.source?.text||'',translation:action.translation||'',resultStatus:action.resultStatus||'',resultText:action.resultText||'',time:action.source?.start};});return result;
       }
       const messages=(workspace?.current?.messages||[]).map(decorate);
       for(const node of document.querySelectorAll('#aiChatLog .ai-msg')){
@@ -61,7 +61,7 @@
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:opts.translateModel||opts.llmModel||'',
-        pageContext,videoContext,transcriptScope,blocked:!!((window.AssistantVideoCommands?.busy()||window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
+        pageContext,videoContext,transcriptScope,blocked:!!((window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
         canCancel:!!(pageTask || aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
         sourceDescription:selectionContext ? [({'book-page':tr?'Açık PDF sayfası':'Current PDF page','book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[selectionContext.type]||(selectionContext.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),selectionContext.chapter||'',(selectionContext.selectedText?((tr?'Seçili pasaj: ':'Selected passage: ')+selectionContext.selectedText):selectionContext.excerpt||selectionContext.synopsis||selectionContext.note||''),tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
@@ -88,6 +88,7 @@
     publish();
   }
   async function applyProposal(proposal){
+    if(proposal.kind==='app_action'){await window.AssistantAgentUI.apply(proposal);toolNotice='';publish();return;}
     if(globalAssistantContext())throw Error(window.UiLocale?.get?.()==='tr'?'Bu işlem için ilgili videoyu aç.':'Open the matching video first.');
     if(proposal.kind==='open_voice_preparation'){await window.MediaExperience.openVoice();return;}
     if(!Number.isFinite(proposal.source?.start)||proposal.source.start<0)throw Error('Invalid source time.');
@@ -103,10 +104,10 @@
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if (packet.action === 'send' || packet.action === 'web-search') void sendQuestion(packet);
-    else if (packet.action === 'cancel') {if(window.AssistantVideoCommands?.status())void window.AssistantVideoCommands.cancel();else if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
+    else if (packet.action === 'cancel') {if(window.AssistantAgentUI?.status())void window.AssistantAgentUI.cancel();else if(window.AssistantVideoCommands?.status())void window.AssistantVideoCommands.cancel();else if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') {
-      if(window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
+      if(window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
       for(const node of document.querySelectorAll('#aiChatLog .ai-msg'))if(node._sourceScope===aiSourceScope())node.remove();
       if(player.chatHistoryScope===aiSourceScope()){player.chatHistory=[];player.chatHistoryScope=null;}
       if(aiChatRetryPacket?.scope===aiSourceScope())aiChatRetryPacket=null;
@@ -137,6 +138,7 @@
   document.addEventListener('ui-locale-change', publish);
   document.addEventListener('media-context-changed', publish);
   document.addEventListener('assistant-workspace-changed',publish);
+  document.addEventListener('assistant-agent-changed',publish);
   document.addEventListener('assistant-page-task-changed',publish);
   document.addEventListener('assistant-video-task-changed',publish);
   document.addEventListener('assistant-media-task-changed',publish);
