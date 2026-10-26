@@ -15,8 +15,9 @@
       const selectionContext = globalAssistantContext();
       const bookDescription=selectionContext?.chapterTextComplete?[tr?'Tam bölüm/sayfa metni':'Complete chapter/page text',selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+selectionContext.chapterText.length,selectionContext.excerpt?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
+      const videoContext=pageContext&&!!currentBrowserYoutubeUrl();
       const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
-      const pageTask=window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
+      const pageTask=window.AssistantVideoCommands?.status()||window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
       const context = selectionContext ? (selectionContext.title || selectionContext.heading || (selectionContext.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
@@ -29,15 +30,20 @@
       const summary = selection?.workspace === 'media-selection'
         ? (tr ? 'Verilen yapım bilgilerini veya bölüm alıntısını özetle. Eserin tamamını okuduğunu ya da izlediğini iddia etme.' : 'Summarize only the provided metadata or chapter excerpt. Do not claim to have read or watched the full work.')
         : (tr ? 'Sağlanan altyazı veya sayfa bağlamını kısaca özetle; eksik kaynağı açıkça belirt.' : 'Briefly summarize the supplied subtitle or page context. State when source material is missing.');
-      const entries = [{ kind:'summary', label:pageContext?(tr?'Sayfayı özetle':'Summarize page'):(tr?'Kaynağı özetle':'Summarize source'), prompt:summary },
-        ...(pageContext?[{kind:'page-translate',label:tr?'Sayfayı Türkçeye çevir':'Translate page to Turkish',prompt:'Bu sayfayı Türkçeye çevir.'}]:[]),
+      const entries = [{ kind:'summary', label:videoContext?(tr?'Altyazıyı özetle':'Summarize captions'):pageContext?(tr?'Sayfayı özetle':'Summarize page'):(tr?'Kaynağı özetle':'Summarize source'), prompt:summary },
+        ...(pageContext&&!videoContext?[{kind:'page-translate',label:tr?'Sayfayı Türkçeye çevir':'Translate page to Turkish',prompt:'Bu sayfayı Türkçeye çevir.'}]:[]),
+        ...(videoContext?[
+          {kind:'video-track-translate',label:tr?'Mevcut altyazıyı çevir':'Translate captions',prompt:'Videonun mevcut altyazısını Türkçeye çevir.'},
+          {kind:'video-whisper-only',label:tr?'Yalnız Whisper':'Whisper only',prompt:'Whisper ile yalnız altyazı çıkar.'},
+          {kind:'video-whisper-translate',label:tr?'Whisper + çeviri':'Whisper + translation',prompt:'Whisper ile altyazı çıkar ve Türkçeye çevir.'},
+        ]:[]),
         {kind:'explain',label:tr?'Daha anlaşılır açıkla':'Explain clearly',prompt:tr?'Yalnız sağlanan bağlamı sade ve anlaşılır Türkçeyle açıkla. Videoda altyazı varsa seçili kapsam içindeki konuşmayı esas al. Eksik kanıtı belirt; eser hakkında bilgi uydurma.':'Explain only the supplied context in clear language. For a captioned video use the selected transcript scope. State missing evidence; do not invent knowledge of the work.'},
         ...(transcriptScope?[{kind:'translation',label:tr?'Çeviriyi değerlendir':'Review translation',prompt:tr?'Yalnız sağlanan kaynak ve çeviri altyazılarını karşılaştır. Anlam kaybı, özel ad ve sayı sorunlarını örnekleriyle belirt. Yeterli eşleşen satır yoksa açıkça söyle. Dosyaları değiştirme; önerilerini açıkla.':'Compare only the supplied source and translated subtitles. Explain meaning loss, proper-name and numeric issues with examples. State when matching evidence is insufficient. Do not modify files; explain suggested improvements.'}]:[]),
         ...(!selectionContext&&!pageContext?[{ kind:'voice', label:tr?'Seslendirme hazırla':'Prepare voice' }]:[]), ...(!pageContext?[{ kind:'tasks', label:tr?'İşlem merkezi':'Activity' }]:[])];
       const specs = entries.map(row => {
         const id = `${suggestionSequence}:${row.kind}`;
         suggestions.set(id, { ...row, scope });
-        return { id, label:row.label, direct:['summary','explain','page-translate'].includes(row.kind), review: `${tr?'Kaynak':'Source'}: ${context}\n${['summary','explain','translation'].includes(row.kind) ? `${tr?'Model':'Model'}: ${opts.translateModel || opts.llmModel || (tr?'Mevcut AI ayarı':'Current AI setting')}\n${tr?'Seçili bağlam mevcut sağlayıcıya gönderilir.':'Selected context will be sent to your current provider.'}` : row.kind==='voice' ? (tr?'Mevcut ses penceresi açılır. SRT, referans ses ve zaman aralığını incelemeden üretim başlamaz.':'Opens the existing voice window. Review SRT, reference and time range before starting production.') : (tr?'Çalışan işleri ve kontrollerini gösterir; iş başlatmaz.':'Shows existing jobs and controls; does not start a job.')}` };
+        return { id, label:row.label, direct:['summary','explain','page-translate'].includes(row.kind), review: `${tr?'Kaynak':'Source'}: ${context}\n${['summary','explain','translation'].includes(row.kind) ? `${tr?'Model':'Model'}: ${opts.translateModel || opts.llmModel || (tr?'Mevcut AI ayarı':'Current AI setting')}\n${tr?'Seçili bağlam mevcut sağlayıcıya gönderilir.':'Selected context will be sent to your current provider.'}` : row.kind.startsWith('video-') ? (tr?'Seçili YouTube videosunda mevcut altyazı/Whisper akışı başlatılır; ilerleme burada gösterilir.':'Runs the selected YouTube caption/Whisper workflow; progress appears here.') : row.kind==='voice' ? (tr?'Mevcut ses penceresi açılır. SRT, referans ses ve zaman aralığını incelemeden üretim başlamaz.':'Opens the existing voice window. Review SRT, reference and time range before starting production.') : (tr?'Çalışan işleri ve kontrollerini gösterir; iş başlatmaz.':'Shows existing jobs and controls; does not start a job.')}` };
       });
       proposedActions.clear();
       function decorate(row){
@@ -55,7 +61,7 @@
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:opts.translateModel||opts.llmModel||'',
-        pageContext,transcriptScope,blocked:!!((window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
+        pageContext,videoContext,transcriptScope,blocked:!!((window.AssistantVideoCommands?.busy()||window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(state.running||state.queueRunning)&&!(player.job?.kind==='chat'),
         canCancel:!!(pageTask || aiChatPreparing?.scope===scope || (player.job?.kind==='chat'&&player.job.sourceScope===scope&&(player.job.running||player.job.awaitingExit))),
         sourceDescription:selectionContext ? [({'book-page':tr?'Açık PDF sayfası':'Current PDF page','book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','media-tool':tr?'Açık medya aracı':'Current media tool'})[selectionContext.type]||(selectionContext.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),selectionContext.chapter||'',(selectionContext.selectedText?((tr?'Seçili pasaj: ':'Selected passage: ')+selectionContext.selectedText):selectionContext.excerpt||selectionContext.synopsis||selectionContext.note||''),tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
@@ -97,10 +103,10 @@
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if (packet.action === 'send' || packet.action === 'web-search') void sendQuestion(packet);
-    else if (packet.action === 'cancel') {if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
+    else if (packet.action === 'cancel') {if(window.AssistantVideoCommands?.status())void window.AssistantVideoCommands.cancel();else if(window.AssistantMediaCommands?.status())window.AssistantMediaCommands.cancel();else if(window.AssistantPageCommands?.status())void window.AssistantPageCommands.cancel();else if(aiChatPreparing?.scope===aiSourceScope()||player.job?.sourceScope===aiSourceScope())$('aiChatCancel')?.click();}
     else if (packet.action === 'retry') $('aiChatRetry')?.click();
     else if (packet.action === 'clear') {
-      if(window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
+      if(window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||aiChatPreparing||(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)))return;
       for(const node of document.querySelectorAll('#aiChatLog .ai-msg'))if(node._sourceScope===aiSourceScope())node.remove();
       if(player.chatHistoryScope===aiSourceScope()){player.chatHistory=[];player.chatHistoryScope=null;}
       if(aiChatRetryPacket?.scope===aiSourceScope())aiChatRetryPacket=null;
@@ -112,7 +118,7 @@
     else if (packet.action === 'suggestion') {
       const row = suggestions.get(packet.text);
       if (row?.scope !== aiSourceScope()) { publish(); return; }
-      if (['summary','explain','translation','page-translate'].includes(row.kind)) void aiChatSend(row.prompt);
+      if (['summary','explain','translation','page-translate','video-track-translate','video-whisper-only','video-whisper-translate'].includes(row.kind)) void aiChatSend(row.prompt);
       else if (row.kind === 'voice') window.MediaExperience?.openVoice();
       else if (row.kind === 'tasks') window.MediaExperience?.openTasks();
     }
@@ -132,6 +138,7 @@
   document.addEventListener('media-context-changed', publish);
   document.addEventListener('assistant-workspace-changed',publish);
   document.addEventListener('assistant-page-task-changed',publish);
+  document.addEventListener('assistant-video-task-changed',publish);
   document.addEventListener('assistant-media-task-changed',publish);
   document.addEventListener('browser-page-translation-changed',publish);
   publish();
