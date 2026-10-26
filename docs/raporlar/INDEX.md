@@ -1,3 +1,4 @@
+- [Rapor 624](BROWSER_BUG_REPORT_624.md) — Asistan P07: kütüphane/keşfet/koleksiyon/yorum, normal ayar ve koşullu undo
 - [Rapor 623](BROWSER_BUG_REPORT_623.md) — Asistan P06: kaynak bağlı kitap/PDF ve üretim/M4B araçları
 - [Rapor 622](BROWSER_BUG_REPORT_622.md) — Asistan P05: kaynak bağlı dublaj/ref/grup ve seçili ayar koruması
 - [Rapor 621](BROWSER_BUG_REPORT_621.md) — Asistan P04: gerçek caption seçimi/indirme, dil/aralık/speech ve kalite kapısı
