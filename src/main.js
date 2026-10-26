@@ -20126,6 +20126,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
+require('./media-compatibility').register({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,grant:file=>mediaFileAccess.grant(file),ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe')});
 require('./media-analysis').registerMediaAnalysis({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,ffmpeg:()=>resolveFfTool('ffmpeg')});
 const waveformCache = new Map();
 ipcMain.handle('media:waveform', async (_event, filePath) => {
@@ -21183,6 +21184,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
   // Yalnizca ceviri modu: --input bir ALTYAZI dosyasidir, ses/Whisper calismaz
   if (!options.chat && options.translateOnly) args.push('--translate-only', 'true');
+
+
   if (!options.chat && options.translateExisting) pushBoundOption(args, '--translate-existing', options.translateExisting);
   if (!options.chat && options.translateOnly && options.translateCueRange) {
     // 'BASLANGIC:BITIS' saniye — backend yalnız aralıkla kesişen cue'ları yeniden çevirir.
@@ -21242,6 +21245,19 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     `job-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`);
   try { fs.mkdirSync(activeJobTempDir, { recursive: true }); }
   catch (_) { activeJobTempDir = null; }
+  if (!options.chat && options.translateOnly && options.translateCueRange && options.sceneContext) {
+    try {
+      if (!activeJobTempDir) throw Error('Scene context could not be staged / Sahne notları hazırlanamadı.');
+      const contextPath = path.join(activeJobTempDir, 'scene-context.json');
+      fs.writeFileSync(contextPath, JSON.stringify(require('./scene-timing-tools').context(options.sceneContext)), { encoding: 'utf8', mode: 0o600 });
+      args.push('--scene-context-file', contextPath);
+    } catch (error) {
+      cleanupChatFile();
+      if (activeJobTempDir) { try { fs.rmSync(activeJobTempDir, { recursive: true, force: true }); } catch (_) {} }
+      activeJobTempDir = null;
+      return { ok: false, error: error.message };
+    }
+  }
   const cancelFilePath = activeJobTempDir ? path.join(activeJobTempDir, 'cancel.flag') : '';
   if (activeJobTempDir) {
     env.WHISPER_JOB_TEMP_DIR = activeJobTempDir;
