@@ -1,3 +1,4 @@
+- [Rapor 602](BROWSER_BUG_REPORT_602.md) — Task01:9ses kökü; sıcak iptal, süreç/tanı sahipliği, cache bütünlüğü ve katman onarımları
 - [Rapor 601](BROWSER_BUG_REPORT_601.md) — Claude checkpoint:7doğrulanmış kök onarıldı; sütun ve sayı kapısı eksikleri açık
 - [Rapor 600](BROWSER_BUG_REPORT_600.md) — 30 kabul maddesi; referans iptali, ses metni ve altyazı/asistan bütünlüğü
 - [Rapor 599](BROWSER_BUG_REPORT_599.md) — Aynı içerikli Claude ara paketleri; kalan zarf-fiil ve sıfırla başlayan sayı düzeltmeleri
