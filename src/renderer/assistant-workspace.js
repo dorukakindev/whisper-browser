@@ -66,8 +66,9 @@
   reply.evidence=original.slice(0,40).map(row=>({id:row.id,start:Number(row.baslangic),end:Number(row.bitis)||Number(row.baslangic),text:String(row.metin||'').slice(0,1200),translation:String(row.ceviri||'').slice(0,1200)})).filter(row=>Number.isFinite(row.start));
   void persist(thread);changed();
  }
+ function resume(proposalId,context){const thread=current(),reply=thread?.messages.find(row=>row.actions?.some(action=>action.proposalId===proposalId));if(!reply||thread.headId!==reply.id)throw Error(t('Continue only the latest reply in this conversation.','Bu sohbette yalnız son yanıttan devam edilebilir.'));restoreLog();const bubble=[...document.querySelectorAll('#aiChatLog .ai-msg')].find(node=>node._assistantMessageId===reply.id&&node._assistantThreadId===thread.id);if(!bubble)throw Error('Reply is unavailable.');reply.status='streaming';bubble.classList.add('is-loading');bubble.classList.remove('ai-msg-err');const job={chatContext:context,sourceScope:aiSourceScope(),bubble,assistantRecord:{thread,reply}};changed();return {job,text:reply.text,actions:reply.actions||[],evidence:reply.evidence||[]};}
  function partial(job,text){const rec=job.assistantRecord;if(!rec)return;rec.reply.text=text;clearTimeout(flushTimer);flushTimer=setTimeout(()=>void persist(rec.thread),1000);changed();}
- function evidence(job,event){const rec=job.assistantRecord;if(!rec)return;rec.reply.evidence=[...rec.reply.evidence,...(event.evidence||[])].slice(-40);rec.reply.actions=event.actions||[];changed();}
+ function evidence(job,event){const rec=job.assistantRecord;if(!rec)return;rec.reply.evidence=[...new Map([...rec.reply.evidence,...(event.evidence||[])].map(row=>[row.id,row])).values()].slice(-40);rec.reply.actions=event.actions||[];changed();}
  function finish(job,text,status){const rec=job.assistantRecord;if(!rec)return;if(rec.reply.status!=='streaming')return;clearTimeout(flushTimer);rec.reply.text=String(text||rec.reply.text||'').slice(0,32000);rec.reply.status=status;void persist(rec.thread);changed();}
  async function command(action,value){
   if(aiChatPreparing||stateGlobalBusy())throw Error(t('Stop the running job before switching conversations.','Sohbet değiştirmeden önce çalışan işi durdur.'));
@@ -99,7 +100,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,partial,evidence,finish,command,clear,toolContext,actionResult,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,finish,command,clear,toolContext,actionResult,activeId:()=>current()?.id||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{clearTimeout(flushTimer);});
 })();

@@ -15,14 +15,14 @@
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
  }
  function current(owner){return contract.same(owner,snapshot());}
- async function execute(name,raw,owner,{deadline=Infinity}={}){
+ async function execute(name,raw,owner,{deadline=Infinity,isCancelled=()=>false}={}){
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
-  if(Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
+  if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
-  const stale=()=>Date.now()>=deadline||!current(owner);
-  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline});
-  if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline});
-  if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline});
+  const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);
+  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled});
+  if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
+  if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
@@ -31,11 +31,11 @@
     if(checked.error)throw Error(checked.error);player.browserWhisperRange={url:currentBrowserYoutubeUrl(),range:checked.range};
    }
    const executionOwner=snapshot();
-   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,isCancelled:()=>Date.now()>=deadline||!current(executionOwner)});
+   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,isCancelled:()=>isCancelled()||Date.now()>=deadline||!current(executionOwner)});
    if(!result?.ok)throw Error(t('Whisper was not confirmed as started.','Whisper başlangıcı doğrulanamadı.'));
-   return {status:result.reused?'completed':'accepted',reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the video job panel.','Medya işi kabul edildi. İlerlemeyi video işlem panelinden izle.')};
+   return {status:result.reused?'completed':'accepted',jobId:result.jobId||result.job?.backendJobId,reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the video job panel.','Medya işi kabul edildi. İlerlemeyi video işlem panelinden izle.')};
   }
-  if(['translate_captions','translate_video_captions'].includes(name))return window.AssistantCaptionActions.translate(args,owner,{deadline});
+  if(['translate_captions','translate_video_captions'].includes(name))return window.AssistantCaptionActions.translate(args,owner,{deadline,isCancelled});
   if(name==='load_caption_track'){const result=await useBrowserTrack(false,args.track_id,{isCancelled:stale});if(!result?.ok||stale())throw Error(t('Subtitle load was not confirmed.','Altyazı yüklenmesi doğrulanamadı.'));return {status:'completed',note:t('Subtitles loaded; no translation started.','Altyazı yüklendi; çeviri başlamadı.')};}
   if(name==='translate_page'){
    // The existing page service owns progress/cancellation. Do not hold the agent RPC until all blocks finish.

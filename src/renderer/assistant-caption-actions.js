@@ -1,8 +1,8 @@
 (() => {
  'use strict';
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
- async function translate(args,owner,{deadline=Infinity}={}){
-  const stale=()=>Date.now()>=deadline||!window.AssistantAppActions.current(owner);
+ async function translate(args,owner,{deadline=Infinity,isCancelled=()=>false}={}){
+  const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
   let track=player.browserTracks.find(row=>row.id===args.track_id&&row.role==='source');
@@ -22,7 +22,7 @@
   if(stale()||!loaded?.ok||player.subPath!==track.path)throw Error(t('Source captions could not be attached to this video.','Kaynak altyazı bu videoya bağlanamadı.'));
   const result=await startPlayerSubtitleTranslation({targetLanguage:args.target_language,sourceLanguage:browserTrackSourceLanguage(track),forSpeech:args.forSpeech,range,isCancelled:stale});
   if(!result?.ok)throw Error(result?.error||t('Translation did not start.','Çeviri başlamadı.'));
-  return {status:'accepted',note:t('Caption translation started without re-transcribing the audio. Follow it in Jobs.','Ses yeniden yazıya dökülmeden altyazı çevirisi başladı. İşler bölümünden izleyebilirsin.')};
+  return {status:'accepted',jobId:result.jobId,note:t('Caption translation started without re-transcribing the audio. Follow it in Jobs.','Ses yeniden yazıya dökülmeden altyazı çevirisi başladı. İşler bölümünden izleyebilirsin.')};
  }
  window.AssistantCaptionActions=Object.freeze({translate});
 })();
