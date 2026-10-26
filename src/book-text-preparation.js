@@ -10,7 +10,7 @@
     // Only lowercase word fragments; names, acronyms, numeric ranges and
     // paragraph boundaries need human editing rather than a guessed repair.
     const pattern =
-      /(?<![\p{L}\p{M}\p{N}])([\p{Ll}\p{M}]{2,})(\u00ad|-[ \t]*\r?\n[ \t]*)([\p{Ll}\p{M}]{2,})(?![\p{L}\p{M}\p{N}])/gu;
+      /(?<![\p{L}\p{M}\p{N}])([\p{Ll}][\p{Ll}\p{M}]*)(\u00ad(?:[ \t]*\r?\n[ \t]*)?|-[ \t]*\r?\n[ \t]*)([\p{Ll}][\p{Ll}\p{M}]*)(?![\p{L}\p{M}\p{N}])/gu;
     const suggestions = [];
     let truncated = false;
     for (const match of text.matchAll(pattern)) {
@@ -26,7 +26,7 @@
         before: match[0],
         joined: match[1] + match[3],
         hyphenated: match[1] + "-" + match[3],
-        soft: match[2] === "\u00ad",
+        soft: match[2].startsWith("\u00ad"),
         context: text.slice(
           Math.max(0, start - 45),
           Math.min(text.length, start + match[0].length + 45),

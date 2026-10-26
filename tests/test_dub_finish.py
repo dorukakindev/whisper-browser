@@ -4,7 +4,7 @@ import sys
 import unittest
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools'/'voxcpm2'))
-from dub_finish import spoken_text, finish_audio, active_ranges
+from dub_finish import spoken_text, finish_audio, active_ranges, join_pause_frames
 from dub_quality import speech_check
 
 class FinishTests(unittest.TestCase):
@@ -131,5 +131,61 @@ class FinishTests(unittest.TestCase):
         self.assertLess(intervals[0][1],11.2)
         self.assertGreater(intervals[1][0],11.8)
         self.assertEqual(active_ranges(np.zeros(sr),sr),[])
+
+class Focus600Tests(unittest.TestCase):
+    def test_p09_signed_prefix_currency(self):
+        for symbol, name in [(chr(36),'dolar'),('€','euro'),('£','sterlin'),('₺','lira')]:
+            self.assertEqual(spoken_text('Fiyat '+symbol+'-5'),'Fiyat eksi beş '+name)
+            self.assertEqual(spoken_text(symbol+'+1.500'),'artı bin beş yüz '+name)
+        self.assertEqual(spoken_text(chr(36)+'-12,5'),'eksi on iki virgül beş dolar')
+
+    def test_p10_signed_prefix_percent(self):
+        self.assertEqual(spoken_text('Oran %-12,5'),'Oran yüzde eksi on iki virgül beş')
+        self.assertEqual(spoken_text('%+5'),'yüzde artı beş')
+        self.assertEqual(spoken_text('%−1.500'),'yüzde eksi bin beş yüz')
+
+    def test_p11_currency_identifier_is_not_a_quantity(self):
+        for value in ['a5'+chr(36)+'x','ID'+chr(36)+'5','5'+chr(36)+'ID']:
+            self.assertEqual(spoken_text(value),value)
+
+    def test_p12_percent_identifier_is_not_a_quantity(self):
+        for value in ['ID%50','50%ID','a50%x']:
+            self.assertEqual(spoken_text(value),value)
+        self.assertEqual(spoken_text('Oran %50.'),'Oran yüzde elli.')
+
+    def test_p13_sample_rates_rejected_consistently(self):
+        for sr in [float('nan'),float('inf'),True,0,-1,7999,8000.5,384001,'8000']:
+            for operation in [lambda:finish_audio(np.ones(100)*.1,sr),lambda:active_ranges(np.ones(100)*.1,sr),lambda:join_pause_frames(np.ones(100),np.ones(100),sr,'.')]:
+                with self.subTest(sr=sr),self.assertRaises(ValueError):operation()
+
+    def test_p14_float32_peak_rms_never_overflows(self):
+        with np.errstate(over='raise',invalid='raise'):
+            audio,report=finish_audio(np.full(1000,np.finfo(np.float32).max),8000)
+            self.assertTrue(np.isfinite(audio).all())
+            self.assertTrue(np.isfinite(report['gain_db']))
+            self.assertGreater(float(np.max(np.abs(audio))),.9)
+            self.assertLessEqual(float(np.max(np.abs(audio))),.971)
+
+    def test_p15_nonfinite_or_stereo_activity_cannot_look_like_silence(self):
+        for audio in [np.array([float('nan')]),np.array([float('inf')]),np.ones((10,2))]:
+            with self.assertRaises(ValueError):active_ranges(audio,8000)
+        self.assertEqual(active_ranges(np.array([]),8000),[])
+
+    def test_p16_activity_offset_rejects_negative_or_nonfinite_times(self):
+        for offset in [-1,float('inf'),float('nan'),True,'1']:
+            with self.assertRaises(ValueError):active_ranges(np.ones(800)*.1,8000,offset)
+        self.assertEqual(active_ranges(np.ones(800)*.1,8000,4),[[4,4.1]])
+
+    def test_p17_large_finite_activity_is_not_lost_to_rms_overflow(self):
+        with np.errstate(over='raise',invalid='raise'):
+            self.assertEqual(active_ranges(np.full(800,np.finfo(np.float32).max),8000),[[0,0.1]])
+
+    def test_p18_existing_breath_and_punctuation_pause_are_preserved(self):
+        voice=np.ones(800)*.1
+        self.assertEqual(join_pause_frames(voice,voice,8000,'bitti.'),1760)
+        padded=np.concatenate([voice,np.zeros(2400)])
+        self.assertEqual(join_pause_frames(padded,voice,8000,'bitti.'),0)
+        out,report=finish_audio(voice,8000,preserve_dynamics=True)
+        self.assertEqual(report['gain_db'],0)
 
 if __name__=='__main__':unittest.main()

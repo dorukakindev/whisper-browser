@@ -21,7 +21,9 @@ function parentsFirst(messages){
 }
 function evidenceOf(raw){
   if(!Array.isArray(raw))return [];
-  return raw.slice(0,40).filter(row=>row&&Number.isFinite(Number(row.start??row.baslangic))&&Number(row.start??row.baslangic)>=0).map(row=>({
+  const time=v=>typeof v==='number'&&Number.isFinite(v)||typeof v==='string'&&v.trim()!==''&&Number.isFinite(Number(v));
+  return raw.slice(0,40).filter(row=>row&&time(row.start??row.baslangic)&&Number(row.start??row.baslangic)>=0
+    &&((row.end??row.bitis)==null||time(row.end??row.bitis)&&Number(row.end??row.bitis)>=Number(row.start??row.baslangic))).map(row=>({
     id:text(row.id,40),start:Number(row.start??row.baslangic),end:Math.max(Number(row.start??row.baslangic),Number.isFinite(Number(row.end??row.bitis))?Number(row.end??row.bitis):0),
     text:text(row.text??row.metin,1200),translation:text(row.translation,1200)}));
 }

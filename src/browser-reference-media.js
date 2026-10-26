@@ -1,31 +1,48 @@
 'use strict';
 const { spawn } = require('node:child_process');
+const { StringDecoder } = require('node:string_decoder');
+const { terminateProcessTreeAndWait } = require('./process-lifecycle');
 const { withoutSecretEnv } = require('./settings-security');
 
-function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, timeout = 120000, consume } = {}) {
+function processOutput(executable, args, { signal, limit = 2 * 1024 * 1024, timeout = 120000, consume,
+  spawnImpl = spawn, terminate = terminateProcessTreeAndWait } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
-    const child = spawn(executable, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: withoutSecretEnv(process.env) });
-    const chunks = []; let bytes = 0, errorText = '', settled = false;
+    const child = spawnImpl(executable, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: withoutSecretEnv(process.env) });
+    const chunks = []; let bytes = 0, errorText = '', settled = false, stopping = false, stopError;
+    const decoder = new StringDecoder('utf8');
     const finish = (error, output) => {
       if (settled) return;
       settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
       if (error) reject(error); else resolve(output);
     };
-    const abort = () => { child.kill(); finish(new Error('İşlem iptal edildi.')); };
-    const timer = setTimeout(() => { child.kill(); finish(new Error('Medya işlemi zaman aşımına uğradı.')); }, timeout);
+    const stop = error => {
+      if (settled || stopping) return;
+      stopping = true; stopError = error;
+      clearTimeout(timer);
+      // A signal only requests shutdown. Keep the operation pending until the
+      // child closes, or explicitly report that closure could not be proved.
+      Promise.resolve().then(() => terminate(child, { spawn: spawnImpl })).then(closed => {
+        if (!closed) finish(new Error(`${error.message} Process closure could not be confirmed / Sürecin durduğu doğrulanamadı.`));
+        else finish(error);
+      }, failure => finish(new Error(`${error.message} ${failure.message}`)));
+    };
+    const abort = () => stop(new Error('İşlem iptal edildi.'));
+    const timer = setTimeout(() => stop(new Error('Medya işlemi zaman aşımına uğradı.')), timeout);
     signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
     child.on('error', error => finish(new Error(`Medya aracı başlatılamadı: ${error.message}`)));
-    child.stderr.on('data', chunk => { errorText = (errorText + chunk.toString()).slice(-1000); });
+    child.stderr.on('data', chunk => { errorText = (errorText + decoder.write(chunk)).slice(-1000); });
     child.stdout.on('data', chunk => {
-      if (settled) return;
+      if (settled || stopping) return;
       bytes += chunk.length;
-      if (bytes > limit) { child.kill(); finish(new Error('Medya çıktısı izin verilen boyutu aştı.')); return; }
+      if (bytes > limit) { stop(new Error('Medya çıktısı izin verilen boyutu aştı.')); return; }
       try { if (consume) consume(chunk); else chunks.push(chunk); }
-      catch (error) { child.kill(); finish(error); }
+      catch (error) { stop(error); }
     });
     child.on('close', code => {
-      if (!settled) finish(code === 0 ? null : new Error(errorText || 'Medya okunamadı.'), Buffer.concat(chunks));
+      errorText = (errorText + decoder.end()).slice(-1000);
+      if (!settled) finish(stopping ? stopError : code === 0 ? null : new Error(errorText || 'Medya okunamadı.'), Buffer.concat(chunks));
     });
   });
 }
@@ -68,4 +85,4 @@ function createBrowserReferenceMedia({ ffmpegPath, ffprobePath }) {
     },
   };
 }
-module.exports = { createBrowserReferenceMedia };
+module.exports = { createBrowserReferenceMedia, processOutput };
