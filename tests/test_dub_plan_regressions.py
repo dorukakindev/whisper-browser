@@ -23,6 +23,13 @@ class DubPlanRegressionTests(unittest.TestCase):
             dub_plan.make_groups(cues,mode='akici')
         self.assertEqual(cues.source_ids,[2,4])
 
+    def test_final_text_without_newline_and_malformed_next_header(self):
+        payload=b'1\n00:00:00,000 --> 00:00:01,000\nComplete last sentence.'
+        self.assertEqual(dub_plan.parse_srt('unused',payload)[0][2],'Complete last sentence.')
+        payload+=b'\n\n2\n00:00:02,000 --> broken\nSecond speech.'
+        with self.assertRaisesRegex(ValueError,'Invalid SRT timestamp'):
+            dub_plan.parse_srt('unused',payload)
+
     def test_compact_srt_preserves_every_cue_without_reading_indices(self):
         payload=''.join(f'{i+1}\n00:00:{i:02},000 --> 00:00:{i:02},900\nSpeech {i}.\n' for i in range(50)).encode()
         cues=dub_plan.parse_srt('unused.srt',payload)
@@ -57,7 +64,8 @@ class DubPlanRegressionTests(unittest.TestCase):
             source = Path(directory) / 'invalid.srt'
             for timing in ['00:99:00,000 --> 01:40:00,000', '-01:00:00,000 --> 01:00:02,000']:
                 source.write_text(f'1\n{timing}\nSpeech.\n\n', encoding='utf-8')
-                self.assertEqual(dub_plan.parse_srt(source), [], timing)
+                with self.assertRaisesRegex(ValueError, 'Invalid SRT timestamp'):
+                    dub_plan.parse_srt(source)
 
     def test_sound_and_music_annotations_are_never_read_aloud(self):
         payload = ('1\n00:00:01,000 --> 00:00:03,000\n[MÜZİK]\n\n'

@@ -13,7 +13,9 @@ function registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, gr
     if (!fs.existsSync(file())) return {};
     if (fs.statSync(file()).size > 1_000_000) throw Error('Voice attachment index is too large.');
     const rows = JSON.parse(fs.readFileSync(file(), 'utf8'));
-    if (!rows || typeof rows !== 'object' || Array.isArray(rows)) throw Error('Invalid voice attachment index.');
+    if (!rows || typeof rows !== 'object' || Array.isArray(rows) || Object.keys(rows).length > 2000
+        || Object.entries(rows).some(([id,file]) => !/^[0-9a-f-]{36}$/.test(id) || typeof file !== 'string' || file.length > 4096 || !path.isAbsolute(file)))
+      throw Error('Invalid voice attachment index.');
     return rows;
   };
   const asset = (id, rows) => {
@@ -30,9 +32,13 @@ function registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, gr
   ipcMain.handle('dub:choosePlaybackAudio', guard(async () => {
     const result = await dialog.showOpenDialog(owner(), { properties: ['openFile'], filters: [{ name: 'Audio', extensions: ['wav','mp3','m4a','flac','ogg','opus','aac'] }] });
     if (result.canceled || !result.filePaths?.[0]) return { ok: true, canceled: true };
-    const rows = read(), id = randomUUID(); rows[id] = fs.realpathSync(result.filePaths[0]);
-    const output = asset(id, rows);
+    const rows = read(), resolved = fs.realpathSync(result.filePaths[0]);
+    // Reusing the same picked file should not consume another persistent slot.
+    const equal = file => process.platform === 'win32' ? file.toLowerCase() === resolved.toLowerCase() : file === resolved;
+    const id = Object.keys(rows).find(id => equal(rows[id])) || randomUUID();
+    rows[id] = resolved;
     if (Object.keys(rows).length > 2000) throw Error('Voice attachment limit reached.');
+    const output = asset(id, rows);
     atomicWriteFileSync(file(), JSON.stringify(rows));
     return { ok: true, output };
   }));

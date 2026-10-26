@@ -1,13 +1,24 @@
 """Model-free dubbing quality, cache identity and representative previews."""
 import hashlib
+import math
 import json
 import re
 import unicodedata
 from difflib import SequenceMatcher
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 from dub_finish import spoken_text
+
+# Shared with the pre-generation JS guard; this is conservative evidence,
+# not a complete Turkish morphological or semantic analyzer.
+NEGATIVE_ROOTS = json.loads((Path(__file__).resolve().parents[2] / 'src' / 'turkish-negation-roots.json').read_text(encoding='utf-8'))
+NEGATIVE_ENDING = re.compile(r'(?:m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
+
+def lexical_negatives(text):
+    tokens = re.findall(r'[^\W_]+', unicodedata.normalize('NFC', text).replace('I','ı').replace('İ','i').lower())
+    return sorted(token for token in tokens if any(token.startswith(root) and NEGATIVE_ENDING.fullmatch(token[len(root):]) for root in NEGATIVE_ROOTS))
 
 
 def speech_check(expected, actual, numeric_reference=None):
@@ -152,7 +163,8 @@ def speech_check(expected, actual, numeric_reference=None):
         return {key: sorted(re.findall(pattern, lower)) for key, pattern in patterns.items()}
     # Punctuation and acronym capitalization are not reliable ASR evidence;
     # these gates are enforced before rewriting, not inferred from ASR casing.
-    semantic_mismatch = meaning_evidence(expected) != meaning_evidence(actual)
+    semantic_mismatch = (meaning_evidence(expected) != meaning_evidence(actual)
+                         or lexical_negatives(expected) != lexical_negatives(actual))
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
     def name_heard(name):
         if all(word in heard_counts for word in words(name)):
@@ -215,14 +227,34 @@ def cached_record(path):
 
 def valid_audio(path, sf):
     try:
-        info = sf.info(str(path))
-        return info.frames > 0 and info.channels == 1 and 8000 <= info.samplerate <= 192000
-    except (OSError, RuntimeError):
+        # Headers do not establish usable speech: float WAV can contain NaN,
+        # truncated payload or only digital silence. Bound memory while scanning
+        # the entire cache entry so corruption near its end is not missed.
+        with sf.SoundFile(str(path)) as audio:
+            if audio.frames <= 0 or audio.channels != 1 or not 8000 <= audio.samplerate <= 192000:
+                return False
+            frames, audible = 0, False
+            for block in audio.blocks(blocksize=65536, dtype='float32'):
+                if not np.isfinite(block).all():
+                    return False
+                frames += len(block)
+                audible = audible or bool(np.any(np.abs(block) > 1e-7))
+            return frames == audio.frames and audible
+    except (OSError, RuntimeError, ValueError, TypeError):
         return False
 
 
 def representative_groups(groups, max_seconds=55):
     """Choose short, long and dense speech; pack excerpts without huge silence."""
+    if not isinstance(max_seconds, (int, float)) or not math.isfinite(max_seconds) or max_seconds <= 0:
+        raise ValueError('Invalid preview duration.')
+    if not groups:
+        return []
+    for group in groups:
+        if (not isinstance(group, dict) or not isinstance(group.get('text'), str)
+                or any(not isinstance(group.get(k), (int, float)) or not math.isfinite(group[k]) for k in ('start', 'end'))
+                or group['start'] < 0 or group['end'] <= group['start']):
+            raise ValueError('Invalid preview group timing.')
     duration = lambda g: (g['end'] - g['start']) / 1000
     candidates = [min(range(len(groups)), key=lambda i: len(groups[i]['text'])),
                   max(range(len(groups)), key=lambda i: len(groups[i]['text'])),
@@ -244,10 +276,16 @@ def representative_groups(groups, max_seconds=55):
 
 
 def reference_quality(audio, sr):
-    wav = np.asarray(audio, dtype=np.float32)
-    if wav.ndim > 1:
+    # Float WAV may be finite but over-range. Accumulate RMS in float64 so
+    # quality metadata stays finite and reports clipping instead of Infinity.
+    wav = np.asarray(audio, dtype=np.float64)
+    if (wav.ndim not in (1, 2) or not wav.size or (wav.ndim == 2 and not wav.shape[1])
+            or not isinstance(sr, (int, float)) or not math.isfinite(sr) or sr <= 0
+            or not np.isfinite(wav).all()):
+        raise ValueError('Invalid reference audio.')
+    if wav.ndim == 2:
         wav = wav.mean(axis=1)
-    if sr <= 0 or not len(wav) or not np.isfinite(wav).all():
+    if not np.isfinite(wav).all():
         raise ValueError('Invalid reference audio.')
     step = max(1, round(sr * .1))
     levels = np.array([np.sqrt(np.mean(wav[i:i + step] ** 2)) for i in range(0, len(wav), step)])

@@ -70,6 +70,49 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(huge[0]['end'],55000)
         self.assertEqual(huge[0]['source_end'],86400000)
 
+    def test_long_speech_cannot_hide_negative_verb_flip(self):
+        prefix='Bu uzun anlatımın ayrıntılarını ve sonuçlarını şimdi hep birlikte dikkatle değerlendirelim. '
+        for source,heard in [('Ben gitmem.','Ben giderim.'),('Bunu okuyamam.','Bunu okurum.'),('Böyle olmasın.','Böyle olsun.')]:
+            result=Q.speech_check(prefix+source,prefix+heard)
+            self.assertTrue(result['semantic_mismatch'])
+            self.assertTrue(result['review'])
+        self.assertFalse(Q.speech_check(prefix+'Bu çalışma güzel.',prefix+'Bu çalışma güzel.')['review'])
+
+    def test_timing_fallbacks_keep_review_visible(self):
+        for timing in ({'tempo_error':True},{'cut_frames':20}):
+            row={'status':'ready'}
+            Q.apply_timing_quality(row,timing)
+            self.assertEqual(row['status'],'review')
+            row={'status':'failed'}
+            Q.apply_timing_quality(row,timing)
+            self.assertEqual(row['status'],'failed')
+
+    def test_cache_checks_samples_not_only_header(self):
+        with tempfile.TemporaryDirectory() as folder:
+            p=Path(folder)/'float.wav'
+            for payload in (np.zeros(8000), np.full(8000,np.nan), np.full(8000,np.inf)):
+                sf.write(p,payload,8000,subtype='FLOAT')
+                self.assertFalse(Q.valid_audio(p,sf))
+            payload=np.ones(65536*2+100,dtype='float32')*.01
+            payload[-1]=np.nan
+            sf.write(p,payload,8000,subtype='FLOAT')
+            self.assertFalse(Q.valid_audio(p,sf),'late corruption is not missed')
+            payload[-1]=.01
+            sf.write(p,payload,8000,subtype='FLOAT')
+            self.assertTrue(Q.valid_audio(p,sf))
+
+    def test_preview_and_reference_invalid_inputs(self):
+        self.assertEqual(Q.representative_groups([]),[])
+        for end in (0,-1,float('nan'),float('inf')):
+            with self.assertRaisesRegex(ValueError,'preview'):
+                Q.representative_groups([{'start':0,'end':end,'text':'Speech.'}])
+        loud=Q.reference_quality(np.full(8000,np.finfo(np.float32).max),8000)
+        self.assertTrue(np.isfinite(loud['rms']))
+        self.assertIn('clipping',loud['warnings'])
+        for audio,sr in ((np.ones(3),float('nan')),(np.ones((2,2,2)),8000),(np.ones((2,0)),8000),(np.array(1),8000)):
+            with self.assertRaisesRegex(ValueError,'reference'):
+                Q.reference_quality(audio,sr)
+
     def test_reference_warnings_and_valid_cache_audio(self):
         rate = 8000
         clean = np.sin(np.arange(rate*5)*.2).astype('float32')*.2

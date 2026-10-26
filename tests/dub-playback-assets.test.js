@@ -17,6 +17,7 @@ test('only picker-selected audio receives a persistent opaque restore token; mis
     }
     const api = boot(); assert.equal((await api('choosePlaybackAudio',null,false)).ok,false); assert.equal(called,0);
     const chosen = await api('choosePlaybackAudio'); assert(chosen.ok); const id = chosen.output.playbackAsset.id;
+    const again=await api('choosePlaybackAudio');assert.equal(again.output.playbackAsset.id,id,'same file reuses persistent slot');
     const reloaded = boot(); assert.equal((await reloaded('restorePlaybackAudio',id)).output.url,chosen.output.url);
     assert.equal((await api('restorePlaybackAudio',audio)).ok,false);
     assert.equal((await api('restorePlaybackAudio','../../secret')).ok,false);
@@ -25,4 +26,14 @@ test('only picker-selected audio receives a persistent opaque restore token; mis
     fs.unlinkSync(audio); const grantCount=grants.length;
     assert.equal((await reloaded('restorePlaybackAudio',id)).ok,false); assert.equal(grants.length,grantCount);
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
+
+
+test('Rejected attachment grants and malformed indexes never write a new record',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'voice-index-'));try{
+ const audio=path.join(dir,'local.wav');fs.writeFileSync(audio,'fixture');const handlers=new Map();
+ registerDubPlaybackAssets({app:{getPath:()=>dir},ipcMain:{handle:(k,v)=>handlers.set(k,v)},dialog:{showOpenDialog:async()=>({filePaths:[audio]})},owner:()=>null,authorized:()=>true,grantMedia:()=>false});
+ const result=await handlers.get('dub:choosePlaybackAudio')({});assert.equal(result.ok,false);const index=path.join(dir,'dub-playback-assets.json');assert(!fs.existsSync(index));
+ fs.writeFileSync(index,'{"__proto__":"relative.wav"}');const before=fs.readFileSync(index,'utf8');assert.equal((await handlers.get('dub:choosePlaybackAudio')({})).ok,false);assert.equal(fs.readFileSync(index,'utf8'),before);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
