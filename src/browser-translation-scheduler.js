@@ -664,9 +664,9 @@ class BrowserTranslationScheduler {
           const qualityIssues = translationBlockingIssues(sentence.text, decoded.text, context.targetLanguage);
           if(decoded.parts?.some((text,i)=>!markupPreserved(sentence.pieces[i]?.text,text))&&!qualityIssues.includes('markup_mismatch'))qualityIssues.push('markup_mismatch');
           if (qualityIssues.length) {
-            // Gevşek modda veya elle son denemede kapı reddetmez; metin
-            // uyarıyla yazılır ve commitResult önbelleğe almaz.
-            if (this.lenient || forceAccept || this.qualityAutoLenient) return { ...decoded, cached: false, qualityIssues };
+            // Gevşek kabul yalnız sayı uyumluluğu içindir. Biçim/anlam kaybı
+            // elle son denemede bile kabul edilmez; aday önbelleğe girmez.
+            if (qualityIssues.every(issue=>issue==='number_mismatch') && (this.lenient || forceAccept || this.qualityAutoLenient)) return { ...decoded, cached: false, qualityIssues };
             const gateError = new Error(qualityIssues.includes('markup_mismatch')?'Çeviri biçim etiketlerini korumadı.':'Çeviri sayısal bilgiyi korumadı.');
             gateError.qualityGate = true;
             gateError.qualityIssues = qualityIssues;
@@ -771,7 +771,7 @@ class BrowserTranslationScheduler {
         // Yalnız İLK denemedeki ret sayılır: aynı cümlenin yeniden denemesi aynı
         // girdiyle aynı kapıya takılır ve seriyi şişirmemeli — seri, ART ARDA
         // FARKLI cümlelerin kapıya takılmasını ölçer.
-        if (quality && attempts === 1) {
+        if (quality && attempts === 1 && (error.qualityIssues||[]).every(issue=>issue==='number_mismatch')) {
           this.consecutiveQualityFailures += 1;
           if (!this.lenient && !this.qualityAutoLenient
               && this.consecutiveQualityFailures >= this.qualityBreakerThreshold) {
@@ -819,6 +819,10 @@ class BrowserTranslationScheduler {
     const { sentence, controller, cacheKey, generation } = job;
     if (controller.signal.aborted || generation !== this.generation) return;
     if (!String(result.text || '').trim()) throw new Error('Çeviri sağlayıcısı boş yanıt döndürdü.');
+    const hardIssues = translationBlockingIssues(sentence.text, result.text, this.context.targetLanguage).filter(issue=>issue!=='number_mismatch');
+    if(result.parts?.some((text,i)=>!markupPreserved(sentence.pieces[i]?.text,text))&&!hardIssues.includes('markup_mismatch'))hardIssues.push('markup_mismatch');
+    if(hardIssues.length){const error=new Error('Çeviri yapısal veya olumsuzluk bilgisini korumadı.');error.qualityGate=true;error.qualityIssues=hardIssues;throw error;}
+
     const cues = distributeTranslation(sentence, result);
     const qualityIssues = Array.isArray(result.qualityIssues) ? result.qualityIssues.filter(Boolean) : [];
     // Blok-bazlı kabulde başarısız bloklar kaynak metniyle gelir —

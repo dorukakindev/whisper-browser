@@ -222,8 +222,8 @@ async function run() {
     ['Total 1,234,567', 'Toplam 1234567'], ['Between 2-3', '2 ile 3 arası'], ['- 5 minutes.', '- Beş dakika.']]) {
     assert.deepEqual(layout.translationBlockingIssues(source, target), [], `${source} -> ${target}`);
   }
-  assert.deepEqual(layout.translationBlockingIssues("I don't know.", 'Biliyorum.'), [],
-    'olumsuzluk sezgisi doğal çeviriyi sert biçimde reddetti');
+  assert(layout.translationBlockingIssues("I don't know.", 'Biliyorum.').includes('negation_missing'),
+    'explicit polarity reversal must be rejected');
   assert.equal(layout.sentenceTranslationMessageRole('gemini-3.8-flash'), 'system');
 
   const key = translationCacheKey(sentence);

@@ -1,3 +1,4 @@
+- [Rapor 611](BROWSER_BUG_REPORT_611.md) — Task02 karar tablosu, çeviri kapıları ve kaynaklı asistan web araması
 - [Rapor 610](BROWSER_BUG_REPORT_610.md) — YouTube0:00 takılma kökü,adblock açık kabul ve Task02 ön inceleme
 - [Rapor 609](BROWSER_BUG_REPORT_609.md) — Sahne notları,seçili çeviri,geri alınabilir zaman önerileri ve uyumlu medya
 - [Rapor 608](BROWSER_BUG_REPORT_608.md) — Dış repo önerileriyle güncel kaynak karşılaştırması

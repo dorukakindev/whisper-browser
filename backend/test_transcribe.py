@@ -1382,7 +1382,7 @@ def test_translate_partial_response_retries_missing_groups():
     """Toplu yanıtta atlanan cümleler tek başına yeniden istenir."""
     import sys, types, importlib.machinery, json
 
-    entries = [(0.0, 2.0, "One."), (2.0, 4.0, "Two."), (4.0, 6.0, "Three.")]
+    entries = [(0.0, 2.0, "Alpha."), (2.0, 4.0, "Beta."), (4.0, 6.0, "Gamma.")]
 
     calls = []
     def _create(**kw):
@@ -4157,7 +4157,7 @@ def test_retry_after_header_and_bounded_wait():
             raise AssertionError('Backoff iptali yutuldu')
         except T.PipelineCancelled:
             pass
-        assert len(sleep.call_args_list) == 2
+        assert len(sleep.call_args_list) == 1  # pre-attempt checkpoint also observes cancellation
 
 
 def test_subtitle_output_contract_and_model_change_resume():
@@ -4166,8 +4166,8 @@ def test_subtitle_output_contract_and_model_change_resume():
         root = Path(tmp)
         source = root / "video.en.srt"
         original = "\n".join([
-            "1", "00:00:01,000 --> 00:00:02,000", "One.", "",
-            "2", "00:00:03,000 --> 00:00:04,000", "Two.", "",
+            "1", "00:00:01,000 --> 00:00:02,000", "Alpha.", "",
+            "2", "00:00:03,000 --> 00:00:04,000", "Beta.", "",
         ])
         source.write_text(original, encoding="utf-8-sig")
 
@@ -4202,7 +4202,7 @@ def test_subtitle_output_contract_and_model_change_resume():
         metadata["cues"][1]["status"] = "failed"
         metadata["cues"][1]["text"] = ""
         metadata_path.write_text(json.dumps(metadata, ensure_ascii=False), encoding="utf-8")
-        translation.write_text(translation.read_text(encoding="utf-8-sig").replace("TR One.", "Elle One."),
+        translation.write_text(translation.read_text(encoding="utf-8-sig").replace("TR Alpha.", "Elle Alpha."),
                                encoding="utf-8-sig")
 
         pending_seen = []
@@ -4226,15 +4226,15 @@ def test_subtitle_output_contract_and_model_change_resume():
 
         # Yeni sözleşme: modele tüm satırlar gider; tamamlanmış konumlar
         # 'precompleted' ile işaretlenir ve dokunulmadan döner (R221 #2).
-        assert [row[2] for row in pending_seen] == ["One.", "Two."], pending_seen
-        assert captured_precompleted == [{0: "Elle One."}], captured_precompleted
+        assert [row[2] for row in pending_seen] == ["Alpha.", "Beta."], pending_seen
+        assert captured_precompleted == [{0: "Elle Alpha."}], captured_precompleted
         done = [payload for kind, payload in events if kind == "done"][-1]
         assert done["outputs"][0]["role"] == "translation"
         assert done["outputs"][0]["language"] == "tr"
         assert done["outputs"][0]["status"] == "complete"
         assert done["sourceId"] and done["sourceHash"]
         written = translation.read_text(encoding="utf-8-sig")
-        assert "Elle One." in written and "YENİ Two." in written
+        assert "Elle Alpha." in written and "YENİ Beta." in written
         assert "00:00:01,000 --> 00:00:02,000" in written
         assert "00:00:03,000 --> 00:00:04,000" in written
         assert source.read_text(encoding="utf-8-sig") == original

@@ -716,6 +716,24 @@ def wrap_text(text, max_line_width=42, max_lines=2, language="tr", wrap_mode="se
     if max_line_width <= 0 or len(text) <= max_line_width:
         return text
 
+    spaceless = text.replace('\n', '')
+    if re.search(r'[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff]', spaceless) and not re.search(r'\s', spaceless):
+        text = spaceless
+        clusters = []
+        for char in text:
+            if clusters and (unicodedata.combining(char) or unicodedata.category(char).startswith('M') or char in ('\u200d', '\ufe0f') or clusters[-1].endswith('\u200d')):
+                clusters[-1] += char
+            else: clusters.append(char)
+        lines, line = [], ''
+        closing = set('、。，．！？：；)]）］｝」』】〉》')
+        opening = set('([（［｛「『【〈《')
+        for cluster in clusters:
+            if len(line) >= max_line_width and cluster[0] not in closing and line[-1:] not in opening:
+                lines.append(line); line = ''
+            line += cluster
+        if line: lines.append(line)
+        return '\n'.join(lines)
+
     balanced = balanced_two_line_break(text, max_line_width=max_line_width, language=language)
     if balanced is not None and balanced.count("\n") <= max_lines - 1:
         return balanced
@@ -872,7 +890,7 @@ def normalized_segment_words(segment, offset=0):
 def words_in_accepted_ranges(words, ranges):
     return [word for word in words if any(
         (word['end'] > start and word['start'] < end)
-        or (word['start'] == word['end'] and start <= word['start'] < end)
+        or (word['start'] == word['end'] and round(start, 3) <= word['start'] <= round(end, 3))
         for start, end in ranges)]
 
 
@@ -2844,8 +2862,11 @@ def call_api_with_retry(operation, attempts=3, base_delay=0.75):
     attempts = max(1, int(attempts))
     waited = 0.0
     for attempt in range(attempts):
+        cancellation_checkpoint("llm", "before")
         try:
-            return operation()
+            result = operation()
+            cancellation_checkpoint("llm", "after")
+            return result
         except Exception as error:
             if attempt + 1 >= attempts or not retryable_api_error(error):
                 raise
@@ -3556,6 +3577,14 @@ def translate_cache_path(args):
     return str(Path(base) / "translate-cache.json")
 
 
+def speech_coverage_indices(entries, translations):
+    """Advisory only: natural compression is not proof of semantic omission."""
+    return [i for i, (_start, _end, source) in enumerate(entries)
+            if i < len(translations) and len(str(source).split()) >= 8
+            and len(str(translations[i]).split()) < len(str(source).split()) * .35
+            and len(str(translations[i])) < len(str(source)) * .45]
+
+
 def translation_context(entries, index, count):
     """Bir blok icin yalnizca kaynak dildeki onceki/sonraki komsulari dondurur."""
     count = max(0, int(count or 0))
@@ -4240,7 +4269,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             lambda: sentence_part_boundary_issue(source_parts, parts, source_lang),
             lambda: part_repetition_issue(source_parts, parts),
             lambda: part_tail_issue(parts, target),
-            lambda: part_anchor_issue(source_parts, parts, target),
+            lambda: part_anchor_issue(source_parts, parts, target, source_lang),
         ):
             issue = check()
             if issue:
@@ -4317,13 +4346,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             if fuzzy and (translation_is_source_echo(fuzzy.get("source") or source, fuzzy["target"])
                           or translation_is_source_echo(source, fuzzy["target"])):
                 fuzzy = None
-            if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target):
+            if fuzzy and not translation_blocking_issues(source, fuzzy["target"], target, source_lang):
                 record = validate_sentence_parts(fuzzy["target"], [fuzzy["target"]], 1)
                 if record:
                     log(f"Bulanık çeviri hafızası eşleşti (%{fuzzy['ratio'] * 100:.1f}).")
         gate_issue = part_gate_issue(group, record['parts']) if record else ""
         if record and not gate_issue and not translation_blocking_issues(
-                ' '.join(entries[i][2] for i in group), record['text'], target):
+                ' '.join(entries[i][2] for i in group), record['text'], target, source_lang):
             for i, part in zip(group, record['parts']):
                 if i not in precompleted_idx:
                     out_texts[i] = part
@@ -4401,7 +4430,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             for index, source, target_text, context in rows:
                 if not target_text or index in precompleted_idx:
                     continue
-                if translation_blocking_issues(source, target_text, target):
+                if translation_blocking_issues(source, target_text, target, source_lang):
                     continue
                 try:
                     stored += int(tm.store(source, target_text, tm_scope, context))
@@ -4755,7 +4784,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 with lock:
                     echo_seen[group[0]] = echo_seen.get(group[0], 0) + 1
                 continue
-            meaning_issues = translation_blocking_issues(row['source'], record['text'], target)
+            meaning_issues = translation_blocking_issues(row['source'], record['text'], target, source_lang)
             if meaning_issues and not lenient_mode:
                 for issue in meaning_issues:
                     key = "anlam_" + issue
@@ -5589,6 +5618,13 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     except Exception as exc:
         log(f"Özel ad denetimi atlandı: {exc}", "warn")
 
+    if bool(getattr(args, 'translate_for_speech', False)):
+        coverage_rows = speech_coverage_indices(entries, out_texts)
+        if coverage_rows:
+            message = "Ses icin ceviri kapsam uyarisi / Speech coverage warning: " + ', '.join(str(i+1) for i in coverage_rows[:30]) + ". Metin belirgin kisaldi; anlam kaybi icin inceleyin. / Review strongly shortened text for omissions."
+            log(message, 'warn')
+            if warn_list is not None: warn_list.append(message)
+            emit('translation_coverage', indices=coverage_rows, blocking=False)
     result = [(s, e, out_texts[i]) for i, (s, e, _t) in enumerate(entries)]
     emit("translation_refresh", segments=[
         {"index": i, "start": s, "end": e, "text": t} for i, (s, e, t) in enumerate(result)
@@ -7758,7 +7794,7 @@ def transcribe(args):
 
         # Yarım kalmış cümleleri birleştir (kısa parça birleştirmeden ÖNCE — önce cümle
         # bütünlüğü kurulur, kalan flaş parçalar sonraki adımda toplanır)
-        if args.merge_incomplete:
+        if args.merge_incomplete and not args.diarize:
             n0 = len(entries)
             # Blok hedefi bölme ile aynı: max_chars (bölücü de cümleleri bu boya
             # ayırdığından birleştirme daha uzun blok üretmemeli)
@@ -7772,7 +7808,7 @@ def transcribe(args):
                 log(f"Yarım cümle birleştirme: {n0} → {len(entries)} blok")
 
         # Çok kısa parçaları komşusuyla birleştir (LLM/diarization öncesi — temiz birleşim)
-        if args.merge_short:
+        if args.merge_short and not args.diarize:
             n0 = len(entries)
             entries = merge_short_entries(
                 entries,
@@ -7841,7 +7877,7 @@ def transcribe(args):
         # Sonraki satıra taşan cümleleri konuşmacı indeksleri üretilmeden önce
         # birleştir. Aksi halde diarization haritası eski indekslere bağlı kalır ve
         # etiketler birleştirilen metnin ortasına gömülür.
-        if args.merge_continuation:
+        if args.merge_continuation and not args.diarize:
             _once = len(entries)
             entries = merge_continuation_lines(entries, max_gap=args.continuation_gap)
             if len(entries) != _once:
@@ -9575,6 +9611,10 @@ def parse_ass_cue_formats(text):
     düşüyor ve iç ses/şarkı italikleri kayboluyordu.
     """
     formats = []
+    resolution = {}
+    for match in re.finditer(r'^\s*PlayRes([XY]):\s*(\d+)\s*$', str(text), re.I | re.M):
+        value = int(match[2])
+        if 0 < value <= 16384: resolution[match[1].lower()] = value
     in_events = False
     fields = ["layer", "start", "end", "style", "name", "marginl", "marginr",
               "marginv", "effect", "text"]
@@ -9608,7 +9648,8 @@ def parse_ass_cue_formats(text):
         italic = bool(re.search(r"\\i1(?![0-9])", head)) and not re.search(r"\\i0(?![0-9])", re.sub(r"\{[^}]*\}\s*$", "", rest))
         formats.append({
             "align": int(align.group(1)) if align else None,
-            "pos": (pos.group(1), pos.group(2)) if pos else None,
+            "pos": (format(float(pos.group(1)) * 1920 / resolution.get('x', 1920), '.3f').rstrip('0').rstrip('.'),
+                    format(float(pos.group(2)) * 1080 / resolution.get('y', 1080), '.3f').rstrip('0').rstrip('.')) if pos else None,
             "italic": italic,
         })
     return formats

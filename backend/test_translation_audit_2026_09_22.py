@@ -113,7 +113,7 @@ class TranslateOnlyNamingTests(unittest.TestCase):
             self.assertEqual(T.split_subtitle_language_suffix(stem), expected, stem)
 
     def test_two_parts_do_not_overwrite_each_other(self):
-        install_provider(lambda payload: {str(i["i"]): "TR " + i["t"] for i in payload["items"]})
+        install_provider(lambda payload: {str(i["i"]): {"One line.": "Birinci satır.", "Two line.": "İkinci satır.", "Forced line.": "Zorunlu satır."}[i["t"]] for i in payload["items"]})
         srt = "1\n00:00:01,000 --> 00:00:03,000\n{} line.\n\n"
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)
@@ -223,7 +223,7 @@ class TranslationQualityEventTests(unittest.TestCase):
         def handler(payload):
             calls.append(1)
             base = 1 if len(calls) == 1 else 0
-            return {str(item["i"] + base): "Çeviri " + str(item["i"]) + "." for item in payload["items"]}
+            return {str(item["i"] + base): {"One.": "Bir.", "Two.": "İki.", "Three.": "Üç."}.get(item["t"], "Çeviri " + str(item["i"]) + ".") for item in payload["items"]}
 
         install_provider(handler)
         buffer = io.StringIO()
@@ -247,7 +247,7 @@ class TranslationQualityEventTests(unittest.TestCase):
         def handler(payload):
             calls.append(1)
             base = 1 if len(calls) == 1 else 0
-            return {str(item["i"] + base): "Çeviri " + str(item["i"]) + "." for item in payload["items"]}
+            return {str(item["i"] + base): {"One.": "Bir.", "Two.": "İki.", "Three.": "Üç."}.get(item["t"], "Çeviri " + str(item["i"]) + ".") for item in payload["items"]}
 
         install_provider(handler)
         entries = [(i * 2, i * 2 + 1, f"Line {i}.") for i in range(25)]

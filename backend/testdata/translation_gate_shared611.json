@@ -1,0 +1,21 @@
+[
+ {"source":"I didn't see him.","target":"Onu görmedim.","accept":true},
+ {"source":"I didn't see him.","target":"Onu gördüm.","accept":false},
+ {"source":"I did not eat the apple.","target":"Elma yedim.","accept":false},
+ {"source":"I did not get into the car.","target":"Arabama bindim.","accept":false},
+ {"source":"I like it.","target":"Bunu sevmiyorum.","accept":false},
+ {"source":"I like it.","target":"Bunu seviyorum.","accept":true},
+ {"source":"It is impossible to win.","target":"Kazanmak imkânsız.","accept":true},
+ {"source":"Don't open the door!","target":"Kapıyı açma!","accept":true},
+ {"source":"I won't come.","target":"Gelmeyeceğim.","accept":true},
+ {"source":"I cannot help but smile.","target":"Gülümsemekten kendimi alamıyorum.","accept":true},
+ {"source":"You must wait.","target":"Beklemelisin.","accept":true},
+ {"source":"You must wait.","target":"Bekleyebilirsin.","accept":false},
+ {"source":"You must not come.","target":"Gelme.","accept":true},
+ {"source":"It might rain.","target":"Yağmur yağacak.","accept":false},
+ {"source":"It might rain.","target":"Yağmur yağabilir.","accept":true},
+ {"source":"Weight 0.500 kg.","target":"Ağırlık 0,5 kg.","accept":true},
+ {"source":"It is -5 degrees.","target":"5 derece.","accept":false},
+ {"source":"<i>Come here.</i>","target":"Buraya gel.","accept":false},
+ {"source":"<i>Come here.</i>","target":"<i>Buraya gel.</i>","accept":true}
+]

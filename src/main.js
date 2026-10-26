@@ -20119,6 +20119,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
+require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=browserTranslationConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
 require('./media-compatibility').register({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,grant:file=>mediaFileAccess.grant(file),ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe')});
 require('./media-analysis').registerMediaAnalysis({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,ffmpeg:()=>resolveFfTool('ffmpeg')});
 const waveformCache = new Map();
