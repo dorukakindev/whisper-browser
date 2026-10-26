@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1520.md](docs/devir/2026-10-26-1520.md) — PR502 ana programda;PDF/sayı/ASR/editör paketi ve115kişisel dosya koruması
 Güncel çalışma: [docs/devir/2026-10-26-1517.md](docs/devir/2026-10-26-1517.md) — PDF narasyonu ve sayı/anlam kanıtı;30kabul maddesi
 Güncel çalışma: [docs/devir/2026-10-26-1442.md](docs/devir/2026-10-26-1442.md) — PR501 ana programda; dokuz ses kökü düzeltildi ve kişisel dosyalar korundu
 Güncel çalışma: [docs/devir/2026-10-26-1438.md](docs/devir/2026-10-26-1438.md) — Task01ses denetimi;9gerçek kök onarıldı ve Windows/gerçek soundfile ile sınandı
