@@ -167,6 +167,7 @@
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
+      onPrepare:async(args,stale)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text||"original";return prepareVoice(stale);},
       onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
@@ -281,7 +282,7 @@
       $("pdfVoiceFrom").focus();
     }
   };
-  $("pdfVoicePrepare").onclick = async () => {
+  async function prepareVoice(stale=()=>false) {
     if (preparing) return;
     const r = player.pdfReader;
     if (!r) return;
@@ -309,7 +310,7 @@
     try {
       const pages = [];
       for (let page = from; page <= to; page++) {
-        if (player.pdfReader !== r)
+        if (player.pdfReader !== r || stale())
           throw Error(t("Belge değişti.", "Document changed."));
         const source = await extractPdfReaderPage(page);
         const list = mode === "translation" ? translations(r, page) : source;
@@ -341,7 +342,7 @@
           );
         pages.push({ pageNumber: page, text });
       }
-      if (player.pdfReader !== r)
+      if (player.pdfReader !== r || stale())
         throw Error(t("Belge değişti.", "Document changed."));
       const key = JSON.stringify([r.pdfHash, mode, pages]);
       let id = projects.get(key);
@@ -359,7 +360,7 @@
         while (projects.size > 20)
           projects.delete(projects.keys().next().value);
       }
-      if (player.pdfReader !== r) return;
+      if (player.pdfReader !== r || stale()) return;
       voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
       $("pdfVoiceListen").disabled = false;
       const focus = pages.findIndex((p) => p.pageNumber === r.currentPage);
@@ -371,13 +372,15 @@
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",
       );
+      return {ok:true};
     } catch (e) {
       status.textContent = e.message;
     } finally {
       preparing = false;
       $("pdfVoicePrepare").disabled = false;
     }
-  };
+  }
+  $("pdfVoicePrepare").onclick = () => prepareVoice();
   $("pdfVoiceListen").onclick = async () => {
     const r = player.pdfReader,
       v = voice;

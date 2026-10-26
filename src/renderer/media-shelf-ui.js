@@ -196,14 +196,15 @@
     const noMark = el('option', '', t('Bookmarks & quotes', 'Yer imleri ve alıntılar')); noMark.value = ''; marks.append(noMark);
     (book.bookmarks || []).forEach((mark, at) => { const opt = el('option', '', mark.quote || `${t('Chapter', 'Bölüm')} ${mark.chapter + 1}`); opt.value = at; marks.append(opt); });
     marks.addEventListener('change', async () => { if (marks.value === '') return; const mark = book.bookmarks[+marks.value]; await save(); show(mark.chapter, mark.scroll); });
-    const narrateChapter=async()=>{
+    const narrateChapter=async(args=null,stale=()=>false)=>{
+      if(args&&(args.from!==index+1||args.to!==index+1||args.text==='translation'))throw Error(t('Prepare the current original chapter first; select other chapters in production.','Önce güncel özgün bölümü hazırla; diğer bölümleri üretim ekranında seç.'));
       const sourceIndex=index;
       if(await save()===false)return false;
-      if(!dialog.open||index!==sourceIndex)throw Error(t('The chapter changed; ask again from the current chapter.','Bölüm değişti; güncel bölümden yeniden iste.'));
+      if(!dialog.open||index!==sourceIndex||stale())throw Error(t('The chapter changed; ask again from the current chapter.','Bölüm değişti; güncel bölümden yeniden iste.'));
       const c=book.chapters[sourceIndex];
       const result=await window.api.mediaWorkflows({action:'book-from-shelf',locale:window.UiLocale?.get?.(),shelfId:book.id,sourceChapter:{index:sourceIndex,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime}});
       if(!result?.ok)throw Error(result?.error||t('Voice production could not be opened.','Sesli üretim açılamadı.'));
-      if(!dialog.open||index!==sourceIndex)throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
+      if(!dialog.open||index!==sourceIndex||stale())throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
       await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});dialog.close();return true;
     };
     header.append(el('strong', '', book.title), chapters, font, marks, btn(t('Bookmark / quote', 'Yer imi / alıntı'), async () => {
@@ -223,7 +224,7 @@
     dialog.addEventListener('toggle', event=>{const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open)for(const menu of header.querySelectorAll('details[open]'))if(menu!==opened)menu.open=false;},true);
     dialog.addEventListener('pointerdown',event=>{for(const menu of header.querySelectorAll('details[open]'))if(!menu.contains(event.target))menu.open=false;});
     dialog.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=header.querySelector('details[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();}},true);
-    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onNarrate:narrateChapter,isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
+    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onNarrate:()=>narrateChapter(),onPrepare:async(args,stale)=>({ok:await narrateChapter(args,stale)}),isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',chapterNumber:index+1,totalChapters:book.chapters.length,title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
     dialog.addEventListener('close', () => { disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });

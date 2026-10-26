@@ -25,6 +25,7 @@
     busy = false,
     token = "",
     results = [];
+  let exportCurrent=null;
   const voicePrefs = {
     profile: "quality",
     concurrency: 4,
@@ -970,6 +971,54 @@
       "aria-label",
       t("Audiobook export progress", "Sesli kitap dışa aktarma ilerlemesi"),
     );
+    exportCurrent=async function exportSelected(stale=()=>false){
+          const exportProjectId=project.id,exportChapters=[...selected];
+          if (busy)
+            throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
+          busy = true;
+          stopRequested = false;
+          try {
+            await saveChapter();
+            if(stale()||project?.id!==exportProjectId)throw Error("Book source changed / Kitap kaynağı değişti.");
+            status(
+              t(
+                "Preparing M4B… Stop cancels export.",
+                "M4B hazırlanıyor… Durdur dışa aktarmayı iptal eder.",
+              ),
+            );
+            const off = window.api.onMediaWorkflow((event) => {
+              if (
+                !stopRequested &&
+                event.type === "progress" &&
+                event.projectId === project.id &&
+                String(event.text || "").startsWith("M4B:")
+              ) {
+                status(event.text);
+                exportProgress.hidden = false;
+                if (Number.isFinite(event.percent))
+                  exportProgress.value = event.percent;
+                else exportProgress.removeAttribute("value");
+              }
+            });
+            try {
+              const r = await call("book-export", {
+                id: exportProjectId,
+                chapters: exportChapters,
+              });
+              if (!r.canceled && project?.id===exportProjectId) {
+                project = (await call("book-open", { id: project.id })).project;
+                await books();
+              }
+              status(r.path || "");
+              return {cancelled:r.canceled===true};
+            } finally {
+              off();
+              exportProgress.hidden = true;
+            }
+          } finally {
+            busy = false;
+          }
+    };
     const buttons = el("div", "mw-actions mw-transport");
     buttons.append(
       button(t("Save text", "Metni kaydet"), saveChapter),
@@ -1080,51 +1129,7 @@
       }),
       button(
         t("Export selected as M4B", "Seçilileri M4B olarak kaydet"),
-        async () => {
-          if (busy)
-            throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
-          busy = true;
-          stopRequested = false;
-          try {
-            await saveChapter();
-            status(
-              t(
-                "Preparing M4B… Stop cancels export.",
-                "M4B hazırlanıyor… Durdur dışa aktarmayı iptal eder.",
-              ),
-            );
-            const off = window.api.onMediaWorkflow((event) => {
-              if (
-                !stopRequested &&
-                event.type === "progress" &&
-                event.projectId === project.id &&
-                String(event.text || "").startsWith("M4B:")
-              ) {
-                status(event.text);
-                exportProgress.hidden = false;
-                if (Number.isFinite(event.percent))
-                  exportProgress.value = event.percent;
-                else exportProgress.removeAttribute("value");
-              }
-            });
-            try {
-              const r = await call("book-export", {
-                id: project.id,
-                chapters: [...selected],
-              });
-              if (!r.canceled) {
-                project = (await call("book-open", { id: project.id })).project;
-                await books();
-              }
-              status(r.path || "");
-            } finally {
-              off();
-              exportProgress.hidden = true;
-            }
-          } finally {
-            busy = false;
-          }
-        },
+        exportCurrent
       ),
     );
     if (project.audiobook)
@@ -1787,7 +1792,7 @@
     } catch {}
   }
   let stopRequested = false;
-  async function generate(force = false, retryGroup = null) {
+  async function generate(force = false, retryGroup = null, control = {}) {
     if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
     if (!selected.size) throw Error(t("Select chapters.", "Bölüm seç."));
     busy = true;
@@ -1802,7 +1807,7 @@
       indices = [...selected].sort((a, b) => a - b);
     try {
       for (let i = 0; i < indices.length; i++) {
-        if (stopRequested) break;
+        if (stopRequested || control.isCancelled?.()) break;
         status(
           `${i + 1}/${indices.length} · ${project.chapters[indices[i]].title}`,
         );
@@ -1837,7 +1842,7 @@
             );
           request.forceGroups = plan.groups.map((g) => g.key);
         }
-        if (stopRequested) break;
+        if (stopRequested || control.isCancelled?.()) break;
         job = request.id;
         const terminal = new Promise((resolve, reject) => {
           const off = window.api.onDubEvent((event) => {
@@ -1866,6 +1871,7 @@
           window.api
             .startDub(request)
             .then((r) => {
+              if(r?.ok)control.onAccepted?.(request.id);
               if (!r?.ok) {
                 off();
                 job = null;
@@ -2271,7 +2277,28 @@
       .find((p) => p[0] === tab)?.[2]()
       .catch((e) => status(e.message));
   }
+  function assistantProject(){const source=globalAssistantContext();return dialog?.open&&project&&source?.id===project.id+':'+chapter?project:null;}
+  function assistantState(){const p=assistantProject();if(!p)return null;return {id:p.id,title:p.title,busy,currentChapter:chapter+1,total:p.chapters.length,selected:[...selected].slice(0,80).map(n=>n+1),selectedCount:selected.size,chapters:p.chapters.slice(0,24).map((c,index)=>({number:index+1,title:String(c.title||'').slice(0,120),status:c.status,hasAudio:!!c.output,review:c.groups?.filter(g=>g.status!=='ready').length||0})),chaptersTruncated:p.chapters.length>24};}
+  async function assistantExecute(name,args,stale){
+    const p=assistantProject();if(!p||stale())throw Error(t('Open the current book in production first.','Önce güncel kitabı üretim ekranında aç.'));if(busy)throw Error(t('A workflow is running.','Bir işlem çalışıyor.'));
+    const valid=n=>Number.isInteger(n)&&n>=1&&n<=p.chapters.length;
+    if(name==='select_book_chapters'){if(!valid(args.from)||!valid(args.to)||args.to<args.from)throw Error('Invalid chapter range.');selected=new Set(Array.from({length:args.to-args.from+1},(_,i)=>args.from-1+i));await call('book-selection',{id:p.id,chapters:[...selected]});if(stale())throw Error('Book changed.');await books();return {status:'completed',note:t('Production chapters selected. No audio generated.','Üretim bölümleri seçildi. Ses üretilmedi.')};}
+    if(name==='preview_book_export'){await saveChapter();if(stale())throw Error('Book changed.');const r=await call('book-export-preview',{id:p.id,chapters:[...selected]});return {status:'completed',preview:{seconds:r.seconds,estimatedBytes:r.estimatedBytes,count:r.chapters?.length,chapters:(r.chapters||[]).slice(0,24).map(row=>({number:row.chapter+1,title:String(row.title||'').slice(0,120),seconds:row.seconds})),truncated:r.chapters?.length>24},note:t('Existing export checks were used. Review is not bypassed.','Mevcut çıktı kontrolleri kullanıldı. İnceleme atlanmadı.')};}
+    if(name==='export_book_audio'){if(!exportCurrent)throw Error('Export controls unavailable.');const result=await exportCurrent(stale);return {status:'completed',cancelled:result?.cancelled===true,note:result?.cancelled?t('Export cancelled; no file saved.','Dışa aktarma iptal edildi; dosya kaydedilmedi.'):t('Audiobook export completed.','Sesli kitap dışa aktarıldı.')};}
+    if(name==='book_chapter'){
+      if(!valid(args.chapter))throw Error('Invalid chapter.');await saveChapter();if(stale())throw Error('Book changed.');chapter=args.chapter-1;
+      if(args.operation==='open'){await books();return {status:'completed',note:t('Chapter editor and review are open. Nothing was approved.','Bölüm düzenleyicisi ve inceleme açıldı. Onay verilmedi.')};}
+      if(args.operation==='listen'){if(await readChapter(chapter,true)!==true)throw Error('Reader could not open.');return {status:'completed',note:t('Read/listen view opened.','Dinle ve takip et görünümü açıldı.')};}
+      selected=new Set([chapter]);
+    }
+    if(name==='start_book_narration'||name==='book_chapter'&&args.operation==='regenerate'){
+      // Keep the existing workflow running, but acknowledge only an actual startDub acceptance.
+      const expected=p.id;return new Promise((resolve,reject)=>{let accepted=false;const control={isCancelled:()=>!dialog?.open||project?.id!==expected||(!accepted&&stale()),onAccepted:()=>{if(!accepted){accepted=true;resolve({status:'accepted',note:t('The first voice job was accepted. Follow production progress; quality is not yet verified.','İlk ses işi kabul edildi. Üretim ilerlemesini takip et; kalite henüz doğrulanmadı.')});}}};generate(name==='book_chapter',null,control).then(()=>{if(!accepted)reject(Error('No voice job was accepted.'));}).catch(error=>{status(error.message);if(!accepted)reject(error);});});
+    }
+    throw Error('Book action unavailable.');
+  }
   window.MediaWorkflowsUI = Object.freeze({
+    assistant:Object.freeze({state:assistantState,execute:assistantExecute}),
     open,
     openProject: async (id, focus = {}) => {
       if (busy) throw Error("Busy / Meşgul");
