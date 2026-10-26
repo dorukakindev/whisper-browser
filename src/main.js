@@ -21830,6 +21830,7 @@ mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunni
   resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
     caches:{seekSprites:seekPreviewCache.size},voiceBusy:dubService.running()})});
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
+require('./assistant-collections').register({ipcMain,authorized:authorizedBrowserSender,store:mediaCatalogService.store});
 require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:()=>require('./letterboxd-reviews').readBrowserReviews({getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain})});
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});

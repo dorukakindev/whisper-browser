@@ -81,3 +81,9 @@ test('Book mutation cards require the current reader/production and do not start
   assert((await h.call('agentRun',{requestId:'book-check',question:'Narrate',owner:{...h.owner,kind:'book'}})).ok);assert.equal(h.events.some(row=>row.value.type==='proposal'),expected);assert(h.events.filter(row=>row.value.type==='action').every(row=>row.value.name==='get_book_context'));h.app.emit('will-quit');
  }
 });
+
+
+test('Library action cards name the proven title and refuse a later identity change before mutation',async()=>{
+ let turn=0,identity='original';const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'title',function:{name:'open_library_title',arguments:'{"item_id":"catalog:real"}'}}]}):reply({role:'assistant',content:'Proposed.'}));const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',item:{title:'Actual film'},identity}}));};
+ const owner={...h.owner,kind:'library'};assert((await h.call('agentRun',{requestId:'library-check',question:'Open this film',owner})).ok);const p=h.events.find(row=>row.value.type==='proposal').value.action;assert(p.summary.includes('Actual film'));identity='changed';assert.equal((await h.call('agentApply',{proposalId:p.proposalId,owner})).ok,false);assert(h.events.filter(row=>row.value.type==='action').every(row=>row.value.name==='get_title_details'));h.app.emit('will-quit');
+});

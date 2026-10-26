@@ -161,7 +161,7 @@
   let savedScroll = 0, restoringScroll = false;
   const leave = () => { if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
   document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
-  window.MediaDiscoveryUI = Object.freeze({ leave, mount(root) {
+  window.MediaDiscoveryUI = Object.freeze({ leave, openDetail:details, mount(root) {
     const targetScroll = savedScroll; restoringScroll = true;
     const hadRows = state.rows.length > 0 && !state.busy; state.root = root; state.busy = false; draw();
     requestAnimationFrame(() => { if (root === state.root && root.isConnected && hadRows) document.getElementById('mediaHome').scrollTop = targetScroll; requestAnimationFrame(() => { restoringScroll = false; }); });

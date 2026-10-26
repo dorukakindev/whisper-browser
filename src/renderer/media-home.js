@@ -313,12 +313,14 @@
       if (state.page === 'music') rows = rows.filter(item => model.medium(item) === 'music');
       if (state.page === 'web') rows = rows.filter(item => model.medium(item) === 'web');
       if (state.query && ['home', 'books'].includes(state.page)) rows = [...items, ...watch];
+      if(state.filter.startsWith('collection:'))rows=rows.filter(item=>(item.collections||[]).includes(state.filter.slice(11)));
       if (state.filter === 'favorites') rows = rows.filter(item => item.favorite);
       if (state.filter === 'planned') rows = rows.filter(item => ['planned', 'watching'].includes(item.watchStatus));
       const controls = el('div', 'mh-filterbar');
       if (!isHistory) {
         const select = el('select'); select.setAttribute('aria-label', t('Library filter', 'Kütüphane filtresi'));
         [['all', t('All titles', 'Tüm yapımlar')], ['favorites', t('Favorites', 'Favoriler')], ['planned', t('Watchlist', 'İzlenecekler')]].forEach(([value, label]) => { const option = el('option', '', label); option.value = value; select.append(option); });
+        for(const name of [...new Set(items.flatMap(item=>item.collections||[]))].sort()){const option=el('option','',name);option.value='collection:'+name;option.dataset.uiUntranslated='';select.append(option);}
         select.value = state.filter; select.addEventListener('change', () => { state.filter = select.value; state.limit = 48; renderContent(); }); controls.append(select);
       }
       controls.append(button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo')), button(t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
@@ -420,5 +422,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace,openStudio});
+  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();

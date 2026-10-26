@@ -97,8 +97,9 @@
   }
   async function open(page='ai'){
     await initialSettingsReady;
-    if(dialog?.open){dialog.focus();return;}if(dialog)cleanup(dialog);
-    active=['ai','manga','metadata','cleanup','general'].includes(page)?page:'ai';opener=document.activeElement;
+    const target=['ai','manga','metadata','cleanup','general'].includes(page)?page:'ai';
+    if(dialog?.open){if(active!==target){mask();active=target;draw();}dialog.focus();dialog.querySelector('[aria-current="page"]')?.focus();return;}if(dialog)cleanup(dialog);
+    active=target;opener=document.activeElement;
     const current=el('dialog','aps-dialog media-surface');current.id='appSettingsDialog';current.dataset.uiUntranslated='';dialog=current;
     current.addEventListener('close',()=>cleanup(current));
     current.addEventListener('input',changed);current.addEventListener('change',changed);

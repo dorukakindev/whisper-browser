@@ -104,6 +104,7 @@ function itemOf(raw, old = null) {
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',
+    collections: [...new Set((Array.isArray(raw.collections ?? old?.collections)?(raw.collections ?? old?.collections):[]).filter(v=>typeof v==='string').map(v=>text(v,80)).filter(Boolean))].slice(0,40),
     favorite: typeof raw.favorite === 'boolean' ? raw.favorite : old?.favorite || false,
     posterPath: posterPath(raw.posterPath ?? old?.posterPath),
     ratings: ratingsOf(raw.ratings, old?.ratings),
@@ -196,6 +197,7 @@ function mergeRecord(target, incoming) {
       target.ratings?.[key] || incoming.ratings?.[key] || null])),
     source: target.source || incoming.source,
     importRef: target.importRef || incoming.importRef,
+    collections:[...new Set([...(target.collections||[]),...(incoming.collections||[])])],
     episodes, watchStatus: target.watchStatus, favorite: target.favorite }, target);
 }
 function createMediaCatalogStore({ filePath, fsImpl }) {
