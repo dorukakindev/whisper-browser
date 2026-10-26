@@ -51,10 +51,14 @@ function alignByTimestamp(sourceCues, targetCues) {
   const missing = [];
   for (const source of sourceCues) {
     const bucket = targetBuckets.get(timestampKey(source));
-    if (bucket?.length) matched.push({ source, target: bucket.shift() });
+    if (bucket && (bucket.used || 0) < bucket.length) {
+      const at = bucket.used || 0;
+      matched.push({ source, target: bucket[at] });
+      bucket.used = at + 1;
+    }
     else missing.push(source);
   }
-  const extra = [...targetBuckets.values()].flat();
+  const extra = [...targetBuckets.values()].flatMap(bucket => bucket.slice(bucket.used || 0));
   return { matched, missing, extra };
 }
 
@@ -152,18 +156,24 @@ function semanticPairs(source, target, coverage) {
   const groups=new Map();
   const add=(side,cue,i)=>{const id=find(i);if(!groups.has(id))groups.set(id,{source:[],target:[]});groups.get(id)[side].push(cue);};
   source.forEach((cue,i)=>add('source',cue,i));target.forEach((cue,i)=>add('target',cue,source.length+i));
-  const combine=rows=>({start:Math.min(...rows.map(c=>c.start)),end:Math.max(...rows.map(c=>c.end)),
+  const combine=rows=>({start:rows.reduce((n,c)=>Math.min(n,c.start),Infinity),end:rows.reduce((n,c)=>Math.max(n,c.end),-Infinity),
     text:rows.slice().sort((a,b)=>a.start-b.start||a.end-b.end).map(c=>c.text).join(' ')});
   return [...groups.values()].filter(g=>g.source.length&&g.target.length)
     .map(g=>({source:combine(g.source),target:combine(g.target)}));
 }
 
 function auditSubtitlePair(sourceCues, targetCues, options = {}) {
-  const source = Array.isArray(sourceCues) ? sourceCues : [];
-  const target = Array.isArray(targetCues) ? targetCues : [];
+  const valid = cue => cue && Number.isFinite(cue.start) && cue.start >= 0
+    && Number.isFinite(cue.end) && cue.end > cue.start && typeof cue.text === 'string';
+  const sourceInput = Array.isArray(sourceCues) ? sourceCues : [];
+  const targetInput = Array.isArray(targetCues) ? targetCues : [];
+  const source = sourceInput.filter(valid);
+  const target = targetInput.filter(valid);
   const aligned = alignByTimestamp(source, target);
   const coverage = alignByOverlap(source, target, options.minimumOverlapSeconds);
   const issues = {
+    invalidSource: sourceInput.flatMap((cue,index)=>valid(cue)?[]:[{index}]),
+    invalidTarget: targetInput.flatMap((cue,index)=>valid(cue)?[]:[{index}]),
     sourceBelowMinimum: [],
     targetBelowMinimum: [],
     // Bir hedef cue birden çok kaynak cue'yu kapsayabilir. Yapısal kayıp
@@ -181,8 +191,8 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     sourceUncertainty: [],
     turkishFluencyReview: [],
   };
-  const expectedMinSourceCues = Math.max(0, Math.trunc(Number(options.expectedMinSourceCues) || 0));
-  const expectedMinTargetCues = Math.max(0, Math.trunc(Number(options.expectedMinTargetCues) || 0));
+  const expectedMinSourceCues = Math.max(1, Math.trunc(Number(options.expectedMinSourceCues) || 0));
+  const expectedMinTargetCues = Math.max(1, Math.trunc(Number(options.expectedMinTargetCues) || 0));
   if (expectedMinSourceCues && source.length < expectedMinSourceCues) {
     issues.sourceBelowMinimum.push({ actual: source.length, expectedMinimum: expectedMinSourceCues });
   }
@@ -216,7 +226,8 @@ function auditSubtitlePair(sourceCues, targetCues, options = {}) {
     if (fluency.length) issues.turkishFluencyReview.push({ ...ref, reasons: fluency });
   }
   issues.repeatedTranslation = repeatedTranslationGroups(aligned.matched);
-  const blockingCount = issues.sourceBelowMinimum.length + issues.targetBelowMinimum.length
+  const blockingCount = issues.invalidSource.length + issues.invalidTarget.length
+    + issues.sourceBelowMinimum.length + issues.targetBelowMinimum.length
     + issues.missingTarget.length + issues.extraTarget.length
     + issues.emptyTarget.length + issues.sourceEcho.length + issues.numberMismatch.length;
   const advisoryCount = issues.negationReview.length + issues.heavyCompression.length

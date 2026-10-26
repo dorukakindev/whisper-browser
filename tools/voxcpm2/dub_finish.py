@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v6-leading-zero-quantities'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v7-signed-symbols'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -48,6 +48,14 @@ def spoken_text(text):
         return match[0]
     text = re.sub(r"(?<![\w.,:/+\-−'’])(?:[-−+]\s*)?\d{1,3}(?:\.\d{3})+(?:,\d{1,3})?"
                   r"(?![\w.,:/+\-−]|['’]\w)", grouped_quantity, text)
+    # Move a signed, standalone prefix amount before its currency symbol so
+    # the existing sign and currency passes can both read it. Do not rewrite IDs.
+    text = re.sub(r"(?<![\w.,:/+\-−])([$€£₺])\s*([-−+])\s*(\d+(?:,\d+)?)"
+                  r"(?![\w/+\-−]|[.,:](?=\d)|['’]\w)",
+                  lambda m: m[2] + m[3] + ' ' + m[1], text)
+    text = re.sub(r"(?<![\w.,:/+\-−])%\s*([-−+])\s*(\d+(?:,\d+)?)"
+                  r"(?![\w/+\-−]|[.,:](?=\d)|['’]\w)",
+                  lambda m: 'yüzde ' + ('eksi ' if m[1] in '-−' else 'artı ') + m[2], text)
     # Unary signs are speech, whereas dates, ranges and identifiers are not.
     text = re.sub(r'(?<![\w.,:/+\-−])([-−+])\s*(\d+(?:,\d+)?)'
                   r'(?![\w/+\-−]|[.,:](?=\d)|[’\']\w)',
@@ -68,7 +76,7 @@ def spoken_text(text):
             match[1].casefold() == 'vb' and re.match(r'\s+[A-ZÇĞİÖŞÜ]', following))
         return spoken + ('.' if final else '')
     text = re.sub(r'(?<![\w.])(vb|bkz|örn)\.(?!\w)', abbreviation, text, flags=re.I)
-    text = re.sub(r'%\s*(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s*%',
+    text = re.sub(r'(?<![\w.,:/])%\s*(\d+(?:[.,]\d+)*)(?!\w|[.,:/](?=\d))|(?<![\w.,:/])(\d+(?:[.,]\d+)*)\s*%(?!\w)',
                   lambda m: 'yüzde ' + (m[1] or m[2]), text)
     # Rates are spoken as a unit pair; a bare '/h' or '/s' would be read as letters.
     units = {'km/h':'kilometre bölü saat', 'm/s':'metre bölü saniye', 'km':'kilometre', 'kg':'kilogram',
@@ -77,15 +85,15 @@ def spoken_text(text):
     # A currency symbol is not reliably read by the engine; the spoken form is
     # always 'amount + currency name' in Turkish, whichever side the symbol is on.
     currency = {'$':'dolar', '€':'euro', '£':'sterlin', '₺':'lira'}
-    text = re.sub(r'([$€£₺])\s?(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s?([$€£₺])',
+    text = re.sub(r'(?<![\w.,:/])([$€£₺])\s?(\d+(?:[.,]\d+)*)(?![\w]|[.,:/](?=\d))|(?<![\w.,:/])(\d+(?:[.,]\d+)*)\s?([$€£₺])(?!\w)',
                   lambda m: f"{m[2] or m[3]} {currency[m[1] or m[4]]}", text)
     # Avoid interpreting punctuation in a date/clock/version/phone as decimal.
     # A number that ends a sentence or clause ('Toplam 42.', 'yaşı 25, boyu 180')
     # is still a number: sentence punctuation only blocks it when a digit/word
     # follows it, and a mid-text period stays ambiguous with a Turkish ordinal
     # ('3. sınıf', '2. Dünya Savaşı'), so only a final period is accepted.
-    pattern = (r'(?<![\w\d.,:/+\-])\d{1,9}(?:,\d{1,3})?'
-               r'(?![\w/\-]|\.(?![\s"”’»)\]]*$)|[,:;](?=\w)|[\'’]\w)')
+    pattern = (r'(?<![\w\d.,:/+\-$€£₺%])\d{1,9}(?:,\d{1,3})?'
+               r'(?![\w/\-]|[$€£₺%](?=\w)|\.(?![\s"”’»)\]]*$)|[,:;](?=\w)|[\'’]\w)')
     def number(match):
         value = match[0]
         if value.startswith('0') and len(value.split(',')[0]) > 1:
@@ -95,8 +103,17 @@ def spoken_text(text):
     return re.sub(pattern, number, text)
 
 
+def _sample_rate(sr):
+    if (isinstance(sr, (bool, np.bool_))
+            or not isinstance(sr, (int, float, np.integer, np.floating))
+            or not 8000 <= sr <= 384000 or not np.isfinite(sr) or sr != int(sr)):
+        raise ValueError('Invalid sample rate.')
+    return int(sr)
+
+
 def finish_audio(audio, sr, preserve_dynamics=False):
     """Remove only near-digital edge silence, retain 60 ms, bound gain to 3 dB."""
+    sr = _sample_rate(sr)
     wav = np.asarray(audio, dtype=np.float32).copy()
     if wav.ndim != 1 or sr <= 0 or not len(wav) or not np.isfinite(wav).all():
         raise ValueError('Invalid generated speech.')
@@ -110,7 +127,7 @@ def finish_audio(audio, sr, preserve_dynamics=False):
     # Measure active samples; silence should not cause an excessive boost.
     levels = np.abs(wav)
     audible = wav[levels > max(.002, peak * .025)]
-    rms = float(np.sqrt(np.mean(audible**2))) if len(audible) else 0
+    rms = float(np.sqrt(np.mean(audible.astype(np.float64)**2))) if len(audible) else 0
     gain = 1 if preserve_dynamics else (min(10**(3/20), max(10**(-3/20), .1/rms)) if rms else 1)
     gain = min(gain, .97/max(peak, .000001))
     wav *= gain
@@ -128,8 +145,7 @@ def join_pause_frames(previous, following, sr, preceding_text):
     These small punctuation-aware targets are joining defaults, not a model of
     human prosody. Existing longer natural pauses are deliberately retained.
     """
-    if sr <= 0:
-        raise ValueError('Invalid sample rate.')
+    sr = _sample_rate(sr)
     tail = preceding_text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
     target = .24 if tail.endswith(('?', '!')) else .22 if tail.endswith('.') else .18 if tail.endswith((';', ':')) else .12 if tail.endswith(',') else .08
     def quiet_edge(wav, end):
@@ -145,9 +161,12 @@ def join_pause_frames(previous, following, sr, preceding_text):
 
 def active_ranges(audio, sr, offset=0):
     """Bounded energy-based speech activity; music/speaker classification is not claimed."""
+    sr = _sample_rate(sr)
     wav = np.asarray(audio, dtype=np.float32)
+    if wav.ndim != 1 or not np.isfinite(wav).all() or isinstance(offset, (bool, np.bool_)) or not isinstance(offset, (int, float, np.integer, np.floating)) or not np.isfinite(offset) or offset < 0:
+        raise ValueError('Invalid speech activity input.')
     step = max(1, round(sr*.02))
-    levels = np.array([np.sqrt(np.mean(wav[i:i+step]**2)) for i in range(0,len(wav),step)])
+    levels = np.array([np.sqrt(np.mean(wav[i:i+step].astype(np.float64)**2)) for i in range(0,len(wav),step)])
     if not len(levels):
         return []
     active = np.flatnonzero(levels > max(.002, float(levels.max())*.025))
