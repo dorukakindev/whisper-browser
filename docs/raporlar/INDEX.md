@@ -1,3 +1,4 @@
+- [Rapor 620](BROWSER_BUG_REPORT_620.md) — Asistan P03: medya sırasında sohbet, main iş snapshot ve tam kimlikli iptal
 - [Rapor 619](BROWSER_BUG_REPORT_619.md) — Asistan P02: ortak capability, kaynak manifesti, model araç döngüsü ve Windows kabulü
 - [Rapor 618](BROWSER_BUG_REPORT_618.md) — Asistan P01: üç YouTube komutu, sağlayıcı akışı, gerçek ilerleme/iptal ve Windows UI; sekiz paket planı
 - [Rapor 617](BROWSER_BUG_REPORT_617.md) — İki Claude asistan araştırma paketinin bağımsız değerlendirmesi; iki sentetik kusur teyidi

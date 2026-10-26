@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0031.md](docs/devir/2026-10-27-0031.md) — Asistan P03: bağımsız sohbet, kimlikli iş durumu ve doğru iptal
 Güncel çalışma: [docs/devir/2026-10-27-0012.md](docs/devir/2026-10-27-0012.md) — Asistan P02: kaynak bağlı araçlar, model döngüsü ve native Windows kabulü
 Güncel çalışma: [docs/devir/2026-10-26-2332.md](docs/devir/2026-10-26-2332.md) — Asistan P01: YouTube komutları, sağlayıcı ve native UI; sekiz paket planı
 Güncel çalışma: [docs/devir/2026-10-26-2251.md](docs/devir/2026-10-26-2251.md) — Claude asistan paketleri karşılaştırması ve bağımsız teyit
