@@ -14,7 +14,7 @@ from dub_finish import spoken_text
 # Shared with the pre-generation JS guard; this is conservative evidence,
 # not a complete Turkish morphological or semantic analyzer.
 NEGATIVE_ROOTS = json.loads((Path(__file__).resolve().parents[2] / 'src' / 'turkish-negation-roots.json').read_text(encoding='utf-8'))
-NEGATIVE_ENDING = re.compile(r'(?:m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
+NEGATIVE_ENDING = re.compile(r'(?:m[ıiuü]yor[^\W_]*|m[ae]y[ae]c[ae][kğ][^\W_]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
 
 def lexical_negatives(text):
     tokens = re.findall(r'[^\W_]+', unicodedata.normalize('NFC', text).replace('I','ı').replace('İ','i').lower())

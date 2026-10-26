@@ -91,7 +91,8 @@
       ]
         .filter(Boolean)
         .join(" · ");
-      explain.disabled = preparing || !source?.selectedText?.trim();
+      const selectionTooLong = source?.selectedTextTruncated === true || (source?.selectedText?.length || 0) > 4000;
+      explain.disabled = preparing || !source?.selectedText?.trim() || selectionTooLong;
       summary.textContent =
         source?.type === "book-page"
           ? t("Summarize page", "Sayfayı özetle")
@@ -100,7 +101,9 @@
         preparing || !full?.text?.trim() || full.text.length > 100000;
       if (!preparing)
         note.textContent =
-          full?.text?.length > 100000
+          selectionTooLong
+            ? t("Select a shorter passage (up to 4,000 characters); nothing was sent.", "Daha kısa bir pasaj seç (en fazla 4.000 karakter); hiçbir metin gönderilmedi.")
+            : full?.text?.length > 100000
             ? t(
                 "This chapter exceeds 100,000 characters. Select a passage to discuss.",
                 "Bölüm 100.000 karakteri aşıyor. Soracağın pasajı seç.",
@@ -174,7 +177,8 @@
       } finally {
         preparing = false;
         if (current()) {
-          explain.disabled = !getSource("explain")?.selectedText?.trim();
+          const source = getSource("explain");
+          explain.disabled = !source?.selectedText?.trim() || source.selectedTextTruncated === true || source.selectedText.length > 4000;
           summary.disabled =
             !getSource("summary")?.text?.trim() ||
             getSource("summary").text.length > 100000;

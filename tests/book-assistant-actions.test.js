@@ -55,3 +55,11 @@ test("book actions preserve full chapter evidence, bound selected evidence and f
     /100,000/,
   );
 });
+
+test("oversized selected passages are explicitly rejected, never silently shortened", async () => {
+  const text="A".repeat(5200), source={id:"book",type:"book-chapter",text,selectedText:text};
+  await assert.rejects(actions.prepare("explain",source,en=>en),/4,000.*nothing was sent/);
+  await assert.rejects(actions.prepare("explain",source,(en,tr)=>tr),/4.000.*gönderilmedi/);
+  const allowed=await actions.prepare("explain",{...source,selectedText:text.slice(0,4000)},en=>en);
+  assert.equal(allowed.context.selectedText.length,4000);
+});

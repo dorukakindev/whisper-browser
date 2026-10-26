@@ -215,6 +215,34 @@ function registerMediaWorkflows({
       ),
     );
   }
+  // Reuse only the same authorized source snapshot AND identical chapter
+  // scope/text. A page subset, edited narration, or changed file remains a
+  // separate project; never overwrite a user's draft or generated audio.
+  function reuseBook(source, book, shelf = null) {
+    const info = fs.statSync(source);
+    const identity = value => process.platform === "win32" ? value.toLowerCase() : value;
+    for (const id of fs.existsSync(root()) ? fs.readdirSync(root()).filter(idOK) : []) {
+      const d = load(id);
+      if (d.archived || typeof d.source !== "string" || identity(d.source) !== identity(source)
+          || d.sourceSize !== info.size || d.sourceMtime !== info.mtimeMs
+          || d.format !== book.format || (d.numPages || null) !== (book.numPages || null)
+          || shelf && d.shelfBookId && d.shelfBookId !== shelf.id
+          || d.chapters.length !== book.chapters.length) continue;
+      if (!d.chapters.every((c, i) => {
+        const incoming = book.chapters[i];
+        return c.text.trim() === incoming.text.trim()
+          && (c.pageNumber || null) === (incoming.pageNumber || null)
+          && (c.sourceId || null) === (incoming.sourceId || null)
+          && (c.sourceSpineIndex ?? null) === (incoming.sourceSpineIndex ?? null);
+      })) continue;
+      if (shelf) {
+        if (!d.shelfBookId) { d.shelfBookId = shelf.id; save(d); }
+        if (shelf.productionProjectId !== d.id) linkShelfBook?.(shelf.id, d.id);
+      }
+      return { ok: true, project: clean(d) };
+    }
+    return null;
+  }
   async function bookImport(shelfId) {
     const shelf = shelfId ? resolveShelfBook?.(shelfId) : null;
     if (shelfId && !shelf) throw Error("Book not found in library.");
@@ -292,6 +320,12 @@ function registerMediaWorkflows({
           numPages: doc.numPages,
           chapters,
         };
+      } catch (error) {
+        if (error?.name === "PasswordException")
+          throw Error("This PDF is password-protected. Open an unlocked copy / Bu PDF şifreli. Şifresi kaldırılmış bir kopya açın.");
+        if (error?.name === "InvalidPDFException")
+          throw Error("This PDF is damaged or unsupported. Choose another copy / Bu PDF bozuk veya desteklenmiyor. Başka bir kopya seçin.");
+        throw error;
       } finally {
         await task.destroy();
       }
@@ -300,6 +334,8 @@ function registerMediaWorkflows({
       throw Error(
         "No readable text. Scanned PDFs require OCR / Okunabilir metin yok; taranmış PDF için OCR gerekir.",
       );
+    const reused = reuseBook(source, book, shelf);
+    if (reused) return reused;
     fs.mkdirSync(root(), { recursive: true });
     if (fs.readdirSync(root()).filter(idOK).length >= 100)
       throw Error("The project library is limited to 100 books.");
@@ -657,6 +693,10 @@ function registerMediaWorkflows({
               status: "pending",
             };
           });
+          const reused = reuseBook(document.filePath, {
+            format: "pdf", numPages: r.numPages, chapters,
+          });
+          if (reused) return reused;
           fs.mkdirSync(root(), { recursive: true });
           if (fs.readdirSync(root()).filter(idOK).length >= 100)
             throw Error("The project library is limited to 100 books.");
@@ -1294,7 +1334,7 @@ function registerMediaWorkflows({
                 throw Error("Invalid chapter audio.");
             }
             const escape = (value) =>
-              String(value || "").replace(/[\\=;#\n\r]/g, " ");
+              String(value || "").replace(/\r\n?/g, "\n").replace(/[\\=;#\n]/g, (character) => "\\" + character);
             let cursor = 0,
               metadata = `;FFMETADATA1\ntitle=${escape(d.title)}\nartist=${escape(d.author)}\n`;
             const rows = [];

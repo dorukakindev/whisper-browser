@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1355.md](docs/devir/2026-10-26-1355.md) — Claude checkpoint incelemesi;7kök onarım ve açık PDF/sayı sınırları
 Güncel çalışma: [docs/devir/2026-10-26-1326.md](docs/devir/2026-10-26-1326.md) — PR499 ana programda;30maddelik ürün teslimi ve kişisel dosya koruması
 Güncel çalışma: [docs/devir/2026-10-26-1323.md](docs/devir/2026-10-26-1323.md) — 30 maddelik ürün paketi; referans/ses metni/kalite bütünlüğü
 Güncel çalışma: [docs/devir/2026-10-26-1254.md](docs/devir/2026-10-26-1254.md) — Claude için güncel10MBpaket ve102başlıklı dört zor görev dosyası

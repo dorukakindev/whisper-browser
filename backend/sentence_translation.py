@@ -401,7 +401,10 @@ _INITIAL_STOPWORDS = frozenset(
     "your his her their there here but so and or nor if then than when "
     "while because since as for to in on at by with from of about over "
     "under again once already now still just also not no yes who what "
-    "which where why how mr mrs ms dr st".split())
+    "which where why how mr mrs ms dr st "
+    "zero one two three four five six seven eight nine ten eleven twelve "
+    "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty "
+    "thirty forty fifty sixty seventy eighty ninety hundred thousand million billion".split())
 
 
 def _initial_name_swap(source, translated):
@@ -938,7 +941,7 @@ _TARGET_MODAL = re.compile(
     # görebiliyordu, yapabildi, kullanabilecek ('could see'→'görebiliyordun'
     # doğru çeviridir; yalnız 'abilir' aramak R401'de ölçülen en büyük
     # yanlış-pozitif sınıfıydı).
-    r"|\b\w{2,}(?:malı|meli|abil|ebil|amaz|emez|acak|ecek)\w*\b"
+    r"|\b\w{2,}(?:malı|meli|abil|ebil|amaz|emez|acak|ecek|acağ|eceğ)\w*\b"
     # '-amam/-emem' = olumsuz yeti ('can't'): yapamam, yüzemem, okuyamam.
     r"|\b\w{2,}[ae]m[ae]m\b"
     # aorist -r (gider, yaparım, olurum) — will/would'un doğal karşılığı.
