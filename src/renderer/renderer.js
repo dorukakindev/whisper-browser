@@ -25707,6 +25707,7 @@ function clearPendingRetranslateIntent({ dropSnapshot = false } = {}) {
   state.translateForSpeechOverride = null;
   state.forceRetranslate = false;
   state.translateCueRange = null;
+  state.translateSceneContext = null;
   state.translateModelOverride = null;
   state.translateVariantLabel = null;
   if (dropSnapshot) state.retranslateSnapshot = null;
@@ -25760,6 +25761,7 @@ if ($('makeTransBtn')) {
     // bloklar yeniden üretilir; aralık dışı mevcut çeviri/kaynakla korunur.
     if (state.translateCueRange) {
       opts.translateCueRange = state.translateCueRange;
+      if (state.translateSceneContext) opts.sceneContext = state.translateSceneContext;
       if (!opts.translateExisting && existingTranslation) opts.translateExisting = existingTranslation;
     }
     if (state.translateVariantLabel) opts.translateVariantLabel = state.translateVariantLabel;
@@ -25805,6 +25807,7 @@ if ($('makeTransBtn')) {
     state.translateForSpeechOverride = null;
     state.forceRetranslate = false;
     state.translateCueRange = null;
+  state.translateSceneContext = null;
     state.translateModelOverride = null;
     state.translateVariantLabel = null;
     if (!r || !r.ok) {
@@ -26600,9 +26603,8 @@ if ($('playerVideo')) {
     };
     logLine(messages[code] || 'Video bilinmeyen bir medya hatası nedeniyle açılamadı.', 'error');
     // Tasinmis/silinmis yerel dosya: kutuphane kaydini yeni konuma bagla.
-    if (player.localPath && code !== MediaError.MEDIA_ERR_ABORTED) {
-      offerMediaRelink();
-    }
+    if (player.localPath && [MediaError.MEDIA_ERR_DECODE,MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED].includes(code)) offerCompatibleMedia();
+    else if (player.localPath && code !== MediaError.MEDIA_ERR_ABORTED) offerMediaRelink();
   });
 
   $('playPause').addEventListener('click', () => {
@@ -32878,3 +32880,25 @@ function localizeIntegrationControls(){
  renderTimelineIssues();
 }
 document.addEventListener('ui-locale-change',localizeIntegrationControls);localizeIntegrationControls();
+
+function sceneInterval(){const selected=timelineRangeSeconds();if(selected)return selected;const lo=Math.max(0,subtitleSourceTime(Number($('timelineAnalysisFrom').value),false)),hi=subtitleSourceTime(Number($('timelineAnalysisTo').value),false);if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo<0||hi<=lo)throw Error(interfaceChoice('Geçerli aralık seç.','Choose a valid interval.'));return{lo,hi,indices:player.cues.flatMap((c,i)=>c.end>lo&&c.start<hi?[i]:[]),count:player.cues.filter(c=>c.end>lo&&c.start<hi).length};}
+function sceneNoteKey(r){return JSON.stringify([player.mediaKey,Number(r.lo).toFixed(3),Number(r.hi).toFixed(3),SceneTimingTools.signature(player.cues.filter(c=>c.end>r.lo&&c.start<r.hi))]);}
+function sceneFields(){return SceneTimingTools.context({summary:$('sceneSummary').value,terms:$('sceneTerms').value,characters:$('sceneCharacters').value});}
+function sceneStatus(message){$('sceneStatus').textContent=message;}
+function sceneStore(){try{return JSON.parse(localStorage.getItem('scene-context-v1')||'[]');}catch{return[];}}
+function loadSceneNotes(){try{const r=sceneInterval(),row=sceneStore().find(v=>v.key===sceneNoteKey(r)),c=SceneTimingTools.context(row?.context);for(const [key,id] of [['summary','sceneSummary'],['terms','sceneTerms'],['characters','sceneCharacters']])$(id).value=c[key];$('sceneSummary').dataset.binding=sceneNoteKey(r);sceneStatus(interfaceChoice('Aralık: ','Interval: ')+pSecToTime(r.lo)+' – '+pSecToTime(r.hi));}catch(e){sceneStatus(e.message);}}
+$('sceneLoad')?.addEventListener('click',loadSceneNotes);
+$('sceneSave')?.addEventListener('click',()=>{try{const r=sceneInterval(),key=sceneNoteKey(r);if($('sceneSummary').dataset.binding!==key)throw Error(interfaceChoice('Önce bu aralığın notlarını yükle.','Load this interval’s notes first.'));const rows=sceneStore().filter(v=>v.key!==key);rows.push({key,context:sceneFields()});localStorage.setItem('scene-context-v1',JSON.stringify(rows.slice(-100)));sceneStatus(interfaceChoice('Bu kaynak ve aralık için kaydedildi.','Saved for this source and interval.'));}catch(e){sceneStatus(e.message);}});
+$('sceneTranslate')?.addEventListener('click',async()=>{try{const r=sceneInterval();if(!r.count)throw Error(interfaceChoice('Aralıkta altyazı yok.','No subtitles in this interval.'));if($('sceneSummary').dataset.binding!==sceneNoteKey(r))throw Error(interfaceChoice('Önce bu aralığın notlarını yükle.','Load this interval’s notes first.'));if(state.running||state.queueRunning||$('makeTransBtn')?.disabled)throw Error(interfaceChoice('Önce kaynak altyazıyı seç ve çalışan işi bitir.','Select the source subtitle and wait for the current job.'));state.translateSceneContext=sceneFields();await startRangeRetranslate(r);}catch(e){state.translateSceneContext=null;sceneStatus(e.message);}});
+$('timingPreview')?.addEventListener('click',()=>{try{const r=sceneInterval(),proposal=SceneTimingTools.propose(player.cues,{shots:(player.timeline.analysis?.shots||[]).map(t=>subtitleSourceTime(t,false)),fps:Number($('timelineQcFps').value),lo:r.lo,hi:r.hi});if(!proposal.changes.length){sceneStatus(interfaceChoice('Güvenli zaman önerisi bulunamadı. Önce kesim analizi yapabilirsin.','No safe timing suggestions. You can analyze cuts first.'));return;}const key=player.mediaKey,generation=currentGeneration(),transform=JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)]),dialog=document.createElement('dialog');dialog.className='timing-review';const title=document.createElement('h2');title.textContent=interfaceChoice('Zaman önerilerini incele','Review timing suggestions');const hint=document.createElement('p');hint.textContent=interfaceChoice('Yalnız sessizliğe uzatır; konuşmayı kırpmaz. Uyguladıktan sonra Geri al kullanılabilir.','Extends into silence only; does not trim speech. Undo is available after applying.');const list=document.createElement('div');list.className='timing-review-list';for(const c of proposal.changes){const row=document.createElement('div');row.className='timing-review-row';row.textContent='#'+(c.index+1)+' · '+player.cues[c.index].text+'\n'+c.before.start.toFixed(3)+'–'+c.before.end.toFixed(3)+' → '+c.after.start.toFixed(3)+'–'+c.after.end.toFixed(3);list.append(row);}const footer=document.createElement('footer'),cancel=document.createElement('button'),apply=document.createElement('button');cancel.className=apply.className='tool-button';cancel.textContent=interfaceChoice('Vazgeç','Cancel');apply.textContent=interfaceChoice('Uygula','Apply');cancel.onclick=()=>dialog.close();apply.onclick=()=>{if(key!==player.mediaKey||staleGeneration(generation)||transform!==JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)])||SceneTimingTools.signature(player.cues)!==proposal.base){hint.textContent=interfaceChoice('Kaynak değişti; önizlemeyi yeniden aç.','Source changed; reopen preview.');apply.disabled=true;return;}timelinePushUndo();player.cues=proposal.cues;timelineMarkDirty(interfaceChoice('Zaman önerileri uygulandı; geri alınabilir.','Timing suggestions applied; undo available.'));dialog.close();};footer.append(cancel,apply);dialog.append(title,hint,list,footer);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();}catch(e){sceneStatus(e.message);}});
+document.querySelector('.timeline-product-panel')?.addEventListener('toggle',event=>{if(event.target.open)loadSceneNotes();});
+function localizeProduct609(){for(const node of document.querySelectorAll('.timeline-product-panel [data-en]'))node.textContent=interfaceChoice(node.dataset.tr,node.dataset.en);}
+document.addEventListener('ui-locale-change',localizeProduct609);localizeProduct609();
+
+function offerCompatibleMedia(){
+ const file=player.localPath,key=player.mediaKey,generation=currentGeneration(),video=$('playerVideo');if(!file||player.compatibilityAttempt===generation||document.getElementById('compatibleMediaDialog'))return;
+ const dialog=document.createElement('dialog');dialog.id='compatibleMediaDialog';dialog.className='timing-review';const title=document.createElement('h2');title.textContent=interfaceChoice('Yerel dosya oynatılamadı','Local file could not play');const hint=document.createElement('p');hint.textContent=interfaceChoice('H.264 videoyu koruyup ilk ses izini AAC’ye dönüştürerek MP4 hazırla. Özgün dosya değişmez. Farklı video codec’i desteklenmiyorsa işlem açıklamayla durur. Önbellek sınırı 4 GB.','Prepare MP4 by copying H.264 video and converting its first audio track to AAC. The original stays unchanged. Unsupported video codecs stop with an explanation. Cache limit: 4 GB.');const status=document.createElement('p');status.setAttribute('role','status');const footer=document.createElement('footer'),close=document.createElement('button'),prepare=document.createElement('button');close.className=prepare.className='tool-button';close.textContent=interfaceChoice('Kapat','Close');prepare.textContent=interfaceChoice('Uyumlu oynatma kopyası hazırla','Prepare compatible playback copy');let busy=false;
+ close.onclick=()=>{if(busy){void window.api.cancelCompatibleMedia();status.textContent=interfaceChoice('İptal bekleniyor…','Cancelling…');}else dialog.close();};dialog.addEventListener('cancel',event=>{if(busy){event.preventDefault();void window.api.cancelCompatibleMedia();}});
+ prepare.onclick=async()=>{busy=true;prepare.disabled=true;close.textContent=interfaceChoice('İptal','Cancel');status.textContent=interfaceChoice('Dosya doğrulanıyor ve hazırlanıyor…','Checking and preparing file…');try{const result=await window.api.prepareCompatibleMedia(file);if(staleGeneration(generation)||player.localPath!==file||player.mediaKey!==key){dialog.close();return;}if(!result.ok)throw Error(result.error);player.compatibilityAttempt=generation;const position=Number(video.currentTime)||player.pendingLibrarySeek?.seconds||0;video.src=pathToFileUrl(result.path);player.pendingLibrarySeek={key,generation,seconds:position};video.load();dialog.close();}catch(e){status.textContent=e.message;}finally{busy=false;prepare.disabled=false;close.textContent=interfaceChoice('Kapat','Close');}};
+ footer.append(close,prepare);dialog.append(title,hint,status,footer);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+}

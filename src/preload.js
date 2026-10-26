@@ -157,6 +157,8 @@ contextBridge.exposeInMainWorld('api', {
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
+  prepareCompatibleMedia: file => ipcRenderer.invoke('media:prepareCompatible', file),
+  cancelCompatibleMedia: () => ipcRenderer.invoke('media:cancelCompatible'),
   analyzeMedia: request => ipcRenderer.invoke('media:analyze',request),
   cancelMediaAnalysis: () => ipcRenderer.invoke('media:analyzeCancel'),
   getWaveform: (path) => ipcRenderer.invoke('media:waveform', path),

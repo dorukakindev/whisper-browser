@@ -3469,6 +3469,22 @@
           </div>
           <p data-en="Local media only · up to 30 minutes · audio tracks start at 0. Suggestions do not change subtitles." data-tr="Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.">Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.</p>
         </details>
+        <details class="timeline-product-panel" data-ui-untranslated>
+          <summary data-en="Scene context & timing suggestions" data-tr="Sahne bağlamı ve zaman önerileri">Scene context & timing suggestions</summary>
+          <p data-en="Use the selected timeline range, or the analysis From/To interval. Notes stay with this source and interval; they are optional context, not new story facts." data-tr="Zaman çizelgesi seçimini veya analiz başlangıç/bitiş aralığını kullanır. Notlar bu kaynak ve aralıkla saklanır; yeni hikâye bilgisi değil, isteğe bağlı bağlamdır."></p>
+          <div class="scene-context-fields">
+            <label><span data-en="Scene summary" data-tr="Sahne özeti"></span><textarea id="sceneSummary" maxlength="2000" rows="3"></textarea></label>
+            <label><span data-en="Terms · source = translation" data-tr="Terimler · kaynak = çeviri"></span><textarea id="sceneTerms" maxlength="1500" rows="3"></textarea></label>
+            <label><span data-en="Characters & relationships" data-tr="Karakterler ve ilişkiler"></span><textarea id="sceneCharacters" maxlength="1500" rows="3"></textarea></label>
+          </div>
+          <div class="timeline-analysis-controls">
+            <button class="tool-button" id="sceneLoad" data-en="Load interval notes" data-tr="Aralık notlarını yükle"></button>
+            <button class="tool-button" id="sceneSave" data-en="Save interval notes" data-tr="Aralık notlarını kaydet"></button>
+            <button class="tool-button" id="sceneTranslate" data-en="Retranslate this interval" data-tr="Bu aralığı yeniden çevir"></button>
+            <button class="tool-button" id="timingPreview" data-en="Preview timing suggestions" data-tr="Zaman önerilerini önizle"></button>
+          </div>
+          <p id="sceneStatus" role="status"></p>
+        </details>
         <div class="timeline-canvas-wrap">
           <canvas id="timelineCanvas" tabindex="0" aria-label="Altyazı zamanlaması: yukarı/aşağı ile blok seç, sağ/sol ile 100 ms kaydır, Enter ile oynatma konumuna git"></canvas>
           <div class="timeline-help">Bloğu taşıyın; başlangıç veya bitiş kenarını sürükleyerek süreyi değiştirin. Boş alana tıklamak videoyu o ana götürür. Shift+tık ile yeniden çeviri için aralık seçin.</div>
@@ -3864,6 +3880,7 @@
 <script src="timeline-issue-scan.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="../assistant-source-context.js"></script>
+<script src="../scene-timing-tools.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
 <script src="dub-workspace-model.js"></script>
