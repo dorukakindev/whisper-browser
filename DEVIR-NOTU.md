@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0128.md](docs/devir/2026-10-27-0128.md) — Asistan P05: dublaj/referans/grup ve doğru videoda ses
 Güncel çalışma: [docs/devir/2026-10-27-0100.md](docs/devir/2026-10-27-0100.md) — Asistan P04: YouTube altyazı seçimi, iş bazlı çeviri ve iki kalite hatası
 Güncel çalışma: [docs/devir/2026-10-27-0031.md](docs/devir/2026-10-27-0031.md) — Asistan P03: bağımsız sohbet, kimlikli iş durumu ve doğru iptal
 Güncel çalışma: [docs/devir/2026-10-27-0012.md](docs/devir/2026-10-27-0012.md) — Asistan P02: kaynak bağlı araçlar, model döngüsü ve native Windows kabulü

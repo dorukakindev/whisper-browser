@@ -95,28 +95,32 @@
     if (!/^\d+(?::[0-5]?\d){0,2}(?:\.\d{1,3})?$/.test(value)) throw new Error();
     return value.split(':').reduce((total, part) => total * 60 + Number(part), 0);
   };
-  el('voiceReferenceLocal').addEventListener('click', async () => {
+  async function chooseLocal(isCancelled=()=>false) {
     if (active || applying || selectingSource) return;
     selectingSource = true; controls();
     try {
       const result = await api.selectVoiceReferenceSource();
       if (!result?.ok) { failure(result?.error); return; }
-      if (result.cancelled) return;
+      if (result.cancelled) return {ok:false,cancelled:true};
+      if(isCancelled())return {ok:false,cancelled:true};
       localSource = result.path;
       panel.open = true;
       el('voiceReferenceSourceName').textContent = localSource.split(/[\\/]/).pop();
       el('voiceReferenceStart').value = '0:00'; el('voiceReferenceEnd').value = '0:20';
       status('Yerel ses seçildi. Konuşma aralığını ayarlayıp Referans sesi hazırla düğmesine basın.');
-    } catch (error) { failure(error?.message); }
+    } catch (error) { failure(error?.message);return {ok:false}; }
     finally { selectingSource = false; controls(); }
-  });
+    return {ok:!!localSource};
+  }
+  el('voiceReferenceLocal').addEventListener('click',()=>void chooseLocal());
   el('voiceReferenceVideo').addEventListener('click', () => {
     if (active || applying || selectingSource) return;
     localSource = ''; el('voiceReferenceSourceName').textContent = '';
     panel.open = true;
     status('Referans kaynağı açık video olarak seçildi.');
   });
-  el('voiceReferencePrepare').addEventListener('click', async () => {
+  async function prepare(isCancelled=()=>false) {
+    if(isCancelled())return {ok:false,cancelled:true};
     if (active || applying || selectingSource) return;
     const context = window.BrowserDubAudioUI?.context();
     if (!localSource && (!context?.hasMedia || !context.visible)) { status('Ses eklemek için önce bir video açın.'); return; }
@@ -133,14 +137,17 @@
         source: localSource || (context?.mode === 'player' ? context.backgroundSource : ''),
         context: { tabId: context?.tabId, generation: context?.generation, mediaId: context?.mediaId } });
       if (!result?.ok) { if (result?.cancelled) status('Durduruldu.'); else failure(result?.error); return; }
+      if(isCancelled())return {ok:false,cancelled:true};
       const loaded = await refresh(result.reference.id);
       status(loaded ? 'Referans hazır. Dökümü kontrol edip Bu sesi kullan düğmesine basın.' : 'Ses üretildi ancak referans listesi yenilenemedi. Paneli yeniden açın.');
+      return {ok:!!loaded,referenceId:result.reference.id};
     } catch (_) { failure(); }
     finally {
       active = null; stopping = false; controls();
       window.dispatchEvent(new CustomEvent('voice-reference:busy', { detail: false }));
     }
-  });
+  }
+  el('voiceReferencePrepare').addEventListener('click',()=>void prepare());
   el('voiceReferenceCancel').addEventListener('click', async () => {
     const pending = active;
     if (!pending) return; stopping = true; controls(); status('Durduruluyor…');
@@ -148,7 +155,7 @@
     if (active !== pending) return;
     if (!result?.ok && active) { stopping = false; controls(); status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); }
   });
-  el('voiceReferenceUse').addEventListener('click', async () => {
+  async function useSelected() {
     const item = selected(); if (!item || active) return;
     applying = true; ++refreshSequence; controls();
     try {
@@ -157,9 +164,11 @@
       item.text = el('voiceReferenceText').value; rememberDraft();
       window.dispatchEvent(new CustomEvent('voice-reference:changed'));
       status('Referans ses ve dökümü güncellendi.');
+      return {ok:true};
     } catch (_) { status('Referans sesi uygulanamadı.'); }
     finally { applying = false; controls(); }
-  });
+  }
+  el('voiceReferenceUse').addEventListener('click',()=>void useSelected());
   api.onDubEvent(event => {
     if (event.id !== active) { controls(); return; }
     if (event.type !== 'reference_status' || stopping) return;
@@ -168,5 +177,16 @@
     if (stages[event.stage]) status(stages[event.stage]);
   });
   el('dubGeneratorDialog').addEventListener('close', () => el('voiceReferencePreview').pause());
+  window.VoiceReferenceUI=Object.freeze({
+    chooseLocal,
+    use:async(id,isCancelled=()=>false)=>{if(active||applying||selectingSource||isCancelled())return {ok:false};if(!await refresh(id)||isCancelled())return {ok:false};return useSelected();},
+    prepare:async(args,isCancelled=()=>false)=>{
+      if(active||applying||selectingSource||isCancelled())return {ok:false};
+      if(args.source==='video'){const c=window.BrowserDubAudioUI?.context();if(!c?.hasMedia||!c.visible)return {ok:false};localSource='';}
+      else if(!localSource)return {ok:false};
+      panel.open=true;el('voiceReferenceStart').value=String(args.start);el('voiceReferenceEnd').value=String(args.end);if(args.name!==undefined)el('voiceReferenceName').value=args.name;
+      return prepare(isCancelled);
+    }
+  });
   controls();
 })();

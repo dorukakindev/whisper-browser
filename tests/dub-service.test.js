@@ -147,6 +147,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:latest','ranged')).output.id,'ranged');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk?t=5'})).output.id,'ranged');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901'})).output,null);
+    assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'ranged'})).output.id,'ranged');
+    assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'missing'})).output,null,'source match must not silently replace the requested output ID');
+    assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901',id:'ranged'})).output,null,'matching ID must not override the source mismatch');
     assert.equal((await call('dub:latest',{source:''})).output,null);
     assert.equal((await call('dub:latest','not-the-requested-voice')).output,null,'Missing identity must not silently select another video voice');
     assert.equal((await call('dub:latest','../../secret')).ok,false);
