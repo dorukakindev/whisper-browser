@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v5-signed-contextual-thousands'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v6-leading-zero-quantities'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -33,6 +33,11 @@ def spoken_text(text):
                       r'adet|tane|oy|kez|defa|dolar|euro|lira|sterlin|tl|'
                       r'kilometre|kilogram|metre|gram|litre|km|kg|cm|mm|ml|mg|°C|m|g|l')
     def grouped_quantity(match):
+        # Leading zero is not a valid Turkish thousands group. It may be a
+        # decimal/identifier even when followed by a unit; retain its dots.
+        unsigned = match[0].lstrip('+-− ').split(',')[0]
+        if unsigned.startswith('0'):
+            return match[0]
         before = text[max(0, match.start()-48):match.start()]
         after = text[match.end():match.end()+64]
         explicit_unit = re.match(r'\s*(?:' + quantity_units + r')(?!\w)|\s*[$€£₺%]', after, re.I)

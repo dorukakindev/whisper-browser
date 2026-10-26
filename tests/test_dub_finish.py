@@ -25,6 +25,12 @@ class FinishTests(unittest.TestCase):
             self.assertEqual(spoken_text(value),value)
         self.assertEqual(spoken_text('0 kişi, 100 kişi ve 1000000 kişi.'),'sıfır kişi, yüz kişi ve bir milyon kişi.')
 
+    def test_leading_zero_group_does_not_lose_its_separator(self):
+        self.assertEqual(spoken_text('0.500 kg'),'0.500 kilogram')
+        self.assertEqual(spoken_text('-0.500 kg'),'-0.500 kilogram')
+        self.assertEqual(spoken_text('01.500 kişi'),'01.500 kişi')
+        self.assertEqual(spoken_text('Değer 0.500 idi.'),'Değer 0.500 idi.')
+
     def test_signed_thousands_percent_and_currency(self):
         for source,spoken in [('-1.500 kişi','eksi bin beş yüz kişi'),
                               ('+1.500 kişi','artı bin beş yüz kişi'),

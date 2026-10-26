@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1239.md](docs/devir/2026-10-26-1239.md) — Claude ara paketleri karşılaştırıldı; kalan anlam/sayı açıkları düzeltildi
 Güncel çalışma: [docs/devir/2026-10-26-0353.md](docs/devir/2026-10-26-0353.md) — PR497 ana programda; 50 maddelik kapsam ve ses/motor düzeltmeleri teslim edildi
 Güncel çalışma: [docs/devir/2026-10-26-0349.md](docs/devir/2026-10-26-0349.md) — 50 maddelik ürün kapsamı: ses cache ve sıcak motor güvenilirliği
 Güncel çalışma: [docs/devir/2026-10-26-0330.md](docs/devir/2026-10-26-0330.md) — PR496 ana programda; sağlayıcı/ses korumaları ve Windows akış onarımları

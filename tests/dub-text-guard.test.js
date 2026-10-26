@@ -24,3 +24,9 @@ for (const [a,b] of [['Ben gitmem.','Ben giderim.'],['Bunu yapamam.','Bunu yapar
   assert.equal(safe(b,a,{natural:true}),false,b);
 }
 for (const [a,b] of [['Elma çok lezzetli.','Elma lezzetli.'],['Bu çalışma çok güzel.','Bu çalışma güzel.'],['Bu dondurma çok güzel.','Bu dondurma güzel.'],['Ben gitmem.','Gitmem.']]) assert.equal(safe(a,b,{natural:true}),true,a);
+
+for (const [a,b] of [['Gelmeden gitti.','Gelip gitti.'],['Okumadan konuştu.','Okuyup konuştu.'],['Gelmeksizin gitti.','Gelip gitti.'],['Gelmeyince gitti.','Gelince gitti.']]) {
+  assert.equal(safe(a,b,{natural:true}),false,a);
+  assert.equal(safe(b,a,{natural:true}),false,b);
+  assert.equal(safe(a,a,{natural:true}),true,a);
+}
