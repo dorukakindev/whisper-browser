@@ -77,13 +77,15 @@ def parse_srt(path, source_bytes=None, skipped=None):
             int(g.ljust(3, '0')) if i in (3, 7) else int(g) for i, g in enumerate(fields))
         start = ((h1 * 60 + m1) * 60 + s1) * 1000 + ms1
         end = ((h2 * 60 + m2) * 60 + s2) * 1000 + ms2
-        line_end = text.find("\n", match.end())
-        block_end = text.find("\n\n", match.end())
+        # Bound scans to this cue, including compact SRT without blank lines.
+        next_start = timings[index + 1].start() if index + 1 < len(timings) else len(text)
+        line_end = text.find("\n", match.end(), next_start)
+        block_end = text.find("\n\n", match.end(), next_start)
         if line_end < 0:
             line_end = len(text)
         if block_end < 0:
-            block_end = len(text)
-        if index + 1 < len(timings) and timings[index + 1].start() < block_end:
+            block_end = next_start
+        if index + 1 < len(timings) and timings[index + 1].start() <= block_end:
             block_end = timings[index + 1].start()
             # Recover compact SRT without reading the next cue's index aloud.
             prefix = text[line_end:block_end]
@@ -100,6 +102,9 @@ def parse_srt(path, source_bytes=None, skipped=None):
         body = html.unescape(TAG_RE.sub('', body))
         body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', body)
         raw_body = re.sub(r"\s+", " ", body).strip()
+        if raw_body and end < start:
+            raise ValueError(f'SRT cue {index + 1}: end {end} ms < start {start} ms. '
+                             'Fix subtitle timing / Altyazi zamanlarini duzeltin; no speech was generated.')
         if raw_body and end >= start:
             source_ordinal += 1
         body = speech_body(raw_body)
@@ -136,7 +141,13 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
     if start is not None and (not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start):
         raise ValueError('Gecersiz zaman araligi.')
     selected, source_ids = [], []
+    previous_start = -1
     for i, (s, e, text) in enumerate(cues):
+        if s < previous_start:
+            source_id = cues.source_ids[i] if isinstance(cues, SourceCues) else i + 1
+            raise ValueError(f'SRT cue {source_id}: timestamps out of order / Zamanlar sirali degil. '
+                             'Sort subtitle timing before dubbing; source IDs were not changed.')
+        previous_start = s
         if start is not None:
             if e <= start * 1000 or s >= end * 1000:
                 continue

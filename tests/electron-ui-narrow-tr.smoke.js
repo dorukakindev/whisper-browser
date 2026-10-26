@@ -18,6 +18,8 @@ const { app, BrowserWindow } = require('electron');
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-narrow-tr-'));
 app.setPath('userData', profile);
+const evidence = path.join(__dirname,'../.uiprev', 'narrow597-'+Date.now());
+fs.mkdirSync(evidence,{recursive:true});
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PROBE = `(() => {
@@ -71,8 +73,11 @@ const PROBE = `(() => {
         })()`);
         await wait(150);
         results[`z${zoom}-${locale}`] = await win.webContents.executeJavaScript(PROBE);
+        fs.writeFileSync(path.join(evidence,`z${zoom}-${locale}.png`),(await win.webContents.capturePage()).toPNG());
       }
     }
+    fs.writeFileSync(path.join(evidence,"results.json"),JSON.stringify(results,null,2));
+    console.log("Evidence: "+evidence);
     let bad = 0;
     for (const [name, r] of Object.entries(results)) {
       console.log(`--- ${name} (vw=640)`);

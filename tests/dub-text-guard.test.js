@@ -18,3 +18,9 @@ assert.equal(safe('Dur! Bu mümkün değil.', 'Dur. Bu mümkün değil.', {natur
 assert.equal(safe('Belki... henüz bilmiyoruz.', 'Belki, henüz bilmiyoruz.', {natural:true}), false);
 assert.equal(safe('Belki... henüz bilmiyoruz.', 'Belki… henüz bilmiyoruz.', {natural:true}), true);
 assert.equal(safe('Bu uzun bir cümledir.', 'Bu bir cümle!', {natural:true}), false);
+
+for (const [a,b] of [['Ben gitmem.','Ben giderim.'],['Bunu yapamam.','Bunu yaparım.'],['Oraya gitme.','Oraya git.'],['Böyle olmasın.','Böyle olsun.'],['Bunu veremem.','Bunu veririm.'],['Ben gidemem.','Ben giderim.'],['Bunu okuyamam.','Bunu okurum.']]) {
+  assert.equal(safe(a,b,{natural:true}),false,a);
+  assert.equal(safe(b,a,{natural:true}),false,b);
+}
+for (const [a,b] of [['Elma çok lezzetli.','Elma lezzetli.'],['Bu çalışma çok güzel.','Bu çalışma güzel.'],['Bu dondurma çok güzel.','Bu dondurma güzel.'],['Ben gitmem.','Gitmem.']]) assert.equal(safe(a,b,{natural:true}),true,a);

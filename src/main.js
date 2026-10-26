@@ -6413,13 +6413,16 @@ function browserMangaTranslationConfig(overrides = {}) {
   const inherited = browserTranslationConfig(overrides);
   const preset = String(manga.endpointPreset || ui.mangaEndpointPreset || 'inherit').trim();
   const customBaseUrl = String(manga.customBaseUrl || ui.mangaBaseUrl || '').trim();
-  const endpoint = !preset || preset === 'inherit'
+  const inheritProvider = !preset || preset === 'inherit';
+  const endpoint = inheritProvider
     ? inherited.endpoint
     : (preset === 'custom' ? customBaseUrl : preset);
   return {
     ...inherited,
-    apiKey: String(manga.apiKey || inherited.apiKey || ''),
-    endpoint: endpoint || inherited.endpoint,
+    // Only the explicit inherited route may reuse the translation credential.
+    // A separate provider with an empty key/address must fail validation.
+    apiKey: String(manga.apiKey || (inheritProvider ? inherited.apiKey : '') || ''),
+    endpoint,
     model: String(manga.model || ui.mangaModel || inherited.model),
     targetLanguage: String(overrides.targetLanguage || manga.targetLanguage || ui.browserMangaTarget || inherited.targetLanguage || 'tr').slice(0, 24),
     workers: Math.max(1, Math.min(6, Number(overrides.workers || manga.workers || ui.browserMangaWorkers) || 2)),

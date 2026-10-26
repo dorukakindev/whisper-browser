@@ -1,4 +1,14 @@
 'use strict';
+// A deliberately bounded Turkish verb lexicon: bare -ma/-me also forms nouns
+// (elma, çalışma, dondurma). Do not classify every matching word as negation.
+// Unknown verbs still pass through the existing tense/evidence guards below.
+const TURKISH_NEGATIVE_ROOTS = 'al anla anlat ara aç bak bekle bil bırak bul çalış çık de dinle dur düşün dön duy et ed geç gel gerek gir git gid gör göster götür gönder gül hatırla hazırla hisset iç inan iste izle kaç kal kalk kapat katıl kaybet kes konuş kork koş koy kullan oku ol oyna öğren öl öde paylaş sağla san sat say seç sev sor söyle sun tanı taşı tut unut uyu uzat ver yap yaz ye yet yetiş yüz yaşa'.split(' ');
+const TURKISH_NEGATIVE_ENDING = /^(?:m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[\p{L}]*|y?[ae]m[ae]y[\p{L}]*)$/u;
+function turkishLexicalNegatives(text) {
+  const tokens = text.normalize('NFC').toLocaleLowerCase('tr').match(/[\p{L}]+/gu) || [];
+  return tokens.filter(token => TURKISH_NEGATIVE_ROOTS.some(root =>
+    token.startsWith(root) && TURKISH_NEGATIVE_ENDING.test(token.slice(root.length)))).sort();
+}
 function safeShortening(source, proposed, {natural=false} = {}) {
   if (typeof source !== 'string') return false;
   if (typeof proposed !== 'string' || !proposed.trim() || proposed.length > (natural ? Math.max(source.length, Math.round(source.length*1.25)) : source.length) || proposed.length > 1000) return false;
@@ -19,6 +29,7 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     };
   };
   if (JSON.stringify(evidence(source)) !== JSON.stringify(evidence(proposed))) return false;
+  if (JSON.stringify(turkishLexicalNegatives(source)) !== JSON.stringify(turkishLexicalNegatives(proposed))) return false;
   const numbers = text => text.match(/\d+(?:[.,]\d+)*/g) || [];
   const remaining = numbers(proposed);
   for (const value of numbers(source)) {

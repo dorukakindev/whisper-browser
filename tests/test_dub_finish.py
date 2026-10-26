@@ -25,14 +25,25 @@ class FinishTests(unittest.TestCase):
             self.assertEqual(spoken_text(value),value)
         self.assertEqual(spoken_text('0 kişi, 100 kişi ve 1000000 kişi.'),'sıfır kişi, yüz kişi ve bir milyon kişi.')
 
+    def test_contextual_thousands_and_verification(self):
+        for source, spoken in [('Toplam 1.500 kişi var.', 'Toplam bin beş yüz kişi var.'),
+                               ('1.250 kişi', 'bin iki yüz elli kişi'),
+                               ('Fiyat 1.500,25 lira', 'Fiyat bin beş yüz virgül iki beş lira')]:
+            self.assertEqual(spoken_text(source), spoken)
+            self.assertFalse(speech_check(source, spoken)['review'])
+            self.assertFalse(speech_check(spoken, source, source)['review'])
+        for text in ['v1.500', 'ID 1.500', '1.500', '12.005.2026', '3.14', '1.500:30']:
+            self.assertEqual(spoken_text(text),text)
+        self.assertTrue(speech_check('Toplam 1.500 kişi var.', 'Toplam beş yüz kişi var.')['review'])
+
     def test_numbers_that_end_a_clause_or_sentence_are_spoken(self):
         self.assertEqual(spoken_text('Toplam 42.'),'Toplam kırk iki.')
         self.assertEqual(spoken_text('Yaşı 25, boyu 180.'),'Yaşı yirmi beş, boyu yüz seksen.')
         self.assertEqual(spoken_text('Sayfa 7; sonra 8: bitti'),'Sayfa yedi; sonra sekiz: bitti')
         self.assertEqual(spoken_text('Oran %50.'),'Oran yüzde elli.')
         # A mid-text period may be a Turkish ordinal marker; dates, clocks,
-        # versions, thousands separators and ranges are still left alone.
-        for value in ['3. sınıf', '2. Dünya Savaşı', '1.250 kişi', '2.0 sürümü', '10:30 civarı',
+        # versions and ranges are still left alone; explicit quantities expand.
+        for value in ['3. sınıf', '2. Dünya Savaşı', '2.0 sürümü', '10:30 civarı',
                       "Saat 5'te", '5-7 kişi', '12.05.2026 tarihli']:
             self.assertEqual(spoken_text(value),value)
 

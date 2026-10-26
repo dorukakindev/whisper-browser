@@ -10,6 +10,25 @@ import dub_plan
 
 
 class DubPlanRegressionTests(unittest.TestCase):
+    def test_invalid_duration_cannot_drop_speech_silently(self):
+        payload=b'1\n00:00:02,000 --> 00:00:01,000\nMissing speech.\n\n2\n00:00:03,000 --> 00:00:04,000\nNext.\n'
+        with self.assertRaisesRegex(ValueError, 'cue 1: end'):
+            dub_plan.parse_srt('unused.srt', payload)
+
+    def test_unsorted_cues_report_identity_without_reordering(self):
+        cues=dub_plan.SourceCues()
+        cues.extend([(3000,4000,'First.'),(1000,2000,'Second.')])
+        cues.source_ids=[2,4]
+        with self.assertRaisesRegex(ValueError, 'cue 4: timestamps out of order'):
+            dub_plan.make_groups(cues,mode='akici')
+        self.assertEqual(cues.source_ids,[2,4])
+
+    def test_compact_srt_preserves_every_cue_without_reading_indices(self):
+        payload=''.join(f'{i+1}\n00:00:{i:02},000 --> 00:00:{i:02},900\nSpeech {i}.\n' for i in range(50)).encode()
+        cues=dub_plan.parse_srt('unused.srt',payload)
+        self.assertEqual([cue[2] for cue in cues],[f'Speech {i}.' for i in range(50)])
+        self.assertEqual(cues.source_ids,list(range(1,51)))
+
     def test_source_hash_identifies_the_bytes_used_to_build_the_plan(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'Türkçe.srt'

@@ -223,6 +223,16 @@ function t_manga_config() {
   assert.strictEqual(c2.endpoint, 'http://manga/v1');
   assert.strictEqual(c2.workers, 2);
   assert.strictEqual(c2.fontScale, 0.7);
+  for (const endpoint of ['https://other.invalid/v1','https://same.invalid/other']) {
+    ctx.__settings = {translate:{apiKey:'translation-fixture', endpointPreset:'https://same.invalid/v1'},manga:{endpointPreset:'custom',customBaseUrl:endpoint},ui:{}};
+    assert.strictEqual(vm.runInContext('browserMangaTranslationConfig().apiKey',ctx),'');
+    ctx.__settings.manga.apiKey='manga-fixture';
+    assert.strictEqual(vm.runInContext('browserMangaTranslationConfig().apiKey',ctx),'manga-fixture');
+  }
+  ctx.__settings.manga={endpointPreset:'custom',customBaseUrl:''};
+  assert.strictEqual(vm.runInContext('browserMangaTranslationConfig().endpoint',ctx),'');
+  assert.strictEqual(vm.runInContext('browserMangaTranslationConfig().apiKey',ctx),'');
+
 }
 
 function t_ui_helpers() {
