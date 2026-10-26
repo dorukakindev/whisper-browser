@@ -16,6 +16,10 @@ function safeShortening(source, proposed, {natural=false} = {}) {
     const lower = text.toLocaleLowerCase('tr');
     const matches = pattern => (lower.match(pattern) || []).sort();
     return {
+      scopeOnly: matches(/(?<!\p{L})(?:sadece|yalnızca)(?!\p{L})/gu).map(()=> 'only'),
+      scopeBounds: matches(/(?<!\p{L})(?:hariç|dahil|henüz|artık|en\s+az|en\s+fazla)(?!\p{L})/gu).map(v=>v.replace(/\s+/g,' ')),
+      numberWords: (lower.match(/(?<!\p{L})(?:sıfır|iki|üç|dört|beş|altı|yedi|sekiz|dokuz|on|yirmi|otuz|kırk|elli|altmış|yetmiş|seksen|doksan|yüz|bin|milyon|milyar|virgül)(?!\p{L})/gu)||[]),
+      nameCases: (text.match(/\p{Lu}[\p{L}]+['’][\p{L}]+/gu)||[]).map(v=>v.replace(/’/g,"'").toLocaleLowerCase('tr')).sort(),
       currency: matches(/[$€£₺¥]|(?<!\p{L})(?:dolar|dollar|usd|euro|eur|lira|try|sterlin|gbp|yen|jpy)(?!\p{L})/gu),
       question: (text.match(/[?？]/g) || []).length,
       // The editor must not turn an exclamation or an unfinished thought into
@@ -31,6 +35,7 @@ function safeShortening(source, proposed, {natural=false} = {}) {
   if (JSON.stringify(evidence(source)) !== JSON.stringify(evidence(proposed))) return false;
   if (JSON.stringify(turkishLexicalNegatives(source)) !== JSON.stringify(turkishLexicalNegatives(proposed))) return false;
   const numbers = text => text.match(/\d+(?:[.,]\d+)*/g) || [];
+  if (JSON.stringify(numbers(source)) !== JSON.stringify(numbers(proposed))) return false;
   const remaining = numbers(proposed);
   for (const value of numbers(source)) {
     const index = remaining.indexOf(value);

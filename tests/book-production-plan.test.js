@@ -59,7 +59,7 @@ test("model-free planning does not create jobs or save drafts, and prepare rejec
     ipcMain: { handle: (name, fn) => (handlers[name] = fn) },
     authorized: (e) => e.sender === sender,
     owner: () => null,
-    resolvePdf: () => ({ filePath: source, title: "Book" }),
+    resolvePdf: () => ({ filePath: source, numPages: 1, title: "Book" }),
     grantSubtitle: (p) => granted.push(p),
     grantMedia() {},
   });

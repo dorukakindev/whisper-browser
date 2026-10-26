@@ -41,7 +41,7 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
     resources: () => ({ processes: [] }),
     resolveShelfBook:id=>id==="shelf-one"?{id,path:source}:null,
     linkShelfBook:(id,project)=>grants.push({shelf:id,project}),
-    resolvePdf: id => id === "approved-hash" ? {filePath:source,title:"Approved PDF"} : null,
+    resolvePdf: id => id === "approved-hash" ? {filePath:source,numPages:3,title:"Approved PDF"} : null,
   });
   const call = (action, r = {}) =>
     handlers["media-workflows:request"]({ sender }, { action, ...r });

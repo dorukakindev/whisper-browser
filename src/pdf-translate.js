@@ -262,6 +262,12 @@ function markTableRegions(lines, pageWidth) {
       if (ragged) break;
     }
     if (!ragged) continue;
+    // Several aligned prose columns can also have ragged right edges. Require
+    // compact cells for a table: full multiword clauses in every band plus
+    // sentence/continuation punctuation are evidence for column narrative.
+    const proseCells = region.flatMap(row => row.parts.map(part => part.lines.map(line => line.text).join(' ')));
+    if (proseCells.every(text => (text.match(/[\p{L}]+/gu) || []).length >= 3)
+        && proseCells.filter(text => /[.!?…-]$/u.test(text)).length >= 2) continue;
     for (const row of region) {
       for (const part of row.parts) {
         for (const line of part.lines) {
@@ -465,6 +471,18 @@ function buildPdfParagraphPages(rawPages, options = {}) {
     pageNumber: page.pageNumber,
     paragraphs: mergePdfLines(page.lines, { ...options, pageNumber: page.pageNumber }),
   }));
+}
+
+function buildPdfNarrationPages(rawPages, options = {}) {
+  return filterRepeatedMarginalLines(rawPages, options).map(page => {
+    const paragraphs = mergePdfLines(page.lines, { ...options, pageNumber: page.pageNumber });
+    const original = rawPages.find(raw => Number(raw.pageNumber) === page.pageNumber) || {};
+    const before = Array.isArray(original.lines) ? original.lines.length : textItemsToLines(original.items, page).length;
+    return { pageNumber: page.pageNumber,
+      text: paragraphs.map(p => p.text).join("\n\n"),
+      preparation: { version: 1, removedMarginLines: Math.max(0, before - page.lines.length),
+        reviewTables: paragraphs.filter(p => p.orderAmbiguous === true).length } };
+  });
 }
 
 /** Madde 36 — farklı düzenlerde metin sırasının ve sayfa ilişkilerinin
@@ -765,6 +783,7 @@ module.exports = {
   mergePdfTextItems,
   filterRepeatedMarginalLines,
   buildPdfParagraphPages,
+  buildPdfNarrationPages,
   readingOrderMetrics,
   isStandalonePageNumber,
   createPdfTranslationState,

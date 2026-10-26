@@ -294,25 +294,22 @@ function registerMediaWorkflows({
       try {
         const doc = await task.promise;
         if (doc.numPages > 1000) throw Error("PDF exceeds 1000 pages.");
-        const chapters = [];
+        const rawPages = [];
         let length = 0;
+        const { mapPdfItemsThroughViewport, buildPdfNarrationPages } = require("./pdf-translate");
         for (let i = 1; i <= doc.numPages; i++) {
-          const page = await doc.getPage(i),
-            content = await page.getTextContent();
-          let text = "";
-          for (const item of content.items)
-            if (typeof item.str === "string")
-              text += item.str + (item.hasEOL ? "\n" : " ");
-          length += text.length;
+          const page = await doc.getPage(i), content = await page.getTextContent(), viewport = page.getViewport({ scale: 1 });
+          length += content.items.reduce((sum,item)=>sum+(typeof item.str==="string"?item.str.length:0),0);
           if (length > 900000) throw Error("PDF text too large.");
-          if (text.trim())
-            chapters.push({
-              title: `Page / Sayfa ${i}`,
-              pageNumber: i,
-              text: text.trim(),
-            });
+          rawPages.push({ pageNumber: i, pageHeight: viewport.height, pageWidth: viewport.width,
+            items: mapPdfItemsThroughViewport(content.items, { pageHeight: viewport.height, viewportTransform: viewport.transform }) });
           page.cleanup();
         }
+        const prepared = buildPdfNarrationPages(rawPages);
+        const chapters = prepared.filter(page => page.text.trim()).map(page => ({
+          title: `Page / Sayfa ${page.pageNumber}`, pageNumber: page.pageNumber,
+          text: page.text.trim(), pdfPreparation: page.preparation,
+        }));
         book = {
           title: path.basename(source, ".pdf"),
           author: "",
@@ -374,6 +371,7 @@ function registerMediaWorkflows({
             ? c.sourceSpineIndex
             : null,
         text: c.text,
+        ...(c.pdfPreparation ? { pdfPreparation: c.pdfPreparation } : {}),
         status: "pending",
       })),
     };
@@ -652,7 +650,7 @@ function registerMediaWorkflows({
         throw Error("Invalid chapter index.");
       switch (r.action) {
         case "book-from-reader": {
-          const document = resolvePdf?.(r.pdfHash);
+          const document = await resolvePdf?.(r.pdfHash);
           if (!document)
             throw Error(
               "Reopen the authorized PDF / Onaylı PDF'yi yeniden açın.",
@@ -669,6 +667,9 @@ function registerMediaWorkflows({
             r.pages.length > 100
           )
             throw Error("Choose 1–100 pages / 1–100 sayfa seçin.");
+          const actualPages = Number.isSafeInteger(document.numPages) ? document.numPages
+            : await require("./pdf-document-info").pdfPageCount(document.filePath);
+          if (r.numPages !== actualPages) throw Error("PDF page count changed; reopen the document / PDF sayfa sayısı değişti; belgeyi yeniden açın.");
           const seen = new Set();
           let length = 0;
           const chapters = r.pages.map((row, i) => {

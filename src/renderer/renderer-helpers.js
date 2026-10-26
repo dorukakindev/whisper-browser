@@ -817,10 +817,24 @@ async function extractPdfReaderPage(pageNumber) {
       ocr = { failed: true, error: String(error?.message || error) };
     }
   }
+  let layoutWarning = "";
+  if (items.length && window.api.preparePdfText) {
+    try {
+      const prepared = await window.api.preparePdfText({ pdfHash: reader.pdfHash,
+        pages: [{ pageNumber, items, pageHeight, pageWidth, viewportTransform: pageViewport.transform, blocks }] });
+      if (player.pdfReader !== reader) return null;
+      if (!prepared?.ok || !Array.isArray(prepared.pages?.[0]?.blocks) || (!prepared.pages[0].blocks.length && items.some(item => item.str.trim()))) throw Error(prepared?.error || "PDF layout unavailable");
+      blocks = prepared.pages[0].blocks;
+    } catch (error) {
+      if (player.pdfReader !== reader) return null;
+      layoutWarning = String(error?.message || error);
+      pdfReaderSetStatus(interfaceChoice("PDF okuma sırası hazırlanamadı; çıkarılan metni kontrol et.", "PDF reading order could not be prepared; review the extracted text."), true);
+    }
+  }
   reader.pages.set(pageNumber, {
     blocks, items, pageHeight, pageWidth,
     viewportTransform: Array.isArray(pageViewport.transform) ? pageViewport.transform.slice(0, 6) : [],
-    ocr, article: null, translation: null,
+    ocr, layoutWarning, article: null, translation: null,
   });
   return blocks;
 }

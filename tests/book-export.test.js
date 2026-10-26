@@ -54,7 +54,7 @@ async function fixture(t, options = {}) {
     ipcMain: { handle: (_, fn) => (handler = fn) },
     authorized: (e) => e.sender === sender,
     owner: () => null,
-    resolvePdf: () => ({ filePath: source, title: "Kitap" }),
+    resolvePdf: () => ({ filePath: source, numPages: 2, title: "Kitap" }),
     grantSubtitle() {},
     grantMedia() {},
     dialog: { showSaveDialog: async () => ({ filePath: target }) },

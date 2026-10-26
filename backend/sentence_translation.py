@@ -1257,6 +1257,63 @@ def _number_preserved(token, translated, target_lang):
     return bool(_turkish_number_phrase_match(translated, words))
 
 
+_EN_SMALL = dict(zip(('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split(), range(20)))
+_EN_TENS = dict(zip('twenty thirty forty fifty sixty seventy eighty ninety'.split(), range(20,100,10)))
+_EN_EXACT = set(_EN_SMALL) | set(_EN_TENS) | {'hundred','thousand','million','billion'}
+_EN_EXACT_PATTERN = re.compile(r'(?<!\w)(?:'+'|'.join(sorted(_EN_EXACT,key=len,reverse=True))+r')(?:[\s-]+(?:and[\s-]+)?(?:'+'|'.join(sorted(_EN_EXACT,key=len,reverse=True))+r'))*(?!\w)',re.I)
+
+
+def _english_quantity_value(phrase):
+    total = current = 0
+    previous = None
+    last_scale = 10**12
+    for word in re.split(r'[\s-]+', phrase.lower()):
+        if word == 'and': continue
+        if word in _EN_SMALL:
+            value = _EN_SMALL[word]
+            if previous in ('small','teen') or previous == 'tens' and not 0 < value < 10: return None
+            current += value
+            previous = 'small' if value < 10 else 'teen'
+        elif word in _EN_TENS:
+            if previous in ('small','teen','tens'): return None
+            current += _EN_TENS[word]; previous = 'tens'
+        elif word == 'hundred':
+            if previous not in (None,'small','scale') or current > 9: return None
+            current = (current or 1)*100; previous = 'hundred'
+        else:
+            scale = {'thousand':1000,'million':1000000,'billion':1000000000}.get(word)
+            if scale is None or scale >= last_scale: return None
+            total += (current or 1)*scale; current = 0; previous = 'scale'; last_scale = scale
+    value = total + current
+    return str(value) if 0 <= value <= 999999999 else None
+
+
+def _number_match(token, translated, target_lang):
+    """Locate one whole occurrence; callers consume its span before retrying."""
+    scales = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',translated,re.I)) if str(target_lang).lower().split('-')[0]=='tr' else []
+    for match in scales:
+        value = float(match[1].replace(',','.')) * {'bin':1000,'milyon':1000000,'milyar':1000000000}[match[2].lower()]
+        if value == float(token): return match
+    for match in _NUMBER_TOKEN.finditer(translated):
+        if any(row.start() <= match.start() < row.end() for row in scales): continue
+        if _canonical_number(match[0]) == token: return match
+    if str(target_lang).lower().split('-')[0]!='tr': return None
+    try: value=float(token)
+    except ValueError: return None
+    phrases=[]
+    if value.is_integer(): phrases.append(_turkish_integer_words(int(value)))
+    elif value >= 0:
+        if value % 1 == .5: phrases.append(_turkish_integer_words(int(value))+' buçuk')
+        if '.' in token:
+            whole,frac=token.split('.',1)
+            phrases.append(_turkish_integer_words(int(whole))+' virgül '+' '.join(_TR_ONES[int(c)] for c in frac))
+    for phrase in phrases:
+        if phrase:
+            match=_turkish_number_phrase_match(translated,phrase)
+            if match: return match
+    return None
+
+
 def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
     """Bariz sayı/olumsuzluk kaybını anlamsal kalite kapısı olarak bildirir.
 
@@ -1283,14 +1340,28 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr'):
                 issues.append('number_mismatch')
         source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
     missing = []
-    for match in _NUMBER_TOKEN.finditer(source_numbers_text):
-        token = _canonical_number(match.group(0))
-        if _number_preserved(token, translated_numbers_text, target_lang):
+    # A coefficient and its English scale form one quantity, not two mentions.
+    turkish_target = str(target_lang or '').lower().split('-')[0] == 'tr'
+    mixed = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(hundred|thousand|million|billion)(?!\w)', source_numbers_text, re.I)) if turkish_target else []
+    def covered(match):
+        return any(row.start() <= match.start() < row.end() for row in mixed)
+    mentions = [(match.start(), _canonical_number(match[0]), match) for match in _NUMBER_TOKEN.finditer(source_numbers_text) if not covered(match)]
+    for match in mixed:
+        value = float(_canonical_number(match[1])) * {'hundred':100,'thousand':1000,'million':1000000,'billion':1000000000}[match[2].lower()]
+        if math.isfinite(value): mentions.append((match.start(), format(value, '.15g'), match))
+    # Bare "one" is often a pronoun/indefinite article; do not invent a quantity.
+    for match in (_EN_EXACT_PATTERN.finditer(source_numbers_text) if turkish_target else []):
+        if covered(match) or match[0].lower() == 'one': continue
+        token = _english_quantity_value(match[0])
+        if token is not None: mentions.append((match.start(), token, match))
+    for _,token,match in sorted(mentions,key=lambda row:row[0]):
+        found = _number_match(token, translated_numbers_text, target_lang)
+        if found:
+            translated_numbers_text = translated_numbers_text[:found.start()] + ' '*(found.end()-found.start()) + translated_numbers_text[found.end():]
             continue
-        # '6 feet' -> '1,83' gibi birim çevirimi değeri değiştirir; hedefte
-        # bir rakam varsa ve sayı birime bitişikse kayıp sayılmaz.
-        if re.search(r'\d', translated_numbers_text) \
-                and _bound_to_convertible_unit(source_numbers_text, match):
+        # Keep established explicit-unit conversions; do not reuse an exact
+        # quantity occurrence to satisfy another source mention.
+        if re.search(r'\d', translated_numbers_text) and _bound_to_convertible_unit(source_numbers_text, match):
             continue
         missing.append(token)
     if missing and 'number_mismatch' not in issues:

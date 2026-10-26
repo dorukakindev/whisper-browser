@@ -83,10 +83,13 @@ app
         JSON.stringify(id) +
         ");return true",
     );
+
     await until(
       () => run('return !!document.querySelector(".mw-range")'),
       "range",
     );
+    assert(imported.project.chapters[0].pdfPreparation,'PDF preparation metadata');
+    await until(()=>run('return [...document.querySelectorAll(".mw-muted")].some(n=>n.textContent.includes("PDF metni algılanan okuma sırasını"))'),'PDF preparation notice');
     await run(
       'const inputs=document.querySelectorAll(".mw-range input");inputs[0].value="2";inputs[1].value="3";document.querySelector(".mw-range button").click();return true',
     );
@@ -188,6 +191,18 @@ app
     );
     await run('document.querySelector(".mw-voice-settings").open=true;return true');
     await capture("editor-tr-dark.png");
+    await run('document.querySelector("[data-pdf-preparation]").scrollIntoView({block:"center"});return true');
+    await capture("pdf-preparation-tr.png");
+    win.setContentSize(1024,768);
+    await run('UiLocale.set("en",false);await MediaWorkflowsUI.openProject('+JSON.stringify(id)+');return true');
+    await until(()=>run('return document.querySelector("[data-pdf-preparation]")?.textContent.includes("PDF text follows")'),'EN preparation');
+    await run('document.querySelector("[data-pdf-preparation]").scrollIntoView({block:"center"});return true');
+    await capture("pdf-preparation-en-laptop.png");
+    assert(await run('return document.getElementById("mediaWorkflowsDialog").scrollWidth<=innerWidth'),'studio viewport width');
+    win.setContentSize(1440,1000);
+    await run('UiLocale.set("tr",false);await MediaWorkflowsUI.openProject('+JSON.stringify(id)+');return true');
+    await until(()=>run('return document.querySelector("[data-pdf-preparation]")?.textContent.includes("PDF metni algılanan")'),'TR studio restored');
+
     await run(
       '[...document.querySelectorAll(".mw-editor button")].find(n=>n.textContent.includes("Dinle ve takip")).click();return true',
     );
