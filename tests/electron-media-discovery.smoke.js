@@ -38,6 +38,9 @@ app.whenReady().then(async () => {
   await run('await initialSettingsReady;window.UiLocale.set("tr",false);applyUiTheme("dark");document.querySelector("[data-home-page=discover]").click();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'discover list');
   assert(await run('const host=document.getElementById("mediaHome");return host.scrollHeight>host.clientHeight'), 'Discover has scrollable content');
+  await run('await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');
+  win.webContents.sendInputEvent({type:'mouseMove',x:650,y:650});
+  await wait(100);
   win.webContents.sendInputEvent({ type: 'mouseWheel', x: 650, y: 650, deltaY: -650, deltaX: 0 });
   await until(() => run('return document.getElementById("mediaHome").scrollTop>100'), 'actual Discover wheel scroll');
   await run('document.getElementById("mediaHome").scrollTop=0;return true');
@@ -60,22 +63,22 @@ app.whenReady().then(async () => {
   await until(() => run('return window.testAssistantChat?.question==="Fixture global assistant question"'), 'native send reaches existing chat controller');
   assert(await run('return window.testAssistantChat.context.workspace==="media-library" && !window.testAssistantChat.context.transcript_evidence && window.testAssistantChat.context.page==="discover"'), 'Home request has no old video / browser data');
   await until(() => assist('return document.getElementById("log").textContent.includes("Controlled provider unavailable")'), 'existing error is mirrored');
-  await run('const link=document.createElement("button");link.className="ai-source-link";link.textContent="[S1]";link.onclick=()=>{window.testAssistantCitation=true};document.querySelector("#aiChatLog .ai-msg-ai").append(link);return true');
+  await run('const link=document.createElement("button");link.className="ai-source-link";link.textContent="[S1]";link.onclick=()=>{window.testAssistantCitation=true};const message=document.createElement("div");message.className="ai-msg ai-msg-ai";message._sourceScope=aiSourceScope();message._assistantThreadId=window.AssistantWorkspace.activeId();message.append(link);document.getElementById("aiChatLog").append(message);return true');
   await until(() => assist('return !!document.querySelector(".sources button")'), 'verified source actions mirrored');
   await assist('document.querySelector(".sources button").click();return true');
   await until(() => run('return window.testAssistantCitation===true'), 'citation routed through original guarded controller');
   await until(() => assist('return document.querySelectorAll("#suggestions button").length===3'), 'context actions');
   const questionBeforeReview = await run('return window.testAssistantChat.question');
   await assist('document.querySelector("#suggestions button").click();return true');
-  assert(await assist('return !document.getElementById("review").hidden && document.getElementById("reviewText").textContent.includes("Kaynak")'), 'Source is visible before provider action');
-  await wait(250); fs.writeFileSync(path.join(out,'assistant-action-review-tr.png'),(await assistant.webContents.capturePage()).toPNG());
-  assert.equal(await run('return window.testAssistantChat.question'),questionBeforeReview,'Opening review does not send a request');
-  await assist('document.getElementById("reviewConfirm").click();return true');
-  await until(() => run('return window.testAssistantChat.question!=="Fixture global assistant question"'), 'Confirmed summary reuses existing chat pipeline');
+  // Summary/explain are explicit direct actions; destructive/voice actions retain review.
+  assert(await assist('return document.getElementById("review").hidden'), 'Direct summary does not require a second confirmation');
+  await wait(250); fs.writeFileSync(path.join(out,'assistant-direct-summary-tr.png'),(await assistant.webContents.capturePage()).toPNG());
+  await until(() => run('return window.testAssistantChat.question!=="Fixture global assistant question"'), 'Direct summary reuses existing chat pipeline');
   await run('startTranscribeSafe=window.testAssistantStart;translationEndpointReady=window.testAssistantReady;return true');
   await assist('document.getElementById("close").click();return true');
-  const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-heading h1")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ"),sora:document.fonts.check(\'600 32px Sora\',"Keşfet")}');
-  assert(fonts.plex && fonts.sora, JSON.stringify(fonts)); assert(fonts.heading.includes('Sora'));
+  assert(await run('return !document.querySelector(".md-heading")'), 'Discover omits redundant heading');
+  const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-tab")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ")}');
+  assert(fonts.plex, JSON.stringify(fonts)); assert(fonts.heading.includes('IBM Plex Sans'));
   const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor');
   const hover = await run('const r=document.querySelectorAll(".md-tab")[1].getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}');
   win.webContents.sendInputEvent({ type: 'mouseMove', ...hover }); await wait(100);
@@ -110,10 +113,10 @@ app.whenReady().then(async () => {
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
-  await until(() => run('return document.getElementById("mediaCatalogDialog").open && !!document.querySelector(".mc-detail")'), 'watchlist record');
-  assert(await run('return !!document.querySelector(".mc-detail .mx-assets") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
+  await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');
+  assert(await run('return !!document.querySelector(".mtd-hero .mh-primary") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
   assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'), 2);
-  await run('document.getElementById("mediaCatalogDialog").close();return true');
+  await run('document.getElementById("mediaTitleDialog").close();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'return discovery');
   // Personal recommendations explain a real library genre seed and exclude owned titles.
   await run('document.querySelectorAll(".md-tab")[1].click();return true');
@@ -160,7 +163,8 @@ app.whenReady().then(async () => {
     fs.writeFileSync(path.join(out, `discover-${width}-${locale}.png`), (await win.webContents.capturePage()).toPNG());
     await assist('document.getElementById("bubble").click();return true');
     await until(() => assist(`return document.documentElement.lang===${JSON.stringify(locale)} && document.documentElement.dataset.theme===${JSON.stringify(theme)}`), 'assistant locale/theme');
-    if (theme === 'light') assert.equal(await assist('return getComputedStyle(document.getElementById("title")).color'), 'rgb(24, 24, 27)', 'Assistant heading stays readable in light theme');
+    const contrast=await assist('const rgb=s=>(s.match(/[\\d.]+/g)||[]).slice(0,3).map(Number);const lum=c=>c.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);const a=lum(rgb(getComputedStyle(document.getElementById("title")).color)),b=lum(rgb(getComputedStyle(document.getElementById("panel")).backgroundColor));return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)');
+    assert(contrast>=4.5,'Assistant heading contrast: '+contrast);
     assert(assistant.getBounds().x >= 0 && assistant.getBounds().y + assistant.getBounds().height <= height, 'Native assistant fits narrow window');
     await wait(150); fs.writeFileSync(path.join(out, `assistant-${width}-${locale}-${theme}.png`), (await assistant.webContents.capturePage()).toPNG());
     await assist('document.getElementById("close").click();return true');

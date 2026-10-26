@@ -254,7 +254,7 @@ const html = fs.readFileSync(path.join(root, 'src', 'renderer', 'index.html'), '
 assert.match(main, /ipcMain\.handle\('browser:manga:start'/);
 assert.match(main, /ipcMain\.handle\('browser:manga:retrySelected'/);
 assert.match(main, /function browserMangaTranslationConfig/);
-assert.match(main, /manga\.apiKey \|\| inherited\.apiKey/);
+assert.match(main, /inheritProvider \? inherited\.apiKey : ''/);
 assert.match(main, /manga\.model \|\| ui\.mangaModel \|\| inherited\.model/);
 assert.doesNotMatch(main, /config\.model = 'gpt-4\.1-mini'/);
 assert.doesNotMatch(main, /configuredModel\.toLowerCase\(\) === 'gemini-3\.7-flash'/);
