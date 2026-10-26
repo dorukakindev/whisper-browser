@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-26-1638.md](docs/devir/2026-10-26-1638.md) — Dış repo önerilerinde mevcut,kısmi ve önerilen ürün alanları
 Güncel çalışma: [docs/devir/2026-10-26-1625.md](docs/devir/2026-10-26-1625.md) — Claude için dört bağımsız read-only denetim paketi
 Güncel çalışma: [docs/devir/2026-10-26-1612.md](docs/devir/2026-10-26-1612.md) — Rapor606: dört bulgu ve beş güvenli entegrasyon alanı
 Güncel çalışma: [docs/devir/2026-10-26-1543.md](docs/devir/2026-10-26-1543.md) — Görev04ara teslimi;dörtbulgu ve patchuyarlama kararı
