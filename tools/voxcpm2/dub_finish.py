@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v4-contextual-thousands'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v5-signed-contextual-thousands'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -31,17 +31,17 @@ def spoken_text(text):
     # context. Keep version/ID/date/clock/phone spellings unchanged otherwise.
     quantity_units = (r'kişi|insan|öğrenci|çocuk|yolcu|izleyici|çalışan|işçi|asker|'
                       r'adet|tane|oy|kez|defa|dolar|euro|lira|sterlin|tl|'
-                      r'kilometre|kilogram|metre|gram|litre|km|kg|cm|mm|ml|mg|m|g|l')
+                      r'kilometre|kilogram|metre|gram|litre|km|kg|cm|mm|ml|mg|°C|m|g|l')
     def grouped_quantity(match):
         before = text[max(0, match.start()-48):match.start()]
         after = text[match.end():match.end()+64]
-        explicit_unit = re.match(r'\s*(?:' + quantity_units + r')(?!\w)|\s*[$€£₺]', after, re.I)
+        explicit_unit = re.match(r'\s*(?:' + quantity_units + r')(?!\w)|\s*[$€£₺%]', after, re.I)
         explicit_total = re.search(r'(?<!\w)(?:toplam|sayısı|tutarı)\s*:?\s*$', before, re.I)
-        currency_prefix = re.search(r'[$€£₺]\s*$', before)
-        if (explicit_unit or explicit_total or currency_prefix) and len(match[0].split(',')[0].replace('.', '')) <= 9:
+        currency_prefix = re.search(r'[$€£₺%]\s*$', before)
+        if (explicit_unit or explicit_total or currency_prefix) and len(re.sub(r'[^0-9]', '', match[0].split(',')[0])) <= 9:
             return match[0].replace('.', '')
         return match[0]
-    text = re.sub(r"(?<![\w.,:/+\-−'’])\d{1,3}(?:\.\d{3})+(?:,\d{1,3})?"
+    text = re.sub(r"(?<![\w.,:/+\-−'’])(?:[-−+]\s*)?\d{1,3}(?:\.\d{3})+(?:,\d{1,3})?"
                   r"(?![\w.,:/+\-−]|['’]\w)", grouped_quantity, text)
     # Unary signs are speech, whereas dates, ranges and identifiers are not.
     text = re.sub(r'(?<![\w.,:/+\-−])([-−+])\s*(\d+(?:,\d+)?)'

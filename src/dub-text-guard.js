@@ -2,7 +2,7 @@
 // A deliberately bounded Turkish verb lexicon: bare -ma/-me also forms nouns
 // (elma, çalışma, dondurma). Do not classify every matching word as negation.
 // Unknown verbs still pass through the existing tense/evidence guards below.
-const TURKISH_NEGATIVE_ROOTS = 'al anla anlat ara aç bak bekle bil bırak bul çalış çık de dinle dur düşün dön duy et ed geç gel gerek gir git gid gör göster götür gönder gül hatırla hazırla hisset iç inan iste izle kaç kal kalk kapat katıl kaybet kes konuş kork koş koy kullan oku ol oyna öğren öl öde paylaş sağla san sat say seç sev sor söyle sun tanı taşı tut unut uyu uzat ver yap yaz ye yet yetiş yüz yaşa'.split(' ');
+const TURKISH_NEGATIVE_ROOTS = require('./turkish-negation-roots.json');
 const TURKISH_NEGATIVE_ENDING = /^(?:m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[\p{L}]*|y?[ae]m[ae]y[\p{L}]*)$/u;
 function turkishLexicalNegatives(text) {
   const tokens = text.normalize('NFC').toLocaleLowerCase('tr').match(/[\p{L}]+/gu) || [];

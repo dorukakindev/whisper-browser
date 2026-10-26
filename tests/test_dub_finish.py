@@ -25,6 +25,15 @@ class FinishTests(unittest.TestCase):
             self.assertEqual(spoken_text(value),value)
         self.assertEqual(spoken_text('0 kişi, 100 kişi ve 1000000 kişi.'),'sıfır kişi, yüz kişi ve bir milyon kişi.')
 
+    def test_signed_thousands_percent_and_currency(self):
+        for source,spoken in [('-1.500 kişi','eksi bin beş yüz kişi'),
+                              ('+1.500 kişi','artı bin beş yüz kişi'),
+                              ('Fiyat €1.500','Fiyat bin beş yüz euro'),
+                              ('Oran %1.500','Oran yüzde bin beş yüz')]:
+            self.assertEqual(spoken_text(source),spoken)
+            self.assertFalse(speech_check(source,spoken)['review'])
+        self.assertEqual(spoken_text('ID-1.500'),'ID-1.500')
+
     def test_contextual_thousands_and_verification(self):
         for source, spoken in [('Toplam 1.500 kişi var.', 'Toplam bin beş yüz kişi var.'),
                                ('1.250 kişi', 'bin iki yüz elli kişi'),

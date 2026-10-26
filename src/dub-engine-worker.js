@@ -4,7 +4,7 @@ const {PassThrough}=require('node:stream');
 const path=require('node:path');
 // One private stdin worker owned by this Electron process. No listening port.
 function createDubEngineWorker({spawn,terminate,idleMs=60000}){
- let host=null,active=null,timer=null,key='',closing=null,pending='',serial=0;
+ let host=null,active=null,timer=null,key='',closing=null,pending='',serial=0,starting=false;
  const finish=(run,code,signal=null)=>{
   if(active!==run)return;active=null;run.exitCode=code;run.signalCode=signal;
   run.stdout.end();run.stderr.end();run.emit('close',code,signal);
@@ -14,12 +14,15 @@ function createDubEngineWorker({spawn,terminate,idleMs=60000}){
   clearTimeout(timer);if(closing)return closing;if(!host)return true;
   const proc=host;closing=Promise.resolve().then(async()=>{
    const ok=await terminate(proc);if(ok===false)throw Error('Warm voice engine could not stop.');
-   if(host===proc){host=null;key='';}return true;
+   if(host===proc){host=null;key='';const run=active;if(run)finish(run,proc.exitCode??1,proc.signalCode??null);}return true;
   }).finally(()=>{closing=null;});return closing;
  }
  async function start(python,args,options){
-  clearTimeout(timer);if(active)throw Error('Voice worker is busy.');if(closing)await closing;
-  const next=JSON.stringify([python,args[0],options.cwd,options.env?.VOXCPM_ROOT]);
+  clearTimeout(timer);if(active||starting)throw Error('Voice worker is busy.');
+  starting=true;
+  try {
+  if(closing)await closing;
+  const next=JSON.stringify([python,args[0],options.cwd,...['VOXCPM_ROOT','CUDA_VISIBLE_DEVICES','CUDA_DEVICE_ORDER','PYTHONPATH','PYTHONHOME'].map(name=>options.env?.[name]??'')]);
   if(host&&key!==next)await release();
   if(!host){
    key=next;pending='';const proc=spawn(python,[path.join(path.dirname(args[0]),'dub_worker.py')],{...options,stdio:['pipe','pipe','pipe']});host=proc;
@@ -49,6 +52,7 @@ function createDubEngineWorker({spawn,terminate,idleMs=60000}){
    catch(error){run.stderr.write(error.message+'\n');if(run.listenerCount('error'))run.emit('error',error);void release().catch(()=>{});}
   });
   return run;
+  } finally {starting=false;}
  }
  return {start,release,running:()=>!!host};
 }

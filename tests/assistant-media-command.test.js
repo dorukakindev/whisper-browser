@@ -12,3 +12,10 @@ test('Media commands mutate only the selected library identity and read actual T
  context={type:'library-title',id:'film'};w.api.mediaCatalog=async packet=>{if(packet.action==='list'){scope='B';return {ok:true,items:[item]};}throw Error('Must not edit after navigation');};await w.AssistantMediaCommands.handle('Bu filmi izleme listeme ekle');assert.equal(answers.at(-1).status,'stopped');
  }finally{w.close();}
 });
+
+
+test('US/UK provider requests use actual word boundaries rather than backspace characters',()=>{
+ assert.equal(match('Where can I watch this movie in USA?')?.region,'US');
+ assert.equal(match('Where can I watch this movie in UK?')?.region,'GB');
+ assert.equal(match('Where can I watch this movie in Usak?')?.region,'');
+});

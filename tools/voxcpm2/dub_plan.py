@@ -71,6 +71,12 @@ def parse_srt(path, source_bytes=None, skipped=None):
     cues = SourceCues()
     source_ordinal = 0
     timings = list(TIME_RE.finditer(text))
+    valid_starts = {match.start() for match in timings}
+    for candidate in re.finditer(r'(?m)^[ \t]*[+-]?\d+:\d{2}:\d{2}[,.]\d{1,3}[ \t]*-->[^\n]*', text):
+        if candidate.start() not in valid_starts:
+            line = text.count('\n', 0, candidate.start()) + 1
+            raise ValueError(f'Invalid SRT timestamp at line {line} / Gecersiz altyazi zamani; fix the source before dubbing.')
+
     for index, match in enumerate(timings):
         fields = match.groups()
         h1, m1, s1, ms1, h2, m2, s2, ms2 = (

@@ -45,3 +45,20 @@ test('synchronous request pipe failure becomes a terminal job failure, preservin
  hosts[0].stdin.write=()=>{throw Error('controlled broken pipe');};
  const closed=new Promise(resolve=>run.once('close',resolve));assert.equal(await closed,1);assert.deepEqual(errors,['controlled broken pipe']);assert.equal(worker.running(),false);
 });
+
+
+test('Only one start can reserve the engine while a previous release is pending',async()=>{
+ const {hosts,worker}=setup();
+ const first=await worker.start('python',['/r/altyazi_oku.py','a'],{cwd:'engine',env:{}});await tick();
+ hosts[0].stdout.write('DUB_WORKER_DONE '+JSON.stringify({id:first.workerId,code:0})+'\n');
+ // Change runtime settings so start must await an asynchronous release.
+ const pending=worker.start('python',['/r/altyazi_oku.py','b'],{cwd:'engine',env:{CUDA_VISIBLE_DEVICES:'1'}});
+ await assert.rejects(()=>worker.start('python',['/r/altyazi_oku.py','c'],{cwd:'engine',env:{}}),/busy/);
+ const second=await pending;await tick();assert.equal(hosts.length,2);assert.notEqual(first.pid,second.pid);await worker.release();
+});
+
+test('A confirmed stop settles active work even if close arrives after terminate resolves',async()=>{
+ let host;const worker=createDubEngineWorker({spawn:()=>{host=new EventEmitter();Object.assign(host,{pid:5,exitCode:null,stdout:new PassThrough(),stderr:new PassThrough(),stdin:new PassThrough()});return host;},terminate:async()=>true});
+ const run=await worker.start('python',['/r/altyazi_oku.py'],{cwd:'engine',env:{}});let closes=0;run.on('close',()=>closes++);await tick();
+ await worker.release();assert.equal(closes,1);host.emit('close',1,null);await tick();assert.equal(closes,1);assert.equal(worker.running(),false);
+});

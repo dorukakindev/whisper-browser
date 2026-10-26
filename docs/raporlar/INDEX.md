@@ -1,3 +1,4 @@
+- [Rapor 598](BROWSER_BUG_REPORT_598.md) — 50 maddelik kapsam: cache ses doğrulaması, sıcak motor, SRT ve asistan iyileştirmeleri
 - [Rapor 597](BROWSER_BUG_REPORT_597.md) — Sağlayıcı anahtarı, olumsuzluk, SRT ve sayı koruması; Windows dar ekran ve galeri onarımları
 - [Rapor 596](BROWSER_BUG_REPORT_596.md) — Claude ara-v3: 777 dosya sonucunun ham günlüklerle ayrıştırılması
 - [Rapor 595](BROWSER_BUG_REPORT_595.md) — Dar ayarlar, EPUB ve sesli kitap dinleme ekranlarında gereksiz kalıcı bölümler sadeleştirildi
