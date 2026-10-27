@@ -182,7 +182,24 @@
     artist.addEventListener('change', paint); album.addEventListener('change', paint);filter.addEventListener('change',()=>{musicFilter=filter.value;paint();});sort.addEventListener('change',()=>{musicSort=sort.value;paint();});paint();paintPlaying();
     if (snapshot.linkedPlaylists?.length) {
       const section=el('section','mh-section ms-linked-playlists');section.append(el('h2','',t('From Spotify','Spotify’dan aktarılanlar')),el('p','mh-subtitle',t('Reviewed YouTube matches. Spotify audio is not downloaded.','İncelenen YouTube eşleşmeleri. Spotify sesi indirilmez.')));
-      for(const playlist of snapshot.linkedPlaylists){const details=el('details','ms-linked-playlist'),summary=el('summary','',playlist.name+' · '+playlist.tracks.length);details.append(summary);details.append(btn(t('Open on Spotify','Spotify’da aç'),()=>window.api.openExternal(playlist.sourceUrl)));details.append(btn(t('Play playlist','Listeyi oynat'),()=>listen(playlist.tracks.map(row=>({...row,kind:'spotify',playlistId:playlist.id})))));for(const [i,row] of playlist.tracks.entries()){const line=el('div','ms-track');line.append(btn('▶',()=>listen(playlist.tracks.map(r=>({...r,kind:'spotify',playlistId:playlist.id})),i)),el('strong','',row.title),el('small','',row.artist),favoriteButton({...row,kind:'spotify',playlistId:playlist.id}),btn(t('Analyze','Analiz et'),()=>window.MusicAnalysisUI.open({kind:'spotify',playlistId:playlist.id,id:row.id}),'mh-action ms-linked-analyze'),el('small','',t('YouTube match','YouTube eşleşmesi')));line.querySelector('button').setAttribute('aria-label',t('Play ','Oynat ')+row.title);details.append(line);}details.append(btn(t('Rename','Yeniden adlandır'),()=>renamePlaylist(playlist,'spotify'),'mh-text-button'));details.append(btn(t('Remove playlist','Listeyi kaldır'),async()=>{if(await form(t('Remove playlist?','Liste kaldırılsın mı?'),[],playlist.name,t('Remove','Kaldır')))await task('spotify-remove',{id:playlist.id});},'mh-text-button'));section.append(details);}root.append(section);
+      for(const playlist of snapshot.linkedPlaylists){
+        const details=el('details','ms-linked-playlist'),summary=el('summary'),name=el('span','ms-linked-name',playlist.name);
+        summary.append(name,el('span','ms-linked-count',t(`${playlist.tracks.length} tracks`,`${playlist.tracks.length} parça`)));details.append(summary);
+        const toolbar=el('div','ms-linked-toolbar');toolbar.append(btn(t('Play playlist','Listeyi oynat'),()=>listen(playlist.tracks.map(row=>({...row,kind:'spotify',playlistId:playlist.id}))),'mh-action mh-primary'),btn(t('Open on Spotify','Spotify’da aç'),()=>window.api.openExternal(playlist.sourceUrl),'mh-action'));
+        const menu=el('details','ms-track-menu'),menuTitle=el('summary','', '⋯');menuTitle.setAttribute('aria-label',t('Playlist actions','Liste işlemleri'));const menuPanel=el('div','ms-track-menu-panel');menuPanel.append(btn(t('Rename','Yeniden adlandır'),()=>renamePlaylist(playlist,'spotify'),'mh-text-button'),btn(t('Remove playlist','Listeyi kaldır'),async()=>{if(await form(t('Remove playlist?','Liste kaldırılsın mı?'),[],playlist.name,t('Remove','Kaldır')))await task('spotify-remove',{id:playlist.id});},'mh-text-button'));menu.append(menuTitle,menuPanel);toolbar.append(menu);details.append(toolbar);
+        const trackList=el('div','ms-linked-tracks');
+        for(const [i,row] of playlist.tracks.entries()){
+          const line=el('div','ms-track ms-linked-track'),play=btn('▶',()=>listen(playlist.tracks.map(r=>({...r,kind:'spotify',playlistId:playlist.id})),i),'mh-action ms-linked-play');play.setAttribute('aria-label',t('Play ','Oynat ')+row.title);
+          const cover=el('div','ms-linked-cover');cover.setAttribute('aria-hidden','true');
+          const thumb=window.MediaHomeModel?.thumbnail({url:row.youtubeUrl});
+          if(thumb){const image=el('img');image.alt='';image.width=56;image.height=56;image.loading='lazy';image.referrerPolicy='no-referrer';let fallback=false;image.onerror=()=>{if(!fallback){fallback=true;image.src=thumb.replace('/hqdefault.jpg','/mqdefault.jpg');}else image.remove();};image.src=thumb;cover.append(image);}
+          const copy=el('div','ms-linked-track-copy');copy.append(el('strong','',row.title),el('small','',row.artist));
+          const actions=el('div','ms-linked-track-actions');actions.append(favoriteButton({...row,kind:'spotify',playlistId:playlist.id}),btn(t('Analysis & results','Analiz ve sonuçlar'),()=>window.MusicAnalysisUI.open({kind:'spotify',playlistId:playlist.id,id:row.id}),'mh-action ms-linked-analyze'));
+          line.append(play,cover,copy,actions);trackList.append(line);
+        }
+        details.append(trackList);section.append(details);
+      }
+      root.append(section);
     }
     if (snapshot.playlists.length) {
       const playlists = el('section', 'mh-section'); playlists.append(el('h2', '', t('Playlists', 'Çalma listeleri')));

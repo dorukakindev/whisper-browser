@@ -1,3 +1,4 @@
+- [Rapor674](BROWSER_BUG_REPORT_674.md) — Kalıcı ölçüm/etiket/karşılaştırma sonuçları ve Spotify liste tasarımı
 - [Rapor673](BROWSER_BUG_REPORT_673.md) — Resmi olmayan/bozuk ana sayfa kayıtlarını gizleme ve YouTube kalite yedeği
 - [Rapor672](BROWSER_BUG_REPORT_672.md) — Seçili önizleme karşılaştırması, oynatıcı analizi ve kaynak seçimi
 - [Rapor671](BROWSER_BUG_REPORT_671.md) — Spotify ve internet sonucundan doğrudan analiz/referans

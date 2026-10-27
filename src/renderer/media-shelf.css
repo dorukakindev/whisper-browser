@@ -85,3 +85,17 @@ body.media-shelf-player-open .ms-dock { display: none; }
 .ms-queue-row-actions button {min-height:36px;}.ms-track-menu summary {min-width:40px;min-height:40px;}
 
 .ms-track[data-music-id] {border-left:2px solid transparent;padding-left:10px;}.ms-track.is-playing {border-left-color:var(--accent);background:var(--bg-2);}.ms-track.is-playing strong {color:var(--accent);}
+
+/* Spotify tracks share one compact title/artist column instead of a stretched table. */
+.ms-linked-playlists>.mh-subtitle {max-width:65ch;margin-bottom:20px;line-height:1.6;}
+.ms-linked-playlist {border:1px solid var(--border);border-radius:14px;background:var(--bg-1);padding:0;margin:16px 0;}
+.ms-linked-playlist>summary {display:flex;gap:20px;align-items:center;padding:22px 24px;margin:0;list-style:none;font-size:18px;}
+.ms-linked-playlist>summary::-webkit-details-marker {display:none;}.ms-linked-playlist>summary::after {content:'';width:8px;height:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin:0 4px 4px 0;transition:transform 160ms ease-out;color:var(--text-dim);}
+.ms-linked-playlist[open]>summary::after {transform:rotate(225deg);margin-bottom:0;}.ms-linked-name {font-weight:550;min-width:0;overflow-wrap:anywhere;flex:1;}.ms-linked-count {font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ms-linked-toolbar {display:flex;align-items:center;gap:10px;padding:0 24px 20px;}.ms-linked-toolbar>.ms-track-menu {margin-left:auto;}.ms-linked-tracks {padding:0 24px 8px;}
+.ms-linked-tracks>.ms-linked-track {display:grid;grid-template-columns:38px 56px minmax(0,1fr) auto;gap:16px;padding:14px 0;align-items:center;}
+.ms-linked-track>.ms-linked-play {width:36px;min-height:36px;height:36px;padding:0;font-size:12px;}.ms-linked-cover {width:56px;height:56px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);overflow:hidden;}.ms-linked-cover img {display:block;width:100%;height:100%;object-fit:cover;}
+.ms-linked-track>.ms-linked-track-copy {min-width:0;}.ms-linked-track-copy strong {font-size:14px;line-height:1.5;overflow-wrap:anywhere;}.ms-linked-track-copy small {display:block;margin-top:4px;font-size:12px;line-height:1.5;}.ms-linked-track-actions {display:flex;gap:14px;align-items:center;}.ms-linked-track-actions .mh-action {min-height:38px;padding:8px 14px;font-size:12px;}.ms-linked-track-actions .ms-like {min-height:36px;padding:6px;font-size:12px;}
+.ms-linked-playlist>summary:focus-visible {outline:2px solid var(--accent);outline-offset:-4px;border-radius:12px;}.ms-linked-track {transition:background-color 160ms ease-out;}.ms-linked-track:hover {background:var(--bg-2);}
+@media(max-width:850px){.ms-linked-playlist>summary {padding:18px;gap:12px;font-size:16px;}.ms-linked-toolbar {padding:0 18px 18px;flex-wrap:wrap;}.ms-linked-tracks {padding:0 18px 6px;}.ms-linked-tracks>.ms-linked-track {grid-template-columns:32px 44px minmax(0,1fr);gap:12px;}.ms-linked-cover {width:44px;height:44px;}.ms-linked-track-actions {grid-column:3;gap:12px;flex-wrap:wrap;}.ms-linked-track>.ms-linked-track-copy {min-width:0;}.ms-linked-track>div {min-width:0;}}
+@media(prefers-reduced-motion:reduce){.ms-linked-playlist>summary::after,.ms-linked-track {transition:none;}}
