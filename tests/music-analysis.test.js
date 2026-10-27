@@ -24,6 +24,10 @@ test('exact selected file, stage ownership, cache reuse and real cancellation co
   try{
     await assert.rejects(()=>service.start({sourceId:'invented'}));
     const source=service.remember(file);assert(source.url.includes('%C3%BC'));
+    await assert.rejects(()=>service.start({mode:'search',sourceId:source.id,references:[{id:'invented',range:[0,2]}]}),/Reference expired/);
+    await assert.rejects(()=>service.start({mode:'search',sourceId:source.id,references:Array(4).fill({id:source.id,range:[0,2]})}),/1–3/);
+    await assert.rejects(()=>service.start({mode:'search',sourceId:source.id,references:[{id:source.id,range:[0,2]},{id:source.id,range:[0,2]}]}),/Duplicate/);
+    assert.equal(service.status().state,'idle');
     const wait=async()=>{for(let n=0;n<100&&service.status().state==='running';n++)await new Promise(r=>setTimeout(r,10));assert.notEqual(service.status().state,'running');};
     await service.start({sourceId:source.id,start:2,end:6});
     await assert.rejects(()=>service.start({sourceId:source.id}));await wait();

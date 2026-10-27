@@ -118,6 +118,39 @@ def rank(reference, records, excluded_id=None, exclude_artist=False):
     return unique[:20]
 
 
+def rank_many(references, records, exclude_artist=False):
+    """Equal-weight reference scores; explanations preserve the measured score per seed."""
+    import numpy as np
+    if not 1 <= len(references) <= 3:
+        raise ValueError('Select 1–3 references')
+    for reference in references:
+        if reference.get('space') != SPACE:
+            raise ValueError('Reference model space mismatch')
+        valid_vectors(reference['vectors'])
+    results, seen = [], {r['hash'] for r in references}
+    artists = {r.get('artist', '').casefold() for r in references if r.get('artist')}
+    for row in records:
+        if row['hash'] in seen or exclude_artist and row.get('artist', '').casefold() in artists:
+            continue
+        scores = [rank(ref, [row]) for ref in references]
+        if not all(scores):
+            continue
+        scores = [s[0] for s in scores]
+        best = max(range(len(scores)), key=lambda i: scores[i]['score'])
+        results.append({**scores[best], 'score':round(float(np.mean([s['score'] for s in scores])),5),
+                        'referenceId':references[best]['id'],
+                        'referenceScores':[{'id':ref['id'], 'score':s['score']} for ref,s in zip(references,scores)],
+                        '_hash':row['hash']})
+    results.sort(key=lambda row:(-row['score'], row['id']))
+    unique=[]
+    for row in results:
+        content=row.pop('_hash')
+        if content in seen:
+            continue
+        seen.add(content);unique.append(row)
+    return unique[:20]
+
+
 def search(request, directory):
     import numpy as np
     if not (directory / 'READY.json').is_file():
@@ -127,6 +160,10 @@ def search(request, directory):
     model = None
     feature_extractor = None
     cached_count = 0
+    reference_rows = request.get('references') or [{**request['reference'], 'range':request.get('range')}]
+    if not 1 <= len(reference_rows) <= 3:
+        raise ValueError('Select 1–3 references')
+    reference_ids = {r['id'] for r in reference_rows}
     def features(row, selected=None):
         nonlocal model, feature_extractor, cached_count
         file = Path(row['path'])
@@ -145,9 +182,9 @@ def search(request, directory):
                     return {**data, 'id':row['id'], 'artist':row.get('artist','')}
             except (ValueError, KeyError):
                 pass
-        preview_args = ['-f','mp3'] if request.get('preview') and row['id'] != request['reference']['id'] else []
+        preview_args = ['-f','mp3'] if request.get('preview') and row['id'] not in reference_ids else []
         duration = float(json.loads(subprocess.check_output([request['ffprobe'],'-v','error','-protocol_whitelist','file,pipe',*preview_args,'-show_entries','format=duration','-of','json',str(file)], timeout=30, creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)))['format']['duration'])
-        start, end = selected or [0, min(duration, 30) if request.get('preview') and row['id'] != request['reference']['id'] else duration]
+        start, end = selected or [0, min(duration, 30) if request.get('preview') and row['id'] not in reference_ids else duration]
         if not 0 <= start < end <= duration + .05 or end-start < 1 or end-start > 1800:
             raise ValueError('Track/range must be 1 second–30 minutes')
         content_hash = file_hash(file)
@@ -182,19 +219,19 @@ def search(request, directory):
         partial=cached.with_suffix('.tmp')
         partial.write_text(json.dumps(data,allow_nan=False),encoding='utf-8');os.replace(partial,cached)
         return {**data,'id':row['id'],'artist':row.get('artist','')}
-    reference=features(request['reference'],request.get('range'))
+    references=[features(row,row.get('range')) for row in reference_rows]
     records,failures=[],[]
     for index,row in enumerate(request['tracks']):
         emit(stage='index',completed=index,total=len(request['tracks']),title=str(row.get('title',''))[:150])
-        if row['id'] == request['reference']['id'] or Path(row['path']).resolve() == Path(request['reference']['path']).resolve():
+        if row['id'] in reference_ids or any(Path(row['path']).resolve() == Path(ref['path']).resolve() for ref in reference_rows):
             continue
         try:
             records.append(features(row))
         except Exception as error:
             failures.append({'id':row['id'],'error':type(error).__name__})
     emit(stage='rank',completed=len(records),total=len(request['tracks']))
-    return {'model':MODEL,'revision':REVISION,'space':SPACE,'results':rank(reference,records,request['reference']['id'],request.get('excludeArtist',False)),
-            'indexed':len(records),'failed':len(failures),'failures':failures[:20],'cached':cached_count,'referenceSamples':len(reference['vectors'])}
+    return {'model':MODEL,'revision':REVISION,'space':SPACE,'results':rank_many(references,records,request.get('excludeArtist',False)),
+            'indexed':len(records),'failed':len(failures),'failures':failures[:20],'cached':cached_count,'referencesUsed':len(references),'referenceSamples':sum(len(ref['vectors']) for ref in references)}
 
 
 if __name__ == '__main__':

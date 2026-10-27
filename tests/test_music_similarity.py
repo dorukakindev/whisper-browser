@@ -7,7 +7,7 @@ from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
 import numpy as np
-from music_similarity import SPACE, windows, valid_vectors, rank
+from music_similarity import SPACE, windows, valid_vectors, rank, rank_many
 import music_similarity
 
 
@@ -16,6 +16,18 @@ def record(id, vector, hash=None, artist=''):
 
 
 class MusicSimilarity(unittest.TestCase):
+    def test_multi_reference_balances_each_seed_and_explains_real_scores(self):
+        a=np.eye(1,512,0)[0];b=np.eye(1,512,1)[0]
+        refs=[record('a',a.tolist(),artist='One'),record('b',b.tolist(),artist='Two')]
+        rows=[record('only-a',a.tolist()),record('both',(a+b).tolist()),record('copy-of-a',a.tolist(),hash='a'),record('excluded',(a+b).tolist(),artist='TWO')]
+        hits=rank_many(refs,rows,True)
+        self.assertEqual([r['id'] for r in hits],['both','only-a'])
+        self.assertAlmostEqual(hits[0]['score'],.70711,places=5)
+        self.assertEqual([r['score'] for r in hits[1]['referenceScores']],[1,0])
+        self.assertAlmostEqual(hits[1]['score'],.5)
+        self.assertEqual(hits[1]['referenceId'],'a')
+        self.assertEqual(rank_many(refs[:1],rows)[0]['score'],rank(refs[0],rows)[0]['score'])
+        with self.assertRaises(ValueError):rank_many([],rows)
     def test_pinned_model_resume_verifies_checksum_before_ready(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory=Path(tmp)
