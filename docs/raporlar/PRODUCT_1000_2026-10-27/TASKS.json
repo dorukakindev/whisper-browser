@@ -1937,8 +1937,8 @@
       "operation": "get_voice_status",
       "criterion": "Sınır ve sayfalama",
       "acceptance": "Uzun sonuç kesiliyorsa kapsam/sayfalama açık olsun; sonraki kimlik erişilebilir kalsın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "4b425912febc84d5d3807321ee85ae4963a93193: gerçek Python100cue/249karakter planı key291; kalite doğrulama ve exact voice-status2000limit. Mevcut61grup pagination + native exactgetstatus ve not_checked kanıtı."
     },
     {
       "id": "P0177",
@@ -2707,8 +2707,8 @@
       "operation": "voice_group",
       "criterion": "Kimlik ve değer",
       "acceptance": "Geçersiz kimlik/aralık/enum ile mevcut kullanıcı verisini değiştirme; düzeltilebilir hata göster.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "4b425912febc84d5d3807321ee85ae4963a93193: gerçek üretilmiş uzun kimlik open/listen/regenerate şemasında kabul;2001ret. 200→2000 yalnız grupkimliği alanı, genelmetin sınırı değişmez."
     },
     {
       "id": "P0247",
@@ -2751,8 +2751,8 @@
       "operation": "voice_group",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Native720×680/ENlight: uzun gruplu kontrollü çıktı exactkimlikle okunur; görünür kalite seçicisi ve dinleme düğmesi PNGde incelendi. Gerçek group listen/regenerate akustik sonucu bu pakette yok."
     },
     {
       "id": "P0251",
@@ -11029,6 +11029,16 @@
       ],
       "remaining": 984,
       "next": "Kitap kalite kapsamı / ses motoru referans iptal sınırları ve üretimden sonra farklı referansla tekrar başlayamama; sıradaki açık P kriterlerine bağla."
+    },
+    {
+      "report": 637,
+      "code": "4b425912febc84d5d3807321ee85ae4963a93193",
+      "updated": [
+        "P0176",
+        "P0246",
+        "P0250"
+      ],
+      "next": "Referans hazırlığı durumları, kalite/report özeti ve seçili/yerel ses üretim hatası sınırlarını açık maddelerle sürdür."
     }
   ]
 }
