@@ -930,7 +930,7 @@ _TARGET_NEGATION = re.compile(
     r"|\b\w{2,}m[ae]y[ıiuü]?n[ıiuü]?z?\b"
     # -mAm gövde olumsuzluğu (yapamam, yüzemem, istemem, görmem) —
     # 'adam'/'kalem' gibi tek-m'li sözcükler kalıba girmez (m+[ae]+m gerekir).
-    r"|\b\w{2,}m[ae]m\b"
+    r"|\b(?:yap|gel|git|gid|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|ara|iste|anla|bil|gör|yaz|san|düşün|tanı|bul|et|ed)(?:y?[ae])?m[ae]m\b"
     # -mAyAbIlIr / -mEyEbIlIr ihtimal-olumsuz birleşimi (yaramayabilir).
     r"|\b\w{2,}m[ae]y?[ae]bilir\w*\b"
     # -mAyAn / -mEyEn sıfat-fiil olumsuzluğu (gelmeyen, yapmayan).
@@ -941,9 +941,22 @@ _TARGET_NEGATION = re.compile(
     # Çıplak -mA olumsuz emir/istek (kıpırdama, yapma, gitme, konuşma).
     # Mastar/isim homografisi (konuşma='konuşma dili') kabul edilir: emir
     # biçimi altyazı diyaloğunda baskın ve kanıtsız bırakmak kesin yanlış-ret üretir.
-    r"|\b(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda)m[ae]\b",
+    r"|\b(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda|ara)m[ae]\b",
     re.I,
 )
+
+def _target_negation(text, source=''):
+    """Disambiguate Turkish nominalized verbs and English-before temporal clauses.
+
+    'Aramam gerekiyor' is a positive obligation, unlike standalone 'Aramam'.
+    'Gelmeden önce' expresses English 'before arrival'; other negative clauses
+    in the same sentence remain visible to the ordinary gate.
+    """
+    text = re.sub(r'\b\w+m[ae]m(?:[ıiuü]z|[ıiuü]n)?\b(?=\s+(?:gerek\w*|lazım\w*|zorunlu\w*))', ' ', str(text), flags=re.I)
+    if re.search(r'\bbefore\b', source, re.I):
+        text = re.sub(r'\b\w+m[ae]d[ae]n\s+önce\b', ' ', text, flags=re.I)
+    return bool(_TARGET_NEGATION.search(text))
+
 
 _SOURCE_MODAL = re.compile(
     r"\b(?:[Cc]an|[Cc]ould|may|[Mm]ight|[Mm]ust|[Ss]hall|[Ss]hould|[Ww]ill|[Ww]ould|"
@@ -1447,11 +1460,11 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                        r"admire|worry|remember|agree|suspect|be|fall|marvel)\b)", re.I)
     negation_source = idiom.sub(' ', src_norm)
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
-            and not _TARGET_NEGATION.search(translated):
+            and not _target_negation(translated, negation_source):
         issues.append('negation_missing')
-    target_negative = bool(_TARGET_NEGATION.search(translated)) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
-    source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and bool(_TARGET_NEGATION.search(source)))
-    if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _TARGET_NEGATION.search(source) and not target_negative:
+    target_negative = _target_negation(translated, negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
+    source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
+    if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated) and not target_negative:
         issues.append('negation_missing')
     if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b", source, re.I):
         issues.append('negation_added')

@@ -128,8 +128,11 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
       fs.readFileSync(source, "utf8"),
       "Birinci bölümün bütün sözcüklerini ve anlamını koruyalım. Henüz sonucu bilmiyoruz.",
     );
+    const savedChapterText=(await call("book-open",{id:shelf.project.id})).project.chapters[0].text;
     fs.appendFileSync(source," Changed outside the app.");
     assert.equal((await call("book-source",{id:shelf.project.id,chapter:0})).ok,false,"returning must reject a changed source file");
+    const changedBook=await call('book-from-shelf',{shelfId:'shelf-one'});assert.equal(changedBook.ok,false);assert.match(changedBook.error,/Source book changed/,'A changed source requires explicitly archiving the old production before reimport; never silently reuses it');
+    assert.equal((await call('book-open',{id:shelf.project.id})).project.chapters[0].text,savedChapterText,'The earlier project and its user work remain intact');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

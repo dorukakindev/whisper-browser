@@ -41,7 +41,7 @@ function sentenceEnded(text) {
 
 const NUMBER_TOKEN = /(?<![\p{L}\p{N}_])(?:(?:%|yüzde)\s*)?(?:[-−]|(?:eksi|minus)\s+)?(?:%\s*)?\d+(?:[.,]\d+)*(?:\s*(?:%|percent\b))?(?![\p{L}\p{N}_])/giu;
 const SOURCE_NEGATION = /\b(?:not|never|no|none|nobody|nothing|impossible|unable|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't)\b/iu;
-const TARGET_NEGATION = /(?<!\p{L})(?:değil\p{L}*|degil\p{L}*|yok\p{L}*|hiç|hic|asla|kimse\p{L}*|hiçbir\p{L}*|hicbir\p{L}*|olmadan|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z\p{L}*|\p{L}{2,}m[ae]y?[ae]c[ae][kğ]\p{L}*|\p{L}{2,}m[ae]mış\p{L}*|\p{L}{2,}memiş\p{L}*|(?:yap|gel|git|gid|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|anla|bil|gör|yaz|san|düşün|tanı|bul|et|ed)(?:y?[ae])?m[ae]m|\p{L}{2,}m[ae]y?[ae]bilir\p{L}*|\p{L}{2,}s[ıiuü]z\p{L}*|\p{L}{2,}m[ae]y[ıiuü]?n[ıiuü]?z?|(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda)m[ae])(?!\p{L})/iu;
+const TARGET_NEGATION = /(?<!\p{L})(?:değil\p{L}*|degil\p{L}*|yok\p{L}*|hiç|hic|asla|kimse\p{L}*|hiçbir\p{L}*|hicbir\p{L}*|olmadan|hayır|hayir|not|never|no|without|nein|nicht|pas|aucun|nunca|não|nao|\p{L}{2,}m[ıiuü]yor\p{L}*|\p{L}{2,}m[ae]d\p{L}*|\p{L}{2,}m[ae]z\p{L}*|\p{L}{2,}m[ae]y?[ae]c[ae][kğ]\p{L}*|\p{L}{2,}m[ae]mış\p{L}*|\p{L}{2,}memiş\p{L}*|(?:yap|gel|git|gid|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|ara|iste|anla|bil|gör|yaz|san|düşün|tanı|bul|et|ed)(?:y?[ae])?m[ae]m|\p{L}{2,}m[ae]y?[ae]bilir\p{L}*|\p{L}{2,}s[ıiuü]z\p{L}*|\p{L}{2,}m[ae]y[ıiuü]?n[ıiuü]?z?|(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda|ara)m[ae])(?!\p{L})/iu;
 function numberTokens(text) {
   const scientific=[];
   const rest=String(text || '').replace(/(?<![\p{L}\p{N}_])[+−-]?\d+(?:[.,]\d+)?e[+-]?\d+(?![\p{L}\p{N}_])/giu, value=>{
@@ -217,12 +217,14 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     return false;
   })) issues.push('number_mismatch');
   const negationSource=normalizeText(source).replace(/[‘’]/g,"'").replace(/\b(?:cannot|can't|can\s+not)\s+help\s*,?\s+but\s+(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|admire|worry|remember|agree|suspect|be|fall|marvel)\b)/giu,' ');
-  const hasTargetNegation=String(targetLanguage).split('-')[0]==='en'?SOURCE_NEGATION.test(normalizeText(translated).replace(/[‘’]/g,"'")):TARGET_NEGATION.test(normalizeText(translated));
+  let negationTarget=normalizeText(translated).replace(/(?<!\p{L})\p{L}+m[ae]m(?:[ıiuü]z|[ıiuü]n)?(?!\p{L})(?=\s+(?:gerek\p{L}*|lazım\p{L}*|zorunlu\p{L}*))/giu,' ');
+  if(/\bbefore\b/iu.test(negationSource))negationTarget=negationTarget.replace(/(?<!\p{L})\p{L}+m[ae]d[ae]n\s+önce(?!\p{L})/giu,' ');
+  const hasTargetNegation=String(targetLanguage).split('-')[0]==='en'?SOURCE_NEGATION.test(normalizeText(translated).replace(/[‘’]/g,"'")):TARGET_NEGATION.test(negationTarget);
   if (SOURCE_NEGATION.test(negationSource) && !hasTargetNegation) {
     issues.push('negation_missing');
   }
   const lang=String(targetLanguage||'tr').toLowerCase().split('-')[0];
-  if(lang==='tr' && TARGET_NEGATION.test(normalizeText(translated)) && !SOURCE_NEGATION.test(negationSource) && normalizeText(source).split(' ').length<=12 && !/[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b/iu.test(source)) issues.push('negation_added');
+  if(lang==='tr' && hasTargetNegation && !SOURCE_NEGATION.test(negationSource) && normalizeText(source).split(' ').length<=12 && !/[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b/iu.test(source)) issues.push('negation_added');
   if (lang === 'tr') {
     const modalSource = negationSource.replace(/\b(?:must(?:n't| not)|needn't|should(?:n't| not)|cannot|can't)\b/giu, ' ');
     const necessity = /\b(?:must|have to|has to|need to|required to)\b/iu.test(modalSource);

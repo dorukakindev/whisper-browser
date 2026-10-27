@@ -15,6 +15,7 @@
   const results = new Map();
   const resultOptions = new Map();
   const t = text => window.UiLocale?.t(text) || text;
+  const qualityWarning=file=>file?.qualityIncomplete?(window.UiLocale?.get?.()==='en'?'Audio is available, but some quality groups are missing. Listen before attaching it to the video.':'Ses hazır; bazı grupların kalite bilgisi eksik. Videoya bağlamadan önce dinleyin.') :t('Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.');
   const presetSpecs = {
     Balanced: {profile:'quality', concurrency:'4', grouping:'akici', verification:'balanced', timingMode:'video', naturalSpeech:true, autoFit:true},
     Fast: {profile:'fast', concurrency:'4', grouping:'akici', verification:'fast', timingMode:'video', naturalSpeech:false, autoFit:false},
@@ -254,7 +255,7 @@
       if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
       status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
         : output.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.'
-        : output.qualityUnavailable ? 'Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.'
+        : output.qualityUnavailable ? qualityWarning(output)
         : [...results.values()].some(row => row.status !== 'ready') ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.'
         : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
     }
@@ -549,7 +550,7 @@
         el('dubGeneratedName').textContent = event.name;
         el('dubGeneratorOutput').classList.remove('hidden');
         el('dubGeneratorUse').classList.toggle('hidden', !!job.sample);
-        status(event.qualityUnavailable ? 'Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.' : needsReview ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.' : job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.');
+        status(event.qualityUnavailable ? qualityWarning(event) : needsReview ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.' : job.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.' : 'Ses hazır. Buradan dinleyebilir veya Sesi kullan ile videoya bağlayabilirsiniz.');
         if (!job.sample && !needsReview && job.context?.hasMedia) {
           void window.BrowserDubAudioUI.attachGenerated({ name:event.name, url:event.url, range:event.range, sync:event.sync, background:event.background, ...window.DubWorkspaceUI?.attachment(event) }, job.context)
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
@@ -584,7 +585,7 @@
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     el('dubSrtName').textContent=basename(srt); controls();
     status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
-      : output.qualityUnavailable ? 'Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.'
+      : output.qualityUnavailable ? qualityWarning(output)
       : 'Dublaj projesi açıldı. Videoyu kontrol edip Sesi kullan düğmesine basın.');
   });
 

@@ -22,5 +22,10 @@ app.whenReady().then(async()=>{
  assert.equal(await run("document.activeElement.classList.contains('flow-continue')"),true,'receipt refresh preserves keyboard focus');
  win.webContents.send('assistant:snapshot',{...focusSnapshot,busy:true});await wait(100);
  assert.equal(await run("document.activeElement.classList.contains('tool-card')"),true,'disabled action returns focus to its card, never the page body');
+ win.setContentSize(360,580);
+ win.webContents.send('assistant:snapshot',{...base,busy:false,context:'Very long selected source title '.repeat(20),suggestions:['Summarize this source','Translate this page','Prepare voice and inspect the selected range','Read saved taste evidence','Open task controls'].map((label,id)=>({id:String(id),label,direct:true}))});await wait(180);
+ await run("document.querySelector('#suggestions button:last-child').focus()");
+ assert(await run("(()=>{const b=document.activeElement.getBoundingClientRect();return document.documentElement.scrollWidth<=innerWidth+1&&b.right<=innerWidth+1&&b.left>=0&&document.activeElement.textContent==='Open task controls'})()"),'Narrow suggestions remain reachable by keyboard without page overflow');
+ fs.writeFileSync(path.join(out,'narrow-long-source.png'),(await win.webContents.capturePage()).toPNG());
  console.log(JSON.stringify({ok:true,out,states:3,liveProvider:false,native:true}));app.exit(0);
 }).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),20000).unref();

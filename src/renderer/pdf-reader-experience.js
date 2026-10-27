@@ -167,6 +167,7 @@
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
   function opened() {
+    window.PdfReaderSearchUI?.reset();
     prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;manualFollowUntil=0;
     stopBookAssistant?.();
     $("pdfBookAssistant").replaceChildren();
@@ -234,6 +235,7 @@
     changed(true);
   }
   function closed() {
+    window.PdfReaderSearchUI?.reset();
     prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;
     stopBookAssistant?.();
     stopBookAssistant = null;

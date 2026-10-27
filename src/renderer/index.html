@@ -2223,7 +2223,7 @@
             <div class="pdf-reader-zoom"><button class="btn btn-ghost btn-sm" id="pdfZoomOut" type="button" aria-label="Uzaklaştır">−</button>
             <output id="pdfZoomValue">%100</output>
             <button class="btn btn-ghost btn-sm" id="pdfZoomIn" type="button" aria-label="Yakınlaştır">+</button>
-</div>
+<button class="btn btn-ghost btn-sm" id="pdfFindOpen" type="button" aria-label="Find in PDF" aria-expanded="false" aria-controls="pdfFindPanel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg></button></div>
             <div class="pdf-reader-more-tools"><details class="pdf-reader-tools" id="pdfAssistantTools"><summary>Pasaj araçları</summary><div class="pdf-reader-tools-content" id="pdfBookAssistant"></div></details>
             <details class="pdf-reader-tools" id="pdfTranslateTools"><summary>Çeviri ve dışa aktarma</summary><div class="pdf-reader-tools-content">
             <select id="pdfTargetLanguage" aria-label="PDF hedef dili"><option value="tr">Türkçe</option><option value="en">İngilizce</option><option value="de">Almanca</option><option value="fr">Fransızca</option><option value="es">İspanyolca</option></select>
@@ -2235,6 +2235,10 @@
             <button class="btn btn-ghost btn-sm" id="pdfExport" type="button">Dışa aktar</button>
             </div></details></div>
           </nav>
+          <section class="pdf-reader-find hidden" id="pdfFindPanel" data-ui-untranslated>
+            <form id="pdfFindForm"><input id="pdfFindText" type="search" maxlength="160" placeholder="Search this PDF…" aria-label="Search PDF text"><button class="btn btn-secondary btn-sm" id="pdfFindSubmit" type="submit">Find</button><button class="btn btn-ghost btn-sm" id="pdfFindPrevious" type="button" aria-label="Previous match">‹</button><button class="btn btn-ghost btn-sm" id="pdfFindNext" type="button" aria-label="Next match">›</button><output id="pdfFindStatus" role="status" aria-live="polite"></output><button class="btn-icon" id="pdfFindClose" type="button" aria-label="Close search">×</button></form>
+            <p id="pdfFindExcerpt"></p><small id="pdfFindScope"></small>
+          </section>
           <div class="pdf-reader-voice hidden" id="pdfVoicePanel">
             <label>Başlangıç sayfası <input id="pdfVoiceFrom" type="number" min="1" value="1"></label>
             <label>Bitiş sayfası <input id="pdfVoiceTo" type="number" min="1" value="1"></label>
@@ -3509,7 +3513,8 @@
       <div class="modal-backdrop"></div>
       <div class="modal-content" tabindex="-1">
         <div class="modal-icon">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="result-success-icon" aria-hidden="true" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="result-review-icon" aria-hidden="true" viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 22 21H2Z"/><path d="M12 10v4m0 3v.1"/></svg>
         </div>
         <span class="signal-kicker">SONUÇ MASASI</span>
         <h2 id="resultModalTitle">Altyazı hazır</h2>
@@ -3527,6 +3532,7 @@
           </div>
         </section>
         <div class="modal-files" id="modalFiles"></div>
+          <section class="result-quality hidden" id="modalTranslationReview" data-ui-untranslated aria-live="polite"></section>
 
         <!-- Çıktı sonrası araçlar -->
         <details class="modal-tools">
@@ -3894,6 +3900,7 @@
 <script src="../scene-timing-tools.js"></script>
 <script src="ui-motion.js"></script>
 <script src="../assistant-settings.js"></script>
+<script src="../translation-review-summary.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
 <script src="dub-workspace-model.js"></script>
@@ -3947,6 +3954,8 @@
 <script src="assistant-page-commands.js"></script>
 <script src="assistant-media-commands.js"></script>
 <script src="pdf-reader-experience.js"></script>
+<script src="../pdf-text-search.js"></script>
+<script src="pdf-reader-search.js"></script>
 <script src="global-assistant.js"></script>
 <script src="media-experience.js"></script>
 <script src="native-player-ui.js"></script>
