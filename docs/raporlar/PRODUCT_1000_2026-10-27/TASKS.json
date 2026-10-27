@@ -4203,8 +4203,8 @@
       "operation": "book_chapter",
       "criterion": "Gerçek kabul",
       "acceptance": "Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
     },
     {
       "id": "P0383",
@@ -4214,8 +4214,8 @@
       "operation": "book_chapter",
       "criterion": "Kaynak değişimi",
       "acceptance": "Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
     },
     {
       "id": "P0384",
@@ -4236,8 +4236,8 @@
       "operation": "book_chapter",
       "criterion": "İptal yarışı",
       "acceptance": "Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
     },
     {
       "id": "P0386",
@@ -4291,8 +4291,8 @@
       "operation": "book_chapter",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
     },
     {
       "id": "P0391",
@@ -11109,6 +11109,17 @@
         "P0779"
       ],
       "next": "Kitap açılış/render tamamlanması ve asistan sonucu; büyük çok-bölüm kaynak ölçümü."
+    },
+    {
+      "report": 644,
+      "code": "8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2",
+      "updated": [
+        "P0382",
+        "P0383",
+        "P0385",
+        "P0390"
+      ],
+      "next": "Çok-bölüm kitap seçme/render kaynak maliyeti ve asistan listen/regenerate kabul kapsamı."
     }
   ]
 }
