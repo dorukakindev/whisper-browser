@@ -1,3 +1,4 @@
+- [Rapor 627](BROWSER_BUG_REPORT_627.md) — Gerçek DeepInfra Flex araç seçimi: 13 koşum, 10/11 senaryo, koleksiyon kartı 3/3 eksik
 - [Rapor 626](BROWSER_BUG_REPORT_626.md) — Bağımsız DeepInfra Flex asistan, güvenli anahtar ve Windows kabulü
 - [Rapor 625](BROWSER_BUG_REPORT_625.md) — Asistan P08: gerçek sonuçla devam, exact iş, tek yanıt, iptal ve native kabul
 - [Rapor 624](BROWSER_BUG_REPORT_624.md) — Asistan P07: kütüphane/keşfet/koleksiyon/yorum, normal ayar ve koşullu undo

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0313.md](docs/devir/2026-10-27-0313.md) — DeepInfra gerçek model komut değerlendirmesi: 10/11 ve koleksiyon kartı kusuru
 Güncel çalışma: [docs/devir/2026-10-27-0303.md](docs/devir/2026-10-27-0303.md) — DeepInfra Flex: bağımsız asistan ve güvenli varsayılan
 Güncel çalışma: [docs/devir/2026-10-27-0233.md](docs/devir/2026-10-27-0233.md) — Asistan P08: gerçek sonuçla devam, tam iş kimliği, iptal ve birleşik Windows kabulü
 Güncel çalışma: [docs/devir/2026-10-27-0155.md](docs/devir/2026-10-27-0155.md) — Asistan P07: kütüphane, koleksiyon, yorum ve normal ayarlar
