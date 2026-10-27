@@ -98,7 +98,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     fs.writeFileSync(srt,'changed after plan');
     const stale = await call('dub:start',{id:'stale-preview',srt});
     assert.equal(stale.ok,false); assert.match(stale.error,/SRT değişti/);
-    fs.writeFileSync(srt,'x'.repeat(2000001));
+    fs.writeFileSync(srt,'x'.repeat(4000001));
     const oversized = await call('dub:start',{id:'oversized',srt});
     assert.equal(oversized.ok,false); assert.match(oversized.error,/SRT çok büyük/);
     fs.writeFileSync(srt,'fixture');
@@ -126,8 +126,17 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:start',{id:'many-book-forced',srt,narration:true,forceGroups:['1','2']})).ok,true,'a whole book chapter can contain more than one group');
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--force-groups')+1],'1;2');
     assert(calls.at(-1).args.includes('--narration'));child.emit('close',1);
-    assert.equal((await call('dub:start',{id:'excessive-book-forced',srt,narration:true,forceGroups:Array.from({length:1001},(_,i)=>String(i))})).ok,false);
-    assert.equal((await call('dub:start',{id:'oversized-book-forced',srt,narration:true,forceGroups:Array.from({length:10},()=>Array(900).fill('1').join(','))})).ok,false,'group arguments must remain bounded on Windows');
+    assert.equal((await call('dub:start',{id:'excessive-book-forced',srt,narration:true,forceGroups:Array.from({length:5001},(_,i)=>String(i))})).ok,false);
+    assert.equal((await call('dub:start',{id:'oversized-book-forced',srt,narration:true,forceGroups:Array.from({length:100},()=>Array(900).fill('1').join(','))})).ok,false,'file-backed group selections must remain bounded');
+    const largeSelection=Array.from({length:4000},(_,i)=>String(i+1));
+    assert.equal((await call('dub:start',{id:'large-book-forced',srt,narration:true,forceGroups:largeSelection})).ok,true);
+    const forceArgs=calls.at(-1).args,forceFile=forceArgs[forceArgs.indexOf('--force-groups-file')+1];
+    assert(forceArgs.includes('--force-groups-file'));assert(!forceArgs.includes('--force-groups'));
+    assert.deepEqual(JSON.parse(fs.readFileSync(forceFile,'utf8')),largeSelection);child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'all-video-forced',srt,forceAll:true})).ok,false);
+    assert.equal((await call('dub:start',{id:'all-mixed-forced',srt,narration:true,forceAll:true,forceGroups:['1']})).ok,false);
+    assert.equal((await call('dub:start',{id:'all-book-forced',srt,narration:true,forceAll:true})).ok,true);
+    assert(calls.at(-1).args.includes('--force-all'));assert(!calls.at(-1).args.includes('--force-groups'));child.emit('close',1);
     assert.equal((await call('dub:start',{id:'bad-range',srt,range:{start:10,end:5}})).ok,false);
     assert.equal((await call('dub:start',{id:'ranged',source:'https://youtube.com/watch?v=abcdefghijk',srt,expression:'warm',followDelivery:true,range:{start:20,end:30}})).ok,true);
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'reference');

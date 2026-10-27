@@ -1,3 +1,4 @@
+- [Rapor643](BROWSER_BUG_REPORT_643.md) — Uzun kitap bölümü, Windows yenileme seçimi ve inceleme sayfalaması
 - [Rapor642](BROWSER_BUG_REPORT_642.md) — Ses motoru kapanış onayı ve GPU sahipliğinin korunması
 - [Rapor641](BROWSER_BUG_REPORT_641.md) — Kısmi Whisper kaynağı ve farklı model/sağlayıcı çevirisinin yeniden kullanımı
 - [Rapor640](BROWSER_BUG_REPORT_640.md) — Asistan Whisper aralığı ve açılmayan ses penceresinde başarı bildirimi

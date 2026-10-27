@@ -14,6 +14,9 @@ const stamp = (seconds) => {
 };
 function chapterSrt(text) {
   const parts = [];
+  // Keep the same short-chapter phrasing. Very long accepted chapters need
+  // slightly fuller sentences to stay inside the shared 5,000-group budget.
+  const sentenceTarget = text.length > 700000 ? 220 : 160;
   let current = "";
   for (const sentence of text
     .replace(/\r/g, "")
@@ -26,13 +29,13 @@ function chapterSrt(text) {
       }
       current += (current ? " " : "") + word;
     }
-    if (current.length >= 160) {
+    if (current.length >= sentenceTarget) {
       parts.push(current);
       current = "";
     }
   }
   if (current) parts.push(current);
-  if (!parts.length || parts.length > 1000)
+  if (!parts.length || parts.length > 5000)
     throw Error("Chapter is empty or too large / Bölüm boş veya çok büyük.");
   let cursor = 0;
   return (

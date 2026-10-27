@@ -8460,8 +8460,8 @@
       "operation": null,
       "criterion": "Büyük kitap",
       "acceptance": "Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor643;898960karakter gerçek plan/storage,3526grup, native101review/25DOM/sonsatır; çok-bölümlü gerçek kaynak ölçümü ve gerçek ses/GPU açık; kod aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0"
     },
     {
       "id": "P0770",
@@ -8570,8 +8570,8 @@
       "operation": null,
       "criterion": "Büyük kitap",
       "acceptance": "Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor643;898960karakter gerçek plan/storage,3526grup, native101review/25DOM/sonsatır; çok-bölümlü gerçek kaynak ölçümü ve gerçek ses/GPU açık; kod aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0"
     },
     {
       "id": "P0780",
@@ -11100,6 +11100,15 @@
         "P0569"
       ],
       "next": "Referans hazırlama/uygulama kaynak değişimi ve ses kalite raporu metin bağı."
+    },
+    {
+      "report": 643,
+      "code": "aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0",
+      "updated": [
+        "P0769",
+        "P0779"
+      ],
+      "next": "Kitap açılış/render tamamlanması ve asistan sonucu; büyük çok-bölüm kaynak ölçümü."
     }
   ]
 }

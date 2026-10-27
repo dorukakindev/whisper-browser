@@ -17,7 +17,7 @@ TIME_RE = re.compile(
     r"(\d+):([0-5]\d):([0-5]\d)[,.](\d{1,3})(?=[ \t\n]|$)", re.MULTILINE)
 
 
-MAX_SOURCE_BYTES = 2_000_000
+MAX_SOURCE_BYTES = 4_000_000
 MAX_GROUPS = 5000
 MUSIC_SYMBOLS = re.compile(r'[♪♫♬♩]+')
 

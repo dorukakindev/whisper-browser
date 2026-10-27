@@ -127,7 +127,7 @@ class DubPlanRegressionTests(unittest.TestCase):
     def test_plan_rejects_oversized_input_before_building_groups(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'large.srt'
-            source.write_bytes(b'x' * 2_000_001)
+            source.write_bytes(b'x' * (dub_plan.MAX_SOURCE_BYTES + 1))
             with patch.object(dub_plan, 'make_groups') as grouping:
                 with self.assertRaises(ValueError):
                     dub_plan.plan(source)

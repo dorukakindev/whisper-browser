@@ -50,7 +50,7 @@ function remember(folder, c, digest) {
   if (!take.id.endsWith(`-${take.audioHash.slice(0, 16)}.wav`))
     throw Error("Voice take changed on disk / Ses denemesi diskte değişti.");
   const data = JSON.stringify(take);
-  if (Buffer.byteLength(data) > 1000000)
+  if (Buffer.byteLength(data) > 6000000)
     throw Error(
       "Voice take metadata too large / Ses denemesi bilgisi fazla büyük.",
     );
@@ -73,7 +73,7 @@ function read(folder, c, id) {
   const target = path.join(folder, id),
     sidecar = target + ".take.json",
     info = fs.lstatSync(sidecar);
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 1000000)
+  if (!info.isFile() || info.isSymbolicLink() || info.size > 6000000)
     throw Error(
       "Voice take metadata unavailable / Ses denemesi bilgisi kullanılamıyor.",
     );
@@ -86,7 +86,7 @@ function read(folder, c, id) {
     !id.startsWith(`${c.id}-${take.textHash.slice(0, 16)}-`) ||
     !id.endsWith(`-${take.audioHash.slice(0, 16)}.wav`) ||
     !Array.isArray(take.groups) ||
-    take.groups.length > 1000
+    take.groups.length > 5000
   )
     throw Error("Voice take metadata invalid / Ses denemesi bilgisi geçersiz.");
   return take;
