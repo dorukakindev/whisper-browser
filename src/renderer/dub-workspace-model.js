@@ -18,7 +18,7 @@
     if (!Array.isArray(value) || value.length > 5000) throw new Error('Invalid dubbing timeline.');
     const keys=new Set();
     return value.map((r,i) => {
-      if (!r || typeof r.key !== 'string' || !r.key.trim() || r.key.length > 200 || !safeText(r.text) || (r.displayText !== undefined && !safeText(r.displayText))
+      if (!r || typeof r.key !== 'string' || !r.key.trim() || r.key.length > 2000 || !safeText(r.text) || (r.displayText !== undefined && !safeText(r.displayText))
           || (r.pronunciationText !== undefined && !safeText(r.pronunciationText))
           || ![r.sourceStart,r.sourceEnd,r.audioStart,r.audioEnd].every(n => finite(n,0,172800))
           || r.sourceEnd <= r.sourceStart || r.audioEnd < r.audioStart
