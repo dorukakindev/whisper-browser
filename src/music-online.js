@@ -18,6 +18,30 @@ function createOnline({userData,fetchImpl=fetch}){
   if(data.error)throw Error(data.error.code===4?'Catalog quota reached; try later / Katalog kotası doldu; sonra dene.':'Music provider returned an error / Müzik sağlayıcısı hata döndürdü.');return data;
  }
  function remember(rows){for(const r of rows)known.set(r.id,r);while(known.size>200)known.delete(known.keys().next().value);return rows;}
+ // Snapshot identities before the asynchronous job starts. URLs are always refreshed
+ // from the provider; neither renderer URLs nor signed URLs are persisted.
+ function snapshot(ids){
+  if(!Array.isArray(ids)||!ids.length||ids.length>8||new Set(ids).size!==ids.length)throw Error('Choose 1–8 current recordings / Güncel 1–8 kayıt seç.');
+  return ids.map(id=>{const row=known.get(id);if(!row)throw Error('Catalog results changed; search again / Katalog sonuçları değişti; yeniden ara.');return {...row};});
+ }
+ async function samples(rows,directory,signal,progress){
+  const tracks=[],failures=[];
+  for(const [index,row] of rows.entries()){
+   signal.throwIfAborted();progress({stage:'preview',completed:index,total:rows.length,title:row.title});
+   try{
+    const data=await request('track/'+row.id,signal),url=safeUrl(data.preview,'preview');
+    if(!url||String(data.id)!==row.id)throw Error('Preview unavailable');
+    const response=await fetchImpl(url,{redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(25000)])});
+    if(!response.ok)throw Error('Preview HTTP '+response.status);
+    let bytes;try{bytes=await readLimitedBytes(response,8_000_000,'Preview / Önizleme');}finally{await response.body?.cancel().catch(()=>{});}
+    signal.throwIfAborted();if(bytes.length<100)throw Error('Empty preview');
+    const file=path.join(directory,row.id+'.mp3');await fs.promises.writeFile(file,bytes,{flag:'wx'});
+    tracks.push({...row,path:file});
+   }catch(error){signal.throwIfAborted();failures.push({id:row.id,reason:'preview-unavailable'});}
+  }
+  if(!tracks.length)throw Error('No previews could be read. Catalog results are unchanged / Önizlemeler okunamadı. Katalog sonuçları değişmedi.');
+  return {tracks,failures};
+ }
  async function handle(input){
   if(!input||typeof input!=='object')throw Error('Invalid music request');
   if(input.op==='cancel'){active?.abort();return {ok:true};}
@@ -56,6 +80,6 @@ function createOnline({userData,fetchImpl=fetch}){
    throw Error('Unknown catalog action');
   }finally{if(active===controller)active=null;}
  }
- return {handle,cancel:()=>active?.abort()};
+ return {handle,snapshot,samples,cancel:()=>active?.abort()};
 }
 module.exports={safeUrl,track,createOnline};
