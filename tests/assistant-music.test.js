@@ -4,6 +4,8 @@ const registry=require('../src/assistant-capabilities');
 test('music tools reject unrelated fields, invented operations and partial ranges',()=>{
  for(const args of [{operation:'find_local',source_id:'x',start:2},{operation:'choose_file',source_id:'x'},{operation:'search_online',query:'x',track_id:'invented'},{operation:'shell'},{operation:'cancel'}])assert.throws(()=>registry.validate('music_action',args,{}));
  assert.equal(registry.validate('music_action',{operation:'find_local',source_id:'x',start:2,end:12},{}).end,12);
+ assert.equal(registry.validate('music_action',{operation:'rank_online',source_id:'x',start:2,end:12},{}).source_id,'x');
+ assert.throws(()=>registry.validate('music_action',{operation:'rank_online',query:'invented'},{}));
 });
 test('music library projection is paged and does not expose paths',async()=>{
  const window={AssistantAppActions:{current:()=>true},api:{mediaShelf:async()=>({ok:true,music:Array.from({length:18},(_,i)=>({id:'id'+i,title:'Song',path:'private',url:'signed'}))})}};

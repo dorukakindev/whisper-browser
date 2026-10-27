@@ -145,8 +145,9 @@ def search(request, directory):
                     return {**data, 'id':row['id'], 'artist':row.get('artist','')}
             except (ValueError, KeyError):
                 pass
-        duration = float(json.loads(subprocess.check_output([request['ffprobe'],'-v','error','-show_entries','format=duration','-of','json',str(file)], timeout=30, creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)))['format']['duration'])
-        start, end = selected or [0, duration]
+        preview_args = ['-f','mp3'] if request.get('preview') and row['id'] != request['reference']['id'] else []
+        duration = float(json.loads(subprocess.check_output([request['ffprobe'],'-v','error','-protocol_whitelist','file,pipe',*preview_args,'-show_entries','format=duration','-of','json',str(file)], timeout=30, creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)))['format']['duration'])
+        start, end = selected or [0, min(duration, 30) if request.get('preview') and row['id'] != request['reference']['id'] else duration]
         if not 0 <= start < end <= duration + .05 or end-start < 1 or end-start > 1800:
             raise ValueError('Track/range must be 1 second–30 minutes')
         content_hash = file_hash(file)
@@ -163,7 +164,7 @@ def search(request, directory):
         for at, length in windows(start, min(end, duration)):
             with tempfile.TemporaryDirectory(prefix='whisper-clap-') as temp:
                 wav = Path(temp) / 'sample.wav'
-                subprocess.run([request['ffmpeg'],'-v','error','-nostdin','-ss',str(at),'-i',str(file),'-t',str(length),'-map','0:a:0','-vn','-ac','1','-ar','48000','-c:a','pcm_s16le',str(wav)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=45,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                subprocess.run([request['ffmpeg'],'-v','error','-nostdin','-ss',str(at),'-protocol_whitelist','file,pipe',*preview_args,'-i',str(file),'-t',str(length),'-map','0:a:0','-vn','-ac','1','-ar','48000','-c:a','pcm_s16le',str(wav)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=45,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
                 with wave.open(str(wav),'rb') as reader:
                     audio = np.frombuffer(reader.readframes(reader.getnframes()),dtype='<i2').astype(np.float32)/32768
                 rms = float(np.sqrt(np.mean(audio**2))) if len(audio) else 0

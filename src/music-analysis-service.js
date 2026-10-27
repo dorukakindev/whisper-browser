@@ -32,14 +32,22 @@ function createService(options) {
   function cancel() { active?.controller.abort(); return { ok: true }; }
   async function start(request) {
     if (active) throw Error('An analysis is running / Bir analiz çalışıyor.');
-    const mode=request.mode||'analyze';if(!['analyze','search','prepare'].includes(mode))throw Error('Unknown music mode');
+    const mode=request.mode||'analyze';if(!['analyze','search','prepare','online'].includes(mode))throw Error('Unknown music mode');
     const source = sources.get(request.sourceId); if (!source&&mode!=='prepare') throw Error('Select the audio again / Sesi yeniden seç.');
+    const onlineRows=mode==='online'?options.online().snapshot(request.trackIds):null;
     const controller = new AbortController(), job = { id: randomUUID(), controller, stage: mode==='analyze'?'probe':mode==='prepare'?'download':'model',mode }; active = job;
     let temp;
     const pending = (async () => {
       try {
         if(mode!=='analyze'){
-          const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress:p=>{job.stage=p.stage;job.completed=p.completed;job.total=p.total;job.title=String(p.title||'').slice(0,150);}});
+          const onProgress=p=>{job.stage=p.stage;job.completed=p.completed;job.total=p.total;job.title=String(p.title||'').slice(0,150);};
+          let candidates;
+          if(onlineRows){
+            if(!require('./music-similarity').modelStatus(options.modelDir()).ready)throw Error('Prepare CLAP first / Önce CLAP hazırla.');
+            temp=await fs.promises.mkdtemp(path.join(os.tmpdir(),'whisper-previews-'));
+            candidates={...await options.online().samples(onlineRows,temp,controller.signal,onProgress),cacheDir:path.join(temp,'vectors'),requested:onlineRows.length};
+          }
+          const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress,candidates});
           if(controller.signal.aborted)throw Error('Cancelled');
           last={id:job.id,state:'completed',mode,result:{...result,sourceId:source?.id}};return;
         }
@@ -94,7 +102,7 @@ function register(options) {
     if (!options.authorized(event)) return {ok:false,error:'Unauthorized'};
     let service = services.get(event.sender.id);
     if (!service) {
-      service = createService(options); services.set(event.sender.id,service);
+      service = createService({...options,online:()=>onlineServices.get(event.sender.id)}); services.set(event.sender.id,service);
       event.sender.once('destroyed',()=>{service.cancel();services.delete(event.sender.id);});
     }
     let online=onlineServices.get(event.sender.id);

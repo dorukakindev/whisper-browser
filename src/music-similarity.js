@@ -23,7 +23,7 @@ async function runtimeStatus(options,runner){
     return {runtimeReady:(major>2||(major===2&&minor>=6))&&tm===4&&tn>=57,versions:value};
   }catch{return {runtimeReady:false};}
 }
-async function execute(options,{mode,source,request,signal,onProgress,runner}){
+async function execute(options,{mode,source,request,signal,onProgress,runner,candidates}){
   if(working)throw Error('Music indexing is already running / Müzik indeksleme zaten çalışıyor.');
   working=true;
   try{
@@ -33,21 +33,23 @@ async function execute(options,{mode,source,request,signal,onProgress,runner}){
     if(mode==='prepare')return JSON.parse(await runner(python,[...args,'--prepare'],null,signal,1800000,progress,{waitForCloseOnCancel:true}));
     if(!modelStatus(options.modelDir()).ready)throw Error('Prepare the CLAP model first / Önce CLAP modelini hazırla.');
     const access=new MediaFileAccess(['mp3','wav','m4a','aac','flac','ogg','opus','wma']);
-    const tracks=loadTracks(options.userData());
+    const tracks=candidates?.tracks||loadTracks(options.userData());
     if(!tracks.length)throw Error('Add tracks to your music library first / Önce müzik kitaplığına parçalar ekle.');
     const valid=[],skipped=[];
     for(const row of tracks){try{valid.push({id:row.id,path:access.inspect(row.path),title:String(row.title||'').slice(0,300),artist:String(row.artist||'').slice(0,200)});}catch{skipped.push(row.id);}}
-    const payload={reference:{id:source.libraryId||'reference',path:source.file,artist:source.artist||''},tracks:valid,range:request.range||null,excludeArtist:request.excludeArtist===true,
-      ffmpeg:options.ffmpeg(),ffprobe:options.ffprobe(),cacheDir:path.join(options.userData(),'music-vectors')};
+    const payload={reference:{id:candidates?'local:'+source.id:source.libraryId||'reference',path:access.inspect(source.file),artist:source.artist||''},tracks:valid,range:request.range||null,excludeArtist:request.excludeArtist===true,
+      ffmpeg:options.ffmpeg(),ffprobe:options.ffprobe(),cacheDir:candidates?.cacheDir||path.join(options.userData(),'music-vectors'),preview:!!candidates};
     if(payload.range&&(!Array.isArray(payload.range)||payload.range.length!==2||!payload.range.every(Number.isFinite)||payload.range[0]<0||payload.range[1]-payload.range[0]<1||payload.range[1]-payload.range[0]>1800))throw Error('Invalid music range / Müzik aralığı geçersiz.');
     const result=JSON.parse(await runner(python,args,JSON.stringify(payload),signal,12*60*60*1000,progress,{waitForCloseOnCancel:true}));
     const rows=new Map(valid.map(row=>[row.id,row]));
     result.results=(result.results||[]).slice(0,20).flatMap(hit=>{
       const row=rows.get(hit.id);
       if(!row||!Number.isFinite(hit.score)||hit.score < -1||hit.score>1)return [];
+      if(candidates){const metadata=candidates.tracks.find(r=>r.id===row.id);return [{...hit,title:row.title,artist:row.artist,url:metadata.url,art:metadata.art,evidence:'preview-clap',provider:'Deezer'}];}
       try{const file=access.inspect(row.path);options.grantMedia(file);return [{...hit,title:row.title,artist:row.artist,url:pathToFileURL(file).href}];}catch{return [];}
     });
-    result.failed=(Number(result.failed)||0)+skipped.length;
+    result.failed=(Number(result.failed)||0)+skipped.length+(candidates?.failures.length||0);
+    if(candidates){result.evidence='preview-clap';result.requested=candidates.requested;result.previewFailures=candidates.failures;}
     return result;
   }finally{working=false;}
 }
