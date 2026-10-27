@@ -19,7 +19,7 @@
   let sleepTimer;
   for (const value of [0, 15, 30, 60]) { const opt = el('option', '', value ? `${value} ${t('min', 'dk')}` : t('Sleep timer off', 'Uyku zamanlayıcısı kapalı')); opt.value = value; sleep.append(opt); }
   sleep.addEventListener('change', () => { clearTimeout(sleepTimer); if (+sleep.value) sleepTimer = setTimeout(() => { audio.pause(); sleep.value = '0'; }, +sleep.value * 60000); });
-  dock.append(btn('‹', () => playQueue(queueIndex - 1)), dockTitle, audio, btn('›', () => playQueue(queueIndex + 1)), speed, sleep, dockStatus, btn('×', async () => { await flushPosition(); audio.pause(); if (hls) { hls.destroy(); hls = null; } audio.removeAttribute('src'); audio.load(); current = null; dock.classList.add('hidden'); document.body.classList.remove('media-shelf-playing'); clearTimeout(sleepTimer); }));
+  dock.append(btn('‹', () => playQueue(queueIndex - 1)), dockTitle, audio, btn('›', () => playQueue(queueIndex + 1)), speed, sleep, dockStatus, btn('×', async () => { ++playGeneration;void api('spotify-cancel');await flushPosition(); audio.pause(); if (hls) { hls.destroy(); hls = null; } audio.removeAttribute('src'); audio.load(); current = null; dock.classList.add('hidden'); document.body.classList.remove('media-shelf-playing'); clearTimeout(sleepTimer); }));
   dock.querySelector('button').setAttribute('aria-label', t('Previous track', 'Önceki parça'));
   dock.querySelectorAll('button')[1].setAttribute('aria-label', t('Next track', 'Sonraki parça'));
   dock.querySelectorAll('button')[2].setAttribute('aria-label', t('Close audio player', 'Ses oynatıcıyı kapat'));
@@ -79,7 +79,7 @@
   }
   let playGeneration = 0, lastSaved = 0;
   async function flushPosition() {
-    if (!current || !Number.isFinite(audio.currentTime)) return;
+    if (!current || current.kind==='spotify' || !Number.isFinite(audio.currentTime)) return;
     const entry = current;
     try { await api('listen-progress', { kind: entry.kind, id: entry.id, url: entry.url, position: audio.currentTime, duration: Number.isFinite(audio.duration) ? audio.duration : 0 }); }
     catch (error) { dockStatus.textContent = error.message; }
@@ -87,11 +87,14 @@
   async function playQueue(index) {
     if (!queue.length) return;
     const mine = ++playGeneration;
+    await api('spotify-cancel');
+    if(mine!==playGeneration)return;
     await flushPosition();
     if (mine !== playGeneration) return;
     queueIndex = (index + queue.length) % queue.length;
     const row = queue[queueIndex]; let source = row.url;
     if (row.kind === 'music') { const result = await api('music-play', { id: row.id }); source = pathToFileUrl(result.path); }
+    if(row.kind==='spotify'){dockStatus.textContent=t('Resolving YouTube audio…','YouTube sesi hazırlanıyor…');const result=await api('spotify-play',{playlistId:row.playlistId,id:row.id});source=result.url;}
     if (mine !== playGeneration) return;
     document.getElementById('playerVideo')?.pause();
     if (window.BrowserDubAudioUI?.pause) window.BrowserDubAudioUI.pause();
@@ -107,7 +110,7 @@
   function listen(rows, index = 0) { queue = rows; return playQueue(index); }
   audio.addEventListener('pause', () => { void flushPosition(); });
   audio.addEventListener('timeupdate', () => { if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); } });
-  audio.addEventListener('ended', () => { void flushPosition().then(() => { if (queueIndex + 1 < queue.length) return playQueue(queueIndex + 1); }); });
+  audio.addEventListener('ended', () => { void flushPosition().then(() => { if (queueIndex + 1 < queue.length) return playQueue(queueIndex + 1); }).catch(error=>{dockStatus.textContent=error.message;}); });
   audio.addEventListener('error', () => { dockStatus.textContent = t('Audio could not be played. Check the file or stream address.', 'Ses oynatılamadı. Dosyayı veya yayın adresini kontrol edin.'); });
   document.addEventListener('play', event => { if (event.target !== audio) audio.pause(); }, true);
   new MutationObserver(() => {
@@ -117,6 +120,7 @@
   function music(root) {
     const controls = el('div', 'mh-filterbar');
     controls.append(btn(t('Add audio', 'Ses ekle'), () => task('music-import')), btn(t('Add folder', 'Klasör ekle'), () => task('music-import', { folder: true })));
+    controls.append(btn(t('Spotify link','Spotify bağlantısı'),()=>window.SpotifyImportUI.open({saved:reload}),'mh-action ms-spotify-open'));
     controls.append(btn(t('Analyze music', 'Müziği analiz et'), () => window.MusicAnalysisUI.open()));
     const cancel = btn(t('Cancel import', 'İçe aktarmayı durdur'), () => api('cancel')); cancel.dataset.cancel = '1'; controls.append(cancel);
     controls.append(btn(t('Save selected as playlist', 'Seçilenlerle çalma listesi oluştur'), async () => {
@@ -152,6 +156,10 @@
       if (!rows.length) list.append(el('p', 'mh-empty', t('Add audio files or a music folder to see albums, artists and playlists.', 'Albüm, sanatçı ve çalma listeleri için ses dosyaları veya müzik klasörü ekle.')));
     };
     artist.addEventListener('change', paint); album.addEventListener('change', paint); paint();
+    if (snapshot.linkedPlaylists?.length) {
+      const section=el('section','mh-section ms-linked-playlists');section.append(el('h2','',t('From Spotify','Spotify’dan aktarılanlar')),el('p','mh-subtitle',t('Reviewed YouTube matches. Spotify audio is not downloaded.','İncelenen YouTube eşleşmeleri. Spotify sesi indirilmez.')));
+      for(const playlist of snapshot.linkedPlaylists){const details=el('details','ms-linked-playlist'),summary=el('summary','',playlist.name+' · '+playlist.tracks.length);details.append(summary);details.append(btn(t('Open on Spotify','Spotify’da aç'),()=>window.api.openExternal(playlist.sourceUrl)));details.append(btn(t('Play playlist','Listeyi oynat'),()=>listen(playlist.tracks.map(row=>({...row,kind:'spotify',playlistId:playlist.id})))));for(const [i,row] of playlist.tracks.entries()){const line=el('div','ms-track');line.append(btn('▶',()=>listen(playlist.tracks.map(r=>({...r,kind:'spotify',playlistId:playlist.id})),i)),el('strong','',row.title),el('small','',row.artist),el('small','',t('YouTube match','YouTube eşleşmesi')));line.querySelector('button').setAttribute('aria-label',t('Play ','Oynat ')+row.title);details.append(line);}details.append(btn(t('Remove playlist','Listeyi kaldır'),async()=>{if(await form(t('Remove playlist?','Liste kaldırılsın mı?'),[],playlist.name,t('Remove','Kaldır')))await task('spotify-remove',{id:playlist.id});},'mh-text-button'));section.append(details);}root.append(section);
+    }
     if (snapshot.playlists.length) {
       const playlists = el('section', 'mh-section'); playlists.append(el('h2', '', t('Playlists', 'Çalma listeleri')));
       snapshot.playlists.forEach(row => { const line = el('div', 'ms-track'); line.append(btn(`${row.name} (${row.tracks.length})`, () => listen(row.tracks.map(id => snapshot.music.find(item => item.id === id)).filter(Boolean).map(row => ({ ...row, kind: 'music' })))), btn(t('Remove', 'Kaldır'), () => forget('playlists', row), 'mh-text-button')); playlists.append(line); }); root.append(playlists);
