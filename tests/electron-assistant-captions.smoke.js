@@ -71,6 +71,13 @@ server.listen(0,'127.0.0.1',()=>{
  win.webContents.send('dub:event',{type:'done',id:voiceStarts[0].id,name:'controlled.wav',qualityUnavailable:true,qualityIncomplete:true,quality:{groups:[]}});
  await until(()=>parent(`return !DubGeneratorUI.assistant.state().busy`),'synthetic dub completion');
  assert(await parent(`return fixtureAttachCount===0&&document.getElementById('dubGeneratorStatus').textContent.includes('quality')`),'Missing quality remains a warning and never auto-attaches');
+ // A long exact group identity must survive the public tool schema as well as the voice UI.
+ const longKey=Array.from({length:100},(_,i)=>i+1).join(',');assert(longKey.length>200);
+ const second=await parent(`return AssistantAppActions.execute('start_voice_generation',{sample:true},AssistantAppActions.snapshot())`);assert.equal(second.status,'accepted');assert.equal(voiceStarts.length,2);
+ win.webContents.send('dub:event',{type:'done',id:voiceStarts[1].id,name:'controlled-sample.wav',sample:true,quality:{version:1,groups:[{key:longKey,group:1,text:'Controlled metadata, not acoustic proof.',status:'review',sourceStart:0,sourceEnd:10,audioStart:0,audioEnd:12,verification:{status:'not_checked'}}]}});
+ await until(()=>parent(`return !DubGeneratorUI.assistant.state().busy`),'long group receipt');
+ const exactGroup=await parent(`return AssistantAppActions.execute('get_voice_status',{group_id:${JSON.stringify(longKey)}},AssistantAppActions.snapshot())`);assert.equal(exactGroup.voice.groups.length,1);assert.equal(exactGroup.voice.groups[0].id,longKey);assert.equal(exactGroup.voice.groups[0].verification,'not_checked');
+ assert(await parent(`const select=document.getElementById('dubQualityGroup');for(let p=select.parentElement;p&&p!==document.getElementById('dubGeneratorDialog');p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;select.scrollIntoView({block:'center',behavior:'instant'});select.focus();const b=select.getBoundingClientRect();return b.width>0&&b.left>=0&&b.right<=innerWidth+1`),'Exact long group stays visible in the narrow voice panel');await wait(100);fs.writeFileSync(path.join(out,'long-group-review-en-light.png'),(await win.webContents.capturePage()).toPNG());
  await parent(`player.browserPageUrl='https://www.youtube.com/watch?v=01234567890';player.mediaKey='browser:replacement';player.generation++;return true`);
  assert((await parent(`return DubGeneratorUI.assistant.state()`)).sourceChanged,'Old voice preparation cannot move to a different video');
 

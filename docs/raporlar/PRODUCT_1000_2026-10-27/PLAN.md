@@ -194,7 +194,7 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0173 | Ses durumunu oku [get_voice_status] | Kaynak revizyonu: Okuma beklerken kaynak/sekme değiştir; eski veriyi yeni kaynağa yazma. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0174 | Ses durumunu oku [get_voice_status] | Sohbet değişimi: Bekleyen sonuç başka sohbete taşınmasın; sahiplik kontrolü sonda da yapılsın. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0175 | Ses durumunu oku [get_voice_status] | İptal/süre sınırı: İptal veya deadline aşımından sonra tamamlandı kartı üretme. | `src/assistant-capabilities.js` | PLANLANDI | — |
-| P0176 | Ses durumunu oku [get_voice_status] | Sınır ve sayfalama: Uzun sonuç kesiliyorsa kapsam/sayfalama açık olsun; sonraki kimlik erişilebilir kalsın. | `src/assistant-capabilities.js` | PLANLANDI | — |
+| P0176 | Ses durumunu oku [get_voice_status] | Sınır ve sayfalama: Uzun sonuç kesiliyorsa kapsam/sayfalama açık olsun; sonraki kimlik erişilebilir kalsın. | `src/assistant-capabilities.js` | DÜZELTİLDİ | 4b425912febc84d5d3807321ee85ae4963a93193: gerçek Python100cue/249karakter planı key291; kalite doğrulama ve exact voice-status2000limit. Mevcut61grup pagination + native exactgetstatus ve not_checked kanıtı. |
 | P0177 | Ses durumunu oku [get_voice_status] | Hata ayrımı: Kontrollü servis hatasını boş başarılı sonuç gibi sunma. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0178 | Ses durumunu oku [get_voice_status] | Unicode ve satırlar: Türkçe harf, birleşen işaret ve satır sonunu kaynak metninde koru. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0179 | Ses durumunu oku [get_voice_status] | Yetki ve veri: Ham dosya yolu, anahtar veya farklı kaynak verisini modele döndürme. | `src/assistant-capabilities.js` | PLANLANDI | — |
@@ -264,11 +264,11 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0243 | Ses grubunu işle [voice_group] | Kaynak değişimi: Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0244 | Ses grubunu işle [voice_group] | Sohbet/deadline: Bekleyen eylem sohbet değişimi veya süresi dolunca yeni bağlama uygulanmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0245 | Ses grubunu işle [voice_group] | İptal yarışı: Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla. | `src/assistant-capabilities.js` | PLANLANDI | — |
-| P0246 | Ses grubunu işle [voice_group] | Kimlik ve değer: Geçersiz kimlik/aralık/enum ile mevcut kullanıcı verisini değiştirme; düzeltilebilir hata göster. | `src/assistant-capabilities.js` | PLANLANDI | — |
+| P0246 | Ses grubunu işle [voice_group] | Kimlik ve değer: Geçersiz kimlik/aralık/enum ile mevcut kullanıcı verisini değiştirme; düzeltilebilir hata göster. | `src/assistant-capabilities.js` | DÜZELTİLDİ | 4b425912febc84d5d3807321ee85ae4963a93193: gerçek üretilmiş uzun kimlik open/listen/regenerate şemasında kabul;2001ret. 200→2000 yalnız grupkimliği alanı, genelmetin sınırı değişmez. |
 | P0247 | Ses grubunu işle [voice_group] | Çift uygulama: Hızlı iki uygulama/tekrar tıklama ikinci eşzamanlı işi veya aynı kalıcı değişikliği üretmesin. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0248 | Ses grubunu işle [voice_group] | Kontrollü ret: Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0249 | Ses grubunu işle [voice_group] | Seçenek aktarımı: Hedef dil/zaman aralığı/normal seçenekler yalnız seçili işlemin payloadunda doğru kalsın. | `src/assistant-capabilities.js` | PLANLANDI | — |
-| P0250 | Ses grubunu işle [voice_group] | Sonuç ve erişim: Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
+| P0250 | Ses grubunu işle [voice_group] | Sonuç ve erişim: Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın. | `src/assistant-capabilities.js` | İLERLEDİ | Native720×680/ENlight: uzun gruplu kontrollü çıktı exactkimlikle okunur; görünür kalite seçicisi ve dinleme düğmesi PNGde incelendi. Gerçek group listen/regenerate akustik sonucu bu pakette yok. |
 | P0251 | Üretilen sesi kullan [use_generated_voice] | Öneri sınırı: Araç önerisi tek başına işi/ücreti/kalıcı değişikliği başlatmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0252 | Üretilen sesi kullan [use_generated_voice] | Gerçek kabul: Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0253 | Üretilen sesi kullan [use_generated_voice] | Kaynak değişimi: Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma. | `src/assistant-capabilities.js` | PLANLANDI | — |
@@ -1021,3 +1021,5 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P1000 | Sayfa çevirisi DOM kaynak bağı | Unicode ve format: BOM/cp1254/UTF16/Türkçe birleşen karakterlerde içerik ve cue zamanları korunsun. | `src/browser-page-translate.js` | PLANLANDI | — |
 
 İlk kontrol noktası636: 16 hedefe kapsamı sınırlı kanıt eklendi; 984 hedef hâlâ PLANLANDI. Bu sayılar bug sayısı değildir. İki ilişkili kitap kalite/regenerasyon kökü düzeltildi. Çalışma devam ediyor.
+
+Kontrol noktası637: iki ek kabul maddesi düzeltildi, bir erişim maddesi kısmen ilerledi; diğerleri bu paketle bitti sayılmadı. Uzun kimlikler için kalite ve asistan sınırı mevcut üretim kapısıyla2000de uyumlu; geneltool string sınırı200de kalır.
