@@ -15,3 +15,8 @@ test('music library projection is paged and does not expose paths',async()=>{
  const result=await window.AssistantMusicActions.execute('list_music_library',{},{});assert.equal(result.items.length,16);assert.equal(result.nextOffset,16);assert(!JSON.stringify(result).includes('private'));assert(!JSON.stringify(result).includes('signed'));
  window.AssistantAppActions.current=()=>false;await assert.rejects(()=>window.AssistantMusicActions.execute('list_music_library',{},{}),/changed/);
 });
+
+test('music transport actions are typed and carry current player context without opening analysis',async()=>{
+ assert.throws(()=>registry.validate('music_action',{operation:'set_queue_shuffle'},{}));assert.throws(()=>registry.validate('music_action',{operation:'set_queue_repeat',repeat_mode:'forever'},{}));assert.throws(()=>registry.validate('music_action',{operation:'queue_next',source_id:'invented'},{}));assert.equal(registry.validate('music_action',{operation:'set_queue_shuffle',selected:false},{}).selected,false);
+ let seen;const window={AssistantAppActions:{current:()=>true},MusicAnalysisUI:{read:async()=>({open:false})},MediaShelfUI:{musicContext:()=>({queueCount:2,repeat:'all'}),executeMusic:async a=>{seen=a;return {queueCount:2};}}};vm.runInNewContext(fs.readFileSync(require.resolve('../src/renderer/assistant-music-actions'),'utf8'),{window});const context=await window.AssistantMusicActions.execute('get_music_context',{},{});assert.equal(context.open,false);assert.equal(context.player.queueCount,2);const result=await window.AssistantMusicActions.execute('music_action',{operation:'queue_next'},{});assert.equal(seen.operation,'queue_next');assert.equal(result.player.queueCount,2);
+});

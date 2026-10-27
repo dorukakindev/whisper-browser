@@ -1,0 +1,23 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {create}=require('../src/renderer/music-queue');
+test('shuffle retains exact duplicate entry and restore never resurrects removed queue entries',()=>{
+ const q=create(()=>0);q.set([{id:'same',title:'First'},{id:'other'},{id:'same',title:'Second'}],2);const key=q.current().queueKey;q.shuffle(true);assert.equal(q.current().queueKey,key);assert.equal(q.snapshot().index,0);q.shuffle(false);assert.equal(q.snapshot().index,2);assert.equal(q.current().title,'Second');
+ q.shuffle(true);const removed=q.snapshot().rows[1].queueKey;assert(q.edit(removed,'remove'));q.shuffle(false);assert(!q.snapshot().rows.some(r=>r.queueKey===removed));assert.equal(q.current().queueKey,key);assert.equal(q.edit(key,'remove'),false);
+});
+test('repeat semantics, next insertion and manual reordering preserve the playing entry',()=>{
+ const q=create(()=>.5);q.set([{id:'a'},{id:'b'},{id:'c'}],1);const key=q.current().queueKey;q.append([{id:'next'}],true);assert.equal(q.snapshot().rows[2].id,'next');assert.equal(q.current().queueKey,key);assert(q.edit(key,'down'));assert.equal(q.current().queueKey,key);q.setRepeat('one');assert.equal(q.next(true).queueKey,key);q.setRepeat('all');q.jump(3);assert.equal(q.next(true).id,'a');q.setRepeat('off');q.jump(3);assert.equal(q.next(true),null);q.clearUpcoming();assert.equal(q.snapshot().rows.length,4);q.jump(0);q.clearUpcoming();assert.equal(q.snapshot().rows.length,1);assert.equal(q.next(false).id,'a');assert.throws(()=>q.setRepeat('invented'));
+});
+test('library likes and play history validate exact identity and keep unrelated shelf data',async()=>{
+ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{registerMediaShelf}=require('../src/media-shelf-service');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'music-liked-'));let handler;
+ try{const file=path.join(dir,'media-shelf.json');const data={version:1,music:[{id:'m',title:'Keep'}],playlists:[],books:[],stations:[],podcasts:[],diary:[],linkedPlaylists:[{id:'p',tracks:[{id:'s',title:'Spotify'}]}],personal:true};fs.writeFileSync(file,JSON.stringify(data));registerMediaShelf({ipcMain:{handle:(n,fn)=>handler=fn},authorized:()=>true,userData:()=>dir});const call=x=>handler({},x);
+  const before=fs.readFileSync(file,'utf8');assert.equal((await call({action:'music-favorite',kind:'music',id:'missing',favorite:true})).ok,false);assert.equal((await call({action:'music-favorite',kind:'music',id:'m',favorite:'yes'})).ok,false);assert.equal(fs.readFileSync(file,'utf8'),before);
+  assert((await call({action:'music-favorite',kind:'music',id:'m',favorite:true})).favorite);assert.equal((await call({action:'music-played',kind:'music',id:'m'})).playCount,1);assert.equal((await call({action:'music-played',kind:'music',id:'m'})).playCount,2);assert((await call({action:'music-favorite',kind:'spotify',playlistId:'p',id:'s',favorite:true})).favorite);assert(JSON.parse(fs.readFileSync(file,'utf8')).personal);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('known music artwork and playlist renaming never accept arbitrary paths or identities',async()=>{
+ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{registerMediaShelf}=require('../src/media-shelf-service');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'music-cover-'));let handler,reads=0;
+ try{const file=path.join(dir,'media-shelf.json'),audio=path.join(dir,'song.wav');fs.writeFileSync(audio,'audio');fs.writeFileSync(path.join(dir,'cover.jpg'),'cover');fs.writeFileSync(file,JSON.stringify({version:1,music:[{id:'m',path:audio}],playlists:[{id:'p',name:'Old',tracks:['m']}],books:[],stations:[],podcasts:[],diary:[]}));registerMediaShelf({ipcMain:{handle:(n,fn)=>handler=fn},authorized:()=>true,userData:()=>dir,inspectMedia:f=>fs.realpathSync(f),nativeImage:{createFromPath:f=>{assert.equal(f,fs.realpathSync(path.join(dir,'cover.jpg')));reads++;return {isEmpty:()=>false,resize:()=>({toDataURL:()=> 'data:image/png;base64,ok'})};}}});const call=x=>handler({},x);assert.equal((await call({action:'music-cover',id:'invented',path:'private'})).ok,false);assert.equal(reads,0);assert((await call({action:'music-cover',id:'m'})).cover.startsWith('data:'));assert.equal(reads,1);const before=fs.readFileSync(file,'utf8');assert.equal((await call({action:'playlist-rename',id:'p',kind:'local',name:''})).ok,false);assert.equal(fs.readFileSync(file,'utf8'),before);assert((await call({action:'playlist-rename',id:'p',kind:'local',name:'Yeni ad'})).ok);assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).playlists[0].name,'Yeni ad');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
