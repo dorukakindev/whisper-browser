@@ -80,6 +80,9 @@ function createOnline({userData,fetchImpl=fetch}){
    throw Error('Unknown catalog action');
   }finally{if(active===controller)active=null;}
  }
- return {handle,snapshot,samples,cancel:()=>active?.abort()};
+ function restoreRows(rows){
+  return remember((Array.isArray(rows)?rows:[]).slice(0,20).filter(r=>r&&typeof r.id==='string'&&/^\d+$/.test(r.id)&&Number.isSafeInteger(r.artistId)&&r.artistId>0).map(r=>({id:r.id,title:String(r.title||'').slice(0,300),artist:String(r.artist||'').slice(0,200),artistId:r.artistId,url:'https://www.deezer.com/track/'+r.id,art:safeUrl(r.art,'art'),evidence:'catalog',provider:'Deezer'})));
+ }
+ return {handle,snapshot,samples,restoreRows,cancel:()=>active?.abort()};
 }
 module.exports={safeUrl,track,createOnline};

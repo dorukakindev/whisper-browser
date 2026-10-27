@@ -22,6 +22,49 @@ function createService(options) {
   const access = new MediaFileAccess(EXTENSIONS), sources = new Map();
   let active = null, last = null;
   const runner = options.run || run;
+  const snapshots=require('./music-workspace-store').create(options.userData,require('./music-similarity').REVISION);
+  async function fingerprint(source,signal){
+    const file=access.authorize(source.file),before=await fs.promises.stat(file);
+    if(before.size>1024*1024*1024)throw Error('Audio exceeds 1 GB / Ses dosyası 1 GB sınırını aşıyor.');
+    if(source.fingerprint&&source.fingerprint.size===before.size&&source.fingerprint.mtimeMs===before.mtimeMs)return source.fingerprint;
+    const hash=await digest(file,signal),after=await fs.promises.stat(file);
+    if(after.size!==before.size||after.mtimeMs!==before.mtimeMs)throw Error('Audio changed; select again / Ses değişti; yeniden seç.');
+    return source.fingerprint={hash,size:after.size,mtimeMs:after.mtimeMs};
+  }
+  async function restore(id){
+    const source=sources.get(id);if(!source)throw Error('Select the source again');
+    const key=(await fingerprint(source)).hash,row=snapshots.read(key);if(!row)return null;
+    const modes={};
+    for(const mode of ['analyze','tags','search','online']){
+      const entry=row.modes[mode];if(!entry?.result||typeof entry.result!=='object')continue;
+      const result={...entry.result,sourceId:source.id,restored:true};
+      if(mode==='analyze'&&(!Array.isArray(result.points)||!Array.isArray(result.waveform)||!Number.isFinite(result.range?.start)||!Number.isFinite(result.range?.end)||result.range.end<=result.range.start))continue;
+      if(mode==='tags'&&(!Array.isArray(result.groups)||!Array.isArray(result.segments)||!result.groups.every(g=>typeof g?.id==='string'&&Array.isArray(g.labels)&&g.labels.every(l=>typeof l?.id==='string'&&Number.isFinite(l.mean)&&Array.isArray(l.segments)&&l.segments.every(Number.isFinite)))))continue;
+      if(['search','online'].includes(mode)){
+        if(!Array.isArray(result.results))continue;
+        const catalog=mode==='online'?options.online?.()?.restoreRows?.(entry.catalog||[])||[]:[];
+        let tracks=catalog;if(mode==='search')try{tracks=require('./music-similarity').loadTracks(options.userData());}catch{tracks=[];}
+        const byId=new Map(tracks.map(r=>[r.id,r]));
+        result.results=result.results.flatMap(hit=>{
+          if(!hit||typeof hit.id!=='string'||!Number.isFinite(hit.score)||!Array.isArray(hit.matchedRange)||!Array.isArray(hit.referenceRange))return [];
+          const current=byId.get(hit.id);if(!current)return [];
+          let url=current.url;
+          if(mode==='search')try{const file=access.grant(current.path);if(!file)return [];options.grantMedia(file);url=pathToFileURL(file).href;}catch{return [];}
+          return [{...hit,title:current.title,artist:current.artist,url,art:current.art,referenceUrl:entry.multiReference?'':pathToFileURL(source.file).href,referenceUnavailable:entry.multiReference}];
+        });
+      }
+      modes[mode]={...entry,result};
+    }
+    if(modes.analyze)last={id:randomUUID(),state:'completed',mode:'analyze',result:modes.analyze.result};
+    return Object.keys(modes).length?{savedAt:row.savedAt,modes}:null;
+  }
+  async function saveResult(source,mode,result,request,references,onlineRows){
+    const stat=await fs.promises.stat(source.file),fp=source.fingerprint;
+    if(!fp||stat.size!==fp.size||stat.mtimeMs!==fp.mtimeMs)throw Error('Audio changed; analyze again / Ses değişti; yeniden analiz et.');
+    try{
+      snapshots.save(fp.hash,mode,result,{multiReference:!!references&&(references.length>1||references.some(r=>r.file!==source.file)),catalog:onlineRows||[],request:{start:request.start,end:request.end,range:request.range,intent:request.intent,intentWeight:request.intentWeight,diverse:request.diverse}});
+    }catch{result.saveWarning=true;}
+  }
   function remember(file, metadata={}) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
     const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null };
@@ -42,6 +85,7 @@ function createService(options) {
     let temp;
     const pending = (async () => {
       try {
+        if(source){job.stage='fingerprint';await fingerprint(source,controller.signal);}
         if(mode!=='analyze'){
           const onProgress=p=>{job.stage=p.stage;job.completed=p.completed;job.total=p.total;job.title=String(p.title||'').slice(0,150);};
           let candidates;
@@ -52,6 +96,7 @@ function createService(options) {
           }
           const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress,candidates,references});
           if(controller.signal.aborted)throw Error('Cancelled');
+          if(source)await saveResult(source,mode,result,request,references,onlineRows);
           last={id:job.id,state:'completed',mode,result:{...result,sourceId:source?.id}};return;
         }
         const file = access.authorize(source.file), before = await fs.promises.stat(file);
@@ -60,7 +105,7 @@ function createService(options) {
         const duration = Number(metadata.format?.duration);
         const range = selection(request, duration);
         job.stage = 'fingerprint';
-        const contentHash = await digest(file, controller.signal);
+        const contentHash = source.fingerprint.hash;
         const key = createHash('sha256').update(JSON.stringify(['music-dsp-1',contentHash,range])).digest('hex');
         const cacheDir = path.join(options.userData(), 'music-analysis');
         const cachedFile = path.join(cacheDir, key + '.json');
@@ -86,7 +131,9 @@ function createService(options) {
           const dated = await Promise.all(entries.map(async name=>({name,time:(await fs.promises.stat(path.join(cacheDir,name))).mtimeMs})));
           for (const item of dated.sort((a,b)=>b.time-a.time).slice(24)) await fs.promises.unlink(path.join(cacheDir,item.name));
         }
-        last = { id:job.id,state:'completed',result:{...result,range,sourceId:source.id,title:source.title,sourceDuration:duration,cached} };
+        const completed={...result,range,sourceId:source.id,title:source.title,sourceDuration:duration,cached};
+        await saveResult(source,mode,completed,request);
+        last = { id:job.id,state:'completed',mode,result:completed };
       } catch (error) {
         last = { id:job.id,state:controller.signal.aborted?'cancelled':'failed', error: controller.signal.aborted ? 'Cancelled / İptal edildi.' : error.message };
       } finally {
@@ -97,7 +144,7 @@ function createService(options) {
     job.pending = pending;
     return { ok:true,id:job.id };
   }
-  return {remember,status,cancel,start,close:async()=>{cancel();await active?.pending;}};
+  return {remember,restore,status,cancel,start,close:async()=>{cancel();await active?.pending;}};
 }
 function register(options) {
   const services = new Map(), onlineServices = new Map(),remoteServices=new Map();
@@ -113,8 +160,9 @@ function register(options) {
     let online=onlineServices.get(event.sender.id);
     if(!online){online=require('./music-online').createOnline(options);onlineServices.set(event.sender.id,online);event.sender.once('destroyed',()=>{online.cancel();onlineServices.delete(event.sender.id);});}
     let remote=remoteServices.get(event.sender.id);if(!remote){remote=require('./music-remote-source').create(options);remoteServices.set(event.sender.id,remote);event.sender.once('destroyed',()=>{remote.cancel();void service.close().then(()=>remote.release()).catch(()=>{});remoteServices.delete(event.sender.id);});}
+    async function selected(file,metadata){const source=service.remember(file,metadata);return {ok:true,source,workspace:await service.restore(source.id)};}
     try {
-      if(request.action==='remote-source'){if(service.status().state==='running')throw Error('Wait for the current analysis');const result=await remote.prepare(request,online);options.grantMedia(result.file);return {ok:true,source:service.remember(result.file,result.metadata)};}
+      if(request.action==='remote-source'){if(service.status().state==='running')throw Error('Wait for the current analysis');const result=await remote.prepare(request,online);options.grantMedia(result.file);return await selected(result.file,result.metadata);}
       if(request.action==='release-remote'){remote.cancel();await service.close();await remote.release();return {ok:true};}
       if(request.action==='listening-history')return {ok:true,trials:listening.read()};
       if(request.action==='listening-save')return {ok:true,trial:listening.save(service.status(),request)};
@@ -132,7 +180,7 @@ function register(options) {
         const chosen = await options.dialog.showOpenDialog(options.owner(),{properties:['openFile'],filters:[{name:'Audio',extensions:EXTENSIONS}]});
         if (chosen.canceled || !chosen.filePaths?.[0]) return {ok:true,canceled:true};
         options.grantMedia(chosen.filePaths[0]);
-        return {ok:true,source:service.remember(chosen.filePaths[0])};
+        return await selected(chosen.filePaths[0]);
       }
       if (request.action === 'library') {
         const file = path.join(options.userData(),'media-shelf.json');
@@ -140,7 +188,7 @@ function register(options) {
         const row = JSON.parse(await fs.promises.readFile(file,'utf8')).music?.find(row=>row.id===request.id);
         if (!row) throw Error('Track missing / Parça bulunamadı.');
         options.grantMedia(row.path);
-        return {ok:true,source:service.remember(row.path,row)};
+        return await selected(row.path,row);
       }
       if (request.action === 'model') {const engine=require('./music-similarity');return {ok:true,...engine.modelStatus(options.modelDir()),...await engine.runtimeStatus(options,options.run||run)};}
       if (request.action === 'start') return await service.start(request);
