@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0127.md](docs/devir/2026-10-28-0127.md) — Spotify ve internet analiz kaynakları
 Güncel çalışma: [docs/devir/2026-10-28-0111.md](docs/devir/2026-10-28-0111.md) — Luna müzik akışları ve kozmetik
 Güncel çalışma: [docs/devir/2026-10-28-0051.md](docs/devir/2026-10-28-0051.md) — Spotify müzik aktarımı
 Güncel çalışma: [docs/devir/2026-10-28-0024.md](docs/devir/2026-10-28-0024.md) — Kör müzik dinleme ve gerçek kalite ölçümü

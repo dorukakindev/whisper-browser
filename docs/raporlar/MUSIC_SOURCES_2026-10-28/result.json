@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "liveSpotifyReviewedYouTubeSource": true,
+  "spotifyDspSeconds": 90,
+  "sourcePickerPlaylist": true,
+  "advancedCollapsed": true,
+  "liveCatalogPreviewReference": true,
+  "previewDspSeconds": 29.988583,
+  "waveforms": true,
+  "realRemoteClapTags": true,
+  "narrow": true,
+  "temporaryCleanup": true
+}
