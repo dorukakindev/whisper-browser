@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "liveProvider": "Deezer",
+  "identities": 12,
+  "radioResults": 12,
+  "previewPlayed": true,
+  "abPlayback": true,
+  "ordinaryPlaybackAfterAB": true,
+  "cancellationCleanup": true,
+  "assistantEvidence": true,
+  "savedPublicMetadataOnly": true,
+  "narrowNoOverflow": true,
+  "acousticComparison": true,
+  "intent": "Calm gentle relaxing music",
+  "intentWeight": 0.35,
+  "multipleReferences": 2,
+  "onlineFeedbackAndRestore": true,
+  "mixChangeClearsPreviewScores": true,
+  "ranked": [
+    {
+      "id": "15613154",
+      "score": 0.53488,
+      "matchedRange": [
+        0,
+        10
+      ],
+      "audioScore": 0.66378,
+      "intentScore": 0.29548
+    },
+    {
+      "id": "9956063",
+      "score": 0.47327,
+      "matchedRange": [
+        19.989,
+        29.989
+      ],
+      "audioScore": 0.58295,
+      "intentScore": 0.26959
+    },
+    {
+      "id": "4337464042",
+      "score": 0.44344,
+      "matchedRange": [
+        19.989,
+        29.989
+      ],
+      "audioScore": 0.52962,
+      "intentScore": 0.28339
+    },
+    {
+      "id": "7677778",
+      "score": 0.3817,
+      "matchedRange": [
+        19.989,
+        29.989
+      ],
+      "audioScore": 0.48604,
+      "intentScore": 0.18792
+    },
+    {
+      "id": "4125592",
+      "score": 0.36686,
+      "matchedRange": [
+        9.994,
+        19.994
+      ],
+      "audioScore": 0.4624,
+      "intentScore": 0.18942
+    },
+    {
+      "id": "15613153",
+      "score": 0.36441,
+      "matchedRange": [
+        19.989,
+        29.989
+      ],
+      "audioScore": 0.45666,
+      "intentScore": 0.19309
+    },
+    {
+      "id": "15613151",
+      "score": 0.35926,
+      "matchedRange": [
+        19.989,
+        29.989
+      ],
+      "audioScore": 0.44907,
+      "intentScore": 0.19248
+    },
+    {
+      "id": "70633069",
+      "score": 0.35379,
+      "matchedRange": [
+        0,
+        10
+      ],
+      "audioScore": 0.45954,
+      "intentScore": 0.1574
+    }
+  ],
+  "requested": 8,
+  "indexed": 8,
+  "failed": 0
+}

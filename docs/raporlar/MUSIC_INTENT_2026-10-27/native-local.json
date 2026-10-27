@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "realClapIntent": true,
+  "query": "The sound of a trumpet in a music recording.",
+  "weight": 0.6,
+  "rows": [
+    {
+      "id": "trumpet",
+      "score": 0.51986,
+      "audioScore": 0.32726,
+      "intentScore": 0.64826
+    },
+    {
+      "id": "quiet",
+      "score": 0.46282,
+      "audioScore": 0.98517,
+      "intentScore": 0.11459
+    }
+  ],
+  "noAutomaticPlaylistWrite": true,
+  "reviewedOrderPreserved": true,
+  "explicitPlaylistCreated": true,
+  "wideNarrow": true
+}
