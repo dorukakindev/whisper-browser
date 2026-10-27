@@ -5,6 +5,8 @@
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
+  const translationConfig=args.translation_profile?await window.AssistantTranslationActions.resolve(args.translation_profile):null;
+  if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   let track=player.browserTracks.find(row=>row.id===args.track_id&&row.role==='source');
   if(args.caption_id){
    const match=/^yt-(manual|auto):([a-zA-Z0-9][a-zA-Z0-9_-]{0,40})$/.exec(args.caption_id);if(!match)throw Error('Invalid caption ID.');
@@ -20,7 +22,7 @@
   if(range){const checked=validateBrowserWhisperRange(true,String(range.start),String(range.end),Number(player.browserDuration));if(checked.error)throw Error(checked.error);}
   const loaded=await useBrowserTrack(false,track.id,{isCancelled:stale});
   if(stale()||!loaded?.ok||player.subPath!==track.path)throw Error(t('Source captions could not be attached to this video.','Kaynak altyazı bu videoya bağlanamadı.'));
-  const result=await startPlayerSubtitleTranslation({targetLanguage:args.target_language,sourceLanguage:browserTrackSourceLanguage(track),forSpeech:args.forSpeech,range,isCancelled:stale});
+  const result=await startPlayerSubtitleTranslation({translationConfig,targetLanguage:args.target_language,sourceLanguage:browserTrackSourceLanguage(track),forSpeech:args.forSpeech,range,isCancelled:stale});
   if(!result?.ok)throw Error(result?.error||t('Translation did not start.','Çeviri başlamadı.'));
   return {status:'accepted',jobId:result.jobId,note:t('Caption translation started without re-transcribing the audio. Follow it in Jobs.','Ses yeniden yazıya dökülmeden altyazı çevirisi başladı. İşler bölümünden izleyebilirsin.')};
  }

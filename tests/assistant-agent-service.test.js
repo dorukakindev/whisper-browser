@@ -189,3 +189,7 @@ test('Workflow cards show exact changes and refuse a changed settings snapshot b
  }finally{h.app.emit('will-quit');}
  }
 });
+
+test('translation cards bind the exact configured model and reject a changed profile before dispatch',async()=>{
+ for(const drift of [false,true]){let turn=0,model='deepseek-ai/DeepSeek-V4.1-Flash-1017',applied=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'transcribe',function:{name:'start_whisper',arguments:JSON.stringify({translate:true,translation_profile:'assistant',target_language:'tr'})}}]}):reply({role:'assistant',content:'Card ready.'}));const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{if(value.name==='get_translation_profile')h.call('agentResult',{callId:value.callId,result:{status:'completed',profile:{id:'assistant',model,provider:'api.deepinfra.com'}}});else{applied++;h.call('agentResult',{callId:value.callId,result:{status:'accepted',jobId:'synthetic'}});}});};try{assert((await h.call('agentRun',{requestId:'profile',question:'Whisper then translate with DeepSeek',owner:h.owner})).ok);const card=h.events.find(e=>e.value.type==='proposal').value.action;assert.match(card.summary,/DeepSeek/);if(drift)model='changed';const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,!drift);assert.equal(applied,drift?0:1);}finally{h.app.emit('will-quit');}}
+});

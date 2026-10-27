@@ -78,6 +78,7 @@
  async function handle(question){
   const intent=window.AssistantVideoIntent?.match(question);
   if(!intent)return false;
+  if(/deepseek|shuai|deepinfra|\bsol\b|gpt|gemini|claude|sağlayıcı|provider/i.test(question))return false;
   if(intent.kind==='translate-track'){
    const target=effectiveBrowserProfile().values.targetLanguage||'tr';
    if(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==target||!player.browserTracks.some(row=>row.role==='source'&&row.path))return false;

@@ -31,3 +31,8 @@ test('Normal translation registration preserves frozen job settings for later re
  h.ctx.registerCompletedBrowserOutputs({items:[{role:'translation',path:'translated.srt',language:'tr',status:'complete'}]}, {workspaceMode:'browser',browserTabId:'a',mediaKey:'fixture',translateForSpeech:false,translateModel:'frozen-model',translateBaseUrl:'https://frozen.example/v1'});
  assert.equal(h.ctx.player.browserTracks[0].model,'frozen-model');assert.equal(h.ctx.player.browserTracks[0].provider,'https://frozen.example/v1');
 });
+
+test('per-job provider selection cannot reuse an earlier translation by another model',async()=>{
+ const h=fixture([{id:'t',path:'sol.srt',role:'translation',generatedBy:'whisper',language:'tr',status:'complete',model:'new-model',provider:'https://new.example/v1/'},{id:'s',path:'source.srt',role:'source',generatedBy:'whisper',status:'complete'}]);
+ const config={endpoint:'https://api.deepinfra.com/v1/openai',model:'deepseek-ai/DeepSeek-V4.1-Flash-1017',apiKey:'fixture-key'};const result=await h.ctx.startBrowserYoutubeWhisper(true,{translationConfig:config});assert.equal(result.reused,undefined);assert.equal(h.calls[0].kind,'translation');assert.equal(h.calls[0].config.translationConfig,config);
+});
