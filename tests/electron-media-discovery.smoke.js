@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   await until(() => assist('return !!document.querySelector(".sources button")'), 'verified source actions mirrored');
   await assist('document.querySelector(".sources button").click();return true');
   await until(() => run('return window.testAssistantCitation===true'), 'citation routed through original guarded controller');
-  await until(() => assist('return document.querySelectorAll("#suggestions button").length===3'), 'context actions');
+  await until(() => assist("const labels=[...document.querySelectorAll('#suggestions button')].map(n=>n.textContent);return labels.includes('Kaynağı özetle')&&labels.includes('Kütüphanede bul')&&labels.includes('Zevk kanıtlarımı göster')"), 'context actions');
   const questionBeforeReview = await run('return window.testAssistantChat.question');
   await assist('document.querySelector("#suggestions button").click();return true');
   // Summary/explain are explicit direct actions; destructive/voice actions retain review.

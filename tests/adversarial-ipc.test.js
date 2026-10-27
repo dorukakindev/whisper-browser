@@ -296,6 +296,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       // GERCEK mandali enjekte eder, sahte bir cift degil -- yoksa "tek is =
       // tek terminal" garantisi burada sinanmamis olur.
       createProcessTerminalLatch,
+      assistantJobs: require('../src/assistant-jobs').createJobs(),
+      linkAssistantJob() {},
       // transcribe:start artik is basina sahipli bir gecici klasor aciyor;
       // harness GERCEK randomUUID'yi verir.
       randomUUID: require('crypto').randomUUID,
@@ -374,7 +376,9 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       sendEvent: () => {}, writeJobLog: () => {}, startJobLog: () => {},
       endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
-      createProcessTerminalLatch, randomUUID: require('crypto').randomUUID,
+      createProcessTerminalLatch,
+      assistantJobs: require('../src/assistant-jobs').createJobs(),
+      linkAssistantJob() {}, randomUUID: require('crypto').randomUUID,
       // Madde 35 kaynak örnekleyici arayüzü (setStage/stop).
       startJobResourceSampler: () => ({ setStage() {}, stop() {} }),
       createIdempotentCancel, recoverOutputTransactions, pushBoundOption,

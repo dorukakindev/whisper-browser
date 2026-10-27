@@ -13,6 +13,9 @@ async function main() {
   const stored = [], archived = [];
   const context = {
     ...scheduler, ...terminology, createHash, Map,
+    assistantJobs: require('../src/assistant-jobs').createJobs(),
+    linkAssistantJob() {},
+    updateAssistantCaptionJob() {},
     browserTranslationConfig: () => ({ targetLanguage: 'tr', model: 'fixture', workers: 1,
       glossary: [], register: 'natural', profanity: 'preserve', terminologyEnabled: false, endpoint: 'http://localhost/fixture' }),
     browserTranslationConfigProblem: () => '',
@@ -24,7 +27,9 @@ async function main() {
     persistBrowserTrack: (_tab, track, cues, options) => { stored.push({ track, cues, options }); return { ...track, persisted: true }; },
     browserTranslationArchive: () => ({ saveSubtitle: record => { archived.push(record); return { ok: true, path: 'fixture.srt' }; } }),
   };
-  vm.createContext(context); vm.runInContext(source, context);
+  vm.createContext(context);
+  vm.runInContext(code.slice(code.indexOf('function observeAssistantCaptionJob('),code.indexOf('function sendEvent(')),context);
+  vm.runInContext(source, context);
   const tab = { id: 'one', generation: 1, position: 0 };
   const before = [{ id: 'a', start: 0, end: 2, text: 'Wait.' }];
   assert(context.startBrowserTranslation(tab, before, { trackId: 'source' }).ok);

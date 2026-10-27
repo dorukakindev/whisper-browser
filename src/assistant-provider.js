@@ -5,7 +5,7 @@ const manifest=require('./assistant-context-manifest');
 function endpoint(raw){
  const url=new URL(raw),local=['localhost','127.0.0.1','[::1]'].includes(url.hostname);
  if(url.username||url.password||!(url.protocol==='https:'||local&&url.protocol==='http:'))throw Error('Unsafe assistant endpoint / Güvenli olmayan asistan adresi.');
- url.pathname=/\/chat\/completions\/?$/i.test(url.pathname)?url.pathname:url.pathname.replace(/\/$/,'')+'/chat/completions';url.search='';url.hash='';return url.href;
+ url.pathname=/\/chat\/completions\/?$/i.test(url.pathname)?url.pathname.replace(/\/$/,''):url.pathname.replace(/\/$/,'')+'/chat/completions';url.search='';url.hash='';return url.href;
 }
 function part(previous,value){const next=typeof value==='string'?value:'';return !next||next===previous?previous:next.startsWith(previous)?next:previous+next;}
 async function boundedText(response,max=2*1024*1024){

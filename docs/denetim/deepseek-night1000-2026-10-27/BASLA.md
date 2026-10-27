@@ -1,0 +1,13 @@
+# 1000 senaryoluk yerel gece denetimi — BAŞLA
+
+GLOBAL-KURALLAR.md'yi oku. Kaynak D:\Whisper Local; ürün kodunu ve mevcut testleri değiştirme. Kullanıcının kişisel uygulamasına/profiline dokunma. Gerekli test araçlarını resmî kaynaktan ayrı test araç klasörüne kurabilirsin; ürüne/global sisteme bağımlılık yükseltmesi yapma. Playwright veya mevcut native Electron harness kullanılabilir; salt web fixture Electron/IPC/GPU kanıtı değildir.
+
+1. Yeni run-id ve benzersiz docs/raporlar/DEEPSEEK-NIGHT1000-<id>/ klasörü aç; snapshot/hash/dirty dosya adlarını al. 1000-SENARYO.csv'yi buraya kopyala, yalnız bu kopyanın durumlarını güncelle. Kaynak görev CSV'sini değiştirme.
+2. 01–10 paketlerini sırayla bitir. Her biri 100 satır, toplam50 gerçek ürün ailesi ×20 farklı risk mekanizması. İlk beş satırdan sonra bırakma; işi yürüt. Her25 satırda checkpoint, her100de checkpoint ZIP oluştur. Süre/araç limiti halinde kesin kaldığın noktayı yaz; sonra oradan devam edilebilir olsun.
+3. Sabit sayıyı doldurmak için sahte test/bug üretme. Uygulanabilirlik kontrolü zorunlu; anlamsız/özellikte bulunmayan kombinasyona gerekçeli NOT_APPLICABLE ver. Koşu sayısını PASS/FAIL_CONFIRMED ve gerçek komut kanıtlarından hesapla; tasarlanmış senaryoları koşulmuş sayma. Bir alt komutu20 satıra otomatik PASS kopyalama; eşdeğerse açık referans+SKIPPED_ALREADY_COVERED.
+4. Yeni/minimal probe'lar gerçek üretim modüllerini import etsin. Mevcut testleri değiştirme; hatalı beklentili kendi probunu düzeltip belgeleyebilirsin. Aynı kökü farklı başlıkta tekrar bulunca duplicate_of ver.
+5. Bir full npm test ancak somut faydalıysa bir kez; paralel ağır iş/native/GPU başlatma. Eksik araç engeli diğer alanları bırakma nedeni değildir. Kurulum süre/boyut/sürümü TOOLS.md'de tutulur. Resmî paket kurulumuna izin var, kişisel API kullanmaya yok.
+6. Önceki altı görev raporunu güncel kaynakta yeniden doğrulamadan bug diye taşıma. Rapor631 ayar modalı iptalini zaten düzeltir; kaynak revizyonu değiştiyse ilgili koşuları MIXED_REVISION olarak ayır.
+7. Son teslim: AUDIT-REPORT.md, FINDINGS.json, 1000satır durum matrisi, RUN-LOG.jsonl, REPRODUCE.md, SNAPSHOT.json, TOOLS.md, CHECKPOINT.md, MANIFEST.json ve kendi probe/fixture/screenshotları. Ana rapor buglar/şüpheler/öneriler/engelleri ayırsın; schema ve linkleri doğrula. Manifest kendisi ve ZIP hariç dosya hash/boyutlarını taşısın. Sadece kendi çıktılarından tek ZIP ver; node_modules/venv/model/kişisel veri ekleme.
+
+Yalnız raporlama: fix/patch/commit/push/merge yok. Başkasına mesaj gönderme. Tüm işler bittiyse sırf sabahı beklemek için yeniden koşma; eksikse tamamlanmış gibi sunma. Son mesajda kaçının gerçekten koşulduğu, benzersiz bug kökleri, engeller ve teslim ZIPinin tam yolu bulunmalı.
