@@ -192,7 +192,9 @@ def letterboxd(data, source_name=""):
             rating = None
         if rating is not None and (not 0 <= rating <= 5 or rating * 2 != int(rating * 2)):
             rating = None
-        year = row.get('Year', '')
+        # DictReader uses None for fields missing from a shortened final row.
+        # Year is optional; preserve the title and other valid rows.
+        year = row.get('Year') or ''
         review = row.get('Review') or row.get('review') or ''
         class ReviewText(HTMLParser):
             def __init__(self):

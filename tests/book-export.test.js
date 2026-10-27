@@ -128,6 +128,23 @@ async function fixture(t, options = {}) {
     encoded: () => encoded,
   };
 }
+test("missing chapter speech returns actionable bilingual error without touching the M4B", async (t) => {
+  const f = await fixture(t);
+  const projectPath = path.join(voiceStorage({getPath:()=>f.root}).input,"Kitap projeleri",f.id,"project.json");
+  const project = JSON.parse(fs.readFileSync(projectPath,"utf8"));
+  fs.unlinkSync(path.join(path.dirname(projectPath),path.basename(project.chapters[0].output)));
+  for (const action of ['book-export-preview','book-export']) {
+   for (const locale of ['en','tr']) {
+    const r = await f.call(action,{id:f.id,chapters:[0],locale});
+    assert.equal(r.ok,false);
+    assert.match(r.error,locale==='tr' ? /Bölüm ses dosyası bulunamadı.*yeniden üretin/ : /Chapter audio file is missing.*regenerate/);
+    assert(!r.error.includes(f.root));
+    assert.equal(f.encoded(),0);
+    assert.equal(fs.readFileSync(f.target,'utf8'),'keep original');
+   }
+  }
+});
+
 test("M4B preview preserves order, uses probed durations and reports unknown/low disk without overwriting", async (t) => {
   const f = await fixture(t),
     preview = await f.call("book-export-preview", {
