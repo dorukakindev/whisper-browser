@@ -117,6 +117,7 @@
   function music(root) {
     const controls = el('div', 'mh-filterbar');
     controls.append(btn(t('Add audio', 'Ses ekle'), () => task('music-import')), btn(t('Add folder', 'Klasör ekle'), () => task('music-import', { folder: true })));
+    controls.append(btn(t('Analyze music', 'Müziği analiz et'), () => window.MusicAnalysisUI.open()));
     const cancel = btn(t('Cancel import', 'İçe aktarmayı durdur'), () => api('cancel')); cancel.dataset.cancel = '1'; controls.append(cancel);
     controls.append(btn(t('Save selected as playlist', 'Seçilenlerle çalma listesi oluştur'), async () => {
       const value = await form(t('New playlist', 'Yeni çalma listesi'), [{ key: 'name', label: t('Name', 'Ad') }]);
@@ -142,7 +143,7 @@
           const title = el('div'); title.append(el('strong', '', row.title), el('small', '', [row.artist, row.album].filter(Boolean).join(' · ')));
           line.append(check, btn('▶', () => listen(rows.map(value => ({ ...value, kind: 'music' })), rows.indexOf(row))), title,
             el('span', 'ms-time', `${Math.floor(row.duration / 60)}:${String(Math.floor(row.duration % 60)).padStart(2, '0')}`),
-            btn(t('Player', 'Oynatıcı'), async () => { const result = await api('music-play', { id: row.id }); await openLocalMedia(result.path, row.position || 0); }), btn(t('Remove', 'Kaldır'), () => forget('music', row), 'mh-text-button'));
+            btn(t('Analyze', 'Analiz et'), () => window.MusicAnalysisUI.open(row.id)), btn(t('Player', 'Oynatıcı'), async () => { const result = await api('music-play', { id: row.id }); await openLocalMedia(result.path, row.position || 0); }), btn(t('Remove', 'Kaldır'), () => forget('music', row), 'mh-text-button'));
           line.querySelector('button').setAttribute('aria-label', `${t('Play', 'Oynat')}: ${row.title}`); list.append(line);
         }
         moreButton.hidden = shown >= rows.length;

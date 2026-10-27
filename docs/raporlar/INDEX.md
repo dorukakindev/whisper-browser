@@ -1,3 +1,4 @@
+- [Rapor660](BROWSER_BUG_REPORT_660.md) — Gerçek yerel müzik analizi ve native grafik kabulü
 - [Rapor659](BROWSER_BUG_REPORT_659.md) — Müzik benzerliği kaynak incelemesi ve iki kataloglu uygulama planı
 - [Rapor658](BROWSER_BUG_REPORT_658.md) — Asistan iş tanısı, kesin altyazı sonucu ve gerçek Whisper kabulü
 - [Rapor657](BROWSER_BUG_REPORT_657.md) — Asistan149ayar, seçili model ve browser araçları

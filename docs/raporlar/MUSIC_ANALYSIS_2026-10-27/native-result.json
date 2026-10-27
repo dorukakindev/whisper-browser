@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "realDecode": true,
+  "realMeasurements": true,
+  "seek": 9.598665,
+  "range": {
+    "start": 8,
+    "end": 16,
+    "duration": 8
+  },
+  "cache": true,
+  "narrowOverflow": false,
+  "source": "Synthetic calibrated signal, not a real song or semantic model benchmark",
+  "libraryIdSource": true,
+  "cancel": true,
+  "palette": "amber #d5a35c"
+}

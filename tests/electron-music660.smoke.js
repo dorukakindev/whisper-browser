@@ -1,0 +1,48 @@
+/* Native Windows: real ffmpeg + NumPy; calibrated synthetic audio, isolated profile. No music-model quality claim. */
+'use strict';
+const {app,BrowserWindow,dialog}=require('electron'),fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','music660',String(Date.now())),profile=path.join(out,'profile'),file=path.join(out,'Ölçüm örneği.wav');
+fs.mkdirSync(profile,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
+const python=path.join(root,'backend','venv','Scripts','python.exe');
+cp.execFileSync(python,['-c',"import sys,wave,numpy as np; sr=22050; t=np.arange(sr*8)/sr; x=np.concatenate([.4*np.sin(2*np.pi*f*t)*(0.4+0.6*np.sin(2*np.pi*1*t)**2) for f in [120,440,3000]]); w=wave.open(sys.argv[1],'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes((x*32767).astype('<i2').tobytes()); w.close()",file],{timeout:20000});
+fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVersion:3,ui:{uiLocale:'tr',uiTheme:'dark'}}));
+fs.writeFileSync(path.join(profile,'media-shelf.json'),JSON.stringify({version:1,music:[{id:'fixture-track',path:file,title:'Calibration'}],books:[],stations:[],podcasts:[],playlists:[],diary:[]}));
+dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});
+app.setAppPath(root);for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);require('../src/main');
+const delay=ms=>new Promise(r=>setTimeout(r,ms));let win;
+const run=code=>win.webContents.executeJavaScript(`(async()=>{${code}})()`,true);
+async function until(fn,label,ms=30000){const until=Date.now()+ms;while(Date.now()<until){if(await fn())return;await delay(100);}throw Error('Timeout: '+label);}
+app.whenReady().then(async()=>{
+  await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html'));return win;},'main');
+  await until(()=>run('return !!window.MusicAnalysisUI'),'module');win.setSize(1440,1050);win.show();
+  await run('window.MusicAnalysisUI.open();return true');await delay(200);
+  await run("document.querySelector('.ml-source>.ml-button').click();return true");
+  await until(()=>run("return document.querySelector('.ml-source h2').textContent.includes('Ölçüm')"),'source');
+  await run("document.querySelector('.ml-primary').click();return true");
+  await until(()=>run("return document.querySelectorAll('.ml-chart').length===3&&!document.querySelector('.ml-primary').disabled"),'real analysis');
+  const initial=await run("return (await api.musicAnalysis({action:'status'})).job");assert.equal(initial.state,'completed');assert.equal(initial.result.cached,false);assert.equal(initial.result.capabilities.mood,false);
+  assert(initial.result.points[10].low>.99);assert(initial.result.points.at(-10).high>.99);assert.equal(initial.result.range.start,0);
+  const point=await run("const r=document.querySelector('.ml-wave canvas').getBoundingClientRect();return {x:Math.round(r.left+r.width*.4),y:Math.round(r.top+r.height/2)}");
+  win.webContents.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});await delay(150);
+  const seek=await run("return document.querySelector('.ml-audio').currentTime");assert(Math.abs(seek-9.6)<.3);
+  await run("const [a,b]=document.querySelectorAll('.ml-controls input');a.value='8';b.value='16';document.querySelector('.ml-primary').click();return true");
+  await until(async()=>{const j=await run("return (await api.musicAnalysis({action:'status'})).job");return j.state==='completed'&&j.result.range.start===8;},'selected range');await until(()=>run("return !document.querySelector('.ml-primary').disabled"),'range rendered');
+  const range=await run("return (await api.musicAnalysis({action:'status'})).job.result");assert.equal(range.duration,8);assert(range.points[10].mid>.99);assert.equal(range.range.start,8);
+  await run("document.querySelector('.ml-primary').click();return true");await until(async()=>{const j=await run("return (await api.musicAnalysis({action:'status'})).job");return j.state==='completed'&&j.result.cached;},'cache');await until(()=>run("return document.querySelector('.ml-status').textContent.includes('Kayıtlı')"),'cache UI');
+  assert.equal(await run("return getComputedStyle(document.querySelector('.music-lab')).getPropertyValue('--accent').trim()"),'#d5a35c');
+  await run('return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');fs.writeFileSync(path.join(out,'wide.png'),(await win.webContents.capturePage()).toPNG());
+  await run("document.querySelector('.ml-content').scrollTop=1000;return true");await delay(120);fs.writeFileSync(path.join(out,'details.png'),(await win.webContents.capturePage()).toPNG());
+  win.setMinimumSize(600,700);win.setSize(720,1050);await run("document.querySelector('.ml-content').scrollTop=0;return true");await delay(500);
+  assert(await run("const c=document.querySelector('.ml-content');return c.scrollWidth<=c.clientWidth+1"),'horizontal overflow');
+  fs.writeFileSync(path.join(out,'narrow.png'),(await win.webContents.capturePage()).toPNG());
+  assert(await run("return getComputedStyle(document.querySelector('.ml-analysis-grid')).gridTemplateColumns.split(' ').length===1"),'narrow stacked charts');
+  await run("const [a,b]=document.querySelectorAll('.ml-controls input');a.value='4';b.value='20';document.querySelector('.ml-primary').click();return true");
+  await until(()=>run("return !document.querySelector('.ml-controls>.ml-button:last-child').hidden"),'cancel available');
+  await run("document.querySelector('.ml-controls>.ml-button:last-child').click();return true");
+  await until(()=>run("return document.querySelector('.ml-status').textContent.includes('İptal')"),'cancellation receipt');
+  await run("document.querySelector('.ml-close').click();return true");await until(()=>run("return !document.querySelector('.music-lab')"),'dialog cleanup');
+  await run("window.UiLocale.set('en');window.MusicAnalysisUI.open();return true");await until(()=>run("return document.querySelector('.music-lab h1').textContent==='Listen closer'&&!!document.querySelector('.ml-empty')"),'English empty state');await run('return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await delay(300);fs.writeFileSync(path.join(out,'empty.png'),(await win.webContents.capturePage()).toPNG());
+  await run("document.querySelector('.ml-close').click();return true");await until(()=>run("return !document.querySelector('.music-lab')"),'second close');
+  await run("window.MusicAnalysisUI.open('fixture-track');return true");await until(()=>run("return document.querySelector('.ml-source h2').textContent.includes('Ölçüm')"),'library source');
+  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,out,realDecode:true,realMeasurements:true,seek,range:{start:range.range.start,end:range.range.end,duration:range.duration},cache:true,narrowOverflow:false,source:'Synthetic calibrated signal, not a real song or semantic model benchmark'},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);
+}).catch(async e=>{console.error(e.stack);try{console.error(await run("return {dialogs:[...document.querySelectorAll('.music-lab')].map(d=>({open:d.open,text:d.querySelector('.ml-status')?.textContent,close:d.querySelector('.ml-close')?.outerHTML})),error:document.querySelector('.ml-error')?.textContent}"));fs.writeFileSync(path.join(out,'failure.png'),(await win.webContents.capturePage()).toPNG());}catch{}app.exit(1);});setTimeout(()=>app.exit(2),120000).unref();
