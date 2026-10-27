@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "liveSpotifyTrack": true,
+  "livePlaylist50": true,
+  "playlistScroll": true,
+  "dialogCentered": true,
+  "liveYouTubeAlternatives": true,
+  "livePreviewPlayback": true,
+  "explicitSave": true,
+  "sourceOrder": true,
+  "noSignedUrlPersisted": true,
+  "savedQueuePlayback": true,
+  "wideNarrow": true
+}

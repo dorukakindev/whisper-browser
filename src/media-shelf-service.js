@@ -37,7 +37,7 @@ function csvPlan(rows, items) {
   }
   return { planned, added, ambiguous };
 }
-function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch }) {
+function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch, musicRun = run }) {
   let active = null;
   const imports = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
@@ -110,10 +110,26 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
       return { ok: true, added: rows.length, warnings: warnings.slice(0, 50) };
     } finally { if (active === controller) active = null; }
   }
+  const spotify=require('./spotify-import').create({fetchImpl,run:musicRun,python:pythonPath});
   ipcMain.handle('media-shelf:request', async (event, input = {}) => {
     if (!authorized(event)) return { ok: false, error: 'Unauthorized request.' };
     try {
       switch (input.action) {
+        case 'spotify-read': return {ok:true,...await spotify.read(input.url,event.sender?.id||0)};
+        case 'spotify-match': return {ok:true,...await spotify.match(input.token,input.index,event.sender?.id||0)};
+        case 'spotify-cancel': spotify.cancel();return {ok:true};
+        case 'spotify-forget': spotify.forget(input.token,event.sender?.id||0);return {ok:true};
+        case 'spotify-save': {
+          const prepared=spotify.selection(input.token,input.choices,event.sender?.id||0),data=load(),name=text(input.name,120)||prepared.name;
+          data.linkedPlaylists=data.linkedPlaylists||[];if(!Array.isArray(data.linkedPlaylists)||data.linkedPlaylists.length>=100)throw Error('Linked playlist limit: 100');
+          const row={id:randomUUID(),name,source:'spotify',sourceUrl:prepared.sourceUrl,tracks:prepared.tracks};data.linkedPlaylists.push(row);save(data);spotify.forget(input.token);return {ok:true,id:row.id,count:row.tracks.length};
+        }
+        case 'spotify-remove': {const data=load();if(!Array.isArray(data.linkedPlaylists)||!data.linkedPlaylists.some(p=>p.id===input.id))throw Error('Playlist missing');data.linkedPlaylists=data.linkedPlaylists.filter(p=>p.id!==input.id);save(data);return {ok:true};}
+        case 'spotify-preview': {const p=spotify.selection(input.token,[{index:input.index,videoId:input.videoId}],event.sender?.id||0);return {ok:true,...await spotify.stream(p.tracks[0].youtubeUrl)};}
+        case 'spotify-play': {
+          const data=load(),row=data.linkedPlaylists?.find(p=>p.id===input.playlistId)?.tracks.find(t=>t.id===input.id);if(!row)throw Error('Saved Spotify match missing');
+          return {ok:true,...await spotify.stream(row.youtubeUrl)};
+        }
         case 'list': return { ok: true, ...publicState(load()) };
         case 'cancel': active?.abort(); return { ok: true };
         case 'music-import': return await importMusic(input);
