@@ -24,3 +24,16 @@ test('long PDF selections expose the original truncation flag instead of silentl
  const h=setup(t),a=h.records.get(1).article.firstChild.firstChild;h.select(a,a,'x'.repeat(9000));assert.equal(h.context().selectedText.length,8000);assert.equal(h.context().selectedTextTruncated,true);
  h.select(a,a,'Short');assert.equal(h.context().selectedTextTruncated,false);h.w.player.pdfReader.currentPage=2;h.w.PdfReaderExperience.changed();assert.equal(h.context().selectedText,'');
 });
+
+test('a PDF page without extracted text cannot inherit another page as assistant evidence', t => {
+  const h = setup(t);
+  h.w.player.pdfReader.currentPage = 2;
+  h.records.get(2).blocks = [];
+  h.w.PdfReaderExperience.changed();
+  const source = h.context();
+  assert.equal(source.page, 2);
+  assert.equal(source.excerpt, '');
+  assert.equal(source.translatedExcerpt, '');
+  assert.equal(source.selectedText, '');
+  assert.match(source.note, /Only this extracted page/);
+});
