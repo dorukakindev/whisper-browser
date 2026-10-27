@@ -44,7 +44,7 @@
     const tabs=node('div','ml-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label',t('Music workspace','Müzik çalışma alanı'));
     const overviewTab=button(t('Sound analysis','Ses analizi'),()=>tab(false),'ml-tab'),similarTab=button(t('Similar in my library','Arşivimde benzerleri'),()=>tab(true),'ml-tab');
     for(const [b,id,panel] of [[overviewTab,'mlOverviewTab','mlOverview'],[similarTab,'mlSimilarTab','mlSimilar']]){b.id=id;b.setAttribute('role','tab');b.setAttribute('aria-controls',panel);}
-    tabs.append(overviewTab,similarTab);results.id='mlOverview';results.setAttribute('role','tabpanel');results.setAttribute('aria-labelledby','mlOverviewTab');
+    const onlineTab=button(t('On the internet','İnternette'),()=>tab(false,true),'ml-tab');onlineTab.setAttribute('role','tab');onlineTab.id='mlOnlineTab';onlineTab.setAttribute('aria-controls','mlOnline');tabs.append(overviewTab,similarTab,onlineTab);results.id='mlOverview';results.setAttribute('role','tabpanel');results.setAttribute('aria-labelledby','mlOverviewTab');
     const similar=node('section','ml-similar');similar.id='mlSimilar';similar.setAttribute('role','tabpanel');similar.setAttribute('aria-labelledby','mlSimilarTab');similar.hidden=true;
     const searchHead=node('div','ml-search-heading'),searchCopy=node('div');searchCopy.append(node('h2','',t('Find the sound you came for','Aradığın sesi bul')),node('p','',t('Compare real audio excerpts from the tracks in your music library.','Müzik arşivindeki parçaların gerçek ses kesitlerini karşılaştır.')));
     const find=button(t('Find similar tracks','Benzer parçaları bul'),()=>launch('search'),'ml-button ml-primary');find.disabled=true;searchHead.append(searchCopy,find);
@@ -63,13 +63,14 @@
     compareAudio.addEventListener('timeupdate',()=>{if(comparison&&compareAudio.currentTime>=comparison.matchedRange[1])compareAudio.pause();});
     compareAudio.addEventListener('error',()=>message(t('This matched file can no longer be played. Search again.','Eşleşen dosya artık oynatılamıyor. Yeniden ara.'),true));
     similar.append(searchHead,modelRow,excludeLabel,compare,hits);
-    content.append(sourcePanel,controls,status,stages,audio,tabs,results,similar);dialog.append(header,content);document.body.append(dialog);
+    const onlinePanel=node('section','ml-online');onlinePanel.id='mlOnline';onlinePanel.setAttribute('role','tabpanel');onlinePanel.setAttribute('aria-labelledby','mlOnlineTab');onlinePanel.hidden=true;window.MusicOnlineUI.mount(onlinePanel);
+    content.append(sourcePanel,controls,status,stages,audio,tabs,results,similar,onlinePanel);dialog.append(header,content);document.body.append(dialog);
     let pollTimer,observer,animation;
     const charts=[];
     function message(text,error=false){if(state.closed)return;status.textContent=text;status.classList.toggle('ml-error',error);}
     function busy(value){state.busy=value;dialog.setAttribute('aria-busy',String(value));choose.disabled=value;run.disabled=value||!state.source;find.disabled=value||!state.source||!state.modelReady;prepare.disabled=value;exclude.disabled=value||!state.source?.artist;start.disabled=value;end.disabled=value;cancel.hidden=!value;stages.hidden=!value;}
-    function tab(isSimilar){results.hidden=isSimilar;similar.hidden=!isSimilar;overviewTab.setAttribute('aria-selected',String(!isSimilar));similarTab.setAttribute('aria-selected',String(isSimilar));overviewTab.tabIndex=isSimilar?-1:0;similarTab.tabIndex=isSimilar?0:-1;repaint();}
-    tabs.addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const next=event.key==='ArrowRight';tab(next);(next?similarTab:overviewTab).focus();}});
+    function tab(isSimilar,internet=false){results.hidden=isSimilar||internet;similar.hidden=!isSimilar||internet;onlinePanel.hidden=!internet;for(const [b,selected] of [[overviewTab,!isSimilar&&!internet],[similarTab,isSimilar&&!internet],[onlineTab,internet]]){b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;}repaint();}
+    tabs.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();const buttons=[overviewTab,similarTab,onlineTab],index=buttons.indexOf(document.activeElement),next=(index+(event.key==='ArrowRight'?1:2))%3;tab(next===1,next===2);buttons[next].focus();}});
     async function refreshModel(){const model=await api('model');if(state.closed)return;state.modelReady=model.ready&&model.runtimeReady;prepare.hidden=model.ready;modelLabel.textContent=!model.runtimeReady?t('Run install-music.bat to prepare the separate CPU environment.','Ayrı CPU ortamını hazırlamak için install-music.bat çalıştır.'):model.ready?t('CLAP ready · local CPU · six excerpts per track','CLAP hazır · yerel CPU · parça başına altı kesit'):t('One-time model download required. Your audio stays local.','Bir defalık model indirmesi gerekiyor. Sesin bilgisayarda kalır.');busy(state.busy);}
     function showHits(result){
       hits.replaceChildren();const summary=node('p','ml-hit-summary',t(`${result.indexed} tracks indexed · ${result.cached} reused · ${result.failed} unavailable`,`${result.indexed} parça indekslendi · ${result.cached} kayıt kullanıldı · ${result.failed} kullanılamadı`));hits.append(summary);
@@ -84,7 +85,7 @@
     }
     async function select(action,payload={}){
       const response=await api(action,payload);if(state.closed||response.canceled)return;
-      state.source=response.source;state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
+      state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
       comparison=null;++compareToken;compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
       audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';run.disabled=false;results.replaceChildren(empty);charts.length=0;
       message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
@@ -177,7 +178,7 @@
     audio.addEventListener('timeupdate',()=>{repaint();if(previewA&&comparison&&audio.currentTime>=comparison.referenceRange[1])audio.pause();});audio.addEventListener('pause',()=>{previewA=false;});start.addEventListener('input',repaint);end.addEventListener('input',repaint);
     audio.addEventListener('play',()=>{compareAudio.pause();document.getElementById('mediaShelfAudio')?.pause();document.getElementById('playerVideo')?.pause();});
     audio.addEventListener('error',()=>message(t('Audio could not be played. Select the source again.','Ses oynatılamadı. Kaynağı yeniden seç.'),true));
-    function cleanup(){if(state.closed)return;state.closed=true;clearTimeout(pollTimer);cancelAnimationFrame(animation);observer?.disconnect();audio.pause();compareAudio.pause();++compareToken;audio.removeAttribute('src');audio.load();compareAudio.removeAttribute('src');compareAudio.load();if(state.busy)void api('cancel').catch(()=>{});dialog.remove();if(instance===state)instance=null;if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();}
+    function cleanup(){if(state.closed)return;state.closed=true;onlinePanel.dispatchEvent(new Event('music-dispose'));clearTimeout(pollTimer);cancelAnimationFrame(animation);observer?.disconnect();audio.pause();compareAudio.pause();++compareToken;audio.removeAttribute('src');audio.load();compareAudio.removeAttribute('src');compareAudio.load();if(state.busy)void api('cancel').catch(()=>{});dialog.remove();if(instance===state)instance=null;if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();}
     dialog.addEventListener('close',cleanup,{once:true});
     dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();cleanup();});
     dialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();observer=new ResizeObserver(repaint);observer.observe(results);

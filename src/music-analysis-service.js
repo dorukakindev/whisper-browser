@@ -89,7 +89,7 @@ function createService(options) {
   return {remember,status,cancel,start,close:async()=>{cancel();await active?.pending;}};
 }
 function register(options) {
-  const services = new Map();
+  const services = new Map(), onlineServices = new Map();
   options.ipcMain.handle('music-analysis:request', async(event,request={})=>{
     if (!options.authorized(event)) return {ok:false,error:'Unauthorized'};
     let service = services.get(event.sender.id);
@@ -97,7 +97,10 @@ function register(options) {
       service = createService(options); services.set(event.sender.id,service);
       event.sender.once('destroyed',()=>{service.cancel();services.delete(event.sender.id);});
     }
+    let online=onlineServices.get(event.sender.id);
+    if(!online){online=require('./music-online').createOnline(options);onlineServices.set(event.sender.id,online);event.sender.once('destroyed',()=>{online.cancel();onlineServices.delete(event.sender.id);});}
     try {
+      if(request.action==='online')return await online.handle(request);
       if (request.action === 'select') {
         const chosen = await options.dialog.showOpenDialog(options.owner(),{properties:['openFile'],filters:[{name:'Audio',extensions:EXTENSIONS}]});
         if (chosen.canceled || !chosen.filePaths?.[0]) return {ok:true,canceled:true};
@@ -115,10 +118,10 @@ function register(options) {
       if (request.action === 'model') {const engine=require('./music-similarity');return {ok:true,...engine.modelStatus(options.modelDir()),...await engine.runtimeStatus(options,options.run||run)};}
       if (request.action === 'start') return await service.start(request);
       if (request.action === 'status') return {ok:true,job:service.status()};
-      if (request.action === 'cancel') return service.cancel();
+      if (request.action === 'cancel') {online.cancel();return service.cancel();}
       throw Error('Unknown music action');
     } catch(error) {return {ok:false,error:error.message};}
   });
-  options.app.on('before-quit',()=>{for(const service of services.values())service.cancel();});
+  options.app.on('before-quit',()=>{for(const service of services.values())service.cancel();for(const online of onlineServices.values())online.cancel();});
 }
 module.exports = {selection,createService,register};
