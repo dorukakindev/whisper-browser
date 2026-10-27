@@ -12,17 +12,20 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  function requestRenderer(sender,owner,name,args,signal){
   requireOwner(owner);const callId=randomUUID(),budget=['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(name)?120000:name==='translate_video_captions'?100000:30000;
   return new Promise((resolve,reject)=>{
-   const abort=()=>{emit(sender,{type:'action-cancel',callId});finish(null,Error('Assistant action cancelled / Asistan işlemi iptal edildi.'));};
-   const timer=setTimeout(()=>finish(null,Error('Application action timed out / Uygulama işlemi zaman aşımına uğradı.')),budget);
-   const finish=(value,error)=>{if(!pending.has(callId))return;pending.delete(callId);clearTimeout(timer);signal?.removeEventListener('abort',abort);error?reject(error):resolve(value);};
-   pending.set(callId,{sender,finish});signal?.addEventListener('abort',abort,{once:true});
-   if(signal?.aborted){abort();return;}
+   const cancel=error=>{if(!pending.has(callId))return;emit(sender,{type:'action-cancel',callId});finish(null,error);};
+   const abort=()=>cancel(Error(signal?.reason==='timeout'?'Application action timed out / Uygulama işlemi zaman aşımına uğradı.':'Assistant action cancelled / Asistan işlemi iptal edildi.'));
+   const destroyed=()=>cancel(Error('Application window closed / Uygulama penceresi kapandı.'));
+   const timer=setTimeout(()=>cancel(Error('Application action timed out / Uygulama işlemi zaman aşımına uğradı.')),budget);
+   const finish=(value,error)=>{if(!pending.has(callId))return;pending.delete(callId);clearTimeout(timer);signal?.removeEventListener('abort',abort);sender.removeListener('destroyed',destroyed);error?reject(error):resolve(value);};
+   pending.set(callId,{sender,owner,finish,cancel});signal?.addEventListener('abort',abort,{once:true});sender.once('destroyed',destroyed);
+   if(signal?.aborted){abort();return;}if(sender.isDestroyed()){destroyed();return;}
    emit(sender,{type:'action',callId,owner,name,args,deadline:Date.now()+budget});
   });
  }
  ipcMain.handle('assistant:agentResult',(event,input={})=>{
   if(!authorized(event)||!identifier(input.callId))return {ok:false};
   const call=pending.get(input.callId);if(!call||call.sender!==event.sender)return {ok:false};
+  try{requireOwner(call.owner);}catch(error){call.cancel(error);return {ok:false};}
   let result=input.result;
   try{if(!result||typeof result!=='object'||Array.isArray(result)||!['completed','accepted','failed'].includes(result.status)||JSON.stringify(result).length>16000)throw Error('Invalid result');}
   catch(_){result={status:'failed',error:'Invalid application result.'};}
@@ -41,7 +44,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const sourcePool=manifest.pool(input.pool);owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow};sessions.set(event.sender.id,session);
-   stop=()=>controller.abort();event.sender.once('destroyed',stop);timer=setTimeout(stop,require('./assistant-settings').timeout(config));
+   stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);timer=setTimeout(()=>controller.abort('timeout'),require('./assistant-settings').timeout(config));
    const evidence=new Map(),offered=new Map(),planned=new Set();let attempted=0,failed=0;
    const executeUnchecked=async(name,args)=>{
     controller.signal.throwIfAborted();requireOwner(owner);const entry=registry.get(name);
@@ -93,7 +96,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     }
     const result=await requestRenderer(event.sender,owner,name,args,controller.signal);if(name==='plan_library_collection'&&result.status==='completed'&&result.plan?.id)planned.add(result.plan.id);return result;
    };
-   const execute=async(name,args)=>{try{return await executeUnchecked(name,args);}catch(error){if(!controller.signal.aborted)failed++;throw error;}};
+   const execute=async(name,args)=>{emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});try{return await executeUnchecked(name,args);}catch(error){if(!controller.signal.aborted)failed++;throw error;}finally{if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}};
    const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
@@ -103,12 +106,12 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
    if(attempted||planned.size||/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}
    return {ok:true,...result,execution};
-  }catch(error){return {ok:false,cancelled:!!controller?.signal.aborted,error:controller?.signal.aborted?'Assistant stopped or timed out / Asistan durduruldu veya zaman aşımına uğradı.':String(error.message).slice(0,300)};}
+  }catch(error){const timedOut=controller?.signal.aborted&&controller.signal.reason==='timeout';return {ok:false,timedOut:!!timedOut,cancelled:!!controller?.signal.aborted&&!timedOut,error:timedOut?'Assistant timed out. Received text was kept; you can retry / Asistan zaman aşımına uğradı. Alınan metin korundu; yeniden deneyebilirsin.':controller?.signal.aborted?'Assistant stopped / Asistan durduruldu.':String(error.message).slice(0,300)};}
   finally{clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
  });
  ipcMain.handle('assistant:agentCancel',(event,input={})=>{
   if(!authorized(event))return {ok:false};const session=sessions.get(event.sender.id);
-  if(session&&session.id===input.requestId)session.controller.abort();const applying=applications.get(event.sender.id);if(applying?.id===input.requestId)applying.controller.abort();return {ok:true};
+  if(session&&session.id===input.requestId)session.controller.abort('user');const applying=applications.get(event.sender.id);if(applying?.id===input.requestId)applying.controller.abort('user');return {ok:true};
  });
  ipcMain.handle('assistant:agentApply',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
@@ -119,12 +122,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    requireOwner(current);registry.validate(row.name,row.args,current);
    if(row.name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,current)||!probe.languages.some(item=>item.id===row.args.caption_id))throw Error('Caption selection expired. Probe again.');}
    proposals.delete(input.proposalId);
-   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(row.name)?120000:row.name==='translate_video_captions'?100000:30000);
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort('timeout'),['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(row.name)?120000:row.name==='translate_video_captions'?100000:30000);
+   const stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);if(event.sender.isDestroyed())stop();
    applications.set(event.sender.id,{id:input.proposalId,controller});
-   try{if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const result=await requestRenderer(event.sender,current,row.name,row.args,controller.signal);const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);applications.delete(event.sender.id);}
+   try{if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const result=await requestRenderer(event.sender,current,row.name,row.args,controller.signal);const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
   }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}
  });
- app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort();for(const row of applications.values())row.controller.abort();for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});
+ app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});
  return {sessions,proposals,flows,applications};
 }
 module.exports={register};

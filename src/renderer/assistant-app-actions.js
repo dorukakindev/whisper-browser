@@ -48,7 +48,7 @@
    await window.MediaExperience.openVoice();return {status:'completed',note:t('Voice preparation is open. No audio was generated.','Ses hazırlığı açıldı. Ses üretilmedi.')};
   }
   if(name==='open_settings'){
-   await window.AppSettingsUI.open(args.section);return {status:'completed',note:t('Settings opened.','Ayarlar açıldı.')};
+   await window.AppSettingsUI.open(args.section,{preserveAssistantContext:true});return {status:'completed',note:t('Settings opened.','Ayarlar açıldı.')};
   }
   const pool=contract.pool(window.AssistantWorkspace?.toolContext()?.rows),source=pool.find(row=>row.id===args.source_id);
   if(!source)throw Error(t('The source subtitle is no longer in scope.','Kaynak altyazı artık seçili kapsamda değil.'));

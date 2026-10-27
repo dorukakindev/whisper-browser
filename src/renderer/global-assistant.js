@@ -70,6 +70,7 @@
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
         // Pins are read-only notes; unlike live job scopes they survive source generations.
         conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!window.AssistantAgentUI?.status() || !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
+        activity: window.AssistantAgentUI?.status()?.activity || '',
         retry: !!window.AssistantAgentUI?.canRetry() || !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: messages,
         ...(bookDescription?{sourceDescription:bookDescription}:{}),

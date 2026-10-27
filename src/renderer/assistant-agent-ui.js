@@ -3,9 +3,15 @@
  if(!window.api?.assistantAgentRun||!window.api.onAssistantAgentEvent)return;
  let pending=null,retryPacket=null,applying=null;const proposalTasks=new Map(),continuations=new Map(),actionCalls=new Map();
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
+ const activity=task=>{
+  if(task?.cancelled)return t('Stopping assistant…','Asistan durduruluyor…');
+  if(task?.phase==='applying')return t('Waiting for the application result…','Uygulama sonucu bekleniyor…');
+  if(task?.phase==='tool'){const labels={settings:['Reading application settings…','Uygulama ayarları okunuyor…'],library:['Reading library information…','Kütüphane bilgisi okunuyor…'],book:['Reading book and narration state…','Kitap ve seslendirme durumu okunuyor…'],voice:['Reading voice preparation state…','Ses hazırlığı durumu okunuyor…'],video:['Checking video and captions…','Video ve altyazılar kontrol ediliyor…'],page:['Reading page information…','Sayfa bilgisi okunuyor…'],subtitles:['Searching the selected subtitles…','Seçili altyazılar taranıyor…'],web:['Researching web sources…','Web kaynakları araştırılıyor…']};const label=labels[task.domain];return label?t(...label):t('Checking application information…','Uygulama bilgisi kontrol ediliyor…');}
+  return t('Waiting for the assistant response…','Asistan yanıtı bekleniyor…');
+ };
  const errorText=value=>{const parts=String(value||'').split(' / ');return window.UiLocale?.get?.()==='tr'&&parts[1]?parts[1]:parts[0];};
  const changed=()=>{updateAiChatActions();document.dispatchEvent(new Event('assistant-agent-changed'));};
- const status=()=>{const task=pending||applying;return task&&window.AssistantAppActions.current(task.owner)?task:null;};
+ const status=()=>{const task=pending||applying;return task&&window.AssistantAppActions.current(task.owner)?{...task,activity:activity(task)}:null;};
  async function send(question,context,history,scope,resume){
   if(pending||applying)return;retryPacket=null;
   const previous=resume?window.AssistantWorkspace.resume(resume.proposalId,context):null;
@@ -42,7 +48,8 @@
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
   if(!window.AssistantAppActions.current(task.owner)){void cancel();return;}
-  if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
+  if(packet.type==='progress'){task.phase=packet.phase==='tool'?'tool':'thinking';task.domain=String(packet.domain||'');
+  }else if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='proposal'||packet.type==='evidence'){
@@ -64,7 +71,7 @@
  }
  async function apply(proposal){
   if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
-  const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot()};applying=task;changed();let result;
+  const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();let result;
   try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',error:response?.error||t('Action failed.','İşlem başarısız oldu.')};
    if(result.continuationState==='unverified')result.note=(result.note||'')+' '+t('Follow this job in Jobs; its completion cannot be linked to an automatic next step.','Bu işi İşler bölümünden takip et; tamamlanması sonraki adıma güvenle bağlanamıyor.');
    if(result.continuationState==='limit')result.note=(result.note||'')+' '+t('Eight applied steps reached. Ask a new question to continue.','Sekiz uygulanan adıma ulaşıldı. Devam etmek için yeni bir soru sor.');
