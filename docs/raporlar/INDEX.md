@@ -1,3 +1,4 @@
+- [Rapor644](BROWSER_BUG_REPORT_644.md) — Kitap açılışında son istek, geç render ve doğru asistan sonucu
 - [Rapor643](BROWSER_BUG_REPORT_643.md) — Uzun kitap bölümü, Windows yenileme seçimi ve inceleme sayfalaması
 - [Rapor642](BROWSER_BUG_REPORT_642.md) — Ses motoru kapanış onayı ve GPU sahipliğinin korunması
 - [Rapor641](BROWSER_BUG_REPORT_641.md) — Kısmi Whisper kaynağı ve farklı model/sağlayıcı çevirisinin yeniden kullanımı

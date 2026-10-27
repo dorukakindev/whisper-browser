@@ -27,6 +27,7 @@
     results = [];
   let exportCurrent=null;
   let reviewPaging={key:'',page:1};
+  let bodyVersion=0,projectOpenRequest=0;
   const voicePrefs = {
     profile: "quality",
     concurrency: 4,
@@ -139,6 +140,7 @@
     return n;
   }
   function clearBody() {
+    bodyVersion++;
     stopBookAssistant?.();
     stopBookAssistant = null;
     stopTakePreview?.();
@@ -319,6 +321,8 @@
     }
     saveDraft();
     const body = clearBody();
+    const renderDialog=dialog,renderProject=project,renderChapter=chapter,renderVersion=bodyVersion;
+    const currentRender=()=>dialog===renderDialog&&renderDialog?.open&&project===renderProject&&chapter===renderChapter&&bodyVersion===renderVersion;
     const actions = el("div", "mw-actions");
     const management = el("details", "mw-management"),
       managementBody = el("div", "mw-management-body");
@@ -397,7 +401,7 @@
       ),
     );
     const listing = await call("book-list");
-    if (!dialog?.open) return;
+    if (!currentRender()) return false;
     const choose = el("select");
     choose.setAttribute(
       "aria-label",
@@ -562,6 +566,7 @@
     settings.append(settingsTitle);
     const settingsBody = el("div", "mw-actions");
     const config = await window.api.dubConfig();
+    if (!currentRender()) return false;
     let defaultReferenceName =
       config.reference?.split(/[\\/]/).pop() || t("Not selected", "Seçilmedi");
     const defaultLabel = () =>
@@ -595,6 +600,7 @@
       ),
     );
     const references = await window.api.listVoiceReferences().catch(() => null);
+    if (!currentRender()) return false;
     if (references?.ok) {
       const saved = el("select");
       saved.setAttribute(
@@ -1364,6 +1370,7 @@
     split.append(list, edit);
     body.append(split);
     bookContext(chapter, textarea.value);
+    return true;
   }
   let readerPdfMap = null,
     readerAudioCleanup = null;
@@ -2216,8 +2223,9 @@
   function open(tab = "books") {
     if (dialog?.open) {
       dialog.focus();
-      return;
+      return dialog.renderReady || Promise.resolve(true);
     }
+    dialog?.disposeWorkflow?.();
     const d = el("dialog", "mw-dialog media-surface");
     dialog = d;
     d.id = "mediaWorkflowsDialog";
@@ -2280,7 +2288,11 @@
     d.addEventListener('toggle', event => { const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open&&opened.matches('.mw-reader-tools,.book-assistant-compact'))for(const menu of d.querySelectorAll('.mw-reader-tools[open],.book-assistant-compact[open]'))if(menu!==opened)menu.open=false; },true);
     d.addEventListener('pointerdown',event=>{for(const menu of d.querySelectorAll('.mw-reader-tools[open],.book-assistant-compact[open]'))if(!menu.contains(event.target))menu.open=false;});
     d.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=d.querySelector('.mw-reader-tools[open],.book-assistant-compact[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();}},true);
-    d.onclose = () => {
+    let retired=false;
+    d.disposeWorkflow=d.onclose = () => {
+      if(retired)return;retired=true;
+      if(dialog!==d){d.remove();return;}
+      bodyVersion++;
       stopBookAssistant?.();
       stopBookAssistant = null;
       stopTakePreview?.();
@@ -2303,21 +2315,23 @@
     d.showModal();
     void syncBrowserOcclusion();
     close.focus();
-    void pages
-      .find((p) => p[0] === tab)?.[2]()
-      .catch((e) => status(e.message));
+    const page=pages.find(p=>p[0]===tab);
+    d.renderReady=Promise.resolve().then(()=>page?page[2]():false)
+      .then(value=>value!==false&&dialog===d&&d.open)
+      .catch(e=>{d.renderError=e;if(dialog===d)status(e.message);return false;});
+    return d.renderReady;
   }
   function assistantProject(){const source=globalAssistantContext();return dialog?.open&&project&&source?.id===project.id+':'+chapter?project:null;}
   function assistantState(){const p=assistantProject();if(!p)return null;return {id:p.id,title:p.title,busy,currentChapter:chapter+1,total:p.chapters.length,selected:[...selected].slice(0,80).map(n=>n+1),selectedCount:selected.size,chapters:p.chapters.slice(0,24).map((c,index)=>({number:index+1,title:String(c.title||'').slice(0,120),status:c.status,hasAudio:!!c.output,review:c.groups?.filter(g=>g.status!=='ready').length||0})),chaptersTruncated:p.chapters.length>24};}
   async function assistantExecute(name,args,stale){
     const p=assistantProject();if(!p||stale())throw Error(t('Open the current book in production first.','Önce güncel kitabı üretim ekranında aç.'));if(busy)throw Error(t('A workflow is running.','Bir işlem çalışıyor.'));
     const valid=n=>Number.isInteger(n)&&n>=1&&n<=p.chapters.length;
-    if(name==='select_book_chapters'){if(!valid(args.from)||!valid(args.to)||args.to<args.from)throw Error('Invalid chapter range.');selected=new Set(Array.from({length:args.to-args.from+1},(_,i)=>args.from-1+i));await call('book-selection',{id:p.id,chapters:[...selected]});if(stale())throw Error('Book changed.');await books();return {status:'completed',note:t('Production chapters selected. No audio generated.','Üretim bölümleri seçildi. Ses üretilmedi.')};}
+    if(name==='select_book_chapters'){if(!valid(args.from)||!valid(args.to)||args.to<args.from)throw Error('Invalid chapter range.');selected=new Set(Array.from({length:args.to-args.from+1},(_,i)=>args.from-1+i));await call('book-selection',{id:p.id,chapters:[...selected]});if(stale())throw Error('Book changed.');if(await books()===false)throw Error('Book changed.');return {status:'completed',note:t('Production chapters selected. No audio generated.','Üretim bölümleri seçildi. Ses üretilmedi.')};}
     if(name==='preview_book_export'){await saveChapter();if(stale())throw Error('Book changed.');const r=await call('book-export-preview',{id:p.id,chapters:[...selected]});return {status:'completed',preview:{seconds:r.seconds,estimatedBytes:r.estimatedBytes,count:r.chapters?.length,chapters:(r.chapters||[]).slice(0,24).map(row=>({number:row.chapter+1,title:String(row.title||'').slice(0,120),seconds:row.seconds})),truncated:r.chapters?.length>24},note:t('Existing export checks were used. Review is not bypassed.','Mevcut çıktı kontrolleri kullanıldı. İnceleme atlanmadı.')};}
     if(name==='export_book_audio'){if(!exportCurrent)throw Error('Export controls unavailable.');const result=await exportCurrent(stale);return {status:'completed',cancelled:result?.cancelled===true,note:result?.cancelled?t('Export cancelled; no file saved.','Dışa aktarma iptal edildi; dosya kaydedilmedi.'):t('Audiobook export completed.','Sesli kitap dışa aktarıldı.')};}
     if(name==='book_chapter'){
       if(!valid(args.chapter))throw Error('Invalid chapter.');await saveChapter();if(stale())throw Error('Book changed.');chapter=args.chapter-1;
-      if(args.operation==='open'){await books();return {status:'completed',note:t('Chapter editor and review are open. Nothing was approved.','Bölüm düzenleyicisi ve inceleme açıldı. Onay verilmedi.')};}
+      if(args.operation==='open'){if(await books()===false)throw Error('Book changed.');return {status:'completed',note:t('Chapter editor and review are open. Nothing was approved.','Bölüm düzenleyicisi ve inceleme açıldı. Onay verilmedi.')};}
       if(args.operation==='listen'){if(await readChapter(chapter,true)!==true)throw Error('Reader could not open.');return {status:'completed',note:t('Read/listen view opened.','Dinle ve takip et görünümü açıldı.')};}
       selected=new Set([chapter]);
     }
@@ -2332,8 +2346,13 @@
     open,
     openProject: async (id, focus = {}) => {
       if (busy) throw Error("Busy / Meşgul");
+      const request=++projectOpenRequest,originDialog=dialog,originVersion=bodyVersion;
+      const unchanged=()=>request===projectOpenRequest&&dialog===originDialog&&bodyVersion===originVersion;
+      const changed=()=>Error(t('Book opening was replaced or closed.','Kitap açılışı değiştirildi veya kapatıldı.'));
       await saveChapter();
+      if(!unchanged())throw changed();
       const next = (await call("book-open", { id })).project;
+      if(!unchanged())throw changed();
       const target = focus.chapter ?? 0;
       if (
         !Number.isInteger(target) ||
@@ -2341,14 +2360,19 @@
         target >= next.chapters.length
       )
         throw Error(t("Invalid chapter.", "Bölüm geçersiz."));
+      // Native close events are queued. Dispose the old view synchronously
+      // before assigning the next project; a late close cannot tear it down.
+      if(dialog){const previous=dialog;previous.close();previous.disposeWorkflow?.();}
       project = next;
       chapter = target;
       selected = focus.selectChapter
         ? new Set([target])
         : new Set(project.selectedChapters || [0]);
       if (focus.selectChapter) saveSelection();
-      if (dialog?.open) dialog.close();
-      open();
+      const opening=open(),openedDialog=dialog;
+      const ready=await opening;
+      if(request!==projectOpenRequest||project!==next)throw changed();
+      if(!ready)throw openedDialog?.renderError || changed();
     },
   });
 })();
