@@ -1,3 +1,4 @@
+- [Rapor 630](BROWSER_BUG_REPORT_630.md) — Yerel DeepSeek/Claude Code için altı görev ve 72 sınama başlığı (belge teslimi)
 - [Rapor 629](BROWSER_BUG_REPORT_629.md) — 19 bulgunun triyajı; arama, yorum, tekrar izleme, kaynak ve native Windows kabulü
 - [Rapor 628](BROWSER_BUG_REPORT_628.md) — Koleksiyon gerçek kart, uygulama kanıtı, önkoşul/tekrar, Türkçe ve canlı/native kabul
 - [Rapor 627](BROWSER_BUG_REPORT_627.md) — Gerçek DeepInfra Flex araç seçimi: 13 koşum, 10/11 senaryo, koleksiyon kartı 3/3 eksik

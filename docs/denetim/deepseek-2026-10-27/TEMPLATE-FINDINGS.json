@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "run_id": "<unique>",
+  "source": {
+    "repo": "D:\\Whisper Local",
+    "start_head": "<actual>",
+    "end_head": "<actual>",
+    "snapshot_file": "SNAPSHOT.json"
+  },
+  "findings": [],
+  "suggestions": [],
+  "blocked": [],
+  "finding_fields": {
+    "id": "T01-F001",
+    "severity": "P0 | P1 | P2 | P3",
+    "status": "FAIL_CONFIRMED | SUSPECTED",
+    "title": "",
+    "impact": "",
+    "preconditions": [],
+    "actual": "",
+    "expected": "",
+    "locations": [
+      {
+        "file": "src/example.js",
+        "line": 1,
+        "symbol": "functionName",
+        "sha256": "<actual>"
+      }
+    ],
+    "repro": {
+      "cwd": "<absolute>",
+      "command": "<exact>",
+      "fixture": "fixtures/example.json",
+      "seed": null
+    },
+    "evidence": [
+      "logs/example.stdout.txt"
+    ],
+    "root_cause": "",
+    "duplicate_of": null,
+    "minimal_fix_direction": "Suggestion only; no product edits",
+    "related_tests": []
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "package": "DeepSeek local read-only audit tasks",
+  "source_master": "15d9f38aed4ae5f969bdecf0773adf7aa25acf50",
+  "tasks": 6,
+  "scenario_headings": 72,
+  "files": {
+    "01-ASISTAN-ARAC-KOMUT-BAGLAM.md": {
+      "bytes": 12136,
+      "sha256": "5c65cd188719d8c4fa4f7b84a0316fa016941488770671d74a0cab5013fb5e18"
+    },
+    "02-CEVIRI-WHISPER-DUBLAJ.md": {
+      "bytes": 12157,
+      "sha256": "1c848e065c70822b191f2e0a088aedbed5d4fc0831afe1a84b01293c01b2afd5"
+    },
+    "03-KITAP-PDF-OKUYUCU.md": {
+      "bytes": 12076,
+      "sha256": "ae00d425cf74128878252963dd4bc34961c33e819cb8feeb3d28f9c9214baf44"
+    },
+    "04-KESFET-KATALOG-LETTERBOXD.md": {
+      "bytes": 12066,
+      "sha256": "fb0b38e3b2d39cb5c7e30b6c287b7b1c7da945955d05f7201d8f814a71fc431e"
+    },
+    "05-BROWSER-REKLAM-TASARIM.md": {
+      "bytes": 11989,
+      "sha256": "ab0a765cf83d3206e03c31ecba0f02a5fdd11cbb4273c98fd6c461fb9274cf96"
+    },
+    "06-IPC-SUREC-DOSYA-SINIRLARI.md": {
+      "bytes": 12099,
+      "sha256": "f7c76a396f8353ee13262971707e92199518261847838cc1c73d1bcc537ebf33"
+    },
+    "BASLA.md": {
+      "bytes": 2482,
+      "sha256": "bc8aaf5d616c9afc41b2e57f18ac702a842129e71348e16b0a325c076978f7f5"
+    },
+    "GLOBAL-KURALLAR.md": {
+      "bytes": 9255,
+      "sha256": "1562993696f5f3d483c99d2125463cfe20f885089657b4d64c019d05c724d671"
+    },
+    "README.md": {
+      "bytes": 2581,
+      "sha256": "e545f55c69a997ee73147eacf5dfdeb9f22fa8d488165ed991de1941a16ee1f9"
+    },
+    "TEMPLATE-FINDINGS.json": {
+      "bytes": 1014,
+      "sha256": "b14bb997866519bae6e5292de652152eed1b860756d0f9907fdbd1e5451f36e5"
+    }
+  }
+}
