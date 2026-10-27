@@ -3,7 +3,7 @@
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!==undefined)n.textContent=text;return n;};
  function mount(root){
-  let generation=0,disposed=false,playing=null;
+  let generation=0,disposed=false,playing=null,currentRows=[];
   const api=async(op,args={})=>{const r=await window.api.musicAnalysis({action:'online',op,...args});if(!r?.ok)throw Error(r?.error||t('Catalog request failed.','Katalog isteği başarısız.'));return r;};
   const button=(label,fn,cls='ml-button')=>{const n=el('button',cls,label);n.type='button';n.addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>{if(e.name!=='AbortError')note(e.message,true);}));return n;};
   const heading=el('h2','',t('Discover beyond your library','Arşivinin dışında keşfet'));
@@ -17,12 +17,13 @@
   function note(text,error=false){if(disposed)return;status.textContent=text;status.classList.toggle('ml-error',error);}
   function busy(value){search.disabled=value;saved.disabled=value;query.disabled=value;stop.hidden=!value;list.querySelectorAll('button').forEach(b=>b.disabled=value);}
   async function work(op,args={}){const mine=++generation;busy(true);note(t('Loading catalog…','Katalog yükleniyor…'));try{const r=await api(op,args);if(disposed||mine!==generation)return;paint(r.results,op,r.kind);note(r.results.length?t(`${r.results.length} results · Deezer catalog`,`${r.results.length} sonuç · Deezer kataloğu`):t('No results. Try the artist and a shorter title.','Sonuç yok. Sanatçı adı ve daha kısa başlıkla dene.'));}catch(error){if(mine===generation&&!disposed)throw error;}finally{if(mine===generation)busy(false);}}
-  function paint(rows,op,kind){list.replaceChildren();for(const row of rows){const item=el('article','ml-hit'),copy=el('div','ml-hit-copy');if(row.art){const image=el('img','ml-online-cover');image.src=row.art;image.alt='';image.loading='lazy';image.referrerPolicy='no-referrer';item.append(image);}
+  function paint(rows,op,kind){currentRows=rows;list.replaceChildren();for(const row of rows){const item=el('article','ml-hit'),copy=el('div','ml-hit-copy');if(row.art){const image=el('img','ml-online-cover');image.src=row.art;image.alt='';image.loading='lazy';image.referrerPolicy='no-referrer';item.append(image);}
    copy.append(el('h3','',row.title),el('p','',row.artist),el('small','',t('Catalog result · audio similarity unverified','Katalog sonucu · ses benzerliği doğrulanmadı')));item.append(copy);
    if(kind==='identity')item.append(button(t('Discover from this','Bununla keşfet'),()=>work('discover',{id:row.id,excludeArtist:exclude.checked})));
    item.append(button(t('Preview','Önizle'),async()=>{const mine=++generation;player.pause();const r=await api('preview',{id:row.id});if(disposed||mine!==generation)return;playing=row.id;player.src=r.url;player.hidden=false;await player.play();note(t('Preview · '+row.title,'Önizleme · '+row.title));}),button(t('Deezer page','Deezer sayfası'),()=>window.api.openExternal(row.url)),button(op==='list'?t('Remove','Kaldır'):t('Save','Kaydet'),async()=>{await api(op==='list'?'remove':'save',{id:row.id});note(t('Discovery list updated.','Keşif listesi güncellendi.'));if(op==='list')await work('list');}));list.append(item);}}
   player.addEventListener('play',()=>document.querySelectorAll('audio,video').forEach(n=>{if(n!==player)n.pause();}));player.addEventListener('error',()=>{if(playing)note(t('Preview expired or is unavailable. Click Preview to refresh.','Önizlemenin süresi doldu veya kullanılamıyor. Yenilemek için Önizle’ye tıkla.'),true);});
-  root.addEventListener('music-reference',event=>{++generation;void api('cancel').catch(()=>{});query.value=[event.detail?.artist,event.detail?.title].filter(Boolean).join(' ').slice(0,200);player.pause();list.replaceChildren();busy(false);});
+  root.musicAgent={read:()=>currentRows.map(r=>({id:r.id,title:r.title,artist:r.artist,evidence:'catalog'})),execute:async(op,args)=>{if(op==='search_online')return work('search',{query:args.query});if(!currentRows.some(r=>r.id===args.track_id))throw Error('Unknown current catalog ID');if(op==='discover_online')return work('discover',{id:args.track_id,excludeArtist:args.exclude_artist!==false});if(op==='save_discovery')return api('save',{id:args.track_id});throw Error('Unsupported catalog operation');}};
+  root.addEventListener('music-reference',event=>{++generation;void api('cancel').catch(()=>{});currentRows=[];query.value=[event.detail?.artist,event.detail?.title].filter(Boolean).join(' ').slice(0,200);player.pause();list.replaceChildren();busy(false);});
   root.addEventListener('music-dispose',()=>{disposed=true;++generation;void api('cancel').catch(()=>{});player.pause();player.removeAttribute('src');player.load();},{once:true});
  }
  window.MusicOnlineUI=Object.freeze({mount});

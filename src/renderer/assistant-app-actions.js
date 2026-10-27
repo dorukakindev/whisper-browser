@@ -20,6 +20,7 @@
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);
+  if(registry.get(name)?.domain==='music')return window.AssistantMusicActions.execute(name,args,owner,{deadline,isCancelled});
   if(['get_browser_tabs','browser_action'].includes(name))return window.AssistantBrowserActions.execute(name,args,owner,{deadline,isCancelled});
   if(['list_translation_profiles','get_translation_profile','set_translation_profile'].includes(name))return window.AssistantTranslationActions.execute(name,args,owner,{deadline,isCancelled});
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled});
