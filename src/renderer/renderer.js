@@ -4251,6 +4251,7 @@ $('cancelBtn').addEventListener('click', async () => {
     $('playerJobCancel')?.click();
     return;
   }
+  const cancelOwnerId=state.activeJobId,cancelOwnerJob=player.job;
   state.cancelled = true;
   const aiJob = (state.aiJob||player.job?.awaitingExit) && player.job && ['chat', 'explain'].includes(player.job.kind)
     ? player.job : null;
@@ -4275,7 +4276,9 @@ $('cancelBtn').addEventListener('click', async () => {
     $('playerJobBar').classList.add('hidden');
   }
   const r = await window.api.cancelTranscribe().catch(()=>({ok:false,error:'İptal bağlantısı kurulamadı.'}));
+  if(state.activeJobId && state.activeJobId!==cancelOwnerId || player.job && player.job!==cancelOwnerJob && player.job.running)return;
   if(aiJob&&!r?.ok&&r?.error!=='Çalışan iş yok.'){
+    if(r?.running){state.running=true;$('startBtn').classList.add('hidden');$('cancelBtn').classList.remove('hidden');}
     if(aiJob.bubble)aiJob.bubble.textContent=(aiJob.streamText?aiJob.streamText+'\n\n':'')+'İptal doğrulanamadı. Yanıtlar uygulanmayacak; tekrar İptal düğmesine basabilirsiniz.';
     updateAiChatActions();return;
   }
@@ -4298,6 +4301,16 @@ $('cancelBtn').addEventListener('click', async () => {
     // parçaları (translation_chunk/segment) hâlâ player.cues2'ye yazıyordu —
     // işi hemen 'cancelled' işaretle ki geç gelen olaylar düşsün.
     player.job.cancelled = true;
+  }
+  if (r?.ok === false && r.running === true) {
+    // A failed native stop is not an idle backend. Keep the exact job until exit.
+    state.running = true;
+    $('startBtn').classList.add('hidden');$('cancelBtn').classList.remove('hidden');
+    const message = window.UiLocale?.get?.()==='en'
+      ? 'Stop was not confirmed. The job remains active; try Stop again.'
+      : 'Durdurma doğrulanamadı. İş hâlâ etkin; Durdur düğmesini tekrar deneyin.';
+    logLine(message,'warn');setStatus(window.UiLocale?.get?.()==='en'?'Stop not confirmed':'Durdurma doğrulanamadı','warn');
+    return;
   }
   if (!r || !r.ok || r.deferred) {
     // Backend'de çalışan iş yoktu veya iptal, başlatma IPC'si havada iken

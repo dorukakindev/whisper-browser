@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1024.md](docs/devir/2026-10-27-1024.md) — İptal onayı, başarısız Durdur tekrarı ve canlı iş sahipliği
 Güncel çalışma: [docs/devir/2026-10-27-0955.md](docs/devir/2026-10-27-0955.md) — Uzun dublaj grup kimliklerini kalite ve asistanda koruma
 Güncel çalışma: [docs/devir/2026-10-27-0944.md](docs/devir/2026-10-27-0944.md) —1.000 hedef başlangıcı: sesli kitap kalite kapsamı ve tam yeniden üretim
 Güncel çalışma: [docs/devir/2026-10-27-0916.md](docs/devir/2026-10-27-0916.md) —100 hedef: birleşik asistan/çeviri/ses kabulü ve aralık onarımı

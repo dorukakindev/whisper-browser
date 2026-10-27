@@ -96,7 +96,12 @@ function createJobTerminalGate(cleanup) {
 function createIdempotentCancel(action) {
   let promise = null;
   return () => {
-    if (!promise) promise = Promise.resolve().then(action);
+    if (!promise) {
+      promise = Promise.resolve().then(action).then(result => {
+        if (result?.ok === false) promise = null;
+        return result;
+      }, error => { promise = null; throw error; });
+    }
     return promise;
   };
 }
