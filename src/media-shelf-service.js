@@ -17,23 +17,22 @@ function urlOf(value) {
   return safe;
 }
 function csvPlan(rows, items) {
-  const fold = v => String(v || '').normalize('NFKC').toLocaleLowerCase('tr').trim();
+  const fold = v => require('./text-fold').search(v).trim();
   const planned = [], ambiguous = [], added = [];
   const groups = new Map();
   for (const item of items) {
-    const key = `${fold(item.title)}|${item.year || ''}`;
-    const group = groups.get(key) || []; group.push(item); groups.set(key, group);
+    for(const name of new Set([item.title,item.originalTitle].filter(Boolean).map(fold))){const key=`${name}|${item.year||''}`;const group=groups.get(key)||[];group.push(item);groups.set(key,group);}
   }
   // Ratings export may repeat titles. One last non-empty rating wins; diary dates are retained separately.
   const unique = new Map();
   for (const row of rows) {
     const key = `${fold(row.title)}|${row.year || ''}`, old = unique.get(key);
-    unique.set(key, { ...old, ...row, rating: row.rating ?? old?.rating ?? null });
+    unique.set(key, { ...old, ...row, watched:!!row.watched||!!old?.watched,watchedDate:row.watchedDate||old?.watchedDate||'', rating: row.rating ?? old?.rating ?? null });
   }
   for (const row of unique.values()) {
-    const targets = (row.year ? groups.get(`${fold(row.title)}|${row.year}`) || [] : items.filter(item => fold(item.title) === fold(row.title))).filter(item => item.kind !== 'series');
+    const targets = (row.year ? groups.get(`${fold(row.title)}|${row.year}`) || [] : items.filter(item => [item.title,item.originalTitle].some(name=>name&&fold(name)===fold(row.title)))).filter(item => item.kind !== 'series');
     if (targets.length > 1) { ambiguous.push(row.title); continue; }
-    if (targets[0]) planned.push({ id: targets[0].id, title: row.title, rating: row.rating, preserved: !!targets[0].ratings?.personal });
+    if (targets[0]) planned.push({ id: targets[0].id, title: row.title, rating: row.rating, watched:!!row.watched||!!row.watchedDate,preserved: !!targets[0].ratings?.personal });
     else added.push(row);
   }
   return { planned, added, ambiguous };
@@ -208,7 +207,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const parsed = await parser({ action: 'letterboxd', path: files[0] });
           const catalog = catalogStore();
           const plan = csvPlan(parsed.rows, catalog.list()), token = randomUUID();
-          imports.clear(); imports.set(token, { rows: parsed.rows, reviews:parsed.reviews || parsed.rows.filter(row=>row.review),expires: Date.now() + 600000 });
+          imports.clear(); imports.set(token, { rows: parsed.rows, reviews:parsed.reviews || parsed.rows.filter(row=>row.review),diary:parsed.diary||parsed.rows,expires: Date.now() + 600000 });
           return { ok: true, token, count: parsed.rows.length, reviews:(parsed.reviews || parsed.rows.filter(row=>row.review)).length,matches: plan.planned.length, newTitles: plan.added.length, ambiguous: plan.ambiguous, preserved: plan.planned.filter(row => row.preserved).length };
         }
         case 'letterboxd-apply': {
@@ -216,12 +215,12 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (!prepared || prepared.expires < Date.now()) throw Error('Import preview expired; choose the CSV again.');
           const catalog = catalogStore();
           const plan = csvPlan(prepared.rows, catalog.list());
-          const patches = plan.planned.map(row => ({ id: row.id, ratings: { personal: row.preserved ? catalog.get(row.id).ratings.personal : row.rating === null ? null : String(row.rating) } }));
+          const patches = plan.planned.map(row => ({ id: row.id, ratings: { personal: row.preserved ? catalog.get(row.id).ratings.personal : row.rating === null ? null : String(row.rating) },...(row.watched&&catalog.get(row.id).watchStatus==='unspecified'?{watchStatus:'completed'}:{}) }));
           // Preserve existing personal scores. New ratings belong to the user, not the site's aggregate.
           const data = load();
-          const catalogPatches=[...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(row.rating) } }))];
-          const merged = new Map(data.diary.map(row => [`${row.title}|${row.year}`, row]));
-          prepared.rows.forEach(row => { const key = `${row.title}|${row.year}`, old = merged.get(key); merged.set(key, { ...old, ...row, review:row.review || old?.review || '',rating: row.rating ?? old?.rating ?? null, watchedDate: row.watchedDate || old?.watchedDate || '' }); });
+          const catalogPatches=[...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate||row.watched ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(row.rating) } }))];
+          const diaryKey=row=>JSON.stringify([require('./text-fold').search(row.title),row.year||'',row.watchedDate||'',row.rewatchIndex||0]);const merged = new Map(data.diary.map(row => [diaryKey(row), row]));
+          (prepared.diary||prepared.rows).forEach(row => { const key = diaryKey(row), old = merged.get(key); merged.set(key, { ...old, ...row, review:row.review || old?.review || '',rating: row.rating ?? old?.rating ?? null, watchedDate: row.watchedDate || old?.watchedDate || '' }); });
           data.diary = [...merged.values()].slice(-10000);
           const reviews=new Map((Array.isArray(data.reviews)?data.reviews:[]).map(row=>[require('./media-taste').reviewId(row),row]));
           for(const row of prepared.reviews || [])reviews.set(require('./media-taste').reviewId(row),row);

@@ -113,7 +113,7 @@
   function makeDraft(item, type = 'movie') {
     return item ? { id: item.id, type: catalogType(item), title: item.title || '', year: item.year || '', synopsis: item.synopsis || '',
       imdbId: item.imdbId || '', tmdbId: item.tmdbId || '', watchStatus: item.watchStatus || 'unspecified', favorite: !!item.favorite,
-      ratings: { ...(item.ratings || {}) }, episodes: (item.episodes || []).map(episode => ({ ...episode })) }
+      genres:[...(item.genres||[])],directors:[...(item.directors||[])],ratings: { ...(item.ratings || {}) }, episodes: (item.episodes || []).map(episode => ({ ...episode })) }
       : { type, title: '', year: '', synopsis: '', imdbId: '', tmdbId: '', watchStatus: state.section === 'watchlist' ? 'planned' : 'unspecified', favorite: false, ratings: {}, episodes: [] };
   }
   function edit(item, type) { state.draft = makeDraft(item, type); state.mode = 'form'; render(); }
@@ -124,13 +124,13 @@
   function searchFoldOf(item) {
     let fold = searchFolds.get(item);
     if (fold === undefined) {
-      fold = `${item.title || ''} ${item.year || ''} ${item.synopsis || ''}`.toLocaleLowerCase('tr-TR');
+      fold = WhisperTextFold.search(`${item.title || ''} ${item.originalTitle||''} ${item.year || ''} ${item.synopsis || ''}`);
       searchFolds.set(item, fold);
     }
     return fold;
   }
   function filtered() {
-    const query = state.search.trim().toLocaleLowerCase('tr-TR');
+    const query = WhisperTextFold.search(state.search).trim();
     return state.items.filter(item => {
       if (state.section === 'watchlist'
         ? !(['planned', 'watching'].includes(item.watchStatus) || (item.episodes || []).some(episode => ['planned', 'watching'].includes(episode.watchStatus)))
