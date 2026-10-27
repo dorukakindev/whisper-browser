@@ -42,7 +42,8 @@
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
   if(!window.AssistantAppActions.current(task.owner)){void cancel();return;}
-  if(packet.type==='delta'){
+  if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
+  }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='proposal'||packet.type==='evidence'){
    if(packet.type==='proposal'){task.actions.push(packet.action);proposalTasks.set(packet.action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)}))});while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);}else task.evidence=packet.evidence||[];

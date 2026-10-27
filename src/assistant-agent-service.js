@@ -42,8 +42,8 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow};sessions.set(event.sender.id,session);
    stop=()=>controller.abort();event.sender.once('destroyed',stop);timer=setTimeout(stop,require('./assistant-settings').timeout(config));
-   const evidence=new Map();
-   const execute=async(name,args)=>{
+   const evidence=new Map(),offered=new Map(),planned=new Set();let attempted=0,failed=0;
+   const executeUnchecked=async(name,args)=>{
     controller.signal.throwIfAborted();requireOwner(owner);const entry=registry.get(name);
     if(name==='probe_video_captions'){
      const result=await probeVideo(owner,controller.signal);controller.signal.throwIfAborted();requireOwner(owner);
@@ -64,6 +64,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});return {matches,scope:'Only the supplied subtitle pool was searched.'};
     }
     if(entry.policy==='proposal'){
+     attempted++;
+     const signature=name+':'+JSON.stringify(Object.fromEntries(Object.keys(args).sort().map(key=>[key,args[key]])));
+     if(offered.has(signature))return {...offered.get(signature),note:'This exact review card already exists. It has not run.'};
+     const previous=[...offered.values()].map(row=>row.tool);
+     const prerequisite=previous.find(prior=>(['start_whisper','translate_video_captions','translate_captions'].includes(prior)&&entry.domain==='voice')||(['configure_voice_generation','prepare_voice_reference','set_voice_reference'].includes(prior)&&['start_voice_generation','use_generated_voice'].includes(name))||(['prepare_book_narration','select_book_chapters','start_book_narration'].includes(prior)&&['start_book_narration','export_book_audio'].includes(name)));
+     if(prerequisite){failed++;return {status:'blocked',note:'Apply the prerequisite card '+prerequisite+' first, then Continue with result after exact job completion. No dependent card or job was created.'};}
+
      if(flows.repeated(flow,name,args))return {status:'completed',note:'This exact step already ran in this flow. Read current status; do not repeat it.'};
      if(name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,owner)||!probe.languages.some(row=>row.id===args.caption_id))throw Error('Probe this video first and select a real caption ID.');}
      if(name==='cancel_job'&&!getJobs().jobs.some(row=>row.id===args.job_id&&row.cancellable))throw Error('Job is no longer cancellable.');
@@ -82,16 +89,20 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      const action={kind:'app_action',proposalId,tool:name,label,summary};
      proposals.set(proposalId,{sender:event.sender,owner,name,args,flow,libraryIdentity,collectionIdentity,expires:Date.now()+10*60*1000});
      emit(event.sender,{type:'proposal',requestId:session.id,action});
-     return {status:'proposed',label,proposalId,note:'A real action card was created. It has not run; the user may apply it.'};
+     const receipt={status:'proposed',label,proposalId,tool:name,note:'A real action card was created. It has not run; the user may apply it.'};offered.set(signature,receipt);if(name==='apply_library_collection')planned.delete(args.plan_id);return receipt;
     }
-    return requestRenderer(event.sender,owner,name,args,controller.signal);
+    const result=await requestRenderer(event.sender,owner,name,args,controller.signal);if(name==='plan_library_collection'&&result.status==='completed'&&result.plan?.id)planned.add(result.plan.id);return result;
    };
+   const execute=async(name,args)=>{try{return await executeUnchecked(name,args);}catch(error){if(!controller.signal.aborted)failed++;throw error;}};
    const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
+    onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});
    controller.signal.throwIfAborted();
    if(session.webSources?.length)result.text=result.text.slice(0,28000)+'\n\n'+(input.locale==='tr'?'Web kaynakları:':'Web sources:')+'\n'+session.webSources.map((row,i)=>'[W'+(i+1)+'] '+String(row.title).slice(0,200)+'\n'+row.url).join('\n');
-   return {ok:true,...result};
+   const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
+   if(attempted||planned.size||/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}
+   return {ok:true,...result,execution};
   }catch(error){return {ok:false,cancelled:!!controller?.signal.aborted,error:controller?.signal.aborted?'Assistant stopped or timed out / Asistan durduruldu veya zaman aşımına uğradı.':String(error.message).slice(0,300)};}
   finally{clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
  });

@@ -1,0 +1,514 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "note": "Live model with synthetic source/read tools; proposal-only callback; no personal media processing. Preserves intermediate failure before final preparation fix.",
+  "runs": [
+    {
+      "id": "C07",
+      "question": "Kütüphanemdeki bilimkurgu filmlerini bul, Uzay adlı koleksiyona eklemek için planla ve uygulama kartını sun. Dosyalara dokunma.",
+      "pass": true,
+      "elapsedMs": 11007,
+      "stats": {
+        "requests": 4,
+        "firstHeadersMs": 2554,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "search_library",
+          "args": {
+            "genre": "bilimkurgu",
+            "kind": "film"
+          }
+        },
+        {
+          "name": "plan_library_collection",
+          "args": {
+            "name": "Uzay",
+            "ids": "catalog:solar,catalog:orbit",
+            "member": true
+          }
+        },
+        {
+          "name": "apply_library_collection",
+          "args": {
+            "plan_id": "plan-real-1"
+          }
+        }
+      ],
+      "text": "Kütüphanenizdeki bilimkurgu filmleri 2 taneydi ve \"Uzay\" koleksiyonu için plan oluşturuldu:\n\n- Solar Station (catalog:solar)\n- Orbit (catalog:orbit)\n\nHer ikisi için de üyelik **ekleme** yönünde planlandı; dosyalara dokunulmuyor. Bu plan için onay kartı **sunuldu** (öneri kimliği: synthetic-proposal) — ancak uygulanmadı. Kartı siz inceleyip onayladığınızda koleksiyona ekleme gerçekleşir.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "C07",
+      "question": "Kütüphanemdeki bilimkurgu filmlerini bul, Uzay adlı koleksiyona eklemek için planla ve uygulama kartını sun. Dosyalara dokunma.",
+      "pass": true,
+      "elapsedMs": 8708,
+      "stats": {
+        "requests": 4,
+        "firstHeadersMs": 1569,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "search_library",
+          "args": {
+            "genre": "bilimkurgu",
+            "kind": "film"
+          }
+        },
+        {
+          "name": "plan_library_collection",
+          "args": {
+            "name": "Uzay",
+            "ids": "catalog:solar,catalog:orbit",
+            "member": true
+          }
+        },
+        {
+          "name": "apply_library_collection",
+          "args": {
+            "plan_id": "plan-real-1"
+          }
+        }
+      ],
+      "text": "Kütüphanenizde bilimkurgu türünde iki film buldum: **Solar Station** (catalog:solar) ve **Orbit** (catalog:orbit).\n\n\"Uzay\" koleksiyonuna eklenmek üzere plan hazır (plan-real-1) ve inceleme kartı öneri olarak sunuldu. Kart henüz uygulanmadı; koleksiyona üyelik yalnızca siz kartı onayladığınızda gerçekleşir. Dosyalara hiçbir işlem yapılmaz.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "C07",
+      "question": "Kütüphanemdeki bilimkurgu filmlerini bul, Uzay adlı koleksiyona eklemek için planla ve uygulama kartını sun. Dosyalara dokunma.",
+      "pass": true,
+      "elapsedMs": 14517,
+      "stats": {
+        "requests": 4,
+        "firstHeadersMs": 1856,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": {
+          "prompt_tokens": 3130,
+          "total_tokens": 3326,
+          "completion_tokens": 196,
+          "estimated_cost": 5.7871744e-05,
+          "prompt_tokens_details": {
+            "cached_tokens": 3072,
+            "cache_write_tokens": null
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      },
+      "calls": [
+        {
+          "name": "search_library",
+          "args": {
+            "query": "",
+            "kind": "film",
+            "genre": "bilimkurgu",
+            "status": "all"
+          }
+        },
+        {
+          "name": "plan_library_collection",
+          "args": {
+            "name": "Uzay",
+            "ids": "catalog:solar,catalog:orbit",
+            "member": true
+          }
+        },
+        {
+          "name": "apply_library_collection",
+          "args": {
+            "plan_id": "plan-real-1"
+          }
+        }
+      ],
+      "text": "Kütüphanenizde bilimkurgu türünde iki film bulundu:\n\n- **Solar Station** (`catalog:solar`)\n- **Orbit** (`catalog:orbit`)\n\n**\"Uzay\" koleksiyonu için plan:** Bu iki filmi koleksiyona üye olarak ekleme planı oluşturuldu (plan ID: `plan-real-1`).\n\n**Uygulama kartı sunuldu** (henüz başlatılmadı, uygulanmadı): Kartı inceleyip onaylamanız gerekiyor; onaylanana kadar koleksiyona hiçbir ekleme yapılmaz. Dosyalara erişilmez veya taşınmaz — işlem yalnızca koleksiyon üyeliğini kapsar.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "C02",
+      "question": "Mevcut İngilizce altyazıyı 5 ile 25. saniye arasında Türkçeye, seslendirmeye uygun çevir. Whisper çalıştırma.",
+      "pass": true,
+      "elapsedMs": 14225,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1331,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": {
+          "prompt_tokens": 3967,
+          "total_tokens": 4077,
+          "completion_tokens": 110,
+          "estimated_cost": 4.486048000000001e-05,
+          "prompt_tokens_details": {
+            "cached_tokens": 3840,
+            "cache_write_tokens": null
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      },
+      "calls": [
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "translate_captions",
+          "args": {
+            "track_id": "captured-en",
+            "target_language": "tr",
+            "start": 5,
+            "end": 25,
+            "forSpeech": true
+          }
+        }
+      ],
+      "text": "Mevcut yakalanmış İngilizce altyazı track'i (`captured-en`) için 5–25. saniye aralığında, seslendirmeye uygun (forSpeech) Türkçe çeviri kartı önerildi. Whisper kullanılmıyor; kaynak altyazı doğrudan çevrilecek.\n\nKart uygulanmadan önce inceleyip onaylamanız gerekiyor; iş henüz başlatılmadı.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "C03",
+      "question": "YouTube videosunun hazır altyazı dillerine bak, elle yazılmış İngilizce olanı bulursan Türkçeye çevir. Yoksa bana söyle; Whisper başlatma.",
+      "pass": true,
+      "elapsedMs": 10649,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1885,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "probe_video_captions",
+          "args": {}
+        },
+        {
+          "name": "translate_video_captions",
+          "args": {
+            "caption_id": "yt-manual:en",
+            "target_language": "tr"
+          }
+        }
+      ],
+      "text": "Mevcut YouTube altyazıları:\n\n- **Elle yazılmış İngilizce** — `yt-manual:en` (seçilen)\n- Otomatik İngilizce — `yt-auto:en` (kullanılmadı)\n\nElle yazılmış İngilizce altyazının Türkçeye çevrilmesi için bir kart hazırladım; henüz başlamadı. Kartı inceleyip uygularsanız işlem başlar. Whisper başlatılmadı.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "C06",
+      "question": "Açık PDF kitabın 3 ile 6. sayfalarını orijinal metniyle seslendirmeye hazırla. Üretimi henüz başlatma.",
+      "pass": true,
+      "elapsedMs": 6830,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1387,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "get_book_context",
+          "args": {}
+        },
+        {
+          "name": "prepare_book_narration",
+          "args": {
+            "from": 3,
+            "to": 6,
+            "text": "original"
+          }
+        }
+      ],
+      "text": "Açık PDF (\"Synthetic PDF\", toplam 12 sayfa) için hazırlık kartı önerildi:\n\n- **Kaynak:** PDF sayfaları 3–6\n- **Metin:** orijinal\n- **Durum:** önerildi — henüz uygulanmadı, üretim başlatılmadı\n\nKartı inceleyip uygulamanız gerekiyor. Onayladıktan sonra dilerseniz bölüm seçimi ve seslendirme başlatma adımına geçebiliriz.",
+      "error": null,
+      "phase": "collection-and-regression"
+    },
+    {
+      "id": "M01",
+      "question": "Mevcut İngilizce altyazıyı Türkçeye seslendirmeye uygun çevir, bitince seslendirmeye hazırla. Henüz çeviri de uygulanmadı; ilk adımın gerçek kartını sun.",
+      "pass": true,
+      "elapsedMs": 8887,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1977,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": {
+          "prompt_tokens": 3924,
+          "total_tokens": 3949,
+          "completion_tokens": 25,
+          "estimated_cost": 2.1497280000000007e-05,
+          "prompt_tokens_details": {
+            "cached_tokens": 3840,
+            "cache_write_tokens": null
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      },
+      "calls": [
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "translate_captions",
+          "args": {
+            "track_id": "captured-en",
+            "target_language": "tr",
+            "forSpeech": true
+          }
+        }
+      ],
+      "text": "Çeviri için ilk adımı kart olarak sundum — henüz başlatılmadı.\n\n- **Kaynak:** `captured-en` (yakalanmış İngilizce altyazı izi)\n- **Hedef dil:** Türkçe\n- **Mod:** Seslendirmeye uygun (`forSpeech`)\n\nKartı inceleyip uygularsanız çeviri işi başlar. İş tamamlandıktan sonra haber verirseniz, oluşan Türkçe altyazıyla seslendirme hazırlığına (referans ses seçimi ve hazırlık kontrolü) geçebiliriz; bu ikinci adım yalnızca ilk iş gerçekten bittiğinde önerilebilir.",
+      "error": null,
+      "phase": "chain-before-preparation-fix"
+    },
+    {
+      "id": "M02",
+      "question": "Mevcut İngilizce altyazıyı Türkçeye seslendirmeye uygun çevir, bitince seslendirmeye hazırla.",
+      "pass": false,
+      "elapsedMs": 6933,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1538,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "get_voice_status",
+          "args": {}
+        },
+        {
+          "name": "start_voice_generation",
+          "args": {}
+        }
+      ],
+      "text": "Seslendirme başlatma kartı hazır: onaylarsanız mevcut seçili referans ve Türkçe altyazıyla çalışacak. Başlatıldıktan sonra durumu iş kaydından kontrol edip sonucu bildirebilirim.",
+      "error": null,
+      "phase": "chain-before-preparation-fix"
+    },
+    {
+      "id": "M03",
+      "question": "Kütüphanemdeki bilimkurgu filmlerini Uzay koleksiyonu için yalnız planla. Uygulama kartı oluşturma, üyeliği değiştirme.",
+      "pass": true,
+      "elapsedMs": 14574,
+      "stats": {
+        "requests": 4,
+        "firstHeadersMs": 1745,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "search_library",
+          "args": {
+            "query": "bilimkurgu",
+            "kind": "film",
+            "genre": "bilimkurgu"
+          }
+        },
+        {
+          "name": "plan_library_collection",
+          "args": {
+            "name": "Uzay",
+            "ids": "catalog:solar,catalog:orbit",
+            "member": true
+          }
+        }
+      ],
+      "text": "Kullanıcı yalnızca plan istedi; bu nedenle onay kartı oluşturmadım ve üyelik değişmedi.\n\n\"Uzay\" koleksiyonu planı (`plan-real-1`) yalnızca veri olarak duruyor ve tıklanabilir bir kart yok:\n- `catalog:solar` — Solar Station\n- `catalog:orbit` — Orbit\n\nDilerseniz onay kartına dönüştürebilirim; kart oluşturmak da tek başına üyelik eklemez, insan onayı gerekir.",
+      "error": null,
+      "phase": "chain-before-preparation-fix"
+    },
+    {
+      "id": "M02",
+      "question": "Mevcut İngilizce altyazıyı Türkçeye seslendirmeye uygun çevir, bitince seslendirmeye hazırla.",
+      "pass": true,
+      "elapsedMs": 14350,
+      "stats": {
+        "requests": 5,
+        "firstHeadersMs": 2032,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "get_job_status",
+          "args": {}
+        },
+        {
+          "name": "get_source_context",
+          "args": {}
+        },
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "open_voice_preparation",
+          "args": {}
+        }
+      ],
+      "text": "Türkçeye seslendirmeye uygun çeviri işi (iş kimliği `completed-exact-627`) tamamlanmış durumda; yeni bir çeviri kartı açmadım.\n\nSeslendirme için sonraki adım olarak, mevcut ses stüdyosunu açma kartı hazırlandı (uygulanmadı, sizin onayınıza bağlı). Kart içinde altyazı, referans ses ve seçenekleri inceleyebilirsiniz — bu adım ses üretmez.\n\nAyrıca `job-voice-627` ve `job-captions-627` kimlikli iki iş hâlâ çalışıyor görünüyor; bunların detayını ya da iptalini isterseniz belirtebilirsiniz.",
+      "error": null,
+      "phase": "preparation-after-fix"
+    },
+    {
+      "id": "M02",
+      "question": "Mevcut İngilizce altyazıyı Türkçeye seslendirmeye uygun çevir, bitince seslendirmeye hazırla.",
+      "pass": true,
+      "elapsedMs": 12944,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 1281,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "get_job_status",
+          "args": {}
+        },
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "open_voice_preparation",
+          "args": {}
+        }
+      ],
+      "text": "Seslendirme hazırlığı için bir onay kartı oluşturdum (henüz uygulanmadı — kartı sizin onaylamanız gerekiyor).\n\nDurum:\n- İngilizce kaynak altyazı: `captured-en` (tam)\n- Türkçe, seslendirmeye uygun çeviri: `completed-exact-627` — tamamlandı (kısmi değil)\n- Seslendirme hazırlığı: önerildi, onay bekliyor\n\nNot: Uygulama durumunda şu an çalışan iki iş görünüyor — `job-voice-627` (ses) ve `job-captions-627` (altyazı). Bunların devam eden işler olması hazırlık adımını etkileyebilir; isterseniz önce durumlarını kontrol edebilirim. Kartı onayladıktan sonra seslendirme ayarlarını (ses referansı, zamanlama modu vb.) birlikte gözden geçirebiliriz. Ses üretimini ancak açıkça istediğinizde başlatırım.",
+      "error": null,
+      "phase": "preparation-after-fix"
+    },
+    {
+      "id": "M02",
+      "question": "Mevcut İngilizce altyazıyı Türkçeye seslendirmeye uygun çevir, bitince seslendirmeye hazırla.",
+      "pass": true,
+      "elapsedMs": 8014,
+      "stats": {
+        "requests": 3,
+        "firstHeadersMs": 2385,
+        "tiers": [
+          "flex"
+        ],
+        "finishes": [
+          "tool_calls",
+          "tool_calls",
+          "stop"
+        ],
+        "usage": null
+      },
+      "calls": [
+        {
+          "name": "get_source_context",
+          "args": {}
+        },
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "open_voice_preparation",
+          "args": {}
+        }
+      ],
+      "text": "Türkçeye seslendirmeye uygun çeviri tamamlandı (job: `completed-exact-627`).\n\nSıradaki adım olarak seslendirme hazırlığı için mevcut ses stüdyosunu açan bir kart hazırladım — henüz uygulanmadı, kartı inceleyip onaylamanız gerekiyor. Bu adım yalnızca altyazı/referans/seçenekleri incelemek için hazırlık açar; ses üretimi başlatmaz.",
+      "error": null,
+      "phase": "preparation-after-fix"
+    }
+  ]
+}
