@@ -1,3 +1,4 @@
+- [Rapor 633](BROWSER_BUG_REPORT_633.md) — 100 hedef, güvenli devam, PDF ses sahipliği ve 61 kalite grubu
 - [Rapor 632](BROWSER_BUG_REPORT_632.md) — Exact-job devam, kütüphane sayfalama, PDF/ZIP/PCM ve1000denetim görevi
 - [Rapor 631](BROWSER_BUG_REPORT_631.md) — Asistan yaşam döngüsü, timeout/retry, gerçek activity ve native Windows kabulü
 - [Rapor 630](BROWSER_BUG_REPORT_630.md) — Yerel DeepSeek/Claude Code için altı görev ve 72 sınama başlığı (belge teslimi)
