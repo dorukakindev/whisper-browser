@@ -1829,20 +1829,18 @@
   async function generate(force = false, retryGroup = null, control = {}) {
     if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
     if (!selected.size) throw Error(t("Select chapters.", "Bölüm seç."));
+    const projectId=project.id,ownerDialog=dialog,indices=[...selected].sort((a,b)=>a-b),settings={...voicePrefs};
+    const cancelled=()=>stopRequested||control.isCancelled?.()||dialog!==ownerDialog||!ownerDialog?.open||project?.id!==projectId;
+    const productionStatus=message=>{if(dialog===ownerDialog&&project?.id===projectId)status(message);};
+    let prepared=null,saved=false;
+    stopRequested=false;
     busy = true;
     try {
       await saveChapter();
-    } catch (error) {
-      busy = false;
-      throw error;
-    }
-    stopRequested = false;
-    const projectId = project.id,
-      indices = [...selected].sort((a, b) => a - b);
-    try {
+      saved=true;
       for (let i = 0; i < indices.length; i++) {
-        if (stopRequested || control.isCancelled?.()) break;
-        status(
+        if (cancelled()) break;
+        productionStatus(
           `${i + 1}/${indices.length} · ${project.chapters[indices[i]].title}`,
         );
         const prep = await call("book-prepare", {
@@ -1856,9 +1854,11 @@
           ...(retryGroup ? { retryGroup } : {}),
         });
         const request = prep.request;
-        Object.assign(request, voicePrefs);
+        prepared={id:projectId,chapter:indices[i],jobId:request.id};
+        if(cancelled())break;
+        Object.assign(request, settings);
         if (prep.replanned)
-          status(
+          productionStatus(
             t(
               "Text changed: rebuilding speech groups; unchanged cached audio is reused when possible.",
               "Metin değişti: konuşma grupları yeniden planlanıyor; değişmeyen önbellek sesi mümkün olduğunda kullanılır.",
@@ -1879,17 +1879,18 @@
           request.forceGroups = [];
           request.forceAll = true;
         }
-        if (stopRequested || control.isCancelled?.()) break;
+        if (cancelled()) break;
         job = request.id;
         const terminal = new Promise((resolve, reject) => {
           const off = window.api.onDubEvent((event) => {
             if (event.id !== request.id) return;
-            if (event.type === "progress")
+            const currentView=dialog===ownerDialog&&project?.id===projectId;
+            if (event.type === "progress"&&currentView)
               workflowStage(
                 "synthesis",
                 `${i + 1}/${indices.length} · ${event.done ?? event.current ?? 0}/${event.total ?? "…"} · `,
               );
-            if (event.type === "status") {
+            if (event.type === "status"&&currentView) {
               if (event.stage)
                 workflowStage(event.stage, `${i + 1}/${indices.length} · `);
               else
@@ -1908,7 +1909,7 @@
           window.api
             .startDub(request)
             .then((r) => {
-              if(r?.ok)control.onAccepted?.(request.id);
+              if(r?.ok){prepared=null;control.onAccepted?.(request.id,{selectedCount:indices.length});}
               if (!r?.ok) {
                 off();
                 job = null;
@@ -1941,15 +1942,19 @@
             ),
           );
       }
-      status(
-        stopRequested
+      productionStatus(
+        cancelled()
           ? t("Stopped.", "Durduruldu.")
           : t("Selected chapters completed.", "Seçili bölümler tamamlandı."),
       );
     } finally {
+      if(prepared) {
+        try{await call('book-unprepare',prepared);}
+        catch(error){productionStatus(error.message);}
+      }
       busy = false;
       job = null;
-      if (project?.id === projectId) {
+      if (saved&&project?.id === projectId&&dialog===ownerDialog&&ownerDialog?.open) {
         project = (await call("book-open", { id: projectId })).project;
         if (dialog?.open) await books();
       }
@@ -2337,7 +2342,7 @@
     }
     if(name==='start_book_narration'||name==='book_chapter'&&args.operation==='regenerate'){
       // Keep the existing workflow running, but acknowledge only an actual startDub acceptance.
-      const expected=p.id;return new Promise((resolve,reject)=>{let accepted=false;const control={isCancelled:()=>!dialog?.open||project?.id!==expected||(!accepted&&stale()),onAccepted:acceptedId=>{if(!accepted){accepted=true;resolve({status:'accepted',jobId:selected.size===1?acceptedId:undefined,note:t('The first voice job was accepted. Follow production progress; quality is not yet verified.','İlk ses işi kabul edildi. Üretim ilerlemesini takip et; kalite henüz doğrulanmadı.')});}}};generate(name==='book_chapter',null,control).then(()=>{if(!accepted)reject(Error('No voice job was accepted.'));}).catch(error=>{status(error.message);if(!accepted)reject(error);});});
+      const expected=p.id;return new Promise((resolve,reject)=>{let accepted=false;const control={isCancelled:()=>!dialog?.open||project?.id!==expected||(!accepted&&stale()),onAccepted:(acceptedId,scope)=>{if(!accepted){accepted=true;resolve({status:'accepted',jobId:scope?.selectedCount===1?acceptedId:undefined,note:t('The first voice job was accepted. Follow production progress; quality is not yet verified.','İlk ses işi kabul edildi. Üretim ilerlemesini takip et; kalite henüz doğrulanmadı.')});}}};generate(name==='book_chapter',null,control).then(()=>{if(!accepted)reject(Error('No voice job was accepted.'));}).catch(error=>{status(error.message);if(!accepted)reject(error);});});
     }
     throw Error('Book action unavailable.');
   }

@@ -1,0 +1,21 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{EventEmitter}=require('node:events');
+const {registerMediaWorkflows}=require('../src/media-workflows');
+test('Abandoning an unstarted book request preserves audio and cannot clear a successor or running voice job',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'book-unprepare-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const app=new EventEmitter(),handlers={},sender={};app.getPath=()=>root;let voiceRunning=false;
+ const source=path.join(root,'source.pdf'),wav=path.join(root,'speech.wav');fs.writeFileSync(source,'fixture');fs.writeFileSync(wav,require('./helpers/wav-fixture')());
+ const service=registerMediaWorkflows({app,ipcMain:{handle:(n,f)=>handlers[n]=f},authorized:e=>e.sender===sender,owner:()=>null,resolvePdf:()=>({filePath:source,numPages:1,title:'Book'}),grantSubtitle(){},grantMedia(){},voiceRunning:()=>voiceRunning});
+ const call=(action,r={})=>handlers['media-workflows:request']({sender},{action,...r});
+ const imported=await call('book-from-reader',{pdfHash:'fixture',numPages:1,pages:[{pageNumber:1,text:'Actual chapter.'}]});assert(imported.ok,imported.error);const id=imported.project.id;
+ const completed=await call('book-prepare',{id,chapter:0});service.capture({id:completed.request.id,path:wav,quality:{groups:[{key:'1',text:'Actual chapter.',audioStart:0,audioEnd:.1,status:'ready'}]}});
+ const before=(await call('book-open',{id})).project.chapters[0];
+ const old=await call('book-prepare',{id,chapter:0}),current=await call('book-prepare',{id,chapter:0});
+ assert.equal((await call('book-unprepare',{id,chapter:0,jobId:old.request.id})).released,false);
+ assert.equal((await call('book-open',{id})).project.chapters[0].activeJob.id,current.request.id);
+ voiceRunning=true;assert.equal((await call('book-unprepare',{id,chapter:0,jobId:current.request.id})).ok,false);voiceRunning=false;
+ assert.equal((await call('book-unprepare',{id,chapter:0,jobId:current.request.id})).released,true);
+ const after=(await call('book-open',{id})).project.chapters[0];assert.equal(after.activeJob,null);assert.equal(after.output,before.output);assert.equal(after.status,before.status);assert.deepEqual(after.groups,before.groups);
+ assert.equal((await call('book-unprepare',{id,chapter:0,jobId:current.request.id})).released,false);
+ assert.equal((await call('book-unprepare',{id,chapter:-1,jobId:current.request.id})).ok,false);
+});

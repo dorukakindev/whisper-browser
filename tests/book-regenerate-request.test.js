@@ -64,10 +64,11 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       voicePrefs: { referenceId: "book-reference" },
       stopRequested: false,
       job: null,
-      dialog: { open: false },
+      dialog: { open: true },
       t: (en) => en,
       status() {},
       saveChapter: async () => {},
+      books: async () => {},
       call: async (name, value) => {
         if (name !== "book-prepare") return { project };
         assert.deepEqual(value.preview, preview);
