@@ -589,8 +589,8 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0568 | Motor iptal sınırı | Kaynak bağı: Başka video veya bölüm çıktısını yeni kaynağa otomatik bağlama. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0569 | Motor iptal sınırı | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_lifecycle.py` | DOĞRULANDI | Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2 |
 | P0570 | Motor iptal sınırı | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
-| P0571 | Bitmiş ses parçalarının kurtarılması | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
-| P0572 | Bitmiş ses parçalarının kurtarılması | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
+| P0571 | Bitmiş ses parçalarının kurtarılması | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_resume.py` | DOĞRULANDI | R646: recover_completed iki gerçek okunabilir WAV ile tam sonuç; ses doğallığı/model değil. |
+| P0572 | Bitmiş ses parçalarının kurtarılması | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_resume.py` | DOĞRULANDI | R646: eksik ikinci parça failed, uyarı ve zaman rezervi; controlled mevcut generation20 geçti. |
 | P0573 | Bitmiş ses parçalarının kurtarılması | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
 | P0574 | Bitmiş ses parçalarının kurtarılması | Referans değişimi: Aynı metinde referans dalgasını değiştir; eski ses/latent yanlış yeniden kullanılmasın. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
 | P0575 | Bitmiş ses parçalarının kurtarılması | Ayar değişimi: Adım/CFG/gruplama değişiminin ilgili cache ve plan kimliğine etkisini denetle. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
@@ -598,7 +598,7 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0577 | Bitmiş ses parçalarının kurtarılması | Bozuk ses: Boş/kesik/yanlış format sesi başarı veya karşılaştırılabilir çıktı sayma. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
 | P0578 | Bitmiş ses parçalarının kurtarılması | Kaynak bağı: Başka video veya bölüm çıktısını yeni kaynağa otomatik bağlama. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
 | P0579 | Bitmiş ses parçalarının kurtarılması | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
-| P0580 | Bitmiş ses parçalarının kurtarılması | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
+| P0580 | Bitmiş ses parçalarının kurtarılması | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/dub_resume.py` | İLERLEDİ | R646 B05-01: tüm parçalar kurtarıldığında yanlış incomplete_audio uyarısı kaldırıldı; başarısız yenileme review kalır. |
 | P0581 | Kısa/gruplu konuşma iyileştirme | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_recovery.py` | PLANLANDI | — |
 | P0582 | Kısa/gruplu konuşma iyileştirme | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_recovery.py` | PLANLANDI | — |
 | P0583 | Kısa/gruplu konuşma iyileştirme | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_recovery.py` | PLANLANDI | — |
@@ -1039,3 +1039,5 @@ Rapor643: uzun bölüm uçtan uca plan/capture/take, dosyalı yenileme ve25satı
 Rapor644: gerçek kitap editörü/render tamamlanması, geç eski kaynak ve kapatılmış pencerede asistan kabulü; open için4madde ilerledi, diğer operasyonlar açık.
 
 Rapor645: üretim öncesi stop/kapsam snapshot ve exact unprepare;1000bölüm nativeUI/sonbölüm ve asistan seç/start/listen/regenerate kabulü. Gerçek GPU/işitsel kalite ayrıca açık.
+
+Rapor646: yeni DeepSeek gece çıktısı dört gerçek kökle doğrulandı; tam/eksik kurtarma ve doğru uyarı için iki kabul maddesi kapandı, durum/kanıt maddesi kısmi ilerledi.
