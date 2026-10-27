@@ -1,3 +1,4 @@
+- [Rapor669](BROWSER_BUG_REPORT_669.md) — Spotify bağlantısından incelenmiş müzik listesi ve gerçek oynatma
 - [Rapor668](BROWSER_BUG_REPORT_668.md) — Kör müzik dinleme ve beş gerçek örnekle kalite karakterizasyonu
 - [Rapor667](BROWSER_BUG_REPORT_667.md) — Ses tarifiyle keşif, çeşitlilik ve onaylı çalma listesi
 - [Rapor666](BROWSER_BUG_REPORT_666.md) — Deneysel CLAP etiketleri ve kesit zaman çizelgesi
