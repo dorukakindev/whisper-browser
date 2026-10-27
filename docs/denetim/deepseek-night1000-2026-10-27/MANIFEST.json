@@ -1,0 +1,63 @@
+{
+  "planned_scenarios": 1000,
+  "families": 50,
+  "mechanisms": 20,
+  "files": {
+    "01-PAKET.md": {
+      "bytes": 74704,
+      "sha256": "80f2d74167bd0d3bac6c4488f6ddd1f1b0c7dd9d9f325df819602eede799e14c"
+    },
+    "02-PAKET.md": {
+      "bytes": 76304,
+      "sha256": "fcfd52f88f8a4af8e214a4a39dd5843e3e1528eee19de8c0595c6bb141df5fce"
+    },
+    "03-PAKET.md": {
+      "bytes": 76204,
+      "sha256": "2be73ae38be93c855728444e9170130f08b51c1381ed85c0ce24baa74bf6e226"
+    },
+    "04-PAKET.md": {
+      "bytes": 75124,
+      "sha256": "a2f72d5c819a15a3f424a3e395b3680275382783da63eb8e6ec958767e29d6e2"
+    },
+    "05-PAKET.md": {
+      "bytes": 76524,
+      "sha256": "5494e31f3a6a6497806f400eb228454e44223a4d676dfb77cc4d524ecef13b7e"
+    },
+    "06-PAKET.md": {
+      "bytes": 75424,
+      "sha256": "1cc3095d6dff9f51bdbf884a4bcd6ab1b081ed93c2a2f21bfe462e75b2ca3d6d"
+    },
+    "07-PAKET.md": {
+      "bytes": 75444,
+      "sha256": "b07ae560a27f3449087c6b0ab0f91987a9ef7c0acc7218720840eaec3b3ca52a"
+    },
+    "08-PAKET.md": {
+      "bytes": 76024,
+      "sha256": "c48e7cfac4690b1b26c4c5b8b0f348f587abf1f60ffb1255b1946dbc8a4a289b"
+    },
+    "09-PAKET.md": {
+      "bytes": 75904,
+      "sha256": "b137910f64589f773acd59100b4da3560ecd4ec651dc9fab965fbb0ceb98db15"
+    },
+    "10-PAKET.md": {
+      "bytes": 76744,
+      "sha256": "be025c4ac85cf96e10cfc092134f03a4d1ba655d73378c19783f94320035e029"
+    },
+    "1000-SENARYO.csv": {
+      "bytes": 408115,
+      "sha256": "74d1cd7be523ded54ec15f323e8703a1c1e6771928ab0748e899dbeab8c4c274"
+    },
+    "BASLA.md": {
+      "bytes": 2911,
+      "sha256": "c0c5f36a7717d6b493de718da751c3cea8827cef8c170e2c1fcc27a2e8ee3571"
+    },
+    "GLOBAL-KURALLAR.md": {
+      "bytes": 12713,
+      "sha256": "e407f1fd7497ad7ef3d8a5f6aca81741274b1dad897f41a3c84e8fe965f7635c"
+    },
+    "README.md": {
+      "bytes": 1825,
+      "sha256": "d863702a17aea0bcc0fd4746a70b7079f0cb593b02f5c94d73fc6649b3a6999b"
+    }
+  }
+}

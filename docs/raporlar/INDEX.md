@@ -1,3 +1,4 @@
+- [Rapor 632](BROWSER_BUG_REPORT_632.md) — Exact-job devam, kütüphane sayfalama, PDF/ZIP/PCM ve1000denetim görevi
 - [Rapor 631](BROWSER_BUG_REPORT_631.md) — Asistan yaşam döngüsü, timeout/retry, gerçek activity ve native Windows kabulü
 - [Rapor 630](BROWSER_BUG_REPORT_630.md) — Yerel DeepSeek/Claude Code için altı görev ve 72 sınama başlığı (belge teslimi)
 - [Rapor 629](BROWSER_BUG_REPORT_629.md) — 19 bulgunun triyajı; arama, yorum, tekrar izleme, kaynak ve native Windows kabulü
