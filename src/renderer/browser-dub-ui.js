@@ -18,6 +18,14 @@
     }
     return remembered.get(player.mediaKey);
   }
+  function selectedSubtitleRange() {
+    const tracks=player.browserTracks||[];
+    // Match the same translation path that prepareCurrent selects for synthesis.
+    const translated=player.sub2Role==='translation'&&player.sub2Path
+      ? tracks.find(track=>track.role==='translation'&&track.path===player.sub2Path):null;
+    const selected=translated||tracks.find(track=>track.id===player.browserLoadedTrackId);
+    return selected?.clipRange||currentBrowserWhisperRange();
+  }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
     source: player.localPath || player.mediaKey || '',
@@ -29,7 +37,7 @@
   }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, source: player.browserPageUrl || player.mediaKey || '', generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
-    subtitleRange: player.browserTracks.find(track => track.id === player.browserLoadedTrackId)?.clipRange || currentBrowserWhisperRange(),
+    subtitleRange: selectedSubtitleRange(),
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
     playbackRate: player.browserRate || 1, currentTime: player.browserTime,

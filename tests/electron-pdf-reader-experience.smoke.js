@@ -422,6 +422,10 @@ app
         2,
       ),
     );
+    await run(`document.getElementById('resultModal').classList.add('hidden');document.getElementById('playerLayer').classList.add('hidden');MediaHomeUI.openStudio();logLine('\x1b[31mTerminal-style diagnostic\x1b[0m '+ 'https://fixture.test/'.repeat(80),'warn');return true`);
+    assert(await run(`const log=document.getElementById('log');return log.clientWidth>0&&log.scrollWidth<=log.clientWidth+1&&!document.body.classList.contains('media-home-active')&&!log.textContent.includes('[31m')`),'Long diagnostics must wrap inside the log surface');
+    await run(`const log=document.getElementById('log');log.scrollTop=log.scrollHeight;return true`);
+    await capture('wrapped-log-light.png');
     console.log(JSON.stringify({ ok: true, out }));
     app.exit(0);
   })

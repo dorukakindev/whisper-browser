@@ -1,12 +1,19 @@
 'use strict';
 // Native Windows main/renderer/overlay; local HTTP tool model and controlled media helper.
 // No live YouTube, Whisper, paid model or GPU claim.
-const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {app,BrowserWindow,ipcMain}=require('electron'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
 const {EventEmitter}=require('node:events'),{PassThrough}=require('node:stream'),cp=require('node:child_process');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','assistant-captions',Date.now()+'-'+process.pid),profile=path.join(out,'profile'),source=path.join(out,'input','Türkçe kaynak.srt');
 fs.mkdirSync(profile,{recursive:true});fs.mkdirSync(path.dirname(source),{recursive:true});fs.mkdirSync(path.join(out,'output'),{recursive:true});
 fs.writeFileSync(source,'\ufeff1\n00:00:01,000 --> 00:00:03,000\nFirst sentence.\n\n2\n00:00:06,000 --> 00:00:09,000\nSecond sentence.\n\n3\n00:00:20,000 --> 00:00:26,000\nLast sentence.\n');
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;app.setAppPath(root);for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);
+const translated=path.join(out,'output','Türkçe kaynak.de.srt');fs.writeFileSync(translated,'\ufeff1\n00:00:01,000 --> 00:00:03,000\nFirst sentence.\n\n2\n00:00:06,000 --> 00:00:09,000\nZweiter Satz.\n\n3\n00:00:20,000 --> 00:00:26,000\nLetzter Satz.\n');
+const voiceStarts=[];
+const realHandle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(name,handler)=>realHandle(name,
+ name==='dub:config'?async()=>({ok:true,ready:true,reference:'fixture.wav'}):
+ name==='dub:references'?async()=>({ok:true,references:[]}):
+ name==='dub:start'?async(_event,request)=>{voiceStarts.push(request);return {ok:true};}:
+ name==='media:readSubtitle'?async(event,file)=>file===translated?{ok:true,text:fs.readFileSync(translated,'utf8'),mtimeMs:fs.statSync(translated).mtimeMs,size:fs.statSync(translated).size}:handler(event,file):handler);
 const downloads=[],requests=[],connections=new Set();const rawSpawn=cp.spawn;
 cp.spawn=(exe,args,options)=>{
  if(!args?.some(arg=>String(arg).endsWith('media.py'))||!args.includes('subs'))return rawSpawn(exe,args,options);
@@ -52,8 +59,22 @@ server.listen(0,'127.0.0.1',()=>{
  await until(()=>run("return document.querySelector('.tool-card button')?.textContent==='Kabul edildi'"),'real launch receipt');
  async function capture(name){await run("await document.fonts.ready;document.querySelector('.tool-card').scrollIntoView({block:'end'});return true");await wait(300);const bounds=await run("return {width:innerWidth,scroll:document.documentElement.scrollWidth,send:document.getElementById('send').getBoundingClientRect().bottom,height:innerHeight}");assert(bounds.scroll<=bounds.width+1&&bounds.send<=bounds.height);fs.writeFileSync(path.join(out,name+'.png'),(await overlay.webContents.capturePage()).toPNG());return bounds;}
  await capture('caption-range-speech-dark');win.setMinimumSize(0,0);win.setContentSize(720,680);await parent("UiLocale.set('en',false);applyUiTheme('light');return true");await until(()=>run("return document.documentElement.lang==='en'"),'light locale');const compact=await capture('caption-range-speech-light');
- await parent('state.running=false;player.job=null;return true');
- const result={ok:true,out,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,limits:'controlled probe/media helper/process; real shared renderer pipeline and local HTTP; no live model/GPU/YouTube'};
+ // Complete the controlled translation seam through the actual attachment and voice UI adapters.
+ const attached=await parent(`const job=player.job;window.fixtureOutputJob=job;return attachCompletedJobSubtitles({files:[${JSON.stringify(translated)}],outputs:[{path:${JSON.stringify(translated)},role:'translation',language:'de',status:'complete',total:3,completed:3,failed:0}]},job)`);
+ assert(attached.loaded,attached.reason);
+ assert(await parent(`return player.sub2Path===${JSON.stringify(translated)}&&player.sub2Role==='translation'&&player.cues2.some(row=>row.text.includes('Zweiter'))`),'Actual translation track is attached without replacing the source');
+ await parent(`state.running=false;player.job=null;state.activeOutputJob=null;return true`);
+ const configured=await parent(`return AssistantAppActions.execute('configure_voice_generation',{profile:'fast'},AssistantAppActions.snapshot())`);assert.equal(configured.status,'completed');assert.equal(voiceStarts.length,0,'Preparation cannot start synthesis');
+ const voice=await parent(`return AssistantAppActions.execute('get_voice_status',{},AssistantAppActions.snapshot())`);assert(voice.voice.subtitleReady);assert.equal(voice.voice.range?.start,5);assert.equal(voice.voice.range?.end,25,'Selected caption range automatically follows into voice');
+ const started=await parent(`return AssistantAppActions.execute('start_voice_generation',{},AssistantAppActions.snapshot())`);assert.equal(started.status,'accepted');assert.equal(voiceStarts.length,1);assert.equal(voiceStarts[0].srt,translated);assert.equal(voiceStarts[0].range.start,5);assert.equal(voiceStarts[0].range.end,25);
+ await parent(`window.fixtureAttachCount=0;BrowserDubAudioUI.attachGenerated=async()=>{fixtureAttachCount++;return true};return true`);
+ win.webContents.send('dub:event',{type:'done',id:voiceStarts[0].id,name:'controlled.wav',qualityUnavailable:true,qualityIncomplete:true,quality:{groups:[]}});
+ await until(()=>parent(`return !DubGeneratorUI.assistant.state().busy`),'synthetic dub completion');
+ assert(await parent(`return fixtureAttachCount===0&&document.getElementById('dubGeneratorStatus').textContent.includes('quality')`),'Missing quality remains a warning and never auto-attaches');
+ await parent(`player.browserPageUrl='https://www.youtube.com/watch?v=01234567890';player.mediaKey='browser:replacement';player.generation++;return true`);
+ assert((await parent(`return DubGeneratorUI.assistant.state()`)).sourceChanged,'Old voice preparation cannot move to a different video');
+
+ const result={ok:true,out,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,voiceStarts:voiceStarts.length,chain:'probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement',limits:'controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality'};
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));for(const s of connections)s.destroy();server.close();app.exit(0);
  }).catch(async error=>{fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error.stack);try{fs.writeFileSync(path.join(out,'diagnostic.txt'),await overlay.webContents.executeJavaScript('document.body.textContent'));}catch(_){}for(const s of connections)s.destroy();server.close();app.exit(1);});
 });
