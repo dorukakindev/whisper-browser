@@ -45,6 +45,8 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - seri-bağlam deposu (bf* alanları seri adıyla geri yüklenir)
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
+  // Dedicated assistant group in appSettingsPayload; key uses assistant.apiKey vault field.
+  'assistantEndpointPreset', 'assistantModel', 'assistantApiKey',
   // TMDB controls persist through tmdb:config, separately from transcription settings.
   'tmdbApiKey', 'tmdbLanguage', 'tmdbWatchRegion',
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.

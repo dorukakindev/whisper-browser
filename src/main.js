@@ -6401,6 +6401,8 @@ function adoptBrowserStreamMediaIdentity(tab, streamUrl) {
   return { changed: previous !== identity, identity, previous };
 }
 
+function assistantProviderConfig(){return require('./assistant-settings').resolve(loadSettings(),browserTranslationConfig());}
+
 function browserTranslationConfig(overrides = {}) {
   const settings = loadSettings();
   const translate = settings.translate || {};
@@ -20171,11 +20173,11 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
-require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=browserTranslationConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
+require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=assistantProviderConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
 require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
   getJobs:()=>assistantJobs.snapshot(),resolveJobId:id=>assistantJobLinks.get(id),cancelJob:id=>assistantJobs.cancel(id),
-  researchWeb:(query,signal)=>{const config=browserTranslationConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
+  researchWeb:(query,signal)=>{const config=assistantProviderConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
   probeVideo:async(owner,signal)=>{
     const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
     const parsed=new URL(url);if(parsed.protocol!=='https:'||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(parsed.hostname))throw Error('Open a YouTube video.');
@@ -20186,7 +20188,7 @@ require('./assistant-agent-service').register({app,ipcMain,authorized:authorized
     const cancel=()=>{if(proc&&mediaJobs.probe===proc)void assistantJobs.cancel(proc.assistantJobId);};
     signal.addEventListener('abort',cancel,{once:true});try{return await result;}finally{signal.removeEventListener('abort',cancel);}
   },
-  getConfig:()=>{const config=browserTranslationConfig();const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};},
+  getConfig:()=>{const config=assistantProviderConfig();const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};},
   validateOwner:owner=>{
     if(!['page','video'].includes(owner.kind))return true;
     const tab=browserTabById(owner.tabId);

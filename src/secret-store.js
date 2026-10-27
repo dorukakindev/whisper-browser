@@ -5,6 +5,7 @@ const { renameSyncResilient } = require('./fsync-utils');
 const SECRET_STORE_VERSION = 1;
 const DEFAULT_SECRET_FIELDS = Object.freeze([
   'hfToken',
+  'assistant.apiKey',
   'llm.apiKey',
   'translate.apiKey',
   'translate.apiKeyProfiles',

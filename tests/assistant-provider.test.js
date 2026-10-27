@@ -37,3 +37,9 @@ test('JSON-only tool calling works after a stream rejection and cannot execute a
  }});
  assert.equal(result.text,'Unavailable.');assert.equal(executed,false);assert.equal(result.capabilities.stream,'unsupported');
 });
+
+test('Every DeepInfra compatibility attempt and subsequent tool round retains Flex',async()=>{
+ const deep=require('../src/assistant-settings'),requests=[];let round=0;
+ const result=await run({question:'Help',owner,config:{...config,endpoint:deep.ENDPOINT,model:deep.MODEL},execute:async()=>({status:'completed'}),fetchImpl:async(url,request)=>{assert.equal(url,deep.ENDPOINT+'/chat/completions');const body=JSON.parse(request.body);requests.push(body);if(++round===1)return new Response('{"error":"stream unsupported"}',{status:400});if(round===2)return json({role:'assistant',tool_calls:[{id:'help',type:'function',function:{name:'app_help',arguments:'{}'}}]});return json({role:'assistant',content:'Ready.'});}});
+ assert.equal(result.text,'Ready.');assert.equal(requests.length,3);assert(requests.every(row=>row.service_tier==='flex'));
+});

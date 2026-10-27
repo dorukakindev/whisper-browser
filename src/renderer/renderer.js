@@ -3198,7 +3198,7 @@ async function testSelectedTranslationProvider() {
 }
 
 document.addEventListener('change', (event) => {
-  if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey'].includes(event.target.id)) {
+  if (['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey', 'assistantApiKey'].includes(event.target.id)) {
     event.target.dataset.secretEdited = 'true';
   }
 }, true);
@@ -3225,7 +3225,7 @@ async function saveAppSettings() {
   _settingsSaveWarningShown = false;
   providerApiKeyProfilesEdited.translate = false;
   providerApiKeyProfilesEdited.manga = false;
-  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey']) {
+  for (const id of ['hfToken', 'translateApiKey', 'mangaApiKey', 'llmApiKey', 'tmdbApiKey', 'assistantApiKey']) {
     if ($(id)) $(id).dataset.secretEdited = 'false';
   }
   document.dispatchEvent(new Event('metadata-settings-saved'));
@@ -3245,6 +3245,7 @@ function appSettingsPayload() {
     preset: $('presetSelect').value,
     presetReference: _presetReference,
     watchDir: state.watchDir || '',
+    assistant:{endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim()||WhisperAssistantSettings.MODEL,...secretSettingPatch('assistantApiKey')},
     translate: {
       ...secretSettingPatch('translateApiKey'),
       ...providerApiKeyProfilesPatch('translate'),
@@ -3838,6 +3839,7 @@ const initialSettingsReady = (async () => {
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       projectGlossaries = (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries))
         ? s.projectGlossaries : {};
+      if(s.assistant){$('assistantEndpointPreset').value=s.assistant.endpointPreset||(s.assistant.apiKey?WhisperAssistantSettings.ENDPOINT:'inherit');$('assistantModel').value=s.assistant.model||WhisperAssistantSettings.MODEL;$('assistantApiKey').value=s.assistant.apiKey||'';}
       if(s.tmdb){$('tmdbApiKey').value=s.tmdb.apiKey||'';$('tmdbLanguage').value=s.tmdb.language||'tr-TR';const region=/^[A-Z]{2}$/.test(s.tmdb.watchRegion||'')?s.tmdb.watchRegion:'TR';const regionSelect=$('tmdbWatchRegion');if(![...regionSelect.options].some(option=>option.value===region)){const option=document.createElement('option');option.value=region;option.textContent=region;regionSelect.append(option);}regionSelect.value=region;}
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
@@ -11368,6 +11370,8 @@ function currentBrowserYoutubeUrl() {
 // çeviriyi ZORLA kapatıyordu: anahtar girili, çeviri açık olsa bile yalnız
 // kaynak altyazı çıkıyor, kullanıcı ikinci kez "Çeviri oluştur"a basmak zorunda
 // kalıyordu. Yalnız kaynak isteyen için boş panelde "Yalnız altyazı" kalır.
+function assistantProviderSelection(){return WhisperAssistantSettings.resolve({assistant:{endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim(),apiKey:$('assistantApiKey')?.value.trim()}},{model:$('translateModel')?.value.trim(),endpoint:$('translateEndpointPreset')?.value==='custom'?$('translateBaseUrl')?.value:$('translateEndpointPreset')?.value,apiKey:$('translateApiKey')?.value.trim()});}
+
 function translationReadyForCreate() {
   const key = $('translateApiKey');
   return translationEndpointReady(key?.value, $('translateEndpointPreset')?.value === 'custom' ? $('translateBaseUrl')?.value : $('translateEndpointPreset')?.value);
@@ -19944,10 +19948,13 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   updateAiChatActions();
   if(preparing.cancelled||sourceScope!==aiSourceScope()||!independentAgent&&(state.running||state.queueRunning||player.job?.awaitingExit))return;
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
+  if(!translationTarget){const a=assistantProviderSelection();opts.translateApiKey=a.apiKey;opts.translateBaseUrl=a.endpoint;opts.translateModel=a.model;}
   opts.chat = { question: q, history, context: chatContext };
   delete opts.youtube;
-  if (!translationEndpointReady(opts.translateApiKey, opts.translateBaseUrl)) {
-    aiChatAdd('ai', 'Çeviri/AI için API anahtarı gerekli: Gelişmiş ayarlar → Çeviri → API Key.', 'ai-msg-err');
+  const assistantConfig=assistantProviderSelection();
+  const chatConfig=independentAgent?assistantConfig:{apiKey:opts.translateApiKey,endpoint:opts.translateBaseUrl};
+  if (!translationEndpointReady(chatConfig.apiKey, chatConfig.endpoint)) {
+    aiChatAdd('ai', window.UiLocale?.get?.()==='tr'?'Asistan için API anahtarı gerekli: Ayarlar → Asistan ve çeviri.':'An assistant API key is required: Settings → Assistant & translation.', 'ai-msg-err');
     return;
   }
 
@@ -19974,7 +19981,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   bekleyen._transcriptEvidence = chatContext.transcript_evidence?.evidence || [];
   renderAiChatContext(chatContext, true);
   updateMakeTransState();
-  job.chatTimer=setTimeout(()=>{if(player.job===job&&job.running)void cancelAiChat('Yanıt süresi aşıldı. İstek iptal edildi; yeniden deneyebilirsiniz.');},120000);
+  job.chatTimer=setTimeout(()=>{if(player.job===job&&job.running)void cancelAiChat('Yanıt süresi aşıldı. İstek iptal edildi; yeniden deneyebilirsiniz.');},WhisperAssistantSettings.timeout({endpoint:opts.translateBaseUrl}));
 
   const r = await startTranscribeSafe(opts);
   if (!r || !r.ok) {

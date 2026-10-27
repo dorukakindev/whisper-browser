@@ -131,13 +131,13 @@ const ENDPOINT_PRESETS = new Set([
   'https://api.shuaiapi.com/v1', 'https://oai.sb/v1', 'https://api.oai.sb/v1',
   'https://cdn.shuaiapi.com/v1', 'https://api.openai.com/v1', 'https://api.deepseek.com',
   'https://codecraftapi.com/v1', 'https://4sapi.com/v1',
-  'https://api.apinex.bond/v1',
+  'https://api.deepinfra.com/v1/openai', 'https://api.apinex.bond/v1',
   'https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1',
   'https://generativelanguage.googleapis.com/v1beta/openai', 'custom',
 ]);
 
 const SECRET_FIELD_PATHS = Object.freeze([
-  'hfToken', 'llm.apiKey', 'translate.apiKey', 'translate.apiKeyProfiles',
+  'assistant.apiKey', 'hfToken', 'llm.apiKey', 'translate.apiKey', 'translate.apiKeyProfiles',
   'manga.apiKey', 'manga.apiKeyProfiles',
   'tmdb.apiKey',
 ]);
@@ -506,6 +506,10 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
       clean.translate.apiKeyProfiles = existingSettings.translate.apiKeyProfiles;
     }
   }
+  if (Object.hasOwn(input,'assistant')) {
+    clean.assistant=sanitizeEndpointGroup(input.assistant,'Assistant',allowSecrets,existingSettings.assistant,{allowInherit:true,nextIdentity:{},previousIdentity:{}});
+    if(!['inherit','https://api.deepinfra.com/v1/openai'].includes(clean.assistant.endpointPreset))throw new SettingsValidationError('Invalid assistant provider.');
+  } else if(existingSettings.assistant) clean.assistant={...existingSettings.assistant};
   const cleanTranslateIdentity = endpointIdentity(clean.translate, nextTranslateOpts);
   if(Object.prototype.hasOwnProperty.call(input,'tmdb')){
     const value=input.tmdb;if(!value||typeof value!=='object'||Array.isArray(value))throw new SettingsValidationError('TMDB ayarı geçersiz.');
@@ -561,6 +565,7 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
     const cleared = new Set((Array.isArray(existingSettings.clearedSecretFields) ? existingSettings.clearedSecretFields : [])
       .filter((field) => SECRET_FIELD_PATHS.includes(field)));
     for (const [group, changed] of [
+      ['assistant', endpointIdentity(clean.assistant)!==endpointIdentity(existingSettings.assistant)],
       ['translate', cleanTranslateIdentity !== existingTranslateIdentity],
       ['llm', endpointIdentity(clean.llm) !== endpointIdentity(existingSettings.llm)],
       ['manga', endpointIdentity(clean.manga, mangaOpts(cleanTranslateIdentity))
@@ -579,7 +584,7 @@ function collectSecretValues(settings) {
   const values = [settings && settings.hfToken, settings && settings.translate && settings.translate.apiKey,
     settings && settings.translate && settings.translate.apiKeyProfiles,
     settings && settings.llm && settings.llm.apiKey, settings && settings.manga && settings.manga.apiKey,
-    settings && settings.manga && settings.manga.apiKeyProfiles, settings?.tmdb?.apiKey]
+    settings && settings.manga && settings.manga.apiKeyProfiles, settings?.tmdb?.apiKey, settings?.assistant?.apiKey]
     .filter((value) => typeof value === 'string' && value);
   for (const group of [settings?.translate, settings?.manga]) {
     try {
