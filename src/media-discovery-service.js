@@ -76,6 +76,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
     const mode = ['top', 'imdbRating', 'year'].includes(input.mode) ? input.mode : 'top';
     const skip = Number(input.skip || 0);
     if (!Number.isSafeInteger(skip) || skip < 0 || skip > 2000) throw Error('Invalid discovery page.');
+    const limit=input.limit===undefined?100:Number(input.limit);if(!Number.isInteger(limit)||limit<1||limit>100)throw Error('Invalid discovery limit.');
     const params = new URLSearchParams();
     if (mode === 'year') {
       const year = Number(input.year || new Date(now()).getUTCFullYear());
@@ -87,8 +88,8 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
     const extras = params.size ? '/' + params.toString() : '';
     const data = await request(`catalog/${kind}/${mode}${extras}.json`);
     const raw = Array.isArray(data.metas) ? data.metas : [];
-    const rows = raw.slice(0, 100).map(row => normalizeMeta(row, kind)).filter(Boolean);
-    return { rows, nextSkip: raw.length ? skip + raw.length : null };
+    const rows = raw.slice(0, limit).map(row => normalizeMeta(row, kind)).filter(Boolean);
+    return { rows, nextSkip: raw.length && skip+Math.min(raw.length,limit)<=2000 ? skip + Math.min(raw.length,limit) : null };
   }
   ipcMain.handle('media-discovery:request', async (event, input = {}) => {
     if (!authorized(event)) return { ok: false, error: 'Unauthorized request.' };

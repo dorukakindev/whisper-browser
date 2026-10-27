@@ -41,6 +41,7 @@ function actionsOf(raw){
   });
 }
 function cleanThread(raw){
+  if(Array.isArray(raw?.messages)&&raw.messages.length>200)throw Error('Message limit reached (200). Export this conversation and start a new one. / Mesaj sınırına ulaşıldı (200). Sohbeti dışa aktarıp yeni sohbet başlat.');
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');

@@ -17,10 +17,10 @@ function parseLetterboxdReviews(input){
   const body=html.slice(pattern.lastIndex,end);pattern.lastIndex=tokens.lastIndex;
   const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8||seen.has(text))continue;seen.add(text);
   // Find only the current card's attributes/author, never a global spoiler substring.
-  const prefix=html.slice(Math.max(0,found.index-16000),found.index);const starts=[...prefix.matchAll(/<(?:li|article)\b[^>]*>/gi)];const card=starts.length?prefix.slice(starts.at(-1).index):'';
+  const stack=[];for(const m of html.slice(0,found.index).matchAll(/<\/?(li|article|div)\b[^>]*>/gi)){if(m[0][1]==='/'){const i=stack.findLastIndex(row=>row.tag===m[1].toLowerCase());if(i>=0)stack.splice(i);}else stack.push({tag:m[1].toLowerCase(),index:m.index,open:m[0]});}const ancestorSpoiler=stack.some(row=>/class=["'][^"']*\b(?:contains-spoilers|has-spoilers)\b/i.test(row.open)||/data-(?:contains-)?spoilers?=["']true["']/i.test(row.open));const container=stack.findLast(row=>['li','article'].includes(row.tag))||stack.findLast(row=>/review|film-detail/i.test(row.open))||stack.at(-1);const card=container?html.slice(container.index,found.index):'';
   const authorTag=/<a\b[^>]*class=["'][^"']*\b(?:name|displayname)\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i.exec(card);
   const author=authorTag?plain(authorTag[1]).slice(0,120):'';
-  const spoiler=/\b(?:contains-spoilers|has-spoilers)\b/i.test(open+' '+card.match(/^<[^>]+>/)?.[0])||/class=["'][^"']*\b(?:spoiler-warning|spoiler-message|has-spoilers)\b/i.test(card+open+body)||/data-(?:contains-)?spoilers?=["']true["']/i.test(card+open);
+  const spoiler=ancestorSpoiler||/\b(?:contains-spoilers|has-spoilers)\b/i.test(open+' '+card.match(/^<[^>]+>/)?.[0])||/class=["'][^"']*\b(?:spoiler-warning|spoiler-message|has-spoilers)\b/i.test(card+open+body)||/data-(?:contains-)?spoilers?=["']true["']/i.test(card+open);
   const row={id:String(rows.length+1),text,author,spoiler};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
  }
  const meta=[...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]);const title=meta.find(tag=>attr(tag,'property')==='og:title');
@@ -53,7 +53,7 @@ function reviewPageScript(){return `(()=>{
  for(const n of document.querySelectorAll('meta[property="og:title"],meta[property="og:release_date"],meta[property="video:release_date"],h1'))host.append(n.cloneNode(true));
  const tmdb=document.querySelector('[data-tmdb-id],[data-film-tmdb-id]');if(tmdb){const n=document.createElement('div');n.setAttribute('data-tmdb-id',tmdb.getAttribute('data-tmdb-id')||tmdb.getAttribute('data-film-tmdb-id'));host.append(n);}
  for(const link of document.querySelectorAll('a[href*="themoviedb.org/movie/"]')){const n=document.createElement('a');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
- const seen=new Set();for(const body of [...document.querySelectorAll('.js-review-body')].slice(0,50)){const card=body.closest('article,li')||body;if(seen.has(card))continue;seen.add(card);const copy=card.cloneNode(true);for(const n of copy.querySelectorAll('script,style,template,input,textarea,select,form,iframe,button,img'))n.remove();host.append(copy);if(host.outerHTML.length>3000000)return {tooLarge:true};}
+ const seen=new Set();for(const body of [...document.querySelectorAll('.js-review-body')].slice(0,50)){const card=body.closest('article,li')||body;if(seen.has(card))continue;seen.add(card);const copy=card.cloneNode(true);if(body.closest('.contains-spoilers,.has-spoilers,[data-spoilers="true"],[data-contains-spoilers="true"]'))copy.setAttribute('data-spoilers','true');for(const n of copy.querySelectorAll('script,style,template,input,textarea,select,form,iframe,button,img'))n.remove();host.append(copy);if(host.outerHTML.length>3000000)return {tooLarge:true};}
  return {url:location.href,title:document.title,html:host.outerHTML};})()`;}
 async function readBrowserReviews({getTab,execute}){
  const tab=getTab();if(!tab?.view||tab.view.webContents.isDestroyed())throw Error('Open a Letterboxd film reviews page in Browser first.');

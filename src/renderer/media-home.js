@@ -312,7 +312,7 @@
       if (state.page === 'series') rows = rows.filter(item => item.kind === 'series');
       if (state.page === 'music') rows = rows.filter(item => model.medium(item) === 'music');
       if (state.page === 'web') rows = rows.filter(item => model.medium(item) === 'web');
-      if (state.query && ['home', 'books'].includes(state.page)) rows = [...items, ...watch];
+      if (state.query && ['home', 'books'].includes(state.page)) { const catalogIds=new Set(items.map(item=>item.id).filter(Boolean));rows = [...items, ...watch.filter(row=>!row.id||!catalogIds.has(row.id))]; }
       if(state.filter.startsWith('collection:'))rows=rows.filter(item=>(item.collections||[]).includes(state.filter.slice(11)));
       if (state.filter === 'favorites') rows = rows.filter(item => item.favorite);
       if (state.filter === 'planned') rows = rows.filter(item => ['planned', 'watching'].includes(item.watchStatus));

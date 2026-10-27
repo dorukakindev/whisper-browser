@@ -1,13 +1,14 @@
 /* Only an explicit user message can request one of the existing video workflows. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AssistantVideoIntent=api;})(typeof globalThis!=='undefined'?globalThis:this,()=>{
  'use strict';
+ const foldCommand=(typeof module==='object'&&module.exports?require('./text-fold'):globalThis.WhisperTextFold).command;
  const clock=value=>{
   const parts=String(value).split(':').map(Number);
   if(parts.at(-1)>=60||parts.length===3&&parts[1]>=60)return NaN;
   return parts.length===2?parts[0]*60+parts[1]:parts[0]*3600+parts[1]*60+parts[2];
  };
  function match(value){
-  const text=String(value||'').normalize('NFKC').toLocaleLowerCase('tr').trim();
+  const text=foldCommand(value).trim();
   if(!text||text.length>500||/["“”`]/u.test(text))return null;
   if(/(?:nasıl|neden|niye|how|why|what is|ne demek|yapabilir miyiz|mümkün mü)/u.test(text))return null;
   if(/(?:kötü|berbat|çalışmıyor|bozuk|terrible|broken|doesn't|isn't|do not|don't|istemiyorum)/u.test(text))return null;

@@ -60,6 +60,7 @@
     if(merged.length>100||JSON.stringify(merged).length>120000)throw Error(t('Combined sample is too large; keep this sample or start a new one.','Birleşik örnek çok büyük; mevcut örneği koru veya yeni örnek başlat.'));
     result={...result,reviews:merged};
    }
+   if(raw.value.trim()&&result.match?.state!=='matched')throw Error(t('The new source does not match this film. Your current sample was kept.','Yeni kaynak bu filmle eşleşmiyor. Mevcut örneğin korundu.'));
    const sourcePages=[...new Set([...(appendPages.checked?(draft.source?.pages||[draft.source?.url]):[]),result.url].filter(Boolean))].slice(-100);
    delete draft.result;
    raw.value=JSON.stringify(result.reviews);draft.reviews=raw.value;draft.source={pages:sourcePages,identity:result.identity,pageTitle:result.pageTitle,url:result.url,match:result.match,limited:result.limited};if(result.url){url.value=result.url;draft.url=result.url;}renderProvenance();setState('ready',result.reviews.length+' '+t('reviews loaded. This is a selected sample, not a consensus.','yorum yüklendi. Bu seçilmiş bir örnektir; ortak kanaat sayılmaz.')+(result.pages?' · '+result.pages+' '+t('pages','sayfa'):'')+(result.partial?' · '+t('Partial result: ','Kısmi sonuç: ')+result.warning:''));

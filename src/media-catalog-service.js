@@ -120,7 +120,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (Array.isArray(raw.episodes)) {
             patch.episodes = raw.episodes.map(ep => ({
               id: ep.id, season: ep.season, number: ep.number, title: ep.title, watchStatus: ep.watchStatus, airDate: ep.airDate,
-              source: previous?.episodes?.find(old => old.id === ep.id && old.season===Number(ep.season) && old.number===Number(ep.number))?.source || null,
+              source: previous?.episodes?.find(old => old.id === ep.id)?.source || null,
             }));
           }
           return { ok: true, item: visible(store().upsert(patch)) };
@@ -136,6 +136,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const file = await choose('Oynatılacak video dosyasını seç', ['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ts']);
           if (!file) return { ok: false, canceled: true };
           const value = inspectMedia(file);
+          if(!require('./media-catalog-store').sourceOf({type:'local',value}))throw Error('This local path is not supported by the catalog. No source was changed. / Bu yerel yol katalogda desteklenmiyor; kaynak değiştirilmedi.');
           return { ok: true, item: visible(patchSource(input.id, input.episodeId, { type: 'local', value, watchKey: sourceKey({ type: 'local', value }) })) };
         }
         case 'source-url': {

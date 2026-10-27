@@ -112,7 +112,9 @@ function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
     const pathNorm = normalizeFsPath(localPath);
     const lower = pathIdentity(localPath);
     if (!(lower.length > oldLower.length && lower.startsWith(oldLower))) continue;
-    const suffix = normalizedAbsolutePath(localPath).slice(oldLower.length);
+    // Folded Unicode length must never index the original path.
+    const rawRoot=normalizeRoot(normalizedAbsolutePath(oldPrefix));
+    const suffix = normalizedAbsolutePath(localPath).slice(rawRoot.length+(rawRoot.endsWith('/')?0:1));
     const candidate = newNorm ? newNorm + (newNorm.endsWith('/') ? '' : '/') + suffix : '';
     let exists = false, ready = false;
     try { exists = !!existsFn(pathNorm); } catch (_) {}

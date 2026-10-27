@@ -175,7 +175,8 @@ def rss(data):
     return dict(title=text(first(channel, 'title'))[:500], episodes=entries)
 
 
-def letterboxd(data):
+def letterboxd(data, source_name=""):
+    source_name = posixpath.basename(source_name.replace('\\', '/')).lower()
     if len(data) > 5_000_000:
         raise ValueError('Letterboxd CSV exceeds 5 MB.')
     reader = csv.DictReader(io.StringIO(decode(data)))
@@ -211,17 +212,26 @@ def letterboxd(data):
                          tags=[value.strip()[:100] for value in (row.get('Tags') or '').split(',') if value.strip()][:30],
                          liked=str(row.get('Liked') or '').lower() in ('yes','true','1'),
                          watchedDate=(row.get('Watched Date') or row.get('WatchedDate') or '')[:10],
+                         addedDate=(row.get('Date') or '')[:10],
+                         watched=source_name in ('watched.csv','diary.csv') or bool(row.get('Watched Date') or row.get('WatchedDate')),
                          uri=(row.get('Letterboxd URI') or row.get('LetterboxdURI') or '')[:2048]))
         if len(rows) > 10000:
             raise ValueError('Letterboxd CSV exceeds 10,000 titles.')
     if not rows:
         raise ValueError('No Name/Title column or no titles in CSV.')
+    if source_name == 'diary.csv':
+        seen = {}
+        for row in rows:
+            row['watchedDate'] = row['watchedDate'] or row['addedDate']
+            identity = (row['title'].casefold(), row['year'], row['watchedDate'])
+            row['rewatchIndex'] = seen.get(identity, 0)
+            seen[identity] = row['rewatchIndex'] + 1
     return dict(rows=rows)
 
 
 def letterboxd_archive(file):
     """Read selected CSV entries in memory; never extract archive paths."""
-    merged = {}; reviews = []
+    merged = {}; reviews = []; diary = {}; occurrences = {}
     with zipfile.ZipFile(file) as archive:
         selected = [entry for entry in archive.infolist() if posixpath.basename(entry.filename).lower() in ('ratings.csv','diary.csv','reviews.csv','watched.csv')]
         if not selected or len(selected) > 12 or sum(entry.file_size for entry in selected) > 20_000_000:
@@ -229,7 +239,15 @@ def letterboxd_archive(file):
         for entry in selected:
             if entry.file_size > 5_000_000 or entry.flag_bits & 1:
                 raise ValueError('Oversized or encrypted Letterboxd CSV.')
-            for row in letterboxd(archive.read(entry))['rows']:
+            source_name = posixpath.basename(entry.filename).lower()
+            for row in letterboxd(archive.read(entry), source_name)['rows']:
+                if source_name == 'diary.csv':
+                    identity = (row['title'].casefold(), row['year'], row['watchedDate'] or row['addedDate'])
+                    count = occurrences.get(identity, 0)
+                    occurrences[identity] = count + 1
+                    diary_row = row.copy(); diary_row['rewatchIndex'] = count
+                    diary_row['watchedDate'] = diary_row['watchedDate'] or diary_row['addedDate']
+                    diary[(*identity, count)] = diary_row
                 if row['review']: reviews.append(row.copy())
                 key = (row['title'].casefold(), row['year'])
                 old = merged.get(key, {})
@@ -237,11 +255,12 @@ def letterboxd_archive(file):
                 row['rating'] = row['rating'] if row['rating'] is not None else old.get('rating')
                 row['watchedDate'] = row['watchedDate'] or old.get('watchedDate', '')
                 row['liked'] = row['liked'] or old.get('liked', False)
+                row['watched'] = row['watched'] or old.get('watched', False)
                 row['tags'] = list(dict.fromkeys([*old.get('tags', []), *row['tags']]))[:30]
                 merged[key] = {**old, **row}
                 if len(merged) > 10000:
                     raise ValueError('Letterboxd ZIP exceeds 10,000 titles.')
-    return dict(rows=list(merged.values()), reviews=reviews[:10000])
+    return dict(rows=list(merged.values()), reviews=reviews[:10000], diary=list(diary.values()) if diary else list(merged.values()))
 
 
 if __name__ == '__main__':
@@ -257,7 +276,7 @@ if __name__ == '__main__':
                 result = letterboxd_archive(request['path'])
             else:
                 with open(request['path'], 'rb') as source:
-                    result = letterboxd(source.read(5_000_001))
+                    result = letterboxd(source.read(5_000_001), posixpath.basename(request['path']))
         else:
             raise ValueError('Unsupported parser action.')
         print(json.dumps(result, ensure_ascii=False, allow_nan=False))

@@ -1,8 +1,9 @@
 /* Explicit page commands only: page text is never allowed to request actions. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AssistantPageIntent=api;})(typeof globalThis!=='undefined'?globalThis:this,()=>{
  'use strict';
+ const foldCommand=(typeof module==='object'&&module.exports?require('./text-fold'):globalThis.WhisperTextFold).command;
  function match(value){
-  const text=String(value||'').normalize('NFKC').toLocaleLowerCase('tr').trim();
+  const text=foldCommand(value).trim();
   if(!text||text.length>500)return null;
   // Questions about the feature, quoted text, and negative requests stay in chat.
   if(/["“”`]/.test(text)||/\b(?:nasıl|neden|niye|how|why|whether)\b/u.test(text)||/(?:çevirme(?:yin|meni|yi)?|çevirmey|çevrilmesin|do not|don[’']t|without translating)/u.test(text))return null;
