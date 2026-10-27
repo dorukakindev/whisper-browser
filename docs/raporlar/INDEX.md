@@ -1,3 +1,4 @@
+- [Rapor654](BROWSER_BUG_REPORT_654.md) — Asistan 23 işlem ayarı, geri alma ve genel kütüphane erişimi
 - [Rapor653](BROWSER_BUG_REPORT_653.md) — Keşfet yorumları, seçilebilir DeepInfra Flex ve native asistan etkinliği
 - [Rapor652](BROWSER_BUG_REPORT_652.md) — Son10ses/çeviri kontrolü, eski dinleme makbuzu ve50hedef kanıtı
 - [Rapor651](BROWSER_BUG_REPORT_651.md) — PDF pasaj sahipliği, seçimin kırpılma kanıtı ve kitap kabulü

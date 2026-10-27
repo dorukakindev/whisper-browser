@@ -74,7 +74,7 @@
  async function apply(proposal){
   if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
   const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();let result;
-  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',error:response?.error||t('Action failed.','İşlem başarısız oldu.')};
+  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',error:response?.error||t('Action failed.','İşlem başarısız oldu.')};if(typeof result.error==='string')result.error=errorText(result.error);
    if(result.continuationState==='unverified')result.note=(result.note||'')+' '+t('Follow this job in Jobs; its completion cannot be linked to an automatic next step.','Bu işi İşler bölümünden takip et; tamamlanması sonraki adıma güvenle bağlanamıyor.');
    if(result.continuationState==='limit')result.note=(result.note||'')+' '+t('Eight applied steps reached. Ask a new question to continue.','Sekiz uygulanan adıma ulaşıldı. Devam etmek için yeni bir soru sor.');
    window.AssistantWorkspace?.actionResult(proposal.proposalId,result);

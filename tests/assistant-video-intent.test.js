@@ -24,3 +24,8 @@ test('Descriptions, negations, quoted page content and page translation are not 
   'Bu sayfayı Türkçeye çevir','"Whisper + çeviri yap" ne demek?',
   'Kitabı seslendir','Videodaki altyazı çevirisi nasıl?'])assert.equal(match(text),null,text);
 });
+
+
+test('Whisper and subtitle configuration is never a transcription start',()=>{
+ for(const text of ['Whisper modelini tiny yap','Whisper motorunu değiştir','Set Whisper model to tiny','Whisper ile tiny model kullan ve altyazı çıkar','Altyazı boyutunu 34 yap'])assert.equal(match(text),null,text);
+});

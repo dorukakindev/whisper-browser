@@ -18,3 +18,5 @@ test('Discovery review loading uses a verified discovery key, returns ten bounde
  h.w.api.mediaTools=async()=>({ok:true,match:{state:'mismatch'},reviews:[]});await assert.rejects(h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'}),/did not match/);
  }finally{h.dom.window.close();}
 });
+
+test('Playback reads visible source state and sets volume through the existing media command',async()=>{const h=setup();try{const calls=[];h.w.player={workspaceMode:'browser',browserTime:12,browserDuration:90,browserRate:1.25,browserVolume:.8,browserPaused:false};h.w.browserCommand=async(name,value)=>(calls.push({name,value}),{ok:true});h.w.BrowserDubAudioUI={context:()=>({hasMedia:true,visible:true})};assert.equal((await h.run('get_playback_state')).playback.position,12);await h.run('playback_control',{operation:'volume',value:.4});assert.equal(calls[0].name,'volume-set');assert.equal(calls[0].value,.4);}finally{h.dom.window.close();}});

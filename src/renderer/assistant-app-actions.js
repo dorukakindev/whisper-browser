@@ -20,7 +20,8 @@
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);
-  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled});
+  if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled});
+  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
