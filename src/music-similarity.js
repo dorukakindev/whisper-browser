@@ -23,7 +23,7 @@ async function runtimeStatus(options,runner){
     return {runtimeReady:(major>2||(major===2&&minor>=6))&&tm===4&&tn>=57,versions:value};
   }catch{return {runtimeReady:false};}
 }
-async function execute(options,{mode,source,request,signal,onProgress,runner,candidates}){
+async function execute(options,{mode,source,request,signal,onProgress,runner,candidates,references}){
   if(working)throw Error('Music indexing is already running / Müzik indeksleme zaten çalışıyor.');
   working=true;
   try{
@@ -33,11 +33,13 @@ async function execute(options,{mode,source,request,signal,onProgress,runner,can
     if(mode==='prepare')return JSON.parse(await runner(python,[...args,'--prepare'],null,signal,1800000,progress,{waitForCloseOnCancel:true}));
     if(!modelStatus(options.modelDir()).ready)throw Error('Prepare the CLAP model first / Önce CLAP modelini hazırla.');
     const access=new MediaFileAccess(['mp3','wav','m4a','aac','flac','ogg','opus','wma']);
-    const tracks=candidates?.tracks||loadTracks(options.userData());
-    if(!tracks.length)throw Error('Add tracks to your music library first / Önce müzik kitaplığına parçalar ekle.');
+    const hidden=new Set((options.preferences?.read()||[]).filter(r=>r.provider===(candidates?'deezer':'local')).map(r=>r.id));
+    const tracks=(candidates?.tracks||loadTracks(options.userData())).filter(r=>!hidden.has(r.id));
+    if(!tracks.length)throw Error('No available tracks. Add music or restore hidden tracks / Kullanılabilir parça yok. Müzik ekle veya gizlenen parçaları geri al.');
     const valid=[],skipped=[];
     for(const row of tracks){try{valid.push({id:row.id,path:access.inspect(row.path),title:String(row.title||'').slice(0,300),artist:String(row.artist||'').slice(0,200)});}catch{skipped.push(row.id);}}
-    const payload={reference:{id:candidates?'local:'+source.id:source.libraryId||'reference',path:access.inspect(source.file),artist:source.artist||''},tracks:valid,range:request.range||null,excludeArtist:request.excludeArtist===true,
+    const refs=(references||[{...source,range:request.range||null}]).map((r,i)=>({id:'reference:'+r.id+':'+i,path:access.inspect(r.file),artist:r.artist||'',title:r.title||'',range:r.range}));
+    const payload={reference:refs[0],references:refs,tracks:valid,range:refs[0].range,excludeArtist:request.excludeArtist===true,
       ffmpeg:options.ffmpeg(),ffprobe:options.ffprobe(),cacheDir:candidates?.cacheDir||path.join(options.userData(),'music-vectors'),preview:!!candidates};
     if(payload.range&&(!Array.isArray(payload.range)||payload.range.length!==2||!payload.range.every(Number.isFinite)||payload.range[0]<0||payload.range[1]-payload.range[0]<1||payload.range[1]-payload.range[0]>1800))throw Error('Invalid music range / Müzik aralığı geçersiz.');
     const result=JSON.parse(await runner(python,args,JSON.stringify(payload),signal,12*60*60*1000,progress,{waitForCloseOnCancel:true}));
@@ -45,8 +47,10 @@ async function execute(options,{mode,source,request,signal,onProgress,runner,can
     result.results=(result.results||[]).slice(0,20).flatMap(hit=>{
       const row=rows.get(hit.id);
       if(!row||!Number.isFinite(hit.score)||hit.score < -1||hit.score>1)return [];
-      if(candidates){const metadata=candidates.tracks.find(r=>r.id===row.id);return [{...hit,title:row.title,artist:row.artist,url:metadata.url,art:metadata.art,evidence:'preview-clap',provider:'Deezer'}];}
-      try{const file=access.inspect(row.path);options.grantMedia(file);return [{...hit,title:row.title,artist:row.artist,url:pathToFileURL(file).href}];}catch{return [];}
+      const matchedRef=refs.find(r=>r.id===hit.referenceId)||refs[0];
+      const binding={referenceTitle:matchedRef.title,referenceUrl:pathToFileURL(matchedRef.path).href,referenceScores:(hit.referenceScores||[]).map(s=>({title:refs.find(r=>r.id===s.id)?.title||'',range:refs.find(r=>r.id===s.id)?.range,score:s.score}))};
+      if(candidates){const metadata=candidates.tracks.find(r=>r.id===row.id);return [{...hit,...binding,title:row.title,artist:row.artist,url:metadata.url,art:metadata.art,evidence:'preview-clap',provider:'Deezer'}];}
+      try{const file=access.inspect(row.path);options.grantMedia(file);return [{...hit,...binding,title:row.title,artist:row.artist,url:pathToFileURL(file).href}];}catch{return [];}
     });
     result.failed=(Number(result.failed)||0)+skipped.length+(candidates?.failures.length||0);
     if(candidates){result.evidence='preview-clap';result.requested=candidates.requested;result.previewFailures=candidates.failures;}

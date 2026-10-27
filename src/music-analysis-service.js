@@ -34,6 +34,9 @@ function createService(options) {
     if (active) throw Error('An analysis is running / Bir analiz çalışıyor.');
     const mode=request.mode||'analyze';if(!['analyze','search','prepare','online'].includes(mode))throw Error('Unknown music mode');
     const source = sources.get(request.sourceId); if (!source&&mode!=='prepare') throw Error('Select the audio again / Sesi yeniden seç.');
+    if(request.references!==undefined&&(!['search','online'].includes(mode)||!Array.isArray(request.references)||!request.references.length||request.references.length>3))throw Error('Select 1–3 references / 1–3 referans seç.');
+    const references=request.references?.map(r=>{const saved=sources.get(r.id);if(!saved)throw Error('Reference expired; select it again / Referans eskidi; yeniden seç.');const range=r.range;if(range!==null&&(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||range[0]<0||range[1]-range[0]<1||range[1]-range[0]>1800))throw Error('Invalid reference range');return {...saved,range};});
+    if(references&&new Set(references.map(r=>JSON.stringify([r.file,r.range]))).size!==references.length)throw Error('Duplicate reference / Aynı referans tekrarlandı.');
     const onlineRows=mode==='online'?options.online().snapshot(request.trackIds):null;
     const controller = new AbortController(), job = { id: randomUUID(), controller, stage: mode==='analyze'?'probe':mode==='prepare'?'download':'model',mode }; active = job;
     let temp;
@@ -47,7 +50,7 @@ function createService(options) {
             temp=await fs.promises.mkdtemp(path.join(os.tmpdir(),'whisper-previews-'));
             candidates={...await options.online().samples(onlineRows,temp,controller.signal,onProgress),cacheDir:path.join(temp,'vectors'),requested:onlineRows.length};
           }
-          const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress,candidates});
+          const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress,candidates,references});
           if(controller.signal.aborted)throw Error('Cancelled');
           last={id:job.id,state:'completed',mode,result:{...result,sourceId:source?.id}};return;
         }
@@ -98,16 +101,26 @@ function createService(options) {
 }
 function register(options) {
   const services = new Map(), onlineServices = new Map();
+  const preferences=require('./music-preferences').store(options.userData);
   options.ipcMain.handle('music-analysis:request', async(event,request={})=>{
     if (!options.authorized(event)) return {ok:false,error:'Unauthorized'};
     let service = services.get(event.sender.id);
     if (!service) {
-      service = createService({...options,online:()=>onlineServices.get(event.sender.id)}); services.set(event.sender.id,service);
+      service = createService({...options,preferences,online:()=>onlineServices.get(event.sender.id)}); services.set(event.sender.id,service);
       event.sender.once('destroyed',()=>{service.cancel();services.delete(event.sender.id);});
     }
     let online=onlineServices.get(event.sender.id);
     if(!online){online=require('./music-online').createOnline(options);onlineServices.set(event.sender.id,online);event.sender.once('destroyed',()=>{online.cancel();onlineServices.delete(event.sender.id);});}
     try {
+      if(request.action==='preferences')return {ok:true,hidden:preferences.read()};
+      if(request.action==='feedback'){
+        let title;
+        if(request.hidden===false){const saved=preferences.read().find(r=>r.provider===request.provider&&r.id===request.id);if(!saved)throw Error('Unknown hidden track');title=saved.title;}
+        else if(request.provider==='deezer')title=online.snapshot([request.id])[0].title;
+        else if(request.provider==='local'){const row=require('./music-similarity').loadTracks(options.userData()).find(r=>r.id===request.id);if(!row)throw Error('Unknown library track');title=row.title;}
+        else throw Error('Unknown music provider');
+        return {ok:true,hidden:preferences.set(request.provider,request.id,title,request.hidden)};
+      }
       if(request.action==='online')return await online.handle(request);
       if (request.action === 'select') {
         const chosen = await options.dialog.showOpenDialog(options.owner(),{properties:['openFile'],filters:[{name:'Audio',extensions:EXTENSIONS}]});
