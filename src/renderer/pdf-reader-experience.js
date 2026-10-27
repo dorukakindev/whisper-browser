@@ -13,13 +13,17 @@
     voiceToken = 0,
     lastSpoken = -1;
   let playbackProgress = null;
+  let pdfPlayback = null;
+  let prepareToken = 0, manualFollowUntil = 0;
   function stopVoice() {
+    pdfPlayback?.dispose();pdfPlayback=null;
     const progress=playbackProgress;playbackProgress=null;
     if(progress)void progress.save($("pdfVoiceAudio").currentTime);
     pdfMap?.dispose();
     pdfMap = null;
     voiceToken++;
     const a = $("pdfVoiceAudio");
+    a.onpause = a.onloadedmetadata = a.ontimeupdate = null;
     a.pause();
     a.removeAttribute("src");
     a.load();
@@ -51,6 +55,7 @@
       id: r.pdfHash,
       title: $("pdfReaderTitle").textContent,
       page,
+      totalPages:r.pdf.numPages,
       chapter: t(
         `Sayfa ${page} / ${r.pdf.numPages}`,
         `Page ${page} of ${r.pdf.numPages}`,
@@ -162,12 +167,13 @@
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
   function opened() {
+    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;manualFollowUntil=0;
     stopBookAssistant?.();
     $("pdfBookAssistant").replaceChildren();
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
-      onPrepare:async(args,stale)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text||"original";return prepareVoice(stale);},
+      onPrepare:async(args,stale)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale);},
       onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
@@ -228,6 +234,7 @@
     changed(true);
   }
   function closed() {
+    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;
     stopBookAssistant?.();
     stopBookAssistant = null;
     $("pdfBookAssistant").replaceChildren();
@@ -305,12 +312,13 @@
       return;
     }
     preparing = true;
+    const preparation=++prepareToken;
     $("pdfVoicePrepare").disabled = true;
     status.textContent = t("Sayfalar hazırlanıyor…", "Preparing pages…");
     try {
       const pages = [];
       for (let page = from; page <= to; page++) {
-        if (player.pdfReader !== r || stale())
+        if (preparation!==prepareToken || player.pdfReader !== r || stale())
           throw Error(t("Belge değişti.", "Document changed."));
         const source = await extractPdfReaderPage(page);
         const list = mode === "translation" ? translations(r, page) : source;
@@ -342,7 +350,7 @@
           );
         pages.push({ pageNumber: page, text });
       }
-      if (player.pdfReader !== r || stale())
+      if (preparation!==prepareToken || player.pdfReader !== r || stale())
         throw Error(t("Belge değişti.", "Document changed."));
       const key = JSON.stringify([r.pdfHash, mode, pages]);
       let id = projects.get(key);
@@ -360,7 +368,7 @@
         while (projects.size > 20)
           projects.delete(projects.keys().next().value);
       }
-      if (player.pdfReader !== r || stale()) return;
+      if (preparation!==prepareToken || player.pdfReader !== r || stale()) return;
       voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
       $("pdfVoiceListen").disabled = false;
       const focus = pages.findIndex((p) => p.pageNumber === r.currentPage);
@@ -374,10 +382,9 @@
       );
       return {ok:true};
     } catch (e) {
-      status.textContent = e.message;
+      if(preparation===prepareToken&&player.pdfReader===r)status.textContent = e.message;
     } finally {
-      preparing = false;
-      $("pdfVoicePrepare").disabled = false;
+      if(preparation===prepareToken){preparing = false;$("pdfVoicePrepare").disabled = false;}
     }
   }
   $("pdfVoicePrepare").onclick = () => prepareVoice();
@@ -420,6 +427,7 @@
       );
       prose.append(title);
       const groups = result.groups || [];
+      let playback;
       for (const [i, row] of groups.entries()) {
         const span = document.createElement("span");
         span.className = "pdf-spoken-group";
@@ -427,14 +435,10 @@
         span.dataset.spoken = String(i);
         span.tabIndex = 0;
         span.onclick = () => {
-          const audio = $("pdfVoiceAudio");
-          audio.currentTime = row.start || 0;
-          void audio.play().catch((e) => {
-            status.textContent = e.message;
-          });
+          void playback?.playFrom(row.start ?? 0);
         };
         span.onkeydown = (e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             span.click();
           }
@@ -444,13 +448,7 @@
       const audio = $("pdfVoiceAudio");
       audio.src = pathToFileUrl(result.path);
       audio.classList.remove("hidden");
-      audio.onloadedmetadata = () => {
-        if (token === voiceToken)
-          audio.currentTime = Math.min(
-            result.position || 0,
-            audio.duration || 0,
-          );
-      };
+      playback=pdfPlayback=window.ReaderAudioControl.create(audio,{position:result.position||0,isCurrent:()=>token===voiceToken&&player.pdfReader===r,onError:error=>{status.textContent=error.message;},errors:{timeout:t('Ses bilgisi zaman aşımına uğradı. Yeniden dinlemeyi dene.','Audio metadata timed out. Try listening again.'),unavailable:t('Ses dosyası yüklenemedi.','Audio could not be loaded.'),range:t('Bu pasajın ses aralığı dosyada bulunamadı.','This passage is outside the audio file.')}});
       const pageEntry = r.pages.get(r.currentPage),
         sourceCanvas = pageEntry.article.querySelector(
           ".pdf-page-source canvas",
@@ -465,6 +463,7 @@
           original.getViewport({ scale: r.scale }),
           groups,
           audio,
+          start=>playback.playFrom(start),
         );
       }
       audio.ontimeupdate = () => {
@@ -479,9 +478,9 @@
             "pdf-active-speech",
             Number(span.dataset.spoken) === i,
           );
-        if ($("pdfVoiceFollow").checked) prose
+        if ($("pdfVoiceFollow").checked && Date.now()>=manualFollowUntil) prose
           .querySelector(".pdf-active-speech")
-          ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          ?.scrollIntoView({ block: "nearest", behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth' });
       };
       let lastSaved=-1;
       const progress={save:async position=>{
@@ -520,6 +519,10 @@
       changed(true);
     }
   });
+  // User navigation gets a short grace period; programmatic follow-scroll does not reset it.
+  for(const name of ['wheel','touchstart','pointerdown'])$("pdfReaderPages").addEventListener(name,()=>{manualFollowUntil=Date.now()+5000;},{passive:true});
+  $("pdfReaderPages").addEventListener('keydown',event=>{if(['PageUp','PageDown','ArrowUp','ArrowDown','Home','End',' '].includes(event.key))manualFollowUntil=Date.now()+5000;});
+  $("pdfVoiceFollow").addEventListener('change',()=>{manualFollowUntil=0;lastSpoken=-1;});
   $("pdfReaderPage").addEventListener("change", () => changed(true));
   document.addEventListener("ui-locale-change", () => {
     if (player.pdfReader) {

@@ -111,6 +111,7 @@
       : null;
   }
   function mount(container, canvas, items, viewport, groups, audio, onSeek) {
+    let disposed=false;
     container.querySelector(".pdf-text-map")?.replaceWith(canvas);
     const wrapper = document.createElement("div");
     wrapper.className = "pdf-text-map";
@@ -136,6 +137,7 @@
           height: (height / viewport.height) * 100 + "%",
         });
         b.onclick = () => {
+          if(disposed)return;
           if (onSeek) {
             void onSeek(groups[group].start);
             return;
@@ -159,8 +161,10 @@
       matched: new Set(boxes.map((b) => b.dataset.group)).size,
       total: groups.length,
       dispose() {
+        if(disposed)return;disposed=true;
         for (const b of boxes) b.classList.remove("pdf-active-box");
         audio.removeEventListener("timeupdate", update);
+        if(canvas.parentNode===wrapper)wrapper.replaceWith(canvas);
       },
     };
   }

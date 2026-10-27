@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0810.md](docs/devir/2026-10-27-0810.md) — 100 ürün hedefi: devam, kitap/PDF ve dublaj ilk paketi
 Güncel çalışma: [docs/devir/2026-10-27-0738.md](docs/devir/2026-10-27-0738.md) — Ürün derinleştirme ilk paketi, DeepSeek triyajı ve1000gece senaryosu
 Güncel çalışma: [docs/devir/2026-10-27-0713.md](docs/devir/2026-10-27-0713.md) — Asistan: gerçek işlem durumu, timeout/retry ve ayar modalı bağlamı
 Güncel çalışma: [docs/devir/2026-10-27-0527.md](docs/devir/2026-10-27-0527.md) — DeepSeek yerel derin denetim: altı görev, 72 başlık ve kanıt sözleşmesi

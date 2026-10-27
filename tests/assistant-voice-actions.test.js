@@ -1,6 +1,17 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
+
+test('Assistant can inspect every quality group past the first 30 without exposing paths',async()=>{
+ const h=setup();try{await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');h.finish(61);
+ const first=(await h.run('get_voice_status')).voice;assert.equal(first.groups.length,30);assert.equal(first.nextOffset,30);assert.equal(first.counts.total,61);
+ const second=(await h.run('get_voice_status',{offset:first.nextOffset})).voice;assert.equal(second.groups[0].id,'g31');assert.equal(second.nextOffset,60);
+ const last=(await h.run('get_voice_status',{offset:60})).voice;assert.equal(last.groups[0].id,'g61');assert.equal(last.nextOffset,null);assert.equal(last.groupsTruncated,false);
+ const exact=(await h.run('get_voice_status',{group_id:'g61'})).voice;assert.equal(exact.groups.length,1);assert.equal(exact.groups[0].number,61);assert(!JSON.stringify(exact).includes('private'));
+ await assert.rejects(h.run('get_voice_status',{offset:1.5}),/offset/);
+ h.context.mediaId='different-video';const changed=(await h.run('get_voice_status')).voice;assert(changed.sourceChanged);assert.equal(changed.groups.length,0);assert.equal(changed.output,null);assert.equal(changed.subtitleReady,false);
+ }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+});
 function setup(){
  const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,el=id=>w.document.getElementById(id);
  let event,request,proof=true,applied=0,picks=0,played=0,refUsed;
@@ -19,7 +30,7 @@ function setup(){
  for(const file of ['dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
   run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
-  finish:()=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:[{key:'g1',group:1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification:{status:'not_checked'}}]}};event(output);return output;}};
+  finish:(count=1)=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification:{status:'not_checked'}}))}};event(output);return output;}};
 }
 test('Real dubbing UI accepts typed options and starts only after an explicit action',async()=>{
  const h=setup();try{

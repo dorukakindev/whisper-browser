@@ -22,7 +22,7 @@
   ['start_whisper','video','proposal','Offer Whisper-only transcription or Whisper plus translation for the current YouTube video. No existing captions are required. A range needs both start/end in seconds. The user starts the card.',{translate:{type:'boolean'},...captionOptions},['translate'],'Whisper işlemi'],
   ['translate_captions','video','proposal','Offer translation of an existing captured source track. Requires a real track_id. Never substitute Whisper. Optional target, time range and speech-ready mode apply to this job only.',{track_id:string,...captionOptions},['track_id'],'Mevcut altyazıyı çevir'],
   ['translate_page','page','proposal','Offer the existing whole-page translation operation on the current page, optionally to a target language.',{target_language:{type:'string',pattern:'^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$',maxLength:15}},[],'Sayfayı çevir'],
-  ['get_voice_status','voice','read','Read selected dubbing settings, readiness and bounded quality groups. No paths or secrets. Checks are not proof of naturalness; audio has not been heard by the model.',{},[],'Ses durumunu oku'],
+  ['get_voice_status','voice','read','Read selected dubbing settings, readiness and quality groups, up to 30 at a time. Follow nextOffset to inspect later groups, or supply an exact known group_id. No paths or secrets. Checks are not proof of naturalness; audio has not been heard by the model.',{offset:{type:'number',minimum:0,maximum:10000},group_id:string},[],'Ses durumunu oku'],
   ['list_voice_references','voice','read','List real saved voice reference IDs and names. Never invent an ID; transcripts and filesystem paths are private.',{},[],'Referans sesleri listele'],
   ['set_voice_reference','voice','proposal','Select one real saved voice reference. Does not generate audio.',{reference_id:string},['reference_id'],'Referans sesi seç'],
   ['pick_local_voice_reference','voice','proposal','Open the existing native local audio picker. The user selects the file; never supply a path. Selection alone does not prepare or apply a reference.',{},[],'Yerel referans ses seç'],
@@ -85,6 +85,7 @@
   if(name==='start_whisper'&&args.forSpeech&&!args.translate)throw Error('Speech translation requires translate=true.');
   if(name==='prepare_voice_reference'&&(args.end-args.start<3||args.end-args.start>30||args.end>86400))throw Error('Reference range must be 3–30 seconds.');
   if(name==='configure_voice_generation'&&!Object.keys(args).length)throw Error('Specify at least one voice setting.');
+  if(name==='get_voice_status'&&args.offset!==undefined&&!Number.isInteger(args.offset))throw Error('Invalid voice group offset.');
   if(entry.domain==='book'&&(['from','to','chapter'].some(key=>args[key]!==undefined&&!Number.isInteger(args[key]))||args.to!==undefined&&args.to<args.from))throw Error('Invalid book range.');
   if(name==='set_app_preferences'&&!Object.keys(args).length)throw Error('Specify a normal preference.');
   if(name==='playback_control'&&(['seek','speed'].includes(args.operation)!==Object.hasOwn(args,'value')||args.operation==='speed'&&(args.value<0.25||args.value>4)))throw Error('Invalid playback value.');

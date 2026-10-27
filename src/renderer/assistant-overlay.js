@@ -104,6 +104,8 @@
     const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.busy, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
     const log = $('log'), previousScroll=log.scrollTop,bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    const focused=document.activeElement,focusCard=log.contains(focused)?focused.closest('.tool-card'):null;
+    const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
     log.replaceChildren();
     if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const eyebrow=document.createElement('small'),heading=document.createElement('h2'),detail=document.createElement('p');eyebrow.textContent=t('YOUR SOURCE, IN FOCUS','KAYNAĞIN, ODAKTA');heading.textContent=value.videoContext?t('Your video, ready to work.','Videon hazır. Ne yapalım?'):value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.videoContext?t('Translate existing captions or start Whisper. The selected video range is used; progress appears in this conversation.','Mevcut altyazıyı çevir veya Whisper başlat. Seçili video aralığı kullanılır; ilerleme bu sohbette gösterilir.'):value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(eyebrow,heading,detail);log.append(empty); }
     for (const row of value.messages || []) {
@@ -123,15 +125,16 @@
         node.append(sources);
       }
       for(const proposed of row.actions||[]){
-        const card=document.createElement('div');card.className='tool-card';
+        const card=document.createElement('div');card.className='tool-card';card.dataset.proposalId=proposed.id;card.tabIndex=-1;
         const title=document.createElement('strong');title.textContent=proposed.kind==='app_action'?proposed.label||t('Application action','Uygulama işlemi'):t(({seek_to_time:'Jump to this scene',preview_translation_change:'Translation suggestion',open_voice_preparation:'Prepare voice'})[proposed.kind]||'Suggested action',({seek_to_time:'Bu sahneye git',preview_translation_change:'Çeviri önerisi',open_voice_preparation:'Sesi hazırla'})[proposed.kind]||'Önerilen işlem');
         const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');
         const apply=document.createElement('button');
+        apply.dataset.toolControl='apply';
         apply.textContent=proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
         apply.disabled=busy||!!proposed.resultStatus;
         apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.'));$('review').hidden=false;};
         card.append(title,detail,apply);
-        if(proposed.canContinue){const next=document.createElement('button');next.className='flow-continue';next.textContent=proposed.waiting?t('Waiting for this job…','İşin bitmesi bekleniyor…'):t('Continue with result','Sonuçla devam et');next.disabled=busy||proposed.waiting;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
+        if(proposed.canContinue){const next=document.createElement('button');next.dataset.toolControl='continue';next.className='flow-continue';next.textContent=proposed.waiting?t('Waiting for this job…','İşin bitmesi bekleniyor…'):t('Continue with result','Sonuçla devam et');next.disabled=busy||proposed.waiting;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
 
         if(proposed.flowNote){const note=document.createElement('p');note.className='action-receipt';note.setAttribute('role','status');note.textContent=proposed.flowNote;card.append(note);}
         if(proposed.resultText){const receipt=document.createElement('p');receipt.className='action-receipt';receipt.setAttribute('role','status');receipt.textContent=proposed.resultText;card.append(receipt);}
@@ -140,6 +143,7 @@
       log.append(node);
     }
     filter();
+    if(focusTarget){const card=[...log.querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===focusTarget.id);if(card&&!card.closest('[hidden]')){const button=[...card.querySelectorAll('button')].find(n=>n.dataset.toolControl===focusTarget.control&&!n.disabled);(button||card).focus({preventScroll:true});}}
     if (bottom) log.scrollTop = log.scrollHeight;else log.scrollTop=previousScroll;
     $('latest').hidden=bottom;
   });

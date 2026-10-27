@@ -279,6 +279,14 @@ app.whenReady().then(async () => {
       await run('await window.NativePlayerUI.stop();return true');
     }
   }
+  await run(`const rows=(await api.listWatchLibrary()).slice(0,2);if(rows.length<2)throw Error('Carousel fixture requires two real library entries');for(const row of rows){const r=await api.updateWatchItem({...row,position:2,duration:100,completed:false});if(!r.ok)throw Error(r.error);}await MediaHomeUI.navigate('home');return true`);
+  await until(()=>run(`return !document.querySelector('.mh-hero-navigation').hidden`),'carousel candidates');
+  await run(`document.querySelector('.mh-hero-arrow:last-child').click();return true`);await wait(120);
+  const rememberedHero=await run(`return {key:localStorage.getItem('media-home-featured-v1'),title:document.querySelector('.mh-hero h1').textContent}`);assert(rememberedHero.key);
+  win.webContents.reload();await until(()=>!win.webContents.isLoading(),'reloaded shell');
+  await until(()=>run(`return !!window.MediaHomeUI && !!document.querySelector('.mh-hero h1')`),'home shell restored');
+  await run('await initialSettingsReady;await MediaHomeUI.navigate("home");return true');
+  await until(()=>run(`return document.querySelector('.mh-hero h1')?.textContent===${JSON.stringify(rememberedHero.title)}`),'same carousel selection after reload');
   assert.deepEqual(consoleErrors.filter(text => /uncaught|referenceerror|typeerror/i.test(text)), []);
   fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ results, consoleErrors }, null, 2));
   console.log(JSON.stringify({ ok: true, out, results }));

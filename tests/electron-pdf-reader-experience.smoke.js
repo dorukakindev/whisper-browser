@@ -338,6 +338,16 @@ app
       'const a=document.getElementById("pdfVoiceAudio");a.currentTime=.1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
     assert(await run('return !!document.querySelector(".pdf-active-speech")'),JSON.stringify(await run('return {status:document.getElementById("pdfVoiceStatus").textContent,time:document.getElementById("pdfVoiceAudio").currentTime,page:player.pdfReader.currentPage,groups:document.querySelectorAll(".pdf-spoken-group").length};')));
+    const manualFollow=await run(`
+      const audio=document.getElementById('pdfVoiceAudio');audio.pause();document.getElementById('pdfVoiceFollow').checked=true;
+      const original=HTMLElement.prototype.scrollIntoView,clock=Date.now;let calls=0,behavior;
+      HTMLElement.prototype.scrollIntoView=function(options){if(this.classList.contains('pdf-active-speech')){calls++;behavior=options.behavior;}};
+      const media=window.matchMedia;window.matchMedia=()=>({matches:true});
+      try{audio.currentTime=audio.duration;audio.dispatchEvent(new Event('timeupdate'));document.getElementById('pdfReaderPages').dispatchEvent(new WheelEvent('wheel'));audio.currentTime=.1;audio.dispatchEvent(new Event('timeupdate'));const during=calls;
+      Date.now=()=>clock()+6000;audio.currentTime=audio.duration;audio.dispatchEvent(new Event('timeupdate'));audio.currentTime=.1;audio.dispatchEvent(new Event('timeupdate'));return {during,after:calls,behavior};}
+      finally{Date.now=clock;HTMLElement.prototype.scrollIntoView=original;window.matchMedia=media;}
+    `);
+    assert.equal(manualFollow.during,0,'manual navigation has priority over follow');assert.equal(manualFollow.after,1);assert.equal(manualFollow.behavior,'auto','reduced motion avoids animated following');
     assert(await run('return !document.querySelector("dialog[open]")'));
     win.setContentSize(1441, 1000);
     await wait(100);

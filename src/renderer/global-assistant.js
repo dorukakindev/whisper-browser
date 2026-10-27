@@ -13,7 +13,8 @@
     timer = setTimeout(() => {
       const tr = window.UiLocale?.get?.() === 'tr';
       const selectionContext = globalAssistantContext();
-      const bookDescription=selectionContext?.chapterTextComplete?[tr?'Tam bölüm/sayfa metni':'Complete chapter/page text',selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+selectionContext.chapterText.length,selectionContext.excerpt?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
+      const suppliedBook=selectionContext?.chapterTextComplete?window.AssistantContextManifest.sourceText(selectionContext):null;
+      const bookDescription=suppliedBook?[suppliedBook.sourceTruncated?(tr?'Kısaltılmış bölüm/sayfa metni':'Partial chapter/page text'):(tr?'Tam bölüm/sayfa metni':'Complete chapter/page text'),selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+(suppliedBook.chapterText?.length||0),suppliedBook.chapterText?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const videoContext=pageContext&&!!currentBrowserYoutubeUrl();
       const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));

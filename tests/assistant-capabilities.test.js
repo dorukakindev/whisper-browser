@@ -1,6 +1,17 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const registry=require('../src/assistant-capabilities'),manifest=require('../src/assistant-context-manifest');
+
+test('Source truncation and subtitle evidence survive renderer/main double normalization',()=>{
+ const once=manifest.sourceText({page:{blocks:[{id:'S1',text:'x'.repeat(450)},null]},transcript_evidence:{evidence:[{id:'U1',start:4,text:'Real excerpt'}]}});
+ assert(once.sourceTruncated);assert(once.page.truncated);assert.equal(once.page.blocks.length,1);
+ const twice=manifest.sourceText(once);assert(twice.sourceTruncated);assert(twice.page.truncated);assert.equal(twice.evidence[0].text,'Real excerpt');
+ assert(manifest.sourceText({page:{blocks:Array(41).fill({text:'short'})}}).page.truncated);
+ assert(!manifest.sourceText({page:{blocks:[{text:'short'}]}}).sourceTruncated);
+ assert(manifest.sourceText({assistant_tools:{rows:Array(3101).fill({text:'short'})}}).sourceTruncated);
+ assert(manifest.sourceText({assistant_tools:{rows:[{text:'x'.repeat(701)}]}}).sourceTruncated);
+ assert(manifest.sourceText({truncated:true,excerpt:'Part of a PDF page'}).sourceTruncated);
+});
 test('Tools depend on real source availability; video actions do not require captured subtitles',()=>{
  const names=context=>registry.definitions(context).map(row=>row.function.name);
  assert(names({kind:'video',hasSubtitles:false}).includes('start_whisper'));

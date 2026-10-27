@@ -12,18 +12,21 @@
  function same(left,right){return !!left&&!!right&&['kind','owner','thread','tabId','generation','pageKey'].every(key=>left[key]===right[key])&&left.range?.start===right.range?.start&&left.range?.end===right.range?.end;}
  function publicContext(raw){const {owner,thread,tabId,generation,pageKey,...safe}=clean(raw);return safe;}
  function sourceText(context={},budget=24000){
-  const safe={};
+  const safe={};if(context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true)safe.sourceTruncated=true;
+  const suppliedPool=context.assistant_tools?.rows;
+  if(Array.isArray(suppliedPool)&&(suppliedPool.length>3100||suppliedPool.some(row=>typeof row?.text==='string'&&row.text.length>700||typeof row?.translation==='string'&&row.translation.length>700)))safe.sourceTruncated=true;
   for(const key of ['video','title','workspace','type','chapter','chapterText','chapterTextComplete','selectedText','excerpt','synopsis','note','pageUnavailable','zaman','cumle','mevcut_ceviri','not','sinir']){
    const limit=key==='chapterText'?16000:key==='excerpt'?8000:4000;
    const value=context[key];if(typeof value==='string'){safe[key]=text(value,limit);if(value.length>limit)safe.sourceTruncated=true;}else if(typeof value==='boolean')safe[key]=value;
   }
   if(typeof context.chapterText==='string'&&context.chapterText.length>16000)safe.chapterTextComplete=false;
-  for(const key of ['onceki','sonraki'])if(Array.isArray(context[key]))safe[key]=context[key].slice(0,8).map(row=>({zaman:text(row.zaman,30),metin:text(row.metin,1200)}));
+  for(const key of ['onceki','sonraki'])if(Array.isArray(context[key]))safe[key]=context[key].slice(0,8).filter(row=>row&&typeof row==='object').map(row=>({zaman:text(row.zaman,30),metin:text(row.metin,1200)}));
   if(context.hedef)safe.hedef={zaman:text(context.hedef.zaman,30),metin:text(context.hedef.metin,1200),baslangic:Number(context.hedef.baslangic)||0,bitis:Number(context.hedef.bitis)||0};
   if(context.diller)safe.diller={kaynak:text(context.diller.kaynak,30),ceviri:text(context.diller.ceviri,30)};
-  if(context.page&&typeof context.page==='object')safe.page={title:text(context.page.title,300),selectedText:text(context.page.selectedText,3000),truncated:!!context.page.truncated,
-   blocks:(Array.isArray(context.page.blocks)?context.page.blocks:[]).slice(0,40).map(row=>({id:text(row.id,40),text:text(row.text,400)}))};
-  if(context.transcript_evidence?.evidence)safe.evidence=context.transcript_evidence.evidence.slice(0,12).map(row=>({id:text(row.id,40),start:Number(row.baslangic??row.start)||0,text:text(row.metin??row.text,500),translation:text(row.ceviri??row.translation,500)}));
+  if(context.page&&typeof context.page==='object'){const blocks=Array.isArray(context.page.blocks)?context.page.blocks:[];safe.page={title:text(context.page.title,300),selectedText:text(context.page.selectedText,3000),truncated:context.page.truncated===true||blocks.length>40||String(context.page.selectedText||'').length>3000||blocks.some(row=>typeof row?.text==='string'&&row.text.length>400),
+   blocks:blocks.slice(0,40).filter(row=>row&&typeof row==='object').map(row=>({id:text(row.id,40),text:text(row.text,400)}))};if(safe.page.truncated)safe.sourceTruncated=true;}
+  const evidence=Array.isArray(context.transcript_evidence?.evidence)?context.transcript_evidence.evidence:Array.isArray(context.evidence)?context.evidence:null;
+  if(evidence){safe.evidence=evidence.slice(0,12).filter(row=>row&&typeof row==='object').map(row=>({id:text(row.id,40),start:Number(row.baslangic??row.start)||0,text:text(row.metin??row.text,500),translation:text(row.ceviri??row.translation,500)}));if(evidence.length>12||evidence.some(row=>String(row?.metin??row?.text??'').length>500||String(row?.ceviri??row?.translation??'').length>500))safe.sourceTruncated=true;}
   // Preserve valid JSON while bounding the source budget; never slice serialized JSON.
   while(JSON.stringify(safe).length>budget){
    safe.sourceTruncated=true;

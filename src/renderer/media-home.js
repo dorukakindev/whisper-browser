@@ -6,6 +6,7 @@
   const layer = document.getElementById('playerLayer');
   const state = { page: 'home', query: '', filter: 'all', limit: 48, active: true,
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '' };
+  try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
@@ -269,7 +270,7 @@
       controls.setAttribute('aria-label', t('Continue watching carousel', 'Kaldığın yerden gezinme'));
       const count = el('output', 'mh-hero-count'); count.setAttribute('aria-live', 'polite');
       function arrow(label, direction) {
-        const node = button('', () => { featuredIndex = (featuredIndex + direction + candidates.length) % candidates.length; drawFeatured(); node.focus({preventScroll:true}); }, 'mh-hero-arrow');
+        const node = button('', () => { featuredIndex = (featuredIndex + direction + candidates.length) % candidates.length; drawFeatured();try{localStorage.setItem('media-home-featured-v1',state.featuredKey);}catch{} node.focus({preventScroll:true}); }, 'mh-hero-arrow');
         node.setAttribute('aria-label', label); node.title = label;
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('aria-hidden','true');
