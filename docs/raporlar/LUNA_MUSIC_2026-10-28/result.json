@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "realPlayback": true,
+  "nowPlayingState": true,
+  "likeFilter": true,
+  "recentFilter": true,
+  "albums": true,
+  "nativeCoverDecode": true,
+  "shuffleKeepsCurrent": true,
+  "repeatMode": true,
+  "reorderKeepsCurrent": true,
+  "currentRemoveBlocked": true,
+  "queueSearch": true,
+  "historySaved": true,
+  "renameSaved": true,
+  "realEndRepeatOne": true,
+  "pathFreeContext": true,
+  "wideNarrow": true
+}
