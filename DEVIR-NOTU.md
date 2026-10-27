@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0944.md](docs/devir/2026-10-27-0944.md) —1.000 hedef başlangıcı: sesli kitap kalite kapsamı ve tam yeniden üretim
 Güncel çalışma: [docs/devir/2026-10-27-0916.md](docs/devir/2026-10-27-0916.md) —100 hedef: birleşik asistan/çeviri/ses kabulü ve aralık onarımı
 Güncel çalışma: [docs/devir/2026-10-27-0856.md](docs/devir/2026-10-27-0856.md) — PDF arama/zoom ve çeviri/dublaj kalite doğruluğu
 Güncel çalışma: [docs/devir/2026-10-27-0810.md](docs/devir/2026-10-27-0810.md) — 100 ürün hedefi: devam, kitap/PDF ve dublaj ilk paketi

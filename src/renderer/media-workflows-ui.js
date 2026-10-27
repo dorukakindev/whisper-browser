@@ -1830,7 +1830,7 @@
               "Metin değişti: konuşma grupları yeniden planlanıyor; değişmeyen önbellek sesi mümkün olduğunda kullanılır.",
             ),
           );
-        if (force) {
+        if (force || prep.retryWholeChapter) {
           const plan = await window.api.planDub({
             srt: request.srt,
             grouping: request.grouping,
