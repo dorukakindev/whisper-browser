@@ -1,0 +1,22 @@
+{
+  "model": "gpt-6.1-sol",
+  "requestedTier": "standard",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "id": "translation-refine",
+      "elapsedMs": 22593,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 6068,
+        "completion_tokens": 501,
+        "total_tokens": 6569,
+        "completion_tokens_details": {
+          "reasoning_tokens": 245
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Leyla kendi anahtarını kaybettiği için Maya ona anahtarı verdi. Leyla, bekçiye değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Yine iki saatlik bir gecikme. İhtiyacımız olan da tam buydu.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Leyla kendi anahtarını kaybettiği için Maya ona anahtarı verdi. Leyla, bekçiye değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Yine iki saatlik bir gecikme. İhtiyacımız olan da tam buydu.\"}}"
+    }
+  ]
+}
