@@ -26,3 +26,5 @@ Kullanıcı, sonraki denetçilerin aynı çalışmayı yeni keşif diye tekrarla
 - docs-index-integrity ve git diff --check (teslim öncesi).
 
 Bu belge/arşiv işidir: ürün testleri/nativeUI/model/GPU/CI koşulmadı; öncekilerin sonuçlarıyla karıştırılmaz. Yeni bağımlılık/kurulum/şema/launcher değişikliği yok. Kişisel ana uygulama kapatılmaz. Kod+belge ayrımı gereği ürün commit'i yok, tek yayın/belge commit'i. Normal push→PR→master→kişisel dosyalar korunarak ana kopya güncelleme.
+
+Yayın klasöründeki .gitattributes yalnız bu arşivin metinlerini LF olarak tutar; Windows autocrlf dönüşümünün SHA kontrollerini bozması önlenir, ZIP binary kalır. Ürün genelindeki satır sonları değiştirilmez.
