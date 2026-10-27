@@ -122,8 +122,14 @@ class FakeScheduler {
     view: { webContents: { isDestroyed: () => false, getURL: () => 'https://example.com/article' } } });
 
   const successSession = makeSession();
+  let acceptedJob;
   const success = await context.runBlocks(makeTab(successSession), [block], successSession,
-    { retry: true, retryIds: ['a'] });
+    { retry: true, retryIds: ['a'], onAccepted:id=>{
+      acceptedJob=id;
+      assert.equal(context.assistantJobs.snapshot().jobs.find(row=>row.id===id)?.state,'running',
+        'acceptance must happen after real job registration and before completion');
+    } });
+  assert(acceptedJob,'the real page orchestration must publish its accepted job');
   assert.equal(successSession.translations.get('a'), 'Yeni: Original text.');
   assert.equal(successSession.translatedCharacters, block.text.length,
     'yeniden çeviri toplam çevrilmiş karakteri iki kez saymamalı');

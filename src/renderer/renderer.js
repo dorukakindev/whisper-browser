@@ -24797,11 +24797,12 @@ function applyBrowserPageTranslationState(event = {}) {
   document.dispatchEvent(new Event('browser-page-translation-changed'));
 }
 
-async function handleBrowserPageTranslationAction({ensureVisible = false, targetLanguage, isCancelled = () => false} = {}) {
+async function handleBrowserPageTranslationAction({ensureVisible = false, targetLanguage, waitForAcceptance = false, isCancelled = () => false} = {}) {
   if (!player.browserActiveTabId || !player.browserPageUrl) {
     const error = 'Sayfa çevirisi için önce bir web sayfası açın.'; setBrowserSignal(error, false); return {ok:false,error};
   }
   if (player.browserPageTranslateBusy) {
+    if (ensureVisible && waitForAcceptance) return await window.api.startBrowserPageTranslation?.(player.browserActiveTabId,{waitForAcceptance:true,targetLanguage});
     if (ensureVisible) return {ok:true,running:true};
     return await window.api.clearBrowserPageTranslation?.(player.browserActiveTabId).catch(() => null);
   }
@@ -24827,6 +24828,7 @@ async function handleBrowserPageTranslationAction({ensureVisible = false, target
     view: player.browserPageView === 'original' ? (profile.pageMode === 'replace' ? 'translation' : 'both') : player.browserPageView,
     scope: player.browserPageScope || 'article', autoContinue: player.browserPageAutoContinue !== false,
     workers: 2,
+    ...(waitForAcceptance ? {waitForAcceptance:true} : {}),
     ...(typeof loadBrowserPagePrefs === 'function' ? loadBrowserPagePrefs() : { lockedTerms: [], excludedSections: [], excludedSelectors: [], pageCharacterBudget: 0 }),
   };
   if (!await saveAppSettings()) return {ok:false,error:window.UiLocale?.get?.()==='tr'?'Ayarlar kaydedilemedi.':'Settings could not be saved.'};
@@ -24834,7 +24836,8 @@ async function handleBrowserPageTranslationAction({ensureVisible = false, target
   applyBrowserPageTranslationState({ state: 'running', translated: 0, completion: null });
   const result = await window.api.startBrowserPageTranslation?.(jobTabId, jobOptions)
     .catch((error) => ({ ok: false, error: error.message }));
-  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration) return {ok:false,stale:true};
+  if (player.browserActiveTabId !== jobTabId || browserTabState()?.generation !== jobGeneration)
+    return waitForAcceptance&&result?.accepted?{ok:false,stale:true,accepted:true,jobId:result.jobId,running:!!result.running}:{ok:false,stale:true};
   if (!result?.ok && !result?.partial) applyBrowserPageTranslationState({ state: 'error', message: result?.error || 'Sayfa çevirisi başlatılamadı.' });
   return result;
 }
