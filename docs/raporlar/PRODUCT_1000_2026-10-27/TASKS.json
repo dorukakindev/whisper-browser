@@ -1574,8 +1574,8 @@
       "operation": "start_whisper",
       "criterion": "Kaynak değişimi",
       "acceptance": "Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0144",
@@ -1607,8 +1607,8 @@
       "operation": "start_whisper",
       "criterion": "Kimlik ve değer",
       "acceptance": "Geçersiz kimlik/aralık/enum ile mevcut kullanıcı verisini değiştirme; düzeltilebilir hata göster.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0147",
@@ -1640,8 +1640,8 @@
       "operation": "start_whisper",
       "criterion": "Seçenek aktarımı",
       "acceptance": "Hedef dil/zaman aralığı/normal seçenekler yalnız seçili işlemin payloadunda doğru kalsın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0150",
@@ -2993,8 +2993,8 @@
       "operation": "open_voice_preparation",
       "criterion": "Gerçek kabul",
       "acceptance": "Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0273",
@@ -3059,8 +3059,8 @@
       "operation": "open_voice_preparation",
       "criterion": "Kontrollü ret",
       "acceptance": "Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0279",
@@ -3081,8 +3081,8 @@
       "operation": "open_voice_preparation",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664"
     },
     {
       "id": "P0281",
@@ -11067,6 +11067,19 @@
         "P0764"
       ],
       "next": "Asistan/altyazı bağlamı ve ses referansı kabul boşluklarını somut repro ile araştır."
+    },
+    {
+      "report": 640,
+      "code": "d9ecd08ff9176bfa05bf57fe01747aebf1261664",
+      "updated": [
+        "P0143",
+        "P0146",
+        "P0149",
+        "P0272",
+        "P0278",
+        "P0280"
+      ],
+      "next": "Ses kaynak/referans sahipliği ve Whisper kısmi altyazı reuse kabul boşlukları."
     }
   ]
 }
