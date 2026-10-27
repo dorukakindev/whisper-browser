@@ -1062,7 +1062,13 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     proc.jobTag = jobTag || kind;
     mediaJobs[kind] = proc;
     let mediaAssistantCancelled=false;
-    const mediaAssistantJobId=['probe','subs'].includes(kind)?assistantJobs.start({kind:kind==='probe'?'caption-probe':'caption-download',cancel:()=>{if(mediaJobs[kind]!==proc)return {ok:false};mediaAssistantCancelled=true;terminateProcessTree(proc,{spawn});return {ok:true};}}):null;
+    const mediaAssistantJobId=['probe','subs'].includes(kind)?assistantJobs.start({kind:kind==='probe'?'caption-probe':'caption-download',cancel:async()=>{
+      if(mediaJobs[kind]!==proc)return {ok:false};
+      mediaAssistantCancelled=true;
+      const stopped=await terminateProcessTreeAndWait(proc,{spawn});
+      // Preserve cancellation intent even if the native stop was not confirmed.
+      return {ok:stopped};
+    }}):null;
     proc.assistantJobId=mediaAssistantJobId;
     let result = null;
     let errText = '';
@@ -1109,6 +1115,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
+      if (mediaAssistantCancelled) {finish({ok:false,cancelled:true,error:'İptal edildi.'});return;}
       if (result) finish({ ok: true, data: result });
       else {
         if (!errText && stderrTail) {
@@ -3141,15 +3148,17 @@ let jobStartSeq = 0;
 let jobCancelSeq = 0;
 
 function killActiveJob() {
-  if (!activeJob) return;
+  if (!activeJob) return Promise.resolve({ok:false,error:'Çalışan iş yok.'});
   // Uygulama kapanırken süreci öldürmek Python'dan gecikmeli bir terminal olayı
   // getirebilir. İptali önce latch'e işaretle: aynı iş için ikinci bir terminal
   // olayı kabul edilmesin, yoksa kuyruk aynı işi iki kez bitmiş sayıp bir
   // sonrakini iki kez başlatır.
   const lifecycle = activeJobLatch;
   if (lifecycle) lifecycle.requestCancel();
-  if (activeJobCancel) { void activeJobCancel(); return; }
-  terminateProcessTree(activeJob, { spawn, onWarning: (message) => sendEvent({ type: 'log', level: 'warn', message }) });
+  if (activeJobCancel) return activeJobCancel();
+  const owned = activeJob;
+  return terminateProcessTreeAndWait(owned, {spawn,onWarning:message=>sendEvent({type:'log',level:'warn',message})})
+    .then(ok=>({ok,running:!ok&&activeJob===owned,...(!ok?{error:'İşlemin durduğu doğrulanamadı; tekrar Durdur düğmesine basabilirsiniz.'}:{})}));
 }
 
 // ---- Kalıcı ayarlar + işletim sistemi şifreli gizli değer kasası ----
@@ -21416,8 +21425,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     // Once iptal bayragi: backend bir sonraki kontrol noktasinda kendi temiz
     // cikisini yapabilsin. Ancak bundan sonra surec agaci sonlandirilir.
     try { if (cancelFilePath) fs.writeFileSync(cancelFilePath, 'cancel', 'utf-8'); } catch (_) {}
-    terminateProcessTree(job, { spawn, onWarning: (message) => sendJobEvent({ type: 'log', level: 'warn', message }) });
-    return { ok: true };
+    const stopped = await terminateProcessTreeAndWait(job, {spawn,onWarning:message=>sendJobEvent({type:'log',level:'warn',message})});
+    return {ok:stopped,running:!stopped&&activeJob===job,...(!stopped?{error:'İşlemin durduğu doğrulanamadı; tekrar Durdur düğmesine basabilirsiniz.'}:{})};
   });
   // Her işin kendi kimliği ve terminal mandalı var. Renderer gelen olayın hâlâ
   // aktif işe ait olduğunu bu kimlikle doğrular; mandal da bir iş için yalnız
@@ -21425,8 +21434,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   const lifecycle = createProcessTerminalLatch(jobId);
   activeJobLatch = lifecycle;
   activeTranscriptionJobId = jobId;
-  const assistantJobId=assistantJobs.start({kind:options.chat?'legacy-chat':options.translateOnly?'translation':'transcription',cancel:()=>{
-    if(activeJob!==job)return {ok:false};killActiveJob();return {ok:true};
+  const assistantJobId=assistantJobs.start({kind:options.chat?'legacy-chat':options.translateOnly?'translation':'transcription',cancel:async()=>{
+    if(activeJob!==job)return {ok:false};return await killActiveJob();
   }});
   linkAssistantJob(jobId,assistantJobId);
   const sendJobEvent = (event) => {assistantJobs.update(assistantJobId,event);sendEvent({ ...event, jobId });};
@@ -21788,10 +21797,9 @@ ipcMain.handle('transcribe:cancel', async (event) => {
     return { ok: false, error: 'Çalışan iş yok.' };
   }
   try {
-    killActiveJob();
-    return { ok: true };
+    return await killActiveJob();
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, running: !!activeJob, error: err.message };
   }
 });
 

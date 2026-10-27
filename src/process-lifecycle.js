@@ -62,7 +62,11 @@ function terminateProcessTreeAndWait(proc, options = {}) {
     let timer, settled = false;
     const finish = value => {
       if (settled) return;
-      settled = true; clearTimeout(timer); proc.removeListener?.('close', onClose); resolve(value);
+      settled = true; clearTimeout(timer); proc.removeListener?.('close', onClose);
+      // A signal acknowledgement without child closure is not a confirmed stop.
+      // Keep the caller's ownership, but permit a new explicit Stop attempt.
+      if (!value && proc.exitCode == null && proc.signalCode == null) proc._terminating = false;
+      resolve(value);
     };
     const onClose = () => { confirmedClosed.add(proc); finish(true); };
     proc.once?.('close', onClose);
