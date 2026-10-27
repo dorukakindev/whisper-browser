@@ -650,6 +650,8 @@ def parse_args(argv=None):
     p.add_argument('--rewrite-dir', type=Path)
     p.add_argument('--editor-identity', default='')
     p.add_argument('--force-groups', default='')
+    p.add_argument('--force-groups-file', type=Path)
+    p.add_argument('--force-all', action='store_true')
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
     p.add_argument("--gruplama", choices=("cumle", "satir", "akici"), default="cumle")
@@ -668,9 +670,13 @@ def parse_args(argv=None):
     args = p.parse_args(argv)
     from dub_pronunciation import load
     args.pronunciations = load(args.pronunciations)
-    args.force_groups = set(filter(None, args.force_groups.split(';')))
-    if any(not re.fullmatch(r'\d+(?:,\d+)*', key) for key in args.force_groups):
-        p.error('Invalid group key.')
+    from dub_regeneration import load_keys
+    try:
+        args.force_groups=load_keys(args.force_groups,args.force_groups_file)
+        if args.force_all and (not args.narration or args.force_groups):
+            raise ValueError('Whole-plan regeneration requires narration and no individual groups.')
+    except (OSError,ValueError) as error:
+        p.error(str(error))
     if (args.range_start is None) != (args.range_end is None):
         p.error('Baslangic ve bitis birlikte gerekli.')
     if args.range_start is not None and args.video:
@@ -730,8 +736,8 @@ def main(argv=None, runtime=None):
     from dub_prosody import load_plan, VERSION as DELIVERY_VERSION
     args.group_delivery = load_plan(args.prosody_plan,hashlib.sha256(source_bytes).hexdigest(),groups)
     args.group_keys = [','.join(map(str, g['source_ids'])) for g in groups]
-    if args.force_groups - set(args.group_keys):
-        raise ValueError('Selected group is outside the current plan.')
+    from dub_regeneration import select_keys
+    args.force_groups=select_keys(args.force_groups,args.group_keys,args.force_all)
     args.group_seeds = [args.seed + int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % 1000000000
                        for key in args.group_keys]
     args.regeneration_seed = uuid.uuid4().int % 1000000000 + 1 if args.force_groups else 0

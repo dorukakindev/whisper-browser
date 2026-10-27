@@ -26,6 +26,7 @@
     token = "",
     results = [];
   let exportCurrent=null;
+  let reviewPaging={key:'',page:1};
   const voicePrefs = {
     profile: "quality",
     concurrency: 4,
@@ -1207,8 +1208,27 @@
           end = null;
         }
       };
-      for (const g of c.groups.filter((g) => g.status !== "ready")) {
+      const reviewGroups=c.groups.filter(g=>g.status!=="ready"),pageSize=25;
+      const pagingKey=reviewProjectId+'|'+reviewChapter+'|'+c.output;
+      if(reviewPaging.key!==pagingKey)reviewPaging={key:pagingKey,page:1};
+      const pageCount=Math.ceil(reviewGroups.length/pageSize);
+      reviewPaging.page=Math.min(pageCount,Math.max(1,reviewPaging.page));
+      const pager=el('div','mw-actions mw-review-pager'),rows=el('div','mw-review-rows');
+      const prev=el('button','mh-action',t('Previous','Önceki')),next=el('button','mh-action',t('Next','Sonraki'));
+      prev.type=next.type='button';
+      const pageLabel=el('label','mw-review-page',t('Review page','İnceleme sayfası')),pageInput=el('input');
+      pageInput.type='number';pageInput.min='1';pageInput.max=String(pageCount);pageInput.step='1';
+      pageInput.setAttribute('aria-label',t('Review page','İnceleme sayfası'));
+      const pageInfo=el('span','mw-muted');pageInfo.setAttribute('role','status');pageInfo.setAttribute('aria-live','polite');
+      pageLabel.append(pageInput);pager.append(prev,pageLabel,pageInfo,next);review.append(pager,rows);
+      function renderReviewPage(){
+      rows.replaceChildren();
+      pageInput.value=String(reviewPaging.page);prev.disabled=reviewPaging.page===1;next.disabled=reviewPaging.page===pageCount;
+      const offset=(reviewPaging.page-1)*pageSize;
+      pageInfo.textContent=`${offset+1}–${Math.min(offset+pageSize,reviewGroups.length)} / ${reviewGroups.length}`;
+      for (const g of reviewGroups.slice(offset,offset+pageSize)) {
         const row = el("div", "mw-review-group");
+        row.dataset.groupKey=String(g.key);
         row.append(
           el("p", "", g.text || t("Missing speech", "Eksik konuşma")),
           qualityStatus(g.status),
@@ -1328,8 +1348,15 @@
             },
           ),
         );
-        review.append(row);
+        rows.append(row);
       }
+      }
+      const changePage=value=>{
+        if(!Number.isInteger(value)||value<1||value>pageCount){pageInput.value=String(reviewPaging.page);return;}
+        stopReviewPreview?.();reviewPaging.page=value;renderReviewPage();
+      };
+      prev.onclick=()=>changePage(reviewPaging.page-1);next.onclick=()=>changePage(reviewPaging.page+1);
+      pageInput.onchange=()=>changePage(Number(pageInput.value));renderReviewPage();
       edit.insertBefore(review, textarea);
       textarea.style.height = "180px";
     }
@@ -1840,7 +1867,10 @@
               plan?.error ||
                 t("Chapter plan failed.", "Bölüm planı hazırlanamadı."),
             );
-          request.forceGroups = plan.groups.map((g) => g.key);
+          // The backend owns the exact fresh group identities. Avoid sending
+          // thousands of inline keys through Windows' command line.
+          request.forceGroups = [];
+          request.forceAll = true;
         }
         if (stopRequested || control.isCancelled?.()) break;
         job = request.id;

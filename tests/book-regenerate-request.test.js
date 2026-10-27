@@ -110,8 +110,9 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
     await ctx.generate(force, hasRetry ? retry : null);
     assert.deepEqual(
       Array.from(request.forceGroups),
-      force || missing ? ["1,2", "3"] : edited ? [] : ["3"],
+      force || missing || edited ? [] : ["3"],
     );
+    assert.equal(request.forceAll === true, force || missing);
     assert.equal(request.narration, true);
     assert.equal(
       request.referenceId,

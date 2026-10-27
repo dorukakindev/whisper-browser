@@ -603,6 +603,26 @@ dialog.mw-dialog::backdrop {
   cursor: pointer;
   margin-bottom: 12px;
 }
+.mw-review-pager {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 0;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+}
+.mw-review-page { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.mw-review-pager button:disabled { opacity: .45; cursor: default; }
+.mw-review-page input {
+  width: 64px;
+  min-height: 34px;
+  padding: 6px 8px;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
 .mw-review-group {
   padding: 10px 0;
 }

@@ -252,7 +252,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     try {
     const srt = await authorizeSubtitle(request.srt);
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
-    if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 2000000) throw new Error('Geçersiz SRT.');
+    if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 4000000) throw new Error('Geçersiz SRT.');
     const c = config();
     const range = rangeOption(request.range);
     const grouping = ['akici', 'cumle', 'satir'].includes(request.grouping) ? request.grouping : c.grouping;
@@ -426,8 +426,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const forceGroups = request.forceGroups ?? [];
       // Video UI forces one group; a book's explicit Regenerate chapter action forces
       // its bounded chapter plan. Keep Windows command-line size bounded as well.
-      const forceLimit=request.narration===true?1000:1;
-      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>12000) throw new Error('Invalid group key.');
+      const forceLimit=request.narration===true?5000:1;
+      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>(request.narration===true?100000:12000)) throw new Error('Invalid group key.');
+      const forceAll=request.forceAll===true;
+      if ((request.forceAll!==undefined&&typeof request.forceAll!=='boolean') || (forceAll&&(request.narration!==true||forceGroups.length))) throw new Error('Invalid chapter regeneration scope.');
       if(request.keepEngine!==undefined&&typeof request.keepEngine!=='boolean')throw Error('Invalid engine keep-ready option.');
       c.keepEngine=request.keepEngine??c.keepEngine;
       c.verification = verification; c.autoFit = request.autoFit ?? c.autoFit;
@@ -446,7 +448,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.sourceIdentity = sourceIdentity(request.source);
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
-      Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech });
+      Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech, forceAll, forceGroupCount:forceGroups.length });
       s.settings.grouping = c.grouping;
       s.settings.expression = c.expression;
       s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;
@@ -458,9 +460,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
-      if (fs.statSync(srt).size > 2000000) throw new Error('SRT çok büyük.');
+      if (fs.statSync(srt).size > 4000000) throw new Error('SRT çok büyük.');
       const sourceBytes = fs.readFileSync(srt);
-      if (sourceBytes.length > 2000000) throw new Error('SRT çok büyük.');
+      if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
       const prepared = plans.get(e.sender.id);
       if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)
           && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
@@ -504,7 +506,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       args.push('--timing-mode', timingMode);
       if(request.narration===true)args.push('--narration');
       args.push('--verification', verification, '--verify-python', path.join(__dirname, '..', 'backend', 'venv', 'Scripts', 'python.exe'));
-      if (forceGroups.length) args.push('--force-groups', forceGroups.join(';'));
+      if (forceAll) args.push('--force-all');
+      if (forceGroups.length) {
+        const inline=forceGroups.join(';');
+        if(inline.length<=12000) args.push('--force-groups',inline);
+        else {
+          const file=path.join(inputDir,'force-groups.json'),bytes=Buffer.from(JSON.stringify(forceGroups));
+          if(fs.existsSync(file)) {if(fs.realpathSync(file)!==path.resolve(file)||!fs.readFileSync(file).equals(bytes))throw Error('Regeneration selection changed; prepare a new job / Yeniden üretim seçimi değişti; yeni iş hazırlayın.');}
+          else fs.writeFileSync(file,bytes,{flag:'wx'});
+          args.push('--force-groups-file',file);
+        }
+      }
       if (request.sample === true) args.push('--limit', '11', '--representative-preview');
       const rewriteDir = path.join(inputDir, 'duration-edits');
       if ((c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
