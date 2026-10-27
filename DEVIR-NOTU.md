@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-2158.md](docs/devir/2026-10-27-2158.md) — İnternetten müzik katalog keşfi
 Güncel çalışma: [docs/devir/2026-10-27-2140.md](docs/devir/2026-10-27-2140.md) — CLAP yerel müzik benzerliği ve A/B
 Güncel çalışma: [docs/devir/2026-10-27-2114.md](docs/devir/2026-10-27-2114.md) — Gerçek yerel müzik analizi ve grafikler
 Güncel çalışma: [docs/devir/2026-10-27-2033.md](docs/devir/2026-10-27-2033.md) — Yerel/internet ses temelli müzik keşfi araştırması

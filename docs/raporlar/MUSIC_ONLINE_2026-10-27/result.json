@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "liveProvider": "Deezer",
+  "identities": 12,
+  "radioResults": 12,
+  "previewPlayed": true,
+  "savedPublicMetadataOnly": true,
+  "narrowNoOverflow": true,
+  "acousticComparison": false
+}
