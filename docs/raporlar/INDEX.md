@@ -1,3 +1,4 @@
+- [Rapor659](BROWSER_BUG_REPORT_659.md) — Müzik benzerliği kaynak incelemesi ve iki kataloglu uygulama planı
 - [Rapor658](BROWSER_BUG_REPORT_658.md) — Asistan iş tanısı, kesin altyazı sonucu ve gerçek Whisper kabulü
 - [Rapor657](BROWSER_BUG_REPORT_657.md) — Asistan149ayar, seçili model ve browser araçları
 - [Rapor656](BROWSER_BUG_REPORT_656.md) — Canlı shuaiapi Sol 6.1 / DeepSeek kalite ve hız karşılaştırması

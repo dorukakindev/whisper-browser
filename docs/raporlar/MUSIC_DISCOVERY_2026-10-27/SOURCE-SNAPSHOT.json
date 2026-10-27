@@ -1,0 +1,141 @@
+{
+  "checkedOn": "2026-10-27",
+  "method": "Public GitHub API metadata/recursive trees plus source text; no external code executed",
+  "repositories": [
+    {
+      "repo": "namngduc/MiRemd",
+      "branch": "master",
+      "updated": "2023-05-25T17:42:59Z",
+      "treeSha": "87293d0da78c2663e55ad1e5f6c7fad10d30d8a3",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      }
+    },
+    {
+      "repo": "Philippe-Guerrier/music_rec_system",
+      "branch": "main",
+      "updated": "2025-08-14T12:38:08Z",
+      "treeSha": "a1e2b9e8d8b721d379e3a5d71971094e46758b71",
+      "license": null
+    },
+    {
+      "repo": "MTG/essentia",
+      "branch": "master",
+      "updated": "2026-10-22T13:55:46Z",
+      "treeSha": "33108c70929684ed14091dfb671a30264cf8bb84",
+      "license": {
+        "key": "agpl-3.0",
+        "name": "GNU Affero General Public License v3.0",
+        "spdx_id": "AGPL-3.0",
+        "url": "https://api.github.com/licenses/agpl-3.0",
+        "node_id": "MDc6TGljZW5zZTE="
+      }
+    },
+    {
+      "repo": "rollingstorms/Sound-Content-Music-Recommendation-System",
+      "branch": "main",
+      "updated": "2022-08-25T14:37:06Z",
+      "treeSha": "26b1e462e63ed716936949890a37b67c1970e99e",
+      "license": null
+    },
+    {
+      "repo": "cyanite-ai/cyanite-integration-example",
+      "branch": "master",
+      "updated": "2022-12-11T00:05:00Z",
+      "treeSha": "614c89a18f989b1f8627e17a8f8ace4269a40997",
+      "license": null
+    },
+    {
+      "repo": "cyanite-ai/mml-hackatune-26",
+      "branch": "main",
+      "updated": "2026-07-15T08:12:08Z",
+      "treeSha": "bab936b5edf462a8f123b0415c0c473983a82664",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      }
+    },
+    {
+      "repo": "LAION-AI/CLAP",
+      "branch": "main",
+      "updated": "2025-05-15T19:55:29Z",
+      "treeSha": "1fd4c37df5ffbfcfbad5415c170bc66cf94c9994",
+      "license": {
+        "key": "cc0-1.0",
+        "name": "Creative Commons Zero v1.0 Universal",
+        "spdx_id": "CC0-1.0",
+        "url": "https://api.github.com/licenses/cc0-1.0",
+        "node_id": "MDc6TGljZW5zZTY="
+      }
+    }
+  ],
+  "readSourceFiles": [
+    {
+      "path": "CLAP-api.py",
+      "sha256": "1942ea66f46f29127fc03854cb08f0e1d03a83fcca5f3ebeef04611219e79675"
+    },
+    {
+      "path": "MiRemd-recommend.py",
+      "sha256": "d5b4086f3b4338b6ff2af0eab27df803b23c02e5b57df235cdd3e084873c2298"
+    },
+    {
+      "path": "CLAP/README.md",
+      "sha256": "fd1a7b4d18d5ffac3adfa9bcf6e14427b52ee91cd99bb8c098c6ab5ed555936f"
+    },
+    {
+      "path": "cyanite-integration-example/src/file-enqueue-analysis.js",
+      "sha256": "842f652a9d2f12ff22f551bc74fb3afea90ed46d381250cde0b2f7b8eb746b72"
+    },
+    {
+      "path": "cyanite-integration-example/src/file-upload.js",
+      "sha256": "72143169d6abfa59acee5ef797bb11c6c0f4c1a3c0ac5ca004fa80f04ca1cc76"
+    },
+    {
+      "path": "MiRemd/requirements.txt",
+      "sha256": "e8be7ad476d27537a8c69394586eef77521a8acd930f3b5f89d343e2a4acfb6f"
+    },
+    {
+      "path": "MiRemd/torch/app_server.py",
+      "sha256": "b3561c52924117c7929d5b17b399b3c712fed770a2f7f4ceedb8ae820d29826b"
+    },
+    {
+      "path": "mml-hackatune-26/README.md",
+      "sha256": "462c53bf5e4f72e5859db111e02c97b9487640f14425bdd83e1211c1921dfdb4"
+    },
+    {
+      "path": "music_rec_system/requirements.txt",
+      "sha256": "879d026dd2382623a05415e790b6aa8e5cf992c93b5fcb81a1e56758d6b05c2e"
+    },
+    {
+      "path": "music_rec_system/scripts/embed_clap.py",
+      "sha256": "0bc34ed43ca418587c75aaa27bbcd10660a9fbecaf22320d3444c6d5cb8864ea"
+    },
+    {
+      "path": "music_rec_system/scripts/extract_features.py",
+      "sha256": "b79c5122c3da69ff45d9416085dd5958d6dd3c44e5b1d0ac781e5673251bf979"
+    },
+    {
+      "path": "music_rec_system/scripts/generate_playlist.py",
+      "sha256": "52966a9629827dad232a7243205166046718e4fb58c616d9f629436dbc9a373f"
+    },
+    {
+      "path": "music_rec_system/scripts/sequencer.py",
+      "sha256": "846d7fe71b62befcbcc9b7be9f0e51d1d0983ff1ffb1f4f143768807ac39d74e"
+    },
+    {
+      "path": "Sound-Content-Music-Recommendation-System/src/helper_functions.py",
+      "sha256": "001047e56c20d6496f53248d309370212c057bdaef8a1e3b7b5415b47f3bf033"
+    },
+    {
+      "path": "Sound-Content-Music-Recommendation-System/src/LatentSpace.py",
+      "sha256": "a1c93f4f48a55c0de01e99d11c8e0192aeb56266d63cc5f2422deacd118a1e9d"
+    }
+  ]
+}
