@@ -59,3 +59,9 @@ test('Preparation intent is explicitly distinguished from generation in the mode
 });
 
 test('Completion endpoint canonicalization removes only the trailing slash',()=>{const endpoint=require('../src/assistant-provider').endpoint;assert.equal(endpoint('https://api.deepinfra.com/v1/openai/chat/completions/'),'https://api.deepinfra.com/v1/openai/chat/completions');assert.equal(endpoint('https://fixture.example/v1/'),'https://fixture.example/v1/chat/completions');assert.throws(()=>endpoint('https://user:secret@fixture.example/v1'));});
+
+test('Standard tier omits Flex through compatibility retries and reasoning signals never expose raw reasoning',async()=>{
+ const requests=[],phases=[],text=[];let count=0;
+ await run({question:'Hello',owner,config:{...config,endpoint:'https://api.deepinfra.com/v1/openai',serviceTier:'standard'},onProgress:p=>phases.push(p),onDelta:t=>text.push(t),execute:async()=>{},fetchImpl:async(_,r)=>{requests.push(JSON.parse(r.body));return ++count===1?new Response('{"error":"tools unsupported"}',{status:400}):sse(event({reasoning_content:'private provider metadata'})+event({content:'Done'}));}});
+ assert(requests.every(r=>!Object.hasOwn(r,'service_tier')));assert.deepEqual(phases,['reasoning','writing']);assert.deepEqual(text,['Done']);
+});

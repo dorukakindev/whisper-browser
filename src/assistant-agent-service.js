@@ -114,6 +114,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    };
    const execute=async(name,args)=>{emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});try{const result=await executeUnchecked(name,args);if(['failed','blocked'].includes(result?.status))failed++;return result;}catch(error){if(!controller.signal.aborted)failed++;throw error;}finally{if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}};
    const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
+    onProgress:phase=>{if(!controller.signal.aborted&&validateOwner(owner))emit(event.sender,{type:'progress',requestId:session.id,phase});},
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});

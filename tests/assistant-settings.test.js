@@ -21,3 +21,19 @@ test('Assistant key enters the existing vault and cannot ride an imported endpoi
  assert(!imported.assistant.apiKey);assert(imported.clearedSecretFields.includes('assistant.apiKey'));
  assert.equal(sanitizeSettings({ui:{}},{allowSecrets:true,existingSettings:clean}).assistant.apiKey,'fixture-assistant');
 });
+
+test('Flex choice survives settings sanitization and applies only to the assistant provider',()=>{
+ const raw={assistant:{endpointPreset:settings.ENDPOINT,model:settings.MODEL,flex:false}};
+ const saved=sanitizeSettings(raw,{allowSecrets:true});assert.equal(saved.assistant.flex,false);
+ const c=settings.resolve(saved);assert.equal(c.serviceTier,'standard');assert.deepEqual(settings.requestOptions(c.endpoint,c),{});
+ assert.deepEqual(settings.requestOptions(c.endpoint,{serviceTier:'flex'}),{service_tier:'flex'});
+ assert.equal(sanitizeSettings({assistant:{endpointPreset:settings.ENDPOINT}},{existingSettings:saved,allowSecrets:true}).assistant.flex,false);
+ assert.throws(()=>sanitizeSettings({assistant:{endpointPreset:settings.ENDPOINT,flex:'false'}},{allowSecrets:true}),/boolean/);
+});
+
+
+test('Legacy assistant tier is job-scoped and never leaks into unrelated subprocesses',()=>{
+ const {buildSecretEnv}=require('../src/settings-security');
+ assert.equal(buildSecretEnv({WHISPER_ASSISTANT_SERVICE_TIER:'flex'},{chat:{serviceTier:'standard'}}).WHISPER_ASSISTANT_SERVICE_TIER,'standard');
+ assert.equal(buildSecretEnv({WHISPER_ASSISTANT_SERVICE_TIER:'standard'},{}).WHISPER_ASSISTANT_SERVICE_TIER,undefined);
+});

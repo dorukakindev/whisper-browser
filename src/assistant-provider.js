@@ -14,11 +14,11 @@ async function boundedText(response,max=2*1024*1024){
  try{for(;;){const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>max)throw Error('Assistant response exceeded the size limit.');result+=decoder.decode(row.value,{stream:true});}return result+decoder.decode();}
  finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
 }
-async function completion(response,{onDelta,signal,streamed}){
+async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
  if(!streamed||!String(response.headers.get('content-type')||'').includes('text/event-stream')){
   const data=JSON.parse(await boundedText(response));const choice=data.choices?.[0];if(!choice?.message)throw Error('Provider returned no assistant message.');
   const text=typeof choice.message.content==='string'?choice.message.content:'';if(text.length>32000)throw Error('Assistant answer exceeded the size limit.');
-  if(text)onDelta(text);
+  if(text){onProgress('writing');onDelta(text);}
   if(['length','content_filter'].includes(choice.finish_reason))throw Error('Provider stopped an incomplete answer / Sağlayıcı yanıtı tamamlamadı.');
   const calls=Array.isArray(choice.message.tool_calls)?choice.message.tool_calls:[];
   if(calls.length>8||calls.some(call=>JSON.stringify(call).length>16000))throw Error('Assistant tool calls exceeded the size limit.');
@@ -30,8 +30,8 @@ async function completion(response,{onDelta,signal,streamed}){
   if(!raw||raw==='[DONE]'){if(raw==='[DONE]')finished=true;return;}
   const row=JSON.parse(raw),choice=row.choices?.[0];if(!choice)return;
   const delta=choice.delta||{};
-  if(typeof delta.content==='string'&&delta.content){text+=delta.content;if(text.length>32000)throw Error('Assistant answer exceeded the size limit.');onDelta(delta.content);}
-  if(typeof delta.reasoning_content==='string'){reasoning+=delta.reasoning_content;if(reasoning.length>24000)throw Error('Provider reasoning metadata exceeded the size limit.');}
+  if(typeof delta.content==='string'&&delta.content){if(!text)onProgress('writing');text+=delta.content;if(text.length>32000)throw Error('Assistant answer exceeded the size limit.');onDelta(delta.content);}
+  if(typeof delta.reasoning_content==='string'){if(delta.reasoning_content&&!reasoning)onProgress('reasoning');reasoning+=delta.reasoning_content;if(reasoning.length>24000)throw Error('Provider reasoning metadata exceeded the size limit.');}
   for(const item of delta.tool_calls||[]){
    const index=Number.isInteger(item.index)?item.index:0;
    if(!calls.has(index)&&calls.size>=8)throw Error('Too many assistant tool calls.');
@@ -60,7 +60,7 @@ async function completion(response,{onDelta,signal,streamed}){
  }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
 }
 
-async function run({question,continuation=[],history=[],context={},owner,pool=[],locale='tr',config,signal,onDelta=()=>{},onReplace=()=>{},onCapability=()=>{},execute,fetchImpl=fetch}){
+async function run({question,continuation=[],history=[],context={},owner,pool=[],locale='tr',config,signal,onDelta=()=>{},onReplace=()=>{},onCapability=()=>{},onProgress=()=>{},execute,fetchImpl=fetch}){
  const url=endpoint(config.endpoint);if(!config.model)throw Error('Select an assistant model / Asistan modeli seç.');
  const tools=capabilities.definitions(owner),messages=[{role:'system',content:
   'You are the application assistant for Whisper Browser. Answer in '+(locale==='en'?'English':'Turkish')+'. All user-visible sentences including tool prefaces must use that language; retain original proper names, quotes and IDs. Prefer no prose before tool calls. Use the registered tools for application facts and actions. Do not invent abilities or completion. '+
@@ -79,7 +79,7 @@ async function run({question,continuation=[],history=[],context={},owner,pool=[]
   signal?.throwIfAborted();let response;
   for(let attempt=0;attempt<3;attempt++){
    response=await fetchImpl(url,{method:'POST',redirect:'error',signal,headers:{'Content-Type':'application/json',...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})},
-    body:JSON.stringify({model:config.model,messages,stream:streamed,max_tokens:2400,...require('./assistant-settings').requestOptions(config.endpoint),...(toolsEnabled&&round<5?{tools,tool_choice:'auto'}:{})})});
+    body:JSON.stringify({model:config.model,messages,stream:streamed,max_tokens:2400,...require('./assistant-settings').requestOptions(config.endpoint,config),...(toolsEnabled&&round<5?{tools,tool_choice:'auto'}:{})})});
    if(response.ok)break;
    const body=(await boundedText(response,16000)).toLowerCase();
    if(!answer&&round===0&&[400,404,422].includes(response.status)&&toolsEnabled&&/\btools\b|tool_choice|function.call/.test(body)){
@@ -90,7 +90,7 @@ async function run({question,continuation=[],history=[],context={},owner,pool=[]
    throw Error('Assistant provider request failed / Asistan sağlayıcı isteği başarısız: HTTP '+response.status);
   }
   if(!response?.ok)throw Error('Provider does not support the assistant request format.');
-  const message=await completion(response,{onDelta:delta,signal,streamed});
+  const message=await completion(response,{onDelta:delta,onProgress,signal,streamed});
   observed.stream=streamed&&String(response.headers.get('content-type')||'').includes('text/event-stream')?'supported':observed.stream;
   if(!message.tool_calls.length){
    if(pendingPlans.size&&!planRepair&&toolsEnabled&&round<4){

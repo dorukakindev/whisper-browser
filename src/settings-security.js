@@ -508,6 +508,8 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
   }
   if (Object.hasOwn(input,'assistant')) {
     clean.assistant=sanitizeEndpointGroup(input.assistant,'Assistant',allowSecrets,existingSettings.assistant,{allowInherit:true,nextIdentity:{},previousIdentity:{}});
+    if(Object.hasOwn(input.assistant,'flex')&&typeof input.assistant.flex!=='boolean')throw new SettingsValidationError('Assistant Flex must be boolean.');
+    clean.assistant.flex=input.assistant.flex??existingSettings.assistant?.flex??true;
     if(!['inherit','https://api.deepinfra.com/v1/openai'].includes(clean.assistant.endpointPreset))throw new SettingsValidationError('Invalid assistant provider.');
   } else if(existingSettings.assistant) clean.assistant={...existingSettings.assistant};
   const cleanTranslateIdentity = endpointIdentity(clean.translate, nextTranslateOpts);
@@ -922,7 +924,7 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
 function withoutSecretEnv(baseEnv) {
   const env = { ...baseEnv };
   const secretNames = new Set([
-    'WHISPER_HF_TOKEN', 'WHISPER_LLM_API_KEY', 'WHISPER_TRANSLATE_API_KEY',
+    'WHISPER_HF_TOKEN', 'WHISPER_LLM_API_KEY', 'WHISPER_TRANSLATE_API_KEY', 'WHISPER_ASSISTANT_SERVICE_TIER',
     'WHISPER_YT_REFRESH_TOKEN', 'WHISPER_YT_ACCESS_TOKEN',
     'WHISPER_YT_CLIENT_SECRET', 'WHISPER_INVIDIOUS_PASSWORD',
   ]);
@@ -947,6 +949,7 @@ function buildSecretEnv(baseEnv, options) {
   if (options && options.diarize && options.hfToken) env.WHISPER_HF_TOKEN = options.hfToken;
   if (options && options.llmPostprocess && options.llmApiKey) env.WHISPER_LLM_API_KEY = options.llmApiKey;
   if (options && options.translate && options.translateApiKey) env.WHISPER_TRANSLATE_API_KEY = options.translateApiKey;
+  if(options?.chat)env.WHISPER_ASSISTANT_SERVICE_TIER=options.chat.serviceTier==='standard'?'standard':'flex';
   return env;
 }
 

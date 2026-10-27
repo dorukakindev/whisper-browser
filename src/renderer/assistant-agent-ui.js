@@ -5,6 +5,8 @@
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const activity=task=>{
   if(task?.cancelled)return t('Stopping the assistant request; media jobs are managed in Jobs…','Asistan isteği durduruluyor; medya işleri İşler bölümünden yönetilir…');
+  if(task?.phase==='reasoning')return t('Reasoning through your request…','İsteğin değerlendiriliyor…');
+  if(task?.phase==='writing')return t('Writing the answer…','Yanıt yazılıyor…');
   if(task?.phase==='applying')return t('Waiting for the application result…','Uygulama sonucu bekleniyor…');
   if(task?.phase==='tool'){const labels={settings:['Reading application settings…','Uygulama ayarları okunuyor…'],library:['Reading library information…','Kütüphane bilgisi okunuyor…'],book:['Reading book and narration state…','Kitap ve seslendirme durumu okunuyor…'],voice:['Reading voice preparation state…','Ses hazırlığı durumu okunuyor…'],video:['Checking video and captions…','Video ve altyazılar kontrol ediliyor…'],page:['Reading page information…','Sayfa bilgisi okunuyor…'],subtitles:['Searching the selected subtitles…','Seçili altyazılar taranıyor…'],web:['Researching web sources…','Web kaynakları araştırılıyor…']};const label=labels[task.domain];return label?t(...label):t('Checking application information…','Uygulama bilgisi kontrol ediliyor…');}
   return t('Waiting for the assistant response…','Asistan yanıtı bekleniyor…');
@@ -48,7 +50,7 @@
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
   if(!window.AssistantAppActions.current(task.owner)){void cancel();return;}
-  if(packet.type==='progress'){task.phase=packet.phase==='tool'?'tool':'thinking';task.domain=String(packet.domain||'');
+  if(packet.type==='progress'){task.phase=['tool','reasoning','writing'].includes(packet.phase)?packet.phase:'thinking';task.domain=String(packet.domain||'');
   }else if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);

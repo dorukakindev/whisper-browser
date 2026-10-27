@@ -123,6 +123,9 @@ def _provider_fields(value):
 
 
 def deepinfra_flex_options(base_url):
+    import os
+    if os.environ.get("WHISPER_ASSISTANT_SERVICE_TIER") == "standard":
+        return {}
     from urllib.parse import urlsplit
     try:
         u = urlsplit(str(base_url))

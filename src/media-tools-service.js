@@ -46,7 +46,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,fetchImpl=fetch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -68,6 +68,12 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
   // No network and no startup file selection; only a previously chosen directory is used.
   const firstBackup=setTimeout(()=>void autoBackup(),60000);firstBackup.unref?.();
   const known = id=>{const item=catalogStore().get(id);if(!item)throw Error('Choose a library title first.');return item;};
+  async function reviewItem(event,input){
+    if(!input.discovery)return known(input.itemId);
+    const d=input.discovery;if(!d||!['film','series'].includes(d.kind)||!/^tt\d{7,12}$/.test(d.id||'')||!resolveDiscovery)throw Error('Invalid discovery title.');
+    const result=await resolveDiscovery(event,{kind:d.kind,id:d.id});if(!result?.ok||!result.item||result.item.providerId!==d.id||result.item.kind!==d.kind)throw Error('Discovery title could not be verified.');
+    return {...result.item,imdbId:result.item.providerId};
+  }
   async function health(job) {
     const rows=[], hashes=new Map(), items=catalogStore().list();
     job.phase='inspect';job.hashed=0;job.hashTotal=0;
@@ -122,14 +128,14 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='health-start'){if(scan?.state==='running')return {ok:true,id:scan.id};const job={id:randomUUID(),cancel:new AbortController(),state:'running',done:0,total:0,rows:[]};scan=job;void health(job).catch(e=>{job.state='failed';job.error=e.message;});return {ok:true,id:job.id};}
       if(action==='health-status'||action==='health-stop'){if(scan?.id!==input.id)throw Error('Scan expired.');if(action==='health-stop')scan.cancel.abort();return {ok:true,id:scan.id,state:scan.state,done:scan.done,total:scan.total,phase:scan.phase,hashed:scan.hashed,hashTotal:scan.hashTotal,rows:scan.rows,error:scan.error};}
-      if(action==='reviews-browser'){known(input.itemId);if(!readOpenReviews)throw Error('Browser review reading is unavailable.');const result=await readOpenReviews();return {ok:true,...result,match:require('./letterboxd-reviews').matchFilm(known(input.itemId),result.identity)};}
+      if(action==='reviews-browser'){const item=await reviewItem(event,input);if(!readOpenReviews)throw Error('Browser review reading is unavailable.');const result=await readOpenReviews();return {ok:true,...result,match:require('./letterboxd-reviews').matchFilm(item,result.identity)};}
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
       if(action==='reviews-auto'){
-        const item=known(input.itemId);if(jobs.size)throw Error('A review request is already running.');
+        const item=await reviewItem(event,input);if(jobs.size)throw Error('A review request is already running.');
         const id=text(input.id,80);if(!id)throw Error('Request ID required.');const controller=new AbortController();jobs.set(id,controller);
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
-        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=known(input.itemId);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
+        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
         finally{jobs.delete(id);}
       }
       if(action==='reviews-fetch'){

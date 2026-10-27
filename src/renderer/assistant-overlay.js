@@ -4,6 +4,21 @@
   let opened = false, lastMessages = '', busy = false, pending = null;
   let suggestionKey = '', reviewing = null, snapshot={},onlyPinned=false,pins=[];
   const drafts=new Map();let conversation=null,requestSequence=0;
+  let progressStarted=0,progressTimer=null;
+  function renderProgress(value){
+    const panel=$('agentProgress'),tr=value.locale==='tr';
+    if(!value.busy){panel.hidden=true;progressStarted=0;clearInterval(progressTimer);progressTimer=null;return;}
+    if(!progressStarted){progressStarted=Date.now();const tick=()=>{const seconds=Math.max(0,Math.floor((Date.now()-progressStarted)/1000));$('progressElapsed').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');};tick();progressTimer=setInterval(tick,1000);}
+    const phase=['reasoning','writing','tool','applying'].includes(value.phase)?value.phase:'waiting';
+    panel.hidden=false;panel.dataset.phase=phase;
+    panel.setAttribute('aria-label',tr?'Asistan etkinliği':'Assistant activity');
+    $('progressLabel').textContent=value.activity||(tr?'Yanıt bekleniyor…':'Waiting for a response…');
+    $('progressDetail').textContent=phase==='reasoning'?(tr?'Sağlayıcı değerlendirme sinyali gönderiyor.':'The provider is sending a reasoning signal.'):phase==='tool'?(tr?'Uygulamadaki araçlardan doğrulanmış bilgi alınıyor.':'Checking evidence through application tools.'):phase==='writing'?(tr?'Yanıt geldikçe burada görünür.':'The answer appears as it arrives.'):phase==='applying'?(tr?'İşlem sonucu doğrulanıyor.':'Verifying the application result.'):(tr?'İstek açık; istersen durdurabilirsin.':'The request is active. You can stop it at any time.');
+    const stages=[...panel.querySelectorAll('[data-stage]')];const active=phase==='writing'?2:phase==='tool'||phase==='applying'?1:0;
+    stages.forEach((node,i)=>{node.textContent=(tr?['Bağlantı','Araçlar','Yanıt']:['Connect','Tools','Answer'])[i];node.classList.toggle('active',i===active);});
+  }
+  window.addEventListener('pagehide',()=>clearInterval(progressTimer),{once:true});
+
   const action=(name,text,meta={})=>window.assistant.action(name,text,{sourceToken:snapshot.sourceToken||'',...meta});
   const rememberDraft=()=>{if(conversation===null)return;drafts.delete(conversation);drafts.set(conversation,$('text').value);while(drafts.size>20)drafts.delete(drafts.keys().next().value);};
   $('text').addEventListener('input',rememberDraft);
@@ -67,7 +82,7 @@
     const accent=value.palette?.accent;if(/^#[a-f0-9]{6}$/i.test(accent||'')){const rgb=[1,3,5].map(i=>parseInt(accent.slice(i,i+2),16)/255).map(c=>c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4));document.documentElement.style.setProperty('--accent-text',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#18100b':'#ffffff');}else document.documentElement.style.removeProperty('--accent-text');
     const threadKey=JSON.stringify([value.locale,value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
     $('workspaceError').textContent=value.workspaceError||'';
-    $('agentProgress').textContent=value.busy?value.activity||'':'';
+    renderProgress(value);
     $('webSearch').textContent=value.locale==='tr'?"Web’de araştır":'Search web';$('webSearch').title=value.locale==='tr'?'Sağlayıcının web_search aracını kullanır; ek ücret olabilir.':'Uses provider web_search; additional charges may apply.';$('webSearch').disabled=!!value.busy;
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;

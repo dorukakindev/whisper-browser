@@ -7,3 +7,14 @@ test('Only normal preferences are read; undo refuses later manual edits',async()
 test('Playback commands refuse parked media and use only the existing current browser bridge',async()=>{const h=setup();try{let calls=[];h.w.player={workspaceMode:'browser'};h.w.browserCommand=async(name,value)=>(calls.push({name,value}),{ok:true});h.w.BrowserDubAudioUI={context:()=>({hasMedia:true,visible:false})};await assert.rejects(h.run('playback_control',{operation:'play'}));assert.equal(calls.length,0);h.w.BrowserDubAudioUI.context=()=>({hasMedia:true,visible:true});assert.equal((await h.run('playback_control',{operation:'speed',value:1.25})).status,'completed');assert.equal(calls[0].name,'speed');assert.equal(calls[0].value,1.25);}finally{h.dom.window.close();}});
 
 test('Library pages enumerate all matching IDs without repeats or private fields',async()=>{const h=setup();try{const ids=[];let offset=0;do{const r=await h.run('search_library',{offset});assert.equal(r.offset,offset);assert.equal(r.count,20);ids.push(...r.items.map(i=>i.id));offset=r.nextOffset;}while(offset!==null);assert.equal(ids.length,20);assert.equal(new Set(ids).size,20);await assert.rejects(h.run('search_library',{offset:1.5}));}finally{h.dom.window.close();}});
+
+test('Discovery review loading uses a verified discovery key, returns ten bounded reviews and never adds a library title',async()=>{
+ const h=setup();try{const item={kind:'film',providerId:'tt14173636',title:'The Invite',year:2026};const requests=[];let draft;
+ h.w.api.mediaDiscovery=async r=>{assert.equal(r.action,'detail');return {ok:true,item};};
+ h.w.api.mediaTools=async r=>{requests.push(r);return {ok:true,match:{state:'matched'},reviews:Array.from({length:12},(_,i)=>({id:String(i),author:'Reader',text:'Review '.repeat(160)}))};};
+ h.w.MediaToolsUI={keepReviewSample:(i,r)=>{draft={i,r};}};
+ const result=await h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'});
+ assert.equal(result.status,'completed');assert.equal(result.reviews.length,10);assert.equal(result.reviews[0].truncated,true);assert.equal(requests[0].discovery.id,item.providerId);assert.equal(requests[0].itemId,undefined);assert.equal(draft,undefined);assert(JSON.stringify(result).length<16000);
+ h.w.api.mediaTools=async()=>({ok:true,match:{state:'mismatch'},reviews:[]});await assert.rejects(h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'}),/did not match/);
+ }finally{h.dom.window.close();}
+});
