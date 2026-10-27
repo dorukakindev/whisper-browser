@@ -6497,6 +6497,7 @@ const player = {
   browserLiveAsrStream: null,
   browserLiveAsrCapture: null,
   browserLiveAsrStarting: false,
+  browserLiveAsrStartIntent: null,
   embeddedSubtitleTracks: [],
   playbackPolicy: 'normal',
   learningBaseRate: 1,
@@ -11622,14 +11623,18 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
     }
     const task = (async () => {
       const base64 = await blobToBase64(new Blob([data.pcm]));
+      if (player.browserLiveAsrCapture !== capture) return;
       const result = await window.api.sendBrowserLiveAsrChunk(tabId,
         { base64, offset: data.offset, rate: data.rate, format: 'pcm16', sessionId }).catch((error) => ({ ok: false, error: error.message }));
-      if (!result?.ok) setBrowserSignal(`Canlı Whisper: ${result?.error || 'Ses gönderilemedi.'}`, false);
+      if (player.browserLiveAsrCapture === capture && !result?.ok) setBrowserSignal(`Canlı Whisper: ${result?.error || 'Ses gönderilemedi.'}`, false);
     })();
     capture.pending.add(task);
     task.finally(() => { capture.pending.delete(task); capture.node.port.postMessage({ type: 'ack', id: data.id }); }).catch(() => {});
   };
-  capture.node.onprocessorerror = () => stopBrowserLiveAsrCapture(true, 'Ses işleyicisi durdu; canlı Whisper yeniden başlatılmalı.');
+  capture.node.onprocessorerror = () => {
+    if (player.browserLiveAsrCapture === capture && !capture.stopping)
+      void stopBrowserLiveAsrCapture(true, 'Ses işleyicisi durdu; canlı Whisper yeniden başlatılmalı.');
+  };
   for (const track of stream.getAudioTracks()) track.addEventListener('ended', () => {
     if (player.browserLiveAsrCapture === capture && !capture.stopping) stopBrowserLiveAsrCapture(true, 'Sistem sesi akışı sona erdi.');
   }, { once: true });
@@ -11641,64 +11646,111 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
 }
 
 async function stopBrowserLiveAsrCapture(notifyMain = true, message = 'Canlı Whisper durduruldu.') {
+  const intent = player.browserLiveAsrStartIntent;
+  if (intent) intent.cancelled = true;
   player.browserLiveAsrActive = false;
   const capture = player.browserLiveAsrCapture;
-  if (capture) {
-    if (capture.stopping) return;
-    capture.stopping = true;
-    if (capture.node) {
-      await new Promise((resolve) => {
-        const timeout = setTimeout(resolve, 750);
-        capture.resolveFlush = () => { clearTimeout(timeout); resolve(); };
-        capture.node.port.postMessage({ type: 'flush' });
-      });
-      await Promise.allSettled([...capture.pending]);
-      capture.node.disconnect(); capture.node.port.close();
+  const stream = player.browserLiveAsrStream;
+  const sessionId = capture?.sessionId || intent?.sessionId;
+  if (capture?.stopPromise) return capture.stopPromise;
+  const stop = async () => {
+    if (capture) {
+      capture.stopping = true;
+      try {
+        if (capture.node) {
+          await new Promise((resolve) => {
+            const timeout = setTimeout(resolve, 750);
+            capture.resolveFlush = () => { clearTimeout(timeout); resolve(); };
+            try { capture.node.port.postMessage({ type: 'flush' }); }
+            catch { capture.resolveFlush(); }
+          });
+          // Keep the final accepted chunk drain: stopping is not a discard.
+          await Promise.allSettled([...capture.pending]);
+        }
+      } finally {
+        try { capture.node?.disconnect(); } catch {}
+        try { capture.node?.port.close(); } catch {}
+        try { capture.source?.disconnect(); } catch {}
+        await capture.context.close().catch(() => null);
+        if (player.browserLiveAsrCapture === capture) player.browserLiveAsrCapture = null;
+      }
     }
-    capture.source?.disconnect();
-    await capture.context.close().catch(() => null);
-    if (player.browserLiveAsrCapture === capture) player.browserLiveAsrCapture = null;
-  }
-  for (const track of player.browserLiveAsrStream?.getTracks() || []) track.stop();
-  player.browserLiveAsrStream = null;
-  if (notifyMain) await window.api.stopBrowserLiveAsr?.().catch(() => null);
-  updateBrowserLiveAsrButton(message);
-  setBrowserSignal(message, false);
+    for (const track of stream?.getTracks() || []) track.stop();
+    if (player.browserLiveAsrStream === stream) player.browserLiveAsrStream = null;
+    // A delayed old stop must never terminate a newer backend session.
+    if (notifyMain && sessionId) await window.api.stopBrowserLiveAsr?.(sessionId).catch(() => null);
+    if ((!player.browserLiveAsrCapture || player.browserLiveAsrCapture === capture)
+        && (!player.browserLiveAsrStartIntent || player.browserLiveAsrStartIntent === intent)) {
+      updateBrowserLiveAsrButton(message);
+      setBrowserSignal(message, false);
+    }
+  };
+  const pending = stop();
+  if (capture) capture.stopPromise = pending;
+  return pending;
 }
 
 async function toggleBrowserLiveAsr() {
-  if (player.browserLiveAsrStarting || player.browserLiveAsrCapture?.stopping) return;
-  if (player.browserLiveAsrActive) return stopBrowserLiveAsrCapture(true);
-  const accepted = await openAppDialog({
-    title: 'Sistem sesini canlı yazıya çevir',
-    description: 'Bu özellik yalnız bu oturumda sistem sesini yakalar ve seçili yerel Whisper modeline gönderir. Mikrofon kullanılmaz; durdurduğunuzda yakalama kapanır.',
-    confirmLabel: 'Sistem sesini başlat', intent: 'primary',
-  });
-  if (!accepted) return;
-  player.browserLiveAsrStarting = true;
+  if (player.browserLiveAsrCapture?.stopping) return;
+  if (player.browserLiveAsrActive || player.browserLiveAsrStarting) return stopBrowserLiveAsrCapture(true);
   const tabId = player.browserActiveTabId;
-  const started = await window.api.startBrowserLiveAsr(tabId, {
-    language: $('language')?.value || '', model: $('model')?.value || 'small',
-  }).catch((error) => ({ ok: false, error: error.message }));
-  if (!started?.ok) {
-    player.browserLiveAsrStarting = false;
-    setBrowserSignal(`Canlı Whisper başlatılamadı: ${started?.error || 'bilinmeyen hata'}`, false);
-    return;
-  }
+  const tab = browserTabState(tabId);
+  const source = { generation: tab?.generation, mediaKey: player.mediaKey, url: player.browserPageUrl };
+  const intent = { cancelled: false, sessionId: null };
+  player.browserLiveAsrStartIntent = intent;
+  player.browserLiveAsrStarting = true;
+  const current = () => player.browserLiveAsrStartIntent === intent && !intent.cancelled
+    && player.browserActiveTabId === tabId && browserTabState(tabId) === tab
+    && tab?.generation === source.generation && player.mediaKey === source.mediaKey && player.browserPageUrl === source.url;
+  let acquiredStream = null;
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-    if (tabId !== player.browserActiveTabId) { for (const track of stream.getTracks()) track.stop(); throw new Error('Aktif sekme değişti.'); }
-    for (const track of stream.getVideoTracks()) track.stop();
-    if (!stream.getAudioTracks().length) throw new Error('Sistem sesi paylaşılmadı.');
-    player.browserLiveAsrStream = stream;
+    const accepted = await openAppDialog({
+      title: 'Sistem sesini canlı yazıya çevir',
+      description: 'Bu özellik yalnız bu oturumda sistem sesini yakalar ve seçili yerel Whisper modeline gönderir. Mikrofon kullanılmaz; durdurduğunuzda yakalama kapanır.',
+      confirmLabel: 'Sistem sesini başlat', intent: 'primary',
+    });
+    if (!accepted || !current()) return;
+    updateBrowserLiveAsrButton('Canlı Whisper hazırlanıyor; iptal etmek için tıklayın.');
+    const started = await window.api.startBrowserLiveAsr(tabId, {
+      language: $('language')?.value || '', model: $('model')?.value || 'small',
+    }).catch((error) => ({ ok: false, error: error.message }));
+    if (!started?.ok) {
+      if (current()) setBrowserSignal(`Canlı Whisper başlatılamadı: ${started?.error || 'bilinmeyen hata'}`, false);
+      return;
+    }
+    intent.sessionId = started.sessionId;
+    if (!current()) { await window.api.stopBrowserLiveAsr?.(started.sessionId).catch(() => null); return; }
+    acquiredStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    if (!current()) {
+      for (const track of acquiredStream.getTracks()) track.stop();
+      acquiredStream = null;
+      await window.api.stopBrowserLiveAsr?.(started.sessionId).catch(() => null);
+      return;
+    }
+    for (const track of acquiredStream.getVideoTracks()) track.stop();
+    if (!acquiredStream.getAudioTracks().length) throw new Error('Sistem sesi paylaşılmadı.');
+    player.browserLiveAsrStream = acquiredStream;
     player.browserLiveAsrActive = true;
     updateBrowserLiveAsrButton('Sistem sesi yakalanıyor; durdurmak için tıklayın.');
     setBrowserSignal(`Canlı Whisper başlatıldı · ${started.model}; ilk cümle bekleniyor…`, true);
-    await startBrowserLiveAsrCapture(stream, tabId, started.sessionId);
+    await startBrowserLiveAsrCapture(acquiredStream, tabId, started.sessionId);
+    if (!current() && player.browserLiveAsrStartIntent === intent
+        && player.browserLiveAsrCapture?.sessionId === started.sessionId) await stopBrowserLiveAsrCapture(true);
   } catch (error) {
-    await stopBrowserLiveAsrCapture(true);
-    setBrowserSignal(`Sistem sesi başlatılamadı: ${friendlySystemError(error.message)}`, false);
-  } finally { player.browserLiveAsrStarting = false; }
+    const owned = player.browserLiveAsrStartIntent === intent;
+    const report = current();
+    if (acquiredStream && player.browserLiveAsrStream !== acquiredStream)
+      for (const track of acquiredStream.getTracks()) track.stop();
+    if (owned) await stopBrowserLiveAsrCapture(true);
+    else if (intent.sessionId) await window.api.stopBrowserLiveAsr?.(intent.sessionId).catch(() => null);
+    if (report) setBrowserSignal(`Sistem sesi başlatılamadı: ${friendlySystemError(error.message)}`, false);
+  } finally {
+    if (player.browserLiveAsrStartIntent === intent) {
+      player.browserLiveAsrStarting = false;
+      player.browserLiveAsrStartIntent = null;
+      updateBrowserLiveAsrButton();
+    }
+  }
 }
 
 function scheduleActiveBrowserTrackRefresh(track, attempt = 0) {
@@ -14592,11 +14644,11 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   // ASR tek, uygulama-geneli bir kaynaktır. Durdurma olayı kapanmış/eski bir
   // sekmenin kimliğini taşısa bile aktif-sekme kapısında kaybolmamalı.
   if (event.type === 'live-asr-state' && event.active === false) {
-    if (player.browserLiveAsrActive) {
-      stopBrowserLiveAsrCapture(false, event.message || 'Canlı Whisper durduruldu.');
-    } else if (event.message) {
-      updateBrowserLiveAsrButton(event.message);
-    }
+    const ownedSession = player.browserLiveAsrCapture?.sessionId || player.browserLiveAsrStartIntent?.sessionId;
+    if (event.sessionId && ownedSession && event.sessionId !== ownedSession) return;
+    if (player.browserLiveAsrActive || player.browserLiveAsrStarting || player.browserLiveAsrCapture) {
+      void stopBrowserLiveAsrCapture(false, event.message || 'Canlı Whisper durduruldu.');
+    } else if (event.message) updateBrowserLiveAsrButton(event.message);
     return;
   }
   if (event.tabId) {

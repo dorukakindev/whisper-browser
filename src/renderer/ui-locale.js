@@ -878,6 +878,8 @@
     ['Unutma işlemi dosyaları silmez. Yeniden altyazı seçtiğinizde yeni tercihler kaydedilir.', 'Forgetting preferences does not delete files. New choices will be saved.'],
     ['Sayfayı arşivle', 'Archive page'],
     ['Canlı Whisper', 'Live Whisper'],
+    ['Canlı Whisper’ı iptal et', 'Cancel Live Whisper'],
+    ['Canlı Whisper hazırlanıyor; iptal etmek için tıklayın.', 'Live Whisper is starting; click to cancel.'],
     ['Altyazıyı yükle', 'Load subtitles'],
     ['İki izi yükle', 'Load both tracks'],
     ['Tüm altyazıyı getir', 'Fetch full subtitles'],

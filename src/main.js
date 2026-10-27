@@ -9599,7 +9599,7 @@ function stopBrowserLiveAsr(reason = 'Canlı Whisper durduruldu.') {
     job.drainTimer = setTimeout(checkDrain, 15000); job.drainTimer.unref?.();
   };
   job.drainTimer = setTimeout(checkDrain, 15000); job.drainTimer.unref?.();
-  sendBrowserEvent(job.tab, { type: 'live-asr-state', active: false, message: reason });
+  sendBrowserEvent(job.tab, { type: 'live-asr-state', active: false, sessionId: job.id, message: reason });
   return true;
 }
 
@@ -9642,7 +9642,7 @@ function startBrowserLiveAsr(tab, options = {}) {
     if (['ready', 'segment', 'chunk_done'].includes(event.type)) job.lastProgressAt = Date.now();
     if (event.type === 'ready') {
       job.ready = true;
-      if (!job.stopping) sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: true,
+      if (!job.stopping) sendBrowserEvent(tab, { type: 'live-asr-state', sessionId: job.id, active: true, ready: true,
         message: `Canlı Whisper hazır · ${event.model}` });
     } else if (event.type === 'segment' && isCurrentBrowserContext(context)) {
       if (!Number.isFinite(event.start) || !Number.isFinite(event.end)
@@ -9772,7 +9772,7 @@ function startBrowserLiveAsr(tab, options = {}) {
           tab.acquisitionPlan?.finish('live-asr', { success: false, reason: `Canlı Whisper başlatılamadı: ${error.message}` });
           if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
           publishBrowserDiagnostics();
-          sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
+          sendBrowserEvent(tab, { type: 'live-asr-state', sessionId: job.id, active: false,
             message: `Canlı Whisper başlatılamadı: ${error.message}` });
         }
         return;
@@ -9780,7 +9780,7 @@ function startBrowserLiveAsr(tab, options = {}) {
       browserLiveAsr = null;
       if (!job.stopping) {
         const detail = job.errorTail.trim().split(/\r?\n/).filter(Boolean).pop();
-        sendBrowserEvent(tab, { type: 'live-asr-state', active: false,
+        sendBrowserEvent(tab, { type: 'live-asr-state', sessionId: job.id, active: false,
           message: detail ? `Canlı Whisper süreci sona erdi: ${detail}` : 'Canlı Whisper süreci sona erdi.' });
       }
     });
@@ -9791,7 +9791,7 @@ function startBrowserLiveAsr(tab, options = {}) {
   tab.acquisitionPlan?.start('live-asr');
   if (browserDiagnostics) browserDiagnostics.acquisition = tab.acquisitionPlan?.snapshot() || null;
   publishBrowserDiagnostics();
-  sendBrowserEvent(tab, { type: 'live-asr-state', active: true, ready: false, message: `Canlı Whisper modeli yükleniyor · ${model}` });
+  sendBrowserEvent(tab, { type: 'live-asr-state', sessionId: job.id, active: true, ready: false, message: `Canlı Whisper modeli yükleniyor · ${model}` });
   return { ok: true, model, device, sessionId: job.id };
 }
 
@@ -17757,8 +17757,10 @@ ipcMain.handle('browser:liveAsr:chunk', async (event, request) => {
   }
 });
 
-ipcMain.handle('browser:liveAsr:stop', async (event) => {
+ipcMain.handle('browser:liveAsr:stop', async (event, input) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  if (input?.sessionId !== undefined && (typeof input.sessionId !== 'string' || !input.sessionId || input.sessionId !== browserLiveAsr?.id))
+    return { ok: false, stale: true };
   return { ok: stopBrowserLiveAsr() };
 });
 
