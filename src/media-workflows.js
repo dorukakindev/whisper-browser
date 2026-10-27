@@ -418,14 +418,14 @@ function registerMediaWorkflows({
         })) || [];
       // Missing verification is never a silent pass. Offer the full, playable
       // chapter as an explicit listen-and-approve review group.
-      if (!c.groups.length) {
+      if (!c.groups.length || output.qualityUnavailable === true || output.qualityIncomplete === true) {
         const duration = require('./wav-duration').wavDuration(target);
         c.groups=[{text:c.text,start:0,end:duration,key:'0',status:'review'}];
         c.qualityMissing=true;
       } else c.qualityMissing=false;
       c.status =
-        output.quality?.groups?.length &&
-        output.quality.groups.every((g) => g.status === "ready")
+        c.groups.length &&
+        c.groups.every((g) => g.status === "ready")
           ? "ready"
           : "review";
       c.voiceSettings = output.settings || {};
@@ -1094,6 +1094,7 @@ function registerMediaWorkflows({
               "Text or plan changed; preview again / Metin veya plan değişti; yeniden önizleyin.",
             );
           const audioMatchesText = c.textHash === hash(c.text);
+          const retryWholeChapter = audioMatchesText && c.qualityMissing === true;
           let retryGroups;
           if (r.retryGroup !== undefined) {
             const retry = r.retryGroup;
@@ -1111,7 +1112,7 @@ function registerMediaWorkflows({
             // An edited chapter is rechunked. Its old ordinal can now name an
             // unrelated passage. Let the fresh text/cache identities determine
             // the changed audio, rather than forcing an obsolete group number.
-            retryGroups = audioMatchesText ? [retry.key] : [];
+            retryGroups = audioMatchesText && !retryWholeChapter ? [retry.key] : [];
           }
           const srt = path.join(
             path.dirname(file(d.id)),
@@ -1131,6 +1132,7 @@ function registerMediaWorkflows({
           return {
             ok: true,
             replanned: r.retryGroup !== undefined && !audioMatchesText,
+            retryWholeChapter,
             request: {
               id: jobId,
               srt,
@@ -1142,7 +1144,7 @@ function registerMediaWorkflows({
               verification: "detailed",
               keepEngine: true,
               forceGroups:
-                retryGroups ??
+                (retryWholeChapter ? [] : retryGroups) ??
                 (c.status === "review" && audioMatchesText
                   ? (c.groups || [])
                       .filter(

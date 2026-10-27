@@ -40,9 +40,9 @@ test("switching books resets unspecified voice settings instead of inheriting th
 });
 
 test("chapter regeneration forces its complete fresh plan; group regeneration forces only that group", async () => {
-  for (const kind of ["chapter", "group", "edited-group"]) {
+  for (const kind of ["chapter", "group", "edited-group", "missing-report", "missing-report-group"]) {
     const force = kind === "chapter",
-      edited = kind === "edited-group";
+      edited = kind === "edited-group", missing = kind.startsWith("missing-report"), hasRetry = !force && kind !== "missing-report";
     const retry = { key: "3", output: "done.wav" };
     let subscriber,
       request,
@@ -71,14 +71,15 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       call: async (name, value) => {
         if (name !== "book-prepare") return { project };
         assert.deepEqual(value.preview, preview);
-        assert.deepEqual(value.retryGroup, force ? undefined : retry);
+        assert.deepEqual(value.retryGroup, hasRetry ? retry : undefined);
         return {
           replanned: edited,
+          retryWholeChapter: missing,
           request: {
             id: "chapter-job",
             srt: "chapter.srt",
             narration: true,
-            forceGroups: edited || force ? [] : ["3"],
+            forceGroups: edited || force || missing ? [] : ["3"],
           },
         };
       },
@@ -106,10 +107,10 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
     };
     vm.createContext(ctx);
     vm.runInContext(source.slice(start, end), ctx);
-    await ctx.generate(force, force ? null : retry);
+    await ctx.generate(force, hasRetry ? retry : null);
     assert.deepEqual(
       Array.from(request.forceGroups),
-      force ? ["1,2", "3"] : edited ? [] : ["3"],
+      force || missing ? ["1,2", "3"] : edited ? [] : ["3"],
     );
     assert.equal(request.narration, true);
     assert.equal(
@@ -117,7 +118,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       "book-reference",
       "book reference is sent with this job, without changing the app default",
     );
-    assert.equal(plans, force ? 1 : 0);
+    assert.equal(plans, force || missing ? 1 : 0);
     assert.equal(removed, 1);
     assert.equal(ctx.busy, false);
     assert.equal(ctx.job, null);
