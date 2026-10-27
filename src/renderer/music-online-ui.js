@@ -5,7 +5,7 @@
  function mount(root){
   let generation=0,disposed=false,playing=null;
   const api=async(op,args={})=>{const r=await window.api.musicAnalysis({action:'online',op,...args});if(!r?.ok)throw Error(r?.error||t('Catalog request failed.','Katalog isteği başarısız.'));return r;};
-  const button=(label,fn,cls='ml-button')=>{const n=el('button',cls,label);n.type='button';n.addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>note(e.message,true)));return n;};
+  const button=(label,fn,cls='ml-button')=>{const n=el('button',cls,label);n.type='button';n.addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>{if(e.name!=='AbortError')note(e.message,true);}));return n;};
   const heading=el('h2','',t('Discover beyond your library','Arşivinin dışında keşfet'));
   const description=el('p','ml-search-explanation',t('Choose the correct recording, then discover its artist radio. These are catalog recommendations; their audio has not been compared with CLAP.','Doğru kaydı seç, ardından sanatçı radyosundan keşfet. Bunlar katalog önerileridir; sesleri CLAP ile karşılaştırılmadı.'));
   const form=el('form','ml-online-search'),query=el('input');query.placeholder=t('Song and artist','Şarkı ve sanatçı');query.maxLength=200;query.setAttribute('aria-label',query.placeholder);query.required=true;
